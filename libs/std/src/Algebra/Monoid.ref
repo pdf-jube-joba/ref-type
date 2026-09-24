@@ -1,0 +1,76 @@
+/* Algebraic structures keep Set-valued data separate from Prop-valued laws. */
+\import std.Logic[].Law[] \as Law;
+
+\record RawMonoid[Carrier: \Set]: \Set := {
+  unit: Carrier,
+  op: Carrier -> Carrier -> Carrier,
+};
+
+\record MonoidLaws[Carrier: \Set, s: RawMonoid[Carrier]]: \Prop := {
+  leftIdentity: Law.LeftUnital Carrier (#op{s}) (#unit{s}),
+  rightIdentity: Law.RightUnital Carrier (#op{s}) (#unit{s}),
+  associative: Law.Associative Carrier (#op{s}),
+};
+
+\definition monoidLawsIntro (Carrier: \Set) (s: RawMonoid[Carrier])
+  (left: \forall (x: Carrier) -> #op{s} (#unit{s}) x = x)
+  (right: \forall (x: Carrier) -> #op{s} x (#unit{s}) = x)
+  (assoc: \forall (x, y, z: Carrier) ->
+    #op{s} (#op{s} x y) z = #op{s} x (#op{s} y z)):
+  MonoidLaws[Carrier, s] :=
+    MonoidLaws[Carrier, s]::# left right assoc;
+
+\definition MonoidSet (Carrier: \Set): \Pow (RawMonoid[Carrier]) :=
+  { s : RawMonoid[Carrier] \where MonoidLaws[Carrier, s] };
+
+\definition Monoid (Carrier: \Set): \Set :=
+  \Cast[RawMonoid[Carrier]] (MonoidSet Carrier);
+
+\definition raw (Carrier: \Set) (s: Monoid Carrier): RawMonoid[Carrier] := s;
+
+\definition laws (Carrier: \Set) (s: Monoid Carrier): MonoidLaws[Carrier, s] :=
+  \bysub(RawMonoid[Carrier], MonoidSet Carrier, s);
+
+\definition leftIdentity (Carrier: \Set) (s: Monoid Carrier) (x: Carrier):
+  #op{(raw Carrier s)} (#unit{(raw Carrier s)}) x = x :=
+  #leftIdentity{(laws Carrier s)} x;
+
+\definition rightIdentity (Carrier: \Set) (s: Monoid Carrier) (x: Carrier):
+  #op{(raw Carrier s)} x (#unit{(raw Carrier s)}) = x :=
+  #rightIdentity{(laws Carrier s)} x;
+
+\definition associative (Carrier: \Set) (s: Monoid Carrier) (x, y, z: Carrier):
+  #op{(raw Carrier s)} (#op{(raw Carrier s)} x y) z =
+    #op{(raw Carrier s)} x (#op{(raw Carrier s)} y z) :=
+  #associative{(laws Carrier s)} x y z;
+
+\record CommutativeMonoidLaws[Carrier: \Set, s: RawMonoid[Carrier]]: \Prop := {
+  monoid: MonoidLaws[Carrier, s],
+  commutative: Law.Commutative Carrier (#op{s}),
+};
+
+\definition commutativeMonoidLawsIntro (Carrier: \Set) (s: RawMonoid[Carrier])
+  (base: MonoidLaws[Carrier, s])
+  (comm: \forall (x, y: Carrier) -> #op{s} x y = #op{s} y x):
+  CommutativeMonoidLaws[Carrier, s] :=
+    CommutativeMonoidLaws[Carrier, s]::# base comm;
+
+\definition CommutativeMonoidSet (Carrier: \Set): \Pow (RawMonoid[Carrier]) :=
+  { s : RawMonoid[Carrier] \where CommutativeMonoidLaws[Carrier, s] };
+
+\definition CommutativeMonoid (Carrier: \Set): \Set :=
+  \Cast[RawMonoid[Carrier]] (CommutativeMonoidSet Carrier);
+
+\definition commutativeLaws (Carrier: \Set) (s: CommutativeMonoid Carrier):
+  CommutativeMonoidLaws[Carrier, s] :=
+    \bysub(RawMonoid[Carrier], CommutativeMonoidSet Carrier, s);
+
+\definition asMonoid (Carrier: \Set) (s: CommutativeMonoid Carrier): Monoid Carrier :=
+    \into[RawMonoid[Carrier]](s, MonoidSet Carrier) \by {
+      #monoid{(commutativeLaws Carrier s)}
+    };
+
+\definition commutative (Carrier: \Set) (s: CommutativeMonoid Carrier) (x, y: Carrier):
+  #op{(raw Carrier (asMonoid Carrier s))} x y =
+    #op{(raw Carrier (asMonoid Carrier s))} y x :=
+  #commutative{(commutativeLaws Carrier s)} x y;

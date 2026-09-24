@@ -1,0 +1,176 @@
+/* Constructor equations and algebraic laws for finite lists. */
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import N.Laws[] \as NL;
+
+\definition lengthNil: length A List[A]::nil = N.Nat^::zero := \refl(N.Nat^::zero);
+
+\definition lengthCons (head: A) (tail: List[A]):
+  length A (List[A]::cons head tail) = N.Nat^::succ (length A tail) :=
+  \refl(N.Nat^::succ (length A tail));
+
+\definition mapNil (B: \Set) (f: A -> B):
+  map A B f List[A]::nil = List[B]::nil := \refl(List[B]::nil);
+
+\definition mapCons (B: \Set) (f: A -> B) (head: A) (tail: List[A]):
+  map A B f (List[A]::cons head tail) = List[B]::cons (f head) (map A B f tail) :=
+  \refl(List[B]::cons (f head) (map A B f tail));
+
+\definition foldrNil (B: \Set) (f: A -> B -> B) (initial: B):
+  foldr A B f initial List[A]::nil = initial := \refl(initial);
+
+\definition foldrCons (B: \Set) (f: A -> B -> B) (initial: B) (head: A) (tail: List[A]):
+  foldr A B f initial (List[A]::cons head tail) = f head (foldr A B f initial tail) :=
+  \refl(f head (foldr A B f initial tail));
+
+\definition foldlNil (B: \Set) (f: B -> A -> B) (initial: B):
+  foldl A B f initial List[A]::nil = initial := \refl(initial);
+
+\definition foldlCons (B: \Set) (f: B -> A -> B) (initial: B) (head: A) (tail: List[A]):
+  foldl A B f initial (List[A]::cons head tail) = foldl A B f (f initial head) tail :=
+  \refl(foldl A B f (f initial head) tail);
+
+\definition appendNilLeft (ys: List[A]): append A List[A]::nil ys = ys := \refl(ys);
+
+\definition appendCons (head: A) (tail, ys: List[A]):
+  append A (List[A]::cons head tail) ys = List[A]::cons head (append A tail ys) :=
+  \refl(List[A]::cons head (append A tail ys));
+
+\definition appendNilRight: \forall (xs: List[A]) -> append A xs List[A]::nil = xs :=
+  \induction (xs: List[A]) \return append A xs List[A]::nil = xs \with {
+    | nil => (\refl(List[A]::nil))
+    | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+      \fun (ih: append A tail List[A]::nil = tail) =>
+        congr!{List[A] List[A]} (List[A]::cons head) _ _ ih)
+    };
+
+\definition appendAssoc: \forall (xs, ys, zs: List[A]) ->
+  append A (append A xs ys) zs = append A xs (append A ys zs) :=
+  \induction (xs: List[A]) \return \forall (ys, zs: List[A]) ->
+      append A (append A xs ys) zs = append A xs (append A ys zs) \with {
+    | nil => (\fun (ys, zs: List[A]) => \refl(append A ys zs))
+    | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+      \fun (ih: \forall (ys, zs: List[A]) ->
+        append A (append A tail ys) zs = append A tail (append A ys zs)) =>
+      \fun (ys, zs: List[A]) =>
+        congr!{List[A] List[A]} (List[A]::cons head) _ _ (ih ys zs))
+    };
+
+\definition lengthAppend: \forall (xs, ys: List[A]) ->
+  length A (append A xs ys) = N.add^ (length A xs) (length A ys) :=
+  \induction (xs: List[A]) \return \forall (ys: List[A]) ->
+      length A (append A xs ys) = N.add^ (length A xs) (length A ys) \with {
+    | nil => (\fun (ys: List[A]) => sym!{N.Nat^} _ _ (NL.addZeroLeft (length A ys)))
+    | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+      \fun (ih: \forall (ys: List[A]) ->
+        length A (append A tail ys) = N.add^ (length A tail) (length A ys)) =>
+      \fun (ys: List[A]) =>
+        trans!{N.Nat^} _ _ _
+          (congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ (ih ys))
+          (sym!{N.Nat^} _ _ (NL.addSuccLeft (length A tail) (length A ys))))
+    };
+
+\definition mapIdentity: \forall (xs: List[A]) -> map A A (\fun (element: A) => element) xs = xs :=
+  \induction (xs: List[A]) \return map A A (\fun (element: A) => element) xs = xs \with {
+    | nil => (\refl(List[A]::nil))
+    | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+      \fun (ih: map A A (\fun (element: A) => element) tail = tail) =>
+        congr!{List[A] List[A]} (List[A]::cons head) _ _ ih)
+    };
+
+\module Mapping(B: \Set) {
+  \definition lengthMap (f: A -> B): \forall (xs: List[A]) ->
+    length B (map A B f xs) = length A xs :=
+    \induction (xs: List[A]) \return length B (map A B f xs) = length A xs \with {
+      | nil => (\refl(N.Nat^::zero))
+      | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+        \fun (ih: length B (map A B f tail) = length A tail) =>
+          congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ ih)
+      };
+
+  \definition mapAppend (f: A -> B): \forall (xs, ys: List[A]) ->
+    map A B f (append A xs ys) = append B (map A B f xs) (map A B f ys) :=
+    \induction (xs: List[A]) \return \forall (ys: List[A]) ->
+        map A B f (append A xs ys) = append B (map A B f xs) (map A B f ys) \with {
+      | nil => (\fun (ys: List[A]) => \refl(map A B f ys))
+      | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+        \fun (ih: \forall (ys: List[A]) ->
+          map A B f (append A tail ys) = append B (map A B f tail) (map A B f ys)) =>
+        \fun (ys: List[A]) =>
+          congr!{List[B] List[B]} (List[B]::cons (f head)) _ _ (ih ys))
+      };
+
+  \module Composition(C: \Set) {
+    \definition mapCompose (f: A -> B) (g: B -> C): \forall (xs: List[A]) ->
+      map B C g (map A B f xs) = map A C (\fun (element: A) => g (f element)) xs :=
+      \induction (xs: List[A]) \return
+          map B C g (map A B f xs) = map A C (\fun (element: A) => g (f element)) xs \with {
+        | nil => (\refl(List[C]::nil))
+        | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+          \fun (ih: map B C g (map A B f tail) =
+            map A C (\fun (element: A) => g (f element)) tail) =>
+            congr!{List[C] List[C]} (List[C]::cons (g (f head))) _ _ ih)
+        };
+  }
+}
+
+\module Folding(B: \Set) {
+  \definition foldrAppend (f: A -> B -> B) (initial: B): \forall (xs, ys: List[A]) ->
+    foldr A B f initial (append A xs ys) = foldr A B f (foldr A B f initial ys) xs :=
+    \induction (xs: List[A]) \return \forall (ys: List[A]) ->
+        foldr A B f initial (append A xs ys) = foldr A B f (foldr A B f initial ys) xs \with {
+      | nil => (\fun (ys: List[A]) => \refl(foldr A B f initial ys))
+      | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+        \fun (ih: \forall (ys: List[A]) ->
+          foldr A B f initial (append A tail ys) = foldr A B f (foldr A B f initial ys) tail) =>
+        \fun (ys: List[A]) => congr!{B B} (f head) _ _ (ih ys))
+      };
+
+}
+
+\definition reverseNil: reverse A List[A]::nil = List[A]::nil := \refl(List[A]::nil);
+
+\definition reverseCons (head: A) (tail: List[A]):
+  reverse A (List[A]::cons head tail) =
+    append A (reverse A tail) (List[A]::cons head List[A]::nil) :=
+  \refl(append A (reverse A tail) (List[A]::cons head List[A]::nil));
+
+\definition reverseAppend: \forall (xs, ys: List[A]) ->
+  reverse A (append A xs ys) = append A (reverse A ys) (reverse A xs) :=
+  \induction (xs: List[A]) \return \forall (ys: List[A]) ->
+      reverse A (append A xs ys) = append A (reverse A ys) (reverse A xs) \with {
+    | nil => (\fun (ys: List[A]) => sym!{List[A]} _ _ (appendNilRight (reverse A ys)))
+    | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+      \fun (ih: \forall (ys: List[A]) ->
+        reverse A (append A tail ys) = append A (reverse A ys) (reverse A tail)) =>
+      \fun (ys: List[A]) =>
+        trans!{List[A]} _ _ _
+          (congr!{List[A] List[A]}
+            (\fun (rest: List[A]) => append A rest (List[A]::cons head List[A]::nil)) _ _ (ih ys))
+          (appendAssoc (reverse A ys) (reverse A tail) (List[A]::cons head List[A]::nil)))
+    };
+
+\definition reverseInvolutive: \forall (xs: List[A]) -> reverse A (reverse A xs) = xs :=
+  \induction (xs: List[A]) \return reverse A (reverse A xs) = xs \with {
+    | nil => (\refl(List[A]::nil))
+    | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+      \fun (ih: reverse A (reverse A tail) = tail) =>
+        trans!{List[A]} _ _ _
+          (reverseAppend (reverse A tail) (List[A]::cons head List[A]::nil))
+          (congr!{List[A] List[A]} (List[A]::cons head) _ _ ih))
+    };
+
+\definition lengthReverse: \forall (xs: List[A]) -> length A (reverse A xs) = length A xs :=
+  \induction (xs: List[A]) \return length A (reverse A xs) = length A xs \with {
+    | nil => (\refl(N.Nat^::zero))
+    | cons => (\fun (head: A) => \fun (tail: List[A]) =>
+      \fun (ih: length A (reverse A tail) = length A tail) =>
+        trans!{N.Nat^} _ _ _
+          (lengthAppend (reverse A tail) (List[A]::cons head List[A]::nil))
+          (trans!{N.Nat^} _ _ _
+            (congr2!{N.Nat^ N.Nat^ N.Nat^} N.add^ _ _ _ _ ih (\refl(N.Nat^::succ N.Nat^::zero)))
+            (NL.addSuccRight (length A tail) N.Nat^::zero)))
+    };

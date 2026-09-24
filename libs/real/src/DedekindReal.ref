@@ -1,0 +1,177 @@
+/*
+ * Constructive real numbers as located, rounded Dedekind cuts.
+ *
+ * The rational carrier and its strict order come from Arithmetic/Rat.ref.  The carrier
+ * is the positive-denominator representative type; FractionEq records the
+ * equality that the remaining rational lemmas must respect.
+ */
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Arithmetic[].Rat[] \as Rational;
+\import Rational.Fractions[] \as RationalFractions;
+\import RationalFractions.Operations[] \as RationalOperations;
+\use Logic.not;
+\use Logic.and;
+\use Logic.or;
+
+  \definition Rat: \Set := RationalFractions.Fraction;
+
+  \definition lt (x, y: Rat): \Prop := RationalFractions.lt x y;
+
+  \definition addRat (x, y: Rat): Rat := RationalOperations.add x y;
+
+  \definition negRat (x: Rat): Rat := RationalOperations.neg x;
+
+  \definition zeroRat: Rat := RationalFractions.zero;
+
+  \definition oneRat: Rat := RationalFractions.one;
+
+  \definition mulRat (x, y: Rat): Rat := RationalOperations.mul x y;
+
+  /* Membership in a rational lower set. */
+  \definition In (L: \Pow Rat) (q: Rat): \Prop := \In[Rat] L q;
+
+  /* A lower set is inhabited and proper. */
+  \definition Inhabited (L: \Pow Rat): \Prop :=
+      \exists { q : Rat \where In L q };
+
+  \definition Proper (L: \Pow Rat): \Prop :=
+      \exists { q : Rat \where not!{{ In L q }} };
+
+  /* It is downward closed and has no greatest member. */
+  \definition Lower (L: \Pow Rat): \Prop :=
+      \forall (p, q: Rat) -> lt p q -> In L q -> In L p;
+
+  \definition Rounded (L: \Pow Rat): \Prop :=
+      \forall (p: Rat) -> In L p ->
+        \exists { q : Rat \where and!{{ In L q } { lt p q }} };
+
+  /* Locatedness is the constructive replacement for deciding membership. */
+  \definition Located (L: \Pow Rat): \Prop :=
+      \forall (p, q: Rat) -> lt p q -> or!{{ In L p } { not!{{ In L q }} }};
+
+  /* Membership must not depend on the chosen fraction representative. */
+  \definition RespectsFractionEq (L: \Pow Rat): \Prop :=
+      \forall (p, q: Rat) ->
+        RationalFractions.FractionEq p q -> In L p -> In L q;
+
+  \definition IsCut (L: \Pow Rat): \Prop :=
+      and!{{ Inhabited L } { Proper L } { Lower L }
+        { Rounded L } { Located L } { RespectsFractionEq L }};
+
+  /* Real is the refinement of rational lower sets by the cut laws. */
+  \definition CutSet: \Pow (\Pow Rat) :=
+    { L : \Pow Rat \where IsCut L };
+
+  \definition Real: \Set :=
+    \Cast[\Pow Rat] CutSet;
+
+  \definition cutProperty (x: Real): IsCut x :=
+    \bysub(\Pow Rat, CutSet, x);
+
+  \definition cutInhabited (x: Real): Inhabited x :=
+    #left{(cutProperty x)};
+  \definition cutProper (x: Real): Proper x :=
+    #left{(#right{(cutProperty x)})};
+  \definition cutLower (x: Real): Lower x :=
+    #left{(#right{(#right{(cutProperty x)})})};
+  \definition cutRounded (x: Real): Rounded x :=
+    #left{(#right{(#right{(#right{(cutProperty x)})})})};
+  \definition cutLocated (x: Real): Located x :=
+    #left{(#right{(#right{(#right{(#right{(cutProperty x)})})})})};
+  \definition cutRespects (x: Real): RespectsFractionEq x :=
+    #right{(#right{(#right{(#right{(#right{(cutProperty x)})})})})};
+
+
+  /* A real weakens to its underlying rational lower set. */
+  \definition mem (x: Real) (q: Rat): \Prop := In x q;
+
+  \definition underlying (x: Real): \Pow Rat := x;
+
+  /* Inclusion is available without any extensionality principle. */
+  \definition Le (x, y: Real): \Prop := \forall (q: Rat) -> mem x q -> mem y q;
+
+  \definition Eq (x, y: Real): \Prop := x = y;
+
+  \definition leRefl (x: Real): Le x x := \fun (q: Rat) => \fun (qx: mem x q) => qx;
+
+  \definition leTrans (x, y, z: Real) (xy: Le x y) (yz: Le y z): Le x z :=
+      \fun (q: Rat) => \fun (qx: mem x q) => yz q (xy q qx);
+
+  \definition leReplaceLeft (x, x2, y: Real) (same: x = x2)
+    (xy: Le x y): Le x2 y :=
+    \idelim(x = x2 \with z: Real => Le z y) \by { base: xy, equality: same };
+
+  \definition leReplaceRight (x, y, y2: Real) (same: y = y2)
+    (xy: Le x y): Le x y2 :=
+    \idelim(y = y2 \with z: Real => Le x z) \by { base: xy, equality: same };
+
+  \definition leReplace (x, x2, y, y2: Real)
+    (left: x = x2) (right: y = y2) (xy: Le x y): Le x2 y2 :=
+    leReplaceRight x2 y y2 right (leReplaceLeft x x2 y left xy);
+
+  /* Kernel equality of cuts follows from the trusted subset extensionality. */
+  \definition eqByExt (x, y: Real) (xy: Le x y) (yx: Le y x): Eq x y :=
+      \axiom:setext(underlying x, underlying y, xy, yx);
+
+  \definition leAntisym (x, y: Real) (xy: Le x y) (yx: Le y x): x = y :=
+      eqByExt x y xy yx;
+
+
+  \definition Lt (x, y: Real): \Prop :=
+      \exists { q : Rat \where and!{{ not!{{ mem x q }} } { mem y q }} };
+
+  \definition ltReplaceLeft (x, x2, y: Real) (same: x = x2)
+    (xy: Lt x y): Lt x2 y :=
+    \idelim(x = x2 \with z: Real => Lt z y) \by { base: xy, equality: same };
+
+  \definition ltReplaceRight (x, y, y2: Real) (same: y = y2)
+    (xy: Lt x y): Lt x y2 :=
+    \idelim(y = y2 \with z: Real => Lt x z) \by { base: xy, equality: same };
+
+  \definition ltIrrefl (x: Real): not!{{ Lt x x }} := \fun (xx: Lt x x) =>
+      \take (q: \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem x r }} } { mem x r }} })) =>
+          (\fun (h: Logic.And[not!{{ mem x q }}, mem x q]) =>
+            (#left{h}) (#right{h}))
+          (\bysub(
+            Rat, { r : Rat \where and!{{ not!{{ mem x r }} } { mem x r }} }, q))
+      \by { xx };
+
+  \definition ltNotLeReverse (x, y: Real) (xy: Lt x y): not!{{ Le y x }} := \fun (yx: Le y x) =>
+      \take (q: \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem x r }} } { mem y r }} })) =>
+          (\fun (h: Logic.And[not!{{ mem x q }}, mem y q]) =>
+            (#left{h}) (yx q (#right{h})))
+          (\bysub(
+            Rat, { r : Rat \where and!{{ not!{{ mem x r }} } { mem y r }} }, q))
+      \by { xy };
+
+  \definition ltLeTrans (x, y, z: Real) (xy: Lt x y) (yz: Le y z): Lt x z :=
+      \take (q: \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem x r }} } { mem y r }} })) =>
+        \exact(
+          \into[Rat](q, { r : Rat \where and!{{ not!{{ mem x r }} } { mem z r }} }) \by { (\fun (h: Logic.And[not!{{ mem x q }}, mem y q]) =>
+              Logic.And[not!{{ mem x q }}, mem z q]::# (#left{h}) (yz q (#right{h})))
+            (\bysub(
+              Rat, { r : Rat \where and!{{ not!{{ mem x r }} } { mem y r }} }, q)) },
+          \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem x r }} } { mem z r }} }))
+      \by { xy };
+
+  \definition leLtTrans (x, y, z: Real) (xy: Le x y) (yz: Lt y z): Lt x z :=
+      \take (q: \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem y r }} } { mem z r }} })) =>
+        \exact(
+          \into[Rat](q, { r : Rat \where and!{{ not!{{ mem x r }} } { mem z r }} }) \by { (\fun (h: Logic.And[not!{{ mem y q }}, mem z q]) =>
+              Logic.And[not!{{ mem x q }}, mem z q]::# (\fun (qx: mem x q) =>
+                  (#left{h}) (xy q qx)) (#right{h}))
+            (\bysub(
+              Rat, { r : Rat \where and!{{ not!{{ mem y r }} } { mem z r }} }, q)) },
+          \Cast[Rat] ({ r : Rat \where and!{{ not!{{ mem x r }} } { mem z r }} }))
+      \by { yz };
+
+  /*
+   * Arithmetic lower sets.  The nested Closed module asks for exactly the
+   * closure lemmas needed to refine these sets back to Real.  This keeps the
+   * construction honest while the concrete rational laws are being proved.
+   */
+  \module Completeness;
+
+  \module Order;
+
+  \module Operations;

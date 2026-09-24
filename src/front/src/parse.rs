@@ -448,7 +448,9 @@ impl<'a> Parser<'a> {
 
     // (cosumed "\import" keyword) <path: ModuleAccessPath> "\as" <import_name: Ident> ";"
     fn parse_import(&mut self) -> Result<ModuleItem, ParseError> {
-        let rooted = if self.bump_if_keyword("\\root") {
+        let rooted = if self.bump_if_token(Token::Period) {
+            Some(Some(0))
+        } else if self.bump_if_keyword("\\root") {
             self.expect_token(Token::Period)?; // expect '.'
             Some(None)
         } else {

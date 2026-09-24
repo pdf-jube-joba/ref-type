@@ -1,0 +1,2993 @@
+\import \parent.\parent.CutLaws[] \as CutLaws;
+\import RationalFractions.Order[] \as RationalOrder;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Classical[] \as Classical;
+\import \parent.\parent.\parent.Order[] \as CutOrder;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+
+\definition ofRatMem (a, q: Rat) (qa: lt q a): mem (ofRat a) q :=
+  \idelim(RatLower a = underlying (ofRat a)
+    \with T: \Pow Rat => \In[Rat] T q)
+    \by { base: qa, equality: \refl(RatLower a) };
+
+\definition ofRatMemLt (a, q: Rat) (member: mem (ofRat a) q): lt q a :=
+  \idelim(underlying (ofRat a) = RatLower a
+    \with T: \Pow Rat => \In[Rat] T q)
+    \by { base: member, equality: \refl(RatLower a) };
+
+\definition addMem (x, y: Real) (q: Rat)
+  (member: In (SumLower x y) q): mem (add x y) q :=
+  \idelim(SumLower x y = underlying (add x y)
+    \with T: \Pow Rat => \In[Rat] T q)
+    \by { base: member, equality: \refl(SumLower x y) };
+
+\definition addMemLower (x, y: Real) (q: Rat)
+  (member: mem (add x y) q): In (SumLower x y) q :=
+  \idelim(underlying (add x y) = SumLower x y
+    \with T: \Pow Rat => \In[Rat] T q)
+    \by { base: member, equality: \refl(SumLower x y) };
+
+\definition negMem (x: Real) (q: Rat)
+  (member: In (NegLower x) q): mem (neg x) q :=
+  \idelim(NegLower x = underlying (neg x)
+    \with T: \Pow Rat => \In[Rat] T q)
+    \by { base: member, equality: \refl(NegLower x) };
+
+\definition negMemLower (x: Real) (q: Rat)
+  (member: mem (neg x) q): In (NegLower x) q :=
+  \idelim(underlying (neg x) = NegLower x
+    \with T: \Pow Rat => \In[Rat] T q)
+    \by { base: member, equality: \refl(NegLower x) };
+
+\definition mulMem (x, y: Real) (q: Rat)
+  (member: In (MulLower x y) q): mem (mul x y) q :=
+  \idelim(MulLower x y = underlying (mul x y)
+    \with T: \Pow Rat => \In[Rat] T q)
+    \by { base: member, equality: \refl(MulLower x y) };
+
+\definition mulMemLower (x, y: Real) (q: Rat)
+  (member: mem (mul x y) q): In (MulLower x y) q :=
+  \idelim(underlying (mul x y) = MulLower x y
+    \with T: \Pow Rat => \In[Rat] T q)
+    \by { base: member, equality: \refl(MulLower x y) };
+
+\definition invMem (x: Real) (q: Rat)
+  (member: In (InvLower x) q): mem (inv x) q :=
+  \idelim(InvLower x = underlying (inv x)
+    \with T: \Pow Rat => \In[Rat] T q)
+    \by { base: member, equality: \refl(InvLower x) };
+
+\definition invMemLower (x: Real) (q: Rat)
+  (member: mem (inv x) q): In (InvLower x) q :=
+  \idelim(underlying (inv x) = InvLower x
+    \with T: \Pow Rat => \In[Rat] T q)
+    \by { base: member, equality: \refl(InvLower x) };
+
+\definition ltOfRat (a, b: Rat) (ab: lt a b): Lt (ofRat a) (ofRat b) :=
+  \block {
+    \let q: Rat := RationalOperations.midpoint a b \then
+    \let aq: lt a q := RationalOperations.ltMidpoint a b ab \then
+    \let qb: lt q b := RationalOperations.midpointLt a b ab \then
+    \return \exact(
+      \into[Rat](q, { q : Rat \where Logic.And[Logic.Not (mem (ofRat a) q), mem (ofRat b) q] }) \by { Logic.And[
+          Logic.Not (mem (ofRat a) q), mem (ofRat b) q]::# (\fun (qa: mem (ofRat a) q) =>
+            RationalOrder.ltIrrefl a
+              (RationalOrder.ltTrans a q a aq (ofRatMemLt a q qa))) (ofRatMem b q qb) },
+      \Cast[Rat] ({ q : Rat \where Logic.And[Logic.Not (mem (ofRat a) q), mem (ofRat b) q] }))
+  };
+
+\definition ofRatLt (a, b: Rat) (ab: Lt (ofRat a) (ofRat b)): lt a b :=
+  \take (q: \Cast[Rat] ({ q : Rat \where Logic.And[Logic.Not (mem (ofRat a) q), mem (ofRat b) q] })) =>
+      \block {
+        \let nqa: Logic.Not (mem (ofRat a) q) :=
+          #left{(\bysub(Rat, { q : Rat \where Logic.And[Logic.Not (mem (ofRat a) q), mem (ofRat b) q] }, q))} \then
+        \let qb: lt q b := ofRatMemLt b q
+          (#right{(\bysub(Rat, { q : Rat \where Logic.And[Logic.Not (mem (ofRat a) q), mem (ofRat b) q] }, q))}) \then
+        \return Classical.orElim (lt a b)
+          (Logic.Or[RationalFractions.FractionEq a b, lt b a]) (lt a b)
+          (\fun (h: lt a b) => h)
+          (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, lt b a]) =>
+            Classical.orElim (RationalFractions.FractionEq a b) (lt b a)
+              (lt a b)
+              (\fun (same: RationalFractions.FractionEq a b) =>
+                Logic.falseElim (lt a b)
+                  (nqa (ofRatMem a q
+                    (RationalOrder.ltReplaceRight q b a
+                      (RationalFractions.fractionEqSym _ _ same) qb))))
+              (\fun (ba: lt b a) =>
+                Logic.falseElim (lt a b)
+                  (nqa (ofRatMem a q
+                    (RationalOrder.ltTrans q b a qb ba))))
+              rest)
+          (RationalOrder.trichotomy a b)
+      }
+  \by { ab };
+
+\definition ofRatRespects (a, b: Rat)
+  (ab: RationalFractions.FractionEq a b): ofRat a = ofRat b :=
+  eqByExt (ofRat a) (ofRat b)
+    (\fun (q: Rat) => \fun (qa: mem (ofRat a) q) =>
+      ofRatMem b q
+        (RationalOrder.ltReplaceRight q a b ab (ofRatMemLt a q qa)))
+    (\fun (q: Rat) => \fun (qb: mem (ofRat b) q) =>
+      ofRatMem a q
+        (RationalOrder.ltReplaceRight q b a
+          (RationalFractions.fractionEqSym _ _ ab) (ofRatMemLt b q qb)));
+
+\definition notLtOfOfRatLe (a, b: Rat)
+  (ab: Le (ofRat a) (ofRat b)): Logic.Not (lt b a) :=
+  \fun (ba: lt b a) =>
+    (ltNotLeReverse (ofRat b) (ofRat a) (ltOfRat b a ba)) ab;
+
+\definition ofRatLeOfNotLt (a, b: Rat) (notBa: Logic.Not (lt b a)):
+  Le (ofRat a) (ofRat b) :=
+  CutOrder.leOfNotLtReverse (ofRat a) (ofRat b)
+    (\fun (reverse: Lt (ofRat b) (ofRat a)) =>
+      notBa (ofRatLt b a reverse));
+
+\definition ofRatInjective (a, b: Rat) (same: ofRat a = ofRat b):
+  RationalFractions.FractionEq a b :=
+  Classical.orElim (lt a b)
+    (Logic.Or[RationalFractions.FractionEq a b, lt b a])
+    (RationalFractions.FractionEq a b)
+    (\fun (ab: lt a b) =>
+      Logic.falseElim (RationalFractions.FractionEq a b)
+        ((ltNotLeReverse (ofRat a) (ofRat b) (ltOfRat a b ab))
+          (leReplaceRight (ofRat b) (ofRat b) (ofRat a)
+            (sym!{Real} (ofRat a) (ofRat b) same)
+            (leRefl (ofRat b)))))
+    (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, lt b a]) =>
+      Classical.orElim (RationalFractions.FractionEq a b) (lt b a)
+        (RationalFractions.FractionEq a b)
+        (\fun (ab: RationalFractions.FractionEq a b) => ab)
+        (\fun (ba: lt b a) =>
+          Logic.falseElim (RationalFractions.FractionEq a b)
+            ((ltNotLeReverse (ofRat b) (ofRat a) (ltOfRat b a ba))
+              (leReplaceRight (ofRat a) (ofRat a) (ofRat b) same
+                (leRefl (ofRat a)))))
+        rest)
+    (RationalOrder.trichotomy a b);
+
+\definition ofRatAddLe (a, b: Rat):
+  Le (add (ofRat a) (ofRat b)) (ofRat (addRat a b)) :=
+  \fun (q: Rat) => \fun (member: mem (add (ofRat a) (ofRat b)) q) =>
+    CutLaws.sumElim (ofRat a) (ofRat b) q
+      (addMemLower (ofRat a) (ofRat b) q member)
+      (mem (ofRat (addRat a b)) q)
+      (\fun (u, v: Rat) =>
+        \fun (ua: mem (ofRat a) u) => \fun (vb: mem (ofRat b) v) =>
+          \fun (quv: lt q (addRat u v)) =>
+            ofRatMem (addRat a b) q
+              (RationalOrder.ltTrans q (addRat u v) (addRat a b) quv
+                (RationalOperations.ltAdd u a v b
+                  (ofRatMemLt a u ua) (ofRatMemLt b v vb))));
+
+\definition leOfRatAdd (a, b: Rat):
+  Le (ofRat (addRat a b)) (add (ofRat a) (ofRat b)) :=
+  \fun (q: Rat) => \fun (member: mem (ofRat (addRat a b)) q) =>
+    \block {
+      \let qab: lt q (addRat a b) := ofRatMemLt (addRat a b) q member \then
+      \let u: Rat := RationalOperations.perturbLeft q a b \then
+      \let ua: lt u a := RationalOperations.perturbLeftLt q a b qab \then
+      \let qub: lt q (addRat u b) :=
+        RationalOperations.ltPerturbedSum q a b qab \then
+      \let qbu: lt q (addRat b u) :=
+        RationalOrder.ltReplaceRight q (addRat u b) (addRat b u)
+          (RationalOperations.fractionAddComm u b) qub \then
+      \let v: Rat := RationalOperations.perturbLeft q b u \then
+      \let vb: lt v b := RationalOperations.perturbLeftLt q b u qbu \then
+      \let qvu: lt q (addRat v u) :=
+        RationalOperations.ltPerturbedSum q b u qbu \then
+      \let quv: lt q (addRat u v) :=
+        RationalOrder.ltReplaceRight q (addRat v u) (addRat u v)
+          (RationalOperations.fractionAddComm v u) qvu \then
+      \return addMem (ofRat a) (ofRat b) q
+        (CutLaws.sumIntro (ofRat a) (ofRat b) q u v
+          (ofRatMem a u ua) (ofRatMem b v vb) quv)
+    };
+
+\definition ofRatAdd (a, b: Rat):
+  add (ofRat a) (ofRat b) = ofRat (addRat a b) :=
+  eqByExt (add (ofRat a) (ofRat b)) (ofRat (addRat a b))
+    (ofRatAddLe a b) (leOfRatAdd a b);
+
+\definition ofRatNegLe (a: Rat): Le (neg (ofRat a)) (ofRat (negRat a)) :=
+  \block {
+    \fix (q: Rat) \then
+    \fix (member: mem (neg (ofRat a)) q) \then
+    \let lowerMember: In (NegLower (ofRat a)) q :=
+      negMemLower (ofRat a) q member \then
+    \return CutLaws.negElim (ofRat a) q lowerMember
+      (mem (ofRat (negRat a)) q)
+      (\fun (r: Rat) =>
+        \fun (nra: Logic.Not (mem (ofRat a) r)) =>
+          \fun (qnr: lt q (negRat r)) =>
+            Classical.orElim (lt r a)
+              (Logic.Or[RationalFractions.FractionEq r a, lt a r])
+              (mem (ofRat (negRat a)) q)
+              (\fun (ra: lt r a) =>
+                Logic.falseElim (mem (ofRat (negRat a)) q)
+                  (nra (ofRatMem a r ra)))
+              (\fun (rest: Logic.Or[
+                RationalFractions.FractionEq r a, lt a r]) =>
+                Classical.orElim (RationalFractions.FractionEq r a) (lt a r)
+                  (mem (ofRat (negRat a)) q)
+                  (\fun (same: RationalFractions.FractionEq r a) =>
+                    ofRatMem (negRat a) q
+                      (RationalOrder.ltReplaceRight q (negRat r) (negRat a)
+                        (RationalOperations.fractionNegRespects r a same) qnr))
+                  (\fun (ar: lt a r) =>
+                    ofRatMem (negRat a) q
+                      (RationalOrder.ltTrans q (negRat r) (negRat a) qnr
+                        (RationalOperations.ltNegReverse a r ar)))
+                  rest)
+              (RationalOrder.trichotomy r a))
+  };
+
+\definition leOfRatNeg (a: Rat): Le (ofRat (negRat a)) (neg (ofRat a)) :=
+  \fun (q: Rat) => \fun (qa: mem (ofRat (negRat a)) q) =>
+    negMem (ofRat a) q
+      (CutLaws.negIntro (ofRat a) q a
+        (\fun (aa: mem (ofRat a) a) =>
+          RationalOrder.ltIrrefl a (ofRatMemLt a a aa))
+        (ofRatMemLt (negRat a) q qa));
+
+\definition ofRatNeg (a: Rat): neg (ofRat a) = ofRat (negRat a) :=
+  eqByExt (neg (ofRat a)) (ofRat (negRat a))
+    (ofRatNegLe a) (leOfRatNeg a);
+
+\definition RationalBetween (x, y: Real): \Prop :=
+  \exists { r : Rat \where Logic.And[Lt x (ofRat r), Lt (ofRat r) y] };
+
+\definition rationalDensity (x, y: Real) (xy: Lt x y):
+  RationalBetween x y :=
+  \take (q: \Cast[Rat] ({ q : Rat \where Logic.And[Logic.Not (mem x q), mem y q] })) =>
+      \take (r: \Cast[Rat] ({ r : Rat \where Logic.And[mem y r, lt q r] })) =>
+        \block {
+          \let nxq: Logic.Not (mem x q) :=
+            #left{(\bysub(Rat, { q : Rat \where Logic.And[Logic.Not (mem x q), mem y q] }, q))} \then
+          \let yr: mem y r :=
+            #left{(\bysub(Rat, { r : Rat \where Logic.And[mem y r, lt q r] }, r))} \then
+          \let qr: lt q r :=
+            #right{(\bysub(Rat, { r : Rat \where Logic.And[mem y r, lt q r] }, r))} \then
+          \let nxr: Logic.Not (mem x r) :=
+            \fun (xr: mem x r) => nxq (cutLower x q r qr xr) \then
+          \let left: Lt x (ofRat r) :=
+            \exact(
+              \into[Rat](q, { a : Rat \where Logic.And[Logic.Not (mem x a), mem (ofRat r) a] }) \by { Logic.And[
+                  Logic.Not (mem x q), mem (ofRat r) q]::# nxq (ofRatMem r q qr) },
+              \Cast[Rat] ({ a : Rat \where Logic.And[Logic.Not (mem x a), mem (ofRat r) a] })) \then
+          \let right: Lt (ofRat r) y :=
+            \exact(
+              \into[Rat](r, { a : Rat \where Logic.And[Logic.Not (mem (ofRat r) a), mem y a] }) \by { Logic.And[
+                  Logic.Not (mem (ofRat r) r), mem y r]::# (\fun (rr: mem (ofRat r) r) =>
+                    RationalOrder.ltIrrefl r (ofRatMemLt r r rr)) yr },
+              \Cast[Rat] ({ a : Rat \where Logic.And[Logic.Not (mem (ofRat r) a), mem y a] })) \then
+          \return \exact(
+            \into[Rat](r, { r : Rat \where Logic.And[Lt x (ofRat r), Lt (ofRat r) y] }) \by { Logic.And[Lt x (ofRat r), Lt (ofRat r) y]::# left right },
+            \Cast[Rat] ({ r : Rat \where Logic.And[Lt x (ofRat r), Lt (ofRat r) y] }))
+        }
+      \by { cutRounded y q
+        (#right{(\bysub(Rat, { q : Rat \where Logic.And[Logic.Not (mem x q), mem y q] }, q))}) }
+  \by { xy };
+
+\definition RationallyBounded (x: Real): \Prop :=
+  \exists { a : Rat \where \exists { b : Rat \where Logic.And[Lt (ofRat a) x, Lt x (ofRat b)] } };
+
+\definition rationalBounds (x: Real): RationallyBounded x :=
+  \take (a: \Cast[Rat] ({ a : Rat \where mem x a })) =>
+    \take (r: \Cast[Rat] ({ r : Rat \where Logic.Not (mem x r) })) =>
+      \block {
+        \let b: Rat := RationalOperations.above r \then
+        \let lower: Lt (ofRat a) x :=
+          \exact(
+            \into[Rat](a, { q : Rat \where Logic.And[Logic.Not (mem (ofRat a) q), mem x q] }) \by { Logic.And[
+                Logic.Not (mem (ofRat a) a), mem x a]::# (\fun (aa: mem (ofRat a) a) =>
+                  RationalOrder.ltIrrefl a (ofRatMemLt a a aa)) (\bysub(Rat, { a : Rat \where mem x a }, a)) },
+            \Cast[Rat] ({ q : Rat \where Logic.And[Logic.Not (mem (ofRat a) q), mem x q] })) \then
+        \let upper: Lt x (ofRat b) :=
+          \exact(
+            \into[Rat](r, { q : Rat \where Logic.And[Logic.Not (mem x q), mem (ofRat b) q] }) \by { Logic.And[
+                Logic.Not (mem x r), mem (ofRat b) r]::# (\bysub(Rat,
+                  { r : Rat \where Logic.Not (mem x r) }, r)) (ofRatMem b r (RationalOperations.ltAbove r)) },
+            \Cast[Rat] ({ q : Rat \where Logic.And[Logic.Not (mem x q), mem (ofRat b) q] })) \then
+        \return \exact(
+          \into[Rat](a, { a : Rat \where \exists { b : Rat \where Logic.And[Lt (ofRat a) x, Lt x (ofRat b)] } }) \by { \exact(
+              \into[Rat](b, { b : Rat \where Logic.And[Lt (ofRat a) x, Lt x (ofRat b)] }) \by { Logic.And[Lt (ofRat a) x, Lt x (ofRat b)]::# lower upper },
+              \Cast[Rat] ({ b : Rat \where Logic.And[Lt (ofRat a) x, Lt x (ofRat b)] })) },
+          \Cast[Rat] ({ a : Rat \where \exists { b : Rat \where Logic.And[Lt (ofRat a) x, Lt x (ofRat b)] } }))
+      }
+    \by { cutProper x }
+  \by { cutInhabited x };
+
+\definition zeroNotOne: Logic.Not (zero = one) :=
+  \fun (same: zero = one) =>
+    RationalOrder.ltIrrefl zeroRat
+      (ofRatMemLt zeroRat zeroRat
+        (\idelim(one = zero
+          \with z: Real => mem z zeroRat)
+          \by { base: ofRatMem oneRat zeroRat RationalOrder.zeroLtOne, equality:
+            sym!{Real} zero one same }));
+
+\definition addZeroLeftLe (x: Real): Le (add zero x) x :=
+  \fun (q: Rat) => \fun (member: mem (add zero x) q) =>
+    CutLaws.sumElim zero x q (addMemLower zero x q member) (mem x q)
+      (\fun (a, b: Rat) =>
+        \fun (za: mem zero a) => \fun (xb: mem x b) =>
+          \fun (qab: lt q (addRat a b)) =>
+            cutLower x q b
+              (RationalOrder.ltTrans q (addRat a b) b qab
+                (RationalOrder.ltReplaceRight
+                  (addRat a b) (addRat zeroRat b) b
+                  (RationalOperations.fractionAddZeroLeft b)
+                  (RationalOperations.ltAddRight a zeroRat b
+                    (ofRatMemLt zeroRat a za)))) xb);
+
+\definition leAddZeroLeft (x: Real): Le x (add zero x) :=
+  \fun (q: Rat) => \fun (xq: mem x q) =>
+    \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[mem x a, lt q a] })) =>
+      \block {
+        \let xa: mem x a :=
+          #left{(\bysub(Rat,
+              { a : Rat \where Logic.And[mem x a, lt q a] }, a))} \then
+        \let qa: lt q a :=
+          #right{(\bysub(Rat,
+              { a : Rat \where Logic.And[mem x a, lt q a] }, a))} \then
+        \let b: Rat := RationalOperations.adjustment q a \then
+        \return addMem zero x q
+          (CutLaws.sumIntro zero x q b a
+            (ofRatMem zeroRat b
+              (RationalOperations.adjustmentLtZero q a qa)) xa
+            (RationalOrder.ltReplaceRight
+              q (addRat a b) (addRat b a)
+              (RationalOperations.fractionAddComm a b)
+              (RationalOperations.ltAddAdjustment q a qa)))
+      }
+    \by { cutRounded x q xq };
+
+\definition addZeroLeft (x: Real): add zero x = x :=
+  eqByExt (add zero x) x (addZeroLeftLe x) (leAddZeroLeft x);
+
+\definition addCommLe (x, y: Real): Le (add x y) (add y x) :=
+  \fun (q: Rat) => \fun (member: mem (add x y) q) =>
+    CutLaws.sumElim x y q (addMemLower x y q member) (mem (add y x) q)
+      (\fun (a, b: Rat) =>
+        \fun (xa: mem x a) => \fun (yb: mem y b) =>
+          \fun (qab: lt q (addRat a b)) =>
+            addMem y x q
+              (CutLaws.sumIntro y x q b a yb xa
+                (RationalOrder.ltReplaceRight
+                  q (addRat a b) (addRat b a)
+                  (RationalOperations.fractionAddComm a b) qab)));
+
+\definition addComm (x, y: Real): add x y = add y x :=
+  eqByExt (add x y) (add y x)
+    (addCommLe x y) (addCommLe y x);
+
+\definition addZeroRight (x: Real): add x zero = x :=
+  trans!{Real} (add x zero) (add zero x) x
+    (addComm x zero) (addZeroLeft x);
+
+\definition addMonotoneLeft (x, y, z: Real) (xy: Le x y):
+  Le (add z x) (add z y) :=
+  \fun (q: Rat) => \fun (member: mem (add z x) q) =>
+    CutLaws.sumElim z x q (addMemLower z x q member) (mem (add z y) q)
+      (\fun (a, b: Rat) =>
+        \fun (za: mem z a) => \fun (xb: mem x b) =>
+          \fun (qab: lt q (addRat a b)) =>
+            addMem z y q
+              (CutLaws.sumIntro z y q a b za (xy b xb) qab));
+
+\definition addMonotoneRight (x, y, z: Real) (xy: Le x y):
+  Le (add x z) (add y z) :=
+  \fun (q: Rat) => \fun (member: mem (add x z) q) =>
+    CutLaws.sumElim x z q (addMemLower x z q member) (mem (add y z) q)
+      (\fun (a, b: Rat) =>
+        \fun (xa: mem x a) => \fun (zb: mem z b) =>
+          \fun (qab: lt q (addRat a b)) =>
+            addMem y z q
+              (CutLaws.sumIntro y z q a b (xy a xa) zb qab));
+
+\definition negAntitone (x, y: Real) (xy: Le x y): Le (neg y) (neg x) :=
+  \fun (q: Rat) => \fun (member: mem (neg y) q) =>
+    CutLaws.negElim y q (negMemLower y q member) (mem (neg x) q)
+      (\fun (r: Rat) =>
+        \fun (yr: Logic.Not (mem y r)) =>
+          \fun (qr: lt q (negRat r)) =>
+            negMem x q
+              (CutLaws.negIntro x q r
+                (\fun (xr: mem x r) => yr (xy r xr)) qr));
+
+\definition addAssocForward (x, y, z: Real):
+  Le (add (add x y) z) (add x (add y z)) :=
+  \fun (q: Rat) => \fun (member: mem (add (add x y) z) q) =>
+    CutLaws.sumElim (add x y) z q
+      (addMemLower (add x y) z q member) (mem (add x (add y z)) q)
+      (\fun (s, c: Rat) =>
+        \fun (xys: mem (add x y) s) => \fun (zc: mem z c) =>
+          \fun (qsc: lt q (addRat s c)) =>
+            CutLaws.sumElim x y s (addMemLower x y s xys)
+              (mem (add x (add y z)) q)
+              (\fun (a, b: Rat) =>
+                \fun (xa: mem x a) => \fun (yb: mem y b) =>
+                  \fun (sab: lt s (addRat a b)) =>
+                    addMem x (add y z) q
+                      (CutLaws.sumIntro x (add y z) q a (addRat b c) xa
+                      (addMem y z (addRat b c)
+                        (CutLaws.sumContainsAdd y z b c yb zc))
+                      (RationalOrder.ltReplaceRight
+                        q (addRat (addRat a b) c)
+                        (addRat a (addRat b c))
+                        (RationalOperations.fractionAddAssoc a b c)
+                        (RationalOrder.ltTrans
+                          q (addRat s c) (addRat (addRat a b) c) qsc
+                          (RationalOperations.ltAddRight
+                            s (addRat a b) c sab))))));
+
+\definition addAssocBackward (x, y, z: Real):
+  Le (add x (add y z)) (add (add x y) z) :=
+  \fun (q: Rat) => \fun (member: mem (add x (add y z)) q) =>
+    CutLaws.sumElim x (add y z) q
+      (addMemLower x (add y z) q member) (mem (add (add x y) z) q)
+      (\fun (a, s: Rat) =>
+        \fun (xa: mem x a) => \fun (yzs: mem (add y z) s) =>
+          \fun (qas: lt q (addRat a s)) =>
+            CutLaws.sumElim y z s (addMemLower y z s yzs)
+              (mem (add (add x y) z) q)
+              (\fun (b, c: Rat) =>
+                \fun (yb: mem y b) => \fun (zc: mem z c) =>
+                  \fun (sbc: lt s (addRat b c)) =>
+                    addMem (add x y) z q
+                      (CutLaws.sumIntro (add x y) z q (addRat a b) c
+                      (addMem x y (addRat a b)
+                        (CutLaws.sumContainsAdd x y a b xa yb)) zc
+                      (RationalOrder.ltReplaceRight
+                        q (addRat a (addRat b c))
+                        (addRat (addRat a b) c)
+                        (RationalFractions.fractionEqSym _ _
+                          (RationalOperations.fractionAddAssoc a b c))
+                        (RationalOrder.ltTrans
+                          q (addRat a s) (addRat a (addRat b c)) qas
+                          (RationalOperations.ltAddLeft a
+                            s (addRat b c) sbc))))));
+
+\definition addAssoc (x, y, z: Real):
+  add (add x y) z = add x (add y z) :=
+  eqByExt (add (add x y) z) (add x (add y z))
+    (addAssocForward x y z) (addAssocBackward x y z);
+
+\definition negNegLe (x: Real): Le (neg (neg x)) x :=
+  \fun (q: Rat) => \fun (member: mem (neg (neg x)) q) =>
+    CutLaws.negElim (neg x) q (negMemLower (neg x) q member) (mem x q)
+      (\fun (r: Rat) =>
+        \fun (nr: Logic.Not (mem (neg x) r)) =>
+          \fun (qr: lt q (negRat r)) =>
+            Classical.orElim (mem x q) (Logic.Not (mem x q)) (mem x q)
+              (\fun (xq: mem x q) => xq)
+              (\fun (nq: Logic.Not (mem x q)) =>
+                Logic.falseElim (mem x q)
+                  (nr (negMem x r
+                    (CutLaws.negIntro x r q nq
+                      (RationalOrder.ltReplaceLeft
+                        (negRat (negRat r)) r (negRat q)
+                        (RationalOperations.fractionNegInvolutive r)
+                        (RationalOperations.ltNegReverse
+                          q (negRat r) qr))))))
+              (Classical.excludedMiddle (mem x q)));
+
+\definition leNegNeg (x: Real): Le x (neg (neg x)) :=
+  \fun (q: Rat) => \fun (xq: mem x q) =>
+    \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[mem x a, lt q a] })) =>
+      \block {
+        \let xa: mem x a :=
+          #left{(\bysub(Rat,
+              { a : Rat \where Logic.And[mem x a, lt q a] }, a))} \then
+        \let qa: lt q a :=
+          #right{(\bysub(Rat,
+              { a : Rat \where Logic.And[mem x a, lt q a] }, a))} \then
+        \let r: Rat := negRat a \then
+        \let outside: Logic.Not (mem (neg x) r) :=
+          \fun (member: mem (neg x) r) =>
+            CutLaws.negElim x r (negMemLower x r member) Logic.False
+              (\fun (s: Rat) =>
+                \fun (ns: Logic.Not (mem x s)) =>
+                  \fun (rs: lt r (negRat s)) =>
+                    ns (cutLower x s a
+                      (RationalOperations.ltOfNegLtNeg a s rs) xa)) \then
+        \return negMem (neg x) q
+          (CutLaws.negIntro (neg x) q r outside
+            (RationalOrder.ltReplaceRight q a (negRat r)
+              (RationalFractions.fractionEqSym _ _
+                (RationalOperations.fractionNegInvolutive a)) qa))
+      }
+    \by { cutRounded x q xq };
+
+\definition negInvolutive (x: Real): neg (neg x) = x :=
+  eqByExt (neg (neg x)) x (negNegLe x) (leNegNeg x);
+
+\definition addNegLeftLe (x: Real): Le (add (neg x) x) zero :=
+  \fun (q: Rat) => \fun (member: mem (add (neg x) x) q) =>
+    CutLaws.sumElim (neg x) x q
+      (addMemLower (neg x) x q member) (mem zero q)
+      (\fun (a, b: Rat) =>
+        \fun (na: mem (neg x) a) => \fun (xb: mem x b) =>
+          \fun (qab: lt q (addRat a b)) =>
+            CutLaws.negElim x a (negMemLower x a na) (mem zero q)
+              (\fun (r: Rat) =>
+                \fun (xr: Logic.Not (mem x r)) =>
+                  \fun (arn: lt a (negRat r)) =>
+                    ofRatMem zeroRat q
+                      (RationalOrder.ltTrans q (addRat a b) zeroRat qab
+                        (RationalOrder.ltReplaceRight
+                          (addRat a b) (addRat (negRat r) r) zeroRat
+                          (RationalOperations.fractionAddNegLeft r)
+                          (RationalOperations.ltAdd a (negRat r) b r arn
+                            (CutLaws.memberLtOutside x b r xb xr))))));
+
+\definition leAddNegLeft (x: Real): Le zero (add (neg x) x) :=
+  \fun (q: Rat) => \fun (zq: mem zero q) =>
+    \block {
+      \let qz: lt q zeroRat := ofRatMemLt zeroRat q zq \then
+      \let m: Rat := RationalOperations.midpoint q zeroRat \then
+      \let e: Rat := negRat m \then
+      \let positive: lt zeroRat e :=
+        RationalOperations.ltNegReverse m zeroRat
+          (RationalOperations.midpointLt q zeroRat qz) \then
+      \return
+        \take (l: \Cast[Rat] ({ l : Rat \where Logic.And[mem x l, Logic.Not (mem x (addRat l e))] })) =>
+          \block {
+            \let r: Rat := addRat l e \then
+            \let xl: mem x l :=
+              #left{(\bysub(Rat, { l : Rat \where Logic.And[mem x l, Logic.Not (mem x (addRat l e))] }, l))} \then
+            \let xr: Logic.Not (mem x r) :=
+              #right{(\bysub(Rat, { l : Rat \where Logic.And[mem x l, Logic.Not (mem x (addRat l e))] }, l))} \then
+            \let targetEq: RationalFractions.FractionEq
+                (addRat (negRat r) l) m :=
+              RationalFractions.fractionEqTrans _ _ _
+                (RationalOperations.fractionNegAddLeft l e)
+                (RationalOperations.fractionNegInvolutive m) \then
+            \let qtarget: lt q (addRat (negRat r) l) :=
+              RationalOrder.ltReplaceRight q m
+                (addRat (negRat r) l)
+                (RationalFractions.fractionEqSym _ _ targetEq)
+                (RationalOperations.ltMidpoint q zeroRat qz) \then
+            \let n: Rat := RationalOperations.perturbLeft q (negRat r) l \then
+            \let nnr: lt n (negRat r) :=
+              RationalOperations.perturbLeftLt q (negRat r) l qtarget \then
+            \let qnl: lt q (addRat n l) :=
+              RationalOperations.ltPerturbedSum q (negRat r) l qtarget \then
+            \return addMem (neg x) x q
+              (CutLaws.sumIntro (neg x) x q n l
+                (negMem x n (CutLaws.negIntro x n r xr nnr)) xl qnl)
+          }
+        \by { CutLaws.bracket x e positive }
+    };
+
+\definition addNegLeft (x: Real): add (neg x) x = zero :=
+  eqByExt (add (neg x) x) zero (addNegLeftLe x) (leAddNegLeft x);
+
+\definition addNegRight (x: Real): add x (neg x) = zero :=
+  trans!{Real} (add x (neg x)) (add (neg x) x) zero
+    (addComm x (neg x)) (addNegLeft x);
+
+\definition addNegCancelLeft (x, y: Real):
+  add (neg x) (add x y) = y :=
+  trans!{Real}
+    (add (neg x) (add x y)) (add (add (neg x) x) y) y
+    (sym!{Real} (add (add (neg x) x) y)
+      (add (neg x) (add x y)) (addAssoc (neg x) x y))
+    (trans!{Real} (add (add (neg x) x) y) (add zero y) y
+      (congr!{Real Real} (\fun (z: Real) => add z y)
+        (add (neg x) x) zero (addNegLeft x))
+      (addZeroLeft y));
+
+\definition addNegCancelRight (x, y: Real):
+  add (add y x) (neg x) = y :=
+  trans!{Real} (add (add y x) (neg x))
+    (add y (add x (neg x))) y
+    (addAssoc y x (neg x))
+    (trans!{Real} (add y (add x (neg x))) (add y zero) y
+      (congr!{Real Real} (add y) (add x (neg x)) zero (addNegRight x))
+      (addZeroRight y));
+
+\definition addCancelLeft (z, x, y: Real)
+  (same: add z x = add z y): x = y :=
+  trans!{Real} x (add (neg z) (add z x)) y
+    (sym!{Real} (add (neg z) (add z x)) x (addNegCancelLeft z x))
+    (trans!{Real} (add (neg z) (add z x))
+      (add (neg z) (add z y)) y
+      (congr!{Real Real} (add (neg z)) (add z x) (add z y) same)
+      (addNegCancelLeft z y));
+
+\definition addCancelRight (x, y, z: Real)
+  (same: add x z = add y z): x = y :=
+  addCancelLeft z x y
+    (trans!{Real} (add z x) (add x z) (add z y)
+      (addComm z x)
+      (trans!{Real} (add x z) (add y z) (add z y)
+        same (addComm y z)));
+
+\definition negZero: neg zero = zero :=
+  trans!{Real} (neg zero) (add (neg zero) zero) zero
+    (sym!{Real} (add (neg zero) zero) (neg zero) (addZeroRight (neg zero)))
+    (addNegLeft zero);
+
+\definition negInjective (x, y: Real) (same: neg x = neg y): x = y :=
+  trans!{Real} x (neg (neg x)) y
+    (sym!{Real} (neg (neg x)) x (negInvolutive x))
+    (trans!{Real} (neg (neg x)) (neg (neg y)) y
+      (congr!{Real Real} neg (neg x) (neg y) same)
+      (negInvolutive y));
+
+\definition subSelf (x: Real): sub x x = zero := addNegRight x;
+
+\definition subZeroRight (x: Real): sub x zero = x :=
+  trans!{Real} (add x (neg zero)) (add x zero) x
+    (congr!{Real Real} (add x) (neg zero) zero negZero)
+    (addZeroRight x);
+
+\definition leAddCancelLeft (z, x, y: Real)
+  (same: Le (add z x) (add z y)): Le x y :=
+  leReplace (add (neg z) (add z x)) x
+    (add (neg z) (add z y)) y
+    (addNegCancelLeft z x) (addNegCancelLeft z y)
+    (addMonotoneLeft (add z x) (add z y) (neg z) same);
+
+\definition leAddCancelRight (x, y, z: Real)
+  (same: Le (add x z) (add y z)): Le x y :=
+  leAddCancelLeft z x y
+    (leReplace (add x z) (add z x) (add y z) (add z y)
+      (addComm x z) (addComm y z) same);
+
+\definition ltAddLeft (z, x, y: Real) (xy: Lt x y):
+  Lt (add z x) (add z y) :=
+  CutOrder.ltOfLeNotEq (add z x) (add z y)
+    (addMonotoneLeft x y z (CutOrder.leOfLt x y xy))
+    (\fun (same: add z x = add z y) =>
+      CutOrder.ltNotEq x y xy (addCancelLeft z x y same));
+
+\definition ltAddRight (x, y, z: Real) (xy: Lt x y):
+  Lt (add x z) (add y z) :=
+  ltReplaceRight (add x z) (add z y) (add y z) (addComm z y)
+    (ltReplaceLeft (add z x) (add x z) (add z y)
+      (addComm z x) (ltAddLeft z x y xy));
+
+\definition ltAddCancelLeft (z, x, y: Real)
+  (same: Lt (add z x) (add z y)): Lt x y :=
+  CutOrder.ltOfLeNotEq x y
+    (leAddCancelLeft z x y
+      (CutOrder.leOfLt (add z x) (add z y) same))
+    (\fun (xy: x = y) =>
+      CutOrder.ltNotEq (add z x) (add z y) same
+        (congr!{Real Real} (add z) x y xy));
+
+\definition ltAddCancelRight (x, y, z: Real)
+  (same: Lt (add x z) (add y z)): Lt x y :=
+  ltAddCancelLeft z x y
+    (ltReplaceRight (add z x) (add y z) (add z y) (addComm y z)
+      (ltReplaceLeft (add x z) (add z x) (add y z)
+        (addComm x z) same));
+
+\definition negStrictAntitone (x, y: Real) (xy: Lt x y): Lt (neg y) (neg x) :=
+  CutOrder.ltOfLeNotEq (neg y) (neg x)
+    (negAntitone x y (CutOrder.leOfLt x y xy))
+    (\fun (same: neg y = neg x) =>
+      CutOrder.ltNotEq x y xy
+        (sym!{Real} y x (negInjective y x same)));
+
+\definition mulCommLe (x, y: Real): Le (mul x y) (mul y x) :=
+  \fun (q: Rat) => \fun (member: mem (mul x y) q) =>
+    CutLaws.productBelowElim x y q (mulMemLower x y q member)
+      (mem (mul y x) q)
+      (\fun (a, b, c, d: Rat) =>
+        \fun (xa: mem x a) => \fun (xb: Logic.Not (mem x b)) =>
+        \fun (yc: mem y c) => \fun (yd: Logic.Not (mem y d)) =>
+        \fun (ac: lt q (mulRat a c)) =>
+        \fun (ad: lt q (mulRat a d)) =>
+        \fun (bc: lt q (mulRat b c)) =>
+        \fun (bd: lt q (mulRat b d)) =>
+          mulMem y x q
+            (productBelowIntro y x q c d a b yc yd xa xb
+              (RationalOrder.ltReplaceRight q (mulRat a c) (mulRat c a)
+                (RationalOperations.fractionMulComm a c) ac)
+              (RationalOrder.ltReplaceRight q (mulRat b c) (mulRat c b)
+                (RationalOperations.fractionMulComm b c) bc)
+              (RationalOrder.ltReplaceRight q (mulRat a d) (mulRat d a)
+                (RationalOperations.fractionMulComm a d) ad)
+              (RationalOrder.ltReplaceRight q (mulRat b d) (mulRat d b)
+                (RationalOperations.fractionMulComm b d) bd)));
+
+\definition mulComm (x, y: Real): mul x y = mul y x :=
+  eqByExt (mul x y) (mul y x) (mulCommLe x y) (mulCommLe y x);
+
+\definition mulOfRatLe (x, y: Rat):
+  Le (mul (ofRat x) (ofRat y)) (ofRat (mulRat x y)) :=
+  \fun (q: Rat) => \fun (member: mem (mul (ofRat x) (ofRat y)) q) =>
+    CutLaws.productBelowElim (ofRat x) (ofRat y) q
+      (mulMemLower (ofRat x) (ofRat y) q member)
+      (mem (ofRat (mulRat x y)) q)
+      (\fun (a, b, c, d: Rat) =>
+        \fun (ax: mem (ofRat x) a) =>
+        \fun (bx: Logic.Not (mem (ofRat x) b)) =>
+        \fun (cy: mem (ofRat y) c) =>
+        \fun (dy: Logic.Not (mem (ofRat y) d)) =>
+        \fun (ac: lt q (mulRat a c)) =>
+        \fun (ad: lt q (mulRat a d)) =>
+        \fun (bc: lt q (mulRat b c)) =>
+        \fun (bd: lt q (mulRat b d)) =>
+          ofRatMem (mulRat x y) q
+            (RationalOperations.productInteriorAbove q a b c d x y
+              (RationalOperations.leOfLt a x (ofRatMemLt x a ax))
+              (RationalOperations.leOfNotLtReverse x b
+                (\fun (reverse: lt b x) => bx (ofRatMem x b reverse)))
+              (RationalOperations.leOfLt c y (ofRatMemLt y c cy))
+              (RationalOperations.leOfNotLtReverse y d
+                (\fun (reverse: lt d y) => dy (ofRatMem y d reverse)))
+              ac ad bc bd));
+
+\definition mulOneLeftLe (x: Real): Le (mul one x) x :=
+  \fun (q: Rat) => \fun (member: mem (mul one x) q) =>
+    CutLaws.productBelowElim one x q (mulMemLower one x q member)
+      (mem x q)
+      (\fun (a, b, c, d: Rat) =>
+        \fun (aOne: mem one a) =>
+        \fun (bOne: Logic.Not (mem one b)) =>
+        \fun (xc: mem x c) => \fun (xd: Logic.Not (mem x d)) =>
+        \fun (ac: lt q (mulRat a c)) =>
+        \fun (ad: lt q (mulRat a d)) =>
+        \fun (bc: lt q (mulRat b c)) =>
+        \fun (bd: lt q (mulRat b d)) =>
+          cutLower x q c
+            (RationalOrder.ltReplaceRight q (mulRat oneRat c) c
+              (RationalOperations.fractionMulOneLeft c)
+              (RationalOperations.productInteriorAbove
+                q a b c d oneRat c
+                (RationalOperations.leOfLt a oneRat
+                  (ofRatMemLt oneRat a aOne))
+                (RationalOperations.leOfNotLtReverse oneRat b
+                  (\fun (reverse: lt b oneRat) =>
+                    bOne (ofRatMem oneRat b reverse)))
+                (RationalOperations.leRefl c)
+                (RationalOperations.leOfLt c d
+                  (CutLaws.memberLtOutside x c d xc xd))
+                ac ad bc bd)) xc);
+
+\definition leMulOneLeft (x: Real): Le x (mul one x) :=
+  \fun (q: Rat) => \fun (xq: mem x q) =>
+    \take (c: \Cast[Rat] ({ c : Rat \where Logic.And[mem x c, lt q c] })) =>
+      \take (d: \Cast[Rat] ({ d : Rat \where Logic.Not (mem x d) })) =>
+        \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[lt zeroRat a,
+            Logic.And[lt a oneRat, lt q (mulRat a c)]] })) =>
+          \block {
+            \let rounded: Logic.And[mem x c, lt q c] :=
+              \bysub(Rat, { c : Rat \where Logic.And[mem x c, lt q c] }, c) \then
+            \let xc: mem x c :=
+              #left{rounded} \then
+            \let qc: lt q c :=
+              #right{rounded} \then
+            \let xd: Logic.Not (mem x d) :=
+              \bysub(Rat, { d : Rat \where Logic.Not (mem x d) }, d) \then
+            \let cd: lt c d := CutLaws.memberLtOutside x c d xc xd \then
+            \let factor: Logic.And[lt zeroRat a,
+                Logic.And[lt a oneRat, lt q (mulRat a c)]] :=
+              \bysub(Rat, { a : Rat \where Logic.And[lt zeroRat a,
+                  Logic.And[lt a oneRat, lt q (mulRat a c)]] }, a) \then
+            \let aPositive: lt zeroRat a :=
+              #left{factor} \then
+            \let aOne: lt a oneRat :=
+              #left{(#right{factor})} \then
+            \let qac: lt q (mulRat a c) :=
+              #right{(#right{factor})} \then
+            \let qad: lt q (mulRat a d) :=
+              RationalOrder.ltTrans q (mulRat a c) (mulRat a d) qac
+                (RationalOperations.ltMulPositiveLeft a c d aPositive cd) \then
+            \let qOneC: lt q (mulRat oneRat c) :=
+              RationalOrder.ltReplaceRight q c (mulRat oneRat c)
+                (RationalFractions.fractionEqSym _ _
+                  (RationalOperations.fractionMulOneLeft c)) qc \then
+            \let qOneD: lt q (mulRat oneRat d) :=
+              RationalOrder.ltReplaceRight q d (mulRat oneRat d)
+                (RationalFractions.fractionEqSym _ _
+                  (RationalOperations.fractionMulOneLeft d))
+                (RationalOrder.ltTrans q c d qc cd) \then
+            \return mulMem one x q
+              (productBelowIntro one x q a oneRat c d
+                (ofRatMem oneRat a aOne)
+                (\fun (atOne: mem one oneRat) =>
+                  RationalOrder.ltIrrefl oneRat
+                    (ofRatMemLt oneRat oneRat atOne))
+                xc xd qac qad qOneC qOneD)
+          }
+        \by { RationalOperations.contractingFactor q c
+          (#right{(\bysub(Rat, { c : Rat \where Logic.And[mem x c, lt q c] }, c))}) }
+      \by { cutProper x }
+    \by { cutRounded x q xq };
+
+\definition mulOneLeft (x: Real): mul one x = x :=
+  eqByExt (mul one x) x (mulOneLeftLe x) (leMulOneLeft x);
+
+\definition mulOneRight (x: Real): mul x one = x :=
+  trans!{Real} (mul x one) (mul one x) x
+    (mulComm x one) (mulOneLeft x);
+
+\definition mulZeroLeftLe (x: Real): Le (mul zero x) zero :=
+  \fun (q: Rat) => \fun (member: mem (mul zero x) q) =>
+    CutLaws.productBelowElim zero x q (mulMemLower zero x q member)
+      (mem zero q)
+      (\fun (a, b, c, d: Rat) =>
+        \fun (aZero: mem zero a) =>
+        \fun (bZero: Logic.Not (mem zero b)) =>
+        \fun (xc: mem x c) => \fun (xd: Logic.Not (mem x d)) =>
+        \fun (ac: lt q (mulRat a c)) =>
+        \fun (ad: lt q (mulRat a d)) =>
+        \fun (bc: lt q (mulRat b c)) =>
+        \fun (bd: lt q (mulRat b d)) =>
+          ofRatMem zeroRat q
+            (RationalOrder.ltReplaceRight q (mulRat zeroRat c) zeroRat
+              (RationalOperations.fractionMulZeroLeft c)
+              (RationalOperations.productInteriorAbove
+                q a b c d zeroRat c
+                (RationalOperations.leOfLt a zeroRat
+                  (ofRatMemLt zeroRat a aZero))
+                (RationalOperations.leOfNotLtReverse zeroRat b
+                  (\fun (reverse: lt b zeroRat) =>
+                    bZero (ofRatMem zeroRat b reverse)))
+                (RationalOperations.leRefl c)
+                (RationalOperations.leOfLt c d
+                  (CutLaws.memberLtOutside x c d xc xd))
+                ac ad bc bd)));
+
+\definition leMulZeroLeft (x: Real): Le zero (mul zero x) :=
+  \fun (q: Rat) => \fun (zeroQ: mem zero q) =>
+    \take (u: \Cast[Rat] ({ u : Rat \where Logic.And[lt zeroRat u,
+        Logic.And[mem x (negRat u), Logic.Not (mem x u)]] })) =>
+      \take (e: \Cast[Rat] ({ e : Rat \where Logic.And[lt zeroRat e,
+          lt q (mulRat (negRat e) u)] })) =>
+        \block {
+          \let bound: Logic.And[lt zeroRat u,
+              Logic.And[mem x (negRat u), Logic.Not (mem x u)]] :=
+            \bysub(Rat, { u : Rat \where Logic.And[lt zeroRat u,
+                Logic.And[mem x (negRat u), Logic.Not (mem x u)]] }, u) \then
+          \let small: Logic.And[lt zeroRat e,
+              lt q (mulRat (negRat e) u)] :=
+            \bysub(Rat, { e : Rat \where Logic.And[lt zeroRat e,
+                lt q (mulRat (negRat e) u)] }, e) \then
+          \let qNegative: lt q zeroRat := ofRatMemLt zeroRat q zeroQ \then
+          \let ePositive: lt zeroRat e :=
+            #left{small} \then
+          \let uPositive: lt zeroRat u :=
+            #left{bound} \then
+          \let eNegative: lt (negRat e) zeroRat :=
+            RationalOperations.ltNegReverse zeroRat e ePositive \then
+          \let uNegative: lt (negRat u) zeroRat :=
+            RationalOperations.ltNegReverse zeroRat u uPositive \then
+          \let qac: lt q (mulRat (negRat e) (negRat u)) :=
+            RationalOrder.ltTrans q zeroRat
+              (mulRat (negRat e) (negRat u)) qNegative
+              (RationalOperations.zeroLtMulNegative
+                (negRat e) (negRat u) eNegative uNegative) \then
+          \let qad: lt q (mulRat (negRat e) u) :=
+            #right{small} \then
+          \let qbc: lt q (mulRat zeroRat (negRat u)) :=
+            RationalOrder.ltReplaceRight q zeroRat
+              (mulRat zeroRat (negRat u))
+              (RationalFractions.fractionEqSym _ _
+                (RationalOperations.fractionMulZeroLeft (negRat u)))
+              qNegative \then
+          \let qbd: lt q (mulRat zeroRat u) :=
+            RationalOrder.ltReplaceRight q zeroRat (mulRat zeroRat u)
+              (RationalFractions.fractionEqSym _ _
+                (RationalOperations.fractionMulZeroLeft u)) qNegative \then
+          \return mulMem zero x q
+            (productBelowIntro zero x q
+              (negRat e) zeroRat (negRat u) u
+              (ofRatMem zeroRat (negRat e) eNegative)
+              (\fun (atZero: mem zero zeroRat) =>
+                RationalOrder.ltIrrefl zeroRat
+                  (ofRatMemLt zeroRat zeroRat atZero))
+              (#left{(#right{bound})})
+              (#right{(#right{bound})})
+              qac qad qbc qbd)
+        }
+      \by { RationalOperations.smallNegativeProduct q u
+        (ofRatMemLt zeroRat q zeroQ)
+        (#left{(\bysub(Rat, { u : Rat \where Logic.And[lt zeroRat u,
+              Logic.And[mem x (negRat u), Logic.Not (mem x u)]] }, u))}) }
+    \by { CutLaws.symmetricBound x };
+
+\definition mulZeroLeft (x: Real): mul zero x = zero :=
+  eqByExt (mul zero x) zero (mulZeroLeftLe x) (leMulZeroLeft x);
+
+\definition mulZeroRight (x: Real): mul x zero = zero :=
+  trans!{Real} (mul x zero) (mul zero x) zero
+    (mulComm x zero) (mulZeroLeft x);
+
+\definition zeroNeOne: Logic.Not (zero = one) :=
+  CutOrder.ltNotEq zero one
+    (ltOfRat zeroRat oneRat RationalOrder.zeroLtOne);
+
+\definition mulOneRightLe (x: Real): Le (mul x one) x :=
+  leReplaceLeft (mul one x) (mul x one) x (mulComm one x)
+    (mulOneLeftLe x);
+
+\definition mulZeroRightLe (x: Real): Le (mul x zero) zero :=
+  leReplaceLeft (mul zero x) (mul x zero) zero (mulComm zero x)
+    (mulZeroLeftLe x);
+
+\definition invZero: inv zero = zero :=
+  eqByExt (inv zero) zero
+    (\fun (q: Rat) => \fun (member: mem (inv zero) q) =>
+      Classical.orElim
+        (Logic.And[underlying zero = RatLower zeroRat, lt q zeroRat])
+        (Logic.And[Logic.Not (underlying zero = RatLower zeroRat),
+          ReciprocalBelow zero q])
+        (mem zero q)
+        (\fun (atZero: Logic.And[
+          underlying zero = RatLower zeroRat, lt q zeroRat]) =>
+          ofRatMem zeroRat q
+            (#right{atZero}))
+        (\fun (away: Logic.And[
+          Logic.Not (underlying zero = RatLower zeroRat),
+          ReciprocalBelow zero q]) =>
+          Logic.falseElim (mem zero q)
+            (#left{away}
+              (\refl(RatLower zeroRat))))
+        (invMemLower zero q member))
+    (\fun (q: Rat) => \fun (member: mem zero q) =>
+      invMem zero q
+        (Logic.Or[
+          Logic.And[underlying zero = RatLower zeroRat, lt q zeroRat],
+          Logic.And[Logic.Not (underlying zero = RatLower zeroRat),
+            ReciprocalBelow zero q]]::left
+          (Logic.And[
+            underlying zero = RatLower zeroRat, lt q zeroRat]::# (\refl(RatLower zeroRat)) (ofRatMemLt zeroRat q member))));
+
+\definition nonnegativeMul (x, y: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y): Le zero (mul x y) :=
+  \fun (q: Rat) => \fun (zeroQ: mem zero q) =>
+    \take (u: \Cast[Rat] ({ u : Rat \where Logic.And[lt zeroRat u,
+        Logic.And[mem x (negRat u), Logic.Not (mem x u)]] })) =>
+      \take (v: \Cast[Rat] ({ v : Rat \where Logic.And[lt zeroRat v,
+          Logic.And[mem y (negRat v), Logic.Not (mem y v)]] })) =>
+        \take (e: \Cast[Rat] ({ e : Rat \where Logic.And[lt zeroRat e,
+            lt q (mulRat (negRat e) v)] })) =>
+          \take (f: \Cast[Rat] ({ f : Rat \where Logic.And[lt zeroRat f,
+              lt q (mulRat (negRat f) u)] })) =>
+            \block {
+              \let uLaw: Logic.And[lt zeroRat u,
+                  Logic.And[mem x (negRat u), Logic.Not (mem x u)]] :=
+                \bysub(Rat, { u : Rat \where Logic.And[lt zeroRat u,
+                    Logic.And[mem x (negRat u), Logic.Not (mem x u)]] }, u) \then
+              \let vLaw: Logic.And[lt zeroRat v,
+                  Logic.And[mem y (negRat v), Logic.Not (mem y v)]] :=
+                \bysub(Rat, { v : Rat \where Logic.And[lt zeroRat v,
+                    Logic.And[mem y (negRat v), Logic.Not (mem y v)]] }, v) \then
+              \let eLaw: Logic.And[lt zeroRat e,
+                  lt q (mulRat (negRat e) v)] :=
+                \bysub(Rat, { e : Rat \where Logic.And[lt zeroRat e,
+                    lt q (mulRat (negRat e) v)] }, e) \then
+              \let fLaw: Logic.And[lt zeroRat f,
+                  lt q (mulRat (negRat f) u)] :=
+                \bysub(Rat, { f : Rat \where Logic.And[lt zeroRat f,
+                    lt q (mulRat (negRat f) u)] }, f) \then
+              \let neNegative: lt (negRat e) zeroRat :=
+                RationalOrder.ltReplaceRight (negRat e) (negRat zeroRat)
+                  zeroRat (RationalFractions.fractionEqRefl zeroRat)
+                  (RationalOperations.ltNegReverse zeroRat e (#left{eLaw})) \then
+              \let nfNegative: lt (negRat f) zeroRat :=
+                RationalOrder.ltReplaceRight (negRat f) (negRat zeroRat)
+                  zeroRat (RationalFractions.fractionEqRefl zeroRat)
+                  (RationalOperations.ltNegReverse zeroRat f (#left{fLaw})) \then
+              \let acPositive: lt zeroRat (mulRat (negRat e) (negRat f)) :=
+                RationalOperations.zeroLtMulNegative
+                  (negRat e) (negRat f) neNegative nfNegative \then
+              \let qNegative: lt q zeroRat := ofRatMemLt zeroRat q zeroQ \then
+              \let ac: lt q (mulRat (negRat e) (negRat f)) :=
+                RationalOrder.ltTrans q zeroRat
+                  (mulRat (negRat e) (negRat f)) qNegative acPositive \then
+              \let ad: lt q (mulRat (negRat e) v) := #right{eLaw} \then
+              \let bc: lt q (mulRat u (negRat f)) :=
+                RationalOrder.ltReplaceRight q (mulRat (negRat f) u)
+                  (mulRat u (negRat f))
+                  (RationalOperations.fractionMulComm (negRat f) u)
+                  (#right{fLaw}) \then
+              \let bd: lt q (mulRat u v) :=
+                RationalOrder.ltTrans q zeroRat (mulRat u v) qNegative
+                  (RationalOperations.zeroLtMulPositive u v
+                    (#left{uLaw}) (#left{vLaw})) \then
+              \return mulMem x y q
+                (productBelowIntro x y q (negRat e) u (negRat f) v
+                  (zeroX (negRat e) (ofRatMem zeroRat (negRat e) neNegative))
+                  (#right{(#right{uLaw})})
+                  (zeroY (negRat f) (ofRatMem zeroRat (negRat f) nfNegative))
+                  (#right{(#right{vLaw})}) ac ad bc bd)
+            }
+          \by { RationalOperations.smallNegativeProduct q u
+            (ofRatMemLt zeroRat q zeroQ)
+            (#left{(\bysub(Rat, { u : Rat \where Logic.And[lt zeroRat u,
+              Logic.And[mem x (negRat u), Logic.Not (mem x u)]] }, u))}) }
+        \by { RationalOperations.smallNegativeProduct q v
+          (ofRatMemLt zeroRat q zeroQ)
+          (#left{(\bysub(Rat, { v : Rat \where Logic.And[lt zeroRat v,
+            Logic.And[mem y (negRat v), Logic.Not (mem y v)]] }, v))}) }
+      \by { CutLaws.symmetricBound y }
+    \by { CutLaws.symmetricBound x };
+
+\definition outsideNotNegative (x: Real) (zeroX: Le zero x) (b: Rat)
+  (outside: Logic.Not (mem x b)): Logic.Not (lt b zeroRat) :=
+  \fun (negative: lt b zeroRat) =>
+    outside (zeroX b (ofRatMem zeroRat b negative));
+
+\definition positiveLeftFactor (a, b: Rat)
+  (notNegative: Logic.Not (lt a zeroRat))
+  (productPositive: lt zeroRat (mulRat a b)): lt zeroRat a :=
+  Classical.orElim (lt zeroRat a)
+    (Logic.Or[RationalFractions.FractionEq zeroRat a, lt a zeroRat])
+    (lt zeroRat a)
+    (\fun (positive: lt zeroRat a) => positive)
+    (\fun (rest: Logic.Or[
+        RationalFractions.FractionEq zeroRat a, lt a zeroRat]) =>
+      Classical.orElim (RationalFractions.FractionEq zeroRat a)
+        (lt a zeroRat) (lt zeroRat a)
+        (\fun (zeroA: RationalFractions.FractionEq zeroRat a) =>
+          Logic.falseElim (lt zeroRat a)
+            (RationalOrder.ltIrrefl zeroRat
+              (RationalOrder.ltReplaceRight zeroRat (mulRat a b) zeroRat
+                (RationalFractions.fractionEqTrans _ _ _
+                  (RationalOperations.fractionMulRespects a zeroRat b b
+                    (RationalFractions.fractionEqSym _ _ zeroA)
+                    (RationalFractions.fractionEqRefl b))
+                  (RationalOperations.fractionMulZeroLeft b))
+                productPositive)))
+        (\fun (negative: lt a zeroRat) =>
+          Logic.falseElim (lt zeroRat a) (notNegative negative))
+        rest)
+    (RationalOrder.trichotomy zeroRat a);
+
+\definition positiveRightFactor (a, b: Rat)
+  (notNegative: Logic.Not (lt b zeroRat))
+  (productPositive: lt zeroRat (mulRat a b)): lt zeroRat b :=
+  positiveLeftFactor b a notNegative
+    (RationalOrder.ltReplaceRight zeroRat (mulRat a b) (mulRat b a)
+      (RationalOperations.fractionMulComm a b) productPositive);
+
+\definition nonnegativeMulIntro (x, y: Real) (q, a, b: Rat)
+  (aPositive: lt zeroRat a) (xa: mem x a)
+  (bPositive: lt zeroRat b) (yb: mem y b)
+  (qab: lt q (mulRat a b)): mem (mul x y) q :=
+  \take (c: \Cast[Rat] ({ c : Rat \where Logic.Not (mem x c) })) =>
+    \take (d: \Cast[Rat] ({ d : Rat \where Logic.Not (mem y d) })) =>
+      \block {
+        \let xc: Logic.Not (mem x c) :=
+          \bysub(Rat, { c : Rat \where Logic.Not (mem x c) }, c) \then
+        \let yd: Logic.Not (mem y d) :=
+          \bysub(Rat, { d : Rat \where Logic.Not (mem y d) }, d) \then
+        \let ac: lt a c := CutLaws.memberLtOutside x a c xa xc \then
+        \let bd: lt b d := CutLaws.memberLtOutside y b d yb yd \then
+        \let qad: lt q (mulRat a d) :=
+          RationalOrder.ltTrans q (mulRat a b) (mulRat a d) qab
+            (RationalOperations.ltMulPositiveLeft a b d aPositive bd) \then
+        \let qcb: lt q (mulRat c b) :=
+          RationalOrder.ltTrans q (mulRat a b) (mulRat c b) qab
+            (RationalOperations.ltMulPositiveRight a c b bPositive ac) \then
+        \let cPositive: lt zeroRat c :=
+          RationalOrder.ltTrans zeroRat a c aPositive ac \then
+        \let qcd: lt q (mulRat c d) :=
+          RationalOrder.ltTrans q (mulRat c b) (mulRat c d) qcb
+            (RationalOperations.ltMulPositiveLeft c b d cPositive bd) \then
+        \return mulMem x y q
+          (productBelowIntro x y q a c b d xa xc yb yd
+            qab qad qcb qcd)
+      }
+    \by { cutProper y }
+  \by { cutProper x };
+
+\definition nonnegativeMulElim (x, y: Real) (q: Rat)
+  (zeroX: Le zero x) (zeroY: Le zero y)
+  (qNonnegative: RationalOperations.Le zeroRat q)
+  (member: mem (mul x y) q) (P: \Prop)
+  (use: \forall (a, b: Rat) -> lt zeroRat a -> mem x a ->
+    lt zeroRat b -> mem y b -> lt q (mulRat a b) -> P): P :=
+  CutLaws.productBelowElim x y q (mulMemLower x y q member) P
+    (\fun (a, c, b, d: Rat) =>
+      \fun (xa: mem x a) => \fun (xc: Logic.Not (mem x c)) =>
+      \fun (yb: mem y b) => \fun (yd: Logic.Not (mem y d)) =>
+      \fun (qab: lt q (mulRat a b)) =>
+      \fun (qad: lt q (mulRat a d)) =>
+      \fun (qcb: lt q (mulRat c b)) =>
+      \fun (qcd: lt q (mulRat c d)) =>
+        \block {
+          \let cdPositive: lt zeroRat (mulRat c d) :=
+            RationalOperations.leLtTrans zeroRat q (mulRat c d)
+              qNonnegative qcd \then
+          \let cPositive: lt zeroRat c :=
+            positiveLeftFactor c d (outsideNotNegative x zeroX c xc)
+              cdPositive \then
+          \let dPositive: lt zeroRat d :=
+            positiveRightFactor c d (outsideNotNegative y zeroY d yd)
+              cdPositive \then
+          \let adPositive: lt zeroRat (mulRat a d) :=
+            RationalOperations.leLtTrans zeroRat q (mulRat a d)
+              qNonnegative qad \then
+          \let aPositive: lt zeroRat a :=
+            RationalOperations.positiveRightOfPositiveProduct d a dPositive
+              (RationalOrder.ltReplaceRight zeroRat (mulRat a d)
+                (mulRat d a) (RationalOperations.fractionMulComm a d)
+                adPositive) \then
+          \let cbPositive: lt zeroRat (mulRat c b) :=
+            RationalOperations.leLtTrans zeroRat q (mulRat c b)
+              qNonnegative qcb \then
+          \let bPositive: lt zeroRat b :=
+            RationalOperations.positiveRightOfPositiveProduct c b cPositive
+              cbPositive \then
+          \return use a b aPositive xa bPositive yb qab
+        });
+
+\definition ContractRight (q, a, c: Rat): \Prop :=
+  \exists { r : Rat \where Logic.And[lt zeroRat r,
+    Logic.And[lt r c, lt q (mulRat a r)]] };
+
+\definition contractRight (q, a, c: Rat)
+  (aPositive: lt zeroRat a) (cPositive: lt zeroRat c)
+  (qac: lt q (mulRat a c)): ContractRight q a c :=
+  \take (t: \Cast[Rat] ({ t : Rat \where Logic.And[lt zeroRat t,
+      Logic.And[lt t oneRat, lt q (mulRat t (mulRat a c))]] })) =>
+    \block {
+      \let tLaw: Logic.And[lt zeroRat t,
+          Logic.And[lt t oneRat, lt q (mulRat t (mulRat a c))]] :=
+        \bysub(Rat, { t : Rat \where Logic.And[lt zeroRat t,
+          Logic.And[lt t oneRat, lt q (mulRat t (mulRat a c))]] }, t) \then
+      \let r: Rat := mulRat t c \then
+      \let rPositive: lt zeroRat r :=
+        RationalOperations.zeroLtMulPositive t c (#left{tLaw}) cPositive \then
+      \let rLtC: lt r c :=
+        RationalOrder.ltReplaceRight (mulRat t c) (mulRat oneRat c) c
+          (RationalOperations.fractionMulOneLeft c)
+          (RationalOperations.ltMulPositiveRight t oneRat c cPositive
+            (#left{(#right{tLaw})})) \then
+      \let reassociate: RationalFractions.FractionEq
+          (mulRat t (mulRat a c)) (mulRat a r) :=
+        RationalFractions.fractionEqTrans _ _ _
+          (RationalFractions.fractionEqSym _ _
+            (RationalOperations.fractionMulAssoc t a c))
+          (RationalFractions.fractionEqTrans _ _ _
+            (RationalOperations.fractionMulRespects
+              (mulRat t a) (mulRat a t) c c
+              (RationalOperations.fractionMulComm t a)
+              (RationalFractions.fractionEqRefl c))
+            (RationalOperations.fractionMulAssoc a t c)) \then
+      \let qar: lt q (mulRat a r) :=
+        RationalOrder.ltReplaceRight q (mulRat t (mulRat a c))
+          (mulRat a r) reassociate (#right{(#right{tLaw})}) \then
+      \return \exact(
+        \into[Rat](r, { r : Rat \where Logic.And[lt zeroRat r,
+          Logic.And[lt r c, lt q (mulRat a r)]] }) \by { Logic.And[
+            lt zeroRat r, Logic.And[lt r c, lt q (mulRat a r)]]::#
+              rPositive (Logic.And[lt r c, lt q (mulRat a r)]::#
+                rLtC qar) },
+        \Cast[Rat] ({ r : Rat \where Logic.And[lt zeroRat r,
+          Logic.And[lt r c, lt q (mulRat a r)]] }))
+    }
+  \by { RationalOperations.contractingFactor q (mulRat a c) qac };
+
+\definition mulAssocNonnegativeForward (x, y, z: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y) (zeroZ: Le zero z):
+  Le (mul (mul x y) z) (mul x (mul y z)) :=
+  \fun (q: Rat) => \fun (member: mem (mul (mul x y) z) q) =>
+    Classical.orElim (RationalOperations.Le zeroRat q) (lt q zeroRat)
+      (mem (mul x (mul y z)) q)
+      (\fun (qNonnegative: RationalOperations.Le zeroRat q) =>
+        nonnegativeMulElim (mul x y) z q
+          (nonnegativeMul x y zeroX zeroY) zeroZ qNonnegative member
+          (mem (mul x (mul y z)) q)
+          (\fun (s, c: Rat) => \fun (sPositive: lt zeroRat s) =>
+            \fun (xys: mem (mul x y) s) =>
+            \fun (cPositive: lt zeroRat c) => \fun (zc: mem z c) =>
+            \fun (qsc: lt q (mulRat s c)) =>
+              nonnegativeMulElim x y s zeroX zeroY
+                (RationalOperations.leOfLt zeroRat s sPositive) xys
+                (mem (mul x (mul y z)) q)
+                (\fun (a, b: Rat) => \fun (aPositive: lt zeroRat a) =>
+                  \fun (xa: mem x a) =>
+                  \fun (bPositive: lt zeroRat b) => \fun (yb: mem y b) =>
+                  \fun (sab: lt s (mulRat a b)) =>
+                    \block {
+                      \let qabcLeft: lt q (mulRat (mulRat a b) c) :=
+                        RationalOrder.ltTrans q (mulRat s c)
+                          (mulRat (mulRat a b) c) qsc
+                          (RationalOperations.ltMulPositiveRight s
+                            (mulRat a b) c cPositive sab) \then
+                      \let qabc: lt q (mulRat a (mulRat b c)) :=
+                        RationalOrder.ltReplaceRight q
+                          (mulRat (mulRat a b) c)
+                          (mulRat a (mulRat b c))
+                          (RationalOperations.fractionMulAssoc a b c)
+                          qabcLeft \then
+                      \let bcPositive: lt zeroRat (mulRat b c) :=
+                        RationalOperations.zeroLtMulPositive b c
+                          bPositive cPositive \then
+                      \return \take (r: \Cast[Rat] ({ r : Rat \where
+                          Logic.And[lt zeroRat r, Logic.And[
+                            lt r (mulRat b c), lt q (mulRat a r)]] })) =>
+                        \block {
+                          \let rLaw: Logic.And[lt zeroRat r, Logic.And[
+                              lt r (mulRat b c), lt q (mulRat a r)]] :=
+                            \bysub(Rat, { r : Rat \where
+                              Logic.And[lt zeroRat r, Logic.And[
+                                lt r (mulRat b c), lt q (mulRat a r)]] }, r) \then
+                          \let yzr: mem (mul y z) r :=
+                            nonnegativeMulIntro y z r b c bPositive yb
+                              cPositive zc (#left{(#right{rLaw})}) \then
+                          \return nonnegativeMulIntro x (mul y z) q a r
+                            aPositive xa (#left{rLaw}) yzr
+                            (#right{(#right{rLaw})})
+                        }
+                      \by { contractRight q a (mulRat b c)
+                        aPositive bcPositive qabc }
+                    })))
+      (\fun (qNegative: lt q zeroRat) =>
+        (nonnegativeMul x (mul y z) zeroX
+          (nonnegativeMul y z zeroY zeroZ)) q
+          (ofRatMem zeroRat q qNegative))
+      (RationalOperations.nonnegativeOrNegative q);
+
+\definition mulAssocNonnegativeBackward (x, y, z: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y) (zeroZ: Le zero z):
+  Le (mul x (mul y z)) (mul (mul x y) z) :=
+  \fun (q: Rat) => \fun (member: mem (mul x (mul y z)) q) =>
+    Classical.orElim (RationalOperations.Le zeroRat q) (lt q zeroRat)
+      (mem (mul (mul x y) z) q)
+      (\fun (qNonnegative: RationalOperations.Le zeroRat q) =>
+        nonnegativeMulElim x (mul y z) q zeroX
+          (nonnegativeMul y z zeroY zeroZ) qNonnegative member
+          (mem (mul (mul x y) z) q)
+          (\fun (a, s: Rat) => \fun (aPositive: lt zeroRat a) =>
+            \fun (xa: mem x a) =>
+            \fun (sPositive: lt zeroRat s) =>
+            \fun (yzs: mem (mul y z) s) =>
+            \fun (qas: lt q (mulRat a s)) =>
+              nonnegativeMulElim y z s zeroY zeroZ
+                (RationalOperations.leOfLt zeroRat s sPositive) yzs
+                (mem (mul (mul x y) z) q)
+                (\fun (b, c: Rat) => \fun (bPositive: lt zeroRat b) =>
+                  \fun (yb: mem y b) =>
+                  \fun (cPositive: lt zeroRat c) => \fun (zc: mem z c) =>
+                  \fun (sbc: lt s (mulRat b c)) =>
+                    \block {
+                      \let qabcRight: lt q (mulRat a (mulRat b c)) :=
+                        RationalOrder.ltTrans q (mulRat a s)
+                          (mulRat a (mulRat b c)) qas
+                          (RationalOperations.ltMulPositiveLeft a s
+                            (mulRat b c) aPositive sbc) \then
+                      \let qabc: lt q (mulRat (mulRat a b) c) :=
+                        RationalOrder.ltReplaceRight q
+                          (mulRat a (mulRat b c))
+                          (mulRat (mulRat a b) c)
+                          (RationalFractions.fractionEqSym _ _
+                            (RationalOperations.fractionMulAssoc a b c))
+                          qabcRight \then
+                      \let abPositive: lt zeroRat (mulRat a b) :=
+                        RationalOperations.zeroLtMulPositive a b
+                          aPositive bPositive \then
+                      \let qcab: lt q (mulRat c (mulRat a b)) :=
+                        RationalOrder.ltReplaceRight q
+                          (mulRat (mulRat a b) c)
+                          (mulRat c (mulRat a b))
+                          (RationalOperations.fractionMulComm
+                            (mulRat a b) c) qabc \then
+                      \return \take (r: \Cast[Rat] ({ r : Rat \where
+                          Logic.And[lt zeroRat r, Logic.And[
+                            lt r (mulRat a b), lt q (mulRat c r)]] })) =>
+                        \block {
+                          \let rLaw: Logic.And[lt zeroRat r, Logic.And[
+                              lt r (mulRat a b), lt q (mulRat c r)]] :=
+                            \bysub(Rat, { r : Rat \where
+                              Logic.And[lt zeroRat r, Logic.And[
+                                lt r (mulRat a b), lt q (mulRat c r)]] }, r) \then
+                          \let xyr: mem (mul x y) r :=
+                            nonnegativeMulIntro x y r a b aPositive xa
+                              bPositive yb (#left{(#right{rLaw})}) \then
+                          \let qrc: lt q (mulRat r c) :=
+                            RationalOrder.ltReplaceRight q (mulRat c r)
+                              (mulRat r c)
+                              (RationalOperations.fractionMulComm c r)
+                              (#right{(#right{rLaw})}) \then
+                          \return nonnegativeMulIntro (mul x y) z q r c
+                            (#left{rLaw}) xyr cPositive zc qrc
+                        }
+                      \by { contractRight q c (mulRat a b)
+                        cPositive abPositive qcab }
+                    })))
+      (\fun (qNegative: lt q zeroRat) =>
+        (nonnegativeMul (mul x y) z
+          (nonnegativeMul x y zeroX zeroY) zeroZ) q
+          (ofRatMem zeroRat q qNegative))
+      (RationalOperations.nonnegativeOrNegative q);
+
+\definition mulAssocNonnegative (x, y, z: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y) (zeroZ: Le zero z):
+  mul (mul x y) z = mul x (mul y z) :=
+  eqByExt (mul (mul x y) z) (mul x (mul y z))
+    (mulAssocNonnegativeForward x y z zeroX zeroY zeroZ)
+    (mulAssocNonnegativeBackward x y z zeroX zeroY zeroZ);
+
+\definition nonnegativeOrNegativeReal (x: Real):
+  Logic.Or[Le zero x, Lt x zero] :=
+  Classical.orElim (Lt zero x) (Logic.Or[zero = x, Lt x zero])
+    (Logic.Or[Le zero x, Lt x zero])
+    (\fun (positive: Lt zero x) =>
+      Logic.Or[Le zero x, Lt x zero]::left
+        (CutOrder.leOfLt zero x positive))
+    (\fun (rest: Logic.Or[zero = x, Lt x zero]) =>
+      Classical.orElim (zero = x) (Lt x zero)
+        (Logic.Or[Le zero x, Lt x zero])
+        (\fun (same: zero = x) =>
+          Logic.Or[Le zero x, Lt x zero]::left
+            (leReplaceRight zero zero x same (leRefl zero)))
+        (\fun (negative: Lt x zero) =>
+          Logic.Or[Le zero x, Lt x zero]::right negative)
+        rest)
+    (CutOrder.ltTrichotomy zero x);
+
+\definition nonnegativeNegOfNegative (x: Real) (negative: Lt x zero):
+  Le zero (neg x) :=
+  leReplaceLeft (neg zero) zero (neg x) negZero
+    (negAntitone x zero (CutOrder.leOfLt x zero negative));
+
+\record SignedMulSpec[x, y, value: Real]: \Prop := {
+  nn: Le zero x -> Le zero y -> value = mul x y,
+  np: Le zero x -> Lt y zero -> value = neg (mul x (neg y)),
+  pn: Lt x zero -> Le zero y -> value = neg (mul (neg x) y),
+  pp: Lt x zero -> Lt y zero -> value = mul (neg x) (neg y),
+};
+
+\definition signedMulSpecNN (x, y: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y): SignedMulSpec[x, y, mul x y] :=
+  SignedMulSpec[x, y, mul x y]::#
+    (\fun (_: Le zero x) => \fun (_: Le zero y) => \refl(mul x y))
+    (\fun (_: Le zero x) => \fun (negativeY: Lt y zero) =>
+      Logic.falseElim _ ((ltNotLeReverse y zero negativeY) zeroY))
+    (\fun (negativeX: Lt x zero) => \fun (_: Le zero y) =>
+      Logic.falseElim _ ((ltNotLeReverse x zero negativeX) zeroX))
+    (\fun (negativeX: Lt x zero) => \fun (_: Lt y zero) =>
+      Logic.falseElim _ ((ltNotLeReverse x zero negativeX) zeroX));
+
+\definition signedMulSpecNP (x, y: Real)
+  (zeroX: Le zero x) (negativeY: Lt y zero):
+  SignedMulSpec[x, y, neg (mul x (neg y))] :=
+  SignedMulSpec[x, y, neg (mul x (neg y))]::#
+    (\fun (_: Le zero x) => \fun (zeroY: Le zero y) =>
+      Logic.falseElim _ ((ltNotLeReverse y zero negativeY) zeroY))
+    (\fun (_: Le zero x) => \fun (_: Lt y zero) => \refl(neg (mul x (neg y))))
+    (\fun (negativeX: Lt x zero) => \fun (_: Le zero y) =>
+      Logic.falseElim _ ((ltNotLeReverse x zero negativeX) zeroX))
+    (\fun (negativeX: Lt x zero) => \fun (_: Lt y zero) =>
+      Logic.falseElim _ ((ltNotLeReverse x zero negativeX) zeroX));
+
+\definition signedMulSpecPN (x, y: Real)
+  (negativeX: Lt x zero) (zeroY: Le zero y):
+  SignedMulSpec[x, y, neg (mul (neg x) y)] :=
+  SignedMulSpec[x, y, neg (mul (neg x) y)]::#
+    (\fun (zeroX: Le zero x) => \fun (_: Le zero y) =>
+      Logic.falseElim _ ((ltNotLeReverse x zero negativeX) zeroX))
+    (\fun (zeroX: Le zero x) => \fun (_: Lt y zero) =>
+      Logic.falseElim _ ((ltNotLeReverse x zero negativeX) zeroX))
+    (\fun (_: Lt x zero) => \fun (_: Le zero y) => \refl(neg (mul (neg x) y)))
+    (\fun (_: Lt x zero) => \fun (negativeY: Lt y zero) =>
+      Logic.falseElim _ ((ltNotLeReverse y zero negativeY) zeroY));
+
+\definition signedMulSpecPP (x, y: Real)
+  (negativeX: Lt x zero) (negativeY: Lt y zero):
+  SignedMulSpec[x, y, mul (neg x) (neg y)] :=
+  SignedMulSpec[x, y, mul (neg x) (neg y)]::#
+    (\fun (zeroX: Le zero x) => \fun (_: Le zero y) =>
+      Logic.falseElim _ ((ltNotLeReverse x zero negativeX) zeroX))
+    (\fun (zeroX: Le zero x) => \fun (_: Lt y zero) =>
+      Logic.falseElim _ ((ltNotLeReverse x zero negativeX) zeroX))
+    (\fun (_: Lt x zero) => \fun (zeroY: Le zero y) =>
+      Logic.falseElim _ ((ltNotLeReverse y zero negativeY) zeroY))
+    (\fun (_: Lt x zero) => \fun (_: Lt y zero) =>
+      \refl(mul (neg x) (neg y)));
+
+\definition SignedMulCandidates (x, y: Real): \Pow Real :=
+  { value : Real \where SignedMulSpec[x, y, value] };
+
+\definition SignedMulCandidate (x, y: Real): \Set :=
+  \Cast[Real] (SignedMulCandidates x y);
+
+\definition signedMulCandidateValue (x, y: Real)
+  (candidate: SignedMulCandidate x y): Real := candidate;
+
+\definition signedMulExists (x, y: Real):
+  \exists SignedMulCandidate x y :=
+  Classical.orElim (Le zero x) (Lt x zero)
+    (\exists SignedMulCandidate x y)
+    (\fun (zeroX: Le zero x) =>
+      Classical.orElim (Le zero y) (Lt y zero)
+        (\exists SignedMulCandidate x y)
+        (\fun (zeroY: Le zero y) =>
+          \exact(\into[Real](mul x y, SignedMulCandidates x y) \by {
+            signedMulSpecNN x y zeroX zeroY }, SignedMulCandidate x y))
+        (\fun (negativeY: Lt y zero) =>
+          \exact(\into[Real](neg (mul x (neg y)), SignedMulCandidates x y)
+            \by { signedMulSpecNP x y zeroX negativeY },
+            SignedMulCandidate x y))
+        (nonnegativeOrNegativeReal y))
+    (\fun (negativeX: Lt x zero) =>
+      Classical.orElim (Le zero y) (Lt y zero)
+        (\exists SignedMulCandidate x y)
+        (\fun (zeroY: Le zero y) =>
+          \exact(\into[Real](neg (mul (neg x) y), SignedMulCandidates x y)
+            \by { signedMulSpecPN x y negativeX zeroY },
+            SignedMulCandidate x y))
+        (\fun (negativeY: Lt y zero) =>
+          \exact(\into[Real](mul (neg x) (neg y), SignedMulCandidates x y)
+            \by { signedMulSpecPP x y negativeX negativeY },
+            SignedMulCandidate x y))
+        (nonnegativeOrNegativeReal y))
+    (nonnegativeOrNegativeReal x);
+
+\definition signedMulSpecNNProjection (x, y, value: Real)
+  (spec: SignedMulSpec[x, y, value]):
+  Le zero x -> Le zero y -> value = mul x y := #nn{spec};
+\definition signedMulSpecNPProjection (x, y, value: Real)
+  (spec: SignedMulSpec[x, y, value]):
+  Le zero x -> Lt y zero -> value = neg (mul x (neg y)) :=
+  #np{spec};
+\definition signedMulSpecPNProjection (x, y, value: Real)
+  (spec: SignedMulSpec[x, y, value]):
+  Lt x zero -> Le zero y -> value = neg (mul (neg x) y) :=
+  #pn{spec};
+\definition signedMulSpecPPProjection (x, y, value: Real)
+  (spec: SignedMulSpec[x, y, value]):
+  Lt x zero -> Lt y zero -> value = mul (neg x) (neg y) :=
+  #pp{spec};
+
+\definition signedMulCandidatesUnique (x, y: Real):
+  \forall (u, v: SignedMulCandidate x y) -> u = v :=
+
+  \fun (u, v: SignedMulCandidate x y) =>
+    Classical.orElim (Le zero x) (Lt x zero) (u = v)
+      (\fun (zeroX: Le zero x) =>
+        Classical.orElim (Le zero y) (Lt y zero) (u = v)
+          (\fun (zeroY: Le zero y) =>
+            trans!{Real} u (mul x y) v
+              (signedMulSpecNNProjection x y u
+                (\bysub(Real, SignedMulCandidates x y, u)) zeroX zeroY)
+              (sym!{Real} v (mul x y)
+                (signedMulSpecNNProjection x y v
+                  (\bysub(Real, SignedMulCandidates x y, v)) zeroX zeroY)))
+          (\fun (negativeY: Lt y zero) =>
+            trans!{Real} u (neg (mul x (neg y))) v
+              (signedMulSpecNPProjection x y u
+                (\bysub(Real, SignedMulCandidates x y, u)) zeroX negativeY)
+              (sym!{Real} v (neg (mul x (neg y)))
+                (signedMulSpecNPProjection x y v
+                  (\bysub(Real, SignedMulCandidates x y, v)) zeroX negativeY)))
+          (nonnegativeOrNegativeReal y))
+      (\fun (negativeX: Lt x zero) =>
+        Classical.orElim (Le zero y) (Lt y zero) (u = v)
+          (\fun (zeroY: Le zero y) =>
+            trans!{Real} u (neg (mul (neg x) y)) v
+              (signedMulSpecPNProjection x y u
+                (\bysub(Real, SignedMulCandidates x y, u)) negativeX zeroY)
+              (sym!{Real} v (neg (mul (neg x) y))
+                (signedMulSpecPNProjection x y v
+                  (\bysub(Real, SignedMulCandidates x y, v)) negativeX zeroY)))
+          (\fun (negativeY: Lt y zero) =>
+            trans!{Real} u (mul (neg x) (neg y)) v
+              (signedMulSpecPPProjection x y u
+                (\bysub(Real, SignedMulCandidates x y, u)) negativeX negativeY)
+              (sym!{Real} v (mul (neg x) (neg y))
+                (signedMulSpecPPProjection x y v
+                  (\bysub(Real, SignedMulCandidates x y, v)) negativeX negativeY)))
+          (nonnegativeOrNegativeReal y))
+      (nonnegativeOrNegativeReal x);
+
+\definition fieldMul (x, y: Real): Real :=
+  \take (value: SignedMulCandidate x y) =>
+    signedMulCandidateValue x y value
+  \by { existence: signedMulExists x y, uniqueness: signedMulCandidatesUnique x y };
+
+\definition fieldMulSpec (x, y: Real): SignedMulSpec[x, y, fieldMul x y] :=
+  \take (value: SignedMulCandidate x y) =>
+    \idelim(signedMulCandidateValue x y value = fieldMul x y
+      \with result: Real => SignedMulSpec[x, y, result])
+      \by { base: \bysub(Real, SignedMulCandidates x y, value), equality:
+        sym!{Real} (fieldMul x y) (signedMulCandidateValue x y value)
+          (\takeelim((signedMulCandidateValue x y),
+            value, SignedMulCandidate x y, Real)
+            \by { existence: signedMulExists x y,
+              uniqueness: signedMulCandidatesUnique x y }) }
+  \by { signedMulExists x y };
+
+\definition fieldMulNN (x, y: Real) (zeroX: Le zero x) (zeroY: Le zero y):
+  fieldMul x y = mul x y :=
+  signedMulSpecNNProjection x y (fieldMul x y) (fieldMulSpec x y)
+    zeroX zeroY;
+
+\definition fieldMulNP (x, y: Real) (zeroX: Le zero x) (negativeY: Lt y zero):
+  fieldMul x y = neg (mul x (neg y)) :=
+  signedMulSpecNPProjection x y (fieldMul x y) (fieldMulSpec x y)
+    zeroX negativeY;
+
+\definition fieldMulPN (x, y: Real) (negativeX: Lt x zero) (zeroY: Le zero y):
+  fieldMul x y = neg (mul (neg x) y) :=
+  signedMulSpecPNProjection x y (fieldMul x y) (fieldMulSpec x y)
+    negativeX zeroY;
+
+\definition fieldMulPP (x, y: Real) (negativeX: Lt x zero) (negativeY: Lt y zero):
+  fieldMul x y = mul (neg x) (neg y) :=
+  signedMulSpecPPProjection x y (fieldMul x y) (fieldMulSpec x y)
+    negativeX negativeY;
+
+\definition zeroNonnegative: Le zero zero := leRefl zero;
+\definition oneNonnegative: Le zero one :=
+  CutOrder.leOfLt zero one (ltOfRat zeroRat oneRat RationalOrder.zeroLtOne);
+
+\definition fieldMulComm (x, y: Real): fieldMul x y = fieldMul y x :=
+
+  Classical.orElim (Le zero x) (Lt x zero) (fieldMul x y = fieldMul y x)
+    (\fun (zeroX: Le zero x) =>
+      Classical.orElim (Le zero y) (Lt y zero) (fieldMul x y = fieldMul y x)
+        (\fun (zeroY: Le zero y) =>
+          trans!{Real} (fieldMul x y) (mul x y) (fieldMul y x)
+            (fieldMulNN x y zeroX zeroY)
+            (trans!{Real} (mul x y) (mul y x) (fieldMul y x)
+              (mulComm x y) (sym!{Real} _ _ (fieldMulNN y x zeroY zeroX))))
+        (\fun (negativeY: Lt y zero) =>
+          trans!{Real} (fieldMul x y) (neg (mul x (neg y))) (fieldMul y x)
+            (fieldMulNP x y zeroX negativeY)
+            (trans!{Real} (neg (mul x (neg y))) (neg (mul (neg y) x))
+              (fieldMul y x)
+              (congr!{Real Real} neg _ _ (mulComm x (neg y)))
+              (sym!{Real} _ _ (fieldMulPN y x negativeY zeroX))))
+        (nonnegativeOrNegativeReal y))
+    (\fun (negativeX: Lt x zero) =>
+      Classical.orElim (Le zero y) (Lt y zero) (fieldMul x y = fieldMul y x)
+        (\fun (zeroY: Le zero y) =>
+          trans!{Real} (fieldMul x y) (neg (mul (neg x) y)) (fieldMul y x)
+            (fieldMulPN x y negativeX zeroY)
+            (trans!{Real} (neg (mul (neg x) y)) (neg (mul y (neg x)))
+              (fieldMul y x)
+              (congr!{Real Real} neg _ _ (mulComm (neg x) y))
+              (sym!{Real} _ _ (fieldMulNP y x zeroY negativeX))))
+        (\fun (negativeY: Lt y zero) =>
+          trans!{Real} (fieldMul x y) (mul (neg x) (neg y)) (fieldMul y x)
+            (fieldMulPP x y negativeX negativeY)
+            (trans!{Real} (mul (neg x) (neg y)) (mul (neg y) (neg x))
+              (fieldMul y x) (mulComm (neg x) (neg y))
+              (sym!{Real} _ _ (fieldMulPP y x negativeY negativeX))))
+        (nonnegativeOrNegativeReal y))
+    (nonnegativeOrNegativeReal x);
+
+\definition fieldMulOneLeft (x: Real): fieldMul one x = x :=
+  Classical.orElim (Le zero x) (Lt x zero) (fieldMul one x = x)
+    (\fun (zeroX: Le zero x) =>
+      trans!{Real} (fieldMul one x) (mul one x) x
+        (fieldMulNN one x oneNonnegative zeroX) (mulOneLeft x))
+    (\fun (negativeX: Lt x zero) =>
+      trans!{Real} (fieldMul one x) (neg (mul one (neg x))) x
+        (fieldMulNP one x oneNonnegative negativeX)
+        (trans!{Real} (neg (mul one (neg x))) (neg (neg x)) x
+          (congr!{Real Real} neg _ _ (mulOneLeft (neg x)))
+          (negInvolutive x)))
+    (nonnegativeOrNegativeReal x);
+
+\definition fieldMulZeroLeft (x: Real): fieldMul zero x = zero :=
+  Classical.orElim (Le zero x) (Lt x zero) (fieldMul zero x = zero)
+    (\fun (zeroX: Le zero x) =>
+      trans!{Real} (fieldMul zero x) (mul zero x) zero
+        (fieldMulNN zero x zeroNonnegative zeroX) (mulZeroLeft x))
+    (\fun (negativeX: Lt x zero) =>
+      trans!{Real} (fieldMul zero x) (neg (mul zero (neg x))) zero
+        (fieldMulNP zero x zeroNonnegative negativeX)
+        (trans!{Real} (neg (mul zero (neg x))) (neg zero) zero
+          (congr!{Real Real} neg _ _ (mulZeroLeft (neg x))) negZero))
+    (nonnegativeOrNegativeReal x);
+
+\definition fieldMulZeroRight (x: Real): fieldMul x zero = zero :=
+  trans!{Real} (fieldMul x zero) (fieldMul zero x) zero
+    (fieldMulComm x zero) (fieldMulZeroLeft x);
+
+\definition negativeNegOfPositive (x: Real) (positive: Lt zero x):
+  Lt (neg x) zero :=
+  ltReplaceRight (neg x) (neg zero) zero negZero
+    (negStrictAntitone zero x positive);
+
+\definition fieldMulNegRight (x, y: Real):
+  fieldMul x (neg y) = neg (fieldMul x y) :=
+  Classical.orElim (Lt zero y) (Logic.Or[zero = y, Lt y zero])
+    (fieldMul x (neg y) = neg (fieldMul x y))
+    (\fun (positiveY: Lt zero y) =>
+      \block {
+        \let negativeNegY: Lt (neg y) zero :=
+          negativeNegOfPositive y positiveY \then
+        \let zeroY: Le zero y := CutOrder.leOfLt zero y positiveY \then
+        \return Classical.orElim (Le zero x) (Lt x zero)
+          (fieldMul x (neg y) = neg (fieldMul x y))
+          (\fun (zeroX: Le zero x) =>
+            trans!{Real} (fieldMul x (neg y)) (neg (mul x (neg (neg y))))
+              (neg (fieldMul x y))
+              (fieldMulNP x (neg y) zeroX negativeNegY)
+              (trans!{Real} (neg (mul x (neg (neg y))))
+                (neg (mul x y)) (neg (fieldMul x y))
+                (congr!{Real Real} neg _ _
+                  (congr!{Real Real} (mul x) _ _ (negInvolutive y)))
+                (congr!{Real Real} neg _ _
+                  (sym!{Real} _ _ (fieldMulNN x y zeroX zeroY)))))
+          (\fun (negativeX: Lt x zero) =>
+            trans!{Real} (fieldMul x (neg y)) (mul (neg x) (neg (neg y)))
+              (neg (fieldMul x y))
+              (fieldMulPP x (neg y) negativeX negativeNegY)
+              (trans!{Real} (mul (neg x) (neg (neg y))) (mul (neg x) y)
+                (neg (fieldMul x y))
+                (congr!{Real Real} (mul (neg x)) _ _ (negInvolutive y))
+                (trans!{Real} (mul (neg x) y) (neg (neg (mul (neg x) y)))
+                  (neg (fieldMul x y))
+                  (sym!{Real} _ _ (negInvolutive (mul (neg x) y)))
+                  (congr!{Real Real} neg _ _
+                    (sym!{Real} _ _ (fieldMulPN x y negativeX zeroY))))))
+          (nonnegativeOrNegativeReal x)
+      })
+    (\fun (rest: Logic.Or[zero = y, Lt y zero]) =>
+      Classical.orElim (zero = y) (Lt y zero)
+        (fieldMul x (neg y) = neg (fieldMul x y))
+        (\fun (same: zero = y) =>
+          \idelim(zero = y
+            \with t: Real => fieldMul x (neg t) = neg (fieldMul x t))
+            \by { base:
+              trans!{Real} (fieldMul x (neg zero)) (fieldMul x zero)
+                (neg (fieldMul x zero))
+                (congr!{Real Real} (fieldMul x) _ _ negZero)
+                (trans!{Real} (fieldMul x zero) zero
+                  (neg (fieldMul x zero)) (fieldMulZeroRight x)
+                  (sym!{Real} _ _
+                    (trans!{Real} (neg (fieldMul x zero)) (neg zero) zero
+                      (congr!{Real Real} neg _ _ (fieldMulZeroRight x)) negZero))),
+              equality: same })
+        (\fun (negativeY: Lt y zero) =>
+          \block {
+            \let zeroNegY: Le zero (neg y) :=
+              nonnegativeNegOfNegative y negativeY \then
+            \return Classical.orElim (Le zero x) (Lt x zero)
+              (fieldMul x (neg y) = neg (fieldMul x y))
+              (\fun (zeroX: Le zero x) =>
+                trans!{Real} (fieldMul x (neg y)) (mul x (neg y))
+                  (neg (fieldMul x y))
+                  (fieldMulNN x (neg y) zeroX zeroNegY)
+                  (trans!{Real} (mul x (neg y))
+                    (neg (neg (mul x (neg y)))) (neg (fieldMul x y))
+                    (sym!{Real} _ _ (negInvolutive (mul x (neg y))))
+                    (congr!{Real Real} neg _ _
+                      (sym!{Real} _ _ (fieldMulNP x y zeroX negativeY)))))
+              (\fun (negativeX: Lt x zero) =>
+                trans!{Real} (fieldMul x (neg y)) (neg (mul (neg x) (neg y)))
+                  (neg (fieldMul x y))
+                  (fieldMulPN x (neg y) negativeX zeroNegY)
+                  (congr!{Real Real} neg _ _
+                    (sym!{Real} _ _ (fieldMulPP x y negativeX negativeY))))
+              (nonnegativeOrNegativeReal x)
+          })
+        rest)
+    (CutOrder.ltTrichotomy zero y);
+
+\definition fieldMulNegLeft (x, y: Real):
+  fieldMul (neg x) y = neg (fieldMul x y) :=
+  trans!{Real} (fieldMul (neg x) y) (fieldMul y (neg x))
+    (neg (fieldMul x y)) (fieldMulComm (neg x) y)
+    (trans!{Real} (fieldMul y (neg x)) (neg (fieldMul y x))
+      (neg (fieldMul x y)) (fieldMulNegRight y x)
+      (congr!{Real Real} neg _ _ (fieldMulComm y x)));
+
+\definition fieldMulNonnegative (x, y: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y): Le zero (fieldMul x y) :=
+  leReplaceRight zero (mul x y) (fieldMul x y)
+    (sym!{Real} _ _ (fieldMulNN x y zeroX zeroY))
+    (nonnegativeMul x y zeroX zeroY);
+
+\definition fieldMulAssocNNN (x, y, z: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y) (zeroZ: Le zero z):
+  fieldMul (fieldMul x y) z = fieldMul x (fieldMul y z) :=
+  trans!{Real} (fieldMul (fieldMul x y) z) (fieldMul (mul x y) z)
+    (fieldMul x (fieldMul y z))
+    (congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
+      (fieldMulNN x y zeroX zeroY))
+    (trans!{Real} (fieldMul (mul x y) z) (mul (mul x y) z)
+      (fieldMul x (fieldMul y z))
+      (fieldMulNN (mul x y) z (nonnegativeMul x y zeroX zeroY) zeroZ)
+      (trans!{Real} (mul (mul x y) z) (mul x (mul y z))
+        (fieldMul x (fieldMul y z))
+        (mulAssocNonnegative x y z zeroX zeroY zeroZ)
+        (trans!{Real} (mul x (mul y z)) (fieldMul x (mul y z))
+          (fieldMul x (fieldMul y z))
+          (sym!{Real} _ _
+            (fieldMulNN x (mul y z) zeroX
+              (nonnegativeMul y z zeroY zeroZ)))
+          (congr!{Real Real} (fieldMul x) _ _
+            (sym!{Real} _ _ (fieldMulNN y z zeroY zeroZ))))));
+
+\definition fieldMulAssocNN (x, y, z: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y):
+  fieldMul (fieldMul x y) z = fieldMul x (fieldMul y z) :=
+  Classical.orElim (Le zero z) (Lt z zero)
+    (fieldMul (fieldMul x y) z = fieldMul x (fieldMul y z))
+    (\fun (zeroZ: Le zero z) => fieldMulAssocNNN x y z zeroX zeroY zeroZ)
+    (\fun (negativeZ: Lt z zero) =>
+      \block {
+        \let nz: Real := neg z \then
+        \let zeroNz: Le zero nz := nonnegativeNegOfNegative z negativeZ \then
+        \let left: fieldMul (fieldMul x y) z =
+            neg (fieldMul (fieldMul x y) nz) :=
+          trans!{Real} (fieldMul (fieldMul x y) z)
+            (fieldMul (fieldMul x y) (neg nz))
+            (neg (fieldMul (fieldMul x y) nz))
+            (congr!{Real Real} (fieldMul (fieldMul x y)) _ _
+              (sym!{Real} _ _ (negInvolutive z)))
+            (fieldMulNegRight (fieldMul x y) nz) \then
+        \let right: fieldMul x (fieldMul y z) =
+            neg (fieldMul x (fieldMul y nz)) :=
+          trans!{Real} (fieldMul x (fieldMul y z))
+            (fieldMul x (fieldMul y (neg nz)))
+            (neg (fieldMul x (fieldMul y nz)))
+            (congr!{Real Real} (fieldMul x) _ _
+              (congr!{Real Real} (fieldMul y) _ _
+                (sym!{Real} _ _ (negInvolutive z))))
+            (trans!{Real} (fieldMul x (fieldMul y (neg nz)))
+              (fieldMul x (neg (fieldMul y nz)))
+              (neg (fieldMul x (fieldMul y nz)))
+              (congr!{Real Real} (fieldMul x) _ _
+                (fieldMulNegRight y nz))
+              (fieldMulNegRight x (fieldMul y nz))) \then
+        \return trans!{Real} (fieldMul (fieldMul x y) z)
+          (neg (fieldMul (fieldMul x y) nz))
+          (fieldMul x (fieldMul y z)) left
+          (trans!{Real} (neg (fieldMul (fieldMul x y) nz))
+            (neg (fieldMul x (fieldMul y nz)))
+            (fieldMul x (fieldMul y z))
+            (congr!{Real Real} neg _ _
+              (fieldMulAssocNNN x y nz zeroX zeroY zeroNz))
+            (sym!{Real} _ _ right))
+      })
+    (nonnegativeOrNegativeReal z);
+
+\definition fieldMulAssocN (x, y, z: Real) (zeroX: Le zero x):
+  fieldMul (fieldMul x y) z = fieldMul x (fieldMul y z) :=
+  Classical.orElim (Le zero y) (Lt y zero)
+    (fieldMul (fieldMul x y) z = fieldMul x (fieldMul y z))
+    (\fun (zeroY: Le zero y) => fieldMulAssocNN x y z zeroX zeroY)
+    (\fun (negativeY: Lt y zero) =>
+      \block {
+        \let ny: Real := neg y \then
+        \let zeroNy: Le zero ny := nonnegativeNegOfNegative y negativeY \then
+        \let left: fieldMul (fieldMul x y) z =
+            neg (fieldMul (fieldMul x ny) z) :=
+          trans!{Real} (fieldMul (fieldMul x y) z)
+            (fieldMul (fieldMul x (neg ny)) z)
+            (neg (fieldMul (fieldMul x ny) z))
+            (congr!{Real Real} (\fun (t: Real) => fieldMul (fieldMul x t) z)
+              _ _ (sym!{Real} _ _ (negInvolutive y)))
+            (trans!{Real} (fieldMul (fieldMul x (neg ny)) z)
+              (fieldMul (neg (fieldMul x ny)) z)
+              (neg (fieldMul (fieldMul x ny) z))
+              (congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
+                (fieldMulNegRight x ny))
+              (fieldMulNegLeft (fieldMul x ny) z)) \then
+        \let right: fieldMul x (fieldMul y z) =
+            neg (fieldMul x (fieldMul ny z)) :=
+          trans!{Real} (fieldMul x (fieldMul y z))
+            (fieldMul x (fieldMul (neg ny) z))
+            (neg (fieldMul x (fieldMul ny z)))
+            (congr!{Real Real} (fieldMul x) _ _
+              (congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
+                (sym!{Real} _ _ (negInvolutive y))))
+            (trans!{Real} (fieldMul x (fieldMul (neg ny) z))
+              (fieldMul x (neg (fieldMul ny z)))
+              (neg (fieldMul x (fieldMul ny z)))
+              (congr!{Real Real} (fieldMul x) _ _
+                (fieldMulNegLeft ny z))
+              (fieldMulNegRight x (fieldMul ny z))) \then
+        \return trans!{Real} (fieldMul (fieldMul x y) z)
+          (neg (fieldMul (fieldMul x ny) z))
+          (fieldMul x (fieldMul y z)) left
+          (trans!{Real} (neg (fieldMul (fieldMul x ny) z))
+            (neg (fieldMul x (fieldMul ny z)))
+            (fieldMul x (fieldMul y z))
+            (congr!{Real Real} neg _ _ (fieldMulAssocNN x ny z zeroX zeroNy))
+            (sym!{Real} _ _ right))
+      })
+    (nonnegativeOrNegativeReal y);
+
+\definition fieldMulAssoc (x, y, z: Real):
+  fieldMul (fieldMul x y) z = fieldMul x (fieldMul y z) :=
+  Classical.orElim (Le zero x) (Lt x zero)
+    (fieldMul (fieldMul x y) z = fieldMul x (fieldMul y z))
+    (\fun (zeroX: Le zero x) => fieldMulAssocN x y z zeroX)
+    (\fun (negativeX: Lt x zero) =>
+      \block {
+        \let nx: Real := neg x \then
+        \let zeroNx: Le zero nx := nonnegativeNegOfNegative x negativeX \then
+        \let left: fieldMul (fieldMul x y) z =
+            neg (fieldMul (fieldMul nx y) z) :=
+          trans!{Real} (fieldMul (fieldMul x y) z)
+            (fieldMul (fieldMul (neg nx) y) z)
+            (neg (fieldMul (fieldMul nx y) z))
+            (congr!{Real Real} (\fun (t: Real) => fieldMul (fieldMul t y) z)
+              _ _ (sym!{Real} _ _ (negInvolutive x)))
+            (trans!{Real} (fieldMul (fieldMul (neg nx) y) z)
+              (fieldMul (neg (fieldMul nx y)) z)
+              (neg (fieldMul (fieldMul nx y) z))
+              (congr!{Real Real} (\fun (t: Real) => fieldMul t z) _ _
+                (fieldMulNegLeft nx y))
+              (fieldMulNegLeft (fieldMul nx y) z)) \then
+        \let right: fieldMul x (fieldMul y z) =
+            neg (fieldMul nx (fieldMul y z)) :=
+          trans!{Real} (fieldMul x (fieldMul y z))
+            (fieldMul (neg nx) (fieldMul y z))
+            (neg (fieldMul nx (fieldMul y z)))
+            (congr!{Real Real} (\fun (t: Real) => fieldMul t (fieldMul y z))
+              _ _ (sym!{Real} _ _ (negInvolutive x)))
+            (fieldMulNegLeft nx (fieldMul y z)) \then
+        \return trans!{Real} (fieldMul (fieldMul x y) z)
+          (neg (fieldMul (fieldMul nx y) z))
+          (fieldMul x (fieldMul y z)) left
+          (trans!{Real} (neg (fieldMul (fieldMul nx y) z))
+            (neg (fieldMul nx (fieldMul y z)))
+            (fieldMul x (fieldMul y z))
+            (congr!{Real Real} neg _ _ (fieldMulAssocN nx y z zeroNx))
+            (sym!{Real} _ _ right))
+      })
+    (nonnegativeOrNegativeReal x);
+
+\definition addNonnegative (x, y: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y): Le zero (add x y) :=
+  leReplaceLeft (add zero zero) zero (add x y) (addZeroLeft zero)
+    (leTrans (add zero zero) (add x zero) (add x y)
+      (addMonotoneRight zero x zero zeroX)
+      (addMonotoneLeft zero y x zeroY));
+
+\definition positiveLeftMulBelow (x, y: Real) (q, a, b: Rat)
+  (zeroX: Le zero x) (zeroY: Le zero y)
+  (aPositive: lt zeroRat a) (xa: mem x a) (yb: mem y b)
+  (qab: lt q (mulRat a b)): mem (mul x y) q :=
+  \block {
+    \let productNonnegative: Le zero (mul x y) :=
+      nonnegativeMul x y zeroX zeroY \then
+    \return Classical.orElim (lt zeroRat b)
+    (Logic.Or[RationalFractions.FractionEq zeroRat b, lt b zeroRat])
+    (mem (mul x y) q)
+    (\fun (bPositive: lt zeroRat b) =>
+      nonnegativeMulIntro x y q a b aPositive xa bPositive yb qab)
+    (\fun (rest: Logic.Or[
+        RationalFractions.FractionEq zeroRat b, lt b zeroRat]) =>
+      Classical.orElim (RationalFractions.FractionEq zeroRat b)
+        (lt b zeroRat) (mem (mul x y) q)
+        (\fun (zeroB: RationalFractions.FractionEq zeroRat b) =>
+          productNonnegative q
+            (ofRatMem zeroRat q
+              (RationalOrder.ltReplaceRight q (mulRat a b) zeroRat
+                (RationalFractions.fractionEqTrans _ _ _
+                  (RationalOperations.fractionMulRespects a a b zeroRat
+                    (RationalFractions.fractionEqRefl a)
+                    (RationalFractions.fractionEqSym _ _ zeroB))
+                  (RationalOperations.fractionMulZeroRight a)) qab)))
+        (\fun (bNegative: lt b zeroRat) =>
+          productNonnegative q
+            (ofRatMem zeroRat q
+              (RationalOrder.ltTrans q (mulRat a b) zeroRat qab
+                (RationalOperations.mulLtZeroPositiveNegative a b
+                  aPositive bNegative))))
+        rest)
+    (RationalOrder.trichotomy zeroRat b)
+  };
+
+\definition mulAddNonnegativeForward (x, y, z: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y) (zeroZ: Le zero z):
+  Le (mul x (add y z)) (add (mul x y) (mul x z)) :=
+  \fun (q: Rat) => \fun (member: mem (mul x (add y z)) q) =>
+    Classical.orElim (RationalOperations.Le zeroRat q) (lt q zeroRat)
+      (mem (add (mul x y) (mul x z)) q)
+      (\fun (qNonnegative: RationalOperations.Le zeroRat q) =>
+        nonnegativeMulElim x (add y z) q zeroX
+          (addNonnegative y z zeroY zeroZ) qNonnegative member
+          (mem (add (mul x y) (mul x z)) q)
+          (\fun (a, s: Rat) => \fun (aPositive: lt zeroRat a) =>
+            \fun (xa: mem x a) => \fun (_: lt zeroRat s) =>
+            \fun (yzs: mem (add y z) s) =>
+            \fun (qas: lt q (mulRat a s)) =>
+              CutLaws.sumElim y z s (addMemLower y z s yzs)
+                (mem (add (mul x y) (mul x z)) q)
+                (\fun (b, c: Rat) => \fun (yb: mem y b) =>
+                  \fun (zc: mem z c) =>
+                  \fun (sbc: lt s (addRat b c)) =>
+                    \block {
+                      \let qabc: lt q (mulRat a (addRat b c)) :=
+                        RationalOrder.ltTrans q (mulRat a s)
+                          (mulRat a (addRat b c)) qas
+                          (RationalOperations.ltMulPositiveLeft a s
+                            (addRat b c) aPositive sbc) \then
+                      \let qabac: lt q
+                          (addRat (mulRat a b) (mulRat a c)) :=
+                        RationalOrder.ltReplaceRight q
+                          (mulRat a (addRat b c))
+                          (addRat (mulRat a b) (mulRat a c))
+                          (RationalOperations.fractionMulAddLeft a b c) qabc \then
+                      \let u: Rat := RationalOperations.perturbLeft q
+                        (mulRat a b) (mulRat a c) \then
+                      \let uab: lt u (mulRat a b) :=
+                        RationalOperations.perturbLeftLt q
+                          (mulRat a b) (mulRat a c) qabac \then
+                      \let quac: lt q (addRat u (mulRat a c)) :=
+                        RationalOperations.ltPerturbedSum q
+                          (mulRat a b) (mulRat a c) qabac \then
+                      \let qacu: lt q (addRat (mulRat a c) u) :=
+                        RationalOrder.ltReplaceRight q
+                          (addRat u (mulRat a c))
+                          (addRat (mulRat a c) u)
+                          (RationalOperations.fractionAddComm u (mulRat a c))
+                          quac \then
+                      \let v: Rat := RationalOperations.perturbLeft q
+                        (mulRat a c) u \then
+                      \let vac: lt v (mulRat a c) :=
+                        RationalOperations.perturbLeftLt q (mulRat a c) u qacu \then
+                      \let qvu: lt q (addRat v u) :=
+                        RationalOperations.ltPerturbedSum q (mulRat a c) u qacu \then
+                      \let quv: lt q (addRat u v) :=
+                        RationalOrder.ltReplaceRight q (addRat v u) (addRat u v)
+                          (RationalOperations.fractionAddComm v u) qvu \then
+                      \return addMem (mul x y) (mul x z) q
+                        (CutLaws.sumIntro (mul x y) (mul x z) q u v
+                          (positiveLeftMulBelow x y u a b zeroX zeroY
+                            aPositive xa yb uab)
+                          (positiveLeftMulBelow x z v a c zeroX zeroZ
+                            aPositive xa zc vac) quv)
+                    })))
+      (\fun (qNegative: lt q zeroRat) =>
+        (addNonnegative (mul x y) (mul x z)
+          (nonnegativeMul x y zeroX zeroY)
+          (nonnegativeMul x z zeroX zeroZ)) q
+          (ofRatMem zeroRat q qNegative))
+      (RationalOperations.nonnegativeOrNegative q);
+
+\definition mulAddNonnegativeBackward (x, y, z: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y) (zeroZ: Le zero z):
+  Le (add (mul x y) (mul x z)) (mul x (add y z)) :=
+  \fun (q: Rat) => \fun (member: mem (add (mul x y) (mul x z)) q) =>
+    Classical.orElim (RationalOperations.Le zeroRat q) (lt q zeroRat)
+      (mem (mul x (add y z)) q)
+      (\fun (qNonnegative: RationalOperations.Le zeroRat q) =>
+        CutLaws.sumElim (mul x y) (mul x z) q
+          (addMemLower (mul x y) (mul x z) q member)
+          (mem (mul x (add y z)) q)
+          (\fun (u, v: Rat) => \fun (xyu: mem (mul x y) u) =>
+            \fun (xzv: mem (mul x z) v) =>
+            \fun (quv: lt q (addRat u v)) =>
+              Classical.orElim (RationalOperations.Le zeroRat u)
+                (lt u zeroRat) (mem (mul x (add y z)) q)
+                (\fun (uNonnegative: RationalOperations.Le zeroRat u) =>
+                  Classical.orElim (RationalOperations.Le zeroRat v)
+                    (lt v zeroRat) (mem (mul x (add y z)) q)
+                    (\fun (vNonnegative: RationalOperations.Le zeroRat v) =>
+                      nonnegativeMulElim x y u zeroX zeroY uNonnegative xyu
+                        (mem (mul x (add y z)) q)
+                        (\fun (a, b: Rat) =>
+                          \fun (aPositive: lt zeroRat a) =>
+                          \fun (xa: mem x a) =>
+                          \fun (bPositive: lt zeroRat b) =>
+                          \fun (yb: mem y b) =>
+                          \fun (uab: lt u (mulRat a b)) =>
+                            nonnegativeMulElim x z v zeroX zeroZ
+                              vNonnegative xzv
+                              (mem (mul x (add y z)) q)
+                              (\fun (c, d: Rat) =>
+                                \fun (cPositive: lt zeroRat c) =>
+                                \fun (xc: mem x c) =>
+                                \fun (dPositive: lt zeroRat d) =>
+                                \fun (zd: mem z d) =>
+                                \fun (vcd: lt v (mulRat c d)) =>
+                                  \block {
+                                    \let qProducts: lt q (addRat
+                                        (mulRat a b) (mulRat c d)) :=
+                                      RationalOrder.ltTrans q (addRat u v)
+                                        (addRat (mulRat a b) (mulRat c d))
+                                        quv (RationalOperations.ltAdd u
+                                          (mulRat a b) v (mulRat c d)
+                                          uab vcd) \then
+                                    \let bdPositive: lt zeroRat
+                                        (addRat b d) :=
+                                      RationalOrder.ltReplaceLeft
+                                        (addRat zeroRat zeroRat) zeroRat
+                                        (addRat b d)
+                                        (RationalOperations.fractionAddZeroLeft
+                                          zeroRat)
+                                        (RationalOperations.ltAdd zeroRat b
+                                          zeroRat d bPositive dPositive) \then
+                                    \let yzbd: mem (add y z) (addRat b d) :=
+                                      addMem y z (addRat b d)
+                                        (CutLaws.sumContainsAdd y z b d yb zd) \then
+                                    \return Classical.orElim (lt a c)
+                                      (Logic.Or[
+                                        RationalFractions.FractionEq a c,
+                                        lt c a])
+                                      (mem (mul x (add y z)) q)
+                                      (\fun (ac: lt a c) =>
+                                        \block {
+                                          \let qcbcd: lt q (addRat
+                                              (mulRat c b) (mulRat c d)) :=
+                                            RationalOrder.ltTrans q
+                                              (addRat (mulRat a b)
+                                                (mulRat c d))
+                                              (addRat (mulRat c b)
+                                                (mulRat c d)) qProducts
+                                              (RationalOperations.ltAddRight
+                                                (mulRat a b) (mulRat c b)
+                                                (mulRat c d)
+                                                (RationalOperations
+                                                  .ltMulPositiveRight a c b
+                                                    bPositive ac)) \then
+                                          \let qcbd: lt q
+                                              (mulRat c (addRat b d)) :=
+                                            RationalOrder.ltReplaceRight q
+                                              (addRat (mulRat c b)
+                                                (mulRat c d))
+                                              (mulRat c (addRat b d))
+                                              (RationalFractions
+                                                .fractionEqSym _ _
+                                                  (RationalOperations
+                                                    .fractionMulAddLeft c b d))
+                                              qcbcd \then
+                                          \return nonnegativeMulIntro x
+                                            (add y z) q c (addRat b d)
+                                            cPositive xc bdPositive yzbd qcbd
+                                        })
+                                      (\fun (rest: Logic.Or[
+                                          RationalFractions.FractionEq a c,
+                                          lt c a]) =>
+                                        Classical.orElim
+                                          (RationalFractions.FractionEq a c)
+                                          (lt c a)
+                                          (mem (mul x (add y z)) q)
+                                          (\fun (same: RationalFractions
+                                              .FractionEq a c) =>
+                                            \block {
+                                              \let qabd: lt q (addRat
+                                                  (mulRat a b)
+                                                  (mulRat a d)) :=
+                                                RationalOrder.ltReplaceRight q
+                                                  (addRat (mulRat a b)
+                                                    (mulRat c d))
+                                                  (addRat (mulRat a b)
+                                                    (mulRat a d))
+                                                  (RationalOperations
+                                                    .fractionAddRespects
+                                                      (mulRat a b)
+                                                      (mulRat a b)
+                                                      (mulRat c d)
+                                                      (mulRat a d)
+                                                      (RationalFractions
+                                                        .fractionEqRefl _)
+                                                      (RationalOperations
+                                                        .fractionMulRespects
+                                                          c a d d
+                                                          (RationalFractions
+                                                            .fractionEqSym
+                                                              _ _ same)
+                                                          (RationalFractions
+                                                            .fractionEqRefl d)))
+                                                  qProducts \then
+                                              \let qabdFactored: lt q
+                                                  (mulRat a (addRat b d)) :=
+                                                RationalOrder.ltReplaceRight q
+                                                  (addRat (mulRat a b)
+                                                    (mulRat a d))
+                                                  (mulRat a (addRat b d))
+                                                  (RationalFractions
+                                                    .fractionEqSym _ _
+                                                      (RationalOperations
+                                                        .fractionMulAddLeft
+                                                          a b d)) qabd \then
+                                              \return nonnegativeMulIntro x
+                                                (add y z) q a (addRat b d)
+                                                aPositive xa bdPositive yzbd
+                                                qabdFactored
+                                            })
+                                          (\fun (ca: lt c a) =>
+                                            \block {
+                                              \let qab_ad: lt q (addRat
+                                                  (mulRat a b)
+                                                  (mulRat a d)) :=
+                                                RationalOrder.ltTrans q
+                                                  (addRat (mulRat a b)
+                                                    (mulRat c d))
+                                                  (addRat (mulRat a b)
+                                                    (mulRat a d)) qProducts
+                                                  (RationalOperations.ltAddLeft
+                                                    (mulRat a b)
+                                                    (mulRat c d)
+                                                    (mulRat a d)
+                                                    (RationalOperations
+                                                      .ltMulPositiveRight c a d
+                                                        dPositive ca)) \then
+                                              \let qabdFactored: lt q
+                                                  (mulRat a (addRat b d)) :=
+                                                RationalOrder.ltReplaceRight q
+                                                  (addRat (mulRat a b)
+                                                    (mulRat a d))
+                                                  (mulRat a (addRat b d))
+                                                  (RationalFractions
+                                                    .fractionEqSym _ _
+                                                      (RationalOperations
+                                                        .fractionMulAddLeft
+                                                          a b d)) qab_ad \then
+                                              \return nonnegativeMulIntro x
+                                                (add y z) q a (addRat b d)
+                                                aPositive xa bdPositive yzbd
+                                                qabdFactored
+                                            }) rest)
+                                      (RationalOrder.trichotomy a c)
+                                  })))
+                    (\fun (vNegative: lt v zeroRat) =>
+                      nonnegativeMulElim x y u zeroX zeroY uNonnegative xyu
+                        (mem (mul x (add y z)) q)
+                        (\fun (a, b: Rat) =>
+                          \fun (aPositive: lt zeroRat a) =>
+                          \fun (xa: mem x a) =>
+                          \fun (bPositive: lt zeroRat b) =>
+                          \fun (yb: mem y b) =>
+                          \fun (uab: lt u (mulRat a b)) =>
+                            \block {
+                              \let qu: lt q u :=
+                                RationalOrder.ltTrans q (addRat u v) u quv
+                                  (RationalOrder.ltReplaceRight
+                                    (addRat u v) (addRat u zeroRat) u
+                                    (RationalOperations.fractionAddZeroRight u)
+                                    (RationalOperations.ltAddLeft u v zeroRat
+                                      vNegative)) \then
+                              \let qab: lt q (mulRat a b) :=
+                                RationalOrder.ltTrans q u (mulRat a b)
+                                  qu uab \then
+                              \return \take (r: \Cast[Rat] ({ r : Rat \where
+                                  Logic.And[lt zeroRat r, Logic.And[
+                                    lt r b, lt q (mulRat a r)]] })) =>
+                                \block {
+                                  \let rLaw: Logic.And[lt zeroRat r,
+                                      Logic.And[lt r b,
+                                        lt q (mulRat a r)]] :=
+                                    \bysub(Rat, { r : Rat \where
+                                      Logic.And[lt zeroRat r, Logic.And[
+                                        lt r b, lt q (mulRat a r)]] }, r) \then
+                                  \let e: Rat :=
+                                    RationalOperations.adjustment r b \then
+                                  \let eNegative: lt e zeroRat :=
+                                    RationalOperations.adjustmentLtZero r b
+                                      (#left{(#right{rLaw})}) \then
+                                  \let ze: mem z e := zeroZ e
+                                    (ofRatMem zeroRat e eNegative) \then
+                                  \let yzr: mem (add y z) r :=
+                                    addMem y z r
+                                      (CutLaws.sumIntro y z r b e yb ze
+                                        (RationalOperations.ltAddAdjustment
+                                          r b (#left{(#right{rLaw})}))) \then
+                                  \return nonnegativeMulIntro x (add y z)
+                                    q a r aPositive xa (#left{rLaw}) yzr
+                                    (#right{(#right{rLaw})})
+                                }
+                              \by { contractRight q a b aPositive bPositive
+                                qab }
+                            }))
+                    (RationalOperations.nonnegativeOrNegative v))
+                (\fun (uNegative: lt u zeroRat) =>
+                  Classical.orElim (RationalOperations.Le zeroRat v)
+                    (lt v zeroRat) (mem (mul x (add y z)) q)
+                    (\fun (vNonnegative: RationalOperations.Le zeroRat v) =>
+                      nonnegativeMulElim x z v zeroX zeroZ vNonnegative xzv
+                        (mem (mul x (add y z)) q)
+                        (\fun (a, d: Rat) =>
+                          \fun (aPositive: lt zeroRat a) =>
+                          \fun (xa: mem x a) =>
+                          \fun (dPositive: lt zeroRat d) =>
+                          \fun (zd: mem z d) =>
+                          \fun (vad: lt v (mulRat a d)) =>
+                            \block {
+                              \let qv: lt q v :=
+                                RationalOrder.ltTrans q (addRat u v) v quv
+                                  (RationalOrder.ltReplaceRight
+                                    (addRat u v) (addRat zeroRat v) v
+                                    (RationalOperations.fractionAddZeroLeft v)
+                                    (RationalOperations.ltAddRight u zeroRat v
+                                      uNegative)) \then
+                              \let qad: lt q (mulRat a d) :=
+                                RationalOrder.ltTrans q v (mulRat a d)
+                                  qv vad \then
+                              \return \take (r: \Cast[Rat] ({ r : Rat \where
+                                  Logic.And[lt zeroRat r, Logic.And[
+                                    lt r d, lt q (mulRat a r)]] })) =>
+                                \block {
+                                  \let rLaw: Logic.And[lt zeroRat r,
+                                      Logic.And[lt r d,
+                                        lt q (mulRat a r)]] :=
+                                    \bysub(Rat, { r : Rat \where
+                                      Logic.And[lt zeroRat r, Logic.And[
+                                        lt r d, lt q (mulRat a r)]] }, r) \then
+                                  \let e: Rat :=
+                                    RationalOperations.adjustment r d \then
+                                  \let eNegative: lt e zeroRat :=
+                                    RationalOperations.adjustmentLtZero r d
+                                      (#left{(#right{rLaw})}) \then
+                                  \let ye: mem y e := zeroY e
+                                    (ofRatMem zeroRat e eNegative) \then
+                                  \let red: lt r (addRat e d) :=
+                                    RationalOrder.ltReplaceRight r
+                                      (addRat d e) (addRat e d)
+                                      (RationalOperations.fractionAddComm d e)
+                                      (RationalOperations.ltAddAdjustment r d
+                                        (#left{(#right{rLaw})})) \then
+                                  \let yzr: mem (add y z) r :=
+                                    addMem y z r
+                                      (CutLaws.sumIntro y z r e d ye zd red) \then
+                                  \return nonnegativeMulIntro x (add y z)
+                                    q a r aPositive xa (#left{rLaw}) yzr
+                                    (#right{(#right{rLaw})})
+                                }
+                              \by { contractRight q a d aPositive dPositive
+                                qad }
+                            }))
+                    (\fun (vNegative: lt v zeroRat) =>
+                      Logic.falseElim (mem (mul x (add y z)) q)
+                        (RationalOrder.ltIrrefl zeroRat
+                          (RationalOperations.leLtTrans zeroRat q zeroRat
+                            qNonnegative
+                            (RationalOrder.ltTrans q (addRat u v) zeroRat
+                              quv
+                              (RationalOrder.ltReplaceRight
+                                (addRat u v)
+                                (addRat zeroRat zeroRat) zeroRat
+                                (RationalOperations.fractionAddZeroLeft
+                                  zeroRat)
+                                (RationalOperations.ltAdd u zeroRat v zeroRat
+                                  uNegative vNegative))))))
+                    (RationalOperations.nonnegativeOrNegative v))
+                (RationalOperations.nonnegativeOrNegative u)))
+      (\fun (qNegative: lt q zeroRat) =>
+        (nonnegativeMul x (add y z) zeroX
+          (addNonnegative y z zeroY zeroZ)) q
+          (ofRatMem zeroRat q qNegative))
+      (RationalOperations.nonnegativeOrNegative q);
+
+\definition mulAddNonnegative (x, y, z: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y) (zeroZ: Le zero z):
+  mul x (add y z) = add (mul x y) (mul x z) :=
+  eqByExt (mul x (add y z)) (add (mul x y) (mul x z))
+    (mulAddNonnegativeForward x y z zeroX zeroY zeroZ)
+    (mulAddNonnegativeBackward x y z zeroX zeroY zeroZ);
+
+\definition negAdd (x, y: Real):
+  neg (add x y) = add (neg x) (neg y) :=
+  addCancelRight (neg (add x y)) (add (neg x) (neg y)) (add x y)
+    (trans!{Real} (add (neg (add x y)) (add x y)) zero
+      (add (add (neg x) (neg y)) (add x y))
+      (addNegLeft (add x y))
+      (sym!{Real} (add (add (neg x) (neg y)) (add x y)) zero
+        (trans!{Real} (add (add (neg x) (neg y)) (add x y))
+          (add (neg x) (add (neg y) (add x y))) zero
+          (addAssoc (neg x) (neg y) (add x y))
+          (trans!{Real} (add (neg x) (add (neg y) (add x y)))
+            (add (neg x) (add (neg y) (add y x))) zero
+            (congr!{Real Real} (add (neg x)) _ _
+              (congr!{Real Real} (add (neg y)) _ _ (addComm x y)))
+            (trans!{Real} (add (neg x) (add (neg y) (add y x)))
+              (add (neg x) (add (add (neg y) y) x)) zero
+              (congr!{Real Real} (add (neg x)) _ _
+                (sym!{Real} _ _ (addAssoc (neg y) y x)))
+              (trans!{Real} (add (neg x) (add (add (neg y) y) x))
+                (add (neg x) (add zero x)) zero
+                (congr!{Real Real} (add (neg x)) _ _
+                  (congr!{Real Real} (\fun (t: Real) => add t x) _ _
+                    (addNegLeft y)))
+                (trans!{Real} (add (neg x) (add zero x))
+                  (add (neg x) x) zero
+                  (congr!{Real Real} (add (neg x)) _ _ (addZeroLeft x))
+                  (addNegLeft x))))))));
+
+\definition addSolveRight (a, b, c: Real) (same: add a b = c):
+  a = add c (neg b) :=
+  addCancelRight a (add c (neg b)) b
+    (trans!{Real} (add a b) c (add (add c (neg b)) b) same
+      (sym!{Real} (add (add c (neg b)) b) c
+        (trans!{Real} (add (add c (neg b)) b)
+          (add c (add (neg b) b)) c
+          (addAssoc c (neg b) b)
+          (trans!{Real} (add c (add (neg b) b)) (add c zero) c
+            (congr!{Real Real} (add c) _ _ (addNegLeft b))
+            (addZeroRight c)))));
+
+\definition negLeftFromSum (a, b, c: Real) (same: add a b = c):
+  neg a = add b (neg c) :=
+  addCancelLeft a (neg a) (add b (neg c))
+    (trans!{Real} (add a (neg a)) zero (add a (add b (neg c)))
+      (addNegRight a)
+      (sym!{Real} (add a (add b (neg c))) zero
+        (trans!{Real} (add a (add b (neg c)))
+          (add (add a b) (neg c)) zero
+          (sym!{Real} _ _ (addAssoc a b (neg c)))
+          (trans!{Real} (add (add a b) (neg c))
+            (add c (neg c)) zero
+            (congr!{Real Real} (\fun (t: Real) => add t (neg c)) _ _ same)
+            (addNegRight c)))));
+
+\definition fieldMulAddNN (x, y, z: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y) (zeroZ: Le zero z):
+  fieldMul x (add y z) = add (fieldMul x y) (fieldMul x z) :=
+  trans!{Real} (fieldMul x (add y z)) (mul x (add y z))
+    (add (fieldMul x y) (fieldMul x z))
+    (fieldMulNN x (add y z) zeroX
+      (addNonnegative y z zeroY zeroZ))
+    (trans!{Real} (mul x (add y z)) (add (mul x y) (mul x z))
+      (add (fieldMul x y) (fieldMul x z))
+      (mulAddNonnegative x y z zeroX zeroY zeroZ)
+      (congr2!{Real Real Real} add _ _ _ _
+        (sym!{Real} _ _ (fieldMulNN x y zeroX zeroY))
+        (sym!{Real} _ _ (fieldMulNN x z zeroX zeroZ))));
+
+\definition fieldMulOfNegAsNeg (x, y: Real):
+  fieldMul x y = neg (fieldMul x (neg y)) :=
+  trans!{Real} (fieldMul x y) (fieldMul x (neg (neg y)))
+    (neg (fieldMul x (neg y)))
+    (congr!{Real Real} (fieldMul x) _ _
+      (sym!{Real} _ _ (negInvolutive y)))
+    (fieldMulNegRight x (neg y));
+
+\definition fieldMulAddNP (x, y, z: Real)
+  (zeroX: Le zero x) (zeroY: Le zero y) (negativeZ: Lt z zero):
+  fieldMul x (add y z) = add (fieldMul x y) (fieldMul x z) :=
+  \block {
+    \let nz: Real := neg z \then
+    \let zeroNz: Le zero nz := nonnegativeNegOfNegative z negativeZ \then
+    \return Classical.orElim (Le zero (add y z)) (Lt (add y z) zero)
+      (fieldMul x (add y z) = add (fieldMul x y) (fieldMul x z))
+      (\fun (zeroSum: Le zero (add y z)) =>
+        \block {
+          \let expanded: fieldMul x y = add
+              (fieldMul x (add y z)) (fieldMul x nz) :=
+            trans!{Real} (fieldMul x y)
+              (fieldMul x (add (add y z) nz))
+              (add (fieldMul x (add y z)) (fieldMul x nz))
+              (congr!{Real Real} (fieldMul x) _ _
+                (sym!{Real} _ _ (addNegCancelRight z y)))
+              (fieldMulAddNN x (add y z) nz zeroX zeroSum zeroNz) \then
+          \let solved: fieldMul x (add y z) =
+              add (fieldMul x y) (neg (fieldMul x nz)) :=
+            addSolveRight (fieldMul x (add y z)) (fieldMul x nz)
+              (fieldMul x y) (sym!{Real} _ _ expanded) \then
+          \return trans!{Real} (fieldMul x (add y z))
+            (add (fieldMul x y) (neg (fieldMul x nz)))
+            (add (fieldMul x y) (fieldMul x z)) solved
+            (congr!{Real Real} (add (fieldMul x y)) _ _
+              (sym!{Real} _ _ (fieldMulOfNegAsNeg x z)))
+        })
+      (\fun (negativeSum: Lt (add y z) zero) =>
+        \block {
+          \let ns: Real := neg (add y z) \then
+          \let zeroNs: Le zero ns :=
+            nonnegativeNegOfNegative (add y z) negativeSum \then
+          \let nsPlusY: add ns y = nz :=
+            addCancelRight (add ns y) nz z
+              (trans!{Real} (add (add ns y) z)
+                (add ns (add y z)) (add nz z)
+                (addAssoc ns y z)
+                (trans!{Real} (add ns (add y z)) zero (add nz z)
+                  (addNegLeft (add y z))
+                  (sym!{Real} _ _ (addNegLeft z)))) \then
+          \let expanded: fieldMul x nz =
+              add (fieldMul x ns) (fieldMul x y) :=
+            trans!{Real} (fieldMul x nz) (fieldMul x (add ns y))
+              (add (fieldMul x ns) (fieldMul x y))
+              (congr!{Real Real} (fieldMul x) _ _
+                (sym!{Real} _ _ nsPlusY))
+              (fieldMulAddNN x ns y zeroX zeroNs zeroY) \then
+          \let solved: neg (fieldMul x ns) =
+              add (fieldMul x y) (neg (fieldMul x nz)) :=
+            negLeftFromSum (fieldMul x ns) (fieldMul x y)
+              (fieldMul x nz) (sym!{Real} _ _ expanded) \then
+          \return trans!{Real} (fieldMul x (add y z))
+            (neg (fieldMul x ns))
+            (add (fieldMul x y) (fieldMul x z))
+            (fieldMulOfNegAsNeg x (add y z))
+            (trans!{Real} (neg (fieldMul x ns))
+              (add (fieldMul x y) (neg (fieldMul x nz)))
+              (add (fieldMul x y) (fieldMul x z)) solved
+              (congr!{Real Real} (add (fieldMul x y)) _ _
+                (sym!{Real} _ _ (fieldMulOfNegAsNeg x z))))
+        })
+      (nonnegativeOrNegativeReal (add y z))
+  };
+
+\definition fieldMulAddN (x, y, z: Real) (zeroX: Le zero x):
+  fieldMul x (add y z) = add (fieldMul x y) (fieldMul x z) :=
+  Classical.orElim (Le zero y) (Lt y zero)
+    (fieldMul x (add y z) = add (fieldMul x y) (fieldMul x z))
+    (\fun (zeroY: Le zero y) =>
+      Classical.orElim (Le zero z) (Lt z zero)
+        (fieldMul x (add y z) = add (fieldMul x y) (fieldMul x z))
+        (\fun (zeroZ: Le zero z) =>
+          fieldMulAddNN x y z zeroX zeroY zeroZ)
+        (\fun (negativeZ: Lt z zero) =>
+          fieldMulAddNP x y z zeroX zeroY negativeZ)
+        (nonnegativeOrNegativeReal z))
+    (\fun (negativeY: Lt y zero) =>
+      Classical.orElim (Le zero z) (Lt z zero)
+        (fieldMul x (add y z) = add (fieldMul x y) (fieldMul x z))
+        (\fun (zeroZ: Le zero z) =>
+          trans!{Real} (fieldMul x (add y z))
+            (fieldMul x (add z y))
+            (add (fieldMul x y) (fieldMul x z))
+            (congr!{Real Real} (fieldMul x) _ _ (addComm y z))
+            (trans!{Real} (fieldMul x (add z y))
+              (add (fieldMul x z) (fieldMul x y))
+              (add (fieldMul x y) (fieldMul x z))
+              (fieldMulAddNP x z y zeroX zeroZ negativeY)
+              (addComm (fieldMul x z) (fieldMul x y))))
+        (\fun (negativeZ: Lt z zero) =>
+          \block {
+            \let ny: Real := neg y \then
+            \let nz: Real := neg z \then
+            \let zeroNy: Le zero ny :=
+              nonnegativeNegOfNegative y negativeY \then
+            \let zeroNz: Le zero nz :=
+              nonnegativeNegOfNegative z negativeZ \then
+            \let sumAsNeg: add y z = neg (add ny nz) :=
+              sym!{Real} (neg (add ny nz)) (add y z)
+                (trans!{Real} (neg (add ny nz))
+                  (add (neg ny) (neg nz)) (add y z)
+                  (negAdd ny nz)
+                  (congr2!{Real Real Real} add _ _ _ _
+                    (negInvolutive y) (negInvolutive z))) \then
+            \return trans!{Real} (fieldMul x (add y z))
+              (fieldMul x (neg (add ny nz)))
+              (add (fieldMul x y) (fieldMul x z))
+              (congr!{Real Real} (fieldMul x) _ _ sumAsNeg)
+              (trans!{Real} (fieldMul x (neg (add ny nz)))
+                (neg (fieldMul x (add ny nz)))
+                (add (fieldMul x y) (fieldMul x z))
+                (fieldMulNegRight x (add ny nz))
+                (trans!{Real} (neg (fieldMul x (add ny nz)))
+                  (neg (add (fieldMul x ny) (fieldMul x nz)))
+                  (add (fieldMul x y) (fieldMul x z))
+                  (congr!{Real Real} neg _ _
+                    (fieldMulAddNN x ny nz zeroX zeroNy zeroNz))
+                  (trans!{Real}
+                    (neg (add (fieldMul x ny) (fieldMul x nz)))
+                    (add (neg (fieldMul x ny)) (neg (fieldMul x nz)))
+                    (add (fieldMul x y) (fieldMul x z))
+                    (negAdd (fieldMul x ny) (fieldMul x nz))
+                    (congr2!{Real Real Real} add _ _ _ _
+                      (sym!{Real} _ _ (fieldMulOfNegAsNeg x y))
+                      (sym!{Real} _ _ (fieldMulOfNegAsNeg x z))))))
+          })
+        (nonnegativeOrNegativeReal z))
+    (nonnegativeOrNegativeReal y);
+
+\definition fieldMulOfNegLeftAsNeg (x, y: Real):
+  fieldMul x y = neg (fieldMul (neg x) y) :=
+  trans!{Real} (fieldMul x y) (fieldMul (neg (neg x)) y)
+    (neg (fieldMul (neg x) y))
+    (congr!{Real Real} (\fun (t: Real) => fieldMul t y) _ _
+      (sym!{Real} _ _ (negInvolutive x)))
+    (fieldMulNegLeft (neg x) y);
+
+\definition fieldMulAdd (x, y, z: Real):
+  fieldMul x (add y z) = add (fieldMul x y) (fieldMul x z) :=
+  Classical.orElim (Le zero x) (Lt x zero)
+    (fieldMul x (add y z) = add (fieldMul x y) (fieldMul x z))
+    (\fun (zeroX: Le zero x) => fieldMulAddN x y z zeroX)
+    (\fun (negativeX: Lt x zero) =>
+      \block {
+        \let nx: Real := neg x \then
+        \let zeroNx: Le zero nx := nonnegativeNegOfNegative x negativeX \then
+        \return trans!{Real} (fieldMul x (add y z))
+          (neg (fieldMul nx (add y z)))
+          (add (fieldMul x y) (fieldMul x z))
+          (fieldMulOfNegLeftAsNeg x (add y z))
+          (trans!{Real} (neg (fieldMul nx (add y z)))
+            (neg (add (fieldMul nx y) (fieldMul nx z)))
+            (add (fieldMul x y) (fieldMul x z))
+            (congr!{Real Real} neg _ _ (fieldMulAddN nx y z zeroNx))
+            (trans!{Real} (neg (add (fieldMul nx y) (fieldMul nx z)))
+              (add (neg (fieldMul nx y)) (neg (fieldMul nx z)))
+              (add (fieldMul x y) (fieldMul x z))
+              (negAdd (fieldMul nx y) (fieldMul nx z))
+              (congr2!{Real Real Real} add _ _ _ _
+                (sym!{Real} _ _ (fieldMulOfNegLeftAsNeg x y))
+                (sym!{Real} _ _ (fieldMulOfNegLeftAsNeg x z)))))
+      })
+    (nonnegativeOrNegativeReal x);
+
+\definition notUnderlyingZeroOfPositive (x: Real) (positive: Lt zero x):
+  Logic.Not (underlying x = RatLower zeroRat) :=
+  \fun (same: underlying x = RatLower zeroRat) =>
+    \take (q: \Cast[Rat] ({ q : Rat \where Logic.And[
+        Logic.Not (mem zero q), mem x q] })) =>
+      \block {
+        \let separation: Logic.And[Logic.Not (mem zero q), mem x q] :=
+          \bysub(Rat, { q : Rat \where Logic.And[
+            Logic.Not (mem zero q), mem x q] }, q) \then
+        \let qNegative: lt q zeroRat :=
+          \idelim(underlying x = RatLower zeroRat
+            \with L: \Pow Rat => \In[Rat] L q)
+            \by { base: #right{separation}, equality: same } \then
+        \return #left{separation} (ofRatMem zeroRat q qNegative)
+      }
+    \by { positive };
+
+\definition invNonnegativeOfPositive (x: Real) (positive: Lt zero x):
+  Le zero (inv x) :=
+  \fun (q: Rat) => \fun (zeroQ: mem zero q) =>
+    \take (t: \Cast[Rat] ({ t : Rat \where Logic.And[
+        Logic.Not (mem zero t), mem x t] })) =>
+      \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[
+          mem x a, lt t a] })) =>
+        \take (b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) })) =>
+          \block {
+            \let separation: Logic.And[
+                Logic.Not (mem zero t), mem x t] :=
+              \bysub(Rat, { t : Rat \where Logic.And[
+                Logic.Not (mem zero t), mem x t] }, t) \then
+            \let rounded: Logic.And[mem x a, lt t a] :=
+              \bysub(Rat, { a : Rat \where Logic.And[
+                mem x a, lt t a] }, a) \then
+            \let xb: Logic.Not (mem x b) :=
+              \bysub(Rat, { b : Rat \where Logic.Not (mem x b) }, b) \then
+            \let notNegativeT: Logic.Not (lt t zeroRat) :=
+              \fun (negativeT: lt t zeroRat) =>
+                #left{separation} (ofRatMem zeroRat t negativeT) \then
+            \let aPositive: lt zeroRat a :=
+              CutLaws.zeroLtOfNotNegativeLt t a notNegativeT
+                (#right{rounded}) \then
+            \let ab: lt a b :=
+              CutLaws.memberLtOutside x a b (#left{rounded}) xb \then
+            \let bPositive: lt zeroRat b :=
+              RationalOrder.ltTrans zeroRat a b aPositive ab \then
+            \let r: Rat := RationalOperations.reciprocal b \then
+            \let law: RationalFractions.FractionEq
+                (mulRat b r) oneRat :=
+              RationalOperations.fractionMulReciprocal b
+                (RationalOperations.numeratorNonZeroOfZeroLt b bPositive) \then
+            \let rPositive: lt zeroRat r :=
+              RationalOperations.positiveOfPositiveProductOne b r
+                bPositive law \then
+            \let qr: lt q r :=
+              RationalOrder.ltTrans q zeroRat r
+                (ofRatMemLt zeroRat q zeroQ) rPositive \then
+            \return invMem x q
+              (Logic.Or[
+                Logic.And[underlying x = RatLower zeroRat, lt q zeroRat],
+                Logic.And[Logic.Not (underlying x = RatLower zeroRat),
+                  ReciprocalBelow x q]]::right
+                (Logic.And[
+                  Logic.Not (underlying x = RatLower zeroRat),
+                  ReciprocalBelow x q]::#
+                  (notUnderlyingZeroOfPositive x positive)
+                  (CutLaws.reciprocalBelowIntro x q a b r
+                    (#left{rounded}) xb
+                    (RationalOperations.zeroLtMulPositive a b
+                      aPositive bPositive) law qr)))
+          }
+        \by { cutProper x }
+      \by { cutRounded x t
+        (#right{(\bysub(Rat, { t : Rat \where Logic.And[
+          Logic.Not (mem zero t), mem x t] }, t))}) }
+    \by { positive };
+
+\definition mulInvPositiveLeOne (x: Real) (positive: Lt zero x):
+  Le (mul (inv x) x) one :=
+  \fun (q: Rat) => \fun (member: mem (mul (inv x) x) q) =>
+    Classical.orElim (RationalOperations.Le zeroRat q) (lt q zeroRat)
+      (mem one q)
+      (\fun (qNonnegative: RationalOperations.Le zeroRat q) =>
+        nonnegativeMulElim (inv x) x q
+          (invNonnegativeOfPositive x positive)
+          (CutOrder.leOfLt zero x positive) qNonnegative member
+          (mem one q)
+          (\fun (a, b: Rat) => \fun (aPositive: lt zeroRat a) =>
+            \fun (inva: mem (inv x) a) =>
+            \fun (bPositive: lt zeroRat b) => \fun (xb: mem x b) =>
+            \fun (qab: lt q (mulRat a b)) =>
+              Classical.orElim
+                (Logic.And[underlying x = RatLower zeroRat,
+                  lt a zeroRat])
+                (Logic.And[Logic.Not (underlying x = RatLower zeroRat),
+                  ReciprocalBelow x a])
+                (mem one q)
+                (\fun (atZero: Logic.And[
+                    underlying x = RatLower zeroRat, lt a zeroRat]) =>
+                  Logic.falseElim (mem one q)
+                    (RationalOrder.ltIrrefl zeroRat
+                      (RationalOrder.ltTrans zeroRat a zeroRat
+                        aPositive (#right{atZero}))))
+                (\fun (away: Logic.And[
+                    Logic.Not (underlying x = RatLower zeroRat),
+                    ReciprocalBelow x a]) =>
+                  CutLaws.reciprocalBelowElim x a (#right{away})
+                    (mem one q)
+                    (\fun (c, d, r: Rat) => \fun (xc: mem x c) =>
+                      \fun (xd: Logic.Not (mem x d)) =>
+                      \fun (_: lt zeroRat (mulRat c d)) =>
+                      \fun (law: RationalFractions.FractionEq
+                        (mulRat d r) oneRat) =>
+                      \fun (ar: lt a r) =>
+                        \block {
+                          \let bd: lt b d :=
+                            CutLaws.memberLtOutside x b d xb xd \then
+                          \let dPositive: lt zeroRat d :=
+                            RationalOrder.ltTrans zeroRat b d bPositive bd \then
+                          \let rPositive: lt zeroRat r :=
+                            RationalOperations.positiveOfPositiveProductOne
+                              d r dPositive law \then
+                          \let abrd: lt (mulRat a b) (mulRat r d) :=
+                            RationalOrder.ltTrans (mulRat a b)
+                              (mulRat r b) (mulRat r d)
+                              (RationalOperations.ltMulPositiveRight
+                                a r b bPositive ar)
+                              (RationalOperations.ltMulPositiveLeft
+                                r b d rPositive bd) \then
+                          \let rdOne: RationalFractions.FractionEq
+                              (mulRat r d) oneRat :=
+                            RationalFractions.fractionEqTrans _ _ _
+                              (RationalOperations.fractionMulComm r d) law \then
+                          \return ofRatMem oneRat q
+                            (RationalOrder.ltReplaceRight q (mulRat r d)
+                              oneRat rdOne
+                              (RationalOrder.ltTrans q (mulRat a b)
+                                (mulRat r d) qab abrd))
+                        }))
+                (invMemLower x a inva)))
+      (\fun (qNegative: lt q zeroRat) =>
+        ofRatMem oneRat q
+          (RationalOrder.ltTrans q zeroRat oneRat qNegative
+            RationalOrder.zeroLtOne))
+      (RationalOperations.nonnegativeOrNegative q);
+
+\definition oneLeMulInvPositive (x: Real) (positive: Lt zero x):
+  Le one (mul (inv x) x) :=
+  \fun (q: Rat) => \fun (oneQ: mem one q) =>
+    \block {
+      \let qOne: lt q oneRat := ofRatMemLt oneRat q oneQ \then
+      \return Classical.orElim (RationalOperations.Le zeroRat q)
+        (lt q zeroRat) (mem (mul (inv x) x) q)
+        (\fun (qNonnegative: RationalOperations.Le zeroRat q) =>
+          \take (t: \Cast[Rat] ({ t : Rat \where
+              Logic.And[lt zeroRat t, Logic.And[
+                lt t oneRat, lt q (mulRat t oneRat)]] })) =>
+            \take (u: \Cast[Rat] ({ u : Rat \where Logic.And[
+                Logic.Not (mem zero u), mem x u] })) =>
+              \take (a: \Cast[Rat] ({ a : Rat \where Logic.And[
+                  mem x a, lt u a] })) =>
+                \block {
+                  \let tLaw: Logic.And[lt zeroRat t, Logic.And[
+                      lt t oneRat, lt q (mulRat t oneRat)]] :=
+                    \bysub(Rat, { t : Rat \where
+                      Logic.And[lt zeroRat t, Logic.And[
+                        lt t oneRat, lt q (mulRat t oneRat)]] }, t) \then
+                  \let separation: Logic.And[
+                      Logic.Not (mem zero u), mem x u] :=
+                    \bysub(Rat, { u : Rat \where Logic.And[
+                      Logic.Not (mem zero u), mem x u] }, u) \then
+                  \let rounded: Logic.And[mem x a, lt u a] :=
+                    \bysub(Rat, { a : Rat \where Logic.And[
+                      mem x a, lt u a] }, a) \then
+                  \let notNegativeU: Logic.Not (lt u zeroRat) :=
+                    \fun (uNegative: lt u zeroRat) =>
+                      #left{separation} (ofRatMem zeroRat u uNegative) \then
+                  \let aPositive: lt zeroRat a :=
+                    CutLaws.zeroLtOfNotNegativeLt u a notNegativeU
+                      (#right{rounded}) \then
+                  \let ta: lt (mulRat t a) a :=
+                    RationalOrder.ltReplaceRight (mulRat t a)
+                      (mulRat oneRat a) a
+                      (RationalOperations.fractionMulOneLeft a)
+                      (RationalOperations.ltMulPositiveRight t oneRat a
+                        aPositive (#left{(#right{tLaw})})) \then
+                  \let adjustment: Rat :=
+                    RationalOperations.adjustment (mulRat t a) a \then
+                  \let adjustmentNegative: lt adjustment zeroRat :=
+                    RationalOperations.adjustmentLtZero (mulRat t a) a ta \then
+                  \let e: Rat := negRat adjustment \then
+                  \let ePositive: lt zeroRat e :=
+                    \idelim(negRat zeroRat = zeroRat
+                      \with z: Rat => lt z e)
+                      \by { base:
+                        RationalOperations.ltNegReverse adjustment zeroRat
+                          adjustmentNegative,
+                        equality: RationalOperations.fractionNegZero } \then
+                  \let base: lt (addRat (mulRat t a) e) a :=
+                    RationalOrder.ltReplaceRight
+                      (addRat (mulRat t a) e)
+                      (addRat (addRat a adjustment) e) a
+                      (RationalOperations.fractionAddCancelRightSimplify
+                        a adjustment)
+                      (RationalOperations.ltAddRight (mulRat t a)
+                        (addRat a adjustment) e
+                        (RationalOperations.ltAddAdjustment
+                          (mulRat t a) a ta)) \then
+                  \return \take (c: \Cast[Rat] ({ c : Rat \where
+                      Logic.And[mem x c,
+                        Logic.Not (mem x (addRat c e))] })) =>
+                    \block {
+                      \let bracketLaw: Logic.And[mem x c,
+                          Logic.Not (mem x (addRat c e))] :=
+                        \bysub(Rat, { c : Rat \where Logic.And[mem x c,
+                          Logic.Not (mem x (addRat c e))] }, c) \then
+                      \let d: Rat := addRat c e \then
+                      \let ad: lt a d := CutLaws.memberLtOutside x a d
+                        (#left{rounded}) (#right{bracketLaw}) \then
+                      \let dPositive: lt zeroRat d :=
+                        RationalOrder.ltTrans zeroRat a d aPositive ad \then
+                      \let tdc: lt (mulRat t d) c :=
+                        RationalOperations.scaledBracketInterior t a c e
+                          (#left{(#right{tLaw})}) ad base \then
+                      \let tdPositive: lt zeroRat (mulRat t d) :=
+                        RationalOperations.zeroLtMulPositive t d
+                          (#left{tLaw}) dPositive \then
+                      \let cPositive: lt zeroRat c :=
+                        RationalOrder.ltTrans zeroRat (mulRat t d) c
+                          tdPositive tdc \then
+                      \let r: Rat := RationalOperations.reciprocal d \then
+                      \let law: RationalFractions.FractionEq
+                          (mulRat d r) oneRat :=
+                        RationalOperations.fractionMulReciprocal d
+                          (RationalOperations.numeratorNonZeroOfZeroLt d
+                            dPositive) \then
+                      \let rPositive: lt zeroRat r :=
+                        RationalOperations.positiveOfPositiveProductOne d r
+                          dPositive law \then
+                      \let tcr: lt t (mulRat c r) :=
+                        RationalOrder.ltReplaceLeft
+                          (mulRat (mulRat t d) r) t (mulRat c r)
+                          (RationalFractions.fractionEqTrans _ _ _
+                            (RationalOperations.fractionMulAssoc t d r)
+                            (RationalFractions.fractionEqTrans _ _ _
+                              (RationalOperations.fractionMulRespects
+                                t t (mulRat d r) oneRat
+                                (RationalFractions.fractionEqRefl t) law)
+                              (RationalOperations.fractionMulOneRight t)))
+                          (RationalOperations.ltMulPositiveRight
+                            (mulRat t d) c r rPositive tdc) \then
+                      \let qt: lt q t :=
+                        RationalOrder.ltReplaceRight q (mulRat t oneRat) t
+                          (RationalOperations.fractionMulOneRight t)
+                          (#right{(#right{tLaw})}) \then
+                      \let qcr: lt q (mulRat c r) :=
+                        RationalOrder.ltTrans q t (mulRat c r) qt tcr \then
+                      \return \take (s: \Cast[Rat] ({ s : Rat \where
+                          Logic.And[lt zeroRat s, Logic.And[
+                            lt s r, lt q (mulRat c s)]] })) =>
+                        \block {
+                          \let sLaw: Logic.And[lt zeroRat s, Logic.And[
+                              lt s r, lt q (mulRat c s)]] :=
+                            \bysub(Rat, { s : Rat \where
+                              Logic.And[lt zeroRat s, Logic.And[
+                                lt s r, lt q (mulRat c s)]] }, s) \then
+                          \let invs: mem (inv x) s :=
+                            invMem x s
+                              (Logic.Or[
+                                Logic.And[
+                                  underlying x = RatLower zeroRat,
+                                  lt s zeroRat],
+                                Logic.And[Logic.Not
+                                    (underlying x = RatLower zeroRat),
+                                  ReciprocalBelow x s]]::right
+                                (Logic.And[Logic.Not
+                                    (underlying x = RatLower zeroRat),
+                                  ReciprocalBelow x s]::#
+                                  (notUnderlyingZeroOfPositive x positive)
+                                  (CutLaws.reciprocalBelowIntro x s c d r
+                                    (#left{bracketLaw})
+                                    (#right{bracketLaw})
+                                    (RationalOperations.zeroLtMulPositive
+                                      c d cPositive dPositive)
+                                    law (#left{(#right{sLaw})})))) \then
+                          \let qsc: lt q (mulRat s c) :=
+                            RationalOrder.ltReplaceRight q (mulRat c s)
+                              (mulRat s c)
+                              (RationalOperations.fractionMulComm c s)
+                              (#right{(#right{sLaw})}) \then
+                          \return nonnegativeMulIntro (inv x) x q s c
+                            (#left{sLaw}) invs cPositive
+                            (#left{bracketLaw}) qsc
+                        }
+                      \by { contractRight q c r cPositive rPositive qcr }
+                    }
+                  \by { CutLaws.bracket x e ePositive }
+                }
+              \by { cutRounded x u (#right{(\bysub(Rat,
+                { u : Rat \where Logic.And[
+                  Logic.Not (mem zero u), mem x u] }, u))}) }
+            \by { positive }
+          \by { RationalOperations.contractingFactor q oneRat qOne })
+        (\fun (qNegative: lt q zeroRat) =>
+          (nonnegativeMul (inv x) x
+            (invNonnegativeOfPositive x positive)
+            (CutOrder.leOfLt zero x positive)) q
+            (ofRatMem zeroRat q qNegative))
+        (RationalOperations.nonnegativeOrNegative q)
+    };
+
+\definition mulInvPositive (x: Real) (positive: Lt zero x):
+  mul (inv x) x = one :=
+  eqByExt (mul (inv x) x) one
+    (mulInvPositiveLeOne x positive)
+    (oneLeMulInvPositive x positive);
+
+\definition fieldMulInvPositive (x: Real) (positive: Lt zero x):
+  fieldMul (inv x) x = one :=
+  trans!{Real} (fieldMul (inv x) x) (mul (inv x) x) one
+    (fieldMulNN (inv x) x (invNonnegativeOfPositive x positive)
+      (CutOrder.leOfLt zero x positive))
+    (mulInvPositive x positive);
+
+\record SignedInvSpec[x, value: Real]: \Prop := {
+  nonnegative: Le zero x -> value = inv x,
+  negative: Lt x zero -> value = neg (inv (neg x)),
+};
+
+\definition signedInvSpecNonnegative (x: Real) (zeroX: Le zero x):
+  SignedInvSpec[x, inv x] :=
+  SignedInvSpec[x, inv x]::#
+    (\fun (_: Le zero x) => \refl(inv x))
+    (\fun (negativeX: Lt x zero) =>
+      Logic.falseElim _ ((ltNotLeReverse x zero negativeX) zeroX));
+
+\definition signedInvSpecNegative (x: Real) (negativeX: Lt x zero):
+  SignedInvSpec[x, neg (inv (neg x))] :=
+  SignedInvSpec[x, neg (inv (neg x))]::#
+    (\fun (zeroX: Le zero x) =>
+      Logic.falseElim _ ((ltNotLeReverse x zero negativeX) zeroX))
+    (\fun (_: Lt x zero) => \refl(neg (inv (neg x))));
+
+\definition SignedInvCandidates (x: Real): \Pow Real :=
+  { value : Real \where SignedInvSpec[x, value] };
+
+\definition SignedInvCandidate (x: Real): \Set :=
+  \Cast[Real] (SignedInvCandidates x);
+
+\definition signedInvCandidateValue (x: Real)
+  (candidate: SignedInvCandidate x): Real := candidate;
+
+\definition signedInvExists (x: Real): \exists SignedInvCandidate x :=
+  Classical.orElim (Le zero x) (Lt x zero)
+    (\exists SignedInvCandidate x)
+    (\fun (zeroX: Le zero x) =>
+      \exact(
+        \into[Real](inv x, SignedInvCandidates x) \by {
+          signedInvSpecNonnegative x zeroX },
+        SignedInvCandidate x))
+    (\fun (negativeX: Lt x zero) =>
+      \exact(
+        \into[Real](neg (inv (neg x)), SignedInvCandidates x) \by {
+          signedInvSpecNegative x negativeX },
+        SignedInvCandidate x))
+    (nonnegativeOrNegativeReal x);
+
+\definition signedInvSpecNonnegativeProjection (x, value: Real)
+  (spec: SignedInvSpec[x, value]): Le zero x -> value = inv x :=
+  #nonnegative{spec};
+
+\definition signedInvSpecNegativeProjection (x, value: Real)
+  (spec: SignedInvSpec[x, value]): Lt x zero ->
+    value = neg (inv (neg x)) :=
+  #negative{spec};
+
+\definition signedInvCandidatesUnique (x: Real):
+  \forall (u, v: SignedInvCandidate x) -> u = v :=
+  \fun (u, v: SignedInvCandidate x) =>
+    Classical.orElim (Le zero x) (Lt x zero) (u = v)
+      (\fun (zeroX: Le zero x) =>
+        trans!{Real} u (inv x) v
+          (signedInvSpecNonnegativeProjection x u
+            (\bysub(Real, SignedInvCandidates x, u)) zeroX)
+          (sym!{Real} v (inv x)
+            (signedInvSpecNonnegativeProjection x v
+              (\bysub(Real, SignedInvCandidates x, v)) zeroX)))
+      (\fun (negativeX: Lt x zero) =>
+        trans!{Real} u (neg (inv (neg x))) v
+          (signedInvSpecNegativeProjection x u
+            (\bysub(Real, SignedInvCandidates x, u)) negativeX)
+          (sym!{Real} v (neg (inv (neg x)))
+            (signedInvSpecNegativeProjection x v
+              (\bysub(Real, SignedInvCandidates x, v)) negativeX)))
+      (nonnegativeOrNegativeReal x);
+
+\definition fieldInv (x: Real): Real :=
+  \take (value: SignedInvCandidate x) =>
+    signedInvCandidateValue x value
+  \by { existence: signedInvExists x,
+    uniqueness: signedInvCandidatesUnique x };
+
+\definition fieldInvSpec (x: Real): SignedInvSpec[x, fieldInv x] :=
+  \take (value: SignedInvCandidate x) =>
+    \idelim(signedInvCandidateValue x value = fieldInv x
+      \with result: Real => SignedInvSpec[x, result])
+      \by { base: \bysub(Real, SignedInvCandidates x, value), equality:
+        sym!{Real} (fieldInv x) (signedInvCandidateValue x value)
+          (\takeelim((signedInvCandidateValue x),
+            value, SignedInvCandidate x, Real)
+            \by { existence: signedInvExists x,
+              uniqueness: signedInvCandidatesUnique x }) }
+  \by { signedInvExists x };
+
+\definition fieldInvNonnegative (x: Real) (zeroX: Le zero x):
+  fieldInv x = inv x :=
+  signedInvSpecNonnegativeProjection x (fieldInv x) (fieldInvSpec x) zeroX;
+
+\definition fieldInvNegative (x: Real) (negativeX: Lt x zero):
+  fieldInv x = neg (inv (neg x)) :=
+  signedInvSpecNegativeProjection x (fieldInv x) (fieldInvSpec x) negativeX;
+
+\definition fieldMulNegBoth (x, y: Real):
+  fieldMul (neg x) (neg y) = fieldMul x y :=
+  trans!{Real} (fieldMul (neg x) (neg y))
+    (neg (fieldMul x (neg y))) (fieldMul x y)
+    (fieldMulNegLeft x (neg y))
+    (trans!{Real} (neg (fieldMul x (neg y)))
+      (neg (neg (fieldMul x y))) (fieldMul x y)
+      (congr!{Real Real} neg _ _ (fieldMulNegRight x y))
+      (negInvolutive (fieldMul x y)));
+
+\definition fieldInverseNonzero (x: Real)
+  (nonzero: Logic.Not (x = zero)): fieldMul (fieldInv x) x = one :=
+  Classical.orElim (Lt zero x) (Logic.Or[zero = x, Lt x zero])
+    (fieldMul (fieldInv x) x = one)
+    (\fun (positive: Lt zero x) =>
+      trans!{Real} (fieldMul (fieldInv x) x)
+        (fieldMul (inv x) x) one
+        (congr!{Real Real} (\fun (t: Real) => fieldMul t x) _ _
+          (fieldInvNonnegative x (CutOrder.leOfLt zero x positive)))
+        (fieldMulInvPositive x positive))
+    (\fun (rest: Logic.Or[zero = x, Lt x zero]) =>
+      Classical.orElim (zero = x) (Lt x zero)
+        (fieldMul (fieldInv x) x = one)
+        (\fun (same: zero = x) =>
+          Logic.falseElim (fieldMul (fieldInv x) x = one)
+            (nonzero (sym!{Real} zero x same)))
+        (\fun (negative: Lt x zero) =>
+          \block {
+            \let nx: Real := neg x \then
+            \let positiveNx: Lt zero nx :=
+              ltReplaceLeft (neg zero) zero nx negZero
+                (negStrictAntitone x zero negative) \then
+            \return trans!{Real} (fieldMul (fieldInv x) x)
+              (fieldMul (neg (inv nx)) (neg nx)) one
+              (congr2!{Real Real Real} fieldMul _ _ _ _
+                (fieldInvNegative x negative)
+                (sym!{Real} _ _ (negInvolutive x)))
+              (trans!{Real} (fieldMul (neg (inv nx)) (neg nx))
+                (fieldMul (inv nx) nx) one
+                (fieldMulNegBoth (inv nx) nx)
+                (fieldMulInvPositive nx positiveNx))
+          }) rest)
+    (CutOrder.ltTrichotomy zero x);
+
+\import std.Algebra[].Algebra[] \as Algebra;
+
+\definition CommutativeGroup: \Set := Algebra.CommutativeGroup Real;
+
+\definition additiveRaw: Algebra.RawGroup[Real] :=
+  Algebra.RawGroup[Real]::# zero add neg;
+
+\definition additiveGroupLaws: Algebra.GroupLaws[Real, additiveRaw] :=
+  Algebra.groupLawsIntro Real additiveRaw
+    addZeroLeft addZeroRight addAssoc addNegLeft addNegRight;
+
+\definition additiveGroup: Algebra.Group Real :=
+  \into[Algebra.RawGroup[Real]](additiveRaw, Algebra.GroupSet Real) \by { additiveGroupLaws };
+
+\definition additiveCommutativeGroupLaws:
+  Algebra.CommutativeGroupLaws[Real, additiveRaw] :=
+  Algebra.commutativeGroupLawsIntro Real additiveRaw additiveGroupLaws addComm;
+
+\definition additiveCommutativeGroup: Algebra.CommutativeGroup Real :=
+  \into[Algebra.RawGroup[Real]](additiveRaw, Algebra.CommutativeGroupSet Real)
+    \by { additiveCommutativeGroupLaws };

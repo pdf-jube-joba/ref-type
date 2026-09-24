@@ -51,8 +51,8 @@
 ```text
 Type[A, B]
 Type[A, B]::item argument
-\import \root.M[A := T, x := value] \as Alias;
-\import \root.M[] \as Alias;
+\import my_package.M[A := T, x := value] \as Alias;
+\import my_package.M[] \as Alias;
 ```
 
 名前へのアクセスは `.` と `::` を使う。
@@ -108,15 +108,15 @@ module item だけを置く。子 module のファイルパスは module の入�
 ### import
 
 ```text
-\import Child[A := T] \as C;
+\import .Child[A := T] \as C;
 \import \parent.Sibling[] \as S;
 \import \parent.\parent.Outer[] \as O;
-\import \root.Top[A := T] \as T;
-\import \root.Top[A := T].Nested[] \as N;
+\import my_package.Top[A := T] \as T;
+\import my_package.Top[A := T].Nested[] \as N;
 \import ExistingAlias.Child[x := value] \as Child;
 ```
 
-各 path 要素は `Name[arg := expression, ...]` で書き、parameter の個数・名前・順序を宣言と一致させる。`\root.` はルートから、`\parent.` は一つ上の module から探索する。
+各 path 要素は `Name[arg := expression, ...]` で書き、parameter の個数・名前・順序を宣言と一致させる。先頭の `.` は現在の module から、パッケージ名はそのパッケージのルートから、`\parent.` は一つ上の module から探索する。
 既存 alias から child module を instance 化するときは `Alias.Child[...]` と書く。
 module argument では metavariable の推論を行わない。
 

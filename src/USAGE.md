@@ -10,22 +10,40 @@
 
 ## ソースファイルと module
 
-ソースファイルの拡張子は `.ref`。CLI にはルートファイルを一つ渡す。
+ソースファイルの拡張子は `.ref`。CLI には `ref.toml` のあるパッケージディレクトリを渡す。
 
 ```sh
-cargo run -- path/to/root.ref
+cargo run -p cli -- path/to/package
+```
+
+パッケージのソースは `src/root.ref` から読み込む。`ref.toml` の例を示す。
+
+```toml
+[package]
+name = "real"
+
+[dependencies]
+std = { path = "../std" }
+```
+
+依存先は相対 path で指定し、コード中ではパッケージ名を起点に import する。
+現在のパッケージの子 module は先頭の `.` を起点にする。
+
+```text
+\import std.Nat[] \as N;
+\import .Child[] \as C;
 ```
 
 typing rule の呼び出しを木構造で確認する場合は `--trace` を付ける。
 
 ```sh
-cargo run -- path/to/root.ref --trace
+cargo run -p cli -- path/to/package --trace
 ```
 
 `--parse-only` を付けると、ルートファイルと外部 module を front 側の構文に変換できるかだけを確認する。
 
 ```sh
-cargo run -- path/to/root.ref --parse-only
+cargo run -p cli -- path/to/package --parse-only
 ```
 
 typing は通常の `tracing` span/event として記録される。ログレベルを細かく指定する
@@ -47,7 +65,7 @@ module は front のパラメーター付き名前空間として扱う。import
 module argument 内では `_`・`?` による推論を行わない。
 
 ```text
-\import \root.Parent[A := Nat] \as P;
+\import my_package.Parent[A := Nat] \as P;
 \import P.Child[x := value] \as C;
 ```
 
@@ -99,7 +117,7 @@ Program の値型と値は module parameter にできる。具体化するとき
 }
 \module Consumer {
   \inductive Unit: \VType := | unit: Unit;
-  \import \root.Source[A := Unit, a := Unit::unit] \as S;
+  \import my_package.Source[A := Unit, a := Unit::unit] \as S;
   \vcheck S.value: Unit;
 }
 ```
@@ -164,9 +182,9 @@ Program の inductive／structure には
 ## 実行と診断
 
 ```sh
-cargo run -p cli -- lib/root.ref
-cargo run -p cli -- lib/root.ref --trace
-RUST_LOG=ref_type=trace cargo run -p cli -- lib/root.ref
+cargo run -p cli -- libs/std
+cargo run -p cli -- libs/std --trace
+RUST_LOG=ref_type=trace cargo run -p cli -- libs/std
 ```
 
 `--trace` は Set/Prop・Program の型検査、定義登録、反映、正規化・評価のログを木構造で表示します。
@@ -184,8 +202,8 @@ front の型不一致には局所文脈・対象の項・推論した型・要�
 where 節の局所定義の検査時間は `REF_TYPE_PROFILE_LOCAL_DEFINITIONS=1` で表示し、同様に名前で絞り込めます。
 
 ```sh
-REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- lib/root.ref
-REF_TYPE_PROFILE_LOCAL_DEFINITIONS=right cargo run -p cli -- lib/root.ref
+REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std
+REF_TYPE_PROFILE_LOCAL_DEFINITIONS=right cargo run -p cli -- libs/std
 ```
 
 未解決ゴールには文脈・要求される型・制約を表示します。ファイルから読み込んだ宣言のエラーには

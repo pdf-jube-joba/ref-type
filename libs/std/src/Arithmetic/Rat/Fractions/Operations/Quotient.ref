@@ -1,0 +1,367 @@
+\import std.Logic[].Proposition[] \as QuotientLogic;
+
+\import std.Set[].Quotient[
+  A := Fraction, Equivalent := FractionEq,
+  equivalentRefl := fractionEqRefl, equivalentSym := fractionEqSym, equivalentTrans := fractionEqTrans
+] \as Q;
+
+\definition ClassOf: Fraction -> \Pow Fraction := Q.ClassOf;
+\definition classOfEq: \forall (x, y: Fraction) -> FractionEq x y -> ClassOf x = ClassOf y := Q.classOfEq;
+\definition IsClass: \Pow Fraction -> \Prop := Q.IsClass;
+\definition ClassSet: \Pow (\Pow Fraction) := Q.ClassSet;
+\definition Rat: \Set := Q.Carrier;
+\definition mem: Rat -> Fraction -> \Prop := Q.mem;
+\definition underlying: Rat -> \Pow Fraction := Q.underlying;
+\definition Eq: Rat -> Rat -> \Prop := Q.Eq;
+\definition eqByExt: \forall (x, y: Rat) ->
+  (\forall (a: Fraction) -> mem x a -> mem y a) -> (\forall (a: Fraction) -> mem y a -> mem x a) -> Eq x y := Q.eqByExt;
+\definition classIsClass: \forall (x: Fraction) -> IsClass (ClassOf x) := Q.classIsClass;
+\definition class: Fraction -> Rat := Q.class;
+
+\definition quotientInduction: \forall (P: Rat -> \Prop) ->
+  (\forall (x: Fraction) -> P (class x)) -> \forall (x: Rat) -> P x :=
+  Q.induction;
+
+\definition IntegerCarrier: \Set := I.Integer;
+\definition integerNeg: IntegerCarrier -> IntegerCarrier := I.negInteger;
+\definition ofInteger (n: I.Integer): Rat := class (Fraction::# n I.zeroNat);
+\definition ofNat (n: I.Nat): Rat := ofInteger (I.integer n I.zeroNat);
+
+\definition zeroRat: Rat := ofInteger I.zeroInteger;
+\definition oneRat: Rat := ofInteger I.oneInteger;
+
+\definition negFraction: Fraction -> Fraction := neg;
+\definition NegClass (x: Rat): \Pow Fraction := Q.UnaryImage negFraction x;
+\definition negClassIsClass:
+  \forall (x: Rat) -> IsClass (NegClass x) :=
+  Q.unaryImageClosed negFraction fractionNegRespects;
+\definition negClassOf (x: Fraction): NegClass (class x) = ClassOf (negFraction x) :=
+    Q.unaryImageClass negFraction fractionNegRespects
+      (class x) x (\refl(ClassOf x));
+\definition neg (x: Rat): Rat :=
+    \into[\Pow Fraction](NegClass x, ClassSet) \by { negClassIsClass x };
+
+\definition negClass (x: Fraction): neg (class x) = class (negFraction x) := negClassOf x;
+
+\definition negOfInteger (n: IntegerCarrier):
+    neg (ofInteger n) = ofInteger (integerNeg n) := negClass (Fraction::# n I.zeroNat);
+
+\definition negInvolutive:
+  \forall (x: Rat) -> neg (neg x) = x :=
+  quotientInduction (\fun (x: Rat) => neg (neg x) = x)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (neg (neg (class x)))
+        (neg (class (negFraction x)))
+        (class x)
+        (congr!{Rat Rat} neg
+          (neg (class x)) (class (negFraction x))
+          (negClass x))
+        (trans!{Rat}
+          (neg (class (negFraction x)))
+          (class (negFraction (negFraction x)))
+          (class x)
+          (negClass (negFraction x))
+          (classOfEq
+            (negFraction (negFraction x)) x
+            (fractionNegInvolutive x))));
+
+\definition negZero: neg zeroRat = zeroRat :=
+  trans!{Rat} _ _ _ (negClass zero)
+    (congr!{Fraction Rat} class (negFraction zero) zero fractionNegZero);
+
+\definition IsNonZero (x: Rat): \Prop :=
+    \forall (a: Fraction) -> mem x a -> NumeratorNonZero a;
+
+\definition NonZeroRatSet: \Pow Rat :=
+  { x : Rat \where IsNonZero x };
+
+\definition NonZeroRat: \Set :=
+  \Cast[Rat] NonZeroRatSet;
+
+\definition classIsNonZero (x: Fraction) (nonzero: NumeratorNonZero x):
+    IsNonZero (class x) :=
+  \fun (a: Fraction) => \fun (xa: mem (class x) a) =>
+    numeratorNonZeroRespects x a
+      (Q.relatedOfClassMem x a xa) nonzero;
+
+\definition nonZeroProperty (x: NonZeroRat): IsNonZero x :=
+    \bysub(Rat, NonZeroRatSet, x);
+
+\definition addFraction: Fraction -> Fraction -> Fraction := add;
+\definition AddClass (x, y: Rat): \Pow Fraction :=
+  Q.BinaryImage addFraction x y;
+\definition addClassIsClass:
+  \forall (x, y: Rat) -> IsClass (AddClass x y) :=
+  Q.binaryImageClosed addFraction fractionAddRespects;
+\definition addRat (x, y: Rat): Rat :=
+  \into[\Pow Fraction](AddClass x y, ClassSet) \by { addClassIsClass x y };
+\definition addRatClass (x, y: Fraction):
+  addRat (class x) (class y) = class (addFraction x y) :=
+  Q.binaryImageClass addFraction fractionAddRespects
+    (class x) (class y) x y (\refl(ClassOf x)) (\refl(ClassOf y));
+
+\definition addRatZeroRight:
+  \forall (x: Rat) -> addRat x zeroRat = x :=
+  quotientInduction
+    (\fun (x: Rat) => addRat x zeroRat = x)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (addRat (class x) zeroRat)
+        (class (addFraction x zero))
+        (class x)
+        (addRatClass x zero)
+        (classOfEq (addFraction x zero) x (fractionAddZeroRight x)));
+
+\definition addRatZeroLeft:
+  \forall (x: Rat) -> addRat zeroRat x = x :=
+  quotientInduction
+    (\fun (x: Rat) => addRat zeroRat x = x)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (addRat zeroRat (class x))
+        (class (addFraction zero x))
+        (class x)
+        (addRatClass zero x)
+        (classOfEq (addFraction zero x) x (fractionAddZeroLeft x)));
+
+\definition addRatNegLeft:
+  \forall (x: Rat) -> addRat (neg x) x = zeroRat :=
+  quotientInduction
+    (\fun (x: Rat) => addRat (neg x) x = zeroRat)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (addRat (neg (class x)) (class x))
+        (addRat (class (negFraction x)) (class x))
+        zeroRat
+        (congr!{Rat Rat} (\fun (u: Rat) => addRat u (class x))
+          (neg (class x)) (class (negFraction x)) (negClass x))
+        (trans!{Rat}
+          (addRat (class (negFraction x)) (class x))
+          (class (addFraction (negFraction x) x))
+          zeroRat
+          (addRatClass (negFraction x) x)
+          (classOfEq (addFraction (negFraction x) x) zero
+            (fractionAddNegLeft x))));
+
+\definition addRatComm:
+  \forall (x, y: Rat) -> addRat x y = addRat y x :=
+  quotientInduction
+    (\fun (x: Rat) => \forall (y: Rat) -> addRat x y = addRat y x)
+    (\fun (x: Fraction) =>
+      quotientInduction
+        (\fun (y: Rat) => addRat (class x) y = addRat y (class x))
+        (\fun (y: Fraction) =>
+          trans!{Rat}
+            (addRat (class x) (class y))
+            (class (addFraction x y))
+            (addRat (class y) (class x))
+            (addRatClass x y)
+            (trans!{Rat}
+              (class (addFraction x y))
+              (class (addFraction y x))
+              (addRat (class y) (class x))
+              (classOfEq (addFraction x y) (addFraction y x)
+                (fractionAddComm x y))
+              (sym!{Rat} _ _ (addRatClass y x)))));
+
+\definition addRatAssoc:
+  \forall (x, y, z: Rat) ->
+    addRat (addRat x y) z = addRat x (addRat y z) :=
+
+  quotientInduction
+    (\fun (x: Rat) => \forall (y, z: Rat) ->
+      addRat (addRat x y) z = addRat x (addRat y z))
+    (\fun (x: Fraction) =>
+      quotientInduction
+        (\fun (y: Rat) => \forall (z: Rat) ->
+          addRat (addRat (class x) y) z =
+            addRat (class x) (addRat y z))
+        (\fun (y: Fraction) =>
+          quotientInduction
+            (\fun (z: Rat) =>
+              addRat (addRat (class x) (class y)) z =
+                addRat (class x) (addRat (class y) z))
+            (\fun (z: Fraction) =>
+              trans!{Rat}
+                (addRat (addRat (class x) (class y)) (class z))
+                (addRat (class (addFraction x y)) (class z))
+                (addRat (class x) (addRat (class y) (class z)))
+                (congr!{Rat Rat} (\fun (u: Rat) => addRat u (class z))
+                  (addRat (class x) (class y))
+                  (class (addFraction x y)) (addRatClass x y))
+                (trans!{Rat}
+                  (addRat (class (addFraction x y)) (class z))
+                  (class (addFraction (addFraction x y) z))
+                  (addRat (class x) (addRat (class y) (class z)))
+                  (addRatClass (addFraction x y) z)
+                  (trans!{Rat}
+                    (class (addFraction (addFraction x y) z))
+                    (class (addFraction x (addFraction y z)))
+                    (addRat (class x) (addRat (class y) (class z)))
+                    (classOfEq
+                      (addFraction (addFraction x y) z)
+                      (addFraction x (addFraction y z))
+                      (fractionAddAssoc x y z))
+                    (trans!{Rat}
+                      (class (addFraction x (addFraction y z)))
+                      (addRat (class x) (class (addFraction y z)))
+                      (addRat (class x) (addRat (class y) (class z)))
+                      (sym!{Rat} _ _ (addRatClass x (addFraction y z)))
+                      (congr!{Rat Rat} (addRat (class x))
+                        (class (addFraction y z))
+                        (addRat (class y) (class z))
+                        (sym!{Rat} _ _ (addRatClass y z)))))))));
+
+\definition mulFraction: Fraction -> Fraction -> Fraction := mul;
+
+\definition MulClass (x, y: Rat): \Pow Fraction := Q.BinaryImage mulFraction x y;
+
+\definition mulClassIsClass:
+  \forall (x, y: Rat) -> IsClass (MulClass x y) :=
+  Q.binaryImageClosed mulFraction fractionMulRespects;
+
+\definition mulRat (x, y: Rat): Rat :=
+    \into[\Pow Fraction](MulClass x y, ClassSet) \by { mulClassIsClass x y };
+
+\definition mulRatClass (x, y: Fraction):
+    mulRat (class x) (class y) = class (mulFraction x y) :=
+    Q.binaryImageClass mulFraction fractionMulRespects
+      (class x) (class y) x y
+      (\refl(ClassOf x)) (\refl(ClassOf y));
+
+\definition mulRatZeroRight:
+  \forall (x: Rat) -> mulRat x zeroRat = zeroRat :=
+  quotientInduction
+    (\fun (x: Rat) => mulRat x zeroRat = zeroRat)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (mulRat (class x) zeroRat)
+        (class (mulFraction x zero))
+        zeroRat
+        (mulRatClass x zero)
+        (classOfEq (mulFraction x zero) zero
+          (fractionMulZeroRight x)));
+
+\definition mulRatZeroLeft:
+  \forall (x: Rat) -> mulRat zeroRat x = zeroRat :=
+  quotientInduction
+    (\fun (x: Rat) => mulRat zeroRat x = zeroRat)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (mulRat zeroRat (class x))
+        (class (mulFraction zero x))
+        zeroRat
+        (mulRatClass zero x)
+        (classOfEq (mulFraction zero x) zero
+          (fractionMulZeroLeft x)));
+
+\definition mulRatOneRight:
+  \forall (x: Rat) -> mulRat x oneRat = x :=
+  quotientInduction
+    (\fun (x: Rat) => mulRat x oneRat = x)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (mulRat (class x) oneRat)
+        (class (mulFraction x one))
+        (class x)
+        (mulRatClass x one)
+        (classOfEq (mulFraction x one) x
+          (fractionMulOneRight x)));
+
+\definition mulRatOneLeft:
+  \forall (x: Rat) -> mulRat oneRat x = x :=
+  quotientInduction
+    (\fun (x: Rat) => mulRat oneRat x = x)
+    (\fun (x: Fraction) =>
+      trans!{Rat}
+        (mulRat oneRat (class x))
+        (class (mulFraction one x))
+        (class x)
+        (mulRatClass one x)
+        (classOfEq (mulFraction one x) x
+          (fractionMulOneLeft x)));
+
+\definition mulRatComm:
+  \forall (x, y: Rat) -> mulRat x y = mulRat y x :=
+  quotientInduction
+    (\fun (x: Rat) =>
+      \forall (y: Rat) -> mulRat x y = mulRat y x)
+    (\fun (x: Fraction) =>
+      quotientInduction
+        (\fun (y: Rat) =>
+          mulRat (class x) y = mulRat y (class x))
+        (\fun (y: Fraction) =>
+          trans!{Rat}
+            (mulRat (class x) (class y))
+            (class (mulFraction x y))
+            (mulRat (class y) (class x))
+            (mulRatClass x y)
+            (trans!{Rat}
+              (class (mulFraction x y))
+              (class (mulFraction y x))
+              (mulRat (class y) (class x))
+              (classOfEq
+                (mulFraction x y) (mulFraction y x)
+                (fractionMulComm x y))
+              (sym!{Rat} _ _ (mulRatClass y x)))));
+
+\definition mulRatAssoc:
+  \forall (x, y, z: Rat) ->
+    mulRat (mulRat x y) z = mulRat x (mulRat y z) :=
+
+  quotientInduction
+    (\fun (x: Rat) => \forall (y, z: Rat) ->
+      mulRat (mulRat x y) z = mulRat x (mulRat y z))
+    (\fun (x: Fraction) =>
+      quotientInduction
+        (\fun (y: Rat) => \forall (z: Rat) ->
+          mulRat (mulRat (class x) y) z =
+            mulRat (class x) (mulRat y z))
+        (\fun (y: Fraction) =>
+          quotientInduction
+            (\fun (z: Rat) =>
+              mulRat (mulRat (class x) (class y)) z =
+                mulRat (class x) (mulRat (class y) z))
+            (\fun (z: Fraction) =>
+              trans!{Rat}
+                (mulRat (mulRat (class x) (class y)) (class z))
+                (mulRat (class (mulFraction x y)) (class z))
+                (mulRat (class x) (mulRat (class y) (class z)))
+                (congr!{Rat Rat} (\fun (u: Rat) => mulRat u (class z))
+                  (mulRat (class x) (class y))
+                  (class (mulFraction x y)) (mulRatClass x y))
+                (trans!{Rat}
+                  (mulRat (class (mulFraction x y)) (class z))
+                  (class (mulFraction (mulFraction x y) z))
+                  (mulRat (class x) (mulRat (class y) (class z)))
+                  (mulRatClass (mulFraction x y) z)
+                  (trans!{Rat}
+                    (class (mulFraction (mulFraction x y) z))
+                    (class (mulFraction x (mulFraction y z)))
+                    (mulRat (class x) (mulRat (class y) (class z)))
+                    (classOfEq
+                      (mulFraction (mulFraction x y) z)
+                      (mulFraction x (mulFraction y z))
+                      (fractionMulAssoc x y z))
+                    (trans!{Rat}
+                      (class (mulFraction x (mulFraction y z)))
+                      (mulRat (class x) (class (mulFraction y z)))
+                      (mulRat (class x) (mulRat (class y) (class z)))
+                      (sym!{Rat} _ _ (mulRatClass x (mulFraction y z)))
+                      (congr!{Rat Rat} (mulRat (class x))
+                        (class (mulFraction y z))
+                        (mulRat (class y) (class z))
+                        (sym!{Rat} _ _ (mulRatClass y z)))))))));
+
+/* z is x/y exactly when z*y=x; y is separately refined as nonzero. */
+\definition DivClass (x: Rat) (y: NonZeroRat): \Pow Fraction :=
+    { z : Fraction \where \exists { a : Fraction \where QuotientLogic.And[mem x a,
+            \exists { b : Fraction \where QuotientLogic.And[mem y b,
+                  QuotientLogic.And[NumeratorNonZero b,
+                    FractionEq (mul z b) a]] }] } };
+
+\module ClassClosed(
+  divClassIsClass: \forall (x: Rat) -> \forall (y: NonZeroRat) ->
+    IsClass (DivClass x y),
+);

@@ -1,0 +1,180 @@
+\import \parent.Quotient[].Operations[].SequenceClosed[].ClassClosed[] \as C;
+\import \parent.Quotient[].Operations[].SequenceClosed[] \as SC;
+\import \parent.Quotient[] \as Q;
+\import \parent.Sequences[] \as S;
+\import std.Data[].Pair[] \as Pair;
+\import std.Logic[].Rel[Carrier := Q.Real] \as Rel;
+\import real.AxiomaticReals[Carrier := Q.Real] \as AR;
+
+\definition Real: \Set := Q.Real;
+\definition mem: Real -> CauchySeq -> \Prop := Q.mem;
+\definition class: CauchySeq -> Real := Q.class;
+\definition classMem: \forall (x, y: CauchySeq) ->
+  Equivalent x y -> mem (class x) y := Q.classMem;
+\definition relatedOfClassMem: \forall (x, y: CauchySeq) ->
+  mem (class x) y -> Equivalent x y := Q.relatedOfClassMem;
+\definition classOfEq: \forall (x, y: CauchySeq) ->
+  Equivalent x y -> class x = class y := Q.classOfEq;
+\definition quotientInduction: \forall (P: Real -> \Prop) ->
+  (\forall (x: CauchySeq) -> P (class x)) ->
+  \forall (x: Real) -> P x := Q.quotientInduction;
+
+\definition Le (x, y: Real): \Prop :=
+  \forall (a: CauchySeq) -> mem x a ->
+    \forall (b: CauchySeq) -> mem y b -> S.SeqLe a b;
+
+\definition leClassOf (x, y: CauchySeq)
+    (xy: S.SeqLe x y): Le (class x) (class y) :=
+  \fun (a: CauchySeq) => \fun (xa: mem (class x) a) =>
+    \fun (b: CauchySeq) => \fun (yb: mem (class y) b) =>
+      S.seqLeRespects x a y b
+        (relatedOfClassMem x a xa) (relatedOfClassMem y b yb) xy;
+
+\definition seqLeOfClassLe (x, y: CauchySeq)
+    (xy: Le (class x) (class y)): S.SeqLe x y :=
+  xy x (classMem x x (equivalentRefl x))
+    y (classMem y y (equivalentRefl y));
+
+\definition leRefl: Rel.Reflexive Le :=
+  quotientInduction (\fun (x: Real) => Le x x)
+    (\fun (x: CauchySeq) => leClassOf x x (S.seqLeRefl x));
+
+\definition leTrans: Rel.Transitive Le :=
+  quotientInduction
+    (\fun (x: Real) => \forall (y, z: Real) -> Le x y -> Le y z -> Le x z)
+    (\fun (x: CauchySeq) =>
+      quotientInduction
+        (\fun (y: Real) => \forall (z: Real) ->
+          Le (class x) y -> Le y z -> Le (class x) z)
+        (\fun (y: CauchySeq) =>
+          quotientInduction
+            (\fun (z: Real) => Le (class x) (class y) ->
+              Le (class y) z -> Le (class x) z)
+            (\fun (z: CauchySeq) =>
+              \fun (xy: Le (class x) (class y)) =>
+                \fun (yz: Le (class y) (class z)) =>
+                  leClassOf x z
+                    (S.seqLeTrans x y z
+                      (seqLeOfClassLe x y xy)
+                      (seqLeOfClassLe y z yz)))));
+
+\definition leAntisym: Rel.Antisymmetric Le :=
+  quotientInduction
+    (\fun (x: Real) => \forall (y: Real) -> Le x y -> Le y x -> x = y)
+    (\fun (x: CauchySeq) =>
+      quotientInduction
+        (\fun (y: Real) => Le (class x) y -> Le y (class x) ->
+          class x = y)
+        (\fun (y: CauchySeq) =>
+          \fun (xy: Le (class x) (class y)) =>
+            \fun (yx: Le (class y) (class x)) =>
+              classOfEq x y
+                (S.seqLeAntisym x y
+                  (seqLeOfClassLe x y xy)
+                  (seqLeOfClassLe y x yx))));
+
+\definition leTotal: Rel.Total Le :=
+  quotientInduction
+    (\fun (x: Real) => \forall (y: Real) ->
+      Logic.Or[Le x y, Le y x])
+    (\fun (x: CauchySeq) =>
+      quotientInduction
+        (\fun (y: Real) =>
+          Logic.Or[Le (class x) y, Le y (class x)])
+        (\fun (y: CauchySeq) =>
+          Classical.orElim (S.SeqLe x y) (S.SeqLe y x)
+            (Logic.Or[Le (class x) (class y), Le (class y) (class x)])
+            (\fun (xy: S.SeqLe x y) =>
+              Logic.Or[Le (class x) (class y),
+                Le (class y) (class x)]::left (leClassOf x y xy))
+            (\fun (yx: S.SeqLe y x) =>
+              Logic.Or[Le (class x) (class y),
+                Le (class y) (class x)]::right (leClassOf y x yx))
+            (S.seqLeTotal x y)));
+
+\definition addMonotone: \forall (x, y, z: Real) -> Le x y ->
+    Le (C.add z x) (C.add z y) :=
+  quotientInduction
+    (\fun (x: Real) => \forall (y, z: Real) -> Le x y ->
+      Le (C.add z x) (C.add z y))
+    (\fun (x: CauchySeq) =>
+      quotientInduction
+        (\fun (y: Real) => \forall (z: Real) -> Le (class x) y ->
+          Le (C.add z (class x)) (C.add z y))
+        (\fun (y: CauchySeq) =>
+          quotientInduction
+            (\fun (z: Real) => Le (class x) (class y) ->
+              Le (C.add z (class x)) (C.add z (class y)))
+            (\fun (z: CauchySeq) =>
+              \fun (xy: Le (class x) (class y)) =>
+                \block {
+                  \let leftClass:
+                    C.add (class z) (class x) = class (SC.AddCauchy z x) :=
+                    C.addClass z x \then
+                  \let rightClass:
+                    C.add (class z) (class y) = class (SC.AddCauchy z y) :=
+                    C.addClass z y \then
+                  \return \idelim(class (SC.AddCauchy z x) =
+                      C.add (class z) (class x)
+                    \with left: Real =>
+                      Le left (C.add (class z) (class y)))
+                    \by { base:
+                      \idelim(class (SC.AddCauchy z y) =
+                          C.add (class z) (class y)
+                        \with right: Real =>
+                          Le (class (SC.AddCauchy z x)) right)
+                        \by { base: leClassOf (SC.AddCauchy z x)
+                            (SC.AddCauchy z y)
+                            (S.seqLeAddLeft z x y
+                              (seqLeOfClassLe x y xy)),
+                          equality: sym!{Real} _ _ rightClass },
+                      equality: sym!{Real} _ _ leftClass }
+                })));
+
+\definition mulNonnegative: \forall (x, y: Real) ->
+    Le C.zero x -> Le C.zero y -> Le C.zero (C.mul x y) :=
+  quotientInduction
+    (\fun (x: Real) => \forall (y: Real) ->
+      Le C.zero x -> Le C.zero y -> Le C.zero (C.mul x y))
+    (\fun (x: CauchySeq) =>
+      quotientInduction
+        (\fun (y: Real) => Le C.zero (class x) -> Le C.zero y ->
+          Le C.zero (C.mul (class x) y))
+        (\fun (y: CauchySeq) =>
+          \fun (zeroX: Le C.zero (class x)) =>
+            \fun (zeroY: Le C.zero (class y)) =>
+              \idelim(class (SC.MulCauchy x y) = C.mul (class x) (class y)
+                \with product: Real => Le C.zero product)
+                \by { base: leClassOf (SC.ConstCauchy zeroRat)
+                    (SC.MulCauchy x y)
+                    (S.seqLeMulNonnegative x y
+                      (seqLeOfClassLe (SC.ConstCauchy zeroRat) x zeroX)
+                      (seqLeOfClassLe (SC.ConstCauchy zeroRat) y zeroY)),
+                  equality: sym!{Real} _ _ (C.mulClass x y) }));
+
+\definition leRelation: \Pow (Pair.Times^[Real, Real]) :=
+  { p : Pair.Times^[Real, Real] \where
+    Le (Pair.first Real Real p) (Pair.second Real Real p) };
+
+\definition raw: AR.RawRealStructure[Real] :=
+  AR.RawRealStructure[Real]::#
+    C.zero C.one C.add C.neg C.mul C.inv leRelation;
+
+\definition linearOrder: AR.LinearOrderLaws[raw] :=
+  AR.linearOrderIntro raw leRefl leTrans leAntisym leTotal;
+
+\definition orderedField: AR.OrderedFieldLaws[raw] :=
+  AR.OrderedFieldLaws[raw]::# addMonotone mulNonnegative;
+
+\definition fieldLaws: AR.FieldLaws[raw] :=
+  AR.FieldLaws[raw]::#
+    C.zeroNeOne
+    C.addZeroLeft
+    C.addNegLeft
+    C.addComm
+    C.addAssoc
+    C.mulOneLeft
+    C.mulComm
+    C.mulAssoc
+    C.mulAddLeft
+    C.inverseNonzero;

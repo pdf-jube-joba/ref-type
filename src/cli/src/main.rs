@@ -4,8 +4,8 @@ use std::{io::IsTerminal, path::PathBuf};
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 struct Args {
-    /// ファイルをパースして結果を標準出力に出す
-    file: PathBuf,
+    /// パッケージのディレクトリ、または .ref ファイル
+    path: PathBuf,
     /// kernel の型検査・定義登録・評価ログを標準エラーへ木構造で表示する
     #[arg(long)]
     trace: bool,
@@ -22,7 +22,7 @@ mod printing;
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     init_tracing(args.trace)?;
-    let err = run_file_mode(args.file, args.stats, args.parse_only)?;
+    let err = run_path(args.path, args.stats, args.parse_only)?;
     if err.is_some() {
         std::process::exit(1);
     }
@@ -86,8 +86,12 @@ fn push_outputs(global: &front::elaborator::GlobalEnvironment, output_lines: &mu
     }
 }
 
-fn run_file_mode(path: PathBuf, stats: bool, parse_only: bool) -> anyhow::Result<Option<String>> {
-    let loaded = front::module_loader::load_modules_from_root(&path);
+fn run_path(path: PathBuf, stats: bool, parse_only: bool) -> anyhow::Result<Option<String>> {
+    let loaded = if path.is_dir() {
+        front::package_loader::load_package(&path).map(|graph| graph.modules)
+    } else {
+        front::module_loader::load_modules_from_root(&path)
+    };
     let (out, err_message) = match loaded {
         Ok(_) if parse_only => (Vec::new(), None),
         Ok(modules) => elaborate_and_format(modules, stats),

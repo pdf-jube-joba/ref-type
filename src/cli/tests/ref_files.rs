@@ -194,7 +194,7 @@ fn ng_ref_files_fail() {
 #[test]
 fn library_examples_succeed() {
     let workspace = workspace_root();
-    let path = workspace.join("lib/tests.ref");
+    let path = workspace.join("tests/projects/library");
     let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
         .unwrap_or_else(|error| panic!("{error}"));
     assert!(output.status.success(), "{}", output_details(&output));
@@ -204,6 +204,59 @@ fn library_examples_succeed() {
         "{}",
         output_details(&output)
     );
+}
+
+#[test]
+fn packages_resolve_dependencies_and_local_children() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("shared/ref.toml", "[package]\nname = \"shared\"\n");
+    fixture.write(
+        "shared/src/root.ref",
+        r"\module Truth { \definition proposition: \Prop := \forall (P: \Prop) -> P -> P; }",
+    );
+    fixture.write(
+        "left/ref.toml",
+        "[package]\nname = \"left\"\n[dependencies]\nshared = { path = \"../shared\" }\n",
+    );
+    fixture.write("left/src/root.ref", r"\module Source { \import shared.Truth[] \as T; \definition proposition: \Prop := T.proposition; }");
+    fixture.write(
+        "right/ref.toml",
+        "[package]\nname = \"right\"\n[dependencies]\nshared = { path = \"../shared\" }\n",
+    );
+    fixture.write("right/src/root.ref", r"\module Source { \import shared.Truth[] \as T; \definition proposition: \Prop := T.proposition; }");
+    fixture.write("app/ref.toml", "[package]\nname = \"app\"\n[dependencies]\nleft = { path = \"../left\" }\nright = { path = \"../right\" }\n");
+    fixture.write(
+        "app/src/root.ref",
+        r"
+\module Client {
+  \module Child { \definition proposition: \Prop := \forall (P: \Prop) -> P -> P; }
+  \import .Child[] \as Local;
+  \import left.Source[] \as L;
+  \import right.Source[] \as R;
+  \definition fromLeft: \Prop := L.proposition;
+  \definition fromRight: \Prop := R.proposition;
+  \definition fromChild: \Prop := Local.proposition;
+}
+",
+    );
+    let output = run_ref_file(&fixture.0, &fixture.0.join("app")).unwrap();
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
+fn package_cycles_report_the_dependency_path() {
+    let fixture = FixtureDirectory::new();
+    fixture.write(
+        "a/ref.toml",
+        "[package]\nname = \"a\"\n[dependencies]\nb = { path = \"../b\" }\n",
+    );
+    fixture.write(
+        "b/ref.toml",
+        "[package]\nname = \"b\"\n[dependencies]\na = { path = \"../a\" }\n",
+    );
+    let output = run_ref_file(&fixture.0, &fixture.0.join("a")).unwrap();
+    assert_eq!(output.status.code(), Some(1), "{}", output_details(&output));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("cyclic package dependency"));
 }
 
 #[test]

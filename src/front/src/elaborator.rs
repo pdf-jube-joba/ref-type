@@ -478,7 +478,7 @@ impl GlobalEnvironment {
                 if self.processed_modules.contains(&module_id) {
                     continue;
                 }
-                self.defer_child_modules = path.len() == 1 && Self::is_namespace_module(module);
+                self.defer_child_modules = Self::is_namespace_module(module);
                 self.module_manager.moveto_root();
                 for component in &path[..path.len() - 1] {
                     self.module_manager

@@ -63,7 +63,7 @@ cargo clippy --workspace --all-targets --locked --offline -- -D warnings
 
 ```sh
 cargo build --release --locked --offline
-env -u RUST_LOG /usr/bin/time -f 'elapsed=%e user=%U sys=%S maxrss_kb=%M' target/release/cli lib/root.ref
+env -u RUST_LOG /usr/bin/time -f 'elapsed=%e user=%U sys=%S maxrss_kb=%M' target/release/cli libs/std
 ```
 
 `--stats` を付けると、処理後に raw と kernel の family ごとの保持ノード数を標準エラーへ表示する。

@@ -5,6 +5,7 @@ pub mod output;
 pub mod syntax;
 // string -> surface
 pub mod module_loader;
+pub mod package_loader;
 pub mod parse;
 // surface -> core
 pub mod elaborator;
