@@ -67,8 +67,8 @@ fn records_have_type_directed_projection_and_generic_construction_syntax() {
     let source = r#"
         \module Records {
             \inductive Bit: \Set :=
-            | zero: Bit;
-            | one: Bit;
+            | zero: Bit
+            | one: Bit
             ;
             \record Pair[A: \Set, B: \Set]: \Set := {
                 first: A,
@@ -87,8 +87,8 @@ fn records_have_type_directed_projection_and_generic_construction_syntax() {
             \definition aliasedFirst(pair: BitPair): Bit := #first{pair};
 
             \inductive VBit: \VType :=
-            | zero: VBit;
-            | one: VBit;
+            | zero: VBit
+            | one: VBit
             ;
             \definition VBit::default: VBit := VBit::zero;
             \record VPair[A: \VType]: \VType := {
@@ -119,8 +119,8 @@ fn logical_case_is_distinct_from_inductive_elimination() {
     let source = r#"
         \module Cases {
             \inductive Nat: \Set :=
-            | zero: Nat;
-            | succ: Nat -> Nat;
+            | zero: Nat
+            | succ: Nat -> Nat
             ;
             \definition predecessor(n: Nat): Nat :=
                 \case n \in Nat \return (\fun (_: Nat) => Nat) {
@@ -339,13 +339,13 @@ fn child_modules_see_macros_already_declared_by_their_parent() {
 fn child_bindings_share_types_and_inherit_parent_substitutions() {
     let source = r#"
         \module Parent(A: \Set(0), X: \VType, x: X) {
-            \inductive Token: \Set(0) := | token: Token; ;
-            \inductive PToken: \VType := | ptoken: PToken; ;
+            \inductive Token: \Set(0) := | token: Token;
+            \inductive PToken: \VType := | ptoken: PToken;
             \module Child(y: Token, z: X) {
                 \definition inherited: Token := y;
                 \definition program_inherited: PToken := PToken::ptoken;
                 \definition inherited_x: X := z;
-                \inductive Local: \Set(0) := | local: Local; ;
+                \inductive Local: \Set(0) := | local: Local;
                 \module Grandchild {
                     \definition parent_value: Token := Token::token;
                     \definition child_value: Local := Local::local;
@@ -353,7 +353,7 @@ fn child_bindings_share_types_and_inherit_parent_substitutions() {
             }
         }
         \module Consumer(A: \Set(0)) {
-            \inductive Unit: \VType := | unit: Unit; ;
+            \inductive Unit: \VType := | unit: Unit;
             \import \root.Parent[A := A, X := Unit, x := Unit::unit] \as P;
             \import P.Child[y := P.Token::token, z := Unit::unit] \as C1;
             \import P.Child[y := P.Token::token, z := Unit::unit] \as C2;
@@ -415,7 +415,7 @@ fn child_modules_inherit_parent_import_aliases() {
             }
         }
         \module Consumer {
-            \inductive Unit: \Set(0) := | unit: Unit; ;
+            \inductive Unit: \Set(0) := | unit: Unit;
             \import \root.Parent[A := Unit, value := Unit::unit] \as Parent;
             \import Parent.Child[] \as Child;
             \definition direct: Unit := Child.direct;
@@ -628,7 +628,7 @@ fn grouped_declaration_binders_keep_the_outer_type() {
     let source = r#"
         \module Grouped {
             \inductive Witness[A: \Set, x, y, z: A]: \Prop :=
-                | intro: Witness;
+                | intro: Witness
                 ;
         }
     "#;
@@ -851,7 +851,7 @@ fn program_value_definition_uses_the_value_judgement() {
 fn squash_and_box_infer_implicit_program_types() {
     let source = r#"
         \module SquashMeta {
-            \inductive Unit: \VType := | unit: Unit; ;
+            \inductive Unit: \VType := | unit: Unit;
             \definition boxed: \Box[\F(Unit)] :=
                 \box[_](\return Unit::unit);
             \definition reflected: Unit^ :=
@@ -896,7 +896,7 @@ fn inductive_constructor_parameter_is_inferred_from_its_field() {
     let source = r#"
         \module InductiveMeta(A: \Set(0), a: A) {
             \inductive Box[X: \Set(0)]: \Set(0) :=
-                | box: X -> Box;
+                | box: X -> Box
             ;
             \definition boxed: Box[A] := Box[_]::box a;
         }
@@ -931,7 +931,7 @@ fn dependency_ordered_module_errors_include_source_location() {
   \definition bad: P.Bit := P.one^;
 }
 \module Provider {
-  \inductive Bit: \VType := | bit: Bit; ;
+  \inductive Bit: \VType := | bit: Bit;
   \definition one: Bit := Bit::bit;
 }"#
         .into(),
@@ -1253,7 +1253,7 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
         r#"
         \module LetCase(A: \VType) {
           \inductive Pair[X: \VType]: \VType :=
-            | pair: X -> X -> Pair;
+            | pair: X -> X -> Pair
             ;
             \definition first: (Pair[A] ~> \F(A)) :=
                 (\cfun (p: Pair[A]) => \match (p) \in Pair \with {
@@ -1410,7 +1410,7 @@ fn inferred_recursion_annotations_still_reject_mixed_universes() {
 fn indexed_box_steps_preserve_accessibility_certificates() {
     let source = r#"
         \module CertifiedSteps {
-          \inductive Unit: \VType := | unit: Unit; | other: Unit; ;
+          \inductive Unit: \VType := | unit: Unit | other: Unit;
           \definition step: \U((Unit ~> \F(\RunStep[Unit, Unit]))) :=
             \thunk((\cfun (s: Unit) => \return(\finish[Unit, Unit](Unit::unit))));
           \definition stepSet: Unit^ -> \RunStep[Unit^, Unit^] :=

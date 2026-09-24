@@ -98,7 +98,7 @@ Program の値型と値は module parameter にできる。具体化するとき
   \definition value: A := a;
 }
 \module Consumer {
-  \inductive Unit: \VType := | unit: Unit; ;
+  \inductive Unit: \VType := | unit: Unit;
   \import \root.Source[A := Unit, a := Unit::unit] \as S;
   \vcheck S.value: Unit;
 }

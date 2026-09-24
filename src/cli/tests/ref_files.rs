@@ -353,7 +353,7 @@ fn external_program_module_parameters_are_instantiated_in_nested_modules() {
         r#"
 \module Source(X: \VType, x: X);
 \module Consumer {
-  \inductive Unit: \VType := | unit: Unit; ;
+  \inductive Unit: \VType := | unit: Unit;
   \import \root.Source[X := Unit, x := Unit::unit] \as S;
   \import \root.Source[X := Unit, x := Unit::unit].Child[] \as C;
   \vcheck S.value: Unit;

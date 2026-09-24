@@ -532,13 +532,12 @@ impl<'a> Parser<'a> {
         Ok((module_name, assign_pairs))
     }
 
-    // "|" <ctor_name: Ident> ":" <rightbinds> "->" <SExp> ";"
+    // "|" <ctor_name: Ident> ":" <rightbinds> "->" <SExp>
     fn parse_ctor_decl(&mut self) -> Result<(Identifier, Vec<RightBind>, SExp), ParseError> {
         self.expect_token(Token::Pipe)?; // expect '|'
         let ctor_name = self.expect_ident()?;
         self.expect_token(Token::Colon)?; // expect ':'
         let (rightbinds, ends) = self.parse_arrow_nosubset()?;
-        self.expect_token(Token::Semicolon)?; // expect ';'
         Ok((ctor_name, rightbinds, ends))
     }
 
@@ -1050,7 +1049,7 @@ mod tests {
         for input in [
             r"\definition f(x: A, y): A := x;",
             r"\module M(x: A, y) {}",
-            r"\inductive T: \Set := | ctor: ; ;",
+            r"\inductive T: \Set := | ctor: ;",
             r"\import M[x := ] \as Alias;",
             r"\import M[]. \as Alias;",
         ] {
@@ -1085,10 +1084,10 @@ mod tests {
             let ctor = parser.parse_ctor_decl().unwrap();
             println!("Parsed CtorDecl: {:?} => {:?}", input, ctor);
         }
-        print_and_unwrap(r"| true : Bool ;");
-        print_and_unwrap(r"| succ : Nat -> Nat ;");
-        print_and_unwrap(r"| u: A -> B -> U ;");
-        print_and_unwrap(r"| cons : \forall (X : \Set) -> X -> List X -> List X ;");
+        print_and_unwrap(r"| true : Bool");
+        print_and_unwrap(r"| succ : Nat -> Nat");
+        print_and_unwrap(r"| u: A -> B -> U");
+        print_and_unwrap(r"| cons : \forall (X : \Set) -> X -> List X -> List X");
     }
     #[test]
     fn parse_module_item() {
@@ -1116,7 +1115,7 @@ mod tests {
         print_and_unwrap(r"\definition one: Nat := Nat::succ Nat::zero;");
         print_and_unwrap(r"\import MyModule [] \as ImportedModule ;");
         print_and_unwrap(r"\import MyModule [ A := B, C := \fun (x: X) => y] \as T;");
-        print_and_unwrap(r"\inductive Bool : \Set := | true : Bool ; | false : Bool ; ;");
-        print_and_unwrap(r"\inductive Nat : \Set := | zero : Nat ; | succ : Nat -> Nat ; ;");
+        print_and_unwrap(r"\inductive Bool : \Set := | true : Bool | false : Bool;");
+        print_and_unwrap(r"\inductive Nat : \Set := | zero : Nat | succ : Nat -> Nat;");
     }
 }
