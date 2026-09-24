@@ -46,20 +46,88 @@ pub struct ProgramDatatype {
 }
 #[derive(Debug, Default)]
 pub struct Environment {
+    pub(crate) publication_order: Vec<Declaration>,
+    next_identity: std::cell::Cell<u32>,
+    /// Innermost-first checking path from the latest failed judgement.
+    pub check_error: std::cell::RefCell<Vec<Expression>>,
     pub(crate) arena: Arena,
     pub(crate) inference_cache:
         std::cell::RefCell<ScopedCache<(Expression, Vec<Expression>), Classifier>>,
     pub(crate) head_cache: std::cell::RefCell<ScopedCache<Expression, Expression>>,
-    pub(crate) definitions: HashMap<DefId, Definition>,
-    pub(crate) definition_templates: HashMap<DefId, Definition>,
-    pub(crate) parameters: HashMap<ModuleParamId, Binding>,
+    pub(crate) definitions: HashMap<GlobalId, Definition>,
+    pub(crate) definition_templates: HashMap<GlobalId, Definition>,
+    /// Checked outer telescope, addressed by stable de Bruijn levels.
+    pub(crate) ambient: Context,
     pub(crate) inductives: HashMap<InductiveId, InductiveSpec>,
     pub(crate) datatypes: HashMap<ProgramInductiveId, ProgramDatatype>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Declaration {
+    Binding(usize),
+    Definition(GlobalId),
+    Template(GlobalId),
+    Inductive(InductiveId),
+    Datatype(ProgramInductiveId),
 }
 
 struct CheckScope<'a> {
     env: &'a mut Environment,
     checkpoint: ArenaCheckpoint,
+}
+
+/// A recursive declaration is visible only while its premises are checked.
+/// Failed checking and cooperative cancellation both roll back this scope.
+struct Registration<'a> {
+    env: &'a mut Environment,
+    declaration: Declaration,
+    publication_start: usize,
+    committed: bool,
+}
+
+impl<'a> Registration<'a> {
+    fn new(env: &'a mut Environment, declaration: Declaration) -> Self {
+        Self {
+            publication_start: env.publication_order.len(),
+            env,
+            declaration,
+            committed: false,
+        }
+    }
+
+    fn commit(&mut self) {
+        self.env.publication_order.push(self.declaration);
+        self.committed = true;
+    }
+}
+
+impl Drop for Registration<'_> {
+    fn drop(&mut self) {
+        if self.committed {
+            return;
+        }
+        let mut declarations = self.env.publication_order.split_off(self.publication_start);
+        declarations.push(self.declaration);
+        for declaration in declarations.into_iter().rev() {
+            match declaration {
+                Declaration::Inductive(id) => {
+                    self.env.inductives.remove(&id);
+                }
+                Declaration::Datatype(id) => {
+                    self.env.datatypes.remove(&id);
+                }
+                Declaration::Definition(id) => {
+                    self.env.definitions.remove(&id);
+                }
+                Declaration::Template(id) => {
+                    self.env.definition_templates.remove(&id);
+                }
+                Declaration::Binding(level) => self.env.ambient.truncate(level),
+            }
+        }
+        self.env.inference_cache.get_mut().clear();
+        self.env.head_cache.get_mut().clear();
+    }
 }
 
 #[cfg(test)]
@@ -111,11 +179,44 @@ impl Drop for CheckScope<'_> {
             .head_cache
             .get_mut()
             .finish_scope(|e, head| checkpoint.contains(*e) && checkpoint.contains(*head));
+        self.env
+            .check_error
+            .get_mut()
+            .retain(|&term| checkpoint.contains(term));
         self.env.arena.truncate(checkpoint);
     }
 }
 
 impl Environment {
+    fn fresh_identity(&self) -> (ArenaId, u32) {
+        let index = self.next_identity.get();
+        self.next_identity
+            .set(index.checked_add(1).expect("kernel identity exhausted"));
+        (self.arena.id(), index)
+    }
+
+    pub fn fresh_global_id(&self) -> GlobalId {
+        let (owner, index) = self.fresh_identity();
+        GlobalId { owner, index }
+    }
+
+    pub fn fresh_inductive_id(&self) -> InductiveId {
+        let (owner, index) = self.fresh_identity();
+        InductiveId { owner, index }
+    }
+
+    pub fn fresh_datatype_id(&self) -> ProgramInductiveId {
+        let (owner, index) = self.fresh_identity();
+        ProgramInductiveId { owner, index }
+    }
+
+    fn check_identity(&self, owner: ArenaId) -> Result<(), String> {
+        if owner != self.arena.id() {
+            return Err("identity belongs to another checking environment".into());
+        }
+        Ok(())
+    }
+
     fn check_scoped(
         &mut self,
         check: impl FnOnce(&Self) -> Result<(), String>,
@@ -127,10 +228,11 @@ impl Environment {
             env: self,
             checkpoint,
         };
+        crate::control::checkpoint();
         check(scope.env)
     }
 
-    fn check_definition(&mut self, definition: &Definition) -> Result<(), String> {
+    pub(crate) fn check_definition(&mut self, definition: &Definition) -> Result<(), String> {
         self.check_scoped(|env| {
             let mut checker = super::check::Checker::new(env, definition.context.clone());
             checker.check_context()?;
@@ -188,7 +290,7 @@ impl Environment {
             }
             pending.extend(definition.context.iter().map(|b| b.classifier));
         }
-        pending.extend(self.parameters.values().map(|b| b.classifier));
+        pending.extend(self.ambient.iter().map(|b| b.classifier));
         for spec in self.inductives.values() {
             pending.push(spec.arity);
             pending.extend(spec.parameters.iter().map(|b| b.classifier));
@@ -213,16 +315,16 @@ impl Environment {
         seen.len()
     }
 
-    pub fn definition(&self, id: DefId) -> Option<&Definition> {
+    pub fn definition(&self, id: GlobalId) -> Option<&Definition> {
         self.definitions.get(&id)
     }
 
-    pub fn definition_template(&self, id: DefId) -> Option<&Definition> {
+    pub fn definition_template(&self, id: GlobalId) -> Option<&Definition> {
         self.definition_templates.get(&id)
     }
 
-    pub fn parameter(&self, id: ModuleParamId) -> Option<&Binding> {
-        self.parameters.get(&id)
+    pub fn ambient_context(&self) -> &[Binding] {
+        &self.ambient
     }
 
     pub fn inductive(&self, id: InductiveId) -> Option<&InductiveSpec> {
@@ -233,17 +335,24 @@ impl Environment {
         self.datatypes.get(&id)
     }
     #[tracing::instrument(target="ref_type::typing::indexed",level="debug",skip_all,fields(?id),err)]
-    pub fn register_definition(&mut self, id: DefId, definition: Definition) -> Result<(), String> {
+    pub fn register_definition(
+        &mut self,
+        id: GlobalId,
+        definition: Definition,
+    ) -> Result<(), String> {
+        self.check_identity(id.owner)?;
+        self.check_owned_definition(&definition)?;
         if self.definitions.contains_key(&id) || self.definition_templates.contains_key(&id) {
             return Err("duplicate definition".into());
         }
-        if !super::calculus::locally_closed(&self.arena, definition.body)
-            || matches!(definition.classifier,Classifier::Expression(t) if !super::calculus::locally_closed(&self.arena,t))
+        if !super::calculus::is_closed(&self.arena, definition.body)
+            || matches!(definition.classifier,Classifier::Expression(t) if !super::calculus::is_closed(&self.arena,t))
         {
             return Err("a definition must abstract over its local bound variables".into());
         }
         self.check_definition(&definition)?;
         self.definitions.insert(id, definition);
+        self.publication_order.push(Declaration::Definition(id));
         // Expressions contain annotations, not names. Adding metadata cannot
         // change the meaning of any previously checked expression.
         Ok(())
@@ -253,47 +362,72 @@ impl Environment {
     /// the caller. Templates are never exposed as closed named constants.
     pub fn register_definition_template(
         &mut self,
-        id: DefId,
+        id: GlobalId,
         definition: Definition,
     ) -> Result<(), String> {
+        self.check_identity(id.owner)?;
+        self.check_owned_definition(&definition)?;
         if self.definitions.contains_key(&id) || self.definition_templates.contains_key(&id) {
             return Err("duplicate definition template".into());
         }
         self.check_definition(&definition)?;
         self.definition_templates.insert(id, definition);
+        self.publication_order.push(Declaration::Template(id));
         Ok(())
     }
-    #[tracing::instrument(target="ref_type::typing::indexed",level="debug",skip_all,fields(?id),err)]
-    pub fn register_parameter(
-        &mut self,
-        id: ModuleParamId,
-        binding: Binding,
-        context: Context,
-    ) -> Result<(), String> {
-        if self.parameters.contains_key(&id) {
-            return Err("duplicate module parameter".into());
-        }
+    /// Check a binding in the existing prefix, then extend the outer context.
+    pub fn push_binding(&mut self, binding: Binding) -> Result<usize, String> {
+        self.check_owned(binding.classifier)?;
         if !super::calculus::locally_closed(&self.arena, binding.classifier) {
-            return Err("a named parameter cannot capture local bound variables".into());
+            return Err("an ambient binding cannot capture local bound variables".into());
         }
         self.check_scoped(|env| {
-            let mut checker = super::check::Checker::new(env, context);
-            checker.check_context()?;
+            let mut checker = super::check::Checker::new(env, vec![]);
             checker.formation(binding.classifier)?;
             Ok(())
         })?;
-        self.parameters.insert(id, binding);
-        Ok(())
+        let level = self.ambient.len();
+        self.ambient.push(binding);
+        self.publication_order.push(Declaration::Binding(level));
+        Ok(level)
     }
 }
 
 impl Environment {
+    fn check_owned(&self, term: Expression) -> Result<(), String> {
+        if !self.arena.owns(term) {
+            return Err("expression belongs to another checking environment".into());
+        }
+        Ok(())
+    }
+
+    fn check_owned_definition(&self, definition: &Definition) -> Result<(), String> {
+        self.check_owned(definition.body)?;
+        if let Classifier::Expression(ty) = definition.classifier {
+            self.check_owned(ty)?;
+        }
+        for binding in &definition.context {
+            self.check_owned(binding.classifier)?;
+        }
+        Ok(())
+    }
+
     #[tracing::instrument(target="ref_type::typing::indexed",level="debug",skip_all,fields(?id),err)]
     pub fn register_inductive(
         &mut self,
         id: InductiveId,
         spec: InductiveSpec,
     ) -> Result<(), String> {
+        self.check_identity(id.owner)?;
+        self.check_owned(spec.arity)?;
+        for term in spec
+            .parameters
+            .iter()
+            .map(|b| b.classifier)
+            .chain(spec.constructors.iter().copied())
+        {
+            self.check_owned(term)?;
+        }
         if self.inductives.contains_key(&id) {
             return Err("duplicate inductive".into());
         }
@@ -306,7 +440,8 @@ impl Environment {
             return Err("inductive occurs in its arity".into());
         }
         self.inductives.insert(id, spec.clone());
-        let result = self.check_scoped(|env| {
+        let mut registration = Registration::new(self, Declaration::Inductive(id));
+        let result = registration.env.check_scoped(|env| {
             let mut checker = super::check::Checker::new(env, spec.parameters.clone());
             checker.check_context()?;
             if spec.sort.is_upper() {
@@ -346,10 +481,8 @@ impl Environment {
             }
             Ok(())
         });
-        if result.is_err() {
-            self.inductives.remove(&id);
-            self.head_cache.borrow_mut().clear();
-            self.inference_cache.borrow_mut().clear();
+        if result.is_ok() {
+            registration.commit();
         }
         result
     }
@@ -359,6 +492,16 @@ impl Environment {
         id: ProgramInductiveId,
         spec: ProgramDatatype,
     ) -> Result<(), String> {
+        self.check_identity(id.owner)?;
+        self.check_identity(spec.reflected.owner)?;
+        for term in spec.parameters.iter().map(|b| b.classifier).chain(
+            spec.constructors
+                .iter()
+                .flatten()
+                .map(|(_, ty)| Expression::from(*ty)),
+        ) {
+            self.check_owned(term)?;
+        }
         if self.datatypes.contains_key(&id) {
             return Err("duplicate Program datatype".into());
         }
@@ -370,7 +513,9 @@ impl Environment {
             return Err("datatype mirror identity is already owned".into());
         }
         self.datatypes.insert(id, spec.clone());
-        let result = self
+        let mut registration = Registration::new(self, Declaration::Datatype(id));
+        let result = registration
+            .env
             .check_scoped(|env| {
                 let mut checker = super::check::Checker::new(env, spec.parameters.clone());
                 checker.check_context()?;
@@ -396,11 +541,9 @@ impl Environment {
                 }
                 Ok(())
             })
-            .and_then(|()| self.install_datatype_mirror(&spec));
-        if result.is_err() {
-            self.datatypes.remove(&id);
-            self.head_cache.borrow_mut().clear();
-            self.inference_cache.borrow_mut().clear();
+            .and_then(|()| registration.env.install_datatype_mirror(&spec));
+        if result.is_ok() {
+            registration.commit();
         }
         result
     }

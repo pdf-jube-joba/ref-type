@@ -6,8 +6,7 @@ impl Lowerer<'_> {
         let mut pending = vec![(id, false)];
         let mut active = HashSet::new();
         while let Some((id, ready)) = pending.pop() {
-            if self.kernel.definition(id).is_some() || self.kernel.definition_template(id).is_some()
-            {
+            if self.checked_definition(id).is_some() {
                 continue;
             }
             if ready {
@@ -25,7 +24,7 @@ impl Lowerer<'_> {
                     .into_iter()
                     .rev()
             {
-                if self.kernel.definition(dependency).is_none() {
+                if self.checked_definition(dependency).is_none() {
                     pending.push((dependency, false))
                 }
             }
@@ -34,7 +33,7 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn definition_ready(&mut self, id: DefId) -> Result<(), String> {
-        if self.kernel.definition(id).is_some() || self.kernel.definition_template(id).is_some() {
+        if self.checked_definition(id).is_some() {
             return Ok(());
         }
         tracing::debug!(target:"ref_type::lowering",?id,"lower definition");
@@ -75,9 +74,17 @@ impl Lowerer<'_> {
                 )
             }
         };
-        if !parameters.is_empty() {
+        let kernel_id = self.definition_id(id);
+        let closed = kernel::calculus::is_closed(self.kernel.arena(), body)
+            && match classifier {
+                ke::Classifier::Expression(ty) => {
+                    kernel::calculus::is_closed(self.kernel.arena(), ty)
+                }
+                ke::Classifier::Upper(_) => true,
+            };
+        if !parameters.is_empty() || !closed {
             return self.kernel.register_definition_template(
-                id,
+                kernel_id,
                 ke::Definition {
                     body,
                     classifier,
@@ -87,7 +94,7 @@ impl Lowerer<'_> {
         }
         self.kernel
             .register_definition(
-                id,
+                kernel_id,
                 ke::Definition {
                     body,
                     classifier,
@@ -98,7 +105,7 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn parameter(&mut self, id: ModuleParamId) -> Result<(), String> {
-        if self.kernel.parameter(id).is_some() {
+        if self.ids.parameters.contains_key(&id) {
             return Ok(());
         }
         let p = self
@@ -123,14 +130,12 @@ impl Lowerer<'_> {
                 self.value_type(ty)?.into()
             }
         };
-        self.kernel.register_parameter(
-            id,
-            ke::Binding {
-                var: p.name,
-                classifier,
-            },
-            vec![],
-        )
+        let level = self.kernel.push_binding(ke::Binding {
+            var: p.name,
+            classifier,
+        })?;
+        self.ids.parameters.insert(id, level);
+        Ok(())
     }
 
     pub(super) fn inductive(
@@ -139,7 +144,8 @@ impl Lowerer<'_> {
         m: ModuleId,
         ambient: &ExpContext,
     ) -> Result<(), String> {
-        if self.kernel.inductive(id).is_some() || !self.active.insert(id) {
+        let kernel_id = self.inductive_id(id);
+        if self.kernel.inductive(kernel_id).is_some() || !self.active.insert(id) {
             return Ok(());
         }
         let raw = self.raw.inductive(id).clone();
@@ -183,7 +189,7 @@ impl Lowerer<'_> {
         }
         self.kernel
             .register_inductive(
-                id,
+                kernel_id,
                 ke::InductiveSpec {
                     parameters: native_params,
                     arity,
@@ -197,7 +203,8 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
-        if self.kernel.datatype(id).is_some() {
+        let kernel_id = self.datatype_id(id);
+        if self.kernel.datatype(kernel_id).is_some() {
             return Ok(());
         }
         // Recursive fields are lowered while the datatype's identity is reserved.
@@ -230,13 +237,14 @@ impl Lowerer<'_> {
             id.module,
             &self.raw.definition_context(id.module),
         )?;
+        let reflected = self.inductive_id(raw.reflected());
         self.kernel.register_datatype(
-            id,
+            kernel_id,
             ke::ProgramDatatype {
                 parameters,
                 constructors,
                 level: 0,
-                reflected: raw.reflected(),
+                reflected,
             },
         )?;
         self.active_program.remove(&id);

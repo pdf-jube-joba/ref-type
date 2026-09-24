@@ -16,13 +16,25 @@ impl Lowerer<'_> {
         &mut self,
         ty: crate::program::ValueType,
     ) -> Result<s::ValueType, String> {
+        let result = self.value_type_inner(ty);
+        if let Ok(term) = result {
+            self.raw
+                .provenance
+                .lowered(ty, s::Expression::from(term), &self.raw.sources);
+        }
+        result
+    }
+    fn value_type_inner(&mut self, ty: crate::program::ValueType) -> Result<s::ValueType, String> {
         use crate::program::ValueTypeNode as R;
         use s::ValueTypeForm as F;
         let form = match self.raw.arena().get(ty) {
             R::Bound(index) => F::Bound { index },
             R::ModuleParam(parameter) => {
                 self.parameter(parameter)?;
-                F::ModuleParam { parameter }
+                let kernel_parameter = self.parameter_id(parameter);
+                F::Ambient {
+                    level: kernel_parameter,
+                }
             }
             R::Meta { .. } => return Err("unresolved Program type".into()),
             R::Thunk { computation_ty } => F::Thunk {
@@ -41,7 +53,7 @@ impl Lowerer<'_> {
             } => {
                 self.datatype(indspec)?;
                 F::Inductive {
-                    inductive: indspec,
+                    inductive: self.datatype_id(indspec),
                     parameters: parameters
                         .into_iter()
                         .map(|p| self.value_type(p).map(Into::into))
@@ -56,6 +68,18 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn computation_type(
+        &mut self,
+        ty: crate::program::ComputationType,
+    ) -> Result<s::ComputationType, String> {
+        let result = self.computation_type_inner(ty);
+        if let Ok(term) = result {
+            self.raw
+                .provenance
+                .lowered(ty, s::Expression::from(term), &self.raw.sources);
+        }
+        result
+    }
+    fn computation_type_inner(
         &mut self,
         ty: crate::program::ComputationType,
     ) -> Result<s::ComputationType, String> {
@@ -136,13 +160,29 @@ impl Lowerer<'_> {
         v: crate::program::ValueTerm,
         ctx: &mut crate::program::ProgramContext,
     ) -> Result<s::ValueTerm, String> {
+        let result = self.value_term_inner(v, ctx);
+        if let Ok(term) = result {
+            self.raw
+                .provenance
+                .lowered(v, s::Expression::from(term), &self.raw.sources);
+        }
+        result
+    }
+    fn value_term_inner(
+        &mut self,
+        v: crate::program::ValueTerm,
+        ctx: &mut crate::program::ProgramContext,
+    ) -> Result<s::ValueTerm, String> {
         use crate::program::ValueTermNode as R;
         use s::ValueTermForm as F;
         let form = match self.raw.arena().get(v) {
             R::Bound(index) => F::Bound { index },
             R::ModuleParam(parameter) => {
                 self.parameter(parameter)?;
-                F::ModuleParam { parameter }
+                let kernel_parameter = self.parameter_id(parameter);
+                F::Ambient {
+                    level: kernel_parameter,
+                }
             }
             R::Meta { .. } => return Err("unresolved Program value".into()),
             R::DefinitionInstance {
@@ -174,9 +214,9 @@ impl Lowerer<'_> {
             R::DefinedConstant(definition) => {
                 self.definition(definition)?;
                 let declaration = self
-                    .kernel
-                    .definition(definition)
-                    .ok_or("unknown definition")?;
+                    .checked_definition(definition)
+                    .ok_or("unknown definition")?
+                    .clone();
                 F::Annotated {
                     body: declaration.body.try_into()?,
                     classifier: declaration.classifier,
@@ -211,7 +251,7 @@ impl Lowerer<'_> {
             } => {
                 self.datatype(indspec)?;
                 F::InductiveConstructor {
-                    inductive: indspec,
+                    inductive: self.datatype_id(indspec),
                     constructor: idx,
                     parameters: parameters
                         .into_iter()
@@ -242,6 +282,19 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn computation_term(
+        &mut self,
+        e: crate::program::ComputationTerm,
+        ctx: &mut crate::program::ProgramContext,
+    ) -> Result<s::ComputationTerm, String> {
+        let result = self.computation_term_inner(e, ctx);
+        if let Ok(term) = result {
+            self.raw
+                .provenance
+                .lowered(e, s::Expression::from(term), &self.raw.sources);
+        }
+        result
+    }
+    fn computation_term_inner(
         &mut self,
         e: crate::program::ComputationTerm,
         ctx: &mut crate::program::ProgramContext,
@@ -283,9 +336,9 @@ impl Lowerer<'_> {
             R::DefinedConstant(definition) => {
                 self.definition(definition)?;
                 let declaration = self
-                    .kernel
-                    .definition(definition)
-                    .ok_or("unknown definition")?;
+                    .checked_definition(definition)
+                    .ok_or("unknown definition")?
+                    .clone();
                 F::Annotated {
                     body: declaration.body.try_into()?,
                     classifier: declaration.classifier,
@@ -431,7 +484,7 @@ impl Lowerer<'_> {
                     bodies.push(self.computation_term(branch.body, &mut local)?);
                 }
                 F::Case {
-                    inductive: indspec,
+                    inductive: self.datatype_id(indspec),
                     binders,
                     result_ty: self.computation_type(ty)?,
                     scrutinee: self.value_term(scrutinee, ctx)?,

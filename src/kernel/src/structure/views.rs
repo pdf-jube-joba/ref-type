@@ -94,59 +94,59 @@ pub(crate) fn annotation(
         _ => None,
     }
 }
-pub(crate) fn module_parameter(arena: &Arena, e: Expression) -> Option<ModuleParamId> {
+pub(crate) fn ambient_level(arena: &Arena, e: Expression) -> Option<usize> {
     match e {
         Expression::SetTerm(h) => match arena.read(h).form {
-            SetTermForm::ModuleParam { parameter } => Some(parameter),
+            SetTermForm::Ambient { level } => Some(level),
             _ => None,
         },
         Expression::SetType(h) => match arena.read(h).form {
-            SetTypeForm::ModuleParam { parameter } => Some(parameter),
+            SetTypeForm::Ambient { level } => Some(level),
             _ => None,
         },
         Expression::SetKind(h) => match arena.read(h).form {
-            SetKindForm::ModuleParam { parameter } => Some(parameter),
+            SetKindForm::Ambient { level } => Some(level),
             _ => None,
         },
         Expression::PropTerm(h) => match arena.read(h).form {
-            PropTermForm::ModuleParam { parameter } => Some(parameter),
+            PropTermForm::Ambient { level } => Some(level),
             _ => None,
         },
         Expression::PropType(h) => match arena.read(h).form {
-            PropTypeForm::ModuleParam { parameter } => Some(parameter),
+            PropTypeForm::Ambient { level } => Some(level),
             _ => None,
         },
         Expression::PropKind(h) => match arena.read(h).form {
-            PropKindForm::ModuleParam { parameter } => Some(parameter),
+            PropKindForm::Ambient { level } => Some(level),
             _ => None,
         },
         Expression::ValueTerm(h) => match arena.read(h).form {
-            ValueTermForm::ModuleParam { parameter } => Some(parameter),
+            ValueTermForm::Ambient { level } => Some(level),
             _ => None,
         },
         Expression::ValueType(h) => match arena.read(h).form {
-            ValueTypeForm::ModuleParam { parameter } => Some(parameter),
+            ValueTypeForm::Ambient { level } => Some(level),
             _ => None,
         },
         Expression::ComputationTerm(h) => match arena.read(h).form {
-            ComputationTermForm::ModuleParam { parameter } => Some(parameter),
+            ComputationTermForm::Ambient { level } => Some(level),
             _ => None,
         },
         Expression::ComputationType(h) => match arena.read(h).form {
-            ComputationTypeForm::ModuleParam { parameter } => Some(parameter),
+            ComputationTypeForm::Ambient { level } => Some(level),
             _ => None,
         },
         _ => None,
     }
 }
-pub(crate) fn reflected_parameter(arena: &Arena, e: Expression) -> Option<ModuleParamId> {
+pub(crate) fn reflected_ambient_level(arena: &Arena, e: Expression) -> Option<usize> {
     match e {
         Expression::SetTerm(h) => match arena.read(h).form {
-            SetTermForm::ReflectedProgramParam { parameter } => Some(parameter),
+            SetTermForm::ReflectedAmbient { level } => Some(level),
             _ => None,
         },
         Expression::SetType(h) => match arena.read(h).form {
-            SetTypeForm::ReflectedProgramParam { parameter } => Some(parameter),
+            SetTypeForm::ReflectedAmbient { level } => Some(level),
             _ => None,
         },
         _ => None,

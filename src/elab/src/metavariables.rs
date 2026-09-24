@@ -14,7 +14,7 @@ use crate::{
     program_derivation::ProgramCheckSession,
     sort::Sort,
 };
-use hir::{SourceSpan, SurfaceMeta};
+use hir::{AstId, SurfaceMeta};
 use std::collections::{HashMap, HashSet};
 
 pub use crate::ids::MetaVarId;
@@ -28,8 +28,8 @@ pub use diagnostics::{
 #[derive(Debug, Clone)]
 struct MetaEntry {
     flavor: MetaFlavor,
-    span: SourceSpan,
-    occurrences: Vec<SourceSpan>,
+    origin: Option<AstId>,
+    occurrences: Vec<Option<AstId>>,
     editable: bool,
     context: ExpContext,
     scope_len: usize,
@@ -67,11 +67,19 @@ impl MetaStore {
         &mut self,
         env: &CrateEnv,
         kind: SurfaceMeta,
-        span: SourceSpan,
+        origin: Option<AstId>,
         context: &ExpContext,
         scope_len: usize,
     ) -> Exp {
         let flavor = MetaFlavor::from(kind);
+        let editable = kind.origin == hir::MetaOrigin::Source
+            && origin.is_some_and(|id| env.sources.is_editable(id));
+        let origin = origin.or_else(|| {
+            Some(env.sources.generated(
+                env.provenance.current_origin(),
+                hir::GenerationReason::ImplicitType,
+            ))
+        });
         let existing = match flavor {
             MetaFlavor::Named(number) => self.named.get(&number).copied(),
             MetaFlavor::Implicit | MetaFlavor::Goal | MetaFlavor::Synthetic => None,
@@ -82,9 +90,9 @@ impl MetaStore {
             );
             self.entries.push(MetaEntry {
                 flavor,
-                span,
-                occurrences: vec![span],
-                editable: kind.origin == hir::MetaOrigin::Source,
+                origin,
+                occurrences: vec![origin],
+                editable,
                 context: context.clone(),
                 scope_len,
                 assignment: None,
@@ -98,9 +106,9 @@ impl MetaStore {
         });
         if existing.is_some() {
             let entry = &mut self.entries[metavariable.index()];
-            entry.editable &= kind.origin == hir::MetaOrigin::Source;
-            if !entry.occurrences.contains(&span) {
-                entry.occurrences.push(span);
+            entry.editable &= editable;
+            if !entry.occurrences.contains(&origin) {
+                entry.occurrences.push(origin);
             }
             let previous_start = entry.context.len().saturating_sub(entry.scope_len);
             let current_start = context.len().saturating_sub(scope_len);
@@ -146,13 +154,20 @@ impl MetaStore {
         }
     }
 
-    fn fresh_synthetic(&mut self, env: &CrateEnv, context: &ExpContext, span: SourceSpan) -> Exp {
+    fn fresh_synthetic(
+        &mut self,
+        env: &CrateEnv,
+        context: &ExpContext,
+        origin: Option<AstId>,
+        reason: hir::GenerationReason,
+    ) -> Exp {
+        let origin = Some(env.sources.generated(origin, reason));
         let id = MetaVarId(
             u32::try_from(self.entries.len()).expect("metavariable table exceeded u32::MAX"),
         );
         self.entries.push(MetaEntry {
             flavor: MetaFlavor::Synthetic,
-            span,
+            origin,
             occurrences: Vec::new(),
             editable: false,
             context: context.clone(),
@@ -200,8 +215,8 @@ impl MetaStore {
         if let Some(ty) = self.entries[metavariable.index()].inferred_type {
             return Ok(self.zonk(env, ty));
         }
-        let span = self.entries[metavariable.index()].span;
-        let ty = self.fresh_synthetic(env, context, span);
+        let origin = self.entries[metavariable.index()].origin;
+        let ty = self.fresh_synthetic(env, context, origin, hir::GenerationReason::ImplicitType);
         self.entries[metavariable.index()].inferred_type = Some(ty);
         let constraint = GoalConstraint::HasType { term, expected: ty };
         self.entries[metavariable.index()].principal = Some(constraint.clone());
@@ -210,6 +225,18 @@ impl MetaStore {
     }
 
     pub fn check_pts(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        context: &mut ExpContext,
+        term: Exp,
+        expected: Exp,
+    ) -> Result<(), String> {
+        env.provenance.check(term, || {
+            self.check_pts_inner(env, module, context, term, expected)
+        })
+    }
+    fn check_pts_inner(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
@@ -270,6 +297,16 @@ impl MetaStore {
     }
 
     pub fn infer_pts(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        context: &mut ExpContext,
+        term: Exp,
+    ) -> Result<Exp, String> {
+        env.provenance
+            .check(term, || self.infer_pts_inner(env, module, context, term))
+    }
+    fn infer_pts_inner(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
@@ -381,9 +418,19 @@ impl MetaStore {
                 let (domain, codomain) = match arena.get(crate::calculus::whnf(env, func_ty)) {
                     ExpNode::Prod { ty, body, .. } => (ty, body),
                     ExpNode::Meta { .. } => {
-                        let span = meta_span(env, func_ty, &self.entries);
-                        let domain = self.fresh_synthetic(env, context, span);
-                        let codomain = self.fresh_synthetic(env, context, span);
+                        let origin = meta_origin(env, func_ty, &self.entries);
+                        let domain = self.fresh_synthetic(
+                            env,
+                            context,
+                            origin,
+                            hir::GenerationReason::InferredFunction,
+                        );
+                        let codomain = self.fresh_synthetic(
+                            env,
+                            context,
+                            origin,
+                            hir::GenerationReason::InferredFunction,
+                        );
                         let product = arena.alloc(ExpNode::Prod {
                             var: SymbolId::ANONYMOUS,
                             ty: domain,
@@ -913,6 +960,16 @@ impl MetaStore {
         context: &mut ExpContext,
         term: Exp,
     ) -> Result<Sort, String> {
+        env.provenance
+            .check(term, || self.infer_sort_inner(env, module, context, term))
+    }
+    fn infer_sort_inner(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        context: &mut ExpContext,
+        term: Exp,
+    ) -> Result<Sort, String> {
         let term = self.zonk(env, term);
         if !self.contains_unsolved(env, term) {
             return CheckSession::new(env, context)
@@ -1118,6 +1175,7 @@ impl MetaStore {
             }
         };
         cache.insert(exp, result);
+        env.provenance.relate(exp, result);
         result
     }
 
@@ -1202,8 +1260,12 @@ impl MetaStore {
         MetaGoal {
             metavariable: id,
             flavor: entry.flavor,
-            span: entry.span,
+            origin: entry.origin,
             occurrences: entry.occurrences.clone(),
+            related_origins: dependencies
+                .iter()
+                .filter_map(|id| self.entries[id.index()].origin)
+                .collect(),
             editable: entry.editable,
             context: entry.context.clone(),
             principal: entry
@@ -1243,10 +1305,10 @@ fn constraint_expressions(constraint: &GoalConstraint) -> Vec<Exp> {
     }
 }
 
-fn meta_span(env: &CrateEnv, exp: Exp, entries: &[MetaEntry]) -> SourceSpan {
+fn meta_origin(env: &CrateEnv, exp: Exp, entries: &[MetaEntry]) -> Option<AstId> {
     match env.arena().get(exp) {
-        ExpNode::Meta { metavariable, .. } => entries[metavariable.index()].span,
-        _ => SourceSpan { start: 0, end: 0 },
+        ExpNode::Meta { metavariable, .. } => entries[metavariable.index()].origin,
+        _ => None,
     }
 }
 

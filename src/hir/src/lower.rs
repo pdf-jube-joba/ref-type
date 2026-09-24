@@ -1,4 +1,4 @@
-//! Lower parsed syntax to independent HIR, preserving source locations and proof structure.
+//! Lower parsed syntax to HIR occurrence identities.
 use crate::*;
 
 impl From<syntax::SurfaceMeta> for SurfaceMeta {
@@ -9,46 +9,50 @@ impl From<syntax::SurfaceMeta> for SurfaceMeta {
         }
     }
 }
-
 impl From<syntax::Module> for Module {
     fn from(value: syntax::Module) -> Self {
         Self {
-            name: value.name,
-            parameters: value.parameters.into_iter().map(Into::into).collect(),
+            name: value.name.into(),
+            parameters: value
+                .parameters
+                .into_iter()
+                .map(|item0| item0.into())
+                .collect(),
             body: value.body.into(),
             span: value.span,
-            declaration_spans: value.declaration_spans,
+            declaration_spans: value.declaration_spans.into_iter().collect(),
             source: value.source,
             header_source: value.header_source,
         }
     }
 }
-
 impl From<syntax::ModuleBody> for ModuleBody {
     fn from(value: syntax::ModuleBody) -> Self {
         match value {
-            syntax::ModuleBody::Inline(v0) => {
-                Self::Inline(v0.into_iter().map(Into::into).collect())
+            syntax::ModuleBody::Inline(field0) => {
+                ModuleBody::Inline(field0.into_iter().map(|item0| item0.into()).collect())
             }
-            syntax::ModuleBody::External => Self::External,
+            syntax::ModuleBody::External => ModuleBody::External,
         }
     }
 }
-
 impl From<syntax::ModuleItem> for ModuleItem {
     fn from(value: syntax::ModuleItem) -> Self {
         match value {
-            syntax::ModuleItem::Error { name, message } => Self::Error { name, message },
+            syntax::ModuleItem::Error { name, message } => ModuleItem::Error {
+                name: name.map(|item0| item0.into()),
+                message,
+            },
             syntax::ModuleItem::Definition {
                 owner,
                 name,
                 binders,
                 ty,
                 body,
-            } => Self::Definition {
-                owner: owner.map(Into::into),
-                name,
-                binders: binders.into_iter().map(Into::into).collect(),
+            } => ModuleItem::Definition {
+                owner: owner.map(|item0| item0.into()),
+                name: name.into(),
+                binders: binders.into_iter().map(|item0| item0.into()).collect(),
                 ty: ty.into(),
                 body: body.into(),
             },
@@ -58,19 +62,19 @@ impl From<syntax::ModuleItem> for ModuleItem {
                 indices,
                 kind,
                 constructors,
-            } => Self::Inductive {
-                type_name,
-                parameters: parameters.into_iter().map(Into::into).collect(),
-                indices: indices.into_iter().map(Into::into).collect(),
+            } => ModuleItem::Inductive {
+                type_name: type_name.into(),
+                parameters: parameters.into_iter().map(|item0| item0.into()).collect(),
+                indices: indices.into_iter().map(|item0| item0.into()).collect(),
                 kind,
                 constructors: constructors
                     .into_iter()
-                    .map(|value| {
-                        let (name, binders, result) = value;
+                    .map(|item0| {
+                        let (item1_0, item1_1, item1_2) = item0;
                         (
-                            name,
-                            binders.into_iter().map(Into::into).collect(),
-                            result.into(),
+                            item1_0.into(),
+                            item1_1.into_iter().map(|item2| item2.into()).collect(),
+                            item1_2.into(),
                         )
                     })
                     .collect(),
@@ -80,332 +84,410 @@ impl From<syntax::ModuleItem> for ModuleItem {
                 parameters,
                 kind,
                 fields,
-            } => Self::Record {
-                type_name,
-                parameters: parameters.into_iter().map(Into::into).collect(),
+            } => ModuleItem::Record {
+                type_name: type_name.into(),
+                parameters: parameters.into_iter().map(|item0| item0.into()).collect(),
                 kind,
                 fields: fields
                     .into_iter()
-                    .map(|(name, value)| (name, value.into()))
+                    .map(|item0| {
+                        let (item1_0, item1_1) = item0;
+                        (item1_0.into(), item1_1.into())
+                    })
                     .collect(),
             },
-            syntax::ModuleItem::ChildModule { module } => Self::ChildModule {
+            syntax::ModuleItem::ChildModule { module } => ModuleItem::ChildModule {
                 module: Box::new((*module).into()),
             },
-            syntax::ModuleItem::Import { path, import_name } => Self::Import {
+            syntax::ModuleItem::Import { path, import_name } => ModuleItem::Import {
                 path: path.into(),
-                import_name,
+                import_name: import_name.into(),
             },
             syntax::ModuleItem::MathMacro {
                 name,
                 before,
                 after,
-            } => Self::MathMacro {
-                name,
-                before,
+            } => ModuleItem::MathMacro {
+                name: name.into(),
+                before: before.into_iter().map(|item0| item0.into()).collect(),
                 after: after.into(),
             },
             syntax::ModuleItem::UserMacro {
                 name,
                 before,
                 after,
-            } => Self::UserMacro {
-                name,
-                before,
+            } => ModuleItem::UserMacro {
+                name: name.into(),
+                before: before.into_iter().map(|item0| item0.into()).collect(),
                 after: after.into(),
             },
             syntax::ModuleItem::UseMacro {
                 import_name,
                 macro_name,
-            } => Self::UseMacro {
-                import_name,
-                macro_name,
+            } => ModuleItem::UseMacro {
+                import_name: import_name.into(),
+                macro_name: macro_name.into(),
             },
-            syntax::ModuleItem::Eval { exp } => Self::Eval { exp: exp.into() },
-            syntax::ModuleItem::Normalize { exp } => Self::Normalize { exp: exp.into() },
+            syntax::ModuleItem::Eval { exp } => ModuleItem::Eval { exp: exp.into() },
+            syntax::ModuleItem::Normalize { exp } => ModuleItem::Normalize { exp: exp.into() },
             syntax::ModuleItem::ComputationEval { exp } => {
-                Self::ComputationEval { exp: exp.into() }
+                ModuleItem::ComputationEval { exp: exp.into() }
             }
             syntax::ModuleItem::ComputationNormalize { exp } => {
-                Self::ComputationNormalize { exp: exp.into() }
+                ModuleItem::ComputationNormalize { exp: exp.into() }
             }
-            syntax::ModuleItem::ValueCheck { exp, ty } => Self::ValueCheck {
+            syntax::ModuleItem::ValueCheck { exp, ty } => ModuleItem::ValueCheck {
                 exp: exp.into(),
                 ty: ty.into(),
             },
-            syntax::ModuleItem::ComputationCheck { exp, ty } => Self::ComputationCheck {
+            syntax::ModuleItem::ComputationCheck { exp, ty } => ModuleItem::ComputationCheck {
                 exp: exp.into(),
                 ty: ty.into(),
             },
-            syntax::ModuleItem::ValueInfer { exp } => Self::ValueInfer { exp: exp.into() },
+            syntax::ModuleItem::ValueInfer { exp } => ModuleItem::ValueInfer { exp: exp.into() },
             syntax::ModuleItem::ComputationInfer { exp } => {
-                Self::ComputationInfer { exp: exp.into() }
+                ModuleItem::ComputationInfer { exp: exp.into() }
             }
-            syntax::ModuleItem::Check { exp, ty } => Self::Check {
+            syntax::ModuleItem::Check { exp, ty } => ModuleItem::Check {
                 exp: exp.into(),
                 ty: ty.into(),
             },
-            syntax::ModuleItem::Infer { exp } => Self::Infer { exp: exp.into() },
+            syntax::ModuleItem::Infer { exp } => ModuleItem::Infer { exp: exp.into() },
         }
     }
 }
-
 impl From<syntax::AssociatedOwner> for AssociatedOwner {
     fn from(value: syntax::AssociatedOwner) -> Self {
         Self {
-            type_name: value.type_name,
-            parameters: value.parameters.into_iter().map(Into::into).collect(),
+            type_name: value.type_name.into(),
+            parameters: value
+                .parameters
+                .into_iter()
+                .map(|item0| item0.into())
+                .collect(),
         }
     }
 }
-
-type ModuleCalls<E> = Vec<(Identifier, Vec<(Identifier, E)>)>;
-
-fn lower_module_calls(calls: ModuleCalls<syntax::SExp>) -> ModuleCalls<SExp> {
-    calls
-        .into_iter()
-        .map(|(module, arguments)| {
-            let arguments = arguments
-                .into_iter()
-                .map(|(name, value)| (name, value.into()))
-                .collect();
-            (module, arguments)
-        })
-        .collect()
-}
-
 impl From<syntax::ModuleInstantiatePath> for ModuleInstantiatePath {
     fn from(value: syntax::ModuleInstantiatePath) -> Self {
         match value {
-            syntax::ModuleInstantiatePath::FromPackage { package, calls } => Self::FromPackage {
-                package,
-                calls: lower_module_calls(calls),
-            },
-            syntax::ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
-                Self::FromCurrent {
-                    back_parent,
-                    calls: lower_module_calls(calls),
+            syntax::ModuleInstantiatePath::FromPackage { package, calls } => {
+                ModuleInstantiatePath::FromPackage {
+                    package: package.into(),
+                    calls: calls
+                        .into_iter()
+                        .map(|item0| {
+                            let (item1_0, item1_1) = item0;
+                            (
+                                item1_0.into(),
+                                item1_1
+                                    .into_iter()
+                                    .map(|item2| {
+                                        let (item3_0, item3_1) = item2;
+                                        (item3_0.into(), item3_1.into())
+                                    })
+                                    .collect(),
+                            )
+                        })
+                        .collect(),
                 }
             }
-            syntax::ModuleInstantiatePath::FromRoot { calls } => Self::FromRoot {
-                calls: lower_module_calls(calls),
+            syntax::ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
+                ModuleInstantiatePath::FromCurrent {
+                    back_parent,
+                    calls: calls
+                        .into_iter()
+                        .map(|item0| {
+                            let (item1_0, item1_1) = item0;
+                            (
+                                item1_0.into(),
+                                item1_1
+                                    .into_iter()
+                                    .map(|item2| {
+                                        let (item3_0, item3_1) = item2;
+                                        (item3_0.into(), item3_1.into())
+                                    })
+                                    .collect(),
+                            )
+                        })
+                        .collect(),
+                }
+            }
+            syntax::ModuleInstantiatePath::FromRoot { calls } => ModuleInstantiatePath::FromRoot {
+                calls: calls
+                    .into_iter()
+                    .map(|item0| {
+                        let (item1_0, item1_1) = item0;
+                        (
+                            item1_0.into(),
+                            item1_1
+                                .into_iter()
+                                .map(|item2| {
+                                    let (item3_0, item3_1) = item2;
+                                    (item3_0.into(), item3_1.into())
+                                })
+                                .collect(),
+                        )
+                    })
+                    .collect(),
             },
-            syntax::ModuleInstantiatePath::FromImport { import_name, calls } => Self::FromImport {
-                import_name,
-                calls: lower_module_calls(calls),
-            },
+            syntax::ModuleInstantiatePath::FromImport { import_name, calls } => {
+                ModuleInstantiatePath::FromImport {
+                    import_name: import_name.into(),
+                    calls: calls
+                        .into_iter()
+                        .map(|item0| {
+                            let (item1_0, item1_1) = item0;
+                            (
+                                item1_0.into(),
+                                item1_1
+                                    .into_iter()
+                                    .map(|item2| {
+                                        let (item3_0, item3_1) = item2;
+                                        (item3_0.into(), item3_1.into())
+                                    })
+                                    .collect(),
+                            )
+                        })
+                        .collect(),
+                }
+            }
         }
     }
 }
-
 impl From<syntax::MacroExp> for MacroExp {
     fn from(value: syntax::MacroExp) -> Self {
         match value {
-            syntax::MacroExp::RawExp(v0) => Self::RawExp(v0.into()),
-            syntax::MacroExp::TemplateName(v0) => Self::TemplateName(v0),
-            syntax::MacroExp::TokenParameter(v0) => Self::TokenParameter(v0),
-            syntax::MacroExp::Splice(v0) => Self::Splice(v0),
-            syntax::MacroExp::Tok(v0) => Self::Tok(v0),
-            syntax::MacroExp::Quoted(v0) => Self::Quoted(v0),
-            syntax::MacroExp::Seq(v0) => Self::Seq(v0.into_iter().map(Into::into).collect()),
+            syntax::MacroExp::RawExp(field0) => MacroExp::RawExp(field0.into()),
+            syntax::MacroExp::TemplateName(field0) => MacroExp::TemplateName(field0.into()),
+            syntax::MacroExp::TokenParameter(field0) => MacroExp::TokenParameter(field0.into()),
+            syntax::MacroExp::Splice(field0) => MacroExp::Splice(field0.into()),
+            syntax::MacroExp::Tok(field0) => MacroExp::Tok(field0),
+            syntax::MacroExp::Quoted(field0) => MacroExp::Quoted(field0),
+            syntax::MacroExp::Seq(field0) => {
+                MacroExp::Seq(field0.into_iter().map(|item0| item0.into()).collect())
+            }
         }
     }
 }
-
 impl From<syntax::RightBind> for RightBind {
     fn from(value: syntax::RightBind) -> Self {
         Self {
-            vars: value.vars,
+            vars: value.vars.into_iter().map(|item0| item0.into()).collect(),
             ty: Box::new((*value.ty).into()),
         }
     }
 }
-
 impl From<syntax::ValueTypeExp> for ValueTypeExp {
     fn from(value: syntax::ValueTypeExp) -> Self {
-        match value {
-            syntax::ValueTypeExp::Meta { kind, span } => Self::Meta {
+        let origin = value.source.map(|source| source.id);
+        let kind = match value.kind {
+            syntax::ValueTypeExpKind::Meta { kind, token } => ValueTypeExpKind::Meta {
                 kind: kind.into(),
-                span,
+                token: Some(token.id),
             },
-            syntax::ValueTypeExp::Access { access, parameters } => Self::Access {
+            syntax::ValueTypeExpKind::Access { access, parameters } => ValueTypeExpKind::Access {
                 access: access.into(),
-                parameters: parameters.into_iter().map(Into::into).collect(),
+                parameters: parameters.into_iter().map(|item0| item0.into()).collect(),
             },
-            syntax::ValueTypeExp::Thunk(v0) => Self::Thunk(Box::new((*v0).into())),
-            syntax::ValueTypeExp::RunStep {
+            syntax::ValueTypeExpKind::Thunk(field0) => {
+                ValueTypeExpKind::Thunk(Box::new((*field0).into()))
+            }
+            syntax::ValueTypeExpKind::RunStep {
                 state_ty,
                 result_ty,
-            } => Self::RunStep {
+            } => ValueTypeExpKind::RunStep {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
             },
-        }
+        };
+        Self { kind, origin }
     }
 }
-
 impl From<syntax::ComputationTypeExp> for ComputationTypeExp {
     fn from(value: syntax::ComputationTypeExp) -> Self {
-        match value {
-            syntax::ComputationTypeExp::Meta { kind, span } => Self::Meta {
+        let origin = value.source.map(|source| source.id);
+        let kind = match value.kind {
+            syntax::ComputationTypeExpKind::Meta { kind, token } => ComputationTypeExpKind::Meta {
                 kind: kind.into(),
-                span,
+                token: Some(token.id),
             },
-            syntax::ComputationTypeExp::Return(v0) => Self::Return(Box::new((*v0).into())),
-            syntax::ComputationTypeExp::Function { domain, codomain } => Self::Function {
-                domain: Box::new((*domain).into()),
-                codomain: Box::new((*codomain).into()),
-            },
-        }
+            syntax::ComputationTypeExpKind::Return(field0) => {
+                ComputationTypeExpKind::Return(Box::new((*field0).into()))
+            }
+            syntax::ComputationTypeExpKind::Function { domain, codomain } => {
+                ComputationTypeExpKind::Function {
+                    domain: Box::new((*domain).into()),
+                    codomain: Box::new((*codomain).into()),
+                }
+            }
+        };
+        Self { kind, origin }
     }
 }
-
 impl From<syntax::ValueTermExp> for ValueTermExp {
     fn from(value: syntax::ValueTermExp) -> Self {
-        match value {
-            syntax::ValueTermExp::Meta { kind, span } => Self::Meta {
+        let origin = value.source.map(|source| source.id);
+        let kind = match value.kind {
+            syntax::ValueTermExpKind::Meta { kind, token } => ValueTermExpKind::Meta {
                 kind: kind.into(),
-                span,
+                token: Some(token.id),
             },
-            syntax::ValueTermExp::Access(v0) => Self::Access(v0.into()),
-            syntax::ValueTermExp::Record {
+            syntax::ValueTermExpKind::Access(field0) => ValueTermExpKind::Access(field0.into()),
+            syntax::ValueTermExpKind::Record {
                 datatype,
                 parameters,
                 fields,
-            } => Self::Record {
+            } => ValueTermExpKind::Record {
                 datatype: datatype.into(),
-                parameters: parameters.into_iter().map(Into::into).collect(),
+                parameters: parameters.into_iter().map(|item0| item0.into()).collect(),
                 fields: fields
                     .into_iter()
-                    .map(|(name, value)| (name, value.into()))
+                    .map(|item0| {
+                        let (item1_0, item1_1) = item0;
+                        (item1_0.into(), item1_1.into())
+                    })
                     .collect(),
             },
-            syntax::ValueTermExp::Constructor {
+            syntax::ValueTermExpKind::Constructor {
                 datatype,
                 constructor,
                 parameters,
                 fields,
-            } => Self::Constructor {
+            } => ValueTermExpKind::Constructor {
                 datatype: datatype.into(),
-                constructor,
-                parameters: parameters.into_iter().map(Into::into).collect(),
-                fields: fields.into_iter().map(Into::into).collect(),
+                constructor: constructor.into(),
+                parameters: parameters.into_iter().map(|item0| item0.into()).collect(),
+                fields: fields.into_iter().map(|item0| item0.into()).collect(),
             },
-            syntax::ValueTermExp::Thunk(v0) => Self::Thunk(Box::new((*v0).into())),
-            syntax::ValueTermExp::Continue {
+            syntax::ValueTermExpKind::Thunk(field0) => {
+                ValueTermExpKind::Thunk(Box::new((*field0).into()))
+            }
+            syntax::ValueTermExpKind::Continue {
                 state_ty,
                 result_ty,
                 next,
-            } => Self::Continue {
+            } => ValueTermExpKind::Continue {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 next: Box::new((*next).into()),
             },
-            syntax::ValueTermExp::Finish {
+            syntax::ValueTermExpKind::Finish {
                 state_ty,
                 result_ty,
                 output,
-            } => Self::Finish {
+            } => ValueTermExpKind::Finish {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 output: Box::new((*output).into()),
             },
-        }
+        };
+        Self { kind, origin }
     }
 }
-
 impl From<syntax::ComputationTermExp> for ComputationTermExp {
     fn from(value: syntax::ComputationTermExp) -> Self {
-        match value {
-            syntax::ComputationTermExp::Meta { kind, span } => Self::Meta {
+        let origin = value.source.map(|source| source.id);
+        let kind = match value.kind {
+            syntax::ComputationTermExpKind::Meta { kind, token } => ComputationTermExpKind::Meta {
                 kind: kind.into(),
-                span,
+                token: Some(token.id),
             },
-            syntax::ComputationTermExp::Access(v0) => Self::Access(v0.into()),
-            syntax::ComputationTermExp::Associated {
+            syntax::ComputationTermExpKind::Access(field0) => {
+                ComputationTermExpKind::Access(field0.into())
+            }
+            syntax::ComputationTermExpKind::Associated {
                 datatype,
                 item,
                 parameters,
-            } => Self::Associated {
+            } => ComputationTermExpKind::Associated {
                 datatype: datatype.into(),
-                item,
-                parameters: parameters.into_iter().map(Into::into).collect(),
+                item: item.into(),
+                parameters: parameters.into_iter().map(|item0| item0.into()).collect(),
             },
-            syntax::ComputationTermExp::InferredProjection { value, field } => {
-                Self::InferredProjection {
+            syntax::ComputationTermExpKind::InferredProjection { value, field } => {
+                ComputationTermExpKind::InferredProjection {
                     value: Box::new((*value).into()),
-                    field,
+                    field: field.into(),
                 }
             }
-            syntax::ComputationTermExp::Return(v0) => Self::Return(Box::new((*v0).into())),
-            syntax::ComputationTermExp::Force(v0) => Self::Force(Box::new((*v0).into())),
-            syntax::ComputationTermExp::Lambda {
+            syntax::ComputationTermExpKind::Return(field0) => {
+                ComputationTermExpKind::Return(Box::new((*field0).into()))
+            }
+            syntax::ComputationTermExpKind::Force(field0) => {
+                ComputationTermExpKind::Force(Box::new((*field0).into()))
+            }
+            syntax::ComputationTermExpKind::Lambda {
                 var,
                 value_ty,
                 body,
-            } => Self::Lambda {
-                var,
+            } => ComputationTermExpKind::Lambda {
+                var: var.into(),
                 value_ty: Box::new((*value_ty).into()),
                 body: Box::new((*body).into()),
             },
-            syntax::ComputationTermExp::Application {
+            syntax::ComputationTermExpKind::Application {
                 function,
                 arguments,
-            } => Self::Application {
+            } => ComputationTermExpKind::Application {
                 function: function.into(),
-                arguments: arguments.into_iter().map(Into::into).collect(),
+                arguments: arguments.into_iter().map(|item0| item0.into()).collect(),
             },
-            syntax::ComputationTermExp::Sequence {
+            syntax::ComputationTermExpKind::Sequence {
                 computation,
                 var,
                 value_ty,
                 body,
-            } => Self::Sequence {
+            } => ComputationTermExpKind::Sequence {
                 computation: Box::new((*computation).into()),
-                var,
+                var: var.into(),
                 value_ty: Box::new((*value_ty).into()),
                 body: Box::new((*body).into()),
             },
-            syntax::ComputationTermExp::ValueLet {
+            syntax::ComputationTermExpKind::ValueLet {
                 var,
                 value_ty,
                 value,
                 body,
-            } => Self::ValueLet {
-                var,
+            } => ComputationTermExpKind::ValueLet {
+                var: var.into(),
                 value_ty: Box::new((*value_ty).into()),
                 value: Box::new((*value).into()),
                 body: Box::new((*body).into()),
             },
-            syntax::ComputationTermExp::Case {
+            syntax::ComputationTermExpKind::Case {
                 datatype,
                 scrutinee,
                 branches,
-            } => Self::Case {
+            } => ComputationTermExpKind::Case {
                 datatype: datatype.into(),
                 scrutinee: Box::new((*scrutinee).into()),
                 branches: branches
                     .into_iter()
-                    .map(|value| {
-                        let (v0, v1, v2) = value;
-                        (v0, v1, v2.into())
+                    .map(|item0| {
+                        let (item1_0, item1_1, item1_2) = item0;
+                        (
+                            item1_0.into(),
+                            item1_1.into_iter().map(|item2| item2.into()).collect(),
+                            item1_2.into(),
+                        )
                     })
                     .collect(),
             },
-            syntax::ComputationTermExp::Run {
+            syntax::ComputationTermExpKind::Run {
                 state_ty,
                 result_ty,
                 step,
                 initial,
                 accessibility,
-            } => Self::Run {
+            } => ComputationTermExpKind::Run {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 step: Box::new((*step).into()),
                 initial: Box::new((*initial).into()),
                 accessibility: Box::new((*accessibility).into()),
             },
-            syntax::ComputationTermExp::RunCase {
+            syntax::ComputationTermExpKind::RunCase {
                 state_ty,
                 result_ty,
                 step,
@@ -413,7 +495,7 @@ impl From<syntax::ComputationTermExp> for ComputationTermExp {
                 transition,
                 accessibility,
                 transition_equality,
-            } => Self::RunCase {
+            } => ComputationTermExpKind::RunCase {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 step: Box::new((*step).into()),
@@ -422,37 +504,42 @@ impl From<syntax::ComputationTermExp> for ComputationTermExp {
                 accessibility: Box::new((*accessibility).into()),
                 transition_equality: Box::new((*transition_equality).into()),
             },
-        }
+        };
+        Self { kind, origin }
     }
 }
-
 impl From<syntax::ProgramFunctionExp> for ProgramFunctionExp {
     fn from(value: syntax::ProgramFunctionExp) -> Self {
-        match value {
-            syntax::ProgramFunctionExp::Access(v0) => Self::Access(v0.into()),
-            syntax::ProgramFunctionExp::Associated {
+        let origin = value.source.map(|source| source.id);
+        let kind = match value.kind {
+            syntax::ProgramFunctionExpKind::Access(field0) => {
+                ProgramFunctionExpKind::Access(field0.into())
+            }
+            syntax::ProgramFunctionExpKind::Associated {
                 datatype,
                 item,
                 parameters,
-            } => Self::Associated {
+            } => ProgramFunctionExpKind::Associated {
                 datatype: datatype.into(),
-                item,
-                parameters: parameters.into_iter().map(Into::into).collect(),
+                item: item.into(),
+                parameters: parameters.into_iter().map(|item0| item0.into()).collect(),
             },
-            syntax::ProgramFunctionExp::Value(v0) => Self::Value(Box::new((*v0).into())),
-            syntax::ProgramFunctionExp::Computation(v0) => {
-                Self::Computation(Box::new((*v0).into()))
+            syntax::ProgramFunctionExpKind::Value(field0) => {
+                ProgramFunctionExpKind::Value(Box::new((*field0).into()))
             }
-        }
+            syntax::ProgramFunctionExpKind::Computation(field0) => {
+                ProgramFunctionExpKind::Computation(Box::new((*field0).into()))
+            }
+        };
+        Self { kind, origin }
     }
 }
-
 impl From<syntax::Bind> for Bind {
     fn from(value: syntax::Bind) -> Self {
         match value {
-            syntax::Bind::Named(v0) => Self::Named(v0.into()),
-            syntax::Bind::Subset { var, ty, predicate } => Self::Subset {
-                var,
+            syntax::Bind::Named(field0) => Bind::Named(field0.into()),
+            syntax::Bind::Subset { var, ty, predicate } => Bind::Subset {
+                var: var.into(),
                 ty: Box::new((*ty).into()),
                 predicate: Box::new((*predicate).into()),
             },
@@ -461,250 +548,269 @@ impl From<syntax::Bind> for Bind {
                 ty,
                 predicate,
                 proof_var,
-            } => Self::SubsetWithProof {
-                var,
+            } => Bind::SubsetWithProof {
+                var: var.into(),
                 ty: Box::new((*ty).into()),
                 predicate: Box::new((*predicate).into()),
-                proof_var,
+                proof_var: proof_var.into(),
             },
         }
     }
 }
-
 impl From<syntax::LocalAccess> for LocalAccess {
     fn from(value: syntax::LocalAccess) -> Self {
         match value {
-            syntax::LocalAccess::Current { access } => Self::Current { access },
-            syntax::LocalAccess::Named { access, child } => Self::Named { access, child },
+            syntax::LocalAccess::Current { access } => LocalAccess::Current {
+                access: access.into(),
+            },
+            syntax::LocalAccess::Named { access, child } => LocalAccess::Named {
+                access: access.into(),
+                child: child.into(),
+            },
         }
     }
 }
-
 impl From<syntax::SExp> for SExp {
     fn from(value: syntax::SExp) -> Self {
-        match value {
-            syntax::SExp::Meta { kind, span } => Self::Meta {
+        let origin = value.source.map(|source| source.id);
+        let kind = match value.kind {
+            syntax::SExpKind::Meta { kind, token } => SExpKind::Meta {
                 kind: kind.into(),
-                span,
+                token: Some(token.id),
             },
-            syntax::SExp::AccessPath { access, parameters } => Self::AccessPath {
+            syntax::SExpKind::AccessPath { access, parameters } => SExpKind::AccessPath {
                 access: access.into(),
-                parameters: parameters.into_iter().map(Into::into).collect(),
+                parameters: parameters.into_iter().map(|item0| item0.into()).collect(),
             },
-            syntax::SExp::AssociatedAccess { base, field } => Self::AssociatedAccess {
+            syntax::SExpKind::AssociatedAccess { base, field } => SExpKind::AssociatedAccess {
                 base: Box::new((*base).into()),
-                field,
+                field: field.into(),
             },
-            syntax::SExp::InferredProjection { value, field } => Self::InferredProjection {
+            syntax::SExpKind::InferredProjection { value, field } => SExpKind::InferredProjection {
                 value: Box::new((*value).into()),
-                field,
+                field: field.into(),
             },
-            syntax::SExp::MathMacro { tokens } => Self::MathMacro {
-                tokens: tokens.into_iter().map(Into::into).collect(),
+            syntax::SExpKind::MathMacro { tokens } => SExpKind::MathMacro {
+                tokens: tokens.into_iter().map(|item0| item0.into()).collect(),
                 scope: None,
-                max_order: None,
                 depth: 0,
+                max_order: None,
             },
-            syntax::SExp::NamedMacro { name, tokens } => Self::NamedMacro {
-                name,
-                tokens: tokens.into_iter().map(Into::into).collect(),
+            syntax::SExpKind::NamedMacro { name, tokens } => SExpKind::NamedMacro {
+                name: name.into(),
+                tokens: tokens.into_iter().map(|item0| item0.into()).collect(),
                 scope: None,
-                max_order: None,
                 depth: 0,
+                max_order: None,
             },
-            syntax::SExp::MacroParameter(v0) => Self::MacroParameter(v0),
-            syntax::SExp::TokenMatch { target, branches } => Self::TokenMatch {
-                target,
+            syntax::SExpKind::MacroParameter(field0) => SExpKind::MacroParameter(field0.into()),
+            syntax::SExpKind::TokenMatch { target, branches } => SExpKind::TokenMatch {
+                target: target.into(),
                 branches: branches
                     .into_iter()
-                    .map(|(name, value)| (name, value.into()))
-                    .collect(),
-            },
-            syntax::SExp::Where { exp, clauses } => Self::Where {
-                exp: Box::new((*exp).into()),
-                clauses: clauses
-                    .into_iter()
-                    .map(|value| {
-                        let (v0, v1, v2) = value;
-                        (v0, v1.into(), v2.into())
+                    .map(|item0| {
+                        let (item1_0, item1_1) = item0;
+                        (item1_0.into(), item1_1.into())
                     })
                     .collect(),
             },
-            syntax::SExp::Sort(v0) => Self::Sort(v0),
-            syntax::SExp::ValueType => Self::ValueType,
-            syntax::SExp::Prod { bind, body } => Self::Prod {
+            syntax::SExpKind::Where { exp, clauses } => SExpKind::Where {
+                exp: Box::new((*exp).into()),
+                clauses: clauses
+                    .into_iter()
+                    .map(|item0| {
+                        let (item1_0, item1_1, item1_2) = item0;
+                        (item1_0.into(), item1_1.into(), item1_2.into())
+                    })
+                    .collect(),
+            },
+            syntax::SExpKind::Sort(field0) => SExpKind::Sort(field0),
+            syntax::SExpKind::ValueType => SExpKind::ValueType,
+            syntax::SExpKind::Prod { bind, body } => SExpKind::Prod {
                 bind: bind.into(),
                 body: Box::new((*body).into()),
             },
-            syntax::SExp::Lam { bind, body } => Self::Lam {
+            syntax::SExpKind::Lam { bind, body } => SExpKind::Lam {
                 bind: bind.into(),
                 body: Box::new((*body).into()),
             },
-            syntax::SExp::App { func, arg } => Self::App {
+            syntax::SExpKind::App { func, arg } => SExpKind::App {
                 func: Box::new((*func).into()),
                 arg: Box::new((*arg).into()),
             },
-            syntax::SExp::SubsetIntro {
+            syntax::SExpKind::SubsetIntro {
                 superset,
                 subset,
                 element,
                 proof,
-            } => Self::SubsetIntro {
+            } => SExpKind::SubsetIntro {
                 superset: Box::new((*superset).into()),
                 subset: Box::new((*subset).into()),
                 element: Box::new((*element).into()),
                 proof: Box::new((*proof).into()),
             },
-            syntax::SExp::IndCase {
+            syntax::SExpKind::IndCase {
                 path,
                 scrutinee,
                 return_type,
                 branches,
-            } => Self::IndCase {
+            } => SExpKind::IndCase {
                 path: path.into(),
                 scrutinee: Box::new((*scrutinee).into()),
                 return_type: Box::new((*return_type).into()),
                 branches: branches
                     .into_iter()
-                    .map(|(name, value)| (name, value.into()))
+                    .map(|item0| {
+                        let (item1_0, item1_1) = item0;
+                        (item1_0.into(), item1_1.into())
+                    })
                     .collect(),
             },
-            syntax::SExp::Induction {
+            syntax::SExpKind::Induction {
                 binder,
                 return_type,
                 cases,
-            } => Self::Induction {
+            } => SExpKind::Induction {
                 binder: binder.into(),
                 return_type: Box::new((*return_type).into()),
                 cases: cases
                     .into_iter()
-                    .map(|(name, value)| (name, value.into()))
+                    .map(|item0| {
+                        let (item1_0, item1_1) = item0;
+                        (item1_0.into(), item1_1.into())
+                    })
                     .collect(),
             },
-            syntax::SExp::IndElimPrim {
+            syntax::SExpKind::IndElimPrim {
                 path,
                 parameters,
                 motive,
-            } => Self::IndElimPrim {
+            } => SExpKind::IndElimPrim {
                 path: path.into(),
-                parameters: parameters.into_iter().map(Into::into).collect(),
+                parameters: parameters.into_iter().map(|item0| item0.into()).collect(),
                 motive: Box::new((*motive).into()),
             },
-            syntax::SExp::ThunkType { computation_ty } => Self::ThunkType {
+            syntax::SExpKind::ThunkType { computation_ty } => SExpKind::ThunkType {
                 computation_ty: Box::new((*computation_ty).into()),
             },
-            syntax::SExp::ReturnType { value_ty } => Self::ReturnType {
+            syntax::SExpKind::ReturnType { value_ty } => SExpKind::ReturnType {
                 value_ty: Box::new((*value_ty).into()),
             },
-            syntax::SExp::ComputationFunction { domain, codomain } => Self::ComputationFunction {
-                domain: Box::new((*domain).into()),
-                codomain: Box::new((*codomain).into()),
-            },
-            syntax::SExp::Thunk { computation } => Self::Thunk {
+            syntax::SExpKind::ComputationFunction { domain, codomain } => {
+                SExpKind::ComputationFunction {
+                    domain: Box::new((*domain).into()),
+                    codomain: Box::new((*codomain).into()),
+                }
+            }
+            syntax::SExpKind::Thunk { computation } => SExpKind::Thunk {
                 computation: Box::new((*computation).into()),
             },
-            syntax::SExp::Return { value } => Self::Return {
+            syntax::SExpKind::Return { value } => SExpKind::Return {
                 value: Box::new((*value).into()),
             },
-            syntax::SExp::Force { value } => Self::Force {
+            syntax::SExpKind::Force { value } => SExpKind::Force {
                 value: Box::new((*value).into()),
             },
-            syntax::SExp::ComputationLam {
+            syntax::SExpKind::ComputationLam {
                 var,
                 value_ty,
                 body,
-            } => Self::ComputationLam {
-                var,
+            } => SExpKind::ComputationLam {
+                var: var.into(),
                 value_ty: Box::new((*value_ty).into()),
                 body: Box::new((*body).into()),
             },
-            syntax::SExp::Sequence {
+            syntax::SExpKind::Sequence {
                 computation,
                 var,
                 value_ty,
                 body,
-            } => Self::Sequence {
+            } => SExpKind::Sequence {
                 computation: Box::new((*computation).into()),
-                var,
+                var: var.into(),
                 value_ty: Box::new((*value_ty).into()),
                 body: Box::new((*body).into()),
             },
-            syntax::SExp::ValueLet {
+            syntax::SExpKind::ValueLet {
                 var,
                 value_ty,
                 value,
                 body,
-            } => Self::ValueLet {
-                var,
+            } => SExpKind::ValueLet {
+                var: var.into(),
                 value_ty: Box::new((*value_ty).into()),
                 value: Box::new((*value).into()),
                 body: Box::new((*body).into()),
             },
-            syntax::SExp::ProgramCase {
+            syntax::SExpKind::ProgramCase {
                 path,
                 scrutinee,
                 branches,
-            } => Self::ProgramCase {
+            } => SExpKind::ProgramCase {
                 path: path.into(),
                 scrutinee: Box::new((*scrutinee).into()),
                 branches: branches
                     .into_iter()
-                    .map(|value| {
-                        let (v0, v1, v2) = value;
-                        (v0, v1, v2.into())
+                    .map(|item0| {
+                        let (item1_0, item1_1, item1_2) = item0;
+                        (
+                            item1_0.into(),
+                            item1_1.into_iter().map(|item2| item2.into()).collect(),
+                            item1_2.into(),
+                        )
                     })
                     .collect(),
             },
-            syntax::SExp::RunStep {
+            syntax::SExpKind::RunStep {
                 state_ty,
                 result_ty,
-            } => Self::RunStep {
+            } => SExpKind::RunStep {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
             },
-            syntax::SExp::Continue {
+            syntax::SExpKind::Continue {
                 state_ty,
                 result_ty,
                 next,
-            } => Self::Continue {
+            } => SExpKind::Continue {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 next: Box::new((*next).into()),
             },
-            syntax::SExp::Finish {
+            syntax::SExpKind::Finish {
                 state_ty,
                 result_ty,
                 output,
-            } => Self::Finish {
+            } => SExpKind::Finish {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 output: Box::new((*output).into()),
             },
-            syntax::SExp::Acc {
+            syntax::SExpKind::Acc {
                 state_ty,
                 result_ty,
                 step,
                 state,
-            } => Self::Acc {
+            } => SExpKind::Acc {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 step: Box::new((*step).into()),
                 state: Box::new((*state).into()),
             },
-            syntax::SExp::Run {
+            syntax::SExpKind::Run {
                 state_ty,
                 result_ty,
                 step,
                 initial,
                 accessibility,
-            } => Self::Run {
+            } => SExpKind::Run {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 step: Box::new((*step).into()),
                 initial: Box::new((*initial).into()),
                 accessibility: Box::new((*accessibility).into()),
             },
-            syntax::SExp::RunCase {
+            syntax::SExpKind::RunCase {
                 state_ty,
                 result_ty,
                 step,
@@ -712,7 +818,7 @@ impl From<syntax::SExp> for SExp {
                 transition,
                 accessibility,
                 transition_equality,
-            } => Self::RunCase {
+            } => SExpKind::RunCase {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 step: Box::new((*step).into()),
@@ -721,14 +827,14 @@ impl From<syntax::SExp> for SExp {
                 accessibility: Box::new((*accessibility).into()),
                 transition_equality: Box::new((*transition_equality).into()),
             },
-            syntax::SExp::RunStepRec {
+            syntax::SExpKind::RunStepRec {
                 state_ty,
                 result_ty,
                 motive,
                 on_continue,
                 on_finish,
                 scrutinee,
-            } => Self::RunStepRec {
+            } => SExpKind::RunStepRec {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 motive: Box::new((*motive).into()),
@@ -736,38 +842,38 @@ impl From<syntax::SExp> for SExp {
                 on_finish: Box::new((*on_finish).into()),
                 scrutinee: Box::new((*scrutinee).into()),
             },
-            syntax::SExp::BoxType { program_ty } => Self::BoxType {
+            syntax::SExpKind::BoxType { program_ty } => SExpKind::BoxType {
                 program_ty: Box::new((*program_ty).into()),
             },
-            syntax::SExp::BoxProgram {
+            syntax::SExpKind::BoxProgram {
                 program_ty,
                 program,
-            } => Self::BoxProgram {
+            } => SExpKind::BoxProgram {
                 program_ty: Box::new((*program_ty).into()),
                 program: Box::new((*program).into()),
             },
-            syntax::SExp::ForceBox { program_ty, boxed } => Self::ForceBox {
+            syntax::SExpKind::ForceBox { program_ty, boxed } => SExpKind::ForceBox {
                 program_ty: Box::new((*program_ty).into()),
                 boxed: Box::new((*boxed).into()),
             },
-            syntax::SExp::BoxApp { function, argument } => Self::BoxApp {
+            syntax::SExpKind::BoxApp { function, argument } => SExpKind::BoxApp {
                 function: Box::new((*function).into()),
                 argument: Box::new((*argument).into()),
             },
-            syntax::SExp::AccIntro {
+            syntax::SExpKind::AccIntro {
                 state_ty,
                 result_ty,
                 step,
                 state,
                 predecessors,
-            } => Self::AccIntro {
+            } => SExpKind::AccIntro {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 step: Box::new((*step).into()),
                 state: Box::new((*state).into()),
                 predecessors: Box::new((*predecessors).into()),
             },
-            syntax::SExp::AccDescent {
+            syntax::SExpKind::AccDescent {
                 state_ty,
                 result_ty,
                 step,
@@ -775,7 +881,7 @@ impl From<syntax::SExp> for SExp {
                 to,
                 accessibility,
                 transition,
-            } => Self::AccDescent {
+            } => SExpKind::AccDescent {
                 state_ty: Box::new((*state_ty).into()),
                 result_ty: Box::new((*result_ty).into()),
                 step: Box::new((*step).into()),
@@ -784,85 +890,88 @@ impl From<syntax::SExp> for SExp {
                 accessibility: Box::new((*accessibility).into()),
                 transition: Box::new((*transition).into()),
             },
-            syntax::SExp::RecordTypeCtor {
+            syntax::SExpKind::RecordTypeCtor {
                 access,
                 parameters,
                 fields,
-            } => Self::RecordTypeCtor {
+            } => SExpKind::RecordTypeCtor {
                 access: access.into(),
-                parameters: parameters.into_iter().map(Into::into).collect(),
+                parameters: parameters.into_iter().map(|item0| item0.into()).collect(),
                 fields: fields
                     .into_iter()
-                    .map(|(name, value)| (name, value.into()))
+                    .map(|item0| {
+                        let (item1_0, item1_1) = item0;
+                        (item1_0.into(), item1_1.into())
+                    })
                     .collect(),
             },
-            syntax::SExp::PowerSet { set } => Self::PowerSet {
+            syntax::SExpKind::PowerSet { set } => SExpKind::PowerSet {
                 set: Box::new((*set).into()),
             },
-            syntax::SExp::SubSet {
+            syntax::SExpKind::SubSet {
                 var,
                 set,
                 predicate,
-            } => Self::SubSet {
-                var,
+            } => SExpKind::SubSet {
+                var: var.into(),
                 set: Box::new((*set).into()),
                 predicate: Box::new((*predicate).into()),
             },
-            syntax::SExp::Pred {
+            syntax::SExpKind::Pred {
                 superset,
                 subset,
                 element,
-            } => Self::Pred {
+            } => SExpKind::Pred {
                 superset: Box::new((*superset).into()),
                 subset: Box::new((*subset).into()),
                 element: Box::new((*element).into()),
             },
-            syntax::SExp::TypeLift { superset, subset } => Self::TypeLift {
+            syntax::SExpKind::TypeLift { superset, subset } => SExpKind::TypeLift {
                 superset: Box::new((*superset).into()),
                 subset: Box::new((*subset).into()),
             },
-            syntax::SExp::Equal { left, right } => Self::Equal {
+            syntax::SExpKind::Equal { left, right } => SExpKind::Equal {
                 left: Box::new((*left).into()),
                 right: Box::new((*right).into()),
             },
-            syntax::SExp::Exists { bind } => Self::Exists { bind: bind.into() },
-            syntax::SExp::TakeSet {
+            syntax::SExpKind::Exists { bind } => SExpKind::Exists { bind: bind.into() },
+            syntax::SExpKind::TakeSet {
                 bind,
                 body,
                 existence,
                 uniqueness,
-            } => Self::TakeSet {
+            } => SExpKind::TakeSet {
                 bind: bind.into(),
                 body: Box::new((*body).into()),
                 existence: Box::new((*existence).into()),
                 uniqueness: Box::new((*uniqueness).into()),
             },
-            syntax::SExp::TakeProp {
+            syntax::SExpKind::TakeProp {
                 bind,
                 body,
                 existence,
-            } => Self::TakeProp {
+            } => SExpKind::TakeProp {
                 bind: bind.into(),
                 body: Box::new((*body).into()),
                 existence: Box::new((*existence).into()),
             },
-            syntax::SExp::ExistsIntro { element, set } => Self::ExistsIntro {
+            syntax::SExpKind::ExistsIntro { element, set } => SExpKind::ExistsIntro {
                 element: Box::new((*element).into()),
                 set: Box::new((*set).into()),
             },
-            syntax::SExp::SubsetElim {
+            syntax::SExpKind::SubsetElim {
                 element,
                 subset,
                 superset,
-            } => Self::SubsetElim {
+            } => SExpKind::SubsetElim {
                 element: Box::new((*element).into()),
                 subset: Box::new((*subset).into()),
                 superset: Box::new((*superset).into()),
             },
-            syntax::SExp::IdRefl { element } => Self::IdRefl {
+            syntax::SExpKind::IdRefl { element } => SExpKind::IdRefl {
                 element: Box::new((*element).into()),
             },
-            syntax::SExp::IdElim {
+            syntax::SExpKind::IdElim {
                 left,
                 right,
                 var,
@@ -870,52 +979,52 @@ impl From<syntax::SExp> for SExp {
                 predicate,
                 base,
                 equality,
-            } => Self::IdElim {
+            } => SExpKind::IdElim {
                 left: Box::new((*left).into()),
                 right: Box::new((*right).into()),
-                var,
+                var: var.into(),
                 ty: Box::new((*ty).into()),
                 predicate: Box::new((*predicate).into()),
                 base: Box::new((*base).into()),
                 equality: Box::new((*equality).into()),
             },
-            syntax::SExp::AxiomSetExt {
+            syntax::SExpKind::AxiomSetExt {
                 left,
                 right,
                 left_to_right,
                 right_to_left,
-            } => Self::AxiomSetExt {
+            } => SExpKind::AxiomSetExt {
                 left: Box::new((*left).into()),
                 right: Box::new((*right).into()),
                 left_to_right: Box::new((*left_to_right).into()),
                 right_to_left: Box::new((*right_to_left).into()),
             },
-            syntax::SExp::AxiomFunExt {
+            syntax::SExpKind::AxiomFunExt {
                 left,
                 right,
                 pointwise,
-            } => Self::AxiomFunExt {
+            } => SExpKind::AxiomFunExt {
                 left: Box::new((*left).into()),
                 right: Box::new((*right).into()),
                 pointwise: Box::new((*pointwise).into()),
             },
-            syntax::SExp::AxiomClassicalIndefiniteChoice {
+            syntax::SExpKind::AxiomClassicalIndefiniteChoice {
                 domain,
                 family,
                 inhabited,
-            } => Self::AxiomClassicalIndefiniteChoice {
+            } => SExpKind::AxiomClassicalIndefiniteChoice {
                 domain: Box::new((*domain).into()),
                 family: Box::new((*family).into()),
                 inhabited: Box::new((*inhabited).into()),
             },
-            syntax::SExp::TakeEq {
+            syntax::SExpKind::TakeEq {
                 func,
                 domain,
                 codomain,
                 element,
                 existence,
                 uniqueness,
-            } => Self::TakeEq {
+            } => SExpKind::TakeEq {
                 func: Box::new((*func).into()),
                 domain: Box::new((*domain).into()),
                 codomain: Box::new((*codomain).into()),
@@ -923,27 +1032,32 @@ impl From<syntax::SExp> for SExp {
                 existence: Box::new((*existence).into()),
                 uniqueness: Box::new((*uniqueness).into()),
             },
-            syntax::SExp::Block(v0) => Self::Block(v0.into()),
-            syntax::SExp::Program(v0) => Self::Program(v0.into()),
-        }
+            syntax::SExpKind::Block(field0) => SExpKind::Block(field0.into()),
+            syntax::SExpKind::Program(field0) => SExpKind::Program(field0.into()),
+        };
+        Self { kind, origin }
     }
 }
-
 impl From<syntax::Block> for Block {
     fn from(value: syntax::Block) -> Self {
         Self {
-            statements: value.statements.into_iter().map(Into::into).collect(),
+            statements: value
+                .statements
+                .into_iter()
+                .map(|item0| item0.into())
+                .collect(),
             result: Box::new((*value.result).into()),
         }
     }
 }
-
 impl From<syntax::Statement> for Statement {
     fn from(value: syntax::Statement) -> Self {
         match value {
-            syntax::Statement::Fix(v0) => Self::Fix(v0.into_iter().map(Into::into).collect()),
-            syntax::Statement::Let { var, ty, body } => Self::Let {
-                var,
+            syntax::Statement::Fix(field0) => {
+                Statement::Fix(field0.into_iter().map(|item0| item0.into()).collect())
+            }
+            syntax::Statement::Let { var, ty, body } => Statement::Let {
+                var: var.into(),
                 ty: ty.into(),
                 body: body.into(),
             },
@@ -951,17 +1065,17 @@ impl From<syntax::Statement> for Statement {
                 var,
                 ty,
                 computation,
-            } => Self::Bind {
-                var,
+            } => Statement::Bind {
+                var: var.into(),
                 ty: ty.into(),
                 computation: computation.into(),
             },
-            syntax::Statement::Sufficient { map, map_ty } => Self::Sufficient {
+            syntax::Statement::Sufficient { map, map_ty } => Statement::Sufficient {
                 map: map.into(),
                 map_ty: map_ty.into(),
             },
-            syntax::Statement::TakeFrom { var, ty, existence } => Self::TakeFrom {
-                var,
+            syntax::Statement::TakeFrom { var, ty, existence } => Statement::TakeFrom {
+                var: var.into(),
                 ty: ty.into(),
                 existence: existence.into(),
             },

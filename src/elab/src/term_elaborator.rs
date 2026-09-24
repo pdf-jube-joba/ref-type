@@ -10,8 +10,9 @@ use crate::resolver::{ModItemDefinition, ModItemInductive, ModItemRecord};
 use hir::*;
 
 pub trait Handler {
+    fn record_expression_error(&self, origin: Option<AstId>);
     fn captured_expression(&self, id: hir::CapturedId) -> Exp;
-    fn record_local(&self, name: &Identifier, binder: SourceSpan);
+    fn record_local(&self, name: &Identifier, binder: AstId);
     fn record_member(
         &self,
         field: &Identifier,
@@ -51,11 +52,12 @@ pub trait Handler {
     fn fresh_meta(
         &mut self,
         kind: SurfaceMeta,
-        span: SourceSpan,
+        origin: Option<AstId>,
         local_context: &ExpContext,
     ) -> Exp;
     fn expand_math_macro(
         &mut self,
+        origin: Option<AstId>,
         tokens: &[MacroExp],
         scope: Option<ScopeId>,
         depth: u16,
@@ -63,6 +65,7 @@ pub trait Handler {
     ) -> Result<SExp, String>;
     fn expand_named_macro(
         &mut self,
+        origin: Option<AstId>,
         name: &Identifier,
         tokens: &[MacroExp],
         scope: Option<ScopeId>,
@@ -82,25 +85,33 @@ fn expand_macros(exp: &SExp, handler: &mut impl Handler) -> Result<SExp, String>
             return false;
         }
         loop {
-            let next = match node {
-                SExp::MathMacro {
+            let next = match &mut node.kind {
+                SExpKind::MathMacro {
                     tokens,
                     scope,
                     depth,
                     max_order,
-                } => handler.expand_math_macro(tokens, *scope, *depth, *max_order),
-                SExp::NamedMacro {
+                } => handler.expand_math_macro(node.origin, tokens, *scope, *depth, *max_order),
+                SExpKind::NamedMacro {
                     name,
                     tokens,
                     scope,
                     depth,
                     max_order,
-                } => handler.expand_named_macro(name, tokens, *scope, *depth, *max_order),
+                } => handler.expand_named_macro(
+                    node.origin,
+                    name,
+                    tokens,
+                    *scope,
+                    *depth,
+                    *max_order,
+                ),
                 _ => return true,
             };
             match next {
                 Ok(next) => *node = next,
                 Err(error) => {
+                    handler.record_expression_error(node.origin);
                     result = Err(error);
                     return false;
                 }
@@ -112,7 +123,7 @@ fn expand_macros(exp: &SExp, handler: &mut impl Handler) -> Result<SExp, String>
 
 #[derive(Debug, Clone)]
 struct LocalBinding {
-    origin: Option<SourceSpan>,
+    origin: Option<AstId>,
     var: SymbolId,
     // The typing context before this binding was introduced. Definitions do
     // not extend it; their free variables are shifted when the name is used.
@@ -144,13 +155,14 @@ impl LocalScope {
         }
     }
 
-    pub fn from_typing_context(context: ExpContext) -> Self {
+    pub fn from_typing_context(context: ExpContext, origins: &[Option<AstId>]) -> Self {
+        assert_eq!(context.len(), origins.len());
         Self {
             bindings: context
                 .iter()
                 .enumerate()
                 .map(|(depth, entry)| LocalBinding {
-                    origin: None,
+                    origin: origins[depth],
                     var: entry.var,
                     depth,
                     value: None,
@@ -189,7 +201,7 @@ impl LocalScope {
             let ty_elab = self.elab_exp(ty, handler)?;
             handler.infer(&mut self.typing_binds, ty_elab)?;
             for (depth, var) in vars.iter().enumerate() {
-                let origin = var.span();
+                let origin = var.origin();
                 let var = handler.intern(var.as_str());
                 // The shared annotation was elaborated before this binder group.
                 let ty = shift_bound_indices(handler.arena(), ty_elab, depth, 0);
@@ -247,13 +259,7 @@ impl LocalScope {
     ) -> Result<Vec<Exp>, String> {
         if parameters.is_empty() && expected > 0 {
             return Ok((0..expected)
-                .map(|_| {
-                    handler.fresh_meta(
-                        SurfaceMeta::implicit(),
-                        SourceSpan { start: 0, end: 0 },
-                        &self.typing_binds,
-                    )
-                })
+                .map(|_| handler.fresh_meta(SurfaceMeta::implicit(), None, &self.typing_binds))
                 .collect());
         }
         if parameters.len() != expected {
@@ -403,9 +409,28 @@ impl LocalScope {
     }
 
     fn elab_exp_rec(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
-        match exp {
-            SExp::Meta { kind, span } => Ok(handler.fresh_meta(*kind, *span, &self.typing_binds)),
-            SExp::AccessPath { access, parameters } => {
+        let occurrence = handler
+            .env()
+            .provenance
+            .enter(exp.origin, &handler.env().sources);
+        let result = self.elab_exp_inner(exp, handler).inspect_err(|_| {
+            handler.record_expression_error(exp.origin);
+        });
+        handler.env().provenance.leave(
+            occurrence,
+            result.as_ref().ok().map(|term| (*term).into()),
+            handler.arena(),
+            &handler.env().sources,
+        );
+        result
+    }
+
+    fn elab_exp_inner(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
+        match &exp.kind {
+            SExpKind::Meta { kind, token } => {
+                Ok(handler.fresh_meta(*kind, *token, &self.typing_binds))
+            }
+            SExpKind::AccessPath { access, parameters } => {
                 // this includes (term binding) access path
 
                 // 1. find from binded vars first (if no parameters)
@@ -483,9 +508,13 @@ impl LocalScope {
             }
             // this includes accessing constructor of the inductive type, accessing field of record type
             // `List[Nat]#nil` or `some_group#unit`
-            SExp::AssociatedAccess { base, field } => {
+            SExpKind::AssociatedAccess { base, field } => {
                 // 1. if base is local access, try to get constructor (parameter is allowed)
-                if let SExp::AccessPath { access, parameters } = base.as_ref() {
+                if let SExp {
+                    kind: SExpKind::AccessPath { access, parameters },
+                    ..
+                } = base.as_ref()
+                {
                     let item = handler.get_item_from_access_path(access)?;
                     if let Some(field) = field.as_str().strip_suffix('^') {
                         let ItemAccessResult::ProgramInductive(item) = item else {
@@ -680,21 +709,21 @@ impl LocalScope {
                     handler.field_projection(&mut self.typing_binds, base_elab, field)
                 }
             }
-            SExp::InferredProjection { value, field } => {
+            SExpKind::InferredProjection { value, field } => {
                 let value = self.elab_exp_rec(value, handler)?;
                 handler.field_projection(&mut self.typing_binds, value, field)
             }
-            SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
+            SExpKind::MathMacro { .. } | SExpKind::NamedMacro { .. } => {
                 let expanded = expand_macros(exp, handler)?;
                 self.elab_exp_rec(&expanded, handler)
             }
-            SExp::TokenMatch { .. } => Err("Token match escaped template expansion".into()),
-            SExp::MacroParameter(name) => Err(format!(
+            SExpKind::TokenMatch { .. } => Err("Token match escaped template expansion".into()),
+            SExpKind::MacroParameter(name) => Err(format!(
                 "Macro capture '${}' escaped template expansion",
                 name.as_str()
             )),
-            SExp::Captured(id) => Ok(handler.captured_expression(*id)),
-            SExp::Where { exp, clauses } => {
+            SExpKind::Captured(id) => Ok(handler.captured_expression(*id)),
+            SExpKind::Where { exp, clauses } => {
                 let declaration_mark = self.bindings.len();
                 let depth = self.typing_binds.len();
                 let result = (|| {
@@ -732,10 +761,16 @@ impl LocalScope {
                 self.typing_binds.truncate(depth);
                 result
             }
-            SExp::Sort(sort) => Ok(handler.arena().sort(*sort)),
-            SExp::ValueType => Err("\\VType is only valid in a Program binder".into()),
-            SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
-                let is_prod = matches!(exp, SExp::Prod { .. });
+            SExpKind::Sort(sort) => Ok(handler.arena().sort(*sort)),
+            SExpKind::ValueType => Err("\\VType is only valid in a Program binder".into()),
+            SExpKind::Prod { bind, body } | SExpKind::Lam { bind, body } => {
+                let is_prod = matches!(
+                    exp,
+                    SExp {
+                        kind: SExpKind::Prod { .. },
+                        ..
+                    }
+                );
                 match bind {
                     Bind::Named(right_bind) => {
                         if right_bind.vars.is_empty() {
@@ -764,7 +799,7 @@ impl LocalScope {
 
                         let mut telescope: Vec<(SymbolId, Exp)> = vec![];
                         for (depth, var) in right_bind.vars.iter().enumerate() {
-                            let origin = var.span();
+                            let origin = var.origin();
                             let var = handler.intern(var.as_str());
                             // Each preceding variable adds a binder around the annotation.
                             let ty = shift_bound_indices(handler.arena(), ty_elab, depth, 0);
@@ -869,17 +904,27 @@ impl LocalScope {
                     }
                 }
             }
-            SExp::App { func, arg } => {
+            SExpKind::App { func, arg } => {
                 let mut arguments = vec![arg.as_ref()];
                 let mut head = func.as_ref();
-                while let SExp::App { func, arg } = head {
+                while let SExp {
+                    kind: SExpKind::App { func, arg },
+                    ..
+                } = head
+                {
                     arguments.push(arg.as_ref());
                     head = func.as_ref();
                 }
                 arguments.reverse();
                 if arguments.len() == 1
-                    && let SExp::AssociatedAccess { base, field } = head
-                    && let SExp::AccessPath { access, parameters } = base.as_ref()
+                    && let SExp {
+                        kind: SExpKind::AssociatedAccess { base, field },
+                        ..
+                    } = head
+                    && let SExp {
+                        kind: SExpKind::AccessPath { access, parameters },
+                        ..
+                    } = base.as_ref()
                     && parameters.is_empty()
                 {
                     let item = handler.get_item_from_access_path(access)?;
@@ -919,7 +964,7 @@ impl LocalScope {
                     arg: arg_elab,
                 }))
             }
-            SExp::SubsetIntro {
+            SExpKind::SubsetIntro {
                 superset,
                 subset,
                 element,
@@ -936,7 +981,7 @@ impl LocalScope {
                     proof: proof_elab,
                 }))
             }
-            SExp::IndCase {
+            SExpKind::IndCase {
                 path,
                 scrutinee,
                 return_type,
@@ -967,14 +1012,18 @@ impl LocalScope {
                     branches,
                 }))
             }
-            SExp::Induction {
+            SExpKind::Induction {
                 binder,
                 return_type,
                 cases,
             } => {
-                let SExp::AccessPath {
-                    access: path,
-                    parameters,
+                let SExp {
+                    kind:
+                        SExpKind::AccessPath {
+                            access: path,
+                            parameters,
+                        },
+                    ..
                 } = binder.ty.as_ref()
                 else {
                     return Err("Induction binder type must name an inductive type".into());
@@ -1024,7 +1073,7 @@ impl LocalScope {
                 }
                 Ok(induction)
             }
-            SExp::IndElimPrim {
+            SExpKind::IndElimPrim {
                 path,
                 parameters,
                 motive,
@@ -1057,7 +1106,7 @@ impl LocalScope {
                     arg: motive,
                 }))
             }
-            SExp::RunStep {
+            SExpKind::RunStep {
                 state_ty,
                 result_ty,
             } => {
@@ -1068,7 +1117,7 @@ impl LocalScope {
                     result_ty,
                 }))
             }
-            SExp::Continue {
+            SExpKind::Continue {
                 state_ty,
                 result_ty,
                 next,
@@ -1082,7 +1131,7 @@ impl LocalScope {
                     next,
                 }))
             }
-            SExp::Finish {
+            SExpKind::Finish {
                 state_ty,
                 result_ty,
                 output,
@@ -1096,7 +1145,7 @@ impl LocalScope {
                     output,
                 }))
             }
-            SExp::Acc {
+            SExpKind::Acc {
                 state_ty,
                 result_ty,
                 step,
@@ -1113,7 +1162,7 @@ impl LocalScope {
                     state,
                 }))
             }
-            SExp::Run {
+            SExpKind::Run {
                 state_ty,
                 result_ty,
                 step,
@@ -1133,7 +1182,7 @@ impl LocalScope {
                     accessibility,
                 }))
             }
-            SExp::RunCase {
+            SExpKind::RunCase {
                 state_ty,
                 result_ty,
                 step,
@@ -1159,7 +1208,7 @@ impl LocalScope {
                     transition_equality,
                 }))
             }
-            SExp::RunStepRec {
+            SExpKind::RunStepRec {
                 state_ty,
                 result_ty,
                 motive,
@@ -1182,11 +1231,11 @@ impl LocalScope {
                     scrutinee,
                 }))
             }
-            SExp::BoxType { program_ty } => {
+            SExpKind::BoxType { program_ty } => {
                 let program_ty = handler.elaborate_boxed_computation_type(program_ty)?;
                 Ok(handler.arena().alloc(ExpNode::BoxType { program_ty }))
             }
-            SExp::BoxProgram {
+            SExpKind::BoxProgram {
                 program_ty,
                 program,
             } => {
@@ -1196,13 +1245,16 @@ impl LocalScope {
                     program,
                 }))
             }
-            SExp::ForceBox { program_ty, boxed } => {
+            SExpKind::ForceBox { program_ty, boxed } => {
                 let boxed = self.elab_exp_rec(boxed, handler)?;
                 let program_ty = if matches!(
                     program_ty.as_ref(),
-                    SExp::Meta {
-                        kind: SurfaceMeta {
-                            kind: hir::MetaKind::Implicit,
+                    SExp {
+                        kind: SExpKind::Meta {
+                            kind: SurfaceMeta {
+                                kind: hir::MetaKind::Implicit,
+                                ..
+                            },
                             ..
                         },
                         ..
@@ -1223,14 +1275,14 @@ impl LocalScope {
                     .arena()
                     .alloc(ExpNode::ForceBox { program_ty, boxed }))
             }
-            SExp::BoxApp { function, argument } => {
+            SExpKind::BoxApp { function, argument } => {
                 let function = self.elab_exp_rec(function, handler)?;
                 let argument = self.elab_exp_rec(argument, handler)?;
                 Ok(handler
                     .arena()
                     .alloc(ExpNode::BoxApp { function, argument }))
             }
-            SExp::AccIntro {
+            SExpKind::AccIntro {
                 state_ty,
                 result_ty,
                 step,
@@ -1250,7 +1302,7 @@ impl LocalScope {
                     predecessors,
                 })))
             }
-            SExp::AccDescent {
+            SExpKind::AccDescent {
                 state_ty,
                 result_ty,
                 step,
@@ -1277,7 +1329,7 @@ impl LocalScope {
                 })))
             }
 
-            SExp::RecordTypeCtor {
+            SExpKind::RecordTypeCtor {
                 access,
                 parameters,
                 fields,
@@ -1346,11 +1398,11 @@ impl LocalScope {
                 ))
             }
 
-            SExp::PowerSet { set } => {
+            SExpKind::PowerSet { set } => {
                 let set_elab = self.elab_exp_rec(set, handler)?;
                 Ok(handler.arena().alloc(ExpNode::PowerSet { set: set_elab }))
             }
-            SExp::SubSet {
+            SExpKind::SubSet {
                 var,
                 set,
                 predicate,
@@ -1366,7 +1418,7 @@ impl LocalScope {
                     predicate: predicate_elab,
                 }))
             }
-            SExp::Pred {
+            SExpKind::Pred {
                 superset,
                 subset,
                 element,
@@ -1380,7 +1432,7 @@ impl LocalScope {
                     element: element_elab,
                 }))
             }
-            SExp::TypeLift { superset, subset } => {
+            SExpKind::TypeLift { superset, subset } => {
                 let superset_elab = self.elab_exp_rec(superset, handler)?;
                 let subset_elab = self.elab_exp_rec(subset, handler)?;
                 Ok(handler.arena().alloc(ExpNode::TypeLift {
@@ -1388,7 +1440,7 @@ impl LocalScope {
                     subset: subset_elab,
                 }))
             }
-            SExp::Equal { left, right } => {
+            SExpKind::Equal { left, right } => {
                 let left_elab = self.elab_exp_rec(left, handler)?;
                 let right_elab = self.elab_exp_rec(right, handler)?;
                 Ok(handler.arena().alloc(ExpNode::Equal {
@@ -1396,7 +1448,7 @@ impl LocalScope {
                     right: right_elab,
                 }))
             }
-            SExp::Exists { bind } => match bind {
+            SExpKind::Exists { bind } => match bind {
                 Bind::Named(rightbind) => {
                     if rightbind.vars.len() >= 2 {
                         return Err(
@@ -1430,7 +1482,7 @@ impl LocalScope {
                     Ok(handler.arena().alloc(ExpNode::Exists { set }))
                 }
             },
-            SExp::TakeSet {
+            SExpKind::TakeSet {
                 bind,
                 body,
                 existence,
@@ -1447,7 +1499,7 @@ impl LocalScope {
                     uniqueness,
                 }))
             }
-            SExp::TakeProp {
+            SExpKind::TakeProp {
                 bind,
                 body,
                 existence,
@@ -1461,14 +1513,14 @@ impl LocalScope {
                     existence,
                 }))
             }
-            SExp::ExistsIntro { element, set } => {
+            SExpKind::ExistsIntro { element, set } => {
                 let element = self.elab_exp_rec(element, handler)?;
                 let set = self.elab_exp_rec(set, handler)?;
                 Ok(handler
                     .arena()
                     .alloc(ExpNode::Prove(Prove::ExistsIntro { element, set })))
             }
-            SExp::SubsetElim {
+            SExpKind::SubsetElim {
                 element,
                 subset,
                 superset,
@@ -1482,13 +1534,13 @@ impl LocalScope {
                     superset,
                 })))
             }
-            SExp::IdRefl { element } => {
+            SExpKind::IdRefl { element } => {
                 let element = self.elab_exp_rec(element, handler)?;
                 Ok(handler
                     .arena()
                     .alloc(ExpNode::Prove(Prove::IdRefl { element })))
             }
-            SExp::IdElim {
+            SExpKind::IdElim {
                 left,
                 right,
                 var,
@@ -1516,7 +1568,7 @@ impl LocalScope {
                     equality,
                 })))
             }
-            SExp::AxiomSetExt {
+            SExpKind::AxiomSetExt {
                 left,
                 right,
                 left_to_right,
@@ -1535,7 +1587,7 @@ impl LocalScope {
                         right_to_left,
                     }))))
             }
-            SExp::AxiomFunExt {
+            SExpKind::AxiomFunExt {
                 left,
                 right,
                 pointwise,
@@ -1551,7 +1603,7 @@ impl LocalScope {
                         pointwise,
                     }))))
             }
-            SExp::AxiomClassicalIndefiniteChoice {
+            SExpKind::AxiomClassicalIndefiniteChoice {
                 domain,
                 family,
                 inhabited,
@@ -1567,7 +1619,7 @@ impl LocalScope {
                     },
                 ))))
             }
-            SExp::TakeEq {
+            SExpKind::TakeEq {
                 func,
                 domain,
                 codomain,
@@ -1590,19 +1642,19 @@ impl LocalScope {
                     uniqueness,
                 })))
             }
-            SExp::ThunkType { .. }
-            | SExp::ReturnType { .. }
-            | SExp::ComputationFunction { .. }
-            | SExp::Thunk { .. }
-            | SExp::Return { .. }
-            | SExp::Force { .. }
-            | SExp::ComputationLam { .. }
-            | SExp::Sequence { .. }
-            | SExp::ValueLet { .. }
-            | SExp::ProgramCase { .. } => {
+            SExpKind::ThunkType { .. }
+            | SExpKind::ReturnType { .. }
+            | SExpKind::ComputationFunction { .. }
+            | SExpKind::Thunk { .. }
+            | SExpKind::Return { .. }
+            | SExpKind::Force { .. }
+            | SExpKind::ComputationLam { .. }
+            | SExpKind::Sequence { .. }
+            | SExpKind::ValueLet { .. }
+            | SExpKind::ProgramCase { .. } => {
                 Err("Program syntax cannot be elaborated as a Set/Prop expression".into())
             }
-            SExp::Block(block) => {
+            SExpKind::Block(block) => {
                 let Block {
                     statements: declarations,
                     result: term,
@@ -1612,17 +1664,19 @@ impl LocalScope {
                     match decl {
                         Statement::Fix(items) => {
                             for bind in items.iter().rev() {
-                                term = SExp::Lam {
+                                term = SExpKind::Lam {
                                     bind: Bind::Named(bind.clone()),
                                     body: Box::new(term),
-                                };
+                                }
+                                .into();
                             }
                         }
                         Statement::Let { var, ty, body } => {
-                            term = SExp::Where {
+                            term = SExpKind::Where {
                                 exp: Box::new(term),
                                 clauses: vec![(var.clone(), ty.clone(), body.clone())],
-                            };
+                            }
+                            .into();
                         }
                         Statement::Bind { .. } => {
                             return Err(
@@ -1630,35 +1684,43 @@ impl LocalScope {
                             );
                         }
                         Statement::TakeFrom { var, ty, existence } => {
-                            term = SExp::TakeProp {
+                            term = SExpKind::TakeProp {
                                 bind: Bind::Named(RightBind {
                                     vars: vec![var.clone()],
                                     ty: Box::new(ty.clone()),
                                 }),
                                 body: Box::new(term),
                                 existence: Box::new(existence.clone()),
-                            };
+                            }
+                            .into();
                         }
                         Statement::Sufficient { map, map_ty } => {
                             let argument = Identifier::new("enoughArgument".into());
-                            term = SExp::App {
+                            term = SExpKind::App {
                                 func: Box::new(map.clone()),
-                                arg: Box::new(SExp::Where {
-                                    exp: Box::new(SExp::AccessPath {
-                                        access: LocalAccess::Current {
-                                            access: argument.clone(),
-                                        },
-                                        parameters: Vec::new(),
-                                    }),
-                                    clauses: vec![(argument, map_ty.clone(), term)],
-                                }),
-                            };
+                                arg: Box::new(
+                                    SExpKind::Where {
+                                        exp: Box::new(
+                                            SExpKind::AccessPath {
+                                                access: LocalAccess::Current {
+                                                    access: argument.clone(),
+                                                },
+                                                parameters: Vec::new(),
+                                            }
+                                            .into(),
+                                        ),
+                                        clauses: vec![(argument, map_ty.clone(), term)],
+                                    }
+                                    .into(),
+                                ),
+                            }
+                            .into();
                         }
                     }
                 }
                 self.elab_exp_rec(&term, handler)
             }
-            SExp::Program(_) => {
+            SExpKind::Program(_) => {
                 Err("Program block syntax cannot be elaborated as a Set/Prop expression".into())
             }
         }

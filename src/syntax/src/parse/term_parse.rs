@@ -39,8 +39,11 @@ impl<'a> TermParser<'a> {
     fn expect_binder_ident(&mut self) -> Result<Identifier, ParseError> {
         match self.peek() {
             Some(Token::Hole) => {
-                self.next();
-                Ok(Identifier::new("_".into()))
+                let token = self.next().expect("peeked token exists");
+                Ok(Identifier::new("_".into()).with_span(SourceSpan {
+                    start: token.start,
+                    end: token.end,
+                }))
             }
             _ => self.expect_ident(),
         }
@@ -192,20 +195,22 @@ impl<'a> TermParser<'a> {
                 let body = parser.parse_sexp()?;
                 Ok((pattern, body))
             })?;
-            return Ok(SExp::TokenMatch { target, branches });
+            return Ok(SExpKind::TokenMatch { target, branches }.into());
         }
         if self.bump_if_keyword("\\VType") {
-            return Ok(SExp::ValueType);
+            return Ok(SExpKind::ValueType.into());
         }
         if self.bump_if_keyword("\\U") {
-            return Ok(SExp::ThunkType {
+            return Ok(SExpKind::ThunkType {
                 computation_ty: Box::new(self.parse_postfix()?),
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword("\\F") {
-            return Ok(SExp::ReturnType {
+            return Ok(SExpKind::ReturnType {
                 value_ty: Box::new(self.parse_postfix()?),
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword(r"\match") {
             let scrutinee = self.parse_sexp()?;
@@ -222,66 +227,90 @@ impl<'a> TermParser<'a> {
                 let body = parser.parse_sexp()?;
                 Ok((constructor, binders, body))
             })?;
-            return Ok(SExp::ProgramCase {
+            return Ok(SExpKind::ProgramCase {
                 path,
                 scrutinee: Box::new(scrutinee),
                 branches,
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword("\\Pow") {
             let set = self.parse_postfix()?;
-            return Ok(SExp::PowerSet { set: Box::new(set) });
+            return Ok(SExpKind::PowerSet { set: Box::new(set) }.into());
         }
         if self.bump_if_keyword("\\In") {
             let superset = self.parse_bracketed(Self::parse_sexp)?;
             let subset_name = Identifier::new("<membership-subset>".into());
             let element_name = Identifier::new("<membership-element>".into());
-            let access = |name: &Identifier| SExp::AccessPath {
-                access: LocalAccess::Current {
-                    access: name.clone(),
-                },
-                parameters: Vec::new(),
+            let access = |name: &Identifier| {
+                SExpKind::AccessPath {
+                    access: LocalAccess::Current {
+                        access: name.clone(),
+                    },
+                    parameters: Vec::new(),
+                }
+                .into()
             };
-            return Ok(SExp::Lam {
+            return Ok(SExpKind::Lam {
                 bind: Bind::Named(RightBind {
                     vars: vec![subset_name.clone()],
-                    ty: Box::new(SExp::PowerSet {
-                        set: Box::new(superset.clone()),
-                    }),
+                    ty: Box::new(
+                        SExpKind::PowerSet {
+                            set: Box::new(superset.clone()),
+                        }
+                        .into(),
+                    ),
                 }),
-                body: Box::new(SExp::Lam {
-                    bind: Bind::Named(RightBind {
-                        vars: vec![element_name.clone()],
-                        ty: Box::new(superset.clone()),
-                    }),
-                    body: Box::new(SExp::Pred {
-                        superset: Box::new(superset),
-                        subset: Box::new(access(&subset_name)),
-                        element: Box::new(access(&element_name)),
-                    }),
-                }),
-            });
+                body: Box::new(
+                    SExpKind::Lam {
+                        bind: Bind::Named(RightBind {
+                            vars: vec![element_name.clone()],
+                            ty: Box::new(superset.clone()),
+                        }),
+                        body: Box::new(
+                            SExpKind::Pred {
+                                superset: Box::new(superset),
+                                subset: Box::new(access(&subset_name)),
+                                element: Box::new(access(&element_name)),
+                            }
+                            .into(),
+                        ),
+                    }
+                    .into(),
+                ),
+            }
+            .into());
         }
         if self.bump_if_keyword("\\Cast") {
             let superset = self.parse_bracketed(Self::parse_sexp)?;
             let subset_name = Identifier::new("<cast-subset>".into());
-            return Ok(SExp::Lam {
+            return Ok(SExpKind::Lam {
                 bind: Bind::Named(RightBind {
                     vars: vec![subset_name.clone()],
-                    ty: Box::new(SExp::PowerSet {
-                        set: Box::new(superset.clone()),
-                    }),
+                    ty: Box::new(
+                        SExpKind::PowerSet {
+                            set: Box::new(superset.clone()),
+                        }
+                        .into(),
+                    ),
                 }),
-                body: Box::new(SExp::TypeLift {
-                    superset: Box::new(superset),
-                    subset: Box::new(SExp::AccessPath {
-                        access: LocalAccess::Current {
-                            access: subset_name,
-                        },
-                        parameters: Vec::new(),
-                    }),
-                }),
-            });
+                body: Box::new(
+                    SExpKind::TypeLift {
+                        superset: Box::new(superset),
+                        subset: Box::new(
+                            SExpKind::AccessPath {
+                                access: LocalAccess::Current {
+                                    access: subset_name,
+                                },
+                                parameters: Vec::new(),
+                            }
+                            .into(),
+                        ),
+                    }
+                    .into(),
+                ),
+            }
+            .into());
         }
         if self.bump_if_keyword("\\into") {
             let superset = self.parse_bracketed(Self::parse_sexp)?;
@@ -292,40 +321,44 @@ impl<'a> TermParser<'a> {
                 Ok((element, subset))
             })?;
             let proof = self.parse_by(Self::parse_sexp)?;
-            return Ok(SExp::SubsetIntro {
+            return Ok(SExpKind::SubsetIntro {
                 superset: Box::new(superset),
                 subset: Box::new(subset),
                 element: Box::new(element),
                 proof: Box::new(proof),
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword("\\RunStep") {
             let (state_ty, result_ty) = self.parse_recursion_types()?;
-            return Ok(SExp::RunStep {
+            return Ok(SExpKind::RunStep {
                 state_ty: Box::new(state_ty),
                 result_ty: Box::new(result_ty),
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword("\\continue") {
             let (state_ty, result_ty) = self.parse_recursion_types()?;
             return self.parse_parenthesized(|parser| {
                 let next = parser.parse_sexp()?;
-                Ok(SExp::Continue {
+                Ok(SExpKind::Continue {
                     state_ty: Box::new(state_ty),
                     result_ty: Box::new(result_ty),
                     next: Box::new(next),
-                })
+                }
+                .into())
             });
         }
         if self.bump_if_keyword("\\finish") {
             let (state_ty, result_ty) = self.parse_recursion_types()?;
             return self.parse_parenthesized(|parser| {
                 let output = parser.parse_sexp()?;
-                Ok(SExp::Finish {
+                Ok(SExpKind::Finish {
                     state_ty: Box::new(state_ty),
                     result_ty: Box::new(result_ty),
                     output: Box::new(output),
-                })
+                }
+                .into())
             });
         }
         if self.bump_if_keyword("\\Acc") {
@@ -334,12 +367,13 @@ impl<'a> TermParser<'a> {
                 let step = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let state = parser.parse_sexp()?;
-                Ok(SExp::Acc {
+                Ok(SExpKind::Acc {
                     state_ty: Box::new(state_ty),
                     result_ty: Box::new(result_ty),
                     step: Box::new(step),
                     state: Box::new(state),
-                })
+                }
+                .into())
             });
         }
         if self.bump_if_keyword("\\run") {
@@ -351,13 +385,14 @@ impl<'a> TermParser<'a> {
                 Ok((step, initial))
             })?;
             let accessibility = Box::new(self.parse_by(Self::parse_sexp)?);
-            return Ok(SExp::Run {
+            return Ok(SExpKind::Run {
                 state_ty: Box::new(state_ty),
                 result_ty: Box::new(result_ty),
                 step: Box::new(step),
                 initial: Box::new(initial),
                 accessibility,
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword("\\runCase") {
             let (state_ty, result_ty) = self.parse_recursion_types()?;
@@ -375,7 +410,7 @@ impl<'a> TermParser<'a> {
                 let transition_equality = parser.parse_named_by_term("equality")?;
                 Ok((Box::new(accessibility), Box::new(transition_equality)))
             })?;
-            return Ok(SExp::RunCase {
+            return Ok(SExpKind::RunCase {
                 state_ty: Box::new(state_ty),
                 result_ty: Box::new(result_ty),
                 step: Box::new(step),
@@ -383,7 +418,8 @@ impl<'a> TermParser<'a> {
                 transition: Box::new(transition),
                 accessibility,
                 transition_equality,
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword("\\runStepRec") {
             let (state_ty, result_ty) = self.parse_recursion_types()?;
@@ -395,49 +431,54 @@ impl<'a> TermParser<'a> {
                 let on_finish = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let scrutinee = parser.parse_sexp()?;
-                Ok(SExp::RunStepRec {
+                Ok(SExpKind::RunStepRec {
                     state_ty: Box::new(state_ty),
                     result_ty: Box::new(result_ty),
                     motive: Box::new(motive),
                     on_continue: Box::new(on_continue),
                     on_finish: Box::new(on_finish),
                     scrutinee: Box::new(scrutinee),
-                })
+                }
+                .into())
             });
         }
         if self.bump_if_keyword("\\Box") {
             let program_ty = self.parse_bracketed(Self::parse_sexp)?;
-            return Ok(SExp::BoxType {
+            return Ok(SExpKind::BoxType {
                 program_ty: Box::new(program_ty),
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword("\\box") {
             let program_ty = self.parse_bracketed(Self::parse_sexp)?;
             return self.parse_parenthesized(|parser| {
                 let program = parser.parse_sexp()?;
-                Ok(SExp::BoxProgram {
+                Ok(SExpKind::BoxProgram {
                     program_ty: Box::new(program_ty),
                     program: Box::new(program),
-                })
+                }
+                .into())
             });
         }
         if self.bump_if_keyword("\\squash") {
             let program_ty = self.parse_bracketed(Self::parse_sexp)?;
             let boxed = self.parse_parenthesized(Self::parse_sexp)?;
-            return Ok(SExp::ForceBox {
+            return Ok(SExpKind::ForceBox {
                 program_ty: Box::new(program_ty),
                 boxed: Box::new(boxed),
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword("\\boxapp") {
             return self.parse_parenthesized(|parser| {
                 let function = parser.parse_sexp()?;
                 parser.expect_token(Token::Comma)?;
                 let argument = parser.parse_sexp()?;
-                Ok(SExp::BoxApp {
+                Ok(SExpKind::BoxApp {
                     function: Box::new(function),
                     argument: Box::new(argument),
-                })
+                }
+                .into())
             });
         }
         if self.bump_if_keyword("\\case") {
@@ -458,12 +499,13 @@ impl<'a> TermParser<'a> {
                 Ok((case_name, branch))
             })?;
 
-            return Ok(SExp::IndCase {
+            return Ok(SExpKind::IndCase {
                 path,
                 scrutinee: Box::new(scrutinee),
                 return_type: Box::new(return_type),
                 branches,
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword("\\induction") {
             let mut binds = self.parse_simple_binds_paren()?;
@@ -480,11 +522,12 @@ impl<'a> TermParser<'a> {
                 let case = parser.parse_sexp()?;
                 Ok((case_name, case))
             })?;
-            return Ok(SExp::Induction {
+            return Ok(SExpKind::Induction {
                 binder,
                 return_type: Box::new(return_type),
                 cases,
-            });
+            }
+            .into());
         }
         if self.bump_if_keyword("\\prec") {
             // r"\prec" "[" <path: AccessPath> <parameter>? "," <motive: SExp> "]"
@@ -495,11 +538,12 @@ impl<'a> TermParser<'a> {
             let motive = self.parse_sexp()?;
             self.expect_token(Token::RBracket)?;
 
-            return Ok(SExp::IndElimPrim {
+            return Ok(SExpKind::IndElimPrim {
                 path,
                 parameters,
                 motive: Box::new(motive),
-            });
+            }
+            .into());
         }
         // r"\exists" <binding>
         if self.bump_if_keyword("\\exists") {
@@ -511,7 +555,7 @@ impl<'a> TermParser<'a> {
                     ty: Box::new(self.parse_equality()?),
                 })
             };
-            return Ok(SExp::Exists { bind });
+            return Ok(SExpKind::Exists { bind }.into());
         }
         // r"\take" <binding> "=>" <body> r"\by" "{" proofs "}"
         if self.bump_if_keyword("\\take") {
@@ -532,30 +576,32 @@ impl<'a> TermParser<'a> {
                 }
             })?;
             return Ok(match uniqueness {
-                Some(uniqueness) => SExp::TakeSet {
+                Some(uniqueness) => SExpKind::TakeSet {
                     bind,
                     body: Box::new(body),
                     existence: Box::new(existence),
                     uniqueness: Box::new(uniqueness),
-                },
-                None => SExp::TakeProp {
+                }
+                .into(),
+                None => SExpKind::TakeProp {
                     bind,
                     body: Box::new(body),
                     existence: Box::new(existence),
-                },
+                }
+                .into(),
             });
         }
         if self.bump_if_keyword("\\block") {
             self.expect_token(Token::LBrace)?; // expect '{'
             let block = self.parse_block()?;
             self.expect_token(Token::RBrace)?; // expect '}'
-            return Ok(SExp::Block(block));
+            return Ok(SExpKind::Block(block).into());
         }
         if self.bump_if_keyword("\\program") {
             self.expect_token(Token::LBrace)?;
             let block = self.parse_block()?;
             self.expect_token(Token::RBrace)?;
-            return Ok(SExp::Program(block));
+            return Ok(SExpKind::Program(block).into());
         }
 
         Err(ParseError {
@@ -580,12 +626,13 @@ impl<'a> TermParser<'a> {
                     self.expect_token(Token::Comma)?;
                     let right_to_left = Box::new(self.parse_sexp()?);
                     self.expect_token(Token::RParen)?;
-                    Ok(SExp::AxiomSetExt {
+                    Ok(SExpKind::AxiomSetExt {
                         left,
                         right,
                         left_to_right,
                         right_to_left,
-                    })
+                    }
+                    .into())
                 }
                 "funext" => {
                     let left = Box::new(self.parse_sexp()?);
@@ -594,11 +641,12 @@ impl<'a> TermParser<'a> {
                     self.expect_token(Token::Comma)?;
                     let pointwise = Box::new(self.parse_sexp()?);
                     self.expect_token(Token::RParen)?;
-                    Ok(SExp::AxiomFunExt {
+                    Ok(SExpKind::AxiomFunExt {
                         left,
                         right,
                         pointwise,
-                    })
+                    }
+                    .into())
                 }
                 "classicalIndefiniteChoice" => {
                     let domain = Box::new(self.parse_sexp()?);
@@ -607,11 +655,12 @@ impl<'a> TermParser<'a> {
                     self.expect_token(Token::Comma)?;
                     let inhabited = Box::new(self.parse_sexp()?);
                     self.expect_token(Token::RParen)?;
-                    Ok(SExp::AxiomClassicalIndefiniteChoice {
+                    Ok(SExpKind::AxiomClassicalIndefiniteChoice {
                         domain,
                         family,
                         inhabited,
-                    })
+                    }
+                    .into())
                 }
                 _ => Err(ParseError {
                     msg: format!("unknown axiom: {}", name.as_str()),
@@ -627,10 +676,11 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::Comma)?; // expect ','
             let set = self.parse_sexp()?;
             self.expect_token(Token::RParen)?; // expect ')'
-            return Ok(SExp::ExistsIntro {
+            return Ok(SExpKind::ExistsIntro {
                 element: Box::new(term),
                 set: Box::new(set),
-            });
+            }
+            .into());
         }
 
         if self.bump_if_keyword("\\bysub") {
@@ -641,17 +691,19 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::Comma)?;
             let element = self.parse_sexp()?;
             self.expect_token(Token::RParen)?;
-            return Ok(SExp::SubsetElim {
+            return Ok(SExpKind::SubsetElim {
                 element: Box::new(element),
                 subset: Box::new(subset),
                 superset: Box::new(superset),
-            });
+            }
+            .into());
         }
 
         if self.bump_if_keyword("\\refl") {
-            return Ok(SExp::IdRefl {
+            return Ok(SExpKind::IdRefl {
                 element: Box::new(self.parse_postfix()?),
-            });
+            }
+            .into());
         }
 
         // \\idelim "(" <left: SExp> "=" <right: SExp> r"\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp> ")"
@@ -673,7 +725,7 @@ impl<'a> TermParser<'a> {
                 let equality = parser.parse_named_by_term("equality")?;
                 Ok((base, equality))
             })?;
-            return Ok(SExp::IdElim {
+            return Ok(SExpKind::IdElim {
                 left: Box::new(left),
                 right: Box::new(right),
                 var,
@@ -681,7 +733,8 @@ impl<'a> TermParser<'a> {
                 predicate: Box::new(predicate),
                 base: Box::new(base),
                 equality: Box::new(equality),
-            });
+            }
+            .into());
         }
 
         if self.bump_if_keyword("\\takeelim") {
@@ -700,14 +753,15 @@ impl<'a> TermParser<'a> {
                 let uniqueness = parser.parse_named_by_term("uniqueness")?;
                 Ok((existence, uniqueness))
             })?;
-            return Ok(SExp::TakeEq {
+            return Ok(SExpKind::TakeEq {
                 func: Box::new(func),
                 domain: Box::new(domain),
                 codomain: Box::new(codomain),
                 element: Box::new(element),
                 existence: Box::new(existence),
                 uniqueness: Box::new(uniqueness),
-            });
+            }
+            .into());
         }
 
         if self.bump_if_keyword("\\accintro") {
@@ -719,13 +773,14 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::Comma)?;
             let predecessors = self.parse_sexp()?;
             self.expect_token(Token::RParen)?;
-            return Ok(SExp::AccIntro {
+            return Ok(SExpKind::AccIntro {
                 state_ty: Box::new(state_ty),
                 result_ty: Box::new(result_ty),
                 step: Box::new(step),
                 state: Box::new(state),
                 predecessors: Box::new(predecessors),
-            });
+            }
+            .into());
         }
 
         if self.bump_if_keyword("\\accdescent") {
@@ -741,7 +796,7 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::Comma)?;
             let transition = self.parse_sexp()?;
             self.expect_token(Token::RParen)?;
-            return Ok(SExp::AccDescent {
+            return Ok(SExpKind::AccDescent {
                 state_ty: Box::new(state_ty),
                 result_ty: Box::new(result_ty),
                 step: Box::new(step),
@@ -749,7 +804,8 @@ impl<'a> TermParser<'a> {
                 to: Box::new(to),
                 accessibility: Box::new(accessibility),
                 transition: Box::new(transition),
-            });
+            }
+            .into());
         }
 
         Err(ParseError {
@@ -937,7 +993,21 @@ impl<'a> TermParser<'a> {
     // 1-C. `x <field_body>`, `x.y <field_body>`, `x.y[params] <field_body>`
     // 2. `(<expr>)`, `\( ... \)`, `name!{ ... }`
     // 3. something start with keyword (sort, etc.)
+    fn span_from(&self, start: usize) -> SourceSpan {
+        SourceSpan {
+            start: self.tokens[start].start,
+            end: self.tokens[self.pos - 1].end,
+        }
+    }
+
     fn parse_atom(&mut self) -> Result<SExp, ParseError> {
+        let start = self.pos;
+        let exp = self.parse_atom_inner()?;
+        Ok(exp.with_span(self.span_from(start)))
+    }
+
+    fn parse_atom_inner(&mut self) -> Result<SExp, ParseError> {
+        let start = self.pos;
         match self.peek() {
             Some(Token::MacroVar(_)) => {
                 if !self.allow_macro_parameters {
@@ -951,17 +1021,26 @@ impl<'a> TermParser<'a> {
                 let Token::MacroVar(name) = token.kind else {
                     unreachable!()
                 };
-                Ok(SExp::MacroParameter(Identifier::new(name[1..].to_string())))
+                Ok(
+                    SExpKind::MacroParameter(Identifier::new(name[1..].to_string()).with_span(
+                        SourceSpan {
+                            start: token.start,
+                            end: token.end,
+                        },
+                    ))
+                    .into(),
+                )
             }
             Some(Token::Hole) => {
                 let token = self.next().expect("peeked token exists");
-                Ok(SExp::Meta {
+                Ok(SExpKind::Meta {
                     kind: SurfaceMeta::implicit(),
-                    span: SourceSpan {
+                    token: AstSource::new(SourceSpan {
                         start: token.start,
                         end: token.end,
-                    },
-                })
+                    }),
+                }
+                .into())
             }
             Some(Token::UnspecifiedVar(_)) => {
                 let token = self.next().expect("peeked token exists");
@@ -985,13 +1064,14 @@ impl<'a> TermParser<'a> {
                         end: token.end,
                     });
                 };
-                Ok(SExp::Meta {
+                Ok(SExpKind::Meta {
                     kind,
-                    span: SourceSpan {
+                    token: AstSource::new(SourceSpan {
                         start: token.start,
                         end: token.end,
-                    },
-                })
+                    }),
+                }
+                .into())
             }
             Some(Token::Ident(_)) => {
                 if let (Some(name), Some(bang)) =
@@ -1004,11 +1084,12 @@ impl<'a> TermParser<'a> {
                     self.expect_token(Token::LBrace)?;
                     let tokens = self.parse_macro_sequence_until(&Token::RBrace)?;
                     self.expect_token(Token::RBrace)?;
-                    return Ok(SExp::NamedMacro { name, tokens });
+                    return Ok(SExpKind::NamedMacro { name, tokens }.into());
                 }
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
                 let access = self.parse_access_path()?;
                 let parameters = self.parse_optional_parameters()?;
+                let base_span = self.span_from(start);
 
                 let starts_record_body = match (
                     self.tokens.get(self.pos).map(|token| token.kind),
@@ -1023,11 +1104,12 @@ impl<'a> TermParser<'a> {
                 };
                 if starts_record_body {
                     let fields = self.parse_record_body()?;
-                    return Ok(SExp::RecordTypeCtor {
+                    return Ok(SExpKind::RecordTypeCtor {
                         access,
                         parameters,
                         fields,
-                    });
+                    }
+                    .into());
                 }
 
                 // field access case or record construction case
@@ -1037,10 +1119,14 @@ impl<'a> TermParser<'a> {
                     } else {
                         Identifier::new("#".into())
                     };
-                    return Ok(SExp::AssociatedAccess {
-                        base: Box::new(SExp::AccessPath { access, parameters }),
+                    return Ok(SExpKind::AssociatedAccess {
+                        base: Box::new(
+                            SExp::from(SExpKind::AccessPath { access, parameters })
+                                .with_span(base_span),
+                        ),
                         field,
-                    });
+                    }
+                    .into());
                 }
                 if self.bump_if_token(Token::DoubleColon) {
                     // field access case
@@ -1048,13 +1134,17 @@ impl<'a> TermParser<'a> {
                     if self.bump_if_token(Token::Caret) {
                         field_name.0.push('^');
                     }
-                    return Ok(SExp::AssociatedAccess {
-                        base: Box::new(SExp::AccessPath { access, parameters }),
+                    return Ok(SExpKind::AssociatedAccess {
+                        base: Box::new(
+                            SExp::from(SExpKind::AccessPath { access, parameters })
+                                .with_span(base_span),
+                        ),
                         field: field_name,
-                    });
+                    }
+                    .into());
                 }
 
-                Ok(SExp::AccessPath { access, parameters })
+                Ok(SExpKind::AccessPath { access, parameters }.into())
             }
             Some(Token::Macro("#")) => {
                 self.next();
@@ -1062,21 +1152,23 @@ impl<'a> TermParser<'a> {
                 self.expect_token(Token::LBrace)?;
                 let value = self.parse_sexp()?;
                 self.expect_token(Token::RBrace)?;
-                Ok(SExp::InferredProjection {
+                Ok(SExpKind::InferredProjection {
                     value: Box::new(value),
                     field,
-                })
+                }
+                .into())
             }
             Some(Token::LBrace) => {
                 let bind = self.parse_binding(Token::LBrace, Token::RBrace)?;
                 let Bind::Subset { var, ty, predicate } = bind else {
                     return Err(self.error("expected subset type `{ x : A \\where P }`"));
                 };
-                Ok(SExp::SubSet {
+                Ok(SExpKind::SubSet {
                     var,
                     set: ty,
                     predicate,
-                })
+                }
+                .into())
             }
             Some(Token::LParen) => {
                 self.next(); // consume '('
@@ -1088,13 +1180,13 @@ impl<'a> TermParser<'a> {
                 self.next(); // consume '\('
                 let tokens = self.parse_macro_sequence_until(&Token::MathRParen)?;
                 self.expect_token(Token::MathRParen)?; // expect '\)'
-                Ok(SExp::MathMacro { tokens })
+                Ok(SExpKind::MathMacro { tokens }.into())
             }
             Some(Token::KeyWord("\\return" | "\\thunk" | "\\force")) => self.parse_unary(),
             Some(Token::KeyWord("\\fun" | "\\forall" | "\\cfun")) => self.parse_lambda(),
             Some(Token::KeyWord(keyword)) if SORT_KEYWORDS.contains(keyword) => {
                 // check if it's a reserved sort keyword
-                self.parse_sort().map(SExp::Sort)
+                self.parse_sort().map(|value| SExpKind::Sort(value).into())
             }
             Some(Token::KeyWord(keyword)) if EXPRESSION_ATOM_KEYWORDS.contains(keyword) => {
                 self.parse_keyword_head_atom()
@@ -1117,6 +1209,7 @@ impl<'a> TermParser<'a> {
 
     // <atom> (("::" Ident) | "::#")*
     fn parse_postfix(&mut self) -> Result<SExp, ParseError> {
+        let start = self.pos;
         let mut expr = self.parse_atom()?;
         loop {
             let mut field_name = if self.bump_if_token(Token::RecordConstructor) {
@@ -1129,24 +1222,27 @@ impl<'a> TermParser<'a> {
             if self.bump_if_token(Token::Caret) {
                 field_name.0.push('^');
             }
-            expr = SExp::AssociatedAccess {
+            expr = SExp::from(SExpKind::AssociatedAccess {
                 base: Box::new(expr),
                 field: field_name,
-            };
+            })
+            .with_span(self.span_from(start));
         }
         Ok(expr)
     }
 
     // <postfix> <postfix>*; application associates to the left.
     fn parse_application(&mut self) -> Result<SExp, ParseError> {
+        let start = self.pos;
         let mut expr = self.parse_postfix()?;
 
         while self.starts_atom() {
             let arg = self.parse_postfix()?;
-            expr = SExp::App {
+            expr = SExp::from(SExpKind::App {
                 func: Box::new(expr),
                 arg: Box::new(arg),
-            };
+            })
+            .with_span(self.span_from(start));
         }
 
         Ok(expr)
@@ -1154,13 +1250,15 @@ impl<'a> TermParser<'a> {
 
     // <application> ("=" <application>)?; equality does not chain.
     fn parse_equality(&mut self) -> Result<SExp, ParseError> {
+        let start = self.pos;
         let left = self.parse_application()?;
         if self.bump_if_token(Token::Equal) {
             let right = self.parse_application()?;
-            Ok(SExp::Equal {
+            Ok(SExp::from(SExpKind::Equal {
                 left: Box::new(left),
                 right: Box::new(right),
             })
+            .with_span(self.span_from(start)))
         } else {
             Ok(left)
         }
@@ -1311,15 +1409,18 @@ impl<'a> TermParser<'a> {
 
     fn parse_unary(&mut self) -> Result<SExp, ParseError> {
         match self.next().unwrap().kind {
-            Token::KeyWord("\\return") => Ok(SExp::Return {
+            Token::KeyWord("\\return") => Ok(SExpKind::Return {
                 value: Box::new(self.parse_sexp()?),
-            }),
-            Token::KeyWord("\\thunk") => Ok(SExp::Thunk {
+            }
+            .into()),
+            Token::KeyWord("\\thunk") => Ok(SExpKind::Thunk {
                 computation: Box::new(self.parse_postfix()?),
-            }),
-            Token::KeyWord("\\force") => Ok(SExp::Force {
+            }
+            .into()),
+            Token::KeyWord("\\force") => Ok(SExpKind::Force {
                 value: Box::new(self.parse_postfix()?),
-            }),
+            }
+            .into()),
             _ => unreachable!(),
         }
     }
@@ -1338,24 +1439,27 @@ impl<'a> TermParser<'a> {
         let mut body = self.parse_sexp()?;
         for bind in binds.into_iter().rev() {
             body = match keyword {
-                Token::KeyWord(r"\forall") => SExp::Prod {
+                Token::KeyWord(r"\forall") => SExpKind::Prod {
                     bind,
                     body: Box::new(body),
-                },
-                Token::KeyWord(r"\fun") => SExp::Lam {
+                }
+                .into(),
+                Token::KeyWord(r"\fun") => SExpKind::Lam {
                     bind,
                     body: Box::new(body),
-                },
+                }
+                .into(),
                 _ => {
                     let Bind::Named(RightBind { vars, ty }) = bind else {
                         return Err(self.error("Program lambda requires a plain value binder"));
                     };
                     for var in vars.into_iter().rev() {
-                        body = SExp::ComputationLam {
+                        body = SExpKind::ComputationLam {
                             var,
                             value_ty: ty.clone(),
                             body: Box::new(body),
-                        };
+                        }
+                        .into();
                     }
                     body
                 }
@@ -1378,26 +1482,32 @@ impl<'a> TermParser<'a> {
         self.expect_keyword(r"\in")?;
         let body = Box::new(self.parse_sexp()?);
         Ok(if sequence {
-            SExp::Sequence {
+            SExpKind::Sequence {
                 computation: rhs,
                 var,
                 value_ty,
                 body,
             }
+            .into()
         } else {
-            SExp::ValueLet {
+            SExpKind::ValueLet {
                 var,
                 value_ty,
                 value: rhs,
                 body,
             }
+            .into()
         })
     }
 
     fn parse_arrow_nosubset(&mut self) -> Result<(Vec<RightBind>, SExp), ParseError> {
         let mut body = self.parse_sexp()?;
         let mut binds = Vec::new();
-        while let SExp::Prod { bind, body: tail } = body {
+        while let SExp {
+            kind: SExpKind::Prod { bind, body: tail },
+            ..
+        } = body
+        {
             let Bind::Named(bind) = bind else {
                 return Err(
                     self.error("refinement binders are not allowed in inductive signatures")
@@ -1419,23 +1529,31 @@ impl<'a> TermParser<'a> {
     // Precedence, weakest first: arrows, equality, application, postfix, atom.
     // Both arrows associate to the right. Binding forms scope over a full expression.
     fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
+        let start = self.pos;
+        let exp = self.parse_sexp_inner()?;
+        Ok(exp.with_span(self.span_from(start)))
+    }
+
+    fn parse_sexp_inner(&mut self) -> Result<SExp, ParseError> {
         if matches!(self.peek(), Some(Token::KeyWord(r"\let" | r"\bind"))) {
             return self.parse_program_binding();
         }
         let left = self.parse_equality()?;
         if self.bump_if_token(Token::Arrow) {
-            Ok(SExp::Prod {
+            Ok(SExpKind::Prod {
                 bind: Bind::Named(RightBind {
                     vars: Vec::new(),
                     ty: Box::new(left),
                 }),
                 body: Box::new(self.parse_sexp()?),
-            })
+            }
+            .into())
         } else if self.bump_if_token(Token::ComputationArrow) {
-            Ok(SExp::ComputationFunction {
+            Ok(SExpKind::ComputationFunction {
                 domain: Box::new(left),
                 codomain: Box::new(self.parse_sexp()?),
-            })
+            }
+            .into())
         } else {
             Ok(left)
         }
@@ -1465,7 +1583,11 @@ impl<'a> TermParser<'a> {
                 return Err(self.error("rest splices are only valid in macro templates"));
             }
             let name = Identifier::new(name[2..].to_string());
-            self.next();
+            let token = self.next().expect("peeked token exists");
+            let name = name.with_span(SourceSpan {
+                start: token.start,
+                end: token.end,
+            });
             return Ok(MacroExp::Splice(name));
         }
 
@@ -1477,9 +1599,13 @@ impl<'a> TermParser<'a> {
         if self.peek() != Some(&Token::LParen) && self.starts_atom() {
             let exp = self.parse_atom()?;
             if self.allow_macro_parameters
-                && let SExp::AccessPath {
-                    access: LocalAccess::Current { access },
-                    parameters,
+                && let SExp {
+                    kind:
+                        SExpKind::AccessPath {
+                            access: LocalAccess::Current { access },
+                            parameters,
+                        },
+                    ..
                 } = &exp
                 && parameters.is_empty()
             {
@@ -1578,61 +1704,154 @@ mod tests {
 
     #[test]
     fn new_arrows_binders_and_prefix_precedence() {
-        let SExp::ComputationFunction { codomain, .. } = complete(r"A ~> B ~> \F(C)") else {
+        let SExp {
+            kind: SExpKind::ComputationFunction { codomain, .. },
+            ..
+        } = complete(r"A ~> B ~> \F(C)")
+        else {
             panic!()
         };
-        assert!(matches!(*codomain, SExp::ComputationFunction { .. }));
-        let SExp::Prod { body, .. } = complete(r"A -> B ~> \F(C)") else {
+        assert!(matches!(
+            *codomain,
+            SExp {
+                kind: SExpKind::ComputationFunction { .. },
+                ..
+            }
+        ));
+        let SExp {
+            kind: SExpKind::Prod { body, .. },
+            ..
+        } = complete(r"A -> B ~> \F(C)")
+        else {
             panic!()
         };
-        assert!(matches!(*body, SExp::ComputationFunction { .. }));
-        let SExp::Lam {
-            bind: Bind::SubsetWithProof { proof_var, .. },
-            body,
+        assert!(matches!(
+            *body,
+            SExp {
+                kind: SExpKind::ComputationFunction { .. },
+                ..
+            }
+        ));
+        let SExp {
+            kind:
+                SExpKind::Lam {
+                    bind: Bind::SubsetWithProof { proof_var, .. },
+                    body,
+                },
+            ..
         } = complete(r"\fun (x: A \where P x \as h) (y: B) => f x y")
         else {
             panic!()
         };
         assert_eq!(proof_var.0, "h");
-        assert!(matches!(*body, SExp::Lam { .. }));
         assert!(matches!(
-            complete(r"\exists {x: A \where P x}"),
-            SExp::Exists {
-                bind: Bind::Subset { .. }
+            *body,
+            SExp {
+                kind: SExpKind::Lam { .. },
+                ..
             }
         ));
-        let SExp::Return { value } = complete(r"\return C::pair x y") else {
+        assert!(matches!(
+            complete(r"\exists {x: A \where P x}"),
+            SExp {
+                kind: SExpKind::Exists {
+                    bind: Bind::Subset { .. }
+                },
+                ..
+            }
+        ));
+        let SExp {
+            kind: SExpKind::Return { value },
+            ..
+        } = complete(r"\return C::pair x y")
+        else {
             panic!()
         };
-        assert!(matches!(*value, SExp::App { .. }));
-        let SExp::App { func, .. } = complete(r"\force f x") else {
+        assert!(matches!(
+            *value,
+            SExp {
+                kind: SExpKind::App { .. },
+                ..
+            }
+        ));
+        let SExp {
+            kind: SExpKind::App { func, .. },
+            ..
+        } = complete(r"\force f x")
+        else {
             panic!()
         };
-        assert!(matches!(*func, SExp::Force { .. }));
+        assert!(matches!(
+            *func,
+            SExp {
+                kind: SExpKind::Force { .. },
+                ..
+            }
+        ));
         complete(r"\cfun (x: A) (y: B) => \return y");
     }
 
     #[test]
     fn atom_prefix_keywords_are_right_associative() {
-        let SExp::ThunkType { computation_ty } = complete(r"\U \F A") else {
+        let SExp {
+            kind: SExpKind::ThunkType { computation_ty },
+            ..
+        } = complete(r"\U \F A")
+        else {
             panic!("expected an outer thunk type");
         };
-        assert!(matches!(*computation_ty, SExp::ReturnType { .. }));
+        assert!(matches!(
+            *computation_ty,
+            SExp {
+                kind: SExpKind::ReturnType { .. },
+                ..
+            }
+        ));
 
-        let SExp::IdRefl { element } = complete(r"\refl \refl x") else {
+        let SExp {
+            kind: SExpKind::IdRefl { element },
+            ..
+        } = complete(r"\refl \refl x")
+        else {
             panic!("expected an outer reflexivity term");
         };
-        assert!(matches!(*element, SExp::IdRefl { .. }));
+        assert!(matches!(
+            *element,
+            SExp {
+                kind: SExpKind::IdRefl { .. },
+                ..
+            }
+        ));
 
-        let SExp::Thunk { computation } = complete(r"\thunk \force suspended") else {
+        let SExp {
+            kind: SExpKind::Thunk { computation },
+            ..
+        } = complete(r"\thunk \force suspended")
+        else {
             panic!("expected an outer thunk");
         };
-        assert!(matches!(*computation, SExp::Force { .. }));
+        assert!(matches!(
+            *computation,
+            SExp {
+                kind: SExpKind::Force { .. },
+                ..
+            }
+        ));
 
-        let SExp::App { func, .. } = complete(r"\refl f x") else {
+        let SExp {
+            kind: SExpKind::App { func, .. },
+            ..
+        } = complete(r"\refl f x")
+        else {
             panic!("the second atom should be applied outside the prefix keyword");
         };
-        assert!(matches!(*func, SExp::IdRefl { .. }));
+        assert!(matches!(
+            *func,
+            SExp {
+                kind: SExpKind::IdRefl { .. },
+                ..
+            }
+        ));
 
         complete(r"\U(A ~> \F(B))");
         complete(r"\refl(f x)");
@@ -1640,55 +1859,115 @@ mod tests {
 
     #[test]
     fn postfix_application_and_equality_precedence() {
-        let SExp::Prod {
-            bind: Bind::Named(bind),
-            body,
+        let SExp {
+            kind:
+                SExpKind::Prod {
+                    bind: Bind::Named(bind),
+                    body,
+                },
+            ..
         } = complete(r"f::apply x::value y = g z -> R ~> S")
         else {
             panic!("expected an arrow outside the equality");
         };
-        assert!(matches!(*body, SExp::ComputationFunction { .. }));
-        let SExp::Equal { left, right } = *bind.ty else {
+        assert!(matches!(
+            *body,
+            SExp {
+                kind: SExpKind::ComputationFunction { .. },
+                ..
+            }
+        ));
+        let SExp {
+            kind: SExpKind::Equal { left, right },
+            ..
+        } = *bind.ty
+        else {
             panic!("expected equality between applications");
         };
-        assert!(matches!(*right, SExp::App { .. }));
-        let SExp::App { func, .. } = *left else {
+        assert!(matches!(
+            *right,
+            SExp {
+                kind: SExpKind::App { .. },
+                ..
+            }
+        ));
+        let SExp {
+            kind: SExpKind::App { func, .. },
+            ..
+        } = *left
+        else {
             panic!("expected application to y");
         };
-        let SExp::App { func, arg } = *func else {
+        let SExp {
+            kind: SExpKind::App { func, arg },
+            ..
+        } = *func
+        else {
             panic!("application should associate to the left");
         };
-        assert!(matches!(*func, SExp::AssociatedAccess { field, .. } if field.0 == "apply"));
-        assert!(matches!(*arg, SExp::AssociatedAccess { field, .. } if field.0 == "value"));
+        assert!(
+            matches!(*func, SExp { kind: SExpKind::AssociatedAccess { field, .. }, .. } if field.0 == "apply")
+        );
+        assert!(
+            matches!(*arg, SExp { kind: SExpKind::AssociatedAccess { field, .. }, .. } if field.0 == "value")
+        );
 
-        let SExp::AssociatedAccess { base, field } = complete(r"(f x)::first::second") else {
+        let SExp {
+            kind: SExpKind::AssociatedAccess { base, field },
+            ..
+        } = complete(r"(f x)::first::second")
+        else {
             panic!("expected chained field access");
         };
         assert_eq!(field.0, "second");
-        let SExp::AssociatedAccess { base, field } = *base else {
+        let SExp {
+            kind: SExpKind::AssociatedAccess { base, field },
+            ..
+        } = *base
+        else {
             panic!("field access should associate to the left");
         };
         assert_eq!(field.0, "first");
-        assert!(matches!(*base, SExp::App { .. }));
+        assert!(matches!(
+            *base,
+            SExp {
+                kind: SExpKind::App { .. },
+                ..
+            }
+        ));
 
-        let SExp::AssociatedAccess { field, .. } = complete(r"Pair[A]::first^") else {
+        let SExp {
+            kind: SExpKind::AssociatedAccess { field, .. },
+            ..
+        } = complete(r"Pair[A]::first^")
+        else {
             panic!("expected reflected associated access");
         };
         assert_eq!(field.0, "first^");
-        let SExp::AssociatedAccess { field, .. } = complete(r"Pair[A]::#^") else {
+        let SExp {
+            kind: SExpKind::AssociatedAccess { field, .. },
+            ..
+        } = complete(r"Pair[A]::#^")
+        else {
             panic!("expected reflected record constructor");
         };
         assert_eq!(field.0, "#^");
 
-        let SExp::Prod {
-            bind: Bind::Named(bind),
+        let SExp {
+            kind:
+                SExpKind::Prod {
+                    bind: Bind::Named(bind),
+                    ..
+                },
             ..
         } = complete(r"\exists f x = g y -> R")
         else {
             panic!("an unbraced existential should stop before the arrow");
         };
-        assert!(matches!(*bind.ty, SExp::Exists { bind: Bind::Named(bind) }
-            if matches!(*bind.ty, SExp::Equal { .. })));
+        assert!(
+            matches!(*bind.ty, SExp { kind: SExpKind::Exists { bind: Bind::Named(bind) }, .. }
+            if matches!(*bind.ty, SExp { kind: SExpKind::Equal { .. }, .. }))
+        );
 
         complete(r"(x = y) = z");
         complete(r"x = (y = z)");
@@ -1697,53 +1976,98 @@ mod tests {
 
     #[test]
     fn program_bindings_scope_over_the_remaining_expression() {
-        let SExp::ValueLet { var, body, .. } =
-            complete(r"\let x: A := outer \in \bind y: B <- f x \in \return y")
+        let SExp {
+            kind: SExpKind::ValueLet { var, body, .. },
+            ..
+        } = complete(r"\let x: A := outer \in \bind y: B <- f x \in \return y")
         else {
             panic!()
         };
         assert_eq!(var.0, "x");
-        let SExp::Sequence { var, body, .. } = *body else {
+        let SExp {
+            kind: SExpKind::Sequence { var, body, .. },
+            ..
+        } = *body
+        else {
             panic!()
         };
         assert_eq!(var.0, "y");
-        assert!(matches!(*body, SExp::Return { .. }));
-        let SExp::Sequence {
-            computation, body, ..
+        assert!(matches!(
+            *body,
+            SExp {
+                kind: SExpKind::Return { .. },
+                ..
+            }
+        ));
+        let SExp {
+            kind: SExpKind::Sequence {
+                computation, body, ..
+            },
+            ..
         } = complete(r"\bind x: A <- \bind y: A <- c \in f y \in g x")
         else {
             panic!()
         };
-        assert!(matches!(*computation, SExp::Sequence { .. }));
-        assert!(matches!(*body, SExp::App { .. }));
+        assert!(matches!(
+            *computation,
+            SExp {
+                kind: SExpKind::Sequence { .. },
+                ..
+            }
+        ));
+        assert!(matches!(
+            *body,
+            SExp {
+                kind: SExpKind::App { .. },
+                ..
+            }
+        ));
         complete(r"f (\thunk (\let x: A := a \in \return x))");
     }
 
     #[test]
     fn program_block_parses_statement_sequencing() {
-        let SExp::Program(block) =
-            complete(r"\program { \let x: A := a \then \bind y: B <- f x \then \return y }")
+        let SExp {
+            kind: SExpKind::Program(block),
+            ..
+        } = complete(r"\program { \let x: A := a \then \bind y: B <- f x \then \return y }")
         else {
             panic!()
         };
         assert!(matches!(block.statements[0], Statement::Let { .. }));
         assert!(matches!(block.statements[1], Statement::Bind { .. }));
-        assert!(matches!(*block.result, SExp::AccessPath { .. }));
+        assert!(matches!(
+            *block.result,
+            SExp {
+                kind: SExpKind::AccessPath { .. },
+                ..
+            }
+        ));
     }
 
     #[test]
     fn records_remain_unclassified_and_case_has_an_unambiguous_body() {
-        let SExp::RecordTypeCtor { fields, .. } =
-            complete(r"Future[A] { suspended := \thunk (\return x) }")
+        let SExp {
+            kind: SExpKind::RecordTypeCtor { fields, .. },
+            ..
+        } = complete(r"Future[A] { suspended := \thunk (\return x) }")
         else {
             panic!()
         };
-        assert!(matches!(fields[0].1, SExp::Thunk { .. }));
+        assert!(matches!(
+            fields[0].1,
+            SExp {
+                kind: SExpKind::Thunk { .. },
+                ..
+            }
+        ));
         complete(r"Empty {}");
         complete(r"f ({ x : A \where P })");
         complete(r"\case x \in T \return R { | ctor => branch }");
-        let SExp::ProgramCase { branches, .. } =
-            complete(r"\match x \in T \with { | ctor a b => \return a }")
+        let SExp {
+            kind: SExpKind::ProgramCase { branches, .. },
+            ..
+        } = complete(r"\match x \in T \with { | ctor a b => \return a }")
         else {
             panic!()
         };
@@ -1770,24 +2094,41 @@ mod tests {
                     parser.parse_sexp()
                 });
                 let bodies = match exp {
-                    SExp::ProgramCase { branches, .. } => branches
+                    SExp {
+                        kind: SExpKind::ProgramCase { branches, .. },
+                        ..
+                    } => branches
                         .into_iter()
                         .map(|(_, _, body)| body)
                         .collect::<Vec<_>>(),
-                    SExp::IndCase { branches, .. } => {
-                        branches.into_iter().map(|(_, body)| body).collect()
-                    }
-                    SExp::TokenMatch { branches, .. } => {
-                        branches.into_iter().map(|(_, body)| body).collect()
-                    }
+                    SExp {
+                        kind: SExpKind::IndCase { branches, .. },
+                        ..
+                    } => branches.into_iter().map(|(_, body)| body).collect(),
+                    SExp {
+                        kind: SExpKind::TokenMatch { branches, .. },
+                        ..
+                    } => branches.into_iter().map(|(_, body)| body).collect(),
                     _ => panic!("expected a branch expression: {input}"),
                 };
                 if branches == "{}" {
                     assert!(bodies.is_empty());
                 } else {
                     assert_eq!(bodies.len(), 2);
-                    assert!(matches!(bodies[0], SExp::ProgramCase { .. }));
-                    assert!(matches!(bodies[1], SExp::Equal { .. }));
+                    assert!(matches!(
+                        bodies[0],
+                        SExp {
+                            kind: SExpKind::ProgramCase { .. },
+                            ..
+                        }
+                    ));
+                    assert!(matches!(
+                        bodies[1],
+                        SExp {
+                            kind: SExpKind::Equal { .. },
+                            ..
+                        }
+                    ));
                 }
             }
 
@@ -1817,11 +2158,21 @@ mod tests {
 
     #[test]
     fn macro_groups_and_embedded_expressions_are_distinct() {
-        let SExp::NamedMacro { tokens, .. } = complete(r"m!{(x) { f (g x) }}") else {
+        let SExp {
+            kind: SExpKind::NamedMacro { tokens, .. },
+            ..
+        } = complete(r"m!{(x) { f (g x) }}")
+        else {
             panic!()
         };
         assert!(matches!(&tokens[0], MacroExp::Seq(xs) if xs.len() == 1));
-        assert!(matches!(&tokens[1], MacroExp::RawExp(SExp::App { .. })));
+        assert!(matches!(
+            &tokens[1],
+            MacroExp::RawExp(SExp {
+                kind: SExpKind::App { .. },
+                ..
+            })
+        ));
         complete(r"\( (a + b) + { f (g x) } \)");
     }
 
@@ -2021,7 +2372,13 @@ mod tests {
             let input = format!("f x::value {delimiter}");
             let tokens = lex_all(&input).unwrap();
             let mut parser = TermParser::new(&tokens);
-            assert!(matches!(parser.parse_sexp().unwrap(), SExp::App { .. }));
+            assert!(matches!(
+                parser.parse_sexp().unwrap(),
+                SExp {
+                    kind: SExpKind::App { .. },
+                    ..
+                }
+            ));
             assert_eq!(parser.pos, tokens.len() - 1, "{input}");
             let remaining = &tokens[parser.pos];
             assert_eq!(&input[remaining.start..remaining.end], delimiter);

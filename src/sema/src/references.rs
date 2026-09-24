@@ -11,6 +11,7 @@ pub struct Occurrence {
     pub location: Location,
     pub target: SemanticRef,
     pub ty: Option<String>,
+    pub provenance: Vec<crate::diagnostics::SourceOrigin>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,8 +52,8 @@ impl AnalysisSnapshot {
     pub fn references(&self, item: ItemId) -> ReferenceResult {
         ReferenceResult {
             revision: self.revision(),
-            // Macro expansion origins and Program local binders are still
-            // being migrated into the occurrence index.
+            // Elaboration visits selected expansions; unused templates and
+            // unresolved declarations still require a lexical reference index.
             complete: false,
             locations: self
                 .check()
@@ -66,8 +67,8 @@ impl AnalysisSnapshot {
 
     pub(super) fn capture_references(&self, global: &GlobalEnvironment) -> Vec<Occurrence> {
         use elab::{environment::DefinedConstant, printing};
-        let mut result = Vec::new();
-        let mut seen = std::collections::HashSet::new();
+        let mut result: Vec<Occurrence> = Vec::new();
+        let mut seen = std::collections::HashMap::new();
         for occurrence in global.occurrences().iter() {
             let Some(file) = self
                 .sources()
@@ -76,8 +77,15 @@ impl AnalysisSnapshot {
             else {
                 continue;
             };
-            let target = if let Some(binder) = occurrence.local {
-                SemanticRef::Local(file.location(binder))
+            let target = if let Some(binder) = &occurrence.local {
+                let Some(binder_file) = self
+                    .sources()
+                    .file_id(&binder.source.id.0)
+                    .and_then(|id| self.sources().file(id))
+                else {
+                    continue;
+                };
+                SemanticRef::Local(binder_file.location(binder.span))
             } else if let Some(target) = self.outline().iter().find(|item| {
                 let package = occurrence
                     .module
@@ -96,14 +104,27 @@ impl AnalysisSnapshot {
             } else {
                 continue;
             };
-            if !seen.insert((
+            let key = (
                 file.id,
                 occurrence.location.span.start,
                 occurrence.location.span.end,
                 target,
-            )) {
+            );
+            let provenance = self.source_trace(&global.crate_env().sources, occurrence.origin);
+            if let Some(index) = seen.get(&key).copied() {
+                let existing: &mut Occurrence = &mut result[index];
+                for origin in provenance {
+                    if !existing
+                        .provenance
+                        .iter()
+                        .any(|previous| previous.id == origin.id)
+                    {
+                        existing.provenance.push(origin);
+                    }
+                }
                 continue;
             }
+            seen.insert(key, result.len());
             let ty = occurrence
                 .definition
                 .map(|id| match global.crate_env().definition(id) {
@@ -118,6 +139,7 @@ impl AnalysisSnapshot {
                     }
                 });
             let occurrence = Occurrence {
+                provenance,
                 location: file.location(occurrence.location.span),
                 target,
                 ty,

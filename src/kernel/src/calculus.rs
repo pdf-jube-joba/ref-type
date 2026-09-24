@@ -176,8 +176,8 @@ pub fn is_closed(arena: &Arena, e: Expression) -> bool {
         if !seen.insert(e) {
             continue;
         }
-        if structure::module_parameter(arena, e).is_some()
-            || structure::reflected_parameter(arena, e).is_some()
+        if structure::ambient_level(arena, e).is_some()
+            || structure::reflected_ambient_level(arena, e).is_some()
         {
             return false;
         }
@@ -185,15 +185,22 @@ pub fn is_closed(arena: &Arena, e: Expression) -> bool {
     }
     true
 }
-pub fn substitute_parameters(
+pub fn substitute_ambient(
     env: &Environment,
     e: Expression,
-    parameters: &HashMap<ModuleParamId, Expression>,
+    parameters: &HashMap<usize, Expression>,
 ) -> Result<Expression, String> {
+    if !env.arena().owns(e)
+        || parameters
+            .values()
+            .any(|&argument| !env.arena().owns(argument))
+    {
+        return Err("substitution belongs to another checking environment".into());
+    }
     fn go(
         env: &Environment,
         e: Expression,
-        p: &HashMap<ModuleParamId, Expression>,
+        p: &HashMap<usize, Expression>,
         depth: usize,
         cache: &mut FxHashMap<(Expression, usize), Expression>,
     ) -> Result<Expression, String> {
@@ -201,8 +208,8 @@ pub fn substitute_parameters(
         if let Some(&result) = cache.get(&(e, depth)) {
             return Ok(result);
         }
-        let reflected = structure::reflected_parameter(a, e);
-        if let Some(parameter) = structure::module_parameter(a, e).or(reflected)
+        let reflected = structure::reflected_ambient_level(a, e);
+        if let Some(parameter) = structure::ambient_level(a, e).or(reflected)
             && let Some(&argument) = p.get(&parameter)
         {
             let argument = if reflected.is_some() {
@@ -211,7 +218,7 @@ pub fn substitute_parameters(
                 argument
             };
             if e.family() != argument.family() || a.sort(e) != a.sort(argument) {
-                return Err("module argument classification mismatch".into());
+                return Err("ambient argument classification mismatch".into());
             }
             let result = shift(a, argument, depth, 0)?;
             cache.insert((e, depth), result);

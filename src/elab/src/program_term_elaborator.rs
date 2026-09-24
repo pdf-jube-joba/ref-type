@@ -13,8 +13,9 @@ use crate::{
 };
 use crate::{resolver::ItemAccessResult, term_elaborator::LocalScope};
 use hir::{
-    ComputationTermExp, ComputationTypeExp, LocalAccess, ProgramFunctionExp, SourceSpan,
-    SurfaceMeta, ValueTermExp, ValueTypeExp,
+    AstId, ComputationTermExp, ComputationTermExpKind, ComputationTypeExp, ComputationTypeExpKind,
+    LocalAccess, ProgramFunctionExp, ProgramFunctionExpKind, SurfaceMeta, ValueTermExp,
+    ValueTermExpKind, ValueTypeExp, ValueTypeExpKind,
 };
 
 pub trait Handler: crate::term_elaborator::Handler {
@@ -44,7 +45,7 @@ enum MetaSolution {
 #[derive(Debug, Clone)]
 struct ProgramMeta {
     flavor: SurfaceMeta,
-    span: SourceSpan,
+    origin: Option<AstId>,
     category: MetaCategory,
     spine: Vec<ProgramArgument>,
     solution: Option<MetaSolution>,
@@ -52,7 +53,7 @@ struct ProgramMeta {
 
 #[derive(Debug, Clone)]
 pub struct ProgramScope {
-    names: Vec<SymbolId>,
+    origins: Vec<Option<hir::AstId>>,
     context: ProgramContext,
     value_type_bindings: Vec<(SymbolId, ValueType)>,
     metas: Vec<ProgramMeta>,
@@ -77,10 +78,11 @@ impl ProgramScope {
             return (0..expected)
                 .map(|_| {
                     self.elaborate_value_type(
-                        &ValueTypeExp::Meta {
+                        &ValueTypeExpKind::Meta {
                             kind: SurfaceMeta::implicit(),
-                            span: SourceSpan { start: 0, end: 0 },
-                        },
+                            token: None,
+                        }
+                        .into(),
                         environment,
                     )
                 })
@@ -102,7 +104,7 @@ impl ProgramScope {
         // de Bruijn locals: declarations and their uses can be nested beneath
         // different numbers of Program binders.
         Self {
-            names: Vec::new(),
+            origins: Vec::new(),
             context: Vec::new(),
             value_type_bindings: Vec::new(),
             metas: Vec::new(),
@@ -119,8 +121,8 @@ impl ProgramScope {
         self.has_runs || !self.metas.is_empty()
     }
 
-    pub fn finish_metas(&self) -> Result<(), String> {
-        self.finish_program_metas()
+    pub fn finish_metas(&self, environment: &impl Handler) -> Result<(), String> {
+        self.finish_program_metas(environment)
     }
 
     pub fn zonk_module_value_type(&self, environment: &impl Handler, ty: ValueType) -> ValueType {
@@ -135,19 +137,19 @@ impl ProgramScope {
         self.value_type_bindings.push((name, ty));
     }
 
-    pub fn push_type(&mut self, var: SymbolId) {
-        self.names.push(var);
+    pub fn push_type(&mut self, var: SymbolId, origin: Option<hir::AstId>) {
+        self.origins.push(origin);
         self.context.push(ProgramContextEntry::ValueType { var });
     }
 
-    pub fn push_value(&mut self, var: SymbolId, ty: ValueType) {
-        self.names.push(var);
+    fn push_value(&mut self, var: SymbolId, ty: ValueType, origin: Option<hir::AstId>) {
+        self.origins.push(origin);
         self.context
             .push(ProgramContextEntry::ValueTerm { var, ty });
     }
 
     pub fn truncate(&mut self, len: usize) {
-        self.names.truncate(len);
+        self.origins.truncate(len);
         self.context.truncate(len);
     }
 
@@ -159,13 +161,22 @@ impl ProgramScope {
         let LocalAccess::Current { access } = access else {
             return None;
         };
-        self.names
+        self.context
             .iter()
             .rev()
             .enumerate()
-            .find_map(|(index, symbol)| {
-                (environment.env().symbol(*symbol) == access.as_str())
-                    .then(|| (index, self.context[self.context.len() - index - 1].clone()))
+            .find_map(|(index, entry)| {
+                let var = match entry {
+                    ProgramContextEntry::ValueType { var }
+                    | ProgramContextEntry::ValueTerm { var, .. } => *var,
+                };
+                if environment.env().symbol(var) != access.as_str() {
+                    return None;
+                }
+                if let Some(origin) = self.origins[self.context.len() - index - 1] {
+                    environment.record_local(access, origin);
+                }
+                Some((index, entry.clone()))
             })
     }
 
@@ -199,10 +210,16 @@ impl ProgramScope {
         &mut self,
         environment: &impl Handler,
         flavor: SurfaceMeta,
-        span: SourceSpan,
+        origin: Option<AstId>,
         category: MetaCategory,
     ) -> Result<(MetaVarId, Vec<ProgramArgument>), String> {
         let spine = self.meta_spine(environment);
+        let origin = origin.or_else(|| {
+            Some(environment.env().sources.generated(
+                environment.env().provenance.current_origin(),
+                hir::GenerationReason::ImplicitType,
+            ))
+        });
         if let hir::MetaKind::Named(number) = flavor.kind
             && let Some(id) = self.named_metas.get(&number).copied()
         {
@@ -224,7 +241,7 @@ impl ProgramScope {
         );
         self.metas.push(ProgramMeta {
             flavor,
-            span,
+            origin,
             category,
             spine: spine.clone(),
             solution: None,
@@ -240,16 +257,40 @@ impl ProgramScope {
         expression: &ValueTypeExp,
         environment: &mut impl Handler,
     ) -> Result<ValueType, String> {
-        match expression {
-            ValueTypeExp::Meta { kind, span } => {
+        let occurrence = environment
+            .env()
+            .provenance
+            .enter(expression.origin, &environment.env().sources);
+        let result = {
+            self.elaborate_value_type_inner(expression, environment)
+                .inspect_err(|_| {
+                    environment.record_expression_error(expression.origin);
+                })
+        };
+        environment.env().provenance.leave(
+            occurrence,
+            result.as_ref().ok().map(|term| (*term).into()),
+            environment.arena(),
+            &environment.env().sources,
+        );
+        result
+    }
+
+    fn elaborate_value_type_inner(
+        &mut self,
+        expression: &ValueTypeExp,
+        environment: &mut impl Handler,
+    ) -> Result<ValueType, String> {
+        match &expression.kind {
+            ValueTypeExpKind::Meta { kind, token } => {
                 let (metavariable, spine) =
-                    self.fresh_meta(environment, *kind, *span, MetaCategory::ValueType)?;
+                    self.fresh_meta(environment, *kind, *token, MetaCategory::ValueType)?;
                 Ok(environment.env().arena().alloc(ValueTypeNode::Meta {
                     metavariable,
                     spine,
                 }))
             }
-            ValueTypeExp::Access { access, parameters } => {
+            ValueTypeExpKind::Access { access, parameters } => {
                 let parameters = parameters
                     .iter()
                     .map(|parameter| self.elaborate_value_type(parameter, environment))
@@ -304,7 +345,7 @@ impl ProgramScope {
                     )),
                 }
             }
-            ValueTypeExp::Thunk(computation_ty) => {
+            ValueTypeExpKind::Thunk(computation_ty) => {
                 let computation_ty =
                     self.elaborate_computation_type(computation_ty, environment)?;
                 Ok(environment
@@ -312,7 +353,7 @@ impl ProgramScope {
                     .arena()
                     .alloc(ValueTypeNode::Thunk { computation_ty }))
             }
-            ValueTypeExp::RunStep {
+            ValueTypeExpKind::RunStep {
                 state_ty,
                 result_ty,
             } => {
@@ -331,23 +372,47 @@ impl ProgramScope {
         expression: &ComputationTypeExp,
         environment: &mut impl Handler,
     ) -> Result<ComputationType, String> {
-        match expression {
-            ComputationTypeExp::Meta { kind, span } => {
+        let occurrence = environment
+            .env()
+            .provenance
+            .enter(expression.origin, &environment.env().sources);
+        let result = {
+            self.elaborate_computation_type_inner(expression, environment)
+                .inspect_err(|_| {
+                    environment.record_expression_error(expression.origin);
+                })
+        };
+        environment.env().provenance.leave(
+            occurrence,
+            result.as_ref().ok().map(|term| (*term).into()),
+            environment.arena(),
+            &environment.env().sources,
+        );
+        result
+    }
+
+    fn elaborate_computation_type_inner(
+        &mut self,
+        expression: &ComputationTypeExp,
+        environment: &mut impl Handler,
+    ) -> Result<ComputationType, String> {
+        match &expression.kind {
+            ComputationTypeExpKind::Meta { kind, token } => {
                 let (metavariable, spine) =
-                    self.fresh_meta(environment, *kind, *span, MetaCategory::ComputationType)?;
+                    self.fresh_meta(environment, *kind, *token, MetaCategory::ComputationType)?;
                 Ok(environment.env().arena().alloc(ComputationTypeNode::Meta {
                     metavariable,
                     spine,
                 }))
             }
-            ComputationTypeExp::Return(value_ty) => {
+            ComputationTypeExpKind::Return(value_ty) => {
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
                 Ok(environment
                     .env()
                     .arena()
                     .alloc(ComputationTypeNode::Return { value_ty }))
             }
-            ComputationTypeExp::Function { domain, codomain } => {
+            ComputationTypeExpKind::Function { domain, codomain } => {
                 let domain = self.elaborate_value_type(domain, environment)?;
                 let codomain = self.elaborate_computation_type(codomain, environment)?;
                 Ok(environment
@@ -363,9 +428,33 @@ impl ProgramScope {
         expression: &ValueTermExp,
         environment: &mut impl Handler,
     ) -> Result<ValueTerm, String> {
+        let occurrence = environment
+            .env()
+            .provenance
+            .enter(expression.origin, &environment.env().sources);
+        let result = {
+            self.elaborate_value_inner(expression, environment)
+                .inspect_err(|_| {
+                    environment.record_expression_error(expression.origin);
+                })
+        };
+        environment.env().provenance.leave(
+            occurrence,
+            result.as_ref().ok().map(|term| (*term).into()),
+            environment.arena(),
+            &environment.env().sources,
+        );
+        result
+    }
+
+    fn elaborate_value_inner(
+        &mut self,
+        expression: &ValueTermExp,
+        environment: &mut impl Handler,
+    ) -> Result<ValueTerm, String> {
         let arena = environment.env().arena();
-        match expression {
-            ValueTermExp::Record {
+        match &expression.kind {
+            ValueTermExpKind::Record {
                 datatype,
                 parameters,
                 fields,
@@ -417,15 +506,15 @@ impl ProgramScope {
                         fields,
                     }))
             }
-            ValueTermExp::Meta { kind, span } => {
+            ValueTermExpKind::Meta { kind, token } => {
                 let (metavariable, spine) =
-                    self.fresh_meta(environment, *kind, *span, MetaCategory::ValueTerm)?;
+                    self.fresh_meta(environment, *kind, *token, MetaCategory::ValueTerm)?;
                 Ok(arena.alloc(ValueTermNode::Meta {
                     metavariable,
                     spine,
                 }))
             }
-            ValueTermExp::Access(access) => {
+            ValueTermExpKind::Access(access) => {
                 if let Some((index, entry)) = self.local_index(environment, access) {
                     return match entry {
                         ProgramContextEntry::ValueTerm { .. } => Ok(arena.value_bound(index)),
@@ -449,7 +538,7 @@ impl ProgramScope {
                     _ => Err(format!("name does not denote a Program value: '{access}'")),
                 }
             }
-            ValueTermExp::Constructor {
+            ValueTermExpKind::Constructor {
                 datatype,
                 constructor,
                 parameters,
@@ -536,14 +625,14 @@ impl ProgramScope {
                         fields,
                     }))
             }
-            ValueTermExp::Thunk(computation) => {
+            ValueTermExpKind::Thunk(computation) => {
                 let computation = self.elaborate_computation(computation, environment)?;
                 Ok(environment
                     .env()
                     .arena()
                     .alloc(ValueTermNode::Thunk { computation }))
             }
-            ValueTermExp::Continue {
+            ValueTermExpKind::Continue {
                 state_ty,
                 result_ty,
                 next,
@@ -557,7 +646,7 @@ impl ProgramScope {
                     next,
                 }))
             }
-            ValueTermExp::Finish {
+            ValueTermExpKind::Finish {
                 state_ty,
                 result_ty,
                 output,
@@ -579,8 +668,32 @@ impl ProgramScope {
         expression: &ComputationTermExp,
         environment: &mut impl Handler,
     ) -> Result<ComputationTerm, String> {
-        match expression {
-            ComputationTermExp::InferredProjection { value, field } => {
+        let occurrence = environment
+            .env()
+            .provenance
+            .enter(expression.origin, &environment.env().sources);
+        let result = {
+            self.elaborate_computation_inner(expression, environment)
+                .inspect_err(|_| {
+                    environment.record_expression_error(expression.origin);
+                })
+        };
+        environment.env().provenance.leave(
+            occurrence,
+            result.as_ref().ok().map(|term| (*term).into()),
+            environment.arena(),
+            &environment.env().sources,
+        );
+        result
+    }
+
+    fn elaborate_computation_inner(
+        &mut self,
+        expression: &ComputationTermExp,
+        environment: &mut impl Handler,
+    ) -> Result<ComputationTerm, String> {
+        match &expression.kind {
+            ComputationTermExpKind::InferredProjection { value, field } => {
                 let value = self.elaborate_value(value, environment)?;
                 let mut context = self.context.clone();
                 let value_ty = self.infer_kernel_value(environment, &mut context, value)?;
@@ -628,7 +741,7 @@ impl ProgramScope {
                         value,
                     }))
             }
-            ComputationTermExp::Associated {
+            ComputationTermExpKind::Associated {
                 datatype,
                 item: name,
                 parameters,
@@ -663,15 +776,15 @@ impl ProgramScope {
                         parameters,
                     }))
             }
-            ComputationTermExp::Meta { kind, span } => {
+            ComputationTermExpKind::Meta { kind, token } => {
                 let (metavariable, spine) =
-                    self.fresh_meta(environment, *kind, *span, MetaCategory::ComputationTerm)?;
+                    self.fresh_meta(environment, *kind, *token, MetaCategory::ComputationTerm)?;
                 Ok(environment.env().arena().alloc(ComputationTermNode::Meta {
                     metavariable,
                     spine,
                 }))
             }
-            ComputationTermExp::Access(access) => match self.item(environment, access)? {
+            ComputationTermExpKind::Access(access) => match self.item(environment, access)? {
                 ItemAccessResult::Definition(item) => {
                     match environment.env().definition(item.definition) {
                         DefinedConstant::ProgramComputation { .. } => Ok(environment
@@ -683,33 +796,32 @@ impl ProgramScope {
                 }
                 _ => Err("name does not denote a Program computation".into()),
             },
-            ComputationTermExp::Return(value) => {
+            ComputationTermExpKind::Return(value) => {
                 let value = self.elaborate_value(value, environment)?;
                 Ok(environment
                     .env()
                     .arena()
                     .alloc(ComputationTermNode::Return { value }))
             }
-            ComputationTermExp::Force(value) => {
+            ComputationTermExpKind::Force(value) => {
                 let value = self.elaborate_value(value, environment)?;
                 Ok(environment
                     .env()
                     .arena()
                     .alloc(ComputationTermNode::Force { value }))
             }
-            ComputationTermExp::Lambda {
+            ComputationTermExpKind::Lambda {
                 var,
                 value_ty,
                 body,
             } => {
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
+                let origin = var.origin();
                 let var = environment.intern(var.as_str());
-                self.names.push(var);
-                self.context
-                    .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                let mark = self.context.len();
+                self.push_value(var, value_ty, origin);
                 let body = self.elaborate_computation(body, environment);
-                self.names.pop();
-                self.context.pop();
+                self.truncate(mark);
                 Ok(environment
                     .env()
                     .arena()
@@ -719,11 +831,11 @@ impl ProgramScope {
                         body: body?,
                     }))
             }
-            ComputationTermExp::Application {
+            ComputationTermExpKind::Application {
                 function,
                 arguments,
             } => self.elaborate_application(function, arguments, environment),
-            ComputationTermExp::Sequence {
+            ComputationTermExpKind::Sequence {
                 computation,
                 var,
                 value_ty,
@@ -731,13 +843,12 @@ impl ProgramScope {
             } => {
                 let computation = self.elaborate_computation(computation, environment)?;
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
+                let origin = var.origin();
                 let var = environment.intern(var.as_str());
-                self.names.push(var);
-                self.context
-                    .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                let mark = self.context.len();
+                self.push_value(var, value_ty, origin);
                 let body = self.elaborate_computation(body, environment);
-                self.names.pop();
-                self.context.pop();
+                self.truncate(mark);
                 Ok(environment
                     .env()
                     .arena()
@@ -748,7 +859,7 @@ impl ProgramScope {
                         body: body?,
                     }))
             }
-            ComputationTermExp::ValueLet {
+            ComputationTermExpKind::ValueLet {
                 var,
                 value_ty,
                 value,
@@ -756,13 +867,12 @@ impl ProgramScope {
             } => {
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
                 let value = self.elaborate_value(value, environment)?;
+                let origin = var.origin();
                 let var = environment.intern(var.as_str());
-                self.names.push(var);
-                self.context
-                    .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+                let mark = self.context.len();
+                self.push_value(var, value_ty, origin);
                 let body = self.elaborate_computation(body, environment);
-                self.names.pop();
-                self.context.pop();
+                self.truncate(mark);
                 Ok(environment
                     .env()
                     .arena()
@@ -773,7 +883,7 @@ impl ProgramScope {
                         body: body?,
                     }))
             }
-            ComputationTermExp::Case {
+            ComputationTermExpKind::Case {
                 datatype,
                 scrutinee,
                 branches,
@@ -823,6 +933,7 @@ impl ProgramScope {
                     for (field_index, (binder, (_, ty))) in
                         binders.iter().zip(field_types).enumerate()
                     {
+                        let origin = binder.origin();
                         let binder = environment.intern(binder.as_str());
                         let ty = crate::program_calculus::shift_value_type_indices(
                             environment.env().arena(),
@@ -830,14 +941,14 @@ impl ProgramScope {
                             field_index,
                             0,
                         );
-                        self.push_value(binder, ty);
+                        self.push_value(binder, ty, origin);
                         binder_ids.push(binder);
                     }
-                    let body = self.elaborate_computation(body, environment)?;
+                    let body = self.elaborate_computation(body, environment);
                     self.truncate(mark);
                     result.push(crate::program::ProgramCaseBranch {
                         binders: binder_ids,
-                        body,
+                        body: body?,
                     });
                 }
                 Ok(environment.env().arena().alloc(ComputationTermNode::Case {
@@ -846,7 +957,7 @@ impl ProgramScope {
                     branches: result,
                 }))
             }
-            ComputationTermExp::Run {
+            ComputationTermExpKind::Run {
                 state_ty,
                 result_ty,
                 step,
@@ -861,8 +972,9 @@ impl ProgramScope {
                 let reflected_context =
                     crate::reflection::reflect_context(environment.env(), &self.context)
                         .map_err(|error| error.to_string())?;
-                let accessibility = LocalScope::from_typing_context(reflected_context)
-                    .elab_exp(accessibility, environment)?;
+                let accessibility =
+                    LocalScope::from_typing_context(reflected_context, &self.origins)
+                        .elab_exp(accessibility, environment)?;
                 let computation = environment.env().arena().alloc(ComputationTermNode::Run {
                     state_ty,
                     result_ty,
@@ -872,7 +984,7 @@ impl ProgramScope {
                 });
                 Ok(computation)
             }
-            ComputationTermExp::RunCase {
+            ComputationTermExpKind::RunCase {
                 state_ty,
                 result_ty,
                 step,
@@ -890,7 +1002,8 @@ impl ProgramScope {
                 let reflected_context =
                     crate::reflection::reflect_context(environment.env(), &self.context)
                         .map_err(|error| error.to_string())?;
-                let mut proof_scope = LocalScope::from_typing_context(reflected_context);
+                let mut proof_scope =
+                    LocalScope::from_typing_context(reflected_context, &self.origins);
                 let accessibility = proof_scope.elab_exp(accessibility, environment)?;
                 let transition_equality = proof_scope.elab_exp(transition_equality, environment)?;
                 let computation = environment
@@ -921,14 +1034,14 @@ impl ProgramScope {
             Computation(ComputationTerm, Option<ComputationType>),
         }
 
-        let head = match function {
-            ProgramFunctionExp::Value(value) => {
+        let head = match &function.kind {
+            ProgramFunctionExpKind::Value(value) => {
                 let value = self.elaborate_value(value, environment)?;
                 let mut context = self.context.clone();
                 let ty = self.infer_value_term(environment, &mut context, value).ok();
                 Head::Value(ty)
             }
-            ProgramFunctionExp::Computation(computation) => {
+            ProgramFunctionExpKind::Computation(computation) => {
                 let computation = self.elaborate_computation(computation, environment)?;
                 let mut context = self.context.clone();
                 let ty = self
@@ -936,7 +1049,7 @@ impl ProgramScope {
                     .ok();
                 Head::Computation(computation, ty)
             }
-            ProgramFunctionExp::Access(access) => {
+            ProgramFunctionExpKind::Access(access) => {
                 if let Some((_index, entry)) = self.local_index(environment, access) {
                     let ProgramContextEntry::ValueTerm { ty, .. } = entry else {
                         return Err("Program type variable used as an application head".into());
@@ -978,7 +1091,7 @@ impl ProgramScope {
                     }
                 }
             }
-            ProgramFunctionExp::Associated {
+            ProgramFunctionExpKind::Associated {
                 datatype,
                 item,
                 parameters,
@@ -1004,12 +1117,13 @@ impl ProgramScope {
                 match definition_ty {
                     Ok(ty) => {
                         let value = self.elaborate_value(
-                            &ValueTermExp::Constructor {
+                            &ValueTermExpKind::Constructor {
                                 datatype: datatype.clone(),
                                 constructor: item.clone(),
                                 parameters: parameters.clone(),
                                 fields: Vec::new(),
-                            },
+                            }
+                            .into(),
                             environment,
                         )?;
                         let ValueTermNode::DefinitionInstance { parameters, .. } =
@@ -1027,11 +1141,12 @@ impl ProgramScope {
                     }
                     Err(ty) => {
                         let computation = self.elaborate_computation(
-                            &ComputationTermExp::Associated {
+                            &ComputationTermExpKind::Associated {
                                 datatype: datatype.clone(),
                                 item: item.clone(),
                                 parameters: parameters.clone(),
-                            },
+                            }
+                            .into(),
                             environment,
                         )?;
                         let ComputationTermNode::DefinitionInstance { parameters, .. } =
@@ -1172,6 +1287,11 @@ impl ProgramScope {
     }
 
     fn zonk_value_type(&self, environment: &impl Handler, ty: ValueType) -> ValueType {
+        let result = self.zonk_value_type_inner(environment, ty);
+        environment.env().provenance.relate(ty, result);
+        result
+    }
+    fn zonk_value_type_inner(&self, environment: &impl Handler, ty: ValueType) -> ValueType {
         let arena = environment.env().arena();
         match arena.get(ty) {
             ValueTypeNode::Meta { metavariable, .. } => {
@@ -1207,6 +1327,15 @@ impl ProgramScope {
     }
 
     fn zonk_computation_type(
+        &self,
+        environment: &impl Handler,
+        ty: ComputationType,
+    ) -> ComputationType {
+        let result = self.zonk_computation_type_inner(environment, ty);
+        environment.env().provenance.relate(ty, result);
+        result
+    }
+    fn zonk_computation_type_inner(
         &self,
         environment: &impl Handler,
         ty: ComputationType,
@@ -1252,6 +1381,11 @@ impl ProgramScope {
     }
 
     fn zonk_value(&self, environment: &impl Handler, value: ValueTerm) -> ValueTerm {
+        let result = self.zonk_value_inner(environment, value);
+        environment.env().provenance.relate(value, result);
+        result
+    }
+    fn zonk_value_inner(&self, environment: &impl Handler, value: ValueTerm) -> ValueTerm {
         let arena = environment.env().arena();
         match arena.get(value) {
             ValueTermNode::DefinitionInstance {
@@ -1314,6 +1448,15 @@ impl ProgramScope {
     }
 
     fn zonk_computation(
+        &self,
+        environment: &impl Handler,
+        computation: ComputationTerm,
+    ) -> ComputationTerm {
+        let result = self.zonk_computation_inner(environment, computation);
+        environment.env().provenance.relate(computation, result);
+        result
+    }
+    fn zonk_computation_inner(
         &self,
         environment: &impl Handler,
         computation: ComputationTerm,
@@ -1599,7 +1742,7 @@ impl ProgramScope {
         }
     }
 
-    fn finish_program_metas(&self) -> Result<(), String> {
+    fn finish_program_metas(&self, environment: &impl Handler) -> Result<(), String> {
         let unsolved = self
             .metas
             .iter()
@@ -1614,9 +1757,10 @@ impl ProgramScope {
             hir::MetaKind::Goal => "?".to_string(),
             hir::MetaKind::Named(number) => format!("?{number}"),
         };
+        environment.record_expression_error(meta.origin);
         Err(format!(
-            "unsolved Program metavariable {name} at {}..{} in {:?} syntax",
-            meta.span.start, meta.span.end, meta.category
+            "unsolved Program metavariable {name} in {:?} syntax",
+            meta.category
         ))
     }
 
@@ -1643,6 +1787,17 @@ impl ProgramScope {
     }
 
     fn solve_value(
+        &mut self,
+        environment: &impl Handler,
+        context: &mut ProgramContext,
+        value: ValueTerm,
+        expected: ValueType,
+    ) -> Result<(), String> {
+        environment.env().provenance.check(value, || {
+            self.solve_value_inner(environment, context, value, expected)
+        })
+    }
+    fn solve_value_inner(
         &mut self,
         environment: &impl Handler,
         context: &mut ProgramContext,
@@ -1754,6 +1909,16 @@ impl ProgramScope {
         context: &mut ProgramContext,
         value: ValueTerm,
     ) -> Result<ValueType, String> {
+        environment.env().provenance.check(value, || {
+            self.infer_value_term_inner(environment, context, value)
+        })
+    }
+    fn infer_value_term_inner(
+        &mut self,
+        environment: &impl Handler,
+        context: &mut ProgramContext,
+        value: ValueTerm,
+    ) -> Result<ValueType, String> {
         let arena = environment.env().arena();
         match arena.get(value) {
             ValueTermNode::DefinitionInstance {
@@ -1838,6 +2003,17 @@ impl ProgramScope {
     }
 
     fn solve_computation(
+        &mut self,
+        environment: &impl Handler,
+        context: &mut ProgramContext,
+        computation: ComputationTerm,
+        expected: ComputationType,
+    ) -> Result<(), String> {
+        environment.env().provenance.check(computation, || {
+            self.solve_computation_inner(environment, context, computation, expected)
+        })
+    }
+    fn solve_computation_inner(
         &mut self,
         environment: &impl Handler,
         context: &mut ProgramContext,
@@ -1941,6 +2117,16 @@ impl ProgramScope {
     }
 
     fn infer_computation_term(
+        &mut self,
+        environment: &impl Handler,
+        context: &mut ProgramContext,
+        computation: ComputationTerm,
+    ) -> Result<ComputationType, String> {
+        environment.env().provenance.check(computation, || {
+            self.infer_computation_term_inner(environment, context, computation)
+        })
+    }
+    fn infer_computation_term_inner(
         &mut self,
         environment: &impl Handler,
         context: &mut ProgramContext,
@@ -2058,7 +2244,7 @@ impl ProgramScope {
     ) -> Result<(ValueTerm, ValueType), String> {
         let mut context = self.context.clone();
         self.solve_value(environment, &mut context, value, expected)?;
-        self.finish_program_metas()?;
+        self.finish_program_metas(environment)?;
         Ok((
             self.zonk_value(environment, value),
             self.zonk_value_type(environment, expected),
@@ -2073,7 +2259,7 @@ impl ProgramScope {
     ) -> Result<(ComputationTerm, ComputationType), String> {
         let mut context = self.context.clone();
         self.solve_computation(environment, &mut context, computation, expected)?;
-        self.finish_program_metas()?;
+        self.finish_program_metas(environment)?;
         Ok((
             self.zonk_computation(environment, computation),
             self.zonk_computation_type(environment, expected),
@@ -2087,7 +2273,7 @@ impl ProgramScope {
     ) -> Result<(ValueTerm, ValueType), String> {
         let mut context = self.context.clone();
         let ty = self.infer_value_term(environment, &mut context, value)?;
-        self.finish_program_metas()?;
+        self.finish_program_metas(environment)?;
         Ok((
             self.zonk_value(environment, value),
             self.zonk_value_type(environment, ty),
@@ -2101,7 +2287,7 @@ impl ProgramScope {
     ) -> Result<(ComputationTerm, ComputationType), String> {
         let mut context = self.context.clone();
         let ty = self.infer_computation_term(environment, &mut context, computation)?;
-        self.finish_program_metas()?;
+        self.finish_program_metas(environment)?;
         Ok((
             self.zonk_computation(environment, computation),
             self.zonk_computation_type(environment, ty),

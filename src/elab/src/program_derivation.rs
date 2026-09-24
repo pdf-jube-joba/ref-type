@@ -119,7 +119,7 @@ pub fn check_value_type(
     session: &mut ProgramCheckSession<'_, '_>,
     ty: ValueType,
 ) -> Result<(), Box<JudgementError>> {
-    match session.arena().get(ty) {
+    let result = (|| match session.arena().get(ty) {
         ValueTypeNode::Bound(index) => match context_entry(session, index)? {
             ProgramContextEntry::ValueType { .. } => Ok(()),
             _ => Err(failure(
@@ -163,7 +163,8 @@ pub fn check_value_type(
             }
             Ok(())
         }
-    }
+    })();
+    result.map_err(|error| error.at(session.env(), ty))
 }
 
 #[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
@@ -172,7 +173,7 @@ pub fn check_computation_type(
     session: &mut ProgramCheckSession<'_, '_>,
     ty: ComputationType,
 ) -> Result<(), Box<JudgementError>> {
-    match session.arena().get(ty) {
+    let result = (|| match session.arena().get(ty) {
         ComputationTypeNode::Meta { .. } => Err(failure(
             "ComputationType",
             "formation",
@@ -183,7 +184,8 @@ pub fn check_computation_type(
             check_value_type(session, domain)?;
             check_computation_type(session, codomain)
         }
-    }
+    })();
+    result.map_err(|error| error.at(session.env(), ty))
 }
 
 #[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
@@ -193,21 +195,24 @@ pub fn check_value_term(
     value: ValueTerm,
     expected: ValueType,
 ) -> Result<(), Box<JudgementError>> {
-    check_value_type(session, expected)?;
-    let inferred = infer_value_term(session, value)?;
-    if value_type_is_alpha_eq(session.arena(), inferred, expected) {
-        Ok(())
-    } else {
-        Err(failure(
-            "Value",
-            "check",
-            &format!(
-                "value type mismatch: inferred {:?}, expected {:?}",
-                session.arena().get(inferred),
-                session.arena().get(expected)
-            ),
-        ))
-    }
+    let result = (|| {
+        check_value_type(session, expected)?;
+        let inferred = infer_value_term(session, value)?;
+        if value_type_is_alpha_eq(session.arena(), inferred, expected) {
+            Ok(())
+        } else {
+            Err(failure(
+                "Value",
+                "check",
+                &format!(
+                    "value type mismatch: inferred {:?}, expected {:?}",
+                    session.arena().get(inferred),
+                    session.arena().get(expected)
+                ),
+            ))
+        }
+    })();
+    result.map_err(|error| error.at(session.env(), value))
 }
 
 #[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
@@ -216,11 +221,14 @@ pub fn infer_value_term(
     session: &mut ProgramCheckSession<'_, '_>,
     value: ValueTerm,
 ) -> Result<ValueType, Box<JudgementError>> {
-    let result = infer_value_term_inner(session, value);
-    if let Ok(ty) = &result {
-        tracing::debug!(target: "ref_type::typing::program", inferred = %crate::printing::format_value_type(session.env(), *ty), "Program type inferred");
-    }
-    result
+    let result = (|| {
+        let result = infer_value_term_inner(session, value);
+        if let Ok(ty) = &result {
+            tracing::debug!(target: "ref_type::typing::program", inferred = %crate::printing::format_value_type(session.env(), *ty), "Program type inferred");
+        }
+        result
+    })();
+    result.map_err(|error| error.at(session.env(), value))
 }
 
 fn infer_value_term_inner(
@@ -363,21 +371,24 @@ pub fn check_computation_term(
     term: ComputationTerm,
     expected: ComputationType,
 ) -> Result<(), Box<JudgementError>> {
-    check_computation_type(session, expected)?;
-    let inferred = infer_computation_term(session, term)?;
-    if computation_type_is_alpha_eq(session.arena(), inferred, expected) {
-        Ok(())
-    } else {
-        Err(failure(
-            "Computation",
-            "check",
-            &format!(
-                "computation type mismatch: inferred {:?}, expected {:?}",
-                session.arena().get(inferred),
-                session.arena().get(expected)
-            ),
-        ))
-    }
+    let result = (|| {
+        check_computation_type(session, expected)?;
+        let inferred = infer_computation_term(session, term)?;
+        if computation_type_is_alpha_eq(session.arena(), inferred, expected) {
+            Ok(())
+        } else {
+            Err(failure(
+                "Computation",
+                "check",
+                &format!(
+                    "computation type mismatch: inferred {:?}, expected {:?}",
+                    session.arena().get(inferred),
+                    session.arena().get(expected)
+                ),
+            ))
+        }
+    })();
+    result.map_err(|error| error.at(session.env(), term))
 }
 
 #[tracing::instrument(target = "ref_type::typing::program", level = "debug", skip_all,
@@ -386,11 +397,14 @@ pub fn infer_computation_term(
     session: &mut ProgramCheckSession<'_, '_>,
     term: ComputationTerm,
 ) -> Result<ComputationType, Box<JudgementError>> {
-    let result = infer_computation_term_inner(session, term);
-    if let Ok(ty) = &result {
-        tracing::debug!(target: "ref_type::typing::program", inferred = %crate::printing::format_computation_type(session.env(), *ty), "Program type inferred");
-    }
-    result
+    let result = (|| {
+        let result = infer_computation_term_inner(session, term);
+        if let Ok(ty) = &result {
+            tracing::debug!(target: "ref_type::typing::program", inferred = %crate::printing::format_computation_type(session.env(), *ty), "Program type inferred");
+        }
+        result
+    })();
+    result.map_err(|error| error.at(session.env(), term))
 }
 
 fn infer_computation_term_inner(

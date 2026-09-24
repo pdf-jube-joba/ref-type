@@ -66,9 +66,10 @@ fn projected_record_field_type(
 // do type checking
 #[derive(Default)]
 pub struct GlobalEnvironment {
+    expression_error: std::cell::Cell<Option<syntax::AstId>>,
     occurrences: std::cell::RefCell<Vec<ResolvedOccurrence>>,
     skipped: Vec<(SourceLocation, u64)>,
-    kernel_env: kernel::environment::Environment,
+    kernel_env: elab::lowering::KernelEnvironment,
     crate_env: CrateEnv,
     outputs: Vec<Output>,
     diagnostic_location: Option<SourceLocation>,
@@ -80,11 +81,27 @@ pub struct GlobalEnvironment {
 }
 
 impl term_elaborator::Handler for GlobalEnvironment {
+    fn record_expression_error(&self, origin: Option<syntax::AstId>) {
+        let origin = self
+            .crate_env
+            .provenance
+            .error_origin(&self.crate_env.sources, self.diagnostic_location.as_ref())
+            .or(origin);
+        if self.expression_error.get().is_none()
+            && let Some(location) = origin.and_then(|id| self.crate_env.sources.location(id))
+            && let Some(owner) = &self.diagnostic_location
+            && location.source.id == owner.source.id
+            && owner.span.start <= location.span.start
+            && location.span.end <= owner.span.end
+        {
+            self.expression_error.set(origin);
+        }
+    }
     fn captured_expression(&self, id: hir::CapturedId) -> Exp {
         self.module_manager.captured_expression(id)
     }
 
-    fn record_local(&self, name: &Identifier, binder: SourceSpan) {
+    fn record_local(&self, name: &Identifier, binder: AstId) {
         self.record_local_reference(name, binder);
     }
     fn record_member(
@@ -120,23 +137,25 @@ impl term_elaborator::Handler for GlobalEnvironment {
     fn fresh_meta(
         &mut self,
         kind: SurfaceMeta,
-        span: SourceSpan,
+        origin: Option<AstId>,
         local_context: &ExpContext,
     ) -> Exp {
         let mut context = self.module_manager.current_context(&self.crate_env);
         context.extend(local_context.iter().cloned());
         self.metavariables
-            .fresh(&self.crate_env, kind, span, &context, local_context.len())
+            .fresh(&self.crate_env, kind, origin, &context, local_context.len())
     }
 
     fn expand_math_macro(
         &mut self,
+        origin: Option<AstId>,
         tokens: &[MacroExp],
         scope: Option<ScopeId>,
         depth: u16,
         max_order: Option<u64>,
     ) -> Result<SExp, String> {
         self.module_manager.expand_math_macro(
+            (&self.crate_env.sources, origin),
             &self.crate_env,
             scope.map_or_else(|| self.module_manager.current(), |scope| ModuleId(scope.0)),
             tokens,
@@ -147,6 +166,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
 
     fn expand_named_macro(
         &mut self,
+        origin: Option<AstId>,
         name: &Identifier,
         tokens: &[MacroExp],
         scope: Option<ScopeId>,
@@ -154,6 +174,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         max_order: Option<u64>,
     ) -> Result<SExp, String> {
         self.module_manager.expand_named_macro(
+            (&self.crate_env.sources, origin),
             &self.crate_env,
             scope.map_or_else(|| self.module_manager.current(), |scope| ModuleId(scope.0)),
             name,
@@ -327,7 +348,7 @@ impl GlobalEnvironment {
         self.crate_env.arena()
     }
 
-    pub fn kernel_env(&self) -> &kernel::environment::Environment {
+    pub fn kernel_env(&self) -> &elab::lowering::KernelEnvironment {
         &self.kernel_env
     }
 
@@ -545,6 +566,10 @@ impl GlobalEnvironment {
 
     pub fn add_modules_to_root(&mut self, modules: &[Module]) -> Result<(), ElaborationError> {
         self.diagnostic_location = None;
+        self.clear_expression_error();
+        for module in modules {
+            self.crate_env.sources.insert_module(module);
+        }
         let mut scheduled = Vec::new();
         for module in modules {
             Self::collect_module_tree(module, &mut Vec::new(), &mut scheduled);
@@ -592,9 +617,11 @@ impl GlobalEnvironment {
         })();
         self.defer_child_modules = false;
         self.predeclared_modules = false;
-        match (result, self.diagnostic_location.take()) {
+        let (location, origin) = self.error_location();
+        match (result, location) {
             (Err(error), Some(location)) => Err(ElaborationError::Located {
                 location,
+                origin,
                 error: Box::new(error),
             }),
             (result, _) => result,
@@ -627,18 +654,50 @@ impl GlobalEnvironment {
 
     pub fn add_new_module_to_root(&mut self, module: &Module) -> Result<(), ElaborationError> {
         self.diagnostic_location = None;
+        self.clear_expression_error();
+        self.crate_env.sources.insert_module(module);
         self.module_manager.moveto_root();
         let result = self.module_add_rec(module).and_then(|()| {
             elab::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
                 .lower_all()
                 .map_err(ElaborationError::from)
         });
-        match (result, self.diagnostic_location.take()) {
+        let (location, origin) = self.error_location();
+        match (result, location) {
             (Err(error), Some(location)) => Err(ElaborationError::Located {
                 location,
+                origin,
                 error: Box::new(error),
             }),
             (result, _) => result,
         }
+    }
+
+    fn error_location(&mut self) -> (Option<SourceLocation>, Option<AstId>) {
+        let kernel_path = self.kernel_env.check_error.borrow();
+        if !kernel_path.is_empty() {
+            self.crate_env.provenance.record_error(
+                &kernel_path
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect::<Vec<_>>(),
+            );
+        }
+        let checked = self
+            .crate_env
+            .provenance
+            .error_origin(&self.crate_env.sources, self.diagnostic_location.as_ref());
+        let origin = self.expression_error.take().or(checked);
+        let expression = origin
+            .and_then(|id| self.crate_env.sources.location(id))
+            .cloned();
+        (expression.or(self.diagnostic_location.take()), origin)
+    }
+
+    fn clear_expression_error(&self) {
+        self.expression_error.set(None);
+        self.crate_env.provenance.clear_error();
+        self.kernel_env.check_error.borrow_mut().clear();
     }
 }

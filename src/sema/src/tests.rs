@@ -8,6 +8,431 @@ fn host(text: &str) -> AnalysisHost {
 }
 
 #[test]
+fn indistinguishable_shared_terms_fall_back_to_the_common_ast_expression() {
+    use elab::{environment::CrateEnv, exp::ExpNode};
+    let source = Arc::new(syntax::SourceFile {
+        id: syntax::SourceId("/virtual/shared.ref".into()),
+        text: "f x x".into(),
+    });
+    let ast = parse::str_parse_exp(&source.text).unwrap();
+    let syntax::SExpKind::App { func, arg: right } = &ast.kind else {
+        panic!("application")
+    };
+    let syntax::SExpKind::App { arg: left, .. } = &func.kind else {
+        panic!("application")
+    };
+    let mut raw = CrateEnv::new();
+    raw.sources.insert(&ast, &source);
+    let shared = raw.arena().alloc(ExpNode::Bound(0));
+    let term = raw.arena().alloc(ExpNode::Equal {
+        left: shared,
+        right: shared,
+    });
+    let root = raw
+        .provenance
+        .enter(Some(ast.source.unwrap().id), &raw.sources);
+    for child in [left, right] {
+        let occurrence = raw
+            .provenance
+            .enter(Some(child.source.unwrap().id), &raw.sources);
+        raw.provenance
+            .leave(occurrence, Some(shared.into()), raw.arena(), &raw.sources);
+    }
+    raw.provenance
+        .leave(root, Some(term.into()), raw.arena(), &raw.sources);
+    raw.provenance.record_error(&[shared.into(), term.into()]);
+    assert_eq!(
+        raw.provenance.error_origin(&raw.sources, None),
+        Some(ast.source.unwrap().id)
+    );
+}
+
+#[test]
+fn generated_raw_children_have_individual_origins() {
+    use elab::{
+        environment::CrateEnv,
+        exp::{ExpNode, Prove},
+    };
+    let source = Arc::new(syntax::SourceFile {
+        id: syntax::SourceId("/virtual/generated.ref".into()),
+        text: "x".into(),
+    });
+    let ast = parse::str_parse_exp(&source.text).unwrap();
+    let mut raw = CrateEnv::new();
+    raw.sources.insert(&ast, &source);
+    let generated = raw.arena().alloc(ExpNode::Bound(0));
+    let term = raw
+        .arena()
+        .alloc(ExpNode::Prove(Prove::IdRefl { element: generated }));
+    let root = raw
+        .provenance
+        .enter(Some(ast.source.unwrap().id), &raw.sources);
+    raw.provenance
+        .leave(root, Some(term.into()), raw.arena(), &raw.sources);
+    raw.provenance
+        .record_error(&[generated.into(), term.into()]);
+    let origin = raw.provenance.error_origin(&raw.sources, None).unwrap();
+    assert_ne!(origin, ast.source.unwrap().id);
+    assert_eq!(
+        raw.sources.origin(origin),
+        Some(syntax::DerivedOrigin::Generated {
+            source: Some(ast.source.unwrap().id),
+            reason: syntax::GenerationReason::Elaboration
+        })
+    );
+    assert_eq!(
+        raw.sources.location(origin).unwrap().span,
+        ast.source.unwrap().span
+    );
+    assert!(raw.sources.written_location(origin).is_none());
+    assert!(!raw.sources.is_editable(origin));
+}
+
+#[test]
+fn kernel_failure_trace_resolves_lowered_occurrences_and_clears_after_success() {
+    use elab::{environment::CrateEnv, exp::ExpNode};
+    use kernel::{
+        check::Checker, construction, environment::Environment, sort::BaseSort, syntax::Stage,
+    };
+    let source = Arc::new(syntax::SourceFile {
+        id: syntax::SourceId("/virtual/term.ref".into()),
+        text: "x".into(),
+    });
+    let ast = parse::str_parse_exp(&source.text).unwrap();
+    let mut raw = CrateEnv::new();
+    raw.sources.insert(&ast, &source);
+    let term = raw.arena().alloc(ExpNode::Bound(0));
+    let occurrence = raw
+        .provenance
+        .enter(Some(ast.source.unwrap().id), &raw.sources);
+    raw.provenance
+        .leave(occurrence, Some(term.into()), raw.arena(), &raw.sources);
+    let kernel = Environment::new();
+    let lowered = construction::bound(kernel.arena(), BaseSort::Set(0), Stage::Term, 0).unwrap();
+    raw.provenance.lowered(term, lowered, &raw.sources);
+    let mut checker = Checker::new(&kernel, vec![]);
+    assert!(checker.infer(lowered).is_err());
+    assert_eq!(&*kernel.check_error.borrow(), &[lowered]);
+    raw.provenance.record_error(
+        &kernel
+            .check_error
+            .borrow()
+            .iter()
+            .copied()
+            .map(Into::into)
+            .collect::<Vec<_>>(),
+    );
+    let origin = raw.provenance.error_origin(&raw.sources, None).unwrap();
+    assert!(matches!(
+        raw.sources.origin(origin),
+        Some(syntax::DerivedOrigin::Generated {
+            reason: syntax::GenerationReason::KernelLowering,
+            ..
+        })
+    ));
+    assert_eq!(
+        raw.sources.location(origin).unwrap().span,
+        ast.source.unwrap().span
+    );
+    let kind = construction::base_kind(kernel.arena(), BaseSort::Set(0)).unwrap();
+    assert!(checker.infer(kind).is_ok());
+    assert!(kernel.check_error.borrow().is_empty());
+}
+
+#[test]
+fn generated_goal_types_retain_the_hole_as_their_source() {
+    let source = r"\module M { \infer ?; }";
+    let snapshot = host(source).snapshot();
+    let goals = &snapshot.check().goals;
+    assert!(
+        goals
+            .iter()
+            .any(|goal| goal.provenance.iter().any(|entry| matches!(
+                entry.origin,
+                Some(syntax::DerivedOrigin::Generated {
+                    reason: syntax::GenerationReason::ImplicitType,
+                    source: Some(_),
+                    ..
+                })
+            ))),
+        "{goals:?}"
+    );
+    for goal in goals {
+        for origin in &goal.provenance {
+            if let Some(location) = origin.location {
+                assert_eq!(&source[location.range.start..location.range.end], "?");
+            }
+        }
+    }
+}
+
+#[test]
+fn checking_errors_distinguish_shared_argument_occurrences() {
+    let source = r"\module M {
+        \inductive Unit: \Set := | unit: Unit;
+        \inductive Other: \Set := | other: Other;
+        \definition pick(x: Unit, y: Other): Unit := x;
+        \definition bad: Unit := pick Unit::unit Unit::unit;
+        \definition good: Unit := Unit::unit;
+    }";
+    let snapshot = host(source).snapshot();
+    let diagnostics = &snapshot.check().diagnostics;
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    let location = diagnostics[0].primary.unwrap();
+    let expected = source.find("Unit::unit Unit::unit").unwrap() + "Unit::unit ".len();
+    assert_eq!(location.range.start, expected, "{diagnostics:?}");
+    assert_eq!(
+        &source[location.range.start..location.range.end],
+        "Unit::unit"
+    );
+}
+
+#[test]
+fn program_checking_errors_distinguish_shared_argument_occurrences() {
+    let source = r"\module M {
+        \inductive Unit: \VType := | unit: Unit;
+        \inductive Other: \VType := | other: Other;
+        \definition pick(x: Unit, y: Other): \F(Unit) := \return x;
+        \definition bad: \F(Unit) := pick Unit::unit Unit::unit;
+    }";
+    let snapshot = host(source).snapshot();
+    let diagnostics = &snapshot.check().diagnostics;
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    let expected = source.find("Unit::unit Unit::unit").unwrap() + "Unit::unit ".len();
+    assert_eq!(
+        diagnostics[0].primary.unwrap().range.start,
+        expected,
+        "{diagnostics:?}"
+    );
+}
+
+#[test]
+fn nested_macro_diagnostics_retain_call_definition_and_capture_edges() {
+    let source = r"\module M {
+        \macro identity($x) := $x;
+        \macro nested($x) := identity!{$x};
+        \definition bad: \Set := nested!{missing};
+    }";
+    let snapshot = host(source).snapshot();
+    let diagnostic = &snapshot.check().diagnostics[0];
+    let trace = &diagnostic.provenance;
+    let expansions = trace
+        .iter()
+        .filter(|entry| matches!(entry.origin, Some(syntax::DerivedOrigin::Expansion { .. })))
+        .collect::<Vec<_>>();
+    assert_eq!(expansions.len(), 2, "{trace:?}");
+    assert_ne!(expansions[0].id, expansions[1].id);
+    assert_eq!(diagnostic.secondary.len(), 2);
+    assert!(trace.iter().any(|entry| matches!(
+        entry.origin,
+        Some(syntax::DerivedOrigin::Capture {
+            captured: Some(_),
+            ..
+        })
+    )));
+    for entry in expansions {
+        let syntax::DerivedOrigin::Expansion {
+            call: Some(call),
+            definition: Some(definition),
+        } = entry.origin.unwrap()
+        else {
+            panic!("expansion endpoints")
+        };
+        assert!(trace.iter().any(|entry| entry.id == call));
+        assert!(trace.iter().any(|entry| entry.id == definition));
+    }
+}
+
+#[test]
+fn template_references_keep_each_expansion_and_the_definition_file() {
+    let source = r"\module Library; \module Main {
+        \import \root.Library[] \as L;
+        \use L.make;
+        \definition first: \Set := make!{};
+        \definition second: \Set := make!{};
+    }";
+    let library = r"\inductive Unit: \Set := | unit: Unit; \macro make() := Unit;";
+    let mut host = host(source);
+    let file = host
+        .sources_mut()
+        .set_disk("/virtual/Library.ref", Some(library.into()));
+    let snapshot = host.snapshot();
+    assert_eq!(
+        snapshot.check().status,
+        CheckStatus::Checked,
+        "{:?}",
+        snapshot.check().diagnostics
+    );
+    let start = library.rfind("Unit").unwrap();
+    let occurrence = snapshot
+        .check()
+        .occurrences
+        .iter()
+        .find(|entry| entry.location.file == file && entry.location.range.start == start)
+        .unwrap();
+    let expansions = occurrence
+        .provenance
+        .iter()
+        .filter(|entry| matches!(entry.origin, Some(syntax::DerivedOrigin::Expansion { .. })))
+        .collect::<Vec<_>>();
+    assert_eq!(expansions.len(), 2, "{occurrence:?}");
+    assert_ne!(expansions[0].id, expansions[1].id);
+    assert_ne!(expansions[0].location, expansions[1].location);
+    assert!(snapshot.definition_at(file, start).is_some());
+}
+
+#[test]
+fn captured_parenthesized_holes_use_the_token_occurrence() {
+    let source = r"\module M {
+        \macro identity($x) := $x;
+        \definition incomplete: \Set := identity!{{(?)}};
+    }";
+    let snapshot = host(source).snapshot();
+    let goals = &snapshot.check().goals;
+    assert_eq!(goals.len(), 1, "{:?}", snapshot.check().diagnostics);
+    let goal = &goals[0];
+    assert!(goal.editable);
+    let location = goal.occurrences[0];
+    assert_eq!(&source[location.range.start..location.range.end], "?");
+    assert!(
+        goal.provenance
+            .iter()
+            .any(|entry| matches!(entry.origin, Some(syntax::DerivedOrigin::Capture { .. })))
+    );
+}
+
+#[test]
+fn expression_diagnostics_locate_logical_and_program_subexpressions() {
+    let source = r"/* 日本語 */ \module M {
+        \inductive Bit: \VType := | zero: Bit;
+        \definition logical: \Set := \refl(missingLogical);
+        \definition program(x: Bit): \F(Bit) := \return missingProgram;
+        \cinfer \return missingQuery;
+        \definition good: \SetKind := \Set;
+    }";
+    let snapshot = host(source).snapshot();
+    let check = snapshot.check();
+    assert_eq!(check.status, CheckStatus::Failed);
+    let fragments = check
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let range = diagnostic.primary.unwrap().range;
+            &source[range.start..range.end]
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        fragments,
+        ["(missingLogical)", "missingProgram", "missingQuery"]
+    );
+    let good = snapshot
+        .outline()
+        .iter()
+        .find(|item| item.key.name == "good")
+        .unwrap();
+    assert_eq!(
+        snapshot.check_item(good.id).unwrap().status,
+        ItemCheckStatus::Checked
+    );
+}
+
+#[test]
+fn macro_error_locations_preserve_captures_and_fall_back_to_calls() {
+    let source = r"\module M {
+        \macro identity($x) := $x;
+        \macro nested($x) := identity!{$x};
+        \macro broken() := #field{\Set};
+        \definition captured: \Set := nested!{missingCapture};
+        \definition generated: \Set := broken!{};
+        \definition good: \SetKind := \Set;
+    }";
+    let snapshot = host(source).snapshot();
+    let fragments = snapshot
+        .check()
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let range = diagnostic.primary.unwrap().range;
+            &source[range.start..range.end]
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(fragments, ["missingCapture", "broken!{}"]);
+}
+
+#[test]
+fn ast_locations_belong_to_their_input_snapshot() {
+    let text = r"\module M { \definition value: \Set := missing; }";
+    let mut host = host(text);
+    let before = host.snapshot();
+    let modules = before.modules().unwrap();
+    let syntax::ModuleBody::Inline(items) = &modules[0].body else {
+        panic!("module")
+    };
+    let syntax::ModuleItem::Definition { body, .. } = &items[0] else {
+        panic!("definition")
+    };
+    let hir = hir::SExp::from(body.clone());
+    let id = hir.origin.unwrap();
+    let location = before.ast_location(id).unwrap();
+    assert_eq!(&text[location.range.start..location.range.end], "missing");
+    host.sources_mut()
+        .set_overlay("/virtual/root.ref", format!("/* 編集 */ {text}"));
+    let after = host.snapshot();
+    assert!(after.ast_location(id).is_none());
+    assert_eq!(before.ast_location(id), Some(location));
+    assert_eq!(before.check().diagnostics[0].primary, Some(location));
+    let new_location = after.check().diagnostics[0].primary.unwrap();
+    assert_ne!(location.revision, new_location.revision);
+    assert_eq!(
+        new_location.range.start,
+        location.range.start + "/* 編集 */ ".len()
+    );
+}
+
+#[test]
+fn parameter_classification_discards_locations_from_successful_fallbacks() {
+    let source = r"\module M(A: \Set, x: A, y: missing) {}";
+    let snapshot = host(source).snapshot();
+    let diagnostics = &snapshot.check().diagnostics;
+    assert_eq!(diagnostics.len(), 1);
+    let location = diagnostics[0].primary.unwrap();
+    assert_eq!(&source[location.range.start..location.range.end], "missing");
+}
+
+#[test]
+fn expression_diagnostics_keep_external_header_and_body_files() {
+    let root = r"\module Bad(A: missingHeader); \module Good;";
+    let mut host = host(root);
+    host.sources_mut().set_disk(
+        "/virtual/Bad.ref",
+        Some(r"\definition unused: \SetKind := \Set;".into()),
+    );
+    let body = r"\definition bad: \Set := missingBody;";
+    let body_file = host
+        .sources_mut()
+        .set_disk("/virtual/Good.ref", Some(body.into()));
+    let root_file = host.sources().file_id("/virtual/root.ref").unwrap();
+    let snapshot = host.snapshot();
+    let locations = snapshot
+        .check()
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.primary.unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(locations.len(), 2);
+    assert_eq!(locations[0].file, root_file);
+    assert_eq!(
+        &root[locations[0].range.start..locations[0].range.end],
+        "missingHeader"
+    );
+    assert_eq!(locations[1].file, body_file);
+    assert_eq!(
+        &body[locations[1].range.start..locations[1].range.end],
+        "missingBody"
+    );
+}
+
+#[test]
 fn incomplete_constructor_recovers_at_the_inductive_terminator() {
     let snapshot = host(
         r"\module M {
@@ -475,4 +900,131 @@ fn local_definition_query_tracks_shadowing() {
         .definition_at(file, source.rfind("x;").unwrap())
         .unwrap();
     assert_eq!(location.range.start, source.find("x: A").unwrap());
+}
+
+fn assert_local_references(source: &str, references: &[(&str, &str)]) {
+    let snapshot = host(source).snapshot();
+    assert_eq!(
+        snapshot.check().status,
+        CheckStatus::Checked,
+        "{:?}",
+        snapshot.check().diagnostics
+    );
+    let file = snapshot.sources().file_id("/virtual/root.ref").unwrap();
+    for (usage, binder) in references {
+        let position = source.find(usage).unwrap();
+        let target = snapshot
+            .definition_at(file, position)
+            .unwrap_or_else(|| panic!("missing reference for {usage}"));
+        assert_eq!(target.range.start, source.find(binder).unwrap(), "{usage}");
+        let occurrences = snapshot
+            .check()
+            .occurrences
+            .iter()
+            .filter(|occurrence| occurrence.location.range.start == position)
+            .collect::<Vec<_>>();
+        assert_eq!(occurrences.len(), 1, "{usage}: {occurrences:?}");
+        assert_eq!(occurrences[0].target, SemanticRef::Local(target));
+        assert_eq!(
+            &source[target.range.start..target.range.end],
+            &source[position..position + target.range.end - target.range.start]
+        );
+    }
+}
+
+#[test]
+fn program_local_references_follow_lambda_let_and_sequence_shadowing() {
+    assert_local_references(
+        r"\module M {
+          \inductive Bit: \VType := | zero: Bit | one: Bit;
+          \definition f: \U(Bit -> Bit) := \fun (z: Bit) => \return z;
+          \definition apply(f: Bit -> Bit, x: Bit): \F(Bit) := (\force f) x;
+          \definition block: Bit -> Bit := \fun (x: Bit) =>
+            \program {
+              \let x: _ := x /* lambda */ \then
+              \bind x: Bit <- apply f x /* let */ \then
+              \return x
+            };
+          \definition explicit: Bit ~> \F(Bit) :=
+            \cfun (v: Bit) => \let w: Bit := v \in \return w;
+        }",
+        &[
+            ("z;", "z: Bit"),
+            ("f) x;", "f: Bit -> Bit, x"),
+            ("x;", "x: Bit):"),
+            ("x /* lambda */", "x: Bit) =>"),
+            ("x /* let */", "x: _"),
+            ("x\n", "x: Bit <-"),
+            ("v \\in", "v: Bit"),
+            ("w;", "w: Bit"),
+        ],
+    );
+}
+
+#[test]
+fn program_case_references_restore_outer_scope_between_branches() {
+    assert_local_references(
+        r"\module M {
+          \inductive Bit: \VType := | zero: Bit | one: Bit;
+          \inductive Choice: \VType := | first: Bit -> Bit -> Choice | second: Choice;
+          \definition choose(x: Bit, choice: Choice): \F(Bit) :=
+            \bind result: Bit <- \match choice \in Choice \with {
+              | first x y => \let saved: Bit := y \in \return x
+              | second => \return x /* outer branch */
+            } \in
+            \let after: Bit := x /* after case */ \in \return result;
+        }",
+        &[
+            (r"choice \in", "choice: Choice"),
+            (r"y \in", "y =>"),
+            ("x\n", "x y =>"),
+            ("x /* outer branch */", "x: Bit"),
+            ("x /* after case */", "x: Bit"),
+            ("result;", "result: Bit"),
+        ],
+    );
+}
+
+#[test]
+fn program_type_parameter_references_keep_declaration_origins() {
+    assert_local_references(
+        r"\module M {
+          \inductive Holder[A: \VType]: \VType := | hold: A -> Holder[A];
+          \record Pair[B: \VType]: \VType := { first: B, second: B };
+          \definition Holder(T: \VType)::identity(x: T): \F(T) := \return x;
+        }",
+        &[
+            ("A ->", "A: \\VType"),
+            ("A];", "A: \\VType"),
+            ("B,", "B: \\VType"),
+            ("B }", "B: \\VType"),
+            ("T):", "T: \\VType"),
+            ("T) :=", "T: \\VType"),
+            ("x;", "x: T"),
+        ],
+    );
+}
+
+#[test]
+fn program_proof_references_keep_origins_in_reflected_contexts() {
+    assert_local_references(
+        r"\module M(A: \VType, step: A -> \RunStep[A, A],
+          total: \forall (s: A^) -> \Acc[A^, A^](step^, s)) {
+          \definition run(x: A): \F(A) := \run[A, A](step, x) \by { total x };
+          \definition runCase(v: A): \F(A) :=
+            \let y: A := v \in
+            \runCase[A, A](step, y, (\force step) y) \by {
+              accessibility: total y, equality: \refl(step^ y)
+            };
+        }",
+        &[
+            ("x) \\by", "x: A"),
+            ("x };", "x: A"),
+            ("v \\in", "v: A"),
+            ("y, (\\force", "y: A"),
+            ("y) \\by", "y: A"),
+            ("y, equality", "y: A"),
+            ("y)\n", "y: A"),
+        ],
+    );
 }

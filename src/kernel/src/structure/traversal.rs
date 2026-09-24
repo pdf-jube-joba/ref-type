@@ -26,14 +26,14 @@ fn visit_set_term(arena: &Arena, h: SetTerm, visit: &mut dyn FnMut(Expression, u
     let node = arena.read(h);
     match &node.form {
         SetTermForm::Bound { .. } => {}
-        SetTermForm::ModuleParam { .. } => {}
+        SetTermForm::Ambient { .. } => {}
         SetTermForm::Annotated { body, classifier } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
             }
         }
-        SetTermForm::ReflectedProgramParam { .. } => {}
+        SetTermForm::ReflectedAmbient { .. } => {}
         SetTermForm::LambdaTerm { domain, body, .. } => {
             visit((*domain).into(), 0);
             visit((*body).into(), 1);
@@ -239,14 +239,14 @@ fn visit_set_type(arena: &Arena, h: SetType, visit: &mut dyn FnMut(Expression, u
     let node = arena.read(h);
     match &node.form {
         SetTypeForm::Bound { .. } => {}
-        SetTypeForm::ModuleParam { .. } => {}
+        SetTypeForm::Ambient { .. } => {}
         SetTypeForm::Annotated { body, classifier } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
             }
         }
-        SetTypeForm::ReflectedProgramParam { .. } => {}
+        SetTypeForm::ReflectedAmbient { .. } => {}
         SetTypeForm::ProdTerm { domain, body, .. } => {
             visit((*domain).into(), 0);
             visit((*body).into(), 1);
@@ -371,7 +371,7 @@ fn visit_set_kind(arena: &Arena, h: SetKind, visit: &mut dyn FnMut(Expression, u
                 visit((*child).into(), 0);
             }
         }
-        SetKindForm::ModuleParam { .. } => {}
+        SetKindForm::Ambient { .. } => {}
         SetKindForm::Annotated { body, classifier } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -384,7 +384,7 @@ fn visit_prop_term(arena: &Arena, h: PropTerm, visit: &mut dyn FnMut(Expression,
     let node = arena.read(h);
     match &node.form {
         PropTermForm::Bound { .. } => {}
-        PropTermForm::ModuleParam { .. } => {}
+        PropTermForm::Ambient { .. } => {}
         PropTermForm::Annotated { body, classifier } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -589,7 +589,7 @@ fn visit_prop_type(arena: &Arena, h: PropType, visit: &mut dyn FnMut(Expression,
     let node = arena.read(h);
     match &node.form {
         PropTypeForm::Bound { .. } => {}
-        PropTypeForm::ModuleParam { .. } => {}
+        PropTypeForm::Ambient { .. } => {}
         PropTypeForm::Annotated { body, classifier } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -730,7 +730,7 @@ fn visit_prop_kind(arena: &Arena, h: PropKind, visit: &mut dyn FnMut(Expression,
                 visit((*child).into(), 0);
             }
         }
-        PropKindForm::ModuleParam { .. } => {}
+        PropKindForm::Ambient { .. } => {}
         PropKindForm::Annotated { body, classifier } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -743,7 +743,7 @@ fn visit_value_term(arena: &Arena, h: ValueTerm, visit: &mut dyn FnMut(Expressio
     let node = arena.read(h);
     match &node.form {
         ValueTermForm::Bound { .. } => {}
-        ValueTermForm::ModuleParam { .. } => {}
+        ValueTermForm::Ambient { .. } => {}
         ValueTermForm::Annotated { body, classifier } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -787,7 +787,7 @@ fn visit_value_type(arena: &Arena, h: ValueType, visit: &mut dyn FnMut(Expressio
     let node = arena.read(h);
     match &node.form {
         ValueTypeForm::Bound { .. } => {}
-        ValueTypeForm::ModuleParam { .. } => {}
+        ValueTypeForm::Ambient { .. } => {}
         ValueTypeForm::Annotated { body, classifier } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -838,7 +838,7 @@ fn visit_computation_term(
 ) {
     let node = arena.read(h);
     match &node.form {
-        ComputationTermForm::ModuleParam { .. } => {}
+        ComputationTermForm::Ambient { .. } => {}
         ComputationTermForm::Annotated { body, classifier } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -944,7 +944,7 @@ fn visit_computation_type(
     let node = arena.read(h);
     match &node.form {
         ComputationTypeForm::Bound { .. } => {}
-        ComputationTypeForm::ModuleParam { .. } => {}
+        ComputationTypeForm::Ambient { .. } => {}
         ComputationTypeForm::Annotated { body, classifier } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -993,34 +993,50 @@ pub(crate) fn map_children(
     arena: &Arena,
     e: Expression,
     traversal: Traversal,
+    map: impl FnMut(Expression, usize) -> Result<Expression, String>,
+) -> Result<Expression, String> {
+    map_children_into(arena, arena, e, traversal, map)
+}
+
+pub(crate) fn map_children_into(
+    arena: &Arena,
+    target: &Arena,
+    e: Expression,
+    traversal: Traversal,
     mut map: impl FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     match e {
-        Expression::SetTerm(h) => map_set_term(arena, h, traversal, &mut map),
-        Expression::SetType(h) => map_set_type(arena, h, traversal, &mut map),
-        Expression::SetKind(h) => map_set_kind(arena, h, traversal, &mut map),
-        Expression::PropTerm(h) => map_prop_term(arena, h, traversal, &mut map),
-        Expression::PropType(h) => map_prop_type(arena, h, traversal, &mut map),
-        Expression::PropKind(h) => map_prop_kind(arena, h, traversal, &mut map),
-        Expression::ValueTerm(h) => map_value_term(arena, h, traversal, &mut map),
-        Expression::ValueType(h) => map_value_type(arena, h, traversal, &mut map),
-        Expression::ValueKind(h) => map_value_kind(arena, h, traversal, &mut map),
-        Expression::ComputationTerm(h) => map_computation_term(arena, h, traversal, &mut map),
-        Expression::ComputationType(h) => map_computation_type(arena, h, traversal, &mut map),
-        Expression::ComputationKind(h) => map_computation_kind(arena, h, traversal, &mut map),
+        Expression::SetTerm(h) => map_set_term(arena, target, h, traversal, &mut map),
+        Expression::SetType(h) => map_set_type(arena, target, h, traversal, &mut map),
+        Expression::SetKind(h) => map_set_kind(arena, target, h, traversal, &mut map),
+        Expression::PropTerm(h) => map_prop_term(arena, target, h, traversal, &mut map),
+        Expression::PropType(h) => map_prop_type(arena, target, h, traversal, &mut map),
+        Expression::PropKind(h) => map_prop_kind(arena, target, h, traversal, &mut map),
+        Expression::ValueTerm(h) => map_value_term(arena, target, h, traversal, &mut map),
+        Expression::ValueType(h) => map_value_type(arena, target, h, traversal, &mut map),
+        Expression::ValueKind(h) => map_value_kind(arena, target, h, traversal, &mut map),
+        Expression::ComputationTerm(h) => {
+            map_computation_term(arena, target, h, traversal, &mut map)
+        }
+        Expression::ComputationType(h) => {
+            map_computation_type(arena, target, h, traversal, &mut map)
+        }
+        Expression::ComputationKind(h) => {
+            map_computation_kind(arena, target, h, traversal, &mut map)
+        }
     }
 }
 
 // This macro only updates a typed field. The match arms explicitly list each
 // field's binder depth and the traversals that may enter it.
 macro_rules! child {
-    ($arena:ident, $map:ident, $traversal:ident, $changed:ident, $program:expr; $slot:expr, $depth:expr, $($mode:pat_param)|+) => {
+    ($arena:ident, $target:ident, $map:ident, $traversal:ident, $changed:ident, $program:expr; $slot:expr, $depth:expr, $($mode:pat_param)|+) => {
         if matches!($traversal,$($mode)|+) {
             let before:Expression=(*$slot).into();
             if !matches!($traversal,Evaluation) || $program || !$arena.sort(before).is_program() {
                 let after=$map(before,$depth)?;
                 if before != after {
-                    if before.family()!=after.family() || $arena.sort(before)!=$arena.sort(after) {
+                    if before.family()!=after.family() || $arena.sort(before)!=$target.sort(after) {
                         return Err("transformation changed syntax family or sort index".into());
                     }
                     *$slot=after.try_into().map_err(|error| format!("{error}"))?;
@@ -1032,24 +1048,25 @@ macro_rules! child {
 }
 fn map_set_term(
     arena: &Arena,
+    target: &Arena,
     h: SetTerm,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         SetTermForm::Bound { .. } => {}
-        SetTermForm::ModuleParam { .. } => {}
+        SetTermForm::Ambient { .. } => {}
         SetTermForm::Annotated { body, classifier } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
             }
         }
-        SetTermForm::ReflectedProgramParam { .. } => {}
+        SetTermForm::ReflectedAmbient { .. } => {}
         SetTermForm::LambdaTerm { domain, body, .. } => {
             field!(domain, 0, All | Evaluation);
             field!(body, 1, All | Evaluation);
@@ -1253,29 +1270,30 @@ fn map_set_term(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_set_type(
     arena: &Arena,
+    target: &Arena,
     h: SetType,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         SetTypeForm::Bound { .. } => {}
-        SetTypeForm::ModuleParam { .. } => {}
+        SetTypeForm::Ambient { .. } => {}
         SetTypeForm::Annotated { body, classifier } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
             }
         }
-        SetTypeForm::ReflectedProgramParam { .. } => {}
+        SetTypeForm::ReflectedAmbient { .. } => {}
         SetTypeForm::ProdTerm { domain, body, .. } => {
             field!(domain, 0, All | Evaluation);
             field!(body, 1, All | Evaluation);
@@ -1385,19 +1403,20 @@ fn map_set_type(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_set_kind(
     arena: &Arena,
+    target: &Arena,
     h: SetKind,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         SetKindForm::Base => {}
         SetKindForm::ProdTerm { domain, body, .. } => {
@@ -1413,7 +1432,7 @@ fn map_set_kind(
                 field!(child, 0, All | Evaluation);
             }
         }
-        SetKindForm::ModuleParam { .. } => {}
+        SetKindForm::Ambient { .. } => {}
         SetKindForm::Annotated { body, classifier } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -1424,22 +1443,23 @@ fn map_set_kind(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_prop_term(
     arena: &Arena,
+    target: &Arena,
     h: PropTerm,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         PropTermForm::Bound { .. } => {}
-        PropTermForm::ModuleParam { .. } => {}
+        PropTermForm::Ambient { .. } => {}
         PropTermForm::Annotated { body, classifier } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -1642,22 +1662,23 @@ fn map_prop_term(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_prop_type(
     arena: &Arena,
+    target: &Arena,
     h: PropType,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         PropTypeForm::Bound { .. } => {}
-        PropTypeForm::ModuleParam { .. } => {}
+        PropTypeForm::Ambient { .. } => {}
         PropTypeForm::Annotated { body, classifier } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -1783,19 +1804,20 @@ fn map_prop_type(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_prop_kind(
     arena: &Arena,
+    target: &Arena,
     h: PropKind,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         PropKindForm::Base => {}
         PropKindForm::ProdTerm { domain, body, .. } => {
@@ -1811,7 +1833,7 @@ fn map_prop_kind(
                 field!(child, 0, All | Evaluation);
             }
         }
-        PropKindForm::ModuleParam { .. } => {}
+        PropKindForm::Ambient { .. } => {}
         PropKindForm::Annotated { body, classifier } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -1822,22 +1844,23 @@ fn map_prop_kind(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_value_term(
     arena: &Arena,
+    target: &Arena,
     h: ValueTerm,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ValueTermForm::Bound { .. } => {}
-        ValueTermForm::ModuleParam { .. } => {}
+        ValueTermForm::Ambient { .. } => {}
         ValueTermForm::Annotated { body, classifier } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -1879,22 +1902,23 @@ fn map_value_term(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_value_type(
     arena: &Arena,
+    target: &Arena,
     h: ValueType,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ValueTypeForm::Bound { .. } => {}
-        ValueTypeForm::ModuleParam { .. } => {}
+        ValueTypeForm::Ambient { .. } => {}
         ValueTypeForm::Annotated { body, classifier } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -1930,19 +1954,20 @@ fn map_value_type(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_value_kind(
     arena: &Arena,
+    target: &Arena,
     h: ValueKind,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ValueKindForm::Base => {}
         ValueKindForm::ProdType { domain, body, .. } => {
@@ -1953,21 +1978,22 @@ fn map_value_kind(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_computation_term(
     arena: &Arena,
+    target: &Arena,
     h: ComputationTerm,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
-        ComputationTermForm::ModuleParam { .. } => {}
+        ComputationTermForm::Ambient { .. } => {}
         ComputationTermForm::Annotated { body, classifier } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -2067,22 +2093,23 @@ fn map_computation_term(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_computation_type(
     arena: &Arena,
+    target: &Arena,
     h: ComputationType,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ComputationTypeForm::Bound { .. } => {}
-        ComputationTypeForm::ModuleParam { .. } => {}
+        ComputationTypeForm::Ambient { .. } => {}
         ComputationTypeForm::Annotated { body, classifier } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
@@ -2114,19 +2141,20 @@ fn map_computation_type(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }
 fn map_computation_kind(
     arena: &Arena,
+    target: &Arena,
     h: ComputationKind,
     traversal: Traversal,
     map: &mut dyn FnMut(Expression, usize) -> Result<Expression, String>,
 ) -> Result<Expression, String> {
     let original = arena.read(h);
     let mut node = (*original).clone();
-    let mut changed = false;
-    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
+    let mut changed = arena.id() != target.id();
+    macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,target,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ComputationKindForm::Base => {}
         ComputationKindForm::ProdType { domain, body, .. } => {
@@ -2137,6 +2165,6 @@ fn map_computation_kind(
     if !changed {
         Ok(h.into())
     } else {
-        Ok(arena.alloc(node).into())
+        Ok(target.alloc(node).into())
     }
 }

@@ -244,6 +244,8 @@ type InferenceCache = FxHashMap<(Exp, ContextId), Exp>;
 
 #[derive(Debug)]
 pub struct CrateEnv {
+    pub sources: hir::SourceMap,
+    pub provenance: crate::provenance::Provenance,
     unavailable: HashMap<(ModuleId, String), u64>,
     unavailable_modules: HashMap<ModuleId, u64>,
     blocked_reads: RefCell<HashSet<u64>>,
@@ -361,6 +363,8 @@ impl CrateEnv {
         symbol_ids.insert(root.clone(), SymbolId(1));
         Self {
             definition_parameters: HashMap::new(),
+            sources: Default::default(),
+            provenance: Default::default(),
             unavailable: HashMap::new(),
             unavailable_modules: HashMap::new(),
             blocked_reads: RefCell::default(),

@@ -64,9 +64,18 @@ impl AnalysisHost {
         let expression =
             crate::parse::str_parse_exp(term).map_err(|error| EditError::Rejected(vec![error]))?;
         let replacement = match expression {
-            crate::syntax::SExp::AccessPath { .. }
-            | crate::syntax::SExp::Meta { .. }
-            | crate::syntax::SExp::Sort(_) => term.trim().to_owned(),
+            crate::syntax::SExp {
+                kind: crate::syntax::SExpKind::AccessPath { .. },
+                ..
+            }
+            | crate::syntax::SExp {
+                kind: crate::syntax::SExpKind::Meta { .. },
+                ..
+            }
+            | crate::syntax::SExp {
+                kind: crate::syntax::SExpKind::Sort(_),
+                ..
+            } => term.trim().to_owned(),
             _ => format!("({term})"),
         };
         let mut edits = Vec::new();

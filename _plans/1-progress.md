@@ -42,14 +42,14 @@ protocol の参照仕様は [LSP 3.17](https://microsoft.github.io/language-serv
 | Phase | 実装と残る作業 |
 | --- | --- |
 | 0 | 変更前の test・library baseline、raw root の列挙、総割当数と宣言からの到達可能数の計測を追加した。 |
-| 1 | VFS、版付き location、構造化診断、回復 AST、identifier・hole の range、outline の ID 対応、共通 CLI 入口を実装した。式全体の range は追加対象である。 |
+| 1 | VFS、版付き location、構造化診断、回復 AST、式・identifier・hole の range、AST の式 ID と source map、outline の ID 対応、共通 CLI 入口を実装した。 |
 | 2 | 作業領域の回収、公開 root の保存、宣言境界の kernel check、goal snapshot、失敗時の再実行を実装した。保存領域の宣言ごとの独立所有と、再実行を置き換える局所 transaction が残る。 |
-| 3 | 実際に選択された通常参照、論理 binder、record field の occurrence を記録する。AST と proof HIR を分離し、scope/capture の ID、macro 環境、Resolver interface を独立させた。完全な展開 origin と通常参照の事前解決が残る。 |
-| 4 | arena identity、成果物の所有環境、`MetaVarId` の移動を実装した。kernel の opaque nominal ID、module parameter の context 化、環境間の成果物移送が残る。 |
+| 3 | 実際に選択された通常参照、論理 binder、record field の occurrence を記録する。AST と proof HIR を分離し、scope/capture の ID、macro 環境、Resolver interface を独立させた。展開ごとの呼出元・定義元・capture 元と親展開を source map で追跡する。通常参照の事前解決が残る。 |
+| 4 | 完了。kernel-local な opaque ID、外側 context の level、開いた template、reflection と閉性検査、取消時の登録巻き戻し、所有環境を跨ぐ再配置・再検査を実装した。 |
 | 5 | 同一入力 snapshot の結果を再利用し、本体・挿入・削除・名前・shadowing・import・構文回復・取消の編集列を cold result と比較する。変更後は全体を再検査するため、宣言単位の依存追跡・再利用が残る。 |
-| 6 | goal の表示、`give`、`refine`、macro capture の編集可否、LSP・MCP の初期 adapter を実装した。完全な展開 origin、Program の局所参照、`apply`、case split、normalize、workspace index の完成が残る。 |
+| 6 | goal の表示、`give`、`refine`、macro capture の編集可否、Program の局所参照、LSP・MCP の初期 adapter を実装した。診断・参照・goal は展開履歴と生成元を保持する。`apply`、case split、normalize、workspace index の完成が残る。 |
 | 7 | path 依存の PackageGraph、manifest 入力、PackageId、package 間の import と、std・real・topology のライブラリ分割を実装した。各 package の宣言を dependency 経由で参照できる。 |
-| 8 | 永続 artifact cache、ID の復元、kernel 再検査の経路が残る。 |
+| 8 | ID 再配置と kernel 再検査の経路を実装した。永続形式と容量・検証方針を 1.md に確定し、宣言単位の serialization と disk store を残す。 |
 
 ## Baseline
 
@@ -138,10 +138,122 @@ macro の capture table にある項も宣言境界の保存 root に含め、mo
 
 依存方向は `cli → sema → elab → hir → syntax` と `elab → kernel` を基本とする。
 `syntax` と `hir` は推論環境や kernel への依存を持たない。
-kernel の nominal ID と module context の分離、宣言成果物の独立所有、通常参照を事前に解決した HIR、宣言単位の incremental query、永続 cache は後続の作業として残る。
+kernel の nominal ID と module context の分離は、後述する Phase 4 で実装した。
+宣言成果物の独立所有、通常参照を事前に解決した HIR、宣言単位の incremental query、永続 cache は後続の作業として残る。
 
 分割後の `cargo test --workspace --locked --offline` は doctest を含む 228 件が通った。
 追加した `captured_parameters_survive_specialization_and_rechecking_parsed_syntax` は、二段階の module 特殊化、宣言境界の回収、同じ AST を使った別環境での再検査を確認する。
 `cargo clippy --workspace --all-targets --locked --offline -- -D warnings` と `cargo fmt --all -- --check` も通った。
+
 release build の `tests/library/ref.toml --stats` は成功し、1 回の実行で elapsed 18.05 秒、peak RSS 444080 KiB だった。
 推論用の論理項は総割当 7,973,220、保持 70,679、kernel の宣言から到達可能なノードは 71,941 だった。
+
+## Program の局所参照
+
+Program の lambda、宣言引数、let、sequence、case 分岐の束縛位置を保持し、変数の解決時に occurrence を記録する。
+datatype・record・associated item の型引数にも束縛位置を対応付ける。
+`\run` と `\runCase` の証明を検査する論理 context にも位置情報を引き継ぎ、`definition_at` から Program 側の束縛元を取得できる。
+case 分岐の検査が失敗した場合も、分岐に入る前の context と束縛位置へ戻す。
+
+追加した semantic API のテストは、lambda・let・sequence の shadowing、case 分岐間と分岐後の scope、型引数、反映された証明 context の参照先を確認する。
+`cargo test --workspace --locked --offline` は library examples と doctest を含む 232 件が通った。
+`cargo clippy --workspace --all-targets --locked --offline -- -D warnings` と `cargo fmt --all -- --check` も通った。
+
+## AST の式範囲と HIR の対応
+
+AST の式を `Expr<K>` と構文の種類に分け、source occurrence に `AstId` と UTF-8 byte range を付けた。
+Program の値型・計算型・値・計算・適用の先頭にも同じ構造を使い、構文の分類時に occurrence を引き継ぐ。
+括弧を含む式全体の範囲と、内部のコメントを含む適用などの範囲を保持する。
+AST の clone は ID を引き継ぎ、別の parse には別の ID を割り当てる。
+
+HIR の式は `origin: Option<AstId>` を持ち、[source map](../src/syntax/src/source_map.rs) が AST の occurrence と元ファイル、展開・生成の履歴から位置を取得する。
+`AnalysisSnapshot::ast_location` は、その snapshot の到達可能な module tree にある ID を版付きの位置へ変換する。
+elaboration 中のエラーは、失敗した式の origin を使って診断位置を取得する。
+macro capture は渡された式の origin を保持し、template 由来の失敗は呼出位置へ戻す。
+外部 module の parameter は宣言元のファイル、本体は読み込んだファイルに対応付ける。
+
+追加したテストは式の範囲、occurrence の同一性、Program の構文分類、AST から HIR への対応、診断後の回復、macro capture と呼出位置、外部ファイル、snapshot 間の ID と位置を確認する。
+`cargo test --workspace --locked --offline` は library examples と doctest を含む 241 件が通った。
+`cargo clippy --workspace --all-targets --locked --offline -- -D warnings`、`cargo fmt --all -- --check`、`git diff --check` も通った。
+
+## 展開・生成の履歴と検査項の対応
+
+source map は AST の位置に加えて `Expansion`、`Template`、`Capture`、`Generated` の対応を持つ。
+展開ごとに新しい ID を割り当て、呼出 occurrence、定義名、template 内の occurrence、capture 元を辿れる。
+入れ子の展開は呼出 occurrence を通じて親展開へ接続し、module の特殊化を経た template も定義元の対応を保持する。
+履歴用の ID と AST の ID は同じ一意性空間にあり、`ast_location` は snapshot の AST に属する ID を解決する。
+
+生成理由は糖衣展開、暗黙の型、推論中の関数型、elaboration、kernel lowering を区別する。
+HIR の構造を辿って生成元を補い、elaboration の結果に含まれる生成された raw 部分項にも個別の対応を作る。
+zonk と kernel lowering は元の項の occurrence を引き継ぐ。
+goal の履歴には、制約を通じて関係する暗黙の型の生成元も含める。
+
+[provenance](../src/elab/src/provenance.rs) は、共有された raw・kernel handle とは別に elaboration の occurrence tree を保持する。
+論理・Program・metavariable の検査は失敗した項から外側へ向かう検査経路を記録し、その経路と occurrence tree を照合して診断位置を取得する。
+同じ項を複数回使う適用では、祖先の経路から失敗した引数を区別する。
+一意に復元できない共有項は候補の共通の AST occurrence へ戻す。
+kernel の `check_error` は失敗した検査経路を公開し、成功した次の検査で解放する。
+構文分類の試行を切り替える際は、採用するエラーの origin を保存してから検査履歴を初期化する。
+
+AST の identifier と hole token にも occurrence ID を付け、HIR の identifier、binder、hole は対応 ID を保持する。
+括弧を含む式の範囲と hole token の編集範囲を分離する。
+参照位置と binder 位置はそれぞれ source map から元ファイル込みで取得する。
+同じ template の参照を複数回展開した場合は、表示する参照位置をまとめつつ各展開の履歴を保存する。
+`Diagnostic`、`Occurrence`、`GoalSnapshot` は snapshot の版付き位置へ変換した `SourceOrigin` を保持し、macro の定義元は診断の secondary location にも含める。
+
+この節の四項目は実装済みである。
+通常参照の事前解決と workspace index は、未使用の template や未解決の宣言も列挙する経路が必要なため、Phase 3・6 の作業として残る。
+宣言成果物の独立所有、局所 transaction、incremental query、永続 cache の残作業は Phase ごとの表に示した。
+
+追加した九つのテストは、論理・Program の共有引数の診断位置、曖昧な共有項の共通 AST への対応、生成 raw 部分項、kernel 検査経路、暗黙の型の生成元、入れ子の展開、外部 template の複数展開、括弧内の capture hole を確認する。
+`cargo test --workspace --locked --offline` は library examples と doctest を含む 250 件が通った。
+`cargo clippy --workspace --all-targets --locked --offline -- -D warnings`、`cargo fmt --all -- --check`、`git diff --check` も通った。
+
+## Phase 4: Kernel bridge と所有環境
+
+semantic な `ModuleId`、`ModuleParamId`、`DefId` と nominal ID は [elab/ids.rs](../src/elab/src/ids.rs) に置いた。
+kernel は所有環境付きの opaque な `GlobalId`、`InductiveId`、`ProgramInductiveId` を発行し、[bridge](../src/elab/src/lowering/bridge.rs) が semantic ID との対応を保持する。
+kernel のコードと README に project の ID への参照は残っていない。
+
+module parameter は kernel の外側 context へ写す。
+外側の変数は de Bruijn level、式内の binder は従来の de Bruijn index で参照し、context を拡張しても検査済み template の項を変更する必要がない。
+`push_binding` は prefix の下で classifier を検査してから context を拡張する。
+`register_definition_template` は開いた宣言を検査し、`instantiate_template` は利用側の context の下で引数・body・classifier・局所 telescope と Program reflection を検査する。
+module 特殊化と nominal identity の選択は semantic layer にあり、証明 parameter を持つ module に追加の product rule は要求されない。
+
+再帰 spec の一時登録には RAII の transaction を置いた。
+型エラーと取消では一時 spec、同時生成した mirror、公開履歴、推論・簡約 cache を巻き戻す。
+検査経路のデバッグ情報は、scope の終了後も有効な handle を保持する。
+
+[Environment::transfer](../src/kernel/src/transfer.rs) は公開済み context と宣言を依存順に新しい arena へコピーし、nominal ID と mirror の対応を再割当てして再検査する。
+DAG の共有を維持し、移送元を破棄した後も移送先だけで検査できる。
+`CheckedArtifact::transfer_kernel` は raw 環境を参照しない `KernelArtifact` を返し、コピーと kernel 再検査の所要時間を別々に報告する。
+現在の移送単位は snapshot の所有環境であり、使用中の snapshot・成果物の最後の参照がなくなると環境が回収される。
+
+追加テストは環境間の handle・nominal ID の取り違え、依存する外側 context、局所 binder を含む同時代入と reflection、取消後の再登録、移送元と移送先の独立した回収を確認する。
+`substitution-identity.ref`、Program の関連定義と namespace identity を新しい環境へ繰り返し移し、到達可能ノード数の安定も確認する。
+
+release の `tests/library/ref.toml --stats` は単独実行で elapsed 18.77 秒、peak RSS 835868 KiB だった。
+source map・provenance の変更を含む作業ツリー全体での計測であり、先の crate 分割時の測定とは実装条件が異なる。
+raw の論理項は総割当 7,973,219、保持 70,679、kernel の宣言から到達可能なノードは 71,941 だった。
+取消時の巻き戻しを含む最終実装でライブラリ全体の移送を再計測し、2,705 宣言、71,941 ノードのコピーに 0.192 秒、kernel 再検査に 9.227 秒かかった。
+移送後の到達可能ノード数も 71,941 である。
+
+```sh
+cargo test -p sema library_transfer_measurement --release --locked --offline -- --ignored --nocapture
+```
+
+最終の workspace test は library examples と doctest を含む 255 件が通り、通常実行では除外する上記の全ライブラリ移送計測も個別に成功した。
+`cargo clippy --workspace --all-targets --locked --offline -- -D warnings`、`cargo fmt --all -- --check`、`git diff --check` は成功した。
+`src/kernel` 内の `ModuleId`、`ModuleParamId`、`DefId`、`ModuleParam` の検索結果は 0 件だった。
+
+### 対象の完了条件と残る作業
+
+Phase 4 の完了条件である calculus の情報だけによる kernel 検査、module substitution と nominal identity の維持、環境間の再配置、旧環境の回収を満たした。
+kernel から project ID が消える段階への到達を、実装・依存・テストで照合した。
+
+保存用 raw の宣言ごとの独立所有と sema の局所 transaction は、現在の snapshot 共有・失敗時再実行を宣言単位の再利用へ細分化する作業として残る。
+通常参照の事前解決は、既存の Resolver interface と occurrence 記録から、未使用 template も含めた事前 index を作るために残る。
+これらは kernel が project ID を必要とする理由ではなく、Phase 2・3 の細分化と Phase 5・6 の incremental/index 経路に関わる。
+永続 cache は Phase 8 の対象であり、確定した保存仕様に従う serialization・disk store と cache 有無の比較を残す。
+現在の kernel 移送は読み込まれた DAG の再配置・再検査部分として利用できる。

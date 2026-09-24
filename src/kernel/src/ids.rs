@@ -11,37 +11,14 @@ impl SymbolId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ModuleId(pub u32);
-
-impl ModuleId {
-    pub fn index(self) -> usize {
-        self.0 as usize
-    }
+// Nominal identities are allocated by their owning checking environment.
+macro_rules! identity {
+    ($($name:ident),*) => {$(
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub struct $name {
+            pub(crate) owner: crate::syntax::ArenaId,
+            pub(crate) index: u32,
+        }
+    )*};
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ModuleParamId {
-    pub module: ModuleId,
-    pub position: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct DefId {
-    pub module: ModuleId,
-    pub index: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct InductiveId {
-    pub module: ModuleId,
-    pub index: u32,
-}
-
-/// Stable identity of a CBPV value datatype.  Its Set reflection is stored as
-/// a separate [`InductiveId`] in the environment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ProgramInductiveId {
-    pub module: ModuleId,
-    pub index: u32,
-}
+identity!(GlobalId, InductiveId, ProgramInductiveId);

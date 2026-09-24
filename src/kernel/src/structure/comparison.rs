@@ -99,12 +99,8 @@ fn compare_set_term(
             index_l == index_r
         }
         (
-            SetTermForm::ModuleParam {
-                parameter: parameter_l,
-            },
-            SetTermForm::ModuleParam {
-                parameter: parameter_r,
-            },
+            SetTermForm::Ambient { level: parameter_l },
+            SetTermForm::Ambient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             SetTermForm::Annotated {
@@ -130,12 +126,8 @@ fn compare_set_term(
                 }
         }
         (
-            SetTermForm::ReflectedProgramParam {
-                parameter: parameter_l,
-            },
-            SetTermForm::ReflectedProgramParam {
-                parameter: parameter_r,
-            },
+            SetTermForm::ReflectedAmbient { level: parameter_l },
+            SetTermForm::ReflectedAmbient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             SetTermForm::LambdaTerm {
@@ -588,12 +580,8 @@ fn compare_set_type(
             index_l == index_r
         }
         (
-            SetTypeForm::ModuleParam {
-                parameter: parameter_l,
-            },
-            SetTypeForm::ModuleParam {
-                parameter: parameter_r,
-            },
+            SetTypeForm::Ambient { level: parameter_l },
+            SetTypeForm::Ambient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             SetTypeForm::Annotated {
@@ -619,12 +607,8 @@ fn compare_set_type(
                 }
         }
         (
-            SetTypeForm::ReflectedProgramParam {
-                parameter: parameter_l,
-            },
-            SetTypeForm::ReflectedProgramParam {
-                parameter: parameter_r,
-            },
+            SetTypeForm::ReflectedAmbient { level: parameter_l },
+            SetTypeForm::ReflectedAmbient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             SetTypeForm::ProdTerm {
@@ -971,12 +955,8 @@ fn compare_set_kind(
             true
         }
         (
-            SetKindForm::ModuleParam {
-                parameter: parameter_l,
-            },
-            SetKindForm::ModuleParam {
-                parameter: parameter_r,
-            },
+            SetKindForm::Ambient { level: parameter_l },
+            SetKindForm::Ambient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             SetKindForm::Annotated {
@@ -1017,12 +997,8 @@ fn compare_prop_term(
             index_l == index_r
         }
         (
-            PropTermForm::ModuleParam {
-                parameter: parameter_l,
-            },
-            PropTermForm::ModuleParam {
-                parameter: parameter_r,
-            },
+            PropTermForm::Ambient { level: parameter_l },
+            PropTermForm::Ambient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             PropTermForm::Annotated {
@@ -1450,12 +1426,8 @@ fn compare_prop_type(
             index_l == index_r
         }
         (
-            PropTypeForm::ModuleParam {
-                parameter: parameter_l,
-            },
-            PropTypeForm::ModuleParam {
-                parameter: parameter_r,
-            },
+            PropTypeForm::Ambient { level: parameter_l },
+            PropTypeForm::Ambient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             PropTypeForm::Annotated {
@@ -1839,12 +1811,8 @@ fn compare_prop_kind(
             true
         }
         (
-            PropKindForm::ModuleParam {
-                parameter: parameter_l,
-            },
-            PropKindForm::ModuleParam {
-                parameter: parameter_r,
-            },
+            PropKindForm::Ambient { level: parameter_l },
+            PropKindForm::Ambient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             PropKindForm::Annotated {
@@ -1885,12 +1853,8 @@ fn compare_value_term(
             index_l == index_r
         }
         (
-            ValueTermForm::ModuleParam {
-                parameter: parameter_l,
-            },
-            ValueTermForm::ModuleParam {
-                parameter: parameter_r,
-            },
+            ValueTermForm::Ambient { level: parameter_l },
+            ValueTermForm::Ambient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             ValueTermForm::Annotated {
@@ -2004,12 +1968,8 @@ fn compare_value_type(
             index_l == index_r
         }
         (
-            ValueTypeForm::ModuleParam {
-                parameter: parameter_l,
-            },
-            ValueTypeForm::ModuleParam {
-                parameter: parameter_r,
-            },
+            ValueTypeForm::Ambient { level: parameter_l },
+            ValueTypeForm::Ambient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             ValueTypeForm::Annotated {
@@ -2153,12 +2113,8 @@ fn compare_computation_term(
     let right = arena.read(right);
     Ok(match (&left.form, &right.form) {
         (
-            ComputationTermForm::ModuleParam {
-                parameter: parameter_l,
-            },
-            ComputationTermForm::ModuleParam {
-                parameter: parameter_r,
-            },
+            ComputationTermForm::Ambient { level: parameter_l },
+            ComputationTermForm::Ambient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             ComputationTermForm::Annotated {
@@ -2393,12 +2349,8 @@ fn compare_computation_type(
             ComputationTypeForm::Bound { index: index_r },
         ) => index_l == index_r,
         (
-            ComputationTypeForm::ModuleParam {
-                parameter: parameter_l,
-            },
-            ComputationTypeForm::ModuleParam {
-                parameter: parameter_r,
-            },
+            ComputationTypeForm::Ambient { level: parameter_l },
+            ComputationTypeForm::Ambient { level: parameter_r },
         ) => parameter_l == parameter_r,
         (
             ComputationTypeForm::Annotated {

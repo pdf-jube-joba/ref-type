@@ -426,15 +426,15 @@ pub enum SetTermForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
+    Ambient {
+        level: usize,
     },
     Annotated {
         body: SetTerm,
         classifier: super::environment::Classifier,
     },
-    ReflectedProgramParam {
-        parameter: ModuleParamId,
+    ReflectedAmbient {
+        level: usize,
     },
     LambdaTerm {
         rule: ProductRule,
@@ -575,15 +575,15 @@ pub enum SetTypeForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
+    Ambient {
+        level: usize,
     },
     Annotated {
         body: SetType,
         classifier: super::environment::Classifier,
     },
-    ReflectedProgramParam {
-        parameter: ModuleParamId,
+    ReflectedAmbient {
+        level: usize,
     },
     ProdTerm {
         rule: ProductRule,
@@ -694,8 +694,8 @@ pub enum SetKindForm {
         inductive: InductiveId,
         parameters: Vec<LogicalArgument>,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
+    Ambient {
+        level: usize,
     },
     Annotated {
         body: SetKind,
@@ -713,8 +713,8 @@ pub enum PropTermForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
+    Ambient {
+        level: usize,
     },
     Annotated {
         body: PropTerm,
@@ -851,8 +851,8 @@ pub enum PropTypeForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
+    Ambient {
+        level: usize,
     },
     Annotated {
         body: PropType,
@@ -970,8 +970,8 @@ pub enum PropKindForm {
         inductive: InductiveId,
         parameters: Vec<LogicalArgument>,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
+    Ambient {
+        level: usize,
     },
     Annotated {
         body: PropKind,
@@ -988,8 +988,8 @@ pub enum ValueTermForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
+    Ambient {
+        level: usize,
     },
     Annotated {
         body: ValueTerm,
@@ -1026,8 +1026,8 @@ pub enum ValueTypeForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
+    Ambient {
+        level: usize,
     },
     Annotated {
         body: ValueType,
@@ -1080,8 +1080,8 @@ pub struct ValueKindNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ComputationTermForm {
-    ModuleParam {
-        parameter: ModuleParamId,
+    Ambient {
+        level: usize,
     },
     Annotated {
         body: ComputationTerm,
@@ -1162,8 +1162,8 @@ pub enum ComputationTypeForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
+    Ambient {
+        level: usize,
     },
     Annotated {
         body: ComputationType,

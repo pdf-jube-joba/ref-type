@@ -66,33 +66,37 @@ Set/Prop と Program の context は別々で、各 context 内の term/type bin
 推論結果はそれぞれの type である。各系列に `infer_*_type` と `check_*_kind` も用意する。
 kind formation の右辺には `Classifier::Upper` を使う。
 
-`Environment::register_definition` は検査成功後に登録する。名前付き定義にする際は
-局所変数を lambda で束縛し、module parameter は名前付き参照で表す。
-`register_datatype` は parameter kind・field level・strict positivity を検査し、
-Set の鏡像を生成する。鏡像が既にある場合は宣言との一致を検査する。
+`Environment::register_definition` は閉じた body と classifier を検査して登録する。
+開いた宣言は `register_definition_template` で context とともに検査する。
+外側の context は `push_binding` が既存 prefix で classifier を検査した後に拡張し、`Ambient { level }` が de Bruijn level で参照する。
+式内の `Bound { index }` は、局所 binder からの de Bruijn index を表す。
+外側の context を拡張しても、登録済み template の level は変化しない。
+`register_datatype` は parameter kind・field level・strict positivity を検査し、Set の鏡像を生成する。
+鏡像が既にある場合は宣言との一致を検査する。
 
 宣言登録の検査で作った一時ノードは、検査が終わるとまとめて回収する。
 推論と弱頭簡約のキャッシュは、キーと結果の両方が検査開始前のノードだけを参照するエントリーを残す。
 検査開始前の handle と、直接 `Checker` から返された handle は保持する。
 datatype の鏡像は一時ノードの回収後に生成・登録する。
 
-front の module はパラメーター付き名前空間であり、import は front の名前空間への
-束縛になる。引数を宣言の型と本体へ同時・捕獲回避代入し、kernel へ適用ノードは渡さない。
-元宣言と convertible な引数が同じなら宣言 ID を再利用する。帰納型 ID の同一性は front
-で確定するため、kernel の conversion に module 専用の規則はない。
-未使用の元宣言も検査し、特殊化した宣言は必要になったときに代入・検査する。
+`GlobalId`、`InductiveId`、`ProgramInductiveId` は所有環境で発行する opaque な identity である。
+再帰 spec は先に identity を予約して組み立て、登録時の検査に成功してから公開する。
+semantic item や instance と identity の対応は elab の bridge が所有する。
 
-式中には `DefId` 参照を持たず、`Arena::annotated(body, classifier)` で作る共有ノードを
-使う。`DefId` は名前や検査済み宣言の登録キーとしてのみ残る。`Annotated` の推論は
-本体を注釈に対して検査した上で宣言した classifier を返し、conversion は本体に透過的。
+定義の利用には `Arena::annotated(body, classifier)` で作る共有ノードを使う。
+`GlobalId` は検査済み宣言の登録キーである。
+`Annotated` の推論は本体を注釈に対して検査した上で宣言した classifier を返し、conversion は本体に透過的。
 型を弱めて宣言した定義でも、利用側でその注釈を失わない。
 代入・変数シフト・閉性判定は注釈も辿る。node の共有は arena の interning による。
 
-型引数を局所 context に持つ関連定義は `register_definition_template` で
-body・classifier・context と、Program 定義の Set 側への反映を検査する。
-利用時は front が明示的な型引数を本体と型へ代入し、通常の注釈付きノードにする。
-検査済みテンプレートは kernel 環境の寿命中保持され、front の lowering を作り直しても
-同じ ID を再検査しない。
+template の登録では body・classifier・context と、Program 定義の Set 側への反映を検査する。
+`instantiate_template` は外側の文脈への引数を検査し、body・classifier・局所 context に捕獲回避同時代入を行い、利用側の context で再検査する。
+型引数の特殊化は bridge でも行い、検査された本体と型から注釈付きノードを作る。
+
+`Environment::transfer` は公開順に context と宣言を新しい環境へ移送し、再検査する。
+arena handle と nominal identity は再割当てし、DAG の共有と datatype・mirror の対応を保つ。
+成功時に返す `Relocation` は旧 handle・ID から新しい環境への対応を持つ。
+移送先は独立した所有権を持ち、移送元を破棄した後も検査できる。
 
 Program の型演算子と多相 computation は value/computation 両方の kind を量化できる。
 Program type/kind は value に依存できない。level は non-cumulative である。
@@ -110,12 +114,13 @@ Box が保持する Program 構文は computation type と computation に限る
 `calculus::substitute_with_reflection` は Program の引数を証明中では Set 側へ反映して代入する。
 `instantiate_telescope` は複数の引数を一度の走査で同時代入し、束縛の深さごとに共有部分木の結果を再利用する。
 変数のシフト・出現判定は、ノードごとに保存した自由な de Bruijn index の最大値で不要な走査を省く。
-module parameter 置換はノードと束縛の深さ、ID 再割当てと閉性判定はノードをキーに共有部分木の再走査を省く。
+外側の文脈への代入はノードと束縛の深さ、ID 再割当てと閉性判定はノードをキーに共有部分木の再走査を省く。
 conversion 中の alpha 比較も、再帰全体で比較済みノード対の結果を共有する。
-環境を受け取らない `substitute` は反映が不要な構文用である。`shift`、module parameter 置換、ID の再割当ても
-family と index を保つ。`convertible` は同一 family・level 内の比較であり、
-Program type/kind の型 beta も扱う。証明を記録する内部注釈は型検査したうえで
-計算上の比較から除外する。
+環境を受け取らない `substitute` は反映が不要な構文用である。
+`shift`、`substitute_ambient`、ID の再割当ては family と universe level を保つ。
+`ReflectedAmbient` への Program 引数は Set 側に反映してから代入する。
+`convertible` は同一 family・level 内の比較であり、Program type/kind の型 beta も扱う。
+証明を記録する内部注釈は型検査したうえで計算上の比較から除外する。
 
 `calculus::evaluate` は fuel を受け取り `Normal` または `OutOfFuel` を返す。
 Program value 自身は step せず、computation は定められた評価位置で簡約する。

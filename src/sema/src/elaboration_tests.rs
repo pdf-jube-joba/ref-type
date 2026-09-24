@@ -2,7 +2,7 @@ use crate::{
     elaborator::GlobalEnvironment,
     metavariables::ElaborationError,
     parse,
-    syntax::{SExp, SurfaceMeta},
+    syntax::{SExp, SExpKind, SurfaceMeta},
 };
 use elab::{
     environment::{DefinedConstant, ModuleItem},
@@ -155,19 +155,35 @@ fn deeply_nested_expressions_and_arrow_precedence() {
     let nested = format!("{}x{}", "(".repeat(48), ")".repeat(48));
     assert!(matches!(
         parse::str_parse_exp(&nested).unwrap(),
-        SExp::AccessPath { .. }
+        SExp {
+            kind: SExpKind::AccessPath { .. },
+            ..
+        }
     ));
     let nested = format!("{}x{}", r"\return(".repeat(48), ")".repeat(48));
     let mut term = parse::str_parse_exp(&nested).unwrap();
     for _ in 0..48 {
-        let SExp::Return { value } = term else {
+        let SExp {
+            kind: SExpKind::Return { value },
+            ..
+        } = term
+        else {
             panic!("missing nested return");
         };
         term = *value;
     }
-    assert!(matches!(term, SExp::AccessPath { .. }));
+    assert!(matches!(
+        term,
+        SExp {
+            kind: SExpKind::AccessPath { .. },
+            ..
+        }
+    ));
 
-    let SExp::Prod { bind, body } = parse::str_parse_exp(r"f x -> \fun (_: Y) => z").unwrap()
+    let SExp {
+        kind: SExpKind::Prod { bind, body },
+        ..
+    } = parse::str_parse_exp(r"f x -> \fun (_: Y) => z").unwrap()
     else {
         panic!("expected outer product");
     };
@@ -175,8 +191,20 @@ fn deeply_nested_expressions_and_arrow_precedence() {
         panic!("expected unnamed domain");
     };
     assert!(bind.vars.is_empty());
-    assert!(matches!(*bind.ty, SExp::App { .. }));
-    assert!(matches!(*body, SExp::Lam { .. }));
+    assert!(matches!(
+        *bind.ty,
+        SExp {
+            kind: SExpKind::App { .. },
+            ..
+        }
+    ));
+    assert!(matches!(
+        *body,
+        SExp {
+            kind: SExpKind::Lam { .. },
+            ..
+        }
+    ));
 
     for invalid in ["(x: X)", "x ->", "x =>", "(x"] {
         assert!(parse::str_parse_exp(invalid).is_err(), "accepted {invalid}");
@@ -187,9 +215,12 @@ fn deeply_nested_expressions_and_arrow_precedence() {
 fn parses_implicit_and_goal_metavariables_as_atoms() {
     assert!(matches!(
         parse::str_parse_exp("_").unwrap(),
-        SExp::Meta {
-            kind: SurfaceMeta {
-                kind: crate::syntax::MetaKind::Implicit,
+        SExp {
+            kind: SExpKind::Meta {
+                kind: SurfaceMeta {
+                    kind: crate::syntax::MetaKind::Implicit,
+                    ..
+                },
                 ..
             },
             ..
@@ -197,9 +228,12 @@ fn parses_implicit_and_goal_metavariables_as_atoms() {
     ));
     assert!(matches!(
         parse::str_parse_exp("?").unwrap(),
-        SExp::Meta {
-            kind: SurfaceMeta {
-                kind: crate::syntax::MetaKind::Goal,
+        SExp {
+            kind: SExpKind::Meta {
+                kind: SurfaceMeta {
+                    kind: crate::syntax::MetaKind::Goal,
+                    ..
+                },
                 ..
             },
             ..
@@ -207,9 +241,12 @@ fn parses_implicit_and_goal_metavariables_as_atoms() {
     ));
     assert!(matches!(
         parse::str_parse_exp("?2").unwrap(),
-        SExp::Meta {
-            kind: SurfaceMeta {
-                kind: crate::syntax::MetaKind::Named(2),
+        SExp {
+            kind: SExpKind::Meta {
+                kind: SurfaceMeta {
+                    kind: crate::syntax::MetaKind::Named(2),
+                    ..
+                },
                 ..
             },
             ..
@@ -1173,7 +1210,13 @@ fn accessibility_intro_and_descent_follow_the_system_premises() {
 #[test]
 fn program_value_let_requires_an_annotation() {
     let parsed = parse::str_parse_exp(r"(\let x: A := a \in \return(x))").unwrap();
-    assert!(matches!(parsed, SExp::ValueLet { .. }));
+    assert!(matches!(
+        parsed,
+        SExp {
+            kind: SExpKind::ValueLet { .. },
+            ..
+        }
+    ));
     assert!(parse::str_parse_exp(r"(\let x := a \in \return x)").is_err());
 }
 
@@ -1232,7 +1275,7 @@ fn program_value_let_rejects_invalid_annotations_and_unsolved_metas() {
 #[test]
 fn program_value_let_macro_annotations_use_the_outer_scope() {
     use crate::{elaborator::module_manager::ModuleManager, macros::MacroKind, syntax::ModuleBody};
-    use hir::SExp;
+    use hir::{SExp, SExpKind};
     let modules = parse::str_parse_modules(
         r#"
         \module LetMacros {
@@ -1257,41 +1300,59 @@ fn program_value_let_macro_annotations_use_the_outer_scope() {
     manager
         .register_macro(
             &env,
-            name.clone(),
+            name.clone().into(),
             MacroKind::Named,
-            before.clone(),
+            before.clone().into_iter().map(Into::into).collect(),
             after.clone().into(),
         )
         .unwrap();
-    let SExp::NamedMacro { name, tokens, .. } =
-        hir::SExp::from(parse::str_parse_exp("local!{A a}").unwrap())
+    let SExp {
+        kind: SExpKind::NamedMacro { name, tokens, .. },
+        ..
+    } = hir::SExp::from(parse::str_parse_exp("local!{A a}").unwrap())
     else {
         panic!()
     };
     let expanded = manager
-        .expand_named_macro(&env, env.root_module(), &name, &tokens, 0, None)
+        .expand_named_macro(
+            (&env.sources, None),
+            &env,
+            env.root_module(),
+            &name,
+            &tokens,
+            0,
+            None,
+        )
         .unwrap();
-    let SExp::ValueLet {
-        var,
-        value_ty,
-        value,
-        body,
+    let SExp {
+        kind:
+            SExpKind::ValueLet {
+                var,
+                value_ty,
+                value,
+                body,
+            },
+        ..
     } = expanded
     else {
         panic!()
     };
     assert_ne!(var.as_str(), "A");
     assert!(
-        matches!(*value_ty, SExp::AccessPath { access: hir::LocalAccess::Current { access }, .. } if access.as_str() == "A")
+        matches!(*value_ty, SExp { kind: SExpKind::AccessPath { access: hir::LocalAccess::Current { access }, .. }, .. } if access.as_str() == "A")
     );
     assert!(
-        matches!(*value, SExp::AccessPath { access: hir::LocalAccess::Current { access }, .. } if access.as_str() == "a")
+        matches!(*value, SExp { kind: SExpKind::AccessPath { access: hir::LocalAccess::Current { access }, .. }, .. } if access.as_str() == "a")
     );
-    let SExp::Return { value } = *body else {
+    let SExp {
+        kind: SExpKind::Return { value },
+        ..
+    } = *body
+    else {
         panic!()
     };
     assert!(
-        matches!(*value, SExp::AccessPath { access: hir::LocalAccess::Current { access }, .. } if access == var)
+        matches!(*value, SExp { kind: SExpKind::AccessPath { access: hir::LocalAccess::Current { access }, .. }, .. } if access == var)
     );
 }
 
@@ -1395,7 +1456,7 @@ fn run_step_recursor_distinguishes_branch_and_result_sorts() {
 
 #[test]
 fn run_step_inference_with_metavariables_preserves_the_universe() {
-    use crate::{metavariables::MetaStore, syntax::SourceSpan};
+    use crate::metavariables::MetaStore;
     use elab::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort};
 
     for level in [0, 2] {
@@ -1410,7 +1471,7 @@ fn run_step_inference_with_metavariables_preserves_the_universe() {
         let hole = metas.fresh(
             &env,
             hir::SurfaceMeta::goal(),
-            SourceSpan { start: 0, end: 1 },
+            None,
             &context,
             context.len(),
         );
@@ -1610,20 +1671,33 @@ fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
 
 #[test]
 fn program_application_classification_preserves_cbpv_boundaries() {
-    use crate::syntax::{ComputationTermExp as C, ProgramFunctionExp as F, ValueTermExp as V};
-    let C::Application {
+    use crate::syntax::{
+        ComputationTermExp as C, ComputationTermExpKind as CK, ProgramFunctionExpKind as F,
+        ValueTermExp as V, ValueTermExpKind as VK,
+    };
+    let CK::Application {
         function,
         arguments,
-    } = C::try_from(parse::str_parse_exp(r"\force f x y").unwrap()).unwrap()
+    } = C::try_from(parse::str_parse_exp(r"\force f x y").unwrap())
+        .unwrap()
+        .kind
     else {
         panic!("application")
     };
     assert_eq!(arguments.len(), 2);
-    assert!(arguments.iter().all(|value| matches!(value, V::Access(_))));
-    assert!(matches!(function, F::Computation(computation) if matches!(*computation, C::Force(_))));
+    assert!(
+        arguments
+            .iter()
+            .all(|value| matches!(value.kind, VK::Access(_)))
+    );
+    assert!(
+        matches!(function.kind, F::Computation(computation) if matches!(computation.kind, CK::Force(_)))
+    );
 
-    let V::Constructor { fields, .. } =
-        V::try_from(parse::str_parse_exp("Pair::pair x y").unwrap()).unwrap()
+    let VK::Constructor { fields, .. } =
+        V::try_from(parse::str_parse_exp("Pair::pair x y").unwrap())
+            .unwrap()
+            .kind
     else {
         panic!("constructor application")
     };

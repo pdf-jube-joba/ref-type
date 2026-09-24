@@ -26,6 +26,7 @@ pub struct GoalSnapshot {
     pub target: Option<DisplayJudgement>,
     pub constraints: Vec<(ConstraintStatus, DisplayJudgement)>,
     pub dependencies: Vec<GoalId>,
+    pub provenance: Vec<crate::diagnostics::SourceOrigin>,
 }
 
 impl AnalysisSnapshot {
@@ -76,14 +77,27 @@ impl AnalysisSnapshot {
             .map(|goal| GoalSnapshot {
                 id: id(goal.metavariable.0),
                 flavor: goal.flavor,
+                provenance: {
+                    let mut seen = std::collections::HashSet::new();
+                    goal.origin
+                        .into_iter()
+                        .chain(goal.occurrences.iter().flatten().copied())
+                        .chain(goal.related_origins.iter().copied())
+                        .flat_map(|id| self.source_trace(&env.sources, Some(id)))
+                        .filter(|entry| seen.insert(entry.id))
+                        .collect()
+                },
                 editable: goal.editable,
                 occurrences: goal
                     .occurrences
                     .iter()
                     .filter(|_| goal.editable)
-                    .map(|range| Location {
-                        range: *range,
-                        ..location
+                    .filter_map(|origin| origin.and_then(|id| env.sources.location(id)))
+                    .filter_map(|location| {
+                        self.sources()
+                            .file_id(&location.source.id.0)
+                            .and_then(|id| self.sources().file(id))
+                            .map(|file| file.location(location.span))
                     })
                     .collect(),
                 context: goal

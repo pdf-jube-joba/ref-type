@@ -26,7 +26,13 @@ fn require_explicit_module_argument(expression: &SExp) -> Result<(), Elaboration
     let mut expression = expression.clone();
     let mut has_meta = false;
     hir::visit::walk_sexp_control(&mut expression, &mut |node| {
-        if matches!(node, SExp::Meta { .. }) {
+        if matches!(
+            node,
+            SExp {
+                kind: SExpKind::Meta { .. },
+                ..
+            }
+        ) {
             has_meta = true;
             false
         } else {
@@ -204,6 +210,7 @@ impl GlobalEnvironment {
         Ok(())
     }
     pub(super) fn module_add_rec(&mut self, module: &Module) -> Result<(), ElaborationError> {
+        self.clear_expression_error();
         let Module {
             name,
             parameters,
@@ -269,11 +276,23 @@ impl GlobalEnvironment {
             let mut program_scope = program_term_elaborator::ProgramScope::new();
 
             for parameter in parameters {
+                self.clear_expression_error();
                 let RightBind { vars, ty } = &RightBind::from(parameter.clone());
-                let parameter_kind = if matches!(ty.as_ref(), SExp::ValueType) {
+                let parameter_kind = if matches!(
+                    ty.as_ref(),
+                    SExp {
+                        kind: SExpKind::ValueType,
+                        ..
+                    }
+                ) {
                     ModuleParameterKind::ProgramType
-                } else if !matches!(ty.as_ref(), SExp::Meta { .. })
-                    && let Ok(program_ty) = ValueTypeExp::try_from(ty.as_ref().clone())
+                } else if !matches!(
+                    ty.as_ref(),
+                    SExp {
+                        kind: SExpKind::Meta { .. },
+                        ..
+                    }
+                ) && let Ok(program_ty) = ValueTypeExp::try_from(ty.as_ref().clone())
                     && let Ok(program_ty) = program_scope.elaborate_value_type(&program_ty, self)
                 {
                     // Classify Program value parameters before reflecting their
@@ -287,7 +306,10 @@ impl GlobalEnvironment {
                             )
                         })?;
                     ModuleParameterKind::ProgramValue { ty: program_ty }
-                } else if let Ok(mut pts_ty) = local_scope.elab_exp(ty, self) {
+                } else if let Ok(mut pts_ty) = {
+                    self.clear_expression_error();
+                    local_scope.elab_exp(ty, self)
+                } {
                     if !self.metavariables.is_empty() {
                         self.metavariables
                             .infer_sort(
@@ -307,6 +329,7 @@ impl GlobalEnvironment {
                         })?;
                     ModuleParameterKind::Pts { ty: pts_ty }
                 } else {
+                    self.clear_expression_error();
                     let program_ty: ValueTypeExp = ty.as_ref().clone().try_into()?;
                     let program_ty = program_scope.elaborate_value_type(&program_ty, self)?;
                     let mut program_context = program_scope.context().clone();
@@ -400,6 +423,7 @@ impl GlobalEnvironment {
                     .copied()
                     .unwrap_or(module.span),
             });
+            self.clear_expression_error();
             self.metavariables.clear();
             if let syntax::ModuleItem::ChildModule { module } = decl {
                 if !self.defer_child_modules {
@@ -410,7 +434,20 @@ impl GlobalEnvironment {
             }
             // Expanded syntax is owned by the current declaration. Macro
             // registration keeps only the templates needed by later items.
-            let declaration = ModuleItem::from(decl.clone());
+            let mut declaration = ModuleItem::from(decl.clone());
+            hir::origins::VisitOrigins::visit_origins(
+                &mut declaration,
+                None,
+                &mut |origin, parent| {
+                    if origin.is_none() {
+                        *origin = Some(
+                            self.crate_env
+                                .sources
+                                .generated(parent, syntax::GenerationReason::Desugaring),
+                        );
+                    }
+                },
+            );
             let mut local_scope = LocalScope::default();
             match &declaration {
                 ModuleItem::Error { message, .. } => return Err(message.clone().into()),
@@ -433,6 +470,7 @@ impl GlobalEnvironment {
                     }
                     let program_errors = match program_result {
                         Ok((parameters, definition)) => {
+                            self.clear_expression_error();
                             self.publish_program_definition(
                                 owner.as_ref(),
                                 name.clone(),
@@ -444,6 +482,13 @@ impl GlobalEnvironment {
                         }
                         Err(errors) => errors,
                     };
+                    let program_error_origin = self.expression_error.take().or_else(|| {
+                        self.crate_env.provenance.error_origin(
+                            &self.crate_env.sources,
+                            self.diagnostic_location.as_ref(),
+                        )
+                    });
+                    self.clear_expression_error();
                     let has_program_owner = owner.as_ref().is_some_and(|owner| {
                         matches!(
                             self.module_manager.get_item(
@@ -456,6 +501,7 @@ impl GlobalEnvironment {
                         )
                     });
                     if has_program_owner && !program_errors.is_empty() {
+                        self.expression_error.set(program_error_origin);
                         return Err(program_errors.join("\n").into());
                     }
                     self.metavariables.clear();
@@ -494,13 +540,32 @@ impl GlobalEnvironment {
                         let mut ty = ty.clone();
                         let mut body = body.clone();
                         for binder in all_binders.into_iter().rev() {
-                            ty = SExp::Prod {
-                                bind: Bind::Named(binder.clone()),
-                                body: Box::new(ty),
+                            let source = binder
+                                .vars
+                                .first()
+                                .and_then(Identifier::origin)
+                                .or(binder.ty.origin);
+                            ty = SExp {
+                                kind: SExpKind::Prod {
+                                    bind: Bind::Named(binder.clone()),
+                                    body: Box::new(ty),
+                                },
+                                origin: Some(
+                                    self.crate_env
+                                        .sources
+                                        .generated(source, syntax::GenerationReason::Elaboration),
+                                ),
                             };
-                            body = SExp::Lam {
-                                bind: Bind::Named(binder),
-                                body: Box::new(body),
+                            body = SExp {
+                                kind: SExpKind::Lam {
+                                    bind: Bind::Named(binder),
+                                    body: Box::new(body),
+                                },
+                                origin: Some(
+                                    self.crate_env
+                                        .sources
+                                        .generated(source, syntax::GenerationReason::Elaboration),
+                                ),
                             };
                         }
                         let ty_elab = local_scope.elab_exp(&ty, self)?;
@@ -560,6 +625,8 @@ impl GlobalEnvironment {
                         {
                             return Err(error);
                         }
+                        self.expression_error
+                            .set(program_error_origin.or(self.expression_error.get()));
                         return Err(format!("{}\n{error}", program_errors.join("\n")).into());
                     }
                 }
@@ -621,10 +688,11 @@ impl GlobalEnvironment {
                             let term = {
                                 let mut term: SExp = ends.clone();
                                 for bd in rightbinds.iter().rev() {
-                                    term = SExp::Prod {
+                                    term = SExpKind::Prod {
                                         bind: hir::Bind::Named(bd.clone()),
                                         body: Box::new(term),
-                                    };
+                                    }
+                                    .into();
                                 }
                                 term
                             };
@@ -939,7 +1007,7 @@ impl GlobalEnvironment {
                         args.push((child_name.clone(), elaborated));
                         source = child;
                     }
-                    program_scope.finish_metas()?;
+                    program_scope.finish_metas(self)?;
                     for (_, arguments) in &mut args {
                         for (_, argument) in arguments {
                             match argument {
@@ -1032,6 +1100,7 @@ impl GlobalEnvironment {
                 ModuleItem::Check { exp, ty } => self.check_query(exp, ty, &mut ctx)?,
                 ModuleItem::Infer { exp } => self.infer_query(exp, &mut ctx)?,
             }
+            self.clear_expression_error();
             self.finish_elaboration_unit()?;
         }
 

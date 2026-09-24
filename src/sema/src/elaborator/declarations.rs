@@ -18,7 +18,13 @@ impl GlobalEnvironment {
         // Non-arrow value syntax is tried first. A bare CBV arrow in a
         // definition is a computation type; function values use explicit \U.
         if binders.is_empty()
-            && !matches!(surface_ty, SExp::Prod { .. })
+            && !matches!(
+                surface_ty,
+                SExp {
+                    kind: SExpKind::Prod { .. },
+                    ..
+                }
+            )
             && let Ok(ty) = ValueTypeExp::try_from(surface_ty.clone())
         {
             let body = match ValueTermExp::try_from(surface_body.clone()) {
@@ -57,15 +63,17 @@ impl GlobalEnvironment {
         let mut body = surface_body.clone();
         for binder in binders.iter().rev() {
             for var in binder.vars.iter().rev() {
-                ty = SExp::ComputationFunction {
+                ty = SExpKind::ComputationFunction {
                     domain: binder.ty.clone(),
                     codomain: Box::new(ty),
-                };
-                body = SExp::ComputationLam {
+                }
+                .into();
+                body = SExpKind::ComputationLam {
                     var: var.clone(),
                     value_ty: binder.ty.clone(),
                     body: Box::new(body),
-                };
+                }
+                .into();
             }
         }
         let computation_ty = ComputationTypeExp::try_from(ty);
@@ -127,12 +135,16 @@ impl GlobalEnvironment {
             });
         }
         let mut ty = ty;
-        while let SExp::Prod { body, .. } = ty {
+        while let SExp {
+            kind: SExpKind::Prod { body, .. },
+            ..
+        } = ty
+        {
             ty = body;
         }
-        match ty {
-            SExp::Sort(_) => true,
-            SExp::AccessPath { access, .. } => access_is_pts(access),
+        match &ty.kind {
+            SExpKind::Sort(_) => true,
+            SExpKind::AccessPath { access, .. } => access_is_pts(access),
             _ => false,
         }
     }
@@ -165,7 +177,13 @@ impl GlobalEnvironment {
             .len();
         let mut names = Vec::new();
         for binder in &owner.parameters {
-            if !matches!(binder.ty.as_ref(), SExp::ValueType) {
+            if !matches!(
+                binder.ty.as_ref(),
+                SExp {
+                    kind: SExpKind::ValueType,
+                    ..
+                }
+            ) {
                 return Err("Program associated item parameters must have type \\VType".into());
             }
             for name in &binder.vars {
@@ -174,7 +192,7 @@ impl GlobalEnvironment {
                     return Err("duplicate Program associated item parameter".into());
                 }
                 names.push(symbol);
-                scope.push_type(symbol);
+                scope.push_type(symbol, name.origin());
             }
         }
         if names.len() != expected {
@@ -234,12 +252,13 @@ impl GlobalEnvironment {
                     ty: Box::new(ty.clone()),
                 })
                 .collect(),
-            SExp::AccessPath {
+            SExpKind::AccessPath {
                 access: LocalAccess::Current {
                     access: type_name.clone(),
                 },
                 parameters: Vec::new(),
-            },
+            }
+            .into(),
         );
         self.add_typed_program_inductive_decl(type_name, parameters, &[constructor], Some(names))?;
         let Some(module_manager::ItemAccessResult::ProgramInductive(item)) =
@@ -462,13 +481,20 @@ impl GlobalEnvironment {
 
         let mut parameter_names = Vec::new();
         for RightBind { vars, ty } in parameters {
-            if !matches!(ty.as_ref(), SExp::ValueType) {
+            if !matches!(
+                ty.as_ref(),
+                SExp {
+                    kind: SExpKind::ValueType,
+                    ..
+                }
+            ) {
                 return Err("Program datatype parameters must have type \\VType".into());
             }
             for variable in vars {
+                let origin = variable.origin();
                 let variable = self.crate_env.intern(variable.as_str());
                 parameter_names.push(variable);
-                scope.push_type(variable);
+                scope.push_type(variable, origin);
             }
         }
 

@@ -4,7 +4,7 @@ mod comparison;
 mod traversal;
 mod views;
 pub(crate) use comparison::compare_children;
-pub(crate) use traversal::{map_children, visit_children};
+pub(crate) use traversal::{map_children, map_children_into, visit_children};
 pub(crate) use views::*;
 #[derive(Clone, Copy)]
 pub(crate) enum Traversal {

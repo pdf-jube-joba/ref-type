@@ -23,6 +23,7 @@ pub struct ErrorFrame {
 pub struct JudgementError {
     pub cause: String,
     pub frames: Vec<ErrorFrame>,
+    pub terms: Vec<crate::provenance::Term>,
 }
 
 impl std::fmt::Display for JudgementError {
@@ -80,7 +81,11 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     }
 
     pub fn check_pts(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
-        let result = check(self, term, ty);
+        let result = self
+            .env
+            .provenance
+            .check(term, || check(self, term, ty))
+            .map_err(|error| error.at(self.env, term));
         if result.is_ok() {
             debug!(target: "ref_type::typing", term = %crate::printing::format_exp(self.env, term),
                 ty = %crate::printing::format_exp(self.env, ty), "Set/Prop check succeeded");
@@ -89,7 +94,11 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     }
 
     pub fn infer_pts(&mut self, term: Exp) -> Result<Exp, Box<JudgementError>> {
-        let result = infer(self, term);
+        let result = self
+            .env
+            .provenance
+            .check(term, || infer(self, term))
+            .map_err(|error| error.at(self.env, term));
         if let Ok(ty) = &result {
             debug!(target: "ref_type::typing", term = %crate::printing::format_exp(self.env, term),
                 ty = %crate::printing::format_exp(self.env, *ty), "Set/Prop type inferred");
@@ -104,7 +113,10 @@ impl<'env, 'context> CheckSession<'env, 'context> {
     }
 
     pub fn infer_sort(&mut self, term: Exp) -> Result<Sort, Box<JudgementError>> {
-        infer_sort(self, term)
+        self.env
+            .provenance
+            .check(term, || infer_sort(self, term))
+            .map_err(|error| error.at(self.env, term))
     }
 
     pub fn check_wellformed_context(&mut self) -> Result<(), Box<JudgementError>> {
@@ -117,7 +129,21 @@ impl JudgementError {
         Self {
             cause: cause.into(),
             frames: Vec::new(),
+            terms: Vec::new(),
         }
+    }
+
+    pub fn at(
+        mut self: Box<Self>,
+        env: &CrateEnv,
+        term: impl Into<crate::provenance::Term>,
+    ) -> Box<Self> {
+        let term = term.into();
+        if self.terms.last() != Some(&term) {
+            self.terms.push(term);
+        }
+        env.provenance.record_error(&self.terms);
+        self
     }
 
     pub fn with_frame(

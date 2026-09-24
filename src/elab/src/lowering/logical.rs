@@ -12,6 +12,18 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, String> {
+        let result = self.set_inner(e, ctx, m);
+        if let Ok(term) = result {
+            self.raw.provenance.lowered(e, term, &self.raw.sources);
+        }
+        result
+    }
+    fn set_inner(
+        &mut self,
+        e: Exp,
+        ctx: &mut ExpContext,
+        m: ModuleId,
+    ) -> Result<s::Expression, String> {
         let ExpNode::App { func, arg } = self.raw.arena().get(e) else {
             return self.set_non_application(e, ctx, m);
         };
@@ -92,14 +104,15 @@ impl Lowerer<'_> {
             ExpNode::Bound(index) => build::bound(self.kernel.arena(), sort, stage, index)?,
             ExpNode::ModuleParam(parameter) => {
                 self.parameter(parameter)?;
-                logical_node!(self, sort, syntax_family; SetTerm | PropTerm | SetType | PropType | SetKind | PropKind => ModuleParam { parameter })
+                let kernel_parameter = self.parameter_id(parameter);
+                logical_node!(self, sort, syntax_family; SetTerm | PropTerm | SetType | PropType | SetKind | PropKind => Ambient { level: kernel_parameter })
             }
             ExpNode::DefinedConstant(definition) => {
                 self.definition(definition)?;
                 let definition = self
-                    .kernel
-                    .definition(definition)
-                    .ok_or("unknown definition")?;
+                    .checked_definition(definition)
+                    .ok_or("unknown definition")?
+                    .clone();
                 self.kernel
                     .arena()
                     .annotated(definition.body, definition.classifier)?
@@ -353,7 +366,7 @@ impl Lowerer<'_> {
                 parameters,
             } => {
                 self.inductive(indspec, m, ctx)?;
-                let inductive = indspec;
+                let inductive = self.inductive_id(indspec);
                 let parameters = parameters
                     .into_iter()
                     .map(|x| self.set(x, ctx, m))
@@ -375,7 +388,7 @@ impl Lowerer<'_> {
                 parameters,
             } => {
                 self.inductive(indspec, m, ctx)?;
-                let inductive = indspec;
+                let inductive = self.inductive_id(indspec);
                 let constructor = idx;
                 let parameters = parameters
                     .into_iter()
@@ -400,7 +413,7 @@ impl Lowerer<'_> {
                 cases,
             } => {
                 self.inductive(indspec, m, ctx)?;
-                let inductive = indspec;
+                let inductive = self.inductive_id(indspec);
                 let kind = crate::derivation::infer_motive_kind(
                     &mut crate::derivation::CheckSession::new(self.raw, ctx),
                     "Lower",
@@ -453,7 +466,7 @@ impl Lowerer<'_> {
                 branches,
             } => {
                 self.inductive(indspec, m, ctx)?;
-                let inductive = indspec;
+                let inductive = self.inductive_id(indspec);
                 let kind = crate::derivation::infer_motive_kind(
                     &mut crate::derivation::CheckSession::new(self.raw, ctx),
                     "Lower",
@@ -785,7 +798,7 @@ impl Lowerer<'_> {
                 branches,
             } => {
                 self.datatype(indspec)?;
-                let inductive = indspec;
+                let inductive = self.datatype_id(indspec);
                 let binders = branches
                     .iter()
                     .map(|b| b.binders.clone())
@@ -832,13 +845,16 @@ impl Lowerer<'_> {
             }
             ExpNode::ReflectedProgramParam(parameter) => {
                 self.parameter(parameter)?;
+                let kernel_parameter = self.parameter_id(parameter);
                 let binding = self
                     .raw
                     .module_parameter_opt(parameter)
                     .ok_or("unknown reflected parameter")?;
                 match binding.kind {
                     crate::environment::ModuleParameterKind::ProgramType => {
-                        let form = s::SetTypeForm::ReflectedProgramParam { parameter };
+                        let form = s::SetTypeForm::ReflectedAmbient {
+                            level: kernel_parameter,
+                        };
                         self.kernel
                             .arena()
                             .alloc(s::SetTypeNode {
@@ -848,7 +864,9 @@ impl Lowerer<'_> {
                             .into()
                     }
                     crate::environment::ModuleParameterKind::ProgramValue { .. } => {
-                        let form = s::SetTermForm::ReflectedProgramParam { parameter };
+                        let form = s::SetTermForm::ReflectedAmbient {
+                            level: kernel_parameter,
+                        };
                         self.kernel
                             .arena()
                             .alloc(s::SetTermNode {

@@ -5,15 +5,18 @@ use elab::{
     exp::Exp,
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
 };
+use hir::origins::VisitOrigins;
 use hir::visit::{walk_sexp_control, walk_sexp_mut};
 use hir::{
-    Bind, Identifier, LocalAccess, MacroExp, MacroSeqAtom, SExp, Statement, TokenMatchPattern,
+    Bind, Identifier, LocalAccess, MacroExp, MacroSeqAtom, SExp, SExpKind, Statement,
+    TokenMatchPattern,
 };
 use std::{
     cell::OnceCell,
     collections::{HashMap, HashSet},
     sync::atomic::{AtomicU64, Ordering},
 };
+use syntax::{AstId, DerivedOrigin, SourceMap};
 
 pub const MAX_MACRO_EXPANSION_DEPTH: u16 = 128;
 
@@ -87,7 +90,11 @@ impl ModuleManager {
         for scope in scopes {
             for definition in scope.declared.iter().chain(&scope.used) {
                 walk_sexp_control(&mut definition.template.clone(), &mut |node| {
-                    if let SExp::Captured(id) = node {
+                    if let SExp {
+                        kind: SExpKind::Captured(id),
+                        ..
+                    } = node
+                    {
                         roots.push(self.captured_expression(*id));
                     }
                     true
@@ -343,39 +350,39 @@ fn alpha_rename(
     counter: &mut usize,
     scopes: &mut Vec<HashMap<String, String>>,
 ) {
-    match exp {
-        SExp::Meta { .. }
-        | SExp::Sort(_)
-        | SExp::ValueType
-        | SExp::MacroParameter(_)
-        | SExp::Captured(_) => {}
-        SExp::AccessPath { access, parameters } => {
+    match &mut exp.kind {
+        SExpKind::Meta { .. }
+        | SExpKind::Sort(_)
+        | SExpKind::ValueType
+        | SExpKind::MacroParameter(_)
+        | SExpKind::Captured(_) => {}
+        SExpKind::AccessPath { access, parameters } => {
             rename_access(access, scopes);
             for parameter in parameters {
                 alpha_rename(parameter, order, counter, scopes);
             }
         }
-        SExp::AssociatedAccess { base, .. }
-        | SExp::InferredProjection { value: base, .. }
-        | SExp::ThunkType {
+        SExpKind::AssociatedAccess { base, .. }
+        | SExpKind::InferredProjection { value: base, .. }
+        | SExpKind::ThunkType {
             computation_ty: base,
         }
-        | SExp::ReturnType { value_ty: base }
-        | SExp::Thunk { computation: base }
-        | SExp::Return { value: base }
-        | SExp::Force { value: base }
-        | SExp::PowerSet { set: base }
-        | SExp::BoxType { program_ty: base }
-        | SExp::IdRefl { element: base } => alpha_rename(base, order, counter, scopes),
-        SExp::MathMacro { tokens, .. } | SExp::NamedMacro { tokens, .. } => {
+        | SExpKind::ReturnType { value_ty: base }
+        | SExpKind::Thunk { computation: base }
+        | SExpKind::Return { value: base }
+        | SExpKind::Force { value: base }
+        | SExpKind::PowerSet { set: base }
+        | SExpKind::BoxType { program_ty: base }
+        | SExpKind::IdRefl { element: base } => alpha_rename(base, order, counter, scopes),
+        SExpKind::MathMacro { tokens, .. } | SExpKind::NamedMacro { tokens, .. } => {
             alpha_macro_exps(tokens, order, counter, scopes)
         }
-        SExp::TokenMatch { branches, .. } => {
+        SExpKind::TokenMatch { branches, .. } => {
             for (_, body) in branches {
                 alpha_rename(body, order, counter, scopes);
             }
         }
-        SExp::Where { exp, clauses } => {
+        SExpKind::Where { exp, clauses } => {
             let mut local = HashMap::new();
             for (name, ty, body) in clauses {
                 alpha_rename(ty, order, counter, scopes);
@@ -389,44 +396,44 @@ fn alpha_rename(
                 scopes.pop();
             }
         }
-        SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
+        SExpKind::Prod { bind, body } | SExpKind::Lam { bind, body } => {
             let local = alpha_bind_type(bind, order, counter, scopes);
             scopes.push(local);
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
         }
-        SExp::App { func, arg }
-        | SExp::ComputationFunction {
+        SExpKind::App { func, arg }
+        | SExpKind::ComputationFunction {
             domain: func,
             codomain: arg,
         }
-        | SExp::Equal {
+        | SExpKind::Equal {
             left: func,
             right: arg,
         }
-        | SExp::ExistsIntro {
+        | SExpKind::ExistsIntro {
             element: func,
             set: arg,
         }
-        | SExp::BoxProgram {
+        | SExpKind::BoxProgram {
             program_ty: func,
             program: arg,
         }
-        | SExp::ForceBox {
+        | SExpKind::ForceBox {
             program_ty: func,
             boxed: arg,
         }
-        | SExp::BoxApp {
+        | SExpKind::BoxApp {
             function: func,
             argument: arg,
         } => alpha_many([func, arg], order, counter, scopes),
-        SExp::SubsetIntro {
+        SExpKind::SubsetIntro {
             superset,
             subset,
             element,
             proof,
         } => alpha_many([superset, subset, element, proof], order, counter, scopes),
-        SExp::IndCase {
+        SExpKind::IndCase {
             path,
             scrutinee,
             return_type,
@@ -439,7 +446,7 @@ fn alpha_rename(
                 alpha_rename(branch, order, counter, scopes);
             }
         }
-        SExp::Induction {
+        SExpKind::Induction {
             binder,
             return_type,
             cases,
@@ -457,7 +464,7 @@ fn alpha_rename(
                 alpha_rename(case, order, counter, scopes);
             }
         }
-        SExp::IndElimPrim {
+        SExpKind::IndElimPrim {
             path,
             parameters,
             motive,
@@ -468,7 +475,7 @@ fn alpha_rename(
             }
             alpha_rename(motive, order, counter, scopes);
         }
-        SExp::ComputationLam {
+        SExpKind::ComputationLam {
             var,
             value_ty,
             body,
@@ -479,7 +486,7 @@ fn alpha_rename(
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
         }
-        SExp::Sequence {
+        SExpKind::Sequence {
             computation,
             var,
             value_ty,
@@ -492,7 +499,7 @@ fn alpha_rename(
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
         }
-        SExp::ValueLet {
+        SExpKind::ValueLet {
             var,
             value_ty,
             value,
@@ -505,7 +512,7 @@ fn alpha_rename(
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
         }
-        SExp::ProgramCase {
+        SExpKind::ProgramCase {
             path,
             scrutinee,
             branches,
@@ -522,7 +529,7 @@ fn alpha_rename(
                 scopes.pop();
             }
         }
-        SExp::SubSet {
+        SExpKind::SubSet {
             var,
             set,
             predicate,
@@ -533,10 +540,10 @@ fn alpha_rename(
             alpha_rename(predicate, order, counter, scopes);
             scopes.pop();
         }
-        SExp::Exists { bind } => {
+        SExpKind::Exists { bind } => {
             alpha_bind_type(bind, order, counter, scopes);
         }
-        SExp::TakeSet {
+        SExpKind::TakeSet {
             bind,
             body,
             existence,
@@ -549,7 +556,7 @@ fn alpha_rename(
             alpha_rename(existence, order, counter, scopes);
             alpha_rename(uniqueness, order, counter, scopes);
         }
-        SExp::TakeProp {
+        SExpKind::TakeProp {
             bind,
             body,
             existence,
@@ -560,7 +567,7 @@ fn alpha_rename(
             scopes.pop();
             alpha_rename(existence, order, counter, scopes);
         }
-        SExp::IdElim {
+        SExpKind::IdElim {
             left,
             right,
             var,
@@ -579,7 +586,7 @@ fn alpha_rename(
             alpha_rename(base, order, counter, scopes);
             alpha_rename(equality, order, counter, scopes);
         }
-        SExp::RecordTypeCtor {
+        SExpKind::RecordTypeCtor {
             access,
             parameters,
             fields,
@@ -592,7 +599,7 @@ fn alpha_rename(
                 alpha_rename(field, order, counter, scopes);
             }
         }
-        SExp::Block(block) | SExp::Program(block) => {
+        SExpKind::Block(block) | SExpKind::Program(block) => {
             let mut pushed = 0;
             for statement in &mut block.statements {
                 match statement {
@@ -641,58 +648,62 @@ fn alpha_rename(
                 scopes.pop();
             }
         }
-        SExp::RunStep {
+        SExpKind::RunStep {
             state_ty,
             result_ty,
         }
-        | SExp::TypeLift {
+        | SExpKind::TypeLift {
             superset: state_ty,
             subset: result_ty,
         }
-        | SExp::AxiomFunExt {
+        | SExpKind::AxiomFunExt {
             left: state_ty,
             right: result_ty,
             pointwise: _,
         } => {
             alpha_rename(state_ty, order, counter, scopes);
             alpha_rename(result_ty, order, counter, scopes);
-            if let SExp::AxiomFunExt { pointwise, .. } = exp {
+            if let SExp {
+                kind: SExpKind::AxiomFunExt { pointwise, .. },
+                ..
+            } = exp
+            {
                 alpha_rename(pointwise, order, counter, scopes);
             }
         }
-        SExp::Continue {
+        SExpKind::Continue {
             state_ty,
             result_ty,
             next,
         }
-        | SExp::Finish {
+        | SExpKind::Finish {
             state_ty,
             result_ty,
             output: next,
         }
-        | SExp::Pred {
+        | SExpKind::Pred {
             superset: state_ty,
             subset: result_ty,
             element: next,
         }
-        | SExp::SubsetElim {
+        | SExpKind::SubsetElim {
             element: state_ty,
             subset: result_ty,
             superset: next,
         } => alpha_many([state_ty, result_ty, next], order, counter, scopes),
-        SExp::Acc {
+        SExpKind::Acc {
             state_ty,
             result_ty,
             step,
             state,
         }
-        | SExp::AxiomSetExt {
+        | SExpKind::AxiomSetExt {
             left: state_ty,
             right: result_ty,
             left_to_right: step,
             right_to_left: state,
         } => alpha_many([state_ty, result_ty, step, state], order, counter, scopes),
-        SExp::Run {
+        SExpKind::Run {
             state_ty,
             result_ty,
             step,
@@ -704,7 +715,7 @@ fn alpha_rename(
             counter,
             scopes,
         ),
-        SExp::AccIntro {
+        SExpKind::AccIntro {
             state_ty,
             result_ty,
             step,
@@ -716,7 +727,7 @@ fn alpha_rename(
             counter,
             scopes,
         ),
-        SExp::RunCase {
+        SExpKind::RunCase {
             state_ty,
             result_ty,
             step,
@@ -738,7 +749,7 @@ fn alpha_rename(
             counter,
             scopes,
         ),
-        SExp::RunStepRec {
+        SExpKind::RunStepRec {
             state_ty,
             result_ty,
             motive,
@@ -758,7 +769,7 @@ fn alpha_rename(
             counter,
             scopes,
         ),
-        SExp::AccDescent {
+        SExpKind::AccDescent {
             state_ty,
             result_ty,
             step,
@@ -780,12 +791,12 @@ fn alpha_rename(
             counter,
             scopes,
         ),
-        SExp::AxiomClassicalIndefiniteChoice {
+        SExpKind::AxiomClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
         } => alpha_many([domain, family, inhabited], order, counter, scopes),
-        SExp::TakeEq {
+        SExpKind::TakeEq {
             func,
             domain,
             codomain,
@@ -850,12 +861,15 @@ fn validate_macro_tokens(tokens: &mut [MacroExp], kinds: &CaptureKinds) -> Resul
                 *token = if kinds.get(name.as_str()) == Some(&CaptureKind::Token) {
                     MacroExp::TokenParameter(name.clone())
                 } else {
-                    MacroExp::RawExp(SExp::AccessPath {
-                        access: LocalAccess::Current {
-                            access: name.clone(),
-                        },
-                        parameters: Vec::new(),
-                    })
+                    MacroExp::RawExp(
+                        SExpKind::AccessPath {
+                            access: LocalAccess::Current {
+                                access: name.clone(),
+                            },
+                            parameters: Vec::new(),
+                        }
+                        .into(),
+                    )
                 };
             }
             MacroExp::RawExp(exp) => validate_template(exp, kinds)?,
@@ -874,16 +888,16 @@ fn validate_template(template: &mut SExp, kinds: &CaptureKinds) -> Result<(), St
         if result.is_err() {
             return false;
         }
-        match node {
-            SExp::MacroParameter(name) => {
+        match &mut node.kind {
+            SExpKind::MacroParameter(name) => {
                 result = require_capture(kinds, name, CaptureKind::Expression);
                 false
             }
-            SExp::NamedMacro { tokens, .. } | SExp::MathMacro { tokens, .. } => {
+            SExpKind::NamedMacro { tokens, .. } | SExpKind::MathMacro { tokens, .. } => {
                 result = validate_macro_tokens(tokens, kinds);
                 false
             }
-            SExp::TokenMatch { target, branches } => {
+            SExpKind::TokenMatch { target, branches } => {
                 result = (|| {
                     let target_kind = kinds.get(target.as_str()).ok_or_else(|| {
                         format!(
@@ -939,18 +953,18 @@ fn prepare_template(
         if error.is_some() {
             return;
         }
-        match node {
-            SExp::Meta { kind, .. } => kind.origin = hir::MetaOrigin::Template,
-            SExp::MathMacro {
+        match &mut node.kind {
+            SExpKind::Meta { kind, .. } => kind.origin = hir::MetaOrigin::Template,
+            SExpKind::MathMacro {
                 scope, max_order, ..
             }
-            | SExp::NamedMacro {
+            | SExpKind::NamedMacro {
                 scope, max_order, ..
             } => {
                 *scope = Some(hir::ScopeId(module.0));
                 *max_order = Some(declaration_order);
             }
-            SExp::AccessPath { access, parameters } => {
+            SExpKind::AccessPath { access, parameters } => {
                 if matches!(access, LocalAccess::Current { access: name } if name.as_str().starts_with("<macro:"))
                 {
                     return;
@@ -961,16 +975,16 @@ fn prepare_template(
                             error = Some("Module parameter cannot take module arguments".into());
                             return;
                         }
-                        *node = SExp::Captured(manager.capture_expression(exp));
+                        node.kind = SExpKind::Captured(manager.capture_expression(exp));
                     }
                     Ok((resolved, _)) => *access = resolved,
                     Err(message) => error = Some(message),
                 }
             }
-            SExp::IndCase { path, .. }
-            | SExp::IndElimPrim { path, .. }
-            | SExp::ProgramCase { path, .. }
-            | SExp::RecordTypeCtor { access: path, .. } => {
+            SExpKind::IndCase { path, .. }
+            | SExpKind::IndElimPrim { path, .. }
+            | SExpKind::ProgramCase { path, .. }
+            | SExpKind::RecordTypeCtor { access: path, .. } => {
                 match resolve_access(env, module, path) {
                     Ok((resolved, _)) => *path = resolved,
                     Err(message) => error = Some(message),
@@ -1048,7 +1062,13 @@ impl ModuleManager {
             let mut has_match = false;
             let mut template_check = template.clone();
             walk_sexp_mut(&mut template_check, &mut |node| {
-                has_match |= matches!(node, SExp::TokenMatch { .. });
+                has_match |= matches!(
+                    node,
+                    SExp {
+                        kind: SExpKind::TokenMatch { .. },
+                        ..
+                    }
+                );
             });
             if has_match {
                 return Err("Token matching is only valid in named macros".into());
@@ -1066,7 +1086,10 @@ impl ModuleManager {
         let self_name = name.clone();
         let mut nested_error = None;
         walk_sexp_mut(&mut template, &mut |node| {
-            if let SExp::NamedMacro { name, .. } = node
+            if let SExp {
+                kind: SExpKind::NamedMacro { name, .. },
+                ..
+            } = node
                 && !visible_named.contains(name.as_str())
                 && !(kind == MacroKind::Named && *name == self_name)
             {
@@ -1165,6 +1188,7 @@ impl ModuleManager {
 
     pub fn expand_math_macro(
         &self,
+        source: (&SourceMap, Option<AstId>),
         env: &CrateEnv,
         module: ModuleId,
         tokens: &[MacroExp],
@@ -1181,7 +1205,7 @@ impl ModuleManager {
             .iter()
             .map(|token| match token {
                 MacroExp::Seq(inner) => self
-                    .expand_math_macro(env, module, inner, depth + 1, max_order)
+                    .expand_math_macro(source, env, module, inner, depth + 1, max_order)
                     .map(MacroExp::RawExp),
                 other => Ok(other.clone()),
             })
@@ -1208,11 +1232,12 @@ impl ModuleManager {
         let Some((_, _, definition, captures)) = matches.into_iter().next() else {
             return Err("No visible math macro matches the complete token sequence".into());
         };
-        instantiate_template(definition, &captures, depth)
+        instantiate_template(source, definition, &captures, depth)
     }
 
     pub fn expand_named_macro(
         &self,
+        source: (&SourceMap, Option<AstId>),
         env: &CrateEnv,
         module: ModuleId,
         name: &Identifier,
@@ -1247,7 +1272,7 @@ impl ModuleManager {
                 name.as_str()
             ));
         }
-        instantiate_template(definition, &captures, depth)
+        instantiate_template(source, definition, &captures, depth)
     }
 }
 
@@ -1258,24 +1283,24 @@ fn remap_macro_scope(
     remapping: &OwnedMacroInstantiation,
 ) -> ModuleMacroScope {
     let remap = |mut definition: MacroDefinition| {
-        walk_sexp_mut(&mut definition.template, &mut |node| match node {
-            SExp::AccessPath {
+        walk_sexp_mut(&mut definition.template, &mut |node| match &mut node.kind {
+            SExpKind::AccessPath {
                 access: LocalAccess::Resolved { scope, .. },
                 ..
             }
-            | SExp::IndCase {
+            | SExpKind::IndCase {
                 path: LocalAccess::Resolved { scope, .. },
                 ..
             }
-            | SExp::IndElimPrim {
+            | SExpKind::IndElimPrim {
                 path: LocalAccess::Resolved { scope, .. },
                 ..
             }
-            | SExp::ProgramCase {
+            | SExpKind::ProgramCase {
                 path: LocalAccess::Resolved { scope, .. },
                 ..
             }
-            | SExp::RecordTypeCtor {
+            | SExpKind::RecordTypeCtor {
                 access: LocalAccess::Resolved { scope, .. },
                 ..
             } => {
@@ -1283,14 +1308,14 @@ fn remap_macro_scope(
                     *scope = hir::ScopeId(remapped.0);
                 }
             }
-            SExp::MathMacro { scope, .. } | SExp::NamedMacro { scope, .. } => {
+            SExpKind::MathMacro { scope, .. } | SExpKind::NamedMacro { scope, .. } => {
                 if let Some(scope) = scope
                     && let Some(remapped) = remapping.module_ids.get(&ModuleId(scope.0))
                 {
                     *scope = hir::ScopeId(remapped.0);
                 }
             }
-            SExp::Captured(id) => {
+            SExpKind::Captured(id) => {
                 let renamed = remap_all_global_ids(
                     env.arena(),
                     manager.captured_expression(*id),
@@ -1315,13 +1340,24 @@ fn remap_macro_scope(
 }
 
 fn instantiate_template(
+    (map, call): (&SourceMap, Option<AstId>),
     definition: &MacroDefinition,
     captures: &Captures,
     depth: u16,
 ) -> Result<SExp, String> {
     let mut result = definition.template.clone();
+    let expansion = map.derive(DerivedOrigin::Expansion {
+        call,
+        definition: definition.name.origin().or(definition.template.origin),
+    });
+    result.visit_origins(None, &mut |origin, _| {
+        *origin = Some(map.derive(DerivedOrigin::Template {
+            expansion,
+            template: *origin,
+        }));
+    });
     rename_template_binders(&mut result);
-    instantiate_exp(&mut result, captures, depth)?;
+    instantiate_exp(&mut result, captures, depth, (map, expansion))?;
     Ok(result)
 }
 
@@ -1329,12 +1365,17 @@ fn instantiate_tokens(
     tokens: &mut Vec<MacroExp>,
     captures: &Captures,
     depth: u16,
+    source: (&SourceMap, AstId),
 ) -> Result<(), String> {
     let mut output = Vec::new();
     for token in std::mem::take(tokens) {
         match token {
             MacroExp::Splice(name) => match captures.get(name.as_str()) {
-                Some(CaptureValue::Sequence(items)) => output.extend(items.clone()),
+                Some(CaptureValue::Sequence(items)) => {
+                    let mut items = items.clone();
+                    capture_origins(&mut items, name.origin(), source);
+                    output.extend(items);
+                }
                 _ => {
                     return Err(format!(
                         "Rest capture '{}' has no matched sequence",
@@ -1343,7 +1384,11 @@ fn instantiate_tokens(
                 }
             },
             MacroExp::TokenParameter(name) => match captures.get(name.as_str()) {
-                Some(CaptureValue::Token(token)) => output.push(token.clone()),
+                Some(CaptureValue::Token(token)) => {
+                    let mut token = token.clone();
+                    capture_origins(&mut token, name.origin(), source);
+                    output.push(token);
+                }
                 _ => {
                     return Err(format!(
                         "Token capture '{}' has no matched token",
@@ -1352,11 +1397,11 @@ fn instantiate_tokens(
                 }
             },
             MacroExp::RawExp(mut exp) => {
-                instantiate_exp(&mut exp, captures, depth)?;
+                instantiate_exp(&mut exp, captures, depth, source)?;
                 output.push(MacroExp::RawExp(exp));
             }
             MacroExp::Seq(mut items) => {
-                instantiate_tokens(&mut items, captures, depth)?;
+                instantiate_tokens(&mut items, captures, depth, source)?;
                 output.push(MacroExp::Seq(items));
             }
             other => output.push(other),
@@ -1366,16 +1411,39 @@ fn instantiate_tokens(
     Ok(())
 }
 
-fn instantiate_exp(exp: &mut SExp, captures: &Captures, depth: u16) -> Result<(), String> {
+fn capture_origins(
+    value: &mut impl VisitOrigins,
+    parameter: Option<AstId>,
+    (map, expansion): (&SourceMap, AstId),
+) {
+    value.visit_origins(None, &mut |origin, _| {
+        *origin = Some(map.derive(DerivedOrigin::Capture {
+            expansion,
+            parameter,
+            captured: *origin,
+        }));
+    });
+}
+
+fn instantiate_exp(
+    exp: &mut SExp,
+    captures: &Captures,
+    depth: u16,
+    source: (&SourceMap, AstId),
+) -> Result<(), String> {
     let mut result = Ok(());
     walk_sexp_control(exp, &mut |node| {
         if result.is_err() {
             return false;
         }
-        match node {
-            SExp::MacroParameter(name) => {
+        match &mut node.kind {
+            SExpKind::MacroParameter(name) => {
                 match captures.get(name.as_str()) {
-                    Some(CaptureValue::Expression(replacement)) => *node = replacement.clone(),
+                    Some(CaptureValue::Expression(replacement)) => {
+                        let parameter = node.origin;
+                        *node = replacement.clone();
+                        capture_origins(node, parameter, source);
+                    }
                     _ => {
                         result = Err(format!(
                             "Capture '${}' has no matched expression",
@@ -1386,21 +1454,21 @@ fn instantiate_exp(exp: &mut SExp, captures: &Captures, depth: u16) -> Result<()
                 // Caller syntax is opaque: never substitute into an inserted expression.
                 false
             }
-            SExp::MathMacro {
+            SExpKind::MathMacro {
                 tokens,
                 depth: nested,
                 ..
             }
-            | SExp::NamedMacro {
+            | SExpKind::NamedMacro {
                 tokens,
                 depth: nested,
                 ..
             } => {
                 *nested = depth + 1;
-                result = instantiate_tokens(tokens, captures, depth);
+                result = instantiate_tokens(tokens, captures, depth, source);
                 false
             }
-            SExp::TokenMatch { target, branches } => {
+            SExpKind::TokenMatch { target, branches } => {
                 let selected = (|| {
                     let value = captures.get(target.as_str()).ok_or_else(|| {
                         format!(
@@ -1426,7 +1494,7 @@ fn instantiate_exp(exp: &mut SExp, captures: &Captures, depth: u16) -> Result<()
                         };
                         if matches {
                             let mut selected = body.clone();
-                            instantiate_exp(&mut selected, &local, depth)?;
+                            instantiate_exp(&mut selected, &local, depth, source)?;
                             return Ok(selected);
                         }
                     }

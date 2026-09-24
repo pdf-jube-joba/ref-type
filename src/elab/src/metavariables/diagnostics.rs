@@ -4,7 +4,7 @@ use crate::{
     exp::{Exp, ExpContext},
     ids::MetaVarId,
 };
-use hir::{MetaKind, SourceLocation, SourceSpan, SurfaceMeta};
+use hir::{AstId, MetaKind, SourceLocation, SurfaceMeta};
 use std::{error::Error, fmt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,8 +50,9 @@ pub struct ConstraintRecord {
 pub struct MetaGoal {
     pub metavariable: MetaVarId,
     pub flavor: MetaFlavor,
-    pub span: SourceSpan,
-    pub occurrences: Vec<SourceSpan>,
+    pub origin: Option<AstId>,
+    pub occurrences: Vec<Option<AstId>>,
+    pub related_origins: Vec<AstId>,
     pub editable: bool,
     pub context: ExpContext,
     pub principal: Option<GoalConstraint>,
@@ -74,6 +75,7 @@ impl MetaGoal {
 pub enum ElaborationError {
     Located {
         location: SourceLocation,
+        origin: Option<AstId>,
         error: Box<ElaborationError>,
     },
     Message(String),
@@ -88,7 +90,9 @@ pub enum ElaborationError {
 impl fmt::Display for ElaborationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Located { location, error } => {
+            Self::Located {
+                location, error, ..
+            } => {
                 write!(formatter, "{error}\n{}", location.render())
             }
             Self::Message(message) => formatter.write_str(message),
@@ -120,7 +124,9 @@ impl Error for ElaborationError {
 
 pub fn format_elaboration_error(env: &CrateEnv, error: &ElaborationError) -> String {
     match error {
-        ElaborationError::Located { location, error } => format!(
+        ElaborationError::Located {
+            location, error, ..
+        } => format!(
             "{}\n{}",
             format_elaboration_error(env, error),
             location.render()
@@ -165,10 +171,12 @@ fn format_goals(env: &CrateEnv, heading: &str, goals: &[MetaGoal]) -> String {
                 .collect::<Vec<_>>()
                 .join("\n");
             format!(
-                "{heading} {} at {}..{}\ncontext: [{}]\ngoal: {}\nconstraints:\n{}",
+                "{heading} {}{}\ncontext: [{}]\ngoal: {}\nconstraints:\n{}",
                 goal.display_name(),
-                goal.span.start,
-                goal.span.end,
+                goal.origin
+                    .and_then(|id| env.sources.location(id))
+                    .map(|location| format!(" at {}..{}", location.span.start, location.span.end))
+                    .unwrap_or_default(),
                 context,
                 principal,
                 constraints

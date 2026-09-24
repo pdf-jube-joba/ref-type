@@ -7,6 +7,7 @@ pub struct Checker<'a> {
     inference_depth: usize,
     checking_context: bool,
     validated_context: Option<Vec<Expression>>,
+    judgement_depth: usize,
 }
 
 impl<'a> Checker<'a> {
@@ -17,12 +18,45 @@ impl<'a> Checker<'a> {
             inference_depth: 0,
             checking_context: false,
             validated_context: None,
+            judgement_depth: 0,
         }
     }
     fn arena(&self) -> &Arena {
         &self.env.arena
     }
+
+    fn traced<T>(
+        &mut self,
+        term: Expression,
+        check: impl FnOnce(&mut Self) -> Result<T, String>,
+    ) -> Result<T, String> {
+        if !self.arena().owns(term) {
+            return Err("expression belongs to another arena".into());
+        }
+        if self.judgement_depth == 0 {
+            self.env.check_error.borrow_mut().clear();
+        }
+        self.judgement_depth += 1;
+        let result = check(self);
+        self.judgement_depth -= 1;
+        if result.is_err() {
+            let mut path = self.env.check_error.borrow_mut();
+            if path.last() != Some(&term) {
+                path.push(term);
+            }
+        } else if self.judgement_depth == 0 {
+            self.env.check_error.borrow_mut().clear();
+        }
+        result
+    }
     pub fn check_context(&mut self) -> Result<(), String> {
+        if self
+            .context
+            .iter()
+            .any(|b| !self.arena().owns(b.classifier))
+        {
+            return Err("context belongs to another checking environment".into());
+        }
         if self.validated_context.as_ref().is_some_and(|validated| {
             validated
                 .iter()
@@ -74,6 +108,9 @@ impl<'a> Checker<'a> {
         result
     }
     pub fn formation(&mut self, e: Expression) -> Result<Sort, String> {
+        self.traced(e, |this| this.formation_inner(e))
+    }
+    fn formation_inner(&mut self, e: Expression) -> Result<Sort, String> {
         match self.infer(e)? {
             Classifier::Upper(b) => Ok(Sort::Upper(b)),
             Classifier::Expression(k) => {
@@ -150,6 +187,9 @@ impl<'a> Checker<'a> {
     ) -> Result<(), String> {
         let e = e.into();
         let expected = expected.into();
+        self.traced(e, |this| this.check_inner(e, expected))
+    }
+    fn check_inner(&mut self, e: Expression, expected: Classifier) -> Result<(), String> {
         let inferred = self.infer(e)?;
         match (inferred, expected) {
             (Classifier::Upper(a), Classifier::Upper(b)) if a == b => Ok(()),
@@ -193,6 +233,9 @@ impl<'a> Checker<'a> {
     }
     pub fn infer(&mut self, e: impl Into<Expression>) -> Result<Classifier, String> {
         let e = e.into();
+        self.traced(e, |this| this.infer_traced(e))
+    }
+    fn infer_traced(&mut self, e: Expression) -> Result<Classifier, String> {
         self.arena().validate_owner(e)?;
         if self.inference_depth == 0 && !self.checking_context {
             self.check_context()?
@@ -288,13 +331,11 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             SetTermForm::Bound { index } => self.infer_bound(e, index)?,
-            SetTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
+            SetTermForm::Ambient { level } => self.infer_ambient(level)?,
             SetTermForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
-            SetTermForm::ReflectedProgramParam { parameter } => {
-                self.infer_reflected_program_param(parameter)?
-            }
+            SetTermForm::ReflectedAmbient { level } => self.infer_reflected_ambient(level)?,
             SetTermForm::LambdaTerm {
                 rule,
                 var,
@@ -496,13 +537,11 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             SetTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            SetTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
+            SetTypeForm::Ambient { level } => self.infer_ambient(level)?,
             SetTypeForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
-            SetTypeForm::ReflectedProgramParam { parameter } => {
-                self.infer_reflected_program_param(parameter)?
-            }
+            SetTypeForm::ReflectedAmbient { level } => self.infer_reflected_ambient(level)?,
             SetTypeForm::ProdTerm {
                 rule,
                 var,
@@ -628,7 +667,7 @@ impl<'a> Checker<'a> {
                 inductive,
                 parameters,
             } => return self.infer_ind_type(e, inductive, parameters),
-            SetKindForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
+            SetKindForm::Ambient { level } => self.infer_ambient(level)?,
             SetKindForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
@@ -640,7 +679,7 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             PropTermForm::Bound { index } => self.infer_bound(e, index)?,
-            PropTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
+            PropTermForm::Ambient { level } => self.infer_ambient(level)?,
             PropTermForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
@@ -835,7 +874,7 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             PropTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            PropTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
+            PropTypeForm::Ambient { level } => self.infer_ambient(level)?,
             PropTypeForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
@@ -968,7 +1007,7 @@ impl<'a> Checker<'a> {
                 inductive,
                 parameters,
             } => return self.infer_ind_type(e, inductive, parameters),
-            PropKindForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
+            PropKindForm::Ambient { level } => self.infer_ambient(level)?,
             PropKindForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
@@ -980,7 +1019,7 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             ValueTermForm::Bound { index } => self.infer_bound(e, index)?,
-            ValueTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
+            ValueTermForm::Ambient { level } => self.infer_ambient(level)?,
             ValueTermForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
@@ -1011,7 +1050,7 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             ValueTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            ValueTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
+            ValueTypeForm::Ambient { level } => self.infer_ambient(level)?,
             ValueTypeForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
@@ -1054,7 +1093,7 @@ impl<'a> Checker<'a> {
     fn infer_computation_term_node(&mut self, h: ComputationTerm) -> Result<Classifier, String> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
-            ComputationTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
+            ComputationTermForm::Ambient { level } => self.infer_ambient(level)?,
             ComputationTermForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
@@ -1149,7 +1188,7 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             ComputationTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            ComputationTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
+            ComputationTypeForm::Ambient { level } => self.infer_ambient(level)?,
             ComputationTypeForm::Annotated { body, classifier } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
@@ -1520,22 +1559,21 @@ impl<'a> Checker<'a> {
         }
         Ok(classifier)
     }
-    fn infer_module_param(&mut self, parameter: ModuleParamId) -> Result<Expression, String> {
+    fn infer_ambient(&mut self, level: usize) -> Result<Expression, String> {
         Ok(self
             .env
-            .parameter(parameter)
-            .ok_or("unknown module parameter")?
+            .ambient_context()
+            .get(level)
+            .ok_or("ambient variable outside context")?
             .classifier)
     }
-    fn infer_reflected_program_param(
-        &mut self,
-        parameter: ModuleParamId,
-    ) -> Result<Expression, String> {
+    fn infer_reflected_ambient(&mut self, level: usize) -> Result<Expression, String> {
         super::reflection::reflect_program_expression(
             self.env,
             self.env
-                .parameter(parameter)
-                .ok_or("unknown reflected parameter")?
+                .ambient_context()
+                .get(level)
+                .ok_or("reflected ambient variable outside context")?
                 .classifier,
         )
     }

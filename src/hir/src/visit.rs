@@ -12,18 +12,18 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
     if !action(exp) {
         return;
     }
-    match exp {
-        SExp::Meta { .. }
-        | SExp::Sort(_)
-        | SExp::ValueType
-        | SExp::MacroParameter(_)
-        | SExp::Captured(_) => {}
-        SExp::AccessPath { parameters, .. } => {
+    match &mut exp.kind {
+        SExpKind::Meta { .. }
+        | SExpKind::Sort(_)
+        | SExpKind::ValueType
+        | SExpKind::MacroParameter(_)
+        | SExpKind::Captured(_) => {}
+        SExpKind::AccessPath { parameters, .. } => {
             for parameter in parameters {
                 walk_sexp_control(parameter, action);
             }
         }
-        SExp::IndElimPrim {
+        SExpKind::IndElimPrim {
             parameters, motive, ..
         } => {
             for parameter in parameters {
@@ -31,82 +31,86 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             }
             walk_sexp_control(motive, action);
         }
-        SExp::AssociatedAccess { base, .. }
-        | SExp::InferredProjection { value: base, .. }
-        | SExp::ThunkType {
+        SExpKind::AssociatedAccess { base, .. }
+        | SExpKind::InferredProjection { value: base, .. }
+        | SExpKind::ThunkType {
             computation_ty: base,
         }
-        | SExp::ReturnType { value_ty: base }
-        | SExp::Thunk { computation: base }
-        | SExp::Return { value: base }
-        | SExp::Force { value: base }
-        | SExp::PowerSet { set: base }
-        | SExp::BoxType { program_ty: base }
-        | SExp::IdRefl { element: base } => walk_sexp_control(base, action),
-        SExp::MathMacro { tokens, .. } | SExp::NamedMacro { tokens, .. } => {
+        | SExpKind::ReturnType { value_ty: base }
+        | SExpKind::Thunk { computation: base }
+        | SExpKind::Return { value: base }
+        | SExpKind::Force { value: base }
+        | SExpKind::PowerSet { set: base }
+        | SExpKind::BoxType { program_ty: base }
+        | SExpKind::IdRefl { element: base } => walk_sexp_control(base, action),
+        SExpKind::MathMacro { tokens, .. } | SExpKind::NamedMacro { tokens, .. } => {
             walk_macro_exps_mut(tokens, action);
         }
-        SExp::TokenMatch { branches, .. } => {
+        SExpKind::TokenMatch { branches, .. } => {
             for (_, body) in branches {
                 walk_sexp_control(body, action);
             }
         }
-        SExp::Where { exp, clauses } => {
+        SExpKind::Where { exp, clauses } => {
             walk_sexp_control(exp, action);
             for (_, ty, body) in clauses {
                 walk_sexp_control(ty, action);
                 walk_sexp_control(body, action);
             }
         }
-        SExp::Prod { bind, body }
-        | SExp::Lam { bind, body }
-        | SExp::TakeProp {
+        SExpKind::Prod { bind, body }
+        | SExpKind::Lam { bind, body }
+        | SExpKind::TakeProp {
             bind,
             body,
             existence: _,
         } => {
             walk_bind_mut(bind, action);
             walk_sexp_control(body, action);
-            if let SExp::TakeProp { existence, .. } = exp {
+            if let SExp {
+                kind: SExpKind::TakeProp { existence, .. },
+                ..
+            } = exp
+            {
                 walk_sexp_control(existence, action);
             }
         }
-        SExp::Exists { bind } => walk_bind_mut(bind, action),
-        SExp::App { func, arg }
-        | SExp::ComputationFunction {
+        SExpKind::Exists { bind } => walk_bind_mut(bind, action),
+        SExpKind::App { func, arg }
+        | SExpKind::ComputationFunction {
             domain: func,
             codomain: arg,
         }
-        | SExp::Equal {
+        | SExpKind::Equal {
             left: func,
             right: arg,
         }
-        | SExp::ExistsIntro {
+        | SExpKind::ExistsIntro {
             element: func,
             set: arg,
         }
-        | SExp::BoxProgram {
+        | SExpKind::BoxProgram {
             program_ty: func,
             program: arg,
         }
-        | SExp::ForceBox {
+        | SExpKind::ForceBox {
             program_ty: func,
             boxed: arg,
         }
-        | SExp::BoxApp {
+        | SExpKind::BoxApp {
             function: func,
             argument: arg,
         } => {
             walk_sexp_control(func, action);
             walk_sexp_control(arg, action);
         }
-        SExp::SubsetIntro {
+        SExpKind::SubsetIntro {
             superset,
             subset,
             element,
             proof,
         } => walk_many_mut([superset, subset, element, proof], action),
-        SExp::IndCase {
+        SExpKind::IndCase {
             scrutinee,
             return_type,
             branches,
@@ -118,7 +122,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
                 walk_sexp_control(branch, action);
             }
         }
-        SExp::Induction {
+        SExpKind::Induction {
             binder,
             return_type,
             cases,
@@ -129,7 +133,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
                 walk_sexp_control(case, action);
             }
         }
-        SExp::ValueLet {
+        SExpKind::ValueLet {
             value_ty,
             value,
             body,
@@ -137,17 +141,17 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
         } => {
             walk_many_mut([value_ty, value, body], action);
         }
-        SExp::ComputationLam { value_ty, body, .. } => {
+        SExpKind::ComputationLam { value_ty, body, .. } => {
             walk_sexp_control(value_ty, action);
             walk_sexp_control(body, action);
         }
-        SExp::Sequence {
+        SExpKind::Sequence {
             computation,
             value_ty,
             body,
             ..
         } => walk_many_mut([computation, value_ty, body], action),
-        SExp::ProgramCase {
+        SExpKind::ProgramCase {
             scrutinee,
             branches,
             ..
@@ -157,56 +161,56 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
                 walk_sexp_control(body, action);
             }
         }
-        SExp::RunStep {
+        SExpKind::RunStep {
             state_ty,
             result_ty,
         }
-        | SExp::Pred {
+        | SExpKind::Pred {
             superset: state_ty,
             subset: result_ty,
             element: _,
         }
-        | SExp::TypeLift {
+        | SExpKind::TypeLift {
             superset: state_ty,
             subset: result_ty,
         }
-        | SExp::SubsetElim {
+        | SExpKind::SubsetElim {
             element: state_ty,
             subset: result_ty,
             superset: _,
         } => {
             walk_sexp_control(state_ty, action);
             walk_sexp_control(result_ty, action);
-            match exp {
-                SExp::Pred { element, .. } => walk_sexp_control(element, action),
-                SExp::SubsetElim { superset, .. } => walk_sexp_control(superset, action),
+            match &mut exp.kind {
+                SExpKind::Pred { element, .. } => walk_sexp_control(element, action),
+                SExpKind::SubsetElim { superset, .. } => walk_sexp_control(superset, action),
                 _ => {}
             }
         }
-        SExp::Continue {
+        SExpKind::Continue {
             state_ty,
             result_ty,
             next,
         }
-        | SExp::Finish {
+        | SExpKind::Finish {
             state_ty,
             result_ty,
             output: next,
         } => walk_many_mut([state_ty, result_ty, next], action),
-        SExp::Acc {
+        SExpKind::Acc {
             state_ty,
             result_ty,
             step,
             state,
         } => walk_many_mut([state_ty, result_ty, step, state], action),
-        SExp::Run {
+        SExpKind::Run {
             state_ty,
             result_ty,
             step,
             initial,
             accessibility,
         } => walk_many_mut([state_ty, result_ty, step, initial, accessibility], action),
-        SExp::RunCase {
+        SExpKind::RunCase {
             state_ty,
             result_ty,
             step,
@@ -226,7 +230,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             ],
             action,
         ),
-        SExp::RunStepRec {
+        SExpKind::RunStepRec {
             state_ty,
             result_ty,
             motive,
@@ -244,14 +248,14 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             ],
             action,
         ),
-        SExp::AccIntro {
+        SExpKind::AccIntro {
             state_ty,
             result_ty,
             step,
             state,
             predecessors,
         } => walk_many_mut([state_ty, result_ty, step, state, predecessors], action),
-        SExp::AccDescent {
+        SExpKind::AccDescent {
             state_ty,
             result_ty,
             step,
@@ -271,7 +275,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             ],
             action,
         ),
-        SExp::RecordTypeCtor {
+        SExpKind::RecordTypeCtor {
             parameters, fields, ..
         } => {
             for parameter in parameters {
@@ -281,11 +285,11 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
                 walk_sexp_control(field, action);
             }
         }
-        SExp::SubSet { set, predicate, .. } => {
+        SExpKind::SubSet { set, predicate, .. } => {
             walk_sexp_control(set, action);
             walk_sexp_control(predicate, action);
         }
-        SExp::TakeSet {
+        SExpKind::TakeSet {
             bind,
             body,
             existence,
@@ -294,7 +298,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             walk_bind_mut(bind, action);
             walk_many_mut([body, existence, uniqueness], action);
         }
-        SExp::IdElim {
+        SExpKind::IdElim {
             left,
             right,
             ty,
@@ -303,23 +307,23 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             equality,
             ..
         } => walk_many_mut([left, right, ty, predicate, base, equality], action),
-        SExp::AxiomSetExt {
+        SExpKind::AxiomSetExt {
             left,
             right,
             left_to_right,
             right_to_left,
         } => walk_many_mut([left, right, left_to_right, right_to_left], action),
-        SExp::AxiomFunExt {
+        SExpKind::AxiomFunExt {
             left,
             right,
             pointwise,
         } => walk_many_mut([left, right, pointwise], action),
-        SExp::AxiomClassicalIndefiniteChoice {
+        SExpKind::AxiomClassicalIndefiniteChoice {
             domain,
             family,
             inhabited,
         } => walk_many_mut([domain, family, inhabited], action),
-        SExp::TakeEq {
+        SExpKind::TakeEq {
             func,
             domain,
             codomain,
@@ -330,7 +334,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             [func, domain, codomain, element, existence, uniqueness],
             action,
         ),
-        SExp::Block(block) | SExp::Program(block) => {
+        SExpKind::Block(block) | SExpKind::Program(block) => {
             for statement in &mut block.statements {
                 walk_statement_mut(statement, action);
             }

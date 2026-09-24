@@ -3,7 +3,8 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct ResolvedOccurrence {
-    pub local: Option<SourceSpan>,
+    pub origin: Option<AstId>,
+    pub local: Option<SourceLocation>,
     pub location: SourceLocation,
     pub module: Vec<String>,
     pub name: String,
@@ -17,8 +18,7 @@ impl GlobalEnvironment {
         let identifier = match access {
             LocalAccess::Current { access } => access,
             LocalAccess::Named { child, .. } => child,
-            // Definition-site macro names do not denote a call-site occurrence.
-            LocalAccess::Resolved { .. } => return Some(item),
+            LocalAccess::Resolved { access, .. } => access,
         };
         let definition = match &item {
             ItemAccessResult::Definition(item) | ItemAccessResult::ReflectedDefinition(item) => {
@@ -42,21 +42,13 @@ impl GlobalEnvironment {
         name: String,
         definition: Option<DefId>,
     ) {
-        let Some(span) = identifier.span() else {
+        let Some(location) = identifier
+            .origin()
+            .and_then(|id| self.crate_env.sources.written_location(id))
+            .cloned()
+        else {
             return;
         };
-        let Some(owner) = &self.diagnostic_location else {
-            return;
-        };
-        if span.start < owner.span.start || owner.span.end < span.end {
-            return;
-        }
-        let Some(text) = owner.source.text.get(span.start..span.end) else {
-            return;
-        };
-        if text != identifier.as_str().trim_end_matches('^') {
-            return;
-        }
         let mut module = self
             .crate_env
             .namespace_binding_id(module)
@@ -69,11 +61,9 @@ impl GlobalEnvironment {
         }
         path.reverse();
         self.occurrences.borrow_mut().push(ResolvedOccurrence {
+            origin: identifier.origin(),
             local: None,
-            location: SourceLocation {
-                source: owner.source.clone(),
-                span,
-            },
+            location,
             module: path,
             name,
             definition,
@@ -84,26 +74,21 @@ impl GlobalEnvironment {
         self.occurrences.borrow()
     }
 
-    pub(crate) fn record_local_reference(&self, name: &Identifier, binder: SourceSpan) {
-        let Some(span) = name.span() else {
+    pub(crate) fn record_local_reference(&self, name: &Identifier, binder: AstId) {
+        let Some(location) = name
+            .origin()
+            .and_then(|id| self.crate_env.sources.written_location(id))
+            .cloned()
+        else {
             return;
         };
-        let Some(owner) = &self.diagnostic_location else {
+        let Some(binder) = self.crate_env.sources.written_location(binder).cloned() else {
             return;
         };
-        if span.start < owner.span.start
-            || owner.span.end < span.end
-            || binder.start < owner.span.start
-            || owner.span.end < binder.end
-        {
-            return;
-        }
         self.occurrences.borrow_mut().push(ResolvedOccurrence {
+            origin: name.origin(),
             local: Some(binder),
-            location: SourceLocation {
-                source: owner.source.clone(),
-                span,
-            },
+            location,
             module: Vec::new(),
             name: name.0.clone(),
             definition: None,

@@ -66,10 +66,7 @@ fn definition_checking_discards_scratch_nodes_and_stale_cache_entries() {
     // product. Only the latter belongs to the persistent declaration.
     let counts = env.arena().node_counts();
     let snapshot = env.arena().read(identity);
-    let id = DefId {
-        module: ModuleId(0),
-        index: 0,
-    };
+    let id = env.fresh_global_id();
     env.register_definition(
         id,
         Definition {
@@ -88,10 +85,7 @@ fn definition_checking_discards_scratch_nodes_and_stale_cache_entries() {
     assert!(convertible(&env, inferred.into(), classifier.into()).unwrap());
 
     let counts = env.arena().node_counts();
-    let bad_id = DefId {
-        module: ModuleId(0),
-        index: 1,
-    };
+    let bad_id = env.fresh_global_id();
     assert!(
         env.register_definition(
             bad_id,
@@ -115,18 +109,9 @@ fn definition_checking_discards_scratch_nodes_and_stale_cache_entries() {
 fn closed_dag_queries_and_global_substitutions_preserve_sharing() {
     let env = Environment::new();
     let a = env.arena();
-    let id = InductiveId {
-        module: ModuleId(0),
-        index: 0,
-    };
-    let other = InductiveId {
-        module: ModuleId(0),
-        index: 1,
-    };
-    let parameter = ModuleParamId {
-        module: ModuleId(0),
-        position: 0,
-    };
+    let id = env.fresh_inductive_id();
+    let other = env.fresh_inductive_id();
+    let parameter = 0;
     let rule =
         ProductRule::new(Sort::Base(BaseSort::Set(0)), Sort::Base(BaseSort::Set(0))).unwrap();
     let product = |domain, body| {
@@ -157,7 +142,7 @@ fn closed_dag_queries_and_global_substitutions_preserve_sharing() {
     });
     let mut named = a.alloc(SetTypeNode {
         level: 0,
-        form: SetTypeForm::ModuleParam { parameter },
+        form: SetTypeForm::Ambient { level: parameter },
     });
     for _ in 0..24 {
         shared = product(shared, shared);
@@ -173,7 +158,7 @@ fn closed_dag_queries_and_global_substitutions_preserve_sharing() {
         remapped.into()
     );
     assert_eq!(
-        substitute_parameters(&env, named.into(), &[(parameter, leaf.into())].into()).unwrap(),
+        substitute_ambient(&env, named.into(), &[(parameter, leaf.into())].into()).unwrap(),
         shared.into()
     );
 }
@@ -214,12 +199,7 @@ fn local_closure_tracks_shared_binders_and_annotation_classifiers() {
 
     let parameter = arena.alloc(SetTermNode {
         level: 0,
-        form: SetTermForm::ModuleParam {
-            parameter: ModuleParamId {
-                module: ModuleId(0),
-                position: 0,
-            },
-        },
+        form: SetTermForm::Ambient { level: 0 },
     });
     assert!(locally_closed(&arena, parameter.into()));
     let annotated = arena.annotated(parameter.into(), free.into()).unwrap();
@@ -251,12 +231,7 @@ fn shared_syntax_transformations_respect_each_binder_depth() {
     };
     let argument = a.alloc(SetTypeNode {
         level: 0,
-        form: SetTypeForm::ModuleParam {
-            parameter: ModuleParamId {
-                module: ModuleId(0),
-                position: 0,
-            },
-        },
+        form: SetTypeForm::Ambient { level: 0 },
     });
     let mut shared = ty(0);
     let mut shifted = ty(1);
@@ -442,18 +417,13 @@ fn substitution_tracks_each_inductive_motive_binder() {
     };
     let argument = arena.alloc(SetTypeNode {
         level: 0,
-        form: SetTypeForm::ModuleParam {
-            parameter: ModuleParamId {
-                module: ModuleId(7),
-                position: 0,
-            },
-        },
+        form: SetTypeForm::Ambient { level: 0 },
     });
     let original = SetTypeNode {
         level: 0,
         form: SetTypeForm::IndElim {
             inductive: InductiveId {
-                module: ModuleId(7),
+                owner: arena.id(),
                 index: 1,
             },
             motive_vars: vec![SymbolId(1), SymbolId(2)],
@@ -548,10 +518,7 @@ fn checked_definition_templates_are_retained_without_becoming_constants() {
         level: 0,
         form: SetTypeForm::Bound { index: 0 },
     });
-    let id = DefId {
-        module: ModuleId(0),
-        index: 7,
-    };
+    let id = env.fresh_global_id();
     let template = Definition {
         context: vec![Binding {
             var: SymbolId(1),
@@ -946,10 +913,7 @@ fn computation_type_quantification_and_type_operator_domains() {
 #[test]
 fn invalid_declaration_is_not_inserted() {
     let mut env = Environment::new();
-    let id = DefId {
-        module: ModuleId(0),
-        index: 0,
-    };
+    let id = env.fresh_global_id();
     let k = sk(&env.arena, 0);
     let result = env.register_definition(
         id,
@@ -1004,14 +968,8 @@ fn product_signature_checks_all_program_rules_and_overflow() {
 }
 
 fn natural(env: &mut Environment) -> (ProgramInductiveId, ValueType, ValueTerm) {
-    let id = ProgramInductiveId {
-        module: ModuleId(0),
-        index: 0,
-    };
-    let reflected = InductiveId {
-        module: ModuleId(0),
-        index: 0,
-    };
+    let id = env.fresh_datatype_id();
+    let reflected = env.fresh_inductive_id();
     let ty = env.arena.alloc(ValueTypeNode {
         level: 0,
         form: ValueTypeForm::Inductive {
@@ -1064,14 +1022,8 @@ fn datatype_registration_generates_and_checks_its_set_mirror() {
 #[test]
 fn positivity_checks_expand_type_operators_and_reject_negative_fields() {
     let mut env = Environment::new();
-    let id = ProgramInductiveId {
-        module: ModuleId(0),
-        index: 0,
-    };
-    let mirror = InductiveId {
-        module: ModuleId(0),
-        index: 0,
-    };
+    let id = env.fresh_datatype_id();
+    let mirror = env.fresh_inductive_id();
     let own = env.arena.alloc(ValueTypeNode {
         level: 0,
         form: ValueTypeForm::Inductive {
@@ -1156,31 +1108,21 @@ fn positivity_checks_expand_type_operators_and_reject_negative_fields() {
     .unwrap();
 }
 #[test]
-fn boxed_annotation_cannot_hide_an_open_module_parameter() {
+fn boxed_annotation_cannot_hide_an_open_ambient_variable() {
     let mut env = Environment::new();
     let (_, ty, _zero) = natural(&mut env);
-    let p = ModuleParamId {
-        module: ModuleId(0),
-        position: 0,
-    };
-    env.register_parameter(
-        p,
-        Binding {
-            var: SymbolId(1),
-            classifier: ty.into(),
-        },
-        vec![],
-    )
+    let p = 0;
+    env.push_binding(Binding {
+        var: SymbolId(1),
+        classifier: ty.into(),
+    })
     .unwrap();
     let body = env.arena.alloc(ValueTermNode {
         level: 0,
-        form: ValueTermForm::ModuleParam { parameter: p },
+        form: ValueTermForm::Ambient { level: p },
     });
-    let id = DefId {
-        module: ModuleId(0),
-        index: 0,
-    };
-    env.register_definition(
+    let id = env.fresh_global_id();
+    env.register_definition_template(
         id,
         Definition {
             context: vec![],
@@ -1254,10 +1196,7 @@ fn program_run_evaluates_and_rejects_a_wrong_embedded_proof() {
         level: 0,
         form: ValueTermForm::ThunkValue { computation: lam },
     });
-    let termination_parameter = ModuleParamId {
-        module: ModuleId(0),
-        position: 0,
-    };
+    let termination_parameter = 0;
     let accessibility_ty = a.alloc(PropTypeNode {
         form: PropTypeForm::Acc {
             state_ty: reflect_type(&env, ty.into()).unwrap(),
@@ -1267,18 +1206,14 @@ fn program_run_evaluates_and_rejects_a_wrong_embedded_proof() {
         },
     });
     let accessibility = a.alloc(PropTermNode {
-        form: PropTermForm::ModuleParam {
-            parameter: termination_parameter,
+        form: PropTermForm::Ambient {
+            level: termination_parameter,
         },
     });
-    env.register_parameter(
-        termination_parameter,
-        Binding {
-            var: SymbolId::ANONYMOUS,
-            classifier: accessibility_ty.into(),
-        },
-        vec![],
-    )
+    env.push_binding(Binding {
+        var: SymbolId::ANONYMOUS,
+        classifier: accessibility_ty.into(),
+    })
     .unwrap();
     let a = &env.arena;
     let run = a.alloc(ComputationTermNode {
@@ -1401,20 +1336,17 @@ fn program_proof_substitution_uses_the_reflected_argument() {
         SetTermForm::Bound { index: 1 }
     ));
 
-    let parameter = ModuleParamId {
-        module: ModuleId(0),
-        position: 0,
-    };
+    let parameter = 0;
     let reflected_parameter = a.alloc(SetTermNode {
         level: 0,
-        form: SetTermForm::ReflectedProgramParam { parameter },
+        form: SetTermForm::ReflectedAmbient { level: parameter },
     });
     let proof = a.alloc(PropTermNode {
         form: PropTermForm::IdRefl {
             element: reflected_parameter,
         },
     });
-    let result: PropTerm = substitute_parameters(
+    let result: PropTerm = substitute_ambient(
         &env,
         proof.into(),
         &std::collections::HashMap::from([(parameter, zero.into())]),
@@ -1539,10 +1471,7 @@ fn public_checker_validates_context_and_named_definitions_cannot_capture_locals(
         var: SymbolId(1),
         classifier: ty.into(),
     }];
-    let id = DefId {
-        module: ModuleId(0),
-        index: 0,
-    };
+    let id = env.fresh_global_id();
     assert!(
         env.register_definition(
             id,
@@ -1722,15 +1651,12 @@ fn maximum_bound_index_is_rejected_without_overflow() {
 }
 
 #[test]
-fn reflected_module_parameters_are_not_closed() {
+fn reflected_ambient_variables_are_not_closed() {
     let env = Environment::new();
-    let parameter = ModuleParamId {
-        module: ModuleId(0),
-        position: 0,
-    };
+    let parameter = 0;
     let term = env.arena.alloc(ValueTermNode {
         level: 0,
-        form: ValueTermForm::ModuleParam { parameter },
+        form: ValueTermForm::Ambient { level: parameter },
     });
     let reflected = reflect_term(&env, term.into()).unwrap();
     assert!(!is_closed(&env.arena, term.into()));
@@ -1770,22 +1696,15 @@ fn annotations_preserve_the_declared_classifier_and_check_the_body() {
         level: 0,
         form: SetTypeForm::PowerSet { set: ty },
     });
-    let subset = ModuleParamId {
-        module: ModuleId(0),
-        position: 0,
-    };
-    env.register_parameter(
-        subset,
-        Binding {
-            var: SymbolId(1),
-            classifier: power.into(),
-        },
-        vec![],
-    )
+    let subset = 0;
+    env.push_binding(Binding {
+        var: SymbolId(1),
+        classifier: power.into(),
+    })
     .unwrap();
     let subset = env.arena.alloc(SetTermNode {
         level: 0,
-        form: SetTermForm::ModuleParam { parameter: subset },
+        form: SetTermForm::Ambient { level: subset },
     });
     let refined = env.arena.alloc(SetTypeNode {
         level: 0,
@@ -1794,22 +1713,15 @@ fn annotations_preserve_the_declared_classifier_and_check_the_body() {
             subset,
         },
     });
-    let x = ModuleParamId {
-        module: ModuleId(0),
-        position: 1,
-    };
-    env.register_parameter(
-        x,
-        Binding {
-            var: SymbolId(2),
-            classifier: refined.into(),
-        },
-        vec![],
-    )
+    let x = 1;
+    env.push_binding(Binding {
+        var: SymbolId(2),
+        classifier: refined.into(),
+    })
     .unwrap();
     let body = env.arena.alloc(SetTermNode {
         level: 0,
-        form: SetTermForm::ModuleParam { parameter: x },
+        form: SetTermForm::Ambient { level: x },
     });
     let annotated = env.arena.annotated(body.into(), ty.into()).unwrap();
     let mut checker = Checker::new(&env, vec![]);
@@ -1860,4 +1772,210 @@ fn substitution_visits_annotation_body_and_classifier() {
     let closed = instantiate_telescope(&env, annotation, &[ty.into(), zero.into()]).unwrap();
     assert_eq!(Checker::new(&env, vec![]).infer(closed).unwrap(), ty.into());
     assert!(convertible(&env, closed, zero.into()).unwrap());
+}
+
+#[test]
+fn ambient_templates_instantiate_under_local_binders_and_reflect() {
+    let mut env = Environment::new();
+    let kind = vk(env.arena(), 0);
+    let type_level = env
+        .push_binding(Binding {
+            var: SymbolId(1),
+            classifier: kind.into(),
+        })
+        .unwrap();
+    let ty = env.arena().alloc(ValueTypeNode {
+        level: 0,
+        form: ValueTypeForm::Ambient { level: type_level },
+    });
+    let value_level = env
+        .push_binding(Binding {
+            var: SymbolId(2),
+            classifier: ty.into(),
+        })
+        .unwrap();
+    let value = env.arena().alloc(ValueTermNode {
+        level: 0,
+        form: ValueTermForm::Ambient { level: value_level },
+    });
+    let id = env.fresh_global_id();
+    env.register_definition_template(
+        id,
+        Definition {
+            context: vec![Binding {
+                var: SymbolId(3),
+                classifier: kind.into(),
+            }],
+            body: value.into(),
+            classifier: ty.into(),
+        },
+    )
+    .unwrap();
+    let caller_type = env.arena().alloc(ValueTypeNode {
+        level: 0,
+        form: ValueTypeForm::Bound { index: 1 },
+    });
+    let caller_value = env.arena().alloc(ValueTermNode {
+        level: 0,
+        form: ValueTermForm::Bound { index: 0 },
+    });
+    let local_type = env.arena().alloc(ValueTypeNode {
+        level: 0,
+        form: ValueTypeForm::Bound { index: 0 },
+    });
+    let context = vec![
+        Binding {
+            var: SymbolId(4),
+            classifier: kind.into(),
+        },
+        Binding {
+            var: SymbolId(5),
+            classifier: local_type.into(),
+        },
+    ];
+    let instance = env
+        .instantiate_template(
+            id,
+            &std::collections::HashMap::from([
+                (type_level, caller_type.into()),
+                (value_level, caller_value.into()),
+            ]),
+            context,
+        )
+        .unwrap();
+    let expected_body = env.arena().alloc(ValueTermNode {
+        level: 0,
+        form: ValueTermForm::Bound { index: 1 },
+    });
+    let expected_type = env.arena().alloc(ValueTypeNode {
+        level: 0,
+        form: ValueTypeForm::Bound { index: 2 },
+    });
+    assert_eq!(instance.body, expected_body.into());
+    assert_eq!(instance.classifier, expected_type.into());
+    assert_eq!(instance.context.len(), 3);
+    let reflected = reflect_term(&env, instance.body.try_into().unwrap()).unwrap();
+    let reflected_type = reflect_type(&env, expected_type.into()).unwrap();
+    let context = crate::reflection::reflect_context(&env, &instance.context).unwrap();
+    Checker::new(&env, context)
+        .check(reflected, reflected_type)
+        .unwrap();
+    let (copy, map) = env.transfer().unwrap();
+    let copied_id = map.globals[&id];
+    assert_ne!(id, copied_id);
+    drop(env);
+    let definition = copy.definition_template(copied_id).unwrap();
+    Checker::new(&copy, definition.context.clone())
+        .check(definition.body, definition.classifier)
+        .unwrap();
+}
+
+#[test]
+fn foreign_handles_and_nominal_ids_fail_without_publishing() {
+    let mut source = Environment::new();
+    let (id, ty, _) = natural(&mut source);
+    let mut target = Environment::new();
+    assert!(Checker::new(&target, vec![]).infer(ty).is_err());
+    assert!(
+        target
+            .register_datatype(id, source.datatype(id).unwrap().clone())
+            .is_err()
+    );
+    let key = target.fresh_global_id();
+    assert!(
+        target
+            .register_definition(
+                key,
+                Definition {
+                    context: vec![],
+                    body: ty.into(),
+                    classifier: vk(source.arena(), 0).into(),
+                }
+            )
+            .is_err()
+    );
+    assert!(
+        target
+            .push_binding(Binding {
+                var: SymbolId(1),
+                classifier: ty.into()
+            })
+            .is_err()
+    );
+    assert!(target.ambient_context().is_empty());
+    assert!(target.definition(key).is_none());
+    assert_eq!(target.declaration_node_count(), 0);
+    let foreign_nominal = target.arena().alloc(ValueTypeNode {
+        level: 0,
+        form: ValueTypeForm::Inductive {
+            inductive: id,
+            parameters: vec![],
+        },
+    });
+    assert!(
+        Checker::new(&target, vec![])
+            .infer(foreign_nominal)
+            .is_err()
+    );
+    let circular = target.arena().alloc(ValueTypeNode {
+        level: 0,
+        form: ValueTypeForm::Ambient { level: 0 },
+    });
+    assert!(
+        target
+            .push_binding(Binding {
+                var: SymbolId(1),
+                classifier: circular.into()
+            })
+            .is_err()
+    );
+    assert!(target.ambient_context().is_empty());
+    let level = target
+        .push_binding(Binding {
+            var: SymbolId(1),
+            classifier: vk(target.arena(), 0).into(),
+        })
+        .unwrap();
+    assert_eq!(level, 0);
+    Checker::new(&target, vec![]).infer(circular).unwrap();
+}
+
+#[test]
+fn interrupted_nominal_registration_rolls_back_and_can_be_retried() {
+    use crate::control::{self, CancellationToken, Interrupted};
+    let mut env = Environment::new();
+    let id = env.fresh_inductive_id();
+    let spec = InductiveSpec {
+        parameters: vec![],
+        arity: sk(env.arena(), 0).into(),
+        constructors: vec![],
+        sort: Sort::Base(BaseSort::Set(0)),
+    };
+    let interrupted = control::run(CancellationToken::default(), Some(1), || {
+        env.register_inductive(id, spec.clone())
+    });
+    assert_eq!(interrupted, Err(Interrupted::ResourceLimit));
+    assert!(env.inductive(id).is_none());
+    env.register_inductive(id, spec).unwrap();
+    let datatype = env.fresh_datatype_id();
+    let mirror = env.fresh_inductive_id();
+    let spec = ProgramDatatype {
+        parameters: vec![],
+        constructors: vec![vec![]],
+        level: 0,
+        reflected: mirror,
+    };
+    let interrupted = control::run(CancellationToken::default(), Some(2), || {
+        env.register_datatype(datatype, spec.clone())
+    });
+    assert_eq!(interrupted, Err(Interrupted::ResourceLimit));
+    assert!(env.datatype(datatype).is_none());
+    assert!(env.inductive(mirror).is_none());
+    env.register_datatype(datatype, spec).unwrap();
+    let count = env.declaration_node_count();
+    let interrupted = control::run(CancellationToken::default(), Some(4), || env.transfer());
+    assert!(matches!(interrupted, Err(Interrupted::ResourceLimit)));
+    assert_eq!(env.declaration_node_count(), count);
+    let copied = env.transfer().unwrap().0;
+    assert_eq!(copied.declaration_node_count(), count);
 }

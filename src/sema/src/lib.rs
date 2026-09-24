@@ -1,7 +1,7 @@
 //! Common semantic entry point for batch and interactive consumers.
 mod artifact;
 mod diagnostics;
-pub use artifact::CheckedArtifact;
+pub use artifact::{CheckedArtifact, KernelArtifact};
 mod edits;
 mod goals;
 mod outline;
@@ -10,7 +10,7 @@ pub use references::{Occurrence, ReferenceResult, SemanticRef};
 mod packages;
 mod source;
 mod tree;
-pub use diagnostics::{Diagnostic, DiagnosticReport, Severity};
+pub use diagnostics::{Diagnostic, DiagnosticReport, Severity, SourceOrigin};
 pub use edits::{EditError, EditProposal, TextEdit};
 pub use goals::{DisplayJudgement, GoalId, GoalSnapshot};
 pub use outline::{ItemId, ItemKey, ItemKind, ItemVersion, OutlineItem};
@@ -104,6 +104,7 @@ impl AnalysisHost {
             root: self.root.clone(),
             tree,
             outline: OnceCell::new(),
+            source_map: OnceCell::new(),
             check: OnceCell::new(),
         }));
         // Assign identities in input order while the previous snapshot is still
@@ -120,6 +121,7 @@ struct SnapshotData {
     root: PathBuf,
     tree: OnceCell<ModuleTree>,
     outline: OnceCell<Vec<OutlineItem>>,
+    source_map: OnceCell<syntax::SourceMap>,
     check: OnceCell<CheckResult>,
 }
 
@@ -198,6 +200,20 @@ impl AnalysisSnapshot {
 
     pub fn outline(&self) -> &[OutlineItem] {
         self.0.outline.get().expect("snapshot outline initialized")
+    }
+
+    /// Resolve an AST occurrence in this snapshot's reachable module tree.
+    pub fn ast_location(&self, id: syntax::AstId) -> Option<Location> {
+        let map = self.0.source_map.get_or_init(|| {
+            let mut map = syntax::SourceMap::default();
+            for module in &self.tree().modules {
+                map.insert_module(module);
+            }
+            map
+        });
+        let location = map.location(id)?;
+        let file = self.sources().file_id(&location.source.id.0)?;
+        Some(self.sources().file(file)?.location(location.span))
     }
 
     pub fn parse_diagnostics(&self) -> DiagnosticReport {
@@ -292,7 +308,7 @@ impl AnalysisSnapshot {
             match global.add_modules_to_root(&tree.modules) {
                 Ok(()) => break (global, true),
                 Err(error) => {
-                    let (error, location) = self.locate_error(&error);
+                    let (error, location, origin) = self.locate_error(&error);
                     let dependencies = global
                         .blocked_dependencies()
                         .into_iter()
@@ -317,11 +333,33 @@ impl AnalysisSnapshot {
                     } else {
                         "elaboration"
                     };
-                    result.diagnostics.push(Diagnostic::error(
+                    let mut diagnostic = Diagnostic::error(
                         code,
                         format_elaboration_error(global.crate_env(), error),
                         location,
-                    ));
+                    );
+                    diagnostic.provenance = self.source_trace(&global.crate_env().sources, origin);
+                    for entry in &diagnostic.provenance {
+                        if let Some(syntax::DerivedOrigin::Expansion {
+                            definition: Some(definition),
+                            ..
+                        }) = entry.origin
+                            && let Some(location) = diagnostic
+                                .provenance
+                                .iter()
+                                .find(|entry| entry.id == definition)
+                                .and_then(|entry| entry.written)
+                            && !diagnostic
+                                .secondary
+                                .iter()
+                                .any(|(previous, _)| *previous == location)
+                        {
+                            diagnostic
+                                .secondary
+                                .push((location, "macro defined here".into()));
+                        }
+                    }
+                    result.diagnostics.push(diagnostic);
                     let owner = location.and_then(|location| {
                         outline
                             .iter()
@@ -477,13 +515,20 @@ impl AnalysisSnapshot {
     fn locate_error<'a>(
         &self,
         mut error: &'a ElaborationError,
-    ) -> (&'a ElaborationError, Option<Location>) {
+    ) -> (
+        &'a ElaborationError,
+        Option<Location>,
+        Option<syntax::AstId>,
+    ) {
         let mut primary = None;
+        let mut origin = None;
         while let ElaborationError::Located {
             location,
             error: inner,
+            origin: inner_origin,
         } = error
         {
+            origin = *inner_origin;
             primary = self
                 .0
                 .sources
@@ -492,7 +537,7 @@ impl AnalysisSnapshot {
                 .map(|file| file.location(location.span));
             error = inner;
         }
-        (error, primary)
+        (error, primary, origin)
     }
 
     pub fn render_diagnostic(&self, diagnostic: &Diagnostic) -> String {
@@ -519,6 +564,20 @@ impl AnalysisSnapshot {
                 }
                 .render(),
             );
+        }
+        for (location, label) in &diagnostic.secondary {
+            if let Some(file) = self.0.sources.file(location.file)
+                && file.revision == location.revision
+            {
+                message.push_str(&format!(
+                    "\n{label}\n{}",
+                    syntax::SourceLocation {
+                        source: file.source.clone(),
+                        span: location.range
+                    }
+                    .render()
+                ));
+            }
         }
         message
     }

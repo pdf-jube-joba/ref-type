@@ -1014,7 +1014,7 @@ mod tests {
                 Identifier::new("answer".into()),
                 crate::macros::MacroKind::Named,
                 vec![],
-                hir::SExp::Captured(manager.capture_expression(proposition)),
+                hir::SExpKind::Captured(manager.capture_expression(proposition)).into(),
             )
             .unwrap();
         manager.publish_current_module(&mut env).unwrap();
@@ -1031,6 +1031,7 @@ mod tests {
 
         manager
             .expand_named_macro(
+                (&env.sources, None),
                 &env,
                 env.binding(binding).materialized,
                 &Identifier::new("answer".into()),

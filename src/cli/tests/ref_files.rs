@@ -351,7 +351,7 @@ fn external_module_diagnostics_use_the_original_file() {
     let output = run_ref_file(&fixture.0, &root).unwrap();
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert_eq!(output.status.code(), Some(1));
-    assert!(stderr.contains("Child.ref:2:1"), "{stderr}");
+    assert!(stderr.contains("Child.ref:2:27"), "{stderr}");
     assert!(stderr.contains("\\definition bad:"), "{stderr}");
 
     fixture.write("Child.ref", "\\definition bad: \\Prop := ;\n");

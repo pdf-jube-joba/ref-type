@@ -26,12 +26,12 @@ fn label(arena: &Arena, e: Expression) -> String {
     match e {
         Expression::SetTerm(h) => match &arena.read(h).form {
             SetTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            SetTermForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            SetTermForm::Ambient { level } => {
+                format!("Ambient {{ level: {level:?} }}")
             }
             SetTermForm::Annotated { .. } => "annotated".into(),
-            SetTermForm::ReflectedProgramParam { parameter } => {
-                format!("ReflectedProgramParam {{ parameter: {parameter:?} }}")
+            SetTermForm::ReflectedAmbient { level } => {
+                format!("ReflectedAmbient {{ level: {level:?} }}")
             }
             SetTermForm::LambdaTerm { rule, var, .. } => {
                 format!("LambdaTerm {{ rule: {rule:?}, var: {var:?} }}")
@@ -76,12 +76,12 @@ fn label(arena: &Arena, e: Expression) -> String {
         },
         Expression::SetType(h) => match &arena.read(h).form {
             SetTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            SetTypeForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            SetTypeForm::Ambient { level } => {
+                format!("Ambient {{ level: {level:?} }}")
             }
             SetTypeForm::Annotated { .. } => "annotated".into(),
-            SetTypeForm::ReflectedProgramParam { parameter } => {
-                format!("ReflectedProgramParam {{ parameter: {parameter:?} }}")
+            SetTypeForm::ReflectedAmbient { level } => {
+                format!("ReflectedAmbient {{ level: {level:?} }}")
             }
             SetTypeForm::ProdTerm { rule, var, .. } => {
                 format!("ProdTerm {{ rule: {rule:?}, var: {var:?} }}")
@@ -132,15 +132,15 @@ fn label(arena: &Arena, e: Expression) -> String {
             SetKindForm::IndType { inductive, .. } => {
                 format!("IndType {{ inductive: {inductive:?} }}")
             }
-            SetKindForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            SetKindForm::Ambient { level } => {
+                format!("Ambient {{ level: {level:?} }}")
             }
             SetKindForm::Annotated { .. } => "annotated".into(),
         },
         Expression::PropTerm(h) => match &arena.read(h).form {
             PropTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            PropTermForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            PropTermForm::Ambient { level } => {
+                format!("Ambient {{ level: {level:?} }}")
             }
             PropTermForm::Annotated { .. } => "annotated".into(),
             PropTermForm::LambdaTerm { rule, var, .. } => {
@@ -181,8 +181,8 @@ fn label(arena: &Arena, e: Expression) -> String {
         },
         Expression::PropType(h) => match &arena.read(h).form {
             PropTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            PropTypeForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            PropTypeForm::Ambient { level } => {
+                format!("Ambient {{ level: {level:?} }}")
             }
             PropTypeForm::Annotated { .. } => "annotated".into(),
             PropTypeForm::ProdTerm { rule, var, .. } => {
@@ -234,15 +234,15 @@ fn label(arena: &Arena, e: Expression) -> String {
             PropKindForm::IndType { inductive, .. } => {
                 format!("IndType {{ inductive: {inductive:?} }}")
             }
-            PropKindForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            PropKindForm::Ambient { level } => {
+                format!("Ambient {{ level: {level:?} }}")
             }
             PropKindForm::Annotated { .. } => "annotated".into(),
         },
         Expression::ValueTerm(h) => match &arena.read(h).form {
             ValueTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            ValueTermForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            ValueTermForm::Ambient { level } => {
+                format!("Ambient {{ level: {level:?} }}")
             }
             ValueTermForm::Annotated { .. } => "annotated".into(),
             ValueTermForm::ThunkValue { .. } => "ThunkValue".into(),
@@ -258,8 +258,8 @@ fn label(arena: &Arena, e: Expression) -> String {
         },
         Expression::ValueType(h) => match &arena.read(h).form {
             ValueTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            ValueTypeForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            ValueTypeForm::Ambient { level } => {
+                format!("Ambient {{ level: {level:?} }}")
             }
             ValueTypeForm::Annotated { .. } => "annotated".into(),
             ValueTypeForm::Thunk { .. } => "Thunk".into(),
@@ -279,8 +279,8 @@ fn label(arena: &Arena, e: Expression) -> String {
             }
         },
         Expression::ComputationTerm(h) => match &arena.read(h).form {
-            ComputationTermForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            ComputationTermForm::Ambient { level } => {
+                format!("Ambient {{ level: {level:?} }}")
             }
             ComputationTermForm::Annotated { .. } => "annotated".into(),
             ComputationTermForm::Return { .. } => "Return".into(),
@@ -303,8 +303,8 @@ fn label(arena: &Arena, e: Expression) -> String {
         },
         Expression::ComputationType(h) => match &arena.read(h).form {
             ComputationTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            ComputationTypeForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            ComputationTypeForm::Ambient { level } => {
+                format!("Ambient {{ level: {level:?} }}")
             }
             ComputationTypeForm::Annotated { .. } => "annotated".into(),
             ComputationTypeForm::ReturnType { .. } => "ReturnType".into(),

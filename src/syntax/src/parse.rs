@@ -450,8 +450,14 @@ impl<'a> Parser<'a> {
         self.expect_token(Token::Colon)?;
         let result = self.parse_sexp()?;
         let kind = match result {
-            SExp::Sort(sort) => InductiveKind::Pts(sort),
-            SExp::ValueType => InductiveKind::Program,
+            SExp {
+                kind: SExpKind::Sort(sort),
+                ..
+            } => InductiveKind::Pts(sort),
+            SExp {
+                kind: SExpKind::ValueType,
+                ..
+            } => InductiveKind::Program,
             _ => {
                 return Err(ParseError {
                     msg: "expected PTS sort or \\VType in record declaration".into(),
@@ -607,9 +613,18 @@ impl<'a> Parser<'a> {
         // <indices> = <rightbinds>
         let (indices, expect_sort) = self.parse_arrow_nosubset()?;
         let kind = match expect_sort {
-            SExp::Sort(s) => InductiveKind::Pts(s),
-            SExp::ValueType if indices.is_empty() => InductiveKind::Program,
-            SExp::ValueType => {
+            SExp {
+                kind: SExpKind::Sort(s),
+                ..
+            } => InductiveKind::Pts(s),
+            SExp {
+                kind: SExpKind::ValueType,
+                ..
+            } if indices.is_empty() => InductiveKind::Program,
+            SExp {
+                kind: SExpKind::ValueType,
+                ..
+            } => {
                 return Err(ParseError {
                     msg: "Program datatype declarations cannot have indices".into(),
                     start: self.span_at(self.pos.saturating_sub(1)).start,
@@ -645,20 +660,34 @@ impl<'a> Parser<'a> {
         match self.next() {
             Some(SpannedToken {
                 kind: Token::MacroVar(name),
-                ..
-            }) => Ok(MacroSeqAtom::Capture(Identifier::new(
-                name[1..].to_string(),
-            ))),
+                start,
+                end,
+            }) => Ok(MacroSeqAtom::Capture(
+                Identifier::new(name[1..].to_string()).with_span(SourceSpan {
+                    start: *start,
+                    end: *end,
+                }),
+            )),
             Some(SpannedToken {
                 kind: Token::Ident(name),
-                ..
-            }) => Ok(MacroSeqAtom::TokenCapture(Identifier::new(
-                name.to_string(),
-            ))),
+                start,
+                end,
+            }) => Ok(MacroSeqAtom::TokenCapture(
+                Identifier::new(name.to_string()).with_span(SourceSpan {
+                    start: *start,
+                    end: *end,
+                }),
+            )),
             Some(SpannedToken {
                 kind: Token::MacroRest(name),
-                ..
-            }) => Ok(MacroSeqAtom::Rest(Identifier::new(name[2..].to_string()))),
+                start,
+                end,
+            }) => Ok(MacroSeqAtom::Rest(
+                Identifier::new(name[2..].to_string()).with_span(SourceSpan {
+                    start: *start,
+                    end: *end,
+                }),
+            )),
             Some(SpannedToken {
                 kind: Token::EscapedMacro(token),
                 ..

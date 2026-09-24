@@ -5,24 +5,29 @@ use kernel::{environment as ke, sort as k, syntax as s};
 use rustc_hash::FxHashMap;
 use std::collections::HashSet;
 
+mod bridge;
 mod declarations;
 mod logical;
 mod nodes;
 mod program;
+use bridge::IdMap;
+pub use bridge::KernelEnvironment;
 
 pub struct Lowerer<'a> {
     raw: &'a crate::environment::CrateEnv,
     pub kernel: &'a mut ke::Environment,
+    ids: &'a mut IdMap,
     active: HashSet<InductiveId>,
     active_program: HashSet<ProgramInductiveId>,
     cache: FxHashMap<(Exp, ContextId, ModuleId), s::Expression>,
 }
 
 impl<'a> Lowerer<'a> {
-    pub fn new(raw: &'a crate::environment::CrateEnv, kernel: &'a mut ke::Environment) -> Self {
+    pub fn new(raw: &'a crate::environment::CrateEnv, bridge: &'a mut KernelEnvironment) -> Self {
         Self {
             raw,
-            kernel,
+            kernel: &mut bridge.kernel,
+            ids: &mut bridge.ids,
             active: HashSet::new(),
             active_program: HashSet::new(),
             cache: FxHashMap::default(),

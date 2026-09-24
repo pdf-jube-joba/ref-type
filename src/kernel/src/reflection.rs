@@ -57,9 +57,9 @@ fn reflect_value_term(env: &Environment, h: ValueTerm) -> Result<SetTerm, String
             level,
             form: SetTermForm::Bound { index },
         }),
-        ValueTermForm::ModuleParam { parameter } => a.alloc(SetTermNode {
-            level,
-            form: SetTermForm::ReflectedProgramParam { parameter },
+        ValueTermForm::Ambient { level } => a.alloc(SetTermNode {
+            level: node.level,
+            form: SetTermForm::ReflectedAmbient { level },
         }),
         ValueTermForm::Annotated { body, classifier } => {
             reflect_annotation(env, body.into(), classifier)?.try_into()?
@@ -129,9 +129,9 @@ fn reflect_value_type(env: &Environment, h: ValueType) -> Result<SetType, String
             level,
             form: SetTypeForm::Bound { index },
         }),
-        ValueTypeForm::ModuleParam { parameter } => a.alloc(SetTypeNode {
-            level,
-            form: SetTypeForm::ReflectedProgramParam { parameter },
+        ValueTypeForm::Ambient { level } => a.alloc(SetTypeNode {
+            level: node.level,
+            form: SetTypeForm::ReflectedAmbient { level },
         }),
         ValueTypeForm::Annotated { body, classifier } => {
             reflect_annotation(env, body.into(), classifier)?.try_into()?
@@ -235,9 +235,9 @@ pub(crate) fn reflect_computation_term(
     let node = a.get(h);
     let level = node.level;
     Ok(match node.form {
-        ComputationTermForm::ModuleParam { parameter } => a.alloc(SetTermNode {
-            level,
-            form: SetTermForm::ReflectedProgramParam { parameter },
+        ComputationTermForm::Ambient { level } => a.alloc(SetTermNode {
+            level: node.level,
+            form: SetTermForm::ReflectedAmbient { level },
         }),
         ComputationTermForm::Annotated { body, classifier } => {
             reflect_annotation(env, body.into(), classifier)?.try_into()?
@@ -401,9 +401,9 @@ fn reflect_computation_type(env: &Environment, h: ComputationType) -> Result<Set
             level,
             form: SetTypeForm::Bound { index },
         }),
-        ComputationTypeForm::ModuleParam { parameter } => a.alloc(SetTypeNode {
-            level,
-            form: SetTypeForm::ReflectedProgramParam { parameter },
+        ComputationTypeForm::Ambient { level } => a.alloc(SetTypeNode {
+            level: node.level,
+            form: SetTypeForm::ReflectedAmbient { level },
         }),
         ComputationTypeForm::Annotated { body, classifier } => {
             reflect_annotation(env, body.into(), classifier)?.try_into()?

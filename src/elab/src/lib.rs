@@ -18,6 +18,7 @@ pub mod program_definitions;
 pub mod program_derivation;
 pub mod program_inductive;
 pub mod program_term_elaborator;
+pub mod provenance;
 pub mod reflection;
 pub mod resolver;
 pub mod sort;
