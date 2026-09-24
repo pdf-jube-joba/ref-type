@@ -1,293 +1,5 @@
-//! Source syntax, without resolution or elaboration state.
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Sort {
-    Set(usize),     // predicative SET(i):
-    SetKind(usize), // SET(i): SETKind(i)
-    Prop,           // proposition
-    PropKind,       // Prop: PropKind
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SourceSpan {
-    pub start: usize,
-    pub end: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MetaKind {
-    /// `_`: solve by constraints, but report ambiguity rather than a goal.
-    Implicit,
-    /// Bare `?`: a fresh proof-search goal at every occurrence.
-    Goal,
-    /// `?N`: occurrences with the same number share one metavariable within
-    /// the current elaboration unit.
-    Named(u32),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SurfaceMeta {
-    pub kind: MetaKind,
-}
-
-impl SurfaceMeta {
-    pub fn implicit() -> Self {
-        Self::source(MetaKind::Implicit)
-    }
-    pub fn goal() -> Self {
-        Self::source(MetaKind::Goal)
-    }
-    pub fn named(number: u32) -> Self {
-        Self::source(MetaKind::Named(number))
-    }
-    fn source(kind: MetaKind) -> Self {
-        Self { kind }
-    }
-}
-
-/// A source file identity, retained together with the original text.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SourceId(pub std::path::PathBuf);
-
-#[derive(Debug)]
-pub struct SourceFile {
-    pub id: SourceId,
-    pub text: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct SourceLocation {
-    pub source: std::sync::Arc<SourceFile>,
-    pub span: SourceSpan,
-}
-
-impl SourceLocation {
-    pub fn render(&self) -> String {
-        let text = &self.source.text;
-        let mut start = self.span.start.min(text.len());
-        while !text.is_char_boundary(start) {
-            start -= 1;
-        }
-        let line_start = text[..start].rfind('\n').map_or(0, |at| at + 1);
-        let line_end = text[start..].find('\n').map_or(text.len(), |at| start + at);
-        let line = text[..start].bytes().filter(|byte| *byte == b'\n').count() + 1;
-        let column = text[line_start..start].chars().count() + 1;
-        let mut end = self.span.end.min(line_end).max(start);
-        while !text.is_char_boundary(end) {
-            end -= 1;
-        }
-        let width = text[start..end].chars().count().max(1);
-        format!(
-            "{}:{line}:{column}\n  |\n{line:>2} | {}\n  | {}{}",
-            self.source.id.0.display(),
-            &text[line_start..line_end],
-            " ".repeat(column - 1),
-            "^".repeat(width)
-        )
-    }
-}
-
-// identifier for any naming
-#[derive(Clone)]
-pub struct Identifier(pub String, pub Option<SourceSpan>);
-
-impl std::fmt::Debug for Identifier {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.debug_tuple("Identifier").field(&self.0).finish()
-    }
-}
-
-impl PartialEq for Identifier {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-impl Eq for Identifier {}
-impl PartialOrd for Identifier {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl Ord for Identifier {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0)
-    }
-}
-impl std::hash::Hash for Identifier {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        std::hash::Hash::hash(&self.0, state);
-    }
-}
-
-impl Identifier {
-    pub fn new(name: String) -> Self {
-        Self(name, None)
-    }
-    pub fn with_span(mut self, span: SourceSpan) -> Self {
-        self.1 = Some(span);
-        self
-    }
-    pub fn span(&self) -> Option<SourceSpan> {
-        self.1
-    }
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-// token for macros
-//   which is (not identifier) /\ (not keyword)
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MacroToken(pub String);
-
-// module definition
-#[derive(Debug, Clone)]
-pub struct Module {
-    pub name: Identifier,
-    pub parameters: Vec<RightBind>, // given parameters for module
-    pub body: ModuleBody,
-    pub span: SourceSpan,
-    pub declaration_spans: Vec<SourceSpan>,
-    pub source: Option<std::sync::Arc<SourceFile>>,
-    pub header_source: Option<std::sync::Arc<SourceFile>>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ModuleBody {
-    Inline(Vec<ModuleItem>), // sensitive to order
-    External,
-}
-
-#[derive(Debug, Clone)]
-pub enum MacroSeqAtom {
-    Capture(Identifier),
-    TokenCapture(Identifier),
-    Rest(Identifier),
-    Tok(MacroToken),
-    Quoted(String),
-    Seq(Vec<MacroSeqAtom>),
-}
-
-#[derive(Debug, Clone)]
-pub enum TokenMatchPattern {
-    Token(MacroSeqAtom),
-    Sequence(Vec<MacroSeqAtom>),
-    Default,
-}
-
-#[derive(Debug, Clone)]
-pub enum ModuleItem {
-    /// A recovered declaration remains in the outline and still shadows its name.
-    Error {
-        name: Option<Identifier>,
-        message: String,
-    },
-    Definition {
-        owner: Option<AssociatedOwner>,
-        name: Identifier,
-        binders: Vec<RightBind>,
-        ty: SExp,
-        body: SExp,
-    },
-    Inductive {
-        type_name: Identifier,
-        parameters: Vec<RightBind>,
-        indices: Vec<RightBind>,
-        kind: InductiveKind,
-        constructors: Vec<(Identifier, Vec<RightBind>, SExp)>,
-    },
-    Record {
-        type_name: Identifier,
-        parameters: Vec<RightBind>,
-        kind: InductiveKind,
-        fields: Vec<(Identifier, SExp)>,
-    },
-    ChildModule {
-        module: Box<Module>,
-    },
-    Import {
-        path: ModuleInstantiatePath,
-        import_name: Identifier,
-    },
-    MathMacro {
-        name: Identifier,
-        before: Vec<MacroSeqAtom>,
-        after: SExp,
-    },
-    UserMacro {
-        name: Identifier,
-        before: Vec<MacroSeqAtom>,
-        after: SExp,
-    },
-    UseMacro {
-        import_name: Identifier,
-        macro_name: Identifier,
-    },
-    Eval {
-        exp: SExp,
-    },
-    Normalize {
-        exp: SExp,
-    },
-    ComputationEval {
-        exp: ComputationTermExp,
-    },
-    ComputationNormalize {
-        exp: ComputationTermExp,
-    },
-    ValueCheck {
-        exp: ValueTermExp,
-        ty: ValueTypeExp,
-    },
-    ComputationCheck {
-        exp: ComputationTermExp,
-        ty: ComputationTypeExp,
-    },
-    ValueInfer {
-        exp: ValueTermExp,
-    },
-    ComputationInfer {
-        exp: ComputationTermExp,
-    },
-    Check {
-        exp: SExp,
-        ty: SExp,
-    },
-    Infer {
-        exp: SExp,
-    },
-}
-
-#[derive(Debug, Clone)]
-pub struct AssociatedOwner {
-    pub type_name: Identifier,
-    pub parameters: Vec<RightBind>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum InductiveKind {
-    Pts(Sort),
-    Program,
-}
-
-#[derive(Debug, Clone)]
-pub enum ModuleInstantiatePath {
-    FromPackage {
-        package: Identifier,
-        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
-    },
-    FromCurrent {
-        back_parent: usize,
-        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
-    },
-    FromRoot {
-        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
-    },
-    FromImport {
-        import_name: Identifier,
-        calls: Vec<(Identifier, Vec<(Identifier, SExp)>)>,
-    },
-}
+//! Proof and Program syntax retained until elaboration.
+use crate::*;
 
 #[derive(Debug, Clone)]
 pub enum MacroExp {
@@ -478,12 +190,19 @@ pub enum LocalAccess {
         access: Identifier,
         child: Identifier,
     },
+    /// An access resolved in a macro's definition environment.
+    Resolved {
+        scope: ScopeId,
+        access: Identifier,
+    },
 }
 
 impl std::fmt::Display for LocalAccess {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Current { access } => formatter.write_str(access.as_str()),
+            Self::Current { access } | Self::Resolved { access, .. } => {
+                formatter.write_str(access.as_str())
+            }
             Self::Named { access, child } => {
                 write!(formatter, "{}.{}", access.as_str(), child.as_str())
             }
@@ -519,11 +238,23 @@ pub enum SExp {
     // before type checking, it is expanded to normal expression
     MathMacro {
         tokens: Vec<MacroExp>,
+        /// `None` for source calls; templates pin nested calls to their
+        /// definition environment before they are registered.
+        scope: Option<ScopeId>,
+        /// For calls originating in a template, only declarations older than
+        /// this order are visible.
+        max_order: Option<u64>,
+        depth: u16,
     },
     // macro specified by name
     NamedMacro {
         name: Identifier,
         tokens: Vec<MacroExp>,
+        scope: Option<ScopeId>,
+        /// Template calls can see declarations up to and including their own
+        /// definition, allowing self recursion without forward references.
+        max_order: Option<u64>,
+        depth: u16,
     },
     /// A reference to a pattern capture. Only valid in macro templates.
     MacroParameter(Identifier),
@@ -532,6 +263,8 @@ pub enum SExp {
         target: Identifier,
         branches: Vec<(TokenMatchPattern, SExp)>,
     },
+    /// A captured semantic value owned by the resolver of this HIR.
+    Captured(CapturedId),
 
     // --- expression with clauses
     // where clauses to define local variables

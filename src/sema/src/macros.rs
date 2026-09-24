@@ -1,14 +1,13 @@
-use crate::raw::{
+use crate::elaborator::module_manager::{ItemAccessResult, ModuleManager};
+use elab::{
     calculus::{exp_subst_map, remap_all_global_ids},
     environment::CrateEnv,
     exp::Exp,
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
 };
-use crate::{
-    elaborator::module_manager::{ItemAccessResult, ModuleManager},
-    syntax::{
-        Bind, Identifier, LocalAccess, MacroExp, MacroSeqAtom, SExp, Statement, TokenMatchPattern,
-    },
+use hir::visit::{walk_sexp_control, walk_sexp_mut};
+use hir::{
+    Bind, Identifier, LocalAccess, MacroExp, MacroSeqAtom, SExp, Statement, TokenMatchPattern,
 };
 use std::{
     cell::OnceCell,
@@ -88,8 +87,8 @@ impl ModuleManager {
         for scope in scopes {
             for definition in scope.declared.iter().chain(&scope.used) {
                 walk_sexp_control(&mut definition.template.clone(), &mut |node| {
-                    if let SExp::ResolvedExp(term) = node {
-                        roots.push(*term);
+                    if let SExp::Captured(id) = node {
+                        roots.push(self.captured_expression(*id));
                     }
                     true
                 });
@@ -349,7 +348,7 @@ fn alpha_rename(
         | SExp::Sort(_)
         | SExp::ValueType
         | SExp::MacroParameter(_)
-        | SExp::ResolvedExp(_) => {}
+        | SExp::Captured(_) => {}
         SExp::AccessPath { access, parameters } => {
             rename_access(access, scopes);
             for parameter in parameters {
@@ -819,7 +818,7 @@ fn resolve_access(
     };
     Ok((
         LocalAccess::Resolved {
-            module,
+            scope: hir::ScopeId(module.0),
             access: name.clone(),
         },
         item,
@@ -927,6 +926,7 @@ fn validate_template(template: &mut SExp, kinds: &CaptureKinds) -> Result<(), St
 
 fn prepare_template(
     mut template: SExp,
+    manager: &ModuleManager,
     env: &CrateEnv,
     module: ModuleId,
     captures: &CaptureKinds,
@@ -940,14 +940,14 @@ fn prepare_template(
             return;
         }
         match node {
-            SExp::Meta { kind, .. } => kind.origin = crate::syntax::MetaOrigin::Template,
+            SExp::Meta { kind, .. } => kind.origin = hir::MetaOrigin::Template,
             SExp::MathMacro {
                 scope, max_order, ..
             }
             | SExp::NamedMacro {
                 scope, max_order, ..
             } => {
-                *scope = Some(module);
+                *scope = Some(hir::ScopeId(module.0));
                 *max_order = Some(declaration_order);
             }
             SExp::AccessPath { access, parameters } => {
@@ -961,7 +961,7 @@ fn prepare_template(
                             error = Some("Module parameter cannot take module arguments".into());
                             return;
                         }
-                        *node = SExp::ResolvedExp(exp);
+                        *node = SExp::Captured(manager.capture_expression(exp));
                     }
                     Ok((resolved, _)) => *access = resolved,
                     Err(message) => error = Some(message),
@@ -995,7 +995,7 @@ impl ModuleManager {
                 .unwrap_or_default();
             self.materialized_macro_scopes
                 .set(self.materialized_macro_scopes.get() + 1);
-            remap_macro_scope(source, env, &lazy.remapping)
+            remap_macro_scope(source, self, env, &lazy.remapping)
         }))
     }
 
@@ -1056,7 +1056,7 @@ impl ModuleManager {
         }
         let order = self.next_macro_order;
         self.next_macro_order += 1;
-        let mut template = prepare_template(template, env, self.current(), &captures, order)?;
+        let mut template = prepare_template(template, self, env, self.current(), &captures, order)?;
         let visible_named = self
             .visible_macros(env, self.current())
             .into_iter()
@@ -1253,51 +1253,56 @@ impl ModuleManager {
 
 fn remap_macro_scope(
     source: ModuleMacroScope,
+    manager: &ModuleManager,
     env: &CrateEnv,
     remapping: &OwnedMacroInstantiation,
 ) -> ModuleMacroScope {
     let remap = |mut definition: MacroDefinition| {
         walk_sexp_mut(&mut definition.template, &mut |node| match node {
             SExp::AccessPath {
-                access: LocalAccess::Resolved { module, .. },
+                access: LocalAccess::Resolved { scope, .. },
                 ..
             }
             | SExp::IndCase {
-                path: LocalAccess::Resolved { module, .. },
+                path: LocalAccess::Resolved { scope, .. },
                 ..
             }
             | SExp::IndElimPrim {
-                path: LocalAccess::Resolved { module, .. },
+                path: LocalAccess::Resolved { scope, .. },
                 ..
             }
             | SExp::ProgramCase {
-                path: LocalAccess::Resolved { module, .. },
+                path: LocalAccess::Resolved { scope, .. },
                 ..
             }
             | SExp::RecordTypeCtor {
-                access: LocalAccess::Resolved { module, .. },
+                access: LocalAccess::Resolved { scope, .. },
                 ..
             } => {
-                if let Some(remapped) = remapping.module_ids.get(module) {
-                    *module = *remapped;
+                if let Some(remapped) = remapping.module_ids.get(&ModuleId(scope.0)) {
+                    *scope = hir::ScopeId(remapped.0);
                 }
             }
             SExp::MathMacro { scope, .. } | SExp::NamedMacro { scope, .. } => {
-                if let Some(module) = scope
-                    && let Some(remapped) = remapping.module_ids.get(module)
+                if let Some(scope) = scope
+                    && let Some(remapped) = remapping.module_ids.get(&ModuleId(scope.0))
                 {
-                    *module = *remapped;
+                    *scope = hir::ScopeId(remapped.0);
                 }
             }
-            SExp::ResolvedExp(exp) => {
+            SExp::Captured(id) => {
                 let renamed = remap_all_global_ids(
                     env.arena(),
-                    *exp,
+                    manager.captured_expression(*id),
                     &remapping.definition_ids,
                     &remapping.inductive_ids,
                     &remapping.program_inductive_ids,
                 );
-                *exp = exp_subst_map(env.arena(), renamed, &remapping.substitutions);
+                *id = manager.capture_expression(exp_subst_map(
+                    env.arena(),
+                    renamed,
+                    &remapping.substitutions,
+                ));
             }
             _ => {}
         });
@@ -1440,404 +1445,4 @@ fn instantiate_exp(exp: &mut SExp, captures: &Captures, depth: u16) -> Result<()
         }
     });
     result
-}
-
-pub(crate) fn walk_sexp_mut(exp: &mut SExp, action: &mut impl FnMut(&mut SExp)) {
-    walk_sexp_control(exp, &mut |node| {
-        action(node);
-        true
-    });
-}
-
-/// Visit a node before its children; returning false skips that subtree.
-pub(crate) fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> bool) {
-    if !action(exp) {
-        return;
-    }
-    match exp {
-        SExp::Meta { .. }
-        | SExp::Sort(_)
-        | SExp::ValueType
-        | SExp::MacroParameter(_)
-        | SExp::ResolvedExp(_) => {}
-        SExp::AccessPath { parameters, .. } => {
-            for parameter in parameters {
-                walk_sexp_control(parameter, action);
-            }
-        }
-        SExp::IndElimPrim {
-            parameters, motive, ..
-        } => {
-            for parameter in parameters {
-                walk_sexp_control(parameter, action);
-            }
-            walk_sexp_control(motive, action);
-        }
-        SExp::AssociatedAccess { base, .. }
-        | SExp::InferredProjection { value: base, .. }
-        | SExp::ThunkType {
-            computation_ty: base,
-        }
-        | SExp::ReturnType { value_ty: base }
-        | SExp::Thunk { computation: base }
-        | SExp::Return { value: base }
-        | SExp::Force { value: base }
-        | SExp::PowerSet { set: base }
-        | SExp::BoxType { program_ty: base }
-        | SExp::IdRefl { element: base } => walk_sexp_control(base, action),
-        SExp::MathMacro { tokens, .. } | SExp::NamedMacro { tokens, .. } => {
-            walk_macro_exps_mut(tokens, action);
-        }
-        SExp::TokenMatch { branches, .. } => {
-            for (_, body) in branches {
-                walk_sexp_control(body, action);
-            }
-        }
-        SExp::Where { exp, clauses } => {
-            walk_sexp_control(exp, action);
-            for (_, ty, body) in clauses {
-                walk_sexp_control(ty, action);
-                walk_sexp_control(body, action);
-            }
-        }
-        SExp::Prod { bind, body }
-        | SExp::Lam { bind, body }
-        | SExp::TakeProp {
-            bind,
-            body,
-            existence: _,
-        } => {
-            walk_bind_mut(bind, action);
-            walk_sexp_control(body, action);
-            if let SExp::TakeProp { existence, .. } = exp {
-                walk_sexp_control(existence, action);
-            }
-        }
-        SExp::Exists { bind } => walk_bind_mut(bind, action),
-        SExp::App { func, arg }
-        | SExp::ComputationFunction {
-            domain: func,
-            codomain: arg,
-        }
-        | SExp::Equal {
-            left: func,
-            right: arg,
-        }
-        | SExp::ExistsIntro {
-            element: func,
-            set: arg,
-        }
-        | SExp::BoxProgram {
-            program_ty: func,
-            program: arg,
-        }
-        | SExp::ForceBox {
-            program_ty: func,
-            boxed: arg,
-        }
-        | SExp::BoxApp {
-            function: func,
-            argument: arg,
-        } => {
-            walk_sexp_control(func, action);
-            walk_sexp_control(arg, action);
-        }
-        SExp::SubsetIntro {
-            superset,
-            subset,
-            element,
-            proof,
-        } => walk_many_mut([superset, subset, element, proof], action),
-        SExp::IndCase {
-            scrutinee,
-            return_type,
-            branches,
-            ..
-        } => {
-            walk_sexp_control(scrutinee, action);
-            walk_sexp_control(return_type, action);
-            for (_, branch) in branches {
-                walk_sexp_control(branch, action);
-            }
-        }
-        SExp::Induction {
-            binder,
-            return_type,
-            cases,
-        } => {
-            walk_sexp_control(&mut binder.ty, action);
-            walk_sexp_control(return_type, action);
-            for (_, case) in cases {
-                walk_sexp_control(case, action);
-            }
-        }
-        SExp::ValueLet {
-            value_ty,
-            value,
-            body,
-            ..
-        } => {
-            walk_many_mut([value_ty, value, body], action);
-        }
-        SExp::ComputationLam { value_ty, body, .. } => {
-            walk_sexp_control(value_ty, action);
-            walk_sexp_control(body, action);
-        }
-        SExp::Sequence {
-            computation,
-            value_ty,
-            body,
-            ..
-        } => walk_many_mut([computation, value_ty, body], action),
-        SExp::ProgramCase {
-            scrutinee,
-            branches,
-            ..
-        } => {
-            walk_sexp_control(scrutinee, action);
-            for (_, _, body) in branches {
-                walk_sexp_control(body, action);
-            }
-        }
-        SExp::RunStep {
-            state_ty,
-            result_ty,
-        }
-        | SExp::Pred {
-            superset: state_ty,
-            subset: result_ty,
-            element: _,
-        }
-        | SExp::TypeLift {
-            superset: state_ty,
-            subset: result_ty,
-        }
-        | SExp::SubsetElim {
-            element: state_ty,
-            subset: result_ty,
-            superset: _,
-        } => {
-            walk_sexp_control(state_ty, action);
-            walk_sexp_control(result_ty, action);
-            match exp {
-                SExp::Pred { element, .. } => walk_sexp_control(element, action),
-                SExp::SubsetElim { superset, .. } => walk_sexp_control(superset, action),
-                _ => {}
-            }
-        }
-        SExp::Continue {
-            state_ty,
-            result_ty,
-            next,
-        }
-        | SExp::Finish {
-            state_ty,
-            result_ty,
-            output: next,
-        } => walk_many_mut([state_ty, result_ty, next], action),
-        SExp::Acc {
-            state_ty,
-            result_ty,
-            step,
-            state,
-        } => walk_many_mut([state_ty, result_ty, step, state], action),
-        SExp::Run {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            accessibility,
-        } => walk_many_mut([state_ty, result_ty, step, initial, accessibility], action),
-        SExp::RunCase {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            transition,
-            accessibility,
-            transition_equality,
-        } => walk_many_mut(
-            [
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                transition,
-                accessibility,
-                transition_equality,
-            ],
-            action,
-        ),
-        SExp::RunStepRec {
-            state_ty,
-            result_ty,
-            motive,
-            on_continue,
-            on_finish,
-            scrutinee,
-        } => walk_many_mut(
-            [
-                state_ty,
-                result_ty,
-                motive,
-                on_continue,
-                on_finish,
-                scrutinee,
-            ],
-            action,
-        ),
-        SExp::AccIntro {
-            state_ty,
-            result_ty,
-            step,
-            state,
-            predecessors,
-        } => walk_many_mut([state_ty, result_ty, step, state, predecessors], action),
-        SExp::AccDescent {
-            state_ty,
-            result_ty,
-            step,
-            from,
-            to,
-            accessibility,
-            transition,
-        } => walk_many_mut(
-            [
-                state_ty,
-                result_ty,
-                step,
-                from,
-                to,
-                accessibility,
-                transition,
-            ],
-            action,
-        ),
-        SExp::RecordTypeCtor {
-            parameters, fields, ..
-        } => {
-            for parameter in parameters {
-                walk_sexp_control(parameter, action);
-            }
-            for (_, field) in fields {
-                walk_sexp_control(field, action);
-            }
-        }
-        SExp::SubSet { set, predicate, .. } => {
-            walk_sexp_control(set, action);
-            walk_sexp_control(predicate, action);
-        }
-        SExp::TakeSet {
-            bind,
-            body,
-            existence,
-            uniqueness,
-        } => {
-            walk_bind_mut(bind, action);
-            walk_many_mut([body, existence, uniqueness], action);
-        }
-        SExp::IdElim {
-            left,
-            right,
-            ty,
-            predicate,
-            base,
-            equality,
-            ..
-        } => walk_many_mut([left, right, ty, predicate, base, equality], action),
-        SExp::AxiomSetExt {
-            left,
-            right,
-            left_to_right,
-            right_to_left,
-        } => walk_many_mut([left, right, left_to_right, right_to_left], action),
-        SExp::AxiomFunExt {
-            left,
-            right,
-            pointwise,
-        } => walk_many_mut([left, right, pointwise], action),
-        SExp::AxiomClassicalIndefiniteChoice {
-            domain,
-            family,
-            inhabited,
-        } => walk_many_mut([domain, family, inhabited], action),
-        SExp::TakeEq {
-            func,
-            domain,
-            codomain,
-            element,
-            existence,
-            uniqueness,
-        } => walk_many_mut(
-            [func, domain, codomain, element, existence, uniqueness],
-            action,
-        ),
-        SExp::Block(block) | SExp::Program(block) => {
-            for statement in &mut block.statements {
-                walk_statement_mut(statement, action);
-            }
-            walk_sexp_control(&mut block.result, action);
-        }
-    }
-}
-
-fn walk_many_mut<const N: usize>(
-    exps: [&mut Box<SExp>; N],
-    action: &mut impl FnMut(&mut SExp) -> bool,
-) {
-    for exp in exps {
-        walk_sexp_control(exp, action);
-    }
-}
-
-fn walk_macro_exps_mut(tokens: &mut [MacroExp], action: &mut impl FnMut(&mut SExp) -> bool) {
-    for token in tokens {
-        match token {
-            MacroExp::RawExp(exp) => walk_sexp_control(exp, action),
-            MacroExp::Seq(tokens) => walk_macro_exps_mut(tokens, action),
-            MacroExp::Tok(_)
-            | MacroExp::Quoted(_)
-            | MacroExp::TemplateName(_)
-            | MacroExp::TokenParameter(_)
-            | MacroExp::Splice(_) => {}
-        }
-    }
-}
-
-fn walk_bind_mut(bind: &mut Bind, action: &mut impl FnMut(&mut SExp) -> bool) {
-    match bind {
-        Bind::Named(bind) => walk_sexp_control(&mut bind.ty, action),
-        Bind::Subset { ty, predicate, .. } | Bind::SubsetWithProof { ty, predicate, .. } => {
-            walk_sexp_control(ty, action);
-            walk_sexp_control(predicate, action);
-        }
-    }
-}
-
-fn walk_statement_mut(statement: &mut Statement, action: &mut impl FnMut(&mut SExp) -> bool) {
-    match statement {
-        Statement::Fix(binds) => {
-            for bind in binds {
-                walk_sexp_control(&mut bind.ty, action);
-            }
-        }
-        Statement::Let { ty, body, .. } => {
-            walk_sexp_control(ty, action);
-            walk_sexp_control(body, action);
-        }
-        Statement::Bind {
-            ty, computation, ..
-        } => {
-            walk_sexp_control(ty, action);
-            walk_sexp_control(computation, action);
-        }
-        Statement::Sufficient { map, map_ty } => {
-            walk_sexp_control(map, action);
-            walk_sexp_control(map_ty, action);
-        }
-        Statement::TakeFrom { ty, existence, .. } => {
-            walk_sexp_control(ty, action);
-            walk_sexp_control(existence, action);
-        }
-    }
 }

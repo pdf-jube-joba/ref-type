@@ -141,12 +141,12 @@ impl<'a> TermParser<'a> {
 
     // Parse a sort expression.
     // \Prop | \PropKind | \Set ( "(" <number> ")" )? | \SetKind ( "(" <number> ")" )?
-    fn parse_sort(&mut self) -> Result<raw::sort::Sort, ParseError> {
+    fn parse_sort(&mut self) -> Result<crate::Sort, ParseError> {
         if self.bump_if_keyword("\\Prop") {
-            return Ok(raw::sort::Sort::Prop);
+            return Ok(crate::Sort::Prop);
         }
         if self.bump_if_keyword("\\PropKind") {
-            return Ok(raw::sort::Sort::PropKind);
+            return Ok(crate::Sort::PropKind);
         }
         if self.bump_if_keyword("\\Set") {
             let number = if self.peek() == Some(&Token::LParen)
@@ -159,7 +159,7 @@ impl<'a> TermParser<'a> {
                 0
             };
 
-            return Ok(raw::sort::Sort::Set(number));
+            return Ok(crate::Sort::Set(number));
         }
         if self.bump_if_keyword("\\SetKind") {
             let number = if self.peek() == Some(&Token::LParen)
@@ -171,7 +171,7 @@ impl<'a> TermParser<'a> {
             } else {
                 0
             };
-            return Ok(raw::sort::Sort::SetKind(number));
+            return Ok(crate::Sort::SetKind(number));
         }
         Err(ParseError {
             msg: "expected sort keyword".into(),
@@ -1004,13 +1004,7 @@ impl<'a> TermParser<'a> {
                     self.expect_token(Token::LBrace)?;
                     let tokens = self.parse_macro_sequence_until(&Token::RBrace)?;
                     self.expect_token(Token::RBrace)?;
-                    return Ok(SExp::NamedMacro {
-                        name,
-                        tokens,
-                        scope: None,
-                        max_order: None,
-                        depth: 0,
-                    });
+                    return Ok(SExp::NamedMacro { name, tokens });
                 }
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
                 let access = self.parse_access_path()?;
@@ -1094,12 +1088,7 @@ impl<'a> TermParser<'a> {
                 self.next(); // consume '\('
                 let tokens = self.parse_macro_sequence_until(&Token::MathRParen)?;
                 self.expect_token(Token::MathRParen)?; // expect '\)'
-                Ok(SExp::MathMacro {
-                    tokens,
-                    scope: None,
-                    max_order: None,
-                    depth: 0,
-                })
+                Ok(SExp::MathMacro { tokens })
             }
             Some(Token::KeyWord("\\return" | "\\thunk" | "\\force")) => self.parse_unary(),
             Some(Token::KeyWord("\\fun" | "\\forall" | "\\cfun")) => self.parse_lambda(),

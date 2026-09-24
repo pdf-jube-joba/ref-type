@@ -1,10 +1,10 @@
 //! Structured elaboration errors and goal rendering.
-use crate::raw::{
+use crate::{
     environment::CrateEnv,
     exp::{Exp, ExpContext},
     ids::MetaVarId,
 };
-use crate::syntax::{MetaKind, SourceLocation, SourceSpan, SurfaceMeta};
+use hir::{MetaKind, SourceLocation, SourceSpan, SurfaceMeta};
 use std::{error::Error, fmt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -152,7 +152,7 @@ fn format_goals(env: &CrateEnv, heading: &str, goals: &[MetaGoal]) -> String {
     goals
         .iter()
         .map(|goal| {
-            let context = crate::raw::printing::format_ctx(env, &goal.context);
+            let context = crate::printing::format_ctx(env, &goal.context);
             let principal = goal
                 .principal
                 .as_ref()
@@ -187,7 +187,7 @@ fn format_constraint_record(env: &CrateEnv, record: &ConstraintRecord) -> String
 }
 
 fn format_constraint(env: &CrateEnv, constraint: &GoalConstraint) -> String {
-    let exp = |term| crate::raw::printing::format_exp(env, term);
+    let exp = |term| crate::printing::format_exp(env, term);
     match constraint {
         GoalConstraint::HasType { term, expected } => {
             format!("{} : {}", exp(*term), exp(*expected))

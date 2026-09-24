@@ -65,7 +65,7 @@ impl AnalysisSnapshot {
     }
 
     pub(super) fn capture_references(&self, global: &GlobalEnvironment) -> Vec<Occurrence> {
-        use raw::{environment::DefinedConstant, printing};
+        use elab::{environment::DefinedConstant, printing};
         let mut result = Vec::new();
         let mut seen = std::collections::HashSet::new();
         for occurrence in global.occurrences().iter() {

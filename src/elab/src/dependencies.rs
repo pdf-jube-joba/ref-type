@@ -1,5 +1,4 @@
 //! Global references needed to materialize and independently check a definition.
-use crate as raw;
 use crate::{
     exp::{Exp, ExpNode},
     ids::{DefId, InductiveId, ProgramInductiveId},
@@ -18,28 +17,28 @@ pub struct GlobalDependencies {
 // the dependency graph explicitly so a long import chain does not consume the
 // Rust call stack while classifying syntax.
 pub fn definition_dependencies(
-    raw: &raw::environment::CrateEnv,
-    definition: &raw::environment::DefinedConstant,
+    raw: &crate::environment::CrateEnv,
+    definition: &crate::environment::DefinedConstant,
 ) -> GlobalDependencies {
-    use raw::program::{
+    use crate::program::{
         ComputationTermNode as C, ComputationTypeNode as CT, ValueTermNode as V,
         ValueTypeNode as VT,
     };
     #[derive(Clone, Copy, PartialEq, Eq, Hash)]
     enum E {
         Set(Exp),
-        Vt(raw::program::ValueType),
-        Ct(raw::program::ComputationType),
-        V(raw::program::ValueTerm),
-        C(raw::program::ComputationTerm),
+        Vt(crate::program::ValueType),
+        Ct(crate::program::ComputationType),
+        V(crate::program::ValueTerm),
+        C(crate::program::ComputationTerm),
     }
 
     let mut stack = match definition {
-        raw::environment::DefinedConstant::Pts { ty, body } => vec![E::Set(*ty), E::Set(*body)],
-        raw::environment::DefinedConstant::ProgramValue { ty, body } => {
+        crate::environment::DefinedConstant::Pts { ty, body } => vec![E::Set(*ty), E::Set(*body)],
+        crate::environment::DefinedConstant::ProgramValue { ty, body } => {
             vec![E::Vt(*ty), E::V(*body)]
         }
-        raw::environment::DefinedConstant::ProgramComputation { ty, body } => {
+        crate::environment::DefinedConstant::ProgramComputation { ty, body } => {
             vec![E::Ct(*ty), E::C(*body)]
         }
     };
@@ -80,7 +79,7 @@ pub fn definition_dependencies(
                     }
                     _ => {}
                 }
-                raw::calculus::map_children(node, |e| {
+                crate::calculus::map_children(node, |e| {
                     stack.push(E::Set(e));
                     e
                 });

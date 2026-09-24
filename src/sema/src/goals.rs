@@ -1,6 +1,6 @@
 use super::*;
 use crate::metavariables::{ConstraintStatus, GoalConstraint, MetaFlavor, MetaGoal};
-use raw::{environment::CrateEnv, printing::format_exp};
+use elab::{environment::CrateEnv, printing::format_exp};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct GoalId {

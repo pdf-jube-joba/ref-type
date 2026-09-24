@@ -217,7 +217,7 @@ impl GlobalEnvironment {
         parameters: &[RightBind],
         fields: &[(Identifier, SExp)],
     ) -> Result<(), ElaborationError> {
-        use crate::raw::program::*;
+        use elab::program::*;
         let mut names = Vec::new();
         for (name, _) in fields {
             if names.contains(&name.0) {
@@ -366,7 +366,7 @@ impl GlobalEnvironment {
                     ty: record_ty,
                     body: projected_ty,
                 });
-                let ty = crate::raw::utils::assoc_prod(arena, parameters.clone(), projection_ty);
+                let ty = elab::utils::assoc_prod(arena, parameters.clone(), projection_ty);
 
                 let parameters_under_motive = parameters_under_value
                     .iter()
@@ -403,7 +403,7 @@ impl GlobalEnvironment {
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 let selected = arena.exp_bound(field_count - 1 - field);
-                let case = crate::raw::utils::assoc_lam(arena, case_telescope, selected);
+                let case = elab::utils::assoc_lam(arena, case_telescope, selected);
                 let elimination = arena.alloc(ExpNode::IndElim {
                     indspec: inductive,
                     elim: arena.exp_bound(0),
@@ -415,7 +415,7 @@ impl GlobalEnvironment {
                     ty: record_ty,
                     body: elimination,
                 });
-                let body = crate::raw::utils::assoc_lam(arena, parameters.clone(), projection);
+                let body = elab::utils::assoc_lam(arena, parameters.clone(), projection);
                 (name, ty, body)
             };
 
@@ -451,7 +451,7 @@ impl GlobalEnvironment {
         let self_ty = self
             .crate_env
             .arena()
-            .alloc(crate::raw::program::ValueTypeNode::Inductive {
+            .alloc(elab::program::ValueTypeNode::Inductive {
                 indspec: inductive,
                 parameters: Vec::new(),
             });
@@ -505,7 +505,7 @@ impl GlobalEnvironment {
             }
             let result: ValueTypeExp = result.clone().try_into()?;
             let result = scope.elaborate_value_type(&result, self)?;
-            let crate::raw::program::ValueTypeNode::Inductive {
+            let elab::program::ValueTypeNode::Inductive {
                 indspec,
                 parameters,
             } = self.crate_env.arena().get(result)
@@ -522,7 +522,7 @@ impl GlobalEnvironment {
                     && parameters.iter().enumerate().all(|(index, parameter)| {
                         matches!(
                             self.crate_env.arena().get(*parameter),
-                            crate::raw::program::ValueTypeNode::Bound(bound)
+                            elab::program::ValueTypeNode::Bound(bound)
                                 if bound == parameter_names.len() - 1 - index
                         )
                     }));
@@ -551,9 +551,9 @@ impl GlobalEnvironment {
             .collect();
         let reflected_constructors = self.crate_env.program_inductive(inductive).constructors().iter().map(|constructor| {
             let telescope = constructor.fields().iter().enumerate().map(|(field_index, (name, ty))| {
-                let ty = crate::raw::reflection::reflect_value_type(&self.crate_env, *ty)
+                let ty = elab::reflection::reflect_value_type(&self.crate_env, *ty)
                     .map_err(|error| format!("cannot reflect Program constructor field: {error}"))?;
-                let ty = crate::raw::calculus::shift_bound_indices(
+                let ty = elab::calculus::shift_bound_indices(
                     self.crate_env.arena(),
                     ty,
                     field_index,
@@ -562,14 +562,14 @@ impl GlobalEnvironment {
                 if !exp_contains_inductive(self.crate_env.arena(), ty, reflected) {
                     return Ok(CtorBinder::Simple((*name, ty)));
                 }
-                let (binders, tail) = crate::raw::utils::decompose_prod(self.crate_env.arena(), ty);
-                let (head, self_indices) = crate::raw::utils::decompose_app(self.crate_env.arena(), tail);
+                let (binders, tail) = elab::utils::decompose_prod(self.crate_env.arena(), ty);
+                let (head, self_indices) = elab::utils::decompose_app(self.crate_env.arena(), tail);
                 if !matches!(self.crate_env.arena().get(head), ExpNode::IndType { indspec, .. } if indspec == reflected) {
                     return Err("reflected recursive Program field is not strictly positive".to_string());
                 }
                 Ok(CtorBinder::StrictPositive { binders, self_indices })
             }).collect::<Result<Vec<_>, String>>()?;
-            Ok(crate::raw::inductive::CtorType { telescope, indices: Vec::new() })
+            Ok(elab::inductive::CtorType { telescope, indices: Vec::new() })
         }).collect::<Result<Vec<_>, String>>()?;
         self.crate_env.define_inductive(
             reflected,
@@ -590,7 +590,7 @@ impl GlobalEnvironment {
             )
             .map_err(|error| format!("Ill-formed Program datatype: {error:?}"))?;
         let mut reflected_context =
-            crate::raw::reflection::reflect_context(&self.crate_env, &program_context)
+            elab::reflection::reflect_context(&self.crate_env, &program_context)
                 .map_err(|error| format!("cannot reflect Program context: {error}"))?;
         self.crate_env
             .inductive(reflected)

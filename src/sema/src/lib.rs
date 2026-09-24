@@ -529,8 +529,12 @@ mod edit_sequence_tests;
 #[cfg(test)]
 mod tests;
 
+pub mod elaborator;
+mod macros;
 pub mod module_loader;
-use elab::{elaborator, metavariables};
+use elab::{metavariables, output};
+#[cfg(test)]
+mod elaboration_tests;
 use syntax::{self, parse};
 
 #[cfg(test)]

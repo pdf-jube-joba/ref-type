@@ -1,18 +1,21 @@
 //! Elaborate module parameters, imports, and declaration order.
 use super::*;
+use hir::ModuleItem;
 
-fn declaration_profile_label(item: &ModuleItem) -> String {
+fn declaration_profile_label(item: &syntax::ModuleItem) -> String {
     match item {
-        ModuleItem::Definition { name, .. } => format!("definition {}", name.as_str()),
-        ModuleItem::Inductive { type_name, .. } => {
+        syntax::ModuleItem::Definition { name, .. } => format!("definition {}", name.as_str()),
+        syntax::ModuleItem::Inductive { type_name, .. } => {
             format!("inductive {}", type_name.as_str())
         }
-        ModuleItem::Record { type_name, .. } => format!("record {}", type_name.as_str()),
-        ModuleItem::ChildModule { module } => format!("module {}", module.name.as_str()),
-        ModuleItem::Import { import_name, .. } => format!("import {}", import_name.as_str()),
-        ModuleItem::MathMacro { name, .. } => format!("math macro {}", name.as_str()),
-        ModuleItem::UserMacro { name, .. } => format!("macro {}", name.as_str()),
-        ModuleItem::UseMacro { macro_name, .. } => {
+        syntax::ModuleItem::Record { type_name, .. } => format!("record {}", type_name.as_str()),
+        syntax::ModuleItem::ChildModule { module } => format!("module {}", module.name.as_str()),
+        syntax::ModuleItem::Import { import_name, .. } => {
+            format!("import {}", import_name.as_str())
+        }
+        syntax::ModuleItem::MathMacro { name, .. } => format!("math macro {}", name.as_str()),
+        syntax::ModuleItem::UserMacro { name, .. } => format!("macro {}", name.as_str()),
+        syntax::ModuleItem::UseMacro { macro_name, .. } => {
             format!("use macro {}", macro_name.as_str())
         }
         _ => "query".to_string(),
@@ -22,7 +25,7 @@ fn declaration_profile_label(item: &ModuleItem) -> String {
 fn require_explicit_module_argument(expression: &SExp) -> Result<(), ElaborationError> {
     let mut expression = expression.clone();
     let mut has_meta = false;
-    crate::macros::walk_sexp_control(&mut expression, &mut |node| {
+    hir::visit::walk_sexp_control(&mut expression, &mut |node| {
         if matches!(node, SExp::Meta { .. }) {
             has_meta = true;
             false
@@ -72,7 +75,7 @@ impl GlobalEnvironment {
                 let reflected = match argument {
                     ModuleArgument::Pts(exp) => exp,
                     ModuleArgument::ProgramType(ty) => {
-                        crate::raw::reflection::reflect_value_type(&self.crate_env, ty).map_err(
+                        elab::reflection::reflect_value_type(&self.crate_env, ty).map_err(
                             |error| {
                                 ElaborationError::Message(format!(
                                     "cannot reflect Program type module argument: {error}"
@@ -80,9 +83,9 @@ impl GlobalEnvironment {
                             },
                         )?
                     }
-                    ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
+                    ModuleArgument::ProgramValue(value) => elab::reflection::reflect_program(
                         &self.crate_env,
-                        crate::raw::program::ProgramTerm::ValueTerm(value),
+                        elab::program::ProgramTerm::ValueTerm(value),
                     )
                     .map_err(|error| {
                         ElaborationError::Message(format!(
@@ -162,7 +165,7 @@ impl GlobalEnvironment {
                 let reflected = match *argument {
                     ModuleArgument::Pts(exp) => exp,
                     ModuleArgument::ProgramType(ty) => {
-                        crate::raw::reflection::reflect_value_type(&self.crate_env, ty).map_err(
+                        elab::reflection::reflect_value_type(&self.crate_env, ty).map_err(
                             |error| {
                                 ElaborationError::Message(format!(
                                     "cannot reflect Program type module argument: {error}"
@@ -170,9 +173,9 @@ impl GlobalEnvironment {
                             },
                         )?
                     }
-                    ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
+                    ModuleArgument::ProgramValue(value) => elab::reflection::reflect_program(
                         &self.crate_env,
-                        crate::raw::program::ProgramTerm::ValueTerm(value),
+                        elab::program::ProgramTerm::ValueTerm(value),
                     )
                     .map_err(|error| {
                         ElaborationError::Message(format!(
@@ -265,7 +268,8 @@ impl GlobalEnvironment {
             let mut local_scope = term_elaborator::LocalScope::default();
             let mut program_scope = program_term_elaborator::ProgramScope::new();
 
-            for RightBind { vars, ty } in parameters.iter() {
+            for parameter in parameters {
+                let RightBind { vars, ty } = &RightBind::from(parameter.clone());
                 let parameter_kind = if matches!(ty.as_ref(), SExp::ValueType) {
                     ModuleParameterKind::ProgramType
                 } else if !matches!(ty.as_ref(), SExp::Meta { .. })
@@ -366,13 +370,13 @@ impl GlobalEnvironment {
                     .unwrap_or(module.span),
             ) {
                 let name = match decl {
-                    ModuleItem::Definition { name, .. }
-                    | ModuleItem::MathMacro { name, .. }
-                    | ModuleItem::UserMacro { name, .. } => Some(name),
-                    ModuleItem::Inductive { type_name, .. }
-                    | ModuleItem::Record { type_name, .. } => Some(type_name),
-                    ModuleItem::Import { import_name, .. } => Some(import_name),
-                    ModuleItem::Error { name, .. } => name.as_ref(),
+                    syntax::ModuleItem::Definition { name, .. }
+                    | syntax::ModuleItem::MathMacro { name, .. }
+                    | syntax::ModuleItem::UserMacro { name, .. } => Some(name),
+                    syntax::ModuleItem::Inductive { type_name, .. }
+                    | syntax::ModuleItem::Record { type_name, .. } => Some(type_name),
+                    syntax::ModuleItem::Import { import_name, .. } => Some(import_name),
+                    syntax::ModuleItem::Error { name, .. } => name.as_ref(),
                     _ => None,
                 };
                 if let Some(name) = name {
@@ -397,8 +401,18 @@ impl GlobalEnvironment {
                     .unwrap_or(module.span),
             });
             self.metavariables.clear();
+            if let syntax::ModuleItem::ChildModule { module } = decl {
+                if !self.defer_child_modules {
+                    self.module_add_rec(module)?;
+                }
+                self.finish_elaboration_unit()?;
+                continue;
+            }
+            // Expanded syntax is owned by the current declaration. Macro
+            // registration keeps only the templates needed by later items.
+            let declaration = ModuleItem::from(decl.clone());
             let mut local_scope = LocalScope::default();
-            match decl {
+            match &declaration {
                 ModuleItem::Error { message, .. } => return Err(message.clone().into()),
                 ModuleItem::Definition {
                     owner,
@@ -608,7 +622,7 @@ impl GlobalEnvironment {
                                 let mut term: SExp = ends.clone();
                                 for bd in rightbinds.iter().rev() {
                                     term = SExp::Prod {
-                                        bind: crate::syntax::Bind::Named(bd.clone()),
+                                        bind: hir::Bind::Named(bd.clone()),
                                         body: Box::new(term),
                                     };
                                 }
@@ -623,7 +637,7 @@ impl GlobalEnvironment {
                                 self.finish_metavariables()?;
                                 term_elab = self.metavariables.zonk(&self.crate_env, term_elab);
                             }
-                            crate::raw::utils::decompose_prod(self.crate_env.arena(), term_elab)
+                            elab::utils::decompose_prod(self.crate_env.arena(), term_elab)
                         };
 
                         let mut ctor_binders = vec![];
@@ -631,7 +645,7 @@ impl GlobalEnvironment {
                             if exp_contains_inductive(self.crate_env.arena(), e, inductive) {
                                 // strict positive case
                                 let (inner_binders, inner_tail) =
-                                    crate::raw::utils::decompose_prod(self.crate_env.arena(), e);
+                                    elab::utils::decompose_prod(self.crate_env.arena(), e);
                                 for (_, it) in inner_binders.iter() {
                                     if exp_contains_inductive(
                                         self.crate_env.arena(),
@@ -641,10 +655,8 @@ impl GlobalEnvironment {
                                         return Err("Ctor contains inductive type name  in non-strictly positive position".into());
                                     }
                                 }
-                                let (head, tail) = crate::raw::utils::decompose_app(
-                                    self.crate_env.arena(),
-                                    inner_tail,
-                                );
+                                let (head, tail) =
+                                    elab::utils::decompose_app(self.crate_env.arena(), inner_tail);
                                 if !matches!(self.crate_env.arena().get(head), ExpNode::IndType { indspec, .. } if indspec == inductive)
                                 {
                                     return Err("Constructor binder type head does not match inductive type name {type_name_var}".into());
@@ -670,7 +682,7 @@ impl GlobalEnvironment {
                         }
 
                         let (head, tail) =
-                            crate::raw::utils::decompose_app(self.crate_env.arena(), ends_elab);
+                            elab::utils::decompose_app(self.crate_env.arena(), ends_elab);
                         if !matches!(self.crate_env.arena().get(head), ExpNode::IndType { indspec, .. } if indspec == inductive)
                         {
                             return Err(
@@ -685,7 +697,7 @@ impl GlobalEnvironment {
                             }
                         }
 
-                        ctor_type_elabs.push(crate::raw::inductive::CtorType {
+                        ctor_type_elabs.push(elab::inductive::CtorType {
                             telescope: ctor_binders,
                             indices: tail,
                         });
@@ -763,7 +775,7 @@ impl GlobalEnvironment {
                         parameter_elab,
                         vec![],
                         *sort,
-                        vec![crate::raw::inductive::CtorType {
+                        vec![elab::inductive::CtorType {
                             telescope,
                             indices: vec![],
                         }],
@@ -786,11 +798,7 @@ impl GlobalEnvironment {
                         projections,
                     )?;
                 }
-                ModuleItem::ChildModule { module } => {
-                    if !self.defer_child_modules {
-                        self.module_add_rec(module)?;
-                    }
-                }
+                ModuleItem::ChildModule { .. } => unreachable!("child module handled above"),
                 ModuleItem::Import { path, import_name } => {
                     if self
                         .crate_env
@@ -805,18 +813,18 @@ impl GlobalEnvironment {
                         .into());
                     }
                     let (from, base, calls) = match path {
-                        ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
+                        hir::ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
                             (Some(*back_parent), None, calls)
                         }
-                        ModuleInstantiatePath::FromRoot { calls } => (None, None, calls),
-                        ModuleInstantiatePath::FromPackage { package, .. } => {
+                        hir::ModuleInstantiatePath::FromRoot { calls } => (None, None, calls),
+                        hir::ModuleInstantiatePath::FromPackage { package, .. } => {
                             return Err(format!(
                                 "package '{}' has not been resolved by the semantic service",
                                 package.as_str()
                             )
                             .into());
                         }
-                        ModuleInstantiatePath::FromImport { import_name, calls } => {
+                        hir::ModuleInstantiatePath::FromImport { import_name, calls } => {
                             let binding = self
                                 .crate_env
                                 .resolve_import(self.module_manager.current(), import_name.as_str())
@@ -899,19 +907,20 @@ impl GlobalEnvironment {
                                     let syntax: ValueTermExp = expression.clone().try_into()?;
                                     let value = program_scope.elaborate_value(&syntax, self)?;
                                     let mut expected =
-                                        crate::raw::program_calculus::subst_value_type_module_params(
+                                        elab::program_calculus::subst_value_type_module_params(
                                             self.crate_env.arena(),
                                             ty,
                                             &program_substitutions,
                                         );
                                     if let Some(base) = base {
                                         let remapping = &self.crate_env.binding(base).remapping;
-                                        expected = crate::raw::program_calculus::remap_value_type_global_ids(
-                                            self.crate_env.arena(),
-                                            expected,
-                                            &remapping.definition_ids,
-                                            &remapping.program_inductive_ids,
-                                        );
+                                        expected =
+                                            elab::program_calculus::remap_value_type_global_ids(
+                                                self.crate_env.arena(),
+                                                expected,
+                                                &remapping.definition_ids,
+                                                &remapping.program_inductive_ids,
+                                            );
                                     }
                                     let (value, _) = program_scope
                                         .check_value_term_with_metas(self, value, expected)?;

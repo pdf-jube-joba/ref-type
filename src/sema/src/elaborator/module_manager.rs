@@ -1,37 +1,26 @@
 use crate::macros::{LazyModuleMacroScope, MacroInstantiation, ModuleMacroScope};
-use crate::raw::calculus::{exp_subst_map, remap_all_global_ids};
-use crate::raw::derivation::CheckSession;
+use elab::calculus::{exp_subst_map, remap_all_global_ids};
+use elab::derivation::CheckSession;
 #[cfg(test)]
-use crate::raw::environment::ModuleParameter;
-use crate::raw::environment::{
+use elab::environment::ModuleParameter;
+use elab::environment::{
     CrateEnv, DeclarationRemapping, DefinedConstant, ModuleArgument, ModuleItem,
     ModuleParameterKind,
 };
-use crate::raw::exp::{Exp, ExpContext, ExpContextEntry};
-use crate::raw::ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId};
+use elab::exp::{Exp, ExpContext, ExpContextEntry};
+use elab::ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId};
 #[cfg(test)]
-use crate::raw::inductive::InductiveTypeSpecs;
-use crate::raw::program::{ProgramContext, ProgramContextEntry};
-use crate::syntax::{
-    Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemProgramInductive,
-    ModItemRecord,
-};
+use elab::inductive::InductiveTypeSpecs;
+use elab::program::{ProgramContext, ProgramContextEntry};
+use elab::resolver::{ModItemDefinition, ModItemInductive, ModItemProgramInductive, ModItemRecord};
+use hir::{Identifier, LocalAccess};
 use std::{cell::Cell, collections::HashMap};
 
-#[derive(Debug, Clone)]
-pub(crate) enum ItemAccessResult {
-    Definition(ModItemDefinition),
-    ReflectedDefinition(ModItemDefinition),
-    Inductive(ModItemInductive),
-    Record(ModItemRecord),
-    ProgramInductive(ModItemProgramInductive),
-    Expression(Exp),
-    ProgramTypeParameter(ModuleParamId),
-    ProgramValueParameter(ModuleParamId),
-}
+pub(crate) use elab::resolver::ItemAccessResult;
 
 #[derive(Debug)]
 pub(crate) struct ModuleManager {
+    pub(crate) captures: std::cell::RefCell<Vec<Exp>>,
     current: ModuleId,
     pub(crate) macro_scopes: HashMap<ModuleId, ModuleMacroScope>,
     pub(crate) lazy_macro_scopes: HashMap<ModuleId, LazyModuleMacroScope>,
@@ -46,8 +35,20 @@ impl Default for ModuleManager {
 }
 
 impl ModuleManager {
+    pub(crate) fn capture_expression(&self, expression: Exp) -> hir::CapturedId {
+        let mut captures = self.captures.borrow_mut();
+        let id = hir::CapturedId(captures.len());
+        captures.push(expression);
+        id
+    }
+
+    pub(crate) fn captured_expression(&self, id: hir::CapturedId) -> Exp {
+        self.captures.borrow()[id.0]
+    }
+
     pub(crate) fn new() -> Self {
         Self {
+            captures: Default::default(),
             current: ModuleId(0),
             macro_scopes: HashMap::new(),
             lazy_macro_scopes: HashMap::new(),
@@ -400,13 +401,13 @@ impl ModuleManager {
                 let reflected = match argument {
                     ModuleArgument::Pts(exp) => *exp,
                     ModuleArgument::ProgramType(ty) => {
-                        crate::raw::reflection::reflect_value_type(env, *ty).map_err(|error| {
+                        elab::reflection::reflect_value_type(env, *ty).map_err(|error| {
                             format!("cannot reflect Program type module argument: {error}")
                         })?
                     }
-                    ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
+                    ModuleArgument::ProgramValue(value) => elab::reflection::reflect_program(
                         env,
-                        crate::raw::program::ProgramTerm::ValueTerm(*value),
+                        elab::program::ProgramTerm::ValueTerm(*value),
                     )
                     .map_err(|error| {
                         format!("cannot reflect Program value module argument: {error}")
@@ -476,38 +477,32 @@ impl ModuleManager {
                             })?;
                     }
                     (ModuleParameterKind::ProgramType, ModuleArgument::ProgramType(ty)) => {
-                        crate::raw::program_derivation::ProgramCheckSession::new(
-                            env,
-                            &mut Vec::new(),
-                        )
-                        .check_value_type(*ty)
-                        .map_err(|error| {
-                            format!("Program type module argument is ill-formed: {error:?}")
-                        })?;
+                        elab::program_derivation::ProgramCheckSession::new(env, &mut Vec::new())
+                            .check_value_type(*ty)
+                            .map_err(|error| {
+                                format!("Program type module argument is ill-formed: {error:?}")
+                            })?;
                     }
                     (
                         ModuleParameterKind::ProgramValue { ty },
                         ModuleArgument::ProgramValue(value),
                     ) => {
-                        let expected = crate::raw::program_calculus::remap_value_type_global_ids(
+                        let expected = elab::program_calculus::remap_value_type_global_ids(
                             env.arena(),
                             ty,
                             &remapping.definition_ids,
                             &remapping.program_inductive_ids,
                         );
-                        let expected = crate::raw::program_calculus::subst_value_type_module_params(
+                        let expected = elab::program_calculus::subst_value_type_module_params(
                             env.arena(),
                             expected,
                             &substitutions,
                         );
-                        crate::raw::program_derivation::ProgramCheckSession::new(
-                            env,
-                            &mut Vec::new(),
-                        )
-                        .check_value_term(*value, expected)
-                        .map_err(|error| {
-                            format!("Program value module argument is ill-typed: {error:?}")
-                        })?;
+                        elab::program_derivation::ProgramCheckSession::new(env, &mut Vec::new())
+                            .check_value_term(*value, expected)
+                            .map_err(|error| {
+                                format!("Program value module argument is ill-typed: {error:?}")
+                            })?;
                     }
                     _ => {
                         return Err(format!(
@@ -524,13 +519,13 @@ impl ModuleManager {
                 let reflected = match argument {
                     ModuleArgument::Pts(exp) => *exp,
                     ModuleArgument::ProgramType(ty) => {
-                        crate::raw::reflection::reflect_value_type(env, *ty).map_err(|error| {
+                        elab::reflection::reflect_value_type(env, *ty).map_err(|error| {
                             format!("cannot reflect Program type module argument: {error}")
                         })?
                     }
-                    ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
+                    ModuleArgument::ProgramValue(value) => elab::reflection::reflect_program(
                         env,
-                        crate::raw::program::ProgramTerm::ValueTerm(*value),
+                        elab::program::ProgramTerm::ValueTerm(*value),
                     )
                     .map_err(|error| {
                         format!("cannot reflect Program value module argument: {error}")
@@ -774,7 +769,7 @@ pub(crate) fn resolve_access(
             let binding = env.resolve_import(from, access.as_str())?;
             (env.binding(binding).materialized, child.as_str(), false)
         }
-        LocalAccess::Resolved { module, access } => (*module, access.as_str(), false),
+        LocalAccess::Resolved { scope, access } => (ModuleId(scope.0), access.as_str(), false),
     };
     let (name, reflected) = reference
         .strip_suffix('^')
@@ -805,7 +800,7 @@ pub(crate) fn resolve_access(
             ItemAccessResult::ProgramTypeParameter(parameter)
             | ItemAccessResult::ProgramValueParameter(parameter) => ItemAccessResult::Expression(
                 env.arena()
-                    .alloc(crate::raw::exp::ExpNode::ReflectedProgramParam(parameter)),
+                    .alloc(elab::exp::ExpNode::ReflectedProgramParam(parameter)),
             ),
             _ => return None,
         }
@@ -917,9 +912,9 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::raw::exp::ExpNode;
-    use crate::raw::inductive::{CtorType, InductiveTypeSpecs};
-    use crate::raw::sort::Sort;
+    use elab::exp::ExpNode;
+    use elab::inductive::{CtorType, InductiveTypeSpecs};
+    use elab::sort::Sort;
 
     fn pts_body(definition: &DefinedConstant) -> Exp {
         match definition {
@@ -1019,7 +1014,7 @@ mod tests {
                 Identifier::new("answer".into()),
                 crate::macros::MacroKind::Named,
                 vec![],
-                crate::syntax::SExp::ResolvedExp(proposition),
+                hir::SExp::Captured(manager.capture_expression(proposition)),
             )
             .unwrap();
         manager.publish_current_module(&mut env).unwrap();
@@ -1364,9 +1359,9 @@ mod tests {
         let child = env
             .arena()
             .alloc(ExpNode::DefinedConstant(*child_definition));
-        assert!(crate::raw::calculus::exp_is_alpha_eq(
+        assert!(elab::calculus::exp_is_alpha_eq(
             &env,
-            crate::raw::calculus::whnf(&env, child),
+            elab::calculus::whnf(&env, child),
             argument,
         ));
     }
@@ -1487,9 +1482,9 @@ mod tests {
             unreachable!()
         };
         let result = env.arena().alloc(ExpNode::DefinedConstant(*definition));
-        assert!(crate::raw::calculus::exp_is_alpha_eq(
+        assert!(elab::calculus::exp_is_alpha_eq(
             &env,
-            crate::raw::calculus::whnf(&env, result),
+            elab::calculus::whnf(&env, result),
             argument,
         ));
     }

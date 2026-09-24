@@ -20,7 +20,7 @@ impl GlobalEnvironment {
     fn elaborate_query_computation(
         &mut self,
         exp: &ComputationTermExp,
-    ) -> Result<crate::raw::program::ComputationTerm, ElaborationError> {
+    ) -> Result<elab::program::ComputationTerm, ElaborationError> {
         let mut scope = program_term_elaborator::ProgramScope::new();
         let computation = scope.elaborate_computation(exp, self)?;
         // Raw evaluation still permits stuck non-recursive syntax. Explicit
@@ -31,14 +31,14 @@ impl GlobalEnvironment {
         let (computation, ty) = scope.infer_computation_term_with_metas(self, computation)?;
         self.certify_program_query(
             scope.context(),
-            crate::raw::program::ProgramTerm::ComputationTerm(computation),
-            crate::raw::program::ProgramType::ComputationType(ty),
+            elab::program::ProgramTerm::ComputationTerm(computation),
+            elab::program::ProgramType::ComputationType(ty),
         )?;
         Ok(computation)
     }
 
     fn certify_query(&mut self, context: &ExpContext, term: Exp, ty: Exp) -> Result<(), String> {
-        let mut lower = crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env);
+        let mut lower = elab::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env);
         let module = self.module_manager.current();
         let mut raw_context = context.clone();
         let term = lower.set(term, &mut raw_context, module)?;
@@ -49,11 +49,11 @@ impl GlobalEnvironment {
 
     fn certify_program_query(
         &mut self,
-        context: &crate::raw::program::ProgramContext,
-        term: crate::raw::program::ProgramTerm,
-        ty: crate::raw::program::ProgramType,
+        context: &elab::program::ProgramContext,
+        term: elab::program::ProgramTerm,
+        ty: elab::program::ProgramType,
     ) -> Result<(), String> {
-        let mut lower = crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env);
+        let mut lower = elab::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env);
         let term = lower.program_in_context(term, &mut context.clone())?;
         let ty = lower.program_type(ty)?;
         let context = lower.program_context(context)?;
@@ -67,7 +67,7 @@ impl GlobalEnvironment {
     ) -> Result<(), ElaborationError> {
         let exp_elab = self.elaborate_query_term(exp, ctx)?;
         self.outputs.push(Output::Exp(
-            crate::raw::calculus::reduce_one(&self.crate_env, exp_elab).unwrap_or(exp_elab),
+            elab::calculus::reduce_one(&self.crate_env, exp_elab).unwrap_or(exp_elab),
         ));
         Ok(())
     }
@@ -78,11 +78,10 @@ impl GlobalEnvironment {
         ctx: &mut ExpContext,
     ) -> Result<(), ElaborationError> {
         let exp_elab = self.elaborate_query_term(exp, ctx)?;
-        self.outputs
-            .push(Output::Exp(crate::raw::calculus::normalize(
-                &self.crate_env,
-                exp_elab,
-            )));
+        self.outputs.push(Output::Exp(elab::calculus::normalize(
+            &self.crate_env,
+            exp_elab,
+        )));
         Ok(())
     }
 
@@ -91,8 +90,7 @@ impl GlobalEnvironment {
         exp: &ComputationTermExp,
     ) -> Result<(), ElaborationError> {
         let computation = self.elaborate_query_computation(exp)?;
-        let reduced =
-            crate::raw::program_calculus::reduce_computation_once(&self.crate_env, computation);
+        let reduced = elab::program_calculus::reduce_computation_once(&self.crate_env, computation);
         self.outputs
             .push(Output::ComputationTerm(reduced.unwrap_or(computation)));
         Ok(())
@@ -104,13 +102,11 @@ impl GlobalEnvironment {
     ) -> Result<(), ElaborationError> {
         let computation = self.elaborate_query_computation(exp)?;
         self.outputs.push(
-            match crate::raw::program_calculus::evaluate_computation(&self.crate_env, computation) {
-                crate::raw::program_calculus::Evaluation::Normal(result) => {
+            match elab::program_calculus::evaluate_computation(&self.crate_env, computation) {
+                elab::program_calculus::Evaluation::Normal(result) => {
                     Output::ComputationTerm(result)
                 }
-                crate::raw::program_calculus::Evaluation::OutOfFuel(result) => {
-                    Output::OutOfFuel(result)
-                }
+                elab::program_calculus::Evaluation::OutOfFuel(result) => Output::OutOfFuel(result),
             },
         );
         Ok(())
@@ -131,8 +127,8 @@ impl GlobalEnvironment {
             .map_err(|error| format!("Program value check failed: {error:?}"))?;
         self.certify_program_query(
             scope.context(),
-            crate::raw::program::ProgramTerm::ValueTerm(value),
-            crate::raw::program::ProgramType::ValueType(ty),
+            elab::program::ProgramTerm::ValueTerm(value),
+            elab::program::ProgramType::ValueType(ty),
         )?;
         self.outputs.push(Output::ValueType(ty));
         Ok(())
@@ -153,8 +149,8 @@ impl GlobalEnvironment {
             .map_err(|error| format!("Program computation check failed: {error:?}"))?;
         self.certify_program_query(
             scope.context(),
-            crate::raw::program::ProgramTerm::ComputationTerm(computation),
-            crate::raw::program::ProgramType::ComputationType(ty),
+            elab::program::ProgramTerm::ComputationTerm(computation),
+            elab::program::ProgramType::ComputationType(ty),
         )?;
         self.outputs.push(Output::ComputationType(ty));
         Ok(())
@@ -166,8 +162,8 @@ impl GlobalEnvironment {
         let (value, ty) = scope.infer_value_term_with_metas(self, value)?;
         self.certify_program_query(
             scope.context(),
-            crate::raw::program::ProgramTerm::ValueTerm(value),
-            crate::raw::program::ProgramType::ValueType(ty),
+            elab::program::ProgramTerm::ValueTerm(value),
+            elab::program::ProgramType::ValueType(ty),
         )?;
         self.outputs.push(Output::ValueType(ty));
         Ok(())
@@ -182,8 +178,8 @@ impl GlobalEnvironment {
         let (computation, ty) = scope.infer_computation_term_with_metas(self, computation)?;
         self.certify_program_query(
             scope.context(),
-            crate::raw::program::ProgramTerm::ComputationTerm(computation),
-            crate::raw::program::ProgramType::ComputationType(ty),
+            elab::program::ProgramTerm::ComputationTerm(computation),
+            elab::program::ProgramType::ComputationType(ty),
         )?;
         self.outputs.push(Output::ComputationType(ty));
         Ok(())

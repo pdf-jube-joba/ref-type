@@ -2,15 +2,17 @@
 
 | crate | 担当 |
 | --- | --- |
+| `syntax` | source の構文、位置、lexer、parser |
+| `hir` | 展開用の構文、proof block、scope と capture の参照、AST からの変換 |
+| `elab` | 推論用の項、metavariable、制約、簡約、reflection、kernel bridge |
 | `kernel` | 分類済み calculus、型検査、conversion、reflection |
-| `raw` | 未分類の項、環境、構造操作、評価 |
-| `syntax` | source と展開後の構文、位置、lexer、parser |
-| `elab` | macro 展開、elaboration、metavariable、kernel bridge |
-| `sema` | source snapshot、package/module graph、問い合わせ、診断 |
+| `sema` | source snapshot、package/module graph、名前解決、macro 展開、問い合わせ、診断 |
 | `cli` | コマンドラインと既存 protocol adapter |
 
-依存は `cli → sema → elab → syntax → raw → kernel` を軸にする。
-各層は必要な下位 crate の公開 API を直接利用する。
+依存は `cli → sema → elab → hir → syntax` と `elab → kernel` を軸にする。
+`sema` は `syntax`、`hir`、`kernel` の公開 API も利用する。
+`syntax` の AST から `hir` の構文を作り、macro 展開と名前の束縛は HIR に反映する。
+`sema::elaborator::GlobalEnvironment` が resolver と宣言の処理順を管理し、項の elaborator には `elab` の `Handler` trait を通して情報を渡す。
 
 ## Package
 
@@ -77,9 +79,9 @@ typing span は無効で、型検査に必要な証明は各項の部分項と�
 `\module Algebra;` は `Algebra.ref`、その中の `\module Group;` は
 `Algebra/Group.ref` を読み込む。ファイル名の大文字と小文字は宣言と一致させる。
 
-module は elab のパラメーター付き名前空間として扱う。import は引数の代入を保持し、
-その alias を起点に child module も参照できる。module 内で宣言した import alias は
-その子 module からも同じ名前で参照でき、子側の同名 import がある場合はそちらを優先する。
+module は sema が管理するパラメーター付き名前空間として扱う。
+import は引数の代入を保持し、その alias を起点に child module も参照できる。
+module 内で宣言した import alias はその子 module からも同じ名前で参照でき、子側の同名 import がある場合はそちらを優先する。
 parameter は名前と宣言順を一致させてすべて指定する。
 module argument 内では `_`・`?` による推論を行わない。
 
@@ -244,9 +246,9 @@ kernel の `Environment::register_definition` は、分類済みの本体・clas
 検査してから指定された `DefId` に登録します。Program の反映証明を指定した場合は、
 その Set typing と Program 本体との構造的な対応も検査します。
 
-front は未分類構文で elaboration と meta の解決を行い、分類・level・product rule を
-付けた構文を kernel に渡します。`GlobalEnvironment::kernel_env()` が検査済みの環境です。
-`crate_env()` は elaboration・macro・診断・raw 評価に使う front 側の環境を返します。
+elab は HIR から推論用の項を構築して meta を解決し、分類・level・product rule を付けた構文を kernel に渡します。
+`GlobalEnvironment::kernel_env()` が検査済みの環境です。
+`crate_env()` は elaboration・macro・診断・評価に使う項と宣言の環境を返します。
 module 実体化で生じた定義も新しい ID で kernel の登録検査を通します。
 
 ```sh

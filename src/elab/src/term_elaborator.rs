@@ -1,16 +1,16 @@
-use crate::elaborator::ItemAccessResult;
-use crate::elaborator::profiling::ProfileTimer;
-use crate::raw::calculus::{
-    exp_contains_bound, instantiate, shift_bound_indices, type_head_normal,
-};
-use crate::raw::environment::{CrateEnv, DefinedConstant};
-use crate::raw::exp::*;
-use crate::raw::ids::*;
-use crate::raw::inductive::InductiveTypeSpecs;
-use crate::raw::program::{ComputationTerm, ComputationType, ValueType};
-use crate::syntax::*;
+use crate::calculus::{exp_contains_bound, instantiate, shift_bound_indices, type_head_normal};
+use crate::environment::{CrateEnv, DefinedConstant};
+use crate::exp::*;
+use crate::ids::*;
+use crate::inductive::InductiveTypeSpecs;
+use crate::profiling::ProfileTimer;
+use crate::program::{ComputationTerm, ComputationType, ValueType};
+use crate::resolver::ItemAccessResult;
+use crate::resolver::{ModItemDefinition, ModItemInductive, ModItemRecord};
+use hir::*;
 
-pub(crate) trait Handler {
+pub trait Handler {
+    fn captured_expression(&self, id: hir::CapturedId) -> Exp;
     fn record_local(&self, name: &Identifier, binder: SourceSpan);
     fn record_member(
         &self,
@@ -57,7 +57,7 @@ pub(crate) trait Handler {
     fn expand_math_macro(
         &mut self,
         tokens: &[MacroExp],
-        scope: Option<ModuleId>,
+        scope: Option<ScopeId>,
         depth: u16,
         max_order: Option<u64>,
     ) -> Result<SExp, String>;
@@ -65,7 +65,7 @@ pub(crate) trait Handler {
         &mut self,
         name: &Identifier,
         tokens: &[MacroExp],
-        scope: Option<ModuleId>,
+        scope: Option<ScopeId>,
         depth: u16,
         max_order: Option<u64>,
     ) -> Result<SExp, String>;
@@ -77,7 +77,7 @@ pub(crate) trait Handler {
 fn expand_macros(exp: &SExp, handler: &mut impl Handler) -> Result<SExp, String> {
     let mut expanded = exp.clone();
     let mut result = Ok(());
-    crate::macros::walk_sexp_control(&mut expanded, &mut |node| {
+    hir::visit::walk_sexp_control(&mut expanded, &mut |node| {
         if result.is_err() {
             return false;
         }
@@ -122,7 +122,7 @@ struct LocalBinding {
 
 // local scope during elaboration
 #[derive(Debug, Clone)]
-pub(crate) struct LocalScope {
+pub struct LocalScope {
     // Variables and local definitions share lexical shadowing order.
     bindings: Vec<LocalBinding>,
     // Types of local variables known to the elaborator. Module variables are
@@ -137,14 +137,14 @@ impl Default for LocalScope {
 }
 
 impl LocalScope {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         LocalScope {
             bindings: vec![],
             typing_binds: vec![],
         }
     }
 
-    pub(crate) fn from_typing_context(context: ExpContext) -> Self {
+    pub fn from_typing_context(context: ExpContext) -> Self {
         Self {
             bindings: context
                 .iter()
@@ -160,7 +160,7 @@ impl LocalScope {
         }
     }
 
-    pub(crate) fn push_decl_var_exp(&mut self, var: SymbolId, exp: Exp) {
+    pub fn push_decl_var_exp(&mut self, var: SymbolId, exp: Exp) {
         self.bindings.push(LocalBinding {
             origin: None,
             var,
@@ -169,17 +169,17 @@ impl LocalScope {
         });
     }
 
-    pub(crate) fn push_typed_decl_var(&mut self, var: SymbolId, ty: Exp) {
+    pub fn push_typed_decl_var(&mut self, var: SymbolId, ty: Exp) {
         self.push_binded_var(var, ty);
     }
 
-    pub(crate) fn push_typed_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
+    pub fn push_typed_decl_var_exp(&mut self, var: SymbolId, ty: Exp, exp: Exp) {
         self.push_decl_var_exp(var, exp);
         self.typing_binds.push(ExpContextEntry { var, ty });
     }
 
     // Keeps the telescope in the local scope.
-    pub(crate) fn elab_telescope_bind_in_decl(
+    pub fn elab_telescope_bind_in_decl(
         &mut self,
         binds: &[RightBind],
         handler: &mut impl Handler,
@@ -201,7 +201,7 @@ impl LocalScope {
         Ok(result)
     }
 
-    pub(crate) fn infer_elaborated(
+    pub fn infer_elaborated(
         &mut self,
         exp: Exp,
         handler: &mut impl Handler,
@@ -316,11 +316,7 @@ impl LocalScope {
         self.typing_binds.pop();
     }
 
-    pub(crate) fn elab_exp(
-        &mut self,
-        exp: &SExp,
-        handler: &mut impl Handler,
-    ) -> Result<Exp, String> {
+    pub fn elab_exp(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
         let bindings = self.bindings.len();
         let depth = self.typing_binds.len();
         let e = self.elab_exp_rec(exp, handler);
@@ -450,11 +446,11 @@ impl LocalScope {
                         }
                         match handler.env().definition(definition) {
                             DefinedConstant::ProgramValue { body, .. } => {
-                                crate::raw::reflection::reflect_value(handler.env(), *body)
+                                crate::reflection::reflect_value(handler.env(), *body)
                                     .map_err(|e| e.to_string())
                             }
                             DefinedConstant::ProgramComputation { body, .. } => {
-                                crate::raw::reflection::reflect_computation(handler.env(), *body)
+                                crate::reflection::reflect_computation(handler.env(), *body)
                                     .map_err(|e| e.to_string())
                             }
                             _ => Err("Set reflection requires a Program definition".into()),
@@ -506,7 +502,7 @@ impl LocalScope {
                             .elaborate_program_type_arguments(parameters, count)?
                             .into_iter()
                             .map(|parameter| {
-                                crate::raw::reflection::reflect_value_type(handler.env(), parameter)
+                                crate::reflection::reflect_value_type(handler.env(), parameter)
                                     .map_err(|error| error.to_string())
                             })
                             .collect::<Result<Vec<_>, _>>()?;
@@ -529,17 +525,17 @@ impl LocalScope {
                             })?;
                         let reflected = match handler.env().definition(*definition) {
                             DefinedConstant::ProgramValue { body, .. } => {
-                                crate::raw::reflection::reflect_value(handler.env(), *body)
+                                crate::reflection::reflect_value(handler.env(), *body)
                             }
                             DefinedConstant::ProgramComputation { body, .. } => {
-                                crate::raw::reflection::reflect_computation(handler.env(), *body)
+                                crate::reflection::reflect_computation(handler.env(), *body)
                             }
                             DefinedConstant::Pts { .. } => {
                                 return Err("associated item is not a Program definition".into());
                             }
                         };
                         let reflected = reflected.map_err(|error| error.to_string())?;
-                        return Ok(crate::raw::calculus::instantiate_telescope(
+                        return Ok(crate::calculus::instantiate_telescope(
                             handler.arena(),
                             reflected,
                             &reflected_parameters,
@@ -587,7 +583,7 @@ impl LocalScope {
                                     self.associated_parameters(parameters, count, handler)?;
                                 let definition =
                                     handler.arena().alloc(ExpNode::DefinedConstant(*definition));
-                                return Ok(crate::raw::utils::assoc_apply(
+                                return Ok(crate::utils::assoc_apply(
                                     handler.arena(),
                                     definition,
                                     parameters,
@@ -628,7 +624,7 @@ impl LocalScope {
                                     self.associated_parameters(parameters, count, handler)?;
                                 let definition =
                                     handler.arena().alloc(ExpNode::DefinedConstant(*definition));
-                                return Ok(crate::raw::utils::assoc_apply(
+                                return Ok(crate::utils::assoc_apply(
                                     handler.arena(),
                                     definition,
                                     parameters,
@@ -645,7 +641,7 @@ impl LocalScope {
                             let shifted_parameters = parameters
                                 .iter()
                                 .map(|parameter| {
-                                    crate::raw::calculus::shift_bound_indices(
+                                    crate::calculus::shift_bound_indices(
                                         handler.arena(),
                                         *parameter,
                                         1,
@@ -697,7 +693,7 @@ impl LocalScope {
                 "Macro capture '${}' escaped template expansion",
                 name.as_str()
             )),
-            SExp::ResolvedExp(exp) => Ok(*exp),
+            SExp::Captured(id) => Ok(handler.captured_expression(*id)),
             SExp::Where { exp, clauses } => {
                 let declaration_mark = self.bindings.len();
                 let depth = self.typing_binds.len();
@@ -784,9 +780,9 @@ impl LocalScope {
                         }
 
                         Ok(if is_prod {
-                            crate::raw::utils::assoc_prod(handler.arena(), telescope, body_elab)
+                            crate::utils::assoc_prod(handler.arena(), telescope, body_elab)
                         } else {
-                            crate::raw::utils::assoc_lam(handler.arena(), telescope, body_elab)
+                            crate::utils::assoc_lam(handler.arena(), telescope, body_elab)
                         })
                     }
                     Bind::Subset { var, ty, predicate } => {
@@ -1206,7 +1202,7 @@ impl LocalScope {
                     program_ty.as_ref(),
                     SExp::Meta {
                         kind: SurfaceMeta {
-                            kind: crate::syntax::MetaKind::Implicit,
+                            kind: hir::MetaKind::Implicit,
                             ..
                         },
                         ..
@@ -1299,7 +1295,7 @@ impl LocalScope {
                             .telescope
                             .iter()
                             .map(|binder| match binder {
-                                crate::raw::inductive::CtorBinder::Simple((name, _)) => {
+                                crate::inductive::CtorBinder::Simple((name, _)) => {
                                     handler.symbol(*name).to_string()
                                 }
                                 _ => {
@@ -1343,7 +1339,7 @@ impl LocalScope {
                     parameters,
                     idx: 0,
                 });
-                Ok(crate::raw::utils::assoc_apply(
+                Ok(crate::utils::assoc_apply(
                     handler.arena(),
                     constructor,
                     ordered,

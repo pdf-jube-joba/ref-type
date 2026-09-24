@@ -1,13 +1,13 @@
 use std::time::Instant;
 
-pub(super) struct ProfileTimer {
+pub struct ProfileTimer {
     label: String,
     started: Instant,
     checkpoint: Instant,
 }
 
 impl ProfileTimer {
-    pub(super) fn start(variable: &str, label: impl FnOnce() -> String) -> Option<Self> {
+    pub fn start(variable: &str, label: impl FnOnce() -> String) -> Option<Self> {
         let filter = std::env::var(variable).ok()?;
         let label = label();
         if filter != "1" && !label.contains(&filter) {
@@ -21,7 +21,7 @@ impl ProfileTimer {
         })
     }
 
-    pub(super) fn checkpoint(&mut self, phase: &str) {
+    pub fn checkpoint(&mut self, phase: &str) {
         let now = Instant::now();
         eprintln!(
             "{:>10.3?}    {}",

@@ -6,7 +6,7 @@ use kernel::construction as build;
 impl Lowerer<'_> {
     // Reflected Program data can contain long constructor applications.
     // Keep their recursive path out of the large match for the other forms.
-    pub(crate) fn set(
+    pub fn set(
         &mut self,
         e: Exp,
         ctx: &mut ExpContext,
@@ -34,7 +34,7 @@ impl Lowerer<'_> {
     ) -> Result<s::Expression, String> {
         self.infer(e, ctx)?;
         let ty = self.infer(func, ctx)?;
-        let (_, domain, codomain) = raw::calculus::expose_product(self.raw, ty)
+        let (_, domain, codomain) = crate::calculus::expose_product(self.raw, ty)
             .ok_or("application does not have product type")?;
         let domain_sort = self.formation(domain, ctx)?;
         let body_sort = self.under(ctx, SymbolId::ANONYMOUS, domain, |this, ctx| {
@@ -65,7 +65,7 @@ impl Lowerer<'_> {
             return self.logical_base_kind(sort.base());
         }
         let ty = self.infer(e, ctx)?;
-        let head = raw::calculus::whnf(self.raw, ty);
+        let head = crate::calculus::whnf(self.raw, ty);
         let (sort, stage) = if let ExpNode::Sort(raw) = self.raw.arena().get(head) {
             let sort = Self::sort(raw);
             (
@@ -401,14 +401,14 @@ impl Lowerer<'_> {
             } => {
                 self.inductive(indspec, m, ctx)?;
                 let inductive = indspec;
-                let kind = raw::derivation::infer_motive_kind(
-                    &mut raw::derivation::CheckSession::new(self.raw, ctx),
+                let kind = crate::derivation::infer_motive_kind(
+                    &mut crate::derivation::CheckSession::new(self.raw, ctx),
                     "Lower",
                     "motive",
                     return_type,
                 )
                 .map_err(|e| format!("motive: {e:?}"))?;
-                let (binders, _) = raw::utils::decompose_prod(self.raw.arena(), kind);
+                let (binders, _) = crate::utils::decompose_prod(self.raw.arena(), kind);
                 let mut local = ctx.clone();
                 let mut motive_domains = vec![];
                 let mut motive_vars = vec![];
@@ -417,7 +417,7 @@ impl Lowerer<'_> {
                     motive_vars.push(*var);
                     local.push(ExpContextEntry { var: *var, ty: *ty });
                 }
-                let shifted = raw::calculus::shift_bound_indices(
+                let shifted = crate::calculus::shift_bound_indices(
                     self.raw.arena(),
                     return_type,
                     binders.len(),
@@ -427,9 +427,9 @@ impl Lowerer<'_> {
                     .rev()
                     .map(|i| self.raw.arena().exp_bound(i))
                     .collect();
-                let body = raw::calculus::whnf(
+                let body = crate::calculus::whnf(
                     self.raw,
-                    raw::utils::assoc_apply(self.raw.arena(), shifted, arguments),
+                    crate::utils::assoc_apply(self.raw.arena(), shifted, arguments),
                 );
                 let motive_body = self.set(body, &mut local, m)?.try_into()?;
                 let scrutinee = self.set(elim, ctx, m)?.try_into()?;
@@ -454,14 +454,14 @@ impl Lowerer<'_> {
             } => {
                 self.inductive(indspec, m, ctx)?;
                 let inductive = indspec;
-                let kind = raw::derivation::infer_motive_kind(
-                    &mut raw::derivation::CheckSession::new(self.raw, ctx),
+                let kind = crate::derivation::infer_motive_kind(
+                    &mut crate::derivation::CheckSession::new(self.raw, ctx),
                     "Lower",
                     "case motive",
                     return_type,
                 )
                 .map_err(|e| format!("case motive: {e:?}"))?;
-                let (binders, _) = raw::utils::decompose_prod(self.raw.arena(), kind);
+                let (binders, _) = crate::utils::decompose_prod(self.raw.arena(), kind);
                 let mut local = ctx.clone();
                 let mut motive_domains = vec![];
                 let mut motive_vars = vec![];
@@ -470,7 +470,7 @@ impl Lowerer<'_> {
                     motive_vars.push(*var);
                     local.push(ExpContextEntry { var: *var, ty: *ty });
                 }
-                let shifted = raw::calculus::shift_bound_indices(
+                let shifted = crate::calculus::shift_bound_indices(
                     self.raw.arena(),
                     return_type,
                     binders.len(),
@@ -480,9 +480,9 @@ impl Lowerer<'_> {
                     .rev()
                     .map(|i| self.raw.arena().exp_bound(i))
                     .collect();
-                let body = raw::calculus::whnf(
+                let body = crate::calculus::whnf(
                     self.raw,
-                    raw::utils::assoc_apply(self.raw.arena(), shifted, arguments),
+                    crate::utils::assoc_apply(self.raw.arena(), shifted, arguments),
                 );
                 let motive_body = self.set(body, &mut local, m)?.try_into()?;
                 let scrutinee = self.set(scrutinee, ctx, m)?.try_into()?;
@@ -754,11 +754,11 @@ impl Lowerer<'_> {
             },
             ExpNode::BoxApp { function, argument } => {
                 let ty = self.infer(function, ctx)?;
-                let head = raw::calculus::whnf(self.raw, ty);
+                let head = crate::calculus::whnf(self.raw, ty);
                 let ExpNode::BoxType { program_ty: ty } = self.raw.arena().get(head) else {
                     return Err("expected boxed function".into());
                 };
-                let raw::program::ComputationTypeNode::Function { domain, codomain } =
+                let crate::program::ComputationTypeNode::Function { domain, codomain } =
                     self.raw.arena().get(ty)
                 else {
                     return Err("expected Program function".into());
@@ -792,7 +792,7 @@ impl Lowerer<'_> {
                     .collect::<Vec<_>>();
                 let result_ty = self.set(ty, ctx, m)?;
                 let sty = self.infer(scrutinee, ctx)?;
-                let head = raw::calculus::whnf(self.raw, sty);
+                let head = crate::calculus::whnf(self.raw, sty);
                 let ExpNode::IndType { parameters, .. } = self.raw.arena().get(head) else {
                     return Err("case scrutinee has no datatype".into());
                 };
@@ -803,16 +803,16 @@ impl Lowerer<'_> {
                     for (i, ((_, field), var)) in
                         ctor.fields().iter().zip(&branch.binders).enumerate()
                     {
-                        let field = raw::reflection::reflect_value_type(self.raw, *field)
+                        let field = crate::reflection::reflect_value_type(self.raw, *field)
                             .map_err(|e| e.to_string())?;
-                        let field = raw::calculus::instantiate_telescope(
+                        let field = crate::calculus::instantiate_telescope(
                             self.raw.arena(),
                             field,
                             &parameters,
                         );
                         local.push(ExpContextEntry {
                             var: *var,
-                            ty: raw::calculus::shift_bound_indices(self.raw.arena(), field, i, 0),
+                            ty: crate::calculus::shift_bound_indices(self.raw.arena(), field, i, 0),
                         });
                     }
                     bodies.push(self.set(branch.body, &mut local, m)?);
@@ -837,7 +837,7 @@ impl Lowerer<'_> {
                     .module_parameter_opt(parameter)
                     .ok_or("unknown reflected parameter")?;
                 match binding.kind {
-                    raw::environment::ModuleParameterKind::ProgramType => {
+                    crate::environment::ModuleParameterKind::ProgramType => {
                         let form = s::SetTypeForm::ReflectedProgramParam { parameter };
                         self.kernel
                             .arena()
@@ -847,7 +847,7 @@ impl Lowerer<'_> {
                             })
                             .into()
                     }
-                    raw::environment::ModuleParameterKind::ProgramValue { .. } => {
+                    crate::environment::ModuleParameterKind::ProgramValue { .. } => {
                         let form = s::SetTermForm::ReflectedProgramParam { parameter };
                         self.kernel
                             .arena()

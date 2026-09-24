@@ -2,21 +2,21 @@
 use super::*;
 
 impl Lowerer<'_> {
-    pub(crate) fn program_type(
+    pub fn program_type(
         &mut self,
-        ty: raw::program::ProgramType,
+        ty: crate::program::ProgramType,
     ) -> Result<s::ProgramType, String> {
         match ty {
-            raw::program::ProgramType::ValueType(t) => Ok(self.value_type(t)?.into()),
-            raw::program::ProgramType::ComputationType(t) => Ok(self.computation_type(t)?.into()),
+            crate::program::ProgramType::ValueType(t) => Ok(self.value_type(t)?.into()),
+            crate::program::ProgramType::ComputationType(t) => Ok(self.computation_type(t)?.into()),
         }
     }
 
     pub(super) fn value_type(
         &mut self,
-        ty: raw::program::ValueType,
+        ty: crate::program::ValueType,
     ) -> Result<s::ValueType, String> {
-        use raw::program::ValueTypeNode as R;
+        use crate::program::ValueTypeNode as R;
         use s::ValueTypeForm as F;
         let form = match self.raw.arena().get(ty) {
             R::Bound(index) => F::Bound { index },
@@ -57,9 +57,9 @@ impl Lowerer<'_> {
 
     pub(super) fn computation_type(
         &mut self,
-        ty: raw::program::ComputationType,
+        ty: crate::program::ComputationType,
     ) -> Result<s::ComputationType, String> {
-        use raw::program::ComputationTypeNode as R;
+        use crate::program::ComputationTypeNode as R;
         use s::ComputationTypeForm as F;
         let form = match self.raw.arena().get(ty) {
             R::Meta { .. } => return Err("unresolved computation type".into()),
@@ -90,29 +90,29 @@ impl Lowerer<'_> {
             .alloc(s::ComputationTypeNode { level: 0, form }))
     }
 
-    pub(crate) fn program_in_context(
+    pub fn program_in_context(
         &mut self,
-        p: raw::program::ProgramTerm,
-        context: &mut raw::program::ProgramContext,
+        p: crate::program::ProgramTerm,
+        context: &mut crate::program::ProgramContext,
     ) -> Result<s::ProgramTerm, String> {
         match p {
-            raw::program::ProgramTerm::ValueTerm(value) => {
+            crate::program::ProgramTerm::ValueTerm(value) => {
                 Ok(self.value_term(value, context)?.into())
             }
-            raw::program::ProgramTerm::ComputationTerm(computation) => {
+            crate::program::ProgramTerm::ComputationTerm(computation) => {
                 Ok(self.computation_term(computation, context)?.into())
             }
         }
     }
 
-    pub(crate) fn program_context(
+    pub fn program_context(
         &mut self,
-        context: &raw::program::ProgramContext,
+        context: &crate::program::ProgramContext,
     ) -> Result<ke::Context, String> {
         context
             .iter()
             .map(|b| match b {
-                raw::program::ProgramContextEntry::ValueType { var } => Ok(ke::Binding {
+                crate::program::ProgramContextEntry::ValueType { var } => Ok(ke::Binding {
                     var: *var,
                     classifier: self
                         .kernel
@@ -123,7 +123,7 @@ impl Lowerer<'_> {
                         })
                         .into(),
                 }),
-                raw::program::ProgramContextEntry::ValueTerm { var, ty } => Ok(ke::Binding {
+                crate::program::ProgramContextEntry::ValueTerm { var, ty } => Ok(ke::Binding {
                     var: *var,
                     classifier: self.value_type(*ty)?.into(),
                 }),
@@ -133,10 +133,10 @@ impl Lowerer<'_> {
 
     pub(super) fn value_term(
         &mut self,
-        v: raw::program::ValueTerm,
-        ctx: &mut raw::program::ProgramContext,
+        v: crate::program::ValueTerm,
+        ctx: &mut crate::program::ProgramContext,
     ) -> Result<s::ValueTerm, String> {
-        use raw::program::ValueTermNode as R;
+        use crate::program::ValueTermNode as R;
         use s::ValueTermForm as F;
         let form = match self.raw.arena().get(v) {
             R::Bound(index) => F::Bound { index },
@@ -150,14 +150,14 @@ impl Lowerer<'_> {
                 parameters,
             } => {
                 self.definition(definition)?;
-                let raw::environment::DefinedConstant::ProgramValue { body, ty } =
+                let crate::environment::DefinedConstant::ProgramValue { body, ty } =
                     self.raw.definition(definition)
                 else {
                     return Err("wrong Program definition category".into());
                 };
                 let body =
-                    raw::program_definitions::instantiate_value(self.raw, *body, &parameters, 0);
-                let ty = raw::program_definitions::instantiate_value_type(
+                    crate::program_definitions::instantiate_value(self.raw, *body, &parameters, 0);
+                let ty = crate::program_definitions::instantiate_value_type(
                     self.raw.arena(),
                     *ty,
                     &parameters,
@@ -233,20 +233,20 @@ impl Lowerer<'_> {
     fn program_proof(
         &mut self,
         proof: Exp,
-        context: &raw::program::ProgramContext,
+        context: &crate::program::ProgramContext,
     ) -> Result<s::PropTerm, String> {
         let mut reflected =
-            raw::reflection::reflect_context(self.raw, context).map_err(|e| e.to_string())?;
+            crate::reflection::reflect_context(self.raw, context).map_err(|e| e.to_string())?;
         self.set(proof, &mut reflected, self.raw.root_module())?
             .try_into()
     }
 
     pub(super) fn computation_term(
         &mut self,
-        e: raw::program::ComputationTerm,
-        ctx: &mut raw::program::ProgramContext,
+        e: crate::program::ComputationTerm,
+        ctx: &mut crate::program::ProgramContext,
     ) -> Result<s::ComputationTerm, String> {
-        use raw::program::{ComputationTermNode as R, ProgramContextEntry};
+        use crate::program::{ComputationTermNode as R, ProgramContextEntry};
         use s::ComputationTermForm as F;
         let form = match self.raw.arena().get(e) {
             R::Meta { .. } => return Err("unresolved computation".into()),
@@ -255,18 +255,18 @@ impl Lowerer<'_> {
                 parameters,
             } => {
                 self.definition(definition)?;
-                let raw::environment::DefinedConstant::ProgramComputation { body, ty } =
+                let crate::environment::DefinedConstant::ProgramComputation { body, ty } =
                     self.raw.definition(definition)
                 else {
                     return Err("wrong Program definition category".into());
                 };
-                let body = raw::program_definitions::instantiate_computation(
+                let body = crate::program_definitions::instantiate_computation(
                     self.raw,
                     *body,
                     &parameters,
                     0,
                 );
-                let ty = raw::program_definitions::instantiate_computation_type(
+                let ty = crate::program_definitions::instantiate_computation_type(
                     self.raw.arena(),
                     *ty,
                     &parameters,
@@ -394,14 +394,15 @@ impl Lowerer<'_> {
                 branches,
             } => {
                 self.datatype(indspec)?;
-                let mut checker = raw::program_derivation::ProgramCheckSession::new(self.raw, ctx);
+                let mut checker =
+                    crate::program_derivation::ProgramCheckSession::new(self.raw, ctx);
                 let ty = checker
                     .infer_computation_term(e)
                     .map_err(|e| format!("case inference: {e:?}"))?;
                 let scrutinee_ty = checker
                     .infer_value_term(scrutinee)
                     .map_err(|e| format!("case inference: {e:?}"))?;
-                let raw::program::ValueTypeNode::Inductive { parameters, .. } =
+                let crate::program::ValueTypeNode::Inductive { parameters, .. } =
                     self.raw.arena().get(scrutinee_ty)
                 else {
                     return Err("case scrutinee type".into());
@@ -419,7 +420,7 @@ impl Lowerer<'_> {
                     {
                         local.push(ProgramContextEntry::ValueTerm {
                             var: *var,
-                            ty: raw::program_calculus::shift_value_type_indices(
+                            ty: crate::program_calculus::shift_value_type_indices(
                                 self.raw.arena(),
                                 field,
                                 j,

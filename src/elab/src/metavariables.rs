@@ -1,6 +1,7 @@
 //! Elaboration-time contextual metavariables and their diagnostics.
+use crate::sort::SortRules;
 
-use crate::raw::{
+use crate::{
     calculus::{
         can_weaken_to, common_ambient_carrier, erased_convertible, instantiate_telescope,
         map_children, remove_unused_ambient_binders, shift_bound_indices,
@@ -13,10 +14,10 @@ use crate::raw::{
     program_derivation::ProgramCheckSession,
     sort::Sort,
 };
-use crate::syntax::{SourceSpan, SurfaceMeta};
+use hir::{SourceSpan, SurfaceMeta};
 use std::collections::{HashMap, HashSet};
 
-pub use raw::ids::MetaVarId;
+pub use crate::ids::MetaVarId;
 
 mod diagnostics;
 pub use diagnostics::{
@@ -38,31 +39,31 @@ struct MetaEntry {
 }
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct MetaStore {
+pub struct MetaStore {
     entries: Vec<MetaEntry>,
     named: HashMap<u32, MetaVarId>,
     constraints: Vec<ConstraintRecord>,
 }
 
 impl MetaStore {
-    pub(crate) fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.entries.clear();
         self.named.clear();
         self.constraints.clear();
     }
 
-    pub(crate) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
-    pub(crate) fn constraint_error(&self, message: String) -> ElaborationError {
+    pub fn constraint_error(&self, message: String) -> ElaborationError {
         ElaborationError::ConstraintFailure {
             message,
             constraints: self.constraints.clone(),
         }
     }
 
-    pub(crate) fn fresh(
+    pub fn fresh(
         &mut self,
         env: &CrateEnv,
         kind: SurfaceMeta,
@@ -83,7 +84,7 @@ impl MetaStore {
                 flavor,
                 span,
                 occurrences: vec![span],
-                editable: kind.origin == crate::syntax::MetaOrigin::Source,
+                editable: kind.origin == hir::MetaOrigin::Source,
                 context: context.clone(),
                 scope_len,
                 assignment: None,
@@ -97,7 +98,7 @@ impl MetaStore {
         });
         if existing.is_some() {
             let entry = &mut self.entries[metavariable.index()];
-            entry.editable &= kind.origin == crate::syntax::MetaOrigin::Source;
+            entry.editable &= kind.origin == hir::MetaOrigin::Source;
             if !entry.occurrences.contains(&span) {
                 entry.occurrences.push(span);
             }
@@ -129,7 +130,7 @@ impl MetaStore {
         })
     }
 
-    pub(crate) fn constrain(&mut self, constraint: GoalConstraint) {
+    pub fn constrain(&mut self, constraint: GoalConstraint) {
         self.constraints.push(ConstraintRecord {
             original: constraint.clone(),
             normalized: constraint,
@@ -208,7 +209,7 @@ impl MetaStore {
         Ok(ty)
     }
 
-    pub(crate) fn check_pts(
+    pub fn check_pts(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
@@ -268,7 +269,7 @@ impl MetaStore {
         self.unify(env, expected, inferred).map(|_| ())
     }
 
-    pub(crate) fn infer_pts(
+    pub fn infer_pts(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
@@ -319,11 +320,11 @@ impl MetaStore {
                 let mut preceding = Vec::new();
                 for (argument, (_, expected)) in parameters.iter().copied().zip(spec.parameters()) {
                     let expected =
-                        crate::raw::calculus::instantiate_telescope(arena, *expected, &preceding);
+                        crate::calculus::instantiate_telescope(arena, *expected, &preceding);
                     self.check_pts(env, module, context, argument, expected)?;
                     preceding.push(argument);
                 }
-                Ok(crate::raw::calculus::instantiate_telescope(
+                Ok(crate::calculus::instantiate_telescope(
                     arena,
                     spec.arity(arena),
                     &parameters,
@@ -341,18 +342,16 @@ impl MetaStore {
                 let mut preceding = Vec::new();
                 for (argument, (_, expected)) in parameters.iter().copied().zip(spec.parameters()) {
                     let expected =
-                        crate::raw::calculus::instantiate_telescope(arena, *expected, &preceding);
+                        crate::calculus::instantiate_telescope(arena, *expected, &preceding);
                     self.check_pts(env, module, context, argument, expected)?;
                     preceding.push(argument);
                 }
                 if idx >= spec.constructor_len() {
                     return Err("constructor index out of bounds".into());
                 }
-                Ok(
-                    crate::raw::inductive::InductiveTypeSpecs::type_of_constructor(
-                        arena, indspec, spec, idx, parameters,
-                    ),
-                )
+                Ok(crate::inductive::InductiveTypeSpecs::type_of_constructor(
+                    arena, indspec, spec, idx, parameters,
+                ))
             }
             ExpNode::Prod { var, ty, body } => {
                 let domain_sort = self.infer_sort(env, module, context, ty)?;
@@ -379,7 +378,7 @@ impl MetaStore {
             ExpNode::App { func, arg } => {
                 let func_ty = self.infer_pts(env, module, context, func)?;
                 let func_ty = self.zonk(env, func_ty);
-                let (domain, codomain) = match arena.get(crate::raw::calculus::whnf(env, func_ty)) {
+                let (domain, codomain) = match arena.get(crate::calculus::whnf(env, func_ty)) {
                     ExpNode::Prod { ty, body, .. } => (ty, body),
                     ExpNode::Meta { .. } => {
                         let span = meta_span(env, func_ty, &self.entries);
@@ -396,7 +395,7 @@ impl MetaStore {
                     _ => return Err("application head type is not a product".into()),
                 };
                 self.check_pts(env, module, context, arg, domain)?;
-                Ok(crate::raw::calculus::instantiate(arena, codomain, arg))
+                Ok(crate::calculus::instantiate(arena, codomain, arg))
             }
             ExpNode::PowerSet { set } => {
                 let sort = self.infer_sort(env, module, context, set)?;
@@ -654,13 +653,13 @@ impl MetaStore {
                     ty: motive_domain,
                     body: motive_body,
                     ..
-                } = arena.get(crate::raw::calculus::whnf(env, self.zonk(env, motive_ty)))
+                } = arena.get(crate::calculus::whnf(env, self.zonk(env, motive_ty)))
                 else {
                     return Err("RunStep recursor motive is not a family".into());
                 };
                 self.unify(env, motive_domain, run_step)?;
                 let ExpNode::Sort(motive_sort) =
-                    arena.get(crate::raw::calculus::whnf(env, self.zonk(env, motive_body)))
+                    arena.get(crate::calculus::whnf(env, self.zonk(env, motive_body)))
                 else {
                     return Err("RunStep recursor motive does not return a sort".into());
                 };
@@ -733,10 +732,9 @@ impl MetaStore {
                 session
                     .check_computation_term(program, program_ty)
                     .map_err(|error| format!("ill-typed boxed Program: {error:?}"))?;
-                let reflected_ty =
-                    crate::raw::reflection::reflect_computation_type(env, program_ty)
-                        .map_err(|error| format!("cannot reflect boxed Program type: {error}"))?;
-                let reflected = crate::raw::reflection::reflect_computation(env, program)
+                let reflected_ty = crate::reflection::reflect_computation_type(env, program_ty)
+                    .map_err(|error| format!("cannot reflect boxed Program type: {error}"))?;
+                let reflected = crate::reflection::reflect_computation(env, program)
                     .map_err(|error| format!("cannot reflect boxed Program: {error}"))?;
                 self.check_pts(env, module, context, reflected, reflected_ty)?;
                 Ok(arena.alloc(ExpNode::BoxType { program_ty }))
@@ -749,7 +747,7 @@ impl MetaStore {
                     boxed,
                     arena.alloc(ExpNode::BoxType { program_ty }),
                 )?;
-                crate::raw::reflection::reflect_computation_type(env, program_ty)
+                crate::reflection::reflect_computation_type(env, program_ty)
                     .map_err(|error| format!("cannot reflect boxed Program type: {error}"))
             }
             ExpNode::BoxApp { function, argument } => {
@@ -908,7 +906,7 @@ impl MetaStore {
         Ok(state_sort)
     }
 
-    pub(crate) fn infer_sort(
+    pub fn infer_sort(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
@@ -938,7 +936,7 @@ impl MetaStore {
         }
     }
 
-    pub(crate) fn unify(&mut self, env: &CrateEnv, left: Exp, right: Exp) -> Result<bool, String> {
+    pub fn unify(&mut self, env: &CrateEnv, left: Exp, right: Exp) -> Result<bool, String> {
         let index = self.constraints.len();
         self.constrain(GoalConstraint::Equal { left, right });
         let result = self.unify_rec(env, left, right, &mut HashSet::new());
@@ -1070,7 +1068,7 @@ impl MetaStore {
         }
     }
 
-    pub(crate) fn zonk(&self, env: &CrateEnv, exp: Exp) -> Exp {
+    pub fn zonk(&self, env: &CrateEnv, exp: Exp) -> Exp {
         self.zonk_rec(env, exp, &mut HashMap::new(), &mut HashSet::new())
     }
 
@@ -1123,7 +1121,7 @@ impl MetaStore {
         result
     }
 
-    pub(crate) fn contains_unsolved(&self, env: &CrateEnv, exp: Exp) -> bool {
+    pub fn contains_unsolved(&self, env: &CrateEnv, exp: Exp) -> bool {
         fn visit(env: &CrateEnv, exp: Exp, seen: &mut HashSet<Exp>) -> bool {
             if !seen.insert(exp) {
                 return false;
@@ -1140,7 +1138,7 @@ impl MetaStore {
         visit(env, exp, &mut HashSet::new())
     }
 
-    pub(crate) fn finish(&self, env: &CrateEnv) -> Result<(), ElaborationError> {
+    pub fn finish(&self, env: &CrateEnv) -> Result<(), ElaborationError> {
         let mut implicits = Vec::new();
         let mut goals = Vec::new();
         for (index, entry) in self.entries.iter().enumerate() {
@@ -1286,7 +1284,7 @@ fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
     result
 }
 
-fn beta_head(arena: &crate::raw::exp::Arena, exp: Exp) -> Exp {
+fn beta_head(arena: &crate::exp::Arena, exp: Exp) -> Exp {
     let ExpNode::App { func, arg } = arena.get(exp) else {
         return exp;
     };
@@ -1294,7 +1292,7 @@ fn beta_head(arena: &crate::raw::exp::Arena, exp: Exp) -> Exp {
     if let ExpNode::Lam { body, .. } = arena.get(head) {
         let body = match arena.get(body) {
             ExpNode::Bound(0) => arg,
-            _ => crate::raw::calculus::instantiate(arena, body, arg),
+            _ => crate::calculus::instantiate(arena, body, arg),
         };
         beta_head(arena, body)
     } else {
@@ -1342,7 +1340,7 @@ fn rigid_heads_compatible(left: &ExpNode, right: &ExpNode) -> bool {
     }
 }
 
-fn nondependent_product(arena: &crate::raw::exp::Arena, domain: Exp, codomain: Exp) -> Exp {
+fn nondependent_product(arena: &crate::exp::Arena, domain: Exp, codomain: Exp) -> Exp {
     arena.alloc(ExpNode::Prod {
         var: SymbolId::ANONYMOUS,
         ty: domain,
@@ -1350,7 +1348,7 @@ fn nondependent_product(arena: &crate::raw::exp::Arena, domain: Exp, codomain: E
     })
 }
 
-fn set_step_function_type(arena: &crate::raw::exp::Arena, state_ty: Exp, result_ty: Exp) -> Exp {
+fn set_step_function_type(arena: &crate::exp::Arena, state_ty: Exp, result_ty: Exp) -> Exp {
     let run_step = arena.alloc(ExpNode::RunStep {
         state_ty,
         result_ty,

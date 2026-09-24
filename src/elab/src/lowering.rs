@@ -1,5 +1,5 @@
 //! Elaboration boundary: attach syntax families and rule labels, then check in the kernel.
-use crate::raw::{self, exp::*, ids::*, sort::Sort as RawSort};
+use crate::{exp::*, ids::*, sort::Sort as RawSort};
 use kernel::sharing::ContextId;
 use kernel::{environment as ke, sort as k, syntax as s};
 use rustc_hash::FxHashMap;
@@ -10,19 +10,16 @@ mod logical;
 mod nodes;
 mod program;
 
-pub(crate) struct Lowerer<'a> {
-    raw: &'a raw::environment::CrateEnv,
-    pub(crate) kernel: &'a mut ke::Environment,
+pub struct Lowerer<'a> {
+    raw: &'a crate::environment::CrateEnv,
+    pub kernel: &'a mut ke::Environment,
     active: HashSet<InductiveId>,
     active_program: HashSet<ProgramInductiveId>,
     cache: FxHashMap<(Exp, ContextId, ModuleId), s::Expression>,
 }
 
 impl<'a> Lowerer<'a> {
-    pub(crate) fn new(
-        raw: &'a raw::environment::CrateEnv,
-        kernel: &'a mut ke::Environment,
-    ) -> Self {
+    pub fn new(raw: &'a crate::environment::CrateEnv, kernel: &'a mut ke::Environment) -> Self {
         Self {
             raw,
             kernel,
@@ -51,13 +48,13 @@ impl<'a> Lowerer<'a> {
     }
 
     fn infer(&self, e: Exp, ctx: &mut ExpContext) -> Result<Exp, String> {
-        raw::derivation::CheckSession::new(self.raw, ctx)
+        crate::derivation::CheckSession::new(self.raw, ctx)
             .infer_pts(e)
             .map_err(|e| format!("classification: {e:?}"))
     }
 
     fn formation(&self, e: Exp, ctx: &mut ExpContext) -> Result<k::Sort, String> {
-        raw::derivation::CheckSession::new(self.raw, ctx)
+        crate::derivation::CheckSession::new(self.raw, ctx)
             .infer_sort(e)
             .map(Self::sort)
             .map_err(|e| format!("classification formation: {e:?}"))
@@ -76,7 +73,7 @@ impl<'a> Lowerer<'a> {
         r
     }
 
-    pub(crate) fn context(&mut self, ctx: &ExpContext, m: ModuleId) -> Result<ke::Context, String> {
+    pub fn context(&mut self, ctx: &ExpContext, m: ModuleId) -> Result<ke::Context, String> {
         let mut prefix = vec![];
         let mut result = vec![];
         for b in ctx {
@@ -90,7 +87,7 @@ impl<'a> Lowerer<'a> {
         Ok(result)
     }
 
-    pub(crate) fn classifier(
+    pub fn classifier(
         &mut self,
         e: Exp,
         ctx: &mut ExpContext,

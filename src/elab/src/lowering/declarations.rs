@@ -20,7 +20,7 @@ impl Lowerer<'_> {
             }
             pending.push((id, true));
             for dependency in
-                raw::dependencies::definition_dependencies(self.raw, self.raw.definition(id))
+                crate::dependencies::definition_dependencies(self.raw, self.raw.definition(id))
                     .definitions
                     .into_iter()
                     .rev()
@@ -42,21 +42,21 @@ impl Lowerer<'_> {
         let parameters = self.raw.definition_parameters(id).to_vec();
         let mut program_context = parameters
             .iter()
-            .map(|var| raw::program::ProgramContextEntry::ValueType { var: *var })
+            .map(|var| crate::program::ProgramContextEntry::ValueType { var: *var })
             .collect::<Vec<_>>();
         let (body, classifier, context) = match raw {
-            raw::environment::DefinedConstant::Pts { ty, body } => {
+            crate::environment::DefinedConstant::Pts { ty, body } => {
                 let mut ctx = self.raw.definition_context(id.module);
                 ctx.extend(parameters.iter().map(|var| ExpContextEntry {
                     var: *var,
-                    ty: self.raw.arena().sort(raw::sort::Sort::Set(0)),
+                    ty: self.raw.arena().sort(crate::sort::Sort::Set(0)),
                 }));
                 let classifier = self.classifier(ty, &mut ctx, id.module)?;
                 let body = self.set(body, &mut ctx, id.module)?;
                 let context = self.context(&ctx, id.module)?;
                 (body, classifier, context)
             }
-            raw::environment::DefinedConstant::ProgramValue { ty, body, .. } => {
+            crate::environment::DefinedConstant::ProgramValue { ty, body, .. } => {
                 let ty = self.value_type(ty)?;
                 let body = self.value_term(body, &mut program_context)?;
                 (
@@ -65,7 +65,7 @@ impl Lowerer<'_> {
                     self.program_context(&program_context)?,
                 )
             }
-            raw::environment::DefinedConstant::ProgramComputation { ty, body, .. } => {
+            crate::environment::DefinedConstant::ProgramComputation { ty, body, .. } => {
                 let ty = self.computation_type(ty)?;
                 let body = self.computation_term(body, &mut program_context)?;
                 (
@@ -108,10 +108,10 @@ impl Lowerer<'_> {
             .clone();
         let mut ctx = self.raw.definition_context(id.module);
         let classifier = match p.kind {
-            raw::environment::ModuleParameterKind::Pts { ty } => {
+            crate::environment::ModuleParameterKind::Pts { ty } => {
                 self.set(ty, &mut ctx, id.module)?
             }
-            raw::environment::ModuleParameterKind::ProgramType => self
+            crate::environment::ModuleParameterKind::ProgramType => self
                 .kernel
                 .arena()
                 .alloc(s::ValueKindNode {
@@ -119,7 +119,7 @@ impl Lowerer<'_> {
                     form: s::ValueKindForm::Base,
                 })
                 .into(),
-            raw::environment::ModuleParameterKind::ProgramValue { ty } => {
+            crate::environment::ModuleParameterKind::ProgramValue { ty } => {
                 self.value_type(ty)?.into()
             }
         };
@@ -243,7 +243,7 @@ impl Lowerer<'_> {
         Ok(())
     }
 
-    pub(crate) fn lower_all(&mut self) -> Result<(), String> {
+    pub fn lower_all(&mut self) -> Result<(), String> {
         for id in self.raw.parameter_ids() {
             self.parameter(id)?
         }

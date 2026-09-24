@@ -1,5 +1,11 @@
 use crate::macros::MacroKind;
-use crate::raw::{
+use crate::{
+    elaborator::{module_manager::ItemAccessResult, term_elaborator::LocalScope},
+    metavariables::{ElaborationError, MetaStore},
+    output::Output,
+};
+use elab::resolver::ModItemProgramInductive;
+use elab::{
     calculus::{
         exp_contains_inductive, exp_subst_map, instantiate_telescope, remap_all_global_ids,
         shift_bound_indices, whnf,
@@ -15,27 +21,23 @@ use crate::raw::{
     program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
     sort::Sort,
 };
-use crate::{
-    elaborator::{module_manager::ItemAccessResult, term_elaborator::LocalScope},
-    metavariables::{ElaborationError, MetaStore},
-    output::Output,
-    syntax::*,
-};
+use hir::*;
 use std::collections::{HashMap, HashSet};
+use syntax::{Module, ModuleBody, ModuleInstantiatePath, ModuleItem};
 
 mod declarations;
 pub(crate) mod module_manager;
 mod modules;
-mod profiling;
-pub(crate) mod program_term_elaborator;
+use elab::profiling;
+use elab::program_term_elaborator;
 mod queries;
 mod references;
+use elab::term_elaborator;
 pub(crate) use references::ResolvedOccurrence;
-pub(crate) mod term_elaborator;
 
 fn apply_pts_projection(arena: &Arena, definition: DefId, parameters: &[Exp], value: Exp) -> Exp {
     let projection = arena.alloc(ExpNode::DefinedConstant(definition));
-    crate::raw::utils::assoc_apply(
+    elab::utils::assoc_apply(
         arena,
         projection,
         parameters.iter().copied().chain([value]).collect(),
@@ -78,6 +80,10 @@ pub struct GlobalEnvironment {
 }
 
 impl term_elaborator::Handler for GlobalEnvironment {
+    fn captured_expression(&self, id: hir::CapturedId) -> Exp {
+        self.module_manager.captured_expression(id)
+    }
+
     fn record_local(&self, name: &Identifier, binder: SourceSpan) {
         self.record_local_reference(name, binder);
     }
@@ -126,13 +132,13 @@ impl term_elaborator::Handler for GlobalEnvironment {
     fn expand_math_macro(
         &mut self,
         tokens: &[MacroExp],
-        scope: Option<ModuleId>,
+        scope: Option<ScopeId>,
         depth: u16,
         max_order: Option<u64>,
     ) -> Result<SExp, String> {
         self.module_manager.expand_math_macro(
             &self.crate_env,
-            scope.unwrap_or_else(|| self.module_manager.current()),
+            scope.map_or_else(|| self.module_manager.current(), |scope| ModuleId(scope.0)),
             tokens,
             depth,
             max_order,
@@ -143,13 +149,13 @@ impl term_elaborator::Handler for GlobalEnvironment {
         &mut self,
         name: &Identifier,
         tokens: &[MacroExp],
-        scope: Option<ModuleId>,
+        scope: Option<ScopeId>,
         depth: u16,
         max_order: Option<u64>,
     ) -> Result<SExp, String> {
         self.module_manager.expand_named_macro(
             &self.crate_env,
-            scope.unwrap_or_else(|| self.module_manager.current()),
+            scope.map_or_else(|| self.module_manager.current(), |scope| ModuleId(scope.0)),
             name,
             tokens,
             depth,
@@ -238,7 +244,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
     fn elaborate_boxed_computation_type(
         &mut self,
         expression: &SExp,
-    ) -> Result<crate::raw::program::ComputationType, String> {
+    ) -> Result<elab::program::ComputationType, String> {
         let mut scope = program_term_elaborator::ProgramScope::new();
         let computation_ty = ComputationTypeExp::try_from(expression.clone())?;
         scope.elaborate_computation_type(&computation_ty, self)
@@ -250,8 +256,8 @@ impl term_elaborator::Handler for GlobalEnvironment {
         computation: &SExp,
     ) -> Result<
         (
-            crate::raw::program::ComputationType,
-            crate::raw::program::ComputationTerm,
+            elab::program::ComputationType,
+            elab::program::ComputationTerm,
         ),
         String,
     > {
@@ -268,7 +274,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         &mut self,
         expressions: &[SExp],
         expected: usize,
-    ) -> Result<Vec<crate::raw::program::ValueType>, String> {
+    ) -> Result<Vec<elab::program::ValueType>, String> {
         if expressions.len() != expected {
             return Err(format!(
                 "reflected Program item expects {expected} type parameter(s), found {}",
@@ -285,6 +291,16 @@ impl term_elaborator::Handler for GlobalEnvironment {
             .iter()
             .map(|expression| scope.elaborate_value_type(expression, self))
             .collect()
+    }
+}
+
+impl program_term_elaborator::Handler for GlobalEnvironment {
+    fn lookup_access(&self, access: &LocalAccess) -> Option<ItemAccessResult> {
+        GlobalEnvironment::lookup_access(self, access)
+    }
+    fn program_record(&self, id: ProgramInductiveId) -> Option<ModItemProgramInductive> {
+        self.module_manager
+            .get_moditem_program_record(&self.crate_env, id)
     }
 }
 
@@ -365,10 +381,10 @@ impl GlobalEnvironment {
 
 impl GlobalEnvironment {
     fn finish_elaboration_unit(&mut self) -> Result<(), ElaborationError> {
-        crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
+        elab::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
             .lower_all()
             .map_err(ElaborationError::from)?;
-        use crate::raw::traversal::Term;
+        use elab::traversal::Term;
         let mut roots = self.crate_env.retained_roots();
         roots.extend(
             self.module_manager
@@ -570,7 +586,7 @@ impl GlobalEnvironment {
                 }
                 self.module_add_rec(module)?;
             }
-            crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
+            elab::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
                 .lower_all()
                 .map_err(ElaborationError::from)
         })();
@@ -613,7 +629,7 @@ impl GlobalEnvironment {
         self.diagnostic_location = None;
         self.module_manager.moveto_root();
         let result = self.module_add_rec(module).and_then(|()| {
-            crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
+            elab::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
                 .lower_all()
                 .map_err(ElaborationError::from)
         });

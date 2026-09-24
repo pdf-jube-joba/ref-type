@@ -7,6 +7,7 @@ use crate::program::{ComputationTerm, ComputationType, ComputationTypeNode};
 use crate::program_derivation::ProgramCheckSession;
 use crate::reflection::{reflect_computation_type, reflect_value_type};
 use crate::sort::Sort;
+use crate::sort::SortRules;
 use crate::utils;
 use kernel::sharing::ContextId;
 use tracing::{debug, error};

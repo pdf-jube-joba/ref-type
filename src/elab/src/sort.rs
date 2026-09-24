@@ -1,16 +1,15 @@
-//! Pure type system sorts and their formation relations.
+pub use hir::Sort;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Sort {
-    Set(usize),     // predicative SET(i):
-    SetKind(usize), // SET(i): SETKind(i)
-    Prop,           // proposition
-    PropKind,       // Prop: PropKind
+pub trait SortRules: Sized {
+    fn type_of_sort(self) -> Option<Self>;
+    fn relation_of_sort(self, other: Self) -> Option<Self>;
+    fn relation_of_sort_indelim(self, other: Self) -> Option<()>;
+    fn can_lift_to(self, to: Self) -> bool;
 }
 
-impl Sort {
+impl SortRules for Sort {
     /// Return the sort assigned by the functional PTS axiom relation.
-    pub fn type_of_sort(self) -> Option<Self> {
+    fn type_of_sort(self) -> Option<Self> {
         match self {
             Self::Prop => Some(Self::PropKind),
             Self::Set(i) => Some(Self::SetKind(i)),
@@ -19,7 +18,7 @@ impl Sort {
     }
 
     /// Return the unique product sort assigned by the functional PTS relation.
-    pub fn relation_of_sort(self, other: Self) -> Option<Self> {
+    fn relation_of_sort(self, other: Self) -> Option<Self> {
         match (self, other) {
             // Prop is impredicative.
             (_, Self::Prop) => Some(Self::Prop),
@@ -35,7 +34,7 @@ impl Sort {
     }
 
     /// Check the large-elimination restriction for an inductive type.
-    pub fn relation_of_sort_indelim(self, other: Self) -> Option<()> {
+    fn relation_of_sort_indelim(self, other: Self) -> Option<()> {
         match (self, other) {
             (_, Self::Prop) | (Self::Set(_) | Self::PropKind, Self::PropKind) => Some(()),
             (Self::Set(i), Self::Set(j)) if i <= j => Some(()),
@@ -43,7 +42,7 @@ impl Sort {
         }
     }
 
-    pub fn can_lift_to(self, to: Self) -> bool {
+    fn can_lift_to(self, to: Self) -> bool {
         matches!(
             (self, to),
             (Self::Set(i), Self::Set(j)) | (Self::SetKind(i), Self::SetKind(j)) if i == j
@@ -53,7 +52,7 @@ impl Sort {
 
 #[cfg(test)]
 mod tests {
-    use super::Sort;
+    use super::{Sort, SortRules};
 
     #[test]
     fn set_products_use_the_least_common_universe() {

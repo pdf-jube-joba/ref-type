@@ -1,12 +1,12 @@
-use crate::raw::{
-    environment::{DefinedConstant, ModuleItem},
-    exp::ExpNode,
-};
 use crate::{
     elaborator::GlobalEnvironment,
     metavariables::ElaborationError,
     parse,
     syntax::{SExp, SurfaceMeta},
+};
+use elab::{
+    environment::{DefinedConstant, ModuleItem},
+    exp::ExpNode,
 };
 
 #[test]
@@ -55,7 +55,7 @@ fn record_fields_are_generated_as_eliminator_definitions() {
     let ExpNode::Prod { body, .. } = env.arena().get(*ty) else {
         panic!("value projection should accept the structure");
     };
-    let (head, _) = crate::raw::utils::decompose_app(env.arena(), body);
+    let (head, _) = elab::utils::decompose_app(env.arena(), body);
     assert!(matches!(
         env.arena().get(head),
         ExpNode::DefinedConstant(definition) if definition == carrier
@@ -392,7 +392,7 @@ fn child_bindings_share_types_and_inherit_parent_substitutions() {
         c1.remapping.module_ids.get(&p.source),
         Some(&p.materialized)
     );
-    let local = |binding: &crate::raw::environment::NamespaceBinding| {
+    let local = |binding: &elab::environment::NamespaceBinding| {
         let ModuleItem::Inductive { inductive, .. } =
             env.module(binding.materialized).item("Local").unwrap()
         else {
@@ -482,6 +482,43 @@ fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
     let mut environment = GlobalEnvironment::default();
     for module in &modules {
         environment.add_new_module_to_root(module).unwrap();
+    }
+}
+
+#[test]
+fn captured_parameters_survive_specialization_and_rechecking_parsed_syntax() {
+    let source = r"
+        \module Base(A: \Set, value: A) {
+            \macro picked() := value;
+            \macro identity($x) := (\fun (x: A) => x) $x;
+        }
+        \module Wrapper(A: \Set, value: A) {
+            \import \root.Base[A := A, value := value] \as base;
+            \use base.picked;
+            \use base.identity;
+            \macro forwarded() := identity!{picked!{}};
+        }
+        \module Consumer(A: \Set, left: A, right: A) {
+            \module Left {
+                \import \root.Wrapper[A := A, value := left] \as wrapper;
+                \use wrapper.forwarded;
+                \definition first: forwarded!{} = left := \refl(left);
+                \definition second: forwarded!{} = left := \refl(left);
+            }
+            \module Right {
+                \import \root.Wrapper[A := A, value := right] \as wrapper;
+                \use wrapper.forwarded;
+                \definition first: forwarded!{} = right := \refl(right);
+                \definition second: forwarded!{} = right := \refl(right);
+            }
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let parsed = format!("{modules:?}");
+    for _ in 0..2 {
+        let mut environment = GlobalEnvironment::default();
+        environment.add_modules_to_root(&modules).unwrap();
+        assert_eq!(format!("{modules:?}"), parsed);
     }
 }
 
@@ -1142,7 +1179,7 @@ fn program_value_let_requires_an_annotation() {
 
 #[test]
 fn program_value_let_solves_and_zonks_type_annotations() {
-    use crate::raw::program::{ComputationTermNode, ValueTypeNode};
+    use elab::program::{ComputationTermNode, ValueTypeNode};
     let modules = parse::str_parse_modules(
         r#"
         \module AnnotatedLet(A: \VType, a: A) {
@@ -1195,6 +1232,7 @@ fn program_value_let_rejects_invalid_annotations_and_unsolved_metas() {
 #[test]
 fn program_value_let_macro_annotations_use_the_outer_scope() {
     use crate::{elaborator::module_manager::ModuleManager, macros::MacroKind, syntax::ModuleBody};
+    use hir::SExp;
     let modules = parse::str_parse_modules(
         r#"
         \module LetMacros {
@@ -1214,7 +1252,7 @@ fn program_value_let_macro_annotations_use_the_outer_scope() {
     else {
         panic!()
     };
-    let env = crate::raw::environment::CrateEnv::new();
+    let env = elab::environment::CrateEnv::new();
     let mut manager = ModuleManager::new();
     manager
         .register_macro(
@@ -1222,10 +1260,12 @@ fn program_value_let_macro_annotations_use_the_outer_scope() {
             name.clone(),
             MacroKind::Named,
             before.clone(),
-            after.clone(),
+            after.clone().into(),
         )
         .unwrap();
-    let SExp::NamedMacro { name, tokens, .. } = parse::str_parse_exp("local!{A a}").unwrap() else {
+    let SExp::NamedMacro { name, tokens, .. } =
+        hir::SExp::from(parse::str_parse_exp("local!{A a}").unwrap())
+    else {
         panic!()
     };
     let expanded = manager
@@ -1242,22 +1282,22 @@ fn program_value_let_macro_annotations_use_the_outer_scope() {
     };
     assert_ne!(var.as_str(), "A");
     assert!(
-        matches!(*value_ty, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access.as_str() == "A")
+        matches!(*value_ty, SExp::AccessPath { access: hir::LocalAccess::Current { access }, .. } if access.as_str() == "A")
     );
     assert!(
-        matches!(*value, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access.as_str() == "a")
+        matches!(*value, SExp::AccessPath { access: hir::LocalAccess::Current { access }, .. } if access.as_str() == "a")
     );
     let SExp::Return { value } = *body else {
         panic!()
     };
     assert!(
-        matches!(*value, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access }, .. } if access == var)
+        matches!(*value, SExp::AccessPath { access: hir::LocalAccess::Current { access }, .. } if access == var)
     );
 }
 
 #[test]
 fn program_case_reflects_value_let_in_parameterized_branches() {
-    use crate::raw::program::ComputationTermNode;
+    use elab::program::ComputationTermNode;
     let modules = parse::str_parse_modules(
         r#"
         \module LetCase(A: \VType) {
@@ -1287,7 +1327,7 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
         panic!()
     };
     // Reflect the open case directly, without the enclosing lambda's context.
-    let reflected = crate::raw::reflection::reflect_computation(env, body).unwrap();
+    let reflected = elab::reflection::reflect_computation(env, body).unwrap();
     let ExpNode::ReflectedProgramCase {
         scrutinee,
         branches,
@@ -1355,8 +1395,8 @@ fn run_step_recursor_distinguishes_branch_and_result_sorts() {
 
 #[test]
 fn run_step_inference_with_metavariables_preserves_the_universe() {
-    use crate::raw::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort};
     use crate::{metavariables::MetaStore, syntax::SourceSpan};
+    use elab::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort};
 
     for level in [0, 2] {
         let env = CrateEnv::new();
@@ -1369,7 +1409,7 @@ fn run_step_inference_with_metavariables_preserves_the_universe() {
         let mut metas = MetaStore::default();
         let hole = metas.fresh(
             &env,
-            SurfaceMeta::goal(),
+            hir::SurfaceMeta::goal(),
             SourceSpan { start: 0, end: 1 },
             &context,
             context.len(),
@@ -1442,7 +1482,7 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
     global.add_new_module_to_root(&modules[0]).unwrap();
     let raw = global.crate_env();
     let module = raw.module(raw.root_module()).children()[0];
-    let crate::raw::environment::ModuleItem::Definition { definition, .. } =
+    let elab::environment::ModuleItem::Definition { definition, .. } =
         raw.module(module).item("boxed").unwrap()
     else {
         panic!("boxed definition")
@@ -1464,7 +1504,7 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
 
 #[test]
 fn program_run_proofs_remain_valid_after_every_reduction() {
-    use crate::raw::{
+    use elab::{
         environment::{DefinedConstant, ModuleItem},
         program_calculus::reduce_computation_once,
         program_derivation::ProgramCheckSession,
@@ -1538,7 +1578,7 @@ fn program_proofs_follow_local_binders_and_module_instantiation() {
 
 #[test]
 fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
-    use crate::raw::{
+    use elab::{
         program::{ComputationTermNode, ValueTermNode},
         program_calculus::{Evaluation, evaluate_computation},
     };
@@ -1610,7 +1650,7 @@ fn program_application_classification_preserves_cbpv_boundaries() {
 
 #[test]
 fn program_cbv_arrows_and_lambdas_elaborate_to_alpha_equivalent_cbpv() {
-    use crate::raw::{
+    use elab::{
         environment::{DefinedConstant, ModuleItem},
         program_calculus::{computation_is_alpha_eq, computation_type_is_alpha_eq},
     };
@@ -1651,13 +1691,13 @@ fn program_cbv_arrows_and_lambdas_elaborate_to_alpha_equivalent_cbpv() {
         assert!(
             computation_is_alpha_eq(env.arena(), sugared_body, explicit_body),
             "{sugared} did not match {explicit}:\nsugared: {}\nexplicit: {}",
-            crate::raw::printing::format_program(
+            elab::printing::format_program(
                 env,
-                crate::raw::program::ProgramTerm::ComputationTerm(sugared_body)
+                elab::program::ProgramTerm::ComputationTerm(sugared_body)
             ),
-            crate::raw::printing::format_program(
+            elab::printing::format_program(
                 env,
-                crate::raw::program::ProgramTerm::ComputationTerm(explicit_body)
+                elab::program::ProgramTerm::ComputationTerm(explicit_body)
             )
         );
     }
@@ -1691,20 +1731,19 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
     };
     let (ty, body) = checked_definition("f");
     let (explicit_ty, explicit_body) = checked_definition("explicit");
-    assert!(crate::raw::program_calculus::computation_type_is_alpha_eq(
+    assert!(elab::program_calculus::computation_type_is_alpha_eq(
         env.arena(),
         ty,
         explicit_ty
     ));
-    assert!(crate::raw::program_calculus::computation_is_alpha_eq(
+    assert!(elab::program_calculus::computation_is_alpha_eq(
         env.arena(),
         body,
         explicit_body
     ));
-    let reflection = crate::raw::reflection::reflect_computation(env, body).unwrap();
-    let explicit_reflection =
-        crate::raw::reflection::reflect_computation(env, explicit_body).unwrap();
-    assert!(crate::raw::calculus::exp_is_alpha_eq(
+    let reflection = elab::reflection::reflect_computation(env, body).unwrap();
+    let explicit_reflection = elab::reflection::reflect_computation(env, explicit_body).unwrap();
+    assert!(elab::calculus::exp_is_alpha_eq(
         env,
         reflection,
         explicit_reflection
@@ -1719,7 +1758,7 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
 
 #[test]
 fn program_records_generate_checked_projections_and_swap_fields() {
-    use crate::raw::{
+    use elab::{
         program::{ComputationTermNode as C, ValueTermNode as V},
         program_calculus::{Evaluation, evaluate_computation},
     };
@@ -1783,7 +1822,7 @@ fn program_records_generate_checked_projections_and_swap_fields() {
 
 #[test]
 fn program_associated_imports_remap_later_declarations() {
-    use crate::raw::program::{ValueTermNode, ValueTypeNode};
+    use elab::program::{ValueTermNode, ValueTypeNode};
     let modules = parse::str_parse_modules(include_str!(
         "../../../tests/ok/program-items/associated-order.ref"
     ))
@@ -1822,18 +1861,18 @@ fn program_associated_imports_remap_later_declarations() {
 
 #[test]
 fn program_definition_parameters_are_substituted_simultaneously_under_binders() {
-    use crate::raw::{
+    use elab::{
         program::{ComputationTermNode as C, ValueTypeNode as T},
         program_definitions::instantiate_computation,
     };
-    let env = crate::raw::environment::CrateEnv::new();
+    let env = elab::environment::CrateEnv::new();
     let arena = env.arena();
     // Under A, B, the function takes A and then B. The instantiation arguments themselves are open types.
     let body = arena.alloc(C::Lambda {
-        var: crate::raw::ids::SymbolId::ANONYMOUS,
+        var: elab::ids::SymbolId::ANONYMOUS,
         value_ty: arena.value_type_bound(1),
         body: arena.alloc(C::Lambda {
-            var: crate::raw::ids::SymbolId::ANONYMOUS,
+            var: elab::ids::SymbolId::ANONYMOUS,
             value_ty: arena.value_type_bound(1),
             body: arena.alloc(C::Return {
                 value: arena.value_bound(0),
@@ -1857,10 +1896,7 @@ fn program_definition_parameters_are_substituted_simultaneously_under_binders() 
     let C::Return { value } = arena.get(body) else {
         panic!("return");
     };
-    assert_eq!(
-        arena.get(value),
-        crate::raw::program::ValueTermNode::Bound(0)
-    );
+    assert_eq!(arena.get(value), elab::program::ValueTermNode::Bound(0));
 }
 
 #[test]

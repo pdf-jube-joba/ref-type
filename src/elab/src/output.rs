@@ -1,4 +1,4 @@
-use crate::raw::{
+use crate::{
     exp::Exp,
     program::{ComputationTerm, ComputationType, ValueType},
 };
@@ -14,8 +14,8 @@ pub enum Output {
 }
 
 impl Output {
-    pub fn render(&self, env: &crate::raw::environment::CrateEnv) -> String {
-        use crate::raw::printing;
+    pub fn render(&self, env: &crate::environment::CrateEnv) -> String {
+        use crate::printing;
         match self {
             Self::Message(message) => message.clone(),
             Self::Exp(exp) => printing::format_exp(env, *exp),
