@@ -36,15 +36,6 @@ impl<'a> Checker<'a> {
             .iter()
             .map(|b| b.classifier)
             .collect::<Vec<_>>();
-        if let Some(first) = key.first() {
-            let program = self.arena().sort(*first).is_program();
-            if key
-                .iter()
-                .any(|e| self.arena().sort(*e).is_program() != program)
-            {
-                return Err("Set/Prop and Program contexts are separate".into());
-            }
-        }
         let was_checking = self.checking_context;
         self.checking_context = true;
         let entries = std::mem::take(&mut self.context);
@@ -287,12 +278,10 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             SetTermForm::Bound { index } => self.infer_bound(e, index)?,
-            SetTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
-            SetTermForm::Annotated { body, classifier } => {
+            SetTermForm::Annotated {
+                body, classifier, ..
+            } => {
                 return self.infer_annotation(e, body.into(), classifier);
-            }
-            SetTermForm::ReflectedProgramParam { parameter } => {
-                self.infer_reflected_program_param(parameter)?
             }
             SetTermForm::LambdaTerm {
                 rule,
@@ -495,12 +484,10 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             SetTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            SetTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
-            SetTypeForm::Annotated { body, classifier } => {
+            SetTypeForm::Annotated {
+                body, classifier, ..
+            } => {
                 return self.infer_annotation(e, body.into(), classifier);
-            }
-            SetTypeForm::ReflectedProgramParam { parameter } => {
-                self.infer_reflected_program_param(parameter)?
             }
             SetTypeForm::ProdTerm {
                 rule,
@@ -609,38 +596,36 @@ impl<'a> Checker<'a> {
     }
     fn infer_set_kind_node(&mut self, h: SetKind) -> Result<Classifier, String> {
         let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            SetKindForm::Base => return Ok(Classifier::Upper(self.arena().sort(e))),
+        match self.arena().get(h).form {
+            SetKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
             SetKindForm::ProdTerm {
                 rule,
                 var,
                 domain,
                 body,
-            } => return self.infer_product(e, rule, var, domain.into(), body.into()),
+            } => self.infer_product(e, rule, var, domain.into(), body.into()),
             SetKindForm::ProdType {
                 rule,
                 var,
                 domain,
                 body,
-            } => return self.infer_product(e, rule, var, domain.into(), body.into()),
+            } => self.infer_product(e, rule, var, domain.into(), body.into()),
             SetKindForm::IndType {
                 inductive,
                 parameters,
-            } => return self.infer_ind_type(e, inductive, parameters),
-            SetKindForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
-            SetKindForm::Annotated { body, classifier } => {
-                return self.infer_annotation(e, body.into(), classifier);
-            }
-        };
-        self.validate_inferred(e, inferred)?;
-        Ok(Classifier::Expression(inferred))
+            } => self.infer_ind_type(e, inductive, parameters),
+            SetKindForm::Annotated {
+                body, classifier, ..
+            } => self.infer_annotation(e, body.into(), classifier),
+        }
     }
     fn infer_prop_term_node(&mut self, h: PropTerm) -> Result<Classifier, String> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             PropTermForm::Bound { index } => self.infer_bound(e, index)?,
-            PropTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
-            PropTermForm::Annotated { body, classifier } => {
+            PropTermForm::Annotated {
+                body, classifier, ..
+            } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
             PropTermForm::LambdaTerm {
@@ -834,8 +819,9 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             PropTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            PropTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
-            PropTypeForm::Annotated { body, classifier } => {
+            PropTypeForm::Annotated {
+                body, classifier, ..
+            } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
             PropTypeForm::ProdTerm {
@@ -949,38 +935,36 @@ impl<'a> Checker<'a> {
     }
     fn infer_prop_kind_node(&mut self, h: PropKind) -> Result<Classifier, String> {
         let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            PropKindForm::Base => return Ok(Classifier::Upper(self.arena().sort(e))),
+        match self.arena().get(h).form {
+            PropKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
             PropKindForm::ProdTerm {
                 rule,
                 var,
                 domain,
                 body,
-            } => return self.infer_product(e, rule, var, domain.into(), body.into()),
+            } => self.infer_product(e, rule, var, domain.into(), body.into()),
             PropKindForm::ProdType {
                 rule,
                 var,
                 domain,
                 body,
-            } => return self.infer_product(e, rule, var, domain.into(), body.into()),
+            } => self.infer_product(e, rule, var, domain.into(), body.into()),
             PropKindForm::IndType {
                 inductive,
                 parameters,
-            } => return self.infer_ind_type(e, inductive, parameters),
-            PropKindForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
-            PropKindForm::Annotated { body, classifier } => {
-                return self.infer_annotation(e, body.into(), classifier);
-            }
-        };
-        self.validate_inferred(e, inferred)?;
-        Ok(Classifier::Expression(inferred))
+            } => self.infer_ind_type(e, inductive, parameters),
+            PropKindForm::Annotated {
+                body, classifier, ..
+            } => self.infer_annotation(e, body.into(), classifier),
+        }
     }
     fn infer_value_term_node(&mut self, h: ValueTerm) -> Result<Classifier, String> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             ValueTermForm::Bound { index } => self.infer_bound(e, index)?,
-            ValueTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
-            ValueTermForm::Annotated { body, classifier } => {
+            ValueTermForm::Annotated {
+                body, classifier, ..
+            } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
             ValueTermForm::ThunkValue { computation } => {
@@ -1010,8 +994,9 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             ValueTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            ValueTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
-            ValueTypeForm::Annotated { body, classifier } => {
+            ValueTypeForm::Annotated {
+                body, classifier, ..
+            } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
             ValueTypeForm::Thunk { computation_ty } => self.infer_thunk(computation_ty.into())?,
@@ -1053,8 +1038,9 @@ impl<'a> Checker<'a> {
     fn infer_computation_term_node(&mut self, h: ComputationTerm) -> Result<Classifier, String> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
-            ComputationTermForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
-            ComputationTermForm::Annotated { body, classifier } => {
+            ComputationTermForm::Annotated {
+                body, classifier, ..
+            } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
             ComputationTermForm::Return { value } => self.infer_return(value.into())?,
@@ -1148,8 +1134,9 @@ impl<'a> Checker<'a> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             ComputationTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            ComputationTypeForm::ModuleParam { parameter } => self.infer_module_param(parameter)?,
-            ComputationTypeForm::Annotated { body, classifier } => {
+            ComputationTypeForm::Annotated {
+                body, classifier, ..
+            } => {
                 return self.infer_annotation(e, body.into(), classifier);
             }
             ComputationTypeForm::ReturnType { value_ty } => {
@@ -1511,6 +1498,12 @@ impl<'a> Checker<'a> {
             )
             .ok_or("bound variable outside context")?;
         let classifier = shift(self.arena(), entry.classifier, offset, 0)?;
+        let classifier =
+            if !self.arena().sort(e).is_program() && self.arena().sort(classifier).is_program() {
+                super::reflection::reflect_program_expression(self.env, classifier)?
+            } else {
+                classifier
+            };
         if self.arena().sort(e).is_program()
             && e.family().stage() != Stage::Term
             && classifier.family().stage() != Stage::Kind
@@ -1518,25 +1511,6 @@ impl<'a> Checker<'a> {
             return Err("Program type depends on a value variable".into());
         }
         Ok(classifier)
-    }
-    fn infer_module_param(&mut self, parameter: ModuleParamId) -> Result<Expression, String> {
-        Ok(self
-            .env
-            .parameter(parameter)
-            .ok_or("unknown module parameter")?
-            .classifier)
-    }
-    fn infer_reflected_program_param(
-        &mut self,
-        parameter: ModuleParamId,
-    ) -> Result<Expression, String> {
-        super::reflection::reflect_program_expression(
-            self.env,
-            self.env
-                .parameter(parameter)
-                .ok_or("unknown reflected parameter")?
-                .classifier,
-        )
     }
     fn infer_annotation(
         &mut self,

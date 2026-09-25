@@ -5,16 +5,21 @@ use kernel::{environment as ke, sort as k, syntax as s};
 use rustc_hash::FxHashMap;
 use std::collections::HashSet;
 
+mod captures;
+use captures::{Declaration, Scope};
 mod declarations;
 mod logical;
 mod nodes;
 mod program;
+mod queries;
 
 pub(crate) struct Lowerer<'a> {
     raw: &'a raw::environment::CrateEnv,
     pub(crate) kernel: &'a mut ke::Environment,
     active: HashSet<InductiveId>,
     active_program: HashSet<ProgramInductiveId>,
+    scope: Scope,
+    capture_cache: FxHashMap<Declaration, Vec<ModuleParamId>>,
     cache: FxHashMap<(Exp, ContextId, ModuleId), s::Expression>,
 }
 
@@ -28,6 +33,8 @@ impl<'a> Lowerer<'a> {
             kernel,
             active: HashSet::new(),
             active_program: HashSet::new(),
+            scope: Scope::default(),
+            capture_cache: FxHashMap::default(),
             cache: FxHashMap::default(),
         }
     }
@@ -77,9 +84,9 @@ impl<'a> Lowerer<'a> {
     }
 
     pub(crate) fn context(&mut self, ctx: &ExpContext, m: ModuleId) -> Result<ke::Context, String> {
-        let mut prefix = vec![];
-        let mut result = vec![];
-        for b in ctx {
+        let mut prefix = ctx[..self.scope.logical_base].to_vec();
+        let mut result = self.capture_context(false)?;
+        for b in &ctx[self.scope.logical_base..] {
             let classifier = self.set(b.ty, &mut prefix, m)?;
             result.push(ke::Binding {
                 var: b.var,

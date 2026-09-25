@@ -91,18 +91,11 @@ impl Lowerer<'_> {
         let result = match node {
             ExpNode::Bound(index) => build::bound(self.kernel.arena(), sort, stage, index)?,
             ExpNode::ModuleParam(parameter) => {
-                self.parameter(parameter)?;
-                logical_node!(self, sort, syntax_family; SetTerm | PropTerm | SetType | PropType | SetKind | PropKind => ModuleParam { parameter })
+                let index = self.parameter_index(parameter, ctx.len() - self.scope.logical_base)?;
+                build::bound(self.kernel.arena(), sort, stage, index)?
             }
             ExpNode::DefinedConstant(definition) => {
-                self.definition(definition)?;
-                let definition = self
-                    .kernel
-                    .definition(definition)
-                    .ok_or("unknown definition")?;
-                self.kernel
-                    .arena()
-                    .annotated(definition.body, definition.classifier)?
+                self.definition_expression(definition, ctx.len() - self.scope.logical_base, false)?
             }
             ExpNode::SubSet {
                 var,
@@ -352,12 +345,18 @@ impl Lowerer<'_> {
                 indspec,
                 parameters,
             } => {
-                self.inductive(indspec, m, ctx)?;
-                let inductive = indspec;
-                let parameters = parameters
-                    .into_iter()
-                    .map(|x| self.set(x, ctx, m))
-                    .collect::<Result<Vec<_>, _>>()?;
+                self.inductive(indspec)?;
+                let inductive = indspec.into();
+                let captures = self.captures(Declaration::Inductive(indspec));
+                let mut arguments =
+                    self.capture_arguments(&captures, ctx.len() - self.scope.logical_base, false)?;
+                arguments.extend(
+                    parameters
+                        .into_iter()
+                        .map(|x| self.set(x, ctx, m))
+                        .collect::<Result<Vec<_>, _>>()?,
+                );
+                let parameters = arguments;
                 build::inductive_type(
                     self.kernel.arena(),
                     sort,
@@ -374,13 +373,19 @@ impl Lowerer<'_> {
                 idx,
                 parameters,
             } => {
-                self.inductive(indspec, m, ctx)?;
-                let inductive = indspec;
+                self.inductive(indspec)?;
+                let inductive = indspec.into();
                 let constructor = idx;
-                let parameters = parameters
-                    .into_iter()
-                    .map(|x| self.set(x, ctx, m))
-                    .collect::<Result<Vec<_>, _>>()?;
+                let captures = self.captures(Declaration::Inductive(indspec));
+                let mut arguments =
+                    self.capture_arguments(&captures, ctx.len() - self.scope.logical_base, false)?;
+                arguments.extend(
+                    parameters
+                        .into_iter()
+                        .map(|x| self.set(x, ctx, m))
+                        .collect::<Result<Vec<_>, _>>()?,
+                );
+                let parameters = arguments;
                 build::inductive_constructor(
                     self.kernel.arena(),
                     sort,
@@ -399,8 +404,8 @@ impl Lowerer<'_> {
                 return_type,
                 cases,
             } => {
-                self.inductive(indspec, m, ctx)?;
-                let inductive = indspec;
+                self.inductive(indspec)?;
+                let inductive = indspec.into();
                 let kind = raw::derivation::infer_motive_kind(
                     &mut raw::derivation::CheckSession::new(self.raw, ctx),
                     "Lower",
@@ -452,8 +457,8 @@ impl Lowerer<'_> {
                 return_type,
                 branches,
             } => {
-                self.inductive(indspec, m, ctx)?;
-                let inductive = indspec;
+                self.inductive(indspec)?;
+                let inductive = indspec.into();
                 let kind = raw::derivation::infer_motive_kind(
                     &mut raw::derivation::CheckSession::new(self.raw, ctx),
                     "Lower",
@@ -785,7 +790,7 @@ impl Lowerer<'_> {
                 branches,
             } => {
                 self.datatype(indspec)?;
-                let inductive = indspec;
+                let inductive = indspec.into();
                 let binders = branches
                     .iter()
                     .map(|b| b.binders.clone())
@@ -831,34 +836,8 @@ impl Lowerer<'_> {
                 })
             }
             ExpNode::ReflectedProgramParam(parameter) => {
-                self.parameter(parameter)?;
-                let binding = self
-                    .raw
-                    .module_parameter_opt(parameter)
-                    .ok_or("unknown reflected parameter")?;
-                match binding.kind {
-                    raw::environment::ModuleParameterKind::ProgramType => {
-                        let form = s::SetTypeForm::ReflectedProgramParam { parameter };
-                        self.kernel
-                            .arena()
-                            .alloc(s::SetTypeNode {
-                                level: sort.level().ok_or("expected Set level")?,
-                                form,
-                            })
-                            .into()
-                    }
-                    raw::environment::ModuleParameterKind::ProgramValue { .. } => {
-                        let form = s::SetTermForm::ReflectedProgramParam { parameter };
-                        self.kernel
-                            .arena()
-                            .alloc(s::SetTermNode {
-                                level: sort.level().ok_or("expected Set level")?,
-                                form,
-                            })
-                            .into()
-                    }
-                    _ => return Err("not a Program parameter".into()),
-                }
+                let index = self.parameter_index(parameter, ctx.len() - self.scope.logical_base)?;
+                build::bound(self.kernel.arena(), sort, stage, index)?
             }
             ExpNode::Meta { .. } => return Err("unresolved metavariable at kernel boundary".into()),
             ExpNode::Sort(_) => unreachable!(),

@@ -50,9 +50,7 @@ pub struct Environment {
     pub(crate) inference_cache:
         std::cell::RefCell<ScopedCache<(Expression, Vec<Expression>), Classifier>>,
     pub(crate) head_cache: std::cell::RefCell<ScopedCache<Expression, Expression>>,
-    pub(crate) definitions: HashMap<DefId, Definition>,
-    pub(crate) definition_templates: HashMap<DefId, Definition>,
-    pub(crate) parameters: HashMap<ModuleParamId, Binding>,
+    pub(crate) definitions: HashMap<GlobalId, Definition>,
     pub(crate) inductives: HashMap<InductiveId, InductiveSpec>,
     pub(crate) datatypes: HashMap<ProgramInductiveId, ProgramDatatype>,
 }
@@ -171,18 +169,13 @@ impl Environment {
     /// Nodes reachable from declarations, excluding caches and external handles.
     pub fn declaration_node_count(&self) -> usize {
         let mut pending = Vec::new();
-        for definition in self
-            .definitions
-            .values()
-            .chain(self.definition_templates.values())
-        {
+        for definition in self.definitions.values() {
             pending.push(definition.body);
             if let Classifier::Expression(ty) = definition.classifier {
                 pending.push(ty);
             }
             pending.extend(definition.context.iter().map(|b| b.classifier));
         }
-        pending.extend(self.parameters.values().map(|b| b.classifier));
         for spec in self.inductives.values() {
             pending.push(spec.arity);
             pending.extend(spec.parameters.iter().map(|b| b.classifier));
@@ -207,16 +200,8 @@ impl Environment {
         seen.len()
     }
 
-    pub fn definition(&self, id: DefId) -> Option<&Definition> {
+    pub fn definition(&self, id: GlobalId) -> Option<&Definition> {
         self.definitions.get(&id)
-    }
-
-    pub fn definition_template(&self, id: DefId) -> Option<&Definition> {
-        self.definition_templates.get(&id)
-    }
-
-    pub fn parameter(&self, id: ModuleParamId) -> Option<&Binding> {
-        self.parameters.get(&id)
     }
 
     pub fn inductive(&self, id: InductiveId) -> Option<&InductiveSpec> {
@@ -227,56 +212,18 @@ impl Environment {
         self.datatypes.get(&id)
     }
     #[tracing::instrument(target="ref_type::typing::indexed",level="debug",skip_all,fields(?id),err)]
-    pub fn register_definition(&mut self, id: DefId, definition: Definition) -> Result<(), String> {
-        if self.definitions.contains_key(&id) || self.definition_templates.contains_key(&id) {
+    pub fn register_definition(
+        &mut self,
+        id: GlobalId,
+        definition: Definition,
+    ) -> Result<(), String> {
+        if self.definitions.contains_key(&id) {
             return Err("duplicate definition".into());
-        }
-        if !super::calculus::locally_closed(&self.arena, definition.body)
-            || matches!(definition.classifier,Classifier::Expression(t) if !super::calculus::locally_closed(&self.arena,t))
-        {
-            return Err("a definition must abstract over its local bound variables".into());
         }
         self.check_definition(&definition)?;
         self.definitions.insert(id, definition);
         // Expressions contain annotations, not names. Adding metadata cannot
         // change the meaning of any previously checked expression.
-        Ok(())
-    }
-
-    /// Check and retain an open definition whose local context is supplied by
-    /// the caller. Templates are never exposed as closed named constants.
-    pub fn register_definition_template(
-        &mut self,
-        id: DefId,
-        definition: Definition,
-    ) -> Result<(), String> {
-        if self.definitions.contains_key(&id) || self.definition_templates.contains_key(&id) {
-            return Err("duplicate definition template".into());
-        }
-        self.check_definition(&definition)?;
-        self.definition_templates.insert(id, definition);
-        Ok(())
-    }
-    #[tracing::instrument(target="ref_type::typing::indexed",level="debug",skip_all,fields(?id),err)]
-    pub fn register_parameter(
-        &mut self,
-        id: ModuleParamId,
-        binding: Binding,
-        context: Context,
-    ) -> Result<(), String> {
-        if self.parameters.contains_key(&id) {
-            return Err("duplicate module parameter".into());
-        }
-        if !super::calculus::locally_closed(&self.arena, binding.classifier) {
-            return Err("a named parameter cannot capture local bound variables".into());
-        }
-        self.check_scoped(|env| {
-            let mut checker = super::check::Checker::new(env, context);
-            checker.check_context()?;
-            checker.formation(binding.classifier)?;
-            Ok(())
-        })?;
-        self.parameters.insert(id, binding);
         Ok(())
     }
 }

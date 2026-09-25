@@ -167,64 +167,7 @@ pub fn contains_bound(arena: &Arena, e: Expression, index: usize) -> bool {
     go(arena, e, index, &mut rustc_hash::FxHashSet::default())
 }
 pub fn is_closed(arena: &Arena, e: Expression) -> bool {
-    if !locally_closed(arena, e) {
-        return false;
-    }
-    let mut pending = vec![e];
-    let mut seen = rustc_hash::FxHashSet::default();
-    while let Some(e) = pending.pop() {
-        if !seen.insert(e) {
-            continue;
-        }
-        if structure::module_parameter(arena, e).is_some()
-            || structure::reflected_parameter(arena, e).is_some()
-        {
-            return false;
-        }
-        structure::visit_children(arena, e, |child, _| pending.push(child));
-    }
-    true
-}
-pub fn substitute_parameters(
-    env: &Environment,
-    e: Expression,
-    parameters: &HashMap<ModuleParamId, Expression>,
-) -> Result<Expression, String> {
-    fn go(
-        env: &Environment,
-        e: Expression,
-        p: &HashMap<ModuleParamId, Expression>,
-        depth: usize,
-        cache: &mut FxHashMap<(Expression, usize), Expression>,
-    ) -> Result<Expression, String> {
-        let a = &env.arena;
-        if let Some(&result) = cache.get(&(e, depth)) {
-            return Ok(result);
-        }
-        let reflected = structure::reflected_parameter(a, e);
-        if let Some(parameter) = structure::module_parameter(a, e).or(reflected)
-            && let Some(&argument) = p.get(&parameter)
-        {
-            let argument = if reflected.is_some() {
-                super::reflection::reflect_program_expression(env, argument)?
-            } else {
-                argument
-            };
-            if e.family() != argument.family() || a.sort(e) != a.sort(argument) {
-                return Err("module argument classification mismatch".into());
-            }
-            let result = shift(a, argument, depth, 0)?;
-            cache.insert((e, depth), result);
-            return Ok(result);
-        }
-        let result = map_children(a, e, |child, n| go(env, child, p, depth + n, cache))?;
-        cache.insert((e, depth), result);
-        Ok(result)
-    }
-    if parameters.is_empty() {
-        return Ok(e);
-    }
-    go(env, e, parameters, 0, &mut FxHashMap::default())
+    locally_closed(arena, e)
 }
 pub fn remap_ids(
     arena: &Arena,

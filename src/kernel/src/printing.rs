@@ -26,13 +26,7 @@ fn label(arena: &Arena, e: Expression) -> String {
     match e {
         Expression::SetTerm(h) => match &arena.read(h).form {
             SetTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            SetTermForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
-            }
-            SetTermForm::Annotated { .. } => "annotated".into(),
-            SetTermForm::ReflectedProgramParam { parameter } => {
-                format!("ReflectedProgramParam {{ parameter: {parameter:?} }}")
-            }
+            SetTermForm::Annotated { global, .. } => format!("Annotated {{ global: {global:?} }}"),
             SetTermForm::LambdaTerm { rule, var, .. } => {
                 format!("LambdaTerm {{ rule: {rule:?}, var: {var:?} }}")
             }
@@ -76,13 +70,7 @@ fn label(arena: &Arena, e: Expression) -> String {
         },
         Expression::SetType(h) => match &arena.read(h).form {
             SetTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            SetTypeForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
-            }
-            SetTypeForm::Annotated { .. } => "annotated".into(),
-            SetTypeForm::ReflectedProgramParam { parameter } => {
-                format!("ReflectedProgramParam {{ parameter: {parameter:?} }}")
-            }
+            SetTypeForm::Annotated { global, .. } => format!("Annotated {{ global: {global:?} }}"),
             SetTypeForm::ProdTerm { rule, var, .. } => {
                 format!("ProdTerm {{ rule: {rule:?}, var: {var:?} }}")
             }
@@ -132,17 +120,11 @@ fn label(arena: &Arena, e: Expression) -> String {
             SetKindForm::IndType { inductive, .. } => {
                 format!("IndType {{ inductive: {inductive:?} }}")
             }
-            SetKindForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
-            }
-            SetKindForm::Annotated { .. } => "annotated".into(),
+            SetKindForm::Annotated { global, .. } => format!("Annotated {{ global: {global:?} }}"),
         },
         Expression::PropTerm(h) => match &arena.read(h).form {
             PropTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            PropTermForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
-            }
-            PropTermForm::Annotated { .. } => "annotated".into(),
+            PropTermForm::Annotated { global, .. } => format!("Annotated {{ global: {global:?} }}"),
             PropTermForm::LambdaTerm { rule, var, .. } => {
                 format!("LambdaTerm {{ rule: {rule:?}, var: {var:?} }}")
             }
@@ -181,10 +163,7 @@ fn label(arena: &Arena, e: Expression) -> String {
         },
         Expression::PropType(h) => match &arena.read(h).form {
             PropTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            PropTypeForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
-            }
-            PropTypeForm::Annotated { .. } => "annotated".into(),
+            PropTypeForm::Annotated { global, .. } => format!("Annotated {{ global: {global:?} }}"),
             PropTypeForm::ProdTerm { rule, var, .. } => {
                 format!("ProdTerm {{ rule: {rule:?}, var: {var:?} }}")
             }
@@ -234,17 +213,13 @@ fn label(arena: &Arena, e: Expression) -> String {
             PropKindForm::IndType { inductive, .. } => {
                 format!("IndType {{ inductive: {inductive:?} }}")
             }
-            PropKindForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
-            }
-            PropKindForm::Annotated { .. } => "annotated".into(),
+            PropKindForm::Annotated { global, .. } => format!("Annotated {{ global: {global:?} }}"),
         },
         Expression::ValueTerm(h) => match &arena.read(h).form {
             ValueTermForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            ValueTermForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            ValueTermForm::Annotated { global, .. } => {
+                format!("Annotated {{ global: {global:?} }}")
             }
-            ValueTermForm::Annotated { .. } => "annotated".into(),
             ValueTermForm::ThunkValue { .. } => "ThunkValue".into(),
             ValueTermForm::Continue { .. } => "Continue".into(),
             ValueTermForm::Finish { .. } => "Finish".into(),
@@ -258,10 +233,9 @@ fn label(arena: &Arena, e: Expression) -> String {
         },
         Expression::ValueType(h) => match &arena.read(h).form {
             ValueTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            ValueTypeForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            ValueTypeForm::Annotated { global, .. } => {
+                format!("Annotated {{ global: {global:?} }}")
             }
-            ValueTypeForm::Annotated { .. } => "annotated".into(),
             ValueTypeForm::Thunk { .. } => "Thunk".into(),
             ValueTypeForm::RunStep { .. } => "RunStep".into(),
             ValueTypeForm::Inductive { inductive, .. } => {
@@ -279,10 +253,9 @@ fn label(arena: &Arena, e: Expression) -> String {
             }
         },
         Expression::ComputationTerm(h) => match &arena.read(h).form {
-            ComputationTermForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            ComputationTermForm::Annotated { global, .. } => {
+                format!("Annotated {{ global: {global:?} }}")
             }
-            ComputationTermForm::Annotated { .. } => "annotated".into(),
             ComputationTermForm::Return { .. } => "Return".into(),
             ComputationTermForm::Force { .. } => "Force".into(),
             ComputationTermForm::LambdaTerm { rule, var, .. } => {
@@ -303,10 +276,9 @@ fn label(arena: &Arena, e: Expression) -> String {
         },
         Expression::ComputationType(h) => match &arena.read(h).form {
             ComputationTypeForm::Bound { index } => format!("Bound {{ index: {index:?} }}"),
-            ComputationTypeForm::ModuleParam { parameter } => {
-                format!("ModuleParam {{ parameter: {parameter:?} }}")
+            ComputationTypeForm::Annotated { global, .. } => {
+                format!("Annotated {{ global: {global:?} }}")
             }
-            ComputationTypeForm::Annotated { .. } => "annotated".into(),
             ComputationTypeForm::ReturnType { .. } => "ReturnType".into(),
             ComputationTypeForm::ProdTerm { rule, var, .. } => {
                 format!("ProdTerm {{ rule: {rule:?}, var: {var:?} }}")

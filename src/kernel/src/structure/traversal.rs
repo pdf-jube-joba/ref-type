@@ -26,14 +26,14 @@ fn visit_set_term(arena: &Arena, h: SetTerm, visit: &mut dyn FnMut(Expression, u
     let node = arena.read(h);
     match &node.form {
         SetTermForm::Bound { .. } => {}
-        SetTermForm::ModuleParam { .. } => {}
-        SetTermForm::Annotated { body, classifier } => {
+        SetTermForm::Annotated {
+            body, classifier, ..
+        } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
             }
         }
-        SetTermForm::ReflectedProgramParam { .. } => {}
         SetTermForm::LambdaTerm { domain, body, .. } => {
             visit((*domain).into(), 0);
             visit((*body).into(), 1);
@@ -239,14 +239,14 @@ fn visit_set_type(arena: &Arena, h: SetType, visit: &mut dyn FnMut(Expression, u
     let node = arena.read(h);
     match &node.form {
         SetTypeForm::Bound { .. } => {}
-        SetTypeForm::ModuleParam { .. } => {}
-        SetTypeForm::Annotated { body, classifier } => {
+        SetTypeForm::Annotated {
+            body, classifier, ..
+        } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
             }
         }
-        SetTypeForm::ReflectedProgramParam { .. } => {}
         SetTypeForm::ProdTerm { domain, body, .. } => {
             visit((*domain).into(), 0);
             visit((*body).into(), 1);
@@ -371,8 +371,9 @@ fn visit_set_kind(arena: &Arena, h: SetKind, visit: &mut dyn FnMut(Expression, u
                 visit((*child).into(), 0);
             }
         }
-        SetKindForm::ModuleParam { .. } => {}
-        SetKindForm::Annotated { body, classifier } => {
+        SetKindForm::Annotated {
+            body, classifier, ..
+        } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
@@ -384,8 +385,9 @@ fn visit_prop_term(arena: &Arena, h: PropTerm, visit: &mut dyn FnMut(Expression,
     let node = arena.read(h);
     match &node.form {
         PropTermForm::Bound { .. } => {}
-        PropTermForm::ModuleParam { .. } => {}
-        PropTermForm::Annotated { body, classifier } => {
+        PropTermForm::Annotated {
+            body, classifier, ..
+        } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
@@ -589,8 +591,9 @@ fn visit_prop_type(arena: &Arena, h: PropType, visit: &mut dyn FnMut(Expression,
     let node = arena.read(h);
     match &node.form {
         PropTypeForm::Bound { .. } => {}
-        PropTypeForm::ModuleParam { .. } => {}
-        PropTypeForm::Annotated { body, classifier } => {
+        PropTypeForm::Annotated {
+            body, classifier, ..
+        } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
@@ -730,8 +733,9 @@ fn visit_prop_kind(arena: &Arena, h: PropKind, visit: &mut dyn FnMut(Expression,
                 visit((*child).into(), 0);
             }
         }
-        PropKindForm::ModuleParam { .. } => {}
-        PropKindForm::Annotated { body, classifier } => {
+        PropKindForm::Annotated {
+            body, classifier, ..
+        } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
@@ -743,8 +747,9 @@ fn visit_value_term(arena: &Arena, h: ValueTerm, visit: &mut dyn FnMut(Expressio
     let node = arena.read(h);
     match &node.form {
         ValueTermForm::Bound { .. } => {}
-        ValueTermForm::ModuleParam { .. } => {}
-        ValueTermForm::Annotated { body, classifier } => {
+        ValueTermForm::Annotated {
+            body, classifier, ..
+        } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
@@ -787,8 +792,9 @@ fn visit_value_type(arena: &Arena, h: ValueType, visit: &mut dyn FnMut(Expressio
     let node = arena.read(h);
     match &node.form {
         ValueTypeForm::Bound { .. } => {}
-        ValueTypeForm::ModuleParam { .. } => {}
-        ValueTypeForm::Annotated { body, classifier } => {
+        ValueTypeForm::Annotated {
+            body, classifier, ..
+        } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
@@ -838,8 +844,9 @@ fn visit_computation_term(
 ) {
     let node = arena.read(h);
     match &node.form {
-        ComputationTermForm::ModuleParam { .. } => {}
-        ComputationTermForm::Annotated { body, classifier } => {
+        ComputationTermForm::Annotated {
+            body, classifier, ..
+        } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
@@ -944,8 +951,9 @@ fn visit_computation_type(
     let node = arena.read(h);
     match &node.form {
         ComputationTypeForm::Bound { .. } => {}
-        ComputationTypeForm::ModuleParam { .. } => {}
-        ComputationTypeForm::Annotated { body, classifier } => {
+        ComputationTypeForm::Annotated {
+            body, classifier, ..
+        } => {
             visit((*body).into(), 0);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 visit(*ty, 0);
@@ -1042,14 +1050,14 @@ fn map_set_term(
     macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         SetTermForm::Bound { .. } => {}
-        SetTermForm::ModuleParam { .. } => {}
-        SetTermForm::Annotated { body, classifier } => {
+        SetTermForm::Annotated {
+            body, classifier, ..
+        } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
             }
         }
-        SetTermForm::ReflectedProgramParam { .. } => {}
         SetTermForm::LambdaTerm { domain, body, .. } => {
             field!(domain, 0, All | Evaluation);
             field!(body, 1, All | Evaluation);
@@ -1268,14 +1276,14 @@ fn map_set_type(
     macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         SetTypeForm::Bound { .. } => {}
-        SetTypeForm::ModuleParam { .. } => {}
-        SetTypeForm::Annotated { body, classifier } => {
+        SetTypeForm::Annotated {
+            body, classifier, ..
+        } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
             }
         }
-        SetTypeForm::ReflectedProgramParam { .. } => {}
         SetTypeForm::ProdTerm { domain, body, .. } => {
             field!(domain, 0, All | Evaluation);
             field!(body, 1, All | Evaluation);
@@ -1413,8 +1421,9 @@ fn map_set_kind(
                 field!(child, 0, All | Evaluation);
             }
         }
-        SetKindForm::ModuleParam { .. } => {}
-        SetKindForm::Annotated { body, classifier } => {
+        SetKindForm::Annotated {
+            body, classifier, ..
+        } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
@@ -1439,8 +1448,9 @@ fn map_prop_term(
     macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         PropTermForm::Bound { .. } => {}
-        PropTermForm::ModuleParam { .. } => {}
-        PropTermForm::Annotated { body, classifier } => {
+        PropTermForm::Annotated {
+            body, classifier, ..
+        } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
@@ -1657,8 +1667,9 @@ fn map_prop_type(
     macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,false;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         PropTypeForm::Bound { .. } => {}
-        PropTypeForm::ModuleParam { .. } => {}
-        PropTypeForm::Annotated { body, classifier } => {
+        PropTypeForm::Annotated {
+            body, classifier, ..
+        } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
@@ -1811,8 +1822,9 @@ fn map_prop_kind(
                 field!(child, 0, All | Evaluation);
             }
         }
-        PropKindForm::ModuleParam { .. } => {}
-        PropKindForm::Annotated { body, classifier } => {
+        PropKindForm::Annotated {
+            body, classifier, ..
+        } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
@@ -1837,8 +1849,9 @@ fn map_value_term(
     macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ValueTermForm::Bound { .. } => {}
-        ValueTermForm::ModuleParam { .. } => {}
-        ValueTermForm::Annotated { body, classifier } => {
+        ValueTermForm::Annotated {
+            body, classifier, ..
+        } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
@@ -1894,8 +1907,9 @@ fn map_value_type(
     macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ValueTypeForm::Bound { .. } => {}
-        ValueTypeForm::ModuleParam { .. } => {}
-        ValueTypeForm::Annotated { body, classifier } => {
+        ValueTypeForm::Annotated {
+            body, classifier, ..
+        } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
@@ -1967,8 +1981,9 @@ fn map_computation_term(
     let mut changed = false;
     macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
-        ComputationTermForm::ModuleParam { .. } => {}
-        ComputationTermForm::Annotated { body, classifier } => {
+        ComputationTermForm::Annotated {
+            body, classifier, ..
+        } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);
@@ -2082,8 +2097,9 @@ fn map_computation_type(
     macro_rules! field { ($slot:expr,$depth:expr,$($mode:pat_param)|+) => { child!(arena,map,traversal,changed,true;$slot,$depth,$($mode)|+); }; }
     match &mut node.form {
         ComputationTypeForm::Bound { .. } => {}
-        ComputationTypeForm::ModuleParam { .. } => {}
-        ComputationTypeForm::Annotated { body, classifier } => {
+        ComputationTypeForm::Annotated {
+            body, classifier, ..
+        } => {
             field!(body, 0, All | Head | Evaluation);
             if let super::super::environment::Classifier::Expression(ty) = classifier {
                 field!(ty, 0, All);

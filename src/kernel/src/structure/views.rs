@@ -52,101 +52,63 @@ pub(crate) fn annotation(
 ) -> Option<(Expression, super::super::environment::Classifier)> {
     match e {
         Expression::SetTerm(h) => match arena.read(h).form {
-            SetTermForm::Annotated { body, classifier } => Some((body.into(), classifier)),
+            SetTermForm::Annotated {
+                body, classifier, ..
+            } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::SetType(h) => match arena.read(h).form {
-            SetTypeForm::Annotated { body, classifier } => Some((body.into(), classifier)),
+            SetTypeForm::Annotated {
+                body, classifier, ..
+            } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::SetKind(h) => match arena.read(h).form {
-            SetKindForm::Annotated { body, classifier } => Some((body.into(), classifier)),
+            SetKindForm::Annotated {
+                body, classifier, ..
+            } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::PropTerm(h) => match arena.read(h).form {
-            PropTermForm::Annotated { body, classifier } => Some((body.into(), classifier)),
+            PropTermForm::Annotated {
+                body, classifier, ..
+            } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::PropType(h) => match arena.read(h).form {
-            PropTypeForm::Annotated { body, classifier } => Some((body.into(), classifier)),
+            PropTypeForm::Annotated {
+                body, classifier, ..
+            } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::PropKind(h) => match arena.read(h).form {
-            PropKindForm::Annotated { body, classifier } => Some((body.into(), classifier)),
+            PropKindForm::Annotated {
+                body, classifier, ..
+            } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::ValueTerm(h) => match arena.read(h).form {
-            ValueTermForm::Annotated { body, classifier } => Some((body.into(), classifier)),
+            ValueTermForm::Annotated {
+                body, classifier, ..
+            } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::ValueType(h) => match arena.read(h).form {
-            ValueTypeForm::Annotated { body, classifier } => Some((body.into(), classifier)),
+            ValueTypeForm::Annotated {
+                body, classifier, ..
+            } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::ComputationTerm(h) => match arena.read(h).form {
-            ComputationTermForm::Annotated { body, classifier } => Some((body.into(), classifier)),
+            ComputationTermForm::Annotated {
+                body, classifier, ..
+            } => Some((body.into(), classifier)),
             _ => None,
         },
         Expression::ComputationType(h) => match arena.read(h).form {
-            ComputationTypeForm::Annotated { body, classifier } => Some((body.into(), classifier)),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-pub(crate) fn module_parameter(arena: &Arena, e: Expression) -> Option<ModuleParamId> {
-    match e {
-        Expression::SetTerm(h) => match arena.read(h).form {
-            SetTermForm::ModuleParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        Expression::SetType(h) => match arena.read(h).form {
-            SetTypeForm::ModuleParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        Expression::SetKind(h) => match arena.read(h).form {
-            SetKindForm::ModuleParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        Expression::PropTerm(h) => match arena.read(h).form {
-            PropTermForm::ModuleParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        Expression::PropType(h) => match arena.read(h).form {
-            PropTypeForm::ModuleParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        Expression::PropKind(h) => match arena.read(h).form {
-            PropKindForm::ModuleParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        Expression::ValueTerm(h) => match arena.read(h).form {
-            ValueTermForm::ModuleParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        Expression::ValueType(h) => match arena.read(h).form {
-            ValueTypeForm::ModuleParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        Expression::ComputationTerm(h) => match arena.read(h).form {
-            ComputationTermForm::ModuleParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        Expression::ComputationType(h) => match arena.read(h).form {
-            ComputationTypeForm::ModuleParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-pub(crate) fn reflected_parameter(arena: &Arena, e: Expression) -> Option<ModuleParamId> {
-    match e {
-        Expression::SetTerm(h) => match arena.read(h).form {
-            SetTermForm::ReflectedProgramParam { parameter } => Some(parameter),
-            _ => None,
-        },
-        Expression::SetType(h) => match arena.read(h).form {
-            SetTypeForm::ReflectedProgramParam { parameter } => Some(parameter),
+            ComputationTypeForm::Annotated {
+                body, classifier, ..
+            } => Some((body.into(), classifier)),
             _ => None,
         },
         _ => None,

@@ -388,15 +388,10 @@ pub enum SetTermForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
-    },
     Annotated {
+        global: Option<GlobalId>,
         body: SetTerm,
         classifier: super::environment::Classifier,
-    },
-    ReflectedProgramParam {
-        parameter: ModuleParamId,
     },
     LambdaTerm {
         rule: ProductRule,
@@ -537,15 +532,10 @@ pub enum SetTypeForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
-    },
     Annotated {
+        global: Option<GlobalId>,
         body: SetType,
         classifier: super::environment::Classifier,
-    },
-    ReflectedProgramParam {
-        parameter: ModuleParamId,
     },
     ProdTerm {
         rule: ProductRule,
@@ -656,10 +646,8 @@ pub enum SetKindForm {
         inductive: InductiveId,
         parameters: Vec<LogicalArgument>,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
-    },
     Annotated {
+        global: Option<GlobalId>,
         body: SetKind,
         classifier: super::environment::Classifier,
     },
@@ -675,10 +663,8 @@ pub enum PropTermForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
-    },
     Annotated {
+        global: Option<GlobalId>,
         body: PropTerm,
         classifier: super::environment::Classifier,
     },
@@ -813,10 +799,8 @@ pub enum PropTypeForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
-    },
     Annotated {
+        global: Option<GlobalId>,
         body: PropType,
         classifier: super::environment::Classifier,
     },
@@ -932,10 +916,8 @@ pub enum PropKindForm {
         inductive: InductiveId,
         parameters: Vec<LogicalArgument>,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
-    },
     Annotated {
+        global: Option<GlobalId>,
         body: PropKind,
         classifier: super::environment::Classifier,
     },
@@ -950,10 +932,8 @@ pub enum ValueTermForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
-    },
     Annotated {
+        global: Option<GlobalId>,
         body: ValueTerm,
         classifier: super::environment::Classifier,
     },
@@ -988,10 +968,8 @@ pub enum ValueTypeForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
-    },
     Annotated {
+        global: Option<GlobalId>,
         body: ValueType,
         classifier: super::environment::Classifier,
     },
@@ -1042,10 +1020,8 @@ pub struct ValueKindNode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ComputationTermForm {
-    ModuleParam {
-        parameter: ModuleParamId,
-    },
     Annotated {
+        global: Option<GlobalId>,
         body: ComputationTerm,
         classifier: super::environment::Classifier,
     },
@@ -1124,10 +1100,8 @@ pub enum ComputationTypeForm {
     Bound {
         index: usize,
     },
-    ModuleParam {
-        parameter: ModuleParamId,
-    },
     Annotated {
+        global: Option<GlobalId>,
         body: ComputationType,
         classifier: super::environment::Classifier,
     },
@@ -1273,9 +1247,75 @@ impl ComputationTermNode {
 
 impl Arena {
     /// A transparent body together with the classifier declared by its author.
-    /// Allocation interns the whole annotation; no definition identity is involved.
+    /// The annotation has no external label.
     pub fn annotated(
         &self,
+        body: Expression,
+        classifier: super::environment::Classifier,
+    ) -> Result<Expression, String> {
+        self.annotation(None, body, classifier)
+    }
+
+    /// Attach a caller-owned label to a transparent annotation.
+    /// The checker validates the body and classifier independently of the label.
+    pub fn identified(
+        &self,
+        global: GlobalId,
+        body: Expression,
+        classifier: super::environment::Classifier,
+    ) -> Result<Expression, String> {
+        self.annotation(Some(global), body, classifier)
+    }
+
+    pub fn global_id(&self, expression: Expression) -> Option<GlobalId> {
+        match expression {
+            Expression::SetTerm(h) => match self.get(h).form {
+                SetTermForm::Annotated { global, .. } => global,
+                _ => None,
+            },
+            Expression::SetType(h) => match self.get(h).form {
+                SetTypeForm::Annotated { global, .. } => global,
+                _ => None,
+            },
+            Expression::SetKind(h) => match self.get(h).form {
+                SetKindForm::Annotated { global, .. } => global,
+                _ => None,
+            },
+            Expression::PropTerm(h) => match self.get(h).form {
+                PropTermForm::Annotated { global, .. } => global,
+                _ => None,
+            },
+            Expression::PropType(h) => match self.get(h).form {
+                PropTypeForm::Annotated { global, .. } => global,
+                _ => None,
+            },
+            Expression::PropKind(h) => match self.get(h).form {
+                PropKindForm::Annotated { global, .. } => global,
+                _ => None,
+            },
+            Expression::ValueTerm(h) => match self.get(h).form {
+                ValueTermForm::Annotated { global, .. } => global,
+                _ => None,
+            },
+            Expression::ValueType(h) => match self.get(h).form {
+                ValueTypeForm::Annotated { global, .. } => global,
+                _ => None,
+            },
+            Expression::ComputationTerm(h) => match self.get(h).form {
+                ComputationTermForm::Annotated { global, .. } => global,
+                _ => None,
+            },
+            Expression::ComputationType(h) => match self.get(h).form {
+                ComputationTypeForm::Annotated { global, .. } => global,
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn annotation(
+        &self,
+        global: Option<GlobalId>,
         body: Expression,
         classifier: super::environment::Classifier,
     ) -> Result<Expression, String> {
@@ -1284,6 +1324,7 @@ impl Arena {
                 .alloc(SetTermNode {
                     level: self.read(h).level,
                     form: SetTermForm::Annotated {
+                        global,
                         body: h,
                         classifier,
                     },
@@ -1293,6 +1334,7 @@ impl Arena {
                 .alloc(SetTypeNode {
                     level: self.read(h).level,
                     form: SetTypeForm::Annotated {
+                        global,
                         body: h,
                         classifier,
                     },
@@ -1302,6 +1344,7 @@ impl Arena {
                 .alloc(SetKindNode {
                     level: self.read(h).level,
                     form: SetKindForm::Annotated {
+                        global,
                         body: h,
                         classifier,
                     },
@@ -1310,6 +1353,7 @@ impl Arena {
             Expression::PropTerm(h) => self
                 .alloc(PropTermNode {
                     form: PropTermForm::Annotated {
+                        global,
                         body: h,
                         classifier,
                     },
@@ -1318,6 +1362,7 @@ impl Arena {
             Expression::PropType(h) => self
                 .alloc(PropTypeNode {
                     form: PropTypeForm::Annotated {
+                        global,
                         body: h,
                         classifier,
                     },
@@ -1326,6 +1371,7 @@ impl Arena {
             Expression::PropKind(h) => self
                 .alloc(PropKindNode {
                     form: PropKindForm::Annotated {
+                        global,
                         body: h,
                         classifier,
                     },
@@ -1335,6 +1381,7 @@ impl Arena {
                 .alloc(ValueTermNode {
                     level: self.read(h).level,
                     form: ValueTermForm::Annotated {
+                        global,
                         body: h,
                         classifier,
                     },
@@ -1344,6 +1391,7 @@ impl Arena {
                 .alloc(ValueTypeNode {
                     level: self.read(h).level,
                     form: ValueTypeForm::Annotated {
+                        global,
                         body: h,
                         classifier,
                     },
@@ -1353,6 +1401,7 @@ impl Arena {
                 .alloc(ComputationTermNode {
                     level: self.read(h).level,
                     form: ComputationTermForm::Annotated {
+                        global,
                         body: h,
                         classifier,
                     },
@@ -1362,6 +1411,7 @@ impl Arena {
                 .alloc(ComputationTypeNode {
                     level: self.read(h).level,
                     form: ComputationTypeForm::Annotated {
+                        global,
                         body: h,
                         classifier,
                     },

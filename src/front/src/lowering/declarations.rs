@@ -6,8 +6,7 @@ impl Lowerer<'_> {
         let mut pending = vec![(id, false)];
         let mut active = HashSet::new();
         while let Some((id, ready)) = pending.pop() {
-            if self.kernel.definition(id).is_some() || self.kernel.definition_template(id).is_some()
-            {
+            if self.kernel.definition(id.into()).is_some() {
                 continue;
             }
             if ready {
@@ -19,13 +18,8 @@ impl Lowerer<'_> {
                 return Err("cyclic definition dependency".into());
             }
             pending.push((id, true));
-            for dependency in
-                raw::dependencies::definition_dependencies(self.raw, self.raw.definition(id))
-                    .definitions
-                    .into_iter()
-                    .rev()
-            {
-                if self.kernel.definition(dependency).is_none() {
+            for dependency in self.definition_dependencies(id).into_iter().rev() {
+                if self.kernel.definition(dependency.into()).is_none() {
                     pending.push((dependency, false))
                 }
             }
@@ -34,10 +28,17 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn definition_ready(&mut self, id: DefId) -> Result<(), String> {
-        if self.kernel.definition(id).is_some() || self.kernel.definition_template(id).is_some() {
+        if self.kernel.definition(id.into()).is_some() {
             return Ok(());
         }
         tracing::debug!(target:"ref_type::lowering",?id,"lower definition");
+        let captures = self.captures(Declaration::Definition(id));
+        let base = self.raw.definition_context(id.module).len();
+        let depth = self.raw.definition_parameters(id).len();
+        self.in_scope(captures, base, depth, |this| this.lower_definition(id))
+    }
+
+    fn lower_definition(&mut self, id: DefId) -> Result<(), String> {
         let raw = self.raw.definition(id).clone();
         let parameters = self.raw.definition_parameters(id).to_vec();
         let mut program_context = parameters
@@ -75,19 +76,9 @@ impl Lowerer<'_> {
                 )
             }
         };
-        if !parameters.is_empty() {
-            return self.kernel.register_definition_template(
-                id,
-                ke::Definition {
-                    body,
-                    classifier,
-                    context,
-                },
-            );
-        }
         self.kernel
             .register_definition(
-                id,
+                id.into(),
                 ke::Definition {
                     body,
                     classifier,
@@ -97,59 +88,28 @@ impl Lowerer<'_> {
             .map_err(|e| format!("indexed definition {id:?}: {e}"))
     }
 
-    pub(super) fn parameter(&mut self, id: ModuleParamId) -> Result<(), String> {
-        if self.kernel.parameter(id).is_some() {
+    pub(super) fn inductive(&mut self, id: InductiveId) -> Result<(), String> {
+        if self.kernel.inductive(id.into()).is_some() || !self.active.insert(id) {
             return Ok(());
         }
-        let p = self
-            .raw
-            .module_parameter_opt(id)
-            .ok_or("unknown parameter")?
-            .clone();
-        let mut ctx = self.raw.definition_context(id.module);
-        let classifier = match p.kind {
-            raw::environment::ModuleParameterKind::Pts { ty } => {
-                self.set(ty, &mut ctx, id.module)?
-            }
-            raw::environment::ModuleParameterKind::ProgramType => self
-                .kernel
-                .arena()
-                .alloc(s::ValueKindNode {
-                    level: 0,
-                    form: s::ValueKindForm::Base,
-                })
-                .into(),
-            raw::environment::ModuleParameterKind::ProgramValue { ty } => {
-                self.value_type(ty)?.into()
-            }
-        };
-        self.kernel.register_parameter(
-            id,
-            ke::Binding {
-                var: p.name,
-                classifier,
-            },
-            vec![],
-        )
+        let captures = self.captures(Declaration::Inductive(id));
+        let ambient = self.raw.definition_context(id.module);
+        let result = self.in_scope(captures, ambient.len(), 0, |this| {
+            this.lower_inductive(id, ambient)
+        });
+        self.active.remove(&id);
+        result
     }
 
-    pub(super) fn inductive(
-        &mut self,
-        id: InductiveId,
-        m: ModuleId,
-        ambient: &ExpContext,
-    ) -> Result<(), String> {
-        if self.kernel.inductive(id).is_some() || !self.active.insert(id) {
-            return Ok(());
-        }
+    fn lower_inductive(&mut self, id: InductiveId, mut ctx: ExpContext) -> Result<(), String> {
+        let m = id.module;
         let raw = self.raw.inductive(id).clone();
-        let mut ctx = ambient.clone();
         let parameters = raw
             .parameters()
             .iter()
             .map(|(var, ty)| ExpContextEntry { var: *var, ty: *ty })
             .collect::<ExpContext>();
-        let mut native_params = vec![];
+        let mut native_params = self.capture_context(false)?;
         for b in &parameters {
             let classifier = self.set(b.ty, &mut ctx, m)?;
             native_params.push(ke::Binding {
@@ -183,7 +143,7 @@ impl Lowerer<'_> {
         }
         self.kernel
             .register_inductive(
-                id,
+                id.into(),
                 ke::InductiveSpec {
                     parameters: native_params,
                     arity,
@@ -192,20 +152,27 @@ impl Lowerer<'_> {
                 },
             )
             .map_err(|e| format!("indexed inductive {id:?}: {e}"))?;
-        self.active.remove(&id);
         Ok(())
     }
 
     pub(super) fn datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
-        if self.kernel.datatype(id).is_some() {
+        if self.kernel.datatype(id.into()).is_some() {
             return Ok(());
         }
         // Recursive fields are lowered while the datatype's identity is reserved.
         if !self.active_program.insert(id) {
             return Ok(());
         }
+        let captures = self.captures(Declaration::Datatype(id));
+        let depth = self.raw.program_inductive(id).parameters().len();
+        let result = self.in_scope(captures, 0, depth, |this| this.lower_datatype(id));
+        self.active_program.remove(&id);
+        result
+    }
+
+    fn lower_datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
         let raw = self.raw.program_inductive(id).clone();
-        let mut parameters = vec![];
+        let mut parameters = self.capture_context(true)?;
         for &var in raw.parameters() {
             let classifier = self
                 .kernel
@@ -225,30 +192,29 @@ impl Lowerer<'_> {
             }
             constructors.push(fields)
         }
-        self.inductive(
-            raw.reflected(),
-            id.module,
-            &self.raw.definition_context(id.module),
-        )?;
+        self.inductive(raw.reflected())?;
         self.kernel.register_datatype(
-            id,
+            id.into(),
             ke::ProgramDatatype {
                 parameters,
                 constructors,
                 level: 0,
-                reflected: raw.reflected(),
+                reflected: raw.reflected().into(),
             },
         )?;
-        self.active_program.remove(&id);
         Ok(())
     }
 
     pub(crate) fn lower_all(&mut self) -> Result<(), String> {
         for id in self.raw.parameter_ids() {
-            self.parameter(id)?
+            let captures = self.captures(Declaration::Parameter(id));
+            self.in_scope(captures, 0, 0, |this| {
+                let context = this.capture_context(true)?;
+                kernel::check::Checker::new(this.kernel, context).check_context()
+            })?;
         }
         for id in self.raw.inductive_ids() {
-            self.inductive(id, id.module, &self.raw.definition_context(id.module))?
+            self.inductive(id)?
         }
         for id in self.raw.datatype_ids() {
             self.datatype(id)?

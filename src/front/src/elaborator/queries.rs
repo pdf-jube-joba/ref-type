@@ -38,13 +38,12 @@ impl GlobalEnvironment {
     }
 
     fn certify_query(&mut self, context: &ExpContext, term: Exp, ty: Exp) -> Result<(), String> {
-        let mut lower = crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env);
-        let module = self.module_manager.current();
-        let mut raw_context = context.clone();
-        let term = lower.set(term, &mut raw_context, module)?;
-        let expected = lower.classifier(ty, &mut raw_context, module)?;
-        let context = lower.context(context, module)?;
-        kernel::check::Checker::new(lower.kernel, context).check(term, expected)
+        crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env).check_query(
+            context,
+            self.module_manager.current(),
+            term,
+            ty,
+        )
     }
 
     fn certify_program_query(
@@ -53,11 +52,8 @@ impl GlobalEnvironment {
         term: crate::raw::program::ProgramTerm,
         ty: crate::raw::program::ProgramType,
     ) -> Result<(), String> {
-        let mut lower = crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env);
-        let term = lower.program_in_context(term, &mut context.clone())?;
-        let ty = lower.program_type(ty)?;
-        let context = lower.program_context(context)?;
-        kernel::check::Checker::new(lower.kernel, context).check(term, ty)
+        crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
+            .check_program_query(context, term, ty)
     }
 
     pub(super) fn eval_query(

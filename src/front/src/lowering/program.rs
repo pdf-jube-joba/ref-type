@@ -20,10 +20,9 @@ impl Lowerer<'_> {
         use s::ValueTypeForm as F;
         let form = match self.raw.arena().get(ty) {
             R::Bound(index) => F::Bound { index },
-            R::ModuleParam(parameter) => {
-                self.parameter(parameter)?;
-                F::ModuleParam { parameter }
-            }
+            R::ModuleParam(parameter) => F::Bound {
+                index: self.parameter_index(parameter, self.scope.program_depth)?,
+            },
             R::Meta { .. } => return Err("unresolved Program type".into()),
             R::Thunk { computation_ty } => F::Thunk {
                 computation_ty: self.computation_type(computation_ty)?,
@@ -41,11 +40,8 @@ impl Lowerer<'_> {
             } => {
                 self.datatype(indspec)?;
                 F::Inductive {
-                    inductive: indspec,
-                    parameters: parameters
-                        .into_iter()
-                        .map(|p| self.value_type(p).map(Into::into))
-                        .collect::<Result<_, _>>()?,
+                    inductive: indspec.into(),
+                    parameters: self.datatype_arguments(indspec, parameters)?,
                 }
             }
         };
@@ -109,10 +105,11 @@ impl Lowerer<'_> {
         &mut self,
         context: &raw::program::ProgramContext,
     ) -> Result<ke::Context, String> {
-        context
-            .iter()
-            .map(|b| match b {
-                raw::program::ProgramContextEntry::ValueType { var } => Ok(ke::Binding {
+        let mut result = self.capture_context(true)?;
+        for (depth, binding) in context.iter().enumerate() {
+            let previous = std::mem::replace(&mut self.scope.program_depth, depth);
+            let binding = match binding {
+                raw::program::ProgramContextEntry::ValueType { var } => ke::Binding {
                     var: *var,
                     classifier: self
                         .kernel
@@ -122,16 +119,50 @@ impl Lowerer<'_> {
                             form: s::ValueKindForm::Base,
                         })
                         .into(),
-                }),
-                raw::program::ProgramContextEntry::ValueTerm { var, ty } => Ok(ke::Binding {
+                },
+                raw::program::ProgramContextEntry::ValueTerm { var, ty } => ke::Binding {
                     var: *var,
                     classifier: self.value_type(*ty)?.into(),
-                }),
-            })
-            .collect()
+                },
+            };
+            self.scope.program_depth = previous;
+            result.push(binding);
+        }
+        Ok(result)
+    }
+
+    fn datatype_arguments(
+        &mut self,
+        id: ProgramInductiveId,
+        parameters: Vec<raw::program::ValueType>,
+    ) -> Result<Vec<s::ProgramType>, String> {
+        let captures = self.captures(Declaration::Datatype(id));
+        let arguments = self.capture_arguments(&captures, self.scope.program_depth, true)?;
+        let mut arguments = arguments
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<_>, _>>()?;
+        arguments.extend(
+            parameters
+                .into_iter()
+                .map(|p| self.value_type(p).map(s::ProgramType::from))
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+        Ok(arguments)
     }
 
     pub(super) fn value_term(
+        &mut self,
+        v: raw::program::ValueTerm,
+        ctx: &mut raw::program::ProgramContext,
+    ) -> Result<s::ValueTerm, String> {
+        let depth = std::mem::replace(&mut self.scope.program_depth, ctx.len());
+        let result = self.value_term_inner(v, ctx);
+        self.scope.program_depth = depth;
+        result
+    }
+
+    fn value_term_inner(
         &mut self,
         v: raw::program::ValueTerm,
         ctx: &mut raw::program::ProgramContext,
@@ -140,10 +171,9 @@ impl Lowerer<'_> {
         use s::ValueTermForm as F;
         let form = match self.raw.arena().get(v) {
             R::Bound(index) => F::Bound { index },
-            R::ModuleParam(parameter) => {
-                self.parameter(parameter)?;
-                F::ModuleParam { parameter }
-            }
+            R::ModuleParam(parameter) => F::Bound {
+                index: self.parameter_index(parameter, self.scope.program_depth)?,
+            },
             R::Meta { .. } => return Err("unresolved Program value".into()),
             R::DefinitionInstance {
                 definition,
@@ -168,19 +198,13 @@ impl Lowerer<'_> {
                 return self
                     .kernel
                     .arena()
-                    .annotated(body.into(), ty.into())?
+                    .identified(definition.into(), body.into(), ty.into())?
                     .try_into();
             }
             R::DefinedConstant(definition) => {
-                self.definition(definition)?;
-                let declaration = self
-                    .kernel
-                    .definition(definition)
-                    .ok_or("unknown definition")?;
-                F::Annotated {
-                    body: declaration.body.try_into()?,
-                    classifier: declaration.classifier,
-                }
+                return self
+                    .definition_expression(definition, ctx.len(), true)?
+                    .try_into();
             }
             R::Thunk { computation } => F::ThunkValue {
                 computation: self.computation_term(computation, ctx)?,
@@ -211,12 +235,9 @@ impl Lowerer<'_> {
             } => {
                 self.datatype(indspec)?;
                 F::InductiveConstructor {
-                    inductive: indspec,
+                    inductive: indspec.into(),
                     constructor: idx,
-                    parameters: parameters
-                        .into_iter()
-                        .map(|p| self.value_type(p).map(Into::into))
-                        .collect::<Result<_, _>>()?,
+                    parameters: self.datatype_arguments(indspec, parameters)?,
                     fields: fields
                         .into_iter()
                         .map(|v| self.value_term(v, ctx))
@@ -237,11 +258,24 @@ impl Lowerer<'_> {
     ) -> Result<s::PropTerm, String> {
         let mut reflected =
             raw::reflection::reflect_context(self.raw, context).map_err(|e| e.to_string())?;
-        self.set(proof, &mut reflected, self.raw.root_module())?
-            .try_into()
+        self.in_scope(self.scope.captures.clone(), 0, context.len(), |this| {
+            this.set(proof, &mut reflected, this.raw.root_module())?
+                .try_into()
+        })
     }
 
     pub(super) fn computation_term(
+        &mut self,
+        e: raw::program::ComputationTerm,
+        ctx: &mut raw::program::ProgramContext,
+    ) -> Result<s::ComputationTerm, String> {
+        let depth = std::mem::replace(&mut self.scope.program_depth, ctx.len());
+        let result = self.computation_term_inner(e, ctx);
+        self.scope.program_depth = depth;
+        result
+    }
+
+    fn computation_term_inner(
         &mut self,
         e: raw::program::ComputationTerm,
         ctx: &mut raw::program::ProgramContext,
@@ -277,19 +311,13 @@ impl Lowerer<'_> {
                 return self
                     .kernel
                     .arena()
-                    .annotated(body.into(), ty.into())?
+                    .identified(definition.into(), body.into(), ty.into())?
                     .try_into();
             }
             R::DefinedConstant(definition) => {
-                self.definition(definition)?;
-                let declaration = self
-                    .kernel
-                    .definition(definition)
-                    .ok_or("unknown definition")?;
-                F::Annotated {
-                    body: declaration.body.try_into()?,
-                    classifier: declaration.classifier,
-                }
+                return self
+                    .definition_expression(definition, ctx.len(), true)?
+                    .try_into();
             }
             R::Return { value } => F::Return {
                 value: self.value_term(value, ctx)?,
@@ -430,7 +458,7 @@ impl Lowerer<'_> {
                     bodies.push(self.computation_term(branch.body, &mut local)?);
                 }
                 F::Case {
-                    inductive: indspec,
+                    inductive: indspec.into(),
                     binders,
                     result_ty: self.computation_type(ty)?,
                     scrutinee: self.value_term(scrutinee, ctx)?,

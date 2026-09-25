@@ -1439,7 +1439,7 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
         panic!("boxed definition")
     };
     let env = global.kernel_env();
-    let def = env.definition(*definition).unwrap();
+    let def = env.definition((*definition).into()).unwrap();
     let mut term = def.body;
     let mut steps = 0;
     while let Some(next) = kernel::calculus::reduce_once(env, term).unwrap() {
@@ -1489,11 +1489,11 @@ fn program_run_proofs_remain_valid_after_every_reduction() {
             assert!(count < 30);
         }
         let env = global.kernel_env();
-        let def = env.definition(*definition).unwrap();
+        let def = env.definition((*definition).into()).unwrap();
         let mut term = def.body;
         let mut count = 0;
         while let Some(next) = kernel::calculus::reduce_once(env, term).unwrap() {
-            kernel::check::Checker::new(env, vec![])
+            kernel::check::Checker::new(env, def.context.clone())
                 .check(next, def.classifier)
                 .unwrap();
             term = next;
@@ -1999,4 +1999,72 @@ fn self_recursive_macro_expansion_respects_depth_limit() {
             "{error:?}"
         );
     }
+}
+
+#[test]
+fn kernel_declarations_capture_parameters_and_preserve_reference_labels() {
+    use crate::raw::environment::ModuleItem;
+    let modules = parse::str_parse_modules(
+        r#"
+        \module Scoped(A: \Set, x: A, Unused: \Set) {
+            \definition chosen: A := x;
+            \definition alias: A := chosen;
+            \definition identity: \forall (T: \Set) -> T -> T :=
+                \fun (T: \Set) (t: T) => t;
+            \inductive Wrap: \Set := | wrap: A -> Wrap;
+        }
+    "#,
+    )
+    .unwrap();
+    let mut global = GlobalEnvironment::default();
+    global.add_new_module_to_root(&modules[0]).unwrap();
+    let raw = global.crate_env();
+    let module = raw.module(raw.module(raw.root_module()).children()[0]);
+    let definition = |name| match module.item(name).unwrap() {
+        ModuleItem::Definition { definition, .. } => *definition,
+        _ => panic!("expected definition"),
+    };
+    let env = global.kernel_env();
+    let chosen = definition("chosen");
+    assert_eq!(env.definition(chosen.into()).unwrap().context.len(), 2);
+    let alias = env.definition(definition("alias").into()).unwrap();
+    assert_eq!(alias.context.len(), 2);
+    assert_eq!(env.arena().global_id(alias.body), Some(chosen.into()));
+    let identity = env.definition(definition("identity").into()).unwrap();
+    assert!(identity.context.is_empty());
+    assert!(kernel::calculus::is_closed(env.arena(), identity.body));
+    let ModuleItem::Inductive { inductive, .. } = module.item("Wrap").unwrap() else {
+        panic!("expected inductive")
+    };
+    assert_eq!(
+        env.inductive((*inductive).into()).unwrap().parameters.len(),
+        1
+    );
+}
+
+#[test]
+fn program_query_parameters_are_scoped_outside_local_variables() {
+    use crate::raw::{ids::ModuleParamId, program::*};
+    let modules = parse::str_parse_modules(r#"\module Generic(A: \VType) {}"#).unwrap();
+    let mut global = GlobalEnvironment::default();
+    global.add_new_module_to_root(&modules[0]).unwrap();
+    let raw = global.crate_env();
+    let module = raw.module(raw.root_module()).children()[0];
+    let ty = raw.arena().alloc(ValueTypeNode::ModuleParam(ModuleParamId {
+        module,
+        position: 0,
+    }));
+    let term = raw.arena().alloc(ValueTermNode::Bound(0));
+    let context = vec![ProgramContextEntry::ValueTerm {
+        var: crate::raw::ids::SymbolId::ANONYMOUS,
+        ty,
+    }];
+    let mut env = kernel::environment::Environment::new();
+    crate::lowering::Lowerer::new(raw, &mut env)
+        .check_program_query(
+            &context,
+            ProgramTerm::ValueTerm(term),
+            ProgramType::ValueType(ty),
+        )
+        .unwrap();
 }

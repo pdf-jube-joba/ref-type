@@ -27,7 +27,11 @@ pub fn reflect_context(env: &Environment, c: &Context) -> Result<Context, String
         .map(|b| {
             Ok(Binding {
                 var: b.var,
-                classifier: reflect_program_expression(env, b.classifier)?,
+                classifier: if env.arena.sort(b.classifier).is_program() {
+                    reflect_program_expression(env, b.classifier)?
+                } else {
+                    b.classifier
+                },
             })
         })
         .collect()
@@ -57,13 +61,11 @@ fn reflect_value_term(env: &Environment, h: ValueTerm) -> Result<SetTerm, String
             level,
             form: SetTermForm::Bound { index },
         }),
-        ValueTermForm::ModuleParam { parameter } => a.alloc(SetTermNode {
-            level,
-            form: SetTermForm::ReflectedProgramParam { parameter },
-        }),
-        ValueTermForm::Annotated { body, classifier } => {
-            reflect_annotation(env, body.into(), classifier)?.try_into()?
-        }
+        ValueTermForm::Annotated {
+            body,
+            classifier,
+            global,
+        } => reflect_annotation(env, body.into(), classifier, global)?.try_into()?,
         ValueTermForm::ThunkValue { computation } => reflect_computation_term(env, computation)?,
         ValueTermForm::Continue {
             state_ty,
@@ -129,13 +131,11 @@ fn reflect_value_type(env: &Environment, h: ValueType) -> Result<SetType, String
             level,
             form: SetTypeForm::Bound { index },
         }),
-        ValueTypeForm::ModuleParam { parameter } => a.alloc(SetTypeNode {
-            level,
-            form: SetTypeForm::ReflectedProgramParam { parameter },
-        }),
-        ValueTypeForm::Annotated { body, classifier } => {
-            reflect_annotation(env, body.into(), classifier)?.try_into()?
-        }
+        ValueTypeForm::Annotated {
+            body,
+            classifier,
+            global,
+        } => reflect_annotation(env, body.into(), classifier, global)?.try_into()?,
         ValueTypeForm::Thunk { computation_ty } => reflect_computation_type(env, computation_ty)?,
         ValueTypeForm::RunStep {
             state_ty,
@@ -235,13 +235,11 @@ pub(crate) fn reflect_computation_term(
     let node = a.get(h);
     let level = node.level;
     Ok(match node.form {
-        ComputationTermForm::ModuleParam { parameter } => a.alloc(SetTermNode {
-            level,
-            form: SetTermForm::ReflectedProgramParam { parameter },
-        }),
-        ComputationTermForm::Annotated { body, classifier } => {
-            reflect_annotation(env, body.into(), classifier)?.try_into()?
-        }
+        ComputationTermForm::Annotated {
+            body,
+            classifier,
+            global,
+        } => reflect_annotation(env, body.into(), classifier, global)?.try_into()?,
         ComputationTermForm::Return { value } => reflect_value_term(env, value)?,
         ComputationTermForm::Force { value } => reflect_value_term(env, value)?,
         ComputationTermForm::LambdaTerm {
@@ -401,13 +399,11 @@ fn reflect_computation_type(env: &Environment, h: ComputationType) -> Result<Set
             level,
             form: SetTypeForm::Bound { index },
         }),
-        ComputationTypeForm::ModuleParam { parameter } => a.alloc(SetTypeNode {
-            level,
-            form: SetTypeForm::ReflectedProgramParam { parameter },
-        }),
-        ComputationTypeForm::Annotated { body, classifier } => {
-            reflect_annotation(env, body.into(), classifier)?.try_into()?
-        }
+        ComputationTypeForm::Annotated {
+            body,
+            classifier,
+            global,
+        } => reflect_annotation(env, body.into(), classifier, global)?.try_into()?,
         ComputationTypeForm::ReturnType { value_ty } => reflect_value_type(env, value_ty)?,
         ComputationTypeForm::ProdTerm {
             rule,
@@ -482,6 +478,7 @@ fn reflect_annotation(
     env: &Environment,
     body: Expression,
     classifier: super::environment::Classifier,
+    global: Option<crate::ids::GlobalId>,
 ) -> Result<Expression, String> {
     use super::environment::Classifier;
     let body = reflect_program_expression(env, body)?;
@@ -491,7 +488,10 @@ fn reflect_annotation(
             Classifier::Upper(BaseSort::Set(sort.level().ok_or("expected Program sort")?))
         }
     };
-    env.arena.annotated(body, classifier)
+    match global {
+        Some(id) => env.arena.identified(id, body, classifier),
+        None => env.arena.annotated(body, classifier),
+    }
 }
 
 fn reflect_computation_kind(env: &Environment, h: ComputationKind) -> Result<SetKind, String> {
