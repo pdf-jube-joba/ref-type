@@ -2,7 +2,7 @@ use crate::{
     Diagnostic, Location, QueryStats, SourceSnapshot,
     cache::{Fingerprint, fingerprint},
 };
-use front_syntax::{
+use ::syntax::{
     module_loader::SourceProvider,
     parse,
     syntax::{Module, ModuleItem, SourceFile, SourceSpan},
@@ -52,7 +52,7 @@ impl ParseCache {
         let Some(source) = snapshot.source(&path) else {
             return Arc::new(ParseResult {
                 source: Arc::new(SourceFile {
-                    id: front_syntax::syntax::SourceId(path.clone()),
+                    id: ::syntax::syntax::SourceId(path.clone()),
                     text: String::new(),
                 }),
                 syntax: None,

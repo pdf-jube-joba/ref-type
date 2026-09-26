@@ -1,5 +1,5 @@
 //! Snapshot based semantic queries and incremental checking.
-pub use front_syntax::{module_loader, package_loader, parse, syntax};
+pub use ::syntax::{module_loader, package_loader, parse, syntax};
 
 mod model;
 mod snapshot;

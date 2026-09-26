@@ -1,6 +1,6 @@
 //! Resolution dependencies, including scopes, imports and macro environments.
 use crate::cache::{Fingerprint, fingerprint};
-use front_syntax::syntax::{Module, ModuleBody, ModuleInstantiatePath, ModuleItem};
+use ::syntax::syntax::{Module, ModuleBody, ModuleInstantiatePath, ModuleItem};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) struct Unit<'a> {

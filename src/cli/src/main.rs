@@ -12,7 +12,7 @@ struct Args {
     /// 処理後に raw / kernel の構文ノード数を標準エラーへ表示する
     #[arg(long, conflicts_with = "parse_only")]
     stats: bool,
-    /// front 側の構文への変換だけを行う
+    /// 構文解析と module 読み込みだけを行う
     #[arg(long)]
     parse_only: bool,
     /// 永続キャッシュを使わず source から検証する
@@ -61,7 +61,7 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
 }
 
 fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
-    let snapshot = match front::SourceSnapshot::read(&args.path) {
+    let snapshot = match sema::SourceSnapshot::read(&args.path) {
         Ok(snapshot) => snapshot,
         Err(error) => {
             let message = format!("Module Load Error: {error}");
@@ -70,7 +70,7 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
         }
     };
     let mut database = if args.no_cache {
-        front::Database::new()
+        sema::Database::new()
     } else {
         let directory = args.cache_dir.clone().unwrap_or_else(|| {
             let entry = snapshot.entry();
@@ -84,7 +84,7 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
             };
             root.join("refcache")
         });
-        front::Database::with_cache(directory)
+        sema::Database::with_cache(directory)
     };
     let messages = if args.parse_only {
         database
@@ -97,10 +97,10 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
     } else {
         let result = database.check_with_options(
             &snapshot,
-            &front::CheckOptions {
+            &sema::CheckOptions {
                 force: args.trace || args.no_cache || args.full_check,
                 collect_statistics: args.stats,
-                ..front::CheckOptions::default()
+                ..sema::CheckOptions::default()
             },
         );
         for output in result.outputs() {

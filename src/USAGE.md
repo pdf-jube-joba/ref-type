@@ -1,12 +1,10 @@
 ## フォルダ構成
-- kernel: ほぼ理論通りの実装
-  - 理論側の言語
-  - type-check / type-infer
-  - checker
-- front: 言語処理系
-  - 実装側の言語
-  - parser
-  - elaboration
+
+- kernel: 分類済みの構文と独立した型検査・宣言登録。
+- syntax: 字句解析・構文解析と module・package の読み込み。
+- elaboration: 名前解決・macro 展開・型推論と kernel 構文への変換。
+- sema: source snapshot、semantic query と検証結果のキャッシュ。
+- cli: コマンドラインからの実行と結果の表示。
 
 ## ソースファイルと module
 
@@ -40,7 +38,7 @@ typing rule の呼び出しを木構造で確認する場合は `--trace` を付
 cargo run -p cli -- path/to/package --trace
 ```
 
-`--parse-only` を付けると、ルートファイルと外部 module を front 側の構文に変換できるかだけを確認する。
+`--parse-only` を付けると、ルートファイルと外部 module を syntax の構文に変換できるかだけを確認する。
 
 ```sh
 cargo run -p cli -- path/to/package --parse-only
@@ -58,9 +56,9 @@ typing span は無効で、型検査に必要な証明は各項の部分項と�
 `\module Algebra;` は `Algebra.ref`、その中の `\module Group;` は
 `Algebra/Group.ref` を読み込む。ファイル名の大文字と小文字は宣言と一致させる。
 
-module は front のパラメーター付き名前空間として扱う。import は引数の代入を保持し、
-その alias を起点に child module も参照できる。module 内で宣言した import alias は
-その子 module からも同じ名前で参照でき、子側の同名 import がある場合はそちらを優先する。
+module は elaboration のパラメーター付き名前空間として扱う。
+import は引数の代入を保持し、その alias を起点に child module も参照できる。
+module 内で宣言した import alias はその子 module からも同じ名前で参照でき、子側の同名 import がある場合はそちらを優先する。
 各 module path には `[]` が必要で、parameter は名前と宣言順を一致させてすべて指定する。
 module argument 内では `_`・`?` による推論を行わない。
 
@@ -75,8 +73,8 @@ module argument 内では `_`・`?` による推論を行わない。
 引数を持つ帰納型は別の型になる（使われない引数や証明引数も区別に含む）。
 
 通常の定義は kernel では本体と宣言した型を保持する `Annotated` ノードになる。
-注釈は型推論に使い、conversion では本体を比較する。module の代入は front で完了し、
-kernel の関数適用や product rule は追加しない。
+注釈は型推論に使い、conversion では本体を比較する。
+module の代入は elaboration で完了し、kernel の関数適用や product rule は追加しない。
 
 ## 公理
 
@@ -194,8 +192,8 @@ RUST_LOG=ref_type=trace cargo run -p cli -- libs/std
 ログとエラーは標準エラー出力へ書き込みます。ファイルへ保存する場合は `2> kernel.log` を付けます。
 
 `RUST_LOG=ref_type::typing=error` では型検査の失敗時の診断に絞って表示できます。
-front の型不一致には局所文脈・対象の項・推論した型・要求された型を、等号の carrier が
-一致しない場合には左右の項と型を表示します。式中の `#0` は最も内側の束縛を指します。
+elaboration の型不一致には局所文脈・対象の項・推論した型・要求された型を、等号の carrier が一致しない場合には左右の項と型を表示します。
+式中の `#0` は最も内側の束縛を指します。
 
 宣言ごとの処理時間と定義内の各段階を調べる場合は、`REF_TYPE_PROFILE_DECLARATIONS=1` を指定します。
 値を宣言名の一部にすると、一致する宣言だけを表示します。
@@ -214,9 +212,9 @@ kernel の `Environment::register_definition` は、分類済みの本体・clas
 検査してから指定された `DefId` に登録します。Program の反映証明を指定した場合は、
 その Set typing と Program 本体との構造的な対応も検査します。
 
-front は未分類構文で elaboration と meta の解決を行い、分類・level・product rule を
-付けた構文を kernel に渡します。`GlobalEnvironment::kernel_env()` が検査済みの環境です。
-`crate_env()` は elaboration・macro・診断・raw 評価に使う front 側の環境を返します。
+elaboration は未分類構文で型推論と meta の解決を行い、分類・level・product rule を付けた構文を kernel に渡します。
+`GlobalEnvironment::kernel_env()` が検査済みの環境です。
+`crate_env()` は elaboration・macro・診断・raw 評価に使う elaboration 側の環境を返します。
 module 実体化で生じた定義も新しい ID で kernel の登録検査を通します。
 
 ```sh
@@ -242,4 +240,4 @@ RunStep recursor の branch と結果の level も、それぞれの product rul
 Box に入れる場合は `\F(A)` と `\return(value)` を使います。Program の型演算子、
 多相性、level 付き Box、boxed type application は kernel API から利用できます。
 API の例は [kernel の説明](kernel/README.md) を参照してください。
-`\eval`・`\normalize` による未分類の式の簡約は front が引き続き処理します。
+`\eval`・`\normalize` による未分類の式の簡約は elaboration が引き続き処理します。

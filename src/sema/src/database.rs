@@ -92,9 +92,9 @@ impl Database {
             diagnostics: vec![],
         };
         let result = if snapshot.entry().extension().is_some_and(|ext| ext == "ref") {
-            front_syntax::module_loader::load_modules(snapshot.entry(), &mut loader)
+            ::syntax::module_loader::load_modules(snapshot.entry(), &mut loader)
         } else {
-            front_syntax::package_loader::load_package_with(snapshot.entry(), &mut loader)
+            ::syntax::package_loader::load_package_with(snapshot.entry(), &mut loader)
                 .map(|graph| graph.modules)
         };
         match result {
@@ -208,7 +208,7 @@ impl Database {
             .collect();
         let mut settings = format!(
             "{}\n{}\n{}",
-            env!("REF_FRONT_REVISION"),
+            env!("REF_SEMA_REVISION"),
             snapshot.entry().display(),
             options.configuration
         )

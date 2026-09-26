@@ -1,7 +1,7 @@
 # Elaboration
 
-`elaboration` は `front-syntax` の module 構文を受け取り、名前解決と型推論を行い、kernel に分類済みの宣言を渡す。
-`front` が構築した検査対象ごとに `GlobalEnvironment` を作る。
+`elaboration` は `syntax` の module 構文を受け取り、名前解決と型推論を行い、kernel に分類済みの宣言を渡す。
+`sema` が構築した検査対象ごとに `GlobalEnvironment` を作る。
 
 | 場所 | 担当 |
 | --- | --- |
@@ -18,7 +18,7 @@ macro template の自由な名前は定義時の scope に解決し、module の
 source からの名前参照と associated access は span を保持する。
 
 `MetaStore` は各宣言の終了時に clear し、goal と diagnostics に必要な情報は先に取り出す。
-semantic observations は表示済みの型と source location を保持し、`front` が永続化する結果へ変換する。
+semantic observations は表示済みの型と source location を保持し、`sema` が永続化する結果へ変換する。
 raw と kernel の arena は検査する module 群の処理中に所有する。
 
 ## 構造操作

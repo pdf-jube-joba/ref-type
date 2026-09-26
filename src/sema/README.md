@@ -1,19 +1,19 @@
 # Semantic API と incremental checker
 
-`front::Database` が source snapshot から parse 結果と semantic result を計算する。
+`sema::Database` が source snapshot から parse 結果と semantic result を計算する。
 CLI の通常チェックも同じ API を使う。
 
 | crate | 入力と結果 |
 | --- | --- |
-| `front-syntax` | source text → span を持つ構文、外部 module と package の構成 |
+| `syntax` | source text → span を持つ構文、外部 module と package の構成 |
 | `elaboration` | module 構文 → 名前解決、macro 展開、型推論、raw IR、kernel による検証、semantic observations |
-| `front` | immutable な source snapshot → 依存関係、query cache、永続化できる semantic result |
+| `sema` | immutable な source snapshot → 依存関係、query cache、永続化できる semantic result |
 | `kernel` | 分類済みの項と宣言 → 独立した型検査と登録 |
 
 ## API
 
 ```rust
-use front::{Database, DeclarationId, ParseKind, SourceSnapshot};
+use sema::{Database, DeclarationId, ParseKind, SourceSnapshot};
 
 let source = SourceSnapshot::read("libs/std")?;
 let mut db = Database::with_cache("libs/std/refcache");
@@ -117,7 +117,7 @@ CLI の既存 fixtures と library project もこの frontend を通る。
 module の部分編集による再利用は、次の example で未編集・再実行・buffer 編集・全再構築を比較できる。
 
 ```sh
-cargo run --release --locked --offline -p front --example incremental -- libs/std libs/std/src/Algebra/Algebra.ref
+cargo run --release --locked --offline -p sema --example incremental -- libs/std libs/std/src/Algebra/Algebra.ref
 ```
 
 example は編集後の incremental result と全再構築の semantic result が一致することも確認する。

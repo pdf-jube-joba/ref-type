@@ -20,7 +20,7 @@ fn collect(path: &Path, files: &mut Vec<PathBuf>) {
 fn main() {
     let root = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("../..");
     let mut files = vec![root.join("Cargo.lock"), root.join("Cargo.toml")];
-    for name in ["kernel", "syntax", "elaboration", "front"] {
+    for name in ["kernel", "syntax", "elaboration", "sema"] {
         collect(&root.join("src").join(name), &mut files);
     }
     files.sort();
@@ -39,5 +39,5 @@ fn main() {
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect();
-    println!("cargo:rustc-env=REF_FRONT_REVISION={revision}");
+    println!("cargo:rustc-env=REF_SEMA_REVISION={revision}");
 }

@@ -6,10 +6,10 @@ pub mod metavariables;
 pub mod output;
 pub mod raw;
 pub mod resolved;
-pub use front_syntax::{module_loader, package_loader, parse};
+pub use ::syntax::{module_loader, package_loader, parse};
 pub mod syntax {
     pub use crate::resolved::*;
-    pub use front_syntax::syntax::*;
+    pub use ::syntax::syntax::*;
 }
 #[cfg(test)]
 mod tests;

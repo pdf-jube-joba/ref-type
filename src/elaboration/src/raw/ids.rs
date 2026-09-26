@@ -1,7 +1,7 @@
 //! Frontend identities for module membership and elaboration.
 pub use kernel::ids::SymbolId;
 
-pub use front_syntax::ModuleId;
+pub use ::syntax::ModuleId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ModuleParamId {

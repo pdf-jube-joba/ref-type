@@ -1,4 +1,4 @@
-use front::{Database, DeclarationId, ParseKind, SourceSnapshot};
+use sema::{Database, DeclarationId, ParseKind, SourceSnapshot};
 use std::{
     fs,
     path::PathBuf,
@@ -258,7 +258,7 @@ fn checking_configuration_is_part_of_persistent_identity() {
     let mut database = Database::with_cache(&cache.0);
     let result = database.check_with_options(
         &snapshot,
-        &front::CheckOptions {
+        &sema::CheckOptions {
             configuration: "different settings".into(),
             ..Default::default()
         },

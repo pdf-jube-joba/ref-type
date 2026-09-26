@@ -1,1 +1,1 @@
-pub use front_syntax::sort::*;
+pub use ::syntax::sort::*;

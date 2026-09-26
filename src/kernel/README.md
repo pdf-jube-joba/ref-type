@@ -16,11 +16,11 @@ arena は各 family の型付き `*Node` を `Rc` で保持し、interner はノ
 型検査の入口と走査は family ごとの関数に分けている。
 複数の family に共通する product・application の規則は、名前付きの引数を取る補助関数で実装する。
 `src/construction.rs` は sort によって結果の family が決まる構文の構築を担当する。
-`construction` の構築関数は front の lowering からも利用する。
+`construction` の構築関数は elaboration の lowering からも利用する。
 構築した構文の typing premise は、`Checker` と宣言登録の入口で検査する。
 
 `syntax::Expression` は分類済み handle の直和で、共通の走査・診断に使う。
-未分類の式と metavariable は front 側の `raw` 構文に属する。
+未分類の式と metavariable は elaboration 側の `raw` 構文に属する。
 Set/Prop の両方を量化・適用する箇所には `LogicalTerm` / `LogicalType` / `LogicalKind`、`SetArgument` / `PropArgument` と `SetExpression` / `PropExpression` を使う。
 帰納型引数や消去には、それらを包む `LogicalArgument` / `LogicalExpression` を使う。
 証明専用の構文は `PropTermForm`、命題専用の構文は `PropTypeForm` に属する。
@@ -83,10 +83,10 @@ Program 定義は Set 側へ反映した body・classifier・context も検査�
 `register_datatype` は parameter kind・field level・strict positivity を検査し、Set の鏡像を生成する。
 鏡像が既にある場合は宣言との一致を検査する。
 
-module の構成・名前解決・import の特殊化は front が所有する。
-front の lowering は宣言が参照する module parameter と、その型が必要とする parameter を集め、依存順に通常の context へ変換する。
+module の構成・名前解決・import の特殊化は elaboration が所有する。
+elaboration の lowering は宣言が参照する module parameter と、その型が必要とする parameter を集め、依存順に通常の context へ変換する。
 帰納型ではそれらを parameter telescope に加える。
-元宣言と特殊化した宣言の対応、および帰納型の同一性も front で確定する。
+元宣言と特殊化した宣言の対応、および帰納型の同一性も elaboration で確定する。
 
 ## GlobalId と式のラベル
 
@@ -113,7 +113,7 @@ Checker::new(&env, vec![]).check(expression, classifier).unwrap();
 ```
 
 `Arena::global_id` は渡した式の最外側の注釈ラベルを返す。
-front は定義の参照をこの注釈で包むため、利用側は展開済みの本体からも参照元を追える。
+elaboration は定義の参照をこの注釈で包むため、利用側は展開済みの本体からも参照元を追える。
 同じ定義に異なる引数を代入した式は、同じラベルを持ち得る。
 
 ノードの interning と handle の `Eq` / `Hash` はラベルも含めて区別する。

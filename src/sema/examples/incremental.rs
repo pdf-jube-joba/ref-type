@@ -1,5 +1,5 @@
-//! Run with: cargo run --release -p front --example incremental -- libs/std libs/std/src/Algebra/Algebra.ref
-use front::{Database, SourceSnapshot};
+//! Run with: cargo run --release -p sema --example incremental -- libs/std libs/std/src/Algebra/Algebra.ref
+use sema::{Database, SourceSnapshot};
 use std::{path::PathBuf, time::Instant};
 
 fn main() {

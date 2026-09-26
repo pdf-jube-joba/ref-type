@@ -1,4 +1,4 @@
-use front_syntax::syntax::{SourceFile, SourceId};
+use ::syntax::syntax::{SourceFile, SourceId};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,

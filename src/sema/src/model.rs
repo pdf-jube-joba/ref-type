@@ -18,9 +18,9 @@ impl Location {
         snapshot.source(&self.file).map_or_else(
             || self.file.display().to_string(),
             |source| {
-                front_syntax::syntax::SourceLocation {
+                ::syntax::syntax::SourceLocation {
                     source: source.clone(),
-                    span: front_syntax::syntax::SourceSpan {
+                    span: ::syntax::syntax::SourceSpan {
                         start: self.range.start,
                         end: self.range.end,
                     },
@@ -30,8 +30,8 @@ impl Location {
         )
     }
 }
-impl From<&front_syntax::syntax::SourceLocation> for Location {
-    fn from(location: &front_syntax::syntax::SourceLocation) -> Self {
+impl From<&::syntax::syntax::SourceLocation> for Location {
+    fn from(location: &::syntax::syntax::SourceLocation) -> Self {
         Self {
             file: location.source.id.0.clone(),
             range: location.span.start..location.span.end,
