@@ -1,4 +1,4 @@
-use crate::macros::MacroKind;
+use crate::raw::ids::ModuleId;
 use crate::raw::{
     calculus::{
         exp_contains_inductive, exp_subst_map, instantiate_telescope, remap_all_global_ids,
@@ -17,9 +17,9 @@ use crate::raw::{
 };
 use crate::{
     elaborator::{module_manager::ItemAccessResult, term_elaborator::LocalScope},
+    hir::*,
     metavariables::{ElaborationError, MetaStore},
     output::Output,
-    syntax::*,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -63,6 +63,8 @@ fn projected_record_field_type(
 // do type checking
 #[derive(Default)]
 pub struct GlobalEnvironment {
+    #[cfg(test)]
+    source_modules: Vec<::syntax::syntax::Module>,
     kernel_env: kernel::environment::Environment,
     crate_env: CrateEnv,
     outputs: Vec<Output>,
@@ -104,38 +106,52 @@ impl term_elaborator::Handler for GlobalEnvironment {
             .fresh(&self.crate_env, kind, span, &context, local_context.len())
     }
 
-    fn expand_math_macro(
+    fn reflect_program_expression(
         &mut self,
-        tokens: &[MacroExp],
-        scope: Option<ModuleId>,
-        depth: u16,
-        max_order: Option<u64>,
-    ) -> Result<SExp, String> {
-        self.module_manager.expand_math_macro(
-            &self.crate_env,
-            scope.unwrap_or_else(|| self.module_manager.current()),
-            tokens,
-            depth,
-            max_order,
-        )
+        parameter: resolve::hir::BindingId,
+        expression: &SExp,
+    ) -> Result<Exp, String> {
+        let binding = self
+            .module_manager
+            .hir_bindings
+            .get(&parameter)
+            .ok_or("unknown HIR parameter")?;
+        let module = *self
+            .module_manager
+            .hir_modules
+            .get(&binding.module)
+            .ok_or("unknown HIR module")?;
+        let parameter = ModuleParamId {
+            module,
+            position: binding.parameter.ok_or("expected module parameter")? as u32,
+        };
+        let kind = self
+            .crate_env
+            .module_parameter_opt(parameter)
+            .ok_or("unknown module parameter")?
+            .kind;
+        let mut scope = program_term_elaborator::ProgramScope::new();
+        match kind {
+            ModuleParameterKind::ProgramType => {
+                let ty = scope
+                    .elaborate_value_type(&ValueTypeExp::try_from(expression.clone())?, self)?;
+                crate::raw::reflection::reflect_value_type(&self.crate_env, ty)
+                    .map_err(|error| error.to_string())
+            }
+            ModuleParameterKind::ProgramValue { .. } => {
+                let value =
+                    scope.elaborate_value(&ValueTermExp::try_from(expression.clone())?, self)?;
+                crate::raw::reflection::reflect_value(&self.crate_env, value)
+                    .map_err(|error| error.to_string())
+            }
+            ModuleParameterKind::Pts { .. } => {
+                Err("only Program parameters support Set reflection".into())
+            }
+        }
     }
 
-    fn expand_named_macro(
-        &mut self,
-        name: &Identifier,
-        tokens: &[MacroExp],
-        scope: Option<ModuleId>,
-        depth: u16,
-        max_order: Option<u64>,
-    ) -> Result<SExp, String> {
-        self.module_manager.expand_named_macro(
-            &self.crate_env,
-            scope.unwrap_or_else(|| self.module_manager.current()),
-            name,
-            tokens,
-            depth,
-            max_order,
-        )
+    fn intern_name(&mut self, name: &Identifier) -> SymbolId {
+        self.crate_env.intern_name(name)
     }
 
     fn get_item_from_access_path(
@@ -144,7 +160,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
     ) -> Result<ItemAccessResult, String> {
         self.module_manager
             .get_item(&self.crate_env, access_path)
-            .ok_or("Failed to access item at path".to_string())
+            .ok_or_else(|| format!("Failed to access item at path {access_path:?}"))
     }
 
     fn associated_reference(&mut self, access: &LocalAccess, field: &Identifier, span: SourceSpan) {
@@ -276,10 +292,6 @@ impl GlobalEnvironment {
         &self.crate_env
     }
 
-    pub fn outputs(&self) -> &[Output] {
-        &self.outputs
-    }
-
     fn finish_metavariables(&self) -> Result<(), ElaborationError> {
         self.metavariables.finish(&self.crate_env)
     }
@@ -331,6 +343,16 @@ impl GlobalEnvironment {
             .reserve_child_module(parent, module.name.0.clone());
         self.crate_env.publish_child_module(child)?;
         self.predeclared_modules.insert(module, child);
+        self.module_manager.hir_modules.insert(module.id, child);
+        if let Some(id) = module.name.1 {
+            self.module_manager.hir_module_bindings.insert(id, child);
+        }
+        for (id, binding) in &self.module_manager.hir_bindings {
+            if binding.module == module.id && binding.parameter.is_none() {
+                self.crate_env
+                    .register_hir_name(child, *id, binding.name.clone());
+            }
+        }
         let ModuleBody::Inline(items) = &module.body else {
             return Err(format!(
                 "External module '{}' was not resolved",
@@ -346,129 +368,58 @@ impl GlobalEnvironment {
         Ok(())
     }
 
-    fn collect_module_tree<'a>(
-        module: &'a Module,
-        path: &mut Vec<String>,
-        modules: &mut Vec<(Vec<String>, &'a Module)>,
-    ) {
-        path.push(module.name.0.clone());
-        let mut occurrence = 1;
-        while modules.iter().any(|(existing, _)| existing == path) {
-            occurrence += 1;
-            *path.last_mut().unwrap() = format!("{}#{occurrence}", module.name.0);
-        }
-        modules.push((path.clone(), module));
-        if let ModuleBody::Inline(items) = &module.body {
-            for item in items {
-                if let ModuleItem::ChildModule { module } = item {
-                    Self::collect_module_tree(module, path, modules);
-                }
-            }
-        }
-        path.pop();
+    #[cfg(test)]
+    pub fn add_modules_to_root(
+        &mut self,
+        modules: &[::syntax::syntax::Module],
+    ) -> Result<(), ElaborationError> {
+        let mut source = std::mem::take(&mut self.source_modules);
+        source.extend_from_slice(modules);
+        *self = Self::default();
+        let project = resolve::resolve(&source).map_err(|error| match error.location {
+            Some(location) => ElaborationError::Located {
+                location,
+                error: Box::new(ElaborationError::Message(error.message)),
+            },
+            None => ElaborationError::Message(error.message),
+        })?;
+        self.source_modules = source;
+        self.add_project(&project)
     }
 
-    fn import_target(path: &ModuleInstantiatePath, module_path: &[String]) -> Option<Vec<String>> {
-        let (mut base, calls) = match path {
-            ModuleInstantiatePath::FromRoot { calls } => (Vec::new(), calls),
-            ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
-                let mut base = module_path.to_vec();
-                for _ in 0..*back_parent {
-                    base.pop()?;
-                }
-                (base, calls)
-            }
-            ModuleInstantiatePath::FromImport { .. } => return None,
-        };
-        base.extend(calls.iter().map(|(name, _)| name.0.clone()));
-        Some(base)
+    pub(crate) fn add_project(
+        &mut self,
+        project: &resolve::Project,
+    ) -> Result<(), ElaborationError> {
+        self.analysis.references = project.references.clone();
+        self.module_manager.hir_imports = project.imports.clone();
+        self.module_manager.hir_bindings = project.bindings.clone();
+        self.add_expanded_modules_to_root(project)
     }
 
-    fn module_order(modules: &[(Vec<String>, &Module)]) -> Result<Vec<usize>, ElaborationError> {
-        let indices = modules
-            .iter()
-            .enumerate()
-            .map(|(index, (path, _))| (path.clone(), index))
-            .collect::<HashMap<_, _>>();
-        let mut dependencies = vec![HashSet::new(); modules.len()];
-
-        for (index, (path, module)) in modules.iter().enumerate() {
-            if path.len() > 1 {
-                dependencies[index].insert(
-                    *indices
-                        .get(&path[..path.len() - 1])
-                        .ok_or("module parent was not predeclared")?,
-                );
-            }
-            let ModuleBody::Inline(items) = &module.body else {
-                continue;
-            };
-            let mut aliases = HashMap::new();
-            for item in items {
-                let ModuleItem::Import {
-                    path: import,
-                    import_name,
-                } = item
-                else {
-                    continue;
-                };
-                let target = match import {
-                    ModuleInstantiatePath::FromImport {
-                        import_name: base,
-                        calls,
-                    } => aliases.get(base.as_str()).map(|base_path: &Vec<String>| {
-                        let mut target = base_path.clone();
-                        target.extend(calls.iter().map(|(name, _)| name.0.clone()));
-                        target
-                    }),
-                    _ => Self::import_target(import, path),
-                };
-                if let Some(target) = target {
-                    if let Some(target_index) = indices.get(&target)
-                        && !target.starts_with(path)
-                    {
-                        dependencies[index].insert(*target_index);
-                    }
-                    aliases.insert(import_name.as_str().to_string(), target);
-                }
-            }
-        }
-
-        fn visit(
-            index: usize,
-            dependencies: &[HashSet<usize>],
-            states: &mut [u8],
-            order: &mut Vec<usize>,
-        ) -> Result<(), ElaborationError> {
-            match states[index] {
-                2 => return Ok(()),
-                1 => return Err("cyclic module import dependency".into()),
-                _ => {}
-            }
-            states[index] = 1;
-            for dependency in &dependencies[index] {
-                visit(*dependency, dependencies, states, order)?;
-            }
-            states[index] = 2;
-            order.push(index);
-            Ok(())
-        }
-
-        let mut states = vec![0; modules.len()];
-        let mut order = Vec::with_capacity(modules.len());
-        for index in 0..modules.len() {
-            visit(index, &dependencies, &mut states, &mut order)?;
-        }
-        Ok(order)
-    }
-
-    pub fn add_modules_to_root(&mut self, modules: &[Module]) -> Result<(), ElaborationError> {
+    fn add_expanded_modules_to_root(
+        &mut self,
+        project: &resolve::Project,
+    ) -> Result<(), ElaborationError> {
         self.diagnostic_location = None;
-        let mut scheduled = Vec::new();
-        for module in modules {
-            Self::collect_module_tree(module, &mut Vec::new(), &mut scheduled);
+        let modules = &project.modules;
+        fn collect<'a>(
+            module: &'a Module,
+            scheduled: &mut HashMap<resolve::hir::ModuleId, &'a Module>,
+        ) {
+            scheduled.insert(module.id, module);
+            if let ModuleBody::Inline(items) = &module.body {
+                for item in items {
+                    if let ModuleItem::ChildModule { module } = item {
+                        collect(module, scheduled);
+                    }
+                }
+            }
         }
-        let order = Self::module_order(&scheduled)?;
+        let mut scheduled = HashMap::new();
+        for module in modules {
+            collect(module, &mut scheduled);
+        }
         self.predeclared_modules.clear();
         self.processed_modules.clear();
         for module in modules {
@@ -476,9 +427,11 @@ impl GlobalEnvironment {
         }
 
         let result = (|| {
-            for index in order {
-                let (_, module) = &scheduled[index];
-                let module_id = self.predeclared_modules[&(*module as *const Module)];
+            for id in &project.order {
+                let module = *scheduled
+                    .get(id)
+                    .ok_or("unknown HIR module in execution order")?;
+                let module_id = self.predeclared_modules[&(module as *const Module)];
                 if self.processed_modules.contains(&module_id) {
                     continue;
                 }
@@ -518,22 +471,11 @@ impl GlobalEnvironment {
                 .all(|item| matches!(item, ModuleItem::ChildModule { .. }))
     }
 
-    pub fn add_new_module_to_root(&mut self, module: &Module) -> Result<(), ElaborationError> {
-        self.diagnostic_location = None;
-        self.module_manager.moveto_root();
-        let result = self.module_add_rec(module).and_then(|()| {
-            crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
-                .lower_all()
-                .map_err(ElaborationError::from)
-        });
-        self.collect_references();
-        self.metavariables.clear();
-        match (result, self.diagnostic_location.take()) {
-            (Err(error), Some(location)) => Err(ElaborationError::Located {
-                location,
-                error: Box::new(error),
-            }),
-            (result, _) => result,
-        }
+    #[cfg(test)]
+    pub fn add_new_module_to_root(
+        &mut self,
+        module: &::syntax::syntax::Module,
+    ) -> Result<(), ElaborationError> {
+        self.add_modules_to_root(std::slice::from_ref(module))
     }
 }

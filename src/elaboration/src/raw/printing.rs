@@ -1,12 +1,14 @@
 //! Human-readable formatting for kernel expressions.
+#[cfg(test)]
+use crate::raw::program::ProgramTerm;
 
 use crate::raw::{
     environment::CrateEnv,
     exp::{Axiom, Exp, ExpContext, ExpNode, Prove},
     ids::{ModuleParamId, SymbolId},
     program::{
-        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode, ProgramTerm,
-        ProgramType, ValueTerm, ValueTermNode, ValueType, ValueTypeNode,
+        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode, ValueTerm,
+        ValueTermNode, ValueType, ValueTypeNode,
     },
     sort::Sort,
 };
@@ -466,13 +468,6 @@ pub fn format_ctx(env: &CrateEnv, ctx: &ExpContext) -> String {
         .join(", ")
 }
 
-pub fn format_program_type(env: &CrateEnv, ty: ProgramType) -> String {
-    match ty {
-        ProgramType::ValueType(ty) => format_value_type(env, ty),
-        ProgramType::ComputationType(ty) => format_computation_type(env, ty),
-    }
-}
-
 pub fn format_value_type(env: &CrateEnv, ty: ValueType) -> String {
     let arena = env.arena();
     match arena.get(ty) {
@@ -520,6 +515,7 @@ pub fn format_computation_type(env: &CrateEnv, ty: ComputationType) -> String {
     }
 }
 
+#[cfg(test)]
 pub fn format_program(env: &CrateEnv, program: ProgramTerm) -> String {
     match program {
         ProgramTerm::ValueTerm(value) => format_value(env, value),

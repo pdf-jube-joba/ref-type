@@ -1012,13 +1012,7 @@ impl<'a> TermParser<'a> {
                     self.expect_token(Token::LBrace)?;
                     let tokens = self.parse_macro_sequence_until(&Token::RBrace)?;
                     self.expect_token(Token::RBrace)?;
-                    return Ok(SExp::NamedMacro {
-                        name,
-                        tokens,
-                        scope: None,
-                        max_order: None,
-                        depth: 0,
-                    });
+                    return Ok(SExp::NamedMacro { name, tokens });
                 }
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
                 let access = self.parse_access_path()?;
@@ -1112,12 +1106,7 @@ impl<'a> TermParser<'a> {
                 self.next(); // consume '\('
                 let tokens = self.parse_macro_sequence_until(&Token::MathRParen)?;
                 self.expect_token(Token::MathRParen)?; // expect '\)'
-                Ok(SExp::MathMacro {
-                    tokens,
-                    scope: None,
-                    max_order: None,
-                    depth: 0,
-                })
+                Ok(SExp::MathMacro { tokens })
             }
             Some(Token::KeyWord("\\return" | "\\thunk" | "\\force")) => self.parse_unary(),
             Some(Token::KeyWord("\\fun" | "\\forall" | "\\cfun")) => self.parse_lambda(),

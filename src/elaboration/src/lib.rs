@@ -1,17 +1,30 @@
-//! Elaboration workspace and the boundary to kernel verification.
-pub mod elaborator;
+//! Type inference and kernel verification of resolved, untyped HIR.
+//!
+//! ```
+//! let ast = syntax::parse::str_parse_modules(
+//!     r"\module M { \definition P: \Prop := \forall (A: \Prop) -> A -> A; }"
+//! ).unwrap();
+//! let hir = resolve::resolve(&ast).unwrap();
+//! let mut checker = elaboration::Checker::default();
+//! checker.check(&hir).unwrap();
+//! assert!(checker.statistics().kernel_declaration_nodes > 0);
+//! ```
+//!
+//! Inference handles stay inside the checker:
+//! ```compile_fail
+//! use elaboration::raw::exp::Exp;
+//! ```
+mod elaborator;
+pub(crate) use resolve::hir;
+mod items;
 mod lowering;
-mod macros;
-pub mod metavariables;
-pub mod output;
-pub mod raw;
-pub mod resolved;
-pub use ::syntax::{module_loader, package_loader, parse};
-pub mod syntax {
-    pub use crate::resolved::*;
-    pub use ::syntax::syntax::*;
-}
+mod metavariables;
+mod output;
+mod raw;
 #[cfg(test)]
 mod tests;
 
 pub use elaborator::analysis;
+
+mod api;
+pub use api::{Checker, Diagnostic, Goal, Statistics};

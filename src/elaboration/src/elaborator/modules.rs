@@ -22,7 +22,7 @@ fn declaration_profile_label(item: &ModuleItem) -> String {
 fn require_explicit_module_argument(expression: &SExp) -> Result<(), ElaborationError> {
     let mut expression = expression.clone();
     let mut has_meta = false;
-    crate::macros::walk_sexp_control(&mut expression, &mut |node| {
+    resolve::visit::walk_sexp_control(&mut expression, &mut |node| {
         if matches!(node, SExp::Meta { .. }) {
             has_meta = true;
             false
@@ -95,12 +95,8 @@ impl GlobalEnvironment {
             .collect::<Result<Vec<_>, ElaborationError>>()?;
         for (child_name, arguments) in calls.iter_mut() {
             let child = self
-                .crate_env
-                .module(source)
-                .children()
-                .iter()
-                .copied()
-                .find(|child| self.crate_env.module(*child).name() == child_name.as_str())
+                .module_manager
+                .hir_child(&self.crate_env, source, child_name)
                 .ok_or_else(|| {
                     ElaborationError::Message(format!(
                         "child module '{}' was not found",
@@ -303,7 +299,7 @@ impl GlobalEnvironment {
                 };
 
                 for v in vars {
-                    let symbol = self.crate_env.intern(v.as_str());
+                    let symbol = self.crate_env.intern_name(v);
                     let position = parameter_position;
                     let parameter_id = ModuleParamId {
                         module: reserved_module,
@@ -530,7 +526,7 @@ impl GlobalEnvironment {
                     let InductiveKind::Pts(sort) = kind else {
                         unreachable!();
                     };
-                    let type_name_var = self.crate_env.intern(type_name.as_str());
+                    let type_name_var = self.crate_env.intern_name(type_name);
                     let inductive = self
                         .crate_env
                         .reserve_inductive(self.module_manager.current());
@@ -569,7 +565,7 @@ impl GlobalEnvironment {
                                 let mut term: SExp = ends.clone();
                                 for bd in rightbinds.iter().rev() {
                                     term = SExp::Prod {
-                                        bind: crate::syntax::Bind::Named(bd.clone()),
+                                        bind: crate::hir::Bind::Named(bd.clone()),
                                         body: Box::new(term),
                                     };
                                 }
@@ -705,7 +701,7 @@ impl GlobalEnvironment {
                     let mut telescope = vec![];
                     let mut fields_get: Vec<(SymbolId, Exp)> = vec![];
                     for (field_name, field_ty) in fields {
-                        let field_name_var = self.crate_env.intern(field_name.as_str());
+                        let field_name_var = self.crate_env.intern_name(field_name);
                         let mut field_ty_elab = local_scope.elab_exp(field_ty, self)?;
                         if self
                             .metavariables
@@ -773,8 +769,8 @@ impl GlobalEnvironment {
                         ModuleInstantiatePath::FromRoot { calls } => (None, None, calls),
                         ModuleInstantiatePath::FromImport { import_name, calls } => {
                             let binding = self
-                                .crate_env
-                                .resolve_import(self.module_manager.current(), import_name.as_str())
+                                .module_manager
+                                .hir_import(&self.crate_env, import_name)
                                 .ok_or_else(|| {
                                     format!(
                                         "Module import '{}' was not found",
@@ -807,14 +803,8 @@ impl GlobalEnvironment {
                     let mut args = Vec::with_capacity(calls.len());
                     for (child_name, supplied) in calls.iter() {
                         let child = self
-                            .crate_env
-                            .module(source)
-                            .children()
-                            .iter()
-                            .copied()
-                            .find(|child| {
-                                self.crate_env.module(*child).name() == child_name.as_str()
-                            })
+                            .module_manager
+                            .hir_child(&self.crate_env, source, child_name)
                             .ok_or_else(|| {
                                 format!("child module '{}' was not found", child_name.as_str())
                             })?;
@@ -926,40 +916,20 @@ impl GlobalEnvironment {
                     }
                     .map_err(|e| format!("Module instantiation failed: {}", e))?;
 
+                    self.module_manager.register_hir_import(
+                        &self.crate_env,
+                        import_name,
+                        access_result,
+                    );
                     self.module_manager.add_import(
                         &mut self.crate_env,
                         import_name.clone(),
                         access_result,
                     )?;
                 }
-                ModuleItem::MathMacro {
-                    name,
-                    before,
-                    after,
-                } => self.module_manager.register_macro(
-                    &self.crate_env,
-                    name.clone(),
-                    MacroKind::Math,
-                    before.clone(),
-                    after.clone(),
-                )?,
-                ModuleItem::UserMacro {
-                    name,
-                    before,
-                    after,
-                } => self.module_manager.register_macro(
-                    &self.crate_env,
-                    name.clone(),
-                    MacroKind::Named,
-                    before.clone(),
-                    after.clone(),
-                )?,
-                ModuleItem::UseMacro {
-                    import_name,
-                    macro_name,
-                } => self
-                    .module_manager
-                    .use_macro(&self.crate_env, import_name, macro_name)?,
+                ModuleItem::MathMacro { .. }
+                | ModuleItem::UserMacro { .. }
+                | ModuleItem::UseMacro { .. } => {}
                 ModuleItem::Eval { exp } => self.eval_query(exp, &mut ctx)?,
                 ModuleItem::Normalize { exp } => self.normalize_query(exp, &mut ctx)?,
                 ModuleItem::ComputationEval { exp } => self.computation_eval_query(exp)?,

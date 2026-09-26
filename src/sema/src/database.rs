@@ -4,10 +4,7 @@ use crate::{
     parsing::{ParseCache, SnapshotLoader},
     *,
 };
-use elaboration::{
-    elaborator::GlobalEnvironment,
-    metavariables::{ElaborationError, format_elaboration_error},
-};
+use elaboration::Checker;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::{Path, PathBuf},
@@ -92,9 +89,9 @@ impl Database {
             diagnostics: vec![],
         };
         let result = if snapshot.entry().extension().is_some_and(|ext| ext == "ref") {
-            ::syntax::module_loader::load_modules(snapshot.entry(), &mut loader)
+            ::project::module_loader::load_modules(snapshot.entry(), &mut loader)
         } else {
-            ::syntax::package_loader::load_package_with(snapshot.entry(), &mut loader)
+            ::project::package_loader::load_package_with(snapshot.entry(), &mut loader)
                 .map(|graph| graph.modules)
         };
         match result {
@@ -268,22 +265,18 @@ impl Database {
         while !pending.is_empty() {
             let selected = std::mem::take(&mut pending);
             self.stats.checked_modules += selected.len();
-            let mut workspace = GlobalEnvironment::default();
-            let checked = workspace.add_modules_to_root(&graph.selected(&selected));
+            let mut workspace = Checker::default();
+            let resolved = resolve::resolve(&graph.selected(&selected));
+            let checked = match &resolved {
+                Ok(project) => workspace.check(project),
+                Err(error) => Err(elaboration::Diagnostic {
+                    message: format!("Resolution Error: {}", error.message),
+                    location: error.location.clone(),
+                    goals: Vec::new(),
+                }),
+            };
             if options.collect_statistics {
-                self.verification_statistics = vec![
-                    format!("raw nodes: {:?}", workspace.arena().node_counts()),
-                    format!("raw caches: {:?}", workspace.crate_env().cache_counts()),
-                    format!(
-                        "kernel nodes: {:?}",
-                        workspace.kernel_env().arena().node_counts()
-                    ),
-                    format!("kernel caches: {:?}", workspace.kernel_env().cache_counts()),
-                    format!(
-                        "kernel declaration nodes: {}",
-                        workspace.kernel_env().declaration_node_count()
-                    ),
-                ];
+                self.verification_statistics = workspace.statistics().lines();
             }
             let mut fresh: BTreeMap<_, _> = selected
                 .iter()
@@ -309,8 +302,11 @@ impl Database {
                 .collect();
             collect_analysis(&workspace, &graph, &mut fresh);
             if let Err(error) = &checked {
-                diagnostics.push(diagnostic(&workspace, error));
-                if let Some(&failed) = graph.indices.get(&workspace.active_module_path()) {
+                diagnostics.push(diagnostic(error));
+                if let Some(&failed) = graph.indices.get(&resolved.as_ref().err().map_or_else(
+                    || workspace.active_module_path(),
+                    |error| error.module.clone(),
+                )) {
                     // Continue independent scopes in a fresh workspace after an error.
                     pending = selected
                         .iter()
@@ -349,7 +345,7 @@ impl Database {
 }
 
 fn collect_analysis(
-    workspace: &GlobalEnvironment,
+    workspace: &Checker,
     graph: &ModuleGraph<'_>,
     results: &mut BTreeMap<usize, ModuleResult>,
 ) {
@@ -402,55 +398,22 @@ fn collect_analysis(
     }
 }
 
-fn diagnostic(workspace: &GlobalEnvironment, error: &ElaborationError) -> Diagnostic {
-    let (location, error) = match error {
-        ElaborationError::Located { location, error } => {
-            (Some(Location::from(location)), error.as_ref())
-        }
-        error => (None, error),
-    };
-    let goals = match error {
-        ElaborationError::UnsolvedGoals(goals) | ElaborationError::AmbiguousImplicit(goals) => {
-            goals
-                .iter()
-                .filter_map(|goal| {
-                    let mut location = location.clone()?;
-                    location.range = goal.span.start..goal.span.end;
-                    Some(Goal {
-                        name: goal.display_name(),
-                        location,
-                        context: elaboration::raw::printing::format_ctx(
-                            workspace.crate_env(),
-                            &goal.context,
-                        ),
-                        judgement: goal.principal.as_ref().map(|constraint| {
-                            elaboration::metavariables::format_constraint(
-                                workspace.crate_env(),
-                                constraint,
-                            )
-                        }),
-                        constraints: goal
-                            .constraints
-                            .iter()
-                            .map(|constraint| {
-                                elaboration::metavariables::format_constraint_record(
-                                    workspace.crate_env(),
-                                    constraint,
-                                )
-                            })
-                            .collect(),
-                    })
-                })
-                .collect()
-        }
-        _ => vec![],
-    };
+fn diagnostic(error: &elaboration::Diagnostic) -> Diagnostic {
     Diagnostic {
-        message: format!(
-            "Elaboration Error: {}",
-            format_elaboration_error(workspace.crate_env(), error)
-        ),
-        location,
-        goals,
+        message: error.message.clone(),
+        location: error.location.as_ref().map(Location::from),
+        goals: error
+            .goals
+            .iter()
+            .filter_map(|goal| {
+                Some(Goal {
+                    name: goal.name.clone(),
+                    location: Location::from(goal.location.as_ref()?),
+                    context: goal.context.clone(),
+                    judgement: goal.judgement.clone(),
+                    constraints: goal.constraints.clone(),
+                })
+            })
+            .collect(),
     }
 }

@@ -15,7 +15,7 @@ use crate::{
     elaborator::{
         GlobalEnvironment, module_manager::ItemAccessResult, term_elaborator::LocalScope,
     },
-    syntax::{
+    hir::{
         ComputationTermExp, ComputationTypeExp, LocalAccess, ProgramFunctionExp, SourceSpan,
         SurfaceMeta, ValueTermExp, ValueTypeExp,
     },
@@ -159,7 +159,8 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         access: &LocalAccess,
     ) -> Option<(usize, ProgramContextEntry)> {
-        let LocalAccess::Current { access, .. } = access else {
+        let (LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. }) = access
+        else {
             return None;
         };
         self.names
@@ -167,7 +168,7 @@ impl ProgramScope {
             .rev()
             .enumerate()
             .find_map(|(index, symbol)| {
-                (environment.crate_env.symbol(*symbol) == access.as_str())
+                (environment.crate_env.name_matches(*symbol, access))
                     .then(|| (index, self.context[self.context.len() - index - 1].clone()))
             })
     }
@@ -259,11 +260,13 @@ impl ProgramScope {
                     .map(|parameter| self.elaborate_value_type(parameter, environment))
                     .collect::<Result<Vec<_>, _>>()?;
                 let arena = environment.crate_env.arena();
-                if let LocalAccess::Current { access: name, .. } = access
-                    && let Some((_, ty)) =
-                        self.value_type_bindings.iter().rev().find(|(symbol, _)| {
-                            environment.crate_env.symbol(*symbol) == name.as_str()
-                        })
+                if let LocalAccess::Current { access: name, .. }
+                | LocalAccess::Resolved { access: name, .. } = access
+                    && let Some((_, ty)) = self
+                        .value_type_bindings
+                        .iter()
+                        .rev()
+                        .find(|(symbol, _)| environment.crate_env.name_matches(*symbol, name))
                 {
                     if parameters.is_empty() {
                         return Ok(*ty);
@@ -288,6 +291,9 @@ impl ProgramScope {
                     };
                 }
                 match self.item(environment, access)? {
+                    ItemAccessResult::Argument(
+                        crate::raw::environment::ModuleArgument::ProgramType(ty),
+                    ) if parameters.is_empty() => Ok(ty),
                     ItemAccessResult::ProgramTypeParameter(id) => {
                         if !parameters.is_empty() {
                             return Err(
@@ -441,6 +447,9 @@ impl ProgramScope {
                     };
                 }
                 match self.item(environment, access)? {
+                    ItemAccessResult::Argument(
+                        crate::raw::environment::ModuleArgument::ProgramValue(value),
+                    ) => Ok(value),
                     ItemAccessResult::ProgramValueParameter(id) => {
                         Ok(arena.alloc(ValueTermNode::ModuleParam(id)))
                     }
@@ -618,7 +627,7 @@ impl ProgramScope {
                 let (_, definition) = record
                     .associated_definitions
                     .iter()
-                    .find(|(candidate, _)| candidate == field)
+                    .find(|(candidate, _)| candidate.as_str() == field.as_str())
                     .ok_or_else(|| {
                         format!(
                             "Field {} not found in Program record {}",
@@ -667,7 +676,7 @@ impl ProgramScope {
                 let (_, definition) = item
                     .associated_definitions
                     .iter()
-                    .find(|(candidate, _)| candidate == name)
+                    .find(|(candidate, _)| candidate.as_str() == name.as_str())
                     .ok_or_else(|| {
                         format!("Program associated item {} was not found", name.as_str())
                     })?;
@@ -736,7 +745,7 @@ impl ProgramScope {
                 body,
             } => {
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
-                let var = environment.crate_env.intern(var.as_str());
+                let var = environment.crate_env.intern_name(var);
                 self.names.push(var);
                 self.context
                     .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
@@ -764,7 +773,7 @@ impl ProgramScope {
             } => {
                 let computation = self.elaborate_computation(computation, environment)?;
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
-                let var = environment.crate_env.intern(var.as_str());
+                let var = environment.crate_env.intern_name(var);
                 self.names.push(var);
                 self.context
                     .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
@@ -789,7 +798,7 @@ impl ProgramScope {
             } => {
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
                 let value = self.elaborate_value(value, environment)?;
-                let var = environment.crate_env.intern(var.as_str());
+                let var = environment.crate_env.intern_name(var);
                 self.names.push(var);
                 self.context
                     .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
@@ -859,7 +868,7 @@ impl ProgramScope {
                     for (field_index, (binder, (_, ty))) in
                         binders.iter().zip(field_types).enumerate()
                     {
-                        let binder = environment.crate_env.intern(binder.as_str());
+                        let binder = environment.crate_env.intern_name(binder);
                         let ty = crate::raw::program_calculus::shift_value_type_indices(
                             environment.crate_env.arena(),
                             ty,

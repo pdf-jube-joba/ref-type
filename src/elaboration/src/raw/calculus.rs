@@ -425,19 +425,6 @@ pub fn remove_unused_ambient_binders(arena: &Arena, exp: Exp, count: usize) -> O
     (!depends).then_some(result)
 }
 
-pub fn exp_subst_module_param(
-    arena: &Arena,
-    exp: Exp,
-    parameter: ModuleParamId,
-    replacement: Exp,
-) -> Exp {
-    transform(arena, exp, 0, &mut |e, depth| {
-        let matches = matches!(*arena.borrow_exp(e),
-            ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) if id == parameter);
-        matches.then(|| shift_bound_indices(arena, replacement, depth, 0))
-    })
-}
-
 pub fn exp_subst_map(arena: &Arena, exp: Exp, substitutions: &[(ModuleParamId, Exp)]) -> Exp {
     let super::traversal::Term::Logical(e) =
         super::traversal::Term::Logical(exp).substitute(arena, &[], substitutions)

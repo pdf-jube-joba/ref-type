@@ -43,7 +43,7 @@ pub fn decompose_prod(arena: &Arena, mut exp: Exp) -> (Vec<(SymbolId, Exp)>, Exp
     (vars, exp)
 }
 
-#[macro_export]
+#[cfg(test)]
 macro_rules! app {
     ($arena:expr, func: $func:expr, arg: $arg:expr $(,)?) => {
         $arena.alloc($crate::raw::exp::ExpNode::App {
@@ -65,25 +65,7 @@ macro_rules! app {
     };
 }
 
-#[macro_export]
-macro_rules! lam {
-    ($arena:expr, var: $var:expr, ty: $ty:expr, body: $body:expr $(,)?) => {
-        $arena.alloc($crate::raw::exp::ExpNode::Lam {
-            var: $var,
-            ty: $ty,
-            body: $body,
-        })
-    };
-    ($arena:expr, $var:expr, $ty:expr, $body:expr) => {
-        $arena.alloc($crate::raw::exp::ExpNode::Lam {
-            var: $var,
-            ty: $ty,
-            body: $body,
-        })
-    };
-}
-
-#[macro_export]
+#[cfg(test)]
 macro_rules! prod {
     ($arena:expr, var: $var:expr, ty: $ty:expr, body: $body:expr $(,)?) => {
         $arena.alloc($crate::raw::exp::ExpNode::Prod {
@@ -100,8 +82,6 @@ macro_rules! prod {
         })
     };
 }
-
-pub use {app, lam, prod};
 
 #[cfg(test)]
 mod tests {

@@ -9,30 +9,6 @@ use crate::raw::{
     program::*,
 };
 
-pub fn program_type_is_alpha_eq(arena: &Arena, left: ProgramType, right: ProgramType) -> bool {
-    match (left, right) {
-        (ProgramType::ValueType(left), ProgramType::ValueType(right)) => {
-            value_type_is_alpha_eq(arena, left, right)
-        }
-        (ProgramType::ComputationType(left), ProgramType::ComputationType(right)) => {
-            computation_type_is_alpha_eq(arena, left, right)
-        }
-        _ => false,
-    }
-}
-
-pub fn program_is_alpha_eq(arena: &Arena, left: ProgramTerm, right: ProgramTerm) -> bool {
-    match (left, right) {
-        (ProgramTerm::ValueTerm(left), ProgramTerm::ValueTerm(right)) => {
-            value_is_alpha_eq(arena, left, right)
-        }
-        (ProgramTerm::ComputationTerm(left), ProgramTerm::ComputationTerm(right)) => {
-            computation_is_alpha_eq(arena, left, right)
-        }
-        _ => false,
-    }
-}
-
 pub fn value_type_is_alpha_eq(arena: &Arena, left: ValueType, right: ValueType) -> bool {
     if left == right {
         return true;
@@ -469,6 +445,7 @@ pub fn shift_computation_type_indices(
     result
 }
 
+#[cfg(test)]
 pub fn instantiate_value_type(
     arena: &Arena,
     body: ValueType,
@@ -476,15 +453,6 @@ pub fn instantiate_value_type(
     target: usize,
 ) -> ValueType {
     super::program_definitions::instantiate_value_type(arena, body, &[argument], target)
-}
-
-pub fn instantiate_computation_type(
-    arena: &Arena,
-    body: ComputationType,
-    argument: ValueType,
-    target: usize,
-) -> ComputationType {
-    super::program_definitions::instantiate_computation_type(arena, body, &[argument], target)
 }
 
 pub fn instantiate_type_telescope(
@@ -597,6 +565,7 @@ pub fn shift_value_indices(
     result
 }
 
+#[cfg(test)]
 pub fn shift_computation_indices(
     arena: &Arena,
     computation: ComputationTerm,

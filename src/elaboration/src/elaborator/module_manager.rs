@@ -1,4 +1,5 @@
-use crate::macros::{LazyModuleMacroScope, MacroInstantiation, ModuleMacroScope};
+use crate::hir::{Identifier, LocalAccess};
+use crate::items::{ModItemDefinition, ModItemInductive, ModItemProgramInductive, ModItemRecord};
 use crate::raw::calculus::{exp_subst_map, remap_all_global_ids};
 use crate::raw::derivation::CheckSession;
 #[cfg(test)]
@@ -12,14 +13,7 @@ use crate::raw::ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInduct
 #[cfg(test)]
 use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{ProgramContext, ProgramContextEntry};
-use crate::syntax::{
-    Identifier, LocalAccess, ModItemDefinition, ModItemInductive, ModItemProgramInductive,
-    ModItemRecord,
-};
-use std::{
-    cell::{Cell, RefCell},
-    collections::HashMap,
-};
+use std::{cell::RefCell, collections::HashMap};
 
 #[derive(Debug, Clone)]
 pub(crate) enum ItemAccessResult {
@@ -29,6 +23,7 @@ pub(crate) enum ItemAccessResult {
     Record(ModItemRecord),
     ProgramInductive(ModItemProgramInductive),
     Expression(Exp),
+    Argument(ModuleArgument),
     ProgramTypeParameter(ModuleParamId),
     ProgramValueParameter(ModuleParamId),
 }
@@ -36,12 +31,13 @@ pub(crate) enum ItemAccessResult {
 #[derive(Debug)]
 pub(crate) struct ModuleManager {
     current: ModuleId,
-    pub(crate) reference_location: Option<crate::syntax::SourceLocation>,
+    pub(crate) reference_location: Option<crate::hir::SourceLocation>,
     pub(crate) references: RefCell<Vec<crate::analysis::Reference>>,
-    pub(crate) macro_scopes: HashMap<ModuleId, ModuleMacroScope>,
-    pub(crate) lazy_macro_scopes: HashMap<ModuleId, LazyModuleMacroScope>,
-    pub(crate) materialized_macro_scopes: Cell<usize>,
-    pub(crate) next_macro_order: u64,
+    pub(crate) hir_module_bindings: HashMap<resolve::hir::BindingId, ModuleId>,
+    pub(crate) hir_aliases: HashMap<resolve::hir::BindingId, ModuleId>,
+    pub(crate) hir_bindings: HashMap<resolve::hir::BindingId, resolve::Binding>,
+    pub(crate) hir_modules: HashMap<resolve::hir::ModuleId, ModuleId>,
+    pub(crate) hir_imports: HashMap<resolve::hir::BindingId, resolve::Import>,
 }
 
 impl Default for ModuleManager {
@@ -56,10 +52,11 @@ impl ModuleManager {
             current: ModuleId(0),
             reference_location: None,
             references: RefCell::default(),
-            macro_scopes: HashMap::new(),
-            lazy_macro_scopes: HashMap::new(),
-            materialized_macro_scopes: Cell::new(0),
-            next_macro_order: 0,
+            hir_bindings: HashMap::new(),
+            hir_module_bindings: HashMap::new(),
+            hir_aliases: HashMap::new(),
+            hir_modules: HashMap::new(),
+            hir_imports: HashMap::new(),
         }
     }
 
@@ -102,6 +99,7 @@ impl ModuleManager {
         self.current = module;
     }
 
+    #[cfg(test)]
     pub(crate) fn moveto_root(&mut self) {
         self.current = ModuleId(0);
     }
@@ -414,19 +412,13 @@ impl ModuleManager {
         let mut route = Vec::new();
 
         for (child_name, arguments) in calls {
-            let child = env
-                .module(source)
-                .children()
-                .iter()
-                .copied()
-                .find(|child| env.module(*child).name() == child_name.as_str())
-                .ok_or_else(|| {
-                    format!(
-                        "Child module '{}' not found in module '{}'",
-                        child_name.as_str(),
-                        env.module(source).name(),
-                    )
-                })?;
+            let child = self.hir_child(env, source, &child_name).ok_or_else(|| {
+                format!(
+                    "Child module '{}' not found in module '{}'",
+                    child_name.as_str(),
+                    env.module(source).name(),
+                )
+            })?;
             let parameters = env.module(child).parameters().to_vec();
             if arguments.len() != parameters.len() {
                 return Err(format!(
@@ -553,7 +545,6 @@ impl ModuleManager {
 
         struct ReservedGroup {
             source: ModuleId,
-            item_source: ModuleId,
             path_component: bool,
             namespace: ModuleId,
             items: Vec<ModuleItem>,
@@ -566,6 +557,7 @@ impl ModuleManager {
         for (source_module, item_source, path_component) in materialization_sources {
             let materialized = env.add_module_in_scope(self.current, context.clone())?;
             remapping.module_ids.insert(item_source, materialized);
+            env.copy_hir_names(item_source, materialized);
             let mut origins = HashMap::new();
             let mut reserve_definition =
                 |env: &mut CrateEnv, remapping: &mut DeclarationRemapping, source_id: DefId| {
@@ -696,7 +688,6 @@ impl ModuleManager {
             }
             groups.push(ReservedGroup {
                 source: source_module,
-                item_source,
                 path_component,
                 namespace: materialized,
                 items,
@@ -719,18 +710,6 @@ impl ModuleManager {
             for item in group.items {
                 env.publish_item(group.namespace, item)?;
             }
-            self.materialize_macros(
-                env,
-                group.item_source,
-                group.namespace,
-                &MacroInstantiation {
-                    module_ids: &remapping.module_ids,
-                    substitutions: &reflected_substitutions,
-                    definition_ids: &remapping.definition_ids,
-                    inductive_ids: &remapping.inductive_ids,
-                    program_inductive_ids: &remapping.program_inductive_ids,
-                },
-            );
             let binding = env.add_namespace_binding(
                 self.current,
                 group.source,
@@ -752,12 +731,9 @@ impl ModuleManager {
         env: &CrateEnv,
         access: &LocalAccess,
         field: &Identifier,
-        span: crate::syntax::SourceSpan,
+        span: crate::hir::SourceSpan,
     ) {
-        if matches!(access, LocalAccess::Resolved { .. }) {
-            return;
-        }
-        let Some((target, item)) = resolve_access(env, self.current, access) else {
+        let Some((target, item)) = self.resolve_hir_access(env, access) else {
             return;
         };
         let Some(owner) = crate::analysis::access_name(env, &item) else {
@@ -794,7 +770,7 @@ impl ModuleManager {
                 .borrow_mut()
                 .push(crate::analysis::Reference {
                     module: crate::analysis::module_path(env, self.current),
-                    location: crate::syntax::SourceLocation {
+                    location: crate::hir::SourceLocation {
                         source: location.source.clone(),
                         span,
                     },
@@ -819,7 +795,7 @@ impl ModuleManager {
                 .borrow_mut()
                 .push(crate::analysis::Reference {
                     module: crate::analysis::module_path(env, self.current),
-                    location: crate::syntax::SourceLocation {
+                    location: crate::hir::SourceLocation {
                         source: location.source.clone(),
                         span: access.span(),
                     },
@@ -829,9 +805,111 @@ impl ModuleManager {
         }
     }
 
-    pub(crate) fn record_template_access(&self, env: &CrateEnv, access: &LocalAccess) {
-        if let Some((target, item)) = resolve_access(env, self.current, access) {
-            self.record_access(env, access, target, &item);
+    pub(crate) fn hir_child(
+        &self,
+        env: &CrateEnv,
+        source: ModuleId,
+        name: &Identifier,
+    ) -> Option<ModuleId> {
+        if let Some(id) = name.1 {
+            self.hir_module_bindings.get(&id).copied()
+        } else {
+            env.module(source)
+                .children()
+                .iter()
+                .copied()
+                .find(|child| env.module(*child).name() == name.as_str())
+        }
+    }
+
+    pub(crate) fn hir_import(&self, env: &CrateEnv, name: &Identifier) -> Option<ModuleId> {
+        if let Some(id) = name.1 {
+            self.hir_aliases.get(&id).copied()
+        } else {
+            env.resolve_import(self.current, name.as_str())
+        }
+    }
+
+    pub(crate) fn register_hir_import(
+        &mut self,
+        env: &CrateEnv,
+        name: &Identifier,
+        binding: ModuleId,
+    ) {
+        let Some(import) = name.1.and_then(|id| self.hir_imports.get(&id)) else {
+            return;
+        };
+        if let Some(id) = name.1 {
+            self.hir_aliases.insert(id, binding);
+        }
+        let typed = env.binding(binding);
+        for (source, instance) in &import.remapping {
+            if let Some(source) = self.hir_modules.get(source).copied() {
+                let target = typed
+                    .remapping
+                    .module_ids
+                    .get(&source)
+                    .copied()
+                    .unwrap_or(source);
+                self.hir_modules.insert(*instance, target);
+            }
+        }
+        self.hir_modules.insert(import.target, typed.materialized);
+    }
+
+    fn resolve_hir_access(
+        &self,
+        env: &CrateEnv,
+        access: &LocalAccess,
+    ) -> Option<(ModuleId, ItemAccessResult)> {
+        if let LocalAccess::Resolved {
+            module,
+            access: name,
+            ..
+        } = access
+        {
+            let module = *self.hir_modules.get(module)?;
+            let id = name.1?;
+            let binding = self.hir_bindings.get(&id)?;
+            let item = if let Some(position) = binding.parameter {
+                let source = *self.hir_modules.get(&binding.module)?;
+                let parameter = ModuleParamId {
+                    module: source,
+                    position: position as u32,
+                };
+                if env.namespace_binding_id(module).is_some() {
+                    let argument = env
+                        .binding(module)
+                        .arguments
+                        .iter()
+                        .find(|(id, _)| *id == parameter)?
+                        .1;
+                    match argument {
+                        ModuleArgument::Pts(exp) => ItemAccessResult::Expression(exp),
+                        argument => ItemAccessResult::Argument(argument),
+                    }
+                } else {
+                    parameter_access(env, parameter, env.module_parameter_opt(parameter)?.kind)
+                }
+            } else {
+                convert_item(env.module(module).hir_item(id)?)
+            };
+            Some((module, reflect_access(env, item, name.as_str())?))
+        } else if let LocalAccess::Current { access: name, span } = access
+            && name.1.is_some()
+        {
+            let binding = self.hir_bindings.get(&name.1?)?;
+            self.resolve_hir_access(
+                env,
+                &LocalAccess::Resolved {
+                    module: binding.module,
+                    access: name.clone(),
+                    span: *span,
+                    display: name.0.clone(),
+                },
+            )
+        } else {
+            resolve_access(env, self.current, access)
         }
     }
 
@@ -840,7 +918,7 @@ impl ModuleManager {
         env: &CrateEnv,
         access: &LocalAccess,
     ) -> Option<ItemAccessResult> {
-        let (target, item) = resolve_access(env, self.current, access)?;
+        let (target, item) = self.resolve_hir_access(env, access)?;
         // Template references are recorded at their definition, before expansion.
         if !matches!(access, LocalAccess::Resolved { .. }) {
             self.record_access(env, access, target, &item);
@@ -860,9 +938,9 @@ pub(crate) fn resolve_access(
             let binding = env.resolve_import(from, access.as_str())?;
             (env.binding(binding).materialized, child.as_str(), false)
         }
-        LocalAccess::Resolved { module, access, .. } => (*module, access.as_str(), false),
+        LocalAccess::Resolved { .. } => return None,
     };
-    let (name, reflected) = reference
+    let (name, _reflected) = reference
         .strip_suffix('^')
         .map_or((reference, false), |name| (name, true));
     let item = loop {
@@ -874,7 +952,15 @@ pub(crate) fn resolve_access(
         }
         module = env.module(module).parent()?;
     };
-    let item = if reflected {
+    Some((module, reflect_access(env, item, reference)?))
+}
+
+fn reflect_access(
+    env: &CrateEnv,
+    item: ItemAccessResult,
+    reference: &str,
+) -> Option<ItemAccessResult> {
+    let item = if reference.ends_with('^') {
         match item {
             ItemAccessResult::ProgramInductive(item) => {
                 ItemAccessResult::Inductive(ModItemInductive {
@@ -885,6 +971,15 @@ pub(crate) fn resolve_access(
                 })
             }
             ItemAccessResult::Definition(item) => ItemAccessResult::ReflectedDefinition(item),
+            ItemAccessResult::Argument(argument) => ItemAccessResult::Expression(match argument {
+                ModuleArgument::ProgramType(ty) => {
+                    crate::raw::reflection::reflect_value_type(env, ty).ok()?
+                }
+                ModuleArgument::ProgramValue(value) => {
+                    crate::raw::reflection::reflect_value(env, value).ok()?
+                }
+                ModuleArgument::Pts(exp) => exp,
+            }),
             ItemAccessResult::ProgramTypeParameter(parameter)
             | ItemAccessResult::ProgramValueParameter(parameter) => ItemAccessResult::Expression(
                 env.arena()
@@ -895,7 +990,7 @@ pub(crate) fn resolve_access(
     } else {
         item
     };
-    Some((module, item))
+    Some(item)
 }
 
 fn lookup_name(env: &CrateEnv, module: ModuleId, name: &str) -> Option<ItemAccessResult> {
@@ -903,6 +998,18 @@ fn lookup_name(env: &CrateEnv, module: ModuleId, name: &str) -> Option<ItemAcces
     let item = if let Some(item) = current.item(name) {
         convert_item(item)
     } else {
+        if env.namespace_binding_id(module).is_some() {
+            let binding = env.binding(module);
+            if let Some((_, argument)) = binding.arguments.iter().find(|(id, _)| {
+                env.module_parameter_opt(*id)
+                    .is_some_and(|parameter| env.symbol(parameter.name) == name)
+            }) {
+                return Some(match *argument {
+                    ModuleArgument::Pts(exp) => ItemAccessResult::Expression(exp),
+                    argument => ItemAccessResult::Argument(argument),
+                });
+            }
+        }
         let (position, parameter) = current
             .parameters()
             .iter()
@@ -1086,48 +1193,6 @@ mod tests {
         assert_eq!(env.materialization_stats().definitions, 0);
         let _ = env.resolve_definition(used).unwrap();
         assert_eq!(env.materialization_stats().definitions, 0);
-    }
-
-    #[test]
-    fn namespace_macro_templates_are_remapped_only_when_expanded() {
-        let mut manager = ModuleManager::new();
-        let mut env = CrateEnv::new();
-        manager
-            .add_child_and_moveto(&mut env, "Source".into(), vec![])
-            .unwrap();
-        let proposition = env.arena().sort(Sort::Prop);
-        manager
-            .register_macro(
-                &env,
-                Identifier("answer".into()),
-                crate::macros::MacroKind::Named,
-                vec![],
-                crate::syntax::SExp::ResolvedExp(proposition.index() as u32),
-            )
-            .unwrap();
-        manager.publish_current_module(&mut env).unwrap();
-        manager.moveto_parent(&env);
-        let binding = manager
-            .bind_namespace(
-                &mut env,
-                &mut Vec::new(),
-                None,
-                vec![(Identifier("Source".into()), vec![])],
-            )
-            .unwrap();
-        assert_eq!(manager.materialized_macro_scope_count(), 0);
-
-        manager
-            .expand_named_macro(
-                &env,
-                env.binding(binding).materialized,
-                &Identifier("answer".into()),
-                &[],
-                0,
-                None,
-            )
-            .unwrap();
-        assert_eq!(manager.materialized_macro_scope_count(), 1);
     }
 
     #[test]

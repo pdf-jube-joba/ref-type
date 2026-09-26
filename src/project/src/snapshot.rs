@@ -15,7 +15,7 @@ pub struct SourceSnapshot {
     aliases: BTreeMap<PathBuf, PathBuf>,
 }
 
-pub(crate) fn absolute(path: &Path) -> PathBuf {
+pub fn absolute(path: &Path) -> PathBuf {
     let path = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -67,14 +67,10 @@ impl SourceSnapshot {
             }
             snapshot.read_tree(&root, &mut BTreeSet::new())?;
             if let Some(source) = snapshot.source(root.join("ref.toml"))
-                && let Ok(manifest) = source.text.parse::<toml::Table>()
-                && let Some(dependencies) =
-                    manifest.get("dependencies").and_then(toml::Value::as_table)
+                && let Ok(manifest) = crate::package_loader::parse_manifest(&root, &source.text)
             {
-                for dependency in dependencies.values() {
-                    if let Some(path) = dependency.get("path").and_then(toml::Value::as_str) {
-                        roots.push(absolute(&root.join(path)));
-                    }
+                for (_, path) in manifest.dependencies {
+                    roots.push(absolute(&path));
                 }
             }
         }

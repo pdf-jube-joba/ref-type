@@ -171,8 +171,11 @@ impl GlobalEnvironment {
                 return Err("Program associated item parameters must have type \\VType".into());
             }
             for name in &binder.vars {
-                let symbol = self.crate_env.intern(name.as_str());
-                if names.contains(&symbol) {
+                let symbol = self.crate_env.intern_name(name);
+                if names
+                    .iter()
+                    .any(|symbol| self.crate_env.symbol(*symbol) == name.as_str())
+                {
                     return Err("duplicate Program associated item parameter".into());
                 }
                 names.push(symbol);
@@ -327,7 +330,7 @@ impl GlobalEnvironment {
         let parameters = spec.parameters().to_vec();
         let field_count = spec.constructors()[0].telescope.len();
         let structure_var = self.crate_env.intern("structure");
-        let mut projections = Vec::with_capacity(field_count);
+        let mut projections: Vec<(Identifier, DefId)> = Vec::with_capacity(field_count);
 
         for field in 0..field_count {
             let preceding_ids = projections
@@ -341,7 +344,10 @@ impl GlobalEnvironment {
                     return Err("record fields must be non-recursive".into());
                 };
                 let name = Identifier(self.crate_env.symbol(*field_name).to_owned());
-                if projections.iter().any(|(existing, _)| existing == &name) {
+                if projections
+                    .iter()
+                    .any(|(existing, _)| existing.as_str() == name.as_str())
+                {
                     return Err(format!("duplicate record field name: {}", name.as_str()).into());
                 }
                 let parameter_arguments = (0..parameters.len())
@@ -451,7 +457,7 @@ impl GlobalEnvironment {
         let module = self.module_manager.current();
         let inductive = self.crate_env.reserve_program_inductive(module);
         let reflected = self.crate_env.reserve_inductive(module);
-        let type_name_symbol = self.crate_env.intern(type_name.as_str());
+        let type_name_symbol = self.crate_env.intern_name(type_name);
         let self_ty = self
             .crate_env
             .arena()
@@ -470,7 +476,7 @@ impl GlobalEnvironment {
                 return Err("Program datatype parameters must have type \\VType".into());
             }
             for variable in vars {
-                let variable = self.crate_env.intern(variable.as_str());
+                let variable = self.crate_env.intern_name(variable);
                 parameter_names.push(variable);
                 scope.push_type(variable);
             }
@@ -481,7 +487,7 @@ impl GlobalEnvironment {
         for (constructor_name, fields, result) in constructors {
             if constructor_names
                 .iter()
-                .any(|existing: &Identifier| existing == constructor_name)
+                .any(|existing: &Identifier| existing.as_str() == constructor_name.as_str())
             {
                 return Err(format!(
                     "duplicate Program constructor name: {}",
@@ -498,7 +504,7 @@ impl GlobalEnvironment {
                     elaborated_fields.push((SymbolId::ANONYMOUS, field_ty));
                 } else {
                     for variable in vars {
-                        let variable = self.crate_env.intern(variable.as_str());
+                        let variable = self.crate_env.intern_name(variable);
                         elaborated_fields.push((variable, field_ty));
                     }
                 }

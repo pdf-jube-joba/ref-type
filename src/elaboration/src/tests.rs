@@ -2,12 +2,46 @@ use crate::raw::{
     environment::{DefinedConstant, ModuleItem},
     exp::ExpNode,
 };
-use crate::{
-    elaborator::GlobalEnvironment,
-    metavariables::ElaborationError,
+use crate::{elaborator::GlobalEnvironment, metavariables::ElaborationError};
+use ::syntax::{
     parse,
     syntax::{SExp, SurfaceMeta},
 };
+
+#[test]
+fn parsed_modules_can_be_reused_in_workspaces_with_different_module_ids() {
+    let modules = parse::str_parse_modules(
+        r"
+        \module Template(A: \Set, x: A) {
+            \macro element() := x;
+            \definition value: A := element!{};
+        }
+        \module Use {
+            \inductive Unit: \Set := | unit: Unit;
+            \import \root.Template[A := Unit, x := Unit::unit] \as T;
+            \use T.element;
+            \definition value: Unit := element!{};
+        }
+    ",
+    )
+    .unwrap();
+    let prefix = parse::str_parse_modules(r"\module Prefix {}").unwrap();
+    let mut first = GlobalEnvironment::default();
+    first.add_modules_to_root(&modules).unwrap();
+    let mut second = GlobalEnvironment::default();
+    second.add_modules_to_root(&prefix).unwrap();
+    second.add_modules_to_root(&modules).unwrap();
+
+    let first_module = first
+        .crate_env()
+        .module(first.crate_env().root_module())
+        .children()[0];
+    let second_module = second
+        .crate_env()
+        .module(second.crate_env().root_module())
+        .children()[1];
+    assert_ne!(first_module, second_module);
+}
 
 #[test]
 fn record_fields_are_generated_as_eliminator_definitions() {
@@ -171,7 +205,7 @@ fn deeply_nested_expressions_and_arrow_precedence() {
     else {
         panic!("expected outer product");
     };
-    let crate::syntax::Bind::Named(bind) = bind else {
+    let ::syntax::syntax::Bind::Named(bind) = bind else {
         panic!("expected unnamed domain");
     };
     assert!(bind.vars.is_empty());
@@ -924,8 +958,8 @@ fn rich_goal_format_contains_context_and_constraints() {
 
 #[test]
 fn dependency_ordered_module_errors_include_source_location() {
-    let source = std::sync::Arc::new(crate::syntax::SourceFile {
-        id: crate::syntax::SourceId("dependency-error.ref".into()),
+    let source = std::sync::Arc::new(::syntax::syntax::SourceFile {
+        id: ::syntax::syntax::SourceId("dependency-error.ref".into()),
         text: r#"\module Consumer {
   \import \root.Provider[] \as P;
   \definition bad: P.Bit := P.one^;
@@ -1184,69 +1218,6 @@ fn program_value_let_rejects_invalid_annotations_and_unsolved_metas() {
 }
 
 #[test]
-fn program_value_let_macro_annotations_use_the_outer_scope() {
-    use crate::{elaborator::module_manager::ModuleManager, macros::MacroKind, syntax::ModuleBody};
-    let modules = parse::str_parse_modules(
-        r#"
-        \module LetMacros {
-            \macro local($type, $value) := (\let A: $type := $value \in \return(A));
-        }
-    "#,
-    )
-    .unwrap();
-    let ModuleBody::Inline(items) = &modules[0].body else {
-        panic!()
-    };
-    let crate::syntax::ModuleItem::UserMacro {
-        name,
-        before,
-        after,
-    } = &items[0]
-    else {
-        panic!()
-    };
-    let env = crate::raw::environment::CrateEnv::new();
-    let mut manager = ModuleManager::new();
-    manager
-        .register_macro(
-            &env,
-            name.clone(),
-            MacroKind::Named,
-            before.clone(),
-            after.clone(),
-        )
-        .unwrap();
-    let SExp::NamedMacro { name, tokens, .. } = parse::str_parse_exp("local!{A a}").unwrap() else {
-        panic!()
-    };
-    let expanded = manager
-        .expand_named_macro(&env, env.root_module(), &name, &tokens, 0, None)
-        .unwrap();
-    let SExp::ValueLet {
-        var,
-        value_ty,
-        value,
-        body,
-    } = expanded
-    else {
-        panic!()
-    };
-    assert_ne!(var.as_str(), "A");
-    assert!(
-        matches!(*value_ty, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access, .. }, .. } if access.as_str() == "A")
-    );
-    assert!(
-        matches!(*value, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access, .. }, .. } if access.as_str() == "a")
-    );
-    let SExp::Return { value } = *body else {
-        panic!()
-    };
-    assert!(
-        matches!(*value, SExp::AccessPath { access: crate::syntax::LocalAccess::Current { access, .. }, .. } if access == var)
-    );
-}
-
-#[test]
 fn program_case_reflects_value_let_in_parameterized_branches() {
     use crate::raw::program::ComputationTermNode;
     let modules = parse::str_parse_modules(
@@ -1346,8 +1317,9 @@ fn run_step_recursor_distinguishes_branch_and_result_sorts() {
 
 #[test]
 fn run_step_inference_with_metavariables_preserves_the_universe() {
+    use crate::metavariables::MetaStore;
     use crate::raw::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort};
-    use crate::{metavariables::MetaStore, syntax::SourceSpan};
+    use ::syntax::syntax::SourceSpan;
 
     for level in [0, 2] {
         let env = CrateEnv::new();
@@ -1561,7 +1533,7 @@ fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
 
 #[test]
 fn program_application_classification_preserves_cbpv_boundaries() {
-    use crate::syntax::{ComputationTermExp as C, ProgramFunctionExp as F, ValueTermExp as V};
+    use ::syntax::syntax::{ComputationTermExp as C, ProgramFunctionExp as F, ValueTermExp as V};
     let C::Application {
         function,
         arguments,

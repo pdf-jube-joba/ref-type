@@ -1,5 +1,6 @@
 //! Elaboration-time contextual metavariables and their diagnostics.
 
+use crate::hir::{SourceSpan, SurfaceMeta};
 use crate::raw::{
     calculus::{
         can_weaken_to, common_ambient_carrier, erased_convertible, instantiate_telescope,
@@ -13,7 +14,6 @@ use crate::raw::{
     program_derivation::ProgramCheckSession,
     sort::Sort,
 };
-use crate::syntax::{SourceSpan, SurfaceMeta};
 use std::collections::{HashMap, HashSet};
 
 mod diagnostics;

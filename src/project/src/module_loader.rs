@@ -1,12 +1,12 @@
-use crate::{
-    parse::{parse_module_items_from_source, parse_modules_from_source},
-    syntax::{Module, ModuleBody, ModuleItem, SourceFile, SourceId},
-};
 use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
     sync::Arc,
+};
+use syntax::{
+    parse::{parse_module_items_from_source, parse_modules_from_source},
+    syntax::{Module, ModuleBody, ModuleItem, SourceFile, SourceId},
 };
 
 const SOURCE_EXTENSION: &str = "ref";
@@ -24,7 +24,7 @@ pub trait SourceProvider {
     fn items(
         &mut self,
         path: &Path,
-    ) -> Result<(Vec<ModuleItem>, Vec<crate::syntax::SourceSpan>), String> {
+    ) -> Result<(Vec<ModuleItem>, Vec<syntax::syntax::SourceSpan>), String> {
         parse_module_items_from_source(&self.read(path)?)
     }
 }

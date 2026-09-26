@@ -1,10 +1,9 @@
 //! Snapshot based semantic queries and incremental checking.
-pub use ::syntax::{module_loader, package_loader, parse, syntax};
+pub use ::project::{SourceSnapshot, module_loader, package_loader};
+pub use ::syntax::{parse, syntax};
 
 mod model;
-mod snapshot;
 pub use model::*;
-pub use snapshot::SourceSnapshot;
 
 mod cache;
 mod database;

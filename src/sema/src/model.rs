@@ -129,7 +129,7 @@ impl SemanticResult {
             .find(|declaration| &declaration.id == id)
     }
     pub fn definition_at(&self, file: impl AsRef<Path>, offset: usize) -> Option<&Declaration> {
-        let file = crate::snapshot::absolute(file.as_ref());
+        let file = ::project::absolute(file.as_ref());
         let reference = self
             .modules
             .iter()
@@ -139,7 +139,7 @@ impl SemanticResult {
         self.declaration(&reference.target)
     }
     pub fn type_at(&self, file: impl AsRef<Path>, offset: usize) -> Option<&str> {
-        let file = crate::snapshot::absolute(file.as_ref());
+        let file = ::project::absolute(file.as_ref());
         self.definition_at(&file, offset)
             .or_else(|| {
                 self.declarations()

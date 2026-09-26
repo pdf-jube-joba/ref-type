@@ -1,10 +1,10 @@
 //! Structured elaboration errors and goal rendering.
+use crate::hir::{SourceLocation, SourceSpan, SurfaceMeta};
 use crate::raw::{
     environment::CrateEnv,
     exp::{Exp, ExpContext},
     ids::MetaVarId,
 };
-use crate::syntax::{SourceLocation, SourceSpan, SurfaceMeta};
 use std::{error::Error, fmt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

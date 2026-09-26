@@ -29,13 +29,6 @@ impl fmt::Display for ReflectionError {
 
 impl std::error::Error for ReflectionError {}
 
-pub fn reflect_program_type(env: &CrateEnv, ty: ProgramType) -> Result<Exp, ReflectionError> {
-    match ty {
-        ProgramType::ValueType(ty) => reflect_value_type(env, ty),
-        ProgramType::ComputationType(ty) => reflect_computation_type(env, ty),
-    }
-}
-
 pub fn reflect_value_type(env: &CrateEnv, ty: ValueType) -> Result<Exp, ReflectionError> {
     let arena = env.arena();
     Ok(match arena.get(ty) {

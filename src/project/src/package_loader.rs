@@ -1,10 +1,10 @@
-use crate::{
-    module_loader::{DiskSource, SourceProvider, load_modules},
-    syntax::{Identifier, Module, ModuleBody, ModuleInstantiatePath, ModuleItem, SourceSpan},
-};
+use crate::module_loader::{DiskSource, SourceProvider, load_modules};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
+};
+use syntax::syntax::{
+    Identifier, Module, ModuleBody, ModuleInstantiatePath, ModuleItem, SourceSpan,
 };
 
 pub struct PackageGraph {
@@ -23,10 +23,10 @@ pub struct PackageInfo {
 }
 
 #[derive(Clone)]
-struct Package {
+pub(crate) struct Package {
     name: String,
     directory: PathBuf,
-    dependencies: Vec<(String, PathBuf)>,
+    pub(crate) dependencies: Vec<(String, PathBuf)>,
 }
 
 /// Load path dependencies once per canonical directory and return them before their users.
@@ -141,10 +141,14 @@ impl Loader {
 }
 
 fn read_manifest(directory: &Path, provider: &mut dyn SourceProvider) -> Result<Package, String> {
+    let source = provider.read(&directory.join("ref.toml"))?;
+    parse_manifest(directory, &source.text)
+}
+
+pub(crate) fn parse_manifest(directory: &Path, text: &str) -> Result<Package, String> {
     let path = directory.join("ref.toml");
-    let source = provider.read(&path)?;
-    let value: toml::Table = toml::from_str(&source.text)
-        .map_err(|error| format!("invalid {}: {error}", path.display()))?;
+    let value: toml::Table =
+        toml::from_str(text).map_err(|error| format!("invalid {}: {error}", path.display()))?;
     let name = value
         .get("package")
         .and_then(|package| package.get("name"))

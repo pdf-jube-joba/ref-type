@@ -83,7 +83,7 @@ Program 定義は Set 側へ反映した body・classifier・context も検査�
 `register_datatype` は parameter kind・field level・strict positivity を検査し、Set の鏡像を生成する。
 鏡像が既にある場合は宣言との一致を検査する。
 
-module の構成・名前解決・import の特殊化は elaboration が所有する。
+module の構成と名前解決は `resolve`、import の型検査と特殊化は elaboration が所有する。
 elaboration の lowering は宣言が参照する module parameter と、その型が必要とする parameter を集め、依存順に通常の context へ変換する。
 帰納型ではそれらを parameter telescope に加える。
 元宣言と特殊化した宣言の対応、および帰納型の同一性も elaboration で確定する。

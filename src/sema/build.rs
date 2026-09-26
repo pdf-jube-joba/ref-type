@@ -20,7 +20,14 @@ fn collect(path: &Path, files: &mut Vec<PathBuf>) {
 fn main() {
     let root = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("../..");
     let mut files = vec![root.join("Cargo.lock"), root.join("Cargo.toml")];
-    for name in ["kernel", "syntax", "elaboration", "sema"] {
+    for name in [
+        "kernel",
+        "syntax",
+        "project",
+        "resolve",
+        "elaboration",
+        "sema",
+    ] {
         collect(&root.join("src").join(name), &mut files);
     }
     files.sort();

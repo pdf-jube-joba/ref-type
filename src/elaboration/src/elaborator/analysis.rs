@@ -1,12 +1,12 @@
 //! Arena-independent observations produced while elaborating declarations.
 use crate::{
     elaborator::{GlobalEnvironment, module_manager::ItemAccessResult},
+    hir::{ModuleItem, SourceLocation},
     raw::{
         environment::{CrateEnv, DefinedConstant, ModuleItem as Item},
         ids::ModuleId,
         printing,
     },
-    syntax::{ModuleItem, SourceLocation},
 };
 
 #[derive(Debug, Clone)]
@@ -18,13 +18,7 @@ pub struct Declaration {
     pub ty: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct Reference {
-    pub module: Vec<String>,
-    pub location: SourceLocation,
-    pub target_module: Vec<String>,
-    pub target_name: String,
-}
+pub use resolve::Reference;
 
 #[derive(Debug, Clone)]
 pub struct Output {
@@ -74,6 +68,7 @@ pub(crate) fn access_name(env: &CrateEnv, item: &ItemAccessResult) -> Option<Str
                     .name,
             )
             .to_owned(),
+        ItemAccessResult::Argument(_) => return None,
         ItemAccessResult::Expression(exp) => {
             let (crate::raw::exp::ExpNode::ModuleParam(id)
             | crate::raw::exp::ExpNode::ReflectedProgramParam(id)) = env.arena().get(*exp)

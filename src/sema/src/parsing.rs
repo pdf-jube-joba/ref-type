@@ -2,8 +2,8 @@ use crate::{
     Diagnostic, Location, QueryStats, SourceSnapshot,
     cache::{Fingerprint, fingerprint},
 };
+use ::project::module_loader::SourceProvider;
 use ::syntax::{
-    module_loader::SourceProvider,
     parse,
     syntax::{Module, ModuleItem, SourceFile, SourceSpan},
 };

@@ -1,5 +1,7 @@
 use crate::elaborator::ItemAccessResult;
 use crate::elaborator::profiling::ProfileTimer;
+use crate::hir::*;
+use crate::items::{ModItemDefinition, ModItemInductive, ModItemRecord};
 use crate::raw::calculus::{
     exp_contains_bound, instantiate, shift_bound_indices, type_head_normal,
 };
@@ -8,7 +10,6 @@ use crate::raw::exp::*;
 use crate::raw::ids::*;
 use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{ComputationTerm, ComputationType, ValueType};
-use crate::syntax::*;
 
 pub(crate) trait Handler {
     fn env(&self) -> &CrateEnv;
@@ -47,60 +48,12 @@ pub(crate) trait Handler {
         span: SourceSpan,
         local_context: &ExpContext,
     ) -> Exp;
-    fn expand_math_macro(
+    fn intern_name(&mut self, name: &Identifier) -> SymbolId;
+    fn reflect_program_expression(
         &mut self,
-        tokens: &[MacroExp],
-        scope: Option<ModuleId>,
-        depth: u16,
-        max_order: Option<u64>,
-    ) -> Result<SExp, String>;
-    fn expand_named_macro(
-        &mut self,
-        name: &Identifier,
-        tokens: &[MacroExp],
-        scope: Option<ModuleId>,
-        depth: u16,
-        max_order: Option<u64>,
-    ) -> Result<SExp, String>;
-}
-
-// Expand the entire selected syntax before entering the much larger elaborator
-// stack frames. Non-tail macro recursion must reach the expansion limit rather
-// than overflowing the stack while elaborating intermediate templates.
-fn expand_macros(exp: &SExp, handler: &mut impl Handler) -> Result<SExp, String> {
-    let mut expanded = exp.clone();
-    let mut result = Ok(());
-    crate::macros::walk_sexp_control(&mut expanded, &mut |node| {
-        if result.is_err() {
-            return false;
-        }
-        loop {
-            let next = match node {
-                SExp::MathMacro {
-                    tokens,
-                    scope,
-                    depth,
-                    max_order,
-                } => handler.expand_math_macro(tokens, *scope, *depth, *max_order),
-                SExp::NamedMacro {
-                    name,
-                    tokens,
-                    scope,
-                    depth,
-                    max_order,
-                } => handler.expand_named_macro(name, tokens, *scope, *depth, *max_order),
-                _ => return true,
-            };
-            match next {
-                Ok(next) => *node = next,
-                Err(error) => {
-                    result = Err(error);
-                    return false;
-                }
-            }
-        }
-    });
-    result.map(|()| expanded)
+        parameter: resolve::hir::BindingId,
+        expression: &SExp,
+    ) -> Result<Exp, String>;
 }
 
 #[derive(Debug, Clone)]
@@ -179,7 +132,7 @@ impl LocalScope {
             let ty_elab = self.elab_exp(ty, handler)?;
             handler.infer(&mut self.typing_binds, ty_elab)?;
             for (depth, var) in vars.iter().enumerate() {
-                let var = handler.intern(var.as_str());
+                let var = handler.intern_name(var);
                 // The shared annotation was elaborated before this binder group.
                 let ty = shift_bound_indices(handler.arena(), ty_elab, depth, 0);
                 result.push((var, ty));
@@ -202,7 +155,7 @@ impl LocalScope {
             .bindings
             .iter()
             .rev()
-            .find(|binding| handler.symbol(binding.var) == name.as_str())?;
+            .find(|binding| handler.env().name_matches(binding.var, name))?;
         let depth = self.typing_binds.len() - binding.depth;
         Some(match binding.value {
             Some(value) => shift_bound_indices(arena, value, depth, 0),
@@ -330,7 +283,7 @@ impl LocalScope {
                     return Err("\\take currently expects exactly one named variable".into());
                 }
 
-                let var = handler.intern(right_bind.vars[0].as_str());
+                let var = handler.intern_name(&right_bind.vars[0]);
                 let domain = self.elab_exp_rec(&right_bind.ty, handler)?;
                 self.push_binded_var(var, domain);
                 let map_body = self.elab_exp_rec(body, handler)?;
@@ -352,7 +305,7 @@ impl LocalScope {
             }
             Bind::Subset { var, ty, predicate } => {
                 let carrier = self.elab_exp_rec(ty, handler)?;
-                let var = handler.intern(var.as_str());
+                let var = handler.intern_name(var);
                 self.push_binded_var(var, carrier);
                 let predicate = self.elab_exp_rec(predicate, handler)?;
                 self.pop_binded_var();
@@ -392,12 +345,17 @@ impl LocalScope {
 
     fn elab_exp_rec(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
         match exp {
+            SExp::Reflect {
+                parameter,
+                expression,
+            } => handler.reflect_program_expression(*parameter, expression),
             SExp::Meta { kind, span } => Ok(handler.fresh_meta(*kind, *span, &self.typing_binds)),
             SExp::AccessPath { access, parameters } => {
                 // this includes (term binding) access path
 
                 // 1. find from binded vars first (if no parameters)
-                if let LocalAccess::Current { access: name, .. } = access
+                if let LocalAccess::Current { access: name, .. }
+                | LocalAccess::Resolved { access: name, .. } = access
                     && let Some(var) = self.get_var(handler.arena(), name, handler)
                     && parameters.is_empty()
                 {
@@ -464,7 +422,8 @@ impl LocalScope {
                     }
                     ItemAccessResult::ProgramInductive(_)
                     | ItemAccessResult::ProgramTypeParameter(_)
-                    | ItemAccessResult::ProgramValueParameter(_) => Err(format!(
+                    | ItemAccessResult::ProgramValueParameter(_)
+                    | ItemAccessResult::Argument(_) => Err(format!(
                         "Program names require explicit Set reflection (^): '{access}'"
                     )),
                 }
@@ -656,15 +615,13 @@ impl LocalScope {
                 handler.field_projection(&mut self.typing_binds, value, field)
             }
             SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
-                let expanded = expand_macros(exp, handler)?;
-                self.elab_exp_rec(&expanded, handler)
+                Err("unexpanded macro in HIR".into())
             }
             SExp::TokenMatch { .. } => Err("Token match escaped template expansion".into()),
             SExp::MacroParameter(name) => Err(format!(
                 "Macro capture '${}' escaped template expansion",
                 name.as_str()
             )),
-            SExp::ResolvedExp(exp) => Ok(Exp::from_index(*exp)),
             SExp::Where { exp, clauses } => {
                 let declaration_mark = self.bindings.len();
                 let depth = self.typing_binds.len();
@@ -694,7 +651,7 @@ impl LocalScope {
                             .map_err(|error| {
                                 format!("Local definition '{}': {error}", name.as_str())
                             })?;
-                        let name = handler.intern(name.as_str());
+                        let name = handler.intern_name(name);
                         self.push_decl_var_exp(name, value);
                     }
                     self.elab_exp_rec(exp, handler)
@@ -735,7 +692,7 @@ impl LocalScope {
 
                         let mut telescope: Vec<(SymbolId, Exp)> = vec![];
                         for (depth, var) in right_bind.vars.iter().enumerate() {
-                            let var = handler.intern(var.as_str());
+                            let var = handler.intern_name(var);
                             // Each preceding variable adds a binder around the annotation.
                             let ty = shift_bound_indices(handler.arena(), ty_elab, depth, 0);
                             telescope.push((var, ty));
@@ -756,7 +713,7 @@ impl LocalScope {
                     }
                     Bind::Subset { var, ty, predicate } => {
                         let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let var = handler.intern(var.as_str());
+                        let var = handler.intern_name(var);
                         self.push_binded_var(var, ty_elab);
                         let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         self.pop_binded_var();
@@ -796,7 +753,7 @@ impl LocalScope {
                         proof_var,
                     } => {
                         let ty_elab = self.elab_exp_rec(ty, handler)?;
-                        let var = handler.intern(var.as_str());
+                        let var = handler.intern_name(var);
                         self.push_binded_var(var, ty_elab);
                         let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                         self.pop_binded_var();
@@ -811,7 +768,7 @@ impl LocalScope {
                             subset,
                         });
                         self.push_binded_var(var, refined_ty);
-                        let proof = handler.intern(proof_var.as_str());
+                        let proof = handler.intern_name(proof_var);
                         self.push_binded_var(proof, predicate_elab);
                         let body_elab = self.elab_exp_rec(body, handler)?;
                         self.pop_binded_var();
@@ -861,7 +818,7 @@ impl LocalScope {
                             if !record
                                 .associated_definitions
                                 .iter()
-                                .any(|(name, _)| name == field) =>
+                                .any(|(name, _)| name.as_str() == field.as_str()) =>
                         {
                             let value = self.elab_exp_rec(arguments[0], handler)?;
                             let value_ty = handler.infer(&mut self.typing_binds, value)?;
@@ -968,7 +925,7 @@ impl LocalScope {
                     indspec: inductive,
                     parameters: parameters.clone(),
                 });
-                let var = handler.intern(binder.vars[0].as_str());
+                let var = handler.intern_name(&binder.vars[0]);
                 self.push_binded_var(var, domain);
                 let motive_body = self.elab_exp_rec(return_type, handler);
                 self.pop_binded_var();
@@ -1326,7 +1283,7 @@ impl LocalScope {
                 predicate,
             } => {
                 let set_elab = self.elab_exp_rec(set, handler)?;
-                let var = handler.intern(var.as_str());
+                let var = handler.intern_name(var);
                 self.push_binded_var(var, set_elab);
                 let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                 self.pop_binded_var();
@@ -1383,7 +1340,7 @@ impl LocalScope {
                 ),
                 Bind::Subset { var, ty, predicate } => {
                     let ty_elab = self.elab_exp_rec(ty, handler)?;
-                    let var = handler.intern(var.as_str());
+                    let var = handler.intern_name(var);
                     self.push_binded_var(var, ty_elab);
                     let predicate_elab = self.elab_exp_rec(predicate, handler)?;
                     self.pop_binded_var();
@@ -1470,7 +1427,7 @@ impl LocalScope {
                 let left = self.elab_exp_rec(left, handler)?;
                 let right = self.elab_exp_rec(right, handler)?;
                 let ty = self.elab_exp_rec(ty, handler)?;
-                let var = handler.intern(var.as_str());
+                let var = handler.intern_name(var);
                 self.push_binded_var(var, ty);
                 let predicate = self.elab_exp_rec(predicate, handler)?;
                 self.pop_binded_var();

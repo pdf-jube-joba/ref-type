@@ -1,6 +1,6 @@
+use crate::hir::Identifier;
 use crate::raw::exp::{Exp, ExpNode};
 use crate::raw::ids::{DefId, InductiveId};
-use ::syntax::syntax::Identifier;
 
 #[derive(Debug, Clone)]
 pub struct ModItemDefinition {

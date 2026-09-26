@@ -40,13 +40,6 @@ impl DefinedConstant {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DefinitionKind {
-    Pts,
-    ProgramValue,
-    ProgramComputation,
-}
-
 #[derive(Debug, Clone)]
 pub struct ModuleParameter {
     pub name: SymbolId,
@@ -184,6 +177,8 @@ pub struct ModuleEnv {
     program_inductives: Vec<OnceCell<ProgramInductiveTypeSpecs>>,
     items: Vec<ModuleItem>,
     names: HashMap<String, usize>,
+    hir_names: HashMap<String, resolve::hir::BindingId>,
+    hir_items: HashMap<resolve::hir::BindingId, usize>,
     bindings: Vec<ModuleId>,
     imports: HashMap<String, ModuleId>,
 }
@@ -200,9 +195,17 @@ impl ModuleEnv {
             program_inductives: Vec::new(),
             items: Vec::new(),
             names: HashMap::new(),
+            hir_names: HashMap::new(),
+            hir_items: HashMap::new(),
             bindings: Vec::new(),
             imports: HashMap::new(),
         }
+    }
+
+    pub fn hir_item(&self, binding: resolve::hir::BindingId) -> Option<&ModuleItem> {
+        self.hir_items
+            .get(&binding)
+            .map(|index| &self.items[*index])
     }
 
     pub fn name(&self) -> &str {
@@ -242,6 +245,7 @@ type InferenceCache = FxHashMap<(Exp, ContextId), Exp>;
 
 #[derive(Debug)]
 pub struct CrateEnv {
+    hir_symbols: HashMap<resolve::hir::BindingId, SymbolId>,
     definition_parameters: HashMap<DefId, Vec<SymbolId>>,
     arena: Arena,
     pub(crate) inference_cache: std::cell::RefCell<InferenceCache>,
@@ -299,6 +303,7 @@ impl CrateEnv {
         symbol_ids.insert(anonymous.clone(), SymbolId::ANONYMOUS);
         symbol_ids.insert(root.clone(), SymbolId(1));
         Self {
+            hir_symbols: HashMap::new(),
             definition_parameters: HashMap::new(),
             arena: Arena::new(),
             inference_cache: Default::default(),
@@ -334,6 +339,27 @@ impl CrateEnv {
         self.symbols.push(name.clone());
         self.symbol_ids.insert(name, symbol);
         symbol
+    }
+
+    pub fn intern_name(&mut self, name: &crate::hir::Identifier) -> SymbolId {
+        let Some(id) = name.1 else {
+            return self.intern(name.as_str());
+        };
+        if let Some(symbol) = self.hir_symbols.get(&id) {
+            return *symbol;
+        }
+        let symbol =
+            SymbolId(u32::try_from(self.symbols.len()).expect("symbol table exceeded u32::MAX"));
+        self.symbols.push(name.0.clone());
+        self.hir_symbols.insert(id, symbol);
+        symbol
+    }
+
+    pub fn name_matches(&self, symbol: SymbolId, name: &crate::hir::Identifier) -> bool {
+        name.1.map_or_else(
+            || self.symbol(symbol) == name.as_str(),
+            |id| self.hir_symbols.get(&id) == Some(&symbol),
+        )
     }
 
     pub fn symbol(&self, symbol: SymbolId) -> &str {
@@ -988,24 +1014,6 @@ impl CrateEnv {
             .remapping = remapping;
     }
 
-    pub fn add_namespace_alias(
-        &mut self,
-        owner: ModuleId,
-        source: ModuleId,
-        materialized: ModuleId,
-        arguments: Vec<(ModuleParamId, ModuleArgument)>,
-        definition_origins: HashMap<DefId, DefId>,
-    ) -> ModuleId {
-        self.add_namespace_binding(
-            owner,
-            source,
-            materialized,
-            arguments,
-            definition_origins,
-            DeclarationRemapping::default(),
-        )
-    }
-
     pub(crate) fn add_namespace_binding(
         &mut self,
         owner: ModuleId,
@@ -1046,6 +1054,23 @@ impl CrateEnv {
         Some(DefinitionOrigin { binding, source })
     }
 
+    pub fn register_hir_name(
+        &mut self,
+        module: ModuleId,
+        binding: resolve::hir::BindingId,
+        name: String,
+    ) {
+        let module = self.module_mut(module);
+        if let Some(index) = module.names.get(&name) {
+            module.hir_items.insert(binding, *index);
+        }
+        module.hir_names.insert(name, binding);
+    }
+
+    pub fn copy_hir_names(&mut self, source: ModuleId, target: ModuleId) {
+        self.module_mut(target).hir_names = self.module(source).hir_names.clone();
+    }
+
     pub fn publish_item(&mut self, module: ModuleId, item: ModuleItem) -> Result<(), String> {
         let module = self.module_mut(module);
         let name = item.name().to_owned();
@@ -1054,6 +1079,9 @@ impl CrateEnv {
         }
         let index = module.items.len();
         module.items.push(item);
+        if let Some(binding) = module.hir_names.get(&name) {
+            module.hir_items.insert(*binding, index);
+        }
         module.names.insert(name, index);
         Ok(())
     }
@@ -1146,20 +1174,16 @@ impl CrateEnv {
         }
     }
 
+    #[cfg(test)]
     pub fn is_definition_materialized(&self, id: DefId) -> bool {
         self.module(id.module).definitions[id.index as usize]
             .get()
             .is_some()
     }
 
+    #[cfg(test)]
     pub fn is_inductive_materialized(&self, id: InductiveId) -> bool {
         self.module(id.module).inductives[id.index as usize]
-            .get()
-            .is_some()
-    }
-
-    pub fn is_program_inductive_materialized(&self, id: ProgramInductiveId) -> bool {
-        self.module(id.module).program_inductives[id.index as usize]
             .get()
             .is_some()
     }

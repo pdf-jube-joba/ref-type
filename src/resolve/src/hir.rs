@@ -1,83 +1,33 @@
-//! Parsed surface syntax, independent of resolution and type inference.
-use crate::sort::Sort;
+//! Names resolved to bindings, before type inference.
+use syntax::sort::Sort;
+pub use syntax::syntax::{
+    MacroToken, SourceFile, SourceId, SourceLocation, SourceSpan, SurfaceMeta,
+};
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct SourceSpan {
-    pub start: usize,
-    pub end: usize,
-}
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct ModuleId(pub u32);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BindingId(pub u64);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SurfaceMeta {
-    /// `_`: solve by constraints, but report ambiguity rather than a goal.
-    Implicit,
-    /// Bare `?`: a fresh proof-search goal at every occurrence.
-    Goal,
-    /// `?N`: occurrences with the same number share one metavariable within
-    /// the current elaboration unit.
-    Named(u32),
-}
-
-/// A source file identity, retained together with the original text.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SourceId(pub std::path::PathBuf);
-
-#[derive(Debug)]
-pub struct SourceFile {
-    pub id: SourceId,
-    pub text: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct SourceLocation {
-    pub source: std::sync::Arc<SourceFile>,
-    pub span: SourceSpan,
-}
-
-impl SourceLocation {
-    pub fn render(&self) -> String {
-        let text = &self.source.text;
-        let mut start = self.span.start.min(text.len());
-        while !text.is_char_boundary(start) {
-            start -= 1;
-        }
-        let line_start = text[..start].rfind('\n').map_or(0, |at| at + 1);
-        let line_end = text[start..].find('\n').map_or(text.len(), |at| start + at);
-        let line = text[..start].bytes().filter(|byte| *byte == b'\n').count() + 1;
-        let column = text[line_start..start].chars().count() + 1;
-        let mut end = self.span.end.min(line_end).max(start);
-        while !text.is_char_boundary(end) {
-            end -= 1;
-        }
-        let width = text[start..end].chars().count().max(1);
-        format!(
-            "{}:{line}:{column}\n  |\n{line:>2} | {}\n  | {}{}",
-            self.source.id.0.display(),
-            &text[line_start..line_end],
-            " ".repeat(column - 1),
-            "^".repeat(width)
-        )
-    }
-}
-
-// identifier for any naming
+/// Spelling for diagnostics and the resolved binding, where the name denotes one.
+/// Field labels and other type-directed members retain their spelling.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Identifier(pub String);
-
-impl Identifier {
+pub struct Name(pub String, pub Option<BindingId>);
+pub type Identifier = Name;
+#[allow(non_snake_case)]
+pub fn Identifier(text: String) -> Name {
+    Name(text, None)
+}
+impl Name {
     pub fn as_str(&self) -> &str {
         &self.0
     }
 }
 
-// token for macros
-//   which is (not identifier) /\ (not keyword)
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct MacroToken(pub String);
-
 // module definition
 #[derive(Debug, Clone)]
 pub struct Module {
+    pub id: ModuleId,
     pub name: Identifier,
     pub parameters: Vec<RightBind>, // given parameters for module
     pub body: ModuleBody,
@@ -411,11 +361,19 @@ pub enum LocalAccess {
         access: Identifier,
         child: Identifier,
     },
+    /// An access resolved in a macro's definition environment.
+    Resolved {
+        span: SourceSpan,
+        module: ModuleId,
+        access: Identifier,
+        display: String,
+    },
 }
 
 impl std::fmt::Display for LocalAccess {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Resolved { display, .. } => formatter.write_str(display),
             Self::Current { access, .. } => formatter.write_str(access.as_str()),
             Self::Named { access, child, .. } => {
                 write!(formatter, "{}.{}", access.as_str(), child.as_str())
@@ -427,6 +385,11 @@ impl std::fmt::Display for LocalAccess {
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
+    /// Reflection of a substituted Program module argument.
+    Reflect {
+        parameter: BindingId,
+        expression: Box<SExp>,
+    },
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,
@@ -453,12 +416,25 @@ pub enum SExp {
     // before type checking, it is expanded to normal expression
     MathMacro {
         tokens: Vec<MacroExp>,
+        /// `None` for source calls; templates pin nested calls to their
+        /// definition environment before they are registered.
+        scope: Option<ModuleId>,
+        /// For calls originating in a template, only declarations older than
+        /// this order are visible.
+        max_order: Option<u64>,
+        depth: u16,
     },
+    // macro specified by name
     NamedMacro {
         name: Identifier,
         tokens: Vec<MacroExp>,
+        scope: Option<ModuleId>,
+        /// Template calls can see declarations up to and including their own
+        /// definition, allowing self recursion without forward references.
+        max_order: Option<u64>,
+        depth: u16,
     },
-    /// A capture placeholder in a macro template.
+    /// A reference to a pattern capture. Only valid in macro templates.
     MacroParameter(Identifier),
     /// Expansion-time matching, available only in named macro templates.
     TokenMatch {
@@ -1140,7 +1116,9 @@ pub enum Statement {
 impl LocalAccess {
     pub fn span(&self) -> SourceSpan {
         match self {
-            Self::Current { span, .. } | Self::Named { span, .. } => *span,
+            Self::Current { span, .. } | Self::Named { span, .. } | Self::Resolved { span, .. } => {
+                *span
+            }
         }
     }
 }

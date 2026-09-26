@@ -5,8 +5,10 @@ CLI の通常チェックも同じ API を使う。
 
 | crate | 入力と結果 |
 | --- | --- |
-| `syntax` | source text → span を持つ構文、外部 module と package の構成 |
-| `elaboration` | module 構文 → 名前解決、macro 展開、型推論、raw IR、kernel による検証、semantic observations |
+| `project` | ファイル・manifest・source snapshot → 読み込み済みの AST |
+| `syntax` | source text → span を持つ構文 |
+| `resolve` | AST → 名前解決と macro 展開を終えた型推論前の HIR |
+| `elaboration` | HIR → 型推論、kernel による検証、診断・統計・semantic observations |
 | `sema` | immutable な source snapshot → 依存関係、query cache、永続化できる semantic result |
 | `kernel` | 分類済みの項と宣言 → 独立した型検査と登録 |
 
@@ -34,7 +36,7 @@ let parsed = db.parse(&edited, "libs/std/src/Nat.ref", ParseKind::Module);
 let file = db.file(&edited, "libs/std/src/Nat.ref");
 ```
 
-`SourceSnapshot::read` は source tree と path dependencies の内容を取り込み、以後の query はその内容を参照する。
+`project` が提供する `SourceSnapshot::read` は source tree と path dependencies の内容を取り込み、以後の query はその内容を参照する。
 `with_file` と `without_file` は元の snapshot を保持したまま編集後の snapshot を作る。
 `SourceSnapshot::new` と `insert` を使うと、ファイルシステムに存在しない source も扱える。
 ファイルの identity と symlink の対応は読み込み時に固定する。
@@ -72,7 +74,7 @@ semantic cache の単位は module で、宣言の変更は所属 module を無�
 scope に含まれる module の追加・削除もキーに反映する。
 
 未変更の query は同じ `Arc<SemanticResult>` を返し、goal を含む失敗結果も実行中に再利用する。
-一部が変わった場合は、変更された module とその利用者を調べ、必要な依存先を含む module 群を elaboration と kernel 検査に渡す。
+一部が変わった場合は、変更された module とその利用者を調べ、必要な依存先を含む module 群を `resolve` で HIR に変換し、elaboration と kernel 検査に渡す。
 この再構築には未変更の依存先も含まれるため、編集対象の依存関係が広い場合は再チェックする範囲も広がる。
 処理中の metavariable と constraint は宣言ごとに解放し、raw と kernel の workspace は検査する module 群の処理後に解放する。
 `clear_memory` で query と parse の保持結果を解放できる。
@@ -80,7 +82,11 @@ scope に含まれる module の追加・削除もキーに反映する。
 ## 永続キャッシュ
 
 kernel が検証を完了した module 群から、型・参照・出力などの semantic result を JSON に保存する。
+保存対象は `ModuleResult` で、検証済みの状態、依存先、宣言位置、表示用の型、名前参照、query 出力を保持する。
+AST は実行中の parse cache に保持し、raw IR と kernel term は検査する module 群の workspace 内で構築する。
+変更された module の再検査には、未変更の依存先の workspace も再構築する。
 キーには source の構文と位置、依存関係、package manifest、追加設定、checker の実装・依存関係・Rust toolchain・target の fingerprint を含める。
+キャッシュ保存先には `Path` を使い、名前解決・型検査へ渡す中間表現と分けて管理する。
 checker の fingerprint は build script が各 crate の Rust source、Cargo manifest、lockfile から生成する。
 
 キャッシュには payload の SHA-256 checksum を付け、一時ファイルからの rename で保存する。

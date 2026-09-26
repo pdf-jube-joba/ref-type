@@ -269,7 +269,7 @@ fn file_errors_are_only_written_to_stderr() {
 
     assert!(!output.status.success(), "{}", output_details(&output));
     assert!(!stdout.contains("Elaboration Error:"));
-    assert_eq!(stderr.matches("Elaboration Error:").count(), 1);
+    assert_eq!(stderr.matches("Resolution Error:").count(), 1);
 }
 
 #[test]
