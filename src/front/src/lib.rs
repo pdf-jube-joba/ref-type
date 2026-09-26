@@ -1,18 +1,14 @@
-// surface syntax
-mod macros;
-pub mod metavariables;
-pub mod output;
-pub mod syntax;
-// string -> surface
-pub mod module_loader;
-pub mod package_loader;
-pub mod parse;
-// surface -> core
-pub mod elaborator;
-#[cfg(test)]
-mod tests;
+//! Snapshot based semantic queries and incremental checking.
+pub use front_syntax::{module_loader, package_loader, parse, syntax};
 
-#[doc(hidden)]
-pub mod raw;
+mod model;
+mod snapshot;
+pub use model::*;
+pub use snapshot::SourceSnapshot;
 
-mod lowering;
+mod cache;
+mod database;
+mod graph;
+mod parsing;
+pub use database::{CheckOptions, Database};
+pub use parsing::{ParseKind, ParseResult, ParsedSyntax};

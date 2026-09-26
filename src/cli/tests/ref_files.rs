@@ -493,3 +493,33 @@ fn captures_output_larger_than_a_pipe_buffer() {
         10_000
     );
 }
+
+#[test]
+fn separate_processes_reuse_checked_results_and_detect_source_changes() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r"\module M { \definition P: \Prop := \forall (P: \Prop) -> P -> P; \infer P; }",
+    );
+    let cache = fixture.0.join("cache");
+    let args = ["--cache-dir", cache.to_str().unwrap(), "--cache-stats"];
+    let first = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+    assert!(first.status.success(), "{}", output_details(&first));
+    let warm = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+    assert!(warm.status.success(), "{}", output_details(&warm));
+    assert_eq!(first.stdout, warm.stdout);
+    let statistics = String::from_utf8_lossy(&warm.stderr);
+    assert!(statistics.contains("disk_hits: 1"), "{statistics}");
+    assert!(statistics.contains("checked_modules: 0"), "{statistics}");
+    fixture.write("root.ref", r"\module M { \definition P: \Prop := \Set; }");
+    let changed = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+    assert_eq!(
+        changed.status.code(),
+        Some(1),
+        "{}",
+        output_details(&changed)
+    );
+    let clean = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert_eq!(changed.status, clean.status);
+    assert_eq!(changed.stdout, clean.stdout);
+}

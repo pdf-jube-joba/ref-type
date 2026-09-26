@@ -15,14 +15,21 @@ struct Args {
     /// front 側の構文への変換だけを行う
     #[arg(long)]
     parse_only: bool,
+    /// 永続キャッシュを使わず source から検証する
+    #[arg(long)]
+    no_cache: bool,
+    /// チェック済み semantic result の保存先
+    #[arg(long, default_value = "target/ref-cache")]
+    cache_dir: PathBuf,
+    /// parse・チェック・キャッシュ再利用の件数を表示する
+    #[arg(long)]
+    cache_stats: bool,
 }
-
-mod printing;
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     init_tracing(args.trace)?;
-    let err = run_path(args.path, args.stats, args.parse_only)?;
+    let err = run_path(&args)?;
     if err.is_some() {
         std::process::exit(1);
     }
@@ -50,62 +57,58 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn elaborate_and_format(
-    modules: Vec<front::syntax::Module>,
-    stats: bool,
-) -> (Vec<String>, Option<String>) {
-    let mut global = front::elaborator::GlobalEnvironment::default();
-    let mut output_lines = Vec::new();
-    let result = global.add_modules_to_root(&modules);
-    if stats {
-        eprintln!("raw nodes: {:?}", global.arena().node_counts());
-        eprintln!("raw caches: {:?}", global.crate_env().cache_counts());
-        eprintln!(
-            "kernel nodes: {:?}",
-            global.kernel_env().arena().node_counts()
-        );
-        eprintln!("kernel caches: {:?}", global.kernel_env().cache_counts());
-        eprintln!(
-            "kernel declaration nodes: {}",
-            global.kernel_env().declaration_node_count()
-        );
-    }
-    if let Err(err) = result {
-        let detail = front::metavariables::format_elaboration_error(global.crate_env(), &err);
-        push_outputs(&global, &mut output_lines);
-        return (output_lines, Some(format!("Elaboration Error: {detail}")));
-    }
-
-    push_outputs(&global, &mut output_lines);
-    (output_lines, None)
-}
-
-fn push_outputs(global: &front::elaborator::GlobalEnvironment, output_lines: &mut Vec<String>) {
-    for output in global.outputs() {
-        output_lines.push(printing::format_output(global.crate_env(), output));
-    }
-}
-
-fn run_path(path: PathBuf, stats: bool, parse_only: bool) -> anyhow::Result<Option<String>> {
-    let loaded = if path.is_dir() {
-        front::package_loader::load_package(&path).map(|graph| graph.modules)
+fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
+    let snapshot = match front::SourceSnapshot::read(&args.path) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            let message = format!("Module Load Error: {error}");
+            eprintln!("{message}");
+            return Ok(Some(message));
+        }
+    };
+    let mut database = if args.no_cache {
+        front::Database::new()
     } else {
-        front::module_loader::load_modules_from_root(&path)
+        front::Database::with_cache(&args.cache_dir)
     };
-    let (out, err_message) = match loaded {
-        Ok(_) if parse_only => (Vec::new(), None),
-        Ok(modules) => elaborate_and_format(modules, stats),
-        Err(error) => (Vec::new(), Some(format!("Module Load Error: {error}"))),
+    let messages = if args.parse_only {
+        database
+            .parse_project(&snapshot)
+            .err()
+            .unwrap_or_default()
+            .iter()
+            .map(|diagnostic| diagnostic.render(&snapshot))
+            .collect::<Vec<_>>()
+    } else {
+        let result = database.check_with_options(
+            &snapshot,
+            &front::CheckOptions {
+                force: args.trace || args.no_cache,
+                collect_statistics: args.stats,
+                ..front::CheckOptions::default()
+            },
+        );
+        for output in result.outputs() {
+            println!("{}", output.text);
+        }
+        for statistic in database.verification_statistics() {
+            eprintln!("{statistic}");
+        }
+        result
+            .all_diagnostics()
+            .map(|diagnostic| diagnostic.render(&snapshot))
+            .collect()
     };
-    for entry in out {
-        println!("{entry}");
+    if args.cache_stats {
+        eprintln!("queries: {:?}", database.stats());
     }
-    if let Some(msg) = &err_message {
+    let error = (!messages.is_empty()).then(|| messages.join("\n"));
+    if let Some(message) = &error {
         if std::io::stderr().is_terminal() {
-            eprintln!("\x1b[31m{msg}\x1b[0m");
+            eprintln!("\x1b[31m{message}\x1b[0m");
         } else {
-            eprintln!("{msg}");
+            eprintln!("{message}");
         }
     }
-    Ok(err_message)
+    Ok(error)
 }
