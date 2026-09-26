@@ -341,7 +341,11 @@ impl GlobalEnvironment {
         for (index, decl) in declarations.iter().enumerate() {
             let mut profile_timer =
                 profiling::ProfileTimer::start("REF_TYPE_PROFILE_DECLARATIONS", || {
-                    declaration_profile_label(decl)
+                    format!(
+                        "{}: {}",
+                        self.active_module_path().join("."),
+                        declaration_profile_label(decl)
+                    )
                 });
             self.diagnostic_location = module.source.as_ref().map(|source| SourceLocation {
                 source: source.clone(),
