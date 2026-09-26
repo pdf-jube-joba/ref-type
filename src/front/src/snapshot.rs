@@ -95,7 +95,7 @@ impl SourceSnapshot {
             if path.is_dir() {
                 if !matches!(
                     entry.file_name().to_str(),
-                    Some("target" | ".git" | ".ref-cache")
+                    Some("target" | ".git" | ".ref-cache" | "refcache")
                 ) {
                     self.read_tree(&path, visited)?;
                 }

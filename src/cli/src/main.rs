@@ -18,9 +18,12 @@ struct Args {
     /// 永続キャッシュを使わず source から検証する
     #[arg(long)]
     no_cache: bool,
-    /// チェック済み semantic result の保存先
-    #[arg(long, default_value = "target/ref-cache")]
-    cache_dir: PathBuf,
+    /// キャッシュを再利用せず全体を検証し、検証済みの結果を保存する
+    #[arg(long, conflicts_with = "parse_only")]
+    full_check: bool,
+    /// チェック済み semantic result の保存先（既定: 入力ディレクトリの refcache/）
+    #[arg(long)]
+    cache_dir: Option<PathBuf>,
     /// parse・チェック・キャッシュ再利用の件数を表示する
     #[arg(long)]
     cache_stats: bool,
@@ -69,7 +72,19 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
     let mut database = if args.no_cache {
         front::Database::new()
     } else {
-        front::Database::with_cache(&args.cache_dir)
+        let directory = args.cache_dir.clone().unwrap_or_else(|| {
+            let entry = snapshot.entry();
+            let root = if entry
+                .extension()
+                .is_some_and(|extension| extension == "ref")
+            {
+                entry.parent().expect("source file has a parent directory")
+            } else {
+                entry
+            };
+            root.join("refcache")
+        });
+        front::Database::with_cache(directory)
     };
     let messages = if args.parse_only {
         database
@@ -83,7 +98,7 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
         let result = database.check_with_options(
             &snapshot,
             &front::CheckOptions {
-                force: args.trace || args.no_cache,
+                force: args.trace || args.no_cache || args.full_check,
                 collect_statistics: args.stats,
                 ..front::CheckOptions::default()
             },

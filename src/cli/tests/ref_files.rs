@@ -495,6 +495,40 @@ fn captures_output_larger_than_a_pipe_buffer() {
 }
 
 #[test]
+fn default_cache_is_local_to_the_input_and_reused_from_another_directory() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("package/ref.toml", "[package]\nname = \"example\"\n");
+    let source = r"\module M { \definition P: \Prop := \forall (P: \Prop) -> P -> P; \infer P; }";
+    fixture.write("package/src/root.ref", source);
+    fixture.write("standalone/root.ref", source);
+    for input in ["package", "standalone/root.ref"] {
+        let path = fixture.0.join(input);
+        let directory = if path.is_dir() {
+            &path
+        } else {
+            path.parent().unwrap()
+        };
+        let cache = directory.join("refcache");
+        let first = run_ref_file_with_args(&fixture.0, &path, &["--cache-stats"]).unwrap();
+        assert!(first.status.success(), "{}", output_details(&first));
+        assert!(fs::read_dir(&cache).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .path()
+                .extension()
+                .is_some_and(|ext| ext == "json")
+        }));
+        fs::write(cache.join("ignored.ref"), "invalid source").unwrap();
+        let warm = run_ref_file_with_args(directory, &path, &["--cache-stats"]).unwrap();
+        assert!(warm.status.success(), "{}", output_details(&warm));
+        assert_eq!(first.stdout, warm.stdout);
+        let statistics = String::from_utf8_lossy(&warm.stderr);
+        assert!(!statistics.contains("disk_hits: 0"), "{statistics}");
+        assert!(statistics.contains("checked_modules: 0"), "{statistics}");
+    }
+}
+
+#[test]
 fn separate_processes_reuse_checked_results_and_detect_source_changes() {
     let fixture = FixtureDirectory::new();
     let root = fixture.write(
@@ -511,6 +545,23 @@ fn separate_processes_reuse_checked_results_and_detect_source_changes() {
     let statistics = String::from_utf8_lossy(&warm.stderr);
     assert!(statistics.contains("disk_hits: 1"), "{statistics}");
     assert!(statistics.contains("checked_modules: 0"), "{statistics}");
+    let full = run_ref_file_with_args(
+        &fixture.0,
+        &root,
+        &[
+            "--cache-dir",
+            cache.to_str().unwrap(),
+            "--cache-stats",
+            "--full-check",
+        ],
+    )
+    .unwrap();
+    assert!(full.status.success(), "{}", output_details(&full));
+    assert_eq!(first.stdout, full.stdout);
+    let statistics = String::from_utf8_lossy(&full.stderr);
+    assert!(statistics.contains("disk_hits: 0"), "{statistics}");
+    assert!(statistics.contains("checked_modules: 1"), "{statistics}");
+    assert!(statistics.contains("disk_writes: 1"), "{statistics}");
     fixture.write("root.ref", r"\module M { \definition P: \Prop := \Set; }");
     let changed = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
     assert_eq!(

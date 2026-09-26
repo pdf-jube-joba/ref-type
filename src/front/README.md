@@ -16,7 +16,7 @@ CLI の通常チェックも同じ API を使う。
 use front::{Database, DeclarationId, ParseKind, SourceSnapshot};
 
 let source = SourceSnapshot::read("libs/std")?;
-let mut db = Database::with_cache("target/ref-cache");
+let mut db = Database::with_cache("libs/std/refcache");
 let checked = db.check(&source);
 assert!(checked.is_success());
 
@@ -92,9 +92,14 @@ checker の fingerprint は build script が各 crate の Rust source、Cargo ma
 cargo run --release --locked --offline -- libs/std --cache-stats
 cargo run --release --locked --offline -- libs/std --cache-stats
 cargo run --release --locked --offline -- libs/std --no-cache
+cargo run --release --locked --offline -- libs/std --full-check
 ```
 
-CLI の既定の保存先は `target/ref-cache` で、`--cache-dir` で変更できる。
+CLI は `libs/std` の検査結果を `libs/std/refcache/` に保存し、単独の `.ref` ファイルを指定した場合はその親ディレクトリの `refcache/` に保存する。
+`--cache-dir` で保存先を変更できる。
+`--full-check` はキャッシュを再利用せず依存先を含む全体を検証し、検証済みの結果でキャッシュを更新する。
+`--no-cache` はキャッシュの読み書きを無効にして全体を検証する。
+source tree の読み込みでは `refcache/` を除外する。
 `--parse-only` は parse と module 読み込みを行う。
 `--trace` と `--stats` は実際の検証を実行し、その処理のログと arena の統計を表示する。
 `--cache-stats` は parse 件数、再利用件数、検査する module 群の大きさ、disk cache の読み書き件数を表示する。
