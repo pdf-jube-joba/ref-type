@@ -1,6 +1,8 @@
 # Box 消去
 
-対象は [system.md](../system.md) の、宣言環境が空の体系である。
+適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
+
+対象は [分類付き補助体系](sorted-calculus.md) の、宣言環境が空の体系である。
 Box を含む Set/Prop の判断を \(\mathcal S_\Box\)、Box 関係の構文・規則を除いたものを
 \(\mathcal S_0\) と書く。Program の kind・型演算子・多相性は含める。
 well-termination は定義中の二つの導出に展開する。
@@ -157,7 +159,7 @@ Box-free 判断では消去は恒等なので、Clear はその範囲で保守�
 
 ## 閉じた多相 Program 型
 
-現行 core では、datatype がなくても閉じた Program 型を形成できる。
+分類付き core では、datatype がなくても閉じた Program 型を形成できる。
 例えば \(r_0=r^{0,0}_{vc}\)、\(r_1=r^{v;0,0}_{tc}\) と置くと
 \[
 P=\Pi_{r_1}X_{*^v_0}:*^v_0.\,

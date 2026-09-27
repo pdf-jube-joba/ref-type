@@ -5,7 +5,7 @@ use crate::raw::{
     environment::ModuleArgument,
     exp::Arena,
     ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId, SymbolId},
-    program::{ComputationType, ComputationTypeNode, ValueType, ValueTypeNode},
+    program::{ValueType, ValueTypeNode},
     program_calculus::{
         instantiate_type_telescope, remap_value_type_global_ids, subst_value_type_module_params,
     },
@@ -71,47 +71,22 @@ impl ProgramInductiveTypeSpecs {
         self.reflected
     }
 
-    #[tracing::instrument(target = "ref_type::typing::inductive", level = "debug", skip_all,
-        fields(?inductive, parameters = self.parameters.len(), constructors = self.constructors.len()), ret, err)]
     pub fn validate(
         &self,
         session: &mut ProgramCheckSession<'_, '_>,
         inductive: ProgramInductiveId,
     ) -> Result<(), Box<JudgementError>> {
-        let mark = session.context().len();
-        for parameter in &self.parameters {
-            session.push_type(*parameter);
-        }
-        let result = (|| {
-            for (constructor_index, constructor) in self.constructors.iter().enumerate() {
-                for (field_index, (_, ty)) in constructor.fields.iter().enumerate() {
-                    session.check_value_type(*ty).map_err(|error| {
-                        Box::new(error.with_frame(
-                            "ProgramInductiveTypeSpecs::validate",
-                            format!("constructor {constructor_index}, field {field_index}"),
-                            "field is a value type",
-                        ))
-                    })?;
-                    if !strictly_positive_value(session.arena(), *ty, inductive, true) {
-                        return Err(Box::new(
-                            JudgementError::caused(format!(
-                                "program datatype occurs in a non-strictly-positive position: constructor {constructor_index}, field {field_index}"
-                            ))
-                            .with_frame(
-                                "ProgramInductiveTypeSpecs::validate",
-                                "strict positivity",
-                                "recursive occurrences are strictly positive",
-                            ),
-                        ));
-                    }
-                }
-            }
-            Ok(())
-        })();
-        while session.context().len() > mark {
-            session.pop();
-        }
-        result
+        let term = session.arena().alloc(ValueTypeNode::Inductive {
+            indspec: inductive,
+            parameters: vec![],
+        });
+        crate::kernel_bridge::program(
+            session.env(),
+            session.context(),
+            &[super::traversal::Term::ValueType(term)],
+            |_, _, _| Ok(()),
+        )
+        .map_err(|e| Box::new(JudgementError::caused(e)))
     }
 
     pub fn instantiate(
@@ -196,114 +171,6 @@ impl ProgramInductiveTypeSpecs {
                 .get(&self.reflected)
                 .copied()
                 .unwrap_or(self.reflected),
-        }
-    }
-}
-
-fn strictly_positive_value(
-    arena: &Arena,
-    ty: ValueType,
-    inductive: ProgramInductiveId,
-    positive: bool,
-) -> bool {
-    match arena.get(ty) {
-        ValueTypeNode::Bound(_) | ValueTypeNode::ModuleParam(_) | ValueTypeNode::Meta { .. } => {
-            true
-        }
-        ValueTypeNode::Thunk { computation_ty } => {
-            strictly_positive_computation(arena, computation_ty, inductive, positive)
-        }
-        ValueTypeNode::RunStep {
-            state_ty,
-            result_ty,
-        } => {
-            strictly_positive_value(arena, state_ty, inductive, positive)
-                && strictly_positive_value(arena, result_ty, inductive, positive)
-        }
-        ValueTypeNode::Inductive {
-            indspec,
-            parameters,
-        } => {
-            if indspec == inductive && !positive {
-                return false;
-            }
-            // Parameters of an unrelated nominal datatype have unknown
-            // variance, so recursive occurrences there are conservatively
-            // rejected.
-            parameters.into_iter().all(|parameter| {
-                if contains_program_inductive(arena, parameter, inductive) {
-                    indspec == inductive
-                        && strictly_positive_value(arena, parameter, inductive, positive)
-                } else {
-                    true
-                }
-            })
-        }
-    }
-}
-
-fn strictly_positive_computation(
-    arena: &Arena,
-    ty: ComputationType,
-    inductive: ProgramInductiveId,
-    positive: bool,
-) -> bool {
-    match arena.get(ty) {
-        ComputationTypeNode::Meta { .. } => true,
-        ComputationTypeNode::Return { value_ty } => {
-            strictly_positive_value(arena, value_ty, inductive, positive)
-        }
-        ComputationTypeNode::Function { domain, codomain } => {
-            !contains_program_inductive(arena, domain, inductive)
-                && strictly_positive_computation(arena, codomain, inductive, positive)
-        }
-    }
-}
-
-pub fn contains_program_inductive(
-    arena: &Arena,
-    ty: ValueType,
-    inductive: ProgramInductiveId,
-) -> bool {
-    match arena.get(ty) {
-        ValueTypeNode::Inductive {
-            indspec,
-            parameters,
-        } => {
-            indspec == inductive
-                || parameters
-                    .into_iter()
-                    .any(|parameter| contains_program_inductive(arena, parameter, inductive))
-        }
-        ValueTypeNode::Thunk { computation_ty } => {
-            contains_program_inductive_computation(arena, computation_ty, inductive)
-        }
-        ValueTypeNode::RunStep {
-            state_ty,
-            result_ty,
-        } => {
-            contains_program_inductive(arena, state_ty, inductive)
-                || contains_program_inductive(arena, result_ty, inductive)
-        }
-        ValueTypeNode::Bound(_) | ValueTypeNode::ModuleParam(_) | ValueTypeNode::Meta { .. } => {
-            false
-        }
-    }
-}
-
-fn contains_program_inductive_computation(
-    arena: &Arena,
-    ty: ComputationType,
-    inductive: ProgramInductiveId,
-) -> bool {
-    match arena.get(ty) {
-        ComputationTypeNode::Meta { .. } => false,
-        ComputationTypeNode::Return { value_ty } => {
-            contains_program_inductive(arena, value_ty, inductive)
-        }
-        ComputationTypeNode::Function { domain, codomain } => {
-            contains_program_inductive(arena, domain, inductive)
-                || contains_program_inductive_computation(arena, codomain, inductive)
         }
     }
 }

@@ -66,6 +66,9 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn captures(&mut self, declaration: Declaration) -> Vec<ModuleParamId> {
+        if let Some(captures) = self.registered_captures(declaration) {
+            return captures;
+        }
         if let Some(captures) = self.capture_cache.get(&declaration) {
             return captures.clone();
         }
@@ -73,6 +76,15 @@ impl Lowerer<'_> {
         let result = self.order_captures(captures);
         self.capture_cache.insert(declaration, result.clone());
         result
+    }
+
+    fn registered_captures(&self, declaration: Declaration) -> Option<Vec<ModuleParamId>> {
+        let Declaration::Definition(id) = declaration else {
+            return None;
+        };
+        let native = self.raw.kernel_definitions.borrow().get(&id).copied()?;
+        self.kernel.definition(native).ok()?;
+        self.raw.arena().definition_captures(native)
     }
 
     fn collect_captures(&self, declarations: Vec<Declaration>) -> HashSet<ModuleParamId> {
@@ -86,7 +98,9 @@ impl Lowerer<'_> {
             if let Declaration::Parameter(id) = dependency {
                 captures.insert(id);
             }
-            if let Some(cached) = self.capture_cache.get(&dependency) {
+            if let Some(cached) = self.registered_captures(dependency) {
+                captures.extend(cached);
+            } else if let Some(cached) = self.capture_cache.get(&dependency) {
                 captures.extend(cached);
             } else {
                 pending.extend(self.dependencies(self.roots(dependency)));
@@ -194,6 +208,9 @@ impl Lowerer<'_> {
                 captures,
                 logical_base,
                 program_depth,
+                program_context: false,
+                proof_base: None,
+                nominal: false,
             },
         );
         let cache = std::mem::take(&mut self.cache);
@@ -218,19 +235,16 @@ impl Lowerer<'_> {
         let mut result = vec![];
         for (position, id) in captures.iter().copied().enumerate() {
             let p = self.raw.module_parameter_opt(id).unwrap().clone();
-            let classifier =
-                self.in_scope(captures[..position].to_vec(), 0, 0, |this| match p.kind {
+            let classifier = self.in_scope(captures[..position].to_vec(), 0, 0, |this| {
+                this.scope.program_context = program;
+                match p.kind {
                     ModuleParameterKind::Pts { ty } => this.set(ty, &mut vec![], id.module),
                     ModuleParameterKind::ProgramType => {
                         if program {
                             Ok(this
                                 .kernel
                                 .arena()
-                                .alloc(s::ValueKindNode {
-                                    level: 0,
-                                    form: s::ValueKindForm::Base,
-                                })
-                                .into())
+                                .sort(k::Sort::Base(k::BaseSort::Value(0))))
                         } else {
                             this.logical_base_kind(k::BaseSort::Set(0))
                         }
@@ -244,10 +258,11 @@ impl Lowerer<'_> {
                             this.set(ty, &mut vec![], id.module)
                         }
                     }
-                })?;
+                }
+            })?;
             result.push(ke::Binding {
                 var: p.name,
-                classifier,
+                ty: classifier,
             });
         }
         Ok(result)
@@ -262,40 +277,75 @@ impl Lowerer<'_> {
         captures
             .iter()
             .map(|&id| {
+                if self.scope.nominal {
+                    let e = self.nominal_parameter(id)?;
+                    let program_parameter = !matches!(
+                        self.raw.module_parameter_opt(id).unwrap().kind,
+                        ModuleParameterKind::Pts { .. }
+                    );
+                    return Ok(if !program && program_parameter {
+                        self.kernel.arena().alloc(s::Node::Reflect { term: e })
+                    } else {
+                        e
+                    });
+                }
                 let index = self.parameter_index(id, depth)?;
-                let kind = self.raw.module_parameter_opt(id).unwrap().kind;
-                let (sort, stage) = match kind {
-                    ModuleParameterKind::Pts { ty } => {
-                        let sort = self.formation(ty, &mut vec![])?;
-                        (
-                            sort.base(),
-                            if sort.is_upper() {
-                                s::Stage::Type
-                            } else {
-                                s::Stage::Term
-                            },
-                        )
-                    }
-                    ModuleParameterKind::ProgramType => (
-                        if program {
-                            k::BaseSort::Value(0)
-                        } else {
-                            k::BaseSort::Set(0)
-                        },
-                        s::Stage::Type,
-                    ),
-                    ModuleParameterKind::ProgramValue { .. } => (
-                        if program {
-                            k::BaseSort::Value(0)
-                        } else {
-                            k::BaseSort::Set(0)
-                        },
-                        s::Stage::Term,
-                    ),
-                };
-                kernel::construction::bound(self.kernel.arena(), sort, stage, index)
+                let bound = self.kernel.arena().bound(index);
+                let reflects = !program
+                    && self.scope.program_context
+                    && !matches!(
+                        self.raw.module_parameter_opt(id).unwrap().kind,
+                        ModuleParameterKind::Pts { .. }
+                    );
+                Ok(if reflects {
+                    self.kernel.arena().alloc(s::Node::Reflect { term: bound })
+                } else {
+                    bound
+                })
             })
             .collect()
+    }
+
+    pub(super) fn definition_ambient(&mut self, id: DefId) -> Result<usize, String> {
+        if let Some(native) = self.raw.kernel_definitions.borrow().get(&id).copied()
+            && let Ok(definition) = self.kernel.definition(native)
+            && let Some(captures) = self.raw.arena().definition_captures(native)
+        {
+            let explicit = match self.raw.definition(id) {
+                DefinedConstant::Alias { parameters, .. } => parameters.len(),
+                _ => self.raw.definition_parameters(id).len(),
+            };
+            return Ok(definition.context.len() - captures.len() - explicit);
+        }
+        let parameters = self.raw.definition_parameters(id).len();
+        let own = definition_roots(self.raw.definition(id))
+            .into_iter()
+            .any(|root| {
+                self.raw
+                    .arena()
+                    .max_loose_bound(root)
+                    .is_some_and(|i| i >= parameters)
+            });
+        let dependencies = self.definition_dependencies(id);
+        let mut open = own;
+        for dependency in dependencies {
+            let native = self
+                .raw
+                .kernel_definitions
+                .borrow()
+                .get(&dependency)
+                .copied();
+            if let Some(native) = native {
+                let captures = self.captures(Declaration::Definition(dependency)).len();
+                open |= self.kernel.definition(native)?.context.len()
+                    > captures + self.raw.definition_parameters(dependency).len();
+            }
+        }
+        Ok(if open {
+            self.raw.definition_context(id.module).len()
+        } else {
+            0
+        })
     }
 
     pub(super) fn definition_expression(
@@ -306,16 +356,24 @@ impl Lowerer<'_> {
     ) -> Result<s::Expression, String> {
         self.definition(id)?;
         let captures = self.captures(Declaration::Definition(id));
-        let arguments = self.capture_arguments(&captures, depth, program)?;
-        let definition = self
-            .kernel
-            .definition(id.into())
+        let mut arguments = self.capture_arguments(&captures, depth, program)?;
+        let ambient = self.definition_ambient(id)?;
+        if ambient > depth {
+            return Err("definition local context is outside reference scope".into());
+        }
+        arguments.extend(
+            (depth - ambient..depth)
+                .rev()
+                .map(|i| self.kernel.arena().bound(i)),
+        );
+        let kernel_id = self
+            .raw
+            .kernel_definitions
+            .borrow()
+            .get(&id)
+            .copied()
             .ok_or("unknown definition")?;
-        let expression =
-            self.kernel
-                .arena()
-                .identified(id.into(), definition.body, definition.classifier)?;
-        kernel::calculus::instantiate_telescope(self.kernel, expression, &arguments)
+        self.kernel.reference(kernel_id, arguments)
     }
 
     pub(crate) fn prepare_query(&mut self, roots: Vec<Term>) {
@@ -351,4 +409,7 @@ pub(super) struct Scope {
     pub captures: Vec<ModuleParamId>,
     pub logical_base: usize,
     pub program_depth: usize,
+    pub program_context: bool,
+    pub proof_base: Option<usize>,
+    pub nominal: bool,
 }

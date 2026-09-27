@@ -1,12 +1,14 @@
 # Core calculus の相対無矛盾性
 
-対象は [system.md](../system.md) の、一般の datatype 宣言を除いた体系である。
+適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
+
+対象は [分類付き補助体系](sorted-calculus.md) の、一般の datatype 宣言を除いた体系である。
 Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除いた体系を
 \(\mathcal S_0\) と書く。判断は有限導出によって生成する。
 well-termination の略記は、その二つの判断の導出へ展開して数える。
 
 > **証明の到達点。**
-> datatype を除く現行 core について、外部の集合論的仮定だけから相対無矛盾性を示す。
+> datatype を除く分類付き core について、外部の集合論的仮定だけから相対無矛盾性を示す。
 > 新しい型コードモデルと証明項の消去により、raw conversion を含む全導出を
 > 意味的 conversion の補助体系へ移す。従来の候補解釈の未証明条件 TC は仮定しない。
 > Box は既存の消去定理で扱う。一般の datatype への拡張は未証明である。
@@ -70,7 +72,7 @@ well-termination の略記は、その二つの判断の導出へ展開して数
 | 型コードモデルと元の導出の移送 | TC の仮定なしに証明済み | [型コード](coded_model.md)、[意味保存](semantic_conversion.md) |
 | 従来の非コード化モデルの健全性 | その解釈の TC を仮定した定理 | [健全性](soundness.md) |
 | conversion を一切使わない Box-free 部分体系の無矛盾性 | 外部の集合論的仮定だけで証明済み | [部分体系の系](soundness.md#conversion-free) |
-| 現行 core の相対無矛盾性 | 外部の集合論的仮定だけから証明済み | [最終定理](semantic_conversion.md#相対無矛盾性) |
+| 分類付き core の相対無矛盾性 | 外部の集合論的仮定だけから証明済み | [最終定理](semantic_conversion.md#相対無矛盾性) |
 | datatype を含む体系への拡張 | 未証明 | [拡張に必要な事項](#datatypes) |
 
 従来の解釈についての [Semantic-step-plus](subject_reduction.md#semantic-step) は未証明のままだが、

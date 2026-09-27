@@ -11,10 +11,12 @@ impl SymbolId {
     }
 }
 
-/// Caller-owned label for a declaration or annotated expression.
-/// It has no effect on typing or conversion.
+/// Handle into the owning environment's immutable definition arena.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct GlobalId(pub u64);
+pub struct DefinitionId {
+    pub(crate) arena: u64,
+    pub(crate) index: u32,
+}
 
 /// Opaque nominal identity of a logical inductive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -23,3 +25,7 @@ pub struct InductiveId(pub u64);
 /// Opaque nominal identity of a Program datatype.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ProgramInductiveId(pub u64);
+
+/// Rigid parameter identity used while closing a module declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ParameterId(pub u64);

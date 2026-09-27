@@ -1,6 +1,8 @@
 # Core calculus の typing
 
-対象は [system.md](../system.md) の、Box と datatype 宣言を除いた Set/Prop core である。
+適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
+
+対象は [分類付き補助体系](sorted-calculus.md) の、Box と datatype 宣言を除いた Set/Prop core である。
 現行の kind formation、型演算子 typing、項 typing、provability と WF を扱う。
 \(z^\sigma\) は、\(\sigma=b\) なら項変数、\(\sigma=\kappa(b)\) なら型変数を表す。
 rule label と構文 family は各導出で保持する。
@@ -177,7 +179,7 @@ Pred/subset についても、内側の domain \(B\) での引数 typing を回�
 簡約した場合を含めて compatible closure を扱う必要がある。
 [補助 reduction の共通簡約先](confluence.md#auxiliary-reduction)は、
 その共通簡約先の typing や元の reduction の合流性までは与えない。
-同ページの補助関係は現行の family と rule label を保持するが、
+同ページの補助関係は補助体系の family と rule label を保持するが、
 そのことだけでは typing の保存は得られない。
 
 [条件 TC](model.md#tc)の証明には、さらに[意味保存](soundness.md#tc-obligation)が必要である。
@@ -193,7 +195,7 @@ Semantic-step-plus を前提にしない。
 ## 旧記法による検討メモ
 
 以下は、以前の記法・規則に基づく導出の検討を保存したものである。
-現行 core の定義・証明としては、上の節を参照する。
+分類付き core の定義・証明としては、上の節を参照する。
 
 体系の judgement が 4 つあって相互再帰的に定義されているから、大体の命題も、相互再帰的に定義するしかない。
 

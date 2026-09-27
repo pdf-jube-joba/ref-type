@@ -454,7 +454,7 @@ impl ModuleManager {
                             .check_pts(*argument, expected)
                             .map_err(|error| {
                                 format!(
-                                    "Module '{}' argument '{}' failed type checking: {error:?}",
+                                    "Module '{}' argument '{}' failed type checking: {error}",
                                     child_name.as_str(),
                                     argument_name.as_str(),
                                 )
@@ -467,7 +467,7 @@ impl ModuleManager {
                         )
                         .check_value_type(*ty)
                         .map_err(|error| {
-                            format!("Program type module argument is ill-formed: {error:?}")
+                            format!("Program type module argument is ill-formed: {error}")
                         })?;
                     }
                     (
@@ -491,7 +491,7 @@ impl ModuleManager {
                         )
                         .check_value_term(*value, expected)
                         .map_err(|error| {
-                            format!("Program value module argument is ill-typed: {error:?}")
+                            format!("Program value module argument is ill-typed: {error}")
                         })?;
                     }
                     _ => {

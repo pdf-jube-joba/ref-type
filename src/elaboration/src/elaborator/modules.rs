@@ -265,7 +265,7 @@ impl GlobalEnvironment {
                         .check_value_type(program_ty)
                         .map_err(|error| {
                             format!(
-                                "Program module parameter has an ill-formed value type: {error:?}"
+                                "Program module parameter has an ill-formed value type: {error}"
                             )
                         })?;
                     ModuleParameterKind::ProgramValue { ty: program_ty }
@@ -288,7 +288,7 @@ impl GlobalEnvironment {
                     CheckSession::new(&self.crate_env, &mut ctx)
                         .infer_sort(pts_ty)
                         .map_err(|error| {
-                            format!("Module parameter type is not Set/Prop: {error:?}")
+                            format!("Module parameter type is not Set/Prop: {error}")
                         })?;
                     ModuleParameterKind::Pts { ty: pts_ty }
                 } else {
@@ -300,7 +300,7 @@ impl GlobalEnvironment {
                         .check_value_type(program_ty)
                         .map_err(|error| {
                             format!(
-                                "Program module parameter has an ill-formed value type: {error:?}"
+                                "Program module parameter has an ill-formed value type: {error}"
                             )
                         })?;
                     ModuleParameterKind::ProgramValue { ty: program_ty }
@@ -684,7 +684,7 @@ impl GlobalEnvironment {
                     let spec = self.crate_env.inductive(inductive).clone();
                     spec.validate(&mut CheckSession::new(&self.crate_env, &mut ctx), inductive)
                         .map_err(|error| {
-                            format!("Ill-formed inductive type specification: {error:?}")
+                            format!("Ill-formed inductive type specification: {error}")
                         })?;
                     self.module_manager.publish_reserved_inductive(
                         &mut self.crate_env,
@@ -760,7 +760,7 @@ impl GlobalEnvironment {
                         .inductive(inductive)
                         .clone()
                         .validate(&mut CheckSession::new(&self.crate_env, &mut ctx), inductive)
-                        .map_err(|error| format!("Ill-formed structure: {error:?}"))?;
+                        .map_err(|error| format!("Ill-formed structure: {error}"))?;
                     let projections = self.add_record_projection_definitions(inductive)?;
                     self.module_manager.publish_reserved_record(
                         &mut self.crate_env,
@@ -910,7 +910,7 @@ impl GlobalEnvironment {
                                     .check_value_type(*ty)
                                     .map_err(|error| {
                                         format!(
-                                            "Program type module argument is ill-formed: {error:?}"
+                                            "Program type module argument is ill-formed: {error}"
                                         )
                                     })?;
                                 }

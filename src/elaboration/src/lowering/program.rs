@@ -1,11 +1,44 @@
-//! Lower CBPV types, terms, and contexts into their kernel families.
+//! Resolve Program source views and proof reflection into shared kernel terms.
 use super::*;
 
 impl Lowerer<'_> {
+    pub(crate) fn source_term(
+        &mut self,
+        term: raw::traversal::Term,
+        context: &mut raw::program::ProgramContext,
+    ) -> Result<s::Expression, String> {
+        use raw::traversal::Term;
+        self.scope.program_depth = context.len();
+        self.scope.program_context = true;
+        match term {
+            Term::ValueType(e) => self.value_type(e),
+            Term::ComputationType(e) => self.computation_type(e),
+            Term::Value(e) => self.value_term(e, context),
+            Term::Computation(e) => self.computation_term(e, context),
+            Term::Logical(e) => self.set(e, &mut vec![], self.raw.root_module()),
+        }
+    }
+    fn program_meta(
+        &mut self,
+        term: s::Expression,
+        arguments: Vec<raw::program::ProgramArgument>,
+    ) -> Result<s::Node, String> {
+        let s::Node::Meta { id, .. } = self.raw.arena().core.get(term) else {
+            unreachable!()
+        };
+        let arguments = arguments
+            .into_iter()
+            .map(|a| match a {
+                raw::program::ProgramArgument::ValueType(e) => self.value_type(e),
+                raw::program::ProgramArgument::ValueTerm(e) => self.value_term(e, &mut vec![]),
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(s::Node::Meta { id, arguments })
+    }
     pub(crate) fn program_type(
         &mut self,
         ty: raw::program::ProgramType,
-    ) -> Result<s::ProgramType, String> {
+    ) -> Result<s::Expression, String> {
         match ty {
             raw::program::ProgramType::ValueType(t) => Ok(self.value_type(t)?.into()),
             raw::program::ProgramType::ComputationType(t) => Ok(self.computation_type(t)?.into()),
@@ -15,22 +48,28 @@ impl Lowerer<'_> {
     pub(super) fn value_type(
         &mut self,
         ty: raw::program::ValueType,
-    ) -> Result<s::ValueType, String> {
+    ) -> Result<s::Expression, String> {
         use raw::program::ValueTypeNode as R;
-        use s::ValueTypeForm as F;
+        use s::Node as F;
+        if self.native_reference(ty.0) {
+            return Ok(ty.0);
+        }
         let form = match self.raw.arena().get(ty) {
-            R::Bound(index) => F::Bound { index },
-            R::ModuleParam(parameter) => F::Bound {
-                index: self.parameter_index(parameter, self.scope.program_depth)?,
-            },
-            R::Meta { .. } => return Err("unresolved Program type".into()),
+            R::Bound(index) => F::Bound(index),
+            R::ModuleParam(parameter) => {
+                if self.scope.nominal {
+                    return self.nominal_parameter(parameter);
+                }
+                F::Bound(self.parameter_index(parameter, self.scope.program_depth)?)
+            }
+            R::Meta { spine, .. } => self.program_meta(ty.0, spine)?,
             R::Thunk { computation_ty } => F::Thunk {
                 computation_ty: self.computation_type(computation_ty)?,
             },
             R::RunStep {
                 state_ty,
                 result_ty,
-            } => F::RunStep {
+            } => F::ProgramRunStep {
                 state_ty: self.value_type(state_ty)?,
                 result_ty: self.value_type(result_ty)?,
             },
@@ -45,52 +84,39 @@ impl Lowerer<'_> {
                 }
             }
         };
-        Ok(self
-            .kernel
-            .arena()
-            .alloc(s::ValueTypeNode { level: 0, form }))
+        Ok(self.kernel.arena().alloc(form))
     }
 
     pub(super) fn computation_type(
         &mut self,
         ty: raw::program::ComputationType,
-    ) -> Result<s::ComputationType, String> {
+    ) -> Result<s::Expression, String> {
         use raw::program::ComputationTypeNode as R;
-        use s::ComputationTypeForm as F;
+        use s::Node as F;
         let form = match self.raw.arena().get(ty) {
-            R::Meta { .. } => return Err("unresolved computation type".into()),
+            R::Meta { spine, .. } => self.program_meta(ty.0, spine)?,
             R::Return { value_ty } => F::ReturnType {
                 value_ty: self.value_type(value_ty)?,
             },
             R::Function { domain, codomain } => {
                 let domain = self.value_type(domain)?;
                 let body = self.computation_type(codomain)?;
-                let body = kernel::calculus::shift(self.kernel.arena(), body, 1, 0)?
-                    .try_into()
-                    .map_err(|e| format!("{e:?}"))?;
-                let rule = k::ProductRule::new(
-                    k::Sort::Base(k::BaseSort::Value(0)),
-                    k::Sort::Base(k::BaseSort::Computation(0)),
-                )?;
-                F::ProdTerm {
+                let body = kernel::calculus::shift(self.kernel.arena(), body, 1, 0)?;
+                F::Product {
                     var: SymbolId::ANONYMOUS,
-                    rule,
                     domain,
                     body,
                 }
             }
         };
-        Ok(self
-            .kernel
-            .arena()
-            .alloc(s::ComputationTypeNode { level: 0, form }))
+        Ok(self.kernel.arena().alloc(form))
     }
 
     pub(crate) fn program_in_context(
         &mut self,
         p: raw::program::ProgramTerm,
         context: &mut raw::program::ProgramContext,
-    ) -> Result<s::ProgramTerm, String> {
+    ) -> Result<s::Expression, String> {
         match p {
             raw::program::ProgramTerm::ValueTerm(value) => {
                 Ok(self.value_term(value, context)?.into())
@@ -111,18 +137,14 @@ impl Lowerer<'_> {
             let binding = match binding {
                 raw::program::ProgramContextEntry::ValueType { var } => ke::Binding {
                     var: *var,
-                    classifier: self
+                    ty: self
                         .kernel
                         .arena()
-                        .alloc(s::ValueKindNode {
-                            level: 0,
-                            form: s::ValueKindForm::Base,
-                        })
-                        .into(),
+                        .sort(k::Sort::Base(k::BaseSort::Value(0))),
                 },
                 raw::program::ProgramContextEntry::ValueTerm { var, ty } => ke::Binding {
                     var: *var,
-                    classifier: self.value_type(*ty)?.into(),
+                    ty: self.value_type(*ty)?.into(),
                 },
             };
             self.scope.program_depth = previous;
@@ -135,17 +157,18 @@ impl Lowerer<'_> {
         &mut self,
         id: ProgramInductiveId,
         parameters: Vec<raw::program::ValueType>,
-    ) -> Result<Vec<s::ProgramType>, String> {
-        let captures = self.captures(Declaration::Datatype(id));
+    ) -> Result<Vec<s::Expression>, String> {
+        let captures = if self.structural && !self.raw.has_program_inductive(id) {
+            vec![]
+        } else {
+            self.captures(Declaration::Datatype(id))
+        };
         let arguments = self.capture_arguments(&captures, self.scope.program_depth, true)?;
-        let mut arguments = arguments
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut arguments = arguments;
         arguments.extend(
             parameters
                 .into_iter()
-                .map(|p| self.value_type(p).map(s::ProgramType::from))
+                .map(|p| self.value_type(p).map(s::Expression::from))
                 .collect::<Result<Vec<_>, _>>()?,
         );
         Ok(arguments)
@@ -155,10 +178,12 @@ impl Lowerer<'_> {
         &mut self,
         v: raw::program::ValueTerm,
         ctx: &mut raw::program::ProgramContext,
-    ) -> Result<s::ValueTerm, String> {
+    ) -> Result<s::Expression, String> {
+        let previous_mode = std::mem::replace(&mut self.scope.program_context, true);
         let depth = std::mem::replace(&mut self.scope.program_depth, ctx.len());
         let result = self.value_term_inner(v, ctx);
         self.scope.program_depth = depth;
+        self.scope.program_context = previous_mode;
         result
     }
 
@@ -166,45 +191,42 @@ impl Lowerer<'_> {
         &mut self,
         v: raw::program::ValueTerm,
         ctx: &mut raw::program::ProgramContext,
-    ) -> Result<s::ValueTerm, String> {
+    ) -> Result<s::Expression, String> {
         use raw::program::ValueTermNode as R;
-        use s::ValueTermForm as F;
+        use s::Node as F;
+        if self.native_reference(v.0) {
+            return Ok(v.0);
+        }
         let form = match self.raw.arena().get(v) {
-            R::Bound(index) => F::Bound { index },
-            R::ModuleParam(parameter) => F::Bound {
-                index: self.parameter_index(parameter, self.scope.program_depth)?,
-            },
-            R::Meta { .. } => return Err("unresolved Program value".into()),
+            R::Bound(index) => F::Bound(index),
+            R::ModuleParam(parameter) => {
+                if self.scope.nominal {
+                    return self.nominal_parameter(parameter);
+                }
+                F::Bound(self.parameter_index(parameter, self.scope.program_depth)?)
+            }
+            R::Meta { spine, .. } => self.program_meta(v.0, spine)?,
             R::DefinitionInstance {
                 definition,
                 parameters,
             } => {
                 self.definition(definition)?;
-                let raw::environment::DefinedConstant::ProgramValue { body, ty } =
-                    self.raw.definition(definition)
-                else {
-                    return Err("wrong Program definition category".into());
-                };
-                let body =
-                    raw::program_definitions::instantiate_value(self.raw, *body, &parameters, 0);
-                let ty = raw::program_definitions::instantiate_value_type(
-                    self.raw.arena(),
-                    *ty,
-                    &parameters,
-                    0,
-                );
-                let body = self.value_term(body, ctx)?;
-                let ty = self.value_type(ty)?;
-                return self
-                    .kernel
-                    .arena()
-                    .identified(definition.into(), body.into(), ty.into())?
-                    .try_into();
+                let captures = self.captures(Declaration::Definition(definition));
+                let mut arguments = self.capture_arguments(&captures, ctx.len(), true)?;
+                for parameter in parameters {
+                    arguments.push(self.value_type(parameter)?.into());
+                }
+                let id = self
+                    .raw
+                    .kernel_definitions
+                    .borrow()
+                    .get(&definition)
+                    .copied()
+                    .ok_or("unknown definition")?;
+                return self.kernel.reference(id, arguments);
             }
             R::DefinedConstant(definition) => {
-                return self
-                    .definition_expression(definition, ctx.len(), true)?
-                    .try_into();
+                return self.definition_expression(definition, ctx.len(), true);
             }
             R::Thunk { computation } => F::ThunkValue {
                 computation: self.computation_term(computation, ctx)?,
@@ -213,7 +235,7 @@ impl Lowerer<'_> {
                 state_ty,
                 result_ty,
                 next,
-            } => F::Continue {
+            } => F::ProgramContinue {
                 state_ty: self.value_type(state_ty)?,
                 result_ty: self.value_type(result_ty)?,
                 next: self.value_term(next, ctx)?,
@@ -222,7 +244,7 @@ impl Lowerer<'_> {
                 state_ty,
                 result_ty,
                 output,
-            } => F::Finish {
+            } => F::ProgramFinish {
                 state_ty: self.value_type(state_ty)?,
                 result_ty: self.value_type(result_ty)?,
                 output: self.value_term(output, ctx)?,
@@ -245,22 +267,27 @@ impl Lowerer<'_> {
                 }
             }
         };
-        Ok(self
-            .kernel
-            .arena()
-            .alloc(s::ValueTermNode { level: 0, form }))
+        Ok(self.kernel.arena().alloc(form))
     }
 
     fn program_proof(
         &mut self,
         proof: Exp,
         context: &raw::program::ProgramContext,
-    ) -> Result<s::PropTerm, String> {
-        let mut reflected =
-            raw::reflection::reflect_context(self.raw, context).map_err(|e| e.to_string())?;
+    ) -> Result<s::Expression, String> {
+        let mut reflected = context
+            .iter()
+            .map(|_| ExpContextEntry {
+                var: SymbolId::ANONYMOUS,
+                ty: self.raw.arena().sort(RawSort::Set(0)),
+            })
+            .collect::<Vec<_>>();
+        let nominal = self.scope.nominal;
         self.in_scope(self.scope.captures.clone(), 0, context.len(), |this| {
-            this.set(proof, &mut reflected, this.raw.root_module())?
-                .try_into()
+            this.scope.nominal = nominal;
+            this.scope.program_context = true;
+            this.scope.proof_base = Some(context.len());
+            this.set(proof, &mut reflected, this.raw.root_module())
         })
     }
 
@@ -268,10 +295,12 @@ impl Lowerer<'_> {
         &mut self,
         e: raw::program::ComputationTerm,
         ctx: &mut raw::program::ProgramContext,
-    ) -> Result<s::ComputationTerm, String> {
+    ) -> Result<s::Expression, String> {
+        let previous_mode = std::mem::replace(&mut self.scope.program_context, true);
         let depth = std::mem::replace(&mut self.scope.program_depth, ctx.len());
         let result = self.computation_term_inner(e, ctx);
         self.scope.program_depth = depth;
+        self.scope.program_context = previous_mode;
         result
     }
 
@@ -279,45 +308,35 @@ impl Lowerer<'_> {
         &mut self,
         e: raw::program::ComputationTerm,
         ctx: &mut raw::program::ProgramContext,
-    ) -> Result<s::ComputationTerm, String> {
+    ) -> Result<s::Expression, String> {
         use raw::program::{ComputationTermNode as R, ProgramContextEntry};
-        use s::ComputationTermForm as F;
+        use s::Node as F;
+        if self.native_reference(e.0) {
+            return Ok(e.0);
+        }
         let form = match self.raw.arena().get(e) {
-            R::Meta { .. } => return Err("unresolved computation".into()),
+            R::Meta { spine, .. } => self.program_meta(e.0, spine)?,
             R::DefinitionInstance {
                 definition,
                 parameters,
             } => {
                 self.definition(definition)?;
-                let raw::environment::DefinedConstant::ProgramComputation { body, ty } =
-                    self.raw.definition(definition)
-                else {
-                    return Err("wrong Program definition category".into());
-                };
-                let body = raw::program_definitions::instantiate_computation(
-                    self.raw,
-                    *body,
-                    &parameters,
-                    0,
-                );
-                let ty = raw::program_definitions::instantiate_computation_type(
-                    self.raw.arena(),
-                    *ty,
-                    &parameters,
-                    0,
-                );
-                let body = self.computation_term(body, ctx)?;
-                let ty = self.computation_type(ty)?;
-                return self
-                    .kernel
-                    .arena()
-                    .identified(definition.into(), body.into(), ty.into())?
-                    .try_into();
+                let captures = self.captures(Declaration::Definition(definition));
+                let mut arguments = self.capture_arguments(&captures, ctx.len(), true)?;
+                for parameter in parameters {
+                    arguments.push(self.value_type(parameter)?.into());
+                }
+                let id = self
+                    .raw
+                    .kernel_definitions
+                    .borrow()
+                    .get(&definition)
+                    .copied()
+                    .ok_or("unknown definition")?;
+                return self.kernel.reference(id, arguments);
             }
             R::DefinedConstant(definition) => {
-                return self
-                    .definition_expression(definition, ctx.len(), true)?
-                    .try_into();
+                return self.definition_expression(definition, ctx.len(), true);
             }
             R::Return { value } => F::Return {
                 value: self.value_term(value, ctx)?,
@@ -334,21 +353,15 @@ impl Lowerer<'_> {
                 ctx.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
                 let body = self.computation_term(body, ctx);
                 ctx.pop();
-                F::LambdaTerm {
-                    rule: k::ProductRule::new(
-                        k::Sort::Base(k::BaseSort::Value(0)),
-                        k::Sort::Base(k::BaseSort::Computation(0)),
-                    )?,
+                F::Lambda {
+                    mode: s::Mode::Computation,
                     var,
                     domain,
                     body: body?,
                 }
             }
-            R::Application { computation, value } => F::AppTerm {
-                rule: k::ProductRule::new(
-                    k::Sort::Base(k::BaseSort::Value(0)),
-                    k::Sort::Base(k::BaseSort::Computation(0)),
-                )?,
+            R::Application { computation, value } => F::App {
+                mode: s::Mode::Computation,
                 function: self.computation_term(computation, ctx)?,
                 argument: self.value_term(value, ctx)?,
             },
@@ -422,53 +435,23 @@ impl Lowerer<'_> {
                 branches,
             } => {
                 self.datatype(indspec)?;
-                let mut checker = raw::program_derivation::ProgramCheckSession::new(self.raw, ctx);
-                let ty = checker
-                    .infer_computation_term(e)
-                    .map_err(|e| format!("case inference: {e:?}"))?;
-                let scrutinee_ty = checker
-                    .infer_value_term(scrutinee)
-                    .map_err(|e| format!("case inference: {e:?}"))?;
-                let raw::program::ValueTypeNode::Inductive { parameters, .. } =
-                    self.raw.arena().get(scrutinee_ty)
-                else {
-                    return Err("case scrutinee type".into());
-                };
                 let binders = branches.iter().map(|b| b.binders.clone()).collect();
-                let spec = self.raw.program_inductive(indspec);
                 let mut bodies = vec![];
-                for (branch, ctor) in branches.into_iter().zip(spec.constructors()) {
+                for branch in branches {
                     let mut local = ctx.clone();
-                    for (j, ((_, field), var)) in ctor
-                        .instantiated_fields(self.raw.arena(), &parameters)
-                        .into_iter()
-                        .zip(&branch.binders)
-                        .enumerate()
-                    {
-                        local.push(ProgramContextEntry::ValueTerm {
-                            var: *var,
-                            ty: raw::program_calculus::shift_value_type_indices(
-                                self.raw.arena(),
-                                field,
-                                j,
-                                0,
-                            ),
-                        });
+                    for &var in &branch.binders {
+                        local.push(ProgramContextEntry::ValueType { var });
                     }
                     bodies.push(self.computation_term(branch.body, &mut local)?);
                 }
-                F::Case {
+                F::ProgramCase {
                     inductive: indspec.into(),
                     binders,
-                    result_ty: self.computation_type(ty)?,
                     scrutinee: self.value_term(scrutinee, ctx)?,
                     branches: bodies,
                 }
             }
         };
-        Ok(self
-            .kernel
-            .arena()
-            .alloc(s::ComputationTermNode { level: 0, form }))
+        Ok(self.kernel.arena().alloc(form))
     }
 }

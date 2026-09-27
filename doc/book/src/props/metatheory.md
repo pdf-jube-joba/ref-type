@@ -1,5 +1,7 @@
 # Core calculus の構文的補題
 
+適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
+
 この文書では [`system.md`](../system.md) の、一般の datatype 宣言を除いた
 core を扱う。集合モデル、無矛盾性、subject reduction は仮定しない。
 特に、合流性だけから subject reduction が従うとは主張しない。

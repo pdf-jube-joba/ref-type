@@ -1,23 +1,14 @@
-//! Sort-indexed Set/Prop and CBPV kernel.
-//!
-//! Unclassified syntax and metavariable solving belong to the `elaboration` crate.
-//! Kernel declarations are accepted only after formation and typing checks.
+//! A shared PTS expression arena, checked declarations, and contextual unification.
 #![doc = include_str!("../README.md")]
 pub mod calculus;
 pub mod check;
-pub mod construction;
-pub mod diagnostic;
 pub mod environment;
 pub mod ids;
-pub mod printing;
+pub mod metavariables;
+pub mod reduction;
 pub mod reflection;
 pub mod sharing;
 pub mod sort;
-mod structure;
 pub mod syntax;
-
 #[cfg(test)]
 mod tests;
-
-pub use syntax as exp;
-pub use syntax as program;

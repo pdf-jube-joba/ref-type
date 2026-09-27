@@ -1,11 +1,6 @@
 //! Render retained kernel judgements using frontend names and surface syntax.
 use crate::raw::environment::CrateEnv;
-use kernel::{
-    diagnostic::{CheckError, TypeMismatch},
-    environment::Classifier,
-    ids::SymbolId,
-    syntax::*,
-};
+use kernel::{ids::SymbolId, metavariables::Error as CheckError, syntax::*};
 mod names;
 mod terms;
 use names::Names;
@@ -16,7 +11,7 @@ pub(super) fn format_error(raw: &CrateEnv, error: &CheckError) -> String {
     };
     let mut renderer = Renderer {
         raw,
-        error,
+        arena: &error.arena,
         names: Names::new(raw),
         locals: vec![],
         remaining: 512,
@@ -24,22 +19,42 @@ pub(super) fn format_error(raw: &CrateEnv, error: &CheckError) -> String {
     };
     let mut context = Vec::new();
     for binding in &error.context {
-        let ty = renderer.expression(binding.classifier, 0);
+        let ty = renderer.expression(binding.ty, 0);
         let name = renderer.bind(binding.var);
         context.push(format!("{name}: {ty}"));
     }
     renderer.remaining = 512;
-    let inferred = renderer.classifier(error.inferred);
+    let inferred = renderer.expression(error.inferred, 0);
     renderer.remaining = 512;
-    let expected = renderer.classifier(error.expected);
+    let expected = renderer.expression(error.expected, 0);
     let context = if context.is_empty() {
         String::new()
     } else {
         format!("\ncontext: {}", context.join(", "))
     };
+    let frames = error.frames.join("\n");
     format!(
-        "types are not convertible in the same family and level\ninferred: {inferred}\nexpected: {expected}{context}"
+        "types are not convertible\ninferred: {inferred}\nexpected: {expected}{context}\n{frames}"
     )
+}
+
+pub(crate) fn format_expression(
+    raw: &CrateEnv,
+    context: &Context,
+    expression: Expression,
+) -> String {
+    let mut renderer = Renderer {
+        raw,
+        arena: &raw.arena().core,
+        names: Names::new(raw),
+        locals: vec![],
+        remaining: 512,
+        depth: 0,
+    };
+    for binding in context {
+        renderer.bind(binding.var);
+    }
+    renderer.expression(expression, 0)
 }
 
 struct Local {
@@ -48,7 +63,7 @@ struct Local {
 }
 struct Renderer<'a> {
     raw: &'a CrateEnv,
-    error: &'a TypeMismatch,
+    arena: &'a kernel::syntax::Arena,
     names: Names,
     locals: Vec<Local>,
     remaining: usize,
@@ -73,18 +88,6 @@ impl Term {
 }
 
 impl Renderer<'_> {
-    fn classifier(&mut self, classifier: Classifier) -> String {
-        match classifier {
-            Classifier::Expression(e) => self.expression(e, 0),
-            Classifier::Upper(sort) => match sort {
-                kernel::sort::BaseSort::Set(i) => universe("SetKind", i),
-                kernel::sort::BaseSort::Prop => "\\PropKind".into(),
-                kernel::sort::BaseSort::Value(i) => universe("VKind", i),
-                kernel::sort::BaseSort::Computation(i) => universe("CKind", i),
-            },
-        }
-    }
-
     fn expression(&mut self, e: impl Into<Expression>, precedence: u8) -> String {
         let term = self.render(e.into());
         if term.precedence < precedence {
@@ -164,14 +167,18 @@ impl Renderer<'_> {
         Term::new(format!("{function} {argument}"), 2)
     }
 
-    fn annotation(&mut self, global: Option<kernel::ids::GlobalId>, body: Expression) -> Term {
-        if let Some(id) = global
-            && let Some(name) = self.names.definitions.get(&id)
-        {
-            return Term::atom(name.clone());
+    fn definition(&mut self, id: kernel::ids::DefinitionId, arguments: &[Expression]) -> Term {
+        let name = self
+            .names
+            .definitions
+            .get(&id)
+            .cloned()
+            .unwrap_or_else(|| format!("{id:?}"));
+        if arguments.is_empty() {
+            Term::atom(name)
+        } else {
+            self.call(&name, arguments)
         }
-        // Transparent annotations without a frontend declaration retain their body.
-        self.render(body)
     }
 
     fn call(&mut self, name: &str, arguments: &[Expression]) -> Term {
@@ -339,29 +346,6 @@ impl Renderer<'_> {
         ))
     }
 
-    fn recursor(
-        &mut self,
-        var: SymbolId,
-        state: Expression,
-        result: Expression,
-        motive: Expression,
-        on_continue: Expression,
-        on_finish: Expression,
-        scrutinee: Expression,
-    ) -> Term {
-        let state = self.expression(state, 0);
-        let result = self.expression(result, 0);
-        let name = self.bind(var);
-        let motive = self.expression(motive, 0);
-        self.locals.pop();
-        let on_continue = self.expression(on_continue, 0);
-        let on_finish = self.expression(on_finish, 0);
-        let scrutinee = self.expression(scrutinee, 0);
-        Term::atom(format!(
-            "\\runStepRec[{state}, {result}](\\fun ({name}: \\RunStep[{state}, {result}]) => {motive}, {on_continue}, {on_finish}, {scrutinee})"
-        ))
-    }
-
     fn let_term(
         &mut self,
         var: SymbolId,
@@ -388,29 +372,14 @@ impl Renderer<'_> {
 
     fn elimination(
         &mut self,
+        induction: bool,
         id: kernel::ids::InductiveId,
         scrutinee: Expression,
-        vars: &[SymbolId],
-        domains: Vec<Expression>,
         motive: Expression,
         branches: Vec<Expression>,
-        induction: bool,
     ) -> Term {
         let scrutinee = self.expression(scrutinee, 0);
-        let depth = self.locals.len();
-        let mut telescope = vec![];
-        for (&var, domain) in vars.iter().zip(domains) {
-            let ty = self.expression(domain, 0);
-            let name = self.bind(var);
-            telescope.push(format!("({name}: {ty})"));
-        }
         let motive = self.expression(motive, 0);
-        self.locals.truncate(depth);
-        let motive = if telescope.is_empty() {
-            motive
-        } else {
-            format!("\\fun {} => {motive}", telescope.join(" "))
-        };
         let constructors = self
             .names
             .inductives
@@ -439,12 +408,10 @@ impl Renderer<'_> {
         &mut self,
         id: kernel::ids::ProgramInductiveId,
         scrutinee: Expression,
-        result: Expression,
         binders: &[Vec<SymbolId>],
         branches: Vec<Expression>,
     ) -> Term {
         let scrutinee = self.expression(scrutinee, 0);
-        let result = self.expression(result, 0);
         let constructors = self
             .names
             .datatypes
@@ -473,9 +440,7 @@ impl Renderer<'_> {
             })
             .collect::<Vec<_>>()
             .join("; ");
-        Term::atom(format!(
-            "\\match ({scrutinee}) \\return {result} \\with {{ {branches} }}"
-        ))
+        Term::atom(format!("\\match ({scrutinee}) \\with {{ {branches} }}"))
     }
 }
 

@@ -1,13 +1,16 @@
 # 体系の性質
 
-[system.md](../system.md) の体系について、構文・導出・集合モデルの性質をまとめる。
-現行 core に対する相対無矛盾性の議論は、一般の datatype 宣言を除いた範囲を対象とする。
-型コードモデルと証明項の消去により、この core の相対無矛盾性を外部の集合論的仮定だけから示す。
-従来の非コード化モデルの TC と元の体系の一般の subject reduction は、この証明の前提ではない。
-補助体系 \(\mathcal S_+\) では、generation と一般の subject reduction、
-型付きの共通簡約先まで証明できている。
-現行規則への対応と各結果の到達点は[証明全体の整理](proof.md)を参照する。
-conversion を一切使わない Box-free 部分体系については、[相対無矛盾性の証明](soundness.md#conversion-free)を与える。
+## 証明の適用範囲
+
+この章の既存の証明は、[分類付き補助体系](sorted-calculus.md)の構文・型判断を対象とする。
+各 family と product rule の label を保持するため、証明消去を raw 構文上の写像として定義できる。
+[system.md](../system.md) の共通項では、分類と product 関係を型判断から導出する。
+この PTS に相対無矛盾性の結果を移すには、型付き共通項と conversion の導出を分類付き補助体系へ移送し、代入・reflection・証明消去との対応を示す必要がある。
+この移送と一般の datatype への拡張は、残る証明義務である。
+
+分類付き補助体系の datatype を除いた core については、型コードモデルと証明項の消去による相対無矛盾性の議論を保持する。
+補助体系 \(\mathcal S_+\) の generation、subject reduction、型付き共通簡約先の主張も、この分類付き表現に対する結果である。
+各結果と仮定は[証明全体の整理](proof.md)を参照する。
 
 - [相対無矛盾性](proof.md)：目標、完成した core の証明、datatype への拡張。
 - [構文的補題](metatheory.md)：束縛と raw 代入。

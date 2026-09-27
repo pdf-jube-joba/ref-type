@@ -476,31 +476,21 @@ impl Term {
         }
     }
     pub(crate) fn shift(self, arena: &Arena, amount: usize, cutoff: usize) -> Term {
-        if amount == 0 {
-            return self;
+        let e = match self {
+            Term::Logical(e) => e.0,
+            Term::ValueType(e) => e.0,
+            Term::ComputationType(e) => e.0,
+            Term::Value(e) => e.0,
+            Term::Computation(e) => e.0,
+        };
+        let e = kernel::calculus::shift(&arena.core, e, amount, cutoff).expect("valid shift");
+        match self {
+            Term::Logical(_) => Term::Logical(Exp(e)),
+            Term::ValueType(_) => Term::ValueType(ValueType(e)),
+            Term::ComputationType(_) => Term::ComputationType(ComputationType(e)),
+            Term::Value(_) => Term::Value(ValueTerm(e)),
+            Term::Computation(_) => Term::Computation(ComputationTerm(e)),
         }
-        self.walk(
-            arena,
-            0,
-            &mut Memoized::new(|term: Term, depth| {
-                if arena
-                    .max_loose_bound(term)
-                    .is_none_or(|index| index < cutoff + depth)
-                {
-                    return Some(term);
-                }
-                let index = term.bound_index(arena)?;
-                if index < cutoff + depth {
-                    return Some(term);
-                }
-                Some(match term {
-                    Term::Logical(_) => Term::Logical(arena.exp_bound(index + amount)),
-                    Term::ValueType(_) => Term::ValueType(arena.value_type_bound(index + amount)),
-                    Term::Value(_) => Term::Value(arena.value_bound(index + amount)),
-                    _ => unreachable!(),
-                })
-            }),
-        )
     }
     pub(crate) fn substitute(
         self,

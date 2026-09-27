@@ -472,7 +472,7 @@ fn trace_is_on_stderr_and_preserves_command_output() {
     assert_eq!(normal.stdout, traced.stdout);
     assert!(normal.stderr.is_empty());
     let stderr = String::from_utf8_lossy(&traced.stderr);
-    assert!(stderr.contains("check_value_type"), "{stderr}");
+    assert!(stderr.contains("kernel_check"), "{stderr}");
     assert!(stderr.contains("evaluation finished"), "{stderr}");
     assert!(!stderr.contains('\x1b'));
 }

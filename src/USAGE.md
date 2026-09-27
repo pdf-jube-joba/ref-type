@@ -1,8 +1,8 @@
 ## フォルダ構成
 
-- kernel: 分類済みの構文と独立した型検査・宣言登録。
+- kernel: 共通の PTS 項、型検査・単一化・宣言登録。
 - syntax: 字句解析・構文解析と module・package の読み込み。
-- elaboration: 名前解決・macro 展開・型推論と kernel 構文への変換。
+- elaboration: 名前解決・macro 展開・暗黙引数の生成と診断。
 - sema: source snapshot、semantic query と検証結果のキャッシュ。
 - cli: コマンドラインからの実行と結果の表示。
 
@@ -72,8 +72,8 @@ module argument 内では `_`・`?` による推論を行わない。
 元宣言と合成した引数から ID を選び直す。異なる元宣言の帰納型や、convertible でない
 引数を持つ帰納型は別の型になる（使われない引数や証明引数も区別に含む）。
 
-通常の定義は kernel では本体と宣言した型を保持する `Annotated` ノードになる。
-注釈は型推論に使い、conversion では本体を比較する。
+通常の定義は kernel の定義 arena に `Definition { context, ty, body }` として登録する。
+項からは `DefinitionId` と文脈引数で参照し、型推論は宣言型を、conversion は必要に応じて本体を使う。
 module の代入は elaboration で完了し、kernel の関数適用や product rule は追加しない。
 
 ## 公理
@@ -208,14 +208,18 @@ REF_TYPE_PROFILE_LOCAL_DEFINITIONS=right cargo run -p cli -- libs/std
 元ファイル・行・列とソースの抜粋を付けます。型検査の位置表示は宣言単位、構文エラーはトークン単位です。
 外部モジュールのパラメータは宣言元ファイル、本文は外部ファイルの位置を使います。
 
-kernel の `Environment::register_definition` は、分類済みの本体・classifier・文脈を
-検査してから指定された `DefId` に登録します。Program の反映証明を指定した場合は、
-その Set typing と Program 本体との構造的な対応も検査します。
+kernel の `Environment::register_definition` は文脈・宣言型・本体を検査して、登録した定義の `DefinitionId` を返します。
+Program の反映先も、共通の reflection と型規則で検査して登録します。
 
-elaboration は未分類構文で型推論と meta の解決を行い、分類・level・product rule を付けた構文を kernel に渡します。
+elaboration と kernel は、sort・型・項・証明を同じ `Expression` arena で保持します。
+型規則・代入・簡約・reflection・単一化は kernel が処理し、elaboration は名前・module の特殊化・ソース位置・表示用の穴情報を対応付けます。
 `GlobalEnvironment::kernel_env()` が検査済みの環境です。
-`crate_env()` は elaboration・macro・診断・raw 評価に使う elaboration 側の環境を返します。
-module 実体化で生じた定義も新しい ID で kernel の登録検査を通します。
+`crate_env()` は elaboration・macro・診断に使う環境を返します。
+
+`_` は出現ごと、`_0` などは宣言内で共有するメタ変数です。
+`?` も通常の単一化で解きますが、求まった解を含むゴールを表示して module の検査を失敗させます。
+kernel の公開 `check`・`infer` は対象・期待型・文脈・証明に未解決メタがあればエラーを返します。
+宣言の `finish` は、自動生成したメタを含むすべてのメタ変数と保留制約が解決したことを確認します。
 
 ```sh
 cargo test --workspace --offline
@@ -226,9 +230,8 @@ cargo test --workspace --offline
 
 ## Sort-index と level
 
-Set/Prop の kernel 構文は `SetTerm`・`SetType`・`SetKind`、Program は
-`Value`・`Computation` とそれぞれの type・kind に分かれています。
-`SetType` は型演算子も含みます。term の型に使う場合は、その kind が基底 sort であることを検査します。
+kernel の構文は単一の `Expression` で、sort もその一種です。
+型・kind の適切さと product 関係は、文脈の下での型判断によって検査します。
 
 level は non-cumulative です。たとえば `A: \Set(0)` を `\Set(1)` の要素として
 暗黙に使うことはできません。product の level は `max` の規則で決まり、
@@ -240,4 +243,4 @@ RunStep recursor の branch と結果の level も、それぞれの product rul
 Box に入れる場合は `\F(A)` と `\return(value)` を使います。Program の型演算子、
 多相性、level 付き Box、boxed type application は kernel API から利用できます。
 API の例は [kernel の説明](kernel/README.md) を参照してください。
-`\eval`・`\normalize` による未分類の式の簡約は elaboration が引き続き処理します。
+`\eval`・`\normalize` も、名前解決した共通項に対する kernel の簡約を使います。

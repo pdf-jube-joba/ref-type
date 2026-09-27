@@ -1,800 +1,45 @@
-//! Contextual Program metavariables, constraint solving, and diagnostics.
+//! Program surface holes use the kernel's shared contextual solver.
 use super::*;
-
-impl ProgramScope {
-    fn unify_value_types(
-        &mut self,
-        environment: &GlobalEnvironment,
-        left: ValueType,
-        right: ValueType,
-    ) -> Result<(), String> {
-        let index = self.record_constraint(
-            environment,
-            ProgramConstraint::Equal(Term::ValueType(left), Term::ValueType(right)),
-        );
-        let result = self.unify_value_types_inner(environment, left, right);
-        self.constraints[index].status = if result.is_ok() {
-            ConstraintStatus::Discharged
-        } else {
-            ConstraintStatus::Failed
-        };
-        result
-    }
-
-    fn unify_value_types_inner(
-        &mut self,
-        environment: &GlobalEnvironment,
-        left: ValueType,
-        right: ValueType,
-    ) -> Result<(), String> {
-        let arena = environment.crate_env.arena();
-        let left = self.zonk_value_type(environment, left);
-        let right = self.zonk_value_type(environment, right);
-        if crate::raw::program_calculus::value_type_is_alpha_eq(arena, left, right) {
-            return Ok(());
-        }
-        match (arena.get(left), arena.get(right)) {
-            (
-                ValueTypeNode::Meta {
-                    metavariable,
-                    spine,
-                },
-                _,
-            ) => self.assign(environment, metavariable, &spine, Term::ValueType(right)),
-            (
-                _,
-                ValueTypeNode::Meta {
-                    metavariable,
-                    spine,
-                },
-            ) => self.assign(environment, metavariable, &spine, Term::ValueType(left)),
-            (
-                ValueTypeNode::Thunk {
-                    computation_ty: left,
-                },
-                ValueTypeNode::Thunk {
-                    computation_ty: right,
-                },
-            ) => self.unify_computation_types(environment, left, right),
-            (
-                ValueTypeNode::RunStep {
-                    state_ty: left_state,
-                    result_ty: left_result,
-                },
-                ValueTypeNode::RunStep {
-                    state_ty: right_state,
-                    result_ty: right_result,
-                },
-            ) => {
-                self.unify_value_types(environment, left_state, right_state)?;
-                self.unify_value_types(environment, left_result, right_result)
-            }
-            (
-                ValueTypeNode::Inductive {
-                    indspec: left_spec,
-                    parameters: left_parameters,
-                },
-                ValueTypeNode::Inductive {
-                    indspec: right_spec,
-                    parameters: right_parameters,
-                },
-            ) if left_spec == right_spec && left_parameters.len() == right_parameters.len() => {
-                for (left, right) in left_parameters.into_iter().zip(right_parameters) {
-                    self.unify_value_types(environment, left, right)?;
-                }
-                Ok(())
-            }
-            _ => Err(format!(
-                "Program value types do not unify: {:?} and {:?}",
-                arena.get(left),
-                arena.get(right)
-            )),
-        }
-    }
-
-    fn unify_computation_types(
-        &mut self,
-        environment: &GlobalEnvironment,
-        left: ComputationType,
-        right: ComputationType,
-    ) -> Result<(), String> {
-        let index = self.record_constraint(
-            environment,
-            ProgramConstraint::Equal(Term::ComputationType(left), Term::ComputationType(right)),
-        );
-        let result = self.unify_computation_types_inner(environment, left, right);
-        self.constraints[index].status = if result.is_ok() {
-            ConstraintStatus::Discharged
-        } else {
-            ConstraintStatus::Failed
-        };
-        result
-    }
-
-    fn unify_computation_types_inner(
-        &mut self,
-        environment: &GlobalEnvironment,
-        left: ComputationType,
-        right: ComputationType,
-    ) -> Result<(), String> {
-        let arena = environment.crate_env.arena();
-        let left = self.zonk_computation_type(environment, left);
-        let right = self.zonk_computation_type(environment, right);
-        if crate::raw::program_calculus::computation_type_is_alpha_eq(arena, left, right) {
-            return Ok(());
-        }
-        match (arena.get(left), arena.get(right)) {
-            (
-                ComputationTypeNode::Meta {
-                    metavariable,
-                    spine,
-                },
-                _,
-            ) => self.assign(
-                environment,
-                metavariable,
-                &spine,
-                Term::ComputationType(right),
-            ),
-            (
-                _,
-                ComputationTypeNode::Meta {
-                    metavariable,
-                    spine,
-                },
-            ) => self.assign(
-                environment,
-                metavariable,
-                &spine,
-                Term::ComputationType(left),
-            ),
-            (
-                ComputationTypeNode::Return { value_ty: left },
-                ComputationTypeNode::Return { value_ty: right },
-            ) => self.unify_value_types(environment, left, right),
-            (
-                ComputationTypeNode::Function {
-                    domain: left_domain,
-                    codomain: left_codomain,
-                },
-                ComputationTypeNode::Function {
-                    domain: right_domain,
-                    codomain: right_codomain,
-                },
-            ) => {
-                self.unify_value_types(environment, left_domain, right_domain)?;
-                self.unify_computation_types(environment, left_codomain, right_codomain)
-            }
-            _ => Err(format!(
-                "Program computation types do not unify: {:?} and {:?}",
-                arena.get(left),
-                arena.get(right)
-            )),
-        }
-    }
-
-    pub(super) fn infer_kernel_value(
-        &self,
-        environment: &GlobalEnvironment,
-        context: &mut ProgramContext,
-        value: ValueTerm,
-    ) -> Result<ValueType, String> {
-        ProgramCheckSession::new(&environment.crate_env, context)
-            .infer_value_term(value)
-            .map_err(|error| format!("cannot infer Program value: {error:?}"))
-    }
-
-    fn infer_kernel_computation(
-        &self,
-        environment: &GlobalEnvironment,
-        context: &mut ProgramContext,
-        computation: ComputationTerm,
-    ) -> Result<ComputationType, String> {
-        ProgramCheckSession::new(&environment.crate_env, context)
-            .infer_computation_term(computation)
-            .map_err(|error| format!("cannot infer Program computation: {error:?}"))
-    }
-
-    fn solve_value(
-        &mut self,
-        environment: &GlobalEnvironment,
-        context: &mut ProgramContext,
-        value: ValueTerm,
-        expected: ValueType,
-    ) -> Result<(), String> {
-        let previous = self.origins.clone();
-        let term = Term::Value(value);
-        self.origins
-            .extend(self.sources.get(&term).into_iter().flatten().copied());
-        if let Some((id, _)) = occurrence(environment.crate_env.arena(), term) {
-            self.origins
-                .extend(self.metas[id.index()].occurrences.iter().copied());
-        }
-        let result = self.solve_value_inner(environment, context, value, expected);
-        self.origins = previous;
-        result
-    }
-
-    fn solve_value_inner(
-        &mut self,
-        environment: &GlobalEnvironment,
-        context: &mut ProgramContext,
-        value: ValueTerm,
-        expected: ValueType,
-    ) -> Result<(), String> {
-        let arena = environment.crate_env.arena();
-        let expected = self.zonk_value_type(environment, expected);
-        match arena.get(value) {
-            ValueTermNode::DefinitionInstance { .. } => {
-                let inferred = self.infer_value_term(environment, context, value)?;
-                self.unify_value_types(environment, inferred, expected)
-            }
-            ValueTermNode::Meta {
-                metavariable,
-                spine,
-            } => self.expect_meta(
-                environment,
-                metavariable,
-                &spine,
-                Term::Value(value),
-                Term::ValueType(expected),
-            ),
-            ValueTermNode::Bound(_)
-            | ValueTermNode::ModuleParam(_)
-            | ValueTermNode::DefinedConstant(_) => {
-                let inferred = self.infer_kernel_value(environment, context, value)?;
-                self.unify_value_types(environment, inferred, expected)
-            }
-            ValueTermNode::Thunk { computation } => {
-                if let ValueTypeNode::Thunk { computation_ty } = arena.get(expected) {
-                    self.solve_computation(environment, context, computation, computation_ty)
-                } else {
-                    let inferred =
-                        self.infer_computation_term(environment, context, computation)?;
-                    let inferred = arena.alloc(ValueTypeNode::Thunk {
-                        computation_ty: inferred,
-                    });
-                    self.unify_value_types(environment, inferred, expected)
-                }
-            }
-            ValueTermNode::Continue {
-                state_ty,
-                result_ty,
-                next,
-            } => {
-                if let ValueTypeNode::RunStep {
-                    state_ty: expected_state,
-                    result_ty: expected_result,
-                } = arena.get(expected)
-                {
-                    self.unify_value_types(environment, state_ty, expected_state)?;
-                    self.unify_value_types(environment, result_ty, expected_result)?;
-                }
-                self.solve_value(environment, context, next, state_ty)?;
-                let inferred = arena.alloc(ValueTypeNode::RunStep {
-                    state_ty,
-                    result_ty,
-                });
-                self.unify_value_types(environment, inferred, expected)
-            }
-            ValueTermNode::Finish {
-                state_ty,
-                result_ty,
-                output,
-            } => {
-                if let ValueTypeNode::RunStep {
-                    state_ty: expected_state,
-                    result_ty: expected_result,
-                } = arena.get(expected)
-                {
-                    self.unify_value_types(environment, state_ty, expected_state)?;
-                    self.unify_value_types(environment, result_ty, expected_result)?;
-                }
-                self.solve_value(environment, context, output, result_ty)?;
-                let inferred = arena.alloc(ValueTypeNode::RunStep {
-                    state_ty,
-                    result_ty,
-                });
-                self.unify_value_types(environment, inferred, expected)
-            }
-            ValueTermNode::InductiveConstructor {
-                indspec,
-                parameters,
-                idx,
-                fields,
-            } => {
-                let result = arena.alloc(ValueTypeNode::Inductive {
-                    indspec,
-                    parameters: parameters.clone(),
-                });
-                self.unify_value_types(environment, result, expected)?;
-                let parameters = parameters
-                    .into_iter()
-                    .map(|parameter| self.zonk_value_type(environment, parameter))
-                    .collect::<Vec<_>>();
-                let expected_fields = environment
-                    .crate_env
-                    .program_inductive(indspec)
-                    .constructors()
-                    .get(idx)
-                    .ok_or_else(|| "Program constructor index out of bounds".to_string())?
-                    .instantiated_fields(arena, &parameters);
-                if fields.len() != expected_fields.len() {
-                    return Err("Program constructor field count mismatch".into());
-                }
-                for (field, (_, field_ty)) in fields.into_iter().zip(expected_fields) {
-                    self.solve_value(environment, context, field, field_ty)?;
-                }
-                Ok(())
-            }
-        }
-    }
-
-    pub(super) fn infer_value_term(
-        &mut self,
-        environment: &GlobalEnvironment,
-        context: &mut ProgramContext,
-        value: ValueTerm,
-    ) -> Result<ValueType, String> {
-        let previous = self.origins.clone();
-        let term = Term::Value(value);
-        self.origins
-            .extend(self.sources.get(&term).into_iter().flatten().copied());
-        if let Some((id, _)) = occurrence(environment.crate_env.arena(), term) {
-            self.origins
-                .extend(self.metas[id.index()].occurrences.iter().copied());
-        }
-        let result = self.infer_value_term_inner(environment, context, value);
-        self.origins = previous;
-        result
-    }
-
-    fn infer_value_term_inner(
-        &mut self,
-        environment: &GlobalEnvironment,
-        context: &mut ProgramContext,
-        value: ValueTerm,
-    ) -> Result<ValueType, String> {
-        let arena = environment.crate_env.arena();
-        match arena.get(value) {
-            ValueTermNode::DefinitionInstance {
-                definition,
-                parameters,
-            } => {
-                let DefinedConstant::ProgramValue { ty, .. } =
-                    environment.crate_env.definition(definition)
-                else {
-                    return Err("wrong Program associated item category".into());
-                };
-                Ok(crate::raw::program_definitions::instantiate_value_type(
-                    arena,
-                    *ty,
-                    &parameters,
-                    0,
-                ))
-            }
-            ValueTermNode::Meta {
-                metavariable,
-                spine,
-            } => {
-                let ty = self.infer_meta_type(
-                    environment,
-                    metavariable,
-                    &spine,
-                    context,
-                    Term::Value(value),
-                );
-                let Term::ValueType(ty) = ty else {
-                    unreachable!()
-                };
-                Ok(ty)
-            }
-            ValueTermNode::Bound(_)
-            | ValueTermNode::ModuleParam(_)
-            | ValueTermNode::DefinedConstant(_) => {
-                self.infer_kernel_value(environment, context, value)
-            }
-            ValueTermNode::Thunk { computation } => {
-                let computation_ty =
-                    self.infer_computation_term(environment, context, computation)?;
-                Ok(arena.alloc(ValueTypeNode::Thunk { computation_ty }))
-            }
-            ValueTermNode::Continue {
-                state_ty,
-                result_ty,
-                next,
-            } => {
-                self.solve_value(environment, context, next, state_ty)?;
-                Ok(arena.alloc(ValueTypeNode::RunStep {
-                    state_ty: self.zonk_value_type(environment, state_ty),
-                    result_ty: self.zonk_value_type(environment, result_ty),
-                }))
-            }
-            ValueTermNode::Finish {
-                state_ty,
-                result_ty,
-                output,
-            } => {
-                self.solve_value(environment, context, output, result_ty)?;
-                Ok(arena.alloc(ValueTypeNode::RunStep {
-                    state_ty: self.zonk_value_type(environment, state_ty),
-                    result_ty: self.zonk_value_type(environment, result_ty),
-                }))
-            }
-            ValueTermNode::InductiveConstructor {
-                indspec,
-                parameters,
-                idx,
-                fields,
-            } => {
-                let expected_fields = environment
-                    .crate_env
-                    .program_inductive(indspec)
-                    .constructors()
-                    .get(idx)
-                    .ok_or_else(|| "Program constructor index out of bounds".to_string())?
-                    .instantiated_fields(arena, &parameters);
-                if fields.len() != expected_fields.len() {
-                    return Err("Program constructor field count mismatch".into());
-                }
-                for (field, (_, field_ty)) in fields.into_iter().zip(expected_fields) {
-                    self.solve_value(environment, context, field, field_ty)?;
-                }
-                Ok(arena.alloc(ValueTypeNode::Inductive {
-                    indspec,
-                    parameters: parameters
-                        .into_iter()
-                        .map(|parameter| self.zonk_value_type(environment, parameter))
-                        .collect(),
-                }))
-            }
-        }
-    }
-
-    fn solve_computation(
-        &mut self,
-        environment: &GlobalEnvironment,
-        context: &mut ProgramContext,
-        computation: ComputationTerm,
-        expected: ComputationType,
-    ) -> Result<(), String> {
-        let previous = self.origins.clone();
-        let term = Term::Computation(computation);
-        self.origins
-            .extend(self.sources.get(&term).into_iter().flatten().copied());
-        if let Some((id, _)) = occurrence(environment.crate_env.arena(), term) {
-            self.origins
-                .extend(self.metas[id.index()].occurrences.iter().copied());
-        }
-        let result = self.solve_computation_inner(environment, context, computation, expected);
-        self.origins = previous;
-        result
-    }
-
-    fn solve_computation_inner(
-        &mut self,
-        environment: &GlobalEnvironment,
-        context: &mut ProgramContext,
-        computation: ComputationTerm,
-        expected: ComputationType,
-    ) -> Result<(), String> {
-        let arena = environment.crate_env.arena();
-        let expected = self.zonk_computation_type(environment, expected);
-        match arena.get(computation) {
-            ComputationTermNode::Meta {
-                metavariable,
-                spine,
-            } => self.expect_meta(
-                environment,
-                metavariable,
-                &spine,
-                Term::Computation(computation),
-                Term::ComputationType(expected),
-            ),
-            ComputationTermNode::DefinedConstant(_) => {
-                let inferred = self.infer_kernel_computation(environment, context, computation)?;
-                self.unify_computation_types(environment, inferred, expected)
-            }
-            ComputationTermNode::Return { value } => {
-                if let ComputationTypeNode::Return { value_ty } = arena.get(expected) {
-                    self.solve_value(environment, context, value, value_ty)
-                } else {
-                    let value_ty = self.infer_value_term(environment, context, value)?;
-                    let inferred = arena.alloc(ComputationTypeNode::Return { value_ty });
-                    self.unify_computation_types(environment, inferred, expected)
-                }
-            }
-            ComputationTermNode::Force { value } => {
-                let value_ty = self.infer_value_term(environment, context, value)?;
-                let value_ty = self.zonk_value_type(environment, value_ty);
-                let ValueTypeNode::Thunk { computation_ty } = arena.get(value_ty) else {
-                    return Err("forced Program value is not a thunk".into());
-                };
-                self.unify_computation_types(environment, computation_ty, expected)
-            }
-            ComputationTermNode::Lambda {
-                var,
-                value_ty,
-                body,
-            } => {
-                let ComputationTypeNode::Function { domain, codomain } = arena.get(expected) else {
-                    let inferred =
-                        self.infer_computation_term(environment, context, computation)?;
-                    return self.unify_computation_types(environment, inferred, expected);
-                };
-                self.unify_value_types(environment, value_ty, domain)?;
-                let domain = self.zonk_value_type(environment, domain);
-                context.push(ProgramContextEntry::ValueTerm { var, ty: domain });
-                let codomain = crate::raw::program_calculus::shift_computation_type_indices(
-                    arena, codomain, 1, 0,
-                );
-                let result = self.solve_computation(environment, context, body, codomain);
-                context.pop();
-                result
-            }
-            ComputationTermNode::Application { computation, value } => {
-                let function_ty = self.infer_computation_term(environment, context, computation)?;
-                let function_ty = self.zonk_computation_type(environment, function_ty);
-                let ComputationTypeNode::Function { domain, codomain } = arena.get(function_ty)
-                else {
-                    return Err("Program computation application head is not a function".into());
-                };
-                self.solve_value(environment, context, value, domain)?;
-                self.unify_computation_types(environment, codomain, expected)
-            }
-            ComputationTermNode::ValueLet {
-                var,
-                value_ty,
-                value,
-                body,
-            } => {
-                self.solve_value(environment, context, value, value_ty)?;
-                let value_ty = self.zonk_value_type(environment, value_ty);
-                context.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
-                let expected = crate::raw::program_calculus::shift_computation_type_indices(
-                    arena, expected, 1, 0,
-                );
-                let result = self.solve_computation(environment, context, body, expected);
-                context.pop();
-                result
-            }
-            ComputationTermNode::Sequence {
-                computation,
-                var,
-                value_ty,
-                body,
-            } => {
-                let first_ty = self.infer_computation_term(environment, context, computation)?;
-                let first_ty = self.zonk_computation_type(environment, first_ty);
-                let ComputationTypeNode::Return { value_ty: returned } = arena.get(first_ty) else {
-                    return Err("Program sequence head does not return a value".into());
-                };
-                self.unify_value_types(environment, value_ty, returned)?;
-                let value_ty = self.zonk_value_type(environment, value_ty);
-                context.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
-                let expected = crate::raw::program_calculus::shift_computation_type_indices(
-                    arena, expected, 1, 0,
-                );
-                let result = self.solve_computation(environment, context, body, expected);
-                context.pop();
-                result
-            }
-            _ => {
-                let inferred = self.infer_computation_term(environment, context, computation)?;
-                self.unify_computation_types(environment, inferred, expected)
-            }
-        }
-    }
-
-    pub(super) fn infer_computation_term(
-        &mut self,
-        environment: &GlobalEnvironment,
-        context: &mut ProgramContext,
-        computation: ComputationTerm,
-    ) -> Result<ComputationType, String> {
-        let previous = self.origins.clone();
-        let term = Term::Computation(computation);
-        self.origins
-            .extend(self.sources.get(&term).into_iter().flatten().copied());
-        if let Some((id, _)) = occurrence(environment.crate_env.arena(), term) {
-            self.origins
-                .extend(self.metas[id.index()].occurrences.iter().copied());
-        }
-        let result = self.infer_computation_term_inner(environment, context, computation);
-        self.origins = previous;
-        result
-    }
-
-    fn infer_computation_term_inner(
-        &mut self,
-        environment: &GlobalEnvironment,
-        context: &mut ProgramContext,
-        computation: ComputationTerm,
-    ) -> Result<ComputationType, String> {
-        let arena = environment.crate_env.arena();
-        match arena.get(computation) {
-            ComputationTermNode::DefinitionInstance {
-                definition,
-                parameters,
-            } => {
-                let DefinedConstant::ProgramComputation { ty, .. } =
-                    environment.crate_env.definition(definition)
-                else {
-                    return Err("wrong Program associated item category".into());
-                };
-                Ok(
-                    crate::raw::program_definitions::instantiate_computation_type(
-                        arena,
-                        *ty,
-                        &parameters,
-                        0,
-                    ),
-                )
-            }
-            ComputationTermNode::Meta {
-                metavariable,
-                spine,
-            } => {
-                let ty = self.infer_meta_type(
-                    environment,
-                    metavariable,
-                    &spine,
-                    context,
-                    Term::Computation(computation),
-                );
-                let Term::ComputationType(ty) = ty else {
-                    unreachable!()
-                };
-                Ok(ty)
-            }
-            ComputationTermNode::DefinedConstant(_) => {
-                self.infer_kernel_computation(environment, context, computation)
-            }
-            ComputationTermNode::Return { value } => {
-                let value_ty = self.infer_value_term(environment, context, value)?;
-                Ok(arena.alloc(ComputationTypeNode::Return { value_ty }))
-            }
-            ComputationTermNode::Force { value } => {
-                let value_ty = self.infer_value_term(environment, context, value)?;
-                let value_ty = self.zonk_value_type(environment, value_ty);
-                let ValueTypeNode::Thunk { computation_ty } = arena.get(value_ty) else {
-                    return Err("forced Program value is not a thunk".into());
-                };
-                Ok(computation_ty)
-            }
-            ComputationTermNode::Lambda {
-                var,
-                value_ty,
-                body,
-            } => {
-                let value_ty = self.zonk_value_type(environment, value_ty);
-                context.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
-                let body_ty = self.infer_computation_term(environment, context, body);
-                context.pop();
-                Ok(arena.alloc(ComputationTypeNode::Function {
-                    domain: value_ty,
-                    codomain: strengthen_computation_type(arena, body_ty?, 0)
-                        .ok_or("Program result type depends on a local value")?,
-                }))
-            }
-            ComputationTermNode::Application { computation, value } => {
-                let function_ty = self.infer_computation_term(environment, context, computation)?;
-                let function_ty = self.zonk_computation_type(environment, function_ty);
-                let ComputationTypeNode::Function { domain, codomain } = arena.get(function_ty)
-                else {
-                    return Err("Program computation application head is not a function".into());
-                };
-                self.solve_value(environment, context, value, domain)?;
-                Ok(codomain)
-            }
-            ComputationTermNode::ValueLet {
-                var,
-                value_ty,
-                value,
-                body,
-            } => {
-                self.solve_value(environment, context, value, value_ty)?;
-                let value_ty = self.zonk_value_type(environment, value_ty);
-                context.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
-                let result = self.infer_computation_term(environment, context, body);
-                context.pop();
-                strengthen_computation_type(arena, result?, 0)
-                    .ok_or_else(|| "Program result type depends on a local value".into())
-            }
-            ComputationTermNode::Sequence {
-                computation,
-                var,
-                value_ty,
-                body,
-            } => {
-                let first_ty = self.infer_computation_term(environment, context, computation)?;
-                let first_ty = self.zonk_computation_type(environment, first_ty);
-                let ComputationTypeNode::Return { value_ty: returned } = arena.get(first_ty) else {
-                    return Err("Program sequence head does not return a value".into());
-                };
-                self.unify_value_types(environment, value_ty, returned)?;
-                let value_ty = self.zonk_value_type(environment, value_ty);
-                context.push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
-                let result = self.infer_computation_term(environment, context, body);
-                context.pop();
-                let mut result = result?;
-                result = strengthen_computation_type(arena, result, 0)
-                    .ok_or("Program result type depends on a local value")?;
-                Ok(result)
-            }
-            _ => self.infer_kernel_computation(
-                environment,
-                context,
-                self.zonk_computation(environment, computation),
-            ),
-        }
-    }
-
-    pub(crate) fn check_value_term_with_metas(
-        &mut self,
-        environment: &GlobalEnvironment,
-        value: ValueTerm,
-        expected: ValueType,
-    ) -> Result<(ValueTerm, ValueType), ElaborationError> {
-        let mut context = self.context.clone();
-        self.solve_value(environment, &mut context, value, expected)
-            .map_err(|message| self.solver_error(environment, message))?;
-        self.finish_program_metas(environment)?;
-        Ok((
-            self.zonk_value(environment, value),
-            self.zonk_value_type(environment, expected),
-        ))
-    }
-
-    pub(crate) fn check_computation_term_with_metas(
-        &mut self,
-        environment: &GlobalEnvironment,
-        computation: ComputationTerm,
-        expected: ComputationType,
-    ) -> Result<(ComputationTerm, ComputationType), ElaborationError> {
-        let mut context = self.context.clone();
-        self.solve_computation(environment, &mut context, computation, expected)
-            .map_err(|message| self.solver_error(environment, message))?;
-        self.finish_program_metas(environment)?;
-        Ok((
-            self.zonk_computation(environment, computation),
-            self.zonk_computation_type(environment, expected),
-        ))
-    }
-
-    pub(crate) fn infer_value_term_with_metas(
-        &mut self,
-        environment: &GlobalEnvironment,
-        value: ValueTerm,
-    ) -> Result<(ValueTerm, ValueType), ElaborationError> {
-        let mut context = self.context.clone();
-        let ty = self
-            .infer_value_term(environment, &mut context, value)
-            .map_err(|message| self.solver_error(environment, message))?;
-        self.finish_program_metas(environment)?;
-        Ok((
-            self.zonk_value(environment, value),
-            self.zonk_value_type(environment, ty),
-        ))
-    }
-
-    pub(crate) fn infer_computation_term_with_metas(
-        &mut self,
-        environment: &GlobalEnvironment,
-        computation: ComputationTerm,
-    ) -> Result<(ComputationTerm, ComputationType), ElaborationError> {
-        let mut context = self.context.clone();
-        let ty = self
-            .infer_computation_term(environment, &mut context, computation)
-            .map_err(|message| self.solver_error(environment, message))?;
-        self.finish_program_metas(environment)?;
-        Ok((
-            self.zonk_computation(environment, computation),
-            self.zonk_computation_type(environment, ty),
-        ))
+#[cfg(test)]
+use kernel::metavariables::Outcome;
+use kernel::{
+    sort::{BaseSort, Sort},
+    syntax::{Expression, Node},
+};
+fn expression(term: Term) -> Expression {
+    match term {
+        Term::Logical(e) => e.0,
+        Term::ValueType(e) => e.0,
+        Term::ComputationType(e) => e.0,
+        Term::Value(e) => e.0,
+        Term::Computation(e) => e.0,
     }
 }
-
+fn view(category: MetaCategory, e: Expression) -> Term {
+    match category {
+        MetaCategory::ValueType => Term::ValueType(ValueType(e)),
+        MetaCategory::ComputationType => Term::ComputationType(ComputationType(e)),
+        MetaCategory::ValueTerm => Term::Value(ValueTerm(e)),
+        MetaCategory::ComputationTerm => Term::Computation(ComputationTerm(e)),
+    }
+}
+fn category(term: Term) -> MetaCategory {
+    match term {
+        Term::ValueType(_) => MetaCategory::ValueType,
+        Term::ComputationType(_) => MetaCategory::ComputationType,
+        Term::Value(_) => MetaCategory::ValueTerm,
+        Term::Computation(_) => MetaCategory::ComputationTerm,
+        _ => unreachable!(),
+    }
+}
+fn category_code(c: MetaCategory) -> u8 {
+    match c {
+        MetaCategory::ValueType => 1,
+        MetaCategory::ComputationType => 2,
+        MetaCategory::ValueTerm => 3,
+        MetaCategory::ComputationTerm => 4,
+    }
+}
 fn context_symbol(entry: &ProgramContextEntry) -> SymbolId {
     match entry {
         ProgramContextEntry::ValueType { var } | ProgramContextEntry::ValueTerm { var, .. } => *var,
@@ -817,6 +62,7 @@ fn spine(arena: &Arena, context: &ProgramContext) -> Vec<ProgramArgument> {
         })
         .collect()
 }
+#[cfg(test)]
 fn argument_term(argument: ProgramArgument) -> Term {
     match argument {
         ProgramArgument::ValueType(ty) => Term::ValueType(ty),
@@ -856,36 +102,6 @@ fn occurrence(arena: &Arena, term: Term) -> Option<(MetaVarId, Vec<ProgramArgume
         Term::Logical(_) => None,
     }
 }
-fn bound(arena: &Arena, term: Term) -> Option<usize> {
-    match term {
-        Term::ValueType(ty) => match arena.get(ty) {
-            ValueTypeNode::Bound(index) => Some(index),
-            _ => None,
-        },
-        Term::Value(value) => match arena.get(value) {
-            ValueTermNode::Bound(index) => Some(index),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-fn reindex(arena: &Arena, term: Term, index: usize) -> Term {
-    match term {
-        Term::ValueType(_) => Term::ValueType(arena.value_type_bound(index)),
-        Term::Value(_) => Term::Value(arena.value_bound(index)),
-        _ => unreachable!(),
-    }
-}
-pub(super) fn metas(arena: &Arena, term: Term) -> HashSet<MetaVarId> {
-    let mut result = HashSet::new();
-    term.walk(arena, 0, &mut |term, _| {
-        if let Some((id, _)) = occurrence(arena, term) {
-            result.insert(id);
-        }
-        None
-    });
-    result
-}
 fn print_term(printer: &Printer<'_>, term: Term) -> String {
     match term {
         Term::Logical(term) => printer.format_exp(term),
@@ -897,6 +113,84 @@ fn print_term(printer: &Printer<'_>, term: Term) -> String {
 }
 
 impl ProgramScope {
+    fn sync(&mut self, environment: &GlobalEnvironment) {
+        let arena = environment.crate_env.arena();
+        let mut inferred = HashMap::new();
+        for (id, entry) in self.core.entries() {
+            if let Some(&source) = self.ids.get(&id)
+                && let Some(ty) = entry.expected
+                && let Node::Meta { id: ty_id, .. } = arena.core.get(ty)
+            {
+                let cat = match self.metas[source.index()].category {
+                    MetaCategory::ValueTerm => MetaCategory::ValueType,
+                    MetaCategory::ComputationTerm => MetaCategory::ComputationType,
+                    _ => continue,
+                };
+                inferred.insert(ty_id, cat);
+            }
+        }
+        for (id, entry) in self.core.entries() {
+            let source = if let Some(&source) = self.ids.get(&id) {
+                source
+            } else {
+                let source = MetaVarId(self.metas.len() as u32);
+                self.ids.insert(id, source);
+                self.core_ids.push(id);
+                let cat = inferred
+                    .get(&id)
+                    .copied()
+                    .unwrap_or(MetaCategory::ValueType);
+                let context = entry
+                    .context
+                    .iter()
+                    .map(|b| {
+                        if matches!(
+                            arena.core.get(b.ty),
+                            Node::Sort(Sort::Base(BaseSort::Value(_)))
+                        ) {
+                            ProgramContextEntry::ValueType { var: b.var }
+                        } else {
+                            ProgramContextEntry::ValueTerm {
+                                var: b.var,
+                                ty: ValueType(b.ty),
+                            }
+                        }
+                    })
+                    .collect();
+                self.metas.push(ProgramMeta {
+                    flavor: MetaFlavor::Synthetic,
+                    span: SourceSpan::default(),
+                    occurrences: vec![],
+                    category: cat,
+                    context,
+                    solution: None,
+                    expected: None,
+                });
+                source
+            };
+            if self.core_ids[source.index()] != id {
+                continue;
+            }
+            let meta = &mut self.metas[source.index()];
+            arena.bind_program_meta(
+                source,
+                id,
+                category_code(meta.category),
+                meta.context
+                    .iter()
+                    .map(|b| matches!(b, ProgramContextEntry::ValueType { .. }))
+                    .collect(),
+            );
+            meta.solution = entry.assignment.map(|e| view(meta.category, e));
+            meta.expected = match meta.category {
+                MetaCategory::ValueTerm => entry.expected.map(|e| Term::ValueType(ValueType(e))),
+                MetaCategory::ComputationTerm => entry
+                    .expected
+                    .map(|e| Term::ComputationType(ComputationType(e))),
+                _ => None,
+            };
+        }
+    }
     pub(super) fn fresh_meta(
         &mut self,
         environment: &GlobalEnvironment,
@@ -904,15 +198,15 @@ impl ProgramScope {
         span: SourceSpan,
         category: MetaCategory,
     ) -> Result<(MetaVarId, Vec<ProgramArgument>), String> {
-        let arguments = spine(environment.crate_env.arena(), &self.context);
+        let env = &environment.crate_env;
+        let arena = env.arena();
+        let arguments = spine(arena, &self.context);
         if let SurfaceMeta::Named(number) = flavor
-            && let Some(id) = self.named_metas.get(&number).copied()
+            && let Some(source) = self.named_metas.get(&number).copied()
         {
-            let existing = &self.metas[id.index()];
+            let existing = &mut self.metas[source.index()];
             if existing.category != category {
-                return Err(format!(
-                    "metavariable _{number} is used in two syntactic categories"
-                ));
+                return Err(format!("metavariable _{number} has incompatible uses"));
             }
             let common = existing
                 .context
@@ -920,30 +214,41 @@ impl ProgramScope {
                 .zip(&self.context)
                 .take_while(|(a, b)| context_symbol(a) == context_symbol(b))
                 .count();
-            // Rebase both a previously inferred type and a solution before
-            // shrinking the scope. A escaping local is an actual contradiction.
-            let old_spine = spine(environment.crate_env.arena(), &existing.context);
-            let solution = existing
-                .solution
-                .map(|term| self.abstract_term(environment, term, &old_spine, common))
-                .transpose()?;
-            let expected = existing
-                .expected
-                .map(|term| self.abstract_term(environment, term, &old_spine, common))
-                .transpose()?;
-            let existing = &mut self.metas[id.index()];
-            existing.context.truncate(common);
-            existing.solution = solution;
-            existing.expected = expected;
+            if common < existing.context.len() {
+                let term = self
+                    .core
+                    .restrict(&env.kernel.borrow(), self.core_ids[source.index()], common)
+                    .map_err(|e| e.to_string())?;
+                let Node::Meta { id, .. } = arena.core.get(term) else {
+                    unreachable!()
+                };
+                self.core_ids[source.index()] = id;
+                self.ids.insert(id, source);
+                existing.context.truncate(common);
+            }
             existing.occurrences.push(span);
-            return Ok((id, arguments));
+            self.sync(environment);
+            return Ok((source, arguments.into_iter().take(common).collect()));
         }
-        let id = MetaVarId(
-            self.metas
-                .len()
-                .try_into()
-                .expect("Program metavariable table exceeded u32::MAX"),
-        );
+        let term = crate::kernel_bridge::program(env, &self.context, &[], |env, context, _| {
+            let expected = match category {
+                MetaCategory::ValueType => Some(env.arena().sort(Sort::Base(BaseSort::Value(0)))),
+                MetaCategory::ComputationType => {
+                    Some(env.arena().sort(Sort::Base(BaseSort::Computation(0))))
+                }
+                _ => None,
+            };
+            Ok(self.core.fresh(env.arena(), context, expected))
+        })?;
+        let Node::Meta { id, .. } = arena.core.get(term) else {
+            unreachable!()
+        };
+        let source = MetaVarId(self.metas.len() as u32);
+        self.core
+            .set_origin(id, kernel::metavariables::OriginId(source.index() as u64))
+            .map_err(|e| e.to_string())?;
+        self.core_ids.push(id);
+        self.ids.insert(id, source);
         self.metas.push(ProgramMeta {
             flavor: flavor.into(),
             span,
@@ -953,78 +258,58 @@ impl ProgramScope {
             solution: None,
             expected: None,
         });
-        if let SurfaceMeta::Named(number) = flavor {
-            self.named_metas.insert(number, id);
+        if let SurfaceMeta::Named(n) = flavor {
+            self.named_metas.insert(n, source);
         }
-        Ok((id, arguments))
+        self.sync(environment);
+        Ok((source, arguments))
     }
-
-    fn instantiate(
-        &self,
-        environment: &GlobalEnvironment,
-        term: Term,
-        arguments: &[ProgramArgument],
-        scope: usize,
-    ) -> Term {
-        let arena = environment.crate_env.arena();
-        term.walk(arena, 0, &mut |term, depth| {
-            let index = bound(arena, term)?;
-            if index < depth {
-                return Some(term);
-            }
-            let slot = scope
-                .checked_sub(index - depth + 1)
-                .expect("metavariable solution escaped its scope");
-            Some(argument_term(arguments[slot]).shift(arena, depth, 0))
-        })
-    }
-
-    fn abstract_term(
-        &self,
-        environment: &GlobalEnvironment,
-        term: Term,
-        arguments: &[ProgramArgument],
-        scope: usize,
-    ) -> Result<Term, String> {
-        let arena = environment.crate_env.arena();
-        let term = self.zonk_term(environment, term);
-        let mut escaped = false;
-        let result = term.walk(arena, 0, &mut |term, depth| {
-            let index = bound(arena, term)?;
-            if index < depth {
-                return Some(term);
-            }
-            let slot = arguments[..scope]
-                .iter()
-                .position(|argument| bound(arena, argument_term(*argument)) == Some(index - depth));
-            match slot {
-                Some(slot) => Some(reindex(arena, term, depth + scope - slot - 1)),
-                None => {
-                    escaped = true;
-                    Some(term)
-                }
-            }
-        });
-        if escaped {
-            Err("metavariable solution captures a variable outside its shared context".into())
-        } else {
-            Ok(result)
-        }
-    }
-
     fn zonk_term(&self, environment: &GlobalEnvironment, term: Term) -> Term {
-        let arena = environment.crate_env.arena();
-        term.walk(arena, 0, &mut |term, _| {
-            let (id, arguments) = occurrence(arena, term)?;
-            let meta = &self.metas[id.index()];
-            let solution = meta.solution?;
-            Some(self.zonk_term(
-                environment,
-                self.instantiate(environment, solution, &arguments, meta.context.len()),
-            ))
-        })
+        let env = &environment.crate_env;
+        fn walk(scope: &ProgramScope, arena: &kernel::syntax::Arena, e: Expression) -> Expression {
+            if let Node::Meta { id, .. } = arena.get(e)
+                && scope.core.entry(id).is_ok()
+            {
+                scope
+                    .core
+                    .zonk(arena, e)
+                    .expect("consistent Program meta context")
+            } else {
+                arena
+                    .map_children(e, |e, _| {
+                        Ok::<_, std::convert::Infallible>(walk(scope, arena, e))
+                    })
+                    .unwrap()
+            }
+        }
+        view(
+            category(term),
+            walk(self, &env.arena().core, expression(term)),
+        )
     }
-
+    #[cfg(test)]
+    fn unify_terms(
+        &mut self,
+        environment: &GlobalEnvironment,
+        left: Term,
+        right: Term,
+    ) -> Result<(), String> {
+        let index = self.record_constraint(environment, ProgramConstraint::Equal(left, right));
+        let result = crate::kernel_bridge::program(
+            &environment.crate_env,
+            &self.context,
+            &[left, right],
+            |env, context, terms| self.core.unify(env, &context, terms[0], terms[1]),
+        );
+        self.constraints[index].status = match result {
+            Ok(Outcome::Solved) => ConstraintStatus::Discharged,
+            Ok(Outcome::Blocked) => ConstraintStatus::Blocked,
+            Err(_) => ConstraintStatus::Failed,
+        };
+        self.sync(environment);
+        result.map(|_| ())
+    }
+    #[cfg(test)]
     fn assign(
         &mut self,
         environment: &GlobalEnvironment,
@@ -1032,117 +317,186 @@ impl ProgramScope {
         arguments: &[ProgramArgument],
         value: Term,
     ) -> Result<(), String> {
-        let value = self.zonk_term(environment, value);
-        if metas(environment.crate_env.arena(), value).contains(&id) {
-            return Err(format!(
-                "occurs check failed for {}",
-                self.metas[id.index()].flavor.display_name(id)
-            ));
-        }
-        let value = self.abstract_term(
-            environment,
-            value,
-            arguments,
-            self.metas[id.index()].context.len(),
-        )?;
-        self.metas[id.index()].solution = Some(value);
-        Ok(())
+        let e = environment.crate_env.arena().core.alloc(Node::Meta {
+            id: self.core_ids[id.index()],
+            arguments: arguments
+                .iter()
+                .map(|&a| expression(argument_term(a)))
+                .collect(),
+        });
+        self.unify_terms(environment, view(self.metas[id.index()].category, e), value)
     }
-
-    fn expect_meta(
+    fn solve(
         &mut self,
         environment: &GlobalEnvironment,
-        id: MetaVarId,
-        arguments: &[ProgramArgument],
+        context: &ProgramContext,
         term: Term,
         expected: Term,
     ) -> Result<(), String> {
         self.record_constraint(environment, ProgramConstraint::HasType(term, expected));
-        let expected = self.abstract_term(
-            environment,
-            expected,
-            arguments,
-            self.metas[id.index()].context.len(),
-        )?;
-        if let Some(previous) = self.metas[id.index()].expected {
-            match (previous, expected) {
-                (Term::ValueType(left), Term::ValueType(right)) => {
-                    self.unify_value_types(environment, left, right)?
-                }
-                (Term::ComputationType(left), Term::ComputationType(right)) => {
-                    self.unify_computation_types(environment, left, right)?
-                }
-                _ => unreachable!(),
-            }
-        } else {
-            self.metas[id.index()].expected = Some(expected);
-        }
-        Ok(())
+        let result = crate::kernel_bridge::program(
+            &environment.crate_env,
+            context,
+            &[term, expected],
+            |env, context, terms| {
+                self.core
+                    .check(env, context, terms[0], terms[1])
+                    .map(|_| ())
+            },
+        );
+        self.sync(environment);
+        result
     }
-
-    fn infer_meta_type(
+    fn solve_value(
         &mut self,
         environment: &GlobalEnvironment,
-        id: MetaVarId,
-        arguments: &[ProgramArgument],
-        _context: &ProgramContext,
-        term: Term,
-    ) -> Term {
-        if let Some(expected) = self.metas[id.index()].expected {
-            return self.instantiate(
-                environment,
-                expected,
-                arguments,
-                self.metas[id.index()].context.len(),
-            );
-        }
-        let arena = environment.crate_env.arena();
-        let category = match self.metas[id.index()].category {
-            MetaCategory::ValueTerm => MetaCategory::ValueType,
-            MetaCategory::ComputationTerm => MetaCategory::ComputationType,
-            _ => unreachable!(),
-        };
-        let synthetic = MetaVarId(
-            self.metas
-                .len()
-                .try_into()
-                .expect("Program metavariable table exceeded u32::MAX"),
-        );
-        let context = self.metas[id.index()].context.clone();
-        let span = self.metas[id.index()].span;
-        let expected = match category {
-            MetaCategory::ValueType => Term::ValueType(arena.alloc(ValueTypeNode::Meta {
-                metavariable: synthetic,
-                spine: spine(arena, &context),
-            })),
-            MetaCategory::ComputationType => {
-                Term::ComputationType(arena.alloc(ComputationTypeNode::Meta {
-                    metavariable: synthetic,
-                    spine: spine(arena, &context),
-                }))
-            }
-            _ => unreachable!(),
-        };
-        self.metas.push(ProgramMeta {
-            flavor: MetaFlavor::Synthetic,
-            span,
-            occurrences: vec![span],
-            category,
-            context,
-            solution: None,
-            expected: None,
-        });
-        self.metas[id.index()].expected = Some(expected);
-        let expected = self.instantiate(
+        context: &mut ProgramContext,
+        term: ValueTerm,
+        expected: ValueType,
+    ) -> Result<(), String> {
+        self.solve(
             environment,
-            expected,
-            arguments,
-            self.metas[id.index()].context.len(),
-        );
-        self.record_constraint(environment, ProgramConstraint::HasType(term, expected));
-        expected
+            context,
+            Term::Value(term),
+            Term::ValueType(expected),
+        )
     }
-
+    fn solve_computation(
+        &mut self,
+        environment: &GlobalEnvironment,
+        context: &mut ProgramContext,
+        term: ComputationTerm,
+        expected: ComputationType,
+    ) -> Result<(), String> {
+        self.solve(
+            environment,
+            context,
+            Term::Computation(term),
+            Term::ComputationType(expected),
+        )
+    }
+    fn infer(
+        &mut self,
+        environment: &GlobalEnvironment,
+        context: &ProgramContext,
+        term: Term,
+    ) -> Result<Expression, String> {
+        let result = crate::kernel_bridge::program(
+            &environment.crate_env,
+            context,
+            &[term],
+            |env, context, terms| self.core.infer(env, context, terms[0]),
+        );
+        self.sync(environment);
+        result
+    }
+    pub(super) fn infer_value_term(
+        &mut self,
+        environment: &GlobalEnvironment,
+        context: &mut ProgramContext,
+        term: ValueTerm,
+    ) -> Result<ValueType, String> {
+        self.infer(environment, context, Term::Value(term))
+            .map(ValueType)
+    }
+    pub(super) fn infer_computation_term(
+        &mut self,
+        environment: &GlobalEnvironment,
+        context: &mut ProgramContext,
+        term: ComputationTerm,
+    ) -> Result<ComputationType, String> {
+        self.infer(environment, context, Term::Computation(term))
+            .map(ComputationType)
+    }
+    pub(super) fn finish_program_metas(
+        &mut self,
+        environment: &GlobalEnvironment,
+    ) -> Result<(), ElaborationError> {
+        let result = self.core.finish(&environment.crate_env.kernel.borrow());
+        self.sync(environment);
+        let goals = self.goals(environment);
+        match result {
+            Ok(()) if goals.is_empty() => Ok(()),
+            Ok(()) => Err(ElaborationError::Metavariables(goals)),
+            Err(kernel::metavariables::Error::Unresolved { .. }) if !goals.is_empty() => {
+                Err(ElaborationError::Metavariables(goals))
+            }
+            Err(e) => Err(self.solver_error(
+                environment,
+                crate::lowering::format_kernel_error(&environment.crate_env, &e),
+            )),
+        }
+    }
+    pub(super) fn infer_kernel_value(
+        &self,
+        environment: &GlobalEnvironment,
+        context: &mut ProgramContext,
+        value: ValueTerm,
+    ) -> Result<ValueType, String> {
+        ProgramCheckSession::new(&environment.crate_env, context)
+            .infer_value_term(value)
+            .map_err(|error| format!("cannot infer Program value: {error}"))
+    }
+    pub(crate) fn check_value_term_with_metas(
+        &mut self,
+        environment: &GlobalEnvironment,
+        value: ValueTerm,
+        expected: ValueType,
+    ) -> Result<(ValueTerm, ValueType), ElaborationError> {
+        let mut context = self.context.clone();
+        self.solve_value(environment, &mut context, value, expected)
+            .map_err(|message| self.solver_error(environment, message))?;
+        self.finish_program_metas(environment)?;
+        Ok((
+            self.zonk_value(environment, value),
+            self.zonk_value_type(environment, expected),
+        ))
+    }
+    pub(crate) fn check_computation_term_with_metas(
+        &mut self,
+        environment: &GlobalEnvironment,
+        computation: ComputationTerm,
+        expected: ComputationType,
+    ) -> Result<(ComputationTerm, ComputationType), ElaborationError> {
+        let mut context = self.context.clone();
+        self.solve_computation(environment, &mut context, computation, expected)
+            .map_err(|message| self.solver_error(environment, message))?;
+        self.finish_program_metas(environment)?;
+        Ok((
+            self.zonk_computation(environment, computation),
+            self.zonk_computation_type(environment, expected),
+        ))
+    }
+    pub(crate) fn infer_value_term_with_metas(
+        &mut self,
+        environment: &GlobalEnvironment,
+        value: ValueTerm,
+    ) -> Result<(ValueTerm, ValueType), ElaborationError> {
+        let mut context = self.context.clone();
+        let ty = self
+            .infer_value_term(environment, &mut context, value)
+            .map_err(|message| self.solver_error(environment, message))?;
+        self.finish_program_metas(environment)?;
+        Ok((
+            self.zonk_value(environment, value),
+            self.zonk_value_type(environment, ty),
+        ))
+    }
+    pub(crate) fn infer_computation_term_with_metas(
+        &mut self,
+        environment: &GlobalEnvironment,
+        computation: ComputationTerm,
+    ) -> Result<(ComputationTerm, ComputationType), ElaborationError> {
+        let mut context = self.context.clone();
+        let ty = self
+            .infer_computation_term(environment, &mut context, computation)
+            .map_err(|message| self.solver_error(environment, message))?;
+        self.finish_program_metas(environment)?;
+        Ok((
+            self.zonk_computation(environment, computation),
+            self.zonk_computation_type(environment, ty),
+        ))
+    }
     fn record_constraint(
         &mut self,
         environment: &GlobalEnvironment,
@@ -1168,7 +522,6 @@ impl ProgramScope {
         });
         index
     }
-
     fn constraint_diagnostic(
         &self,
         environment: &GlobalEnvironment,
@@ -1197,7 +550,6 @@ impl ProgramScope {
             origins: record.origins.clone(),
         }
     }
-
     fn goals(&self, environment: &GlobalEnvironment) -> Vec<MetaGoal> {
         let arena = environment.crate_env.arena();
         let names = |id: MetaVarId| self.metas[id.index()].flavor.display_name(id);
@@ -1206,6 +558,41 @@ impl ProgramScope {
             .iter()
             .enumerate()
             .filter_map(|(index, meta)| {
+                if meta.flavor == MetaFlavor::Synthetic {
+                    let entry = self.core.entry(self.core_ids[index]).ok()?;
+                    if entry.assignment.is_some() {
+                        return None;
+                    }
+                    let id = MetaVarId(index as u32);
+                    let format = |e| {
+                        crate::lowering::diagnostics::format_expression(
+                            &environment.crate_env,
+                            &entry.context,
+                            e,
+                        )
+                    };
+                    return Some(MetaGoal {
+                        metavariable: id,
+                        flavor: meta.flavor,
+                        span: meta.span,
+                        occurrences: meta.occurrences.clone(),
+                        context: entry
+                            .context
+                            .iter()
+                            .map(|b| {
+                                format!("{}: {}", environment.crate_env.symbol(b.var), format(b.ty))
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                        principal: entry
+                            .expected
+                            .map(|ty| format!("{} : {}", names(id), format(ty))),
+                        solution: None,
+                        state: MetaState::InsufficientInformation,
+                        dependencies: vec![],
+                        constraints: vec![],
+                    });
+                }
                 let id = MetaVarId(index as u32);
                 let solution = meta.solution.map(|term| self.zonk_term(environment, term));
                 let solved = solution.is_some_and(|term| metas(arena, term).is_empty());
@@ -1303,7 +690,6 @@ impl ProgramScope {
             })
             .collect()
     }
-
     fn solver_error(&self, environment: &GlobalEnvironment, message: String) -> ElaborationError {
         let mut goals = self.goals(environment);
         let state = if self
@@ -1330,21 +716,6 @@ impl ProgramScope {
             goals,
         }
     }
-
-    pub(super) fn finish_program_metas(
-        &self,
-        environment: &GlobalEnvironment,
-    ) -> Result<(), ElaborationError> {
-        let goals = self.goals(environment);
-        if goals.is_empty() {
-            Ok(())
-        } else {
-            Err(ElaborationError::Metavariables(goals))
-        }
-    }
-}
-
-impl ProgramScope {
     pub(super) fn zonk_value_type(
         &self,
         environment: &GlobalEnvironment,
@@ -1402,7 +773,16 @@ impl ProgramScope {
         self.zonk_computation_type(environment, value)
     }
 }
-
+pub(super) fn metas(arena: &Arena, term: Term) -> HashSet<MetaVarId> {
+    let mut result = HashSet::new();
+    term.walk(arena, 0, &mut |term, _| {
+        if let Some((id, _)) = occurrence(arena, term) {
+            result.insert(id);
+        }
+        None
+    });
+    result
+}
 #[cfg(test)]
 mod tests {
     use super::*;

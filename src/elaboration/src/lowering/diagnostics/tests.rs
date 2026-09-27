@@ -28,18 +28,27 @@ fn definition(global: &GlobalEnvironment, module: &str, name: &str) -> DefId {
 
 fn mismatch(global: &GlobalEnvironment, module: &str, actual: &str, expected: &str) -> String {
     let env = global.kernel_env();
-    let id = definition(global, module, actual);
-    let actual = env.definition(id.into()).unwrap();
+    let id = global.crate_env().kernel_definitions.borrow()[&definition(global, module, actual)];
+    let actual = env.definition(id).unwrap();
     let expected = env
-        .definition(definition(global, module, expected).into())
+        .definition(
+            global.crate_env().kernel_definitions.borrow()[&definition(global, module, expected)],
+        )
         .unwrap();
-    let term = env
-        .arena()
-        .identified(id.into(), actual.body, actual.classifier)
-        .unwrap();
-    let error = kernel::check::Checker::new(env, actual.context.clone())
-        .check(term, expected.classifier)
-        .unwrap_err();
+    let arguments = actual
+        .context
+        .iter()
+        .enumerate()
+        .map(|(i, _)| env.arena().bound(actual.context.len() - i - 1))
+        .collect();
+    let term = env.reference(id, arguments).unwrap();
+    let error = kernel::check::Checker::new(
+        &env,
+        &mut kernel::metavariables::MetaContext::new(),
+        actual.context.clone(),
+    )
+    .check(term, expected.ty)
+    .unwrap_err();
     format_error(global.crate_env(), &error)
 }
 
@@ -111,62 +120,45 @@ fn program_types_use_surface_arrows_and_names() {
 #[test]
 fn binders_are_renamed_without_capturing_context_variables() {
     use kernel::{
-        environment::{Binding, Environment},
-        sort::{BaseSort, ProductRule, Sort},
+        environment::Environment,
+        sort::{BaseSort, Sort},
     };
     let mut raw = CrateEnv::new();
     let a_name = raw.intern("A");
     let x_name = raw.intern("x");
     let env = Environment::new();
     let arena = env.arena();
-    let kind = arena.alloc(SetKindNode {
-        level: 0,
-        form: SetKindForm::Base,
+    let kind = arena.sort(Sort::Base(BaseSort::Set(0)));
+    let a_at_prefix = arena.bound(0);
+    let a = arena.bound(1);
+    let x = arena.bound(0);
+    let outer_x = arena.bound(1);
+    let equality = arena.alloc(Node::Equal {
+        left: outer_x,
+        right: x,
     });
-    let a_at_prefix = arena.alloc(SetTypeNode {
-        level: 0,
-        form: SetTypeForm::Bound { index: 0 },
-    });
-    let a = arena.alloc(SetTypeNode {
-        level: 0,
-        form: SetTypeForm::Bound { index: 1 },
-    });
-    let x = arena.alloc(SetTermNode {
-        level: 0,
-        form: SetTermForm::Bound { index: 0 },
-    });
-    let outer_x = arena.alloc(SetTermNode {
-        level: 0,
-        form: SetTermForm::Bound { index: 1 },
-    });
-    let equality = arena.alloc(PropTypeNode {
-        form: PropTypeForm::Equal {
-            left: outer_x,
-            right: x,
-        },
-    });
-    let expected = arena.alloc(PropTypeNode {
-        form: PropTypeForm::ProdTerm {
-            rule: ProductRule::new(Sort::Base(BaseSort::Set(0)), Sort::Base(BaseSort::Prop))
-                .unwrap(),
-            var: x_name,
-            domain: a.into(),
-            body: equality,
-        },
+    let expected = arena.alloc(Node::Product {
+        var: x_name,
+        domain: a,
+        body: equality,
     });
     let context = vec![
         Binding {
             var: a_name,
-            classifier: kind.into(),
+            ty: kind,
         },
         Binding {
             var: x_name,
-            classifier: a_at_prefix.into(),
+            ty: a_at_prefix,
         },
     ];
-    let error = kernel::check::Checker::new(&env, context)
-        .check(x, expected)
-        .unwrap_err();
+    let error = kernel::check::Checker::new(
+        &env,
+        &mut kernel::metavariables::MetaContext::new(),
+        context,
+    )
+    .check(x, expected)
+    .unwrap_err();
     let text = format_error(&raw, &error);
     assert!(
         text.contains("inferred: A\nexpected: \\forall (x1: A) -> x = x1\ncontext: A: \\Set, x: A"),

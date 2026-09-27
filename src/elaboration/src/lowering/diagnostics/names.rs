@@ -6,7 +6,7 @@ use crate::raw::{
 use rustc_hash::FxHashMap;
 
 pub(super) struct Names {
-    pub definitions: FxHashMap<kernel::ids::GlobalId, String>,
+    pub definitions: FxHashMap<kernel::ids::DefinitionId, String>,
     pub inductives: FxHashMap<kernel::ids::InductiveId, (String, Vec<String>)>,
     pub datatypes: FxHashMap<kernel::ids::ProgramInductiveId, (String, Vec<String>)>,
 }
@@ -42,7 +42,9 @@ impl Names {
                     if definition.module != module {
                         continue;
                     }
-                    self.definitions.insert((*definition).into(), name);
+                    if let Some(&id) = env.kernel_definitions.borrow().get(definition) {
+                        self.definitions.insert(id, name);
+                    }
                     continue;
                 }
                 ModuleItem::Inductive {
@@ -94,8 +96,9 @@ impl Names {
                 }
             };
             for (field, id) in associated {
-                self.definitions
-                    .insert((*id).into(), format!("{name}::{field}"));
+                if let Some(&id) = env.kernel_definitions.borrow().get(id) {
+                    self.definitions.insert(id, format!("{name}::{field}"));
+                }
             }
         }
     }

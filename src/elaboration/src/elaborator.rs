@@ -60,12 +60,10 @@ fn projected_record_field_type(
     Ok(instantiate_telescope(arena, *field_ty, &preceding))
 }
 
-// do type checking
-#[derive(Default)]
+// Workspace state for surface elaboration and kernel checking.
 pub struct GlobalEnvironment {
     #[cfg(test)]
     source_modules: Vec<::syntax::syntax::Module>,
-    kernel_env: kernel::environment::Environment,
     crate_env: CrateEnv,
     outputs: Vec<Output>,
     analysis: crate::analysis::Analysis,
@@ -75,6 +73,25 @@ pub struct GlobalEnvironment {
     defer_child_modules: bool,
     predeclared_modules: HashMap<*const Module, ModuleId>,
     processed_modules: HashSet<ModuleId>,
+}
+
+impl Default for GlobalEnvironment {
+    fn default() -> Self {
+        let crate_env = CrateEnv::default();
+        Self {
+            #[cfg(test)]
+            source_modules: vec![],
+            crate_env,
+            outputs: vec![],
+            analysis: Default::default(),
+            diagnostic_location: None,
+            module_manager: Default::default(),
+            metavariables: Default::default(),
+            defer_child_modules: false,
+            predeclared_modules: HashMap::new(),
+            processed_modules: HashSet::new(),
+        }
+    }
 }
 
 impl term_elaborator::Handler for GlobalEnvironment {
@@ -265,9 +282,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         } else {
             CheckSession::new(&self.crate_env, &mut ctx)
                 .infer_pts(e)
-                .map_err(|error| {
-                    format!("Failed to infer elaborated Set/Prop expression: {error:?}")
-                })
+                .map_err(|error| format!("Failed to infer elaborated Set/Prop expression: {error}"))
         };
         *local_ctx = ctx.split_off(module_context_len);
         Ok(result?)
@@ -367,8 +382,8 @@ impl GlobalEnvironment {
         self.crate_env.arena()
     }
 
-    pub fn kernel_env(&self) -> &kernel::environment::Environment {
-        &self.kernel_env
+    pub fn kernel_env(&self) -> std::cell::Ref<'_, kernel::environment::Environment> {
+        self.crate_env.kernel.borrow()
     }
 
     pub fn crate_env(&self) -> &CrateEnv {
@@ -527,7 +542,7 @@ impl GlobalEnvironment {
                 self.module_manager.moveto(parent);
                 self.module_add_rec(module)?;
             }
-            crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
+            crate::lowering::Lowerer::new(&self.crate_env, &mut self.crate_env.kernel.borrow_mut())
                 .lower_all()
                 .map_err(ElaborationError::from)
         })();

@@ -1,6 +1,8 @@
 # Core calculus の集合モデル
 
-対象は [system.md](../system.md) の、一般の datatype 宣言を除いた体系である。
+適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
+
+対象は [分類付き補助体系](sorted-calculus.md) の、一般の datatype 宣言を除いた体系である。
 Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除いた体系を
 \(\mathcal S_0\) と書く。判断は有限導出によって生成する。
 ここでは Box-free な raw 項の候補解釈を構成する。
@@ -259,14 +261,14 @@ body に帰納法を適用すると indexed family が点ごとに一致する�
 TC の判断は現行体系の判断であり、結論の解釈は [raw 項の解釈](#interpretation)で固定した写像である。
 TC 自体を帰納的な規則として体系に追加してはいない。
 ここで \(s\in\mathcal S_{sp}\)、\(T,T'\in\mathsf C_s\) とし、
-\(\equiv_0\) は現行の同じ構文 family 内の raw conversion を指す。
+\(\equiv_0\) は補助体系の同じ構文 family 内の raw conversion を指す。
 とくに term typing の型だけでなく、型演算子 typing の kind の conversion も含む。
 
 ## 旧記法による検討メモ
 
 以下は、sort による解釈の分岐などを検討していた以前のモデル案である。
 上の trace encoding による解釈とは定義が異なり、その健全性の根拠には用いない。
-現行 core の定義・証明としては、上の節を参照する。
+分類付き core の定義・証明としては、上の節を参照する。
 
 示したいのは、 Consistency で、「ZFC + いい感じの仮定」のもとでのモデルを作ることで、
 \(\vdash \forall P. P\) が示せないことを示す。

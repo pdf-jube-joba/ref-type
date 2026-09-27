@@ -81,7 +81,7 @@ impl GlobalEnvironment {
                         .check_value_term(body, ty)
                         .map_err(|error| {
                             format!(
-                                "Program value definition {} is ill-typed: {error:?}",
+                                "Program value definition {} is ill-typed: {error}",
                                 name.as_str()
                             )
                         })?;
@@ -125,7 +125,7 @@ impl GlobalEnvironment {
                     .check_computation_term(body, ty)
                     .map_err(|error| {
                         format!(
-                            "Program computation definition {} is ill-typed: {error:?}",
+                            "Program computation definition {} is ill-typed: {error}",
                             name.as_str()
                         )
                     })?;
@@ -359,7 +359,7 @@ impl GlobalEnvironment {
     ) -> Result<(), String> {
         CheckSession::new(&self.crate_env, context)
             .check_pts(body, ty)
-            .map_err(|error| format!("Set/Prop definition check failed: {error:?}"))
+            .map_err(|error| format!("Set/Prop definition check failed: {error}"))
     }
 
     pub(super) fn add_record_projection_definitions(
@@ -475,7 +475,7 @@ impl GlobalEnvironment {
                 .check_pts(body, ty)
                 .map_err(|error| {
                     format!(
-                        "Generated projection {} does not typecheck: {error:?}",
+                        "Generated projection {} does not typecheck: {error}",
                         name.as_str()
                     )
                 })?;
@@ -640,7 +640,7 @@ impl GlobalEnvironment {
                 &mut ProgramCheckSession::new(&self.crate_env, &mut program_context),
                 inductive,
             )
-            .map_err(|error| format!("Ill-formed Program datatype: {error:?}"))?;
+            .map_err(|error| format!("Ill-formed Program datatype: {error}"))?;
         let mut reflected_context =
             crate::raw::reflection::reflect_context(&self.crate_env, &program_context)
                 .map_err(|error| format!("cannot reflect Program context: {error}"))?;
@@ -650,7 +650,7 @@ impl GlobalEnvironment {
                 &mut CheckSession::new(&self.crate_env, &mut reflected_context),
                 reflected,
             )
-            .map_err(|error| format!("Ill-formed reflected datatype: {error:?}"))?;
+            .map_err(|error| format!("Ill-formed reflected datatype: {error}"))?;
         self.module_manager.publish_reserved_program_inductive(
             &mut self.crate_env,
             type_name.clone(),

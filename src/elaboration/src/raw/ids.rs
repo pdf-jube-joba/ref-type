@@ -49,11 +49,6 @@ impl MetaVarId {
 }
 
 // Encoding is owned by the frontend; the kernel treats these numbers as opaque.
-impl From<DefId> for kernel::ids::GlobalId {
-    fn from(id: DefId) -> Self {
-        Self((u64::from(id.module.0) << 32) | u64::from(id.index))
-    }
-}
 impl From<InductiveId> for kernel::ids::InductiveId {
     fn from(id: InductiveId) -> Self {
         Self((u64::from(id.module.0) << 32) | u64::from(id.index))
@@ -62,5 +57,28 @@ impl From<InductiveId> for kernel::ids::InductiveId {
 impl From<ProgramInductiveId> for kernel::ids::ProgramInductiveId {
     fn from(id: ProgramInductiveId) -> Self {
         Self((u64::from(id.module.0) << 32) | u64::from(id.index))
+    }
+}
+
+impl From<ModuleParamId> for kernel::ids::ParameterId {
+    fn from(id: ModuleParamId) -> Self {
+        Self((u64::from(id.module.0) << 32) | u64::from(id.position))
+    }
+}
+impl From<kernel::ids::ParameterId> for ModuleParamId {
+    fn from(id: kernel::ids::ParameterId) -> Self {
+        Self {
+            module: ModuleId((id.0 >> 32) as u32),
+            position: id.0 as u32,
+        }
+    }
+}
+
+impl From<kernel::ids::ProgramInductiveId> for ProgramInductiveId {
+    fn from(id: kernel::ids::ProgramInductiveId) -> Self {
+        Self {
+            module: ModuleId((id.0 >> 32) as u32),
+            index: id.0 as u32,
+        }
     }
 }

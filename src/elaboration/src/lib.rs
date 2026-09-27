@@ -28,3 +28,5 @@ pub use elaborator::analysis;
 
 mod api;
 pub use api::{Checker, Diagnostic, Goal, Statistics};
+
+mod kernel_bridge;

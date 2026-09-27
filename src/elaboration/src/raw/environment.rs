@@ -251,6 +251,8 @@ type InferenceCache = FxHashMap<(Exp, ContextId), Exp>;
 
 #[derive(Debug)]
 pub struct CrateEnv {
+    pub(crate) kernel: RefCell<kernel::environment::Environment>,
+    pub(crate) kernel_definitions: RefCell<HashMap<DefId, kernel::ids::DefinitionId>>,
     hir_symbols: HashMap<resolve::hir::BindingId, SymbolId>,
     definition_parameters: HashMap<DefId, Vec<SymbolId>>,
     arena: Arena,
@@ -308,10 +310,16 @@ impl CrateEnv {
         let mut symbol_ids = HashMap::new();
         symbol_ids.insert(anonymous.clone(), SymbolId::ANONYMOUS);
         symbol_ids.insert(root.clone(), SymbolId(1));
+        let arena = Arena::new();
+        let kernel = RefCell::new(kernel::environment::Environment::with_arena(
+            arena.core.clone(),
+        ));
         Self {
+            kernel,
+            kernel_definitions: Default::default(),
             hir_symbols: HashMap::new(),
             definition_parameters: HashMap::new(),
-            arena: Arena::new(),
+            arena,
             inference_cache: Default::default(),
             contexts: Default::default(),
             whnf_cache: Default::default(),
@@ -552,28 +560,28 @@ impl CrateEnv {
                 for &(var, ty) in parameters {
                     CheckSession::new(self, &mut pts_context)
                         .infer_sort(ty)
-                        .map_err(|error| format!("alias parameter check failed: {error:?}"))?;
+                        .map_err(|error| format!("alias parameter check failed: {error}"))?;
                     pts_context.push(crate::raw::exp::ExpContextEntry { var, ty });
                 }
                 CheckSession::new(self, &mut pts_context)
                     .check_pts(body, ty)
-                    .map_err(|error| format!("alias body check failed: {error:?}"))?;
+                    .map_err(|error| format!("alias body check failed: {error}"))?;
             }
             DefinedConstant::Pts { ty, body } => {
                 CheckSession::new(self, &mut pts_context)
                     .check_pts(body, ty)
-                    .map_err(|error| format!("definition check failed: {error:?}"))?;
+                    .map_err(|error| format!("definition check failed: {error}"))?;
             }
             DefinedConstant::ProgramValue { ty, body } => {
                 ProgramCheckSession::new(self, &mut program_context)
                     .check_value_term(body, ty)
-                    .map_err(|error| format!("Program value definition check failed: {error:?}"))?;
+                    .map_err(|error| format!("Program value definition check failed: {error}"))?;
             }
             DefinedConstant::ProgramComputation { ty, body } => {
                 ProgramCheckSession::new(self, &mut program_context)
                     .check_computation_term(body, ty)
                     .map_err(|error| {
-                        format!("Program computation definition check failed: {error:?}")
+                        format!("Program computation definition check failed: {error}")
                     })?;
             }
         }
@@ -981,6 +989,14 @@ impl CrateEnv {
         );
     }
 
+    pub(crate) fn has_program_inductive(&self, id: ProgramInductiveId) -> bool {
+        self.module(id.module)
+            .program_inductives
+            .get(id.index as usize)
+            .is_some_and(|slot| {
+                slot.get().is_some() || self.lazy_program_inductives.contains_key(&id)
+            })
+    }
     pub fn program_inductive(&self, id: ProgramInductiveId) -> &ProgramInductiveTypeSpecs {
         let slot = &self.module(id.module).program_inductives[id.index as usize];
         if slot.get().is_none() {

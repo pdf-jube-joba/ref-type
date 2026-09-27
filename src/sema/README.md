@@ -10,7 +10,7 @@ CLI の通常チェックも同じ API を使う。
 | `resolve` | AST → 名前解決と macro 展開を終えた型推論前の HIR |
 | `elaboration` | HIR → 型推論、kernel による検証、診断・統計・semantic observations |
 | `sema` | immutable な source snapshot → 依存関係、query cache、永続化できる semantic result |
-| `kernel` | 分類済みの項と宣言 → 独立した型検査と登録 |
+| `kernel` | 共通 PTS 項と宣言 → 型検査・単一化・登録 |
 
 ## API
 

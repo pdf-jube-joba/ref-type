@@ -285,7 +285,7 @@ fn boxed_program_types_compare_structurally() {
             position: 1,
         }),
     });
-    assert_ne!(left_state, right_state);
+    assert_eq!(left_state, right_state);
     let left_return = arena.alloc(ComputationTypeNode::Return {
         value_ty: left_state,
     });
@@ -1092,7 +1092,13 @@ fn set_recursion_rejects_mixed_or_non_set_sorts() {
         for term in terms {
             let error = session.infer_pts(arena.alloc(term)).unwrap_err();
             assert!(
-                format!("{error:?}").contains("must inhabit the same Set(i)"),
+                format!("{error:?}").contains(
+                    if matches!(state_sort, Sort::SetKind(_) | Sort::PropKind) {
+                        "upper sort has no classifier"
+                    } else {
+                        "must inhabit the same Set(i)"
+                    }
+                ),
                 "{error:?}"
             );
         }

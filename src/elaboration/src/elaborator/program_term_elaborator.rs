@@ -11,7 +11,6 @@ use crate::raw::{
         ProgramArgument, ProgramContext, ProgramContextEntry, ValueTerm, ValueTermNode, ValueType,
         ValueTypeNode,
     },
-    program_calculus::strengthen_computation_type,
     program_derivation::ProgramCheckSession,
 };
 use crate::raw::{exp::Arena, printing::Printer, traversal::Term};
@@ -48,6 +47,7 @@ struct ProgramMeta {
 
 #[derive(Debug, Clone)]
 enum ProgramConstraint {
+    #[allow(dead_code)] // Retained for explicit solver diagnostics and debug tests.
     Equal(Term, Term),
     HasType(Term, Term),
 }
@@ -58,8 +58,11 @@ struct ProgramConstraintRecord {
     origins: Vec<SourceSpan>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct ProgramScope {
+    core: kernel::metavariables::MetaContext,
+    core_ids: Vec<kernel::syntax::MetaId>,
+    ids: HashMap<kernel::syntax::MetaId, MetaVarId>,
     names: Vec<SymbolId>,
     context: ProgramContext,
     value_type_bindings: Vec<(SymbolId, ValueType)>,
@@ -114,6 +117,9 @@ impl ProgramScope {
         // de Bruijn locals: declarations and their uses can be nested beneath
         // different numbers of Program binders.
         Self {
+            core: Default::default(),
+            core_ids: vec![],
+            ids: HashMap::new(),
             names: Vec::new(),
             context: Vec::new(),
             value_type_bindings: Vec::new(),
@@ -135,7 +141,7 @@ impl ProgramScope {
     }
 
     pub(crate) fn finish_metas(
-        &self,
+        &mut self,
         environment: &GlobalEnvironment,
     ) -> Result<(), ElaborationError> {
         self.finish_program_metas(environment)
@@ -883,9 +889,7 @@ impl ProgramScope {
                 let scrutinee_ty =
                     ProgramCheckSession::new(&environment.crate_env, &mut check_context)
                         .infer_value_term(scrutinee)
-                        .map_err(|error| {
-                            format!("cannot infer Program case scrutinee: {error:?}")
-                        })?;
+                        .map_err(|error| format!("cannot infer Program case scrutinee: {error}"))?;
                 let ValueTypeNode::Inductive {
                     indspec,
                     parameters,

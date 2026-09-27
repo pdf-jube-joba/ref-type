@@ -1,5 +1,7 @@
 # Refinement を含む generation
 
+適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
+
 このページでは、型の一意性を使わずに lambda・subset・RunStep constructor の
 導入時の型を回収する。対象は datatype と Box を除いた Set/Prop core である。
 
@@ -9,7 +11,7 @@
 
 [合流性](confluence.md#auxiliary-reduction)の補助 reduction を
 \(\rightsquigarrow\)、その同じ family 内での同値閉包を \(\equiv_+\) とする。
-\(\mathcal S_+\) は、現行 core の conversion の側条件だけを
+\(\mathcal S_+\) は、分類付き core の conversion の側条件だけを
 \(\equiv_0\) から \(\equiv_+\) へ広げた証明用の体系である。
 構文、rule label、その他の typing・provability 規則は同じである。
 この定義は system.md の規則を変更しない。

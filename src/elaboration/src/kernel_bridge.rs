@@ -1,0 +1,251 @@
+//! Resolve frontend names and delegate semantic judgements to the kernel.
+use crate::{
+    lowering::Lowerer,
+    raw::{
+        environment::{CrateEnv, DefinedConstant, ModuleParameterKind},
+        exp::{Exp, ExpContext, ExpNode},
+        program::{ComputationTermNode, ValueTermNode, ValueTypeNode},
+        traversal::Term,
+    },
+};
+use std::collections::HashSet;
+
+/// Materialize source templates before borrowing the kernel environment.
+fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
+    let mut seen = HashSet::new();
+    let mut definitions = HashSet::new();
+    let mut inductives = HashSet::new();
+    let mut datatypes = HashSet::new();
+    let mut parameters = HashSet::new();
+    while let Some(term) = pending.pop() {
+        if !seen.insert(term) {
+            continue;
+        }
+        term.visit_children(env.arena(), |child, _| pending.push(child));
+        let (definition, inductive, datatype, parameter) = match term {
+            Term::Logical(e) => match env.arena().get(e) {
+                ExpNode::DefinedConstant(id) => (Some(id), None, None, None),
+                ExpNode::IndType { indspec, .. }
+                | ExpNode::IndCtor { indspec, .. }
+                | ExpNode::IndElim { indspec, .. }
+                | ExpNode::IndCase { indspec, .. } => (None, Some(indspec), None, None),
+                ExpNode::ReflectedProgramCase { indspec, .. } => (None, None, Some(indspec), None),
+                ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => {
+                    (None, None, None, Some(id))
+                }
+                _ => (None, None, None, None),
+            },
+            Term::ValueType(e) => match env.arena().get(e) {
+                ValueTypeNode::Inductive { indspec, .. } => (None, None, Some(indspec), None),
+                ValueTypeNode::ModuleParam(id) => (None, None, None, Some(id)),
+                _ => (None, None, None, None),
+            },
+            Term::Value(e) => match env.arena().get(e) {
+                ValueTermNode::DefinedConstant(id)
+                | ValueTermNode::DefinitionInstance { definition: id, .. } => {
+                    (Some(id), None, None, None)
+                }
+                ValueTermNode::InductiveConstructor { indspec, .. } => {
+                    (None, None, Some(indspec), None)
+                }
+                ValueTermNode::ModuleParam(id) => (None, None, None, Some(id)),
+                _ => (None, None, None, None),
+            },
+            Term::Computation(e) => match env.arena().get(e) {
+                ComputationTermNode::DefinedConstant(id)
+                | ComputationTermNode::DefinitionInstance { definition: id, .. } => {
+                    (Some(id), None, None, None)
+                }
+                ComputationTermNode::Case { indspec, .. } => (None, None, Some(indspec), None),
+                _ => (None, None, None, None),
+            },
+            Term::ComputationType(_) => (None, None, None, None),
+        };
+        if let Some(id) = parameter
+            && parameters.insert(id)
+        {
+            match env
+                .module_parameter_opt(id)
+                .map(|p| p.kind.clone())
+                .unwrap_or(ModuleParameterKind::ProgramType)
+            {
+                ModuleParameterKind::Pts { ty } => pending.push(Term::Logical(ty)),
+                ModuleParameterKind::ProgramValue { ty } => pending.push(Term::ValueType(ty)),
+                ModuleParameterKind::ProgramType => {}
+            }
+        }
+        if let Some(id) = definition
+            && definitions.insert(id)
+            && !env.kernel_definitions.borrow().contains_key(&id)
+        {
+            match env.resolve_definition(id)?.clone() {
+                DefinedConstant::Alias {
+                    parameters,
+                    ty,
+                    body,
+                } => {
+                    pending.extend(parameters.into_iter().map(|(_, e)| Term::Logical(e)));
+                    pending.extend([Term::Logical(ty), Term::Logical(body)]);
+                }
+                DefinedConstant::Pts { ty, body } => {
+                    pending.extend([Term::Logical(ty), Term::Logical(body)])
+                }
+                DefinedConstant::ProgramValue { ty, body } => {
+                    pending.extend([Term::ValueType(ty), Term::Value(body)])
+                }
+                DefinedConstant::ProgramComputation { ty, body } => {
+                    pending.extend([Term::ComputationType(ty), Term::Computation(body)])
+                }
+            }
+        }
+        if let Some(id) = inductive
+            && inductives.insert(id)
+        {
+            let spec = env.inductive(id);
+            pending.extend(spec.parameters().iter().map(|(_, e)| Term::Logical(*e)));
+            pending.push(Term::Logical(spec.arity(env.arena())));
+            let this = env.arena().alloc(ExpNode::IndType {
+                indspec: id,
+                parameters: (0..spec.parameters().len())
+                    .rev()
+                    .map(|i| env.arena().exp_bound(i))
+                    .collect(),
+            });
+            pending.extend(
+                spec.constructors()
+                    .iter()
+                    .map(|c| Term::Logical(c.as_exp_with_type(env.arena(), this))),
+            );
+        }
+        if let Some(id) = datatype
+            && env.has_program_inductive(id)
+            && datatypes.insert(id)
+        {
+            let spec = env.program_inductive(id);
+            pending.extend(
+                spec.constructors()
+                    .iter()
+                    .flat_map(|c| c.fields().iter().map(|(_, e)| Term::ValueType(*e))),
+            );
+            pending.push(Term::Logical(env.arena().alloc(ExpNode::IndType {
+                indspec: spec.reflected(),
+                parameters: vec![],
+            })));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn logical<T>(
+    env: &CrateEnv,
+    context: &ExpContext,
+    roots: &[Exp],
+    f: impl FnOnce(
+        &kernel::environment::Environment,
+        kernel::syntax::Context,
+        Vec<kernel::syntax::Expression>,
+    ) -> Result<T, kernel::metavariables::Error>,
+) -> Result<T, String> {
+    logical_in_scope(env, context, 0, roots, f)
+}
+pub(crate) fn logical_in_scope<T>(
+    env: &CrateEnv,
+    context: &ExpContext,
+    base: usize,
+    roots: &[Exp],
+    f: impl FnOnce(
+        &kernel::environment::Environment,
+        kernel::syntax::Context,
+        Vec<kernel::syntax::Expression>,
+    ) -> Result<T, kernel::metavariables::Error>,
+) -> Result<T, String> {
+    let mut pending = roots.iter().copied().map(Term::Logical).collect::<Vec<_>>();
+    pending.extend(context.iter().map(|b| Term::Logical(b.ty)));
+    prepare(env, pending)?;
+    let mut kernel = env.kernel.borrow_mut();
+    let mut lower = Lowerer::new(env, &mut kernel);
+    lower.nominal(base);
+    let mut local = context.clone();
+    let module = env.root_module();
+    let terms = roots
+        .iter()
+        .map(|&e| lower.set(e, &mut local, module))
+        .collect::<Result<Vec<_>, _>>()?;
+    let context = lower.nominal_context(context, base, module)?;
+    f(&kernel, context, terms).map_err(|error| crate::lowering::format_kernel_error(env, &error))
+}
+
+pub(crate) fn program<T>(
+    env: &CrateEnv,
+    context: &crate::raw::program::ProgramContext,
+    roots: &[Term],
+    f: impl FnOnce(
+        &kernel::environment::Environment,
+        kernel::syntax::Context,
+        Vec<kernel::syntax::Expression>,
+    ) -> Result<T, kernel::metavariables::Error>,
+) -> Result<T, String> {
+    use crate::raw::program::ProgramContextEntry;
+    let mut pending = roots.to_vec();
+    pending.extend(context.iter().filter_map(|b| match b {
+        ProgramContextEntry::ValueTerm { ty, .. } => Some(Term::ValueType(*ty)),
+        _ => None,
+    }));
+    prepare(env, pending)?;
+    let mut kernel = env.kernel.borrow_mut();
+    let mut lower = Lowerer::new(env, &mut kernel);
+    lower.nominal(0);
+    let mut local = context.clone();
+    let terms = roots
+        .iter()
+        .map(|&term| lower.source_term(term, &mut local))
+        .collect::<Result<Vec<_>, _>>()?;
+    let context = lower.program_context(context)?;
+    f(&kernel, context, terms).map_err(|e| crate::lowering::format_kernel_error(env, &e))
+}
+
+/// Resolve a term for structural operations, which accept open expressions.
+pub(crate) fn expression<T>(
+    env: &CrateEnv,
+    term: Term,
+    f: impl FnOnce(&kernel::environment::Environment, kernel::syntax::Expression) -> Result<T, String>,
+) -> Result<T, String> {
+    prepare(env, vec![term])?;
+    let mut depth = env
+        .arena()
+        .max_loose_bound(term)
+        .map_or(0, |i| i.saturating_add(1));
+    let mut pending = vec![term];
+    let mut seen = HashSet::new();
+    while let Some(t) = pending.pop() {
+        if !seen.insert(t) {
+            continue;
+        }
+        if let Term::Logical(e) = t
+            && let ExpNode::DefinedConstant(id) = env.arena().get(e)
+        {
+            depth = depth.max(env.definition_context(id.module).len());
+        }
+        t.visit_children(env.arena(), |child, _| pending.push(child));
+    }
+    if depth > 100_000 {
+        return Err("bound variable outside supported context".into());
+    }
+    let mut kernel = env.kernel.borrow_mut();
+    let mut lower = Lowerer::new(env, &mut kernel);
+    lower.nominal(0);
+    lower.structural = true;
+    let e = match term {
+        Term::Logical(e) => {
+            let mut context = (0..depth)
+                .map(|_| crate::raw::exp::ExpContextEntry {
+                    var: crate::raw::ids::SymbolId::ANONYMOUS,
+                    ty: env.arena().sort(crate::raw::sort::Sort::Set(0)),
+                })
+                .collect();
+            lower.set(e, &mut context, env.root_module())?
+        }
+        term => lower.source_term(term, &mut vec![])?,
+    };
+    f(&kernel, e)
+}

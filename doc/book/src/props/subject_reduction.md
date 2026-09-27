@@ -1,5 +1,7 @@
 # 補助体系の subject reduction
 
+適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
+
 対象は [generation](generation.md#auxiliary-system) で定義した
 \(\mathcal S_+\) と補助 reduction \(\rightsquigarrow\) である。
 以下のすべての conversion は \(\equiv_+\) を使う。

@@ -596,11 +596,7 @@ fn logical_let_preserves_the_declared_type() {
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
-    assert!(
-        error
-            .to_string()
-            .contains("ty, inferred_ty not convertible")
-    );
+    assert!(error.to_string().contains("types are not convertible"));
 }
 
 #[test]
@@ -1412,12 +1408,14 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
         panic!("boxed definition")
     };
     let env = global.kernel_env();
-    let def = env.definition((*definition).into()).unwrap();
+    let def = env
+        .definition(raw.kernel_definitions.borrow()[definition])
+        .unwrap();
     let mut term = def.body;
     let mut steps = 0;
-    while let Some(next) = kernel::calculus::reduce_once(env, term).unwrap() {
-        kernel::check::Checker::new(env, vec![])
-            .check(next, def.classifier)
+    while let Some(next) = kernel::reduction::reduce_once(&env, term).unwrap() {
+        kernel::check::Checker::new(&env, &mut kernel::metavariables::MetaContext::new(), vec![])
+            .check(next, def.ty)
             .unwrap();
         term = next;
         steps += 1;
@@ -1462,13 +1460,19 @@ fn program_run_proofs_remain_valid_after_every_reduction() {
             assert!(count < 30);
         }
         let env = global.kernel_env();
-        let def = env.definition((*definition).into()).unwrap();
+        let def = env
+            .definition(raw.kernel_definitions.borrow()[definition])
+            .unwrap();
         let mut term = def.body;
         let mut count = 0;
-        while let Some(next) = kernel::calculus::reduce_once(env, term).unwrap() {
-            kernel::check::Checker::new(env, def.context.clone())
-                .check(next, def.classifier)
-                .unwrap();
+        while let Some(next) = kernel::reduction::reduce_once(&env, term).unwrap() {
+            kernel::check::Checker::new(
+                &env,
+                &mut kernel::metavariables::MetaContext::new(),
+                def.context.clone(),
+            )
+            .check(next, def.ty)
+            .unwrap();
             term = next;
             count += 1;
             assert!(count < 30);
@@ -1999,13 +2003,26 @@ fn kernel_declarations_capture_parameters_and_preserve_reference_labels() {
     };
     let env = global.kernel_env();
     let chosen = definition("chosen");
-    assert_eq!(env.definition(chosen.into()).unwrap().context.len(), 2);
-    let alias = env.definition(definition("alias").into()).unwrap();
+    assert_eq!(
+        env.definition(raw.kernel_definitions.borrow()[&chosen])
+            .unwrap()
+            .context
+            .len(),
+        2
+    );
+    let alias = env
+        .definition(raw.kernel_definitions.borrow()[&definition("alias")])
+        .unwrap();
     assert_eq!(alias.context.len(), 2);
-    assert_eq!(env.arena().global_id(alias.body), Some(chosen.into()));
-    let identity = env.definition(definition("identity").into()).unwrap();
+    assert_eq!(
+        env.referenced_definition(alias.body),
+        Some(raw.kernel_definitions.borrow()[&chosen])
+    );
+    let identity = env
+        .definition(raw.kernel_definitions.borrow()[&definition("identity")])
+        .unwrap();
     assert!(identity.context.is_empty());
-    assert!(kernel::calculus::is_closed(env.arena(), identity.body));
+    assert!(kernel::calculus::max_loose_bound(env.arena(), identity.body).is_none());
     let ModuleItem::Inductive { inductive, .. } = module.item("Wrap").unwrap() else {
         panic!("expected inductive")
     };
@@ -2121,4 +2138,40 @@ fn explicit_meta_assignment_checks_existing_solutions() {
             assert!(error.contains("[Failed]"), "{error}");
         }
     }
+}
+
+#[test]
+fn native_inductive_references_keep_concrete_capture_arguments() {
+    let modules = parse::str_parse_modules(
+        r"\module Capture(A: \Set) { \inductive Wrap: \Set := | make: A -> Wrap; }",
+    )
+    .unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+    let env = environment.crate_env();
+    let module = env.module(env.root_module()).children()[0];
+    let ModuleItem::Inductive { inductive, .. } = env.module(module).item("Wrap").unwrap() else {
+        panic!("inductive")
+    };
+    let arena = env.arena();
+    let native = arena.core.alloc(kernel::syntax::Node::IndType {
+        inductive: (*inductive).into(),
+        parameters: vec![arena.core.bound(0)],
+    });
+    let context = vec![crate::raw::exp::ExpContextEntry {
+        var: crate::raw::ids::SymbolId::ANONYMOUS,
+        ty: arena.sort(crate::raw::sort::Sort::Set(0)),
+    }];
+    let rebuilt = crate::kernel_bridge::logical(
+        env,
+        &context,
+        &[crate::raw::exp::Exp(native)],
+        |_, _, terms| Ok(terms[0]),
+    )
+    .unwrap();
+    assert_eq!(rebuilt, native);
+    let ExpNode::IndType { parameters, .. } = arena.get(crate::raw::exp::Exp(native)) else {
+        panic!("inductive view")
+    };
+    assert_eq!(parameters, vec![arena.exp_bound(0)]);
 }

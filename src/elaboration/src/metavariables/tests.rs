@@ -1,3 +1,4 @@
+use crate::raw::ids::SymbolId;
 use crate::{
     elaborator::GlobalEnvironment,
     metavariables::{ElaborationError, MetaFlavor, MetaState},
@@ -159,7 +160,14 @@ fn non_pattern_equations_are_distinguished_from_contradictions() {
     };
     let non_pattern = env.arena().alloc(ExpNode::Meta {
         metavariable,
-        spine: vec![env.arena().sort(Sort::Set(0))],
+        spine: vec![env.arena().alloc(ExpNode::App {
+            func: env.arena().alloc(ExpNode::Lam {
+                var: SymbolId::ANONYMOUS,
+                ty: context[0].ty,
+                body: variable,
+            }),
+            arg: variable,
+        })],
     });
     assert!(!store.unify(&env, non_pattern, variable).unwrap());
     let error = store.finish(&env).unwrap_err();
@@ -201,7 +209,14 @@ fn later_solution_discharges_a_previously_blocked_equation() {
     };
     let non_pattern = env.arena().alloc(ExpNode::Meta {
         metavariable,
-        spine: vec![set],
+        spine: vec![env.arena().alloc(ExpNode::App {
+            func: env.arena().alloc(ExpNode::Lam {
+                var: SymbolId::ANONYMOUS,
+                ty: set,
+                body: env.arena().exp_bound(0),
+            }),
+            arg: env.arena().exp_bound(0),
+        })],
     });
     assert!(!store.unify(&env, non_pattern, set).unwrap());
     assert!(store.unify(&env, meta, set).unwrap());

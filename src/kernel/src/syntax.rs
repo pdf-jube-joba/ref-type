@@ -1,1443 +1,977 @@
-//! Sort-indexed syntax with separate Set, Prop, Value, and Computation families.
-//! Each family has Term, Type, and Kind handles. Only level-indexed families
-//! carry a level; Prop's sort is fixed by its handle.
-//!
-//! Proofs cannot be used where a Set term is required:
-//! ```compile_fail
-//! use kernel::syntax::{PropTerm, SetTerm};
-//! fn as_set_term(proof: PropTerm) -> SetTerm { proof }
-//! ```
-//! Likewise, propositions cannot be used as Set types:
-//! ```compile_fail
-//! use kernel::syntax::{PropType, SetType};
-//! fn as_set_type(proposition: PropType) -> SetType { proposition }
-//! ```
-use super::sort::*;
-use crate::ids::*;
-use crate::sharing::{LooseBound, ScopedCache};
-use std::{
-    cell::RefCell,
-    hash::{Hash, Hasher},
-    rc::Rc,
-};
+//! Shared PTS syntax for elaboration, unification, and checking.
+use crate::ids::{DefinitionId, InductiveId, ParameterId, ProgramInductiveId, SymbolId};
+use crate::sort::Sort;
+use rustc_hash::FxHashMap;
+use std::{cell::RefCell, rc::Rc};
 
-const NO_NODE: u32 = u32::MAX;
-
-/// Immutable, structurally interned nodes.
-#[derive(Debug)]
-struct Partition<N> {
-    nodes: Vec<Rc<N>>,
-    interner: ScopedCache<u64, u32>,
-    hash_links: Vec<u32>,
-    max_loose_bounds: Vec<LooseBound>,
-}
-impl<N> Default for Partition<N> {
-    fn default() -> Self {
-        Self {
-            nodes: Vec::new(),
-            interner: ScopedCache::default(),
-            hash_links: Vec::new(),
-            max_loose_bounds: Vec::new(),
-        }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Expression(u32);
+impl Expression {
+    pub fn index(self) -> usize {
+        self.0 as usize
     }
-}
-impl<N: Eq + Hash> Partition<N> {
-    fn truncate(&mut self, len: usize) {
-        self.interner.discard_scope();
-        self.nodes.truncate(len);
-        self.hash_links.truncate(len);
-        self.max_loose_bounds.truncate(len);
-    }
-
-    fn insert(&mut self, node: N) -> u32 {
-        let mut hasher = rustc_hash::FxHasher::default();
-        node.hash(&mut hasher);
-        let fingerprint = hasher.finish();
-        let first = self.interner.get(&fingerprint).copied().unwrap_or(NO_NODE);
-        let mut candidate = first;
-        while candidate != NO_NODE {
-            let id = candidate;
-            if *self.nodes[id as usize] == node {
-                return id;
-            }
-            candidate = self.hash_links[id as usize];
-        }
-        let id = u32::try_from(self.nodes.len())
-            .ok()
-            .filter(|&id| id != NO_NODE)
-            .expect("arena exhausted");
-        self.nodes.push(Rc::new(node));
-        self.hash_links.push(first);
-        self.max_loose_bounds.push(LooseBound::default());
-        self.interner.insert(fingerprint, id);
-        id
-    }
-}
-
-#[cfg(test)]
-mod partition_tests {
-    use super::*;
-
-    #[derive(PartialEq, Eq)]
-    struct Colliding(u32);
-
-    impl Hash for Colliding {
-        fn hash<H: Hasher>(&self, state: &mut H) {
-            0u32.hash(state);
-        }
-    }
-
-    #[test]
-    fn scratch_collision_chains_preserve_permanent_nodes() {
-        let mut partition = Partition::default();
-        let first = partition.insert(Colliding(1));
-        let second = partition.insert(Colliding(2));
-        for _ in 0..2 {
-            partition.interner.begin_scope();
-            let temporary = partition.insert(Colliding(3));
-            assert_eq!(partition.insert(Colliding(1)), first);
-            assert_eq!(partition.insert(Colliding(2)), second);
-            assert_eq!(partition.insert(Colliding(3)), temporary);
-            partition.truncate(2);
-            assert_eq!(partition.insert(Colliding(1)), first);
-            assert_eq!(partition.insert(Colliding(2)), second);
-        }
-        let third = partition.insert(Colliding(4));
-        assert_eq!(third, 2);
-        assert_ne!(partition.insert(Colliding(3)), third);
-    }
-}
-
-// Keep every family in Set/Prop/Value/Computation order, then Term/Type/Kind.
-// One table defines handles, family tags, conversions, and arena partitions.
-macro_rules! syntax_families {
-    ($($handle:ident => $storage:ident, $node:ident, $sort:pat, $stage:ident;)+) => {
-        $(
-            #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-            pub struct $handle(u32);
-            impl $handle {
-                pub fn index(self) -> usize { self.0 as usize }
-            }
-            impl From<$handle> for Expression {
-                fn from(h: $handle) -> Self { Self::$handle(h) }
-            }
-            impl TryFrom<Expression> for $handle {
-                type Error = String;
-                fn try_from(e: Expression) -> Result<Self, String> {
-                    match e {
-                        Expression::$handle(h) => Ok(h),
-                        _ => Err(concat!("expected ", stringify!($handle)).into()),
-                    }
-                }
-            }
-        )+
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub enum Expression { $($handle($handle),)+ }
-        /// An owned reference to a node, independent of scratch arena lifetimes.
-        #[derive(Debug, Clone)]
-        pub enum ExpressionNode { $($handle(Rc<$node>),)+ }
-        impl Arena {
-            pub fn node(&self, expression: Expression) -> ExpressionNode {
-                match expression {
-                    $(Expression::$handle(h) => ExpressionNode::$handle(self.read(h)),)+
-                }
-            }
-        }
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub enum Family { $($handle,)+ }
-        impl Expression {
-            pub fn family(self) -> Family {
-                match self { $(Self::$handle(..) => Family::$handle,)+ }
-            }
-        }
-        impl Family {
-            pub fn stage(self) -> Stage {
-                match self { $(Self::$handle => Stage::$stage,)+ }
-            }
-            pub fn at(sort: BaseSort, stage: Stage) -> Self {
-                match (sort, stage) { $(($sort, Stage::$stage) => Self::$handle,)+ }
-            }
-        }
-        #[derive(Debug, Default)]
-        pub struct Arena {
-            $($storage: RefCell<Partition<$node>>,)+
-        }
-        #[derive(Clone, Copy)]
-        pub(crate) struct ArenaCheckpoint { $($storage: usize,)+ }
-        impl ArenaCheckpoint {
-            pub(crate) fn contains(self, e: Expression) -> bool {
-                match e { $(Expression::$handle(h) => h.index() < self.$storage,)+ }
-            }
-        }
-        impl Arena {
-            pub(crate) fn checkpoint(&self) -> ArenaCheckpoint {
-                $(self.$storage.borrow_mut().interner.begin_scope();)+
-                ArenaCheckpoint { $($storage: self.$storage.borrow().nodes.len(),)+ }
-            }
-
-            pub(crate) fn truncate(&mut self, checkpoint: ArenaCheckpoint) {
-                $(self.$storage.get_mut().truncate(checkpoint.$storage);)+
-            }
-
-            /// Number of retained nodes in each syntax family.
-            pub fn node_counts(&self) -> Vec<(Family, usize)> {
-                vec![$((Family::$handle, self.$storage.borrow().nodes.len()),)+]
-            }
-
-            pub fn sort(&self, e: impl Into<Expression>) -> BaseSort {
-                match e.into() { $(Expression::$handle(h) => self.$storage.borrow().nodes[h.index()].sort(),)+ }
-            }
-            fn cached_max_loose_bound(&self, e: Expression) -> Option<Option<usize>> {
-                match e {
-                    $(Expression::$handle(h) => self.$storage.borrow().max_loose_bounds[h.index()].get(),)+
-                }
-            }
-            fn cache_max_loose_bound(&self, e: Expression, value: Option<usize>) {
-                match e {
-                    $(Expression::$handle(h) => self.$storage.borrow().max_loose_bounds[h.index()].set(value),)+
-                }
-            }
-        }
-        $(impl ArenaNode for $node {
-            type Handle = $handle;
-            fn allocate(self, arena: &Arena) -> $handle {
-                $handle(arena.$storage.borrow_mut().insert(self))
-            }
-        }
-        impl ArenaHandle for $handle {
-            type Node = $node;
-            fn get(self, arena: &Arena) -> $node { (*self.read(arena)).clone() }
-            fn read(self, arena: &Arena) -> Rc<$node> {
-                arena.$storage.borrow().nodes[self.index()].clone()
-            }
-        })+
-
-    };
-}
-
-// A classified subset of Expression with checked conversions in both directions.
-macro_rules! expression_subset {
-    ($name:ident, $error:literal; $($handle:ident),+ $(,)?) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub enum $name { $($handle($handle),)+ }
-        $(impl From<$handle> for $name {
-            fn from(h: $handle) -> Self { Self::$handle(h) }
-        })+
-        impl From<$name> for Expression {
-            fn from(e: $name) -> Self {
-                match e { $($name::$handle(h) => h.into(),)+ }
-            }
-        }
-        impl TryFrom<Expression> for $name {
-            type Error = String;
-            fn try_from(e: Expression) -> Result<Self, String> {
-                match e {
-                    $(Expression::$handle(h) => Ok(Self::$handle(h)),)+
-                    _ => Err($error.into()),
-                }
-            }
-        }
-    };
-}
-
-syntax_families! {
-    SetTerm => setterm, SetTermNode, BaseSort::Set(_), Term;
-    SetType => settype, SetTypeNode, BaseSort::Set(_), Type;
-    SetKind => setkind, SetKindNode, BaseSort::Set(_), Kind;
-    PropTerm => propterm, PropTermNode, BaseSort::Prop, Term;
-    PropType => proptype, PropTypeNode, BaseSort::Prop, Type;
-    PropKind => propkind, PropKindNode, BaseSort::Prop, Kind;
-    ValueTerm => valueterm, ValueTermNode, BaseSort::Value(_), Term;
-    ValueType => valuetype, ValueTypeNode, BaseSort::Value(_), Type;
-    ValueKind => valuekind, ValueKindNode, BaseSort::Value(_), Kind;
-    ComputationTerm => computationterm, ComputationTermNode, BaseSort::Computation(_), Term;
-    ComputationType => computationtype, ComputationTypeNode, BaseSort::Computation(_), Type;
-    ComputationKind => computationkind, ComputationKindNode, BaseSort::Computation(_), Kind;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Stage {
-    Term,
-    Type,
-    Kind,
+pub struct MetaId {
+    pub(crate) session: u64,
+    pub(crate) index: u32,
 }
 
-expression_subset!(SetExpression, "expected Set expression"; SetTerm, SetType, SetKind);
-expression_subset!(PropExpression, "expected Prop expression"; PropTerm, PropType, PropKind);
-expression_subset!(SetArgument, "expected Set argument"; SetTerm, SetType);
-expression_subset!(PropArgument, "expected Prop argument"; PropTerm, PropType);
-expression_subset!(LogicalTerm, "expected Set/Prop term"; SetTerm, PropTerm);
-expression_subset!(LogicalType, "expected Set/Prop type"; SetType, PropType);
-expression_subset!(LogicalKind, "expected Set/Prop kind"; SetKind, PropKind);
-expression_subset!(ProgramTerm, "wrong syntax family"; ValueTerm, ComputationTerm);
-expression_subset!(ProgramType, "wrong syntax family"; ValueType, ComputationType);
-expression_subset!(ProgramKind, "wrong syntax family"; ValueKind, ComputationKind);
-
-/// Set/Prop expressions used by mixed binders and inductive elimination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum LogicalExpression {
-    Set(SetExpression),
-    Prop(PropExpression),
-}
-impl From<SetExpression> for LogicalExpression {
-    fn from(e: SetExpression) -> Self {
-        Self::Set(e)
-    }
-}
-impl From<SetTerm> for LogicalExpression {
-    fn from(h: SetTerm) -> Self {
-        Self::Set(h.into())
-    }
-}
-impl From<SetType> for LogicalExpression {
-    fn from(h: SetType) -> Self {
-        Self::Set(h.into())
-    }
-}
-impl From<SetKind> for LogicalExpression {
-    fn from(h: SetKind) -> Self {
-        Self::Set(h.into())
-    }
-}
-impl From<PropExpression> for LogicalExpression {
-    fn from(e: PropExpression) -> Self {
-        Self::Prop(e)
-    }
-}
-impl From<PropTerm> for LogicalExpression {
-    fn from(h: PropTerm) -> Self {
-        Self::Prop(h.into())
-    }
-}
-impl From<PropType> for LogicalExpression {
-    fn from(h: PropType) -> Self {
-        Self::Prop(h.into())
-    }
-}
-impl From<PropKind> for LogicalExpression {
-    fn from(h: PropKind) -> Self {
-        Self::Prop(h.into())
-    }
-}
-impl From<LogicalExpression> for Expression {
-    fn from(e: LogicalExpression) -> Self {
-        match e {
-            LogicalExpression::Set(e) => e.into(),
-            LogicalExpression::Prop(e) => e.into(),
-        }
-    }
-}
-impl TryFrom<Expression> for LogicalExpression {
-    type Error = String;
-    fn try_from(e: Expression) -> Result<Self, String> {
-        if let Ok(e) = SetExpression::try_from(e) {
-            Ok(Self::Set(e))
-        } else {
-            PropExpression::try_from(e).map(Self::Prop)
-        }
-    }
-}
-
-/// Set/Prop arguments used by mixed binders and inductive elimination.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum LogicalArgument {
-    Set(SetArgument),
-    Prop(PropArgument),
-}
-impl From<SetArgument> for LogicalArgument {
-    fn from(e: SetArgument) -> Self {
-        Self::Set(e)
-    }
-}
-impl From<SetTerm> for LogicalArgument {
-    fn from(h: SetTerm) -> Self {
-        Self::Set(h.into())
-    }
-}
-impl From<SetType> for LogicalArgument {
-    fn from(h: SetType) -> Self {
-        Self::Set(h.into())
-    }
-}
-impl From<PropArgument> for LogicalArgument {
-    fn from(e: PropArgument) -> Self {
-        Self::Prop(e)
-    }
-}
-impl From<PropTerm> for LogicalArgument {
-    fn from(h: PropTerm) -> Self {
-        Self::Prop(h.into())
-    }
-}
-impl From<PropType> for LogicalArgument {
-    fn from(h: PropType) -> Self {
-        Self::Prop(h.into())
-    }
-}
-impl From<LogicalArgument> for Expression {
-    fn from(e: LogicalArgument) -> Self {
-        match e {
-            LogicalArgument::Set(e) => e.into(),
-            LogicalArgument::Prop(e) => e.into(),
-        }
-    }
-}
-impl TryFrom<Expression> for LogicalArgument {
-    type Error = String;
-    fn try_from(e: Expression) -> Result<Self, String> {
-        if let Ok(e) = SetArgument::try_from(e) {
-            Ok(Self::Set(e))
-        } else {
-            PropArgument::try_from(e).map(Self::Prop)
-        }
-    }
+pub enum Mode {
+    Pure,
+    Computation,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum SetTermForm {
-    Bound {
-        index: usize,
+pub enum Node {
+    Sort(Sort),
+    Bound(usize),
+    Parameter(ParameterId),
+    Definition {
+        id: DefinitionId,
+        arguments: Vec<Expression>,
     },
-    Annotated {
-        global: Option<GlobalId>,
-        body: SetTerm,
-        classifier: super::environment::Classifier,
+    Meta {
+        id: MetaId,
+        arguments: Vec<Expression>,
     },
-    LambdaTerm {
-        rule: ProductRule,
+    Product {
         var: SymbolId,
-        domain: SetType,
-        body: SetTerm,
+        domain: Expression,
+        body: Expression,
     },
-    LambdaType {
-        rule: ProductRule,
+    Lambda {
+        mode: Mode,
         var: SymbolId,
-        domain: SetKind,
-        body: SetTerm,
+        domain: Expression,
+        body: Expression,
     },
-    AppTerm {
-        rule: ProductRule,
-        function: SetTerm,
-        argument: SetTerm,
+    App {
+        mode: Mode,
+        function: Expression,
+        argument: Expression,
     },
-    AppType {
-        rule: ProductRule,
-        function: SetTerm,
-        argument: SetType,
+    Reflect {
+        term: Expression,
     },
     Subset {
         var: SymbolId,
-        set: SetType,
-        predicate: PropType,
+        set: Expression,
+        predicate: Expression,
     },
     SubsetIntro {
-        superset: SetType,
-        subset: SetTerm,
-        element: SetTerm,
-        proof: PropTerm,
+        superset: Expression,
+        subset: Expression,
+        element: Expression,
+        proof: Expression,
     },
     Continue {
-        state_ty: SetType,
-        result_ty: SetType,
-        next: SetTerm,
+        state_ty: Expression,
+        result_ty: Expression,
+        next: Expression,
     },
     Finish {
-        state_ty: SetType,
-        result_ty: SetType,
-        output: SetTerm,
+        state_ty: Expression,
+        result_ty: Expression,
+        output: Expression,
     },
     SetRun {
-        state_ty: SetType,
-        result_ty: SetType,
-        step: SetTerm,
-        initial: SetTerm,
-        accessibility: PropTerm,
+        state_ty: Expression,
+        result_ty: Expression,
+        step: Expression,
+        initial: Expression,
+        accessibility: Expression,
     },
     SetRunCase {
-        state_ty: SetType,
-        result_ty: SetType,
-        step: SetTerm,
-        initial: SetTerm,
-        transition: SetTerm,
-        accessibility: PropTerm,
-        transition_equality: PropTerm,
+        state_ty: Expression,
+        result_ty: Expression,
+        step: Expression,
+        initial: Expression,
+        transition: Expression,
+        accessibility: Expression,
+        transition_equality: Expression,
     },
     Recursor {
-        rule: ProductRule,
-        var: SymbolId,
-        state_ty: SetType,
-        result_ty: SetType,
-        motive: SetType,
-        on_continue: SetTerm,
-        on_finish: SetTerm,
-        scrutinee: SetTerm,
+        state_ty: Expression,
+        result_ty: Expression,
+        motive: Expression,
+        on_continue: Expression,
+        on_finish: Expression,
+        scrutinee: Expression,
     },
     BoxProgram {
-        program_ty: ComputationType,
-        program: ComputationTerm,
+        program_ty: Expression,
+        program: Expression,
     },
     ForceBox {
-        program_ty: ComputationType,
-        boxed: SetTerm,
+        program_ty: Expression,
+        boxed: Expression,
     },
     BoxApp {
-        rule: ProductRule,
-        domain: ValueType,
-        codomain: ComputationType,
-        function: SetTerm,
-        argument: SetTerm,
+        function: Expression,
+        argument: Expression,
     },
     BoxTypeApp {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: ProgramKind,
-        codomain: ComputationType,
-        function: SetTerm,
-        argument: ProgramType,
+        function: Expression,
+        argument: Expression,
     },
     TakeSet {
-        domain: SetType,
-        codomain: SetType,
-        map: SetTerm,
-        existence: PropTerm,
-        uniqueness: PropTerm,
+        domain: Expression,
+        codomain: Expression,
+        map: Expression,
+        existence: Expression,
+        uniqueness: Expression,
     },
     IndCtor {
         inductive: InductiveId,
         constructor: usize,
-        parameters: Vec<LogicalArgument>,
+        parameters: Vec<Expression>,
     },
     IndElim {
         inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
-        scrutinee: LogicalArgument,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: LogicalExpression,
-        cases: Vec<LogicalArgument>,
+        scrutinee: Expression,
+        motive: Expression,
+        cases: Vec<Expression>,
     },
     Case {
         inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
-        scrutinee: LogicalArgument,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: LogicalExpression,
-        branches: Vec<LogicalArgument>,
+        scrutinee: Expression,
+        motive: Expression,
+        branches: Vec<Expression>,
     },
     SetCase {
         inductive: ProgramInductiveId,
         binders: Vec<Vec<SymbolId>>,
-        result_ty: SetType,
-        scrutinee: SetTerm,
-        branches: Vec<SetTerm>,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SetTermNode {
-    pub level: usize,
-    pub form: SetTermForm,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum SetTypeForm {
-    Bound {
-        index: usize,
-    },
-    Annotated {
-        global: Option<GlobalId>,
-        body: SetType,
-        classifier: super::environment::Classifier,
-    },
-    ProdTerm {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: SetType,
-        body: SetType,
-    },
-    ProdType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: SetKind,
-        body: SetType,
-    },
-    LambdaTerm {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: SetType,
-        body: SetType,
-    },
-    LambdaType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: SetKind,
-        body: SetType,
-    },
-    AppTerm {
-        rule: ProductRule,
-        function: SetType,
-        argument: SetTerm,
-    },
-    AppType {
-        rule: ProductRule,
-        function: SetType,
-        argument: SetType,
+        scrutinee: Expression,
+        branches: Vec<Expression>,
     },
     PowerSet {
-        set: SetType,
+        set: Expression,
     },
     TypeLift {
-        superset: SetType,
-        subset: SetTerm,
+        superset: Expression,
+        subset: Expression,
     },
     RunStep {
-        state_ty: SetType,
-        result_ty: SetType,
+        state_ty: Expression,
+        result_ty: Expression,
     },
     BoxType {
-        program_ty: ComputationType,
-    },
-    Recursor {
-        rule: ProductRule,
-        var: SymbolId,
-        state_ty: SetType,
-        result_ty: SetType,
-        motive: SetKind,
-        on_continue: SetType,
-        on_finish: SetType,
-        scrutinee: SetTerm,
+        program_ty: Expression,
     },
     IndType {
         inductive: InductiveId,
-        parameters: Vec<LogicalArgument>,
-    },
-    IndCtor {
-        inductive: InductiveId,
-        constructor: usize,
-        parameters: Vec<LogicalArgument>,
-    },
-    IndElim {
-        inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
-        scrutinee: LogicalArgument,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: LogicalExpression,
-        cases: Vec<LogicalArgument>,
-    },
-    Case {
-        inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
-        scrutinee: LogicalArgument,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: LogicalExpression,
-        branches: Vec<LogicalArgument>,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SetTypeNode {
-    pub level: usize,
-    pub form: SetTypeForm,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum SetKindForm {
-    Base,
-    ProdTerm {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: SetType,
-        body: SetKind,
-    },
-    ProdType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: SetKind,
-        body: SetKind,
-    },
-    IndType {
-        inductive: InductiveId,
-        parameters: Vec<LogicalArgument>,
-    },
-    Annotated {
-        global: Option<GlobalId>,
-        body: SetKind,
-        classifier: super::environment::Classifier,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SetKindNode {
-    pub level: usize,
-    pub form: SetKindForm,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum PropTermForm {
-    Bound {
-        index: usize,
-    },
-    Annotated {
-        global: Option<GlobalId>,
-        body: PropTerm,
-        classifier: super::environment::Classifier,
-    },
-    LambdaTerm {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: LogicalType,
-        body: PropTerm,
-    },
-    LambdaType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: LogicalKind,
-        body: PropTerm,
-    },
-    AppTerm {
-        rule: ProductRule,
-        function: PropTerm,
-        argument: LogicalTerm,
-    },
-    AppType {
-        rule: ProductRule,
-        function: PropTerm,
-        argument: LogicalType,
-    },
-    Recursor {
-        rule: ProductRule,
-        var: SymbolId,
-        state_ty: SetType,
-        result_ty: SetType,
-        motive: PropType,
-        on_continue: PropTerm,
-        on_finish: PropTerm,
-        scrutinee: SetTerm,
+        parameters: Vec<Expression>,
     },
     IdRefl {
-        element: SetTerm,
+        element: Expression,
     },
     ExistsIntro {
-        element: SetTerm,
-        set: SetType,
+        element: Expression,
+        set: Expression,
     },
     SubsetElim {
-        element: SetTerm,
-        subset: SetTerm,
-        superset: SetType,
+        element: Expression,
+        subset: Expression,
+        superset: Expression,
     },
     IdElim {
         var: SymbolId,
-        left: SetTerm,
-        right: SetTerm,
-        ty: SetType,
-        predicate: PropType,
-        base: PropTerm,
-        equality: PropTerm,
+        left: Expression,
+        right: Expression,
+        ty: Expression,
+        predicate: Expression,
+        base: Expression,
+        equality: Expression,
     },
     TakeProp {
-        domain: SetType,
-        proposition: PropType,
-        map: PropTerm,
-        existence: PropTerm,
+        domain: Expression,
+        proposition: Expression,
+        map: Expression,
+        existence: Expression,
     },
     TakeEq {
-        func: SetTerm,
-        domain: SetType,
-        codomain: SetType,
-        element: SetTerm,
-        existence: PropTerm,
-        uniqueness: PropTerm,
+        func: Expression,
+        domain: Expression,
+        codomain: Expression,
+        element: Expression,
+        existence: Expression,
+        uniqueness: Expression,
     },
     SetExt {
-        left: SetTerm,
-        right: SetTerm,
-        left_to_right: PropTerm,
-        right_to_left: PropTerm,
+        left: Expression,
+        right: Expression,
+        left_to_right: Expression,
+        right_to_left: Expression,
     },
     FunExt {
-        left: SetTerm,
-        right: SetTerm,
-        pointwise: PropTerm,
+        left: Expression,
+        right: Expression,
+        pointwise: Expression,
     },
     ClassicalIndefiniteChoice {
-        domain: SetType,
-        family: SetType,
-        inhabited: PropTerm,
+        domain: Expression,
+        family: Expression,
+        inhabited: Expression,
     },
     AccIntro {
-        state_ty: SetType,
-        result_ty: SetType,
-        step: SetTerm,
-        state: SetTerm,
-        predecessors: PropTerm,
+        state_ty: Expression,
+        result_ty: Expression,
+        step: Expression,
+        state: Expression,
+        predecessors: Expression,
     },
     AccDescent {
-        state_ty: SetType,
-        result_ty: SetType,
-        step: SetTerm,
-        from: SetTerm,
-        to: SetTerm,
-        accessibility: PropTerm,
-        transition: PropTerm,
-    },
-    IndCtor {
-        inductive: InductiveId,
-        constructor: usize,
-        parameters: Vec<LogicalArgument>,
-    },
-    IndElim {
-        inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
-        scrutinee: LogicalArgument,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: LogicalExpression,
-        cases: Vec<LogicalArgument>,
-    },
-    Case {
-        inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
-        scrutinee: LogicalArgument,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: LogicalExpression,
-        branches: Vec<LogicalArgument>,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PropTermNode {
-    pub form: PropTermForm,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum PropTypeForm {
-    Bound {
-        index: usize,
-    },
-    Annotated {
-        global: Option<GlobalId>,
-        body: PropType,
-        classifier: super::environment::Classifier,
-    },
-    ProdTerm {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: LogicalType,
-        body: PropType,
-    },
-    ProdType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: LogicalKind,
-        body: PropType,
-    },
-    LambdaTerm {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: LogicalType,
-        body: PropType,
-    },
-    LambdaType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: LogicalKind,
-        body: PropType,
-    },
-    AppTerm {
-        rule: ProductRule,
-        function: PropType,
-        argument: LogicalTerm,
-    },
-    AppType {
-        rule: ProductRule,
-        function: PropType,
-        argument: LogicalType,
+        state_ty: Expression,
+        result_ty: Expression,
+        step: Expression,
+        from: Expression,
+        to: Expression,
+        accessibility: Expression,
+        transition: Expression,
     },
     Pred {
-        superset: SetType,
-        subset: SetTerm,
-        element: SetTerm,
+        superset: Expression,
+        subset: Expression,
+        element: Expression,
     },
     Equal {
-        left: SetTerm,
-        right: SetTerm,
+        left: Expression,
+        right: Expression,
     },
     Exists {
-        set: SetType,
+        set: Expression,
     },
     Acc {
-        state_ty: SetType,
-        result_ty: SetType,
-        step: SetTerm,
-        state: SetTerm,
-    },
-    Recursor {
-        rule: ProductRule,
-        var: SymbolId,
-        state_ty: SetType,
-        result_ty: SetType,
-        motive: PropKind,
-        on_continue: PropType,
-        on_finish: PropType,
-        scrutinee: SetTerm,
-    },
-    IndType {
-        inductive: InductiveId,
-        parameters: Vec<LogicalArgument>,
-    },
-    IndCtor {
-        inductive: InductiveId,
-        constructor: usize,
-        parameters: Vec<LogicalArgument>,
-    },
-    IndElim {
-        inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
-        scrutinee: LogicalArgument,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: LogicalExpression,
-        cases: Vec<LogicalArgument>,
-    },
-    Case {
-        inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
-        scrutinee: LogicalArgument,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: LogicalExpression,
-        branches: Vec<LogicalArgument>,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PropTypeNode {
-    pub form: PropTypeForm,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum PropKindForm {
-    Base,
-    ProdTerm {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: LogicalType,
-        body: PropKind,
-    },
-    ProdType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: LogicalKind,
-        body: PropKind,
-    },
-    IndType {
-        inductive: InductiveId,
-        parameters: Vec<LogicalArgument>,
-    },
-    Annotated {
-        global: Option<GlobalId>,
-        body: PropKind,
-        classifier: super::environment::Classifier,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct PropKindNode {
-    pub form: PropKindForm,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ValueTermForm {
-    Bound {
-        index: usize,
-    },
-    Annotated {
-        global: Option<GlobalId>,
-        body: ValueTerm,
-        classifier: super::environment::Classifier,
+        state_ty: Expression,
+        result_ty: Expression,
+        step: Expression,
+        state: Expression,
     },
     ThunkValue {
-        computation: ComputationTerm,
+        computation: Expression,
     },
-    Continue {
-        state_ty: ValueType,
-        result_ty: ValueType,
-        next: ValueTerm,
+    ProgramContinue {
+        state_ty: Expression,
+        result_ty: Expression,
+        next: Expression,
     },
-    Finish {
-        state_ty: ValueType,
-        result_ty: ValueType,
-        output: ValueTerm,
+    ProgramFinish {
+        state_ty: Expression,
+        result_ty: Expression,
+        output: Expression,
     },
     InductiveConstructor {
         inductive: ProgramInductiveId,
         constructor: usize,
-        parameters: Vec<ProgramType>,
-        fields: Vec<ValueTerm>,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ValueTermNode {
-    pub level: usize,
-    pub form: ValueTermForm,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ValueTypeForm {
-    Bound {
-        index: usize,
-    },
-    Annotated {
-        global: Option<GlobalId>,
-        body: ValueType,
-        classifier: super::environment::Classifier,
+        parameters: Vec<Expression>,
+        fields: Vec<Expression>,
     },
     Thunk {
-        computation_ty: ComputationType,
+        computation_ty: Expression,
     },
-    RunStep {
-        state_ty: ValueType,
-        result_ty: ValueType,
+    ProgramRunStep {
+        state_ty: Expression,
+        result_ty: Expression,
     },
     Inductive {
         inductive: ProgramInductiveId,
-        parameters: Vec<ProgramType>,
-    },
-    LambdaType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: ProgramKind,
-        body: ValueType,
-    },
-    AppType {
-        rule: ProductRule,
-        function: ValueType,
-        argument: ProgramType,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ValueTypeNode {
-    pub level: usize,
-    pub form: ValueTypeForm,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ValueKindForm {
-    Base,
-    ProdType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: ProgramKind,
-        body: ValueKind,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ValueKindNode {
-    pub level: usize,
-    pub form: ValueKindForm,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ComputationTermForm {
-    Annotated {
-        global: Option<GlobalId>,
-        body: ComputationTerm,
-        classifier: super::environment::Classifier,
+        parameters: Vec<Expression>,
     },
     Return {
-        value: ValueTerm,
+        value: Expression,
     },
     Force {
-        value: ValueTerm,
-    },
-    LambdaTerm {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: ValueType,
-        body: ComputationTerm,
-    },
-    LambdaType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: ProgramKind,
-        body: ComputationTerm,
-    },
-    AppTerm {
-        rule: ProductRule,
-        function: ComputationTerm,
-        argument: ValueTerm,
-    },
-    AppType {
-        rule: ProductRule,
-        function: ComputationTerm,
-        argument: ProgramType,
+        value: Expression,
     },
     Sequence {
         var: SymbolId,
-        value_ty: ValueType,
-        computation: ComputationTerm,
-        body: ComputationTerm,
+        value_ty: Expression,
+        computation: Expression,
+        body: Expression,
     },
     ValueLet {
         var: SymbolId,
-        value_ty: ValueType,
-        value: ValueTerm,
-        body: ComputationTerm,
+        value_ty: Expression,
+        value: Expression,
+        body: Expression,
     },
-    Case {
+    ProgramCase {
         inductive: ProgramInductiveId,
         binders: Vec<Vec<SymbolId>>,
-        result_ty: ComputationType,
-        scrutinee: ValueTerm,
-        branches: Vec<ComputationTerm>,
+        scrutinee: Expression,
+        branches: Vec<Expression>,
     },
     Run {
-        state_ty: ValueType,
-        result_ty: ValueType,
-        step: ValueTerm,
-        initial: ValueTerm,
-        accessibility: PropTerm,
+        state_ty: Expression,
+        result_ty: Expression,
+        step: Expression,
+        initial: Expression,
+        accessibility: Expression,
     },
     RunCase {
-        state_ty: ValueType,
-        result_ty: ValueType,
-        step: ValueTerm,
-        initial: ValueTerm,
-        transition: ComputationTerm,
-        accessibility: PropTerm,
-        transition_equality: PropTerm,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ComputationTermNode {
-    pub level: usize,
-    pub form: ComputationTermForm,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ComputationTypeForm {
-    Bound {
-        index: usize,
-    },
-    Annotated {
-        global: Option<GlobalId>,
-        body: ComputationType,
-        classifier: super::environment::Classifier,
+        state_ty: Expression,
+        result_ty: Expression,
+        step: Expression,
+        initial: Expression,
+        transition: Expression,
+        accessibility: Expression,
+        transition_equality: Expression,
     },
     ReturnType {
-        value_ty: ValueType,
+        value_ty: Expression,
     },
-    ProdTerm {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: ValueType,
-        body: ComputationType,
-    },
-    ProdType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: ProgramKind,
-        body: ComputationType,
-    },
-    LambdaType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: ProgramKind,
-        body: ComputationType,
-    },
-    AppType {
-        rule: ProductRule,
-        function: ComputationType,
-        argument: ProgramType,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ComputationTypeNode {
-    pub level: usize,
-    pub form: ComputationTypeForm,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ComputationKindForm {
-    Base,
-    ProdType {
-        rule: ProductRule,
-        var: SymbolId,
-        domain: ProgramKind,
-        body: ComputationKind,
-    },
-}
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ComputationKindNode {
-    pub level: usize,
-    pub form: ComputationKindForm,
+#[derive(Debug, Default)]
+struct Storage {
+    nodes: Vec<Option<Rc<Node>>>,
+    interned: FxHashMap<Rc<Node>, Expression>,
+    bounds: FxHashMap<Expression, Option<usize>>,
+    metas: FxHashMap<Expression, bool>,
 }
 
-pub trait ArenaNode {
-    type Handle;
-    fn allocate(self, arena: &Arena) -> Self::Handle;
-}
-pub trait ArenaHandle: Copy {
-    type Node;
-    fn get(self, arena: &Arena) -> Self::Node;
-    fn read(self, arena: &Arena) -> Rc<Self::Node>;
-}
+#[derive(Debug, Clone, Default)]
+pub struct Arena(Rc<RefCell<Storage>>);
 impl Arena {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn alloc<N: ArenaNode>(&self, node: N) -> N::Handle {
-        node.allocate(self)
-    }
-    pub fn get<H: ArenaHandle>(&self, handle: H) -> H::Node {
-        handle.get(self)
-    }
-    /// The owned shared reference does not hold a RefCell borrow across recursion.
-    pub fn read<H: ArenaHandle>(&self, handle: H) -> Rc<H::Node> {
-        handle.read(self)
-    }
-    pub(crate) fn max_loose_bound(&self, e: Expression) -> Option<usize> {
-        if let Some(cached) = self.cached_max_loose_bound(e) {
-            return cached;
+    pub fn alloc(&self, node: Node) -> Expression {
+        let mut storage = self.0.borrow_mut();
+        if let Some(&e) = storage.interned.get(&node) {
+            return e;
         }
-        let mut result = super::structure::bound_index(self, e);
-        super::structure::visit_children(self, e, |child, depth| {
-            if let Some(index) = self
+        let e = Expression(u32::try_from(storage.nodes.len()).expect("expression arena exhausted"));
+        let node = Rc::new(node);
+        storage.nodes.push(Some(node.clone()));
+        storage.interned.insert(node, e);
+        e
+    }
+    pub fn read(&self, e: Expression) -> Rc<Node> {
+        self.0.borrow().nodes[e.index()]
+            .as_ref()
+            .expect("discarded scratch expression")
+            .clone()
+    }
+    pub fn get(&self, e: Expression) -> Node {
+        (*self.read(e)).clone()
+    }
+    pub fn len(&self) -> usize {
+        self.0.borrow().interned.len()
+    }
+    pub(crate) fn scratch_mark(&self) -> usize {
+        self.0.borrow().nodes.len()
+    }
+    pub(crate) fn is_live(&self, e: Expression) -> bool {
+        self.0
+            .borrow()
+            .nodes
+            .get(e.index())
+            .is_some_and(Option::is_some)
+    }
+    pub(crate) fn finish_scratch(
+        &self,
+        mark: usize,
+        roots: impl IntoIterator<Item = Expression>,
+    ) -> usize {
+        let mut pending = roots.into_iter().collect::<Vec<_>>();
+        // A retained read snapshot also keeps its children alive.
+        pending.extend(
+            self.0
+                .borrow()
+                .nodes
+                .iter()
+                .enumerate()
+                .skip(mark)
+                .filter_map(|(i, n)| {
+                    n.as_ref()
+                        .filter(|n| Rc::strong_count(n) > 2)
+                        .map(|_| Expression(i as u32))
+                }),
+        );
+        let mut live = rustc_hash::FxHashSet::default();
+        while let Some(e) = pending.pop() {
+            if e.index() >= mark && live.insert(e) {
+                pending.extend(self.children(e).into_iter().map(|(e, _)| e));
+            }
+        }
+        let mut storage = self.0.borrow_mut();
+        let mut removed = 0;
+        for i in mark..storage.nodes.len() {
+            let e = Expression(i as u32);
+            if !live.contains(&e)
+                && let Some(node) = storage.nodes[i].take()
+            {
+                storage.interned.remove(&node);
+                storage.bounds.remove(&e);
+                storage.metas.remove(&e);
+                removed += 1;
+            }
+        }
+        removed
+    }
+    pub fn contains_meta(&self, e: Expression) -> bool {
+        if let Some(&result) = self.0.borrow().metas.get(&e) {
+            return result;
+        }
+        let result = matches!(self.get(e), Node::Meta { .. })
+            || self
+                .children(e)
+                .into_iter()
+                .any(|(e, _)| self.contains_meta(e));
+        self.0.borrow_mut().metas.insert(e, result);
+        result
+    }
+    pub fn max_loose_bound(&self, e: Expression) -> Option<usize> {
+        if let Some(&result) = self.0.borrow().bounds.get(&e) {
+            return result;
+        }
+        let mut result = match self.get(e) {
+            Node::Bound(i) => Some(i),
+            _ => None,
+        };
+        for (child, depth) in self.children(e) {
+            if let Some(i) = self
                 .max_loose_bound(child)
                 .and_then(|i| i.checked_sub(depth))
             {
-                result = Some(result.map_or(index, |old| old.max(index)));
+                result = Some(result.map_or(i, |old| old.max(i)));
             }
-        });
-        self.cache_max_loose_bound(e, result);
+        }
+        self.0.borrow_mut().bounds.insert(e, result);
         result
     }
-}
-impl SetTermNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Set(self.level)
+    pub fn node_counts(&self) -> Vec<(&'static str, usize)> {
+        vec![("Expression", self.len())]
     }
-}
-impl SetTypeNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Set(self.level)
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
-}
-impl SetKindNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Set(self.level)
+    pub fn sort(&self, sort: Sort) -> Expression {
+        self.alloc(Node::Sort(sort))
     }
-}
-impl PropTermNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Prop
+    pub fn bound(&self, index: usize) -> Expression {
+        self.alloc(Node::Bound(index))
     }
-}
-impl PropTypeNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Prop
-    }
-}
-impl PropKindNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Prop
-    }
-}
-impl ValueTermNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Value(self.level)
-    }
-}
-impl ValueTypeNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Value(self.level)
-    }
-}
-impl ValueKindNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Value(self.level)
-    }
-}
-impl ComputationTermNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Computation(self.level)
-    }
-}
 
-impl Arena {
-    /// A transparent body together with the classifier declared by its author.
-    /// The annotation has no external label.
-    pub fn annotated(
+    pub fn map_children<E>(
         &self,
-        body: Expression,
-        classifier: super::environment::Classifier,
-    ) -> Result<Expression, String> {
-        self.annotation(None, body, classifier)
-    }
-
-    /// Attach a caller-owned label to a transparent annotation.
-    /// The checker validates the body and classifier independently of the label.
-    pub fn identified(
-        &self,
-        global: GlobalId,
-        body: Expression,
-        classifier: super::environment::Classifier,
-    ) -> Result<Expression, String> {
-        self.annotation(Some(global), body, classifier)
-    }
-
-    pub fn global_id(&self, expression: Expression) -> Option<GlobalId> {
-        match expression {
-            Expression::SetTerm(h) => match self.get(h).form {
-                SetTermForm::Annotated { global, .. } => global,
-                _ => None,
-            },
-            Expression::SetType(h) => match self.get(h).form {
-                SetTypeForm::Annotated { global, .. } => global,
-                _ => None,
-            },
-            Expression::SetKind(h) => match self.get(h).form {
-                SetKindForm::Annotated { global, .. } => global,
-                _ => None,
-            },
-            Expression::PropTerm(h) => match self.get(h).form {
-                PropTermForm::Annotated { global, .. } => global,
-                _ => None,
-            },
-            Expression::PropType(h) => match self.get(h).form {
-                PropTypeForm::Annotated { global, .. } => global,
-                _ => None,
-            },
-            Expression::PropKind(h) => match self.get(h).form {
-                PropKindForm::Annotated { global, .. } => global,
-                _ => None,
-            },
-            Expression::ValueTerm(h) => match self.get(h).form {
-                ValueTermForm::Annotated { global, .. } => global,
-                _ => None,
-            },
-            Expression::ValueType(h) => match self.get(h).form {
-                ValueTypeForm::Annotated { global, .. } => global,
-                _ => None,
-            },
-            Expression::ComputationTerm(h) => match self.get(h).form {
-                ComputationTermForm::Annotated { global, .. } => global,
-                _ => None,
-            },
-            Expression::ComputationType(h) => match self.get(h).form {
-                ComputationTypeForm::Annotated { global, .. } => global,
-                _ => None,
-            },
-            _ => None,
-        }
-    }
-
-    fn annotation(
-        &self,
-        global: Option<GlobalId>,
-        body: Expression,
-        classifier: super::environment::Classifier,
-    ) -> Result<Expression, String> {
-        Ok(match body {
-            Expression::SetTerm(h) => self
-                .alloc(SetTermNode {
-                    level: self.read(h).level,
-                    form: SetTermForm::Annotated {
-                        global,
-                        body: h,
-                        classifier,
-                    },
-                })
-                .into(),
-            Expression::SetType(h) => self
-                .alloc(SetTypeNode {
-                    level: self.read(h).level,
-                    form: SetTypeForm::Annotated {
-                        global,
-                        body: h,
-                        classifier,
-                    },
-                })
-                .into(),
-            Expression::SetKind(h) => self
-                .alloc(SetKindNode {
-                    level: self.read(h).level,
-                    form: SetKindForm::Annotated {
-                        global,
-                        body: h,
-                        classifier,
-                    },
-                })
-                .into(),
-            Expression::PropTerm(h) => self
-                .alloc(PropTermNode {
-                    form: PropTermForm::Annotated {
-                        global,
-                        body: h,
-                        classifier,
-                    },
-                })
-                .into(),
-            Expression::PropType(h) => self
-                .alloc(PropTypeNode {
-                    form: PropTypeForm::Annotated {
-                        global,
-                        body: h,
-                        classifier,
-                    },
-                })
-                .into(),
-            Expression::PropKind(h) => self
-                .alloc(PropKindNode {
-                    form: PropKindForm::Annotated {
-                        global,
-                        body: h,
-                        classifier,
-                    },
-                })
-                .into(),
-            Expression::ValueTerm(h) => self
-                .alloc(ValueTermNode {
-                    level: self.read(h).level,
-                    form: ValueTermForm::Annotated {
-                        global,
-                        body: h,
-                        classifier,
-                    },
-                })
-                .into(),
-            Expression::ValueType(h) => self
-                .alloc(ValueTypeNode {
-                    level: self.read(h).level,
-                    form: ValueTypeForm::Annotated {
-                        global,
-                        body: h,
-                        classifier,
-                    },
-                })
-                .into(),
-            Expression::ComputationTerm(h) => self
-                .alloc(ComputationTermNode {
-                    level: self.read(h).level,
-                    form: ComputationTermForm::Annotated {
-                        global,
-                        body: h,
-                        classifier,
-                    },
-                })
-                .into(),
-            Expression::ComputationType(h) => self
-                .alloc(ComputationTypeNode {
-                    level: self.read(h).level,
-                    form: ComputationTypeForm::Annotated {
-                        global,
-                        body: h,
-                        classifier,
-                    },
-                })
-                .into(),
-            _ => return Err("Program kinds cannot be annotated".into()),
+        e: Expression,
+        visit: impl FnMut(Expression, usize) -> Result<Expression, E>,
+    ) -> Result<Expression, E> {
+        let original = self.read(e);
+        let node = self.map_node_children((*original).clone(), visit)?;
+        Ok(if *original == node {
+            e
+        } else {
+            self.alloc(node)
         })
     }
-}
-impl ComputationTypeNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Computation(self.level)
+    pub fn map_node_children<E>(
+        &self,
+        mut node: Node,
+        mut visit: impl FnMut(Expression, usize) -> Result<Expression, E>,
+    ) -> Result<Node, E> {
+        match &mut node {
+            Node::Sort(_) | Node::Bound(_) | Node::Parameter(_) => {}
+            Node::Definition { arguments, .. } | Node::Meta { arguments, .. } => {
+                for argument in arguments {
+                    *argument = visit(*argument, 0)?;
+                }
+            }
+            Node::Product { domain, body, .. } | Node::Lambda { domain, body, .. } => {
+                *domain = visit(*domain, 0)?;
+                *body = visit(*body, 1)?;
+            }
+            Node::App {
+                function, argument, ..
+            } => {
+                *function = visit(*function, 0)?;
+                *argument = visit(*argument, 0)?;
+            }
+            Node::Reflect { term } => {
+                *term = visit(*term, 0)?;
+            }
+            Node::Subset { set, predicate, .. } => {
+                *set = visit(*set, 0)?;
+                *predicate = visit(*predicate, 1)?;
+            }
+            Node::SubsetIntro {
+                superset,
+                subset,
+                element,
+                proof,
+                ..
+            } => {
+                *superset = visit(*superset, 0)?;
+                *subset = visit(*subset, 0)?;
+                *element = visit(*element, 0)?;
+                *proof = visit(*proof, 0)?;
+            }
+            Node::Continue {
+                state_ty,
+                result_ty,
+                next,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *next = visit(*next, 0)?;
+            }
+            Node::Finish {
+                state_ty,
+                result_ty,
+                output,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *output = visit(*output, 0)?;
+            }
+            Node::SetRun {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                accessibility,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *step = visit(*step, 0)?;
+                *initial = visit(*initial, 0)?;
+                *accessibility = visit(*accessibility, 0)?;
+            }
+            Node::SetRunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                accessibility,
+                transition_equality,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *step = visit(*step, 0)?;
+                *initial = visit(*initial, 0)?;
+                *transition = visit(*transition, 0)?;
+                *accessibility = visit(*accessibility, 0)?;
+                *transition_equality = visit(*transition_equality, 0)?;
+            }
+            Node::Recursor {
+                state_ty,
+                result_ty,
+                motive,
+                on_continue,
+                on_finish,
+                scrutinee,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *motive = visit(*motive, 0)?;
+                *on_continue = visit(*on_continue, 0)?;
+                *on_finish = visit(*on_finish, 0)?;
+                *scrutinee = visit(*scrutinee, 0)?;
+            }
+            Node::BoxProgram {
+                program_ty,
+                program,
+                ..
+            } => {
+                *program_ty = visit(*program_ty, 0)?;
+                *program = visit(*program, 0)?;
+            }
+            Node::ForceBox {
+                program_ty, boxed, ..
+            } => {
+                *program_ty = visit(*program_ty, 0)?;
+                *boxed = visit(*boxed, 0)?;
+            }
+            Node::BoxApp { function, argument } => {
+                *function = visit(*function, 0)?;
+                *argument = visit(*argument, 0)?;
+            }
+            Node::BoxTypeApp { function, argument } => {
+                *function = visit(*function, 0)?;
+                *argument = visit(*argument, 0)?;
+            }
+            Node::TakeSet {
+                domain,
+                codomain,
+                map,
+                existence,
+                uniqueness,
+                ..
+            } => {
+                *domain = visit(*domain, 0)?;
+                *codomain = visit(*codomain, 0)?;
+                *map = visit(*map, 0)?;
+                *existence = visit(*existence, 0)?;
+                *uniqueness = visit(*uniqueness, 0)?;
+            }
+            Node::IndCtor { parameters, .. } => {
+                for child in parameters {
+                    *child = visit(*child, 0)?;
+                }
+            }
+            Node::IndElim {
+                scrutinee,
+                motive,
+                cases,
+                ..
+            } => {
+                *scrutinee = visit(*scrutinee, 0)?;
+                *motive = visit(*motive, 0)?;
+                for child in cases {
+                    *child = visit(*child, 0)?;
+                }
+            }
+            Node::Case {
+                scrutinee,
+                motive,
+                branches,
+                ..
+            } => {
+                *scrutinee = visit(*scrutinee, 0)?;
+                *motive = visit(*motive, 0)?;
+                for child in branches {
+                    *child = visit(*child, 0)?;
+                }
+            }
+            Node::SetCase {
+                scrutinee,
+                branches,
+                binders,
+                ..
+            } => {
+                *scrutinee = visit(*scrutinee, 0)?;
+                for (i, child) in branches.iter_mut().enumerate() {
+                    *child = visit(*child, binders.get(i).map_or(0, Vec::len))?;
+                }
+            }
+            Node::PowerSet { set, .. } => {
+                *set = visit(*set, 0)?;
+            }
+            Node::TypeLift {
+                superset, subset, ..
+            } => {
+                *superset = visit(*superset, 0)?;
+                *subset = visit(*subset, 0)?;
+            }
+            Node::RunStep {
+                state_ty,
+                result_ty,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+            }
+            Node::BoxType { program_ty, .. } => {
+                *program_ty = visit(*program_ty, 0)?;
+            }
+            Node::IndType { parameters, .. } => {
+                for child in parameters {
+                    *child = visit(*child, 0)?;
+                }
+            }
+            Node::IdRefl { element, .. } => {
+                *element = visit(*element, 0)?;
+            }
+            Node::ExistsIntro { element, set, .. } => {
+                *element = visit(*element, 0)?;
+                *set = visit(*set, 0)?;
+            }
+            Node::SubsetElim {
+                element,
+                subset,
+                superset,
+                ..
+            } => {
+                *element = visit(*element, 0)?;
+                *subset = visit(*subset, 0)?;
+                *superset = visit(*superset, 0)?;
+            }
+            Node::IdElim {
+                left,
+                right,
+                ty,
+                predicate,
+                base,
+                equality,
+                ..
+            } => {
+                *left = visit(*left, 0)?;
+                *right = visit(*right, 0)?;
+                *ty = visit(*ty, 0)?;
+                *predicate = visit(*predicate, 1)?;
+                *base = visit(*base, 0)?;
+                *equality = visit(*equality, 0)?;
+            }
+            Node::TakeProp {
+                domain,
+                proposition,
+                map,
+                existence,
+                ..
+            } => {
+                *domain = visit(*domain, 0)?;
+                *proposition = visit(*proposition, 0)?;
+                *map = visit(*map, 0)?;
+                *existence = visit(*existence, 0)?;
+            }
+            Node::TakeEq {
+                func,
+                domain,
+                codomain,
+                element,
+                existence,
+                uniqueness,
+                ..
+            } => {
+                *func = visit(*func, 0)?;
+                *domain = visit(*domain, 0)?;
+                *codomain = visit(*codomain, 0)?;
+                *element = visit(*element, 0)?;
+                *existence = visit(*existence, 0)?;
+                *uniqueness = visit(*uniqueness, 0)?;
+            }
+            Node::SetExt {
+                left,
+                right,
+                left_to_right,
+                right_to_left,
+                ..
+            } => {
+                *left = visit(*left, 0)?;
+                *right = visit(*right, 0)?;
+                *left_to_right = visit(*left_to_right, 0)?;
+                *right_to_left = visit(*right_to_left, 0)?;
+            }
+            Node::FunExt {
+                left,
+                right,
+                pointwise,
+                ..
+            } => {
+                *left = visit(*left, 0)?;
+                *right = visit(*right, 0)?;
+                *pointwise = visit(*pointwise, 0)?;
+            }
+            Node::ClassicalIndefiniteChoice {
+                domain,
+                family,
+                inhabited,
+                ..
+            } => {
+                *domain = visit(*domain, 0)?;
+                *family = visit(*family, 0)?;
+                *inhabited = visit(*inhabited, 0)?;
+            }
+            Node::AccIntro {
+                state_ty,
+                result_ty,
+                step,
+                state,
+                predecessors,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *step = visit(*step, 0)?;
+                *state = visit(*state, 0)?;
+                *predecessors = visit(*predecessors, 0)?;
+            }
+            Node::AccDescent {
+                state_ty,
+                result_ty,
+                step,
+                from,
+                to,
+                accessibility,
+                transition,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *step = visit(*step, 0)?;
+                *from = visit(*from, 0)?;
+                *to = visit(*to, 0)?;
+                *accessibility = visit(*accessibility, 0)?;
+                *transition = visit(*transition, 0)?;
+            }
+            Node::Pred {
+                superset,
+                subset,
+                element,
+                ..
+            } => {
+                *superset = visit(*superset, 0)?;
+                *subset = visit(*subset, 0)?;
+                *element = visit(*element, 0)?;
+            }
+            Node::Equal { left, right, .. } => {
+                *left = visit(*left, 0)?;
+                *right = visit(*right, 0)?;
+            }
+            Node::Exists { set, .. } => {
+                *set = visit(*set, 0)?;
+            }
+            Node::Acc {
+                state_ty,
+                result_ty,
+                step,
+                state,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *step = visit(*step, 0)?;
+                *state = visit(*state, 0)?;
+            }
+            Node::ThunkValue { computation, .. } => {
+                *computation = visit(*computation, 0)?;
+            }
+            Node::ProgramContinue {
+                state_ty,
+                result_ty,
+                next,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *next = visit(*next, 0)?;
+            }
+            Node::ProgramFinish {
+                state_ty,
+                result_ty,
+                output,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *output = visit(*output, 0)?;
+            }
+            Node::InductiveConstructor {
+                parameters, fields, ..
+            } => {
+                for child in parameters {
+                    *child = visit(*child, 0)?;
+                }
+                for child in fields {
+                    *child = visit(*child, 0)?;
+                }
+            }
+            Node::Thunk { computation_ty, .. } => {
+                *computation_ty = visit(*computation_ty, 0)?;
+            }
+            Node::ProgramRunStep {
+                state_ty,
+                result_ty,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+            }
+            Node::Inductive { parameters, .. } => {
+                for child in parameters {
+                    *child = visit(*child, 0)?;
+                }
+            }
+            Node::Return { value, .. } => {
+                *value = visit(*value, 0)?;
+            }
+            Node::Force { value, .. } => {
+                *value = visit(*value, 0)?;
+            }
+            Node::Sequence {
+                value_ty,
+                computation,
+                body,
+                ..
+            } => {
+                *value_ty = visit(*value_ty, 0)?;
+                *computation = visit(*computation, 0)?;
+                *body = visit(*body, 1)?;
+            }
+            Node::ValueLet {
+                value_ty,
+                value,
+                body,
+                ..
+            } => {
+                *value_ty = visit(*value_ty, 0)?;
+                *value = visit(*value, 0)?;
+                *body = visit(*body, 1)?;
+            }
+            Node::ProgramCase {
+                scrutinee,
+                branches,
+                binders,
+                ..
+            } => {
+                *scrutinee = visit(*scrutinee, 0)?;
+                for (i, child) in branches.iter_mut().enumerate() {
+                    *child = visit(*child, binders.get(i).map_or(0, Vec::len))?;
+                }
+            }
+            Node::Run {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                accessibility,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *step = visit(*step, 0)?;
+                *initial = visit(*initial, 0)?;
+                *accessibility = visit(*accessibility, 0)?;
+            }
+            Node::RunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                accessibility,
+                transition_equality,
+                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *step = visit(*step, 0)?;
+                *initial = visit(*initial, 0)?;
+                *transition = visit(*transition, 0)?;
+                *accessibility = visit(*accessibility, 0)?;
+                *transition_equality = visit(*transition_equality, 0)?;
+            }
+            Node::ReturnType { value_ty, .. } => {
+                *value_ty = visit(*value_ty, 0)?;
+            }
+        }
+        Ok(node)
+    }
+
+    pub fn children(&self, e: Expression) -> Vec<(Expression, usize)> {
+        let mut children = Vec::new();
+        let _: Result<_, std::convert::Infallible> = self.map_children(e, |child, depth| {
+            children.push((child, depth));
+            Ok(child)
+        });
+        children
     }
 }
-impl ComputationKindNode {
-    pub fn sort(&self) -> BaseSort {
-        BaseSort::Computation(self.level)
-    }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Binding {
+    pub var: SymbolId,
+    pub ty: Expression,
 }
+pub type Context = Vec<Binding>;

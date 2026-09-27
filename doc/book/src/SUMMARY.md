@@ -12,6 +12,7 @@
   - [types](./language/types_and_items.md)
   - [macro](./language/macro.md)
 - [props](./props/props.md)
+  - [分類付き補助体系](./props/sorted-calculus.md)
   - [相対無矛盾性](./props/proof.md)
   - [core metatheory](./props/metatheory.md)
   - [confluence](./props/confluence.md)

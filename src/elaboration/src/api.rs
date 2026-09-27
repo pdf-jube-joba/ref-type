@@ -37,7 +37,7 @@ impl std::error::Error for Diagnostic {}
 pub struct Statistics {
     pub raw_nodes: Vec<(&'static str, usize)>,
     pub raw_caches: Vec<(&'static str, usize)>,
-    pub kernel_nodes: Vec<(kernel::syntax::Family, usize)>,
+    pub kernel_nodes: Vec<(&'static str, usize)>,
     pub kernel_caches: Vec<(&'static str, usize)>,
     pub kernel_declaration_nodes: usize,
     pub materialized_definitions: usize,
@@ -80,7 +80,7 @@ impl Checker {
     pub fn active_module_path(&self) -> Vec<String> {
         self.workspace.active_module_path()
     }
-    pub fn kernel_environment(&self) -> &kernel::environment::Environment {
+    pub fn kernel_environment(&self) -> std::cell::Ref<'_, kernel::environment::Environment> {
         self.workspace.kernel_env()
     }
 

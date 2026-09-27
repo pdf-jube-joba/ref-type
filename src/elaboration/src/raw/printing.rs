@@ -895,17 +895,11 @@ fn with_constructor_parameters(
 pub fn format_exp(env: &CrateEnv, value: Exp) -> String {
     Printer::debug(env).format_exp(value)
 }
-pub fn format_ctx(env: &CrateEnv, value: &ExpContext) -> String {
-    Printer::debug(env).format_ctx(value)
-}
 pub fn format_value_type(env: &CrateEnv, value: ValueType) -> String {
     Printer::debug(env).format_value_type(value)
 }
 pub fn format_computation_type(env: &CrateEnv, value: ComputationType) -> String {
     Printer::debug(env).format_computation_type(value)
-}
-pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
-    Printer::debug(env).format_value(value)
 }
 pub fn format_computation(env: &CrateEnv, value: ComputationTerm) -> String {
     Printer::debug(env).format_computation(value)

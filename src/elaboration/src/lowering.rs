@@ -1,4 +1,4 @@
-//! Elaboration boundary: attach syntax families and rule labels, then check in the kernel.
+//! Source identities, module capture telescopes, and checked kernel declarations.
 use crate::raw::{self, exp::*, ids::*, sort::Sort as RawSort};
 use kernel::sharing::ContextId;
 use kernel::{environment as ke, sort as k, syntax as s};
@@ -8,15 +8,17 @@ use std::collections::HashSet;
 mod captures;
 use captures::{Declaration, Scope};
 mod declarations;
-mod diagnostics;
+pub(crate) mod diagnostics;
 mod logical;
-mod nodes;
 mod program;
 mod queries;
 
 pub(crate) struct Lowerer<'a> {
     raw: &'a raw::environment::CrateEnv,
     pub(crate) kernel: &'a mut ke::Environment,
+    metas: kernel::metavariables::MetaContext,
+    pub(crate) structural: bool,
+    active_parameters: HashSet<ModuleParamId>,
     active: HashSet<InductiveId>,
     active_program: HashSet<ProgramInductiveId>,
     scope: Scope,
@@ -29,9 +31,15 @@ impl<'a> Lowerer<'a> {
         raw: &'a raw::environment::CrateEnv,
         kernel: &'a mut ke::Environment,
     ) -> Self {
+        if kernel.arena().is_empty() {
+            *kernel = ke::Environment::with_arena(raw.arena().core.clone());
+        }
         Self {
             raw,
             kernel,
+            metas: kernel::metavariables::MetaContext::new(),
+            structural: false,
+            active_parameters: HashSet::new(),
             active: HashSet::new(),
             active_program: HashSet::new(),
             scope: Scope::default(),
@@ -40,6 +48,49 @@ impl<'a> Lowerer<'a> {
         }
     }
 
+    fn native_reference(&self, e: s::Expression) -> bool {
+        if !self.scope.nominal {
+            return false;
+        }
+        match self.kernel.arena().get(e) {
+            s::Node::Definition { .. } => true,
+            s::Node::IndType {
+                inductive,
+                parameters,
+            }
+            | s::Node::IndCtor {
+                inductive,
+                parameters,
+                ..
+            } => self
+                .raw
+                .arena()
+                .inductive_captures
+                .borrow()
+                .get(&inductive)
+                .is_some_and(|(captures, explicit)| {
+                    *captures > 0 && parameters.len() == captures + explicit
+                }),
+            s::Node::Inductive {
+                inductive,
+                parameters,
+            }
+            | s::Node::InductiveConstructor {
+                inductive,
+                parameters,
+                ..
+            } => self.kernel.datatype(inductive).is_some_and(|spec| {
+                parameters.len() == spec.parameters.len()
+                    && spec.parameters.len()
+                        > self
+                            .raw
+                            .program_inductive(inductive.into())
+                            .parameters()
+                            .len()
+            }),
+            _ => false,
+        }
+    }
     fn sort(s: RawSort) -> k::Sort {
         match s {
             RawSort::Set(i) => k::Sort::Base(k::BaseSort::Set(i)),
@@ -49,26 +100,65 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    fn logical_base_kind(&self, sort: k::BaseSort) -> Result<s::Expression, String> {
-        match sort {
-            k::BaseSort::Set(_) | k::BaseSort::Prop => {
-                kernel::construction::base_kind(self.kernel.arena(), sort)
-            }
-            _ => Err("expected Set/Prop sort".into()),
+    pub(crate) fn nominal(&mut self, base: usize) {
+        self.scope.nominal = true;
+        self.scope.logical_base = base;
+    }
+    fn nominal_parameter(&mut self, id: ModuleParamId) -> Result<s::Expression, String> {
+        if self.structural && self.raw.module_parameter_opt(id).is_none() {
+            return Ok(self.kernel.arena().alloc(s::Node::Parameter(id.into())));
         }
+        if self.kernel.parameter(id.into()).is_some() {
+            return Ok(self.kernel.arena().alloc(s::Node::Parameter(id.into())));
+        }
+        if !self.active_parameters.insert(id) {
+            return Err("cyclic module parameter type".into());
+        }
+        let parameter = self
+            .raw
+            .module_parameter_opt(id)
+            .ok_or("unknown module parameter")?
+            .clone();
+        let ty = self.in_scope(vec![], 0, 0, |this| {
+            this.scope.nominal = true;
+            match parameter.kind {
+                raw::environment::ModuleParameterKind::Pts { ty } => {
+                    this.set(ty, &mut vec![], id.module)
+                }
+                raw::environment::ModuleParameterKind::ProgramType => Ok(this
+                    .kernel
+                    .arena()
+                    .sort(k::Sort::Base(k::BaseSort::Value(0)))),
+                raw::environment::ModuleParameterKind::ProgramValue { ty } => this.value_type(ty),
+            }
+        });
+        self.active_parameters.remove(&id);
+        self.kernel
+            .register_parameter(id.into(), ty?)
+            .map_err(|e| e.to_string())?;
+        Ok(self.kernel.arena().alloc(s::Node::Parameter(id.into())))
     }
-
-    fn infer(&self, e: Exp, ctx: &mut ExpContext) -> Result<Exp, String> {
-        raw::derivation::CheckSession::new(self.raw, ctx)
-            .infer_pts(e)
-            .map_err(|e| format!("classification: {e:?}"))
+    pub(crate) fn nominal_context(
+        &mut self,
+        context: &ExpContext,
+        base: usize,
+        module: ModuleId,
+    ) -> Result<s::Context, String> {
+        self.nominal(base);
+        let mut prefix = context[..base].to_vec();
+        let mut result = vec![];
+        for binding in &context[base..] {
+            let ty = self.set(binding.ty, &mut prefix, module)?;
+            result.push(s::Binding {
+                var: binding.var,
+                ty,
+            });
+            prefix.push(binding.clone());
+        }
+        Ok(result)
     }
-
-    fn formation(&self, e: Exp, ctx: &mut ExpContext) -> Result<k::Sort, String> {
-        raw::derivation::CheckSession::new(self.raw, ctx)
-            .infer_sort(e)
-            .map(Self::sort)
-            .map_err(|e| format!("classification formation: {e:?}"))
+    fn logical_base_kind(&self, sort: k::BaseSort) -> Result<s::Expression, String> {
+        Ok(self.kernel.arena().sort(k::Sort::Base(sort)))
     }
 
     fn under<T>(
@@ -91,7 +181,7 @@ impl<'a> Lowerer<'a> {
             let classifier = self.set(b.ty, &mut prefix, m)?;
             result.push(ke::Binding {
                 var: b.var,
-                classifier,
+                ty: classifier,
             });
             prefix.push(b.clone())
         }
@@ -103,13 +193,14 @@ impl<'a> Lowerer<'a> {
         e: Exp,
         ctx: &mut ExpContext,
         m: ModuleId,
-    ) -> Result<ke::Classifier, String> {
-        if let ExpNode::Sort(s @ (RawSort::SetKind(_) | RawSort::PropKind)) =
-            self.raw.arena().get(e)
-        {
-            Ok(ke::Classifier::Upper(Self::sort(s).base()))
-        } else {
-            Ok(self.set(e, ctx, m)?.into())
-        }
+    ) -> Result<s::Expression, String> {
+        self.set(e, ctx, m)
     }
+}
+
+pub(crate) fn format_kernel_error(
+    raw: &raw::environment::CrateEnv,
+    error: &kernel::metavariables::Error,
+) -> String {
+    diagnostics::format_error(raw, error)
 }

@@ -41,12 +41,8 @@ impl GlobalEnvironment {
     }
 
     fn certify_query(&mut self, context: &ExpContext, term: Exp, ty: Exp) -> Result<(), String> {
-        crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env).check_query(
-            context,
-            self.module_manager.current(),
-            term,
-            ty,
-        )
+        crate::lowering::Lowerer::new(&self.crate_env, &mut self.crate_env.kernel.borrow_mut())
+            .check_query(context, self.module_manager.current(), term, ty)
     }
 
     fn certify_program_query(
@@ -55,7 +51,7 @@ impl GlobalEnvironment {
         term: crate::raw::program::ProgramTerm,
         ty: crate::raw::program::ProgramType,
     ) -> Result<(), String> {
-        crate::lowering::Lowerer::new(&self.crate_env, &mut self.kernel_env)
+        crate::lowering::Lowerer::new(&self.crate_env, &mut self.crate_env.kernel.borrow_mut())
             .check_program_query(context, term, ty)
     }
 
@@ -127,7 +123,7 @@ impl GlobalEnvironment {
         let mut context = scope.context().clone();
         ProgramCheckSession::new(&self.crate_env, &mut context)
             .check_value_term(value, ty)
-            .map_err(|error| format!("Program value check failed: {error:?}"))?;
+            .map_err(|error| format!("Program value check failed: {error}"))?;
         self.certify_program_query(
             scope.context(),
             crate::raw::program::ProgramTerm::ValueTerm(value),
@@ -149,7 +145,7 @@ impl GlobalEnvironment {
         let mut context = scope.context().clone();
         ProgramCheckSession::new(&self.crate_env, &mut context)
             .check_computation_term(computation, ty)
-            .map_err(|error| format!("Program computation check failed: {error:?}"))?;
+            .map_err(|error| format!("Program computation check failed: {error}"))?;
         self.certify_program_query(
             scope.context(),
             crate::raw::program::ProgramTerm::ComputationTerm(computation),
@@ -209,7 +205,7 @@ impl GlobalEnvironment {
         let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
         let result = CheckSession::new(&self.crate_env, ctx)
             .check_pts(exp_elab, ty_elab)
-            .map_err(|error| format!("{error:?}"))
+            .map_err(|error| format!("{error}"))
             .and_then(|()| self.certify_query(ctx, exp_elab, ty_elab));
         self.outputs.push(match result {
             Ok(()) => Output::Exp(ty_elab),
@@ -226,7 +222,7 @@ impl GlobalEnvironment {
         let exp_elab = self.elaborate_query_term(exp, ctx)?;
         let result = CheckSession::new(&self.crate_env, ctx)
             .infer_exp_judgement(exp_elab)
-            .map_err(|error| format!("{error:?}"))
+            .map_err(|error| format!("{error}"))
             .and_then(|judgement| {
                 self.certify_query(ctx, exp_elab, judgement.ty)?;
                 Ok(judgement.ty)

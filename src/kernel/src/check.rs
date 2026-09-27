@@ -1,725 +1,733 @@
-//! Independent formation and typing checks for indexed syntax.
-use super::{calculus::*, construction as build, environment::*, sort::*, structure, syntax::*};
-use crate::diagnostic::{CheckError, TypeMismatch};
-use crate::ids::*;
+//! Formation and typing for the shared PTS syntax.
+use crate::{
+    calculus::*,
+    environment::Environment,
+    ids::{InductiveId, ProgramInductiveId, SymbolId},
+    metavariables::{Error, MetaContext},
+    sort::{BaseSort, Sort},
+    syntax::*,
+};
+
 pub struct Checker<'a> {
     pub env: &'a Environment,
+    pub metas: &'a mut MetaContext,
     pub context: Context,
-    inference_depth: usize,
-    checking_context: bool,
-    validated_context: Option<Vec<Expression>>,
+    pub(crate) solving: bool,
 }
-
 impl<'a> Checker<'a> {
-    pub fn new(env: &'a Environment, context: Context) -> Self {
+    pub fn new(env: &'a Environment, metas: &'a mut MetaContext, context: Context) -> Self {
         Self {
             env,
+            metas,
             context,
-            inference_depth: 0,
-            checking_context: false,
-            validated_context: None,
+            solving: false,
         }
     }
     fn arena(&self) -> &Arena {
         &self.env.arena
     }
-    pub fn check_context(&mut self) -> Result<(), CheckError> {
-        if self.validated_context.as_ref().is_some_and(|validated| {
-            validated
-                .iter()
-                .copied()
-                .eq(self.context.iter().map(|b| b.classifier))
-        }) {
-            return Ok(());
-        }
-        let key = self
-            .context
-            .iter()
-            .map(|b| b.classifier)
-            .collect::<Vec<_>>();
-        let was_checking = self.checking_context;
-        self.checking_context = true;
-        let entries = std::mem::take(&mut self.context);
-        let result = (|| {
-            for entry in &entries {
-                self.formation(entry.classifier)?;
-                self.context.push(entry.clone())
-            }
-            Ok(())
-        })();
-        self.context = entries;
-        self.checking_context = was_checking;
-        if result.is_ok() {
-            self.validated_context = Some(key)
-        }
-        result
+    fn head(&self, e: Expression) -> Result<Expression, Error> {
+        Ok(self.env.erased_head(self.metas.zonk(self.arena(), e)?)?)
+    }
+    fn base(&self, sort: BaseSort) -> Expression {
+        self.arena().sort(Sort::Base(sort))
+    }
+    fn alloc(&self, node: Node) -> Expression {
+        self.arena().alloc(node)
     }
     fn under<T>(
         &mut self,
         var: SymbolId,
-        classifier: Expression,
-        f: impl FnOnce(&mut Self) -> Result<T, CheckError>,
-    ) -> Result<T, CheckError> {
-        self.context.push(Binding { var, classifier });
+        ty: Expression,
+        f: impl FnOnce(&mut Self) -> Result<T, Error>,
+    ) -> Result<T, Error> {
+        self.context.push(Binding { var, ty });
         let result = f(self);
         self.context.pop();
         result
     }
-    pub fn formation(&mut self, e: Expression) -> Result<Sort, CheckError> {
-        match self.infer(e)? {
-            Classifier::Upper(b) => Ok(Sort::Upper(b)),
-            Classifier::Expression(k) => {
-                let k = whnf(self.env, k)?;
-                if structure::is_base(self.arena(), k) {
-                    Ok(Sort::Base(self.arena().sort(k)))
-                } else {
-                    Err("expected a type of base kind".into())
-                }
+    pub fn check_context(&mut self) -> Result<(), Error> {
+        if !self.solving {
+            self.metas
+                .require_solved(self.arena(), self.context.iter().map(|b| b.ty))?;
+        }
+        let context = std::mem::take(&mut self.context);
+        let result = (|| {
+            for binding in &context {
+                self.formation(binding.ty)?;
+                self.context.push(binding.clone());
             }
+            Ok(())
+        })();
+        self.context = context;
+        result
+    }
+    #[tracing::instrument(target = "ref_type::typing", level = "debug", name = "kernel_infer", skip_all, fields(?term))]
+    pub fn infer(&mut self, term: Expression) -> Result<Expression, Error> {
+        self.metas.require_solved(
+            self.arena(),
+            std::iter::once(term).chain(self.context.iter().map(|b| b.ty)),
+        )?;
+        self.check_context()?;
+        let ty = self.infer_open(term)?;
+        self.metas.require_solved(self.arena(), [ty])?;
+        self.metas.zonk(self.arena(), ty)
+    }
+    #[tracing::instrument(target = "ref_type::typing", level = "debug", name = "kernel_check", skip_all, fields(?term, ?expected))]
+    pub fn check(&mut self, term: Expression, expected: Expression) -> Result<(), Error> {
+        self.metas.require_solved(
+            self.arena(),
+            [term, expected]
+                .into_iter()
+                .chain(self.context.iter().map(|b| b.ty)),
+        )?;
+        self.check_context()?;
+        self.check_open(term, expected)
+    }
+    pub(crate) fn validate(&mut self, term: Expression) -> Result<(), Error> {
+        self.metas.require_solved(
+            self.arena(),
+            std::iter::once(term).chain(self.context.iter().map(|b| b.ty)),
+        )?;
+        self.check_context()?;
+        if matches!(
+            self.arena().get(self.head(term)?),
+            Node::Sort(Sort::Upper(_))
+        ) {
+            return Ok(());
         }
+        self.infer_open(term).map(|_| ())
     }
-    pub fn infer_set_term(&mut self, t: SetTerm) -> Result<SetType, CheckError> {
-        self.inferred(t.into())?
-            .try_into()
-            .map_err(CheckError::from)
-    }
-    pub fn infer_set_type(&mut self, t: SetType) -> Result<SetKind, CheckError> {
-        self.inferred(t.into())?
-            .try_into()
-            .map_err(CheckError::from)
-    }
-    pub fn check_set_kind(&mut self, k: SetKind) -> Result<(), CheckError> {
-        self.formation(k.into()).map(|_| ())
-    }
-    pub fn infer_value_term(&mut self, t: ValueTerm) -> Result<ValueType, CheckError> {
-        self.inferred(t.into())?
-            .try_into()
-            .map_err(CheckError::from)
-    }
-    pub fn infer_computation_term(
-        &mut self,
-        t: ComputationTerm,
-    ) -> Result<ComputationType, CheckError> {
-        self.inferred(t.into())?
-            .try_into()
-            .map_err(CheckError::from)
-    }
-    pub fn infer_prop_term(&mut self, t: PropTerm) -> Result<PropType, CheckError> {
-        self.inferred(t.into())?
-            .try_into()
-            .map_err(CheckError::from)
-    }
-    pub fn infer_prop_type(&mut self, t: PropType) -> Result<PropKind, CheckError> {
-        self.inferred(t.into())?
-            .try_into()
-            .map_err(CheckError::from)
-    }
-    pub fn check_prop_kind(&mut self, k: PropKind) -> Result<(), CheckError> {
-        self.formation(k.into()).map(|_| ())
-    }
-    pub fn infer_value_type(&mut self, t: ValueType) -> Result<ValueKind, CheckError> {
-        self.inferred(t.into())?
-            .try_into()
-            .map_err(CheckError::from)
-    }
-    pub fn check_value_kind(&mut self, k: ValueKind) -> Result<(), CheckError> {
-        self.formation(k.into()).map(|_| ())
-    }
-    pub fn infer_computation_type(
-        &mut self,
-        t: ComputationType,
-    ) -> Result<ComputationKind, CheckError> {
-        self.inferred(t.into())?
-            .try_into()
-            .map_err(CheckError::from)
-    }
-    pub fn check_computation_kind(&mut self, k: ComputationKind) -> Result<(), CheckError> {
-        self.formation(k.into()).map(|_| ())
-    }
-    pub fn infer_program_term(&mut self, t: ProgramTerm) -> Result<ProgramType, CheckError> {
-        self.inferred(t.into())?
-            .try_into()
-            .map_err(CheckError::from)
-    }
-    pub fn infer_program_type(&mut self, t: ProgramType) -> Result<ProgramKind, CheckError> {
-        self.inferred(t.into())?
-            .try_into()
-            .map_err(CheckError::from)
-    }
-    pub fn check_program_kind(&mut self, k: ProgramKind) -> Result<(), CheckError> {
-        self.formation(k.into()).map(|_| ())
-    }
-    pub fn inferred(&mut self, e: Expression) -> Result<Expression, CheckError> {
-        match self.infer(e)? {
-            Classifier::Expression(t) => Ok(t),
-            Classifier::Upper(_) => Err("kind has a formation sort, not an expression type".into()),
-        }
-    }
-    pub fn check(
-        &mut self,
-        e: impl Into<Expression>,
-        expected: impl Into<Classifier>,
-    ) -> Result<(), CheckError> {
-        let e = e.into();
-        let expected = expected.into();
-        let inferred = self.infer(e)?;
-        match (inferred, expected) {
-            (Classifier::Upper(a), Classifier::Upper(b)) if a == b => Ok(()),
-            (Classifier::Expression(a), Classifier::Expression(b)) => {
-                self.formation(b)?;
-                if self.weaken(a, b)? {
-                    Ok(())
-                } else {
-                    Err(CheckError::TypeMismatch(Box::new(TypeMismatch::capture(
-                        self.arena(),
-                        &self.context,
-                        e,
-                        inferred,
-                        expected,
-                    ))))
-                }
+    pub fn motive_type(&mut self, motive: Expression) -> Result<Expression, Error> {
+        self.check_context()?;
+        self.metas.require_solved(
+            self.arena(),
+            std::iter::once(motive).chain(self.context.iter().map(|b| b.ty)),
+        )?;
+        let mark = self.context.len();
+        let mut binders = vec![];
+        let mut body = motive;
+        let result = (|| {
+            while let Node::Lambda {
+                mode: Mode::Pure,
+                var,
+                domain,
+                body: next,
+            } = self.arena().get(body)
+            {
+                self.formation(domain)?;
+                self.context.push(Binding { var, ty: domain });
+                binders.push((var, domain));
+                body = next;
             }
-            _ => Err(CheckError::TypeMismatch(Box::new(TypeMismatch::capture(
-                self.arena(),
-                &self.context,
-                e,
-                inferred,
-                expected,
-            )))),
+            let mut ty = self.infer_open(body)?;
+            for (var, domain) in binders.into_iter().rev() {
+                ty = self.alloc(Node::Product {
+                    var,
+                    domain,
+                    body: ty,
+                });
+            }
+            Ok(ty)
+        })();
+        self.context.truncate(mark);
+        result
+    }
+    pub(crate) fn formation(&mut self, e: Expression) -> Result<Sort, Error> {
+        let ty = self.infer_open(e)?;
+        match self.arena().get(self.head(ty)?) {
+            Node::Sort(sort) => Ok(sort),
+            _ => Err("expected a sort".into()),
         }
     }
-    fn base_type(&mut self, e: Expression) -> Result<BaseSort, CheckError> {
+    fn type_sort(&mut self, e: Expression) -> Result<BaseSort, Error> {
         match self.formation(e)? {
-            Sort::Base(b) => Ok(b),
-            _ => Err("expected a type, found a kind".into()),
+            Sort::Base(sort) => Ok(sort),
+            _ => Err("expected a type of base kind".into()),
         }
     }
-    fn set_type(&mut self, e: Expression) -> Result<usize, CheckError> {
-        match self.base_type(e)? {
-            BaseSort::Set(i) => Ok(i),
+    fn set_type(&mut self, e: Expression) -> Result<usize, Error> {
+        match self.type_sort(e)? {
+            BaseSort::Set(level) => Ok(level),
             _ => Err("expected Set(i)".into()),
         }
     }
-    fn proposition(&mut self, e: Expression) -> Result<(), CheckError> {
-        if self.base_type(e)? == BaseSort::Prop {
+    fn proposition(&mut self, e: Expression) -> Result<(), Error> {
+        if self.type_sort(e)? == BaseSort::Prop {
             Ok(())
         } else {
             Err("expected proposition".into())
         }
     }
-    fn arrow(
-        &mut self,
-        domain: Expression,
-        codomain: Expression,
-    ) -> Result<Expression, CheckError> {
-        let body = shift(self.arena(), codomain, 1, 0)?;
-        self.product(SymbolId::ANONYMOUS, domain, body)
+    fn program_type(&mut self, e: Expression, computation: bool) -> Result<usize, Error> {
+        let sort = self.type_sort(e)?;
+        match (sort, computation) {
+            (BaseSort::Computation(i), true) | (BaseSort::Value(i), false) => {
+                self.type_dependencies(e)?;
+                Ok(i)
+            }
+            _ => Err("incorrect Program type sort".into()),
+        }
     }
-    pub fn infer(&mut self, e: impl Into<Expression>) -> Result<Classifier, CheckError> {
-        let e = e.into();
-        if self.inference_depth == 0 && !self.checking_context {
-            self.check_context()?
+    fn type_dependencies(&mut self, e: Expression) -> Result<(), Error> {
+        let e = self.metas.zonk(self.arena(), e)?;
+        fn indices(
+            arena: &Arena,
+            e: Expression,
+            depth: usize,
+            out: &mut std::collections::HashSet<usize>,
+        ) {
+            if let Node::Bound(i) = *arena.read(e) {
+                if i >= depth {
+                    out.insert(i - depth);
+                }
+            }
+            for (child, binders) in arena.children(e) {
+                indices(arena, child, depth + binders, out);
+            }
         }
-        // Closed annotations must not be rechecked under every use-site telescope.
-        if !self.context.is_empty()
-            && structure::annotation(self.arena(), e).is_some()
-            && locally_closed(self.arena(), e)
-        {
-            return Checker::new(self.env, vec![]).infer(e);
+        let mut pending = vec![e];
+        let mut seen = std::collections::HashSet::new();
+        while let Some(term) = pending.pop() {
+            if !seen.insert(term) {
+                continue;
+            }
+            if let Node::Parameter(id) = self.arena().get(term) {
+                let ty = self.env.parameter(id).ok_or("unknown module parameter")?;
+                if !matches!(
+                    self.formation(ty)?,
+                    Sort::Upper(BaseSort::Value(_) | BaseSort::Computation(_))
+                ) {
+                    return Err("Program type depends on a value parameter".into());
+                }
+            }
+            pending.extend(self.arena().children(term).into_iter().map(|(e, _)| e));
         }
-        let key = (e, self.context.iter().map(|b| b.classifier).collect());
-        if let Some(&result) = self.env.inference_cache.borrow().get(&key) {
-            return Ok(result);
-        }
-        self.inference_depth += 1;
-        let result = self.infer_inner(e);
-        self.inference_depth -= 1;
-        let result = result?;
-        self.env.inference_cache.borrow_mut().insert(key, result);
-        Ok(result)
-    }
-    fn validate_inferred(&self, e: Expression, ty: Expression) -> Result<(), CheckError> {
-        let expected = match e.family().stage() {
-            Stage::Term => Stage::Type,
-            Stage::Type => Stage::Kind,
-            Stage::Kind => return Err("kind must have an upper-sort classifier".into()),
-        };
-        if ty.family().stage() != expected || self.arena().sort(e) != self.arena().sort(ty) {
-            return Err("node sort index disagrees with its inferred classifier".into());
+        let mut used = std::collections::HashSet::new();
+        indices(self.arena(), e, 0, &mut used);
+        for index in used {
+            let position = self
+                .context
+                .len()
+                .checked_sub(index + 1)
+                .ok_or("bound variable outside context")?;
+            let binding = self.context[position].clone();
+            let mut prefix = Checker::new(self.env, self.metas, self.context[..position].to_vec());
+            if !matches!(
+                prefix.formation(binding.ty)?,
+                Sort::Upper(BaseSort::Value(_) | BaseSort::Computation(_))
+            ) {
+                return Err("Program type depends on a value variable".into());
+            }
         }
         Ok(())
     }
-    fn closed_program_type(&self, p: Expression) -> Result<(), CheckError> {
-        if !matches!(self.arena().sort(p), BaseSort::Computation(_))
-            || !closed_in_environment(self.env, p)
-        {
-            return Err("Box requires a closed computation type".into());
+    fn equal(&self, left: Expression, right: Expression) -> Result<bool, Error> {
+        let left = self.metas.zonk(self.arena(), left)?;
+        let right = self.metas.zonk(self.arena(), right)?;
+        Ok(crate::reduction::erased_convertible(self.env, left, right)?)
+    }
+    fn weaken(&self, left: Expression, right: Expression) -> Result<bool, Error> {
+        if self.equal(left, right)? {
+            return Ok(true);
         }
-        Checker::new(self.env, vec![]).base_type(p)?;
-        Ok(())
+        match (
+            self.arena().get(self.head(left)?),
+            self.arena().get(self.head(right)?),
+        ) {
+            (Node::TypeLift { superset, .. }, _) => self.weaken(superset, right),
+            (
+                Node::Product {
+                    domain: a, body: b, ..
+                },
+                Node::Product {
+                    domain: c, body: d, ..
+                },
+            ) if self.equal(a, c)? => self.weaken(b, d),
+            _ => Ok(false),
+        }
     }
-    fn lifted(&self, e: Expression, n: usize) -> Result<Expression, CheckError> {
-        shift(self.arena(), e, n, 0).map_err(CheckError::from)
-    }
-    fn check_arguments(
+    pub(crate) fn check_open(
         &mut self,
-        args: &[Expression],
-        telescope: &Context,
-    ) -> Result<(), CheckError> {
-        if args.len() != telescope.len() {
+        term: Expression,
+        expected: Expression,
+    ) -> Result<(), Error> {
+        if self.solving {
+            if let Node::Meta { id, arguments } = self.arena().get(term) {
+                self.metas.expect(self.env, id, &arguments, expected)?;
+            }
+            if let Node::Lambda {
+                mode,
+                var,
+                domain,
+                body,
+            } = self.arena().get(term)
+                && let Node::Product {
+                    domain: input,
+                    body: output,
+                    ..
+                } = self.arena().get(self.head(expected)?)
+            {
+                self.metas.unify(self.env, &self.context, domain, input)?;
+                self.under(var, input, |ch| ch.check_open(body, output))?;
+                self.metas
+                    .constrain(crate::metavariables::Constraint::Validate {
+                        context: self.context.clone(),
+                        term,
+                        expected: Some(expected),
+                    });
+                let _ = mode;
+                return Ok(());
+            }
+        }
+        let inferred = self.infer_open(term)?;
+        if !self.solving
+            && !matches!(
+                self.arena().get(self.head(expected)?),
+                Node::Sort(Sort::Upper(_))
+            )
+        {
+            self.formation(expected)?;
+        }
+        let metas = self.metas.unresolved(self.arena(), [inferred, expected])?;
+        if metas.is_empty() && self.weaken(inferred, expected)? {
+            return Ok(());
+        }
+        if !metas.is_empty() {
+            if self.solving {
+                self.metas
+                    .unify(self.env, &self.context, inferred, expected)?;
+                return Ok(());
+            }
+            return Err(Error::Unresolved {
+                metas,
+                constraints: 0,
+            });
+        }
+        if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some() {
+            if let Ok(Some((path, left, right))) = crate::reduction::first_difference(
+                self.env,
+                self.metas.zonk(self.arena(), inferred)?,
+                self.metas.zonk(self.arena(), expected)?,
+            ) {
+                eprintln!(
+                    "conversion difference {path:?}: {:?} != {:?}",
+                    self.arena().get(left),
+                    self.arena().get(right)
+                );
+                fn show(a: &Arena, e: Expression, depth: usize, remaining: &mut usize) {
+                    if depth > 9 || *remaining == 0 {
+                        return;
+                    }
+                    *remaining -= 1;
+                    eprintln!("{} {e:?}: {:?}", " ".repeat(depth), a.get(e));
+                    for (child, _) in a.children(e) {
+                        show(a, child, depth + 1, remaining);
+                    }
+                }
+                show(self.arena(), left, 0, &mut 50);
+                show(self.arena(), right, 0, &mut 50);
+            }
+        }
+        Err(Error::TypeMismatch(Box::new(
+            crate::metavariables::TypeMismatch {
+                arena: self.env.arena.clone(),
+                context: self.context.clone(),
+                term,
+                inferred,
+                expected,
+                frames: Vec::new(),
+            },
+        )))
+    }
+    fn arrow(&self, domain: Expression, codomain: Expression) -> Result<Expression, Error> {
+        Ok(self.alloc(Node::Product {
+            var: SymbolId::ANONYMOUS,
+            domain,
+            body: shift(self.arena(), codomain, 1, 0)?,
+        }))
+    }
+    fn arguments(&mut self, arguments: &[Expression], context: &Context) -> Result<(), Error> {
+        if arguments.len() != context.len() {
             return Err("parameter count mismatch".into());
         }
-        for (i, (arg, binder)) in args.iter().zip(telescope).enumerate() {
-            let ty = instantiate_telescope(self.env, binder.classifier, &args[..i])?;
-            self.check(*arg, ty)?;
+        for (i, binding) in context.iter().enumerate() {
+            self.check_open(
+                arguments[i],
+                instantiate(self.arena(), binding.ty, &arguments[..i])?,
+            )?;
         }
         Ok(())
     }
-    fn apply_motive(
-        &mut self,
-        motive: &Motive,
-        args: &[Expression],
-    ) -> Result<Expression, CheckError> {
-        if args.len() != motive.domains.len() {
-            return Err("motive argument count mismatch".into());
+    fn product(&self, ty: Expression) -> Result<(Expression, Expression), Error> {
+        match self.arena().get(self.head(ty)?) {
+            Node::Product { domain, body, .. } => Ok((domain, body)),
+            Node::TypeLift { superset, .. } => self.product(superset),
+            _ => Err("expected a product".into()),
         }
-        for (i, (&arg, &ty)) in args.iter().zip(&motive.domains).enumerate() {
-            self.check(arg, instantiate_telescope(self.env, ty, &args[..i])?)?;
-        }
-        instantiate_telescope(self.env, motive.body, args).map_err(CheckError::from)
     }
-    fn lift_motive(&self, m: &Motive) -> Result<Motive, CheckError> {
-        Ok(Motive {
-            domains: m
-                .domains
-                .iter()
-                .enumerate()
-                .map(|(i, &e)| shift(self.arena(), e, 1, i))
-                .collect::<Result<_, _>>()?,
-            body: shift(self.arena(), m.body, 1, m.domains.len())?,
+    fn runstep(
+        &mut self,
+        state_ty: Expression,
+        result_ty: Expression,
+        program: bool,
+    ) -> Result<Expression, Error> {
+        if self.solving
+            && !self
+                .metas
+                .unresolved(self.arena(), [state_ty, result_ty])?
+                .is_empty()
+        {
+            return Ok(self.alloc(if program {
+                Node::ProgramRunStep {
+                    state_ty,
+                    result_ty,
+                }
+            } else {
+                Node::RunStep {
+                    state_ty,
+                    result_ty,
+                }
+            }));
+        }
+        let state = self.type_sort(state_ty)?;
+        let result = self.type_sort(result_ty)?;
+        if state != result
+            || !matches!(
+                (state, program),
+                (BaseSort::Set(_), false) | (BaseSort::Value(_), true)
+            )
+        {
+            return Err("recursion types must inhabit the same Set(i) or value universe".into());
+        }
+        Ok(self.alloc(if program {
+            Node::ProgramRunStep {
+                state_ty,
+                result_ty,
+            }
+        } else {
+            Node::RunStep {
+                state_ty,
+                result_ty,
+            }
+        }))
+    }
+    fn carrier(&mut self, term: Expression) -> Result<Expression, Error> {
+        let mut ty = self.infer_open(term)?;
+        loop {
+            ty = self.head(ty)?;
+            match self.arena().get(ty) {
+                Node::TypeLift { superset, .. } => ty = superset,
+                _ => {
+                    if !self.solving {
+                        self.set_type(ty)?;
+                    }
+                    return Ok(ty);
+                }
+            }
+        }
+    }
+    pub(crate) fn infer_open(&mut self, term: Expression) -> Result<Expression, Error> {
+        let closed = self.arena().max_loose_bound(term).is_none();
+        let complete = !self.arena().contains_meta(term)
+            && (closed
+                || self
+                    .context
+                    .iter()
+                    .all(|b| !self.arena().contains_meta(b.ty)));
+        if !complete {
+            if self.solving {
+                return self.infer_framed(term);
+            }
+            let context = self
+                .env
+                .contexts
+                .borrow_mut()
+                .intern(self.context.iter().map(|b| b.ty));
+            if let Some(&ty) = self.metas.inferred.get(&(context, term)) {
+                return Ok(ty);
+            }
+            let result = self.infer_framed(term);
+            if let Ok(ty) = result {
+                self.metas.inferred.insert((context, term), ty);
+            }
+            return result;
+        }
+        let context = if closed {
+            crate::sharing::ContextId::default()
+        } else {
+            self.env
+                .contexts
+                .borrow_mut()
+                .intern(self.context.iter().map(|b| b.ty))
+        };
+        if let Some(&ty) = self.env.inferred.borrow().get(&(context, term)) {
+            return Ok(ty);
+        }
+        let solving = std::mem::replace(&mut self.solving, false);
+        let result = self.infer_framed(term);
+        self.solving = solving;
+        if let Ok(ty) = result {
+            self.env.inferred.borrow_mut().insert((context, term), ty);
+        }
+        result
+    }
+    fn infer_framed(&mut self, term: Expression) -> Result<Expression, Error> {
+        self.infer_rule(term).map_err(|error| {
+            let node = format!("{:?}", self.arena().get(term));
+            let name = node.split([' ', '(']).next().unwrap_or("expression");
+            error.at(format!("rule: {name:?}"))
         })
     }
-    fn infer_inner(&mut self, e: Expression) -> Result<Classifier, CheckError> {
-        match e {
-            Expression::SetTerm(h) => self.infer_set_term_node(h),
-            Expression::SetType(h) => self.infer_set_type_node(h),
-            Expression::SetKind(h) => self.infer_set_kind_node(h),
-            Expression::PropTerm(h) => self.infer_prop_term_node(h),
-            Expression::PropType(h) => self.infer_prop_type_node(h),
-            Expression::PropKind(h) => self.infer_prop_kind_node(h),
-            Expression::ValueTerm(h) => self.infer_value_term_node(h),
-            Expression::ValueType(h) => self.infer_value_type_node(h),
-            Expression::ValueKind(h) => self.infer_value_kind_node(h),
-            Expression::ComputationTerm(h) => self.infer_computation_term_node(h),
-            Expression::ComputationType(h) => self.infer_computation_type_node(h),
-            Expression::ComputationKind(h) => self.infer_computation_kind_node(h),
-        }
+    fn check_at(
+        &mut self,
+        phase: &str,
+        term: Expression,
+        expected: Expression,
+    ) -> Result<(), Error> {
+        self.check_open(term, expected)
+            .map_err(|error| error.at(phase))
     }
-    fn infer_set_term_node(&mut self, h: SetTerm) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            SetTermForm::Bound { index } => self.infer_bound(e, index)?,
-            SetTermForm::Annotated {
-                body, classifier, ..
-            } => {
-                return self.infer_annotation(e, body.into(), classifier);
+    fn infer_rule(&mut self, term: Expression) -> Result<Expression, Error> {
+        let result = match self.arena().get(term) {
+            Node::Parameter(id) => self.env.parameter(id).ok_or("unknown module parameter")?,
+            Node::Sort(Sort::Base(sort)) => self.arena().sort(Sort::Upper(sort)),
+            Node::Sort(Sort::Upper(_)) => return Err("upper sort has no classifier".into()),
+            Node::Bound(index) => {
+                let offset = index
+                    .checked_add(1)
+                    .ok_or("bound variable outside context")?;
+                let position = self
+                    .context
+                    .len()
+                    .checked_sub(offset)
+                    .ok_or("bound variable outside context")?;
+                shift(self.arena(), self.context[position].ty, offset, 0)?
             }
-            SetTermForm::LambdaTerm {
-                rule,
+            Node::Definition { id, arguments } => {
+                let definition = self.env.definition(id)?.clone();
+                self.arguments(&arguments, &definition.context)?;
+                instantiate(self.arena(), definition.ty, &arguments)?
+            }
+            Node::Meta { id, arguments } => {
+                let entry = self.metas.entry(id)?;
+                let context = entry.context.clone();
+                let expected = entry.expected;
+                let assignment = entry.assignment;
+                self.arguments(&arguments, &context)?;
+                let expected = match expected {
+                    Some(ty) => ty,
+                    None if self.solving && assignment.is_some() => {
+                        let mut checker = Checker::new(self.env, self.metas, context.clone());
+                        checker.solving = true;
+                        let ty = checker.infer_open(assignment.unwrap())?;
+                        self.metas.expect(
+                            self.env,
+                            id,
+                            &arguments,
+                            instantiate(self.arena(), ty, &arguments)?,
+                        )?;
+                        ty
+                    }
+                    None if self.solving => self.metas.ensure_type(&self.env.arena, id)?,
+                    None => {
+                        let value = assignment.ok_or(Error::Unresolved {
+                            metas: vec![id],
+                            constraints: 0,
+                        })?;
+                        let ty = Checker::new(self.env, self.metas, context).infer(value)?;
+                        return Ok(instantiate(self.arena(), ty, &arguments)?);
+                    }
+                };
+                if !self.solving
+                    && let Some(value) = assignment
+                {
+                    Checker::new(self.env, self.metas, context).check(value, expected)?;
+                }
+                instantiate(self.arena(), expected, &arguments)?
+            }
+            Node::Product { var, domain, body } => {
+                let a = self.formation(domain)?;
+                let b = self.under(var, domain, |c| c.formation(body))?;
+                let result = a.product(b).ok_or("no product rule for these sorts")?;
+                if result.base().is_program() {
+                    self.type_dependencies(term)?;
+                }
+                self.arena().sort(result)
+            }
+            Node::Lambda {
+                mode,
                 var,
                 domain,
                 body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            SetTermForm::LambdaType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            SetTermForm::AppTerm {
-                rule,
+            } => {
+                if !self.solving {
+                    self.formation(domain)?;
+                }
+                let ty = self.under(var, domain, |c| c.infer_open(body))?;
+                let product = self.alloc(Node::Product {
+                    var,
+                    domain,
+                    body: ty,
+                });
+                if !self.solving {
+                    let sort = self.formation(product)?;
+                    if (mode == Mode::Computation)
+                        != matches!(sort, Sort::Base(BaseSort::Computation(_)))
+                    {
+                        return Err("lambda evaluation mode mismatch".into());
+                    }
+                }
+                product
+            }
+            Node::App {
+                mode,
                 function,
                 argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-            SetTermForm::AppType {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-            SetTermForm::Subset {
+            } => {
+                let ty = self.infer_open(function)?;
+                let (domain, body) = match self.product(ty) {
+                    Ok(product) => product,
+                    Err(_)
+                        if self.solving
+                            && !self.metas.unresolved(self.arena(), [ty])?.is_empty() =>
+                    {
+                        let domain = self
+                            .metas
+                            .fresh(&self.env.arena, self.context.clone(), None);
+                        let mut context = self.context.clone();
+                        context.push(Binding {
+                            var: SymbolId::ANONYMOUS,
+                            ty: domain,
+                        });
+                        let body = self.metas.fresh(&self.env.arena, context, None);
+                        let product = self.alloc(Node::Product {
+                            var: SymbolId::ANONYMOUS,
+                            domain,
+                            body,
+                        });
+                        self.metas.unify(self.env, &self.context, ty, product)?;
+                        (domain, body)
+                    }
+                    Err(error) => return Err(error),
+                };
+                self.check_at("check argument type for application", argument, domain)?;
+                if !self.solving {
+                    let sort = self.formation(ty)?;
+                    if (mode == Mode::Computation)
+                        != matches!(sort, Sort::Base(BaseSort::Computation(_)))
+                    {
+                        return Err("application evaluation mode mismatch".into());
+                    }
+                }
+                instantiate(self.arena(), body, &[argument])?
+            }
+            Node::Reflect { term } => {
+                let ty = self.infer_open(term)?;
+                let sort = match self.arena().get(self.head(ty)?) {
+                    Node::Sort(Sort::Upper(sort)) => sort,
+                    _ => self.formation(ty)?.base(),
+                };
+                if !sort.is_program() {
+                    return Err(format!(
+                        "reflection requires a Program expression: {:?} : {:?} ({sort:?})",
+                        self.arena().get(term),
+                        self.arena().get(ty)
+                    )
+                    .into());
+                }
+                self.alloc(Node::Reflect { term: ty })
+            }
+            Node::PowerSet { set } => {
+                let i = self.set_type(set)?;
+                self.base(BaseSort::Set(i))
+            }
+            Node::Subset {
                 var,
                 set,
                 predicate,
-            } => self.infer_subset(var, set.into(), predicate.into())?,
-            SetTermForm::SubsetIntro {
+            } => {
+                self.set_type(set)?;
+                self.under(var, set, |c| c.proposition(predicate))
+                    .map_err(|e| e.at("check predicate"))?;
+                self.alloc(Node::PowerSet { set })
+            }
+            Node::TypeLift { superset, subset } => {
+                let i = self.set_type(superset)?;
+                self.check_open(subset, self.alloc(Node::PowerSet { set: superset }))?;
+                self.base(BaseSort::Set(i))
+            }
+            Node::Pred {
+                superset,
+                subset,
+                element,
+            } => {
+                self.set_type(superset)?;
+                self.check_open(subset, self.alloc(Node::PowerSet { set: superset }))?;
+                self.check_at("check element", element, superset)?;
+                self.base(BaseSort::Prop)
+            }
+            Node::SubsetIntro {
                 superset,
                 subset,
                 element,
                 proof,
-            } => self.infer_subset_intro(
-                superset.into(),
-                subset.into(),
-                element.into(),
-                proof.into(),
-            )?,
-            SetTermForm::Continue {
-                state_ty,
-                result_ty,
-                next,
-            } => self.infer_continue(state_ty.into(), result_ty.into(), next.into())?,
-            SetTermForm::Finish {
-                state_ty,
-                result_ty,
-                output,
-            } => self.infer_finish(state_ty.into(), result_ty.into(), output.into())?,
-            SetTermForm::SetRun {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                accessibility,
-            } => self.infer_set_run(
-                state_ty.into(),
-                result_ty.into(),
-                step.into(),
-                initial.into(),
-                accessibility.into(),
-            )?,
-            SetTermForm::SetRunCase {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                transition,
-                accessibility,
-                transition_equality,
-            } => self.infer_set_run_case(
-                state_ty.into(),
-                result_ty.into(),
-                step.into(),
-                initial.into(),
-                transition.into(),
-                accessibility.into(),
-                transition_equality.into(),
-            )?,
-            SetTermForm::Recursor {
-                rule,
-                var,
-                state_ty,
-                result_ty,
-                motive,
-                on_continue,
-                on_finish,
-                scrutinee,
-            } => self.infer_recursor(
-                rule,
-                var,
-                state_ty.into(),
-                result_ty.into(),
-                motive.into(),
-                on_continue.into(),
-                on_finish.into(),
-                scrutinee.into(),
-            )?,
-            SetTermForm::BoxProgram {
-                program_ty,
-                program,
-            } => self.infer_box_program(program_ty.into(), program.into())?,
-            SetTermForm::ForceBox { program_ty, boxed } => {
-                self.infer_force_box(program_ty.into(), boxed.into())?
-            }
-            SetTermForm::BoxApp {
-                rule,
-                domain,
-                codomain,
-                function,
-                argument,
-            } => self.infer_box_app(
-                rule,
-                domain.into(),
-                codomain.into(),
-                function.into(),
-                argument.into(),
-            )?,
-            SetTermForm::BoxTypeApp {
-                rule,
-                var,
-                domain,
-                codomain,
-                function,
-                argument,
-            } => self.infer_box_type_app(
-                rule,
-                var,
-                domain.into(),
-                codomain.into(),
-                function.into(),
-                argument.into(),
-            )?,
-            SetTermForm::TakeSet {
-                domain,
-                codomain,
-                map,
-                existence,
-                uniqueness,
-            } => self.infer_take_set(
-                domain.into(),
-                codomain.into(),
-                map.into(),
-                existence.into(),
-                uniqueness.into(),
-            )?,
-            SetTermForm::IndCtor {
-                inductive,
-                constructor,
-                parameters,
-            } => self.infer_ind_ctor(inductive, constructor, parameters)?,
-            SetTermForm::IndElim {
-                inductive,
-                motive_vars,
-                scrutinee,
-                motive_domains,
-                motive_body,
-                cases,
-            } => self.infer_ind_elim(
-                inductive,
-                motive_vars,
-                scrutinee.into(),
-                motive_domains,
-                motive_body.into(),
-                cases,
-            )?,
-            SetTermForm::Case {
-                inductive,
-                motive_vars,
-                scrutinee,
-                motive_domains,
-                motive_body,
-                branches,
-            } => self.infer_inductive_case(
-                inductive,
-                motive_vars,
-                scrutinee.into(),
-                motive_domains,
-                motive_body.into(),
-                branches,
-            )?,
-            SetTermForm::SetCase {
-                inductive,
-                binders,
-                result_ty,
-                scrutinee,
-                branches,
-            } => self.infer_set_case(
-                inductive,
-                binders,
-                result_ty.into(),
-                scrutinee.into(),
-                branches,
-            )?,
-        };
-        self.validate_inferred(e, inferred)?;
-        Ok(Classifier::Expression(inferred))
-    }
-    fn infer_set_type_node(&mut self, h: SetType) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            SetTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            SetTypeForm::Annotated {
-                body, classifier, ..
             } => {
-                return self.infer_annotation(e, body.into(), classifier);
+                let ty = self.alloc(Node::TypeLift { superset, subset });
+                self.formation(ty)?;
+                self.check_at("check element", element, superset)?;
+                self.check_at(
+                    "check membership proof",
+                    proof,
+                    self.alloc(Node::Pred {
+                        superset,
+                        subset,
+                        element,
+                    }),
+                )?;
+                ty
             }
-            SetTypeForm::ProdTerm {
-                rule,
-                var,
-                domain,
-                body,
-            } => return self.infer_product(e, rule, var, domain.into(), body.into()),
-            SetTypeForm::ProdType {
-                rule,
-                var,
-                domain,
-                body,
-            } => return self.infer_product(e, rule, var, domain.into(), body.into()),
-            SetTypeForm::LambdaTerm {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            SetTypeForm::LambdaType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            SetTypeForm::AppTerm {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-            SetTypeForm::AppType {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-            SetTypeForm::PowerSet { set } => self.infer_power_set(set.into())?,
-            SetTypeForm::TypeLift { superset, subset } => {
-                self.infer_type_lift(superset.into(), subset.into())?
-            }
-            SetTypeForm::RunStep {
-                state_ty,
-                result_ty,
-            } => self.infer_run_step(state_ty.into(), result_ty.into())?,
-            SetTypeForm::BoxType { program_ty } => self.infer_box_type(program_ty.into())?,
-            SetTypeForm::Recursor {
-                rule,
-                var,
-                state_ty,
-                result_ty,
-                motive,
-                on_continue,
-                on_finish,
-                scrutinee,
-            } => self.infer_recursor(
-                rule,
-                var,
-                state_ty.into(),
-                result_ty.into(),
-                motive.into(),
-                on_continue.into(),
-                on_finish.into(),
-                scrutinee.into(),
-            )?,
-            SetTypeForm::IndType {
-                inductive,
-                parameters,
-            } => return self.infer_ind_type(e, inductive, parameters),
-            SetTypeForm::IndCtor {
-                inductive,
-                constructor,
-                parameters,
-            } => self.infer_ind_ctor(inductive, constructor, parameters)?,
-            SetTypeForm::IndElim {
-                inductive,
-                motive_vars,
-                scrutinee,
-                motive_domains,
-                motive_body,
-                cases,
-            } => self.infer_ind_elim(
-                inductive,
-                motive_vars,
-                scrutinee.into(),
-                motive_domains,
-                motive_body.into(),
-                cases,
-            )?,
-            SetTypeForm::Case {
-                inductive,
-                motive_vars,
-                scrutinee,
-                motive_domains,
-                motive_body,
-                branches,
-            } => self.infer_inductive_case(
-                inductive,
-                motive_vars,
-                scrutinee.into(),
-                motive_domains,
-                motive_body.into(),
-                branches,
-            )?,
-        };
-        self.validate_inferred(e, inferred)?;
-        Ok(Classifier::Expression(inferred))
-    }
-    fn infer_set_kind_node(&mut self, h: SetKind) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        match self.arena().get(h).form {
-            SetKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
-            SetKindForm::ProdTerm {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_product(e, rule, var, domain.into(), body.into()),
-            SetKindForm::ProdType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_product(e, rule, var, domain.into(), body.into()),
-            SetKindForm::IndType {
-                inductive,
-                parameters,
-            } => self.infer_ind_type(e, inductive, parameters),
-            SetKindForm::Annotated {
-                body, classifier, ..
-            } => self.infer_annotation(e, body.into(), classifier),
-        }
-    }
-    fn infer_prop_term_node(&mut self, h: PropTerm) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            PropTermForm::Bound { index } => self.infer_bound(e, index)?,
-            PropTermForm::Annotated {
-                body, classifier, ..
-            } => {
-                return self.infer_annotation(e, body.into(), classifier);
-            }
-            PropTermForm::LambdaTerm {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            PropTermForm::LambdaType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            PropTermForm::AppTerm {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-            PropTermForm::AppType {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-            PropTermForm::Recursor {
-                rule,
-                var,
-                state_ty,
-                result_ty,
-                motive,
-                on_continue,
-                on_finish,
-                scrutinee,
-            } => self.infer_recursor(
-                rule,
-                var,
-                state_ty.into(),
-                result_ty.into(),
-                motive.into(),
-                on_continue.into(),
-                on_finish.into(),
-                scrutinee.into(),
-            )?,
-            PropTermForm::IdRefl { element } => self.infer_id_refl(element.into())?,
-            PropTermForm::ExistsIntro { element, set } => {
-                self.infer_exists_intro(element.into(), set.into())?
-            }
-            PropTermForm::SubsetElim {
-                element,
-                subset,
+            Node::SubsetElim {
                 superset,
-            } => self.infer_subset_elim(element.into(), subset.into(), superset.into())?,
-            PropTermForm::IdElim {
+                subset,
+                element,
+            } => {
+                let ty = self.alloc(Node::TypeLift { superset, subset });
+                self.formation(ty)?;
+                self.check_at("check subset elimination", element, ty)?;
+                self.alloc(Node::Pred {
+                    superset,
+                    subset,
+                    element,
+                })
+            }
+            Node::Equal { left, right } => {
+                let a = self.carrier(left)?;
+                let b = self.carrier(right)?;
+                if self.solving {
+                    self.metas.unify(self.env, &self.context, a, b)?;
+                } else if !self.equal(a, b)? {
+                    return Err("different equality carriers".into());
+                }
+                self.base(BaseSort::Prop)
+            }
+            Node::IdRefl { element } => {
+                self.carrier(element)?;
+                self.alloc(Node::Equal {
+                    left: element,
+                    right: element,
+                })
+            }
+            Node::Exists { set } => {
+                self.set_type(set)?;
+                self.base(BaseSort::Prop)
+            }
+            Node::ExistsIntro { element, set } => {
+                self.set_type(set)?;
+                self.check_at("check element", element, set)?;
+                self.alloc(Node::Exists { set })
+            }
+            Node::IdElim {
                 var,
                 left,
                 right,
@@ -727,80 +735,348 @@ impl<'a> Checker<'a> {
                 predicate,
                 base,
                 equality,
-            } => self.infer_id_elim(
+            } => {
+                if !self.solving {
+                    self.set_type(ty)?;
+                }
+                self.check_open(left, ty)?;
+                self.check_open(right, ty)?;
+                self.under(var, ty, |c| c.proposition(predicate))?;
+                self.check_at(
+                    "check base",
+                    base,
+                    instantiate(self.arena(), predicate, &[left])?,
+                )?;
+                self.check_at(
+                    "check equality proof",
+                    equality,
+                    self.alloc(Node::Equal { left, right }),
+                )?;
+                instantiate(self.arena(), predicate, &[right])?
+            }
+            Node::RunStep {
+                state_ty,
+                result_ty,
+            } => {
+                self.runstep(state_ty, result_ty, false)?;
+                let i = self.set_type(state_ty)?;
+                self.base(BaseSort::Set(i))
+            }
+            Node::ProgramRunStep {
+                state_ty,
+                result_ty,
+            } => {
+                self.runstep(state_ty, result_ty, true)?;
+                let i = self.program_type(state_ty, false)?;
+                self.base(BaseSort::Value(i))
+            }
+            Node::Continue {
+                state_ty,
+                result_ty,
+                next,
+            } => {
+                if !self.solving {
+                    self.runstep(state_ty, result_ty, false)?;
+                }
+                self.check_at("check next state", next, state_ty)?;
+                self.runstep(state_ty, result_ty, false)?
+            }
+            Node::Finish {
+                state_ty,
+                result_ty,
+                output,
+            } => {
+                if !self.solving {
+                    self.runstep(state_ty, result_ty, false)?;
+                }
+                self.check_at("check output", output, result_ty)?;
+                self.runstep(state_ty, result_ty, false)?
+            }
+            Node::ProgramContinue {
+                state_ty,
+                result_ty,
+                next,
+            } => {
+                if !self.solving {
+                    self.runstep(state_ty, result_ty, true)?;
+                }
+                self.check_at("check next state", next, state_ty)?;
+                self.runstep(state_ty, result_ty, true)?
+            }
+            Node::ProgramFinish {
+                state_ty,
+                result_ty,
+                output,
+            } => {
+                if !self.solving {
+                    self.runstep(state_ty, result_ty, true)?;
+                }
+                self.check_at("check output", output, result_ty)?;
+                self.runstep(state_ty, result_ty, true)?
+            }
+            Node::Thunk { computation_ty } => {
+                let i = self.program_type(computation_ty, true)?;
+                self.base(BaseSort::Value(i))
+            }
+            Node::ReturnType { value_ty } => {
+                let i = self.program_type(value_ty, false)?;
+                self.base(BaseSort::Computation(i))
+            }
+            Node::ThunkValue { computation } => {
+                let computation_ty = self.infer_open(computation)?;
+                if !self.solving {
+                    self.program_type(computation_ty, true)?;
+                }
+                self.alloc(Node::Thunk { computation_ty })
+            }
+            Node::Return { value } => {
+                let value_ty = self.infer_open(value)?;
+                if !self.solving {
+                    self.program_type(value_ty, false)?;
+                }
+                self.alloc(Node::ReturnType { value_ty })
+            }
+            Node::Force { value } => {
+                let ty = self.infer_open(value)?;
+                match self.arena().get(self.head(ty)?) {
+                    Node::Thunk { computation_ty } => computation_ty,
+                    _ => return Err("force requires U(B)".into()),
+                }
+            }
+            Node::Sequence {
                 var,
-                left.into(),
-                right.into(),
-                ty.into(),
-                predicate.into(),
-                base.into(),
-                equality.into(),
-            )?,
-            PropTermForm::TakeProp {
+                value_ty,
+                computation,
+                body,
+            } => {
+                if !self.solving {
+                    self.program_type(value_ty, false)?;
+                }
+                self.check_open(computation, self.alloc(Node::ReturnType { value_ty }))?;
+                let ty = self.under(var, value_ty, |c| c.infer_open(body))?;
+                if !self.solving {
+                    self.under(var, value_ty, |c| c.program_type(ty, true))?;
+                }
+                instantiate(self.arena(), ty, &[computation])?
+            }
+            Node::ValueLet {
+                var,
+                value_ty,
+                value,
+                body,
+            } => {
+                if !self.solving {
+                    self.program_type(value_ty, false)?;
+                }
+                self.check_open(value, value_ty)?;
+                let ty = self.under(var, value_ty, |c| c.infer_open(body))?;
+                if !self.solving {
+                    self.under(var, value_ty, |c| c.program_type(ty, true))?;
+                }
+                instantiate(self.arena(), ty, &[value])?
+            }
+            Node::IndType {
+                inductive,
+                parameters,
+            } => {
+                let spec = self
+                    .env
+                    .inductives
+                    .get(&inductive)
+                    .ok_or("unknown inductive")?
+                    .clone();
+                self.arguments(&parameters, &spec.parameters)?;
+                if spec.sort.is_upper() {
+                    self.arena().sort(spec.sort)
+                } else {
+                    instantiate(self.arena(), spec.arity, &parameters)?
+                }
+            }
+            Node::IndCtor {
+                inductive,
+                constructor,
+                parameters,
+            } => {
+                let spec = self
+                    .env
+                    .inductives
+                    .get(&inductive)
+                    .ok_or("unknown inductive")?
+                    .clone();
+                self.arguments(&parameters, &spec.parameters)?;
+                let ty = *spec
+                    .constructors
+                    .get(constructor)
+                    .ok_or("unknown constructor")?;
+                instantiate(self.arena(), ty, &parameters)?
+            }
+            Node::Inductive {
+                inductive,
+                parameters,
+            } => {
+                let spec = self
+                    .env
+                    .datatypes
+                    .get(&inductive)
+                    .ok_or("unknown datatype")?
+                    .clone();
+                self.arguments(&parameters, &spec.parameters)?;
+                self.base(BaseSort::Value(spec.level))
+            }
+            Node::InductiveConstructor {
+                inductive,
+                constructor,
+                parameters,
+                fields,
+            } => {
+                let spec = self
+                    .env
+                    .datatypes
+                    .get(&inductive)
+                    .ok_or("unknown datatype")?
+                    .clone();
+                self.arguments(&parameters, &spec.parameters)?;
+                let telescope = spec
+                    .constructors
+                    .get(constructor)
+                    .ok_or("unknown constructor")?;
+                if fields.len() != telescope.len() {
+                    return Err("constructor field count mismatch".into());
+                }
+                for (field, binding) in fields.iter().zip(telescope) {
+                    self.check_open(*field, instantiate(self.arena(), binding.ty, &parameters)?)?;
+                }
+                self.alloc(Node::Inductive {
+                    inductive,
+                    parameters,
+                })
+            }
+            node => return self.infer_extended(node),
+        };
+        Ok(result)
+    }
+
+    fn infer_extended(&mut self, node: Node) -> Result<Expression, Error> {
+        match node {
+            Node::TakeSet {
+                domain,
+                codomain,
+                map,
+                existence,
+                uniqueness,
+            } => self.infer_take_set(domain, codomain, map, existence, uniqueness),
+            Node::TakeProp {
                 domain,
                 proposition,
                 map,
                 existence,
-            } => self.infer_take_prop(
-                domain.into(),
-                proposition.into(),
-                map.into(),
-                existence.into(),
-            )?,
-            PropTermForm::TakeEq {
+            } => self.infer_take_prop(domain, proposition, map, existence),
+            Node::TakeEq {
                 func,
                 domain,
                 codomain,
                 element,
                 existence,
                 uniqueness,
-            } => self.infer_take_eq(
-                func.into(),
-                domain.into(),
-                codomain.into(),
-                element.into(),
-                existence.into(),
-                uniqueness.into(),
-            )?,
-            PropTermForm::SetExt {
+            } => {
+                let take = self.alloc(Node::TakeSet {
+                    domain,
+                    codomain,
+                    map: func,
+                    existence,
+                    uniqueness,
+                });
+                self.check_open(take, codomain)?;
+                self.check_at("check element", element, domain)?;
+                self.equality(take, self.application(func, element)?)
+            }
+            Node::FunExt {
+                left,
+                right,
+                pointwise,
+            } => {
+                let ty = self.infer_open(left)?;
+                self.set_type(ty)?;
+                let (domain, _) = self.product(ty)?;
+                self.check_open(right, ty)?;
+                let expected = self.quantified(domain, |ch, x| {
+                    ch.equality(
+                        ch.application(ch.lifted(left, 1)?, x)?,
+                        ch.application(ch.lifted(right, 1)?, x)?,
+                    )
+                })?;
+                self.check_at("check pointwise equality", pointwise, expected)?;
+                self.equality(left, right)
+            }
+            Node::SetExt {
                 left,
                 right,
                 left_to_right,
                 right_to_left,
-            } => self.infer_set_ext(
-                left.into(),
-                right.into(),
-                left_to_right.into(),
-                right_to_left.into(),
-            )?,
-            PropTermForm::FunExt {
-                left,
-                right,
-                pointwise,
-            } => self.infer_fun_ext(left.into(), right.into(), pointwise.into())?,
-            PropTermForm::ClassicalIndefiniteChoice {
+            } => {
+                let ty = self.infer_open(left)?;
+                let Node::PowerSet { set } = self.arena().get(self.head(ty)?) else {
+                    return Err("setext requires powerset elements".into());
+                };
+                self.set_type(set)?;
+                self.check_open(right, ty)?;
+                for (source, target, proof, phase) in [
+                    (left, right, left_to_right, "check forward inclusion"),
+                    (right, left, right_to_left, "check backward inclusion"),
+                ] {
+                    let expected = self.quantified(set, |ch, x| {
+                        let set = ch.lifted(set, 1)?;
+                        ch.arrow(
+                            ch.predicate(set, ch.lifted(source, 1)?, x)?,
+                            ch.predicate(set, ch.lifted(target, 1)?, x)?,
+                        )
+                    })?;
+                    self.check_at(phase, proof, expected)?;
+                }
+                self.equality(left, right)
+            }
+            Node::ClassicalIndefiniteChoice {
                 domain,
                 family,
                 inhabited,
-            } => self.infer_classical_indefinite_choice(
-                domain.into(),
-                family.into(),
-                inhabited.into(),
-            )?,
-            PropTermForm::AccIntro {
+            } => {
+                self.set_type(domain)?;
+                let ty = self.infer_open(family)?;
+                let (input, body) = self.product(ty)?;
+                if !self.equal(input, domain)? {
+                    return Err("choice family domain mismatch".into());
+                }
+                if !matches!(
+                    self.arena().get(self.head(body)?),
+                    Node::Sort(Sort::Base(BaseSort::Set(_)))
+                ) {
+                    return Err("choice family must return Set".into());
+                }
+                let exists = self.quantified(domain, |ch, x| {
+                    ch.exists(ch.application(ch.lifted(family, 1)?, x)?)
+                })?;
+                self.check_at("check pointwise inhabitation", inhabited, exists)?;
+                let choices =
+                    self.quantified(domain, |ch, x| ch.application(ch.lifted(family, 1)?, x))?;
+                self.exists(choices)
+            }
+            Node::Acc {
+                state_ty,
+                result_ty,
+                step,
+                state,
+            } => {
+                self.check_run(state_ty, result_ty, step, state, false)?;
+                Ok(self.base(BaseSort::Prop))
+            }
+            Node::AccIntro {
                 state_ty,
                 result_ty,
                 step,
                 state,
                 predecessors,
-            } => self.infer_acc_intro(
-                state_ty.into(),
-                result_ty.into(),
-                step.into(),
-                state.into(),
-                predecessors.into(),
-            )?,
-            PropTermForm::AccDescent {
+            } => self.infer_acc_intro(state_ty, result_ty, step, state, predecessors),
+            Node::AccDescent {
                 state_ty,
                 result_ty,
                 step,
@@ -809,1267 +1085,246 @@ impl<'a> Checker<'a> {
                 accessibility,
                 transition,
             } => self.infer_acc_descent(
-                state_ty.into(),
-                result_ty.into(),
-                step.into(),
-                from.into(),
-                to.into(),
-                accessibility.into(),
-                transition.into(),
-            )?,
-            PropTermForm::IndCtor {
-                inductive,
-                constructor,
-                parameters,
-            } => self.infer_ind_ctor(inductive, constructor, parameters)?,
-            PropTermForm::IndElim {
-                inductive,
-                motive_vars,
-                scrutinee,
-                motive_domains,
-                motive_body,
-                cases,
-            } => self.infer_ind_elim(
-                inductive,
-                motive_vars,
-                scrutinee.into(),
-                motive_domains,
-                motive_body.into(),
-                cases,
-            )?,
-            PropTermForm::Case {
-                inductive,
-                motive_vars,
-                scrutinee,
-                motive_domains,
-                motive_body,
-                branches,
-            } => self.infer_inductive_case(
-                inductive,
-                motive_vars,
-                scrutinee.into(),
-                motive_domains,
-                motive_body.into(),
-                branches,
-            )?,
-        };
-        self.validate_inferred(e, inferred)?;
-        Ok(Classifier::Expression(inferred))
-    }
-    fn infer_prop_type_node(&mut self, h: PropType) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            PropTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            PropTypeForm::Annotated {
-                body, classifier, ..
-            } => {
-                return self.infer_annotation(e, body.into(), classifier);
-            }
-            PropTypeForm::ProdTerm {
-                rule,
-                var,
-                domain,
-                body,
-            } => return self.infer_product(e, rule, var, domain.into(), body.into()),
-            PropTypeForm::ProdType {
-                rule,
-                var,
-                domain,
-                body,
-            } => return self.infer_product(e, rule, var, domain.into(), body.into()),
-            PropTypeForm::LambdaTerm {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            PropTypeForm::LambdaType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            PropTypeForm::AppTerm {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-            PropTypeForm::AppType {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-            PropTypeForm::Pred {
-                superset,
-                subset,
-                element,
-            } => self.infer_pred(superset.into(), subset.into(), element.into())?,
-            PropTypeForm::Equal { left, right } => self.infer_equal(left.into(), right.into())?,
-            PropTypeForm::Exists { set } => self.infer_exists(set.into())?,
-            PropTypeForm::Acc {
                 state_ty,
                 result_ty,
                 step,
-                state,
-            } => self.infer_acc(state_ty.into(), result_ty.into(), step.into(), state.into())?,
-            PropTypeForm::Recursor {
-                rule,
-                var,
+                from,
+                to,
+                accessibility,
+                transition,
+            ),
+            Node::SetRun {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                accessibility,
+            } => {
+                self.check_run(state_ty, result_ty, step, initial, false)?;
+                self.check_at(
+                    "check accessibility proof",
+                    accessibility,
+                    self.accessibility(state_ty, result_ty, step, initial)?,
+                )?;
+                Ok(result_ty)
+            }
+            Node::SetRunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                accessibility,
+                transition_equality,
+            } => {
+                let runstep = self.check_run(state_ty, result_ty, step, initial, false)?;
+                self.check_at(
+                    "check accessibility proof",
+                    accessibility,
+                    self.accessibility(state_ty, result_ty, step, initial)?,
+                )?;
+                self.check_at("check recursive transition", transition, runstep)?;
+                self.check_at(
+                    "check transition equality proof",
+                    transition_equality,
+                    self.equality(self.application(step, initial)?, transition)?,
+                )?;
+                Ok(result_ty)
+            }
+            Node::Run {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                accessibility,
+            } => {
+                self.check_run(state_ty, result_ty, step, initial, true)?;
+                let proof = self.accessibility(
+                    self.reflect(state_ty),
+                    self.reflect(result_ty),
+                    self.reflect(step),
+                    self.reflect(initial),
+                )?;
+                self.check_at("check accessibility proof", accessibility, proof)?;
+                Ok(self.alloc(Node::ReturnType {
+                    value_ty: result_ty,
+                }))
+            }
+            Node::RunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                accessibility,
+                transition_equality,
+            } => {
+                let runstep = self.check_run(state_ty, result_ty, step, initial, true)?;
+                self.check_at(
+                    "check recursive transition",
+                    transition,
+                    self.alloc(Node::ReturnType { value_ty: runstep }),
+                )?;
+                let proof = self.accessibility(
+                    self.reflect(state_ty),
+                    self.reflect(result_ty),
+                    self.reflect(step),
+                    self.reflect(initial),
+                )?;
+                self.check_at("check accessibility proof", accessibility, proof)?;
+                self.check_at(
+                    "check transition equality proof",
+                    transition_equality,
+                    self.equality(
+                        self.application(self.reflect(step), self.reflect(initial))?,
+                        self.reflect(transition),
+                    )?,
+                )?;
+                Ok(self.alloc(Node::ReturnType {
+                    value_ty: result_ty,
+                }))
+            }
+            Node::Recursor {
                 state_ty,
                 result_ty,
                 motive,
                 on_continue,
                 on_finish,
                 scrutinee,
-            } => self.infer_recursor(
-                rule,
-                var,
-                state_ty.into(),
-                result_ty.into(),
-                motive.into(),
-                on_continue.into(),
-                on_finish.into(),
-                scrutinee.into(),
-            )?,
-            PropTypeForm::IndType {
-                inductive,
-                parameters,
-            } => return self.infer_ind_type(e, inductive, parameters),
-            PropTypeForm::IndCtor {
-                inductive,
-                constructor,
-                parameters,
-            } => self.infer_ind_ctor(inductive, constructor, parameters)?,
-            PropTypeForm::IndElim {
-                inductive,
-                motive_vars,
-                scrutinee,
-                motive_domains,
-                motive_body,
-                cases,
-            } => self.infer_ind_elim(
-                inductive,
-                motive_vars,
-                scrutinee.into(),
-                motive_domains,
-                motive_body.into(),
-                cases,
-            )?,
-            PropTypeForm::Case {
-                inductive,
-                motive_vars,
-                scrutinee,
-                motive_domains,
-                motive_body,
-                branches,
-            } => self.infer_inductive_case(
-                inductive,
-                motive_vars,
-                scrutinee.into(),
-                motive_domains,
-                motive_body.into(),
-                branches,
-            )?,
-        };
-        self.validate_inferred(e, inferred)?;
-        Ok(Classifier::Expression(inferred))
-    }
-    fn infer_prop_kind_node(&mut self, h: PropKind) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        match self.arena().get(h).form {
-            PropKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
-            PropKindForm::ProdTerm {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_product(e, rule, var, domain.into(), body.into()),
-            PropKindForm::ProdType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_product(e, rule, var, domain.into(), body.into()),
-            PropKindForm::IndType {
-                inductive,
-                parameters,
-            } => self.infer_ind_type(e, inductive, parameters),
-            PropKindForm::Annotated {
-                body, classifier, ..
-            } => self.infer_annotation(e, body.into(), classifier),
-        }
-    }
-    fn infer_value_term_node(&mut self, h: ValueTerm) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            ValueTermForm::Bound { index } => self.infer_bound(e, index)?,
-            ValueTermForm::Annotated {
-                body, classifier, ..
             } => {
-                return self.infer_annotation(e, body.into(), classifier);
-            }
-            ValueTermForm::ThunkValue { computation } => {
-                self.infer_thunk_value(computation.into())?
-            }
-            ValueTermForm::Continue {
-                state_ty,
-                result_ty,
-                next,
-            } => self.infer_continue(state_ty.into(), result_ty.into(), next.into())?,
-            ValueTermForm::Finish {
-                state_ty,
-                result_ty,
-                output,
-            } => self.infer_finish(state_ty.into(), result_ty.into(), output.into())?,
-            ValueTermForm::InductiveConstructor {
-                inductive,
-                constructor,
-                parameters,
-                fields,
-            } => self.infer_inductive_constructor(inductive, constructor, parameters, fields)?,
-        };
-        self.validate_inferred(e, inferred)?;
-        Ok(Classifier::Expression(inferred))
-    }
-    fn infer_value_type_node(&mut self, h: ValueType) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            ValueTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            ValueTypeForm::Annotated {
-                body, classifier, ..
-            } => {
-                return self.infer_annotation(e, body.into(), classifier);
-            }
-            ValueTypeForm::Thunk { computation_ty } => self.infer_thunk(computation_ty.into())?,
-            ValueTypeForm::RunStep {
-                state_ty,
-                result_ty,
-            } => self.infer_run_step(state_ty.into(), result_ty.into())?,
-            ValueTypeForm::Inductive {
-                inductive,
-                parameters,
-            } => self.infer_inductive(inductive, parameters)?,
-            ValueTypeForm::LambdaType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            ValueTypeForm::AppType {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-        };
-        self.validate_inferred(e, inferred)?;
-        Ok(Classifier::Expression(inferred))
-    }
-    fn infer_value_kind_node(&mut self, h: ValueKind) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        match self.arena().get(h).form {
-            ValueKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
-            ValueKindForm::ProdType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_product(e, rule, var, domain.into(), body.into()),
-        }
-    }
-    fn infer_computation_term_node(
-        &mut self,
-        h: ComputationTerm,
-    ) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            ComputationTermForm::Annotated {
-                body, classifier, ..
-            } => {
-                return self.infer_annotation(e, body.into(), classifier);
-            }
-            ComputationTermForm::Return { value } => self.infer_return(value.into())?,
-            ComputationTermForm::Force { value } => self.infer_force(value.into())?,
-            ComputationTermForm::LambdaTerm {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            ComputationTermForm::LambdaType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            ComputationTermForm::AppTerm {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-            ComputationTermForm::AppType {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-            ComputationTermForm::Sequence {
-                var,
-                value_ty,
-                computation,
-                body,
-            } => self.infer_sequence(var, value_ty.into(), computation.into(), body.into())?,
-            ComputationTermForm::ValueLet {
-                var,
-                value_ty,
-                value,
-                body,
-            } => self.infer_value_let(var, value_ty.into(), value.into(), body.into())?,
-            ComputationTermForm::Case {
-                inductive,
-                binders,
-                result_ty,
-                scrutinee,
-                branches,
-            } => self.infer_case(
-                inductive,
-                binders,
-                result_ty.into(),
-                scrutinee.into(),
-                branches,
-            )?,
-            ComputationTermForm::Run {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                ..
-            } => {
-                self.check_run(
-                    state_ty.into(),
-                    result_ty.into(),
-                    step.into(),
-                    initial.into(),
-                )?;
-                self.check_reflected_program_run(h)?;
-                self.return_type(result_ty.into())?
-            }
-            ComputationTermForm::RunCase {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                transition,
-                ..
-            } => {
-                let runstep = self.check_run(
-                    state_ty.into(),
-                    result_ty.into(),
-                    step.into(),
-                    initial.into(),
-                )?;
-                self.check(transition, self.return_type(runstep)?)?;
-                self.check_reflected_program_run(h)?;
-                self.return_type(result_ty.into())?
-            }
-        };
-        self.validate_inferred(e, inferred)?;
-        Ok(Classifier::Expression(inferred))
-    }
-    fn infer_computation_type_node(
-        &mut self,
-        h: ComputationType,
-    ) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        let inferred = match self.arena().get(h).form {
-            ComputationTypeForm::Bound { index } => self.infer_bound(e, index)?,
-            ComputationTypeForm::Annotated {
-                body, classifier, ..
-            } => {
-                return self.infer_annotation(e, body.into(), classifier);
-            }
-            ComputationTypeForm::ReturnType { value_ty } => {
-                self.infer_return_type(value_ty.into())?
-            }
-            ComputationTypeForm::ProdTerm {
-                rule,
-                var,
-                domain,
-                body,
-            } => return self.infer_product(e, rule, var, domain.into(), body.into()),
-            ComputationTypeForm::ProdType {
-                rule,
-                var,
-                domain,
-                body,
-            } => return self.infer_product(e, rule, var, domain.into(), body.into()),
-            ComputationTypeForm::LambdaType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_lambda(e, rule, var, domain.into(), body.into())?,
-            ComputationTypeForm::AppType {
-                rule,
-                function,
-                argument,
-            } => self.infer_application(e, rule, function.into(), argument.into())?,
-        };
-        self.validate_inferred(e, inferred)?;
-        Ok(Classifier::Expression(inferred))
-    }
-    fn infer_computation_kind_node(
-        &mut self,
-        h: ComputationKind,
-    ) -> Result<Classifier, CheckError> {
-        let e = h.into();
-        match self.arena().get(h).form {
-            ComputationKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
-            ComputationKindForm::ProdType {
-                rule,
-                var,
-                domain,
-                body,
-            } => self.infer_product(e, rule, var, domain.into(), body.into()),
-        }
-    }
-    fn base_kind(&self, sort: BaseSort) -> Expression {
-        build::base_kind(self.arena(), sort).expect("every sort has a base kind")
-    }
-
-    fn powerset(&self, set: Expression) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(SetTypeNode {
-                level: self.arena().sort(set).level().ok_or("expected Set")?,
-                form: SetTypeForm::PowerSet {
-                    set: set.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn type_lift(
-        &self,
-        superset: Expression,
-        subset: Expression,
-    ) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(SetTypeNode {
-                level: self.arena().sort(superset).level().ok_or("expected Set")?,
-                form: SetTypeForm::TypeLift {
-                    superset: superset.try_into()?,
-                    subset: subset.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn predicate(
-        &self,
-        superset: Expression,
-        subset: Expression,
-        element: Expression,
-    ) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(PropTypeNode {
-                form: PropTypeForm::Pred {
-                    superset: superset.try_into()?,
-                    subset: subset.try_into()?,
-                    element: element.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn equality(&self, left: Expression, right: Expression) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(PropTypeNode {
-                form: PropTypeForm::Equal {
-                    left: left.try_into()?,
-                    right: right.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn exists(&self, set: Expression) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(PropTypeNode {
-                form: PropTypeForm::Exists {
-                    set: set.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn accessibility(
-        &self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        state: Expression,
-    ) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(PropTypeNode {
-                form: PropTypeForm::Acc {
-                    state_ty: state_ty.try_into()?,
-                    result_ty: result_ty.try_into()?,
-                    step: step.try_into()?,
-                    state: state.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn return_type(&self, value_ty: Expression) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(ComputationTypeNode {
-                level: self
-                    .arena()
-                    .sort(value_ty)
-                    .level()
-                    .ok_or("expected value type")?,
-                form: ComputationTypeForm::ReturnType {
-                    value_ty: value_ty.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn thunk_type(&self, computation_ty: Expression) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(ValueTypeNode {
-                level: self
-                    .arena()
-                    .sort(computation_ty)
-                    .level()
-                    .ok_or("expected computation type")?,
-                form: ValueTypeForm::Thunk {
-                    computation_ty: computation_ty.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn box_type(&self, program_ty: Expression) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(SetTypeNode {
-                level: self
-                    .arena()
-                    .sort(program_ty)
-                    .level()
-                    .ok_or("expected Program type")?,
-                form: SetTypeForm::BoxType {
-                    program_ty: program_ty.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn runstep_type(
-        &self,
-        state_ty: Expression,
-        result_ty: Expression,
-    ) -> Result<Expression, CheckError> {
-        Ok(match self.arena().sort(state_ty) {
-            BaseSort::Set(level) => self
-                .arena()
-                .alloc(SetTypeNode {
-                    level,
-                    form: SetTypeForm::RunStep {
-                        state_ty: state_ty.try_into()?,
-                        result_ty: result_ty.try_into()?,
-                    },
-                })
-                .into(),
-            BaseSort::Value(level) => self
-                .arena()
-                .alloc(ValueTypeNode {
-                    level,
-                    form: ValueTypeForm::RunStep {
-                        state_ty: state_ty.try_into()?,
-                        result_ty: result_ty.try_into()?,
-                    },
-                })
-                .into(),
-            _ => return Err("expected Set or value type".into()),
-        })
-    }
-    fn continue_term(
-        &self,
-        state_ty: Expression,
-        result_ty: Expression,
-        next: Expression,
-    ) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(SetTermNode {
-                level: self.arena().sort(state_ty).level().ok_or("expected Set")?,
-                form: SetTermForm::Continue {
-                    state_ty: state_ty.try_into()?,
-                    result_ty: result_ty.try_into()?,
-                    next: next.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn finish_term(
-        &self,
-        state_ty: Expression,
-        result_ty: Expression,
-        output: Expression,
-    ) -> Result<Expression, CheckError> {
-        Ok(self
-            .arena()
-            .alloc(SetTermNode {
-                level: self.arena().sort(state_ty).level().ok_or("expected Set")?,
-                form: SetTermForm::Finish {
-                    state_ty: state_ty.try_into()?,
-                    result_ty: result_ty.try_into()?,
-                    output: output.try_into()?,
-                },
-            })
-            .into())
-    }
-    fn product(
-        &mut self,
-        var: SymbolId,
-        domain: Expression,
-        body: Expression,
-    ) -> Result<Expression, CheckError> {
-        let s = self.formation(domain)?;
-        let t = self.under(var, domain, |ch| ch.formation(body))?;
-        build::product(self.arena(), ProductRule::new(s, t)?, var, domain, body)
-            .map_err(CheckError::from)
-    }
-    fn application(
-        &mut self,
-        function: Expression,
-        argument: Expression,
-    ) -> Result<Expression, CheckError> {
-        let ty = self.inferred(function)?;
-        let product = self.expose_product(ty)?;
-        let product = structure::product(self.arena(), product).ok_or("expected a product")?;
-        self.check(argument, product.domain)?;
-        build::apply(self.arena(), product.rule, function, argument).map_err(CheckError::from)
-    }
-    fn expose_product(&self, mut ty: Expression) -> Result<Expression, CheckError> {
-        loop {
-            ty = whnf(self.env, ty)?;
-            if structure::product(self.arena(), ty).is_some() {
-                return Ok(ty);
-            }
-            if let Some(superset) = structure::lifted_superset(self.arena(), ty) {
-                ty = superset.into();
-            } else {
-                return Err("expected a product".into());
-            }
-        }
-    }
-    fn weaken(&self, a: Expression, b: Expression) -> Result<bool, CheckError> {
-        if convertible(self.env, a, b)? {
-            return Ok(true);
-        }
-        if a.family() != b.family() || self.arena().sort(a) != self.arena().sort(b) {
-            return Ok(false);
-        }
-        let a = whnf(self.env, a)?;
-        let b = whnf(self.env, b)?;
-        if let Some(superset) = structure::lifted_superset(self.arena(), a) {
-            return self.weaken(superset.into(), b);
-        }
-        match (
-            structure::product(self.arena(), a),
-            structure::product(self.arena(), b),
-        ) {
-            (Some(a), Some(b))
-                if a.rule == b.rule && convertible(self.env, a.domain, b.domain)? =>
-            {
-                self.weaken(a.body, b.body)
-            }
-            _ => Ok(false),
-        }
-    }
-    fn common_carrier(
-        &mut self,
-        left: Expression,
-        right: Expression,
-    ) -> Result<Expression, CheckError> {
-        let left = self.inferred(left)?;
-        let right = self.inferred(right)?;
-        let base = |mut e| -> Result<Expression, CheckError> {
-            loop {
-                e = whnf(self.env, e)?;
-                if let Some(superset) = structure::lifted_superset(self.arena(), e) {
-                    e = superset.into();
-                } else {
-                    return Ok(e);
+                let step = self.runstep(state_ty, result_ty, false)?;
+                self.check_open(scrutinee, step)?;
+                let motive_ty = self.motive_type(motive)?;
+                let (domain, codomain) = self.product(motive_ty)?;
+                if !self.equal(domain, step)? {
+                    return Err("recursor motive domain mismatch".into());
                 }
+                let Node::Sort(sigma) = self.arena().get(self.head(codomain)?) else {
+                    return Err("recursor motive must return a classifier".into());
+                };
+                let i = self.set_type(state_ty)?;
+                Sort::Base(BaseSort::Set(i))
+                    .product(sigma)
+                    .ok_or("invalid recursor motive sort")?;
+                let state = self.lifted(state_ty, 1)?;
+                let result = self.lifted(result_ty, 1)?;
+                let x = self.arena().bound(0);
+                let cont = self.alloc(Node::Continue {
+                    state_ty: state,
+                    result_ty: result,
+                    next: x,
+                });
+                let finish = self.alloc(Node::Finish {
+                    state_ty: state,
+                    result_ty: result,
+                    output: x,
+                });
+                for (domain, branch, ctor) in [
+                    (state_ty, on_continue, cont),
+                    (result_ty, on_finish, finish),
+                ] {
+                    let body = self.head(self.application(self.lifted(motive, 1)?, ctor)?)?;
+                    self.check_open(
+                        branch,
+                        self.alloc(Node::Product {
+                            var: SymbolId::ANONYMOUS,
+                            domain,
+                            body,
+                        }),
+                    )?;
+                }
+                self.head(self.application(motive, scrutinee)?)
             }
-        };
-        let left = base(left)?;
-        if !convertible(self.env, left, base(right)?)? {
-            return Err("different equality carriers".into());
-        }
-        self.set_type(left)?;
-        Ok(left)
-    }
-    fn quantified(
-        &mut self,
-        domain: Expression,
-        body: impl FnOnce(&mut Self, Expression) -> Result<Expression, CheckError>,
-    ) -> Result<Expression, CheckError> {
-        let sigma = self.formation(domain)?;
-        let stage = if sigma.is_upper() {
-            Stage::Type
-        } else {
-            Stage::Term
-        };
-        let var = build::bound(self.arena(), sigma.base(), stage, 0)?;
-        let body = self.under(SymbolId::ANONYMOUS, domain, |ch| body(ch, var))?;
-        self.product(SymbolId::ANONYMOUS, domain, body)
-    }
-    fn transition(
-        &mut self,
-        state: Expression,
-        result: Expression,
-        step: Expression,
-        from: Expression,
-        to: Expression,
-    ) -> Result<Expression, CheckError> {
-        let applied = self.application(step, from)?;
-        self.equality(applied, self.continue_term(state, result, to)?)
-    }
-
-    fn infer_bound(&mut self, e: Expression, index: usize) -> Result<Expression, CheckError> {
-        let offset = index
-            .checked_add(1)
-            .ok_or("bound variable outside context")?;
-        let entry = self
-            .context
-            .get(
-                self.context
-                    .len()
-                    .checked_sub(offset)
-                    .ok_or("bound variable outside context")?,
-            )
-            .ok_or("bound variable outside context")?;
-        let classifier = shift(self.arena(), entry.classifier, offset, 0)?;
-        let classifier =
-            if !self.arena().sort(e).is_program() && self.arena().sort(classifier).is_program() {
-                super::reflection::reflect_program_expression(self.env, classifier)?
-            } else {
-                classifier
-            };
-        if self.arena().sort(e).is_program()
-            && e.family().stage() != Stage::Term
-            && classifier.family().stage() != Stage::Kind
-        {
-            return Err("Program type depends on a value variable".into());
-        }
-        Ok(classifier)
-    }
-    fn infer_annotation(
-        &mut self,
-        e: Expression,
-        body: Expression,
-        classifier: Classifier,
-    ) -> Result<Classifier, CheckError> {
-        match classifier {
-            Classifier::Expression(ty) => {
-                self.validate_inferred(e, ty)?;
-                self.formation(ty)?;
+            Node::BoxType { program_ty } => {
+                let i = self.closed_program_type(program_ty)?;
+                Ok(self.base(BaseSort::Set(i)))
             }
-            Classifier::Upper(sort)
-                if e.family().stage() == Stage::Kind && self.arena().sort(e) == sort => {}
-            _ => return Err("annotation classification mismatch".into()),
-        }
-        self.check(body, classifier)?;
-        Ok(classifier)
-    }
-    fn infer_product(
-        &mut self,
-        e: Expression,
-        rule: ProductRule,
-        var: SymbolId,
-        domain: Expression,
-        body: Expression,
-    ) -> Result<Classifier, CheckError> {
-        rule.validate()?;
-        let s = self.formation(domain)?;
-        let t = self.under(var, domain, |ch| ch.formation(body))?;
-        let sort = self.arena().sort(e);
-        if rule.domain != s
-            || rule.body != t
-            || rule.result.base() != sort
-            || rule.result.is_upper() != (e.family().stage() == Stage::Kind)
-        {
-            return Err("product rule annotation does not match its children".into());
-        }
-        if matches!(sort, BaseSort::Computation(_))
-            && !s.is_upper()
-            && contains_bound(self.arena(), body, 0)
-        {
-            return Err("Program function codomain depends on its value argument".into());
-        }
-        if e.family().stage() == Stage::Kind {
-            Ok(Classifier::Upper(sort))
-        } else {
-            Ok(Classifier::Expression(self.base_kind(sort)))
-        }
-    }
-    fn infer_lambda(
-        &mut self,
-        e: Expression,
-        rule: ProductRule,
-        var: SymbolId,
-        domain: Expression,
-        body: Expression,
-    ) -> Result<Expression, CheckError> {
-        rule.validate()?;
-        let s = self.formation(domain)?;
-        let (body_ty, t) = self.under(var, domain, |ch| {
-            let ty = ch.inferred(body)?;
-            Ok((ty, ch.formation(ty)?))
-        })?;
-        if s != rule.domain
-            || t != rule.body
-            || self.arena().sort(e) != rule.result.base()
-            || rule.result.is_upper() != (e.family().stage() == Stage::Type)
-        {
-            return Err("lambda rule annotation mismatch".into());
-        }
-        self.product(var, domain, body_ty)
-    }
-    fn infer_application(
-        &mut self,
-        e: Expression,
-        rule: ProductRule,
-        function: Expression,
-        argument: Expression,
-    ) -> Result<Expression, CheckError> {
-        rule.validate()?;
-        let ty = self.inferred(function)?;
-        let ty = self.expose_product(ty)?;
-        let p = structure::product(self.arena(), ty).ok_or("expected a product")?;
-        if p.rule != rule
-            || self.arena().sort(e) != rule.body.base()
-            || rule.body.is_upper() != (e.family().stage() == Stage::Type)
-        {
-            return Err("application rule annotation mismatch".into());
-        }
-        self.check(argument, p.domain)?;
-        substitute_with_reflection(self.env, p.body, argument).map_err(CheckError::from)
-    }
-    fn infer_power_set(&mut self, set: Expression) -> Result<Expression, CheckError> {
-        self.set_type(set)?;
-        Ok(self.base_kind(self.arena().sort(set)))
-    }
-    fn infer_subset(
-        &mut self,
-        var: SymbolId,
-        set: Expression,
-        predicate: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.set_type(set)?;
-        self.under(var, set, |ch| ch.proposition(predicate))?;
-        self.powerset(set)
-    }
-    fn infer_type_lift(
-        &mut self,
-        superset: Expression,
-        subset: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.set_type(superset)?;
-        self.check(subset, self.powerset(superset)?)?;
-        Ok(self.base_kind(self.arena().sort(superset)))
-    }
-    fn infer_pred(
-        &mut self,
-        superset: Expression,
-        subset: Expression,
-        element: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.infer_type_lift(superset, subset)?;
-        self.check(element, superset)?;
-        Ok(self.base_kind(BaseSort::Prop))
-    }
-    fn infer_subset_intro(
-        &mut self,
-        superset: Expression,
-        subset: Expression,
-        element: Expression,
-        proof: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.infer_pred(superset, subset, element)?;
-        self.check(proof, self.predicate(superset, subset, element)?)?;
-        self.type_lift(superset, subset)
-    }
-    fn infer_equal(
-        &mut self,
-        left: Expression,
-        right: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.common_carrier(left, right)?;
-        Ok(self.base_kind(BaseSort::Prop))
-    }
-    fn infer_exists(&mut self, set: Expression) -> Result<Expression, CheckError> {
-        self.set_type(set)?;
-        Ok(self.base_kind(BaseSort::Prop))
-    }
-    fn infer_id_refl(&mut self, element: Expression) -> Result<Expression, CheckError> {
-        let ty = self.inferred(element)?;
-        self.set_type(ty)?;
-        self.equality(element, element)
-    }
-    fn infer_exists_intro(
-        &mut self,
-        element: Expression,
-        set: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.set_type(set)?;
-        self.check(element, set)?;
-        self.exists(set)
-    }
-    fn infer_subset_elim(
-        &mut self,
-        element: Expression,
-        subset: Expression,
-        superset: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.set_type(superset)?;
-        self.check(element, self.type_lift(superset, subset)?)?;
-        self.predicate(superset, subset, element)
-    }
-    fn infer_id_elim(
-        &mut self,
-        var: SymbolId,
-        left: Expression,
-        right: Expression,
-        ty: Expression,
-        predicate: Expression,
-        base: Expression,
-        equality: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.set_type(ty)?;
-        self.check(left, ty)?;
-        self.check(right, ty)?;
-        self.under(var, ty, |ch| ch.proposition(predicate))?;
-        self.check(base, substitute_with_reflection(self.env, predicate, left)?)?;
-        self.check(equality, self.equality(left, right)?)?;
-        substitute_with_reflection(self.env, predicate, right).map_err(CheckError::from)
-    }
-    fn check_runstep(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-    ) -> Result<Expression, CheckError> {
-        let b = self.base_type(state_ty)?;
-        if self.base_type(result_ty)? != b || !matches!(b, BaseSort::Set(_) | BaseSort::Value(_)) {
-            return Err("RunStep types must share the same Set/value level".into());
-        }
-        self.runstep_type(state_ty, result_ty)
-    }
-    fn infer_run_step(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.check_runstep(state_ty, result_ty)?;
-        Ok(self.base_kind(self.arena().sort(state_ty)))
-    }
-    fn infer_continue(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        next: Expression,
-    ) -> Result<Expression, CheckError> {
-        let ty = self.check_runstep(state_ty, result_ty)?;
-        self.check(next, state_ty)?;
-        Ok(ty)
-    }
-    fn infer_finish(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        output: Expression,
-    ) -> Result<Expression, CheckError> {
-        let ty = self.check_runstep(state_ty, result_ty)?;
-        self.check(output, result_ty)?;
-        Ok(ty)
-    }
-    fn check_run(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        initial: Expression,
-    ) -> Result<Expression, CheckError> {
-        let runstep = self.check_runstep(state_ty, result_ty)?;
-        let step_ty = if self.arena().sort(state_ty).is_program() {
-            let result = self.return_type(runstep)?;
-            let arrow = self.arrow(state_ty, result)?;
-            self.thunk_type(arrow)?
-        } else {
-            self.arrow(state_ty, runstep)?
-        };
-        self.check(step, step_ty)?;
-        self.check(initial, state_ty)?;
-        Ok(runstep)
-    }
-    fn infer_acc(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        state: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.check_run(state_ty, result_ty, step, state)?;
-        Ok(self.base_kind(BaseSort::Prop))
-    }
-    fn infer_set_run(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        initial: Expression,
-        accessibility: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.check_run(state_ty, result_ty, step, initial)?;
-        self.check(
-            accessibility,
-            self.accessibility(state_ty, result_ty, step, initial)?,
-        )?;
-        Ok(result_ty)
-    }
-    fn infer_set_run_case(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        initial: Expression,
-        transition: Expression,
-        accessibility: Expression,
-        transition_equality: Expression,
-    ) -> Result<Expression, CheckError> {
-        let runstep = self.check_run(state_ty, result_ty, step, initial)?;
-        self.check(
-            accessibility,
-            self.accessibility(state_ty, result_ty, step, initial)?,
-        )?;
-        self.check(transition, runstep)?;
-        let applied = self.application(step, initial)?;
-        self.check(transition_equality, self.equality(applied, transition)?)?;
-        Ok(result_ty)
-    }
-    fn check_reflected_program_run(&self, term: ComputationTerm) -> Result<(), CheckError> {
-        let context = super::reflection::reflect_context(self.env, &self.context)?;
-        let reflected = super::reflection::reflect_term(self.env, term.into())?;
-        Checker::new(self.env, context).infer_set_term(reflected)?;
-        Ok(())
-    }
-    fn infer_recursor(
-        &mut self,
-        rule: ProductRule,
-        var: SymbolId,
-        state_ty: Expression,
-        result_ty: Expression,
-        motive: Expression,
-        on_continue: Expression,
-        on_finish: Expression,
-        scrutinee: Expression,
-    ) -> Result<Expression, CheckError> {
-        let i = self.set_type(state_ty)?;
-        if self.set_type(result_ty)? != i {
-            return Err("RunStep types must share a level".into());
-        }
-        let step = self.runstep_type(state_ty, result_ty)?;
-        self.check(scrutinee, step)?;
-        let sigma = self.under(var, step, |ch| ch.formation(motive))?;
-        if rule != ProductRule::new(Sort::Base(BaseSort::Set(i)), sigma)? {
-            return Err("recursor rule mismatch".into());
-        }
-        let state = shift(self.arena(), state_ty, 1, 0)?;
-        let result = shift(self.arena(), result_ty, 1, 0)?;
-        let bound = build::bound(self.arena(), BaseSort::Set(i), Stage::Term, 0)?;
-        let continue_value = self.continue_term(state, result, bound)?;
-        let finish_value = self.finish_term(state, result, bound)?;
-        for (domain, branch, constructor) in [
-            (state_ty, on_continue, continue_value),
-            (result_ty, on_finish, finish_value),
-        ] {
-            let motive = shift(self.arena(), motive, 1, 1)?;
-            let ty = substitute_with_reflection(self.env, motive, constructor)?;
-            let expected = self.product(SymbolId::ANONYMOUS, domain, ty)?;
-            self.check(branch, expected)?;
-        }
-        substitute_with_reflection(self.env, motive, scrutinee).map_err(CheckError::from)
-    }
-    fn infer_thunk(&mut self, computation_ty: Expression) -> Result<Expression, CheckError> {
-        match self.base_type(computation_ty)? {
-            BaseSort::Computation(i) => Ok(self.base_kind(BaseSort::Value(i))),
-            _ => Err("U argument has wrong domain".into()),
-        }
-    }
-    fn infer_return_type(&mut self, value_ty: Expression) -> Result<Expression, CheckError> {
-        match self.base_type(value_ty)? {
-            BaseSort::Value(i) => Ok(self.base_kind(BaseSort::Computation(i))),
-            _ => Err("F argument has wrong domain".into()),
-        }
-    }
-    fn infer_thunk_value(&mut self, computation: Expression) -> Result<Expression, CheckError> {
-        let ty = self.inferred(computation)?;
-        self.thunk_type(ty)
-    }
-    fn infer_return(&mut self, value: Expression) -> Result<Expression, CheckError> {
-        let ty = self.inferred(value)?;
-        self.return_type(ty)
-    }
-    fn infer_force(&mut self, value: Expression) -> Result<Expression, CheckError> {
-        let ty = self.inferred(value)?;
-        let ty: ValueType = whnf(self.env, ty)?.try_into()?;
-        match self.arena().read(ty).form {
-            ValueTypeForm::Thunk { computation_ty } => Ok(computation_ty.into()),
-            _ => Err("force requires U(B)".into()),
-        }
-    }
-    fn infer_value_binding(
-        &mut self,
-        var: SymbolId,
-        value_ty: Expression,
-        argument: Expression,
-        body: Expression,
-        sequence: bool,
-    ) -> Result<Expression, CheckError> {
-        if !matches!(self.base_type(value_ty)?, BaseSort::Value(_)) {
-            return Err("value binder requires value type".into());
-        }
-        let expected = if sequence {
-            self.return_type(value_ty)?
-        } else {
-            value_ty
-        };
-        self.check(argument, expected)?;
-        let ty = self.under(var, value_ty, |ch| ch.inferred(body))?;
-        if contains_bound(self.arena(), ty, 0) {
-            return Err("Program result type depends on value".into());
-        }
-        substitute_with_reflection(self.env, ty, argument).map_err(CheckError::from)
-    }
-    fn infer_sequence(
-        &mut self,
-        var: SymbolId,
-        value_ty: Expression,
-        computation: Expression,
-        body: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.infer_value_binding(var, value_ty, computation, body, true)
-    }
-    fn infer_value_let(
-        &mut self,
-        var: SymbolId,
-        value_ty: Expression,
-        value: Expression,
-        body: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.infer_value_binding(var, value_ty, value, body, false)
-    }
-    fn infer_box_type(&mut self, program_ty: Expression) -> Result<Expression, CheckError> {
-        self.closed_program_type(program_ty)?;
-        Ok(self.base_kind(self.arena().sort(program_ty).reflected()))
-    }
-    fn infer_box_program(
-        &mut self,
-        program_ty: Expression,
-        program: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.closed_program_type(program_ty)?;
-        if !closed_in_environment(self.env, program) {
-            return Err("Box payload must be closed".into());
-        }
-        let mut closed = Checker::new(self.env, vec![]);
-        closed.check(program, program_ty)?;
-        let reflected = super::reflection::reflect_program_expression(self.env, program)?;
-        let reflected_ty = super::reflection::reflect_program_expression(self.env, program_ty)?;
-        closed.check(reflected, reflected_ty)?;
-        self.box_type(program_ty)
-    }
-    fn infer_force_box(
-        &mut self,
-        program_ty: Expression,
-        boxed: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.closed_program_type(program_ty)?;
-        self.check(boxed, self.box_type(program_ty)?)?;
-        super::reflection::reflect_program_expression(self.env, program_ty)
-            .map_err(CheckError::from)
-    }
-    fn infer_box_application(
-        &mut self,
-        rule: ProductRule,
-        var: SymbolId,
-        domain: Expression,
-        codomain: Expression,
-        function: Expression,
-        argument: Expression,
-        type_application: bool,
-    ) -> Result<Expression, CheckError> {
-        self.formation(domain)?;
-        let body = if type_application {
-            codomain
-        } else {
-            shift(self.arena(), codomain, 1, 0)?
-        };
-        let p = self.product(var, domain, body)?;
-        if structure::product(self.arena(), p)
-            .ok_or("expected product")?
-            .rule
-            != rule
-        {
-            return Err("boxed application rule mismatch".into());
-        }
-        self.closed_program_type(p)?;
-        self.check(function, self.box_type(p)?)?;
-        let result = if type_application {
-            if !closed_in_environment(self.env, argument) {
-                return Err("boxed type argument must be closed".into());
+            Node::BoxProgram {
+                program_ty,
+                program,
+            } => {
+                self.closed_program_type(program_ty)?;
+                if max_loose_bound(self.arena(), program).is_some()
+                    || self.env.contains_parameter(program)
+                {
+                    return Err("Box payload must be closed".into());
+                }
+                let mut closed = Checker::new(self.env, self.metas, vec![]);
+                closed.check_open(program, program_ty)?;
+                closed.check_open(closed.reflect(program), closed.reflect(program_ty))?;
+                Ok(self.alloc(Node::BoxType { program_ty }))
             }
-            self.check(argument, domain)?;
-            substitute_with_reflection(self.env, codomain, argument)?
-        } else {
-            let argument_ty = self.return_type(domain)?;
-            self.closed_program_type(argument_ty)?;
-            self.check(argument, self.box_type(argument_ty)?)?;
-            codomain
-        };
-        self.box_type(result)
-    }
-    fn infer_box_app(
-        &mut self,
-        rule: ProductRule,
-        domain: Expression,
-        codomain: Expression,
-        function: Expression,
-        argument: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.infer_box_application(
-            rule,
-            SymbolId::ANONYMOUS,
-            domain,
-            codomain,
-            function,
-            argument,
-            false,
-        )
-    }
-    fn infer_box_type_app(
-        &mut self,
-        rule: ProductRule,
-        var: SymbolId,
-        domain: Expression,
-        codomain: Expression,
-        function: Expression,
-        argument: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.infer_box_application(rule, var, domain, codomain, function, argument, true)
+            Node::ForceBox { program_ty, boxed } => {
+                self.closed_program_type(program_ty)?;
+                self.check_open(boxed, self.alloc(Node::BoxType { program_ty }))?;
+                Ok(self.reflect(program_ty))
+            }
+            Node::BoxApp { function, argument } => {
+                let ty = self.infer_open(function)?;
+                let Node::BoxType { program_ty } = self.arena().get(self.head(ty)?) else {
+                    return Err("boxed application requires Box(A -> B)".into());
+                };
+                self.closed_program_type(program_ty)?;
+                let (domain, body) = self.product(program_ty)?;
+                self.program_type(domain, false)?;
+                let input = self.alloc(Node::ReturnType { value_ty: domain });
+                self.check_at(
+                    "check argument type for application",
+                    argument,
+                    self.alloc(Node::BoxType { program_ty: input }),
+                )?;
+                let codomain = instantiate(self.arena(), body, &[argument])?;
+                self.closed_program_type(codomain)?;
+                Ok(self.alloc(Node::BoxType {
+                    program_ty: codomain,
+                }))
+            }
+            Node::BoxTypeApp { function, argument } => {
+                let ty = self.infer_open(function)?;
+                let Node::BoxType { program_ty } = self.arena().get(self.head(ty)?) else {
+                    return Err("boxed type application requires a boxed type abstraction".into());
+                };
+                self.closed_program_type(program_ty)?;
+                let (domain, codomain) = self.product(program_ty)?;
+                if !matches!(
+                    self.formation(domain)?,
+                    Sort::Upper(BaseSort::Value(_) | BaseSort::Computation(_))
+                ) {
+                    return Err("Box type binder requires Program kind".into());
+                }
+                if max_loose_bound(self.arena(), argument).is_some() {
+                    return Err("boxed type argument must be closed".into());
+                }
+                self.check_at("check argument type for application", argument, domain)?;
+                let program_ty = instantiate(self.arena(), codomain, &[argument])?;
+                Ok(self.alloc(Node::BoxType { program_ty }))
+            }
+            Node::IndElim {
+                inductive,
+                scrutinee,
+                motive,
+                cases,
+            } => self.inductive_elimination(inductive, scrutinee, motive, cases, true),
+            Node::Case {
+                inductive,
+                scrutinee,
+                motive,
+                branches,
+            } => self.inductive_elimination(inductive, scrutinee, motive, branches, false),
+            Node::SetCase {
+                inductive,
+                binders,
+                scrutinee,
+                branches,
+            } => self.check_case(inductive, binders, scrutinee, branches, true),
+            Node::ProgramCase {
+                inductive,
+                binders,
+                scrutinee,
+                branches,
+            } => self.check_case(inductive, binders, scrutinee, branches, false),
+            _ => unreachable!("primitive handled by infer_open"),
+        }
     }
     fn infer_take_set(
         &mut self,
@@ -2078,13 +1333,13 @@ impl<'a> Checker<'a> {
         map: Expression,
         existence: Expression,
         uniqueness: Expression,
-    ) -> Result<Expression, CheckError> {
+    ) -> Result<Expression, Error> {
         if self.set_type(codomain)? != self.set_type(domain)? {
             return Err("TakeSet domain/codomain level mismatch".into());
         }
         let map_ty = self.arrow(domain, codomain)?;
-        self.check(map, map_ty)?;
-        self.check(existence, self.exists(domain)?)?;
+        self.check_at("check map", map, map_ty)?;
+        self.check_at("check existence", existence, self.exists(domain)?)?;
         let unique = self.quantified(domain, |ch, x| {
             let dom = ch.lifted(domain, 1)?;
             ch.quantified(dom, |ch, y| {
@@ -2095,7 +1350,7 @@ impl<'a> Checker<'a> {
                 ch.equality(left, right)
             })
         })?;
-        self.check(uniqueness, unique)?;
+        self.check_at("check uniqueness", uniqueness, unique)?;
         Ok(codomain)
     }
     fn infer_take_prop(
@@ -2104,119 +1359,13 @@ impl<'a> Checker<'a> {
         proposition: Expression,
         map: Expression,
         existence: Expression,
-    ) -> Result<Expression, CheckError> {
+    ) -> Result<Expression, Error> {
         self.set_type(domain)?;
         self.proposition(proposition)?;
         let map_ty = self.arrow(domain, proposition)?;
-        self.check(map, map_ty)?;
-        self.check(existence, self.exists(domain)?)?;
+        self.check_at("check map", map, map_ty)?;
+        self.check_at("check existence", existence, self.exists(domain)?)?;
         Ok(proposition)
-    }
-    fn infer_take_eq(
-        &mut self,
-        func: Expression,
-        domain: Expression,
-        codomain: Expression,
-        element: Expression,
-        existence: Expression,
-        uniqueness: Expression,
-    ) -> Result<Expression, CheckError> {
-        let take = self.arena().alloc(SetTermNode {
-            level: self.arena().sort(codomain).level().ok_or("expected Set")?,
-            form: SetTermForm::TakeSet {
-                domain: domain.try_into()?,
-                codomain: codomain.try_into()?,
-                map: func.try_into()?,
-                existence: existence.try_into()?,
-                uniqueness: uniqueness.try_into()?,
-            },
-        });
-        self.check(take, codomain)?;
-        self.check(element, domain)?;
-        let mapped = self.application(func, element)?;
-        self.equality(take.into(), mapped)
-    }
-    fn infer_fun_ext(
-        &mut self,
-        left: Expression,
-        right: Expression,
-        pointwise: Expression,
-    ) -> Result<Expression, CheckError> {
-        let ty = self.inferred(left)?;
-        self.set_type(ty)?;
-        let product = self.expose_product(ty)?;
-        let domain = structure::product(self.arena(), product)
-            .ok_or("expected product")?
-            .domain;
-        self.check(right, ty)?;
-        let expected = self.quantified(domain, |ch, x| {
-            let left = ch.lifted(left, 1)?;
-            let right = ch.lifted(right, 1)?;
-            let left = ch.application(left, x)?;
-            let right = ch.application(right, x)?;
-            ch.equality(left, right)
-        })?;
-        self.check(pointwise, expected)?;
-        self.equality(left, right)
-    }
-    fn infer_set_ext(
-        &mut self,
-        left: Expression,
-        right: Expression,
-        left_to_right: Expression,
-        right_to_left: Expression,
-    ) -> Result<Expression, CheckError> {
-        let ty = self.inferred(left)?;
-        let carrier: Expression = structure::power_set(self.arena(), whnf(self.env, ty)?)
-            .ok_or("setext requires powerset elements")?
-            .into();
-        self.set_type(carrier)?;
-        self.check(right, ty)?;
-        for (source, target, proof) in [(left, right, left_to_right), (right, left, right_to_left)]
-        {
-            let direction = self.quantified(carrier, |ch, x| {
-                let carrier = ch.lifted(carrier, 1)?;
-                let source = ch.lifted(source, 1)?;
-                let target = ch.lifted(target, 1)?;
-                ch.arrow(
-                    ch.predicate(carrier, source, x)?,
-                    ch.predicate(carrier, target, x)?,
-                )
-            })?;
-            self.check(proof, direction)?;
-        }
-        self.equality(left, right)
-    }
-    fn infer_classical_indefinite_choice(
-        &mut self,
-        domain: Expression,
-        family: Expression,
-        inhabited: Expression,
-    ) -> Result<Expression, CheckError> {
-        self.set_type(domain)?;
-        let ty = self.inferred(family)?;
-        let p = self.expose_product(ty)?;
-        let p = structure::product(self.arena(), p).ok_or("expected product")?;
-        if !convertible(self.env, p.domain, domain)? {
-            return Err("choice family domain mismatch".into());
-        }
-        let tail = whnf(self.env, p.body)?;
-        if !structure::is_base(self.arena(), tail)
-            || !matches!(self.arena().sort(tail), BaseSort::Set(_))
-        {
-            return Err("choice family must return Set".into());
-        }
-        let exists = self.quantified(domain, |ch, x| {
-            let f = ch.lifted(family, 1)?;
-            let at = ch.application(f, x)?;
-            ch.exists(at)
-        })?;
-        self.check(inhabited, exists)?;
-        let choices = self.quantified(domain, |ch, x| {
-            let f = ch.lifted(family, 1)?;
-            ch.application(f, x)
-        })?;
-        self.exists(choices)
     }
     fn infer_acc_intro(
         &mut self,
@@ -2225,7 +1374,7 @@ impl<'a> Checker<'a> {
         step: Expression,
         state: Expression,
         predecessors: Expression,
-    ) -> Result<Expression, CheckError> {
+    ) -> Result<Expression, Error> {
         let acc = self.accessibility(state_ty, result_ty, step, state)?;
         self.proposition(acc)?;
         let expected = self.quantified(state_ty, |ch, x| {
@@ -2236,7 +1385,7 @@ impl<'a> Checker<'a> {
             let transition = ch.transition(a, b, f, from, x)?;
             ch.arrow(transition, ch.accessibility(a, b, f, x)?)
         })?;
-        self.check(predecessors, expected)?;
+        self.check_at("check accessibility predecessors", predecessors, expected)?;
         Ok(acc)
     }
     fn infer_acc_descent(
@@ -2248,171 +1397,232 @@ impl<'a> Checker<'a> {
         to: Expression,
         accessibility: Expression,
         transition: Expression,
-    ) -> Result<Expression, CheckError> {
+    ) -> Result<Expression, Error> {
         let acc = self.accessibility(state_ty, result_ty, step, from)?;
         self.proposition(acc)?;
-        self.check(to, state_ty)?;
-        self.check(accessibility, acc)?;
+        self.check_open(to, state_ty)?;
+        self.check_at("check accessibility proof", accessibility, acc)?;
         let expected = self.transition(state_ty, result_ty, step, from, to)?;
-        self.check(transition, expected)?;
+        self.check_at("check recursive transition", transition, expected)?;
         self.accessibility(state_ty, result_ty, step, to)
     }
 
-    fn infer_ind_type(
-        &mut self,
-        e: Expression,
-        inductive: InductiveId,
-        parameters: Vec<LogicalArgument>,
-    ) -> Result<Classifier, CheckError> {
-        let spec = self
-            .env
-            .inductive(inductive)
-            .ok_or("unknown inductive")?
-            .clone();
-        let parameters = expressions(&parameters);
-        self.check_arguments(&parameters, &spec.parameters)?;
-        if e.family().stage() == Stage::Kind {
-            if spec.sort != Sort::Upper(self.arena().sort(e)) {
-                return Err("inductive kind index mismatch".into());
-            }
-            return Ok(Classifier::Upper(self.arena().sort(e)));
+    fn apply_motive(&mut self, motive: &Motive, args: &[Expression]) -> Result<Expression, Error> {
+        if args.len() != motive.domains.len() {
+            return Err("motive argument count mismatch".into());
         }
-        let ty = instantiate_telescope(self.env, spec.arity, &parameters)?;
-        self.validate_inferred(e, ty)?;
-        Ok(Classifier::Expression(ty))
-    }
-    fn infer_ind_ctor(
-        &mut self,
-        inductive: InductiveId,
-        constructor: usize,
-        parameters: Vec<LogicalArgument>,
-    ) -> Result<Expression, CheckError> {
-        let spec = self
-            .env
-            .inductive(inductive)
-            .ok_or("unknown inductive")?
-            .clone();
-        let parameters = expressions(&parameters);
-        self.check_arguments(&parameters, &spec.parameters)?;
-        let classifier = *spec
-            .constructors
-            .get(constructor)
-            .ok_or("invalid constructor")?;
-        instantiate_telescope(self.env, classifier, &parameters).map_err(CheckError::from)
-    }
-    fn infer_inductive(
-        &mut self,
-        inductive: ProgramInductiveId,
-        parameters: Vec<ProgramType>,
-    ) -> Result<Expression, CheckError> {
-        let spec = self
-            .env
-            .datatype(inductive)
-            .ok_or("unknown Program datatype")?
-            .clone();
-        self.check_arguments(&expressions(&parameters), &spec.parameters)?;
-        Ok(self.base_kind(BaseSort::Value(spec.level)))
-    }
-    fn infer_inductive_constructor(
-        &mut self,
-        inductive: ProgramInductiveId,
-        constructor: usize,
-        parameters: Vec<ProgramType>,
-        fields: Vec<ValueTerm>,
-    ) -> Result<Expression, CheckError> {
-        let spec = self
-            .env
-            .datatype(inductive)
-            .ok_or("unknown Program datatype")?
-            .clone();
-        let args = expressions(&parameters);
-        self.check_arguments(&args, &spec.parameters)?;
-        let declared = spec
-            .constructors
-            .get(constructor)
-            .ok_or("invalid constructor")?;
-        if declared.len() != fields.len() {
-            return Err("constructor field count mismatch".into());
+        for (i, (&arg, &ty)) in args.iter().zip(&motive.domains).enumerate() {
+            self.check_open(arg, instantiate(self.arena(), ty, &args[..i])?)?;
         }
-        for (&field, (_, ty)) in fields.iter().zip(declared) {
-            self.check(field, instantiate_telescope(self.env, (*ty).into(), &args)?)?;
+        instantiate(self.arena(), motive.body, args).map_err(Error::from)
+    }
+    fn lift_motive(&self, m: &Motive) -> Result<Motive, Error> {
+        Ok(Motive {
+            domains: m
+                .domains
+                .iter()
+                .enumerate()
+                .map(|(i, &e)| shift(self.arena(), e, 1, i))
+                .collect::<Result<_, _>>()?,
+            body: shift(self.arena(), m.body, 1, m.domains.len())?,
+        })
+    }
+
+    fn lifted(&self, e: Expression, n: usize) -> Result<Expression, Error> {
+        Ok(shift(self.arena(), e, n, 0)?)
+    }
+    fn application(&self, function: Expression, argument: Expression) -> Result<Expression, Error> {
+        Ok(self.alloc(Node::App {
+            mode: Mode::Pure,
+            function,
+            argument,
+        }))
+    }
+    fn equality(&self, left: Expression, right: Expression) -> Result<Expression, Error> {
+        Ok(self.alloc(Node::Equal { left, right }))
+    }
+    fn exists(&self, set: Expression) -> Result<Expression, Error> {
+        Ok(self.alloc(Node::Exists { set }))
+    }
+    fn predicate(
+        &self,
+        superset: Expression,
+        subset: Expression,
+        element: Expression,
+    ) -> Result<Expression, Error> {
+        Ok(self.alloc(Node::Pred {
+            superset,
+            subset,
+            element,
+        }))
+    }
+    fn accessibility(
+        &self,
+        state_ty: Expression,
+        result_ty: Expression,
+        step: Expression,
+        state: Expression,
+    ) -> Result<Expression, Error> {
+        Ok(self.alloc(Node::Acc {
+            state_ty,
+            result_ty,
+            step,
+            state,
+        }))
+    }
+    fn quantified(
+        &mut self,
+        domain: Expression,
+        body: impl FnOnce(&mut Self, Expression) -> Result<Expression, Error>,
+    ) -> Result<Expression, Error> {
+        self.formation(domain)?;
+        let x = self.arena().bound(0);
+        let body = self.under(SymbolId::ANONYMOUS, domain, |ch| body(ch, x))?;
+        Ok(self.alloc(Node::Product {
+            var: SymbolId::ANONYMOUS,
+            domain,
+            body,
+        }))
+    }
+    fn transition(
+        &self,
+        state_ty: Expression,
+        result_ty: Expression,
+        step: Expression,
+        from: Expression,
+        to: Expression,
+    ) -> Result<Expression, Error> {
+        let left = self.application(step, from)?;
+        let right = self.alloc(Node::Continue {
+            state_ty,
+            result_ty,
+            next: to,
+        });
+        self.equality(left, right)
+    }
+    fn closed_program_type(&mut self, ty: Expression) -> Result<usize, Error> {
+        if max_loose_bound(self.arena(), ty).is_some() || self.env.contains_parameter(ty) {
+            return Err("Box requires a closed computation type".into());
         }
-        Ok(self
-            .arena()
-            .alloc(ValueTypeNode {
-                level: spec.level,
-                form: ValueTypeForm::Inductive {
-                    inductive,
-                    parameters,
-                },
+        Checker::new(self.env, self.metas, vec![]).program_type(ty, true)
+    }
+    fn check_run(
+        &mut self,
+        state_ty: Expression,
+        result_ty: Expression,
+        step: Expression,
+        initial: Expression,
+        program: bool,
+    ) -> Result<Expression, Error> {
+        let runstep = self.runstep(state_ty, result_ty, program)?;
+        let step_ty = if program {
+            let result = self.alloc(Node::ReturnType { value_ty: runstep });
+            let arrow = self.arrow(state_ty, result)?;
+            self.alloc(Node::Thunk {
+                computation_ty: arrow,
             })
-            .into())
+        } else {
+            self.arrow(state_ty, runstep)?
+        };
+        self.check_at("check step", step, step_ty)?;
+        self.check_at("check initial state", initial, state_ty)?;
+        Ok(runstep)
     }
-    fn infer_case(
-        &mut self,
-        inductive: ProgramInductiveId,
-        binders: Vec<Vec<SymbolId>>,
-        result_ty: Expression,
-        scrutinee: Expression,
-        branches: Vec<ComputationTerm>,
-    ) -> Result<Expression, CheckError> {
-        self.check_case(
-            inductive,
-            binders,
-            result_ty,
-            scrutinee,
-            expressions(&branches),
-            false,
-        )
+    fn reflect(&self, term: Expression) -> Expression {
+        self.alloc(Node::Reflect { term })
     }
-    fn infer_set_case(
+    pub(crate) fn child_context(
         &mut self,
-        inductive: ProgramInductiveId,
-        binders: Vec<Vec<SymbolId>>,
-        result_ty: Expression,
-        scrutinee: Expression,
-        branches: Vec<SetTerm>,
-    ) -> Result<Expression, CheckError> {
-        self.check_case(
-            inductive,
-            binders,
-            result_ty,
-            scrutinee,
-            expressions(&branches),
-            true,
-        )
+        parent: Expression,
+        slot: usize,
+    ) -> Result<Context, Error> {
+        let mut context = self.context.clone();
+        let binding = match self.arena().get(parent) {
+            Node::Product { var, domain, .. } | Node::Lambda { var, domain, .. } => {
+                Binding { var, ty: domain }
+            }
+            Node::Subset { var, set, .. } => Binding { var, ty: set },
+            Node::IdElim { var, ty, .. } => Binding { var, ty },
+            Node::Sequence { var, value_ty, .. } | Node::ValueLet { var, value_ty, .. } => {
+                Binding { var, ty: value_ty }
+            }
+            Node::ProgramCase {
+                inductive,
+                binders,
+                scrutinee,
+                ..
+            }
+            | Node::SetCase {
+                inductive,
+                binders,
+                scrutinee,
+                ..
+            } => {
+                let reflected = matches!(self.arena().get(parent), Node::SetCase { .. });
+                let spec = self
+                    .env
+                    .datatypes
+                    .get(&inductive)
+                    .ok_or("unknown datatype")?
+                    .clone();
+                let ty = self.infer_open(scrutinee)?;
+                let parameters = match self.arena().get(self.head(ty)?) {
+                    Node::Inductive { parameters, .. } | Node::IndType { parameters, .. } => {
+                        parameters
+                    }
+                    _ => return Err("case scrutinee datatype mismatch".into()),
+                };
+                let index = slot.checked_sub(1).ok_or("invalid case branch slot")?;
+                let fields = spec.constructors.get(index).ok_or("unknown case branch")?;
+                let vars = binders.get(index).ok_or("missing case binders")?;
+                if fields.len() != vars.len() {
+                    return Err("case branch binder count mismatch".into());
+                }
+                for (j, (field, &var)) in fields.iter().zip(vars).enumerate() {
+                    let ty = if reflected {
+                        self.env.reflect_bound(field.ty)?
+                    } else {
+                        field.ty
+                    };
+                    let ty = instantiate(self.arena(), ty, &parameters)?;
+                    context.push(Binding {
+                        var,
+                        ty: shift(self.arena(), ty, j, 0)?,
+                    });
+                }
+                return Ok(context);
+            }
+            _ => return Err("unknown binder structure".into()),
+        };
+        context.push(binding);
+        Ok(context)
     }
     fn check_case(
         &mut self,
         inductive: ProgramInductiveId,
         binders: Vec<Vec<SymbolId>>,
-        result_ty: Expression,
         scrutinee: Expression,
         branches: Vec<Expression>,
         reflected: bool,
-    ) -> Result<Expression, CheckError> {
+    ) -> Result<Expression, Error> {
         let spec = self
             .env
-            .datatype(inductive)
+            .datatypes
+            .get(&inductive)
             .ok_or("unknown datatype")?
             .clone();
-        self.base_type(result_ty)?;
-        let ty = self.inferred(scrutinee)?;
-        let head = whnf(self.env, ty)?;
-        let parameters = if reflected {
-            let (id, parameters) = structure::inductive_type(self.arena(), head)
-                .ok_or("case scrutinee datatype mismatch")?;
-            if id != spec.reflected {
-                return Err("case scrutinee datatype mismatch".into());
-            }
-            expressions(&parameters)
-        } else {
-            let (id, parameters) = structure::program_inductive(self.arena(), head)
-                .ok_or("case scrutinee datatype mismatch")?;
-            if id != inductive {
-                return Err("case scrutinee datatype mismatch".into());
-            }
-            expressions(&parameters)
+        let mut result_ty = None;
+        let ty = self.infer_open(scrutinee)?;
+        let parameters = match self.arena().get(self.head(ty)?) {
+            Node::IndType {
+                inductive: id,
+                parameters,
+            } if reflected && id == spec.reflected => parameters,
+            Node::Inductive {
+                inductive: id,
+                parameters,
+            } if !reflected && id == inductive => parameters,
+            _ => return Err("case scrutinee datatype mismatch".into()),
         };
         if binders.len() != spec.constructors.len() || branches.len() != binders.len() {
             return Err("case branch count mismatch".into());
@@ -2421,90 +1631,157 @@ impl<'a> Checker<'a> {
             if fields.len() != binders[i].len() {
                 return Err("case branch binder count mismatch".into());
             }
-            let mut branch = Checker::new(self.env, self.context.clone());
-            for (j, (_, field)) in fields.iter().enumerate() {
+            let mut branch = Checker::new(self.env, self.metas, self.context.clone());
+            branch.solving = self.solving;
+            for (j, field) in fields.iter().enumerate() {
                 let field = if reflected {
-                    super::reflection::reflect_type(self.env, (*field).into())?.into()
+                    self.env.reflect_bound(field.ty)?
                 } else {
-                    (*field).into()
+                    field.ty
                 };
-                let ty = instantiate_telescope(self.env, field, &parameters)?;
+                let ty = instantiate(branch.arena(), field, &parameters)?;
                 branch.context.push(Binding {
                     var: binders[i][j],
-                    classifier: shift(self.arena(), ty, j, 0)?,
+                    ty: branch.lifted(ty, j)?,
                 });
             }
-            branch.check(
-                branches[i],
-                shift(self.arena(), result_ty, fields.len(), 0)?,
-            )?;
+            match result_ty {
+                Some(ty) => branch.check_open(branches[i], branch.lifted(ty, fields.len())?)?,
+                None => {
+                    let ty = branch.infer_open(branches[i])?;
+                    let arguments = (0..self.context.len())
+                        .rev()
+                        .map(|j| branch.arena().bound(j + fields.len()))
+                        .collect::<Vec<_>>();
+                    result_ty = Some(
+                        abstract_pattern(branch.arena(), ty, &arguments)?
+                            .ok_or("case result type depends on fields")?,
+                    );
+                }
+            }
+        }
+        let result_ty = result_ty.ok_or("empty case needs an expected type")?;
+        if reflected {
+            self.set_type(result_ty)?;
+        } else {
+            self.program_type(result_ty, true)?;
         }
         Ok(result_ty)
     }
-    fn infer_ind_elim(
-        &mut self,
-        inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
-        scrutinee: Expression,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: Expression,
-        cases: Vec<LogicalArgument>,
-    ) -> Result<Expression, CheckError> {
-        self.infer_inductive_elimination(
-            inductive,
-            motive_vars,
-            scrutinee,
-            motive_domains,
-            motive_body,
-            cases,
-            true,
-        )
+    fn decompose_app(&self, mut e: Expression) -> (Expression, Vec<Expression>) {
+        let mut args = vec![];
+        while let Node::App {
+            mode: Mode::Pure,
+            function,
+            argument,
+        } = self.arena().get(e)
+        {
+            args.push(argument);
+            e = function;
+        }
+        args.reverse();
+        (e, args)
     }
     #[allow(clippy::too_many_arguments)]
-    fn infer_inductive_elimination(
+    fn inductive_elimination(
         &mut self,
         inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
         scrutinee: Expression,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: Expression,
-        cases: Vec<LogicalArgument>,
+        motive_term: Expression,
+        cases: Vec<Expression>,
         recursive: bool,
-    ) -> Result<Expression, CheckError> {
+    ) -> Result<Expression, Error> {
+        let mut motive_vars = vec![];
+        let mut motive_domains = vec![];
+        let mut motive_body = motive_term;
+        while let Node::Lambda {
+            mode: Mode::Pure,
+            var,
+            domain,
+            body,
+        } = self.arena().get(motive_body)
+        {
+            motive_vars.push(var);
+            motive_domains.push(domain);
+            motive_body = body;
+        }
+        if motive_domains.is_empty() {
+            let mut ty = self.infer_open(motive_term)?;
+            while let Node::Product { var, domain, body } = self.arena().get(self.head(ty)?) {
+                motive_vars.push(var);
+                motive_domains.push(domain);
+                ty = body;
+            }
+            motive_body = shift(self.arena(), motive_term, motive_domains.len(), 0)?;
+            for index in (0..motive_domains.len()).rev() {
+                motive_body = self.application(motive_body, self.arena().bound(index))?;
+            }
+        }
         let spec = self
             .env
-            .inductive(inductive)
+            .inductives
+            .get(&inductive)
             .ok_or("unknown inductive")?
             .clone();
-        let scrutinee_ty = self.inferred(scrutinee)?;
-        let mut head = whnf(self.env, scrutinee_ty)?;
-        while let Some(superset) = structure::lifted_superset(self.arena(), head) {
-            head = whnf(self.env, superset.into())?;
+        let ty = self.infer_open(scrutinee)?;
+        let mut head = self.head(ty)?;
+        while let Node::TypeLift { superset, .. } = self.arena().get(head) {
+            head = self.head(superset)?;
         }
-        let (head, args) = self.decompose_app(head);
-        let (id, parameters) = structure::inductive_type(self.arena(), head)
-            .ok_or("eliminator scrutinee datatype mismatch")?;
+        let (head, mut args) = self.decompose_app(head);
+        let Node::IndType {
+            inductive: id,
+            parameters,
+        } = self.arena().get(head)
+        else {
+            return Err("eliminator scrutinee datatype mismatch".into());
+        };
         if id != inductive {
             return Err("eliminator scrutinee datatype mismatch".into());
         }
-        let params = expressions(&parameters);
         if cases.len() != spec.constructors.len() {
             return Err("eliminator case count mismatch".into());
         }
         let motive = Motive {
-            domains: expressions(&motive_domains),
+            domains: motive_domains,
             body: motive_body,
         };
         if motive.domains.len() != motive_vars.len() || motive.domains.len() != args.len() + 1 {
             return Err("motive telescope length mismatch".into());
         }
-        let mut local = Checker::new(self.env, self.context.clone());
-        for (var, domain) in motive_vars.iter().zip(&motive.domains) {
-            local.formation(*domain)?;
-            local.context.push(Binding {
-                var: *var,
-                classifier: *domain,
-            });
+        let mut expected_domains = vec![];
+        let mut arity = instantiate(self.arena(), spec.arity, &parameters)?;
+        while let Node::Product { domain, body, .. } = self.arena().get(self.head(arity)?) {
+            expected_domains.push(domain);
+            arity = body;
+        }
+        let n = expected_domains.len();
+        let parameters = parameters;
+        let mut instance = self.alloc(Node::IndType {
+            inductive,
+            parameters: parameters
+                .iter()
+                .map(|&e| shift(self.arena(), e, n, 0))
+                .collect::<Result<_, _>>()?,
+        });
+        for i in (0..n).rev() {
+            instance = self.application(instance, self.arena().bound(i))?;
+        }
+        expected_domains.push(instance);
+        let mut local = Checker::new(self.env, self.metas, self.context.clone());
+        local.solving = self.solving;
+        for ((&var, &ty), &expected) in motive_vars
+            .iter()
+            .zip(&motive.domains)
+            .zip(&expected_domains)
+        {
+            if local.solving {
+                local.metas.unify(local.env, &local.context, ty, expected)?;
+            } else if !local.equal(ty, expected)? {
+                return Err("motive domain mismatch".into());
+            }
+            local.formation(expected)?;
+            local.context.push(Binding { var, ty: expected });
         }
         let result_sort = local.formation(motive.body)?;
         let permitted = match (spec.sort, result_sort) {
@@ -2514,77 +1791,32 @@ impl<'a> Checker<'a> {
                 Sort::Base(BaseSort::Set(_)) | Sort::Upper(BaseSort::Prop),
                 Sort::Upper(BaseSort::Prop),
             ) => true,
-            _ => self.env.singleton_elimination(inductive),
+            _ => self.env.singleton_elimination(inductive)?,
         };
         if !permitted {
             return Err("forbidden large elimination".into());
         }
-        let mut applied_args = args;
-        applied_args.push(scrutinee);
-        let applied = self.apply_motive(&motive, &applied_args)?;
+        args.push(scrutinee);
+        let applied = self.apply_motive(&motive, &args)?;
         for (i, case) in cases.into_iter().enumerate() {
-            let ctor_ty = instantiate_telescope(self.env, spec.constructors[i], &params)?;
-            let sigma = self.formation(ctor_ty)?;
-            let ctor = build::inductive_constructor(
-                self.arena(),
-                sigma.base(),
-                if sigma.is_upper() {
-                    Stage::Type
-                } else {
-                    Stage::Term
-                },
+            let ctor_ty = instantiate(self.arena(), spec.constructors[i], &parameters)?;
+            self.formation(ctor_ty)?;
+            let ctor = self.alloc(Node::IndCtor {
                 inductive,
-                i,
-                parameters.clone(),
+                constructor: i,
+                parameters: parameters.clone(),
+            });
+            let expected = self.case_type(
+                inductive,
+                spec.constructors[i],
+                ctor_ty,
+                ctor,
+                &motive,
+                recursive,
             )?;
-            let expected = if recursive {
-                self.case_type(inductive, spec.constructors[i], ctor_ty, ctor, &motive)?
-            } else {
-                self.case_match_type(ctor_ty, ctor, &motive)?
-            };
-            self.check(case, expected)?;
+            self.check_open(case, expected)?;
         }
         Ok(applied)
-    }
-    fn infer_inductive_case(
-        &mut self,
-        inductive: InductiveId,
-        motive_vars: Vec<SymbolId>,
-        scrutinee: Expression,
-        motive_domains: Vec<LogicalExpression>,
-        motive_body: Expression,
-        branches: Vec<LogicalArgument>,
-    ) -> Result<Expression, CheckError> {
-        self.infer_inductive_elimination(
-            inductive,
-            motive_vars,
-            scrutinee,
-            motive_domains,
-            motive_body,
-            branches,
-            false,
-        )
-    }
-    fn case_match_type(
-        &mut self,
-        constructor_ty: Expression,
-        constructor: Expression,
-        motive: &Motive,
-    ) -> Result<Expression, CheckError> {
-        let constructor_ty = whnf(self.env, constructor_ty)?;
-        if let Some(product) = structure::product(self.arena(), constructor_ty) {
-            return self.quantified(product.domain, |ch, field| {
-                let constructor = ch.application(ch.lifted(constructor, 1)?, field)?;
-                let motive = ch.lift_motive(motive)?;
-                ch.case_match_type(product.body, constructor, &motive)
-            });
-        }
-        let (_, mut args) = self.decompose_app(constructor_ty);
-        args.push(constructor);
-        self.apply_motive(motive, &args)
-    }
-    fn decompose_app(&self, e: Expression) -> (Expression, Vec<Expression>) {
-        decompose_application(self.arena(), e)
     }
     fn recursive_hypothesis(
         &mut self,
@@ -2592,26 +1824,25 @@ impl<'a> Checker<'a> {
         ty: Expression,
         x: Expression,
         motive: &Motive,
-    ) -> Result<Option<Expression>, CheckError> {
-        let ty = whnf(self.env, ty)?;
-        if let Some(product) = structure::product(self.arena(), ty) {
+    ) -> Result<Option<Expression>, Error> {
+        let ty = self.head(ty)?;
+        if let Node::Product { domain, body, .. } = self.arena().get(ty) {
             let mut found = false;
-            let result = self.quantified(product.domain, |ch, arg| {
-                let x = ch.lifted(x, 1)?;
-                let x = ch.application(x, arg)?;
+            let result = self.quantified(domain, |ch, arg| {
+                let x = ch.application(ch.lifted(x, 1)?, arg)?;
                 let motive = ch.lift_motive(motive)?;
-                match ch.recursive_hypothesis(ind, product.body, x, &motive)? {
+                match ch.recursive_hypothesis(ind, body, x, &motive)? {
                     Some(ih) => {
                         found = true;
                         Ok(ih)
                     }
-                    None => Ok(ch.base_kind(BaseSort::Prop)),
+                    None => Ok(ch.base(BaseSort::Prop)),
                 }
             })?;
             return Ok(found.then_some(result));
         }
         let (head, mut args) = self.decompose_app(ty);
-        if !structure::inductive_type(self.arena(), head).is_some_and(|(id, _)| id == ind) {
+        if !matches!(self.arena().get(head),Node::IndType { inductive,.. } if inductive==ind) {
             return Ok(None);
         }
         args.push(x);
@@ -2624,19 +1855,27 @@ impl<'a> Checker<'a> {
         ty: Expression,
         ctor: Expression,
         motive: &Motive,
-    ) -> Result<Expression, CheckError> {
-        let ty = whnf(self.env, ty)?;
-        if let Some(product) = structure::product(self.arena(), ty) {
-            let declared = structure::product(self.arena(), whnf(self.env, declared_ty)?)
-                .ok_or("expected declared constructor product")?;
-            let recursive = recursive_constructor_field(self.env, ind, declared.domain)?;
-            return self.quantified(product.domain, |ch, x| {
-                let ctor = ch.lifted(ctor, 1)?;
-                let ctor = ch.application(ctor, x)?;
+        recursive: bool,
+    ) -> Result<Expression, Error> {
+        let ty = self.head(ty)?;
+        if let Node::Product { domain, body, .. } = self.arena().get(ty) {
+            let Node::Product {
+                domain: declared_domain,
+                body: declared_body,
+                ..
+            } = self.arena().get(self.head(declared_ty)?)
+            else {
+                return Err("expected declared constructor product".into());
+            };
+            let recursive_field = recursive && self.env.recursive_field(ind, declared_domain)?;
+            return self.quantified(domain, |ch, x| {
+                let ctor = ch.application(ch.lifted(ctor, 1)?, x)?;
                 let motive = ch.lift_motive(motive)?;
-                let tail = ch.case_type(ind, declared.body, product.body, ctor, &motive)?;
-                let domain = ch.lifted(product.domain, 1)?;
-                if recursive && let Some(ih) = ch.recursive_hypothesis(ind, domain, x, &motive)? {
+                let tail = ch.case_type(ind, declared_body, body, ctor, &motive, recursive)?;
+                let domain = ch.lifted(domain, 1)?;
+                if recursive_field
+                    && let Some(ih) = ch.recursive_hypothesis(ind, domain, x, &motive)?
+                {
                     ch.arrow(ih, tail)
                 } else {
                     Ok(tail)

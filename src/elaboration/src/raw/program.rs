@@ -1,20 +1,11 @@
-//! The four syntactic categories of the CBPV Program calculus.
+//! Program source views over shared kernel expressions.
 
 use crate::raw::ids::{DefId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId};
 
 macro_rules! handle {
     ($name:ident) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-        pub struct $name(u32);
-
-        impl $name {
-            pub fn index(self) -> usize {
-                self.0 as usize
-            }
-            pub(crate) fn from_index(index: u32) -> Self {
-                Self(index)
-            }
-        }
+        pub struct $name(pub(crate) kernel::syntax::Expression);
     };
 }
 

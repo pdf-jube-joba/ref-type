@@ -6,7 +6,13 @@ impl Lowerer<'_> {
         let mut pending = vec![(id, false)];
         let mut active = HashSet::new();
         while let Some((id, ready)) = pending.pop() {
-            if self.kernel.definition(id.into()).is_some() {
+            if self
+                .raw
+                .kernel_definitions
+                .borrow()
+                .get(&id)
+                .is_some_and(|&id| self.kernel.definition(id).is_ok())
+            {
                 continue;
             }
             if ready {
@@ -19,7 +25,13 @@ impl Lowerer<'_> {
             }
             pending.push((id, true));
             for dependency in self.definition_dependencies(id).into_iter().rev() {
-                if self.kernel.definition(dependency.into()).is_none() {
+                if !self
+                    .raw
+                    .kernel_definitions
+                    .borrow()
+                    .get(&dependency)
+                    .is_some_and(|&id| self.kernel.definition(id).is_ok())
+                {
                     pending.push((dependency, false))
                 }
             }
@@ -28,14 +40,23 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn definition_ready(&mut self, id: DefId) -> Result<(), String> {
-        if self.kernel.definition(id.into()).is_some() {
+        if self
+            .raw
+            .kernel_definitions
+            .borrow()
+            .get(&id)
+            .is_some_and(|&id| self.kernel.definition(id).is_ok())
+        {
             return Ok(());
         }
         tracing::debug!(target:"ref_type::lowering",?id,"lower definition");
         let captures = self.captures(Declaration::Definition(id));
         let base = self.raw.definition_context(id.module).len();
         let depth = self.raw.definition_parameters(id).len();
-        self.in_scope(captures, base, depth, |this| this.lower_definition(id))
+        let open = self.definition_ambient(id)?;
+        self.in_scope(captures, if open > 0 { 0 } else { base }, depth, |this| {
+            this.lower_definition(id)
+        })
     }
 
     fn lower_definition(&mut self, id: DefId) -> Result<(), String> {
@@ -92,12 +113,13 @@ impl Lowerer<'_> {
                 )
             }
         };
-        self.kernel
+        let kernel_id = self
+            .kernel
             .register_definition(
-                id.into(),
+                &mut self.metas,
                 ke::Definition {
                     body,
-                    classifier,
+                    ty: classifier,
                     context,
                 },
             )
@@ -107,7 +129,32 @@ impl Lowerer<'_> {
                     raw::printing::definition_name(self.raw, id),
                     super::diagnostics::format_error(self.raw, &e)
                 )
-            })
+            })?;
+        self.raw.arena().bind_definition(
+            kernel_id,
+            Some(id),
+            self.scope.captures.clone(),
+            self.kernel
+                .definition(kernel_id)
+                .map_err(|e| e.to_string())?
+                .body,
+        );
+        if let Some(reflected) = self.kernel.reflected_definition(kernel_id) {
+            self.raw.arena().bind_definition(
+                reflected,
+                None,
+                self.scope.captures.clone(),
+                self.kernel
+                    .definition(reflected)
+                    .map_err(|e| e.to_string())?
+                    .body,
+            );
+        }
+        self.raw
+            .kernel_definitions
+            .borrow_mut()
+            .insert(id, kernel_id);
+        Ok(())
     }
 
     pub(super) fn inductive(&mut self, id: InductiveId) -> Result<(), String> {
@@ -136,7 +183,7 @@ impl Lowerer<'_> {
             let classifier = self.set(b.ty, &mut ctx, m)?;
             native_params.push(ke::Binding {
                 var: b.var,
-                classifier,
+                ty: classifier,
             });
             ctx.push(b.clone())
         }
@@ -180,10 +227,18 @@ impl Lowerer<'_> {
                     super::diagnostics::format_error(self.raw, &e)
                 )
             })?;
+        self.raw
+            .arena()
+            .inductive_captures
+            .borrow_mut()
+            .insert(id.into(), (self.scope.captures.len(), parameters.len()));
         Ok(())
     }
 
     pub(super) fn datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
+        if self.structural && !self.raw.has_program_inductive(id) {
+            return Ok(());
+        }
         if self.kernel.datatype(id.into()).is_some() {
             return Ok(());
         }
@@ -205,18 +260,20 @@ impl Lowerer<'_> {
             let classifier = self
                 .kernel
                 .arena()
-                .alloc(s::ValueKindNode {
-                    level: 0,
-                    form: s::ValueKindForm::Base,
-                })
-                .into();
-            parameters.push(ke::Binding { var, classifier })
+                .sort(k::Sort::Base(k::BaseSort::Value(0)));
+            parameters.push(ke::Binding {
+                var,
+                ty: classifier,
+            })
         }
         let mut constructors = vec![];
         for ctor in raw.constructors() {
             let mut fields = vec![];
             for &(var, ty) in ctor.fields() {
-                fields.push((var, self.value_type(ty)?))
+                fields.push(ke::Binding {
+                    var,
+                    ty: self.value_type(ty)?,
+                })
             }
             constructors.push(fields)
         }
@@ -224,7 +281,7 @@ impl Lowerer<'_> {
         self.kernel
             .register_datatype(
                 id.into(),
-                ke::ProgramDatatype {
+                ke::Datatype {
                     parameters,
                     constructors,
                     level: 0,
@@ -232,6 +289,11 @@ impl Lowerer<'_> {
                 },
             )
             .map_err(|error| super::diagnostics::format_error(self.raw, &error))?;
+        self.raw
+            .arena()
+            .datatype_reflections
+            .borrow_mut()
+            .insert(id.into(), raw.reflected().into());
         Ok(())
     }
 
@@ -240,7 +302,7 @@ impl Lowerer<'_> {
             let captures = self.captures(Declaration::Parameter(id));
             self.in_scope(captures, 0, 0, |this| {
                 let context = this.capture_context(true)?;
-                kernel::check::Checker::new(this.kernel, context)
+                kernel::check::Checker::new(this.kernel, &mut this.metas, context)
                     .check_context()
                     .map_err(|error| super::diagnostics::format_error(this.raw, &error))
             })?;

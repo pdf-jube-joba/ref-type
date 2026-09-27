@@ -1,11 +1,13 @@
 # Core calculus の条件付き健全性
 
+適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
+
 このページは従来の非コード化解釈についての条件付き定理を保持する。
-現行 core の相対無矛盾性は、別の[型コードモデル](coded_model.md)による
+分類付き core の相対無矛盾性は、別の[型コードモデル](coded_model.md)による
 [証明](semantic_conversion.md)で得られており、このページの TC はその前提ではない。
 
-対象は [system.md](../system.md) の、一般の datatype 宣言を除いた体系である。
-以下では現行の構文 family と rule label を保持し、Set/Prop の判断を扱う。
+対象は [分類付き補助体系](sorted-calculus.md) の、一般の datatype 宣言を除いた体系である。
+以下では補助体系の構文 family と rule label を保持し、Set/Prop の判断を扱う。
 Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除いた体系を
 \(\mathcal S_0\) と書く。判断は有限導出によって生成する。
 [集合モデル](model.md)の集合論的仮定・解釈・条件 [TC](model.md#tc) と、

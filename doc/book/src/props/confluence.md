@@ -1,6 +1,8 @@
 # Core calculus の合流性
 
-対象は [system.md](../system.md) の、一般の datatype 宣言を除いた体系である。
+適用する構文と PTS への移送義務は、[証明の適用範囲](props.md)による。
+
+対象は [分類付き補助体系](sorted-calculus.md) の、一般の datatype 宣言を除いた体系である。
 Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除いた体系を
 \(\mathcal S_0\) と書く。判断は有限導出によって生成する。
 ここで示すのは補助 reduction の合流性である。元の reduction の合流性や subject reduction は結論しない。
@@ -186,7 +188,7 @@ sort、変数、Power、Ty、product、RunStep は、
 ## 旧記法による検討メモ
 
 以下は、RunStep などを含める前の規則・記法による合流性の検討メモである。
-現行 core の定義・証明としては、上の節を参照する。
+分類付き core の定義・証明としては、上の節を参照する。
 
 拡張した体系として、部分型・べき・述語・存在・take を入れてた。
 これの confluence を示す。

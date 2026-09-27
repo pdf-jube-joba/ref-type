@@ -1,7 +1,5 @@
-//! Classify Set/Prop expressions and attach kernel product rules.
-use super::nodes::logical_node;
+//! Resolve logical source identities into shared kernel expressions.
 use super::*;
-use kernel::construction as build;
 
 impl Lowerer<'_> {
     // Reflected Program data can contain long constructor applications.
@@ -12,6 +10,9 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, String> {
+        if self.native_reference(e.0) {
+            return Ok(e.0);
+        }
         let ExpNode::App { func, arg } = self.raw.arena().get(e) else {
             return self.set_non_application(e, ctx, m);
         };
@@ -32,18 +33,14 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, String> {
-        self.infer(e, ctx)?;
-        let ty = self.infer(func, ctx)?;
-        let (_, domain, codomain) = raw::calculus::expose_product(self.raw, ty)
-            .ok_or("application does not have product type")?;
-        let domain_sort = self.formation(domain, ctx)?;
-        let body_sort = self.under(ctx, SymbolId::ANONYMOUS, domain, |this, ctx| {
-            this.formation(codomain, ctx)
-        })?;
-        let rule = k::ProductRule::new(domain_sort, body_sort)?;
+        let _ = e;
         let function = self.set(func, ctx, m)?;
         let argument = self.set(arg, ctx, m)?;
-        build::apply(self.kernel.arena(), rule, function, argument)
+        Ok(self.kernel.arena().alloc(s::Node::App {
+            mode: s::Mode::Pure,
+            function,
+            argument,
+        }))
     }
 
     fn set_non_application(
@@ -57,42 +54,25 @@ impl Lowerer<'_> {
             return Ok(v);
         }
         let node = self.raw.arena().get(e);
-        if let ExpNode::Sort(raw) = node {
-            let sort = Self::sort(raw);
-            if sort.is_upper() {
-                return Err("upper sort is a judgement classifier, not an expression".into());
-            }
-            return self.logical_base_kind(sort.base());
-        }
-        let ty = self.infer(e, ctx)?;
-        let head = raw::calculus::whnf(self.raw, ty);
-        let (sort, stage) = if let ExpNode::Sort(raw) = self.raw.arena().get(head) {
-            let sort = Self::sort(raw);
-            (
-                sort.base(),
-                if sort.is_upper() {
-                    s::Stage::Kind
-                } else {
-                    s::Stage::Type
-                },
-            )
-        } else {
-            let sort = self.formation(ty, ctx)?;
-            (
-                sort.base(),
-                if sort.is_upper() {
-                    s::Stage::Type
-                } else {
-                    s::Stage::Term
-                },
-            )
-        };
-        let syntax_family = s::Family::at(sort, stage);
         let result = match node {
-            ExpNode::Bound(index) => build::bound(self.kernel.arena(), sort, stage, index)?,
+            ExpNode::Bound(index) => {
+                let bound = self.kernel.arena().bound(index);
+                if self
+                    .scope
+                    .proof_base
+                    .is_some_and(|base| index >= ctx.len() - base)
+                {
+                    self.kernel.arena().alloc(s::Node::Reflect { term: bound })
+                } else {
+                    bound
+                }
+            }
             ExpNode::ModuleParam(parameter) => {
+                if self.scope.nominal {
+                    return self.nominal_parameter(parameter);
+                }
                 let index = self.parameter_index(parameter, ctx.len() - self.scope.logical_base)?;
-                build::bound(self.kernel.arena(), sort, stage, index)?
+                self.kernel.arena().bound(index)
             }
             ExpNode::DefinedConstant(definition) => {
                 self.definition_expression(definition, ctx.len() - self.scope.logical_base, false)?
@@ -106,17 +86,15 @@ impl Lowerer<'_> {
                 let set = self.set(set, ctx, m)?;
                 let predicate =
                     self.under(ctx, var, raw_set, |this, ctx| this.set(predicate, ctx, m))?;
-                logical_node!(self, sort, syntax_family; SetTerm => Subset {
+                self.kernel.arena().alloc(s::Node::Subset {
                     var,
-                    set: set.try_into()?,
-                    predicate: predicate.try_into()?,
+                    set: set,
+                    predicate: predicate,
                 })
             }
             ExpNode::PowerSet { set } => {
                 let set = self.set(set, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetType => PowerSet {
-                    set: set.try_into()?,
-                })
+                self.kernel.arena().alloc(s::Node::PowerSet { set: set })
             }
             ExpNode::SubsetIntro {
                 superset,
@@ -128,19 +106,19 @@ impl Lowerer<'_> {
                 let subset = self.set(subset, ctx, m)?;
                 let element = self.set(element, ctx, m)?;
                 let proof = self.set(proof, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetTerm => SubsetIntro {
-                    superset: superset.try_into()?,
-                    subset: subset.try_into()?,
-                    element: element.try_into()?,
-                    proof: proof.try_into()?,
+                self.kernel.arena().alloc(s::Node::SubsetIntro {
+                    superset: superset,
+                    subset: subset,
+                    element: element,
+                    proof: proof,
                 })
             }
             ExpNode::TypeLift { superset, subset } => {
                 let superset = self.set(superset, ctx, m)?;
                 let subset = self.set(subset, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetType => TypeLift {
-                    superset: superset.try_into()?,
-                    subset: subset.try_into()?,
+                self.kernel.arena().alloc(s::Node::TypeLift {
+                    superset: superset,
+                    subset: subset,
                 })
             }
             ExpNode::Pred {
@@ -151,25 +129,23 @@ impl Lowerer<'_> {
                 let superset = self.set(superset, ctx, m)?;
                 let subset = self.set(subset, ctx, m)?;
                 let element = self.set(element, ctx, m)?;
-                logical_node!(self, sort, syntax_family; PropType => Pred {
-                    superset: superset.try_into()?,
-                    subset: subset.try_into()?,
-                    element: element.try_into()?,
+                self.kernel.arena().alloc(s::Node::Pred {
+                    superset: superset,
+                    subset: subset,
+                    element: element,
                 })
             }
             ExpNode::Equal { left, right } => {
                 let left = self.set(left, ctx, m)?;
                 let right = self.set(right, ctx, m)?;
-                logical_node!(self, sort, syntax_family; PropType => Equal {
-                    left: left.try_into()?,
-                    right: right.try_into()?,
+                self.kernel.arena().alloc(s::Node::Equal {
+                    left: left,
+                    right: right,
                 })
             }
             ExpNode::Exists { set } => {
                 let set = self.set(set, ctx, m)?;
-                logical_node!(self, sort, syntax_family; PropType => Exists {
-                    set: set.try_into()?,
-                })
+                self.kernel.arena().alloc(s::Node::Exists { set: set })
             }
             ExpNode::RunStep {
                 state_ty,
@@ -177,9 +153,9 @@ impl Lowerer<'_> {
             } => {
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetType => RunStep {
-                    state_ty: state_ty.try_into()?,
-                    result_ty: result_ty.try_into()?,
+                self.kernel.arena().alloc(s::Node::RunStep {
+                    state_ty: state_ty,
+                    result_ty: result_ty,
                 })
             }
             ExpNode::Continue {
@@ -190,10 +166,10 @@ impl Lowerer<'_> {
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let next = self.set(next, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetTerm => Continue {
-                    state_ty: state_ty.try_into()?,
-                    result_ty: result_ty.try_into()?,
-                    next: next.try_into()?,
+                self.kernel.arena().alloc(s::Node::Continue {
+                    state_ty: state_ty,
+                    result_ty: result_ty,
+                    next: next,
                 })
             }
             ExpNode::Finish {
@@ -204,10 +180,10 @@ impl Lowerer<'_> {
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let output = self.set(output, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetTerm => Finish {
-                    state_ty: state_ty.try_into()?,
-                    result_ty: result_ty.try_into()?,
-                    output: output.try_into()?,
+                self.kernel.arena().alloc(s::Node::Finish {
+                    state_ty: state_ty,
+                    result_ty: result_ty,
+                    output: output,
                 })
             }
             ExpNode::Acc {
@@ -220,11 +196,11 @@ impl Lowerer<'_> {
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let step = self.set(step, ctx, m)?;
                 let state = self.set(state, ctx, m)?;
-                logical_node!(self, sort, syntax_family; PropType => Acc {
-                    state_ty: state_ty.try_into()?,
-                    result_ty: result_ty.try_into()?,
-                    step: step.try_into()?,
-                    state: state.try_into()?,
+                self.kernel.arena().alloc(s::Node::Acc {
+                    state_ty: state_ty,
+                    result_ty: result_ty,
+                    step: step,
+                    state: state,
                 })
             }
             ExpNode::SetRun {
@@ -239,14 +215,12 @@ impl Lowerer<'_> {
                 let step = self.set(step, ctx, m)?;
                 let initial = self.set(initial, ctx, m)?;
                 let accessibility = self.set(accessibility, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetTerm => SetRun {
-                    state_ty: state_ty.try_into()?,
-                    result_ty: result_ty.try_into()?,
-                    step: step.try_into()?,
-                    initial: initial.try_into()?,
-                    accessibility: accessibility
-                        .try_into()
-                        .map_err(|e| format!("{e:?}"))?,
+                self.kernel.arena().alloc(s::Node::SetRun {
+                    state_ty: state_ty,
+                    result_ty: result_ty,
+                    step: step,
+                    initial: initial,
+                    accessibility: accessibility,
                 })
             }
             ExpNode::SetRunCase {
@@ -265,18 +239,14 @@ impl Lowerer<'_> {
                 let transition = self.set(transition, ctx, m)?;
                 let accessibility = self.set(accessibility, ctx, m)?;
                 let transition_equality = self.set(transition_equality, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetTerm => SetRunCase {
-                    state_ty: state_ty.try_into()?,
-                    result_ty: result_ty.try_into()?,
-                    step: step.try_into()?,
-                    initial: initial.try_into()?,
-                    transition: transition.try_into()?,
-                    accessibility: accessibility
-                        .try_into()
-                        .map_err(|e| format!("{e:?}"))?,
-                    transition_equality: transition_equality
-                        .try_into()
-                        .map_err(|e| format!("{e:?}"))?,
+                self.kernel.arena().alloc(s::Node::SetRunCase {
+                    state_ty: state_ty,
+                    result_ty: result_ty,
+                    step: step,
+                    initial: initial,
+                    transition: transition,
+                    accessibility: accessibility,
+                    transition_equality: transition_equality,
                 })
             }
             ExpNode::TakeSet {
@@ -291,12 +261,12 @@ impl Lowerer<'_> {
                 let map = self.set(map, ctx, m)?;
                 let existence = self.set(existence, ctx, m)?;
                 let uniqueness = self.set(uniqueness, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetTerm => TakeSet {
-                    domain: domain.try_into()?,
-                    codomain: codomain.try_into()?,
-                    map: map.try_into()?,
-                    existence: existence.try_into()?,
-                    uniqueness: uniqueness.try_into()?,
+                self.kernel.arena().alloc(s::Node::TakeSet {
+                    domain: domain,
+                    codomain: codomain,
+                    map: map,
+                    existence: existence,
+                    uniqueness: uniqueness,
                 })
             }
             ExpNode::TakeProp {
@@ -309,18 +279,16 @@ impl Lowerer<'_> {
                 let proposition = self.set(proposition, ctx, m)?;
                 let map = self.set(map, ctx, m)?;
                 let existence = self.set(existence, ctx, m)?;
-                logical_node!(self, sort, syntax_family; PropTerm => TakeProp {
-                    domain: domain.try_into()?,
-                    proposition: proposition
-                        .try_into()
-                        .map_err(|e| format!("{e:?}"))?,
-                    map: map.try_into()?,
-                    existence: existence.try_into()?,
+                self.kernel.arena().alloc(s::Node::TakeProp {
+                    domain: domain,
+                    proposition: proposition,
+                    map: map,
+                    existence: existence,
                 })
             }
             ExpNode::BoxType { program_ty } => {
                 let program_ty = self.computation_type(program_ty)?;
-                logical_node!(self, sort, syntax_family; SetType => BoxType { program_ty })
+                self.kernel.arena().alloc(s::Node::BoxType { program_ty })
             }
             ExpNode::BoxProgram {
                 program_ty,
@@ -328,7 +296,7 @@ impl Lowerer<'_> {
             } => {
                 let program_ty = self.computation_type(program_ty)?;
                 let program = self.computation_term(program, &mut vec![])?;
-                logical_node!(self, sort, syntax_family; SetTerm => BoxProgram {
+                self.kernel.arena().alloc(s::Node::BoxProgram {
                     program_ty,
                     program,
                 })
@@ -336,9 +304,9 @@ impl Lowerer<'_> {
             ExpNode::ForceBox { program_ty, boxed } => {
                 let program_ty = self.computation_type(program_ty)?;
                 let boxed = self.set(boxed, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetTerm => ForceBox {
+                self.kernel.arena().alloc(s::Node::ForceBox {
                     program_ty,
-                    boxed: boxed.try_into()?,
+                    boxed: boxed,
                 })
             }
             ExpNode::IndType {
@@ -357,16 +325,10 @@ impl Lowerer<'_> {
                         .collect::<Result<Vec<_>, _>>()?,
                 );
                 let parameters = arguments;
-                build::inductive_type(
-                    self.kernel.arena(),
-                    sort,
-                    stage,
+                self.kernel.arena().alloc(s::Node::IndType {
                     inductive,
-                    parameters
-                        .into_iter()
-                        .map(TryInto::try_into)
-                        .collect::<Result<_, _>>()?,
-                )?
+                    parameters,
+                })
             }
             ExpNode::IndCtor {
                 indspec,
@@ -386,17 +348,11 @@ impl Lowerer<'_> {
                         .collect::<Result<Vec<_>, _>>()?,
                 );
                 let parameters = arguments;
-                build::inductive_constructor(
-                    self.kernel.arena(),
-                    sort,
-                    stage,
+                self.kernel.arena().alloc(s::Node::IndCtor {
                     inductive,
                     constructor,
-                    parameters
-                        .into_iter()
-                        .map(TryInto::try_into)
-                        .collect::<Result<_, _>>()?,
-                )?
+                    parameters,
+                })
             }
             ExpNode::IndElim {
                 indspec,
@@ -405,51 +361,18 @@ impl Lowerer<'_> {
                 cases,
             } => {
                 self.inductive(indspec)?;
-                let inductive = indspec.into();
-                let kind = raw::derivation::infer_motive_kind(
-                    &mut raw::derivation::CheckSession::new(self.raw, ctx),
-                    "Lower",
-                    "motive",
-                    return_type,
-                )
-                .map_err(|e| format!("motive: {e:?}"))?;
-                let (binders, _) = raw::utils::decompose_prod(self.raw.arena(), kind);
-                let mut local = ctx.clone();
-                let mut motive_domains = vec![];
-                let mut motive_vars = vec![];
-                for (var, ty) in &binders {
-                    motive_domains.push(self.set(*ty, &mut local, m)?.try_into()?);
-                    motive_vars.push(*var);
-                    local.push(ExpContextEntry { var: *var, ty: *ty });
-                }
-                let shifted = raw::calculus::shift_bound_indices(
-                    self.raw.arena(),
-                    return_type,
-                    binders.len(),
-                    0,
-                );
-                let arguments = (0..binders.len())
-                    .rev()
-                    .map(|i| self.raw.arena().exp_bound(i))
-                    .collect();
-                let body = raw::calculus::whnf(
-                    self.raw,
-                    raw::utils::assoc_apply(self.raw.arena(), shifted, arguments),
-                );
-                let motive_body = self.set(body, &mut local, m)?.try_into()?;
-                let scrutinee = self.set(elim, ctx, m)?.try_into()?;
+                let scrutinee = self.set(elim, ctx, m)?;
+                let motive = self.set(return_type, ctx, m)?;
                 let cases = cases
                     .into_iter()
-                    .map(|e| self.set(e, ctx, m)?.try_into())
-                    .collect::<Result<_, String>>()?;
-                logical_node!(self, sort, syntax_family; SetTerm | PropTerm | SetType | PropType => IndElim {
-                                inductive,
-                                motive_vars,
-                                scrutinee,
-                                motive_domains,
-                                motive_body,
-                                cases,
-                            }; "eliminator cannot return a kind")
+                    .map(|e| self.set(e, ctx, m))
+                    .collect::<Result<_, _>>()?;
+                self.kernel.arena().alloc(s::Node::IndElim {
+                    inductive: indspec.into(),
+                    scrutinee,
+                    motive,
+                    cases,
+                })
             }
             ExpNode::IndCase {
                 indspec,
@@ -458,51 +381,18 @@ impl Lowerer<'_> {
                 branches,
             } => {
                 self.inductive(indspec)?;
-                let inductive = indspec.into();
-                let kind = raw::derivation::infer_motive_kind(
-                    &mut raw::derivation::CheckSession::new(self.raw, ctx),
-                    "Lower",
-                    "case motive",
-                    return_type,
-                )
-                .map_err(|e| format!("case motive: {e:?}"))?;
-                let (binders, _) = raw::utils::decompose_prod(self.raw.arena(), kind);
-                let mut local = ctx.clone();
-                let mut motive_domains = vec![];
-                let mut motive_vars = vec![];
-                for (var, ty) in &binders {
-                    motive_domains.push(self.set(*ty, &mut local, m)?.try_into()?);
-                    motive_vars.push(*var);
-                    local.push(ExpContextEntry { var: *var, ty: *ty });
-                }
-                let shifted = raw::calculus::shift_bound_indices(
-                    self.raw.arena(),
-                    return_type,
-                    binders.len(),
-                    0,
-                );
-                let arguments = (0..binders.len())
-                    .rev()
-                    .map(|i| self.raw.arena().exp_bound(i))
-                    .collect();
-                let body = raw::calculus::whnf(
-                    self.raw,
-                    raw::utils::assoc_apply(self.raw.arena(), shifted, arguments),
-                );
-                let motive_body = self.set(body, &mut local, m)?.try_into()?;
-                let scrutinee = self.set(scrutinee, ctx, m)?.try_into()?;
+                let scrutinee = self.set(scrutinee, ctx, m)?;
+                let motive = self.set(return_type, ctx, m)?;
                 let branches = branches
                     .into_iter()
-                    .map(|branch| self.set(branch, ctx, m)?.try_into())
-                    .collect::<Result<_, String>>()?;
-                logical_node!(self, sort, syntax_family; SetTerm | PropTerm | SetType | PropType => Case {
-                    inductive,
-                    motive_vars,
+                    .map(|e| self.set(e, ctx, m))
+                    .collect::<Result<_, _>>()?;
+                self.kernel.arena().alloc(s::Node::Case {
+                    inductive: indspec.into(),
                     scrutinee,
-                    motive_domains,
-                    motive_body,
+                    motive,
                     branches,
-                }; "case match cannot return a kind")
+                })
             }
             ExpNode::RunStepRec {
                 state_ty,
@@ -512,69 +402,51 @@ impl Lowerer<'_> {
                 on_finish,
                 scrutinee,
             } => {
-                let ExpNode::Lam {
-                    var,
-                    ty: domain,
-                    body: motive,
-                } = self.raw.arena().get(motive)
-                else {
-                    return Err("recursor motive must be a lambda".into());
-                };
-                let sigma =
-                    self.under(ctx, var, domain, |this, ctx| this.formation(motive, ctx))?;
-                let rule = k::ProductRule::new(self.formation(state_ty, ctx)?, sigma)?;
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
-                let motive = self.under(ctx, var, domain, |this, ctx| this.set(motive, ctx, m))?;
+                let motive = self.set(motive, ctx, m)?;
                 let on_continue = self.set(on_continue, ctx, m)?;
                 let on_finish = self.set(on_finish, ctx, m)?;
                 let scrutinee = self.set(scrutinee, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetTerm | PropTerm | SetType | PropType => Recursor {
-                    rule,
-                    var,
-                    state_ty: state_ty.try_into()?,
-                    result_ty: result_ty.try_into()?,
-                    motive: motive.try_into()?,
-                    on_continue: on_continue
-                        .try_into()
-                        .map_err(|e| format!("{e:?}"))?,
-                    on_finish: on_finish.try_into()?,
-                    scrutinee: scrutinee.try_into()?,
+                self.kernel.arena().alloc(s::Node::Recursor {
+                    state_ty: state_ty,
+                    result_ty: result_ty,
+                    motive: motive,
+                    on_continue: on_continue,
+                    on_finish: on_finish,
+                    scrutinee: scrutinee,
                 })
             }
             ExpNode::Prod { var, ty, body } | ExpNode::Lam { var, ty, body } => {
-                let domain_sort = self.formation(ty, ctx)?;
-                let body_sort = self.under(ctx, var, ty, |this, ctx| {
-                    if matches!(node, ExpNode::Prod { .. }) {
-                        this.formation(body, ctx)
-                    } else {
-                        let t = this.infer(body, ctx)?;
-                        this.formation(t, ctx)
-                    }
-                })?;
-                let rule = k::ProductRule::new(domain_sort, body_sort)?;
                 let domain = self.set(ty, ctx, m)?;
                 let body = self.under(ctx, var, ty, |this, ctx| this.set(body, ctx, m))?;
                 if matches!(node, ExpNode::Prod { .. }) {
-                    build::product(self.kernel.arena(), rule, var, domain, body)?
+                    self.kernel
+                        .arena()
+                        .alloc(s::Node::Product { var, domain, body })
                 } else {
-                    build::lambda(self.kernel.arena(), rule, var, domain, body)?
+                    self.kernel.arena().alloc(s::Node::Lambda {
+                        mode: s::Mode::Pure,
+                        var,
+                        domain,
+                        body,
+                    })
                 }
             }
             ExpNode::App { .. } => unreachable!("applications use the small-frame path"),
             ExpNode::Prove(prove) => match prove {
                 Prove::IdRefl { element } => {
                     let element = self.set(element, ctx, m)?;
-                    logical_node!(self, sort, syntax_family; PropTerm => IdRefl {
-                        element: element.try_into()?,
-                    })
+                    self.kernel
+                        .arena()
+                        .alloc(s::Node::IdRefl { element: element })
                 }
                 Prove::ExistsIntro { element, set } => {
                     let element = self.set(element, ctx, m)?;
                     let set = self.set(set, ctx, m)?;
-                    logical_node!(self, sort, syntax_family; PropTerm => ExistsIntro {
-                        element: element.try_into()?,
-                        set: set.try_into()?,
+                    self.kernel.arena().alloc(s::Node::ExistsIntro {
+                        element: element,
+                        set: set,
                     })
                 }
                 Prove::SubsetElim {
@@ -585,10 +457,10 @@ impl Lowerer<'_> {
                     let element = self.set(element, ctx, m)?;
                     let subset = self.set(subset, ctx, m)?;
                     let superset = self.set(superset, ctx, m)?;
-                    logical_node!(self, sort, syntax_family; PropTerm => SubsetElim {
-                        element: element.try_into()?,
-                        subset: subset.try_into()?,
-                        superset: superset.try_into()?,
+                    self.kernel.arena().alloc(s::Node::SubsetElim {
+                        element: element,
+                        subset: subset,
+                        superset: superset,
                     })
                 }
                 Prove::IdElim {
@@ -608,16 +480,14 @@ impl Lowerer<'_> {
                         self.under(ctx, var, raw_ty, |this, ctx| this.set(predicate, ctx, m))?;
                     let base = self.set(base, ctx, m)?;
                     let equality = self.set(equality, ctx, m)?;
-                    logical_node!(self, sort, syntax_family; PropTerm => IdElim {
+                    self.kernel.arena().alloc(s::Node::IdElim {
                         var,
-                        left: left.try_into()?,
-                        right: right.try_into()?,
-                        ty: ty.try_into()?,
-                        predicate: predicate
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
-                        base: base.try_into()?,
-                        equality: equality.try_into()?,
+                        left: left,
+                        right: right,
+                        ty: ty,
+                        predicate: predicate,
+                        base: base,
+                        equality: equality,
                     })
                 }
                 Prove::TakeEq {
@@ -634,17 +504,13 @@ impl Lowerer<'_> {
                     let element = self.set(element, ctx, m)?;
                     let existence = self.set(existence, ctx, m)?;
                     let uniqueness = self.set(uniqueness, ctx, m)?;
-                    logical_node!(self, sort, syntax_family; PropTerm => TakeEq {
-                        func: func.try_into()?,
-                        domain: domain.try_into()?,
-                        codomain: codomain.try_into()?,
-                        element: element.try_into()?,
-                        existence: existence
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
-                        uniqueness: uniqueness
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
+                    self.kernel.arena().alloc(s::Node::TakeEq {
+                        func: func,
+                        domain: domain,
+                        codomain: codomain,
+                        element: element,
+                        existence: existence,
+                        uniqueness: uniqueness,
                     })
                 }
                 Prove::Axiom(Axiom::SetExt {
@@ -657,15 +523,11 @@ impl Lowerer<'_> {
                     let right = self.set(right, ctx, m)?;
                     let left_to_right = self.set(left_to_right, ctx, m)?;
                     let right_to_left = self.set(right_to_left, ctx, m)?;
-                    logical_node!(self, sort, syntax_family; PropTerm => SetExt {
-                        left: left.try_into()?,
-                        right: right.try_into()?,
-                        left_to_right: left_to_right
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
-                        right_to_left: right_to_left
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
+                    self.kernel.arena().alloc(s::Node::SetExt {
+                        left: left,
+                        right: right,
+                        left_to_right: left_to_right,
+                        right_to_left: right_to_left,
                     })
                 }
                 Prove::Axiom(Axiom::FunExt {
@@ -676,12 +538,10 @@ impl Lowerer<'_> {
                     let left = self.set(left, ctx, m)?;
                     let right = self.set(right, ctx, m)?;
                     let pointwise = self.set(pointwise, ctx, m)?;
-                    logical_node!(self, sort, syntax_family; PropTerm => FunExt {
-                        left: left.try_into()?,
-                        right: right.try_into()?,
-                        pointwise: pointwise
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
+                    self.kernel.arena().alloc(s::Node::FunExt {
+                        left: left,
+                        right: right,
+                        pointwise: pointwise,
                     })
                 }
                 Prove::Axiom(Axiom::ClassicalIndefiniteChoice {
@@ -692,13 +552,13 @@ impl Lowerer<'_> {
                     let domain = self.set(domain, ctx, m)?;
                     let family = self.set(family, ctx, m)?;
                     let inhabited = self.set(inhabited, ctx, m)?;
-                    logical_node!(self, sort, syntax_family; PropTerm => ClassicalIndefiniteChoice {
-                        domain: domain.try_into()?,
-                        family: family.try_into()?,
-                        inhabited: inhabited
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
-                    })
+                    self.kernel
+                        .arena()
+                        .alloc(s::Node::ClassicalIndefiniteChoice {
+                            domain: domain,
+                            family: family,
+                            inhabited: inhabited,
+                        })
                 }
                 Prove::AccIntro {
                     state_ty,
@@ -712,16 +572,12 @@ impl Lowerer<'_> {
                     let step = self.set(step, ctx, m)?;
                     let state = self.set(state, ctx, m)?;
                     let predecessors = self.set(predecessors, ctx, m)?;
-                    logical_node!(self, sort, syntax_family; PropTerm => AccIntro {
-                        state_ty: state_ty.try_into()?,
-                        result_ty: result_ty
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
-                        step: step.try_into()?,
-                        state: state.try_into()?,
-                        predecessors: predecessors
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
+                    self.kernel.arena().alloc(s::Node::AccIntro {
+                        state_ty: state_ty,
+                        result_ty: result_ty,
+                        step: step,
+                        state: state,
+                        predecessors: predecessors,
                     })
                 }
                 Prove::AccDescent {
@@ -740,49 +596,23 @@ impl Lowerer<'_> {
                     let to = self.set(to, ctx, m)?;
                     let accessibility = self.set(accessibility, ctx, m)?;
                     let transition = self.set(transition, ctx, m)?;
-                    logical_node!(self, sort, syntax_family; PropTerm => AccDescent {
-                        state_ty: state_ty.try_into()?,
-                        result_ty: result_ty
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
-                        step: step.try_into()?,
-                        from: from.try_into()?,
-                        to: to.try_into()?,
-                        accessibility: accessibility
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
-                        transition: transition
-                            .try_into()
-                            .map_err(|e| format!("{e:?}"))?,
+                    self.kernel.arena().alloc(s::Node::AccDescent {
+                        state_ty: state_ty,
+                        result_ty: result_ty,
+                        step: step,
+                        from: from,
+                        to: to,
+                        accessibility: accessibility,
+                        transition: transition,
                     })
                 }
             },
             ExpNode::BoxApp { function, argument } => {
-                let ty = self.infer(function, ctx)?;
-                let head = raw::calculus::whnf(self.raw, ty);
-                let ExpNode::BoxType { program_ty: ty } = self.raw.arena().get(head) else {
-                    return Err("expected boxed function".into());
-                };
-                let raw::program::ComputationTypeNode::Function { domain, codomain } =
-                    self.raw.arena().get(ty)
-                else {
-                    return Err("expected Program function".into());
-                };
-                let domain = self.value_type(domain)?;
-                let codomain = self.computation_type(codomain)?;
-                let rule = k::ProductRule::new(
-                    k::Sort::Base(self.kernel.arena().sort(domain)),
-                    k::Sort::Base(self.kernel.arena().sort(codomain)),
-                )?;
                 let function = self.set(function, ctx, m)?;
                 let argument = self.set(argument, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetTerm => BoxApp {
-                    rule,
-                    domain,
-                    codomain,
-                    function: function.try_into()?,
-                    argument: argument.try_into()?,
-                })
+                self.kernel
+                    .arena()
+                    .alloc(s::Node::BoxApp { function, argument })
             }
             ExpNode::ReflectedProgramCase {
                 indspec,
@@ -790,57 +620,50 @@ impl Lowerer<'_> {
                 branches,
             } => {
                 self.datatype(indspec)?;
-                let inductive = indspec.into();
-                let binders = branches
-                    .iter()
-                    .map(|b| b.binders.clone())
-                    .collect::<Vec<_>>();
-                let result_ty = self.set(ty, ctx, m)?;
-                let sty = self.infer(scrutinee, ctx)?;
-                let head = raw::calculus::whnf(self.raw, sty);
-                let ExpNode::IndType { parameters, .. } = self.raw.arena().get(head) else {
-                    return Err("case scrutinee has no datatype".into());
-                };
-                let spec = self.raw.program_inductive(indspec);
+                let binders = branches.iter().map(|b| b.binders.clone()).collect();
                 let mut bodies = vec![];
-                for (branch, ctor) in branches.into_iter().zip(spec.constructors()) {
+                for branch in branches {
                     let mut local = ctx.clone();
-                    for (i, ((_, field), var)) in
-                        ctor.fields().iter().zip(&branch.binders).enumerate()
-                    {
-                        let field = raw::reflection::reflect_value_type(self.raw, *field)
-                            .map_err(|e| e.to_string())?;
-                        let field = raw::calculus::instantiate_telescope(
-                            self.raw.arena(),
-                            field,
-                            &parameters,
-                        );
+                    for &var in &branch.binders {
                         local.push(ExpContextEntry {
-                            var: *var,
-                            ty: raw::calculus::shift_bound_indices(self.raw.arena(), field, i, 0),
+                            var,
+                            ty: self.raw.arena().sort(RawSort::Set(0)),
                         });
                     }
                     bodies.push(self.set(branch.body, &mut local, m)?);
                 }
-                let branches = bodies;
                 let scrutinee = self.set(scrutinee, ctx, m)?;
-                logical_node!(self, sort, syntax_family; SetTerm => SetCase {
-                    inductive,
+                self.kernel.arena().alloc(s::Node::SetCase {
+                    inductive: indspec.into(),
                     binders,
-                    result_ty: result_ty.try_into()?,
-                    scrutinee: scrutinee.try_into()?,
-                    branches: branches
-                        .into_iter()
-                        .map(TryInto::try_into)
-                        .collect::<Result<_, _>>()?,
+                    scrutinee,
+                    branches: bodies,
                 })
             }
             ExpNode::ReflectedProgramParam(parameter) => {
+                if self.scope.nominal {
+                    let term = self.nominal_parameter(parameter)?;
+                    return Ok(self.kernel.arena().alloc(s::Node::Reflect { term }));
+                }
                 let index = self.parameter_index(parameter, ctx.len() - self.scope.logical_base)?;
-                build::bound(self.kernel.arena(), sort, stage, index)?
+                let bound = self.kernel.arena().bound(index);
+                if self.scope.program_context {
+                    self.kernel.arena().alloc(s::Node::Reflect { term: bound })
+                } else {
+                    bound
+                }
             }
-            ExpNode::Meta { .. } => return Err("unresolved metavariable at kernel boundary".into()),
-            ExpNode::Sort(_) => unreachable!(),
+            ExpNode::Meta { spine, .. } => {
+                let s::Node::Meta { id, .. } = self.raw.arena().core.get(e.0) else {
+                    unreachable!()
+                };
+                let arguments = spine
+                    .into_iter()
+                    .map(|e| self.set(e, ctx, m))
+                    .collect::<Result<_, _>>()?;
+                self.kernel.arena().alloc(s::Node::Meta { id, arguments })
+            }
+            ExpNode::Sort(sort) => self.kernel.arena().sort(Self::sort(sort)),
         };
         self.cache.insert(key, result);
         Ok(result)
