@@ -68,6 +68,9 @@ pub struct Goal {
     pub context: String,
     pub judgement: Option<String>,
     pub constraints: Vec<String>,
+    pub state: String,
+    pub solution: Option<String>,
+    pub occurrences: Vec<Location>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

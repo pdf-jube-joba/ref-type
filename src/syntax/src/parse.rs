@@ -21,8 +21,9 @@ enum Token<'a> {
     Caret,
     #[regex(r"[0-9]+")]
     Number(&'a str),
-    #[regex(r"\?[a-zA-Z0-9_]*")]
-    UnspecifiedVar(&'a str),
+    #[token("?")]
+    #[regex(r"_[0-9]+")]
+    Metavariable(&'a str),
     #[token("_", priority = 3)]
     Hole,
     // Commas delimit patterns even when adjacent to a rest capture (`$x,..r`).

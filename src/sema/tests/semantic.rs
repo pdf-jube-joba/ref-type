@@ -481,3 +481,38 @@ fn block_result_errors_do_not_point_at_a_successful_let() {
     let location = result.diagnostics[0].location.as_ref().unwrap();
     assert_eq!(&text[location.range.clone()], text);
 }
+
+#[test]
+fn inspection_and_named_inference_diagnostics_reach_editor_queries() {
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    let source = r"\module M(A: \VType) {
+        \definition pending: A ~> \F(A) := \cfun (x: ?) => \return _12;
+    }";
+    snapshot.insert("/virtual/root.ref", source);
+    let result = Database::new().check(&snapshot);
+    assert!(!result.is_success());
+    let goals: Vec<_> = result.goals().collect();
+    assert_eq!(goals.len(), 2, "{goals:?}");
+    let inspection = goals
+        .iter()
+        .find(|goal| goal.name.starts_with('?'))
+        .unwrap();
+    assert!(inspection.state.starts_with("solved"), "{inspection:?}");
+    assert!(
+        inspection
+            .solution
+            .as_ref()
+            .is_some_and(|ty| ty.contains('A'))
+    );
+    assert_eq!(&source[inspection.location.range.clone()], "?");
+    let inferred = goals.iter().find(|goal| goal.name == "_12").unwrap();
+    assert!(inferred.context.contains("x:"), "{inferred:?}");
+    assert!(inferred.context.contains("A:"), "{inferred:?}");
+    assert!(
+        inferred
+            .judgement
+            .as_ref()
+            .is_some_and(|ty| ty.contains('A'))
+    );
+    assert_eq!(&source[inferred.occurrences[0].range.clone()], "_12");
+}

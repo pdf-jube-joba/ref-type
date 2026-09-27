@@ -11,7 +11,10 @@ impl GlobalEnvironment {
         let exp_elab = local_scope.elab_exp(exp, self)?;
         if !self.metavariables.is_empty() {
             self.infer_term_with_metavariables(ctx, exp_elab)
-                .map_err(|message| self.metavariables.constraint_error(message))?;
+                .map_err(|message| {
+                    self.metavariables
+                        .constraint_error(&self.crate_env, message)
+                })?;
             self.finish_metavariables()?;
         }
         Ok(self.metavariables.zonk(&self.crate_env, exp_elab))
@@ -196,7 +199,10 @@ impl GlobalEnvironment {
         let ty_elab = local_scope.elab_exp(ty, self)?;
         if !self.metavariables.is_empty() {
             self.check_term_with_metavariables(ctx, exp_elab, ty_elab)
-                .map_err(|message| self.metavariables.constraint_error(message))?;
+                .map_err(|message| {
+                    self.metavariables
+                        .constraint_error(&self.crate_env, message)
+                })?;
             self.finish_metavariables()?;
         }
         let exp_elab = self.metavariables.zonk(&self.crate_env, exp_elab);

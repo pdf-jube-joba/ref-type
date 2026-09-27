@@ -973,13 +973,13 @@ impl<'a> TermParser<'a> {
                     },
                 })
             }
-            Some(Token::UnspecifiedVar(_)) => {
+            Some(Token::Metavariable(_)) => {
                 let token = self.next().expect("peeked token exists");
-                let Token::UnspecifiedVar(spelling) = token.kind else {
+                let Token::Metavariable(spelling) = token.kind else {
                     unreachable!()
                 };
                 let suffix = &spelling[1..];
-                let kind = if suffix.is_empty() {
+                let kind = if spelling == "?" {
                     SurfaceMeta::Goal
                 } else if suffix.bytes().all(|byte| byte.is_ascii_digit()) {
                     let number = suffix.parse::<u32>().map_err(|_| ParseError {
@@ -990,7 +990,7 @@ impl<'a> TermParser<'a> {
                     SurfaceMeta::Named(number)
                 } else {
                     return Err(ParseError {
-                        msg: "expected `?` or `?` followed by digits".into(),
+                        msg: "expected `?` or `_` followed by digits".into(),
                         start: token.start,
                         end: token.end,
                     });
@@ -1295,7 +1295,7 @@ impl<'a> TermParser<'a> {
             Some(
                 Token::Ident(_)
                 | Token::Hole
-                | Token::UnspecifiedVar(_)
+                | Token::Metavariable(_)
                 | Token::MacroVar(_)
                 | Token::LParen
                 | Token::MathLParen,

@@ -17,15 +17,18 @@ use crate::raw::{
 use std::collections::{HashMap, HashSet};
 
 mod diagnostics;
+#[cfg(test)]
+mod tests;
 pub use diagnostics::{
-    ConstraintRecord, ConstraintStatus, ElaborationError, GoalConstraint, MetaFlavor, MetaGoal,
-    format_constraint, format_constraint_record, format_elaboration_error,
+    ConstraintDiagnostic, ConstraintRecord, ConstraintStatus, ElaborationError, GoalConstraint,
+    MetaFlavor, MetaGoal, MetaState, format_constraint, format_elaboration_error,
 };
 
 #[derive(Debug, Clone)]
 struct MetaEntry {
     flavor: MetaFlavor,
     span: SourceSpan,
+    occurrences: Vec<SourceSpan>,
     context: ExpContext,
     scope_len: usize,
     assignment: Option<Exp>,
@@ -38,6 +41,9 @@ pub(crate) struct MetaStore {
     entries: Vec<MetaEntry>,
     named: HashMap<u32, MetaVarId>,
     constraints: Vec<ConstraintRecord>,
+    failure: Option<MetaState>,
+    origins: Vec<SourceSpan>,
+    sources: HashMap<Exp, Vec<SourceSpan>>,
 }
 
 impl MetaStore {
@@ -45,17 +51,43 @@ impl MetaStore {
         self.entries.clear();
         self.named.clear();
         self.constraints.clear();
+        self.failure = None;
+        self.origins.clear();
+        self.sources.clear();
     }
 
     pub(crate) fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
-    pub(crate) fn constraint_error(&self, message: String) -> ElaborationError {
+    pub(crate) fn constraint_error(&self, env: &CrateEnv, message: String) -> ElaborationError {
+        let state = self.failure.unwrap_or(MetaState::Contradiction);
+        let mut goals = self.goals(env);
+        for goal in &mut goals {
+            if goal.state != MetaState::Solved {
+                goal.state = state;
+            }
+        }
         ElaborationError::ConstraintFailure {
             message,
-            constraints: self.constraints.clone(),
+            constraints: self
+                .constraints
+                .iter()
+                .map(|record| self.constraint_diagnostic(env, record))
+                .collect(),
+            goals,
         }
+    }
+
+    pub(crate) fn record_source(&mut self, env: &CrateEnv, term: Exp, span: SourceSpan) {
+        for id in metas_in_exp(env, term) {
+            let entry = &mut self.entries[id.index()];
+            if entry.span == SourceSpan::default() {
+                entry.span = span;
+                entry.occurrences = vec![span];
+            }
+        }
+        self.sources.entry(term).or_default().push(span);
     }
 
     pub(crate) fn fresh(
@@ -65,7 +97,7 @@ impl MetaStore {
         span: SourceSpan,
         context: &ExpContext,
         scope_len: usize,
-    ) -> Exp {
+    ) -> Result<Exp, String> {
         let flavor = MetaFlavor::from(kind);
         let existing = match flavor {
             MetaFlavor::Named(number) => self.named.get(&number).copied(),
@@ -78,6 +110,7 @@ impl MetaStore {
             self.entries.push(MetaEntry {
                 flavor,
                 span,
+                occurrences: vec![span],
                 context: context.clone(),
                 scope_len,
                 assignment: None,
@@ -91,6 +124,7 @@ impl MetaStore {
         });
         if existing.is_some() {
             let entry = &mut self.entries[metavariable.index()];
+            entry.occurrences.push(span);
             let previous_start = entry.context.len().saturating_sub(entry.scope_len);
             let current_start = context.len().saturating_sub(scope_len);
             let common = entry.context[previous_start..]
@@ -100,12 +134,18 @@ impl MetaStore {
                 .count();
             if common < entry.scope_len {
                 let removed = entry.scope_len - common;
+                let strengthen = |term| {
+                    remove_unused_ambient_binders(env.arena(), term, removed).ok_or_else(|| {
+                        format!(
+                            "{} captures a variable outside its shared context",
+                            entry.flavor.display_name(metavariable)
+                        )
+                    })
+                };
+                entry.assignment = entry.assignment.map(strengthen).transpose()?;
+                entry.inferred_type = entry.inferred_type.map(strengthen).transpose()?;
                 entry.scope_len = common;
                 entry.context = context[..current_start + common].to_vec();
-                if let Some(assignment) = entry.assignment {
-                    entry.assignment =
-                        remove_unused_ambient_binders(env.arena(), assignment, removed);
-                }
             }
         }
 
@@ -113,16 +153,22 @@ impl MetaStore {
             .rev()
             .map(|index| env.arena().exp_bound(index))
             .collect();
-        env.arena().alloc(ExpNode::Meta {
+        Ok(env.arena().alloc(ExpNode::Meta {
             metavariable,
             spine,
-        })
+        }))
     }
 
-    pub(crate) fn constrain(&mut self, constraint: GoalConstraint) {
+    pub(crate) fn constrain(&mut self, env: &CrateEnv, constraint: GoalConstraint) {
+        let mut origins = self.origins.clone();
+        for meta in metas_in_constraint(env, &constraint) {
+            origins.extend(self.entries[meta.index()].occurrences.iter().copied());
+        }
+        origins.sort_by_key(|span| (span.start, span.end));
+        origins.dedup();
         self.constraints.push(ConstraintRecord {
-            original: constraint.clone(),
-            normalized: constraint,
+            origins,
+            original: constraint,
             status: ConstraintStatus::Residual,
         });
     }
@@ -142,6 +188,7 @@ impl MetaStore {
         self.entries.push(MetaEntry {
             flavor: MetaFlavor::Synthetic,
             span,
+            occurrences: vec![span],
             context: context.clone(),
             scope_len: context.len(),
             assignment: None,
@@ -159,14 +206,25 @@ impl MetaStore {
     }
 
     fn set_meta_type(&mut self, env: &CrateEnv, term: Exp, expected: Exp) -> Result<(), String> {
-        let ExpNode::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term)) else {
+        let ExpNode::Meta {
+            metavariable,
+            spine,
+        } = env.arena().get(self.zonk(env, term))
+        else {
             return Ok(());
         };
         let constraint = GoalConstraint::HasType { term, expected };
         if self.entries[metavariable.index()].principal.is_none() {
             self.entries[metavariable.index()].principal = Some(constraint.clone());
         }
-        self.constrain(constraint);
+        self.constrain(env, constraint);
+        let entry = &self.entries[metavariable.index()];
+        let expected = remove_unused_ambient_binders(
+            env.arena(),
+            expected,
+            spine.len().saturating_sub(entry.scope_len),
+        )
+        .ok_or("metavariable type captures a variable outside its shared context")?;
         if let Some(previous) = self.entries[metavariable.index()].inferred_type {
             self.unify(env, previous, expected)?;
         } else {
@@ -181,22 +239,53 @@ impl MetaStore {
         term: Exp,
         context: &ExpContext,
     ) -> Result<Exp, String> {
-        let ExpNode::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term)) else {
+        let ExpNode::Meta {
+            metavariable,
+            spine,
+        } = env.arena().get(self.zonk(env, term))
+        else {
             return Err("expected metavariable".into());
         };
         if let Some(ty) = self.entries[metavariable.index()].inferred_type {
-            return Ok(self.zonk(env, ty));
+            let scope = self.entries[metavariable.index()].scope_len;
+            return Ok(self.zonk(env, instantiate_telescope(env.arena(), ty, &spine[..scope])));
         }
         let span = self.entries[metavariable.index()].span;
         let ty = self.fresh_synthetic(env, context, span);
         self.entries[metavariable.index()].inferred_type = Some(ty);
         let constraint = GoalConstraint::HasType { term, expected: ty };
         self.entries[metavariable.index()].principal = Some(constraint.clone());
-        self.constrain(constraint);
+        self.constrain(env, constraint);
         Ok(ty)
     }
 
     pub(crate) fn check_pts(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        context: &mut ExpContext,
+        term: Exp,
+        expected: Exp,
+    ) -> Result<(), String> {
+        let previous = self.origins.clone();
+        for exp in [term, expected] {
+            self.origins
+                .extend(self.sources.get(&exp).into_iter().flatten().copied());
+            if let ExpNode::Meta { metavariable, .. } = env.arena().get(exp) {
+                self.origins.extend(
+                    self.entries[metavariable.index()]
+                        .occurrences
+                        .iter()
+                        .copied(),
+                );
+            }
+        }
+        let result = self.check_pts_inner(env, module, context, term, expected);
+        self.origins = previous;
+        result
+    }
+
+    fn check_pts_inner(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
@@ -257,6 +346,29 @@ impl MetaStore {
     }
 
     pub(crate) fn infer_pts(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        context: &mut ExpContext,
+        term: Exp,
+    ) -> Result<Exp, String> {
+        let previous = self.origins.clone();
+        self.origins
+            .extend(self.sources.get(&term).into_iter().flatten().copied());
+        if let ExpNode::Meta { metavariable, .. } = env.arena().get(term) {
+            self.origins.extend(
+                self.entries[metavariable.index()]
+                    .occurrences
+                    .iter()
+                    .copied(),
+            );
+        }
+        let result = self.infer_pts_inner(env, module, context, term);
+        self.origins = previous;
+        result
+    }
+
+    fn infer_pts_inner(
         &mut self,
         env: &CrateEnv,
         module: ModuleId,
@@ -865,7 +977,13 @@ impl MetaStore {
                     right: mapped,
                 }))
             }
-            _ => Err("metavariable inference for this expression is blocked".into()),
+            _ => {
+                self.failure = Some(MetaState::Unsupported);
+                Err(
+                    "metavariable inference for this expression is not supported by the solver"
+                        .into(),
+                )
+            }
         }
     }
 
@@ -913,14 +1031,14 @@ impl MetaStore {
         if matches!(env.arena().get(term), ExpNode::Meta { .. }) {
             let constraint = GoalConstraint::IsSort { term };
             self.set_principal_for_meta(env, term, &constraint);
-            self.constrain(constraint);
+            self.constrain(env, constraint);
             return Ok(Sort::Set(0));
         }
         let ty = self.infer_pts(env, module, context, term)?;
         match env.arena().get(self.zonk(env, ty)) {
             ExpNode::Sort(sort) => Ok(sort),
             ExpNode::Meta { .. } => {
-                self.constrain(GoalConstraint::IsSort { term });
+                self.constrain(env, GoalConstraint::IsSort { term });
                 Ok(Sort::Set(0))
             }
             _ => Err("expression does not have a sort".into()),
@@ -929,17 +1047,11 @@ impl MetaStore {
 
     pub(crate) fn unify(&mut self, env: &CrateEnv, left: Exp, right: Exp) -> Result<bool, String> {
         let index = self.constraints.len();
-        self.constrain(GoalConstraint::Equal { left, right });
+        self.constrain(env, GoalConstraint::Equal { left, right });
         let result = self.unify_rec(env, left, right, &mut HashSet::new());
-        let normalized_left = self.zonk(env, left);
-        let normalized_right = self.zonk(env, right);
-        self.constraints[index].normalized = GoalConstraint::Equal {
-            left: normalized_left,
-            right: normalized_right,
-        };
         match &result {
             Ok(true) => self.constraints[index].status = ConstraintStatus::Discharged,
-            Ok(false) => self.constraints[index].status = ConstraintStatus::Residual,
+            Ok(false) => self.constraints[index].status = ConstraintStatus::Blocked,
             Err(_) => self.constraints[index].status = ConstraintStatus::Failed,
         }
         result
@@ -968,29 +1080,38 @@ impl MetaStore {
             (
                 ExpNode::Meta {
                     metavariable,
-                    spine: _,
+                    spine: left_spine,
                 },
                 ExpNode::Meta {
                     metavariable: other,
-                    ..
+                    spine: right_spine,
                 },
-            ) if metavariable == other => Ok(true),
+            ) if metavariable == other => {
+                let scope = self.entries[metavariable.index()].scope_len;
+                Ok(left_spine[..scope]
+                    .iter()
+                    .zip(&right_spine[..scope])
+                    .all(|(a, b)| erased_convertible(env, *a, *b)))
+            }
             (
                 ExpNode::Meta {
                     metavariable,
                     spine,
                 },
                 _,
-            ) => self.assign(env, metavariable, spine.len(), right),
+            ) => self.assign(env, metavariable, &spine, right),
             (
                 _,
                 ExpNode::Meta {
                     metavariable,
                     spine,
                 },
-            ) => self.assign(env, metavariable, spine.len(), left),
+            ) => self.assign(env, metavariable, &spine, left),
             (left_node, right_node) => {
                 if !rigid_heads_compatible(&left_node, &right_node) {
+                    if flexible_head(env, left) || flexible_head(env, right) {
+                        return Ok(false);
+                    }
                     return Err("incompatible rigid expressions in metavariable constraint".into());
                 }
                 let left_children = node_children(left_node);
@@ -1011,19 +1132,32 @@ impl MetaStore {
         &mut self,
         env: &CrateEnv,
         metavariable: MetaVarId,
-        occurrence_scope: usize,
+        spine: &[Exp],
         value: Exp,
     ) -> Result<bool, String> {
         if self.occurs(env, metavariable, value, &mut HashSet::new()) {
-            return Err(format!("occurs check failed for ?m{}", metavariable.0));
+            return Err(format!(
+                "occurs check failed for {}",
+                self.entries[metavariable.index()]
+                    .flavor
+                    .display_name(metavariable)
+            ));
         }
         let entry = &self.entries[metavariable.index()];
+        // Only identity contextual spines are solved here. Non-pattern
+        // equations stay blocked until later substitutions simplify them.
+        if !spine.iter().rev().enumerate().all(
+            |(index, exp)| matches!(env.arena().get(*exp), ExpNode::Bound(bound) if bound == index),
+        ) {
+            return Ok(false);
+        }
+        let occurrence_scope = spine.len();
         let value = if occurrence_scope >= entry.scope_len {
             remove_unused_ambient_binders(env.arena(), value, occurrence_scope - entry.scope_len)
                 .ok_or_else(|| {
                     format!(
-                        "solution for ?m{} captures a variable outside its shared context",
-                        metavariable.0
+                        "solution for {} captures a variable outside its shared context",
+                        entry.flavor.display_name(metavariable)
                     )
                 })?
         } else {
@@ -1129,34 +1263,139 @@ impl MetaStore {
         visit(env, exp, &mut HashSet::new())
     }
 
-    pub(crate) fn finish(&self, env: &CrateEnv) -> Result<(), ElaborationError> {
-        let mut implicits = Vec::new();
-        let mut goals = Vec::new();
-        for (index, entry) in self.entries.iter().enumerate() {
-            let id = MetaVarId(index as u32);
-            let solved = entry
-                .assignment
-                .is_some_and(|assignment| !self.contains_unsolved(env, assignment));
-            if solved {
-                continue;
+    pub(crate) fn finish(&mut self, env: &CrateEnv) -> Result<(), ElaborationError> {
+        loop {
+            let before = self
+                .entries
+                .iter()
+                .filter(|entry| entry.assignment.is_some())
+                .count();
+            for index in 0..self.constraints.len() {
+                if self.constraints[index].status != ConstraintStatus::Blocked {
+                    continue;
+                }
+                let GoalConstraint::Equal { left, right } = self.constraints[index].original else {
+                    continue;
+                };
+                match self.unify_rec(env, left, right, &mut HashSet::new()) {
+                    Ok(true) => self.constraints[index].status = ConstraintStatus::Discharged,
+                    Ok(false) => {}
+                    Err(message) => {
+                        self.constraints[index].status = ConstraintStatus::Failed;
+                        return Err(self.constraint_error(env, message));
+                    }
+                }
             }
-            let goal = self.goal_for(env, id);
-            match entry.flavor {
-                MetaFlavor::Implicit => implicits.push(goal),
-                MetaFlavor::Goal | MetaFlavor::Named(_) => goals.push(goal),
-                MetaFlavor::Synthetic => {}
+            for index in 0..self.entries.len() {
+                let entry = &self.entries[index];
+                let (Some(value), Some(expected)) = (entry.assignment, entry.inferred_type) else {
+                    continue;
+                };
+                if self.contains_unsolved(env, value) || !self.contains_unsolved(env, expected) {
+                    continue;
+                }
+                let value = self.zonk(env, value);
+                let mut context = entry.context.clone();
+                for binding in &mut context {
+                    binding.ty = self.zonk(env, binding.ty);
+                }
+                if let Ok(inferred) = CheckSession::new(env, &mut context).infer_pts(value) {
+                    self.unify(env, expected, inferred)
+                        .map_err(|message| self.constraint_error(env, message))?;
+                }
+            }
+            if before
+                == self
+                    .entries
+                    .iter()
+                    .filter(|entry| entry.assignment.is_some())
+                    .count()
+            {
+                break;
             }
         }
-        if !implicits.is_empty() {
-            Err(ElaborationError::AmbiguousImplicit(implicits))
-        } else if !goals.is_empty() {
-            Err(ElaborationError::UnsolvedGoals(goals))
-        } else {
+        let goals = self.goals(env);
+        if goals.is_empty() {
             Ok(())
+        } else {
+            Err(ElaborationError::Metavariables(goals))
+        }
+    }
+
+    fn solved(&self, env: &CrateEnv, id: MetaVarId) -> bool {
+        self.entries[id.index()]
+            .assignment
+            .is_some_and(|value| !self.contains_unsolved(env, value))
+    }
+
+    fn goals(&self, env: &CrateEnv) -> Vec<MetaGoal> {
+        self.entries
+            .iter()
+            .enumerate()
+            .filter_map(|(index, entry)| {
+                let id = MetaVarId(index as u32);
+                (entry.flavor != MetaFlavor::Synthetic
+                    && (entry.flavor == MetaFlavor::Goal || !self.solved(env, id)))
+                .then(|| self.goal_for(env, id))
+            })
+            .collect()
+    }
+
+    fn constraint_diagnostic(
+        &self,
+        env: &CrateEnv,
+        record: &ConstraintRecord,
+    ) -> ConstraintDiagnostic {
+        let names = |id: MetaVarId| self.entries[id.index()].flavor.display_name(id);
+        let printer = crate::raw::printing::Printer::new(env, &names);
+        let normalized = self.zonk_constraint(env, &record.original);
+        let mut context = match &record.original {
+            GoalConstraint::HasType { term, .. } | GoalConstraint::IsSort { term } => {
+                match env.arena().get(*term) {
+                    ExpNode::Meta { metavariable, .. } => {
+                        self.entries[metavariable.index()].context.clone()
+                    }
+                    _ => Vec::new(),
+                }
+            }
+            _ => Vec::new(),
+        };
+        for binding in &mut context {
+            binding.ty = self.zonk(env, binding.ty);
+        }
+        let status = match &normalized {
+            GoalConstraint::Equal { left, right } if erased_convertible(env, *left, *right) => {
+                ConstraintStatus::Discharged
+            }
+            GoalConstraint::HasType { term, expected }
+                if !self.contains_unsolved(env, *term)
+                    && !self.contains_unsolved(env, *expected)
+                    && CheckSession::new(env, &mut context)
+                        .check_pts(*term, *expected)
+                        .is_ok() =>
+            {
+                ConstraintStatus::Discharged
+            }
+            GoalConstraint::IsSort { term }
+                if !self.contains_unsolved(env, *term)
+                    && CheckSession::new(env, &mut context)
+                        .infer_sort(*term)
+                        .is_ok() =>
+            {
+                ConstraintStatus::Discharged
+            }
+            _ => record.status,
+        };
+        ConstraintDiagnostic {
+            original: format_constraint(&printer, &record.original),
+            normalized: format_constraint(&printer, &normalized),
+            status,
+            origins: record.origins.clone(),
         }
     }
 
     fn goal_for(&self, env: &CrateEnv, id: MetaVarId) -> MetaGoal {
+        let entry = &self.entries[id.index()];
         let mut related = HashSet::from([id]);
         loop {
             let before = related.len();
@@ -1177,28 +1416,71 @@ impl MetaStore {
                 metas_in_constraint(env, &record.original)
                     .iter()
                     .any(|meta| related.contains(meta))
+                    || record
+                        .origins
+                        .iter()
+                        .any(|span| entry.occurrences.contains(span))
             })
-            .map(|record| {
-                let mut record = record.clone();
-                record.normalized = self.zonk_constraint(env, &record.normalized);
-                record
+            .map(|record| self.constraint_diagnostic(env, record))
+            .collect();
+        // Dependencies are unresolved metas in this goal's type or assignment,
+        // rather than every meta which ever shared a constraint.
+        let mut dependencies = HashSet::new();
+        for exp in [entry.inferred_type, entry.assignment]
+            .into_iter()
+            .flatten()
+        {
+            dependencies.extend(metas_in_exp(env, self.zonk(env, exp)));
+        }
+        dependencies.remove(&id);
+        let mut dependencies: Vec<_> = dependencies.into_iter().collect();
+        dependencies.sort_by_key(|meta| meta.0);
+        let blocked = self.constraints.iter().any(|record| {
+            record.status == ConstraintStatus::Blocked
+                && metas_in_constraint(env, &record.original).contains(&id)
+        });
+        let state = if self.solved(env, id) {
+            MetaState::Solved
+        } else if blocked {
+            MetaState::Unsupported
+        } else if !dependencies.is_empty() {
+            MetaState::Waiting
+        } else {
+            MetaState::InsufficientInformation
+        };
+        let names = |id: MetaVarId| self.entries[id.index()].flavor.display_name(id);
+        let printer = crate::raw::printing::Printer::new(env, &names);
+        let context = entry
+            .context
+            .iter()
+            .map(|binding| crate::raw::exp::ExpContextEntry {
+                var: binding.var,
+                ty: self.zonk(env, binding.ty),
             })
             .collect();
-        let entry = &self.entries[id.index()];
-        let mut dependencies = related
-            .into_iter()
-            .filter(|meta| *meta != id)
-            .collect::<Vec<_>>();
-        dependencies.sort_by_key(|meta| meta.0);
+        let principal = entry.principal.as_ref().map(|constraint| {
+            // Keep the inspected occurrence visible even when it has a solution.
+            let normalized = match constraint {
+                GoalConstraint::HasType { term, expected } => GoalConstraint::HasType {
+                    term: *term,
+                    expected: self.zonk(env, *expected),
+                },
+                GoalConstraint::IsSort { term } => GoalConstraint::IsSort { term: *term },
+                other => self.zonk_constraint(env, other),
+            };
+            format_constraint(&printer, &normalized)
+        });
         MetaGoal {
             metavariable: id,
             flavor: entry.flavor,
             span: entry.span,
-            context: entry.context.clone(),
-            principal: entry
-                .principal
-                .as_ref()
-                .map(|constraint| self.zonk_constraint(env, constraint)),
+            occurrences: entry.occurrences.clone(),
+            context: printer.format_ctx(&context),
+            principal,
+            solution: entry
+                .assignment
+                .map(|value| printer.format_exp(self.zonk(env, value))),
+            state,
             constraints,
             dependencies,
         }
@@ -1343,4 +1625,14 @@ fn set_step_function_type(arena: &crate::raw::exp::Arena, state_ty: Exp, result_
         result_ty,
     });
     nondependent_product(arena, state_ty, run_step)
+}
+
+fn flexible_head(env: &CrateEnv, mut term: Exp) -> bool {
+    loop {
+        match env.arena().get(term) {
+            ExpNode::App { func, .. } => term = func,
+            ExpNode::Meta { .. } => return true,
+            _ => return false,
+        }
+    }
 }

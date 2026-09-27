@@ -13,6 +13,9 @@ pub struct Goal {
     pub judgement: Option<String>,
     pub constraints: Vec<String>,
     pub dependencies: Vec<u32>,
+    pub state: String,
+    pub solution: Option<String>,
+    pub occurrences: Vec<SourceLocation>,
 }
 
 #[derive(Debug, Clone)]
@@ -104,34 +107,33 @@ impl Checker {
             error => (None, error),
         };
         let env = self.workspace.crate_env();
-        let goals = match error {
-            ElaborationError::UnsolvedGoals(goals) | ElaborationError::AmbiguousImplicit(goals) => {
-                goals
+        let goals = error
+            .goals()
+            .iter()
+            .map(|goal| Goal {
+                name: goal.display_name(),
+                dependencies: goal.dependencies.iter().map(|id| id.0).collect(),
+                location: location.as_ref().map(|location| SourceLocation {
+                    source: location.source.clone(),
+                    span: goal.span,
+                }),
+                context: goal.context.clone(),
+                judgement: goal.principal.clone(),
+                constraints: goal.constraints.iter().map(ToString::to_string).collect(),
+                state: goal.state.to_string(),
+                solution: goal.solution.clone(),
+                occurrences: goal
+                    .occurrences
                     .iter()
-                    .map(|goal| Goal {
-                        name: goal.display_name(),
-                        dependencies: goal.dependencies.iter().map(|id| id.0).collect(),
-                        location: location.as_ref().map(|location| SourceLocation {
+                    .filter_map(|span| {
+                        location.as_ref().map(|location| SourceLocation {
                             source: location.source.clone(),
-                            span: goal.span,
-                        }),
-                        context: crate::raw::printing::format_ctx(env, &goal.context),
-                        judgement: goal
-                            .principal
-                            .as_ref()
-                            .map(|constraint| metavariables::format_constraint(env, constraint)),
-                        constraints: goal
-                            .constraints
-                            .iter()
-                            .map(|constraint| {
-                                metavariables::format_constraint_record(env, constraint)
-                            })
-                            .collect(),
+                            span: *span,
+                        })
                     })
-                    .collect()
-            }
-            _ => Vec::new(),
-        };
+                    .collect(),
+            })
+            .collect();
         Diagnostic {
             message: format!(
                 "Elaboration Error: {}",

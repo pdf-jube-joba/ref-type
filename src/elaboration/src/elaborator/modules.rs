@@ -141,7 +141,10 @@ impl GlobalEnvironment {
                                 exp,
                                 expected,
                             )
-                            .map_err(|message| self.metavariables.constraint_error(message))?;
+                            .map_err(|message| {
+                                self.metavariables
+                                    .constraint_error(&self.crate_env, message)
+                            })?;
                     }
                     (ModuleParameterKind::ProgramType, ModuleArgument::ProgramType(_))
                     | (ModuleParameterKind::ProgramValue { .. }, ModuleArgument::ProgramValue(_)) =>
@@ -274,7 +277,10 @@ impl GlobalEnvironment {
                                 &mut ctx,
                                 pts_ty,
                             )
-                            .map_err(|message| self.metavariables.constraint_error(message))?;
+                            .map_err(|message| {
+                                self.metavariables
+                                    .constraint_error(&self.crate_env, message)
+                            })?;
                         self.finish_metavariables()?;
                         pts_ty = self.metavariables.zonk(&self.crate_env, pts_ty);
                     }
@@ -287,6 +293,7 @@ impl GlobalEnvironment {
                 } else {
                     let program_ty: ValueTypeExp = ty.as_ref().clone().try_into()?;
                     let program_ty = program_scope.elaborate_value_type(&program_ty, self)?;
+                    program_scope.finish_metas(self)?;
                     let mut program_context = program_scope.context().clone();
                     ProgramCheckSession::new(&self.crate_env, &mut program_context)
                         .check_value_type(program_ty)
@@ -404,7 +411,7 @@ impl GlobalEnvironment {
                         )
                     });
                     if has_program_owner && !program_errors.is_empty() {
-                        return Err(program_errors.join("\n").into());
+                        return Err(ElaborationError::alternatives(program_errors));
                     }
                     self.metavariables.clear();
                     let pts_result = (|| -> Result<(), ElaborationError> {
@@ -461,7 +468,10 @@ impl GlobalEnvironment {
                         }
                         if !self.metavariables.is_empty() {
                             self.check_term_with_metavariables(&mut ctx, body_elab, ty_elab)
-                                .map_err(|message| self.metavariables.constraint_error(message))?;
+                                .map_err(|message| {
+                                    self.metavariables
+                                        .constraint_error(&self.crate_env, message)
+                                })?;
                             self.finish_metavariables()?;
                         }
                         if let Some(timer) = &mut profile_timer {
@@ -506,7 +516,9 @@ impl GlobalEnvironment {
                         if program_errors.is_empty() {
                             return Err(error);
                         }
-                        return Err(format!("{}\n{error}", program_errors.join("\n")).into());
+                        return Err(ElaborationError::alternatives(
+                            std::iter::once(error).chain(program_errors).collect(),
+                        ));
                     }
                 }
                 ModuleItem::Inductive {
@@ -876,7 +888,7 @@ impl GlobalEnvironment {
                         args.push((child_name.clone(), elaborated));
                         source = child;
                     }
-                    program_scope.finish_metas()?;
+                    program_scope.finish_metas(self)?;
                     for (_, arguments) in &mut args {
                         for (_, argument) in arguments {
                             match argument {

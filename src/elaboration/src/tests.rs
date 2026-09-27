@@ -234,13 +234,12 @@ fn parses_implicit_and_goal_metavariables_as_atoms() {
         }
     ));
     assert!(matches!(
-        parse::str_parse_exp("?2").unwrap(),
+        parse::str_parse_exp("_2").unwrap(),
         SExp::Meta {
             kind: SurfaceMeta::Named(2),
             ..
         }
     ));
-    assert!(parse::str_parse_exp("?name").is_err());
 }
 
 #[test]
@@ -250,7 +249,7 @@ fn implicit_type_argument_is_solved_by_a_later_application() {
             \definition id: \forall (X: \Set(0)) -> X -> X :=
                 \fun (X: \Set(0)) => \fun (value: X) => value;
             \definition inferred: A := id _ x;
-            \definition named: A := id ?2 x;
+            \definition named: A := id _2 x;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -792,7 +791,7 @@ fn unsolved_question_mark_returns_a_structured_goal() {
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
-    let ElaborationError::UnsolvedGoals(goals) = error else {
+    let ElaborationError::Metavariables(goals) = error else {
         panic!("expected structured goals");
     };
     assert_eq!(goals.len(), 1);
@@ -801,7 +800,7 @@ fn unsolved_question_mark_returns_a_structured_goal() {
 }
 
 #[test]
-fn unsolved_underscore_is_an_ambiguity_error() {
+fn unsolved_underscore_reports_insufficient_information() {
     let source = r#"
         \module Goal(A: \Set(0), only_candidate: A) {
             \definition pending: A := _;
@@ -811,7 +810,7 @@ fn unsolved_underscore_is_an_ambiguity_error() {
     let mut environment = GlobalEnvironment::default();
     assert!(matches!(
         environment.add_new_module_to_root(&modules[0]),
-        Err(ElaborationError::AmbiguousImplicit(_))
+        Err(ElaborationError::Metavariables(_))
     ));
 }
 
@@ -822,7 +821,7 @@ fn conflicting_named_meta_constraints_are_structured() {
             \definition choose:
                 \forall (X: \Set(0)) -> X -> X -> X :=
                 \fun (X: \Set(0)) => \fun (left: X) => \fun (right: X) => left;
-            \definition impossible: A := choose ?2 a b;
+            \definition impossible: A := choose _2 a b;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -844,7 +843,7 @@ fn contextual_goal_reports_the_local_binder_context() {
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
-    let ElaborationError::UnsolvedGoals(goals) = error else {
+    let ElaborationError::Metavariables(goals) = error else {
         panic!("expected an unsolved contextual goal");
     };
     assert_eq!(goals.len(), 1);
@@ -921,7 +920,7 @@ fn module_parameter_hole_uses_the_same_structured_ambiguity() {
     let mut environment = GlobalEnvironment::default();
     assert!(matches!(
         environment.add_new_module_to_root(&modules[0]),
-        Err(ElaborationError::AmbiguousImplicit(_))
+        Err(ElaborationError::Metavariables(_))
     ));
 }
 
@@ -944,14 +943,14 @@ fn inductive_constructor_parameter_is_inferred_from_its_field() {
 fn rich_goal_format_contains_context_and_constraints() {
     let source = r#"
         \module Goal(A: \Set(0)) {
-            \definition pending: A := ?2;
+            \definition pending: A := _2;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
     let rendered = crate::metavariables::format_elaboration_error(environment.crate_env(), &error);
-    assert!(rendered.contains("?2"));
+    assert!(rendered.contains("_2"));
     assert!(rendered.contains("context:"));
     assert!(rendered.contains("constraints:"));
 }
@@ -986,13 +985,13 @@ fn dependency_ordered_module_errors_include_source_location() {
 fn goal_keeps_consumed_and_residual_related_constraints() {
     let source = r#"
         \module GoalHistory(A: \Set(0), a: A) {
-            \definition pending: \Prop := ?2 = a;
+            \definition pending: \Prop := _2 = a;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
-    let ElaborationError::UnsolvedGoals(goals) = error else {
+    let ElaborationError::Metavariables(goals) = error else {
         panic!("expected an unsolved goal");
     };
     assert_eq!(goals.len(), 1);
@@ -1008,18 +1007,18 @@ fn goal_keeps_consumed_and_residual_related_constraints() {
 }
 
 #[test]
-fn named_goals_share_but_bare_goals_are_fresh() {
+fn named_inference_variables_share_but_inspection_holes_are_fresh() {
     fn goal_count(source: &str) -> usize {
         let modules = parse::str_parse_modules(source).unwrap();
         let mut environment = GlobalEnvironment::default();
         match environment.add_new_module_to_root(&modules[0]).unwrap_err() {
-            ElaborationError::UnsolvedGoals(goals) => goals.len(),
+            ElaborationError::Metavariables(goals) => goals.len(),
             error => panic!("expected goals, found {error:?}"),
         }
     }
 
     assert_eq!(
-        goal_count(r#"\module Named { \definition pending: \Prop := ?2 = ?2; }"#),
+        goal_count(r#"\module Named { \definition pending: \Prop := _2 = _2; }"#),
         1
     );
     assert_eq!(
@@ -1330,13 +1329,15 @@ fn run_step_inference_with_metavariables_preserves_the_universe() {
         }];
         let state_ty = arena.exp_bound(0);
         let mut metas = MetaStore::default();
-        let hole = metas.fresh(
-            &env,
-            SurfaceMeta::Goal,
-            SourceSpan { start: 0, end: 1 },
-            &context,
-            context.len(),
-        );
+        let hole = metas
+            .fresh(
+                &env,
+                SurfaceMeta::Goal,
+                SourceSpan { start: 0, end: 1 },
+                &context,
+                context.len(),
+            )
+            .unwrap();
         // ((x: A) => A) ? still contains a goal, so inference must use
         // the elaborator path while retaining A's universe level.
         let family = arena.alloc(ExpNode::Lam {

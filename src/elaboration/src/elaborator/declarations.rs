@@ -9,7 +9,7 @@ impl GlobalEnvironment {
         binders: &[RightBind],
         surface_ty: &SExp,
         surface_body: &SExp,
-    ) -> Result<(Vec<SymbolId>, DefinedConstant), Vec<String>> {
+    ) -> Result<(Vec<SymbolId>, DefinedConstant), Vec<ElaborationError>> {
         if self.definition_type_is_clearly_pts(owner, surface_ty) {
             return Err(Vec::new());
         }
@@ -24,13 +24,13 @@ impl GlobalEnvironment {
             let body = match ValueTermExp::try_from(surface_body.clone()) {
                 Ok(body) => Some(body),
                 Err(error) => {
-                    errors.push(error);
+                    errors.push(error.into());
                     None
                 }
             };
             if let Some(body) = body {
                 self.metavariables.clear();
-                let attempt = (|| -> Result<_, String> {
+                let attempt = (|| -> Result<_, ElaborationError> {
                     let (mut scope, parameters) = self.program_associated_scope(owner)?;
                     let ty = scope.elaborate_value_type(&ty, self)?;
                     let body = scope.elaborate_value(&body, self)?;
@@ -74,7 +74,7 @@ impl GlobalEnvironment {
             let ty = ty.clone();
             let body = body.clone();
             self.metavariables.clear();
-            let attempt = (|| -> Result<_, String> {
+            let attempt = (|| -> Result<_, ElaborationError> {
                 let (mut scope, parameters) = self.program_associated_scope(owner)?;
                 let ty = scope.elaborate_computation_type(&ty, self)?;
                 let body = scope.elaborate_computation(&body, self)?;
@@ -96,10 +96,10 @@ impl GlobalEnvironment {
             }
         } else {
             if let Err(error) = computation_ty {
-                errors.push(error);
+                errors.push(error.into());
             }
             if let Err(error) = computation_body {
-                errors.push(error);
+                errors.push(error.into());
             }
         }
 
@@ -515,6 +515,7 @@ impl GlobalEnvironment {
             }
             let result: ValueTypeExp = result.clone().try_into()?;
             let result = scope.elaborate_value_type(&result, self)?;
+            scope.finish_metas(self)?;
             let crate::raw::program::ValueTypeNode::Inductive {
                 indspec,
                 parameters,

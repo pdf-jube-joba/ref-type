@@ -412,6 +412,9 @@ fn diagnostic(error: &elaboration::Diagnostic) -> Diagnostic {
                     context: goal.context.clone(),
                     judgement: goal.judgement.clone(),
                     constraints: goal.constraints.clone(),
+                    state: goal.state.clone(),
+                    solution: goal.solution.clone(),
+                    occurrences: goal.occurrences.iter().map(Location::from).collect(),
                 })
             })
             .collect(),

@@ -2,6 +2,7 @@ use crate::elaborator::ItemAccessResult;
 use crate::elaborator::profiling::ProfileTimer;
 use crate::hir::*;
 use crate::items::{ModItemDefinition, ModItemInductive, ModItemRecord};
+use crate::metavariables::ElaborationError;
 use crate::raw::calculus::{
     base_carrier, exp_contains_bound, instantiate, shift_bound_indices, type_head_normal,
 };
@@ -18,29 +19,29 @@ pub(crate) trait Handler {
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
-    ) -> Result<ItemAccessResult, String>;
+    ) -> Result<ItemAccessResult, ElaborationError>;
     fn associated_reference(&mut self, access: &LocalAccess, field: &Identifier, span: SourceSpan);
     fn field_projection(
         &mut self,
         local_ctx: &mut ExpContext,
         e: Exp,
         field_name: &Identifier,
-    ) -> Result<Exp, String>;
-    fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, String>;
+    ) -> Result<Exp, ElaborationError>;
+    fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, ElaborationError>;
     fn elaborate_boxed_computation_type(
         &mut self,
         expression: &SExp,
-    ) -> Result<ComputationType, String>;
+    ) -> Result<ComputationType, ElaborationError>;
     fn elaborate_boxed_program(
         &mut self,
         ty: &SExp,
         computation: &SExp,
-    ) -> Result<(ComputationType, ComputationTerm), String>;
+    ) -> Result<(ComputationType, ComputationTerm), ElaborationError>;
     fn elaborate_program_type_arguments(
         &mut self,
         expressions: &[SExp],
         expected: usize,
-    ) -> Result<Vec<ValueType>, String>;
+    ) -> Result<Vec<ValueType>, ElaborationError>;
     fn intern(&mut self, name: &str) -> SymbolId;
     fn symbol(&self, symbol: SymbolId) -> &str;
     fn fresh_meta(
@@ -48,13 +49,14 @@ pub(crate) trait Handler {
         kind: SurfaceMeta,
         span: SourceSpan,
         local_context: &ExpContext,
-    ) -> Exp;
+    ) -> Result<Exp, ElaborationError>;
+    fn record_source(&mut self, term: Exp, span: SourceSpan);
     fn intern_name(&mut self, name: &Identifier) -> SymbolId;
     fn reflect_program_expression(
         &mut self,
         parameter: resolve::hir::BindingId,
         expression: &SExp,
-    ) -> Result<Exp, String>;
+    ) -> Result<Exp, ElaborationError>;
 }
 
 #[derive(Debug, Clone)]
@@ -127,7 +129,7 @@ impl LocalScope {
         &mut self,
         binds: &[RightBind],
         handler: &mut impl Handler,
-    ) -> Result<Vec<(SymbolId, Exp)>, String> {
+    ) -> Result<Vec<(SymbolId, Exp)>, ElaborationError> {
         let mut result = vec![];
         for RightBind { vars, ty } in binds.iter() {
             let ty_elab = self.elab_exp(ty, handler)?;
@@ -147,7 +149,7 @@ impl LocalScope {
         &mut self,
         exp: Exp,
         handler: &mut impl Handler,
-    ) -> Result<Exp, String> {
+    ) -> Result<Exp, ElaborationError> {
         handler.infer(&mut self.typing_binds, exp)
     }
 
@@ -182,9 +184,9 @@ impl LocalScope {
         parameters: &[SExp],
         expected: usize,
         handler: &mut impl Handler,
-    ) -> Result<Vec<Exp>, String> {
+    ) -> Result<Vec<Exp>, ElaborationError> {
         if parameters.is_empty() && expected > 0 {
-            return Ok((0..expected)
+            return (0..expected)
                 .map(|_| {
                     handler.fresh_meta(
                         SurfaceMeta::Implicit,
@@ -192,13 +194,14 @@ impl LocalScope {
                         &self.typing_binds,
                     )
                 })
-                .collect());
+                .collect();
         }
         if parameters.len() != expected {
             return Err(format!(
                 "associated item expects {expected} type parameter(s), found {}",
                 parameters.len()
-            ));
+            )
+            .into());
         }
         parameters
             .iter()
@@ -211,7 +214,7 @@ impl LocalScope {
         constructors: &[Identifier],
         cases: &[(Identifier, SExp)],
         handler: &mut impl Handler,
-    ) -> Result<Vec<Exp>, String> {
+    ) -> Result<Vec<Exp>, ElaborationError> {
         Self::ordered_inductive_cases(constructors, cases, |case| &case.0)?
             .into_iter()
             .map(|case| self.elab_exp_rec(&case.1, handler))
@@ -222,13 +225,14 @@ impl LocalScope {
         constructors: &[Identifier],
         cases: &'a [T],
         name: impl Fn(&T) -> &Identifier,
-    ) -> Result<Vec<&'a T>, String> {
+    ) -> Result<Vec<&'a T>, ElaborationError> {
         if cases.len() != constructors.len() {
             return Err(format!(
                 "Expected {} inductive branches, found {}",
                 constructors.len(),
                 cases.len()
-            ));
+            )
+            .into());
         }
         let mut ordered = vec![None; constructors.len()];
         for case in cases {
@@ -237,13 +241,14 @@ impl LocalScope {
                 .iter()
                 .position(|constructor| constructor.as_str() == name.as_str())
             else {
-                return Err(format!("Unknown inductive constructor {}", name.as_str()));
+                return Err(format!("Unknown inductive constructor {}", name.as_str()).into());
             };
             if ordered[index].replace(case).is_some() {
                 return Err(format!(
                     "Duplicate inductive branch for constructor {}",
                     name.as_str()
-                ));
+                )
+                .into());
             }
         }
         ordered
@@ -255,6 +260,7 @@ impl LocalScope {
                         "Missing inductive branch for constructor {}",
                         constructor.as_str()
                     )
+                    .into()
                 })
             })
             .collect()
@@ -268,13 +274,14 @@ impl LocalScope {
         expected_type: Exp,
         field_count: usize,
         handler: &mut impl Handler,
-    ) -> Result<Exp, String> {
+    ) -> Result<Exp, ElaborationError> {
         if binders.len() != field_count {
             return Err(format!(
                 "Branch {} expects {field_count} field binder(s), found {}",
                 constructor.as_str(),
                 binders.len()
-            ));
+            )
+            .into());
         }
         let bindings_mark = self.bindings.len();
         let context_mark = self.typing_binds.len();
@@ -286,7 +293,8 @@ impl LocalScope {
                     return Err(format!(
                         "Too many field binders in branch {}",
                         constructor.as_str()
-                    ));
+                    )
+                    .into());
                 };
                 let var = handler.intern_name(binder);
                 typed_binders.push((var, ty));
@@ -314,7 +322,7 @@ impl LocalScope {
         &mut self,
         exp: &SExp,
         handler: &mut impl Handler,
-    ) -> Result<Exp, String> {
+    ) -> Result<Exp, ElaborationError> {
         let bindings = self.bindings.len();
         let depth = self.typing_binds.len();
         let e = self.elab_exp_rec(exp, handler);
@@ -333,7 +341,7 @@ impl LocalScope {
         bind: &Bind,
         body: &SExp,
         handler: &mut impl Handler,
-    ) -> Result<(Exp, Exp, Exp), String> {
+    ) -> Result<(Exp, Exp, Exp), ElaborationError> {
         match bind {
             Bind::Named(right_bind) => {
                 if right_bind.vars.len() != 1 {
@@ -400,13 +408,34 @@ impl LocalScope {
         }
     }
 
-    fn elab_exp_rec(&mut self, exp: &SExp, handler: &mut impl Handler) -> Result<Exp, String> {
+    fn elab_exp_rec(
+        &mut self,
+        exp: &SExp,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, ElaborationError> {
+        let result = self.elab_exp_inner(exp, handler)?;
+        let span = match exp {
+            SExp::AccessPath { access, .. } => Some(access.span()),
+            SExp::Meta { span, .. } => Some(*span),
+            _ => None,
+        };
+        if let Some(span) = span {
+            handler.record_source(result, span);
+        }
+        Ok(result)
+    }
+
+    fn elab_exp_inner(
+        &mut self,
+        exp: &SExp,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, ElaborationError> {
         match exp {
             SExp::Reflect {
                 parameter,
                 expression,
             } => handler.reflect_program_expression(*parameter, expression),
-            SExp::Meta { kind, span } => Ok(handler.fresh_meta(*kind, *span, &self.typing_binds)),
+            SExp::Meta { kind, span } => handler.fresh_meta(*kind, *span, &self.typing_binds),
             SExp::AccessPath { access, parameters } => {
                 // this includes (term binding) access path
 
@@ -427,7 +456,8 @@ impl LocalScope {
                             return Err(format!(
                                 "Defined constant {:?} cannot be applied with parameters",
                                 access
-                            ));
+                            )
+                            .into());
                         }
                         if !matches!(
                             handler.env().definition(definition),
@@ -435,7 +465,7 @@ impl LocalScope {
                         ) {
                             return Err(format!(
                                 "Program definitions require explicit Set reflection (^): '{access}'"
-                            ));
+                            ).into());
                         }
                         Ok(handler.arena().alloc(ExpNode::DefinedConstant(definition)))
                     }
@@ -449,13 +479,13 @@ impl LocalScope {
                         }
                         match handler.env().definition(definition) {
                             DefinedConstant::ProgramValue { body, .. } => {
-                                crate::raw::reflection::reflect_value(handler.env(), *body)
-                                    .map_err(|e| e.to_string())
+                                Ok(crate::raw::reflection::reflect_value(handler.env(), *body)
+                                    .map_err(|e| e.to_string())?)
                             }
-                            DefinedConstant::ProgramComputation { body, .. } => {
+                            DefinedConstant::ProgramComputation { body, .. } => Ok(
                                 crate::raw::reflection::reflect_computation(handler.env(), *body)
-                                    .map_err(|e| e.to_string())
-                            }
+                                    .map_err(|e| e.to_string())?,
+                            ),
                             _ => Err("Set reflection requires a Program definition".into()),
                         }
                     }
@@ -474,7 +504,9 @@ impl LocalScope {
                         if parameters.is_empty() {
                             Ok(exp)
                         } else {
-                            Err("Module parameter cannot be applied with parameters".to_string())
+                            Err(ElaborationError::Message(
+                                "Module parameter cannot be applied with parameters".to_string(),
+                            ))
                         }
                     }
                     ItemAccessResult::ProgramInductive(_)
@@ -482,7 +514,8 @@ impl LocalScope {
                     | ItemAccessResult::ProgramValueParameter(_)
                     | ItemAccessResult::Argument(_) => Err(format!(
                         "Program names require explicit Set reflection (^): '{access}'"
-                    )),
+                    )
+                    .into()),
                 }
             }
             // this includes accessing constructor of the inductive type, accessing field of record type
@@ -496,7 +529,7 @@ impl LocalScope {
                         let ItemAccessResult::ProgramInductive(item) = item else {
                             return Err(format!(
                                 "reflection of associated item '{field}' requires a Program datatype"
-                            ));
+                            ).into());
                         };
                         let count = handler
                             .env()
@@ -586,7 +619,7 @@ impl LocalScope {
                                 "Associated item {} not found in inductive type {}",
                                 field.as_str(),
                                 type_name.as_str()
-                            ))
+                            ).into())
                         }
                         ItemAccessResult::Record(record) => {
                             if field.as_str() == "#" {
@@ -647,7 +680,7 @@ impl LocalScope {
                                     "Associated item {} not found in structure {}",
                                     field.as_str(),
                                     record.type_name.as_str()
-                                ));
+                                ).into());
                             };
                             let var = handler.intern("structure");
                             Ok(handler.arena().alloc(ExpNode::Lam {
@@ -659,7 +692,7 @@ impl LocalScope {
                         _ => Err(format!(
                             "Expected inductive constructor or record type in base of associated access {:?}",
                             base
-                        )),
+                        ).into()),
                     }
                 } else {
                     // 2. otherwise, elab base first, then project field
@@ -678,7 +711,8 @@ impl LocalScope {
             SExp::MacroParameter(name) => Err(format!(
                 "Macro capture '${}' escaped template expansion",
                 name.as_str()
-            )),
+            )
+            .into()),
             SExp::Where { exp, clauses, span } => {
                 let declaration_mark = self.bindings.len();
                 let depth = self.typing_binds.len();
@@ -709,7 +743,7 @@ impl LocalScope {
                                 .map_err(|error| {
                                     format!("Local definition '{}': {error}", name.as_str())
                                 })?;
-                            Ok::<_, String>(value)
+                            Ok::<_, ElaborationError>(value)
                         })()
                         .inspect_err(|_| {
                             if let Some(span) = span {
@@ -893,7 +927,7 @@ impl LocalScope {
                             } = handler.arena().get(value_ty)
                                 && indspec == record.inductive
                             {
-                                return record
+                                return Ok(record
                                     .field_projection(handler.env(), value, field, &parameters)
                                     .ok_or_else(|| {
                                         format!(
@@ -901,7 +935,7 @@ impl LocalScope {
                                             field.as_str(),
                                             record.type_name.as_str()
                                         )
-                                    });
+                                    })?);
                             }
                         }
                         _ => {}
@@ -947,7 +981,8 @@ impl LocalScope {
                         return Err(format!(
                             "Expected inductive type in case access path {:?}",
                             path
-                        ));
+                        )
+                        .into());
                     }
                 };
 
@@ -1073,7 +1108,8 @@ impl LocalScope {
                         return Err(format!(
                             "Expected inductive type in ind elim prim access path {:?}",
                             path
-                        ));
+                        )
+                        .into());
                     }
                 };
 
@@ -1344,7 +1380,8 @@ impl LocalScope {
                         return Err(format!(
                             "Expected structure type in structure literal access path {:?}",
                             access
-                        ));
+                        )
+                        .into());
                     }
                 };
                 let mut supplied = std::collections::HashMap::new();
@@ -1353,12 +1390,13 @@ impl LocalScope {
                         return Err(format!(
                             "Structure field {} was supplied more than once",
                             field_name.as_str()
-                        ));
+                        )
+                        .into());
                     }
                 }
                 for supplied_name in supplied.keys() {
                     if !declared_names.iter().any(|name| name == supplied_name) {
-                        return Err(format!("Unknown structure field {supplied_name}"));
+                        return Err(format!("Unknown structure field {supplied_name}").into());
                     }
                 }
                 let mut ordered = Vec::with_capacity(declared_names.len());
@@ -1434,18 +1472,18 @@ impl LocalScope {
             SExp::Exists { bind } => match bind {
                 Bind::Named(rightbind) => {
                     if rightbind.vars.len() >= 2 {
-                        return Err(
+                        return Err(ElaborationError::Message(
                             "Elaboration of multiple named binds in Exists is not implemented"
                                 .to_string(),
-                        );
+                        ));
                     }
                     let ty_elab = self.elab_exp_rec(&rightbind.ty, handler)?;
                     Ok(handler.arena().alloc(ExpNode::Exists { set: ty_elab }))
                 }
-                Bind::SubsetWithProof { .. } => Err(
+                Bind::SubsetWithProof { .. } => Err(ElaborationError::Message(
                     "Elaboration of named bind or subset with proof in Exists is not implemented"
                         .to_string(),
-                ),
+                )),
                 Bind::Subset { var, ty, predicate } => {
                     let ty_elab = self.elab_exp_rec(ty, handler)?;
                     let var = handler.intern_name(var);

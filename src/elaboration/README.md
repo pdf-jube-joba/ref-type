@@ -9,7 +9,9 @@
 | `items.rs` | 型検査済みの定義・帰納型・record の内部参照 |
 | `elaborator/` | HIR の ID と workspace の対応、型推論、型に応じた構文の解釈 |
 | `elaborator/analysis.rs` | 型・名前参照・出力を保持する semantic observations |
-| `metavariables.rs` | 宣言単位の metavariable、constraint、goal |
+| `metavariables.rs` | 論理側の contextual metavariable と制約解決 |
+| `metavariables/diagnostics.rs` | 論理・Program 共通の goal と制約の診断 |
+| `elaborator/program_term_elaborator/inference.rs` | Program の contextual metavariable と制約解決 |
 | `raw/` | 内部の項・環境・代入・型推論・評価 |
 | `lowering/` | 解決済み raw IR から kernel 構文への変換と登録 |
 

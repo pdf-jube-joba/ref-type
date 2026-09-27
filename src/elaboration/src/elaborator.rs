@@ -109,18 +109,24 @@ impl term_elaborator::Handler for GlobalEnvironment {
         kind: SurfaceMeta,
         span: SourceSpan,
         local_context: &ExpContext,
-    ) -> Exp {
+    ) -> Result<Exp, ElaborationError> {
         let mut context = self.module_manager.current_context(&self.crate_env);
         context.extend(local_context.iter().cloned());
         self.metavariables
             .fresh(&self.crate_env, kind, span, &context, local_context.len())
+            .map_err(Into::into)
+    }
+
+    fn record_source(&mut self, term: Exp, span: SourceSpan) {
+        self.metavariables
+            .record_source(&self.crate_env, term, span);
     }
 
     fn reflect_program_expression(
         &mut self,
         parameter: resolve::hir::BindingId,
         expression: &SExp,
-    ) -> Result<Exp, String> {
+    ) -> Result<Exp, ElaborationError> {
         let binding = self
             .module_manager
             .hir_bindings
@@ -145,14 +151,18 @@ impl term_elaborator::Handler for GlobalEnvironment {
             ModuleParameterKind::ProgramType => {
                 let ty = scope
                     .elaborate_value_type(&ValueTypeExp::try_from(expression.clone())?, self)?;
-                crate::raw::reflection::reflect_value_type(&self.crate_env, ty)
-                    .map_err(|error| error.to_string())
+                Ok(
+                    crate::raw::reflection::reflect_value_type(&self.crate_env, ty)
+                        .map_err(|error| error.to_string())?,
+                )
             }
             ModuleParameterKind::ProgramValue { .. } => {
                 let value =
                     scope.elaborate_value(&ValueTermExp::try_from(expression.clone())?, self)?;
-                crate::raw::reflection::reflect_value(&self.crate_env, value)
-                    .map_err(|error| error.to_string())
+                Ok(
+                    crate::raw::reflection::reflect_value(&self.crate_env, value)
+                        .map_err(|error| error.to_string())?,
+                )
             }
             ModuleParameterKind::Pts { .. } => {
                 Err("only Program parameters support Set reflection".into())
@@ -167,10 +177,11 @@ impl term_elaborator::Handler for GlobalEnvironment {
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
-    ) -> Result<ItemAccessResult, String> {
-        self.module_manager
+    ) -> Result<ItemAccessResult, ElaborationError> {
+        Ok(self
+            .module_manager
             .get_item(&self.crate_env, access_path)
-            .ok_or_else(|| format!("Failed to access item at path {access_path:?}"))
+            .ok_or_else(|| format!("Failed to access item at path {access_path:?}"))?)
     }
 
     fn associated_reference(&mut self, access: &LocalAccess, field: &Identifier, span: SourceSpan) {
@@ -183,7 +194,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         local_ctx: &mut ExpContext,
         e: Exp,
         field_name: &Identifier,
-    ) -> Result<Exp, String> {
+    ) -> Result<Exp, ElaborationError> {
         let infer_type_e = self.infer(local_ctx, e).map_err(|error| {
             format!("Failed to infer type of expression for field projection: {error}")
         })?;
@@ -194,7 +205,9 @@ impl term_elaborator::Handler for GlobalEnvironment {
             parameters,
         } = self.crate_env.arena().get(infer_type_e)
         else {
-            return Err("Expected inductive type for field projection".to_string());
+            return Err(ElaborationError::Message(
+                "Expected inductive type for field projection".to_string(),
+            ));
         };
 
         let record = self
@@ -203,13 +216,13 @@ impl term_elaborator::Handler for GlobalEnvironment {
             .ok_or("Inductive type is not a record type".to_string())?;
 
         let Some(exp) = record.field_projection(&self.crate_env, e, field_name, &parameters) else {
-            return Err(format!("Field {} not found in record", field_name.as_str()));
+            return Err(format!("Field {} not found in record", field_name.as_str()).into());
         };
 
         Ok(exp)
     }
 
-    fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, String> {
+    fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, ElaborationError> {
         let mut ctx = self.module_manager.current_context(&self.crate_env);
         let module_context_len = ctx.len();
         ctx.append(local_ctx);
@@ -233,16 +246,18 @@ impl term_elaborator::Handler for GlobalEnvironment {
                 })
         };
         *local_ctx = ctx.split_off(module_context_len);
-        result
+        Ok(result?)
     }
 
     fn elaborate_boxed_computation_type(
         &mut self,
         expression: &SExp,
-    ) -> Result<crate::raw::program::ComputationType, String> {
+    ) -> Result<crate::raw::program::ComputationType, ElaborationError> {
         let mut scope = program_term_elaborator::ProgramScope::new();
         let computation_ty = ComputationTypeExp::try_from(expression.clone())?;
-        scope.elaborate_computation_type(&computation_ty, self)
+        let ty = scope.elaborate_computation_type(&computation_ty, self)?;
+        scope.finish_metas(self)?;
+        Ok(ty)
     }
 
     fn elaborate_boxed_program(
@@ -254,7 +269,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
             crate::raw::program::ComputationType,
             crate::raw::program::ComputationTerm,
         ),
-        String,
+        ElaborationError,
     > {
         let mut scope = program_term_elaborator::ProgramScope::new();
         let ty = ComputationTypeExp::try_from(ty.clone())?;
@@ -269,12 +284,13 @@ impl term_elaborator::Handler for GlobalEnvironment {
         &mut self,
         expressions: &[SExp],
         expected: usize,
-    ) -> Result<Vec<crate::raw::program::ValueType>, String> {
+    ) -> Result<Vec<crate::raw::program::ValueType>, ElaborationError> {
         if expressions.len() != expected {
             return Err(format!(
                 "reflected Program item expects {expected} type parameter(s), found {}",
                 expressions.len()
-            ));
+            )
+            .into());
         }
         let expressions = expressions
             .iter()
@@ -282,10 +298,12 @@ impl term_elaborator::Handler for GlobalEnvironment {
             .map(ValueTypeExp::try_from)
             .collect::<Result<Vec<_>, _>>()?;
         let mut scope = program_term_elaborator::ProgramScope::new();
-        expressions
+        let arguments = expressions
             .iter()
             .map(|expression| scope.elaborate_value_type(expression, self))
-            .collect()
+            .collect::<Result<Vec<_>, _>>()?;
+        scope.finish_metas(self)?;
+        Ok(arguments)
     }
 }
 
@@ -302,7 +320,7 @@ impl GlobalEnvironment {
         &self.crate_env
     }
 
-    fn finish_metavariables(&self) -> Result<(), ElaborationError> {
+    fn finish_metavariables(&mut self) -> Result<(), ElaborationError> {
         self.metavariables.finish(&self.crate_env)
     }
 

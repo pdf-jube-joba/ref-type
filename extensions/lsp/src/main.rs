@@ -68,22 +68,28 @@ impl Server {
         let result = self.database.check(&snapshot);
         let mut grouped: BTreeMap<PathBuf, Vec<Value>> = BTreeMap::new();
         for diagnostic in result.all_diagnostics() {
-            let path = diagnostic
-                .location
-                .as_ref()
-                .map_or(file, |location| location.file.as_path());
-            let range = diagnostic
-                .location
-                .as_ref()
-                .and_then(|location| {
-                    snapshot
-                        .source(&location.file)
-                        .map(|source| range(&source.text, &location.range))
-                })
-                .unwrap_or_else(zero_range);
-            grouped.entry(path.to_path_buf()).or_default().push(json!({
-                "range": range, "severity": 1, "source": "ref", "message": diagnostic.message
-            }));
+            let mut locations: Vec<_> = diagnostic
+                .goals
+                .iter()
+                .flat_map(|goal| &goal.occurrences)
+                .map(Some)
+                .collect();
+            if locations.is_empty() {
+                locations.push(diagnostic.location.as_ref());
+            }
+            for location in locations {
+                let path = location.map_or(file, |location| location.file.as_path());
+                let range = location
+                    .and_then(|location| {
+                        snapshot
+                            .source(&location.file)
+                            .map(|source| range(&source.text, &location.range))
+                    })
+                    .unwrap_or_else(zero_range);
+                grouped.entry(path.to_path_buf()).or_default().push(json!({
+                    "range": range, "severity": 1, "source": "ref", "message": diagnostic.message
+                }));
+            }
         }
         let mut paths = self.published.remove(&entry).unwrap_or_default();
         paths.extend(grouped.keys().cloned());
@@ -137,9 +143,16 @@ impl Server {
                 .unwrap_or(Value::Null),
             "textDocument/hover" => result
                 .goals()
-                .find(|goal| goal.location.contains(&file, offset))
+                .find(|goal| {
+                    goal.occurrences
+                        .iter()
+                        .any(|location| location.contains(&file, offset))
+                })
                 .map(|goal| {
-                    let mut detail = goal.context.clone();
+                    let mut detail = format!("{}: {}\n{}", goal.name, goal.state, goal.context);
+                    if let Some(solution) = &goal.solution {
+                        detail.push_str(&format!("\nsolution: {solution}"));
+                    }
                     if let Some(judgement) = &goal.judgement {
                         detail.push_str("\n⊢ ");
                         detail.push_str(judgement);
@@ -347,6 +360,109 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn open_document(text: &str) -> (Server, Connection, Connection, String) {
+        let file = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/ng/metavariables/unsolved_goal.ref")
+            .canonicalize()
+            .unwrap();
+        let uri = Url::from_file_path(file).unwrap().to_string();
+        let (connection, client) = Connection::memory();
+        let mut server = Server::new();
+        server
+            .notification(
+                &connection,
+                Notification::new(
+                    "textDocument/didOpen".into(),
+                    json!({ "textDocument": { "uri": uri, "text": text, "version": 1 } }),
+                ),
+            )
+            .unwrap();
+        (server, connection, client, uri)
+    }
+
+    fn published_diagnostics(client: &Connection, uri: &str) -> Vec<Value> {
+        let Message::Notification(notification) = client.receiver.try_recv().unwrap() else {
+            panic!("expected a diagnostics notification");
+        };
+        assert_eq!(notification.method, "textDocument/publishDiagnostics");
+        assert_eq!(notification.params["uri"], uri);
+        assert!(client.receiver.try_recv().is_err());
+        notification.params["diagnostics"]
+            .as_array()
+            .unwrap()
+            .clone()
+    }
+
+    #[test]
+    fn editing_an_inspection_hole_publishes_and_clears_its_exact_range() {
+        let text = r"\module Inspection(A: \Set, a: A) {
+  \definition id: \forall (X: \Set) -> X -> X :=
+    \fun (X: \Set) => \fun (x: X) => x;
+  /* α😀 */ \definition pending: A := id A a;
+}";
+        let (mut server, connection, client, uri) = open_document(text);
+        let initial = published_diagnostics(&client, &uri);
+        assert!(initial.is_empty(), "{initial:?}");
+        let column = r"  /* α😀 */ \definition pending: A := id "
+            .encode_utf16()
+            .count();
+        let span = json!({
+            "start": { "line": 3, "character": column },
+            "end": { "line": 3, "character": column + 1 }
+        });
+        for (version, replacement) in [(2, "?"), (3, "A")] {
+            server
+                .notification(
+                    &connection,
+                    Notification::new(
+                        "textDocument/didChange".into(),
+                        json!({
+                            "textDocument": { "uri": uri, "version": version },
+                            "contentChanges": [{ "range": span, "text": replacement }]
+                        }),
+                    ),
+                )
+                .unwrap();
+            let diagnostics = published_diagnostics(&client, &uri);
+            if replacement == "?" {
+                assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+                assert_eq!(diagnostics[0]["range"], span);
+                assert_eq!(diagnostics[0]["severity"], 1);
+                assert!(
+                    diagnostics[0]["message"]
+                        .as_str()
+                        .unwrap()
+                        .contains("solved (explicit inspection hole)"),
+                    "{diagnostics:?}"
+                );
+                let hover = server.request(&Request::new(
+                    1.into(),
+                    "textDocument/hover".into(),
+                    json!({ "textDocument": { "uri": uri }, "position": span["start"] }),
+                ));
+                let detail = hover["contents"]["value"].as_str().unwrap();
+                assert!(detail.contains("solution: A"), "{detail}");
+            } else {
+                assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn each_metavariable_occurrence_gets_its_own_diagnostic() {
+        for token in ["?", "_6"] {
+            let text = format!(r"\module M {{ \definition pending: \Prop := {token} = {token}; }}");
+            let (_, _connection, client, uri) = open_document(&text);
+            let diagnostics = published_diagnostics(&client, &uri);
+            let expected: Vec<_> = text
+                .match_indices(token)
+                .map(|(start, _)| range(&text, &(start..start + token.len())))
+                .collect();
+            let actual: Vec<_> = diagnostics.iter().map(|d| d["range"].clone()).collect();
+            assert_eq!(actual, expected, "{diagnostics:?}");
+        }
+    }
 
     #[test]
     fn positions_use_utf16_columns() {

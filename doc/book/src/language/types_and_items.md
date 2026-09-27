@@ -83,8 +83,9 @@ module-level または型関連 item の `\definition` として定義する。
 Program value の確認・推論には `\vcheck`、`\vinfer` を使い、computation には
 `\ccheck`、`\cinfer`、`\ceval`、`\cnormalize` を使う。`\definition` は体系間で共通だが、
 `\check`、`\infer`、`\eval`、`\normalize` は Set/Prop 専用である。
-Program の各カテゴリでも `_`、`?`、`?N` を使える。型注釈や datatype parameter
-に現れる metavariable は、その Program judgement 内の制約から解決される。
+Program の各カテゴリでも `_`、`_0`、`?` を使える。
+型注釈や datatype parameter に現れる推論変数は、その宣言内の制約から解決される。
+`?` の診断には value または computation の期待型と文脈を表示する。
 
 PTS structure の field は宣言順に依存できる。たとえば次の `value` の型は先行する
 `carrier` projection によって定まる。

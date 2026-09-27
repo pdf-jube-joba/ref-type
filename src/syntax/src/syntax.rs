@@ -9,11 +9,11 @@ pub struct SourceSpan {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SurfaceMeta {
-    /// `_`: solve by constraints, but report ambiguity rather than a goal.
+    /// `_`: a fresh inference variable, solved by constraints.
     Implicit,
-    /// Bare `?`: a fresh proof-search goal at every occurrence.
+    /// Bare `?`: an inspection hole, reported even when constraints solve it.
     Goal,
-    /// `?N`: occurrences with the same number share one metavariable within
+    /// `_N`: occurrences with the same number share one metavariable within
     /// the current elaboration unit.
     Named(u32),
 }
