@@ -66,7 +66,7 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
         {
             match env
                 .module_parameter_opt(id)
-                .map(|p| p.kind.clone())
+                .map(|p| p.kind)
                 .unwrap_or(ModuleParameterKind::ProgramType)
             {
                 ModuleParameterKind::Pts { ty } => pending.push(Term::Logical(ty)),

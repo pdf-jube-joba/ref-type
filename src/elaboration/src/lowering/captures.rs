@@ -251,7 +251,7 @@ impl Lowerer<'_> {
                     }
                     ModuleParameterKind::ProgramValue { ty } => {
                         if program {
-                            Ok(this.value_type(ty)?.into())
+                            Ok(this.value_type(ty)?)
                         } else {
                             let ty = raw::reflection::reflect_value_type(this.raw, ty)
                                 .map_err(|e| e.to_string())?;

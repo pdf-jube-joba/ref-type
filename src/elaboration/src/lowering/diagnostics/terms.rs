@@ -56,7 +56,7 @@ impl Renderer<'_> {
                 var,
                 set,
                 predicate,
-            } => self.subset(*var, (*set).into(), (*predicate).into()),
+            } => self.subset(*var, *set, *predicate),
             SubsetIntro {
                 superset,
                 subset,
@@ -65,10 +65,10 @@ impl Renderer<'_> {
             } => self.call(
                 "into",
                 &[
-                    (*superset).into(),
-                    (*subset).into(),
-                    (*element).into(),
-                    (*proof).into(),
+                    (*superset),
+                    (*subset),
+                    (*element),
+                    (*proof),
                 ],
             ),
             Continue {
@@ -77,7 +77,7 @@ impl Renderer<'_> {
                 next,
             } => self.call(
                 "continue",
-                &[(*state_ty).into(), (*result_ty).into(), (*next).into()],
+                &[(*state_ty), (*result_ty), (*next)],
             ),
             Finish {
                 state_ty,
@@ -85,7 +85,7 @@ impl Renderer<'_> {
                 output,
             } => self.call(
                 "finish",
-                &[(*state_ty).into(), (*result_ty).into(), (*output).into()],
+                &[(*state_ty), (*result_ty), (*output)],
             ),
             SetRun {
                 state_ty,
@@ -96,11 +96,11 @@ impl Renderer<'_> {
             } => self.call(
                 "run",
                 &[
-                    (*state_ty).into(),
-                    (*result_ty).into(),
-                    (*step).into(),
-                    (*initial).into(),
-                    (*accessibility).into(),
+                    (*state_ty),
+                    (*result_ty),
+                    (*step),
+                    (*initial),
+                    (*accessibility),
                 ],
             ),
             SetRunCase {
@@ -114,13 +114,13 @@ impl Renderer<'_> {
             } => self.call(
                 "runCase",
                 &[
-                    (*state_ty).into(),
-                    (*result_ty).into(),
-                    (*step).into(),
-                    (*initial).into(),
-                    (*transition).into(),
-                    (*accessibility).into(),
-                    (*transition_equality).into(),
+                    (*state_ty),
+                    (*result_ty),
+                    (*step),
+                    (*initial),
+                    (*transition),
+                    (*accessibility),
+                    (*transition_equality),
                 ],
             ),
             Recursor {
@@ -144,16 +144,16 @@ impl Renderer<'_> {
             BoxProgram {
                 program_ty,
                 program,
-            } => self.call("box", &[(*program_ty).into(), (*program).into()]),
+            } => self.call("box", &[(*program_ty), (*program)]),
             ForceBox { program_ty, boxed } => {
-                self.call("squash", &[(*program_ty).into(), (*boxed).into()])
+                self.call("squash", &[(*program_ty), (*boxed)])
             }
             BoxApp {
                 function, argument, ..
-            } => self.call("boxapp", &[(*function).into(), (*argument).into()]),
+            } => self.call("boxapp", &[(*function), (*argument)]),
             BoxTypeApp {
                 function, argument, ..
-            } => self.call("boxapp", &[(*function).into(), (*argument).into()]),
+            } => self.call("boxapp", &[(*function), (*argument)]),
             TakeSet {
                 domain,
                 codomain,
@@ -163,11 +163,11 @@ impl Renderer<'_> {
             } => self.call(
                 "Take",
                 &[
-                    (*domain).into(),
-                    (*codomain).into(),
-                    (*map).into(),
-                    (*existence).into(),
-                    (*uniqueness).into(),
+                    (*domain),
+                    (*codomain),
+                    (*map),
+                    (*existence),
+                    (*uniqueness),
                 ],
             ),
             IndCtor {
@@ -177,7 +177,7 @@ impl Renderer<'_> {
             } => self.inductive(
                 *inductive,
                 Some(*constructor),
-                parameters.iter().copied().map(Into::into).collect(),
+                parameters.to_vec(),
             ),
             IndElim {
                 inductive,
@@ -198,36 +198,36 @@ impl Renderer<'_> {
                 branches,
             } => self.case(
                 *inductive,
-                (*scrutinee).into(),
+                *scrutinee,
                 binders,
-                branches.iter().copied().map(Into::into).collect(),
+                branches.to_vec(),
             ),
-            PowerSet { set } => self.call("Pow", &[(*set).into()]),
+            PowerSet { set } => self.call("Pow", &[(*set)]),
             TypeLift { superset, subset } => {
-                self.call("Cast", &[(*superset).into(), (*subset).into()])
+                self.call("Cast", &[(*superset), (*subset)])
             }
             RunStep {
                 state_ty,
                 result_ty,
-            } => self.call("RunStep", &[(*state_ty).into(), (*result_ty).into()]),
-            BoxType { program_ty } => self.call("Box", &[(*program_ty).into()]),
+            } => self.call("RunStep", &[(*state_ty), (*result_ty)]),
+            BoxType { program_ty } => self.call("Box", &[(*program_ty)]),
             IndType {
                 inductive,
                 parameters,
             } => self.inductive(
                 *inductive,
                 None,
-                parameters.iter().copied().map(Into::into).collect(),
+                parameters.to_vec(),
             ),
-            IdRefl { element } => self.call("refl", &[(*element).into()]),
-            ExistsIntro { element, set } => self.call("exact", &[(*element).into(), (*set).into()]),
+            IdRefl { element } => self.call("refl", &[(*element)]),
+            ExistsIntro { element, set } => self.call("exact", &[(*element), (*set)]),
             SubsetElim {
                 element,
                 subset,
                 superset,
             } => self.call(
                 "subset_elim",
-                &[(*element).into(), (*subset).into(), (*superset).into()],
+                &[(*element), (*subset), (*superset)],
             ),
             IdElim {
                 var,
@@ -239,12 +239,12 @@ impl Renderer<'_> {
                 equality,
             } => self.id_elim(
                 *var,
-                (*left).into(),
-                (*right).into(),
-                (*ty).into(),
-                (*predicate).into(),
-                (*base).into(),
-                (*equality).into(),
+                *left,
+                *right,
+                *ty,
+                *predicate,
+                *base,
+                *equality,
             ),
             TakeProp {
                 domain,
@@ -254,10 +254,10 @@ impl Renderer<'_> {
             } => self.call(
                 "TakeProp",
                 &[
-                    (*domain).into(),
-                    (*proposition).into(),
-                    (*map).into(),
-                    (*existence).into(),
+                    (*domain),
+                    (*proposition),
+                    (*map),
+                    (*existence),
                 ],
             ),
             TakeEq {
@@ -270,12 +270,12 @@ impl Renderer<'_> {
             } => self.call(
                 "takeelim",
                 &[
-                    (*func).into(),
-                    (*domain).into(),
-                    (*codomain).into(),
-                    (*element).into(),
-                    (*existence).into(),
-                    (*uniqueness).into(),
+                    (*func),
+                    (*domain),
+                    (*codomain),
+                    (*element),
+                    (*existence),
+                    (*uniqueness),
                 ],
             ),
             SetExt {
@@ -286,10 +286,10 @@ impl Renderer<'_> {
             } => self.call(
                 "axiom:setext",
                 &[
-                    (*left).into(),
-                    (*right).into(),
-                    (*left_to_right).into(),
-                    (*right_to_left).into(),
+                    (*left),
+                    (*right),
+                    (*left_to_right),
+                    (*right_to_left),
                 ],
             ),
             FunExt {
@@ -298,7 +298,7 @@ impl Renderer<'_> {
                 pointwise,
             } => self.call(
                 "axiom:funext",
-                &[(*left).into(), (*right).into(), (*pointwise).into()],
+                &[(*left), (*right), (*pointwise)],
             ),
             ClassicalIndefiniteChoice {
                 domain,
@@ -306,7 +306,7 @@ impl Renderer<'_> {
                 inhabited,
             } => self.call(
                 "axiom:classicalIndefiniteChoice",
-                &[(*domain).into(), (*family).into(), (*inhabited).into()],
+                &[(*domain), (*family), (*inhabited)],
             ),
             AccIntro {
                 state_ty,
@@ -317,11 +317,11 @@ impl Renderer<'_> {
             } => self.call(
                 "accintro",
                 &[
-                    (*state_ty).into(),
-                    (*result_ty).into(),
-                    (*step).into(),
-                    (*state).into(),
-                    (*predecessors).into(),
+                    (*state_ty),
+                    (*result_ty),
+                    (*step),
+                    (*state),
+                    (*predecessors),
                 ],
             ),
             AccDescent {
@@ -335,13 +335,13 @@ impl Renderer<'_> {
             } => self.call(
                 "accdescent",
                 &[
-                    (*state_ty).into(),
-                    (*result_ty).into(),
-                    (*step).into(),
-                    (*from).into(),
-                    (*to).into(),
-                    (*accessibility).into(),
-                    (*transition).into(),
+                    (*state_ty),
+                    (*result_ty),
+                    (*step),
+                    (*from),
+                    (*to),
+                    (*accessibility),
+                    (*transition),
                 ],
             ),
             Pred {
@@ -350,7 +350,7 @@ impl Renderer<'_> {
                 element,
             } => self.call(
                 "In",
-                &[(*superset).into(), (*subset).into(), (*element).into()],
+                &[(*superset), (*subset), (*element)],
             ),
             Equal { left, right } => Term::new(
                 format!(
@@ -360,7 +360,7 @@ impl Renderer<'_> {
                 ),
                 1,
             ),
-            Exists { set } => self.call("exists", &[(*set).into()]),
+            Exists { set } => self.call("exists", &[(*set)]),
             Acc {
                 state_ty,
                 result_ty,
@@ -369,20 +369,20 @@ impl Renderer<'_> {
             } => self.call(
                 "Acc",
                 &[
-                    (*state_ty).into(),
-                    (*result_ty).into(),
-                    (*step).into(),
-                    (*state).into(),
+                    (*state_ty),
+                    (*result_ty),
+                    (*step),
+                    (*state),
                 ],
             ),
-            ThunkValue { computation } => self.call("thunk", &[(*computation).into()]),
+            ThunkValue { computation } => self.call("thunk", &[(*computation)]),
             ProgramContinue {
                 state_ty,
                 result_ty,
                 next,
             } => self.call(
                 "continue",
-                &[(*state_ty).into(), (*result_ty).into(), (*next).into()],
+                &[(*state_ty), (*result_ty), (*next)],
             ),
             ProgramFinish {
                 state_ty,
@@ -390,7 +390,7 @@ impl Renderer<'_> {
                 output,
             } => self.call(
                 "finish",
-                &[(*state_ty).into(), (*result_ty).into(), (*output).into()],
+                &[(*state_ty), (*result_ty), (*output)],
             ),
             InductiveConstructor {
                 inductive,
@@ -400,24 +400,24 @@ impl Renderer<'_> {
             } => self.datatype_constructor(
                 *inductive,
                 *constructor,
-                parameters.iter().copied().map(Into::into).collect(),
-                fields.iter().copied().map(Into::into).collect(),
+                parameters.to_vec(),
+                fields.to_vec(),
             ),
-            Thunk { computation_ty } => self.call("U", &[(*computation_ty).into()]),
+            Thunk { computation_ty } => self.call("U", &[(*computation_ty)]),
             ProgramRunStep {
                 state_ty,
                 result_ty,
-            } => self.call("RunStep", &[(*state_ty).into(), (*result_ty).into()]),
+            } => self.call("RunStep", &[(*state_ty), (*result_ty)]),
             Inductive {
                 inductive,
                 parameters,
             } => self.datatype(
                 *inductive,
                 None,
-                parameters.iter().copied().map(Into::into).collect(),
+                parameters.to_vec(),
             ),
-            Return { value } => self.call("return", &[(*value).into()]),
-            Force { value } => self.call("force", &[(*value).into()]),
+            Return { value } => self.call("return", &[(*value)]),
+            Force { value } => self.call("force", &[(*value)]),
             Sequence {
                 var,
                 value_ty,
@@ -425,9 +425,9 @@ impl Renderer<'_> {
                 body,
             } => self.let_term(
                 *var,
-                (*value_ty).into(),
-                (*computation).into(),
-                (*body).into(),
+                *value_ty,
+                *computation,
+                *body,
                 true,
             ),
             ValueLet {
@@ -437,9 +437,9 @@ impl Renderer<'_> {
                 body,
             } => self.let_term(
                 *var,
-                (*value_ty).into(),
-                (*value).into(),
-                (*body).into(),
+                *value_ty,
+                *value,
+                *body,
                 false,
             ),
             ProgramCase {
@@ -449,9 +449,9 @@ impl Renderer<'_> {
                 branches,
             } => self.case(
                 *inductive,
-                (*scrutinee).into(),
+                *scrutinee,
                 binders,
-                branches.iter().copied().map(Into::into).collect(),
+                branches.to_vec(),
             ),
             Run {
                 state_ty,
@@ -462,11 +462,11 @@ impl Renderer<'_> {
             } => self.call(
                 "run",
                 &[
-                    (*state_ty).into(),
-                    (*result_ty).into(),
-                    (*step).into(),
-                    (*initial).into(),
-                    (*accessibility).into(),
+                    (*state_ty),
+                    (*result_ty),
+                    (*step),
+                    (*initial),
+                    (*accessibility),
                 ],
             ),
             RunCase {
@@ -480,16 +480,16 @@ impl Renderer<'_> {
             } => self.call(
                 "runCase",
                 &[
-                    (*state_ty).into(),
-                    (*result_ty).into(),
-                    (*step).into(),
-                    (*initial).into(),
-                    (*transition).into(),
-                    (*accessibility).into(),
-                    (*transition_equality).into(),
+                    (*state_ty),
+                    (*result_ty),
+                    (*step),
+                    (*initial),
+                    (*transition),
+                    (*accessibility),
+                    (*transition_equality),
                 ],
             ),
-            ReturnType { value_ty } => self.call("F", &[(*value_ty).into()]),
+            ReturnType { value_ty } => self.call("F", &[(*value_ty)]),
         }
     }
 }

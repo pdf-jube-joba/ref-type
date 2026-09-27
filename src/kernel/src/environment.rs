@@ -190,12 +190,11 @@ impl Environment {
                 e = next;
                 continue;
             }
-            if let Some(next) = crate::reduction::root(self, e)? {
-                if next != e {
+            if let Some(next) = crate::reduction::root(self, e)?
+                && next != e {
                     e = next;
                     continue;
                 }
-            }
             let next = crate::reduction::map_head(self, e, |child| self.whnf(child))?;
             if next == e {
                 self.heads.borrow_mut().insert(expression, e);

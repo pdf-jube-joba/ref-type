@@ -177,11 +177,10 @@ impl<'a> Checker<'a> {
             depth: usize,
             out: &mut std::collections::HashSet<usize>,
         ) {
-            if let Node::Bound(i) = *arena.read(e) {
-                if i >= depth {
+            if let Node::Bound(i) = *arena.read(e)
+                && i >= depth {
                     out.insert(i - depth);
                 }
-            }
             for (child, binders) in arena.children(e) {
                 indices(arena, child, depth + binders, out);
             }
@@ -304,8 +303,8 @@ impl<'a> Checker<'a> {
                 constraints: 0,
             });
         }
-        if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some() {
-            if let Ok(Some((path, left, right))) = crate::reduction::first_difference(
+        if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some()
+            && let Ok(Some((path, left, right))) = crate::reduction::first_difference(
                 self.env,
                 self.metas.zonk(self.arena(), inferred)?,
                 self.metas.zonk(self.arena(), expected)?,
@@ -328,7 +327,6 @@ impl<'a> Checker<'a> {
                 show(self.arena(), left, 0, &mut 50);
                 show(self.arena(), right, 0, &mut 50);
             }
-        }
         Err(Error::TypeMismatch(Box::new(
             crate::metavariables::TypeMismatch {
                 arena: self.env.arena.clone(),
@@ -1756,7 +1754,6 @@ impl<'a> Checker<'a> {
             arity = body;
         }
         let n = expected_domains.len();
-        let parameters = parameters;
         let mut instance = self.alloc(Node::IndType {
             inductive,
             parameters: parameters

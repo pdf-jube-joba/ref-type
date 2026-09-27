@@ -98,8 +98,8 @@ impl Lowerer<'_> {
                 let ty = self.value_type(ty)?;
                 let body = self.value_term(body, &mut program_context)?;
                 (
-                    body.into(),
-                    ty.into(),
+                    body,
+                    ty,
                     self.program_context(&program_context)?,
                 )
             }
@@ -107,8 +107,8 @@ impl Lowerer<'_> {
                 let ty = self.computation_type(ty)?;
                 let body = self.computation_term(body, &mut program_context)?;
                 (
-                    body.into(),
-                    ty.into(),
+                    body,
+                    ty,
                     self.program_context(&program_context)?,
                 )
             }

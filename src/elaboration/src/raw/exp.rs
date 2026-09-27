@@ -567,12 +567,12 @@ impl ArenaNode for ExpNode {
     fn allocate(self, arena: &Arena) -> Exp {
         let node = match self {
             ExpNode::Prod { var, ty, body } => N::Product {
-                var: var,
+                var,
                 domain: ty.0,
                 body: body.0,
             },
             ExpNode::Lam { var, ty, body } => N::Lambda {
-                var: var,
+                var,
                 domain: ty.0,
                 body: body.0,
                 mode: Mode::Pure,
@@ -725,7 +725,7 @@ impl ArenaNode for ExpNode {
                 set,
                 predicate,
             } => N::Subset {
-                var: var,
+                var,
                 set: set.0,
                 predicate: predicate.0,
             },
@@ -823,14 +823,14 @@ impl ArenaHandle for Exp {
             N::Product {
                 var, domain, body, ..
             } => ExpNode::Prod {
-                var: var,
+                var,
                 ty: Exp(domain),
                 body: Exp(body),
             },
             N::Lambda {
                 var, domain, body, ..
             } => ExpNode::Lam {
-                var: var,
+                var,
                 ty: Exp(domain),
                 body: Exp(body),
             },
@@ -1012,7 +1012,7 @@ impl ArenaHandle for Exp {
                 predicate,
                 ..
             } => ExpNode::SubSet {
-                var: var,
+                var,
                 set: Exp(set),
                 predicate: Exp(predicate),
             },
@@ -1439,7 +1439,7 @@ impl ArenaNode for ComputationTermNode {
                 value_ty,
                 body,
             } => N::Lambda {
-                var: var,
+                var,
                 domain: value_ty.0,
                 body: body.0,
                 mode: Mode::Computation,
@@ -1456,7 +1456,7 @@ impl ArenaNode for ComputationTermNode {
                 body,
             } => N::Sequence {
                 computation: computation.0,
-                var: var,
+                var,
                 value_ty: value_ty.0,
                 body: body.0,
             },
@@ -1466,7 +1466,7 @@ impl ArenaNode for ComputationTermNode {
                 value,
                 body,
             } => N::ValueLet {
-                var: var,
+                var,
                 value_ty: value_ty.0,
                 value: value.0,
                 body: body.0,
@@ -1560,7 +1560,7 @@ impl ArenaHandle for ComputationTerm {
             N::Lambda {
                 var, domain, body, ..
             } => ComputationTermNode::Lambda {
-                var: var,
+                var,
                 value_ty: ValueType(domain),
                 body: ComputationTerm(body),
             },
@@ -1578,7 +1578,7 @@ impl ArenaHandle for ComputationTerm {
                 ..
             } => ComputationTermNode::Sequence {
                 computation: ComputationTerm(computation),
-                var: var,
+                var,
                 value_ty: ValueType(value_ty),
                 body: ComputationTerm(body),
             },
@@ -1589,7 +1589,7 @@ impl ArenaHandle for ComputationTerm {
                 body,
                 ..
             } => ComputationTermNode::ValueLet {
-                var: var,
+                var,
                 value_ty: ValueType(value_ty),
                 value: ValueTerm(value),
                 body: ComputationTerm(body),

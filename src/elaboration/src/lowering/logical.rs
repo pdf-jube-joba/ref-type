@@ -88,13 +88,13 @@ impl Lowerer<'_> {
                     self.under(ctx, var, raw_set, |this, ctx| this.set(predicate, ctx, m))?;
                 self.kernel.arena().alloc(s::Node::Subset {
                     var,
-                    set: set,
-                    predicate: predicate,
+                    set,
+                    predicate,
                 })
             }
             ExpNode::PowerSet { set } => {
                 let set = self.set(set, ctx, m)?;
-                self.kernel.arena().alloc(s::Node::PowerSet { set: set })
+                self.kernel.arena().alloc(s::Node::PowerSet { set })
             }
             ExpNode::SubsetIntro {
                 superset,
@@ -107,18 +107,18 @@ impl Lowerer<'_> {
                 let element = self.set(element, ctx, m)?;
                 let proof = self.set(proof, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::SubsetIntro {
-                    superset: superset,
-                    subset: subset,
-                    element: element,
-                    proof: proof,
+                    superset,
+                    subset,
+                    element,
+                    proof,
                 })
             }
             ExpNode::TypeLift { superset, subset } => {
                 let superset = self.set(superset, ctx, m)?;
                 let subset = self.set(subset, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::TypeLift {
-                    superset: superset,
-                    subset: subset,
+                    superset,
+                    subset,
                 })
             }
             ExpNode::Pred {
@@ -130,22 +130,22 @@ impl Lowerer<'_> {
                 let subset = self.set(subset, ctx, m)?;
                 let element = self.set(element, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::Pred {
-                    superset: superset,
-                    subset: subset,
-                    element: element,
+                    superset,
+                    subset,
+                    element,
                 })
             }
             ExpNode::Equal { left, right } => {
                 let left = self.set(left, ctx, m)?;
                 let right = self.set(right, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::Equal {
-                    left: left,
-                    right: right,
+                    left,
+                    right,
                 })
             }
             ExpNode::Exists { set } => {
                 let set = self.set(set, ctx, m)?;
-                self.kernel.arena().alloc(s::Node::Exists { set: set })
+                self.kernel.arena().alloc(s::Node::Exists { set })
             }
             ExpNode::RunStep {
                 state_ty,
@@ -154,8 +154,8 @@ impl Lowerer<'_> {
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::RunStep {
-                    state_ty: state_ty,
-                    result_ty: result_ty,
+                    state_ty,
+                    result_ty,
                 })
             }
             ExpNode::Continue {
@@ -167,9 +167,9 @@ impl Lowerer<'_> {
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let next = self.set(next, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::Continue {
-                    state_ty: state_ty,
-                    result_ty: result_ty,
-                    next: next,
+                    state_ty,
+                    result_ty,
+                    next,
                 })
             }
             ExpNode::Finish {
@@ -181,9 +181,9 @@ impl Lowerer<'_> {
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let output = self.set(output, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::Finish {
-                    state_ty: state_ty,
-                    result_ty: result_ty,
-                    output: output,
+                    state_ty,
+                    result_ty,
+                    output,
                 })
             }
             ExpNode::Acc {
@@ -197,10 +197,10 @@ impl Lowerer<'_> {
                 let step = self.set(step, ctx, m)?;
                 let state = self.set(state, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::Acc {
-                    state_ty: state_ty,
-                    result_ty: result_ty,
-                    step: step,
-                    state: state,
+                    state_ty,
+                    result_ty,
+                    step,
+                    state,
                 })
             }
             ExpNode::SetRun {
@@ -216,11 +216,11 @@ impl Lowerer<'_> {
                 let initial = self.set(initial, ctx, m)?;
                 let accessibility = self.set(accessibility, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::SetRun {
-                    state_ty: state_ty,
-                    result_ty: result_ty,
-                    step: step,
-                    initial: initial,
-                    accessibility: accessibility,
+                    state_ty,
+                    result_ty,
+                    step,
+                    initial,
+                    accessibility,
                 })
             }
             ExpNode::SetRunCase {
@@ -240,13 +240,13 @@ impl Lowerer<'_> {
                 let accessibility = self.set(accessibility, ctx, m)?;
                 let transition_equality = self.set(transition_equality, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::SetRunCase {
-                    state_ty: state_ty,
-                    result_ty: result_ty,
-                    step: step,
-                    initial: initial,
-                    transition: transition,
-                    accessibility: accessibility,
-                    transition_equality: transition_equality,
+                    state_ty,
+                    result_ty,
+                    step,
+                    initial,
+                    transition,
+                    accessibility,
+                    transition_equality,
                 })
             }
             ExpNode::TakeSet {
@@ -262,11 +262,11 @@ impl Lowerer<'_> {
                 let existence = self.set(existence, ctx, m)?;
                 let uniqueness = self.set(uniqueness, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::TakeSet {
-                    domain: domain,
-                    codomain: codomain,
-                    map: map,
-                    existence: existence,
-                    uniqueness: uniqueness,
+                    domain,
+                    codomain,
+                    map,
+                    existence,
+                    uniqueness,
                 })
             }
             ExpNode::TakeProp {
@@ -280,10 +280,10 @@ impl Lowerer<'_> {
                 let map = self.set(map, ctx, m)?;
                 let existence = self.set(existence, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::TakeProp {
-                    domain: domain,
-                    proposition: proposition,
-                    map: map,
-                    existence: existence,
+                    domain,
+                    proposition,
+                    map,
+                    existence,
                 })
             }
             ExpNode::BoxType { program_ty } => {
@@ -306,7 +306,7 @@ impl Lowerer<'_> {
                 let boxed = self.set(boxed, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::ForceBox {
                     program_ty,
-                    boxed: boxed,
+                    boxed,
                 })
             }
             ExpNode::IndType {
@@ -409,12 +409,12 @@ impl Lowerer<'_> {
                 let on_finish = self.set(on_finish, ctx, m)?;
                 let scrutinee = self.set(scrutinee, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::Recursor {
-                    state_ty: state_ty,
-                    result_ty: result_ty,
-                    motive: motive,
-                    on_continue: on_continue,
-                    on_finish: on_finish,
-                    scrutinee: scrutinee,
+                    state_ty,
+                    result_ty,
+                    motive,
+                    on_continue,
+                    on_finish,
+                    scrutinee,
                 })
             }
             ExpNode::Prod { var, ty, body } | ExpNode::Lam { var, ty, body } => {
@@ -439,14 +439,14 @@ impl Lowerer<'_> {
                     let element = self.set(element, ctx, m)?;
                     self.kernel
                         .arena()
-                        .alloc(s::Node::IdRefl { element: element })
+                        .alloc(s::Node::IdRefl { element })
                 }
                 Prove::ExistsIntro { element, set } => {
                     let element = self.set(element, ctx, m)?;
                     let set = self.set(set, ctx, m)?;
                     self.kernel.arena().alloc(s::Node::ExistsIntro {
-                        element: element,
-                        set: set,
+                        element,
+                        set,
                     })
                 }
                 Prove::SubsetElim {
@@ -458,9 +458,9 @@ impl Lowerer<'_> {
                     let subset = self.set(subset, ctx, m)?;
                     let superset = self.set(superset, ctx, m)?;
                     self.kernel.arena().alloc(s::Node::SubsetElim {
-                        element: element,
-                        subset: subset,
-                        superset: superset,
+                        element,
+                        subset,
+                        superset,
                     })
                 }
                 Prove::IdElim {
@@ -482,12 +482,12 @@ impl Lowerer<'_> {
                     let equality = self.set(equality, ctx, m)?;
                     self.kernel.arena().alloc(s::Node::IdElim {
                         var,
-                        left: left,
-                        right: right,
-                        ty: ty,
-                        predicate: predicate,
-                        base: base,
-                        equality: equality,
+                        left,
+                        right,
+                        ty,
+                        predicate,
+                        base,
+                        equality,
                     })
                 }
                 Prove::TakeEq {
@@ -505,12 +505,12 @@ impl Lowerer<'_> {
                     let existence = self.set(existence, ctx, m)?;
                     let uniqueness = self.set(uniqueness, ctx, m)?;
                     self.kernel.arena().alloc(s::Node::TakeEq {
-                        func: func,
-                        domain: domain,
-                        codomain: codomain,
-                        element: element,
-                        existence: existence,
-                        uniqueness: uniqueness,
+                        func,
+                        domain,
+                        codomain,
+                        element,
+                        existence,
+                        uniqueness,
                     })
                 }
                 Prove::Axiom(Axiom::SetExt {
@@ -524,10 +524,10 @@ impl Lowerer<'_> {
                     let left_to_right = self.set(left_to_right, ctx, m)?;
                     let right_to_left = self.set(right_to_left, ctx, m)?;
                     self.kernel.arena().alloc(s::Node::SetExt {
-                        left: left,
-                        right: right,
-                        left_to_right: left_to_right,
-                        right_to_left: right_to_left,
+                        left,
+                        right,
+                        left_to_right,
+                        right_to_left,
                     })
                 }
                 Prove::Axiom(Axiom::FunExt {
@@ -539,9 +539,9 @@ impl Lowerer<'_> {
                     let right = self.set(right, ctx, m)?;
                     let pointwise = self.set(pointwise, ctx, m)?;
                     self.kernel.arena().alloc(s::Node::FunExt {
-                        left: left,
-                        right: right,
-                        pointwise: pointwise,
+                        left,
+                        right,
+                        pointwise,
                     })
                 }
                 Prove::Axiom(Axiom::ClassicalIndefiniteChoice {
@@ -555,9 +555,9 @@ impl Lowerer<'_> {
                     self.kernel
                         .arena()
                         .alloc(s::Node::ClassicalIndefiniteChoice {
-                            domain: domain,
-                            family: family,
-                            inhabited: inhabited,
+                            domain,
+                            family,
+                            inhabited,
                         })
                 }
                 Prove::AccIntro {
@@ -573,11 +573,11 @@ impl Lowerer<'_> {
                     let state = self.set(state, ctx, m)?;
                     let predecessors = self.set(predecessors, ctx, m)?;
                     self.kernel.arena().alloc(s::Node::AccIntro {
-                        state_ty: state_ty,
-                        result_ty: result_ty,
-                        step: step,
-                        state: state,
-                        predecessors: predecessors,
+                        state_ty,
+                        result_ty,
+                        step,
+                        state,
+                        predecessors,
                     })
                 }
                 Prove::AccDescent {
@@ -597,13 +597,13 @@ impl Lowerer<'_> {
                     let accessibility = self.set(accessibility, ctx, m)?;
                     let transition = self.set(transition, ctx, m)?;
                     self.kernel.arena().alloc(s::Node::AccDescent {
-                        state_ty: state_ty,
-                        result_ty: result_ty,
-                        step: step,
-                        from: from,
-                        to: to,
-                        accessibility: accessibility,
-                        transition: transition,
+                        state_ty,
+                        result_ty,
+                        step,
+                        from,
+                        to,
+                        accessibility,
+                        transition,
                     })
                 }
             },

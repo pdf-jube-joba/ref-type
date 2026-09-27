@@ -40,8 +40,8 @@ impl Lowerer<'_> {
         ty: raw::program::ProgramType,
     ) -> Result<s::Expression, String> {
         match ty {
-            raw::program::ProgramType::ValueType(t) => Ok(self.value_type(t)?.into()),
-            raw::program::ProgramType::ComputationType(t) => Ok(self.computation_type(t)?.into()),
+            raw::program::ProgramType::ValueType(t) => Ok(self.value_type(t)?),
+            raw::program::ProgramType::ComputationType(t) => Ok(self.computation_type(t)?),
         }
     }
 
@@ -119,10 +119,10 @@ impl Lowerer<'_> {
     ) -> Result<s::Expression, String> {
         match p {
             raw::program::ProgramTerm::ValueTerm(value) => {
-                Ok(self.value_term(value, context)?.into())
+                Ok(self.value_term(value, context)?)
             }
             raw::program::ProgramTerm::ComputationTerm(computation) => {
-                Ok(self.computation_term(computation, context)?.into())
+                Ok(self.computation_term(computation, context)?)
             }
         }
     }
@@ -144,7 +144,7 @@ impl Lowerer<'_> {
                 },
                 raw::program::ProgramContextEntry::ValueTerm { var, ty } => ke::Binding {
                     var: *var,
-                    ty: self.value_type(*ty)?.into(),
+                    ty: self.value_type(*ty)?,
                 },
             };
             self.scope.program_depth = previous;
@@ -168,7 +168,7 @@ impl Lowerer<'_> {
         arguments.extend(
             parameters
                 .into_iter()
-                .map(|p| self.value_type(p).map(s::Expression::from))
+                .map(|p| self.value_type(p))
                 .collect::<Result<Vec<_>, _>>()?,
         );
         Ok(arguments)
@@ -214,7 +214,7 @@ impl Lowerer<'_> {
                 let captures = self.captures(Declaration::Definition(definition));
                 let mut arguments = self.capture_arguments(&captures, ctx.len(), true)?;
                 for parameter in parameters {
-                    arguments.push(self.value_type(parameter)?.into());
+                    arguments.push(self.value_type(parameter)?);
                 }
                 let id = self
                     .raw
@@ -324,7 +324,7 @@ impl Lowerer<'_> {
                 let captures = self.captures(Declaration::Definition(definition));
                 let mut arguments = self.capture_arguments(&captures, ctx.len(), true)?;
                 for parameter in parameters {
-                    arguments.push(self.value_type(parameter)?.into());
+                    arguments.push(self.value_type(parameter)?);
                 }
                 let id = self
                     .raw
