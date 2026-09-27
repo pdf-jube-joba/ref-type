@@ -242,7 +242,7 @@ extend_enum!(SExp {
     InferredProjection { value, field },
     MacroParameter(value0),
     TokenMatch { target, branches },
-    Where { exp, clauses },
+    Where { exp, clauses, span },
     Sort(value0),
     ValueType,
     Prod { bind, body },
@@ -303,7 +303,7 @@ extend_struct!(Block { statements, result });
 
 extend_enum!(Statement {
     Fix(value0),
-    Let { var, ty, body },
+    Let { span, var, ty, body },
     Bind { var, ty, computation },
     Sufficient { map, map_ty },
     TakeFrom { var, ty, existence },

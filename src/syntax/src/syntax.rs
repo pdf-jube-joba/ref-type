@@ -471,6 +471,7 @@ pub enum SExp {
     Where {
         exp: Box<SExp>,
         clauses: Vec<(Identifier, SExp, SExp)>,
+        span: Option<SourceSpan>,
     },
     // --- lambda calculus
     // sort: Prop, PropKind, Set(i), SetKind(i)
@@ -979,6 +980,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                             var,
                             ty,
                             body: value,
+                            ..
                         } => Self::ValueLet {
                             var,
                             value_ty: Box::new(ty.try_into()?),
@@ -1117,6 +1119,7 @@ pub struct Block {
 pub enum Statement {
     Fix(Vec<RightBind>), // fix x: A; y: B;
     Let {
+        span: SourceSpan,
         var: Identifier,
         ty: SExp,
         body: SExp,

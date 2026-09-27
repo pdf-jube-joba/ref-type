@@ -154,7 +154,7 @@ pub(crate) fn alpha_rename(
                 alpha_rename(body, order, counter, scopes);
             }
         }
-        SExp::Where { exp, clauses } => {
+        SExp::Where { exp, clauses, .. } => {
             let depth = scopes.len();
             for (name, ty, body) in clauses {
                 alpha_rename(ty, order, counter, scopes);
@@ -389,7 +389,7 @@ pub(crate) fn alpha_rename(
                             pushed += 1;
                         }
                     }
-                    Statement::Let { var, ty, body } => {
+                    Statement::Let { var, ty, body, .. } => {
                         alpha_rename(ty, order, counter, scopes);
                         alpha_rename(body, order, counter, scopes);
                         scopes.push(HashMap::from([fresh_binder(var, order, counter)]));

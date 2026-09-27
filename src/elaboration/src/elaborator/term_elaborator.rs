@@ -12,6 +12,7 @@ use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{ComputationTerm, ComputationType, ValueType};
 
 pub(crate) trait Handler {
+    fn locate_error(&mut self, span: SourceSpan);
     fn env(&self) -> &CrateEnv;
     fn arena(&self) -> &Arena;
     fn get_item_from_access_path(
@@ -678,35 +679,43 @@ impl LocalScope {
                 "Macro capture '${}' escaped template expansion",
                 name.as_str()
             )),
-            SExp::Where { exp, clauses } => {
+            SExp::Where { exp, clauses, span } => {
                 let declaration_mark = self.bindings.len();
                 let depth = self.typing_binds.len();
                 let result = (|| {
                     for (name, ty, body) in clauses {
-                        let ty = self.elab_exp_rec(ty, handler)?;
-                        let body = self.elab_exp_rec(body, handler)?;
-                        // A typed identity application keeps the declared type
-                        // (including subset weakening) while reducing to the value.
-                        let identity = handler.arena().alloc(ExpNode::Lam {
-                            var: SymbolId::ANONYMOUS,
-                            ty,
-                            body: handler.arena().exp_bound(0),
-                        });
-                        let value = handler.arena().alloc(ExpNode::App {
-                            func: identity,
-                            arg: body,
-                        });
-                        // Check even unused definitions, before publishing their
-                        // names. This also records constraints for implicit types.
-                        let _profile_timer =
-                            ProfileTimer::start("REF_TYPE_PROFILE_LOCAL_DEFINITIONS", || {
-                                format!("local definition {}", name.as_str())
+                        let value = (|| {
+                            let ty = self.elab_exp_rec(ty, handler)?;
+                            let body = self.elab_exp_rec(body, handler)?;
+                            // A typed identity application keeps the declared type
+                            // (including subset weakening) while reducing to the value.
+                            let identity = handler.arena().alloc(ExpNode::Lam {
+                                var: SymbolId::ANONYMOUS,
+                                ty,
+                                body: handler.arena().exp_bound(0),
                             });
-                        handler
-                            .infer(&mut self.typing_binds, value)
-                            .map_err(|error| {
-                                format!("Local definition '{}': {error}", name.as_str())
-                            })?;
+                            let value = handler.arena().alloc(ExpNode::App {
+                                func: identity,
+                                arg: body,
+                            });
+                            // Check even unused definitions, before publishing their
+                            // names. This also records constraints for implicit types.
+                            let _profile_timer =
+                                ProfileTimer::start("REF_TYPE_PROFILE_LOCAL_DEFINITIONS", || {
+                                    format!("local definition {}", name.as_str())
+                                });
+                            handler
+                                .infer(&mut self.typing_binds, value)
+                                .map_err(|error| {
+                                    format!("Local definition '{}': {error}", name.as_str())
+                                })?;
+                            Ok::<_, String>(value)
+                        })()
+                        .inspect_err(|_| {
+                            if let Some(span) = span {
+                                handler.locate_error(*span);
+                            }
+                        })?;
                         let name = handler.intern_name(name);
                         self.push_decl_var_exp(name, value);
                     }
@@ -1644,10 +1653,16 @@ impl LocalScope {
                                 };
                             }
                         }
-                        Statement::Let { var, ty, body } => {
+                        Statement::Let {
+                            span,
+                            var,
+                            ty,
+                            body,
+                        } => {
                             term = SExp::Where {
                                 exp: Box::new(term),
                                 clauses: vec![(var.clone(), ty.clone(), body.clone())],
+                                span: Some(*span),
                             };
                         }
                         Statement::Bind { .. } => {
@@ -1678,6 +1693,7 @@ impl LocalScope {
                                         parameters: Vec::new(),
                                     }),
                                     clauses: vec![(argument, map_ty.clone(), term)],
+                                    span: None,
                                 }),
                             };
                         }

@@ -24,6 +24,7 @@ fn local_definition_shadowing_does_not_escape_its_expression() {
     **func = ast::SExp::Where {
         exp: func.clone(),
         clauses: vec![clause.clone(), clause],
+        span: None,
     };
     let project = resolve(&modules).unwrap();
     let ModuleBody::Inline(items) = &project.modules[0].body else {

@@ -422,3 +422,62 @@ fn package_self_imports_use_the_same_scope_in_full_and_partial_checks() {
     assert!(database.stats().reused_modules > 0);
     assert_eq!(changed, Database::new().check(&edited));
 }
+
+#[test]
+fn block_let_errors_cover_only_the_failing_statement() {
+    let cases = [
+        (
+            r"\let x: A := a \then
+              \let bad: A := \Prop \then
+              \return x",
+            r"\let bad: A := \Prop \then",
+        ),
+        (
+            r"\let bad: A := \block {
+                  \let inner: A := \Prop \then
+                  \return a
+              } \then
+              \return a",
+            r"\let inner: A := \Prop \then",
+        ),
+        (
+            r"\let bad: A := \block { \return \Prop } \then
+              \return a",
+            r"\let bad: A := \block { \return \Prop } \then",
+        ),
+    ];
+    for (body, expected) in cases {
+        let text = format!(
+            "\\definition test: \\forall (A: \\Set) -> A -> A := \\block {{\n\\fix (A: \\Set), (a: A) \\then\n{body}\n}};"
+        );
+        let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+        snapshot.insert("/virtual/root.ref", "\\module Test;");
+        snapshot.insert("/virtual/Test.ref", text.clone());
+        let result = Database::new().check(&snapshot);
+        assert_eq!(result.diagnostics.len(), 1, "{result:?}");
+        let diagnostic = &result.diagnostics[0];
+        assert!(
+            diagnostic.message.contains("Local definition"),
+            "{diagnostic:?}"
+        );
+        let location = diagnostic.location.as_ref().unwrap();
+        assert_eq!(location.file, PathBuf::from("/virtual/Test.ref"));
+        assert_eq!(&text[location.range.clone()], expected);
+    }
+}
+
+#[test]
+fn block_result_errors_do_not_point_at_a_successful_let() {
+    let text = r"\definition test: \forall (A: \Set) -> A -> A := \block {
+        \fix (A: \Set), (a: A) \then
+        \let x: A := a \then
+        \return \Prop
+    };";
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert("/virtual/root.ref", "\\module Test;");
+    snapshot.insert("/virtual/Test.ref", text);
+    let result = Database::new().check(&snapshot);
+    assert_eq!(result.diagnostics.len(), 1, "{result:?}");
+    let location = result.diagnostics[0].location.as_ref().unwrap();
+    assert_eq!(&text[location.range.clone()], text);
+}

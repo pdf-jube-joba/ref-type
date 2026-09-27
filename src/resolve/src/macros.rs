@@ -451,7 +451,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
                 walk_sexp_control(body, action);
             }
         }
-        SExp::Where { exp, clauses } => {
+        SExp::Where { exp, clauses, .. } => {
             walk_sexp_control(exp, action);
             for (_, ty, body) in clauses {
                 walk_sexp_control(ty, action);

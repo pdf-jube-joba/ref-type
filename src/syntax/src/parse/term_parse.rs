@@ -806,6 +806,7 @@ impl<'a> TermParser<'a> {
             }
 
             if self.bump_if_keyword("\\let") {
+                let start = self.span_at(self.pos - 1).start;
                 // r"\let" <var: Ident> ":" <ty: SExp> ":=" <body: SExp> "\then"
                 let var = self.expect_ident()?;
                 self.expect_token(Token::Colon)?; // expect ':'
@@ -813,7 +814,16 @@ impl<'a> TermParser<'a> {
                 self.expect_token(Token::Assign)?; // expect ':='
                 let body = self.parse_sexp()?;
                 self.expect_keyword("\\then")?;
-                statements.push(Statement::Let { var, ty, body });
+                let span = SourceSpan {
+                    start,
+                    end: self.span_at(self.pos - 1).end,
+                };
+                statements.push(Statement::Let {
+                    span,
+                    var,
+                    ty,
+                    body,
+                });
                 continue;
             }
 
