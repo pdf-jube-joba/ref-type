@@ -259,6 +259,22 @@ impl term_elaborator::Handler for GlobalEnvironment {
         Ok(result?)
     }
 
+    fn match_parameters(
+        &mut self,
+        local_ctx: &mut ExpContext,
+        scrutinee: Exp,
+        inductive: InductiveId,
+    ) -> Result<Vec<Exp>, ElaborationError> {
+        let ty = self.infer(local_ctx, scrutinee)?;
+        self.metavariables
+            .inductive_arguments(&self.crate_env, inductive, ty)
+            .map(|(parameters, _)| parameters)
+            .map_err(|message| {
+                self.metavariables
+                    .constraint_error(&self.crate_env, message)
+            })
+    }
+
     fn elaborate_boxed_computation_type(
         &mut self,
         expression: &SExp,

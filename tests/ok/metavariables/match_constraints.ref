@@ -1,0 +1,31 @@
+\module MatchConstraints {
+  \inductive Or[P, Q: \Prop]: \Prop :=
+  | left: P -> Or
+  | right: Q -> Or
+  ;
+
+  \record PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
+
+  \definition orAssoc (P, Q, R: \Prop):
+    PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] :=
+    PropEquiv[_1, _2] {
+      lt := \fun (h: _) =>
+        \match h \in Or \return (\fun (_: Or[Or[P, Q], R]) => Or[P, Or[Q, R]]) \with {
+        | left inner :
+            \match inner \in Or \return (\fun (_: Or[P, Q]) => Or[P, Or[Q, R]]) \with {
+            | left p : Or[P, Or[Q, R]]::left p
+            | right q : Or[P, Or[Q, R]]::right (Or[Q, R]::left q)
+            }
+        | right r : Or[P, Or[Q, R]]::right (Or[Q, R]::right r)
+        },
+      rt := \fun (h: _) =>
+        \match h \in Or \return (\fun (_: Or[P, Or[Q, R]]) => Or[Or[P, Q], R]) \with {
+        | left p : Or[_, _]::left (Or[_, _]::left p)
+        | right inner :
+            \match inner \in Or \return (\fun (_: Or[Q, R]) => Or[Or[P, Q], R]) \with {
+            | left q : Or[_, _]::left (Or[_, _]::right q)
+            | right r : Or[_, _]::right r
+            }
+        }
+    };
+}

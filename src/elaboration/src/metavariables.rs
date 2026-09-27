@@ -3,16 +3,19 @@
 use crate::hir::{SourceSpan, SurfaceMeta};
 use crate::raw::{
     calculus::{
-        can_weaken_to, common_ambient_carrier, erased_convertible, instantiate_telescope,
-        map_children, remove_unused_ambient_binders, shift_bound_indices,
+        base_carrier, can_weaken_to, common_ambient_carrier, erased_convertible, instantiate,
+        instantiate_telescope, map_children, remove_unused_ambient_binders, shift_bound_indices,
+        type_head_normal,
     },
     derivation::CheckSession,
     environment::{CrateEnv, DefinedConstant, ModuleParameterKind},
     exp::{Exp, ExpContext, ExpContextEntry, ExpNode, Prove},
-    ids::{MetaVarId, ModuleId, SymbolId},
+    ids::{InductiveId, MetaVarId, ModuleId, SymbolId},
+    inductive::{InductiveTypeSpecs, case_type},
     program::ComputationTypeNode,
     program_derivation::ProgramCheckSession,
     sort::Sort,
+    utils::{assoc_apply, assoc_prod, decompose_app, decompose_prod},
 };
 use std::collections::{HashMap, HashSet};
 
@@ -182,6 +185,16 @@ impl MetaStore {
     }
 
     fn fresh_synthetic(&mut self, env: &CrateEnv, context: &ExpContext, span: SourceSpan) -> Exp {
+        self.fresh_synthetic_in_scope(env, context, context.len(), span)
+    }
+
+    fn fresh_synthetic_in_scope(
+        &mut self,
+        env: &CrateEnv,
+        context: &ExpContext,
+        scope_len: usize,
+        span: SourceSpan,
+    ) -> Exp {
         let id = MetaVarId(
             u32::try_from(self.entries.len()).expect("metavariable table exceeded u32::MAX"),
         );
@@ -190,12 +203,12 @@ impl MetaStore {
             span,
             occurrences: vec![span],
             context: context.clone(),
-            scope_len: context.len(),
+            scope_len,
             assignment: None,
             principal: None,
             inferred_type: None,
         });
-        let spine = (0..context.len())
+        let spine = (0..scope_len)
             .rev()
             .map(|index| env.arena().exp_bound(index))
             .collect();
@@ -453,6 +466,55 @@ impl MetaStore {
                         arena, indspec, spec, idx, parameters,
                     ),
                 )
+            }
+            ExpNode::IndCase {
+                indspec,
+                scrutinee,
+                return_type,
+                branches,
+            } => {
+                let scrutinee_ty = self.infer_pts(env, module, context, scrutinee)?;
+                let (parameters, indices) = self.inductive_arguments(env, indspec, scrutinee_ty)?;
+                let spec = env.inductive(indspec);
+                let return_kind = self.infer_motive_kind(env, module, context, return_type)?;
+                let (_, result) =
+                    decompose_prod(arena, type_head_normal(env, self.zonk(env, return_kind)));
+                let ExpNode::Sort(sort) = arena.get(result) else {
+                    return Err("match return kind does not end in sort".into());
+                };
+                if spec.sort().relation_of_sort_indelim(sort).is_none()
+                    && !spec.supports_singleton_elimination()
+                {
+                    return Err("cannot form eliminator".into());
+                }
+                let expected_kind =
+                    InductiveTypeSpecs::return_type_kind(arena, indspec, spec, &parameters, sort);
+                self.unify(env, return_kind, expected_kind)?;
+                if branches.len() != spec.constructor_len() {
+                    return Err("match constructor length mismatch".into());
+                }
+                let this = arena.alloc(ExpNode::IndType {
+                    indspec,
+                    parameters: parameters.clone(),
+                });
+                for (index, branch) in branches.into_iter().enumerate() {
+                    let constructor =
+                        spec.constructors()[index].instantiate_parameters(arena, &parameters);
+                    let constructor_term = arena.alloc(ExpNode::IndCtor {
+                        indspec,
+                        parameters: parameters.clone(),
+                        idx: index,
+                    });
+                    let expected =
+                        case_type(arena, &constructor, return_type, constructor_term, this);
+                    self.check_pts(env, module, context, branch, expected)?;
+                }
+                let motive = assoc_apply(arena, return_type, indices);
+                let result = arena.alloc(ExpNode::App {
+                    func: motive,
+                    arg: scrutinee,
+                });
+                Ok(type_head_normal(env, self.zonk(env, result)))
             }
             ExpNode::Prod { var, ty, body } => {
                 let domain_sort = self.infer_sort(env, module, context, ty)?;
@@ -985,6 +1047,95 @@ impl MetaStore {
                 )
             }
         }
+    }
+
+    /// Refine an unknown scrutinee type using the inductive named by `\in`.
+    /// Build its arguments in the original hole's scope, before pattern binders
+    /// are introduced, so the inferred type cannot capture those binders.
+    pub(crate) fn inductive_arguments(
+        &mut self,
+        env: &CrateEnv,
+        inductive: InductiveId,
+        ty: Exp,
+    ) -> Result<(Vec<Exp>, Vec<Exp>), String> {
+        let arena = env.arena();
+        let ty = base_carrier(env, self.zonk(env, ty));
+        if let ExpNode::Meta { metavariable, .. } = arena.get(ty) {
+            let entry = &self.entries[metavariable.index()];
+            let (context, scope_len, span) = (entry.context.clone(), entry.scope_len, entry.span);
+            let spec = env.inductive(inductive);
+            let mut parameters = Vec::new();
+            for (_, expected) in spec.parameters() {
+                let expected = instantiate_telescope(arena, *expected, &parameters);
+                let argument = self.fresh_synthetic_in_scope(env, &context, scope_len, span);
+                self.set_meta_type(env, argument, expected)?;
+                parameters.push(argument);
+            }
+            let mut arity = instantiate_telescope(arena, spec.arity(arena), &parameters);
+            let mut indices = Vec::new();
+            while let ExpNode::Prod { ty, body, .. } = arena.get(arity) {
+                let index = self.fresh_synthetic_in_scope(env, &context, scope_len, span);
+                self.set_meta_type(env, index, ty)?;
+                indices.push(index);
+                arity = instantiate(arena, body, index);
+            }
+            let head = arena.alloc(ExpNode::IndType {
+                indspec: inductive,
+                parameters,
+            });
+            let instance = assoc_apply(arena, head, indices);
+            let original = arena.alloc(ExpNode::Meta {
+                metavariable,
+                spine: (0..scope_len)
+                    .rev()
+                    .map(|index| arena.exp_bound(index))
+                    .collect(),
+            });
+            self.unify(env, original, instance)?;
+        }
+        let (head, indices) = decompose_app(arena, self.zonk(env, ty));
+        let ExpNode::IndType {
+            indspec,
+            parameters,
+        } = arena.get(head)
+        else {
+            return Err("Match scrutinee must have an inductive type".into());
+        };
+        if indspec != inductive {
+            return Err("Match scrutinee type does not match its path".into());
+        }
+        Ok((parameters, indices))
+    }
+
+    fn infer_motive_kind(
+        &mut self,
+        env: &CrateEnv,
+        module: ModuleId,
+        context: &mut ExpContext,
+        motive: Exp,
+    ) -> Result<Exp, String> {
+        // Like the strict checker's motive inference, do not demand a sort
+        // above a product whose codomain is already SetKind or PropKind.
+        let mark = context.len();
+        let result = (|| {
+            let mut binders = Vec::new();
+            let mut body = self.zonk(env, motive);
+            while let ExpNode::Lam {
+                var,
+                ty,
+                body: next,
+            } = env.arena().get(body)
+            {
+                self.infer_sort(env, module, context, ty)?;
+                context.push(ExpContextEntry { var, ty });
+                binders.push((var, ty));
+                body = next;
+            }
+            let body_ty = self.infer_pts(env, module, context, body)?;
+            Ok(assoc_prod(env.arena(), binders, body_ty))
+        })();
+        context.truncate(mark);
+        result
     }
 
     fn infer_recursion_sort(

@@ -2070,6 +2070,38 @@ fn explicit_meta_assignment_shares_record_types_before_projection() {
 }
 
 #[test]
+fn match_constraints_infer_scrutinee_and_nested_constructor_parameters() {
+    for source in [
+        include_str!("../../../tests/ok/metavariables/match_constraints.ref"),
+        include_str!("../../../tests/ok/metavariables/indexed_match_constraints.ref"),
+    ] {
+        let modules = parse::str_parse_modules(source).unwrap();
+        GlobalEnvironment::default()
+            .add_new_module_to_root(&modules[0])
+            .unwrap();
+    }
+}
+
+#[test]
+fn match_constraints_reject_incompatible_motives_and_branches() {
+    let source = include_str!("../../../tests/ok/metavariables/match_constraints.ref");
+    for (before, after) in [
+        ("(_: Or[P, Or[Q, R]])", "(_: Or[P, Q])"),
+        ("Or[_, _]::right r", "Or[_, _]::left r"),
+    ] {
+        let source = source.replace(before, after);
+        let modules = parse::str_parse_modules(&source).unwrap();
+        let error = GlobalEnvironment::default()
+            .add_new_module_to_root(&modules[0])
+            .unwrap_err();
+        assert!(
+            error.to_string().contains("incompatible rigid expressions"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
 fn explicit_meta_assignment_checks_existing_solutions() {
     for (second, succeeds) in [("A", true), ("B", false)] {
         let source = format!(

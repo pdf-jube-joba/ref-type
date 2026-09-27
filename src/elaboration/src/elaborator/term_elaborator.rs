@@ -4,7 +4,7 @@ use crate::hir::*;
 use crate::items::{ModItemDefinition, ModItemInductive, ModItemRecord};
 use crate::metavariables::ElaborationError;
 use crate::raw::calculus::{
-    base_carrier, exp_contains_bound, instantiate, shift_bound_indices, type_head_normal,
+    exp_contains_bound, instantiate, shift_bound_indices, type_head_normal,
 };
 use crate::raw::environment::{CrateEnv, DefinedConstant};
 use crate::raw::exp::*;
@@ -28,6 +28,12 @@ pub(crate) trait Handler {
         field_name: &Identifier,
     ) -> Result<Exp, ElaborationError>;
     fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, ElaborationError>;
+    fn match_parameters(
+        &mut self,
+        local_ctx: &mut ExpContext,
+        scrutinee: Exp,
+        inductive: InductiveId,
+    ) -> Result<Vec<Exp>, ElaborationError>;
     fn elaborate_boxed_computation_type(
         &mut self,
         expression: &SExp,
@@ -999,20 +1005,8 @@ impl LocalScope {
                 };
 
                 let scrutinee = self.elab_exp_rec(scrutinee, handler)?;
-                let scrutinee_type = handler.infer(&mut self.typing_binds, scrutinee)?;
-                let scrutinee_type = base_carrier(handler.env(), scrutinee_type);
-                let scrutinee_type = type_head_normal(handler.env(), scrutinee_type);
-                let (head, _) = crate::raw::utils::decompose_app(handler.arena(), scrutinee_type);
-                let ExpNode::IndType {
-                    indspec,
-                    parameters,
-                } = handler.arena().get(head)
-                else {
-                    return Err("Match scrutinee must have an inductive type".into());
-                };
-                if indspec != inductive {
-                    return Err("Match scrutinee type does not match its path".into());
-                }
+                let parameters =
+                    handler.match_parameters(&mut self.typing_binds, scrutinee, inductive)?;
                 let return_type_elab = self.elab_exp_rec(return_type, handler)?;
                 let ordered = Self::ordered_inductive_cases(&ctor_names, branches, |case| &case.0)?;
                 let this = handler.arena().alloc(ExpNode::IndType {
