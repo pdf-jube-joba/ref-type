@@ -19,6 +19,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     };
     client = new LanguageClient('ref', 'Ref Type', serverOptions, clientOptions);
     context.subscriptions.push(client);
+    context.subscriptions.push(vscode.commands.registerCommand('ref.reloadDatabase', async () => {
+        await client?.restart();
+    }));
     await client.start();
 }
 
