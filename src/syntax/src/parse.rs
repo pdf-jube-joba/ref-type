@@ -2,7 +2,7 @@ use crate::{parse::term_parse::TermParser, syntax::*};
 use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq, Clone, Copy)]
-#[logos(skip r"[ \t\n\f]+")]
+#[logos(skip r"\p{White_Space}+")]
 enum Token<'a> {
     // Keywords (start from "\" character)
     #[regex(r"\\[a-zA-Z][a-zA-Z0-9-]*")]
