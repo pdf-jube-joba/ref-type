@@ -165,10 +165,10 @@ impl Renderer<'_> {
     }
 
     fn annotation(&mut self, global: Option<kernel::ids::GlobalId>, body: Expression) -> Term {
-        if let Some(id) = global {
-            if let Some(name) = self.names.definitions.get(&id) {
-                return Term::atom(name.clone());
-            }
+        if let Some(id) = global
+            && let Some(name) = self.names.definitions.get(&id)
+        {
+            return Term::atom(name.clone());
         }
         // Transparent annotations without a frontend declaration retain their body.
         self.render(body)

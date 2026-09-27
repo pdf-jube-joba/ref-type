@@ -80,10 +80,11 @@ pub struct GlobalEnvironment {
 impl term_elaborator::Handler for GlobalEnvironment {
     fn locate_error(&mut self, span: SourceSpan) {
         // Keep the innermost failing statement when enclosing lets unwind.
-        if let Some(location) = &mut self.diagnostic_location {
-            if location.span.start <= span.start && span.end <= location.span.end {
-                location.span = span;
-            }
+        if let Some(location) = &mut self.diagnostic_location
+            && location.span.start <= span.start
+            && span.end <= location.span.end
+        {
+            location.span = span;
         }
     }
 
