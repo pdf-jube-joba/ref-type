@@ -514,7 +514,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
         } => {
             walk_sexp_control(scrutinee, action);
             walk_sexp_control(return_type, action);
-            for (_, branch) in branches {
+            for (_, _, branch) in branches {
                 walk_sexp_control(branch, action);
             }
         }

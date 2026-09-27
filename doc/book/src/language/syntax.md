@@ -229,7 +229,7 @@ Program:
 | 構文 | 結合 |
 | --- | --- |
 | `atom`、括弧 | — |
-| `expression::item` | 左 |
+| `expression::item`、`expression #field` | 左 |
 | `keyword atom` | 右 |
 | `function argument` | 左 |
 | `left = right` | 一度だけ |
@@ -237,6 +237,8 @@ Program:
 
 ```text
 f x y
+x y #field z
+(x y) #field z
 x = y
 A -> B -> C
 A ~> B ~> C
@@ -244,6 +246,7 @@ A ~> B ~> C
 
 `\let` と `\bind` は `\in` の後を右端まで読む。`\return` も後続の value 式全体を読む。
 atom を一つ取る keyword は右結合する。複合式を引数にするときは括弧で囲む。
+`x y #field z` は `x (y #field) z` と結合する。`#field{value}` も射影として使える。
 
 ## 5. Set/Prop
 
@@ -323,21 +326,23 @@ left = right
 ### inductive elimination
 
 ```text
-\elim scrutinee \in Type \return motive {
-| constructor1 => branch1
-| constructor2 => branch2
+\match scrutinee \in Type \return motive \with {
+| constructor1 : branch1
+| constructor2 field : branch2
 }
 
 \induction (x: Type[parameters]) \return result-type \with {
-| constructor1 => branch1
-| constructor2 => branch2
+| constructor1 : branch1
+| constructor2 : branch2
 }
 
 \prec[Type[parameters], motive] branch1 branch2
 ```
 
-`\elim` と `\induction` の branch は `|` または `}` で終わる。
+`\match` と `\induction` の branch は `|` または `}` で終わる。
+Set/Prop の `\match` では `\return` に結果型を指定し、branch の見出しで constructor の引数を束縛する。
 `\induction` は `x` を result type 内で束縛し、帰納型上の関数を構成する。
+`\induction` の branch 本体は constructor の引数と帰納法の仮定を受け取る関数である。
 `\prec` は primitive recursor の atom で、後ろに branch を通常の application として渡す。
 
 ### logical block
@@ -406,8 +411,8 @@ block の `\let` 名は通常の識別子、`\bind` 名は `_` も使える。
 
 ```text
 \match scrutinee \in Datatype \with {
-| constructor1 => computation1
-| constructor2 field1 field2 => computation2
+| constructor1 : computation1
+| constructor2 field1 field2 : computation2
 }
 ```
 

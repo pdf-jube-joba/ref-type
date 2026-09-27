@@ -3,7 +3,7 @@ use crate::elaborator::profiling::ProfileTimer;
 use crate::hir::*;
 use crate::items::{ModItemDefinition, ModItemInductive, ModItemRecord};
 use crate::raw::calculus::{
-    exp_contains_bound, instantiate, shift_bound_indices, type_head_normal,
+    base_carrier, exp_contains_bound, instantiate, shift_bound_indices, type_head_normal,
 };
 use crate::raw::environment::{CrateEnv, DefinedConstant};
 use crate::raw::exp::*;
@@ -211,6 +211,17 @@ impl LocalScope {
         cases: &[(Identifier, SExp)],
         handler: &mut impl Handler,
     ) -> Result<Vec<Exp>, String> {
+        Self::ordered_inductive_cases(constructors, cases, |case| &case.0)?
+            .into_iter()
+            .map(|case| self.elab_exp_rec(&case.1, handler))
+            .collect()
+    }
+
+    fn ordered_inductive_cases<'a, T>(
+        constructors: &[Identifier],
+        cases: &'a [T],
+        name: impl Fn(&T) -> &Identifier,
+    ) -> Result<Vec<&'a T>, String> {
         if cases.len() != constructors.len() {
             return Err(format!(
                 "Expected {} inductive branches, found {}",
@@ -219,7 +230,8 @@ impl LocalScope {
             ));
         }
         let mut ordered = vec![None; constructors.len()];
-        for (name, case) in cases {
+        for case in cases {
+            let name = name(case);
             let Some(index) = constructors
                 .iter()
                 .position(|constructor| constructor.as_str() == name.as_str())
@@ -237,15 +249,59 @@ impl LocalScope {
             .into_iter()
             .zip(constructors)
             .map(|(case, constructor)| {
-                let case = case.ok_or_else(|| {
+                case.ok_or_else(|| {
                     format!(
                         "Missing inductive branch for constructor {}",
                         constructor.as_str()
                     )
-                })?;
-                self.elab_exp_rec(case, handler)
+                })
             })
             .collect()
+    }
+
+    fn elab_nonrecursive_case(
+        &mut self,
+        constructor: &Identifier,
+        binders: &[Identifier],
+        body: &SExp,
+        expected_type: Exp,
+        field_count: usize,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, String> {
+        if binders.len() != field_count {
+            return Err(format!(
+                "Branch {} expects {field_count} field binder(s), found {}",
+                constructor.as_str(),
+                binders.len()
+            ));
+        }
+        let bindings_mark = self.bindings.len();
+        let context_mark = self.typing_binds.len();
+        let result = (|| {
+            let mut expected_type = expected_type;
+            let mut typed_binders = Vec::new();
+            for binder in binders {
+                let ExpNode::Prod { ty, body, .. } = handler.arena().get(expected_type) else {
+                    return Err(format!(
+                        "Too many field binders in branch {}",
+                        constructor.as_str()
+                    ));
+                };
+                let var = handler.intern_name(binder);
+                typed_binders.push((var, ty));
+                self.push_binded_var(var, ty);
+                expected_type = body;
+            }
+            let body = self.elab_exp_rec(body, handler)?;
+            Ok(crate::raw::utils::assoc_lam(
+                handler.arena(),
+                typed_binders,
+                body,
+            ))
+        })();
+        self.bindings.truncate(bindings_mark);
+        self.typing_binds.truncate(context_mark);
+        result
     }
 
     fn pop_binded_var(&mut self) {
@@ -887,14 +943,57 @@ impl LocalScope {
                 };
 
                 let scrutinee = self.elab_exp_rec(scrutinee, handler)?;
+                let scrutinee_type = handler.infer(&mut self.typing_binds, scrutinee)?;
+                let scrutinee_type = base_carrier(handler.env(), scrutinee_type);
+                let scrutinee_type = type_head_normal(handler.env(), scrutinee_type);
+                let (head, _) = crate::raw::utils::decompose_app(handler.arena(), scrutinee_type);
+                let ExpNode::IndType {
+                    indspec,
+                    parameters,
+                } = handler.arena().get(head)
+                else {
+                    return Err("Match scrutinee must have an inductive type".into());
+                };
+                if indspec != inductive {
+                    return Err("Match scrutinee type does not match its path".into());
+                }
                 let return_type_elab = self.elab_exp_rec(return_type, handler)?;
-                let branches = self.elab_inductive_cases(&ctor_names, branches, handler)?;
+                let ordered = Self::ordered_inductive_cases(&ctor_names, branches, |case| &case.0)?;
+                let this = handler.arena().alloc(ExpNode::IndType {
+                    indspec: inductive,
+                    parameters: parameters.clone(),
+                });
+                let mut elaborated = Vec::with_capacity(ordered.len());
+                for (index, (constructor_name, binders, body)) in ordered.into_iter().enumerate() {
+                    let constructor = handler.env().inductive(inductive).constructors()[index]
+                        .instantiate_parameters(handler.arena(), &parameters);
+                    let constructor_term = handler.arena().alloc(ExpNode::IndCtor {
+                        indspec: inductive,
+                        parameters: parameters.clone(),
+                        idx: index,
+                    });
+                    let expected_type = crate::raw::inductive::case_type(
+                        handler.arena(),
+                        &constructor,
+                        return_type_elab,
+                        constructor_term,
+                        this,
+                    );
+                    elaborated.push(self.elab_nonrecursive_case(
+                        constructor_name,
+                        binders,
+                        body,
+                        expected_type,
+                        constructor.telescope.len(),
+                        handler,
+                    )?);
+                }
 
                 Ok(handler.arena().alloc(ExpNode::IndCase {
                     indspec: inductive,
                     scrutinee,
                     return_type: return_type_elab,
-                    branches,
+                    branches: elaborated,
                 }))
             }
             SExp::Induction {

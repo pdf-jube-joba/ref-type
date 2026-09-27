@@ -166,7 +166,7 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
             scrutinee,
             branches,
         } => format!(
-            "\\case(reflected vind({}:{}), {}) {{{}}}",
+            "\\match(reflected vind({}:{}), {}) {{{}}}",
             format_module(env, indspec.module),
             indspec.index,
             child(scrutinee),

@@ -75,7 +75,6 @@ enum Token<'a> {
 static SORT_KEYWORDS: &[&str] = &["\\Prop", "\\PropKind", "\\Set", "\\SetKind"];
 
 static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
-    "\\case",      // logical inductive case match
     "\\induction", // function-valued inductive eliminator
     "\\prec",      // eliminator as primitive recursive form
     "\\Pow",

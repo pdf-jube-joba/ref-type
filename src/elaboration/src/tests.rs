@@ -157,9 +157,9 @@ fn logical_case_is_distinct_from_inductive_elimination() {
             | succ: Nat -> Nat
             ;
             \definition predecessor(n: Nat): Nat :=
-                \case n \in Nat \return (\fun (_: Nat) => Nat) {
-                | zero => Nat::zero
-                | succ => \fun (smaller: Nat) => smaller
+                \match n \in Nat \return (\fun (_: Nat) => Nat) \with {
+                | zero : Nat::zero
+                | succ smaller : smaller
                 };
         }
     "#;
@@ -1228,7 +1228,7 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
             ;
             \definition first: (Pair[A] ~> \F(A)) :=
                 (\cfun (p: Pair[A]) => \match (p) \in Pair \with {
-                | pair left right => (\let x: A := left \in \return(x))
+                | pair left right : (\let x: A := left \in \return(x))
                 });
         }
     "#,

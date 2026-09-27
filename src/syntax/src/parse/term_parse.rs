@@ -211,6 +211,15 @@ impl<'a> TermParser<'a> {
             let scrutinee = self.parse_sexp()?;
             self.expect_keyword(r"\in")?;
             let path = self.parse_access_path()?;
+            let return_type = if self.bump_if_keyword(r"\return") {
+                let allow_empty_record_literal = self.allow_empty_record_literal;
+                self.allow_empty_record_literal = false;
+                let return_type = self.parse_sexp();
+                self.allow_empty_record_literal = allow_empty_record_literal;
+                Some(Box::new(return_type?))
+            } else {
+                None
+            };
             self.expect_keyword(r"\with")?;
             let branches = self.parse_branches(|parser| {
                 let constructor = parser.expect_ident()?;
@@ -218,14 +227,22 @@ impl<'a> TermParser<'a> {
                 while matches!(parser.peek(), Some(Token::Ident(_))) {
                     binders.push(parser.expect_ident()?);
                 }
-                parser.expect_token(Token::DoubleArrow)?;
+                parser.expect_token(Token::Colon)?;
                 let body = parser.parse_sexp()?;
                 Ok((constructor, binders, body))
             })?;
-            return Ok(SExp::ProgramCase {
-                path,
-                scrutinee: Box::new(scrutinee),
-                branches,
+            return Ok(match return_type {
+                Some(return_type) => SExp::IndCase {
+                    path,
+                    scrutinee: Box::new(scrutinee),
+                    return_type,
+                    branches,
+                },
+                None => SExp::ProgramCase {
+                    path,
+                    scrutinee: Box::new(scrutinee),
+                    branches,
+                },
             });
         }
         if self.bump_if_keyword("\\Pow") {
@@ -442,31 +459,6 @@ impl<'a> TermParser<'a> {
                 })
             });
         }
-        if self.bump_if_keyword("\\case") {
-            let scrutinee = self.parse_sexp()?;
-            self.expect_keyword("\\in")?; // expect '\in'
-            let path = self.parse_access_path()?;
-            self.expect_keyword("\\return")?; // expect '\\return'
-            let allow_empty_record_literal = self.allow_empty_record_literal;
-            self.allow_empty_record_literal = false;
-            let return_type = self.parse_sexp();
-            self.allow_empty_record_literal = allow_empty_record_literal;
-            let return_type = return_type?;
-
-            let branches = self.parse_branches(|parser| {
-                let case_name = parser.expect_ident()?;
-                parser.expect_token(Token::DoubleArrow)?;
-                let branch = parser.parse_sexp()?;
-                Ok((case_name, branch))
-            })?;
-
-            return Ok(SExp::IndCase {
-                path,
-                scrutinee: Box::new(scrutinee),
-                return_type: Box::new(return_type),
-                branches,
-            });
-        }
         if self.bump_if_keyword("\\induction") {
             let mut binds = self.parse_simple_binds_paren()?;
             if binds.len() != 1 || binds[0].vars.len() != 1 {
@@ -478,7 +470,7 @@ impl<'a> TermParser<'a> {
             self.expect_keyword("\\with")?;
             let cases = self.parse_branches(|parser| {
                 let case_name = parser.expect_ident()?;
-                parser.expect_token(Token::DoubleArrow)?;
+                parser.expect_token(Token::Colon)?;
                 let case = parser.parse_sexp()?;
                 Ok((case_name, case))
             })?;
@@ -778,7 +770,7 @@ impl<'a> TermParser<'a> {
     }
 
     // { (| <branch>)* }: the next pipe or closing brace ends each branch body.
-    // Branch delimiters are shared by \match, \tmatch, \case, and \induction.
+    // Branch delimiters are shared by \match, \tmatch, and \induction.
     // Each caller parses its own branch head and body, committing on errors.
     fn parse_branches<T>(
         &mut self,
@@ -1133,10 +1125,26 @@ impl<'a> TermParser<'a> {
         }
     }
 
-    // <atom> (("::" Ident) | "::#")*
+    // <atom> (("::" Ident) | "::#" | "#" Ident)*
     fn parse_postfix(&mut self) -> Result<SExp, ParseError> {
         let mut expr = self.parse_atom()?;
         loop {
+            if self.peek() == Some(&Token::Macro("#")) {
+                // #field{value} starts a separate atom and is applied to expr.
+                if matches!(
+                    self.tokens.get(self.pos + 2).map(|token| token.kind),
+                    Some(Token::LBrace)
+                ) {
+                    break;
+                }
+                self.next();
+                let field = self.expect_ident()?;
+                expr = SExp::InferredProjection {
+                    value: Box::new(expr),
+                    field,
+                };
+                continue;
+            }
             let mut field_name = if self.bump_if_token(Token::RecordConstructor) {
                 Identifier("#".into())
             } else if self.bump_if_token(Token::DoubleColon) {
@@ -1593,7 +1601,7 @@ mod tests {
             complete(&format!("{}c", r"\bind x: A <- f x \in ".repeat(depth)));
             complete(&format!(
                 "{}c{}",
-                r"\match x \in T \with { | ctor => ".repeat(depth),
+                r"\match x \in T \with { | ctor : ".repeat(depth),
                 " }".repeat(depth)
             ));
         }
@@ -1694,6 +1702,34 @@ mod tests {
         assert_eq!(field.0, "first");
         assert!(matches!(*base, SExp::App { .. }));
 
+        let SExp::App { func, arg } = complete(r"x y #field z") else {
+            panic!("expected application to z");
+        };
+        assert!(matches!(*arg, SExp::AccessPath { .. }));
+        let SExp::App { func, arg } = *func else {
+            panic!("expected application of x to the projected y");
+        };
+        assert!(matches!(*func, SExp::AccessPath { .. }));
+        assert!(
+            matches!(*arg, SExp::InferredProjection { field, value } if field.0 == "field" && matches!(*value, SExp::AccessPath { .. }))
+        );
+
+        let SExp::InferredProjection { value, field } = complete(r"(x y) #first #second") else {
+            panic!("expected chained projection");
+        };
+        assert_eq!(field.0, "second");
+        let SExp::InferredProjection { value, field } = *value else {
+            panic!("expected inner projection");
+        };
+        assert_eq!(field.0, "first");
+        assert!(matches!(*value, SExp::App { .. }));
+
+        let SExp::App { func, arg } = complete(r"x #field{y}") else {
+            panic!("expected application of the existing projection atom");
+        };
+        assert!(matches!(*func, SExp::AccessPath { .. }));
+        assert!(matches!(*arg, SExp::InferredProjection { field, .. } if field.0 == "field"));
+
         let SExp::AssociatedAccess { field, .. } = complete(r"Pair[A]::first^") else {
             panic!("expected reflected associated access");
         };
@@ -1764,27 +1800,28 @@ mod tests {
         assert!(matches!(fields[0].1, SExp::Thunk { .. }));
         complete(r"Empty {}");
         complete(r"f ({ x : A \where P })");
-        complete(r"\case x \in T \return R { | ctor => branch }");
+        complete(r"\match x \in T \return R \with { | ctor : branch }");
         let SExp::ProgramCase { branches, .. } =
-            complete(r"\match x \in T \with { | ctor a b => \return a }")
+            complete(r"\match x \in T \with { | ctor a b : \return a }")
         else {
             panic!()
         };
         assert_eq!(branches[0].1.len(), 2);
-        complete(r"\match x \in T \with { | empty => x | ctor a => \bind y: A <- f a \in g y }");
+        complete(r"\match x \in T \with { | empty : x | ctor a : \bind y: A <- f a \in g y }");
     }
 
     #[test]
     fn branch_forms_share_delimiters_and_preserve_nested_bodies() {
         for (prefix, head, template) in [
             (r"\match x \in T \with", "ctor a", false),
-            (r"\case x \in T \return R", "ctor", false),
+            (r"\match x \in T \return R \with", "ctor", false),
             (r"\tmatch token", "_", true),
         ] {
+            let separator = if template { "=>" } else { ":" };
             for branches in [
                 "{}".to_string(),
                 format!(
-                    "{{ | {head} => \\match y \\in T \\with {{ | ctor => c }} | {head} => f x = y }}"
+                    "{{ | {head} {separator} \\match y \\in T \\with {{ | ctor : c }} | {head} {separator} f x = y }}"
                 ),
             ] {
                 let input = format!("{prefix} {branches}");
@@ -1798,7 +1835,7 @@ mod tests {
                         .map(|(_, _, body)| body)
                         .collect::<Vec<_>>(),
                     SExp::IndCase { branches, .. } => {
-                        branches.into_iter().map(|(_, body)| body).collect()
+                        branches.into_iter().map(|(_, _, body)| body).collect()
                     }
                     SExp::TokenMatch { branches, .. } => {
                         branches.into_iter().map(|(_, body)| body).collect()
@@ -1816,13 +1853,16 @@ mod tests {
 
             for (branches, bad) in [
                 (
-                    format!("{{ {head} => x }}"),
+                    format!("{{ {head} {separator} x }}"),
                     head.split_whitespace().next().unwrap(),
                 ),
-                (format!("{{ | {head} => ; }}"), ";"),
-                (format!("{{ | {head} => }}"), "}"),
-                (format!("{{ | {head} => | {head} => y }}"), "|"),
-                (format!("{{ | {head} => x"), ""),
+                (format!("{{ | {head} {separator} ; }}"), ";"),
+                (format!("{{ | {head} {separator} }}"), "}"),
+                (
+                    format!("{{ | {head} {separator} | {head} {separator} y }}"),
+                    "|",
+                ),
+                (format!("{{ | {head} {separator} x"), ""),
             ] {
                 let input = format!("{prefix} {branches}");
                 let tokens = lex_all(&input).unwrap();
@@ -1854,9 +1894,9 @@ mod tests {
             (r"f[x, ;]", ";"),
             (r"\fun (x: A \where P \as ) => x", ")"),
             (r"T { field := ; }", ";"),
-            (r"\match x \in T \with { | ctor x => ; }", ";"),
-            (r"\match x \in T { | ctor => c }", "{"),
-            (r"\match x \in T \with { | ctor => c; }", ";"),
+            (r"\match x \in T \with { | ctor x : ; }", ";"),
+            (r"\match x \in T { | ctor : c }", "{"),
+            (r"\match x \in T \with { | ctor : c; }", ";"),
             (r"m!{{ f (x ; }}", ";"),
             (r"\let x: A := a;", ";"),
             (r"\let x: A := a \in ;", ";"),

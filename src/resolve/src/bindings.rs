@@ -210,8 +210,14 @@ pub(crate) fn alpha_rename(
             rename_access(path, scopes);
             alpha_rename(scrutinee, order, counter, scopes);
             alpha_rename(return_type, order, counter, scopes);
-            for (_, branch) in branches {
+            for (_, binders, branch) in branches {
+                let local = binders
+                    .iter_mut()
+                    .map(|binder| fresh_binder(binder, order, counter))
+                    .collect();
+                scopes.push(local);
                 alpha_rename(branch, order, counter, scopes);
+                scopes.pop();
             }
         }
         SExp::Induction {

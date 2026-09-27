@@ -2,9 +2,9 @@
 \import std.Logic[].Order[] \as O;
 \definition crossLeft (x, y: Integer): Nat := N.add^ (positivePrec x) (negativePrec y);
 \definition natLtbAgrees (a, b: Nat): natLtbPrec a b = N.ltb^ a b :=
-  \case (N.ltb^ a b) \in B.Bool^ \return (\fun (flag: B.Bool^) => natIsZeroPrec (N.choose^ flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)) = flag) {
-    | false => (\refl(B.Bool^::false))
-    | true => (\refl(B.Bool^::true))
+  \match (N.ltb^ a b) \in B.Bool^ \return (\fun (flag: B.Bool^) => natIsZeroPrec (N.choose^ flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)) = flag) \with {
+    | false : (\refl(B.Bool^::false))
+    | true : (\refl(B.Bool^::true))
     };
 \definition ltbAsCross (x, y: Integer):
   ltb^ x y = N.ltb^ (crossLeft x y) (crossLeft y x) :=
@@ -25,17 +25,17 @@
 \definition Comparison (x, y: Integer): \Prop :=
   O.Comparison (IntegerLt x y) (IntegerEq x y) (IntegerLt y x);
 \definition trichotomy (x, y: Integer): Comparison x y :=
-  \case (NO.trichotomy (crossLeft x y) (crossLeft y x)) \in L.Or
-    \return (\fun (_: NO.Comparison (crossLeft x y) (crossLeft y x)) => Comparison x y) {
-  | left => \fun (h: NL.Lt (crossLeft x y) (crossLeft y x)) =>
+  \match (NO.trichotomy (crossLeft x y) (crossLeft y x)) \in L.Or
+    \return (\fun (_: NO.Comparison (crossLeft x y) (crossLeft y x)) => Comparison x y) \with {
+  | left h :
       L.Or[IntegerLt x y, L.Or[IntegerEq x y, IntegerLt y x]]::left (ltOfCross x y h)
-  | right => \fun (rest: L.Or[crossLeft x y = crossLeft y x, NL.Lt (crossLeft y x) (crossLeft x y)]) =>
+  | right rest :
       L.Or[IntegerLt x y, L.Or[IntegerEq x y, IntegerLt y x]]::right
-        (\case rest \in L.Or
+        (\match rest \in L.Or
           \return (\fun (_: L.Or[crossLeft x y = crossLeft y x, NL.Lt (crossLeft y x) (crossLeft x y)]) =>
-            L.Or[IntegerEq x y, IntegerLt y x]) {
-        | left => \fun (e: crossLeft x y = crossLeft y x) => L.Or[IntegerEq x y, IntegerLt y x]::left e
-        | right => \fun (h: NL.Lt (crossLeft y x) (crossLeft x y)) =>
+            L.Or[IntegerEq x y, IntegerLt y x]) \with {
+        | left e : L.Or[IntegerEq x y, IntegerLt y x]::left e
+        | right h :
             L.Or[IntegerEq x y, IntegerLt y x]::right (ltOfCross y x h)
         })
   };
@@ -231,17 +231,17 @@
 
 \definition ltCancelAddRight (x, y, z: Integer)
   (xy: IntegerLt (addInteger x z) (addInteger y z)): IntegerLt x y :=
-  \case (trichotomy x y) \in L.Or
-    \return (\fun (_: Comparison x y) => IntegerLt x y) {
-  | left => \fun (direct: IntegerLt x y) => direct
-  | right => \fun (rest: L.Or[IntegerEq x y, IntegerLt y x]) =>
-      \case rest \in L.Or
-        \return (\fun (_: L.Or[IntegerEq x y, IntegerLt y x]) => IntegerLt x y) {
-      | left => \fun (same: IntegerEq x y) =>
+  \match (trichotomy x y) \in L.Or
+    \return (\fun (_: Comparison x y) => IntegerLt x y) \with {
+  | left direct : direct
+  | right rest :
+      \match rest \in L.Or
+        \return (\fun (_: L.Or[IntegerEq x y, IntegerLt y x]) => IntegerLt x y) \with {
+      | left same :
           L.falseElim (IntegerLt x y)
             (ltNotEq (addInteger x z) (addInteger y z) xy
               (addIntegerRespects x y z z same (integerEqRefl z)))
-      | right => \fun (reverse: IntegerLt y x) =>
+      | right reverse :
           L.falseElim (IntegerLt x y)
             (ltAsym (addInteger x z) (addInteger y z) xy
               (ltAddRight y x z reverse))
@@ -458,8 +458,8 @@
   \forall (x: Integer) ->
     PositiveMultipleAbove x (Int^::ofNat (N.Nat^::succ k)) :=
   \induction (x: Int^) \return PositiveMultipleAbove x (Int^::ofNat (N.Nat^::succ k)) \with {
-    | ofNat => (positiveNaturalMultipleAboveNatural k)
-    | negSucc => (positiveNaturalMultipleAboveNegative k)
+    | ofNat : (positiveNaturalMultipleAboveNatural k)
+    | negSucc : (positiveNaturalMultipleAboveNegative k)
     };
 
 \definition naturalPositiveMultipleAbove:
@@ -467,11 +467,11 @@
     \forall (x: Integer) -> PositiveMultipleAbove x (Int^::ofNat n) :=
   \induction (n: N.Nat^) \return IntegerLt zeroInteger (Int^::ofNat n) ->
       \forall (x: Integer) -> PositiveMultipleAbove x (Int^::ofNat n) \with {
-    | zero => (\fun (positive: IntegerLt zeroInteger zeroInteger) =>
+    | zero : (\fun (positive: IntegerLt zeroInteger zeroInteger) =>
       \fun (x: Integer) =>
         L.falseElim (PositiveMultipleAbove x zeroInteger)
           (ltIrrefl zeroInteger positive))
-    | succ => (\fun (k: Nat) =>
+    | succ : (\fun (k: Nat) =>
       \fun (_: IntegerLt zeroInteger (Int^::ofNat k) ->
         \forall (x: Integer) -> PositiveMultipleAbove x (Int^::ofNat k)) =>
       \fun (_: IntegerLt zeroInteger (Int^::ofNat (N.Nat^::succ k))) =>
@@ -483,8 +483,8 @@
     \forall (x: Integer) -> PositiveMultipleAbove x e :=
   \induction (e: Int^) \return IntegerLt zeroInteger e ->
       \forall (x: Integer) -> PositiveMultipleAbove x e \with {
-    | ofNat => naturalPositiveMultipleAbove
-    | negSucc => (\fun (a: Nat) =>
+    | ofNat : naturalPositiveMultipleAbove
+    | negSucc : (\fun (a: Nat) =>
       \fun (positive: IntegerLt zeroInteger (Int^::negSucc a)) =>
         \fun (x: Integer) =>
           L.falseElim (PositiveMultipleAbove x (Int^::negSucc a))
@@ -498,17 +498,17 @@
 
   \induction (e: Int^) \return IntegerLt zeroInteger e -> IntegerLt x y ->
       IntegerLt (mulInteger x e) (mulInteger y e) \with {
-    | ofNat => (\fun (n: Nat) =>
+    | ofNat : (\fun (n: Nat) =>
       \induction (n: N.Nat^) \return IntegerLt zeroInteger (Int^::ofNat n) -> IntegerLt x y ->
             IntegerLt (mulInteger x (Int^::ofNat n))
               (mulInteger y (Int^::ofNat n)) \with {
-                | zero => (\fun (positive: IntegerLt zeroInteger zeroInteger) =>
+                | zero : (\fun (positive: IntegerLt zeroInteger zeroInteger) =>
           \fun (xy: IntegerLt x y) =>
             L.falseElim
               (IntegerLt (mulInteger x zeroInteger)
                 (mulInteger y zeroInteger))
               (ltIrrefl zeroInteger positive))
-                | succ => (\fun (k: Nat) => \fun (_: _) => \fun (positive: IntegerLt zeroInteger
+                | succ : (\fun (k: Nat) => \fun (_: _) => \fun (positive: IntegerLt zeroInteger
             (Int^::ofNat (N.Nat^::succ k))) =>
           \fun (xy: IntegerLt x y) =>
             ltRespects
@@ -522,7 +522,7 @@
                 (mulIntegerNatural y (N.Nat^::succ k)))
               (ltScaleSucc x y k xy))
                 } n)
-    | negSucc => (\fun (a: Nat) =>
+    | negSucc : (\fun (a: Nat) =>
       \fun (positive: IntegerLt zeroInteger (Int^::negSucc a)) =>
       \fun (xy: IntegerLt x y) =>
         L.falseElim

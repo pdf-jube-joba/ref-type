@@ -508,7 +508,7 @@ pub enum SExp {
         path: LocalAccess,
         scrutinee: Box<SExp>,
         return_type: Box<SExp>,
-        branches: Vec<(Identifier, SExp)>,
+        branches: Vec<(Identifier, Vec<Identifier>, SExp)>,
     },
     Induction {
         binder: RightBind,
