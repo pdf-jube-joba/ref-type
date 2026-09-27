@@ -329,6 +329,15 @@ impl Lowerer<'_> {
 
 pub(super) fn definition_roots(definition: &DefinedConstant) -> Vec<Term> {
     match *definition {
+        DefinedConstant::Alias {
+            ref parameters,
+            ty,
+            body,
+        } => {
+            let mut roots = vec![Term::Logical(ty), Term::Logical(body)];
+            roots.extend(parameters.iter().map(|(_, ty)| Term::Logical(*ty)));
+            roots
+        }
         DefinedConstant::Pts { ty, body } => vec![Term::Logical(ty), Term::Logical(body)],
         DefinedConstant::ProgramValue { ty, body } => vec![Term::ValueType(ty), Term::Value(body)],
         DefinedConstant::ProgramComputation { ty, body } => {

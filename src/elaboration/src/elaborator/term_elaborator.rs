@@ -28,6 +28,12 @@ pub(crate) trait Handler {
         field_name: &Identifier,
     ) -> Result<Exp, ElaborationError>;
     fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, ElaborationError>;
+    fn check(
+        &mut self,
+        local_ctx: &mut ExpContext,
+        e: Exp,
+        ty: Exp,
+    ) -> Result<(), ElaborationError>;
     fn match_parameters(
         &mut self,
         local_ctx: &mut ExpContext,
@@ -470,6 +476,37 @@ impl LocalScope {
                 let item = handler.get_item_from_access_path(access)?;
                 match item {
                     ItemAccessResult::Definition(ModItemDefinition { definition, .. }) => {
+                        if let DefinedConstant::Alias {
+                            parameters: telescope,
+                            body,
+                            ..
+                        } = handler.env().resolve_definition(definition)?.clone()
+                        {
+                            if parameters.len() != telescope.len() {
+                                return Err(format!(
+                                    "Alias {access} expects {} parameter(s), found {}",
+                                    telescope.len(),
+                                    parameters.len()
+                                )
+                                .into());
+                            }
+                            let mut arguments = Vec::with_capacity(parameters.len());
+                            for (expression, (_, ty)) in parameters.iter().zip(telescope) {
+                                let argument = self.elab_exp_rec(expression, handler)?;
+                                let expected = crate::raw::calculus::instantiate_telescope(
+                                    handler.arena(),
+                                    ty,
+                                    &arguments,
+                                );
+                                handler.check(&mut self.typing_binds, argument, expected)?;
+                                arguments.push(argument);
+                            }
+                            return Ok(crate::raw::calculus::instantiate_telescope(
+                                handler.arena(),
+                                body,
+                                &arguments,
+                            ));
+                        }
                         if !parameters.is_empty() {
                             return Err(format!(
                                 "Defined constant {:?} cannot be applied with parameters",
@@ -586,7 +623,7 @@ impl LocalScope {
                             DefinedConstant::ProgramComputation { body, .. } => {
                                 crate::raw::reflection::reflect_computation(handler.env(), *body)
                             }
-                            DefinedConstant::Pts { .. } => {
+                            DefinedConstant::Pts { .. } | DefinedConstant::Alias { .. } => {
                                 return Err("associated item is not a Program definition".into());
                             }
                         };

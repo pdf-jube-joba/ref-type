@@ -3,6 +3,7 @@ use super::*;
 
 fn declaration_profile_label(item: &ModuleItem) -> String {
     match item {
+        ModuleItem::Alias { name, .. } => format!("alias {}", name.as_str()),
         ModuleItem::Definition { name, .. } => format!("definition {}", name.as_str()),
         ModuleItem::Inductive { type_name, .. } => {
             format!("inductive {}", type_name.as_str())
@@ -367,6 +368,14 @@ impl GlobalEnvironment {
             self.metavariables.clear();
             let mut local_scope = LocalScope::default();
             match decl {
+                ModuleItem::Alias {
+                    name,
+                    parameters,
+                    ty,
+                    body,
+                } => {
+                    self.elaborate_alias(name, parameters, ty, body)?;
+                }
                 ModuleItem::Definition {
                     owner,
                     name,

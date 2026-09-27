@@ -46,6 +46,22 @@ impl Lowerer<'_> {
             .map(|var| raw::program::ProgramContextEntry::ValueType { var: *var })
             .collect::<Vec<_>>();
         let (body, classifier, context) = match raw {
+            raw::environment::DefinedConstant::Alias {
+                parameters,
+                ty,
+                body,
+            } => {
+                let mut ctx = self.raw.definition_context(id.module);
+                ctx.extend(
+                    parameters
+                        .into_iter()
+                        .map(|(var, ty)| ExpContextEntry { var, ty }),
+                );
+                let classifier = self.classifier(ty, &mut ctx, id.module)?;
+                let body = self.set(body, &mut ctx, id.module)?;
+                let context = self.context(&ctx, id.module)?;
+                (body, classifier, context)
+            }
             raw::environment::DefinedConstant::Pts { ty, body } => {
                 let mut ctx = self.raw.definition_context(id.module);
                 ctx.extend(parameters.iter().map(|var| ExpContextEntry {

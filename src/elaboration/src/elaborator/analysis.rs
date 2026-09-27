@@ -88,7 +88,9 @@ pub(crate) fn access_name(env: &CrateEnv, item: &ItemAccessResult) -> Option<Str
 
 fn definition_type(env: &CrateEnv, id: crate::raw::ids::DefId) -> String {
     match env.definition(id) {
-        DefinedConstant::Pts { ty, .. } => printing::format_exp(env, *ty),
+        DefinedConstant::Pts { ty, .. } | DefinedConstant::Alias { ty, .. } => {
+            printing::format_exp(env, *ty)
+        }
         DefinedConstant::ProgramValue { ty, .. } => printing::format_value_type(env, *ty),
         DefinedConstant::ProgramComputation { ty, .. } => {
             printing::format_computation_type(env, *ty)
@@ -125,6 +127,7 @@ impl GlobalEnvironment {
                 "definition",
                 owner.as_ref().map(|owner| owner.type_name.as_str()),
             ),
+            ModuleItem::Alias { name, .. } => (name.as_str(), "alias", None),
             ModuleItem::Inductive { type_name, .. } => (type_name.as_str(), "inductive", None),
             ModuleItem::Record { type_name, .. } => (type_name.as_str(), "record", None),
             ModuleItem::Import { import_name, .. } => (import_name.as_str(), "import", None),

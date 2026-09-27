@@ -16,6 +16,17 @@ Nat<PtBin>::bin a b
 constructor、field projection、ユーザー定義の関数などは
 いずれも `::` でアクセスする。
 
+## パラメータ付きの別名
+
+```text
+\alias Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
+\alias Predicate[Carrier: \Set]: _ := Carrier -> \Prop;
+```
+
+alias の parameter は宣言を検査する文脈として保持する。
+`Relation[A]` は elaboration 中に `A -> A -> \Prop` へ展開され、既存の kernel で検査する。
+この展開の型付けは、parameter の文脈に対する代入補題で説明できる。
+
 ## 帰納型の型関連 item
 
 ```text

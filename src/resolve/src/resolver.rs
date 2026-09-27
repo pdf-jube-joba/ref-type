@@ -430,6 +430,17 @@ impl Resolver {
     fn item(&mut self, item: &mut ModuleItem) -> Result<(), Diagnostic> {
         let mut locals = Vec::new();
         match item {
+            ModuleItem::Alias {
+                name,
+                parameters,
+                ty,
+                body,
+            } => {
+                self.parameters(parameters, &mut locals, false)?;
+                self.expression(ty, &mut locals)?;
+                self.expression(body, &mut locals)?;
+                self.publish(name);
+            }
             ModuleItem::Definition {
                 owner,
                 name,

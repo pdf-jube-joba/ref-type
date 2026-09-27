@@ -2,6 +2,47 @@
 use super::*;
 
 impl GlobalEnvironment {
+    pub(super) fn elaborate_alias(
+        &mut self,
+        name: &Identifier,
+        parameters: &[RightBind],
+        ty: &SExp,
+        body: &SExp,
+    ) -> Result<(), ElaborationError> {
+        let mut scope = LocalScope::default();
+        let parameters = scope.elab_telescope_bind_in_decl(parameters, self)?;
+        let ty = scope.elab_exp(ty, self)?;
+        let body = scope.elab_exp(body, self)?;
+        let mut context = self.module_manager.current_context(&self.crate_env);
+        context.extend(
+            parameters
+                .iter()
+                .map(|&(var, ty)| ExpContextEntry { var, ty }),
+        );
+        self.check_term_with_metavariables(&mut context, body, ty)
+            .map_err(|message| {
+                self.metavariables
+                    .constraint_error(&self.crate_env, message)
+            })?;
+        self.finish_metavariables()?;
+        let parameters = parameters
+            .into_iter()
+            .map(|(var, ty)| (var, self.metavariables.zonk(&self.crate_env, ty)))
+            .collect();
+        let ty = self.metavariables.zonk(&self.crate_env, ty);
+        let body = self.metavariables.zonk(&self.crate_env, body);
+        self.module_manager.add_def(
+            &mut self.crate_env,
+            name.clone(),
+            DefinedConstant::Alias {
+                parameters,
+                ty,
+                body,
+            },
+        )?;
+        Ok(())
+    }
+
     pub(super) fn elaborate_program_definition_decl(
         &mut self,
         owner: Option<&AssociatedOwner>,
@@ -117,7 +158,7 @@ impl GlobalEnvironment {
                 ) => true,
                 Some(module_manager::ItemAccessResult::Definition(item)) => matches!(
                     self.crate_env.resolve_definition(item.definition),
-                    Ok(DefinedConstant::Pts { .. })
+                    Ok(DefinedConstant::Pts { .. } | DefinedConstant::Alias { .. })
                 ),
                 _ => false,
             };

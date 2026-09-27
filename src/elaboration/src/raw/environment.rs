@@ -16,6 +16,11 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub enum DefinedConstant {
+    Alias {
+        parameters: Vec<(SymbolId, Exp)>,
+        ty: Exp,
+        body: Exp,
+    },
     Pts {
         ty: Exp,
         body: Exp,
@@ -33,6 +38,7 @@ pub enum DefinedConstant {
 impl DefinedConstant {
     fn kind_name(&self) -> &'static str {
         match self {
+            Self::Alias { .. } => "alias",
             Self::Pts { .. } => "Set/Prop",
             Self::ProgramValue { .. } => "Program value",
             Self::ProgramComputation { .. } => "Program computation",
@@ -538,6 +544,21 @@ impl CrateEnv {
             .map(|var| crate::raw::program::ProgramContextEntry::ValueType { var: *var })
             .collect();
         match *definition {
+            DefinedConstant::Alias {
+                ref parameters,
+                ty,
+                body,
+            } => {
+                for &(var, ty) in parameters {
+                    CheckSession::new(self, &mut pts_context)
+                        .infer_sort(ty)
+                        .map_err(|error| format!("alias parameter check failed: {error:?}"))?;
+                    pts_context.push(crate::raw::exp::ExpContextEntry { var, ty });
+                }
+                CheckSession::new(self, &mut pts_context)
+                    .check_pts(body, ty)
+                    .map_err(|error| format!("alias body check failed: {error:?}"))?;
+            }
             DefinedConstant::Pts { ty, body } => {
                 CheckSession::new(self, &mut pts_context)
                     .check_pts(body, ty)
@@ -626,7 +647,23 @@ impl CrateEnv {
                 })
                 .collect::<Vec<_>>();
             let remap = &lazy.remapping;
-            let logical = |e| {
+            let logical_at = |e, depth| {
+                let shifted;
+                let substitutions = if depth == 0 {
+                    &reflected
+                } else {
+                    // Alias parameters bind outside each stored expression.
+                    shifted = reflected
+                        .iter()
+                        .map(|&(p, value)| {
+                            (
+                                p,
+                                super::calculus::shift_bound_indices(self.arena(), value, depth, 0),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    &shifted
+                };
                 super::calculus::exp_subst_map(
                     self.arena(),
                     super::calculus::remap_all_global_ids(
@@ -636,9 +673,10 @@ impl CrateEnv {
                         &remap.inductive_ids,
                         &remap.program_inductive_ids,
                     ),
-                    &reflected,
+                    substitutions,
                 )
             };
+            let logical = |e| logical_at(e, 0);
             let value_ty = |t| {
                 super::program_calculus::subst_value_type_module_params(
                     self.arena(),
@@ -664,6 +702,22 @@ impl CrateEnv {
                 )
             };
             let definition = match source {
+                DefinedConstant::Alias {
+                    parameters,
+                    ty,
+                    body,
+                } => {
+                    let depth = parameters.len();
+                    DefinedConstant::Alias {
+                        parameters: parameters
+                            .into_iter()
+                            .enumerate()
+                            .map(|(depth, (var, ty))| (var, logical_at(ty, depth)))
+                            .collect(),
+                        ty: logical_at(ty, depth),
+                        body: logical_at(body, depth),
+                    }
+                }
                 DefinedConstant::Pts { ty, body } => DefinedConstant::Pts {
                     ty: logical(ty),
                     body: logical(body),

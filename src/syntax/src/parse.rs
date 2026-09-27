@@ -690,6 +690,24 @@ impl<'a> Parser<'a> {
 
     fn try_parse_module_item(&mut self) -> Result<Option<ModuleItem>, ParseError> {
         let start_pos = self.pos;
+        if self.bump_if_keyword("\\alias") {
+            let name = self.expect_ident()?;
+            let mut parameters = Vec::new();
+            while self.peek() == Some(&Token::LBracket) {
+                parameters.extend(self.parse_bracketed_rightbinds()?);
+            }
+            self.expect_token(Token::Colon)?;
+            let ty = self.parse_sexp()?;
+            self.expect_token(Token::Assign)?;
+            let body = self.parse_sexp()?;
+            self.expect_token(Token::Semicolon)?;
+            return Ok(Some(ModuleItem::Alias {
+                name,
+                parameters,
+                ty,
+                body,
+            }));
+        }
         if self.bump_if_keyword("\\definition") {
             let def = self.parse_definition()?;
             return Ok(Some(def));

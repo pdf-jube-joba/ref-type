@@ -62,6 +62,12 @@ pub enum TokenMatchPattern {
 
 #[derive(Debug, Clone)]
 pub enum ModuleItem {
+    Alias {
+        name: Identifier,
+        parameters: Vec<RightBind>,
+        ty: SExp,
+        body: SExp,
+    },
     Definition {
         owner: Option<AssociatedOwner>,
         name: Identifier,

@@ -259,6 +259,21 @@ impl term_elaborator::Handler for GlobalEnvironment {
         Ok(result?)
     }
 
+    fn check(
+        &mut self,
+        local_ctx: &mut ExpContext,
+        e: Exp,
+        ty: Exp,
+    ) -> Result<(), ElaborationError> {
+        let mut ctx = self.module_manager.current_context(&self.crate_env);
+        ctx.extend(local_ctx.iter().cloned());
+        self.check_term_with_metavariables(&mut ctx, e, ty)
+            .map_err(|message| {
+                self.metavariables
+                    .constraint_error(&self.crate_env, message)
+            })
+    }
+
     fn match_parameters(
         &mut self,
         local_ctx: &mut ExpContext,

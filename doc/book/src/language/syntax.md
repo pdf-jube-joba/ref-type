@@ -46,7 +46,7 @@
 
 ### parameter と名前
 
-型、constructor、型関連 item、module の引数は角括弧で指定する。空の `[]` も指定できる。
+型、alias、constructor、型関連 item、module の引数は角括弧で指定する。空の `[]` も指定できる。
 
 ```text
 Type[A, B]
@@ -161,6 +161,22 @@ Program computation 定義の引数は CBV の糖衣である。
 \definition f(x: A, y: B): C := body;
 /* A ~> B ~> C と \cfun (x: A) (y: B) => body に相当 */
 ```
+
+### alias
+
+```text
+\alias Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
+\alias At[A: \Set, x: A, P: A -> \Prop]: \Prop := P x;
+
+\definition reflexive(A: \Set)(r: Relation[A]): \Prop :=
+  \forall (x: A) -> r x x;
+\definition atSelf(A: \Set)(x: A): At[_, x, \fun (y: A) => x = y] :=
+  \refl(x);
+```
+
+alias は Set/Prop の式に名前を付ける宣言である。
+宣言時に parameter の文脈で本体を検査し、使用時に各引数を検査して本体へ代入する。
+import した alias は `M.Relation[A]` のように参照する。
 
 ### inductive
 
