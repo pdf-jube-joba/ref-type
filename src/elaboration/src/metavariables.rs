@@ -819,6 +819,7 @@ impl MetaStore {
                 self.infer_sort(env, module, context, ty)?;
                 self.check_pts(env, module, context, left, ty)?;
                 self.check_pts(env, module, context, right, ty)?;
+                let ty = self.zonk(env, ty);
                 context.push(ExpContextEntry { var, ty });
                 let proposition = arena.sort(Sort::Prop);
                 let predicate_result = self.check_pts(env, module, context, predicate, proposition);

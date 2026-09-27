@@ -39,6 +39,24 @@ congr!{A B} f a b ab
 congr2!{A B C} f a b c d ab cd
 ```
 
+等式を順につなぐには `eq_reason!` を使う。
+各 `"by"` の証明は直前の段から次の段への等式であり、全体は始点から終点への等式になる。
+
+```text
+\use Equality.eq_reason;
+
+\definition chained: a = c := eq_reason!{
+  a "=" b "by" ab
+    "=" c "by" bc
+};
+\definition mapped: f a = f c := eq_reason!{
+  { f a } "=" { f b } "by" { congr!{A B} f a b ab }
+          "=" { f c } "by" { congr!{A B} f b c bc }
+};
+```
+
+`eq_reason!{a}` は反射律による `a = a` の証明になる。
+
 `congr2!` は `ab: a = b` と `cd: c = d` から `f a c = f b d` を直接作る。
 期待型から引数が分かる場合は値を `_` にできる。
 

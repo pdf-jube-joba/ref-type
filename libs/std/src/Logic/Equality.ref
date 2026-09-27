@@ -11,6 +11,13 @@
   (\fun (a, b, c: $A) => \fun (ab: a = b) => \fun (bc: b = c) =>
     \idelim(b = c \with x: $A => a = x) \by { base: ab, equality: bc });
 
+\macro eq_reason($a, ..steps) := \tmatch steps {
+  | () => \refl($a)
+  | ("=", $b, "by", $h, ..rest) =>
+      \idelim($b = _ \with x: _ => $a = x)
+      \by { base: $h, equality: eq_reason!{$b ..rest} }
+};
+
 \macro transport($A) :=
   (\fun (law: \forall (P: $A -> \Prop) -> \forall (a, b: $A) -> a = b -> P a -> P b) => law)
   (\fun (P: $A -> \Prop) => \fun (a, b: $A) => \fun (e: a = b) => \fun (p: P a) =>
