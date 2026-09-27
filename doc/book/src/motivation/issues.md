@@ -186,3 +186,18 @@ subsingleton (\(\text{SS}(X)\)): \((x: X) \to (y: X) \to *\) := \((x: X) \Righta
 \((x: A) \to B(x)\) に対して \((x: A) \to \text{SS}(B(x))\) から \(\text{SS}((x: A) \to B(x))\) をえる操作があるとどうなる？
 
 これはほぼ funext だったらしい。
+
+## Carrier 上の Relation 全体が書けない
+`\definition Relation(Carrier: \Set): _ := Carrier -> Carrier -> \Prop;`
+これは定義できない。
+`Carrier: \Set |- Carrier -> Carrier -> \Prop: \PropKind` なので、 module parameter みたいに context に push するものはうまくいく。
+ただしここから pop しようとするとだめで、
+`|- (Carrier: \Set) => Carrier -> Carrier -> \Prop): (Carrier: \Set -> \PropKind)` に対して `Carrier: \Set -> \PropKind` の型がないといけない。
+`\PropKind` は最上位なので作れない。
+
+AI の提案の `\alias Relation[Carrier: \Set]: _ := Carrier -> Carrier -> \Prop;` はよさそう。
+
+> [!note]
+> 例えば単純型付き言語に List を入れるとして、 `List[Nat]` とか `List[List[A]]` みたいなのは書いていいが、
+> `List` が型から型への関数とは思わない、みたいな感じ。
+> すでに帰納型では似たような仕組みとして、 parameter と index の区別がある。
