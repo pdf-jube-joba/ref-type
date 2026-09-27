@@ -521,6 +521,43 @@
         }) Bool^::false)
     \by { base: \refl(Bool^::false), equality: e }
   };
+\definition falseEqDecidable(y: Bool^):
+    Logic.Or[Bool^::false = y, Logic.Not (Bool^::false = y)] :=
+  \match y \in Bool^ \return (\fun (y: Bool^) => Logic.Or[
+      Bool^::false = y, Logic.Not (Bool^::false = y)]) \with {
+    | false : Logic.Or[
+        Bool^::false = Bool^::false,
+        Logic.Not (Bool^::false = Bool^::false)
+      ]::left (\refl(Bool^::false))
+    | true : Logic.Or[
+        Bool^::false = Bool^::true,
+        Logic.Not (Bool^::false = Bool^::true)
+      ]::right falseNeTrue
+    };
+
+\definition trueEqDecidable(y: Bool^):
+    Logic.Or[Bool^::true = y, Logic.Not (Bool^::true = y)] :=
+  \match y \in Bool^ \return (\fun (y: Bool^) => Logic.Or[
+      Bool^::true = y, Logic.Not (Bool^::true = y)]) \with {
+    | false : Logic.Or[
+        Bool^::true = Bool^::false,
+        Logic.Not (Bool^::true = Bool^::false)
+      ]::right trueNeFalse
+    | true : Logic.Or[
+        Bool^::true = Bool^::true,
+        Logic.Not (Bool^::true = Bool^::true)
+      ]::left (\refl(Bool^::true))
+    };
+
+\definition eqDecidable:
+    \forall (x, y: Bool^) -> Logic.Or[x = y, Logic.Not (x = y)] :=
+  \fun (x, y: Bool^) =>
+    \match x \in Bool^ \return (\fun (x: Bool^) =>
+      \forall (y: Bool^) -> Logic.Or[x = y, Logic.Not (x = y)]) \with {
+      | false : falseEqDecidable
+      | true : trueEqDecidable
+      } y;
+
 \definition eqOfEqbTrue: \forall (a, b: Bool^) -> IsTrue (eqb^ a b) -> a = b :=
   \induction (a: Bool^) \return \forall (b: Bool^) -> IsTrue (eqb^ a b) -> a = b \with {
     | false : (\induction (b: Bool^) \return IsTrue (eqb^ Bool^::false b) -> Bool^::false = b \with {

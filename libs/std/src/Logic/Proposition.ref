@@ -12,10 +12,18 @@
   right: Q,
 };
 
+\definition andElim(P, Q, R: \Prop) (curried: P -> Q -> R) (value: And[P, Q]): R := curried (value #left) (value #right);
+
 \inductive Or[P, Q: \Prop]: \Prop :=
 | left: P -> Or
 | right: Q -> Or
 ;
+
+\definition orElim(P, Q, R: \Prop) (onLeft: P -> R) (onRight: Q -> R) (value: Or[P, Q]): R :=
+  \match value \in Or \return (\fun (_: Or[P, Q]) => R) \with {
+  | left p : onLeft p
+  | right q : onRight q
+  };
 
 /* Reusable surface notation for the propositional vocabulary above. */
 \macro not($proposition) := Not $proposition;
@@ -34,10 +42,8 @@
 };
 
 /* これは PropEquiv にしなくていい */
-\definition andComm:
-  \forall (P, Q: \Prop) -> And[P, Q] -> And[Q, P] :=
-  \fun (P, Q: \Prop) => \fun (h: And[P, Q]) =>
-    And[Q, P]::# (#right{h}) (#left{h});
+\definition andComm (P, Q: \Prop): And[P, Q] -> And[Q, P] := \fun (h: And[P, Q]) =>
+  And[Q, P]::# (#right{h}) (#left{h});
 
 \definition andAssoc (P, Q, R: \Prop): PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] := PropEquiv[_1, _2] {
   lt := \block {
@@ -56,17 +62,14 @@
   },
 };
 
-\definition orComm:
-  \forall (P, Q: \Prop) -> Or[P, Q] -> Or[Q, P] :=
-  \fun (P, Q: \Prop) => \fun (h: Or[P, Q]) =>
-    \match h \in Or \return (\fun (_: Or[P, Q]) => Or[Q, P]) \with {
-    | left p : Or[Q, P]::right p
-    | right q : Or[Q, P]::left q
-    };
+\definition orComm (P, Q: \Prop): Or[P, Q] -> Or[Q, P] := \fun (h: Or[P, Q]) =>
+  \match h \in Or \return (\fun (_: Or[P, Q]) => Or[Q, P]) \with {
+  | left p : Or[Q, P]::right p
+  | right q : Or[Q, P]::left q
+  };
 
-\definition orAssoc:
-  \forall (P, Q, R: \Prop) -> Or[Or[P, Q], R] -> Or[P, Or[Q, R]] :=
-  \fun (P, Q, R: \Prop) => \fun (h: Or[Or[P, Q], R]) =>
+\definition orAssoc (P, Q, R: \Prop): PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] := PropEquiv[_1, _2] {
+  lt := \fun (h: _1) =>
     \match h \in Or \return (\fun (_: Or[Or[P, Q], R]) => Or[P, Or[Q, R]]) \with {
     | left inner :
         \match inner \in Or \return (\fun (_: Or[P, Q]) => Or[P, Or[Q, R]]) \with {
@@ -74,4 +77,14 @@
         | right q : Or[P, Or[Q, R]]::right (Or[Q, R]::left q)
         }
     | right r : Or[P, Or[Q, R]]::right (Or[Q, R]::right r)
-    };
+    },
+  rt := \fun (h: _2) =>
+    \match h \in Or \return (\fun (_: Or[P, Or[Q, R]]) => Or[Or[P, Q], R]) \with {
+    | left p : Or[_, _]::left (Or[_, _]::left p) 
+    | right inner : 
+        \match inner \in Or \return (\fun (_: Or[Q, R]) => Or[Or[P, Q], R]) \with {
+        | left q : Or[_, _]::left (Or[_, _]::right q)
+        | right r : Or[_, _]::right r
+        }
+    }
+};

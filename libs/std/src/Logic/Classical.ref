@@ -10,31 +10,6 @@
 \import std.Logic[].Proposition[] \as Logic;
 \import std.Data[].Bool[] \as B;
 
-\definition orElim(P, Q, R: \Prop) (onLeft: P -> R) (onRight: Q -> R)
-    (value: Logic.Or[P, Q]): R :=
-  \match value \in Logic.Or \return (\fun (_: Logic.Or[P, Q]) => R) \with {
-  | left p : onLeft p
-  | right q : onRight q
-  };
-
-\definition candidateElementEq(X: \Pow (\Pow B.Bool^)):
-    \forall (x, y: \Cast[\Pow B.Bool^] X) ->
-      ((\fun (z: \Cast[\Pow B.Bool^] X) => z) x) =
-      ((\fun (z: \Cast[\Pow B.Bool^] X) => z) y) -> x = y :=
-  \fun (x, y: \Cast[\Pow B.Bool^] X) =>
-    \fun (e:
-        ((\fun (z: \Cast[\Pow B.Bool^] X) => z) x) =
-        ((\fun (z: \Cast[\Pow B.Bool^] X) => z) y)) =>
-      (\idelim(
-        ((\fun (z: \Cast[\Pow B.Bool^] X) => z) x) =
-        ((\fun (z: \Cast[\Pow B.Bool^] X) => z) y)
-        \with z: \Pow B.Bool^ =>
-          \forall (h: \In[\Pow B.Bool^] X z) ->
-            x = \into[\Pow B.Bool^](z, X) \by { h })
-        \by { base: (\fun (_: \In[\Pow B.Bool^] X ((\fun (z: \Cast[\Pow B.Bool^] X) => z) x)) =>
-          \refl(x)), equality: e })
-        (\bysub(\Pow B.Bool^, X, y));
-
 /* The two subsets used by Diaconescu's argument are supplied explicitly here:
  * a Set cannot be returned by a top-level function of a proposition. */
 \definition Candidates(Left, Right: \Pow B.Bool^):
@@ -43,9 +18,6 @@
 
 \definition Candidate(Left, Right: \Pow B.Bool^): \Set :=
   \Cast[\Pow B.Bool^] (Candidates Left Right);
-
-\definition underlying(Left, Right: \Pow B.Bool^)
-    (S: Candidate Left Right): \Pow B.Bool^ := S;
 
 \definition leftCandidate(Left, Right: \Pow B.Bool^):
     Candidate Left Right :=
@@ -57,28 +29,27 @@
 
 \definition candidateInhabited(Left, Right: \Pow B.Bool^)
     (leftExists: \exists \Cast[B.Bool^] Left)
-    (rightExists: \exists \Cast[B.Bool^] Right):
-    \forall (S: Candidate Left Right) ->
-      \exists \Cast[B.Bool^] (underlying Left Right S) :=
-  \fun (S: Candidate Left Right) =>
-    orElim
-      (underlying Left Right S = Left) (underlying Left Right S = Right)
-      (\exists \Cast[B.Bool^] (underlying Left Right S))
-      (\fun (e: underlying Left Right S = Left) =>
-        \idelim(Left = underlying Left Right S
+    (rightExists: \exists \Cast[B.Bool^] Right)
+    (S: Candidate Left Right):
+      \exists \Cast[B.Bool^] S :=
+    Logic.orElim
+      (S = Left) (S = Right)
+      (\exists \Cast[B.Bool^] S)
+      (\fun (e: S = Left) =>
+        \idelim(Left = S
           \with T: \Pow B.Bool^ => \exists \Cast[B.Bool^] T)
           \by { base: leftExists, equality:
-            sym!{\Pow B.Bool^} (underlying Left Right S) Left e })
-      (\fun (e: underlying Left Right S = Right) =>
-        \idelim(Right = underlying Left Right S
+            sym!{\Pow B.Bool^} S Left e })
+      (\fun (e: S = Right) =>
+        \idelim(Right = S
           \with T: \Pow B.Bool^ => \exists \Cast[B.Bool^] T)
           \by { base: rightExists, equality:
-            sym!{\Pow B.Bool^} (underlying Left Right S) Right e })
+            sym!{\Pow B.Bool^} S Right e })
       (\bysub(\Pow B.Bool^, Candidates Left Right, S));
 
 \definition Selection(Left, Right: \Pow B.Bool^): \Set :=
   \forall (S: Candidate Left Right) ->
-    \Cast[B.Bool^] (underlying Left Right S);
+    \Cast[B.Bool^] S;
 
 \definition selectionExists(Left, Right: \Pow B.Bool^)
     (leftExists: \exists \Cast[B.Bool^] Left)
@@ -87,7 +58,7 @@
   \axiom:classicalIndefiniteChoice(
     Candidate Left Right,
     (\fun (S: Candidate Left Right) =>
-      \Cast[B.Bool^] (underlying Left Right S)),
+      \Cast[B.Bool^] S),
     candidateInhabited Left Right leftExists rightExists);
 
 \definition leftSelected(Left, Right: \Pow B.Bool^)
@@ -110,54 +81,13 @@
     (select: Selection Left Right): B.Bool^ :=
   choose Left Right select (rightCandidate Left Right);
 
-\definition falseEqDecidable(y: B.Bool^):
-    Logic.Or[B.Bool^::false = y, Logic.Not (B.Bool^::false = y)] :=
-  \match y \in B.Bool^ \return (\fun (y: B.Bool^) => Logic.Or[
-      B.Bool^::false = y, Logic.Not (B.Bool^::false = y)]) \with {
-    | false : (Logic.Or[
-      B.Bool^::false = B.Bool^::false,
-      Logic.Not (B.Bool^::false = B.Bool^::false)
-    ]::left (\refl(B.Bool^::false)))
-    | true : (Logic.Or[
-      B.Bool^::false = B.Bool^::true,
-      Logic.Not (B.Bool^::false = B.Bool^::true)
-    ]::right
-      (\fun (e: B.Bool^::false = B.Bool^::true) =>
-        B.absurd Logic.False e))
-    };
-
-\definition trueEqDecidable(y: B.Bool^):
-    Logic.Or[B.Bool^::true = y, Logic.Not (B.Bool^::true = y)] :=
-  \match y \in B.Bool^ \return (\fun (y: B.Bool^) => Logic.Or[
-      B.Bool^::true = y, Logic.Not (B.Bool^::true = y)]) \with {
-    | false : (Logic.Or[
-      B.Bool^::true = B.Bool^::false,
-      Logic.Not (B.Bool^::true = B.Bool^::false)
-    ]::right
-      (\fun (e: B.Bool^::true = B.Bool^::false) =>
-        B.absurd Logic.False
-          (sym!{B.Bool^} B.Bool^::true B.Bool^::false e)))
-    | true : (Logic.Or[
-      B.Bool^::true = B.Bool^::true,
-      Logic.Not (B.Bool^::true = B.Bool^::true)
-    ]::left (\refl(B.Bool^::true)))
-    };
-
-\definition boolEqDecidable:
-    \forall (x, y: B.Bool^) -> Logic.Or[x = y, Logic.Not (x = y)] :=
-  \fun (x, y: B.Bool^) =>
-    \match x \in B.Bool^ \return (\fun (x: B.Bool^) => \forall (y: B.Bool^) -> Logic.Or[x = y, Logic.Not (x = y)]) \with {
-      | false : falseEqDecidable
-      | true : trueEqDecidable
-      } y;
-
 \definition equalChoicesGiveP(P: \Prop) (u, v: B.Bool^)
     (uMember: Logic.Or[u = B.Bool^::false, P])
     (vMember: Logic.Or[v = B.Bool^::true, P]) (uv: u = v): P :=
-  orElim
+  Logic.orElim
     (u = B.Bool^::false) P P
     (\fun (uf: u = B.Bool^::false) =>
-      orElim
+      Logic.orElim
         (v = B.Bool^::true) P P
         (\fun (vt: v = B.Bool^::true) =>
           B.absurd P
@@ -171,11 +101,6 @@
         (\fun (p: P) => p) vMember)
     (\fun (p: P) => p) uMember;
 
-\definition candidatesEqual(Left, Right: \Pow B.Bool^)
-    (e: Left = Right): leftCandidate Left Right = rightCandidate Left Right :=
-  candidateElementEq (Candidates Left Right)
-    (leftCandidate Left Right) (rightCandidate Left Right) e;
-
 \definition selectedEqual(Left, Right: \Pow B.Bool^)
     (select: Selection Left Right) (e: Left = Right):
     chooseLeft Left Right select = chooseRight Left Right select :=
@@ -183,15 +108,14 @@
     \with S: Candidate Left Right =>
       chooseLeft Left Right select =
         choose Left Right select S)
-    \by { base: \refl(chooseLeft Left Right select), equality:
-      candidatesEqual Left Right e };
+    \by { base: \refl(chooseLeft Left Right select), equality: e };
 
 \definition excludedMiddleFromSelection(P: \Prop)
     (Left, Right: \Pow B.Bool^) (select: Selection Left Right)
     (leftMember: Logic.Or[chooseLeft Left Right select = B.Bool^::false, P])
     (rightMember: Logic.Or[chooseRight Left Right select = B.Bool^::true, P])
     (collapse: P -> Left = Right): Logic.Or[P, Logic.Not P] :=
-  orElim
+  Logic.orElim
     (chooseLeft Left Right select = chooseRight Left Right select)
     (Logic.Not (
       chooseLeft Left Right select = chooseRight Left Right select))
@@ -206,7 +130,7 @@
         chooseLeft Left Right select = chooseRight Left Right select)) =>
       Logic.Or[P, Logic.Not P]::right
         (\fun (p: P) => unequal (selectedEqual Left Right select (collapse p))))
-    (boolEqDecidable
+    (B.eqDecidable
       (chooseLeft Left Right select) (chooseRight Left Right select));
 
 \definition excludedMiddle: \forall (P: \Prop) ->
@@ -227,18 +151,17 @@
         \into[B.Bool^](B.Bool^::true, Right) \by { Logic.Or[B.Bool^::true = B.Bool^::true, P]::left
             (\refl(B.Bool^::true)) },
         \Cast[B.Bool^] Right) \then
-    \return
-      \take (select: Selection Left Right) =>
-        excludedMiddleFromSelection P Left Right select
-          (\bysub(B.Bool^, Left, leftSelected Left Right select))
-          (\bysub(B.Bool^, Right, rightSelected Left Right select))
-          (\fun (p: P) =>
-            \axiom:setext(Left, Right,
-              (\fun (b: B.Bool^) =>
-                \fun (_: Logic.Or[b = B.Bool^::false, P]) =>
-                  Logic.Or[b = B.Bool^::true, P]::right p),
-              (\fun (b: B.Bool^) =>
-                \fun (_: Logic.Or[b = B.Bool^::true, P]) =>
-                  Logic.Or[b = B.Bool^::false, P]::right p)))
-      \by { selectionExists Left Right leftExists rightExists }
+    \takefrom select: Selection Left Right
+      \by selectionExists Left Right leftExists rightExists \then
+    \return excludedMiddleFromSelection P Left Right select
+      (\bysub(B.Bool^, Left, leftSelected Left Right select))
+      (\bysub(B.Bool^, Right, rightSelected Left Right select))
+      (\fun (p: P) =>
+        \axiom:setext(Left, Right,
+          (\fun (b: B.Bool^) =>
+            \fun (_: Logic.Or[b = B.Bool^::false, P]) =>
+              Logic.Or[b = B.Bool^::true, P]::right p),
+          (\fun (b: B.Bool^) =>
+            \fun (_: Logic.Or[b = B.Bool^::true, P]) =>
+              Logic.Or[b = B.Bool^::false, P]::right p)))
   };
