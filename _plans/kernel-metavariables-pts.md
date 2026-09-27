@@ -8,7 +8,7 @@ kernel は型規則、代入、簡約、reflection、メタ変数への代入、
 elaboration は表面構文の解釈、名前解決結果の利用、暗黙引数とゴールの生成、module の特殊化、source location を使った診断を担当する。
 `doc/book/src/system.md` は、単一の項構文と PTS の判断で体系を記述する形へ書き直す。
 
-`check` と `infer` の公開 API は、必要な情報が未解決なら未解決メタを示すエラーを返せる設計にする。
+`check` と `infer` の公開 API は、対象に未解決メタが残る場合に kernel のエラーを返す。
 未完成の項の型制約を扱う処理も kernel にまとめ、elaborator からはその操作を呼び出す。
 宣言登録は、文脈・本体・型・付随する証明のメタ変数と制約を解決し、完成した項を検査してから行う。
 
@@ -20,9 +20,9 @@ API の詳細、移行中の接続方法、実装上の選択は、到達点と�
 途中で見つかった不整合やテスト失敗は、その原因の調査・修正・再検証まで同じ作業に含める。
 ユーザーには、全工程を終えた実装・文書・重複実装の整理を含む完成形と、検証結果・計測結果・重要な設計判断をまとめて提示する。
 
-## 現在の対応箇所
+## 移行開始時の対応箇所
 
-| 場所 | 現在の役割 | 移行後 |
+| 場所 | 移行開始時の役割 | 移行後 |
 | --- | --- | --- |
 | `src/kernel/src/syntax.rs` | 十二 family の構文と arena | 単一の項 handle と node、共通 arena |
 | `src/kernel/src/environment.rs`、`src/kernel/src/ids.rs` | `GlobalId` をキーとする定義登録 | 定義 arena と、登録時に返す `DefinitionId` |
@@ -93,15 +93,25 @@ level の数値は現行の sort の添字として扱い、sort 全体の確定
 名前付き穴の共有範囲、暗黙引数、明示ゴールなどの由来は elaboration 側で ID に関連付ける。
 kernel の制約には不透明な由来 ID を付け、source location と表示上の名前は診断時に結び付ける。
 
+### 表面構文の穴と診断
+
+`_` は出現ごとの推論変数、`_0`・`_1` などは同じ宣言内で共有する推論変数として、kernel のメタ変数へ対応付ける。
+`?` は出現ごとのメタ変数と、elaboration 側の検査用ゴール情報へ展開する。
+kernel は `?` に由来するメタ変数も通常の単一化で解き、elaboration はその文脈・期待型・関連制約・求まった解を診断に使う。
+`?` を含む module の elaboration は、解が求まった場合も検査用ゴールを表示して失敗する。
+同じ宣言の未解決メタ変数も合わせて表示する。
+kernel が返す解決状態と、elaboration が保持する検査用ゴールの有無を組み合わせて、この結果を決定する。
+
 ### 型検査との接続
 
 | 操作 | 結果と役割 |
 | --- | --- |
-| `infer(context, expression)` | 確定した型、型エラー、または未解決情報を返す |
-| `check(context, expression, expected)` | 型規則を検査し、成功・型エラー・未解決情報を返す |
+| `infer(context, expression)` | 成功時は確定した型を返し、型不一致や未解決メタはエラーを返す |
+| `check(context, expression, expected)` | 型規則を検査し、型不一致や未解決メタはエラーを返す |
 | 型制約の登録 | 同じ型規則を用いて未完成の項の検査を進め、必要な判断を制約として保持する |
 | `unify(context, left, right)` | メタ変数への代入を進め、解決・保留・矛盾を区別する |
 | `solve_pending()` | 依存するメタ変数が更新された制約を再実行する |
+| `finish()` | 宣言の単一化と保留制約の再実行を進め、未解決メタや残存制約があれば kernel のエラーを返す |
 | `zonk(expression)` | 解決済みメタ変数を文脈引数で具体化する |
 | 宣言の確定 | 残ったメタ変数と制約を診断し、完成した宣言を再検査して登録する |
 
@@ -109,6 +119,10 @@ API 名は実装時に揃える。
 通常の型検査と制約生成は型規則の実装を共有し、判断に必要な情報が不足した場合の処理を切り替える。
 内部では宣言済みメタ変数の型を参照して検査を進められるようにし、公開 `check`・`infer` の成功は対象の未解決情報が解消した時点で返す。
 文脈と期待型に残るメタ変数も、未解決情報の対象に含める。
+`unify` の保留は solver の途中状態とし、`finish` は進展が止まった時点で宣言に属する全メタ変数と検査義務の完了を確認する。
+自動生成したメタ変数、代入候補の内部に残るメタ変数、等式以外の型形成・reflection の残存制約もこの確認に含める。
+情報不足、solver が扱えない制約、制約の矛盾はそれぞれ理由を持つ kernel の失敗として返し、elaboration はそれをソース位置付きの診断へ変換する。
+宣言登録は kernel の `finish` と完成した項の検査の成功を条件とする。
 
 ### 解決手順
 
@@ -204,6 +218,8 @@ lowering に残る作業を宣言登録や module の処理へ整理し、不要
 - 保留した等式・型形成・reflection の制約が、代入後に再実行されること。
 - rollback 後の代入・制約と、代入前後の推論・弱頭簡約キャッシュの整合性。
 - 未解決の本体・型・文脈・証明に対する API の結果と、解決後の宣言登録。
+- 単一化が停止した際の、未解決の自動生成メタ変数・代入候補・残存制約に対する kernel の失敗。
+- 解決済みと未解決の `?` のゴール表示、module の elaboration の失敗、および同じ宣言の未解決推論変数の診断。
 - 同じ本体を持つ別定義の識別、宣言型を使った参照の型推論、依存する文脈引数の検査と具体化。
 - 異なる定義や引数を使わない定義の展開による等価性と、単一化による引数の解決。
 - 定義参照の reflection・module 特殊化・名前付き表示と、一時ノード回収後の handle の有効性。
@@ -231,5 +247,51 @@ cargo run --release --locked --offline -p cli -- libs/std --no-cache --stats
 - kernel と elaboration が共通項を使い、論理側と Program 側の単一化を kernel が処理している。
 - 定義 arena が宣言型と本体を保持し、参照・型推論・簡約・表示が `DefinitionId` と文脈引数を使っている。
 - 型規則、構造操作、簡約、reflection の実装が kernel に集約されている。
-- 未解決情報・型エラー・保留制約を区別でき、宣言登録時に必要な検査が完了する。
+- 単一化後に残るメタ変数や制約は kernel のエラーとなり、宣言登録時に必要な検査が完了する。
+- `?` は解決状態に応じたゴールを表示し、解が求まった場合も module の elaboration が失敗する。
 - 標準ライブラリ、既存の成功例と診断、kernel の検証が通り、計測・表示・tracing が利用できる。
+
+## 実装結果（2026-09-28）
+
+`kernel::syntax::Expression` の共有 arena に統合し、型規則・単一化・代入・簡約・reflection を kernel に集約した。
+elaboration の項 handle は共有 arena 上の source view とし、名前・穴の位置・module の捕捉情報を別途保持する。
+定義は検査済みの `Definition { context, ty, body }` を登録し、`DefinitionId` と明示的な文脈引数で参照する。
+型注釈は elaboration の期待型検査で処理する。
+
+`Checker::check`・`Checker::infer` は未解決の対象・期待型・文脈・証明を拒否する。
+`MetaContext::finish` は自動生成した穴と到達不能な穴を含む全メタ変数、代入候補の検査義務、保留制約を確認する。
+`?` は通常の単一化で解き、解決済みの場合も文脈・期待型・解をゴールに表示して module の elaboration を失敗させる。
+rollback、文脈制限、由来の追跡、reflection によって保留された制約の再実行を共通 solver で扱う。
+
+`system.md` を共通項の PTS に更新し、kernel・elaboration・利用方法の文書を実装に合わせた。
+既存の数学的証明が対象とする分類付き構文は `doc/book/src/props/sorted-calculus.md` に定義し、各証明の適用範囲を揃えた。
+共通項の PTS への証明の移送は、`doc/book/src/props/props.md` に記載した証明義務として残る。
+
+### 検証結果
+
+- `cargo fmt --all -- --check`、`cargo check --workspace --all-targets --locked --offline`、`git diff --check` が成功した。
+- `cargo test --workspace --locked --offline` の 248 件が成功した。
+- workspace の検証には kernel の 27 件、elaboration の 138 件、CLI の成功例・診断・実ライブラリ・永続キャッシュ・tracing の検証を含む。
+- `cargo build --release --locked --offline -p cli` と `target/release/cli libs/std --no-cache --stats` が成功した。
+- 診断の期待値を更新した 42 個の `.ref` fixture は `--parse-only` でも検証した。
+
+### 移行前後の計測
+
+移行前は commit `764e3e7` を別ディレクトリで release build し、移行後と同じ `libs/std --no-cache --stats` を同じ作業ディレクトリから実行した。
+ビルドを除いた各 3 回の連続実行を `/usr/bin/time` で計測し、時間と最大 RSS は中央値を示す。
+
+| 指標 | 移行前 | 移行後 |
+| --- | ---: | ---: |
+| 実時間 | 2.02 s | 1.80 s |
+| user CPU 時間 | 1.78 s | 1.60 s |
+| 最大 RSS | 270,884 KiB | 246,908 KiB |
+| 保持ノード総数 | 573,679 | 214,755 |
+| kernel の定義から到達するノード | 40,672 | 36,482 |
+| kernel の推論キャッシュ | 125,473 | 240,144 |
+| elaboration の推論キャッシュ | 750,176 | 558 |
+
+移行後の raw と kernel のノード表示は同じ共有 arena を数えるため、保持ノード総数には一度だけ計上した。
+perf による調査では、定義の捕捉情報の再走査が主な負荷だったため、登録済み定義の情報を再利用した。
+閉じた項の推論結果は文脈をまたいで共有し、完成した項の変換可能性をキャッシュした。
+定義登録中の一時ノードは、生存する定義・メタ変数・診断・read snapshot を保持して回収する。
+計測環境の perf 実体には `/usr/lib/linux-tools-6.8.0-142/perf` を使用した。
