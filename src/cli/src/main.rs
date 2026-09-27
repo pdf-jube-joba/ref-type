@@ -21,6 +21,9 @@ struct Args {
     /// キャッシュを再利用せず全体を検証し、検証済みの結果を保存する
     #[arg(long, conflicts_with = "parse_only")]
     full_check: bool,
+    /// キャッシュ保存先の中身を削除してから処理する
+    #[arg(long)]
+    clear_cache: bool,
     /// チェック済み semantic result の保存先（既定: 入力ディレクトリの refcache/）
     #[arg(long)]
     cache_dir: Option<PathBuf>,
@@ -69,22 +72,25 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
             return Ok(Some(message));
         }
     };
+    let cache_directory = args.cache_dir.clone().unwrap_or_else(|| {
+        let entry = snapshot.entry();
+        let root = if entry
+            .extension()
+            .is_some_and(|extension| extension == "ref")
+        {
+            entry.parent().expect("source file has a parent directory")
+        } else {
+            entry
+        };
+        root.join("refcache")
+    });
+    if args.clear_cache {
+        clear_cache_directory(&cache_directory)?;
+    }
     let mut database = if args.no_cache {
         sema::Database::new()
     } else {
-        let directory = args.cache_dir.clone().unwrap_or_else(|| {
-            let entry = snapshot.entry();
-            let root = if entry
-                .extension()
-                .is_some_and(|extension| extension == "ref")
-            {
-                entry.parent().expect("source file has a parent directory")
-            } else {
-                entry
-            };
-            root.join("refcache")
-        });
-        sema::Database::with_cache(directory)
+        sema::Database::with_cache(cache_directory)
     };
     let messages = if args.parse_only {
         database
@@ -126,4 +132,21 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
         }
     }
     Ok(error)
+}
+
+fn clear_cache_directory(directory: &std::path::Path) -> anyhow::Result<()> {
+    let entries = match std::fs::read_dir(directory) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    for entry in entries {
+        let path = entry?.path();
+        if path.is_dir() {
+            std::fs::remove_dir_all(path)?;
+        } else {
+            std::fs::remove_file(path)?;
+        }
+    }
+    Ok(())
 }
