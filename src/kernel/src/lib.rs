@@ -6,6 +6,7 @@
 pub mod calculus;
 pub mod check;
 pub mod construction;
+pub mod diagnostic;
 pub mod environment;
 pub mod ids;
 pub mod printing;

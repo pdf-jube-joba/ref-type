@@ -1122,6 +1122,7 @@ fn boxed_annotation_cannot_hide_an_open_variable() {
         Checker::new(&env, vec![])
             .infer_set_term(boxed)
             .unwrap_err()
+            .to_string()
             .contains("closed")
     );
     assert_eq!(reduce_once(&env, constant).unwrap(), None);
@@ -1763,4 +1764,60 @@ fn global_labels_survive_substitution_and_reflection_without_granting_trust() {
     });
     let forged = a.identified(id, zero.into(), wrong_type.into()).unwrap();
     assert!(Checker::new(&env, vec![]).infer(forged).is_err());
+}
+
+#[test]
+fn type_errors_retain_scratch_syntax_after_registration_returns() {
+    use crate::diagnostic::CheckError;
+    let mut env = Environment::new();
+    let kind = sk(env.arena(), 0);
+    let body = env.arena().alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::Bound { index: 0 },
+    });
+    let rule =
+        ProductRule::new(Sort::Upper(BaseSort::Set(0)), Sort::Upper(BaseSort::Set(0))).unwrap();
+    let identity = env.arena().alloc(SetTypeNode {
+        level: 0,
+        form: SetTypeForm::LambdaType {
+            rule,
+            var: SymbolId(1),
+            domain: kind,
+            body,
+        },
+    });
+    let counts = env.arena().node_counts();
+    let error = env
+        .register_definition(
+            GlobalId(99),
+            Definition {
+                context: vec![],
+                body: identity.into(),
+                classifier: kind.into(),
+            },
+        )
+        .unwrap_err();
+    assert_eq!(env.arena().node_counts(), counts);
+    assert!(env.definition(GlobalId(99)).is_none());
+    drop(env);
+    let CheckError::TypeMismatch(error) = error else {
+        panic!("structured type error")
+    };
+    let Classifier::Expression(inferred) = error.inferred else {
+        panic!("expression classifier")
+    };
+    let ExpressionNode::SetKind(node) = error.node(inferred) else {
+        panic!("synthesized product")
+    };
+    let SetKindForm::ProdType { domain, body, .. } = node.form else {
+        panic!("product")
+    };
+    assert!(matches!(
+        error.node(domain.into()),
+        ExpressionNode::SetKind(_)
+    ));
+    assert!(matches!(
+        error.node(body.into()),
+        ExpressionNode::SetKind(_)
+    ));
 }

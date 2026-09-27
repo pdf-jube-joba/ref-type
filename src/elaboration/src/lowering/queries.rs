@@ -17,7 +17,9 @@ impl Lowerer<'_> {
         let term = self.set(term, &mut raw_context, module)?;
         let expected = self.classifier(ty, &mut raw_context, module)?;
         let context = self.context(context, module)?;
-        kernel::check::Checker::new(self.kernel, context).check(term, expected)
+        kernel::check::Checker::new(self.kernel, context)
+            .check(term, expected)
+            .map_err(|error| super::diagnostics::format_error(self.raw, &error))
     }
 
     pub(crate) fn check_program_query(
@@ -49,6 +51,8 @@ impl Lowerer<'_> {
         self.scope.program_depth = context.len();
         let ty = self.program_type(ty)?;
         let context = self.program_context(context)?;
-        kernel::check::Checker::new(self.kernel, context).check(term, ty)
+        kernel::check::Checker::new(self.kernel, context)
+            .check(term, ty)
+            .map_err(|error| super::diagnostics::format_error(self.raw, &error))
     }
 }

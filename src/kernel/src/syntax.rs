@@ -133,6 +133,16 @@ macro_rules! syntax_families {
         )+
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub enum Expression { $($handle($handle),)+ }
+        /// An owned reference to a node, independent of scratch arena lifetimes.
+        #[derive(Debug, Clone)]
+        pub enum ExpressionNode { $($handle(Rc<$node>),)+ }
+        impl Arena {
+            pub fn node(&self, expression: Expression) -> ExpressionNode {
+                match expression {
+                    $(Expression::$handle(h) => ExpressionNode::$handle(self.read(h)),)+
+                }
+            }
+        }
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub enum Family { $($handle,)+ }
         impl Expression {

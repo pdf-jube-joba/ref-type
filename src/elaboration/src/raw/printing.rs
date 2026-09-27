@@ -96,40 +96,22 @@ pub fn format_exp(env: &CrateEnv, exp: Exp) -> String {
                 format_app_operand(env, arg)
             )
         }
-        ExpNode::DefinedConstant(definition) => {
-            format!(
-                "def({}:{})",
-                format_module(env, definition.module),
-                definition.index
-            )
-        }
+        ExpNode::DefinedConstant(definition) => definition_name(env, definition),
         ExpNode::IndType {
             indspec,
             parameters,
-        } => format!(
-            "ind({}:{})[{}]",
-            format_module(env, indspec.module),
-            indspec.index,
-            parameters
-                .into_iter()
-                .map(child)
-                .collect::<Vec<_>>()
-                .join(", ")
+        } => with_parameters(
+            inductive_name(env, indspec, None),
+            parameters.into_iter().map(child).collect(),
         ),
         ExpNode::IndCtor {
             indspec,
             parameters,
             idx,
-        } => format!(
-            "ind({}:{}).{}[{}]",
-            format_module(env, indspec.module),
-            indspec.index,
-            idx,
-            parameters
-                .into_iter()
-                .map(child)
-                .collect::<Vec<_>>()
-                .join(", ")
+        } => with_constructor_parameters(
+            inductive_name(env, indspec, None),
+            inductive_name(env, indspec, Some(idx)),
+            parameters.into_iter().map(child).collect(),
         ),
         ExpNode::IndElim {
             indspec,
@@ -488,15 +470,12 @@ pub fn format_value_type(env: &CrateEnv, ty: ValueType) -> String {
         ValueTypeNode::Inductive {
             indspec,
             parameters,
-        } => format!(
-            "vind({}:{})[{}]",
-            format_module(env, indspec.module),
-            indspec.index,
+        } => with_parameters(
+            datatype_name(env, indspec, None),
             parameters
                 .into_iter()
-                .map(|p| format_value_type(env, p))
-                .collect::<Vec<_>>()
-                .join(", ")
+                .map(|ty| format_value_type(env, ty))
+                .collect(),
         ),
     }
 }
@@ -531,19 +510,14 @@ pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
         ValueTermNode::DefinitionInstance {
             definition,
             parameters,
-        } => format!(
-            "vdef({}:{})[{}]",
-            format_module(env, definition.module),
-            definition.index,
+        } => with_parameters(
+            definition_name(env, definition),
             parameters
-                .iter()
-                .map(|ty| format_value_type(env, *ty))
-                .collect::<Vec<_>>()
-                .join(", ")
+                .into_iter()
+                .map(|ty| format_value_type(env, ty))
+                .collect(),
         ),
-        ValueTermNode::DefinedConstant(id) => {
-            format!("vdef({}:{})", format_module(env, id.module), id.index)
-        }
+        ValueTermNode::DefinedConstant(id) => definition_name(env, id),
         ValueTermNode::Thunk { computation } => {
             format!("\\thunk({})", format_computation(env, computation))
         }
@@ -571,18 +545,29 @@ pub fn format_value(env: &CrateEnv, value: ValueTerm) -> String {
             indspec,
             idx,
             fields,
-            ..
-        } => format!(
-            "vind({}:{}).{}({})",
-            format_module(env, indspec.module),
-            indspec.index,
-            idx,
-            fields
-                .into_iter()
-                .map(|v| format_value(env, v))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
+            parameters,
+        } => {
+            let name = with_constructor_parameters(
+                datatype_name(env, indspec, None),
+                datatype_name(env, indspec, Some(idx)),
+                parameters
+                    .into_iter()
+                    .map(|ty| format_value_type(env, ty))
+                    .collect(),
+            );
+            if fields.is_empty() {
+                name
+            } else {
+                format!(
+                    "{name}({})",
+                    fields
+                        .into_iter()
+                        .map(|v| format_value(env, v))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
+        }
     }
 }
 
@@ -592,19 +577,14 @@ pub fn format_computation(env: &CrateEnv, term: ComputationTerm) -> String {
         ComputationTermNode::DefinitionInstance {
             definition,
             parameters,
-        } => format!(
-            "cdef({}:{})[{}]",
-            format_module(env, definition.module),
-            definition.index,
+        } => with_parameters(
+            definition_name(env, definition),
             parameters
-                .iter()
-                .map(|ty| format_value_type(env, *ty))
-                .collect::<Vec<_>>()
-                .join(", ")
+                .into_iter()
+                .map(|ty| format_value_type(env, ty))
+                .collect(),
         ),
-        ComputationTermNode::DefinedConstant(id) => {
-            format!("cdef({}:{})", format_module(env, id.module), id.index)
-        }
+        ComputationTermNode::DefinedConstant(id) => definition_name(env, id),
         ComputationTermNode::Return { value } => format!("\\return({})", format_value(env, value)),
         ComputationTermNode::Force { value } => format!("\\force({})", format_value(env, value)),
         ComputationTermNode::Lambda {
@@ -748,4 +728,126 @@ pub(crate) fn module_component(env: &CrateEnv, module: crate::raw::ids::ModuleId
     } else {
         format!("{}#{}", current.name(), preceding + 1)
     }
+}
+
+pub(crate) fn definition_name(env: &CrateEnv, id: crate::raw::ids::DefId) -> String {
+    use crate::raw::environment::ModuleItem;
+    for item in env.module(id.module).items() {
+        let associated = match item {
+            ModuleItem::Definition { name, definition } => {
+                if *definition == id {
+                    return format!("\\{}.{}", format_module(env, id.module), name);
+                }
+                continue;
+            }
+            ModuleItem::Inductive {
+                associated_definitions,
+                ..
+            }
+            | ModuleItem::Record {
+                associated_definitions,
+                ..
+            }
+            | ModuleItem::ProgramInductive {
+                associated_definitions,
+                ..
+            } => associated_definitions,
+        };
+        for (name, definition) in associated {
+            if *definition == id {
+                return format!(
+                    "\\{}.{}::{name}",
+                    format_module(env, id.module),
+                    item.name()
+                );
+            }
+        }
+    }
+    format!("def({}:{})", format_module(env, id.module), id.index)
+}
+
+pub(crate) fn inductive_name(
+    env: &CrateEnv,
+    id: crate::raw::ids::InductiveId,
+    constructor: Option<usize>,
+) -> String {
+    use crate::raw::environment::ModuleItem;
+    for item in env.module(id.module).items() {
+        let (constructors, reflected) = match item {
+            ModuleItem::Inductive {
+                inductive,
+                constructor_names,
+                ..
+            } if *inductive == id => (constructor_names.as_slice(), false),
+            ModuleItem::Record { inductive, .. } if *inductive == id => (&[][..], false),
+            ModuleItem::ProgramInductive {
+                reflected,
+                constructor_names,
+                ..
+            } if *reflected == id => (constructor_names.as_slice(), true),
+            _ => continue,
+        };
+        let reflection = if reflected { "^" } else { "" };
+        let mut name = format!(
+            "\\{}.{}{reflection}",
+            format_module(env, id.module),
+            item.name()
+        );
+        if let Some(index) = constructor {
+            let ctor = constructors
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| format!("constructor#{index}"));
+            name.push_str(&format!("::{ctor}"));
+        }
+        return name;
+    }
+    let name = format!("ind({}:{})", format_module(env, id.module), id.index);
+    constructor.map_or(name.clone(), |i| format!("{name}.{i}"))
+}
+
+pub(crate) fn datatype_name(
+    env: &CrateEnv,
+    id: crate::raw::ids::ProgramInductiveId,
+    constructor: Option<usize>,
+) -> String {
+    use crate::raw::environment::ModuleItem;
+    for item in env.module(id.module).items() {
+        if let ModuleItem::ProgramInductive {
+            inductive,
+            constructor_names,
+            ..
+        } = item
+            && *inductive == id
+        {
+            let mut name = format!("\\{}.{}", format_module(env, id.module), item.name());
+            if let Some(index) = constructor {
+                let ctor = constructor_names
+                    .get(index)
+                    .cloned()
+                    .unwrap_or_else(|| format!("constructor#{index}"));
+                name.push_str(&format!("::{ctor}"));
+            }
+            return name;
+        }
+    }
+    let name = format!("vind({}:{})", format_module(env, id.module), id.index);
+    constructor.map_or(name.clone(), |i| format!("{name}.{i}"))
+}
+
+fn with_parameters(name: String, parameters: Vec<String>) -> String {
+    if parameters.is_empty() {
+        name
+    } else {
+        format!("{name}[{}]", parameters.join(", "))
+    }
+}
+
+fn with_constructor_parameters(
+    owner: String,
+    constructor: String,
+    parameters: Vec<String>,
+) -> String {
+    let suffix = &constructor[owner.len()..];
+    format!("{}{suffix}", with_parameters(owner, parameters))
 }

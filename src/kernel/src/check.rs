@@ -1,5 +1,6 @@
 //! Independent formation and typing checks for indexed syntax.
 use super::{calculus::*, construction as build, environment::*, sort::*, structure, syntax::*};
+use crate::diagnostic::{CheckError, TypeMismatch};
 use crate::ids::*;
 pub struct Checker<'a> {
     pub env: &'a Environment,
@@ -22,7 +23,7 @@ impl<'a> Checker<'a> {
     fn arena(&self) -> &Arena {
         &self.env.arena
     }
-    pub fn check_context(&mut self) -> Result<(), String> {
+    pub fn check_context(&mut self) -> Result<(), CheckError> {
         if self.validated_context.as_ref().is_some_and(|validated| {
             validated
                 .iter()
@@ -57,14 +58,14 @@ impl<'a> Checker<'a> {
         &mut self,
         var: SymbolId,
         classifier: Expression,
-        f: impl FnOnce(&mut Self) -> Result<T, String>,
-    ) -> Result<T, String> {
+        f: impl FnOnce(&mut Self) -> Result<T, CheckError>,
+    ) -> Result<T, CheckError> {
         self.context.push(Binding { var, classifier });
         let result = f(self);
         self.context.pop();
         result
     }
-    pub fn formation(&mut self, e: Expression) -> Result<Sort, String> {
+    pub fn formation(&mut self, e: Expression) -> Result<Sort, CheckError> {
         match self.infer(e)? {
             Classifier::Upper(b) => Ok(Sort::Upper(b)),
             Classifier::Expression(k) => {
@@ -77,58 +78,78 @@ impl<'a> Checker<'a> {
             }
         }
     }
-    pub fn infer_set_term(&mut self, t: SetTerm) -> Result<SetType, String> {
-        self.inferred(t.into())?.try_into()
+    pub fn infer_set_term(&mut self, t: SetTerm) -> Result<SetType, CheckError> {
+        self.inferred(t.into())?
+            .try_into()
+            .map_err(CheckError::from)
     }
-    pub fn infer_set_type(&mut self, t: SetType) -> Result<SetKind, String> {
-        self.inferred(t.into())?.try_into()
+    pub fn infer_set_type(&mut self, t: SetType) -> Result<SetKind, CheckError> {
+        self.inferred(t.into())?
+            .try_into()
+            .map_err(CheckError::from)
     }
-    pub fn check_set_kind(&mut self, k: SetKind) -> Result<(), String> {
+    pub fn check_set_kind(&mut self, k: SetKind) -> Result<(), CheckError> {
         self.formation(k.into()).map(|_| ())
     }
-    pub fn infer_value_term(&mut self, t: ValueTerm) -> Result<ValueType, String> {
-        self.inferred(t.into())?.try_into()
+    pub fn infer_value_term(&mut self, t: ValueTerm) -> Result<ValueType, CheckError> {
+        self.inferred(t.into())?
+            .try_into()
+            .map_err(CheckError::from)
     }
     pub fn infer_computation_term(
         &mut self,
         t: ComputationTerm,
-    ) -> Result<ComputationType, String> {
-        self.inferred(t.into())?.try_into()
+    ) -> Result<ComputationType, CheckError> {
+        self.inferred(t.into())?
+            .try_into()
+            .map_err(CheckError::from)
     }
-    pub fn infer_prop_term(&mut self, t: PropTerm) -> Result<PropType, String> {
-        self.inferred(t.into())?.try_into()
+    pub fn infer_prop_term(&mut self, t: PropTerm) -> Result<PropType, CheckError> {
+        self.inferred(t.into())?
+            .try_into()
+            .map_err(CheckError::from)
     }
-    pub fn infer_prop_type(&mut self, t: PropType) -> Result<PropKind, String> {
-        self.inferred(t.into())?.try_into()
+    pub fn infer_prop_type(&mut self, t: PropType) -> Result<PropKind, CheckError> {
+        self.inferred(t.into())?
+            .try_into()
+            .map_err(CheckError::from)
     }
-    pub fn check_prop_kind(&mut self, k: PropKind) -> Result<(), String> {
+    pub fn check_prop_kind(&mut self, k: PropKind) -> Result<(), CheckError> {
         self.formation(k.into()).map(|_| ())
     }
-    pub fn infer_value_type(&mut self, t: ValueType) -> Result<ValueKind, String> {
-        self.inferred(t.into())?.try_into()
+    pub fn infer_value_type(&mut self, t: ValueType) -> Result<ValueKind, CheckError> {
+        self.inferred(t.into())?
+            .try_into()
+            .map_err(CheckError::from)
     }
-    pub fn check_value_kind(&mut self, k: ValueKind) -> Result<(), String> {
+    pub fn check_value_kind(&mut self, k: ValueKind) -> Result<(), CheckError> {
         self.formation(k.into()).map(|_| ())
     }
     pub fn infer_computation_type(
         &mut self,
         t: ComputationType,
-    ) -> Result<ComputationKind, String> {
-        self.inferred(t.into())?.try_into()
+    ) -> Result<ComputationKind, CheckError> {
+        self.inferred(t.into())?
+            .try_into()
+            .map_err(CheckError::from)
     }
-    pub fn check_computation_kind(&mut self, k: ComputationKind) -> Result<(), String> {
+    pub fn check_computation_kind(&mut self, k: ComputationKind) -> Result<(), CheckError> {
         self.formation(k.into()).map(|_| ())
     }
-    pub fn infer_program_term(&mut self, t: ProgramTerm) -> Result<ProgramType, String> {
-        self.inferred(t.into())?.try_into()
+    pub fn infer_program_term(&mut self, t: ProgramTerm) -> Result<ProgramType, CheckError> {
+        self.inferred(t.into())?
+            .try_into()
+            .map_err(CheckError::from)
     }
-    pub fn infer_program_type(&mut self, t: ProgramType) -> Result<ProgramKind, String> {
-        self.inferred(t.into())?.try_into()
+    pub fn infer_program_type(&mut self, t: ProgramType) -> Result<ProgramKind, CheckError> {
+        self.inferred(t.into())?
+            .try_into()
+            .map_err(CheckError::from)
     }
-    pub fn check_program_kind(&mut self, k: ProgramKind) -> Result<(), String> {
+    pub fn check_program_kind(&mut self, k: ProgramKind) -> Result<(), CheckError> {
         self.formation(k.into()).map(|_| ())
     }
-    pub fn inferred(&mut self, e: Expression) -> Result<Expression, String> {
+    pub fn inferred(&mut self, e: Expression) -> Result<Expression, CheckError> {
         match self.infer(e)? {
             Classifier::Expression(t) => Ok(t),
             Classifier::Upper(_) => Err("kind has a formation sort, not an expression type".into()),
@@ -138,7 +159,7 @@ impl<'a> Checker<'a> {
         &mut self,
         e: impl Into<Expression>,
         expected: impl Into<Classifier>,
-    ) -> Result<(), String> {
+    ) -> Result<(), CheckError> {
         let e = e.into();
         let expected = expected.into();
         let inferred = self.infer(e)?;
@@ -149,40 +170,52 @@ impl<'a> Checker<'a> {
                 if self.weaken(a, b)? {
                     Ok(())
                 } else {
-                    Err(format!(
-                        "types are not convertible in the same family and level\ninferred: {}\nexpected: {}",
-                        super::printing::format_expression(self.env, whnf(self.env, a)?),
-                        super::printing::format_expression(self.env, whnf(self.env, b)?)
-                    ))
+                    Err(CheckError::TypeMismatch(Box::new(TypeMismatch::capture(
+                        self.arena(),
+                        &self.context,
+                        e,
+                        inferred,
+                        expected,
+                    ))))
                 }
             }
-            _ => Err("judgement classification mismatch".into()),
+            _ => Err(CheckError::TypeMismatch(Box::new(TypeMismatch::capture(
+                self.arena(),
+                &self.context,
+                e,
+                inferred,
+                expected,
+            )))),
         }
     }
-    fn base_type(&mut self, e: Expression) -> Result<BaseSort, String> {
+    fn base_type(&mut self, e: Expression) -> Result<BaseSort, CheckError> {
         match self.formation(e)? {
             Sort::Base(b) => Ok(b),
             _ => Err("expected a type, found a kind".into()),
         }
     }
-    fn set_type(&mut self, e: Expression) -> Result<usize, String> {
+    fn set_type(&mut self, e: Expression) -> Result<usize, CheckError> {
         match self.base_type(e)? {
             BaseSort::Set(i) => Ok(i),
             _ => Err("expected Set(i)".into()),
         }
     }
-    fn proposition(&mut self, e: Expression) -> Result<(), String> {
+    fn proposition(&mut self, e: Expression) -> Result<(), CheckError> {
         if self.base_type(e)? == BaseSort::Prop {
             Ok(())
         } else {
             Err("expected proposition".into())
         }
     }
-    fn arrow(&mut self, domain: Expression, codomain: Expression) -> Result<Expression, String> {
+    fn arrow(
+        &mut self,
+        domain: Expression,
+        codomain: Expression,
+    ) -> Result<Expression, CheckError> {
         let body = shift(self.arena(), codomain, 1, 0)?;
         self.product(SymbolId::ANONYMOUS, domain, body)
     }
-    pub fn infer(&mut self, e: impl Into<Expression>) -> Result<Classifier, String> {
+    pub fn infer(&mut self, e: impl Into<Expression>) -> Result<Classifier, CheckError> {
         let e = e.into();
         if self.inference_depth == 0 && !self.checking_context {
             self.check_context()?
@@ -205,7 +238,7 @@ impl<'a> Checker<'a> {
         self.env.inference_cache.borrow_mut().insert(key, result);
         Ok(result)
     }
-    fn validate_inferred(&self, e: Expression, ty: Expression) -> Result<(), String> {
+    fn validate_inferred(&self, e: Expression, ty: Expression) -> Result<(), CheckError> {
         let expected = match e.family().stage() {
             Stage::Term => Stage::Type,
             Stage::Type => Stage::Kind,
@@ -216,7 +249,7 @@ impl<'a> Checker<'a> {
         }
         Ok(())
     }
-    fn closed_program_type(&self, p: Expression) -> Result<(), String> {
+    fn closed_program_type(&self, p: Expression) -> Result<(), CheckError> {
         if !matches!(self.arena().sort(p), BaseSort::Computation(_))
             || !closed_in_environment(self.env, p)
         {
@@ -225,10 +258,14 @@ impl<'a> Checker<'a> {
         Checker::new(self.env, vec![]).base_type(p)?;
         Ok(())
     }
-    fn lifted(&self, e: Expression, n: usize) -> Result<Expression, String> {
-        shift(self.arena(), e, n, 0)
+    fn lifted(&self, e: Expression, n: usize) -> Result<Expression, CheckError> {
+        shift(self.arena(), e, n, 0).map_err(CheckError::from)
     }
-    fn check_arguments(&mut self, args: &[Expression], telescope: &Context) -> Result<(), String> {
+    fn check_arguments(
+        &mut self,
+        args: &[Expression],
+        telescope: &Context,
+    ) -> Result<(), CheckError> {
         if args.len() != telescope.len() {
             return Err("parameter count mismatch".into());
         }
@@ -238,16 +275,20 @@ impl<'a> Checker<'a> {
         }
         Ok(())
     }
-    fn apply_motive(&mut self, motive: &Motive, args: &[Expression]) -> Result<Expression, String> {
+    fn apply_motive(
+        &mut self,
+        motive: &Motive,
+        args: &[Expression],
+    ) -> Result<Expression, CheckError> {
         if args.len() != motive.domains.len() {
             return Err("motive argument count mismatch".into());
         }
         for (i, (&arg, &ty)) in args.iter().zip(&motive.domains).enumerate() {
             self.check(arg, instantiate_telescope(self.env, ty, &args[..i])?)?;
         }
-        instantiate_telescope(self.env, motive.body, args)
+        instantiate_telescope(self.env, motive.body, args).map_err(CheckError::from)
     }
-    fn lift_motive(&self, m: &Motive) -> Result<Motive, String> {
+    fn lift_motive(&self, m: &Motive) -> Result<Motive, CheckError> {
         Ok(Motive {
             domains: m
                 .domains
@@ -258,7 +299,7 @@ impl<'a> Checker<'a> {
             body: shift(self.arena(), m.body, 1, m.domains.len())?,
         })
     }
-    fn infer_inner(&mut self, e: Expression) -> Result<Classifier, String> {
+    fn infer_inner(&mut self, e: Expression) -> Result<Classifier, CheckError> {
         match e {
             Expression::SetTerm(h) => self.infer_set_term_node(h),
             Expression::SetType(h) => self.infer_set_type_node(h),
@@ -274,7 +315,7 @@ impl<'a> Checker<'a> {
             Expression::ComputationKind(h) => self.infer_computation_kind_node(h),
         }
     }
-    fn infer_set_term_node(&mut self, h: SetTerm) -> Result<Classifier, String> {
+    fn infer_set_term_node(&mut self, h: SetTerm) -> Result<Classifier, CheckError> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             SetTermForm::Bound { index } => self.infer_bound(e, index)?,
@@ -480,7 +521,7 @@ impl<'a> Checker<'a> {
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
     }
-    fn infer_set_type_node(&mut self, h: SetType) -> Result<Classifier, String> {
+    fn infer_set_type_node(&mut self, h: SetType) -> Result<Classifier, CheckError> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             SetTypeForm::Bound { index } => self.infer_bound(e, index)?,
@@ -594,7 +635,7 @@ impl<'a> Checker<'a> {
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
     }
-    fn infer_set_kind_node(&mut self, h: SetKind) -> Result<Classifier, String> {
+    fn infer_set_kind_node(&mut self, h: SetKind) -> Result<Classifier, CheckError> {
         let e = h.into();
         match self.arena().get(h).form {
             SetKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
@@ -619,7 +660,7 @@ impl<'a> Checker<'a> {
             } => self.infer_annotation(e, body.into(), classifier),
         }
     }
-    fn infer_prop_term_node(&mut self, h: PropTerm) -> Result<Classifier, String> {
+    fn infer_prop_term_node(&mut self, h: PropTerm) -> Result<Classifier, CheckError> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             PropTermForm::Bound { index } => self.infer_bound(e, index)?,
@@ -815,7 +856,7 @@ impl<'a> Checker<'a> {
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
     }
-    fn infer_prop_type_node(&mut self, h: PropType) -> Result<Classifier, String> {
+    fn infer_prop_type_node(&mut self, h: PropType) -> Result<Classifier, CheckError> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             PropTypeForm::Bound { index } => self.infer_bound(e, index)?,
@@ -933,7 +974,7 @@ impl<'a> Checker<'a> {
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
     }
-    fn infer_prop_kind_node(&mut self, h: PropKind) -> Result<Classifier, String> {
+    fn infer_prop_kind_node(&mut self, h: PropKind) -> Result<Classifier, CheckError> {
         let e = h.into();
         match self.arena().get(h).form {
             PropKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
@@ -958,7 +999,7 @@ impl<'a> Checker<'a> {
             } => self.infer_annotation(e, body.into(), classifier),
         }
     }
-    fn infer_value_term_node(&mut self, h: ValueTerm) -> Result<Classifier, String> {
+    fn infer_value_term_node(&mut self, h: ValueTerm) -> Result<Classifier, CheckError> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             ValueTermForm::Bound { index } => self.infer_bound(e, index)?,
@@ -990,7 +1031,7 @@ impl<'a> Checker<'a> {
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
     }
-    fn infer_value_type_node(&mut self, h: ValueType) -> Result<Classifier, String> {
+    fn infer_value_type_node(&mut self, h: ValueType) -> Result<Classifier, CheckError> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             ValueTypeForm::Bound { index } => self.infer_bound(e, index)?,
@@ -1023,7 +1064,7 @@ impl<'a> Checker<'a> {
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
     }
-    fn infer_value_kind_node(&mut self, h: ValueKind) -> Result<Classifier, String> {
+    fn infer_value_kind_node(&mut self, h: ValueKind) -> Result<Classifier, CheckError> {
         let e = h.into();
         match self.arena().get(h).form {
             ValueKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
@@ -1035,7 +1076,10 @@ impl<'a> Checker<'a> {
             } => self.infer_product(e, rule, var, domain.into(), body.into()),
         }
     }
-    fn infer_computation_term_node(&mut self, h: ComputationTerm) -> Result<Classifier, String> {
+    fn infer_computation_term_node(
+        &mut self,
+        h: ComputationTerm,
+    ) -> Result<Classifier, CheckError> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             ComputationTermForm::Annotated {
@@ -1130,7 +1174,10 @@ impl<'a> Checker<'a> {
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
     }
-    fn infer_computation_type_node(&mut self, h: ComputationType) -> Result<Classifier, String> {
+    fn infer_computation_type_node(
+        &mut self,
+        h: ComputationType,
+    ) -> Result<Classifier, CheckError> {
         let e = h.into();
         let inferred = match self.arena().get(h).form {
             ComputationTypeForm::Bound { index } => self.infer_bound(e, index)?,
@@ -1169,7 +1216,10 @@ impl<'a> Checker<'a> {
         self.validate_inferred(e, inferred)?;
         Ok(Classifier::Expression(inferred))
     }
-    fn infer_computation_kind_node(&mut self, h: ComputationKind) -> Result<Classifier, String> {
+    fn infer_computation_kind_node(
+        &mut self,
+        h: ComputationKind,
+    ) -> Result<Classifier, CheckError> {
         let e = h.into();
         match self.arena().get(h).form {
             ComputationKindForm::Base => Ok(Classifier::Upper(self.arena().sort(e))),
@@ -1185,7 +1235,7 @@ impl<'a> Checker<'a> {
         build::base_kind(self.arena(), sort).expect("every sort has a base kind")
     }
 
-    fn powerset(&self, set: Expression) -> Result<Expression, String> {
+    fn powerset(&self, set: Expression) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(SetTypeNode {
@@ -1196,7 +1246,11 @@ impl<'a> Checker<'a> {
             })
             .into())
     }
-    fn type_lift(&self, superset: Expression, subset: Expression) -> Result<Expression, String> {
+    fn type_lift(
+        &self,
+        superset: Expression,
+        subset: Expression,
+    ) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(SetTypeNode {
@@ -1213,7 +1267,7 @@ impl<'a> Checker<'a> {
         superset: Expression,
         subset: Expression,
         element: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(PropTypeNode {
@@ -1225,7 +1279,7 @@ impl<'a> Checker<'a> {
             })
             .into())
     }
-    fn equality(&self, left: Expression, right: Expression) -> Result<Expression, String> {
+    fn equality(&self, left: Expression, right: Expression) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(PropTypeNode {
@@ -1236,7 +1290,7 @@ impl<'a> Checker<'a> {
             })
             .into())
     }
-    fn exists(&self, set: Expression) -> Result<Expression, String> {
+    fn exists(&self, set: Expression) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(PropTypeNode {
@@ -1252,7 +1306,7 @@ impl<'a> Checker<'a> {
         result_ty: Expression,
         step: Expression,
         state: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(PropTypeNode {
@@ -1265,7 +1319,7 @@ impl<'a> Checker<'a> {
             })
             .into())
     }
-    fn return_type(&self, value_ty: Expression) -> Result<Expression, String> {
+    fn return_type(&self, value_ty: Expression) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(ComputationTypeNode {
@@ -1280,7 +1334,7 @@ impl<'a> Checker<'a> {
             })
             .into())
     }
-    fn thunk_type(&self, computation_ty: Expression) -> Result<Expression, String> {
+    fn thunk_type(&self, computation_ty: Expression) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(ValueTypeNode {
@@ -1295,7 +1349,7 @@ impl<'a> Checker<'a> {
             })
             .into())
     }
-    fn box_type(&self, program_ty: Expression) -> Result<Expression, String> {
+    fn box_type(&self, program_ty: Expression) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(SetTypeNode {
@@ -1314,7 +1368,7 @@ impl<'a> Checker<'a> {
         &self,
         state_ty: Expression,
         result_ty: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         Ok(match self.arena().sort(state_ty) {
             BaseSort::Set(level) => self
                 .arena()
@@ -1344,7 +1398,7 @@ impl<'a> Checker<'a> {
         state_ty: Expression,
         result_ty: Expression,
         next: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(SetTermNode {
@@ -1362,7 +1416,7 @@ impl<'a> Checker<'a> {
         state_ty: Expression,
         result_ty: Expression,
         output: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         Ok(self
             .arena()
             .alloc(SetTermNode {
@@ -1380,23 +1434,24 @@ impl<'a> Checker<'a> {
         var: SymbolId,
         domain: Expression,
         body: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let s = self.formation(domain)?;
         let t = self.under(var, domain, |ch| ch.formation(body))?;
         build::product(self.arena(), ProductRule::new(s, t)?, var, domain, body)
+            .map_err(CheckError::from)
     }
     fn application(
         &mut self,
         function: Expression,
         argument: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let ty = self.inferred(function)?;
         let product = self.expose_product(ty)?;
         let product = structure::product(self.arena(), product).ok_or("expected a product")?;
         self.check(argument, product.domain)?;
-        build::apply(self.arena(), product.rule, function, argument)
+        build::apply(self.arena(), product.rule, function, argument).map_err(CheckError::from)
     }
-    fn expose_product(&self, mut ty: Expression) -> Result<Expression, String> {
+    fn expose_product(&self, mut ty: Expression) -> Result<Expression, CheckError> {
         loop {
             ty = whnf(self.env, ty)?;
             if structure::product(self.arena(), ty).is_some() {
@@ -1409,7 +1464,7 @@ impl<'a> Checker<'a> {
             }
         }
     }
-    fn weaken(&self, a: Expression, b: Expression) -> Result<bool, String> {
+    fn weaken(&self, a: Expression, b: Expression) -> Result<bool, CheckError> {
         if convertible(self.env, a, b)? {
             return Ok(true);
         }
@@ -1437,10 +1492,10 @@ impl<'a> Checker<'a> {
         &mut self,
         left: Expression,
         right: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let left = self.inferred(left)?;
         let right = self.inferred(right)?;
-        let base = |mut e| -> Result<Expression, String> {
+        let base = |mut e| -> Result<Expression, CheckError> {
             loop {
                 e = whnf(self.env, e)?;
                 if let Some(superset) = structure::lifted_superset(self.arena(), e) {
@@ -1460,8 +1515,8 @@ impl<'a> Checker<'a> {
     fn quantified(
         &mut self,
         domain: Expression,
-        body: impl FnOnce(&mut Self, Expression) -> Result<Expression, String>,
-    ) -> Result<Expression, String> {
+        body: impl FnOnce(&mut Self, Expression) -> Result<Expression, CheckError>,
+    ) -> Result<Expression, CheckError> {
         let sigma = self.formation(domain)?;
         let stage = if sigma.is_upper() {
             Stage::Type
@@ -1479,12 +1534,12 @@ impl<'a> Checker<'a> {
         step: Expression,
         from: Expression,
         to: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let applied = self.application(step, from)?;
         self.equality(applied, self.continue_term(state, result, to)?)
     }
 
-    fn infer_bound(&mut self, e: Expression, index: usize) -> Result<Expression, String> {
+    fn infer_bound(&mut self, e: Expression, index: usize) -> Result<Expression, CheckError> {
         let offset = index
             .checked_add(1)
             .ok_or("bound variable outside context")?;
@@ -1517,7 +1572,7 @@ impl<'a> Checker<'a> {
         e: Expression,
         body: Expression,
         classifier: Classifier,
-    ) -> Result<Classifier, String> {
+    ) -> Result<Classifier, CheckError> {
         match classifier {
             Classifier::Expression(ty) => {
                 self.validate_inferred(e, ty)?;
@@ -1537,7 +1592,7 @@ impl<'a> Checker<'a> {
         var: SymbolId,
         domain: Expression,
         body: Expression,
-    ) -> Result<Classifier, String> {
+    ) -> Result<Classifier, CheckError> {
         rule.validate()?;
         let s = self.formation(domain)?;
         let t = self.under(var, domain, |ch| ch.formation(body))?;
@@ -1568,7 +1623,7 @@ impl<'a> Checker<'a> {
         var: SymbolId,
         domain: Expression,
         body: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         rule.validate()?;
         let s = self.formation(domain)?;
         let (body_ty, t) = self.under(var, domain, |ch| {
@@ -1590,7 +1645,7 @@ impl<'a> Checker<'a> {
         rule: ProductRule,
         function: Expression,
         argument: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         rule.validate()?;
         let ty = self.inferred(function)?;
         let ty = self.expose_product(ty)?;
@@ -1602,9 +1657,9 @@ impl<'a> Checker<'a> {
             return Err("application rule annotation mismatch".into());
         }
         self.check(argument, p.domain)?;
-        substitute_with_reflection(self.env, p.body, argument)
+        substitute_with_reflection(self.env, p.body, argument).map_err(CheckError::from)
     }
-    fn infer_power_set(&mut self, set: Expression) -> Result<Expression, String> {
+    fn infer_power_set(&mut self, set: Expression) -> Result<Expression, CheckError> {
         self.set_type(set)?;
         Ok(self.base_kind(self.arena().sort(set)))
     }
@@ -1613,7 +1668,7 @@ impl<'a> Checker<'a> {
         var: SymbolId,
         set: Expression,
         predicate: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.set_type(set)?;
         self.under(var, set, |ch| ch.proposition(predicate))?;
         self.powerset(set)
@@ -1622,7 +1677,7 @@ impl<'a> Checker<'a> {
         &mut self,
         superset: Expression,
         subset: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.set_type(superset)?;
         self.check(subset, self.powerset(superset)?)?;
         Ok(self.base_kind(self.arena().sort(superset)))
@@ -1632,7 +1687,7 @@ impl<'a> Checker<'a> {
         superset: Expression,
         subset: Expression,
         element: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.infer_type_lift(superset, subset)?;
         self.check(element, superset)?;
         Ok(self.base_kind(BaseSort::Prop))
@@ -1643,20 +1698,24 @@ impl<'a> Checker<'a> {
         subset: Expression,
         element: Expression,
         proof: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.infer_pred(superset, subset, element)?;
         self.check(proof, self.predicate(superset, subset, element)?)?;
         self.type_lift(superset, subset)
     }
-    fn infer_equal(&mut self, left: Expression, right: Expression) -> Result<Expression, String> {
+    fn infer_equal(
+        &mut self,
+        left: Expression,
+        right: Expression,
+    ) -> Result<Expression, CheckError> {
         self.common_carrier(left, right)?;
         Ok(self.base_kind(BaseSort::Prop))
     }
-    fn infer_exists(&mut self, set: Expression) -> Result<Expression, String> {
+    fn infer_exists(&mut self, set: Expression) -> Result<Expression, CheckError> {
         self.set_type(set)?;
         Ok(self.base_kind(BaseSort::Prop))
     }
-    fn infer_id_refl(&mut self, element: Expression) -> Result<Expression, String> {
+    fn infer_id_refl(&mut self, element: Expression) -> Result<Expression, CheckError> {
         let ty = self.inferred(element)?;
         self.set_type(ty)?;
         self.equality(element, element)
@@ -1665,7 +1724,7 @@ impl<'a> Checker<'a> {
         &mut self,
         element: Expression,
         set: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.set_type(set)?;
         self.check(element, set)?;
         self.exists(set)
@@ -1675,7 +1734,7 @@ impl<'a> Checker<'a> {
         element: Expression,
         subset: Expression,
         superset: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.set_type(superset)?;
         self.check(element, self.type_lift(superset, subset)?)?;
         self.predicate(superset, subset, element)
@@ -1689,20 +1748,20 @@ impl<'a> Checker<'a> {
         predicate: Expression,
         base: Expression,
         equality: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.set_type(ty)?;
         self.check(left, ty)?;
         self.check(right, ty)?;
         self.under(var, ty, |ch| ch.proposition(predicate))?;
         self.check(base, substitute_with_reflection(self.env, predicate, left)?)?;
         self.check(equality, self.equality(left, right)?)?;
-        substitute_with_reflection(self.env, predicate, right)
+        substitute_with_reflection(self.env, predicate, right).map_err(CheckError::from)
     }
     fn check_runstep(
         &mut self,
         state_ty: Expression,
         result_ty: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let b = self.base_type(state_ty)?;
         if self.base_type(result_ty)? != b || !matches!(b, BaseSort::Set(_) | BaseSort::Value(_)) {
             return Err("RunStep types must share the same Set/value level".into());
@@ -1713,7 +1772,7 @@ impl<'a> Checker<'a> {
         &mut self,
         state_ty: Expression,
         result_ty: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.check_runstep(state_ty, result_ty)?;
         Ok(self.base_kind(self.arena().sort(state_ty)))
     }
@@ -1722,7 +1781,7 @@ impl<'a> Checker<'a> {
         state_ty: Expression,
         result_ty: Expression,
         next: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let ty = self.check_runstep(state_ty, result_ty)?;
         self.check(next, state_ty)?;
         Ok(ty)
@@ -1732,7 +1791,7 @@ impl<'a> Checker<'a> {
         state_ty: Expression,
         result_ty: Expression,
         output: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let ty = self.check_runstep(state_ty, result_ty)?;
         self.check(output, result_ty)?;
         Ok(ty)
@@ -1743,7 +1802,7 @@ impl<'a> Checker<'a> {
         result_ty: Expression,
         step: Expression,
         initial: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let runstep = self.check_runstep(state_ty, result_ty)?;
         let step_ty = if self.arena().sort(state_ty).is_program() {
             let result = self.return_type(runstep)?;
@@ -1762,7 +1821,7 @@ impl<'a> Checker<'a> {
         result_ty: Expression,
         step: Expression,
         state: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.check_run(state_ty, result_ty, step, state)?;
         Ok(self.base_kind(BaseSort::Prop))
     }
@@ -1773,7 +1832,7 @@ impl<'a> Checker<'a> {
         step: Expression,
         initial: Expression,
         accessibility: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.check_run(state_ty, result_ty, step, initial)?;
         self.check(
             accessibility,
@@ -1790,7 +1849,7 @@ impl<'a> Checker<'a> {
         transition: Expression,
         accessibility: Expression,
         transition_equality: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let runstep = self.check_run(state_ty, result_ty, step, initial)?;
         self.check(
             accessibility,
@@ -1801,7 +1860,7 @@ impl<'a> Checker<'a> {
         self.check(transition_equality, self.equality(applied, transition)?)?;
         Ok(result_ty)
     }
-    fn check_reflected_program_run(&self, term: ComputationTerm) -> Result<(), String> {
+    fn check_reflected_program_run(&self, term: ComputationTerm) -> Result<(), CheckError> {
         let context = super::reflection::reflect_context(self.env, &self.context)?;
         let reflected = super::reflection::reflect_term(self.env, term.into())?;
         Checker::new(self.env, context).infer_set_term(reflected)?;
@@ -1817,7 +1876,7 @@ impl<'a> Checker<'a> {
         on_continue: Expression,
         on_finish: Expression,
         scrutinee: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let i = self.set_type(state_ty)?;
         if self.set_type(result_ty)? != i {
             return Err("RunStep types must share a level".into());
@@ -1842,29 +1901,29 @@ impl<'a> Checker<'a> {
             let expected = self.product(SymbolId::ANONYMOUS, domain, ty)?;
             self.check(branch, expected)?;
         }
-        substitute_with_reflection(self.env, motive, scrutinee)
+        substitute_with_reflection(self.env, motive, scrutinee).map_err(CheckError::from)
     }
-    fn infer_thunk(&mut self, computation_ty: Expression) -> Result<Expression, String> {
+    fn infer_thunk(&mut self, computation_ty: Expression) -> Result<Expression, CheckError> {
         match self.base_type(computation_ty)? {
             BaseSort::Computation(i) => Ok(self.base_kind(BaseSort::Value(i))),
             _ => Err("U argument has wrong domain".into()),
         }
     }
-    fn infer_return_type(&mut self, value_ty: Expression) -> Result<Expression, String> {
+    fn infer_return_type(&mut self, value_ty: Expression) -> Result<Expression, CheckError> {
         match self.base_type(value_ty)? {
             BaseSort::Value(i) => Ok(self.base_kind(BaseSort::Computation(i))),
             _ => Err("F argument has wrong domain".into()),
         }
     }
-    fn infer_thunk_value(&mut self, computation: Expression) -> Result<Expression, String> {
+    fn infer_thunk_value(&mut self, computation: Expression) -> Result<Expression, CheckError> {
         let ty = self.inferred(computation)?;
         self.thunk_type(ty)
     }
-    fn infer_return(&mut self, value: Expression) -> Result<Expression, String> {
+    fn infer_return(&mut self, value: Expression) -> Result<Expression, CheckError> {
         let ty = self.inferred(value)?;
         self.return_type(ty)
     }
-    fn infer_force(&mut self, value: Expression) -> Result<Expression, String> {
+    fn infer_force(&mut self, value: Expression) -> Result<Expression, CheckError> {
         let ty = self.inferred(value)?;
         let ty: ValueType = whnf(self.env, ty)?.try_into()?;
         match self.arena().read(ty).form {
@@ -1879,7 +1938,7 @@ impl<'a> Checker<'a> {
         argument: Expression,
         body: Expression,
         sequence: bool,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         if !matches!(self.base_type(value_ty)?, BaseSort::Value(_)) {
             return Err("value binder requires value type".into());
         }
@@ -1893,7 +1952,7 @@ impl<'a> Checker<'a> {
         if contains_bound(self.arena(), ty, 0) {
             return Err("Program result type depends on value".into());
         }
-        substitute_with_reflection(self.env, ty, argument)
+        substitute_with_reflection(self.env, ty, argument).map_err(CheckError::from)
     }
     fn infer_sequence(
         &mut self,
@@ -1901,7 +1960,7 @@ impl<'a> Checker<'a> {
         value_ty: Expression,
         computation: Expression,
         body: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.infer_value_binding(var, value_ty, computation, body, true)
     }
     fn infer_value_let(
@@ -1910,10 +1969,10 @@ impl<'a> Checker<'a> {
         value_ty: Expression,
         value: Expression,
         body: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.infer_value_binding(var, value_ty, value, body, false)
     }
-    fn infer_box_type(&mut self, program_ty: Expression) -> Result<Expression, String> {
+    fn infer_box_type(&mut self, program_ty: Expression) -> Result<Expression, CheckError> {
         self.closed_program_type(program_ty)?;
         Ok(self.base_kind(self.arena().sort(program_ty).reflected()))
     }
@@ -1921,7 +1980,7 @@ impl<'a> Checker<'a> {
         &mut self,
         program_ty: Expression,
         program: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.closed_program_type(program_ty)?;
         if !closed_in_environment(self.env, program) {
             return Err("Box payload must be closed".into());
@@ -1937,10 +1996,11 @@ impl<'a> Checker<'a> {
         &mut self,
         program_ty: Expression,
         boxed: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.closed_program_type(program_ty)?;
         self.check(boxed, self.box_type(program_ty)?)?;
         super::reflection::reflect_program_expression(self.env, program_ty)
+            .map_err(CheckError::from)
     }
     fn infer_box_application(
         &mut self,
@@ -1951,7 +2011,7 @@ impl<'a> Checker<'a> {
         function: Expression,
         argument: Expression,
         type_application: bool,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.formation(domain)?;
         let body = if type_application {
             codomain
@@ -1989,7 +2049,7 @@ impl<'a> Checker<'a> {
         codomain: Expression,
         function: Expression,
         argument: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.infer_box_application(
             rule,
             SymbolId::ANONYMOUS,
@@ -2008,7 +2068,7 @@ impl<'a> Checker<'a> {
         codomain: Expression,
         function: Expression,
         argument: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.infer_box_application(rule, var, domain, codomain, function, argument, true)
     }
     fn infer_take_set(
@@ -2018,7 +2078,7 @@ impl<'a> Checker<'a> {
         map: Expression,
         existence: Expression,
         uniqueness: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         if self.set_type(codomain)? != self.set_type(domain)? {
             return Err("TakeSet domain/codomain level mismatch".into());
         }
@@ -2044,7 +2104,7 @@ impl<'a> Checker<'a> {
         proposition: Expression,
         map: Expression,
         existence: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.set_type(domain)?;
         self.proposition(proposition)?;
         let map_ty = self.arrow(domain, proposition)?;
@@ -2060,7 +2120,7 @@ impl<'a> Checker<'a> {
         element: Expression,
         existence: Expression,
         uniqueness: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let take = self.arena().alloc(SetTermNode {
             level: self.arena().sort(codomain).level().ok_or("expected Set")?,
             form: SetTermForm::TakeSet {
@@ -2081,7 +2141,7 @@ impl<'a> Checker<'a> {
         left: Expression,
         right: Expression,
         pointwise: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let ty = self.inferred(left)?;
         self.set_type(ty)?;
         let product = self.expose_product(ty)?;
@@ -2105,7 +2165,7 @@ impl<'a> Checker<'a> {
         right: Expression,
         left_to_right: Expression,
         right_to_left: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let ty = self.inferred(left)?;
         let carrier: Expression = structure::power_set(self.arena(), whnf(self.env, ty)?)
             .ok_or("setext requires powerset elements")?
@@ -2132,7 +2192,7 @@ impl<'a> Checker<'a> {
         domain: Expression,
         family: Expression,
         inhabited: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.set_type(domain)?;
         let ty = self.inferred(family)?;
         let p = self.expose_product(ty)?;
@@ -2165,7 +2225,7 @@ impl<'a> Checker<'a> {
         step: Expression,
         state: Expression,
         predecessors: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let acc = self.accessibility(state_ty, result_ty, step, state)?;
         self.proposition(acc)?;
         let expected = self.quantified(state_ty, |ch, x| {
@@ -2188,7 +2248,7 @@ impl<'a> Checker<'a> {
         to: Expression,
         accessibility: Expression,
         transition: Expression,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let acc = self.accessibility(state_ty, result_ty, step, from)?;
         self.proposition(acc)?;
         self.check(to, state_ty)?;
@@ -2203,7 +2263,7 @@ impl<'a> Checker<'a> {
         e: Expression,
         inductive: InductiveId,
         parameters: Vec<LogicalArgument>,
-    ) -> Result<Classifier, String> {
+    ) -> Result<Classifier, CheckError> {
         let spec = self
             .env
             .inductive(inductive)
@@ -2226,7 +2286,7 @@ impl<'a> Checker<'a> {
         inductive: InductiveId,
         constructor: usize,
         parameters: Vec<LogicalArgument>,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let spec = self
             .env
             .inductive(inductive)
@@ -2238,13 +2298,13 @@ impl<'a> Checker<'a> {
             .constructors
             .get(constructor)
             .ok_or("invalid constructor")?;
-        instantiate_telescope(self.env, classifier, &parameters)
+        instantiate_telescope(self.env, classifier, &parameters).map_err(CheckError::from)
     }
     fn infer_inductive(
         &mut self,
         inductive: ProgramInductiveId,
         parameters: Vec<ProgramType>,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let spec = self
             .env
             .datatype(inductive)
@@ -2259,7 +2319,7 @@ impl<'a> Checker<'a> {
         constructor: usize,
         parameters: Vec<ProgramType>,
         fields: Vec<ValueTerm>,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let spec = self
             .env
             .datatype(inductive)
@@ -2295,7 +2355,7 @@ impl<'a> Checker<'a> {
         result_ty: Expression,
         scrutinee: Expression,
         branches: Vec<ComputationTerm>,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.check_case(
             inductive,
             binders,
@@ -2312,7 +2372,7 @@ impl<'a> Checker<'a> {
         result_ty: Expression,
         scrutinee: Expression,
         branches: Vec<SetTerm>,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.check_case(
             inductive,
             binders,
@@ -2330,7 +2390,7 @@ impl<'a> Checker<'a> {
         scrutinee: Expression,
         branches: Vec<Expression>,
         reflected: bool,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let spec = self
             .env
             .datatype(inductive)
@@ -2389,7 +2449,7 @@ impl<'a> Checker<'a> {
         motive_domains: Vec<LogicalExpression>,
         motive_body: Expression,
         cases: Vec<LogicalArgument>,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.infer_inductive_elimination(
             inductive,
             motive_vars,
@@ -2410,7 +2470,7 @@ impl<'a> Checker<'a> {
         motive_body: Expression,
         cases: Vec<LogicalArgument>,
         recursive: bool,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let spec = self
             .env
             .inductive(inductive)
@@ -2494,7 +2554,7 @@ impl<'a> Checker<'a> {
         motive_domains: Vec<LogicalExpression>,
         motive_body: Expression,
         branches: Vec<LogicalArgument>,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         self.infer_inductive_elimination(
             inductive,
             motive_vars,
@@ -2510,7 +2570,7 @@ impl<'a> Checker<'a> {
         constructor_ty: Expression,
         constructor: Expression,
         motive: &Motive,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let constructor_ty = whnf(self.env, constructor_ty)?;
         if let Some(product) = structure::product(self.arena(), constructor_ty) {
             return self.quantified(product.domain, |ch, field| {
@@ -2532,7 +2592,7 @@ impl<'a> Checker<'a> {
         ty: Expression,
         x: Expression,
         motive: &Motive,
-    ) -> Result<Option<Expression>, String> {
+    ) -> Result<Option<Expression>, CheckError> {
         let ty = whnf(self.env, ty)?;
         if let Some(product) = structure::product(self.arena(), ty) {
             let mut found = false;
@@ -2564,7 +2624,7 @@ impl<'a> Checker<'a> {
         ty: Expression,
         ctor: Expression,
         motive: &Motive,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, CheckError> {
         let ty = whnf(self.env, ty)?;
         if let Some(product) = structure::product(self.arena(), ty) {
             let declared = structure::product(self.arena(), whnf(self.env, declared_ty)?)

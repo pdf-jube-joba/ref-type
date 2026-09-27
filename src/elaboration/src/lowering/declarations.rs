@@ -85,7 +85,13 @@ impl Lowerer<'_> {
                     context,
                 },
             )
-            .map_err(|e| format!("indexed definition {id:?}: {e}"))
+            .map_err(|e| {
+                format!(
+                    "definition {}: {}",
+                    raw::printing::definition_name(self.raw, id),
+                    super::diagnostics::format_error(self.raw, &e)
+                )
+            })
     }
 
     pub(super) fn inductive(&mut self, id: InductiveId) -> Result<(), String> {
@@ -151,7 +157,13 @@ impl Lowerer<'_> {
                     sort,
                 },
             )
-            .map_err(|e| format!("indexed inductive {id:?}: {e}"))?;
+            .map_err(|e| {
+                format!(
+                    "inductive {}: {}",
+                    raw::printing::inductive_name(self.raw, id, None),
+                    super::diagnostics::format_error(self.raw, &e)
+                )
+            })?;
         Ok(())
     }
 
@@ -193,15 +205,17 @@ impl Lowerer<'_> {
             constructors.push(fields)
         }
         self.inductive(raw.reflected())?;
-        self.kernel.register_datatype(
-            id.into(),
-            ke::ProgramDatatype {
-                parameters,
-                constructors,
-                level: 0,
-                reflected: raw.reflected().into(),
-            },
-        )?;
+        self.kernel
+            .register_datatype(
+                id.into(),
+                ke::ProgramDatatype {
+                    parameters,
+                    constructors,
+                    level: 0,
+                    reflected: raw.reflected().into(),
+                },
+            )
+            .map_err(|error| super::diagnostics::format_error(self.raw, &error))?;
         Ok(())
     }
 
@@ -210,7 +224,9 @@ impl Lowerer<'_> {
             let captures = self.captures(Declaration::Parameter(id));
             self.in_scope(captures, 0, 0, |this| {
                 let context = this.capture_context(true)?;
-                kernel::check::Checker::new(this.kernel, context).check_context()
+                kernel::check::Checker::new(this.kernel, context)
+                    .check_context()
+                    .map_err(|error| super::diagnostics::format_error(this.raw, &error))
             })?;
         }
         for id in self.raw.inductive_ids() {

@@ -1,5 +1,6 @@
 use super::{construction as build, structure};
 use super::{sort::*, syntax::*};
+use crate::diagnostic::CheckError;
 use crate::ids::*;
 use crate::sharing::ScopedCache;
 use rustc_hash::FxHashMap;
@@ -116,8 +117,8 @@ impl Drop for CheckScope<'_> {
 impl Environment {
     fn check_scoped(
         &mut self,
-        check: impl FnOnce(&Self) -> Result<(), String>,
-    ) -> Result<(), String> {
+        check: impl FnOnce(&Self) -> Result<(), CheckError>,
+    ) -> Result<(), CheckError> {
         let checkpoint = self.arena.checkpoint();
         self.inference_cache.get_mut().begin_scope();
         self.head_cache.get_mut().begin_scope();
@@ -128,7 +129,7 @@ impl Environment {
         check(scope.env)
     }
 
-    fn check_definition(&mut self, definition: &Definition) -> Result<(), String> {
+    fn check_definition(&mut self, definition: &Definition) -> Result<(), CheckError> {
         self.check_scoped(|env| {
             let mut checker = super::check::Checker::new(env, definition.context.clone());
             checker.check_context()?;
@@ -216,7 +217,7 @@ impl Environment {
         &mut self,
         id: GlobalId,
         definition: Definition,
-    ) -> Result<(), String> {
+    ) -> Result<(), CheckError> {
         if self.definitions.contains_key(&id) {
             return Err("duplicate definition".into());
         }
@@ -234,7 +235,7 @@ impl Environment {
         &mut self,
         id: InductiveId,
         spec: InductiveSpec,
-    ) -> Result<(), String> {
+    ) -> Result<(), CheckError> {
         if self.inductives.contains_key(&id) {
             return Err("duplicate inductive".into());
         }
@@ -299,7 +300,7 @@ impl Environment {
         &mut self,
         id: ProgramInductiveId,
         spec: ProgramDatatype,
-    ) -> Result<(), String> {
+    ) -> Result<(), CheckError> {
         if self.datatypes.contains_key(&id) {
             return Err("duplicate Program datatype".into());
         }
@@ -478,7 +479,7 @@ impl Environment {
         }
     }
 
-    fn install_datatype_mirror(&mut self, spec: &ProgramDatatype) -> Result<(), String> {
+    fn install_datatype_mirror(&mut self, spec: &ProgramDatatype) -> Result<(), CheckError> {
         use super::calculus::{alpha_equal, shift};
         let sort = BaseSort::Set(spec.level);
         let parameters = super::reflection::reflect_context(self, &spec.parameters)?;

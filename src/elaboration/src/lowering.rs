@@ -8,6 +8,7 @@ use std::collections::HashSet;
 mod captures;
 use captures::{Declaration, Scope};
 mod declarations;
+mod diagnostics;
 mod logical;
 mod nodes;
 mod program;
