@@ -4,7 +4,8 @@ use crate::hir::*;
 use crate::items::{ModItemDefinition, ModItemInductive, ModItemRecord};
 use crate::metavariables::ElaborationError;
 use crate::raw::calculus::{
-    exp_contains_bound, instantiate, shift_bound_indices, type_head_normal,
+    exp_contains_bound, instantiate, instantiate_telescope, shift_bound_indices, type_head_normal,
+    whnf,
 };
 use crate::raw::environment::{CrateEnv, DefinedConstant};
 use crate::raw::exp::*;
@@ -34,6 +35,8 @@ pub(crate) trait Handler {
         e: Exp,
         ty: Exp,
     ) -> Result<(), ElaborationError>;
+    fn unify(&mut self, left: Exp, right: Exp) -> Result<(), ElaborationError>;
+    fn zonk(&self, exp: Exp) -> Exp;
     fn match_parameters(
         &mut self,
         local_ctx: &mut ExpContext,
@@ -98,6 +101,38 @@ impl Default for LocalScope {
 }
 
 impl LocalScope {
+    fn elab_with_expected(
+        &mut self,
+        exp: &SExp,
+        expected: Exp,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, ElaborationError> {
+        if let SExp::Lam {
+            bind: Bind::Named(bind),
+            body,
+        } = exp
+            && bind.vars.len() == 1
+        {
+            let expected = whnf(handler.env(), handler.zonk(expected));
+            if let ExpNode::Prod {
+                ty, body: result, ..
+            } = handler.arena().get(expected)
+            {
+                let annotation = self.elab_exp_rec(&bind.ty, handler)?;
+                handler.unify(annotation, ty)?;
+                let var = handler.intern_name(&bind.vars[0]);
+                self.push_named_binder(var, annotation, handler);
+                let elaborated = self.elab_with_expected(body, result, handler);
+                self.pop_binded_var();
+                return Ok(handler.arena().alloc(ExpNode::Lam {
+                    var,
+                    ty: annotation,
+                    body: elaborated?,
+                }));
+            }
+        }
+        self.elab_exp_rec(exp, handler)
+    }
     pub(crate) fn new() -> Self {
         LocalScope {
             bindings: vec![],
@@ -1442,12 +1477,20 @@ impl LocalScope {
                         return Err(format!("Unknown structure field {supplied_name}").into());
                     }
                 }
+                let constructor_spec = handler.env().inductive(pts_inductive).constructors()[0]
+                    .instantiate_parameters(handler.arena(), &parameters);
                 let mut ordered = Vec::with_capacity(declared_names.len());
-                for declared_name in declared_names {
+                for (index, declared_name) in declared_names.into_iter().enumerate() {
                     let value = supplied
                         .get(declared_name.as_str())
                         .ok_or_else(|| format!("Missing structure field {declared_name}"))?;
-                    ordered.push(self.elab_exp_rec(value, handler)?);
+                    let crate::raw::inductive::CtorBinder::Simple((_, field_ty)) =
+                        constructor_spec.telescope[index]
+                    else {
+                        unreachable!("structure fields are simple constructor binders")
+                    };
+                    let expected = instantiate_telescope(handler.arena(), field_ty, &ordered);
+                    ordered.push(self.elab_with_expected(value, expected, handler)?);
                 }
 
                 let constructor = handler.arena().alloc(ExpNode::IndCtor {

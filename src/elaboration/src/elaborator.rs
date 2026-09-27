@@ -232,6 +232,20 @@ impl term_elaborator::Handler for GlobalEnvironment {
         Ok(exp)
     }
 
+    fn unify(&mut self, left: Exp, right: Exp) -> Result<(), ElaborationError> {
+        self.metavariables
+            .unify(&self.crate_env, left, right)
+            .map(|_| ())
+            .map_err(|message| {
+                self.metavariables
+                    .constraint_error(&self.crate_env, message)
+            })
+    }
+
+    fn zonk(&self, exp: Exp) -> Exp {
+        self.metavariables.zonk(&self.crate_env, exp)
+    }
+
     fn infer(&mut self, local_ctx: &mut ExpContext, e: Exp) -> Result<Exp, ElaborationError> {
         let mut ctx = self.module_manager.current_context(&self.crate_env);
         let module_context_len = ctx.len();

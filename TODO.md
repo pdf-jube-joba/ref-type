@@ -26,6 +26,7 @@
 
 ## エラー表示周り
 - 名前が見つからなかったらちょうどその名前のところだけに赤線が出てほしい
+- `Elaboration Error: Expected inductive type for field projection` も宣言全体に出るので直したい。
 
 ## コードのよくない点
 - 関数定義で `\fun` が入れ子でインデントを入れすぎる。 300 行もあったり。
