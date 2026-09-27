@@ -1,6 +1,7 @@
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
+\use Equality.eq_reason;
 \use Equality.congr;
 \use Equality.congr2;
 \use Equality.transport;
@@ -70,6 +71,8 @@
 
 
 
+\math-macro nat_add($x, "+", $y) := add^ $x $y;
+
 \definition addPrec (a, b: Nat^): Nat^ := \induction (n: Nat^) \return Nat^ \with {
   | zero : a
   | succ : (\fun (n: Nat^) => \fun (sum: Nat^) => Nat^::succ sum)
@@ -86,13 +89,15 @@
       succCong (addPrec (Nat^::succ a) b) (Nat^::succ (addPrec a b)) ih)
     };
 
-\definition addMatchesPrec: \forall (b, a: Nat^) -> add^ a b = addPrec a b :=
-  \induction (b: Nat^) \return \forall (a: Nat^) -> add^ a b = addPrec a b \with {
+\definition addMatchesPrec: \forall (b, a: Nat^) -> \(a "+" b\) = addPrec a b :=
+  \induction (b: Nat^) \return \forall (a: Nat^) -> \(a "+" b\) = addPrec a b \with {
     | zero : (\fun (a: Nat^) => \refl(a))
-    | succ : (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> add^ a b = addPrec a b) => \fun (a: Nat^) =>
-      \idelim(addPrec (Nat^::succ a) b = Nat^::succ (addPrec a b)
-        \with x: Nat^ => add^ a (Nat^::succ b) = x)
-      \by { base: ih (Nat^::succ a), equality: addPrecSuccLeft a b })
+    | succ : (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> \(a "+" b\) = addPrec a b) => \fun (a: Nat^) =>
+      eq_reason!{
+        \(a "+" { Nat^::succ b }\)
+        "=" { addPrec (Nat^::succ a) b } "by" { ih (Nat^::succ a) }
+        "=" { Nat^::succ (addPrec a b) } "by" { addPrecSuccLeft a b }
+      })
     };
 
 \definition pred: (Nat -> Nat) := (\cfun (n: Nat) => \match n \in Nat \with { | zero : \return Nat::zero | succ k : \return k });
@@ -440,8 +445,10 @@
         \by { addTerminates current a })
       Nat::zero b) \by { iterTerminates b (add^ a) Nat^::zero };
 
+\math-macro nat_mul($x, "*", $y) := mul^ $x $y;
+
 \definition mulPrec (a, b: Nat^): Nat^ := iterPrec (add^ a) Nat^::zero b;
-\definition mulMatchesPrec (a, b: Nat^): mul^ a b = mulPrec a b := iterMatchesPrec (add^ a) b Nat^::zero;
+\definition mulMatchesPrec (a, b: Nat^): \(a "*" b\) = mulPrec a b := iterMatchesPrec (add^ a) b Nat^::zero;
 
 \definition pow: (Nat -> (Nat -> Nat)) :=
   \fun (a, b: Nat) =>

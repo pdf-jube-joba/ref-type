@@ -4,68 +4,64 @@
 \definition succInjective (a, b: Nat^) (e: Nat^::succ a = Nat^::succ b): a = b := congr!{Nat^ Nat^} pred^ (Nat^::succ a) (Nat^::succ b) e;
 \definition predZero: pred^ Nat^::zero = Nat^::zero := \refl(Nat^::zero);
 \definition predSucc (n: Nat^): pred^ (Nat^::succ n) = n := \refl(n);
-\definition addZeroRight (a: Nat^): add^ a Nat^::zero = a := \refl(a);
-\definition addSuccLeft: \forall (a, b: Nat^) -> add^ (Nat^::succ a) b = Nat^::succ (add^ a b) :=
-  \block {
-    \fix (a, b: Nat^) \then
-    \let reflectedSuccessor:
-      addPrec (Nat^::succ a) b = Nat^::succ (add^ a b) :=
-      trans!{Nat^} _ _ _ (addPrecSuccLeft a b)
-        (succCong _ _ (sym!{Nat^} _ _ (addMatchesPrec b a))) \then
-    \return trans!{Nat^} _ _ _ (addMatchesPrec b (Nat^::succ a)) reflectedSuccessor
+\definition addZeroRight (a: Nat^): \(a "+" { Nat^::zero }\) = a := \refl(a);
+\definition addSuccLeft: \forall (a, b: Nat^) ->
+  \({ Nat^::succ a } "+" b\) = Nat^::succ \(a "+" b\) :=
+  \fun (a, b: Nat^) => eq_reason!{
+    \({ Nat^::succ a } "+" b\)
+    "=" { addPrec (Nat^::succ a) b } "by" { addMatchesPrec b (Nat^::succ a) }
+    "=" { Nat^::succ (addPrec a b) } "by" { addPrecSuccLeft a b }
+    "=" { Nat^::succ \(a "+" b\) }
+    "by" { succCong _ _ (sym!{Nat^} _ _ (addMatchesPrec b a)) }
   };
-\definition addSuccRight (a, b: Nat^): add^ a (Nat^::succ b) = Nat^::succ (add^ a b) := addSuccLeft a b;
-\definition addZeroLeft: \forall (a: Nat^) -> add^ Nat^::zero a = a :=
-  \induction (a: Nat^) \return add^ Nat^::zero a = a \with {
+\definition addSuccRight (a, b: Nat^): \(a "+" { Nat^::succ b }\) = Nat^::succ \(a "+" b\) := addSuccLeft a b;
+\definition addZeroLeft: \forall (a: Nat^) -> \({ Nat^::zero } "+" a\) = a :=
+  \induction (a: Nat^) \return \({ Nat^::zero } "+" a\) = a \with {
     | zero : (\refl(Nat^::zero))
-    | succ : (\fun (a: Nat^) => \fun (ih: add^ Nat^::zero a = a) =>
-      trans!{Nat^} _ _ _ (addSuccRight Nat^::zero a) (succCong (add^ Nat^::zero a) a ih))
+    | succ : (\fun (a: Nat^) => \fun (ih: \({ Nat^::zero } "+" a\) = a) =>
+      trans!{Nat^} _ _ _ (addSuccRight Nat^::zero a) (succCong \({ Nat^::zero } "+" a\) a ih))
     };
-\definition addComm (a: Nat^): \forall (b: Nat^) -> add^ a b = add^ b a :=
-  \induction (b: Nat^) \return add^ a b = add^ b a \with {
-    | zero : (sym!{Nat^} _ _ (addZeroLeft a))
-    | succ : (\fun (b: Nat^) => \fun (ih: add^ a b = add^ b a) =>
-      trans!{Nat^} _ _ _ (addSuccRight a b)
-        (trans!{Nat^} _ _ _ (succCong (add^ a b) (add^ b a) ih) (sym!{Nat^} _ _ (addSuccLeft b a))))
-    };
-\definition addAssoc (a, b: Nat^): \forall (c: Nat^) -> add^ (add^ a b) c = add^ a (add^ b c) :=
-  \induction (c: Nat^) \return add^ (add^ a b) c = add^ a (add^ b c) \with {
-    | zero : (\refl(add^ a b))
-    | succ : (\block {
-      \fix (c: Nat^) \then
-      \fix (ih: add^ (add^ a b) c = add^ a (add^ b c)) \then
-      \let inductionUnderSuccessor:
-        Nat^::succ (add^ (add^ a b) c) = Nat^::succ (add^ a (add^ b c)) :=
-        succCong (add^ (add^ a b) c) (add^ a (add^ b c)) ih \then
-      \let exposeOuterAddition:
-        Nat^::succ (add^ a (add^ b c)) = add^ a (Nat^::succ (add^ b c)) :=
-        sym!{Nat^} _ _ (addSuccRight a (add^ b c)) \then
-      \let exposeInnerAddition:
-        add^ a (Nat^::succ (add^ b c)) = add^ a (add^ b (Nat^::succ c)) :=
-        congr!{Nat^ Nat^} (add^ a) _ _ (sym!{Nat^} _ _ (addSuccRight b c)) \then
-      \return trans!{Nat^} _ _ _ (addSuccRight (add^ a b) c)
-        (trans!{Nat^} _ _ _ inductionUnderSuccessor
-          (trans!{Nat^} _ _ _ exposeOuterAddition exposeInnerAddition))
-    })
-    };
-\definition addCancelRight: \forall (c, a, b: Nat^) -> add^ a c = add^ b c -> a = b :=
-  \induction (c: Nat^) \return \forall (a, b: Nat^) -> add^ a c = add^ b c -> a = b \with {
+\definition addComm (a: Nat^): \forall (b: Nat^) -> \(a "+" b\) = \(b "+" a\) :=
+  \induction (b: Nat^) \return \(a "+" b\) = \(b "+" a\) \with {
+    | zero : sym!{Nat^} _ _ (addZeroLeft a)
+    | succ : \fun (b: Nat^) (ih: \(a "+" b\) = \(b "+" a\)) => eq_reason!{
+        \(a "+" { Nat^::succ b }\)
+        "=" { Nat^::succ \(a "+" b\) } "by" { addSuccRight a b }
+        "=" { Nat^::succ \(b "+" a\) } "by" { succCong _ _ ih }
+        "=" \({ Nat^::succ b } "+" a\) "by" { sym!{Nat^} _ _ (addSuccLeft b a) }
+      }
+  };
+\definition addAssoc (a, b: Nat^): \forall (c: Nat^) ->
+  \((a "+" b) "+" c\) = \(a "+" (b "+" c)\) :=
+  \induction (c: Nat^) \return \((a "+" b) "+" c\) = \(a "+" (b "+" c)\) \with {
+    | zero : \refl(\(a "+" b\))
+    | succ : \fun (c: Nat^) (ih: \((a "+" b) "+" c\) = \(a "+" (b "+" c)\)) =>
+      eq_reason!{
+        \((a "+" b) "+" { Nat^::succ c }\)
+        "=" { Nat^::succ \((a "+" b) "+" c\) } "by" { addSuccRight \(a "+" b\) c }
+        "=" { Nat^::succ \(a "+" (b "+" c)\) } "by" { succCong _ _ ih }
+        "=" \(a "+" { Nat^::succ \(b "+" c\) }\)
+        "by" { sym!{Nat^} _ _ (addSuccRight a \(b "+" c\)) }
+        "=" \(a "+" (b "+" { Nat^::succ c })\)
+        "by" { congr!{Nat^ Nat^} (add^ a) _ _ (sym!{Nat^} _ _ (addSuccRight b c)) }
+      }
+  };
+\definition addCancelRight: \forall (c, a, b: Nat^) -> \(a "+" c\) = \(b "+" c\) -> a = b :=
+  \induction (c: Nat^) \return \forall (a, b: Nat^) -> \(a "+" c\) = \(b "+" c\) -> a = b \with {
     | zero : (\fun (a, b: Nat^) => \fun (e: a = b) => e)
-    | succ : (\fun (c: Nat^) => \fun (ih: \forall (a, b: Nat^) -> add^ a c = add^ b c -> a = b) =>
-      \fun (a, b: Nat^) => \fun (e: add^ a (Nat^::succ c) = add^ b (Nat^::succ c)) =>
+    | succ : (\fun (c: Nat^) => \fun (ih: \forall (a, b: Nat^) -> \(a "+" c\) = \(b "+" c\) -> a = b) =>
+      \fun (a, b: Nat^) => \fun (e: \(a "+" { Nat^::succ c }\) = \(b "+" { Nat^::succ c }\)) =>
         ih a b (succInjective _ _
           (trans!{Nat^} _ _ _ (sym!{Nat^} _ _ (addSuccRight a c))
             (trans!{Nat^} _ _ _ e (addSuccRight b c)))))
     };
-\definition addCancelLeft: \forall (c, a, b: Nat^) -> add^ c a = add^ c b -> a = b :=
-  \block {
-    \fix (c, a, b: Nat^) \then
-    \fix (e: add^ c a = add^ c b) \then
-    \let rightSumsEqual: add^ a c = add^ b c :=
-      trans!{Nat^} _ _ _ (addComm a c)
-        (trans!{Nat^} _ _ _ e (addComm c b)) \then
-    \return addCancelRight c a b rightSumsEqual
-  };
+\definition addCancelLeft: \forall (c, a, b: Nat^) -> \(c "+" a\) = \(c "+" b\) -> a = b :=
+  \fun (c, a, b: Nat^) (e: \(c "+" a\) = \(c "+" b\)) =>
+    addCancelRight c a b eq_reason!{
+      \(a "+" c\) "=" \(c "+" a\) "by" { addComm a c }
+      "=" \(c "+" b\) "by" e
+      "=" \(b "+" c\) "by" { addComm c b }
+    };
 \definition subZeroRight (a: Nat^): sub^ a Nat^::zero = a := \refl(a);
 \definition subZeroLeft: \forall (a: Nat^) -> sub^ Nat^::zero a = Nat^::zero :=
   \induction (a: Nat^) \return sub^ Nat^::zero a = Nat^::zero \with {
@@ -78,19 +74,19 @@
     | zero : (\refl(Nat^::zero))
     | succ : (\fun (a: Nat^) => \fun (ih: sub^ a a = Nat^::zero) => ih)
     };
-\definition subAddCancel: \forall (b, a: Nat^) -> sub^ (add^ a b) b = a :=
-  \induction (b: Nat^) \return \forall (a: Nat^) -> sub^ (add^ a b) b = a \with {
+\definition subAddCancel: \forall (b, a: Nat^) -> sub^ \(a "+" b\) b = a :=
+  \induction (b: Nat^) \return \forall (a: Nat^) -> sub^ \(a "+" b\) b = a \with {
     | zero : (\fun (a: Nat^) => \refl(a))
-    | succ : (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> sub^ (add^ a b) b = a) => \fun (a: Nat^) =>
+    | succ : (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> sub^ \(a "+" b\) b = a) => \fun (a: Nat^) =>
       trans!{Nat^} _ _ _
         (congr!{Nat^ Nat^} (\fun (x: Nat^) => sub^ x (Nat^::succ b)) _ _ (addSuccRight a b)) (ih a))
     };
-\definition mulZeroRight (a: Nat^): mul^ a Nat^::zero = Nat^::zero := \refl(Nat^::zero);
-\definition mulSuccRight (a, b: Nat^): mul^ a (Nat^::succ b) = add^ a (mul^ a b) := trans!{Nat^} _ _ _ (mulMatchesPrec a (Nat^::succ b))
+\definition mulZeroRight (a: Nat^): \(a "*" { Nat^::zero }\) = Nat^::zero := \refl(Nat^::zero);
+\definition mulSuccRight (a, b: Nat^): \(a "*" { Nat^::succ b }\) = \(a "+" (a "*" b)\) := trans!{Nat^} _ _ _ (mulMatchesPrec a (Nat^::succ b))
     (congr!{Nat^ Nat^} (add^ a) _ _ (sym!{Nat^} _ _ (mulMatchesPrec a b)));
 \definition powZero (a: Nat^): pow^ a Nat^::zero = Nat^::succ Nat^::zero := \refl(Nat^::succ
   Nat^::zero);
-\definition powSucc (a, b: Nat^): pow^ a (Nat^::succ b) = mul^ a (pow^ a b) := trans!{Nat^} _ _ _ (powMatchesPrec a (Nat^::succ b))
+\definition powSucc (a, b: Nat^): pow^ a (Nat^::succ b) = \(a "*" { pow^ a b }\) := trans!{Nat^} _ _ _ (powMatchesPrec a (Nat^::succ b))
     (congr!{Nat^ Nat^} (mul^ a) _ _ (sym!{Nat^} _ _ (powMatchesPrec a b)));
 
 /* Boolean decisions can be consumed directly as propositions. */
@@ -176,129 +172,107 @@
       })
     };
 
-\definition addCong: \forall (a, b, c, d: Nat^) -> a = b -> c = d -> add^ a c = add^ b d :=
+\definition addCong: \forall (a, b, c, d: Nat^) -> a = b -> c = d -> \(a "+" c\) = \(b "+" d\) :=
   congr2!{Nat^ Nat^ Nat^} add^;
-\definition addSwap: \forall (a, b, c: Nat^) -> add^ a (add^ b c) = add^ b (add^ a c) :=
-  \block {
-    \fix (a, b, c: Nat^) \then
-    \let regroupLeft: add^ a (add^ b c) = add^ (add^ a b) c :=
-      sym!{Nat^} _ _ (addAssoc a b c) \then
-    \let swapLeft: add^ (add^ a b) c = add^ (add^ b a) c :=
-      congr!{Nat^ Nat^} (\fun (x: Nat^) => add^ x c) _ _ (addComm a b) \then
-    \return trans!{Nat^} _ _ _ regroupLeft
-      (trans!{Nat^} _ _ _ swapLeft (addAssoc b a c))
+\definition addSwap: \forall (a, b, c: Nat^) -> \(a "+" (b "+" c)\) = \(b "+" (a "+" c)\) :=
+  \fun (a, b, c: Nat^) => eq_reason!{
+    \(a "+" (b "+" c)\)
+    "=" \((a "+" b) "+" c\) "by" { sym!{Nat^} _ _ (addAssoc a b c) }
+    "=" \((b "+" a) "+" c\)
+    "by" { congr!{Nat^ Nat^} (\fun (n: Nat^) => \(n "+" c\)) _ _ (addComm a b) }
+    "=" \(b "+" (a "+" c)\) "by" { addAssoc b a c }
   };
 \definition addInterchange: \forall (a, b, c, d: Nat^) ->
-  add^ (add^ a b) (add^ c d) = add^ (add^ a c) (add^ b d) :=
-  \block {
-    \fix (a, b, c, d: Nat^) \then
-    \let regroupLeft:
-      add^ (add^ a b) (add^ c d) = add^ a (add^ b (add^ c d)) :=
-      addAssoc a b (add^ c d) \then
-    \let swapMiddle:
-      add^ a (add^ b (add^ c d)) = add^ a (add^ c (add^ b d)) :=
-      congr!{Nat^ Nat^} (add^ a) _ _ (addSwap b c d) \then
-    \return trans!{Nat^} _ _ _ regroupLeft
-      (trans!{Nat^} _ _ _ swapMiddle (sym!{Nat^} _ _ (addAssoc a c (add^ b d))))
+  \((a "+" b) "+" (c "+" d)\) = \((a "+" c) "+" (b "+" d)\) :=
+  \fun (a, b, c, d: Nat^) => eq_reason!{
+    \((a "+" b) "+" (c "+" d)\)
+    "=" \(a "+" (b "+" (c "+" d))\) "by" { addAssoc a b \(c "+" d\) }
+    "=" \(a "+" (c "+" (b "+" d))\)
+    "by" { congr!{Nat^ Nat^} (add^ a) _ _ (addSwap b c d) }
+    "=" \((a "+" c) "+" (b "+" d)\) "by" { sym!{Nat^} _ _ (addAssoc a c \(b "+" d\)) }
   };
-\definition mulZeroLeft: \forall (a: Nat^) -> mul^ Nat^::zero a = Nat^::zero :=
-  \induction (a: Nat^) \return mul^ Nat^::zero a = Nat^::zero \with {
+\definition mulZeroLeft: \forall (a: Nat^) -> \({ Nat^::zero } "*" a\) = Nat^::zero :=
+  \induction (a: Nat^) \return \({ Nat^::zero } "*" a\) = Nat^::zero \with {
     | zero : (\refl(Nat^::zero))
-    | succ : (\fun (a: Nat^) => \fun (ih: mul^ Nat^::zero a = Nat^::zero) =>
-      trans!{Nat^} _ _ _ (mulSuccRight Nat^::zero a) (trans!{Nat^} (add^ Nat^::zero (mul^ Nat^::zero a)) (mul^
-        Nat^::zero a) Nat^::zero (addZeroLeft (mul^ Nat^::zero a)) ih))
+    | succ : (\fun (a: Nat^) => \fun (ih: \({ Nat^::zero } "*" a\) = Nat^::zero) =>
+      trans!{Nat^} _ _ _ (mulSuccRight Nat^::zero a) (trans!{Nat^} \({ Nat^::zero } "+" ({ Nat^::zero } "*" a)\) \({ Nat^::zero } "*" a\) Nat^::zero (addZeroLeft \({ Nat^::zero } "*" a\)) ih))
     };
-\definition mulOneLeft: \forall (a: Nat^) -> mul^ (Nat^::succ Nat^::zero) a = a :=
-  \induction (a: Nat^) \return mul^ (Nat^::succ Nat^::zero) a = a \with {
+\definition mulOneLeft: \forall (a: Nat^) -> \({ Nat^::succ Nat^::zero } "*" a\) = a :=
+  \induction (a: Nat^) \return \({ Nat^::succ Nat^::zero } "*" a\) = a \with {
     | zero : (\refl(Nat^::zero))
-    | succ : (\fun (a: Nat^) => \fun (ih: mul^ (Nat^::succ Nat^::zero) a = a) =>
+    | succ : (\fun (a: Nat^) => \fun (ih: \({ Nat^::succ Nat^::zero } "*" a\) = a) =>
       trans!{Nat^} _ _ _ (mulSuccRight (Nat^::succ Nat^::zero) a)
-        (trans!{Nat^} _ _ _ (addSuccLeft Nat^::zero (mul^ (Nat^::succ Nat^::zero) a))
-          (succCong (add^ Nat^::zero (mul^ (Nat^::succ Nat^::zero) a)) a
-            (trans!{Nat^} (add^ Nat^::zero (mul^ (Nat^::succ Nat^::zero) a)) (mul^ (Nat^::succ Nat^::zero) a) a
-              (addZeroLeft (mul^ (Nat^::succ Nat^::zero) a)) ih))))
+        (trans!{Nat^} _ _ _ (addSuccLeft Nat^::zero \({ Nat^::succ Nat^::zero } "*" a\))
+          (succCong \({ Nat^::zero } "+" ({ Nat^::succ Nat^::zero } "*" a)\) a
+            (trans!{Nat^} \({ Nat^::zero } "+" ({ Nat^::succ Nat^::zero } "*" a)\) \({ Nat^::succ Nat^::zero } "*" a\) a
+              (addZeroLeft \({ Nat^::succ Nat^::zero } "*" a\)) ih))))
     };
 \definition mulDistribRight (a, b: Nat^): \forall (c: Nat^) ->
-  mul^ (add^ a b) c = add^ (mul^ a c) (mul^ b c) :=
-  \induction (c: Nat^) \return mul^ (add^ a b) c = add^ (mul^ a c) (mul^ b c) \with {
-    | zero : (\refl(Nat^::zero))
-    | succ : (\block {
-      \fix (c: Nat^) \then
-      \fix (ih: mul^ (add^ a b) c = add^ (mul^ a c) (mul^ b c)) \then
-      \let inductionUnderAddition:
-        add^ (add^ a b) (mul^ (add^ a b) c) =
-          add^ (add^ a b) (add^ (mul^ a c) (mul^ b c)) :=
-        congr!{Nat^ Nat^} (add^ (add^ a b))
-          (mul^ (add^ a b) c) (add^ (mul^ a c) (mul^ b c)) ih \then
-      \let interchange:
-        add^ (add^ a b) (add^ (mul^ a c) (mul^ b c)) =
-          add^ (add^ a (mul^ a c)) (add^ b (mul^ b c)) :=
-        addInterchange a b (mul^ a c) (mul^ b c) \then
-      \let foldSuccessors:
-        add^ (add^ a (mul^ a c)) (add^ b (mul^ b c)) =
-          add^ (mul^ a (Nat^::succ c)) (mul^ b (Nat^::succ c)) :=
-        addCong _ _ _ _
-          (sym!{Nat^} _ _ (mulSuccRight a c))
-          (sym!{Nat^} _ _ (mulSuccRight b c)) \then
-      \return trans!{Nat^} _ _ _ (mulSuccRight (add^ a b) c)
-        (trans!{Nat^} _ _ _ inductionUnderAddition
-          (trans!{Nat^} _ _ _ interchange foldSuccessors))
-    })
-    };
-\definition mulSuccLeft: \forall (a, b: Nat^) -> mul^ (Nat^::succ a) b = add^ b (mul^ a b) :=
-  \block {
-    \fix (a, b: Nat^) \then
-    \let removeOne:
-      add^ (mul^ a b) (mul^ (Nat^::succ Nat^::zero) b) =
-        add^ (mul^ a b) b :=
-      congr!{Nat^ Nat^} (add^ (mul^ a b)) _ _ (mulOneLeft b) \then
-    \return trans!{Nat^} _ _ _ (mulDistribRight a (Nat^::succ Nat^::zero) b)
-      (trans!{Nat^} _ _ _ removeOne (addComm (mul^ a b) b))
+  \((a "+" b) "*" c\) = \((a "*" c) "+" (b "*" c)\) :=
+  \induction (c: Nat^) \return \((a "+" b) "*" c\) = \((a "*" c) "+" (b "*" c)\) \with {
+    | zero : \refl(Nat^::zero)
+    | succ : \fun (c: Nat^) (ih: \((a "+" b) "*" c\) = \((a "*" c) "+" (b "*" c)\)) =>
+      eq_reason!{
+        \((a "+" b) "*" { Nat^::succ c }\)
+        "=" \((a "+" b) "+" ((a "+" b) "*" c)\) "by" { mulSuccRight \(a "+" b\) c }
+        "=" \((a "+" b) "+" ((a "*" c) "+" (b "*" c))\)
+        "by" { congr!{Nat^ Nat^} (add^ \(a "+" b\)) _ _ ih }
+        "=" \((a "+" (a "*" c)) "+" (b "+" (b "*" c))\)
+        "by" { addInterchange a b \(a "*" c\) \(b "*" c\) }
+        "=" \((a "*" { Nat^::succ c }) "+" (b "*" { Nat^::succ c })\)
+        "by" { congr2!{Nat^ Nat^ Nat^} add^ _ _ _ _
+          (sym!{Nat^} _ _ (mulSuccRight a c)) (sym!{Nat^} _ _ (mulSuccRight b c)) }
+      }
   };
-\definition mulComm (a: Nat^): \forall (b: Nat^) -> mul^ a b = mul^ b a :=
-  \induction (b: Nat^) \return mul^ a b = mul^ b a \with {
-    | zero : (sym!{Nat^} _ _ (mulZeroLeft a))
-    | succ : (\fun (b: Nat^) => \fun (ih: mul^ a b = mul^ b a) =>
-      trans!{Nat^} _ _ _ (mulSuccRight a b)
-        (trans!{Nat^} _ _ _ (congr!{Nat^ Nat^} (add^ a) (mul^ a b) (mul^ b a) ih) (sym!{Nat^} _ _ (mulSuccLeft b a))))
-    };
-\definition mulOneRight (a: Nat^): mul^ a (Nat^::succ Nat^::zero) = a := trans!{Nat^} _ _ _ (mulComm a (Nat^::succ Nat^::zero)) (mulOneLeft a);
+\definition mulSuccLeft: \forall (a, b: Nat^) -> \({ Nat^::succ a } "*" b\) = \(b "+" (a "*" b)\) :=
+  \fun (a, b: Nat^) => eq_reason!{
+    \({ Nat^::succ a } "*" b\)
+    "=" \((a "*" b) "+" ({ Nat^::succ Nat^::zero } "*" b)\)
+    "by" { mulDistribRight a (Nat^::succ Nat^::zero) b }
+    "=" \((a "*" b) "+" b\)
+    "by" { congr!{Nat^ Nat^} (add^ \(a "*" b\)) _ _ (mulOneLeft b) }
+    "=" \(b "+" (a "*" b)\) "by" { addComm \(a "*" b\) b }
+  };
+\definition mulComm (a: Nat^): \forall (b: Nat^) -> \(a "*" b\) = \(b "*" a\) :=
+  \induction (b: Nat^) \return \(a "*" b\) = \(b "*" a\) \with {
+    | zero : sym!{Nat^} _ _ (mulZeroLeft a)
+    | succ : \fun (b: Nat^) (ih: \(a "*" b\) = \(b "*" a\)) => eq_reason!{
+        \(a "*" { Nat^::succ b }\)
+        "=" \(a "+" (a "*" b)\) "by" { mulSuccRight a b }
+        "=" \(a "+" (b "*" a)\) "by" { congr!{Nat^ Nat^} (add^ a) _ _ ih }
+        "=" \({ Nat^::succ b } "*" a\) "by" { sym!{Nat^} _ _ (mulSuccLeft b a) }
+      }
+  };
+\definition mulOneRight (a: Nat^): \(a "*" { Nat^::succ Nat^::zero }\) = a :=
+  eq_reason!{
+    \(a "*" { Nat^::succ Nat^::zero }\)
+    "=" \({ Nat^::succ Nat^::zero } "*" a\) "by" { mulComm a (Nat^::succ Nat^::zero) }
+    "=" a "by" { mulOneLeft a }
+  };
 \definition mulDistribLeft: \forall (a, b, c: Nat^) ->
-  mul^ a (add^ b c) = add^ (mul^ a b) (mul^ a c) :=
-  \block {
-    \fix (a, b, c: Nat^) \then
-    \let distribute:
-      mul^ (add^ b c) a = add^ (mul^ b a) (mul^ c a) :=
-      mulDistribRight b c a \then
-    \let commuteProducts:
-      add^ (mul^ b a) (mul^ c a) = add^ (mul^ a b) (mul^ a c) :=
-      addCong _ _ _ _ (mulComm b a) (mulComm c a) \then
-    \return trans!{Nat^} _ _ _ (mulComm a (add^ b c))
-      (trans!{Nat^} _ _ _ distribute commuteProducts)
+  \(a "*" (b "+" c)\) = \((a "*" b) "+" (a "*" c)\) :=
+  \fun (a, b, c: Nat^) => eq_reason!{
+    \(a "*" (b "+" c)\)
+    "=" \((b "+" c) "*" a\) "by" { mulComm a \(b "+" c\) }
+    "=" \((b "*" a) "+" (c "*" a)\) "by" { mulDistribRight b c a }
+    "=" \((a "*" b) "+" (a "*" c)\)
+    "by" { congr2!{Nat^ Nat^ Nat^} add^ _ _ _ _ (mulComm b a) (mulComm c a) }
   };
-\definition mulAssoc (a, b: Nat^): \forall (c: Nat^) -> mul^ (mul^ a b) c = mul^ a (mul^ b c) :=
-  \induction (c: Nat^) \return mul^ (mul^ a b) c = mul^ a (mul^ b c) \with {
-    | zero : (\refl(Nat^::zero))
-    | succ : (\block {
-      \fix (c: Nat^) \then
-      \fix (ih: mul^ (mul^ a b) c = mul^ a (mul^ b c)) \then
-      \let inductionUnderAddition:
-        add^ (mul^ a b) (mul^ (mul^ a b) c) =
-          add^ (mul^ a b) (mul^ a (mul^ b c)) :=
-        congr!{Nat^ Nat^} (add^ (mul^ a b))
-          (mul^ (mul^ a b) c) (mul^ a (mul^ b c)) ih \then
-      \let factorLeft:
-        add^ (mul^ a b) (mul^ a (mul^ b c)) =
-          mul^ a (add^ b (mul^ b c)) :=
-        sym!{Nat^} _ _ (mulDistribLeft a b (mul^ b c)) \then
-      \let foldSuccessor:
-        mul^ a (add^ b (mul^ b c)) = mul^ a (mul^ b (Nat^::succ c)) :=
-        congr!{Nat^ Nat^} (mul^ a) _ _ (sym!{Nat^} _ _ (mulSuccRight b c)) \then
-      \return trans!{Nat^} _ _ _ (mulSuccRight (mul^ a b) c)
-        (trans!{Nat^} _ _ _ inductionUnderAddition
-          (trans!{Nat^} _ _ _ factorLeft foldSuccessor))
-    })
-    };
+\definition mulAssoc (a, b: Nat^): \forall (c: Nat^) ->
+  \((a "*" b) "*" c\) = \(a "*" (b "*" c)\) :=
+  \induction (c: Nat^) \return \((a "*" b) "*" c\) = \(a "*" (b "*" c)\) \with {
+    | zero : \refl(Nat^::zero)
+    | succ : \fun (c: Nat^) (ih: \((a "*" b) "*" c\) = \(a "*" (b "*" c)\)) =>
+      eq_reason!{
+        \((a "*" b) "*" { Nat^::succ c }\)
+        "=" \((a "*" b) "+" ((a "*" b) "*" c)\) "by" { mulSuccRight \(a "*" b\) c }
+        "=" \((a "*" b) "+" (a "*" (b "*" c))\)
+        "by" { congr!{Nat^ Nat^} (add^ \(a "*" b\)) _ _ ih }
+        "=" \(a "*" (b "+" (b "*" c))\) "by" { sym!{Nat^} _ _ (mulDistribLeft a b \(b "*" c\)) }
+        "=" \(a "*" (b "*" { Nat^::succ c })\)
+        "by" { congr!{Nat^ Nat^} (mul^ a) _ _ (sym!{Nat^} _ _ (mulSuccRight b c)) }
+      }
+  };
 
 \definition zeroEqSuccElim (n: Nat^) (P: \Prop) (e: Nat^::zero = Nat^::succ n): P :=
     B.absurd P
@@ -310,29 +284,29 @@
       (congr!{Nat^ B.Bool^} isZero^ (Nat^::succ n) Nat^::zero e);
 
 \definition mulSuccSucc (a, k: Nat^):
-  mul^ (Nat^::succ a) (Nat^::succ k) =
-    Nat^::succ (add^ k (mul^ a (Nat^::succ k))) :=
+  \({ Nat^::succ a } "*" { Nat^::succ k }\) =
+    Nat^::succ \(k "+" (a "*" { Nat^::succ k })\) :=
     trans!{Nat^} _ _ _ (mulSuccLeft a (Nat^::succ k))
-      (addSuccLeft k (mul^ a (Nat^::succ k)));
+      (addSuccLeft k \(a "*" { Nat^::succ k }\));
 
 /* Multiplication by a successor is injective. */
 \definition mulCancelRightSucc: \forall (k, a, b: Nat^) ->
-  mul^ a (Nat^::succ k) = mul^ b (Nat^::succ k) -> a = b :=
+  \(a "*" { Nat^::succ k }\) = \(b "*" { Nat^::succ k }\) -> a = b :=
 
   \fun (k: Nat^) =>
     \induction (a: Nat^) \return \forall (b: Nat^) ->
-        mul^ a (Nat^::succ k) = mul^ b (Nat^::succ k) -> a = b \with {
-      | zero : (\induction (b: Nat^) \return mul^ Nat^::zero (Nat^::succ k) = mul^ b (Nat^::succ k) ->
+        \(a "*" { Nat^::succ k }\) = \(b "*" { Nat^::succ k }\) -> a = b \with {
+      | zero : (\induction (b: Nat^) \return \({ Nat^::zero } "*" { Nat^::succ k }\) = \(b "*" { Nat^::succ k }\) ->
           Nat^::zero = b \with {
-        | zero : (\fun (e: mul^ Nat^::zero (Nat^::succ k) =
-          mul^ Nat^::zero (Nat^::succ k)) => \refl(Nat^::zero))
+        | zero : (\fun (e: \({ Nat^::zero } "*" { Nat^::succ k }\) =
+          \({ Nat^::zero } "*" { Nat^::succ k }\)) => \refl(Nat^::zero))
         | succ : (\fun (b: Nat^) =>
-        \fun (unused: mul^ Nat^::zero (Nat^::succ k) =
-          mul^ b (Nat^::succ k) -> Nat^::zero = b) =>
-        \fun (e: mul^ Nat^::zero (Nat^::succ k) =
-          mul^ (Nat^::succ b) (Nat^::succ k)) =>
+        \fun (unused: \({ Nat^::zero } "*" { Nat^::succ k }\) =
+          \(b "*" { Nat^::succ k }\) -> Nat^::zero = b) =>
+        \fun (e: \({ Nat^::zero } "*" { Nat^::succ k }\) =
+          \({ Nat^::succ b } "*" { Nat^::succ k }\)) =>
           zeroEqSuccElim
-            (add^ k (mul^ b (Nat^::succ k)))
+            \(k "+" (b "*" { Nat^::succ k })\)
             (Nat^::zero = Nat^::succ b)
             (trans!{Nat^} _ _ _
               (sym!{Nat^} _ _ (mulZeroLeft (Nat^::succ k)))
@@ -340,30 +314,30 @@
         })
       | succ : (\fun (a: Nat^) =>
       \fun (ih: \forall (b: Nat^) ->
-        mul^ a (Nat^::succ k) = mul^ b (Nat^::succ k) -> a = b) =>
-        \induction (b: Nat^) \return mul^ (Nat^::succ a) (Nat^::succ k) =
-              mul^ b (Nat^::succ k) -> Nat^::succ a = b \with {
-        | zero : (\fun (e: mul^ (Nat^::succ a) (Nat^::succ k) =
-            mul^ Nat^::zero (Nat^::succ k)) =>
+        \(a "*" { Nat^::succ k }\) = \(b "*" { Nat^::succ k }\) -> a = b) =>
+        \induction (b: Nat^) \return \({ Nat^::succ a } "*" { Nat^::succ k }\) =
+              \(b "*" { Nat^::succ k }\) -> Nat^::succ a = b \with {
+        | zero : (\fun (e: \({ Nat^::succ a } "*" { Nat^::succ k }\) =
+            \({ Nat^::zero } "*" { Nat^::succ k }\)) =>
             succEqZeroElim
-              (add^ k (mul^ a (Nat^::succ k)))
+              \(k "+" (a "*" { Nat^::succ k })\)
               (Nat^::succ a = Nat^::zero)
               (trans!{Nat^} _ _ _
                 (sym!{Nat^} _ _ (mulSuccSucc a k))
                 (trans!{Nat^} _ _ _ e (mulZeroLeft (Nat^::succ k)))))
         | succ : (\fun (b: Nat^) =>
-          \fun (unused: mul^ (Nat^::succ a) (Nat^::succ k) =
-            mul^ b (Nat^::succ k) -> Nat^::succ a = b) =>
-          \fun (e: mul^ (Nat^::succ a) (Nat^::succ k) =
-            mul^ (Nat^::succ b) (Nat^::succ k)) =>
+          \fun (unused: \({ Nat^::succ a } "*" { Nat^::succ k }\) =
+            \(b "*" { Nat^::succ k }\) -> Nat^::succ a = b) =>
+          \fun (e: \({ Nat^::succ a } "*" { Nat^::succ k }\) =
+            \({ Nat^::succ b } "*" { Nat^::succ k }\)) =>
             succCong a b
               (ih b
                 (addCancelLeft k
-                  (mul^ a (Nat^::succ k))
-                  (mul^ b (Nat^::succ k))
+                  \(a "*" { Nat^::succ k }\)
+                  \(b "*" { Nat^::succ k }\)
                   (succInjective
-                    (add^ k (mul^ a (Nat^::succ k)))
-                    (add^ k (mul^ b (Nat^::succ k)))
+                    \(k "+" (a "*" { Nat^::succ k })\)
+                    \(k "+" (b "*" { Nat^::succ k })\)
                     (trans!{Nat^} _ _ _
                       (sym!{Nat^} _ _ (mulSuccSucc a k))
                       (trans!{Nat^} _ _ _ e (mulSuccSucc b k)))))))

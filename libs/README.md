@@ -57,6 +57,38 @@ congr2!{A B C} f a b c d ab cd
 
 `eq_reason!{a}` は反射律による `a = a` の証明になる。
 
+自然数と整数には、加法・乗法を表す数式マクロがある。
+各例は、それぞれの数の記法を使うモジュール内に置く。
+
+```text
+\import std.Nat[] \as N;
+\import N.Laws[] \as NL;
+\use N.nat_add;
+\use N.nat_mul;
+
+\definition distribute (a, b, c: N.Nat^):
+  \(a "*" (b "+" c)\) = \((a "*" b) "+" (a "*" c)\) :=
+  NL.mulDistribLeft a b c;
+```
+
+```text
+\import std.Arithmetic[].Int[] \as I;
+\import std.Logic[].Equality[] \as E;
+\use I.int_add;
+\use I.int_mul;
+\use E.eq_reason;
+
+\definition expanded (a, b, c: I.Integer):
+  \(a "*" (b "+" c)\) = \((b "*" a) "+" (c "*" a)\) :=
+  eq_reason!{
+    \(a "*" (b "+" c)\)
+    "=" \((b "+" c) "*" a\) "by" { I.mulIntegerComm a \(b "+" c\) }
+    "=" \((b "*" a) "+" (c "*" a)\) "by" { I.mulIntegerDistribRight b c a }
+  };
+```
+
+自然数の記法は `add^`・`mul^`、整数の記法は `addInteger`・`mulInteger` に展開される。
+
 `congr2!` は `ab: a = b` と `cd: c = d` から `f a c = f b d` を直接作る。
 期待型から引数が分かる場合は値を `_` にできる。
 
@@ -228,10 +260,8 @@ Int が公開する `Nat` / `Bool` alias と `natZero!{}`、`natSucc!{n}`、
 
 ## 有理数
 
-Rat の分子 `Integer` は Int の `ofNat` / `negSucc` 正規形である。`IntegerEq` は
-正規形を `Int.Math` の形式差へ写して得る同値関係であり、
-`addIntegerRespects`、`negIntegerRespects`、`subIntegerRespects`、
-`mulIntegerRespects` が各演算の代表元独立性を与える。
+Rat の分子 `Integer` は Int の `ofNat` / `negSucc` 正規形であり、その法則と合同則は組み込みの `=` を使う。
+形式差 `Difference` 上の `Equivalent` は代表元の関係を表し、`normalizeRespects` で正規形の等式へ移す。
 
 `Fraction` は分子と `denominatorIndex` を保持する。index `d` は実際の分母 `d+1` を表すため、
 零分母は構文的に作れない。`FractionEq` は交差積による同値関係である。

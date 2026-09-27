@@ -23,20 +23,20 @@
     \with flag: B.Bool^ => flag = B.Bool^::true)
     \by { base: h, equality: ltbAsCross x y };
 \definition Comparison (x, y: Integer): \Prop :=
-  O.Comparison (IntegerLt x y) (IntegerEq x y) (IntegerLt y x);
+  O.Comparison (IntegerLt x y) (x = y) (IntegerLt y x);
 \definition trichotomy (x, y: Integer): Comparison x y :=
   \match (NO.trichotomy (crossLeft x y) (crossLeft y x)) \in L.Or
     \return (\fun (_: NO.Comparison (crossLeft x y) (crossLeft y x)) => Comparison x y) \with {
   | left h :
-      L.Or[IntegerLt x y, L.Or[IntegerEq x y, IntegerLt y x]]::left (ltOfCross x y h)
+      L.Or[IntegerLt x y, L.Or[x = y, IntegerLt y x]]::left (ltOfCross x y h)
   | right rest :
-      L.Or[IntegerLt x y, L.Or[IntegerEq x y, IntegerLt y x]]::right
+      L.Or[IntegerLt x y, L.Or[x = y, IntegerLt y x]]::right
         (\match rest \in L.Or
           \return (\fun (_: L.Or[crossLeft x y = crossLeft y x, NL.Lt (crossLeft y x) (crossLeft x y)]) =>
-            L.Or[IntegerEq x y, IntegerLt y x]) \with {
-        | left e : L.Or[IntegerEq x y, IntegerLt y x]::left e
+            L.Or[x = y, IntegerLt y x]) \with {
+        | left e : L.Or[x = y, IntegerLt y x]::left (eqOfRepresentatives x y e)
         | right h :
-            L.Or[IntegerEq x y, IntegerLt y x]::right (ltOfCross y x h)
+            L.Or[x = y, IntegerLt y x]::right (ltOfCross y x h)
         })
   };
 \definition ltIrrefl (x: Integer) (h: IntegerLt x x): L.False :=
@@ -188,12 +188,13 @@
       (integerLtAsRaw y z yz));
 
 \definition ltRespects (x, x2, y, y2: Integer)
-  (xx: IntegerEq x x2) (yy: IntegerEq y y2)
+  (xx: x = x2) (yy: y = y2)
   (xy: IntegerLt x y): IntegerLt x2 y2 :=
-  integerLtOfRaw x2 y2
-    (rawLtRespects (IM.representative x) (IM.representative x2)
-      (IM.representative y) (IM.representative y2)
-      xx yy (integerLtAsRaw x y xy));
+  \idelim(y = y2 \with v: Integer => IntegerLt x2 v)
+    \by { base:
+      \idelim(x = x2 \with u: Integer => IntegerLt u y)
+        \by { base: xy, equality: xx },
+      equality: yy };
 
 \definition ltAddLeft (z, x, y: Integer) (xy: IntegerLt x y):
   IntegerLt (addInteger z x) (addInteger z y) :=
@@ -224,7 +225,7 @@
   ltIrrefl x (ltTrans x y x xy yx);
 
 \definition ltNotEq (x, y: Integer)
-  (xy: IntegerLt x y) (same: IntegerEq x y): L.False :=
+  (xy: IntegerLt x y) (same: x = y): L.False :=
   ltIrrefl x
     (ltRespects x x y x (integerEqRefl x)
       (integerEqSym x y same) xy);
@@ -236,7 +237,7 @@
   | left direct : direct
   | right rest :
       \match rest \in L.Or
-        \return (\fun (_: L.Or[IntegerEq x y, IntegerLt y x]) => IntegerLt x y) \with {
+        \return (\fun (_: L.Or[x = y, IntegerLt y x]) => IntegerLt x y) \with {
       | left same :
           L.falseElim (IntegerLt x y)
             (ltNotEq (addInteger x z) (addInteger y z) xy
@@ -280,7 +281,7 @@
 \definition zeroLtOne: IntegerLt zeroInteger oneInteger :=
   ltOfCross zeroInteger oneInteger (NO.zeroLtSucc N.Nat^::zero);
 
-\definition negZero: IntegerEq (negInteger zeroInteger) zeroInteger :=
+\definition negZero: negInteger zeroInteger = zeroInteger :=
   integerEqTrans _ _ _
     (integerEqSym _ _ (addIntegerZeroLeft (negInteger zeroInteger)))
     (addIntegerNegRight zeroInteger);
@@ -404,8 +405,8 @@
         IntegerLt (Int^::ofNat a) (integer product zeroNat) :=
       ltNatural a product (NO.ltPositiveProduct a k) \then
     \let productIsScale:
-        IntegerEq (integer product zeroNat)
-          (scaleInteger (Int^::ofNat (N.Nat^::succ k)) n) :=
+        integer product zeroNat =
+          scaleInteger (Int^::ofNat (N.Nat^::succ k)) n :=
       integerEqSym _ _
         (scaleIntegerNatural (N.Nat^::succ k) n) \then
     \let bound:
