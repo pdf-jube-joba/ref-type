@@ -117,6 +117,16 @@ impl term_elaborator::Handler for GlobalEnvironment {
             .map_err(Into::into)
     }
 
+    fn assign_meta(&mut self, meta: Exp, value: Exp) -> Result<(), ElaborationError> {
+        self.metavariables
+            .unify(&self.crate_env, meta, value)
+            .map_err(|message| {
+                self.metavariables
+                    .constraint_error(&self.crate_env, message)
+            })?;
+        Ok(())
+    }
+
     fn record_source(&mut self, term: Exp, span: SourceSpan) {
         self.metavariables
             .record_source(&self.crate_env, term, span);

@@ -24,6 +24,7 @@ identity!(
     MacroToken,
     SourceSpan,
     SurfaceMeta,
+    u32,
     Sort,
     Arc<SourceFile>,
     usize,
@@ -236,6 +237,7 @@ extend_enum!(LocalAccess {
 });
 
 extend_enum!(SExp {
+    Assign { value, number, span },
     Meta { kind, span },
     AccessPath { access, parameters },
     AssociatedAccess { span, base, field },

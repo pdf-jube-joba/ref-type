@@ -427,6 +427,11 @@ impl std::fmt::Display for LocalAccess {
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
+    Assign {
+        value: Box<SExp>,
+        number: u32,
+        span: SourceSpan,
+    },
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,

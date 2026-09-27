@@ -92,6 +92,20 @@ Program の datatype、constructor、record literal、型関連 item の paramet
 共有する推論変数の解は、各出現に共通する外側の binder に依存できる。
 束縛名の `_` は匿名名である。
 
+Set/Prop の式には `\assign` で番号付き推論変数との等式を登録できる。
+式を elaboration した時点で制約を解き、同じ宣言の型注釈と本体で共有する。
+式の値は左辺のままで、既に解がある場合は整合性を検査する。
+`\assign` の結合順位は矢印より弱い。
+
+```ref
+\definition andAssoc (P, Q, R: \Prop):
+  PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] :=
+  PropEquiv[_1, _2] {
+    lt := \fun (h: _1) => And[_, _]::# (h #left #left) (And[_, _]::# (h #left #right) (h #right)),
+    rt := \fun (h: _2) => And[_, _]::# (And[_, _]::# (h #left) (h #right #left)) (h #right #right),
+  };
+```
+
 `?` がある module の elaboration は失敗し、その位置の期待型、ローカル変数、関連する制約を報告する。
 制約から項が求まった場合も hole を報告し、求まった項を表示する。
 同じ宣言に未解決の推論変数がある場合は、それらも一緒に表示する。

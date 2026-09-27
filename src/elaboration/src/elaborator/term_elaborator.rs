@@ -50,6 +50,7 @@ pub(crate) trait Handler {
         span: SourceSpan,
         local_context: &ExpContext,
     ) -> Result<Exp, ElaborationError>;
+    fn assign_meta(&mut self, meta: Exp, value: Exp) -> Result<(), ElaborationError>;
     fn record_source(&mut self, term: Exp, span: SourceSpan);
     fn intern_name(&mut self, name: &Identifier) -> SymbolId;
     fn reflect_program_expression(
@@ -416,7 +417,7 @@ impl LocalScope {
         let result = self.elab_exp_inner(exp, handler)?;
         let span = match exp {
             SExp::AccessPath { access, .. } => Some(access.span()),
-            SExp::Meta { span, .. } => Some(*span),
+            SExp::Meta { span, .. } | SExp::Assign { span, .. } => Some(*span),
             _ => None,
         };
         if let Some(span) = span {
@@ -436,6 +437,17 @@ impl LocalScope {
                 expression,
             } => handler.reflect_program_expression(*parameter, expression),
             SExp::Meta { kind, span } => handler.fresh_meta(*kind, *span, &self.typing_binds),
+            SExp::Assign {
+                value,
+                number,
+                span,
+            } => {
+                let value = self.elab_exp_rec(value, handler)?;
+                let meta =
+                    handler.fresh_meta(SurfaceMeta::Named(*number), *span, &self.typing_binds)?;
+                handler.assign_meta(meta, value)?;
+                Ok(value)
+            }
             SExp::AccessPath { access, parameters } => {
                 // this includes (term binding) access path
 

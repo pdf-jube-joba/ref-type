@@ -1457,9 +1457,31 @@ impl<'a> TermParser<'a> {
         Ok((binds, body, self.pos))
     }
 
-    // Precedence, weakest first: arrows, equality, application, postfix, atom.
+    // Precedence, weakest first: assignment, arrows, equality, application, postfix, atom.
     // Both arrows associate to the right. Binding forms scope over a full expression.
     fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
+        let mut value = self.parse_arrow()?;
+        while self.bump_if_keyword(r"\assign") {
+            if !matches!(self.peek(), Some(Token::Metavariable(name)) if name.starts_with('_')) {
+                return Err(self.error("expected numbered metavariable after \\assign"));
+            }
+            let SExp::Meta {
+                kind: SurfaceMeta::Named(number),
+                span,
+            } = self.parse_atom()?
+            else {
+                return Err(self.error("expected numbered metavariable after \\assign"));
+            };
+            value = SExp::Assign {
+                value: Box::new(value),
+                number,
+                span,
+            };
+        }
+        Ok(value)
+    }
+
+    fn parse_arrow(&mut self) -> Result<SExp, ParseError> {
         if matches!(self.peek(), Some(Token::KeyWord(r"\let" | r"\bind"))) {
             return self.parse_program_binding();
         }
@@ -1470,12 +1492,12 @@ impl<'a> TermParser<'a> {
                     vars: Vec::new(),
                     ty: Box::new(left),
                 }),
-                body: Box::new(self.parse_sexp()?),
+                body: Box::new(self.parse_arrow()?),
             })
         } else if self.bump_if_token(Token::ComputationArrow) {
             Ok(SExp::ComputationFunction {
                 domain: Box::new(left),
-                codomain: Box::new(self.parse_sexp()?),
+                codomain: Box::new(self.parse_arrow()?),
             })
         } else {
             Ok(left)
@@ -1597,6 +1619,23 @@ mod tests {
 
     fn complete(input: &str) -> SExp {
         complete_with(input, |parser| parser.parse_sexp())
+    }
+
+    #[test]
+    fn assignment_captures_the_arrow_and_supports_chaining() {
+        let SExp::Assign {
+            value, number: 2, ..
+        } = complete(r"A -> B \assign _1 \assign _2")
+        else {
+            panic!("expected outer assignment");
+        };
+        let SExp::Assign {
+            value, number: 1, ..
+        } = *value
+        else {
+            panic!("expected inner assignment");
+        };
+        assert!(matches!(*value, SExp::Prod { .. }));
     }
 
     #[test]

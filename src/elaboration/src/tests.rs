@@ -2041,3 +2041,52 @@ fn program_query_parameters_are_scoped_outside_local_variables() {
         )
         .unwrap();
 }
+
+#[test]
+fn explicit_meta_assignment_shares_record_types_before_projection() {
+    let source = r"\module Assignment {
+        \record And[P, Q: \Prop]: \Prop := { left: P, right: Q, };
+        \record PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
+        \definition andAssoc (P, Q, R: \Prop): PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] := PropEquiv[_1, _2] {
+          lt := \block {
+            \fix (h: _1) \then
+            \let p: P := h #left #left \then
+            \let q: Q := h #left #right \then
+            \let r: R := h #right \then
+            \return And[_, _]::# p (And[_, _]::# q r)
+          },
+          rt := \block {
+            \fix (h: _2) \then
+            \let p: P := h #left \then
+            \let q: Q := h #right #left \then
+            \let r: R := h #right #right \then
+            \return And[_, _]::# (And[_, _]::# p q) r
+          },
+        };
+    }";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
+fn explicit_meta_assignment_checks_existing_solutions() {
+    for (second, succeeds) in [("A", true), ("B", false)] {
+        let source = format!(
+            r"\module Assignment(A: \Set, B: \Set, a: A) {{
+            \definition value: A \assign _1 := a;
+            \definition repeated: (A \assign _1) -> ({second} \assign _1) := \fun (x: A) => x;
+        }}"
+        );
+        let modules = parse::str_parse_modules(&source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        let result = environment.add_new_module_to_root(&modules[0]);
+        if succeeds {
+            result.unwrap();
+        } else {
+            let error = format!("{:?}", result.unwrap_err());
+            assert!(error.contains("incompatible rigid expressions"), "{error}");
+            assert!(error.contains("[Failed]"), "{error}");
+        }
+    }
+}

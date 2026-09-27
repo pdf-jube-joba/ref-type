@@ -428,7 +428,8 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             }
             walk_sexp_control(motive, action);
         }
-        SExp::Reflect {
+        SExp::Assign { value: base, .. }
+        | SExp::Reflect {
             expression: base, ..
         }
         | SExp::AssociatedAccess { base, .. }

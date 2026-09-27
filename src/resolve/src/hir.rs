@@ -390,6 +390,11 @@ pub enum SExp {
         parameter: BindingId,
         expression: Box<SExp>,
     },
+    Assign {
+        value: Box<SExp>,
+        number: u32,
+        span: SourceSpan,
+    },
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,

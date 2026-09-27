@@ -131,7 +131,8 @@ pub(crate) fn alpha_rename(
                 alpha_rename(parameter, order, counter, scopes);
             }
         }
-        SExp::Reflect {
+        SExp::Assign { value: base, .. }
+        | SExp::Reflect {
             expression: base, ..
         }
         | SExp::AssociatedAccess { base, .. }
