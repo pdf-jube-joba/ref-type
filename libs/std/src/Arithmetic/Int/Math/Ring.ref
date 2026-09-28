@@ -75,15 +75,12 @@
           (positive y) (positive v) (negative x) (negative u)) }};
 
 \definition negIntegerRespects (x, y: Integer) (xy: IntegerEq x y): IntegerEq (negInteger x) (negInteger y) :=
-    trans!{Nat} _ _ _ (NL.addComm (negative x) (positive y))
-      (trans!{Nat}
-        (N.add^ (positive y) (negative x))
+    equiv_reason!{trans!{Nat}
+      "by" { NL.addComm (negative x) (positive y) }
+      "by" { sym!{Nat}
         (N.add^ (positive x) (negative y))
-        (N.add^ (negative y) (positive x))
-        (sym!{Nat}
-          (N.add^ (positive x) (negative y))
-          (N.add^ (positive y) (negative x)) xy)
-        (NL.addComm (positive x) (negative y)));
+        (N.add^ (positive y) (negative x)) xy }
+      "by" { NL.addComm (positive x) (negative y) }};
 
 \definition subIntegerRespects (x, y, u, v: Integer) (xy: IntegerEq x y) (uv: IntegerEq u v):
     IntegerEq (subInteger x u) (subInteger y v) :=
@@ -94,22 +91,15 @@
     integer (N.mul^ (positive x) n) (N.mul^ (negative x) n);
 
 \definition scaleIntegerRespects (x, y: Integer) (n: Nat) (xy: IntegerEq x y): IntegerEq (scaleInteger x n) (scaleInteger y n) :=
-    trans!{Nat}
-      (N.add^ (N.mul^ (positive x) n) (N.mul^ (negative y) n))
-      (N.mul^ (N.add^ (positive x) (negative y)) n)
-      (N.add^ (N.mul^ (positive y) n) (N.mul^ (negative x) n))
-      (sym!{Nat}
+    equiv_reason_terms!{trans!{Nat} { N.add^ (N.mul^ (positive x) n) (N.mul^ (negative y) n) }
+      "~" { N.mul^ (N.add^ (positive x) (negative y)) n } "by" { sym!{Nat}
         (N.mul^ (N.add^ (positive x) (negative y)) n)
         (N.add^ (N.mul^ (positive x) n) (N.mul^ (negative y) n))
-        (NL.mulDistribRight (positive x) (negative y) n))
-      (trans!{Nat}
-        (N.mul^ (N.add^ (positive x) (negative y)) n)
-        (N.mul^ (N.add^ (positive y) (negative x)) n)
-        (N.add^ (N.mul^ (positive y) n) (N.mul^ (negative x) n))
-        (congr!{Nat Nat} (\fun (a: Nat) => N.mul^ a n)
-          (N.add^ (positive x) (negative y))
-          (N.add^ (positive y) (negative x)) xy)
-        (NL.mulDistribRight (positive y) (negative x) n));
+        (NL.mulDistribRight (positive x) (negative y) n) }
+      "~" { N.mul^ (N.add^ (positive y) (negative x)) n } "by" { congr!{Nat Nat} (\fun (a: Nat) => N.mul^ a n)
+        (N.add^ (positive x) (negative y))
+        (N.add^ (positive y) (negative x)) xy }
+      "~" { N.add^ (N.mul^ (positive y) n) (N.mul^ (negative x) n) } "by" { NL.mulDistribRight (positive y) (negative x) n }};
 
 \definition scaleIntegerZero (n: Nat):
     IntegerEq (scaleInteger zeroInteger n) zeroInteger :=
@@ -166,29 +156,20 @@
     NL.mulCancelRightSucc k
       (N.add^ (positive x) (negative y))
       (N.add^ (positive y) (negative x))
-      (trans!{Nat}
-        (N.mul^ (N.add^ (positive x) (negative y)) (N.Nat^::succ k))
-        (N.add^
+      (equiv_reason_terms!{trans!{Nat} { N.mul^ (N.add^ (positive x) (negative y)) (N.Nat^::succ k) }
+        "~" { N.add^
           (N.mul^ (positive x) (N.Nat^::succ k))
-          (N.mul^ (negative y) (N.Nat^::succ k)))
-        (N.mul^ (N.add^ (positive y) (negative x)) (N.Nat^::succ k))
-        (NL.mulDistribRight (positive x) (negative y) (N.Nat^::succ k))
-        (trans!{Nat}
-          (N.add^
-            (N.mul^ (positive x) (N.Nat^::succ k))
-            (N.mul^ (negative y) (N.Nat^::succ k)))
+          (N.mul^ (negative y) (N.Nat^::succ k)) } "by" { NL.mulDistribRight (positive x) (negative y) (N.Nat^::succ k) }
+        "~" { N.add^
+            (N.mul^ (positive y) (N.Nat^::succ k))
+            (N.mul^ (negative x) (N.Nat^::succ k)) } "by" { xy }
+        "~" { N.mul^ (N.add^ (positive y) (negative x)) (N.Nat^::succ k) } "by" { sym!{Nat}
+          (N.mul^ (N.add^ (positive y) (negative x)) (N.Nat^::succ k))
           (N.add^
             (N.mul^ (positive y) (N.Nat^::succ k))
             (N.mul^ (negative x) (N.Nat^::succ k)))
-          (N.mul^ (N.add^ (positive y) (negative x)) (N.Nat^::succ k))
-          xy
-          (sym!{Nat}
-            (N.mul^ (N.add^ (positive y) (negative x)) (N.Nat^::succ k))
-            (N.add^
-              (N.mul^ (positive y) (N.Nat^::succ k))
-              (N.mul^ (negative x) (N.Nat^::succ k)))
-            (NL.mulDistribRight
-              (positive y) (negative x) (N.Nat^::succ k)))));
+          (NL.mulDistribRight
+            (positive y) (negative x) (N.Nat^::succ k)) }});
 
 \definition mulIntegerAsSum (x, y: Integer):
     IntegerEq (mulInteger x y)
@@ -233,7 +214,7 @@
 \definition mulIntegerNegRight (x, y: Integer):
     IntegerEq (mulInteger x (negInteger y))
       (negInteger (mulInteger x y)) :=
-  equiv_reason_terms!{integerEqRefl integerEqTrans
+  equiv_reason_terms!{integerEqTrans
     { mulInteger x (negInteger y) }
     "~" { mulInteger (negInteger y) x }
     "by" { mulIntegerComm x (negInteger y) }
@@ -244,7 +225,7 @@
       (mulIntegerComm y x) }};
 
 \definition mulIntegerRespectsLeft (x, y, z: Integer) (xy: IntegerEq x y): IntegerEq (mulInteger x z) (mulInteger y z) :=
-  equiv_reason_terms!{integerEqRefl integerEqTrans
+  equiv_reason_terms!{integerEqTrans
     { mulInteger x z }
     "~" { addInteger (scaleInteger x (positive z))
       (negInteger (scaleInteger x (negative z))) }
@@ -265,7 +246,7 @@
 
 \definition mulIntegerRespects (x, y, u, v: Integer) (xy: IntegerEq x y) (uv: IntegerEq u v):
     IntegerEq (mulInteger x u) (mulInteger y v) :=
-  equiv_reason_terms!{integerEqRefl integerEqTrans
+  equiv_reason_terms!{integerEqTrans
     { mulInteger x u }
     "~" { mulInteger y u } "by" { mulIntegerRespectsLeft x y u xy }
     "~" { mulInteger u y } "by" { mulIntegerComm y u }
@@ -331,7 +312,7 @@
     IntegerEq
       (mulInteger (addInteger x y) z)
       (addInteger (mulInteger x z) (mulInteger y z)) :=
-  equiv_reason_terms!{integerEqRefl integerEqTrans
+  equiv_reason_terms!{integerEqTrans
     { mulInteger (addInteger x y) z }
     "~" { mulInteger z (addInteger x y) }
     "by" { mulIntegerComm (addInteger x y) z }

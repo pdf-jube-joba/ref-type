@@ -5,15 +5,17 @@
   \induction (k: N.Nat^) \return \forall (a, b: Nat) -> diffPrec (N.add^ a k) (N.add^ b k) = diffPrec a b \with {
     | zero : (\fun (a, b: Nat) => \refl(diffPrec a b))
     | succ : (\fun (k: Nat) => \fun (ih: \forall (a, b: Nat) -> diffPrec (N.add^ a k) (N.add^ b k) = diffPrec a b) =>
-      \fun (a, b: Nat) => trans!{Int^} _ _ _
-        (congr!{Nat Int^} (\fun (x: Nat) => diffPrec x (N.add^ b (N.Nat^::succ k))) _ _ (NL.addSuccRight a k))
-        (trans!{Int^} _ _ _
-          (congr!{Nat Int^} (diffPrec (N.Nat^::succ (N.add^ a k))) _ _ (NL.addSuccRight b k)) (ih a b)))
+      \fun (a, b: Nat) => equiv_reason!{trans!{Int^}
+        "by" { congr!{Nat Int^} (\fun (x: Nat) => diffPrec x (N.add^ b (N.Nat^::succ k))) _ _ (NL.addSuccRight a k) }
+        "by" { congr!{Nat Int^} (diffPrec (N.Nat^::succ (N.add^ a k))) _ _ (NL.addSuccRight b k) }
+        "by" { ih a b }})
     };
 \definition diffRespects (a, b, c, d: Nat) (e: N.add^ a d = N.add^ c b): diffPrec a b = diffPrec c d :=
-    trans!{Int^} _ _ _ (sym!{Int^} _ _ (diffAddCommon d a b))
-      (trans!{Int^} _ _ _ (congr!{Nat Int^} (\fun (x: Nat) => diffPrec x (N.add^ b d)) _ _ e)
-        (trans!{Int^} _ _ _ (congr!{Nat Int^} (diffPrec (N.add^ c b)) _ _ (NL.addComm b d)) (diffAddCommon b c d)));
+    equiv_reason!{trans!{Int^}
+      "by" { sym!{Int^} _ _ (diffAddCommon d a b) }
+      "by" { congr!{Nat Int^} (\fun (x: Nat) => diffPrec x (N.add^ b d)) _ _ e }
+      "by" { congr!{Nat Int^} (diffPrec (N.add^ c b)) _ _ (NL.addComm b d) }
+      "by" { diffAddCommon b c d }};
 
 /* The normal form represents the original formal difference. */
 \definition diffBalance: \forall (b, a: Nat) ->
@@ -171,7 +173,7 @@
       (NL.addCong _ _ _ _ (NL.mulComm (pos x) (negPart y)) (NL.mulComm (negPart x) (pos y)))
       (NL.addComm (N.mul^ (negPart y) (pos x)) (N.mul^ (pos y) (negPart x))));
 \definition mulRepRespectsLeft (x, y, z: Difference) (xy: Equivalent x y): Equivalent (mulRep x z) (mulRep y z) :=
-  equiv_reason_terms!{equivalentRefl equivalentTrans
+  equiv_reason_terms!{equivalentTrans
     { mulRep x z }
     "~" { addRep (scaleRep x (pos z)) (negRep (scaleRep x (negPart z))) }
     "by" { mulRepAsSum x z }
@@ -185,7 +187,7 @@
     "by" { equivalentSym (mulRep y z)
       (addRep (scaleRep y (pos z)) (negRep (scaleRep y (negPart z)))) (mulRepAsSum y z) }};
 \definition mulRepRespects (x, y, u, v: Difference) (xy: Equivalent x y) (uv: Equivalent u v): Equivalent (mulRep x u) (mulRep y v) :=
-  equiv_reason_terms!{equivalentRefl equivalentTrans
+  equiv_reason_terms!{equivalentTrans
     { mulRep x u }
     "~" { mulRep y u } "by" { mulRepRespectsLeft x y u xy }
     "~" { mulRep u y } "by" { mulRepComm y u }
@@ -272,25 +274,20 @@
     (subRep x y))
     (addMathCongRight (class x) (negMath (class y)) (class (negRep y)) (negMathClass y))
     (addMathClass x (negRep y));
-\definition addMatchesMath (x, y: Int^): toMath (add^ x y) = addMath (toMath x) (toMath y) := trans!{\Pow Difference} (toMath (add^ x y)) (toMath (addPrec x y)) (addMath (toMath x) (toMath y))
-    (toMathCong (add^ x y) (addPrec x y) (addMatchesPrec x y))
-    (trans!{\Pow Difference} (toMath (addPrec x y)) (class (addRep (representative x) (representative y))) (addMath (toMath
-    x) (toMath y))
-      (toFromClass (addRep (representative x) (representative y)))
-      (sym!{\Pow Difference} (addMath (toMath x) (toMath y)) (class (addRep (representative x) (representative y)))
-    (addMathClass (representative x) (representative y))));
-\definition negMatchesMath (x: Int^): toMath (neg^ x) = negMath (toMath x) := trans!{\Pow Difference} (toMath (neg^ x)) (toMath (negPrec x)) (negMath (toMath x))
-    (toMathCong (neg^ x) (negPrec x) (negMatchesPrec x))
-    (trans!{\Pow Difference} (toMath (negPrec x)) (class (negRep (representative x))) (negMath (toMath x))
-      (toFromClass (negRep (representative x)))
-      (sym!{\Pow Difference} (negMath (toMath x)) (class (negRep (representative x))) (negMathClass (representative x))));
-\definition mulMatchesMath (x, y: Int^): toMath (mul^ x y) = mulMath (toMath x) (toMath y) := trans!{\Pow Difference} (toMath (mul^ x y)) (toMath (mulPrec x y)) (mulMath (toMath x) (toMath y))
-    (toMathCong (mul^ x y) (mulPrec x y) (mulMatchesPrec x y))
-    (trans!{\Pow Difference} (toMath (mulPrec x y)) (class (mulRep (representative x) (representative y))) (mulMath (toMath
-    x) (toMath y))
-      (toFromClass (mulRep (representative x) (representative y)))
-      (sym!{\Pow Difference} (mulMath (toMath x) (toMath y)) (class (mulRep (representative x) (representative y)))
-    (mulMathClass (representative x) (representative y))));
+\definition addMatchesMath (x, y: Int^): toMath (add^ x y) = addMath (toMath x) (toMath y) := equiv_reason_terms!{trans!{\Pow Difference} { toMath (add^ x y) }
+  "~" { toMath (addPrec x y) } "by" { toMathCong (add^ x y) (addPrec x y) (addMatchesPrec x y) }
+  "~" { class (addRep (representative x) (representative y)) } "by" { toFromClass (addRep (representative x) (representative y)) }
+  "~" { addMath (toMath x) (toMath y) } "by" { sym!{\Pow Difference} (addMath (toMath x) (toMath y)) (class (addRep (representative x) (representative y)))
+    (addMathClass (representative x) (representative y)) }};
+\definition negMatchesMath (x: Int^): toMath (neg^ x) = negMath (toMath x) := equiv_reason_terms!{trans!{\Pow Difference} { toMath (neg^ x) }
+  "~" { toMath (negPrec x) } "by" { toMathCong (neg^ x) (negPrec x) (negMatchesPrec x) }
+  "~" { class (negRep (representative x)) } "by" { toFromClass (negRep (representative x)) }
+  "~" { negMath (toMath x) } "by" { sym!{\Pow Difference} (negMath (toMath x)) (class (negRep (representative x))) (negMathClass (representative x)) }};
+\definition mulMatchesMath (x, y: Int^): toMath (mul^ x y) = mulMath (toMath x) (toMath y) := equiv_reason_terms!{trans!{\Pow Difference} { toMath (mul^ x y) }
+  "~" { toMath (mulPrec x y) } "by" { toMathCong (mul^ x y) (mulPrec x y) (mulMatchesPrec x y) }
+  "~" { class (mulRep (representative x) (representative y)) } "by" { toFromClass (mulRep (representative x) (representative y)) }
+  "~" { mulMath (toMath x) (toMath y) } "by" { sym!{\Pow Difference} (mulMath (toMath x) (toMath y)) (class (mulRep (representative x) (representative y)))
+    (mulMathClass (representative x) (representative y)) }};
 \definition subMatchesMath (x, y: Int^): toMath (sub^ x y) = subMath (toMath x) (toMath y) := trans!{\Pow Difference} (toMath (sub^ x y)) (addMath (toMath x) (toMath (neg^ y))) (subMath (toMath x)
     (toMath y)) (addMatchesMath x (neg^ y))
     (addMathCongRight (toMath x) (toMath (neg^ y)) (negMath (toMath y)) (negMatchesMath y));
