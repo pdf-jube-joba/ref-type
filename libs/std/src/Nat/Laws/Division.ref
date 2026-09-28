@@ -1,31 +1,63 @@
 /* Projection specifications and reusable invariants for finite iterations. */
+\import std.Logic[].Proposition[] \as Logic;
 \definition firstMatchesPrec: \forall (p: NatPair) -> P.Times[Nat, Nat]::first^ p = natPairFirst p :=
   natPairElim (\fun (p: NatPair) => P.Times[Nat, Nat]::first^ p = natPairFirst p) (\fun (a, b: Nat^) => \refl(a));
 \definition secondMatchesPrec: \forall (p: NatPair) -> P.Times[Nat, Nat]::second^ p = natPairSecond p :=
   natPairElim (\fun (p: NatPair) => P.Times[Nat, Nat]::second^ p = natPairSecond p) (\fun (a, b: Nat^) => \refl(b));
 \definition pairIterInvariant (f: NatPair -> NatPair) (P: NatPair -> \Prop):
-  (\forall (p: NatPair) -> P p -> P (f p)) -> \forall (n: Nat^) -> \forall (p: NatPair) -> P p -> P (pairIterPrec f p n) := \fun (step: \forall (p: NatPair) -> P p -> P (f p)) =>
-    \induction (n: Nat^) \return \forall (p: NatPair) -> P p -> P (pairIterPrec f p n) \with {
-      | zero : (\fun (p: NatPair) => \fun (h: P p) => h)
-      | succ : (\fun (n: Nat^) => \fun (ih: \forall (p: NatPair) -> P p -> P (pairIterPrec f p n)) =>
-        \fun (p: NatPair) => \fun (h: P p) => step (pairIterPrec f p n) (ih p h))
-      };
+  (\forall (p: NatPair) -> P p -> P (f p)) -> \forall (n: Nat^) ->
+    \forall (p: NatPair) -> P p -> P (pairIterPrec f p n) :=
+  \block {
+    \fix (step: \forall (p: NatPair) -> P p -> P (f p)) \then
+    \return \induction (n: Nat^) \return \forall (p: NatPair) ->
+      P p -> P (pairIterPrec f p n) \with {
+      | zero : \fun (p: NatPair) (h: P p) => h
+      | succ : \block {
+          \fix (n: Nat^) \then
+          \fix (ih: \forall (p: NatPair) -> P p -> P (pairIterPrec f p n)) \then
+          \fix (p: NatPair) \then
+          \fix (h: P p) \then
+          \return step (pairIterPrec f p n) (ih p h)
+        }
+      }
+  };
 \definition leSuccOfEqbFalse: \forall (d, r: Nat^) -> Le r d -> eqb^ r d = B.Bool^::false -> Le (Nat^::succ r) d :=
   \induction (d: Nat^) \return \forall (r: Nat^) -> Le r d -> eqb^ r d = B.Bool^::false -> Le (Nat^::succ r) d \with {
     | zero : (\induction (r: Nat^) \return Le r Nat^::zero -> eqb^ r Nat^::zero = B.Bool^::false -> Le (Nat^::succ r) Nat^::zero \with {
-      | zero : (\fun (h: Le Nat^::zero Nat^::zero) => \fun (e: B.Bool^::true = B.Bool^::false) =>
+      | zero : \fun (h: Le Nat^::zero Nat^::zero)
+        (e: B.Bool^::true = B.Bool^::false) =>
         B.absurd (Le (Nat^::succ Nat^::zero) Nat^::zero)
-          (\idelim(B.Bool^::true = B.Bool^::false \with t: B.Bool^ => t = B.Bool^::true) \by { base: \refl(B.Bool^::true), equality: e }))
-      | succ : (\fun (r: Nat^) => \fun (ih: Le r Nat^::zero -> eqb^ r Nat^::zero = B.Bool^::false -> Le (Nat^::succ r) Nat^::zero) =>
-        \fun (h: Le (Nat^::succ r) Nat^::zero) => \fun (e: eqb^ (Nat^::succ r) Nat^::zero = B.Bool^::false) =>
-          B.absurd (Le (Nat^::succ (Nat^::succ r)) Nat^::zero) h)
+          (\idelim(B.Bool^::true = B.Bool^::false \with t: B.Bool^ => t = B.Bool^::true)
+            \by { base: \refl(B.Bool^::true), equality: e })
+      | succ : \block {
+          \fix (r: Nat^) \then
+          \fix (ih: Le r Nat^::zero -> eqb^ r Nat^::zero = B.Bool^::false ->
+            Le (Nat^::succ r) Nat^::zero) \then
+          \fix (h: Le (Nat^::succ r) Nat^::zero) \then
+          \fix (e: eqb^ (Nat^::succ r) Nat^::zero = B.Bool^::false) \then
+          \return B.absurd (Le (Nat^::succ (Nat^::succ r)) Nat^::zero) h
+        }
       })
-    | succ : (\fun (d: Nat^) => \fun (ih: \forall (r: Nat^) -> Le r d -> eqb^ r d = B.Bool^::false -> Le (Nat^::succ r) d) =>
-      \induction (r: Nat^) \return Le r (Nat^::succ d) -> eqb^ r (Nat^::succ d) = B.Bool^::false -> Le (Nat^::succ r) (Nat^::succ d) \with {
-      | zero : (\fun (h: Le Nat^::zero (Nat^::succ d)) => \fun (e: eqb^ Nat^::zero (Nat^::succ d) = B.Bool^::false) => zeroLe d)
-      | succ : (\fun (r: Nat^) => \fun (unused: Le r (Nat^::succ d) -> eqb^ r (Nat^::succ d) = B.Bool^::false -> Le (Nat^::succ r) (Nat^::succ d)) =>
-          \fun (h: Le (Nat^::succ r) (Nat^::succ d)) => \fun (e: eqb^ (Nat^::succ r) (Nat^::succ d) = B.Bool^::false) => ih r h e)
-      })
+    | succ : \block {
+        \fix (d: Nat^) \then
+        \fix (ih: \forall (r: Nat^) -> Le r d -> eqb^ r d = B.Bool^::false ->
+          Le (Nat^::succ r) d) \then
+        \return \induction (r: Nat^) \return Le r (Nat^::succ d) ->
+          eqb^ r (Nat^::succ d) = B.Bool^::false ->
+          Le (Nat^::succ r) (Nat^::succ d) \with {
+          | zero : \fun (h: Le Nat^::zero (Nat^::succ d))
+              (e: eqb^ Nat^::zero (Nat^::succ d) = B.Bool^::false) => zeroLe d
+          | succ : \block {
+              \fix (r: Nat^) \then
+              \fix (unused: Le r (Nat^::succ d) ->
+                eqb^ r (Nat^::succ d) = B.Bool^::false ->
+                Le (Nat^::succ r) (Nat^::succ d)) \then
+              \fix (h: Le (Nat^::succ r) (Nat^::succ d)) \then
+              \fix (e: eqb^ (Nat^::succ r) (Nat^::succ d) = B.Bool^::false) \then
+              \return ih r h e
+            }
+          }
+      }
     };
 \definition divModNextBound: \forall (d: Nat^) -> \forall (p: NatPair) -> Le (P.Times[Nat, Nat]::second^ p) d ->
   Le (P.Times[Nat, Nat]::second^ (divModNextPrec (Nat^::succ d) p)) d :=
@@ -240,9 +272,10 @@
       (divModReconstructs a b) reconstructionDivides
   };
 
-\definition CommonDivisor (d, a, b: Nat^): \Prop := \forall (P: \Prop) -> (Divides d a -> Divides d b -> P) -> P;
+\definition CommonDivisor (d, a, b: Nat^): \Prop :=
+  Logic.And[Divides d a, Divides d b];
 \definition commonDivisorIntro (d, a, b: Nat^) (ha: Divides d a) (hb: Divides d b): CommonDivisor d a b :=
-    \fun (P: \Prop) => \fun (use: Divides d a -> Divides d b -> P) => use ha hb;
+  Logic.And[Divides d a, Divides d b]::# ha hb;
 \definition gcdNextPreserves: \forall (d: Nat^) -> \forall (p: NatPair) -> CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p) ->
   CommonDivisor d (P.Times[Nat, Nat]::first^ (gcdNext^ p)) (P.Times[Nat, Nat]::second^ (gcdNext^ p)) :=
   \fun (d: Nat^) => natPairElim
@@ -251,9 +284,13 @@
     (\fun (a, b: Nat^) => \induction (b: Nat^) \return CommonDivisor d a b ->
         CommonDivisor d (P.Times[Nat, Nat]::first^ (gcdNext^ (natPair a b))) (P.Times[Nat, Nat]::second^ (gcdNext^ (natPair a b))) \with {
           | zero : (\fun (h: CommonDivisor d a Nat^::zero) => h)
-          | succ : (\fun (k: Nat^) => \fun (_: _) => \fun (h: CommonDivisor d a (Nat^::succ k)) => h (CommonDivisor d (Nat^::succ k) (mod^ a (Nat^::succ k)))
-          (\fun (ha: Divides d a) => \fun (hb: Divides d (Nat^::succ k)) =>
-            commonDivisorIntro d (Nat^::succ k) (mod^ a (Nat^::succ k)) hb (dividesMod d a (Nat^::succ k) ha hb)))
+          | succ : \block {
+              \fix (k: Nat^) \then
+              \fix (_: _) \then
+              \fix (h: CommonDivisor d a (Nat^::succ k)) \then
+              \return commonDivisorIntro d (Nat^::succ k) (mod^ a (Nat^::succ k))
+                (#right{h}) (dividesMod d a (Nat^::succ k) (#left{h}) (#right{h}))
+            }
           } b);
 \definition gcdNextReflects: \forall (d: Nat^) -> \forall (p: NatPair) ->
   CommonDivisor d (P.Times[Nat, Nat]::first^ (gcdNext^ p)) (P.Times[Nat, Nat]::second^ (gcdNext^ p)) -> CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p) :=
@@ -263,24 +300,41 @@
     (\fun (a, b: Nat^) => \induction (b: Nat^) \return CommonDivisor d (P.Times[Nat, Nat]::first^ (gcdNext^ (natPair a b))) (P.Times[Nat, Nat]::second^ (gcdNext^ (natPair a b))) ->
         CommonDivisor d a b \with {
           | zero : (\fun (h: CommonDivisor d a Nat^::zero) => h)
-          | succ : (\fun (k: Nat^) => \fun (_: _) => \fun (h: CommonDivisor d (Nat^::succ k) (mod^ a (Nat^::succ k))) => h (CommonDivisor d a (Nat^::succ k))
-          (\fun (hb: Divides d (Nat^::succ k)) => \fun (hr: Divides d (mod^ a (Nat^::succ k))) =>
-            commonDivisorIntro d a (Nat^::succ k) (dividesOfMod d a (Nat^::succ k) hb hr) hb))
+          | succ : \block {
+              \fix (k: Nat^) \then
+              \fix (_: _) \then
+              \fix (h: CommonDivisor d (Nat^::succ k) (mod^ a (Nat^::succ k))) \then
+              \return commonDivisorIntro d a (Nat^::succ k)
+                (dividesOfMod d a (Nat^::succ k) (#left{h}) (#right{h})) (#left{h})
+            }
           } b);
 \definition gcdIterReflects: \forall (d, n: Nat^) -> \forall (p: NatPair) ->
   CommonDivisor d (P.Times[Nat, Nat]::first^ (pairIterPrec gcdNext^ p n)) (P.Times[Nat, Nat]::second^ (pairIterPrec gcdNext^ p n)) ->
     CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p) :=
-  \fun (d: Nat^) => \induction (n: Nat^) \return \forall (p: NatPair) ->
-      CommonDivisor d (P.Times[Nat, Nat]::first^ (pairIterPrec gcdNext^ p n)) (P.Times[Nat, Nat]::second^ (pairIterPrec gcdNext^ p n)) ->
-        CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p) \with {
-    | zero : (\fun (p: NatPair) => \fun (h: CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p)) => h)
-    | succ : (\fun (n: Nat^) => \fun (ih: \forall (p: NatPair) ->
-      CommonDivisor d (P.Times[Nat, Nat]::first^ (pairIterPrec gcdNext^ p n)) (P.Times[Nat, Nat]::second^ (pairIterPrec gcdNext^ p n)) ->
-        CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p)) =>
-      \fun (p: NatPair) => \fun (h: CommonDivisor d (P.Times[Nat, Nat]::first^ (pairIterPrec gcdNext^ p (Nat^::succ n)))
-        (P.Times[Nat, Nat]::second^ (pairIterPrec gcdNext^ p (Nat^::succ n)))) =>
-          ih p (gcdNextReflects d (pairIterPrec gcdNext^ p n) h))
-    };
+  \block {
+    \fix (d: Nat^) \then
+    \return \induction (n: Nat^) \return \forall (p: NatPair) ->
+      CommonDivisor d (P.Times[Nat, Nat]::first^ (pairIterPrec gcdNext^ p n))
+        (P.Times[Nat, Nat]::second^ (pairIterPrec gcdNext^ p n)) ->
+      CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p) \with {
+      | zero : \fun (p: NatPair)
+          (h: CommonDivisor d (P.Times[Nat, Nat]::first^ p)
+            (P.Times[Nat, Nat]::second^ p)) => h
+      | succ : \block {
+          \fix (n: Nat^) \then
+          \fix (ih: \forall (p: NatPair) ->
+            CommonDivisor d (P.Times[Nat, Nat]::first^ (pairIterPrec gcdNext^ p n))
+              (P.Times[Nat, Nat]::second^ (pairIterPrec gcdNext^ p n)) ->
+            CommonDivisor d (P.Times[Nat, Nat]::first^ p)
+              (P.Times[Nat, Nat]::second^ p)) \then
+          \fix (p: NatPair) \then
+          \fix (h: CommonDivisor d
+            (P.Times[Nat, Nat]::first^ (pairIterPrec gcdNext^ p (Nat^::succ n)))
+            (P.Times[Nat, Nat]::second^ (pairIterPrec gcdNext^ p (Nat^::succ n)))) \then
+          \return ih p (gcdNextReflects d (pairIterPrec gcdNext^ p n) h)
+        }
+      }
+  };
 \definition gcdFinal (a, b: Nat^): NatPair := pairIterPrec gcdNext^ (natPair a b) b;
 \definition gcdFinalFirst (a, b: Nat^): P.Times[Nat, Nat]::first^ (gcdFinal a b) = gcd^ a b := sym!{Nat^} _ _ (congr!{NatPair Nat^} P.Times[Nat, Nat]::first^ _ _ (pairIterMatchesPrec gcdNext^ b (natPair a b)));
 \definition gcdFinalSecond (a, b: Nat^): P.Times[Nat, Nat]::second^ (gcdFinal a b) = Nat^::zero := gcdIterSettles b a b (leRefl b);
@@ -299,10 +353,10 @@
         (P.Times[Nat, Nat]::second^ (gcdFinal a b)) finalFirstDivides finalSecondDivides \then
     \return gcdIterReflects (gcd^ a b) b (natPair a b) finalCommonDivisor
   };
-\definition gcdDividesLeft (a, b: Nat^): Divides (gcd^ a b) a := gcdCommonDivisor a b (Divides (gcd^ a b) a)
-    (\fun (ha: Divides (gcd^ a b) a) => \fun (hb: Divides (gcd^ a b) b) => ha);
-\definition gcdDividesRight (a, b: Nat^): Divides (gcd^ a b) b := gcdCommonDivisor a b (Divides (gcd^ a b) b)
-    (\fun (ha: Divides (gcd^ a b) a) => \fun (hb: Divides (gcd^ a b) b) => hb);
+\definition gcdDividesLeft (a, b: Nat^): Divides (gcd^ a b) a :=
+  #left{(gcdCommonDivisor a b)};
+\definition gcdDividesRight (a, b: Nat^): Divides (gcd^ a b) b :=
+  #right{(gcdCommonDivisor a b)};
 \definition gcdGreatest: \forall (d, a, b: Nat^) -> Divides d a -> Divides d b -> Divides d (gcd^ a b) :=
   \block {
     \fix (d, a, b: Nat^) \then
@@ -312,11 +366,8 @@
       pairIterInvariant gcdNext^
         (\fun (p: NatPair) => CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p))
         (gcdNextPreserves d) b (natPair a b) (commonDivisorIntro d a b ha hb) \then
-    \return finalCommonDivisor (Divides d (gcd^ a b))
-      (\fun (hfirst: Divides d (P.Times[Nat, Nat]::first^ (gcdFinal a b))) =>
-        \fun (hsecond: Divides d (P.Times[Nat, Nat]::second^ (gcdFinal a b))) =>
-          dividesTransport d (P.Times[Nat, Nat]::first^ (gcdFinal a b)) (gcd^ a b)
-            (gcdFinalFirst a b) hfirst)
+    \return dividesTransport d (P.Times[Nat, Nat]::first^ (gcdFinal a b)) (gcd^ a b)
+      (gcdFinalFirst a b) (#left{finalCommonDivisor})
   };
 
 \definition leToLtSucc: \forall (d, r: Nat^) -> Le r d -> Lt r (Nat^::succ d) :=

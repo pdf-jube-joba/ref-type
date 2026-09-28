@@ -103,15 +103,28 @@
   \induction (b: Nat^) \return \forall (a: Nat^) -> eqb^ a b = B.Bool^::true -> a = b \with {
     | zero : (\induction (a: Nat^) \return eqb^ a Nat^::zero = B.Bool^::true -> a = Nat^::zero \with {
       | zero : (\fun (e: B.Bool^::true = B.Bool^::true) => \refl(Nat^::zero))
-      | succ : (\fun (a: Nat^) => \fun (unused: eqb^ a Nat^::zero = B.Bool^::true -> a = Nat^::zero) =>
-        \fun (e: B.Bool^::false = B.Bool^::true) => B.absurd (Nat^::succ a = Nat^::zero) e)
+      | succ : \block {
+          \fix (a: Nat^) \then
+          \fix (unused: eqb^ a Nat^::zero = B.Bool^::true -> a = Nat^::zero) \then
+          \fix (e: B.Bool^::false = B.Bool^::true) \then
+          \return B.absurd (Nat^::succ a = Nat^::zero) e
+        }
       })
-    | succ : (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> eqb^ a b = B.Bool^::true -> a = b) =>
-      \induction (a: Nat^) \return eqb^ a (Nat^::succ b) = B.Bool^::true -> a = Nat^::succ b \with {
-      | zero : (\fun (e: B.Bool^::false = B.Bool^::true) => B.absurd (Nat^::zero = Nat^::succ b) e)
-      | succ : (\fun (a: Nat^) => \fun (unused: eqb^ a (Nat^::succ b) = B.Bool^::true -> a = Nat^::succ b) =>
-          \fun (e: eqb^ a b = B.Bool^::true) => succCong a b (ih a e))
-      })
+    | succ : \block {
+        \fix (b: Nat^) \then
+        \fix (ih: \forall (a: Nat^) -> eqb^ a b = B.Bool^::true -> a = b) \then
+        \return \induction (a: Nat^) \return
+          eqb^ a (Nat^::succ b) = B.Bool^::true -> a = Nat^::succ b \with {
+          | zero : \fun (e: B.Bool^::false = B.Bool^::true) =>
+              B.absurd (Nat^::zero = Nat^::succ b) e
+          | succ : \block {
+              \fix (a: Nat^) \then
+              \fix (unused: eqb^ a (Nat^::succ b) = B.Bool^::true -> a = Nat^::succ b) \then
+              \fix (e: eqb^ a b = B.Bool^::true) \then
+              \return succCong a b (ih a e)
+            }
+          }
+      }
     };
 \definition eqbTrueOfEq (a, b: Nat^) (e: a = b): eqb^ a b = B.Bool^::true :=
     \idelim(a = b \with x: Nat^ => eqb^ a x = B.Bool^::true) \by { base: eqbRefl a, equality: e };
@@ -143,33 +156,61 @@
     };
 \definition leAntisym: Rel.Antisymmetric Nat^ Le :=
   \induction (a: Nat^) \return \forall (b: Nat^) -> Le a b -> Le b a -> a = b \with {
-    | zero : (\fun (b: Nat^) => \fun (ab: Le Nat^::zero b) => \fun (ba: Le b Nat^::zero) => sym!{Nat^} b Nat^::zero (leZeroEq b ba))
-    | succ : (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> Le a b -> Le b a -> a = b) =>
-      \induction (b: Nat^) \return Le (Nat^::succ a) b -> Le b (Nat^::succ a) -> Nat^::succ a = b \with {
-      | zero : (\fun (ab: Le (Nat^::succ a) Nat^::zero) => \fun (ba: Le Nat^::zero (Nat^::succ a)) => leZeroEq (Nat^::succ a) ab)
-      | succ : (\fun (b: Nat^) => \fun (unused: Le (Nat^::succ a) b -> Le b (Nat^::succ a) -> Nat^::succ a = b) =>
-          \fun (ab: Le (Nat^::succ a) (Nat^::succ b)) => \fun (ba: Le (Nat^::succ b) (Nat^::succ a)) =>
-            succCong a b (ih b ab ba))
-      })
+    | zero : \block {
+        \fix (b: Nat^) \then
+        \fix (ab: Le Nat^::zero b) \then
+        \fix (ba: Le b Nat^::zero) \then
+        \return sym!{Nat^} b Nat^::zero (leZeroEq b ba)
+      }
+    | succ : \block {
+        \fix (a: Nat^) \then
+        \fix (ih: \forall (b: Nat^) -> Le a b -> Le b a -> a = b) \then
+        \return \induction (b: Nat^) \return
+          Le (Nat^::succ a) b -> Le b (Nat^::succ a) -> Nat^::succ a = b \with {
+          | zero : \fun (ab: Le (Nat^::succ a) Nat^::zero)
+            (ba: Le Nat^::zero (Nat^::succ a)) => leZeroEq (Nat^::succ a) ab
+          | succ : \block {
+              \fix (b: Nat^) \then
+              \fix (unused: Le (Nat^::succ a) b -> Le b (Nat^::succ a) -> Nat^::succ a = b) \then
+              \fix (ab: Le (Nat^::succ a) (Nat^::succ b)) \then
+              \fix (ba: Le (Nat^::succ b) (Nat^::succ a)) \then
+              \return succCong a b (ih b ab ba)
+            }
+          }
+      }
     };
 \definition leTrans: Rel.Transitive Nat^ Le :=
   \induction (a: Nat^) \return \forall (b, c: Nat^) -> Le a b -> Le b c -> Le a c \with {
-    | zero : (\fun (b, c: Nat^) => \fun (ab: Le Nat^::zero b) => \fun (bc: Le b c) => zeroLe c)
-    | succ : (\fun (a: Nat^) => \fun (ih: \forall (b, c: Nat^) -> Le a b -> Le b c -> Le a c) =>
-      \induction (b: Nat^) \return \forall (c: Nat^) -> Le (Nat^::succ a) b -> Le b c -> Le (Nat^::succ a) c \with {
-      | zero : (\fun (c: Nat^) => \fun (ab: Le (Nat^::succ a) Nat^::zero) => \fun (bc: Le Nat^::zero c) =>
-          B.absurd (Le (Nat^::succ a) c) ab)
-      | succ : (\fun (b: Nat^) => \fun (unused: \forall (c: Nat^) -> Le (Nat^::succ a) b -> Le b c -> Le (Nat^::succ a) c) =>
-          \induction (c: Nat^) \return Le (Nat^::succ a) (Nat^::succ b) -> Le (Nat^::succ b) c -> Le (Nat^::succ
-            a) c \with {
-        | zero : (\fun (ab: Le (Nat^::succ a) (Nat^::succ b)) => \fun (bc: Le (Nat^::succ b) Nat^::zero) => B.absurd (Le (Nat^::succ
-              a) Nat^::zero) bc
-            )
-        | succ : (\fun (c: Nat^) => \fun (unusedC: Le (Nat^::succ a) (Nat^::succ b) -> Le (Nat^::succ b) c -> Le (Nat^::succ a) c)
-              =>
-              \fun (ab: Le (Nat^::succ a) (Nat^::succ b)) => \fun (bc: Le (Nat^::succ b) (Nat^::succ c)) => ih b c ab bc)
-        })
-      })
+    | zero : \fun (b, c: Nat^) (ab: Le Nat^::zero b) (bc: Le b c) => zeroLe c
+    | succ : \block {
+        \fix (a: Nat^) \then
+        \fix (ih: \forall (b, c: Nat^) -> Le a b -> Le b c -> Le a c) \then
+        \return \induction (b: Nat^) \return \forall (c: Nat^) ->
+          Le (Nat^::succ a) b -> Le b c -> Le (Nat^::succ a) c \with {
+          | zero : \fun (c: Nat^) (ab: Le (Nat^::succ a) Nat^::zero)
+              (bc: Le Nat^::zero c) => B.absurd (Le (Nat^::succ a) c) ab
+          | succ : \block {
+              \fix (b: Nat^) \then
+              \fix (unused: \forall (c: Nat^) ->
+                Le (Nat^::succ a) b -> Le b c -> Le (Nat^::succ a) c) \then
+              \return \induction (c: Nat^) \return
+                Le (Nat^::succ a) (Nat^::succ b) -> Le (Nat^::succ b) c ->
+                  Le (Nat^::succ a) c \with {
+                | zero : \fun (ab: Le (Nat^::succ a) (Nat^::succ b))
+                    (bc: Le (Nat^::succ b) Nat^::zero) =>
+                    B.absurd (Le (Nat^::succ a) Nat^::zero) bc
+                | succ : \block {
+                    \fix (c: Nat^) \then
+                    \fix (unusedC: Le (Nat^::succ a) (Nat^::succ b) ->
+                      Le (Nat^::succ b) c -> Le (Nat^::succ a) c) \then
+                    \fix (ab: Le (Nat^::succ a) (Nat^::succ b)) \then
+                    \fix (bc: Le (Nat^::succ b) (Nat^::succ c)) \then
+                    \return ih b c ab bc
+                  }
+                }
+            }
+          }
+      }
     };
 
 \definition addCong: \forall (a, b, c, d: Nat^) -> a = b -> c = d -> \(a "+" c\) = \(b "+" d\) :=

@@ -91,34 +91,40 @@
     };
 
 \definition ltTrans: \forall (a, b, c: Nat^) -> Lt a b -> Lt b c -> Lt a c :=
-   \induction (a: Nat^) \return \forall (b, c: Nat^) -> Lt a b -> Lt b c -> Lt a c \with {
-    | zero : (\fun (b, c: Nat^) => \fun (_: Lt Nat^::zero b) =>
-      \fun (bc: Lt b c) => zeroLtOfLt b c bc)
-    | succ : (\fun (a: Nat^) =>
-      \fun (ih: \forall (b, c: Nat^) -> Lt a b -> Lt b c -> Lt a c) =>
-        \induction (b: Nat^) \return \forall (c: Nat^) ->
+  \induction (a: Nat^) \return \forall (b, c: Nat^) -> Lt a b -> Lt b c -> Lt a c \with {
+    | zero : \fun (b, c: Nat^) (_: Lt Nat^::zero b) (bc: Lt b c) =>
+        zeroLtOfLt b c bc
+    | succ : \block {
+        \fix (a: Nat^) \then
+        \fix (ih: \forall (b, c: Nat^) -> Lt a b -> Lt b c -> Lt a c) \then
+        \return \induction (b: Nat^) \return \forall (c: Nat^) ->
           Lt (Nat^::succ a) b -> Lt b c -> Lt (Nat^::succ a) c \with {
-      | zero : (\fun (c: Nat^) => \fun (bad: Lt (Nat^::succ a) Nat^::zero) =>
-            \fun (_: Lt Nat^::zero c) =>
-              Logic.falseElim (Lt (Nat^::succ a) c)
-                (ltZero (Nat^::succ a) bad))
-      | succ : (\fun (b: Nat^) =>
-            \fun (_: \forall (c: Nat^) -> Lt (Nat^::succ a) b ->
-              Lt b c -> Lt (Nat^::succ a) c) =>
-              \induction (c: Nat^) \return Lt (Nat^::succ a) (Nat^::succ b) ->
-                Lt (Nat^::succ b) c -> Lt (Nat^::succ a) c \with {
-        | zero : (\fun (_: Lt (Nat^::succ a) (Nat^::succ b)) =>
-                  \fun (bad: Lt (Nat^::succ b) Nat^::zero) =>
+          | zero : \fun (c: Nat^) (bad: Lt (Nat^::succ a) Nat^::zero)
+              (_: Lt Nat^::zero c) =>
+              Logic.falseElim (Lt (Nat^::succ a) c) (ltZero (Nat^::succ a) bad)
+          | succ : \block {
+              \fix (b: Nat^) \then
+              \fix (_: \forall (c: Nat^) -> Lt (Nat^::succ a) b ->
+                Lt b c -> Lt (Nat^::succ a) c) \then
+              \return \induction (c: Nat^) \return
+                Lt (Nat^::succ a) (Nat^::succ b) -> Lt (Nat^::succ b) c ->
+                  Lt (Nat^::succ a) c \with {
+                | zero : \fun (_: Lt (Nat^::succ a) (Nat^::succ b))
+                    (bad: Lt (Nat^::succ b) Nat^::zero) =>
                     Logic.falseElim (Lt (Nat^::succ a) Nat^::zero)
-                      (ltZero (Nat^::succ b) bad))
-        | succ : (\fun (c: Nat^) =>
-                  \fun (_: Lt (Nat^::succ a) (Nat^::succ b) ->
-                    Lt (Nat^::succ b) c -> Lt (Nat^::succ a) c) =>
-                      \fun (ab: Lt (Nat^::succ a) (Nat^::succ b)) =>
-                        \fun (bc: Lt (Nat^::succ b) (Nat^::succ c)) =>
-                          ih b c ab bc)
-        })
-      })
+                      (ltZero (Nat^::succ b) bad)
+                | succ : \block {
+                    \fix (c: Nat^) \then
+                    \fix (_: Lt (Nat^::succ a) (Nat^::succ b) ->
+                      Lt (Nat^::succ b) c -> Lt (Nat^::succ a) c) \then
+                    \fix (ab: Lt (Nat^::succ a) (Nat^::succ b)) \then
+                    \fix (bc: Lt (Nat^::succ b) (Nat^::succ c)) \then
+                    \return ih b c ab bc
+                  }
+                }
+            }
+          }
+      }
     };
 
 \definition ltAddRight (a, b: Nat^): \forall (c: Nat^) ->
