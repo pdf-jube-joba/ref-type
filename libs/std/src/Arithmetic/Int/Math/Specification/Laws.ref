@@ -26,9 +26,10 @@
 \definition addMathComm: \forall (x, y: Grothendieck) -> addMath x y = addMath y x :=
   mathInduction (\fun (x: Grothendieck) => \forall (y: Grothendieck) -> addMath x y = addMath y x)
     (\fun (x: Difference) => mathInduction (\fun (y: Grothendieck) => addMath (class x) y = addMath y (class x))
-      (\fun (y: Difference) => trans!{\Pow Difference} _ _ _ (addMathClass x y)
-        (trans!{\Pow Difference} _ _ _ (classOfEq (addRep x y) (addRep y x) (addRepComm x y))
-          (sym!{\Pow Difference} _ _ (addMathClass y x)))));
+      (\fun (y: Difference) => equiv_reason!{trans!{\Pow Difference}
+        "by" { addMathClass x y }
+        "by" { classOfEq (addRep x y) (addRep y x) (addRepComm x y) }
+        "by" { sym!{\Pow Difference} _ _ (addMathClass y x) }}));
 \definition mulMathComm: \forall (x, y: Grothendieck) -> mulMath x y = mulMath y x :=
   mathInduction (\fun (x: Grothendieck) =>
     \forall (y: Grothendieck) -> mulMath x y = mulMath y x)
@@ -36,10 +37,10 @@
       mathInduction (\fun (y: Grothendieck) =>
         mulMath (class x) y = mulMath y (class x))
         (\fun (y: Difference) =>
-          trans!{\Pow Difference} _ _ _ (mulMathClass x y)
-            (trans!{\Pow Difference} _ _ _
-              (classOfEq (mulRep x y) (mulRep y x) (mulRepComm x y))
-              (sym!{\Pow Difference} _ _ (mulMathClass y x)))));
+          equiv_reason!{trans!{\Pow Difference}
+            "by" { mulMathClass x y }
+            "by" { classOfEq (mulRep x y) (mulRep y x) (mulRepComm x y) }
+            "by" { sym!{\Pow Difference} _ _ (mulMathClass y x) }}));
 \definition addMathZeroRight (x: Grothendieck): addMath x zeroMath = x := trans!{\Pow Difference} _ _ _ (addMathComm x zeroMath) (addMathZeroLeft x);
 \definition addMathAssoc: \forall (x, y, z: Grothendieck) -> addMath (addMath x y) z = addMath x (addMath y z) :=
   mathInduction (\fun (x: Grothendieck) => \forall (y, z: Grothendieck) -> addMath (addMath x y) z = addMath x (addMath y
@@ -50,23 +51,23 @@
         (\fun (y: Difference) =>
           mathInduction (\fun (z: Grothendieck) => addMath (addMath (class x) (class y)) z =
             addMath (class x) (addMath (class y) z))
-            (\fun (z: Difference) => trans!{\Pow Difference} _ _ _
-              (addMathCongLeft (addMath (class x) (class y)) (class (addRep x y)) (class z) (addMathClass x
-    y))
-              (trans!{\Pow Difference} _ _ _ (addMathClass (addRep x y) z)
-                (trans!{\Pow Difference} _ _ _ (classOfEq (addRep (addRep x y) z) (addRep x (addRep y z)) (addRepAssoc x y
-    z))
-                  (trans!{\Pow Difference} _ _ _ (sym!{\Pow Difference} _ _ (addMathClass x (addRep y z)))
-                    (addMathCongRight (class x) (class (addRep y z)) (addMath (class y) (class z))
-                      (sym!{\Pow Difference} _ _ (addMathClass y z)))))))));
+            (\fun (z: Difference) => equiv_reason!{trans!{\Pow Difference}
+              "by" { addMathCongLeft (addMath (class x) (class y)) (class (addRep x y)) (class z) (addMathClass x
+                y) }
+              "by" { addMathClass (addRep x y) z }
+              "by" { classOfEq (addRep (addRep x y) z) (addRep x (addRep y z)) (addRepAssoc x y
+                z) }
+              "by" { sym!{\Pow Difference} _ _ (addMathClass x (addRep y z)) }
+              "by" { addMathCongRight (class x) (class (addRep y z)) (addMath (class y) (class z))
+                (sym!{\Pow Difference} _ _ (addMathClass y z)) }})));
 \definition negMathInverse: \forall (x: Grothendieck) -> addMath (negMath x) x = zeroMath :=
   mathInduction (\fun (x: Grothendieck) => addMath (negMath x) x = zeroMath)
-    (\fun (x: Difference) => trans!{\Pow Difference} _ _ _
-      (addMathCongLeft (negMath (class x)) (class (negRep x)) (class x) (negMathClass x))
-      (trans!{\Pow Difference} _ _ _ (addMathClass (negRep x) x)
-        (classOfEq (addRep (negRep x) x) (pair natZero!{} natZero!{})
-          (trans!{Nat} _ _ _ (NL.addComm (negPart x) (pos x))
-            (sym!{Nat} _ _ (NL.addZeroLeft (N.add^ (pos x) (negPart x))))))));
+    (\fun (x: Difference) => equiv_reason!{trans!{\Pow Difference}
+      "by" { addMathCongLeft (negMath (class x)) (class (negRep x)) (class x) (negMathClass x) }
+      "by" { addMathClass (negRep x) x }
+      "by" { classOfEq (addRep (negRep x) x) (pair natZero!{} natZero!{})
+        (trans!{Nat} _ _ _ (NL.addComm (negPart x) (pos x))
+          (sym!{Nat} _ _ (NL.addZeroLeft (N.add^ (pos x) (negPart x))))) }});
 \definition toMathInjective (x, y: Int^) (e: toMath x = toMath y): x = y :=
     trans!{Int^} x (fromMath (toMath x)) y (sym!{Int^} _ _ (fromTo x))
       ((\idelim(toMath y = toMath x \with C: \Pow Difference =>
@@ -74,42 +75,43 @@
         \by { base: (\fun (hc: IsClass (toMath y)) => fromTo y), equality: sym!{\Pow Difference} (toMath x) (toMath y) e })
         (classProperty (toMath x)));
 \definition addComm (x, y: Int^): add^ x y = add^ y x := toMathInjective (add^ x y) (add^ y x)
-    (trans!{\Pow Difference} _ _ _ (addMatchesMath x y)
-      (trans!{\Pow Difference} _ _ _ (addMathComm (toMath x) (toMath y)) (sym!{\Pow Difference} _ _ (addMatchesMath y x))));
+    (equiv_reason!{trans!{\Pow Difference}
+      "by" { addMatchesMath x y }
+      "by" { addMathComm (toMath x) (toMath y) }
+      "by" { sym!{\Pow Difference} _ _ (addMatchesMath y x) }});
 \definition mulComm (x, y: Int^): mul^ x y = mul^ y x := toMathInjective (mul^ x y) (mul^ y x)
-    (trans!{\Pow Difference} _ _ _ (mulMatchesMath x y)
-      (trans!{\Pow Difference} _ _ _
-        (mulMathComm (toMath x) (toMath y))
-        (sym!{\Pow Difference} _ _ (mulMatchesMath y x))));
+    (equiv_reason!{trans!{\Pow Difference}
+      "by" { mulMatchesMath x y }
+      "by" { mulMathComm (toMath x) (toMath y) }
+      "by" { sym!{\Pow Difference} _ _ (mulMatchesMath y x) }});
 \definition addZeroLeft (x: Int^): add^ zero^ x = x := toMathInjective (add^ zero^ x) x
     (trans!{\Pow Difference} _ _ _ (addMatchesMath zero^ x) (addMathZeroLeft (toMath x)));
 \definition addZeroRight (x: Int^): add^ x zero^ = x := trans!{Int^} _ _ _ (addComm x zero^) (addZeroLeft x);
 \definition negInverse (x: Int^): add^ (neg^ x) x = zero^ := toMathInjective (add^ (neg^ x) x) zero^
-    (trans!{\Pow Difference} _ _ _ (addMatchesMath (neg^ x) x)
-      (trans!{\Pow Difference} _ _ _ (addMathCongLeft (toMath (neg^ x)) (negMath (toMath x)) (toMath x) (negMatchesMath
-    x))
-        (negMathInverse (toMath x))));
+    (equiv_reason!{trans!{\Pow Difference}
+      "by" { addMatchesMath (neg^ x) x }
+      "by" { addMathCongLeft (toMath (neg^ x)) (negMath (toMath x)) (toMath x) (negMatchesMath
+        x) }
+      "by" { negMathInverse (toMath x) }});
 
 \definition addAssoc (x, y, z: Int^):
   add^ (add^ x y) z = add^ x (add^ y z) :=
     toMathInjective (add^ (add^ x y) z) (add^ x (add^ y z))
-      (trans!{\Pow Difference} _ _ _ (addMatchesMath (add^ x y) z)
-        (trans!{\Pow Difference} _ _ _
-          (addMathCongLeft
-            (toMath (add^ x y))
-            (addMath (toMath x) (toMath y))
-            (toMath z)
-            (addMatchesMath x y))
-          (trans!{\Pow Difference} _ _ _
-            (addMathAssoc (toMath x) (toMath y) (toMath z))
-            (trans!{\Pow Difference} _ _ _
-              (addMathCongRight
-                (toMath x)
-                (addMath (toMath y) (toMath z))
-                (toMath (add^ y z))
-                (sym!{\Pow Difference} _ _ (addMatchesMath y z)))
-              (sym!{\Pow Difference} _ _
-                (addMatchesMath x (add^ y z)))))));
+      (equiv_reason!{trans!{\Pow Difference}
+        "by" { addMatchesMath (add^ x y) z }
+        "by" { addMathCongLeft
+          (toMath (add^ x y))
+          (addMath (toMath x) (toMath y))
+          (toMath z)
+          (addMatchesMath x y) }
+        "by" { addMathAssoc (toMath x) (toMath y) (toMath z) }
+        "by" { addMathCongRight
+          (toMath x)
+          (addMath (toMath y) (toMath z))
+          (toMath (add^ y z))
+          (sym!{\Pow Difference} _ _ (addMatchesMath y z)) }
+        "by" { sym!{\Pow Difference} _ _
+          (addMatchesMath x (add^ y z)) }});
 
 \definition negInverseRight (x: Int^):
   add^ x (neg^ x) = zero^ :=
