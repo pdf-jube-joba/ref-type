@@ -1,0 +1,435 @@
+\import topology.Topology[Carrier := X] \as Source;
+\import Pair.Laws[A := A, B := B] \as PairLaws;
+\import topology.Continuity[A := X, B := A] \as LeftMaps;
+\import topology.Continuity[A := X, B := B] \as RightMaps;
+\import topology.Continuity[A := X, B := CarrierSet] \as PairMaps;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+
+\definition SourceTopology: \Set := Source.Topology;
+\definition discreteSource: SourceTopology := Source.Discrete;
+
+\definition discreteSourceOpen(U: \Pow X):
+  Source.IsOpenIn discreteSource U :=
+  Source.discreteOpen U;
+
+\definition Preimage(h: X -> CarrierSet) (W: \Pow CarrierSet): \Pow X :=
+  { x : X \where ProductSpace.Member W (h x) };
+
+\definition PullbackFamily(h: X -> CarrierSet)
+  (family: \Pow (\Pow CarrierSet)): \Pow (\Pow X) :=
+  { U : \Pow X \where
+    \exists { W : \Pow CarrierSet \where
+      Logic.And[ProductSpace.FamilyMember family W, U = Preimage h W] } };
+
+\definition preimageEmptyEq(h: X -> CarrierSet):
+  Preimage h ProductSpace.Empty = Source.Empty :=
+  \axiom:setext(Preimage h ProductSpace.Empty, Source.Empty,
+    (\fun (x: X) => \fun (impossible: ProductSpace.Member ProductSpace.Empty (h x)) => impossible),
+    (\fun (x: X) => \fun (impossible: Source.Member Source.Empty x) => impossible));
+
+\definition preimageWholeEq(h: X -> CarrierSet):
+  Preimage h ProductSpace.Whole = Source.Whole :=
+  \axiom:setext(Preimage h ProductSpace.Whole, Source.Whole,
+    (\fun (x: X) => \fun (_: ProductSpace.Member ProductSpace.Whole (h x)) => \refl(x)),
+    (\fun (x: X) => \fun (_: Source.Member Source.Whole x) => \refl(h x)));
+
+\definition preimageIntersectionEq(h: X -> CarrierSet)
+  (U, V: \Pow CarrierSet):
+  Preimage h (ProductSpace.Intersection U V) =
+    Source.Intersection (Preimage h U) (Preimage h V) :=
+  \axiom:setext(
+    Preimage h (ProductSpace.Intersection U V),
+    Source.Intersection (Preimage h U) (Preimage h V),
+    (\fun (x: X) =>
+      \fun (member: ProductSpace.Member (ProductSpace.Intersection U V) (h x)) =>
+        Source.intersectionMember (Preimage h U) (Preimage h V) x
+          (ProductSpace.intersectionLeft U V (h x) member)
+          (ProductSpace.intersectionRight U V (h x) member)),
+    (\fun (x: X) =>
+      \fun (member: Source.Member
+        (Source.Intersection (Preimage h U) (Preimage h V)) x) =>
+        ProductSpace.intersectionMember U V (h x)
+          (Source.intersectionLeft (Preimage h U) (Preimage h V) x member)
+          (Source.intersectionRight (Preimage h U) (Preimage h V) x member)));
+
+\definition pullbackMember(h: X -> CarrierSet)
+  (family: \Pow (\Pow CarrierSet)) (W: \Pow CarrierSet)
+  (member: ProductSpace.FamilyMember family W):
+  Source.FamilyMember (PullbackFamily h family) (Preimage h W) :=
+  \exact(
+    \into[\Pow CarrierSet](W,
+      { V : \Pow CarrierSet \where
+        Logic.And[ProductSpace.FamilyMember family V,
+          Preimage h W = Preimage h V] })
+      \by { Logic.And[_, _]::# member (\refl(Preimage h W)) },
+    \Cast[\Pow CarrierSet] ({ V : \Pow CarrierSet \where
+      Logic.And[ProductSpace.FamilyMember family V,
+        Preimage h W = Preimage h V] }));
+
+\definition pullbackElim(h: X -> CarrierSet)
+  (family: \Pow (\Pow CarrierSet)) (U: \Pow X) (P: \Prop)
+  (step: \forall (W: \Pow CarrierSet) ->
+    ProductSpace.FamilyMember family W -> U = Preimage h W -> P)
+  (member: Source.FamilyMember (PullbackFamily h family) U): P :=
+  \block {
+    \takefrom W: \Cast[\Pow CarrierSet]
+      ({ V : \Pow CarrierSet \where
+        Logic.And[ProductSpace.FamilyMember family V, U = Preimage h V] })
+      \by member \then
+    \let evidence: Logic.And[ProductSpace.FamilyMember family W,
+      U = Preimage h W] :=
+      \bysub(\Pow CarrierSet,
+        { V : \Pow CarrierSet \where
+          Logic.And[ProductSpace.FamilyMember family V, U = Preimage h V] }, W)
+      \then
+    \return step W (#left{evidence}) (#right{evidence})
+  };
+
+\definition preimageUnionEq(h: X -> CarrierSet)
+  (family: \Pow (\Pow CarrierSet)):
+  Preimage h (ProductSpace.Union family) =
+    Source.Union (PullbackFamily h family) :=
+  \axiom:setext(
+    Preimage h (ProductSpace.Union family),
+    Source.Union (PullbackFamily h family),
+    (\fun (x: X) =>
+      ProductSpace.unionMemberElim family (h x)
+        (Source.Member (Source.Union (PullbackFamily h family)) x)
+        (\fun (W: \Pow CarrierSet) =>
+          \fun (inFamily: ProductSpace.FamilyMember family W) =>
+          \fun (inW: ProductSpace.Member W (h x)) =>
+            Source.unionMemberOf (PullbackFamily h family) (Preimage h W) x
+              (pullbackMember h family W inFamily) inW)),
+    (\fun (x: X) =>
+      Source.unionMemberElim (PullbackFamily h family) x
+        (ProductSpace.Member (ProductSpace.Union family) (h x))
+        (\fun (U: \Pow X) =>
+          \fun (inFamily: Source.FamilyMember (PullbackFamily h family) U) =>
+          \fun (inU: Source.Member U x) =>
+            pullbackElim h family U
+              (ProductSpace.Member (ProductSpace.Union family) (h x))
+              (\fun (W: \Pow CarrierSet) =>
+                \fun (inOriginal: ProductSpace.FamilyMember family W) =>
+                \fun (equality: U = Preimage h W) =>
+                  ProductSpace.unionMemberOf family W (h x) inOriginal
+                    (\idelim(U = Preimage h W
+                      \with V: \Pow X => Source.Member V x)
+                      \by { base: inU, equality: equality }))
+              inFamily)));
+
+\definition openTransport(source: SourceTopology) (U, V: \Pow X)
+  (equality: U = V) (open: Source.IsOpenIn source U):
+  Source.IsOpenIn source V :=
+  \idelim(U = V \with W: \Pow X => Source.IsOpenIn source W)
+    \by { base: open, equality: equality };
+
+\definition PullbackRaw(source: SourceTopology) (h: X -> CarrierSet):
+  ProductSpace.RawTopology[CarrierSet] :=
+  ProductSpace.RawTopology[CarrierSet] {
+    openSets := { W : \Pow CarrierSet \where
+      Source.IsOpenIn source (Preimage h W) },
+  };
+
+\definition pullbackLaws(source: SourceTopology) (h: X -> CarrierSet):
+  ProductSpace.TopologyLaws[PullbackRaw source h] :=
+  ProductSpace.TopologyLaws[PullbackRaw source h] {
+    emptyOpen :=
+      openTransport source Source.Empty (Preimage h ProductSpace.Empty)
+        (sym!{\Pow X} (Preimage h ProductSpace.Empty) Source.Empty
+          (preimageEmptyEq h))
+        (#emptyOpen{(Source.laws source)}),
+    wholeOpen :=
+      openTransport source Source.Whole (Preimage h ProductSpace.Whole)
+        (sym!{\Pow X} (Preimage h ProductSpace.Whole) Source.Whole
+          (preimageWholeEq h))
+        (#wholeOpen{(Source.laws source)}),
+    unionOpen := \fun (family: \Pow (\Pow CarrierSet)) =>
+      \fun (allOpen: \forall (W: \Pow CarrierSet) ->
+        ProductSpace.FamilyMember family W ->
+        ProductSpace.IsOpen (PullbackRaw source h) W) =>
+        openTransport source
+          (Source.Union (PullbackFamily h family))
+          (Preimage h (ProductSpace.Union family))
+          (sym!{\Pow X}
+            (Preimage h (ProductSpace.Union family))
+            (Source.Union (PullbackFamily h family))
+            (preimageUnionEq h family))
+          (#unionOpen{(Source.laws source)} (PullbackFamily h family)
+            (\fun (U: \Pow X) =>
+              \fun (member: Source.FamilyMember (PullbackFamily h family) U) =>
+                pullbackElim h family U (Source.IsOpenIn source U)
+                  (\fun (W: \Pow CarrierSet) =>
+                    \fun (inFamily: ProductSpace.FamilyMember family W) =>
+                    \fun (equality: U = Preimage h W) =>
+                      openTransport source (Preimage h W) U
+                        (sym!{\Pow X} U (Preimage h W) equality)
+                        (allOpen W inFamily))
+                  member)),
+    intersectionOpen := \fun (U, V: \Pow CarrierSet) =>
+      \fun (uOpen: ProductSpace.IsOpen (PullbackRaw source h) U) =>
+      \fun (vOpen: ProductSpace.IsOpen (PullbackRaw source h) V) =>
+        openTransport source
+          (Source.Intersection (Preimage h U) (Preimage h V))
+          (Preimage h (ProductSpace.Intersection U V))
+          (sym!{\Pow X}
+            (Preimage h (ProductSpace.Intersection U V))
+            (Source.Intersection (Preimage h U) (Preimage h V))
+            (preimageIntersectionEq h U V))
+          (#intersectionOpen{(Source.laws source)}
+            (Preimage h U) (Preimage h V) uOpen vOpen),
+  };
+
+\definition generatedContinuous(source: SourceTopology)
+  (h: X -> CarrierSet) (basis: \Pow (\Pow CarrierSet))
+  (basisPreimagesOpen: \forall (W: \Pow CarrierSet) ->
+    ProductSpace.FamilyMember basis W ->
+    Source.IsOpenIn source (Preimage h W))
+  (W: \Pow CarrierSet)
+  (open: ProductSpace.IsOpenIn (ProductSpace.generated basis) W):
+  Source.IsOpenIn source (Preimage h W) :=
+  (\idelim(
+    ProductSpace.raw (ProductSpace.generated basis) =
+      ProductSpace.GeneratedRaw basis
+    \with candidate: ProductSpace.RawTopology[CarrierSet] =>
+      ProductSpace.IsOpen candidate W)
+    \by { base: open, equality: ProductSpace.generatedRawEq basis })
+    (PullbackRaw source h) (pullbackLaws source h) basisPreimagesOpen;
+
+\definition PairMap(f: X -> A) (g: X -> B): X -> CarrierSet :=
+  \fun (x: X) => Pair.pair A B (f x) (g x);
+
+\definition LeftPreimage(f: X -> A) (U: \Pow A): \Pow X :=
+  { x : X \where \In[A] U (f x) };
+
+\definition RightPreimage(g: X -> B) (V: \Pow B): \Pow X :=
+  { x : X \where \In[B] V (g x) };
+
+\definition LeftContinuous(source: SourceTopology)
+  (left: \Pow (\Pow A)) (f: X -> A): \Prop :=
+  LeftMaps.Continuous (#openSets{(Source.raw source)}) left f;
+
+\definition RightContinuous(source: SourceTopology)
+  (right: \Pow (\Pow B)) (g: X -> B): \Prop :=
+  RightMaps.Continuous (#openSets{(Source.raw source)}) right g;
+
+\definition PairContinuous(source: SourceTopology)
+  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (f: X -> A) (g: X -> B): \Prop :=
+  PairMaps.Continuous (#openSets{(Source.raw source)})
+    (openSets left right) (PairMap f g);
+
+\definition pairRectangleEq(f: X -> A) (g: X -> B)
+  (U: \Pow A) (V: \Pow B):
+  Preimage (PairMap f g) (Rectangle U V) =
+    Source.Intersection (LeftPreimage f U) (RightPreimage g V) :=
+  \axiom:setext(
+    Preimage (PairMap f g) (Rectangle U V),
+    Source.Intersection (LeftPreimage f U) (RightPreimage g V),
+    (\fun (x: X) =>
+      \fun (member: ProductSpace.Member (Rectangle U V) (PairMap f g x)) =>
+        Source.intersectionMember (LeftPreimage f U) (RightPreimage g V) x
+          (#left{member}) (#right{member})),
+    (\fun (x: X) =>
+      \fun (member: Source.Member
+        (Source.Intersection (LeftPreimage f U) (RightPreimage g V)) x) =>
+        Logic.And[_, _]::#
+          (Source.intersectionLeft (LeftPreimage f U) (RightPreimage g V) x member)
+          (Source.intersectionRight (LeftPreimage f U) (RightPreimage g V) x member)));
+
+\definition basisElim(left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (W: \Pow CarrierSet) (P: \Prop)
+  (step: \forall (U: \Pow A) -> \In[\Pow A] left U ->
+    \forall (V: \Pow B) -> \In[\Pow B] right V ->
+      W = Rectangle U V -> P)
+  (member: ProductSpace.FamilyMember (Basis left right) W): P :=
+  \block {
+    \takefrom U: \Cast[\Pow A]
+      ({ U : \Pow A \where
+        Logic.And[\In[\Pow A] left U,
+          \exists { V : \Pow B \where
+            Logic.And[\In[\Pow B] right V, W = Rectangle U V] }] })
+      \by member \then
+    \let leftEvidence: Logic.And[\In[\Pow A] left U,
+      \exists { V : \Pow B \where
+        Logic.And[\In[\Pow B] right V, W = Rectangle U V] }] :=
+      \bysub(\Pow A,
+        { U : \Pow A \where
+          Logic.And[\In[\Pow A] left U,
+            \exists { V : \Pow B \where
+              Logic.And[\In[\Pow B] right V, W = Rectangle U V] }] }, U)
+      \then
+    \takefrom V: \Cast[\Pow B]
+      ({ V : \Pow B \where
+        Logic.And[\In[\Pow B] right V, W = Rectangle U V] })
+      \by #right{leftEvidence} \then
+    \let rightEvidence: Logic.And[\In[\Pow B] right V,
+      W = Rectangle U V] :=
+      \bysub(\Pow B,
+        { V : \Pow B \where
+          Logic.And[\In[\Pow B] right V, W = Rectangle U V] }, V)
+      \then
+    \return step U (#left{leftEvidence}) V
+      (#left{rightEvidence}) (#right{rightEvidence})
+  };
+
+\definition pairRectangleOpen(source: SourceTopology)
+  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (f: X -> A) (g: X -> B) (U: \Pow A) (V: \Pow B)
+  (fContinuous: LeftContinuous source left f)
+  (gContinuous: RightContinuous source right g)
+  (openU: \In[\Pow A] left U) (openV: \In[\Pow B] right V):
+  Source.IsOpenIn source (Preimage (PairMap f g) (Rectangle U V)) :=
+  openTransport source
+    (Source.Intersection (LeftPreimage f U) (RightPreimage g V))
+    (Preimage (PairMap f g) (Rectangle U V))
+    (sym!{\Pow X}
+      (Preimage (PairMap f g) (Rectangle U V))
+      (Source.Intersection (LeftPreimage f U) (RightPreimage g V))
+      (pairRectangleEq f g U V))
+    (#intersectionOpen{(Source.laws source)}
+      (LeftPreimage f U) (RightPreimage g V)
+      (fContinuous U openU) (gContinuous V openV));
+
+\definition pairBasisOpen(source: SourceTopology)
+  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (f: X -> A) (g: X -> B)
+  (fContinuous: LeftContinuous source left f)
+  (gContinuous: RightContinuous source right g)
+  (W: \Pow CarrierSet) (member: ProductSpace.FamilyMember (Basis left right) W):
+  Source.IsOpenIn source (Preimage (PairMap f g) W) :=
+  basisElim left right W (Source.IsOpenIn source (Preimage (PairMap f g) W))
+    (\fun (U: \Pow A) => \fun (openU: \In[\Pow A] left U) =>
+      \fun (V: \Pow B) => \fun (openV: \In[\Pow B] right V) =>
+      \fun (equality: W = Rectangle U V) =>
+        openTransport source
+          (Preimage (PairMap f g) (Rectangle U V))
+          (Preimage (PairMap f g) W)
+          (congr!{\Pow CarrierSet \Pow X}
+            (Preimage (PairMap f g)) (Rectangle U V) W
+            (sym!{\Pow CarrierSet} W (Rectangle U V) equality))
+          (pairRectangleOpen source left right f g U V
+            fContinuous gContinuous openU openV))
+    member;
+
+\definition pairContinuous(source: SourceTopology)
+  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (f: X -> A) (g: X -> B)
+  (fContinuous: LeftContinuous source left f)
+  (gContinuous: RightContinuous source right g):
+  PairContinuous source left right f g :=
+  generatedContinuous source (PairMap f g) (Basis left right)
+    (pairBasisOpen source left right f g fContinuous gContinuous);
+
+\definition WholeLeft: \Pow A := { a : A \where a = a };
+\definition WholeRight: \Pow B := { b : B \where b = b };
+
+\definition rectangleBasisMember(left: \Pow (\Pow A))
+  (right: \Pow (\Pow B)) (U: \Pow A) (V: \Pow B)
+  (openU: \In[\Pow A] left U) (openV: \In[\Pow B] right V):
+  ProductSpace.FamilyMember (Basis left right) (Rectangle U V) :=
+  \exact(
+    \into[\Pow A](U,
+      { T : \Pow A \where
+        Logic.And[\In[\Pow A] left T,
+          \exists { R : \Pow B \where
+            Logic.And[\In[\Pow B] right R,
+              Rectangle U V = Rectangle T R] }] })
+      \by {
+        Logic.And[_, _]::# openU
+          (\exact(
+            \into[\Pow B](V,
+              { R : \Pow B \where
+                Logic.And[\In[\Pow B] right R,
+                  Rectangle U V = Rectangle U R] })
+              \by { Logic.And[_, _]::# openV (\refl(Rectangle U V)) },
+            \Cast[\Pow B] ({ R : \Pow B \where
+              Logic.And[\In[\Pow B] right R,
+                Rectangle U V = Rectangle U R] })))
+      },
+    \Cast[\Pow A] ({ T : \Pow A \where
+      Logic.And[\In[\Pow A] left T,
+        \exists { R : \Pow B \where
+          Logic.And[\In[\Pow B] right R,
+            Rectangle U V = Rectangle T R] }] }));
+
+\definition leftRectangleEq(f: X -> A) (g: X -> B) (U: \Pow A):
+  Preimage (PairMap f g) (Rectangle U WholeRight) = LeftPreimage f U :=
+  \axiom:setext(
+    Preimage (PairMap f g) (Rectangle U WholeRight), LeftPreimage f U,
+    (\fun (x: X) =>
+      \fun (member: ProductSpace.Member
+        (Rectangle U WholeRight) (PairMap f g x)) => #left{member}),
+    (\fun (x: X) => \fun (member: \In[A] U (f x)) =>
+      Logic.And[_, _]::# member (\refl(g x))));
+
+\definition rightRectangleEq(f: X -> A) (g: X -> B) (V: \Pow B):
+  Preimage (PairMap f g) (Rectangle WholeLeft V) = RightPreimage g V :=
+  \axiom:setext(
+    Preimage (PairMap f g) (Rectangle WholeLeft V), RightPreimage g V,
+    (\fun (x: X) =>
+      \fun (member: ProductSpace.Member
+        (Rectangle WholeLeft V) (PairMap f g x)) => #right{member}),
+    (\fun (x: X) => \fun (member: \In[B] V (g x)) =>
+      Logic.And[_, _]::# (\refl(f x)) member));
+
+\definition leftOfPairContinuous(source: SourceTopology)
+  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (f: X -> A) (g: X -> B)
+  (rightWhole: \In[\Pow B] right WholeRight)
+  (continuous: PairContinuous source left right f g):
+  LeftContinuous source left f :=
+  \fun (U: \Pow A) => \fun (openU: \In[\Pow A] left U) =>
+    openTransport source
+      (Preimage (PairMap f g) (Rectangle U WholeRight))
+      (LeftPreimage f U) (leftRectangleEq f g U)
+      (continuous (Rectangle U WholeRight)
+        (ProductSpace.generatedBasisOpen (Basis left right)
+          (Rectangle U WholeRight)
+          (rectangleBasisMember left right U WholeRight openU rightWhole)));
+
+\definition rightOfPairContinuous(source: SourceTopology)
+  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (f: X -> A) (g: X -> B)
+  (leftWhole: \In[\Pow A] left WholeLeft)
+  (continuous: PairContinuous source left right f g):
+  RightContinuous source right g :=
+  \fun (V: \Pow B) => \fun (openV: \In[\Pow B] right V) =>
+    openTransport source
+      (Preimage (PairMap f g) (Rectangle WholeLeft V))
+      (RightPreimage g V) (rightRectangleEq f g V)
+      (continuous (Rectangle WholeLeft V)
+        (ProductSpace.generatedBasisOpen (Basis left right)
+          (Rectangle WholeLeft V)
+          (rectangleBasisMember left right WholeLeft V leftWhole openV)));
+
+\definition universal(source: SourceTopology)
+  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (f: X -> A) (g: X -> B)
+  (leftWhole: \In[\Pow A] left WholeLeft)
+  (rightWhole: \In[\Pow B] right WholeRight):
+  Logic.PropEquiv[PairContinuous source left right f g,
+    Logic.And[LeftContinuous source left f,
+      RightContinuous source right g]] :=
+  Logic.PropEquiv[PairContinuous source left right f g,
+    Logic.And[LeftContinuous source left f,
+      RightContinuous source right g]] {
+    ltr := \fun (continuous: PairContinuous source left right f g) =>
+      Logic.And[LeftContinuous source left f,
+        RightContinuous source right g]::#
+        (leftOfPairContinuous source left right f g rightWhole continuous)
+        (rightOfPairContinuous source left right f g leftWhole continuous),
+    rtl := \fun (components: Logic.And[LeftContinuous source left f,
+      RightContinuous source right g]) =>
+      pairContinuous source left right f g
+        (#left{components}) (#right{components}),
+  };
+
+\definition pairUniquePointwise(h: X -> CarrierSet)
+  (f: X -> A) (g: X -> B)
+  (first: \forall (x: X) -> Pair.first A B (h x) = f x)
+  (second: \forall (x: X) -> Pair.second A B (h x) = g x):
+  \forall (x: X) -> h x = PairMap f g x :=
+  \fun (x: X) =>
+    PairLaws.ext (h x) (PairMap f g x) (first x) (second x);

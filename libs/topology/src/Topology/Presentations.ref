@@ -1,0 +1,191 @@
+/* Equivalent descriptions of a topology on the same carrier. */
+
+\definition BinaryUnion(S, T: \Pow Carrier): \Pow Carrier :=
+  { x : Carrier \where Logic.Or[Member S x, Member T x] };
+
+\definition ArbitraryIntersection(family: \Pow (\Pow Carrier)): \Pow Carrier :=
+  { x : Carrier \where
+    \forall (F: \Pow Carrier) -> FamilyMember family F -> Member F x };
+
+\record ClosedSetLaws[closedSets: \Pow (\Pow Carrier)]: \Prop := {
+  emptyClosed: FamilyMember closedSets Empty,
+  wholeClosed: FamilyMember closedSets Whole,
+  intersectionClosed: \forall (family: \Pow (\Pow Carrier)) ->
+    (\forall (F: \Pow Carrier) -> FamilyMember family F ->
+      FamilyMember closedSets F) ->
+    FamilyMember closedSets (ArbitraryIntersection family),
+  unionClosed: \forall (F, G: \Pow Carrier) ->
+    FamilyMember closedSets F -> FamilyMember closedSets G ->
+    FamilyMember closedSets (BinaryUnion F G),
+};
+
+\definition ClosedSetSystems: \Pow (\Pow (\Pow Carrier)) :=
+  { closedSets : \Pow (\Pow Carrier) \where ClosedSetLaws[closedSets] };
+
+\definition ClosedSetSystem: \Set :=
+  \Cast[\Pow (\Pow Carrier)] ClosedSetSystems;
+
+\definition closedSets(system: ClosedSetSystem): \Pow (\Pow Carrier) := system;
+
+\definition closedSetLaws(system: ClosedSetSystem):
+  ClosedSetLaws[closedSets system] :=
+  \bysub(\Pow (\Pow Carrier), ClosedSetSystems, system);
+
+\definition IsClosedBy(system: ClosedSetSystem) (F: \Pow Carrier): \Prop :=
+  FamilyMember (closedSets system) F;
+
+\definition SetOperator: \Set := \Pow Carrier -> \Pow Carrier;
+
+\record ClosureLaws[closure: SetOperator]: \Prop := {
+  empty: closure Empty = Empty,
+  extensive: \forall (S: \Pow Carrier) -> Subset S (closure S),
+  union: \forall (S, T: \Pow Carrier) ->
+    closure (BinaryUnion S T) = BinaryUnion (closure S) (closure T),
+  idempotent: \forall (S: \Pow Carrier) ->
+    closure (closure S) = closure S,
+};
+
+\definition ClosureOperators: \Pow SetOperator :=
+  { closure : SetOperator \where ClosureLaws[closure] };
+
+\definition ClosureOperator: \Set :=
+  \Cast[SetOperator] ClosureOperators;
+
+\definition closureLaws(closure: ClosureOperator): ClosureLaws[closure] :=
+  \bysub(SetOperator, ClosureOperators, closure);
+
+\record InteriorLaws[interior: SetOperator]: \Prop := {
+  whole: interior Whole = Whole,
+  reductive: \forall (S: \Pow Carrier) -> Subset (interior S) S,
+  intersection: \forall (S, T: \Pow Carrier) ->
+    interior (Intersection S T) = Intersection (interior S) (interior T),
+  idempotent: \forall (S: \Pow Carrier) ->
+    interior (interior S) = interior S,
+};
+
+\definition InteriorOperators: \Pow SetOperator :=
+  { interior : SetOperator \where InteriorLaws[interior] };
+
+\definition InteriorOperator: \Set :=
+  \Cast[SetOperator] InteriorOperators;
+
+\definition interiorLaws(interior: InteriorOperator): InteriorLaws[interior] :=
+  \bysub(SetOperator, InteriorOperators, interior);
+
+\definition NeighborhoodAssignment: \Set :=
+  Carrier -> \Pow (\Pow Carrier);
+
+\definition IsNeighborhood(neighborhoods: NeighborhoodAssignment)
+  (x: Carrier) (U: \Pow Carrier): \Prop :=
+  FamilyMember (neighborhoods x) U;
+
+\record NeighborhoodLaws[neighborhoods: NeighborhoodAssignment]: \Prop := {
+  containsPoint: \forall (x: Carrier) -> \forall (U: \Pow Carrier) ->
+    IsNeighborhood neighborhoods x U -> Member U x,
+  whole: \forall (x: Carrier) -> IsNeighborhood neighborhoods x Whole,
+  upward: \forall (x: Carrier) -> \forall (U, V: \Pow Carrier) ->
+    IsNeighborhood neighborhoods x U -> Subset U V ->
+    IsNeighborhood neighborhoods x V,
+  intersection: \forall (x: Carrier) -> \forall (U, V: \Pow Carrier) ->
+    IsNeighborhood neighborhoods x U -> IsNeighborhood neighborhoods x V ->
+    IsNeighborhood neighborhoods x (Intersection U V),
+  local: \forall (x: Carrier) -> \forall (U: \Pow Carrier) ->
+    IsNeighborhood neighborhoods x U ->
+    \exists { V : \Pow Carrier \where
+      Logic.And[IsNeighborhood neighborhoods x V,
+        Logic.And[Subset V U,
+          \forall (y: Carrier) -> Member V y ->
+            IsNeighborhood neighborhoods y V]] },
+};
+
+\definition NeighborhoodSystems: \Pow NeighborhoodAssignment :=
+  { neighborhoods : NeighborhoodAssignment \where NeighborhoodLaws[neighborhoods] };
+
+\definition NeighborhoodSystem: \Set :=
+  \Cast[NeighborhoodAssignment] NeighborhoodSystems;
+
+\definition neighborhoodLaws(neighborhoods: NeighborhoodSystem):
+  NeighborhoodLaws[neighborhoods] :=
+  \bysub(NeighborhoodAssignment, NeighborhoodSystems, neighborhoods);
+
+\definition ClosedSetsOf(topology: Topology): \Pow (\Pow Carrier) :=
+  { F : \Pow Carrier \where IsClosedIn topology F };
+
+\definition ClosureOf(topology: Topology) (S: \Pow Carrier): \Pow Carrier :=
+  ArbitraryIntersection
+    ({ F : \Pow Carrier \where
+      Logic.And[IsClosedIn topology F, Subset S F] });
+
+\definition InteriorOf(topology: Topology) (S: \Pow Carrier): \Pow Carrier :=
+  { x : Carrier \where
+    \exists { U : \Pow Carrier \where
+      Logic.And[IsOpenIn topology U,
+        Logic.And[Subset U S, Member U x]] } };
+
+\definition NeighborhoodsOf(topology: Topology): NeighborhoodAssignment :=
+  \fun (x: Carrier) =>
+    { U : \Pow Carrier \where
+      \exists { V : \Pow Carrier \where
+        Logic.And[IsOpenIn topology V,
+          Logic.And[Member V x, Subset V U]] } };
+
+\definition OpenSetsFromClosed(system: ClosedSetSystem):
+  \Pow (\Pow Carrier) :=
+  { U : \Pow Carrier \where IsClosedBy system (Complement U) };
+
+\definition OpenSetsFromClosure(closure: ClosureOperator):
+  \Pow (\Pow Carrier) :=
+  { U : \Pow Carrier \where closure (Complement U) = Complement U };
+
+\definition OpenSetsFromInterior(interior: InteriorOperator):
+  \Pow (\Pow Carrier) :=
+  { U : \Pow Carrier \where interior U = U };
+
+\definition OpenSetsFromNeighborhoods(neighborhoods: NeighborhoodSystem):
+  \Pow (\Pow Carrier) :=
+  { U : \Pow Carrier \where
+    \forall (x: Carrier) -> Member U x -> IsNeighborhood neighborhoods x U };
+
+\definition topologyFromClosed(system: ClosedSetSystem): Topology :=
+  generated (OpenSetsFromClosed system);
+
+\definition topologyFromClosure(closure: ClosureOperator): Topology :=
+  generated (OpenSetsFromClosure closure);
+
+\definition topologyFromInterior(interior: InteriorOperator): Topology :=
+  generated (OpenSetsFromInterior interior);
+
+\definition topologyFromNeighborhoods(neighborhoods: NeighborhoodSystem): Topology :=
+  generated (OpenSetsFromNeighborhoods neighborhoods);
+
+\definition ClosedCorresponds(topology: Topology)
+  (system: ClosedSetSystem): \Prop :=
+  \forall (F: \Pow Carrier) ->
+    Logic.PropEquiv[IsClosedIn topology F, IsClosedBy system F];
+
+\definition ClosureCorresponds(topology: Topology)
+  (closure: ClosureOperator): \Prop :=
+  \forall (S: \Pow Carrier) -> closure S = ClosureOf topology S;
+
+\definition InteriorCorresponds(topology: Topology)
+  (interior: InteriorOperator): \Prop :=
+  \forall (S: \Pow Carrier) -> interior S = InteriorOf topology S;
+
+\definition NeighborhoodCorresponds(topology: Topology)
+  (neighborhoods: NeighborhoodSystem): \Prop :=
+  \forall (x: Carrier) -> \forall (U: \Pow Carrier) ->
+    Logic.PropEquiv[IsNeighborhood neighborhoods x U,
+      IsNeighborhood (NeighborhoodsOf topology) x U];
+
+\record PresentationsCorrespond[
+  topology: Topology,
+  closed: ClosedSetSystem,
+  closure: ClosureOperator,
+  interior: InteriorOperator,
+  neighborhoods: NeighborhoodSystem,
+]: \Prop := {
+  closed: ClosedCorresponds topology closed,
+  closure: ClosureCorresponds topology closure,
+  interior: InteriorCorresponds topology interior,
+  neighborhoods: NeighborhoodCorresponds topology neighborhoods,
+};
