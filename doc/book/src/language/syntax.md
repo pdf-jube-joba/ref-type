@@ -388,7 +388,7 @@ Set/Prop の `\match` では `\return` に結果型を指定し、branch の見�
 
 ```text
 \block {
-  \fix (x, y: A), (h: P x) \then
+  \fix (x, y: A) (h: P x) \then
   \let z: B := term \then
   \enough C \by { map } \then
   \return result

@@ -791,14 +791,11 @@ impl<'a> TermParser<'a> {
 
         loop {
             if self.bump_if_keyword("\\fix") {
-                // r"\fix" ("(" RightBind ")" ",")* "\then"
+                // r"\fix" ("(" RightBind ")")* "\then"
                 let mut binds: Vec<RightBind> = Vec::new();
                 while self.peek() == Some(&Token::LParen) {
                     let bind = self.parse_simple_binds_paren()?;
                     binds.extend(bind);
-                    if !self.bump_if_token(Token::Comma) {
-                        break;
-                    }
                 }
                 self.expect_keyword("\\then")?;
                 statements.push(Statement::Fix(binds));
@@ -1842,6 +1839,20 @@ mod tests {
         assert!(matches!(block.statements[0], Statement::Let { .. }));
         assert!(matches!(block.statements[1], Statement::Bind { .. }));
         assert!(matches!(*block.result, SExp::AccessPath { .. }));
+    }
+
+    #[test]
+    fn fix_accepts_adjacent_binder_groups() {
+        let SExp::Block(block) = complete(r"\block { \fix (x, y: A) (h: P x) \then \return h }")
+        else {
+            panic!("expected block");
+        };
+        let [Statement::Fix(binds)] = block.statements.as_slice() else {
+            panic!("expected one fix statement");
+        };
+        assert_eq!(binds.len(), 2);
+        assert_eq!(binds[0].vars.len(), 2);
+        assert_eq!(binds[1].vars.len(), 1);
     }
 
     #[test]

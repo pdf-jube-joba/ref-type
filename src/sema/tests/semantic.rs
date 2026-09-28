@@ -448,7 +448,7 @@ fn block_let_errors_cover_only_the_failing_statement() {
     ];
     for (body, expected) in cases {
         let text = format!(
-            "\\definition test: \\forall (A: \\Set) -> A -> A := \\block {{\n\\fix (A: \\Set), (a: A) \\then\n{body}\n}};"
+            "\\definition test: \\forall (A: \\Set) -> A -> A := \\block {{\n\\fix (A: \\Set) (a: A) \\then\n{body}\n}};"
         );
         let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
         snapshot.insert("/virtual/root.ref", "\\module Test;");
@@ -469,7 +469,7 @@ fn block_let_errors_cover_only_the_failing_statement() {
 #[test]
 fn block_result_errors_do_not_point_at_a_successful_let() {
     let text = r"\definition test: \forall (A: \Set) -> A -> A := \block {
-        \fix (A: \Set), (a: A) \then
+        \fix (A: \Set) (a: A) \then
         \let x: A := a \then
         \return \Prop
     };";
