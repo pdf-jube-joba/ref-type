@@ -74,16 +74,21 @@
 \definition normalizeRespects (x, y: Difference): Equivalent x y -> normalize x = normalize y := diffRespects (pos x) (negPart x) (pos y) (negPart y);
 \definition representativeNormalize (x: Difference): Equivalent x (representative (normalize x)) := diffBalance (negPart x) (pos x);
 \definition equivalentOfNormalize (x, y: Difference) (e: normalize x = normalize y): Equivalent x y :=
-    equivalentTrans x (representative (normalize x)) y (representativeNormalize x)
-      (\idelim(normalize y = normalize x \with z: Int^ => Equivalent (representative z) y)
-        \by { base: equivalentSym y (representative (normalize y)) (representativeNormalize y), equality: sym!{Int^} _ _ e });
+    equiv_reason_terms!{equivalentTrans { x }
+      "~" { representative (normalize x) } "by" { representativeNormalize x }
+      "~" { y } "by" { \idelim(normalize y = normalize x \with z: Int^ => Equivalent (representative z) y)
+        \by { base: equivalentSym y (representative (normalize y)) (representativeNormalize y), equality: sym!{Int^} _ _ e } }};
 
 /* Actual equivalence classes, not merely a setoid of representatives. */
 \definition ClassOf (x: Difference): \Pow Difference := { y : Difference \where Equivalent x y };
 \definition classOfEq (x, y: Difference) (xy: Equivalent x y): ClassOf x = ClassOf y :=
     \axiom:setext(ClassOf x, ClassOf y,
-      (\fun (z: Difference) => \fun (xz: Equivalent x z) => equivalentTrans y x z (equivalentSym x y xy) xz),
-      (\fun (z: Difference) => \fun (yz: Equivalent y z) => equivalentTrans x y z xy yz));
+      (\fun (z: Difference) => \fun (xz: Equivalent x z) => equiv_reason_terms!{equivalentTrans { y }
+        "~" { x } "by" { equivalentSym x y xy }
+        "~" { z } "by" { xz }}),
+      (\fun (z: Difference) => \fun (yz: Equivalent y z) => equiv_reason_terms!{equivalentTrans { x }
+        "~" { y } "by" { xy }
+        "~" { z } "by" { yz }}));
 \definition equivalentOfClassEq (x, y: Difference) (e: ClassOf x = ClassOf y): Equivalent x y :=
     \idelim(ClassOf y = ClassOf x \with C: \Pow Difference => \In[Difference] C y)
       \by { base: equivalentRefl y, equality:
@@ -221,7 +226,9 @@
         (\fun (z: Difference) => \fun (hz: \In[Difference] (UnaryImage f C) z) =>
           hz (Equivalent (f x) z)
             (\fun (y: Difference) => \fun (cy: C = ClassOf y) => \fun (yz: Equivalent (f y) z) =>
-              equivalentTrans (f x) (f y) z (respects x y (sameClassRelated C x y cx cy)) yz)),
+              equiv_reason_terms!{equivalentTrans { f x }
+                "~" { f y } "by" { respects x y (sameClassRelated C x y cx cy) }
+                "~" { z } "by" { yz }})),
         (\fun (z: Difference) => \fun (xz: Equivalent (f x) z) =>
           \fun (P: \Prop) => \fun (step: \forall (y: Difference) -> C = ClassOf y -> Equivalent (f y) z -> P) => step x cx xz));
 \definition unaryImageClosed (f: Difference -> Difference) (respects: UnaryRespects f)
@@ -242,8 +249,9 @@
           hz (Equivalent (f x y) z)
             (\fun (u, v: Difference) => \fun (cu: C = ClassOf u) => \fun (dv: D = ClassOf v) => \fun (uvz: Equivalent (f u v) z)
     =>
-              equivalentTrans (f x y) (f u v) z
-                (respects x u y v (sameClassRelated C x u cx cu) (sameClassRelated D y v dy dv)) uvz)),
+              equiv_reason_terms!{equivalentTrans { f x y }
+                "~" { f u v } "by" { respects x u y v (sameClassRelated C x u cx cu) (sameClassRelated D y v dy dv) }
+                "~" { z } "by" { uvz }})),
         (\fun (z: Difference) => \fun (xyz: Equivalent (f x y) z) =>
           \fun (P: \Prop) => \fun (step: \forall (u, v: Difference) -> C = ClassOf u -> D = ClassOf v -> Equivalent (f u v) z ->
     P) =>

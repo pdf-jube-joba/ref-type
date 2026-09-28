@@ -14,18 +14,15 @@
       (#numerator{x})
       (#denominatorIndex{(add x zero)})
       (#denominatorIndex{x})
-      (I.integerEqTrans
-        (#numerator{(add x zero)})
-        (I.addInteger (#numerator{x}) I.zeroInteger)
-        (#numerator{x})
-        (I.addIntegerRespects
+      (equiv_reason_terms!{I.integerEqTrans { #numerator{(add x zero)} }
+        "~" { I.addInteger (#numerator{x}) I.zeroInteger } "by" { I.addIntegerRespects
           (I.mulInteger (#numerator{x}) (denominator zero))
           (#numerator{x})
           (I.mulInteger I.zeroInteger (denominator x))
           I.zeroInteger
           (I.mulIntegerOneRight (#numerator{x}))
-          (I.mulIntegerZeroLeft (denominator x)))
-        (I.addIntegerZeroRight (#numerator{x})))
+          (I.mulIntegerZeroLeft (denominator x)) }
+        "~" { #numerator{x} } "by" { I.addIntegerZeroRight (#numerator{x}) }})
       (denominatorProductIndexZeroRight
         (#denominatorIndex{x}));
 
@@ -35,18 +32,15 @@
       (#numerator{x})
       (#denominatorIndex{(add zero x)})
       (#denominatorIndex{x})
-      (I.integerEqTrans
-        (#numerator{(add zero x)})
-        (I.addInteger I.zeroInteger (#numerator{x}))
-        (#numerator{x})
-        (I.addIntegerRespects
+      (equiv_reason_terms!{I.integerEqTrans { #numerator{(add zero x)} }
+        "~" { I.addInteger I.zeroInteger (#numerator{x}) } "by" { I.addIntegerRespects
           (I.mulInteger I.zeroInteger (denominator x))
           I.zeroInteger
           (I.mulInteger (#numerator{x}) (denominator zero))
           (#numerator{x})
           (I.mulIntegerZeroLeft (denominator x))
-          (I.mulIntegerOneRight (#numerator{x})))
-        (I.addIntegerZeroLeft (#numerator{x})))
+          (I.mulIntegerOneRight (#numerator{x})) }
+        "~" { #numerator{x} } "by" { I.addIntegerZeroLeft (#numerator{x}) }})
       (denominatorProductIndexZeroLeft
         (#denominatorIndex{x}));
 
@@ -66,15 +60,12 @@
     denominator (add x y) =
       I.mulInteger (denominator x) (denominator y) :=
 
-    I.integerEqTrans
-      (denominator (add x y))
-      (I.integer
+    equiv_reason_terms!{I.integerEqTrans { denominator (add x y) }
+      "~" { I.integer
         (N.mul^
           (I.natSucc (#denominatorIndex{x}))
           (I.natSucc (#denominatorIndex{y})))
-        I.zeroNat)
-      (I.mulInteger (denominator x) (denominator y))
-      (I.integerEqOfParts
+        I.zeroNat } "by" { I.integerEqOfParts
         (I.natSucc (denominatorProductIndex
           (#denominatorIndex{x}) (#denominatorIndex{y})))
         I.zeroNat
@@ -84,22 +75,19 @@
         I.zeroNat
         (denominatorProductIndexSucc
           (#denominatorIndex{x}) (#denominatorIndex{y}))
-        (\refl(I.zeroNat)))
-      (I.integerEqSym _ _
-        (I.integerEqTrans
-          (I.mulInteger (denominator x) (denominator y))
-          (I.scaleInteger
-            (denominator x) (I.natSucc (#denominatorIndex{y})))
-          (I.integer
+        (\refl(I.zeroNat)) }
+      "~" { I.mulInteger (denominator x) (denominator y) } "by" { I.integerEqSym _ _
+        (equiv_reason_terms!{I.integerEqTrans { I.mulInteger (denominator x) (denominator y) }
+          "~" { I.scaleInteger
+            (denominator x) (I.natSucc (#denominatorIndex{y})) } "by" { I.mulIntegerNatural
+            (denominator x) (I.natSucc (#denominatorIndex{y})) }
+          "~" { I.integer
             (N.mul^
               (I.natSucc (#denominatorIndex{x}))
               (I.natSucc (#denominatorIndex{y})))
-            I.zeroNat)
-          (I.mulIntegerNatural
-            (denominator x) (I.natSucc (#denominatorIndex{y})))
-          (I.scaleIntegerNatural
+            I.zeroNat } "by" { I.scaleIntegerNatural
             (I.natSucc (#denominatorIndex{x}))
-            (I.natSucc (#denominatorIndex{y})))));
+            (I.natSucc (#denominatorIndex{y})) }}) }};
 
 \definition addFirstCrossTerm (x, y, u, v: Fraction)
   (xy: FractionEq x y):
@@ -218,10 +206,10 @@
 \definition mulIntegerFourSwap (a, b, c, d: I.Integer):
   I.mulInteger (I.mulInteger a b) (I.mulInteger c d) =
     I.mulInteger (I.mulInteger a d) (I.mulInteger b c) :=
-  I.integerEqTrans _ _ _
-    (I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _)
-      (I.mulIntegerComm c d))
-    (I.mulIntegerInterchange a b d c);
+  equiv_reason!{I.integerEqTrans
+    "by" { I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _)
+      (I.mulIntegerComm c d) }
+    "by" { I.mulIntegerInterchange a b d c }};
 
 \definition mulIntegerSwapNested (a, b, r: I.Integer):
   I.mulInteger a (I.mulInteger b r) =
@@ -277,8 +265,9 @@
             (I.mulIntegerRespects h h _ _ (I.integerEqRefl h)
               (I.mulIntegerRespects d d _ _ (I.integerEqRefl d)
                 (mulIntegerSwapNested d e f)))) }} \then
-    \return I.integerEqTrans _ _ _ sourceCanonical
-      (I.integerEqSym _ _ targetCanonical)
+    \return equiv_reason!{I.integerEqTrans
+      "by" { sourceCanonical }
+      "by" { I.integerEqSym _ _ targetCanonical }}
   };
 
 \definition addAssocNumerator (x, y, z: Fraction):
@@ -301,14 +290,14 @@
       (I.addIntegerRespects _ _ _ _
         (I.mulIntegerAssoc (#numerator{x}) (denominator y) (denominator z))
         (mulIntegerSwapRight (#numerator{y}) (denominator x) (denominator z)))
-      (I.integerEqTrans _ _ _
-        (I.mulIntegerRespects (#numerator{z}) (#numerator{z})
+      (equiv_reason!{I.integerEqTrans
+        "by" { I.mulIntegerRespects (#numerator{z}) (#numerator{z})
           (I.mulInteger (denominator x) (denominator y))
           (I.mulInteger (denominator y) (denominator x))
           (I.integerEqRefl _)
-          (I.mulIntegerComm (denominator x) (denominator y)))
-        (I.integerEqSym _ _
-          (I.mulIntegerAssoc (#numerator{z}) (denominator y) (denominator x)))) }
+          (I.mulIntegerComm (denominator x) (denominator y)) }
+        "by" { I.integerEqSym _ _
+          (I.mulIntegerAssoc (#numerator{z}) (denominator y) (denominator x)) }}) }
     "by" { I.addIntegerAssoc
       (I.mulInteger (#numerator{x})
         (I.mulInteger (denominator y) (denominator z)))
@@ -355,22 +344,15 @@
     I.integerNonZeroNeg (#numerator{x}) nonzero;
 
 \definition fractionNegRespects (x, y: Fraction) (xy: FractionEq x y): FractionEq (neg x) (neg y) :=
-    I.integerEqTrans
-      (I.mulInteger (I.negInteger (#numerator{x})) (denominator y))
-      (I.negInteger (I.mulInteger (#numerator{x}) (denominator y)))
-      (I.mulInteger (I.negInteger (#numerator{y})) (denominator x))
-      (I.mulIntegerNegLeft (#numerator{x}) (denominator y))
-      (I.integerEqTrans
-        (I.negInteger (I.mulInteger (#numerator{x}) (denominator y)))
-        (I.negInteger (I.mulInteger (#numerator{y}) (denominator x)))
+    equiv_reason_terms!{I.integerEqTrans { I.mulInteger (I.negInteger (#numerator{x})) (denominator y) }
+      "~" { I.negInteger (I.mulInteger (#numerator{x}) (denominator y)) } "by" { I.mulIntegerNegLeft (#numerator{x}) (denominator y) }
+      "~" { I.negInteger (I.mulInteger (#numerator{y}) (denominator x)) } "by" { I.negIntegerRespects
+        (I.mulInteger (#numerator{x}) (denominator y))
+        (I.mulInteger (#numerator{y}) (denominator x)) xy }
+      "~" { I.mulInteger (I.negInteger (#numerator{y})) (denominator x) } "by" { I.integerEqSym
         (I.mulInteger (I.negInteger (#numerator{y})) (denominator x))
-        (I.negIntegerRespects
-          (I.mulInteger (#numerator{x}) (denominator y))
-          (I.mulInteger (#numerator{y}) (denominator x)) xy)
-        (I.integerEqSym
-          (I.mulInteger (I.negInteger (#numerator{y})) (denominator x))
-          (I.negInteger (I.mulInteger (#numerator{y}) (denominator x)))
-          (I.mulIntegerNegLeft (#numerator{y}) (denominator x))));
+        (I.negInteger (I.mulInteger (#numerator{y}) (denominator x)))
+        (I.mulIntegerNegLeft (#numerator{y}) (denominator x)) }};
 
 \definition fractionNegInvolutive (x: Fraction): FractionEq (neg (neg x)) x :=
     fractionEqOfParts
@@ -384,14 +366,11 @@
 
 \definition fractionAddNegRight (x: Fraction): FractionEq (add x (neg x)) zero :=
     fractionEqZeroOfNumerator (add x (neg x))
-      (I.integerEqTrans
-        (#numerator{(add x (neg x))})
-        (I.addInteger
+      (equiv_reason_terms!{I.integerEqTrans { #numerator{(add x (neg x))} }
+        "~" { I.addInteger
           (I.mulInteger (#numerator{x}) (denominator x))
           (I.negInteger
-            (I.mulInteger (#numerator{x}) (denominator x))))
-        I.zeroInteger
-        (I.addIntegerRespects
+            (I.mulInteger (#numerator{x}) (denominator x))) } "by" { I.addIntegerRespects
           (I.mulInteger (#numerator{x}) (denominator (neg x)))
           (I.mulInteger (#numerator{x}) (denominator x))
           (I.mulInteger (I.negInteger (#numerator{x})) (denominator x))
@@ -400,20 +379,17 @@
           (I.integerEqRefl
             (I.mulInteger (#numerator{x}) (denominator x)))
           (I.mulIntegerNegLeft
-            (#numerator{x}) (denominator x)))
-        (I.addIntegerNegRight
-          (I.mulInteger (#numerator{x}) (denominator x))));
+            (#numerator{x}) (denominator x)) }
+        "~" { I.zeroInteger } "by" { I.addIntegerNegRight
+          (I.mulInteger (#numerator{x}) (denominator x)) }});
 
 \definition fractionAddNegLeft (x: Fraction): FractionEq (add (neg x) x) zero :=
     fractionEqZeroOfNumerator (add (neg x) x)
-      (I.integerEqTrans
-        (#numerator{(add (neg x) x)})
-        (I.addInteger
+      (equiv_reason_terms!{I.integerEqTrans { #numerator{(add (neg x) x)} }
+        "~" { I.addInteger
           (I.negInteger
             (I.mulInteger (#numerator{x}) (denominator x)))
-          (I.mulInteger (#numerator{x}) (denominator x)))
-        I.zeroInteger
-        (I.addIntegerRespects
+          (I.mulInteger (#numerator{x}) (denominator x)) } "by" { I.addIntegerRespects
           (I.mulInteger (I.negInteger (#numerator{x})) (denominator x))
           (I.negInteger
             (I.mulInteger (#numerator{x}) (denominator x)))
@@ -422,9 +398,9 @@
           (I.mulIntegerNegLeft
             (#numerator{x}) (denominator x))
           (I.integerEqRefl
-            (I.mulInteger (#numerator{x}) (denominator x))))
-        (I.addIntegerNegLeft
-          (I.mulInteger (#numerator{x}) (denominator x))));
+            (I.mulInteger (#numerator{x}) (denominator x))) }
+        "~" { I.zeroInteger } "by" { I.addIntegerNegLeft
+          (I.mulInteger (#numerator{x}) (denominator x)) }});
 
 \definition sub (x, y: Fraction): Fraction := add x (neg y);
 
@@ -445,15 +421,12 @@
     denominator (mul x y) =
       I.mulInteger (denominator x) (denominator y) :=
 
-    I.integerEqTrans
-      (denominator (mul x y))
-      (I.integer
+    equiv_reason_terms!{I.integerEqTrans { denominator (mul x y) }
+      "~" { I.integer
         (N.mul^
           (I.natSucc (#denominatorIndex{x}))
           (I.natSucc (#denominatorIndex{y})))
-        I.zeroNat)
-      (I.mulInteger (denominator x) (denominator y))
-      (I.integerEqOfParts
+        I.zeroNat } "by" { I.integerEqOfParts
         (I.natSucc (denominatorProductIndex
           (#denominatorIndex{x}) (#denominatorIndex{y})))
         I.zeroNat
@@ -463,104 +436,74 @@
         I.zeroNat
         (denominatorProductIndexSucc
           (#denominatorIndex{x}) (#denominatorIndex{y}))
-        (\refl(I.zeroNat)))
-      (I.integerEqSym _ _
-        (I.integerEqTrans
-          (I.mulInteger (denominator x) (denominator y))
-          (I.scaleInteger
-            (denominator x) (I.natSucc (#denominatorIndex{y})))
-          (I.integer
+        (\refl(I.zeroNat)) }
+      "~" { I.mulInteger (denominator x) (denominator y) } "by" { I.integerEqSym _ _
+        (equiv_reason_terms!{I.integerEqTrans { I.mulInteger (denominator x) (denominator y) }
+          "~" { I.scaleInteger
+            (denominator x) (I.natSucc (#denominatorIndex{y})) } "by" { I.mulIntegerNatural
+            (denominator x) (I.natSucc (#denominatorIndex{y})) }
+          "~" { I.integer
             (N.mul^
               (I.natSucc (#denominatorIndex{x}))
               (I.natSucc (#denominatorIndex{y})))
-            I.zeroNat)
-          (I.mulIntegerNatural
-            (denominator x) (I.natSucc (#denominatorIndex{y})))
-          (I.scaleIntegerNatural
+            I.zeroNat } "by" { I.scaleIntegerNatural
             (I.natSucc (#denominatorIndex{x}))
-            (I.natSucc (#denominatorIndex{y})))));
+            (I.natSucc (#denominatorIndex{y})) }}) }};
 
 \definition fractionMulRespects (x, y, u, v: Fraction) (xy: FractionEq x y) (uv: FractionEq u v):
     FractionEq (mul x u) (mul y v) :=
 
-    I.integerEqTrans
-      (I.mulInteger
+    equiv_reason_terms!{I.integerEqTrans { I.mulInteger
         (#numerator{(mul x u)})
-        (denominator (mul y v)))
-      (I.mulInteger
+        (denominator (mul y v)) }
+      "~" { I.mulInteger
         (I.mulInteger (#numerator{x}) (#numerator{u}))
-        (I.mulInteger (denominator y) (denominator v)))
-      (I.mulInteger
-        (#numerator{(mul y v)})
-        (denominator (mul x u)))
-      (I.mulIntegerRespects
+        (I.mulInteger (denominator y) (denominator v)) } "by" { I.mulIntegerRespects
         (I.mulInteger (#numerator{x}) (#numerator{u}))
         (I.mulInteger (#numerator{x}) (#numerator{u}))
         (denominator (mul y v))
         (I.mulInteger (denominator y) (denominator v))
         (I.integerEqRefl
           (I.mulInteger (#numerator{x}) (#numerator{u})))
-        (denominatorMul y v))
-      (I.integerEqTrans
-        (I.mulInteger
-          (I.mulInteger (#numerator{x}) (#numerator{u}))
-          (I.mulInteger (denominator y) (denominator v)))
-        (I.mulInteger
+        (denominatorMul y v) }
+      "~" { I.mulInteger
           (I.mulInteger (#numerator{x}) (denominator y))
-          (I.mulInteger (#numerator{u}) (denominator v)))
+          (I.mulInteger (#numerator{u}) (denominator v)) } "by" { I.mulIntegerInterchange
+        (#numerator{x}) (#numerator{u})
+        (denominator y) (denominator v) }
+      "~" { I.mulInteger
+            (I.mulInteger (#numerator{y}) (denominator x))
+            (I.mulInteger (#numerator{v}) (denominator u)) } "by" { I.mulIntegerRespects
+        (I.mulInteger (#numerator{x}) (denominator y))
+        (I.mulInteger (#numerator{y}) (denominator x))
+        (I.mulInteger (#numerator{u}) (denominator v))
+        (I.mulInteger (#numerator{v}) (denominator u))
+        xy uv }
+      "~" { I.mulInteger
+              (I.mulInteger (#numerator{y}) (#numerator{v}))
+              (I.mulInteger (denominator x) (denominator u)) } "by" { I.integerEqSym
         (I.mulInteger
-          (#numerator{(mul y v)})
-          (denominator (mul x u)))
+          (I.mulInteger (#numerator{y}) (#numerator{v}))
+          (I.mulInteger (denominator x) (denominator u)))
+        (I.mulInteger
+          (I.mulInteger (#numerator{y}) (denominator x))
+          (I.mulInteger (#numerator{v}) (denominator u)))
         (I.mulIntegerInterchange
-          (#numerator{x}) (#numerator{u})
-          (denominator y) (denominator v))
-        (I.integerEqTrans
-          (I.mulInteger
-            (I.mulInteger (#numerator{x}) (denominator y))
-            (I.mulInteger (#numerator{u}) (denominator v)))
-          (I.mulInteger
-            (I.mulInteger (#numerator{y}) (denominator x))
-            (I.mulInteger (#numerator{v}) (denominator u)))
-          (I.mulInteger
-            (#numerator{(mul y v)})
-            (denominator (mul x u)))
-          (I.mulIntegerRespects
-            (I.mulInteger (#numerator{x}) (denominator y))
-            (I.mulInteger (#numerator{y}) (denominator x))
-            (I.mulInteger (#numerator{u}) (denominator v))
-            (I.mulInteger (#numerator{v}) (denominator u))
-            xy uv)
-          (I.integerEqTrans
-            (I.mulInteger
-              (I.mulInteger (#numerator{y}) (denominator x))
-              (I.mulInteger (#numerator{v}) (denominator u)))
-            (I.mulInteger
-              (I.mulInteger (#numerator{y}) (#numerator{v}))
-              (I.mulInteger (denominator x) (denominator u)))
-            (I.mulInteger
-              (#numerator{(mul y v)})
-              (denominator (mul x u)))
-            (I.integerEqSym
-              (I.mulInteger
-                (I.mulInteger (#numerator{y}) (#numerator{v}))
-                (I.mulInteger (denominator x) (denominator u)))
-              (I.mulInteger
-                (I.mulInteger (#numerator{y}) (denominator x))
-                (I.mulInteger (#numerator{v}) (denominator u)))
-              (I.mulIntegerInterchange
-                (#numerator{y}) (#numerator{v})
-                (denominator x) (denominator u)))
-            (I.mulIntegerRespects
-              (I.mulInteger (#numerator{y}) (#numerator{v}))
-              (I.mulInteger (#numerator{y}) (#numerator{v}))
-              (I.mulInteger (denominator x) (denominator u))
-              (denominator (mul x u))
-              (I.integerEqRefl
-                (I.mulInteger (#numerator{y}) (#numerator{v})))
-              (I.integerEqSym
-                (denominator (mul x u))
-                (I.mulInteger (denominator x) (denominator u))
-                (denominatorMul x u))))));
+          (#numerator{y}) (#numerator{v})
+          (denominator x) (denominator u)) }
+      "~" { I.mulInteger
+        (#numerator{(mul y v)})
+        (denominator (mul x u)) } "by" { I.mulIntegerRespects
+        (I.mulInteger (#numerator{y}) (#numerator{v}))
+        (I.mulInteger (#numerator{y}) (#numerator{v}))
+        (I.mulInteger (denominator x) (denominator u))
+        (denominator (mul x u))
+        (I.integerEqRefl
+          (I.mulInteger (#numerator{y}) (#numerator{v})))
+        (I.integerEqSym
+          (denominator (mul x u))
+          (I.mulInteger (denominator x) (denominator u))
+          (denominatorMul x u)) }};
 
 \definition fractionMulZeroRight (x: Fraction): FractionEq (mul x zero) zero :=
     fractionEqZeroOfNumerator (mul x zero)
@@ -632,24 +575,13 @@
     \let x: Fraction := Fraction::# (I.Int^::ofNat (I.natSucc k)) d \then
     \let r: Fraction := Fraction::# (denominator x) k \then
     \return fractionEqOneOfEqualNumeratorDenominator (mul x r)
-      (I.integerEqTrans
-        (#numerator{(mul x r)})
-        (I.mulInteger (#numerator{x}) (#numerator{r}))
-        (denominator (mul x r))
-        (numeratorMul x r)
-        (I.integerEqTrans
-          (I.mulInteger (#numerator{x}) (#numerator{r}))
-          (I.mulInteger (#numerator{r}) (#numerator{x}))
-          (denominator (mul x r))
-          (I.mulIntegerComm (#numerator{x}) (#numerator{r}))
-          (I.integerEqTrans
-            (I.mulInteger (#numerator{r}) (#numerator{x}))
-            (I.mulInteger (denominator x) (denominator r))
-            (denominator (mul x r))
-            (I.mulIntegerRespects _ _ _ _
-              (I.integerEqRefl (denominator x))
-              (I.ofNatAsInteger (I.natSucc k)))
-            (I.integerEqSym _ _ (denominatorMul x r)))))
+      (equiv_reason_terms!{I.integerEqTrans { #numerator{(mul x r)} }
+        "~" { I.mulInteger (#numerator{x}) (#numerator{r}) } "by" { numeratorMul x r }
+        "~" { I.mulInteger (#numerator{r}) (#numerator{x}) } "by" { I.mulIntegerComm (#numerator{x}) (#numerator{r}) }
+        "~" { I.mulInteger (denominator x) (denominator r) } "by" { I.mulIntegerRespects _ _ _ _
+          (I.integerEqRefl (denominator x))
+          (I.ofNatAsInteger (I.natSucc k)) }
+        "~" { denominator (mul x r) } "by" { I.integerEqSym _ _ (denominatorMul x r) }})
   };
 
 \definition negativeReciprocalLaw (d, k: I.Nat):
@@ -667,42 +599,20 @@
     \let dr: #numerator{r} = I.negInteger (denominator x) :=
       I.integerEqRefl (#numerator{r}) \then
     \return fractionEqOneOfEqualNumeratorDenominator (mul x r)
-      (I.integerEqTrans
-        (#numerator{(mul x r)})
-        (I.mulInteger (#numerator{x}) (#numerator{r}))
-        (denominator (mul x r))
-        (numeratorMul x r)
-        (I.integerEqTrans
-          (I.mulInteger (#numerator{x}) (#numerator{r}))
-          (I.mulInteger (I.negInteger n)
-            (I.negInteger (denominator x)))
-          (denominator (mul x r))
-          (I.mulIntegerRespects _ _ _ _ dn dr)
-          (I.integerEqTrans
-            (I.mulInteger (I.negInteger n)
-              (I.negInteger (denominator x)))
-            (I.negInteger
-              (I.mulInteger n (I.negInteger (denominator x))))
-            (denominator (mul x r))
-            (I.mulIntegerNegLeft n (I.negInteger (denominator x)))
-            (I.integerEqTrans
-              (I.negInteger
-                (I.mulInteger n (I.negInteger (denominator x))))
-              (I.negInteger (I.negInteger
-                (I.mulInteger n (denominator x))))
-              (denominator (mul x r))
-              (I.negIntegerRespects _ _
-                (I.mulIntegerNegRight n (denominator x)))
-              (I.integerEqTrans
-                (I.negInteger (I.negInteger
-                  (I.mulInteger n (denominator x))))
-                (I.mulInteger (denominator x) n)
-                (denominator (mul x r))
-                (I.integerEqTrans _ _ _
-                  (I.negIntegerInvolutive
-                    (I.mulInteger n (denominator x)))
-                  (I.mulIntegerComm n (denominator x)))
-                (I.integerEqSym _ _ (denominatorMul x r)))))))
+      (equiv_reason_terms!{I.integerEqTrans { #numerator{(mul x r)} }
+        "~" { I.mulInteger (#numerator{x}) (#numerator{r}) } "by" { numeratorMul x r }
+        "~" { I.mulInteger (I.negInteger n)
+            (I.negInteger (denominator x)) } "by" { I.mulIntegerRespects _ _ _ _ dn dr }
+        "~" { I.negInteger
+              (I.mulInteger n (I.negInteger (denominator x))) } "by" { I.mulIntegerNegLeft n (I.negInteger (denominator x)) }
+        "~" { I.negInteger (I.negInteger
+                (I.mulInteger n (denominator x))) } "by" { I.negIntegerRespects _ _
+          (I.mulIntegerNegRight n (denominator x)) }
+        "~" { I.mulInteger (denominator x) n } "by" { equiv_reason!{I.integerEqTrans
+          "by" { I.negIntegerInvolutive
+            (I.mulInteger n (denominator x)) }
+          "by" { I.mulIntegerComm n (denominator x) }} }
+        "~" { denominator (mul x r) } "by" { I.integerEqSym _ _ (denominatorMul x r) }})
   };
 
 \definition fractionMulReciprocal (x: Fraction)
@@ -753,10 +663,10 @@
         I.mulInteger
           (I.mulInteger (denominator x) (denominator y))
           (I.mulInteger (denominator x) (denominator z)) :=
-      I.integerEqTrans _ _ _
-        (denominatorAdd (mul x y) (mul x z))
-        (I.mulIntegerRespects _ _ _ _
-          (denominatorMul x y) (denominatorMul x z)) \then
+      equiv_reason!{I.integerEqTrans
+        "by" { denominatorAdd (mul x y) (mul x z) }
+        "by" { I.mulIntegerRespects _ _ _ _
+          (denominatorMul x y) (denominatorMul x z) }} \then
     \let rightNumerator: #numerator{(add (mul x y) (mul x z))} =
         I.addInteger
           (I.mulInteger (I.mulInteger (#numerator{x}) (#numerator{y}))
@@ -771,9 +681,10 @@
     \let rightDenominator: denominator (mul x (add y z)) =
         I.mulInteger (denominator x)
           (I.mulInteger (denominator y) (denominator z)) :=
-      I.integerEqTrans _ _ _ (denominatorMul x (add y z))
-        (I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _)
-          (denominatorAdd y z)) \then
+      equiv_reason!{I.integerEqTrans
+        "by" { denominatorMul x (add y z) }
+        "by" { I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _)
+          (denominatorAdd y z) }} \then
     \let leftNormalized: I.mulInteger (#numerator{(mul x (add y z))})
           (denominator (add (mul x y) (mul x z))) =
         I.mulInteger
@@ -947,12 +858,12 @@
 \definition productDenominatorNatural (x, y: Fraction):
   I.mulInteger (denominator x) (denominator y) =
     I.integer (commonDenominatorNat x y) I.zeroNat :=
-  I.integerEqTrans _ _ _
-    (I.mulIntegerNatural
-      (denominator x) (I.natSucc (#denominatorIndex{y})))
-    (I.scaleIntegerNatural
+  equiv_reason!{I.integerEqTrans
+    "by" { I.mulIntegerNatural
+      (denominator x) (I.natSucc (#denominatorIndex{y})) }
+    "by" { I.scaleIntegerNatural
       (I.natSucc (#denominatorIndex{x}))
-      (I.natSucc (#denominatorIndex{y})));
+      (I.natSucc (#denominatorIndex{y})) }};
 
 \definition midpointDenominator (x, y: Fraction):
   denominator (midpoint x y) =
@@ -977,21 +888,18 @@
     I.mulInteger
       (I.mulInteger (#numerator{x}) (denominator y))
       (denominator x) :=
-  I.integerEqTrans
-    (I.mulInteger (#numerator{x})
-      (I.mulInteger (denominator x) (denominator y)))
-    (I.mulInteger (#numerator{x})
-      (I.mulInteger (denominator y) (denominator x)))
-    (I.mulInteger
-      (I.mulInteger (#numerator{x}) (denominator y))
-      (denominator x))
-    (I.mulIntegerRespects
+  equiv_reason_terms!{I.integerEqTrans { I.mulInteger (#numerator{x})
+      (I.mulInteger (denominator x) (denominator y)) }
+    "~" { I.mulInteger (#numerator{x})
+      (I.mulInteger (denominator y) (denominator x)) } "by" { I.mulIntegerRespects
       (#numerator{x}) (#numerator{x})
       (I.mulInteger (denominator x) (denominator y))
       (I.mulInteger (denominator y) (denominator x))
-      (I.integerEqRefl _) (I.mulIntegerComm (denominator x) (denominator y)))
-    (I.integerEqSym _ _
-      (I.mulIntegerAssoc (#numerator{x}) (denominator y) (denominator x)));
+      (I.integerEqRefl _) (I.mulIntegerComm (denominator x) (denominator y)) }
+    "~" { I.mulInteger
+      (I.mulInteger (#numerator{x}) (denominator y))
+      (denominator x) } "by" { I.integerEqSym _ _
+      (I.mulIntegerAssoc (#numerator{x}) (denominator y) (denominator x)) }};
 
 \definition midpointLeftAlignment (x, y: Fraction):
   I.mulInteger (#numerator{x}) (denominator (midpoint x y)) =
@@ -1001,25 +909,22 @@
         (I.mulInteger (#numerator{x}) (denominator y)))
       (denominator x) :=
 
-  I.integerEqTrans
-    (I.mulInteger (#numerator{x}) (denominator (midpoint x y)))
-    (I.mulInteger (#numerator{x})
+  equiv_reason_terms!{I.integerEqTrans { I.mulInteger (#numerator{x}) (denominator (midpoint x y)) }
+    "~" { I.mulInteger (#numerator{x})
       (I.addInteger
         (I.mulInteger (denominator x) (denominator y))
-        (I.mulInteger (denominator x) (denominator y))))
-    (I.mulInteger
-      (I.addInteger
-        (I.mulInteger (#numerator{x}) (denominator y))
-        (I.mulInteger (#numerator{x}) (denominator y)))
-      (denominator x))
-    (I.mulIntegerRespects
+        (I.mulInteger (denominator x) (denominator y))) } "by" { I.mulIntegerRespects
       (#numerator{x}) (#numerator{x})
       (denominator (midpoint x y))
       (I.addInteger
         (I.mulInteger (denominator x) (denominator y))
         (I.mulInteger (denominator x) (denominator y)))
-      (I.integerEqRefl _) (midpointDenominator x y))
-    (equiv_reason!{I.integerEqTrans
+      (I.integerEqRefl _) (midpointDenominator x y) }
+    "~" { I.mulInteger
+      (I.addInteger
+        (I.mulInteger (#numerator{x}) (denominator y))
+        (I.mulInteger (#numerator{x}) (denominator y)))
+      (denominator x) } "by" { equiv_reason!{I.integerEqTrans
       "by" { I.mulIntegerDistribLeft (#numerator{x})
         (I.mulInteger (denominator x) (denominator y))
         (I.mulInteger (denominator x) (denominator y)) }
@@ -1029,7 +934,7 @@
         (I.mulIntegerDistribRight
           (I.mulInteger (#numerator{x}) (denominator y))
           (I.mulInteger (#numerator{x}) (denominator y))
-          (denominator x)) }});
+          (denominator x)) }} }};
 
 \definition midpointRightAlignment (x, y: Fraction):
   I.mulInteger (#numerator{y}) (denominator (midpoint x y)) =
@@ -1039,25 +944,22 @@
         (I.mulInteger (#numerator{y}) (denominator x)))
       (denominator y) :=
 
-  I.integerEqTrans
-    (I.mulInteger (#numerator{y}) (denominator (midpoint x y)))
-    (I.mulInteger (#numerator{y})
+  equiv_reason_terms!{I.integerEqTrans { I.mulInteger (#numerator{y}) (denominator (midpoint x y)) }
+    "~" { I.mulInteger (#numerator{y})
       (I.addInteger
         (I.mulInteger (denominator x) (denominator y))
-        (I.mulInteger (denominator x) (denominator y))))
-    (I.mulInteger
-      (I.addInteger
-        (I.mulInteger (#numerator{y}) (denominator x))
-        (I.mulInteger (#numerator{y}) (denominator x)))
-      (denominator y))
-    (I.mulIntegerRespects
+        (I.mulInteger (denominator x) (denominator y))) } "by" { I.mulIntegerRespects
       (#numerator{y}) (#numerator{y})
       (denominator (midpoint x y))
       (I.addInteger
         (I.mulInteger (denominator x) (denominator y))
         (I.mulInteger (denominator x) (denominator y)))
-      (I.integerEqRefl _) (midpointDenominator x y))
-    (equiv_reason!{I.integerEqTrans
+      (I.integerEqRefl _) (midpointDenominator x y) }
+    "~" { I.mulInteger
+      (I.addInteger
+        (I.mulInteger (#numerator{y}) (denominator x))
+        (I.mulInteger (#numerator{y}) (denominator x)))
+      (denominator y) } "by" { equiv_reason!{I.integerEqTrans
       "by" { I.mulIntegerDistribLeft (#numerator{y})
         (I.mulInteger (denominator x) (denominator y))
         (I.mulInteger (denominator x) (denominator y)) }
@@ -1070,7 +972,7 @@
         (I.mulIntegerDistribRight
           (I.mulInteger (#numerator{y}) (denominator x))
           (I.mulInteger (#numerator{y}) (denominator x))
-          (denominator y)) }});
+          (denominator y)) }} }};
 
 \definition ltMidpoint (x, y: Fraction) (xy: lt x y):
   lt x (midpoint x y) :=
@@ -1220,13 +1122,13 @@
         (I.mulInteger (denominator x) (denominator y))))
     (I.mulInteger (#numerator{(add y v)}) (denominator (add x u)))
     (I.integerEqSym _ _ (addOrderLeftAlignment x u y v))
-    (I.integerEqTrans _ _ _
-      (I.addIntegerRespects _ _ _ _
+    (equiv_reason!{I.integerEqTrans
+      "by" { I.addIntegerRespects _ _ _ _
         (I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _)
           (I.mulIntegerComm (denominator u) (denominator v)))
         (I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _)
-          (I.mulIntegerComm (denominator x) (denominator y))))
-      (I.integerEqSym _ _ (addOrderLeftAlignment y v x u)))
+          (I.mulIntegerComm (denominator x) (denominator y))) }
+      "by" { I.integerEqSym _ _ (addOrderLeftAlignment y v x u) }})
     (IntegerOrder.ltAdd _ _ _ _
       (ltScaleByTwoDenominators x y u v xy)
       (ltScaleByTwoDenominators u v x y uv));
@@ -1251,12 +1153,12 @@
         (I.mulInteger (denominator x) (denominator y))))
     (I.mulInteger (#numerator{(add y z)}) (denominator (add x z)))
     (I.integerEqSym _ _ (addOrderLeftAlignment x z y z))
-    (I.integerEqTrans _ _ _
-      (I.addIntegerRespects _ _ _ _
+    (equiv_reason!{I.integerEqTrans
+      "by" { I.addIntegerRespects _ _ _ _
         (I.integerEqRefl _)
         (I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _)
-          (I.mulIntegerComm (denominator x) (denominator y))))
-      (I.integerEqSym _ _ (addOrderLeftAlignment y z x z)))
+          (I.mulIntegerComm (denominator x) (denominator y))) }
+      "by" { I.integerEqSym _ _ (addOrderLeftAlignment y z x z) }})
     (IntegerOrder.ltAddRight _ _ _
       (ltScaleByTwoDenominators x y z z xy));
 
@@ -1281,38 +1183,34 @@
 
 \definition addAdjustmentEq (q, a: Fraction):
   FractionEq (add (midpoint q a) (adjustment q a)) q :=
-  fractionEqTrans _ _ _
-    (fractionEqSym _ _
-      (fractionAddAssoc (midpoint q a) q (neg (midpoint q a))))
-    (fractionEqTrans _ _ _
-      (fractionAddRespects
-        (add (midpoint q a) q) (add q (midpoint q a))
-        (neg (midpoint q a)) (neg (midpoint q a))
-        (fractionAddComm (midpoint q a) q) (fractionEqRefl _))
-      (fractionEqTrans _ _ _
-        (fractionAddAssoc q (midpoint q a) (neg (midpoint q a)))
-        (fractionEqTrans _ _ _
-          (fractionAddRespects q q
-            (add (midpoint q a) (neg (midpoint q a))) zero
-            (fractionEqRefl q) (fractionAddNegRight (midpoint q a)))
-          (fractionAddZeroRight q))));
+  equiv_reason!{fractionEqTrans
+    "by" { fractionEqSym _ _
+      (fractionAddAssoc (midpoint q a) q (neg (midpoint q a))) }
+    "by" { fractionAddRespects
+      (add (midpoint q a) q) (add q (midpoint q a))
+      (neg (midpoint q a)) (neg (midpoint q a))
+      (fractionAddComm (midpoint q a) q) (fractionEqRefl _) }
+    "by" { fractionAddAssoc q (midpoint q a) (neg (midpoint q a)) }
+    "by" { fractionAddRespects q q
+      (add (midpoint q a) (neg (midpoint q a))) zero
+      (fractionEqRefl q) (fractionAddNegRight (midpoint q a)) }
+    "by" { fractionAddZeroRight q }};
 
 \definition fractionAddCancelRightSimplify (x, z: Fraction):
   FractionEq (add (add x z) (neg z)) x :=
-  fractionEqTrans _ _ _ (fractionAddAssoc x z (neg z))
-    (fractionEqTrans _ _ _
-      (fractionAddRespects x x (add z (neg z)) zero
-        (fractionEqRefl x) (fractionAddNegRight z))
-      (fractionAddZeroRight x));
+  equiv_reason!{fractionEqTrans
+    "by" { fractionAddAssoc x z (neg z) }
+    "by" { fractionAddRespects x x (add z (neg z)) zero
+      (fractionEqRefl x) (fractionAddNegRight z) }
+    "by" { fractionAddZeroRight x }};
 
 \definition fractionAddCancelRight (x, y, z: Fraction)
   (same: FractionEq (add x z) (add y z)): FractionEq x y :=
-  fractionEqTrans _ _ _
-    (fractionEqSym _ _ (fractionAddCancelRightSimplify x z))
-    (fractionEqTrans _ _ _
-      (fractionAddRespects (add x z) (add y z)
-        (neg z) (neg z) same (fractionEqRefl _))
-      (fractionAddCancelRightSimplify y z));
+  equiv_reason!{fractionEqTrans
+    "by" { fractionEqSym _ _ (fractionAddCancelRightSimplify x z) }
+    "by" { fractionAddRespects (add x z) (add y z)
+      (neg z) (neg z) same (fractionEqRefl _) }
+    "by" { fractionAddCancelRightSimplify y z }};
 
 \definition ltAddAdjustment (q, a: Fraction) (qa: lt q a):
   lt q (add a (adjustment q a)) :=
@@ -1384,8 +1282,9 @@
     \let d: I.Integer := denominator e \then
     \let numeratorStep:
         next = I.addInteger previous (#numerator{e}) :=
-      I.integerEqTrans _ _ _ (I.scaleIntegerSucc (#numerator{e}) n)
-        (I.addIntegerComm (#numerator{e}) previous) \then
+      equiv_reason!{I.integerEqTrans
+        "by" { I.scaleIntegerSucc (#numerator{e}) n }
+        "by" { I.addIntegerComm (#numerator{e}) previous }} \then
     \let leftAlignment:
         I.mulInteger next (denominator (add (scaleFraction e n) e)) =
           I.mulInteger
@@ -1400,15 +1299,16 @@
           I.mulInteger
             (I.addInteger previous (#numerator{e}))
             (I.mulInteger d d) :=
-      I.integerEqTrans _ _ _
-        (I.mulIntegerRespects _ _ d d
+      equiv_reason!{I.integerEqTrans
+        "by" { I.mulIntegerRespects _ _ d d
           (I.integerEqSym _ _
             (I.mulIntegerDistribRight previous (#numerator{e}) d))
-          (I.integerEqRefl d))
-        (I.mulIntegerAssoc
-          (I.addInteger previous (#numerator{e})) d d) \then
-    \return I.integerEqTrans _ _ _ leftAlignment
-      (I.integerEqSym _ _ rightAlignment)
+          (I.integerEqRefl d) }
+        "by" { I.mulIntegerAssoc
+          (I.addInteger previous (#numerator{e})) d d }} \then
+    \return equiv_reason!{I.integerEqTrans
+      "by" { leftAlignment }
+      "by" { I.integerEqSym _ _ rightAlignment }}
   };
 
 \definition naturalTranslateNumeratorAsAdd (a, e: Fraction) (n: I.Nat):
@@ -1428,9 +1328,9 @@
   fractionEqOfNumeratorDenominator
     (naturalTranslate a e n) (add a (scaleFraction e n))
     (naturalTranslateNumeratorAsAdd a e n)
-    (I.integerEqTrans _ _ _
-      (naturalTranslateDenominator a e n)
-      (I.integerEqSym _ _ (denominatorAdd a (scaleFraction e n))));
+    (equiv_reason!{I.integerEqTrans
+      "by" { naturalTranslateDenominator a e n }
+      "by" { I.integerEqSym _ _ (denominatorAdd a (scaleFraction e n)) }});
 
 \definition scaleFractionZero (e: Fraction):
   FractionEq (scaleFraction e I.zeroNat) zero :=
@@ -1441,19 +1341,19 @@
   add a (scaleFraction e n);
 
 \definition gridZero (a, e: Fraction): FractionEq (grid a e I.zeroNat) a :=
-  fractionEqTrans _ _ _
-    (fractionAddRespects a a (scaleFraction e I.zeroNat) zero
-      (fractionEqRefl a) (scaleFractionZero e))
-    (fractionAddZeroRight a);
+  equiv_reason!{fractionEqTrans
+    "by" { fractionAddRespects a a (scaleFraction e I.zeroNat) zero
+      (fractionEqRefl a) (scaleFractionZero e) }
+    "by" { fractionAddZeroRight a }};
 
 \definition gridSucc (a, e: Fraction) (n: I.Nat):
   FractionEq (grid a e (I.natSucc n)) (add (grid a e n) e) :=
-  fractionEqTrans _ _ _
-    (fractionAddRespects a a
+  equiv_reason!{fractionEqTrans
+    "by" { fractionAddRespects a a
       (scaleFraction e (I.natSucc n)) (add (scaleFraction e n) e)
-      (fractionEqRefl a) (scaleFractionSucc e n))
-    (fractionEqSym _ _
-      (fractionAddAssoc a (scaleFraction e n) e));
+      (fractionEqRefl a) (scaleFractionSucc e n) }
+    "by" { fractionEqSym _ _
+      (fractionAddAssoc a (scaleFraction e n) e) }};
 
 \definition naturalTranslateAsGrid (a, e: Fraction) (n: I.Nat):
   FractionEq (naturalTranslate a e n) (grid a e n) :=
@@ -1505,11 +1405,11 @@
               I.addInteger difference baseCross =
                 I.mulInteger (#numerator{b})
                   (denominator (naturalTranslate a e n)) :=
-            I.integerEqTrans _ _ _
-              (I.addIntegerSubCancelRight leftCross baseCross)
-              (I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _)
+            equiv_reason!{I.integerEqTrans
+              "by" { I.addIntegerSubCancelRight leftCross baseCross }
+              "by" { I.mulIntegerRespects _ _ _ _ (I.integerEqRefl _)
                 (I.integerEqSym _ _
-                  (naturalTranslateDenominator a e n))) \then
+                  (naturalTranslateDenominator a e n)) }} \then
           \let upperAlignment:
               I.addInteger
                   (I.scaleInteger scaledIncrement n) baseCross =
@@ -1573,41 +1473,34 @@
 /* Cancellation and reassociation lemmas used by dense cut arithmetic. */
 \definition fractionAddCancelRightEq (x, y, z: Fraction)
   (same: FractionEq (add x z) (add y z)): FractionEq x y :=
-  fractionEqTrans _ _ _
-    (fractionEqSym _ _ (fractionAddZeroRight x))
-    (fractionEqTrans _ _ _
-      (fractionAddRespects x x zero (add z (neg z))
-        (fractionEqRefl x)
-        (fractionEqSym _ _ (fractionAddNegRight z)))
-      (fractionEqTrans _ _ _
-        (fractionEqSym _ _ (fractionAddAssoc x z (neg z)))
-        (fractionEqTrans _ _ _
-          (fractionAddRespects (add x z) (add y z)
-            (neg z) (neg z) same (fractionEqRefl (neg z)))
-          (fractionEqTrans _ _ _
-            (fractionAddAssoc y z (neg z))
-            (fractionEqTrans _ _ _
-              (fractionAddRespects y y (add z (neg z)) zero
-                (fractionEqRefl y) (fractionAddNegRight z))
-              (fractionAddZeroRight y))))));
+  equiv_reason!{fractionEqTrans
+    "by" { fractionEqSym _ _ (fractionAddZeroRight x) }
+    "by" { fractionAddRespects x x zero (add z (neg z))
+      (fractionEqRefl x)
+      (fractionEqSym _ _ (fractionAddNegRight z)) }
+    "by" { fractionEqSym _ _ (fractionAddAssoc x z (neg z)) }
+    "by" { fractionAddRespects (add x z) (add y z)
+      (neg z) (neg z) same (fractionEqRefl (neg z)) }
+    "by" { fractionAddAssoc y z (neg z) }
+    "by" { fractionAddRespects y y (add z (neg z)) zero
+      (fractionEqRefl y) (fractionAddNegRight z) }
+    "by" { fractionAddZeroRight y }};
 
 \definition fractionAddRotate (a, b, c: Fraction):
   FractionEq (add (add a b) c) (add (add a c) b) :=
-  fractionEqTrans _ _ _
-    (fractionAddAssoc a b c)
-    (fractionEqTrans _ _ _
-      (fractionAddRespects a a (add b c) (add c b)
-        (fractionEqRefl a) (fractionAddComm b c))
-      (fractionEqSym _ _ (fractionAddAssoc a c b)));
+  equiv_reason!{fractionEqTrans
+    "by" { fractionAddAssoc a b c }
+    "by" { fractionAddRespects a a (add b c) (add c b)
+      (fractionEqRefl a) (fractionAddComm b c) }
+    "by" { fractionEqSym _ _ (fractionAddAssoc a c b) }};
 
 \definition fractionNegAddLeft (x, y: Fraction):
   FractionEq (add (neg (add x y)) x) (neg y) :=
   fractionAddCancelRightEq (add (neg (add x y)) x) (neg y) y
-    (fractionEqTrans _ _ _
-      (fractionAddAssoc (neg (add x y)) x y)
-      (fractionEqTrans _ _ _
-        (fractionAddNegLeft (add x y))
-        (fractionEqSym _ _ (fractionAddNegLeft y))));
+    (equiv_reason!{fractionEqTrans
+      "by" { fractionAddAssoc (neg (add x y)) x y }
+      "by" { fractionAddNegLeft (add x y) }
+      "by" { fractionEqSym _ _ (fractionAddNegLeft y) }});
 
 \definition perturbLeft (q, a, b: Fraction): Fraction :=
   add a (adjustment q (add a b));
@@ -1685,10 +1578,10 @@
 
 \definition negMulNegAlignment (x, z: Fraction):
   FractionEq (neg (mul x (neg z))) (mul x z) :=
-  fractionEqTrans _ _ _
-    (fractionNegRespects (mul x (neg z)) (neg (mul x z))
-      (fractionMulNegRight x z))
-    (fractionNegInvolutive (mul x z));
+  equiv_reason!{fractionEqTrans
+    "by" { fractionNegRespects (mul x (neg z)) (neg (mul x z))
+      (fractionMulNegRight x z) }
+    "by" { fractionNegInvolutive (mul x z) }};
 
 \definition ltMulNegativeRight (x, y, z: Fraction)
   (negative: lt z zero) (xy: lt x y): lt (mul y z) (mul x z) :=
@@ -1732,7 +1625,9 @@
     (\fun (sameXY: FractionEq x y) =>
       Logic.orElim (FractionEq y z) (lt y z) (Le x z)
         (\fun (sameYZ: FractionEq y z) =>
-          leOfEq x z (fractionEqTrans x y z sameXY sameYZ))
+          leOfEq x z (equiv_reason_terms!{fractionEqTrans { x }
+            "~" { y } "by" { sameXY }
+            "~" { z } "by" { sameYZ }}))
         (\fun (lessYZ: lt y z) =>
           leOfLt x z
             (FractionOrder.ltReplaceLeft y x z
@@ -1820,16 +1715,16 @@
     (Le (mul z x) (mul z y))
     (\fun (zeroZ: FractionEq zero z) =>
       leOfEq (mul z x) (mul z y)
-        (fractionEqTrans (mul z x) zero (mul z y)
-          (fractionEqTrans (mul z x) (mul zero x) zero
-            (fractionMulRespects z zero x x
-              (fractionEqSym _ _ zeroZ) (fractionEqRefl x))
-            (fractionMulZeroLeft x))
-          (fractionEqSym _ _
-            (fractionEqTrans (mul z y) (mul zero y) zero
-              (fractionMulRespects z zero y y
-                (fractionEqSym _ _ zeroZ) (fractionEqRefl y))
-              (fractionMulZeroLeft y)))))
+        (equiv_reason_terms!{fractionEqTrans { mul z x }
+          "~" { zero } "by" { equiv_reason_terms!{fractionEqTrans { mul z x }
+            "~" { mul zero x } "by" { fractionMulRespects z zero x x
+              (fractionEqSym _ _ zeroZ) (fractionEqRefl x) }
+            "~" { zero } "by" { fractionMulZeroLeft x }} }
+          "~" { mul z y } "by" { fractionEqSym _ _
+            (equiv_reason_terms!{fractionEqTrans { mul z y }
+              "~" { mul zero y } "by" { fractionMulRespects z zero y y
+                (fractionEqSym _ _ zeroZ) (fractionEqRefl y) }
+              "~" { zero } "by" { fractionMulZeroLeft y }}) }}))
     (\fun (positive: lt zero z) =>
       leMulPositiveLeft z x y positive xy)
     nonnegative;
@@ -1840,16 +1735,16 @@
     (Le (mul x z) (mul y z))
     (\fun (zeroZ: FractionEq zero z) =>
       leOfEq (mul x z) (mul y z)
-        (fractionEqTrans (mul x z) zero (mul y z)
-          (fractionEqTrans (mul x z) (mul x zero) zero
-            (fractionMulRespects x x z zero
-              (fractionEqRefl x) (fractionEqSym _ _ zeroZ))
-            (fractionMulZeroRight x))
-          (fractionEqSym _ _
-            (fractionEqTrans (mul y z) (mul y zero) zero
-              (fractionMulRespects y y z zero
-                (fractionEqRefl y) (fractionEqSym _ _ zeroZ))
-              (fractionMulZeroRight y)))))
+        (equiv_reason_terms!{fractionEqTrans { mul x z }
+          "~" { zero } "by" { equiv_reason_terms!{fractionEqTrans { mul x z }
+            "~" { mul x zero } "by" { fractionMulRespects x x z zero
+              (fractionEqRefl x) (fractionEqSym _ _ zeroZ) }
+            "~" { zero } "by" { fractionMulZeroRight x }} }
+          "~" { mul y z } "by" { fractionEqSym _ _
+            (equiv_reason_terms!{fractionEqTrans { mul y z }
+              "~" { mul y zero } "by" { fractionMulRespects y y z zero
+                (fractionEqRefl y) (fractionEqSym _ _ zeroZ) }
+              "~" { zero } "by" { fractionMulZeroRight y }}) }}))
     (\fun (positive: lt zero z) =>
       leMulPositiveRight x y z positive xy)
     nonnegative;
@@ -1860,14 +1755,14 @@
     (Le (mul z y) (mul z x))
     (\fun (zZero: FractionEq z zero) =>
       leOfEq (mul z y) (mul z x)
-        (fractionEqTrans (mul z y) zero (mul z x)
-          (fractionEqTrans (mul z y) (mul zero y) zero
-            (fractionMulRespects z zero y y zZero (fractionEqRefl y))
-            (fractionMulZeroLeft y))
-          (fractionEqSym _ _
-            (fractionEqTrans (mul z x) (mul zero x) zero
-              (fractionMulRespects z zero x x zZero (fractionEqRefl x))
-              (fractionMulZeroLeft x)))))
+        (equiv_reason_terms!{fractionEqTrans { mul z y }
+          "~" { zero } "by" { equiv_reason_terms!{fractionEqTrans { mul z y }
+            "~" { mul zero y } "by" { fractionMulRespects z zero y y zZero (fractionEqRefl y) }
+            "~" { zero } "by" { fractionMulZeroLeft y }} }
+          "~" { mul z x } "by" { fractionEqSym _ _
+            (equiv_reason_terms!{fractionEqTrans { mul z x }
+              "~" { mul zero x } "by" { fractionMulRespects z zero x x zZero (fractionEqRefl x) }
+              "~" { zero } "by" { fractionMulZeroLeft x }}) }}))
     (\fun (negative: lt z zero) =>
       leMulNegativeLeft z x y negative xy)
     nonpositive;
@@ -1878,16 +1773,16 @@
     (Le (mul y z) (mul x z))
     (\fun (zZero: FractionEq z zero) =>
       leOfEq (mul y z) (mul x z)
-        (fractionEqTrans (mul y z) zero (mul x z)
-          (fractionEqTrans (mul y z) (mul y zero) zero
-            (fractionMulRespects y y z zero
-              (fractionEqRefl y) zZero)
-            (fractionMulZeroRight y))
-          (fractionEqSym _ _
-            (fractionEqTrans (mul x z) (mul x zero) zero
-              (fractionMulRespects x x z zero
-                (fractionEqRefl x) zZero)
-              (fractionMulZeroRight x)))))
+        (equiv_reason_terms!{fractionEqTrans { mul y z }
+          "~" { zero } "by" { equiv_reason_terms!{fractionEqTrans { mul y z }
+            "~" { mul y zero } "by" { fractionMulRespects y y z zero
+              (fractionEqRefl y) zZero }
+            "~" { zero } "by" { fractionMulZeroRight y }} }
+          "~" { mul x z } "by" { fractionEqSym _ _
+            (equiv_reason_terms!{fractionEqTrans { mul x z }
+              "~" { mul x zero } "by" { fractionMulRespects x x z zero
+                (fractionEqRefl x) zZero }
+              "~" { zero } "by" { fractionMulZeroRight x }}) }}))
     (\fun (negative: lt z zero) =>
       leMulNegativeRight x y z negative xy)
     nonpositive;
@@ -2035,12 +1930,11 @@
           Logic.falseElim (lt zero r)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltReplaceRight zero one zero
-                (fractionEqTrans one (mul b r) zero
-                  (fractionEqSym _ _ law)
-                  (fractionEqTrans (mul b r) (mul b zero) zero
-                    (fractionMulRespects b b r zero
-                      (fractionEqRefl b) (fractionEqSym _ _ zeroR))
-                    (fractionMulZeroRight b)))
+                (equiv_reason_terms!{fractionEqTrans { one }
+                  "~" { mul b r } "by" { fractionEqSym _ _ law }
+                  "~" { mul b zero } "by" { fractionMulRespects b b r zero
+                    (fractionEqRefl b) (fractionEqSym _ _ zeroR) }
+                  "~" { zero } "by" { fractionMulZeroRight b }})
                 FractionOrder.zeroLtOne)))
         (\fun (negative: lt r zero) =>
           Logic.falseElim (lt zero r)
@@ -2062,12 +1956,11 @@
           Logic.falseElim (lt r zero)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltReplaceRight zero one zero
-                (fractionEqTrans one (mul b r) zero
-                  (fractionEqSym _ _ law)
-                  (fractionEqTrans (mul b r) (mul b zero) zero
-                    (fractionMulRespects b b r zero
-                      (fractionEqRefl b) rZero)
-                    (fractionMulZeroRight b)))
+                (equiv_reason_terms!{fractionEqTrans { one }
+                  "~" { mul b r } "by" { fractionEqSym _ _ law }
+                  "~" { mul b zero } "by" { fractionMulRespects b b r zero
+                    (fractionEqRefl b) rZero }
+                  "~" { zero } "by" { fractionMulZeroRight b }})
                 FractionOrder.zeroLtOne)))
         (\fun (positive: lt zero r) =>
           Logic.falseElim (lt r zero)
@@ -2090,10 +1983,10 @@
           Logic.falseElim (lt zero b)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltReplaceRight zero (mul a b) zero
-                (fractionEqTrans (mul a b) (mul a zero) zero
-                  (fractionMulRespects a a b zero
-                    (fractionEqRefl a) (fractionEqSym _ _ zeroB))
-                  (fractionMulZeroRight a)) productPositive)))
+                (equiv_reason_terms!{fractionEqTrans { mul a b }
+                  "~" { mul a zero } "by" { fractionMulRespects a a b zero
+                    (fractionEqRefl a) (fractionEqSym _ _ zeroB) }
+                  "~" { zero } "by" { fractionMulZeroRight a }}) productPositive)))
         (\fun (negative: lt b zero) =>
           Logic.falseElim (lt zero b)
             (FractionOrder.ltIrrefl zero
@@ -2114,10 +2007,10 @@
           Logic.falseElim (lt b zero)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltReplaceRight zero (mul a b) zero
-                (fractionEqTrans (mul a b) (mul a zero) zero
-                  (fractionMulRespects a a b zero
-                    (fractionEqRefl a) bZero)
-                  (fractionMulZeroRight a)) productPositive)))
+                (equiv_reason_terms!{fractionEqTrans { mul a b }
+                  "~" { mul a zero } "by" { fractionMulRespects a a b zero
+                    (fractionEqRefl a) bZero }
+                  "~" { zero } "by" { fractionMulZeroRight a }}) productPositive)))
         (\fun (positive: lt zero b) =>
           Logic.falseElim (lt b zero)
             (FractionOrder.ltIrrefl zero
@@ -2180,15 +2073,14 @@
               \let aPositive: lt zero a :=
                 FractionOrder.ltTrans zero (mul q r) a qrPositive qra \then
               \let leftEq: FractionEq (mul (mul q r) c) q :=
-                fractionEqTrans (mul (mul q r) c)
-                  (mul q (mul r c)) q
-                  (fractionMulAssoc q r c)
-                  (fractionEqTrans (mul q (mul r c)) (mul q one) q
-                    (fractionMulRespects q q (mul r c) one
-                      (fractionEqRefl q)
-                      (fractionEqTrans (mul r c) (mul c r) one
-                        (fractionMulComm r c) law))
-                    (fractionMulOneRight q)) \then
+                equiv_reason_terms!{fractionEqTrans { mul (mul q r) c }
+                  "~" { mul q (mul r c) } "by" { fractionMulAssoc q r c }
+                  "~" { mul q one } "by" { fractionMulRespects q q (mul r c) one
+                    (fractionEqRefl q)
+                    (equiv_reason_terms!{fractionEqTrans { mul r c }
+                      "~" { mul c r } "by" { fractionMulComm r c }
+                      "~" { one } "by" { law }}) }
+                  "~" { q } "by" { fractionMulOneRight q }} \then
               \let qac: lt q (mul a c) :=
                 FractionOrder.ltReplaceLeft (mul (mul q r) c) q
                   (mul a c) leftEq
@@ -2233,11 +2125,11 @@
                 FractionOrder.ltReplaceRight q c zero
                   (fractionEqSym _ _ zeroC) qc \then
               \let halfCZero: FractionEq (mul half c) zero :=
-                fractionEqTrans (mul half c) (mul half zero) zero
-                  (fractionMulRespects half half c zero
+                equiv_reason_terms!{fractionEqTrans { mul half c }
+                  "~" { mul half zero } "by" { fractionMulRespects half half c zero
                     (fractionEqRefl half)
-                    (fractionEqSym _ _ zeroC))
-                  (fractionMulZeroRight half) \then
+                    (fractionEqSym _ _ zeroC) }
+                  "~" { zero } "by" { fractionMulZeroRight half }} \then
               \let qProduct: lt q (mul half c) :=
                 FractionOrder.ltReplaceRight q zero (mul half c)
                   (fractionEqSym _ _ halfCZero) qZero \then
@@ -2296,15 +2188,14 @@
     \let ePositive: lt zero e :=
       zeroLtMulPositive halfT r halfTPositive rPositive \then
     \let euEq: FractionEq (mul e u) halfT :=
-      fractionEqTrans (mul (mul halfT r) u)
-        (mul halfT (mul r u)) halfT
-        (fractionMulAssoc halfT r u)
-        (fractionEqTrans (mul halfT (mul r u)) (mul halfT one) halfT
-          (fractionMulRespects halfT halfT (mul r u) one
-            (fractionEqRefl halfT)
-            (fractionEqTrans (mul r u) (mul u r) one
-              (fractionMulComm r u) law))
-          (fractionMulOneRight halfT)) \then
+      equiv_reason_terms!{fractionEqTrans { mul (mul halfT r) u }
+        "~" { mul halfT (mul r u) } "by" { fractionMulAssoc halfT r u }
+        "~" { mul halfT one } "by" { fractionMulRespects halfT halfT (mul r u) one
+          (fractionEqRefl halfT)
+          (equiv_reason_terms!{fractionEqTrans { mul r u }
+            "~" { mul u r } "by" { fractionMulComm r u }
+            "~" { one } "by" { law }}) }
+        "~" { halfT } "by" { fractionMulOneRight halfT }} \then
     \let halfTLtT: lt halfT t :=
       FractionOrder.ltReplaceRight (mul half t) (mul one t) t
         (fractionMulOneLeft t)
@@ -2326,26 +2217,22 @@
 
 \definition fractionMulNegBoth (x, y: Fraction):
   FractionEq (mul (neg x) (neg y)) (mul x y) :=
-  fractionEqTrans _ _ _
-    (fractionMulNegLeft x (neg y))
-    (fractionEqTrans _ _ _
-      (fractionNegRespects (mul x (neg y)) (neg (mul x y))
-        (fractionMulNegRight x y))
-      (fractionNegInvolutive (mul x y)));
+  equiv_reason!{fractionEqTrans
+    "by" { fractionMulNegLeft x (neg y) }
+    "by" { fractionNegRespects (mul x (neg y)) (neg (mul x y))
+      (fractionMulNegRight x y) }
+    "by" { fractionNegInvolutive (mul x y) }};
 
 \definition fractionAddSubRight (x, y: Fraction):
   FractionEq (add x (sub y x)) y :=
-  fractionEqTrans _ _ _
-    (fractionEqSym _ _ (fractionAddAssoc x y (neg x)))
-    (fractionEqTrans _ _ _
-      (fractionAddRespects (add x y) (add y x) (neg x) (neg x)
-        (fractionAddComm x y) (fractionEqRefl (neg x)))
-      (fractionEqTrans _ _ _
-        (fractionAddAssoc y x (neg x))
-        (fractionEqTrans _ _ _
-          (fractionAddRespects y y (add x (neg x)) zero
-            (fractionEqRefl y) (fractionAddNegRight x))
-          (fractionAddZeroRight y))));
+  equiv_reason!{fractionEqTrans
+    "by" { fractionEqSym _ _ (fractionAddAssoc x y (neg x)) }
+    "by" { fractionAddRespects (add x y) (add y x) (neg x) (neg x)
+      (fractionAddComm x y) (fractionEqRefl (neg x)) }
+    "by" { fractionAddAssoc y x (neg x) }
+    "by" { fractionAddRespects y y (add x (neg x)) zero
+      (fractionEqRefl y) (fractionAddNegRight x) }
+    "by" { fractionAddZeroRight y }};
 
 \definition subPositive (x, y: Fraction) (xy: lt x y):
   lt zero (sub y x) :=
@@ -2377,16 +2264,15 @@
         (ltMulPositiveRight t one h hPositive tOne) \then
     \let left: FractionEq (add (mul t d) e)
         (add (add (mul t a) e) (mul t h)) :=
-      fractionEqTrans _ _ _
-        (fractionAddRespects (mul t d) (mul t (add a h)) e e
+      equiv_reason!{fractionEqTrans
+        "by" { fractionAddRespects (mul t d) (mul t (add a h)) e e
           (fractionMulRespects t t d (add a h)
             (fractionEqRefl t) (fractionEqSym _ _ ahd))
-          (fractionEqRefl e))
-        (fractionEqTrans _ _ _
-          (fractionAddRespects (mul t (add a h))
-            (add (mul t a) (mul t h)) e e
-            (fractionMulAddLeft t a h) (fractionEqRefl e))
-          (fractionAddRotate (mul t a) (mul t h) e)) \then
+          (fractionEqRefl e) }
+        "by" { fractionAddRespects (mul t (add a h))
+          (add (mul t a) (mul t h)) e e
+          (fractionMulAddLeft t a h) (fractionEqRefl e) }
+        "by" { fractionAddRotate (mul t a) (mul t h) e }} \then
     \let withE: lt (add (mul t d) e) d :=
       FractionOrder.ltReplaceRight (add (mul t d) e) (add a h) d ahd
         (FractionOrder.ltReplaceLeft
