@@ -1,3 +1,4 @@
+\import std.Arithmetic[].Rat[].Estimates[] \as Estimates;
 \import \parent.\parent.CutLaws[] \as CutLaws;
 \import RationalFractions.Order[] \as RationalOrder;
 \import std.Logic[].Equality[] \as Equality;
@@ -1005,36 +1006,11 @@
 
 \definition positiveLeftFactor (a, b: Rat)
   (notNegative: Logic.Not (lt a zeroRat))
-  (productPositive: lt zeroRat (mulRat a b)): lt zeroRat a :=
-  Logic.orElim (lt zeroRat a)
-    (Logic.Or[RationalFractions.FractionEq zeroRat a, lt a zeroRat])
-    (lt zeroRat a)
-    (\fun (positive: lt zeroRat a) => positive)
-    (\fun (rest: Logic.Or[
-        RationalFractions.FractionEq zeroRat a, lt a zeroRat]) =>
-      Logic.orElim (RationalFractions.FractionEq zeroRat a)
-        (lt a zeroRat) (lt zeroRat a)
-        (\fun (zeroA: RationalFractions.FractionEq zeroRat a) =>
-          Logic.falseElim (lt zeroRat a)
-            (RationalOrder.ltIrrefl zeroRat
-              (RationalOrder.ltReplaceRight zeroRat (mulRat a b) zeroRat
-                (RationalFractions.fractionEqTrans _ _ _
-                  (RationalOperations.fractionMulRespects a zeroRat b b
-                    (RationalFractions.fractionEqSym _ _ zeroA)
-                    (RationalFractions.fractionEqRefl b))
-                  (RationalOperations.fractionMulZeroLeft b))
-                productPositive)))
-        (\fun (negative: lt a zeroRat) =>
-          Logic.falseElim (lt zeroRat a) (notNegative negative))
-        rest)
-    (RationalOrder.trichotomy zeroRat a);
+  (productPositive: lt zeroRat (mulRat a b)): lt zeroRat a := Estimates.positiveLeftFactor a b notNegative productPositive;
 
 \definition positiveRightFactor (a, b: Rat)
   (notNegative: Logic.Not (lt b zeroRat))
-  (productPositive: lt zeroRat (mulRat a b)): lt zeroRat b :=
-  positiveLeftFactor b a notNegative
-    (RationalOrder.ltReplaceRight zeroRat (mulRat a b) (mulRat b a)
-      (RationalOperations.fractionMulComm a b) productPositive);
+  (productPositive: lt zeroRat (mulRat a b)): lt zeroRat b := Estimates.positiveRightFactor a b notNegative productPositive;
 
 \definition nonnegativeMulIntro (x, y: Real) (q, a, b: Rat)
   (aPositive: lt zeroRat a) (xa: mem x a)
@@ -1106,51 +1082,11 @@
           \return use a b aPositive xa bPositive yb qab
         });
 
-\definition ContractRight (q, a, c: Rat): \Prop :=
-  \exists { r : Rat \where Logic.And[lt zeroRat r,
-    Logic.And[lt r c, lt q (mulRat a r)]] };
+\definition ContractRight (q, a, c: Rat): \Prop := Estimates.ContractRight q a c;
 
 \definition contractRight (q, a, c: Rat)
   (aPositive: lt zeroRat a) (cPositive: lt zeroRat c)
-  (qac: lt q (mulRat a c)): ContractRight q a c :=
-  \block {
-    \takefrom t: \Cast[Rat] ({ t : Rat \where Logic.And[lt zeroRat t,
-        Logic.And[lt t oneRat, lt q (mulRat t (mulRat a c))]] }) \by RationalOperations.contractingFactor q (mulRat a c) qac \then
-    \let tLaw: Logic.And[lt zeroRat t,
-        Logic.And[lt t oneRat, lt q (mulRat t (mulRat a c))]] :=
-      \bysub(Rat, { t : Rat \where Logic.And[lt zeroRat t,
-        Logic.And[lt t oneRat, lt q (mulRat t (mulRat a c))]] }, t) \then
-    \let r: Rat := mulRat t c \then
-    \let rPositive: lt zeroRat r :=
-      RationalOperations.zeroLtMulPositive t c (#left{tLaw}) cPositive \then
-    \let rLtC: lt r c :=
-      RationalOrder.ltReplaceRight (mulRat t c) (mulRat oneRat c) c
-        (RationalOperations.fractionMulOneLeft c)
-        (RationalOperations.ltMulPositiveRight t oneRat c cPositive
-          (#left{(#right{tLaw})})) \then
-    \let reassociate: RationalFractions.FractionEq
-        (mulRat t (mulRat a c)) (mulRat a r) :=
-      RationalFractions.fractionEqTrans _ _ _
-        (RationalFractions.fractionEqSym _ _
-          (RationalOperations.fractionMulAssoc t a c))
-        (RationalFractions.fractionEqTrans _ _ _
-          (RationalOperations.fractionMulRespects
-            (mulRat t a) (mulRat a t) c c
-            (RationalOperations.fractionMulComm t a)
-            (RationalFractions.fractionEqRefl c))
-          (RationalOperations.fractionMulAssoc a t c)) \then
-    \let qar: lt q (mulRat a r) :=
-      RationalOrder.ltReplaceRight q (mulRat t (mulRat a c))
-        (mulRat a r) reassociate (#right{(#right{tLaw})}) \then
-    \return \exact(
-      \into[Rat](r, { r : Rat \where Logic.And[lt zeroRat r,
-        Logic.And[lt r c, lt q (mulRat a r)]] }) \by { Logic.And[
-          lt zeroRat r, Logic.And[lt r c, lt q (mulRat a r)]]::#
-            rPositive (Logic.And[lt r c, lt q (mulRat a r)]::#
-              rLtC qar) },
-      \Cast[Rat] ({ r : Rat \where Logic.And[lt zeroRat r,
-        Logic.And[lt r c, lt q (mulRat a r)]] }))
-  };
+  (qac: lt q (mulRat a c)): ContractRight q a c := Estimates.contractRight q a c aPositive cPositive qac;
 
 \definition mulAssocNonnegativeForward (x, y, z: Real)
   (zeroX: Le zero x) (zeroY: Le zero y) (zeroZ: Le zero z):

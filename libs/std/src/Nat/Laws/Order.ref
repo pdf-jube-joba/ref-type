@@ -1,6 +1,7 @@
 /* Order lemmas used for rational comparisons and common sequence bounds. */
 \import std.Logic[].Proposition[] \as Logic;
 \import std.Logic[].Order[] \as O;
+\import std.Logic[].Classical[] \as Classical;
 \definition Trichotomy (a, b: Nat^): \Prop := O.Trichotomy[Nat^, Lt, a, b];
 \definition comparisonSucc (a, b: Nat^) (h: Trichotomy a b):
   Trichotomy (Nat^::succ a) (Nat^::succ b) :=
@@ -273,3 +274,67 @@
       (sym!{Nat^} _ _ (mulSuccRight (Nat^::succ a) k))
       (mulComm (Nat^::succ a) (Nat^::succ k)))
     (ltSuccPlus a \({ Nat^::succ a } "*" k\));
+
+\definition commonBound (m, n: Nat^): Nat^ :=
+  add^ m n;
+
+\definition leftLeCommonBound (m, n: Nat^): Le m (commonBound m n) :=
+  leAddRight m n;
+
+\definition rightLeCommonBound (m, n: Nat^): Le n (commonBound m n) :=
+  leAddLeft m n;
+
+\definition fourBound (a, b, c, d: Nat^): Nat^ :=
+  commonBound (commonBound a b) (commonBound c d);
+
+\definition firstLeFourBound (a, b, c, d: Nat^):
+    Le a (fourBound a b c d) :=
+  leTrans a (commonBound a b) (fourBound a b c d)
+    (leftLeCommonBound a b)
+    (leftLeCommonBound (commonBound a b) (commonBound c d));
+
+\definition secondLeFourBound (a, b, c, d: Nat^):
+    Le b (fourBound a b c d) :=
+  leTrans b (commonBound a b) (fourBound a b c d)
+    (rightLeCommonBound a b)
+    (leftLeCommonBound (commonBound a b) (commonBound c d));
+
+\definition thirdLeFourBound (a, b, c, d: Nat^):
+    Le c (fourBound a b c d) :=
+  leTrans c (commonBound c d) (fourBound a b c d)
+    (leftLeCommonBound c d)
+    (rightLeCommonBound (commonBound a b) (commonBound c d));
+
+\definition fourthLeFourBound (a, b, c, d: Nat^):
+    Le d (fourBound a b c d) :=
+  leTrans d (commonBound c d) (fourBound a b c d)
+    (rightLeCommonBound c d)
+    (rightLeCommonBound (commonBound a b) (commonBound c d));
+
+\definition AdjacentBoundary (P: Nat^ -> \Prop): \Prop :=
+  \exists { k : Nat^ \where Logic.And[P k, Logic.Not (P (Nat^::succ k))] };
+
+\definition finiteBoundary (P: Nat^ -> \Prop):
+  \forall (n: Nat^) -> P Nat^::zero ->
+    Logic.Not (P n) -> AdjacentBoundary P :=
+  \induction (n: Nat^) \return P Nat^::zero ->
+      Logic.Not (P n) -> AdjacentBoundary P \with {
+    | zero : (\fun (atZero: P Nat^::zero) =>
+      \fun (notAtZero: Logic.Not (P Nat^::zero)) =>
+        Logic.falseElim (AdjacentBoundary P) (notAtZero atZero))
+    | succ : (\fun (n: Nat^) =>
+      \fun (ih: P Nat^::zero ->
+        Logic.Not (P n) -> AdjacentBoundary P) =>
+      \fun (atZero: P Nat^::zero) =>
+        \fun (notAtSucc: Logic.Not (P (Nat^::succ n))) =>
+          Logic.orElim (P n) (Logic.Not (P n)) (AdjacentBoundary P)
+            (\fun (atN: P n) =>
+              \exact(
+                \into[Nat^](n, { k : Nat^ \where Logic.And[P k,
+                      Logic.Not (P (Nat^::succ k))] }) \by { Logic.And[P n,
+                    Logic.Not (P (Nat^::succ n))]::# atN notAtSucc },
+                \Cast[Nat^] ({ k : Nat^ \where Logic.And[P k,
+                      Logic.Not (P (Nat^::succ k))] })))
+            (\fun (notAtN: Logic.Not (P n)) => ih atZero notAtN)
+            (Classical.excludedMiddle (P n)))
+    };

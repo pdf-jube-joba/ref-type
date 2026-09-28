@@ -528,3 +528,158 @@
     (mulInteger y e) (mulInteger e y)
     (mulIntegerComm x e) (mulIntegerComm y e)
     (ltMulPositiveRight x y e positive xy);
+
+\definition absNat (x: Int^): N.Nat^ :=
+  natAbsPrec x;
+
+\definition absInteger (x: Int^): Int^ :=
+  Int^::ofNat (absNat x);
+
+\definition magnitudeInteger (x: Int^): Int^ :=
+  Int^::ofNat (N.Nat^::succ (absNat x));
+
+\definition naturalLtConstructors (a, b: N.Nat^) (ab: NL.Lt a b):
+    IntegerLt (Int^::ofNat a) (Int^::ofNat b) :=
+  ltRespects
+    (integer a zeroNat) (Int^::ofNat a)
+    (integer b zeroNat) (Int^::ofNat b)
+    (integerEqSym _ _ (ofNatAsInteger a))
+    (integerEqSym _ _ (ofNatAsInteger b))
+    (ltNatural a b ab);
+
+\definition zeroLtConstructorSucc (n: N.Nat^):
+    IntegerLt zeroInteger
+      (Int^::ofNat (N.Nat^::succ n)) :=
+  ltRespects
+    zeroInteger zeroInteger
+    (integer (N.Nat^::succ n) zeroNat)
+    (Int^::ofNat (N.Nat^::succ n))
+    (integerEqRefl zeroInteger)
+    (integerEqSym _ _
+      (ofNatAsInteger (N.Nat^::succ n)))
+    (zeroLtNaturalSucc n);
+
+\definition negConstructorEq (n: N.Nat^): negInteger (Int^::ofNat (N.Nat^::succ n)) =
+    Int^::negSucc n :=
+  integerEqTrans _ _ _
+    (negIntegerRespects
+      (Int^::ofNat (N.Nat^::succ n))
+      (integer (N.Nat^::succ n) zeroNat)
+      (ofNatAsInteger (N.Nat^::succ n)))
+    (integerEqSym _ _ (negSuccAsNegNatural n));
+
+\definition magnitudeOfNat (n: N.Nat^): magnitudeInteger (Int^::ofNat n) =
+    Int^::ofNat (N.Nat^::succ n) :=
+  congr!{N.Nat^ Int^}
+    (\fun (k: N.Nat^) => Int^::ofNat (N.Nat^::succ k))
+    (N.add^ n N.Nat^::zero) n (NL.addZeroRight n);
+
+\definition magnitudeOfNegSucc (n: N.Nat^): magnitudeInteger (Int^::negSucc n) =
+    Int^::ofNat (N.Nat^::succ (N.Nat^::succ n)) :=
+  congr!{N.Nat^ Int^}
+    (\fun (k: N.Nat^) => Int^::ofNat (N.Nat^::succ k))
+    (N.add^ N.Nat^::zero (N.Nat^::succ n))
+    (N.Nat^::succ n) (NL.addZeroLeft (N.Nat^::succ n));
+
+\definition belowMagnitude: \forall (x: Int^) ->
+    IntegerLt x (magnitudeInteger x) :=
+
+  \induction (x: Int^)
+    \return IntegerLt x (magnitudeInteger x) \with {
+    | ofNat : (\fun (n: N.Nat^) =>
+        ltRespects
+          (Int^::ofNat n) (Int^::ofNat n)
+          (Int^::ofNat (N.Nat^::succ n))
+          (magnitudeInteger (Int^::ofNat n))
+          (integerEqRefl _)
+          (congr!{N.Nat^ Int^}
+              (\fun (k: N.Nat^) => Int^::ofNat (N.Nat^::succ k))
+              n (N.add^ n N.Nat^::zero)
+              (sym!{N.Nat^} _ _ (NL.addZeroRight n)))
+          (naturalLtConstructors n (N.Nat^::succ n)
+            (NO.ltSelfSucc n)))
+    | negSucc : (\fun (n: N.Nat^) =>
+        ltRespects
+          (Int^::negSucc n)
+          (Int^::negSucc n)
+          (Int^::ofNat (N.Nat^::succ (N.Nat^::succ n)))
+          (magnitudeInteger (Int^::negSucc n))
+          (integerEqRefl _)
+          (congr!{N.Nat^ Int^}
+              (\fun (k: N.Nat^) => Int^::ofNat (N.Nat^::succ k))
+              (N.Nat^::succ n) (N.add^ N.Nat^::zero (N.Nat^::succ n))
+              (sym!{N.Nat^} _ _ (NL.addZeroLeft (N.Nat^::succ n))))
+          (ltTrans (Int^::negSucc n)
+            zeroInteger
+            (Int^::ofNat (N.Nat^::succ (N.Nat^::succ n)))
+            (negativeLtZero n)
+            (zeroLtConstructorSucc (N.Nat^::succ n))))
+    };
+
+/*
+\definition negMagnitudeBelow: \forall (x: Int^) ->
+    IntegerLt (negInteger (magnitudeInteger x)) x :=
+  \induction (x: Int^)
+    \return IntegerLt (negInteger (magnitudeInteger x)) x \with {
+    | ofNat => (\fun (n: N.Nat^) =>
+        \induction (n: N.Nat^)
+          \return IntegerLt
+            (negInteger
+              (magnitudeInteger (Int^::ofNat n)))
+            (Int^::ofNat n) \with {
+          | zero =>
+              ltRespects
+                (negInteger oneInteger)
+                (negInteger
+                  (magnitudeInteger (Int^::ofNat N.Nat^::zero)))
+                zeroInteger
+                (Int^::ofNat N.Nat^::zero)
+                (negIntegerRespects _ _
+                  (integerEqTrans _ _ _
+                    (integerEqSym _ _ (magnitudeOfNat N.Nat^::zero))
+                    (ofNatAsInteger (N.Nat^::succ N.Nat^::zero))))
+                (integerEqSym _ _
+                  (ofNatAsInteger N.Nat^::zero))
+                negOneLtZero
+          | succ => (\fun (k: N.Nat^) => \fun (_: _) =>
+              ltRespects
+                (Int^::negSucc (N.Nat^::succ k))
+                (negInteger
+                  (magnitudeInteger
+                    (Int^::ofNat (N.Nat^::succ k))))
+                zeroInteger
+                (Int^::ofNat (N.Nat^::succ k))
+                (integerEqSym _ _
+                  (integerEqTrans _ _ _
+                    (negIntegerRespects _ _
+                      (integerEqSym _ _
+                        (magnitudeOfNat (N.Nat^::succ k))))
+                    (negConstructorEq (N.Nat^::succ k))))
+                (integerEqRefl _)
+                (ltTrans
+                  (Int^::negSucc (N.Nat^::succ k))
+                  zeroInteger
+                  (Int^::ofNat (N.Nat^::succ k))
+                  (negativeLtZero (N.Nat^::succ k))
+                  (zeroLtConstructorSucc k)))
+          } n)
+    | negSucc => (\fun (n: N.Nat^) =>
+        ltRespects
+          (negInteger
+            (Int^::ofNat (N.Nat^::succ (N.Nat^::succ n))))
+          (negInteger
+            (magnitudeInteger (Int^::negSucc n)))
+          (negInteger (Int^::ofNat (N.Nat^::succ n)))
+          (Int^::negSucc n)
+          (negIntegerRespects _ _
+            (integerEqSym _ _ (magnitudeOfNegSucc n)))
+          (negConstructorEq n)
+          (ltNegReverse
+            (Int^::ofNat (N.Nat^::succ n))
+            (Int^::ofNat (N.Nat^::succ (N.Nat^::succ n)))
+            (naturalLtConstructors
+              (N.Nat^::succ n)
+              (N.Nat^::succ (N.Nat^::succ n))
+              (NO.ltSelfSucc (N.Nat^::succ n)))))
+    };
+*/
