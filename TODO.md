@@ -20,5 +20,23 @@
 - ブロック内では `\takefrom x: A \by p;` を使うようにしたい。
 
 ## 未分類
-- law 周りをもっとどうにかできないか？「record の subset で law が示せるもの」みたいな定義で入れ子になっているのを楽に書きたい。
-- 再帰関数書くために state, ready, acc, prec, precmatch みたいなのを並べているのをどうにかしたい。
+### law の分離
+law 周りをもっとどうにかできないか？「record の subset で law が示せるもの」みたいな定義で入れ子になっているのを楽に書きたい。
+AI による提案
+```
+\record SomeRecord: \Set {
+  field1 : setType1,
+  field2 : setType2,
+} \where {
+  field1 : propType1,
+  field2 : propType2,
+}
+```
+後ろは `\Prop` で確定。
+また、 `SetRecord::law` とか `SetRecord::raw` で分割してとれるといいらしい。
+単語をつぶしたくないので、 `::[keyword]` みたいにしたい。
+- `SomeRecord::[Raw]` := `{ field1: SetType1, field2: SetType2 }`
+- `SomeRecord::[raw]` := `(s: SetRecord) => { field1 := s #field1, field2  := #field2}`
+
+### 再帰関数のマッチ
+再帰関数書くために state, ready, acc, prec, precmatch みたいなのを並べているのをどうにかしたい。
