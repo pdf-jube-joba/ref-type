@@ -195,6 +195,17 @@ impl Resolver {
             module: self.path(self.current),
         }
     }
+    fn error_at(&self, message: impl Into<String>, span: SourceSpan) -> Diagnostic {
+        let mut diagnostic = self.error(message);
+        if let Some(location) = &mut diagnostic.location
+            && location.span.start <= span.start
+            && span.start < span.end
+            && span.end <= location.span.end
+        {
+            location.span = span;
+        }
+        diagnostic
+    }
     fn lexical(&mut self, exp: &mut SExp, scopes: &mut Vec<HashMap<String, Identifier>>) {
         let order = self.next_expression;
         self.next_expression += 1;
@@ -246,7 +257,13 @@ impl Resolver {
                 span,
             } => (
                 self.import(from, access.as_str()).ok_or_else(|| {
-                    self.error(format!("Module import '{}' was not found", access.as_str()))
+                    self.error_at(
+                        format!("Module import '{}' was not found", access.as_str()),
+                        SourceSpan {
+                            start: span.start,
+                            end: span.start + access.as_str().len(),
+                        },
+                    )
                 })?,
                 child.clone(),
                 false,
@@ -286,10 +303,14 @@ impl Resolver {
             };
             module = parent;
         }
-        Err(self.error(format!(
-            "Name '{}' was not found in its scope",
-            name.as_str()
-        )))
+        let name_span = SourceSpan {
+            start: span.end.saturating_sub(name.as_str().len()),
+            end: span.end,
+        };
+        Err(self.error_at(
+            format!("Name '{}' was not found in its scope", name.as_str()),
+            name_span,
+        ))
     }
     fn import(&self, mut module: ModuleId, name: &str) -> Option<ModuleId> {
         loop {

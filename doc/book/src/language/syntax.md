@@ -526,6 +526,7 @@ pattern の要素はコンマで区切る。
 ```text
 \(x + y \)
 name!{x "+" y}
+name!{_ f}
 name!{{ f x } "keep"}
 ```
 

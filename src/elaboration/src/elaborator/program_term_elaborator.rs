@@ -665,7 +665,7 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ComputationTerm, ElaborationError> {
         match expression {
-            ComputationTermExp::InferredProjection { value, field } => {
+            ComputationTermExp::InferredProjection { value, field, .. } => {
                 let value = self.elaborate_value(value, environment)?;
                 let mut context = self.context.clone();
                 let value_ty = self.infer_kernel_value(environment, &mut context, value)?;

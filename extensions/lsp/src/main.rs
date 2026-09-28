@@ -465,6 +465,57 @@ mod tests {
     }
 
     #[test]
+    fn unresolved_names_highlight_only_the_missing_name() {
+        for (text, missing) in [
+            (r"\module M { \definition bad: \Set := absent; }", "absent"),
+            (
+                r"\module M { \definition bad: \Set := Missing.value; }",
+                "Missing",
+            ),
+            (
+                r"\module A {}
+\module M { \import \root.A[] \as A; \definition bad: \Set := A.absent; }",
+                "absent",
+            ),
+        ] {
+            let (_, _connection, client, uri) = open_document(text);
+            let diagnostics = published_diagnostics(&client, &uri);
+            assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+            let start = text.rfind(missing).unwrap();
+            assert_eq!(
+                diagnostics[0]["range"],
+                range(text, &(start..start + missing.len()))
+            );
+        }
+    }
+
+    #[test]
+    fn field_projection_errors_highlight_the_field() {
+        for (projection, field) in [
+            (r"\Set #missing", "missing"),
+            (r"#missing{\Set}", "missing"),
+            (r"\Set::missing", "missing"),
+        ] {
+            let text = format!(r"\module M {{ \definition bad: \Set := {projection}; }}");
+            let (_, _connection, client, uri) = open_document(&text);
+            let diagnostics = published_diagnostics(&client, &uri);
+            assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+            assert!(
+                diagnostics[0]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("Expected inductive type for field projection"),
+                "{diagnostics:?}"
+            );
+            let start = text.rfind(field).unwrap();
+            assert_eq!(
+                diagnostics[0]["range"],
+                range(&text, &(start..start + field.len()))
+            );
+        }
+    }
+
+    #[test]
     fn positions_use_utf16_columns() {
         let text = "α😀x\nβ";
         for byte in [0, 2, 6, 7, 8, 10] {

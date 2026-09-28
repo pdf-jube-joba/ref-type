@@ -1079,12 +1079,14 @@ impl<'a> TermParser<'a> {
             Some(Token::Macro("#")) => {
                 self.next();
                 let field = self.expect_ident()?;
+                let span = self.span_at(self.position() - 1);
                 self.expect_token(Token::LBrace)?;
                 let value = self.parse_sexp()?;
                 self.expect_token(Token::RBrace)?;
                 Ok(SExp::InferredProjection {
                     value: Box::new(value),
                     field,
+                    span,
                 })
             }
             Some(Token::LBrace) => {
@@ -1149,9 +1151,11 @@ impl<'a> TermParser<'a> {
                 }
                 self.next();
                 let field = self.expect_ident()?;
+                let span = self.span_at(self.position() - 1);
                 expr = SExp::InferredProjection {
                     value: Box::new(expr),
                     field,
+                    span,
                 };
                 continue;
             }
@@ -1760,14 +1764,15 @@ mod tests {
         };
         assert!(matches!(*func, SExp::AccessPath { .. }));
         assert!(
-            matches!(*arg, SExp::InferredProjection { field, value } if field.0 == "field" && matches!(*value, SExp::AccessPath { .. }))
+            matches!(*arg, SExp::InferredProjection { field, value, .. } if field.0 == "field" && matches!(*value, SExp::AccessPath { .. }))
         );
 
-        let SExp::InferredProjection { value, field } = complete(r"(x y) #first #second") else {
+        let SExp::InferredProjection { value, field, .. } = complete(r"(x y) #first #second")
+        else {
             panic!("expected chained projection");
         };
         assert_eq!(field.0, "second");
-        let SExp::InferredProjection { value, field } = *value else {
+        let SExp::InferredProjection { value, field, .. } = *value else {
             panic!("expected inner projection");
         };
         assert_eq!(field.0, "first");

@@ -201,3 +201,13 @@ AI の提案の `\alias Relation[Carrier: \Set]: _ := Carrier -> Carrier -> \Pro
 > 例えば単純型付き言語に List を入れるとして、 `List[Nat]` とか `List[List[A]]` みたいなのは書いていいが、
 > `List` が型から型への関数とは思わない、みたいな感じ。
 > すでに帰納型では似たような仕組みとして、 parameter と index の区別がある。
+
+## Relation と RelationAsPowerSet の変換ができない
+```
+\definition RelToPair(A: \Set) (R: Relation[A]): RelPair A := { x: Pair.Times^[A, A] \where R (fst A x) (snd A x) };
+```
+`A: Set, R: A -> A -> Prop |- { x: A times A | R (fst x) (snd x) }: Pow(A times A): Set` はできる。
+これを pop する場合 `|- (A: Set) => (R: A -> A -> Prop) => { x: A times A | ... }: (A: Set) -> (R: A -> A -> Prop) -> Pow(A times A)` となって `(A: Set) -> (R: A -> A -> Prop) -> Pow(A times A)` の sort が問題になる。
+
+(Prop, Set, Set) 則を認めること自体は、集合モデルだと妥当だが、
+帰納型がある状況だと proof の詳細を外部に漏らしうる気がする。

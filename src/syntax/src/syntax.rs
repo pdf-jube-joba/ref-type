@@ -323,6 +323,7 @@ pub enum ComputationTermExp {
     InferredProjection {
         value: Box<ValueTermExp>,
         field: Identifier,
+        span: SourceSpan,
     },
     Return(Box<ValueTermExp>),
     Force(Box<ValueTermExp>),
@@ -457,6 +458,7 @@ pub enum SExp {
     InferredProjection {
         value: Box<SExp>,
         field: Identifier,
+        span: SourceSpan,
     },
 
     // --- macro
@@ -892,9 +894,10 @@ impl TryFrom<SExp> for ComputationTermExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
-            SExp::InferredProjection { value, field } => Ok(Self::InferredProjection {
+            SExp::InferredProjection { value, field, span } => Ok(Self::InferredProjection {
                 value: Box::new((*value).try_into()?),
                 field,
+                span,
             }),
             SExp::AssociatedAccess { base, field, span } => {
                 let SExp::AccessPath { access, parameters } = *base else {

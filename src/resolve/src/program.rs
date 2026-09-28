@@ -151,10 +151,13 @@ impl From<ComputationTermExp> for SExp {
                 }),
                 field: item,
             },
-            ComputationTermExp::InferredProjection { value, field } => Self::InferredProjection {
-                value: boxed(*value),
-                field,
-            },
+            ComputationTermExp::InferredProjection { value, field, span } => {
+                Self::InferredProjection {
+                    value: boxed(*value),
+                    field,
+                    span,
+                }
+            }
             ComputationTermExp::Return(value) => Self::Return {
                 value: boxed(*value),
             },

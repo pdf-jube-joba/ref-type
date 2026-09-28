@@ -1846,6 +1846,21 @@ fn variadic_macros_match_tokens_and_sequences() {
 }
 
 #[test]
+fn bare_underscore_is_a_macro_expression_argument() {
+    let source = r#"
+        \module Underscore(A: \Set(0), f: A, y: A) {
+            \definition first: \forall (T: \Set(0)) -> T -> T -> T :=
+                \fun (T: \Set(0)) => \fun (a: T) => \fun (b: T) => a;
+            \macro two($type, $value) := first $type $value y;
+            \definition bare_hole_with_next_argument: A := two!{_ f};
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
 fn invalid_variadic_macro_templates_fail_at_declaration() {
     let cases = [
         (

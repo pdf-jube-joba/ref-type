@@ -787,12 +787,16 @@ impl LocalScope {
                 } else {
                     // 2. otherwise, elab base first, then project field
                     let base_elab = self.elab_exp_rec(base, handler)?;
-                    handler.field_projection(&mut self.typing_binds, base_elab, field)
+                    handler
+                        .field_projection(&mut self.typing_binds, base_elab, field)
+                        .inspect_err(|_| handler.locate_error(*span))
                 }
             }
-            SExp::InferredProjection { value, field } => {
+            SExp::InferredProjection { value, field, span } => {
                 let value = self.elab_exp_rec(value, handler)?;
-                handler.field_projection(&mut self.typing_binds, value, field)
+                handler
+                    .field_projection(&mut self.typing_binds, value, field)
+                    .inspect_err(|_| handler.locate_error(*span))
             }
             SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
                 Err("unexpanded macro in HIR".into())
