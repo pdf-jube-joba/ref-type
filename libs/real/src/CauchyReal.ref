@@ -1395,12 +1395,13 @@
 /* The diagonal of the Cauchy estimate already proves reflexivity. */
 \definition equivalentRefl (x: CauchySeq) (eps: Rat) (positive: Positive eps):
   \exists { k : Nat \where EquivalentAt x x eps k } :=
-  \take (k: \Cast[Nat] ({ k : Nat \where CauchyAt x eps k })) =>
-    \exact(
-      \into[Nat](k, { j : Nat \where EquivalentAt x x eps j }) \by { \fun (n: Nat) => \fun (kn: NatLe k n) =>
-          (\bysub(Nat, { j : Nat \where CauchyAt x eps j }, k)) n n kn kn },
-      \Cast[Nat] ({ j : Nat \where EquivalentAt x x eps j }))
-  \by { cauchyProperty x eps positive };
+  \block {
+    \takefrom k: \Cast[Nat] ({ k : Nat \where CauchyAt x eps k }) \by cauchyProperty x eps positive \then
+    \return \exact(
+        \into[Nat](k, { j : Nat \where EquivalentAt x x eps j }) \by { \fun (n: Nat) => \fun (kn: NatLe k n) =>
+            (\bysub(Nat, { j : Nat \where CauchyAt x eps j }, k)) n n kn kn },
+        \Cast[Nat] ({ j : Nat \where EquivalentAt x x eps j }))
+  };
 
 \definition closeSym (x, y, eps: Rat) (xy: Close x y eps): Close y x eps :=
     Logic.And[
@@ -1417,15 +1418,16 @@
 /* Symmetry needs no metric estimate: Close already records both directions. */
 \definition equivalentSym (x, y: CauchySeq) (xy: Equivalent x y): Equivalent y x :=
   \fun (eps: Rat) => \fun (positive: Positive eps) =>
-    \take (N: \Cast[Nat] ({ k : Nat \where EquivalentAt x y eps k })) =>
-      \exact(
-        \into[Nat](N, { k : Nat \where EquivalentAt y x eps k }) \by { (\fun (n: Nat) => \fun (Nn: NatLe N n) =>
-            closeSym (at x n) (at y n) eps
-              ((\bysub(
-                Nat, { k : Nat \where EquivalentAt x y eps k }, N))
-                n Nn)) },
-        \Cast[Nat] ({ k : Nat \where EquivalentAt y x eps k }))
-    \by { xy eps positive };
+    \block {
+      \takefrom N: \Cast[Nat] ({ k : Nat \where EquivalentAt x y eps k }) \by xy eps positive \then
+      \return \exact(
+          \into[Nat](N, { k : Nat \where EquivalentAt y x eps k }) \by { (\fun (n: Nat) => \fun (Nn: NatLe N n) =>
+              closeSym (at x n) (at y n) eps
+                ((\bysub(
+                  Nat, { k : Nat \where EquivalentAt x y eps k }, N))
+                  n Nn)) },
+          \Cast[Nat] ({ k : Nat \where EquivalentAt y x eps k }))
+    };
 
 \definition commonBound (m, n: Nat): Nat :=
   N.add^ m n;
@@ -1439,9 +1441,10 @@
 \definition equivalentTrans (x, y, z: CauchySeq)
     (xy: Equivalent x y) (yz: Equivalent y z): Equivalent x z :=
   \fun (eps: Rat) => \fun (positive: Positive eps) =>
-    \take (M: \Cast[Nat] ({ k : Nat \where EquivalentAt x y (half eps) k })) =>
-      \take (N: \Cast[Nat] ({ k : Nat \where EquivalentAt y z (half eps) k })) =>
-        \exact(
+    \block {
+      \takefrom M: \Cast[Nat] ({ k : Nat \where EquivalentAt x y (half eps) k }) \by xy (half eps) (halfPositiveOf eps positive) \then
+      \takefrom N: \Cast[Nat] ({ k : Nat \where EquivalentAt y z (half eps) k }) \by yz (half eps) (halfPositiveOf eps positive) \then
+      \return \exact(
           \into[Nat](commonBound M N,
             { k : Nat \where EquivalentAt x z eps k }) \by {
               \fun (n: Nat) => \fun (bound: NatLe (commonBound M N) n) =>
@@ -1453,8 +1456,7 @@
                     { k : Nat \where EquivalentAt y z (half eps) k }, N))
                     n (NL.leTrans N (commonBound M N) n (rightLeCommonBound M N) bound)) },
           \Cast[Nat] ({ k : Nat \where EquivalentAt x z eps k }))
-      \by { yz (half eps) (halfPositiveOf eps positive) }
-    \by { xy (half eps) (halfPositiveOf eps positive) };
+    };
 
 \module Sequences;
 

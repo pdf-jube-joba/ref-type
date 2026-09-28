@@ -23,27 +23,27 @@
   (use: \forall (y: Real) -> Member S y -> mem y q -> P): P := use x sx xq;
 
 \definition unionInhabited (S: \Pow Real) (nonempty: Nonempty S): Inhabited (Union S) :=
-  \take (x: \Cast[Real] ({ x : Real \where Member S x })) =>
-    \take (q: \Cast[Rat] ({ q : Rat \where mem x q })) =>
-      \exact(
+  \block {
+    \takefrom x: \Cast[Real] ({ x : Real \where Member S x }) \by nonempty \then
+    \takefrom q: \Cast[Rat] ({ q : Rat \where mem x q }) \by cutInhabited x \then
+    \return \exact(
         \into[Rat](q, Union S) \by { unionIntro S x (\bysub(Real, { x : Real \where Member S x }, x)) q
             (\bysub(Rat, { q : Rat \where mem x q }, q)) },
         \Cast[Rat] ({ q : Rat \where In (Union S) q }))
-    \by { cutInhabited x }
-  \by { nonempty };
+  };
 
 \definition unionProper (S: \Pow Real) (bounded: Bounded S): Proper (Union S) :=
-  \take (u: \Cast[Real] ({ u : Real \where UpperBound S u })) =>
-    \take (q: \Cast[Rat] ({ q : Rat \where Logic.Not (mem u q) })) =>
-      \exact(
+  \block {
+    \takefrom u: \Cast[Real] ({ u : Real \where UpperBound S u }) \by bounded \then
+    \takefrom q: \Cast[Rat] ({ q : Rat \where Logic.Not (mem u q) }) \by cutProper u \then
+    \return \exact(
         \into[Rat](q, { q : Rat \where Logic.Not (In (Union S) q) }) \by { \fun (sq: UnionMember S q) =>
             sq Logic.False
               (\fun (x: Real) => \fun (sx: Member S x) => \fun (xq: mem x q) =>
                 (\bysub(Rat, { q : Rat \where Logic.Not (mem u q) }, q))
                   ((\bysub(Real, { u : Real \where UpperBound S u }, u)) x sx q xq)) },
         \Cast[Rat] ({ q : Rat \where Logic.Not (In (Union S) q) }))
-    \by { cutProper u }
-  \by { bounded };
+  };
 
 \definition unionLower (S: \Pow Real) (p, q: Rat) (pq: lt p q)
   (sq: UnionMember S q): UnionMember S p :=
@@ -55,12 +55,13 @@
   \exists { q : Rat \where Logic.And[In (Union S) q, lt p q] } :=
   sp (\exists { q : Rat \where Logic.And[In (Union S) q, lt p q] })
     (\fun (x: Real) => \fun (sx: Member S x) => \fun (xp: mem x p) =>
-      \take (q: \Cast[Rat] ({ q : Rat \where Logic.And[mem x q, lt p q] })) =>
-        \exact(
-          \into[Rat](q, { q : Rat \where Logic.And[In (Union S) q, lt p q] }) \by { Logic.And[In (Union S) q, lt p q]::# (unionIntro S x sx q
-                (#left{(\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))})) (#right{(\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))}) },
-          \Cast[Rat] ({ q : Rat \where Logic.And[In (Union S) q, lt p q] }))
-      \by { cutRounded x p xp });
+      \block {
+        \takefrom q: \Cast[Rat] ({ q : Rat \where Logic.And[mem x q, lt p q] }) \by cutRounded x p xp \then
+        \return \exact(
+            \into[Rat](q, { q : Rat \where Logic.And[In (Union S) q, lt p q] }) \by { Logic.And[In (Union S) q, lt p q]::# (unionIntro S x sx q
+                  (#left{(\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))})) (#right{(\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))}) },
+            \Cast[Rat] ({ q : Rat \where Logic.And[In (Union S) q, lt p q] }))
+      });
 
 \definition unionLocated (S: \Pow Real) (p, q: Rat) (pq: lt p q):
   Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)] :=
@@ -143,12 +144,13 @@
 
 \definition lowerBoundsBounded (S: \Pow Real) (nonempty: Nonempty S):
   Bounded (LowerBounds S) :=
-  \take (x: \Cast[Real] ({ x : Real \where Member S x })) =>
-    \exact(
-      \into[Real](x, { u : Real \where UpperBound (LowerBounds S) u }) \by { \fun (l: Real) => \fun (lower: Member (LowerBounds S) l) =>
-          lower x (\bysub(Real, { x : Real \where Member S x }, x)) },
-      \Cast[Real] ({ u : Real \where UpperBound (LowerBounds S) u }))
-  \by { nonempty };
+  \block {
+    \takefrom x: \Cast[Real] ({ x : Real \where Member S x }) \by nonempty \then
+    \return \exact(
+        \into[Real](x, { u : Real \where UpperBound (LowerBounds S) u }) \by { \fun (l: Real) => \fun (lower: Member (LowerBounds S) l) =>
+            lower x (\bysub(Real, { x : Real \where Member S x }, x)) },
+        \Cast[Real] ({ u : Real \where UpperBound (LowerBounds S) u }))
+  };
 
 \definition InfimumDomainSet: \Pow (\Pow Real) :=
   { S : \Pow Real \where Logic.And[Nonempty S, BoundedBelow S] };

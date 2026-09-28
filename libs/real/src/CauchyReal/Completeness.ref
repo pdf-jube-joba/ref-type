@@ -247,49 +247,48 @@
 \definition errorEventuallySmall (eps: Rat) (positive: Positive eps):
     \exists { k : Nat \where
       \forall (n: Nat) -> NatLe k n -> ltRat (error n) eps } :=
-  \take (K: \Cast[Nat] ({ k : Nat \where
-      ltRat oneRat
-        (RationalOperations.naturalTranslate zeroRat eps k) })) =>
-    \block {
-      \let oneBelowMultiple: ltRat oneRat (mulRat eps (multiple K)) :=
-        RationalOrder.ltReplaceRight oneRat
-          (RationalOperations.naturalTranslate zeroRat eps K)
-          (mulRat eps (multiple K))
-          (RationalFractions.fractionEqTrans _ _ _
-            (naturalTranslateZero eps K) (scaleAsMul eps K))
-          (\bysub(Nat, { k : Nat \where ltRat oneRat
-            (RationalOperations.naturalTranslate zeroRat eps k) }, K)) \then
-      \let oneBelowScaledDenominator:
-          ltRat oneRat (mulRat eps (denominator K)) :=
-        RationalOrder.ltTrans oneRat (mulRat eps (multiple K))
-          (mulRat eps (denominator K)) oneBelowMultiple
-          (RationalOperations.ltMulPositiveLeft eps (multiple K)
-            (denominator K) positive (multipleLtDenominator K)) \then
-      \let errorBelow: ltRat (error K) eps :=
-        RationalOperations.ltMulPositiveCancelLeft (denominator K)
-          (error K) eps (denominatorPositive K)
-          (RationalOrder.ltReplaceLeft oneRat
-            (mulRat (denominator K) (error K))
+  \block {
+    \takefrom K: \Cast[Nat] ({ k : Nat \where
+        ltRat oneRat
+          (RationalOperations.naturalTranslate zeroRat eps k) }) \by RationalOperations.naturalTranslateAbove zeroRat eps oneRat positive \then
+    \let oneBelowMultiple: ltRat oneRat (mulRat eps (multiple K)) :=
+      RationalOrder.ltReplaceRight oneRat
+        (RationalOperations.naturalTranslate zeroRat eps K)
+        (mulRat eps (multiple K))
+        (RationalFractions.fractionEqTrans _ _ _
+          (naturalTranslateZero eps K) (scaleAsMul eps K))
+        (\bysub(Nat, { k : Nat \where ltRat oneRat
+          (RationalOperations.naturalTranslate zeroRat eps k) }, K)) \then
+    \let oneBelowScaledDenominator:
+        ltRat oneRat (mulRat eps (denominator K)) :=
+      RationalOrder.ltTrans oneRat (mulRat eps (multiple K))
+        (mulRat eps (denominator K)) oneBelowMultiple
+        (RationalOperations.ltMulPositiveLeft eps (multiple K)
+          (denominator K) positive (multipleLtDenominator K)) \then
+    \let errorBelow: ltRat (error K) eps :=
+      RationalOperations.ltMulPositiveCancelLeft (denominator K)
+        (error K) eps (denominatorPositive K)
+        (RationalOrder.ltReplaceLeft oneRat
+          (mulRat (denominator K) (error K))
+          (mulRat (denominator K) eps)
+          (RationalFractions.fractionEqSym _ _
+            (RationalOperations.fractionMulReciprocal (denominator K)
+              (RationalOperations.numeratorNonZeroOfZeroLt
+                (denominator K) (denominatorPositive K))))
+          (RationalOrder.ltReplaceRight oneRat
+            (mulRat eps (denominator K))
             (mulRat (denominator K) eps)
-            (RationalFractions.fractionEqSym _ _
-              (RationalOperations.fractionMulReciprocal (denominator K)
-                (RationalOperations.numeratorNonZeroOfZeroLt
-                  (denominator K) (denominatorPositive K))))
-            (RationalOrder.ltReplaceRight oneRat
-              (mulRat eps (denominator K))
-              (mulRat (denominator K) eps)
-              (RationalOperations.fractionMulComm eps (denominator K))
-              oneBelowScaledDenominator)) \then
-      \return \exact(
-        \into[Nat](K, { k : Nat \where
-          \forall (n: Nat) -> NatLe k n -> ltRat (error n) eps }) \by {
-          \fun (n: Nat) => \fun (Kn: NatLe K n) =>
-            RationalOperations.leLtTrans (error n) (error K) eps
-              (errorAntitone K n Kn) errorBelow },
-        \Cast[Nat] ({ k : Nat \where
-          \forall (n: Nat) -> NatLe k n -> ltRat (error n) eps }))
-    }
-  \by { RationalOperations.naturalTranslateAbove zeroRat eps oneRat positive };
+            (RationalOperations.fractionMulComm eps (denominator K))
+            oneBelowScaledDenominator)) \then
+    \return \exact(
+      \into[Nat](K, { k : Nat \where
+        \forall (n: Nat) -> NatLe k n -> ltRat (error n) eps }) \by {
+        \fun (n: Nat) => \fun (Kn: NatLe K n) =>
+          RationalOperations.leLtTrans (error n) (error K) eps
+            (errorAntitone K n Kn) errorBelow },
+      \Cast[Nat] ({ k : Nat \where
+        \forall (n: Nat) -> NatLe k n -> ltRat (error n) eps }))
+  };
 
 \definition oneBelowExpandedSub (d, B: Rat) (dB: ltRat d B):
     ltRat oneRat (subRat (addRat B oneRat) d) :=
@@ -502,58 +501,53 @@
     (positive: Positive step):
     \exists { k : Nat \where
       O.Le (O.class y) (Translate x (GridValue step k)) } :=
-  \take (Bx: \Cast[Rat] ({ B : Rat \where
-      \exists { k : Nat \where S.BoundedAt x B k } })) =>
-    \take (Nx: \Cast[Nat] ({ k : Nat \where S.BoundedAt x Bx k })) =>
-      \take (By: \Cast[Rat] ({ B : Rat \where
-          \exists { k : Nat \where S.BoundedAt y B k } })) =>
-        \take (Ny: \Cast[Nat] ({ k : Nat \where S.BoundedAt y By k })) =>
-          \take (K: \Cast[Nat] ({ k : Nat \where
-              ltRat (addRat (addRat By Bx) oneRat)
-                (RationalOperations.naturalTranslate zeroRat step k) })) =>
-            \block {
-              \let initial: O.Le (O.class y)
-                  (Translate x (addRat (addRat By Bx) oneRat)) :=
-                O.leClassOf y
-                  (TranslateSeq x (addRat (addRat By Bx) oneRat))
-                  (pairTranslateBound x y Bx By Nx Ny
-                    (\bysub(Nat,
-                      { k : Nat \where S.BoundedAt x Bx k }, Nx))
-                    (\bysub(Nat,
-                      { k : Nat \where S.BoundedAt y By k }, Ny))) \then
-              \let gridAbove: ltRat (addRat (addRat By Bx) oneRat)
-                  (GridValue step K) :=
-                RationalOrder.ltReplaceRight
-                  (addRat (addRat By Bx) oneRat)
-                  (RationalOperations.naturalTranslate zeroRat step K)
-                  (GridValue step K)
-                  (RationalOperations.naturalTranslateAsGrid
-                    zeroRat step K)
-                  (\bysub(Nat, { k : Nat \where
-                    ltRat (addRat (addRat By Bx) oneRat)
-                      (RationalOperations.naturalTranslate zeroRat step k) },
-                    K)) \then
-              \return \exact(
-                \into[Nat](K, { k : Nat \where
-                  O.Le (O.class y) (Translate x (GridValue step k)) })
-                  \by {
-                    O.leTrans (O.class y)
-                      (Translate x (addRat (addRat By Bx) oneRat))
-                      (Translate x (GridValue step K)) initial
-                      (translateLeOfLt x
-                        (addRat (addRat By Bx) oneRat)
-                        (GridValue step K) gridAbove) },
-                \Cast[Nat] ({ k : Nat \where
-                  O.Le (O.class y) (Translate x (GridValue step k)) }))
-            }
-          \by { RationalOperations.naturalTranslateAbove zeroRat step
-            (addRat (addRat By Bx) oneRat) positive }
-        \by { \bysub(Rat, { B : Rat \where
-          \exists { k : Nat \where S.BoundedAt y B k } }, By) }
-      \by { S.eventuallyBounded y }
-    \by { \bysub(Rat, { B : Rat \where
-      \exists { k : Nat \where S.BoundedAt x B k } }, Bx) }
-  \by { S.eventuallyBounded x };
+  \block {
+    \takefrom Bx: \Cast[Rat] ({ B : Rat \where
+        \exists { k : Nat \where S.BoundedAt x B k } }) \by S.eventuallyBounded x \then
+    \takefrom Nx: \Cast[Nat] ({ k : Nat \where S.BoundedAt x Bx k }) \by \bysub(Rat, { B : Rat \where
+      \exists { k : Nat \where S.BoundedAt x B k } }, Bx) \then
+    \takefrom By: \Cast[Rat] ({ B : Rat \where
+        \exists { k : Nat \where S.BoundedAt y B k } }) \by S.eventuallyBounded y \then
+    \takefrom Ny: \Cast[Nat] ({ k : Nat \where S.BoundedAt y By k }) \by \bysub(Rat, { B : Rat \where
+      \exists { k : Nat \where S.BoundedAt y B k } }, By) \then
+    \takefrom K: \Cast[Nat] ({ k : Nat \where
+        ltRat (addRat (addRat By Bx) oneRat)
+          (RationalOperations.naturalTranslate zeroRat step k) }) \by RationalOperations.naturalTranslateAbove zeroRat step
+      (addRat (addRat By Bx) oneRat) positive \then
+    \let initial: O.Le (O.class y)
+        (Translate x (addRat (addRat By Bx) oneRat)) :=
+      O.leClassOf y
+        (TranslateSeq x (addRat (addRat By Bx) oneRat))
+        (pairTranslateBound x y Bx By Nx Ny
+          (\bysub(Nat,
+            { k : Nat \where S.BoundedAt x Bx k }, Nx))
+          (\bysub(Nat,
+            { k : Nat \where S.BoundedAt y By k }, Ny))) \then
+    \let gridAbove: ltRat (addRat (addRat By Bx) oneRat)
+        (GridValue step K) :=
+      RationalOrder.ltReplaceRight
+        (addRat (addRat By Bx) oneRat)
+        (RationalOperations.naturalTranslate zeroRat step K)
+        (GridValue step K)
+        (RationalOperations.naturalTranslateAsGrid
+          zeroRat step K)
+        (\bysub(Nat, { k : Nat \where
+          ltRat (addRat (addRat By Bx) oneRat)
+            (RationalOperations.naturalTranslate zeroRat step k) },
+          K)) \then
+    \return \exact(
+      \into[Nat](K, { k : Nat \where
+        O.Le (O.class y) (Translate x (GridValue step k)) })
+        \by {
+          O.leTrans (O.class y)
+            (Translate x (addRat (addRat By Bx) oneRat))
+            (Translate x (GridValue step K)) initial
+            (translateLeOfLt x
+              (addRat (addRat By Bx) oneRat)
+              (GridValue step K) gridAbove) },
+      \Cast[Nat] ({ k : Nat \where
+        O.Le (O.class y) (Translate x (GridValue step k)) }))
+  };
 
 \definition GridPoint (base: CauchySeq) (step: Rat) (n: Nat): Real :=
   Translate base (GridValue step n);
@@ -656,37 +650,40 @@
     (step: Rat) (positive: Positive step)
     (bounded: BoundedAbove A):
     \exists { k : Nat \where GridUpper A base step k } :=
-  \take (u: \Cast[Real] ({ u : Real \where IsUpperBound A u })) =>
-    O.quotientInduction
-      (\fun (v: Real) => IsUpperBound A v ->
-        \exists { k : Nat \where GridUpper A base step k })
-      (\fun (y: CauchySeq) =>
-        \fun (upper: IsUpperBound A (O.class y)) =>
-          \take (K: \Cast[Nat] ({ k : Nat \where
-              O.Le (O.class y) (Translate base (GridValue step k)) })) =>
-            \exact(
-              \into[Nat](K,
-                { k : Nat \where GridUpper A base step k }) \by {
-                  \fun (z: Real) => \fun (member: Member A z) =>
-                    O.leTrans z (O.class y)
-                      (GridPoint base step K) (upper z member)
-                      (\bysub(Nat, { k : Nat \where
-                        O.Le (O.class y)
-                          (Translate base (GridValue step k)) }, K)) },
-              \Cast[Nat] ({ k : Nat \where
-                GridUpper A base step k }))
-          \by { translateBeyond base y step positive })
-      u (\bysub(Real, { u : Real \where IsUpperBound A u }, u))
-  \by { bounded };
+  \block {
+    \takefrom u: \Cast[Real] ({ u : Real \where IsUpperBound A u }) \by bounded \then
+    \return O.quotientInduction
+        (\fun (v: Real) => IsUpperBound A v ->
+          \exists { k : Nat \where GridUpper A base step k })
+        (\fun (y: CauchySeq) =>
+          \fun (upper: IsUpperBound A (O.class y)) =>
+            \block {
+              \takefrom K: \Cast[Nat] ({ k : Nat \where
+                  O.Le (O.class y) (Translate base (GridValue step k)) }) \by translateBeyond base y step positive \then
+              \return \exact(
+                  \into[Nat](K,
+                    { k : Nat \where GridUpper A base step k }) \by {
+                      \fun (z: Real) => \fun (member: Member A z) =>
+                        O.leTrans z (O.class y)
+                          (GridPoint base step K) (upper z member)
+                          (\bysub(Nat, { k : Nat \where
+                            O.Le (O.class y)
+                              (Translate base (GridValue step k)) }, K)) },
+                  \Cast[Nat] ({ k : Nat \where
+                    GridUpper A base step k }))
+            })
+        u (\bysub(Real, { u : Real \where IsUpperBound A u }, u))
+  };
 
 \definition minimalGridUpperExists (A: \Pow Real)
     (base: CauchySeq) (step: Rat) (positive: Positive step)
     (bounded: BoundedAbove A):
     \exists { j : Nat \where MinimalGridUpper A base step j } :=
-  \take (K: \Cast[Nat] ({ k : Nat \where GridUpper A base step k })) =>
-    firstGridUpper A base step K
-      (\bysub(Nat, { k : Nat \where GridUpper A base step k }, K))
-  \by { terminalGridUpper A base step positive bounded };
+  \block {
+    \takefrom K: \Cast[Nat] ({ k : Nat \where GridUpper A base step k }) \by terminalGridUpper A base step positive bounded \then
+    \return firstGridUpper A base step K
+        (\bysub(Nat, { k : Nat \where GridUpper A base step k }, K))
+  };
 
 \definition gridNonnegative (step: Rat) (positive: Positive step):
     \forall (n: Nat) ->
@@ -795,23 +792,23 @@
     (\fun (predecessor: \exists { k : Nat \where
         Logic.And[j = N.Nat^::succ k,
           Logic.Not (GridUpper A base step k)] }) =>
-      \take (k: \Cast[Nat] ({ k : Nat \where
-          Logic.And[j = N.Nat^::succ k,
-            Logic.Not (GridUpper A base step k)] })) =>
-        \idelim(N.Nat^::succ k = j \with i: Nat =>
-          RationalOperations.Le (GridValue step i)
-            (addRat (GridValue otherStep other) step))
-          \by {
-            base: successorGridLeOtherPlusStep A base step positive k
-              (#right{(\bysub(Nat, { k : Nat \where Logic.And[
-                j = N.Nat^::succ k,
-                Logic.Not (GridUpper A base step k)] }, k))})
-              otherStep other otherUpper,
-            equality: sym!{Nat} j (N.Nat^::succ k)
-              (#left{(\bysub(Nat, { k : Nat \where Logic.And[
-                j = N.Nat^::succ k,
-                Logic.Not (GridUpper A base step k)] }, k))}) }
-      \by { predecessor })
+      \block {
+        \takefrom k: \Cast[Nat] ({ k : Nat \where
+            Logic.And[j = N.Nat^::succ k,
+              Logic.Not (GridUpper A base step k)] }) \by predecessor \then
+        \return \idelim(N.Nat^::succ k = j \with i: Nat =>
+            RationalOperations.Le (GridValue step i)
+              (addRat (GridValue otherStep other) step))
+          \by { base: successorGridLeOtherPlusStep A base step positive k
+            (#right{(\bysub(Nat, { k : Nat \where Logic.And[
+              j = N.Nat^::succ k,
+              Logic.Not (GridUpper A base step k)] }, k))})
+            otherStep other otherUpper,
+          equality: sym!{Nat} j (N.Nat^::succ k)
+            (#left{(\bysub(Nat, { k : Nat \where Logic.And[
+              j = N.Nat^::succ k,
+              Logic.Not (GridUpper A base step k)] }, k))}) }
+      })
     #right{minimal};
 
 \definition GridChoiceSet (A: \Pow Real) (base: CauchySeq)
@@ -907,20 +904,21 @@
     (choice: \forall (n: Nat) -> GridChoice A base n):
     IsCauchy (Approximation A base choice) :=
   \fun (eps: Rat) => \fun (positive: Positive eps) =>
-    \take (K: \Cast[Nat] ({ k : Nat \where
-        \forall (n: Nat) -> NatLe k n -> ltRat (error n) eps })) =>
-      \exact(
-        \into[Nat](K, { k : Nat \where
-          CauchyAt (Approximation A base choice) eps k }) \by {
-            \fun (n, m: Nat) => \fun (Kn: NatLe K n) =>
-              \fun (Km: NatLe K m) =>
-                approximationClose A base choice eps K n m
-                  (\bysub(Nat, { k : Nat \where
-                    \forall (j: Nat) -> NatLe k j ->
-                      ltRat (error j) eps }, K)) Kn Km },
-        \Cast[Nat] ({ k : Nat \where
-          CauchyAt (Approximation A base choice) eps k }))
-    \by { errorEventuallySmall eps positive };
+    \block {
+      \takefrom K: \Cast[Nat] ({ k : Nat \where
+          \forall (n: Nat) -> NatLe k n -> ltRat (error n) eps }) \by errorEventuallySmall eps positive \then
+      \return \exact(
+          \into[Nat](K, { k : Nat \where
+            CauchyAt (Approximation A base choice) eps k }) \by {
+              \fun (n, m: Nat) => \fun (Kn: NatLe K n) =>
+                \fun (Km: NatLe K m) =>
+                  approximationClose A base choice eps K n m
+                    (\bysub(Nat, { k : Nat \where
+                      \forall (j: Nat) -> NatLe k j ->
+                        ltRat (error j) eps }, K)) Kn Km },
+          \Cast[Nat] ({ k : Nat \where
+            CauchyAt (Approximation A base choice) eps k }))
+    };
 
 \definition ApproximationCauchy
     (A: \Pow Real) (base: CauchySeq)
@@ -983,14 +981,18 @@
       RationalOperations.Le (at x n) zeroRat):
     Logic.Not (S.EventuallyPositive x) :=
   \fun (positive: S.EventuallyPositive x) =>
-    \take (r: \Cast[Rat] ({ r : Rat \where
+    \block {
+      \takefrom r: \Cast[Rat] ({ r : Rat \where
+          \exists { k : Nat \where Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le r (at x n)] } }) \by positive \then
+      \takefrom K: \Cast[Nat] ({ k : Nat \where Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }) \by \bysub(Rat, { r : Rat \where
         \exists { k : Nat \where Logic.And[Positive r,
           \forall (n: Nat) -> NatLe k n ->
-            RationalOperations.Le r (at x n)] } })) =>
-      \take (K: \Cast[Nat] ({ k : Nat \where Logic.And[Positive r,
-          \forall (n: Nat) -> NatLe k n ->
-            RationalOperations.Le r (at x n)] })) =>
-        RationalOrder.ltIrrefl zeroRat
+            RationalOperations.Le r (at x n)] } }, r) \then
+      \return RationalOrder.ltIrrefl zeroRat
           (RationalOperations.ltLeTrans zeroRat r zeroRat
             #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
               \forall (n: Nat) -> NatLe k n ->
@@ -1001,51 +1003,44 @@
                   RationalOperations.Le r (at x n)] }, K))}
                 K (NL.leRefl K))
               (nonpositive K)))
-      \by { \bysub(Rat, { r : Rat \where
-        \exists { k : Nat \where Logic.And[Positive r,
-          \forall (n: Nat) -> NatLe k n ->
-            RationalOperations.Le r (at x n)] } }, r) }
-    \by { positive };
+    };
 
 \definition eventuallyPositiveImpossibleOfErrorBound (x: CauchySeq)
     (upper: \forall (n: Nat) ->
       RationalOperations.Le (at x n) (error n)):
     Logic.Not (S.EventuallyPositive x) :=
   \fun (positive: S.EventuallyPositive x) =>
-    \take (r: \Cast[Rat] ({ r : Rat \where
-        \exists { k : Nat \where Logic.And[Positive r,
-          \forall (n: Nat) -> NatLe k n ->
-            RationalOperations.Le r (at x n)] } })) =>
-      \take (M: \Cast[Nat] ({ k : Nat \where Logic.And[Positive r,
-          \forall (n: Nat) -> NatLe k n ->
-            RationalOperations.Le r (at x n)] })) =>
-        \take (N: \Cast[Nat] ({ k : Nat \where
-            \forall (n: Nat) -> NatLe k n -> ltRat (error n) r })) =>
-          \block {
-            \let K: Nat := commonBound M N \then
-            \let rLeError: RationalOperations.Le r (error K) :=
-              RationalOperations.leTrans r (at x K) (error K)
-                (#right{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
-                  \forall (n: Nat) -> NatLe k n ->
-                    RationalOperations.Le r (at x n)] }, M))}
-                  K (leftLeCommonBound M N))
-                (upper K) \then
-            \return RationalOrder.ltIrrefl r
-              (RationalOperations.leLtTrans r (error K) r rLeError
-                ((\bysub(Nat, { k : Nat \where
-                  \forall (n: Nat) -> NatLe k n ->
-                    ltRat (error n) r }, N))
-                  K (rightLeCommonBound M N)))
-          }
-        \by { errorEventuallySmall r
-          #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
+    \block {
+      \takefrom r: \Cast[Rat] ({ r : Rat \where
+          \exists { k : Nat \where Logic.And[Positive r,
             \forall (n: Nat) -> NatLe k n ->
-              RationalOperations.Le r (at x n)] }, M))} }
-      \by { \bysub(Rat, { r : Rat \where
+              RationalOperations.Le r (at x n)] } }) \by positive \then
+      \takefrom M: \Cast[Nat] ({ k : Nat \where Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }) \by \bysub(Rat, { r : Rat \where
         \exists { k : Nat \where Logic.And[Positive r,
           \forall (n: Nat) -> NatLe k n ->
-            RationalOperations.Le r (at x n)] } }, r) }
-    \by { positive };
+            RationalOperations.Le r (at x n)] } }, r) \then
+      \takefrom N: \Cast[Nat] ({ k : Nat \where
+          \forall (n: Nat) -> NatLe k n -> ltRat (error n) r }) \by errorEventuallySmall r
+        #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
+          \forall (n: Nat) -> NatLe k n ->
+            RationalOperations.Le r (at x n)] }, M))} \then
+      \let K: Nat := commonBound M N \then
+      \let rLeError: RationalOperations.Le r (error K) :=
+        RationalOperations.leTrans r (at x K) (error K)
+          (#right{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
+            \forall (n: Nat) -> NatLe k n ->
+              RationalOperations.Le r (at x n)] }, M))}
+            K (leftLeCommonBound M N))
+          (upper K) \then
+      \return RationalOrder.ltIrrefl r
+        (RationalOperations.leLtTrans r (error K) r rLeError
+          ((\bysub(Nat, { k : Nat \where
+            \forall (n: Nat) -> NatLe k n ->
+              ltRat (error n) r }, N))
+            K (rightLeCommonBound M N)))
+    };
 
 \definition subAddSameLeftRat (a, p, q: Rat):
     RationalFractions.FractionEq
@@ -1378,22 +1373,22 @@
     (\fun (predecessor: \exists { k : Nat \where Logic.And[
         j = N.Nat^::succ k,
         Logic.Not (GridUpper A base step k)] }) =>
-      \take (k: \Cast[Nat] ({ k : Nat \where Logic.And[
-          j = N.Nat^::succ k,
-          Logic.Not (GridUpper A base step k)] })) =>
-        \idelim(N.Nat^::succ k = j \with i: Nat =>
-          S.SeqLe (TranslateSeq base (GridValue step i))
-            (TranslateSeq y step))
-          \by {
-            base: successorGridLeTranslatedUpper A base step positive k
-              (#right{(\bysub(Nat, { k : Nat \where Logic.And[
-                j = N.Nat^::succ k,
-                Logic.Not (GridUpper A base step k)] }, k))}) y upper,
-            equality: sym!{Nat} j (N.Nat^::succ k)
-              (#left{(\bysub(Nat, { k : Nat \where Logic.And[
-                j = N.Nat^::succ k,
-                Logic.Not (GridUpper A base step k)] }, k))}) }
-      \by { predecessor })
+      \block {
+        \takefrom k: \Cast[Nat] ({ k : Nat \where Logic.And[
+            j = N.Nat^::succ k,
+            Logic.Not (GridUpper A base step k)] }) \by predecessor \then
+        \return \idelim(N.Nat^::succ k = j \with i: Nat =>
+            S.SeqLe (TranslateSeq base (GridValue step i))
+              (TranslateSeq y step))
+          \by { base: successorGridLeTranslatedUpper A base step positive k
+            (#right{(\bysub(Nat, { k : Nat \where Logic.And[
+              j = N.Nat^::succ k,
+              Logic.Not (GridUpper A base step k)] }, k))}) y upper,
+          equality: sym!{Nat} j (N.Nat^::succ k)
+            (#left{(\bysub(Nat, { k : Nat \where Logic.And[
+              j = N.Nat^::succ k,
+              Logic.Not (GridUpper A base step k)] }, k))}) }
+      })
     #right{minimal};
 
 \definition positiveAfterSmallConstant (x, y: CauchySeq)
@@ -1455,61 +1450,58 @@
     (seqLeOfNoReversePositive x (SupremumSeq A base choice)
       (\fun (positive: S.EventuallyPositive
           (S.sub x (SupremumSeq A base choice))) =>
-        \take (r: \Cast[Rat] ({ r : Rat \where
+        \block {
+          \takefrom r: \Cast[Rat] ({ r : Rat \where
+              \exists { k : Nat \where Logic.And[Positive r,
+                \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
+                  (at (S.sub x (SupremumSeq A base choice)) i)] } }) \by positive \then
+          \takefrom N: \Cast[Nat] ({ k : Nat \where Logic.And[Positive r,
+              \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
+                (at (S.sub x (SupremumSeq A base choice)) i)] }) \by \bysub(Rat, { r : Rat \where
             \exists { k : Nat \where Logic.And[Positive r,
               \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
-                (at (S.sub x (SupremumSeq A base choice)) i)] } })) =>
-          \take (N: \Cast[Nat] ({ k : Nat \where Logic.And[Positive r,
+                (at (S.sub x (SupremumSeq A base choice)) i)] } }, r) \then
+          \takefrom j: \Cast[Nat] ({ j : Nat \where
+              \forall (i: Nat) -> NatLe j i ->
+                ltRat (error i) (half r) }) \by errorEventuallySmall (half r)
+            (halfPositiveOf r
+              #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
+                \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
+                  (at (S.sub x (SupremumSeq A base choice)) i)] }, N))}) \then
+          \let rPositive: Positive r :=
+            #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
               \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
-                (at (S.sub x (SupremumSeq A base choice)) i)] })) =>
-            \take (j: \Cast[Nat] ({ j : Nat \where
-                \forall (i: Nat) -> NatLe j i ->
-                  ltRat (error i) (half r) })) =>
-              \block {
-                \let rPositive: Positive r :=
-                  #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
-                    \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
-                      (at (S.sub x (SupremumSeq A base choice)) i)] }, N))} \then
-                \let small: ltRat (error j) (half r) :=
-                  (\bysub(Nat, { j : Nat \where
-                    \forall (i: Nat) -> NatLe j i ->
-                      ltRat (error i) (half r) }, j)) j (NL.leRefl j) \then
-                \let positiveEnvelope: S.EventuallyPositive
-                    (S.sub x (EnvelopeSeq A base choice j)) :=
-                  positiveAfterSmallConstant x
-                    (SupremumSeq A base choice) r N rPositive
-                    (#right{(\bysub(Nat,
-                      { k : Nat \where Logic.And[Positive r,
-                        \forall (i: Nat) -> NatLe k i ->
-                          RationalOperations.Le r
-                            (at (S.sub x
-                              (SupremumSeq A base choice)) i)] }, N))})
-                    (error j) small \then
-                \let xLeEnvelope: O.Le (O.class x)
-                    (O.class (EnvelopeSeq A base choice j)) :=
-                  O.leTrans (O.class x)
-                    (GridPoint base (error j) (choice j))
-                    (O.class (EnvelopeSeq A base choice j))
-                    ((chosenUpper A base choice j) (O.class x) member)
-                    (O.leClassOf
-                      (TranslateSeq base (Approximation A base choice j))
-                      (EnvelopeSeq A base choice j)
-                      (gridLeEnvelope A base choice j)) \then
-                \return (notSeqLeReverseOfPositive
-                    (EnvelopeSeq A base choice j) x positiveEnvelope)
-                  (O.seqLeOfClassLe x (EnvelopeSeq A base choice j)
-                    xLeEnvelope)
-              }
-            \by { errorEventuallySmall (half r)
-              (halfPositiveOf r
-                #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
-                  \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
-                    (at (S.sub x (SupremumSeq A base choice)) i)] }, N))}) }
-          \by { \bysub(Rat, { r : Rat \where
-            \exists { k : Nat \where Logic.And[Positive r,
-              \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
-                (at (S.sub x (SupremumSeq A base choice)) i)] } }, r) }
-        \by { positive }));
+                (at (S.sub x (SupremumSeq A base choice)) i)] }, N))} \then
+          \let small: ltRat (error j) (half r) :=
+            (\bysub(Nat, { j : Nat \where
+              \forall (i: Nat) -> NatLe j i ->
+                ltRat (error i) (half r) }, j)) j (NL.leRefl j) \then
+          \let positiveEnvelope: S.EventuallyPositive
+              (S.sub x (EnvelopeSeq A base choice j)) :=
+            positiveAfterSmallConstant x
+              (SupremumSeq A base choice) r N rPositive
+              (#right{(\bysub(Nat,
+                { k : Nat \where Logic.And[Positive r,
+                  \forall (i: Nat) -> NatLe k i ->
+                    RationalOperations.Le r
+                      (at (S.sub x
+                        (SupremumSeq A base choice)) i)] }, N))})
+              (error j) small \then
+          \let xLeEnvelope: O.Le (O.class x)
+              (O.class (EnvelopeSeq A base choice j)) :=
+            O.leTrans (O.class x)
+              (GridPoint base (error j) (choice j))
+              (O.class (EnvelopeSeq A base choice j))
+              ((chosenUpper A base choice j) (O.class x) member)
+              (O.leClassOf
+                (TranslateSeq base (Approximation A base choice j))
+                (EnvelopeSeq A base choice j)
+                (gridLeEnvelope A base choice j)) \then
+          \return (notSeqLeReverseOfPositive
+              (EnvelopeSeq A base choice j) x positiveEnvelope)
+            (O.seqLeOfClassLe x (EnvelopeSeq A base choice j)
+              xLeEnvelope)
+        }));
 
 \definition supremumUpper
     (A: \Pow Real) (base: CauchySeq)
@@ -1532,61 +1524,58 @@
     (seqLeOfNoReversePositive (SupremumSeq A base choice) y
       (\fun (positive: S.EventuallyPositive
           (S.sub (SupremumSeq A base choice) y)) =>
-        \take (r: \Cast[Rat] ({ r : Rat \where
+        \block {
+          \takefrom r: \Cast[Rat] ({ r : Rat \where
+              \exists { k : Nat \where Logic.And[Positive r,
+                \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
+                  (at (S.sub (SupremumSeq A base choice) y) i)] } }) \by positive \then
+          \takefrom N: \Cast[Nat] ({ k : Nat \where Logic.And[Positive r,
+              \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
+                (at (S.sub (SupremumSeq A base choice) y) i)] }) \by \bysub(Rat, { r : Rat \where
             \exists { k : Nat \where Logic.And[Positive r,
               \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
-                (at (S.sub (SupremumSeq A base choice) y) i)] } })) =>
-          \take (N: \Cast[Nat] ({ k : Nat \where Logic.And[Positive r,
+                (at (S.sub (SupremumSeq A base choice) y) i)] } }, r) \then
+          \takefrom j: \Cast[Nat] ({ j : Nat \where
+              \forall (i: Nat) -> NatLe j i ->
+                ltRat (error i) (half r) }) \by errorEventuallySmall (half r)
+            (halfPositiveOf r
+              #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
+                \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
+                  (at (S.sub (SupremumSeq A base choice) y) i)] }, N))}) \then
+          \let rPositive: Positive r :=
+            #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
               \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
-                (at (S.sub (SupremumSeq A base choice) y) i)] })) =>
-            \take (j: \Cast[Nat] ({ j : Nat \where
-                \forall (i: Nat) -> NatLe j i ->
-                  ltRat (error i) (half r) })) =>
-              \block {
-                \let rPositive: Positive r :=
-                  #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
-                    \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
-                      (at (S.sub (SupremumSeq A base choice) y) i)] }, N))} \then
-                \let small: ltRat (error j) (half r) :=
-                  (\bysub(Nat, { j : Nat \where
-                    \forall (i: Nat) -> NatLe j i ->
-                      ltRat (error i) (half r) }, j)) j (NL.leRefl j) \then
-                \let positiveTranslated: S.EventuallyPositive
-                    (S.sub (SupremumSeq A base choice)
-                      (TranslateSeq y (error j))) :=
-                  positiveAfterSmallConstant
-                    (SupremumSeq A base choice) y r N rPositive
-                    (#right{(\bysub(Nat,
-                      { k : Nat \where Logic.And[Positive r,
-                        \forall (i: Nat) -> NatLe k i ->
-                          RationalOperations.Le r
-                            (at (S.sub
-                              (SupremumSeq A base choice) y) i)] }, N))})
-                    (error j) small \then
-                \let supremumLeTranslated: S.SeqLe
-                    (SupremumSeq A base choice) (TranslateSeq y (error j)) :=
-                  S.seqLeTrans (SupremumSeq A base choice)
-                    (TranslateSeq base (Approximation A base choice j))
-                    (TranslateSeq y (error j))
-                    (supremumSeqLeGrid A base choice j)
-                    (minimalGridLeTranslatedUpper A base baseMember
-                      (error j) (errorPositive j) (choice j)
-                      (chosenMinimal A base choice j) y upper) \then
-                \return (notSeqLeReverseOfPositive
-                    (TranslateSeq y (error j))
-                    (SupremumSeq A base choice) positiveTranslated)
-                  supremumLeTranslated
-              }
-            \by { errorEventuallySmall (half r)
-              (halfPositiveOf r
-                #left{(\bysub(Nat, { k : Nat \where Logic.And[Positive r,
-                  \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
-                    (at (S.sub (SupremumSeq A base choice) y) i)] }, N))}) }
-          \by { \bysub(Rat, { r : Rat \where
-            \exists { k : Nat \where Logic.And[Positive r,
-              \forall (i: Nat) -> NatLe k i -> RationalOperations.Le r
-                (at (S.sub (SupremumSeq A base choice) y) i)] } }, r) }
-        \by { positive }));
+                (at (S.sub (SupremumSeq A base choice) y) i)] }, N))} \then
+          \let small: ltRat (error j) (half r) :=
+            (\bysub(Nat, { j : Nat \where
+              \forall (i: Nat) -> NatLe j i ->
+                ltRat (error i) (half r) }, j)) j (NL.leRefl j) \then
+          \let positiveTranslated: S.EventuallyPositive
+              (S.sub (SupremumSeq A base choice)
+                (TranslateSeq y (error j))) :=
+            positiveAfterSmallConstant
+              (SupremumSeq A base choice) y r N rPositive
+              (#right{(\bysub(Nat,
+                { k : Nat \where Logic.And[Positive r,
+                  \forall (i: Nat) -> NatLe k i ->
+                    RationalOperations.Le r
+                      (at (S.sub
+                        (SupremumSeq A base choice) y) i)] }, N))})
+              (error j) small \then
+          \let supremumLeTranslated: S.SeqLe
+              (SupremumSeq A base choice) (TranslateSeq y (error j)) :=
+            S.seqLeTrans (SupremumSeq A base choice)
+              (TranslateSeq base (Approximation A base choice j))
+              (TranslateSeq y (error j))
+              (supremumSeqLeGrid A base choice j)
+              (minimalGridLeTranslatedUpper A base baseMember
+                (error j) (errorPositive j) (choice j)
+                (chosenMinimal A base choice j) y upper) \then
+          \return (notSeqLeReverseOfPositive
+              (TranslateSeq y (error j))
+              (SupremumSeq A base choice) positiveTranslated)
+            supremumLeTranslated
+        }));
 
 \definition supremumLeast
     (A: \Pow Real) (base: CauchySeq)
@@ -1614,26 +1603,28 @@
     (baseMember: Member A (O.class base))
     (bounded: BoundedAbove A):
     AR.HasLeastUpperBound O.raw A :=
-  \take (choice: \forall (n: Nat) -> GridChoice A base n) =>
-    \exact(
-      \into[Real](Supremum A base choice,
-        { u : Real \where AR.IsLeastUpperBound O.raw A u }) \by {
-          supremumLaw A base baseMember choice },
-      \Cast[Real] ({ u : Real \where
-        AR.IsLeastUpperBound O.raw A u }))
-  \by { gridChoiceExists A base bounded };
+  \block {
+    \takefrom choice: \forall (n: Nat) -> GridChoice A base n \by gridChoiceExists A base bounded \then
+    \return \exact(
+        \into[Real](Supremum A base choice,
+          { u : Real \where AR.IsLeastUpperBound O.raw A u }) \by {
+            supremumLaw A base baseMember choice },
+        \Cast[Real] ({ u : Real \where
+          AR.IsLeastUpperBound O.raw A u }))
+  };
 
 \definition complete (A: \Pow Real)
     (inhabited: AR.Inhabited A) (bounded: AR.BoundedAbove O.raw A):
     AR.HasLeastUpperBound O.raw A :=
-  \take (x: \Cast[Real] ({ x : Real \where Member A x })) =>
-    O.quotientInduction
-      (\fun (z: Real) => Member A z -> AR.HasLeastUpperBound O.raw A)
-      (\fun (base: CauchySeq) =>
-        \fun (baseMember: Member A (O.class base)) =>
-          completeAtClass A base baseMember bounded)
-      x (\bysub(Real, { x : Real \where Member A x }, x))
-  \by { inhabited };
+  \block {
+    \takefrom x: \Cast[Real] ({ x : Real \where Member A x }) \by inhabited \then
+    \return O.quotientInduction
+        (\fun (z: Real) => Member A z -> AR.HasLeastUpperBound O.raw A)
+        (\fun (base: CauchySeq) =>
+          \fun (baseMember: Member A (O.class base)) =>
+            completeAtClass A base baseMember bounded)
+        x (\bysub(Real, { x : Real \where Member A x }, x))
+  };
 
 \definition completeness: AR.Completeness O.raw := complete;
 
