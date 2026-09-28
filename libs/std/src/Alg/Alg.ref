@@ -1,0 +1,109 @@
+/* Groups and semirings over arbitrary carriers. */
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Alg[].Monoid[] \as M;
+\import std.Logic[].Law[] \as Law;
+\use Logic.not;
+
+\record RawGroup[Carrier: \Set]: \Set := {
+  unit: Carrier,
+  op: Carrier -> Carrier -> Carrier,
+  inv: Carrier -> Carrier,
+};
+
+\definition groupMonoid (Carrier: \Set) (s: RawGroup[Carrier]): M.RawMonoid[Carrier] :=
+  M.RawMonoid[Carrier]::# (#unit{s}) (#op{s});
+
+\record GroupLaws[Carrier: \Set, s: RawGroup[Carrier]]: \Prop := {
+  monoid: M.MonoidLaws[Carrier, groupMonoid Carrier s],
+  leftInverse: Law.LeftInvertible Carrier (#op{s}) (#unit{s}) (#inv{s}),
+  rightInverse: Law.RightInvertible Carrier (#op{s}) (#unit{s}) (#inv{s}),
+};
+
+\definition groupLawsIntro (Carrier: \Set) (s: RawGroup[Carrier])
+  (left: \forall (x: Carrier) -> #op{s} (#unit{s}) x = x)
+  (right: \forall (x: Carrier) -> #op{s} x (#unit{s}) = x)
+  (assoc: \forall (x, y, z: Carrier) ->
+    #op{s} (#op{s} x y) z = #op{s} x (#op{s} y z))
+  (leftInv: \forall (x: Carrier) -> #op{s} (#inv{s} x) x = #unit{s})
+  (rightInv: \forall (x: Carrier) -> #op{s} x (#inv{s} x) = #unit{s}):
+  GroupLaws[Carrier, s] :=
+    GroupLaws[Carrier, s]::#
+      (M.monoidLawsIntro Carrier (groupMonoid Carrier s) left right assoc)
+      leftInv rightInv;
+
+\definition GroupSet (Carrier: \Set): \Pow (RawGroup[Carrier]) :=
+  { s : RawGroup[Carrier] \where GroupLaws[Carrier, s] };
+\definition Group (Carrier: \Set): \Set := \Cast[RawGroup[Carrier]] (GroupSet Carrier);
+\definition groupLaws (Carrier: \Set) (s: Group Carrier): GroupLaws[Carrier, s] :=
+  \bysub(RawGroup[Carrier], GroupSet Carrier, s);
+
+\record CommutativeGroupLaws[Carrier: \Set, s: RawGroup[Carrier]]: \Prop := {
+  group: GroupLaws[Carrier, s],
+  commutative: Law.Commutative Carrier (#op{s}),
+};
+
+\definition commutativeGroupLawsIntro
+  (Carrier: \Set) (s: RawGroup[Carrier])
+  (base: GroupLaws[Carrier, s])
+  (comm: \forall (x, y: Carrier) -> #op{s} x y = #op{s} y x):
+  CommutativeGroupLaws[Carrier, s] :=
+  CommutativeGroupLaws[Carrier, s]::# base comm;
+
+\definition CommutativeGroupSet (Carrier: \Set): \Pow (RawGroup[Carrier]) :=
+  { s : RawGroup[Carrier] \where CommutativeGroupLaws[Carrier, s] };
+\definition CommutativeGroup (Carrier: \Set): \Set :=
+  \Cast[RawGroup[Carrier]] (CommutativeGroupSet Carrier);
+\definition commutativeGroupLaws (Carrier: \Set) (s: CommutativeGroup Carrier):
+  CommutativeGroupLaws[Carrier, s] :=
+    \bysub(RawGroup[Carrier], CommutativeGroupSet Carrier, s);
+\definition asGroup (Carrier: \Set) (s: CommutativeGroup Carrier): Group Carrier :=
+    \into[RawGroup[Carrier]](s, GroupSet Carrier) \by {
+      #group{(commutativeGroupLaws Carrier s)}
+    };
+
+\record RawSemiring[Carrier: \Set]: \Set := {
+  zero: Carrier,
+  one: Carrier,
+  add: Carrier -> Carrier -> Carrier,
+  mul: Carrier -> Carrier -> Carrier,
+};
+
+\definition additiveMonoid (Carrier: \Set) (s: RawSemiring[Carrier]): M.RawMonoid[Carrier] :=
+  M.RawMonoid[Carrier]::# (#zero{s}) (#add{s});
+\definition multiplicativeMonoid (Carrier: \Set) (s: RawSemiring[Carrier]): M.RawMonoid[Carrier] :=
+  M.RawMonoid[Carrier]::# (#one{s}) (#mul{s});
+
+\record SemiringLaws[Carrier: \Set, s: RawSemiring[Carrier]]: \Prop := {
+  additive: M.CommutativeMonoidLaws[Carrier, additiveMonoid Carrier s],
+  multiplicative: M.MonoidLaws[Carrier, multiplicativeMonoid Carrier s],
+  leftDistributive: Law.LeftDistributive Carrier (#mul{s}) (#add{s}),
+  rightDistributive: Law.RightDistributive Carrier (#mul{s}) (#add{s}),
+  zeroAbsorbsLeft: \forall (x: Carrier) -> #mul{s} (#zero{s}) x = #zero{s},
+  zeroAbsorbsRight: \forall (x: Carrier) -> #mul{s} x (#zero{s}) = #zero{s},
+};
+
+\definition semiringLawsIntro (Carrier: \Set) (s: RawSemiring[Carrier])
+  (addLeft: \forall (x: Carrier) -> #add{s} (#zero{s}) x = x)
+  (addRight: \forall (x: Carrier) -> #add{s} x (#zero{s}) = x)
+  (addAssoc: \forall (x, y, z: Carrier) -> #add{s} (#add{s} x y) z = #add{s} x (#add{s} y z))
+  (addComm: \forall (x, y: Carrier) -> #add{s} x y = #add{s} y x)
+  (mulLeft: \forall (x: Carrier) -> #mul{s} (#one{s}) x = x)
+  (mulRight: \forall (x: Carrier) -> #mul{s} x (#one{s}) = x)
+  (mulAssoc: \forall (x, y, z: Carrier) -> #mul{s} (#mul{s} x y) z = #mul{s} x (#mul{s} y z))
+  (distribLeft: \forall (x, y, z: Carrier) -> #mul{s} x (#add{s} y z) = #add{s} (#mul{s} x y) (#mul{s} x z))
+  (distribRight: \forall (x, y, z: Carrier) -> #mul{s} (#add{s} x y) z = #add{s} (#mul{s} x z) (#mul{s} y z))
+  (absorbLeft: \forall (x: Carrier) -> #mul{s} (#zero{s}) x = #zero{s})
+  (absorbRight: \forall (x: Carrier) -> #mul{s} x (#zero{s}) = #zero{s}):
+  SemiringLaws[Carrier, s] :=
+  SemiringLaws[Carrier, s]::# (M.commutativeMonoidLawsIntro Carrier (additiveMonoid Carrier s)
+        (M.monoidLawsIntro Carrier (additiveMonoid Carrier s)
+        addLeft addRight addAssoc) addComm)
+      (M.monoidLawsIntro Carrier (multiplicativeMonoid Carrier s)
+        mulLeft mulRight mulAssoc) distribLeft distribRight absorbLeft absorbRight;
+
+\definition SemiringSet (Carrier: \Set): \Pow (RawSemiring[Carrier]) :=
+  { s : RawSemiring[Carrier] \where SemiringLaws[Carrier, s] };
+\definition Semiring (Carrier: \Set): \Set := \Cast[RawSemiring[Carrier]] (SemiringSet Carrier);
+\definition semiringLaws (Carrier: \Set) (s: Semiring Carrier): SemiringLaws[Carrier, s] :=
+  \bysub(RawSemiring[Carrier], SemiringSet Carrier, s);
+

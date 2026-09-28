@@ -123,7 +123,7 @@ CLI の既存 fixtures と library project もこの frontend を通る。
 module の部分編集による再利用は、次の example で未編集・再実行・buffer 編集・全再構築を比較できる。
 
 ```sh
-cargo run --release --locked --offline -p sema --example incremental -- libs/std libs/std/src/Algebra/Algebra.ref
+cargo run --release --locked --offline -p sema --example incremental -- libs/std libs/std/src/Alg/Alg.ref
 ```
 
 example は編集後の incremental result と全再構築の semantic result が一致することも確認する。
@@ -138,6 +138,6 @@ example は編集後の incremental result と全再構築の semantic result �
 | 空の disk cache | 2.44–2.84 秒 | 約 201 MiB | 63 |
 | 別プロセスの disk cache 再利用 | 0.12–0.14 秒 | 約 55 MiB | 0 |
 
-`incremental` example では、初回 3.13 秒、同じ snapshot への再問い合わせ 57 ms、`Algebra/Algebra.ref` への宣言追加後 1.50 秒だった。
+名称変更前の `incremental` example では、初回 3.13 秒、同じ snapshot への再問い合わせ 57 ms、`Algebra/Algebra.ref` への宣言追加後 1.50 秒だった。
 編集後の全再構築は 2.98 秒で、両方の semantic result は一致した。
 編集時は 51 ファイル中１ファイルを再解析し、依存先の再構築を含む 38 module を検査した。

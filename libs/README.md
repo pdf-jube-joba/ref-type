@@ -13,7 +13,7 @@
 | データ | `Data/Bool.ref`、`Data/Pair.ref`、`Data/Sum.ref`、`Data/FinSet.ref` | 基本データ、直積、直和、有限集合 |
 | 自然数 | `Nat.ref` と `Nat/` 以下 | 自然数の演算、仕様、法則 |
 | 集合 | `Set/Quotient.ref` | 同値類、商の台集合、演算の relational image |
-| 代数 | `Algebra/Monoid.ref`、`Algebra/Algebra.ref` | Monoid、Group、Semiring、Ring、Field |
+| 代数 | `Alg/Monoid.ref`、`Alg/Alg.ref`、`Alg/Ring.ref`、`Alg/Field.ref` | Monoid、Group、Semiring、Ring、Field、環上の加群、環上の代数 |
 | 算術 | `Arithmetic/Int.ref`、`Arithmetic/Rat.ref`、`Arithmetic/IntAlgebra.ref` と各子モジュール | 整数、有理数、整数の代数構造 |
 | 実数 | `Reals/AxiomaticReals.ref`、`Reals/DedekindReal.ref`、`Reals/CauchyReal.ref` と各子モジュール | 公理的実数、Dedekind 実数、Cauchy 実数 |
 | 幾何 | `Geometry/Topology.ref` | 位相空間 |

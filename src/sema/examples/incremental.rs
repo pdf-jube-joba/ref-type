@@ -1,4 +1,4 @@
-//! Run with: cargo run --release -p sema --example incremental -- libs/std libs/std/src/Algebra/Algebra.ref
+//! Run with: cargo run --release -p sema --example incremental -- libs/std libs/std/src/Alg/Alg.ref
 use sema::{Database, SourceSnapshot};
 use std::{path::PathBuf, time::Instant};
 

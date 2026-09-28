@@ -1,0 +1,65 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Alg[].Ring[] \as R;
+\use Logic.not;
+
+\record RawField[Carrier: \Set]: \Set := {
+  zero: Carrier,
+  one: Carrier,
+  add: Carrier -> Carrier -> Carrier,
+  neg: Carrier -> Carrier,
+  mul: Carrier -> Carrier -> Carrier,
+  inv: Carrier -> Carrier,
+};
+
+\definition fieldRing (Carrier: \Set) (s: RawField[Carrier]): R.RawRing[Carrier] :=
+  R.RawRing[Carrier]::# (#zero{s}) (#one{s}) (#add{s}) (#neg{s}) (#mul{s});
+\definition FieldNonZero (Carrier: \Set) (s: RawField[Carrier]) (x: Carrier): \Prop :=
+    not!{{ x = #zero{s} }};
+\definition FieldNontrivial (Carrier: \Set) (s: RawField[Carrier]): \Prop :=
+    not!{{ #zero{s} = #one{s} }};
+\definition FieldInverseLaws (Carrier: \Set) (s: RawField[Carrier]): \Prop :=
+    \forall (x: Carrier) -> FieldNonZero Carrier s x ->
+      #mul{s} (#inv{s} x) x = #one{s};
+
+\definition FieldLaws (Carrier: \Set) (s: RawField[Carrier]): \Prop :=
+    Logic.And[R.CommutativeRingLaws[Carrier, fieldRing Carrier s],
+      Logic.And[FieldNontrivial Carrier s, FieldInverseLaws Carrier s]];
+
+\definition fieldLawsIntro (Carrier: \Set) (s: RawField[Carrier])
+    (ring: R.CommutativeRingLaws[Carrier, fieldRing Carrier s])
+    (nontrivial: FieldNontrivial Carrier s) (inverse: FieldInverseLaws Carrier s):
+    FieldLaws Carrier s :=
+    Logic.And[
+      R.CommutativeRingLaws[Carrier, fieldRing Carrier s],
+      Logic.And[FieldNontrivial Carrier s, FieldInverseLaws Carrier s]
+    ]::# ring (Logic.And[FieldNontrivial Carrier s, FieldInverseLaws Carrier s]::# nontrivial inverse);
+
+\definition FieldSet (Carrier: \Set): \Pow (RawField[Carrier]) :=
+  { s : RawField[Carrier] \where FieldLaws Carrier s };
+\definition Field (Carrier: \Set): \Set := \Cast[RawField[Carrier]] (FieldSet Carrier);
+\definition fieldLaws (Carrier: \Set) (s: Field Carrier): FieldLaws Carrier s :=
+  \bysub(RawField[Carrier], FieldSet Carrier, s);
+\definition fieldCommutativeRingLaws (Carrier: \Set) (s: Field Carrier):
+    R.CommutativeRingLaws[Carrier, fieldRing Carrier s] :=
+    (\fun (h: Logic.And[
+      R.CommutativeRingLaws[Carrier, fieldRing Carrier s],
+      Logic.And[FieldNontrivial Carrier s, FieldInverseLaws Carrier s]
+    ]) => #left{h}) (fieldLaws Carrier s);
+\definition fieldNontrivial (Carrier: \Set) (s: Field Carrier): FieldNontrivial Carrier s :=
+    (\fun (h: Logic.And[FieldNontrivial Carrier s, FieldInverseLaws Carrier s]) =>
+      #left{h})
+      ((\fun (h: Logic.And[
+        R.CommutativeRingLaws[Carrier, fieldRing Carrier s],
+        Logic.And[FieldNontrivial Carrier s, FieldInverseLaws Carrier s]
+      ]) => #right{h}) (fieldLaws Carrier s));
+\definition fieldInverse (Carrier: \Set) (s: Field Carrier): FieldInverseLaws Carrier s :=
+    (\fun (h: Logic.And[FieldNontrivial Carrier s, FieldInverseLaws Carrier s]) =>
+      #right{h})
+      ((\fun (h: Logic.And[
+        R.CommutativeRingLaws[Carrier, fieldRing Carrier s],
+        Logic.And[FieldNontrivial Carrier s, FieldInverseLaws Carrier s]
+      ]) => #right{h}) (fieldLaws Carrier s));
+\definition fieldAsCommutativeRing (Carrier: \Set) (s: Field Carrier): R.CommutativeRing Carrier :=
+    \into[R.RawRing[Carrier]](fieldRing Carrier s, R.CommutativeRingSet Carrier) \by {
+      fieldCommutativeRingLaws Carrier s
+    };

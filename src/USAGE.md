@@ -53,8 +53,8 @@ typing span は無効で、型検査に必要な証明は各項の部分項と�
 `\module Name { ... }` を繰り返さず、module item を直接記述する。
 
 子 module の配置は論理 module パスに対応する。たとえば `root.ref` の
-`\module Algebra;` は `Algebra.ref`、その中の `\module Group;` は
-`Algebra/Group.ref` を読み込む。ファイル名の大文字と小文字は宣言と一致させる。
+`\module Alg;` は `Alg.ref`、その中の `\module Ring;` は
+`Alg/Ring.ref` を読み込む。ファイル名の大文字と小文字は宣言と一致させる。
 
 module は elaboration のパラメーター付き名前空間として扱う。
 import は引数の代入を保持し、その alias を起点に child module も参照できる。
