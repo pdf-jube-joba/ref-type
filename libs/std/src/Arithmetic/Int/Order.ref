@@ -22,23 +22,17 @@
   \idelim(ltb^ x y = N.ltb^ (crossLeft x y) (crossLeft y x)
     \with flag: B.Bool^ => flag = B.Bool^::true)
     \by { base: h, equality: ltbAsCross x y };
-\definition Comparison (x, y: Integer): \Prop :=
-  O.Comparison (IntegerLt x y) (x = y) (IntegerLt y x);
-\definition trichotomy (x, y: Integer): Comparison x y :=
-  \match (NO.trichotomy (crossLeft x y) (crossLeft y x)) \in L.Or
-    \return (\fun (_: NO.Comparison (crossLeft x y) (crossLeft y x)) => Comparison x y) \with {
-  | left h :
-      L.Or[IntegerLt x y, L.Or[x = y, IntegerLt y x]]::left (ltOfCross x y h)
-  | right rest :
-      L.Or[IntegerLt x y, L.Or[x = y, IntegerLt y x]]::right
-        (\match rest \in L.Or
-          \return (\fun (_: L.Or[crossLeft x y = crossLeft y x, NL.Lt (crossLeft y x) (crossLeft x y)]) =>
-            L.Or[x = y, IntegerLt y x]) \with {
-        | left e : L.Or[x = y, IntegerLt y x]::left (eqOfRepresentatives x y e)
-        | right h :
-            L.Or[x = y, IntegerLt y x]::right (ltOfCross y x h)
-        })
+\definition Trichotomy (x, y: Integer): \Prop :=
+  O.Trichotomy[Integer, IntegerLt, x, y];
+\definition trichotomy (x, y: Integer): Trichotomy x y :=
+  \match (NO.trichotomy (crossLeft x y) (crossLeft y x)) \in O.Trichotomy
+    \return (\fun (_: NO.Trichotomy (crossLeft x y) (crossLeft y x)) => Trichotomy x y) \with {
+  | less h : O.Trichotomy[Integer, IntegerLt, x, y]::less (ltOfCross x y h)
+  | equal e : O.Trichotomy[Integer, IntegerLt, x, y]::equal (eqOfRepresentatives x y e)
+  | greater h : O.Trichotomy[Integer, IntegerLt, x, y]::greater (ltOfCross y x h)
   };
+\definition comparable: O.Comparable Integer IntegerLt :=
+  \fun (x, y: Integer) => trichotomy x y;
 \definition ltIrrefl (x: Integer) (h: IntegerLt x x): L.False :=
   NL.ltIrrefl (crossLeft x x) (crossOfLt x x h);
 
@@ -232,21 +226,17 @@
 
 \definition ltCancelAddRight (x, y, z: Integer)
   (xy: IntegerLt (addInteger x z) (addInteger y z)): IntegerLt x y :=
-  \match (trichotomy x y) \in L.Or
-    \return (\fun (_: Comparison x y) => IntegerLt x y) \with {
-  | left direct : direct
-  | right rest :
-      \match rest \in L.Or
-        \return (\fun (_: L.Or[x = y, IntegerLt y x]) => IntegerLt x y) \with {
-      | left same :
+  \match (trichotomy x y) \in O.Trichotomy
+    \return (\fun (_: Trichotomy x y) => IntegerLt x y) \with {
+  | less direct : direct
+  | equal same :
           L.falseElim (IntegerLt x y)
             (ltNotEq (addInteger x z) (addInteger y z) xy
               (addIntegerRespects x y z z same (integerEqRefl z)))
-      | right reverse :
+  | greater reverse :
           L.falseElim (IntegerLt x y)
             (ltAsym (addInteger x z) (addInteger y z) xy
               (ltAddRight y x z reverse))
-      }
   };
 
 \definition ltCancelAddLeft (z, x, y: Integer)

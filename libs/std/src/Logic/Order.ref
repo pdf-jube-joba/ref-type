@@ -1,30 +1,89 @@
-/* Three-way comparison results and their propositional forms. */
+/* Order relations and three-way comparison. */
+\import std.Logic[].Rel[] \as Rel;
 \import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
 
-\inductive Ordering: \VType :=
-| Less: Ordering
-| Equal: Ordering
-| Greater: Ordering
+\inductive LessOrEqual[A: \Set, less: Rel.Relation[A], x: A, y: A]: \Prop :=
+| equal: x = y -> LessOrEqual
+| less: less x y -> LessOrEqual
 ;
 
-\definition isLess (ordering: Ordering^): \Prop :=
-  ordering = Ordering^::Less;
+\inductive GreaterOrEqual[A: \Set, greater: Rel.Relation[A], x: A, y: A]: \Prop :=
+| equal: x = y -> GreaterOrEqual
+| greater: greater x y -> GreaterOrEqual
+;
 
-\definition isEqual (ordering: Ordering^): \Prop :=
-  ordering = Ordering^::Equal;
+\definition lessOrEqualOfEqual(A: \Set)(less: Rel.Relation[A])
+  (x, y: A) (same: x = y): LessOrEqual[A, less, x, y] :=
+  LessOrEqual[A, less, x, y]::equal same;
 
-\definition isGreater (ordering: Ordering^): \Prop :=
-  ordering = Ordering^::Greater;
+\definition lessOrEqualOfLess(A: \Set)(less: Rel.Relation[A])
+  (x, y: A) (xy: less x y): LessOrEqual[A, less, x, y] :=
+  LessOrEqual[A, less, x, y]::less xy;
 
-/* ここより下全部が全部微妙 */
-\definition LessOrEqual(equal, less: \Prop): \Prop :=
-  Logic.Or[equal, less];
+\definition lessOrEqualReplaceLeft(A: \Set)(less: Rel.Relation[A])
+  (x, y, z: A) (same: x = y) (yz: LessOrEqual[A, less, y, z]):
+  LessOrEqual[A, less, x, z] :=
+  \idelim(y = x \with a: A => LessOrEqual[A, less, a, z])
+    \by { base: yz, equality: sym!{A} x y same };
 
-\definition GreaterOrEqual(equal, greater: \Prop): \Prop :=
-  Logic.Or[equal, greater];
+\definition lessOrEqualReplaceRight(A: \Set)(less: Rel.Relation[A])
+  (x, y, z: A) (xy: LessOrEqual[A, less, x, y]) (same: y = z):
+  LessOrEqual[A, less, x, z] :=
+  \idelim(y = z \with b: A => LessOrEqual[A, less, x, b])
+    \by { base: xy, equality: same };
 
-\definition Trichotomy(less, equal, greater: \Prop): \Prop :=
-  Logic.Or[less, Logic.Or[equal, greater]];
+\definition lessOrEqualOrdering(A: \Set)(less: Rel.Relation[A])
+  (strict: Rel.StrictOrder[A, less]):
+  Rel.Ordering[A, \fun (x, y: A) => LessOrEqual[A, less, x, y]] :=
+  Rel.Ordering[A, \fun (x, y: A) => LessOrEqual[A, less, x, y]] {
+    refl := \fun (x: A) => LessOrEqual[A, less, x, x]::equal (\refl(x)),
+    antisym := \fun (x, y: A) (xy: LessOrEqual[A, less, x, y])
+      (yx: LessOrEqual[A, less, y, x]) =>
+      \match xy \in LessOrEqual \return (\fun (_: LessOrEqual[A, less, x, y]) => x = y) \with {
+      | equal same : same
+      | less forward :
+          \match yx \in LessOrEqual \return (\fun (_: LessOrEqual[A, less, y, x]) => x = y) \with {
+          | equal same : sym!{A} y x same
+          | less backward : Logic.falseElim (x = y)
+              (strict #irrefl x (strict #trans x y x forward backward))
+          }
+      },
+    trans := \fun (x, y, z: A) (xy: LessOrEqual[A, less, x, y])
+      (yz: LessOrEqual[A, less, y, z]) =>
+      \match xy \in LessOrEqual \return (\fun (_: LessOrEqual[A, less, x, y]) =>
+        LessOrEqual[A, less, x, z]) \with {
+      | equal same : lessOrEqualReplaceLeft A less x y z same yz
+      | less forward :
+          \match yz \in LessOrEqual \return (\fun (_: LessOrEqual[A, less, y, z]) =>
+            LessOrEqual[A, less, x, z]) \with {
+          | equal same : lessOrEqualReplaceRight A less x y z
+              (lessOrEqualOfLess A less x y forward) same
+          | less next : lessOrEqualOfLess A less x z
+              (strict #trans x y z forward next)
+          }
+      },
+  };
 
-\definition Comparison(less, equal, greater: \Prop): \Prop :=
-  Trichotomy less equal greater;
+\inductive Trichotomy[A: \Set, less: Rel.Relation[A], x: A, y: A]: \Prop :=
+| less: less x y -> Trichotomy
+| equal: x = y -> Trichotomy
+| greater: less y x -> Trichotomy
+;
+
+\definition Comparable(A: \Set)(less: Rel.Relation[A]): \Prop :=
+  \forall (x, y: A) -> Trichotomy[A, less, x, y];
+
+\definition trichotomyOr(A: \Set)(less: Rel.Relation[A])(x, y: A)
+  (choice: Trichotomy[A, less, x, y]):
+  Logic.Or[less x y, Logic.Or[x = y, less y x]] :=
+  \match choice \in Trichotomy
+    \return (\fun (_: Trichotomy[A, less, x, y]) =>
+      Logic.Or[less x y, Logic.Or[x = y, less y x]]) \with {
+  | less xy : Logic.Or[less x y, Logic.Or[x = y, less y x]]::left xy
+  | equal same : Logic.Or[less x y, Logic.Or[x = y, less y x]]::right
+      (Logic.Or[x = y, less y x]::left same)
+  | greater yx : Logic.Or[less x y, Logic.Or[x = y, less y x]]::right
+      (Logic.Or[x = y, less y x]::right yx)
+  };

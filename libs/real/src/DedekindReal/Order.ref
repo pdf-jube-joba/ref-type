@@ -75,34 +75,34 @@
       (\idelim(y = x \with z: Real => Lt x z)
         \by { base: xy, equality: sym!{Real} x y same });
 
-\definition ltTrichotomy (x, y: Real):
-  O.Comparison (Lt x y) (x = y) (Lt y x) :=
+\definition comparable: O.Comparable Real Lt := \fun (x, y: Real) =>
   Logic.orElim (Le x y) (Le y x)
-    (O.Comparison (Lt x y) (x = y) (Lt y x))
+    (O.Trichotomy[Real, Lt, x, y])
     (\fun (xy: Le x y) =>
       Logic.orElim (x = y) (Logic.Not (x = y))
-        (O.Comparison (Lt x y) (x = y) (Lt y x))
+        (O.Trichotomy[Real, Lt, x, y])
         (\fun (same: x = y) =>
-          Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]]::right
-            (Logic.Or[x = y, Lt y x]::left same))
+          O.Trichotomy[Real, Lt, x, y]::equal same)
         (\fun (different: Logic.Not (x = y)) =>
-          Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]]::left
+          O.Trichotomy[Real, Lt, x, y]::less
             (ltOfLeNotEq x y xy different))
         (Classical.excludedMiddle (x = y)))
     (\fun (yx: Le y x) =>
       Logic.orElim (x = y) (Logic.Not (x = y))
-        (O.Comparison (Lt x y) (x = y) (Lt y x))
+        (O.Trichotomy[Real, Lt, x, y])
         (\fun (same: x = y) =>
-          Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]]::right
-            (Logic.Or[x = y, Lt y x]::left same))
+          O.Trichotomy[Real, Lt, x, y]::equal same)
         (\fun (different: Logic.Not (x = y)) =>
-          Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]]::right
-            (Logic.Or[x = y, Lt y x]::right
-              (ltOfLeNotEq y x yx
-                (\fun (same: y = x) =>
-                  different (sym!{Real} y x same)))))
+          O.Trichotomy[Real, Lt, x, y]::greater
+            (ltOfLeNotEq y x yx
+              (\fun (same: y = x) =>
+                different (sym!{Real} y x same))))
         (Classical.excludedMiddle (x = y)))
     (leTotal x y);
+
+\definition ltTrichotomy (x, y: Real):
+  Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]] :=
+  O.trichotomyOr Real Lt x y (comparable x y);
 
 /* This relation is used by every arithmetic structure on the cut carrier. */
 \definition leRelation: \Pow (Pair.Times^[Real, Real]) :=

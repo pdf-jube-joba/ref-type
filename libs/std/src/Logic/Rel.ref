@@ -43,6 +43,36 @@
   trans: Transitive Carrier R,
 };
 
+\record StrictOrder[Carrier: \Set, R: Relation[Carrier]]: \Prop := {
+  irrefl: Irreflexive Carrier R,
+  trans: Transitive Carrier R,
+};
+
+\definition Reverse(Carrier: \Set)(R: Relation[Carrier]): Relation[Carrier] :=
+  \fun (x, y: Carrier) => R y x;
+
+\definition Greater(Carrier: \Set)(less: Relation[Carrier]): Relation[Carrier] :=
+  Reverse Carrier less;
+
+\definition lessGreaterInverse(Carrier: \Set)(less: Relation[Carrier])
+  (x, y: Carrier): Logic.PropEquiv[less x y, Greater Carrier less y x] :=
+  Logic.PropEquiv[less x y, Greater Carrier less y x] {
+    ltr := \fun (xy: less x y) => xy,
+    rtl := \fun (xy: Greater Carrier less y x) => xy,
+  };
+
+\definition reverseStrictOrder(Carrier: \Set)(R: Relation[Carrier])
+  (order: StrictOrder[Carrier, R]): StrictOrder[Carrier, Reverse Carrier R] :=
+  StrictOrder[Carrier, Reverse Carrier R] {
+    irrefl := order #irrefl,
+    trans := \fun (x, y, z: Carrier) (xy: R y x) (yz: R z y) =>
+      order #trans z y x yz xy,
+  };
+
+\definition greaterStrictOrder(Carrier: \Set)(less: Relation[Carrier])
+  (law: StrictOrder[Carrier, less]): StrictOrder[Carrier, Greater Carrier less] :=
+  reverseStrictOrder Carrier less law;
+
 /* as set */
 
 \definition RelPair(Carrier: \Set): \Set := \Pow (Pair.Times^[Carrier, Carrier]);

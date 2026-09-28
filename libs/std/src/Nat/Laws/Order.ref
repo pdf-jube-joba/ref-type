@@ -1,43 +1,30 @@
 /* Order lemmas used for rational comparisons and common sequence bounds. */
 \import std.Logic[].Proposition[] \as Logic;
 \import std.Logic[].Order[] \as O;
-\definition Comparison (a, b: Nat^): \Prop :=
-  O.Comparison (Lt a b) (a = b) (Lt b a);
-\definition comparisonSucc (a, b: Nat^) (h: Comparison a b):
-  Comparison (Nat^::succ a) (Nat^::succ b) :=
-  \match h \in Logic.Or \return (\fun (_: Comparison a b) =>
-    Comparison (Nat^::succ a) (Nat^::succ b)) \with {
-  | left ab :
-      Logic.Or[Lt (Nat^::succ a) (Nat^::succ b),
-        Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]]::left ab
-  | right rest :
-      Logic.Or[Lt (Nat^::succ a) (Nat^::succ b),
-        Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]]::right
-        (\match rest \in Logic.Or \return (\fun (_: Logic.Or[a = b, Lt b a]) =>
-          Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]) \with {
-        | left ab :
-            Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]::left
-              (succCong a b ab)
-        | right ba :
-            Logic.Or[Nat^::succ a = Nat^::succ b, Lt (Nat^::succ b) (Nat^::succ a)]::right ba
-        })
+\definition Trichotomy (a, b: Nat^): \Prop := O.Trichotomy[Nat^, Lt, a, b];
+\definition comparisonSucc (a, b: Nat^) (h: Trichotomy a b):
+  Trichotomy (Nat^::succ a) (Nat^::succ b) :=
+  \match h \in O.Trichotomy \return (\fun (_: Trichotomy a b) =>
+    Trichotomy (Nat^::succ a) (Nat^::succ b)) \with {
+  | less ab : O.Trichotomy[Nat^, Lt, Nat^::succ a, Nat^::succ b]::less ab
+  | equal ab : O.Trichotomy[Nat^, Lt, Nat^::succ a, Nat^::succ b]::equal (succCong a b ab)
+  | greater ba : O.Trichotomy[Nat^, Lt, Nat^::succ a, Nat^::succ b]::greater ba
   };
-\definition trichotomy: \forall (a, b: Nat^) -> Comparison a b :=
-  \induction (a: Nat^) \return \forall (b: Nat^) -> Comparison a b \with {
-    | zero : (\induction (b: Nat^) \return Comparison Nat^::zero b \with {
-      | zero : (Logic.Or[Lt Nat^::zero Nat^::zero, Logic.Or[Nat^::zero = Nat^::zero, Lt Nat^::zero Nat^::zero]]::right
-        (Logic.Or[Nat^::zero = Nat^::zero, Lt Nat^::zero Nat^::zero]::left (\refl(Nat^::zero))))
-      | succ : (\fun (b: Nat^) => \fun (_: Comparison Nat^::zero b) =>
-        Logic.Or[Lt Nat^::zero (Nat^::succ b), Logic.Or[Nat^::zero = Nat^::succ b, Lt (Nat^::succ b) Nat^::zero]]::left
-          (\refl(B.Bool^::true)))
+\definition trichotomy: \forall (a, b: Nat^) -> Trichotomy a b :=
+  \induction (a: Nat^) \return \forall (b: Nat^) -> Trichotomy a b \with {
+    | zero : (\induction (b: Nat^) \return Trichotomy Nat^::zero b \with {
+      | zero : O.Trichotomy[Nat^, Lt, Nat^::zero, Nat^::zero]::equal (\refl(Nat^::zero))
+      | succ : (\fun (b: Nat^) => \fun (_: Trichotomy Nat^::zero b) =>
+        O.Trichotomy[Nat^, Lt, Nat^::zero, Nat^::succ b]::less (\refl(B.Bool^::true)))
       })
-    | succ : (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> Comparison a b) =>
-      \induction (b: Nat^) \return Comparison (Nat^::succ a) b \with {
-      | zero : (Logic.Or[Lt (Nat^::succ a) Nat^::zero, Logic.Or[Nat^::succ a = Nat^::zero, Lt Nat^::zero (Nat^::succ a)]]::right
-          (Logic.Or[Nat^::succ a = Nat^::zero, Lt Nat^::zero (Nat^::succ a)]::right (\refl(B.Bool^::true))))
-      | succ : (\fun (b: Nat^) => \fun (_: Comparison (Nat^::succ a) b) => comparisonSucc a b (ih b))
+    | succ : (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> Trichotomy a b) =>
+      \induction (b: Nat^) \return Trichotomy (Nat^::succ a) b \with {
+      | zero : O.Trichotomy[Nat^, Lt, Nat^::succ a, Nat^::zero]::greater (\refl(B.Bool^::true))
+      | succ : (\fun (b: Nat^) => \fun (_: Trichotomy (Nat^::succ a) b) => comparisonSucc a b (ih b))
       })
     };
+
+\definition comparable: O.Comparable Nat^ Lt := trichotomy;
 
 \definition leStep: \forall (b, a: Nat^) -> Le a b -> Le a (Nat^::succ b) :=
   \induction (b: Nat^) \return \forall (a: Nat^) -> Le a b -> Le a (Nat^::succ b) \with {
@@ -236,24 +223,20 @@
 \definition ltCancelMulSuccRight (a, b, k: Nat^)
   (scaled: Lt \(a "*" { Nat^::succ k }\)
     \(b "*" { Nat^::succ k }\)): Lt a b :=
-  \match (trichotomy a b) \in Logic.Or
-    \return (\fun (_: Comparison a b) => Lt a b) \with {
-  | left ab : ab
-  | right rest :
-      \match rest \in Logic.Or
-        \return (\fun (_: Logic.Or[a = b, Lt b a]) => Lt a b) \with {
-      | left ab :
+  \match (trichotomy a b) \in O.Trichotomy
+    \return (\fun (_: Trichotomy a b) => Lt a b) \with {
+  | less ab : ab
+  | equal ab :
           Logic.falseElim (Lt a b)
             (ltNotEq \(a "*" { Nat^::succ k }\)
               \(b "*" { Nat^::succ k }\) scaled
               (congr!{Nat^ Nat^} (\fun (n: Nat^) =>
                 \(n "*" { Nat^::succ k }\)) a b ab))
-      | right ba :
+  | greater ba :
           Logic.falseElim (Lt a b)
             (ltAsym \(a "*" { Nat^::succ k }\)
               \(b "*" { Nat^::succ k }\) scaled
               (ltMulSuccRight b a k ba))
-      }
   };
 
 \definition ltSelfSucc: \forall (a: Nat^) -> Lt a (Nat^::succ a) :=
