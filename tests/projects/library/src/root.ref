@@ -93,8 +93,11 @@
   \definition additiveRaw: M.RawMonoid[N.Nat^] :=
     M.RawMonoid[N.Nat^]::# N.zero^ N.add^;
   \definition additiveLaws: M.MonoidLaws[N.Nat^, additiveRaw] :=
-    M.monoidLawsIntro N.Nat^ additiveRaw
-      NL.addZeroLeft NL.addZeroRight NL.addAssoc;
+    M.MonoidLaws[N.Nat^, additiveRaw] {
+      leftIdentity := NL.addZeroLeft,
+      rightIdentity := NL.addZeroRight,
+      associative := NL.addAssoc,
+    };
   \definition additiveMonoid: M.Monoid N.Nat^ :=
     \into[M.RawMonoid[N.Nat^]](additiveRaw, M.MonoidSet N.Nat^) \by { additiveLaws };
   \definition additiveIdentity: \forall (n: N.Nat^) ->
@@ -104,11 +107,28 @@
   \definition naturalSemiringRaw: A.RawSemiring[N.Nat^] :=
     A.RawSemiring[N.Nat^]::# N.zero^ N.one^ N.add^ N.mul^;
   \definition naturalSemiringLaws: A.SemiringLaws[N.Nat^, naturalSemiringRaw] :=
-    A.semiringLawsIntro N.Nat^ naturalSemiringRaw
-      NL.addZeroLeft NL.addZeroRight NL.addAssoc NL.addComm
-      NL.mulOneLeft NL.mulOneRight NL.mulAssoc
-      NL.mulDistribLeft NL.mulDistribRight
-      NL.mulZeroLeft NL.mulZeroRight;
+    A.SemiringLaws[N.Nat^, naturalSemiringRaw] {
+      additive := M.CommutativeMonoidLaws[N.Nat^,
+        A.additiveMonoid N.Nat^ naturalSemiringRaw] {
+        monoid := M.MonoidLaws[N.Nat^,
+          A.additiveMonoid N.Nat^ naturalSemiringRaw] {
+          leftIdentity := NL.addZeroLeft,
+          rightIdentity := NL.addZeroRight,
+          associative := NL.addAssoc,
+        },
+        commutative := NL.addComm,
+      },
+      multiplicative := M.MonoidLaws[N.Nat^,
+        A.multiplicativeMonoid N.Nat^ naturalSemiringRaw] {
+        leftIdentity := NL.mulOneLeft,
+        rightIdentity := NL.mulOneRight,
+        associative := NL.mulAssoc,
+      },
+      leftDistributive := NL.mulDistribLeft,
+      rightDistributive := NL.mulDistribRight,
+      zeroAbsorbsLeft := NL.mulZeroLeft,
+      zeroAbsorbsRight := NL.mulZeroRight,
+    };
   \definition naturalSemiring: A.Semiring N.Nat^ :=
     \into[A.RawSemiring[N.Nat^]](naturalSemiringRaw, A.SemiringSet N.Nat^)
       \by { naturalSemiringLaws };

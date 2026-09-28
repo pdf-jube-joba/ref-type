@@ -274,8 +274,7 @@
 
 \definition CommonDivisor (d, a, b: Nat^): \Prop :=
   Logic.And[Divides d a, Divides d b];
-\definition commonDivisorIntro (d, a, b: Nat^) (ha: Divides d a) (hb: Divides d b): CommonDivisor d a b :=
-  Logic.And[Divides d a, Divides d b]::# ha hb;
+
 \definition gcdNextPreserves: \forall (d: Nat^) -> \forall (p: NatPair) -> CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p) ->
   CommonDivisor d (P.Times[Nat, Nat]::first^ (gcdNext^ p)) (P.Times[Nat, Nat]::second^ (gcdNext^ p)) :=
   \fun (d: Nat^) => natPairElim
@@ -288,8 +287,10 @@
               \fix (k: Nat^) \then
               \fix (_: _) \then
               \fix (h: CommonDivisor d a (Nat^::succ k)) \then
-              \return commonDivisorIntro d (Nat^::succ k) (mod^ a (Nat^::succ k))
-                (#right{h}) (dividesMod d a (Nat^::succ k) (#left{h}) (#right{h}))
+              \return Logic.And[_, _] {
+                left := #right{h},
+                right := dividesMod d a (Nat^::succ k) (#left{h}) (#right{h}),
+              }
             }
           } b);
 \definition gcdNextReflects: \forall (d: Nat^) -> \forall (p: NatPair) ->
@@ -304,8 +305,10 @@
               \fix (k: Nat^) \then
               \fix (_: _) \then
               \fix (h: CommonDivisor d (Nat^::succ k) (mod^ a (Nat^::succ k))) \then
-              \return commonDivisorIntro d a (Nat^::succ k)
-                (dividesOfMod d a (Nat^::succ k) (#left{h}) (#right{h})) (#left{h})
+              \return Logic.And[_, _] {
+                left := dividesOfMod d a (Nat^::succ k) (#left{h}) (#right{h}),
+                right := #left{h},
+              }
             }
           } b);
 \definition gcdIterReflects: \forall (d, n: Nat^) -> \forall (p: NatPair) ->
@@ -349,8 +352,10 @@
         (sym!{Nat^} _ _ (gcdFinalSecond a b)) (dividesZero (gcd^ a b)) \then
     \let finalCommonDivisor:
       CommonDivisor (gcd^ a b) (P.Times[Nat, Nat]::first^ (gcdFinal a b)) (P.Times[Nat, Nat]::second^ (gcdFinal a b)) :=
-      commonDivisorIntro (gcd^ a b) (P.Times[Nat, Nat]::first^ (gcdFinal a b))
-        (P.Times[Nat, Nat]::second^ (gcdFinal a b)) finalFirstDivides finalSecondDivides \then
+      Logic.And[_, _] {
+        left := finalFirstDivides,
+        right := finalSecondDivides,
+      } \then
     \return gcdIterReflects (gcd^ a b) b (natPair a b) finalCommonDivisor
   };
 \definition gcdDividesLeft (a, b: Nat^): Divides (gcd^ a b) a :=
@@ -365,7 +370,8 @@
       CommonDivisor d (P.Times[Nat, Nat]::first^ (gcdFinal a b)) (P.Times[Nat, Nat]::second^ (gcdFinal a b)) :=
       pairIterInvariant gcdNext^
         (\fun (p: NatPair) => CommonDivisor d (P.Times[Nat, Nat]::first^ p) (P.Times[Nat, Nat]::second^ p))
-        (gcdNextPreserves d) b (natPair a b) (commonDivisorIntro d a b ha hb) \then
+        (gcdNextPreserves d) b (natPair a b)
+        (Logic.And[_, _] { left := ha, right := hb }) \then
     \return dividesTransport d (P.Times[Nat, Nat]::first^ (gcdFinal a b)) (gcd^ a b)
       (gcdFinalFirst a b) (#left{finalCommonDivisor})
   };
