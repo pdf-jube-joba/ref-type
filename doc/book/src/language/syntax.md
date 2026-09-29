@@ -493,7 +493,7 @@ branch の末尾に `;` は付けない。
 \runCase[state-type, result-type](step, initial, transition) \by { accessibility: accessibility-proof, equality: transition-equality }
 ```
 
-step は thunk された step function、accessibility は停止性証明である。`\runCase` は一回分の transition computation と反映上の等号証明を受け取る。
+step は step function、accessibility は停止性証明である。`\runCase` は一回分の transition computation と反映上の等号証明を受け取る。
 
 ### Box
 
