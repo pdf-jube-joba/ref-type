@@ -1063,13 +1063,12 @@ fn set_recursion_rejects_mixed_or_non_set_sorts() {
                 accessibility: argument,
                 transition_equality: argument,
             },
-            ExpNode::RunStepRec {
+            ExpNode::SetStepMatch {
                 state_ty,
                 result_ty,
                 motive: argument,
                 on_continue: argument,
                 on_finish: argument,
-                scrutinee: argument,
             },
             ExpNode::Prove(crate::raw::exp::Prove::AccIntro {
                 state_ty,

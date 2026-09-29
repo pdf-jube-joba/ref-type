@@ -68,7 +68,7 @@ ref では \(S\subseteq\operatorname{El}(c)\) と Code-smallness を使う。
 
 \(\epsilon(e)\) は、family \(\mathsf{Tm}_{*^p}\) の式全体を定数 \(\bullet\) に置き換え、
 他の family では全引数・注釈・binder body に再帰する写像とする。
-例えば、証明を返す lambda/application/Take/prec は全体が消えるが、
+例えば、証明を返す lambda/application/Take/step match は全体が消えるが、
 命題を返す型演算子の lambda/application と、命題の product は残る。
 context の宣言は残し、宣言型だけを消去する。proof variable の出現も \(\bullet\) になる。
 
@@ -132,11 +132,12 @@ domain の sort を保持するため、次の略記を使う。
 | \(\Take^s_i(X,T,f)\) | \(\bigcup\{\operatorname{app}(f,x)\mid x\in\operatorname{El}(\langle X\rangle_\rho)\}\) |
 | \(\operatorname{RunStep}(A,B)\) | \(\mathsf{sum}(c,d)\) |
 | \(\operatorname{continue}_{A,B}(a)\), \(\operatorname{finish}_{A,B}(b)\) | \((0,a)\), \((1,b)\) |
+| \(\operatorname{stepMatch}_{A,B}(x.P,u,v)\) | \(\operatorname{lam}_{\operatorname{El}(\mathsf{sum}(c,d))}(g)\) |
 | \(\operatorname{Acc}_{A,B}(f,a)\) | \(\mathbf t(a\in D_{\operatorname{El}(c),\operatorname{El}(d),f})\) |
 | \(\operatorname{run}_{A,B}(f,a)\) | \(\operatorname{Run}_{\operatorname{El}(c),\operatorname{El}(d)}(f,a)\) |
 | \(\operatorname{runCase}_{A,B}(f,a,r)\) | \(\operatorname{Case}_{\operatorname{El}(c),\operatorname{El}(d)}(f,r)\) |
 
-残る prec は r が \((0,a)\) なら app(c,a)、\((1,b)\) なら app(d,b)、他は 0。
+\(\operatorname{stepMatch}\) の \(g(r)\) は、\(r=(0,a)\) なら \(\operatorname{app}(\langle u\rangle_\rho,a)\)、\(r=(1,b)\) なら \(\operatorname{app}(\langle v\rangle_\rho,b)\) とする。
 停止集合 D、Run、Case は[有限 accessibility の構成](model.md#termination)をそのまま使う。
 
 すべての演算が任意の集合引数について定義されるため、raw 解釈は構文再帰で全域的に存在する。

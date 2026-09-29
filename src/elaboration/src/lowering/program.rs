@@ -451,14 +451,14 @@ impl Lowerer<'_> {
                     branches: bodies,
                 }
             }
-            R::StepRec {
+            R::StepMatch {
                 state_ty,
                 result_ty,
                 computation_ty,
                 on_continue,
                 on_finish,
                 scrutinee,
-            } => F::ProgramStepRec {
+            } => F::ProgramStepMatch {
                 state_ty: self.value_type(state_ty)?,
                 result_ty: self.value_type(result_ty)?,
                 computation_ty: self.computation_type(computation_ty)?,

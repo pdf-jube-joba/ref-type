@@ -190,6 +190,13 @@ binder を持つ場合は valuation の拡張を明示する。
  &=(\{0\}\times A)\cup(\{1\}\times B),\\
 \llbracket\operatorname{continue}_{A,B}(a)\rrbracket_\rho&=(0,a),&
 \llbracket\operatorname{finish}_{A,B}(b)\rrbracket_\rho&=(1,b),\\
+\llbracket\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)\rrbracket_\rho
+ &=\operatorname{lam}_{\llbracket\operatorname{RunStep}(A,B)\rrbracket_\rho}
+   \bigl(r\mapsto
+     \begin{cases}
+       \operatorname{app}(\llbracket c\rrbracket_\rho,a)&r=(0,a),\\
+       \operatorname{app}(\llbracket d\rrbracket_\rho,b)&r=(1,b)
+     \end{cases}\bigr),\\
 \llbracket\operatorname{Acc}_{A,B}(f,a)\rrbracket_\rho&=\mathbf t(a\in D),\\
 \llbracket\operatorname{run}_{A,B}(f,a)\rrbracket_\rho
  &=\operatorname{Run}_{A,B}(f,a),\\
@@ -199,9 +206,7 @@ binder を持つ場合は valuation の拡張を明示する。
 \]
 
 D は [決定的な停止計算](#termination) の \((A,B,f)\) に対応する集合。
-prec の解釈は、r が \((0,a)\) なら \(\operatorname{app}(c,a)\)、
-\((1,b)\) なら \(\operatorname{app}(d,b)\)、それ以外なら 0 とする。
-motive と型添字は、この場合分けの値には使わない。
+motive と型添字は、step match の場合分けの値には使わない。
 
 これらは項の構造再帰で定義される。
 binder の body の評価は、異なる valuation のもとでも真部分項の評価である。
@@ -220,7 +225,7 @@ Run は object term を再帰的に評価する演算ではなく、既に解釈
 
 **証明。** t の構造帰納法。変数と sort は定義から従う。
 非束縛 constructor は、引数の等しい集合に同じ集合演算を適用するので帰納法から従う。
-Proof は両辺 0。prec の motive は値に使わず、他の引数に帰納法を使う。
+Proof は両辺 0。step match の motive は値に使わず、他の引数に帰納法を使う。
 lambda、product、subset では binder y を \(x,\mathrm{FV}(u)\) と異なる名前にする。
 domain の解釈は帰納法で一致し、各 \(a\) について
 \(\llbracket u\rrbracket_{\rho[y:=a]}=\llbracket u\rrbracket_\rho\)。

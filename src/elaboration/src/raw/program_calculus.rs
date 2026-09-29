@@ -475,7 +475,7 @@ pub fn remap_computation_global_ids(
                     .collect(),
             },
         ),
-        ComputationTermNode::StepRec {
+        ComputationTermNode::StepMatch {
             state_ty,
             result_ty,
             computation_ty,
@@ -484,7 +484,7 @@ pub fn remap_computation_global_ids(
             scrutinee,
         } => arena.reuse_computation(
             computation,
-            ComputationTermNode::StepRec {
+            ComputationTermNode::StepMatch {
                 state_ty: value_ty(state_ty),
                 result_ty: value_ty(result_ty),
                 computation_ty: comp_ty(computation_ty),

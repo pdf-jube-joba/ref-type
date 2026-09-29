@@ -151,7 +151,7 @@ pub enum ComputationTermNode {
         scrutinee: ValueTerm,
         branches: Vec<ProgramCaseBranch>,
     },
-    StepRec {
+    StepMatch {
         state_ty: ValueType,
         result_ty: ValueType,
         computation_ty: ComputationType,

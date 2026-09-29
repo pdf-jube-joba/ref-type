@@ -404,26 +404,6 @@ impl<'a> TermParser<'a> {
                 transition_equality,
             });
         }
-        if self.bump_if_keyword("\\runStepRec") {
-            let (state_ty, result_ty) = self.parse_recursion_types()?;
-            return self.parse_parenthesized(|parser| {
-                let motive = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let on_continue = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let on_finish = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let scrutinee = parser.parse_sexp()?;
-                Ok(SExp::RunStepRec {
-                    state_ty: Box::new(state_ty),
-                    result_ty: Box::new(result_ty),
-                    motive: Box::new(motive),
-                    on_continue: Box::new(on_continue),
-                    on_finish: Box::new(on_finish),
-                    scrutinee: Box::new(scrutinee),
-                })
-            });
-        }
         if self.bump_if_keyword("\\step-match") {
             let binder = if matches!(self.peek(), Some(Token::Ident(_)))
                 && self.tokens.get(self.pos + 1).map(|token| token.kind) == Some(Token::Colon)
@@ -493,30 +473,17 @@ impl<'a> TermParser<'a> {
             if let Some(var) = binder {
                 let motive = SExp::Lam {
                     bind: Bind::Named(RightBind {
-                        vars: vec![var.clone()],
-                        ty: Box::new(step_ty.clone()),
+                        vars: vec![var],
+                        ty: Box::new(step_ty),
                     }),
                     body: Box::new(return_type),
                 };
-                return Ok(SExp::Lam {
-                    bind: Bind::Named(RightBind {
-                        vars: vec![var.clone()],
-                        ty: Box::new(step_ty),
-                    }),
-                    body: Box::new(SExp::RunStepRec {
-                        state_ty: state_ty.clone(),
-                        result_ty: result_ty.clone(),
-                        motive: Box::new(motive),
-                        on_continue: Box::new(branch(continue_var, state_ty, continue_body, false)),
-                        on_finish: Box::new(branch(finish_var, result_ty, finish_body, false)),
-                        scrutinee: Box::new(SExp::AccessPath {
-                            access: LocalAccess::Current {
-                                span: Default::default(),
-                                access: var,
-                            },
-                            parameters: Vec::new(),
-                        }),
-                    }),
+                return Ok(SExp::SetStepMatch {
+                    state_ty: state_ty.clone(),
+                    result_ty: result_ty.clone(),
+                    motive: Box::new(motive),
+                    on_continue: Box::new(branch(continue_var, state_ty, continue_body, false)),
+                    on_finish: Box::new(branch(finish_var, result_ty, finish_body, false)),
                 });
             }
             let var = Identifier("<step-match>".into());
@@ -524,7 +491,7 @@ impl<'a> TermParser<'a> {
                 computation: Box::new(SExp::ComputationLam {
                     var: var.clone(),
                     value_ty: Box::new(step_ty),
-                    body: Box::new(SExp::ProgramStepRec {
+                    body: Box::new(SExp::ProgramStepMatch {
                         state_ty: state_ty.clone(),
                         result_ty: result_ty.clone(),
                         computation_ty: Box::new(return_type),
@@ -765,9 +732,8 @@ impl<'a> TermParser<'a> {
             });
         }
 
-        // \\idelim "(" <left: SExp> "=" <right: SExp> r"\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp> ")"
+        // \\idelim <left: SExp> "=" <right: SExp> r"\with" <var: Ident> ":" <ty: SExp> "=>" <predicate: SExp>
         if self.bump_if_keyword("\\idelim") {
-            self.expect_token(Token::LParen)?; // expect '('
             let left = self.parse_application()?;
             self.expect_token(Token::Equal)?; // expect '='
             let right = self.parse_sexp()?;
@@ -777,7 +743,6 @@ impl<'a> TermParser<'a> {
             let ty = self.parse_equality()?;
             self.expect_token(Token::DoubleArrow)?; // expect '=>'
             let predicate = self.parse_sexp()?;
-            self.expect_token(Token::RParen)?; // expect ')'
             let (base, equality) = self.parse_by(|parser| {
                 let base = parser.parse_named_by_term("base")?;
                 parser.expect_token(Token::Comma)?;
@@ -2243,7 +2208,7 @@ mod tests {
         print_and_unwrap(r"\into[A](x, X) \by { p }");
         print_and_unwrap(r"\exact(x, X)");
         print_and_unwrap(r"\refl(x)");
-        print_and_unwrap(r"\idelim(a = b \with x: X => P x) \by { base: pa, equality: eq }");
+        print_and_unwrap(r"\idelim a = b \with x: X => P x \by { base: pa, equality: eq }");
         print_and_unwrap(r"\axiom:setext(A, B, ab, ba)");
         print_and_unwrap(r"\axiom:funext(f, g, pointwise)");
         print_and_unwrap(r"\axiom:classicalIndefiniteChoice(X, Y, inhabited)");

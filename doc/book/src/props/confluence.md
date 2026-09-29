@@ -8,10 +8,10 @@ Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除�
 ここで示すのは補助 reduction の合流性である。元の reduction の合流性や subject reduction は結論しない。
 代入の合成則は[構文的補題](metatheory.md#substitution)を使う。
 以下の本文は現行の Set/Prop の三構文に適用する。
-式中で省略した \(\Pi,\lambda,@,\operatorname{prec}\) の rule label・sort 添字は固定し、
+式中で省略した \(\Pi,\lambda,@,\operatorname{stepMatch}\) の rule label・sort 添字は固定し、
 全 congruence rule はそれらを保持する。
 beta の lambda と application は同じ \(r\) を持つ場合にだけ root とする。
-Pred の reduct は \(p_i\)、prec の branch application は \(h_{i,\sigma}\)、
+Pred の reduct は \(p_i\)、step match の branch application は \(h_{i,\sigma}\)、
 run の application は \(s^{i,i}\) を持つ。
 補助規則で外すのは、下に明記する constructor の型引数の一致条件だけである。
 
@@ -20,7 +20,7 @@ run の application は \(s^{i,i}\) を持つ。
 ## Box-free raw conversion の共通簡約先
 
 \(\to_0\) を Box-free core の raw reduction とする。
-`prec` と `runCase` の左辺では、同じ型添字が複数回現れる。
+`stepMatch` と `runCase` の左辺では、同じ型添字が複数回現れる。
 そのため、この規則をそのまま left-linear と呼ぶことはできない。
 
 補助 reduction \(\rightsquigarrow\) を次のように定義する。
@@ -29,10 +29,8 @@ beta、Pred、run の規則は \(\to_0\) と同じとし、次の四規則では
 
 \[
 \begin{aligned}
-\operatorname{prec}_{\operatorname{RunStep}(A,B)}
-(x^s.P,c,d,\operatorname{continue}_{C,D}(a))&\rightsquigarrow c@a,\\
-\operatorname{prec}_{\operatorname{RunStep}(A,B)}
-(x^s.P,c,d,\operatorname{finish}_{C,D}(b))&\rightsquigarrow d@b,\\
+\operatorname{stepMatch}_{A,B}(x^s.P,c,d)@\operatorname{continue}_{C,D}(a)&\rightsquigarrow c@a,\\
+\operatorname{stepMatch}_{A,B}(x^s.P,c,d)@\operatorname{finish}_{C,D}(b)&\rightsquigarrow d@b,\\
 \operatorname{runCase}_{A,B}(f,a,\operatorname{continue}_{C,D}(a'))
 &\rightsquigarrow\operatorname{run}_{A,B}(f,a'),\\
 \operatorname{runCase}_{A,B}(f,a,\operatorname{finish}_{C,D}(b))
@@ -110,10 +108,8 @@ run が \(f,a\) を複製する場合も、同じ \(f',a'\) を両方に使え�
 \begin{aligned}
 ((\lambda_r x:A.m)@_r a)^\star&=m^\star[x:=a^\star],\\
 \Pred(A,\{x:B\mid P\},a)^\star&=P^\star[x:=a^\star],\\
-\operatorname{prec}_{\operatorname{RunStep}(A,B)}
-(x^s.P,c,d,\operatorname{continue}_{C,D}(a))^\star&=c^\star @a^\star,\\
-\operatorname{prec}_{\operatorname{RunStep}(A,B)}
-(x^s.P,c,d,\operatorname{finish}_{C,D}(b))^\star&=d^\star @b^\star,\\
+(\operatorname{stepMatch}_{A,B}(x^s.P,c,d)@\operatorname{continue}_{C,D}(a))^\star&=c^\star @a^\star,\\
+(\operatorname{stepMatch}_{A,B}(x^s.P,c,d)@\operatorname{finish}_{C,D}(b))^\star&=d^\star @b^\star,\\
 \operatorname{run}_{A,B}(f,a)^\star
 &=\operatorname{runCase}_{A^\star,B^\star}
 (f^\star,a^\star,f^\star @a^\star),\\
@@ -142,7 +138,7 @@ root に一致する場合は、導出が congruence か root かで分ける。
 - beta root の場合は `parallel-subst` を使う。
 - Pred の第一 root の場合、得られた application に並列 beta を適用する。
   第二 root の場合は `parallel-subst` を使う。
-- prec、run、runCase の root の場合は、右辺の各引数を帰納法で簡約する。
+- step match、run、runCase の root の場合は、右辺の各引数を帰納法で簡約する。
   run で複製された引数には同じ帰納法の結果を使う。
   右辺に作られた application や run には congruence を選べばよい。
 

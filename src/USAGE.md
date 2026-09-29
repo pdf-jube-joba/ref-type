@@ -236,7 +236,7 @@ kernel の構文は単一の `Expression` で、sort もその一種です。
 level は non-cumulative です。たとえば `A: \Set(0)` を `\Set(1)` の要素として
 暗黙に使うことはできません。product の level は `max` の規則で決まり、
 多相関数の型適用では適用結果の level が関数自身より小さくなる場合があります。
-RunStep recursor の branch と結果の level も、それぞれの product rule に従います。
+RunStep の `\step-match` の branch と結果の level も、それぞれの product rule に従います。
 
 既存の Program 表面構文は level 0 に対応します。`\Box`・`\box`・`\Force` が
 受け取る Program 構文は computation type / computation に限られます。value を

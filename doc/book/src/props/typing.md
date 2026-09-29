@@ -48,10 +48,10 @@ rule label は代入で変化しない。
   他の宣言は帰納法で得た formation を用いて再構成する。
 - conversion の三つの typing/formation premise に帰納法を使う。
   raw beta の代入保存は[代入の合成則](metatheory.md#substitution)、
-  Pred、prec、run、runCase は同じ metavariable への一様な代入による。
+  Pred、step match、run、runCase は同じ metavariable への一様な代入による。
   重複した型添字にも同じ代入をするので root の一致条件は保存される。
   compatible closure と有限 zigzag へ拡張すれば conversion の側条件も保存される。
-- dep form/intro/elim、subset form、id elim、prec、acc intro では、
+- dep form/intro/elim、subset form、id elim、step match、acc intro では、
   局所 binder を fresh に取り直して premise に帰納法を使う。
   結論や branch 型に現れる二重の代入は代入の合成則で交換する。
 - power set form、type lift、predicate、subset intro/weak/prop、
@@ -83,7 +83,7 @@ take の定値性の premise にも代入が作用する。
 **証明。** WF は規則の共通 premise である。残りは導出の同時帰納法。
 variable は宣言を追加した start の formation を weakening する。
 conversion は目標の formation premise、weak は帰納法による。
-dep intro の結果型は dep form、dep elim と prec の結果型は Substitution で形成する。
+dep intro と step match の結果型は dep form、dep elim の結果型は Substitution で形成する。
 型・項の他の導入規則は、表示された formation premise に対応する formation 規則を使う。
 subset intro の結果型は type lift、subset weak と run/runCase は formation premise そのもの。
 take elim の結果型の formation も明示されている。
@@ -141,7 +141,7 @@ Substitution で \(z\) に \(y\) を代入すると
   型演算子の dep intro を適用する。引数 \(t:B\) が与えられていれば、
   dep elim で reduct を \(*^p\) に型付けできる。
   ここでは外側の predicate が要求する \(t:A\) だけから \(t:B\) を推論していない。
-- prec/continue と prec/finish：constructor の argument typing と
+- step match/continue と step match/finish：constructor の argument typing と
   branch の typing に dep elim を適用する。motive の代入が結果型になる。
 - run：dep elim で \(f@_{s^{i,i}}a:\operatorname{RunStep}(A,B)\)。
   id intro による自己等号と元の Acc premise を合わせ、runCase を適用する。

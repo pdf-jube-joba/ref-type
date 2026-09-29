@@ -13,12 +13,15 @@
 
 
   \definition ready: \RunStep[State^, State^] -> \Prop :=
-    \fun (r: \RunStep[State^, State^]) => \In[State^] (\runStepRec[State^, State^](\fun (r: \RunStep[State^, State^]) => \Pow (State^), \fun (s: State^) => { x : State^ \where \Acc[State^, State^](step^, s) }, \fun (o: State^) => { x : State^ \where State^::last = State^::last }, r)) (State^::last);
+    \fun (r: \RunStep[State^, State^]) => \In[State^] ((\step-match r: \RunStep[State^, State^] \return \Pow (State^) \with {
+      | \continue s: { x : State^ \where \Acc[State^, State^](step^, s) }
+      | \finish o: { x : State^ \where State^::last = State^::last }
+    }) r) (State^::last);
   \definition accIntro: \forall (s: State^) -> ready (step^ s) -> \Acc[State^, State^](step^, s) :=
     \fun (s: State^) => \fun (proof: ready (step^ s)) =>
       \accintro[State^, State^](step^, s, \fun (next: State^) => \fun (edge: step^ s = \continue[State^, State^](next)) =>
-          \idelim(step^ s = \continue[State^, State^](next)
-            \with r: \RunStep[State^, State^] => ready r) \by { base: proof, equality: edge });
+          \idelim step^ s = \continue[State^, State^](next)
+            \with r: \RunStep[State^, State^] => ready r \by { base: proof, equality: edge });
   \definition lastTerminates: \Acc[State^, State^](step^, State^::last) :=
     accIntro State^::last (\refl(State^::last));
   \definition firstTerminates: \Acc[State^, State^](step^, State^::first) :=

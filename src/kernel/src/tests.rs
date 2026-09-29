@@ -752,7 +752,7 @@ fn registration_reclaims_scratch_nodes_and_keeps_definitions_and_error_terms() {
 }
 
 #[test]
-fn kind_valued_runstep_recursor_retains_its_result_universe() {
+fn kind_valued_step_match_retains_its_result_universe() {
     let env = Environment::new();
     let a = &env.arena;
     let mut metas = MetaContext::new();
@@ -771,14 +771,25 @@ fn kind_valued_runstep_recursor_retains_its_result_universe() {
         result_ty: state,
         next: a.bound(0),
     });
-    let rec = a.alloc(Node::Recursor {
+    let function = a.alloc(Node::SetStepMatch {
         state_ty: state,
         result_ty: state,
         motive,
         on_continue: branch,
         on_finish: branch,
-        scrutinee,
     });
+    let rec = a.alloc(Node::App {
+        mode: Mode::Pure,
+        function,
+        argument: scrutinee,
+    });
+    let function_ty = Checker::new(&env, &mut metas, ctx.clone())
+        .infer(function)
+        .unwrap();
+    let Node::Product { domain, .. } = a.get(function_ty) else {
+        panic!("step match must have a function type")
+    };
+    assert!(crate::reduction::convertible(&env, domain, step).unwrap());
     let ty = Checker::new(&env, &mut metas, ctx).infer(rec).unwrap();
     assert!(crate::reduction::convertible(&env, ty, small).unwrap());
     assert!(crate::reduction::convertible(&env, rec, a.bound(2)).unwrap());

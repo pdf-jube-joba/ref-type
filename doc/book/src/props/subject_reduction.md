@@ -61,7 +61,7 @@ generation から \(C\equiv_+A\)、C の formation、
 を dep intro/elim で構成できる。
 外側と内側の domain が構文的に一致するという仮定は要らない。
 
-### prec/continue と prec/finish
+### step match/continue と step match/finish
 
 外側の型を \(\operatorname{RunStep}(A,B)\)、内側の constructor の型添字を C、D とする。
 continue の場合、generation により \(C\equiv_+A\)、\(D\equiv_+B\)、
@@ -70,7 +70,7 @@ continue の場合、generation により \(C\equiv_+A\)、\(D\equiv_+B\)、
 \Gamma\vdash_+c@_{h_{i,\sigma}}a:
  P[x:=\operatorname{continue}_{A,B}(a)].
 \]
-一方、元の prec の結果型は \(P[x:=\operatorname{continue}_{C,D}(a)]\)。
+一方、元の step match の適用結果型は \(P[x:=\operatorname{continue}_{C,D}(a)]\)。
 二つの continue は型添字の compatible conversion で同値である。
 両結果型の formation は motive の formation と Substitution から得られるので、
 conversion で元の結果型に戻せる。
@@ -176,12 +176,12 @@ proof term では、provability の premise に帰納法を使って
 | take elim set | 新しい \(X\to T\) での f の typing、\(\exists X\)、二重の積で表した定値性 |
 | take elim prop | 新しい \(X\to P\) での g の typing、\(\exists X\) |
 | RunStep と constructor | 新しい A、B の formation、および constructor の引数 typing |
-| prec | 新しい RunStep の context での motive、代入後の二つの branch 型、両 branch の typing |
+| step match | 新しい RunStep の context での motive、代入後の二つの branch 型、両 branch の typing |
 | Acc、run、runCase | 新しい \(A\to\operatorname{RunStep}(A,B)\) での f の typing、状態と step の typing、Acc と equality |
 
 例えば take の定値性の新しい命題は、拡張 context の二変数に f を適用し、
 id form と dep form を二回使って形成する。非空性は exists form で形成する。
-prec の新しい branch 型は、motive の formation に新しい constructor を
+step match の新しい branch 型は、motive の formation に新しい constructor を
 Substitution し、dep form で量化すれば形成できる。
 runCase の新しい equality は、新しい共通 RunStep 型で両辺を型付けして形成する。
 従って第三段で新しい命題の formation を仮定していない。

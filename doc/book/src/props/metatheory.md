@@ -16,7 +16,7 @@ core を扱う。集合モデル、無矛盾性、subject reduction は仮定し
 項は alpha 同値で同一視する。変数の sort 注釈は名前の一部とし、
 代入 \(t[x^s:=u]\) はその注釈を持つ変数だけを置換する。
 lambda、product、subset は表示された変数を body で束縛する。
-`prec` の \(x^s.P\) は \(P\) の中だけで \(x^s\) を束縛する。
+`stepMatch` の \(x^s.P\) は \(P\) の中だけで \(x^s\) を束縛する。
 従って motive への代入はこの局所変数を避ける。
 Program の binder は Set の binder と別の名前空間に置く。
 

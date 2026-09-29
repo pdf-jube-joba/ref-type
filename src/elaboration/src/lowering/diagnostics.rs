@@ -342,7 +342,7 @@ impl Renderer<'_> {
         let base = self.expression(base, 0);
         let equality = self.expression(equality, 0);
         Term::atom(format!(
-            "\\idelim({left} = {right} \\with {name}: {ty} => {predicate}) \\by {{ base: {base}, equality: {equality} }}"
+            "\\idelim {left} = {right} \\with {name}: {ty} => {predicate} \\by {{ base: {base}, equality: {equality} }}"
         ))
     }
 

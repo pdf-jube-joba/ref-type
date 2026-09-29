@@ -520,15 +520,19 @@ pub(crate) fn alpha_rename(
             counter,
             scopes,
         ),
-        SExp::RunStepRec {
+        SExp::SetStepMatch {
             state_ty,
             result_ty,
-            motive: computation_ty,
+            motive,
             on_continue,
             on_finish,
-            scrutinee,
-        }
-        | SExp::ProgramStepRec {
+        } => alpha_many(
+            [state_ty, result_ty, motive, on_continue, on_finish],
+            order,
+            counter,
+            scopes,
+        ),
+        SExp::ProgramStepMatch {
             state_ty,
             result_ty,
             computation_ty,

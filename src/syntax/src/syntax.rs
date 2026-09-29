@@ -578,7 +578,7 @@ pub enum SExp {
         scrutinee: Box<SExp>,
         branches: Vec<(Identifier, Vec<Identifier>, SExp)>,
     },
-    ProgramStepRec {
+    ProgramStepMatch {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
         computation_ty: Box<SExp>,
@@ -624,13 +624,12 @@ pub enum SExp {
         accessibility: Box<SExp>,
         transition_equality: Box<SExp>,
     },
-    RunStepRec {
+    SetStepMatch {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
         motive: Box<SExp>,
         on_continue: Box<SExp>,
         on_finish: Box<SExp>,
-        scrutinee: Box<SExp>,
     },
     BoxType {
         program_ty: Box<SExp>,

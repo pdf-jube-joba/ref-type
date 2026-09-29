@@ -202,15 +202,15 @@ Program type substitution は term 内の型注釈と型引数にも作用する
 特に subset \(\{x:A\mid P\}\) は \(\Power A\) の term であり、
 その要素の型は \(\Ty(A,\{x:A\mid P\})\) で表す。
 
-#### RunStep recursor
+#### RunStep step match
 
-RunStep recursor は結果の分類 \(\sigma\in\mathcal S_{sp}\) を持つ。
-\(P\in\mathsf C_\sigma\)、\(r\in\mathsf{Tm}_{*^s_i}\) とし、
+RunStep step match は motive の分類 \(\sigma\in\mathcal S_{sp}\) を持つ。
+\(P\in\mathsf C_\sigma\) とし、
 \((*^s_i,\sigma,\tau)\in\mathcal R_{sp}\) のとき、
 
 \[
-\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}
- (x.P,c,d,r)\in\mathsf E_\sigma,
+\operatorname{stepMatch}^{\sigma}_{A,B}
+ (x.P,c,d)\in\mathsf E_\tau,
 \qquad c,d\in\mathsf E_\tau.
 \]
 
@@ -401,9 +401,9 @@ h_{i,\sigma}:=(*^s_i,\sigma,\tau)\in\mathcal R_{sp}.
 \begin{aligned}
 \Pred(A,\{x:B\mid P\},t)
  &\Rightarrow_{\mathsf{Ty}_{*^p}}(\lambda_{p_i}x:B.P)@_{p_i}t,\\
-\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{continue}_{A,B}(a))
+\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)@\operatorname{continue}_{A,B}(a)
  &\Rightarrow_{\mathsf E_\sigma}c@_{h_{i,\sigma}}a,\\
-\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{finish}_{A,B}(b))
+\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)@\operatorname{finish}_{A,B}(b)
  &\Rightarrow_{\mathsf E_\sigma}d@_{h_{i,\sigma}}b,\\
 \operatorname{run}_{A,B}(f,a)
  &\Rightarrow_{\mathsf{Tm}_{*^s_i}}\operatorname{runCase}_{A,B}(f,a,f@_{s^{i,i}}a),\\
@@ -414,7 +414,7 @@ h_{i,\sigma}:=(*^s_i,\sigma,\tau)\in\mathcal R_{sp}.
 \end{aligned}
 \]
 
-prec の branch application は、branch の product label
+step match の branch application は、branch の product label
 \(h_{i,\sigma}\) を持ち、結果は \(\mathsf E_\sigma\) に属する。
 
 #### Program computation の evaluation context
@@ -675,14 +675,14 @@ Set run は \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) を前提とする。
 runCase はさらに transition \(r\) の型付けと
 \(\Gamma\vDash f@_{s^{i,i}}a=r\) を前提とする。
 
-#### RunStep recursor の typing
+#### RunStep step match の typing
 
-prec は \(D=\operatorname{RunStep}(A,B)\)、
+step match は \(D=\operatorname{RunStep}(A,B)\)、
 \(h_{i,\sigma}=(*^s_i,\sigma,\tau)\) と置き、
 
 \[
 \begin{gathered}
-\Gamma\vdash A:*^s_i,\quad\Gamma\vdash B:*^s_i,\quad\Gamma\vdash r:D,\\
+\Gamma\vdash A:*^s_i,\quad\Gamma\vdash B:*^s_i,\\
 \Gamma,x:D\vdash P:\sigma,\qquad
 h_{i,\sigma}\in\mathcal R_{sp},\\
 \Gamma\vdash c:\Pi_{h_{i,\sigma}}a:A.P[x:=\operatorname{continue}_{A,B}(a)],\\
@@ -693,7 +693,7 @@ h_{i,\sigma}\in\mathcal R_{sp},\\
 および二つの branch 型の \(\tau\) での formation から、
 
 \[
-\Gamma\vdash\operatorname{prec}^{\sigma}_D(x.P,c,d,r):P[x:=r]
+\Gamma\vdash\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d):\Pi_{h_{i,\sigma}}x:D.P
 \]
 
 を得る。結果の分類 \(\sigma\) と branch の分類 \(\tau\) を区別する。
@@ -977,7 +977,7 @@ level \(i+1\) の Box に入る。
 | term/type/kind、rule label、変数の分類 | 分類情報を消去することで元の式へ戻す |
 | 二項 judgement | 元の最後の sort は構文 family と formation premise が担う |
 | 異なる level の Set product | system.md の同一 level の規則を拡張し、sort.rs の \(\max\) 規則に合わせる |
-| prec の branch level | 拡張した product rule に合わせて \(\sigma\) と \(\tau\) を分ける |
+| step match の branch level | 拡張した product rule に合わせて \(\sigma\) と \(\tau\) を分ける |
 | Program の型演算子・多相性 | 新しい型・項・簡約を追加する |
 | level 付き Box、btapp | 多相 Program の型形成と反映先に合わせる |
 | datatype の level と Set case | 宣言・reflection に必要な schema を具体化する |

@@ -216,22 +216,20 @@ h_i@\operatorname{RfTerm}_{A_{i1}}(V_1)
 \tag{Rf-Continue, Rf-Finish}
 \]
 
-Set 側の \(\operatorname{prec}_{\operatorname{RunStep}}\) に glued form を直接観察する規則を
+Set 側の \(\operatorname{stepMatch}\) の適用に glued form を直接観察する規則を
 与えると、constructor reflection を先に行う path と合流する。
 
 \[
 \begin{aligned}
-&\operatorname{prec}_{\operatorname{RunStep}
-(\operatorname{RfType}(A),\operatorname{RfType}(B))}
-\left(P,c,d,
+&\operatorname{stepMatch}_{\operatorname{RfType}(A),\operatorname{RfType}(B)}
+ (P,c,d)@
 \operatorname{RfTerm}_{\operatorname{RunStep}(A,B)}
-(\operatorname{continue}_{A,B}(a))\right)\\
+(\operatorname{continue}_{A,B}(a))\\
 &\qquad\Rightarrow_s c@\operatorname{RfTerm}_A(a),\\[4pt]
-&\operatorname{prec}_{\operatorname{RunStep}
-(\operatorname{RfType}(A),\operatorname{RfType}(B))}
-\left(P,c,d,
+&\operatorname{stepMatch}_{\operatorname{RfType}(A),\operatorname{RfType}(B)}
+ (P,c,d)@
 \operatorname{RfTerm}_{\operatorname{RunStep}(A,B)}
-(\operatorname{finish}_{A,B}(b))\right)\\
+(\operatorname{finish}_{A,B}(b))\\
 &\qquad\Rightarrow_s d@\operatorname{RfTerm}_B(b).
 \end{aligned}
 \]
@@ -725,7 +723,7 @@ Program 側の \(\operatorname{continue}\) の payload と一致することを�
 - Rf-C-App または Rf-U-App と Rf-Cong
 - Rf-Ctor と Rf-Representative-App
 - Rf-Ctor-Case と Program case の Rf-Cong
-- Rf-Continue、Rf-Finish と \(\operatorname{RunStep}\) の recursor
+- Rf-Continue、Rf-Finish と \(\operatorname{RunStep}\) の step match
 - Rf-RunCase と Program run reduction の Rf-Cong
 
 Rf-Ctor の逆向きは、Reflection derivation を保持する elaboration または typed reduction

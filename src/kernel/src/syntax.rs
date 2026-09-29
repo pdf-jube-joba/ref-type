@@ -93,15 +93,14 @@ pub enum Node {
         accessibility: Expression,
         transition_equality: Expression,
     },
-    Recursor {
+    SetStepMatch {
         state_ty: Expression,
         result_ty: Expression,
         motive: Expression,
         on_continue: Expression,
         on_finish: Expression,
-        scrutinee: Expression,
     },
-    ProgramStepRec {
+    ProgramStepMatch {
         state_ty: Expression,
         result_ty: Expression,
         computation_ty: Expression,
@@ -571,16 +570,20 @@ impl Arena {
                 *accessibility = visit(*accessibility, 0)?;
                 *transition_equality = visit(*transition_equality, 0)?;
             }
-            Node::Recursor {
+            Node::SetStepMatch {
                 state_ty,
                 result_ty,
                 motive,
                 on_continue,
                 on_finish,
-                scrutinee,
-                ..
+            } => {
+                *state_ty = visit(*state_ty, 0)?;
+                *result_ty = visit(*result_ty, 0)?;
+                *motive = visit(*motive, 0)?;
+                *on_continue = visit(*on_continue, 0)?;
+                *on_finish = visit(*on_finish, 0)?;
             }
-            | Node::ProgramStepRec {
+            Node::ProgramStepMatch {
                 state_ty,
                 result_ty,
                 computation_ty: motive,

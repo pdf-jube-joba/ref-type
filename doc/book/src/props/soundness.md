@@ -133,11 +133,12 @@ take equal では typing premise の**強化した**帰納法により K を得�
 ## RunStep・Acc・run
 
 RunStep formation と constructor は universe 内の tagged sum。
-prec では r の帰納法から \(r_\rho=(0,a)\) または \((1,b)\)。
-前者なら \(a\in A_\rho\) であり、c の帰納法と Trace 補題 2 から
-選んだ値が \(\llbracket P\rrbracket_{\rho[x:=(0,a)]}\) に属する。
+step match では product の引数 \(r_\rho\) ごとに \(r_\rho=(0,a)\) または \((1,b)\) と分ける。
+前者なら \(a\in A_\rho\) であり、c の帰納法から
+\(\operatorname{app}(c_\rho,a)\in\llbracket P\rrbracket_{\rho[x:=(0,a)]}\) を得る。
 後者も d と B について同じである。
-Semantic-substitution で結論の表示型に一致する。
+Trace 補題 2 により step match の値が dependent product に属する。
+Semantic-substitution で各 fiber の表示型に一致する。
 P が命題の場合にも同じ所属の議論が使える。
 
 acc form は真理値の定義。

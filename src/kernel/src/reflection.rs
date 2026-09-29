@@ -202,7 +202,7 @@ impl<'a, R: Resolver> Reflection<'a, R> {
                 scrutinee: reflect(scrutinee),
                 branches: branches.into_iter().map(reflect).collect(),
             },
-            Node::ProgramStepRec {
+            Node::ProgramStepMatch {
                 state_ty,
                 result_ty,
                 computation_ty,
@@ -220,13 +220,17 @@ impl<'a, R: Resolver> Reflection<'a, R> {
                     domain: reflect(domain),
                     body: shift(arena, reflect(computation_ty), 1, 0)?,
                 });
-                Node::Recursor {
+                let function = arena.alloc(Node::SetStepMatch {
                     state_ty: reflect(state_ty),
                     result_ty: reflect(result_ty),
                     motive,
                     on_continue: reflect(on_continue),
                     on_finish: reflect(on_finish),
-                    scrutinee: reflect(scrutinee),
+                });
+                Node::App {
+                    mode: Mode::Pure,
+                    function,
+                    argument: reflect(scrutinee),
                 }
             }
             node => {

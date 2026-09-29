@@ -950,7 +950,7 @@ impl ProgramScope {
                         branches: result,
                     }))
             }
-            ComputationTermExp::StepRec {
+            ComputationTermExp::StepMatch {
                 state_ty,
                 result_ty,
                 computation_ty,
@@ -968,7 +968,7 @@ impl ProgramScope {
                 Ok(environment
                     .crate_env
                     .arena()
-                    .alloc(ComputationTermNode::StepRec {
+                    .alloc(ComputationTermNode::StepMatch {
                         state_ty,
                         result_ty,
                         computation_ty,

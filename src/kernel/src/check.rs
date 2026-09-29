@@ -1182,28 +1182,26 @@ impl<'a> Checker<'a> {
                     value_ty: result_ty,
                 }))
             }
-            Node::Recursor {
+            Node::SetStepMatch {
                 state_ty,
                 result_ty,
                 motive,
                 on_continue,
                 on_finish,
-                scrutinee,
             } => {
                 let step = self.runstep(state_ty, result_ty, false)?;
-                self.check_open(scrutinee, step)?;
                 let motive_ty = self.motive_type(motive)?;
                 let (domain, codomain) = self.product(motive_ty)?;
                 if !self.equal(domain, step)? {
-                    return Err("recursor motive domain mismatch".into());
+                    return Err("step match motive domain mismatch".into());
                 }
                 let Node::Sort(sigma) = self.arena().get(self.head(codomain)?) else {
-                    return Err("recursor motive must return a classifier".into());
+                    return Err("step match motive must return a classifier".into());
                 };
                 let i = self.set_type(state_ty)?;
                 Sort::Base(BaseSort::Set(i))
                     .product(sigma)
-                    .ok_or("invalid recursor motive sort")?;
+                    .ok_or("invalid step match motive sort")?;
                 let state = self.lifted(state_ty, 1)?;
                 let result = self.lifted(result_ty, 1)?;
                 let x = self.arena().bound(0);
@@ -1231,9 +1229,16 @@ impl<'a> Checker<'a> {
                         }),
                     )?;
                 }
-                self.head(self.application(motive, scrutinee)?)
+                let body = self.head(
+                    self.application(self.lifted(motive, 1)?, self.arena().bound(0))?,
+                )?;
+                Ok(self.alloc(Node::Product {
+                    var: SymbolId::ANONYMOUS,
+                    domain: step,
+                    body,
+                }))
             }
-            Node::ProgramStepRec {
+            Node::ProgramStepMatch {
                 state_ty,
                 result_ty,
                 computation_ty,

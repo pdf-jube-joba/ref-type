@@ -23,7 +23,7 @@
 結果が proof family でない root 規則と、その compatible closure で生成する。
 消去によって失われた proof の内部位置には簡約を設けない。
 したがって \(\bullet\) に簡約はない。
-prec/runCase の内外の型添字の一致を要求しないことは、補助 reduction と同じである。
+step match/runCase の内外の型添字の一致を要求しないことは、補助 reduction と同じである。
 
 **補題。**
 \[
@@ -40,7 +40,7 @@ proof 内の step と proof を返す root は両辺とも \(\bullet\)。
 
 **証明。** [補助 reduction の平行簡約と complete development](confluence.md)の構成を
 消去構文に適用する。\(\bullet\) の development は \(\bullet\)。
-残る root は beta、Pred/subset、非 proof の prec、run、runCase であり、
+残る root は beta、Pred/subset、非 proof の step match、run、runCase であり、
 root と compatible step の重なりは元の証明と同じである。
 Pred に対する二つの平行規則と代入補題も残る。
 proof variable の代入は恒等操作なので、その場合の代入補題は等式になる。
@@ -51,7 +51,7 @@ proof variable の代入は恒等操作なので、その場合の代入補題�
 
 \(\mathcal H\) の構文は消去構文、規則は \(\mathcal S_+\) の非 conversion 規則を
 \(\epsilon\) で写したものとする。
-例えば proof の variable、dep intro、dep elim、proof term、take elim prop、proof を返す prec の
+例えば proof の variable、dep intro、dep elim、proof term、take elim prop、proof を返す step match の
 結論の subject はすべて \(\bullet\) である。それぞれの premise は保持する。
 \(\bullet:P\) を無条件に認める規則はない。
 
@@ -117,8 +117,9 @@ Set の literal Take に対しては、さらに
   union がその一定値に等しいことを使う。take equal は明示された Take typing の H-K を使う。
   take elim prop は非空な domain の全 fiber が P なので P が真となる。
 - RunStep は sum の validity、constructor は tagged sum の所属。
-  非 proof の prec は対応する branch の Prod の所属、proof の prec は対応する fiber の真理値 1。
-  どちらも motive の代入は Coded-substitution で結論の型に一致する。
+  非 proof の step match は各 branch の所属から Trace により product に属する。
+  proof の step match は各 fiber の真理値 1 を示す。
+  どちらも motive の代入は Coded-substitution で各 fiber の型に一致する。
 - Acc の導入・下降、run、runCase は decoding した A、B に対する
   [Run-laws](model.md#termination)。f の全域性、argument の所属、Acc と equality はそれぞれ premise の帰納法による。
 
@@ -205,11 +206,11 @@ H-soundness と構造補題は既に独立に証明済みなので、自由に�
 - Pred/subset：generation により内側 domain C と外側 A のコードが等しい。
   argument を C に移して、型演算子 lambda とその application を形成する。
   その argument は El(C) に属するので、subset の membership と predicate body の真理値が一致する。
-- prec/continue、prec/finish：generation で constructor argument を外側の A または B へ移す。
+- step match/continue、step match/finish：generation で constructor argument を外側の A または B へ移す。
   branch に dep elim を適用する。
   内外の型注釈が異なっていても constructor の値は同じ tagged pair なので、
   motive への代入後の結果型は Coded-substitution により意味的に等しい。
-  両結果型を形成して H-conversion する。prec の値は定義からその branch application の値である。
+  両結果型を形成して H-conversion する。step match の適用値は定義からその branch application の値である。
 - run：f@a の typing と自己等号を作り、元の Acc premise と合わせて runCase を型付けする。
   H-soundness で f の全域性と Acc の意味を得て、Run-laws の unfolding を使う。
 - runCase/continue：generation で後続状態 b を A に移す。
@@ -240,17 +241,17 @@ subset intro では \(e:A\) の帰納法で \(e':A\) と値の等しさを得る
 | id、exists | 両辺の値、または対象型のコードが等しいので真理値が等しい |
 | Take | domain の decoding と関数値が等しいので union が等しい。新しい関数型、非空性、定値性を形成して意味的 conversion で premise を移す |
 | RunStep、continue、finish | 同じ sum コード、または同じ tagged pair。必要な argument typing を移す |
-| prec | motive の context と両 branch 型を再形成する。scrutinee と branch の値が等しく、motive は演算の値に使わない |
+| step match | motive の context と両 branch 型を再形成する。branch の値が等しく、motive は演算の値に使わない |
 | Acc、run、runCase | domain/codomain の decoding、f、状態、step の値が等しいので D、Run、Case が等しい。新しい Acc と equality を形成して Prop-conversion する |
 
 変更した型注釈に依存する未変更の premise は、両方の formation と
 値の等しさによる H-conversion で移す。
 新しい結果型が元の結果型と構文的に異なる場合も、Substitution で両方を形成して同じ操作をする。
 Take の定値性は拡張 context の二変数に新しい f を適用して形成できる。
-prec の branch 型は新しい constructor を motive に代入して形成できる。
+step match の branch 型は新しい constructor を motive に代入して形成できる。
 従って、再構成中の formation を未証明の SR に委ねていない。
 
-proof の variable、dep intro/elim、proof term、take elim prop、proof prec の
+proof の variable、dep intro/elim、proof term、take elim prop、proof step match の
 結論の subject は \(\bullet\) であり、簡約はない。
 特に provability premise に対する SR の帰納法は必要ない。
 これで typing と kind formation に関する帰納法が閉じる。□

@@ -223,21 +223,19 @@ impl<'a> Printer<'a> {
                 child(step),
                 child(state)
             ),
-            ExpNode::RunStepRec {
+            ExpNode::SetStepMatch {
                 state_ty,
                 result_ty,
                 motive,
                 on_continue,
                 on_finish,
-                scrutinee,
             } => format!(
-                "\\runStepRec[{}, {}]({}, {}, {}, {})",
+                "stepMatchSet[{}, {}]({}, {}, {})",
                 child(state_ty),
                 child(result_ty),
                 child(motive),
                 child(on_continue),
-                child(on_finish),
-                child(scrutinee)
+                child(on_finish)
             ),
             ExpNode::SetRun {
                 state_ty,
@@ -411,7 +409,7 @@ impl<'a> Printer<'a> {
                 base,
                 equality,
             }) => format!(
-                "\\idelim({} = {} \\with {}: {} => {}) \\by {{ base: {}, equality: {} }}",
+                "\\idelim {} = {} \\with {}: {} => {} \\by {{ base: {}, equality: {} }}",
                 child(left),
                 child(right),
                 self.format_named_var(var),
@@ -671,7 +669,7 @@ impl<'a> Printer<'a> {
                 indspec.index,
                 self.format_value(scrutinee)
             ),
-            ComputationTermNode::StepRec {
+            ComputationTermNode::StepMatch {
                 state_ty,
                 result_ty,
                 computation_ty,

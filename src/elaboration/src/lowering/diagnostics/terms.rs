@@ -123,25 +123,23 @@ impl Renderer<'_> {
                     (*transition_equality),
                 ],
             ),
-            Recursor {
+            SetStepMatch {
                 state_ty,
                 result_ty,
                 motive,
                 on_continue,
                 on_finish,
-                scrutinee,
             } => self.call(
-                "runStepRec",
+                "stepMatchSet",
                 &[
                     *state_ty,
                     *result_ty,
                     *motive,
                     *on_continue,
                     *on_finish,
-                    *scrutinee,
                 ],
             ),
-            ProgramStepRec {
+            ProgramStepMatch {
                 state_ty,
                 result_ty,
                 computation_ty,
@@ -149,7 +147,7 @@ impl Renderer<'_> {
                 on_finish,
                 scrutinee,
             } => self.call(
-                "programStepRec",
+                "programStepMatch",
                 &[
                     *state_ty,
                     *result_ty,

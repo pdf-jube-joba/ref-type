@@ -394,27 +394,24 @@ impl Lowerer<'_> {
                     branches,
                 })
             }
-            ExpNode::RunStepRec {
+            ExpNode::SetStepMatch {
                 state_ty,
                 result_ty,
                 motive,
                 on_continue,
                 on_finish,
-                scrutinee,
             } => {
                 let state_ty = self.set(state_ty, ctx, m)?;
                 let result_ty = self.set(result_ty, ctx, m)?;
                 let motive = self.set(motive, ctx, m)?;
                 let on_continue = self.set(on_continue, ctx, m)?;
                 let on_finish = self.set(on_finish, ctx, m)?;
-                let scrutinee = self.set(scrutinee, ctx, m)?;
-                self.kernel.arena().alloc(s::Node::Recursor {
+                self.kernel.arena().alloc(s::Node::SetStepMatch {
                     state_ty,
                     result_ty,
                     motive,
                     on_continue,
                     on_finish,
-                    scrutinee,
                 })
             }
             ExpNode::Prod { var, ty, body } | ExpNode::Lam { var, ty, body } => {

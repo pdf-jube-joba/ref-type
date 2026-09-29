@@ -72,21 +72,13 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             step,
             state,
         } => one!(state_ty, result_ty, step, state),
-        ExpNode::RunStepRec {
+        ExpNode::SetStepMatch {
             state_ty,
             result_ty,
             motive,
             on_continue,
             on_finish,
-            scrutinee,
-        } => one!(
-            state_ty,
-            result_ty,
-            motive,
-            on_continue,
-            on_finish,
-            scrutinee
-        ),
+        } => one!(state_ty, result_ty, motive, on_continue, on_finish),
         ExpNode::SetRun {
             state_ty,
             result_ty,

@@ -1287,8 +1287,14 @@ fn set_recursion_preserves_a_shared_universe() {
                 \definition result: B := \run[A, B](f, a) \by { p };
                 \definition case_result: B :=
                     \runCase[A, B](f, a, \continue[A, B](a)) \by { accessibility: p, equality: edge };
-                \definition recursed: B := \runStepRec[A, B](\fun (r: step_type) => B, \fun (x: A) => b, \fun (y: B) => y, finished);
-                \definition recursed_proof: P := \runStepRec[A, B](\fun (r: step_type) => P, \fun (x: A) => proof, \fun (y: B) => proof, continued);
+                \definition recursed: B := (\step-match r: \RunStep[A, B] \return B \with {
+                  | \continue x: b
+                  | \finish y: y
+                }) finished;
+                \definition recursed_proof: P := (\step-match r: \RunStep[A, B] \return P \with {
+                  | \continue x: proof
+                  | \finish y: proof
+                }) continued;
             }
         "#
         .replace("LEVEL", &level.to_string());
@@ -1299,10 +1305,13 @@ fn set_recursion_preserves_a_shared_universe() {
 }
 
 #[test]
-fn run_step_recursor_distinguishes_branch_and_result_sorts() {
+fn step_match_distinguishes_branch_and_result_sorts() {
     let source = r#"
         \module InvalidMotive(A: \Set(2), a: A, B: \Set(0), b: B) {
-            \definition bad: B := \runStepRec[A, A](\fun (r: \RunStep[A, A]) => B, \fun (x: A) => b, \fun (x: A) => b, \finish[A, A](a));
+            \definition bad: B := (\step-match r: \RunStep[A, A] \return B \with {
+              | \continue x: b
+              | \finish x: b
+            }) \finish[A, A](a);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1385,11 +1394,14 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
           \definition stepSet: Unit^ -> \RunStep[Unit^, Unit^] :=
             \squash[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\box[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\return(step)));
           \definition ready: \RunStep[Unit^, Unit^] -> \Prop :=
-            \fun (r: \RunStep[Unit^, Unit^]) => \In[Unit^] (\runStepRec[Unit^, Unit^](\fun (r: \RunStep[Unit^, Unit^]) => \Pow (Unit^), \fun (s: Unit^) => { x : Unit^ \where \Acc[Unit^, Unit^](stepSet, s) }, \fun (o: Unit^) => { x : Unit^ \where Unit^::unit = Unit^::unit }, r)) (Unit^::unit);
+            \fun (r: \RunStep[Unit^, Unit^]) => \In[Unit^] ((\step-match r: \RunStep[Unit^, Unit^] \return \Pow (Unit^) \with {
+              | \continue s: { x : Unit^ \where \Acc[Unit^, Unit^](stepSet, s) }
+              | \finish o: { x : Unit^ \where Unit^::unit = Unit^::unit }
+            }) r) (Unit^::unit);
           \definition terminates: \forall (s: Unit^) -> \Acc[Unit^, Unit^](stepSet, s) :=
             \fun (s: Unit^) => \accintro[Unit^, Unit^](stepSet, s, \fun (next: Unit^) => \fun (edge: stepSet s = \continue[Unit^, Unit^](next)) =>
-                \idelim(stepSet s = \continue[Unit^, Unit^](next)
-                  \with r: \RunStep[Unit^, Unit^] => ready r) \by { base: \refl(Unit^::unit), equality: edge });
+                \idelim stepSet s = \continue[Unit^, Unit^](next)
+                  \with r: \RunStep[Unit^, Unit^] => ready r \by { base: \refl(Unit^::unit), equality: edge });
           \definition result: \F(Unit) :=
             \run[Unit, Unit](step, Unit::unit) \by { terminates Unit^::unit };
           \definition otherResult: \F(Unit) :=

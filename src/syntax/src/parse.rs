@@ -100,7 +100,6 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\Acc",
     "\\run",
     "\\runCase",
-    "\\runStepRec",
     "\\step-match",
     "\\Box",
     "\\box",

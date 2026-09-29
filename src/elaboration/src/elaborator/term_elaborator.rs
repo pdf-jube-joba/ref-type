@@ -1315,27 +1315,24 @@ impl LocalScope {
                     transition_equality,
                 }))
             }
-            SExp::RunStepRec {
+            SExp::SetStepMatch {
                 state_ty,
                 result_ty,
                 motive,
                 on_continue,
                 on_finish,
-                scrutinee,
             } => {
                 let state_ty = self.elab_exp_rec(state_ty, handler)?;
                 let result_ty = self.elab_exp_rec(result_ty, handler)?;
                 let motive = self.elab_exp_rec(motive, handler)?;
                 let on_continue = self.elab_exp_rec(on_continue, handler)?;
                 let on_finish = self.elab_exp_rec(on_finish, handler)?;
-                let scrutinee = self.elab_exp_rec(scrutinee, handler)?;
-                Ok(handler.arena().alloc(ExpNode::RunStepRec {
+                Ok(handler.arena().alloc(ExpNode::SetStepMatch {
                     state_ty,
                     result_ty,
                     motive,
                     on_continue,
                     on_finish,
-                    scrutinee,
                 }))
             }
             SExp::BoxType { program_ty } => {
@@ -1763,7 +1760,7 @@ impl LocalScope {
             | SExp::Sequence { .. }
             | SExp::ValueLet { .. }
             | SExp::ProgramCase { .. }
-            | SExp::ProgramStepRec { .. } => {
+            | SExp::ProgramStepMatch { .. } => {
                 Err("Program syntax cannot be elaborated as a Set/Prop expression".into())
             }
             SExp::Block(block) => {

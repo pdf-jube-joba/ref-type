@@ -168,13 +168,12 @@ pub enum ExpNode {
         step: Exp,
         state: Exp,
     },
-    RunStepRec {
+    SetStepMatch {
         state_ty: Exp,
         result_ty: Exp,
         motive: Exp,
         on_continue: Exp,
         on_finish: Exp,
-        scrutinee: Exp,
     },
     SetRun {
         state_ty: Exp,
@@ -656,20 +655,18 @@ impl ArenaNode for ExpNode {
                 step: step.0,
                 state: state.0,
             },
-            ExpNode::RunStepRec {
+            ExpNode::SetStepMatch {
                 state_ty,
                 result_ty,
                 motive,
                 on_continue,
                 on_finish,
-                scrutinee,
-            } => N::Recursor {
+            } => N::SetStepMatch {
                 state_ty: state_ty.0,
                 result_ty: result_ty.0,
                 motive: motive.0,
                 on_continue: on_continue.0,
                 on_finish: on_finish.0,
-                scrutinee: scrutinee.0,
             },
             ExpNode::SetRun {
                 state_ty,
@@ -934,21 +931,18 @@ impl ArenaHandle for Exp {
                 step: Exp(step),
                 state: Exp(state),
             },
-            N::Recursor {
+            N::SetStepMatch {
                 state_ty,
                 result_ty,
                 motive,
                 on_continue,
                 on_finish,
-                scrutinee,
-                ..
-            } => ExpNode::RunStepRec {
+            } => ExpNode::SetStepMatch {
                 state_ty: Exp(state_ty),
                 result_ty: Exp(result_ty),
                 motive: Exp(motive),
                 on_continue: Exp(on_continue),
                 on_finish: Exp(on_finish),
-                scrutinee: Exp(scrutinee),
             },
             N::SetRun {
                 state_ty,
@@ -1540,14 +1534,14 @@ impl ArenaNode for ComputationTermNode {
                 binders: branches.iter().map(|b| b.binders.clone()).collect(),
                 branches: branches.into_iter().map(|b| b.body.0).collect(),
             },
-            ComputationTermNode::StepRec {
+            ComputationTermNode::StepMatch {
                 state_ty,
                 result_ty,
                 computation_ty,
                 on_continue,
                 on_finish,
                 scrutinee,
-            } => N::ProgramStepRec {
+            } => N::ProgramStepMatch {
                 state_ty: state_ty.0,
                 result_ty: result_ty.0,
                 computation_ty: computation_ty.0,
@@ -1682,14 +1676,14 @@ impl ArenaHandle for ComputationTerm {
                     })
                     .collect(),
             },
-            N::ProgramStepRec {
+            N::ProgramStepMatch {
                 state_ty,
                 result_ty,
                 computation_ty,
                 on_continue,
                 on_finish,
                 scrutinee,
-            } => ComputationTermNode::StepRec {
+            } => ComputationTermNode::StepMatch {
                 state_ty: ValueType(state_ty),
                 result_ty: ValueType(result_ty),
                 computation_ty: ComputationType(computation_ty),

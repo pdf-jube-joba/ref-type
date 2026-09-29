@@ -6,11 +6,14 @@
             \thunk((\cfun (s: Unit) => \return(\finish[Unit, Unit](Unit::unit))));
           
           \definition ready: \RunStep[Unit^, Unit^] -> \Prop :=
-            \fun (r: \RunStep[Unit^, Unit^]) => \In[Unit^] (\runStepRec[Unit^, Unit^](\fun (r: \RunStep[Unit^, Unit^]) => \Pow (Unit^), \fun (s: Unit^) => { x : Unit^ \where \Acc[Unit^, Unit^](step^, s) }, \fun (o: Unit^) => { x : Unit^ \where Unit^::unit = Unit^::unit }, r)) (Unit^::unit);
+            \fun (r: \RunStep[Unit^, Unit^]) => \In[Unit^] ((\step-match r: \RunStep[Unit^, Unit^] \return \Pow (Unit^) \with {
+              | \continue s: { x : Unit^ \where \Acc[Unit^, Unit^](step^, s) }
+              | \finish o: { x : Unit^ \where Unit^::unit = Unit^::unit }
+            }) r) (Unit^::unit);
           \definition terminates: \forall (s: Unit^) -> \Acc[Unit^, Unit^](step^, s) :=
             \fun (s: Unit^) => \accintro[Unit^, Unit^](step^, s, \fun (next: Unit^) => \fun (edge: step^ s = \continue[Unit^, Unit^](next)) =>
-                \idelim(step^ s = \continue[Unit^, Unit^](next)
-                  \with r: \RunStep[Unit^, Unit^] => ready r) \by { base: \refl(Unit^::unit), equality: edge });
+                \idelim step^ s = \continue[Unit^, Unit^](next)
+                  \with r: \RunStep[Unit^, Unit^] => ready r \by { base: \refl(Unit^::unit), equality: edge });
           \definition Owner(A: \VType)::result: \F(Unit) :=
             \run[Unit, Unit](step, Unit::unit) \by { terminates Unit^::unit };
           \definition Owner(A: \VType)::otherResult: \F(Unit) :=

@@ -115,7 +115,7 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | accessibility | \(\operatorname{Acc}_{A,B}(f,a)\) | \(\mathsf{Ty}_{*^p}\) | |
 | run | \(\operatorname{run}_{A,B}(f,a)\) | \(\mathsf{Tm}_{*^s_i}\) | |
 | run case | \(\operatorname{runCase}_{A,B}(f,a,u)\) | \(\mathsf{Tm}_{*^s_i}\) | |
-| run step recursor | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x_{*^s_i}.P,c,d,r)\) | \(\mathsf E_\sigma\) | \(A,B\in\mathsf{Ty}_{*^s_i}\), \(P\in\mathsf C_\sigma\), \(c,d\in\mathsf E_\tau\), \(r\in\mathsf{Tm}_{*^s_i}\), \(h_{i,\sigma}=(*^s_i,\sigma,\tau)\in\mathcal R_{sp}\) |
+| run step match | \(\operatorname{stepMatch}^{\sigma}_{A,B}(x_{*^s_i}.P,c,d)\) | \(\mathsf E_\tau\) | \(A,B\in\mathsf{Ty}_{*^s_i}\), \(P\in\mathsf C_\sigma\), \(c,d\in\mathsf E_\tau\), \(h_{i,\sigma}=(*^s_i,\sigma,\tau)\in\mathcal R_{sp}\) |
 
 #### Program
 
@@ -172,7 +172,7 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | \(\Pi_r z:A.B\) | \(z\) | \(B\) |
 | \(\lambda_r z:A.e\) | \(z\) | \(e\) |
 | \(\{x:A\mid P\}\) | \(x\) | \(P\) |
-| \(\operatorname{prec}^{\sigma}_D(x.P,c,d,r)\) | \(x\) | \(P\) |
+| \(\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)\) | \(x\) | \(P\) |
 | \(M\ \operatorname{to}\ x:A\ \operatorname{in}\ N\) | \(x\) | \(N\) |
 | \(\operatorname{let}^v x:A=V\ \operatorname{in}\ N\) | \(x\) | \(N\) |
 | \(\operatorname{btapp}_{X:K,\underline B}(f,P)\) | \(X\) | \(\underline B\) |
@@ -236,8 +236,8 @@ level は non-cumulative な構文添字とし、level パラメータ付き規�
 | category | before | after | premise |
 | --- | --- | --- | --- |
 | predicate | \(\Pred(A,\{x:B\mid P\},t)\) | \((\lambda_{p_i}x:B.P)@_{p_i}t\) | |
-| prec continue | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{continue}_{A,B}(a))\) | \(c@_{h_{i,\sigma}}a\) | |
-| prec finish | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{finish}_{A,B}(b))\) | \(d@_{h_{i,\sigma}}b\) | |
+| step match continue | \(\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)@_{h_{i,\sigma}}\operatorname{continue}_{A,B}(a)\) | \(c@_{h_{i,\sigma}}a\) | |
+| step match finish | \(\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)@_{h_{i,\sigma}}\operatorname{finish}_{A,B}(b)\) | \(d@_{h_{i,\sigma}}b\) | |
 | run | \(\operatorname{run}_{A,B}(f,a)\) | \(\operatorname{runCase}_{A,B}(f,a,f@_{s^{i,i}}a)\) | |
 | run continue | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{continue}_{A,B}(a'))\) | \(\operatorname{run}_{A,B}(f,a')\) | |
 | run finish | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{finish}_{A,B}(b))\) | \(b\) | |
@@ -371,7 +371,7 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| prec | \(\Gamma\vdash\operatorname{prec}^{\sigma}_D(x.P,c,d,r):P[x:=r]\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_i\)<br>\(\Gamma\vdash r:D\)<br>\(\Gamma,x_{*^s_i}:D\vdash P:\sigma\)<br>\(\Gamma\vdash C_P:\tau\)<br>\(\Gamma\vdash D_P:\tau\)<br>\(\Gamma\vdash c:C_P\)<br>\(\Gamma\vdash d:D_P\) | \(\{x,a,b\}\cap\operatorname{dom}(\Gamma)=\varnothing\)<br>\(\lvert\{x,a,b\}\rvert=3\) |
+| step match | \(\Gamma\vdash\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d):\Pi_{h_{i,\sigma}}x:D.P\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_i\)<br>\(\Gamma,x_{*^s_i}:D\vdash P:\sigma\)<br>\(\Gamma\vdash C_P:\tau\)<br>\(\Gamma\vdash D_P:\tau\)<br>\(\Gamma\vdash c:C_P\)<br>\(\Gamma\vdash d:D_P\) | \(\{x,a,b\}\cap\operatorname{dom}(\Gamma)=\varnothing\)<br>\(\lvert\{x,a,b\}\rvert=3\) |
 
 #### Acc と run
 

@@ -44,12 +44,15 @@
     }
   });
 
-\definition diffReady (t: \RunStep[DiffState^, Int^]): \Prop := \In[N.Nat^] (\runStepRec[DiffState^, Int^](\fun (t: \RunStep[DiffState^, Int^]) => \Pow N.Nat^, (\fun (s: DiffState^) => { n : N.Nat^ \where \Acc[DiffState^, Int^](diffStep^, s) }), (\fun (r: Int^) => { n : N.Nat^ \where N.Nat^::zero = N.Nat^::zero }), t)) N.Nat^::zero;
+\definition diffReady (t: \RunStep[DiffState^, Int^]): \Prop := \In[N.Nat^] ((\step-match t: \RunStep[DiffState^, Int^] \return \Pow N.Nat^ \with {
+  | \continue s: { n : N.Nat^ \where \Acc[DiffState^, Int^](diffStep^, s) }
+  | \finish r: { n : N.Nat^ \where N.Nat^::zero = N.Nat^::zero }
+}) t) N.Nat^::zero;
 \definition diffAccIntro (s: DiffState^) (ready: diffReady (diffStep^ s)): \Acc[DiffState^, Int^](diffStep^, s)
     :=
     \accintro[DiffState^, Int^](diffStep^, s, \fun (next: DiffState^) => \fun (edge: diffStep^ s = \continue[DiffState^, Int^](next)) =>
-        \idelim(diffStep^ s = \continue[DiffState^, Int^](next)
-          \with t: \RunStep[DiffState^, Int^] => diffReady t) \by { base: ready, equality: edge });
+        \idelim diffStep^ s = \continue[DiffState^, Int^](next)
+          \with t: \RunStep[DiffState^, Int^] => diffReady t \by { base: ready, equality: edge });
 
 \definition diffTerminates: \forall (b, a: N.Nat^) -> \Acc[DiffState^, Int^](diffStep^, DiffState^::running a b) :=
   \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> \Acc[DiffState^, Int^](diffStep^, DiffState^::running a
@@ -716,8 +719,8 @@
     };
 \definition powerSignTestMatches (n, magnitude: N.Nat^):
   powerSign^ (natOdd^ n) magnitude = powerSignPrec (natOddPrec n) magnitude :=
-    \idelim(natOdd^ n = natOddPrec n \with test: B.Bool^ =>
-      powerSign^ (natOdd^ n) magnitude = powerSignPrec test magnitude)
+    \idelim natOdd^ n = natOddPrec n \with test: B.Bool^ =>
+      powerSign^ (natOdd^ n) magnitude = powerSignPrec test magnitude
     \by { base: powerSignMatchesPrec (natOdd^ n) magnitude, equality: natOddMatchesPrec n };
 \definition powMatchesPrec: \forall (x: Int^) -> \forall (n: N.Nat^) -> pow^ x n = powPrec x n :=
   \induction (x: Int^) \return \forall (n: N.Nat^) -> pow^ x n = powPrec x n \with {

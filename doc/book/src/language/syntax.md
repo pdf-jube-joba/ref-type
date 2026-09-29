@@ -350,7 +350,7 @@ left = right
 \refl element-atom
 \exact(element, set)
 \bysub(superset, subset, element)
-\idelim(left = right \with x: A => predicate) \by { base: base-proof, equality: equality-proof }
+\idelim left = right \with x: A => predicate \by { base: base-proof, equality: equality-proof }
 \takeelim(function, element, domain, codomain) \by { existence: existence-proof, uniqueness: uniqueness-proof }
 ```
 
@@ -465,7 +465,6 @@ branch の末尾に `;` は付けない。
 ```text
 \continue[state-type, result-type](next-state)
 \finish[state-type, result-type](output)
-\runStepRec[state-type, result-type](motive, on-continue, on-finish, scrutinee)
 \step-match x: \RunStep[state-type, result-type] \return P \with {
   | \continue next-state: M
   | \finish output: N
@@ -478,7 +477,6 @@ branch の末尾に `;` は付けない。
 `\continue` と `\finish` は `\RunStep[state-type, result-type]` 型の値である。
 変数 `x` を指定する `\step-match` は Set 側の依存関数 `(x: \RunStep[state-type, result-type]) -> P` を作り、各分岐は `P` に対応する項を返す。
 変数を指定しない `\step-match` は Program 側の値 `\U(\RunStep[state-type, result-type] ~> C)` を作り、`C` は固定した computation type、各分岐は computation である。
-`\runStepRec` は Set 側の recursor である。
 
 ```
 \Acc[state-type, result-type](step, state)

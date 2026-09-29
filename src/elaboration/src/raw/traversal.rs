@@ -396,14 +396,14 @@ pub(crate) fn computation(
                 })
                 .collect(),
         },
-        ComputationTermNode::StepRec {
+        ComputationTermNode::StepMatch {
             state_ty,
             result_ty,
             computation_ty,
             on_continue,
             on_finish,
             scrutinee,
-        } => ComputationTermNode::StepRec {
+        } => ComputationTermNode::StepMatch {
             state_ty: value_type(arena, state_ty, depth, rewrite),
             result_ty: value_type(arena, result_ty, depth, rewrite),
             computation_ty: computation_type(arena, computation_ty, depth, rewrite),

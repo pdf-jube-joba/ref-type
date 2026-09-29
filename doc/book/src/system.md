@@ -97,7 +97,7 @@ Set/Prop と Program で同じ記号を使う固有演算は、演算の tag で
 | accessibility | \(\operatorname{Acc}_{A,B}(f,a)\) |
 | run | \(\operatorname{run}_{A,B}(f,a)\) |
 | run case | \(\operatorname{runCase}_{A,B}(f,a,u)\) |
-| run step recursor | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,r)\) |
+| run step match | \(\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)\) |
 
 #### Program
 
@@ -141,7 +141,7 @@ Set/Prop と Program で同じ記号を使う固有演算は、演算の tag で
 | \(\Pi_r z:A.B\) | \(z\) | \(B\) |
 | \(\lambda_r z:A.e\) | \(z\) | \(e\) |
 | \(\{x:A\mid P\}\) | \(x\) | \(P\) |
-| \(\operatorname{prec}^{\sigma}_D(x.P,c,d,r)\) | \(x\) | \(P\) |
+| \(\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)\) | \(x\) | \(P\) |
 | \(M\ \operatorname{to}\ x:A\ \operatorname{in}\ N\) | \(x\) | \(N\) |
 | \(\operatorname{let}^v x:A=V\ \operatorname{in}\ N\) | \(x\) | \(N\) |
 | \(\operatorname{btapp}_{X:K,\underline B}(f,P)\) | \(X\) | \(\underline B\) |
@@ -195,8 +195,8 @@ Set/Prop の文脈拡張には \(\mathcal S_{sp}\)、Program の文脈拡張に�
 | category | before | after | premise |
 | --- | --- | --- | --- |
 | predicate | \(\Pred(A,\{x:B\mid P\},t)\) | \((\lambda_{p_i}x:B.P)@_{p_i}t\) | |
-| prec continue | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{continue}_{A,B}(a))\) | \(c@_{h_{i,\sigma}}a\) | |
-| prec finish | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(A,B)}(x.P,c,d,\operatorname{finish}_{A,B}(b))\) | \(d@_{h_{i,\sigma}}b\) | |
+| step match continue | \(\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)@_{h_{i,\sigma}}\operatorname{continue}_{A,B}(a)\) | \(c@_{h_{i,\sigma}}a\) | |
+| step match finish | \(\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)@_{h_{i,\sigma}}\operatorname{finish}_{A,B}(b)\) | \(d@_{h_{i,\sigma}}b\) | |
 | run | \(\operatorname{run}_{A,B}(f,a)\) | \(\operatorname{runCase}_{A,B}(f,a,f@_{s^{i,i}}a)\) | |
 | run continue | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{continue}_{A,B}(a'))\) | \(\operatorname{run}_{A,B}(f,a')\) | |
 | run finish | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{finish}_{A,B}(b))\) | \(b\) | |
@@ -325,7 +325,7 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| prec | \(\Gamma\vdash\operatorname{prec}^{\sigma}_D(x.P,c,d,r):P[x:=r]\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_i\)<br>\(\Gamma\vdash r:D\)<br>\(\Gamma,x:D\vdash P:\sigma\)<br>\(\Gamma\vdash C_P:\tau\)<br>\(\Gamma\vdash D_P:\tau\)<br>\(\Gamma\vdash c:C_P\)<br>\(\Gamma\vdash d:D_P\) | \(\{x,a,b\}\cap\operatorname{dom}(\Gamma)=\varnothing\)<br>\(\lvert\{x,a,b\}\rvert=3\) |
+| step match | \(\Gamma\vdash\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d):\Pi_{h_{i,\sigma}}x:D.P\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_i\)<br>\(\Gamma,x:D\vdash P:\sigma\)<br>\(\Gamma\vdash C_P:\tau\)<br>\(\Gamma\vdash D_P:\tau\)<br>\(\Gamma\vdash c:C_P\)<br>\(\Gamma\vdash d:D_P\) | \(\{x,a,b\}\cap\operatorname{dom}(\Gamma)=\varnothing\)<br>\(\lvert\{x,a,b\}\rvert=3\) |
 
 #### Acc と run
 
@@ -416,7 +416,7 @@ reflection は Program の型判断で分類された項に対し、以下の式
 | \(\operatorname{RunStep}(A,B)\) | \(\operatorname{RunStep}(\operatorname{Rf}(A),\operatorname{Rf}(B))\) |
 | \(\operatorname{continue}_{A,B}(V)\) | \(\operatorname{continue}_{\operatorname{Rf}(A),\operatorname{Rf}(B)}(\operatorname{Rf}(V))\) |
 | \(\operatorname{finish}_{A,B}(V)\) | \(\operatorname{finish}_{\operatorname{Rf}(A),\operatorname{Rf}(B)}(\operatorname{Rf}(V))\) |
-| \(\operatorname{stepMatch}_{A,B,\underline C}(M,N,V)\) | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(\operatorname{Rf}(A),\operatorname{Rf}(B))}(x.\operatorname{Rf}(\underline C),\operatorname{Rf}(M),\operatorname{Rf}(N),\operatorname{Rf}(V))\) |
+| \(\operatorname{stepMatch}_{A,B,\underline C}(M,N,V)\) | \(\operatorname{stepMatch}^{\sigma}_{\operatorname{Rf}(A),\operatorname{Rf}(B)}(x.\operatorname{Rf}(\underline C),\operatorname{Rf}(M),\operatorname{Rf}(N))@_{h_{i,\sigma}}\operatorname{Rf}(V)\) |
 | \(\operatorname{run}_{A,B}(V,W)\) | \(\operatorname{run}_{\operatorname{Rf}(A),\operatorname{Rf}(B)}(\operatorname{Rf}(V),\operatorname{Rf}(W))\) |
 | \(\operatorname{runCase}_{A,B}(V,W,M)\) | \(\operatorname{runCase}_{\operatorname{Rf}(A),\operatorname{Rf}(B)}(\operatorname{Rf}(V),\operatorname{Rf}(W),\operatorname{Rf}(M))\) |
 

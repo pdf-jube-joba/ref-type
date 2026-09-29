@@ -183,6 +183,15 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
             Node::Lambda {
                 mode: actual, body, ..
             } if mode == actual => instantiate(a, body, &[argument])?,
+            Node::SetStepMatch {
+                on_continue,
+                on_finish,
+                ..
+            } if mode == Mode::Pure => match a.get(env.whnf(argument)?) {
+                Node::Continue { next, .. } => app(env, Mode::Pure, on_continue, next),
+                Node::Finish { output, .. } => app(env, Mode::Pure, on_finish, output),
+                _ => return Ok(None),
+            },
             _ => return Ok(None),
         },
         Node::Pred {
@@ -192,17 +201,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
             _ => return Ok(None),
         },
         Node::Reflect { term } => return env.reflect_step(term),
-        Node::Recursor {
-            on_continue,
-            on_finish,
-            scrutinee,
-            ..
-        } => match a.get(scrutinee) {
-            Node::Continue { next, .. } => app(env, Mode::Pure, on_continue, next),
-            Node::Finish { output, .. } => app(env, Mode::Pure, on_finish, output),
-            _ => return Ok(None),
-        },
-        Node::ProgramStepRec {
+        Node::ProgramStepMatch {
             scrutinee,
             on_continue,
             on_finish,
@@ -468,7 +467,6 @@ pub(crate) fn map_head(
     let slots: &[usize] = match node {
         Node::App { .. } => &[0],
         Node::Pred { .. } => &[1],
-        Node::Recursor { .. } => &[5],
         Node::ForceBox { .. } => &[1],
         Node::BoxApp { .. } => &[0, 1],
         Node::BoxTypeApp { .. } => &[0],
@@ -506,7 +504,7 @@ pub fn reduce_once(env: &Environment, e: Expression) -> Result<Option<Expression
         | Node::Return { .. }
         | Node::Force { .. }
         | Node::ProgramCase { .. }
-        | Node::ProgramStepRec { .. }
+        | Node::ProgramStepMatch { .. }
         | Node::Run { .. }
         | Node::BoxType { .. }
         | Node::BoxProgram { .. } => Some(&[]),
