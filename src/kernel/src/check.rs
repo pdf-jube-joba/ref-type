@@ -1233,6 +1233,28 @@ impl<'a> Checker<'a> {
                 }
                 self.head(self.application(motive, scrutinee)?)
             }
+            Node::ProgramStepRec {
+                state_ty,
+                result_ty,
+                computation_ty,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => {
+                let runstep = self.runstep(state_ty, result_ty, true)?;
+                self.check_open(scrutinee, runstep)?;
+                self.program_type(computation_ty, true)?;
+                for (domain, branch) in [(state_ty, on_continue), (result_ty, on_finish)] {
+                    let codomain = self.lifted(computation_ty, 1)?;
+                    let expected = self.alloc(Node::Product {
+                        var: SymbolId::ANONYMOUS,
+                        domain,
+                        body: codomain,
+                    });
+                    self.check_at("check RunStep branch", branch, expected)?;
+                }
+                Ok(computation_ty)
+            }
             Node::BoxType { program_ty } => {
                 let i = self.closed_program_type(program_ty)?;
                 Ok(self.base(BaseSort::Set(i)))

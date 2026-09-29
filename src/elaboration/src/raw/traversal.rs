@@ -396,6 +396,21 @@ pub(crate) fn computation(
                 })
                 .collect(),
         },
+        ComputationTermNode::StepRec {
+            state_ty,
+            result_ty,
+            computation_ty,
+            on_continue,
+            on_finish,
+            scrutinee,
+        } => ComputationTermNode::StepRec {
+            state_ty: value_type(arena, state_ty, depth, rewrite),
+            result_ty: value_type(arena, result_ty, depth, rewrite),
+            computation_ty: computation_type(arena, computation_ty, depth, rewrite),
+            on_continue: computation(arena, on_continue, depth, rewrite),
+            on_finish: computation(arena, on_finish, depth, rewrite),
+            scrutinee: value(arena, scrutinee, depth, rewrite),
+        },
         ComputationTermNode::Run {
             state_ty,
             result_ty,

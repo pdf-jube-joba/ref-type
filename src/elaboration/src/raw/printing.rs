@@ -671,6 +671,19 @@ impl<'a> Printer<'a> {
                 indspec.index,
                 self.format_value(scrutinee)
             ),
+            ComputationTermNode::StepRec {
+                state_ty,
+                result_ty,
+                computation_ty,
+                scrutinee,
+                ..
+            } => format!(
+                "stepRec[{}, {}]({}) : {}",
+                self.format_value_type(state_ty),
+                self.format_value_type(result_ty),
+                self.format_value(scrutinee),
+                self.format_computation_type(computation_ty)
+            ),
             ComputationTermNode::Run {
                 state_ty,
                 result_ty,

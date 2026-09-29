@@ -141,6 +141,24 @@ impl Renderer<'_> {
                     *scrutinee,
                 ],
             ),
+            ProgramStepRec {
+                state_ty,
+                result_ty,
+                computation_ty,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => self.call(
+                "programStepRec",
+                &[
+                    *state_ty,
+                    *result_ty,
+                    *computation_ty,
+                    *on_continue,
+                    *on_finish,
+                    *scrutinee,
+                ],
+            ),
             BoxProgram {
                 program_ty,
                 program,

@@ -950,6 +950,33 @@ impl ProgramScope {
                         branches: result,
                     }))
             }
+            ComputationTermExp::StepRec {
+                state_ty,
+                result_ty,
+                computation_ty,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => {
+                let state_ty = self.elaborate_value_type(state_ty, environment)?;
+                let result_ty = self.elaborate_value_type(result_ty, environment)?;
+                let computation_ty =
+                    self.elaborate_computation_type(computation_ty, environment)?;
+                let on_continue = self.elaborate_computation(on_continue, environment)?;
+                let on_finish = self.elaborate_computation(on_finish, environment)?;
+                let scrutinee = self.elaborate_value(scrutinee, environment)?;
+                Ok(environment
+                    .crate_env
+                    .arena()
+                    .alloc(ComputationTermNode::StepRec {
+                        state_ty,
+                        result_ty,
+                        computation_ty,
+                        on_continue,
+                        on_finish,
+                        scrutinee,
+                    }))
+            }
             ComputationTermExp::Run {
                 state_ty,
                 result_ty,

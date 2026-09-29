@@ -303,6 +303,14 @@ pub enum ComputationTermExp {
         scrutinee: Box<ValueTermExp>,
         branches: Vec<(Identifier, Vec<Identifier>, ComputationTermExp)>,
     },
+    StepRec {
+        state_ty: Box<ValueTypeExp>,
+        result_ty: Box<ValueTypeExp>,
+        computation_ty: Box<ComputationTypeExp>,
+        on_continue: Box<ComputationTermExp>,
+        on_finish: Box<ComputationTermExp>,
+        scrutinee: Box<ValueTermExp>,
+    },
     Run {
         state_ty: Box<ValueTypeExp>,
         result_ty: Box<ValueTypeExp>,
@@ -553,6 +561,14 @@ pub enum SExp {
         path: LocalAccess,
         scrutinee: Box<SExp>,
         branches: Vec<(Identifier, Vec<Identifier>, SExp)>,
+    },
+    ProgramStepRec {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        computation_ty: Box<SExp>,
+        on_continue: Box<SExp>,
+        on_finish: Box<SExp>,
+        scrutinee: Box<SExp>,
     },
 
     // --- certified general recursion over Program values
@@ -1009,6 +1025,21 @@ impl TryFrom<SExp> for ComputationTermExp {
                         Ok((constructor, binders, body.try_into()?))
                     })
                     .collect::<Result<_, String>>()?,
+            }),
+            SExp::ProgramStepRec {
+                state_ty,
+                result_ty,
+                computation_ty,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => Ok(Self::StepRec {
+                state_ty: Box::new((*state_ty).try_into()?),
+                result_ty: Box::new((*result_ty).try_into()?),
+                computation_ty: Box::new((*computation_ty).try_into()?),
+                on_continue: Box::new((*on_continue).try_into()?),
+                on_finish: Box::new((*on_finish).try_into()?),
+                scrutinee: Box::new((*scrutinee).try_into()?),
             }),
             SExp::Run {
                 state_ty,

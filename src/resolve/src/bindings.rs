@@ -523,7 +523,15 @@ pub(crate) fn alpha_rename(
         SExp::RunStepRec {
             state_ty,
             result_ty,
-            motive,
+            motive: computation_ty,
+            on_continue,
+            on_finish,
+            scrutinee,
+        }
+        | SExp::ProgramStepRec {
+            state_ty,
+            result_ty,
+            computation_ty,
             on_continue,
             on_finish,
             scrutinee,
@@ -531,7 +539,7 @@ pub(crate) fn alpha_rename(
             [
                 state_ty,
                 result_ty,
-                motive,
+                computation_ty,
                 on_continue,
                 on_finish,
                 scrutinee,

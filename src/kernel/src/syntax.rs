@@ -101,6 +101,14 @@ pub enum Node {
         on_finish: Expression,
         scrutinee: Expression,
     },
+    ProgramStepRec {
+        state_ty: Expression,
+        result_ty: Expression,
+        computation_ty: Expression,
+        on_continue: Expression,
+        on_finish: Expression,
+        scrutinee: Expression,
+    },
     BoxProgram {
         program_ty: Expression,
         program: Expression,
@@ -571,6 +579,14 @@ impl Arena {
                 on_finish,
                 scrutinee,
                 ..
+            }
+            | Node::ProgramStepRec {
+                state_ty,
+                result_ty,
+                computation_ty: motive,
+                on_continue,
+                on_finish,
+                scrutinee,
             } => {
                 *state_ty = visit(*state_ty, 0)?;
                 *result_ty = visit(*result_ty, 0)?;

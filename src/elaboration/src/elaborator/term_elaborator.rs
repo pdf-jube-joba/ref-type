@@ -1762,7 +1762,8 @@ impl LocalScope {
             | SExp::ComputationLam { .. }
             | SExp::Sequence { .. }
             | SExp::ValueLet { .. }
-            | SExp::ProgramCase { .. } => {
+            | SExp::ProgramCase { .. }
+            | SExp::ProgramStepRec { .. } => {
                 Err("Program syntax cannot be elaborated as a Set/Prop expression".into())
             }
             SExp::Block(block) => {

@@ -265,6 +265,7 @@ extend_enum!(SExp {
     Sequence { computation, var, value_ty, body },
     ValueLet { var, value_ty, value, body },
     ProgramCase { path, scrutinee, branches },
+    ProgramStepRec { state_ty, result_ty, computation_ty, on_continue, on_finish, scrutinee },
     RunStep { state_ty, result_ty },
     Continue { state_ty, result_ty, next },
     Finish { state_ty, result_ty, output },

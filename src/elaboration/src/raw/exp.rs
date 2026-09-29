@@ -1540,6 +1540,21 @@ impl ArenaNode for ComputationTermNode {
                 binders: branches.iter().map(|b| b.binders.clone()).collect(),
                 branches: branches.into_iter().map(|b| b.body.0).collect(),
             },
+            ComputationTermNode::StepRec {
+                state_ty,
+                result_ty,
+                computation_ty,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => N::ProgramStepRec {
+                state_ty: state_ty.0,
+                result_ty: result_ty.0,
+                computation_ty: computation_ty.0,
+                on_continue: on_continue.0,
+                on_finish: on_finish.0,
+                scrutinee: scrutinee.0,
+            },
         };
         ComputationTerm(arena.core.alloc(node))
     }
@@ -1666,6 +1681,21 @@ impl ArenaHandle for ComputationTerm {
                         body: ComputationTerm(body),
                     })
                     .collect(),
+            },
+            N::ProgramStepRec {
+                state_ty,
+                result_ty,
+                computation_ty,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => ComputationTermNode::StepRec {
+                state_ty: ValueType(state_ty),
+                result_ty: ValueType(result_ty),
+                computation_ty: ComputationType(computation_ty),
+                on_continue: ComputationTerm(on_continue),
+                on_finish: ComputationTerm(on_finish),
+                scrutinee: ValueTerm(scrutinee),
             },
             node => panic!("incorrect frontend Program view: {node:?}"),
         }

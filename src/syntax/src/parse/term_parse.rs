@@ -424,6 +424,123 @@ impl<'a> TermParser<'a> {
                 })
             });
         }
+        if self.bump_if_keyword("\\step-match") {
+            let binder = if matches!(self.peek(), Some(Token::Ident(_)))
+                && self.tokens.get(self.pos + 1).map(|token| token.kind) == Some(Token::Colon)
+            {
+                let name = self.expect_ident()?;
+                self.expect_token(Token::Colon)?;
+                Some(name)
+            } else {
+                None
+            };
+            let step_ty = self.parse_postfix()?;
+            let SExp::RunStep {
+                state_ty,
+                result_ty,
+            } = step_ty.clone()
+            else {
+                return Err(self.error("step-match expects a RunStep type"));
+            };
+            self.expect_keyword("\\return")?;
+            let return_type = self.parse_sexp()?;
+            self.expect_keyword("\\with")?;
+            let branches = self.parse_branches(|parser| {
+                let constructor = if parser.bump_if_keyword("\\continue") {
+                    "continue"
+                } else if parser.bump_if_keyword("\\finish") {
+                    "finish"
+                } else {
+                    return Err(parser.error("expected \\continue or \\finish branch"));
+                };
+                let argument = parser.expect_binder_ident()?;
+                parser.expect_token(Token::Colon)?;
+                Ok((constructor, argument, parser.parse_sexp()?))
+            })?;
+            let mut on_continue = None;
+            let mut on_finish = None;
+            for (constructor, argument, body) in branches {
+                let slot = if constructor == "continue" {
+                    &mut on_continue
+                } else {
+                    &mut on_finish
+                };
+                if slot.replace((argument, body)).is_some() {
+                    return Err(self.error("duplicate step-match branch"));
+                }
+            }
+            let (continue_var, continue_body) =
+                on_continue.ok_or_else(|| self.error("missing \\continue branch"))?;
+            let (finish_var, finish_body) =
+                on_finish.ok_or_else(|| self.error("missing \\finish branch"))?;
+            let branch = |var, ty: Box<SExp>, body, program| {
+                if program {
+                    SExp::ComputationLam {
+                        var,
+                        value_ty: ty,
+                        body: Box::new(body),
+                    }
+                } else {
+                    SExp::Lam {
+                        bind: Bind::Named(RightBind {
+                            vars: vec![var],
+                            ty,
+                        }),
+                        body: Box::new(body),
+                    }
+                }
+            };
+            if let Some(var) = binder {
+                let motive = SExp::Lam {
+                    bind: Bind::Named(RightBind {
+                        vars: vec![var.clone()],
+                        ty: Box::new(step_ty.clone()),
+                    }),
+                    body: Box::new(return_type),
+                };
+                return Ok(SExp::Lam {
+                    bind: Bind::Named(RightBind {
+                        vars: vec![var.clone()],
+                        ty: Box::new(step_ty),
+                    }),
+                    body: Box::new(SExp::RunStepRec {
+                        state_ty: state_ty.clone(),
+                        result_ty: result_ty.clone(),
+                        motive: Box::new(motive),
+                        on_continue: Box::new(branch(continue_var, state_ty, continue_body, false)),
+                        on_finish: Box::new(branch(finish_var, result_ty, finish_body, false)),
+                        scrutinee: Box::new(SExp::AccessPath {
+                            access: LocalAccess::Current {
+                                span: Default::default(),
+                                access: var,
+                            },
+                            parameters: Vec::new(),
+                        }),
+                    }),
+                });
+            }
+            let var = Identifier("<step-match>".into());
+            return Ok(SExp::Thunk {
+                computation: Box::new(SExp::ComputationLam {
+                    var: var.clone(),
+                    value_ty: Box::new(step_ty),
+                    body: Box::new(SExp::ProgramStepRec {
+                        state_ty: state_ty.clone(),
+                        result_ty: result_ty.clone(),
+                        computation_ty: Box::new(return_type),
+                        on_continue: Box::new(branch(continue_var, state_ty, continue_body, true)),
+                        on_finish: Box::new(branch(finish_var, result_ty, finish_body, true)),
+                        scrutinee: Box::new(SExp::AccessPath {
+                            access: LocalAccess::Current {
+                                span: Default::default(),
+                                access: var,
+                            },
+                            parameters: Vec::new(),
+                        }),
+                    }),
+                }),
+            });
+        }
         if self.bump_if_keyword("\\Box") {
             let program_ty = self.parse_bracketed(Self::parse_sexp)?;
             return Ok(SExp::BoxType {

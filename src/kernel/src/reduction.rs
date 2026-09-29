@@ -202,6 +202,16 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
             Node::Finish { output, .. } => app(env, Mode::Pure, on_finish, output),
             _ => return Ok(None),
         },
+        Node::ProgramStepRec {
+            scrutinee,
+            on_continue,
+            on_finish,
+            ..
+        } => match a.get(unfold(env, scrutinee)?) {
+            Node::ProgramContinue { next, .. } => app(env, Mode::Computation, on_continue, next),
+            Node::ProgramFinish { output, .. } => app(env, Mode::Computation, on_finish, output),
+            _ => return Ok(None),
+        },
         Node::IndElim {
             inductive,
             scrutinee,
@@ -496,6 +506,7 @@ pub fn reduce_once(env: &Environment, e: Expression) -> Result<Option<Expression
         | Node::Return { .. }
         | Node::Force { .. }
         | Node::ProgramCase { .. }
+        | Node::ProgramStepRec { .. }
         | Node::Run { .. }
         | Node::BoxType { .. }
         | Node::BoxProgram { .. } => Some(&[]),

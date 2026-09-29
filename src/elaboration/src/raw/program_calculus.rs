@@ -364,6 +364,7 @@ pub fn remap_computation_global_ids(
         remap_computation_global_ids(arena, term, definitions, inductives, logical_inductives)
     };
     let value_ty = |ty| remap_value_type_global_ids(arena, ty, definitions, inductives);
+    let comp_ty = |ty| remap_computation_type_global_ids(arena, ty, definitions, inductives);
     match arena.get(computation) {
         ComputationTermNode::DefinitionInstance {
             definition,
@@ -472,6 +473,24 @@ pub fn remap_computation_global_ids(
                         body: recur(branch.body),
                     })
                     .collect(),
+            },
+        ),
+        ComputationTermNode::StepRec {
+            state_ty,
+            result_ty,
+            computation_ty,
+            on_continue,
+            on_finish,
+            scrutinee,
+        } => arena.reuse_computation(
+            computation,
+            ComputationTermNode::StepRec {
+                state_ty: value_ty(state_ty),
+                result_ty: value_ty(result_ty),
+                computation_ty: comp_ty(computation_ty),
+                on_continue: recur(on_continue),
+                on_finish: recur(on_finish),
+                scrutinee: value(scrutinee),
             },
         ),
         ComputationTermNode::Run {

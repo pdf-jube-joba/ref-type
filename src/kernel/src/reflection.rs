@@ -1,6 +1,7 @@
 //! Structural reflection shared by checked terms and frontend name resolution.
 use crate::{
-    ids::{DefinitionId, InductiveId, ProgramInductiveId},
+    calculus::shift,
+    ids::{DefinitionId, InductiveId, ProgramInductiveId, SymbolId},
     syntax::*,
 };
 use rustc_hash::FxHashSet;
@@ -201,6 +202,33 @@ impl<'a, R: Resolver> Reflection<'a, R> {
                 scrutinee: reflect(scrutinee),
                 branches: branches.into_iter().map(reflect).collect(),
             },
+            Node::ProgramStepRec {
+                state_ty,
+                result_ty,
+                computation_ty,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => {
+                let domain = arena.alloc(Node::ProgramRunStep {
+                    state_ty,
+                    result_ty,
+                });
+                let motive = arena.alloc(Node::Lambda {
+                    mode: Mode::Pure,
+                    var: SymbolId::ANONYMOUS,
+                    domain: reflect(domain),
+                    body: shift(arena, reflect(computation_ty), 1, 0)?,
+                });
+                Node::Recursor {
+                    state_ty: reflect(state_ty),
+                    result_ty: reflect(result_ty),
+                    motive,
+                    on_continue: reflect(on_continue),
+                    on_finish: reflect(on_finish),
+                    scrutinee: reflect(scrutinee),
+                }
+            }
             node => {
                 return Err(format!(
                     "reflection requires a Program expression: {node:?}"

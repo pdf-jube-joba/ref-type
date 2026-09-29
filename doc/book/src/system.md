@@ -120,6 +120,7 @@ Set/Prop と Program で同じ記号を使う固有演算は、演算の tag で
 | value let | \(\operatorname{let}^v x:A=V\ \operatorname{in}\ N\) |
 | continue | \(\operatorname{continue}_{A,B}(V)\) |
 | finish | \(\operatorname{finish}_{A,B}(V)\) |
+| run step match | \(\operatorname{stepMatch}_{A,B,\underline C}(M,N,V)\) |
 | run | \(\operatorname{run}_{A,B}(V,W)\) |
 | run case | \(\operatorname{runCase}_{A,B}(V,W,M)\) |
 
@@ -227,6 +228,8 @@ E::=[\,]\mid E@_{r^{i,j}_{vc}}V\mid E@_{r^{q;i,j}_{tc}}P
 | type beta | \((\lambda_{r^{q;i,j}_{tc}}X:K.M)@_{r^{q;i,j}_{tc}}P\) | \(M[X:=P]\) | |
 | sequence | \(\operatorname{return}(V)\ \operatorname{to}\ x:A\ \operatorname{in}\ N\) | \(N[x:=V]\) | |
 | value let | \(\operatorname{let}^v x:A=V\ \operatorname{in}\ N\) | \(N[x:=V]\) | |
+| step match continue | \(\operatorname{stepMatch}_{A,B,\underline C}(M,N,\operatorname{continue}_{A,B}(V))\) | \(M@_{r^{i,j}_{vc}}V\) | \(M:A\to_{r^{i,j}_{vc}}\underline C\) |
+| step match finish | \(\operatorname{stepMatch}_{A,B,\underline C}(M,N,\operatorname{finish}_{A,B}(V))\) | \(N@_{r^{i,j}_{vc}}V\) | \(N:B\to_{r^{i,j}_{vc}}\underline C\) |
 | run | \(\operatorname{run}_{A,B}(f,a)\) | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{force}(f)@_{r^{i,i}_{vc}}a)\) | |
 | run continue | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{return}(\operatorname{continue}_{A,B}(a')))\) | \(\operatorname{run}_{A,B}(f,a')\) | |
 | run finish | \(\operatorname{runCase}_{A,B}(f,a,\operatorname{return}(\operatorname{finish}_{A,B}(b)))\) | \(\operatorname{return}(b)\) | |
@@ -363,6 +366,7 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 | value let | \(\Delta\vdash\operatorname{let}^v x:A=V\ \operatorname{in}\ N:\underline B\) | \(\Theta\vdash A:*^v_i\)<br>\(\Theta\vdash\underline B:*^c_j\)<br>\(\Delta\vdash V:A\)<br>\(\Delta,x:A\vdash N:\underline B\) | \(x\notin\operatorname{dom}(\Delta)\) |
 | continue intro | \(\Delta\vdash\operatorname{continue}_{A,B}(a):\operatorname{RunStep}(A,B)\) | \(\Theta\vdash A:*^v_i\)<br>\(\Theta\vdash B:*^v_i\)<br>\(\Delta\vdash a:A\) | |
 | finish intro | \(\Delta\vdash\operatorname{finish}_{A,B}(b):\operatorname{RunStep}(A,B)\) | \(\Theta\vdash A:*^v_i\)<br>\(\Theta\vdash B:*^v_i\)<br>\(\Delta\vdash b:B\) | |
+| step match | \(\Delta\vdash\operatorname{stepMatch}_{A,B,\underline C}(M,N,V):\underline C\) | \(\Theta\vdash A:*^v_i\)<br>\(\Theta\vdash B:*^v_i\)<br>\(\Theta\vdash\underline C:*^c_j\)<br>\(\Delta\vdash M:A\to_{r^{i,j}_{vc}}\underline C\)<br>\(\Delta\vdash N:B\to_{r^{i,j}_{vc}}\underline C\)<br>\(\Delta\vdash V:\operatorname{RunStep}(A,B)\) | |
 | run | \(\Delta\vdash\operatorname{run}_{A,B}(f,a):F B\) | \(\Theta\vdash A:*^v_i\)<br>\(\Theta\vdash B:*^v_i\)<br>\(\Delta\vdash f:T_{A,B}\)<br>\(\Delta\vdash a:A\) | |
 | run case | \(\Delta\vdash\operatorname{runCase}_{A,B}(f,a,M):F B\) | \(\Theta\vdash A:*^v_i\)<br>\(\Theta\vdash B:*^v_i\)<br>\(\Delta\vdash f:T_{A,B}\)<br>\(\Delta\vdash a:A\)<br>\(\Delta\vdash M:F(\operatorname{RunStep}(A,B))\) | |
 
@@ -412,6 +416,7 @@ reflection は Program の型判断で分類された項に対し、以下の式
 | \(\operatorname{RunStep}(A,B)\) | \(\operatorname{RunStep}(\operatorname{Rf}(A),\operatorname{Rf}(B))\) |
 | \(\operatorname{continue}_{A,B}(V)\) | \(\operatorname{continue}_{\operatorname{Rf}(A),\operatorname{Rf}(B)}(\operatorname{Rf}(V))\) |
 | \(\operatorname{finish}_{A,B}(V)\) | \(\operatorname{finish}_{\operatorname{Rf}(A),\operatorname{Rf}(B)}(\operatorname{Rf}(V))\) |
+| \(\operatorname{stepMatch}_{A,B,\underline C}(M,N,V)\) | \(\operatorname{prec}^{\sigma}_{\operatorname{RunStep}(\operatorname{Rf}(A),\operatorname{Rf}(B))}(x.\operatorname{Rf}(\underline C),\operatorname{Rf}(M),\operatorname{Rf}(N),\operatorname{Rf}(V))\) |
 | \(\operatorname{run}_{A,B}(V,W)\) | \(\operatorname{run}_{\operatorname{Rf}(A),\operatorname{Rf}(B)}(\operatorname{Rf}(V),\operatorname{Rf}(W))\) |
 | \(\operatorname{runCase}_{A,B}(V,W,M)\) | \(\operatorname{runCase}_{\operatorname{Rf}(A),\operatorname{Rf}(B)}(\operatorname{Rf}(V),\operatorname{Rf}(W),\operatorname{Rf}(M))\) |
 

@@ -578,6 +578,14 @@ pub enum SExp {
         scrutinee: Box<SExp>,
         branches: Vec<(Identifier, Vec<Identifier>, SExp)>,
     },
+    ProgramStepRec {
+        state_ty: Box<SExp>,
+        result_ty: Box<SExp>,
+        computation_ty: Box<SExp>,
+        on_continue: Box<SExp>,
+        on_finish: Box<SExp>,
+        scrutinee: Box<SExp>,
+    },
 
     // --- certified general recursion over Program values
     RunStep {

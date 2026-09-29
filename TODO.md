@@ -8,16 +8,6 @@
 - CType をせっかく polymorphic にしたのに使ってないので使えるようにしたい。
   - そもそも `\CType` がないらしい。まあ使うかと言われたら使わないかもしれないが。
 - `((\fun (z: \Cast[\Pow B.Bool^] X) => z) x) \assign _1 = (((\fun (z: \Cast[\Pow B.Bool^] X) => z) y) \assign _2)` これはエラーが出て、 `Module Load Error: parse error: expected RParen, found Equal (544..545)` と `=` のところに出るので、 `\assign _n` はもっとどうにかならないか？
-- `\runStepRec` が見づらい。 `\match` みたいにしたい。scruntiee なしで `\induction` に近い形の文法ができそう。
-    ```
-    \step-match x: \RunStep[A, B] \return P \with {
-      | \continue next-state: M
-      | \finish output: N
-    }
-    ```
-    型は `(x: \RunStep[A, B]) -> P` になる。 dependent にしてよい（ `\Set` 側なので）。
-- `\runStepRec` は Set 側用に作られているらしいが、ちょっと不便かもしれないので、 Program 側にも上のやつを入れる。
-  （これは `system.md` も観たほうがよさそう。）
 - `\idelim` は `(` ~ `)` がいらなそう。
 
 ## ライブラリ
@@ -77,4 +67,3 @@ Type は reflection された Set 側にする。
   \terminates := ...,
 }
 ```
-

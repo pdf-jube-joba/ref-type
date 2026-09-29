@@ -220,6 +220,21 @@ impl From<ComputationTermExp> for SExp {
                     .map(|(name, vars, body)| (name, vars, body.into()))
                     .collect(),
             },
+            ComputationTermExp::StepRec {
+                state_ty,
+                result_ty,
+                computation_ty,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => Self::ProgramStepRec {
+                state_ty: boxed(*state_ty),
+                result_ty: boxed(*result_ty),
+                computation_ty: boxed(*computation_ty),
+                on_continue: boxed(*on_continue),
+                on_finish: boxed(*on_finish),
+                scrutinee: boxed(*scrutinee),
+            },
             ComputationTermExp::Run {
                 state_ty,
                 result_ty,

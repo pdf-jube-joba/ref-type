@@ -151,6 +151,14 @@ pub enum ComputationTermNode {
         scrutinee: ValueTerm,
         branches: Vec<ProgramCaseBranch>,
     },
+    StepRec {
+        state_ty: ValueType,
+        result_ty: ValueType,
+        computation_ty: ComputationType,
+        on_continue: ComputationTerm,
+        on_finish: ComputationTerm,
+        scrutinee: ValueTerm,
+    },
     Run {
         state_ty: ValueType,
         result_ty: ValueType,

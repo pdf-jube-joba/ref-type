@@ -1,0 +1,40 @@
+\module ParameterizedStepMatch(A: \VType) {
+  \definition select: \U(\RunStep[A, A] ~> \F(A)) :=
+    \step-match \RunStep[A, A] \return \F(A) \with {
+      | \continue next: \return next
+      | \finish output: \return output
+    };
+}
+
+\module StepMatch {
+  \inductive Unit: \Set := | unit: Unit;
+  \inductive Bit: \VType :=
+  | zero: Bit
+  | one: Bit
+  ;
+  \import \root.ParameterizedStepMatch[A := Bit] \as Param;
+
+  \definition same: \forall (x: \RunStep[Unit, Unit]) -> x = x :=
+    \step-match x: \RunStep[Unit, Unit] \return x = x \with {
+      | \continue next: \refl(\continue[Unit, Unit](next))
+      | \finish output: \refl(\finish[Unit, Unit](output))
+    };
+  \definition choose: \U(\RunStep[Bit, Bit] ~> \F(Bit)) :=
+    \step-match \RunStep[Bit, Bit] \return \F(Bit) \with {
+      | \continue next: \return next
+      | \finish output: \return output
+    };
+  \definition continueResult: \F(Bit) :=
+    (\force choose) (\continue[Bit, Bit](Bit::zero));
+  \definition finishResult: \F(Bit) :=
+    (\force choose) (\finish[Bit, Bit](Bit::one));
+  \definition boxedContinue: \Box[\F(Bit)] := \box[_](continueResult);
+
+  \check same (\continue[Unit, Unit](Unit::unit)):
+    \continue[Unit, Unit](Unit::unit) = \continue[Unit, Unit](Unit::unit);
+  \normalize same (\finish[Unit, Unit](Unit::unit));
+  \cnormalize continueResult;
+  \cnormalize finishResult;
+  \cnormalize (\force Param.select) (\finish[Bit, Bit](Bit::one));
+  \normalize \squash[_](boxedContinue);
+}

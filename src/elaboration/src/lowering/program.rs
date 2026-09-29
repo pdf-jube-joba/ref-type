@@ -451,6 +451,21 @@ impl Lowerer<'_> {
                     branches: bodies,
                 }
             }
+            R::StepRec {
+                state_ty,
+                result_ty,
+                computation_ty,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => F::ProgramStepRec {
+                state_ty: self.value_type(state_ty)?,
+                result_ty: self.value_type(result_ty)?,
+                computation_ty: self.computation_type(computation_ty)?,
+                on_continue: self.computation_term(on_continue, ctx)?,
+                on_finish: self.computation_term(on_finish, ctx)?,
+                scrutinee: self.value_term(scrutinee, ctx)?,
+            },
         };
         Ok(self.kernel.arena().alloc(form))
     }

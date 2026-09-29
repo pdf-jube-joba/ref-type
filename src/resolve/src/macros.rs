@@ -630,7 +630,15 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
         SExp::RunStepRec {
             state_ty,
             result_ty,
-            motive,
+            motive: computation_ty,
+            on_continue,
+            on_finish,
+            scrutinee,
+        }
+        | SExp::ProgramStepRec {
+            state_ty,
+            result_ty,
+            computation_ty,
             on_continue,
             on_finish,
             scrutinee,
@@ -638,7 +646,7 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             [
                 state_ty,
                 result_ty,
-                motive,
+                computation_ty,
                 on_continue,
                 on_finish,
                 scrutinee,
