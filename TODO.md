@@ -8,6 +8,17 @@
 - CType をせっかく polymorphic にしたのに使ってないので使えるようにしたい。
   - そもそも `\CType` がないらしい。まあ使うかと言われたら使わないかもしれないが。
 - `((\fun (z: \Cast[\Pow B.Bool^] X) => z) x) \assign _1 = (((\fun (z: \Cast[\Pow B.Bool^] X) => z) y) \assign _2)` これはエラーが出て、 `Module Load Error: parse error: expected RParen, found Equal (544..545)` と `=` のところに出るので、 `\assign _n` はもっとどうにかならないか？
+- `\runStepRec` が見づらい。 `\match` みたいにしたい。scruntiee なしで `\induction` に近い形の文法ができそう。
+    ```
+    \step-match x: \RunStep[A, B] \return P \with {
+      | \continue next-state: M
+      | \finish output: N
+    }
+    ```
+    型は `(x: \RunStep[A, B]) -> P` になる。 dependent にしてよい（ `\Set` 側なので）。
+- `\runStepRec` は Set 側用に作られているらしいが、ちょっと不便かもしれないので、 Program 側にも上のやつを入れる。
+  （これは `system.md` も観たほうがよさそう。）
+- `\idelim` は `(` ~ `)` がいらなそう。
 
 ## ライブラリ
 
@@ -40,3 +51,30 @@ AI による提案
 
 ### 再帰関数のマッチ
 再帰関数書くために state, ready, acc, prec, precmatch みたいなのを並べているのをどうにかしたい。
+最低限の共通だけ取りたいので、Program と Set の対応用、 Program 周りのまとめる用
+
+#### Program と Set の対応
+```
+\correspondence add {
+  \program: ProgramType := ...,
+  \set: SetType := ...,
+  \match := ...,
+};
+```
+
+示すのは `\force \box program = set` で、一応型を
+set 側が原始再帰で program 側が run のときはちょっとめんどいが、多分 `=` は fun ext から示せそうと思っている。
+
+Type は reflection された Set 側にする。
+
+使うときは `add::[program]` とかでよさそう。
+
+#### program 周りまとめる
+```
+\machine add_program {
+  \State := ...,
+  \step := ...,
+  \terminates := ...,
+}
+```
+

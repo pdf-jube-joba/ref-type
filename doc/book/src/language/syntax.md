@@ -465,13 +465,17 @@ branch の末尾に `;` は付けない。
 ```text
 \continue[state-type, result-type](next-state)
 \finish[state-type, result-type](output)
+\runStepRec[state-type, result-type](motive, on-continue, on-finish, scrutinee)
+```
+`\continue` と `\finish` は Program の一ステップ値（ `\RunStep[state-type, result-type]` 型）、`\runStepRec` はその Set 側の recursor である。
+
+```
 \Acc[state-type, result-type](step, state)
 \accintro[state-type, result-type](step, state, predecessors)
 \accdescent[state-type, result-type](step, from, to, accessibility, transition)
-\runStepRec[state-type, result-type](motive, on-continue, on-finish, scrutinee)
 ```
 
-`\continue` と `\finish` は Program の一ステップ値、`\Acc` 以下は Set 側の accessibility とその導入・降下、`\runStepRec` はその recursor である。
+`\Acc` 以下は Set 側の accessibility とその導入・降下である。
 
 ### run
 
