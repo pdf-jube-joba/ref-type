@@ -1,4 +1,5 @@
 \import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as L;
 \use Equality.sym;
 \use Equality.trans;
 \use Equality.eq_reason;
@@ -46,10 +47,10 @@
 
 
 \definition addReady (t: \RunStep[AddState^, Nat^]): \Prop :=
-    \In[Nat^] ((\step-match t: \RunStep[AddState^, Nat^] \return \Pow Nat^ \with {
-      | \continue s: { n : Nat^ \where \Acc[AddState^, Nat^](addStep^, s) }
-      | \finish n: { k : Nat^ \where Nat^::zero = Nat^::zero }
-    }) t) Nat^::zero;
+  (\step-match t: \RunStep[AddState^, Nat^] \return \Prop \with {
+    | \continue s: \Acc[AddState^, Nat^](addStep^, s)
+    | \finish n: L.True
+  }) t;
 
 \definition addAccIntro (s: AddState^) (ready: addReady (addStep^ s)): \Acc[AddState^, Nat^](addStep^, s) :=
     \accintro[AddState^, Nat^](addStep^, s, \fun (next: AddState^) => \fun (edge: addStep^ s = \continue[AddState^, Nat^](next)) =>
@@ -61,7 +62,7 @@
   \forall (remaining: Nat^) -> \forall (accumulator: Nat^) ->
     \Acc[AddState^, Nat^](addStep^, AddState^::running accumulator remaining) :=
   \induction (n: Nat^) \return \forall (a: Nat^) -> \Acc[AddState^, Nat^](addStep^, AddState^::running a n) \with {
-    | zero : (\fun (a: Nat^) => addAccIntro (AddState^::running a Nat^::zero) (\refl(Nat^::zero)))
+    | zero : (\fun (a: Nat^) => addAccIntro (AddState^::running a Nat^::zero) L.True::intro)
     | succ : (\fun (n: Nat^) => \fun (ih: \forall (a: Nat^) -> \Acc[AddState^, Nat^](addStep^, AddState^::running a n)) =>
       \fun (a: Nat^) => addAccIntro (AddState^::running a (Nat^::succ n)) (ih (Nat^::succ a)))
     };
@@ -139,10 +140,11 @@
     }
   });
 
-\definition subReady (t: \RunStep[SubState^, Nat^]): \Prop := \In[Nat^] ((\step-match t: \RunStep[SubState^, Nat^] \return \Pow Nat^ \with {
-  | \continue s: { n : Nat^ \where \Acc[SubState^, Nat^](subStep^, s) }
-  | \finish r: { n : Nat^ \where Nat^::zero = Nat^::zero }
-}) t) Nat^::zero;
+\definition subReady (t: \RunStep[SubState^, Nat^]): \Prop :=
+  (\step-match t: \RunStep[SubState^, Nat^] \return \Prop \with {
+    | \continue s: \Acc[SubState^, Nat^](subStep^, s)
+    | \finish r: L.True
+  }) t;
 \definition subAccIntro (s: SubState^) (ready: subReady (subStep^ s)): \Acc[SubState^, Nat^](subStep^, s) :=
     \accintro[SubState^, Nat^](subStep^, s, \fun (next: SubState^) => \fun (edge: subStep^ s = \continue[SubState^, Nat^](next)) =>
         \idelim subStep^ s = \continue[SubState^, Nat^](next)
@@ -151,14 +153,14 @@
 \definition subTerminates: \forall (b, a: Nat^) -> \Acc[SubState^, Nat^](subStep^, SubState^::running a b) :=
   \induction (b: Nat^) \return \forall (a: Nat^) -> \Acc[SubState^, Nat^](subStep^, SubState^::running a b) \with {
     | zero : (\induction (a: Nat^) \return \Acc[SubState^, Nat^](subStep^, SubState^::running a Nat^::zero) \with {
-      | zero : (subAccIntro (SubState^::running Nat^::zero Nat^::zero) (\refl(Nat^::zero)))
+      | zero : (subAccIntro (SubState^::running Nat^::zero Nat^::zero) L.True::intro)
       | succ : (\fun (j: Nat^) => \fun (unused:
       \Acc[SubState^, Nat^](subStep^, SubState^::running j Nat^::zero)) => subAccIntro (SubState^::running
-      (Nat^::succ j) Nat^::zero) (\refl(Nat^::zero)))
+      (Nat^::succ j) Nat^::zero) L.True::intro)
       })
     | succ : (\fun (k: Nat^) => \fun (ih: \forall (a: Nat^) -> \Acc[SubState^, Nat^](subStep^, SubState^::running a k)) =>
       \induction (a: Nat^) \return \Acc[SubState^, Nat^](subStep^, SubState^::running a (Nat^::succ k)) \with {
-      | zero : (subAccIntro (SubState^::running Nat^::zero (Nat^::succ k)) (\refl(Nat^::zero)))
+      | zero : (subAccIntro (SubState^::running Nat^::zero (Nat^::succ k)) L.True::intro)
       | succ : (\fun (j: Nat^) => \fun (unused: \Acc[SubState^, Nat^](subStep^, SubState^::running j (Nat^::succ k))) =>
           subAccIntro (SubState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
       })
@@ -205,10 +207,11 @@
     }
   });
 
-\definition eqbReady (t: \RunStep[EqbState^, B.Bool^]): \Prop := \In[Nat^] ((\step-match t: \RunStep[EqbState^, B.Bool^] \return \Pow Nat^ \with {
-  | \continue s: { n : Nat^ \where \Acc[EqbState^, B.Bool^](eqbStep^, s) }
-  | \finish r: { n : Nat^ \where Nat^::zero = Nat^::zero }
-}) t) Nat^::zero;
+\definition eqbReady (t: \RunStep[EqbState^, B.Bool^]): \Prop :=
+  (\step-match t: \RunStep[EqbState^, B.Bool^] \return \Prop \with {
+    | \continue s: \Acc[EqbState^, B.Bool^](eqbStep^, s)
+    | \finish r: L.True
+  }) t;
 \definition eqbAccIntro (s: EqbState^) (ready: eqbReady (eqbStep^ s)): \Acc[EqbState^, B.Bool^](eqbStep^, s) :=
     \accintro[EqbState^, B.Bool^](eqbStep^, s, \fun (next: EqbState^) => \fun (edge: eqbStep^ s = \continue[EqbState^, B.Bool^](next)) =>
         \idelim eqbStep^ s = \continue[EqbState^, B.Bool^](next)
@@ -217,14 +220,14 @@
 \definition eqbTerminates: \forall (b, a: Nat^) -> \Acc[EqbState^, B.Bool^](eqbStep^, EqbState^::running a b) :=
   \induction (b: Nat^) \return \forall (a: Nat^) -> \Acc[EqbState^, B.Bool^](eqbStep^, EqbState^::running a b) \with {
     | zero : (\induction (a: Nat^) \return \Acc[EqbState^, B.Bool^](eqbStep^, EqbState^::running a Nat^::zero) \with {
-      | zero : (eqbAccIntro (EqbState^::running Nat^::zero Nat^::zero) (\refl(Nat^::zero)))
+      | zero : (eqbAccIntro (EqbState^::running Nat^::zero Nat^::zero) L.True::intro)
       | succ : (\fun (j: Nat^) => \fun (unused:
       \Acc[EqbState^, B.Bool^](eqbStep^, EqbState^::running j Nat^::zero)) => eqbAccIntro (EqbState^::running
-      (Nat^::succ j) Nat^::zero) (\refl(Nat^::zero)))
+      (Nat^::succ j) Nat^::zero) L.True::intro)
       })
     | succ : (\fun (k: Nat^) => \fun (ih: \forall (a: Nat^) -> \Acc[EqbState^, B.Bool^](eqbStep^, EqbState^::running a k)) =>
       \induction (a: Nat^) \return \Acc[EqbState^, B.Bool^](eqbStep^, EqbState^::running a (Nat^::succ k)) \with {
-      | zero : (eqbAccIntro (EqbState^::running Nat^::zero (Nat^::succ k)) (\refl(Nat^::zero)))
+      | zero : (eqbAccIntro (EqbState^::running Nat^::zero (Nat^::succ k)) L.True::intro)
       | succ : (\fun (j: Nat^) => \fun (unused: \Acc[EqbState^, B.Bool^](eqbStep^, EqbState^::running j (Nat^::succ k))) =>
           eqbAccIntro (EqbState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
       })
@@ -271,10 +274,11 @@
     }
   });
 
-\definition lebReady (t: \RunStep[LebState^, B.Bool^]): \Prop := \In[Nat^] ((\step-match t: \RunStep[LebState^, B.Bool^] \return \Pow Nat^ \with {
-  | \continue s: { n : Nat^ \where \Acc[LebState^, B.Bool^](lebStep^, s) }
-  | \finish r: { n : Nat^ \where Nat^::zero = Nat^::zero }
-}) t) Nat^::zero;
+\definition lebReady (t: \RunStep[LebState^, B.Bool^]): \Prop :=
+  (\step-match t: \RunStep[LebState^, B.Bool^] \return \Prop \with {
+    | \continue s: \Acc[LebState^, B.Bool^](lebStep^, s)
+    | \finish r: L.True
+  }) t;
 \definition lebAccIntro (s: LebState^) (ready: lebReady (lebStep^ s)): \Acc[LebState^, B.Bool^](lebStep^, s) :=
     \accintro[LebState^, B.Bool^](lebStep^, s, \fun (next: LebState^) => \fun (edge: lebStep^ s = \continue[LebState^, B.Bool^](next)) =>
         \idelim lebStep^ s = \continue[LebState^, B.Bool^](next)
@@ -283,14 +287,14 @@
 \definition lebTerminates: \forall (b, a: Nat^) -> \Acc[LebState^, B.Bool^](lebStep^, LebState^::running a b) :=
   \induction (b: Nat^) \return \forall (a: Nat^) -> \Acc[LebState^, B.Bool^](lebStep^, LebState^::running a b) \with {
     | zero : (\induction (a: Nat^) \return \Acc[LebState^, B.Bool^](lebStep^, LebState^::running a Nat^::zero) \with {
-      | zero : (lebAccIntro (LebState^::running Nat^::zero Nat^::zero) (\refl(Nat^::zero)))
+      | zero : (lebAccIntro (LebState^::running Nat^::zero Nat^::zero) L.True::intro)
       | succ : (\fun (j: Nat^) => \fun (unused:
       \Acc[LebState^, B.Bool^](lebStep^, LebState^::running j Nat^::zero)) => lebAccIntro (LebState^::running
-      (Nat^::succ j) Nat^::zero) (\refl(Nat^::zero)))
+      (Nat^::succ j) Nat^::zero) L.True::intro)
       })
     | succ : (\fun (k: Nat^) => \fun (ih: \forall (a: Nat^) -> \Acc[LebState^, B.Bool^](lebStep^, LebState^::running a k)) =>
       \induction (a: Nat^) \return \Acc[LebState^, B.Bool^](lebStep^, LebState^::running a (Nat^::succ k)) \with {
-      | zero : (lebAccIntro (LebState^::running Nat^::zero (Nat^::succ k)) (\refl(Nat^::zero)))
+      | zero : (lebAccIntro (LebState^::running Nat^::zero (Nat^::succ k)) L.True::intro)
       | succ : (\fun (j: Nat^) => \fun (unused: \Acc[LebState^, B.Bool^](lebStep^, LebState^::running j (Nat^::succ k))) =>
           lebAccIntro (LebState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
       })
@@ -336,10 +340,11 @@
     }
   });
 
-\definition ltbReady (t: \RunStep[LtbState^, B.Bool^]): \Prop := \In[Nat^] ((\step-match t: \RunStep[LtbState^, B.Bool^] \return \Pow Nat^ \with {
-  | \continue s: { n : Nat^ \where \Acc[LtbState^, B.Bool^](ltbStep^, s) }
-  | \finish r: { n : Nat^ \where Nat^::zero = Nat^::zero }
-}) t) Nat^::zero;
+\definition ltbReady (t: \RunStep[LtbState^, B.Bool^]): \Prop :=
+  (\step-match t: \RunStep[LtbState^, B.Bool^] \return \Prop \with {
+    | \continue s: \Acc[LtbState^, B.Bool^](ltbStep^, s)
+    | \finish r: L.True
+  }) t;
 \definition ltbAccIntro (s: LtbState^) (ready: ltbReady (ltbStep^ s)): \Acc[LtbState^, B.Bool^](ltbStep^, s) :=
     \accintro[LtbState^, B.Bool^](ltbStep^, s, \fun (next: LtbState^) => \fun (edge: ltbStep^ s = \continue[LtbState^, B.Bool^](next)) =>
         \idelim ltbStep^ s = \continue[LtbState^, B.Bool^](next)
@@ -348,14 +353,14 @@
 \definition ltbTerminates: \forall (b, a: Nat^) -> \Acc[LtbState^, B.Bool^](ltbStep^, LtbState^::running a b) :=
   \induction (b: Nat^) \return \forall (a: Nat^) -> \Acc[LtbState^, B.Bool^](ltbStep^, LtbState^::running a b) \with {
     | zero : (\induction (a: Nat^) \return \Acc[LtbState^, B.Bool^](ltbStep^, LtbState^::running a Nat^::zero) \with {
-      | zero : (ltbAccIntro (LtbState^::running Nat^::zero Nat^::zero) (\refl(Nat^::zero)))
+      | zero : (ltbAccIntro (LtbState^::running Nat^::zero Nat^::zero) L.True::intro)
       | succ : (\fun (j: Nat^) => \fun (unused:
       \Acc[LtbState^, B.Bool^](ltbStep^, LtbState^::running j Nat^::zero)) => ltbAccIntro (LtbState^::running
-      (Nat^::succ j) Nat^::zero) (\refl(Nat^::zero)))
+      (Nat^::succ j) Nat^::zero) L.True::intro)
       })
     | succ : (\fun (k: Nat^) => \fun (ih: \forall (a: Nat^) -> \Acc[LtbState^, B.Bool^](ltbStep^, LtbState^::running a k)) =>
       \induction (a: Nat^) \return \Acc[LtbState^, B.Bool^](ltbStep^, LtbState^::running a (Nat^::succ k)) \with {
-      | zero : (ltbAccIntro (LtbState^::running Nat^::zero (Nat^::succ k)) (\refl(Nat^::zero)))
+      | zero : (ltbAccIntro (LtbState^::running Nat^::zero (Nat^::succ k)) L.True::intro)
       | succ : (\fun (j: Nat^) => \fun (unused: \Acc[LtbState^, B.Bool^](ltbStep^, LtbState^::running j (Nat^::succ k))) =>
           ltbAccIntro (LtbState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
       })
@@ -404,10 +409,11 @@
   }
 });
 
-\definition iterReady (t: \RunStep[IterState^, Nat^]): \Prop := \In[Nat^] ((\step-match t: \RunStep[IterState^, Nat^] \return \Pow Nat^ \with {
-  | \continue s: { n : Nat^ \where \Acc[IterState^, Nat^](iterStep^, s) }
-  | \finish r: { n : Nat^ \where Nat^::zero = Nat^::zero }
-}) t) Nat^::zero;
+\definition iterReady (t: \RunStep[IterState^, Nat^]): \Prop :=
+  (\step-match t: \RunStep[IterState^, Nat^] \return \Prop \with {
+    | \continue s: \Acc[IterState^, Nat^](iterStep^, s)
+    | \finish r: L.True
+  }) t;
 \definition iterAccIntro (s: IterState^) (ready: iterReady (iterStep^ s)): \Acc[IterState^, Nat^](iterStep^, s) :=
     \accintro[IterState^, Nat^](iterStep^, s, \fun (next: IterState^) => \fun (edge: iterStep^ s = \continue[IterState^, Nat^](next)) =>
         \idelim iterStep^ s = \continue[IterState^, Nat^](next)
@@ -417,7 +423,7 @@
   \induction (count: Nat^) \return \forall (f: Nat^ -> Nat^) -> \forall (value: Nat^) ->
       \Acc[IterState^, Nat^](iterStep^, IterState^::running f value count) \with {
     | zero : (\fun (f: Nat^ -> Nat^) => \fun (value: Nat^) =>
-      iterAccIntro (IterState^::running f value Nat^::zero) (\refl(Nat^::zero)))
+      iterAccIntro (IterState^::running f value Nat^::zero) L.True::intro)
     | succ : (\fun (k: Nat^) => \fun (ih: \forall (f: Nat^ -> Nat^) -> \forall (value: Nat^) ->
       \Acc[IterState^, Nat^](iterStep^, IterState^::running f value k)) =>
       \fun (f: Nat^ -> Nat^) => \fun (value: Nat^) =>
@@ -634,10 +640,11 @@
     }
   });
 
-\definition pairIterReady (t: \RunStep[PairIterState^, NatPair]): \Prop := \In[Nat^] ((\step-match t: \RunStep[PairIterState^, NatPair] \return \Pow Nat^ \with {
-  | \continue s: { n : Nat^ \where \Acc[PairIterState^, NatPair](pairIterStep^, s) }
-  | \finish r: { n : Nat^ \where Nat^::zero = Nat^::zero }
-}) t) Nat^::zero;
+\definition pairIterReady (t: \RunStep[PairIterState^, NatPair]): \Prop :=
+  (\step-match t: \RunStep[PairIterState^, NatPair] \return \Prop \with {
+    | \continue s: \Acc[PairIterState^, NatPair](pairIterStep^, s)
+    | \finish r: L.True
+  }) t;
 \definition pairIterAccIntro (s: PairIterState^) (ready: pairIterReady (pairIterStep^ s)):
     \Acc[PairIterState^, NatPair](pairIterStep^, s) :=
     \accintro[PairIterState^, NatPair](pairIterStep^, s, \fun (next: PairIterState^) => \fun (edge: pairIterStep^ s = \continue[PairIterState^, NatPair](next)) =>
@@ -648,7 +655,7 @@
   \induction (count: Nat^) \return \forall (f: NatPair -> NatPair) -> \forall (value: NatPair) ->
       \Acc[PairIterState^, NatPair](pairIterStep^, PairIterState^::running f value count) \with {
     | zero : (\fun (f: NatPair -> NatPair) => \fun (value: NatPair) =>
-      pairIterAccIntro (PairIterState^::running f value Nat^::zero) (\refl(Nat^::zero)))
+      pairIterAccIntro (PairIterState^::running f value Nat^::zero) L.True::intro)
     | succ : (\fun (k: Nat^) => \fun (ih: \forall (f: NatPair -> NatPair) -> \forall (value: NatPair) ->
       \Acc[PairIterState^, NatPair](pairIterStep^, PairIterState^::running f value k)) =>
       \fun (f: NatPair -> NatPair) => \fun (value: NatPair) =>

@@ -1388,20 +1388,21 @@ fn inferred_recursion_annotations_still_reject_mixed_universes() {
 fn indexed_box_steps_preserve_accessibility_certificates() {
     let source = r#"
         \module CertifiedSteps {
+          \inductive True: \Prop := | intro: True;
           \inductive Unit: \VType := | unit: Unit | other: Unit;
           \definition step: \U((Unit ~> \F(\RunStep[Unit, Unit]))) :=
             \thunk((\cfun (s: Unit) => \return(\finish[Unit, Unit](Unit::unit))));
           \definition stepSet: Unit^ -> \RunStep[Unit^, Unit^] :=
             \squash[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\box[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\return(step)));
           \definition ready: \RunStep[Unit^, Unit^] -> \Prop :=
-            \fun (r: \RunStep[Unit^, Unit^]) => \In[Unit^] ((\step-match r: \RunStep[Unit^, Unit^] \return \Pow (Unit^) \with {
-              | \continue s: { x : Unit^ \where \Acc[Unit^, Unit^](stepSet, s) }
-              | \finish o: { x : Unit^ \where Unit^::unit = Unit^::unit }
-            }) r) (Unit^::unit);
+            \step-match r: \RunStep[Unit^, Unit^] \return \Prop \with {
+              | \continue s: \Acc[Unit^, Unit^](stepSet, s)
+              | \finish o: True
+            };
           \definition terminates: \forall (s: Unit^) -> \Acc[Unit^, Unit^](stepSet, s) :=
             \fun (s: Unit^) => \accintro[Unit^, Unit^](stepSet, s, \fun (next: Unit^) => \fun (edge: stepSet s = \continue[Unit^, Unit^](next)) =>
                 \idelim stepSet s = \continue[Unit^, Unit^](next)
-                  \with r: \RunStep[Unit^, Unit^] => ready r \by { base: \refl(Unit^::unit), equality: edge });
+                  \with r: \RunStep[Unit^, Unit^] => ready r \by { base: True::intro, equality: edge });
           \definition result: \F(Unit) :=
             \run[Unit, Unit](step, Unit::unit) \by { terminates Unit^::unit };
           \definition otherResult: \F(Unit) :=

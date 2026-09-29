@@ -44,10 +44,11 @@
     }
   });
 
-\definition diffReady (t: \RunStep[DiffState^, Int^]): \Prop := \In[N.Nat^] ((\step-match t: \RunStep[DiffState^, Int^] \return \Pow N.Nat^ \with {
-  | \continue s: { n : N.Nat^ \where \Acc[DiffState^, Int^](diffStep^, s) }
-  | \finish r: { n : N.Nat^ \where N.Nat^::zero = N.Nat^::zero }
-}) t) N.Nat^::zero;
+\definition diffReady (t: \RunStep[DiffState^, Int^]): \Prop :=
+  (\step-match t: \RunStep[DiffState^, Int^] \return \Prop \with {
+    | \continue s: \Acc[DiffState^, Int^](diffStep^, s)
+    | \finish r: L.True
+  }) t;
 \definition diffAccIntro (s: DiffState^) (ready: diffReady (diffStep^ s)): \Acc[DiffState^, Int^](diffStep^, s)
     :=
     \accintro[DiffState^, Int^](diffStep^, s, \fun (next: DiffState^) => \fun (edge: diffStep^ s = \continue[DiffState^, Int^](next)) =>
@@ -59,16 +60,16 @@
     b) \with {
     | zero : (\induction (a: N.Nat^) \return \Acc[DiffState^, Int^](diffStep^, DiffState^::running a
     N.Nat^::zero) \with {
-      | zero : (diffAccIntro (DiffState^::running N.Nat^::zero N.Nat^::zero) (\refl(N.Nat^::zero)))
+      | zero : (diffAccIntro (DiffState^::running N.Nat^::zero N.Nat^::zero) L.True::intro)
       | succ : (\fun (j: N.Nat^) => \fun (unused:
       \Acc[DiffState^, Int^](diffStep^, DiffState^::running j N.Nat^::zero)) => diffAccIntro
     (DiffState^::running
-      (N.Nat^::succ j) N.Nat^::zero) (\refl(N.Nat^::zero)))
+      (N.Nat^::succ j) N.Nat^::zero) L.True::intro)
       })
     | succ : (\fun (k: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> \Acc[DiffState^, Int^](diffStep^, DiffState^::running a k)) =>
       \induction (a: N.Nat^) \return \Acc[DiffState^, Int^](diffStep^, DiffState^::running a (N.Nat^::succ
     k)) \with {
-      | zero : (diffAccIntro (DiffState^::running N.Nat^::zero (N.Nat^::succ k)) (\refl(N.Nat^::zero)))
+      | zero : (diffAccIntro (DiffState^::running N.Nat^::zero (N.Nat^::succ k)) L.True::intro)
       | succ : (\fun (j: N.Nat^) => \fun (unused: \Acc[DiffState^, Int^](diffStep^, DiffState^::running j (N.Nat^::succ k))) =>
           diffAccIntro (DiffState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
       })

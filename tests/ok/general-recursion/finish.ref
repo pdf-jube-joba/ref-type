@@ -5,17 +5,18 @@
   a: A,
   b: B
 ) {
+  \inductive True: \Prop := | intro: True;
   \definition step: \U((A ~> \F(\RunStep[A, B]))) :=
     \thunk((\cfun (x: A) => \return(\finish[A, B](b))));
   \definition ready: \RunStep[A^, B^] -> \Prop :=
-    \fun (r: \RunStep[A^, B^]) => \In[A^] ((\step-match r: \RunStep[A^, B^] \return \Pow (A^) \with {
-      | \continue s: { x : A^ \where \Acc[A^, B^](step^, s) }
-      | \finish o: { x : A^ \where a^ = a^ }
-    }) r) (a^);
+    \step-match r: \RunStep[A^, B^] \return \Prop \with {
+      | \continue s: \Acc[A^, B^](step^, s)
+      | \finish o: True
+    };
   \definition terminates: \forall (s: A^) -> \Acc[A^, B^](step^, s) :=
     \fun (s: A^) => \accintro[A^, B^](step^, s, \fun (next: A^) => \fun (edge: step^ s = \continue[A^, B^](next)) =>
         \idelim step^ s = \continue[A^, B^](next)
-          \with r: \RunStep[A^, B^] => ready r \by { base: \refl(a^), equality: edge });
+          \with r: \RunStep[A^, B^] => ready r \by { base: True::intro, equality: edge });
   \definition result: \F(B) := \run[A, B](step, a) \by { terminates a^ };
 
   \ceval \run[A, B](step, a) \by { terminates a^ };
