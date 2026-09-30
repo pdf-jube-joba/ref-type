@@ -24,8 +24,12 @@ perf は `/usr/lib/linux-tools/6.8.0-139-generic/perf` にあります。
 - コードのデバッグ用に kernel に作って便利だった機能は残す。
 
 ## ref-type(このリポジトリの言語)
+思ってた書き方ができなかった場合、「こう書きたい」の要望を `gaps.md` に書く。
+
 ### 基本方針
 - `\definition` を使えるところは使い、できないときだけ `\alias` を使う。
+- `\structure`, `\machine`, `\correspondence` を使う。
+- あまりに重複する別 module の参照は definition で名前を付ける。
 
 ### 過去の微妙だった点
 - `()` をつけなくていいところにつける: `(x)` とか。
@@ -72,6 +76,3 @@ perf は `/usr/lib/linux-tools/6.8.0-139-generic/perf` にあります。
   し、\return(\thunk(...)) はそのまま残す形を試します。これが通れば同じ規則を全対象へ適用します。
   ```
   もとの要件を満たせないみたいな感じにいって途中までやるのをやめるべき。機械的な移行（ python や perl ）に失敗したなら、 ちゃんと理由を分析して python や perl を書き直すようにして、元の内容を変更しない。
-- `mulIntegerDistribLeft` とかすごい長い。
-- `mulIntegerDistribLeft` はブロック使ったら何とかなりそう。
-- `addMonotone` もどんどんインデントをしていく。インデントをすること自体は自然な内容だが、もっと分割できないか。
