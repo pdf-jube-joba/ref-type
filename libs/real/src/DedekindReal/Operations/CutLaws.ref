@@ -53,24 +53,15 @@
       \fun (pa: lt p a) =>
         RationalOrder.ltReplaceLeft p q a pq pa;
 
-\definition ratCut (a: Rat):
-  \In[\Pow Rat] CutSet (RatLower a) :=
-  Logic.And[Inhabited (RatLower a),
-    Logic.And[Proper (RatLower a),
-      Logic.And[Lower (RatLower a),
-        Logic.And[Rounded (RatLower a),
-          Logic.And[Located (RatLower a),
-            RespectsFractionEq (RatLower a)]]]]]::# (ratLowerInhabited a) (Logic.And[Proper (RatLower a),
-      Logic.And[Lower (RatLower a),
-        Logic.And[Rounded (RatLower a),
-          Logic.And[Located (RatLower a),
-            RespectsFractionEq (RatLower a)]]]]::# (ratLowerProper a) (Logic.And[Lower (RatLower a),
-        Logic.And[Rounded (RatLower a),
-          Logic.And[Located (RatLower a),
-            RespectsFractionEq (RatLower a)]]]::# (ratLowerLower a) (Logic.And[Rounded (RatLower a),
-          Logic.And[Located (RatLower a),
-            RespectsFractionEq (RatLower a)]]::# (ratLowerRounded a) (Logic.And[Located (RatLower a),
-            RespectsFractionEq (RatLower a)]::# (lowerLocated (RatLower a) (ratLowerLower a)) (ratLowerRespects a)))));
+\definition ratCut (a: Rat): IsCut[RatLower a] :=
+  IsCut[RatLower a] {
+    inhabited := ratLowerInhabited a,
+    proper := ratLowerProper a,
+    lower := ratLowerLower a,
+    rounded := ratLowerRounded a,
+    located := lowerLocated (RatLower a) (ratLowerLower a),
+    respects := ratLowerRespects a,
+  };
 
 \definition memberLtOutside (x: Real) (a, b: Rat)
   (xa: mem x a) (xb: Logic.Not (mem x b)): lt a b :=
@@ -80,9 +71,9 @@
     (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, lt b a]) =>
       Logic.orElim (RationalFractions.FractionEq a b) (lt b a) (lt a b)
         (\fun (ab: RationalFractions.FractionEq a b) =>
-          Logic.falseElim (lt a b) (xb (cutRespects x a b ab xa)))
+          Logic.falseElim (lt a b) (xb (#respects{x} a b ab xa)))
         (\fun (ba: lt b a) =>
-          Logic.falseElim (lt a b) (xb (cutLower x b a ba xa)))
+          Logic.falseElim (lt a b) (xb (#lower{x} b a ba xa)))
         rest)
     (RationalOrder.trichotomy a b);
 
@@ -101,8 +92,8 @@
 \definition gridBoundary (x: Real) (e: Rat) (positive: lt zeroRat e):
   GridBoundary x e :=
   \block {
-    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by cutInhabited x \then
-    \takefrom b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) }) \by cutProper x \then
+    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by #inhabited{x} \then
+    \takefrom b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) }) \by #proper{x} \then
     \takefrom n: \Cast[Natural.Nat^] ({ n : Natural.Nat^ \where lt b (RationalOperations.naturalTranslate a e n) }) \by RationalOperations.naturalTranslateAbove a e b positive \then
     \let P: Natural.Nat^ -> \Prop := GridPredicate x a e \then
     \let xa: mem x a :=
@@ -120,13 +111,13 @@
         (RationalOperations.naturalTranslateAsGrid a e n)
         farReduced \then
     \let atZero: P Natural.Nat^::zero :=
-      cutRespects x a
+      #respects{x} a
         (RationalOperations.grid a e Natural.Nat^::zero)
         (RationalFractions.fractionEqSym _ _
           (RationalOperations.gridZero a e)) xa \then
     \let notAtN: Logic.Not (P n) :=
       \fun (atN: P n) => xb
-        (cutLower x b (RationalOperations.grid a e n) far atN) \then
+        (#lower{x} b (RationalOperations.grid a e n) far atN) \then
     \let boundary: AdjacentBoundary P :=
       finiteBoundary P n atZero notAtN \then
     \return \exact(
@@ -159,7 +150,7 @@
     \let outside: Logic.Not (mem x (addRat a e)) :=
       \fun (inside: mem x (addRat a e)) =>
         outsideNext
-          (cutRespects x (addRat a e) next
+          (#respects{x} (addRat a e) next
             (RationalFractions.fractionEqSym _ _
               (RationalOperations.gridSucc base e k)) inside) \then
     \return \exact(
@@ -203,8 +194,8 @@
 \definition sumContainsAdd (x, y: Real) (a, b: Rat)
   (xa: mem x a) (yb: mem y b): In (SumLower x y) (addRat a b) :=
   \block {
-    \takefrom a2: \Cast[Rat] ({ a2 : Rat \where Logic.And[mem x a2, lt a a2] }) \by cutRounded x a xa \then
-    \takefrom b2: \Cast[Rat] ({ b2 : Rat \where Logic.And[mem y b2, lt b b2] }) \by cutRounded y b yb \then
+    \takefrom a2: \Cast[Rat] ({ a2 : Rat \where Logic.And[mem x a2, lt a a2] }) \by #rounded{x} a xa \then
+    \takefrom b2: \Cast[Rat] ({ b2 : Rat \where Logic.And[mem y b2, lt b b2] }) \by #rounded{y} b yb \then
     \return sumIntro x y (addRat a b) a2 b2
         (#left{(\bysub(Rat,
             { a2 : Rat \where Logic.And[mem x a2, lt a a2] }, a2))})
@@ -219,8 +210,8 @@
 
 \definition sumInhabited (x, y: Real): Inhabited (SumLower x y) :=
   \block {
-    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by cutInhabited x \then
-    \takefrom b: \Cast[Rat] ({ b : Rat \where mem y b }) \by cutInhabited y \then
+    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by #inhabited{x} \then
+    \takefrom b: \Cast[Rat] ({ b : Rat \where mem y b }) \by #inhabited{y} \then
     \return \exact(
         \into[Rat](RationalOperations.below (addRat a b), { q : Rat \where In (SumLower x y) q }) \by { sumIntro x y (RationalOperations.below (addRat a b)) a b
             (\bysub(Rat, { a : Rat \where mem x a }, a))
@@ -266,8 +257,8 @@
 
 \definition sumProper (x, y: Real): Proper (SumLower x y) :=
   \block {
-    \takefrom u: \Cast[Rat] ({ u : Rat \where Logic.Not (mem x u) }) \by cutProper x \then
-    \takefrom v: \Cast[Rat] ({ v : Rat \where Logic.Not (mem y v) }) \by cutProper y \then
+    \takefrom u: \Cast[Rat] ({ u : Rat \where Logic.Not (mem x u) }) \by #proper{x} \then
+    \takefrom v: \Cast[Rat] ({ v : Rat \where Logic.Not (mem y v) }) \by #proper{y} \then
     \return \exact(
         \into[Rat](addRat u v, { q : Rat \where Logic.Not (In (SumLower x y) q) }) \by { sumProperAt x y u v
             (\bysub(Rat, { u : Rat \where Logic.Not (mem x u) }, u))
@@ -343,24 +334,15 @@
                     { b : Rat \where Logic.And[mem y b, lt p (addRat a b)] }, b))}))
         };
 
-\definition sumCut (x, y: Real):
-  \In[\Pow Rat] CutSet (SumLower x y) :=
-  Logic.And[Inhabited (SumLower x y),
-    Logic.And[Proper (SumLower x y),
-      Logic.And[Lower (SumLower x y),
-        Logic.And[Rounded (SumLower x y),
-          Logic.And[Located (SumLower x y),
-            RespectsFractionEq (SumLower x y)]]]]]::# (sumInhabited x y) (Logic.And[Proper (SumLower x y),
-      Logic.And[Lower (SumLower x y),
-        Logic.And[Rounded (SumLower x y),
-          Logic.And[Located (SumLower x y),
-            RespectsFractionEq (SumLower x y)]]]]::# (sumProper x y) (Logic.And[Lower (SumLower x y),
-        Logic.And[Rounded (SumLower x y),
-          Logic.And[Located (SumLower x y),
-            RespectsFractionEq (SumLower x y)]]]::# (sumLower x y) (Logic.And[Rounded (SumLower x y),
-          Logic.And[Located (SumLower x y),
-            RespectsFractionEq (SumLower x y)]]::# (sumRounded x y) (Logic.And[Located (SumLower x y),
-            RespectsFractionEq (SumLower x y)]::# (lowerLocated (SumLower x y) (sumLower x y)) (sumRespects x y)))));
+\definition sumCut (x, y: Real): IsCut[SumLower x y] :=
+  IsCut[SumLower x y] {
+    inhabited := sumInhabited x y,
+    proper := sumProper x y,
+    lower := sumLower x y,
+    rounded := sumRounded x y,
+    located := lowerLocated (SumLower x y) (sumLower x y),
+    respects := sumRespects x y,
+  };
 
 \definition negIntro (x: Real) (q, r: Rat)
   (xr: Logic.Not (mem x r)) (qr: lt q (negRat r)):
@@ -386,7 +368,7 @@
 
 \definition negInhabited (x: Real): Inhabited (NegLower x) :=
   \block {
-    \takefrom r: \Cast[Rat] ({ r : Rat \where Logic.Not (mem x r) }) \by cutProper x \then
+    \takefrom r: \Cast[Rat] ({ r : Rat \where Logic.Not (mem x r) }) \by #proper{x} \then
     \return \exact(
         \into[Rat](RationalOperations.below (negRat r), { q : Rat \where In (NegLower x) q }) \by { negIntro x (RationalOperations.below (negRat r)) r
             (\bysub(Rat, { r : Rat \where Logic.Not (mem x r) }, r))
@@ -402,7 +384,7 @@
       \return (#left{(\bysub(Rat,
             { r : Rat \where Logic.And[Logic.Not (mem x r),
                 lt (negRat a) (negRat r)] }, r))})
-          (cutLower x r a
+          (#lower{x} r a
             (RationalOperations.ltOfNegLtNeg a r
               (#right{(\bysub(Rat,
                   { r : Rat \where Logic.And[Logic.Not (mem x r),
@@ -411,7 +393,7 @@
 
 \definition negProper (x: Real): Proper (NegLower x) :=
   \block {
-    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by cutInhabited x \then
+    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by #inhabited{x} \then
     \return \exact(
         \into[Rat](negRat a, { q : Rat \where Logic.Not (In (NegLower x) q) }) \by { negProperAt x a (\bysub(Rat, { a : Rat \where mem x a }, a)) },
         \Cast[Rat] ({ q : Rat \where Logic.Not (In (NegLower x) q) }))
@@ -461,24 +443,15 @@
                     { r : Rat \where Logic.And[Logic.Not (mem x r), lt p (negRat r)] }, r))}))
         };
 
-\definition negCut (x: Real):
-  \In[\Pow Rat] CutSet (NegLower x) :=
-  Logic.And[Inhabited (NegLower x),
-    Logic.And[Proper (NegLower x),
-      Logic.And[Lower (NegLower x),
-        Logic.And[Rounded (NegLower x),
-          Logic.And[Located (NegLower x),
-            RespectsFractionEq (NegLower x)]]]]]::# (negInhabited x) (Logic.And[Proper (NegLower x),
-      Logic.And[Lower (NegLower x),
-        Logic.And[Rounded (NegLower x),
-          Logic.And[Located (NegLower x),
-            RespectsFractionEq (NegLower x)]]]]::# (negProper x) (Logic.And[Lower (NegLower x),
-        Logic.And[Rounded (NegLower x),
-          Logic.And[Located (NegLower x),
-            RespectsFractionEq (NegLower x)]]]::# (negLower x) (Logic.And[Rounded (NegLower x),
-          Logic.And[Located (NegLower x),
-            RespectsFractionEq (NegLower x)]]::# (negRounded x) (Logic.And[Located (NegLower x),
-            RespectsFractionEq (NegLower x)]::# (lowerLocated (NegLower x) (negLower x)) (negRespects x)))));
+\definition negCut (x: Real): IsCut[NegLower x] :=
+  IsCut[NegLower x] {
+    inhabited := negInhabited x,
+    proper := negProper x,
+    lower := negLower x,
+    rounded := negRounded x,
+    located := lowerLocated (NegLower x) (negLower x),
+    respects := negRespects x,
+  };
 
 /* Rational density packaged for the finite endpoint arguments used below. */
 \definition BelowBoth (a, b: Rat): \Prop := Estimates.BelowBoth a b;
@@ -500,8 +473,8 @@
 
 \definition symmetricBound (x: Real): SymmetricBound x :=
   \block {
-    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by cutInhabited x \then
-    \takefrom b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) }) \by cutProper x \then
+    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by #inhabited{x} \then
+    \takefrom b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) }) \by #proper{x} \then
     \takefrom u: \Cast[Rat] ({ u : Rat \where Logic.And[lt (negRat a) u, lt b u] }) \by aboveBoth (negRat a) b \then
     \takefrom v: \Cast[Rat] ({ v : Rat \where Logic.And[lt u v, lt zeroRat v] }) \by aboveBoth u zeroRat \then
     \let nua: lt (negRat a) v :=
@@ -518,12 +491,12 @@
         (#right{(\bysub(Rat, { u : Rat \where Logic.And[lt (negRat a) u, lt b u] }, u))})
         (#left{(\bysub(Rat, { v : Rat \where Logic.And[lt u v, lt zeroRat v] }, v))}) \then
     \let inside: mem x (negRat v) :=
-      cutLower x (negRat v) a nva
+      #lower{x} (negRat v) a nva
         (\bysub(Rat, { a : Rat \where mem x a }, a)) \then
     \let outside: Logic.Not (mem x v) :=
       \fun (xv: mem x v) =>
         (\bysub(Rat, { b : Rat \where Logic.Not (mem x b) }, b))
-          (cutLower x b v bv xv) \then
+          (#lower{x} b v bv xv) \then
     \return \exact(
       \into[Rat](v, { v : Rat \where Logic.And[lt zeroRat v,
           Logic.And[mem x (negRat v), Logic.Not (mem x v)]] }) \by { Logic.And[lt zeroRat v,
@@ -554,10 +527,10 @@
 
 \definition productInhabited (x, y: Real): Inhabited (MulLower x y) :=
   \block {
-    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by cutInhabited x \then
-    \takefrom b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) }) \by cutProper x \then
-    \takefrom c: \Cast[Rat] ({ c : Rat \where mem y c }) \by cutInhabited y \then
-    \takefrom d: \Cast[Rat] ({ d : Rat \where Logic.Not (mem y d) }) \by cutProper y \then
+    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by #inhabited{x} \then
+    \takefrom b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) }) \by #proper{x} \then
+    \takefrom c: \Cast[Rat] ({ c : Rat \where mem y c }) \by #inhabited{y} \then
+    \takefrom d: \Cast[Rat] ({ d : Rat \where Logic.Not (mem y d) }) \by #proper{y} \then
     \takefrom u: \Cast[Rat] ({ u : Rat \where Logic.And[lt u (mulRat a c), lt u (mulRat a d)] }) \by belowBoth (mulRat a c) (mulRat a d) \then
     \takefrom v: \Cast[Rat] ({ v : Rat \where Logic.And[lt v (mulRat b c), lt v (mulRat b d)] }) \by belowBoth (mulRat b c) (mulRat b d) \then
     \takefrom q: \Cast[Rat] ({ q : Rat \where Logic.And[lt q u, lt q v] }) \by belowBoth u v \then
@@ -719,24 +692,15 @@
                 (RationalOrder.ltReplaceLeft p q (mulRat b c) pq bc)
                 (RationalOrder.ltReplaceLeft p q (mulRat b d) pq bd));
 
-\definition mulCut (x, y: Real):
-  \In[\Pow Rat] CutSet (MulLower x y) :=
-  Logic.And[Inhabited (MulLower x y),
-    Logic.And[Proper (MulLower x y),
-      Logic.And[Lower (MulLower x y),
-        Logic.And[Rounded (MulLower x y),
-          Logic.And[Located (MulLower x y),
-            RespectsFractionEq (MulLower x y)]]]]]::# (productInhabited x y) (Logic.And[Proper (MulLower x y),
-      Logic.And[Lower (MulLower x y),
-        Logic.And[Rounded (MulLower x y),
-          Logic.And[Located (MulLower x y),
-            RespectsFractionEq (MulLower x y)]]]]::# (productProper x y) (Logic.And[Lower (MulLower x y),
-        Logic.And[Rounded (MulLower x y),
-          Logic.And[Located (MulLower x y),
-            RespectsFractionEq (MulLower x y)]]]::# (productLower x y) (Logic.And[Rounded (MulLower x y),
-          Logic.And[Located (MulLower x y),
-            RespectsFractionEq (MulLower x y)]]::# (productRounded x y) (Logic.And[Located (MulLower x y),
-            RespectsFractionEq (MulLower x y)]::# (lowerLocated (MulLower x y) (productLower x y)) (productRespects x y)))));
+\definition mulCut (x, y: Real): IsCut[MulLower x y] :=
+  IsCut[MulLower x y] {
+    inhabited := productInhabited x y,
+    proper := productProper x y,
+    lower := productLower x y,
+    rounded := productRounded x y,
+    located := lowerLocated (MulLower x y) (productLower x y),
+    respects := productRespects x y,
+  };
 
 \definition reciprocalBelowIntro (x: Real) (q, a, b, r: Rat)
   (xa: mem x a) (xb: Logic.Not (mem x b))
@@ -782,9 +746,9 @@
   (positive: Lt zeroReal x): Inhabited (InvLower x) :=
   \block {
     \takefrom t: \Cast[Rat] ({ t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] }) \by positive \then
-    \takefrom a: \Cast[Rat] ({ a : Rat \where Logic.And[mem x a, lt t a] }) \by cutRounded x t
+    \takefrom a: \Cast[Rat] ({ a : Rat \where Logic.And[mem x a, lt t a] }) \by #rounded{x} t
       (#right{(\bysub(Rat, { t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] }, t))}) \then
-    \takefrom b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) }) \by cutProper x \then
+    \takefrom b: \Cast[Rat] ({ b : Rat \where Logic.Not (mem x b) }) \by #proper{x} \then
     \let separation: Logic.And[
         Logic.Not (mem zeroReal t), mem x t] :=
       \bysub(Rat, { t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] }, t) \then
@@ -828,7 +792,7 @@
   (negative: Lt x zeroReal): Inhabited (InvLower x) :=
   \block {
     \takefrom b: \Cast[Rat] ({ b : Rat \where Logic.And[Logic.Not (mem x b), mem zeroReal b] }) \by negative \then
-    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by cutInhabited x \then
+    \takefrom a: \Cast[Rat] ({ a : Rat \where mem x a }) \by #inhabited{x} \then
     \let separation: Logic.And[
         Logic.Not (mem x b), mem zeroReal b] :=
       \bysub(Rat, { b : Rat \where Logic.And[Logic.Not (mem x b), mem zeroReal b] }, b) \then
@@ -1113,7 +1077,7 @@
   (positive: Lt zeroReal x): Proper (InvLower x) :=
   \block {
     \takefrom t: \Cast[Rat] ({ t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] }) \by positive \then
-    \takefrom a0: \Cast[Rat] ({ a0 : Rat \where Logic.And[mem x a0, lt t a0] }) \by cutRounded x t
+    \takefrom a0: \Cast[Rat] ({ a0 : Rat \where Logic.And[mem x a0, lt t a0] }) \by #rounded{x} t
       (#right{(\bysub(Rat, { t : Rat \where Logic.And[Logic.Not (mem zeroReal t), mem x t] }, t))}) \then
     \let separation: Logic.And[
         Logic.Not (mem zeroReal t), mem x t] :=
@@ -1199,21 +1163,12 @@
         (CutOrder.ltTrichotomy x zeroReal))
     (Classical.excludedMiddle (underlying x = RatLower zeroRat));
 
-\definition invCut (x: Real):
-  \In[\Pow Rat] CutSet (InvLower x) :=
-  Logic.And[Inhabited (InvLower x),
-    Logic.And[Proper (InvLower x),
-      Logic.And[Lower (InvLower x),
-        Logic.And[Rounded (InvLower x),
-          Logic.And[Located (InvLower x),
-            RespectsFractionEq (InvLower x)]]]]]::# (invInhabited x) (Logic.And[Proper (InvLower x),
-      Logic.And[Lower (InvLower x),
-        Logic.And[Rounded (InvLower x),
-          Logic.And[Located (InvLower x),
-            RespectsFractionEq (InvLower x)]]]]::# (invProper x) (Logic.And[Lower (InvLower x),
-        Logic.And[Rounded (InvLower x),
-          Logic.And[Located (InvLower x),
-            RespectsFractionEq (InvLower x)]]]::# (invLower x) (Logic.And[Rounded (InvLower x),
-          Logic.And[Located (InvLower x),
-            RespectsFractionEq (InvLower x)]]::# (invRounded x) (Logic.And[Located (InvLower x),
-            RespectsFractionEq (InvLower x)]::# (lowerLocated (InvLower x) (invLower x)) (invRespects x)))));
+\definition invCut (x: Real): IsCut[InvLower x] :=
+  IsCut[InvLower x] {
+    inhabited := invInhabited x,
+    proper := invProper x,
+    lower := invLower x,
+    rounded := invRounded x,
+    located := lowerLocated (InvLower x) (invLower x),
+    respects := invRespects x,
+  };

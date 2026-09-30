@@ -13,6 +13,7 @@
 - 可換版は基礎構造の Raw データを `base` に持ち、既存の law を再利用して基礎構造へ変換する。
 - Topology、閉集合系・閉包作用素・内部作用素・近傍系、AxiomaticRealStructure、CauchySeq を `\structure` に移行した。
 - 実数構造の法則を named field にし、Cauchy 列の構成・商・演算・完備性と、各パッケージの依存箇所・利用例・README を更新した。
+- Dedekind 切断の `IsCut` を六つの named field を持つ Prop record に移行し、切断の構成と法則の取り出しを整理した。
 
 ### 検証
 
@@ -26,8 +27,8 @@ Pair の任意の Set に対する API を仕様として利用し、Program の
 表示一式や連続写像を値として受け渡す bundle の追加は、その利用箇所と合わせて設計する。
 
 Dedekind の `Real` は有理数の下方集合の部分型として扱い、`eqByExt` が集合の外延性を実数の等式へ直接結ぶ。
-record 表現への移行には、生成された `::[Raw]` の消去と、下方集合の等式から record の等式を導く証明が必要になる。
-現在の表面構文では `\induction` の型と `\prec` の対象が path に限られ、record の constructor `#` も induction の branch 名として扱えないため、この消去の表現を言語側で整えることが次の前提になる。
+切断の性質は `IsCut[L]` の `inhabited`、`proper`、`lower`、`rounded`、`located`、`respects` にまとめ、実数の値から field projection で取り出す。
+切断の構成では各性質の証明を record literal に渡し、演算の閉性と完備性へ接続する。
 
 ## libs/std
 
