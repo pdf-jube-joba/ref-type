@@ -87,7 +87,7 @@ congr2!{A B C} f a b c d ab cd
   };
 ```
 
-自然数の記法は `add^`・`mul^`、整数の記法は `addInteger`・`mulInteger` に展開される。
+自然数の記法は `Add::[set]`・`Mul::[set]`、整数の記法は `addInteger`・`mulInteger` に展開される。
 
 `congr2!` は `ab: a = b` と `cd: c = d` から `f a c = f b d` を直接作る。
 期待型から引数が分かる場合は値を `_` にできる。
@@ -210,12 +210,18 @@ image が再び商の要素になることを示す。演算ごとに同じ外�
 
 Bool・Nat・Int は `\VType` の Program データであり、Set 側の型は `Bool^`・`Nat^`・`Int^`。
 反映後の constructor は `Bool^::true`、`Nat^::succ` のように参照する。
-各演算には原則として次の層がある。
+Nat の演算は `\correspondence` で実装・仕様・一致証明をまとめて宣言する。
 
-- `add`: Program 演算
-- `addSet`: `\box` / `\Force` による Set への反映
-- `addPrec`: primitive recursor による仕様
-- `addMatchesPrec`: 反映した演算と仕様の一致
+| member | 用途 |
+| --- | --- |
+| `Add::[program]` | Program の加算 |
+| `Add::[set]` | Set の加算仕様 |
+| `Add::[coherence]` | 実装の反映と仕様の等式 |
+
+算術法則と数学側の構成は `::[set]` を使い、実行結果との接続には `::[coherence]` を使う。
+`AddLoop::[run]` や `IterLoop::[run]` は、状態遷移と停止性証明をまとめた `\machine` の実行関数である。
+反復の仕様と計算則は `Iteration[A]` にまとめ、`FiniteIteration(A: \Set)` で構成する。
+Bool と Int は、`add` のような Program 演算、`addPrec` のような仕様、`addMatchesPrec` のような一致証明を公開する。
 
 `\run` は部分計算を表せるが、Set に反映する際には停止性証明が必要になる。
 
