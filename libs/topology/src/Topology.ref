@@ -69,39 +69,27 @@
   (member: Member (Intersection S T) x): Member T x :=
   #right{member};
 
-\record RawTopology[Carrier: \Set]: \Set := {
+\structure Topology: \Set {
   openSets: \Pow (\Pow Carrier),
-};
+} \where {
+  emptyOpen: \In[\Pow Carrier] openSets Empty,
+  wholeOpen: \In[\Pow Carrier] openSets Whole,
+  unionOpen: \forall (family: \Pow (\Pow Carrier)) ->
+    (\forall (S: \Pow Carrier) -> FamilyMember family S -> \In[\Pow Carrier] openSets S) ->
+    \In[\Pow Carrier] openSets (Union family),
+  intersectionOpen: \forall (S, T: \Pow Carrier) ->
+    \In[\Pow Carrier] openSets S -> \In[\Pow Carrier] openSets T ->
+    \In[\Pow Carrier] openSets (Intersection S T),
+}
 
-\definition IsOpen (topology: RawTopology[Carrier]) (S: \Pow Carrier): \Prop :=
+\definition IsOpen (topology: Topology::[Raw]) (S: \Pow Carrier): \Prop :=
   \In[\Pow Carrier] (#openSets{topology}) S;
 
 /* The last two fields express closure under arbitrary unions and finite
  * intersections; binary intersections together with Whole suffice here. */
-\record TopologyLaws[topology: RawTopology[Carrier]]: \Prop := {
-  emptyOpen: IsOpen topology Empty,
-  wholeOpen: IsOpen topology Whole,
-  unionOpen: \forall (family: \Pow (\Pow Carrier)) ->
-    (\forall (S: \Pow Carrier) -> FamilyMember family S -> IsOpen topology S) ->
-    IsOpen topology (Union family),
-  intersectionOpen: \forall (S, T: \Pow Carrier) ->
-    IsOpen topology S -> IsOpen topology T ->
-    IsOpen topology (Intersection S T),
-};
 
-\definition TopologySet: \Pow (RawTopology[Carrier]) :=
-  { topology : RawTopology[Carrier] \where TopologyLaws[topology] };
-
-\definition Topology: \Set :=
-  \Cast[RawTopology[Carrier]] TopologySet;
-
-\definition raw (topology: Topology): RawTopology[Carrier] := topology;
-
-\definition laws (topology: Topology): TopologyLaws[raw topology] :=
-  \bysub(RawTopology[Carrier], TopologySet, topology);
-
-\definition IsOpenIn (topology: Topology) (S: \Pow Carrier): \Prop :=
-  IsOpen (raw topology) S;
+\definition IsOpenIn (topology: Topology::[Set]) (S: \Pow Carrier): \Prop :=
+  IsOpen (Topology::[raw] topology) S;
 
 \definition Subset (S, T: \Pow Carrier): \Prop :=
   \forall (x: Carrier) -> Member S x -> Member T x;
@@ -115,20 +103,20 @@
 \definition Singleton (x: Carrier): \Pow Carrier :=
   { y : Carrier \where y = x };
 
-\definition IsClosedIn (topology: Topology) (S: \Pow Carrier): \Prop :=
+\definition IsClosedIn (topology: Topology::[Set]) (S: \Pow Carrier): \Prop :=
   IsOpenIn topology (Complement S);
 
-\definition IsT1 (topology: Topology): \Prop :=
+\definition IsT1 (topology: Topology::[Set]): \Prop :=
   \forall (x: Carrier) -> IsClosedIn topology (Singleton x);
 
-\definition IsT2 (topology: Topology): \Prop :=
+\definition IsT2 (topology: Topology::[Set]): \Prop :=
   \forall (x, y: Carrier) -> Logic.Not (x = y) ->
     \exists { U : \Pow Carrier \where
       Logic.And[IsOpenIn topology U, Logic.And[Member U x,
         \exists { V : \Pow Carrier \where
           Logic.And[IsOpenIn topology V, Logic.And[Member V y, Disjoint U V]] }]] };
 
-\definition IsRegular (topology: Topology): \Prop :=
+\definition IsRegular (topology: Topology::[Set]): \Prop :=
   \forall (F: \Pow Carrier) -> IsClosedIn topology F ->
   \forall (x: Carrier) -> Logic.Not (Member F x) ->
     \exists { U : \Pow Carrier \where
@@ -136,53 +124,53 @@
         \exists { V : \Pow Carrier \where
           Logic.And[IsOpenIn topology V, Logic.And[Subset F V, Disjoint U V]] }]] };
 
-\definition IsT3 (topology: Topology): \Prop :=
+\definition IsT3 (topology: Topology::[Set]): \Prop :=
   Logic.And[IsT1 topology, IsRegular topology];
 
 \definition Covers (family: \Pow (\Pow Carrier)) (S: \Pow Carrier): \Prop :=
   Subset S (Union family);
 
-\definition IsOpenCover (topology: Topology) (family: \Pow (\Pow Carrier))
+\definition IsOpenCover (topology: Topology::[Set]) (family: \Pow (\Pow Carrier))
   (S: \Pow Carrier): \Prop :=
   Logic.And[Covers family S,
     \forall (U: \Pow Carrier) -> FamilyMember family U -> IsOpenIn topology U];
 
-\definition IsCompactIn (topology: Topology) (S: \Pow Carrier): \Prop :=
+\definition IsCompactIn (topology: Topology::[Set]) (S: \Pow Carrier): \Prop :=
   \forall (family: \Pow (\Pow Carrier)) -> IsOpenCover topology family S ->
     \exists { finite : FiniteFamilies.FiniteSubset \where
       Logic.And[\forall (U: \Pow Carrier) ->
         FiniteFamilies.Member finite U -> FamilyMember family U,
         Covers (FiniteFamilies.underlying finite) S] };
 
-\definition IsCompact (topology: Topology): \Prop :=
+\definition IsCompact (topology: Topology::[Set]): \Prop :=
   IsCompactIn topology Whole;
 
 \definition GeneratedOpen (basis: \Pow (\Pow Carrier)) (S: \Pow Carrier): \Prop :=
-  \forall (candidate: RawTopology[Carrier]) -> TopologyLaws[candidate] ->
+  \forall (candidate: Topology::[Raw]) -> Topology::[Law][candidate] ->
     (\forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpen candidate U) ->
     IsOpen candidate S;
 
-\definition GeneratedRaw (basis: \Pow (\Pow Carrier)): RawTopology[Carrier] :=
-  RawTopology[Carrier] {
+\definition GeneratedRaw (basis: \Pow (\Pow Carrier)): Topology::[Raw] :=
+  Topology::[Raw] {
     openSets := { S : \Pow Carrier \where GeneratedOpen basis S },
   };
 
 \definition generatedLaws (basis: \Pow (\Pow Carrier)):
-  TopologyLaws[GeneratedRaw basis] :=
-  TopologyLaws[GeneratedRaw basis] {
-    emptyOpen := \fun (candidate: RawTopology[Carrier]) =>
-      \fun (h: TopologyLaws[candidate]) =>
+  Topology::[Law][GeneratedRaw basis] :=
+  Topology::[Law][GeneratedRaw basis] {
+    emptyOpen := \fun (candidate: Topology::[Raw]) =>
+      \fun (h: Topology::[Law][candidate]) =>
       \fun (_: \forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpen candidate U) =>
         #emptyOpen{h},
-    wholeOpen := \fun (candidate: RawTopology[Carrier]) =>
-      \fun (h: TopologyLaws[candidate]) =>
+    wholeOpen := \fun (candidate: Topology::[Raw]) =>
+      \fun (h: Topology::[Law][candidate]) =>
       \fun (_: \forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpen candidate U) =>
         #wholeOpen{h},
     unionOpen := \fun (family: \Pow (\Pow Carrier)) =>
       \fun (allOpen: \forall (S: \Pow Carrier) -> FamilyMember family S ->
         IsOpen (GeneratedRaw basis) S) =>
-      \fun (candidate: RawTopology[Carrier]) =>
-      \fun (h: TopologyLaws[candidate]) =>
+      \fun (candidate: Topology::[Raw]) =>
+      \fun (h: Topology::[Law][candidate]) =>
       \fun (containsBasis: \forall (U: \Pow Carrier) -> FamilyMember basis U ->
         IsOpen candidate U) =>
         #unionOpen{h} family
@@ -191,58 +179,58 @@
     intersectionOpen := \fun (S, T: \Pow Carrier) =>
       \fun (sOpen: IsOpen (GeneratedRaw basis) S) =>
       \fun (tOpen: IsOpen (GeneratedRaw basis) T) =>
-      \fun (candidate: RawTopology[Carrier]) =>
-      \fun (h: TopologyLaws[candidate]) =>
+      \fun (candidate: Topology::[Raw]) =>
+      \fun (h: Topology::[Law][candidate]) =>
       \fun (containsBasis: \forall (U: \Pow Carrier) -> FamilyMember basis U ->
         IsOpen candidate U) =>
         #intersectionOpen{h} S T
           (sOpen candidate h containsBasis) (tOpen candidate h containsBasis),
   };
 
-\definition generated (basis: \Pow (\Pow Carrier)): Topology :=
-  \into[RawTopology[Carrier]](GeneratedRaw basis, TopologySet) \by {
+\definition generated (basis: \Pow (\Pow Carrier)): Topology::[Set] :=
+  \into[Topology::[Raw]](GeneratedRaw basis, Topology) \by {
     generatedLaws basis
   };
 
 \definition generatedRawEq (basis: \Pow (\Pow Carrier)):
-  raw (generated basis) = GeneratedRaw basis :=
+  Topology::[raw] (generated basis) = GeneratedRaw basis :=
   \refl(GeneratedRaw basis);
 
 \definition generatedBasisOpen (basis: \Pow (\Pow Carrier))
   (S: \Pow Carrier) (member: FamilyMember basis S):
   IsOpenIn (generated basis) S :=
-  \idelim GeneratedRaw basis = raw (generated basis)
-    \with candidate: RawTopology[Carrier] => IsOpen candidate S
+  \idelim GeneratedRaw basis = Topology::[raw] (generated basis)
+    \with candidate: Topology::[Raw] => IsOpen candidate S
     \by {
-      base: \fun (candidate: RawTopology[Carrier]) =>
-        \fun (_: TopologyLaws[candidate]) =>
+      base: \fun (candidate: Topology::[Raw]) =>
+        \fun (_: Topology::[Law][candidate]) =>
         \fun (containsBasis: \forall (U: \Pow Carrier) ->
           FamilyMember basis U -> IsOpen candidate U) =>
           containsBasis S member,
-      equality: sym!{RawTopology[Carrier]}
-        (raw (generated basis)) (GeneratedRaw basis) (generatedRawEq basis)
+      equality: sym!{Topology::[Raw]}
+        (Topology::[raw] (generated basis)) (GeneratedRaw basis) (generatedRawEq basis)
     };
 
 \definition generatedLeast (basis: \Pow (\Pow Carrier))
-  (candidate: Topology)
+  (candidate: Topology::[Set])
   (containsBasis: \forall (U: \Pow Carrier) ->
     FamilyMember basis U -> IsOpenIn candidate U)
   (S: \Pow Carrier) (open: IsOpenIn (generated basis) S):
   IsOpenIn candidate S :=
-  (\idelim raw (generated basis) = GeneratedRaw basis
-    \with source: RawTopology[Carrier] => IsOpen source S
+  (\idelim Topology::[raw] (generated basis) = GeneratedRaw basis
+    \with source: Topology::[Raw] => IsOpen source S
     \by { base: open, equality: generatedRawEq basis })
-    (raw candidate) (laws candidate) containsBasis;
+    (Topology::[raw] candidate) (Topology::[law] candidate) containsBasis;
 
 \definition IndiscreteBasis: \Pow (\Pow Carrier) :=
   { S : \Pow Carrier \where Logic.Or[S = Empty, S = Whole] };
 
-\definition Indiscrete: Topology := generated IndiscreteBasis;
+\definition Indiscrete: Topology::[Set] := generated IndiscreteBasis;
 
 \definition DiscreteBasis: \Pow (\Pow Carrier) :=
   { S : \Pow Carrier \where S = S };
 
-\definition Discrete: Topology := generated DiscreteBasis;
+\definition Discrete: Topology::[Set] := generated DiscreteBasis;
 
 \definition discreteOpen (S: \Pow Carrier): IsOpenIn Discrete S :=
   generatedBasisOpen DiscreteBasis S (\refl(S));

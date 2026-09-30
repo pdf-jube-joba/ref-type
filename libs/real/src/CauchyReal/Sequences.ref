@@ -1,18 +1,18 @@
 /* Concrete sequence constructions with no additional analytic assumptions. */
-\definition pointwiseEquivalent (x, y: CauchySeq)
+\definition pointwiseEquivalent (x, y: CauchySeq::[Set])
   (same: \forall (n: Nat) -> at x n = at y n)
   (eps: Rat) (positive: Positive eps):
   \exists { k : Nat \where EquivalentAt x y eps k } :=
   \block {
-    \takefrom k: \Cast[Nat] ({ k : Nat \where CauchyAt x eps k }) \by cauchyProperty x eps positive \then
+    \takefrom k: \Cast[Nat] ({ k : Nat \where CauchyAt (#sequence{x}) eps k }) \by #cauchy{x} eps positive \then
     \return \exact(
         \into[Nat](k, { j : Nat \where EquivalentAt x y eps j }) \by { \fun (n: Nat) => \fun (kn: NatLe k n) =>
             \idelim at x n = at y n \with a: Rat => Close (at x n) a eps
-              \by { base: (\bysub(Nat, { j : Nat \where CauchyAt x eps j }, k)) n n kn kn, equality: same n } },
+              \by { base: (\bysub(Nat, { j : Nat \where CauchyAt (#sequence{x}) eps j }, k)) n n kn kn, equality: same n } },
         \Cast[Nat] ({ j : Nat \where EquivalentAt x y eps j }))
   };
 
-\definition pointwiseFractionEquivalent (x, y: CauchySeq)
+\definition pointwiseFractionEquivalent (x, y: CauchySeq::[Set])
   (same: \forall (n: Nat) -> RationalFractions.FractionEq (at x n) (at y n)):
   Equivalent x y :=
   \fun (eps: Rat) => \fun (positive: Positive eps) =>
@@ -24,9 +24,9 @@
       \Cast[Nat] ({ k : Nat \where EquivalentAt x y eps k }));
 
 \definition ConstSeq (a: Rat) (n: Nat): Rat := a;
-\definition AddSeq (x, y: CauchySeq) (n: Nat): Rat :=
+\definition AddSeq (x, y: CauchySeq::[Set]) (n: Nat): Rat :=
   addRat (at x n) (at y n);
-\definition MulSeq (x, y: CauchySeq) (n: Nat): Rat :=
+\definition MulSeq (x, y: CauchySeq::[Set]) (n: Nat): Rat :=
   mulRat (at x n) (at y n);
 \definition constCauchyOf (a: Rat)
   (selfClose: \forall (eps: Rat) -> Positive eps -> Close a a eps)
@@ -38,31 +38,31 @@
     \Cast[Nat] ({ k : Nat \where CauchyAt (ConstSeq a) eps k }));
 \definition constCauchy (a: Rat): IsCauchy (ConstSeq a) :=
   constCauchyOf a (closeRefl a);
-\definition ConstCauchy (a: Rat): CauchySeq :=
-  \into[Sequence](ConstSeq a, CauchySet) \by { constCauchy a };
+\definition ConstCauchy (a: Rat): CauchySeq::[Set] :=
+  CauchySeq { sequence := ConstSeq a } \with { cauchy := constCauchy a };
 \definition zeroClose (eps: Rat) (positive: Positive eps): Close zeroRat zeroRat eps := Estimates.zeroClose eps positive;
 
 \definition oneClose (eps: Rat) (positive: Positive eps): Close oneRat oneRat eps := Estimates.oneClose eps positive;
 
 \definition zeroCauchy: IsCauchy (ConstSeq zeroRat) := constCauchyOf zeroRat zeroClose;
 \definition oneCauchy: IsCauchy (ConstSeq oneRat) := constCauchyOf oneRat oneClose;
-\definition zero: CauchySeq :=
-  \into[Sequence](ConstSeq zeroRat, CauchySet) \by { zeroCauchy };
-\definition one: CauchySeq :=
-  \into[Sequence](ConstSeq oneRat, CauchySet) \by { oneCauchy };
+\definition zero: CauchySeq::[Set] :=
+  CauchySeq { sequence := ConstSeq zeroRat } \with { cauchy := zeroCauchy };
+\definition one: CauchySeq::[Set] :=
+  CauchySeq { sequence := ConstSeq oneRat } \with { cauchy := oneCauchy };
 
-\definition BoundedAt (x: CauchySeq) (B: Rat) (N: Nat): \Prop :=
+\definition BoundedAt (x: CauchySeq::[Set]) (B: Rat) (N: Nat): \Prop :=
   Logic.And[Positive B,
     \forall (n: Nat) -> NatLe N n -> Close (at x n) zeroRat B];
 
-\definition EventuallyBounded (x: CauchySeq): \Prop :=
+\definition EventuallyBounded (x: CauchySeq::[Set]): \Prop :=
   \exists { B : Rat \where
     \exists { N : Nat \where BoundedAt x B N } };
 
-\definition boundWidth (x: CauchySeq) (N: Nat): Rat :=
+\definition boundWidth (x: CauchySeq::[Set]) (N: Nat): Rat :=
   addRat oneRat (bound (at x N));
 
-\definition boundWidthPositive (x: CauchySeq) (N: Nat):
+\definition boundWidthPositive (x: CauchySeq::[Set]) (N: Nat):
     Positive (boundWidth x N) :=
   RationalOrder.ltReplaceLeft (addRat zeroRat zeroRat) zeroRat
     (boundWidth x N)
@@ -70,9 +70,9 @@
     (RationalOperations.ltAdd zeroRat oneRat zeroRat (bound (at x N))
       RationalOrder.zeroLtOne (boundPositive (at x N)));
 
-\definition eventuallyBounded (x: CauchySeq): EventuallyBounded x :=
+\definition eventuallyBounded (x: CauchySeq::[Set]): EventuallyBounded x :=
   \block {
-    \takefrom N: \Cast[Nat] ({ k : Nat \where CauchyAt x oneRat k }) \by cauchyProperty x oneRat RationalOrder.zeroLtOne \then
+    \takefrom N: \Cast[Nat] ({ k : Nat \where CauchyAt (#sequence{x}) oneRat k }) \by #cauchy{x} oneRat RationalOrder.zeroLtOne \then
     \return \exact(
         \into[Rat](boundWidth x N,
           { B : Rat \where
@@ -87,7 +87,7 @@
                     closeTransAdd (at x n) (at x N) zeroRat
                       oneRat (bound (at x N))
                       ((\bysub(Nat,
-                        { k : Nat \where CauchyAt x oneRat k }, N))
+                        { k : Nat \where CauchyAt (#sequence{x}) oneRat k }, N))
                         n N Nn (NL.leRefl N))
                         (closeZeroOfBound (at x N))) },
               \Cast[Nat] ({ k : Nat \where BoundedAt x (boundWidth x N) k })) },
@@ -95,13 +95,13 @@
           \exists { k : Nat \where BoundedAt x B k } }))
   };
 
-\definition NonzeroFailure (x: CauchySeq): \Prop :=
+\definition NonzeroFailure (x: CauchySeq::[Set]): \Prop :=
   \exists { eps : Rat \where
     Logic.And[Positive eps,
       Logic.Not (\exists { k : Nat \where
         EquivalentAt x zero eps k })] };
 
-\definition nonEquivalentFailure (x: CauchySeq)
+\definition nonEquivalentFailure (x: CauchySeq::[Set])
     (nonzero: Logic.Not (Equivalent x zero)): NonzeroFailure x :=
   byContradiction (NonzeroFailure x)
     (\fun (noFailure: Logic.Not (NonzeroFailure x)) =>
@@ -125,24 +125,24 @@
                     Logic.And[Positive e,
                       Logic.Not (\exists { k : Nat \where EquivalentAt x zero e k })] }))))));
 
-\definition EventuallyPositive (x: CauchySeq): \Prop :=
+\definition EventuallyPositive (x: CauchySeq::[Set]): \Prop :=
   \exists { r : Rat \where
     \exists { k : Nat \where
       Logic.And[Positive r,
         \forall (n: Nat) -> NatLe k n ->
           RationalOperations.Le r (at x n)] } };
 
-\definition EventuallyNegative (x: CauchySeq): \Prop :=
+\definition EventuallyNegative (x: CauchySeq::[Set]): \Prop :=
   \exists { r : Rat \where
     \exists { k : Nat \where
       Logic.And[Positive r,
         \forall (n: Nat) -> NatLe k n ->
           RationalOperations.Le (at x n) (negRat r)] } };
 
-\definition EventuallyApart (x: CauchySeq): \Prop :=
+\definition EventuallyApart (x: CauchySeq::[Set]): \Prop :=
   Logic.Or[EventuallyPositive x, EventuallyNegative x];
 
-\definition nonEquivalentApart (x: CauchySeq)
+\definition nonEquivalentApart (x: CauchySeq::[Set])
     (nonzero: Logic.Not (Equivalent x zero)): EventuallyApart x :=
   \block {
     \takefrom eps: \Cast[Rat] ({ e : Rat \where
@@ -150,13 +150,13 @@
           Logic.Not (\exists { k : Nat \where
             EquivalentAt x zero e k })] }) \by nonEquivalentFailure x nonzero \then
     \takefrom M: \Cast[Nat] ({ k : Nat \where
-        CauchyAt x (half eps) k }) \by cauchyProperty x (half eps)
+        CauchyAt (#sequence{x}) (half eps) k }) \by #cauchy{x} (half eps)
       (halfPositiveOf eps
         #left{(\bysub(Rat, { e : Rat \where
           Logic.And[Positive e,
             Logic.Not (\exists { k : Nat \where EquivalentAt x zero e k })] }, eps))}) \then
     \takefrom N: \Cast[Nat] ({ k : Nat \where
-        CauchyAt x (half (half eps)) k }) \by cauchyProperty x (half (half eps))
+        CauchyAt (#sequence{x}) (half (half eps)) k }) \by #cauchy{x} (half (half eps))
       (halfPositiveOf (half eps)
         (halfPositiveOf eps
           #left{(\bysub(Rat, { e : Rat \where
@@ -175,7 +175,7 @@
                 \fun (n: Nat) => \fun (Kn: NatLe K n) =>
                   closeTransHalf (at x n) (at x K) zeroRat eps
                     ((\bysub(Nat, { k : Nat \where
-                      CauchyAt x (half eps) k }, M))
+                      CauchyAt (#sequence{x}) (half eps) k }, M))
                       n K
                       (NL.leTrans M K n
                         (leftLeCommonBound M N) Kn)
@@ -217,7 +217,7 @@
                         (lowerOfClose (at x K) (at x n) (half eps)
                           positiveAnchor
                           ((\bysub(Nat, { k : Nat \where
-                            CauchyAt x (half (half eps)) k }, N))
+                            CauchyAt (#sequence{x}) (half (half eps)) k }, N))
                             n K
                             (NL.leTrans N K n
                             (rightLeCommonBound M N) Kn)
@@ -262,7 +262,7 @@
                         (upperOfClose (at x K) (at x n) (half eps)
                           negativeAnchor
                           ((\bysub(Nat, { k : Nat \where
-                            CauchyAt x (half (half eps)) k }, N))
+                            CauchyAt (#sequence{x}) (half (half eps)) k }, N))
                             n K
                             (NL.leTrans N K n
                             (rightLeCommonBound M N) Kn)
@@ -290,7 +290,7 @@
 \definition fourthLeFourBound (a, b, c, d: Nat): NatLe d (fourBound a b c d) :=
   NatOrder.fourthLeFourBound a b c d;
 
-\definition mulCauchy (x, y: CauchySeq) (eps: Rat)
+\definition mulCauchy (x, y: CauchySeq::[Set]) (eps: Rat)
     (positive: Positive eps):
     \exists { k : Nat \where CauchyAt (MulSeq x y) eps k } :=
 
@@ -306,7 +306,7 @@
       { D : Rat \where
         \exists { k : Nat \where BoundedAt y D k } }, D) \then
     \takefrom MX: \Cast[Nat] ({ k : Nat \where
-        CauchyAt x (productRadius A D eps) k }) \by cauchyProperty x (productRadius A D eps)
+        CauchyAt (#sequence{x}) (productRadius A D eps) k }) \by #cauchy{x} (productRadius A D eps)
       (productRadiusPositive A D eps
         #left{(\bysub(Nat,
           { k : Nat \where BoundedAt x A k }, NA))}
@@ -314,7 +314,7 @@
           { k : Nat \where BoundedAt y D k }, ND))}
         positive) \then
     \takefrom MY: \Cast[Nat] ({ k : Nat \where
-        CauchyAt y (productRadius A D eps) k }) \by cauchyProperty y (productRadius A D eps)
+        CauchyAt (#sequence{y}) (productRadius A D eps) k }) \by #cauchy{y} (productRadius A D eps)
       (productRadiusPositive A D eps
         #left{(\bysub(Nat,
           { k : Nat \where BoundedAt x A k }, NA))}
@@ -344,7 +344,7 @@
                       n (NL.leTrans ND (fourBound NA ND MX MY) n
                         (secondLeFourBound NA ND MX MY) kn))
                     ((\bysub(Nat,
-                      { k : Nat \where CauchyAt x
+                      { k : Nat \where CauchyAt (#sequence{x})
                         (productRadius A D eps) k }, MX))
                       m n
                       (NL.leTrans MX (fourBound NA ND MX MY) m
@@ -352,7 +352,7 @@
                       (NL.leTrans MX (fourBound NA ND MX MY) n
                         (thirdLeFourBound NA ND MX MY) kn))
                     ((\bysub(Nat,
-                      { k : Nat \where CauchyAt y
+                      { k : Nat \where CauchyAt (#sequence{y})
                         (productRadius A D eps) k }, MY))
                       m n
                       (NL.leTrans MY (fourBound NA ND MX MY) m
@@ -362,10 +362,10 @@
         \Cast[Nat] ({ k : Nat \where CauchyAt (MulSeq x y) eps k }))
   };
 
-\definition mul (x, y: CauchySeq): CauchySeq :=
-  \into[Sequence](MulSeq x y, CauchySet) \by { mulCauchy x y };
+\definition mul (x, y: CauchySeq::[Set]): CauchySeq::[Set] :=
+  CauchySeq { sequence := MulSeq x y } \with { cauchy := mulCauchy x y };
 
-\definition mulRespects (x, x2, y, y2: CauchySeq)
+\definition mulRespects (x, x2, y, y2: CauchySeq::[Set])
     (xx: Equivalent x x2) (yy: Equivalent y y2):
     Equivalent (mul x y) (mul x2 y2) :=
 
@@ -433,10 +433,10 @@
             EquivalentAt (mul x y) (mul x2 y2) eps k }))
     };
 
-\definition ReciprocalSeq (x: CauchySeq) (n: Nat): Rat :=
+\definition ReciprocalSeq (x: CauchySeq::[Set]) (n: Nat): Rat :=
   RationalOperations.reciprocal (at x n);
 
-\definition positiveReciprocalCauchy (x: CauchySeq)
+\definition positiveReciprocalCauchy (x: CauchySeq::[Set])
     (apart: EventuallyPositive x): IsCauchy (ReciprocalSeq x) :=
   \fun (eps: Rat) => \fun (positive: Positive eps) =>
     \block {
@@ -454,7 +454,7 @@
             \forall (n: Nat) -> NatLe k n ->
               RationalOperations.Le r (at x n)] } }, r) \then
       \takefrom M: \Cast[Nat] ({ k : Nat \where
-          CauchyAt x (reciprocalRadius r eps) k }) \by cauchyProperty x (reciprocalRadius r eps)
+          CauchyAt (#sequence{x}) (reciprocalRadius r eps) k }) \by #cauchy{x} (reciprocalRadius r eps)
         (reciprocalRadiusPositive r eps
           #left{(\bysub(Nat, { k : Nat \where
             Logic.And[Positive r,
@@ -513,7 +513,7 @@
                                   RationalOperations.Le r (at x j)] }, N))}
                             rn))
                         ((\bysub(Nat, { k : Nat \where
-                          CauchyAt x (reciprocalRadius r eps) k }, M))
+                          CauchyAt (#sequence{x}) (reciprocalRadius r eps) k }, M))
                           m n
                           (NL.leTrans M (commonBound N M) m
                             (rightLeCommonBound N M) km)
@@ -524,7 +524,7 @@
             CauchyAt (ReciprocalSeq x) eps k }))
     };
 
-\definition negativeReciprocalCauchy (x: CauchySeq)
+\definition negativeReciprocalCauchy (x: CauchySeq::[Set])
     (apart: EventuallyNegative x): IsCauchy (ReciprocalSeq x) :=
   \fun (eps: Rat) => \fun (positive: Positive eps) =>
     \block {
@@ -542,7 +542,7 @@
             \forall (n: Nat) -> NatLe k n ->
               RationalOperations.Le (at x n) (negRat r)] } }, r) \then
       \takefrom M: \Cast[Nat] ({ k : Nat \where
-          CauchyAt x (reciprocalRadius r eps) k }) \by cauchyProperty x (reciprocalRadius r eps)
+          CauchyAt (#sequence{x}) (reciprocalRadius r eps) k }) \by #cauchy{x} (reciprocalRadius r eps)
         (reciprocalRadiusPositive r eps
           #left{(\bysub(Nat, { k : Nat \where
             Logic.And[Positive r,
@@ -605,7 +605,7 @@
                                     RationalOperations.Le (at x j)
                                       (negRat r)] }, N))})))
                         ((\bysub(Nat, { k : Nat \where
-                          CauchyAt x (reciprocalRadius r eps) k }, M))
+                          CauchyAt (#sequence{x}) (reciprocalRadius r eps) k }, M))
                           m n
                           (NL.leTrans M (commonBound N M) m
                             (rightLeCommonBound N M) km)
@@ -616,23 +616,23 @@
             CauchyAt (ReciprocalSeq x) eps k }))
     };
 
-\definition reciprocalCauchy (x: CauchySeq)
+\definition reciprocalCauchy (x: CauchySeq::[Set])
     (apart: EventuallyApart x): IsCauchy (ReciprocalSeq x) :=
   Logic.orElim (EventuallyPositive x) (EventuallyNegative x)
     (IsCauchy (ReciprocalSeq x))
     (positiveReciprocalCauchy x) (negativeReciprocalCauchy x) apart;
 
-\definition ReciprocalGraph (x, y: CauchySeq): \Prop :=
+\definition ReciprocalGraph (x, y: CauchySeq::[Set]): \Prop :=
   \forall (n: Nat) ->
     at y n = RationalOperations.reciprocal (at x n);
 
-\definition reciprocalGraph (x: CauchySeq)
+\definition reciprocalGraph (x: CauchySeq::[Set])
     (cauchy: IsCauchy (ReciprocalSeq x)):
     ReciprocalGraph x
-      (\into[Sequence](ReciprocalSeq x, CauchySet) \by { cauchy }) :=
+      (CauchySeq { sequence := ReciprocalSeq x } \with { cauchy := cauchy }) :=
   \fun (n: Nat) => \refl(RationalOperations.reciprocal (at x n));
 
-\definition reciprocalGraphFractionEq (x, y: CauchySeq)
+\definition reciprocalGraphFractionEq (x, y: CauchySeq::[Set])
     (graph: ReciprocalGraph x y) (n: Nat):
     RationalFractions.FractionEq
       (at y n) (RationalOperations.reciprocal (at x n)) :=
@@ -641,7 +641,7 @@
     \by { base: RationalFractions.fractionEqRefl (at y n),
       equality: graph n };
 
-\definition reciprocalMulEquivalent (x, y: CauchySeq)
+\definition reciprocalMulEquivalent (x, y: CauchySeq::[Set])
     (apart: EventuallyApart x) (graph: ReciprocalGraph x y):
     Equivalent (mul y x) one :=
 
@@ -743,11 +743,11 @@
         })
       apart;
 
-\definition addCauchy (x, y: CauchySeq) (eps: Rat) (positive: Positive eps):
+\definition addCauchy (x, y: CauchySeq::[Set]) (eps: Rat) (positive: Positive eps):
   \exists { k : Nat \where CauchyAt (AddSeq x y) eps k } :=
   \block {
-    \takefrom M: \Cast[Nat] ({ k : Nat \where CauchyAt x (half eps) k }) \by cauchyProperty x (half eps) (halfPositiveOf eps positive) \then
-    \takefrom N: \Cast[Nat] ({ k : Nat \where CauchyAt y (half eps) k }) \by cauchyProperty y (half eps) (halfPositiveOf eps positive) \then
+    \takefrom M: \Cast[Nat] ({ k : Nat \where CauchyAt (#sequence{x}) (half eps) k }) \by #cauchy{x} (half eps) (halfPositiveOf eps positive) \then
+    \takefrom N: \Cast[Nat] ({ k : Nat \where CauchyAt (#sequence{y}) (half eps) k }) \by #cauchy{y} (half eps) (halfPositiveOf eps positive) \then
     \return \exact(
         \into[Nat](commonBound M N,
           { k : Nat \where CauchyAt (AddSeq x y) eps k }) \by {
@@ -756,20 +756,20 @@
                 \fun (boundN: NatLe (commonBound M N) n) =>
                   closeAddHalf (at x m) (at x n) (at y m) (at y n) eps
                     ((\bysub(Nat,
-                      { k : Nat \where CauchyAt x (half eps) k }, M))
+                      { k : Nat \where CauchyAt (#sequence{x}) (half eps) k }, M))
                       m n
                       (NL.leTrans M (commonBound M N) m (leftLeCommonBound M N) boundM)
                       (NL.leTrans M (commonBound M N) n (leftLeCommonBound M N) boundN))
                     ((\bysub(Nat,
-                      { k : Nat \where CauchyAt y (half eps) k }, N))
+                      { k : Nat \where CauchyAt (#sequence{y}) (half eps) k }, N))
                       m n
                       (NL.leTrans N (commonBound M N) m (rightLeCommonBound M N) boundM)
                       (NL.leTrans N (commonBound M N) n (rightLeCommonBound M N) boundN)) },
         \Cast[Nat] ({ k : Nat \where CauchyAt (AddSeq x y) eps k }))
   };
-\definition add (x, y: CauchySeq): CauchySeq :=
-  \into[Sequence](AddSeq x y, CauchySet) \by { addCauchy x y };
-\definition addRespects (x, x2, y, y2: CauchySeq)
+\definition add (x, y: CauchySeq::[Set]): CauchySeq::[Set] :=
+  CauchySeq { sequence := AddSeq x y } \with { cauchy := addCauchy x y };
+\definition addRespects (x, x2, y, y2: CauchySeq::[Set])
     (xx: Equivalent x x2) (yy: Equivalent y y2):
     Equivalent (add x y) (add x2 y2) :=
   \fun (eps: Rat) => \fun (positive: Positive eps) =>
@@ -790,34 +790,34 @@
           \Cast[Nat] ({ k : Nat \where EquivalentAt (add x y) (add x2 y2) eps k }))
     };
 
-\definition addZeroLeft (x: CauchySeq): Equivalent (add zero x) x :=
+\definition addZeroLeft (x: CauchySeq::[Set]): Equivalent (add zero x) x :=
   pointwiseFractionEquivalent (add zero x) x
     (\fun (n: Nat) => RationalOperations.fractionAddZeroLeft (at x n));
-\definition addComm (x, y: CauchySeq): Equivalent (add x y) (add y x) :=
+\definition addComm (x, y: CauchySeq::[Set]): Equivalent (add x y) (add y x) :=
   pointwiseFractionEquivalent (add x y) (add y x)
     (\fun (n: Nat) => RationalOperations.fractionAddComm (at x n) (at y n));
-\definition addAssoc (x, y, z: CauchySeq):
+\definition addAssoc (x, y, z: CauchySeq::[Set]):
     Equivalent (add (add x y) z) (add x (add y z)) :=
   pointwiseFractionEquivalent (add (add x y) z) (add x (add y z))
     (\fun (n: Nat) => RationalOperations.fractionAddAssoc
       (at x n) (at y n) (at z n));
 
-\definition mulZeroLeft (x: CauchySeq): Equivalent (mul zero x) zero :=
+\definition mulZeroLeft (x: CauchySeq::[Set]): Equivalent (mul zero x) zero :=
   pointwiseFractionEquivalent (mul zero x) zero
     (\fun (n: Nat) => RationalOperations.fractionMulZeroLeft (at x n));
-\definition mulOneLeft (x: CauchySeq): Equivalent (mul one x) x :=
+\definition mulOneLeft (x: CauchySeq::[Set]): Equivalent (mul one x) x :=
   pointwiseFractionEquivalent (mul one x) x
     (\fun (n: Nat) => RationalOperations.fractionMulOneLeft (at x n));
-\definition mulComm (x, y: CauchySeq): Equivalent (mul x y) (mul y x) :=
+\definition mulComm (x, y: CauchySeq::[Set]): Equivalent (mul x y) (mul y x) :=
   pointwiseFractionEquivalent (mul x y) (mul y x)
     (\fun (n: Nat) => RationalOperations.fractionMulComm
       (at x n) (at y n));
-\definition mulAssoc (x, y, z: CauchySeq):
+\definition mulAssoc (x, y, z: CauchySeq::[Set]):
     Equivalent (mul (mul x y) z) (mul x (mul y z)) :=
   pointwiseFractionEquivalent (mul (mul x y) z) (mul x (mul y z))
     (\fun (n: Nat) => RationalOperations.fractionMulAssoc
       (at x n) (at y n) (at z n));
-\definition mulAddLeft (x, y, z: CauchySeq):
+\definition mulAddLeft (x, y, z: CauchySeq::[Set]):
     Equivalent (mul x (add y z)) (add (mul x y) (mul x z)) :=
   pointwiseFractionEquivalent
     (mul x (add y z)) (add (mul x y) (mul x z))
@@ -842,20 +842,20 @@
 
 \definition closeNeg (x, y, eps: Rat) (h: Close x y eps): Close (negRat x) (negRat y) eps := Estimates.closeNeg x y eps h;
 
-\definition NegSeq (x: CauchySeq) (n: Nat): Rat := negRat (at x n);
-\definition negCauchy (x: CauchySeq) (eps: Rat) (positive: Positive eps):
+\definition NegSeq (x: CauchySeq::[Set]) (n: Nat): Rat := negRat (at x n);
+\definition negCauchy (x: CauchySeq::[Set]) (eps: Rat) (positive: Positive eps):
   \exists { k : Nat \where CauchyAt (NegSeq x) eps k } :=
   \block {
-    \takefrom k: \Cast[Nat] ({ k : Nat \where CauchyAt x eps k }) \by cauchyProperty x eps positive \then
+    \takefrom k: \Cast[Nat] ({ k : Nat \where CauchyAt (#sequence{x}) eps k }) \by #cauchy{x} eps positive \then
     \return \exact(
         \into[Nat](k, { j : Nat \where CauchyAt (NegSeq x) eps j }) \by { \fun (m, n: Nat) => \fun (km: NatLe k m) => \fun (kn: NatLe k n) =>
             closeNeg (at x m) (at x n) eps
-              ((\bysub(Nat, { j : Nat \where CauchyAt x eps j }, k)) m n km kn) },
+              ((\bysub(Nat, { j : Nat \where CauchyAt (#sequence{x}) eps j }, k)) m n km kn) },
         \Cast[Nat] ({ j : Nat \where CauchyAt (NegSeq x) eps j }))
   };
-\definition neg (x: CauchySeq): CauchySeq :=
-  \into[Sequence](NegSeq x, CauchySet) \by { negCauchy x };
-\definition negRespects (x, y: CauchySeq) (xy: Equivalent x y) (eps: Rat) (positive: Positive eps):
+\definition neg (x: CauchySeq::[Set]): CauchySeq::[Set] :=
+  CauchySeq { sequence := NegSeq x } \with { cauchy := negCauchy x };
+\definition negRespects (x, y: CauchySeq::[Set]) (xy: Equivalent x y) (eps: Rat) (positive: Positive eps):
   \exists { k : Nat \where EquivalentAt (neg x) (neg y) eps k } :=
   \block {
     \takefrom k: \Cast[Nat] ({ k : Nat \where EquivalentAt x y eps k }) \by xy eps positive \then
@@ -865,7 +865,7 @@
               ((\bysub(Nat, { j : Nat \where EquivalentAt x y eps j }, k)) n kn) },
         \Cast[Nat] ({ j : Nat \where EquivalentAt (neg x) (neg y) eps j }))
   };
-\definition negInvolutive (x: CauchySeq): Equivalent (neg (neg x)) x :=
+\definition negInvolutive (x: CauchySeq::[Set]): Equivalent (neg (neg x)) x :=
   \fun (eps: Rat) => \fun (positive: Positive eps) =>
     \block {
       \takefrom k: \Cast[Nat] ({ k : Nat \where EquivalentAt x x eps k }) \by equivalentRefl x eps positive \then
@@ -890,18 +890,18 @@
     };
 \definition negZero: Equivalent (neg zero) zero :=
   pointwiseEquivalent (neg zero) zero (\fun (n: Nat) => RationalOperations.fractionNegZero);
-\definition addNegLeft (x: CauchySeq): Equivalent (add (neg x) x) zero :=
+\definition addNegLeft (x: CauchySeq::[Set]): Equivalent (add (neg x) x) zero :=
   pointwiseFractionEquivalent (add (neg x) x) zero
     (\fun (n: Nat) => RationalOperations.fractionAddNegLeft (at x n));
 
-\definition sub (x, y: CauchySeq): CauchySeq := add x (neg y);
+\definition sub (x, y: CauchySeq::[Set]): CauchySeq::[Set] := add x (neg y);
 
-\definition subAsRat (x, y: CauchySeq) (n: Nat):
+\definition subAsRat (x, y: CauchySeq::[Set]) (n: Nat):
     RationalFractions.FractionEq (at (sub x y) n)
       (subRat (at x n) (at y n)) :=
   RationalFractions.fractionEqRefl _;
 
-\definition equivalentOfSubZero (x, y: CauchySeq)
+\definition equivalentOfSubZero (x, y: CauchySeq::[Set])
     (differenceZero: Equivalent (sub x y) zero): Equivalent x y :=
   \fun (eps: Rat) => \fun (positive: Positive eps) =>
     \block {
@@ -920,7 +920,7 @@
           \Cast[Nat] ({ k : Nat \where EquivalentAt x y eps k }))
     };
 
-\definition eventuallyPositiveStable (x, y: CauchySeq)
+\definition eventuallyPositiveStable (x, y: CauchySeq::[Set])
     (same: Equivalent x y) (positiveX: EventuallyPositive x):
     EventuallyPositive y :=
 
@@ -990,7 +990,7 @@
                 RationalOperations.Le s (at y n)] } }))
   };
 
-\definition eventuallyPositiveAdd (x, y: CauchySeq)
+\definition eventuallyPositiveAdd (x, y: CauchySeq::[Set])
     (positiveX: EventuallyPositive x)
     (positiveY: EventuallyPositive y): EventuallyPositive (add x y) :=
 
@@ -1073,7 +1073,7 @@
                 RationalOperations.Le t (at (add x y) n)] } }))
   };
 
-\definition eventuallyPositiveNegOfNegative (x: CauchySeq)
+\definition eventuallyPositiveNegOfNegative (x: CauchySeq::[Set])
     (negative: EventuallyNegative x): EventuallyPositive (neg x) :=
 
   \block {
@@ -1131,7 +1131,7 @@
                 RationalOperations.Le s (at (neg x) n)] } }))
   };
 
-\definition eventuallyPositiveNotZero (x: CauchySeq)
+\definition eventuallyPositiveNotZero (x: CauchySeq::[Set])
     (positiveX: EventuallyPositive x): Logic.Not (Equivalent x zero) :=
   \fun (zeroX: Equivalent x zero) =>
     \block {
@@ -1178,7 +1178,7 @@
                   RationalOperations.Le r (at x n)] }, N))}))
     };
 
-\definition eventuallyPositiveOppositeImpossible (x: CauchySeq)
+\definition eventuallyPositiveOppositeImpossible (x: CauchySeq::[Set])
     (positiveX: EventuallyPositive x)
     (positiveNegX: EventuallyPositive (neg x)): Logic.False :=
   \block {
@@ -1240,17 +1240,17 @@
     \return RationalOrder.ltIrrefl zeroRat belowZero
   };
 
-\definition subRespects (x, x2, y, y2: CauchySeq)
+\definition subRespects (x, x2, y, y2: CauchySeq::[Set])
     (xx: Equivalent x x2) (yy: Equivalent y y2):
     Equivalent (sub x y) (sub x2 y2) :=
   addRespects x x2 (neg y) (neg y2) xx (negRespects y y2 yy);
 
-\definition subNeg (x, y: CauchySeq):
+\definition subNeg (x, y: CauchySeq::[Set]):
     Equivalent (neg (sub x y)) (sub y x) :=
   pointwiseFractionEquivalent (neg (sub x y)) (sub y x)
     (\fun (n: Nat) => negSub (at x n) (at y n));
 
-\definition subComposition (x, y, z: CauchySeq):
+\definition subComposition (x, y, z: CauchySeq::[Set]):
     Equivalent (add (sub y x) (sub z y)) (sub z x) :=
   pointwiseFractionEquivalent (add (sub y x) (sub z y)) (sub z x)
     (\fun (n: Nat) => RationalFractions.fractionEqTrans _ _ _
@@ -1259,14 +1259,14 @@
       (RationalFractions.fractionEqSym _ _
         (subTriangle (at z n) (at y n) (at x n))));
 
-\definition SeqLe (x, y: CauchySeq): \Prop :=
+\definition SeqLe (x, y: CauchySeq::[Set]): \Prop :=
   Logic.Or[Equivalent x y, EventuallyPositive (sub y x)];
 
-\definition seqLeRefl (x: CauchySeq): SeqLe x x :=
+\definition seqLeRefl (x: CauchySeq::[Set]): SeqLe x x :=
   Logic.Or[Equivalent x x, EventuallyPositive (sub x x)]::left
     (equivalentRefl x);
 
-\definition seqLeRespects (x, x2, y, y2: CauchySeq)
+\definition seqLeRespects (x, x2, y, y2: CauchySeq::[Set])
     (xx: Equivalent x x2) (yy: Equivalent y y2)
     (xy: SeqLe x y): SeqLe x2 y2 :=
   Logic.orElim (Equivalent x y) (EventuallyPositive (sub y x))
@@ -1281,7 +1281,7 @@
           (subRespects y y2 x x2 yy xx) positiveDifference))
     xy;
 
-\definition seqLeTrans (x, y, z: CauchySeq)
+\definition seqLeTrans (x, y, z: CauchySeq::[Set])
     (xy: SeqLe x y) (yz: SeqLe y z): SeqLe x z :=
   Logic.orElim (Equivalent x y) (EventuallyPositive (sub y x))
     (SeqLe x z)
@@ -1302,7 +1302,7 @@
                 positiveXY positiveYZ))) yz)
     xy;
 
-\definition seqLeAntisym (x, y: CauchySeq)
+\definition seqLeAntisym (x, y: CauchySeq::[Set])
     (xy: SeqLe x y) (yx: SeqLe y x): Equivalent x y :=
   Logic.orElim (Equivalent x y) (EventuallyPositive (sub y x))
     (Equivalent x y)
@@ -1320,7 +1320,7 @@
                   (subNeg y x)) positiveYX))) yx)
     xy;
 
-\definition seqLeTotal (x, y: CauchySeq):
+\definition seqLeTotal (x, y: CauchySeq::[Set]):
     Logic.Or[SeqLe x y, SeqLe y x] :=
   Logic.orElim (Equivalent (sub y x) zero)
     (Logic.Not (Equivalent (sub y x) zero))
@@ -1349,7 +1349,7 @@
         (nonEquivalentApart (sub y x) differenceNonzero))
     (Classical.excludedMiddle (Equivalent (sub y x) zero));
 
-\definition subAddSameLeft (z, x, y: CauchySeq):
+\definition subAddSameLeft (z, x, y: CauchySeq::[Set]):
     Equivalent (sub (add z y) (add z x)) (sub y x) :=
   pointwiseFractionEquivalent
     (sub (add z y) (add z x)) (sub y x)
@@ -1364,7 +1364,7 @@
         (RationalOperations.fractionAddZeroLeft
           (subRat (at y n) (at x n)))));
 
-\definition seqLeAddLeft (z, x, y: CauchySeq)
+\definition seqLeAddLeft (z, x, y: CauchySeq::[Set])
     (xy: SeqLe x y): SeqLe (add z x) (add z y) :=
   Logic.orElim (Equivalent x y) (EventuallyPositive (sub y x))
     (SeqLe (add z x) (add z y))
@@ -1381,11 +1381,11 @@
             (subAddSameLeft z x y)) positiveDifference))
     xy;
 
-\definition subZeroEquivalent (x: CauchySeq): Equivalent (sub x zero) x :=
+\definition subZeroEquivalent (x: CauchySeq::[Set]): Equivalent (sub x zero) x :=
   pointwiseFractionEquivalent (sub x zero) x
     (\fun (n: Nat) => RationalOperations.fractionSubZeroRight (at x n));
 
-\definition eventuallyPositiveMul (x, y: CauchySeq)
+\definition eventuallyPositiveMul (x, y: CauchySeq::[Set])
     (positiveX: EventuallyPositive x)
     (positiveY: EventuallyPositive y): EventuallyPositive (mul x y) :=
   \block {
@@ -1482,13 +1482,13 @@
                 RationalOperations.Le t (at (mul x y) n)] } }))
   };
 
-\definition seqLeZeroPositive (x: CauchySeq)
+\definition seqLeZeroPositive (x: CauchySeq::[Set])
     (positiveX: EventuallyPositive x): SeqLe zero x :=
   Logic.Or[Equivalent zero x, EventuallyPositive (sub x zero)]::right
     (eventuallyPositiveStable x (sub x zero)
       (equivalentSym (sub x zero) x (subZeroEquivalent x)) positiveX);
 
-\definition seqLeMulNonnegative (x, y: CauchySeq)
+\definition seqLeMulNonnegative (x, y: CauchySeq::[Set])
     (zeroX: SeqLe zero x) (zeroY: SeqLe zero y):
     SeqLe zero (mul x y) :=
 

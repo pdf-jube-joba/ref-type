@@ -1,39 +1,39 @@
 /* Cancelling a common summand is the key to representative independence. */
 \import std.Logic[].Rel[] \as Rel;
 \definition diffAddCommon: \forall (k, a, b: Nat) ->
-  diffPrec (N.Add::[set] a k) (N.Add::[set] b k) = diffPrec a b :=
-  \induction (k: N.Nat^) \return \forall (a, b: Nat) -> diffPrec (N.Add::[set] a k) (N.Add::[set] b k) = diffPrec a b \with {
-    | zero : (\fun (a, b: Nat) => \refl(diffPrec a b))
-    | succ : (\fun (k: Nat) => \fun (ih: \forall (a, b: Nat) -> diffPrec (N.Add::[set] a k) (N.Add::[set] b k) = diffPrec a b) =>
+  Diff::[set] (N.Add::[set] a k) (N.Add::[set] b k) = Diff::[set] a b :=
+  \induction (k: N.Nat^) \return \forall (a, b: Nat) -> Diff::[set] (N.Add::[set] a k) (N.Add::[set] b k) = Diff::[set] a b \with {
+    | zero : (\fun (a, b: Nat) => \refl(Diff::[set] a b))
+    | succ : (\fun (k: Nat) => \fun (ih: \forall (a, b: Nat) -> Diff::[set] (N.Add::[set] a k) (N.Add::[set] b k) = Diff::[set] a b) =>
       \fun (a, b: Nat) => equiv_reason!{trans!{Int^}
-        "by" { congr!{Nat Int^} (\fun (x: Nat) => diffPrec x (N.Add::[set] b (N.Nat^::succ k))) _ _ (NL.addSuccRight a k) }
-        "by" { congr!{Nat Int^} (diffPrec (N.Nat^::succ (N.Add::[set] a k))) _ _ (NL.addSuccRight b k) }
+        "by" { congr!{Nat Int^} (\fun (x: Nat) => Diff::[set] x (N.Add::[set] b (N.Nat^::succ k))) _ _ (NL.addSuccRight a k) }
+        "by" { congr!{Nat Int^} (Diff::[set] (N.Nat^::succ (N.Add::[set] a k))) _ _ (NL.addSuccRight b k) }
         "by" { ih a b }})
     };
-\definition diffRespects (a, b, c, d: Nat) (e: N.Add::[set] a d = N.Add::[set] c b): diffPrec a b = diffPrec c d :=
+\definition diffRespects (a, b, c, d: Nat) (e: N.Add::[set] a d = N.Add::[set] c b): Diff::[set] a b = Diff::[set] c d :=
     equiv_reason!{trans!{Int^}
       "by" { sym!{Int^} _ _ (diffAddCommon d a b) }
-      "by" { congr!{Nat Int^} (\fun (x: Nat) => diffPrec x (N.Add::[set] b d)) _ _ e }
-      "by" { congr!{Nat Int^} (diffPrec (N.Add::[set] c b)) _ _ (NL.addComm b d) }
+      "by" { congr!{Nat Int^} (\fun (x: Nat) => Diff::[set] x (N.Add::[set] b d)) _ _ e }
+      "by" { congr!{Nat Int^} (Diff::[set] (N.Add::[set] c b)) _ _ (NL.addComm b d) }
       "by" { diffAddCommon b c d }};
 
 /* The normal form represents the original formal difference. */
 \definition diffBalance: \forall (b, a: Nat) ->
-  N.Add::[set] a (negativePrec (diffPrec a b)) = N.Add::[set] (positivePrec (diffPrec a b)) b :=
+  N.Add::[set] a (Negative::[set] (Diff::[set] a b)) = N.Add::[set] (Positive::[set] (Diff::[set] a b)) b :=
   \induction (b: N.Nat^) \return \forall (a: Nat) ->
-      N.Add::[set] a (negativePrec (diffPrec a b)) = N.Add::[set] (positivePrec (diffPrec a b)) b \with {
+      N.Add::[set] a (Negative::[set] (Diff::[set] a b)) = N.Add::[set] (Positive::[set] (Diff::[set] a b)) b \with {
     | zero : (\fun (a: Nat) => \refl(a))
     | succ : (\fun (b: Nat) => \fun (ih: \forall (a: Nat) ->
-      N.Add::[set] a (negativePrec (diffPrec a b)) = N.Add::[set] (positivePrec (diffPrec a b)) b) =>
-      \induction (a: N.Nat^) \return N.Add::[set] a (negativePrec (diffPrec a (N.Nat^::succ b))) =
-          N.Add::[set] (positivePrec (diffPrec a (N.Nat^::succ b))) (N.Nat^::succ b) \with {
+      N.Add::[set] a (Negative::[set] (Diff::[set] a b)) = N.Add::[set] (Positive::[set] (Diff::[set] a b)) b) =>
+      \induction (a: N.Nat^) \return N.Add::[set] a (Negative::[set] (Diff::[set] a (N.Nat^::succ b))) =
+          N.Add::[set] (Positive::[set] (Diff::[set] a (N.Nat^::succ b))) (N.Nat^::succ b) \with {
       | zero : (\refl(N.Add::[set] N.Nat^::zero (N.Nat^::succ b)))
-      | succ : (\fun (a: Nat) => \fun (unused: N.Add::[set] a (negativePrec (diffPrec a (N.Nat^::succ b))) =
-          N.Add::[set] (positivePrec (diffPrec a (N.Nat^::succ b))) (N.Nat^::succ b)) =>
+      | succ : (\fun (a: Nat) => \fun (unused: N.Add::[set] a (Negative::[set] (Diff::[set] a (N.Nat^::succ b))) =
+          N.Add::[set] (Positive::[set] (Diff::[set] a (N.Nat^::succ b))) (N.Nat^::succ b)) =>
           equiv_reason!{trans!{Nat}
-            "by" { NL.addSuccLeft a (negativePrec (diffPrec a b)) }
+            "by" { NL.addSuccLeft a (Negative::[set] (Diff::[set] a b)) }
             "by" { N.succCong _ _ (ih a) }
-            "by" { sym!{Nat} _ _ (NL.addSuccRight (positivePrec (diffPrec a b)) b) }})
+            "by" { sym!{Nat} _ _ (NL.addSuccRight (Positive::[set] (Diff::[set] a b)) b) }})
       })
     };
 
@@ -69,8 +69,8 @@
         "=" { N.Add::[set] (N.Add::[set] (pos z) (negPart x)) (N.Add::[set] (pos y) (negPart y)) }
         "by" { sym!{Nat} _ _ (NL.addInterchange (pos z) (negPart x) (pos y) (negPart y)) }
       };
-\definition normalize (x: Difference): Int^ := diffPrec (pos x) (negPart x);
-\definition representative (z: Int^): Difference := pair (positivePrec z) (negativePrec z);
+\definition normalize (x: Difference): Int^ := Diff::[set] (pos x) (negPart x);
+\definition representative (z: Int^): Difference := pair (Positive::[set] z) (Negative::[set] z);
 \definition normalizeRespects (x, y: Difference): Equivalent x y -> normalize x = normalize y := diffRespects (pos x) (negPart x) (pos y) (negPart y);
 \definition representativeNormalize (x: Difference): Equivalent x (representative (normalize x)) := diffBalance (negPart x) (pos x);
 \definition equivalentOfNormalize (x, y: Difference) (e: normalize x = normalize y): Equivalent x y :=
@@ -289,23 +289,36 @@
     (subRep x y))
     (addMathCongRight (class x) (negMath (class y)) (class (negRep y)) (negMathClass y))
     (addMathClass x (negRep y));
-\definition addMatchesMath (x, y: Int^): toMath (add^ x y) = addMath (toMath x) (toMath y) := equiv_reason_terms!{trans!{\Pow Difference} { toMath (add^ x y) }
-  "~" { toMath (addPrec x y) } "by" { toMathCong (add^ x y) (addPrec x y) (addMatchesPrec x y) }
-  "~" { class (addRep (representative x) (representative y)) } "by" { toFromClass (addRep (representative x) (representative y)) }
-  "~" { addMath (toMath x) (toMath y) } "by" { sym!{\Pow Difference} (addMath (toMath x) (toMath y)) (class (addRep (representative x) (representative y)))
-    (addMathClass (representative x) (representative y)) }};
-\definition negMatchesMath (x: Int^): toMath (neg^ x) = negMath (toMath x) := equiv_reason_terms!{trans!{\Pow Difference} { toMath (neg^ x) }
-  "~" { toMath (negPrec x) } "by" { toMathCong (neg^ x) (negPrec x) (negMatchesPrec x) }
-  "~" { class (negRep (representative x)) } "by" { toFromClass (negRep (representative x)) }
-  "~" { negMath (toMath x) } "by" { sym!{\Pow Difference} (negMath (toMath x)) (class (negRep (representative x))) (negMathClass (representative x)) }};
-\definition mulMatchesMath (x, y: Int^): toMath (mul^ x y) = mulMath (toMath x) (toMath y) := equiv_reason_terms!{trans!{\Pow Difference} { toMath (mul^ x y) }
-  "~" { toMath (mulPrec x y) } "by" { toMathCong (mul^ x y) (mulPrec x y) (mulMatchesPrec x y) }
-  "~" { class (mulRep (representative x) (representative y)) } "by" { toFromClass (mulRep (representative x) (representative y)) }
-  "~" { mulMath (toMath x) (toMath y) } "by" { sym!{\Pow Difference} (mulMath (toMath x) (toMath y)) (class (mulRep (representative x) (representative y)))
-    (mulMathClass (representative x) (representative y)) }};
-\definition subMatchesMath (x, y: Int^): toMath (sub^ x y) = subMath (toMath x) (toMath y) := trans!{\Pow Difference} (toMath (sub^ x y)) (addMath (toMath x) (toMath (neg^ y))) (subMath (toMath x)
-    (toMath y)) (addMatchesMath x (neg^ y))
-    (addMathCongRight (toMath x) (toMath (neg^ y)) (negMath (toMath y)) (negMatchesMath y));
+\definition addSetMatchesMath (x, y: Int^): toMath (Add::[set] x y) = addMath (toMath x) (toMath y) :=
+  trans!{\Pow Difference} _ _ _ (toFromClass (addRep (representative x) (representative y)))
+    (sym!{\Pow Difference} _ _ (addMathClass (representative x) (representative y)));
+
+\definition addMatchesMath (x, y: Int^): toMath (Add::[program]^ x y) = addMath (toMath x) (toMath y) :=
+  trans!{\Pow Difference} _ _ _
+    (toMathCong (Add::[program]^ x y) (Add::[set] x y)
+      (congr!{Add::[Type]^ _} (\fun (operation: _) => operation x y) _ _ Add::[coherence]))
+    (addSetMatchesMath x y);
+\definition negSetMatchesMath (x: Int^): toMath (Neg::[set] x) = negMath (toMath x) :=
+  trans!{\Pow Difference} _ _ _ (toFromClass (negRep (representative x)))
+    (sym!{\Pow Difference} _ _ (negMathClass (representative x)));
+
+\definition negMatchesMath (x: Int^): toMath (Neg::[program]^ x) = negMath (toMath x) :=
+  trans!{\Pow Difference} _ _ _
+    (toMathCong (Neg::[program]^ x) (Neg::[set] x)
+      (congr!{Neg::[Type]^ _} (\fun (operation: _) => operation x) _ _ Neg::[coherence]))
+    (negSetMatchesMath x);
+\definition mulSetMatchesMath (x, y: Int^): toMath (Mul::[set] x y) = mulMath (toMath x) (toMath y) :=
+  trans!{\Pow Difference} _ _ _ (toFromClass (mulRep (representative x) (representative y)))
+    (sym!{\Pow Difference} _ _ (mulMathClass (representative x) (representative y)));
+
+\definition mulMatchesMath (x, y: Int^): toMath (Mul::[program]^ x y) = mulMath (toMath x) (toMath y) :=
+  trans!{\Pow Difference} _ _ _
+    (toMathCong (Mul::[program]^ x y) (Mul::[set] x y)
+      (congr!{Mul::[Type]^ _} (\fun (operation: _) => operation x y) _ _ Mul::[coherence]))
+    (mulSetMatchesMath x y);
+\definition subMatchesMath (x, y: Int^): toMath (Sub::[program]^ x y) = subMath (toMath x) (toMath y) := trans!{\Pow Difference} (toMath (Sub::[program]^ x y)) (addMath (toMath x) (toMath (Neg::[program]^ y))) (subMath (toMath x)
+    (toMath y)) (addMatchesMath x (Neg::[program]^ y))
+    (addMathCongRight (toMath x) (toMath (Neg::[program]^ y)) (negMath (toMath y)) (negMatchesMath y));
 
 \definition roundTripArg (x: Int^): x = fromMath (toMath x) := sym!{Int^} (fromMath (toMath x)) x (fromTo x);
 

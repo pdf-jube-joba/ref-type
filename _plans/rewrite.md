@@ -1,9 +1,33 @@
-# 新しい宣言への書き換え候補
+# 新しい宣言への書き換え
 
 `libs/std`、`libs/real`、`libs/topology`、`libs/tests` の `.ref` ファイルとパッケージ構成をざっと確認した候補一覧。
 対応宣言の構文名は `\correspondence`。
 優先度は、既存の定義をそのまままとめられる箇所を「高」、依存する構成も整理する箇所を「中」、表現や公開 API の設計を伴う箇所を「要検討」とした。
-候補の成立はソースからの見通しであり、書き換え後の型検査は実施時に行う。
+以下の候補一覧は移行前の構成を示す。
+
+## 実施結果
+
+- Bool の六演算、Int の演算・定数・Bool instance の変換、Pair の固定 Program 型に対する操作を `\correspondence` に移行した。
+- Int の差分計算を `DiffLoop` にまとめ、停止性と実行を machine の member へ統一した。
+- Bijection、Monoid、Group、Semiring、Ring、Field と可換版、RingModule、RingAlgebra を `\structure` に移行した。
+- 可換版は基礎構造の Raw データを `base` に持ち、既存の law を再利用して基礎構造へ変換する。
+- Topology、閉集合系・閉包作用素・内部作用素・近傍系、AxiomaticRealStructure、CauchySeq を `\structure` に移行した。
+- 実数構造の法則を named field にし、Cauchy 列の構成・商・演算・完備性と、各パッケージの依存箇所・利用例・README を更新した。
+
+### 検証
+
+`libs/std`、`libs/topology`、`libs/real`、`libs/tests`、`tests/projects/library` の `--parse-only` と `--full-check` が通過した。
+Bijection の合成、Pair の coherence の具体化、閉集合系の任意交叉と恒等閉包作用素を利用例で検査した。
+
+### 表現の評価
+
+Pair の任意の Set に対する API を仕様として利用し、Program の型を引数にする子モジュールで対応宣言を具体化した。
+`PresentationsCorrespond` は与えられた表示間の対応命題として、`Continuous` は与えられた写像の連続性の命題として利用する。
+表示一式や連続写像を値として受け渡す bundle の追加は、その利用箇所と合わせて設計する。
+
+Dedekind の `Real` は有理数の下方集合の部分型として扱い、`eqByExt` が集合の外延性を実数の等式へ直接結ぶ。
+record 表現への移行には、生成された `::[Raw]` の消去と、下方集合の等式から record の等式を導く証明が必要になる。
+現在の表面構文では `\induction` の型と `\prec` の対象が path に限られ、record の constructor `#` も induction の branch 名として扱えないため、この消去の表現を言語側で整えることが次の前提になる。
 
 ## libs/std
 

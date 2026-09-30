@@ -3,7 +3,7 @@
 `root.ref` は公開モジュールの一覧、`tests.ref` は利用例を兼ねたライブラリ全体の型検査である。
 現在の処理系には任意の証明を通す `admit` / `sorry` はない。処理系が持つ組み込み公理は、
 必要な前提を検査する `\axiom:setext`、`\axiom:funext`、
-`\axiom:classicalIndefiniteChoice` の3つである。現在の `libs/` が実際に使うのは `setext` だけである。
+`\axiom:classicalIndefiniteChoice` の3つである。集合の外延性、対応宣言の関数の外延性、古典論理の選択に、それぞれの公理を使う。
 
 ## モジュール構成
 
@@ -113,23 +113,25 @@ congr2!{Nat^ Nat^ Nat^} natAdd _ _ _ _ leftEq rightEq
 
 ## 代数構造
 
-`Monoid[]` は carrier を module parameter に持たず、`RawMonoid[A]` と
-`MonoidLaws[A, s]` を分離し、両者を満たす値を `Monoid A` として表す。
-`CommutativeMonoid` も同じ raw data を使う。
+代数構造は `\structure` でデータと法則をまとめて宣言する。
+`Monoid[A]::[Raw]` は単位元と演算、`Monoid[A]::[Law][s]` はその法則、`Monoid[A]::[Set]` は法則を満たす構造の型である。
+構造の要素からは `#op{s}` と `#leftIdentity{s}` のようにデータと法則を直接取り出せる。
 
-`Algebra[]` は carrier を各 record の parameter として受け取り、次の構造を提供する。
+`Alg.Monoid`、`Alg.Alg`、`Alg.Ring`、`Alg.Field` は次の構造を提供する。
 
+- `Monoid` / `CommutativeMonoid`
 - `Group` / `CommutativeGroup`
 - `Semiring`
 - `Ring` / `CommutativeRing`
 - `Field`
+- `RingModule[Scalars, Carrier, r]` / `RingAlgebra[Scalars, Carrier, r]`
 
-ここでも `RawSemiring` のような Set-valued data、`SemiringLaws` のような Prop-valued laws、
-その refinement を分ける。加法・乗法部分は `Monoid` の法則を再利用する。
-`tests.ref` では Nat の加法モノイドと半環を具体的に構成している。
-`IntAlgebra` は `Int` の加法について、左右単位元・結合則・左右逆元・可換律をまとめた
-`CommutativeGroup` を公開する。`Int` が `Algebra` より先にロードされる依存順を保つため、
-この接続は整数本体とは別モジュールに置いている。
+可換版は基礎構造の Raw データを `base` field に持ち、基礎構造の法則と可換律をまとめる。
+`asMonoid`、`asGroup`、`commutativeRingAsRing` はそのデータと法則から基礎構造を構成する。
+加法・乗法部分も、それぞれの構造の law を再利用する。
+[利用例](../tests/projects/library/src/root.ref)には Nat の加法モノイドと半環の構成がある。
+`IntAlgebra` は `Int` の加法について、左右単位元・結合則・左右逆元・可換律をまとめた `CommutativeGroup` を公開する。
+この接続は整数本体とは別モジュールに置き、`Int` と代数構造の依存順を保っている。
 
 ## 直積と有限部分集合
 
@@ -165,19 +167,22 @@ Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[
 
 | モジュール | 操作 | 引数と結果 |
 | --- | --- | --- |
-| `PP` | `make a b`、`first p`、`second p`、`swap p` | 型関連操作と同じ |
-| `PM` | `map f g p` | `f: \U(A ~> \F(C))`、`g: \U(B ~> \F(D))` で両成分を写す |
-| `PM` | `mapFirst f p`、`mapSecond g p` | 片側だけを写し、もう一方の値を保持する |
-| `PF` | `curry f a b` | `f: \U(P.Times[A, B] ~> \F(C))` を呼ぶ |
-| `PF` | `uncurry f p` | `f: \U(A ~> B ~> \F(C))` を呼ぶ |
-| `PF` | `assoc p`、`unassoc p` | 三成分の結合を組み替える |
+| `PP` | `Make::[program] a b`、`First::[program] p`、`Second::[program] p`、`Swap::[program] p` | 型関連操作と同じ |
+| `PM` | `Map::[program] f g p` | `f: \U(A ~> \F(C))`、`g: \U(B ~> \F(D))` で両成分を写す |
+| `PM` | `MapFirst::[program] f p`、`MapSecond::[program] g p` | 片側だけを写し、もう一方の値を保持する |
+| `PF` | `Curry::[program] f a b` | `f: \U(P.Times[A, B] ~> \F(C))` を呼ぶ |
+| `PF` | `Uncurry::[program] f p` | `f: \U(A ~> B ~> \F(C))` を呼ぶ |
+| `PF` | `Assoc::[program] p`、`Unassoc::[program] p` | 三成分の結合を組み替える |
+
+各操作は `\correspondence` で宣言し、`::[set]` は任意の Set を扱う親モジュールの演算を具体化する。
+`::[coherence]` は任意の反映された引数について Program 演算と Set 演算の一致を示す。
 
 `map` は左、右の順に各関数を1回ずつ実行する。関数は `\thunk f` の形で渡し、
-計算結果は `\bind` で受け取る。複数引数の計算は `make a b` のように直接適用する。
+計算結果は `\bind` で受け取る。複数引数の計算は `Make::[program] a b` のように直接適用する。
 
 ```text
 \definition transform(p: P.Times[A, B]): \F(C) := \program {
-  \bind mapped: P.Times[C, D] <- PM.map (\thunk f) (\thunk g) p \then
+  \bind mapped: P.Times[C, D] <- PM.Map::[program] (\thunk f) (\thunk g) p \then
   \bind result: C <- P.Times::first mapped \then
   \return result
 };
@@ -185,7 +190,7 @@ Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[
 
 `f: A ~> \F(C)`、`g: B ~> \F(D)` はあらかじめ定義した計算とする。
 停止性が確認できる計算は通常どおり `\box` / `\Force` で Set に反映できる。
-`tests.ref` の `PairExamples` は全操作の反映と Set の仕様の一致を証明し、
+[利用例](../tests/projects/library/src/root.ref)の `PairExamples` は全操作の反映と Set の仕様の一致を証明し、
 Bool と Nat を使った直接の Program 呼び出しも検査する。
 
 `NatPair` と Int の `Difference` はこの対型の alias である。Rat の `Integer` は
@@ -210,7 +215,7 @@ image が再び商の要素になることを示す。演算ごとに同じ外�
 
 Bool・Nat・Int は `\VType` の Program データであり、Set 側の型は `Bool^`・`Nat^`・`Int^`。
 反映後の constructor は `Bool^::true`、`Nat^::succ` のように参照する。
-Nat の演算は `\correspondence` で実装・仕様・一致証明をまとめて宣言する。
+Bool・Nat・Int の演算は `\correspondence` で実装・仕様・一致証明をまとめて宣言する。
 
 | member | 用途 |
 | --- | --- |
@@ -221,7 +226,8 @@ Nat の演算は `\correspondence` で実装・仕様・一致証明をまとめ
 算術法則と数学側の構成は `::[set]` を使い、実行結果との接続には `::[coherence]` を使う。
 `AddLoop::[run]` や `IterLoop::[run]` は、状態遷移と停止性証明をまとめた `\machine` の実行関数である。
 反復の仕様と計算則は `Iteration[A]` にまとめ、`FiniteIteration(A: \Set)` で構成する。
-Bool と Int は、`add` のような Program 演算、`addPrec` のような仕様、`addMatchesPrec` のような一致証明を公開する。
+Bool は `Neg`、`And`、`Or`、`Xor`、`Implies`、`Eqb`、Int は `Diff`、`Neg`、`Add`、`Mul` などの対応宣言を公開する。
+Int の `Zero`、`One`、`MinusOne` も同じ member で定数の実装・仕様・一致証明を提供し、差分の計算は `DiffLoop::[run]` にまとめている。
 
 `\run` は部分計算を表せるが、Set に反映する際には停止性証明が必要になる。
 

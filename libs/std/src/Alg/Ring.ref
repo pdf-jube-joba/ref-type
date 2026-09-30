@@ -1,137 +1,92 @@
 \import std.Alg[].Alg[] \as A;
 
-\record RawRing[Carrier: \Set]: \Set := {
+\structure Ring[Carrier: \Set]: \Set {
   zero: Carrier,
   one: Carrier,
   add: Carrier -> Carrier -> Carrier,
   neg: Carrier -> Carrier,
   mul: Carrier -> Carrier -> Carrier,
-};
-
-\definition ringSemiring (Carrier: \Set) (s: RawRing[Carrier]): A.RawSemiring[Carrier] :=
-  A.RawSemiring[Carrier]::# (#zero{s}) (#one{s}) (#add{s}) (#mul{s});
-
-\record RingLaws[Carrier: \Set, s: RawRing[Carrier]]: \Prop := {
-  semiring: A.SemiringLaws[Carrier, ringSemiring Carrier s],
+} \where {
+  semiring: A.Semiring[Carrier]::[Law][(A.Semiring[Carrier]::[Raw]::# zero one add mul)],
   additiveInverse: \forall (x: Carrier) ->
-    #add{s} (#neg{s} x) x = #zero{s},
-};
+    add (neg x) x = zero,
+}
 
-\definition RingSet (Carrier: \Set): \Pow (RawRing[Carrier]) :=
-  { s : RawRing[Carrier] \where RingLaws[Carrier, s] };
-\definition Ring (Carrier: \Set): \Set := \Cast[RawRing[Carrier]] (RingSet Carrier);
-\definition ringRaw (Carrier: \Set) (s: Ring Carrier): RawRing[Carrier] := s;
-\definition ringLaws (Carrier: \Set) (s: Ring Carrier): RingLaws[Carrier, s] :=
-  \bysub(RawRing[Carrier], RingSet Carrier, s);
-\definition ringAsSemiring (Carrier: \Set) (s: Ring Carrier): A.Semiring Carrier :=
-    \into[A.RawSemiring[Carrier]](ringSemiring Carrier s, A.SemiringSet Carrier) \by {
-      #semiring{(ringLaws Carrier s)}
+\definition ringSemiring (Carrier: \Set) (s: Ring[Carrier]::[Raw]): A.Semiring[Carrier]::[Raw] :=
+  A.Semiring[Carrier]::[Raw]::# (#zero{s}) (#one{s}) (#add{s}) (#mul{s});
+
+\definition ringAsSemiring (Carrier: \Set) (s: Ring[Carrier]::[Set]): A.Semiring[Carrier]::[Set] :=
+    \into[A.Semiring[Carrier]::[Raw]](ringSemiring Carrier s, A.Semiring[Carrier]) \by {
+      #semiring{s}
     };
 
-\record CommutativeRingLaws[Carrier: \Set, s: RawRing[Carrier]]: \Prop := {
-  ring: RingLaws[Carrier, s],
-  mulCommutative: \forall (x, y: Carrier) ->
-    #mul{s} x y = #mul{s} y x,
-};
+\structure CommutativeRing[Carrier: \Set]: \Set {
+  base: Ring[Carrier]::[Raw],
+} \where {
+  ring: Ring[Carrier]::[Law][base],
+  mulCommutative: \forall (x, y: Carrier) -> #mul{base} x y = #mul{base} y x,
+}
 
-\definition CommutativeRingSet (Carrier: \Set): \Pow (RawRing[Carrier]) :=
-  { s : RawRing[Carrier] \where CommutativeRingLaws[Carrier, s] };
-\definition CommutativeRing (Carrier: \Set): \Set :=
-  \Cast[RawRing[Carrier]] (CommutativeRingSet Carrier);
-\definition commutativeRingLaws (Carrier: \Set) (s: CommutativeRing Carrier):
-  CommutativeRingLaws[Carrier, s] :=
-    \bysub(RawRing[Carrier], CommutativeRingSet Carrier, s);
-\definition commutativeRingAsRing (Carrier: \Set) (s: CommutativeRing Carrier): Ring Carrier :=
-    \into[RawRing[Carrier]](s, RingSet Carrier) \by {
-      #ring{(commutativeRingLaws Carrier s)}
-    };
+\definition commutativeRingAsRing (Carrier: \Set) (s: CommutativeRing[Carrier]::[Set]): Ring[Carrier]::[Set] :=
+  \into[Ring[Carrier]::[Raw]](#base{s}, Ring[Carrier]) \by { #ring{s} };
 
-\record RawRingModule[Scalars: \Set, Carrier: \Set]: \Set := {
+\structure RingModule[Scalars, Carrier: \Set, r: Ring[Scalars]::[Set]]: \Set {
   zero: Carrier,
   add: Carrier -> Carrier -> Carrier,
   neg: Carrier -> Carrier,
   smul: Scalars -> Carrier -> Carrier,
-};
+} \where {
+  additive: A.CommutativeGroup[Carrier]::[Law][
+    A.CommutativeGroup[Carrier]::[Raw]::# (A.Group[Carrier]::[Raw]::# zero add neg)],
+  scalarOne: \forall (x: Carrier) -> smul (#one{r}) x = x,
+  scalarAssoc: \forall (a, b: Scalars) (x: Carrier) ->
+    smul (#mul{r} a b) x = smul a (smul b x),
+  scalarAdd: \forall (a, b: Scalars) (x: Carrier) ->
+    smul (#add{r} a b) x = add (smul a x) (smul b x),
+  vectorAdd: \forall (a: Scalars) (x, y: Carrier) ->
+    smul a (add x y) = add (smul a x) (smul a y),
+}
 
-\definition ringModuleGroup (Scalars: \Set) (Carrier: \Set)
-  (m: RawRingModule[Scalars, Carrier]): A.RawGroup[Carrier] :=
-  A.RawGroup[Carrier]::# (#zero{m}) (#add{m}) (#neg{m});
+\definition ringModuleAsCommutativeGroup (Scalars, Carrier: \Set)
+  (r: Ring[Scalars]::[Set]) (m: RingModule[Scalars, Carrier, r]::[Set]):
+  A.CommutativeGroup[Carrier]::[Set] :=
+  A.CommutativeGroup[Carrier] {
+    base := A.Group[Carrier]::[Raw]::# (#zero{m}) (#add{m}) (#neg{m}),
+  } \with { group := #group{(#additive{m})}, commutative := #commutative{(#additive{m})} };
 
-\record RingModuleLaws[Scalars: \Set, Carrier: \Set, r: Ring Scalars,
-  m: RawRingModule[Scalars, Carrier]]: \Prop := {
-  additive: A.CommutativeGroupLaws[Carrier, ringModuleGroup Scalars Carrier m],
-  scalarOne: \forall (x: Carrier) -> #smul{m} (#one{(ringRaw Scalars r)}) x = x,
-  scalarAssoc: \forall (a, b: Scalars) -> \forall (x: Carrier) ->
-    #smul{m} (#mul{(ringRaw Scalars r)} a b) x = #smul{m} a (#smul{m} b x),
-  scalarAdd: \forall (a, b: Scalars) -> \forall (x: Carrier) ->
-    #smul{m} (#add{(ringRaw Scalars r)} a b) x = #add{m} (#smul{m} a x) (#smul{m} b x),
-  vectorAdd: \forall (a: Scalars) -> \forall (x, y: Carrier) ->
-    #smul{m} a (#add{m} x y) = #add{m} (#smul{m} a x) (#smul{m} a y),
-};
-
-\definition RingModuleSet (Scalars: \Set) (Carrier: \Set) (r: Ring Scalars):
-  \Pow (RawRingModule[Scalars, Carrier]) :=
-  { m : RawRingModule[Scalars, Carrier] \where
-    RingModuleLaws[Scalars, Carrier, r, m] };
-\definition RingModule (Scalars: \Set) (Carrier: \Set) (r: Ring Scalars): \Set :=
-  \Cast[RawRingModule[Scalars, Carrier]] (RingModuleSet Scalars Carrier r);
-\definition ringModuleLaws (Scalars: \Set) (Carrier: \Set) (r: Ring Scalars)
-  (m: RingModule Scalars Carrier r): RingModuleLaws[Scalars, Carrier, r, m] :=
-  \bysub(RawRingModule[Scalars, Carrier], RingModuleSet Scalars Carrier r, m);
-\definition ringModuleAsCommutativeGroup (Scalars: \Set) (Carrier: \Set)
-  (r: Ring Scalars) (m: RingModule Scalars Carrier r): A.CommutativeGroup Carrier :=
-  \into[A.RawGroup[Carrier]]
-    (ringModuleGroup Scalars Carrier m, A.CommutativeGroupSet Carrier) \by {
-      #additive{(ringModuleLaws Scalars Carrier r m)}
-    };
-
-\record RawRingAlgebra[Scalars: \Set, Carrier: \Set]: \Set := {
+\structure RingAlgebra[Scalars, Carrier: \Set, r: CommutativeRing[Scalars]::[Set]]: \Set {
   zero: Carrier,
   one: Carrier,
   add: Carrier -> Carrier -> Carrier,
   neg: Carrier -> Carrier,
   mul: Carrier -> Carrier -> Carrier,
   smul: Scalars -> Carrier -> Carrier,
-};
+} \where {
+  ring: Ring[Carrier]::[Law][Ring[Carrier]::[Raw]::# zero one add neg mul],
+  module: RingModule[Scalars, Carrier, commutativeRingAsRing Scalars r]::[Law][
+    RingModule[Scalars, Carrier, commutativeRingAsRing Scalars r]::[Raw]::# zero add neg smul],
+  scalarMulLeft: \forall (s: Scalars) (x, y: Carrier) ->
+    smul s (mul x y) = mul (smul s x) y,
+  scalarMulRight: \forall (s: Scalars) (x, y: Carrier) ->
+    smul s (mul x y) = mul x (smul s y),
+}
 
-\definition algebraRing (Scalars: \Set) (Carrier: \Set)
-  (a: RawRingAlgebra[Scalars, Carrier]): RawRing[Carrier] :=
-  RawRing[Carrier]::# (#zero{a}) (#one{a}) (#add{a}) (#neg{a}) (#mul{a});
-\definition algebraModule (Scalars: \Set) (Carrier: \Set)
-  (a: RawRingAlgebra[Scalars, Carrier]): RawRingModule[Scalars, Carrier] :=
-  RawRingModule[Scalars, Carrier]::# (#zero{a}) (#add{a}) (#neg{a}) (#smul{a});
+\definition ringAlgebraAsRing (Scalars, Carrier: \Set)
+  (r: CommutativeRing[Scalars]::[Set]) (a: RingAlgebra[Scalars, Carrier, r]::[Set]):
+  Ring[Carrier]::[Set] :=
+  Ring[Carrier] {
+    zero := #zero{a}, one := #one{a}, add := #add{a}, neg := #neg{a}, mul := #mul{a},
+  } \with { semiring := #semiring{(#ring{a})}, additiveInverse := #additiveInverse{(#ring{a})} };
 
-\record RingAlgebraLaws[Scalars: \Set, Carrier: \Set,
-  r: CommutativeRing Scalars, a: RawRingAlgebra[Scalars, Carrier]]: \Prop := {
-  ring: RingLaws[Carrier, algebraRing Scalars Carrier a],
-  module: RingModuleLaws[Scalars, Carrier, commutativeRingAsRing Scalars r,
-    algebraModule Scalars Carrier a],
-  scalarMulLeft: \forall (s: Scalars) -> \forall (x, y: Carrier) ->
-    #smul{a} s (#mul{a} x y) = #mul{a} (#smul{a} s x) y,
-  scalarMulRight: \forall (s: Scalars) -> \forall (x, y: Carrier) ->
-    #smul{a} s (#mul{a} x y) = #mul{a} x (#smul{a} s y),
-};
-
-\definition RingAlgebraSet (Scalars: \Set) (Carrier: \Set)
-  (r: CommutativeRing Scalars): \Pow (RawRingAlgebra[Scalars, Carrier]) :=
-  { a : RawRingAlgebra[Scalars, Carrier] \where RingAlgebraLaws[Scalars, Carrier, r, a] };
-\definition RingAlgebra (Scalars: \Set) (Carrier: \Set)
-  (r: CommutativeRing Scalars): \Set :=
-  \Cast[RawRingAlgebra[Scalars, Carrier]] (RingAlgebraSet Scalars Carrier r);
-\definition ringAlgebraLaws (Scalars: \Set) (Carrier: \Set)
-  (r: CommutativeRing Scalars) (a: RingAlgebra Scalars Carrier r):
-  RingAlgebraLaws[Scalars, Carrier, r, a] :=
-  \bysub(RawRingAlgebra[Scalars, Carrier], RingAlgebraSet Scalars Carrier r, a);
-\definition ringAlgebraAsRing (Scalars: \Set) (Carrier: \Set)
-  (r: CommutativeRing Scalars) (a: RingAlgebra Scalars Carrier r): Ring Carrier :=
-  \into[RawRing[Carrier]](algebraRing Scalars Carrier a, RingSet Carrier) \by {
-    #ring{(ringAlgebraLaws Scalars Carrier r a)}
+\definition ringAlgebraAsModule (Scalars, Carrier: \Set)
+  (r: CommutativeRing[Scalars]::[Set]) (a: RingAlgebra[Scalars, Carrier, r]::[Set]):
+  RingModule[Scalars, Carrier, commutativeRingAsRing Scalars r]::[Set] :=
+  RingModule[Scalars, Carrier, commutativeRingAsRing Scalars r] {
+    zero := #zero{a}, add := #add{a}, neg := #neg{a}, smul := #smul{a},
+  } \with {
+    additive := #additive{(#module{a})},
+    scalarOne := #scalarOne{(#module{a})},
+    scalarAssoc := #scalarAssoc{(#module{a})},
+    scalarAdd := #scalarAdd{(#module{a})},
+    vectorAdd := #vectorAdd{(#module{a})},
   };
-\definition ringAlgebraAsModule (Scalars: \Set) (Carrier: \Set)
-  (r: CommutativeRing Scalars) (a: RingAlgebra Scalars Carrier r):
-  RingModule Scalars Carrier (commutativeRingAsRing Scalars r) :=
-  \into[RawRingModule[Scalars, Carrier]]
-    (algebraModule Scalars Carrier a,
-      RingModuleSet Scalars Carrier (commutativeRingAsRing Scalars r)) \by {
-      #module{(ringAlgebraLaws Scalars Carrier r a)}
-    };

@@ -1,12 +1,3 @@
-/*
- * Bourbaki-style real structures.
- *
- * RawRealStructure contains data only.  Laws are imposed afterwards by the
- * refinement AxiomaticRealStructure, so no proof is stored in an inductive
- * value.  The order is represented by a subset of Carrier times Carrier
- * rather than a Prop-valued field; this keeps every constructor argument in
- * Set and exposes the usual Bourbaki representation of a binary relation.
- */
 \import std.Logic[].Proposition[] \as Logic;
 \import std.Data[].Pair[] \as Pair;
 \import std.Logic[].Rel[] \as Rel;
@@ -15,7 +6,55 @@
 \use Logic.and;
 \use Logic.or;
 
-\record RawRealStructure[Carrier: \Set]: \Set := {
+\definition RelationLe(relation: \Pow (Pair.Times^[Carrier, Carrier])) (x, y: Carrier): \Prop :=
+  \In[Pair.Times^[Carrier, Carrier]] relation (Pair.pair _ _ x y);
+
+\definition In (A: \Pow Carrier) (x: Carrier): \Prop := \In[Carrier] A x;
+
+\definition Inhabited (A: \Pow Carrier): \Prop :=
+    \exists { x : Carrier \where In A x };
+
+\definition UpperBound(relation: \Pow (Pair.Times^[Carrier, Carrier]))
+  (A: \Pow Carrier) (u: Carrier): \Prop :=
+  \forall (x: Carrier) -> In A x -> RelationLe relation x u;
+
+\definition Complete(relation: \Pow (Pair.Times^[Carrier, Carrier])): \Prop :=
+  \forall (A: \Pow Carrier) -> Inhabited A ->
+    (\exists { u: Carrier \where UpperBound relation A u }) ->
+    \exists { u: Carrier \where Logic.And[UpperBound relation A u,
+      \forall (v: Carrier) -> UpperBound relation A v -> RelationLe relation u v] };
+
+\record FieldLaws[zero, one: Carrier, add: Carrier -> Carrier -> Carrier,
+  neg: Carrier -> Carrier, mul: Carrier -> Carrier -> Carrier, inv: Carrier -> Carrier]: \Prop := {
+  zeroNeOne: not!{{ zero = one }},
+  addLeftIdentity: Law.LeftUnital Carrier add zero,
+  addLeftInverse: Law.LeftInvertible Carrier add zero neg,
+  addCommutative: Law.Commutative Carrier add,
+  addAssociative: Law.Associative Carrier add,
+  mulLeftIdentity: Law.LeftUnital Carrier mul one,
+  mulCommutative: Law.Commutative Carrier mul,
+  mulAssociative: Law.Associative Carrier mul,
+  leftDistributive: Law.LeftDistributive Carrier mul add,
+  inverse: \forall (x: Carrier) -> not!{{ x = zero }} -> mul (inv x) x = one,
+};
+
+\record LinearOrderLaws[leRelation: \Pow (Pair.Times^[Carrier, Carrier])]: \Prop := {
+  reflexive: Rel.Reflexive Carrier (RelationLe leRelation),
+  transitive: Rel.Transitive Carrier (RelationLe leRelation),
+  antisymmetric: Rel.Antisymmetric Carrier (RelationLe leRelation),
+  total: Rel.Total Carrier (RelationLe leRelation),
+};
+
+\record OrderedFieldLaws[zero: Carrier, add: Carrier -> Carrier -> Carrier,
+  mul: Carrier -> Carrier -> Carrier, leRelation: \Pow (Pair.Times^[Carrier, Carrier])]: \Prop := {
+  addMonotone: \forall (x, y, z: Carrier) -> RelationLe leRelation x y ->
+    RelationLe leRelation (add z x) (add z y),
+  nonnegativeMul: \forall (x, y: Carrier) ->
+    RelationLe leRelation zero x -> RelationLe leRelation zero y ->
+      RelationLe leRelation zero (mul x y),
+};
+
+\structure AxiomaticRealStructure: \Set {
   zero: Carrier,
   one: Carrier,
   add: Carrier -> Carrier -> Carrier,
@@ -23,83 +62,41 @@
   mul: Carrier -> Carrier -> Carrier,
   inv: Carrier -> Carrier,
   leRelation: \Pow (Pair.Times^[Carrier, Carrier]),
-};
+} \where {
+  field: FieldLaws[zero, one, add, neg, mul, inv],
+  order: LinearOrderLaws[leRelation],
+  orderedField: OrderedFieldLaws[zero, add, mul, leRelation],
+  completeness: Complete leRelation,
+}
 
-\definition Le (s: RawRealStructure[Carrier]) (x, y: Carrier): \Prop :=
-    \In[Pair.Times^[Carrier, Carrier]] (#leRelation{s}) (Pair.pair _ _ x y);
+\definition Le (s: AxiomaticRealStructure::[Raw]) (x, y: Carrier): \Prop :=
+  RelationLe (#leRelation{s}) x y;
 
-\definition NonZero (s: RawRealStructure[Carrier]) (x: Carrier): \Prop :=
+\definition NonZero (s: AxiomaticRealStructure::[Raw]) (x: Carrier): \Prop :=
     not!{{ x = #zero{s} }};
 
-\record FieldLaws[s: RawRealStructure[Carrier]]: \Prop := {
-  zeroNeOne: not!{{ #zero{s} = #one{s} }},
-  addLeftIdentity: Law.LeftUnital Carrier (#add{s}) (#zero{s}),
-  addLeftInverse: Law.LeftInvertible Carrier (#add{s}) (#zero{s}) (#neg{s}),
-  addCommutative: Law.Commutative Carrier (#add{s}),
-  addAssociative: Law.Associative Carrier (#add{s}),
-  mulLeftIdentity: Law.LeftUnital Carrier (#mul{s}) (#one{s}),
-  mulCommutative: Law.Commutative Carrier (#mul{s}),
-  mulAssociative: Law.Associative Carrier (#mul{s}),
-  leftDistributive: Law.LeftDistributive Carrier (#mul{s}) (#add{s}),
-  inverse: \forall (x: Carrier) -> NonZero s x -> #mul{s} (#inv{s} x) x = #one{s},
-};
-
-\record LinearOrderLaws[s: RawRealStructure[Carrier]]: \Prop := {
-  reflexive: Rel.Reflexive Carrier (Le s),
-  transitive: Rel.Transitive Carrier (Le s),
-  antisymmetric: Rel.Antisymmetric Carrier (Le s),
-  total: Rel.Total Carrier (Le s),
-};
-
-\record OrderedFieldLaws[s: RawRealStructure[Carrier]]: \Prop := {
-  addMonotone: \forall (x, y, z: Carrier) -> Le s x y ->
-    Le s (#add{s} z x) (#add{s} z y),
-  nonnegativeMul: \forall (x, y: Carrier) ->
-    Le s (#zero{s}) x -> Le s (#zero{s}) y ->
-      Le s (#zero{s}) (#mul{s} x y),
-};
-
-\definition In (A: \Pow Carrier) (x: Carrier): \Prop := \In[Carrier] A x;
-
-\definition Inhabited (A: \Pow Carrier): \Prop :=
-    \exists { x : Carrier \where In A x };
-
-\definition IsUpperBound (s: RawRealStructure[Carrier]) (A: \Pow Carrier) (u: Carrier): \Prop :=
+\definition IsUpperBound (s: AxiomaticRealStructure::[Raw]) (A: \Pow Carrier) (u: Carrier): \Prop :=
     \forall (x: Carrier) -> In A x -> Le s x u;
 
-\definition BoundedAbove (s: RawRealStructure[Carrier]) (A: \Pow Carrier): \Prop :=
+\definition BoundedAbove (s: AxiomaticRealStructure::[Raw]) (A: \Pow Carrier): \Prop :=
     \exists { u : Carrier \where IsUpperBound s A u };
 
-\definition IsLeastUpperBound (s: RawRealStructure[Carrier]) (A: \Pow Carrier) (u: Carrier): \Prop :=
+\definition IsLeastUpperBound (s: AxiomaticRealStructure::[Raw]) (A: \Pow Carrier) (u: Carrier): \Prop :=
     and!{{ IsUpperBound s A u }
       { \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v }};
 
-\definition HasLeastUpperBound (s: RawRealStructure[Carrier]) (A: \Pow Carrier): \Prop :=
+\definition HasLeastUpperBound (s: AxiomaticRealStructure::[Raw]) (A: \Pow Carrier): \Prop :=
     \exists { u : Carrier \where IsLeastUpperBound s A u };
 
-\definition Completeness (s: RawRealStructure[Carrier]): \Prop :=
+\definition Completeness (s: AxiomaticRealStructure::[Raw]): \Prop :=
     \forall (A: \Pow Carrier) -> Inhabited A -> BoundedAbove s A ->
       HasLeastUpperBound s A;
 
-\definition IsAxiomaticRealStructure (s: RawRealStructure[Carrier]): \Prop :=
-  and!{{ FieldLaws[s] } { LinearOrderLaws[s] }
-    { OrderedFieldLaws[s] } { Completeness s }};
-
-\definition AxiomaticRealStructureSet:
-  \Pow (RawRealStructure[Carrier]) :=
-  { s : RawRealStructure[Carrier] \where IsAxiomaticRealStructure s };
-
-\definition AxiomaticRealStructure: \Set :=
-  \Cast[RawRealStructure[Carrier]] AxiomaticRealStructureSet;
-
-\definition laws (s: AxiomaticRealStructure): IsAxiomaticRealStructure s :=
-  \bysub(RawRealStructure[Carrier], AxiomaticRealStructureSet, s);
-
-
-\definition lubUpper (s: RawRealStructure[Carrier]) (A: \Pow Carrier) (u: Carrier)
+\definition lubUpper (s: AxiomaticRealStructure::[Raw]) (A: \Pow Carrier) (u: Carrier)
   (h: IsLeastUpperBound s A u): IsUpperBound s A u :=
   #left{h};
-\definition lubLeast (s: RawRealStructure[Carrier]) (A: \Pow Carrier) (u: Carrier)
+
+\definition lubLeast (s: AxiomaticRealStructure::[Raw]) (A: \Pow Carrier) (u: Carrier)
   (h: IsLeastUpperBound s A u): \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v :=
   #right{h};
 

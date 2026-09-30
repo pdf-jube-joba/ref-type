@@ -107,36 +107,33 @@
   \import std.Alg[].Monoid[] \as M;
   \import std.Alg[].Alg[] \as A;
 
-  \definition additiveRaw: M.RawMonoid[N.Nat^] :=
-    M.RawMonoid[N.Nat^]::# N.zero^ N.Add::[set];
-  \definition additiveLaws: M.MonoidLaws[N.Nat^, additiveRaw] :=
-    M.MonoidLaws[N.Nat^, additiveRaw] {
+  \definition additiveRaw: M.Monoid[N.Nat^]::[Raw] :=
+    M.Monoid[N.Nat^]::[Raw]::# N.zero^ N.Add::[set];
+  \definition additiveLaws: M.Monoid[N.Nat^]::[Law][additiveRaw] :=
+    M.Monoid[N.Nat^]::[Law][additiveRaw] {
       leftIdentity := NL.addZeroLeft,
       rightIdentity := NL.addZeroRight,
       associative := NL.addAssoc,
     };
-  \definition additiveMonoid: M.Monoid N.Nat^ :=
-    \into[M.RawMonoid[N.Nat^]](additiveRaw, M.MonoidSet N.Nat^) \by { additiveLaws };
+  \definition additiveMonoid: M.Monoid[N.Nat^]::[Set] :=
+    \into[M.Monoid[N.Nat^]::[Raw]](additiveRaw, M.Monoid[N.Nat^]) \by { additiveLaws };
   \definition additiveIdentity: \forall (n: N.Nat^) ->
-    #op{(M.raw N.Nat^ additiveMonoid)} (#unit{(M.raw N.Nat^ additiveMonoid)}) n = n :=
-    M.leftIdentity N.Nat^ additiveMonoid;
+    #op{(M.Monoid[N.Nat^]::[raw] additiveMonoid)} (#unit{(M.Monoid[N.Nat^]::[raw] additiveMonoid)}) n = n :=
+    #leftIdentity{additiveMonoid};
 
-  \definition naturalSemiringRaw: A.RawSemiring[N.Nat^] :=
-    A.RawSemiring[N.Nat^]::# N.zero^ N.one^ N.Add::[set] N.Mul::[set];
-  \definition naturalSemiringLaws: A.SemiringLaws[N.Nat^, naturalSemiringRaw] :=
-    A.SemiringLaws[N.Nat^, naturalSemiringRaw] {
-      additive := M.CommutativeMonoidLaws[N.Nat^,
-        A.additiveMonoid N.Nat^ naturalSemiringRaw] {
-        monoid := M.MonoidLaws[N.Nat^,
-          A.additiveMonoid N.Nat^ naturalSemiringRaw] {
+  \definition naturalSemiringRaw: A.Semiring[N.Nat^]::[Raw] :=
+    A.Semiring[N.Nat^]::[Raw]::# N.zero^ N.one^ N.Add::[set] N.Mul::[set];
+  \definition naturalSemiringLaws: A.Semiring[N.Nat^]::[Law][naturalSemiringRaw] :=
+    A.Semiring[N.Nat^]::[Law][naturalSemiringRaw] {
+      additive := M.CommutativeMonoid[N.Nat^]::[Law][M.CommutativeMonoid[N.Nat^]::[Raw]::# (A.additiveMonoid N.Nat^ naturalSemiringRaw)] {
+        monoid := M.Monoid[N.Nat^]::[Law][A.additiveMonoid N.Nat^ naturalSemiringRaw] {
           leftIdentity := NL.addZeroLeft,
           rightIdentity := NL.addZeroRight,
           associative := NL.addAssoc,
         },
         commutative := NL.addComm,
       },
-      multiplicative := M.MonoidLaws[N.Nat^,
-        A.multiplicativeMonoid N.Nat^ naturalSemiringRaw] {
+      multiplicative := M.Monoid[N.Nat^]::[Law][A.multiplicativeMonoid N.Nat^ naturalSemiringRaw] {
         leftIdentity := NL.mulOneLeft,
         rightIdentity := NL.mulOneRight,
         associative := NL.mulAssoc,
@@ -146,8 +143,8 @@
       zeroAbsorbsLeft := NL.mulZeroLeft,
       zeroAbsorbsRight := NL.mulZeroRight,
     };
-  \definition naturalSemiring: A.Semiring N.Nat^ :=
-    \into[A.RawSemiring[N.Nat^]](naturalSemiringRaw, A.SemiringSet N.Nat^)
+  \definition naturalSemiring: A.Semiring[N.Nat^]::[Set] :=
+    \into[A.Semiring[N.Nat^]::[Raw]](naturalSemiringRaw, A.Semiring[N.Nat^])
       \by { naturalSemiringLaws };
 }
 
@@ -182,39 +179,39 @@
   \definition p3: I.Int^ := I.Int^::ofNat three;
   \definition m2: I.Int^ := I.Int^::negSucc one;
   \definition m3: I.Int^ := I.Int^::negSucc two;
-  \definition zeroNegation: I.neg^ I.zero^ = I.zero^ := \refl(I.zero^);
-  \definition negativeZero: I.negOfNat^ z = I.zero^ := \refl(I.zero^);
-  \definition successorAcrossZero: I.succ^ I.minusOne^ = I.zero^ := \refl(I.zero^);
-  \definition predecessorAcrossZero: I.pred^ I.zero^ = I.minusOne^ := \refl(I.minusOne^);
-  \definition positiveSum: I.add^ p2 p3 = I.Int^::ofNat (natSucc!{four}) := \refl(I.Int^::ofNat (natSucc!{four}));
-  \definition negativeSum: I.add^ m2 m3 = I.Int^::negSucc four := \refl(I.Int^::negSucc four);
-  \definition mixedPositive: I.add^ p3 m2 = I.one^ := \refl(I.one^);
-  \definition mixedNegative: I.add^ p2 m3 = I.minusOne^ := \refl(I.minusOne^);
-  \definition cancel: I.add^ p3 m3 = I.zero^ := \refl(I.zero^);
-  \definition signedSubtraction: I.sub^ m2 p3 = I.Int^::negSucc four := \refl(I.Int^::negSucc four);
-  \definition negativeProduct: I.mul^ p2 m3 = I.Int^::negSucc (natSucc!{four}) := \refl(I.Int^::negSucc (natSucc!{four}));
-  \definition positiveProduct: I.mul^ m2 m3 = I.Int^::ofNat six := \refl(I.Int^::ofNat six);
-  \definition zeroProduct: I.mul^ I.zero^ m3 = I.zero^ := \refl(I.zero^);
-  \definition oddPower: I.pow^ m2 three = I.Int^::negSucc (natSucc!{six}) := \refl(I.Int^::negSucc (natSucc!{six}));
-  \definition evenPower: I.pow^ m2 two = I.Int^::ofNat four := \refl(I.Int^::ofNat four);
-  \definition zeroPowerZero: I.pow^ I.zero^ z = I.one^ := \refl(I.one^);
-  \definition absolute: I.abs^ m3 = p3 := \refl(p3);
-  \definition magnitude: I.natAbs^ m3 = three := \refl(three);
-  \definition signNegative: I.sign^ m3 = I.minusOne^ := \refl(I.minusOne^);
-  \definition signZero: I.sign^ I.zero^ = I.zero^ := \refl(I.zero^);
-  \definition signPositive: I.sign^ p3 = I.one^ := \refl(I.one^);
-  \definition equalityTrue: I.eqb^ m3 m3 = boolTrue!{} := \refl(boolTrue!{});
-  \definition equalityFalse: I.eqb^ m3 p3 = boolFalse!{} := \refl(boolFalse!{});
-  \definition negativeOrder: I.ltb^ m3 m2 = boolTrue!{} := \refl(boolTrue!{});
-  \definition crossingOrder: I.leb^ m3 p2 = boolTrue!{} := \refl(boolTrue!{});
-  \definition reversedOrder: I.leb^ p2 m3 = boolFalse!{} := \refl(boolFalse!{});
-  \definition equalOrder: I.leb^ m2 m2 = boolTrue!{} := \refl(boolTrue!{});
-  \definition strictEqual: I.ltb^ m2 m2 = boolFalse!{} := \refl(boolFalse!{});
-  \definition minimum: I.min^ m3 p2 = m3 := \refl(m3);
-  \definition maximum: I.max^ m3 m2 = m2 := \refl(m2);
-  \definition negativeEven: I.even^ m2 = boolTrue!{} := \refl(boolTrue!{});
-  \definition negativeOdd: I.odd^ m3 = boolTrue!{} := \refl(boolTrue!{});
-  \definition reducedDifference: I.diff^ three two = I.one^ := \refl(I.one^);
+  \definition zeroNegation: I.Neg::[program]^ I.Zero::[program]^ = I.Zero::[program]^ := \refl(I.Zero::[program]^);
+  \definition negativeZero: I.NegOfNat::[program]^ z = I.Zero::[program]^ := \refl(I.Zero::[program]^);
+  \definition successorAcrossZero: I.Succ::[program]^ I.MinusOne::[program]^ = I.Zero::[program]^ := \refl(I.Zero::[program]^);
+  \definition predecessorAcrossZero: I.Pred::[program]^ I.Zero::[program]^ = I.MinusOne::[program]^ := \refl(I.MinusOne::[program]^);
+  \definition positiveSum: I.Add::[program]^ p2 p3 = I.Int^::ofNat (natSucc!{four}) := \refl(I.Int^::ofNat (natSucc!{four}));
+  \definition negativeSum: I.Add::[program]^ m2 m3 = I.Int^::negSucc four := \refl(I.Int^::negSucc four);
+  \definition mixedPositive: I.Add::[program]^ p3 m2 = I.One::[program]^ := \refl(I.One::[program]^);
+  \definition mixedNegative: I.Add::[program]^ p2 m3 = I.MinusOne::[program]^ := \refl(I.MinusOne::[program]^);
+  \definition cancel: I.Add::[program]^ p3 m3 = I.Zero::[program]^ := \refl(I.Zero::[program]^);
+  \definition signedSubtraction: I.Sub::[program]^ m2 p3 = I.Int^::negSucc four := \refl(I.Int^::negSucc four);
+  \definition negativeProduct: I.Mul::[program]^ p2 m3 = I.Int^::negSucc (natSucc!{four}) := \refl(I.Int^::negSucc (natSucc!{four}));
+  \definition positiveProduct: I.Mul::[program]^ m2 m3 = I.Int^::ofNat six := \refl(I.Int^::ofNat six);
+  \definition zeroProduct: I.Mul::[program]^ I.Zero::[program]^ m3 = I.Zero::[program]^ := \refl(I.Zero::[program]^);
+  \definition oddPower: I.Pow::[program]^ m2 three = I.Int^::negSucc (natSucc!{six}) := \refl(I.Int^::negSucc (natSucc!{six}));
+  \definition evenPower: I.Pow::[program]^ m2 two = I.Int^::ofNat four := \refl(I.Int^::ofNat four);
+  \definition zeroPowerZero: I.Pow::[program]^ I.Zero::[program]^ z = I.One::[program]^ := \refl(I.One::[program]^);
+  \definition absolute: I.Abs::[program]^ m3 = p3 := \refl(p3);
+  \definition magnitude: I.NatAbs::[program]^ m3 = three := \refl(three);
+  \definition signNegative: I.Sign::[program]^ m3 = I.MinusOne::[program]^ := \refl(I.MinusOne::[program]^);
+  \definition signZero: I.Sign::[program]^ I.Zero::[program]^ = I.Zero::[program]^ := \refl(I.Zero::[program]^);
+  \definition signPositive: I.Sign::[program]^ p3 = I.One::[program]^ := \refl(I.One::[program]^);
+  \definition equalityTrue: I.Eqb::[program]^ m3 m3 = boolTrue!{} := \refl(boolTrue!{});
+  \definition equalityFalse: I.Eqb::[program]^ m3 p3 = boolFalse!{} := \refl(boolFalse!{});
+  \definition negativeOrder: I.Ltb::[program]^ m3 m2 = boolTrue!{} := \refl(boolTrue!{});
+  \definition crossingOrder: I.Leb::[program]^ m3 p2 = boolTrue!{} := \refl(boolTrue!{});
+  \definition reversedOrder: I.Leb::[program]^ p2 m3 = boolFalse!{} := \refl(boolFalse!{});
+  \definition equalOrder: I.Leb::[program]^ m2 m2 = boolTrue!{} := \refl(boolTrue!{});
+  \definition strictEqual: I.Ltb::[program]^ m2 m2 = boolFalse!{} := \refl(boolFalse!{});
+  \definition minimum: I.Min::[program]^ m3 p2 = m3 := \refl(m3);
+  \definition maximum: I.Max::[program]^ m3 m2 = m2 := \refl(m2);
+  \definition negativeEven: I.Even::[program]^ m2 = boolTrue!{} := \refl(boolTrue!{});
+  \definition negativeOdd: I.Odd::[program]^ m3 = boolTrue!{} := \refl(boolTrue!{});
+  \definition reducedDifference: I.Diff::[program]^ three two = I.One::[program]^ := \refl(I.One::[program]^);
   \definition quotientCancellation: IS.diffMath three two = IS.diffMath one z :=
     IM.classOfEq (I.pair three two) (I.pair one z) (\refl(three));
   \definition noncanonicalSum:
@@ -222,13 +219,13 @@
       IM.class (IM.addRep (I.pair three two) (I.pair two three)) :=
     IM.addMathClass (I.pair three two) (I.pair two three);
   \definition additionAgreement: \forall (x, y: I.Int^) ->
-    IM.toMath (I.add^ x y) = IM.addMath (IM.toMath x) (IM.toMath y) := IM.addMatchesMath;
+    IM.toMath (I.Add::[program]^ x y) = IM.addMath (IM.toMath x) (IM.toMath y) := IM.addMatchesMath;
   \definition multiplicationAgreement: \forall (x, y: I.Int^) ->
-    IM.toMath (I.mul^ x y) = IM.mulMath (IM.toMath x) (IM.toMath y) := IM.mulMatchesMath;
+    IM.toMath (I.Mul::[program]^ x y) = IM.mulMath (IM.toMath x) (IM.toMath y) := IM.mulMatchesMath;
   \definition additionAssociative: \forall (x, y, z: I.Int^) ->
-    I.add^ (I.add^ x y) z = I.add^ x (I.add^ y z) := IL.addAssoc;
+    I.Add::[set] (I.Add::[set] x y) z = I.Add::[set] x (I.Add::[set] y z) := IL.addAssoc;
   \definition multiplicationCommutative: \forall (x, y: I.Int^) ->
-    I.mul^ x y = I.mul^ y x := IL.mulComm;
+    I.Mul::[set] x y = I.Mul::[set] y x := IL.mulComm;
 }
 
 \module IntegerAlgebraExamples {
@@ -242,15 +239,17 @@
 \module PairExamples {
   \import std.Data[].Pair[] \as P;
   \import std.Data[].Bool[] \as B;
+  \import std.Logic[].Equality[] \as Equality;
+  \use Equality.congr;
   \import std.Nat[] \as N;
   \import P.Laws[A := B.Bool^, B := N.Nat^] \as PL;
   \import P.Program[A := B.Bool, B := N.Nat] \as PP;
   \import PP.Mapping[C := N.Nat, D := B.Bool] \as PM;
   \import PP.Functions[C := N.Nat] \as PF;
 
-  \definition neg: B.neg^ B.Bool^::false = B.Bool^::true := \refl(B.Bool^::true);
-  \definition xor: B.xor^ B.Bool^::true B.Bool^::true = B.Bool^::false := \refl(B.Bool^::false);
-  \definition implication: B.implies^ B.Bool^::true B.Bool^::false = B.Bool^::false := \refl(B.Bool^::false);
+  \definition neg: B.Neg::[program]^ B.Bool^::false = B.Bool^::true := \refl(B.Bool^::true);
+  \definition xor: B.Xor::[program]^ B.Bool^::true B.Bool^::true = B.Bool^::false := \refl(B.Bool^::false);
+  \definition implication: B.Implies::[program]^ B.Bool^::true B.Bool^::false = B.Bool^::false := \refl(B.Bool^::false);
 
   \definition value: P.Times[B.Bool, N.Nat] :=
     P.Times[_, _]::pair B.Bool::true (N.Nat::succ N.Nat::zero);
@@ -260,60 +259,44 @@
   \definition second: P.second B.Bool^ N.Nat^ reflected = N.one^ := \refl(N.one^);
   \definition swapped: P.swap B.Bool^ N.Nat^ reflected = P.pair N.Nat^ B.Bool^ N.one^ B.Bool^::true :=
     \refl(P.pair N.Nat^ B.Bool^ N.one^ B.Bool^::true);
-  \definition mapped: P.map B.Bool^ N.Nat^ B.Bool^ N.Nat^ B.neg^ N.Pred::[program]^ reflected =
+  \definition mapped: P.map B.Bool^ N.Nat^ B.Bool^ N.Nat^ B.Neg::[program]^ N.Pred::[program]^ reflected =
       P.pair B.Bool^ N.Nat^ B.Bool^::false N.zero^ :=
     \refl(P.pair B.Bool^ N.Nat^ B.Bool^::false N.zero^);
 
   /* Reflect complete operations, then prove agreement for arbitrary arguments. */
 
-  \definition makeAgrees (b: B.Bool^) (n: N.Nat^): PP.make^ b n = P.pair B.Bool^ N.Nat^ b n := \refl(P.pair B.Bool^ N.Nat^ b n);
-  \definition firstAgrees: \forall (p: P.Times^[B.Bool^, N.Nat^]) -> PP.first^ p = P.first B.Bool^ N.Nat^ p :=
-    PL.induction (\fun (p: P.Times^[B.Bool^, N.Nat^]) => PP.first^ p = P.first B.Bool^ N.Nat^ p)
-      (\fun (b: B.Bool^) => \fun (n: N.Nat^) => \refl(b));
-  \definition secondAgrees: \forall (p: P.Times^[B.Bool^, N.Nat^]) -> PP.second^ p = P.second B.Bool^ N.Nat^ p :=
-    PL.induction (\fun (p: P.Times^[B.Bool^, N.Nat^]) => PP.second^ p = P.second B.Bool^ N.Nat^ p)
-      (\fun (b: B.Bool^) => \fun (n: N.Nat^) => \refl(n));
-  \definition swapAgrees: \forall (p: P.Times^[B.Bool^, N.Nat^]) -> PP.swap^ p = P.swap B.Bool^ N.Nat^ p :=
-    PL.induction (\fun (p: P.Times^[B.Bool^, N.Nat^]) => PP.swap^ p = P.swap B.Bool^ N.Nat^ p)
-      (\fun (b: B.Bool^) => \fun (n: N.Nat^) => \refl(P.pair N.Nat^ B.Bool^ n b));
+  \definition makeAgrees (b: B.Bool^) (n: N.Nat^): PP.Make::[program]^ b n = P.pair B.Bool^ N.Nat^ b n :=
+    congr!{PP.Make::[Type]^ _} (\fun (operation: _) => operation b n) _ _ PP.Make::[coherence];
+  \definition firstAgrees: \forall (p: P.Times^[B.Bool^, N.Nat^]) -> PP.First::[program]^ p = P.first B.Bool^ N.Nat^ p :=
+    \fun (p: _) => congr!{PP.First::[Type]^ _} (\fun (operation: _) => operation p) _ _ PP.First::[coherence];
+  \definition secondAgrees: \forall (p: P.Times^[B.Bool^, N.Nat^]) -> PP.Second::[program]^ p = P.second B.Bool^ N.Nat^ p :=
+    \fun (p: _) => congr!{PP.Second::[Type]^ _} (\fun (operation: _) => operation p) _ _ PP.Second::[coherence];
+  \definition swapAgrees: \forall (p: P.Times^[B.Bool^, N.Nat^]) -> PP.Swap::[program]^ p = P.swap B.Bool^ N.Nat^ p :=
+    \fun (p: _) => congr!{PP.Swap::[Type]^ _} (\fun (operation: _) => operation p) _ _ PP.Swap::[coherence];
 
   \definition mapAgrees (f: B.Bool^ -> N.Nat^) (g: N.Nat^ -> B.Bool^):
-    \forall (p: P.Times^[B.Bool^, N.Nat^]) -> PM.map^ f g p = P.map B.Bool^ N.Nat^ N.Nat^ B.Bool^ f g p :=
-      PL.induction (\fun (p: P.Times^[B.Bool^, N.Nat^]) => PM.map^ f g p = P.map B.Bool^ N.Nat^ N.Nat^ B.Bool^ f g p)
-        (\fun (b: B.Bool^) => \fun (n: N.Nat^) => \refl(P.pair N.Nat^ B.Bool^ (f b) (g n)));
+    \forall (p: P.Times^[B.Bool^, N.Nat^]) -> PM.Map::[program]^ f g p = P.map B.Bool^ N.Nat^ N.Nat^ B.Bool^ f g p :=
+    \fun (p: _) => congr!{PM.Map::[Type]^ _} (\fun (operation: _) => operation f g p) _ _ PM.Map::[coherence];
   \definition mapFirstAgrees (f: B.Bool^ -> N.Nat^): \forall (p: P.Times^[B.Bool^, N.Nat^]) ->
-    PM.mapFirst^ f p = P.mapFirst B.Bool^ N.Nat^ N.Nat^ f p :=
-      PL.induction (\fun (p: P.Times^[B.Bool^, N.Nat^]) => PM.mapFirst^ f p = P.mapFirst B.Bool^ N.Nat^ N.Nat^ f p)
-        (\fun (b: B.Bool^) => \fun (n: N.Nat^) => \refl(P.pair N.Nat^ N.Nat^ (f b) n));
+    PM.MapFirst::[program]^ f p = P.mapFirst B.Bool^ N.Nat^ N.Nat^ f p :=
+    \fun (p: _) => congr!{PM.MapFirst::[Type]^ _} (\fun (operation: _) => operation f p) _ _ PM.MapFirst::[coherence];
   \definition mapSecondAgrees (g: N.Nat^ -> B.Bool^): \forall (p: P.Times^[B.Bool^, N.Nat^]) ->
-    PM.mapSecond^ g p = P.mapSecond B.Bool^ N.Nat^ B.Bool^ g p :=
-      PL.induction (\fun (p: P.Times^[B.Bool^, N.Nat^]) => PM.mapSecond^ g p = P.mapSecond B.Bool^ N.Nat^ B.Bool^ g p)
-        (\fun (b: B.Bool^) => \fun (n: N.Nat^) => \refl(P.pair B.Bool^ B.Bool^ b (g n)));
+    PM.MapSecond::[program]^ g p = P.mapSecond B.Bool^ N.Nat^ B.Bool^ g p :=
+    \fun (p: _) => congr!{PM.MapSecond::[Type]^ _} (\fun (operation: _) => operation g p) _ _ PM.MapSecond::[coherence];
 
   \definition curryAgrees (f: P.Times^[B.Bool^, N.Nat^] -> N.Nat^) (b: B.Bool^) (n: N.Nat^):
-    PF.curry^ f b n = P.curry B.Bool^ N.Nat^ N.Nat^ f b n :=
-      \refl(f (P.pair B.Bool^ N.Nat^ b n));
+    PF.Curry::[program]^ f b n = P.curry B.Bool^ N.Nat^ N.Nat^ f b n :=
+    congr!{PF.Curry::[Type]^ _} (\fun (operation: _) => operation f b n) _ _ PF.Curry::[coherence];
   \definition uncurryAgrees (f: B.Bool^ -> N.Nat^ -> N.Nat^): \forall (p: P.Times^[B.Bool^, N.Nat^]) ->
-    PF.uncurry^ f p = P.uncurry B.Bool^ N.Nat^ N.Nat^ f p :=
-      PL.induction (\fun (p: P.Times^[B.Bool^, N.Nat^]) => PF.uncurry^ f p = P.uncurry B.Bool^ N.Nat^ N.Nat^ f p)
-        (\fun (b: B.Bool^) => \fun (n: N.Nat^) => \refl(f b n));
+    PF.Uncurry::[program]^ f p = P.uncurry B.Bool^ N.Nat^ N.Nat^ f p :=
+    \fun (p: _) => congr!{PF.Uncurry::[Type]^ _} (\fun (operation: _) => operation f p) _ _ PF.Uncurry::[coherence];
 
   \definition assocAgrees: \forall (p: P.Times^[P.Times^[B.Bool^, N.Nat^], N.Nat^]) ->
-    PF.assoc^ p = P.assoc B.Bool^ N.Nat^ N.Nat^ p :=
-    \induction (p: P.Times^[P.Times^[B.Bool^, N.Nat^], N.Nat^]) \return PF.assoc^ p = P.assoc B.Bool^ N.Nat^ N.Nat^ p \with {
-      | pair : (\fun (p: P.Times^[B.Bool^, N.Nat^]) => \fun (n: N.Nat^) =>
-        PL.induction
-          (\fun (p: P.Times^[B.Bool^, N.Nat^]) => PF.assoc^ (P.pair _ _ p n) = P.assoc _ _ _ (P.pair _ _ p n))
-          (\fun (b: B.Bool^) => \fun (m: N.Nat^) => \refl(P.pair _ _ b (P.pair _ _ m n))) p)
-      };
+    PF.Assoc::[program]^ p = P.assoc B.Bool^ N.Nat^ N.Nat^ p :=
+    \fun (p: _) => congr!{PF.Assoc::[Type]^ _} (\fun (operation: _) => operation p) _ _ PF.Assoc::[coherence];
   \definition unassocAgrees: \forall (p: P.Times^[B.Bool^, P.Times^[N.Nat^, N.Nat^]]) ->
-    PF.unassoc^ p = P.unassoc B.Bool^ N.Nat^ N.Nat^ p :=
-    \induction (p: P.Times^[B.Bool^, P.Times^[N.Nat^, N.Nat^]]) \return PF.unassoc^ p = P.unassoc B.Bool^ N.Nat^ N.Nat^ p \with {
-      | pair : (\fun (b: B.Bool^) => \fun (p: P.Times^[N.Nat^, N.Nat^]) =>
-        \induction (p: P.Times^[N.Nat^, N.Nat^]) \return PF.unassoc^ (P.pair _ _ b p) = P.unassoc _ _ _ (P.pair _ _ b p) \with {
-        | pair : (\fun (m, n: N.Nat^) => \refl(P.pair _ _ (P.pair _ _ b m) n))
-        } p)
-      };
+    PF.Unassoc::[program]^ p = P.unassoc B.Bool^ N.Nat^ N.Nat^ p :=
+    \fun (p: _) => congr!{PF.Unassoc::[Type]^ _} (\fun (operation: _) => operation p) _ _ PF.Unassoc::[coherence];
 
   /* Direct Program use: type inference, type-changing maps, and thunked callbacks. */
   \definition boolToNat(b: B.Bool): \F(N.Nat) :=
@@ -325,27 +308,27 @@
     \match n \in N.Nat \with { | zero : \return B.Bool::true | succ k : \return B.Bool::false };
   \definition pipeline: \F(B.Bool) := \program {
     \bind input: P.Times[B.Bool, N.Nat] <- P.Times::make B.Bool::true (N.Nat::succ N.Nat::zero) \then
-    \bind mapped: P.Times[N.Nat, B.Bool] <- PM.map (\thunk boolToNat) (\thunk natToBool) input \then
+    \bind mapped: P.Times[N.Nat, B.Bool] <- PM.Map::[program] (\thunk boolToNat) (\thunk natToBool) input \then
     \bind swapped: P.Times[B.Bool, N.Nat] <- P.Times::swap mapped \then
     \bind result: B.Bool <- P.Times::first swapped \then
     \return result
   };
   \definition pipelineResult: \squash[_](\box[_](pipeline)) = B.Bool^::false := \refl(B.Bool^::false);
-  \definition changeFirst: \F(P.Times[N.Nat, N.Nat]) := PM.mapFirst (\thunk boolToNat) value;
-  \definition changeSecond: \F(P.Times[B.Bool, B.Bool]) := PM.mapSecond (\thunk natToBool) value;
+  \definition changeFirst: \F(P.Times[N.Nat, N.Nat]) := PM.MapFirst::[program] (\thunk boolToNat) value;
+  \definition changeSecond: \F(P.Times[B.Bool, B.Bool]) := PM.MapSecond::[program] (\thunk natToBool) value;
   \definition changedFirst: \squash[_](\box[_](changeFirst)) =
     P.pair _ _ N.one^ N.one^ := \refl(P.pair _ _ N.one^ N.one^);
   \definition changedSecond: \squash[_](\box[_](changeSecond)) =
     P.pair _ _ B.Bool^::true B.Bool^::false := \refl(P.pair _ _ B.Bool^::true B.Bool^::false);
-  \definition curried: \F(N.Nat) := PF.curry (\thunk PP.second) B.Bool::false (N.Nat::succ N.Nat::zero);
+  \definition curried: \F(N.Nat) := PF.Curry::[program] (\thunk PP.Second::[program]) B.Bool::false (N.Nat::succ N.Nat::zero);
   \definition choose(b: B.Bool, n: N.Nat): \F(N.Nat) :=
     \match b \in B.Bool \with { | false : \return N.Nat::zero | true : \return n };
-  \definition uncurried: \F(N.Nat) := PF.uncurry (\thunk choose) value;
+  \definition uncurried: \F(N.Nat) := PF.Uncurry::[program] (\thunk choose) value;
   \definition curriedResult: \squash[_](\box[_](curried)) = N.one^ := \refl(N.one^);
   \definition uncurriedResult: \squash[_](\box[_](uncurried)) = N.one^ := \refl(N.one^);
   \definition nestedRoundTrip: \F(P.Times[P.Times[B.Bool, N.Nat], N.Nat]) := \program {
-    \bind right: P.Times[B.Bool, P.Times[N.Nat, N.Nat]] <- PF.assoc (P.Times[_, _]::pair value N.Nat::zero) \then
-    \bind left: P.Times[P.Times[B.Bool, N.Nat], N.Nat] <- PF.unassoc right \then
+    \bind right: P.Times[B.Bool, P.Times[N.Nat, N.Nat]] <- PF.Assoc::[program] (P.Times[_, _]::pair value N.Nat::zero) \then
+    \bind left: P.Times[P.Times[B.Bool, N.Nat], N.Nat] <- PF.Unassoc::[program] right \then
     \return left
   };
   \definition nestedResult:
@@ -572,11 +555,11 @@
       C.Close x y eps -> C.Close y x eps :=
     C.closeSym;
   \definition sequenceEquivalenceSymmetry:
-    \forall (x, y: C.CauchySeq) ->
+    \forall (x, y: C.CauchySeq::[Set]) ->
       C.Equivalent x y -> C.Equivalent y x :=
     C.equivalentSym;
   \definition sequenceEquivalenceTransitivity:
-    \forall (x, y, z: C.CauchySeq) ->
+    \forall (x, y, z: C.CauchySeq::[Set]) ->
       C.Equivalent x y -> C.Equivalent y z -> C.Equivalent x z :=
     C.equivalentTrans;
   \definition additionAssociative:
@@ -592,7 +575,7 @@
   \import real.AxiomaticReals[Carrier := CQ.Real] \as CAR;
   \definition completeness: CAR.Completeness COrder.raw :=
     CComplete.completeness;
-  \definition axiomaticReal: CAR.AxiomaticRealStructure :=
+  \definition axiomaticReal: CAR.AxiomaticRealStructure::[Set] :=
     CComplete.axiomaticReal;
 }
 
@@ -624,7 +607,7 @@
   \import T.SingletonSpace[point := N.Nat^::zero] \as One;
 
   \definition product: P.ProductTopology :=
-    P.topology (#openSets{(T.raw T.Discrete)}) (#openSets{(T.raw T.Indiscrete)});
+    P.topology (#openSets{(T.Topology::[raw] T.Discrete)}) (#openSets{(T.Topology::[raw] T.Indiscrete)});
   \definition subspace: S.SubspaceTopology := S.topology T.Discrete;
   \definition onePoint: One.PointTopology := One.topology;
   \definition discreteOpen: T.IsOpenIn T.Discrete (T.Singleton N.Nat^::zero) :=
@@ -634,47 +617,87 @@
   \definition neighborhoods: TP.NeighborhoodAssignment :=
     TP.NeighborhoodsOf T.Discrete;
   \definition identityContinuous:
-    C.Continuous (#openSets{(T.raw T.Discrete)})
-      (#openSets{(T.raw T.Discrete)}) (\fun (x: N.Nat^) => x) :=
+    C.Continuous (#openSets{(T.Topology::[raw] T.Discrete)})
+      (#openSets{(T.Topology::[raw] T.Discrete)}) (\fun (x: N.Nat^) => x) :=
     \fun (U: \Pow N.Nat^) =>
-      \fun (_: \In[\Pow N.Nat^] (#openSets{(T.raw T.Discrete)}) U) =>
+      \fun (_: \In[\Pow N.Nat^] (#openSets{(T.Topology::[raw] T.Discrete)}) U) =>
         T.discreteOpen (C.Preimage (\fun (x: N.Nat^) => x) U);
   \definition composedIdentityContinuous:
-    C.Continuous (#openSets{(T.raw T.Discrete)})
-      (#openSets{(T.raw T.Discrete)})
+    C.Continuous (#openSets{(T.Topology::[raw] T.Discrete)})
+      (#openSets{(T.Topology::[raw] T.Discrete)})
       (C.compose N.Nat^ (\fun (x: N.Nat^) => x) (\fun (x: N.Nat^) => x)) :=
     C.composeContinuous N.Nat^
-      (#openSets{(T.raw T.Discrete)})
-      (#openSets{(T.raw T.Discrete)})
-      (#openSets{(T.raw T.Discrete)})
+      (#openSets{(T.Topology::[raw] T.Discrete)})
+      (#openSets{(T.Topology::[raw] T.Discrete)})
+      (#openSets{(T.Topology::[raw] T.Discrete)})
       (\fun (x: N.Nat^) => x) (\fun (x: N.Nat^) => x)
       identityContinuous identityContinuous;
   \definition restrictedIdentityContinuous:
     SC.Continuous (S.openSets T.Discrete)
-      (#openSets{(T.raw T.Discrete)})
+      (#openSets{(T.Topology::[raw] T.Discrete)})
       (\fun (x: S.CarrierSet) => x) :=
     SM.restrictContinuous T.Discrete
-      (#openSets{(T.raw T.Discrete)})
+      (#openSets{(T.Topology::[raw] T.Discrete)})
       (\fun (x: N.Nat^) => x) identityContinuous;
   \definition pairContinuous:
     PU.PairContinuous PU.discreteSource
-      (#openSets{(T.raw T.Discrete)}) (#openSets{(T.raw T.Discrete)})
+      (#openSets{(T.Topology::[raw] T.Discrete)}) (#openSets{(T.Topology::[raw] T.Discrete)})
       (\fun (x: N.Nat^) => x) (\fun (x: N.Nat^) => x) :=
     PU.pairContinuous PU.discreteSource
-      (#openSets{(T.raw T.Discrete)}) (#openSets{(T.raw T.Discrete)})
+      (#openSets{(T.Topology::[raw] T.Discrete)}) (#openSets{(T.Topology::[raw] T.Discrete)})
       (\fun (x: N.Nat^) => x) (\fun (x: N.Nat^) => x)
       (\fun (U: \Pow N.Nat^) =>
-        \fun (_: \In[\Pow N.Nat^] (#openSets{(T.raw T.Discrete)}) U) =>
+        \fun (_: \In[\Pow N.Nat^] (#openSets{(T.Topology::[raw] T.Discrete)}) U) =>
           PU.discreteSourceOpen (PU.LeftPreimage (\fun (x: N.Nat^) => x) U))
       (\fun (V: \Pow N.Nat^) =>
-        \fun (_: \In[\Pow N.Nat^] (#openSets{(T.raw T.Discrete)}) V) =>
+        \fun (_: \In[\Pow N.Nat^] (#openSets{(T.Topology::[raw] T.Discrete)}) V) =>
           PU.discreteSourceOpen (PU.RightPreimage (\fun (x: N.Nat^) => x) V));
   \definition pairFirstContinuous:
     PU.LeftContinuous PU.discreteSource
-      (#openSets{(T.raw T.Discrete)}) (\fun (x: N.Nat^) => x) :=
+      (#openSets{(T.Topology::[raw] T.Discrete)}) (\fun (x: N.Nat^) => x) :=
     #left{(#ltr{(PU.universal PU.discreteSource
-      (#openSets{(T.raw T.Discrete)}) (#openSets{(T.raw T.Discrete)})
+      (#openSets{(T.Topology::[raw] T.Discrete)}) (#openSets{(T.Topology::[raw] T.Discrete)})
       (\fun (x: N.Nat^) => x) (\fun (x: N.Nat^) => x)
       (T.discreteOpen PU.WholeLeft) (T.discreteOpen PU.WholeRight))}
       pairContinuous)};
+}
+
+\module BijectionExamples(A: \Set) {
+  \import std.Data[].Bijection[A := A, B := A] \as B;
+  \import std.Logic[].Equality[] \as Equality;
+  \use Equality.sym;
+
+  \definition compose(first, second: B.Bijection::[Set]): B.Bijection::[Set] :=
+    B.Bijection {
+      forward := \fun (x: A) => #forward{second} (#forward{first} x),
+      backward := \fun (x: A) => #backward{first} (#backward{second} x),
+    } \with {
+      leftInverse := \fun (x: A) =>
+        \idelim #forward{first} x = #backward{second} (#forward{second} (#forward{first} x))
+          \with y: A => #backward{first} y = x
+          \by { base: #leftInverse{first} x, equality: sym!{A} _ _ (#leftInverse{second} (#forward{first} x)) },
+      rightInverse := \fun (x: A) =>
+        \idelim #backward{second} x = #forward{first} (#backward{first} (#backward{second} x))
+          \with y: A => #forward{second} y = x
+          \by { base: #rightInverse{second} x, equality: sym!{A} _ _ (#rightInverse{first} (#backward{second} x)) },
+    };
+}
+
+\module PresentationExamples(Carrier: \Set) {
+  \import topology.Topology[Carrier := Carrier] \as T;
+  \import T.Presentations[] \as P;
+
+  \definition identityClosure: P.ClosureOperator::[Set] :=
+    P.ClosureOperator { apply := \fun (S: \Pow Carrier) => S } \with {
+      empty := \refl(T.Empty),
+      extensive := \fun (S: \Pow Carrier) (x: Carrier) (member: T.Member S x) => member,
+      union := \fun (S, U: \Pow Carrier) => \refl(P.BinaryUnion S U),
+      idempotent := \fun (S: \Pow Carrier) => \refl(S),
+    };
+
+  \definition arbitraryIntersection(system: P.ClosedSetSystem::[Set])
+    (family: \Pow (\Pow Carrier))
+    (closed: \forall (F: \Pow Carrier) -> T.FamilyMember family F -> P.IsClosedBy system F):
+    P.IsClosedBy system (P.ArbitraryIntersection family) :=
+    #intersectionClosed{system} family closed;
 }
