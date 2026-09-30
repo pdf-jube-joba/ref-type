@@ -29,11 +29,11 @@ let id = DeclarationId {
 let declaration = db.declaration(&source, &id);
 
 let edited = source.with_file(
-    "libs/std/src/Nat.ref",
-    std::fs::read_to_string("libs/std/src/Nat.ref").unwrap(),
+    "libs/std/src/Data/Nat.ref",
+    std::fs::read_to_string("libs/std/src/Data/Nat.ref").unwrap(),
 );
-let parsed = db.parse(&edited, "libs/std/src/Nat.ref", ParseKind::Module);
-let file = db.file(&edited, "libs/std/src/Nat.ref");
+let parsed = db.parse(&edited, "libs/std/src/Data/Nat.ref", ParseKind::Module);
+let file = db.file(&edited, "libs/std/src/Data/Nat.ref");
 ```
 
 `project` が提供する `SourceSnapshot::read` は source tree と path dependencies の内容を取り込み、以後の query はその内容を参照する。
