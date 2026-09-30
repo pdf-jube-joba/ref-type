@@ -1,0 +1,39 @@
+\module Source(A: \VType) {
+  \correspondence identity: A ~> \F(A) {
+    \definition helper: A ~> \F(A) := \cfun (x: A) => \return x;
+    \program := helper,
+    \set := \fun (x: A^) => x,
+    \coherence := \refl(identity::[program]^),
+  }
+  \correspondence thunked: \U(A ~> \F(A)) {
+    \definition helper: A ~> \F(A) := identity::[program];
+    \program := \thunk(helper),
+    \set := identity::[set],
+    \coherence := identity::[coherence],
+  }
+}
+\module Consumer {
+  \inductive Unit: \VType := | unit: Unit;
+  \import \root.Source[A := Unit] \as S;
+  \definition copy: S.identity::[Type] := S.identity::[program];
+  \definition thunked: S.thunked::[Type] := S.thunked::[program];
+  \definition reflected: S.identity::[Type]^ := S.identity::[set];
+  \macro reflectedType() := S.identity::[Type]^;
+  \definition fromMacro: reflectedType!{} := reflected;
+  \check S.identity::[coherence]: copy^ = reflected;
+  \definition result: \F(Unit) := copy Unit::unit;
+  \definition reflectedResult: result^ = Unit^::unit := \refl(Unit^::unit);
+  \correspondence first: Unit ~> \F(Unit) {
+    \import \root.Source[A := Unit] \as Nested;
+    \program := Nested.identity::[program],
+    \set := Nested.identity::[set],
+    \coherence := Nested.identity::[coherence],
+  }
+  \correspondence second: Unit ~> \F(Unit) {
+    \import \root.Source[A := Unit] \as Nested;
+    \program := Nested.identity::[program],
+    \set := Nested.identity::[set],
+    \coherence := Nested.identity::[coherence],
+  }
+  \check first::[coherence]: first::[program]^ = second::[set];
+}

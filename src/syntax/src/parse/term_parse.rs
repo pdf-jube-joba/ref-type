@@ -1096,8 +1096,28 @@ impl<'a> TermParser<'a> {
                     return Ok(SExp::NamedMacro { name, tokens });
                 }
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
-                let access = self.parse_access_path()?;
-                let parameters = self.parse_optional_parameters()?;
+                let mut access = self.parse_access_path()?;
+                let mut parameters = self.parse_optional_parameters()?;
+                while self.peek() == Some(&Token::DoubleColon)
+                    && self
+                        .tokens
+                        .get(self.pos + 1)
+                        .is_some_and(|token| token.kind == Token::LBracket)
+                {
+                    self.next();
+                    self.next();
+                    let field = self.expect_ident()?;
+                    self.expect_token(Token::RBracket)?;
+                    let name = match &mut access {
+                        LocalAccess::Current { access, .. } => access,
+                        LocalAccess::Named { child, .. } => child,
+                    };
+                    *name = crate::sugar::member(name, field.as_str());
+                    if self.bump_if_token(Token::Caret) {
+                        name.0.push('^');
+                    }
+                    parameters.extend(self.parse_optional_parameters()?);
+                }
 
                 let starts_record_body = match (
                     self.tokens.get(self.pos).map(|token| token.kind),
@@ -1112,6 +1132,12 @@ impl<'a> TermParser<'a> {
                 };
                 if starts_record_body {
                     let fields = self.parse_record_body()?;
+                    if self.bump_if_keyword("\\with") {
+                        let laws = self.parse_record_body()?;
+                        return Ok(crate::sugar::structure_literal(
+                            access, parameters, fields, laws,
+                        ));
+                    }
                     return Ok(SExp::RecordTypeCtor {
                         access,
                         parameters,

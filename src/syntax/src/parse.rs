@@ -447,6 +447,129 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn parse_structure(&mut self) -> Result<ModuleItem, ParseError> {
+        let name = self.expect_ident()?;
+        let mut parameters = Vec::new();
+        while self.peek() == Some(&Token::LBracket) {
+            parameters.extend(self.parse_bracketed_rightbinds()?);
+        }
+        self.expect_token(Token::Colon)?;
+        let kind = self.parse_sexp()?;
+        let SExp::Sort(sort @ crate::sort::Sort::Set(_)) = kind else {
+            return Err(self.eof_error("Set sort in structure declaration"));
+        };
+        self.bump_if_token(Token::Assign);
+        let fields = self.parse_structure_fields()?;
+        self.expect_keyword("\\where")?;
+        let laws = self.parse_structure_fields()?;
+        let mut names = std::collections::HashSet::new();
+        for (field, _) in fields.iter().chain(&laws) {
+            if !names.insert(field.as_str()) {
+                return Err(ParseError {
+                    msg: format!("duplicate structure field: {}", field.0),
+                    start: self.span_at(self.pos - 1).start,
+                    end: self.span_at(self.pos - 1).end,
+                });
+            }
+        }
+        self.bump_if_token(Token::Semicolon);
+        Ok(crate::sugar::structure(
+            name, parameters, sort, fields, laws,
+        ))
+    }
+
+    fn parse_structure_fields(&mut self) -> Result<Vec<(Identifier, SExp)>, ParseError> {
+        self.expect_token(Token::LBrace)?;
+        let mut fields = Vec::new();
+        while !self.bump_if_token(Token::RBrace) {
+            let name = self.expect_ident()?;
+            self.expect_token(Token::Colon)?;
+            fields.push((name, self.parse_sexp()?));
+            if self.bump_if_token(Token::RBrace) {
+                break;
+            }
+            self.expect_token(Token::Comma)?;
+        }
+        Ok(fields)
+    }
+
+    fn parse_bundle(&mut self, machine: bool) -> Result<ModuleItem, ParseError> {
+        let name = self.expect_ident()?;
+        let mut items = Vec::new();
+        let required: &[&str] = if machine {
+            &["State", "Output", "step", "terminates"]
+        } else {
+            self.expect_token(Token::Colon)?;
+            items.push(crate::sugar::correspondence_type(&name, self.parse_sexp()?));
+            &["program", "set", "coherence"]
+        };
+        self.expect_token(Token::LBrace)?;
+        let mut next = 0;
+        while !self.bump_if_token(Token::RBrace) {
+            if let Some(Token::KeyWord(keyword)) = self.peek().copied()
+                && required.contains(&&keyword[1..])
+            {
+                let field = &keyword[1..];
+                if required.get(next) != Some(&field) {
+                    return Err(ParseError {
+                        msg: format!(
+                            "expected bundle field {}, found {field}",
+                            required.get(next).unwrap_or(&"<end>")
+                        ),
+                        start: self.span_at(self.pos).start,
+                        end: self.span_at(self.pos).end,
+                    });
+                }
+                self.next();
+                self.expect_token(Token::Assign)?;
+                let body = self.parse_sexp()?;
+                items.push(if machine {
+                    crate::sugar::machine_field(&name, field, body)
+                } else {
+                    crate::sugar::correspondence_field(&name, field, body)
+                });
+                self.expect_token(Token::Comma)?;
+                next += 1;
+            } else if let Some(item) = self.try_parse_module_item()? {
+                if !matches!(
+                    item,
+                    ModuleItem::Definition { .. }
+                        | ModuleItem::Alias { .. }
+                        | ModuleItem::Inductive { .. }
+                        | ModuleItem::Record { .. }
+                        | ModuleItem::Scoped { .. }
+                        | ModuleItem::MathMacro { .. }
+                        | ModuleItem::UserMacro { .. }
+                        | ModuleItem::UseMacro { .. }
+                        | ModuleItem::Import { .. }
+                ) {
+                    return Err(self.eof_error("helper declaration in bundle"));
+                }
+                items.push(item);
+            } else {
+                return Err(self.eof_error("bundle field or helper declaration"));
+            }
+        }
+        if next != required.len() {
+            return Err(self.eof_error(&format!("bundle field {}", required[next])));
+        }
+        self.bump_if_token(Token::Semicolon);
+        let mut exports: Vec<_> = required
+            .iter()
+            .map(|field| crate::sugar::member(&name, field))
+            .collect();
+        if machine {
+            items.extend(crate::sugar::machine_runs(&name));
+            exports.extend([
+                crate::sugar::member(&name, "run"),
+                crate::sugar::member(&name, "runbox"),
+            ]);
+        } else {
+            exports.push(crate::sugar::member(&name, "Type"));
+        }
+        Ok(ModuleItem::Scoped { exports, items })
+    }
+
     // (cosumed "\import" keyword) <path: ModuleAccessPath> "\as" <import_name: Ident> ";"
     fn parse_import(&mut self) -> Result<ModuleItem, ParseError> {
         let rooted = if self.bump_if_token(Token::Period) {
@@ -690,6 +813,15 @@ impl<'a> Parser<'a> {
 
     fn try_parse_module_item(&mut self) -> Result<Option<ModuleItem>, ParseError> {
         let start_pos = self.pos;
+        if self.bump_if_keyword("\\structure") {
+            return self.parse_structure().map(Some);
+        }
+        if self.bump_if_keyword("\\correspondence") {
+            return self.parse_bundle(false).map(Some);
+        }
+        if self.bump_if_keyword("\\machine") {
+            return self.parse_bundle(true).map(Some);
+        }
         if self.bump_if_keyword("\\alias") {
             let name = self.expect_ident()?;
             let mut parameters = Vec::new();

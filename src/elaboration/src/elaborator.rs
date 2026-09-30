@@ -225,28 +225,58 @@ impl term_elaborator::Handler for GlobalEnvironment {
         let infer_type_e = self.infer(local_ctx, e).map_err(|error| {
             format!("Failed to infer type of expression for field projection: {error}")
         })?;
-        let infer_type_e = whnf(&self.crate_env, infer_type_e);
-
-        let ExpNode::IndType {
-            indspec,
-            parameters,
-        } = self.crate_env.arena().get(infer_type_e)
-        else {
-            return Err(ElaborationError::Message(
-                "Expected inductive type for field projection".to_string(),
-            ));
-        };
-
-        let record = self
-            .module_manager
-            .get_moditem_record(&self.crate_env, indspec)
-            .ok_or("Inductive type is not a record type".to_string())?;
-
-        let Some(exp) = record.field_projection(&self.crate_env, e, field_name, &parameters) else {
-            return Err(format!("Field {} not found in record", field_name.as_str()).into());
-        };
-
-        Ok(exp)
+        let mut candidates = vec![(e, infer_type_e)];
+        let mut found_inductive = false;
+        let mut found_record = false;
+        while let Some((value, ty)) = candidates.pop() {
+            let ty = whnf(&self.crate_env, ty);
+            match self.crate_env.arena().get(ty) {
+                ExpNode::TypeLift { superset, subset } => {
+                    let proof = self
+                        .crate_env
+                        .arena()
+                        .alloc(ExpNode::Prove(Prove::SubsetElim {
+                            superset,
+                            subset,
+                            element: value,
+                        }));
+                    let law = self.infer(local_ctx, proof)?;
+                    candidates.push((proof, law));
+                    candidates.push((value, superset));
+                }
+                ExpNode::IndType {
+                    indspec,
+                    parameters,
+                } => {
+                    found_inductive = true;
+                    if let Some(record) = self
+                        .module_manager
+                        .get_moditem_record(&self.crate_env, indspec)
+                    {
+                        found_record = true;
+                        if let Some(projection) =
+                            record.field_projection(&self.crate_env, value, field_name, &parameters)
+                        {
+                            return Ok(projection);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        if !found_inductive {
+            return Err("Expected inductive type for field projection"
+                .to_string()
+                .into());
+        }
+        if !found_record {
+            return Err("Inductive type is not a record type".to_string().into());
+        }
+        Err(format!(
+            "Field {} not found in record or its laws",
+            field_name.as_str()
+        )
+        .into())
     }
 
     fn unify(&mut self, left: Exp, right: Exp) -> Result<(), ElaborationError> {

@@ -368,6 +368,7 @@ impl GlobalEnvironment {
             self.metavariables.clear();
             let mut local_scope = LocalScope::default();
             match decl {
+                ModuleItem::Scoped { .. } => return Err("unresolved declaration scope".into()),
                 ModuleItem::Alias {
                     name,
                     parameters,

@@ -112,6 +112,11 @@ pub enum TokenMatchPattern {
 
 #[derive(Debug, Clone)]
 pub enum ModuleItem {
+    /// A declaration scope expanded before elaboration. Only `exports` escape.
+    Scoped {
+        exports: Vec<Identifier>,
+        items: Vec<ModuleItem>,
+    },
     Alias {
         name: Identifier,
         parameters: Vec<RightBind>,

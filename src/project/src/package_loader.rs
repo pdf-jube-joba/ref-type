@@ -204,8 +204,13 @@ fn qualify_imports(module: &mut Module, package: &str, available: &HashSet<Strin
     let ModuleBody::Inline(items) = &mut module.body else {
         return;
     };
+    qualify_item_imports(items, package, available);
+}
+
+fn qualify_item_imports(items: &mut [ModuleItem], package: &str, available: &HashSet<String>) {
     for item in items {
         match item {
+            ModuleItem::Scoped { items, .. } => qualify_item_imports(items, package, available),
             ModuleItem::ChildModule { module } => qualify_imports(module, package, available),
             ModuleItem::Import { path, .. } => {
                 let replacement = match path {

@@ -62,6 +62,10 @@ pub enum TokenMatchPattern {
 
 #[derive(Debug, Clone)]
 pub enum ModuleItem {
+    Scoped {
+        exports: Vec<Identifier>,
+        items: Vec<ModuleItem>,
+    },
     Alias {
         name: Identifier,
         parameters: Vec<RightBind>,

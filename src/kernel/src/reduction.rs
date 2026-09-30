@@ -71,7 +71,9 @@ fn eliminate(
     cases: &[Expression],
     recursive: bool,
 ) -> Result<Option<Expression>, String> {
-    let (head, args) = decompose(env, scrutinee);
+    // Refinement introductions carry certificates, but their underlying value
+    // is the same constructor seen by Set eliminators and record projections.
+    let (head, args) = decompose(env, env.erased_head(scrutinee)?);
     let Node::IndCtor {
         inductive,
         constructor,

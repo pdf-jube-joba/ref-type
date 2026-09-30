@@ -136,6 +136,7 @@ extend_enum!(ModuleBody {
 });
 
 extend_enum!(ModuleItem {
+    Scoped { exports, items },
     Alias { name, parameters, ty, body },
     Definition { owner, name, binders, ty, body },
     Inductive { type_name, parameters, indices, kind, constructors },

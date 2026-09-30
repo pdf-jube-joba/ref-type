@@ -1,0 +1,57 @@
+\module Machines {
+  \inductive True: \Prop := | intro: True;
+  \machine walk {
+    \inductive State: \VType := | first: State | last: State;
+    \macro stateType() := State;
+    \State := stateType!{},
+    \Output := State,
+    \step := \thunk(\cfun (s: State) => \match s \in State \with {
+      | first: \return(\continue[State, State](State::last))
+      | last: \return(\finish[State, State](State::last))
+    }),
+    \definition ready: \RunStep[State^, State^] -> \Prop :=
+      \step-match t: \RunStep[State^, State^] \return \Prop \with {
+        | \continue s: \Acc[State^, State^](walk::[step]^, s)
+        | \finish o: True
+      };
+    \definition accIntro(s: State^)(p: ready (walk::[step]^ s)):
+      \Acc[State^, State^](walk::[step]^, s) :=
+      \accintro[State^, State^](walk::[step]^, s,
+        \fun (next: State^) => \fun (edge: walk::[step]^ s = \continue[State^, State^](next)) =>
+          \idelim walk::[step]^ s = \continue[State^, State^](next)
+            \with t: \RunStep[State^, State^] => ready t
+            \by { base: p, equality: edge });
+    \definition lastAcc: \Acc[State^, State^](walk::[step]^, State^::last) :=
+      accIntro State^::last True::intro;
+    \terminates := \induction (s: State^) \return \Acc[State^, State^](walk::[step]^, s) \with {
+      | first: accIntro State^::first lastAcc
+      | last: lastAcc
+    },
+  }
+  \definition first: walk::[State] := walk::[State]::first;
+  \definition result: \F(walk::[Output]) := walk::[run] first;
+  \definition computed: result^ = walk::[Output]^::last := \refl(walk::[Output]^::last);
+  \definition input: \Box[\F(walk::[State])] := \box[_](\return first);
+  \definition boxedComputed:
+    \squash[_](\boxapp(walk::[runbox], input)) = walk::[Output]^::last := \refl(walk::[Output]^::last);
+
+  \correspondence finish: walk::[State] ~> \F(walk::[Output]) {
+    \program := walk::[run],
+    \set := \induction (s: walk::[State]^) \return walk::[Output]^ \with {
+      | first: walk::[Output]^::last
+      | last: walk::[Output]^::last
+    },
+    \coherence := \axiom:funext(finish::[program]^, finish::[set],
+      \induction (s: walk::[State]^) \return finish::[program]^ s = finish::[set] s \with {
+        | first: \refl(walk::[Output]^::last)
+        | last: \refl(walk::[Output]^::last)
+      }),
+  }
+}
+\module Consumer {
+  \import \root.Machines[] \as M;
+  \definition run: M.walk::[State] ~> \F(M.walk::[Output]) := M.walk::[run];
+  \definition input: \Box[\F(M.walk::[State])] := \box[_](\return M.walk::[State]::first);
+  \definition computed:
+    \squash[_](\boxapp(M.walk::[runbox], input)) = M.walk::[Output]^::last := \refl(M.walk::[Output]^::last);
+}

@@ -218,11 +218,91 @@ Type[parameters] {
 }
 ```
 
-structure の field は宣言順に書き、末尾のコンマと空の {} を許す。Set/Prop structure の
-field type は先行 field に依存できる。Program structure は `\VType` で、field は非依存の value type である。
+record の field は宣言順に書き、末尾のコンマと空の `{}` を許す。
+Set/Prop record の field type は先行 field に依存できる。
+Program record は `\VType` で、field は非依存の value type である。
 
-record literal の field 順は任意だが、宣言された全 field を一度ずつ指定する。projection は
-`Type[parameters]::field record` である。Program projection の結果は computation になる。
+record literal の field 順は任意だが、宣言された全 field を一度ずつ指定する。
+projection は `Type[parameters]::field record` または `record #field` である。
+Program projection の結果は computation になる。
+
+`\structure` は Set のデータ record と Prop の law record をまとめて宣言する。
+
+```text
+\structure EqualPair[A: \Set]: \Set {
+  first: A,
+  second: A,
+} \where {
+  same: first = second,
+}
+```
+
+各 field の型は先行 field に依存できる。
+law の型はデータ field と先行する law を参照でき、両者を通して field 名は一意にする。
+構築は `EqualPair[A] { first := x, second := x } \with { same := \refl(x) }` と書く。
+
+| 生成される名前 | 意味 |
+| --- | --- |
+| `EqualPair[A]::[Raw]` | データ record の型 |
+| `EqualPair[A]::[Law][r]` | データ `r` に対する law record の型 |
+| `EqualPair[A]` | `{ r: EqualPair[A]::[Raw] \where EqualPair[A]::[Law][r] }` |
+| `EqualPair[A]::[Set]` | `\Cast[EqualPair[A]::[Raw]] EqualPair[A]` |
+| `EqualPair[A]::[raw]` | `EqualPair[A]::[Set]` からデータ record を取り出す関数 |
+| `EqualPair[A]::[law]` | `EqualPair[A]::[Set]` から law record を取り出す関数 |
+
+`s: EqualPair[A]::[Set]` に対して `s #first` と `s #same` でデータと law を射影できる。
+`::[raw]` は要素を元の record 型として扱い、`::[law]` は部分集合への所属証明を取り出す。
+
+### correspondence
+
+```text
+\correspondence identity: A ~> \F(A) {
+  \program := \cfun (x: A) => \return x,
+  \set := \fun (x: A^) => x,
+  \coherence := \refl(identity::[program]^),
+}
+```
+
+Program とその reflection に対応する Set の項を、等式の証明とともに宣言する。
+
+| 生成される名前 | 型または意味 |
+| --- | --- |
+| `identity::[Type]` | 注釈した Program 型 `A ~> \F(A)` |
+| `identity::[program]` | `identity::[Type]` |
+| `identity::[set]` | `identity::[Type]^` |
+| `identity::[coherence]` | `identity::[program]^ = identity::[set]` |
+
+本体には `\definition`、`\alias`、`\inductive`、`\record`、`\structure`、`\correspondence`、`\machine`、import、macro の補定義を置ける。
+名前は宣言順に解決し、公開 member はその割り当て以降に参照できる。
+補定義はその本体内で可視になり、外からは表の member を参照する。
+
+### machine
+
+```text
+\machine name {
+  \State := State,
+  \Output := Output,
+  \step := step,
+  \terminates := acc,
+}
+```
+
+全入力について停止する状態機械を宣言する。
+`State` と `Output` は Program の value type である。
+
+| 生成される名前 | 型または意味 |
+| --- | --- |
+| `name::[State]` | 状態の value type |
+| `name::[Output]` | 結果の value type |
+| `name::[step]` | `\U(State ~> \F(\RunStep[State, Output]))` |
+| `name::[terminates]` | `(x: State^) -> \Acc[State^, Output^](name::[step]^, x)` |
+| `name::[run]` | `State ~> \F(Output)` |
+| `name::[runbox]` | `\Box[State ~> \F(Output)]` |
+
+`name::[run]` は `name::[step]` と `name::[terminates]` を使って `\run` を実行する計算である。
+`name::[runbox]` は `\box[_](name::[run])` に展開し、既存の Box の閉性検査に従う。
+本体の補定義と可視性は correspondence と同じである。
+`::[run]` と `::[runbox]` は本体の末尾で生成する。
 
 ### check と評価
 

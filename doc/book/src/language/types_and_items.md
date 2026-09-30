@@ -1,6 +1,7 @@
-# 型関連 item、structure
+# 型関連 item、record と structure
 
-型に関連したアイテムと structure の定義
+型に関連したアイテムと record の定義を扱う。
+データと law を分離する `\structure` の構文は[表面構文](syntax.md#structure-と-record)を参照。
 
 ## 名前へのアクセス
 
@@ -53,7 +54,7 @@ Set/Prop の帰納型に対する通常の関数も qualified name で定義す�
 ;
 ```
 
-## structure
+## record
 
 named field を持つ通常の record が必要な場合は、`\record` として明示的に宣言する。
 
@@ -64,8 +65,8 @@ named field を持つ通常の record が必要な場合は、`\record` とし�
 };
 ```
 
-structure の parameter は通常の名前付き parameter とする。
-structure が carrier を持つとは限らないため、特別な carrier binder は用意しない。
+record の parameter は通常の名前付き parameter とする。
+record が carrier を持つとは限らないため、特別な carrier binder は用意しない。
 
 ```text
 \definition origin: Point[Nat] := Point[Nat] {
@@ -84,8 +85,7 @@ Point[A]::y : Point[A] -> A
 ```
 
 surface syntax としては `\inductive` と `\record` を完全に分ける。
-一方、nominal identity を維持する限り、core や実装内部で structure を
-固有の1 constructor を持つ帰納型として表現することは構わない。
+一方、nominal identity を維持する限り、core や実装内部で record を固有の1 constructor を持つ帰納型として表現することは構わない。
 
 result kind には PTS の `\Prop`、`\Set`、`\PropKind`、`\SetKind` を指定できる。
 
@@ -98,8 +98,8 @@ Program の各カテゴリでも `_`、`_0`、`?` を使える。
 型注釈や datatype parameter に現れる推論変数は、その宣言内の制約から解決される。
 `?` の診断には value または computation の期待型と文脈を表示する。
 
-PTS structure の field は宣言順に依存できる。たとえば次の `value` の型は先行する
-`carrier` projection によって定まる。
+PTS record の field は宣言順に依存できる。
+たとえば次の `value` の型は先行する `carrier` projection によって定まる。
 
 ```text
 \record Packed: \SetKind := {
@@ -108,10 +108,10 @@ PTS structure の field は宣言順に依存できる。たとえば次の `val
 };
 ```
 
-## Program の structure と型関連 item
+## Program の record と型関連 item
 
-Program の structure は `\VType` の型パラメータと、非依存・非再帰の値 field を持つ。
-field に thunk 型 `\U(C)` を使うこともできる。空の structure も宣言できる。
+Program の record は `\VType` の型パラメータと、非依存・非再帰の値 field を持つ。
+field に thunk 型 `\U(C)` を使うこともできる。空の record も宣言できる。
 
 ```text
 \record Pair[A: \VType]: \VType := {
@@ -142,22 +142,15 @@ record literal と型関連定義の型引数は全省略または `_` によっ
 文脈から決まらない型引数はエラーになる。
 `\vcheck`／`\vinfer` は関連値、`\ccheck`／`\cinfer` は関連計算を扱う。
 
-## field projection っぽいものの導入
-record 型の元に対しては次のように書きたい。
+## 型から解決する field projection
 
-```
+```text
 \record Pair[A: \Set, B: \Set]: \Set {
   first: A,
   second: B,
 }
-
-\definition natf (rc: Pair[Nat, Nat]): Nat := #first{rc}; // field projection
-\definition natf (first: Nat) (second: Nat): Pair[Nat, Nat] := Pair[Nat, Nat]::# first second; // mk や intro
 ```
 
-`#field{instance}` で型推論などをしていい感じに対応する structure を持ってくる。
-実装上は多分型推論をして持ってくることになりそうだが、そのように書くと AI がそのようにしか書かなそう。
-（本当は他のやり方もあるかもしれないのに、ここの書き方であまり選択肢をつぶしたくない。）
-
-`#field{instance}` は VType の場合は普通に field projection として computation が出てくる。
-なので、完全に略記としての取扱いとする。
+`p: Pair[A, B]` の field は `p #first` と書ける。
+record の型から projection を解決し、Program record の場合は computation を返す。
+`\structure` の要素ではデータ record と law record の両方から field を解決する。

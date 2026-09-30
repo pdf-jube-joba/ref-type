@@ -1,3 +1,5 @@
+#[path = "scoped.rs"]
+mod scoped;
 use crate::{
     bindings,
     hir::*,
@@ -89,6 +91,9 @@ struct Resolver {
     references: RefCell<Vec<Reference>>,
     global_bindings: HashMap<BindingId, Binding>,
     order: Vec<ModuleId>,
+    declaration_scope: Option<u64>,
+    public_declarations: HashSet<String>,
+    next_declaration_scope: u64,
 }
 
 pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic> {
@@ -322,10 +327,16 @@ impl Resolver {
         }
     }
     fn publish(&mut self, name: &mut Identifier) {
+        let spelling = name.0.clone();
         let id = self.binding(name);
         self.scopes[self.current.0 as usize]
             .names
-            .insert(name.0.clone(), id);
+            .insert(spelling.clone(), id);
+        if let Some(scope) = self.declaration_scope
+            && !self.public_declarations.contains(&spelling)
+        {
+            name.0 = format!("<declaration:{scope}:{spelling}>");
+        }
         self.global_bindings.insert(
             id,
             Binding {
@@ -381,6 +392,8 @@ impl Resolver {
         }
         self.states.insert(id, 1);
         let previous = self.current;
+        let declaration_scope = self.declaration_scope.take();
+        let public_declarations = std::mem::take(&mut self.public_declarations);
         let location = self.location.clone();
         self.current = id;
         let mut module = self.input[&id].clone();
@@ -405,8 +418,18 @@ impl Resolver {
                     | ModuleItem::UseMacro { .. }
             )
         });
-        for (index, item) in items.iter_mut().enumerate() {
+        let mut expanded = Vec::new();
+        let mut expanded_spans = Vec::new();
+        for (index, mut item) in std::mem::take(items).into_iter().enumerate() {
             if namespace && matches!(item, ModuleItem::ChildModule { .. }) {
+                expanded.push(item);
+                expanded_spans.push(
+                    module
+                        .declaration_spans
+                        .get(index)
+                        .copied()
+                        .unwrap_or(module.span),
+                );
                 continue;
             }
             self.location = module.source.as_ref().map(|source| SourceLocation {
@@ -417,8 +440,19 @@ impl Resolver {
                     .copied()
                     .unwrap_or(module.span),
             });
-            self.item(item)?;
+            let start = expanded.len();
+            self.scoped_item(&mut item, &mut expanded)?;
+            expanded_spans.extend(std::iter::repeat_n(
+                module
+                    .declaration_spans
+                    .get(index)
+                    .copied()
+                    .unwrap_or(module.span),
+                expanded.len() - start,
+            ));
         }
+        *items = expanded;
+        module.declaration_spans = expanded_spans;
         let mut index = 0;
         let mut spans = Vec::new();
         items.retain(|item| {
@@ -445,12 +479,17 @@ impl Resolver {
         self.states.insert(id, 2);
         self.order.push(id);
         self.current = previous;
+        self.declaration_scope = declaration_scope;
+        self.public_declarations = public_declarations;
         self.location = location;
         Ok(())
     }
     fn item(&mut self, item: &mut ModuleItem) -> Result<(), Diagnostic> {
         let mut locals = Vec::new();
         match item {
+            ModuleItem::Scoped { .. } => {
+                unreachable!("declaration scopes are flattened before elaboration")
+            }
             ModuleItem::Alias {
                 name,
                 parameters,
@@ -470,6 +509,16 @@ impl Resolver {
                 body,
             } => {
                 if let Some(owner) = owner {
+                    let mut access = LocalAccess::Current {
+                        span: Default::default(),
+                        access: owner.type_name.clone(),
+                    };
+                    self.access(self.current, &mut access)?;
+                    if let LocalAccess::Resolved { access, .. } = access
+                        && let Some(binding) = access.1.and_then(|id| self.global_bindings.get(&id))
+                    {
+                        owner.type_name.0 = binding.name.clone();
+                    }
                     self.parameters(&mut owner.parameters, &mut locals, false)?;
                 }
                 self.parameters(binders, &mut locals, false)?;
@@ -600,6 +649,25 @@ impl Resolver {
         pattern: &[MacroSeqAtom],
         template: &mut SExp,
     ) -> Result<(), Diagnostic> {
+        if name.as_str().contains("::[") {
+            self.expand(template)?;
+        }
+        let mut expansion = Ok(());
+        macros::walk_sexp_control(template, &mut |node| {
+            if expansion.is_err() {
+                return false;
+            }
+            if let SExp::AccessPath { access, parameters } = node
+                && let Some(next) = self.expand_type_member(access, parameters)
+            {
+                match next {
+                    Ok(ty) => *node = ty,
+                    Err(error) => expansion = Err(error),
+                }
+            }
+            true
+        });
+        expansion?;
         if self
             .visible(self.current)
             .iter()
@@ -695,6 +763,12 @@ impl Resolver {
             }
             loop {
                 let next = match node {
+                    SExp::AccessPath { access, parameters } => {
+                        let Some(next) = self.expand_type_member(access, parameters) else {
+                            return true;
+                        };
+                        next
+                    }
                     SExp::NamedMacro {
                         name,
                         tokens,
@@ -890,13 +964,17 @@ impl Resolver {
         for source in route {
             target = self.instantiate(source, &mut remapping, &substitutions);
         }
+        let spelling = name.0.clone();
+        if let Some(scope) = self.declaration_scope {
+            name.0 = format!("<declaration:{scope}:{spelling}>");
+        }
         let id = self.binding(name);
         self.scopes[self.current.0 as usize]
             .imports
-            .insert(name.0.clone(), target);
+            .insert(spelling.clone(), target);
         self.scopes[self.current.0 as usize]
             .import_ids
-            .insert(name.0.clone(), id);
+            .insert(spelling, id);
         self.imports.insert(
             id,
             Import {
