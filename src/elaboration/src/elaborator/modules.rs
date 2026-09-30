@@ -770,9 +770,9 @@ impl GlobalEnvironment {
                         projections,
                     )?;
                 }
-                ModuleItem::ChildModule { module } => {
-                    if !self.defer_child_modules {
-                        self.module_add_rec(module)?;
+                ModuleItem::ChildModule { module: child } => {
+                    if !Self::is_namespace_module(module) {
+                        self.module_add_rec(child)?;
                     }
                 }
                 ModuleItem::Import { path, import_name } => {

@@ -70,7 +70,6 @@ pub struct GlobalEnvironment {
     diagnostic_location: Option<SourceLocation>,
     module_manager: module_manager::ModuleManager,
     metavariables: MetaStore,
-    defer_child_modules: bool,
     predeclared_modules: HashMap<*const Module, ModuleId>,
     processed_modules: HashSet<ModuleId>,
 }
@@ -87,7 +86,6 @@ impl Default for GlobalEnvironment {
             diagnostic_location: None,
             module_manager: Default::default(),
             metavariables: Default::default(),
-            defer_child_modules: false,
             predeclared_modules: HashMap::new(),
             processed_modules: HashSet::new(),
         }
@@ -563,7 +561,6 @@ impl GlobalEnvironment {
                 if self.processed_modules.contains(&module_id) {
                     continue;
                 }
-                self.defer_child_modules = Self::is_namespace_module(module);
                 let parent = self
                     .crate_env
                     .module(module_id)
@@ -576,7 +573,6 @@ impl GlobalEnvironment {
                 .lower_all()
                 .map_err(ElaborationError::from)
         })();
-        self.defer_child_modules = false;
         self.predeclared_modules.clear();
         self.collect_references();
         self.metavariables.clear();

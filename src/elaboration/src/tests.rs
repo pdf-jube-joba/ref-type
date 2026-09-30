@@ -464,6 +464,39 @@ fn child_modules_inherit_parent_import_aliases() {
 }
 
 #[test]
+fn nested_namespaces_follow_module_dependency_order() {
+    let source = r#"
+        \module Parent {
+            \inductive Nat: \VType := | zero: Nat;
+            \module Operation {
+                \module Basic {
+                    \definition zero: Nat := Nat::zero;
+                }
+                \module Derived {
+                    \import \root.Parent[].Law[].Specification[] \as S;
+                    \definition zero: Nat := S.zero;
+                }
+            }
+            \module Law {
+                \module Specification {
+                    \import \root.Parent[].Operation[].Basic[] \as B;
+                    \definition zero: Nat := B.zero;
+                }
+            }
+        }
+        \module Consumer {
+            \import \root.Parent[] \as P;
+            \import P.Operation[].Derived[] \as D;
+            \vcheck D.zero: P.Nat;
+            \definition zeroMatches: D.zero^ = P.Nat^::zero := \refl(P.Nat^::zero);
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
 fn final_lowering_does_not_force_unused_instance_items() {
     let source = r#"
         \module Source(A: \Set(0)) {
