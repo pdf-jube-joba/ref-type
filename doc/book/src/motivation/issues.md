@@ -211,3 +211,23 @@ AI の提案の `\alias Relation[Carrier: \Set]: _ := Carrier -> Carrier -> \Pro
 
 (Prop, Set, Set) 則を認めること自体は、集合モデルだと妥当だが、
 帰納型がある状況だと proof の詳細を外部に漏らしうる気がする。
+
+## 問題になるかどうかわからんが型の transport ができてる。
+```
+\definition ready: \RunStep[AddState^, Nat^] -> \Prop :=
+  \step-match t: \RunStep[AddState^, Nat^] \return \Prop \with {
+    | \continue s: \Acc[AddState^, Nat^](AddLoop::[step]^, s)
+    | \finish result: L.True
+  };
+\definition accIntro (s: AddState^) (certificate: ready (AddLoop::[step]^ s)):
+  \Acc[AddState^, Nat^](AddLoop::[step]^, s) :=
+  \accintro[AddState^, Nat^](AddLoop::[step]^, s,
+    \fun (next: _) (edge: _) =>
+      \idelim AddLoop::[step]^ s = \continue[AddState^, Nat^](next)
+        \with t: \RunStep[AddState^, Nat^] => ready t
+        \by { base: certificate, equality: edge });
+```
+
+これは `ready (\continue s) = Acc[], ready (\finish r) = L.True` と `edge: step s = continue(next)` から
+型の間の transport をしていることになる。つまり、 `finish r = continue r -> Acc[] -> L.True` を使っている。
+これ自体は `x = y -> P(x) -> P(y)` が作れることを認めているのでいいが、ちょっと怖いかも？
