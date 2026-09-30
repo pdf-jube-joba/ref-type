@@ -6,14 +6,19 @@
 }
 
 \module NaturalExamples {
-  \import std.Nat[] \as N;
-  \import N.Laws[] \as NL;
-  \import NL.Division[] \as ND;
+  \import std.Data[].Nat[] \as N;
+  \import std.Operation[].Nat[].Basic[] \as NatOp;
+  \import std.Operation[].Nat[].Gcd[] \as NG;
+  \import std.Operation[].Nat[].Parity[] \as NP;
+  \import std.Law[].Nat[].Basic[] \as NL;
+  \import std.Law[].Nat[].Division[] \as ND;
+  \import std.Law[].Nat[].Gcd[] \as GcdLaw;
   \import std.Logic[].Equality[] \as Equality;
+  \use Equality.sym;
   \use Equality.eq_reason;
   \use Equality.congr;
-  \use N.nat_add;
-  \use N.nat_mul;
+  \use NatOp.nat_add;
+  \use NatOp.nat_mul;
   \definition expanded (a, b, c: N.Nat^):
     \(a "*" (b "+" c)\) = \((b "*" a) "+" (c "*" a)\) :=
     eq_reason!{
@@ -28,87 +33,98 @@
   \definition four: N.Nat := N.Nat::succ three;
   \definition six: N.Nat := N.Nat::succ (N.Nat::succ four);
   \definition eight: N.Nat := N.Nat::succ (N.Nat::succ six);
-  \definition sum: N.Add::[program]^ two^ three^ = N.Nat^::succ four^ := \refl(N.Nat^::succ four^);
+  \definition sum: NatOp.Add::[program]^ two^ three^ = N.Nat^::succ four^ := \refl(N.Nat^::succ four^);
 
-  \definition appliedCoherence: N.Add::[program]^ two^ three^ = N.Add::[set] two^ three^ :=
-    (congr!{N.Add::[Type]^ _} (\fun (f: _) => f two^ three^) _ _ N.Add::[coherence]);
-  \definition additionCoherence: N.Add::[program]^ = N.Add::[set] := N.Add::[coherence];
-  \definition pairIterationCoherence: N.PairIter::[program]^ = N.PairIter::[set] := N.PairIter::[coherence];
-  \definition additionInput: \Box[\F(N.AddLoop::[State])] :=
-    \box[_](\return N.AddState::running two three);
+  \definition appliedCoherence: NatOp.Add::[program]^ two^ three^ = NatOp.Add::[set] two^ three^ :=
+    (congr!{NatOp.Add::[Type]^ _} (\fun (f: _) => f two^ three^) _ _ NatOp.Add::[coherence]);
+  \definition additionCoherence: NatOp.Add::[program]^ = NatOp.Add::[set] := NatOp.Add::[coherence];
+  \definition pairIterationCoherence: NatOp.PairIter::[program]^ = NatOp.PairIter::[set] := NatOp.PairIter::[coherence];
+  \definition additionInput: \Box[\F(NatOp.AddLoop::[State])] :=
+    \box[_](\return NatOp.AddState::running two three);
   \definition bundledSum:
-    \squash[_](\boxapp(N.AddLoop::[runbox], additionInput)) = N.Nat^::succ four^ :=
+    \squash[_](\boxapp(NatOp.AddLoop::[runbox], additionInput)) = N.Nat^::succ four^ :=
     \refl(N.Nat^::succ four^);
-  \import N.FiniteIteration[A := N.Nat^] \as NI;
-  \definition iteration: N.Iteration[N.Nat^]::[Set] := NI.specification;
+  \import NatOp.FiniteIteration[A := N.Nat^] \as NI;
+  \definition iteration: NatOp.Iteration[N.Nat^]::[Set] := NI.specification;
   \definition iterationZero (f: N.Nat^ -> N.Nat^) (n: N.Nat^):
     (iteration #apply) f n z^ = n := (iteration #zero) f n;
   \definition iterationSucc (f: N.Nat^ -> N.Nat^) (n, count: N.Nat^):
     (iteration #apply) f n (N.Nat^::succ count) = f ((iteration #apply) f n count) :=
     (iteration #succ) f n count;
-  \definition subtract: N.Sub::[program]^ three^ two^ = one^ := \refl(one^);
-  \definition truncated: N.Sub::[program]^ two^ three^ = z^ := \refl(z^);
-  \definition product: N.Mul::[program]^ two^ three^ = six^ := \refl(six^);
-  \definition power: N.Pow::[program]^ two^ three^ = eight^ := \refl(eight^);
-  \definition zeroPowerZero: N.Pow::[program]^ z^ z^ = one^ := \refl(one^);
-  \definition minLeft: N.Min::[program]^ two^ three^ = two^ := \refl(two^);
-  \definition minRight: N.Min::[program]^ three^ two^ = two^ := \refl(two^);
-  \definition maxLeft: N.Max::[program]^ three^ two^ = three^ := \refl(three^);
-  \definition maxRight: N.Max::[program]^ two^ three^ = three^ := \refl(three^);
-  \definition minSame: N.Min::[program]^ two^ two^ = two^ := \refl(two^);
-  \definition maxSame: N.Max::[program]^ two^ two^ = two^ := \refl(two^);
-  \definition less: NL.Lt two^ three^ := \refl(N.Ltb::[program]^ z^ one^);
-  \definition notLess: N.Ltb::[program]^ three^ two^ = N.Ltb::[program]^ z^ z^ := \refl(N.Ltb::[program]^ z^ z^);
-  \definition notLe: N.Leb::[program]^ three^ two^ = N.Leb::[program]^ one^ z^ := \refl(N.Leb::[program]^ one^ z^);
-  \definition equal: N.Eqb::[program]^ two^ two^ = N.Eqb::[program]^ z^ z^ := \refl(N.Eqb::[program]^ z^ z^);
-  \definition unequal: N.Eqb::[program]^ two^ three^ = N.Eqb::[program]^ z^ one^ := \refl(N.Eqb::[program]^ z^ one^);
-  \definition evenFour: N.Even::[program]^ four^ = N.Even::[program]^ z^ := \refl(N.Even::[program]^ z^);
-  \definition oddThree: N.Odd::[program]^ three^ = N.Odd::[program]^ one^ := \refl(N.Odd::[program]^ one^);
-  \definition evenThree: N.Even::[program]^ three^ = N.Even::[program]^ one^ := \refl(N.Even::[program]^ one^);
-  \definition oddFour: N.Odd::[program]^ four^ = N.Odd::[program]^ z^ := \refl(N.Odd::[program]^ z^);
+  \definition subtract: NatOp.Sub::[program]^ three^ two^ = one^ := \refl(one^);
+  \definition truncated: NatOp.Sub::[program]^ two^ three^ = z^ := \refl(z^);
+  \definition product: NatOp.Mul::[program]^ two^ three^ = six^ := \refl(six^);
+  \definition power: NatOp.Pow::[program]^ two^ three^ = eight^ := \refl(eight^);
+  \definition zeroPowerZero: NatOp.Pow::[program]^ z^ z^ = one^ := \refl(one^);
+  \definition minLeft: NatOp.Min::[program]^ two^ three^ = two^ := \refl(two^);
+  \definition minRight: NatOp.Min::[program]^ three^ two^ = two^ := \refl(two^);
+  \definition maxLeft: NatOp.Max::[program]^ three^ two^ = three^ := \refl(three^);
+  \definition maxRight: NatOp.Max::[program]^ two^ three^ = three^ := \refl(three^);
+  \definition minSame: NatOp.Min::[program]^ two^ two^ = two^ := \refl(two^);
+  \definition maxSame: NatOp.Max::[program]^ two^ two^ = two^ := \refl(two^);
+  \definition less: NL.Lt two^ three^ := \refl(NatOp.Ltb::[program]^ z^ one^);
+  \definition notLess: NatOp.Ltb::[program]^ three^ two^ = NatOp.Ltb::[program]^ z^ z^ := \refl(NatOp.Ltb::[program]^ z^ z^);
+  \definition notLe: NatOp.Leb::[program]^ three^ two^ = NatOp.Leb::[program]^ one^ z^ := \refl(NatOp.Leb::[program]^ one^ z^);
+  \definition equal: NatOp.Eqb::[program]^ two^ two^ = NatOp.Eqb::[program]^ z^ z^ := \refl(NatOp.Eqb::[program]^ z^ z^);
+  \definition unequal: NatOp.Eqb::[program]^ two^ three^ = NatOp.Eqb::[program]^ z^ one^ := \refl(NatOp.Eqb::[program]^ z^ one^);
+  \definition evenFour: NP.Even::[program]^ four^ = NP.Even::[program]^ z^ := \refl(NP.Even::[program]^ z^);
+  \definition oddThree: NP.Odd::[program]^ three^ = NP.Odd::[program]^ one^ := \refl(NP.Odd::[program]^ one^);
+  \definition evenThree: NP.Even::[program]^ three^ = NP.Even::[program]^ one^ := \refl(NP.Even::[program]^ one^);
+  \definition oddFour: NP.Odd::[program]^ four^ = NP.Odd::[program]^ z^ := \refl(NP.Odd::[program]^ z^);
   /* Quotient/remainder boundaries and several Euclidean transitions. */
-  \definition quotientExact: N.Div::[program]^ six^ two^ = three^ := \refl(three^);
-  \definition quotientInexact: N.Div::[program]^ eight^ three^ = two^ := \refl(two^);
-  \definition quotientSmall: N.Div::[program]^ two^ three^ = z^ := \refl(z^);
-  \definition remainderExact: N.Mod::[program]^ six^ three^ = z^ := \refl(z^);
-  \definition remainderInexact: N.Mod::[program]^ eight^ three^ = two^ := \refl(two^);
-  \definition remainderSmall: N.Mod::[program]^ two^ three^ = two^ := \refl(two^);
-  \definition divisionTogether: N.DivMod::[program]^ eight^ three^ = N.natPair two^ two^ :=
-    \refl(N.natPair two^ two^);
-  \definition divisionByZero: N.Div::[program]^ three^ z^ = z^ := \refl(z^);
-  \definition remainderByZero: N.Mod::[program]^ three^ z^ = three^ := \refl(three^);
-  \definition divisionZeroZero: N.Div::[program]^ z^ z^ = z^ := \refl(z^);
-  \definition remainderZeroZero: N.Mod::[program]^ z^ z^ = z^ := \refl(z^);
-  \definition divisionByOne: N.Div::[program]^ four^ one^ = four^ := \refl(four^);
-  \definition remainderByOne: N.Mod::[program]^ four^ one^ = z^ := \refl(z^);
-  \definition divisionSelf: N.Div::[program]^ three^ three^ = one^ := \refl(one^);
-  \definition remainderSelf: N.Mod::[program]^ three^ three^ = z^ := \refl(z^);
-  \definition gcdNontrivial: N.Gcd::[program]^ eight^ six^ = two^ := \refl(two^);
-  \definition gcdReversed: N.Gcd::[program]^ six^ eight^ = two^ := \refl(two^);
-  \definition gcdCoprime: N.Gcd::[program]^ eight^ three^ = one^ := \refl(one^);
-  \definition gcdDivisible: N.Gcd::[program]^ six^ three^ = three^ := \refl(three^);
-  \definition gcdSame: N.Gcd::[program]^ three^ three^ = three^ := \refl(three^);
-  \definition gcdWithOne: N.Gcd::[program]^ four^ one^ = one^ := \refl(one^);
-  \definition gcdLeftZero: N.Gcd::[program]^ z^ three^ = three^ := \refl(three^);
-  \definition gcdRightZero: N.Gcd::[program]^ three^ z^ = three^ := \refl(three^);
-  \definition gcdBothZero: N.Gcd::[program]^ z^ z^ = z^ := \refl(z^);
+  \definition quotientExact: NatOp.Div::[program]^ six^ two^ = three^ := \refl(three^);
+  \definition quotientInexact: NatOp.Div::[program]^ eight^ three^ = two^ := \refl(two^);
+  \definition quotientSmall: NatOp.Div::[program]^ two^ three^ = z^ := \refl(z^);
+  \definition remainderExact: NatOp.Mod::[program]^ six^ three^ = z^ := \refl(z^);
+  \definition remainderInexact: NatOp.Mod::[program]^ eight^ three^ = two^ := \refl(two^);
+  \definition remainderSmall: NatOp.Mod::[program]^ two^ three^ = two^ := \refl(two^);
+  \definition divisionTogether: NatOp.DivMod::[program]^ eight^ three^ = NatOp.natPair two^ two^ :=
+    \refl(NatOp.natPair two^ two^);
+  \definition divisionByZero: NatOp.Div::[program]^ three^ z^ = z^ := \refl(z^);
+  \definition remainderByZero: NatOp.Mod::[program]^ three^ z^ = three^ := \refl(three^);
+  \definition divisionZeroZero: NatOp.Div::[program]^ z^ z^ = z^ := \refl(z^);
+  \definition remainderZeroZero: NatOp.Mod::[program]^ z^ z^ = z^ := \refl(z^);
+  \definition divisionByOne: NatOp.Div::[program]^ four^ one^ = four^ := \refl(four^);
+  \definition remainderByOne: NatOp.Mod::[program]^ four^ one^ = z^ := \refl(z^);
+  \definition divisionSelf: NatOp.Div::[program]^ three^ three^ = one^ := \refl(one^);
+  \definition remainderSelf: NatOp.Mod::[program]^ three^ three^ = z^ := \refl(z^);
+  \definition gcdNontrivial: NG.Gcd::[program]^ eight^ six^ = two^ := \refl(two^);
+  \definition gcdReversed: NG.Gcd::[program]^ six^ eight^ = two^ := \refl(two^);
+  \definition gcdCoprime: NG.Gcd::[program]^ eight^ three^ = one^ := \refl(one^);
+  \definition gcdDivisible: NG.Gcd::[program]^ six^ three^ = three^ := \refl(three^);
+  \definition gcdSame: NG.Gcd::[program]^ three^ three^ = three^ := \refl(three^);
+  \definition gcdWithOne: NG.Gcd::[program]^ four^ one^ = one^ := \refl(one^);
+  \definition gcdLeftZero: NG.Gcd::[program]^ z^ three^ = three^ := \refl(three^);
+  \definition gcdRightZero: NG.Gcd::[program]^ three^ z^ = three^ := \refl(three^);
+  \definition gcdBothZero: NG.Gcd::[program]^ z^ z^ = z^ := \refl(z^);
+  \definition gcdSetZeroRight: NG.Gcd::[set] three^ z^ = three^ := GcdLaw.gcdZeroRight three^;
+  \definition gcdSetZeroLeft: NG.Gcd::[set] z^ three^ = three^ := GcdLaw.gcdZeroLeft three^;
+  \definition gcdSetBothZero: NG.Gcd::[set] z^ z^ = z^ := GcdLaw.gcdZeroRight z^;
+  \definition gcdSetReversed: NG.Gcd::[set] eight^ six^ = NG.Gcd::[set] six^ eight^ :=
+    GcdLaw.gcdComm eight^ six^;
+  \definition gcdSetNontrivial: NG.Gcd::[set] eight^ six^ = two^ :=
+    eq_reason!{
+      { NG.Gcd::[set] eight^ six^ }
+      "=" { NG.Gcd::[program]^ eight^ six^ } "by" { sym!{N.Nat^} _ _ (congr!{NG.Gcd::[Type]^ N.Nat^} (\fun (f: _) => f eight^ six^) _ _ NG.Gcd::[coherence]) }
+      "=" two^ "by" gcdNontrivial
+    };
   \definition importedDivisionLaw: \forall (a, b: N.Nat^) ->
-    N.Add::[set] (N.Mul::[set] b (N.Div::[set] a b)) (N.Mod::[set] a b) = a := ND.divModReconstructs;
+    NatOp.Add::[set] (NatOp.Mul::[set] b (NatOp.Div::[set] a b)) (NatOp.Mod::[set] a b) = a := ND.divModReconstructs;
   \definition importedRemainderBound: \forall (a, d: N.Nat^) ->
-    NL.Lt (N.Mod::[set] a (N.Nat^::succ d)) (N.Nat^::succ d) := ND.modLt;
+    NL.Lt (NatOp.Mod::[set] a (N.Nat^::succ d)) (N.Nat^::succ d) := ND.modLt;
   \definition importedGcdGreatest: \forall (d, a, b: N.Nat^) ->
-    ND.Divides d a -> ND.Divides d b -> ND.Divides d (N.Gcd::[set] a b) := ND.gcdGreatest;
+    ND.Divides d a -> ND.Divides d b -> ND.Divides d (NG.Gcd::[set] a b) := GcdLaw.gcdGreatest;
   \definition importedMulLaw: \forall (a, b, c: N.Nat^) ->
-    N.Mul::[set] (N.Mul::[set] a b) c = N.Mul::[set] a (N.Mul::[set] b c) := NL.mulAssoc;
+    NatOp.Mul::[set] (NatOp.Mul::[set] a b) c = NatOp.Mul::[set] a (NatOp.Mul::[set] b c) := NL.mulAssoc;
   \definition importedPositiveCancellation: \forall (k, a, b: N.Nat^) ->
-    N.Mul::[set] a (N.Nat^::succ k) = N.Mul::[set] b (N.Nat^::succ k) -> a = b :=
+    NatOp.Mul::[set] a (N.Nat^::succ k) = NatOp.Mul::[set] b (N.Nat^::succ k) -> a = b :=
     NL.mulCancelRightSucc;
-  \definition importedSpecification: N.Mul::[program]^ = N.Mul::[set] := N.Mul::[coherence];
+  \definition importedSpecification: NatOp.Mul::[program]^ = NatOp.Mul::[set] := NatOp.Mul::[coherence];
   \import std.Alg[].Monoid[] \as M;
   \import std.Alg[].Alg[] \as A;
 
   \definition additiveRaw: M.Monoid[N.Nat^]::[Raw] :=
-    M.Monoid[N.Nat^]::[Raw]::# N.zero^ N.Add::[set];
+    M.Monoid[N.Nat^]::[Raw]::# NatOp.zero^ NatOp.Add::[set];
   \definition additiveLaws: M.Monoid[N.Nat^]::[Law][additiveRaw] :=
     M.Monoid[N.Nat^]::[Law][additiveRaw] {
       leftIdentity := NL.addZeroLeft,
@@ -122,7 +138,7 @@
     #leftIdentity{additiveMonoid};
 
   \definition naturalSemiringRaw: A.Semiring[N.Nat^]::[Raw] :=
-    A.Semiring[N.Nat^]::[Raw]::# N.zero^ N.one^ N.Add::[set] N.Mul::[set];
+    A.Semiring[N.Nat^]::[Raw]::# NatOp.zero^ NatOp.one^ NatOp.Add::[set] NatOp.Mul::[set];
   \definition naturalSemiringLaws: A.Semiring[N.Nat^]::[Law][naturalSemiringRaw] :=
     A.Semiring[N.Nat^]::[Law][naturalSemiringRaw] {
       additive := M.CommutativeMonoid[N.Nat^]::[Law][M.CommutativeMonoid[N.Nat^]::[Raw]::# (A.additiveMonoid N.Nat^ naturalSemiringRaw)] {
@@ -241,7 +257,10 @@
   \import std.Data[].Bool[] \as B;
   \import std.Logic[].Equality[] \as Equality;
   \use Equality.congr;
-  \import std.Nat[] \as N;
+  \import std.Data[].Nat[] \as N;
+  \import std.Operation[].Nat[].Basic[] \as NatOp;
+  \import std.Operation[].Nat[].Gcd[] \as NG;
+  \import std.Operation[].Nat[].Parity[] \as NP;
   \import P.Laws[A := B.Bool^, B := N.Nat^] \as PL;
   \import P.Program[A := B.Bool, B := N.Nat] \as PP;
   \import PP.Mapping[C := N.Nat, D := B.Bool] \as PM;
@@ -256,12 +275,12 @@
   \definition reflected: P.Times^[B.Bool^, N.Nat^] :=
     \squash[_](\box[_](\return value));
   \definition first: P.first B.Bool^ N.Nat^ reflected = B.Bool^::true := \refl(B.Bool^::true);
-  \definition second: P.second B.Bool^ N.Nat^ reflected = N.one^ := \refl(N.one^);
-  \definition swapped: P.swap B.Bool^ N.Nat^ reflected = P.pair N.Nat^ B.Bool^ N.one^ B.Bool^::true :=
-    \refl(P.pair N.Nat^ B.Bool^ N.one^ B.Bool^::true);
-  \definition mapped: P.map B.Bool^ N.Nat^ B.Bool^ N.Nat^ B.Neg::[program]^ N.Pred::[program]^ reflected =
-      P.pair B.Bool^ N.Nat^ B.Bool^::false N.zero^ :=
-    \refl(P.pair B.Bool^ N.Nat^ B.Bool^::false N.zero^);
+  \definition second: P.second B.Bool^ N.Nat^ reflected = NatOp.one^ := \refl(NatOp.one^);
+  \definition swapped: P.swap B.Bool^ N.Nat^ reflected = P.pair N.Nat^ B.Bool^ NatOp.one^ B.Bool^::true :=
+    \refl(P.pair N.Nat^ B.Bool^ NatOp.one^ B.Bool^::true);
+  \definition mapped: P.map B.Bool^ N.Nat^ B.Bool^ N.Nat^ B.Neg::[program]^ NatOp.Pred::[program]^ reflected =
+      P.pair B.Bool^ N.Nat^ B.Bool^::false NatOp.zero^ :=
+    \refl(P.pair B.Bool^ N.Nat^ B.Bool^::false NatOp.zero^);
 
   /* Reflect complete operations, then prove agreement for arbitrary arguments. */
 
@@ -317,23 +336,23 @@
   \definition changeFirst: \F(P.Times[N.Nat, N.Nat]) := PM.MapFirst::[program] (\thunk boolToNat) value;
   \definition changeSecond: \F(P.Times[B.Bool, B.Bool]) := PM.MapSecond::[program] (\thunk natToBool) value;
   \definition changedFirst: \squash[_](\box[_](changeFirst)) =
-    P.pair _ _ N.one^ N.one^ := \refl(P.pair _ _ N.one^ N.one^);
+    P.pair _ _ NatOp.one^ NatOp.one^ := \refl(P.pair _ _ NatOp.one^ NatOp.one^);
   \definition changedSecond: \squash[_](\box[_](changeSecond)) =
     P.pair _ _ B.Bool^::true B.Bool^::false := \refl(P.pair _ _ B.Bool^::true B.Bool^::false);
   \definition curried: \F(N.Nat) := PF.Curry::[program] (\thunk PP.Second::[program]) B.Bool::false (N.Nat::succ N.Nat::zero);
   \definition choose(b: B.Bool, n: N.Nat): \F(N.Nat) :=
     \match b \in B.Bool \with { | false : \return N.Nat::zero | true : \return n };
   \definition uncurried: \F(N.Nat) := PF.Uncurry::[program] (\thunk choose) value;
-  \definition curriedResult: \squash[_](\box[_](curried)) = N.one^ := \refl(N.one^);
-  \definition uncurriedResult: \squash[_](\box[_](uncurried)) = N.one^ := \refl(N.one^);
+  \definition curriedResult: \squash[_](\box[_](curried)) = NatOp.one^ := \refl(NatOp.one^);
+  \definition uncurriedResult: \squash[_](\box[_](uncurried)) = NatOp.one^ := \refl(NatOp.one^);
   \definition nestedRoundTrip: \F(P.Times[P.Times[B.Bool, N.Nat], N.Nat]) := \program {
     \bind right: P.Times[B.Bool, P.Times[N.Nat, N.Nat]] <- PF.Assoc::[program] (P.Times[_, _]::pair value N.Nat::zero) \then
     \bind left: P.Times[P.Times[B.Bool, N.Nat], N.Nat] <- PF.Unassoc::[program] right \then
     \return left
   };
   \definition nestedResult:
-    \squash[_](\box[_](nestedRoundTrip)) = P.pair _ _ reflected N.zero^ :=
-    \refl(P.pair _ _ reflected N.zero^);
+    \squash[_](\box[_](nestedRoundTrip)) = P.pair _ _ reflected NatOp.zero^ :=
+    \refl(P.pair _ _ reflected NatOp.zero^);
 }
 
 /* The Set API also accepts carriers that have no Program representation. */
@@ -408,7 +427,10 @@
 }
 
 \module FinSetExamples {
-  \import std.Nat[] \as N;
+  \import std.Data[].Nat[] \as N;
+  \import std.Operation[].Nat[].Basic[] \as NatOp;
+  \import std.Operation[].Nat[].Gcd[] \as NG;
+  \import std.Operation[].Nat[].Parity[] \as NP;
   \import std.Data[].FinSet[] \as F;
   \definition one: F.Fin (N.Nat^::succ N.Nat^::zero) :=
     F.zero N.Nat^::zero;
@@ -595,7 +617,10 @@
     Q.unaryImageClosed (\fun (z: A) => z) identityRespects;
 }
 \module TopologyExamples {
-  \import std.Nat[] \as N;
+  \import std.Data[].Nat[] \as N;
+  \import std.Operation[].Nat[].Basic[] \as NatOp;
+  \import std.Operation[].Nat[].Gcd[] \as NG;
+  \import std.Operation[].Nat[].Parity[] \as NP;
   \import topology.Topology[Carrier := N.Nat^] \as T;
   \import T.Presentations[] \as TP;
   \import topology.Continuity[A := N.Nat^, B := N.Nat^] \as C;

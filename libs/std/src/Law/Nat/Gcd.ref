@@ -1,0 +1,48 @@
+\import std.Data[].Nat[] \as N;
+\import std.Operation[].Nat[].Gcd[] \as G;
+\import std.Operation[].Nat[].Basic[] \as Op;
+\import \parent.Division[] \as D;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+
+\definition gcdProperty (a, b: N.Nat^): D.IsGcd[a, b, G.Gcd::[set] a b] :=
+  \idelim Op.gcdByIteration a b = G.Gcd::[set] a b
+    \with g: N.Nat^ => D.IsGcd[a, b, g]
+    \by { base: D.gcdByIterationProperty a b, equality: sym!{N.Nat^} _ _ (G.gcdMatchesIteration a b) };
+
+\definition gcdDividesLeft (a, b: N.Nat^): D.Divides (G.Gcd::[set] a b) a :=
+  (gcdProperty a b) #dividesLeft;
+
+\definition gcdDividesRight (a, b: N.Nat^): D.Divides (G.Gcd::[set] a b) b :=
+  (gcdProperty a b) #dividesRight;
+
+\definition gcdGreatest (d, a, b: N.Nat^):
+  D.Divides d a -> D.Divides d b -> D.Divides d (G.Gcd::[set] a b) :=
+  ((gcdProperty a b) #greatest) d;
+
+\definition gcdOfProperty (a, b, g: N.Nat^) (h: D.IsGcd[a, b, g]): G.Gcd::[set] a b = g :=
+  D.gcdPropertyUnique a b (G.Gcd::[set] a b) g (gcdProperty a b) h;
+
+\definition gcdZeroRight (a: N.Nat^): G.Gcd::[set] a N.Nat^::zero = a :=
+  gcdOfProperty a N.Nat^::zero a
+    (D.IsGcd[a, N.Nat^::zero, a] {
+      dividesLeft := D.dividesSelf a,
+      dividesRight := D.dividesZero a,
+      greatest := \fun (d: N.Nat^) (da: _) (dz: _) => da,
+    });
+
+\definition gcdZeroLeft (b: N.Nat^): G.Gcd::[set] N.Nat^::zero b = b :=
+  gcdOfProperty N.Nat^::zero b b
+    (D.IsGcd[N.Nat^::zero, b, b] {
+      dividesLeft := D.dividesZero b,
+      dividesRight := D.dividesSelf b,
+      greatest := \fun (d: N.Nat^) (dz: _) (db: _) => db,
+    });
+
+\definition gcdComm (a, b: N.Nat^): G.Gcd::[set] a b = G.Gcd::[set] b a :=
+  gcdOfProperty a b (G.Gcd::[set] b a)
+    (D.IsGcd[a, b, G.Gcd::[set] b a] {
+      dividesLeft := gcdDividesRight b a,
+      dividesRight := gcdDividesLeft b a,
+      greatest := \fun (d: N.Nat^) (da: _) (db: _) => gcdGreatest d b a db da,
+    });

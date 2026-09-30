@@ -28,7 +28,7 @@ std = { path = "../std" }
 現在のパッケージの子 module は先頭の `.` を起点にする。
 
 ```text
-\import std.Nat[] \as N;
+\import std.Data[].Nat[] \as N;
 \import .Child[] \as C;
 ```
 

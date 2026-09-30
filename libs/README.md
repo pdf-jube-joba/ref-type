@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | 論理 | `Logic/Proposition.ref`、`Logic/Law.ref`、`Logic/Rel.ref`、`Logic/Classical.ref`、`Logic/Equality.ref` | 命題、関係、法則、古典論理、等式 |
 | データ | `Data/Bool.ref`、`Data/Pair.ref`、`Data/Sum.ref`、`Data/FinSet.ref` | 基本データ、直積、直和、有限集合 |
-| 自然数 | `Nat.ref` と `Nat/` 以下 | 自然数の演算、仕様、法則 |
+| 自然数 | `Data/Nat.ref`、`Operation/Nat/`、`Law/Nat/` | 自然数の型、演算と仕様、法則 |
 | 集合 | `Set/Quotient.ref` | 同値類、商の台集合、演算の relational image |
 | 代数 | `Alg/Monoid.ref`、`Alg/Alg.ref`、`Alg/Ring.ref`、`Alg/Field.ref` | Monoid、Group、Semiring、Ring、Field、環上の加群、環上の代数 |
 | 算術 | `Arithmetic/Int.ref`、`Arithmetic/Rat.ref`、`Arithmetic/IntAlgebra.ref` と各子モジュール | 整数、有理数、整数の代数構造 |
@@ -61,10 +61,11 @@ congr2!{A B C} f a b c d ab cd
 各例は、それぞれの数の記法を使うモジュール内に置く。
 
 ```text
-\import std.Nat[] \as N;
-\import N.Laws[] \as NL;
-\use N.nat_add;
-\use N.nat_mul;
+\import std.Data[].Nat[] \as N;
+\import std.Operation[].Nat[].Basic[] \as NatOp;
+\import std.Law[].Nat[].Basic[] \as NL;
+\use NatOp.nat_add;
+\use NatOp.nat_mul;
 
 \definition distribute (a, b, c: N.Nat^):
   \(a "*" (b "+" c)\) = \((a "*" b) "+" (a "*" c)\) :=
@@ -231,19 +232,23 @@ Int の `Zero`、`One`、`MinusOne` も同じ member で定数の実装・仕様
 
 `\run` は部分計算を表せるが、Set に反映する際には停止性証明が必要になる。
 
-Nat は加減乗除、累乗、比較、有限反復、偶奇、GCD を持つ。除数が零なら
-`div a 0 = 0`、`mod a 0 = a` とし、`0^0 = 1` とする。自然数は単項表現なので、
-大きな具体値の評価には向かない。
+自然数の型は `Data.Nat` にあり、加減乗除、累乗、比較、有限反復は `Operation.Nat.Basic`、偶奇判定は `Operation.Nat.Parity`、最大公約数は `Operation.Nat.Gcd` にある。
+除数が零なら `div a 0 = 0`、`mod a 0 = a` とし、`0^0 = 1` とする。
+自然数は単項表現なので、大きな具体値の評価には向かない。
 
-Program 演算とその直接の仕様は `Nat` 本体に置き、一般の算術法則は `Nat.Laws`、
-除算・剰余・GCD の再構成則・剰余の上界・最大公約数の法則は
-`Nat.Laws.Division` に分離している。親と同じ Nat instance を使うには、次のように
-import 済み instance から child を順に開く。
+偶奇判定の Set 側は剰余 2 がそれぞれ零・一であることを判定する。
+GCD の Set 側は、共通約数であり、すべての共通約数で割り切れる自然数を、一意存在の証明付き `\take` で取り出す。
+Program 側のユークリッド互除法は、この性質を満たすことから Set 側と一致する。
+
+一般の算術法則は `Law.Nat.Basic`、除算・剰余・整除の法則と GCD の存在・一意性は `Law.Nat.Division`、数学的な GCD の法則は `Law.Nat.Gcd` にある。
 
 ```text
-\import std.Nat[] \as N;
-\import N.Laws[] \as NL;
-\import NL.Division[] \as ND;
+\import std.Data[].Nat[] \as N;
+\import std.Operation[].Nat[].Basic[] \as NatOp;
+\import std.Law[].Nat[].Basic[] \as NL;
+\import std.Law[].Nat[].Division[] \as ND;
+\import std.Operation[].Nat[].Gcd[] \as G;
+\import std.Law[].Nat[].Gcd[] \as GL;
 ```
 
 Int は `ofNat n` と `negSucc n` からなる一意な Program 正規形を持つ。

@@ -1,0 +1,55 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+
+\import std.Data[].Pair[] \as P;
+
+\import \parent.Basic[] \as Op;
+\import std.Law[].Nat[].Division[] \as D;
+
+\definition gcd (a, b: N.Nat^): N.Nat^ :=
+  \take (g: \Cast[N.Nat^] (D.GcdSet a b)) => (\fun (n: N.Nat^) => n) g
+    \by { existence: D.gcdExists a b, uniqueness: D.gcdUnique a b };
+
+\definition gcdMatchesIteration (a, b: N.Nat^): gcd a b = Op.gcdByIteration a b :=
+  \takeelim(\fun (g: \Cast[N.Nat^] (D.GcdSet a b)) => (\fun (n: N.Nat^) => n) g,
+    \into[N.Nat^](Op.gcdByIteration a b, D.GcdSet a b)
+      \by { D.gcdByIterationProperty a b },
+    \Cast[N.Nat^] (D.GcdSet a b), N.Nat^)
+    \by { existence: D.gcdExists a b, uniqueness: D.gcdUnique a b };
+
+\correspondence Gcd: N.Nat -> N.Nat -> N.Nat {
+  \program := \fun (a, b: N.Nat) => \program {
+    \bind result: P.Times[N.Nat, N.Nat] <- Op.PairIterLoop::[run] (Op.PairIterState::running Op.GcdNext::[program] (P.Times[N.Nat, N.Nat]::pair a b) b) \then
+    \bind divisor: N.Nat <- (P.Times[N.Nat, N.Nat]::first result) \then
+    \return divisor
+  },
+  \set := gcd,
+
+  \definition matches: \forall (a, b: N.Nat^) -> Gcd::[program]^ a b = Gcd::[set] a b :=
+    \block {
+      \fix (a, b: N.Nat^) \then
+      \let iterationMatches:
+        Op.PairIter::[program]^ Op.GcdNext::[program]^ (Op.natPair a b) b =
+          Op.PairIter::[set] Op.GcdNext::[program]^ (Op.natPair a b) b :=
+        (congr!{Op.PairIter::[Type]^ _} (\fun (f: _) => f Op.GcdNext::[program]^ (Op.natPair a b) b) _ _ Op.PairIter::[coherence]) \then
+      \let stepMatches:
+        Op.PairIter::[set] Op.GcdNext::[program]^ (Op.natPair a b) b =
+          Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a b) b :=
+        congr!{Op.GcdNext::[Type]^ Op.NatPair}
+          (\fun (next: _) => Op.PairIter::[set] next (Op.natPair a b) b)
+          _ _ Op.GcdNext::[coherence] \then
+      \let resultMatches:
+        Op.PairIter::[program]^ Op.GcdNext::[program]^ (Op.natPair a b) b =
+          Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a b) b :=
+        trans!{Op.NatPair} _ _ _ iterationMatches stepMatches \then
+      \return trans!{N.Nat^} _ _ _
+        (congr!{Op.NatPair N.Nat^} P.Times[N.Nat, N.Nat]::first^ _ _ resultMatches)
+        (sym!{N.Nat^} _ _ (gcdMatchesIteration a b))
+    };
+  \coherence := \axiom:funext(Gcd::[program]^, Gcd::[set],
+    \fun (a: N.Nat^) => \axiom:funext(Gcd::[program]^ a, Gcd::[set] a,
+      \fun (b: N.Nat^) => matches a b)),
+}

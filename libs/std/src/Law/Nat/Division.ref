@@ -1,0 +1,458 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.transport;
+
+\import std.Data[].Bool[] \as B;
+\import std.Data[].Pair[] \as P;
+
+\import std.Operation[].Nat[].Basic[] \as Op;
+\use Op.nat_add;
+\use Op.nat_mul;
+\import Op.FiniteIteration[A := Op.NatPair] \as PairIteration;
+
+\import \parent.Basic[] \as Basic;
+
+/* Projection specifications and reusable invariants for finite iterations. */
+\import std.Logic[].Proposition[] \as Logic;
+\definition firstMatchesPrec: \forall (p: Op.NatPair) -> P.Times[N.Nat, N.Nat]::first^ p = Op.natPairFirst p :=
+  Op.natPairElim (\fun (p: Op.NatPair) => P.Times[N.Nat, N.Nat]::first^ p = Op.natPairFirst p) (\fun (a, b: N.Nat^) => \refl(a));
+\definition secondMatchesPrec: \forall (p: Op.NatPair) -> P.Times[N.Nat, N.Nat]::second^ p = Op.natPairSecond p :=
+  Op.natPairElim (\fun (p: Op.NatPair) => P.Times[N.Nat, N.Nat]::second^ p = Op.natPairSecond p) (\fun (a, b: N.Nat^) => \refl(b));
+\definition pairIterInvariant (f: Op.NatPair -> Op.NatPair) (P: Op.NatPair -> \Prop):
+  (\forall (p: Op.NatPair) -> P p -> P (f p)) -> \forall (n: N.Nat^) ->
+    \forall (p: Op.NatPair) -> P p -> P (Op.PairIter::[set] f p n) :=
+  \block {
+    \fix (step: \forall (p: Op.NatPair) -> P p -> P (f p)) \then
+    \return \induction (n: N.Nat^) \return \forall (p: Op.NatPair) ->
+      P p -> P (Op.PairIter::[set] f p n) \with {
+      | zero : \fun (p: Op.NatPair) (h: P p) => h
+      | succ : \block {
+          \fix (n: N.Nat^) \then
+          \fix (ih: \forall (p: Op.NatPair) -> P p -> P (Op.PairIter::[set] f p n)) \then
+          \fix (p: Op.NatPair) \then
+          \fix (h: P p) \then
+          \return step (Op.PairIter::[set] f p n) (ih p h)
+        }
+      }
+  };
+\definition leSuccOfEqbFalse: \forall (d, r: N.Nat^) -> Basic.Le r d -> Op.Eqb::[set] r d = B.Bool^::false -> Basic.Le (N.Nat^::succ r) d :=
+  \induction (d: N.Nat^) \return \forall (r: N.Nat^) -> Basic.Le r d -> Op.Eqb::[set] r d = B.Bool^::false -> Basic.Le (N.Nat^::succ r) d \with {
+    | zero : (\induction (r: N.Nat^) \return Basic.Le r N.Nat^::zero -> Op.Eqb::[set] r N.Nat^::zero = B.Bool^::false -> Basic.Le (N.Nat^::succ r) N.Nat^::zero \with {
+      | zero : \fun (h: Basic.Le N.Nat^::zero N.Nat^::zero)
+        (e: B.Bool^::true = B.Bool^::false) =>
+        B.absurd (Basic.Le (N.Nat^::succ N.Nat^::zero) N.Nat^::zero)
+          (\idelim B.Bool^::true = B.Bool^::false \with t: B.Bool^ => t = B.Bool^::true
+            \by { base: \refl(B.Bool^::true), equality: e })
+      | succ : \block {
+          \fix (r: N.Nat^) \then
+          \fix (ih: Basic.Le r N.Nat^::zero -> Op.Eqb::[set] r N.Nat^::zero = B.Bool^::false ->
+            Basic.Le (N.Nat^::succ r) N.Nat^::zero) \then
+          \fix (h: Basic.Le (N.Nat^::succ r) N.Nat^::zero) \then
+          \fix (e: Op.Eqb::[set] (N.Nat^::succ r) N.Nat^::zero = B.Bool^::false) \then
+          \return B.absurd (Basic.Le (N.Nat^::succ (N.Nat^::succ r)) N.Nat^::zero) h
+        }
+      })
+    | succ : \block {
+        \fix (d: N.Nat^) \then
+        \fix (ih: \forall (r: N.Nat^) -> Basic.Le r d -> Op.Eqb::[set] r d = B.Bool^::false ->
+          Basic.Le (N.Nat^::succ r) d) \then
+        \return \induction (r: N.Nat^) \return Basic.Le r (N.Nat^::succ d) ->
+          Op.Eqb::[set] r (N.Nat^::succ d) = B.Bool^::false ->
+          Basic.Le (N.Nat^::succ r) (N.Nat^::succ d) \with {
+          | zero : \fun (h: Basic.Le N.Nat^::zero (N.Nat^::succ d))
+              (e: Op.Eqb::[set] N.Nat^::zero (N.Nat^::succ d) = B.Bool^::false) => Basic.zeroLe d
+          | succ : \block {
+              \fix (r: N.Nat^) \then
+              \fix (unused: Basic.Le r (N.Nat^::succ d) ->
+                Op.Eqb::[set] r (N.Nat^::succ d) = B.Bool^::false ->
+                Basic.Le (N.Nat^::succ r) (N.Nat^::succ d)) \then
+              \fix (h: Basic.Le (N.Nat^::succ r) (N.Nat^::succ d)) \then
+              \fix (e: Op.Eqb::[set] (N.Nat^::succ r) (N.Nat^::succ d) = B.Bool^::false) \then
+              \return ih r h e
+            }
+          }
+      }
+    };
+\definition divModNextBound: \forall (d: N.Nat^) -> \forall (p: Op.NatPair) -> Basic.Le (P.Times[N.Nat, N.Nat]::second^ p) d ->
+  Basic.Le (P.Times[N.Nat, N.Nat]::second^ (Op.DivModNext::[set] (N.Nat^::succ d) p)) d :=
+  \fun (d: N.Nat^) => Op.natPairElim
+    (\fun (p: Op.NatPair) => Basic.Le (P.Times[N.Nat, N.Nat]::second^ p) d -> Basic.Le (P.Times[N.Nat, N.Nat]::second^ (Op.DivModNext::[set] (N.Nat^::succ d) p)) d)
+    (\fun (q, r: N.Nat^) => \fun (h: Basic.Le r d) =>
+      (\match (Op.Eqb::[set] r d) \in B.Bool^ \return (\fun (hit: B.Bool^) => Op.Eqb::[set] r d = hit ->
+          Basic.Le (P.Times[N.Nat, N.Nat]::second^ (Op.PairChoose::[set] hit (Op.natPair (N.Nat^::succ q) N.Nat^::zero) (Op.natPair q (N.Nat^::succ r)))) d) \with {
+        | false : (\fun (e: Op.Eqb::[set] r d = B.Bool^::false) => leSuccOfEqbFalse d r h e)
+        | true : (\fun (e: Op.Eqb::[set] r d = B.Bool^::true) => Basic.zeroLe d)
+        }) (\refl(Op.Eqb::[set] r d)));
+\definition modBound (a, d: N.Nat^): Basic.Le (Op.Mod::[set] a (N.Nat^::succ d)) d := pairIterInvariant (Op.DivModNext::[set] (N.Nat^::succ d))
+    (\fun (p: Op.NatPair) => Basic.Le (P.Times[N.Nat, N.Nat]::second^ p) d) (divModNextBound d) a
+    (Op.natPair N.Nat^::zero N.Nat^::zero) (Basic.zeroLe d);
+
+/* Reconstruction holds even at divisor zero. */
+\definition divModValue (b: N.Nat^) (p: Op.NatPair): N.Nat^ := \((b "*" { P.Times[N.Nat, N.Nat]::first^ p }) "+" { P.Times[N.Nat, N.Nat]::second^ p }\);
+\definition divisionCarryValue: \forall (d, q: N.Nat^) ->
+  divModValue (N.Nat^::succ d) (Op.natPair (N.Nat^::succ q) N.Nat^::zero) =
+    N.Nat^::succ (divModValue (N.Nat^::succ d) (Op.natPair q d)) :=
+  \block {
+    \fix (d, q: N.Nat^) \then
+    \let carryProduct:
+      \({ N.Nat^::succ d } "*" { N.Nat^::succ q }\) =
+        \({ N.Nat^::succ d } "+" ({ N.Nat^::succ d } "*" q)\) :=
+      Basic.mulSuccRight (N.Nat^::succ d) q \then
+    \let exposeSuccessor:
+      \({ N.Nat^::succ d } "+" ({ N.Nat^::succ d } "*" q)\) =
+        N.Nat^::succ \(d "+" ({ N.Nat^::succ d } "*" q)\) :=
+      Basic.addSuccLeft d \({ N.Nat^::succ d } "*" q\) \then
+    \return trans!{N.Nat^} _ _ _ carryProduct
+      (trans!{N.Nat^} _ _ _ exposeSuccessor
+        (Op.succCong _ _ (Basic.addComm d \({ N.Nat^::succ d } "*" q\))))
+  };
+\definition divModNextValue: \forall (b: N.Nat^) -> \forall (p: Op.NatPair) ->
+  divModValue b (Op.DivModNext::[set] b p) = N.Nat^::succ (divModValue b p) :=
+  \fun (b: N.Nat^) => Op.natPairElim
+    (\fun (p: Op.NatPair) => divModValue b (Op.DivModNext::[set] b p) = N.Nat^::succ (divModValue b p))
+    (\fun (q, r: N.Nat^) => \induction (b: N.Nat^) \return divModValue b (Op.DivModNext::[set] b (Op.natPair q r)) = N.Nat^::succ (divModValue b (Op.natPair q r)) \with {
+      | zero : (Basic.addSuccRight \({ N.Nat^::zero } "*" q\) r)
+      | succ : (\fun (d: N.Nat^) => \fun (_: _) => (\match (Op.Eqb::[set] r d) \in B.Bool^ \return (\fun (hit: B.Bool^) => Op.Eqb::[set] r d = hit ->
+            divModValue (N.Nat^::succ d) (Op.PairChoose::[set] hit (Op.natPair (N.Nat^::succ q) N.Nat^::zero) (Op.natPair q (N.Nat^::succ r))) =
+              N.Nat^::succ (divModValue (N.Nat^::succ d) (Op.natPair q r))) \with {
+        | false : (\fun (e: Op.Eqb::[set] r d = B.Bool^::false) => Basic.addSuccRight \({ N.Nat^::succ d } "*" q\) r)
+        | true : (\fun (e: Op.Eqb::[set] r d = B.Bool^::true) =>
+            \idelim d = r \with x: N.Nat^ =>
+              divModValue (N.Nat^::succ d) (Op.natPair (N.Nat^::succ q) N.Nat^::zero) =
+                N.Nat^::succ (divModValue (N.Nat^::succ d) (Op.natPair q x))
+              \by { base: divisionCarryValue d q, equality: sym!{N.Nat^} r d (Basic.eqOfEqbTrue d r e) })
+        }) (\refl(Op.Eqb::[set] r d)))
+      } b);
+\definition divModReconstructs: \forall (a, b: N.Nat^) -> divModValue b (Op.DivMod::[set] a b) = a :=
+  \induction (a: N.Nat^) \return \forall (b: N.Nat^) -> divModValue b (Op.DivMod::[set] a b) = a \with {
+    | zero : (\fun (b: N.Nat^) => \refl(N.Nat^::zero))
+    | succ : (\fun (a: N.Nat^) => \fun (ih: \forall (b: N.Nat^) -> divModValue b (Op.DivMod::[set] a b) = a) => \fun (b: N.Nat^) =>
+      trans!{N.Nat^} _ _ _ (divModNextValue b (Op.DivMod::[set] a b)) (Op.succCong _ _ (ih b)))
+    };
+
+/* The Euclidean loop's bound is proved, rather than assumed as fuel. */
+\definition gcdIterZero: \forall (n, a: N.Nat^) ->
+  Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a N.Nat^::zero) n = Op.natPair a N.Nat^::zero :=
+  \induction (n: N.Nat^) \return \forall (a: N.Nat^) -> Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a N.Nat^::zero) n = Op.natPair a N.Nat^::zero \with {
+    | zero : (\fun (a: N.Nat^) => \refl(Op.natPair a N.Nat^::zero))
+    | succ : (\fun (n: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a N.Nat^::zero) n = Op.natPair a N.Nat^::zero) =>
+      \fun (a: N.Nat^) => congr!{Op.NatPair Op.NatPair} Op.GcdNext::[set] _ _ (ih a))
+    };
+\definition gcdIterSettles: \forall (n, a, b: N.Nat^) -> Basic.Le b n ->
+  P.Times[N.Nat, N.Nat]::second^ (Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a b) n) = N.Nat^::zero :=
+  \induction (n: N.Nat^) \return \forall (a, b: N.Nat^) -> Basic.Le b n -> P.Times[N.Nat, N.Nat]::second^ (Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a b) n) = N.Nat^::zero \with {
+    | zero : (\fun (a, b: N.Nat^) => \fun (h: Basic.Le b N.Nat^::zero) => Basic.leZeroEq b h)
+    | succ : (\fun (n: N.Nat^) => \fun (ih: \forall (a, b: N.Nat^) -> Basic.Le b n -> P.Times[N.Nat, N.Nat]::second^ (Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a b) n) = N.Nat^::zero) =>
+      \fun (a: N.Nat^) => \induction (b: N.Nat^) \return Basic.Le b (N.Nat^::succ n) -> P.Times[N.Nat, N.Nat]::second^ (Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a b) (N.Nat^::succ n)) = N.Nat^::zero \with {
+      | zero : (\fun (h: Basic.Le N.Nat^::zero (N.Nat^::succ n)) => congr!{Op.NatPair N.Nat^} P.Times[N.Nat, N.Nat]::second^ _ _ (gcdIterZero (N.Nat^::succ n) a))
+      | succ : (\fun (d: N.Nat^) => \fun (unused: Basic.Le d (N.Nat^::succ n) -> P.Times[N.Nat, N.Nat]::second^ (Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a d) (N.Nat^::succ n)) = N.Nat^::zero) =>
+          \fun (h: Basic.Le (N.Nat^::succ d) (N.Nat^::succ n)) =>
+            \idelim Op.PairIter::[set] Op.GcdNext::[set] (Op.GcdNext::[set] (Op.natPair a (N.Nat^::succ d))) n =
+                Op.GcdNext::[set] (Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a (N.Nat^::succ d)) n)
+              \with p: Op.NatPair => P.Times[N.Nat, N.Nat]::second^ p = N.Nat^::zero
+              \by { base: ih (N.Nat^::succ d) (Op.Mod::[set] a (N.Nat^::succ d))
+                (Basic.leTrans (Op.Mod::[set] a (N.Nat^::succ d)) d n (modBound a d) h), equality:
+                (PairIteration.specification #advance) Op.GcdNext::[set] n (Op.natPair a (N.Nat^::succ d)) })
+      })
+    };
+\definition gcdRemainderZero: \forall (a, b: N.Nat^) ->
+  P.Times[N.Nat, N.Nat]::second^ (Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a b) b) = N.Nat^::zero :=
+  \fun (a, b: N.Nat^) => gcdIterSettles b a b (Basic.leRefl b);
+
+/* Zero conventions and division of zero are universal equations. */
+\definition divModZeroDivisor: \forall (a: N.Nat^) -> Op.DivMod::[set] a N.Nat^::zero = Op.natPair N.Nat^::zero a :=
+  \induction (a: N.Nat^) \return Op.DivMod::[set] a N.Nat^::zero = Op.natPair N.Nat^::zero a \with {
+    | zero : (\refl(Op.natPair N.Nat^::zero N.Nat^::zero))
+    | succ : (\fun (a: N.Nat^) => \fun (ih: Op.DivMod::[set] a N.Nat^::zero = Op.natPair N.Nat^::zero a) =>
+      congr!{Op.NatPair Op.NatPair} (Op.DivModNext::[set] N.Nat^::zero) (Op.DivMod::[set] a N.Nat^::zero) (Op.natPair N.Nat^::zero a) ih)
+    };
+\definition divZeroRight (a: N.Nat^): Op.Div::[set] a N.Nat^::zero = N.Nat^::zero :=
+  congr!{Op.NatPair N.Nat^} P.Times[N.Nat, N.Nat]::first^ _ _ (divModZeroDivisor a);
+\definition modZeroRight (a: N.Nat^): Op.Mod::[set] a N.Nat^::zero = a :=
+  congr!{Op.NatPair N.Nat^} P.Times[N.Nat, N.Nat]::second^ _ _ (divModZeroDivisor a);
+\definition divZeroLeft (b: N.Nat^): Op.Div::[set] N.Nat^::zero b = N.Nat^::zero := \refl(N.Nat^::zero);
+\definition modZeroLeft (b: N.Nat^): Op.Mod::[set] N.Nat^::zero b = N.Nat^::zero := \refl(N.Nat^::zero);
+/* Divisibility is constructive: a proof supplies a natural-number factor to
+ * any propositional consumer (the usual existential encoding). */
+\definition Divides (d, a: N.Nat^): \Prop := \forall (P: \Prop) -> (\forall (q: N.Nat^) -> a = \(d "*" q\) -> P) -> P;
+\definition dividesIntro (d, a, q: N.Nat^) (e: a = \(d "*" q\)): Divides d a := \fun (P: \Prop) =>
+    \fun (use: \forall (q: N.Nat^) -> a = \(d "*" q\) -> P) => use q e;
+\definition dividesZero (d: N.Nat^): Divides d N.Nat^::zero := dividesIntro d N.Nat^::zero N.Nat^::zero (\refl(N.Nat^::zero));
+\definition dividesSelf (d: N.Nat^): Divides d d := dividesIntro d d (N.Nat^::succ N.Nat^::zero) (sym!{N.Nat^} _ _ (Basic.mulOneRight d));
+\definition dividesTransport (d: N.Nat^): \forall (a, b: N.Nat^) -> a = b -> Divides d a -> Divides d b :=
+  transport!{N.Nat^} (Divides d);
+\definition dividesAdd (d, a, b: N.Nat^) (ha: Divides d a) (hb: Divides d b): Divides d \(a "+" b\) :=
+    ha (Divides d \(a "+" b\)) (\fun (x: N.Nat^) => \fun (ex: a = \(d "*" x\)) =>
+      hb (Divides d \(a "+" b\)) (\fun (y: N.Nat^) => \fun (ey: b = \(d "*" y\)) =>
+        dividesIntro d \(a "+" b\) \(x "+" y\)
+          (trans!{N.Nat^} _ _ _ (Basic.addCong _ _ _ _ ex ey) (sym!{N.Nat^} _ _ (Basic.mulDistribLeft d x y)))));
+\definition dividesMul (d, a, b: N.Nat^) (ha: Divides d a): Divides d \(a "*" b\) :=
+    ha (Divides d \(a "*" b\)) (\fun (x: N.Nat^) => \fun (ex: a = \(d "*" x\)) =>
+      dividesIntro d \(a "*" b\) \(x "*" b\)
+        (trans!{N.Nat^} _ _ _ (congr!{N.Nat^ N.Nat^} (\fun (n: N.Nat^) => \(n "*" b\)) _ _ ex) (Basic.mulAssoc d x b)));
+\definition subCong: \forall (a, b, c, d: N.Nat^) -> a = b -> c = d -> Op.Sub::[set] a c = Op.Sub::[set] b d :=
+  congr2!{N.Nat^ N.Nat^ N.Nat^} Op.Sub::[set];
+\definition subAddBoth: \forall (c, a, b: N.Nat^) -> Op.Sub::[set] \(a "+" c\) \(b "+" c\) = Op.Sub::[set] a b :=
+  \induction (c: N.Nat^) \return \forall (a, b: N.Nat^) -> Op.Sub::[set] \(a "+" c\) \(b "+" c\) = Op.Sub::[set] a b \with {
+    | zero : (\fun (a, b: N.Nat^) => \refl(Op.Sub::[set] a b))
+    | succ : (\fun (c: N.Nat^) => \fun (ih: \forall (a, b: N.Nat^) -> Op.Sub::[set] \(a "+" c\) \(b "+" c\) = Op.Sub::[set] a b) =>
+      \fun (a, b: N.Nat^) => trans!{N.Nat^} _ _ _
+        (subCong _ _ _ _ (Basic.addSuccRight a c) (Basic.addSuccRight b c)) (ih a b))
+    };
+\definition mulSub (d: N.Nat^): \forall (b, a: N.Nat^) -> Op.Sub::[set] \(d "*" a\) \(d "*" b\) = \(d "*" { Op.Sub::[set] a b }\) :=
+  \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Op.Sub::[set] \(d "*" a\) \(d "*" b\) = \(d "*" { Op.Sub::[set] a b }\) \with {
+    | zero : (\fun (a: N.Nat^) => \refl(\(d "*" a\)))
+    | succ : (\fun (b: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> Op.Sub::[set] \(d "*" a\) \(d "*" b\) = \(d "*" { Op.Sub::[set] a b }\)) =>
+      \induction (a: N.Nat^) \return Op.Sub::[set] \(d "*" a\) \(d "*" { N.Nat^::succ b }\) = \(d "*" { Op.Sub::[set] a (N.Nat^::succ b) }\) \with {
+      | zero : (trans!{N.Nat^} _ _ _ (Basic.subZeroLeft \(d "*" { N.Nat^::succ b }\))
+          (sym!{N.Nat^} _ _ (congr!{N.Nat^ N.Nat^} (Op.Mul::[set] d) _ _ (Basic.subZeroLeft (N.Nat^::succ b)))))
+      | succ : (\fun (a: N.Nat^) => \fun (unused: Op.Sub::[set] \(d "*" a\) \(d "*" { N.Nat^::succ b }\) = \(d "*" { Op.Sub::[set] a (N.Nat^::succ b) }\)) =>
+          trans!{N.Nat^} _ _ _ (subCong _ _ _ _ (Basic.mulSuccRight d a) (Basic.mulSuccRight d b))
+            (trans!{N.Nat^} _ _ _ (subCong _ _ _ _ (Basic.addComm d \(d "*" a\)) (Basic.addComm d \(d "*" b\)))
+              (trans!{N.Nat^} _ _ _ (subAddBoth d \(d "*" a\) \(d "*" b\)) (ih a))))
+      })
+    };
+\definition dividesSub (d, a, b: N.Nat^) (ha: Divides d a) (hb: Divides d b): Divides d (Op.Sub::[set] a b) :=
+    ha (Divides d (Op.Sub::[set] a b)) (\fun (x: N.Nat^) => \fun (ex: a = \(d "*" x\)) =>
+      hb (Divides d (Op.Sub::[set] a b)) (\fun (y: N.Nat^) => \fun (ey: b = \(d "*" y\)) =>
+        dividesIntro d (Op.Sub::[set] a b) (Op.Sub::[set] x y)
+          (trans!{N.Nat^} _ _ _ (subCong _ _ _ _ ex ey) (mulSub d y x))));
+\definition modAsSub: \forall (a, b: N.Nat^) -> Op.Mod::[set] a b = Op.Sub::[set] a \(b "*" { Op.Div::[set] a b }\) :=
+  \block {
+    \fix (a, b: N.Nat^) \then
+    \let reconstruction:
+      \({ Op.Mod::[set] a b } "+" (b "*" { Op.Div::[set] a b })\) = a :=
+      trans!{N.Nat^} _ _ _
+        (Basic.addComm (Op.Mod::[set] a b) \(b "*" { Op.Div::[set] a b }\))
+        (divModReconstructs a b) \then
+    \let subtractReconstruction:
+      Op.Sub::[set] \({ Op.Mod::[set] a b } "+" (b "*" { Op.Div::[set] a b })\)
+        \(b "*" { Op.Div::[set] a b }\) =
+      Op.Sub::[set] a \(b "*" { Op.Div::[set] a b }\) :=
+      congr!{N.Nat^ N.Nat^} (\fun (x: N.Nat^) => Op.Sub::[set] x \(b "*" { Op.Div::[set] a b }\))
+        _ _ reconstruction \then
+    \return trans!{N.Nat^} _ _ _
+      (sym!{N.Nat^} _ _ (Basic.subAddCancel \(b "*" { Op.Div::[set] a b }\) (Op.Mod::[set] a b)))
+      subtractReconstruction
+  };
+\definition dividesMod: \forall (d, a, b: N.Nat^) -> Divides d a -> Divides d b -> Divides d (Op.Mod::[set] a b) :=
+  \block {
+    \fix (d, a, b: N.Nat^) \then
+    \fix (ha: Divides d a) (hb: Divides d b) \then
+    \let productDivides: Divides d \(b "*" { Op.Div::[set] a b }\) :=
+      dividesMul d b (Op.Div::[set] a b) hb \then
+    \let differenceDivides: Divides d (Op.Sub::[set] a \(b "*" { Op.Div::[set] a b }\)) :=
+      dividesSub d a \(b "*" { Op.Div::[set] a b }\) ha productDivides \then
+    \return dividesTransport d (Op.Sub::[set] a \(b "*" { Op.Div::[set] a b }\)) (Op.Mod::[set] a b)
+      (sym!{N.Nat^} _ _ (modAsSub a b)) differenceDivides
+  };
+\definition dividesOfMod: \forall (d, a, b: N.Nat^) -> Divides d b -> Divides d (Op.Mod::[set] a b) -> Divides d a :=
+  \block {
+    \fix (d, a, b: N.Nat^) \then
+    \fix (hb: Divides d b) (hr: Divides d (Op.Mod::[set] a b)) \then
+    \let quotientProductDivides: Divides d \(b "*" { Op.Div::[set] a b }\) :=
+      dividesMul d b (Op.Div::[set] a b) hb \then
+    \let reconstructionDivides:
+      Divides d \((b "*" { Op.Div::[set] a b }) "+" { Op.Mod::[set] a b }\) :=
+      dividesAdd d \(b "*" { Op.Div::[set] a b }\) (Op.Mod::[set] a b) quotientProductDivides hr \then
+    \return dividesTransport d \((b "*" { Op.Div::[set] a b }) "+" { Op.Mod::[set] a b }\) a
+      (divModReconstructs a b) reconstructionDivides
+  };
+
+\definition CommonDivisor (d, a, b: N.Nat^): \Prop :=
+  Logic.And[Divides d a, Divides d b];
+
+\definition gcdNextPreserves: \forall (d: N.Nat^) -> \forall (p: Op.NatPair) -> CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ p) (P.Times[N.Nat, N.Nat]::second^ p) ->
+  CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ (Op.GcdNext::[set] p)) (P.Times[N.Nat, N.Nat]::second^ (Op.GcdNext::[set] p)) :=
+  \fun (d: N.Nat^) => Op.natPairElim
+    (\fun (p: Op.NatPair) => CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ p) (P.Times[N.Nat, N.Nat]::second^ p) ->
+      CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ (Op.GcdNext::[set] p)) (P.Times[N.Nat, N.Nat]::second^ (Op.GcdNext::[set] p)))
+    (\fun (a, b: N.Nat^) => \induction (b: N.Nat^) \return CommonDivisor d a b ->
+        CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ (Op.GcdNext::[set] (Op.natPair a b))) (P.Times[N.Nat, N.Nat]::second^ (Op.GcdNext::[set] (Op.natPair a b))) \with {
+          | zero : (\fun (h: CommonDivisor d a N.Nat^::zero) => h)
+          | succ : \block {
+              \fix (k: N.Nat^) \then
+              \fix (_: _) \then
+              \fix (h: CommonDivisor d a (N.Nat^::succ k)) \then
+              \return Logic.And[_, _] {
+                left := #right{h},
+                right := dividesMod d a (N.Nat^::succ k) (#left{h}) (#right{h}),
+              }
+            }
+          } b);
+\definition gcdNextReflects: \forall (d: N.Nat^) -> \forall (p: Op.NatPair) ->
+  CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ (Op.GcdNext::[set] p)) (P.Times[N.Nat, N.Nat]::second^ (Op.GcdNext::[set] p)) -> CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ p) (P.Times[N.Nat, N.Nat]::second^ p) :=
+  \fun (d: N.Nat^) => Op.natPairElim
+    (\fun (p: Op.NatPair) => CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ (Op.GcdNext::[set] p)) (P.Times[N.Nat, N.Nat]::second^ (Op.GcdNext::[set] p)) ->
+      CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ p) (P.Times[N.Nat, N.Nat]::second^ p))
+    (\fun (a, b: N.Nat^) => \induction (b: N.Nat^) \return CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ (Op.GcdNext::[set] (Op.natPair a b))) (P.Times[N.Nat, N.Nat]::second^ (Op.GcdNext::[set] (Op.natPair a b))) ->
+        CommonDivisor d a b \with {
+          | zero : (\fun (h: CommonDivisor d a N.Nat^::zero) => h)
+          | succ : \block {
+              \fix (k: N.Nat^) \then
+              \fix (_: _) \then
+              \fix (h: CommonDivisor d (N.Nat^::succ k) (Op.Mod::[set] a (N.Nat^::succ k))) \then
+              \return Logic.And[_, _] {
+                left := dividesOfMod d a (N.Nat^::succ k) (#left{h}) (#right{h}),
+                right := #left{h},
+              }
+            }
+          } b);
+\definition gcdIterReflects: \forall (d, n: N.Nat^) -> \forall (p: Op.NatPair) ->
+  CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ (Op.PairIter::[set] Op.GcdNext::[set] p n)) (P.Times[N.Nat, N.Nat]::second^ (Op.PairIter::[set] Op.GcdNext::[set] p n)) ->
+    CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ p) (P.Times[N.Nat, N.Nat]::second^ p) :=
+  \block {
+    \fix (d: N.Nat^) \then
+    \return \induction (n: N.Nat^) \return \forall (p: Op.NatPair) ->
+      CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ (Op.PairIter::[set] Op.GcdNext::[set] p n))
+        (P.Times[N.Nat, N.Nat]::second^ (Op.PairIter::[set] Op.GcdNext::[set] p n)) ->
+      CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ p) (P.Times[N.Nat, N.Nat]::second^ p) \with {
+      | zero : \fun (p: Op.NatPair)
+          (h: CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ p)
+            (P.Times[N.Nat, N.Nat]::second^ p)) => h
+      | succ : \block {
+          \fix (n: N.Nat^) \then
+          \fix (ih: \forall (p: Op.NatPair) ->
+            CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ (Op.PairIter::[set] Op.GcdNext::[set] p n))
+              (P.Times[N.Nat, N.Nat]::second^ (Op.PairIter::[set] Op.GcdNext::[set] p n)) ->
+            CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ p)
+              (P.Times[N.Nat, N.Nat]::second^ p)) \then
+          \fix (p: Op.NatPair) \then
+          \fix (h: CommonDivisor d
+            (P.Times[N.Nat, N.Nat]::first^ (Op.PairIter::[set] Op.GcdNext::[set] p (N.Nat^::succ n)))
+            (P.Times[N.Nat, N.Nat]::second^ (Op.PairIter::[set] Op.GcdNext::[set] p (N.Nat^::succ n)))) \then
+          \return ih p (gcdNextReflects d (Op.PairIter::[set] Op.GcdNext::[set] p n) h)
+        }
+      }
+  };
+\definition gcdFinal (a, b: N.Nat^): Op.NatPair := Op.PairIter::[set] Op.GcdNext::[set] (Op.natPair a b) b;
+\definition gcdFinalFirst (a, b: N.Nat^): P.Times[N.Nat, N.Nat]::first^ (gcdFinal a b) = Op.gcdByIteration a b :=
+  \refl(Op.gcdByIteration a b);
+\definition gcdFinalSecond (a, b: N.Nat^): P.Times[N.Nat, N.Nat]::second^ (gcdFinal a b) = N.Nat^::zero := gcdIterSettles b a b (Basic.leRefl b);
+\definition gcdByIterationCommonDivisor: \forall (a, b: N.Nat^) -> CommonDivisor (Op.gcdByIteration a b) a b :=
+  \block {
+    \fix (a, b: N.Nat^) \then
+    \let finalFirstDivides: Divides (Op.gcdByIteration a b) (P.Times[N.Nat, N.Nat]::first^ (gcdFinal a b)) :=
+      dividesTransport (Op.gcdByIteration a b) (Op.gcdByIteration a b) (P.Times[N.Nat, N.Nat]::first^ (gcdFinal a b))
+        (sym!{N.Nat^} _ _ (gcdFinalFirst a b)) (dividesSelf (Op.gcdByIteration a b)) \then
+    \let finalSecondDivides: Divides (Op.gcdByIteration a b) (P.Times[N.Nat, N.Nat]::second^ (gcdFinal a b)) :=
+      dividesTransport (Op.gcdByIteration a b) N.Nat^::zero (P.Times[N.Nat, N.Nat]::second^ (gcdFinal a b))
+        (sym!{N.Nat^} _ _ (gcdFinalSecond a b)) (dividesZero (Op.gcdByIteration a b)) \then
+    \let finalCommonDivisor:
+      CommonDivisor (Op.gcdByIteration a b) (P.Times[N.Nat, N.Nat]::first^ (gcdFinal a b)) (P.Times[N.Nat, N.Nat]::second^ (gcdFinal a b)) :=
+      Logic.And[_, _] {
+        left := finalFirstDivides,
+        right := finalSecondDivides,
+      } \then
+    \return gcdIterReflects (Op.gcdByIteration a b) b (Op.natPair a b) finalCommonDivisor
+  };
+\definition gcdByIterationDividesLeft (a, b: N.Nat^): Divides (Op.gcdByIteration a b) a :=
+  #left{(gcdByIterationCommonDivisor a b)};
+\definition gcdByIterationDividesRight (a, b: N.Nat^): Divides (Op.gcdByIteration a b) b :=
+  #right{(gcdByIterationCommonDivisor a b)};
+\definition gcdByIterationGreatest: \forall (d, a, b: N.Nat^) -> Divides d a -> Divides d b -> Divides d (Op.gcdByIteration a b) :=
+  \block {
+    \fix (d, a, b: N.Nat^) \then
+    \fix (ha: Divides d a) (hb: Divides d b) \then
+    \let finalCommonDivisor:
+      CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ (gcdFinal a b)) (P.Times[N.Nat, N.Nat]::second^ (gcdFinal a b)) :=
+      pairIterInvariant Op.GcdNext::[set]
+        (\fun (p: Op.NatPair) => CommonDivisor d (P.Times[N.Nat, N.Nat]::first^ p) (P.Times[N.Nat, N.Nat]::second^ p))
+        (gcdNextPreserves d) b (Op.natPair a b)
+        (Logic.And[_, _] { left := ha, right := hb }) \then
+    \return dividesTransport d (P.Times[N.Nat, N.Nat]::first^ (gcdFinal a b)) (Op.gcdByIteration a b)
+      (gcdFinalFirst a b) (#left{finalCommonDivisor})
+  };
+
+\definition leToLtSucc: \forall (d, r: N.Nat^) -> Basic.Le r d -> Basic.Lt r (N.Nat^::succ d) :=
+  \induction (d: N.Nat^) \return \forall (r: N.Nat^) -> Basic.Le r d -> Basic.Lt r (N.Nat^::succ d) \with {
+    | zero : (\induction (r: N.Nat^) \return Basic.Le r N.Nat^::zero -> Basic.Lt r (N.Nat^::succ N.Nat^::zero) \with {
+      | zero : (\fun (h: Basic.Le N.Nat^::zero N.Nat^::zero) => \refl(B.Bool^::true))
+      | succ : (\fun (r: N.Nat^) => \fun (ih: Basic.Le r N.Nat^::zero -> Basic.Lt r (N.Nat^::succ N.Nat^::zero)) =>
+        \fun (h: Basic.Le (N.Nat^::succ r) N.Nat^::zero) => B.absurd (Basic.Lt (N.Nat^::succ r) (N.Nat^::succ N.Nat^::zero)) h)
+      })
+    | succ : (\fun (d: N.Nat^) => \fun (ih: \forall (r: N.Nat^) -> Basic.Le r d -> Basic.Lt r (N.Nat^::succ d)) =>
+      \induction (r: N.Nat^) \return Basic.Le r (N.Nat^::succ d) -> Basic.Lt r (N.Nat^::succ (N.Nat^::succ d)) \with {
+      | zero : (\fun (h: Basic.Le N.Nat^::zero (N.Nat^::succ d)) => \refl(B.Bool^::true))
+      | succ : (\fun (r: N.Nat^) => \fun (unused: Basic.Le r (N.Nat^::succ d) -> Basic.Lt r (N.Nat^::succ (N.Nat^::succ d))) =>
+          \fun (h: Basic.Le (N.Nat^::succ r) (N.Nat^::succ d)) => ih r h)
+      })
+    };
+\definition modLt (a, d: N.Nat^): Basic.Lt (Op.Mod::[set] a (N.Nat^::succ d)) (N.Nat^::succ d) := leToLtSucc d (Op.Mod::[set] a (N.Nat^::succ d)) (modBound a d);
+\definition divModOne: \forall (a: N.Nat^) -> Op.DivMod::[set] a (N.Nat^::succ N.Nat^::zero) = Op.natPair a N.Nat^::zero :=
+  \induction (a: N.Nat^) \return Op.DivMod::[set] a (N.Nat^::succ N.Nat^::zero) = Op.natPair a N.Nat^::zero \with {
+    | zero : (\refl(Op.natPair N.Nat^::zero N.Nat^::zero))
+    | succ : (\fun (a: N.Nat^) => \fun (ih: Op.DivMod::[set] a (N.Nat^::succ N.Nat^::zero) = Op.natPair a N.Nat^::zero) =>
+      congr!{Op.NatPair Op.NatPair} (Op.DivModNext::[set] (N.Nat^::succ N.Nat^::zero))
+        (Op.DivMod::[set] a (N.Nat^::succ N.Nat^::zero)) (Op.natPair a N.Nat^::zero) ih)
+    };
+\definition divOne (a: N.Nat^): Op.Div::[set] a (N.Nat^::succ N.Nat^::zero) = a :=
+  congr!{Op.NatPair N.Nat^} P.Times[N.Nat, N.Nat]::first^ _ _ (divModOne a);
+\definition modOne (a: N.Nat^): Op.Mod::[set] a (N.Nat^::succ N.Nat^::zero) = N.Nat^::zero :=
+  congr!{Op.NatPair N.Nat^} P.Times[N.Nat, N.Nat]::second^ _ _ (divModOne a);
+
+\definition dividesZeroLeft (a: N.Nat^) (h: Divides N.Nat^::zero a): a = N.Nat^::zero :=
+  h (a = N.Nat^::zero) (\fun (q: N.Nat^) (e: a = Op.Mul::[set] N.Nat^::zero q) =>
+    trans!{N.Nat^} _ _ _ e (Basic.mulZeroLeft q));
+
+\definition dividesLeSucc (d, a: N.Nat^) (h: Divides d (N.Nat^::succ a)):
+  Basic.Le d (N.Nat^::succ a) :=
+  h (Basic.Le d (N.Nat^::succ a))
+    (\induction (q: N.Nat^) \return
+      N.Nat^::succ a = Op.Mul::[set] d q -> Basic.Le d (N.Nat^::succ a) \with {
+      | zero: \fun (e: N.Nat^::succ a = N.Nat^::zero) =>
+        Basic.succEqZeroElim a (Basic.Le d (N.Nat^::succ a)) e
+      | succ: \fun (q: N.Nat^) (unused: _) (e: _) =>
+        transport!{N.Nat^} (Basic.Le d) _ _ (sym!{N.Nat^} _ _ e)
+          (Basic.leAddRight d (Op.Mul::[set] d q))
+    });
+
+\definition dividesAntisym: \forall (a, b: N.Nat^) -> Divides a b -> Divides b a -> a = b :=
+  \induction (a: N.Nat^) \return
+    \forall (b: N.Nat^) -> Divides a b -> Divides b a -> a = b \with {
+    | zero: \fun (b: N.Nat^) (ab: _) (ba: _) =>
+      sym!{N.Nat^} _ _ (dividesZeroLeft b ab)
+    | succ: \fun (a: N.Nat^) (unused: _) =>
+      \induction (b: N.Nat^) \return
+        Divides (N.Nat^::succ a) b -> Divides b (N.Nat^::succ a) -> N.Nat^::succ a = b \with {
+        | zero: \fun (ab: _) (ba: _) => dividesZeroLeft (N.Nat^::succ a) ba
+        | succ: \fun (b: N.Nat^) (unused: _) (ab: _) (ba: _) =>
+          Basic.leAntisym (N.Nat^::succ a) (N.Nat^::succ b)
+            (dividesLeSucc (N.Nat^::succ a) b ab)
+            (dividesLeSucc (N.Nat^::succ b) a ba)
+      }
+  };
+
+\record IsGcd[a, b, g: N.Nat^]: \Prop := {
+  dividesLeft: Divides g a,
+  dividesRight: Divides g b,
+  greatest: \forall (d: N.Nat^) -> Divides d a -> Divides d b -> Divides d g,
+};
+
+\definition gcdByIterationProperty (a, b: N.Nat^): IsGcd[a, b, Op.gcdByIteration a b] :=
+  IsGcd[a, b, Op.gcdByIteration a b] {
+    dividesLeft := gcdByIterationDividesLeft a b,
+    dividesRight := gcdByIterationDividesRight a b,
+    greatest := \fun (d: N.Nat^) => gcdByIterationGreatest d a b,
+  };
+
+\definition gcdPropertyUnique (a, b, g, h: N.Nat^)
+  (pg: IsGcd[a, b, g]) (ph: IsGcd[a, b, h]): g = h :=
+  dividesAntisym g h
+    ((ph #greatest) g (pg #dividesLeft) (pg #dividesRight))
+    ((pg #greatest) h (ph #dividesLeft) (ph #dividesRight));
+
+\definition GcdSet (a, b: N.Nat^): \Pow N.Nat^ :=
+  { g : N.Nat^ \where IsGcd[a, b, g] };
+
+\definition gcdExists (a, b: N.Nat^): \exists \Cast[N.Nat^] (GcdSet a b) :=
+  \exact(\into[N.Nat^](Op.gcdByIteration a b, GcdSet a b)
+    \by { gcdByIterationProperty a b }, \Cast[N.Nat^] (GcdSet a b));
+
+\definition gcdUnique (a, b: N.Nat^) (g, h: \Cast[N.Nat^] (GcdSet a b)): g = h :=
+  gcdPropertyUnique a b g h
+    (\bysub(N.Nat^, GcdSet a b, g)) (\bysub(N.Nat^, GcdSet a b, h));

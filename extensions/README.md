@@ -1,5 +1,9 @@
 # Ref Type エディタ拡張
 
+`extensions/playground` はブラウザでコードを編集し、診断と評価結果を確認する Web playground です。
+`cargo run -p playground` で起動し、表示された URL を開きます。
+詳細は [playground/README.md](playground/README.md) を参照してください。
+
 `extensions/lsp` は `.ref` の診断、定義への移動、型のホバー表示、参照検索を提供します。
 編集中の内容を検証し、保存前の変更も診断へ反映します。
 
