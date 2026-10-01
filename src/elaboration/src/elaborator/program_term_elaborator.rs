@@ -413,6 +413,14 @@ impl ProgramScope {
     ) -> Result<ValueTerm, ElaborationError> {
         let arena = environment.crate_env.arena();
         match expression {
+            ValueTermExp::Ascribe { term, ty } => {
+                let ty = self.elaborate_value_type(ty, environment)?;
+                let term = self.elaborate_value(term, environment)?;
+                Ok(environment
+                    .crate_env
+                    .arena()
+                    .alloc(ValueTermNode::Ascribe { term, ty }))
+            }
             ValueTermExp::Record {
                 datatype,
                 parameters,
@@ -665,6 +673,14 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ComputationTerm, ElaborationError> {
         match expression {
+            ComputationTermExp::Ascribe { term, ty } => {
+                let ty = self.elaborate_computation_type(ty, environment)?;
+                let term = self.elaborate_computation(term, environment)?;
+                Ok(environment
+                    .crate_env
+                    .arena()
+                    .alloc(ComputationTermNode::Ascribe { term, ty }))
+            }
             ComputationTermExp::InferredProjection { value, field, .. } => {
                 let value = self.elaborate_value(value, environment)?;
                 let mut context = self.context.clone();

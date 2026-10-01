@@ -41,6 +41,10 @@ impl From<ComputationTypeExp> for SExp {
 impl From<ValueTermExp> for SExp {
     fn from(value: ValueTermExp) -> Self {
         match value {
+            ValueTermExp::Ascribe { term, ty } => Self::Ascribe {
+                term: boxed(*term),
+                ty: boxed(*ty),
+            },
             ValueTermExp::Meta { kind, span } => Self::Meta { kind, span },
             ValueTermExp::Access(access) => Self::AccessPath {
                 access,
@@ -133,6 +137,10 @@ impl From<ProgramFunctionExp> for SExp {
 impl From<ComputationTermExp> for SExp {
     fn from(value: ComputationTermExp) -> Self {
         match value {
+            ComputationTermExp::Ascribe { term, ty } => Self::Ascribe {
+                term: boxed(*term),
+                ty: boxed(*ty),
+            },
             ComputationTermExp::Meta { kind, span } => Self::Meta { kind, span },
             ComputationTermExp::Access(access) => Self::AccessPath {
                 access,

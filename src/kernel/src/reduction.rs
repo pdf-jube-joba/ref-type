@@ -21,10 +21,15 @@ fn decompose(env: &Environment, mut e: Expression) -> (Expression, Vec<Expressio
     (e, args)
 }
 fn unfold(env: &Environment, mut e: Expression) -> Result<Expression, String> {
-    while let Node::Definition { id, arguments } = env.arena.get(e) {
-        e = instantiate(&env.arena, env.definition(id)?.body, &arguments)?;
+    loop {
+        match env.arena.get(e) {
+            Node::Ascribe { term, .. } => e = term,
+            Node::Definition { id, arguments } => {
+                e = instantiate(&env.arena, env.definition(id)?.body, &arguments)?;
+            }
+            _ => return Ok(e),
+        }
     }
-    Ok(e)
 }
 fn recursive_argument(
     env: &Environment,
@@ -170,6 +175,7 @@ pub(crate) fn head_application(
 pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, String> {
     let a = &env.arena;
     let result = match a.get(e) {
+        Node::Ascribe { term, .. } => term,
         Node::Definition { id, arguments } => {
             let d = env.definition(id)?;
             if d.context.len() != arguments.len() {

@@ -235,6 +235,13 @@ pub fn remap_value_global_ids(
         return value;
     }
     match arena.get(value) {
+        ValueTermNode::Ascribe { term, ty } => arena.reuse_value(
+            value,
+            ValueTermNode::Ascribe {
+                term: remap_value_global_ids(arena, term, definitions, inductives, logical_inductives),
+                ty: remap_value_type_global_ids(arena, ty, definitions, inductives),
+            },
+        ),
         ValueTermNode::DefinitionInstance {
             definition,
             parameters,
@@ -366,6 +373,13 @@ pub fn remap_computation_global_ids(
     let value_ty = |ty| remap_value_type_global_ids(arena, ty, definitions, inductives);
     let comp_ty = |ty| remap_computation_type_global_ids(arena, ty, definitions, inductives);
     match arena.get(computation) {
+        ComputationTermNode::Ascribe { term, ty } => arena.reuse_computation(
+            computation,
+            ComputationTermNode::Ascribe {
+                term: recur(term),
+                ty: comp_ty(ty),
+            },
+        ),
         ComputationTermNode::DefinitionInstance {
             definition,
             parameters,

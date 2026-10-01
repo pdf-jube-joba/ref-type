@@ -20,7 +20,11 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
         | ExpNode::BoxType { .. } => {}
         ExpNode::Meta { spine, .. } => vecs!(spine),
         ExpNode::Prod { ty, body, .. } | ExpNode::Lam { ty, body, .. } => one!(ty, body),
-        ExpNode::App { func, arg } => one!(func, arg),
+        ExpNode::Ascribe {
+            term: func,
+            ty: arg,
+        }
+        | ExpNode::App { func, arg } => one!(func, arg),
         ExpNode::IndType { parameters, .. } | ExpNode::IndCtor { parameters, .. } => {
             vecs!(parameters)
         }

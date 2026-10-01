@@ -29,6 +29,10 @@ impl<'a, R: Resolver> Reflection<'a, R> {
         let arena = self.resolver.arena();
         let reflect = |term| arena.alloc(Node::Reflect { term });
         let node = match arena.get(term) {
+            Node::Ascribe { term, ty } => Node::Ascribe {
+                term: reflect(term),
+                ty: reflect(ty),
+            },
             Node::Meta { .. } | Node::Bound(_) | Node::Parameter(_) => return Ok(None),
             Node::Definition { id, arguments } => {
                 let (id, flags) = self.resolver.definition(id)?;

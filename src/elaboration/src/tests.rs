@@ -2256,3 +2256,92 @@ fn native_inductive_references_keep_concrete_capture_arguments() {
     };
     assert_eq!(parameters, vec![arena.exp_bound(0)]);
 }
+
+#[test]
+fn ascription_infers_types_and_works_through_macros_and_modules() {
+    let source = r"
+        \module Annotated(A: \Set, a: A) {
+            \macro typed($x) := $x \of A;
+            \definition value: A := typed!{a};
+            \definition inferred: A := a \of _;
+            \definition identity: A -> A := (\fun (x: _) => x) \of A -> A;
+            \definition applied: A := (identity \of A -> A) a;
+            \definition kind: \SetKind := \Set \of \SetKind;
+            \definition local: A := \block {
+                \let x: A := a \of A \then
+                \return x
+            };
+        }
+        \module Use {
+            \inductive Unit: \Set := | unit: Unit;
+            \import \root.Annotated[A := Unit, a := Unit::unit] \as M;
+            \definition value: Unit := M.value;
+            \definition equal: M.value = Unit::unit := \refl(Unit::unit);
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
+fn ascription_supports_program_values_computations_and_reflection() {
+    let source = r"
+        \module AnnotatedProgram(A: \VType, a: A) {
+            \definition value: A := a \of A;
+            \definition inferred: A := a \of _;
+            \definition computation: \F A := (\return a) \of \F A;
+            \definition identity: A -> A := (\fun (x: _) => \return x) \of A -> A;
+            \definition applied: \F A := (identity \of A -> A) (a \of A);
+            \definition explicit: \F A := (identity \of A ~> \F A) a;
+            \definition thunk: \U(A ~> \F A) := \thunk identity;
+            \definition forced: \F A := \force (thunk \of \U(A ~> \F A)) a;
+            \definition reflected: value^ = a^ := \refl(a^);
+            \ccheck computation: \F A;
+            \vcheck a \of A: A;
+        }
+        \module ProgramUse {
+            \inductive Bool: \VType := | yes: Bool;
+            \import \root.AnnotatedProgram[A := Bool, a := Bool::yes] \as M;
+            \definition value: Bool := M.value;
+            \definition computation: \F Bool := M.forced;
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
+fn ascription_reports_type_mismatches() {
+    for source in [
+        r"\module Wrong(A: \Set, B: \Set, a: A) { \definition value: A := a \of B; }",
+        r"\module Wrong(A: \VType, B: \VType, a: A) { \definition value: A := a \of B; }",
+        r"\module Wrong(A: \VType, B: \VType, a: A) { \definition value: \F A := (\return a) \of \F B; }",
+    ] {
+        let modules = parse::str_parse_modules(source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        assert!(environment.add_modules_to_root(&modules).is_err());
+    }
+}
+
+#[test]
+fn ascription_preserves_the_declared_type_after_subset_weakening() {
+    let source = r"
+        \module Widen(A: \Set, S: \Pow A, s: \Cast[A] S) {
+            \definition value: A := s \of A;
+            \definition equal: value = s := \refl(s);
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+    let source = r"
+        \module Narrow(A: \Set, S: \Pow A, s: \Cast[A] S) {
+            \definition value: \Cast[A] S := s \of A;
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    assert!(environment.add_modules_to_root(&modules).is_err());
+}

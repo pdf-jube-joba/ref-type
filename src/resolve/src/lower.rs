@@ -195,6 +195,7 @@ extend_enum!(ComputationTypeExp {
 });
 
 extend_enum!(ValueTermExp {
+    Ascribe { term, ty },
     Meta { kind, span },
     Access(value0),
     Record { datatype, parameters, fields },
@@ -205,6 +206,7 @@ extend_enum!(ValueTermExp {
 });
 
 extend_enum!(ComputationTermExp {
+    Ascribe { term, ty },
     Meta { kind, span },
     Access(value0),
     Associated { span, datatype, item, parameters },
@@ -239,6 +241,7 @@ extend_enum!(LocalAccess {
 });
 
 extend_enum!(SExp {
+    Ascribe { term, ty },
     Assign { value, number, span },
     Meta { kind, span },
     AccessPath { access, parameters },

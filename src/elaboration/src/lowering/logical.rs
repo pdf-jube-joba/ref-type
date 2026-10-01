@@ -55,6 +55,11 @@ impl Lowerer<'_> {
         }
         let node = self.raw.arena().get(e);
         let result = match node {
+            ExpNode::Ascribe { term, ty } => {
+                let term = self.set(term, ctx, m)?;
+                let ty = self.set(ty, ctx, m)?;
+                self.kernel.arena().alloc(s::Node::Ascribe { term, ty })
+            }
             ExpNode::Bound(index) => {
                 let bound = self.kernel.arena().bound(index);
                 if self

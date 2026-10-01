@@ -231,6 +231,10 @@ pub enum ComputationTypeExp {
 
 #[derive(Debug, Clone)]
 pub enum ValueTermExp {
+    Ascribe {
+        term: Box<ValueTermExp>,
+        ty: Box<ValueTypeExp>,
+    },
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,
@@ -263,6 +267,10 @@ pub enum ValueTermExp {
 
 #[derive(Debug, Clone)]
 pub enum ComputationTermExp {
+    Ascribe {
+        term: Box<ComputationTermExp>,
+        ty: Box<ComputationTypeExp>,
+    },
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,
@@ -404,6 +412,10 @@ impl std::fmt::Display for LocalAccess {
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
+    Ascribe {
+        term: Box<SExp>,
+        ty: Box<SExp>,
+    },
     /// Reflection of a substituted Program module argument.
     Reflect {
         parameter: BindingId,
@@ -812,6 +824,10 @@ impl TryFrom<SExp> for ValueTermExp {
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         let (value, arguments) = decompose_surface_application(value);
         match value {
+            SExp::Ascribe { term, ty } if arguments.is_empty() => Ok(Self::Ascribe {
+                term: Box::new((*term).try_into()?),
+                ty: Box::new((*ty).try_into()?),
+            }),
             SExp::RecordTypeCtor {
                 access,
                 parameters,
@@ -889,6 +905,10 @@ impl TryFrom<SExp> for ComputationTermExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Ascribe { term, ty } => Ok(Self::Ascribe {
+                term: Box::new((*term).try_into()?),
+                ty: Box::new((*ty).try_into()?),
+            }),
             SExp::InferredProjection { value, field, span } => Ok(Self::InferredProjection {
                 value: Box::new((*value).try_into()?),
                 field,

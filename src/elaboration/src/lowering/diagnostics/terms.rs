@@ -5,6 +5,11 @@ impl Renderer<'_> {
         use Node::*;
         let node = self.arena.get(e);
         match &node {
+            Ascribe { term, ty } => {
+                let term = self.expression(*term, 1);
+                let ty = self.expression(*ty, 1);
+                Term::new(format!("{term} \\of {ty}"), 0)
+            }
             Sort(sort) => {
                 use kernel::sort::{BaseSort, Sort};
                 let (kind, base) = match sort {

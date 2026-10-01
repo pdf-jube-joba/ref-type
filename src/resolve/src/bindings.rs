@@ -171,7 +171,11 @@ pub(crate) fn alpha_rename(
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
         }
-        SExp::App { func, arg }
+        SExp::Ascribe {
+            term: func,
+            ty: arg,
+        }
+        | SExp::App { func, arg }
         | SExp::ComputationFunction {
             domain: func,
             codomain: arg,

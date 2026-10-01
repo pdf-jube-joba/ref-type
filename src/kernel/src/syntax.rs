@@ -26,6 +26,10 @@ pub enum Mode {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Node {
+    Ascribe {
+        term: Expression,
+        ty: Expression,
+    },
     Sort(Sort),
     Bound(usize),
     Parameter(ParameterId),
@@ -483,6 +487,10 @@ impl Arena {
         mut visit: impl FnMut(Expression, usize) -> Result<Expression, E>,
     ) -> Result<Node, E> {
         match &mut node {
+            Node::Ascribe { term, ty } => {
+                *term = visit(*term, 0)?;
+                *ty = visit(*ty, 0)?;
+            }
             Node::Sort(_) | Node::Bound(_) | Node::Parameter(_) => {}
             Node::Definition { arguments, .. } | Node::Meta { arguments, .. } => {
                 for argument in arguments {

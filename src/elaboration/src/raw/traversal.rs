@@ -242,6 +242,10 @@ pub(crate) fn value(
         return result;
     }
     let result = match arena.get(v) {
+        ValueTermNode::Ascribe { term, ty } => ValueTermNode::Ascribe {
+            term: value(arena, term, depth, rewrite),
+            ty: value_type(arena, ty, depth, rewrite),
+        },
         ValueTermNode::Meta {
             metavariable,
             spine,
@@ -317,6 +321,10 @@ pub(crate) fn computation(
         return result;
     }
     let result = match arena.get(c) {
+        ComputationTermNode::Ascribe { term, ty } => ComputationTermNode::Ascribe {
+            term: computation(arena, term, depth, rewrite),
+            ty: computation_type(arena, ty, depth, rewrite),
+        },
         ComputationTermNode::Meta {
             metavariable,
             spine,

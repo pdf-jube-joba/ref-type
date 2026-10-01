@@ -353,6 +353,7 @@ Program:
 | `function argument` | 左 |
 | `left = right` | 一度だけ |
 | `A -> B`、`A ~> C` | 右 |
+| `a \of T`、`a \assign _1` | 左 |
 
 ```text
 f x y
@@ -366,6 +367,19 @@ A ~> B ~> C
 `\let` と `\bind` は `\in` の後を右端まで読む。`\return` も後続の value 式全体を読む。
 atom を一つ取る keyword は右結合する。複合式を引数にするときは括弧で囲む。
 `x y #field z` は `x (y #field) z` と結合する。`#field{value}` も射影として使える。
+
+### 型注釈
+
+```text
+a \of T
+f x \of A -> B
+(\fun (x: _) => x) \of A -> A
+(\return a) \of \F A
+```
+
+`a \of T` は `a` を型 `T` で検査し、式全体の型を `T` にする。
+注釈は還元で消える。
+Set/Prop の項と Program の値・計算に使える。
 
 ## 5. Set/Prop
 

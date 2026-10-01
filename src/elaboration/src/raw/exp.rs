@@ -97,6 +97,10 @@ pub enum Prove {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ExpNode {
+    Ascribe {
+        term: Exp,
+        ty: Exp,
+    },
     Sort(Sort),
     Bound(usize),
     /// A Set/Prop module parameter.
@@ -565,6 +569,10 @@ impl ArenaNode for ExpNode {
     type Handle = Exp;
     fn allocate(self, arena: &Arena) -> Exp {
         let node = match self {
+            ExpNode::Ascribe { term, ty } => N::Ascribe {
+                term: term.0,
+                ty: ty.0,
+            },
             ExpNode::Prod { var, ty, body } => N::Product {
                 var,
                 domain: ty.0,
@@ -830,6 +838,10 @@ impl ArenaHandle for Exp {
                 var,
                 ty: Exp(domain),
                 body: Exp(body),
+            },
+            N::Ascribe { term, ty } => ExpNode::Ascribe {
+                term: Exp(term),
+                ty: Exp(ty),
             },
             N::App {
                 function, argument, ..
@@ -1283,6 +1295,10 @@ impl ArenaNode for ValueTermNode {
     type Handle = ValueTerm;
     fn allocate(self, arena: &Arena) -> ValueTerm {
         let node = match self {
+            ValueTermNode::Ascribe { term, ty } => N::Ascribe {
+                term: term.0,
+                ty: ty.0,
+            },
             ValueTermNode::Thunk { computation } => N::ThunkValue {
                 computation: computation.0,
             },
@@ -1354,6 +1370,10 @@ impl ArenaHandle for ValueTerm {
     type Node = ValueTermNode;
     fn get(self, arena: &Arena) -> ValueTermNode {
         match arena.core.get(self.0) {
+            N::Ascribe { term, ty } => ValueTermNode::Ascribe {
+                term: ValueTerm(term),
+                ty: ValueType(ty),
+            },
             N::Definition { id, arguments } => {
                 ValueTerm(arena.reference_view(id, arguments, true)).get(arena)
             }
@@ -1426,6 +1446,10 @@ impl ArenaNode for ComputationTermNode {
     type Handle = ComputationTerm;
     fn allocate(self, arena: &Arena) -> ComputationTerm {
         let node = match self {
+            ComputationTermNode::Ascribe { term, ty } => N::Ascribe {
+                term: term.0,
+                ty: ty.0,
+            },
             ComputationTermNode::Return { value } => N::Return { value: value.0 },
             ComputationTermNode::Force { value } => N::Force { value: value.0 },
             ComputationTermNode::Lambda {
@@ -1557,6 +1581,10 @@ impl ArenaHandle for ComputationTerm {
     type Node = ComputationTermNode;
     fn get(self, arena: &Arena) -> ComputationTermNode {
         match arena.core.get(self.0) {
+            N::Ascribe { term, ty } => ComputationTermNode::Ascribe {
+                term: ComputationTerm(term),
+                ty: ComputationType(ty),
+            },
             N::Definition { id, arguments } => {
                 ComputationTerm(arena.reference_view(id, arguments, true)).get(arena)
             }

@@ -1570,7 +1570,17 @@ impl<'a> TermParser<'a> {
     // Both arrows associate to the right. Binding forms scope over a full expression.
     fn parse_sexp(&mut self) -> Result<SExp, ParseError> {
         let mut value = self.parse_arrow()?;
-        while self.bump_if_keyword(r"\assign") {
+        loop {
+            if self.bump_if_keyword(r"\of") {
+                value = SExp::Ascribe {
+                    term: Box::new(value),
+                    ty: Box::new(self.parse_arrow()?),
+                };
+                continue;
+            }
+            if !self.bump_if_keyword(r"\assign") {
+                break;
+            }
             if !matches!(self.peek(), Some(Token::Metavariable(name)) if name.starts_with('_')) {
                 return Err(self.error("expected numbered metavariable after \\assign"));
             }
@@ -1713,6 +1723,31 @@ impl<'a> TokenCursor<'a> for TermParser<'a> {
 mod tests {
     use super::super::lex_all;
     use super::*;
+
+    #[test]
+    fn ascription_has_low_precedence_and_associates_left() {
+        let SExp::Ascribe { term, ty } = complete(r"f x \of A -> B") else {
+            panic!()
+        };
+        assert!(matches!(*term, SExp::App { .. }));
+        assert!(matches!(*ty, SExp::Prod { .. }));
+        let SExp::Ascribe { term, .. } = complete(r"a = b \of \Prop") else {
+            panic!()
+        };
+        assert!(matches!(*term, SExp::Equal { .. }));
+        let SExp::Ascribe { term, .. } = complete(r"a \of A \of B") else {
+            panic!()
+        };
+        assert!(matches!(*term, SExp::Ascribe { .. }));
+        let SExp::Assign { value, .. } = complete(r"a \of A \assign _1") else {
+            panic!()
+        };
+        assert!(matches!(*value, SExp::Ascribe { .. }));
+        let SExp::App { func, .. } = complete(r"(f \of A -> B) x") else {
+            panic!()
+        };
+        assert!(matches!(*func, SExp::Ascribe { .. }));
+    }
 
     fn complete_with<T>(
         input: &str,

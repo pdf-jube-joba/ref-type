@@ -86,6 +86,7 @@ impl<'a> Printer<'a> {
         let arena = env.arena();
         let child = |exp| self.format_exp(exp);
         match arena.get(exp) {
+            ExpNode::Ascribe { term, ty } => format!("({}) \\of ({})", child(term), child(ty)),
             ExpNode::Sort(sort) => format_sort(&sort),
             ExpNode::Bound(index) => format!("#{index}"),
             ExpNode::ModuleParam(var) => self.format_var(var),
@@ -534,6 +535,11 @@ impl<'a> Printer<'a> {
     pub fn format_value(&self, value: ValueTerm) -> String {
         let env = self.env;
         match env.arena().get(value) {
+            ValueTermNode::Ascribe { term, ty } => format!(
+                "({}) \\of ({})",
+                self.format_value(term),
+                self.format_value_type(ty)
+            ),
             ValueTermNode::Bound(index) => format!("#v{index}"),
             ValueTermNode::ModuleParam(id) => self.format_var(id),
             ValueTermNode::Meta { metavariable, .. } => self.format_meta(metavariable, "v"),
@@ -604,6 +610,11 @@ impl<'a> Printer<'a> {
     pub fn format_computation(&self, term: ComputationTerm) -> String {
         let env = self.env;
         match env.arena().get(term) {
+            ComputationTermNode::Ascribe { term, ty } => format!(
+                "({}) \\of ({})",
+                self.format_computation(term),
+                self.format_computation_type(ty)
+            ),
             ComputationTermNode::Meta { metavariable, .. } => self.format_meta(metavariable, "c"),
             ComputationTermNode::DefinitionInstance {
                 definition,

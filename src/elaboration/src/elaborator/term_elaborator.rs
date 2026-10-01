@@ -479,6 +479,11 @@ impl LocalScope {
         handler: &mut impl Handler,
     ) -> Result<Exp, ElaborationError> {
         match exp {
+            SExp::Ascribe { term, ty } => {
+                let ty = self.elab_exp_rec(ty, handler)?;
+                let term = self.elab_with_expected(term, ty, handler)?;
+                Ok(handler.arena().alloc(ExpNode::Ascribe { term, ty }))
+            }
             SExp::Reflect {
                 parameter,
                 expression,
@@ -815,17 +820,7 @@ impl LocalScope {
                         let value = (|| {
                             let ty = self.elab_exp_rec(ty, handler)?;
                             let body = self.elab_exp_rec(body, handler)?;
-                            // A typed identity application keeps the declared type
-                            // (including subset weakening) while reducing to the value.
-                            let identity = handler.arena().alloc(ExpNode::Lam {
-                                var: SymbolId::ANONYMOUS,
-                                ty,
-                                body: handler.arena().exp_bound(0),
-                            });
-                            let value = handler.arena().alloc(ExpNode::App {
-                                func: identity,
-                                arg: body,
-                            });
+                            let value = handler.arena().alloc(ExpNode::Ascribe { term: body, ty });
                             // Check even unused definitions, before publishing their
                             // names. This also records constraints for implicit types.
                             let _profile_timer =

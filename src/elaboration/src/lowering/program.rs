@@ -198,6 +198,10 @@ impl Lowerer<'_> {
             return Ok(v.0);
         }
         let form = match self.raw.arena().get(v) {
+            R::Ascribe { term, ty } => F::Ascribe {
+                term: self.value_term(term, ctx)?,
+                ty: self.value_type(ty)?,
+            },
             R::Bound(index) => F::Bound(index),
             R::ModuleParam(parameter) => {
                 if self.scope.nominal {
@@ -315,6 +319,10 @@ impl Lowerer<'_> {
             return Ok(e.0);
         }
         let form = match self.raw.arena().get(e) {
+            R::Ascribe { term, ty } => F::Ascribe {
+                term: self.computation_term(term, ctx)?,
+                ty: self.computation_type(ty)?,
+            },
             R::Meta { spine, .. } => self.program_meta(e.0, spine)?,
             R::DefinitionInstance {
                 definition,

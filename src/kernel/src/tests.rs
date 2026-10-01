@@ -956,3 +956,132 @@ fn restricting_a_hole_preserves_its_diagnostic_origin() {
     metas.finish(&env).unwrap();
     assert_eq!(metas.zonk(a, hole).unwrap(), set);
 }
+
+#[test]
+fn ascription_checks_type_and_erases_under_reduction() {
+    let env = Environment::new();
+    let arena = &env.arena;
+    let mut metas = MetaContext::new();
+    let mut ctx = context(&env);
+    ctx.push(Binding {
+        var: SymbolId::ANONYMOUS,
+        ty: arena.bound(0),
+    });
+    let term = arena.bound(0);
+    let ty = arena.bound(1);
+    let annotated = arena.alloc(Node::Ascribe { term, ty });
+    assert_eq!(
+        Checker::new(&env, &mut metas, ctx.clone())
+            .infer(annotated)
+            .unwrap(),
+        ty
+    );
+    assert_eq!(env.whnf(annotated).unwrap(), term);
+    assert!(crate::reduction::convertible(&env, annotated, term).unwrap());
+    let wrong = arena.alloc(Node::Ascribe {
+        term,
+        ty: arena.sort(Sort::Base(BaseSort::Prop)),
+    });
+    assert!(
+        Checker::new(&env, &mut metas, ctx.clone())
+            .infer(wrong)
+            .is_err()
+    );
+    let invalid_type = arena.alloc(Node::Ascribe { term, ty: term });
+    assert!(
+        Checker::new(&env, &mut metas, ctx)
+            .infer(invalid_type)
+            .is_err()
+    );
+    let kind_annotation = arena.alloc(Node::Ascribe {
+        term: arena.sort(Sort::Base(BaseSort::Set(0))),
+        ty: arena.sort(Sort::Upper(BaseSort::Set(0))),
+    });
+    assert_eq!(
+        Checker::new(&env, &mut metas, vec![])
+            .infer(kind_annotation)
+            .unwrap(),
+        arena.sort(Sort::Upper(BaseSort::Set(0)))
+    );
+    let instantiated = instantiate(arena, annotated, &[arena.bound(3), arena.bound(2)]).unwrap();
+    assert_eq!(
+        arena.get(instantiated),
+        Node::Ascribe {
+            term: arena.bound(2),
+            ty: arena.bound(3)
+        }
+    );
+}
+
+#[test]
+fn ascription_propagates_expected_type_to_metas() {
+    let env = Environment::new();
+    let mut metas = MetaContext::new();
+    let mut ctx = context(&env);
+    let set = ctx[0].ty;
+    ctx.push(Binding {
+        var: SymbolId::ANONYMOUS,
+        ty: env.arena.bound(0),
+    });
+    let ty = metas.fresh(&env.arena, ctx.clone(), Some(set));
+    let term = env.arena.alloc(Node::Ascribe {
+        term: env.arena.bound(0),
+        ty,
+    });
+    metas.infer(&env, ctx.clone(), term).unwrap();
+    metas.finish(&env).unwrap();
+    assert_eq!(metas.zonk(&env.arena, ty).unwrap(), env.arena.bound(1));
+    let term = metas.zonk(&env.arena, term).unwrap();
+    assert_eq!(
+        Checker::new(&env, &mut metas, ctx).infer(term).unwrap(),
+        env.arena.bound(1)
+    );
+}
+
+#[test]
+fn annotated_program_values_can_be_forced_and_reflected() {
+    let env = Environment::new();
+    let arena = &env.arena;
+    let mut metas = MetaContext::new();
+    let ctx = vec![
+        Binding {
+            var: SymbolId::ANONYMOUS,
+            ty: arena.sort(Sort::Base(BaseSort::Value(0))),
+        },
+        Binding {
+            var: SymbolId::ANONYMOUS,
+            ty: arena.bound(0),
+        },
+    ];
+    let returned = arena.alloc(Node::Return {
+        value: arena.bound(0),
+    });
+    let computation_ty = arena.alloc(Node::ReturnType {
+        value_ty: arena.bound(1),
+    });
+    let thunk = arena.alloc(Node::ThunkValue {
+        computation: returned,
+    });
+    let annotated = arena.alloc(Node::Ascribe {
+        term: thunk,
+        ty: arena.alloc(Node::Thunk { computation_ty }),
+    });
+    let forced = arena.alloc(Node::Force { value: annotated });
+    assert_eq!(
+        Checker::new(&env, &mut metas, ctx.clone())
+            .infer(forced)
+            .unwrap(),
+        computation_ty
+    );
+    assert_eq!(crate::reduction::normalize(&env, forced).unwrap(), returned);
+    let reflected = arena.alloc(Node::Reflect { term: annotated });
+    assert_eq!(
+        env.whnf(reflected).unwrap(),
+        arena.alloc(Node::Reflect {
+            term: arena.bound(0)
+        })
+    );
+    Checker::new(&env, &mut metas, ctx)
+        .infer(reflected)
+        .unwrap();
+}

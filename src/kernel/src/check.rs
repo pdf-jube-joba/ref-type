@@ -488,6 +488,10 @@ impl<'a> Checker<'a> {
     }
     fn infer_rule(&mut self, term: Expression) -> Result<Expression, Error> {
         let result = match self.arena().get(term) {
+            Node::Ascribe { term, ty } => {
+                self.check_open(term, ty)?;
+                ty
+            }
             Node::Parameter(id) => self.env.parameter(id).ok_or("unknown module parameter")?,
             Node::Sort(Sort::Base(sort)) => self.arena().sort(Sort::Upper(sort)),
             Node::Sort(Sort::Upper(_)) => return Err("upper sort has no classifier".into()),

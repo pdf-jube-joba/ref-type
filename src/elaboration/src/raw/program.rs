@@ -76,6 +76,10 @@ pub struct ProgramCaseBranch {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueTermNode {
+    Ascribe {
+        term: ValueTerm,
+        ty: ValueType,
+    },
     Bound(usize),
     ModuleParam(ModuleParamId),
     Meta {
@@ -110,6 +114,10 @@ pub enum ValueTermNode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ComputationTermNode {
+    Ascribe {
+        term: ComputationTerm,
+        ty: ComputationType,
+    },
     Meta {
         metavariable: MetaVarId,
         spine: Vec<ProgramArgument>,
