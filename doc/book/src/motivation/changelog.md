@@ -363,3 +363,13 @@ Rf 自体は box を持ってくるときに well-teminated かどうかを判�
 
 証明時には、 program と box を除去した体系に落とし込めればよくなった。
 Set 側にも run 系があるため。
+
+## take を Set に対する unique choice にできそう。
+以前考えていたやつとして `\Take X` の形で `X: \Set` に対して `X` が uniquely exists なら `X` の元をとるやつができそう。
+以前のは Prop に対する elimination を忘れていたかららしい。
+入れると定数関数の像が一意に存在することが示せるようになる。
+ちょっと Prop と名前を変える。以降、 \(\vdash X: *^s\) は assume にほしい。
+
+- \(\vdash \text{choice} (X): X\) if \(\vDash \exists X\), \(\vDash (x: X) -> (y: X) -> x = y\)
+- \(\vdash \text{take} (X, P, f): P\) if \(\vDash \exists X\), \(\vdash f: X \to P\), \(\vDash P: *^p\)
+- \(\vDash e = \text{choice} (X)\) if \(\vdash \text{choice} (X): X\), \(\vdash e: X\)
