@@ -283,7 +283,7 @@ Program とその reflection に対応する Set の項を、等式の証明と�
   \State := State,
   \Output := Output,
   \step := step,
-  \terminates := acc,
+  \terminates := termination,
 }
 ```
 
@@ -295,9 +295,17 @@ Program とその reflection に対応する Set の項を、等式の証明と�
 | `name::[State]` | 状態の value type |
 | `name::[Output]` | 結果の value type |
 | `name::[step]` | `\U(State ~> \F(\RunStep[State, Output]))` |
-| `name::[terminates]` | `(x: State^) -> \Acc[State^, Output^](name::[step]^, x)` |
+| `name::[terminates]` | `\forall (x: State^) -> T.Holds x` |
 | `name::[run]` | `State ~> \F(Output)` |
 | `name::[runbox]` | `\Box[State ~> \F(Output)]` |
+
+表中の `T` は、[停止性](#停止性)の定義を次の引数で instance 化したものである。
+
+```ref
+\import std.Logic[].Termination[
+  State := State^, Output := Output^, step := name::[step]^
+] \as T;
+```
 
 `name::[run]` は `name::[step]` と `name::[terminates]` を使って `\run` を実行する計算である。
 `name::[runbox]` は `\box[_](name::[run])` に展開し、既存の Box の閉性検査に従う。
@@ -564,7 +572,7 @@ branch の末尾に `;` は付けない。
 
 ## 7. 一般再帰、Run、Box
 
-### RunStep と accessibility
+### RunStep
 
 ```text
 \continue[state-type, result-type](next-state)
@@ -582,13 +590,26 @@ branch の末尾に `;` は付けない。
 変数 `x` を指定する `\step-match` は Set 側の依存関数 `(x: \RunStep[state-type, result-type]) -> P` を作り、各分岐は `P` に対応する項を返す。
 変数を指定しない `\step-match` は Program 側の値 `\U(\RunStep[state-type, result-type] ~> C)` を作り、`C` は固定した computation type、各分岐は computation である。
 
-```
-\Acc[state-type, result-type](step, state)
-\accintro[state-type, result-type](step, state, predecessors)
-\accdescent[state-type, result-type](step, from, to, accessibility, transition)
+### 停止性
+
+Set 側の `State`、`Output` と `step: State -> \RunStep[State, Output]` に対して、停止性を通常の命題として定義する。
+
+```ref
+\import std.Logic[].Termination[
+  State := State, Output := Output, step := step
+] \as T;
 ```
 
-`\Acc` 以下は Set 側の accessibility とその導入・降下である。
+`T.Holds initial` は次の型に展開する。
+
+```ref
+\forall (P: State -> \Prop) ->
+  (\forall (x: State) -> T.ready P (step x) -> P x) -> P initial
+```
+
+`T.ready P` は `continue next` に対して `P next`、`finish output` に対して `\forall (Q: \Prop) -> Q -> Q` を返す。
+`T.intro state certificate` は `certificate: T.ready T.Holds (step state)` から `T.Holds state` を証明する。
+`T.descent from to termination edge` は `termination: T.Holds from` と `edge: step from = \continue[State, Output](to)` から `T.Holds to` を証明する。
 
 ### run
 
@@ -597,7 +618,9 @@ branch の末尾に `;` は付けない。
 \runCase[state-type, result-type](step, initial, transition) \by { accessibility: accessibility-proof, equality: transition-equality }
 ```
 
-step は step function、accessibility は停止性証明である。`\runCase` は一回分の transition computation と反映上の等号証明を受け取る。
+step は step function、accessibility は上記の停止性証明である。
+Program 側では state type、result type、step、initial を reflection した停止性条件を使う。
+`\runCase` は一回分の transition とその等号証明を受け取り、Program 側では transition computation と反映上の等号証明を使う。
 
 ### Box
 
