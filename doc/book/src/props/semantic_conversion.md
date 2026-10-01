@@ -89,14 +89,13 @@ Val と解釈は既に raw 構文について定義済みなので、この側�
 \]
 
 **証明。** 全判断の導出に関する同時帰納法。
-Set の literal Take に対しては、さらに
+subject が literal \(\operatorname{choice}_i(X)\) である typing に対しては、さらに
 \[
-\operatorname{El}(\langle X\rangle_\rho)\ne\varnothing,\qquad
-\exists y.\ \forall x\in\operatorname{El}(\langle X\rangle_\rho).
-\operatorname{app}(\langle f\rangle_\rho,x)=y
+\exists y.\ \operatorname{El}(\langle X\rangle_\rho)=\{y\}
 \tag{H-K}
 \]
-を帰納命題に加える。[従来の健全性](soundness.md)の K と同じ有限の導入追跡を使う。
+を帰納命題に加える。
+[従来の健全性](soundness.md)の K と同じ有限の導入追跡を使う。
 
 - axiom は \(\mathsf u_i\in\mathcal C_{i+1}\)、\(\mathsf p\in\mathcal C_\omega\)。
   variable、start、weak は Val の定義。proof variable の値は、valid valuation では 0 である。
@@ -113,8 +112,9 @@ Set の literal Take に対しては、さらに
   subset intro/weak/prop は \(\operatorname{El}(\mathsf{ref}(c,S))=S\subseteq\operatorname{El}(c)\)。
 - id form/intro は集合の等号。id elim は同じ集合値を valuation に代入するため真理値を保つ。
   predicate application の beta 則には、premise の argument 所属と Trace を使う。
-- exists は decoding の非空性。take elim set は非空な domain と定値性から H-K を得て、
-  union がその一定値に等しいことを使う。take equal は明示された Take typing の H-K を使う。
+- exists は decoding の非空性。
+  choice は非空性と一意性から H-K を得て、一元集合の union がその元に等しいことを使う。
+  choice equal は明示された choice typing の H-K と e の所属から等号を得る。
   take elim prop は非空な domain の全 fiber が P なので P が真となる。
 - RunStep は sum の validity、constructor は tagged sum の所属。
   非 proof の step match は各 branch の所属から Trace により product に属する。
@@ -123,8 +123,8 @@ Set の literal Take に対しては、さらに
 - Acc の導入・下降、run、runCase は decoding した A、B に対する
   [Run-laws](model.md#termination)。f の全域性、argument の所属、Acc と equality はそれぞれ premise の帰納法による。
 
-H-K は take elim set で作られ、weak、conversion、subset intro/weak では
-同じ subject の真部分木から保たれる。他の規則は literal Take を結論しない。
+H-K は choice で作られ、weak、conversion、subset intro/weak では
+同じ subject の真部分木から保たれる。他の規則は literal choice を結論しない。
 以上は簡約、合流性、元の体系の健全性を使わない導出帰納法である。□
 
 ### 構造補題
@@ -239,7 +239,7 @@ subset intro では \(e:A\) の帰納法で \(e':A\) と値の等しさを得る
 | application | function/argument の値が等しいので app の値が等しい。argument を変えた結果型は Coded-substitution により等しい |
 | Power、Ty、Pred、subset | 引数コード・集合・値の等しさから tuple、membership、separation がそれぞれ等しい。subset の binder は context conversion |
 | id、exists | 両辺の値、または対象型のコードが等しいので真理値が等しい |
-| Take | domain の decoding と関数値が等しいので union が等しい。新しい関数型、非空性、定値性を形成して意味的 conversion で premise を移す |
+| choice | X の decoding が等しいので union が等しい。新しい X の非空性と一意性を形成し、意味的 conversion で premise を移す |
 | RunStep、continue、finish | 同じ sum コード、または同じ tagged pair。必要な argument typing を移す |
 | step match | motive の context と両 branch 型を再形成する。branch の値が等しく、motive は演算の値に使わない |
 | Acc、run、runCase | domain/codomain の decoding、f、状態、step の値が等しいので D、Run、Case が等しい。新しい Acc と equality を形成して Prop-conversion する |
@@ -247,7 +247,7 @@ subset intro では \(e:A\) の帰納法で \(e':A\) と値の等しさを得る
 変更した型注釈に依存する未変更の premise は、両方の formation と
 値の等しさによる H-conversion で移す。
 新しい結果型が元の結果型と構文的に異なる場合も、Substitution で両方を形成して同じ操作をする。
-Take の定値性は拡張 context の二変数に新しい f を適用して形成できる。
+choice の一意性は、新しい X に属する二変数の等式を id form と dep form で形成できる。
 step match の branch 型は新しい constructor を motive に代入して形成できる。
 従って、再構成中の formation を未証明の SR に委ねていない。
 

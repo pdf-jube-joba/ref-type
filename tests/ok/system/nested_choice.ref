@@ -1,34 +1,23 @@
-/* Take inference nested under applications and equality proof checking. */
+/* Choice of functions under application and proposition-valued take. */
 \module NestedChoice(
-    X, A: \Set(0),
-    P: \Prop,
-    x: X,
-    a: A,
-    hypothesis: P,
-    existsX: \exists X,
-    chooseEndo: X -> (A -> A),
-    uniqueEndo:
-        \forall (x1: X) -> \forall (x2: X) -> chooseEndo x1 = chooseEndo x2,
-    chooseProofEndo: X -> (P -> P),
+    A: \Set, P: \Prop, a: A, hypothesis: P,
+    existsEndo: \exists (A -> A),
+    uniqueEndo: \forall (f, g: A -> A) -> f = g,
+    X: \Set, existsX: \exists X, chooseProofEndo: X -> (P -> P),
 ) {
     \definition chosen_endo: A -> A :=
-        \take (y: X) => chooseEndo y \by { existence: existsX, uniqueness: uniqueEndo };
+        \choice A -> A \by { existence: existsEndo, uniqueness: uniqueEndo };
     \definition apply_chosen: A := chosen_endo a;
-
-    /* infer(App) must infer and validate Take before checking its argument. */
-    \definition directly_apply_take: A :=
-        (\take (y: X) => chooseEndo y \by { existence: existsX, uniqueness: uniqueEndo }) a;
-    \definition take_under_higher_order_application: A :=
+    \definition directly_apply_choice: A :=
+        (\choice A -> A \by { existence: existsEndo, uniqueness: uniqueEndo }) a;
+    \definition choice_under_application: A :=
         (\fun (f: A -> A) => f a)
-        (\take (y: X) => chooseEndo y \by { existence: existsX, uniqueness: uniqueEndo });
-
-    /* Proposition-valued Take can itself be used in function position. */
+        (\choice A -> A \by { existence: existsEndo, uniqueness: uniqueEndo });
     \definition chosen_proof_endo: P -> P :=
         \take (y: X) => chooseProofEndo y \by { existsX };
     \definition directly_apply_proof_take: P :=
         (\take (y: X) => chooseProofEndo y \by { existsX }) hypothesis;
-
-    \definition chosen_at_x: chosen_endo = chooseEndo x :=
-        \takeelim x \with y: X => chooseEndo y
-        \by { existence: existsX, uniqueness: uniqueEndo };
+    \definition chosen_at_identity: (\fun (x: A) => x) = chosen_endo :=
+        \choiceeq (\fun (x: A) => x) \of A -> A
+          \by { existence: existsEndo, uniqueness: uniqueEndo };
 }

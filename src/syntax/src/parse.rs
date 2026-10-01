@@ -104,7 +104,8 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\Box",
     "\\box",
     "\\boxapp",
-    "\\exists",   // \exists <Bind>
+    "\\exists", // \exists <Bind>
+    "\\choice",
     "\\take",     // \take <Bind> => <body>
     "\\takefrom", // \takefrom <var>: <type> \by <existence>;
     "\\block",    // block expression
@@ -117,7 +118,7 @@ static PROOF_TERM_KEYWORDS: &[&str] = &[
     "\\refl",
     "\\idelim",
     "\\axiom",
-    "\\takeelim",
+    "\\choiceeq",
     "\\accintro",
     "\\accdescent",
 ];

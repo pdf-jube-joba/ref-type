@@ -361,17 +361,13 @@ impl<'a> Printer<'a> {
             }
             ExpNode::Equal { left, right } => format!("{} = {}", child(left), child(right)),
             ExpNode::Exists { set } => format!("\\exists {}", child(set)),
-            ExpNode::TakeSet {
-                domain,
-                codomain,
-                map,
+            ExpNode::Choice {
+                set,
                 existence,
                 uniqueness,
             } => format!(
-                "\\Take({}, {}, {}) \\by {{ existence: {}, uniqueness: {} }}",
-                child(domain),
-                child(codomain),
-                child(map),
+                "\\choice ({}) \\by {{ existence: {}, uniqueness: {} }}",
+                child(set),
                 child(existence),
                 child(uniqueness)
             ),
@@ -451,30 +447,18 @@ impl<'a> Printer<'a> {
                 child(family),
                 child(inhabited)
             ),
-            ExpNode::Prove(Prove::TakeEq {
-                func,
-                domain,
-                codomain,
+            ExpNode::Prove(Prove::ChoiceEq {
+                set,
                 element,
                 existence,
                 uniqueness,
-            }) => {
-                let (var, body) = match arena.get(func) {
-                    ExpNode::Lam { var, body, .. } => (self.format_named_var(var), child(body)),
-                    _ => (
-                        "x".to_owned(),
-                        format!("{} x", self.format_app_operand(func)),
-                    ),
-                };
-                format!(
-                    "\\takeelim {} \\with {var}: {} => ({body}) \\of ({}) \\by {{ existence: {}, uniqueness: {} }}",
-                    child(element),
-                    child(domain),
-                    child(codomain),
-                    child(existence),
-                    child(uniqueness)
-                )
-            }
+            }) => format!(
+                "\\choiceeq ({}) \\of ({}) \\by {{ existence: {}, uniqueness: {} }}",
+                child(element),
+                child(set),
+                child(existence),
+                child(uniqueness)
+            ),
         }
     }
 

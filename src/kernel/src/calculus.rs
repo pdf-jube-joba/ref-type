@@ -204,10 +204,12 @@ pub fn alpha_equal(arena: &Arena, left: Expression, right: Expression) -> bool {
     compare(arena, left, right, &mut FxHashSet::default())
 }
 
-/// Run certificates are checked but erased by definitional equality.
+/// Choice and run certificates are checked but erased by definitional equality.
 pub fn comparison_children(arena: &Arena, e: Expression) -> Vec<(Expression, usize)> {
     let mut children = arena.children(e);
     match arena.get(e) {
+        Node::Choice { .. } => children.truncate(1),
+        Node::ChoiceEq { .. } => children.truncate(2),
         Node::SetRun { .. } | Node::Run { .. } => children.truncate(4),
         Node::SetRunCase { .. } | Node::RunCase { .. } => children.truncate(5),
         _ => {}

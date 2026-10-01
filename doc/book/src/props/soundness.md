@@ -28,25 +28,19 @@ Box を含む体系を \(\mathcal S_\Box\)、Box 関係の構文・規則を除�
 
 ## 帰納命題の強化
 
-take equal の premise は Take の typing であり、定値性の証明そのものではない。
-そこで項 typing の帰納命題に、subject が文字どおり
-\(\Take^s_i(X,T,f)\) または \(\Take^p_i(X,T,g)\) である場合の次の性質を加える。
-次の式の \(f\) は、その Take の関数引数を表す（prop の場合は \(g\)）。
+choice equal の premise は \(\operatorname{choice}_i(X):X\) の typing である。
+項 typing の帰納命題に、subject が文字どおり \(\operatorname{choice}_i(X)\) である場合の次の性質を加える。
 
 \[
-X_\rho\ne\varnothing,\qquad
-\exists y.\ \forall x\in X_\rho.\
-\operatorname{app}(f_\rho,x)=y.
+\exists y.\ X_\rho=\{y\}.
 \tag{K}
 \]
 
-K は syntax 中の任意の部分項についての主張ではない。
-結論の subject が Take である導出についてだけ要求する。
-この subject を直接作る規則は二つの take elim だけである。
-weak、conversion、subset intro/weak は、
-同じ subject を持つ真部分木へ遡れる。
+K は結論の subject が choice である導出について要求する。
+この subject を直接作る規則は choice であり、存在と一意性の premise から K を得る。
+weak、conversion、subset intro/weak は同じ subject を持つ真部分木へ遡れる。
 他の規則の結論の subject は別の constructor である。
-この有限の遡及により、K を通常の健全性と同時に証明できる。
+この有限の遡及により、K を通常の健全性と同時に証明する。
 
 ## PTS と universe
 
@@ -109,26 +103,22 @@ valuation が等しいので真理値が一致する。
 
 exists form は非空性の真理値なので \(\mathbb B\) の要素。
 exists intro は表示された要素による非空性。
-take elim set では二重の Prop-product により
+choice では、存在と二重の Prop-product の premise から
 \[
-\forall x_1,x_2\in X_\rho.\
-\operatorname{app}(f_\rho,x_1)=\operatorname{app}(f_\rho,x_2).
+X_\rho\ne\varnothing,\qquad
+\forall x_1,x_2\in X_\rho.\ x_1=x_2
 \]
-非空性から一つ \(x_0\in X_\rho\) を取り、
-\(y=\operatorname{app}(f_\rho,x_0)\in T_\rho\) とする。
-像は \(\{y\}\) なので Take の値は \(\bigcup\{y\}=y\)。
-同時に K が得られる。これは大域的な選択関数を解釈に加えることではない。
+を得る。
+従ってある y に対して \(X_\rho=\{y\}\) であり、K が成り立つ。
+choice の値は \(\bigcup\{y\}=y\in X_\rho\) なので typing も成り立つ。
 
-take elim prop では、X が非空で \(f_\rho\) が
-\(\operatorname{Prod}(X_\rho,x\mapsto T_\rho)\) の要素である。
-Prop-product により \(T_\rho=1\)、\(f_\rho=0\)。
-各 app 値も 0、Take の値も 0 であり、所属と K の両方を得る。
+命題への take elim prop では、X が非空で \(g_\rho\) が \(\operatorname{Prod}(X_\rho,x\mapsto P_\rho)\) の要素である。
+Prop-product により \(P_\rho=1\)、\(g_\rho=0\) である。
+各 app 値も 0、Take の値も 0 なので、所属が成り立つ。
 
-take equal では typing premise の**強化した**帰納法により K を得る。
-\(t_\rho\in X_\rho\) より、その一定値 y は
-\(\operatorname{app}(f_\rho,t_\rho)\)。
-非空性を使うと Take の値は y であり、結論の等号は真である。
-単に「Take が T の要素だから f は定値」と推論してはいない。
+choice equal では、明示された choice の typing premise に対する強化した帰納法から K を得る。
+\(e_\rho\in X_\rho=\{y\}\) より \(e_\rho=y=\bigcup X_\rho\) であり、結論の等号は真である。
+一意性は choice の型付け導出を追跡して得ている。
 
 ## RunStep・Acc・run
 

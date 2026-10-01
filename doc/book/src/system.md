@@ -89,7 +89,7 @@ Set/Prop と Program で同じ記号を使う固有演算は、演算の tag で
 | equality | \(a=b\) |
 | existence | \(\exists A\) |
 | proof mark | \(\Proof P\) |
-| take set | \(\Take^s_i(X,T,f)\) |
+| choice | \(\operatorname{choice}_i(X)\) |
 | take prop | \(\Take^p_i(X,P,g)\) |
 | run step | \(\operatorname{RunStep}(A,B)\) |
 | continue | \(\operatorname{continue}_{A,B}(a)\) |
@@ -306,9 +306,9 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 | --- | --- | --- | --- |
 | exists form | \(\Gamma\vdash\exists T:*^p\) | \(\Gamma\vdash T:*^s_i\) | |
 | exists intro | \(\Gamma\vDash\exists T\) | \(\Gamma\vdash T:*^s_i\)<br>\(\Gamma\vdash e:T\) | |
-| take elim set | \(\Gamma\vdash\Take^s_i(X,T,f):T\) | \(\Gamma\vdash X:*^s_i\)<br>\(\Gamma\vdash T:*^s_i\)<br>\(\Gamma\vdash X\to_{s^{i,i}}T:*^s_i\)<br>\(\Gamma\vdash f:X\to_{s^{i,i}}T\)<br>\(\Gamma\vDash\exists X\)<br>\(\Gamma\vDash\Pi_{a_i}x_1:X.\Pi_{a_i}x_2:X.\,(f@_{s^{i,i}}x_1=f@_{s^{i,i}}x_2)\) | \(\{x_1,x_2\}\cap\operatorname{dom}(\Gamma)=\varnothing\)<br>\(x_1\ne x_2\) |
+| choice | \(\Gamma\vdash\operatorname{choice}_i(X):X\) | \(\Gamma\vdash X:*^s_i\)<br>\(\Gamma\vDash\exists X\)<br>\(\Gamma\vDash\Pi_{a_i}x:X.\Pi_{a_i}y:X.\,x=y\) | \(\{x,y\}\cap\operatorname{dom}(\Gamma)=\varnothing\)<br>\(x\ne y\) |
 | take elim prop | \(\Gamma\vdash\Take^p_i(X,P,g):P\) | \(\Gamma\vdash X:*^s_i\)<br>\(\Gamma\vdash P:*^p\)<br>\(\Gamma\vdash X\to_{a_i}P:*^p\)<br>\(\Gamma\vdash g:X\to_{a_i}P\)<br>\(\Gamma\vDash\exists X\) | |
-| take equal | \(\Gamma\vDash\Take^s_i(X,T,f)=f@_{s^{i,i}}t\) | \(\Gamma\vdash X:*^s_i\)<br>\(\Gamma\vdash T:*^s_i\)<br>\(\Gamma\vdash X\to_{s^{i,i}}T:*^s_i\)<br>\(\Gamma\vdash f:X\to_{s^{i,i}}T\)<br>\(\Gamma\vdash\Take^s_i(X,T,f):T\)<br>\(\Gamma\vdash t:X\) | |
+| choice equal | \(\Gamma\vDash e=\operatorname{choice}_i(X)\) | \(\Gamma\vdash X:*^s_i\)<br>\(\Gamma\vdash\operatorname{choice}_i(X):X\)<br>\(\Gamma\vdash e:X\) | |
 
 #### RunStep
 

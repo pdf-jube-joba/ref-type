@@ -700,15 +700,11 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             walk_sexp_control(set, action);
             walk_sexp_control(predicate, action);
         }
-        SExp::TakeSet {
-            bind,
-            body,
+        SExp::Choice {
+            set,
             existence,
             uniqueness,
-        } => {
-            walk_bind_mut(bind, action);
-            walk_many_mut([body, existence, uniqueness], action);
-        }
+        } => walk_many_mut([set, existence, uniqueness], action),
         SExp::IdElim {
             left,
             right,
@@ -734,14 +730,12 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             family,
             inhabited,
         } => walk_many_mut([domain, family, inhabited], action),
-        SExp::TakeEq {
-            ty,
-            body,
+        SExp::ChoiceEq {
+            set,
             element,
             existence,
             uniqueness,
-            ..
-        } => walk_many_mut([element, ty, body, existence, uniqueness], action),
+        } => walk_many_mut([set, element, existence, uniqueness], action),
         SExp::Block(block) | SExp::Program(block) => {
             for statement in &mut block.statements {
                 walk_statement_mut(statement, action);

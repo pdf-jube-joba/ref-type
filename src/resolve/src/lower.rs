@@ -290,7 +290,7 @@ extend_enum!(SExp {
     TypeLift { superset, subset },
     Equal { left, right },
     Exists { bind },
-    TakeSet { bind, body, existence, uniqueness },
+    Choice { set, existence, uniqueness },
     TakeProp { bind, body, existence },
     ExistsIntro { element, set },
     SubsetElim { element, subset, superset },
@@ -299,7 +299,7 @@ extend_enum!(SExp {
     AxiomSetExt { left, right, left_to_right, right_to_left },
     AxiomFunExt { left, right, pointwise },
     AxiomClassicalIndefiniteChoice { domain, family, inhabited },
-    TakeEq { var, ty, body, element, existence, uniqueness },
+    ChoiceEq { set, element, existence, uniqueness },
     Block(value0),
     Program(value0),
 } special {

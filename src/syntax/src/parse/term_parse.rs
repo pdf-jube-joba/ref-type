@@ -121,6 +121,15 @@ impl<'a> TermParser<'a> {
         self.parse_sexp()
     }
 
+    fn parse_choice_proofs(&mut self) -> Result<(SExp, SExp), ParseError> {
+        self.parse_by(|parser| {
+            let existence = parser.parse_named_by_term("existence")?;
+            parser.expect_token(Token::Comma)?;
+            let uniqueness = parser.parse_named_by_term("uniqueness")?;
+            Ok((existence, uniqueness))
+        })
+    }
+
     fn parse_recursion_types(&mut self) -> Result<(SExp, SExp), ParseError> {
         self.parse_bracketed(|parser| {
             let state_ty = parser.parse_sexp()?;
@@ -591,36 +600,24 @@ impl<'a> TermParser<'a> {
             };
             return Ok(SExp::Exists { bind });
         }
-        // r"\take" <binding> "=>" <body> r"\by" "{" proofs "}"
+        if self.bump_if_keyword("\\choice") {
+            let set = self.parse_sexp()?;
+            let (existence, uniqueness) = self.parse_choice_proofs()?;
+            return Ok(SExp::Choice {
+                set: Box::new(set),
+                existence: Box::new(existence),
+                uniqueness: Box::new(uniqueness),
+            });
+        }
         if self.bump_if_keyword("\\take") {
             let bind = self.parse_binding(Token::LParen, Token::RParen)?;
-            self.expect_token(Token::DoubleArrow)?; // expect '=>'
+            self.expect_token(Token::DoubleArrow)?;
             let body = self.parse_sexp()?;
-            let (existence, uniqueness) = self.parse_by(|parser| {
-                if matches!(parser.peek(), Some(Token::Ident("existence")))
-                    && parser.tokens.get(parser.pos + 1).map(|token| token.kind)
-                        == Some(Token::Colon)
-                {
-                    let existence = parser.parse_named_by_term("existence")?;
-                    parser.expect_token(Token::Comma)?;
-                    let uniqueness = parser.parse_named_by_term("uniqueness")?;
-                    Ok((existence, Some(uniqueness)))
-                } else {
-                    Ok((parser.parse_sexp()?, None))
-                }
-            })?;
-            return Ok(match uniqueness {
-                Some(uniqueness) => SExp::TakeSet {
-                    bind,
-                    body: Box::new(body),
-                    existence: Box::new(existence),
-                    uniqueness: Box::new(uniqueness),
-                },
-                None => SExp::TakeProp {
-                    bind,
-                    body: Box::new(body),
-                    existence: Box::new(existence),
-                },
+            let existence = self.parse_by(|parser| parser.parse_sexp())?;
+            return Ok(SExp::TakeProp {
+                bind,
+                body: Box::new(body),
+                existence: Box::new(existence),
             });
         }
         if self.bump_if_keyword("\\block") {
@@ -760,24 +757,13 @@ impl<'a> TermParser<'a> {
             });
         }
 
-        if self.bump_if_keyword("\\takeelim") {
-            let element = self.parse_sexp()?;
-            self.expect_keyword("\\with")?;
-            let var = self.expect_ident()?;
-            self.expect_token(Token::Colon)?;
-            let ty = self.parse_sexp()?;
-            self.expect_token(Token::DoubleArrow)?;
-            let body = self.parse_sexp()?;
-            let (existence, uniqueness) = self.parse_by(|parser| {
-                let existence = parser.parse_named_by_term("existence")?;
-                parser.expect_token(Token::Comma)?;
-                let uniqueness = parser.parse_named_by_term("uniqueness")?;
-                Ok((existence, uniqueness))
-            })?;
-            return Ok(SExp::TakeEq {
-                var,
-                ty: Box::new(ty),
-                body: Box::new(body),
+        if self.bump_if_keyword("\\choiceeq") {
+            let element = self.parse_arrow()?;
+            self.expect_keyword("\\of")?;
+            let set = self.parse_sexp()?;
+            let (existence, uniqueness) = self.parse_choice_proofs()?;
+            return Ok(SExp::ChoiceEq {
+                set: Box::new(set),
                 element: Box::new(element),
                 existence: Box::new(existence),
                 uniqueness: Box::new(uniqueness),
@@ -2271,7 +2257,8 @@ mod tests {
         print_and_unwrap(r"\axiom:setext(A, B, ab, ba)");
         print_and_unwrap(r"\axiom:funext(f, g, pointwise)");
         print_and_unwrap(r"\axiom:classicalIndefiniteChoice(X, Y, inhabited)");
-        print_and_unwrap(r"\take (x: X) => f x \by { existence: existsX, uniqueness: uniqueF }");
+        print_and_unwrap(r"\choiceeq x \of X \by { existence: existsX, uniqueness: uniqueX }");
+        print_and_unwrap(r"\choice X \by { existence: existsX, uniqueness: uniqueX }");
         print_and_unwrap(r"\take (x: X) => P \by { existsX }");
         print_and_unwrap(r"x = y");
     }

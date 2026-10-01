@@ -254,22 +254,16 @@ impl Lowerer<'_> {
                     transition_equality,
                 })
             }
-            ExpNode::TakeSet {
-                domain,
-                codomain,
-                map,
+            ExpNode::Choice {
+                set,
                 existence,
                 uniqueness,
             } => {
-                let domain = self.set(domain, ctx, m)?;
-                let codomain = self.set(codomain, ctx, m)?;
-                let map = self.set(map, ctx, m)?;
+                let set = self.set(set, ctx, m)?;
                 let existence = self.set(existence, ctx, m)?;
                 let uniqueness = self.set(uniqueness, ctx, m)?;
-                self.kernel.arena().alloc(s::Node::TakeSet {
-                    domain,
-                    codomain,
-                    map,
+                self.kernel.arena().alloc(s::Node::Choice {
+                    set,
                     existence,
                     uniqueness,
                 })
@@ -492,24 +486,18 @@ impl Lowerer<'_> {
                         equality,
                     })
                 }
-                Prove::TakeEq {
-                    func,
-                    domain,
-                    codomain,
+                Prove::ChoiceEq {
+                    set,
                     element,
                     existence,
                     uniqueness,
                 } => {
-                    let func = self.set(func, ctx, m)?;
-                    let domain = self.set(domain, ctx, m)?;
-                    let codomain = self.set(codomain, ctx, m)?;
+                    let set = self.set(set, ctx, m)?;
                     let element = self.set(element, ctx, m)?;
                     let existence = self.set(existence, ctx, m)?;
                     let uniqueness = self.set(uniqueness, ctx, m)?;
-                    self.kernel.arena().alloc(s::Node::TakeEq {
-                        func,
-                        domain,
-                        codomain,
+                    self.kernel.arena().alloc(s::Node::ChoiceEq {
+                        set,
                         element,
                         existence,
                         uniqueness,

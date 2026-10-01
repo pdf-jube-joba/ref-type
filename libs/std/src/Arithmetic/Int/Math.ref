@@ -112,13 +112,45 @@
     normalize y :=
     sameClassNormal C x y (\bysub(Difference, Representatives C, x)) (\bysub(Difference, Representatives C,
     y));
+\definition NormalForms (C: Grothendieck): \Pow Int^ :=
+  { z : Int^ \where \exists { x : \Cast[Difference] (Representatives C) \where normalize x = z } };
+\definition NormalForm (C: Grothendieck): \Set := \Cast[Int^] (NormalForms C);
+\definition normalFormWitness (C: Grothendieck) (x: \Cast[Difference] (Representatives C)): NormalForm C :=
+  \into[Int^](normalize x, NormalForms C) \by {
+    \exact(\into[\Cast[Difference] (Representatives C)](x,
+      { y : \Cast[Difference] (Representatives C) \where normalize y = normalize x })
+      \by { \refl(normalize x) },
+      \Cast[\Cast[Difference] (Representatives C)]
+        ({ y : \Cast[Difference] (Representatives C) \where normalize y = normalize x })) };
+\definition normalFormExists (C: Grothendieck): \exists NormalForm C :=
+  \take (x: \Cast[Difference] (Representatives C)) =>
+    \exact(normalFormWitness C x, NormalForm C)
+    \by { representativesExist C };
+\definition normalFormUnique (C: Grothendieck) (u, v: NormalForm C): u = v :=
+  \block {
+    \takefrom x: \Cast[\Cast[Difference] (Representatives C)]
+      ({ x : \Cast[Difference] (Representatives C) \where normalize x = u })
+      \by \bysub(Int^, NormalForms C, u) \then
+    \takefrom y: \Cast[\Cast[Difference] (Representatives C)]
+      ({ y : \Cast[Difference] (Representatives C) \where normalize y = v })
+      \by \bysub(Int^, NormalForms C, v) \then
+    \return trans!{Int^} u (normalize x) v
+      (sym!{Int^} _ _ (\bysub(\Cast[Difference] (Representatives C),
+        { x : \Cast[Difference] (Representatives C) \where normalize x = u }, x)))
+      (trans!{Int^} (normalize x) (normalize y) v (normalFormsUnique C x y)
+        (\bysub(\Cast[Difference] (Representatives C),
+          { y : \Cast[Difference] (Representatives C) \where normalize y = v }, y)))
+  };
 \definition fromMath (C: Grothendieck): Int^ :=
-  \take (x: \Cast[Difference] (Representatives C)) => normalize x
-    \by { existence: representativesExist C, uniqueness: normalFormsUnique C };
+  \choice NormalForm C
+    \by { existence: normalFormExists C, uniqueness: normalFormUnique C };
+\definition normalFormEquals (C: Grothendieck) (x: \Cast[Difference] (Representatives C)):
+  normalize x = fromMath C :=
+  \choiceeq normalFormWitness C x \of NormalForm C
+    \by { existence: normalFormExists C, uniqueness: normalFormUnique C };
 \definition fromClass (x: Difference): fromMath (class x) = normalize x :=
-    \takeelim \into[Difference](x, Representatives (class x)) \by { \refl(ClassOf x) }
-      \with y: \Cast[Difference] (Representatives (class x)) => normalize y
-    \by { existence: representativesExist (class x), uniqueness: normalFormsUnique (class x) };
+  sym!{Int^} _ _ (normalFormEquals (class x)
+    (\into[Difference](x, Representatives (class x)) \by { \refl(ClassOf x) }));
 \definition fromTo (z: Int^): fromMath (toMath z) = z := trans!{Int^} _ _ _ (fromClass (representative z)) (diffCanonical z);
 \definition toFromClass (x: Difference): toMath (normalize x) = class x := classOfEq (representative (normalize x)) x
     (equivalentSym x (representative (normalize x)) (representativeNormalize x));
@@ -126,9 +158,7 @@
     \take (x: \Cast[Difference] (Representatives C)) =>
       \block {
         \let normalized: normalize x = fromMath C :=
-          sym!{Int^} _ _ (\takeelim x \with y: \Cast[Difference] (Representatives C) => normalize y
-            \by { existence: representativesExist C,
-              uniqueness: normalFormsUnique C }) \then
+          normalFormEquals C x \then
         \let mathClass: toMath (fromMath C) = ClassOf x :=
           \idelim normalize x = fromMath C \with z: Int^ => toMath z = ClassOf x
             \by { base: toFromClass x, equality: normalized } \then

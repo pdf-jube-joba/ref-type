@@ -721,11 +721,9 @@ pub enum SExp {
     Exists {
         bind: Bind, // updated to use the new Bind structure
     },
-    // --- opaque description (specified but not constructed)
-    // \take (x: A) => t or \take (x: A | P) => t
-    TakeSet {
-        bind: Bind, // updated to use the new Bind structure
-        body: Box<SExp>,
+    // Unique choice from a set.
+    Choice {
+        set: Box<SExp>,
         existence: Box<SExp>,
         uniqueness: Box<SExp>,
     },
@@ -771,10 +769,8 @@ pub enum SExp {
         family: Box<SExp>,
         inhabited: Box<SExp>,
     },
-    TakeEq {
-        var: Identifier,
-        ty: Box<SExp>,
-        body: Box<SExp>,
+    ChoiceEq {
+        set: Box<SExp>,
         element: Box<SExp>,
         existence: Box<SExp>,
         uniqueness: Box<SExp>,

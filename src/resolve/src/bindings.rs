@@ -322,19 +322,11 @@ pub(crate) fn alpha_rename(
         SExp::Exists { bind } => {
             alpha_bind_type(bind, order, counter, scopes);
         }
-        SExp::TakeSet {
-            bind,
-            body,
+        SExp::Choice {
+            set,
             existence,
             uniqueness,
-        } => {
-            let local = alpha_bind_type(bind, order, counter, scopes);
-            scopes.push(local);
-            alpha_rename(body, order, counter, scopes);
-            scopes.pop();
-            alpha_rename(existence, order, counter, scopes);
-            alpha_rename(uniqueness, order, counter, scopes);
-        }
+        } => alpha_many([set, existence, uniqueness], order, counter, scopes),
         SExp::TakeProp {
             bind,
             body,
@@ -583,19 +575,16 @@ pub(crate) fn alpha_rename(
             family,
             inhabited,
         } => alpha_many([domain, family, inhabited], order, counter, scopes),
-        SExp::TakeEq {
-            var,
-            ty,
-            body,
+        SExp::ChoiceEq {
+            set,
             element,
             existence,
             uniqueness,
-        } => {
-            alpha_many([element, ty, existence, uniqueness], order, counter, scopes);
-            let local = HashMap::from([fresh_binder(var, order, counter)]);
-            scopes.push(local);
-            alpha_rename(body, order, counter, scopes);
-            scopes.pop();
-        }
+        } => alpha_many(
+            [set, element, existence, uniqueness],
+            order,
+            counter,
+            scopes,
+        ),
     }
 }

@@ -173,14 +173,15 @@ proof term では、provability の premise に帰納法を使って
 | Power、Ty、Pred | 新しい A の formation、S の Power 型での typing、t の A での typing |
 | subset form | 新しい domain の context における predicate の formation |
 | id form、exists form | 新しい共通型での両辺の typing、または新しい対象型の formation |
-| take elim set | 新しい \(X\to T\) での f の typing、\(\exists X\)、二重の積で表した定値性 |
+| choice | 新しい X の formation、\(\exists X\)、二重の積で表した一意性 |
 | take elim prop | 新しい \(X\to P\) での g の typing、\(\exists X\) |
 | RunStep と constructor | 新しい A、B の formation、および constructor の引数 typing |
 | step match | 新しい RunStep の context での motive、代入後の二つの branch 型、両 branch の typing |
 | Acc、run、runCase | 新しい \(A\to\operatorname{RunStep}(A,B)\) での f の typing、状態と step の typing、Acc と equality |
 
-例えば take の定値性の新しい命題は、拡張 context の二変数に f を適用し、
-id form と dep form を二回使って形成する。非空性は exists form で形成する。
+例えば choice の一意性の新しい命題は、新しい X に属する二変数について、
+id form と二回の dep form を使って形成する。
+非空性は exists form で形成する。
 step match の新しい branch 型は、motive の formation に新しい constructor を
 Substitution し、dep form で量化すれば形成できる。
 runCase の新しい equality は、新しい共通 RunStep 型で両辺を型付けして形成する。
@@ -206,10 +207,9 @@ provable の場合は、明示された \(P:*^p\) の premise に帰納法を使
   Substitution を使う。compatible position では A、P、b の該当する premise に
   帰納法を使い、必要な context conversion と dep intro/elim で形成する。
 - exists intro：対象型の formation に帰納法を使い、exists form を適用する。
-- take equal：左辺の簡約には、明示された Take の typing premise への帰納法を使う。
-  右辺 \(f@t\) の compatible step は f または t の premise への帰納法と dep elim。
-  右辺の beta root は上の一般の beta の構成を使う。
-  いずれの場合も両辺を元の T で型付けでき、id form を適用できる。
+- choice equal：左辺 e の簡約には e の typing premise への帰納法を使う。
+  右辺の簡約には、明示された choice の typing premise への帰納法を使う。
+  両辺を元の X で型付けできるので、id form を適用する。
 - acc intro/descent：結論に出現する A、B、f、状態の該当する typing premise に
   帰納法を使い、新しい表示型へ conversion して acc form を適用する。
 

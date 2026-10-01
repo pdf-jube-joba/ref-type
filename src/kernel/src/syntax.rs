@@ -128,10 +128,8 @@ pub enum Node {
         function: Expression,
         argument: Expression,
     },
-    TakeSet {
-        domain: Expression,
-        codomain: Expression,
-        map: Expression,
+    Choice {
+        set: Expression,
         existence: Expression,
         uniqueness: Expression,
     },
@@ -203,10 +201,8 @@ pub enum Node {
         map: Expression,
         existence: Expression,
     },
-    TakeEq {
-        func: Expression,
-        domain: Expression,
-        codomain: Expression,
+    ChoiceEq {
+        set: Expression,
         element: Expression,
         existence: Expression,
         uniqueness: Expression,
@@ -628,17 +624,13 @@ impl Arena {
                 *function = visit(*function, 0)?;
                 *argument = visit(*argument, 0)?;
             }
-            Node::TakeSet {
-                domain,
-                codomain,
-                map,
+            Node::Choice {
+                set,
                 existence,
                 uniqueness,
                 ..
             } => {
-                *domain = visit(*domain, 0)?;
-                *codomain = visit(*codomain, 0)?;
-                *map = visit(*map, 0)?;
+                *set = visit(*set, 0)?;
                 *existence = visit(*existence, 0)?;
                 *uniqueness = visit(*uniqueness, 0)?;
             }
@@ -752,18 +744,14 @@ impl Arena {
                 *map = visit(*map, 0)?;
                 *existence = visit(*existence, 0)?;
             }
-            Node::TakeEq {
-                func,
-                domain,
-                codomain,
+            Node::ChoiceEq {
+                set,
                 element,
                 existence,
                 uniqueness,
                 ..
             } => {
-                *func = visit(*func, 0)?;
-                *domain = visit(*domain, 0)?;
-                *codomain = visit(*codomain, 0)?;
+                *set = visit(*set, 0)?;
                 *element = visit(*element, 0)?;
                 *existence = visit(*existence, 0)?;
                 *uniqueness = visit(*uniqueness, 0)?;

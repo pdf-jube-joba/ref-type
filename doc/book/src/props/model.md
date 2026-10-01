@@ -148,7 +148,7 @@ a\in D&\Longrightarrow
 変数 \(x^s\) は項変数と型変数の双方を表す。
 \(\square^s_i,\square^p\) への集合の割当ては、判断の sort を解釈するためのものであり、
 それらを新しい object term として追加しない。
-\(\Take(X,T,f)\) の式は \(\Take^s_i\) と \(\Take^p_i\) の両方に用いる。
+\(\operatorname{choice}_i(X)\) は一意な元を取り出し、\(\Take^p_i(X,P,g)\) は命題への存在除去を表す。
 
 valuation \(\rho\) は自由変数に集合を割り当てる。
 \(\mathbf t(Q)\) は集合論の命題 Q が真なら 1、偽なら 0 とする。
@@ -184,8 +184,9 @@ binder を持つ場合は valuation の拡張を明示する。
 \llbracket\Pred(A,S,a)\rrbracket_\rho&=\mathbf t(a\in S),&
 \llbracket a=b\rrbracket_\rho&=\mathbf t(a=b),\\
 \llbracket\exists A\rrbracket_\rho&=\mathbf t(A\ne\varnothing),&
-\llbracket\Take(X,T,f)\rrbracket_\rho
- &=\bigcup\{\operatorname{app}(f,x)\mid x\in X\},\\
+\llbracket\operatorname{choice}_i(X)\rrbracket_\rho&=\bigcup X,\\
+\llbracket\Take^p_i(X,P,g)\rrbracket_\rho
+ &=\bigcup\{\operatorname{app}(g,x)\mid x\in X\},\\
 \llbracket\operatorname{RunStep}(A,B)\rrbracket_\rho
  &=(\{0\}\times A)\cup(\{1\}\times B),\\
 \llbracket\operatorname{continue}_{A,B}(a)\rrbracket_\rho&=(0,a),&

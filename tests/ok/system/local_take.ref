@@ -1,15 +1,20 @@
-/* Take codomains may refer to binders outside the map binder. */
-\module LocalTake(X: \Set(0), existsX: \exists X) {
-    \definition local_prop:
-        \forall (p: \Prop) -> p -> p :=
-        \fun (p: \Prop) => \fun (hp: p) =>
-            \take (x: X) => hp \by { existsX };
-
-    \definition local_set:
-        \forall (T: \Set(0)) ->
-        \forall (t: T) ->
-        T :=
-        \fun (T: \Set(0)) => \fun (t: T) =>
-            \take (x: X) => t
-            \by { existence: existsX, uniqueness: \fun (x1: X) => \fun (x2: X) => \refl(t) };
+/* Set and proof binders remain in scope beneath choice and take. */
+\module LocalTake(X: \Set, existsX: \exists X) {
+    \definition local_prop: \forall (p: \Prop) -> p -> p :=
+        \fun (p: \Prop) (hp: p) => \take (x: X) => hp \by { existsX };
+    \definition Singleton (T: \Set) (t: T): \Set :=
+        \Cast[T] ({ x : T \where x = t });
+    \definition witness (T: \Set) (t: T): Singleton T t :=
+        \into[T](t, { x : T \where x = t }) \by { \refl t };
+    \definition unique (T: \Set) (t: T) (a, b: Singleton T t): a = b :=
+        \idelim t = b \with x: T => a = x
+          \by { base: \bysub(T, { x : T \where x = t }, a),
+            equality: \idelim b = t \with x: T => x = b
+              \by { base: \refl b, equality: \bysub(T, { x : T \where x = t }, b) } };
+    \definition local_set (T: \Set) (t: T): T :=
+        \choice Singleton T t
+          \by { existence: \exact(witness T t, Singleton T t), uniqueness: unique T t };
+    \definition local_equality (T: \Set) (t: T): t = local_set T t :=
+        \choiceeq witness T t \of Singleton T t
+          \by { existence: \exact(witness T t, Singleton T t), uniqueness: unique T t };
 }

@@ -175,22 +175,21 @@ impl Renderer<'_> {
             BoxTypeApp {
                 function, argument, ..
             } => self.call("boxapp", &[(*function), (*argument)]),
-            TakeSet {
-                domain,
-                codomain,
-                map,
+            Choice {
+                set,
                 existence,
                 uniqueness,
-            } => self.call(
-                "Take",
-                &[
-                    (*domain),
-                    (*codomain),
-                    (*map),
-                    (*existence),
-                    (*uniqueness),
-                ],
-            ),
+            } => {
+                let set = self.expression(*set, 0);
+                let existence = self.expression(*existence, 0);
+                let uniqueness = self.expression(*uniqueness, 0);
+                Term::new(
+                    format!(
+                        "\\choice ({set}) \\by {{ existence: {existence}, uniqueness: {uniqueness} }}"
+                    ),
+                    0,
+                )
+            }
             IndCtor {
                 inductive,
                 constructor,
@@ -274,44 +273,21 @@ impl Renderer<'_> {
                 existence,
             } => self.call(
                 "TakeProp",
-                &[
-                    (*domain),
-                    (*proposition),
-                    (*map),
-                    (*existence),
-                ],
+                &[(*domain), (*proposition), (*map), (*existence)],
             ),
-            TakeEq {
-                func,
-                domain,
-                codomain,
+            ChoiceEq {
+                set,
                 element,
                 existence,
                 uniqueness,
             } => {
+                let set = self.expression(*set, 0);
                 let element = self.expression(*element, 0);
-                let domain = self.expression(*domain, 0);
-                let codomain = self.expression(*codomain, 0);
                 let existence = self.expression(*existence, 0);
                 let uniqueness = self.expression(*uniqueness, 0);
-                let (name, body) = match self.arena.get(*func) {
-                    Node::Lambda { var, body, .. } => {
-                        let name = self.bind(var);
-                        let body = self.expression(body, 1);
-                        self.locals.pop();
-                        (name, body)
-                    }
-                    _ => {
-                        let func = self.expression(*func, 2);
-                        let name = self.bind(SymbolId::ANONYMOUS);
-                        self.locals.pop();
-                        let body = format!("{func} {name}");
-                        (name, body)
-                    }
-                };
                 Term::new(
                     format!(
-                        "\\takeelim {element} \\with {name}: {domain} => {body} \\of {codomain} \\by {{ existence: {existence}, uniqueness: {uniqueness} }}"
+                        "\\choiceeq ({element}) \\of ({set}) \\by {{ existence: {existence}, uniqueness: {uniqueness} }}"
                     ),
                     0,
                 )

@@ -1,18 +1,13 @@
-/* Exists, set-valued Take, proposition-valued Take, and Take equality. */
+/* Unique choice, existential elimination, and recovery of uniqueness. */
 \module ChoiceRules(
-    X: \Set(0),
-    T: \Set(0),
-    P: \Prop,
-    f: X -> T,
-    predicate: X -> P,
-    x: X,
+    X: \Set, P: \Prop, predicate: X -> P, x: X,
     existsX: \exists X,
-    uniqueF: \forall (x1: X) -> \forall (x2: X) -> f x1 = f x2,
+    uniqueX: \forall (x, y: X) -> x = y,
+    anotherExistence: \exists X,
+    anotherUniqueness: \forall (x, y: X) -> x = y,
 ) {
-    \definition witnessed: \exists X := \exact(x, X);
-
-    \definition chosen: T :=
-        \take (y: X) => f y \by { existence: existsX, uniqueness: uniqueF };
+    \definition chosen: X :=
+        \choice X \by { existence: existsX, uniqueness: uniqueX };
     \definition chosen_property: P :=
         \take (y: X) => predicate y \by { existsX };
     \definition chosen_property_block: P :=
@@ -20,7 +15,15 @@
             \takefrom y: X \by existsX \then
             \return predicate y
         };
-
-    \definition chosen_at_x: chosen = f x :=
-        \takeelim x \with y: X => f y \by { existence: existsX, uniqueness: uniqueF };
+    \definition chosen_at_x: x = chosen :=
+        \choiceeq x \of X \by { existence: existsX, uniqueness: uniqueX };
+    \definition other_certificates: x = chosen :=
+        \choiceeq x \of X
+          \by { existence: anotherExistence, uniqueness: anotherUniqueness };
+    \definition recovered (a, b: X): a = b :=
+        \idelim chosen = b \with z: X => a = z
+          \by { base: \choiceeq a \of X \by { existence: existsX, uniqueness: uniqueX },
+            equality: \idelim b = chosen \with z: X => z = b
+              \by { base: \refl b,
+                equality: \choiceeq b \of X \by { existence: existsX, uniqueness: uniqueX } } };
 }

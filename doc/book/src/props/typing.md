@@ -55,11 +55,11 @@ rule label は代入で変化しない。
   局所 binder を fresh に取り直して premise に帰納法を使う。
   結論や branch 型に現れる二重の代入は代入の合成則で交換する。
 - power set form、type lift、predicate、subset intro/weak/prop、
-  id form/intro、exists form/intro、両 take elim、take equal、
+  id form/intro、exists form/intro、choice、take elim prop、choice equal、
   RunStep formation と constructor、acc form/descent、run/runCase、
   provable と proof term は、全 premise に帰納法を使って同じ規則を適用する。
 
-take の定値性の premise にも代入が作用する。
+choice の一意性の premise にも代入が作用する。
 すべての再帰呼び出しは元の導出の真部分木に対するものである。□
 
 <a id="regularity"></a>
@@ -86,11 +86,11 @@ conversion は目標の formation premise、weak は帰納法による。
 dep intro と step match の結果型は dep form、dep elim の結果型は Substitution で形成する。
 型・項の他の導入規則は、表示された formation premise に対応する formation 規則を使う。
 subset intro の結果型は type lift、subset weak と run/runCase は formation premise そのもの。
-take elim の結果型の formation も明示されている。
+choice と take elim prop の結果型の formation も明示されている。
 
 provable には \(P:*^p\) の premise があり、proof term には provability の帰納法を使う。
 subset prop、id intro、exists intro、acc intro/descent は対応する formation である。
-take equal は Take と application を同じ \(T\) で型付けして id form を使う。
+choice equal は e と choice を同じ \(X\) で型付けして id form を使う。
 id elim の結論は \(p_i=(*^s_i,\square^p,\square^p)\) による
 型演算子の dep intro/elim で \(*^p\) に型付けできる。□
 

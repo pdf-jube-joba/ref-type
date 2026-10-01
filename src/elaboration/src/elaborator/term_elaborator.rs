@@ -419,7 +419,7 @@ impl LocalScope {
                 self.elab_take_map(var, domain, body, handler)
             }
             Bind::SubsetWithProof { .. } => {
-                Err("\\take with proof bind is not supported by kernel Take(X,T,f)".into())
+                Err("\\take with proof bind is not supported by kernel TakeProp(X,P,f)".into())
             }
         }
     }
@@ -1589,19 +1589,16 @@ impl LocalScope {
                     Ok(handler.arena().alloc(ExpNode::Exists { set }))
                 }
             },
-            SExp::TakeSet {
-                bind,
-                body,
+            SExp::Choice {
+                set,
                 existence,
                 uniqueness,
             } => {
-                let (domain, map, codomain) = self.elab_take_parts(bind, body, handler)?;
+                let set = self.elab_exp_rec(set, handler)?;
                 let existence = self.elab_exp_rec(existence, handler)?;
                 let uniqueness = self.elab_exp_rec(uniqueness, handler)?;
-                Ok(handler.arena().alloc(ExpNode::TakeSet {
-                    domain,
-                    codomain,
-                    map,
+                Ok(handler.arena().alloc(ExpNode::Choice {
+                    set,
                     existence,
                     uniqueness,
                 }))
@@ -1726,36 +1723,18 @@ impl LocalScope {
                     },
                 ))))
             }
-            SExp::TakeEq {
-                var,
-                ty,
-                body,
+            SExp::ChoiceEq {
+                set,
                 element,
                 existence,
                 uniqueness,
             } => {
+                let set = self.elab_exp_rec(set, handler)?;
                 let element = self.elab_exp_rec(element, handler)?;
-                let domain = self.elab_exp_rec(ty, handler)?;
-                if matches!(handler.arena().get(domain), ExpNode::Meta { .. }) {
-                    handler.check(&mut self.typing_binds, element, domain)?;
-                }
-                let var = handler.intern_name(var);
-                let func = self.elab_take_function(var, domain, body, handler)?;
-                // Keep the result type open until checking the equality goal or map.
-                // Its scope excludes the choice binder, so it cannot depend on it.
-                let codomain = handler.fresh_meta(
-                    SurfaceMeta::Implicit,
-                    SourceSpan { start: 0, end: 0 },
-                    &self.typing_binds,
-                )?;
-                let sort = handler.infer(&mut self.typing_binds, domain)?;
-                handler.check(&mut self.typing_binds, codomain, sort)?;
                 let existence = self.elab_exp_rec(existence, handler)?;
                 let uniqueness = self.elab_exp_rec(uniqueness, handler)?;
-                Ok(handler.arena().alloc(ExpNode::Prove(Prove::TakeEq {
-                    func,
-                    domain,
-                    codomain,
+                Ok(handler.arena().alloc(ExpNode::Prove(Prove::ChoiceEq {
+                    set,
                     element,
                     existence,
                     uniqueness,

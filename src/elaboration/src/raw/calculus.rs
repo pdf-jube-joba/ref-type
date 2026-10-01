@@ -149,13 +149,11 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             proof,
         } => one!(superset, subset, element, proof),
         ExpNode::Equal { left, right } => one!(left, right),
-        ExpNode::TakeSet {
-            domain,
-            codomain,
-            map: function,
+        ExpNode::Choice {
+            set,
             existence,
             uniqueness,
-        } => one!(domain, codomain, function, existence, uniqueness),
+        } => one!(set, existence, uniqueness),
         ExpNode::TakeProp {
             domain,
             proposition,
@@ -194,14 +192,12 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             family,
             inhabited,
         })) => one!(domain, family, inhabited),
-        ExpNode::Prove(Prove::TakeEq {
-            func,
-            domain,
-            codomain,
+        ExpNode::Prove(Prove::ChoiceEq {
+            set,
             element,
             existence,
             uniqueness,
-        }) => one!(func, domain, codomain, element, existence, uniqueness),
+        }) => one!(set, element, existence, uniqueness),
     }
     node
 }

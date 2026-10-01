@@ -85,10 +85,8 @@ pub enum Prove {
         equality: Exp,
     },
     Axiom(Axiom),
-    TakeEq {
-        func: Exp,
-        domain: Exp,
-        codomain: Exp,
+    ChoiceEq {
+        set: Exp,
         element: Exp,
         existence: Exp,
         uniqueness: Exp,
@@ -241,10 +239,8 @@ pub enum ExpNode {
     Exists {
         set: Exp,
     },
-    TakeSet {
-        domain: Exp,
-        codomain: Exp,
-        map: Exp,
+    Choice {
+        set: Exp,
         existence: Exp,
         uniqueness: Exp,
     },
@@ -763,16 +759,12 @@ impl ArenaNode for ExpNode {
                 right: right.0,
             },
             ExpNode::Exists { set } => N::Exists { set: set.0 },
-            ExpNode::TakeSet {
-                domain,
-                codomain,
-                map,
+            ExpNode::Choice {
+                set,
                 existence,
                 uniqueness,
-            } => N::TakeSet {
-                domain: domain.0,
-                codomain: codomain.0,
-                map: map.0,
+            } => N::Choice {
+                set: set.0,
                 existence: existence.0,
                 uniqueness: uniqueness.0,
             },
@@ -1055,17 +1047,13 @@ impl ArenaHandle for Exp {
                 right: Exp(right),
             },
             N::Exists { set, .. } => ExpNode::Exists { set: Exp(set) },
-            N::TakeSet {
-                domain,
-                codomain,
-                map,
+            N::Choice {
+                set,
                 existence,
                 uniqueness,
                 ..
-            } => ExpNode::TakeSet {
-                domain: Exp(domain),
-                codomain: Exp(codomain),
-                map: Exp(map),
+            } => ExpNode::Choice {
+                set: Exp(set),
                 existence: Exp(existence),
                 uniqueness: Exp(uniqueness),
             },
@@ -1786,17 +1774,13 @@ fn lower_proof(proof: Prove) -> N {
             base: base.0,
             equality: equality.0,
         },
-        Prove::TakeEq {
-            func,
-            domain,
-            codomain,
+        Prove::ChoiceEq {
+            set,
             element,
             existence,
             uniqueness,
-        } => N::TakeEq {
-            func: func.0,
-            domain: domain.0,
-            codomain: codomain.0,
+        } => N::ChoiceEq {
+            set: set.0,
             element: element.0,
             existence: existence.0,
             uniqueness: uniqueness.0,
@@ -1897,17 +1881,13 @@ fn raise_proof(node: N) -> Prove {
             base: Exp(base),
             equality: Exp(equality),
         },
-        N::TakeEq {
-            func,
-            domain,
-            codomain,
+        N::ChoiceEq {
+            set,
             element,
             existence,
             uniqueness,
-        } => Prove::TakeEq {
-            func: Exp(func),
-            domain: Exp(domain),
-            codomain: Exp(codomain),
+        } => Prove::ChoiceEq {
+            set: Exp(set),
             element: Exp(element),
             existence: Exp(existence),
             uniqueness: Exp(uniqueness),

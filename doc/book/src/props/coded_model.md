@@ -129,7 +129,7 @@ domain の sort を保持するため、次の略記を使う。
 | \(\Pred(A,S,a)\) | \(\mathbf t(a\in S)\) |
 | \(a=b\) | \(\mathbf t(a=b)\) |
 | \(\exists A\) | \(\mathbf t(\operatorname{El}(c)\ne\varnothing)\) |
-| \(\Take^s_i(X,T,f)\) | \(\bigcup\{\operatorname{app}(f,x)\mid x\in\operatorname{El}(\langle X\rangle_\rho)\}\) |
+| \(\operatorname{choice}_i(X)\) | \(\bigcup\operatorname{El}(\langle X\rangle_\rho)\) |
 | \(\operatorname{RunStep}(A,B)\) | \(\mathsf{sum}(c,d)\) |
 | \(\operatorname{continue}_{A,B}(a)\), \(\operatorname{finish}_{A,B}(b)\) | \((0,a)\), \((1,b)\) |
 | \(\operatorname{stepMatch}_{A,B}(x.P,u,v)\) | \(\operatorname{lam}_{\operatorname{El}(\mathsf{sum}(c,d))}(g)\) |

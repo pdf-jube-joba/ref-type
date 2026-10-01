@@ -1,6 +1,3 @@
-\import std.Logic[].Equality[] \as Equality;
-\use Equality.sym;
-
 \definition leastUpperBoundUnique (s: AxiomaticRealStructure::[Set]) (A: \Pow Carrier) (u, v: Carrier)
   (hu: IsLeastUpperBound s A u) (hv: IsLeastUpperBound s A v): u = v :=
   #antisymmetric{#order{s}} u v (#right{hu} v #left{hv})
@@ -14,20 +11,13 @@
   \Cast[Carrier] ({ u : Carrier \where IsLeastUpperBound s A u });
 \definition candidateLaw (s: AxiomaticRealStructure::[Set]) (A: \Pow Carrier) (u: Candidates s A):
   IsLeastUpperBound s A u := \bysub(Carrier, { u : Carrier \where IsLeastUpperBound s A u }, u);
-\definition candidateValue (s: AxiomaticRealStructure::[Set]) (A: \Pow Carrier) (u: Candidates s A): Carrier := u;
 \definition candidatesUnique (s: AxiomaticRealStructure::[Set]) (A: \Pow Carrier) (u, v: Candidates s A):
-  candidateValue s A u = candidateValue s A v :=
+  u = v :=
   leastUpperBoundUnique s A u v (candidateLaw s A u) (candidateLaw s A v);
 \definition supremum (s: AxiomaticRealStructure::[Set]) (A: SupDomain s): Carrier :=
-  \take (u: Candidates s A) => candidateValue s A u
+  \choice Candidates s A
   \by { existence: #completeness{s} A #left{A} #right{A}, uniqueness: candidatesUnique s A };
 \definition supremumLaw (s: AxiomaticRealStructure::[Set]) (A: SupDomain s): IsLeastUpperBound s A (supremum s A) :=
-  \block {
-    \takefrom u: Candidates s A
-      \by #completeness{s} A #left{A} #right{A} \then
-    \return \idelim candidateValue s A u = supremum s A \with v: Carrier => IsLeastUpperBound s A v
-      \by { base: candidateLaw s A u, equality:
-      sym!{Carrier} _ _
-        (\takeelim u \with v: Candidates s A => candidateValue s A v
-          \by { existence: #completeness{s} A #left{A} #right{A}, uniqueness: candidatesUnique s A }) }
-  };
+  candidateLaw s A
+    (\choice Candidates s A
+      \by { existence: #completeness{s} A #left{A} #right{A}, uniqueness: candidatesUnique s A });

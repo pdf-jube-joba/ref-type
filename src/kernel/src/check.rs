@@ -252,12 +252,14 @@ impl<'a> Checker<'a> {
         expected: Expression,
     ) -> Result<(), Error> {
         if self.solving {
-            if let Node::TakeEq { codomain, .. } = self.arena().get(term)
-                && matches!(self.arena().get(self.head(codomain)?), Node::Meta { .. })
-                && let Node::Equal { left, .. } = self.arena().get(self.head(expected)?)
+            if let Node::ChoiceEq { set, .. } = self.arena().get(term)
+                && matches!(self.arena().get(self.head(set)?), Node::Meta { .. })
+                && let Node::Equal { right, .. } = self.arena().get(self.head(expected)?)
+                && let Node::Choice {
+                    set: chosen_set, ..
+                } = self.arena().get(self.head(right)?)
             {
-                let result_ty = self.infer_open(left)?;
-                self.metas.unify(self.env, &self.context, codomain, result_ty)?;
+                self.metas.unify(self.env, &self.context, set, chosen_set)?;
             }
             if let Node::Meta { id, arguments } = self.arena().get(term) {
                 self.metas.expect(self.env, id, &arguments, expected)?;
@@ -967,37 +969,31 @@ impl<'a> Checker<'a> {
 
     fn infer_extended(&mut self, node: Node) -> Result<Expression, Error> {
         match node {
-            Node::TakeSet {
-                domain,
-                codomain,
-                map,
+            Node::Choice {
+                set,
                 existence,
                 uniqueness,
-            } => self.infer_take_set(domain, codomain, map, existence, uniqueness),
+            } => self.infer_choice(set, existence, uniqueness),
             Node::TakeProp {
                 domain,
                 proposition,
                 map,
                 existence,
             } => self.infer_take_prop(domain, proposition, map, existence),
-            Node::TakeEq {
-                func,
-                domain,
-                codomain,
+            Node::ChoiceEq {
+                set,
                 element,
                 existence,
                 uniqueness,
             } => {
-                let take = self.alloc(Node::TakeSet {
-                    domain,
-                    codomain,
-                    map: func,
+                let choice = self.alloc(Node::Choice {
+                    set,
                     existence,
                     uniqueness,
                 });
-                self.check_open(take, codomain)?;
-                self.check_at("check element", element, domain)?;
-                self.equality(take, self.application(func, element)?)
+                self.check_open(choice, set)?;
+                self.check_at("check element", element, set)?;
+                self.equality(element, choice)
             }
             Node::FunExt {
                 left,
@@ -1362,32 +1358,20 @@ impl<'a> Checker<'a> {
             _ => unreachable!("primitive handled by infer_open"),
         }
     }
-    fn infer_take_set(
+    fn infer_choice(
         &mut self,
-        domain: Expression,
-        codomain: Expression,
-        map: Expression,
+        set: Expression,
         existence: Expression,
         uniqueness: Expression,
     ) -> Result<Expression, Error> {
-        if self.set_type(codomain)? != self.set_type(domain)? {
-            return Err("TakeSet domain/codomain level mismatch".into());
-        }
-        let map_ty = self.arrow(domain, codomain)?;
-        self.check_at("check map", map, map_ty)?;
-        self.check_at("check existence", existence, self.exists(domain)?)?;
-        let unique = self.quantified(domain, |ch, x| {
-            let dom = ch.lifted(domain, 1)?;
-            ch.quantified(dom, |ch, y| {
-                let f = ch.lifted(map, 2)?;
-                let x = ch.lifted(x, 1)?;
-                let left = ch.application(f, x)?;
-                let right = ch.application(f, y)?;
-                ch.equality(left, right)
-            })
+        self.set_type(set)?;
+        self.check_at("check existence", existence, self.exists(set)?)?;
+        let unique = self.quantified(set, |ch, x| {
+            let set = ch.lifted(set, 1)?;
+            ch.quantified(set, |ch, y| ch.equality(ch.lifted(x, 1)?, y))
         })?;
         self.check_at("check uniqueness", uniqueness, unique)?;
-        Ok(codomain)
+        Ok(set)
     }
     fn infer_take_prop(
         &mut self,

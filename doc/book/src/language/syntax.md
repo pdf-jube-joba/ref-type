@@ -423,11 +423,11 @@ A -> B
 ### choice
 
 ```text
-\take (x: A) => body
-\by { existence-proof }
+\choice X
+\by { existence: existence-proof, uniqueness: uniqueness-proof }
 
 \take (x: A) => body
-\by { existence: existence-proof, uniqueness: uniqueness-proof }
+\by { existence-proof }
 
 \block {
   \takefrom x: A \by existence-proof \then
@@ -435,7 +435,9 @@ A -> B
 }
 ```
 
-`uniqueness` のない form は proposition-valued、ある form は set-valued choice である。
+`\choice` は一意存在する集合の元を返す。
+`uniqueness-proof` は `\forall (x, y: X) -> x = y` の証明である。
+`\take` と `\takefrom` は存在証明を使って命題を証明する。
 
 ### equality と proof term
 
@@ -445,16 +447,14 @@ left = right
 \exact(element, set)
 \bysub(superset, subset, element)
 \idelim left = right \with x: A => predicate \by { base: base-proof, equality: equality-proof }
-\takeelim element \with x: A => body
-  \by { existence: existence-proof, uniqueness: uniqueness-proof }
-\takeelim element \with x: A => body \of B
+\choiceeq element \of X
   \by { existence: existence-proof, uniqueness: uniqueness-proof }
 ```
 
-`\takeelim` は、同じ本体と証明で作った `\take` の結果が、`element` を束縛変数に代入した本体と等しいことを示す。
-束縛変数のスコープは本体であり、要素と `\by` の証明は外側の文脈で読む。
-結果型は期待される等式の左辺の型から推論し、期待型がない場合は本体から推論する。
-`\of` で本体の結果型を指定することもできる。
+`\choiceeq` は `element = \choice X \by { existence: existence-proof, uniqueness: uniqueness-proof }` を証明する。
+集合 X の一意性を、choice の型付けを通じて利用する。
+`\of _` の集合は、期待される等式の右辺が choice に展開される場合、その集合から推論する。
+choice と choiceeq の証明引数は型検査され、定義的等価性の比較では消去される。
 
 組み込み公理:
 
