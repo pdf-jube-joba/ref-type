@@ -468,14 +468,16 @@ Set/Prop の `\match` では `\return` に結果型を指定し、branch の見�
 
 ```text
 \block {
-  \fix (x, y: A) (h: P x) \then
+  \fun (x, y: A) (h: P x) \then
   \let z: B := term \then
   \enough C \by { map } \then
   \return result
 }
 ```
 
-`\fix`、`\let`、`\enough` を 0 個以上並べ、必須の `\return` で終える。`\fix` は目標の前方に binder を追加する。`\let` は後続の項と型から展開できる局所定義である。
+`\fun`、`\let`、`\enough` を 0 個以上並べ、必須の `\return` で終える。
+`\fun` は目標の前方に binder を追加する。
+`\let` は後続の項と型から展開できる局所定義である。
 `\enough A \by { map } \then` は `map: A -> B` を使って残りの目標を `A` にする。
 
 ## 6. Program (CBPV)

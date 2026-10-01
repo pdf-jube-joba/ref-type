@@ -1141,7 +1141,7 @@ pub struct Block {
 
 #[derive(Debug, Clone)]
 pub enum Statement {
-    Fix(Vec<RightBind>), // fix x: A; y: B;
+    Fun(Vec<RightBind>), // \fun (x: A) (y: B) \then
     Let {
         span: SourceSpan,
         var: Identifier,

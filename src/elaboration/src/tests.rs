@@ -543,6 +543,26 @@ fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
 }
 
 #[test]
+fn logical_block_fun_preserves_binder_order_and_scope() {
+    let source = r#"
+        \module BlockFunctions(A: \Set, P: A -> \Set) {
+            \definition direct: \forall (x, y: A) (h: P x) -> A -> P x :=
+                \fun (x, y: A) (h: P x) (z: A) => h;
+            \definition blocked: \forall (x, y: A) (h: P x) -> A -> P x := \block {
+                \fun (x, y: A) (h: P x) \then
+                \let saved: P x := h \then
+                \fun (x: A) \then
+                \return saved
+            };
+            \definition same: blocked = direct := \refl(direct);
+        }
+    "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_new_module_to_root(&modules[0]).unwrap();
+}
+
+#[test]
 fn logical_let_definitions_are_transparent_and_capture_avoiding() {
     let source = r#"
         \module LocalDefinitions(A: \Set, a: A) {
@@ -556,7 +576,7 @@ fn logical_let_definitions_are_transparent_and_capture_avoiding() {
                 \fun (x: A) => \block {
                     \let saved: A := x \then
                     \let alias: A := saved \then
-                    \fix (x: A) \then
+                    \fun (x: A) \then
                     \let x: A := alias \then
                     \let h: equality!{x saved} := \refl(saved) \then
                     \return h
@@ -2127,14 +2147,14 @@ fn explicit_meta_assignment_shares_record_types_before_projection() {
         \record PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
         \definition andAssoc (P, Q, R: \Prop): PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] := PropEquiv[_1, _2] {
           lt := \block {
-            \fix (h: _1) \then
+            \fun (h: _1) \then
             \let p: P := h #left #left \then
             \let q: Q := h #left #right \then
             \let r: R := h #right \then
             \return And[_, _]::# p (And[_, _]::# q r)
           },
           rt := \block {
-            \fix (h: _2) \then
+            \fun (h: _2) \then
             \let p: P := h #left \then
             \let q: Q := h #right #left \then
             \let r: R := h #right #right \then

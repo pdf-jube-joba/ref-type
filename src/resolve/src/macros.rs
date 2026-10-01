@@ -785,7 +785,7 @@ fn walk_bind_mut(bind: &mut Bind, action: &mut impl FnMut(&mut SExp) -> bool) {
 
 fn walk_statement_mut(statement: &mut Statement, action: &mut impl FnMut(&mut SExp) -> bool) {
     match statement {
-        Statement::Fix(binds) => {
+        Statement::Fun(binds) => {
             for bind in binds {
                 walk_sexp_control(&mut bind.ty, action);
             }

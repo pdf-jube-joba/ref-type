@@ -872,15 +872,15 @@ impl<'a> TermParser<'a> {
         let mut statements = Vec::new();
 
         loop {
-            if self.bump_if_keyword("\\fix") {
-                // r"\fix" ("(" RightBind ")")* "\then"
+            if self.bump_if_keyword("\\fun") {
+                // r"\fun" ("(" RightBind ")")* "\then"
                 let mut binds: Vec<RightBind> = Vec::new();
                 while self.peek() == Some(&Token::LParen) {
                     let bind = self.parse_simple_binds_paren()?;
                     binds.extend(bind);
                 }
                 self.expect_keyword("\\then")?;
-                statements.push(Statement::Fix(binds));
+                statements.push(Statement::Fun(binds));
                 continue;
             }
 
@@ -1950,13 +1950,13 @@ mod tests {
     }
 
     #[test]
-    fn fix_accepts_adjacent_binder_groups() {
-        let SExp::Block(block) = complete(r"\block { \fix (x, y: A) (h: P x) \then \return h }")
+    fn block_fun_accepts_adjacent_binder_groups() {
+        let SExp::Block(block) = complete(r"\block { \fun (x, y: A) (h: P x) \then \return h }")
         else {
             panic!("expected block");
         };
-        let [Statement::Fix(binds)] = block.statements.as_slice() else {
-            panic!("expected one fix statement");
+        let [Statement::Fun(binds)] = block.statements.as_slice() else {
+            panic!("expected one fun statement");
         };
         assert_eq!(binds.len(), 2);
         assert_eq!(binds[0].vars.len(), 2);

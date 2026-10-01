@@ -378,7 +378,7 @@ pub(crate) fn alpha_rename(
             let mut pushed = 0;
             for statement in &mut block.statements {
                 match statement {
-                    Statement::Fix(binds) => {
+                    Statement::Fun(binds) => {
                         for bind in binds {
                             alpha_rename(&mut bind.ty, order, counter, scopes);
                             let local = bind

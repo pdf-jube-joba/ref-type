@@ -1771,7 +1771,7 @@ impl LocalScope {
                 let mut term = term.as_ref().clone();
                 for decl in declarations.iter().rev() {
                     match decl {
-                        Statement::Fix(items) => {
+                        Statement::Fun(items) => {
                             for bind in items.iter().rev() {
                                 term = SExp::Lam {
                                     bind: Bind::Named(bind.clone()),

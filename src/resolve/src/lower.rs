@@ -307,7 +307,7 @@ extend_enum!(SExp {
 extend_struct!(Block { statements, result });
 
 extend_enum!(Statement {
-    Fix(value0),
+    Fun(value0),
     Let { span, var, ty, body },
     Bind { var, ty, computation },
     Sufficient { map, map_ty },
