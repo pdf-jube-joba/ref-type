@@ -1,0 +1,274 @@
+\import \parent.Def[] \as Def;
+
+\definition zeroNeOne: Logic.Not (Def.zero = Def.one) :=
+  \fun (same: Def.zero = Def.one) =>
+    S.zeroNotEquivalentOne
+      (equivalentOfClassEq (Sequences.ConstCauchy zeroRat) (Sequences.ConstCauchy oneRat) same);
+
+\definition addClass (x, y: CauchySeq::[Set]):
+    Def.add (class x) (class y) = class (Sequences.AddCauchy x y) :=
+  binaryImageClass Sequences.AddCauchy S.addRespects x y;
+
+\definition negClass (x: CauchySeq::[Set]):
+    Def.neg (class x) = class (Sequences.NegCauchy x) :=
+  unaryImageClass Sequences.NegCauchy S.negRespects x;
+
+\definition mulClass (x, y: CauchySeq::[Set]):
+    Def.mul (class x) (class y) = class (Sequences.MulCauchy x y) :=
+  binaryImageClass Sequences.MulCauchy S.mulRespects x y;
+
+\definition addZeroLeft: \forall (x: Real) -> Def.add Def.zero x = x :=
+  quotientInduction (\fun (x: Real) => Def.add Def.zero x = x)
+    (\fun (x: CauchySeq::[Set]) =>
+      trans!{Real}
+        (Def.add Def.zero (class x))
+        (class (Sequences.AddCauchy (Sequences.ConstCauchy zeroRat) x))
+        (class x)
+        (addClass (Sequences.ConstCauchy zeroRat) x)
+        (classOfEq (Sequences.AddCauchy (Sequences.ConstCauchy zeroRat) x) x
+          (S.addZeroLeft x)));
+
+\definition addNegLeft: \forall (x: Real) -> Def.add (Def.neg x) x = Def.zero :=
+  quotientInduction (\fun (x: Real) => Def.add (Def.neg x) x = Def.zero)
+    (\fun (x: CauchySeq::[Set]) =>
+      trans!{Real}
+        (Def.add (Def.neg (class x)) (class x))
+        (Def.add (class (Sequences.NegCauchy x)) (class x))
+        Def.zero
+        (congr!{Real Real} (\fun (u: Real) => Def.add u (class x))
+          _ _ (negClass x))
+        (trans!{Real}
+          (Def.add (class (Sequences.NegCauchy x)) (class x))
+          (class (Sequences.AddCauchy (Sequences.NegCauchy x) x))
+          Def.zero
+          (addClass (Sequences.NegCauchy x) x)
+          (classOfEq (Sequences.AddCauchy (Sequences.NegCauchy x) x)
+            (Sequences.ConstCauchy zeroRat) (S.addNegLeft x))));
+
+\definition addComm: \forall (x, y: Real) -> Def.add x y = Def.add y x :=
+  quotientInduction
+    (\fun (x: Real) => \forall (y: Real) -> Def.add x y = Def.add y x)
+    (\fun (x: CauchySeq::[Set]) =>
+      quotientInduction
+        (\fun (y: Real) => Def.add (class x) y = Def.add y (class x))
+        (\fun (y: CauchySeq::[Set]) =>
+          trans!{Real}
+            (Def.add (class x) (class y))
+            (class (Sequences.AddCauchy x y))
+            (Def.add (class y) (class x))
+            (addClass x y)
+            (trans!{Real}
+              (class (Sequences.AddCauchy x y))
+              (class (Sequences.AddCauchy y x))
+              (Def.add (class y) (class x))
+              (classOfEq (Sequences.AddCauchy x y) (Sequences.AddCauchy y x)
+                (S.addComm x y))
+              (sym!{Real} _ _ (addClass y x)))));
+
+\definition addAssoc: \forall (x, y, z: Real) ->
+    Def.add (Def.add x y) z = Def.add x (Def.add y z) :=
+
+  quotientInduction
+    (\fun (x: Real) => \forall (y, z: Real) ->
+      Def.add (Def.add x y) z = Def.add x (Def.add y z))
+    (\fun (x: CauchySeq::[Set]) =>
+      quotientInduction
+        (\fun (y: Real) => \forall (z: Real) ->
+          Def.add (Def.add (class x) y) z = Def.add (class x) (Def.add y z))
+        (\fun (y: CauchySeq::[Set]) =>
+          quotientInduction
+            (\fun (z: Real) =>
+              Def.add (Def.add (class x) (class y)) z =
+                Def.add (class x) (Def.add (class y) z))
+            (\fun (z: CauchySeq::[Set]) =>
+              trans!{Real}
+                (Def.add (Def.add (class x) (class y)) (class z))
+                (Def.add (class (Sequences.AddCauchy x y)) (class z))
+                (Def.add (class x) (Def.add (class y) (class z)))
+                (congr!{Real Real} (\fun (u: Real) => Def.add u (class z))
+                  _ _ (addClass x y))
+                (trans!{Real}
+                  (Def.add (class (Sequences.AddCauchy x y)) (class z))
+                  (class (Sequences.AddCauchy (Sequences.AddCauchy x y) z))
+                  (Def.add (class x) (Def.add (class y) (class z)))
+                  (addClass (Sequences.AddCauchy x y) z)
+                  (trans!{Real}
+                    (class (Sequences.AddCauchy (Sequences.AddCauchy x y) z))
+                    (class (Sequences.AddCauchy x (Sequences.AddCauchy y z)))
+                    (Def.add (class x) (Def.add (class y) (class z)))
+                    (classOfEq
+                      (Sequences.AddCauchy (Sequences.AddCauchy x y) z)
+                      (Sequences.AddCauchy x (Sequences.AddCauchy y z))
+                      (S.addAssoc x y z))
+                    (trans!{Real}
+                      (class (Sequences.AddCauchy x (Sequences.AddCauchy y z)))
+                      (Def.add (class x) (class (Sequences.AddCauchy y z)))
+                      (Def.add (class x) (Def.add (class y) (class z)))
+                      (sym!{Real} _ _ (addClass x (Sequences.AddCauchy y z)))
+                      (congr!{Real Real} (Def.add (class x))
+                        _ _ (sym!{Real} _ _ (addClass y z)))))))));
+
+\definition negInvolutive: \forall (x: Real) -> Def.neg (Def.neg x) = x :=
+  quotientInduction (\fun (x: Real) => Def.neg (Def.neg x) = x)
+    (\fun (x: CauchySeq::[Set]) =>
+      trans!{Real}
+        (Def.neg (Def.neg (class x)))
+        (Def.neg (class (Sequences.NegCauchy x)))
+        (class x)
+        (congr!{Real Real} Def.neg _ _ (negClass x))
+        (trans!{Real}
+          (Def.neg (class (Sequences.NegCauchy x)))
+          (class (Sequences.NegCauchy (Sequences.NegCauchy x)))
+          (class x)
+          (negClass (Sequences.NegCauchy x))
+          (classOfEq (Sequences.NegCauchy (Sequences.NegCauchy x)) x
+            (S.negInvolutive x))));
+
+\definition negZero: Def.neg Def.zero = Def.zero :=
+  trans!{Real}
+    (Def.neg Def.zero)
+    (class (Sequences.NegCauchy (Sequences.ConstCauchy zeroRat)))
+    Def.zero
+    (negClass (Sequences.ConstCauchy zeroRat))
+    (classOfEq (Sequences.NegCauchy (Sequences.ConstCauchy zeroRat))
+      (Sequences.ConstCauchy zeroRat) S.negZero);
+
+\definition mulOneLeft: \forall (x: Real) -> Def.mul Def.one x = x :=
+  quotientInduction (\fun (x: Real) => Def.mul Def.one x = x)
+    (\fun (x: CauchySeq::[Set]) =>
+      trans!{Real}
+        (Def.mul Def.one (class x))
+        (class (Sequences.MulCauchy (Sequences.ConstCauchy oneRat) x))
+        (class x)
+        (mulClass (Sequences.ConstCauchy oneRat) x)
+        (classOfEq (Sequences.MulCauchy (Sequences.ConstCauchy oneRat) x) x
+          (S.mulOneLeft x)));
+
+\definition mulComm: \forall (x, y: Real) -> Def.mul x y = Def.mul y x :=
+  quotientInduction
+    (\fun (x: Real) => \forall (y: Real) -> Def.mul x y = Def.mul y x)
+    (\fun (x: CauchySeq::[Set]) =>
+      quotientInduction
+        (\fun (y: Real) => Def.mul (class x) y = Def.mul y (class x))
+        (\fun (y: CauchySeq::[Set]) =>
+          trans!{Real}
+            (Def.mul (class x) (class y))
+            (class (Sequences.MulCauchy x y))
+            (Def.mul (class y) (class x))
+            (mulClass x y)
+            (trans!{Real}
+              (class (Sequences.MulCauchy x y))
+              (class (Sequences.MulCauchy y x))
+              (Def.mul (class y) (class x))
+              (classOfEq (Sequences.MulCauchy x y) (Sequences.MulCauchy y x)
+                (S.mulComm x y))
+              (sym!{Real} _ _ (mulClass y x)))));
+
+\definition mulAssoc: \forall (x, y, z: Real) ->
+    Def.mul (Def.mul x y) z = Def.mul x (Def.mul y z) :=
+
+  quotientInduction
+    (\fun (x: Real) => \forall (y, z: Real) ->
+      Def.mul (Def.mul x y) z = Def.mul x (Def.mul y z))
+    (\fun (x: CauchySeq::[Set]) =>
+      quotientInduction
+        (\fun (y: Real) => \forall (z: Real) ->
+          Def.mul (Def.mul (class x) y) z = Def.mul (class x) (Def.mul y z))
+        (\fun (y: CauchySeq::[Set]) =>
+          quotientInduction
+            (\fun (z: Real) =>
+              Def.mul (Def.mul (class x) (class y)) z =
+                Def.mul (class x) (Def.mul (class y) z))
+            (\fun (z: CauchySeq::[Set]) =>
+              trans!{Real}
+                (Def.mul (Def.mul (class x) (class y)) (class z))
+                (Def.mul (class (Sequences.MulCauchy x y)) (class z))
+                (Def.mul (class x) (Def.mul (class y) (class z)))
+                (congr!{Real Real} (\fun (u: Real) => Def.mul u (class z))
+                  _ _ (mulClass x y))
+                (trans!{Real}
+                  (Def.mul (class (Sequences.MulCauchy x y)) (class z))
+                  (class (Sequences.MulCauchy (Sequences.MulCauchy x y) z))
+                  (Def.mul (class x) (Def.mul (class y) (class z)))
+                  (mulClass (Sequences.MulCauchy x y) z)
+                  (trans!{Real}
+                    (class (Sequences.MulCauchy (Sequences.MulCauchy x y) z))
+                    (class (Sequences.MulCauchy x (Sequences.MulCauchy y z)))
+                    (Def.mul (class x) (Def.mul (class y) (class z)))
+                    (classOfEq
+                      (Sequences.MulCauchy (Sequences.MulCauchy x y) z)
+                      (Sequences.MulCauchy x (Sequences.MulCauchy y z))
+                      (S.mulAssoc x y z))
+                    (trans!{Real}
+                      (class (Sequences.MulCauchy x (Sequences.MulCauchy y z)))
+                      (Def.mul (class x) (class (Sequences.MulCauchy y z)))
+                      (Def.mul (class x) (Def.mul (class y) (class z)))
+                      (sym!{Real} _ _ (mulClass x (Sequences.MulCauchy y z)))
+                      (congr!{Real Real} (Def.mul (class x))
+                        _ _ (sym!{Real} _ _ (mulClass y z)))))))));
+
+\definition mulAddLeft: \forall (x, y, z: Real) ->
+    Def.mul x (Def.add y z) = Def.add (Def.mul x y) (Def.mul x z) :=
+
+  quotientInduction
+    (\fun (x: Real) => \forall (y, z: Real) ->
+      Def.mul x (Def.add y z) = Def.add (Def.mul x y) (Def.mul x z))
+    (\fun (x: CauchySeq::[Set]) =>
+      quotientInduction
+        (\fun (y: Real) => \forall (z: Real) ->
+          Def.mul (class x) (Def.add y z) =
+            Def.add (Def.mul (class x) y) (Def.mul (class x) z))
+        (\fun (y: CauchySeq::[Set]) =>
+          quotientInduction
+            (\fun (z: Real) =>
+              Def.mul (class x) (Def.add (class y) z) =
+                Def.add (Def.mul (class x) (class y)) (Def.mul (class x) z))
+            (\fun (z: CauchySeq::[Set]) =>
+              trans!{Real}
+                (Def.mul (class x) (Def.add (class y) (class z)))
+                (Def.mul (class x) (class (Sequences.AddCauchy y z)))
+                (Def.add (Def.mul (class x) (class y))
+                  (Def.mul (class x) (class z)))
+                (congr!{Real Real} (Def.mul (class x)) _ _
+                  (addClass y z))
+                (trans!{Real}
+                  (Def.mul (class x) (class (Sequences.AddCauchy y z)))
+                  (class (Sequences.MulCauchy x (Sequences.AddCauchy y z)))
+                  (Def.add (Def.mul (class x) (class y))
+                    (Def.mul (class x) (class z)))
+                  (mulClass x (Sequences.AddCauchy y z))
+                  (trans!{Real}
+                    (class (Sequences.MulCauchy x (Sequences.AddCauchy y z)))
+                    (class (Sequences.AddCauchy (Sequences.MulCauchy x y) (Sequences.MulCauchy x z)))
+                    (Def.add (Def.mul (class x) (class y))
+                      (Def.mul (class x) (class z)))
+                    (classOfEq
+                      (Sequences.MulCauchy x (Sequences.AddCauchy y z))
+                      (Sequences.AddCauchy (Sequences.MulCauchy x y) (Sequences.MulCauchy x z))
+                      (S.mulAddLeft x y z))
+                    (trans!{Real}
+                      (class (Sequences.AddCauchy (Sequences.MulCauchy x y) (Sequences.MulCauchy x z)))
+                      (Def.add (class (Sequences.MulCauchy x y))
+                        (class (Sequences.MulCauchy x z)))
+                      (Def.add (Def.mul (class x) (class y))
+                        (Def.mul (class x) (class z)))
+                      (sym!{Real} _ _
+                        (addClass (Sequences.MulCauchy x y) (Sequences.MulCauchy x z)))
+                      (trans!{Real}
+                        (Def.add (class (Sequences.MulCauchy x y))
+                          (class (Sequences.MulCauchy x z)))
+                        (Def.add (Def.mul (class x) (class y))
+                          (class (Sequences.MulCauchy x z)))
+                        (Def.add (Def.mul (class x) (class y))
+                          (Def.mul (class x) (class z)))
+                        (congr!{Real Real}
+                          (\fun (u: Real) =>
+                            Def.add u (class (Sequences.MulCauchy x z)))
+                          _ _ (sym!{Real} _ _ (mulClass x y)))
+                        (congr!{Real Real}
+                          (Def.add (Def.mul (class x) (class y)))
+                          _ _ (sym!{Real} _ _ (mulClass x z))))))))));
+
+\definition mulOneRight (x: Real): Def.mul x Def.one = x :=
+  trans!{Real} (Def.mul x Def.one) (Def.mul Def.one x) x
+    (mulComm x Def.one) (mulOneLeft x);

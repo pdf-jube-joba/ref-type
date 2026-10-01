@@ -1,0 +1,102 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as L;
+\use Equality.trans;
+\use Equality.eq_reason;
+\use Equality.congr;
+
+\import std.Data[].Bool[] \as B;
+\import std.Data[].Pair[] \as P;
+
+\definition NatPair: \Set := P.Times^[N.Nat^, N.Nat^];
+\definition natPair: N.Nat^ -> N.Nat^ -> NatPair := P.pair N.Nat^ N.Nat^;
+\definition natPairFirst: NatPair -> N.Nat^ := P.first N.Nat^ N.Nat^;
+\definition natPairSecond: NatPair -> N.Nat^ := P.second N.Nat^ N.Nat^;
+\definition natPairElim (Q: NatPair -> \Prop):
+  (\forall (a, b: N.Nat^) -> Q (natPair a b)) -> \forall (p: NatPair) -> Q p :=
+  \fun (pairCase: \forall (a, b: N.Nat^) -> Q (natPair a b)) =>
+    \induction (p: P.Times^[N.Nat^, N.Nat^]) \return Q p \with {
+      | pair : pairCase
+    };
+
+/* A pair-valued finite iterator. Its count, not the payload, proves totality. */
+\inductive PairIterState: \VType :=
+| running: \U(P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat]) -> P.Times[N.Nat, N.Nat] -> N.Nat -> PairIterState
+;
+\machine PairIterLoop {
+  \State := PairIterState,
+  \Output := P.Times[N.Nat, N.Nat],
+  \step := \thunk(\cfun (state: PairIterState) => \match state \in PairIterState \with {
+    | running f value count : \match count \in N.Nat \with {
+      | zero : \return(\finish[PairIterState, P.Times[N.Nat, N.Nat]](value))
+      | succ k : \program {
+        \bind next: P.Times[N.Nat, N.Nat] <- (\force f) value \then
+        \return \continue[PairIterState, P.Times[N.Nat, N.Nat]](PairIterState::running f next k)
+      }
+    }
+  }),
+
+  \import std.Data[].Nat[].Termination[State := PairIterState^, Output := NatPair,
+    step := PairIterLoop::[step]^].Prop[] \as Termination;
+  \definition terminates: \forall (count: N.Nat^) (f: NatPair -> NatPair) (value: NatPair) ->
+    \Acc[PairIterState^, NatPair](PairIterLoop::[step]^, PairIterState^::running f value count) :=
+    \induction (count: N.Nat^) \return \forall (f: NatPair -> NatPair) (value: NatPair) ->
+      \Acc[PairIterState^, NatPair](PairIterLoop::[step]^, PairIterState^::running f value count) \with {
+      | zero: \fun (f: NatPair -> NatPair) (value: NatPair) =>
+        Termination.accIntro (PairIterState^::running f value N.Nat^::zero) L.True::intro
+      | succ: \fun (k: N.Nat^) (ih: _) (f: NatPair -> NatPair) (value: NatPair) =>
+        Termination.accIntro (PairIterState^::running f value (N.Nat^::succ k)) (ih f (f value))
+    };
+  \terminates := \induction (s: PairIterState^) \return
+    \Acc[PairIterState^, NatPair](PairIterLoop::[step]^, s) \with {
+      | running: \fun (f: NatPair -> NatPair) (value: NatPair) (count: N.Nat^) => terminates count f value
+    },
+}
+
+\import std.Data[].Nat[].Iteration[].Def[A := NatPair] \as PairIteration;
+
+\correspondence PairIter: \U(P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat]) -> P.Times[N.Nat, N.Nat] -> N.Nat -> P.Times[N.Nat, N.Nat] {
+  \program := \fun (f: \U(P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat])) =>
+    \fun (value: P.Times[N.Nat, N.Nat]) =>
+      \fun (count: N.Nat) =>
+        PairIterLoop::[run] (PairIterState::running f value count),
+  \set := PairIteration.specification #apply,
+
+  \definition matches (f: NatPair -> NatPair): \forall (count: N.Nat^) -> \forall (value: NatPair) ->
+    PairIter::[program]^ f value count = PairIter::[set] f value count :=
+    \induction (count: N.Nat^) \return \forall (value: NatPair) -> PairIter::[program]^ f value count = PairIter::[set] f value count \with {
+      | zero : (\fun (value: NatPair) => \refl(value))
+      | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
+        \fun (value: NatPair) =>
+          \idelim PairIter::[set] f (f value) k = f (PairIter::[set] f value k)
+            \with x: NatPair => PairIter::[program]^ f value (N.Nat^::succ k) = x
+          \by { base: ih (f value), equality: (PairIteration.specification #advance) f k value })
+    };
+  \coherence := \axiom:funext(PairIter::[program]^, PairIter::[set],
+    \fun (f: NatPair -> NatPair) => \axiom:funext(PairIter::[program]^ f, PairIter::[set] f,
+      \fun (value: NatPair) => \axiom:funext(PairIter::[program]^ f value, PairIter::[set] f value,
+        \fun (count: N.Nat^) => matches f count value))),
+}
+
+\correspondence PairChoose: B.Bool -> P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat] {
+  \program := \fun (test: B.Bool) =>
+    \fun (yes, no: P.Times[N.Nat, N.Nat]) =>
+      \match test \in B.Bool \with { | false : \return no | true : \return yes },
+  \set := \fun (test: B.Bool^) (yes, no: NatPair) =>
+    B.ite NatPair test yes no,
+
+  \definition matches: \forall (test: B.Bool^) -> \forall (yes, no: NatPair) ->
+    PairChoose::[program]^ test yes no = PairChoose::[set] test yes no :=
+    \induction (test: B.Bool^) \return \forall (yes, no: NatPair) -> PairChoose::[program]^ test yes no = PairChoose::[set] test yes no \with {
+      | false : (\fun (yes, no: NatPair) => \refl(no))
+      | true : (\fun (yes, no: NatPair) => \refl(yes))
+    };
+  \coherence := \axiom:funext(PairChoose::[program]^, PairChoose::[set],
+    \fun (test: B.Bool^) => \axiom:funext(PairChoose::[program]^ test, PairChoose::[set] test,
+      \fun (yes: NatPair) => \axiom:funext(PairChoose::[program]^ test yes, PairChoose::[set] test yes,
+        \fun (no: NatPair) => matches test yes no))),
+}
+
+/* Consume one unit of the dividend. At a positive divisor's boundary the
+ * remainder wraps to zero and the quotient increases. At divisor zero only
+ * the remainder increases: div a 0 = 0, mod a 0 = a. */

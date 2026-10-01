@@ -1,0 +1,79 @@
+\definition add (x, y: Fraction): Fraction :=
+    Fraction::# (I.addInteger
+        (I.mulInteger (#numerator{x}) (denominator y))
+        (I.mulInteger (#numerator{y}) (denominator x))) (denominatorProductIndex
+        (#denominatorIndex{x}) (#denominatorIndex{y}));
+
+\definition neg (x: Fraction): Fraction :=
+    Fraction::# (I.negInteger (#numerator{x})) (#denominatorIndex{x});
+
+\definition sub (x, y: Fraction): Fraction := add x (neg y);
+
+\definition mul (x, y: Fraction): Fraction :=
+    Fraction::# (I.mulInteger (#numerator{x}) (#numerator{y})) (denominatorProductIndex
+        (#denominatorIndex{x}) (#denominatorIndex{y}));
+
+\definition reciprocal (x: Fraction): Fraction :=
+  \induction (_: I.Int^) \return Fraction \with {
+    | ofNat : (\fun (n: I.Nat) =>
+      \induction (_: N.Nat^) \return Fraction \with {
+        | zero : zero
+        | succ : (\fun (k: I.Nat) => \fun (_: _) => Fraction::# (denominator x) k)
+        } n)
+    | negSucc : (\fun (k: I.Nat) =>
+      Fraction::# (I.negInteger (denominator x)) k)
+    } (#numerator{x});
+
+\definition below (x: Fraction): Fraction :=
+  Fraction::# (I.addInteger (#numerator{x}) (I.negInteger I.oneInteger)) (#denominatorIndex{x});
+
+\definition above (x: Fraction): Fraction :=
+  Fraction::# (I.addInteger (#numerator{x}) I.oneInteger) (#denominatorIndex{x});
+
+\definition commonDenominatorNat (x, y: Fraction): I.Nat :=
+  NatOp.Mul::[set] (I.natSucc (#denominatorIndex{x}))
+    (I.natSucc (#denominatorIndex{y}));
+
+\definition commonDenominatorIndex (x, y: Fraction): I.Nat :=
+  denominatorProductIndex (#denominatorIndex{x}) (#denominatorIndex{y});
+
+\definition midpointDenominatorIndex (x, y: Fraction): I.Nat :=
+  NatOp.Add::[set] (commonDenominatorIndex x y)
+    (I.natSucc (commonDenominatorIndex x y));
+
+\definition midpoint (x, y: Fraction): Fraction :=
+  Fraction::# (I.addInteger
+      (I.mulInteger (#numerator{x}) (denominator y))
+      (I.mulInteger (#numerator{y}) (denominator x))) (midpointDenominatorIndex x y);
+
+\definition adjustment (q, a: Fraction): Fraction :=
+  add q (neg (midpoint q a));
+
+\definition naturalTranslate (a, e: Fraction) (n: I.Nat): Fraction :=
+  Fraction::# (I.addInteger
+      (I.mulInteger (#numerator{a}) (denominator e))
+      (I.scaleInteger
+        (I.mulInteger (#numerator{e}) (denominator a)) n)) (denominatorProductIndex
+      (#denominatorIndex{a}) (#denominatorIndex{e}));
+
+\definition scaleFraction (e: Fraction) (n: I.Nat): Fraction :=
+  Fraction::# (I.scaleInteger (#numerator{e}) n) (#denominatorIndex{e});
+
+\definition grid (a, e: Fraction) (n: I.Nat): Fraction :=
+  add a (scaleFraction e n);
+
+\definition NaturalTranslateAbove (a, e, b: Fraction): \Prop :=
+  \exists { n : I.Nat \where lt b (naturalTranslate a e n) };
+
+\definition perturbLeft (q, a, b: Fraction): Fraction :=
+  add a (adjustment q (add a b));
+
+\definition Le (x, y: Fraction): \Prop :=
+  Logic.Or[FractionEq x y, lt x y];
+
+\definition ContractingFactor (q, c: Fraction): \Prop :=
+  \exists { a : Fraction \where Logic.And[lt zero a,
+      Logic.And[lt a one, lt q (mul a c)]] };
+
+\definition SmallNegativeProduct (q, u: Fraction): \Prop :=
+  \exists { e : Fraction \where Logic.And[lt zero e, lt q (mul (neg e) u)] };

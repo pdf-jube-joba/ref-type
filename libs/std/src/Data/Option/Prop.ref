@@ -1,0 +1,69 @@
+/* Constructor equations and functor, monad, filter, and list-conversion laws. */
+\definition mapNone (C: \Set) (f: A -> C):
+  map A C f Option[A]::none = Option[C]::none := \refl(Option[C]::none);
+
+\definition mapSome (C: \Set) (f: A -> C) (element: A):
+  map A C f (Option[A]::some element) = Option[C]::some (f element) :=
+  \refl(Option[C]::some (f element));
+
+\definition bindNone (C: \Set) (f: A -> Option[C]):
+  bind A C Option[A]::none f = Option[C]::none := \refl(Option[C]::none);
+
+\definition bindSome (C: \Set) (element: A) (f: A -> Option[C]):
+  bind A C (Option[A]::some element) f = f element := \refl(f element);
+
+\definition filterNone (predicate: A -> B.Bool^):
+  filter A predicate Option[A]::none = Option[A]::none := \refl(Option[A]::none);
+
+\definition filterSome (predicate: A -> B.Bool^) (element: A):
+  filter A predicate (Option[A]::some element) =
+    \match predicate element \in B.Bool^ \return (\fun (result: B.Bool^) => Option[A]) \with {
+      | false : (Option[A]::none)
+      | true : (Option[A]::some element)
+      } :=
+  \refl(filter A predicate (Option[A]::some element));
+
+\definition filterTrue: \forall (value: Option[A]) ->
+  filter A (\fun (element: A) => B.Bool^::true) value = value :=
+  \induction (value: Option[A]) \return
+      filter A (\fun (element: A) => B.Bool^::true) value = value \with {
+    | none : (\refl(Option[A]::none))
+    | some : (\fun (element: A) => \refl(Option[A]::some element))
+    };
+
+\definition filterFalse: \forall (value: Option[A]) ->
+  filter A (\fun (element: A) => B.Bool^::false) value = Option[A]::none :=
+  \induction (value: Option[A]) \return
+      filter A (\fun (element: A) => B.Bool^::false) value = Option[A]::none \with {
+    | none : (\refl(Option[A]::none))
+    | some : (\fun (element: A) => \refl(Option[A]::none))
+    };
+
+\definition toListNone: toList A Option[A]::none = L.List[A]::nil := \refl(L.List[A]::nil);
+
+\definition toListSome (element: A):
+  toList A (Option[A]::some element) = L.List[A]::cons element L.List[A]::nil :=
+  \refl(L.List[A]::cons element L.List[A]::nil);
+
+\definition mapIdentity: \forall (value: Option[A]) ->
+  map A A (\fun (element: A) => element) value = value :=
+  \induction (value: Option[A]) \return map A A (\fun (element: A) => element) value = value \with {
+    | none : (\refl(Option[A]::none))
+    | some : (\fun (element: A) => \refl(Option[A]::some element))
+    };
+
+\definition bindRightIdentity: \forall (value: Option[A]) ->
+  bind A A value (\fun (element: A) => Option[A]::some element) = value :=
+  \induction (value: Option[A]) \return
+      bind A A value (\fun (element: A) => Option[A]::some element) = value \with {
+    | none : (\refl(Option[A]::none))
+    | some : (\fun (element: A) => \refl(Option[A]::some element))
+    };
+
+\definition mapAsBind (C: \Set) (f: A -> C): \forall (value: Option[A]) ->
+  map A C f value = bind A C value (\fun (element: A) => Option[C]::some (f element)) :=
+  \induction (value: Option[A]) \return
+      map A C f value = bind A C value (\fun (element: A) => Option[C]::some (f element)) \with {
+    | none : (\refl(Option[C]::none))
+    | some : (\fun (element: A) => \refl(Option[C]::some (f element)))
+    };

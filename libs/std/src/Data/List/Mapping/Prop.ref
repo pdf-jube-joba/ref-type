@@ -1,0 +1,29 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+
+\definition lengthMap (f: A -> B): \forall (xs: List[A]) ->
+  length B (map A B f xs) = length A xs :=
+  \induction (xs: List[A]) \return length B (map A B f xs) = length A xs \with {
+    | nil : (\refl(N.Nat^::zero))
+    | cons : \block {
+        \fun (head: A) \then
+        \fun (tail: List[A]) \then
+        \fun (ih: length B (map A B f tail) = length A tail) \then
+        \return congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _ ih
+      }
+    };
+
+\definition mapAppend (f: A -> B): \forall (xs, ys: List[A]) ->
+  map A B f (append A xs ys) = append B (map A B f xs) (map A B f ys) :=
+  \induction (xs: List[A]) \return \forall (ys: List[A]) ->
+      map A B f (append A xs ys) = append B (map A B f xs) (map A B f ys) \with {
+    | nil : (\fun (ys: List[A]) => \refl(map A B f ys))
+    | cons : \block {
+        \fun (head: A) \then
+        \fun (tail: List[A]) \then
+        \fun (ih: \forall (ys: List[A]) ->
+          map A B f (append A tail ys) = append B (map A B f tail) (map A B f ys)) \then
+        \fun (ys: List[A]) \then
+        \return congr!{List[B] List[B]} (List[B]::cons (f head)) _ _ (ih ys)
+      }
+    };

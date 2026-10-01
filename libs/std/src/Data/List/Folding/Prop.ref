@@ -1,0 +1,17 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+
+\definition foldrAppend (f: A -> B -> B) (initial: B): \forall (xs, ys: List[A]) ->
+  foldr A B f initial (append A xs ys) = foldr A B f (foldr A B f initial ys) xs :=
+  \induction (xs: List[A]) \return \forall (ys: List[A]) ->
+      foldr A B f initial (append A xs ys) = foldr A B f (foldr A B f initial ys) xs \with {
+    | nil : (\fun (ys: List[A]) => \refl(foldr A B f initial ys))
+    | cons : \block {
+        \fun (head: A) \then
+        \fun (tail: List[A]) \then
+        \fun (ih: \forall (ys: List[A]) ->
+          foldr A B f initial (append A tail ys) = foldr A B f (foldr A B f initial ys) tail) \then
+        \fun (ys: List[A]) \then
+        \return congr!{B B} (f head) _ _ (ih ys)
+      }
+    };

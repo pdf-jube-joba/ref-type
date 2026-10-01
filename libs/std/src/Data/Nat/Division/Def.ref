@@ -1,0 +1,116 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as L;
+\use Equality.trans;
+\use Equality.eq_reason;
+\use Equality.congr;
+
+\import std.Data[].Bool[] \as B;
+\import std.Data[].Pair[] \as P;
+
+\import std.Data[].Nat[].Basic[].Def[] \as Basic;
+\import std.Data[].Nat[].Pair[].Def[] \as Pair;
+
+\correspondence DivModNext: N.Nat -> P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat] {
+  \program := \fun (b: N.Nat) =>
+    \fun (p: P.Times[N.Nat, N.Nat]) =>
+      \match p \in P.Times \with {
+        | pair q r : \match b \in N.Nat \with {
+          | zero : \return(P.Times[N.Nat, N.Nat]::pair q (N.Nat::succ r))
+          | succ d :
+          \program {
+            \bind hit: B.Bool <- Basic.EqbLoop::[run] (Basic.EqbState::running r d) \then
+            \bind pick: \U(P.Times[N.Nat, N.Nat] -> (P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat])) <- (Pair.PairChoose::[program] hit) \then
+            \bind pickYes: \U(P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat]) <- (\force pick) (P.Times[N.Nat, N.Nat]::pair (N.Nat::succ q) N.Nat::zero) \then
+            \bind next: P.Times[N.Nat, N.Nat] <- (\force pickYes) (P.Times[N.Nat, N.Nat]::pair q (N.Nat::succ r)) \then
+            \return next
+          }
+        }
+      },
+  \set := \fun (b: N.Nat^) =>
+    \induction (p: P.Times^[N.Nat^, N.Nat^]) \return Pair.NatPair \with {
+    | pair : (\fun (q, r: N.Nat^) => \induction (b: N.Nat^) \return Pair.NatPair \with {
+      | zero : (Pair.natPair q (N.Nat^::succ r))
+      | succ : (\fun (d: N.Nat^) => \fun (_: _) => \match (Basic.Eqb::[set] r d) \in B.Bool^ \return (\fun (hit: B.Bool^) => Pair.NatPair) \with {
+        | false : (Pair.natPair q (N.Nat^::succ r))
+        | true : (Pair.natPair (N.Nat^::succ q) N.Nat^::zero)
+      })
+    } b)
+  },
+
+  \definition matches (b: N.Nat^): \forall (p: Pair.NatPair) ->
+    DivModNext::[program]^ b p = DivModNext::[set] b p :=
+    \induction (p: P.Times^[N.Nat^, N.Nat^]) \return DivModNext::[program]^ b p = DivModNext::[set] b p \with {
+      | pair : (\fun (q, r: N.Nat^) => \induction (b: N.Nat^) \return DivModNext::[program]^ b (Pair.natPair q r) = DivModNext::[set] b (Pair.natPair q r) \with {
+        | zero : (\refl(Pair.natPair q (N.Nat^::succ r)))
+        | succ : (\fun (d: N.Nat^) => \fun (_: _) => (trans!{Pair.NatPair} _ _ _
+          (congr!{Pair.PairChoose::[Type]^ _} (\fun (f: _) => f (Basic.Eqb::[program]^ r d) (Pair.natPair (N.Nat^::succ q) N.Nat^::zero) (Pair.natPair q (N.Nat^::succ r))) _ _ Pair.PairChoose::[coherence])
+          (congr!{Basic.Eqb::[Type]^ Pair.NatPair}
+            (\fun (equal: _) => Pair.PairChoose::[set] (equal r d)
+              (Pair.natPair (N.Nat^::succ q) N.Nat^::zero) (Pair.natPair q (N.Nat^::succ r)))
+            _ _ Basic.Eqb::[coherence])))
+      } b)
+    };
+  \coherence := \axiom:funext(DivModNext::[program]^, DivModNext::[set],
+    \fun (b: N.Nat^) => \axiom:funext(DivModNext::[program]^ b, DivModNext::[set] b,
+      \fun (p: Pair.NatPair) => matches b p)),
+}
+
+\correspondence DivMod: N.Nat -> N.Nat -> P.Times[N.Nat, N.Nat] {
+  \program := \fun (a, b: N.Nat) => \program {
+    \bind advance: \U(P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat]) <- (DivModNext::[program] b) \then
+    \bind result: P.Times[N.Nat, N.Nat] <- Pair.PairIterLoop::[run] (Pair.PairIterState::running advance (P.Times[N.Nat, N.Nat]::pair N.Nat::zero N.Nat::zero) a) \then
+    \return result
+  },
+  \set := \fun (a, b: N.Nat^) =>
+    Pair.PairIter::[set] (DivModNext::[set] b) (Pair.natPair N.Nat^::zero N.Nat^::zero) a,
+
+  \definition matches: \forall (a, b: N.Nat^) -> DivMod::[program]^ a b = DivMod::[set] a b :=
+    \block {
+      \fun (a, b: N.Nat^) \then
+      \let iterationMatches:
+        DivMod::[program]^ a b = Pair.PairIter::[set] (DivModNext::[program]^ b) (Pair.natPair N.Nat^::zero N.Nat^::zero) a :=
+        (congr!{Pair.PairIter::[Type]^ _} (\fun (f: _) => f (DivModNext::[program]^ b) (Pair.natPair N.Nat^::zero N.Nat^::zero) a) _ _ Pair.PairIter::[coherence]) \then
+      \let stepMatches:
+        Pair.PairIter::[set] (DivModNext::[program]^ b) (Pair.natPair N.Nat^::zero N.Nat^::zero) a = DivMod::[set] a b :=
+        congr!{DivModNext::[Type]^ Pair.NatPair}
+          (\fun (next: _) => Pair.PairIter::[set] (next b) (Pair.natPair N.Nat^::zero N.Nat^::zero) a)
+          _ _ DivModNext::[coherence] \then
+      \return trans!{Pair.NatPair} _ _ _ iterationMatches stepMatches
+    };
+  \coherence := \axiom:funext(DivMod::[program]^, DivMod::[set],
+    \fun (a: N.Nat^) => \axiom:funext(DivMod::[program]^ a, DivMod::[set] a,
+      \fun (b: N.Nat^) => matches a b)),
+}
+
+\correspondence Div: N.Nat -> N.Nat -> N.Nat {
+  \program := \fun (a, b: N.Nat) => \program {
+    \bind partial: \U(N.Nat -> P.Times[N.Nat, N.Nat]) <- (DivMod::[program] a) \then
+    \bind result: P.Times[N.Nat, N.Nat] <- (\force partial) b \then
+    \bind quotient: N.Nat <- (P.Times[N.Nat, N.Nat]::first result) \then
+    \return quotient
+  },
+  \set := \fun (a, b: N.Nat^) =>
+    P.Times[N.Nat, N.Nat]::first^ (DivMod::[set] a b),
+
+  \definition matches (a, b: N.Nat^): Div::[program]^ a b = Div::[set] a b := congr!{Pair.NatPair N.Nat^} P.Times[N.Nat, N.Nat]::first^ _ _ ((congr!{DivMod::[Type]^ _} (\fun (f: _) => f a b) _ _ DivMod::[coherence]));
+  \coherence := \axiom:funext(Div::[program]^, Div::[set],
+    \fun (a: N.Nat^) => \axiom:funext(Div::[program]^ a, Div::[set] a,
+      \fun (b: N.Nat^) => matches a b)),
+}
+
+\correspondence Mod: N.Nat -> N.Nat -> N.Nat {
+  \program := \fun (a, b: N.Nat) => \program {
+    \bind partial: \U(N.Nat -> P.Times[N.Nat, N.Nat]) <- (DivMod::[program] a) \then
+    \bind result: P.Times[N.Nat, N.Nat] <- (\force partial) b \then
+    \bind remainder: N.Nat <- (P.Times[N.Nat, N.Nat]::second result) \then
+    \return remainder
+  },
+  \set := \fun (a, b: N.Nat^) =>
+    P.Times[N.Nat, N.Nat]::second^ (DivMod::[set] a b),
+
+  \definition matches (a, b: N.Nat^): Mod::[program]^ a b = Mod::[set] a b := congr!{Pair.NatPair N.Nat^} P.Times[N.Nat, N.Nat]::second^ _ _ ((congr!{DivMod::[Type]^ _} (\fun (f: _) => f a b) _ _ DivMod::[coherence]));
+  \coherence := \axiom:funext(Mod::[program]^, Mod::[set],
+    \fun (a: N.Nat^) => \axiom:funext(Mod::[program]^ a, Mod::[set] a,
+      \fun (b: N.Nat^) => matches a b)),
+}

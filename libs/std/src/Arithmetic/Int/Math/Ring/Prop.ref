@@ -1,0 +1,483 @@
+\import \parent.Def[] \as Def;
+
+\definition integerEqRefl (x: Def.Integer): Def.IntegerEq x x :=
+    \refl(NatOp.Add::[set] (Def.positive x) (Def.negative x));
+
+\definition integerEqSym (x, y: Def.Integer) (xy: Def.IntegerEq x y): Def.IntegerEq y x :=
+    sym!{Nat}
+      (NatOp.Add::[set] (Def.positive x) (Def.negative y))
+      (NatOp.Add::[set] (Def.positive y) (Def.negative x))
+      xy;
+
+/* Rearranging four summands is the normalization step used by transitivity. */
+\definition integerAddShuffle (a, b, c, d: Nat):
+  NatOp.Add::[set] (NatOp.Add::[set] a b) (NatOp.Add::[set] c d) =
+    NatOp.Add::[set] (NatOp.Add::[set] a d) (NatOp.Add::[set] c b) :=
+    equiv_reason!{trans!{Nat}
+      "by" { NL.addInterchange a b c d }
+      "by" { congr!{Nat Nat} (NatOp.Add::[set] (NatOp.Add::[set] a c)) _ _ (NL.addComm b d) }
+      "by" { sym!{Nat} _ _ (NL.addInterchange a d c b) }};
+
+\definition integerEqTrans (x, y, z: Def.Integer) (xy: Def.IntegerEq x y) (yz: Def.IntegerEq y z): Def.IntegerEq x z :=
+    NL.addCancelRight
+      (NatOp.Add::[set] (Def.positive y) (Def.negative y))
+      (NatOp.Add::[set] (Def.positive x) (Def.negative z))
+      (NatOp.Add::[set] (Def.positive z) (Def.negative x))
+      (equiv_reason!{trans!{Nat}
+         "by" { integerAddShuffle
+           (Def.positive x) (Def.negative z) (Def.positive y) (Def.negative y) }
+         "by" { congr2!{Nat Nat Nat} NatOp.Add::[set]
+           (NatOp.Add::[set] (Def.positive x) (Def.negative y))
+           (NatOp.Add::[set] (Def.positive y) (Def.negative x))
+           (NatOp.Add::[set] (Def.positive y) (Def.negative z))
+           (NatOp.Add::[set] (Def.positive z) (Def.negative y))
+           xy yz }
+         "by" { NL.addInterchange
+           (Def.positive y) (Def.negative x) (Def.positive z) (Def.negative y) }
+         "by" { congr!{Nat Nat}
+           (\fun (n: Nat) =>
+             NatOp.Add::[set] n (NatOp.Add::[set] (Def.negative x) (Def.negative y)))
+           _ _ (NL.addComm (Def.positive y) (Def.positive z)) }
+         "by" { sym!{Nat} _ _
+           (NL.addInterchange
+             (Def.positive z) (Def.negative x)
+             (Def.positive y) (Def.negative y)) }});
+
+\definition integerEqOfFields (x, y: Def.Integer) (p: Def.positive x = Def.positive y) (n: Def.negative x = Def.negative y): Def.IntegerEq x y :=
+    congr2!{Nat Nat Nat} NatOp.Add::[set]
+      _ _ _ _ p (sym!{Nat} _ _ n);
+
+\definition addIntegerRespects (x, y, u, v: Def.Integer) (xy: Def.IntegerEq x y) (uv: Def.IntegerEq u v):
+    Def.IntegerEq (Def.addInteger x u) (Def.addInteger y v) :=
+    equiv_reason!{trans!{Nat}
+      "by" { NL.addInterchange
+        (Def.positive x) (Def.positive u) (Def.negative y) (Def.negative v) }
+      "by" { congr2!{Nat Nat Nat} NatOp.Add::[set]
+        (NatOp.Add::[set] (Def.positive x) (Def.negative y))
+        (NatOp.Add::[set] (Def.positive y) (Def.negative x))
+        (NatOp.Add::[set] (Def.positive u) (Def.negative v))
+        (NatOp.Add::[set] (Def.positive v) (Def.negative u))
+        xy uv }
+      "by" { sym!{Nat} _ _
+        (NL.addInterchange
+          (Def.positive y) (Def.positive v) (Def.negative x) (Def.negative u)) }};
+
+\definition negIntegerRespects (x, y: Def.Integer) (xy: Def.IntegerEq x y): Def.IntegerEq (Def.negInteger x) (Def.negInteger y) :=
+    equiv_reason!{trans!{Nat}
+      "by" { NL.addComm (Def.negative x) (Def.positive y) }
+      "by" { sym!{Nat}
+        (NatOp.Add::[set] (Def.positive x) (Def.negative y))
+        (NatOp.Add::[set] (Def.positive y) (Def.negative x)) xy }
+      "by" { NL.addComm (Def.positive x) (Def.negative y) }};
+
+\definition subIntegerRespects (x, y, u, v: Def.Integer) (xy: Def.IntegerEq x y) (uv: Def.IntegerEq u v):
+    Def.IntegerEq (Def.subInteger x u) (Def.subInteger y v) :=
+    addIntegerRespects x y (Def.negInteger u) (Def.negInteger v)
+      xy (negIntegerRespects u v uv);
+
+\definition scaleInteger (x: Def.Integer) (n: Nat): Def.Integer :=
+    Def.integer (NatOp.Mul::[set] (Def.positive x) n) (NatOp.Mul::[set] (Def.negative x) n);
+
+\definition scaleIntegerRespects (x, y: Def.Integer) (n: Nat) (xy: Def.IntegerEq x y): Def.IntegerEq (scaleInteger x n) (scaleInteger y n) :=
+    equiv_reason_terms!{trans!{Nat} { NatOp.Add::[set] (NatOp.Mul::[set] (Def.positive x) n) (NatOp.Mul::[set] (Def.negative y) n) }
+      "~" { NatOp.Mul::[set] (NatOp.Add::[set] (Def.positive x) (Def.negative y)) n } "by" { sym!{Nat}
+        (NatOp.Mul::[set] (NatOp.Add::[set] (Def.positive x) (Def.negative y)) n)
+        (NatOp.Add::[set] (NatOp.Mul::[set] (Def.positive x) n) (NatOp.Mul::[set] (Def.negative y) n))
+        (NL.mulDistribRight (Def.positive x) (Def.negative y) n) }
+      "~" { NatOp.Mul::[set] (NatOp.Add::[set] (Def.positive y) (Def.negative x)) n } "by" { congr!{Nat Nat} (\fun (a: Nat) => NatOp.Mul::[set] a n)
+        (NatOp.Add::[set] (Def.positive x) (Def.negative y))
+        (NatOp.Add::[set] (Def.positive y) (Def.negative x)) xy }
+      "~" { NatOp.Add::[set] (NatOp.Mul::[set] (Def.positive y) n) (NatOp.Mul::[set] (Def.negative x) n) } "by" { NL.mulDistribRight (Def.positive y) (Def.negative x) n }};
+
+\definition scaleIntegerZero (n: Nat):
+    Def.IntegerEq (scaleInteger Def.zeroInteger n) Def.zeroInteger :=
+    integerEqOfFields (scaleInteger Def.zeroInteger n) Def.zeroInteger
+      (NL.mulZeroLeft n)
+      (NL.mulZeroLeft n);
+
+\definition scaleIntegerMul (x, y: Def.Integer) (n: Nat):
+    Def.IntegerEq
+      (scaleInteger (Def.mulInteger x y) n)
+      (Def.mulInteger x (scaleInteger y n)) :=
+    integerEqOfFields
+      (scaleInteger (Def.mulInteger x y) n)
+      (Def.mulInteger x (scaleInteger y n))
+      (trans!{Nat} _ _ _
+        (NL.mulDistribRight
+          (NatOp.Mul::[set] (Def.positive x) (Def.positive y))
+          (NatOp.Mul::[set] (Def.negative x) (Def.negative y))
+          n)
+        (congr2!{Nat Nat Nat} NatOp.Add::[set] _ _ _ _
+          (NL.mulAssoc (Def.positive x) (Def.positive y) n)
+          (NL.mulAssoc (Def.negative x) (Def.negative y) n)))
+      (trans!{Nat} _ _ _
+        (NL.mulDistribRight
+          (NatOp.Mul::[set] (Def.positive x) (Def.negative y))
+          (NatOp.Mul::[set] (Def.negative x) (Def.positive y))
+          n)
+        (congr2!{Nat Nat Nat} NatOp.Add::[set] _ _ _ _
+          (NL.mulAssoc (Def.positive x) (Def.negative y) n)
+          (NL.mulAssoc (Def.negative x) (Def.positive y) n)));
+
+\definition natMulSwapRight (x, a, b: Nat):
+  NatOp.Mul::[set] (NatOp.Mul::[set] x a) b = NatOp.Mul::[set] (NatOp.Mul::[set] x b) a :=
+    equiv_reason!{trans!{Nat}
+      "by" { NL.mulAssoc x a b }
+      "by" { congr!{Nat Nat} (NatOp.Mul::[set] x) _ _ (NL.mulComm a b) }
+      "by" { sym!{Nat} _ _ (NL.mulAssoc x b a) }};
+
+\definition scaleIntegerSwap (x: Def.Integer) (a, b: Nat):
+    Def.IntegerEq (scaleInteger (scaleInteger x a) b)
+      (scaleInteger (scaleInteger x b) a) :=
+    integerEqOfFields
+      (scaleInteger (scaleInteger x a) b)
+      (scaleInteger (scaleInteger x b) a)
+      (natMulSwapRight (Def.positive x) a b)
+      (natMulSwapRight (Def.negative x) a b);
+
+\definition scaleIntegerCancelPositive (x, y: Def.Integer) (k: Nat) (xy:
+    Def.IntegerEq
+      (scaleInteger x (N.Nat^::succ k))
+      (scaleInteger y (N.Nat^::succ k))):
+    Def.IntegerEq x y :=
+
+    NL.mulCancelRightSucc k
+      (NatOp.Add::[set] (Def.positive x) (Def.negative y))
+      (NatOp.Add::[set] (Def.positive y) (Def.negative x))
+      (equiv_reason_terms!{trans!{Nat} { NatOp.Mul::[set] (NatOp.Add::[set] (Def.positive x) (Def.negative y)) (N.Nat^::succ k) }
+        "~" { NatOp.Add::[set]
+          (NatOp.Mul::[set] (Def.positive x) (N.Nat^::succ k))
+          (NatOp.Mul::[set] (Def.negative y) (N.Nat^::succ k)) } "by" { NL.mulDistribRight (Def.positive x) (Def.negative y) (N.Nat^::succ k) }
+        "~" { NatOp.Add::[set]
+            (NatOp.Mul::[set] (Def.positive y) (N.Nat^::succ k))
+            (NatOp.Mul::[set] (Def.negative x) (N.Nat^::succ k)) } "by" { xy }
+        "~" { NatOp.Mul::[set] (NatOp.Add::[set] (Def.positive y) (Def.negative x)) (N.Nat^::succ k) } "by" { sym!{Nat}
+          (NatOp.Mul::[set] (NatOp.Add::[set] (Def.positive y) (Def.negative x)) (N.Nat^::succ k))
+          (NatOp.Add::[set]
+            (NatOp.Mul::[set] (Def.positive y) (N.Nat^::succ k))
+            (NatOp.Mul::[set] (Def.negative x) (N.Nat^::succ k)))
+          (NL.mulDistribRight
+            (Def.positive y) (Def.negative x) (N.Nat^::succ k)) }});
+
+\definition mulIntegerAsSum (x, y: Def.Integer):
+    Def.IntegerEq (Def.mulInteger x y)
+      (Def.addInteger
+        (scaleInteger x (Def.positive y))
+        (Def.negInteger (scaleInteger x (Def.negative y)))) :=
+    integerEqOfFields (Def.mulInteger x y)
+      (Def.addInteger
+        (scaleInteger x (Def.positive y))
+        (Def.negInteger (scaleInteger x (Def.negative y))))
+      (\refl(Def.positive (Def.mulInteger x y)))
+      (NL.addComm
+        (NatOp.Mul::[set] (Def.positive x) (Def.negative y))
+        (NatOp.Mul::[set] (Def.negative x) (Def.positive y)));
+
+\definition mulIntegerComm (x, y: Def.Integer): Def.IntegerEq (Def.mulInteger x y) (Def.mulInteger y x) :=
+    integerEqOfFields (Def.mulInteger x y) (Def.mulInteger y x)
+      (congr2!{Nat Nat Nat} NatOp.Add::[set] _ _ _ _
+        (NL.mulComm (Def.positive x) (Def.positive y))
+        (NL.mulComm (Def.negative x) (Def.negative y)))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} NatOp.Add::[set] _ _ _ _
+          (NL.mulComm (Def.positive x) (Def.negative y))
+          (NL.mulComm (Def.negative x) (Def.positive y)))
+        (NL.addComm
+          (NatOp.Mul::[set] (Def.negative y) (Def.positive x))
+          (NatOp.Mul::[set] (Def.positive y) (Def.negative x))));
+
+\definition mulIntegerNegLeft (x, y: Def.Integer):
+    Def.IntegerEq (Def.mulInteger (Def.negInteger x) y)
+      (Def.negInteger (Def.mulInteger x y)) :=
+    integerEqOfFields
+      (Def.mulInteger (Def.negInteger x) y)
+      (Def.negInteger (Def.mulInteger x y))
+      (NL.addComm
+        (NatOp.Mul::[set] (Def.negative x) (Def.positive y))
+        (NatOp.Mul::[set] (Def.positive x) (Def.negative y)))
+      (NL.addComm
+        (NatOp.Mul::[set] (Def.negative x) (Def.negative y))
+        (NatOp.Mul::[set] (Def.positive x) (Def.positive y)));
+
+\definition mulIntegerNegRight (x, y: Def.Integer):
+    Def.IntegerEq (Def.mulInteger x (Def.negInteger y))
+      (Def.negInteger (Def.mulInteger x y)) :=
+  equiv_reason_terms!{integerEqTrans
+    { Def.mulInteger x (Def.negInteger y) }
+    "~" { Def.mulInteger (Def.negInteger y) x }
+    "by" { mulIntegerComm x (Def.negInteger y) }
+    "~" { Def.negInteger (Def.mulInteger y x) }
+    "by" { mulIntegerNegLeft y x }
+    "~" { Def.negInteger (Def.mulInteger x y) }
+    "by" { negIntegerRespects (Def.mulInteger y x) (Def.mulInteger x y)
+      (mulIntegerComm y x) }};
+
+\definition mulIntegerRespectsLeft (x, y, z: Def.Integer) (xy: Def.IntegerEq x y): Def.IntegerEq (Def.mulInteger x z) (Def.mulInteger y z) :=
+  equiv_reason_terms!{integerEqTrans
+    { Def.mulInteger x z }
+    "~" { Def.addInteger (scaleInteger x (Def.positive z))
+      (Def.negInteger (scaleInteger x (Def.negative z))) }
+    "by" { mulIntegerAsSum x z }
+    "~" { Def.addInteger (scaleInteger y (Def.positive z))
+      (Def.negInteger (scaleInteger y (Def.negative z))) }
+    "by" { addIntegerRespects
+      (scaleInteger x (Def.positive z)) (scaleInteger y (Def.positive z))
+      (Def.negInteger (scaleInteger x (Def.negative z)))
+      (Def.negInteger (scaleInteger y (Def.negative z)))
+      (scaleIntegerRespects x y (Def.positive z) xy)
+      (negIntegerRespects (scaleInteger x (Def.negative z))
+        (scaleInteger y (Def.negative z)) (scaleIntegerRespects x y (Def.negative z) xy)) }
+    "~" { Def.mulInteger y z }
+    "by" { integerEqSym (Def.mulInteger y z)
+      (Def.addInteger (scaleInteger y (Def.positive z))
+        (Def.negInteger (scaleInteger y (Def.negative z)))) (mulIntegerAsSum y z) }};
+
+\definition mulIntegerRespects (x, y, u, v: Def.Integer) (xy: Def.IntegerEq x y) (uv: Def.IntegerEq u v):
+    Def.IntegerEq (Def.mulInteger x u) (Def.mulInteger y v) :=
+  equiv_reason_terms!{integerEqTrans
+    { Def.mulInteger x u }
+    "~" { Def.mulInteger y u } "by" { mulIntegerRespectsLeft x y u xy }
+    "~" { Def.mulInteger u y } "by" { mulIntegerComm y u }
+    "~" { Def.mulInteger v y } "by" { mulIntegerRespectsLeft u v y uv }
+    "~" { Def.mulInteger y v } "by" { mulIntegerComm v y }};
+
+\definition addIntegerZeroLeft (x: Def.Integer): Def.IntegerEq (Def.addInteger Def.zeroInteger x) x :=
+    integerEqOfFields (Def.addInteger Def.zeroInteger x) x
+      (NL.addZeroLeft (Def.positive x))
+      (NL.addZeroLeft (Def.negative x));
+
+\definition addIntegerZeroRight (x: Def.Integer): Def.IntegerEq (Def.addInteger x Def.zeroInteger) x :=
+    integerEqOfFields (Def.addInteger x Def.zeroInteger) x
+      (NL.addZeroRight (Def.positive x))
+      (NL.addZeroRight (Def.negative x));
+
+\definition addIntegerComm (x, y: Def.Integer):
+    Def.IntegerEq (Def.addInteger x y) (Def.addInteger y x) :=
+    integerEqOfFields (Def.addInteger x y) (Def.addInteger y x)
+      (NL.addComm (Def.positive x) (Def.positive y))
+      (NL.addComm (Def.negative x) (Def.negative y));
+
+\definition addIntegerAssoc (x, y, z: Def.Integer):
+    Def.IntegerEq (Def.addInteger (Def.addInteger x y) z)
+      (Def.addInteger x (Def.addInteger y z)) :=
+    integerEqOfFields
+      (Def.addInteger (Def.addInteger x y) z)
+      (Def.addInteger x (Def.addInteger y z))
+      (NL.addAssoc (Def.positive x) (Def.positive y) (Def.positive z))
+      (NL.addAssoc (Def.negative x) (Def.negative y) (Def.negative z));
+
+\definition mulIntegerDistribLeft (x, y, z: Def.Integer):
+    Def.IntegerEq
+      (Def.mulInteger x (Def.addInteger y z))
+      (Def.addInteger (Def.mulInteger x y) (Def.mulInteger x z)) :=
+    integerEqOfFields
+      (Def.mulInteger x (Def.addInteger y z))
+      (Def.addInteger (Def.mulInteger x y) (Def.mulInteger x z))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} NatOp.Add::[set] _ _ _ _
+          (NL.mulDistribLeft
+            (Def.positive x) (Def.positive y) (Def.positive z))
+          (NL.mulDistribLeft
+            (Def.negative x) (Def.negative y) (Def.negative z)))
+        (NL.addInterchange
+          (NatOp.Mul::[set] (Def.positive x) (Def.positive y))
+          (NatOp.Mul::[set] (Def.positive x) (Def.positive z))
+          (NatOp.Mul::[set] (Def.negative x) (Def.negative y))
+          (NatOp.Mul::[set] (Def.negative x) (Def.negative z))))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} NatOp.Add::[set] _ _ _ _
+          (NL.mulDistribLeft
+            (Def.positive x) (Def.negative y) (Def.negative z))
+          (NL.mulDistribLeft
+            (Def.negative x) (Def.positive y) (Def.positive z)))
+        (NL.addInterchange
+          (NatOp.Mul::[set] (Def.positive x) (Def.negative y))
+          (NatOp.Mul::[set] (Def.positive x) (Def.negative z))
+          (NatOp.Mul::[set] (Def.negative x) (Def.positive y))
+          (NatOp.Mul::[set] (Def.negative x) (Def.positive z))));
+
+\definition mulIntegerDistribRight (x, y, z: Def.Integer):
+    Def.IntegerEq
+      (Def.mulInteger (Def.addInteger x y) z)
+      (Def.addInteger (Def.mulInteger x z) (Def.mulInteger y z)) :=
+  equiv_reason_terms!{integerEqTrans
+    { Def.mulInteger (Def.addInteger x y) z }
+    "~" { Def.mulInteger z (Def.addInteger x y) }
+    "by" { mulIntegerComm (Def.addInteger x y) z }
+    "~" { Def.addInteger (Def.mulInteger z x) (Def.mulInteger z y) }
+    "by" { mulIntegerDistribLeft z x y }
+    "~" { Def.addInteger (Def.mulInteger x z) (Def.mulInteger y z) }
+    "by" { addIntegerRespects
+      (Def.mulInteger z x) (Def.mulInteger x z)
+      (Def.mulInteger z y) (Def.mulInteger y z)
+      (mulIntegerComm z x) (mulIntegerComm z y) }};
+
+\definition mulIntegerAssoc (x, y, z: Def.Integer):
+    Def.IntegerEq
+      (Def.mulInteger (Def.mulInteger x y) z)
+      (Def.mulInteger x (Def.mulInteger y z)) :=
+
+    equiv_reason_terms!{integerEqTrans { Def.mulInteger (Def.mulInteger x y) z }
+      "~" { Def.addInteger
+        (scaleInteger (Def.mulInteger x y) (Def.positive z))
+        (Def.negInteger
+          (scaleInteger (Def.mulInteger x y) (Def.negative z))) } "by" { mulIntegerAsSum (Def.mulInteger x y) z }
+      "~" { Def.addInteger
+          (Def.mulInteger x (scaleInteger y (Def.positive z)))
+          (Def.negInteger
+            (Def.mulInteger x (scaleInteger y (Def.negative z)))) } "by" { addIntegerRespects
+        (scaleInteger (Def.mulInteger x y) (Def.positive z))
+        (Def.mulInteger x (scaleInteger y (Def.positive z)))
+        (Def.negInteger
+          (scaleInteger (Def.mulInteger x y) (Def.negative z)))
+        (Def.negInteger
+          (Def.mulInteger x (scaleInteger y (Def.negative z))))
+        (scaleIntegerMul x y (Def.positive z))
+        (negIntegerRespects
+          (scaleInteger (Def.mulInteger x y) (Def.negative z))
+          (Def.mulInteger x (scaleInteger y (Def.negative z)))
+          (scaleIntegerMul x y (Def.negative z))) }
+      "~" { Def.addInteger
+            (Def.mulInteger x (scaleInteger y (Def.positive z)))
+            (Def.mulInteger x
+              (Def.negInteger (scaleInteger y (Def.negative z)))) } "by" { addIntegerRespects
+        (Def.mulInteger x (scaleInteger y (Def.positive z)))
+        (Def.mulInteger x (scaleInteger y (Def.positive z)))
+        (Def.negInteger
+          (Def.mulInteger x (scaleInteger y (Def.negative z))))
+        (Def.mulInteger x
+          (Def.negInteger (scaleInteger y (Def.negative z))))
+        (integerEqRefl
+          (Def.mulInteger x (scaleInteger y (Def.positive z))))
+        (integerEqSym
+          (Def.mulInteger x
+            (Def.negInteger (scaleInteger y (Def.negative z))))
+          (Def.negInteger
+            (Def.mulInteger x (scaleInteger y (Def.negative z))))
+          (mulIntegerNegRight x
+            (scaleInteger y (Def.negative z)))) }
+      "~" { Def.mulInteger x
+              (Def.addInteger
+                (scaleInteger y (Def.positive z))
+                (Def.negInteger (scaleInteger y (Def.negative z)))) } "by" { integerEqSym
+        (Def.mulInteger x
+          (Def.addInteger
+            (scaleInteger y (Def.positive z))
+            (Def.negInteger (scaleInteger y (Def.negative z)))))
+        (Def.addInteger
+          (Def.mulInteger x (scaleInteger y (Def.positive z)))
+          (Def.mulInteger x
+            (Def.negInteger (scaleInteger y (Def.negative z)))))
+        (mulIntegerDistribLeft x
+          (scaleInteger y (Def.positive z))
+          (Def.negInteger (scaleInteger y (Def.negative z)))) }
+      "~" { Def.mulInteger x (Def.mulInteger y z) } "by" { mulIntegerRespects
+        x x
+        (Def.addInteger
+          (scaleInteger y (Def.positive z))
+          (Def.negInteger (scaleInteger y (Def.negative z))))
+        (Def.mulInteger y z)
+        (integerEqRefl x)
+        (integerEqSym
+          (Def.mulInteger y z)
+          (Def.addInteger
+            (scaleInteger y (Def.positive z))
+            (Def.negInteger (scaleInteger y (Def.negative z))))
+          (mulIntegerAsSum y z)) }};
+
+\definition mulIntegerCongRight (x, y, z: Def.Integer) (yz: Def.IntegerEq y z):
+    Def.IntegerEq (Def.mulInteger x y) (Def.mulInteger x z) :=
+    mulIntegerRespects
+      x x y z (integerEqRefl x) yz;
+
+\definition mulIntegerInterchange (a, b, c, d: Def.Integer):
+    Def.IntegerEq
+      (Def.mulInteger (Def.mulInteger a b) (Def.mulInteger c d))
+      (Def.mulInteger (Def.mulInteger a c) (Def.mulInteger b d)) :=
+
+    equiv_reason_terms!{integerEqTrans { Def.mulInteger (Def.mulInteger a b) (Def.mulInteger c d) }
+      "~" { Def.mulInteger a
+        (Def.mulInteger b (Def.mulInteger c d)) } "by" { mulIntegerAssoc a b (Def.mulInteger c d) }
+      "~" { Def.mulInteger a
+          (Def.mulInteger (Def.mulInteger b c) d) } "by" { mulIntegerCongRight a
+        (Def.mulInteger b (Def.mulInteger c d))
+        (Def.mulInteger (Def.mulInteger b c) d)
+        (integerEqSym
+          (Def.mulInteger (Def.mulInteger b c) d)
+          (Def.mulInteger b (Def.mulInteger c d))
+          (mulIntegerAssoc b c d)) }
+      "~" { Def.mulInteger a
+            (Def.mulInteger (Def.mulInteger c b) d) } "by" { mulIntegerCongRight a
+        (Def.mulInteger (Def.mulInteger b c) d)
+        (Def.mulInteger (Def.mulInteger c b) d)
+        (mulIntegerRespects
+          (Def.mulInteger b c) (Def.mulInteger c b)
+          d d
+          (mulIntegerComm b c)
+          (integerEqRefl d)) }
+      "~" { Def.mulInteger a
+              (Def.mulInteger c (Def.mulInteger b d)) } "by" { mulIntegerCongRight a
+        (Def.mulInteger (Def.mulInteger c b) d)
+        (Def.mulInteger c (Def.mulInteger b d))
+        (mulIntegerAssoc c b d) }
+      "~" { Def.mulInteger (Def.mulInteger a c) (Def.mulInteger b d) } "by" { integerEqSym
+        (Def.mulInteger (Def.mulInteger a c) (Def.mulInteger b d))
+        (Def.mulInteger a
+          (Def.mulInteger c (Def.mulInteger b d)))
+        (mulIntegerAssoc a c (Def.mulInteger b d)) }};
+
+\definition negIntegerInvolutive (x: Def.Integer): Def.IntegerEq (Def.negInteger (Def.negInteger x)) x := integerEqRefl x;
+
+\definition addIntegerNegRight (x: Def.Integer):
+    Def.IntegerEq (Def.addInteger x (Def.negInteger x)) Def.zeroInteger :=
+    equiv_reason!{trans!{Nat}
+      "by" { NL.addZeroRight
+        (NatOp.Add::[set] (Def.positive x) (Def.negative x)) }
+      "by" { NL.addComm (Def.positive x) (Def.negative x) }
+      "by" { sym!{Nat} _ _ (NL.addZeroLeft
+        (NatOp.Add::[set] (Def.negative x) (Def.positive x))) }};
+
+\definition addIntegerNegLeft (x: Def.Integer):
+    Def.IntegerEq (Def.addInteger (Def.negInteger x) x) Def.zeroInteger :=
+  equiv_reason_terms!{integerEqTrans
+    { Def.addInteger (Def.negInteger x) x }
+    "~" { Def.addInteger x (Def.negInteger x) } "by" { addIntegerComm (Def.negInteger x) x }
+    "~" { Def.zeroInteger } "by" { addIntegerNegRight x }};
+
+\definition mulIntegerZeroRight (x: Def.Integer): Def.IntegerEq (Def.mulInteger x Def.zeroInteger) Def.zeroInteger :=
+    integerEqOfFields (Def.mulInteger x Def.zeroInteger) Def.zeroInteger
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} NatOp.Add::[set] _ _ _ _
+          (NL.mulZeroRight (Def.positive x))
+          (NL.mulZeroRight (Def.negative x)))
+        (NL.addZeroLeft N.Nat^::zero))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} NatOp.Add::[set] _ _ _ _
+          (NL.mulZeroRight (Def.positive x))
+          (NL.mulZeroRight (Def.negative x)))
+        (NL.addZeroLeft N.Nat^::zero));
+
+\definition mulIntegerZeroLeft (x: Def.Integer): Def.IntegerEq (Def.mulInteger Def.zeroInteger x) Def.zeroInteger :=
+  equiv_reason_terms!{integerEqTrans
+    { Def.mulInteger Def.zeroInteger x }
+    "~" { Def.mulInteger x Def.zeroInteger } "by" { mulIntegerComm Def.zeroInteger x }
+    "~" { Def.zeroInteger } "by" { mulIntegerZeroRight x }};
+
+\definition mulIntegerOneRight (x: Def.Integer): Def.IntegerEq (Def.mulInteger x Def.oneInteger) x :=
+    integerEqOfFields (Def.mulInteger x Def.oneInteger) x
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} NatOp.Add::[set] _ _ _ _
+          (NL.mulOneRight (Def.positive x))
+          (NL.mulZeroRight (Def.negative x)))
+        (NL.addZeroRight (Def.positive x)))
+      (trans!{Nat} _ _ _
+        (congr2!{Nat Nat Nat} NatOp.Add::[set] _ _ _ _
+          (NL.mulZeroRight (Def.positive x))
+          (NL.mulOneRight (Def.negative x)))
+        (NL.addZeroLeft (Def.negative x)));
+
+\definition mulIntegerOneLeft (x: Def.Integer): Def.IntegerEq (Def.mulInteger Def.oneInteger x) x :=
+  equiv_reason_terms!{integerEqTrans
+    { Def.mulInteger Def.oneInteger x }
+    "~" { Def.mulInteger x Def.oneInteger } "by" { mulIntegerComm Def.oneInteger x }
+    "~" { x } "by" { mulIntegerOneRight x }};

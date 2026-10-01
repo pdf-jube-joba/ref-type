@@ -1,6 +1,6 @@
 # 標準ライブラリ
 
-`root.ref` は公開モジュールの一覧、`tests.ref` は利用例を兼ねたライブラリ全体の型検査である。
+各パッケージの `src/root.ref` は公開モジュールの一覧、`tests/projects/library/src/root.ref` は利用例を兼ねたライブラリ全体の型検査である。
 現在の処理系には任意の証明を通す `admit` / `sorry` はない。処理系が持つ組み込み公理は、
 必要な前提を検査する `\axiom:setext`、`\axiom:funext`、
 `\axiom:classicalIndefiniteChoice` の3つである。集合の外延性、対応宣言の関数の外延性、古典論理の選択に、それぞれの公理を使う。
@@ -9,19 +9,18 @@
 
 | 分野 | ファイル | 内容 |
 | --- | --- | --- |
-| 論理 | `Logic/Proposition.ref`、`Logic/Law.ref`、`Logic/Rel.ref`、`Logic/Classical.ref`、`Logic/Equality.ref` | 命題、関係、法則、古典論理、等式 |
+| 論理 | `Logic/Proposition.ref`、`Logic/Algebra/Def.ref`、`Logic/Rel.ref`、`Logic/Classical.ref`、`Logic/Equality.ref` | 命題、関係、法則、古典論理、等式 |
 | データ | `Data/Bool.ref`、`Data/Pair.ref`、`Data/Sum.ref`、`Data/FinSet.ref` | 基本データ、直積、直和、有限集合 |
-| 自然数 | `Data/Nat.ref`、`Data/Nat/Operation/`、`Data/Nat/Law/` | 自然数の型、演算と仕様、法則 |
+| 自然数 | `Data/Nat.ref`、`Data/Nat/Basic/`、`Data/Nat/Division/`、`Data/Nat/Gcd/` | 自然数の型、演算と仕様、法則 |
 | 集合 | `Set/Quotient.ref` | 同値類、商の台集合、演算の relational image |
 | 代数 | `Alg/Monoid.ref`、`Alg/Alg.ref`、`Alg/Ring.ref`、`Alg/Field.ref` | Monoid、Group、Semiring、Ring、Field、環上の加群、環上の代数 |
 | 算術 | `Arithmetic/Int.ref`、`Arithmetic/Rat.ref`、`Arithmetic/IntAlgebra.ref` と各子モジュール | 整数、有理数、整数の代数構造 |
-| 実数 | `Reals/AxiomaticReals.ref`、`Reals/DedekindReal.ref`、`Reals/CauchyReal.ref` と各子モジュール | 公理的実数、Dedekind 実数、Cauchy 実数 |
-| 幾何 | `Geometry/Topology.ref` | 位相空間 |
+| 実数 | `real/src/AxiomaticReals.ref`、`real/src/DedekindReal.ref`、`real/src/CauchyReal.ref` と各子モジュール | 公理的実数、Dedekind 実数、Cauchy 実数 |
+| 幾何 | `topology/src/root.ref` | 位相空間 |
 
-入れ子モジュールは論理上のパスと同じ場所に置く。例えば
-`Arithmetic/Rat/Fractions/Operations.ref` の `\module Quotient;` の本体は
-`Arithmetic/Rat/Fractions/Operations/Quotient.ref` にある。子ファイルは親のスコープを引き継ぐので、
-同じ依存を改めて import して型の instance を作り直さない。
+モジュールは関心ごとに階層を分け、定義は末端の `Def`、性質と証明は末端の `Prop` に置く。
+例えば `std/src/Data/Nat/Division.ref` の `\module Def;` の本体は `std/src/Data/Nat/Division/Def.ref` にある。
+子ファイルは親のスコープを引き継ぐので、同じ依存を改めて import して型の instance を作り直さない。
 
 ## 等式と合同則
 
@@ -62,8 +61,8 @@ congr2!{A B C} f a b c d ab cd
 
 ```text
 \import std.Data[].Nat[] \as N;
-\import std.Data[].Nat[].Operation[].Basic[] \as NatOp;
-\import std.Data[].Nat[].Law[].Basic[] \as NL;
+\import std.Data[].Nat[].Basic[].Def[] \as NatOp;
+\import std.Data[].Nat[].Basic[].Prop[] \as NL;
 \use NatOp.nat_add;
 \use NatOp.nat_mul;
 
@@ -104,7 +103,7 @@ congr2!{Nat^ Nat^ Nat^} natAdd _ _ _ _ leftEq rightEq
 固定した carrier の名前付き API が必要なら、次の形も使える。
 
 ```text
-\import std.Logic[].Equality[].Laws[A := X] \as E;
+\import std.Logic[].Equality[].Prop[A := X] \as E;
 ```
 
 現在の PTS では命題内で `Set` 自体を量化しないため、carrier はマクロ展開時に指定する。
@@ -147,10 +146,10 @@ congr2!{Nat^ Nat^ Nat^} natAdd _ _ _ _ leftEq rightEq
 - `assoc A B C p`（`((a,b),c)` から `(a,(b,c))`）、`unassoc A B C p`（逆方向）
 
 Set の carrier は Program 表現を持たなくてもよい。型引数を推論できる場合は `_` にできる。
-`P.Laws(A := A, B := B)` は `induction`、`eta`、`ext`、`pairCong`、射影の合同則、
+`P.Prop[A := A, B := B]` は `induction`、`eta`、`ext`、`pairCong`、射影の合同則、
 `pairInjectiveFirst` / `pairInjectiveSecond` を公開する。
-`P.MapLaws(A := A, B := B, C := C, D := D)` には写像の計算則・合成則・
-片側の写像と両側の写像の一致があり、`P.FunctionLaws(A := A, B := B, C := C)` には
+`P.Mapping[A := A, B := B, C := C, D := D].Prop[]` には写像の計算則・合成則・
+片側の写像と両側の写像の一致があり、`P.Functions[A := A, B := B, C := C].Prop[]` には
 カリー化と結合の組み替えが互いに逆になる法則がある。
 
 Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[_, _]` と書いて推論させられる。
@@ -160,15 +159,16 @@ Program では `P.Times[A, B]::pair a b` が値を構築する。型引数は `[
 ```text
 \import std.Data[].Pair[] \as P;
 \import P.Program[A := A, B := B] \as PP;
-\import PP.Mapping[C := C, D := D] \as PM;
-\import PP.Functions[C := C] \as PF;
+\import PP.Def[] \as PD;
+\import PP.Mapping[C := C, D := D].Def[] \as PM;
+\import PP.Functions[C := C].Def[] \as PF;
 ```
 
 ここで `A`、`B`、`C`、`D` は Program の値型である。
 
 | モジュール | 操作 | 引数と結果 |
 | --- | --- | --- |
-| `PP` | `Make::[program] a b`、`First::[program] p`、`Second::[program] p`、`Swap::[program] p` | 型関連操作と同じ |
+| `PD` | `Make::[program] a b`、`First::[program] p`、`Second::[program] p`、`Swap::[program] p` | 型関連操作と同じ |
 | `PM` | `Map::[program] f g p` | `f: \U(A ~> \F(C))`、`g: \U(B ~> \F(D))` で両成分を写す |
 | `PM` | `MapFirst::[program] f p`、`MapSecond::[program] g p` | 片側だけを写し、もう一方の値を保持する |
 | `PF` | `Curry::[program] f a b` | `f: \U(P.Times[A, B] ~> \F(C))` を呼ぶ |
@@ -226,13 +226,13 @@ Bool・Nat・Int の演算は `\correspondence` で実装・仕様・一致証�
 
 算術法則と数学側の構成は `::[set]` を使い、実行結果との接続には `::[coherence]` を使う。
 `AddLoop::[run]` や `IterLoop::[run]` は、状態遷移と停止性証明をまとめた `\machine` の実行関数である。
-反復の仕様と計算則は `Iteration[A]` にまとめ、`FiniteIteration(A: \Set)` で構成する。
+反復の構造は `Data.Nat.Iteration`、実装は `Iteration.Def[A := A]`、不変条件の保存は `Iteration.Prop[A := A]` にまとめる。
 Bool は `Neg`、`And`、`Or`、`Xor`、`Implies`、`Eqb`、Int は `Diff`、`Neg`、`Add`、`Mul` などの対応宣言を公開する。
 Int の `Zero`、`One`、`MinusOne` も同じ member で定数の実装・仕様・一致証明を提供し、差分の計算は `DiffLoop::[run]` にまとめている。
 
 `\run` は部分計算を表せるが、Set に反映する際には停止性証明が必要になる。
 
-自然数の型は `Data.Nat` にあり、加減乗除、累乗、比較、有限反復は `Data.Nat.Operation.Basic`、偶奇判定は `Data.Nat.Operation.Parity`、最大公約数は `Data.Nat.Operation.Gcd` にある。
+自然数の型は `Data.Nat` にあり、加減乗算、累乗、比較は `Data.Nat.Basic.Def`、除算と剰余は `Data.Nat.Division.Def`、有限反復は `Data.Nat.Iteration.Def`、偶奇判定は `Data.Nat.Parity.Def`、最大公約数は `Data.Nat.Gcd.Def` にある。
 除数が零なら `div a 0 = 0`、`mod a 0 = a` とし、`0^0 = 1` とする。
 自然数は単項表現なので、大きな具体値の評価には向かない。
 
@@ -240,15 +240,15 @@ Int の `Zero`、`One`、`MinusOne` も同じ member で定数の実装・仕様
 GCD の Set 側は、共通約数であり、すべての共通約数で割り切れる自然数を、一意存在の証明付き `\choice` で取り出す。
 Program 側のユークリッド互除法は、この性質を満たすことから Set 側と一致する。
 
-一般の算術法則は `Data.Nat.Law.Basic`、除算・剰余・整除の法則と GCD の存在・一意性は `Data.Nat.Law.Division`、数学的な GCD の法則は `Data.Nat.Law.Gcd` にある。
+一般の算術法則は `Data.Nat.Basic.Prop`、除算・剰余・整除の法則と GCD の存在・一意性は `Data.Nat.Division.Prop`、数学的な GCD の法則は `Data.Nat.Gcd.Prop` にある。
 
 ```text
 \import std.Data[].Nat[] \as N;
-\import std.Data[].Nat[].Operation[].Basic[] \as NatOp;
-\import std.Data[].Nat[].Law[].Basic[] \as NL;
-\import std.Data[].Nat[].Law[].Division[] \as ND;
-\import std.Data[].Nat[].Operation[].Gcd[] \as G;
-\import std.Data[].Nat[].Law[].Gcd[] \as GL;
+\import std.Data[].Nat[].Basic[].Def[] \as NatOp;
+\import std.Data[].Nat[].Basic[].Prop[] \as NL;
+\import std.Data[].Nat[].Division[].Prop[] \as ND;
+\import std.Data[].Nat[].Gcd[].Def[] \as G;
+\import std.Data[].Nat[].Gcd[].Prop[] \as GL;
 ```
 
 Int は `ofNat n` と `negSucc n` からなる一意な Program 正規形を持つ。
@@ -258,13 +258,14 @@ Int は `ofNat n` と `negSucc n` からなる一意な Program 正規形を持�
 整数の除算・剰余・GCD は未実装である。
 
 群完成とその上の演算は `Int.Math`、Program 仕様との対応は
-`Int.Math.Specification`、代数法則は `Int.Math.Specification.Laws` に分離している。
+`Int.Math.Specification.Def`、代数法則は `Int.Math.Specification.Prop` に分離している。
 
 ```text
 \import std.Arithmetic[].Int[] \as I;
 \import I.Math[] \as IM;
-\import IM.Specification[] \as IS;
-\import IS.Laws[] \as IL;
+\import IM.Specification[] \as Specification;
+\import Specification.Def[] \as IS;
+\import Specification.Prop[] \as IL;
 ```
 
 Program の逐次計算は `\program` 内の `\bind` 文で記述する。各 block は最後に
@@ -284,43 +285,32 @@ Rat の分子 `Integer` は Int の `ofNat` / `negSucc` 正規形であり、そ
 推移律 `fractionEqTrans` では `Nat.mulCancelRightSucc` を使い、中央の正の分母を消去する。
 
 `Rat` は Int による整数演算、`Rat.Fractions` は正分母の分数代表、
-`Rat.Fractions.Operations` は分数演算、
-`Rat.Fractions.Operations.Quotient` は商構成を担当する。
+`Rat.Fractions.Arithmetic` は分数演算、
+`Rat.Fractions.Quotient` は商構成を担当する。
 
 ```text
 \import std.Arithmetic[].Rat[] \as R;
 \import R.Fractions[] \as RF;
-\import RF.Operations[] \as RO;
-\import RO.Quotient[] \as RQ;
+\import RF.Arithmetic[].Def[] \as RO;
+\import RF.Quotient[] \as RQ;
 ```
 
-`Rat.Fractions.Operations.Quotient` は証明済みの `FractionEq` を汎用 `Quotient` に渡すので、
-同値関係の証明を parameter として要求しない。商上の `add`、`sub`、`mul`、`div` は
-代表元を選ばず構成する。`sub` は証明済みの反数と加法から定義するため、独立した
-閉包 parameter は不要になった。現在は加法・乗法・除法の image が再び一つの同値類に
-なる証明を `Rat.Fractions.Operations.Quotient.ClassClosed` の parameter として要求する。
-反数は `fractionNegRespects` と汎用の `UnaryImage` によって閉性まで証明済みであり、
-parameter なしの quotient の `neg` として利用できる。商上の `zeroRat` / `oneRat`、
-`ofNat` / `ofInteger`、`negInvolutive`、`negZero` も証明済みである。
+`Rat.Fractions.Arithmetic.Def` は分数の演算、`Rat.Fractions.Arithmetic.Prop` は同値関係の保存と算術法則を公開する。
+`Rat.Fractions.Quotient` は証明済みの `FractionEq` を汎用 `Quotient` に渡し、商上の加法、反数、乗法とその法則を構成する。
+`Rat.Fractions.Quotient.Arithmetic.Def` は商上の加法・減法・乗法の操作をまとめる。
+`Rat.Fractions.Quotient.Division.Def` は除法の image が同値類になる証明を受け取り、商上の除法を構成する。
 
-## 実数と未完了事項
+## 実数
 
 Dedekind 実数は inhabited・proper・lower・rounded・located な切断として定義される。
-包含順序の反射・推移・反対称性に加え、狭義順序の非反射性、逆向きの包含との矛盾、
-弱順序との左右合成は証明済みである。有理数埋め込み・加法・反数・減法の lower set も
-構成済みであり、それらが切断になる証明は `Operations.Closed` の parameter に残る。
+`DedekindReal.Cuts.Def` は切断の候補となる lower set、`Cuts.Prop` はそれらが切断になる証明を公開する。
+`DedekindReal.Arithmetic.Def` は切断上の演算、`Arithmetic.Prop` は算術法則を公開する。
+`DedekindReal.Field.Def` は演算と法則を公理的実数の構造へまとめる。
 
 Cauchy 実数は有理数列を「差が零へ収束する」関係で割った商である。
-`Close` の三角不等式と列同値の反射律・対称律・推移律は証明済みである。
-定数列・和・反数の Cauchy 性と同値関係の保存、および商上の加法群の法則も証明済みである。
-
-今後の主な作業は次の通り。
-
-- Rat の商上の加法・乗法・除法について `ClassClosed` の obligation を証明する
-- Dedekind の演算が切断を保つことを証明する
-- Cauchy の乗法・逆数・順序・完備性を構成する
-- 実数の乗法・逆数・完備性を構成する
-- `AxiomaticRealStructure` の具体的な項を構成する
+`CauchyReal.Quotient.Sequences.Def` は列上の演算、`Classes.Def` は同値類上の演算を構成する。
+`CauchyReal.Quotient.Arithmetic.Def` と `Arithmetic.Prop` は商上の算術、`Inverse.Def` と `Inverse.Prop` は逆数の構成と性質を公開する。
+順序と完備性はそれぞれ `CauchyReal.Order` と `CauchyReal.Completeness` にある。
 
 ## 型検査
 

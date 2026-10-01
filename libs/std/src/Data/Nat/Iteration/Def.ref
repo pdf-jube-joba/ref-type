@@ -1,0 +1,22 @@
+\definition apply (f: A -> A) (value: A) (count: N.Nat^): A :=
+  \induction (n: N.Nat^) \return A \with {
+    | zero: value
+    | succ: \fun (k: N.Nat^) (previous: A) => f previous
+  } count;
+
+\definition advance (f: A -> A): \forall (count: N.Nat^) (value: A) ->
+  apply f (f value) count = f (apply f value count) :=
+  \induction (count: N.Nat^) \return \forall (value: A) ->
+    apply f (f value) count = f (apply f value count) \with {
+      | zero: \fun (value: A) => \refl(f value)
+      | succ: \fun (k: N.Nat^) (ih: _) (value: A) =>
+      congr!{A A} f _ _ (ih value)
+    };
+
+\definition specification: Iteration[A]::[Set] :=
+  Iteration[A] { apply := apply } \with {
+    zero := \fun (f: A -> A) (value: A) => \refl(value),
+    succ := \fun (f: A -> A) (value: A) (count: N.Nat^) =>
+      \refl(f (apply f value count)),
+    advance := advance,
+  };
