@@ -94,7 +94,6 @@ Set/Prop と Program で同じ記号を使う固有演算は、演算の tag で
 | run step | \(\operatorname{RunStep}(A,B)\) |
 | continue | \(\operatorname{continue}_{A,B}(a)\) |
 | finish | \(\operatorname{finish}_{A,B}(b)\) |
-| accessibility | \(\operatorname{Acc}_{A,B}(f,a)\) |
 | run | \(\operatorname{run}_{A,B}(f,a)\) |
 | run case | \(\operatorname{runCase}_{A,B}(f,a,u)\) |
 | run step match | \(\operatorname{stepMatch}^{\sigma}_{A,B}(x.P,c,d)\) |
@@ -331,11 +330,25 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 
 - \(S_{A,B}:=A\to_{s^{i,i}}\operatorname{RunStep}(A,B)\)
 
+\(\Gamma\vdash A:*^s_i\)、\(\Gamma\vdash B:*^s_i\)、\(\Gamma\vdash f:S_{A,B}\)、\(\Gamma\vdash a:A\)、\(\Gamma\vdash P:A\to_{p_i}*^p\) の下で、次を略記とする。
+
+\[
+\begin{aligned}
+\top&:=\Pi Q:*^p.\,Q\to_o Q,\\
+\operatorname{Next}_{A,B}(f,P,a)
+&:=\operatorname{stepMatch}^{\square^p}_{A,B}
+  (z.*^p,P,\lambda_{p_i}b:B.\top)
+  @_{p_i}(f@_{s^{i,i}}a),\\
+\operatorname{Acc}_{A,B}(f,a)
+&:=\Pi P:(A\to_{p_i}*^p).\,
+  \bigl(\Pi_{a_i}x:A.\,
+    \operatorname{Next}_{A,B}(f,P,x)\to_o P@_{p_i}x\bigr)
+  \to_o P@_{p_i}a.
+\end{aligned}
+\]
+
 | category | conclusion | premises | other |
 | --- | --- | --- | --- |
-| acc form | \(\Gamma\vdash\operatorname{Acc}_{A,B}(f,a):*^p\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_i\)<br>\(\Gamma\vdash f:S_{A,B}\)<br>\(\Gamma\vdash a:A\) | |
-| acc intro | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_i\)<br>\(\Gamma\vdash f:S_{A,B}\)<br>\(\Gamma\vdash a:A\)<br>\(\Gamma,b:A\vDash(f@_{s^{i,i}}a=\operatorname{continue}_{A,B}(b))\to_o\operatorname{Acc}_{A,B}(f,b)\) | \(b\notin\operatorname{dom}(\Gamma)\) |
-| acc descent | \(\Gamma\vDash\operatorname{Acc}_{A,B}(f,b)\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_i\)<br>\(\Gamma\vdash f:S_{A,B}\)<br>\(\Gamma\vdash a:A\)<br>\(\Gamma\vdash b:A\)<br>\(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash f@_{s^{i,i}}a=\operatorname{continue}_{A,B}(b)\) | |
 | run | \(\Gamma\vdash\operatorname{run}_{A,B}(f,a):B\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_i\)<br>\(\Gamma\vdash f:S_{A,B}\)<br>\(\Gamma\vdash a:A\)<br>\(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\) | |
 | run case | \(\Gamma\vdash\operatorname{runCase}_{A,B}(f,a,r):B\) | \(\Gamma\vdash A:*^s_i\)<br>\(\Gamma\vdash B:*^s_i\)<br>\(\Gamma\vdash f:S_{A,B}\)<br>\(\Gamma\vdash a:A\)<br>\(\Gamma\vdash r:\operatorname{RunStep}(A,B)\)<br>\(\Gamma\vDash\operatorname{Acc}_{A,B}(f,a)\)<br>\(\Gamma\vDash f@_{s^{i,i}}a=r\) | |
 
