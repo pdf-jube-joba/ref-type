@@ -1,5 +1,5 @@
 ## 計測や分析
-perf は `/usr/lib/linux-tools/6.8.0-139-generic/perf` にあります。
+perf は `/usr/lib/linux-tools/7.0.0-38-generic` にあります。
 
 ## 全体的なコードの書き方の方針
 - 古い構文を reject することをチェックするためだけのテストは書かない。
