@@ -299,7 +299,7 @@ extend_enum!(SExp {
     AxiomSetExt { left, right, left_to_right, right_to_left },
     AxiomFunExt { left, right, pointwise },
     AxiomClassicalIndefiniteChoice { domain, family, inhabited },
-    TakeEq { func, domain, codomain, element, existence, uniqueness },
+    TakeEq { var, ty, body, element, existence, uniqueness },
     Block(value0),
     Program(value0),
 } special {

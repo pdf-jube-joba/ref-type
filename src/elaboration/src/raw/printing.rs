@@ -458,15 +458,23 @@ impl<'a> Printer<'a> {
                 element,
                 existence,
                 uniqueness,
-            }) => format!(
-                "\\takeelim({}, {}, {}, {}) \\by {{ existence: {}, uniqueness: {} }}",
-                child(func),
-                child(element),
-                child(domain),
-                child(codomain),
-                child(existence),
-                child(uniqueness)
-            ),
+            }) => {
+                let (var, body) = match arena.get(func) {
+                    ExpNode::Lam { var, body, .. } => (self.format_named_var(var), child(body)),
+                    _ => (
+                        "x".to_owned(),
+                        format!("{} x", self.format_app_operand(func)),
+                    ),
+                };
+                format!(
+                    "\\takeelim {} \\with {var}: {} => ({body}) \\of ({}) \\by {{ existence: {}, uniqueness: {} }}",
+                    child(element),
+                    child(domain),
+                    child(codomain),
+                    child(existence),
+                    child(uniqueness)
+                )
+            }
         }
     }
 

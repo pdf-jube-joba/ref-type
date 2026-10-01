@@ -772,9 +772,9 @@ pub enum SExp {
         inhabited: Box<SExp>,
     },
     TakeEq {
-        func: Box<SExp>,
-        domain: Box<SExp>,
-        codomain: Box<SExp>,
+        var: Identifier,
+        ty: Box<SExp>,
+        body: Box<SExp>,
         element: Box<SExp>,
         existence: Box<SExp>,
         uniqueness: Box<SExp>,

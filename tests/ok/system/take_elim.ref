@@ -1,0 +1,68 @@
+/* Take elimination checks its body at the result type of the equality goal. */
+\module TakeElimination(
+    A: \Set(0),
+    subset: \Pow A,
+    a: \Cast[A] subset,
+    existsA: \exists \Cast[A] subset,
+    uniqueA: \forall (x, y: \Cast[A] subset) -> x = y,
+) {
+    \definition chosen: A :=
+        \take (x: \Cast[A] subset) => x \of A
+          \by { existence: existsA, uniqueness: uniqueA };
+
+    \definition at_a: chosen = a :=
+        \takeelim a \with x: \Cast[A] subset => x
+          \by { existence: existsA, uniqueness: uniqueA };
+
+    \definition annotated: chosen = a :=
+        \takeelim a \with x: \Cast[A] subset => x \of A
+          \by { existence: existsA, uniqueness: uniqueA };
+
+    \definition inferred_domain: chosen = a :=
+        \takeelim a \with x: _ => x
+          \by { existence: existsA, uniqueness: uniqueA };
+
+    \definition shadowed_element: chosen = a :=
+        \takeelim a \with a: \Cast[A] subset => a
+          \by { existence: existsA, uniqueness: uniqueA };
+
+    \definition shadowed_proof: chosen = a :=
+        \takeelim a \with existsA: \Cast[A] subset => existsA
+          \by { existence: existsA, uniqueness: uniqueA };
+
+    \definition local_result (B: \Set(0)) (b: B):
+        (\take (x: \Cast[A] subset) => b
+          \by { existence: existsA, uniqueness: \fun (x, y: \Cast[A] subset) => \refl b }) = b :=
+        \takeelim a \with x: \Cast[A] subset => b
+          \by { existence: existsA, uniqueness: \fun (x, y: \Cast[A] subset) => \refl b };
+
+    \macro eliminate($element) :=
+        \takeelim $element \with a: \Cast[A] subset => a \of A
+          \by { existence: existsA, uniqueness: uniqueA };
+    \definition macro_element (a: \Cast[A] subset): chosen = a := eliminate!{a};
+
+    \macro eliminate_body($body) :=
+        \takeelim a \with a: \Cast[A] subset => $body
+          \by { existence: existsA, uniqueness: \fun (x, y: \Cast[A] subset) => \refl a };
+    \definition macro_body:
+        (\take (x: \Cast[A] subset) => a
+          \by { existence: existsA, uniqueness: \fun (x, y: \Cast[A] subset) => \refl a }) = a :=
+        eliminate_body!{a};
+
+    \infer \takeelim a \with x: \Cast[A] subset => x
+      \by { existence: existsA, uniqueness: uniqueA };
+
+    \infer \takeelim a \with x: \Cast[A] subset => x \of A
+      \by { existence: existsA, uniqueness: uniqueA };
+}
+
+\module TakeFunctionDomain(A: \Set(0), a: A) {
+    \definition identity: A -> A := \fun (x: A) => x;
+    \definition inhabited: \exists (A -> A) := \exact(identity, A -> A);
+    \definition unique: \forall (f, g: A -> A) -> a = a := \fun (f, g: A -> A) => \refl a;
+    \definition chosen: A :=
+        \take (f: A -> A) => a \by { existence: inhabited, uniqueness: unique };
+    \definition at_identity: chosen = a :=
+        \takeelim identity \with f: A -> A => a
+          \by { existence: inhabited, uniqueness: unique };
+}

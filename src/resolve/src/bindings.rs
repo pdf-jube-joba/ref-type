@@ -584,17 +584,18 @@ pub(crate) fn alpha_rename(
             inhabited,
         } => alpha_many([domain, family, inhabited], order, counter, scopes),
         SExp::TakeEq {
-            func,
-            domain,
-            codomain,
+            var,
+            ty,
+            body,
             element,
             existence,
             uniqueness,
-        } => alpha_many(
-            [func, domain, codomain, element, existence, uniqueness],
-            order,
-            counter,
-            scopes,
-        ),
+        } => {
+            alpha_many([element, ty, existence, uniqueness], order, counter, scopes);
+            let local = HashMap::from([fresh_binder(var, order, counter)]);
+            scopes.push(local);
+            alpha_rename(body, order, counter, scopes);
+            scopes.pop();
+        }
     }
 }

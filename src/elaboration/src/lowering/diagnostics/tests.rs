@@ -250,3 +250,25 @@ fn query_boundary_formats_the_structured_kernel_error() {
         "{error}"
     );
 }
+
+#[test]
+fn take_elimination_rendering_preserves_binder_scope() {
+    let prefix = r"\module M(A: \Set, a: A, unique: \forall (x, y: A) -> x = y) {
+        \definition chosen: A :=
+            \take (a: A) => a \by { existence: \exact(a, A), uniqueness: unique };
+        \definition proof: chosen = a := ";
+    let global = environment(&format!(
+        "{prefix}\\takeelim a \\with a: A => a \\by {{ existence: \\exact(a, A), uniqueness: unique }}; }}"
+    ));
+    let raw = global.crate_env();
+    let env = global.kernel_env();
+    let id = raw.kernel_definitions.borrow()[&definition(&global, "M", "proof")];
+    let proof = env.definition(id).unwrap();
+    let rendered = format_expression(raw, &proof.context, proof.body);
+    assert!(
+        rendered.contains(r"\takeelim a \with a1: A => a1 \of A"),
+        "{rendered}"
+    );
+    assert!(rendered.contains(r"existence: \exact(a, A)"), "{rendered}");
+    environment(&format!("{prefix}{rendered}; }}"));
+}

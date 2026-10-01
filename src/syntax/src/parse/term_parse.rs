@@ -761,15 +761,13 @@ impl<'a> TermParser<'a> {
         }
 
         if self.bump_if_keyword("\\takeelim") {
-            self.expect_token(Token::LParen)?;
-            let func = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
             let element = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let domain = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let codomain = self.parse_sexp()?;
-            self.expect_token(Token::RParen)?;
+            self.expect_keyword("\\with")?;
+            let var = self.expect_ident()?;
+            self.expect_token(Token::Colon)?;
+            let ty = self.parse_sexp()?;
+            self.expect_token(Token::DoubleArrow)?;
+            let body = self.parse_sexp()?;
             let (existence, uniqueness) = self.parse_by(|parser| {
                 let existence = parser.parse_named_by_term("existence")?;
                 parser.expect_token(Token::Comma)?;
@@ -777,9 +775,9 @@ impl<'a> TermParser<'a> {
                 Ok((existence, uniqueness))
             })?;
             return Ok(SExp::TakeEq {
-                func: Box::new(func),
-                domain: Box::new(domain),
-                codomain: Box::new(codomain),
+                var,
+                ty: Box::new(ty),
+                body: Box::new(body),
                 element: Box::new(element),
                 existence: Box::new(existence),
                 uniqueness: Box::new(uniqueness),

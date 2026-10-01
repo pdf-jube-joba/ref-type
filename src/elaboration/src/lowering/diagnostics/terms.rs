@@ -288,17 +288,34 @@ impl Renderer<'_> {
                 element,
                 existence,
                 uniqueness,
-            } => self.call(
-                "takeelim",
-                &[
-                    (*func),
-                    (*domain),
-                    (*codomain),
-                    (*element),
-                    (*existence),
-                    (*uniqueness),
-                ],
-            ),
+            } => {
+                let element = self.expression(*element, 0);
+                let domain = self.expression(*domain, 0);
+                let codomain = self.expression(*codomain, 0);
+                let existence = self.expression(*existence, 0);
+                let uniqueness = self.expression(*uniqueness, 0);
+                let (name, body) = match self.arena.get(*func) {
+                    Node::Lambda { var, body, .. } => {
+                        let name = self.bind(var);
+                        let body = self.expression(body, 1);
+                        self.locals.pop();
+                        (name, body)
+                    }
+                    _ => {
+                        let func = self.expression(*func, 2);
+                        let name = self.bind(SymbolId::ANONYMOUS);
+                        self.locals.pop();
+                        let body = format!("{func} {name}");
+                        (name, body)
+                    }
+                };
+                Term::new(
+                    format!(
+                        "\\takeelim {element} \\with {name}: {domain} => {body} \\of {codomain} \\by {{ existence: {existence}, uniqueness: {uniqueness} }}"
+                    ),
+                    0,
+                )
+            }
             SetExt {
                 left,
                 right,

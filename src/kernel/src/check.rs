@@ -252,6 +252,13 @@ impl<'a> Checker<'a> {
         expected: Expression,
     ) -> Result<(), Error> {
         if self.solving {
+            if let Node::TakeEq { codomain, .. } = self.arena().get(term)
+                && matches!(self.arena().get(self.head(codomain)?), Node::Meta { .. })
+                && let Node::Equal { left, .. } = self.arena().get(self.head(expected)?)
+            {
+                let result_ty = self.infer_open(left)?;
+                self.metas.unify(self.env, &self.context, codomain, result_ty)?;
+            }
             if let Node::Meta { id, arguments } = self.arena().get(term) {
                 self.metas.expect(self.env, id, &arguments, expected)?;
             }

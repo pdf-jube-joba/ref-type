@@ -223,9 +223,6 @@ impl Renderer<'_> {
             ("TakeProp", [domain, proposition, map, existence]) => {
                 format!("\\TakeProp({domain}, {proposition}, {map}) \\by {{ {existence} }}")
             }
-            ("takeelim", [func, domain, codomain, element, existence, uniqueness]) => format!(
-                "\\takeelim({func}, {element}, {domain}, {codomain}) \\by {{ existence: {existence}, uniqueness: {uniqueness} }}"
-            ),
             _ => format!("\\{name}({})", args.join(", ")),
         };
         Term::atom(text)

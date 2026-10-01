@@ -398,23 +398,7 @@ impl LocalScope {
 
                 let var = handler.intern_name(&right_bind.vars[0]);
                 let domain = self.elab_exp_rec(&right_bind.ty, handler)?;
-                self.push_binded_var(var, domain);
-                let map_body = self.elab_exp_rec(body, handler)?;
-                self.pop_binded_var();
-                let map = handler.arena().alloc(ExpNode::Lam {
-                    var,
-                    ty: domain,
-                    body: map_body,
-                });
-                let map_ty = handler.infer(&mut self.typing_binds, map)?;
-                let ExpNode::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
-                    return Err("failed to infer a product type for \\take map".into());
-                };
-                if exp_contains_bound(handler.arena(), codomain, 0) {
-                    return Err("\\take map must have a non-dependent codomain".into());
-                }
-                let codomain = instantiate(handler.arena(), codomain, domain);
-                Ok((domain, map, codomain))
+                self.elab_take_map(var, domain, body, handler)
             }
             Bind::Subset { var, ty, predicate } => {
                 let carrier = self.elab_exp_rec(ty, handler)?;
@@ -432,28 +416,48 @@ impl LocalScope {
                     superset: carrier,
                     subset,
                 });
-                self.push_binded_var(var, domain);
-                let map_body = self.elab_exp_rec(body, handler)?;
-                self.pop_binded_var();
-                let map = handler.arena().alloc(ExpNode::Lam {
-                    var,
-                    ty: domain,
-                    body: map_body,
-                });
-                let map_ty = handler.infer(&mut self.typing_binds, map)?;
-                let ExpNode::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
-                    return Err("failed to infer a product type for \\take map".into());
-                };
-                if exp_contains_bound(handler.arena(), codomain, 0) {
-                    return Err("\\take map must have a non-dependent codomain".into());
-                }
-                let codomain = instantiate(handler.arena(), codomain, domain);
-                Ok((domain, map, codomain))
+                self.elab_take_map(var, domain, body, handler)
             }
             Bind::SubsetWithProof { .. } => {
                 Err("\\take with proof bind is not supported by kernel Take(X,T,f)".into())
             }
         }
+    }
+
+    fn elab_take_map(
+        &mut self,
+        var: SymbolId,
+        domain: Exp,
+        body: &SExp,
+        handler: &mut impl Handler,
+    ) -> Result<(Exp, Exp, Exp), ElaborationError> {
+        let map = self.elab_take_function(var, domain, body, handler)?;
+        let map_ty = handler.infer(&mut self.typing_binds, map)?;
+        let ExpNode::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
+            return Err("failed to infer a product type for \\take map".into());
+        };
+        if exp_contains_bound(handler.arena(), codomain, 0) {
+            return Err("\\take map must have a non-dependent codomain".into());
+        }
+        let codomain = instantiate(handler.arena(), codomain, domain);
+        Ok((domain, map, codomain))
+    }
+
+    fn elab_take_function(
+        &mut self,
+        var: SymbolId,
+        domain: Exp,
+        body: &SExp,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, ElaborationError> {
+        self.push_binded_var(var, domain);
+        let map_body = self.elab_exp_rec(body, handler);
+        self.pop_binded_var();
+        Ok(handler.arena().alloc(ExpNode::Lam {
+            var,
+            ty: domain,
+            body: map_body?,
+        }))
     }
 
     fn elab_exp_rec(
@@ -1723,17 +1727,29 @@ impl LocalScope {
                 ))))
             }
             SExp::TakeEq {
-                func,
-                domain,
-                codomain,
+                var,
+                ty,
+                body,
                 element,
                 existence,
                 uniqueness,
             } => {
-                let func = self.elab_exp_rec(func, handler)?;
-                let domain = self.elab_exp_rec(domain, handler)?;
-                let codomain = self.elab_exp_rec(codomain, handler)?;
                 let element = self.elab_exp_rec(element, handler)?;
+                let domain = self.elab_exp_rec(ty, handler)?;
+                if matches!(handler.arena().get(domain), ExpNode::Meta { .. }) {
+                    handler.check(&mut self.typing_binds, element, domain)?;
+                }
+                let var = handler.intern_name(var);
+                let func = self.elab_take_function(var, domain, body, handler)?;
+                // Keep the result type open until checking the equality goal or map.
+                // Its scope excludes the choice binder, so it cannot depend on it.
+                let codomain = handler.fresh_meta(
+                    SurfaceMeta::Implicit,
+                    SourceSpan { start: 0, end: 0 },
+                    &self.typing_binds,
+                )?;
+                let sort = handler.infer(&mut self.typing_binds, domain)?;
+                handler.check(&mut self.typing_binds, codomain, sort)?;
                 let existence = self.elab_exp_rec(existence, handler)?;
                 let uniqueness = self.elab_exp_rec(uniqueness, handler)?;
                 Ok(handler.arena().alloc(ExpNode::Prove(Prove::TakeEq {

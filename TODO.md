@@ -8,7 +8,6 @@
 - CType をせっかく polymorphic にしたのに使ってないので使えるようにしたい。
   - そもそも `\CType` がないらしい。まあ使うかと言われたら使わないかもしれないが。
 - `((\fun (z: \Cast[\Pow B.Bool^] X) => z) x) \assign _1 = (((\fun (z: \Cast[\Pow B.Bool^] X) => z) y) \assign _2)` これはエラーが出て、 `Module Load Error: parse error: expected RParen, found Equal (544..545)` と `=` のところに出るので、 `\assign _n` はもっとどうにかならないか？
-- `\takeelim` が微妙な構文。
 
 ## ライブラリ
 - `orElim` を `either!` みたいなマクロを使いたい。

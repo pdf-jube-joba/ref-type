@@ -445,8 +445,16 @@ left = right
 \exact(element, set)
 \bysub(superset, subset, element)
 \idelim left = right \with x: A => predicate \by { base: base-proof, equality: equality-proof }
-\takeelim(function, element, domain, codomain) \by { existence: existence-proof, uniqueness: uniqueness-proof }
+\takeelim element \with x: A => body
+  \by { existence: existence-proof, uniqueness: uniqueness-proof }
+\takeelim element \with x: A => body \of B
+  \by { existence: existence-proof, uniqueness: uniqueness-proof }
 ```
+
+`\takeelim` は、同じ本体と証明で作った `\take` の結果が、`element` を束縛変数に代入した本体と等しいことを示す。
+束縛変数のスコープは本体であり、要素と `\by` の証明は外側の文脈で読む。
+結果型は期待される等式の左辺の型から推論し、期待型がない場合は本体から推論する。
+`\of` で本体の結果型を指定することもできる。
 
 組み込み公理:
 

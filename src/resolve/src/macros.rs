@@ -735,16 +735,13 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             inhabited,
         } => walk_many_mut([domain, family, inhabited], action),
         SExp::TakeEq {
-            func,
-            domain,
-            codomain,
+            ty,
+            body,
             element,
             existence,
             uniqueness,
-        } => walk_many_mut(
-            [func, domain, codomain, element, existence, uniqueness],
-            action,
-        ),
+            ..
+        } => walk_many_mut([element, ty, body, existence, uniqueness], action),
         SExp::Block(block) | SExp::Program(block) => {
             for statement in &mut block.statements {
                 walk_statement_mut(statement, action);
