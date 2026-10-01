@@ -36,3 +36,5 @@ module の特殊化と未解決の名前参照は elaboration が処理する。
 `Checker::statistics` はノード数・キャッシュ件数・module の具体化件数を返す。
 `Checker::kernel_environment` から kernel の検証済み環境を参照できる。
 `REF_TYPE_PROFILE_DECLARATIONS` は宣言ごとの処理時間を表示する。
+`REF_TYPE_PROFILE_NAMESPACES` は import ごとの名前空間数・遅延宣言数・ID 対応表の件数を表示する。
+同じ import で作る名前空間と遅延宣言は、完成済みの ID 対応表を共有する。

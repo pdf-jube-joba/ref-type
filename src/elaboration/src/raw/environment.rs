@@ -12,6 +12,7 @@ use rustc_hash::FxHashMap;
 use std::{
     cell::{Cell, OnceCell, RefCell},
     collections::{HashMap, HashSet},
+    rc::Rc,
 };
 
 #[derive(Debug, Clone)]
@@ -126,7 +127,7 @@ pub struct NamespaceBinding {
     pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
     /// Maps definitions in `materialized` back to definitions in `source`.
     pub definition_origins: HashMap<DefId, DefId>,
-    pub(crate) remapping: DeclarationRemapping,
+    pub(crate) remapping: Rc<DeclarationRemapping>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -142,21 +143,21 @@ struct LazyDefinition {
     source: DefId,
     substitutions: Vec<(ModuleParamId, ModuleArgument)>,
     reflected_substitutions: Vec<(ModuleParamId, Exp)>,
-    remapping: DeclarationRemapping,
+    remapping: Rc<DeclarationRemapping>,
 }
 
 #[derive(Debug, Clone)]
 struct LazyInductive {
     source: InductiveId,
     substitutions: Vec<(ModuleParamId, Exp)>,
-    remapping: DeclarationRemapping,
+    remapping: Rc<DeclarationRemapping>,
 }
 
 #[derive(Debug, Clone)]
 struct LazyProgramInductive {
     source: ProgramInductiveId,
     substitutions: Vec<(ModuleParamId, ModuleArgument)>,
-    remapping: DeclarationRemapping,
+    remapping: Rc<DeclarationRemapping>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -831,7 +832,7 @@ impl CrateEnv {
                 source,
                 substitutions,
                 reflected_substitutions,
-                remapping: DeclarationRemapping::default(),
+                remapping: Rc::default(),
             },
         );
         self.nominal_definitions.insert(
@@ -847,7 +848,7 @@ impl CrateEnv {
     pub(crate) fn set_lazy_definition_remapping(
         &mut self,
         id: DefId,
-        remapping: DeclarationRemapping,
+        remapping: Rc<DeclarationRemapping>,
     ) {
         self.lazy_definitions
             .get_mut(&id)
@@ -952,7 +953,7 @@ impl CrateEnv {
             LazyInductive {
                 source,
                 substitutions: reflected_substitutions,
-                remapping: DeclarationRemapping::default(),
+                remapping: Rc::default(),
             },
         );
         (id, true)
@@ -961,7 +962,7 @@ impl CrateEnv {
     pub(crate) fn set_lazy_inductive_remapping(
         &mut self,
         id: InductiveId,
-        remapping: DeclarationRemapping,
+        remapping: Rc<DeclarationRemapping>,
     ) {
         self.lazy_inductives
             .get_mut(&id)
@@ -1067,7 +1068,7 @@ impl CrateEnv {
             LazyProgramInductive {
                 source,
                 substitutions,
-                remapping: DeclarationRemapping::default(),
+                remapping: Rc::default(),
             },
         );
         (id, true)
@@ -1076,7 +1077,7 @@ impl CrateEnv {
     pub(crate) fn set_lazy_program_inductive_remapping(
         &mut self,
         id: ProgramInductiveId,
-        remapping: DeclarationRemapping,
+        remapping: Rc<DeclarationRemapping>,
     ) {
         self.lazy_program_inductives
             .get_mut(&id)
@@ -1091,7 +1092,7 @@ impl CrateEnv {
         materialized: ModuleId,
         arguments: Vec<(ModuleParamId, ModuleArgument)>,
         definition_origins: HashMap<DefId, DefId>,
-        remapping: DeclarationRemapping,
+        remapping: Rc<DeclarationRemapping>,
     ) -> ModuleId {
         self.module_mut(owner).bindings.push(materialized);
         let previous = self.namespace_bindings.insert(

@@ -13,7 +13,7 @@ use crate::raw::ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInduct
 #[cfg(test)]
 use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{ProgramContext, ProgramContextEntry};
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 #[derive(Debug, Clone)]
 pub(crate) enum ItemAccessResult {
@@ -385,7 +385,7 @@ impl ModuleManager {
             || (Vec::new(), DeclarationRemapping::default()),
             |base| {
                 let base = env.binding(base);
-                (base.arguments.clone(), base.remapping.clone())
+                (base.arguments.clone(), (*base.remapping).clone())
             },
         );
         let mut reflected_substitutions = substitutions
@@ -695,6 +695,22 @@ impl ModuleManager {
             });
         }
 
+        if std::env::var_os("REF_TYPE_PROFILE_NAMESPACES").is_some() {
+            eprintln!(
+                "namespace {:?}: {} groups, {} definitions, {} inductives, {} datatypes; remapping: {} modules, {} definitions, {} inductives, {} datatypes",
+                source,
+                groups.len(),
+                lazy_definitions.len(),
+                lazy_inductives.len(),
+                lazy_datatypes.len(),
+                remapping.module_ids.len(),
+                remapping.definition_ids.len(),
+                remapping.inductive_ids.len(),
+                remapping.program_inductive_ids.len(),
+            );
+        }
+        // All declarations and bindings from this import use the same frozen map.
+        let remapping = Rc::new(remapping);
         for id in lazy_definitions {
             env.set_lazy_definition_remapping(id, remapping.clone());
         }

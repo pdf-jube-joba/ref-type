@@ -497,6 +497,48 @@ fn nested_namespaces_follow_module_dependency_order() {
 }
 
 #[test]
+fn namespace_remappings_are_shared_and_extensions_preserve_parent_maps() {
+    let source = r"
+        \module Source(A: \Set) {
+            \definition T: \Set := A;
+        }
+        \module Wrapper(A: \Set) {
+            \import \root.Source[A := A] \as S;
+            \module Child {
+                \definition T: \Set := S.T;
+            }
+        }
+        \module Consumer(A: \Set) {
+            \import \root.Wrapper[A := A] \as W;
+            \import W.Child[] \as C;
+            \definition T: \Set := C.T;
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+    let env = environment.crate_env();
+    let consumer = env.module(env.root_module()).children()[2];
+    let bindings = env.module(consumer).bindings();
+    // The inherited S and W belong to one import; C extends its map separately.
+    assert_eq!(bindings.len(), 3);
+    let inherited = env.binding(bindings[0]);
+    let wrapper = env.binding(env.module(consumer).import("W").unwrap());
+    let child = env.binding(env.module(consumer).import("C").unwrap());
+    assert!(std::rc::Rc::ptr_eq(
+        &inherited.remapping,
+        &wrapper.remapping
+    ));
+    assert!(!std::rc::Rc::ptr_eq(&wrapper.remapping, &child.remapping));
+    assert_eq!(wrapper.remapping.module_ids.len(), 2);
+    assert_eq!(child.remapping.module_ids.len(), 3);
+    assert!(!wrapper.remapping.module_ids.contains_key(&child.source));
+    for (source, target) in &wrapper.remapping.module_ids {
+        assert_eq!(child.remapping.module_ids.get(source), Some(target));
+    }
+}
+
+#[test]
 fn final_lowering_does_not_force_unused_instance_items() {
     let source = r#"
         \module Source(A: \Set(0)) {
