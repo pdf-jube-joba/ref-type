@@ -38,6 +38,26 @@
         congr!{A A} f _ _ (ih value)
       };
 
+  \definition preserves (f: A -> A) (P: A -> \Prop)
+    (step: \forall (value: A) -> P value -> P (f value)):
+    \forall (count: N.Nat^) (value: A) -> P value -> P (apply f value count) :=
+    \induction (count: N.Nat^) \return
+      \forall (value: A) -> P value -> P (apply f value count) \with {
+      | zero: \fun (value: A) (h: _) => h
+      | succ: \fun (count: N.Nat^) (ih: _) (value: A) (h: _) =>
+        step (apply f value count) (ih value h)
+    };
+
+  \definition reflects (f: A -> A) (P: A -> \Prop)
+    (step: \forall (value: A) -> P (f value) -> P value):
+    \forall (count: N.Nat^) (value: A) -> P (apply f value count) -> P value :=
+    \induction (count: N.Nat^) \return
+      \forall (value: A) -> P (apply f value count) -> P value \with {
+      | zero: \fun (value: A) (h: _) => h
+      | succ: \fun (count: N.Nat^) (ih: _) (value: A) (h: _) =>
+        ih value (step (apply f value count) h)
+    };
+
   \definition specification: Iteration[A]::[Set] :=
     Iteration[A] { apply := apply } \with {
       zero := \fun (f: A -> A) (value: A) => \refl(value),
@@ -808,39 +828,3 @@
     \fun (a: N.Nat^) => \axiom:funext(Mod::[program]^ a, Mod::[set] a,
       \fun (b: N.Nat^) => matches a b)),
 }
-
-/* Euclid's transition is stationary at (a,0). Starting at (a,b), b steps
- * suffice because each nonzero second component strictly decreases. */
-\correspondence GcdNext: \U(P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat]) {
-  \program := \thunk(\cfun (p: P.Times[N.Nat, N.Nat]) => \match p \in P.Times \with {
-    | pair a b : \match b \in N.Nat \with {
-      | zero : \return(P.Times[N.Nat, N.Nat]::pair a N.Nat::zero)
-      | succ d : \program {
-        \bind partial: \U(N.Nat -> N.Nat) <- (Mod::[program] a) \then
-        \bind r: N.Nat <- (\force partial) (N.Nat::succ d) \then
-        \return P.Times[N.Nat, N.Nat]::pair (N.Nat::succ d) r
-      }
-    }
-  }),
-  \set := \induction (p: P.Times^[N.Nat^, N.Nat^]) \return NatPair \with {
-    | pair : (\fun (a, b: N.Nat^) => \induction (b: N.Nat^) \return NatPair \with {
-      | zero : (natPair a N.Nat^::zero)
-      | succ : (\fun (d: N.Nat^) => \fun (_: _) => natPair (N.Nat^::succ d) (Mod::[set] a (N.Nat^::succ d)))
-    } b)
-  },
-
-  \definition matches: \forall (p: NatPair) -> GcdNext::[program]^ p = GcdNext::[set] p :=
-    \induction (p: P.Times^[N.Nat^, N.Nat^]) \return GcdNext::[program]^ p = GcdNext::[set] p \with {
-      | pair : (\fun (a, b: N.Nat^) => \induction (b: N.Nat^) \return GcdNext::[program]^ (natPair a b) = GcdNext::[set] (natPair a b) \with {
-        | zero : (\refl(natPair a N.Nat^::zero))
-        | succ : (\fun (d: N.Nat^) => \fun (_: _) => \idelim Mod::[program]^ a (N.Nat^::succ d) = Mod::[set] a (N.Nat^::succ d)
-            \with r: N.Nat^ => natPair (N.Nat^::succ d) (Mod::[program]^ a (N.Nat^::succ d)) = natPair (N.Nat^::succ d) r
-            \by { base: \refl(natPair (N.Nat^::succ d) (Mod::[program]^ a (N.Nat^::succ d))), equality: (congr!{Mod::[Type]^ _} (\fun (f: _) => f a (N.Nat^::succ d)) _ _ Mod::[coherence]) })
-      } b)
-    };
-  \coherence := \axiom:funext(GcdNext::[program]^, GcdNext::[set],
-    \fun (p: NatPair) => matches p),
-}
-
-\definition gcdByIteration (a, b: N.Nat^): N.Nat^ :=
-  P.Times[N.Nat, N.Nat]::first^ (PairIter::[set] GcdNext::[set] (natPair a b) b);
