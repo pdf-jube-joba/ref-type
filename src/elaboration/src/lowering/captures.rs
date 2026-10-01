@@ -87,9 +87,9 @@ impl Lowerer<'_> {
         self.raw.arena().definition_captures(native)
     }
 
-    fn collect_captures(&self, declarations: Vec<Declaration>) -> HashSet<ModuleParamId> {
-        let mut captures = HashSet::new();
-        let mut visited = HashSet::new();
+    fn collect_captures(&self, declarations: Vec<Declaration>) -> FxHashSet<ModuleParamId> {
+        let mut captures = FxHashSet::default();
+        let mut visited = FxHashSet::default();
         let mut pending = declarations;
         while let Some(dependency) = pending.pop() {
             if !visited.insert(dependency) {
@@ -109,13 +109,13 @@ impl Lowerer<'_> {
         captures
     }
 
-    fn order_captures(&self, mut captures: HashSet<ModuleParamId>) -> Vec<ModuleParamId> {
+    fn order_captures(&self, mut captures: FxHashSet<ModuleParamId>) -> Vec<ModuleParamId> {
         // Parameter classifiers precede the bindings which depend on them, even
         // when specialization has allocated modules in a different order.
         fn order(
             this: &Lowerer<'_>,
             id: ModuleParamId,
-            remaining: &mut HashSet<ModuleParamId>,
+            remaining: &mut FxHashSet<ModuleParamId>,
             result: &mut Vec<ModuleParamId>,
         ) {
             if !remaining.remove(&id) {
@@ -144,10 +144,10 @@ impl Lowerer<'_> {
         result
     }
 
-    fn dependencies(&self, mut pending: Vec<Term>) -> HashSet<Declaration> {
+    fn dependencies(&self, mut pending: Vec<Term>) -> FxHashSet<Declaration> {
         use raw::program::{ComputationTermNode as C, ValueTermNode as V, ValueTypeNode as VT};
-        let mut seen = HashSet::new();
-        let mut dependencies = HashSet::new();
+        let mut seen = FxHashSet::default();
+        let mut dependencies = FxHashSet::default();
         while let Some(term) = pending.pop() {
             if !seen.insert(term) {
                 continue;
@@ -377,7 +377,7 @@ impl Lowerer<'_> {
     }
 
     pub(crate) fn prepare_query(&mut self, roots: Vec<Term>) {
-        let mut captures = HashSet::new();
+        let mut captures = FxHashSet::default();
         for dependency in self.dependencies(roots) {
             captures.extend(self.captures(dependency));
         }

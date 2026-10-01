@@ -3,6 +3,7 @@ pub use crate::syntax::{Binding, Context};
 use crate::{
     calculus::*,
     ids::{DefinitionId, InductiveId, ParameterId, ProgramInductiveId},
+    sharing::Cache,
     sort::{BaseSort, Sort},
     syntax::*,
 };
@@ -43,9 +44,9 @@ pub struct Environment {
     pub(crate) inductives: FxHashMap<InductiveId, InductiveSpec>,
     pub(crate) datatypes: FxHashMap<ProgramInductiveId, Datatype>,
     pub(crate) contexts: RefCell<crate::sharing::ContextInterner<Expression>>,
-    pub(crate) inferred: RefCell<FxHashMap<(crate::sharing::ContextId, Expression), Expression>>,
-    pub(crate) conversions: RefCell<FxHashMap<(Expression, Expression, bool), bool>>,
-    pub(crate) heads: RefCell<FxHashMap<Expression, Expression>>,
+    pub(crate) inferred: RefCell<Cache<(crate::sharing::ContextId, Expression), Expression>>,
+    pub(crate) conversions: RefCell<Cache<(Expression, Expression, bool), bool>>,
+    pub(crate) heads: RefCell<Cache<Expression, Expression>>,
 }
 impl Default for Environment {
     fn default() -> Self {
@@ -371,27 +372,36 @@ impl Environment {
         definition: Definition,
     ) -> Result<DefinitionId, crate::metavariables::Error> {
         let mark = self.arena.scratch_mark();
+        let definitions = self.definitions.len();
+        let contexts = self.contexts.borrow().len();
+        self.heads.borrow_mut().begin_scratch();
+        self.inferred.borrow_mut().begin_scratch();
+        self.conversions.borrow_mut().begin_scratch();
         let result = self.register_definition_inner(metas, definition);
         let mut roots = metas.roots();
-        for definition in &self.definitions {
+        // Earlier declarations and context bindings predate the scratch arena mark.
+        for definition in &self.definitions[definitions..] {
             roots.extend([definition.ty, definition.body]);
             roots.extend(definition.context.iter().map(|b| b.ty));
         }
-        roots.extend(self.contexts.borrow().bindings().copied());
+        roots.extend(self.contexts.borrow().bindings_since(contexts).copied());
         if let Err(crate::metavariables::Error::TypeMismatch(error)) = &result {
             roots.extend([error.term, error.inferred, error.expected]);
             roots.extend(error.context.iter().map(|b| b.ty));
         }
-        if self.arena.finish_scratch(mark, roots) > 0 {
-            self.heads
-                .borrow_mut()
-                .retain(|key, value| self.arena.is_live(*key) && self.arena.is_live(*value));
-            self.inferred
-                .borrow_mut()
-                .retain(|(_, key), value| self.arena.is_live(*key) && self.arena.is_live(*value));
-            self.conversions.borrow_mut().retain(|(left, right, _), _| {
-                self.arena.is_live(*left) && self.arena.is_live(*right)
+        let removed = self.arena.finish_scratch(mark, roots) > 0;
+        self.heads.borrow_mut().finish_scratch(|key, value| {
+            !removed || self.arena.is_live(*key) && self.arena.is_live(*value)
+        });
+        self.inferred.borrow_mut().finish_scratch(|(_, key), value| {
+            !removed || self.arena.is_live(*key) && self.arena.is_live(*value)
+        });
+        self.conversions
+            .borrow_mut()
+            .finish_scratch(|(left, right, _), _| {
+                !removed || self.arena.is_live(*left) && self.arena.is_live(*right)
             });
+        if removed {
             metas.retain_caches(&self.arena);
         }
         result

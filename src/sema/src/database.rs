@@ -6,7 +6,7 @@ use crate::{
 };
 use elaboration::Checker;
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -379,10 +379,14 @@ fn collect_analysis(
                     name: reference.target_name.clone(),
                 },
             };
-            if !result.references.contains(&reference) {
-                result.references.push(reference);
-            }
+            result.references.push(reference);
         }
+    }
+    for result in results.values_mut() {
+        let mut seen = HashSet::new();
+        result
+            .references
+            .retain(|reference| seen.insert(reference.clone()));
     }
     for output in &workspace.analysis().outputs {
         if let Some(result) = graph

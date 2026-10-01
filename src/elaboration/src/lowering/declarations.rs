@@ -4,7 +4,7 @@ use super::*;
 impl Lowerer<'_> {
     pub(super) fn definition(&mut self, id: DefId) -> Result<(), String> {
         let mut pending = vec![(id, false)];
-        let mut active = HashSet::new();
+        let mut active = FxHashSet::default();
         while let Some((id, ready)) = pending.pop() {
             if self
                 .raw

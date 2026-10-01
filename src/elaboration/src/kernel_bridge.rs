@@ -8,15 +8,15 @@ use crate::{
         traversal::Term,
     },
 };
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 /// Materialize source templates before borrowing the kernel environment.
 fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
-    let mut seen = HashSet::new();
-    let mut definitions = HashSet::new();
-    let mut inductives = HashSet::new();
-    let mut datatypes = HashSet::new();
-    let mut parameters = HashSet::new();
+    let mut seen = FxHashSet::default();
+    let mut definitions = FxHashSet::default();
+    let mut inductives = FxHashSet::default();
+    let mut datatypes = FxHashSet::default();
+    let mut parameters = FxHashSet::default();
     while let Some(term) = pending.pop() {
         if !seen.insert(term) {
             continue;
@@ -216,7 +216,7 @@ pub(crate) fn expression<T>(
         .max_loose_bound(term)
         .map_or(0, |i| i.saturating_add(1));
     let mut pending = vec![term];
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     while let Some(t) = pending.pop() {
         if !seen.insert(t) {
             continue;

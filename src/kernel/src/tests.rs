@@ -726,6 +726,11 @@ fn registration_reclaims_scratch_nodes_and_keeps_definitions_and_error_terms() {
         .unwrap();
     assert_eq!(a.len(), before);
     assert_eq!(*snapshot, a.get(body));
+    // Inference must recompute a type reclaimed with the registration's scratch nodes.
+    let inferred = Checker::new(&env, &mut MetaContext::new(), vec![])
+        .infer(body)
+        .unwrap();
+    assert!(crate::calculus::alpha_equal(&a, inferred, ty));
     let reference = env.reference(id, vec![]).unwrap();
     let inferred = Checker::new(&env, &mut MetaContext::new(), vec![])
         .infer(reference)

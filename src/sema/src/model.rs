@@ -55,7 +55,7 @@ pub struct Declaration {
     pub ty: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Reference {
     pub location: Location,
     pub target: DeclarationId,

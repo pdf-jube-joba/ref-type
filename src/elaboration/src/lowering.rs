@@ -2,8 +2,7 @@
 use crate::raw::{self, exp::*, ids::*, sort::Sort as RawSort};
 use kernel::sharing::ContextId;
 use kernel::{environment as ke, sort as k, syntax as s};
-use rustc_hash::FxHashMap;
-use std::collections::HashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 mod captures;
 use captures::{Declaration, Scope};
@@ -18,9 +17,9 @@ pub(crate) struct Lowerer<'a> {
     pub(crate) kernel: &'a mut ke::Environment,
     metas: kernel::metavariables::MetaContext,
     pub(crate) structural: bool,
-    active_parameters: HashSet<ModuleParamId>,
-    active: HashSet<InductiveId>,
-    active_program: HashSet<ProgramInductiveId>,
+    active_parameters: FxHashSet<ModuleParamId>,
+    active: FxHashSet<InductiveId>,
+    active_program: FxHashSet<ProgramInductiveId>,
     scope: Scope,
     capture_cache: FxHashMap<Declaration, Vec<ModuleParamId>>,
     cache: FxHashMap<(Exp, ContextId, ModuleId), s::Expression>,
@@ -39,9 +38,9 @@ impl<'a> Lowerer<'a> {
             kernel,
             metas: kernel::metavariables::MetaContext::new(),
             structural: false,
-            active_parameters: HashSet::new(),
-            active: HashSet::new(),
-            active_program: HashSet::new(),
+            active_parameters: FxHashSet::default(),
+            active: FxHashSet::default(),
+            active_program: FxHashSet::default(),
             scope: Scope::default(),
             capture_cache: FxHashMap::default(),
             cache: FxHashMap::default(),
