@@ -16,7 +16,7 @@
 | 代数 | `Alg/Monoid.ref`、`Alg/Alg.ref`、`Alg/Ring.ref`、`Alg/Field.ref` | Monoid、Group、Semiring、Ring、Field、環上の加群、環上の代数 |
 | 算術 | `Arithmetic/Int.ref`、`Arithmetic/Rat.ref`、`Arithmetic/IntAlgebra.ref` と各子モジュール | 整数、有理数、整数の代数構造 |
 | 実数 | `real/src/AxiomaticReals.ref`、`real/src/DedekindReal.ref`、`real/src/CauchyReal.ref` と各子モジュール | 公理的実数、Dedekind 実数、Cauchy 実数 |
-| 幾何 | `topology/src/root.ref` | 位相空間 |
+| 幾何 | `topology/src/root.ref` | 位相空間、実数値の距離空間と誘導位相 |
 
 モジュールは関心ごとに階層を分け、定義は末端の `Def`、性質と証明は末端の `Prop` に置く。
 例えば `std/src/Data/Nat/Division.ref` の `\module Def;` の本体は `std/src/Data/Nat/Division/Def.ref` にある。

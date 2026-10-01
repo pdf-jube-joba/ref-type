@@ -1,0 +1,48 @@
+/* Real-valued metrics and the topology of open balls. */
+\import real.DedekindReal[] \as R;
+\import R.Arithmetic[].Def[] \as Real;
+\import R.Arithmetic[].Prop[] \as RealLaws;
+\import R.Order[] \as Order;
+\import topology.Topology[Carrier := Carrier] \as T;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+
+\definition DistanceValue: \Set := R.Real;
+
+\structure Metric: \Set {
+  distance: Carrier -> Carrier -> R.Real,
+} \where {
+  nonnegative: \forall (x, y: Carrier) -> R.Le Real.zero (distance x y),
+  self: \forall (x: Carrier) -> distance x x = Real.zero,
+  separated: \forall (x, y: Carrier) -> distance x y = Real.zero -> x = y,
+  symmetric: \forall (x, y: Carrier) -> distance x y = distance y x,
+  triangle: \forall (x, y, z: Carrier) ->
+    R.Le (distance x z) (Real.add (distance x y) (distance y z)),
+}
+
+\definition Ball(metric: Metric::[Set]) (x: Carrier) (radius: R.Real): \Pow Carrier :=
+  { y : Carrier \where R.Lt (#distance{metric} x y) radius };
+
+\definition NeighborhoodRadius(metric: Metric::[Set]) (U: \Pow Carrier)
+  (x: Carrier): \Pow R.Real :=
+  { radius : R.Real \where
+    Logic.And[R.Lt Real.zero radius, T.Subset (Ball metric x radius) U] };
+
+\definition IsOpen(metric: Metric::[Set]) (U: \Pow Carrier): \Prop :=
+  \forall (x: Carrier) -> T.Member U x ->
+    \exists { radius : R.Real \where
+      \In[R.Real] (NeighborhoodRadius metric U x) radius };
+
+\definition ballCenter(metric: Metric::[Set]) (x: Carrier) (radius: R.Real)
+  (positive: R.Lt Real.zero radius): T.Member (Ball metric x radius) x :=
+  \idelim Real.zero = #distance{metric} x x
+    \with d: R.Real => R.Lt d radius
+    \by { base: positive, equality: sym!{R.Real} _ _ (#self{metric} x) };
+
+\definition ballMonotone(metric: Metric::[Set]) (x: Carrier) (r, s: R.Real)
+  (rs: R.Le r s): T.Subset (Ball metric x r) (Ball metric x s) :=
+  \fun (y: Carrier) => \fun (inside: T.Member (Ball metric x r) y) =>
+    R.ltLeTrans (#distance{metric} x y) r s inside rs;
+
+\module Topology;
