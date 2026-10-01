@@ -1,6 +1,5 @@
 \module Bundles {
   \inductive Unit: \VType := | unit: Unit;
-  \inductive True: \Prop := | intro: True;
 
   \structure Fixed: \Set {
     value: Unit^,
@@ -29,17 +28,7 @@
     \State := Unit,
     \Output := Unit,
     \step := \thunk(\cfun (s: Unit) => \return(\finish[Unit, Unit](s))),
-    \definition ready: \RunStep[Unit^, Unit^] -> \Prop :=
-      \step-match t: \RunStep[Unit^, Unit^] \return \Prop \with {
-        | \continue s: \Acc[Unit^, Unit^](echo::[step]^, s)
-        | \finish o: True
-      };
-    \terminates := \fun (s: Unit^) =>
-      \accintro[Unit^, Unit^](echo::[step]^, s,
-        \fun (next: Unit^) => \fun (edge: echo::[step]^ s = \continue[Unit^, Unit^](next)) =>
-          \idelim echo::[step]^ s = \continue[Unit^, Unit^](next)
-            \with t: \RunStep[Unit^, Unit^] => ready t
-            \by { base: True::intro, equality: edge }),
+    \terminates := \fun (s: Unit^) (P: _) (h: _) => h s (\fun (Q: \Prop) (q: Q) => q),
   }
 
   \correspondence wrapped: Unit ~> \F(Unit) {
@@ -47,17 +36,7 @@
       \State := Unit,
       \Output := Unit,
       \step := \thunk(\cfun (s: Unit) => \return(\finish[Unit, Unit](s))),
-      \definition ready: \RunStep[Unit^, Unit^] -> \Prop :=
-        \step-match t: \RunStep[Unit^, Unit^] \return \Prop \with {
-          | \continue s: \Acc[Unit^, Unit^](implementation::[step]^, s)
-          | \finish o: True
-        };
-      \terminates := \fun (s: Unit^) =>
-        \accintro[Unit^, Unit^](implementation::[step]^, s,
-          \fun (next: Unit^) => \fun (edge: implementation::[step]^ s = \continue[Unit^, Unit^](next)) =>
-            \idelim implementation::[step]^ s = \continue[Unit^, Unit^](next)
-              \with t: \RunStep[Unit^, Unit^] => ready t
-              \by { base: True::intro, equality: edge }),
+      \terminates := \fun (s: Unit^) (P: _) (h: _) => h s (\fun (Q: \Prop) (q: Q) => q),
     }
     \program := implementation::[run],
     \set := identity::[set],
@@ -69,5 +48,10 @@
   \definition input: \Box[\F(echo::[State])] := \box[_](\return Unit::unit);
   \definition boxedResult:
     \squash[_](\boxapp(echo::[runbox], input)) = Unit^::unit := \refl(Unit^::unit);
-  \check echo::[terminates] Unit^::unit: \Acc[Unit^, Unit^](echo::[step]^, Unit^::unit);
+  \check echo::[terminates] Unit^::unit: (\forall (P: Unit^ -> \Prop) ->
+    (\forall (s: Unit^) ->
+      (\step-match t: \RunStep[Unit^, Unit^] \return \Prop \with {
+        | \continue next: P next
+        | \finish output: \forall (Q: \Prop) -> Q -> Q
+      }) (echo::[step]^ s) -> P s) -> P Unit^::unit);
 }

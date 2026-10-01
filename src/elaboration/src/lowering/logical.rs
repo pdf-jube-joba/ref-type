@@ -191,23 +191,6 @@ impl Lowerer<'_> {
                     output,
                 })
             }
-            ExpNode::Acc {
-                state_ty,
-                result_ty,
-                step,
-                state,
-            } => {
-                let state_ty = self.set(state_ty, ctx, m)?;
-                let result_ty = self.set(result_ty, ctx, m)?;
-                let step = self.set(step, ctx, m)?;
-                let state = self.set(state, ctx, m)?;
-                self.kernel.arena().alloc(s::Node::Acc {
-                    state_ty,
-                    result_ty,
-                    step,
-                    state,
-                })
-            }
             ExpNode::SetRun {
                 state_ty,
                 result_ty,
@@ -549,52 +532,6 @@ impl Lowerer<'_> {
                             family,
                             inhabited,
                         })
-                }
-                Prove::AccIntro {
-                    state_ty,
-                    result_ty,
-                    step,
-                    state,
-                    predecessors,
-                } => {
-                    let state_ty = self.set(state_ty, ctx, m)?;
-                    let result_ty = self.set(result_ty, ctx, m)?;
-                    let step = self.set(step, ctx, m)?;
-                    let state = self.set(state, ctx, m)?;
-                    let predecessors = self.set(predecessors, ctx, m)?;
-                    self.kernel.arena().alloc(s::Node::AccIntro {
-                        state_ty,
-                        result_ty,
-                        step,
-                        state,
-                        predecessors,
-                    })
-                }
-                Prove::AccDescent {
-                    state_ty,
-                    result_ty,
-                    step,
-                    from,
-                    to,
-                    accessibility,
-                    transition,
-                } => {
-                    let state_ty = self.set(state_ty, ctx, m)?;
-                    let result_ty = self.set(result_ty, ctx, m)?;
-                    let step = self.set(step, ctx, m)?;
-                    let from = self.set(from, ctx, m)?;
-                    let to = self.set(to, ctx, m)?;
-                    let accessibility = self.set(accessibility, ctx, m)?;
-                    let transition = self.set(transition, ctx, m)?;
-                    self.kernel.arena().alloc(s::Node::AccDescent {
-                        state_ty,
-                        result_ty,
-                        step,
-                        from,
-                        to,
-                        accessibility,
-                        transition,
-                    })
                 }
             },
             ExpNode::BoxApp { function, argument } => {

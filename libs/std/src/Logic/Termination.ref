@@ -1,0 +1,34 @@
+\definition True: \Prop := \forall (P: \Prop) -> P -> P;
+\definition trivial: True := \fun (P: \Prop) (p: P) => p;
+
+\definition ready (P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+  \step-match t: \RunStep[State, Output] \return \Prop \with {
+    | \continue s: P s
+    | \finish result: True
+  };
+
+\definition Holds (s: State): \Prop :=
+  \forall (P: State -> \Prop) ->
+    (\forall (x: State) -> ready P (step x) -> P x) -> P s;
+
+\definition map (P, Q: State -> \Prop) (f: \forall (s: State) -> P s -> Q s):
+  \forall (t: \RunStep[State, Output]) -> ready P t -> ready Q t :=
+  \step-match t: \RunStep[State, Output] \return ready P t -> ready Q t \with {
+    | \continue s: f s
+    | \finish result: \fun (p: True) => p
+  };
+
+\definition intro (s: State) (certificate: ready Holds (step s)): Holds s :=
+  \fun (P: State -> \Prop) (h: \forall (x: State) -> ready P (step x) -> P x) =>
+    h s (map Holds P (\fun (x: State) (p: Holds x) => p P h) (step s) certificate);
+
+\definition descent (a, b: State) (certificate: Holds a)
+  (edge: step a = \continue[State, Output](b)): Holds b :=
+  \fun (P: State -> \Prop) (h: \forall (x: State) -> ready P (step x) -> P x) =>
+    \idelim step a = \continue[State, Output](b)
+      \with t: \RunStep[State, Output] => ready P t
+      \by {
+        base: certificate (\fun (x: State) => ready P (step x))
+          (\fun (x: State) => map (\fun (y: State) => ready P (step y)) P h (step x)),
+        equality: edge
+      };

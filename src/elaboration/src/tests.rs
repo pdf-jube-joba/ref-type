@@ -1187,59 +1187,15 @@ fn general_recursion_surface_typechecks_and_normalizes() {
             B: \VType,
             f: \U((A ~> \F(\RunStep[A, B]))),
             a: A,
-            termination: \Acc[A^, B^](f^, a^)
+            termination: (\forall (P: A^ -> \Prop) ->
+              (\forall (s: A^) ->
+                (\step-match t: \RunStep[A^, B^] \return \Prop \with {
+                  | \continue next: P next
+                  | \finish output: \forall (Q: \Prop) -> Q -> Q
+                }) (f^ s) -> P s) -> P a^)
         ) {
             \definition result: \F(B) := \run[A, B](f, a) \by { termination };
             \cnormalize \run[A, B](f, a) \by { termination };
-        }
-    "#;
-    let modules = parse::str_parse_modules(source).unwrap();
-    let mut environment = GlobalEnvironment::default();
-
-    environment.add_new_module_to_root(&modules[0]).unwrap();
-}
-
-#[test]
-fn accessibility_proof_constructor_syntax_is_reserved_and_parsed() {
-    let source = r#"
-        \module AccSyntax(
-            A: \Set(0),
-            B: \Set(0),
-            f: A -> \RunStep[A, B],
-            a: A,
-            b: A,
-            p: \Prop,
-            q: \Prop,
-            e: \Prop
-        ) {
-            \infer \accintro[A, B](f, a, q);
-            \infer \accdescent[A, B](f, a, b, p, e);
-        }
-    "#;
-
-    parse::str_parse_modules(source).unwrap();
-}
-
-#[test]
-fn accessibility_intro_and_descent_follow_the_system_premises() {
-    let source = r#"
-        \module AccProofs(
-            A: \Set(0),
-            B: \Set(0),
-            f: A -> \RunStep[A, B],
-            a: A,
-            b: A,
-            predecessors:
-                \forall (next: A) ->
-                (f a = \continue[A, B](next)) ->
-                \Acc[A, B](f, next),
-            p: \Acc[A, B](f, a),
-            edge: f a = \continue[A, B](b)
-        ) {
-            \definition introduced: \Acc[A, B](f, a) :=
-                \accintro[A, B](f, a, predecessors);
-            \definition descended: \Acc[A, B](f, b) :=
-                \accdescent[A, B](f, a, b, p, edge);
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1359,43 +1315,60 @@ fn program_case_reflects_value_let_in_parameterized_branches() {
 #[test]
 fn set_recursion_preserves_a_shared_universe() {
     for level in [0, 2] {
-        let source = r#"
-            \module SharedUniverse(
-                A: \Set(LEVEL), B: \Set(LEVEL), a: A, b: B,
-                f: A -> \RunStep[A, B],
-                p: \Acc[A, B](f, a),
-                predecessors: \forall (next: A) ->
-                    (f a = \continue[A, B](next)) -> \Acc[A, B](f, next),
-                edge: f a = \continue[A, B](a),
-                P: \Prop, proof: P
-            ) {
-                \definition step_type: \Set(LEVEL) := \RunStep[A, B];
-                \definition continued: step_type := \continue[A, B](a);
-                \definition finished: step_type := \finish[A, B](b);
-                \definition inferred_continue: step_type := \continue[_, B](a);
-                \definition inferred_finish: step_type := \finish[A, _](b);
-                \definition inferred_run: B := \run[_, B](f, a) \by { p };
-                \definition introduced: \Acc[A, B](f, a) :=
-                    \accintro[A, B](f, a, predecessors);
-                \definition descended: \Acc[A, B](f, a) :=
-                    \accdescent[A, B](f, a, a, p, edge);
-                \definition result: B := \run[A, B](f, a) \by { p };
-                \definition case_result: B :=
-                    \runCase[A, B](f, a, \continue[A, B](a)) \by { accessibility: p, equality: edge };
-                \definition recursed: B := (\step-match r: \RunStep[A, B] \return B \with {
-                  | \continue x: b
-                  | \finish y: y
-                }) finished;
-                \definition recursed_proof: P := (\step-match r: \RunStep[A, B] \return P \with {
-                  | \continue x: proof
-                  | \finish y: proof
-                }) continued;
-            }
-        "#
-        .replace("LEVEL", &level.to_string());
+        let source = format!(
+            r"\module SharedUniverse(State: \Set({level}), Output: \Set({level}),
+                step: State -> \RunStep[State, Output]) {{
+                {termination}
+                \module Run(a: State, b: Output, p: Holds a,
+                    certificate: ready Holds (step a),
+                    edge: step a = \continue[State, Output](a), P: \Prop, proof: P) {{
+                    \definition step_type: \Set({level}) := \RunStep[State, Output];
+                    \definition continued: step_type := \continue[State, Output](a);
+                    \definition finished: step_type := \finish[State, Output](b);
+                    \definition inferred_continue: step_type := \continue[_, Output](a);
+                    \definition inferred_finish: step_type := \finish[State, _](b);
+                    \definition inferred_run: Output := \run[_, Output](step, a) \by {{ p }};
+                    \definition introduced: Holds a := intro a certificate;
+                    \definition descended: Holds a := descent a a p edge;
+                    \definition result: Output := \run[State, Output](step, a) \by {{ p }};
+                    \definition case_result: Output :=
+                        \runCase[State, Output](step, a, \continue[State, Output](a))
+                          \by {{ accessibility: p, equality: edge }};
+                    \definition recursed: Output := (\step-match r: \RunStep[State, Output] \return Output \with {{
+                      | \continue x: b
+                      | \finish y: y
+                    }}) finished;
+                    \definition recursed_proof: P := (\step-match r: \RunStep[State, Output] \return P \with {{
+                      | \continue x: proof
+                      | \finish y: proof
+                    }}) continued;
+                }}
+            }}",
+            termination = include_str!("../../../libs/std/src/Logic/Termination.ref"),
+        );
         let modules = parse::str_parse_modules(&source).unwrap();
         let mut environment = GlobalEnvironment::default();
         environment.add_new_module_to_root(&modules[0]).unwrap();
+
+        // A continue step must preserve its type even with abstract types,
+        // transition function, and equality evidence in the context.
+        let raw = environment.crate_env();
+        let parent = raw.module(raw.root_module()).children()[0];
+        let module = raw.module(parent).children()[0];
+        let ModuleItem::Definition { definition, .. } = raw.module(module).item("case_result").unwrap()
+        else {
+            panic!("case_result definition")
+        };
+        let env = environment.kernel_env();
+        let def = env.definition(raw.kernel_definitions.borrow()[definition]).unwrap();
+        let next = kernel::reduction::reduce_once(&env, def.body).unwrap().unwrap();
+        kernel::check::Checker::new(
+            &env,
+            &mut kernel::metavariables::MetaContext::new(),
+            def.context.clone(),
+        )
+        .check(next, def.ty)
+        .unwrap();
     }
 }
 
@@ -1489,15 +1462,13 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
             \thunk((\cfun (s: Unit) => \return(\finish[Unit, Unit](Unit::unit))));
           \definition stepSet: Unit^ -> \RunStep[Unit^, Unit^] :=
             \squash[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\box[\F(\U((Unit ~> \F(\RunStep[Unit, Unit]))))](\return(step)));
-          \definition ready: \RunStep[Unit^, Unit^] -> \Prop :=
-            \step-match r: \RunStep[Unit^, Unit^] \return \Prop \with {
-              | \continue s: \Acc[Unit^, Unit^](stepSet, s)
-              | \finish o: True
-            };
-          \definition terminates: \forall (s: Unit^) -> \Acc[Unit^, Unit^](stepSet, s) :=
-            \fun (s: Unit^) => \accintro[Unit^, Unit^](stepSet, s, \fun (next: Unit^) => \fun (edge: stepSet s = \continue[Unit^, Unit^](next)) =>
-                \idelim stepSet s = \continue[Unit^, Unit^](next)
-                  \with r: \RunStep[Unit^, Unit^] => ready r \by { base: True::intro, equality: edge });
+          \definition terminates: \forall (s: Unit^) -> (\forall (P: Unit^ -> \Prop) ->
+            (\forall (s: Unit^) ->
+              (\step-match t: \RunStep[Unit^, Unit^] \return \Prop \with {
+                | \continue next: P next
+                | \finish output: \forall (Q: \Prop) -> Q -> Q
+              }) (stepSet s) -> P s) -> P s) :=
+            \fun (s: Unit^) (P: _) (h: _) => h s (\fun (Q: \Prop) (q: Q) => q);
           \definition result: \F(Unit) :=
             \run[Unit, Unit](step, Unit::unit) \by { terminates Unit^::unit };
           \definition otherResult: \F(Unit) :=
@@ -1592,14 +1563,24 @@ fn program_run_proofs_remain_valid_after_every_reduction() {
 fn program_proofs_follow_local_binders_and_module_instantiation() {
     let source = r#"
         \module Generic(A: \VType, step: \U((A ~> \F(\RunStep[A, A]))),
-          total: \forall (s: A^) -> \Acc[A^, A^](step^, s)) {
+          total: \forall (s: A^) -> (\forall (P: A^ -> \Prop) ->
+            (\forall (s: A^) ->
+              (\step-match t: \RunStep[A^, A^] \return \Prop \with {
+                | \continue next: P next
+                | \finish output: \forall (Q: \Prop) -> Q -> Q
+              }) (step^ s) -> P s) -> P s)) {
           \definition run(x: A): \F(A) := \run[A, A](step, x) \by { total x };
           \definition runCase(x: A): \F(A) :=
             (\let y: A := x \in
             \runCase[A, A](step, y, (\force(step)) y) \by { accessibility: total y, equality: \refl(step^ y) });
         }
         \module Consumer(A: \VType, f: \U((A ~> \F(\RunStep[A, A]))),
-          p: \forall (s: A^) -> \Acc[A^, A^](f^, s), a: A) {
+          p: \forall (s: A^) -> (\forall (P: A^ -> \Prop) ->
+            (\forall (s: A^) ->
+              (\step-match t: \RunStep[A^, A^] \return \Prop \with {
+                | \continue next: P next
+                | \finish output: \forall (Q: \Prop) -> Q -> Q
+              }) (f^ s) -> P s) -> P s), a: A) {
           \import \root.Generic[A := A, step := f, total := p] \as G;
           \definition result: \F(A) := G.runCase a;
           \cnormalize result;

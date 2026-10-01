@@ -223,22 +223,6 @@ pub enum Node {
         family: Expression,
         inhabited: Expression,
     },
-    AccIntro {
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        state: Expression,
-        predecessors: Expression,
-    },
-    AccDescent {
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        from: Expression,
-        to: Expression,
-        accessibility: Expression,
-        transition: Expression,
-    },
     Pred {
         superset: Expression,
         subset: Expression,
@@ -250,12 +234,6 @@ pub enum Node {
     },
     Exists {
         set: Expression,
-    },
-    Acc {
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        state: Expression,
     },
     ThunkValue {
         computation: Expression,
@@ -788,38 +766,6 @@ impl Arena {
                 *family = visit(*family, 0)?;
                 *inhabited = visit(*inhabited, 0)?;
             }
-            Node::AccIntro {
-                state_ty,
-                result_ty,
-                step,
-                state,
-                predecessors,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *step = visit(*step, 0)?;
-                *state = visit(*state, 0)?;
-                *predecessors = visit(*predecessors, 0)?;
-            }
-            Node::AccDescent {
-                state_ty,
-                result_ty,
-                step,
-                from,
-                to,
-                accessibility,
-                transition,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *step = visit(*step, 0)?;
-                *from = visit(*from, 0)?;
-                *to = visit(*to, 0)?;
-                *accessibility = visit(*accessibility, 0)?;
-                *transition = visit(*transition, 0)?;
-            }
             Node::Pred {
                 superset,
                 subset,
@@ -836,18 +782,6 @@ impl Arena {
             }
             Node::Exists { set, .. } => {
                 *set = visit(*set, 0)?;
-            }
-            Node::Acc {
-                state_ty,
-                result_ty,
-                step,
-                state,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *step = visit(*step, 0)?;
-                *state = visit(*state, 0)?;
             }
             Node::ThunkValue { computation, .. } => {
                 *computation = visit(*computation, 0)?;

@@ -97,7 +97,6 @@ static EXPRESSION_ATOM_KEYWORDS: &[&str] = &[
     "\\RunStep",
     "\\continue",
     "\\finish",
-    "\\Acc",
     "\\run",
     "\\runCase",
     "\\step-match",
@@ -119,8 +118,6 @@ static PROOF_TERM_KEYWORDS: &[&str] = &[
     "\\idelim",
     "\\axiom",
     "\\choiceeq",
-    "\\accintro",
-    "\\accdescent",
 ];
 
 fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, ParseError> {

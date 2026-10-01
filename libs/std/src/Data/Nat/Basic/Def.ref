@@ -28,18 +28,18 @@
         }
   }),
 
-  \import std.Data[].Nat[].Termination[State := AddState^, Output := N.Nat^,
-    step := AddLoop::[step]^].Prop[] \as Termination;
+  \import std.Logic[].Termination[State := AddState^, Output := N.Nat^,
+    step := AddLoop::[step]^] \as Termination;
   \definition terminates:
     \forall (remaining: N.Nat^) -> \forall (accumulator: N.Nat^) ->
-      \Acc[AddState^, N.Nat^](AddLoop::[step]^, AddState^::running accumulator remaining) :=
-    \induction (n: N.Nat^) \return \forall (a: N.Nat^) -> \Acc[AddState^, N.Nat^](AddLoop::[step]^, AddState^::running a n) \with {
-      | zero : (\fun (a: N.Nat^) => Termination.accIntro (AddState^::running a N.Nat^::zero) L.True::intro)
+      Termination.Holds (AddState^::running accumulator remaining) :=
+    \induction (n: N.Nat^) \return \forall (a: N.Nat^) -> Termination.Holds (AddState^::running a n) \with {
+      | zero : (\fun (a: N.Nat^) => Termination.intro (AddState^::running a N.Nat^::zero) Termination.trivial)
       | succ : (\fun (n: N.Nat^) => \fun (ih: _) =>
-        \fun (a: N.Nat^) => Termination.accIntro (AddState^::running a (N.Nat^::succ n)) (ih (N.Nat^::succ a)))
+        \fun (a: N.Nat^) => Termination.intro (AddState^::running a (N.Nat^::succ n)) (ih (N.Nat^::succ a)))
     };
   \terminates := \induction (s: AddState^) \return
-    \Acc[AddState^, N.Nat^](AddLoop::[step]^, s) \with {
+    Termination.Holds s \with {
       | running: \fun (accumulator, remaining: N.Nat^) => terminates remaining accumulator
     },
 }
@@ -131,24 +131,24 @@
     }
   }),
 
-  \import std.Data[].Nat[].Termination[State := SubState^, Output := N.Nat^,
-    step := SubLoop::[step]^].Prop[] \as Termination;
-  \definition terminates: \forall (b, a: N.Nat^) -> \Acc[SubState^, N.Nat^](SubLoop::[step]^, SubState^::running a b) :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> \Acc[SubState^, N.Nat^](SubLoop::[step]^, SubState^::running a b) \with {
-      | zero : (\induction (a: N.Nat^) \return \Acc[SubState^, N.Nat^](SubLoop::[step]^, SubState^::running a N.Nat^::zero) \with {
-        | zero : (Termination.accIntro (SubState^::running N.Nat^::zero N.Nat^::zero) L.True::intro)
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.accIntro (SubState^::running
-        (N.Nat^::succ j) N.Nat^::zero) L.True::intro)
+  \import std.Logic[].Termination[State := SubState^, Output := N.Nat^,
+    step := SubLoop::[step]^] \as Termination;
+  \definition terminates: \forall (b, a: N.Nat^) -> Termination.Holds (SubState^::running a b) :=
+    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Termination.Holds (SubState^::running a b) \with {
+      | zero : (\induction (a: N.Nat^) \return Termination.Holds (SubState^::running a N.Nat^::zero) \with {
+        | zero : (Termination.intro (SubState^::running N.Nat^::zero N.Nat^::zero) Termination.trivial)
+        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.intro (SubState^::running
+        (N.Nat^::succ j) N.Nat^::zero) Termination.trivial)
       })
       | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return \Acc[SubState^, N.Nat^](SubLoop::[step]^, SubState^::running a (N.Nat^::succ k)) \with {
-          | zero : (Termination.accIntro (SubState^::running N.Nat^::zero (N.Nat^::succ k)) L.True::intro)
+        \induction (a: N.Nat^) \return Termination.Holds (SubState^::running a (N.Nat^::succ k)) \with {
+          | zero : (Termination.intro (SubState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial)
           | succ : (\fun (j: N.Nat^) => \fun (unused: _) =>
-            Termination.accIntro (SubState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
+            Termination.intro (SubState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
         })
     };
   \terminates := \induction (s: SubState^) \return
-    \Acc[SubState^, N.Nat^](SubLoop::[step]^, s) \with {
+    Termination.Holds s \with {
       | running: \fun (a, b: N.Nat^) => terminates b a
     },
 }
@@ -201,24 +201,24 @@
     }
   }),
 
-  \import std.Data[].Nat[].Termination[State := EqbState^, Output := B.Bool^,
-    step := EqbLoop::[step]^].Prop[] \as Termination;
-  \definition terminates: \forall (b, a: N.Nat^) -> \Acc[EqbState^, B.Bool^](EqbLoop::[step]^, EqbState^::running a b) :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> \Acc[EqbState^, B.Bool^](EqbLoop::[step]^, EqbState^::running a b) \with {
-      | zero : (\induction (a: N.Nat^) \return \Acc[EqbState^, B.Bool^](EqbLoop::[step]^, EqbState^::running a N.Nat^::zero) \with {
-        | zero : (Termination.accIntro (EqbState^::running N.Nat^::zero N.Nat^::zero) L.True::intro)
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.accIntro (EqbState^::running
-        (N.Nat^::succ j) N.Nat^::zero) L.True::intro)
+  \import std.Logic[].Termination[State := EqbState^, Output := B.Bool^,
+    step := EqbLoop::[step]^] \as Termination;
+  \definition terminates: \forall (b, a: N.Nat^) -> Termination.Holds (EqbState^::running a b) :=
+    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Termination.Holds (EqbState^::running a b) \with {
+      | zero : (\induction (a: N.Nat^) \return Termination.Holds (EqbState^::running a N.Nat^::zero) \with {
+        | zero : (Termination.intro (EqbState^::running N.Nat^::zero N.Nat^::zero) Termination.trivial)
+        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.intro (EqbState^::running
+        (N.Nat^::succ j) N.Nat^::zero) Termination.trivial)
       })
       | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return \Acc[EqbState^, B.Bool^](EqbLoop::[step]^, EqbState^::running a (N.Nat^::succ k)) \with {
-          | zero : (Termination.accIntro (EqbState^::running N.Nat^::zero (N.Nat^::succ k)) L.True::intro)
+        \induction (a: N.Nat^) \return Termination.Holds (EqbState^::running a (N.Nat^::succ k)) \with {
+          | zero : (Termination.intro (EqbState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial)
           | succ : (\fun (j: N.Nat^) => \fun (unused: _) =>
-            Termination.accIntro (EqbState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
+            Termination.intro (EqbState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
         })
     };
   \terminates := \induction (s: EqbState^) \return
-    \Acc[EqbState^, B.Bool^](EqbLoop::[step]^, s) \with {
+    Termination.Holds s \with {
       | running: \fun (a, b: N.Nat^) => terminates b a
     },
 }
@@ -271,24 +271,24 @@
     }
   }),
 
-  \import std.Data[].Nat[].Termination[State := LebState^, Output := B.Bool^,
-    step := LebLoop::[step]^].Prop[] \as Termination;
-  \definition terminates: \forall (b, a: N.Nat^) -> \Acc[LebState^, B.Bool^](LebLoop::[step]^, LebState^::running a b) :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> \Acc[LebState^, B.Bool^](LebLoop::[step]^, LebState^::running a b) \with {
-      | zero : (\induction (a: N.Nat^) \return \Acc[LebState^, B.Bool^](LebLoop::[step]^, LebState^::running a N.Nat^::zero) \with {
-        | zero : (Termination.accIntro (LebState^::running N.Nat^::zero N.Nat^::zero) L.True::intro)
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.accIntro (LebState^::running
-        (N.Nat^::succ j) N.Nat^::zero) L.True::intro)
+  \import std.Logic[].Termination[State := LebState^, Output := B.Bool^,
+    step := LebLoop::[step]^] \as Termination;
+  \definition terminates: \forall (b, a: N.Nat^) -> Termination.Holds (LebState^::running a b) :=
+    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Termination.Holds (LebState^::running a b) \with {
+      | zero : (\induction (a: N.Nat^) \return Termination.Holds (LebState^::running a N.Nat^::zero) \with {
+        | zero : (Termination.intro (LebState^::running N.Nat^::zero N.Nat^::zero) Termination.trivial)
+        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.intro (LebState^::running
+        (N.Nat^::succ j) N.Nat^::zero) Termination.trivial)
       })
       | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return \Acc[LebState^, B.Bool^](LebLoop::[step]^, LebState^::running a (N.Nat^::succ k)) \with {
-          | zero : (Termination.accIntro (LebState^::running N.Nat^::zero (N.Nat^::succ k)) L.True::intro)
+        \induction (a: N.Nat^) \return Termination.Holds (LebState^::running a (N.Nat^::succ k)) \with {
+          | zero : (Termination.intro (LebState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial)
           | succ : (\fun (j: N.Nat^) => \fun (unused: _) =>
-            Termination.accIntro (LebState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
+            Termination.intro (LebState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
         })
     };
   \terminates := \induction (s: LebState^) \return
-    \Acc[LebState^, B.Bool^](LebLoop::[step]^, s) \with {
+    Termination.Holds s \with {
       | running: \fun (a, b: N.Nat^) => terminates b a
     },
 }
@@ -340,24 +340,24 @@
     }
   }),
 
-  \import std.Data[].Nat[].Termination[State := LtbState^, Output := B.Bool^,
-    step := LtbLoop::[step]^].Prop[] \as Termination;
-  \definition terminates: \forall (b, a: N.Nat^) -> \Acc[LtbState^, B.Bool^](LtbLoop::[step]^, LtbState^::running a b) :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> \Acc[LtbState^, B.Bool^](LtbLoop::[step]^, LtbState^::running a b) \with {
-      | zero : (\induction (a: N.Nat^) \return \Acc[LtbState^, B.Bool^](LtbLoop::[step]^, LtbState^::running a N.Nat^::zero) \with {
-        | zero : (Termination.accIntro (LtbState^::running N.Nat^::zero N.Nat^::zero) L.True::intro)
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.accIntro (LtbState^::running
-        (N.Nat^::succ j) N.Nat^::zero) L.True::intro)
+  \import std.Logic[].Termination[State := LtbState^, Output := B.Bool^,
+    step := LtbLoop::[step]^] \as Termination;
+  \definition terminates: \forall (b, a: N.Nat^) -> Termination.Holds (LtbState^::running a b) :=
+    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Termination.Holds (LtbState^::running a b) \with {
+      | zero : (\induction (a: N.Nat^) \return Termination.Holds (LtbState^::running a N.Nat^::zero) \with {
+        | zero : (Termination.intro (LtbState^::running N.Nat^::zero N.Nat^::zero) Termination.trivial)
+        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.intro (LtbState^::running
+        (N.Nat^::succ j) N.Nat^::zero) Termination.trivial)
       })
       | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return \Acc[LtbState^, B.Bool^](LtbLoop::[step]^, LtbState^::running a (N.Nat^::succ k)) \with {
-          | zero : (Termination.accIntro (LtbState^::running N.Nat^::zero (N.Nat^::succ k)) L.True::intro)
+        \induction (a: N.Nat^) \return Termination.Holds (LtbState^::running a (N.Nat^::succ k)) \with {
+          | zero : (Termination.intro (LtbState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial)
           | succ : (\fun (j: N.Nat^) => \fun (unused: _) =>
-            Termination.accIntro (LtbState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
+            Termination.intro (LtbState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
         })
     };
   \terminates := \induction (s: LtbState^) \return
-    \Acc[LtbState^, B.Bool^](LtbLoop::[step]^, s) \with {
+    Termination.Holds s \with {
       | running: \fun (a, b: N.Nat^) => terminates b a
     },
 }
@@ -411,19 +411,19 @@
     }
   }),
 
-  \import std.Data[].Nat[].Termination[State := IterState^, Output := N.Nat^,
-    step := IterLoop::[step]^].Prop[] \as Termination;
+  \import std.Logic[].Termination[State := IterState^, Output := N.Nat^,
+    step := IterLoop::[step]^] \as Termination;
   \definition terminates: \forall (count: N.Nat^) (f: N.Nat^ -> N.Nat^) (value: N.Nat^) ->
-    \Acc[IterState^, N.Nat^](IterLoop::[step]^, IterState^::running f value count) :=
+    Termination.Holds (IterState^::running f value count) :=
     \induction (count: N.Nat^) \return \forall (f: N.Nat^ -> N.Nat^) (value: N.Nat^) ->
-      \Acc[IterState^, N.Nat^](IterLoop::[step]^, IterState^::running f value count) \with {
+      Termination.Holds (IterState^::running f value count) \with {
       | zero: \fun (f: N.Nat^ -> N.Nat^) (value: N.Nat^) =>
-        Termination.accIntro (IterState^::running f value N.Nat^::zero) L.True::intro
+        Termination.intro (IterState^::running f value N.Nat^::zero) Termination.trivial
       | succ: \fun (k: N.Nat^) (ih: _) (f: N.Nat^ -> N.Nat^) (value: N.Nat^) =>
-        Termination.accIntro (IterState^::running f value (N.Nat^::succ k)) (ih f (f value))
+        Termination.intro (IterState^::running f value (N.Nat^::succ k)) (ih f (f value))
     };
   \terminates := \induction (s: IterState^) \return
-    \Acc[IterState^, N.Nat^](IterLoop::[step]^, s) \with {
+    Termination.Holds s \with {
       | running: \fun (f: N.Nat^ -> N.Nat^) (value, count: N.Nat^) => terminates count f value
     },
 }

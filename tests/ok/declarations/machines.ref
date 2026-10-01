@@ -1,5 +1,4 @@
 \module Machines {
-  \inductive True: \Prop := | intro: True;
   \machine walk {
     \inductive State: \VType := | first: State | last: State;
     \macro stateType() := State;
@@ -9,23 +8,18 @@
       | first: \return(\continue[State, State](State::last))
       | last: \return(\finish[State, State](State::last))
     }),
-    \definition ready: \RunStep[State^, State^] -> \Prop :=
-      \step-match t: \RunStep[State^, State^] \return \Prop \with {
-        | \continue s: \Acc[State^, State^](walk::[step]^, s)
-        | \finish o: True
-      };
-    \definition accIntro(s: State^)(p: ready (walk::[step]^ s)):
-      \Acc[State^, State^](walk::[step]^, s) :=
-      \accintro[State^, State^](walk::[step]^, s,
-        \fun (next: State^) => \fun (edge: walk::[step]^ s = \continue[State^, State^](next)) =>
-          \idelim walk::[step]^ s = \continue[State^, State^](next)
-            \with t: \RunStep[State^, State^] => ready t
-            \by { base: p, equality: edge });
-    \definition lastAcc: \Acc[State^, State^](walk::[step]^, State^::last) :=
-      accIntro State^::last True::intro;
-    \terminates := \induction (s: State^) \return \Acc[State^, State^](walk::[step]^, s) \with {
-      | first: accIntro State^::first lastAcc
-      | last: lastAcc
+    \definition Terminates (s: State^): \Prop :=
+      \forall (P: State^ -> \Prop) ->
+        (\forall (x: State^) ->
+          (\step-match t: \RunStep[State^, State^] \return \Prop \with {
+            | \continue next: P next
+            | \finish output: \forall (Q: \Prop) -> Q -> Q
+          }) (walk::[step]^ x) -> P x) -> P s;
+    \definition lastTerminates: Terminates State^::last :=
+      \fun (predicate: State^ -> \Prop) (h: _) => h State^::last (\fun (Q: \Prop) (q: Q) => q);
+    \terminates := \induction (s: State^) \return Terminates s \with {
+      | first: \fun (predicate: State^ -> \Prop) (h: _) => h State^::first (lastTerminates predicate h)
+      | last: lastTerminates
     },
   }
   \definition first: walk::[State] := walk::[State]::first;

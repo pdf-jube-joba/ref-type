@@ -212,18 +212,6 @@ impl<'a> Printer<'a> {
                 child(result_ty),
                 child(output)
             ),
-            ExpNode::Acc {
-                state_ty,
-                result_ty,
-                step,
-                state,
-            } => format!(
-                "\\Acc[{}, {}]({}, {})",
-                child(state_ty),
-                child(result_ty),
-                child(step),
-                child(state)
-            ),
             ExpNode::SetStepMatch {
                 state_ty,
                 result_ty,
@@ -291,38 +279,6 @@ impl<'a> Printer<'a> {
             ExpNode::BoxApp { function, argument } => {
                 format!("\\boxapp({}, {})", child(function), child(argument))
             }
-            ExpNode::Prove(Prove::AccIntro {
-                state_ty,
-                result_ty,
-                step,
-                state,
-                predecessors,
-            }) => format!(
-                "\\accintro[{}, {}]({}, {}, {})",
-                child(state_ty),
-                child(result_ty),
-                child(step),
-                child(state),
-                child(predecessors)
-            ),
-            ExpNode::Prove(Prove::AccDescent {
-                state_ty,
-                result_ty,
-                step,
-                from,
-                to,
-                accessibility,
-                transition,
-            }) => format!(
-                "\\accdescent[{}, {}]({}, {}, {}, {}, {})",
-                child(state_ty),
-                child(result_ty),
-                child(step),
-                child(from),
-                child(to),
-                child(accessibility),
-                child(transition)
-            ),
             ExpNode::SubsetIntro {
                 superset,
                 subset,

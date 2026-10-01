@@ -337,7 +337,7 @@ typing・provability 規則は、出現する context の \(\operatorname{WF}\) 
 \top&:=\Pi Q:*^p.\,Q\to_o Q,\\
 \operatorname{Next}_{A,B}(f,P,a)
 &:=\operatorname{stepMatch}^{\square^p}_{A,B}
-  (z.*^p,P,\lambda_{p_i}b:B.\top)
+  (z.*^p,\lambda_{p_i}y:A.P@_{p_i}y,\lambda_{p_i}b:B.\top)
   @_{p_i}(f@_{s^{i,i}}a),\\
 \operatorname{Acc}_{A,B}(f,a)
 &:=\Pi P:(A\to_{p_i}*^p).\,

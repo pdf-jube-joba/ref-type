@@ -1,6 +1,5 @@
 /* A Program run may continue to a new state before finishing. */
 \module RunContinue {
-  \inductive True: \Prop := | intro: True;
   \inductive State: \VType :=
   | first: State
   | last: State
@@ -13,20 +12,17 @@
       }));
 
 
-  \definition ready: \RunStep[State^, State^] -> \Prop :=
-    \step-match r: \RunStep[State^, State^] \return \Prop \with {
-      | \continue s: \Acc[State^, State^](step^, s)
-      | \finish o: True
-    };
-  \definition accIntro: \forall (s: State^) -> ready (step^ s) -> \Acc[State^, State^](step^, s) :=
-    \fun (s: State^) => \fun (proof: ready (step^ s)) =>
-      \accintro[State^, State^](step^, s, \fun (next: State^) => \fun (edge: step^ s = \continue[State^, State^](next)) =>
-          \idelim step^ s = \continue[State^, State^](next)
-            \with r: \RunStep[State^, State^] => ready r \by { base: proof, equality: edge });
-  \definition lastTerminates: \Acc[State^, State^](step^, State^::last) :=
-    accIntro State^::last True::intro;
-  \definition firstTerminates: \Acc[State^, State^](step^, State^::first) :=
-    accIntro State^::first lastTerminates;
+  \definition Terminates (s: State^): \Prop :=
+    \forall (P: State^ -> \Prop) ->
+      (\forall (x: State^) ->
+        (\step-match t: \RunStep[State^, State^] \return \Prop \with {
+          | \continue next: P next
+          | \finish output: \forall (Q: \Prop) -> Q -> Q
+        }) (step^ x) -> P x) -> P s;
+  \definition lastTerminates: Terminates State^::last :=
+    \fun (predicate: State^ -> \Prop) (h: _) => h State^::last (\fun (Q: \Prop) (q: Q) => q);
+  \definition firstTerminates: Terminates State^::first :=
+    \fun (predicate: State^ -> \Prop) (h: _) => h State^::first (lastTerminates predicate h);
 
   \definition result: \F(State) :=
     \run[State, State](step, State::first) \by { firstTerminates };

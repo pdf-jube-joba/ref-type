@@ -1041,12 +1041,6 @@ fn set_recursion_rejects_mixed_or_non_set_sorts() {
                 result_ty,
                 output: argument,
             },
-            ExpNode::Acc {
-                state_ty,
-                result_ty,
-                step: argument,
-                state: argument,
-            },
             ExpNode::SetRun {
                 state_ty,
                 result_ty,
@@ -1070,22 +1064,6 @@ fn set_recursion_rejects_mixed_or_non_set_sorts() {
                 on_continue: argument,
                 on_finish: argument,
             },
-            ExpNode::Prove(crate::raw::exp::Prove::AccIntro {
-                state_ty,
-                result_ty,
-                step: argument,
-                state: argument,
-                predecessors: argument,
-            }),
-            ExpNode::Prove(crate::raw::exp::Prove::AccDescent {
-                state_ty,
-                result_ty,
-                step: argument,
-                from: argument,
-                to: argument,
-                accessibility: argument,
-                transition: argument,
-            }),
         ];
         let mut session = CheckSession::new(&env, &mut context);
         for term in terms {

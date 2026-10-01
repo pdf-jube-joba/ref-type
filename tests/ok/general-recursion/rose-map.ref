@@ -70,7 +70,12 @@
 
   /* The state-machine fixture receives its termination theorem at this boundary. */
   \module Certified(terminates: \forall (input: InputRose^) ->
-    \Acc[State^, OutputRose^](step^, State^::visit input Continuation^::done)) {
+    (\forall (P: State^ -> \Prop) ->
+      (\forall (s: State^) ->
+        (\step-match t: \RunStep[State^, OutputRose^] \return \Prop \with {
+          | \continue next: P next
+          | \finish output: \forall (Q: \Prop) -> Q -> Q
+        }) (step^ s) -> P s) -> P (State^::visit input Continuation^::done))) {
   \definition map: (InputRose ~> \F(OutputRose)) :=
     (\cfun (input: InputRose) => \run[State, OutputRose](step, State::visit
           input

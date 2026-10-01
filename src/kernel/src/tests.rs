@@ -558,12 +558,14 @@ fn program_evaluation_checks_certificates_and_preserves_the_result_type() {
     let step = a.alloc(Node::ThunkValue {
         computation: lambda(&a, Mode::Computation, ty, returned),
     });
-    let proof_ty = a.alloc(Node::Acc {
-        state_ty: env.reflect_bound(ty).unwrap(),
-        result_ty: env.reflect_bound(ty).unwrap(),
-        step: env.reflect_bound(step).unwrap(),
-        state: env.reflect_bound(zero).unwrap(),
-    });
+    let proof_ty = crate::termination::termination(
+        &a,
+        env.reflect_bound(ty).unwrap(),
+        env.reflect_bound(ty).unwrap(),
+        env.reflect_bound(step).unwrap(),
+        env.reflect_bound(zero).unwrap(),
+    )
+    .unwrap();
     let ctx = vec![binding(proof_ty)];
     let mut run = a.alloc(Node::Run {
         state_ty: ty,

@@ -70,12 +70,6 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             result_ty,
             output,
         } => one!(state_ty, result_ty, output),
-        ExpNode::Acc {
-            state_ty,
-            result_ty,
-            step,
-            state,
-        } => one!(state_ty, result_ty, step, state),
         ExpNode::SetStepMatch {
             state_ty,
             result_ty,
@@ -110,30 +104,6 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
         ExpNode::BoxProgram { .. } => {}
         ExpNode::ForceBox { boxed, .. } => one!(boxed),
         ExpNode::BoxApp { function, argument } => one!(function, argument),
-        ExpNode::Prove(Prove::AccIntro {
-            state_ty,
-            result_ty,
-            step,
-            state,
-            predecessors,
-        }) => one!(state_ty, result_ty, step, state, predecessors),
-        ExpNode::Prove(Prove::AccDescent {
-            state_ty,
-            result_ty,
-            step,
-            from,
-            to,
-            accessibility,
-            transition,
-        }) => one!(
-            state_ty,
-            result_ty,
-            step,
-            from,
-            to,
-            accessibility,
-            transition
-        ),
         ExpNode::PowerSet { set } | ExpNode::Exists { set } => one!(set),
         ExpNode::SubSet { set, predicate, .. } => one!(set, predicate),
         ExpNode::Pred {

@@ -5,18 +5,17 @@
   a: A,
   b: B
 ) {
-  \inductive True: \Prop := | intro: True;
   \definition step: \U((A ~> \F(\RunStep[A, B]))) :=
     \thunk((\cfun (x: A) => \return(\finish[A, B](b))));
-  \definition ready: \RunStep[A^, B^] -> \Prop :=
-    \step-match r: \RunStep[A^, B^] \return \Prop \with {
-      | \continue s: \Acc[A^, B^](step^, s)
-      | \finish o: True
-    };
-  \definition terminates: \forall (s: A^) -> \Acc[A^, B^](step^, s) :=
-    \fun (s: A^) => \accintro[A^, B^](step^, s, \fun (next: A^) => \fun (edge: step^ s = \continue[A^, B^](next)) =>
-        \idelim step^ s = \continue[A^, B^](next)
-          \with r: \RunStep[A^, B^] => ready r \by { base: True::intro, equality: edge });
+  \definition Terminates (s: A^): \Prop :=
+    \forall (P: A^ -> \Prop) ->
+      (\forall (x: A^) ->
+        (\step-match t: \RunStep[A^, B^] \return \Prop \with {
+          | \continue next: P next
+          | \finish output: \forall (Q: \Prop) -> Q -> Q
+        }) (step^ x) -> P x) -> P s;
+  \definition terminates: \forall (s: A^) -> Terminates s :=
+    \fun (s: A^) (P: _) (h: _) => h s (\fun (Q: \Prop) (q: Q) => q);
   \definition result: \F(B) := \run[A, B](step, a) \by { terminates a^ };
 
   \ceval \run[A, B](step, a) \by { terminates a^ };

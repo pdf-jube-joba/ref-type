@@ -47,22 +47,6 @@ pub enum Axiom {
 /// A derivation whose conclusion is the judgement `Γ |= P`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Prove {
-    AccIntro {
-        state_ty: Exp,
-        result_ty: Exp,
-        step: Exp,
-        state: Exp,
-        predecessors: Exp,
-    },
-    AccDescent {
-        state_ty: Exp,
-        result_ty: Exp,
-        step: Exp,
-        from: Exp,
-        to: Exp,
-        accessibility: Exp,
-        transition: Exp,
-    },
     ExistsIntro {
         element: Exp,
         set: Exp,
@@ -163,12 +147,6 @@ pub enum ExpNode {
         state_ty: Exp,
         result_ty: Exp,
         output: Exp,
-    },
-    Acc {
-        state_ty: Exp,
-        result_ty: Exp,
-        step: Exp,
-        state: Exp,
     },
     SetStepMatch {
         state_ty: Exp,
@@ -648,17 +626,6 @@ impl ArenaNode for ExpNode {
                 result_ty: result_ty.0,
                 output: output.0,
             },
-            ExpNode::Acc {
-                state_ty,
-                result_ty,
-                step,
-                state,
-            } => N::Acc {
-                state_ty: state_ty.0,
-                result_ty: result_ty.0,
-                step: step.0,
-                state: state.0,
-            },
             ExpNode::SetStepMatch {
                 state_ty,
                 result_ty,
@@ -922,18 +889,6 @@ impl ArenaHandle for Exp {
                 state_ty: Exp(state_ty),
                 result_ty: Exp(result_ty),
                 output: Exp(output),
-            },
-            N::Acc {
-                state_ty,
-                result_ty,
-                step,
-                state,
-                ..
-            } => ExpNode::Acc {
-                state_ty: Exp(state_ty),
-                result_ty: Exp(result_ty),
-                step: Exp(step),
-                state: Exp(state),
             },
             N::SetStepMatch {
                 state_ty,
@@ -1713,36 +1668,6 @@ impl ArenaHandle for ComputationTerm {
 }
 fn lower_proof(proof: Prove) -> N {
     match proof {
-        Prove::AccIntro {
-            state_ty,
-            result_ty,
-            step,
-            state,
-            predecessors,
-        } => N::AccIntro {
-            state_ty: state_ty.0,
-            result_ty: result_ty.0,
-            step: step.0,
-            state: state.0,
-            predecessors: predecessors.0,
-        },
-        Prove::AccDescent {
-            state_ty,
-            result_ty,
-            step,
-            from,
-            to,
-            accessibility,
-            transition,
-        } => N::AccDescent {
-            state_ty: state_ty.0,
-            result_ty: result_ty.0,
-            step: step.0,
-            from: from.0,
-            to: to.0,
-            accessibility: accessibility.0,
-            transition: transition.0,
-        },
         Prove::ExistsIntro { element, set } => N::ExistsIntro {
             element: element.0,
             set: set.0,
@@ -1818,36 +1743,6 @@ fn lower_proof(proof: Prove) -> N {
 }
 fn raise_proof(node: N) -> Prove {
     match node {
-        N::AccIntro {
-            state_ty,
-            result_ty,
-            step,
-            state,
-            predecessors,
-        } => Prove::AccIntro {
-            state_ty: Exp(state_ty),
-            result_ty: Exp(result_ty),
-            step: Exp(step),
-            state: Exp(state),
-            predecessors: Exp(predecessors),
-        },
-        N::AccDescent {
-            state_ty,
-            result_ty,
-            step,
-            from,
-            to,
-            accessibility,
-            transition,
-        } => Prove::AccDescent {
-            state_ty: Exp(state_ty),
-            result_ty: Exp(result_ty),
-            step: Exp(step),
-            from: Exp(from),
-            to: Exp(to),
-            accessibility: Exp(accessibility),
-            transition: Exp(transition),
-        },
         N::ExistsIntro { element, set } => Prove::ExistsIntro {
             element: Exp(element),
             set: Exp(set),

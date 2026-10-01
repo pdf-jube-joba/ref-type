@@ -36,19 +36,19 @@
     }
   }),
 
-  \import std.Data[].Nat[].Termination[State := PairIterState^, Output := NatPair,
-    step := PairIterLoop::[step]^].Prop[] \as Termination;
+  \import std.Logic[].Termination[State := PairIterState^, Output := NatPair,
+    step := PairIterLoop::[step]^] \as Termination;
   \definition terminates: \forall (count: N.Nat^) (f: NatPair -> NatPair) (value: NatPair) ->
-    \Acc[PairIterState^, NatPair](PairIterLoop::[step]^, PairIterState^::running f value count) :=
+    Termination.Holds (PairIterState^::running f value count) :=
     \induction (count: N.Nat^) \return \forall (f: NatPair -> NatPair) (value: NatPair) ->
-      \Acc[PairIterState^, NatPair](PairIterLoop::[step]^, PairIterState^::running f value count) \with {
+      Termination.Holds (PairIterState^::running f value count) \with {
       | zero: \fun (f: NatPair -> NatPair) (value: NatPair) =>
-        Termination.accIntro (PairIterState^::running f value N.Nat^::zero) L.True::intro
+        Termination.intro (PairIterState^::running f value N.Nat^::zero) Termination.trivial
       | succ: \fun (k: N.Nat^) (ih: _) (f: NatPair -> NatPair) (value: NatPair) =>
-        Termination.accIntro (PairIterState^::running f value (N.Nat^::succ k)) (ih f (f value))
+        Termination.intro (PairIterState^::running f value (N.Nat^::succ k)) (ih f (f value))
     };
   \terminates := \induction (s: PairIterState^) \return
-    \Acc[PairIterState^, NatPair](PairIterLoop::[step]^, s) \with {
+    Termination.Holds s \with {
       | running: \fun (f: NatPair -> NatPair) (value: NatPair) (count: N.Nat^) => terminates count f value
     },
 }

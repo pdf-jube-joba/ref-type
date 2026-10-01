@@ -191,9 +191,6 @@ impl Renderer<'_> {
             ("continue" | "finish", [state, result, value]) => {
                 format!("\\{name}[{state}, {result}]({value})")
             }
-            ("Acc" | "accintro" | "accdescent", [state, result, rest @ ..]) => {
-                format!("\\{name}[{state}, {result}]({})", rest.join(", "))
-            }
             ("run", [state, result, step, initial, proof]) => {
                 format!("\\run[{state}, {result}]({step}, {initial}) \\by {{ {proof} }}")
             }

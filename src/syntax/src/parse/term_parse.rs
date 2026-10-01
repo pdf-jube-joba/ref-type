@@ -356,20 +356,6 @@ impl<'a> TermParser<'a> {
                 })
             });
         }
-        if self.bump_if_keyword("\\Acc") {
-            let (state_ty, result_ty) = self.parse_recursion_types()?;
-            return self.parse_parenthesized(|parser| {
-                let step = parser.parse_sexp()?;
-                parser.expect_token(Token::Comma)?;
-                let state = parser.parse_sexp()?;
-                Ok(SExp::Acc {
-                    state_ty: Box::new(state_ty),
-                    result_ty: Box::new(result_ty),
-                    step: Box::new(step),
-                    state: Box::new(state),
-                })
-            });
-        }
         if self.bump_if_keyword("\\run") {
             let (state_ty, result_ty) = self.parse_recursion_types()?;
             let (step, initial) = self.parse_parenthesized(|parser| {
@@ -767,48 +753,6 @@ impl<'a> TermParser<'a> {
                 element: Box::new(element),
                 existence: Box::new(existence),
                 uniqueness: Box::new(uniqueness),
-            });
-        }
-
-        if self.bump_if_keyword("\\accintro") {
-            let (state_ty, result_ty) = self.parse_recursion_types()?;
-            self.expect_token(Token::LParen)?;
-            let step = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let state = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let predecessors = self.parse_sexp()?;
-            self.expect_token(Token::RParen)?;
-            return Ok(SExp::AccIntro {
-                state_ty: Box::new(state_ty),
-                result_ty: Box::new(result_ty),
-                step: Box::new(step),
-                state: Box::new(state),
-                predecessors: Box::new(predecessors),
-            });
-        }
-
-        if self.bump_if_keyword("\\accdescent") {
-            let (state_ty, result_ty) = self.parse_recursion_types()?;
-            self.expect_token(Token::LParen)?;
-            let step = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let from = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let to = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let accessibility = self.parse_sexp()?;
-            self.expect_token(Token::Comma)?;
-            let transition = self.parse_sexp()?;
-            self.expect_token(Token::RParen)?;
-            return Ok(SExp::AccDescent {
-                state_ty: Box::new(state_ty),
-                result_ty: Box::new(result_ty),
-                step: Box::new(step),
-                from: Box::new(from),
-                to: Box::new(to),
-                accessibility: Box::new(accessibility),
-                transition: Box::new(transition),
             });
         }
 

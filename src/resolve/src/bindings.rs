@@ -458,13 +458,7 @@ pub(crate) fn alpha_rename(
             subset: result_ty,
             superset: next,
         } => alpha_many([state_ty, result_ty, next], order, counter, scopes),
-        SExp::Acc {
-            state_ty,
-            result_ty,
-            step,
-            state,
-        }
-        | SExp::AxiomSetExt {
+        SExp::AxiomSetExt {
             left: state_ty,
             right: result_ty,
             left_to_right: step,
@@ -478,18 +472,6 @@ pub(crate) fn alpha_rename(
             accessibility,
         } => alpha_many(
             [state_ty, result_ty, step, initial, accessibility],
-            order,
-            counter,
-            scopes,
-        ),
-        SExp::AccIntro {
-            state_ty,
-            result_ty,
-            step,
-            state,
-            predecessors,
-        } => alpha_many(
-            [state_ty, result_ty, step, state, predecessors],
             order,
             counter,
             scopes,
@@ -543,28 +525,6 @@ pub(crate) fn alpha_rename(
                 on_continue,
                 on_finish,
                 scrutinee,
-            ],
-            order,
-            counter,
-            scopes,
-        ),
-        SExp::AccDescent {
-            state_ty,
-            result_ty,
-            step,
-            from,
-            to,
-            accessibility,
-            transition,
-        } => alpha_many(
-            [
-                state_ty,
-                result_ty,
-                step,
-                from,
-                to,
-                accessibility,
-                transition,
             ],
             order,
             counter,

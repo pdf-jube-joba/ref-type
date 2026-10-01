@@ -1251,23 +1251,6 @@ impl LocalScope {
                     output,
                 }))
             }
-            SExp::Acc {
-                state_ty,
-                result_ty,
-                step,
-                state,
-            } => {
-                let state_ty = self.elab_exp_rec(state_ty, handler)?;
-                let result_ty = self.elab_exp_rec(result_ty, handler)?;
-                let step = self.elab_exp_rec(step, handler)?;
-                let state = self.elab_exp_rec(state, handler)?;
-                Ok(handler.arena().alloc(ExpNode::Acc {
-                    state_ty,
-                    result_ty,
-                    step,
-                    state,
-                }))
-            }
             SExp::Run {
                 state_ty,
                 result_ty,
@@ -1378,52 +1361,6 @@ impl LocalScope {
                 Ok(handler
                     .arena()
                     .alloc(ExpNode::BoxApp { function, argument }))
-            }
-            SExp::AccIntro {
-                state_ty,
-                result_ty,
-                step,
-                state,
-                predecessors,
-            } => {
-                let state_ty = self.elab_exp_rec(state_ty, handler)?;
-                let result_ty = self.elab_exp_rec(result_ty, handler)?;
-                let step = self.elab_exp_rec(step, handler)?;
-                let state = self.elab_exp_rec(state, handler)?;
-                let predecessors = self.elab_exp_rec(predecessors, handler)?;
-                Ok(handler.arena().alloc(ExpNode::Prove(Prove::AccIntro {
-                    state_ty,
-                    result_ty,
-                    step,
-                    state,
-                    predecessors,
-                })))
-            }
-            SExp::AccDescent {
-                state_ty,
-                result_ty,
-                step,
-                from,
-                to,
-                accessibility,
-                transition,
-            } => {
-                let state_ty = self.elab_exp_rec(state_ty, handler)?;
-                let result_ty = self.elab_exp_rec(result_ty, handler)?;
-                let step = self.elab_exp_rec(step, handler)?;
-                let from = self.elab_exp_rec(from, handler)?;
-                let to = self.elab_exp_rec(to, handler)?;
-                let accessibility = self.elab_exp_rec(accessibility, handler)?;
-                let transition = self.elab_exp_rec(transition, handler)?;
-                Ok(handler.arena().alloc(ExpNode::Prove(Prove::AccDescent {
-                    state_ty,
-                    result_ty,
-                    step,
-                    from,
-                    to,
-                    accessibility,
-                    transition,
-                })))
             }
 
             SExp::RecordTypeCtor {

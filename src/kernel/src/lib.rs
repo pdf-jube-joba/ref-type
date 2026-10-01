@@ -10,5 +10,6 @@ pub mod reflection;
 pub mod sharing;
 pub mod sort;
 pub mod syntax;
+pub mod termination;
 #[cfg(test)]
 mod tests;

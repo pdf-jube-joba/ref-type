@@ -602,12 +602,6 @@ pub enum SExp {
         result_ty: Box<SExp>,
         output: Box<SExp>,
     },
-    Acc {
-        state_ty: Box<SExp>,
-        result_ty: Box<SExp>,
-        step: Box<SExp>,
-        state: Box<SExp>,
-    },
     Run {
         state_ty: Box<SExp>,
         result_ty: Box<SExp>,
@@ -645,22 +639,6 @@ pub enum SExp {
     BoxApp {
         function: Box<SExp>,
         argument: Box<SExp>,
-    },
-    AccIntro {
-        state_ty: Box<SExp>,
-        result_ty: Box<SExp>,
-        step: Box<SExp>,
-        state: Box<SExp>,
-        predecessors: Box<SExp>,
-    },
-    AccDescent {
-        state_ty: Box<SExp>,
-        result_ty: Box<SExp>,
-        step: Box<SExp>,
-        from: Box<SExp>,
-        to: Box<SExp>,
-        accessibility: Box<SExp>,
-        transition: Box<SExp>,
     },
 
     // --- record type

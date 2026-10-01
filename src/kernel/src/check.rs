@@ -1065,39 +1065,6 @@ impl<'a> Checker<'a> {
                     self.quantified(domain, |ch, x| ch.application(ch.lifted(family, 1)?, x))?;
                 self.exists(choices)
             }
-            Node::Acc {
-                state_ty,
-                result_ty,
-                step,
-                state,
-            } => {
-                self.check_run(state_ty, result_ty, step, state, false)?;
-                Ok(self.base(BaseSort::Prop))
-            }
-            Node::AccIntro {
-                state_ty,
-                result_ty,
-                step,
-                state,
-                predecessors,
-            } => self.infer_acc_intro(state_ty, result_ty, step, state, predecessors),
-            Node::AccDescent {
-                state_ty,
-                result_ty,
-                step,
-                from,
-                to,
-                accessibility,
-                transition,
-            } => self.infer_acc_descent(
-                state_ty,
-                result_ty,
-                step,
-                from,
-                to,
-                accessibility,
-                transition,
-            ),
             Node::SetRun {
                 state_ty,
                 result_ty,
@@ -1387,46 +1354,6 @@ impl<'a> Checker<'a> {
         self.check_at("check existence", existence, self.exists(domain)?)?;
         Ok(proposition)
     }
-    fn infer_acc_intro(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        state: Expression,
-        predecessors: Expression,
-    ) -> Result<Expression, Error> {
-        let acc = self.accessibility(state_ty, result_ty, step, state)?;
-        self.proposition(acc)?;
-        let expected = self.quantified(state_ty, |ch, x| {
-            let a = ch.lifted(state_ty, 1)?;
-            let b = ch.lifted(result_ty, 1)?;
-            let f = ch.lifted(step, 1)?;
-            let from = ch.lifted(state, 1)?;
-            let transition = ch.transition(a, b, f, from, x)?;
-            ch.arrow(transition, ch.accessibility(a, b, f, x)?)
-        })?;
-        self.check_at("check accessibility predecessors", predecessors, expected)?;
-        Ok(acc)
-    }
-    fn infer_acc_descent(
-        &mut self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        from: Expression,
-        to: Expression,
-        accessibility: Expression,
-        transition: Expression,
-    ) -> Result<Expression, Error> {
-        let acc = self.accessibility(state_ty, result_ty, step, from)?;
-        self.proposition(acc)?;
-        self.check_open(to, state_ty)?;
-        self.check_at("check accessibility proof", accessibility, acc)?;
-        let expected = self.transition(state_ty, result_ty, step, from, to)?;
-        self.check_at("check recursive transition", transition, expected)?;
-        self.accessibility(state_ty, result_ty, step, to)
-    }
-
     fn apply_motive(&mut self, motive: &Motive, args: &[Expression]) -> Result<Expression, Error> {
         if args.len() != motive.domains.len() {
             return Err("motive argument count mismatch".into());
@@ -1483,12 +1410,8 @@ impl<'a> Checker<'a> {
         step: Expression,
         state: Expression,
     ) -> Result<Expression, Error> {
-        Ok(self.alloc(Node::Acc {
-            state_ty,
-            result_ty,
-            step,
-            state,
-        }))
+        crate::termination::termination(self.arena(), state_ty, result_ty, step, state)
+            .map_err(Error::from)
     }
     fn quantified(
         &mut self,
@@ -1503,22 +1426,6 @@ impl<'a> Checker<'a> {
             domain,
             body,
         }))
-    }
-    fn transition(
-        &self,
-        state_ty: Expression,
-        result_ty: Expression,
-        step: Expression,
-        from: Expression,
-        to: Expression,
-    ) -> Result<Expression, Error> {
-        let left = self.application(step, from)?;
-        let right = self.alloc(Node::Continue {
-            state_ty,
-            result_ty,
-            next: to,
-        });
-        self.equality(left, right)
     }
     fn closed_program_type(&mut self, ty: Expression) -> Result<usize, Error> {
         if max_loose_bound(self.arena(), ty).is_some() || self.env.contains_parameter(ty) {

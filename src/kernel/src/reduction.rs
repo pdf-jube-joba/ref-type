@@ -405,15 +405,16 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
         } => match a.get(transition) {
             Node::Finish { output, .. } => output,
             Node::Continue { next, .. } => {
-                let accessibility = a.alloc(Node::AccDescent {
+                let accessibility = crate::termination::descent(
+                    a,
                     state_ty,
                     result_ty,
                     step,
-                    from: initial,
-                    to: next,
+                    initial,
+                    next,
                     accessibility,
-                    transition: transition_equality,
-                });
+                    transition_equality,
+                )?;
                 a.alloc(Node::SetRun {
                     state_ty,
                     result_ty,
@@ -440,15 +441,16 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
                 Node::ProgramFinish { output, .. } => a.alloc(Node::Return { value: output }),
                 Node::ProgramContinue { next, .. } => {
                     let rf = |term| a.alloc(Node::Reflect { term });
-                    let accessibility = a.alloc(Node::AccDescent {
-                        state_ty: rf(state_ty),
-                        result_ty: rf(result_ty),
-                        step: rf(step),
-                        from: rf(initial),
-                        to: rf(next),
+                    let accessibility = crate::termination::descent(
+                        a,
+                        rf(state_ty),
+                        rf(result_ty),
+                        rf(step),
+                        rf(initial),
+                        rf(next),
                         accessibility,
-                        transition: transition_equality,
-                    });
+                        transition_equality,
+                    )?;
                     a.alloc(Node::Run {
                         state_ty,
                         result_ty,

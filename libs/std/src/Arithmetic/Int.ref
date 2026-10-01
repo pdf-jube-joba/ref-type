@@ -48,34 +48,24 @@
     }
   }),
 
-  \definition ready: \RunStep[DiffState^, Int^] -> \Prop :=
-    \step-match t: \RunStep[DiffState^, Int^] \return \Prop \with {
-      | \continue s: \Acc[DiffState^, Int^](DiffLoop::[step]^, s)
-      | \finish result: L.True
-    };
-  \definition accIntro (s: DiffState^) (certificate: ready (DiffLoop::[step]^ s)):
-    \Acc[DiffState^, Int^](DiffLoop::[step]^, s) :=
-    \accintro[DiffState^, Int^](DiffLoop::[step]^, s,
-      \fun (next: _) (edge: _) =>
-        \idelim DiffLoop::[step]^ s = \continue[DiffState^, Int^](next)
-          \with t: \RunStep[DiffState^, Int^] => ready t
-          \by { base: certificate, equality: edge });
+  \import std.Logic[].Termination[State := DiffState^, Output := Int^,
+    step := DiffLoop::[step]^] \as Termination;
   \definition terminates: \forall (b, a: N.Nat^) ->
-    \Acc[DiffState^, Int^](DiffLoop::[step]^, DiffState^::running a b) :=
+    Termination.Holds (DiffState^::running a b) :=
     \induction (b: N.Nat^) \return \forall (a: N.Nat^) ->
-      \Acc[DiffState^, Int^](DiffLoop::[step]^, DiffState^::running a b) \with {
+      Termination.Holds (DiffState^::running a b) \with {
       | zero: \fun (a: N.Nat^) =>
-        accIntro (DiffState^::running a N.Nat^::zero) L.True::intro
+        Termination.intro (DiffState^::running a N.Nat^::zero) Termination.trivial
       | succ: \fun (k: N.Nat^) (ih: _) =>
         \induction (a: N.Nat^) \return
-          \Acc[DiffState^, Int^](DiffLoop::[step]^, DiffState^::running a (N.Nat^::succ k)) \with {
-          | zero: accIntro (DiffState^::running N.Nat^::zero (N.Nat^::succ k)) L.True::intro
+          Termination.Holds (DiffState^::running a (N.Nat^::succ k)) \with {
+          | zero: Termination.intro (DiffState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial
           | succ: \fun (j: N.Nat^) (_: _) =>
-            accIntro (DiffState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j)
+            Termination.intro (DiffState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j)
         }
     };
   \terminates := \induction (state: DiffState^) \return
-    \Acc[DiffState^, Int^](DiffLoop::[step]^, state) \with {
+    Termination.Holds state \with {
       | running: \fun (a, b: N.Nat^) => terminates b a
     },
 }

@@ -83,12 +83,12 @@ pub(crate) fn machine_field(name: &Identifier, field: &str, body: SExp) -> Modul
             let x = Identifier("<machine-state>".into());
             SExp::Prod {
                 bind: Bind::Named(bind(x.clone(), reflected(name, "State"))),
-                body: Box::new(SExp::Acc {
-                    state_ty: Box::new(reflected(name, "State")),
-                    result_ty: Box::new(reflected(name, "Output")),
-                    step: Box::new(reflected(name, "step")),
-                    state: Box::new(access(x, vec![])),
-                }),
+                body: Box::new(termination(
+                    reflected(name, "State"),
+                    reflected(name, "Output"),
+                    reflected(name, "step"),
+                    access(x, vec![]),
+                )),
             }
         }
         _ => unreachable!(),
@@ -314,4 +314,64 @@ pub(crate) fn structure_literal(
         }),
         span: None,
     }
+}
+
+// Expand the logical termination condition without introducing a syntax node.
+fn termination(state_ty: SExp, result_ty: SExp, step: SExp, state: SExp) -> SExp {
+    fn pi(name: &str, ty: SExp, body: SExp) -> SExp {
+        SExp::Prod {
+            bind: Bind::Named(bind(Identifier(name.into()), ty)),
+            body: Box::new(body),
+        }
+    }
+    fn lam(name: &str, ty: SExp, body: SExp) -> SExp {
+        SExp::Lam {
+            bind: Bind::Named(bind(Identifier(name.into()), ty)),
+            body: Box::new(body),
+        }
+    }
+    fn var(name: &str) -> SExp {
+        access(Identifier(name.into()), vec![])
+    }
+    let prop = SExp::Sort(Sort::Prop);
+    let truth = pi(
+        "<truth>",
+        prop.clone(),
+        pi("<proof>", var("<truth>"), var("<truth>")),
+    );
+    let ready = SExp::SetStepMatch {
+        state_ty: Box::new(state_ty.clone()),
+        result_ty: Box::new(result_ty.clone()),
+        motive: Box::new(lam(
+            "<transition>",
+            SExp::RunStep {
+                state_ty: Box::new(state_ty.clone()),
+                result_ty: Box::new(result_ty.clone()),
+            },
+            prop.clone(),
+        )),
+        on_continue: Box::new(lam(
+            "<next-state>",
+            state_ty.clone(),
+            app(var("<predicate>"), var("<next-state>")),
+        )),
+        on_finish: Box::new(lam("<output>", result_ty, truth)),
+    };
+    pi(
+        "<predicate>",
+        pi("<domain>", state_ty.clone(), prop),
+        pi(
+            "<closed>",
+            pi(
+                "<state>",
+                state_ty,
+                pi(
+                    "<next>",
+                    app(ready, app(step, var("<state>"))),
+                    app(var("<predicate>"), var("<state>")),
+                ),
+            ),
+            app(var("<predicate>"), state),
+        ),
+    )
 }

@@ -322,42 +322,6 @@ impl Renderer<'_> {
                 "axiom:classicalIndefiniteChoice",
                 &[(*domain), (*family), (*inhabited)],
             ),
-            AccIntro {
-                state_ty,
-                result_ty,
-                step,
-                state,
-                predecessors,
-            } => self.call(
-                "accintro",
-                &[
-                    (*state_ty),
-                    (*result_ty),
-                    (*step),
-                    (*state),
-                    (*predecessors),
-                ],
-            ),
-            AccDescent {
-                state_ty,
-                result_ty,
-                step,
-                from,
-                to,
-                accessibility,
-                transition,
-            } => self.call(
-                "accdescent",
-                &[
-                    (*state_ty),
-                    (*result_ty),
-                    (*step),
-                    (*from),
-                    (*to),
-                    (*accessibility),
-                    (*transition),
-                ],
-            ),
             Pred {
                 superset,
                 subset,
@@ -375,20 +339,6 @@ impl Renderer<'_> {
                 1,
             ),
             Exists { set } => self.call("exists", &[(*set)]),
-            Acc {
-                state_ty,
-                result_ty,
-                step,
-                state,
-            } => self.call(
-                "Acc",
-                &[
-                    (*state_ty),
-                    (*result_ty),
-                    (*step),
-                    (*state),
-                ],
-            ),
             ThunkValue { computation } => self.call("thunk", &[(*computation)]),
             ProgramContinue {
                 state_ty,
