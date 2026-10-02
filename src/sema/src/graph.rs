@@ -79,39 +79,7 @@ impl<'a> ModuleGraph<'a> {
                         module.declaration_spans.get(item_index),
                         module.source.as_ref().map(|s| &s.id)
                     ));
-                    if let ModuleItem::Import {
-                        path: import,
-                        import_name,
-                    } = item
-                    {
-                        let target = match import {
-                            ModuleInstantiatePath::FromRoot { calls } => {
-                                Some(calls.iter().map(|(name, _)| name.0.clone()).collect())
-                            }
-                            ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
-                                path.len().checked_sub(*back_parent).map(|length| {
-                                    let mut target = path[..length].to_vec();
-                                    target.extend(calls.iter().map(|(name, _)| name.0.clone()));
-                                    target
-                                })
-                            }
-                            ModuleInstantiatePath::FromImport { import_name, calls } => {
-                                visible.get(import_name.as_str()).map(|base| {
-                                    let mut target = base.clone();
-                                    target.extend(calls.iter().map(|(name, _)| name.0.clone()));
-                                    target
-                                })
-                            }
-                        };
-                        if let Some(target) = target {
-                            // Instantiation exposes descendants as well as the direct scope.
-                            graph.include_subtree(&target, &mut dependencies);
-                            visible.insert(import_name.0.clone(), target);
-                        } else {
-                            // A failed or inherited alias lookup is itself a dependency.
-                            dependencies.extend(0..graph.units.len());
-                        }
-                    }
+                    graph.include_imports(item, &path, &mut visible, &mut dependencies);
                 }
             }
             dependencies.remove(&index);
@@ -120,6 +88,56 @@ impl<'a> ModuleGraph<'a> {
             aliases.insert(path, visible);
         }
         graph
+    }
+
+    fn include_imports(
+        &self,
+        item: &ModuleItem,
+        path: &[String],
+        visible: &mut BTreeMap<String, Vec<String>>,
+        dependencies: &mut BTreeSet<usize>,
+    ) {
+        match item {
+            ModuleItem::Scoped { items, .. } => {
+                let mut scoped = visible.clone();
+                for item in items {
+                    self.include_imports(item, path, &mut scoped, dependencies);
+                }
+            }
+            ModuleItem::Import {
+                path: import,
+                import_name,
+            } => {
+                let target = match import {
+                    ModuleInstantiatePath::FromRoot { calls } => {
+                        Some(calls.iter().map(|(name, _)| name.0.clone()).collect())
+                    }
+                    ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
+                        path.len().checked_sub(*back_parent).map(|length| {
+                            let mut target = path[..length].to_vec();
+                            target.extend(calls.iter().map(|(name, _)| name.0.clone()));
+                            target
+                        })
+                    }
+                    ModuleInstantiatePath::FromImport { import_name, calls } => {
+                        visible.get(import_name.as_str()).map(|base| {
+                            let mut target = base.clone();
+                            target.extend(calls.iter().map(|(name, _)| name.0.clone()));
+                            target
+                        })
+                    }
+                };
+                if let Some(target) = target {
+                    // Instantiation exposes descendants as well as the direct scope.
+                    self.include_subtree(&target, dependencies);
+                    visible.insert(import_name.0.clone(), target);
+                } else {
+                    // A failed or inherited alias lookup is itself a dependency.
+                    dependencies.extend(0..self.units.len());
+                }
+            }
+            _ => {}
+        }
     }
 
     fn collect(&mut self, module: &'a Module, parent: &[String]) {

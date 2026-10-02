@@ -26,6 +26,20 @@ fn project() -> SourceSnapshot {
     snapshot
 }
 
+#[test]
+fn editing_std_nat_basic_preserves_termination_imports() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../libs/std");
+    let file = root.join("src/Data/Nat/Basic/Def.ref");
+    let snapshot = SourceSnapshot::read(&root).unwrap();
+    let mut database = Database::new();
+    let first = database.file(&snapshot, &file);
+    assert!(first.is_success(), "{:?}", first.diagnostics);
+    let text = &snapshot.source(&file).unwrap().text;
+    let edited = snapshot.with_file(&file, format!("{text}\n/* edited */\n"));
+    let changed = database.file(&edited, &file);
+    assert!(changed.is_success(), "{:?}", changed.diagnostics);
+}
+
 struct Cache(PathBuf);
 impl Cache {
     fn new() -> Self {
