@@ -29,22 +29,16 @@ perf は `/usr/lib/linux-tools/7.0.0-38-generic` にあります。
 ### 基本方針
 - `\definition` を使えるところは使い、できないときだけ `\alias` を使う。
 - `\structure`, `\machine`, `\correspondence` を使う。
+  - `Logic.And[P, Logic.And[Q, ]` みたいに入れ子が現れたら record を使えないか考える。言語の制約上 record を使えないことがわかった場合は使ってよい。
 - あまりに重複する別 module の参照は definition で名前を付ける。
+- ちゃんとライブラリを分ける。
+- "定理"と呼ばれるものは仮定なしで示す。 定義の引数や module parameter で仮定を渡さない。
 
 ### 過去の微妙だった点
-- `()` をつけなくていいところにつける: `(x)` とか。
-- 一気に生成しすぎているのか、こういうミスをやってる？
-  ```
-  • Edited lib/Reals/CauchyReal/Sequences.ref (+2 -2)
-  1082     \forall (j: Nat) -> NatLe k j ->
-  1083 -     RationalOperations.Le s (at y j)] }, N))}
-  1083 + RationalOperations.Le s (at y j)] }, N))}
-  1084   n (NL.leTrans N (commonBound M N) n
-  1085 -   (rightLeCommonBound M N) Kn)) },
-  1085 +   (rightLeCommonBound M N) Kn))) },
-  1086   \Cast[Nat] ({ k : Nat \where
-  ```
-  括弧の対応をちゃんとみればよさそうだが、その前に大量の定義を入れるのをやめたい。 `--parse-only` を使う。
+
+#### `()` でくくらなくていいならくくらない。
+
+#### 無駄な式を避ける
 - こういう定義は `byCases` がそのままゴールなので無駄っぽい。
   ```
   \definition eqOfEqbTrue: \forall (a, b: Bool^) -> IsTrue (eqbSet a b) -> a = b :=
@@ -65,14 +59,14 @@ perf は `/usr/lib/linux-tools/7.0.0-38-generic` にあります。
     \return byCases a b e;
   };
   ```
-- できれば `_` を型の位置には使うようにしてほしい。
-  ```
-  \definition diffStepSet: DiffState^ -> \RunStep[DiffState^, Int^] := \squash[\F(\U((DiffState -> \RunStep[DiffState, Int])))](\box[\F(\U((DiffState -> \RunStep[DiffState, Int])))](\return diffStep));
-  ```
-  こういうのをやめる。
-- `\cfun ... \return \thunk` を `\fun` に移行しようという命令に対して、機械的に移行しようとしたところ括弧の数が変わって対応が取れなくなった。
-  ```
-  • 括弧と内部の式を壊さずに戻せました。次に add だけで、外側の \cfun を \fun に置換
-  し、\return(\thunk(...)) はそのまま残す形を試します。これが通れば同じ規則を全対象へ適用します。
-  ```
-  もとの要件を満たせないみたいな感じにいって途中までやるのをやめるべき。機械的な移行（ python や perl ）に失敗したなら、 ちゃんと理由を分析して python や perl を書き直すようにして、元の内容を変更しない。
+#### `_` を型の位置に使う
+
+#### タスクは最後までやってから停止する
+以下の場合を除き最後までやる。
+- 体系の制限により書くことができない場合
+- 言語処理系の制限により書くことができない場合
+
+`まだ未証明です。` と書くことになった場合は上記のいずれかの理由を書く。
+それ以外の場合は続ける。
+ごまかしたり途中まで停止して報告しない。
+最後までやる。
