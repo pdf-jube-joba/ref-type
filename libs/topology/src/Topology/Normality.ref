@@ -20,8 +20,7 @@
 \definition Companion(topology: Topology::[Set])
   (G, U: \Pow Carrier): \Prop :=
   \exists { V : \Pow Carrier \where
-    Logic.And[IsOpenIn topology V,
-      Logic.And[Subset G V, Disjoint U V]] };
+    NormalPartner[topology, G, U, V] };
 
 \definition RegularFamily(topology: Topology::[Set])
   (G: \Pow Carrier): \Pow (\Pow Carrier) :=
@@ -40,18 +39,15 @@
   \fun (x: Carrier) => \fun (inF: Member F x) => \block {
     \takefrom U: \Cast[\Pow Carrier]
       ({ U : \Pow Carrier \where
-        Logic.And[IsOpenIn topology U, Logic.And[Member U x,
-          Companion topology G U]] })
+        RegularChoice[topology, G, x, U] })
       \by regular G gClosed x (ComplementOfDisjoint F G disjoint x inF) \then
-    \let data: Logic.And[IsOpenIn topology U,
-      Logic.And[Member U x, Companion topology G U]] :=
+    \let data: RegularChoice[topology, G, x, U] :=
       \bysub(\Pow Carrier,
         { W : \Pow Carrier \where
-          Logic.And[IsOpenIn topology W, Logic.And[Member W x,
-            Companion topology G W]] }, U) \then
+          RegularChoice[topology, G, x, W] }, U) \then
     \return unionMemberOf (RegularFamily topology G) U x
-      (Logic.And[_, _]::# (#left{data}) (#right{#right{data}}))
-      (#left{#right{data}})
+      (Logic.And[_, _]::# (#open{data}) (#partner{data}))
+      (#contains{data})
   };
 
 \definition regularFamilyCover(topology: Topology::[Set])
@@ -66,8 +62,7 @@
   (G, U: \Pow Carrier): \Set :=
   \Cast[\Pow Carrier]
     ({ V : \Pow Carrier \where
-      Logic.And[IsOpenIn topology V,
-        Logic.And[Subset G V, Disjoint U V]] });
+      NormalPartner[topology, G, U, V] });
 
 \definition selectedCompanionExists(topology: Topology::[Set])
   (G: \Pow Carrier) (selected: N.Nat^ -> \Pow Carrier)
@@ -85,15 +80,14 @@
       \exact(
         \into[\Pow Carrier](Whole,
           { V : \Pow Carrier \where
-            Logic.And[IsOpenIn topology V,
-              Logic.And[Subset G V, Disjoint (selected n) V]] })
-          \by { Logic.And[_, _]::#
+            NormalPartner[topology, G, (selected n), V] })
+          \by { NormalPartner[topology, G, (selected n), Whole]::#
             (#wholeOpen{(Topology::[law] topology)})
-            (Logic.And[_, _]::# (wholeContains G)
-              (\idelim Empty = selected n
-                \with U: \Pow Carrier => Disjoint U Whole
-                \by { base: emptyDisjoint Whole,
-                  equality: sym!{\Pow Carrier} (selected n) Empty empty })) },
+            (wholeContains G)
+            (\idelim Empty = selected n
+              \with U: \Pow Carrier => Disjoint U Whole
+              \by { base: emptyDisjoint Whole,
+                equality: sym!{\Pow Carrier} (selected n) Empty empty }) },
         CompanionSet topology G (selected n)))
     (selectedMember n);
 
@@ -173,14 +167,11 @@
     \let companion: N.Nat^ -> \Pow Carrier :=
       \fun (n: N.Nat^) => companions n \then
     \let companionLaw: \forall (n: N.Nat^) ->
-      Logic.And[IsOpenIn topology (companion n),
-        Logic.And[Subset G (companion n),
-          Disjoint (selected n) (companion n)]] :=
+      NormalPartner[topology, G, (selected n), (companion n)] :=
       \fun (n: N.Nat^) =>
         \bysub(\Pow Carrier,
           { V : \Pow Carrier \where
-            Logic.And[IsOpenIn topology V,
-              Logic.And[Subset G V, Disjoint (selected n) V]] },
+            NormalPartner[topology, G, (selected n), V] },
           companions n) \then
     \return \exact(
       RegularCover[topology, F, G] {
@@ -188,10 +179,10 @@
         second := companion,
       } \with {
         firstOpen := selectedOpen topology G selected (#left{selectionLaw}),
-        secondOpen := \fun (n: N.Nat^) => #left{(companionLaw n)},
+        secondOpen := \fun (n: N.Nat^) => #open{(companionLaw n)},
         covers := #right{selectionLaw},
-        contains := \fun (n: N.Nat^) => #left{#right{(companionLaw n)}},
-        disjoint := \fun (n: N.Nat^) => #right{#right{(companionLaw n)}},
+        contains := \fun (n: N.Nat^) => #covers{(companionLaw n)},
+        disjoint := \fun (n: N.Nat^) => #disjoint{(companionLaw n)},
       }, RegularCover[topology, F, G]::[Set])
   };
 
@@ -474,36 +465,26 @@
     \return \exact(
       \into[\Pow Carrier](U,
         { W : \Pow Carrier \where
-          Logic.And[IsOpenIn topology W, Logic.And[Subset F W,
-            \exists { Z : \Pow Carrier \where
-              Logic.And[IsOpenIn topology Z,
-                Logic.And[Subset G Z, Disjoint W Z]] }]] })
-        \by { Logic.And[_, _]::#
+          NormalChoice[topology, F, G, W] })
+        \by { NormalChoice[topology, F, G, U]::#
           (Count.indexedUnionOpen topology
             (RefinedFirst topology F G forward backward)
             (refinedFirstOpen topology F G forward backward))
-          (Logic.And[_, _]::#
-            (refinedFirstCovers topology F G forward backward)
-            (\exact(
-              \into[\Pow Carrier](V,
-                { Z : \Pow Carrier \where
-                  Logic.And[IsOpenIn topology Z,
-                    Logic.And[Subset G Z, Disjoint U Z]] })
-                \by { Logic.And[_, _]::#
-                  (Count.indexedUnionOpen topology
-                    (RefinedSecond topology F G forward backward)
-                    (refinedSecondOpen topology F G forward backward))
-                  (Logic.And[_, _]::#
-                    (refinedSecondCovers topology F G forward backward)
-                    (refinedDisjoint topology F G forward backward)) },
-              \Cast[\Pow Carrier]
-                ({ Z : \Pow Carrier \where
-                  Logic.And[IsOpenIn topology Z,
-                    Logic.And[Subset G Z, Disjoint U Z]] })))) },
+          (refinedFirstCovers topology F G forward backward)
+          (\exact(
+            \into[\Pow Carrier](V,
+              { Z : \Pow Carrier \where
+                NormalPartner[topology, G, U, Z] })
+              \by { NormalPartner[topology, G, U, V]::#
+                (Count.indexedUnionOpen topology
+                  (RefinedSecond topology F G forward backward)
+                  (refinedSecondOpen topology F G forward backward))
+                (refinedSecondCovers topology F G forward backward)
+                (refinedDisjoint topology F G forward backward) },
+            \Cast[\Pow Carrier]
+              ({ Z : \Pow Carrier \where
+                NormalPartner[topology, G, U, Z] }))) },
       \Cast[\Pow Carrier]
         ({ W : \Pow Carrier \where
-          Logic.And[IsOpenIn topology W, Logic.And[Subset F W,
-            \exists { Z : \Pow Carrier \where
-              Logic.And[IsOpenIn topology Z,
-                Logic.And[Subset G Z, Disjoint W Z]] }]] }))
+          NormalChoice[topology, F, G, W] }))
   };

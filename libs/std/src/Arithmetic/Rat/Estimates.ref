@@ -1674,28 +1674,30 @@
     (RationalOrder.ltReplaceRight zeroRat (mulRat a b) (mulRat b a)
       (RationalOperationsProp.fractionMulComm a b) productPositive);
 
+\record ContractRightLaw[q, a, c, r: Rat]: \Prop := {
+  positive: ltRat zeroRat r,
+  below: ltRat r c,
+  productAbove: ltRat q (mulRat a r),
+};
+
 \definition ContractRight (q, a, c: Rat): \Prop :=
-  \exists { r : Rat \where Logic.And[ltRat zeroRat r,
-    Logic.And[ltRat r c, ltRat q (mulRat a r)]] };
+  \exists { r : Rat \where ContractRightLaw[q, a, c, r] };
 
 \definition contractRight (q, a, c: Rat)
   (aPositive: ltRat zeroRat a) (cPositive: ltRat zeroRat c)
   (qac: ltRat q (mulRat a c)): ContractRight q a c :=
   \block {
-    \takefrom t: \Cast[Rat] ({ t : Rat \where Logic.And[ltRat zeroRat t,
-        Logic.And[ltRat t oneRat, ltRat q (mulRat t (mulRat a c))]] }) \by RationalOperationsProp.contractingFactor q (mulRat a c) qac \then
-    \let tLaw: Logic.And[ltRat zeroRat t,
-        Logic.And[ltRat t oneRat, ltRat q (mulRat t (mulRat a c))]] :=
-      \bysub(Rat, { t : Rat \where Logic.And[ltRat zeroRat t,
-        Logic.And[ltRat t oneRat, ltRat q (mulRat t (mulRat a c))]] }, t) \then
+    \takefrom t: \Cast[Rat] ({ t : Rat \where RationalOperations.ContractingFactorLaw[q, mulRat a c, t] }) \by RationalOperationsProp.contractingFactor q (mulRat a c) qac \then
+    \let tLaw: RationalOperations.ContractingFactorLaw[q, mulRat a c, t] :=
+      \bysub(Rat, { t : Rat \where RationalOperations.ContractingFactorLaw[q, mulRat a c, t] }, t) \then
     \let r: Rat := mulRat t c \then
     \let rPositive: ltRat zeroRat r :=
-      RationalOperationsProp.zeroLtMulPositive t c (#left{tLaw}) cPositive \then
+      RationalOperationsProp.zeroLtMulPositive t c (#positive{tLaw}) cPositive \then
     \let rLtC: ltRat r c :=
       RationalOrder.ltReplaceRight (mulRat t c) (mulRat oneRat c) c
         (RationalOperationsProp.fractionMulOneLeft c)
         (RationalOperationsProp.ltMulPositiveRight t oneRat c cPositive
-          (#left{(#right{tLaw})})) \then
+          (#belowOne{tLaw})) \then
     \let reassociate: RationalFractions.FractionEq
         (mulRat t (mulRat a c)) (mulRat a r) :=
       RationalFractions.fractionEqTrans _ _ _
@@ -1709,15 +1711,11 @@
           (RationalOperationsProp.fractionMulAssoc a t c)) \then
     \let qar: ltRat q (mulRat a r) :=
       RationalOrder.ltReplaceRight q (mulRat t (mulRat a c))
-        (mulRat a r) reassociate (#right{(#right{tLaw})}) \then
+        (mulRat a r) reassociate (#productAbove{tLaw}) \then
     \return \exact(
-      \into[Rat](r, { r : Rat \where Logic.And[ltRat zeroRat r,
-        Logic.And[ltRat r c, ltRat q (mulRat a r)]] }) \by { Logic.And[
-          ltRat zeroRat r, Logic.And[ltRat r c, ltRat q (mulRat a r)]]::#
-            rPositive (Logic.And[ltRat r c, ltRat q (mulRat a r)]::#
-              rLtC qar) },
-      \Cast[Rat] ({ r : Rat \where Logic.And[ltRat zeroRat r,
-        Logic.And[ltRat r c, ltRat q (mulRat a r)]] }))
+      \into[Rat](r, { r : Rat \where ContractRightLaw[q, a, c, r] }) \by {
+        ContractRightLaw[q, a, c, r]::# rPositive rLtC qar },
+      \Cast[Rat] ({ r : Rat \where ContractRightLaw[q, a, c, r] }))
   };
 
 \definition BelowBoth (a, b: Rat): \Prop :=
@@ -1795,8 +1793,14 @@
         rest)
     (RationalOrder.trichotomy a b);
 
+\record BetweenBothLaw[q, a, b, r: Rat]: \Prop := {
+  above: ltRat q r,
+  belowLeft: ltRat r a,
+  belowRight: ltRat r b,
+};
+
 \definition BetweenBoth (q, a, b: Rat): \Prop :=
-  \exists { r : Rat \where Logic.And[ltRat q r, Logic.And[ltRat r a, ltRat r b]] };
+  \exists { r : Rat \where BetweenBothLaw[q, a, b, r] };
 
 \definition betweenBoth (q, a, b: Rat) (qa: ltRat q a) (qb: ltRat q b):
   BetweenBoth q a b :=
@@ -1806,43 +1810,25 @@
     (BetweenBoth q a b)
     (\fun (ab: ltRat a b) =>
       \exact(
-        \into[Rat](RationalOperations.midpoint q a, { r : Rat \where Logic.And[ltRat q r, Logic.And[ltRat r a, ltRat r b]] }) \by { Logic.And[
-            ltRat q (RationalOperations.midpoint q a),
-            Logic.And[
-              ltRat (RationalOperations.midpoint q a) a,
-              ltRat (RationalOperations.midpoint q a) b]]::# (RationalOperationsProp.ltMidpoint q a qa) (Logic.And[
-              ltRat (RationalOperations.midpoint q a) a,
-              ltRat (RationalOperations.midpoint q a) b]::# (RationalOperationsProp.midpointLt q a qa) (RationalOrder.ltTrans
+        \into[Rat](RationalOperations.midpoint q a, { r : Rat \where BetweenBothLaw[q, a, b, r] }) \by { BetweenBothLaw[q, a, b, RationalOperations.midpoint q a]::# (RationalOperationsProp.ltMidpoint q a qa) (RationalOperationsProp.midpointLt q a qa) (RationalOrder.ltTrans
                 (RationalOperations.midpoint q a) a b
-                (RationalOperationsProp.midpointLt q a qa) ab)) },
-        \Cast[Rat] ({ r : Rat \where Logic.And[ltRat q r, Logic.And[ltRat r a, ltRat r b]] })))
+                (RationalOperationsProp.midpointLt q a qa) ab) },
+        \Cast[Rat] ({ r : Rat \where BetweenBothLaw[q, a, b, r] })))
     (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, ltRat b a]) =>
       Logic.orElim (RationalFractions.FractionEq a b) (ltRat b a)
         (BetweenBoth q a b)
         (\fun (ab: RationalFractions.FractionEq a b) =>
           \exact(
-            \into[Rat](RationalOperations.midpoint q a, { r : Rat \where Logic.And[ltRat q r, Logic.And[ltRat r a, ltRat r b]] }) \by { Logic.And[
-                ltRat q (RationalOperations.midpoint q a),
-                Logic.And[
-                  ltRat (RationalOperations.midpoint q a) a,
-                  ltRat (RationalOperations.midpoint q a) b]]::# (RationalOperationsProp.ltMidpoint q a qa) (Logic.And[
-                  ltRat (RationalOperations.midpoint q a) a,
-                  ltRat (RationalOperations.midpoint q a) b]::# (RationalOperationsProp.midpointLt q a qa) (RationalOrder.ltReplaceRight
+            \into[Rat](RationalOperations.midpoint q a, { r : Rat \where BetweenBothLaw[q, a, b, r] }) \by { BetweenBothLaw[q, a, b, RationalOperations.midpoint q a]::# (RationalOperationsProp.ltMidpoint q a qa) (RationalOperationsProp.midpointLt q a qa) (RationalOrder.ltReplaceRight
                     (RationalOperations.midpoint q a) a b ab
-                    (RationalOperationsProp.midpointLt q a qa))) },
-            \Cast[Rat] ({ r : Rat \where Logic.And[ltRat q r, Logic.And[ltRat r a, ltRat r b]] })))
+                    (RationalOperationsProp.midpointLt q a qa)) },
+            \Cast[Rat] ({ r : Rat \where BetweenBothLaw[q, a, b, r] })))
         (\fun (ba: ltRat b a) =>
           \exact(
-            \into[Rat](RationalOperations.midpoint q b, { r : Rat \where Logic.And[ltRat q r, Logic.And[ltRat r a, ltRat r b]] }) \by { Logic.And[
-                ltRat q (RationalOperations.midpoint q b),
-                Logic.And[
-                  ltRat (RationalOperations.midpoint q b) a,
-                  ltRat (RationalOperations.midpoint q b) b]]::# (RationalOperationsProp.ltMidpoint q b qb) (Logic.And[
-                  ltRat (RationalOperations.midpoint q b) a,
-                  ltRat (RationalOperations.midpoint q b) b]::# (RationalOrder.ltTrans
+            \into[Rat](RationalOperations.midpoint q b, { r : Rat \where BetweenBothLaw[q, a, b, r] }) \by { BetweenBothLaw[q, a, b, RationalOperations.midpoint q b]::# (RationalOperationsProp.ltMidpoint q b qb) (RationalOrder.ltTrans
                     (RationalOperations.midpoint q b) b a
-                    (RationalOperationsProp.midpointLt q b qb) ba) (RationalOperationsProp.midpointLt q b qb)) },
-            \Cast[Rat] ({ r : Rat \where Logic.And[ltRat q r, Logic.And[ltRat r a, ltRat r b]] })))
+                    (RationalOperationsProp.midpointLt q b qb) ba) (RationalOperationsProp.midpointLt q b qb) },
+            \Cast[Rat] ({ r : Rat \where BetweenBothLaw[q, a, b, r] })))
         rest)
     (RationalOrder.trichotomy a b);
 

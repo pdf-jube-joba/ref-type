@@ -55,6 +55,15 @@
   (x: Carrier) (U: \Pow Carrier): \Prop :=
   FamilyMember (neighborhoods x) U;
 
+\record LocalNeighborhood[
+  assign: NeighborhoodAssignment, x: Carrier, U, V: \Pow Carrier,
+]: \Prop := {
+  neighborhood: IsNeighborhood assign x V,
+  within: Subset V U,
+  persistent: \forall (y: Carrier) -> Member V y ->
+    IsNeighborhood assign y V,
+};
+
 \structure NeighborhoodSystem: \Set {
   assign: NeighborhoodAssignment,
 } \where {
@@ -70,10 +79,7 @@
   local: \forall (x: Carrier) -> \forall (U: \Pow Carrier) ->
     IsNeighborhood assign x U ->
     \exists { V : \Pow Carrier \where
-      Logic.And[IsNeighborhood assign x V,
-        Logic.And[Subset V U,
-          \forall (y: Carrier) -> Member V y ->
-            IsNeighborhood assign y V]] },
+      LocalNeighborhood[assign, x, U, V] },
 }
 
 \definition ClosedSetsOf(topology: Topology::[Set]): \Pow (\Pow Carrier) :=
@@ -87,15 +93,13 @@
 \definition InteriorOf(topology: Topology::[Set]) (S: \Pow Carrier): \Pow Carrier :=
   { x : Carrier \where
     \exists { U : \Pow Carrier \where
-      Logic.And[IsOpenIn topology U,
-        Logic.And[Subset U S, Member U x]] } };
+      OpenNeighborhood[topology, x, S, U] } };
 
 \definition NeighborhoodsOf(topology: Topology::[Set]): NeighborhoodAssignment :=
   \fun (x: Carrier) =>
     { U : \Pow Carrier \where
       \exists { V : \Pow Carrier \where
-        Logic.And[IsOpenIn topology V,
-          Logic.And[Member V x, Subset V U]] } };
+        OpenNeighborhood[topology, x, U, V] } };
 
 \definition OpenSetsFromClosed(system: ClosedSetSystem::[Set]):
   \Pow (\Pow Carrier) :=

@@ -92,6 +92,14 @@
   \fun (x: Carrier) => \fun (member: Member S x) =>
     tu x (st x member);
 
+\record OpenNeighborhood[
+  topology: Topology::[Set], x: Carrier, S, U: \Pow Carrier,
+]: \Prop := {
+  open: IsOpenIn topology U,
+  contains: Member U x,
+  within: Subset U S,
+};
+
 \definition OpenNeighborhoods(topology: Topology::[Set])
   (S: \Pow Carrier): \Pow (\Pow Carrier) :=
   { U : \Pow Carrier \where
@@ -101,8 +109,7 @@
   (S: \Pow Carrier)
   (local: \forall (x: Carrier) -> Member S x ->
     \exists { U : \Pow Carrier \where
-      Logic.And[IsOpenIn topology U,
-        Logic.And[Member U x, Subset U S]] }):
+      OpenNeighborhood[topology, x, S, U] }):
   IsOpenIn topology S :=
   \block {
     \let family: \Pow (\Pow Carrier) := OpenNeighborhoods topology S \then
@@ -126,19 +133,15 @@
         (\fun (x: Carrier) => \fun (inS: Member S x) => \block {
           \takefrom U: \Cast[\Pow Carrier]
             ({ W : \Pow Carrier \where
-              Logic.And[IsOpenIn topology W,
-                Logic.And[Member W x, Subset W S]] })
+              OpenNeighborhood[topology, x, S, W] })
             \by local x inS \then
-          \let data: Logic.And[IsOpenIn topology U,
-            Logic.And[Member U x, Subset U S]] :=
+          \let data: OpenNeighborhood[topology, x, S, U] :=
             \bysub(\Pow Carrier,
               { W : \Pow Carrier \where
-                Logic.And[IsOpenIn topology W,
-                  Logic.And[Member W x, Subset W S]] }, U) \then
+                OpenNeighborhood[topology, x, S, W] }, U) \then
           \return unionMemberOf family U x
-            (Logic.And[_, _]::# (#left{data})
-              (#right{#right{data}}))
-            (#left{#right{data}})
+            (Logic.And[_, _]::# (#open{data}) (#within{data}))
+            (#contains{data})
         })) \then
     \return \idelim Union family = S
       \with W: \Pow Carrier => IsOpenIn topology W
@@ -160,84 +163,43 @@
 \definition IsT1 (topology: Topology::[Set]): \Prop :=
   \forall (x: Carrier) -> IsClosedIn topology (Singleton x);
 
-\definition IsT2 (topology: Topology::[Set]): \Prop :=
-  \forall (x, y: Carrier) -> Logic.Not (x = y) ->
-    \exists { U : \Pow Carrier \where
-      Logic.And[IsOpenIn topology U, Logic.And[Member U x,
-        \exists { V : \Pow Carrier \where
-          Logic.And[IsOpenIn topology V, Logic.And[Member V y, Disjoint U V]] }]] };
+\record NormalPartner[
+  topology: Topology::[Set], G, U, V: \Pow Carrier,
+]: \Prop := {
+  open: IsOpenIn topology V,
+  covers: Subset G V,
+  disjoint: Disjoint U V,
+};
+
+\record RegularChoice[
+  topology: Topology::[Set], F: \Pow Carrier,
+  x: Carrier, U: \Pow Carrier,
+]: \Prop := {
+  open: IsOpenIn topology U,
+  contains: Member U x,
+  partner: \exists { V : \Pow Carrier \where
+    NormalPartner[topology, F, U, V] },
+};
 
 \definition IsRegular (topology: Topology::[Set]): \Prop :=
   \forall (F: \Pow Carrier) -> IsClosedIn topology F ->
   \forall (x: Carrier) -> Logic.Not (Member F x) ->
     \exists { U : \Pow Carrier \where
-      Logic.And[IsOpenIn topology U, Logic.And[Member U x,
-        \exists { V : \Pow Carrier \where
-          Logic.And[IsOpenIn topology V, Logic.And[Subset F V, Disjoint U V]] }]] };
+      RegularChoice[topology, F, x, U] };
+
+\definition IsT2(topology: Topology::[Set]): \Prop :=
+  \forall (x, y: Carrier) -> Logic.Not (x = y) ->
+    \exists { U : \Pow Carrier \where
+      RegularChoice[topology, (Singleton y), x, U] };
 
 \definition IsT3 (topology: Topology::[Set]): \Prop :=
   Logic.And[IsT1 topology, IsRegular topology];
 
 \definition t3T2(topology: Topology::[Set])
   (t3: IsT3 topology): IsT2 topology :=
-  \fun (x, y: Carrier) => \fun (different: Logic.Not (x = y)) => \block {
-    \takefrom U: \Cast[\Pow Carrier]
-      ({ U : \Pow Carrier \where
-        Logic.And[IsOpenIn topology U, Logic.And[Member U x,
-          \exists { V : \Pow Carrier \where
-            Logic.And[IsOpenIn topology V,
-              Logic.And[Subset (Singleton y) V, Disjoint U V]] }]] })
-      \by #right{t3} (Singleton y) (#left{t3} y) x different \then
-    \let uData: Logic.And[IsOpenIn topology U, Logic.And[Member U x,
-      \exists { V : \Pow Carrier \where
-        Logic.And[IsOpenIn topology V,
-          Logic.And[Subset (Singleton y) V, Disjoint U V]] }]] :=
-      \bysub(\Pow Carrier,
-        { U : \Pow Carrier \where
-          Logic.And[IsOpenIn topology U, Logic.And[Member U x,
-            \exists { V : \Pow Carrier \where
-              Logic.And[IsOpenIn topology V,
-                Logic.And[Subset (Singleton y) V, Disjoint U V]] }]] }, U) \then
-    \takefrom V: \Cast[\Pow Carrier]
-      ({ V : \Pow Carrier \where
-        Logic.And[IsOpenIn topology V,
-          Logic.And[Subset (Singleton y) V, Disjoint U V]] })
-      \by #right{#right{uData}} \then
-    \let vData: Logic.And[IsOpenIn topology V,
-      Logic.And[Subset (Singleton y) V, Disjoint U V]] :=
-      \bysub(\Pow Carrier,
-        { V : \Pow Carrier \where
-          Logic.And[IsOpenIn topology V,
-            Logic.And[Subset (Singleton y) V, Disjoint U V]] }, V) \then
-    \return \exact(
-      \into[\Pow Carrier](U,
-        { W : \Pow Carrier \where
-          Logic.And[IsOpenIn topology W, Logic.And[Member W x,
-            \exists { Z : \Pow Carrier \where
-              Logic.And[IsOpenIn topology Z,
-                Logic.And[Member Z y, Disjoint W Z]] }]] })
-        \by { Logic.And[_, _]::# (#left{uData})
-          (Logic.And[_, _]::# (#left{#right{uData}})
-            (\exact(
-              \into[\Pow Carrier](V,
-                { Z : \Pow Carrier \where
-                  Logic.And[IsOpenIn topology Z,
-                    Logic.And[Member Z y, Disjoint U Z]] })
-                \by { Logic.And[_, _]::# (#left{vData})
-                  (Logic.And[_, _]::#
-                    (#left{#right{vData}} y (\refl(y)))
-                    (#right{#right{vData}})) },
-              \Cast[\Pow Carrier]
-                ({ Z : \Pow Carrier \where
-                  Logic.And[IsOpenIn topology Z,
-                    Logic.And[Member Z y, Disjoint U Z]] })))) },
-      \Cast[\Pow Carrier]
-        ({ W : \Pow Carrier \where
-          Logic.And[IsOpenIn topology W, Logic.And[Member W x,
-            \exists { Z : \Pow Carrier \where
-              Logic.And[IsOpenIn topology Z,
-                Logic.And[Member Z y, Disjoint W Z]] }]] }))
-  };
+  \fun (x, y: Carrier) =>
+  \fun (different: Logic.Not (x = y)) =>
+    #right{t3} (Singleton y) (#left{t3} y) x different;
 
 \definition IsCountableBasis(topology: Topology::[Set])
   (basis: N.Nat^ -> \Pow Carrier): \Prop :=
@@ -252,14 +214,20 @@
   \exists { basis : N.Nat^ -> \Pow Carrier \where
     IsCountableBasis topology basis };
 
+\record NormalChoice[
+  topology: Topology::[Set], F, G, U: \Pow Carrier,
+]: \Prop := {
+  open: IsOpenIn topology U,
+  covers: Subset F U,
+  partner: \exists { V : \Pow Carrier \where
+    NormalPartner[topology, G, U, V] },
+};
+
 \definition IsNormal(topology: Topology::[Set]): \Prop :=
   \forall (F, G: \Pow Carrier) ->
     IsClosedIn topology F -> IsClosedIn topology G -> Disjoint F G ->
       \exists { U : \Pow Carrier \where
-        Logic.And[IsOpenIn topology U, Logic.And[Subset F U,
-          \exists { V : \Pow Carrier \where
-            Logic.And[IsOpenIn topology V,
-              Logic.And[Subset G V, Disjoint U V]] }]] };
+        NormalChoice[topology, F, G, U] };
 
 \definition Covers (family: \Pow (\Pow Carrier)) (S: \Pow Carrier): \Prop :=
   Subset S (Union family);

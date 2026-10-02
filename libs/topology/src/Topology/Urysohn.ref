@@ -56,53 +56,41 @@
   \block {
     \takefrom U: \Cast[\Pow Carrier]
       ({ U : \Pow Carrier \where
-        Logic.And[IsOpenIn topology U, Logic.And[Subset F U,
-          \exists { V : \Pow Carrier \where
-            Logic.And[IsOpenIn topology V,
-              Logic.And[Subset (Complement O) V, Disjoint U V]] }]] })
+        NormalChoice[topology, F, (Complement O), U] })
       \by normal F (Complement O) fClosed
         (openComplementClosed topology O oOpen)
         (\fun (x: Carrier) => \fun (inF: Member F x) =>
           \fun (outside: Logic.Not (Member O x)) =>
             outside (contained x inF)) \then
-    \let uData: Logic.And[IsOpenIn topology U, Logic.And[Subset F U,
-      \exists { V : \Pow Carrier \where
-        Logic.And[IsOpenIn topology V,
-          Logic.And[Subset (Complement O) V, Disjoint U V]] }]] :=
+    \let uData: NormalChoice[topology, F, (Complement O), U] :=
       \bysub(\Pow Carrier,
         { W : \Pow Carrier \where
-          Logic.And[IsOpenIn topology W, Logic.And[Subset F W,
-            \exists { V : \Pow Carrier \where
-              Logic.And[IsOpenIn topology V,
-                Logic.And[Subset (Complement O) V, Disjoint W V]] }]] }, U) \then
+          NormalChoice[topology, F, (Complement O), W] }, U) \then
     \takefrom V: \Cast[\Pow Carrier]
       ({ V : \Pow Carrier \where
-        Logic.And[IsOpenIn topology V,
-          Logic.And[Subset (Complement O) V, Disjoint U V]] })
-      \by #right{#right{uData}} \then
-    \let vData: Logic.And[IsOpenIn topology V,
-      Logic.And[Subset (Complement O) V, Disjoint U V]] :=
+        NormalPartner[topology, (Complement O), U, V] })
+      \by #partner{uData} \then
+    \let vData: NormalPartner[topology, (Complement O), U, V] :=
       \bysub(\Pow Carrier,
         { W : \Pow Carrier \where
-          Logic.And[IsOpenIn topology W,
-            Logic.And[Subset (Complement O) W, Disjoint U W]] }, V) \then
+          NormalPartner[topology, (Complement O), U, W] }, V) \then
     \return \exact(
       ShrinkData[topology, F, O] {
         inner := U,
         envelope := Complement V,
       } \with {
-        innerOpen := #left{uData},
-        envelopeClosed := openComplementClosed topology V (#left{vData}),
-        contains := #left{#right{uData}},
+        innerOpen := #open{uData},
+        envelopeClosed := openComplementClosed topology V (#open{vData}),
+        contains := #covers{uData},
         enclosed := \fun (x: Carrier) =>
           \fun (inU: Member U x) =>
           \fun (inV: Member V x) =>
-            #right{#right{vData}} x inU inV,
+            #disjoint{vData} x inU inV,
         within := \fun (x: Carrier) =>
           \fun (outsideV: Logic.Not (Member V x)) =>
             doubleNegElim (Member O x)
               (\fun (outsideO: Logic.Not (Member O x)) =>
-                outsideV (#left{#right{vData}} x outsideO)),
+                outsideV (#covers{vData} x outsideO)),
       }, ShrinkData[topology, F, O]::[Set])
   };
 
@@ -1558,27 +1546,22 @@
             Logic.And[Q.lt q (#label{scale} i),
               Logic.Not (Member (#envelope{scale} i) x)] })
           (\exists { U : \Pow Carrier \where
-            Logic.And[IsOpenIn topology U,
-              Logic.And[Member U x,
-                Subset U (LowerRay Index topology scale q)]] })
+            OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] })
           (\fun (negative: Q.lt q Q.zero) =>
             \exact(
               \into[\Pow Carrier](Whole,
                 { U : \Pow Carrier \where
-                  Logic.And[IsOpenIn topology U,
-                    Logic.And[Member U x,
-                      Subset U (LowerRay Index topology scale q)]] })
-                \by { Logic.And[_, _]::#
+                  OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] })
+                \by { OpenNeighborhood[topology, x,
+                  (LowerRay Index topology scale q), Whole]::#
                   (#wholeOpen{(Topology::[law] topology)})
-                  (Logic.And[_, _]::# (\refl(x))
-                    (\fun (y: Carrier) =>
-                      \fun (_: Member Whole y) =>
-                        valueBelowZero Index topology scale y q negative)) },
+                  (\refl(x))
+                  (\fun (y: Carrier) =>
+                    \fun (_: Member Whole y) =>
+                      valueBelowZero Index topology scale y q negative) },
               \Cast[\Pow Carrier]
                 ({ U : \Pow Carrier \where
-                  Logic.And[IsOpenIn topology U,
-                    Logic.And[Member U x,
-                      Subset U (LowerRay Index topology scale q)]] })))
+                  OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] })))
           (\fun (witness: \exists { i : Index \where
             Logic.And[Q.lt q (#label{scale} i),
               Logic.Not (Member (#envelope{scale} i) x)] }) => \block {
@@ -1596,22 +1579,20 @@
             \return \exact(
               \into[\Pow Carrier](Complement (#envelope{scale} i),
                 { U : \Pow Carrier \where
-                  Logic.And[IsOpenIn topology U,
-                    Logic.And[Member U x,
-                      Subset U (LowerRay Index topology scale q)]] })
-                \by { Logic.And[_, _]::#
+                  OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] })
+                \by { OpenNeighborhood[topology, x,
+                  (LowerRay Index topology scale q),
+                  Complement (#envelope{scale} i)]::#
                   (#envelopeClosed{scale} i)
-                  (Logic.And[_, _]::# (#right{data})
-                    (\fun (y: Carrier) =>
-                      \fun (outside: Logic.Not
-                        (Member (#envelope{scale} i) y)) =>
-                        valueAboveLabel Index topology scale y i q
-                          (#left{data}) outside)) },
+                  (#right{data})
+                  (\fun (y: Carrier) =>
+                    \fun (outside: Logic.Not
+                      (Member (#envelope{scale} i) y)) =>
+                      valueAboveLabel Index topology scale y i q
+                        (#left{data}) outside) },
               \Cast[\Pow Carrier]
                 ({ U : \Pow Carrier \where
-                  Logic.And[IsOpenIn topology U,
-                    Logic.And[Member U x,
-                      Subset U (LowerRay Index topology scale q)]] }))
+                  OpenNeighborhood[topology, x, (LowerRay Index topology scale q), U] }))
           }) (valueCutMember Index topology scale x q member));
 
 \definition UpperCut(Index: \Set)
@@ -1673,55 +1654,46 @@
   (jq: Q.lt (#label{scale} j) q)
   (inside: Member (#envelope{scale} i) x):
   \exists { U : \Pow Carrier \where
-    Logic.And[IsOpenIn topology U,
-      Logic.And[Member U x, Subset U (UpperCut Index topology scale q)]] } :=
+    OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] } :=
   \exact(
     \into[\Pow Carrier](#open{scale} j,
       { U : \Pow Carrier \where
-        Logic.And[IsOpenIn topology U,
-          Logic.And[Member U x,
-            Subset U (UpperCut Index topology scale q)]] })
-      \by { Logic.And[_, _]::#
+        OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] })
+      \by { OpenNeighborhood[topology, x,
+        (UpperCut Index topology scale q), #open{scale} j]::#
         (#openLaw{scale} j)
-        (Logic.And[_, _]::#
-          (#nested{scale} i j ij x inside)
-          (\fun (y: Carrier) =>
-            \fun (inOpen: Member (#open{scale} j) y) =>
-              upperCutIntro Index topology scale q y
+        (#nested{scale} i j ij x inside)
+        (\fun (y: Carrier) =>
+          \fun (inOpen: Member (#open{scale} j) y) =>
+            upperCutIntro Index topology scale q y
+              (QOp.midpoint (#label{scale} j) q)
+              (QLaw.midpointLt (#label{scale} j) q jq)
+              (valueBelowLabel Index topology scale y j
                 (QOp.midpoint (#label{scale} j) q)
-                (QLaw.midpointLt (#label{scale} j) q jq)
-                (valueBelowLabel Index topology scale y j
-                  (QOp.midpoint (#label{scale} j) q)
-                  (QLaw.ltMidpoint (#label{scale} j) q jq)
-                  inOpen))) },
+                (QLaw.ltMidpoint (#label{scale} j) q jq)
+                inOpen)) },
     \Cast[\Pow Carrier]
       ({ U : \Pow Carrier \where
-        Logic.And[IsOpenIn topology U,
-          Logic.And[Member U x,
-            Subset U (UpperCut Index topology scale q)]] }));
+        OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] }));
 
 \definition upperCutWholeNeighborhood(Index: \Set)
   (topology: Topology::[Set])
   (scale: OrderedScale[Index, topology]::[Set])
   (q: Q.Fraction) (x: Carrier) (above: Q.lt Q.one q):
   \exists { U : \Pow Carrier \where
-    Logic.And[IsOpenIn topology U,
-      Logic.And[Member U x, Subset U (UpperCut Index topology scale q)]] } :=
+    OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] } :=
   \exact(
     \into[\Pow Carrier](Whole,
       { U : \Pow Carrier \where
-        Logic.And[IsOpenIn topology U,
-          Logic.And[Member U x,
-            Subset U (UpperCut Index topology scale q)]] })
-      \by { Logic.And[_, _]::#
+        OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] })
+      \by { OpenNeighborhood[topology, x,
+        (UpperCut Index topology scale q), Whole]::#
         (#wholeOpen{(Topology::[law] topology)})
-        (Logic.And[_, _]::# (\refl(x))
-          (upperCutAboveOne Index topology scale q above)) },
+        (\refl(x))
+        (upperCutAboveOne Index topology scale q above) },
     \Cast[\Pow Carrier]
       ({ U : \Pow Carrier \where
-        Logic.And[IsOpenIn topology U,
-          Logic.And[Member U x,
-            Subset U (UpperCut Index topology scale q)]] }));
+        OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] }));
 
 \definition upperCutLocalFromLabel(Index: \Set)
   (topology: Topology::[Set])
@@ -1731,8 +1703,7 @@
   (i: Index) (ri: Q.lt r (#label{scale} i))
   (iq: Q.lt (#label{scale} i) q):
   \exists { U : \Pow Carrier \where
-    Logic.And[IsOpenIn topology U,
-      Logic.And[Member U x, Subset U (UpperCut Index topology scale q)]] } :=
+    OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] } :=
   \block {
     \let inside: Member (#envelope{scale} i) x :=
       doubleNegElim (Member (#envelope{scale} i) x)
@@ -1744,9 +1715,7 @@
           Logic.And[Q.lt (#label{scale} i) (#label{scale} j),
             Q.lt (#label{scale} j) q] }])
       (\exists { U : \Pow Carrier \where
-        Logic.And[IsOpenIn topology U,
-          Logic.And[Member U x,
-            Subset U (UpperCut Index topology scale q)]] })
+        OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] })
       (\fun (negative: Q.lt (#label{scale} i) Q.zero) =>
         Logic.falseElim _
           (QOrder.ltIrrefl Q.zero
@@ -1761,9 +1730,7 @@
             Logic.And[Q.lt (#label{scale} i) (#label{scale} j),
               Q.lt (#label{scale} j) q] })
           (\exists { U : \Pow Carrier \where
-            Logic.And[IsOpenIn topology U,
-              Logic.And[Member U x,
-                Subset U (UpperCut Index topology scale q)]] })
+            OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] })
           (\fun (above: Q.lt Q.one q) =>
             upperCutWholeNeighborhood Index topology scale q x above)
           (\fun (witness: \exists { j : Index \where
@@ -1812,9 +1779,7 @@
               Logic.And[Q.lt r (#label{scale} i),
                 Q.lt (#label{scale} i) q] }])
           (\exists { U : \Pow Carrier \where
-            Logic.And[IsOpenIn topology U,
-              Logic.And[Member U x,
-                Subset U (UpperCut Index topology scale q)]] })
+            OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] })
           (\fun (negative: Q.lt r Q.zero) =>
             Logic.falseElim _
               (#right{data}
@@ -1828,9 +1793,7 @@
                 Logic.And[Q.lt r (#label{scale} i),
                   Q.lt (#label{scale} i) q] })
               (\exists { U : \Pow Carrier \where
-                Logic.And[IsOpenIn topology U,
-                  Logic.And[Member U x,
-                    Subset U (UpperCut Index topology scale q)]] })
+                OpenNeighborhood[topology, x, (UpperCut Index topology scale q), U] })
               (\fun (above: Q.lt Q.one q) =>
                 upperCutWholeNeighborhood Index topology scale q x above)
               (\fun (witness: \exists { i : Index \where

@@ -465,14 +465,14 @@
 
 \definition aboveBoth (a, b: Rat): AboveBoth a b := Estimates.aboveBoth a b;
 
-\definition BetweenBoth (q, a, b: Rat): \Prop := Estimates.BetweenBoth q a b;
-
-\definition betweenBoth (q, a, b: Rat) (qa: lt q a) (qb: lt q b):
-  BetweenBoth q a b := Estimates.betweenBoth q a b qa qb;
+\record SymmetricBoundLaw[x: Real, u: Rat]: \Prop := {
+  positive: lt zeroRat u,
+  inside: mem x (negRat u),
+  outside: Logic.Not (mem x u),
+};
 
 \definition SymmetricBound (x: Real): \Prop :=
-  \exists { u : Rat \where Logic.And[lt zeroRat u,
-        Logic.And[mem x (negRat u), Logic.Not (mem x u)]] };
+  \exists { u : Rat \where SymmetricBoundLaw[x, u] };
 
 \definition symmetricBound (x: Real): SymmetricBound x :=
   \block {
@@ -501,12 +501,9 @@
         (\bysub(Rat, { b : Rat \where Logic.Not (mem x b) }, b))
           (#lower{x} b v bv xv) \then
     \return \exact(
-      \into[Rat](v, { v : Rat \where Logic.And[lt zeroRat v,
-          Logic.And[mem x (negRat v), Logic.Not (mem x v)]] }) \by { Logic.And[lt zeroRat v,
-          Logic.And[mem x (negRat v), Logic.Not (mem x v)]]::# (#right{(\bysub(Rat, { v : Rat \where Logic.And[lt u v, lt zeroRat v] }, v))}) (Logic.And[
-            mem x (negRat v), Logic.Not (mem x v)]::# inside outside) },
-      \Cast[Rat] ({ v : Rat \where Logic.And[lt zeroRat v,
-          Logic.And[mem x (negRat v), Logic.Not (mem x v)]] }))
+      \into[Rat](v, { v : Rat \where SymmetricBoundLaw[x, v] }) \by { SymmetricBoundLaw[x, v]::#
+          (#right{(\bysub(Rat, { v : Rat \where Logic.And[lt u v, lt zeroRat v] }, v))}) inside outside },
+      \Cast[Rat] ({ v : Rat \where SymmetricBoundLaw[x, v] }))
   };
 
 \definition productBelowElim (x, y: Real) (q: Rat)
@@ -564,18 +561,12 @@
 
 \definition productProper (x, y: Real): Proper (Def.MulLower x y) :=
   \block {
-    \takefrom u: \Cast[Rat] ({ u : Rat \where Logic.And[lt zeroRat u,
-        Logic.And[mem x (negRat u), Logic.Not (mem x u)]] }) \by symmetricBound x \then
-    \takefrom v: \Cast[Rat] ({ v : Rat \where Logic.And[lt zeroRat v,
-        Logic.And[mem y (negRat v), Logic.Not (mem y v)]] }) \by symmetricBound y \then
-    \let uLaw: Logic.And[lt zeroRat u,
-        Logic.And[mem x (negRat u), Logic.Not (mem x u)]] :=
-      \bysub(Rat, { u : Rat \where Logic.And[lt zeroRat u,
-          Logic.And[mem x (negRat u), Logic.Not (mem x u)]] }, u) \then
-    \let vLaw: Logic.And[lt zeroRat v,
-        Logic.And[mem y (negRat v), Logic.Not (mem y v)]] :=
-      \bysub(Rat, { v : Rat \where Logic.And[lt zeroRat v,
-          Logic.And[mem y (negRat v), Logic.Not (mem y v)]] }, v) \then
+    \takefrom u: \Cast[Rat] ({ u : Rat \where SymmetricBoundLaw[x, u] }) \by symmetricBound x \then
+    \takefrom v: \Cast[Rat] ({ v : Rat \where SymmetricBoundLaw[y, v] }) \by symmetricBound y \then
+    \let uLaw: SymmetricBoundLaw[x, u] :=
+      \bysub(Rat, { u : Rat \where SymmetricBoundLaw[x, u] }, u) \then
+    \let vLaw: SymmetricBoundLaw[y, v] :=
+      \bysub(Rat, { v : Rat \where SymmetricBoundLaw[y, v] }, v) \then
     \return \exact(
       \into[Rat](mulRat u v, { q : Rat \where Logic.Not (In (Def.MulLower x y) q) }) \by { \fun (member: Def.ProductBelow x y (mulRat u v)) =>
           productBelowElim x y (mulRat u v) member Logic.False
@@ -590,18 +581,18 @@
               \fun (bd: lt (mulRat u v) (mulRat b d)) =>
                 \block {
                   \let au: lt a u := memberLtOutside x a u xa
-                    (#right{(#right{uLaw})}) \then
+                    (#outside{uLaw}) \then
                   \let nub: lt (negRat u) b :=
                     memberLtOutside x (negRat u) b
-                      (#left{(#right{uLaw})}) xb \then
+                      (#inside{uLaw}) xb \then
                   \let cv: lt c v := memberLtOutside y c v yc
-                    (#right{(#right{vLaw})}) \then
+                    (#outside{vLaw}) \then
                   \let nvd: lt (negRat v) d :=
                     memberLtOutside y (negRat v) d
-                      (#left{(#right{vLaw})}) yd \then
+                      (#inside{vLaw}) yd \then
                   \return positiveCornersImpossible u v a b c d
-                    (#left{uLaw})
-                    (#left{vLaw})
+                    (#positive{uLaw})
+                    (#positive{vLaw})
                     au nub cv nvd ac ad bc bd
                 }) },
       \Cast[Rat] ({ q : Rat \where Logic.Not (In (Def.MulLower x y) q) }))
@@ -636,33 +627,25 @@
         \fun (bc: lt q (mulRat b c)) =>
         \fun (bd: lt q (mulRat b d)) =>
           \block {
-            \takefrom u: \Cast[Rat] ({ u : Rat \where Logic.And[lt q u,
-                Logic.And[lt u (mulRat a c), lt u (mulRat a d)]] }) \by betweenBoth q (mulRat a c) (mulRat a d) ac ad \then
-            \takefrom v: \Cast[Rat] ({ v : Rat \where Logic.And[lt q v,
-                Logic.And[lt v (mulRat b c), lt v (mulRat b d)]] }) \by betweenBoth q (mulRat b c) (mulRat b d) bc bd \then
-            \takefrom r: \Cast[Rat] ({ r : Rat \where Logic.And[lt q r, Logic.And[lt r u, lt r v]] }) \by betweenBoth q u v
-              (#left{(\bysub(Rat, { u : Rat \where Logic.And[lt q u,
-                    Logic.And[lt u (mulRat a c), lt u (mulRat a d)]] }, u))})
-              (#left{(\bysub(Rat, { v : Rat \where Logic.And[lt q v,
-                    Logic.And[lt v (mulRat b c), lt v (mulRat b d)]] }, v))}) \then
-            \let qr: lt q r :=
-              #left{(\bysub(Rat, { r : Rat \where Logic.And[lt q r, Logic.And[lt r u, lt r v]] }, r))} \then
-            \let ru: lt r u :=
-              #left{(#right{(\bysub(Rat, { r : Rat \where Logic.And[lt q r, Logic.And[lt r u, lt r v]] }, r))})} \then
-            \let rv: lt r v :=
-              #right{(#right{(\bysub(Rat, { r : Rat \where Logic.And[lt q r, Logic.And[lt r u, lt r v]] }, r))})} \then
-            \let uac: lt u (mulRat a c) :=
-              #left{(#right{(\bysub(Rat, { u : Rat \where Logic.And[lt q u,
-                      Logic.And[lt u (mulRat a c), lt u (mulRat a d)]] }, u))})} \then
-            \let uad: lt u (mulRat a d) :=
-              #right{(#right{(\bysub(Rat, { u : Rat \where Logic.And[lt q u,
-                      Logic.And[lt u (mulRat a c), lt u (mulRat a d)]] }, u))})} \then
-            \let vbc: lt v (mulRat b c) :=
-              #left{(#right{(\bysub(Rat, { v : Rat \where Logic.And[lt q v,
-                      Logic.And[lt v (mulRat b c), lt v (mulRat b d)]] }, v))})} \then
-            \let vbd: lt v (mulRat b d) :=
-              #right{(#right{(\bysub(Rat, { v : Rat \where Logic.And[lt q v,
-                      Logic.And[lt v (mulRat b c), lt v (mulRat b d)]] }, v))})} \then
+            \takefrom u: \Cast[Rat] ({ u : Rat \where Estimates.BetweenBothLaw[q, mulRat a c, mulRat a d, u] })
+              \by Estimates.betweenBoth q (mulRat a c) (mulRat a d) ac ad \then
+            \takefrom v: \Cast[Rat] ({ v : Rat \where Estimates.BetweenBothLaw[q, mulRat b c, mulRat b d, v] })
+              \by Estimates.betweenBoth q (mulRat b c) (mulRat b d) bc bd \then
+            \let uLaw: Estimates.BetweenBothLaw[q, mulRat a c, mulRat a d, u] :=
+              \bysub(Rat, { u : Rat \where Estimates.BetweenBothLaw[q, mulRat a c, mulRat a d, u] }, u) \then
+            \let vLaw: Estimates.BetweenBothLaw[q, mulRat b c, mulRat b d, v] :=
+              \bysub(Rat, { v : Rat \where Estimates.BetweenBothLaw[q, mulRat b c, mulRat b d, v] }, v) \then
+            \takefrom r: \Cast[Rat] ({ r : Rat \where Estimates.BetweenBothLaw[q, u, v, r] })
+              \by Estimates.betweenBoth q u v #above{uLaw} #above{vLaw} \then
+            \let rLaw: Estimates.BetweenBothLaw[q, u, v, r] :=
+              \bysub(Rat, { r : Rat \where Estimates.BetweenBothLaw[q, u, v, r] }, r) \then
+            \let qr: lt q r := #above{rLaw} \then
+            \let ru: lt r u := #belowLeft{rLaw} \then
+            \let rv: lt r v := #belowRight{rLaw} \then
+            \let uac: lt u (mulRat a c) := #belowLeft{uLaw} \then
+            \let uad: lt u (mulRat a d) := #belowRight{uLaw} \then
+            \let vbc: lt v (mulRat b c) := #belowLeft{vLaw} \then
+            \let vbd: lt v (mulRat b d) := #belowRight{vLaw} \then
             \let rac: lt r (mulRat a c) :=
               RationalOrder.ltTrans r u (mulRat a c) ru uac \then
             \let rad: lt r (mulRat a d) :=
