@@ -829,6 +829,62 @@
       (I.integerEqSym _ _ (productDenominatorNatural x y))
       (I.integerEqSym _ _ (productDenominatorNatural x y)) }};
 
+\definition doubleMul (a, b: I.Integer):
+  I.mulInteger (I.addInteger a a) b =
+    I.mulInteger a (I.addInteger b b) :=
+  equiv_reason!{I.integerEqTrans
+    "by" { I.mulIntegerDistribRight a a b }
+    "by" { I.integerEqSym _ _
+      (I.mulIntegerDistribLeft a b b) }};
+
+\definition midpointDouble (x, y: Fraction):
+  FractionEq (Def.add (Def.midpoint x y) (Def.midpoint x y))
+    (Def.add x y) :=
+  \block {
+    \let m: Fraction := Def.midpoint x y \then
+    \let d: I.Integer := I.mulInteger (denominator x) (denominator y) \then
+    \let twice: I.Integer := I.addInteger d d \then
+    \let n: I.Integer := #numerator{(Def.add x y)} \then
+    \return equiv_reason_terms!{I.integerEqTrans {
+      I.mulInteger (#numerator{(Def.add m m)})
+        (denominator (Def.add x y)) }
+      "~" { I.mulInteger
+        (I.addInteger (I.mulInteger n (denominator m))
+          (I.mulInteger n (denominator m))) d }
+        "by" { I.mulIntegerRespects _ _ _ _
+          (I.integerEqRefl _) (denominatorAdd x y) }
+      "~" { I.mulInteger
+        (I.addInteger (I.mulInteger n twice)
+          (I.mulInteger n twice)) d }
+        "by" { I.mulIntegerRespects _ _ _ _
+          (I.addIntegerRespects _ _ _ _
+            (I.mulIntegerRespects _ _ _ _
+              (I.integerEqRefl n) (midpointDenominator x y))
+            (I.mulIntegerRespects _ _ _ _
+              (I.integerEqRefl n) (midpointDenominator x y)))
+          (I.integerEqRefl d) }
+      "~" { I.mulInteger (I.mulInteger n (I.addInteger twice twice)) d }
+        "by" { I.mulIntegerRespects _ _ _ _
+          (I.integerEqSym _ _ (I.mulIntegerDistribLeft n twice twice))
+          (I.integerEqRefl d) }
+      "~" { I.mulInteger n (I.mulInteger (I.addInteger twice twice) d) }
+        "by" { I.mulIntegerAssoc n (I.addInteger twice twice) d }
+      "~" { I.mulInteger n (I.mulInteger twice twice) }
+        "by" { I.mulIntegerRespects _ _ _ _
+          (I.integerEqRefl n) (doubleMul twice d) }
+      "~" { I.mulInteger n
+        (I.mulInteger (denominator m) (denominator m)) }
+        "by" { I.integerEqSym _ _
+          (I.mulIntegerRespects _ _ _ _
+            (I.integerEqRefl n)
+            (I.mulIntegerRespects _ _ _ _
+              (midpointDenominator x y) (midpointDenominator x y))) }
+      "~" { I.mulInteger n (denominator (Def.add m m)) }
+        "by" { I.integerEqSym _ _
+          (I.mulIntegerRespects _ _ _ _
+            (I.integerEqRefl n) (denominatorAdd m m)) }}
+  };
+
 \definition midpointLeftTerm (x, y: Fraction):
   I.mulInteger (#numerator{x})
       (I.mulInteger (denominator x) (denominator y)) =
@@ -2148,6 +2204,83 @@
     "by" { fractionAddRespects y y (Def.add x (Def.neg x)) zero
       (fractionEqRefl y) (fractionAddNegRight x) }
     "by" { fractionAddZeroRight y }};
+
+\definition midpointGapsEqual (x, y: Fraction):
+  FractionEq
+    (Def.sub (Def.midpoint x y) x)
+    (Def.sub y (Def.midpoint x y)) :=
+  \block {
+    \let m: Fraction := Def.midpoint x y \then
+    \let gap: Fraction := Def.sub y m \then
+    \let decomposition: FractionEq (Def.add x gap) m :=
+      equiv_reason!{fractionEqTrans
+        "by" { fractionEqSym _ _ (fractionAddAssoc x y (Def.neg m)) }
+        "by" { fractionAddRespects (Def.add x y) (Def.add m m)
+          (Def.neg m) (Def.neg m)
+          (fractionEqSym _ _ (midpointDouble x y))
+          (fractionEqRefl _) }
+        "by" { fractionAddCancelRightSimplify m m }} \then
+    \return equiv_reason!{fractionEqTrans
+      "by" { fractionAddRespects m (Def.add x gap)
+        (Def.neg x) (Def.neg x)
+        (fractionEqSym _ _ decomposition) (fractionEqRefl _) }
+      "by" { fractionAddRespects (Def.add x gap) (Def.add gap x)
+        (Def.neg x) (Def.neg x)
+        (fractionAddComm x gap) (fractionEqRefl _) }
+      "by" { fractionAddCancelRightSimplify gap x }}
+  };
+
+\definition fractionSubCombine (x, m, y: Fraction):
+  FractionEq (Def.add (Def.sub m x) (Def.sub y m)) (Def.sub y x) :=
+  equiv_reason!{fractionEqTrans
+    "by" { fractionAddComm (Def.sub m x) (Def.sub y m) }
+    "by" { fractionEqSym _ _
+      (fractionAddAssoc (Def.sub y m) m (Def.neg x)) }
+    "by" { fractionAddRespects (Def.add (Def.sub y m) m)
+      (Def.add m (Def.sub y m))
+      (Def.neg x) (Def.neg x)
+      (fractionAddComm (Def.sub y m) m) (fractionEqRefl _) }
+    "by" { fractionAddRespects (Def.add m (Def.sub y m)) y
+      (Def.neg x) (Def.neg x)
+      (fractionAddSubRight m y) (fractionEqRefl _) }};
+
+\definition midpointWidthDouble (x, y: Fraction):
+  FractionEq
+    (Def.add (Def.sub (Def.midpoint x y) x)
+      (Def.sub (Def.midpoint x y) x))
+    (Def.sub y x) :=
+  equiv_reason!{fractionEqTrans
+    "by" { fractionAddRespects
+      (Def.sub (Def.midpoint x y) x)
+      (Def.sub (Def.midpoint x y) x)
+      (Def.sub (Def.midpoint x y) x)
+      (Def.sub y (Def.midpoint x y))
+      (fractionEqRefl _) (midpointGapsEqual x y) }
+    "by" { fractionSubCombine x (Def.midpoint x y) y }};
+
+\definition fractionDoubleInjective (x, y: Fraction)
+  (same: FractionEq (Def.add x x) (Def.add y y)):
+  FractionEq x y :=
+  Logic.orElim (lt x y) (Logic.Or[FractionEq x y, lt y x])
+    (FractionEq x y)
+    (\fun (xy: lt x y) =>
+      Logic.falseElim (FractionEq x y)
+        (FractionOrder.ltIrrefl (Def.add x x)
+          (FractionOrder.ltReplaceRight
+            (Def.add x x) (Def.add y y) (Def.add x x)
+            (fractionEqSym _ _ same)
+            (ltAdd x y x y xy xy))))
+    (\fun (other: Logic.Or[FractionEq x y, lt y x]) =>
+      Logic.orElim (FractionEq x y) (lt y x) (FractionEq x y)
+        (\fun (eq: FractionEq x y) => eq)
+        (\fun (yx: lt y x) =>
+          Logic.falseElim (FractionEq x y)
+            (FractionOrder.ltIrrefl (Def.add y y)
+              (FractionOrder.ltReplaceRight
+                (Def.add y y) (Def.add x x) (Def.add y y)
+                same (ltAdd y x y x yx yx))))
+        other)
+    (FractionOrder.trichotomy x y);
 
 \definition subPositive (x, y: Fraction) (xy: lt x y):
   lt zero (Def.sub y x) :=

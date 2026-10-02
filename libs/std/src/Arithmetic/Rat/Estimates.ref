@@ -1288,6 +1288,26 @@
         denominatorZero) RationalOrder.zeroLtOne)
     (denominatorZeroLe n);
 
+\definition oneLeDenominator (n: Nat):
+    RationalOperations.Le oneRat (denominator n) :=
+  leRespects (denominator N.Nat^::zero) oneRat
+    (denominator n) (denominator n)
+    denominatorZero (RationalFractions.fractionEqRefl _)
+    (denominatorZeroLe n);
+
+\definition denominatorSuccLeDouble (n: Nat):
+    RationalOperations.Le (denominator (N.Nat^::succ n))
+      (addRat (denominator n) (denominator n)) :=
+  leRespects
+    (addRat (denominator n) oneRat)
+    (denominator (N.Nat^::succ n))
+    (addRat (denominator n) (denominator n))
+    (addRat (denominator n) (denominator n))
+    (RationalFractions.fractionEqSym _ _ (denominatorSucc n))
+    (RationalFractions.fractionEqRefl _)
+    (leAddLeft (denominator n) oneRat (denominator n)
+      (oneLeDenominator n));
+
 \definition reciprocalRespectsPositive (x, y: Rat)
     (xPositive: Positive x) (yPositive: Positive y)
     (same: RationalFractions.FractionEq x y):
@@ -1360,12 +1380,96 @@
 \definition error (n: Nat): Rat :=
   RationalOperations.reciprocal (denominator n);
 
+\definition errorZero:
+    RationalFractions.FractionEq (error N.Nat^::zero) oneRat :=
+  reciprocalRespectsPositive
+    (denominator N.Nat^::zero) oneRat
+    (denominatorPositive N.Nat^::zero)
+    RationalOrder.zeroLtOne denominatorZero;
+
 \definition errorPositive (n: Nat): Positive (error n) :=
   RationalOperationsProp.positiveOfPositiveProductOne (denominator n) (error n)
     (denominatorPositive n)
     (RationalOperationsProp.fractionMulReciprocal (denominator n)
       (RationalOperationsProp.numeratorNonZeroOfZeroLt (denominator n)
         (denominatorPositive n)));
+
+\definition doubleDenominatorPositive (n: Nat):
+    Positive (addRat (denominator n) (denominator n)) :=
+  RationalOrder.ltReplaceLeft
+    (addRat zeroRat zeroRat) zeroRat
+    (addRat (denominator n) (denominator n))
+    (RationalOperationsProp.fractionAddZeroRight zeroRat)
+    (RationalOperationsProp.ltAdd zeroRat (denominator n)
+      zeroRat (denominator n)
+      (denominatorPositive n) (denominatorPositive n));
+
+\definition halfErrorAsReciprocal (n: Nat):
+    RationalFractions.FractionEq (half (error n))
+      (RationalOperations.reciprocal
+        (addRat (denominator n) (denominator n))) :=
+  \block {
+    \let d: Rat := denominator n \then
+    \let e: Rat := error n \then
+    \let h: Rat := half e \then
+    \let doubled: Rat := addRat d d \then
+    \let hd: RationalFractions.FractionEq (mulRat h d) halfRat :=
+      equiv_reason!{RationalFractions.fractionEqTrans
+        "by" { RationalOperationsProp.fractionMulAssoc halfRat e d }
+        "by" { RationalOperationsProp.fractionMulRespects
+          halfRat halfRat (mulRat e d) oneRat
+          (RationalFractions.fractionEqRefl _)
+          (reciprocalLeftLaw d
+            (RationalOperationsProp.numeratorNonZeroOfZeroLt d
+              (denominatorPositive n))) }
+        "by" { RationalOperationsProp.fractionMulOneRight halfRat }} \then
+    \let product: RationalFractions.FractionEq (mulRat h doubled) oneRat :=
+      equiv_reason!{RationalFractions.fractionEqTrans
+        "by" { RationalOperationsProp.fractionMulAddLeft h d d }
+        "by" { RationalOperationsProp.fractionAddRespects
+          (mulRat h d) halfRat (mulRat h d) halfRat hd hd }
+        "by" { halfDouble }} \then
+    \let inverse: RationalFractions.FractionEq
+        (mulRat doubled (RationalOperations.reciprocal doubled))
+        oneRat :=
+      RationalOperationsProp.fractionMulReciprocal doubled
+        (RationalOperationsProp.numeratorNonZeroOfZeroLt doubled
+          (doubleDenominatorPositive n)) \then
+    \return equiv_reason!{RationalFractions.fractionEqTrans
+      "by" { RationalFractions.fractionEqSym _ _
+        (RationalOperationsProp.fractionMulOneRight h) }
+      "by" { RationalOperationsProp.fractionMulRespects h h oneRat
+        (mulRat doubled (RationalOperations.reciprocal doubled))
+        (RationalFractions.fractionEqRefl _)
+        (RationalFractions.fractionEqSym _ _ inverse) }
+      "by" { RationalFractions.fractionEqSym _ _
+        (RationalOperationsProp.fractionMulAssoc h doubled
+          (RationalOperations.reciprocal doubled)) }
+      "by" { RationalOperationsProp.fractionMulRespects
+        (mulRat h doubled) oneRat
+        (RationalOperations.reciprocal doubled)
+        (RationalOperations.reciprocal doubled)
+        product (RationalFractions.fractionEqRefl _) }
+      "by" { RationalOperationsProp.fractionMulOneLeft
+        (RationalOperations.reciprocal doubled) }}
+  };
+
+\definition halfErrorSucc (n: Nat):
+    RationalOperations.Le (half (error n))
+      (error (N.Nat^::succ n)) :=
+  leRespects
+    (RationalOperations.reciprocal
+      (addRat (denominator n) (denominator n)))
+    (half (error n))
+    (error (N.Nat^::succ n)) (error (N.Nat^::succ n))
+    (RationalFractions.fractionEqSym _ _ (halfErrorAsReciprocal n))
+    (RationalFractions.fractionEqRefl _)
+    (reciprocalLeReverse
+      (denominator (N.Nat^::succ n))
+      (addRat (denominator n) (denominator n))
+      (denominatorPositive (N.Nat^::succ n))
+      (doubleDenominatorPositive n)
+      (denominatorSuccLeDouble n));
 
 \definition errorAntitone (n, m: Nat) (nm: NatLe n m):
     RationalOperations.Le (error m) (error n) :=

@@ -1,0 +1,446 @@
+/* Urysohn separation in regular second-countable spaces. */
+\import \parent.Normality[] \as Normal;
+\import \parent.Urysohn[] \as Urysohn;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Data[].Nat[].Pair[].Def[] \as NatPair;
+\import std.Logic[].Classical[] \as Classical;
+\import real.DedekindReal[] \as R;
+\import R.Arithmetic[].Def[] \as Real;
+\import std.Arithmetic[].Rat[].Fractions[] \as Q;
+\use Equality.trans;
+
+\definition t3SecondCountableUrysohn(topology: Topology::[Set])
+  (t3: IsT3 topology) (secondCountable: IsSecondCountable topology)
+  (F, G: \Pow Carrier)
+  (fClosed: IsClosedIn topology F)
+  (gClosed: IsClosedIn topology G)
+  (disjoint: Disjoint F G):
+  \exists Urysohn.UrysohnFunction[topology, F, G]::[Set] :=
+  Urysohn.normalUrysohn topology
+    (Normal.regularSecondCountableNormal topology
+      (#right{t3}) secondCountable)
+    F G fClosed gClosed disjoint;
+
+\definition singletonDisjoint(x, y: Carrier)
+  (different: Logic.Not (x = y)):
+  Disjoint (Singleton x) (Singleton y) :=
+  \fun (z: Carrier) =>
+  \fun (isX: Member (Singleton x) z) =>
+  \fun (isY: Member (Singleton y) z) =>
+    different
+      (trans!{Carrier} x z y
+        (sym!{Carrier} z x isX) isY);
+
+\definition t3SecondCountableSeparatesPoints(topology: Topology::[Set])
+  (t3: IsT3 topology) (secondCountable: IsSecondCountable topology)
+  (x, y: Carrier) (different: Logic.Not (x = y)):
+  \exists Urysohn.UrysohnFunction[topology, Singleton x, Singleton y]::[Set] :=
+  t3SecondCountableUrysohn topology t3 secondCountable
+    (Singleton x) (Singleton y)
+    (#left{t3} x) (#left{t3} y)
+    (singletonDisjoint x y different);
+
+\structure BasisPairData[topology: Topology::[Set],
+  basis: N.Nat^ -> \Pow Carrier, pair: NatPair.NatPair]: \Set {
+  envelope: \Pow Carrier,
+} \where {
+  envelopeClosed: IsClosedIn topology envelope,
+  innerWithin: Subset (basis (NatPair.natPairFirst pair)) envelope,
+  envelopeWithin: Subset envelope (basis (NatPair.natPairSecond pair)),
+}
+
+\definition AdmissibleBasisPair(topology: Topology::[Set])
+  (basis: N.Nat^ -> \Pow Carrier) (pair: NatPair.NatPair): \Prop :=
+  \exists BasisPairData[topology, basis, pair]::[Set];
+
+\definition LocalAdmissiblePair(topology: Topology::[Set])
+  (basis: N.Nat^ -> \Pow Carrier)
+  (x: Carrier) (U: \Pow Carrier): \Prop :=
+  \exists { pair : NatPair.NatPair \where
+    Logic.And[Member (basis (NatPair.natPairFirst pair)) x,
+      Logic.And[Subset (basis (NatPair.natPairSecond pair)) U,
+        AdmissibleBasisPair topology basis pair]] };
+
+\definition singletonWithin(U: \Pow Carrier) (x: Carrier)
+  (member: Member U x): Subset (Singleton x) U :=
+  \fun (y: Carrier) => \fun (same: Member (Singleton x) y) =>
+    \idelim x = y \with z: Carrier => Member U z
+      \by { base: member,
+        equality: sym!{Carrier} y x same };
+
+\definition localAdmissiblePair(topology: Topology::[Set])
+  (t1: IsT1 topology) (normal: IsNormal topology)
+  (basis: N.Nat^ -> \Pow Carrier)
+  (isBasis: IsCountableBasis topology basis)
+  (U: \Pow Carrier) (open: IsOpenIn topology U)
+  (x: Carrier) (member: Member U x):
+  LocalAdmissiblePair topology basis x U := \block {
+    \takefrom j: \Cast[N.Nat^]
+      ({ n : N.Nat^ \where
+        Logic.And[Member (basis n) x, Subset (basis n) U] })
+      \by #right{isBasis} U open x member \then
+    \let jData: Logic.And[Member (basis j) x,
+      Subset (basis j) U] :=
+      \bysub(N.Nat^,
+        { n : N.Nat^ \where
+          Logic.And[Member (basis n) x, Subset (basis n) U] }, j) \then
+    \takefrom shrink: Urysohn.ShrinkData[topology,
+      Singleton x, basis j]::[Set]
+      \by Urysohn.shrink topology normal
+        (Singleton x) (basis j) (t1 x)
+        (#left{isBasis} j)
+        (singletonWithin (basis j) x (#left{jData})) \then
+    \let xInner: Member (#inner{shrink}) x :=
+      #contains{shrink} x (\refl(x)) \then
+    \takefrom i: \Cast[N.Nat^]
+      ({ n : N.Nat^ \where
+        Logic.And[Member (basis n) x,
+          Subset (basis n) (#inner{shrink})] })
+      \by #right{isBasis} (#inner{shrink})
+        (#innerOpen{shrink}) x xInner \then
+    \let iData: Logic.And[Member (basis i) x,
+      Subset (basis i) (#inner{shrink})] :=
+      \bysub(N.Nat^,
+        { n : N.Nat^ \where
+          Logic.And[Member (basis n) x,
+            Subset (basis n) (#inner{shrink})] }, i) \then
+    \let pair: NatPair.NatPair := NatPair.natPair i j \then
+    \let data: BasisPairData[topology, basis, pair]::[Set] :=
+      BasisPairData[topology, basis, pair] {
+        envelope := #envelope{shrink},
+      } \with {
+        envelopeClosed := #envelopeClosed{shrink},
+        innerWithin := subsetTrans (basis i)
+          (#inner{shrink}) (#envelope{shrink})
+          (#right{iData}) (#enclosed{shrink}),
+        envelopeWithin := #within{shrink},
+      } \then
+    \return \exact(
+      \into[NatPair.NatPair](pair,
+        { p : NatPair.NatPair \where
+          Logic.And[Member (basis (NatPair.natPairFirst p)) x,
+            Logic.And[Subset (basis (NatPair.natPairSecond p)) U,
+              AdmissibleBasisPair topology basis p]] })
+        \by { Logic.And[_, _]::# (#left{iData})
+          (Logic.And[_, _]::# (#right{jData})
+            (\exact(data,
+              BasisPairData[topology, basis, pair]::[Set]))) },
+      \Cast[NatPair.NatPair]
+        ({ p : NatPair.NatPair \where
+          Logic.And[Member (basis (NatPair.natPairFirst p)) x,
+            Logic.And[Subset (basis (NatPair.natPairSecond p)) U,
+              AdmissibleBasisPair topology basis p]] }))
+  };
+
+\definition PairSeparatorLaws(topology: Topology::[Set])
+  (basis: N.Nat^ -> \Pow Carrier) (pair: NatPair.NatPair)
+  (E: \Pow Carrier) (value: Carrier -> R.Real): \Prop :=
+  Logic.And[IsClosedIn topology E,
+    Logic.And[Subset (basis (NatPair.natPairFirst pair)) E,
+      Logic.And[Subset E (basis (NatPair.natPairSecond pair)),
+        Logic.And[
+          \forall (q: Q.Fraction) ->
+            IsOpenIn topology (Urysohn.FunctionLowerRay value q),
+          Logic.And[
+            \forall (q: Q.Fraction) ->
+              IsOpenIn topology (Urysohn.FunctionUpperCut value q),
+            Logic.And[
+              \forall (x: Carrier) -> Member E x -> value x = Real.zero,
+              \forall (x: Carrier) ->
+                Member (Complement (basis (NatPair.natPairSecond pair))) x ->
+                value x = Real.one]]]]]];
+
+\structure PairSeparator[topology: Topology::[Set],
+  basis: N.Nat^ -> \Pow Carrier,
+  pair: NatPair.NatPair]: \Set {
+  envelope: \Pow Carrier,
+  value: Carrier -> R.Real,
+} \where {
+  lowerOpen: \forall (q: Q.Fraction) ->
+    IsOpenIn topology (Urysohn.FunctionLowerRay value q),
+  upperOpen: \forall (q: Q.Fraction) ->
+    IsOpenIn topology (Urysohn.FunctionUpperCut value q),
+  good: AdmissibleBasisPair topology basis pair ->
+    PairSeparatorLaws topology basis pair envelope value,
+}
+
+\definition uniformSetOpen(topology: Topology::[Set])
+  (S: \Pow Carrier)
+  (uniform: \forall (x, y: Carrier) -> Member S x -> Member S y):
+  IsOpenIn topology S :=
+  openOfNeighborhoods topology S
+    (\fun (x: Carrier) => \fun (inside: Member S x) =>
+      \exact(
+        \into[\Pow Carrier](Whole,
+          { U: \Pow Carrier \where
+            Logic.And[IsOpenIn topology U,
+              Logic.And[Member U x, Subset U S]] })
+          \by { Logic.And[_, _]::#
+            (#wholeOpen{(Topology::[law] topology)})
+            (Logic.And[_, _]::# (\refl(x))
+              (\fun (y: Carrier) =>
+                \fun (_: Member Whole y) =>
+                  uniform x y inside)) },
+        \Cast[\Pow Carrier]
+          ({ U: \Pow Carrier \where
+            Logic.And[IsOpenIn topology U,
+              Logic.And[Member U x, Subset U S]] })));
+
+\definition pairSeparatorExists(topology: Topology::[Set])
+  (normal: IsNormal topology)
+  (basis: N.Nat^ -> \Pow Carrier)
+  (isBasis: IsCountableBasis topology basis)
+  (pair: NatPair.NatPair):
+  \exists PairSeparator[topology, basis, pair]::[Set] :=
+  Logic.orElim
+    (AdmissibleBasisPair topology basis pair)
+    (Logic.Not (AdmissibleBasisPair topology basis pair))
+    (\exists PairSeparator[topology, basis, pair]::[Set])
+    (\fun (admissible: AdmissibleBasisPair topology basis pair) => \block {
+      \takefrom data: BasisPairData[topology, basis, pair]::[Set]
+        \by admissible \then
+      \let j: N.Nat^ := NatPair.natPairSecond pair \then
+      \takefrom f: Urysohn.UrysohnFunction[topology,
+        #envelope{data}, Complement (basis j)]::[Set]
+        \by Urysohn.normalUrysohn topology normal
+          (#envelope{data}) (Complement (basis j))
+          (#envelopeClosed{data})
+          (Urysohn.openComplementClosed topology (basis j)
+            (#left{isBasis} j))
+          (\fun (x: Carrier) =>
+            \fun (inE: Member (#envelope{data}) x) =>
+            \fun (outside: Member (Complement (basis j)) x) =>
+              outside (#envelopeWithin{data} x inE)) \then
+      \return \exact(
+        PairSeparator[topology, basis, pair] {
+          envelope := #envelope{data},
+          value := #value{f},
+        } \with {
+          lowerOpen := #lowerOpen{f},
+          upperOpen := #upperOpen{f},
+          good := \fun (_: AdmissibleBasisPair topology basis pair) =>
+            Logic.And[_, _]::# (#envelopeClosed{data})
+              (Logic.And[_, _]::# (#innerWithin{data})
+                (Logic.And[_, _]::# (#envelopeWithin{data})
+                  (Logic.And[_, _]::# (#lowerOpen{f})
+                    (Logic.And[_, _]::# (#upperOpen{f})
+                      (Logic.And[_, _]::#
+                        (#zeroOn{f}) (#oneOn{f}))))))
+        }, PairSeparator[topology, basis, pair]::[Set])
+    })
+    (\fun (inadmissible: Logic.Not
+      (AdmissibleBasisPair topology basis pair)) =>
+      \exact(
+        PairSeparator[topology, basis, pair] {
+          envelope := Empty,
+          value := \fun (_: Carrier) => Real.zero,
+        } \with {
+          lowerOpen := \fun (q: Q.Fraction) =>
+            uniformSetOpen topology
+              (Urysohn.FunctionLowerRay
+                (\fun (_: Carrier) => Real.zero) q)
+              (\fun (_: Carrier) => \fun (_: Carrier) =>
+                \fun (member: R.mem Real.zero q) => member),
+          upperOpen := \fun (q: Q.Fraction) =>
+            uniformSetOpen topology
+              (Urysohn.FunctionUpperCut
+                (\fun (_: Carrier) => Real.zero) q)
+              (\fun (x: Carrier) => \fun (_: Carrier) =>
+                \fun (member: Member
+                  (Urysohn.FunctionUpperCut
+                    (\fun (_: Carrier) => Real.zero) q) x) => member),
+          good := \fun (admissible: AdmissibleBasisPair topology basis pair) =>
+            Logic.falseElim
+              (PairSeparatorLaws topology basis pair Empty
+                (\fun (_: Carrier) => Real.zero))
+              (inadmissible admissible),
+        }, PairSeparator[topology, basis, pair]::[Set]))
+    (Classical.excludedMiddle
+      (AdmissibleBasisPair topology basis pair));
+
+\definition pairSeparatorsExist(topology: Topology::[Set])
+  (normal: IsNormal topology)
+  (basis: N.Nat^ -> \Pow Carrier)
+  (isBasis: IsCountableBasis topology basis):
+  \exists (\forall (pair: NatPair.NatPair) ->
+    PairSeparator[topology, basis, pair]::[Set]) :=
+  \axiom:classicalIndefiniteChoice(
+    NatPair.NatPair,
+    (\fun (pair: NatPair.NatPair) =>
+      PairSeparator[topology, basis, pair]::[Set]),
+    pairSeparatorExists topology normal basis isBasis);
+
+\definition pairInnerWithin(topology: Topology::[Set])
+  (basis: N.Nat^ -> \Pow Carrier) (pair: NatPair.NatPair)
+  (separator: PairSeparator[topology, basis, pair]::[Set])
+  (admissible: AdmissibleBasisPair topology basis pair):
+  Subset (basis (NatPair.natPairFirst pair)) (#envelope{separator}) :=
+  #left{#right{(#good{separator} admissible)}};
+
+\definition pairEnvelopeWithin(topology: Topology::[Set])
+  (basis: N.Nat^ -> \Pow Carrier) (pair: NatPair.NatPair)
+  (separator: PairSeparator[topology, basis, pair]::[Set])
+  (admissible: AdmissibleBasisPair topology basis pair):
+  Subset (#envelope{separator})
+    (basis (NatPair.natPairSecond pair)) :=
+  #left{#right{#right{(#good{separator} admissible)}}};
+
+\definition pairZeroOn(topology: Topology::[Set])
+  (basis: N.Nat^ -> \Pow Carrier) (pair: NatPair.NatPair)
+  (separator: PairSeparator[topology, basis, pair]::[Set])
+  (admissible: AdmissibleBasisPair topology basis pair):
+  \forall (x: Carrier) -> Member (#envelope{separator}) x ->
+    #value{separator} x = Real.zero :=
+  #left{#right{#right{#right{#right{#right{(#good{separator} admissible)}}}}}};
+
+\definition pairOneOn(topology: Topology::[Set])
+  (basis: N.Nat^ -> \Pow Carrier) (pair: NatPair.NatPair)
+  (separator: PairSeparator[topology, basis, pair]::[Set])
+  (admissible: AdmissibleBasisPair topology basis pair):
+  \forall (x: Carrier) ->
+    Member (Complement (basis (NatPair.natPairSecond pair))) x ->
+    #value{separator} x = Real.one :=
+  #right{#right{#right{#right{#right{#right{(#good{separator} admissible)}}}}}};
+
+\definition locallySeparatingCoordinate(topology: Topology::[Set])
+  (t1: IsT1 topology) (normal: IsNormal topology)
+  (basis: N.Nat^ -> \Pow Carrier)
+  (isBasis: IsCountableBasis topology basis)
+  (select: \forall (pair: NatPair.NatPair) ->
+    PairSeparator[topology, basis, pair]::[Set])
+  (U: \Pow Carrier) (open: IsOpenIn topology U)
+  (x: Carrier) (member: Member U x):
+  \exists { pair : NatPair.NatPair \where
+    Logic.And[#value{(select pair)} x = Real.zero,
+      \forall (y: Carrier) -> Logic.Not (Member U y) ->
+        #value{(select pair)} y = Real.one] } := \block {
+    \takefrom pair: \Cast[NatPair.NatPair]
+      ({ pair : NatPair.NatPair \where
+        Logic.And[Member (basis (NatPair.natPairFirst pair)) x,
+          Logic.And[Subset (basis (NatPair.natPairSecond pair)) U,
+            AdmissibleBasisPair topology basis pair]] })
+      \by localAdmissiblePair topology t1 normal basis isBasis
+        U open x member \then
+    \let data: Logic.And[Member (basis (NatPair.natPairFirst pair)) x,
+      Logic.And[Subset (basis (NatPair.natPairSecond pair)) U,
+        AdmissibleBasisPair topology basis pair]] :=
+      \bysub(NatPair.NatPair,
+        { p : NatPair.NatPair \where
+          Logic.And[Member (basis (NatPair.natPairFirst p)) x,
+            Logic.And[Subset (basis (NatPair.natPairSecond p)) U,
+              AdmissibleBasisPair topology basis p]] }, pair) \then
+    \let admissible: AdmissibleBasisPair topology basis pair :=
+      #right{#right{data}} \then
+    \let separator: PairSeparator[topology, basis, pair]::[Set] :=
+      select pair \then
+    \return \exact(
+      \into[NatPair.NatPair](pair,
+        { p : NatPair.NatPair \where
+          Logic.And[#value{(select p)} x = Real.zero,
+            \forall (y: Carrier) -> Logic.Not (Member U y) ->
+              #value{(select p)} y = Real.one] })
+        \by { Logic.And[_, _]::#
+          (pairZeroOn topology basis pair separator admissible x
+            (pairInnerWithin topology basis pair separator admissible
+              x (#left{data})))
+          (\fun (y: Carrier) =>
+            \fun (outsideU: Logic.Not (Member U y)) =>
+              pairOneOn topology basis pair separator admissible y
+                (\fun (insideBasis: Member
+                  (basis (NatPair.natPairSecond pair)) y) =>
+                  outsideU (#left{#right{data}} y insideBasis))) },
+      \Cast[NatPair.NatPair]
+        ({ p : NatPair.NatPair \where
+          Logic.And[#value{(select p)} x = Real.zero,
+            \forall (y: Carrier) -> Logic.Not (Member U y) ->
+              #value{(select p)} y = Real.one] }))
+  };
+
+\structure SeparationCoordinates[topology: Topology::[Set]]: \Set {
+  basis: N.Nat^ -> \Pow Carrier,
+  select: \forall (pair: NatPair.NatPair) ->
+    PairSeparator[topology, basis, pair]::[Set],
+} \where {
+  isBasis: IsCountableBasis topology basis,
+}
+
+\definition separationCoordinatesExist(topology: Topology::[Set])
+  (t3: IsT3 topology) (secondCountable: IsSecondCountable topology):
+  \exists SeparationCoordinates[topology]::[Set] := \block {
+    \takefrom basis: \Cast[N.Nat^ -> \Pow Carrier]
+      ({ f : N.Nat^ -> \Pow Carrier \where
+        IsCountableBasis topology f })
+      \by secondCountable \then
+    \let isBasis: IsCountableBasis topology basis :=
+      \bysub(N.Nat^ -> \Pow Carrier,
+        { f : N.Nat^ -> \Pow Carrier \where
+          IsCountableBasis topology f }, basis) \then
+    \takefrom select:
+      \forall (pair: NatPair.NatPair) ->
+        PairSeparator[topology, basis, pair]::[Set]
+      \by pairSeparatorsExist topology
+        (Normal.regularSecondCountableNormal topology
+          (#right{t3}) secondCountable)
+        basis isBasis \then
+    \return \exact(
+      SeparationCoordinates[topology] {
+        basis := basis,
+        select := select,
+      } \with { isBasis := isBasis },
+      SeparationCoordinates[topology]::[Set])
+  };
+
+\definition separationCoordinatesLocal(topology: Topology::[Set])
+  (t1: IsT1 topology) (normal: IsNormal topology)
+  (coordinates: SeparationCoordinates[topology]::[Set])
+  (U: \Pow Carrier) (open: IsOpenIn topology U)
+  (x: Carrier) (member: Member U x):
+  \exists { pair : NatPair.NatPair \where
+    Logic.And[#value{(#select{coordinates} pair)} x = Real.zero,
+      \forall (y: Carrier) -> Logic.Not (Member U y) ->
+        #value{(#select{coordinates} pair)} y = Real.one] } :=
+  locallySeparatingCoordinate topology t1 normal
+    (#basis{coordinates}) (#isBasis{coordinates})
+    (#select{coordinates}) U open x member;
+
+\definition separationCoordinatesDistinguish(topology: Topology::[Set])
+  (t1: IsT1 topology) (normal: IsNormal topology)
+  (coordinates: SeparationCoordinates[topology]::[Set])
+  (x, y: Carrier) (different: Logic.Not (x = y)):
+  \exists { pair : NatPair.NatPair \where
+    Logic.And[#value{(#select{coordinates} pair)} x = Real.zero,
+      #value{(#select{coordinates} pair)} y = Real.one] } := \block {
+    \takefrom pair: \Cast[NatPair.NatPair]
+      ({ p : NatPair.NatPair \where
+        Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
+          \forall (z: Carrier) ->
+            Logic.Not (Member (Complement (Singleton y)) z) ->
+            #value{(#select{coordinates} p)} z = Real.one] })
+      \by separationCoordinatesLocal topology t1 normal coordinates
+        (Complement (Singleton y)) (t1 y) x
+        (\fun (same: Member (Singleton y) x) =>
+          different same) \then
+    \let data: Logic.And[#value{(#select{coordinates} pair)} x = Real.zero,
+      \forall (z: Carrier) ->
+        Logic.Not (Member (Complement (Singleton y)) z) ->
+        #value{(#select{coordinates} pair)} z = Real.one] :=
+      \bysub(NatPair.NatPair,
+        { p : NatPair.NatPair \where
+          Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
+            \forall (z: Carrier) ->
+              Logic.Not (Member (Complement (Singleton y)) z) ->
+              #value{(#select{coordinates} p)} z = Real.one] }, pair) \then
+    \return \exact(
+      \into[NatPair.NatPair](pair,
+        { p : NatPair.NatPair \where
+          Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
+            #value{(#select{coordinates} p)} y = Real.one] })
+        \by { Logic.And[_, _]::# (#left{data})
+          (#right{data} y
+            (\fun (outsideSingleton: Member (Complement (Singleton y)) y) =>
+              outsideSingleton (\refl(y)))) },
+      \Cast[NatPair.NatPair]
+        ({ p : NatPair.NatPair \where
+          Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
+            #value{(#select{coordinates} p)} y = Real.one] }))
+  };

@@ -98,6 +98,22 @@
     rtl := \fun (h: IsOpen metric U) => h,
   };
 
+\definition Compatible(metric: Metric::[Set]) (space: T.Topology::[Set]): \Prop :=
+  \forall (U: \Pow Carrier) ->
+    Logic.PropEquiv[T.IsOpenIn space U, IsOpen metric U];
+
+\definition Metrizable(space: T.Topology::[Set]): \Prop :=
+  \exists { metric : Metric::[Set] \where Compatible metric space };
+
+\definition inducedMetrizable(metric: Metric::[Set]):
+  Metrizable (topology metric) :=
+  \exact(
+    \into[Metric::[Set]](metric,
+      { m : Metric::[Set] \where Compatible m (topology metric) })
+      \by { openIff metric },
+    \Cast[Metric::[Set]]
+      ({ m : Metric::[Set] \where Compatible m (topology metric) }));
+
 /* At y in B(x, r), the radius r - d(x, y) stays inside B(x, r). */
 \definition ballOpen(metric: Metric::[Set]) (x: Carrier) (radius: R.Real):
   IsOpen metric (Ball metric x radius) :=
@@ -122,3 +138,44 @@
 \definition ballOpenIn(metric: Metric::[Set]) (x: Carrier) (radius: R.Real):
   T.IsOpenIn (topology metric) (Ball metric x radius) :=
   #rtl{(openIff metric (Ball metric x radius))} (ballOpen metric x radius);
+
+\definition positiveDistance(metric: Metric::[Set]) (x, y: Carrier)
+  (different: Logic.Not (x = y)):
+  R.Lt Real.zero (#distance{metric} x y) :=
+  Order.ltOfLeNotEq Real.zero (#distance{metric} x y)
+    (#nonnegative{metric} x y)
+    (\fun (zero: Real.zero = #distance{metric} x y) =>
+      different (#separated{metric} x y
+        (sym!{R.Real} Real.zero (#distance{metric} x y) zero)));
+
+\definition singletonClosed(metric: Metric::[Set]) (x: Carrier):
+  T.IsClosedIn (topology metric) (T.Singleton x) :=
+  #rtl{(openIff metric (T.Complement (T.Singleton x)))}
+    (\fun (y: Carrier) => \fun (outside: Logic.Not (y = x)) =>
+      openOfRadius metric (T.Complement (T.Singleton x)) y
+        (#distance{metric} y x) (positiveDistance metric y x outside)
+        (\fun (z: Carrier) =>
+          \fun (near: T.Member (Ball metric y (#distance{metric} y x)) z) =>
+          \fun (equal: z = x) =>
+            R.ltIrrefl (#distance{metric} y x)
+              (\idelim z = x
+                \with w: Carrier => R.Lt (#distance{metric} y w) (#distance{metric} y x)
+                \by { base: near, equality: equal })));
+
+\definition topologyT1(metric: Metric::[Set]): T.IsT1 (topology metric) :=
+  singletonClosed metric;
+
+\definition metrizableT1(space: T.Topology::[Set])
+  (metrizable: Metrizable space): T.IsT1 space :=
+  \block {
+    \takefrom metric: \Cast[Metric::[Set]]
+      ({ m : Metric::[Set] \where Compatible m space })
+      \by metrizable \then
+    \let compatible: Compatible metric space :=
+      \bysub(Metric::[Set],
+        { m : Metric::[Set] \where Compatible m space }, metric) \then
+    \return \fun (x: Carrier) =>
+      #rtl{(compatible (T.Complement (T.Singleton x)))}
+        (#ltr{(openIff metric (T.Complement (T.Singleton x)))}
+          (singletonClosed metric x))
+  };

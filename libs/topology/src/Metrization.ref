@@ -1,0 +1,949 @@
+/* A metric from countably many separating Urysohn functions. */
+\import topology.Topology[Carrier := Carrier] \as T;
+\import T.Metrization[] \as Coord;
+\import T.Normality[] \as Normal;
+\import T.Urysohn[] \as Urysohn;
+\import topology.RealMetric[] \as RM;
+\import std.Data[].Nat[].Pair[].Def[] \as NatPair;
+\import topology.SupremumMetric[Carrier := Carrier,
+  Index := NatPair.NatPair] \as SM;
+\import topology.MetricSpace[Carrier := Carrier] \as Metric;
+\import Metric.Topology[] \as MetricTopology;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Nat[].Basic[].Def[] \as NatOp;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatOrder;
+\import std.Arithmetic[].Rat[].Estimates[] \as Estimates;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\import real.DedekindReal[] \as R;
+\import R.Arithmetic[].Def[] \as Real;
+\import R.Arithmetic[].Prop[] \as RealLaws;
+\import R.Order[] \as RealOrder;
+\import R.Completeness[] \as Complete;
+\use Equality.sym;
+\use Equality.trans;
+
+\definition coordinateDistance(topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (pair: NatPair.NatPair) (x, y: Carrier): R.Real :=
+  RM.distance
+    (#value{(#select{coordinates} pair)} x)
+    (#value{(#select{coordinates} pair)} y);
+
+\definition coordinateDistancesSeparate(topology: T.Topology::[Set])
+  (t1: T.IsT1 topology) (normal: T.IsNormal topology)
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (x, y: Carrier)
+  (allZero: \forall (pair: NatPair.NatPair) ->
+    coordinateDistance topology coordinates pair x y = Real.zero): x = y :=
+  Logic.orElim (x = y) (Logic.Not (x = y)) (x = y)
+    (\fun (same: x = y) => same)
+    (\fun (different: Logic.Not (x = y)) => \block {
+      \takefrom pair: \Cast[NatPair.NatPair]
+        ({ p : NatPair.NatPair \where
+          Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
+            #value{(#select{coordinates} p)} y = Real.one] })
+        \by Coord.separationCoordinatesDistinguish topology t1 normal
+          coordinates x y different \then
+      \let data: Logic.And[
+        #value{(#select{coordinates} pair)} x = Real.zero,
+        #value{(#select{coordinates} pair)} y = Real.one] :=
+        \bysub(NatPair.NatPair,
+          { p : NatPair.NatPair \where
+            Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
+              #value{(#select{coordinates} p)} y = Real.one] }, pair) \then
+      \let sameValues:
+        #value{(#select{coordinates} pair)} x =
+          #value{(#select{coordinates} pair)} y :=
+        RM.distanceSeparated
+          (#value{(#select{coordinates} pair)} x)
+          (#value{(#select{coordinates} pair)} y)
+          (allZero pair) \then
+      \return Logic.falseElim (x = y)
+        (RealLaws.zeroNotOne
+          (trans!{R.Real} Real.zero
+            (#value{(#select{coordinates} pair)} x)
+            Real.one
+            (sym!{R.Real} _ _ (#left{data}))
+            (trans!{R.Real}
+              (#value{(#select{coordinates} pair)} x)
+              (#value{(#select{coordinates} pair)} y) Real.one
+              sameValues (#right{data}))))
+    })
+    (Classical.excludedMiddle (x = y));
+
+\structure PositiveWeights: \Set {
+  weight: NatPair.NatPair -> R.Real,
+  ceiling: R.Real,
+} \where {
+  positive: \forall (pair: NatPair.NatPair) ->
+    R.Lt Real.zero (weight pair),
+  bounded: \forall (pair: NatPair.NatPair) ->
+    R.Le (weight pair) ceiling,
+}
+
+\structure WeightedCoordinateMetric[
+  topology: T.Topology::[Set],
+  coordinates: Coord.SeparationCoordinates[topology]::[Set],
+  weights: PositiveWeights::[Set]]: \Set {
+  family: SM.CappedCoordinates::[Set],
+} \where {
+  weightEq: \forall (pair: NatPair.NatPair) ->
+    #weight{family} pair = #weight{weights} pair,
+  componentEq: \forall (pair: NatPair.NatPair) (x, y: Carrier) ->
+    #component{family} pair x y =
+      coordinateDistance topology coordinates pair x y,
+}
+
+\definition weightedFamilyExists(topology: T.Topology::[Set])
+  (t1: T.IsT1 topology) (normal: T.IsNormal topology)
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (weights: PositiveWeights::[Set]):
+  \exists WeightedCoordinateMetric[topology, coordinates, weights]::[Set] :=
+  \block {
+    \let family: SM.CappedCoordinates::[Set] :=
+      SM.CappedCoordinates {
+      anchor := NatPair.natPair N.Nat^::zero N.Nat^::zero,
+      ceiling := #ceiling{weights},
+      weight := #weight{weights},
+      component := coordinateDistance topology coordinates,
+    } \with {
+      weightNonnegative := \fun (pair: NatPair.NatPair) =>
+        RealOrder.leOfLt Real.zero (#weight{weights} pair)
+          (#positive{weights} pair),
+      weightBounded := #bounded{weights},
+      componentNonnegative := \fun (pair: NatPair.NatPair) =>
+        \fun (x, y: Carrier) =>
+          RM.distanceNonnegative
+            (#value{(#select{coordinates} pair)} x)
+            (#value{(#select{coordinates} pair)} y),
+      componentSelf := \fun (pair: NatPair.NatPair) =>
+        \fun (x: Carrier) =>
+          RM.distanceSelf (#value{(#select{coordinates} pair)} x),
+      componentSymmetric := \fun (pair: NatPair.NatPair) =>
+        \fun (x, y: Carrier) =>
+          RM.distanceSymmetric
+            (#value{(#select{coordinates} pair)} x)
+            (#value{(#select{coordinates} pair)} y),
+      componentTriangle := \fun (pair: NatPair.NatPair) =>
+        \fun (x, y, z: Carrier) =>
+          RM.distanceTriangle
+            (#value{(#select{coordinates} pair)} x)
+            (#value{(#select{coordinates} pair)} y)
+            (#value{(#select{coordinates} pair)} z),
+      separated := \fun (x, y: Carrier) =>
+        \fun (allZero: \forall (pair: NatPair.NatPair) ->
+          RM.min (#weight{weights} pair)
+            (coordinateDistance topology coordinates pair x y) =
+            Real.zero) =>
+          coordinateDistancesSeparate topology t1 normal
+            coordinates x y
+            (\fun (pair: NatPair.NatPair) =>
+              RM.minPositiveZero (#weight{weights} pair)
+                (coordinateDistance topology coordinates pair x y)
+                (#positive{weights} pair) (allZero pair)),
+    } \then
+    \return \exact(
+      WeightedCoordinateMetric[topology, coordinates, weights] {
+        family := family,
+      } \with {
+        weightEq := \fun (pair: NatPair.NatPair) =>
+          \refl(#weight{weights} pair),
+        componentEq := \fun (pair: NatPair.NatPair) =>
+          \fun (x, y: Carrier) =>
+            \refl(coordinateDistance topology coordinates pair x y),
+      }, WeightedCoordinateMetric[topology, coordinates, weights]::[Set])
+  };
+
+\definition pairRank(pair: NatPair.NatPair): N.Nat^ :=
+  NatOp.Add::[set]
+    (NatPair.natPairFirst pair) (NatPair.natPairSecond pair);
+
+\definition errorWeights: PositiveWeights::[Set] :=
+  PositiveWeights {
+    weight := \fun (pair: NatPair.NatPair) =>
+      Real.ofRat (Estimates.error (pairRank pair)),
+    ceiling := Real.ofRat (Estimates.error N.Nat^::zero),
+  } \with {
+    positive := \fun (pair: NatPair.NatPair) =>
+      RealLaws.ltOfRat Estimates.zeroRat
+        (Estimates.error (pairRank pair))
+        (Estimates.errorPositive (pairRank pair)),
+    bounded := \fun (pair: NatPair.NatPair) =>
+      RM.ofRatLe (Estimates.error (pairRank pair))
+        (Estimates.error N.Nat^::zero)
+        (Estimates.errorAntitone N.Nat^::zero (pairRank pair)
+          (NatOrder.zeroLe (pairRank pair))),
+  };
+
+\definition errorWeightsEventuallySmall
+  (eps: Estimates.Rat)
+  (positive: Estimates.Positive eps):
+  \exists { bound: N.Nat^ \where
+    \forall (pair: NatPair.NatPair) ->
+      NatOrder.Le bound (pairRank pair) ->
+        R.Lt (#weight{errorWeights} pair) (Real.ofRat eps) } :=
+  \block {
+    \takefrom bound: \Cast[N.Nat^]
+      ({ n : N.Nat^ \where
+        \forall (m: N.Nat^) -> NatOrder.Le n m ->
+          Estimates.ltRat (Estimates.error m) eps })
+      \by Estimates.errorEventuallySmall eps positive \then
+    \let data: \forall (m: N.Nat^) -> NatOrder.Le bound m ->
+      Estimates.ltRat (Estimates.error m) eps :=
+      \bysub(N.Nat^,
+        { n : N.Nat^ \where
+          \forall (m: N.Nat^) -> NatOrder.Le n m ->
+            Estimates.ltRat (Estimates.error m) eps }, bound) \then
+    \return \exact(
+      \into[N.Nat^](bound,
+        { n : N.Nat^ \where
+          \forall (pair: NatPair.NatPair) ->
+            NatOrder.Le n (pairRank pair) ->
+              R.Lt (#weight{errorWeights} pair) (Real.ofRat eps) })
+        \by { \fun (pair: NatPair.NatPair) =>
+          \fun (large: NatOrder.Le bound (pairRank pair)) =>
+            RealLaws.ltOfRat (Estimates.error (pairRank pair))
+              eps (data (pairRank pair) large) },
+      \Cast[N.Nat^]
+        ({ n : N.Nat^ \where
+          \forall (pair: NatPair.NatPair) ->
+            NatOrder.Le n (pairRank pair) ->
+              R.Lt (#weight{errorWeights} pair) (Real.ofRat eps) }))
+  };
+
+\definition errorWeightsSmallReal(radius: R.Real)
+  (positive: R.Lt Real.zero radius):
+  \exists { bound: N.Nat^ \where
+    \forall (pair: NatPair.NatPair) ->
+      NatOrder.Le bound (pairRank pair) ->
+        R.Lt (#weight{errorWeights} pair) radius } := \block {
+    \takefrom eps: \Cast[Estimates.Rat]
+      ({ q : Estimates.Rat \where
+        Logic.And[R.Lt Real.zero (Real.ofRat q),
+          R.Lt (Real.ofRat q) radius] })
+      \by RealLaws.rationalDensity Real.zero radius positive \then
+    \let epsData: Logic.And[R.Lt Real.zero (Real.ofRat eps),
+      R.Lt (Real.ofRat eps) radius] :=
+      \bysub(Estimates.Rat,
+        { q : Estimates.Rat \where
+          Logic.And[R.Lt Real.zero (Real.ofRat q),
+            R.Lt (Real.ofRat q) radius] }, eps) \then
+    \takefrom bound: \Cast[N.Nat^]
+      ({ n : N.Nat^ \where
+        \forall (pair: NatPair.NatPair) ->
+          NatOrder.Le n (pairRank pair) ->
+            R.Lt (#weight{errorWeights} pair) (Real.ofRat eps) })
+      \by errorWeightsEventuallySmall eps
+        (RealLaws.ofRatLt Estimates.zeroRat eps
+          (#left{epsData})) \then
+    \let small: \forall (pair: NatPair.NatPair) ->
+      NatOrder.Le bound (pairRank pair) ->
+        R.Lt (#weight{errorWeights} pair) (Real.ofRat eps) :=
+      \bysub(N.Nat^,
+        { n : N.Nat^ \where
+          \forall (pair: NatPair.NatPair) ->
+            NatOrder.Le n (pairRank pair) ->
+              R.Lt (#weight{errorWeights} pair) (Real.ofRat eps) },
+        bound) \then
+    \return \exact(
+      \into[N.Nat^](bound,
+        { n : N.Nat^ \where
+          \forall (pair: NatPair.NatPair) ->
+            NatOrder.Le n (pairRank pair) ->
+              R.Lt (#weight{errorWeights} pair) radius })
+        \by { \fun (pair: NatPair.NatPair) =>
+          \fun (large: NatOrder.Le bound (pairRank pair)) =>
+            RealOrder.ltTrans (#weight{errorWeights} pair)
+              (Real.ofRat eps) radius
+              (small pair large) (#right{epsData}) },
+      \Cast[N.Nat^]
+        ({ n : N.Nat^ \where
+          \forall (pair: NatPair.NatPair) ->
+            NatOrder.Le n (pairRank pair) ->
+              R.Lt (#weight{errorWeights} pair) radius }))
+  };
+
+\definition CoordinateSmall(topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (pair: NatPair.NatPair) (x: Carrier) (radius: R.Real):
+  \Pow Carrier :=
+  { y: Carrier \where
+    R.Lt (coordinateDistance topology coordinates pair x y) radius };
+
+\definition CoordinatesLocallyContinuous
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set]): \Prop :=
+  \forall (pair: NatPair.NatPair) (x: Carrier) (radius: R.Real) ->
+    R.Lt Real.zero radius ->
+      T.IsOpenIn topology
+        (CoordinateSmall topology coordinates pair x radius);
+
+\definition coordinateSmallOpen
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (pair: NatPair.NatPair) (x: Carrier) (radius: R.Real)
+  (_: R.Lt Real.zero radius):
+  T.IsOpenIn topology
+    (CoordinateSmall topology coordinates pair x radius) :=
+  T.openOfNeighborhoods topology
+    (CoordinateSmall topology coordinates pair x radius)
+    (\fun (y: Carrier) =>
+      \fun (near: T.Member
+        (CoordinateSmall topology coordinates pair x radius) y) =>
+        \block {
+          \let f: Carrier -> R.Real :=
+            #value{(#select{coordinates} pair)} \then
+          \let a: R.Real := f x \then
+          \let b: R.Real := f y \then
+          \takefrom lower: \Cast[Estimates.Rat]
+            ({ q: Estimates.Rat \where
+              Logic.And[R.Lt (Real.sub a radius) (Real.ofRat q),
+                R.Lt (Real.ofRat q) b] })
+            \by RealLaws.rationalDensity (Real.sub a radius) b
+              (RM.distanceLtLower a b radius near) \then
+          \let lowerData:
+            Logic.And[R.Lt (Real.sub a radius) (Real.ofRat lower),
+              R.Lt (Real.ofRat lower) b] :=
+            \bysub(Estimates.Rat,
+              { q: Estimates.Rat \where
+                Logic.And[R.Lt (Real.sub a radius) (Real.ofRat q),
+                  R.Lt (Real.ofRat q) b] }, lower) \then
+          \takefrom upper: \Cast[Estimates.Rat]
+            ({ q: Estimates.Rat \where
+              Logic.And[R.Lt b (Real.ofRat q),
+                R.Lt (Real.ofRat q) (Real.add a radius)] })
+            \by RealLaws.rationalDensity b (Real.add a radius)
+              (RM.distanceLtUpper a b radius near) \then
+          \let upperData:
+            Logic.And[R.Lt b (Real.ofRat upper),
+              R.Lt (Real.ofRat upper) (Real.add a radius)] :=
+            \bysub(Estimates.Rat,
+              { q: Estimates.Rat \where
+                Logic.And[R.Lt b (Real.ofRat q),
+                  R.Lt (Real.ofRat q) (Real.add a radius)] }, upper)
+            \then
+          \let V: \Pow Carrier :=
+            T.Intersection
+              (Urysohn.FunctionLowerRay f lower)
+              (Urysohn.FunctionUpperCut f upper) \then
+          \return \exact(
+            \into[\Pow Carrier](V,
+              { W: \Pow Carrier \where
+                Logic.And[T.IsOpenIn topology W,
+                  Logic.And[T.Member W y,
+                    T.Subset W
+                      (CoordinateSmall topology coordinates pair
+                        x radius)]] })
+              \by { Logic.And[_, _]::#
+                (#intersectionOpen{(T.Topology::[law] topology)}
+                  (Urysohn.FunctionLowerRay f lower)
+                  (Urysohn.FunctionUpperCut f upper)
+                  (#lowerOpen{(#select{coordinates} pair)} lower)
+                  (#upperOpen{(#select{coordinates} pair)} upper))
+                (Logic.And[_, _]::#
+                  (T.intersectionMember
+                    (Urysohn.FunctionLowerRay f lower)
+                    (Urysohn.FunctionUpperCut f upper) y
+                    (RM.memberOfLt lower b (#right{lowerData}))
+                    (RM.upperCutOfLt b upper (#left{upperData})))
+                  (\fun (z: Carrier) =>
+                    \fun (inV: T.Member V z) =>
+                      RM.distanceLtOfInterval a (f z) radius
+                        (RealOrder.ltTrans (Real.sub a radius)
+                          (Real.ofRat lower) (f z)
+                          (#left{lowerData})
+                          (RM.ltOfMember lower (f z)
+                            (#left{inV})))
+                        (RealOrder.ltTrans (f z)
+                          (Real.ofRat upper) (Real.add a radius)
+                          (RM.ltOfUpperCut (f z) upper
+                            (#right{inV}))
+                          (#right{upperData})))) },
+            \Cast[\Pow Carrier]
+              ({ W: \Pow Carrier \where
+                Logic.And[T.IsOpenIn topology W,
+                  Logic.And[T.Member W y,
+                    T.Subset W
+                      (CoordinateSmall topology coordinates pair
+                        x radius)]] }))
+        });
+
+\definition coordinatesLocallyContinuous
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set]):
+  CoordinatesLocallyContinuous topology coordinates :=
+  coordinateSmallOpen topology coordinates;
+
+\definition centerInCoordinateSmall
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (pair: NatPair.NatPair) (x: Carrier) (radius: R.Real)
+  (positive: R.Lt Real.zero radius):
+  T.Member (CoordinateSmall topology coordinates pair x radius) x :=
+  R.ltReplaceLeft Real.zero
+    (coordinateDistance topology coordinates pair x x) radius
+    (sym!{R.Real} _ _
+      (RM.distanceSelf (#value{(#select{coordinates} pair)} x)))
+    positive;
+
+\definition singletonWithinCoordinateSmall
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (pair: NatPair.NatPair) (x: Carrier) (radius: R.Real)
+  (positive: R.Lt Real.zero radius):
+  T.Subset (T.Singleton x)
+    (CoordinateSmall topology coordinates pair x radius) :=
+  \fun (y: Carrier) => \fun (same: T.Member (T.Singleton x) y) =>
+    \idelim x = y
+      \with z: Carrier =>
+        T.Member (CoordinateSmall topology coordinates pair x radius) z
+      \by { base: centerInCoordinateSmall topology coordinates
+        pair x radius positive,
+        equality: sym!{Carrier} y x same };
+
+\definition RowSmall(topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (i: N.Nat^) (x: Carrier) (radius: R.Real) (n: N.Nat^):
+  \Pow Carrier :=
+  Normal.PrefixIntersection
+    (\fun (j: N.Nat^) =>
+      CoordinateSmall topology coordinates (NatPair.natPair i j)
+        x radius) n;
+
+\definition rowSmallOpen(topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (continuous: CoordinatesLocallyContinuous topology coordinates)
+  (i: N.Nat^) (x: Carrier) (radius: R.Real)
+  (positive: R.Lt Real.zero radius) (n: N.Nat^):
+  T.IsOpenIn topology (RowSmall topology coordinates i x radius n) :=
+  Normal.prefixOpen topology
+    (\fun (j: N.Nat^) =>
+      CoordinateSmall topology coordinates (NatPair.natPair i j)
+        x radius)
+    (\fun (j: N.Nat^) =>
+      continuous (NatPair.natPair i j) x radius positive) n;
+
+\definition rowSmallContainsCenter(topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (i: N.Nat^) (x: Carrier) (radius: R.Real)
+  (positive: R.Lt Real.zero radius) (n: N.Nat^):
+  T.Subset (T.Singleton x)
+    (RowSmall topology coordinates i x radius n) :=
+  Normal.prefixContainsSet
+    (\fun (j: N.Nat^) =>
+      CoordinateSmall topology coordinates (NatPair.natPair i j)
+        x radius)
+    (T.Singleton x)
+    (\fun (j: N.Nat^) =>
+      singletonWithinCoordinateSmall topology coordinates
+        (NatPair.natPair i j) x radius positive) n;
+
+\definition SquareSmall(topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (x: Carrier) (radius: R.Real) (n: N.Nat^): \Pow Carrier :=
+  Normal.PrefixIntersection
+    (\fun (i: N.Nat^) =>
+      RowSmall topology coordinates i x radius n) n;
+
+\definition squareSmallOpen(topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (continuous: CoordinatesLocallyContinuous topology coordinates)
+  (x: Carrier) (radius: R.Real)
+  (positive: R.Lt Real.zero radius) (n: N.Nat^):
+  T.IsOpenIn topology (SquareSmall topology coordinates x radius n) :=
+  Normal.prefixOpen topology
+    (\fun (i: N.Nat^) =>
+      RowSmall topology coordinates i x radius n)
+    (\fun (i: N.Nat^) =>
+      rowSmallOpen topology coordinates continuous i x radius
+        positive n) n;
+
+\definition squareSmallContainsCenter(topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (x: Carrier) (radius: R.Real)
+  (positive: R.Lt Real.zero radius) (n: N.Nat^):
+  T.Member (SquareSmall topology coordinates x radius n) x :=
+  Normal.prefixContainsSet
+    (\fun (i: N.Nat^) =>
+      RowSmall topology coordinates i x radius n)
+    (T.Singleton x)
+    (\fun (i: N.Nat^) =>
+      rowSmallContainsCenter topology coordinates i x radius
+        positive n) n x (\refl(x));
+
+\definition squareSmallContainsCoordinate
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (x: Carrier) (radius: R.Real) (n, i, j: N.Nat^)
+  (in: NatOrder.Le i n) (jn: NatOrder.Le j n):
+  T.Subset (SquareSmall topology coordinates x radius n)
+    (CoordinateSmall topology coordinates (NatPair.natPair i j)
+      x radius) :=
+  T.subsetTrans (SquareSmall topology coordinates x radius n)
+    (RowSmall topology coordinates i x radius n)
+    (CoordinateSmall topology coordinates (NatPair.natPair i j)
+      x radius)
+    (Normal.prefixContains
+      (\fun (k: N.Nat^) =>
+        RowSmall topology coordinates k x radius n)
+      n i in)
+    (Normal.prefixContains
+      (\fun (k: N.Nat^) =>
+        CoordinateSmall topology coordinates (NatPair.natPair i k)
+          x radius)
+      n j jn);
+
+\definition natLeTotal:
+  \forall (a, b: N.Nat^) ->
+    Logic.Or[NatOrder.Le a b, NatOrder.Le b a] :=
+  \induction (a: N.Nat^) \return
+    \forall (b: N.Nat^) ->
+      Logic.Or[NatOrder.Le a b, NatOrder.Le b a] \with {
+    | zero: \fun (b: N.Nat^) =>
+        Logic.Or[_, _]::left (NatOrder.zeroLe b)
+    | succ: \fun (a: N.Nat^)
+        (ih: \forall (b: N.Nat^) ->
+          Logic.Or[NatOrder.Le a b, NatOrder.Le b a]) =>
+        \induction (b: N.Nat^) \return
+          Logic.Or[NatOrder.Le (N.Nat^::succ a) b,
+            NatOrder.Le b (N.Nat^::succ a)] \with {
+          | zero: Logic.Or[_, _]::right
+              (NatOrder.zeroLe (N.Nat^::succ a))
+          | succ: \fun (b: N.Nat^) (_: _) =>
+              Logic.orElim (NatOrder.Le a b) (NatOrder.Le b a)
+                (Logic.Or[
+                  NatOrder.Le (N.Nat^::succ a) (N.Nat^::succ b),
+                  NatOrder.Le (N.Nat^::succ b) (N.Nat^::succ a)])
+                (\fun (ab: NatOrder.Le a b) =>
+                  Logic.Or[_, _]::left
+                    (NatOrder.leSuccSucc a b ab))
+                (\fun (ba: NatOrder.Le b a) =>
+                  Logic.Or[_, _]::right
+                    (NatOrder.leSuccSucc b a ba))
+                (ih b)
+        }
+  };
+
+\definition rankBounds(pair: NatPair.NatPair) (n: N.Nat^)
+  (small: NatOrder.Le (pairRank pair) n):
+  Logic.And[
+    NatOrder.Le (NatPair.natPairFirst pair) n,
+    NatOrder.Le (NatPair.natPairSecond pair) n] :=
+  Logic.And[_, _]::#
+    (NatOrder.leTrans (NatPair.natPairFirst pair)
+      (pairRank pair) n
+      (NatOrder.leAddRight (NatPair.natPairFirst pair)
+        (NatPair.natPairSecond pair)) small)
+    (NatOrder.leTrans (NatPair.natPairSecond pair)
+      (pairRank pair) n
+      (NatOrder.leAddLeft (NatPair.natPairFirst pair)
+        (NatPair.natPairSecond pair)) small);
+
+\definition pairEta:
+  \forall (pair: NatPair.NatPair) ->
+    NatPair.natPair (NatPair.natPairFirst pair)
+      (NatPair.natPairSecond pair) = pair :=
+  NatPair.natPairElim
+    (\fun (pair: NatPair.NatPair) =>
+      NatPair.natPair (NatPair.natPairFirst pair)
+        (NatPair.natPairSecond pair) = pair)
+    (\fun (i, j: N.Nat^) => \refl(NatPair.natPair i j));
+
+\definition squareSmallContainsPair
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (x: Carrier) (radius: R.Real)
+  (n: N.Nat^) (pair: NatPair.NatPair)
+  (small: NatOrder.Le (pairRank pair) n):
+  T.Subset (SquareSmall topology coordinates x radius n)
+    (CoordinateSmall topology coordinates pair x radius) :=
+  \idelim
+    NatPair.natPair (NatPair.natPairFirst pair)
+      (NatPair.natPairSecond pair) = pair
+    \with p: NatPair.NatPair =>
+      T.Subset (SquareSmall topology coordinates x radius n)
+        (CoordinateSmall topology coordinates p x radius)
+    \by {
+      base: squareSmallContainsCoordinate topology coordinates
+        x radius n (NatPair.natPairFirst pair)
+        (NatPair.natPairSecond pair)
+        (#left{(rankBounds pair n small)})
+        (#right{(rankBounds pair n small)}),
+      equality: pairEta pair
+    };
+
+\definition squareCappedBelow
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (family: SM.CappedCoordinates::[Set])
+  (weightEq: \forall (pair: NatPair.NatPair) ->
+    #weight{family} pair = #weight{errorWeights} pair)
+  (componentEq: \forall (pair: NatPair.NatPair) (x, y: Carrier) ->
+    #component{family} pair x y =
+      coordinateDistance topology coordinates pair x y)
+  (x, y: Carrier) (radius: R.Real) (n: N.Nat^)
+  (tail: \forall (pair: NatPair.NatPair) ->
+    NatOrder.Le n (pairRank pair) ->
+      R.Lt (#weight{errorWeights} pair) radius)
+  (inside: T.Member
+    (SquareSmall topology coordinates x radius n) y)
+  (pair: NatPair.NatPair):
+  R.Le (SM.capped family pair x y) radius :=
+  Logic.orElim
+    (NatOrder.Le n (pairRank pair))
+    (NatOrder.Le (pairRank pair) n)
+    (R.Le (SM.capped family pair x y) radius)
+    (\fun (large: NatOrder.Le n (pairRank pair)) =>
+      R.leTrans (SM.capped family pair x y)
+        (#weight{family} pair) radius
+        (RM.minLeft (#weight{family} pair)
+          (#component{family} pair x y))
+        (R.leReplaceLeft (#weight{errorWeights} pair)
+          (#weight{family} pair) radius
+          (sym!{R.Real} _ _ (weightEq pair))
+          (RealOrder.leOfLt (#weight{errorWeights} pair)
+            radius (tail pair large))))
+    (\fun (small: NatOrder.Le (pairRank pair) n) =>
+      R.leTrans (SM.capped family pair x y)
+        (#component{family} pair x y) radius
+        (RM.minRight (#weight{family} pair)
+          (#component{family} pair x y))
+        (R.leReplaceLeft
+          (coordinateDistance topology coordinates pair x y)
+          (#component{family} pair x y) radius
+          (sym!{R.Real} _ _ (componentEq pair x y))
+          (RealOrder.leOfLt
+            (coordinateDistance topology coordinates pair x y)
+            radius
+            (squareSmallContainsPair topology coordinates x radius
+              n pair small y inside))))
+    (natLeTotal n (pairRank pair));
+
+\definition squareDistanceBelow
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (family: SM.CappedCoordinates::[Set])
+  (weightEq: \forall (pair: NatPair.NatPair) ->
+    #weight{family} pair = #weight{errorWeights} pair)
+  (componentEq: \forall (pair: NatPair.NatPair) (x, y: Carrier) ->
+    #component{family} pair x y =
+      coordinateDistance topology coordinates pair x y)
+  (x: Carrier) (smallRadius, radius: R.Real)
+  (smallBelow: R.Lt smallRadius radius)
+  (n: N.Nat^)
+  (tail: \forall (pair: NatPair.NatPair) ->
+    NatOrder.Le n (pairRank pair) ->
+      R.Lt (#weight{errorWeights} pair) smallRadius):
+  T.Subset (SquareSmall topology coordinates x smallRadius n)
+    (Metric.Ball (SM.metric family) x radius) :=
+  \fun (y: Carrier) =>
+    \fun (inside: T.Member
+      (SquareSmall topology coordinates x smallRadius n) y) =>
+      R.leLtTrans (SM.distance family x y) smallRadius radius
+        (Complete.supremumLeast (SM.familyAsComplete family x y)
+          smallRadius
+          (SM.familyUpperBoundOf family x y smallRadius
+            (\fun (pair: NatPair.NatPair) =>
+              squareCappedBelow topology coordinates family
+                weightEq componentEq x y smallRadius n tail
+                inside pair)))
+        smallBelow;
+
+\definition metricBallHasOriginalNeighborhood
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (continuous: CoordinatesLocallyContinuous topology coordinates)
+  (family: SM.CappedCoordinates::[Set])
+  (weightEq: \forall (pair: NatPair.NatPair) ->
+    #weight{family} pair = #weight{errorWeights} pair)
+  (componentEq: \forall (pair: NatPair.NatPair) (x, y: Carrier) ->
+    #component{family} pair x y =
+      coordinateDistance topology coordinates pair x y)
+  (x: Carrier) (radius: R.Real)
+  (positive: R.Lt Real.zero radius):
+  \exists { V: \Pow Carrier \where
+    Logic.And[T.IsOpenIn topology V,
+      Logic.And[T.Member V x,
+        T.Subset V (Metric.Ball (SM.metric family) x radius)]] } :=
+  \block {
+    \takefrom eps: \Cast[Estimates.Rat]
+      ({ q: Estimates.Rat \where
+        Logic.And[R.Lt Real.zero (Real.ofRat q),
+          R.Lt (Real.ofRat q) radius] })
+      \by RealLaws.rationalDensity Real.zero radius positive \then
+    \let epsData: Logic.And[R.Lt Real.zero (Real.ofRat eps),
+      R.Lt (Real.ofRat eps) radius] :=
+      \bysub(Estimates.Rat,
+        { q: Estimates.Rat \where
+          Logic.And[R.Lt Real.zero (Real.ofRat q),
+            R.Lt (Real.ofRat q) radius] }, eps) \then
+    \takefrom bound: \Cast[N.Nat^]
+      ({ n: N.Nat^ \where
+        \forall (pair: NatPair.NatPair) ->
+          NatOrder.Le n (pairRank pair) ->
+            R.Lt (#weight{errorWeights} pair) (Real.ofRat eps) })
+      \by errorWeightsSmallReal (Real.ofRat eps)
+        (#left{epsData}) \then
+    \let tail: \forall (pair: NatPair.NatPair) ->
+      NatOrder.Le bound (pairRank pair) ->
+        R.Lt (#weight{errorWeights} pair) (Real.ofRat eps) :=
+      \bysub(N.Nat^,
+        { n: N.Nat^ \where
+          \forall (pair: NatPair.NatPair) ->
+            NatOrder.Le n (pairRank pair) ->
+              R.Lt (#weight{errorWeights} pair) (Real.ofRat eps) },
+        bound) \then
+    \let V: \Pow Carrier :=
+      SquareSmall topology coordinates x (Real.ofRat eps) bound \then
+    \return \exact(
+      \into[\Pow Carrier](V,
+        { W: \Pow Carrier \where
+          Logic.And[T.IsOpenIn topology W,
+            Logic.And[T.Member W x,
+              T.Subset W (Metric.Ball (SM.metric family) x radius)]] })
+        \by { Logic.And[_, _]::#
+          (squareSmallOpen topology coordinates continuous x
+            (Real.ofRat eps) (#left{epsData}) bound)
+          (Logic.And[_, _]::#
+            (squareSmallContainsCenter topology coordinates x
+              (Real.ofRat eps) (#left{epsData}) bound)
+            (squareDistanceBelow topology coordinates family
+              weightEq componentEq x (Real.ofRat eps) radius
+              (#right{epsData}) bound tail)) },
+      \Cast[\Pow Carrier]
+        ({ W: \Pow Carrier \where
+          Logic.And[T.IsOpenIn topology W,
+            Logic.And[T.Member W x,
+              T.Subset W (Metric.Ball (SM.metric family) x radius)]] }))
+  };
+
+\definition metricOpenInOriginal
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (continuous: CoordinatesLocallyContinuous topology coordinates)
+  (family: SM.CappedCoordinates::[Set])
+  (weightEq: \forall (pair: NatPair.NatPair) ->
+    #weight{family} pair = #weight{errorWeights} pair)
+  (componentEq: \forall (pair: NatPair.NatPair) (x, y: Carrier) ->
+    #component{family} pair x y =
+      coordinateDistance topology coordinates pair x y)
+  (U: \Pow Carrier) (open: Metric.IsOpen (SM.metric family) U):
+  T.IsOpenIn topology U :=
+  T.openOfNeighborhoods topology U
+    (\fun (x: Carrier) =>
+      \fun (inside: T.Member U x) => \block {
+        \takefrom radius: \Cast[R.Real]
+          (Metric.NeighborhoodRadius (SM.metric family) U x)
+          \by open x inside \then
+        \let radiusData: Logic.And[R.Lt Real.zero radius,
+          T.Subset (Metric.Ball (SM.metric family) x radius) U] :=
+          \bysub(R.Real,
+            Metric.NeighborhoodRadius (SM.metric family) U x,
+            radius) \then
+        \takefrom V: \Cast[\Pow Carrier]
+          ({ W: \Pow Carrier \where
+            Logic.And[T.IsOpenIn topology W,
+              Logic.And[T.Member W x,
+                T.Subset W
+                  (Metric.Ball (SM.metric family) x radius)]] })
+          \by metricBallHasOriginalNeighborhood topology coordinates
+            continuous family weightEq componentEq x radius
+            (#left{radiusData}) \then
+        \let data: Logic.And[T.IsOpenIn topology V,
+          Logic.And[T.Member V x,
+            T.Subset V (Metric.Ball (SM.metric family) x radius)]] :=
+          \bysub(\Pow Carrier,
+            { W: \Pow Carrier \where
+              Logic.And[T.IsOpenIn topology W,
+                Logic.And[T.Member W x,
+                  T.Subset W
+                    (Metric.Ball (SM.metric family) x radius)]] }, V)
+          \then
+        \return \exact(
+          \into[\Pow Carrier](V,
+            { W: \Pow Carrier \where
+              Logic.And[T.IsOpenIn topology W,
+                Logic.And[T.Member W x, T.Subset W U]] })
+            \by { Logic.And[_, _]::# (#left{data})
+              (Logic.And[_, _]::# (#left{#right{data}})
+                (T.subsetTrans V
+                  (Metric.Ball (SM.metric family) x radius) U
+                  (#right{#right{data}})
+                  (#right{radiusData}))) },
+          \Cast[\Pow Carrier]
+            ({ W: \Pow Carrier \where
+              Logic.And[T.IsOpenIn topology W,
+                Logic.And[T.Member W x, T.Subset W U]] }))
+      });
+
+\definition weightedRadius(weights: PositiveWeights::[Set])
+  (pair: NatPair.NatPair): R.Real :=
+  RM.min (#weight{weights} pair)
+    (RM.distance Real.zero Real.one);
+
+\definition weightedRadiusPositive(weights: PositiveWeights::[Set])
+  (pair: NatPair.NatPair):
+  R.Lt Real.zero (weightedRadius weights pair) :=
+  RealOrder.ltOfLeNotEq Real.zero (weightedRadius weights pair)
+    (RM.minNonnegative (#weight{weights} pair)
+      (RM.distance Real.zero Real.one)
+      (RealOrder.leOfLt Real.zero (#weight{weights} pair)
+        (#positive{weights} pair))
+      (RM.distanceNonnegative Real.zero Real.one))
+    (\fun (zero: Real.zero = weightedRadius weights pair) =>
+      RealLaws.zeroNotOne
+        (RM.distanceSeparated Real.zero Real.one
+          (RM.minPositiveZero (#weight{weights} pair)
+            (RM.distance Real.zero Real.one)
+            (#positive{weights} pair)
+            (sym!{R.Real} _ _ zero))));
+
+\definition weightedRadiusEqual
+  (topology: T.Topology::[Set])
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (weights: PositiveWeights::[Set])
+  (family: SM.CappedCoordinates::[Set])
+  (weightEq: \forall (pair: NatPair.NatPair) ->
+    #weight{family} pair = #weight{weights} pair)
+  (componentEq: \forall (pair: NatPair.NatPair) (x, y: Carrier) ->
+    #component{family} pair x y =
+      coordinateDistance topology coordinates pair x y)
+  (pair: NatPair.NatPair) (x, y: Carrier)
+  (xZero: #value{(#select{coordinates} pair)} x = Real.zero)
+  (yOne: #value{(#select{coordinates} pair)} y = Real.one):
+  weightedRadius weights pair = SM.capped family pair x y :=
+  RM.minReplace (#weight{weights} pair) (#weight{family} pair)
+    (RM.distance Real.zero Real.one)
+    (#component{family} pair x y)
+    (sym!{R.Real} _ _ (weightEq pair))
+    (trans!{R.Real} (RM.distance Real.zero Real.one)
+      (coordinateDistance topology coordinates pair x y)
+      (#component{family} pair x y)
+      (RM.distanceReplace Real.zero
+        (#value{(#select{coordinates} pair)} x)
+        Real.one (#value{(#select{coordinates} pair)} y)
+        (sym!{R.Real} _ _ xZero)
+        (sym!{R.Real} _ _ yOne))
+      (sym!{R.Real} _ _ (componentEq pair x y)));
+
+\definition originalOpenInWeightedMetric
+  (topology: T.Topology::[Set])
+  (t1: T.IsT1 topology) (normal: T.IsNormal topology)
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (weights: PositiveWeights::[Set])
+  (family: SM.CappedCoordinates::[Set])
+  (weightEq: \forall (pair: NatPair.NatPair) ->
+    #weight{family} pair = #weight{weights} pair)
+  (componentEq: \forall (pair: NatPair.NatPair) (x, y: Carrier) ->
+    #component{family} pair x y =
+      coordinateDistance topology coordinates pair x y)
+  (U: \Pow Carrier) (open: T.IsOpenIn topology U):
+  Metric.IsOpen (SM.metric family) U :=
+  \fun (x: Carrier) => \fun (inside: T.Member U x) => \block {
+    \takefrom pair: \Cast[NatPair.NatPair]
+      ({ p: NatPair.NatPair \where
+        Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
+          \forall (y: Carrier) -> Logic.Not (T.Member U y) ->
+            #value{(#select{coordinates} p)} y = Real.one] })
+      \by Coord.separationCoordinatesLocal topology t1 normal
+        coordinates U open x inside \then
+    \let data: Logic.And[
+      #value{(#select{coordinates} pair)} x = Real.zero,
+      \forall (y: Carrier) -> Logic.Not (T.Member U y) ->
+        #value{(#select{coordinates} pair)} y = Real.one] :=
+      \bysub(NatPair.NatPair,
+        { p: NatPair.NatPair \where
+          Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
+            \forall (y: Carrier) -> Logic.Not (T.Member U y) ->
+              #value{(#select{coordinates} p)} y = Real.one] }, pair) \then
+    \let radius: R.Real := weightedRadius weights pair \then
+    \return MetricTopology.openOfRadius (SM.metric family)
+      U x radius (weightedRadiusPositive weights pair)
+      (\fun (y: Carrier) =>
+        \fun (inBall: T.Member
+          (Metric.Ball (SM.metric family) x radius) y) =>
+          Logic.orElim (T.Member U y) (Logic.Not (T.Member U y))
+            (T.Member U y)
+            (\fun (inU: T.Member U y) => inU)
+            (\fun (outside: Logic.Not (T.Member U y)) =>
+              Logic.falseElim (T.Member U y)
+                ((R.ltNotLeReverse (SM.distance family x y)
+                  radius inBall)
+                  (R.leTrans radius
+                    (SM.capped family pair x y)
+                    (SM.distance family x y)
+                    (R.leReplaceRight radius radius
+                      (SM.capped family pair x y)
+                      (weightedRadiusEqual topology coordinates
+                        weights family weightEq componentEq pair x y
+                        (#left{data}) (#right{data} y outside))
+                      (R.leRefl radius))
+                    (SM.cappedUpper family pair x y))))
+            (Classical.excludedMiddle (T.Member U y)))
+  };
+
+\definition errorMetricCompatible
+  (topology: T.Topology::[Set])
+  (t1: T.IsT1 topology) (normal: T.IsNormal topology)
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (continuous: CoordinatesLocallyContinuous topology coordinates)
+  (data: WeightedCoordinateMetric[topology, coordinates,
+    errorWeights]::[Set]):
+  MetricTopology.Compatible (SM.metric (#family{data})) topology :=
+  \fun (U: \Pow Carrier) =>
+    Logic.PropEquiv[_, _] {
+      ltr := originalOpenInWeightedMetric topology t1 normal
+        coordinates errorWeights (#family{data})
+        (#weightEq{data}) (#componentEq{data}) U,
+      rtl := metricOpenInOriginal topology coordinates continuous
+        (#family{data}) (#weightEq{data})
+        (#componentEq{data}) U,
+    };
+
+\definition metrizableOfContinuousCoordinates
+  (topology: T.Topology::[Set])
+  (t1: T.IsT1 topology) (normal: T.IsNormal topology)
+  (coordinates: Coord.SeparationCoordinates[topology]::[Set])
+  (continuous: CoordinatesLocallyContinuous topology coordinates):
+  MetricTopology.Metrizable topology := \block {
+    \takefrom data:
+      WeightedCoordinateMetric[topology, coordinates, errorWeights]::[Set]
+      \by weightedFamilyExists topology t1 normal coordinates
+        errorWeights \then
+    \return \exact(
+      \into[Metric.Metric::[Set]](SM.metric (#family{data}),
+        { metric: Metric.Metric::[Set] \where
+          MetricTopology.Compatible metric topology })
+        \by { errorMetricCompatible topology t1 normal coordinates
+          continuous data },
+      \Cast[Metric.Metric::[Set]]
+        ({ metric: Metric.Metric::[Set] \where
+          MetricTopology.Compatible metric topology }))
+  };
+
+\definition t3SecondCountableMetrizable
+  (topology: T.Topology::[Set])
+  (t3: T.IsT3 topology)
+  (secondCountable: T.IsSecondCountable topology):
+  MetricTopology.Metrizable topology := \block {
+    \takefrom coordinates: Coord.SeparationCoordinates[topology]::[Set]
+      \by Coord.separationCoordinatesExist topology t3
+        secondCountable \then
+    \return metrizableOfContinuousCoordinates topology
+      (#left{t3})
+      (Normal.regularSecondCountableNormal topology
+        (#right{t3}) secondCountable)
+      coordinates
+      (coordinatesLocallyContinuous topology coordinates)
+  };
+
+\definition urysohnMetrization:
+  \forall (topology: T.Topology::[Set]) ->
+    T.IsT3 topology -> T.IsSecondCountable topology ->
+    MetricTopology.Metrizable topology :=
+  \fun (topology: T.Topology::[Set])
+    (t3: T.IsT3 topology)
+    (secondCountable: T.IsSecondCountable topology) =>
+      t3SecondCountableMetrizable topology t3 secondCountable;

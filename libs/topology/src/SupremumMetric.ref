@@ -1,0 +1,280 @@
+/* A metric obtained as the supremum of capped coordinate distances. */
+\import real.DedekindReal[] \as R;
+\import R.Arithmetic[].Def[] \as Real;
+\import R.Arithmetic[].Prop[] \as RealLaws;
+\import R.Completeness[] \as Complete;
+\import topology.RealMetric[] \as RM;
+\import topology.MetricSpace[Carrier := Carrier] \as M;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+
+\structure CappedCoordinates: \Set {
+  anchor: Index,
+  ceiling: R.Real,
+  weight: Index -> R.Real,
+  component: Index -> Carrier -> Carrier -> R.Real,
+} \where {
+  weightNonnegative: \forall (i: Index) -> R.Le Real.zero (weight i),
+  weightBounded: \forall (i: Index) -> R.Le (weight i) ceiling,
+  componentNonnegative: \forall (i: Index) (x, y: Carrier) ->
+    R.Le Real.zero (component i x y),
+  componentSelf: \forall (i: Index) (x: Carrier) ->
+    component i x x = Real.zero,
+  componentSymmetric: \forall (i: Index) (x, y: Carrier) ->
+    component i x y = component i y x,
+  componentTriangle: \forall (i: Index) (x, y, z: Carrier) ->
+    R.Le (component i x z)
+      (Real.add (component i x y) (component i y z)),
+  separated: \forall (x, y: Carrier) ->
+    (\forall (i: Index) ->
+      RM.min (weight i) (component i x y) = Real.zero) -> x = y,
+}
+
+\definition capped(coordinates: CappedCoordinates::[Set])
+  (i: Index) (x, y: Carrier): R.Real :=
+  RM.min (#weight{coordinates} i) (#component{coordinates} i x y);
+
+\definition Family(coordinates: CappedCoordinates::[Set])
+  (x, y: Carrier): \Pow R.Real :=
+  { d : R.Real \where
+    \exists { i : Index \where d = capped coordinates i x y } };
+
+\definition familyMember(coordinates: CappedCoordinates::[Set])
+  (i: Index) (x, y: Carrier):
+  Complete.Member (Family coordinates x y) (capped coordinates i x y) :=
+  \exact(
+    \into[Index](i,
+      { j : Index \where
+        capped coordinates i x y = capped coordinates j x y })
+      \by { \refl(capped coordinates i x y) },
+    \Cast[Index]
+      ({ j : Index \where
+        capped coordinates i x y = capped coordinates j x y }));
+
+\definition familyNonempty(coordinates: CappedCoordinates::[Set])
+  (x, y: Carrier): Complete.Nonempty (Family coordinates x y) :=
+  \exact(
+    \into[R.Real](capped coordinates (#anchor{coordinates}) x y,
+      Family coordinates x y)
+      \by { familyMember coordinates (#anchor{coordinates}) x y },
+    \Cast[R.Real] (Family coordinates x y));
+
+\definition familyUpperBound(coordinates: CappedCoordinates::[Set])
+  (x, y: Carrier):
+  Complete.UpperBound (Family coordinates x y) (#ceiling{coordinates}) :=
+  \fun (d: R.Real) =>
+    \fun (member: Complete.Member (Family coordinates x y) d) => \block {
+      \takefrom i: \Cast[Index]
+        ({ i : Index \where d = capped coordinates i x y })
+        \by member \then
+      \let same: d = capped coordinates i x y :=
+        \bysub(Index,
+          { j : Index \where d = capped coordinates j x y }, i) \then
+      \return R.leReplaceLeft (capped coordinates i x y) d
+        (#ceiling{coordinates})
+        (sym!{R.Real} d (capped coordinates i x y) same)
+        (R.leTrans (capped coordinates i x y)
+          (#weight{coordinates} i) (#ceiling{coordinates})
+          (RM.minLeft (#weight{coordinates} i)
+            (#component{coordinates} i x y))
+          (#weightBounded{coordinates} i))
+    };
+
+\definition familyBounded(coordinates: CappedCoordinates::[Set])
+  (x, y: Carrier): Complete.Bounded (Family coordinates x y) :=
+  \exact(
+    \into[R.Real](#ceiling{coordinates},
+      { u : R.Real \where
+        Complete.UpperBound (Family coordinates x y) u })
+      \by { familyUpperBound coordinates x y },
+    \Cast[R.Real]
+      ({ u : R.Real \where
+        Complete.UpperBound (Family coordinates x y) u }));
+
+\definition familyAsComplete(coordinates: CappedCoordinates::[Set])
+  (x, y: Carrier): Complete.Family :=
+  \into[\Pow R.Real](Family coordinates x y, Complete.FamilySet)
+    \by { Logic.And[_, _]::#
+      (familyNonempty coordinates x y)
+      (familyBounded coordinates x y) };
+
+\definition distance(coordinates: CappedCoordinates::[Set])
+  (x, y: Carrier): R.Real :=
+  Complete.supremum (familyAsComplete coordinates x y);
+
+\definition cappedUpper(coordinates: CappedCoordinates::[Set])
+  (i: Index) (x, y: Carrier):
+  R.Le (capped coordinates i x y) (distance coordinates x y) :=
+  Complete.supremumUpper (familyAsComplete coordinates x y)
+    (capped coordinates i x y) (familyMember coordinates i x y);
+
+\definition familyUpperBoundOf(coordinates: CappedCoordinates::[Set])
+  (x, y: Carrier) (u: R.Real)
+  (bound: \forall (i: Index) -> R.Le (capped coordinates i x y) u):
+  Complete.UpperBound (Family coordinates x y) u :=
+  \fun (d: R.Real) =>
+    \fun (member: Complete.Member (Family coordinates x y) d) => \block {
+      \takefrom i: \Cast[Index]
+        ({ i : Index \where d = capped coordinates i x y })
+        \by member \then
+      \let same: d = capped coordinates i x y :=
+        \bysub(Index,
+          { j : Index \where d = capped coordinates j x y }, i) \then
+      \return R.leReplaceLeft (capped coordinates i x y) d u
+        (sym!{R.Real} d (capped coordinates i x y) same)
+        (bound i)
+    };
+
+\definition cappedNonnegative(coordinates: CappedCoordinates::[Set])
+  (i: Index) (x, y: Carrier):
+  R.Le Real.zero (capped coordinates i x y) :=
+  RM.minNonnegative (#weight{coordinates} i)
+    (#component{coordinates} i x y)
+    (#weightNonnegative{coordinates} i)
+    (#componentNonnegative{coordinates} i x y);
+
+\definition cappedSelf(coordinates: CappedCoordinates::[Set])
+  (i: Index) (x: Carrier):
+  capped coordinates i x x = Real.zero :=
+  trans!{R.Real}
+    (capped coordinates i x x)
+    (RM.min (#weight{coordinates} i) Real.zero) Real.zero
+    (congr!{R.Real R.Real}
+      (RM.min (#weight{coordinates} i)) _ _
+      (#componentSelf{coordinates} i x))
+    (RM.minOfGe (#weight{coordinates} i) Real.zero
+      (#weightNonnegative{coordinates} i));
+
+\definition cappedSymmetric(coordinates: CappedCoordinates::[Set])
+  (i: Index) (x, y: Carrier):
+  capped coordinates i x y = capped coordinates i y x :=
+  congr!{R.Real R.Real}
+    (RM.min (#weight{coordinates} i)) _ _
+    (#componentSymmetric{coordinates} i x y);
+
+\definition cappedTriangle(coordinates: CappedCoordinates::[Set])
+  (i: Index) (x, y, z: Carrier):
+  R.Le (capped coordinates i x z)
+    (Real.add (capped coordinates i x y)
+      (capped coordinates i y z)) :=
+  R.leTrans (capped coordinates i x z)
+    (RM.min (#weight{coordinates} i)
+      (Real.add (#component{coordinates} i x y)
+        (#component{coordinates} i y z)))
+    (Real.add (capped coordinates i x y)
+      (capped coordinates i y z))
+    (RM.minMonotone (#weight{coordinates} i)
+      (#component{coordinates} i x z)
+      (#weight{coordinates} i)
+      (Real.add (#component{coordinates} i x y)
+        (#component{coordinates} i y z))
+      (R.leRefl (#weight{coordinates} i))
+      (#componentTriangle{coordinates} i x y z))
+    (RM.minSubadd (#weight{coordinates} i)
+      (#component{coordinates} i x y)
+      (#component{coordinates} i y z)
+      (#weightNonnegative{coordinates} i)
+      (#componentNonnegative{coordinates} i x y)
+      (#componentNonnegative{coordinates} i y z));
+
+\definition distanceNonnegative(coordinates: CappedCoordinates::[Set])
+  (x, y: Carrier): R.Le Real.zero (distance coordinates x y) :=
+  R.leTrans Real.zero
+    (capped coordinates (#anchor{coordinates}) x y)
+    (distance coordinates x y)
+    (cappedNonnegative coordinates (#anchor{coordinates}) x y)
+    (cappedUpper coordinates (#anchor{coordinates}) x y);
+
+\definition distanceSelf(coordinates: CappedCoordinates::[Set])
+  (x: Carrier): distance coordinates x x = Real.zero :=
+  R.leAntisym (distance coordinates x x) Real.zero
+    (Complete.supremumLeast (familyAsComplete coordinates x x)
+      Real.zero
+      (familyUpperBoundOf coordinates x x Real.zero
+        (\fun (i: Index) =>
+          R.leReplaceLeft Real.zero (capped coordinates i x x)
+            Real.zero
+            (sym!{R.Real} _ _ (cappedSelf coordinates i x))
+            (R.leRefl Real.zero))))
+    (distanceNonnegative coordinates x x);
+
+\definition distanceSeparated(coordinates: CappedCoordinates::[Set])
+  (x, y: Carrier) (zero: distance coordinates x y = Real.zero):
+  x = y :=
+  #separated{coordinates} x y
+    (\fun (i: Index) =>
+      R.leAntisym (capped coordinates i x y) Real.zero
+        (R.leReplaceRight (capped coordinates i x y)
+          (distance coordinates x y) Real.zero zero
+          (cappedUpper coordinates i x y))
+        (cappedNonnegative coordinates i x y));
+
+\definition distanceSymmetric(coordinates: CappedCoordinates::[Set])
+  (x, y: Carrier): distance coordinates x y = distance coordinates y x :=
+  R.leAntisym (distance coordinates x y) (distance coordinates y x)
+    (Complete.supremumLeast (familyAsComplete coordinates x y)
+      (distance coordinates y x)
+      (familyUpperBoundOf coordinates x y (distance coordinates y x)
+        (\fun (i: Index) =>
+          R.leReplaceLeft (capped coordinates i y x)
+            (capped coordinates i x y) (distance coordinates y x)
+            (sym!{R.Real} _ _ (cappedSymmetric coordinates i x y))
+            (cappedUpper coordinates i y x))))
+    (Complete.supremumLeast (familyAsComplete coordinates y x)
+      (distance coordinates x y)
+      (familyUpperBoundOf coordinates y x (distance coordinates x y)
+        (\fun (i: Index) =>
+          R.leReplaceLeft (capped coordinates i x y)
+            (capped coordinates i y x) (distance coordinates x y)
+            (cappedSymmetric coordinates i x y)
+            (cappedUpper coordinates i x y))));
+
+\definition distanceTriangle(coordinates: CappedCoordinates::[Set])
+  (x, y, z: Carrier):
+  R.Le (distance coordinates x z)
+    (Real.add (distance coordinates x y)
+      (distance coordinates y z)) :=
+  Complete.supremumLeast (familyAsComplete coordinates x z)
+    (Real.add (distance coordinates x y)
+      (distance coordinates y z))
+    (familyUpperBoundOf coordinates x z
+      (Real.add (distance coordinates x y)
+        (distance coordinates y z))
+      (\fun (i: Index) =>
+        R.leTrans (capped coordinates i x z)
+          (Real.add (capped coordinates i x y)
+            (capped coordinates i y z))
+          (Real.add (distance coordinates x y)
+            (distance coordinates y z))
+          (cappedTriangle coordinates i x y z)
+          (R.leTrans
+            (Real.add (capped coordinates i x y)
+              (capped coordinates i y z))
+            (Real.add (distance coordinates x y)
+              (capped coordinates i y z))
+            (Real.add (distance coordinates x y)
+              (distance coordinates y z))
+            (RealLaws.addMonotoneRight
+              (capped coordinates i x y)
+              (distance coordinates x y)
+              (capped coordinates i y z)
+              (cappedUpper coordinates i x y))
+            (RealLaws.addMonotoneLeft
+              (capped coordinates i y z)
+              (distance coordinates y z)
+              (distance coordinates x y)
+              (cappedUpper coordinates i y z)))));
+
+\definition metric(coordinates: CappedCoordinates::[Set]): M.Metric::[Set] :=
+  M.Metric {
+    distance := distance coordinates,
+  } \with {
+    nonnegative := distanceNonnegative coordinates,
+    self := distanceSelf coordinates,
+    separated := distanceSeparated coordinates,
+    symmetric := distanceSymmetric coordinates,
+    triangle := distanceTriangle coordinates,
+  };
