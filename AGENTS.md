@@ -34,12 +34,13 @@ perf は `/usr/lib/linux-tools/7.0.0-38-generic` にあります。
 - ちゃんとライブラリを分ける。
 - "定理"と呼ばれるものは仮定なしで示す。 定義の引数や module parameter で仮定を渡さない。
 
-### 過去の微妙だった点
+### 細かい方針
 
 #### `()` でくくらなくていいならくくらない。
 
-#### 無駄な式を避ける
-- こういう定義は `byCases` がそのままゴールなので無駄っぽい。
+#### 複雑な式を避ける
+
+例: こういう定義は `byCases` がそのままゴールなので無駄っぽい。
   ```
   \definition eqOfEqbTrue: \forall (a, b: Bool^) -> IsTrue (eqbSet a b) -> a = b :=
   \block {
@@ -59,7 +60,20 @@ perf は `/usr/lib/linux-tools/7.0.0-38-generic` にあります。
     \return byCases a b e;
   };
   ```
+
+#### インデントが深くなるものはブロック構文を使う
+
 #### `_` を型の位置に使う
+
+#### 数学的に自然な引数をとるようにする
+
+例: 積位相の定義は、各 "位相" に対して行われるので、これは不自然。
+```Product.ref
+\definition topology(left: \Pow (\Pow A)) (right: \Pow (\Pow B)):
+  ProductTopology :=
+  ProductSpace.generated (Basis left right);
+```
+とるべき引数は `Topology::[Set]`
 
 #### タスクは最後までやってから停止する
 以下の場合を除き最後までやる。
@@ -70,3 +84,4 @@ perf は `/usr/lib/linux-tools/7.0.0-38-generic` にあります。
 それ以外の場合は続ける。
 ごまかしたり途中まで停止して報告しない。
 最後までやる。
+
