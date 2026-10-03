@@ -10,20 +10,6 @@ record に対する eta がない。 `s = { fiel1 := 2 #field }` が示せない
 > この引用欄は人間のメモです。
 > 矛盾しなさそうなのは言われているんですが、こういう Prop -> Set はちょっと許しがたい。
 
-## 命題値の関係を引数や field に持つ集合値の定義
-
-二項関係をデータとして保持する `EquivalenceRelation` を `\structure` で定義し、その法則付きの値から商集合を構成したい。
-また、次の関係の集合表示を `\definition` で書きたい。
-
-```text
-\definition RelToPair(A: \Set) (R: Relation[A]): RelPair A :=
-  { x : Pair.Times^[A, A] \where R (fst A x) (snd A x) };
-```
-
-依存する関係を含む文脈付きの `\definition` と、sort を持たない structure の field として記述できる。
-`Relation` の型族は `\definition Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;` と定義する。
-宣言自体を通常の関数値に変換する場合は、その product 型の形成が必要になる。
-
 ## 関連型を隠した structure の存在量化
 
 ```text

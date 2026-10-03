@@ -373,3 +373,7 @@ Set 側にも run 系があるため。
 - \(\vdash \text{choice} (X): X\) if \(\vDash \exists X\), \(\vDash (x: X) -> (y: X) -> x = y\)
 - \(\vdash \text{take} (X, P, f): P\) if \(\vDash \exists X\), \(\vdash f: X \to P\), \(\vDash P: *^p\)
 - \(\vDash e = \text{choice} (X)\) if \(\vdash \text{choice} (X): X\), \(\vdash e: X\)
+
+## structure について
+実装側の話だが、処理系側でのバンドルとして `\structure` が入った。
+module と似たようなものではあるが、ちょっと心配。間違えると実装側で impredicative な何かを作成していることになる。
