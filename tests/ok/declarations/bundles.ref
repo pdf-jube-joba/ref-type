@@ -1,57 +1,73 @@
-\module Bundles {
-  \inductive Unit: \VType := | unit: Unit;
+\module BundleSignatures {
+/* Program implementations, specifications, and terminating transitions. */
+\structure Correspondence {
+  T: \VType,
+  program: T,
+  specification: T^,
+  coherence: program^ = specification,
+}
 
-  \structure Fixed: \Set {
-    value: Unit^,
-  } \where {
-    fixed: value = Unit^::unit,
-  }
-  \definition fixed: Fixed::[Set] :=
-    Fixed { value := Unit^::unit } \with { fixed := \refl(Unit^::unit) };
-  \definition value(s: Fixed::[Set]): Unit^ := s #value;
-  \definition law(s: Fixed::[Set]): s #value = Unit^::unit := s #fixed;
-  \definition raw(s: Fixed::[Set]): Fixed::[Raw] := Fixed::[raw] s;
-  \definition laws(s: Fixed::[Set]): Fixed::[Law][Fixed::[raw] s] := Fixed::[law] s;
+\definition Ready(State, Output: \Set)(P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+  \step-match t: \RunStep[State, Output] \return \Prop \with {
+    | \continue s: P s
+    | \finish result: \forall (Q: \Prop) -> Q -> Q
+  };
+
+\definition Terminates(State, Output: \Set)(step: State -> \RunStep[State, Output])(s: State): \Prop :=
+  \forall (P: State -> \Prop) ->
+    (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
+
+\structure Machine {
+  State: \VType,
+  Output: \VType,
+  step: \U(State ~> \F(\RunStep[State, Output])),
+  terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
+  run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
+    \run[State, Output](step, s) \by { terminates s }),
+}
+}
+\module Bundles {
+  \import \root.BundleSignatures[] \as Signatures;
+  \inductive Unit: \VType := | unit: Unit;
+  \structure Fixed: \Set { value: Unit^ } \where { fixed: value = Unit^::unit }
+  \definition fixed: Fixed := Fixed { value := Unit^::unit, fixed := \refl(Unit^::unit) };
+  \definition value(s: Fixed): Unit^ := s.value;
+  \definition law(s: Fixed): s.value = Unit^::unit := s.fixed;
+  \definition raw(s: Fixed): Fixed.Raw := Fixed.raw s;
+  \definition laws(s: Fixed): Fixed.Law[Fixed.raw s] := Fixed.law s;
   \check law fixed: Unit^::unit = Unit^::unit;
   \definition computation: value fixed = Unit^::unit := \refl(Unit^::unit);
 
-  \correspondence identity: Unit ~> \F(Unit) {
-    \program := \cfun (x: Unit) => \return x,
-    \set := \fun (x: Unit^) => x,
-    \definition same: identity::[program]^ = identity::[set] := \refl(identity::[program]^);
-    \coherence := same,
+  \definition identityProgram: \U(Unit ~> \F(Unit)) := \thunk(\cfun(x: Unit) => \return x);
+  \definition identity: Signatures.Correspondence := Signatures.Correspondence {
+    T := \U(Unit ~> \F(Unit)),
+    program := identityProgram,
+    specification := \fun(x: Unit^) => x,
+    coherence := \refl(identityProgram^),
   };
-  \definition copy: identity::[Type] := identity::[program];
-  \check identity::[coherence]: copy^ = identity::[set];
+  \definition copy: identity.T := identity.program;
+  \check identity.coherence: copy^ = identity.specification;
 
-  \machine echo {
-    \State := Unit,
-    \Output := Unit,
-    \step := \thunk(\cfun (s: Unit) => \return(\finish[Unit, Unit](s))),
-    \terminates := \fun (s: Unit^) (P: _) (h: _) => h s (\fun (Q: \Prop) (q: Q) => q),
-  }
-
-  \correspondence wrapped: Unit ~> \F(Unit) {
-    \machine implementation {
-      \State := Unit,
-      \Output := Unit,
-      \step := \thunk(\cfun (s: Unit) => \return(\finish[Unit, Unit](s))),
-      \terminates := \fun (s: Unit^) (P: _) (h: _) => h s (\fun (Q: \Prop) (q: Q) => q),
-    }
-    \program := implementation::[run],
-    \set := identity::[set],
-    \coherence := \axiom:funext(wrapped::[program]^, wrapped::[set],
-      \fun (s: Unit^) => \refl(s)),
-  }
-  \check wrapped::[coherence]: wrapped::[program]^ = identity::[set];
-  \definition output: \F(echo::[Output]) := echo::[run] Unit::unit;
-  \definition input: \Box[\F(echo::[State])] := \box[_](\return Unit::unit);
-  \definition boxedResult:
-    \squash[_](\boxapp(echo::[runbox], input)) = Unit^::unit := \refl(Unit^::unit);
-  \check echo::[terminates] Unit^::unit: (\forall (P: Unit^ -> \Prop) ->
-    (\forall (s: Unit^) ->
-      (\step-match t: \RunStep[Unit^, Unit^] \return \Prop \with {
-        | \continue next: P next
-        | \finish output: \forall (Q: \Prop) -> Q -> Q
-      }) (echo::[step]^ s) -> P s) -> P Unit^::unit);
+  \definition echo: Signatures.Machine := Signatures.Machine {
+    State := Unit,
+    Output := Unit,
+    step := \thunk(\cfun(s: Unit) => \return(\finish[Unit, Unit](s))),
+    terminates := \fun(s: Unit^) (P: _) (h: _) => h s (\fun(Q: \Prop)(q: Q) => q),
+  };
+  \structure Nested { machine: Signatures.Machine, correspondence: Signatures.Correspondence }
+  \definition wrapped: Nested := Nested {
+    machine := echo,
+    correspondence := Signatures.Correspondence {
+      T := identity.T,
+      program := echo.run,
+      specification := identity.specification,
+      coherence := \axiom:funext(echo.run^, identity.specification, \fun(s: Unit^) => \refl(s)),
+    },
+  };
+  \check wrapped.correspondence.coherence: wrapped.correspondence.program^ = identity.specification;
+  \definition output: \F(echo.Output) := (\force echo.run) Unit::unit;
+  \definition runbox: \Box[echo.State ~> \F(echo.Output)] := \box[echo.State ~> \F(echo.Output)](\force echo.run);
+  \definition input: \Box[\F(echo.State)] := \box[\F(echo.State)](\return Unit::unit);
+  \definition boxedResult: \squash[_](\boxapp(runbox, input)) = Unit^::unit := \refl(Unit^::unit);
+  \check echo.terminates Unit^::unit: Signatures.Terminates Unit^ Unit^ echo.step^ Unit^::unit;
 }

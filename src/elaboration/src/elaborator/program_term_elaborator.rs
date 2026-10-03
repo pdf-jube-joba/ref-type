@@ -19,7 +19,7 @@ use crate::{
         GlobalEnvironment, module_manager::ItemAccessResult, term_elaborator::LocalScope,
     },
     hir::{
-        ComputationTermExp, ComputationTypeExp, LocalAccess, ProgramFunctionExp, SourceSpan,
+        ComputationTermExp, ComputationTypeExp, LocalAccess, ProgramFunctionExp, SExp, SourceSpan,
         SurfaceMeta, ValueTermExp, ValueTypeExp,
     },
 };
@@ -155,6 +155,14 @@ impl ProgramScope {
         self.zonk_value_type(environment, ty)
     }
 
+    pub(crate) fn zonk_module_computation(
+        &self,
+        environment: &GlobalEnvironment,
+        value: ComputationTerm,
+    ) -> ComputationTerm {
+        self.zonk_computation(environment, value)
+    }
+
     pub(crate) fn zonk_module_value(
         &self,
         environment: &GlobalEnvironment,
@@ -224,6 +232,65 @@ impl ProgramScope {
         }
     }
 
+    pub(crate) fn check_member(
+        &mut self,
+        value: &SExp,
+        ty: &SExp,
+        environment: &mut GlobalEnvironment,
+    ) -> Result<(), ElaborationError> {
+        if let SExp::ConversionTarget { expression } = ty {
+            if let (Ok(left), Ok(right)) = (
+                ValueTypeExp::try_from(value.clone()),
+                ValueTypeExp::try_from((**expression).clone()),
+            ) && let (Ok(left), Ok(right)) = (
+                self.elaborate_value_type(&left, environment),
+                self.elaborate_value_type(&right, environment),
+            ) {
+                self.check_value_type_with_metas(environment, left)?;
+                self.check_value_type_with_metas(environment, right)?;
+                self.unify_terms(environment, Term::ValueType(left), Term::ValueType(right))?;
+            } else {
+                let context =
+                    crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
+                        .map_err(|error| error.to_string())?;
+                let mut scope = LocalScope::from_typing_context(context);
+                let left = scope.elab_exp(value, environment)?;
+                let right = scope.elab_exp(expression, environment)?;
+                scope.infer_elaborated(left, environment)?;
+                scope.infer_elaborated(right, environment)?;
+                super::term_elaborator::Handler::unify(environment, left, right)?;
+            }
+        } else if matches!(ty, SExp::ValueType) {
+            let syntax: ValueTypeExp = value.clone().try_into()?;
+            let ty = self.elaborate_value_type(&syntax, environment)?;
+            self.check_value_type_with_metas(environment, ty)?;
+        } else if let Ok(syntax) = ValueTypeExp::try_from(ty.clone())
+            && let Ok(expected) = self.elaborate_value_type(&syntax, environment)
+        {
+            let syntax: ValueTermExp = value.clone().try_into()?;
+            let value = self.elaborate_value(&syntax, environment)?;
+            self.check_value_term_with_metas(environment, value, expected)?;
+        } else if let Ok(syntax) = ComputationTypeExp::try_from(ty.clone())
+            && let Ok(expected) = self.elaborate_computation_type(&syntax, environment)
+        {
+            let syntax: ComputationTermExp = value.clone().try_into()?;
+            let value = self.elaborate_computation(&syntax, environment)?;
+            self.check_computation_term_with_metas(environment, value, expected)?;
+        } else {
+            let context =
+                crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
+                    .map_err(|error| error.to_string())?;
+            let mut scope = LocalScope::from_typing_context(context);
+            let checked = SExp::Ascribe {
+                term: Box::new(value.clone()),
+                ty: Box::new(ty.clone()),
+            };
+            let value = scope.elab_exp(&checked, environment)?;
+            scope.infer_elaborated(value, environment)?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn elaborate_value_type(
         &mut self,
         expression: &ValueTypeExp,
@@ -247,6 +314,13 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ValueType, ElaborationError> {
         match expression {
+            ValueTypeExp::Deferred { .. } => Err("unresolved frontend declaration".into()),
+            ValueTypeExp::Checked { checks, body } => {
+                for (value, ty) in checks {
+                    self.check_member(value, ty, environment)?;
+                }
+                self.elaborate_value_type_inner(body, environment)
+            }
             ValueTypeExp::Meta { kind, span } => {
                 let (metavariable, spine) =
                     self.fresh_meta(environment, *kind, *span, MetaCategory::ValueType)?;
@@ -359,6 +433,13 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ComputationType, ElaborationError> {
         match expression {
+            ComputationTypeExp::Deferred { .. } => Err("unresolved frontend declaration".into()),
+            ComputationTypeExp::Checked { checks, body } => {
+                for (value, ty) in checks {
+                    self.check_member(value, ty, environment)?;
+                }
+                self.elaborate_computation_type_inner(body, environment)
+            }
             ComputationTypeExp::Meta { kind, span } => {
                 let (metavariable, spine) =
                     self.fresh_meta(environment, *kind, *span, MetaCategory::ComputationType)?;
@@ -396,7 +477,9 @@ impl ProgramScope {
         let value = self.elaborate_value_inner(expression, environment)?;
         let span = match expression {
             ValueTermExp::Meta { span, .. } => Some(*span),
-            ValueTermExp::Access(access) => Some(access.span()),
+            ValueTermExp::Reference { access } | ValueTermExp::Access(access) => {
+                Some(access.span())
+            }
             ValueTermExp::Constructor { span, .. } => Some(*span),
             _ => None,
         };
@@ -413,6 +496,13 @@ impl ProgramScope {
     ) -> Result<ValueTerm, ElaborationError> {
         let arena = environment.crate_env.arena();
         match expression {
+            ValueTermExp::Deferred { .. } => Err("unresolved frontend value declaration".into()),
+            ValueTermExp::Checked { checks, body } => {
+                for (value, ty) in checks {
+                    self.check_member(value, ty, environment)?;
+                }
+                self.elaborate_value_inner(body, environment)
+            }
             ValueTermExp::Ascribe { term, ty } => {
                 let ty = self.elaborate_value_type(ty, environment)?;
                 let term = self.elaborate_value(term, environment)?;
@@ -482,7 +572,7 @@ impl ProgramScope {
                     spine,
                 }))
             }
-            ValueTermExp::Access(access) => {
+            ValueTermExp::Reference { access } | ValueTermExp::Access(access) => {
                 if let Some((index, entry)) = self.local_index(environment, access) {
                     return match entry {
                         ProgramContextEntry::ValueTerm { .. } => Ok(arena.value_bound(index)),
@@ -673,6 +763,13 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ComputationTerm, ElaborationError> {
         match expression {
+            ComputationTermExp::Deferred { .. } => Err("unresolved frontend declaration".into()),
+            ComputationTermExp::Checked { checks, body } => {
+                for (value, ty) in checks {
+                    self.check_member(value, ty, environment)?;
+                }
+                self.elaborate_computation_inner(body, environment)
+            }
             ComputationTermExp::Ascribe { term, ty } => {
                 let ty = self.elaborate_computation_type(ty, environment)?;
                 let term = self.elaborate_computation(term, environment)?;
@@ -1008,8 +1105,13 @@ impl ProgramScope {
                 let reflected_context =
                     crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
                         .map_err(|error| error.to_string())?;
-                let accessibility = LocalScope::from_typing_context(reflected_context)
-                    .elab_exp(accessibility, environment)?;
+                let mut proof_scope = LocalScope::from_typing_context(reflected_context);
+                let accessibility = proof_scope.elab_exp(accessibility, environment)?;
+                proof_scope.infer_elaborated(accessibility, environment)?;
+                environment.finish_metavariables()?;
+                let accessibility = environment
+                    .metavariables
+                    .zonk(&environment.crate_env, accessibility);
                 let computation = environment
                     .crate_env
                     .arena()

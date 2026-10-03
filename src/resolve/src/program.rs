@@ -6,6 +6,11 @@ fn boxed<T: Into<SExp>>(value: T) -> Box<SExp> {
 impl From<ValueTypeExp> for SExp {
     fn from(value: ValueTypeExp) -> Self {
         match value {
+            ValueTypeExp::Deferred { expression } => *expression,
+            ValueTypeExp::Checked { checks, body } => Self::Checked {
+                checks,
+                body: boxed(*body),
+            },
             ValueTypeExp::Meta { kind, span } => Self::Meta { kind, span },
             ValueTypeExp::Access { access, parameters } => Self::AccessPath {
                 access,
@@ -27,6 +32,11 @@ impl From<ValueTypeExp> for SExp {
 impl From<ComputationTypeExp> for SExp {
     fn from(value: ComputationTypeExp) -> Self {
         match value {
+            ComputationTypeExp::Deferred { expression } => *expression,
+            ComputationTypeExp::Checked { checks, body } => Self::Checked {
+                checks,
+                body: boxed(*body),
+            },
             ComputationTypeExp::Meta { kind, span } => Self::Meta { kind, span },
             ComputationTypeExp::Return(value) => Self::ReturnType {
                 value_ty: boxed(*value),
@@ -41,6 +51,12 @@ impl From<ComputationTypeExp> for SExp {
 impl From<ValueTermExp> for SExp {
     fn from(value: ValueTermExp) -> Self {
         match value {
+            ValueTermExp::Reference { access } => Self::ProgramValueReference { access },
+            ValueTermExp::Deferred { expression } => *expression,
+            ValueTermExp::Checked { checks, body } => Self::Checked {
+                checks,
+                body: boxed(*body),
+            },
             ValueTermExp::Ascribe { term, ty } => Self::Ascribe {
                 term: boxed(*term),
                 ty: boxed(*ty),
@@ -137,6 +153,11 @@ impl From<ProgramFunctionExp> for SExp {
 impl From<ComputationTermExp> for SExp {
     fn from(value: ComputationTermExp) -> Self {
         match value {
+            ComputationTermExp::Deferred { expression } => *expression,
+            ComputationTermExp::Checked { checks, body } => Self::Checked {
+                checks,
+                body: boxed(*body),
+            },
             ComputationTermExp::Ascribe { term, ty } => Self::Ascribe {
                 term: boxed(*term),
                 ty: boxed(*ty),

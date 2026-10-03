@@ -30,6 +30,7 @@ pub struct Module {
     pub id: ModuleId,
     pub name: Identifier,
     pub parameters: Vec<RightBind>, // given parameters for module
+    pub parameter_checks: Vec<(SExp, SExp)>,
     pub body: ModuleBody,
     pub span: SourceSpan,
     pub declaration_spans: Vec<SourceSpan>,
@@ -66,12 +67,6 @@ pub enum ModuleItem {
         exports: Vec<Identifier>,
         items: Vec<ModuleItem>,
     },
-    Alias {
-        name: Identifier,
-        parameters: Vec<RightBind>,
-        ty: SExp,
-        body: SExp,
-    },
     Definition {
         owner: Option<AssociatedOwner>,
         name: Identifier,
@@ -86,6 +81,18 @@ pub enum ModuleItem {
         kind: InductiveKind,
         constructors: Vec<(Identifier, Vec<RightBind>, SExp)>,
     },
+    Structure {
+        name: Identifier,
+        kind: Option<InductiveKind>,
+        parameters: Vec<RightBind>,
+        fields: Vec<(Identifier, SExp, Option<SExp>)>,
+        laws: Option<Vec<(Identifier, SExp)>>,
+    },
+    Refinement {
+        name: Identifier,
+        fields: Vec<Identifier>,
+        laws: Vec<Identifier>,
+    },
     Record {
         type_name: Identifier,
         parameters: Vec<RightBind>,
@@ -98,6 +105,7 @@ pub enum ModuleItem {
     Import {
         path: ModuleInstantiatePath,
         import_name: Identifier,
+        checks: Vec<(SExp, SExp)>,
     },
     MathMacro {
         name: Identifier,
@@ -124,6 +132,13 @@ pub enum ModuleItem {
     },
     ComputationNormalize {
         exp: ComputationTermExp,
+    },
+    MemberCheck {
+        value: SExp,
+        ty: SExp,
+    },
+    ValueTypeCheck {
+        ty: ValueTypeExp,
     },
     ValueCheck {
         exp: ValueTermExp,
@@ -201,6 +216,13 @@ pub struct RightBind {
 /// classification before elaboration.
 #[derive(Debug, Clone)]
 pub enum ValueTypeExp {
+    Deferred {
+        expression: Box<SExp>,
+    },
+    Checked {
+        checks: Vec<(SExp, SExp)>,
+        body: Box<ValueTypeExp>,
+    },
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,
@@ -218,6 +240,13 @@ pub enum ValueTypeExp {
 
 #[derive(Debug, Clone)]
 pub enum ComputationTypeExp {
+    Deferred {
+        expression: Box<SExp>,
+    },
+    Checked {
+        checks: Vec<(SExp, SExp)>,
+        body: Box<ComputationTypeExp>,
+    },
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,
@@ -231,6 +260,16 @@ pub enum ComputationTypeExp {
 
 #[derive(Debug, Clone)]
 pub enum ValueTermExp {
+    Reference {
+        access: LocalAccess,
+    },
+    Deferred {
+        expression: Box<SExp>,
+    },
+    Checked {
+        checks: Vec<(SExp, SExp)>,
+        body: Box<ValueTermExp>,
+    },
     Ascribe {
         term: Box<ValueTermExp>,
         ty: Box<ValueTypeExp>,
@@ -267,6 +306,13 @@ pub enum ValueTermExp {
 
 #[derive(Debug, Clone)]
 pub enum ComputationTermExp {
+    Deferred {
+        expression: Box<SExp>,
+    },
+    Checked {
+        checks: Vec<(SExp, SExp)>,
+        body: Box<ComputationTermExp>,
+    },
     Ascribe {
         term: Box<ComputationTermExp>,
         ty: Box<ComputationTypeExp>,
@@ -412,9 +458,33 @@ impl std::fmt::Display for LocalAccess {
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
+    ConversionTarget {
+        expression: Box<SExp>,
+    },
+    ProgramValueReference {
+        access: LocalAccess,
+    },
+    MemberAccess {
+        base: Box<SExp>,
+        field: Identifier,
+        parameters: Vec<SExp>,
+        span: SourceSpan,
+    },
+    MemberLiteral {
+        ty: Box<SExp>,
+        fields: Vec<(Identifier, SExp)>,
+    },
+
+    Checked {
+        checks: Vec<(SExp, SExp)>,
+        body: Box<SExp>,
+    },
     Ascribe {
         term: Box<SExp>,
         ty: Box<SExp>,
+    },
+    ReflectTerm {
+        expression: Box<SExp>,
     },
     /// Reflection of a substituted Program module argument.
     Reflect {
@@ -745,6 +815,10 @@ impl TryFrom<SExp> for ValueTypeExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Checked { checks, body } => Ok(Self::Checked {
+                checks,
+                body: Box::new((*body).try_into()?),
+            }),
             SExp::Meta { kind, span } => Ok(Self::Meta { kind, span }),
             SExp::AccessPath { access, parameters } => Ok(Self::Access {
                 access,
@@ -778,6 +852,10 @@ impl TryFrom<SExp> for ComputationTypeExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Checked { checks, body } => Ok(Self::Checked {
+                checks,
+                body: Box::new((*body).try_into()?),
+            }),
             SExp::Meta { kind, span } => Ok(Self::Meta { kind, span }),
             SExp::ReturnType { value_ty } => Ok(Self::Return(Box::new((*value_ty).try_into()?))),
             SExp::ComputationFunction { domain, codomain } => Ok(Self::Function {
@@ -798,6 +876,13 @@ impl TryFrom<SExp> for ValueTermExp {
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         let (value, arguments) = decompose_surface_application(value);
         match value {
+            SExp::ProgramValueReference { access } if arguments.is_empty() => {
+                Ok(Self::Reference { access })
+            }
+            SExp::Checked { checks, body } => Ok(Self::Checked {
+                checks,
+                body: Box::new((*body).try_into()?),
+            }),
             SExp::Ascribe { term, ty } if arguments.is_empty() => Ok(Self::Ascribe {
                 term: Box::new((*term).try_into()?),
                 ty: Box::new((*ty).try_into()?),
@@ -879,6 +964,16 @@ impl TryFrom<SExp> for ComputationTermExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            SExp::Checked { checks, body } => {
+                let body = match Self::try_from((*body).clone()) {
+                    Ok(body) => body,
+                    Err(_) => Self::Force(Box::new((*body).try_into()?)),
+                };
+                Ok(Self::Checked {
+                    checks,
+                    body: Box::new(body),
+                })
+            }
             SExp::Ascribe { term, ty } => Ok(Self::Ascribe {
                 term: Box::new((*term).try_into()?),
                 ty: Box::new((*ty).try_into()?),
@@ -939,8 +1034,13 @@ impl TryFrom<SExp> for ComputationTermExp {
                                 .collect::<Result<_, _>>()?,
                         }
                     }
-                    expression @ SExp::Thunk { .. } => {
-                        ProgramFunctionExp::Value(Box::new(expression.try_into()?))
+                    expression @ (SExp::Thunk { .. } | SExp::Checked { .. }) => {
+                        match ValueTermExp::try_from(expression.clone()) {
+                            Ok(value) => ProgramFunctionExp::Value(Box::new(value)),
+                            Err(_) => {
+                                ProgramFunctionExp::Computation(Box::new(expression.try_into()?))
+                            }
+                        }
                     }
                     expression => ProgramFunctionExp::Computation(Box::new(expression.try_into()?)),
                 };

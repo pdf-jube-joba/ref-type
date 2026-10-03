@@ -51,7 +51,7 @@ pub struct Declaration {
     pub id: DeclarationId,
     pub kind: String,
     pub location: Location,
-    /// The elaborated type, rendered before the elaboration workspace is freed.
+    /// The elaborated type, or the source signature of a frontend declaration.
     pub ty: Option<String>,
 }
 

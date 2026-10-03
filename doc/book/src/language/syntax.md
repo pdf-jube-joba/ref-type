@@ -162,21 +162,16 @@ Program computation 定義の引数は CBV の糖衣である。
 /* A ~> B ~> C と \cfun (x: A) (y: B) => body に相当 */
 ```
 
-### alias
+### 文脈付きの definition
 
 ```text
-\alias Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
-\alias At[A: \Set, x: A, P: A -> \Prop]: \Prop := P x;
-
-\definition reflexive(A: \Set)(r: Relation[A]): \Prop :=
-  \forall (x: A) -> r x x;
-\definition atSelf(A: \Set)(x: A): At[_, x, \fun (y: A) => x = y] :=
-  \refl(x);
+\definition Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
+\definition At[A: \Set, x: A, P: A -> \Prop]: \Prop := P x;
 ```
 
-alias は Set/Prop の式に名前を付ける宣言である。
-宣言時に parameter の文脈で本体を検査し、使用時に各引数を検査して本体へ代入する。
-import した alias は `M.Relation[A]` のように参照する。
+引数を宣言文脈に追加して本体を検査し、適用時に各引数を検査して具体化する。
+product 型を形成できる定義は通常の関数として使える。
+文脈付き定義を部分適用した項も、残りの引数について既存の product rule を満たす場合に関数へ変換できる。
 
 ### inductive
 
@@ -204,113 +199,101 @@ constructor type は `->`、`\forall`、通常の式を組み合わせる。Prog
 
 constructor は `Type[parameters]::constructor arguments` で参照する。
 
-### structure と record
+### structure
 
 ```text
-\record Type[parameters]: result-kind := {
-  field1: type1,
-  field2: type2,
+\structure Relation {
+  A: \Set,
+  R: A -> A -> \Prop,
+}
+\definition Equality(A: \Set): Relation := Relation {
+  A := A,
+  R := \fun(x, y: A) => x = y,
 };
+\structure Outer {
+  inner: Relation,
+  element: inner.A,
+}
+\definition related(o: Outer): \Prop := o.inner.R o.element o.element;
+```
 
-Type[parameters] {
-  field1 := value1,
-  field2 := value2
+structure は宣言順に依存する field の signature を持つ。
+field は Set/Prop の型・項、Program の値型・値・計算、子の structure を保持する。
+literal は全ての required field を一度ずつ指定し、既定値を持つ field は省略できる。
+既定値とその証明は、先行 field の具体化と上書きのもとで検査される。
+
+```text
+\structure ProgramData {
+  T: \VType,
+  value: T,
+  result: \F(T) := \return value,
 }
 ```
 
-record の field は宣言順に書き、末尾のコンマと空の `{}` を許す。
-Set/Prop record の field type は先行 field に依存できる。
-Program record は `\VType` で、field は非依存の value type である。
-
-record literal の field 順は任意だが、宣言された全 field を一度ずつ指定する。
-projection は `Type[parameters]::field record` または `record #field` である。
-Program projection の結果は computation になる。
-
-`\structure` は Set のデータ record と Prop の law record をまとめて宣言する。
+名前付き定義の引数や結果にも structure の signature を指定できる。
+束の引数は field の依存文脈へ展開し、束の結果は検査済みの member の対応として保持する。
+入れ子の field は再帰的に同じ文脈へ展開する。
+計算 field は内部の thunk 引数を通じて具体化し、field アクセスは元の計算を返す。
 
 ```text
+\definition select(make: \forall(A: \Set) -> Relation)(A: \Set): Relation := make A;
+\definition ForUnit: \forall(x: Unit) -> Relation := factory Unit;
+```
+
+structure を返す定義の signature は、各 field の依存する関数型へ展開する。
+定義を引数として渡す場合は、その関数型の形成と各 member の適合を検査する。
+束全体を kernel の項として使う場合は、sort を指定して通常の値表現を宣言する。
+
+```text
+\structure Point[A: \Set]: \Set {
+  x: A,
+  y: A,
+}
 \structure EqualPair[A: \Set]: \Set {
   first: A,
   second: A,
 } \where {
   same: first = second,
 }
+\definition pair(A: \Set)(x: A): EqualPair[A] := EqualPair[A] {
+  first := x,
+  second := x,
+  same := \refl(x),
+};
 ```
 
-各 field の型は先行 field に依存できる。
-law の型はデータ field と先行する law を参照でき、両者を通して field 名は一意にする。
-構築は `EqualPair[A] { first := x, second := x } \with { same := \refl(x) }` と書く。
+sort を持つ structure は単一 constructor の帰納型と projection に展開する。
+`\where` を持つ structure はデータの帰納型、法則の命題、法則を満たす値の refinement に展開する。
+通常の値も `p.x` で field を参照できる。
 
-| 生成される名前 | 意味 |
+| アクセス | 型または意味 |
 | --- | --- |
-| `EqualPair[A]::[Raw]` | データ record の型 |
-| `EqualPair[A]::[Law][r]` | データ `r` に対する law record の型 |
-| `EqualPair[A]` | `{ r: EqualPair[A]::[Raw] \where EqualPair[A]::[Law][r] }` |
-| `EqualPair[A]::[Set]` | `\Cast[EqualPair[A]::[Raw]] EqualPair[A]` |
-| `EqualPair[A]::[raw]` | `EqualPair[A]::[Set]` からデータ record を取り出す関数 |
-| `EqualPair[A]::[law]` | `EqualPair[A]::[Set]` から law record を取り出す関数 |
+| `EqualPair[A].Raw` | データの型 |
+| `EqualPair[A].Law[r]` | データ `r` の法則 |
+| `EqualPair[A]` | 法則を満たす値の型 |
+| `EqualPair[A].raw` | データを取り出す関数 |
+| `EqualPair[A].law` | 法則の証明を取り出す関数 |
 
-`s: EqualPair[A]::[Set]` に対して `s #first` と `s #same` でデータと law を射影できる。
-`::[raw]` は要素を元の record 型として扱い、`::[law]` は部分集合への所属証明を取り出す。
+structure の全称量化は field の依存する product に展開し、各 product の形成を検査する。
+通常の値表現には存在量化・等式・帰納法も適用できる。
 
-### correspondence
+### 実装と仕様、状態遷移
+
+`std.Program` は実装と仕様の対応を `Correspondence`、停止性を持つ状態遷移を `Machine` として提供する。
 
 ```text
-\correspondence identity: A ~> \F(A) {
-  \program := \cfun (x: A) => \return x,
-  \set := \fun (x: A^) => x,
-  \coherence := \refl(identity::[program]^),
-}
+\import std.Program[] \as P;
+\definition identity: P.Correspondence := P.Correspondence {
+  T := \U(A ~> \F(A)),
+  program := \thunk(\cfun(x: A) => \return x),
+  specification := \fun(x: A^) => x,
+  coherence := \refl(\fun(x: A^) => x),
+};
 ```
 
-Program とその reflection に対応する Set の項を、等式の証明とともに宣言する。
-
-| 生成される名前 | 型または意味 |
-| --- | --- |
-| `identity::[Type]` | 注釈した Program 型 `A ~> \F(A)` |
-| `identity::[program]` | `identity::[Type]` |
-| `identity::[set]` | `identity::[Type]^` |
-| `identity::[coherence]` | `identity::[program]^ = identity::[set]` |
-
-本体には `\definition`、`\alias`、`\inductive`、`\record`、`\structure`、`\correspondence`、`\machine`、import、macro の補定義を置ける。
-名前は宣言順に解決し、公開 member はその割り当て以降に参照できる。
-補定義はその本体内で可視になり、外からは表の member を参照する。
-
-### machine
-
-```text
-\machine name {
-  \State := State,
-  \Output := Output,
-  \step := step,
-  \terminates := termination,
-}
-```
-
-全入力について停止する状態機械を宣言する。
-`State` と `Output` は Program の value type である。
-
-| 生成される名前 | 型または意味 |
-| --- | --- |
-| `name::[State]` | 状態の value type |
-| `name::[Output]` | 結果の value type |
-| `name::[step]` | `\U(State ~> \F(\RunStep[State, Output]))` |
-| `name::[terminates]` | `\forall (x: State^) -> T.Holds x` |
-| `name::[run]` | `State ~> \F(Output)` |
-| `name::[runbox]` | `\Box[State ~> \F(Output)]` |
-
-表中の `T` は、[停止性](#停止性)の定義を次の引数で instance 化したものである。
-
-```ref
-\import std.Logic[].Termination[
-  State := State^, Output := Output^, step := name::[step]^
-] \as T;
-```
-
-`name::[run]` は `name::[step]` と `name::[terminates]` を使って `\run` を実行する計算である。
-`name::[runbox]` は `\box[_](name::[run])` に展開し、既存の Box の閉性検査に従う。
-本体の補定義と可視性は correspondence と同じである。
-`::[run]` と `::[runbox]` は本体の末尾で生成する。
+`identity.program` は thunk の値、`identity.specification` は反映先の仕様、`identity.coherence` は両者の等式である。
+`Machine` の `State`、`Output`、`step`、`terminates` を実装すると、`run` の既定値が停止性証明を使って実行する。
+具体化された計算は `\box[_](\force machine.run)` で Box の閉性検査を受ける。
 
 ### check と評価
 

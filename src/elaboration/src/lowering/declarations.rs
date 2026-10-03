@@ -67,7 +67,7 @@ impl Lowerer<'_> {
             .map(|var| raw::program::ProgramContextEntry::ValueType { var: *var })
             .collect::<Vec<_>>();
         let (body, classifier, context) = match raw {
-            raw::environment::DefinedConstant::Alias {
+            raw::environment::DefinedConstant::Contextual {
                 parameters,
                 ty,
                 body,

@@ -1,30 +1,29 @@
-# 型関連 item、record と structure
+# 型関連 item と structure
 
 型に関連したアイテムと record の定義を扱う。
-データと law を分離する `\structure` の構文は[表面構文](syntax.md#structure-と-record)を参照。
+データと law を分離する `\structure` の構文は[表面構文](syntax.md#structure)を参照。
 
 ## 名前へのアクセス
 
-名前へのアクセスには `::` を使う。
+constructor と型関連 item へのアクセスには `::`、値の field には `.` を使う。
 
 ```text
 List[Nat]::nil
 List[Nat]::is_empty xs
-Point::x p
+p.x
 Nat<PtBin>::bin a b
 ```
 
-constructor、field projection、ユーザー定義の関数などは
-いずれも `::` でアクセスする。
+生成した projection は型関連 item としても参照できる。
 
-## パラメータ付きの別名
+## パラメータ付きの定義
 
 ```text
-\alias Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
-\alias Predicate[Carrier: \Set]: _ := Carrier -> \Prop;
+\definition Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
+\definition Predicate[Carrier: \Set]: _ := Carrier -> \Prop;
 ```
 
-alias の parameter は宣言を検査する文脈として保持する。
+definition の parameter は宣言を検査する文脈として保持する。
 `Relation[A]` は elaboration 中に `A -> A -> \Prop` へ展開され、既存の kernel で検査する。
 この展開の型付けは、parameter の文脈に対する代入補題で説明できる。
 
@@ -54,12 +53,12 @@ Set/Prop の帰納型に対する通常の関数も qualified name で定義す�
 ;
 ```
 
-## record
+## sort を持つ structure
 
-named field を持つ通常の record が必要な場合は、`\record` として明示的に宣言する。
+named field を持つ通常の record が必要な場合は、`\structure` として明示的に宣言する。
 
 ```text
-\record Point[A: \Set]: \Set := {
+\structure Point[A: \Set]: \Set := {
   x : A,
   y : A,
 };
@@ -81,10 +80,10 @@ record が carrier を持つとは限らないため、特別な carrier binder 
 Point[A]::x : Point[A] -> A
 Point[A]::y : Point[A] -> A
 
-\definition origin_x : Nat := Point[Nat]::x origin;
+\definition origin_x: Nat := origin.x;
 ```
 
-surface syntax としては `\inductive` と `\record` を完全に分ける。
+constructor を明示する宣言は `\inductive`、field を持つ宣言は `\structure` で扱う。
 一方、nominal identity を維持する限り、core や実装内部で record を固有の1 constructor を持つ帰納型として表現することは構わない。
 
 result kind には PTS の `\Prop`、`\Set`、`\PropKind`、`\SetKind` を指定できる。
@@ -102,7 +101,7 @@ PTS record の field は宣言順に依存できる。
 たとえば次の `value` の型は先行する `carrier` projection によって定まる。
 
 ```text
-\record Packed: \SetKind := {
+\structure Packed: \SetKind := {
   carrier: \Set,
   value: carrier,
 };
@@ -114,7 +113,7 @@ Program の record は `\VType` の型パラメータと、非依存・非再帰
 field に thunk 型 `\U(C)` を使うこともできる。空の record も宣言できる。
 
 ```text
-\record Pair[A: \VType]: \VType := {
+\structure Pair[A: \VType]: \VType := {
   first: A,
   second: A,
 };
@@ -145,7 +144,7 @@ record literal と型関連定義の型引数は全省略または `_` によっ
 ## 型から解決する field projection
 
 ```text
-\record Pair[A: \Set, B: \Set]: \Set {
+\structure Pair[A: \Set, B: \Set]: \Set {
   first: A,
   second: B,
 }

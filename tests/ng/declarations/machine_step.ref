@@ -1,10 +1,38 @@
+\module BundleSignatures {
+/* Program implementations, specifications, and terminating transitions. */
+\structure Correspondence {
+  T: \VType,
+  program: T,
+  specification: T^,
+  coherence: program^ = specification,
+}
+
+\definition Ready(State, Output: \Set)(P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+  \step-match t: \RunStep[State, Output] \return \Prop \with {
+    | \continue s: P s
+    | \finish result: \forall (Q: \Prop) -> Q -> Q
+  };
+
+\definition Terminates(State, Output: \Set)(step: State -> \RunStep[State, Output])(s: State): \Prop :=
+  \forall (P: State -> \Prop) ->
+    (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
+
+\structure Machine {
+  State: \VType,
+  Output: \VType,
+  step: \U(State ~> \F(\RunStep[State, Output])),
+  terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
+  run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
+    \run[State, Output](step, s) \by { terminates s }),
+}
+}
 \module WrongStep {
+  \import \root.BundleSignatures[] \as Signatures;
   \inductive Unit: \VType := | unit: Unit;
-  \machine invalid {
-    \State := Unit,
-    \Output := Unit,
-    \step := \thunk(\cfun (s: Unit) => \return s),
-    \terminates := \fun (s: Unit^) => \refl(s),
-  }
+  \definition invalid: Signatures.Machine := Signatures.Machine {
+    State := Unit, Output := Unit,
+    step := \thunk(\cfun(s: Unit) => \return s),
+    terminates := \fun(s: Unit^) => \refl(s),
+  };
 }
 /* expect-error: types are not convertible */

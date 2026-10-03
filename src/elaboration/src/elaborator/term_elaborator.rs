@@ -14,6 +14,8 @@ use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{ComputationTerm, ComputationType, ValueType};
 
 pub(crate) trait Handler {
+    fn reflect_front_expression(&mut self, expression: &SExp) -> Result<Exp, ElaborationError>;
+    fn check_program_member(&mut self, value: &SExp, ty: &SExp) -> Result<(), ElaborationError>;
     fn locate_error(&mut self, span: SourceSpan);
     fn env(&self) -> &CrateEnv;
     fn arena(&self) -> &Arena;
@@ -483,10 +485,52 @@ impl LocalScope {
         handler: &mut impl Handler,
     ) -> Result<Exp, ElaborationError> {
         match exp {
+            SExp::Checked { checks, body } => {
+                for (value, ty) in checks {
+                    if let SExp::ConversionTarget { expression } = ty {
+                        if let (Ok(left), Ok(right)) = (
+                            self.elab_exp_rec(value, handler),
+                            self.elab_exp_rec(expression, handler),
+                        ) {
+                            handler.infer(&mut self.typing_binds, left)?;
+                            handler.infer(&mut self.typing_binds, right)?;
+                            handler.unify(left, right)?;
+                        } else {
+                            handler.check_program_member(value, ty)?;
+                        }
+                    } else if matches!(ty, SExp::ValueType) {
+                        handler.check_program_member(value, ty)?;
+                    } else if let Ok(expected) = self.elab_exp_rec(ty, handler) {
+                        let value = self.elab_with_expected(value, expected, handler)?;
+                        handler.check(&mut self.typing_binds, value, expected)?;
+                    } else {
+                        handler.check_program_member(value, ty)?;
+                    }
+                }
+                self.elab_exp_rec(body, handler)
+            }
+            SExp::ConversionTarget { .. } | SExp::ProgramValueReference { .. } => {
+                Err("Program value requires reflection".into())
+            }
+            SExp::MemberAccess { .. } | SExp::MemberLiteral { .. } => {
+                Err("unresolved structure member".into())
+            }
             SExp::Ascribe { term, ty } => {
                 let ty = self.elab_exp_rec(ty, handler)?;
                 let term = self.elab_with_expected(term, ty, handler)?;
                 Ok(handler.arena().alloc(ExpNode::Ascribe { term, ty }))
+            }
+            SExp::ReflectTerm { expression } => {
+                if let SExp::AccessPath {
+                    access: LocalAccess::Current { access, .. },
+                    parameters,
+                } = expression.as_ref()
+                    && parameters.is_empty()
+                    && let Some(var) = self.get_var(handler.arena(), access, handler)
+                {
+                    return Ok(var);
+                }
+                handler.reflect_front_expression(expression)
             }
             SExp::Reflect {
                 parameter,
@@ -520,43 +564,45 @@ impl LocalScope {
                 let item = handler.get_item_from_access_path(access)?;
                 match item {
                     ItemAccessResult::Definition(ModItemDefinition { definition, .. }) => {
-                        if let DefinedConstant::Alias {
+                        if let DefinedConstant::Contextual {
                             parameters: telescope,
+                            ty,
                             body,
-                            ..
                         } = handler.env().resolve_definition(definition)?.clone()
                         {
-                            if parameters.len() != telescope.len() {
+                            if parameters.len() > telescope.len() {
                                 return Err(format!(
-                                    "Alias {access} expects {} parameter(s), found {}",
+                                    "Definition {access} expects at most {} argument(s), found {}",
                                     telescope.len(),
                                     parameters.len()
                                 )
                                 .into());
                             }
                             let mut arguments = Vec::with_capacity(parameters.len());
-                            for (expression, (_, ty)) in parameters.iter().zip(telescope) {
+                            for (expression, (_, ty)) in parameters.iter().zip(&telescope) {
                                 let argument = self.elab_exp_rec(expression, handler)?;
                                 let expected = crate::raw::calculus::instantiate_telescope(
                                     handler.arena(),
-                                    ty,
+                                    *ty,
                                     &arguments,
                                 );
                                 handler.check(&mut self.typing_binds, argument, expected)?;
                                 arguments.push(argument);
                             }
-                            return Ok(crate::raw::calculus::instantiate_telescope(
+                            let remaining = telescope[arguments.len()..].to_vec();
+                            let body = crate::raw::utils::assoc_lam(
                                 handler.arena(),
+                                remaining.clone(),
                                 body,
-                                &arguments,
-                            ));
-                        }
-                        if !parameters.is_empty() {
-                            return Err(format!(
-                                "Defined constant {:?} cannot be applied with parameters",
-                                access
-                            )
-                            .into());
+                            );
+                            let value = instantiate_telescope(handler.arena(), body, &arguments);
+                            if !remaining.is_empty() {
+                                let ty =
+                                    crate::raw::utils::assoc_prod(handler.arena(), remaining, ty);
+                                let ty = instantiate_telescope(handler.arena(), ty, &arguments);
+                                handler.check(&mut self.typing_binds, value, ty)?;
+                            }
+                            return Ok(value);
                         }
                         if !matches!(
                             handler.env().definition(definition),
@@ -566,7 +612,17 @@ impl LocalScope {
                                 "Program definitions require explicit Set reflection (^): '{access}'"
                             ).into());
                         }
-                        Ok(handler.arena().alloc(ExpNode::DefinedConstant(definition)))
+                        let mut value = handler.arena().alloc(ExpNode::DefinedConstant(definition));
+                        for parameter in parameters {
+                            let arg = self.elab_exp_rec(parameter, handler)?;
+                            let ty = handler.infer(&mut self.typing_binds, value)?;
+                            let ty = whnf(handler.env(), handler.zonk(ty));
+                            if let ExpNode::Prod { ty: domain, .. } = handler.arena().get(ty) {
+                                handler.check(&mut self.typing_binds, arg, domain)?;
+                            }
+                            value = handler.arena().alloc(ExpNode::App { func: value, arg });
+                        }
+                        Ok(value)
                     }
                     ItemAccessResult::ReflectedDefinition(ModItemDefinition {
                         definition, ..
@@ -667,7 +723,7 @@ impl LocalScope {
                             DefinedConstant::ProgramComputation { body, .. } => {
                                 crate::raw::reflection::reflect_computation(handler.env(), *body)
                             }
-                            DefinedConstant::Pts { .. } | DefinedConstant::Alias { .. } => {
+                            DefinedConstant::Pts { .. } | DefinedConstant::Contextual { .. } => {
                                 return Err("associated item is not a Program definition".into());
                             }
                         };
@@ -995,6 +1051,32 @@ impl LocalScope {
                     head = func.as_ref();
                 }
                 arguments.reverse();
+                if let SExp::AccessPath { access, parameters } = head
+                    && let Ok(ItemAccessResult::Definition(item)) =
+                        handler.get_item_from_access_path(access)
+                    && let DefinedConstant::Contextual {
+                        parameters: telescope,
+                        ..
+                    } = handler.env().resolve_definition(item.definition)?.clone()
+                {
+                    let count = telescope.len().saturating_sub(parameters.len());
+                    if arguments.len() >= count {
+                        let mut supplied = parameters.clone();
+                        supplied.extend(arguments.iter().take(count).map(|e| (*e).clone()));
+                        let mut value = self.elab_exp_rec(
+                            &SExp::AccessPath {
+                                access: access.clone(),
+                                parameters: supplied,
+                            },
+                            handler,
+                        )?;
+                        for argument in arguments.iter().skip(count) {
+                            let arg = self.elab_exp_rec(argument, handler)?;
+                            value = handler.arena().alloc(ExpNode::App { func: value, arg });
+                        }
+                        return Ok(value);
+                    }
+                }
                 if arguments.len() == 1
                     && let SExp::AssociatedAccess {
                         base,

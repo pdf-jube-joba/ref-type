@@ -1,59 +1,109 @@
+\import std.Program[] \as ProgramBundles;
 /* Function arguments are thunks; ordinary arguments use direct curried application. */
-\correspondence Curry: (Times[A, B] -> C) ~> A ~> B ~> \F(C) {
+
+\module CurryImplementation {
+  \definition T: \VType := \U((Times[A, B] -> C) ~> A ~> B ~> \F(C));
+
   \definition implementation(f: Times[A, B] -> C, a: A, b: B): \F(C) :=
-    \force f (Times[A, B]::pair a b);
-  \program := implementation,
-  \set := curry A^ B^ C^,
-  \coherence := \axiom:funext(Curry::[program]^, Curry::[set],
-    \fun (f: Times^[A^, B^] -> C^) => \axiom:funext(Curry::[program]^ f, Curry::[set] f,
-    \fun (a: A^) => \axiom:funext(Curry::[program]^ f a, Curry::[set] f a,
-    \fun (b: B^) => \refl(Curry::[set] f a b)))),
-}
+      \force f (Times[A, B]::pair a b);
 
-\correspondence Uncurry: (\U(A ~> (B -> C))) ~> Times[A, B] ~> \F(C) {
+  \definition program: (Times[A, B] -> C) ~> A ~> B ~> \F(C) := implementation;
+
+  \definition specification: T^ := curry A^ B^ C^;
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (f: Times^[A^, B^] -> C^) => \axiom:funext(program^ f, specification f,
+      \fun (a: A^) => \axiom:funext(program^ f a, specification f a,
+      \fun (b: B^) => \refl(specification f a b))));
+}
+\import .CurryImplementation[] \as CurryParts;
+\definition Curry: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := CurryParts.T,
+  program := \thunk (CurryParts.program),
+  specification := CurryParts.specification,
+  coherence := CurryParts.coherence,
+};
+
+\module UncurryImplementation {
+  \definition T: \VType := \U((\U(A ~> (B -> C))) ~> Times[A, B] ~> \F(C));
+
   \definition implementation(f: \U(A ~> (B -> C)), p: Times[A, B]): \F(C) :=
-    \match p \in Times \with { | pair a b : \force f a b };
-  \program := implementation,
-  \set := uncurry A^ B^ C^,
-  \coherence := \axiom:funext(Uncurry::[program]^, Uncurry::[set],
-    \fun (f: A^ -> B^ -> C^) => \axiom:funext(Uncurry::[program]^ f, Uncurry::[set] f,
-    \fun (p: Times^[A^, B^]) => \induction (p: Times^[A^, B^]) \return Uncurry::[program]^ f p = Uncurry::[set] f p \with {
-      | pair: \fun (a: A^) (b: B^) => \refl(Uncurry::[set] f (Times^[A^, B^]::pair a b))
-    } p)),
-}
+      \match p \in Times \with { | pair a b : \force f a b };
 
-\correspondence Assoc: Times[Times[A, B], C] ~> \F(Times[A, Times[B, C]]) {
+  \definition program: (\U(A ~> (B -> C))) ~> Times[A, B] ~> \F(C) := implementation;
+
+  \definition specification: T^ := uncurry A^ B^ C^;
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (f: A^ -> B^ -> C^) => \axiom:funext(program^ f, specification f,
+      \fun (p: Times^[A^, B^]) => \induction (p: Times^[A^, B^]) \return program^ f p = specification f p \with {
+        | pair: \fun (a: A^) (b: B^) => \refl(specification f (Times^[A^, B^]::pair a b))
+      } p));
+}
+\import .UncurryImplementation[] \as UncurryParts;
+\definition Uncurry: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := UncurryParts.T,
+  program := \thunk (UncurryParts.program),
+  specification := UncurryParts.specification,
+  coherence := UncurryParts.coherence,
+};
+
+\module AssocImplementation {
+  \definition T: \VType := \U(Times[Times[A, B], C] ~> \F(Times[A, Times[B, C]]));
+
   \definition implementation(p: Times[Times[A, B], C]): \F(Times[A, Times[B, C]]) :=
-    \match p \in Times \with {
-    | pair ab c : \match ab \in Times \with {
-        | pair a b : \return Times[A, Times[B, C]]::pair a (Times[B, C]::pair b c)
-      }
-    };
-  \program := implementation,
-  \set := assoc A^ B^ C^,
-  \coherence := \axiom:funext(Assoc::[program]^, Assoc::[set],
-    \fun (p: Times^[Times^[A^, B^], C^]) => \induction (p: Times^[Times^[A^, B^], C^]) \return Assoc::[program]^ p = Assoc::[set] p \with {
-      | pair: \fun (q: Times^[A^, B^]) (c: C^) =>
-      \induction (q: Times^[A^, B^]) \return Assoc::[program]^ (Times^[Times^[A^, B^], C^]::pair q c) = Assoc::[set] (Times^[Times^[A^, B^], C^]::pair q c) \with {
-        | pair: \fun (a: A^) (b: B^) => \refl(Assoc::[set] (Times^[Times^[A^, B^], C^]::pair (Times^[A^, B^]::pair a b) c))
-      } q
-    } p),
-}
+      \match p \in Times \with {
+      | pair ab c : \match ab \in Times \with {
+          | pair a b : \return Times[A, Times[B, C]]::pair a (Times[B, C]::pair b c)
+        }
+      };
 
-\correspondence Unassoc: Times[A, Times[B, C]] ~> \F(Times[Times[A, B], C]) {
-  \definition implementation(p: Times[A, Times[B, C]]): \F(Times[Times[A, B], C]) :=
-    \match p \in Times \with {
-    | pair a bc : \match bc \in Times \with {
-        | pair b c : \return Times[Times[A, B], C]::pair (Times[A, B]::pair a b) c
-      }
-    };
-  \program := implementation,
-  \set := unassoc A^ B^ C^,
-  \coherence := \axiom:funext(Unassoc::[program]^, Unassoc::[set],
-    \fun (p: Times^[A^, Times^[B^, C^]]) => \induction (p: Times^[A^, Times^[B^, C^]]) \return Unassoc::[program]^ p = Unassoc::[set] p \with {
-      | pair: \fun (a: A^) (q: Times^[B^, C^]) =>
-      \induction (q: Times^[B^, C^]) \return Unassoc::[program]^ (Times^[A^, Times^[B^, C^]]::pair a q) = Unassoc::[set] (Times^[A^, Times^[B^, C^]]::pair a q) \with {
-        | pair: \fun (b: B^) (c: C^) => \refl(Unassoc::[set] (Times^[A^, Times^[B^, C^]]::pair a (Times^[B^, C^]::pair b c)))
-      } q
-    } p),
+  \definition program: Times[Times[A, B], C] ~> \F(Times[A, Times[B, C]]) := implementation;
+
+  \definition specification: T^ := assoc A^ B^ C^;
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (p: Times^[Times^[A^, B^], C^]) => \induction (p: Times^[Times^[A^, B^], C^]) \return program^ p = specification p \with {
+        | pair: \fun (q: Times^[A^, B^]) (c: C^) =>
+        \induction (q: Times^[A^, B^]) \return program^ (Times^[Times^[A^, B^], C^]::pair q c) = specification (Times^[Times^[A^, B^], C^]::pair q c) \with {
+          | pair: \fun (a: A^) (b: B^) => \refl(specification (Times^[Times^[A^, B^], C^]::pair (Times^[A^, B^]::pair a b) c))
+        } q
+      } p);
 }
+\import .AssocImplementation[] \as AssocParts;
+\definition Assoc: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := AssocParts.T,
+  program := \thunk (AssocParts.program),
+  specification := AssocParts.specification,
+  coherence := AssocParts.coherence,
+};
+
+\module UnassocImplementation {
+  \definition T: \VType := \U(Times[A, Times[B, C]] ~> \F(Times[Times[A, B], C]));
+
+  \definition implementation(p: Times[A, Times[B, C]]): \F(Times[Times[A, B], C]) :=
+      \match p \in Times \with {
+      | pair a bc : \match bc \in Times \with {
+          | pair b c : \return Times[Times[A, B], C]::pair (Times[A, B]::pair a b) c
+        }
+      };
+
+  \definition program: Times[A, Times[B, C]] ~> \F(Times[Times[A, B], C]) := implementation;
+
+  \definition specification: T^ := unassoc A^ B^ C^;
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (p: Times^[A^, Times^[B^, C^]]) => \induction (p: Times^[A^, Times^[B^, C^]]) \return program^ p = specification p \with {
+        | pair: \fun (a: A^) (q: Times^[B^, C^]) =>
+        \induction (q: Times^[B^, C^]) \return program^ (Times^[A^, Times^[B^, C^]]::pair a q) = specification (Times^[A^, Times^[B^, C^]]::pair a q) \with {
+          | pair: \fun (b: B^) (c: C^) => \refl(specification (Times^[A^, Times^[B^, C^]]::pair a (Times^[B^, C^]::pair b c)))
+        } q
+      } p);
+}
+\import .UnassocImplementation[] \as UnassocParts;
+\definition Unassoc: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := UnassocParts.T,
+  program := \thunk (UnassocParts.program),
+  specification := UnassocParts.specification,
+  coherence := UnassocParts.coherence,
+};

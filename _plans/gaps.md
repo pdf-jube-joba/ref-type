@@ -20,8 +20,20 @@ record に対する eta がない。 `s = { fiel1 := 2 #field }` が示せない
   { x : Pair.Times^[A, A] \where R (fst A x) (snd A x) };
 ```
 
-現在の PTS では `\PropKind` の値を引数に取り `\Set` の値を返す product rule がなく、この定義と関係を field に持つ集合構造は型検査できない。
-`Relation` 自体も `\definition Relation(Carrier: \Set): \PropKind` と書くと `upper sort has no classifier` になるため、型族を `\definition` で表す方法が欲しい。
+依存する関係を含む文脈付きの `\definition` と、sort を持たない structure の field として記述できる。
+`Relation` の型族は `\definition Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;` と定義する。
+宣言自体を通常の関数値に変換する場合は、その product 型の形成が必要になる。
+
+## 関連型を隠した structure の存在量化
+
+```text
+\structure Relation { A: \Set, R: A -> A -> \Prop, }
+\definition existsRelation: \Prop := \exists(r: Relation);
+```
+
+関連型を field ごとに隠した証人を保持したい。
+現在の存在量化は Set の証人を要求するため、この signature を証人の型へ変換するには、関連型と関係を含む帰納型の sort と存在量化の規則を整合させる必要がある。
+固定した関連型に対する構造は、sort を指定した structure の値表現として存在量化できる。
 
 ## 宣言された型からの証明引数の推論
 

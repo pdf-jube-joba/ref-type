@@ -3,7 +3,7 @@
 \import std.Data[].Pair[] \as Pair;
 
 /* definition */
-\alias Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
+\definition Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
 
 /* property */
 
@@ -31,19 +31,19 @@
 \definition Subrelation(Carrier: \Set) (R, S: Relation[Carrier]): \Prop :=
   \forall (x, y: Carrier) -> R x y -> S x y;
 
-\record Equivalence[Carrier: \Set, R: Relation[Carrier]]: \Prop := {
+\structure Equivalence[Carrier: \Set, R: Relation[Carrier]]: \Prop := {
   refl: Reflexive Carrier R,
   sym: Symmetric Carrier R,
   trans: Transitive Carrier R,
 };
 
-\record Ordering[Carrier: \Set, R: Relation[Carrier]]: \Prop := {
+\structure Ordering[Carrier: \Set, R: Relation[Carrier]]: \Prop := {
   refl: Reflexive Carrier R,
   antisym: Antisymmetric Carrier R,
   trans: Transitive Carrier R,
 };
 
-\record StrictOrder[Carrier: \Set, R: Relation[Carrier]]: \Prop := {
+\structure StrictOrder[Carrier: \Set, R: Relation[Carrier]]: \Prop := {
   irrefl: Irreflexive Carrier R,
   trans: Transitive Carrier R,
 };
@@ -83,7 +83,59 @@
 \definition fst(A: \Set) (x: Pair.Times^[A, A]): A := Pair.first A A x;
 \definition snd(A: \Set) (x: Pair.Times^[A, A]): A := Pair.second A A x;
 
-\alias RelToPair[A: \Set, R: Relation[A]]: RelPair A := { x: Pair.Times^[A, A] \where R (fst A x) (snd A x) };
+\definition RelToPair[A: \Set, R: Relation[A]]: RelPair A := { x: Pair.Times^[A, A] \where R (fst A x) (snd A x) };
 \definition PairToRel(A: \Set) (X: \Pow ((Pair.Times^[A, A]) \assign _1)): Relation[A] := \fun (x, y: _) => \In[_1] X (Pair.Times^[A, A]::pair x y);
 
 \module Closure;
+
+/* Relations whose carrier and predicate are associated fields. */
+\structure RelationData {
+  Carrier: \Set,
+  relation: Relation[Carrier],
+}
+
+\structure EquivalenceRelation {
+  data: RelationData,
+  laws: Equivalence[data.Carrier, data.relation],
+}
+
+\definition Equality(Carrier: \Set): EquivalenceRelation := EquivalenceRelation {
+  data := RelationData {
+    Carrier := Carrier,
+    relation := \fun (x, y: Carrier) => x = y,
+  },
+  laws := Equivalence[Carrier, \fun (x, y: Carrier) => x = y] {
+    refl := \fun (x: Carrier) => \refl(x),
+    sym := \fun (x, y: Carrier) (xy: x = y) =>
+      \idelim x = y \with z: Carrier => z = x
+        \by { base: \refl(x), equality: xy },
+    trans := \fun (x, y, z: Carrier) (xy: x = y) (yz: y = z) =>
+      \idelim y = z \with w: Carrier => x = w
+        \by { base: xy, equality: yz },
+  },
+};
+
+\definition underlying(e: EquivalenceRelation): RelationData := e.data;
+
+\structure QuotientData {
+  source: RelationData,
+  Carrier: \Set,
+  class: source.Carrier -> Carrier,
+  relatedEqual: Equivalence[source.Carrier, source.relation] ->
+    \forall (x, y: source.Carrier) -> source.relation x y -> class x = class y,
+}
+
+\module QuotientOf(r: RelationData) {
+  \import std.Set[].Quotient[A := r.Carrier, Equivalent := r.relation] \as Q;
+  \definition quotient: QuotientData := QuotientData {
+    source := r,
+    Carrier := Q.Carrier,
+    class := Q.class,
+    relatedEqual := \fun (laws: Equivalence[r.Carrier, r.relation]) =>
+      Q.classOfEq (Q.EquivalenceLaws {
+        reflexive := laws.refl,
+        symmetric := laws.sym,
+        transitive := laws.trans,
+      }),
+  };
+}

@@ -37,12 +37,16 @@ fn rename_access(access: &mut LocalAccess, scopes: &[HashMap<String, Identifier>
     let LocalAccess::Current { access, .. } = access else {
         return;
     };
+    let reflected = access.as_str().ends_with('^');
     if let Some(fresh) = scopes
         .iter()
         .rev()
-        .find_map(|scope| scope.get(access.as_str()))
+        .find_map(|scope| scope.get(access.as_str().trim_end_matches('^')))
     {
         *access = fresh.clone();
+        if reflected {
+            access.0.push('^');
+        }
     }
 }
 
@@ -124,7 +128,22 @@ pub(crate) fn alpha_rename(
     scopes: &mut Vec<HashMap<String, Identifier>>,
 ) {
     match exp {
+        SExp::MemberAccess {
+            base, parameters, ..
+        } => {
+            alpha_rename(base, order, counter, scopes);
+            for parameter in parameters {
+                alpha_rename(parameter, order, counter, scopes);
+            }
+        }
+        SExp::MemberLiteral { ty, fields } => {
+            alpha_rename(ty, order, counter, scopes);
+            for (_, value) in fields {
+                alpha_rename(value, order, counter, scopes);
+            }
+        }
         SExp::Meta { .. } | SExp::Sort(_) | SExp::ValueType | SExp::MacroParameter(_) => {}
+        SExp::ProgramValueReference { access } => rename_access(access, scopes),
         SExp::AccessPath { access, parameters } => {
             rename_access(access, scopes);
             for parameter in parameters {
@@ -132,6 +151,8 @@ pub(crate) fn alpha_rename(
             }
         }
         SExp::Assign { value: base, .. }
+        | SExp::ReflectTerm { expression: base }
+        | SExp::ConversionTarget { expression: base }
         | SExp::Reflect {
             expression: base, ..
         }
@@ -170,6 +191,13 @@ pub(crate) fn alpha_rename(
             scopes.push(local);
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
+        }
+        SExp::Checked { checks, body } => {
+            for (value, ty) in checks {
+                alpha_rename(value, order, counter, scopes);
+                alpha_rename(ty, order, counter, scopes);
+            }
+            alpha_rename(body, order, counter, scopes);
         }
         SExp::Ascribe {
             term: func,

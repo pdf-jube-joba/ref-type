@@ -1,0 +1,90 @@
+\module StructureSignatures {
+
+  \inductive RelSet: \PropKind :=
+  | ctor: \forall (A: \Set) -> \forall (R: A -> A -> \Prop) -> RelSet;
+
+  \inductive Unit: \Set := | unit: Unit;
+  \definition retain(A: \Set)(R: A -> A -> \Prop)(a: A): A := a;
+  \check retain Unit (\fun (x, y: Unit) => x = y) Unit::unit: Unit;
+  \structure Relation {
+    A: \Set,
+    R: A -> A -> \Prop,
+  }
+  \definition carrier(r: Relation): \Set := r.A;
+  \check carrier (Relation { A := Unit, R := \fun (x, y: Unit) => x = y, }): \Set;
+  \definition Equality(A: \Set): Relation := Relation { A := A, R := \fun (x, y: A) => x = y, };
+  \check carrier (Equality Unit): \Set;
+  \check (Equality Unit).R Unit::unit Unit::unit: \Prop;
+  \structure Outer { inner: Relation, element: inner.A, }
+  \definition related(o: Outer): \Prop := o.inner.R o.element o.element;
+  \check related (Outer { inner := Equality Unit, element := Unit::unit, }): \Prop;
+  \inductive PUnit: \VType := | unit: PUnit;
+  \structure ProgramData { T: \VType, value: T, }
+  \definition Data: ProgramData := ProgramData { T := PUnit, value := PUnit::unit, };
+  \vcheck Data.value: PUnit;
+  \definition getValue(d: ProgramData): d.T := d.value;
+  \vcheck getValue Data: PUnit;
+  \definition makeData(T: \VType)(value: T): ProgramData := ProgramData { T := T, value := value, };
+  \vcheck (makeData PUnit PUnit::unit).value: PUnit;
+  \check Data.T^: \Set;
+  \check Data.value^: PUnit^;
+  \definition carrierRelated: \forall (r: Relation) -> \forall (x: r.A) -> r.R x x -> r.R x x :=
+    \fun(r: Relation)(x: r.A)(h: r.R x x) => h;
+  \structure Defaults {
+   A: \Set, a: A, copy: A := a, equal: copy = a := \refl(a), other: A,
+  }
+  \definition defaults: Defaults := Defaults { A := Unit, a := Unit::unit, other := Unit::unit, };
+  \check defaults.equal: defaults.copy = defaults.a;
+  \structure Calc { T: \VType, result: \F(T), }
+  \definition calc: Calc := Calc { T := PUnit, result := \return PUnit::unit, };
+  \cnormalize calc.result;
+  \definition use(c: Calc): \F(c.T) := c.result;
+  \cnormalize use calc;
+  \check calc.result^: PUnit^;
+
+
+  \definition choose(f: \forall (A: \Set) -> Relation)(A: \Set): Relation := f A;
+  \check (choose Equality Unit).R Unit::unit Unit::unit: \Prop;
+  \definition WithEquality: \forall (A: \Set) -> Relation := Equality;
+  \check (WithEquality Unit).R Unit::unit Unit::unit: \Prop;
+  \definition param(A: \Set)(x: A): Relation := Equality A;
+  \definition part: \forall (x: Unit) -> Relation := param Unit;
+  \check (part Unit::unit).R Unit::unit Unit::unit: \Prop;
+
+  \structure Tag[A: \Set] { value: A, }
+  \definition tag: Tag[Unit] := Tag[Unit] { value := Unit::unit, };
+  \module UseTag(t: Tag[Unit]) { \definition value: Unit := t.value; }
+  \import .UseTag[t := tag] \as Used;
+  \definition tagProof: Used.value = Unit::unit := \refl(Unit::unit);
+  \definition choiceProof: (choose Equality Unit).R Unit::unit Unit::unit := \refl(Unit::unit);
+  \definition identity(d: ProgramData): d.T := d.value;
+  \definition partialScalar: PUnit := identity Data;
+
+  \definition retainElement(r: Relation)(a, b: r.A): r.A := b;
+  \definition selected: Unit := retainElement (Equality Unit) Unit::unit Unit::unit;
+  \definition elementOfUnit: Unit -> Unit -> Unit := retainElement (Equality Unit);
+  \definition selectedAgain: elementOfUnit Unit::unit Unit::unit = Unit::unit := \refl(Unit::unit);
+  \structure NestedCalc { calculation: Calc, }
+  \definition nestedCalc: NestedCalc := NestedCalc { calculation := calc, };
+  \definition calculate(n: NestedCalc): \F(n.calculation.T) := n.calculation.result;
+  \cnormalize calculate nestedCalc;
+  \module AbstractTag(A: \Set, t: Tag[A]) { \definition value: A := t.value; }
+  \import .AbstractTag[A := Unit, t := tag] \as AbstractUsed;
+  \definition abstractTagProof: AbstractUsed.value = Unit::unit := \refl(Unit::unit);
+  \structure Witness[A: \Set]: \Set { value: A, }
+  \definition witnessExists: \exists Witness[Unit] := \exact(Witness[Unit] { value := Unit::unit, }, Witness[Unit]);
+
+  \definition chooseOn(f: \forall(A: \Set) -> Tag[A])(A: \Set): Tag[A] := f A;
+  \definition singleton(A: \Set)(x: A): Tag[A] := Tag[A] { value := x, };
+  \definition chooseFixed(f: Unit -> Tag[Unit])(x: Unit): Tag[Unit] := f x;
+  \definition chosenTag: Tag[Unit] := chooseFixed (singleton Unit) Unit::unit;
+  \definition chosenValue: chosenTag.value = Unit::unit := \refl(Unit::unit);
+  \definition chooseAnonymous(f: \Set -> Relation)(A: \Set): Relation := f A;
+  \definition anonymousProof: (chooseAnonymous Equality Unit).R Unit::unit Unit::unit := \refl(Unit::unit);
+
+  \module Parametric(A: \Set) { \structure Marker {} }
+  \import .Parametric[A := Unit] \as First;
+  \import .Parametric[A := Unit] \as Second;
+  \definition firstMarker: First.Marker := First.Marker {};
+  \definition secondMarker: Second.Marker := firstMarker;
+}

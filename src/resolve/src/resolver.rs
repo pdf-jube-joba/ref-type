@@ -24,6 +24,16 @@ impl std::fmt::Display for Diagnostic {
 }
 impl std::error::Error for Diagnostic {}
 
+/// A frontend declaration whose signature need not denote a kernel type.
+#[derive(Debug, Clone)]
+pub struct Declaration {
+    pub module: Vec<String>,
+    pub name: String,
+    pub kind: &'static str,
+    pub location: SourceLocation,
+    pub ty: Option<String>,
+}
+
 /// A source occurrence whose lexical target is known before type inference.
 #[derive(Debug, Clone)]
 pub struct Reference {
@@ -59,6 +69,7 @@ pub enum CheckStep {
 
 #[derive(Debug, Clone)]
 pub struct Project {
+    pub declarations: Vec<Declaration>,
     pub modules: Vec<Module>,
     pub references: Vec<Reference>,
     pub bindings: HashMap<BindingId, Binding>,
@@ -79,8 +90,23 @@ struct Scope {
     substitutions: HashMap<BindingId, SExp>,
 }
 
+#[path = "representation.rs"]
+mod representation;
+#[path = "structures.rs"]
+mod structures;
+
 #[derive(Default)]
 struct Resolver {
+    declarations: Vec<Declaration>,
+    structures: HashMap<BindingId, structures::Structure>,
+    computation_bindings: HashSet<BindingId>,
+    refinements: HashMap<BindingId, structures::Refinement>,
+    front_definitions: HashMap<BindingId, structures::Definition>,
+    structure_values: HashMap<BindingId, structures::Value>,
+    last_inputs: Vec<structures::Input>,
+    last_parameter_checks: Vec<(SExp, SExp)>,
+    module_inputs: HashMap<ModuleId, Vec<structures::Input>>,
+    module_parameters: HashMap<ModuleId, Vec<RightBind>>,
     scopes: Vec<Scope>,
     input: HashMap<ModuleId, Module>,
     output: HashMap<ModuleId, Module>,
@@ -129,6 +155,7 @@ pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic
         assemble(module, &mut resolver.output);
     }
     Ok(Project {
+        declarations: resolver.declarations,
         order: resolver.order,
         modules: roots,
         imports: resolver.imports,
@@ -223,6 +250,7 @@ impl Resolver {
         scopes: &mut Vec<HashMap<String, Identifier>>,
     ) -> Result<(), Diagnostic> {
         self.expand(exp)?;
+        self.normalize_structures(exp, scopes)?;
         self.lexical(exp, scopes);
         self.resolve_expressions(exp)
     }
@@ -233,7 +261,8 @@ impl Resolver {
                 return;
             }
             match node {
-                SExp::AccessPath { access, .. }
+                SExp::ProgramValueReference { access }
+                | SExp::AccessPath { access, .. }
                 | SExp::RecordTypeCtor { access, .. }
                 | SExp::IndCase { path: access, .. }
                 | SExp::IndElimPrim { path: access, .. }
@@ -349,31 +378,11 @@ impl Resolver {
     }
     fn parameters(
         &mut self,
-        parameters: &mut [RightBind],
+        parameters: &mut Vec<RightBind>,
         locals: &mut Vec<HashMap<String, Identifier>>,
         module: bool,
     ) -> Result<(), Diagnostic> {
-        let mut position = 0;
-        for bind in parameters {
-            self.expression(&mut bind.ty, locals)?;
-            let mut scope = HashMap::new();
-            for name in &mut bind.vars {
-                if module {
-                    self.publish(name);
-                    self.global_bindings
-                        .get_mut(&name.1.unwrap())
-                        .unwrap()
-                        .parameter = Some(position);
-                    position += 1;
-                } else {
-                    self.binding(name);
-                }
-                scope.insert(name.0.clone(), name.clone());
-            }
-            if !module {
-                locals.push(scope);
-            }
-        }
+        self.expand_structure_parameters(parameters, locals, module)?;
         Ok(())
     }
     fn module(&mut self, id: ModuleId) -> Result<(), Diagnostic> {
@@ -412,6 +421,9 @@ impl Resolver {
                 span: module.span,
             });
         self.parameters(&mut module.parameters, &mut Vec::new(), true)?;
+        self.module_inputs.insert(id, self.last_inputs.clone());
+        self.module_parameters.insert(id, module.parameters.clone());
+        module.parameter_checks = self.last_parameter_checks.clone();
         self.order.push(CheckStep::Parameters(id));
         let ModuleBody::Inline(items) = &mut module.body else {
             return Err(self.error("External module was not loaded"));
@@ -471,19 +483,35 @@ impl Resolver {
     fn item(&mut self, item: &mut ModuleItem) -> Result<(), Diagnostic> {
         let mut locals = Vec::new();
         match item {
+            ModuleItem::Refinement { name, fields, laws } => {
+                let access = LocalAccess::Current {
+                    span: SourceSpan::default(),
+                    access: name.clone(),
+                };
+                let id = self
+                    .front_binding(&access, &[])
+                    .ok_or_else(|| self.error("unknown structure declaration"))?;
+                let mut members = HashMap::new();
+                for field in ["Raw", "Law", "Set", "raw", "law", "Predicate"] {
+                    let mut expression =
+                        structures::variable(Identifier(format!("{}::[{field}]", name.0)));
+                    self.expression(&mut expression, &mut Vec::new())?;
+                    members.insert(field.to_owned(), expression);
+                }
+                self.refinements.insert(
+                    id,
+                    structures::Refinement {
+                        fields: fields.iter().map(|n| n.0.clone()).collect(),
+                        laws: laws.iter().map(|n| n.0.clone()).collect(),
+                        members,
+                    },
+                );
+            }
+            ModuleItem::Structure { .. } => {
+                unreachable!("structure signatures are expanded before ordinary declarations")
+            }
             ModuleItem::Scoped { .. } => {
                 unreachable!("declaration scopes are flattened before elaboration")
-            }
-            ModuleItem::Alias {
-                name,
-                parameters,
-                ty,
-                body,
-            } => {
-                self.parameters(parameters, &mut locals, false)?;
-                self.expression(ty, &mut locals)?;
-                self.expression(body, &mut locals)?;
-                self.publish(name);
             }
             ModuleItem::Definition {
                 owner,
@@ -546,7 +574,11 @@ impl Resolver {
                 }
             }
             ModuleItem::ChildModule { module } => self.module(module.id)?,
-            ModuleItem::Import { path, import_name } => self.resolve_import(path, import_name)?,
+            ModuleItem::Import {
+                path,
+                import_name,
+                checks,
+            } => self.resolve_import(path, import_name, checks)?,
             ModuleItem::MathMacro {
                 name,
                 before,
@@ -604,6 +636,11 @@ impl Resolver {
             | ModuleItem::ComputationNormalize { exp }
             | ModuleItem::ComputationInfer { exp } => self.computation(exp, &mut locals)?,
             ModuleItem::ValueInfer { exp } => self.value(exp, &mut locals)?,
+            ModuleItem::MemberCheck { value, ty } => {
+                self.expression(value, &mut locals)?;
+                self.expression(ty, &mut locals)?;
+            }
+            ModuleItem::ValueTypeCheck { ty } => self.value_type(ty, &mut locals)?,
             ModuleItem::ValueCheck { exp, ty } => {
                 self.value(exp, &mut locals)?;
                 self.value_type(ty, &mut locals)?;
@@ -680,6 +717,7 @@ impl Resolver {
         macros::rename_template_binders(template, self.fresh_hygiene());
         let order = self.next_macro;
         self.next_macro += 1;
+        self.normalize_structures(template, &[])?;
         let mut result = Ok(());
         macros::walk_sexp_mut(template, &mut |node| {
             if result.is_err() {
@@ -695,7 +733,8 @@ impl Resolver {
                     *scope = Some(self.current);
                     *max_order = Some(order);
                 }
-                SExp::AccessPath { access, .. }
+                SExp::ProgramValueReference { access }
+                | SExp::AccessPath { access, .. }
                 | SExp::RecordTypeCtor { access, .. }
                 | SExp::IndCase { path: access, .. }
                 | SExp::IndElimPrim { path: access, .. }
@@ -871,6 +910,7 @@ impl Resolver {
         &mut self,
         path: &mut ModuleInstantiatePath,
         name: &mut Identifier,
+        checks: &mut Vec<(SExp, SExp)>,
     ) -> Result<(), Diagnostic> {
         let (mut target, calls) = match path {
             ModuleInstantiatePath::FromRoot { calls } => (ModuleId(0), calls),
@@ -937,6 +977,45 @@ impl Resolver {
                 }
             }
             child.1 = self.input.get(&target).and_then(|module| module.name.1);
+            let inputs = self.module_inputs.get(&target).cloned().unwrap_or_default();
+            let mut argument_substitutions = substitutions.clone();
+            for (name, argument) in arguments.iter() {
+                if let Some(id) = self.scopes[target.0 as usize].names.get(name.as_str()) {
+                    argument_substitutions.insert(*id, argument.clone());
+                }
+            }
+            let mut expanded = Vec::new();
+            for (name, argument) in std::mem::take(arguments) {
+                if let Some(input) = inputs.iter().find(|input| input.name == name.as_str()) {
+                    if input.signature.is_some() {
+                        let mut input = input.clone();
+                        for expression in input.arguments.values_mut() {
+                            *expression =
+                                structures::substitute(expression, &argument_substitutions);
+                        }
+                        for bind in &mut input.callback_parameters {
+                            *bind.ty = structures::substitute(&bind.ty, &argument_substitutions);
+                        }
+                        let (fields, guards) = self.callback_arguments(&input, &argument, &[])?;
+                        checks.extend(guards);
+                        for (path, expression) in input.fields.iter().zip(fields) {
+                            expanded.push((Identifier(format!("{}.{}", name.0, path)), expression));
+                        }
+                        continue;
+                    }
+                    if input.computation {
+                        expanded.push((
+                            name,
+                            SExp::Thunk {
+                                computation: Box::new(argument),
+                            },
+                        ));
+                        continue;
+                    }
+                }
+                expanded.push((name, argument));
+            }
+            *arguments = expanded;
             for (name, argument) in arguments {
                 if let Some(id) = self.scopes[target.0 as usize].names.get(name.as_str()) {
                     name.1 = Some(*id);

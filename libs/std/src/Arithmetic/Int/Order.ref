@@ -1,29 +1,29 @@
 \import std.Data[].Nat[].Order[].Prop[] \as NO;
 \import std.Logic[].Order[] \as O;
-\definition crossLeft(x, y: Integer): Nat := NatOp.Add::[set] (Positive::[set] x) (Negative::[set] y);
-\definition natLtbAgrees(a, b: Nat): NatLtb::[set] a b = NatOp.Ltb::[set] a b :=
-  \match (NatOp.Ltb::[set] a b) \in B.Bool^ \return (\fun (flag: B.Bool^) => NatIsZero::[set] (NatOp.Choose::[set] flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)) = flag) \with {
+\definition crossLeft(x, y: Integer): Nat := NatOp.Add.specification (Positive.specification x) (Negative.specification y);
+\definition natLtbAgrees(a, b: Nat): NatLtb.specification a b = NatOp.Ltb.specification a b :=
+  \match (NatOp.Ltb.specification a b) \in B.Bool^ \return (\fun (flag: B.Bool^) => NatIsZero.specification (NatOp.Choose.specification flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)) = flag) \with {
     | false : (\refl(B.Bool^::false))
     | true : (\refl(B.Bool^::true))
     };
 \definition ltbAsCross(x, y: Integer):
-  Ltb::[program]^ x y = NatOp.Ltb::[set] (crossLeft x y) (crossLeft y x) :=
-  trans!{B.Bool^} _ _ _ (congr!{Ltb::[Type]^ _} (\fun (f: _) => f x y) _ _ Ltb::[coherence])
+  Ltb.program^ x y = NatOp.Ltb.specification (crossLeft x y) (crossLeft y x) :=
+  trans!{B.Bool^} _ _ _ (congr!{Ltb.T^ _} (\fun (f: _) => f x y) _ _ Ltb.coherence)
     (natLtbAgrees (crossLeft x y) (crossLeft y x));
 \definition ltOfCross(x, y: Integer):
   NL.Lt (crossLeft x y) (crossLeft y x) ->
   IntegerLt x y :=
   \fun (h: NL.Lt (crossLeft x y) (crossLeft y x)) =>
-    \idelim Ltb::[set] x y = Ltb::[program]^ x y \with flag: B.Bool^ => flag = B.Bool^::true
+    \idelim Ltb.specification x y = Ltb.program^ x y \with flag: B.Bool^ => flag = B.Bool^::true
       \by { base: congr!{B.Bool^ B.Bool^}
-        (\fun (flag: B.Bool^) => NatIsZero::[set] (NatOp.Choose::[set] flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
-        (NatOp.Ltb::[set] (crossLeft x y) (crossLeft y x)) B.Bool^::true h, equality:
-        sym!{B.Bool^} _ _ (congr!{Ltb::[Type]^ _} (\fun (f: _) => f x y) _ _ Ltb::[coherence]) };
+        (\fun (flag: B.Bool^) => NatIsZero.specification (NatOp.Choose.specification flag N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
+        (NatOp.Ltb.specification (crossLeft x y) (crossLeft y x)) B.Bool^::true h, equality:
+        sym!{B.Bool^} _ _ (congr!{Ltb.T^ _} (\fun (f: _) => f x y) _ _ Ltb.coherence) };
 \definition crossOfLt(x, y: Integer):
   IntegerLt x y ->
   NL.Lt (crossLeft x y) (crossLeft y x) :=
   \fun (h: IntegerLt x y) =>
-    \idelim Ltb::[program]^ x y = NatOp.Ltb::[set] (crossLeft x y) (crossLeft y x)
+    \idelim Ltb.program^ x y = NatOp.Ltb.specification (crossLeft x y) (crossLeft y x)
       \with flag: B.Bool^ => flag = B.Bool^::true
       \by { base: h, equality: ltbAsCross x y };
 \definition Trichotomy(x, y: Integer): \Prop :=
@@ -44,7 +44,7 @@
     NL.ltIrrefl (crossLeft x x) (crossOfLt x x h);
 
 \definition rawCross(x, y: Difference): Nat :=
-  NatOp.Add::[set] (pos x) (negPart y);
+  NatOp.Add.specification (pos x) (negPart y);
 \definition RawLt(x, y: Difference): \Prop :=
   NL.Lt (rawCross x y) (rawCross y x);
 
@@ -56,8 +56,8 @@
   ltOfCross x y;
 
 \definition rawShuffle(x, y, z: Difference):
-  NatOp.Add::[set] (rawCross x y) (rawCross y z) =
-    NatOp.Add::[set] (rawCross x z) (NatOp.Add::[set] (pos y) (negPart y)) :=
+  NatOp.Add.specification (rawCross x y) (rawCross y z) =
+    NatOp.Add.specification (rawCross x z) (NatOp.Add.specification (pos y) (negPart y)) :=
   integerAddShuffle (pos x) (negPart y) (pos y) (negPart z);
 
 \definition rawLtTrans(x, y, z: Difference):
@@ -66,58 +66,58 @@
   \block {
     \fun (xy: RawLt x y) (yz: RawLt y z) \then
     \let leftStep: NL.Lt
-      (NatOp.Add::[set] (rawCross x y) (rawCross y z))
-      (NatOp.Add::[set] (rawCross y x) (rawCross y z)) :=
+      (NatOp.Add.specification (rawCross x y) (rawCross y z))
+      (NatOp.Add.specification (rawCross y x) (rawCross y z)) :=
       NO.ltAddRight (rawCross x y) (rawCross y x) (rawCross y z) xy \then
     \let rightStep: NL.Lt
-      (NatOp.Add::[set] (rawCross y x) (rawCross y z))
-      (NatOp.Add::[set] (rawCross z y) (rawCross y x)) :=
+      (NatOp.Add.specification (rawCross y x) (rawCross y z))
+      (NatOp.Add.specification (rawCross z y) (rawCross y x)) :=
       NO.ltRespects
-        (NatOp.Add::[set] (rawCross y z) (rawCross y x))
-        (NatOp.Add::[set] (rawCross z y) (rawCross y x))
-        (NatOp.Add::[set] (rawCross y x) (rawCross y z))
-        (NatOp.Add::[set] (rawCross z y) (rawCross y x))
+        (NatOp.Add.specification (rawCross y z) (rawCross y x))
+        (NatOp.Add.specification (rawCross z y) (rawCross y x))
+        (NatOp.Add.specification (rawCross y x) (rawCross y z))
+        (NatOp.Add.specification (rawCross z y) (rawCross y x))
         (NL.addComm (rawCross y z) (rawCross y x))
-        (\refl(NatOp.Add::[set] (rawCross z y) (rawCross y x)))
+        (\refl(NatOp.Add.specification (rawCross z y) (rawCross y x)))
         (NO.ltAddRight (rawCross y z) (rawCross z y)
           (rawCross y x) yz) \then
     \let enlarged: NL.Lt
-      (NatOp.Add::[set] (rawCross x y) (rawCross y z))
-      (NatOp.Add::[set] (rawCross z y) (rawCross y x)) :=
+      (NatOp.Add.specification (rawCross x y) (rawCross y z))
+      (NatOp.Add.specification (rawCross z y) (rawCross y x)) :=
       NO.ltTrans _ _ _ leftStep rightStep \then
     \let aligned: NL.Lt
-      (NatOp.Add::[set] (rawCross x z) (NatOp.Add::[set] (pos y) (negPart y)))
-      (NatOp.Add::[set] (rawCross z x) (NatOp.Add::[set] (pos y) (negPart y))) :=
+      (NatOp.Add.specification (rawCross x z) (NatOp.Add.specification (pos y) (negPart y)))
+      (NatOp.Add.specification (rawCross z x) (NatOp.Add.specification (pos y) (negPart y))) :=
       NO.ltRespects _ _ _ _
         (rawShuffle x y z) (rawShuffle z y x) enlarged \then
     \return NO.ltCancelRight (rawCross x z) (rawCross z x)
-      (NatOp.Add::[set] (pos y) (negPart y)) aligned
+      (NatOp.Add.specification (pos y) (negPart y)) aligned
   };
 
 \definition rawEquivalentEquation(x, y: Difference):
   IM.Equivalent x y ->
-  NatOp.Add::[set] (pos x) (negPart y) = NatOp.Add::[set] (pos y) (negPart x) := \fun (xy: _) =>
+  NatOp.Add.specification (pos x) (negPart y) = NatOp.Add.specification (pos y) (negPart x) := \fun (xy: _) =>
     xy;
 \definition rawEquivalentUnderAdd(x, x2, y: Difference):
   IM.Equivalent x x2 ->
-  NatOp.Add::[set] (NatOp.Add::[set] (pos x) (negPart x2)) (negPart y) =
-    NatOp.Add::[set] (NatOp.Add::[set] (pos x2) (negPart x)) (negPart y) :=
+  NatOp.Add.specification (NatOp.Add.specification (pos x) (negPart x2)) (negPart y) =
+    NatOp.Add.specification (NatOp.Add.specification (pos x2) (negPart x)) (negPart y) :=
   \fun (xx: IM.Equivalent x x2) =>
-    congr!{Nat Nat} (\fun (n: Nat) => NatOp.Add::[set] n (negPart y)) _ _
+    congr!{Nat Nat} (\fun (n: Nat) => NatOp.Add.specification n (negPart y)) _ _
       (rawEquivalentEquation x x2 xx);
 
 \definition rawReplaceLeftLower(x, x2, y: Difference):
   IM.Equivalent x x2 ->
-  NatOp.Add::[set] (rawCross x y) (negPart x2) =
-    NatOp.Add::[set] (rawCross x2 y) (negPart x) :=
+  NatOp.Add.specification (rawCross x y) (negPart x2) =
+    NatOp.Add.specification (rawCross x2 y) (negPart x) :=
   \fun (xx: _) =>
     equiv_reason!{trans!{Nat}
       "by" { NO.addRotate (pos x) (negPart y) (negPart x2) }
       "by" { rawEquivalentUnderAdd x x2 y xx }
       "by" { NO.addRotate (pos x2) (negPart x) (negPart y) }};
 \definition rawReplaceLeftUpper(x, x2, y: Difference):
-  NatOp.Add::[set] (rawCross y x) (negPart x2) =
-    NatOp.Add::[set] (rawCross y x2) (negPart x) :=
+  NatOp.Add.specification (rawCross y x) (negPart x2) =
+    NatOp.Add.specification (rawCross y x2) (negPart x) :=
   NO.addRotate (pos y) (negPart x) (negPart x2);
 
 \definition rawLtReplaceLeft(x, x2, y: Difference):
@@ -126,23 +126,23 @@
   \fun (xx: _) (xy: _) =>
     NO.ltCancelRight (rawCross x2 y) (rawCross y x2) (negPart x)
       (NO.ltRespects
-        (NatOp.Add::[set] (rawCross x y) (negPart x2))
-        (NatOp.Add::[set] (rawCross y x) (negPart x2))
-        (NatOp.Add::[set] (rawCross x2 y) (negPart x))
-        (NatOp.Add::[set] (rawCross y x2) (negPart x))
+        (NatOp.Add.specification (rawCross x y) (negPart x2))
+        (NatOp.Add.specification (rawCross y x) (negPart x2))
+        (NatOp.Add.specification (rawCross x2 y) (negPart x))
+        (NatOp.Add.specification (rawCross y x2) (negPart x))
         (rawReplaceLeftLower x x2 y xx)
         (rawReplaceLeftUpper x x2 y)
         (NO.ltAddRight (rawCross x y) (rawCross y x)
           (negPart x2) xy));
 
 \definition rawReplaceRightLower(x, y, y2: Difference):
-  NatOp.Add::[set] (rawCross x y) (negPart y2) =
-    NatOp.Add::[set] (rawCross x y2) (negPart y) :=
+  NatOp.Add.specification (rawCross x y) (negPart y2) =
+    NatOp.Add.specification (rawCross x y2) (negPart y) :=
   NO.addRotate (pos x) (negPart y) (negPart y2);
 \definition rawReplaceRightUpper(x, y, y2: Difference):
   IM.Equivalent y y2 ->
-  NatOp.Add::[set] (rawCross y x) (negPart y2) =
-    NatOp.Add::[set] (rawCross y2 x) (negPart y) :=
+  NatOp.Add.specification (rawCross y x) (negPart y2) =
+    NatOp.Add.specification (rawCross y2 x) (negPart y) :=
   \fun (yy: _) =>
     equiv_reason!{trans!{Nat}
       "by" { NO.addRotate (pos y) (negPart x) (negPart y2) }
@@ -155,10 +155,10 @@
   \fun (yy: _) (xy: _) =>
     NO.ltCancelRight (rawCross x y2) (rawCross y2 x) (negPart y)
       (NO.ltRespects
-        (NatOp.Add::[set] (rawCross x y) (negPart y2))
-        (NatOp.Add::[set] (rawCross y x) (negPart y2))
-        (NatOp.Add::[set] (rawCross x y2) (negPart y))
-        (NatOp.Add::[set] (rawCross y2 x) (negPart y))
+        (NatOp.Add.specification (rawCross x y) (negPart y2))
+        (NatOp.Add.specification (rawCross y x) (negPart y2))
+        (NatOp.Add.specification (rawCross x y2) (negPart y))
+        (NatOp.Add.specification (rawCross y2 x) (negPart y))
         (rawReplaceRightLower x y y2)
         (rawReplaceRightUpper x y y2 yy)
         (NO.ltAddRight (rawCross x y) (rawCross y x)
@@ -171,7 +171,7 @@
     rawLtReplaceRight x2 y y2 yy (rawLtReplaceLeft x x2 y xx xy);
 
 \definition rawAddCross(z, x, y: Difference):
-  NatOp.Add::[set] (rawCross x y) (rawCross z z) =
+  NatOp.Add.specification (rawCross x y) (rawCross z z) =
     rawCross (IM.addRep z x) (IM.addRep z y) :=
   trans!{Nat} _ _ _
     (NL.addComm (rawCross x y) (rawCross z z))
@@ -184,8 +184,8 @@
   RawLt (IM.addRep z x) (IM.addRep z y) :=
   \fun (xy: _) =>
     NO.ltRespects
-      (NatOp.Add::[set] (rawCross x y) (rawCross z z))
-      (NatOp.Add::[set] (rawCross y x) (rawCross z z))
+      (NatOp.Add.specification (rawCross x y) (rawCross z z))
+      (NatOp.Add.specification (rawCross y x) (rawCross z z))
       (rawCross (IM.addRep z x) (IM.addRep z y))
       (rawCross (IM.addRep z y) (IM.addRep z x))
       (rawAddCross z x y)
@@ -346,8 +346,8 @@
     (IM.scaleRep y (N.Nat^::succ k)) :=
   \fun (xy: _) =>
     NO.ltRespects
-      (NatOp.Mul::[set] (rawCross x y) (N.Nat^::succ k))
-      (NatOp.Mul::[set] (rawCross y x) (N.Nat^::succ k))
+      (NatOp.Mul.specification (rawCross x y) (N.Nat^::succ k))
+      (NatOp.Mul.specification (rawCross y x) (N.Nat^::succ k))
       (rawCross (IM.scaleRep x (N.Nat^::succ k))
         (IM.scaleRep y (N.Nat^::succ k)))
       (rawCross (IM.scaleRep y (N.Nat^::succ k))
@@ -367,8 +367,8 @@
           (IM.scaleRep y (N.Nat^::succ k)))
         (rawCross (IM.scaleRep y (N.Nat^::succ k))
           (IM.scaleRep x (N.Nat^::succ k)))
-        (NatOp.Mul::[set] (rawCross x y) (N.Nat^::succ k))
-        (NatOp.Mul::[set] (rawCross y x) (N.Nat^::succ k))
+        (NatOp.Mul.specification (rawCross x y) (N.Nat^::succ k))
+        (NatOp.Mul.specification (rawCross y x) (N.Nat^::succ k))
         (sym!{Nat} _ _
           (NL.mulDistribRight (pos x) (negPart y) (N.Nat^::succ k)))
         (sym!{Nat} _ _
@@ -439,7 +439,7 @@
     (Int^::ofNat (N.Nat^::succ k)) :=
   \block {
     \let n: Nat := N.Nat^::succ a \then
-    \let product: Nat := NatOp.Mul::[set] (N.Nat^::succ k) n \then
+    \let product: Nat := NatOp.Mul.specification (N.Nat^::succ k) n \then
     \let belowProduct:
         IntegerLt (Int^::ofNat a) (integer product zeroNat) :=
       ltNatural a product (NO.ltPositiveProduct a k) \then
@@ -583,7 +583,7 @@
       (ltMulPositiveRight x y e positive xy);
 
 \definition absNat(x: Int^): N.Nat^ :=
-  NatAbs::[set] x;
+  NatAbs.specification x;
 
 \definition absInteger(x: Int^): Int^ :=
   Int^::ofNat (absNat x);
@@ -629,14 +629,14 @@
     Int^::ofNat (N.Nat^::succ n) :=
   congr!{N.Nat^ Int^}
     (\fun (k: N.Nat^) => Int^::ofNat (N.Nat^::succ k))
-    (NatOp.Add::[set] n N.Nat^::zero) n (NL.addZeroRight n);
+    (NatOp.Add.specification n N.Nat^::zero) n (NL.addZeroRight n);
 
 \definition magnitudeOfNegSucc(n: N.Nat^):
   magnitudeInteger (Int^::negSucc n) =
     Int^::ofNat (N.Nat^::succ (N.Nat^::succ n)) :=
   congr!{N.Nat^ Int^}
     (\fun (k: N.Nat^) => Int^::ofNat (N.Nat^::succ k))
-    (NatOp.Add::[set] N.Nat^::zero (N.Nat^::succ n))
+    (NatOp.Add.specification N.Nat^::zero (N.Nat^::succ n))
     (N.Nat^::succ n) (NL.addZeroLeft (N.Nat^::succ n));
 
 \definition belowMagnitude:
@@ -653,7 +653,7 @@
           (integerEqRefl _)
           (congr!{N.Nat^ Int^}
               (\fun (k: N.Nat^) => Int^::ofNat (N.Nat^::succ k))
-              n (NatOp.Add::[set] n N.Nat^::zero)
+              n (NatOp.Add.specification n N.Nat^::zero)
               (sym!{N.Nat^} _ _ (NL.addZeroRight n)))
           (naturalLtConstructors n (N.Nat^::succ n)
             (NO.ltSelfSucc n)))
@@ -666,7 +666,7 @@
           (integerEqRefl _)
           (congr!{N.Nat^ Int^}
               (\fun (k: N.Nat^) => Int^::ofNat (N.Nat^::succ k))
-              (N.Nat^::succ n) (NatOp.Add::[set] N.Nat^::zero (N.Nat^::succ n))
+              (N.Nat^::succ n) (NatOp.Add.specification N.Nat^::zero (N.Nat^::succ n))
               (sym!{N.Nat^} _ _ (NL.addZeroLeft (N.Nat^::succ n))))
           (ltTrans (Int^::negSucc n)
             zeroInteger

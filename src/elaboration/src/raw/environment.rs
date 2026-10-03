@@ -17,7 +17,7 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub enum DefinedConstant {
-    Alias {
+    Contextual {
         parameters: Vec<(SymbolId, Exp)>,
         ty: Exp,
         body: Exp,
@@ -39,7 +39,7 @@ pub enum DefinedConstant {
 impl DefinedConstant {
     fn kind_name(&self) -> &'static str {
         match self {
-            Self::Alias { .. } => "alias",
+            Self::Contextual { .. } => "contextual definition",
             Self::Pts { .. } => "Set/Prop",
             Self::ProgramValue { .. } => "Program value",
             Self::ProgramComputation { .. } => "Program computation",
@@ -553,7 +553,7 @@ impl CrateEnv {
             .map(|var| crate::raw::program::ProgramContextEntry::ValueType { var: *var })
             .collect();
         match *definition {
-            DefinedConstant::Alias {
+            DefinedConstant::Contextual {
                 ref parameters,
                 ty,
                 body,
@@ -711,13 +711,13 @@ impl CrateEnv {
                 )
             };
             let definition = match source {
-                DefinedConstant::Alias {
+                DefinedConstant::Contextual {
                     parameters,
                     ty,
                     body,
                 } => {
                     let depth = parameters.len();
-                    DefinedConstant::Alias {
+                    DefinedConstant::Contextual {
                         parameters: parameters
                             .into_iter()
                             .enumerate()

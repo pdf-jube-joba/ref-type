@@ -109,6 +109,7 @@ impl Extend for Module {
             id: hir::ModuleId::default(),
             name: extend(self.name),
             parameters: extend(self.parameters),
+            parameter_checks: Vec::new(),
             body: extend(self.body),
             span: self.span,
             declaration_spans: self.declaration_spans,
@@ -137,12 +138,12 @@ extend_enum!(ModuleBody {
 
 extend_enum!(ModuleItem {
     Scoped { exports, items },
-    Alias { name, parameters, ty, body },
     Definition { owner, name, binders, ty, body },
     Inductive { type_name, parameters, indices, kind, constructors },
+    Structure { name, kind, parameters, fields, laws },
+    Refinement { name, fields, laws },
     Record { type_name, parameters, kind, fields },
     ChildModule { module },
-    Import { path, import_name },
     MathMacro { name, before, after },
     UserMacro { name, before, after },
     UseMacro { import_name, macro_name },
@@ -150,12 +151,17 @@ extend_enum!(ModuleItem {
     Normalize { exp },
     ComputationEval { exp },
     ComputationNormalize { exp },
+    ValueTypeCheck { ty },
     ValueCheck { exp, ty },
     ComputationCheck { exp, ty },
     ValueInfer { exp },
     ComputationInfer { exp },
     Check { exp, ty },
     Infer { exp },
+} special {
+    ModuleItem::Import { path, import_name } => hir::ModuleItem::Import {
+        path: extend(path), import_name: extend(import_name), checks: Vec::new(),
+    }
 });
 
 extend_struct!(AssociatedOwner {
@@ -182,6 +188,7 @@ extend_enum!(MacroExp {
 extend_struct!(RightBind { vars, ty });
 
 extend_enum!(ValueTypeExp {
+    Deferred { expression },
     Meta { kind, span },
     Access { access, parameters },
     Thunk(value0),
@@ -189,12 +196,14 @@ extend_enum!(ValueTypeExp {
 });
 
 extend_enum!(ComputationTypeExp {
+    Deferred { expression },
     Meta { kind, span },
     Return(value0),
     Function { domain, codomain },
 });
 
 extend_enum!(ValueTermExp {
+    Deferred { expression },
     Ascribe { term, ty },
     Meta { kind, span },
     Access(value0),
@@ -206,6 +215,7 @@ extend_enum!(ValueTermExp {
 });
 
 extend_enum!(ComputationTermExp {
+    Deferred { expression },
     Ascribe { term, ty },
     Meta { kind, span },
     Access(value0),
@@ -241,6 +251,8 @@ extend_enum!(LocalAccess {
 });
 
 extend_enum!(SExp {
+    MemberAccess { base, field, parameters, span },
+    MemberLiteral { ty, fields },
     Ascribe { term, ty },
     Assign { value, number, span },
     Meta { kind, span },

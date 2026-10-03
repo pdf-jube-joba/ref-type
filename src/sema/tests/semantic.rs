@@ -568,3 +568,65 @@ fn nested_child_edits_invalidate_parent_users_and_match_clean_checks() {
     assert_eq!(changed, Database::new().check(&edited));
     assert_eq!(changed, Database::with_cache(&cache.0).check(&edited));
 }
+
+#[test]
+fn structure_members_preserve_source_identity_and_invalidate_users() {
+    let cache = Cache::new();
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert(
+        "/virtual/root.ref",
+        "\\module Shapes;\n\\module Use;\n\\module Other;\n",
+    );
+    snapshot.insert(
+        "/virtual/Shapes.ref",
+        r"\inductive Unit: \Set := | unit: Unit;
+\structure Relation { A: \Set, R: A -> A -> \Prop, }
+\definition Equality(A: \Set): Relation := Relation { A := A, R := \fun(x,y:A) => x = y, };",
+    );
+    snapshot.insert(
+        "/virtual/Use.ref",
+        r"\import \root.Shapes[] \as S;
+\definition same: (S.Equality S.Unit).R S.Unit::unit S.Unit::unit := \refl(S.Unit::unit);",
+    );
+    snapshot.insert(
+        "/virtual/Other.ref",
+        r"\definition Truth: \Prop := \forall(P: \Prop) -> P -> P;",
+    );
+    let mut database = Database::with_cache(&cache.0);
+    let first = database.check(&snapshot);
+    assert!(first.is_success(), "{first:?}");
+    let field = first
+        .declarations()
+        .find(|declaration| declaration.id.name == "Relation::R")
+        .unwrap();
+    assert_eq!(field.kind, "field");
+    assert_eq!(field.location.file, PathBuf::from("/virtual/Shapes.ref"));
+    assert_eq!(
+        &snapshot.source(&field.location.file).unwrap().text[field.location.range.clone()],
+        "R"
+    );
+    assert!(first.references_to(&field.id).count() > 0);
+    assert!(
+        first
+            .declarations()
+            .any(|declaration| declaration.id.name == "Equality" && declaration.ty.is_some())
+    );
+    let mut fresh = Database::with_cache(&cache.0);
+    assert_eq!(first, fresh.check(&snapshot));
+    assert_eq!(fresh.stats().checked_modules, 0);
+    let edited = snapshot.with_file(
+        "/virtual/Shapes.ref",
+        snapshot
+            .source("/virtual/Shapes.ref")
+            .unwrap()
+            .text
+            .replace(
+                "R: A -> A -> \\Prop",
+                "R: A -> A -> \\Prop, copy: A -> A := \\fun(x: A) => x",
+            ),
+    );
+    let changed = database.check(&edited);
+    assert!(changed.is_success(), "{changed:?}");
+    assert_eq!(database.stats().reused_modules, 1);
+    assert_eq!(changed, Database::new().check(&edited));
+}

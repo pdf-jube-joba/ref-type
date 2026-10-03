@@ -414,7 +414,32 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
         return;
     }
     match exp {
-        SExp::Meta { .. } | SExp::Sort(_) | SExp::ValueType | SExp::MacroParameter(_) => {}
+        SExp::MemberAccess {
+            base, parameters, ..
+        } => {
+            walk_sexp_control(base, action);
+            for parameter in parameters {
+                walk_sexp_control(parameter, action);
+            }
+        }
+        SExp::MemberLiteral { ty, fields } => {
+            walk_sexp_control(ty, action);
+            for (_, value) in fields {
+                walk_sexp_control(value, action);
+            }
+        }
+        SExp::Checked { checks, body } => {
+            for (value, ty) in checks {
+                walk_sexp_control(value, action);
+                walk_sexp_control(ty, action);
+            }
+            walk_sexp_control(body, action);
+        }
+        SExp::Meta { .. }
+        | SExp::Sort(_)
+        | SExp::ValueType
+        | SExp::MacroParameter(_)
+        | SExp::ProgramValueReference { .. } => {}
         SExp::AccessPath { parameters, .. } => {
             for parameter in parameters {
                 walk_sexp_control(parameter, action);
@@ -429,6 +454,8 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             walk_sexp_control(motive, action);
         }
         SExp::Assign { value: base, .. }
+        | SExp::ReflectTerm { expression: base }
+        | SExp::ConversionTarget { expression: base }
         | SExp::Reflect {
             expression: base, ..
         }

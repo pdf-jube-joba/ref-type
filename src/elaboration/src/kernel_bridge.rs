@@ -79,7 +79,7 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
             && !env.kernel_definitions.borrow().contains_key(&id)
         {
             match env.resolve_definition(id)?.clone() {
-                DefinedConstant::Alias {
+                DefinedConstant::Contextual {
                     parameters,
                     ty,
                     body,

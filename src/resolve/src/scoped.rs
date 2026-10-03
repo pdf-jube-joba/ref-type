@@ -7,6 +7,119 @@ impl Resolver {
         mut item: ModuleItem,
         output: &mut Vec<ModuleItem>,
     ) -> Result<(), Diagnostic> {
+        if let Some(location) = self.location.clone() {
+            let source = location
+                .source
+                .text
+                .get(location.span.start..location.span.end)
+                .unwrap_or("");
+            let declaration = match &item {
+                ModuleItem::Structure {
+                    name,
+                    kind: None,
+                    fields,
+                    laws,
+                    ..
+                } => Some((
+                    name,
+                    "structure",
+                    fields
+                        .iter()
+                        .map(|(name, _, _)| name)
+                        .chain(laws.iter().flatten().map(|(name, _)| name))
+                        .collect::<Vec<_>>(),
+                )),
+                ModuleItem::Definition {
+                    owner: None,
+                    name,
+                    binders,
+                    ty,
+                    ..
+                } if self.needs_front_definition(binders, ty) => {
+                    Some((name, "definition", Vec::new()))
+                }
+                _ => None,
+            };
+            if let Some((name, kind, fields)) = declaration
+                && !name.as_str().starts_with('<')
+            {
+                self.declarations.push(Declaration {
+                    module: self.path(self.current),
+                    name: name.0.clone(),
+                    kind,
+                    location: location.clone(),
+                    ty: Some(source.to_owned()),
+                });
+                for field in fields {
+                    let mut field_location = location.clone();
+                    let needle = format!("{}:", field.0);
+                    if let Some(offset) = source.find(&needle) {
+                        field_location.span.start += offset;
+                        field_location.span.end = field_location.span.start + field.0.len();
+                    }
+                    self.declarations.push(Declaration {
+                        module: self.path(self.current),
+                        name: format!("{}::{}", name.0, field.0),
+                        kind: "field",
+                        location: field_location,
+                        ty: Some(source.to_owned()),
+                    });
+                }
+            }
+        }
+        if let ModuleItem::Definition {
+            owner: None,
+            name,
+            binders,
+            ty,
+            body,
+        } = &item
+            && self.needs_front_definition(binders, ty)
+        {
+            return self.compile_structure_definition(
+                name.clone(),
+                binders.clone(),
+                ty.clone(),
+                body.clone(),
+                output,
+            );
+        }
+        if let ModuleItem::Structure {
+            name,
+            kind,
+            parameters,
+            fields,
+            laws,
+        } = item
+        {
+            if let Some(kind) = kind {
+                if let Some(laws) = laws {
+                    let InductiveKind::Pts(sort) = kind else {
+                        return Err(self.error("laws require a Set representation"));
+                    };
+                    let fields = fields.into_iter().map(|(name, ty, _)| (name, ty)).collect();
+                    return self.scoped_item(
+                        representation::structure(name, parameters, sort, fields, laws),
+                        output,
+                    );
+                }
+                let fields = fields.into_iter().map(|(name, ty, _)| (name, ty)).collect();
+                return self.scoped_item(
+                    ModuleItem::Record {
+                        type_name: name,
+                        parameters,
+                        kind,
+                        fields,
+                    },
+                    output,
+                );
+            }
+            return self.compile_structure(name, parameters, fields, output);
+        }
+        if matches!(item, ModuleItem::Refinement { .. }) {
+            self.item(&mut item)?;
+            return Ok(());
+        }
         let ModuleItem::Scoped { exports, items } = item else {
             self.item(&mut item)?;
             if matches!(
@@ -107,6 +220,10 @@ impl Resolver {
 
     pub(super) fn reflect_type(&self, ty: SExp) -> Result<SExp, Diagnostic> {
         Ok(match ty {
+            SExp::Checked { checks, body } => SExp::Checked {
+                checks,
+                body: Box::new(self.reflect_type(*body)?),
+            },
             SExp::AccessPath {
                 mut access,
                 parameters,

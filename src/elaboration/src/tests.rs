@@ -47,7 +47,7 @@ fn parsed_modules_can_be_reused_in_workspaces_with_different_module_ids() {
 fn record_fields_are_generated_as_eliminator_definitions() {
     let source = r#"
         \module Records {
-            \record Packed: \SetKind := {
+            \structure Packed: \SetKind := {
                 carrier: \Set,
                 value: carrier,
             };
@@ -104,7 +104,7 @@ fn records_have_type_directed_projection_and_generic_construction_syntax() {
             | zero: Bit
             | one: Bit
             ;
-            \record Pair[A: \Set, B: \Set]: \Set := {
+            \structure Pair[A: \Set, B: \Set]: \Set := {
                 first: A,
                 second: B,
             };
@@ -125,7 +125,7 @@ fn records_have_type_directed_projection_and_generic_construction_syntax() {
             | one: VBit
             ;
             \definition VBit::default: VBit := VBit::zero;
-            \record VPair[A: \VType]: \VType := {
+            \structure VPair[A: \VType]: \VType := {
                 first: A,
                 second: A,
             };
@@ -1355,13 +1355,18 @@ fn set_recursion_preserves_a_shared_universe() {
         let raw = environment.crate_env();
         let parent = raw.module(raw.root_module()).children()[0];
         let module = raw.module(parent).children()[0];
-        let ModuleItem::Definition { definition, .. } = raw.module(module).item("case_result").unwrap()
+        let ModuleItem::Definition { definition, .. } =
+            raw.module(module).item("case_result").unwrap()
         else {
             panic!("case_result definition")
         };
         let env = environment.kernel_env();
-        let def = env.definition(raw.kernel_definitions.borrow()[definition]).unwrap();
-        let next = kernel::reduction::reduce_once(&env, def.body).unwrap().unwrap();
+        let def = env
+            .definition(raw.kernel_definitions.borrow()[definition])
+            .unwrap();
+        let next = kernel::reduction::reduce_once(&env, def.body)
+            .unwrap()
+            .unwrap();
         kernel::check::Checker::new(
             &env,
             &mut kernel::metavariables::MetaContext::new(),
@@ -1645,14 +1650,13 @@ fn program_application_classification_preserves_cbpv_boundaries() {
         panic!("constructor application")
     };
     assert_eq!(fields.len(), 2);
-    for term in [r"f (g x)", r"f (\return x)", r"f (\force suspended)"] {
+    for term in [r"f (\return x)", r"f (\force suspended)"] {
         assert!(
             C::try_from(parse::str_parse_exp(term).unwrap()).is_err(),
             "accepted {term}"
         );
     }
     for term in [
-        r"f x",
         r"(\thunk c) x",
         r"\continue[A, B](x) y",
         r"\finish[A, B](x) y",
@@ -1663,6 +1667,18 @@ fn program_application_classification_preserves_cbpv_boundaries() {
         );
     }
     C::try_from(parse::str_parse_exp(r"f (\thunk (g x))").unwrap()).unwrap();
+    let modules = parse::str_parse_modules(
+        r"\module M(A: \VType, x: A) {
+        \definition f: A ~> \F(A) := \cfun(y: A) => \return y;
+        \definition bad: \F(A) := f (f x);
+    }",
+    )
+    .unwrap();
+    assert!(
+        GlobalEnvironment::default()
+            .add_new_module_to_root(&modules[0])
+            .is_err()
+    );
 }
 
 #[test]
@@ -2166,8 +2182,8 @@ fn program_query_parameters_are_scoped_outside_local_variables() {
 #[test]
 fn explicit_meta_assignment_shares_record_types_before_projection() {
     let source = r"\module Assignment {
-        \record And[P, Q: \Prop]: \Prop := { left: P, right: Q, };
-        \record PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
+        \structure And[P, Q: \Prop]: \Prop := { left: P, right: Q, };
+        \structure PropEquiv[P, Q: \Prop]: \Prop := { lt: P -> Q, rt: Q -> P, };
         \definition andAssoc (P, Q, R: \Prop): PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] := PropEquiv[_1, _2] {
           lt := \block {
             \fun (h: _1) \then

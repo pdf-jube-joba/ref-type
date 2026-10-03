@@ -1,3 +1,4 @@
+\import std.Program[] \as ProgramBundles;
 \import std.Logic[].Equality[] \as Equality;
 \use Equality.sym;
 \use Equality.trans;
@@ -35,105 +36,151 @@
 ;
 
 \inductive DiffState: \VType := | running: N.Nat -> N.Nat -> DiffState;
-\machine DiffLoop {
-  \State := DiffState,
-  \Output := Int,
-  \step := \thunk(\cfun (state: DiffState) => \match state \in DiffState \with { | running a b :
-    \match b \in N.Nat \with {
-    | zero : \return(\finish[DiffState, Int](Int::ofNat a))
-    | succ k : \match a \in N.Nat \with {
-      | zero : \return(\finish[DiffState, Int](Int::negSucc k))
-      | succ j : \return(\continue[DiffState, Int](DiffState::running j k))
+
+\module DiffLoopImplementation {
+  \definition State: \VType := DiffState;
+
+  \definition Output: \VType := Int;
+
+  \definition step: \U(State ~> \F(\RunStep[State, Output])) := \thunk(\cfun (state: DiffState) => \match state \in DiffState \with { | running a b :
+      \match b \in N.Nat \with {
+      | zero : \return(\finish[DiffState, Int](Int::ofNat a))
+      | succ k : \match a \in N.Nat \with {
+        | zero : \return(\finish[DiffState, Int](Int::negSucc k))
+        | succ j : \return(\continue[DiffState, Int](DiffState::running j k))
+        }
       }
-    }
-  }),
+    });
 
   \import std.Logic[].Termination[State := DiffState^, Output := Int^,
-    step := DiffLoop::[step]^] \as Termination;
+      step := step^] \as Termination;
+
   \definition terminates:
-    \forall (b, a: N.Nat^) ->
-    Termination.Holds (DiffState^::running a b) :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) ->
-      Termination.Holds (DiffState^::running a b) \with {
-      | zero: \fun (a: N.Nat^) =>
-        Termination.intro (DiffState^::running a N.Nat^::zero) Termination.trivial
-      | succ: \fun (k: N.Nat^) (ih: _) =>
-        \induction (a: N.Nat^) \return
-          Termination.Holds (DiffState^::running a (N.Nat^::succ k)) \with {
-          | zero: Termination.intro (DiffState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial
-          | succ: \fun (j: N.Nat^) (_: _) =>
-            Termination.intro (DiffState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j)
-        }
-    };
-  \terminates := \induction (state: DiffState^) \return
-    Termination.Holds state \with {
-      | running: \fun (a, b: N.Nat^) => terminates b a
-    },
-}
+      \forall (b, a: N.Nat^) ->
+      Termination.Holds (DiffState^::running a b) :=
+      \induction (b: N.Nat^) \return \forall (a: N.Nat^) ->
+        Termination.Holds (DiffState^::running a b) \with {
+        | zero: \fun (a: N.Nat^) =>
+          Termination.intro (DiffState^::running a N.Nat^::zero) Termination.trivial
+        | succ: \fun (k: N.Nat^) (ih: _) =>
+          \induction (a: N.Nat^) \return
+            Termination.Holds (DiffState^::running a (N.Nat^::succ k)) \with {
+            | zero: Termination.intro (DiffState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial
+            | succ: \fun (j: N.Nat^) (_: _) =>
+              Termination.intro (DiffState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j)
+          }
+      };
 
-\correspondence Diff: (N.Nat -> (N.Nat -> Int)) {
-  \program := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => DiffLoop::[run] (DiffState::running a b)))),
-  \set := \fun (a, b: N.Nat^) =>
-  \induction (b: N.Nat^) \return N.Nat^ -> Int^ \with {
-    | zero : (\fun (a: N.Nat^) => Int^::ofNat a)
-    | succ : (\fun (k: N.Nat^) => \fun (rec: N.Nat^ -> Int^) => \fun (a: N.Nat^) =>
-      \induction (a: N.Nat^) \return Int^ \with {
-        | zero : (Int^::negSucc k)
-        | succ : (\fun (j: N.Nat^) => \fun (_: _) => rec j)
-        } a)
-    } b a,
-
-  \definition matches: \forall (b, a: N.Nat^) -> Diff::[program]^ a b = Diff::[set] a b :=
-  \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Diff::[program]^ a b = Diff::[set] a b \with {
-    | zero : (\induction (a: N.Nat^) \return Diff::[program]^ a N.Nat^::zero = Diff::[set] a N.Nat^::zero \with {
-      | zero : (\refl(Int^::ofNat N.Nat^::zero))
-      | succ : (\fun (a: N.Nat^) => \fun (ih: Diff::[program]^ a N.Nat^::zero = Diff::[set] a N.Nat^::zero) => \refl(Int^::ofNat (N.Nat^::succ
-    a)))
-      })
-    | succ : (\fun (b: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> Diff::[program]^ a b = Diff::[set] a b) =>
-      \induction (a: N.Nat^) \return Diff::[program]^ a (N.Nat^::succ b) = Diff::[set] a (N.Nat^::succ b) \with {
-      | zero : (\refl(Int^::negSucc b))
-      | succ : (\fun (a: N.Nat^) => \fun (unused: Diff::[program]^ a (N.Nat^::succ b) = Diff::[set] a (N.Nat^::succ b)) => ih a)
-      })
-    };
-  \coherence := \axiom:funext(Diff::[program]^, Diff::[set], \fun (arg0: N.Nat^) => \axiom:funext(Diff::[program]^ arg0, Diff::[set] arg0, \fun (arg1: N.Nat^) => matches arg1 arg0)),
+  \definition certificate: \forall (s: State^) -> ProgramBundles.Terminates State^ Output^ step^ s := \induction (state: DiffState^) \return
+      Termination.Holds state \with {
+        | running: \fun (a, b: N.Nat^) => terminates b a
+      };
 }
+\import .DiffLoopImplementation[] \as DiffLoopParts;
+\definition DiffLoop: ProgramBundles.Machine := ProgramBundles.Machine {
+  State := DiffLoopParts.State,
+  Output := DiffLoopParts.Output,
+  step := DiffLoopParts.step,
+  terminates := DiffLoopParts.certificate,
+};
+\definition DiffLoopRunbox: \Box[DiffLoop.State ~> \F(DiffLoop.Output)] := \box[DiffLoop.State ~> \F(DiffLoop.Output)](\force DiffLoop.run);
+
+\module DiffImplementation {
+  \definition T: \VType := \U((N.Nat -> (N.Nat -> Int)));
+
+  \definition program: (N.Nat -> (N.Nat -> Int)) := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => (\force DiffLoop.run) (DiffState::running a b))));
+
+  \definition specification: T^ := \fun (a, b: N.Nat^) =>
+    \induction (b: N.Nat^) \return N.Nat^ -> Int^ \with {
+      | zero : (\fun (a: N.Nat^) => Int^::ofNat a)
+      | succ : (\fun (k: N.Nat^) => \fun (rec: N.Nat^ -> Int^) => \fun (a: N.Nat^) =>
+        \induction (a: N.Nat^) \return Int^ \with {
+          | zero : (Int^::negSucc k)
+          | succ : (\fun (j: N.Nat^) => \fun (_: _) => rec j)
+          } a)
+      } b a;
+
+  \definition matches: \forall (b, a: N.Nat^) -> program^ a b = specification a b :=
+    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> program^ a b = specification a b \with {
+      | zero : (\induction (a: N.Nat^) \return program^ a N.Nat^::zero = specification a N.Nat^::zero \with {
+        | zero : (\refl(Int^::ofNat N.Nat^::zero))
+        | succ : (\fun (a: N.Nat^) => \fun (ih: program^ a N.Nat^::zero = specification a N.Nat^::zero) => \refl(Int^::ofNat (N.Nat^::succ
+      a)))
+        })
+      | succ : (\fun (b: N.Nat^) => \fun (ih: \forall (a: N.Nat^) -> program^ a b = specification a b) =>
+        \induction (a: N.Nat^) \return program^ a (N.Nat^::succ b) = specification a (N.Nat^::succ b) \with {
+        | zero : (\refl(Int^::negSucc b))
+        | succ : (\fun (a: N.Nat^) => \fun (unused: program^ a (N.Nat^::succ b) = specification a (N.Nat^::succ b)) => ih a)
+        })
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: N.Nat^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: N.Nat^) => matches arg1 arg0));
+}
+\import .DiffImplementation[] \as DiffParts;
+\definition Diff: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := DiffParts.T,
+  program := \thunk (DiffParts.program),
+  specification := DiffParts.specification,
+  coherence := DiffParts.coherence,
+};
 
 /* A Set-only normal form, independent of Program reflection. */
 
-\correspondence Positive: (Int -> N.Nat) {
-  \program := (\cfun (z: Int) => \match z \in Int \with { | ofNat n : \return n | negSucc n : \return N.Nat::zero }),
-  \set := \induction (z: Int^) \return N.Nat^ \with {
-  | ofNat : (\fun (n: N.Nat^) => n)
-  | negSucc : (\fun (n: N.Nat^) => N.Nat^::zero)
-  },
+\module PositiveImplementation {
+  \definition T: \VType := \U((Int -> N.Nat));
 
-  \definition matches: \forall (z: Int^) -> Positive::[program]^ z = Positive::[set] z :=
-  \induction (z: Int^) \return Positive::[program]^ z = Positive::[set] z \with {
-    | ofNat : (\fun (n: N.Nat^) => \refl(n))
-    | negSucc : (\fun (n: N.Nat^) => \refl(N.Nat^::zero))
+  \definition program: (Int -> N.Nat) := (\cfun (z: Int) => \match z \in Int \with { | ofNat n : \return n | negSucc n : \return N.Nat::zero });
+
+  \definition specification: T^ := \induction (z: Int^) \return N.Nat^ \with {
+    | ofNat : (\fun (n: N.Nat^) => n)
+    | negSucc : (\fun (n: N.Nat^) => N.Nat^::zero)
     };
-  \coherence := \axiom:funext(Positive::[program]^, Positive::[set], matches),
+
+  \definition matches: \forall (z: Int^) -> program^ z = specification z :=
+    \induction (z: Int^) \return program^ z = specification z \with {
+      | ofNat : (\fun (n: N.Nat^) => \refl(n))
+      | negSucc : (\fun (n: N.Nat^) => \refl(N.Nat^::zero))
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .PositiveImplementation[] \as PositiveParts;
+\definition Positive: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := PositiveParts.T,
+  program := \thunk (PositiveParts.program),
+  specification := PositiveParts.specification,
+  coherence := PositiveParts.coherence,
+};
 
-\correspondence Negative: (Int -> N.Nat) {
-  \program := (\cfun (z: Int) => \match z \in Int \with { | ofNat n : \return N.Nat::zero | negSucc n : \return(N.Nat::succ n) }),
-  \set := \induction (z: Int^) \return N.Nat^ \with {
-  | ofNat : (\fun (n: N.Nat^) => N.Nat^::zero)
-  | negSucc : (\fun (n: N.Nat^) => N.Nat^::succ n)
-  },
+\module NegativeImplementation {
+  \definition T: \VType := \U((Int -> N.Nat));
 
-  \definition matches: \forall (z: Int^) -> Negative::[program]^ z = Negative::[set] z :=
-  \induction (z: Int^) \return Negative::[program]^ z = Negative::[set] z \with {
-    | ofNat : (\fun (n: N.Nat^) => \refl(N.Nat^::zero))
-    | negSucc : (\fun (n: N.Nat^) => \refl(N.Nat^::succ n))
+  \definition program: (Int -> N.Nat) := (\cfun (z: Int) => \match z \in Int \with { | ofNat n : \return N.Nat::zero | negSucc n : \return(N.Nat::succ n) });
+
+  \definition specification: T^ := \induction (z: Int^) \return N.Nat^ \with {
+    | ofNat : (\fun (n: N.Nat^) => N.Nat^::zero)
+    | negSucc : (\fun (n: N.Nat^) => N.Nat^::succ n)
     };
-  \coherence := \axiom:funext(Negative::[program]^, Negative::[set], matches),
+
+  \definition matches: \forall (z: Int^) -> program^ z = specification z :=
+    \induction (z: Int^) \return program^ z = specification z \with {
+      | ofNat : (\fun (n: N.Nat^) => \refl(N.Nat^::zero))
+      | negSucc : (\fun (n: N.Nat^) => \refl(N.Nat^::succ n))
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .NegativeImplementation[] \as NegativeParts;
+\definition Negative: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NegativeParts.T,
+  program := \thunk (NegativeParts.program),
+  specification := NegativeParts.specification,
+  coherence := NegativeParts.coherence,
+};
 
 \definition diffCanonical:
-  \forall (z: Int^) -> Diff::[set] (Positive::[set] z) (Negative::[set] z) = z :=
-  \induction (z: Int^) \return Diff::[set] (Positive::[set] z) (Negative::[set] z) = z \with {
+  \forall (z: Int^) -> Diff.specification (Positive.specification z) (Negative.specification z) = z :=
+  \induction (z: Int^) \return Diff.specification (Positive.specification z) (Negative.specification z) = z \with {
     | ofNat : (\fun (n: N.Nat^) => \refl(Int^::ofNat n))
     | negSucc : (\fun (n: N.Nat^) => \refl(Int^::negSucc n))
     };
@@ -146,764 +193,1107 @@
 /* Computational operations and their Set specifications use the certified
  * Nat arithmetic above, joined by correspondence coherence. */
 
-\correspondence Zero: Int {
-  \program := (Int::ofNat N.Nat::zero),
-  \set := (Int^::ofNat N.Nat^::zero),
+\module ZeroImplementation {
+  \definition T: \VType := Int;
 
-  \definition matches: Zero::[program]^ = Zero::[set] := \refl(Int^::ofNat N.Nat^::zero);
-  \coherence := matches,
+  \definition program: Int := (Int::ofNat N.Nat::zero);
+
+  \definition specification: T^ := (Int^::ofNat N.Nat^::zero);
+
+  \definition matches: program^ = specification := \refl(Int^::ofNat N.Nat^::zero);
+
+  \definition coherence: program^ = specification := matches;
 }
+\import .ZeroImplementation[] \as ZeroParts;
+\definition Zero: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := ZeroParts.T,
+  program := ZeroParts.program,
+  specification := ZeroParts.specification,
+  coherence := ZeroParts.coherence,
+};
 
-\correspondence One: Int {
-  \program := (Int::ofNat (N.Nat::succ N.Nat::zero)),
-  \set := (Int^::ofNat (N.Nat^::succ N.Nat^::zero)),
+\module OneImplementation {
+  \definition T: \VType := Int;
 
-  \definition matches: One::[program]^ = One::[set] := \refl(Int^::ofNat (N.Nat^::succ N.Nat^::zero));
-  \coherence := matches,
+  \definition program: Int := (Int::ofNat (N.Nat::succ N.Nat::zero));
+
+  \definition specification: T^ := (Int^::ofNat (N.Nat^::succ N.Nat^::zero));
+
+  \definition matches: program^ = specification := \refl(Int^::ofNat (N.Nat^::succ N.Nat^::zero));
+
+  \definition coherence: program^ = specification := matches;
 }
+\import .OneImplementation[] \as OneParts;
+\definition One: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := OneParts.T,
+  program := OneParts.program,
+  specification := OneParts.specification,
+  coherence := OneParts.coherence,
+};
 
-\correspondence MinusOne: Int {
-  \program := (Int::negSucc N.Nat::zero),
-  \set := (Int^::negSucc N.Nat^::zero),
+\module MinusOneImplementation {
+  \definition T: \VType := Int;
 
-  \definition matches: MinusOne::[program]^ = MinusOne::[set] := \refl(Int^::negSucc N.Nat^::zero);
-  \coherence := matches,
+  \definition program: Int := (Int::negSucc N.Nat::zero);
+
+  \definition specification: T^ := (Int^::negSucc N.Nat^::zero);
+
+  \definition matches: program^ = specification := \refl(Int^::negSucc N.Nat^::zero);
+
+  \definition coherence: program^ = specification := matches;
 }
+\import .MinusOneImplementation[] \as MinusOneParts;
+\definition MinusOne: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := MinusOneParts.T,
+  program := MinusOneParts.program,
+  specification := MinusOneParts.specification,
+  coherence := MinusOneParts.coherence,
+};
 
 /* Nat imports its own Bool instance. Convert its decisions through Nat.choose
  * so that Int consistently exposes the Bool instance imported here. */
-\correspondence NatIsZero: (N.Nat -> B.Bool) {
-  \program := (\cfun (n: N.Nat) => \match n \in N.Nat \with { | zero : \return B.Bool::true | succ k : \return B.Bool::false }),
-  \set := \induction (n: N.Nat^) \return B.Bool^ \with {
-    | zero : B.Bool^::true
-    | succ : (\fun (n: N.Nat^) => \fun (ih: B.Bool^) => B.Bool^::false)
-    },
 
-  \definition matches: \forall (n: N.Nat^) -> NatIsZero::[program]^ n = NatIsZero::[set] n :=
-  \induction (n: N.Nat^) \return NatIsZero::[program]^ n = NatIsZero::[set] n \with {
-    | zero : (\refl(B.Bool^::true))
-    | succ : (\fun (n: N.Nat^) => \fun (ih: NatIsZero::[program]^ n = NatIsZero::[set] n) => \refl(B.Bool^::false))
-    };
-  \coherence := \axiom:funext(NatIsZero::[program]^, NatIsZero::[set], matches),
+\module NatIsZeroImplementation {
+  \definition T: \VType := \U((N.Nat -> B.Bool));
+
+  \definition program: (N.Nat -> B.Bool) := (\cfun (n: N.Nat) => \match n \in N.Nat \with { | zero : \return B.Bool::true | succ k : \return B.Bool::false });
+
+  \definition specification: T^ := \induction (n: N.Nat^) \return B.Bool^ \with {
+      | zero : B.Bool^::true
+      | succ : (\fun (n: N.Nat^) => \fun (ih: B.Bool^) => B.Bool^::false)
+      };
+
+  \definition matches: \forall (n: N.Nat^) -> program^ n = specification n :=
+    \induction (n: N.Nat^) \return program^ n = specification n \with {
+      | zero : (\refl(B.Bool^::true))
+      | succ : (\fun (n: N.Nat^) => \fun (ih: program^ n = specification n) => \refl(B.Bool^::false))
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .NatIsZeroImplementation[] \as NatIsZeroParts;
+\definition NatIsZero: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NatIsZeroParts.T,
+  program := \thunk (NatIsZeroParts.program),
+  specification := NatIsZeroParts.specification,
+  coherence := NatIsZeroParts.coherence,
+};
 
-\correspondence NatEqb: (N.Nat -> (N.Nat -> B.Bool)) {
-  \program := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => \program {
-  \bind f: _ <- (NatOp.Eqb::[program] a) \then
-  \bind test: _ <- (\force f) b \then
-  \bind yes: _ <- (NatOp.Choose::[program] test) \then
-  \bind no: _ <- (\force yes) N.Nat::zero \then
-  \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
-  \bind result: B.Bool <- (NatIsZero::[program] number) \then
-  \return result
-}))),
-  \set := \fun (a, b: N.Nat^) => NatIsZero::[set] (NatOp.Choose::[set] (NatOp.Eqb::[set] a b)
-    N.Nat^::zero (N.Nat^::succ N.Nat^::zero)),
+\module NatEqbImplementation {
+  \definition T: \VType := \U((N.Nat -> (N.Nat -> B.Bool)));
 
-  \definition matches(a, b: N.Nat^): NatEqb::[program]^ a b = NatEqb::[set] a b :=
-  trans!{B.Bool^} _ _ _
-    (congr!{NatIsZero::[Type]^ _} (\fun (f: _) => f (NatOp.Choose::[program]^ (NatOp.Eqb::[program]^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero))) _ _ NatIsZero::[coherence])
-    (congr2!{NatOp.Choose::[Type]^ NatOp.Eqb::[Type]^ B.Bool^}
-      (\fun (choose: _) (test: _) => NatIsZero::[set] (choose (test a b)
-    N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
-      _ _ _ _ NatOp.Choose::[coherence] NatOp.Eqb::[coherence]);
-  \coherence := \axiom:funext(NatEqb::[program]^, NatEqb::[set], \fun (arg0: N.Nat^) => \axiom:funext(NatEqb::[program]^ arg0, NatEqb::[set] arg0, \fun (arg1: N.Nat^) => matches arg0 arg1)),
+  \definition program: (N.Nat -> (N.Nat -> B.Bool)) := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => \program {
+    \bind f: _ <- ((\force NatOp.Eqb.program) a) \then
+    \bind test: _ <- (\force f) b \then
+    \bind yes: _ <- ((\force NatOp.Choose.program) test) \then
+    \bind no: _ <- (\force yes) N.Nat::zero \then
+    \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
+    \bind result: B.Bool <- ((\force NatIsZero.program) number) \then
+    \return result
+  })));
+
+  \definition specification: T^ := \fun (a, b: N.Nat^) => NatIsZero.specification (NatOp.Choose.specification (NatOp.Eqb.specification a b)
+      N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+
+  \definition matches(a, b: N.Nat^): program^ a b = specification a b :=
+    trans!{B.Bool^} _ _ _
+      (congr!{NatIsZero.T^ _} (\fun (f: _) => f (NatOp.Choose.program^ (NatOp.Eqb.program^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero))) _ _ NatIsZero.coherence)
+      (congr2!{NatOp.Choose.T^ NatOp.Eqb.T^ B.Bool^}
+        (\fun (choose: _) (test: _) => NatIsZero.specification (choose (test a b)
+      N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
+        _ _ _ _ NatOp.Choose.coherence NatOp.Eqb.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: N.Nat^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: N.Nat^) => matches arg0 arg1));
 }
+\import .NatEqbImplementation[] \as NatEqbParts;
+\definition NatEqb: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NatEqbParts.T,
+  program := \thunk (NatEqbParts.program),
+  specification := NatEqbParts.specification,
+  coherence := NatEqbParts.coherence,
+};
 
-\correspondence NatLeb: (N.Nat -> (N.Nat -> B.Bool)) {
-  \program := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => \program {
-  \bind f: _ <- (NatOp.Leb::[program] a) \then
-  \bind test: _ <- (\force f) b \then
-  \bind yes: _ <- (NatOp.Choose::[program] test) \then
-  \bind no: _ <- (\force yes) N.Nat::zero \then
-  \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
-  \bind result: B.Bool <- (NatIsZero::[program] number) \then
-  \return result
-}))),
-  \set := \fun (a, b: N.Nat^) => NatIsZero::[set] (NatOp.Choose::[set] (NatOp.Leb::[set] a b)
-    N.Nat^::zero (N.Nat^::succ N.Nat^::zero)),
+\module NatLebImplementation {
+  \definition T: \VType := \U((N.Nat -> (N.Nat -> B.Bool)));
 
-  \definition matches(a, b: N.Nat^): NatLeb::[program]^ a b = NatLeb::[set] a b :=
-  trans!{B.Bool^} _ _ _
-    (congr!{NatIsZero::[Type]^ _} (\fun (f: _) => f (NatOp.Choose::[program]^ (NatOp.Leb::[program]^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero))) _ _ NatIsZero::[coherence])
-    (congr2!{NatOp.Choose::[Type]^ NatOp.Leb::[Type]^ B.Bool^}
-      (\fun (choose: _) (test: _) => NatIsZero::[set] (choose (test a b)
-    N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
-      _ _ _ _ NatOp.Choose::[coherence] NatOp.Leb::[coherence]);
-  \coherence := \axiom:funext(NatLeb::[program]^, NatLeb::[set], \fun (arg0: N.Nat^) => \axiom:funext(NatLeb::[program]^ arg0, NatLeb::[set] arg0, \fun (arg1: N.Nat^) => matches arg0 arg1)),
+  \definition program: (N.Nat -> (N.Nat -> B.Bool)) := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => \program {
+    \bind f: _ <- ((\force NatOp.Leb.program) a) \then
+    \bind test: _ <- (\force f) b \then
+    \bind yes: _ <- ((\force NatOp.Choose.program) test) \then
+    \bind no: _ <- (\force yes) N.Nat::zero \then
+    \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
+    \bind result: B.Bool <- ((\force NatIsZero.program) number) \then
+    \return result
+  })));
+
+  \definition specification: T^ := \fun (a, b: N.Nat^) => NatIsZero.specification (NatOp.Choose.specification (NatOp.Leb.specification a b)
+      N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+
+  \definition matches(a, b: N.Nat^): program^ a b = specification a b :=
+    trans!{B.Bool^} _ _ _
+      (congr!{NatIsZero.T^ _} (\fun (f: _) => f (NatOp.Choose.program^ (NatOp.Leb.program^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero))) _ _ NatIsZero.coherence)
+      (congr2!{NatOp.Choose.T^ NatOp.Leb.T^ B.Bool^}
+        (\fun (choose: _) (test: _) => NatIsZero.specification (choose (test a b)
+      N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
+        _ _ _ _ NatOp.Choose.coherence NatOp.Leb.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: N.Nat^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: N.Nat^) => matches arg0 arg1));
 }
+\import .NatLebImplementation[] \as NatLebParts;
+\definition NatLeb: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NatLebParts.T,
+  program := \thunk (NatLebParts.program),
+  specification := NatLebParts.specification,
+  coherence := NatLebParts.coherence,
+};
 
-\correspondence NatLtb: (N.Nat -> (N.Nat -> B.Bool)) {
-  \program := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => \program {
-  \bind f: _ <- (NatOp.Ltb::[program] a) \then
-  \bind test: _ <- (\force f) b \then
-  \bind yes: _ <- (NatOp.Choose::[program] test) \then
-  \bind no: _ <- (\force yes) N.Nat::zero \then
-  \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
-  \bind result: B.Bool <- (NatIsZero::[program] number) \then
-  \return result
-}))),
-  \set := \fun (a, b: N.Nat^) => NatIsZero::[set] (NatOp.Choose::[set] (NatOp.Ltb::[set] a b)
-    N.Nat^::zero (N.Nat^::succ N.Nat^::zero)),
+\module NatLtbImplementation {
+  \definition T: \VType := \U((N.Nat -> (N.Nat -> B.Bool)));
 
-  \definition matches(a, b: N.Nat^): NatLtb::[program]^ a b = NatLtb::[set] a b :=
-  trans!{B.Bool^} _ _ _
-    (congr!{NatIsZero::[Type]^ _} (\fun (f: _) => f (NatOp.Choose::[program]^ (NatOp.Ltb::[program]^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero))) _ _ NatIsZero::[coherence])
-    (congr2!{NatOp.Choose::[Type]^ NatOp.Ltb::[Type]^ B.Bool^}
-      (\fun (choose: _) (test: _) => NatIsZero::[set] (choose (test a b)
-    N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
-      _ _ _ _ NatOp.Choose::[coherence] NatOp.Ltb::[coherence]);
-  \coherence := \axiom:funext(NatLtb::[program]^, NatLtb::[set], \fun (arg0: N.Nat^) => \axiom:funext(NatLtb::[program]^ arg0, NatLtb::[set] arg0, \fun (arg1: N.Nat^) => matches arg0 arg1)),
+  \definition program: (N.Nat -> (N.Nat -> B.Bool)) := (\cfun (a: N.Nat) => \return(\thunk(\cfun (b: N.Nat) => \program {
+    \bind f: _ <- ((\force NatOp.Ltb.program) a) \then
+    \bind test: _ <- (\force f) b \then
+    \bind yes: _ <- ((\force NatOp.Choose.program) test) \then
+    \bind no: _ <- (\force yes) N.Nat::zero \then
+    \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
+    \bind result: B.Bool <- ((\force NatIsZero.program) number) \then
+    \return result
+  })));
+
+  \definition specification: T^ := \fun (a, b: N.Nat^) => NatIsZero.specification (NatOp.Choose.specification (NatOp.Ltb.specification a b)
+      N.Nat^::zero (N.Nat^::succ N.Nat^::zero));
+
+  \definition matches(a, b: N.Nat^): program^ a b = specification a b :=
+    trans!{B.Bool^} _ _ _
+      (congr!{NatIsZero.T^ _} (\fun (f: _) => f (NatOp.Choose.program^ (NatOp.Ltb.program^ a b) N.Nat^::zero (N.Nat^::succ N.Nat^::zero))) _ _ NatIsZero.coherence)
+      (congr2!{NatOp.Choose.T^ NatOp.Ltb.T^ B.Bool^}
+        (\fun (choose: _) (test: _) => NatIsZero.specification (choose (test a b)
+      N.Nat^::zero (N.Nat^::succ N.Nat^::zero)))
+        _ _ _ _ NatOp.Choose.coherence NatOp.Ltb.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: N.Nat^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: N.Nat^) => matches arg0 arg1));
 }
+\import .NatLtbImplementation[] \as NatLtbParts;
+\definition NatLtb: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NatLtbParts.T,
+  program := \thunk (NatLtbParts.program),
+  specification := NatLtbParts.specification,
+  coherence := NatLtbParts.coherence,
+};
 
-\correspondence NatEven: (N.Nat -> B.Bool) {
-  \program := (\cfun (a: N.Nat) => \program {
-  \bind test: _ <- (NP.Even::[program] a) \then
-  \bind yes: _ <- (NatOp.Choose::[program] test) \then
-  \bind no: _ <- (\force yes) N.Nat::zero \then
-  \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
-  \bind result: B.Bool <- (NatIsZero::[program] number) \then
-  \return result
-}),
-  \set := \fun (a: N.Nat^) => NatIsZero::[set] (NatOp.Choose::[set] (NP.Even::[set] a) N.Nat^::zero
-    (N.Nat^::succ N.Nat^::zero)),
+\module NatEvenImplementation {
+  \definition T: \VType := \U((N.Nat -> B.Bool));
 
-  \definition matches(a: N.Nat^): NatEven::[program]^ a = NatEven::[set] a :=
-  trans!{B.Bool^} _ _ _
-    (congr!{NatIsZero::[Type]^ _} (\fun (f: _) => f (NatOp.Choose::[program]^ (NP.Even::[program]^ a) N.Nat^::zero (N.Nat^::succ N.Nat^::zero))) _ _ NatIsZero::[coherence])
-    (congr2!{NatOp.Choose::[Type]^ NP.Even::[Type]^ B.Bool^}
-      (\fun (choose: _) (test: _) => NatIsZero::[set] (choose (test a) N.Nat^::zero
-    (N.Nat^::succ N.Nat^::zero)))
-      _ _ _ _ NatOp.Choose::[coherence] NP.Even::[coherence]);
-  \coherence := \axiom:funext(NatEven::[program]^, NatEven::[set], matches),
+  \definition program: (N.Nat -> B.Bool) := (\cfun (a: N.Nat) => \program {
+    \bind test: _ <- ((\force NP.Even.program) a) \then
+    \bind yes: _ <- ((\force NatOp.Choose.program) test) \then
+    \bind no: _ <- (\force yes) N.Nat::zero \then
+    \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
+    \bind result: B.Bool <- ((\force NatIsZero.program) number) \then
+    \return result
+  });
+
+  \definition specification: T^ := \fun (a: N.Nat^) => NatIsZero.specification (NatOp.Choose.specification (NP.Even.specification a) N.Nat^::zero
+      (N.Nat^::succ N.Nat^::zero));
+
+  \definition matches(a: N.Nat^): program^ a = specification a :=
+    trans!{B.Bool^} _ _ _
+      (congr!{NatIsZero.T^ _} (\fun (f: _) => f (NatOp.Choose.program^ (NP.Even.program^ a) N.Nat^::zero (N.Nat^::succ N.Nat^::zero))) _ _ NatIsZero.coherence)
+      (congr2!{NatOp.Choose.T^ NP.Even.T^ B.Bool^}
+        (\fun (choose: _) (test: _) => NatIsZero.specification (choose (test a) N.Nat^::zero
+      (N.Nat^::succ N.Nat^::zero)))
+        _ _ _ _ NatOp.Choose.coherence NP.Even.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .NatEvenImplementation[] \as NatEvenParts;
+\definition NatEven: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NatEvenParts.T,
+  program := \thunk (NatEvenParts.program),
+  specification := NatEvenParts.specification,
+  coherence := NatEvenParts.coherence,
+};
 
-\correspondence NatOdd: (N.Nat -> B.Bool) {
-  \program := (\cfun (a: N.Nat) => \program {
-  \bind test: _ <- (NP.Odd::[program] a) \then
-  \bind yes: _ <- (NatOp.Choose::[program] test) \then
-  \bind no: _ <- (\force yes) N.Nat::zero \then
-  \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
-  \bind result: B.Bool <- (NatIsZero::[program] number) \then
-  \return result
-}),
-  \set := \fun (a: N.Nat^) => NatIsZero::[set] (NatOp.Choose::[set] (NP.Odd::[set] a) N.Nat^::zero
-    (N.Nat^::succ N.Nat^::zero)),
+\module NatOddImplementation {
+  \definition T: \VType := \U((N.Nat -> B.Bool));
 
-  \definition matches(a: N.Nat^): NatOdd::[program]^ a = NatOdd::[set] a :=
-  trans!{B.Bool^} _ _ _
-    (congr!{NatIsZero::[Type]^ _} (\fun (f: _) => f (NatOp.Choose::[program]^ (NP.Odd::[program]^ a) N.Nat^::zero (N.Nat^::succ N.Nat^::zero))) _ _ NatIsZero::[coherence])
-    (congr2!{NatOp.Choose::[Type]^ NP.Odd::[Type]^ B.Bool^}
-      (\fun (choose: _) (test: _) => NatIsZero::[set] (choose (test a) N.Nat^::zero
-    (N.Nat^::succ N.Nat^::zero)))
-      _ _ _ _ NatOp.Choose::[coherence] NP.Odd::[coherence]);
-  \coherence := \axiom:funext(NatOdd::[program]^, NatOdd::[set], matches),
+  \definition program: (N.Nat -> B.Bool) := (\cfun (a: N.Nat) => \program {
+    \bind test: _ <- ((\force NP.Odd.program) a) \then
+    \bind yes: _ <- ((\force NatOp.Choose.program) test) \then
+    \bind no: _ <- (\force yes) N.Nat::zero \then
+    \bind number: N.Nat <- (\force no) (N.Nat::succ N.Nat::zero) \then
+    \bind result: B.Bool <- ((\force NatIsZero.program) number) \then
+    \return result
+  });
+
+  \definition specification: T^ := \fun (a: N.Nat^) => NatIsZero.specification (NatOp.Choose.specification (NP.Odd.specification a) N.Nat^::zero
+      (N.Nat^::succ N.Nat^::zero));
+
+  \definition matches(a: N.Nat^): program^ a = specification a :=
+    trans!{B.Bool^} _ _ _
+      (congr!{NatIsZero.T^ _} (\fun (f: _) => f (NatOp.Choose.program^ (NP.Odd.program^ a) N.Nat^::zero (N.Nat^::succ N.Nat^::zero))) _ _ NatIsZero.coherence)
+      (congr2!{NatOp.Choose.T^ NP.Odd.T^ B.Bool^}
+        (\fun (choose: _) (test: _) => NatIsZero.specification (choose (test a) N.Nat^::zero
+      (N.Nat^::succ N.Nat^::zero)))
+        _ _ _ _ NatOp.Choose.coherence NP.Odd.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .NatOddImplementation[] \as NatOddParts;
+\definition NatOdd: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NatOddParts.T,
+  program := \thunk (NatOddParts.program),
+  specification := NatOddParts.specification,
+  coherence := NatOddParts.coherence,
+};
 
-\correspondence Choose: (B.Bool -> (Int -> (Int -> Int))) {
-  \program := (\cfun (test: B.Bool) => \return(\thunk(\cfun (yes: Int) => \return(\thunk(\cfun (no: Int) => \match test \in B.Bool \with { | false : \return no | true : \return yes }))))),
-  \set := B.ite Int^,
+\module ChooseImplementation {
+  \definition T: \VType := \U((B.Bool -> (Int -> (Int -> Int))));
+
+  \definition program: (B.Bool -> (Int -> (Int -> Int))) := (\cfun (test: B.Bool) => \return(\thunk(\cfun (yes: Int) => \return(\thunk(\cfun (no: Int) => \match test \in B.Bool \with { | false : \return no | true : \return yes })))));
+
+  \definition specification: T^ := B.ite Int^;
 
   \definition matches:
-    \forall (test: B.Bool^) -> \forall (yes, no: Int^) ->
-  Choose::[program]^ test yes no = Choose::[set] test yes no :=
-  \induction (test: B.Bool^) \return \forall (yes, no: Int^) ->
-    Choose::[program]^ test yes no = Choose::[set] test yes no \with {
-    | false : (\fun (yes, no: Int^) => \refl(no))
-    | true : (\fun (yes, no: Int^) => \refl(yes))
+      \forall (test: B.Bool^) -> \forall (yes, no: Int^) ->
+    program^ test yes no = specification test yes no :=
+    \induction (test: B.Bool^) \return \forall (yes, no: Int^) ->
+      program^ test yes no = specification test yes no \with {
+      | false : (\fun (yes, no: Int^) => \refl(no))
+      | true : (\fun (yes, no: Int^) => \refl(yes))
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: B.Bool^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: Int^) => \axiom:funext(program^ arg0 arg1, specification arg0 arg1, \fun (arg2: Int^) => matches arg0 arg1 arg2)));
+}
+\import .ChooseImplementation[] \as ChooseParts;
+\definition Choose: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := ChooseParts.T,
+  program := \thunk (ChooseParts.program),
+  specification := ChooseParts.specification,
+  coherence := ChooseParts.coherence,
+};
+
+\module OfNatImplementation {
+  \definition T: \VType := \U((N.Nat -> Int));
+
+  \definition program: (N.Nat -> Int) := (\cfun (n: N.Nat) => \return(Int::ofNat n));
+
+  \definition specification: T^ := \fun (n: N.Nat^) => (Int^::ofNat n);
+
+  \definition matches(n: N.Nat^): program^ n = specification n := \refl(Int^::ofNat n);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
+}
+\import .OfNatImplementation[] \as OfNatParts;
+\definition OfNat: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := OfNatParts.T,
+  program := \thunk (OfNatParts.program),
+  specification := OfNatParts.specification,
+  coherence := OfNatParts.coherence,
+};
+
+\module NegOfNatImplementation {
+  \definition T: \VType := \U((N.Nat -> Int));
+
+  \definition program: (N.Nat -> Int) := (\cfun (n: N.Nat) => \program {
+    \bind v1: Int <- (\force DiffLoop.run) (DiffState::running N.Nat::zero n) \then
+    \return v1
+  });
+
+  \definition specification: T^ := \fun (n: N.Nat^) => (Diff.specification N.Nat^::zero n);
+
+  \definition matches(n: N.Nat^): program^ n = specification n := congr!{Diff.T^ _} (\fun (f: _) => f N.Nat^::zero n) _ _ Diff.coherence;
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
+}
+\import .NegOfNatImplementation[] \as NegOfNatParts;
+\definition NegOfNat: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NegOfNatParts.T,
+  program := \thunk (NegOfNatParts.program),
+  specification := NegOfNatParts.specification,
+  coherence := NegOfNatParts.coherence,
+};
+
+\module NegImplementation {
+  \definition T: \VType := \U((Int -> Int));
+
+  \definition program: (Int -> Int) := (\cfun (x: Int) => \program {
+    \bind v2: N.Nat <- ((\force Negative.program) x) \then
+    \bind v4: N.Nat <- ((\force Positive.program) x) \then
+    \bind v5: Int <- (\force DiffLoop.run) (DiffState::running v2
+      v4) \then
+    \return v5
+  });
+
+  \definition specification: T^ := \fun (x: Int^) => (Diff.specification (Negative.specification x) (Positive.specification x));
+
+  \definition matches: \forall (x: Int^) -> program^ x = specification x :=
+    \block {
+      \fun (x: Int^) \then
+      \let componentsMatch:
+        Diff.program^ (Negative.program^ x) (Positive.program^ x) = Diff.program^ (Negative.specification x) (Positive.specification x) :=
+        congr2!{N.Nat^ N.Nat^ Int^} Diff.program^
+          (Negative.program^ x) (Negative.specification x) (Positive.program^ x) (Positive.specification x)
+          (congr!{Negative.T^ _} (\fun (f: _) => f x) _ _ Negative.coherence) (congr!{Positive.T^ _} (\fun (f: _) => f x) _ _ Positive.coherence) \then
+      \return trans!{Int^} _ _ _ componentsMatch
+        (congr!{Diff.T^ _} (\fun (f: _) => f (Negative.specification x) (Positive.specification x)) _ _ Diff.coherence)
     };
-  \coherence := \axiom:funext(Choose::[program]^, Choose::[set], \fun (arg0: B.Bool^) => \axiom:funext(Choose::[program]^ arg0, Choose::[set] arg0, \fun (arg1: Int^) => \axiom:funext(Choose::[program]^ arg0 arg1, Choose::[set] arg0 arg1, \fun (arg2: Int^) => matches arg0 arg1 arg2))),
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .NegImplementation[] \as NegParts;
+\definition Neg: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NegParts.T,
+  program := \thunk (NegParts.program),
+  specification := NegParts.specification,
+  coherence := NegParts.coherence,
+};
 
-\correspondence OfNat: (N.Nat -> Int) {
-  \program := (\cfun (n: N.Nat) => \return(Int::ofNat n)),
-  \set := \fun (n: N.Nat^) => (Int^::ofNat n),
+\module AddImplementation {
+  \definition T: \VType := \U((Int -> (Int -> Int)));
 
-  \definition matches(n: N.Nat^): OfNat::[program]^ n = OfNat::[set] n := \refl(Int^::ofNat n);
-  \coherence := \axiom:funext(OfNat::[program]^, OfNat::[set], matches),
+  \definition program: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+    \bind v2: N.Nat <- ((\force Positive.program) x) \then
+    \bind v4: N.Nat <- ((\force Positive.program) y) \then
+    \bind v5: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running v2 v4) \then
+    \bind v7: N.Nat <- ((\force Negative.program) x) \then
+    \bind v9: N.Nat <- ((\force Negative.program) y) \then
+    \bind v10: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running v7 v9) \then
+    \bind v11: Int <- (\force DiffLoop.run) (DiffState::running v5 v10) \then
+    \return v11
+  })));
+
+  \definition specification: T^ := \fun (x: Int^) (y: Int^) => (Diff.specification (NatOp.Add.specification (Positive.specification x)
+      (Positive.specification y)) (NatOp.Add.specification (Negative.specification x) (Negative.specification y)));
+
+  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> program^ x y = specification x y :=
+    \block {
+      \fun (x, y: Int^) \then
+      \let positivesMatch:
+        NatOp.Add.program^ (Positive.program^ x) (Positive.program^ y) =
+          NatOp.Add.program^ (Positive.specification x) (Positive.specification y) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^
+          (Positive.program^ x) (Positive.specification x) (Positive.program^ y) (Positive.specification y)
+          (congr!{Positive.T^ _} (\fun (f: _) => f x) _ _ Positive.coherence) (congr!{Positive.T^ _} (\fun (f: _) => f y) _ _ Positive.coherence) \then
+      \let negativesMatch:
+        NatOp.Add.program^ (Negative.program^ x) (Negative.program^ y) =
+          NatOp.Add.program^ (Negative.specification x) (Negative.specification y) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^
+          (Negative.program^ x) (Negative.specification x) (Negative.program^ y) (Negative.specification y)
+          (congr!{Negative.T^ _} (\fun (f: _) => f x) _ _ Negative.coherence) (congr!{Negative.T^ _} (\fun (f: _) => f y) _ _ Negative.coherence) \then
+      \let componentsMatch:
+        Diff.program^ (NatOp.Add.program^ (Positive.program^ x) (Positive.program^ y))
+          (NatOp.Add.program^ (Negative.program^ x) (Negative.program^ y)) =
+        Diff.program^ (NatOp.Add.program^ (Positive.specification x) (Positive.specification y))
+          (NatOp.Add.program^ (Negative.specification x) (Negative.specification y)) :=
+        congr2!{N.Nat^ N.Nat^ Int^} Diff.program^
+          _ _ _ _ positivesMatch negativesMatch \then
+      \return trans!{Int^} _ _ _
+        (trans!{Int^} _ _ _ componentsMatch
+        (congr!{Diff.T^ _} (\fun (f: _) => f (NatOp.Add.program^ (Positive.specification x) (Positive.specification y)) (NatOp.Add.program^ (Negative.specification x) (Negative.specification y))) _ _ Diff.coherence))
+        (congr!{NatOp.Add.T^ Int^} (\fun (addOperation: NatOp.Add.T^) => (Diff.specification (addOperation (Positive.specification x)
+      (Positive.specification y)) (addOperation (Negative.specification x) (Negative.specification y))))
+        _ _ NatOp.Add.coherence)
+    };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: Int^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: Int^) => matches arg0 arg1));
 }
+\import .AddImplementation[] \as AddParts;
+\definition Add: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := AddParts.T,
+  program := \thunk (AddParts.program),
+  specification := AddParts.specification,
+  coherence := AddParts.coherence,
+};
 
-\correspondence NegOfNat: (N.Nat -> Int) {
-  \program := (\cfun (n: N.Nat) => \program {
-  \bind v1: Int <- DiffLoop::[run] (DiffState::running N.Nat::zero n) \then
-  \return v1
-}),
-  \set := \fun (n: N.Nat^) => (Diff::[set] N.Nat^::zero n),
+\module SubImplementation {
+  \definition T: \VType := \U((Int -> (Int -> Int)));
 
-  \definition matches(n: N.Nat^): NegOfNat::[program]^ n = NegOfNat::[set] n := congr!{Diff::[Type]^ _} (\fun (f: _) => f N.Nat^::zero n) _ _ Diff::[coherence];
-  \coherence := \axiom:funext(NegOfNat::[program]^, NegOfNat::[set], matches),
+  \definition program: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+    \bind v2: Int <- ((\force Neg.program) y) \then
+    \bind v3: \U(Int -> Int) <- ((\force Add.program) x) \then
+    \bind v5: Int <- (\force v3) v2 \then
+    \return v5
+  })));
+
+  \definition specification: T^ := \fun (x: Int^) (y: Int^) => (Add.specification x (Neg.specification y));
+
+  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> program^ x y = specification x y :=
+    \block {
+      \fun (x, y: Int^) \then
+      \let argumentMatches: Add.program^ x (Neg.program^ y) = Add.program^ x (Neg.specification y) :=
+        congr2!{Int^ Int^ Int^} Add.program^
+          x x (Neg.program^ y) (Neg.specification y) (\refl(x)) (congr!{Neg.T^ _} (\fun (f: _) => f y) _ _ Neg.coherence) \then
+      \return trans!{Int^} _ _ _ argumentMatches (congr!{Add.T^ _} (\fun (f: _) => f x (Neg.specification y)) _ _ Add.coherence)
+    };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: Int^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: Int^) => matches arg0 arg1));
 }
+\import .SubImplementation[] \as SubParts;
+\definition Sub: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := SubParts.T,
+  program := \thunk (SubParts.program),
+  specification := SubParts.specification,
+  coherence := SubParts.coherence,
+};
 
-\correspondence Neg: (Int -> Int) {
-  \program := (\cfun (x: Int) => \program {
-  \bind v2: N.Nat <- (Negative::[program] x) \then
-  \bind v4: N.Nat <- (Positive::[program] x) \then
-  \bind v5: Int <- DiffLoop::[run] (DiffState::running v2
-    v4) \then
-  \return v5
-}),
-  \set := \fun (x: Int^) => (Diff::[set] (Negative::[set] x) (Positive::[set] x)),
+\module MulImplementation {
+  \definition T: \VType := \U((Int -> (Int -> Int)));
 
-  \definition matches: \forall (x: Int^) -> Neg::[program]^ x = Neg::[set] x :=
-  \block {
-    \fun (x: Int^) \then
-    \let componentsMatch:
-      Diff::[program]^ (Negative::[program]^ x) (Positive::[program]^ x) = Diff::[program]^ (Negative::[set] x) (Positive::[set] x) :=
-      congr2!{N.Nat^ N.Nat^ Int^} Diff::[program]^
-        (Negative::[program]^ x) (Negative::[set] x) (Positive::[program]^ x) (Positive::[set] x)
-        (congr!{Negative::[Type]^ _} (\fun (f: _) => f x) _ _ Negative::[coherence]) (congr!{Positive::[Type]^ _} (\fun (f: _) => f x) _ _ Positive::[coherence]) \then
-    \return trans!{Int^} _ _ _ componentsMatch
-      (congr!{Diff::[Type]^ _} (\fun (f: _) => f (Negative::[set] x) (Positive::[set] x)) _ _ Diff::[coherence])
-  };
-  \coherence := \axiom:funext(Neg::[program]^, Neg::[set], matches),
+  \definition program: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+    \bind v2: N.Nat <- ((\force Positive.program) x) \then
+    \bind v4: N.Nat <- ((\force Positive.program) y) \then
+    \bind v5: N.Nat <- (\force NatOp.IterLoop.run) (NatOp.IterState::running \thunk(\cfun (current: N.Nat) => (\force NatOp.AddLoop.run) (NatOp.AddState::running v2 current))
+      N.Nat::zero v4) \then
+    \bind v7: N.Nat <- ((\force Negative.program) x) \then
+    \bind v9: N.Nat <- ((\force Negative.program) y) \then
+    \bind v10: N.Nat <- (\force NatOp.IterLoop.run) (NatOp.IterState::running \thunk(\cfun (current: N.Nat) => (\force NatOp.AddLoop.run) (NatOp.AddState::running
+      v7 current)) N.Nat::zero v9) \then
+    \bind v11: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running v5 v10) \then
+    \bind v12: N.Nat <- (\force NatOp.IterLoop.run) (NatOp.IterState::running
+      \thunk(\cfun (current: N.Nat) => (\force NatOp.AddLoop.run) (NatOp.AddState::running v2 current)) N.Nat::zero v9) \then
+    \bind v13: N.Nat <- (\force NatOp.IterLoop.run) (NatOp.IterState::running \thunk(\cfun (current: N.Nat) => (\force NatOp.AddLoop.run) (NatOp.AddState::running v7 current))
+      N.Nat::zero v4) \then
+    \bind v14: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running v12 v13) \then
+    \bind v15: Int <- (\force DiffLoop.run) (DiffState::running v11 v14) \then
+    \return v15
+  })));
+
+  \definition specification: T^ := \fun (x: Int^) (y: Int^) => (Diff.specification (NatOp.Add.specification (NatOp.Mul.specification (Positive.specification
+      x) (Positive.specification y)) (NatOp.Mul.specification (Negative.specification x) (Negative.specification y))) (NatOp.Add.specification (NatOp.Mul.specification (Positive.specification x)
+      (Negative.specification y)) (NatOp.Mul.specification (Negative.specification x) (Positive.specification y))));
+
+  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> program^ x y = specification x y :=
+    \block {
+      \fun (x, y: Int^) \then
+      \let ppMatches:
+        NatOp.Mul.program^ (Positive.program^ x) (Positive.program^ y) =
+          NatOp.Mul.program^ (Positive.specification x) (Positive.specification y) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Mul.program^
+          (Positive.program^ x) (Positive.specification x) (Positive.program^ y) (Positive.specification y)
+          (congr!{Positive.T^ _} (\fun (f: _) => f x) _ _ Positive.coherence) (congr!{Positive.T^ _} (\fun (f: _) => f y) _ _ Positive.coherence) \then
+      \let nnMatches:
+        NatOp.Mul.program^ (Negative.program^ x) (Negative.program^ y) =
+          NatOp.Mul.program^ (Negative.specification x) (Negative.specification y) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Mul.program^
+          (Negative.program^ x) (Negative.specification x) (Negative.program^ y) (Negative.specification y)
+          (congr!{Negative.T^ _} (\fun (f: _) => f x) _ _ Negative.coherence) (congr!{Negative.T^ _} (\fun (f: _) => f y) _ _ Negative.coherence) \then
+      \let pnMatches:
+        NatOp.Mul.program^ (Positive.program^ x) (Negative.program^ y) =
+          NatOp.Mul.program^ (Positive.specification x) (Negative.specification y) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Mul.program^
+          (Positive.program^ x) (Positive.specification x) (Negative.program^ y) (Negative.specification y)
+          (congr!{Positive.T^ _} (\fun (f: _) => f x) _ _ Positive.coherence) (congr!{Negative.T^ _} (\fun (f: _) => f y) _ _ Negative.coherence) \then
+      \let npMatches:
+        NatOp.Mul.program^ (Negative.program^ x) (Positive.program^ y) =
+          NatOp.Mul.program^ (Negative.specification x) (Positive.specification y) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Mul.program^
+          (Negative.program^ x) (Negative.specification x) (Positive.program^ y) (Positive.specification y)
+          (congr!{Negative.T^ _} (\fun (f: _) => f x) _ _ Negative.coherence) (congr!{Positive.T^ _} (\fun (f: _) => f y) _ _ Positive.coherence) \then
+      \let positiveTermsMatch:
+        NatOp.Add.program^
+          (NatOp.Mul.program^ (Positive.program^ x) (Positive.program^ y))
+          (NatOp.Mul.program^ (Negative.program^ x) (Negative.program^ y)) =
+        NatOp.Add.program^
+          (NatOp.Mul.program^ (Positive.specification x) (Positive.specification y))
+          (NatOp.Mul.program^ (Negative.specification x) (Negative.specification y)) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^
+          _ _ _ _ ppMatches nnMatches \then
+      \let negativeTermsMatch:
+        NatOp.Add.program^
+          (NatOp.Mul.program^ (Positive.program^ x) (Negative.program^ y))
+          (NatOp.Mul.program^ (Negative.program^ x) (Positive.program^ y)) =
+        NatOp.Add.program^
+          (NatOp.Mul.program^ (Positive.specification x) (Negative.specification y))
+          (NatOp.Mul.program^ (Negative.specification x) (Positive.specification y)) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^
+          _ _ _ _ pnMatches npMatches \then
+      \let componentsMatch:
+        Diff.program^
+          (NatOp.Add.program^ (NatOp.Mul.program^ (Positive.program^ x) (Positive.program^ y))
+            (NatOp.Mul.program^ (Negative.program^ x) (Negative.program^ y)))
+          (NatOp.Add.program^ (NatOp.Mul.program^ (Positive.program^ x) (Negative.program^ y))
+            (NatOp.Mul.program^ (Negative.program^ x) (Positive.program^ y))) =
+        Diff.program^
+          (NatOp.Add.program^ (NatOp.Mul.program^ (Positive.specification x) (Positive.specification y))
+            (NatOp.Mul.program^ (Negative.specification x) (Negative.specification y)))
+          (NatOp.Add.program^ (NatOp.Mul.program^ (Positive.specification x) (Negative.specification y))
+            (NatOp.Mul.program^ (Negative.specification x) (Positive.specification y))) :=
+        congr2!{N.Nat^ N.Nat^ Int^} Diff.program^
+          _ _ _ _ positiveTermsMatch negativeTermsMatch \then
+      \return trans!{Int^} _ _ _
+        (trans!{Int^} _ _ _ componentsMatch
+        (congr!{Diff.T^ _} (\fun (f: _) => f (NatOp.Add.program^ (NatOp.Mul.program^ (Positive.specification x) (Positive.specification y))
+            (NatOp.Mul.program^ (Negative.specification x) (Negative.specification y))) (NatOp.Add.program^ (NatOp.Mul.program^ (Positive.specification x) (Negative.specification y))
+            (NatOp.Mul.program^ (Negative.specification x) (Positive.specification y)))) _ _ Diff.coherence))
+        (congr2!{NatOp.Add.T^ NatOp.Mul.T^ Int^}
+        (\fun (addOperation: NatOp.Add.T^) (mulOperation: NatOp.Mul.T^) => (Diff.specification (addOperation (mulOperation (Positive.specification
+      x) (Positive.specification y)) (mulOperation (Negative.specification x) (Negative.specification y))) (addOperation (mulOperation (Positive.specification x)
+      (Negative.specification y)) (mulOperation (Negative.specification x) (Positive.specification y)))))
+        _ _ _ _ NatOp.Add.coherence NatOp.Mul.coherence)
+    };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: Int^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: Int^) => matches arg0 arg1));
 }
+\import .MulImplementation[] \as MulParts;
+\definition Mul: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := MulParts.T,
+  program := \thunk (MulParts.program),
+  specification := MulParts.specification,
+  coherence := MulParts.coherence,
+};
 
-\correspondence Add: (Int -> (Int -> Int)) {
-  \program := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
-  \bind v2: N.Nat <- (Positive::[program] x) \then
-  \bind v4: N.Nat <- (Positive::[program] y) \then
-  \bind v5: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running v2 v4) \then
-  \bind v7: N.Nat <- (Negative::[program] x) \then
-  \bind v9: N.Nat <- (Negative::[program] y) \then
-  \bind v10: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running v7 v9) \then
-  \bind v11: Int <- DiffLoop::[run] (DiffState::running v5 v10) \then
-  \return v11
-}))),
-  \set := \fun (x: Int^) (y: Int^) => (Diff::[set] (NatOp.Add::[set] (Positive::[set] x)
-    (Positive::[set] y)) (NatOp.Add::[set] (Negative::[set] x) (Negative::[set] y))),
+\module SuccImplementation {
+  \definition T: \VType := \U((Int -> Int));
 
-  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> Add::[program]^ x y = Add::[set] x y :=
-  \block {
-    \fun (x, y: Int^) \then
-    \let positivesMatch:
-      NatOp.Add::[program]^ (Positive::[program]^ x) (Positive::[program]^ y) =
-        NatOp.Add::[program]^ (Positive::[set] x) (Positive::[set] y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^
-        (Positive::[program]^ x) (Positive::[set] x) (Positive::[program]^ y) (Positive::[set] y)
-        (congr!{Positive::[Type]^ _} (\fun (f: _) => f x) _ _ Positive::[coherence]) (congr!{Positive::[Type]^ _} (\fun (f: _) => f y) _ _ Positive::[coherence]) \then
-    \let negativesMatch:
-      NatOp.Add::[program]^ (Negative::[program]^ x) (Negative::[program]^ y) =
-        NatOp.Add::[program]^ (Negative::[set] x) (Negative::[set] y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^
-        (Negative::[program]^ x) (Negative::[set] x) (Negative::[program]^ y) (Negative::[set] y)
-        (congr!{Negative::[Type]^ _} (\fun (f: _) => f x) _ _ Negative::[coherence]) (congr!{Negative::[Type]^ _} (\fun (f: _) => f y) _ _ Negative::[coherence]) \then
-    \let componentsMatch:
-      Diff::[program]^ (NatOp.Add::[program]^ (Positive::[program]^ x) (Positive::[program]^ y))
-        (NatOp.Add::[program]^ (Negative::[program]^ x) (Negative::[program]^ y)) =
-      Diff::[program]^ (NatOp.Add::[program]^ (Positive::[set] x) (Positive::[set] y))
-        (NatOp.Add::[program]^ (Negative::[set] x) (Negative::[set] y)) :=
-      congr2!{N.Nat^ N.Nat^ Int^} Diff::[program]^
-        _ _ _ _ positivesMatch negativesMatch \then
-    \return trans!{Int^} _ _ _
-      (trans!{Int^} _ _ _ componentsMatch
-      (congr!{Diff::[Type]^ _} (\fun (f: _) => f (NatOp.Add::[program]^ (Positive::[set] x) (Positive::[set] y)) (NatOp.Add::[program]^ (Negative::[set] x) (Negative::[set] y))) _ _ Diff::[coherence]))
-      (congr!{NatOp.Add::[Type]^ Int^} (\fun (addOperation: NatOp.Add::[Type]^) => (Diff::[set] (addOperation (Positive::[set] x)
-    (Positive::[set] y)) (addOperation (Negative::[set] x) (Negative::[set] y))))
-      _ _ NatOp.Add::[coherence])
-  };
-  \coherence := \axiom:funext(Add::[program]^, Add::[set], \fun (arg0: Int^) => \axiom:funext(Add::[program]^ arg0, Add::[set] arg0, \fun (arg1: Int^) => matches arg0 arg1)),
+  \definition program: (Int -> Int) := (\cfun (x: Int) => \program {
+    \bind v1: \U(Int -> Int) <- ((\force Add.program) x) \then
+    \bind v3: Int <- (\force v1) (Int::ofNat (N.Nat::succ N.Nat::zero)) \then
+    \return v3
+  });
+
+  \definition specification: T^ := \fun (x: Int^) => (Add.specification x (Int^::ofNat (N.Nat^::succ N.Nat^::zero)));
+
+  \definition matches(x: Int^): program^ x = specification x := congr!{Add.T^ _} (\fun (f: _) => f x (Int^::ofNat (N.Nat^::succ N.Nat^::zero))) _ _ Add.coherence;
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .SuccImplementation[] \as SuccParts;
+\definition Succ: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := SuccParts.T,
+  program := \thunk (SuccParts.program),
+  specification := SuccParts.specification,
+  coherence := SuccParts.coherence,
+};
 
-\correspondence Sub: (Int -> (Int -> Int)) {
-  \program := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
-  \bind v2: Int <- (Neg::[program] y) \then
-  \bind v3: \U(Int -> Int) <- (Add::[program] x) \then
-  \bind v5: Int <- (\force v3) v2 \then
-  \return v5
-}))),
-  \set := \fun (x: Int^) (y: Int^) => (Add::[set] x (Neg::[set] y)),
+\module PredImplementation {
+  \definition T: \VType := \U((Int -> Int));
 
-  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> Sub::[program]^ x y = Sub::[set] x y :=
-  \block {
-    \fun (x, y: Int^) \then
-    \let argumentMatches: Add::[program]^ x (Neg::[program]^ y) = Add::[program]^ x (Neg::[set] y) :=
-      congr2!{Int^ Int^ Int^} Add::[program]^
-        x x (Neg::[program]^ y) (Neg::[set] y) (\refl(x)) (congr!{Neg::[Type]^ _} (\fun (f: _) => f y) _ _ Neg::[coherence]) \then
-    \return trans!{Int^} _ _ _ argumentMatches (congr!{Add::[Type]^ _} (\fun (f: _) => f x (Neg::[set] y)) _ _ Add::[coherence])
-  };
-  \coherence := \axiom:funext(Sub::[program]^, Sub::[set], \fun (arg0: Int^) => \axiom:funext(Sub::[program]^ arg0, Sub::[set] arg0, \fun (arg1: Int^) => matches arg0 arg1)),
+  \definition program: (Int -> Int) := (\cfun (x: Int) => \program {
+    \bind v1: \U(Int -> Int) <- ((\force Sub.program) x) \then
+    \bind v3: Int <- (\force v1) (Int::ofNat (N.Nat::succ N.Nat::zero)) \then
+    \return v3
+  });
+
+  \definition specification: T^ := \fun (x: Int^) => (Sub.specification x (Int^::ofNat (N.Nat^::succ N.Nat^::zero)));
+
+  \definition matches(x: Int^): program^ x = specification x := congr!{Sub.T^ _} (\fun (f: _) => f x (Int^::ofNat (N.Nat^::succ N.Nat^::zero))) _ _ Sub.coherence;
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .PredImplementation[] \as PredParts;
+\definition Pred: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := PredParts.T,
+  program := \thunk (PredParts.program),
+  specification := PredParts.specification,
+  coherence := PredParts.coherence,
+};
 
-\correspondence Mul: (Int -> (Int -> Int)) {
-  \program := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
-  \bind v2: N.Nat <- (Positive::[program] x) \then
-  \bind v4: N.Nat <- (Positive::[program] y) \then
-  \bind v5: N.Nat <- NatOp.IterLoop::[run] (NatOp.IterState::running \thunk(\cfun (current: N.Nat) => NatOp.AddLoop::[run] (NatOp.AddState::running v2 current))
-    N.Nat::zero v4) \then
-  \bind v7: N.Nat <- (Negative::[program] x) \then
-  \bind v9: N.Nat <- (Negative::[program] y) \then
-  \bind v10: N.Nat <- NatOp.IterLoop::[run] (NatOp.IterState::running \thunk(\cfun (current: N.Nat) => NatOp.AddLoop::[run] (NatOp.AddState::running
-    v7 current)) N.Nat::zero v9) \then
-  \bind v11: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running v5 v10) \then
-  \bind v12: N.Nat <- NatOp.IterLoop::[run] (NatOp.IterState::running
-    \thunk(\cfun (current: N.Nat) => NatOp.AddLoop::[run] (NatOp.AddState::running v2 current)) N.Nat::zero v9) \then
-  \bind v13: N.Nat <- NatOp.IterLoop::[run] (NatOp.IterState::running \thunk(\cfun (current: N.Nat) => NatOp.AddLoop::[run] (NatOp.AddState::running v7 current))
-    N.Nat::zero v4) \then
-  \bind v14: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running v12 v13) \then
-  \bind v15: Int <- DiffLoop::[run] (DiffState::running v11 v14) \then
-  \return v15
-}))),
-  \set := \fun (x: Int^) (y: Int^) => (Diff::[set] (NatOp.Add::[set] (NatOp.Mul::[set] (Positive::[set]
-    x) (Positive::[set] y)) (NatOp.Mul::[set] (Negative::[set] x) (Negative::[set] y))) (NatOp.Add::[set] (NatOp.Mul::[set] (Positive::[set] x)
-    (Negative::[set] y)) (NatOp.Mul::[set] (Negative::[set] x) (Positive::[set] y)))),
+\module NatAbsImplementation {
+  \definition T: \VType := \U((Int -> N.Nat));
 
-  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> Mul::[program]^ x y = Mul::[set] x y :=
-  \block {
-    \fun (x, y: Int^) \then
-    \let ppMatches:
-      NatOp.Mul::[program]^ (Positive::[program]^ x) (Positive::[program]^ y) =
-        NatOp.Mul::[program]^ (Positive::[set] x) (Positive::[set] y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Mul::[program]^
-        (Positive::[program]^ x) (Positive::[set] x) (Positive::[program]^ y) (Positive::[set] y)
-        (congr!{Positive::[Type]^ _} (\fun (f: _) => f x) _ _ Positive::[coherence]) (congr!{Positive::[Type]^ _} (\fun (f: _) => f y) _ _ Positive::[coherence]) \then
-    \let nnMatches:
-      NatOp.Mul::[program]^ (Negative::[program]^ x) (Negative::[program]^ y) =
-        NatOp.Mul::[program]^ (Negative::[set] x) (Negative::[set] y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Mul::[program]^
-        (Negative::[program]^ x) (Negative::[set] x) (Negative::[program]^ y) (Negative::[set] y)
-        (congr!{Negative::[Type]^ _} (\fun (f: _) => f x) _ _ Negative::[coherence]) (congr!{Negative::[Type]^ _} (\fun (f: _) => f y) _ _ Negative::[coherence]) \then
-    \let pnMatches:
-      NatOp.Mul::[program]^ (Positive::[program]^ x) (Negative::[program]^ y) =
-        NatOp.Mul::[program]^ (Positive::[set] x) (Negative::[set] y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Mul::[program]^
-        (Positive::[program]^ x) (Positive::[set] x) (Negative::[program]^ y) (Negative::[set] y)
-        (congr!{Positive::[Type]^ _} (\fun (f: _) => f x) _ _ Positive::[coherence]) (congr!{Negative::[Type]^ _} (\fun (f: _) => f y) _ _ Negative::[coherence]) \then
-    \let npMatches:
-      NatOp.Mul::[program]^ (Negative::[program]^ x) (Positive::[program]^ y) =
-        NatOp.Mul::[program]^ (Negative::[set] x) (Positive::[set] y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Mul::[program]^
-        (Negative::[program]^ x) (Negative::[set] x) (Positive::[program]^ y) (Positive::[set] y)
-        (congr!{Negative::[Type]^ _} (\fun (f: _) => f x) _ _ Negative::[coherence]) (congr!{Positive::[Type]^ _} (\fun (f: _) => f y) _ _ Positive::[coherence]) \then
-    \let positiveTermsMatch:
-      NatOp.Add::[program]^
-        (NatOp.Mul::[program]^ (Positive::[program]^ x) (Positive::[program]^ y))
-        (NatOp.Mul::[program]^ (Negative::[program]^ x) (Negative::[program]^ y)) =
-      NatOp.Add::[program]^
-        (NatOp.Mul::[program]^ (Positive::[set] x) (Positive::[set] y))
-        (NatOp.Mul::[program]^ (Negative::[set] x) (Negative::[set] y)) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^
-        _ _ _ _ ppMatches nnMatches \then
-    \let negativeTermsMatch:
-      NatOp.Add::[program]^
-        (NatOp.Mul::[program]^ (Positive::[program]^ x) (Negative::[program]^ y))
-        (NatOp.Mul::[program]^ (Negative::[program]^ x) (Positive::[program]^ y)) =
-      NatOp.Add::[program]^
-        (NatOp.Mul::[program]^ (Positive::[set] x) (Negative::[set] y))
-        (NatOp.Mul::[program]^ (Negative::[set] x) (Positive::[set] y)) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^
-        _ _ _ _ pnMatches npMatches \then
-    \let componentsMatch:
-      Diff::[program]^
-        (NatOp.Add::[program]^ (NatOp.Mul::[program]^ (Positive::[program]^ x) (Positive::[program]^ y))
-          (NatOp.Mul::[program]^ (Negative::[program]^ x) (Negative::[program]^ y)))
-        (NatOp.Add::[program]^ (NatOp.Mul::[program]^ (Positive::[program]^ x) (Negative::[program]^ y))
-          (NatOp.Mul::[program]^ (Negative::[program]^ x) (Positive::[program]^ y))) =
-      Diff::[program]^
-        (NatOp.Add::[program]^ (NatOp.Mul::[program]^ (Positive::[set] x) (Positive::[set] y))
-          (NatOp.Mul::[program]^ (Negative::[set] x) (Negative::[set] y)))
-        (NatOp.Add::[program]^ (NatOp.Mul::[program]^ (Positive::[set] x) (Negative::[set] y))
-          (NatOp.Mul::[program]^ (Negative::[set] x) (Positive::[set] y))) :=
-      congr2!{N.Nat^ N.Nat^ Int^} Diff::[program]^
-        _ _ _ _ positiveTermsMatch negativeTermsMatch \then
-    \return trans!{Int^} _ _ _
-      (trans!{Int^} _ _ _ componentsMatch
-      (congr!{Diff::[Type]^ _} (\fun (f: _) => f (NatOp.Add::[program]^ (NatOp.Mul::[program]^ (Positive::[set] x) (Positive::[set] y))
-          (NatOp.Mul::[program]^ (Negative::[set] x) (Negative::[set] y))) (NatOp.Add::[program]^ (NatOp.Mul::[program]^ (Positive::[set] x) (Negative::[set] y))
-          (NatOp.Mul::[program]^ (Negative::[set] x) (Positive::[set] y)))) _ _ Diff::[coherence]))
-      (congr2!{NatOp.Add::[Type]^ NatOp.Mul::[Type]^ Int^}
-      (\fun (addOperation: NatOp.Add::[Type]^) (mulOperation: NatOp.Mul::[Type]^) => (Diff::[set] (addOperation (mulOperation (Positive::[set]
-    x) (Positive::[set] y)) (mulOperation (Negative::[set] x) (Negative::[set] y))) (addOperation (mulOperation (Positive::[set] x)
-    (Negative::[set] y)) (mulOperation (Negative::[set] x) (Positive::[set] y)))))
-      _ _ _ _ NatOp.Add::[coherence] NatOp.Mul::[coherence])
-  };
-  \coherence := \axiom:funext(Mul::[program]^, Mul::[set], \fun (arg0: Int^) => \axiom:funext(Mul::[program]^ arg0, Mul::[set] arg0, \fun (arg1: Int^) => matches arg0 arg1)),
+  \definition program: (Int -> N.Nat) := (\cfun (x: Int) => \program {
+    \bind v2: N.Nat <- ((\force Positive.program) x) \then
+    \bind v4: N.Nat <- ((\force Negative.program) x) \then
+    \bind v5: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running
+      v2 v4) \then
+    \return v5
+  });
+
+  \definition specification: T^ := \fun (x: Int^) => (NatOp.Add.specification (Positive.specification x) (Negative.specification x));
+
+  \definition matches(x: Int^): program^ x = specification x :=
+    trans!{N.Nat^} _ _ _
+      (congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^ (Positive.program^ x) (Positive.specification x) (Negative.program^ x) (Negative.specification x)
+      (congr!{Positive.T^ _} (\fun (f: _) => f x) _ _ Positive.coherence) (congr!{Negative.T^ _} (\fun (f: _) => f x) _ _ Negative.coherence))
+      (congr!{NatOp.Add.T^ N.Nat^}
+        (\fun (addition: _) => addition (Positive.specification x) (Negative.specification x))
+        _ _ NatOp.Add.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .NatAbsImplementation[] \as NatAbsParts;
+\definition NatAbs: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NatAbsParts.T,
+  program := \thunk (NatAbsParts.program),
+  specification := NatAbsParts.specification,
+  coherence := NatAbsParts.coherence,
+};
 
-\correspondence Succ: (Int -> Int) {
-  \program := (\cfun (x: Int) => \program {
-  \bind v1: \U(Int -> Int) <- (Add::[program] x) \then
-  \bind v3: Int <- (\force v1) (Int::ofNat (N.Nat::succ N.Nat::zero)) \then
-  \return v3
-}),
-  \set := \fun (x: Int^) => (Add::[set] x (Int^::ofNat (N.Nat^::succ N.Nat^::zero))),
+\module AbsImplementation {
+  \definition T: \VType := \U((Int -> Int));
 
-  \definition matches(x: Int^): Succ::[program]^ x = Succ::[set] x := congr!{Add::[Type]^ _} (\fun (f: _) => f x (Int^::ofNat (N.Nat^::succ N.Nat^::zero))) _ _ Add::[coherence];
-  \coherence := \axiom:funext(Succ::[program]^, Succ::[set], matches),
+  \definition program: (Int -> Int) := (\cfun (x: Int) => \program {
+    \bind v2: N.Nat <- ((\force NatAbs.program) x) \then
+    \bind v4: Int <- ((\force OfNat.program) v2) \then
+    \return v4
+  });
+
+  \definition specification: T^ := \fun (x: Int^) => (OfNat.specification (NatAbs.specification x));
+
+  \definition matches(x: Int^): program^ x = specification x := trans!{Int^} _ _ _ (congr!{N.Nat^ Int^} OfNat.program^ (NatAbs.program^ x) (NatAbs.specification x) (congr!{NatAbs.T^ _} (\fun (f: _) => f x) _ _ NatAbs.coherence))
+      (congr!{OfNat.T^ _} (\fun (f: _) => f (NatAbs.specification x)) _ _ OfNat.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .AbsImplementation[] \as AbsParts;
+\definition Abs: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := AbsParts.T,
+  program := \thunk (AbsParts.program),
+  specification := AbsParts.specification,
+  coherence := AbsParts.coherence,
+};
 
-\correspondence Pred: (Int -> Int) {
-  \program := (\cfun (x: Int) => \program {
-  \bind v1: \U(Int -> Int) <- (Sub::[program] x) \then
-  \bind v3: Int <- (\force v1) (Int::ofNat (N.Nat::succ N.Nat::zero)) \then
-  \return v3
-}),
-  \set := \fun (x: Int^) => (Sub::[set] x (Int^::ofNat (N.Nat^::succ N.Nat^::zero))),
+\module IsZeroImplementation {
+  \definition T: \VType := \U((Int -> B.Bool));
 
-  \definition matches(x: Int^): Pred::[program]^ x = Pred::[set] x := congr!{Sub::[Type]^ _} (\fun (f: _) => f x (Int^::ofNat (N.Nat^::succ N.Nat^::zero))) _ _ Sub::[coherence];
-  \coherence := \axiom:funext(Pred::[program]^, Pred::[set], matches),
+  \definition program: (Int -> B.Bool) := (\cfun (x: Int) => \program {
+    \bind v2: N.Nat <- ((\force NatAbs.program) x) \then
+    \bind v4: B.Bool <- ((\force NatIsZero.program) v2) \then
+    \return v4
+  });
+
+  \definition specification: T^ := \fun (x: Int^) => (NatIsZero.specification (NatAbs.specification x));
+
+  \definition matches(x: Int^): program^ x = specification x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} NatIsZero.program^ (NatAbs.program^ x) (NatAbs.specification x) (congr!{NatAbs.T^ _} (\fun (f: _) => f x) _ _ NatAbs.coherence))
+      (congr!{NatIsZero.T^ _} (\fun (f: _) => f (NatAbs.specification x)) _ _ NatIsZero.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .IsZeroImplementation[] \as IsZeroParts;
+\definition IsZero: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := IsZeroParts.T,
+  program := \thunk (IsZeroParts.program),
+  specification := IsZeroParts.specification,
+  coherence := IsZeroParts.coherence,
+};
 
-\correspondence NatAbs: (Int -> N.Nat) {
-  \program := (\cfun (x: Int) => \program {
-  \bind v2: N.Nat <- (Positive::[program] x) \then
-  \bind v4: N.Nat <- (Negative::[program] x) \then
-  \bind v5: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running
-    v2 v4) \then
-  \return v5
-}),
-  \set := \fun (x: Int^) => (NatOp.Add::[set] (Positive::[set] x) (Negative::[set] x)),
+\module EqbImplementation {
+  \definition T: \VType := \U((Int -> (Int -> B.Bool)));
 
-  \definition matches(x: Int^): NatAbs::[program]^ x = NatAbs::[set] x :=
-  trans!{N.Nat^} _ _ _
-    (congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^ (Positive::[program]^ x) (Positive::[set] x) (Negative::[program]^ x) (Negative::[set] x)
-    (congr!{Positive::[Type]^ _} (\fun (f: _) => f x) _ _ Positive::[coherence]) (congr!{Negative::[Type]^ _} (\fun (f: _) => f x) _ _ Negative::[coherence]))
-    (congr!{NatOp.Add::[Type]^ N.Nat^}
-      (\fun (addition: _) => addition (Positive::[set] x) (Negative::[set] x))
-      _ _ NatOp.Add::[coherence]);
-  \coherence := \axiom:funext(NatAbs::[program]^, NatAbs::[set], matches),
+  \definition program: (Int -> (Int -> B.Bool)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+    \bind v2: N.Nat <- ((\force Positive.program) x) \then
+    \bind v4: N.Nat <- ((\force Negative.program) y) \then
+    \bind v5: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running v2 v4) \then
+    \bind v7: N.Nat <- ((\force Positive.program) y) \then
+    \bind v9: N.Nat <- ((\force Negative.program) x) \then
+    \bind v10: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running v7 v9) \then
+    \bind v11: \U(N.Nat -> B.Bool) <- ((\force NatEqb.program) v5) \then
+    \bind v13: B.Bool <- (\force v11) v10 \then
+    \return v13
+  })));
+
+  \definition specification: T^ := \fun (x: Int^) (y: Int^) => (NatEqb.specification (NatOp.Add.specification (Positive.specification x)
+      (Negative.specification y)) (NatOp.Add.specification (Positive.specification y) (Negative.specification x)));
+
+  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> program^ x y = specification x y :=
+    \block {
+      \fun (x, y: Int^) \then
+      \let leftMatches:
+        NatOp.Add.program^ (Positive.program^ x) (Negative.program^ y) = NatOp.Add.program^ (Positive.specification x) (Negative.specification y) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^
+          (Positive.program^ x) (Positive.specification x) (Negative.program^ y) (Negative.specification y)
+          (congr!{Positive.T^ _} (\fun (f: _) => f x) _ _ Positive.coherence) (congr!{Negative.T^ _} (\fun (f: _) => f y) _ _ Negative.coherence) \then
+      \let rightMatches:
+        NatOp.Add.program^ (Positive.program^ y) (Negative.program^ x) = NatOp.Add.program^ (Positive.specification y) (Negative.specification x) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^
+          (Positive.program^ y) (Positive.specification y) (Negative.program^ x) (Negative.specification x)
+          (congr!{Positive.T^ _} (\fun (f: _) => f y) _ _ Positive.coherence) (congr!{Negative.T^ _} (\fun (f: _) => f x) _ _ Negative.coherence) \then
+      \let argumentsMatch:
+        NatEqb.program^ (NatOp.Add.program^ (Positive.program^ x) (Negative.program^ y)) (NatOp.Add.program^ (Positive.program^ y) (Negative.program^ x)) =
+        NatEqb.program^ (NatOp.Add.program^ (Positive.specification x) (Negative.specification y)) (NatOp.Add.program^ (Positive.specification y) (Negative.specification x)) :=
+        congr2!{N.Nat^ N.Nat^ B.Bool^} NatEqb.program^ _ _ _ _ leftMatches rightMatches \then
+      \return trans!{B.Bool^} _ _ _
+        (trans!{B.Bool^} _ _ _ argumentsMatch
+        (congr!{NatEqb.T^ _} (\fun (f: _) => f (NatOp.Add.program^ (Positive.specification x) (Negative.specification y)) (NatOp.Add.program^ (Positive.specification y) (Negative.specification x))) _ _ NatEqb.coherence))
+        (congr!{NatOp.Add.T^ B.Bool^}
+        (\fun (addition: _) => (NatEqb.specification (addition (Positive.specification x)
+      (Negative.specification y)) (addition (Positive.specification y) (Negative.specification x)))) _ _ NatOp.Add.coherence)
+    };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: Int^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: Int^) => matches arg0 arg1));
 }
+\import .EqbImplementation[] \as EqbParts;
+\definition Eqb: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := EqbParts.T,
+  program := \thunk (EqbParts.program),
+  specification := EqbParts.specification,
+  coherence := EqbParts.coherence,
+};
 
-\correspondence Abs: (Int -> Int) {
-  \program := (\cfun (x: Int) => \program {
-  \bind v2: N.Nat <- (NatAbs::[program] x) \then
-  \bind v4: Int <- (OfNat::[program] v2) \then
-  \return v4
-}),
-  \set := \fun (x: Int^) => (OfNat::[set] (NatAbs::[set] x)),
+\module LebImplementation {
+  \definition T: \VType := \U((Int -> (Int -> B.Bool)));
 
-  \definition matches(x: Int^): Abs::[program]^ x = Abs::[set] x := trans!{Int^} _ _ _ (congr!{N.Nat^ Int^} OfNat::[program]^ (NatAbs::[program]^ x) (NatAbs::[set] x) (congr!{NatAbs::[Type]^ _} (\fun (f: _) => f x) _ _ NatAbs::[coherence]))
-    (congr!{OfNat::[Type]^ _} (\fun (f: _) => f (NatAbs::[set] x)) _ _ OfNat::[coherence]);
-  \coherence := \axiom:funext(Abs::[program]^, Abs::[set], matches),
+  \definition program: (Int -> (Int -> B.Bool)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+    \bind v2: N.Nat <- ((\force Positive.program) x) \then
+    \bind v4: N.Nat <- ((\force Negative.program) y) \then
+    \bind v5: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running v2 v4) \then
+    \bind v7: N.Nat <- ((\force Positive.program) y) \then
+    \bind v9: N.Nat <- ((\force Negative.program) x) \then
+    \bind v10: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running v7 v9) \then
+    \bind v11: \U(N.Nat -> B.Bool) <- ((\force NatLeb.program) v5) \then
+    \bind v13: B.Bool <- (\force v11) v10 \then
+    \return v13
+  })));
+
+  \definition specification: T^ := \fun (x: Int^) (y: Int^) => (NatLeb.specification (NatOp.Add.specification (Positive.specification x)
+      (Negative.specification y)) (NatOp.Add.specification (Positive.specification y) (Negative.specification x)));
+
+  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> program^ x y = specification x y :=
+    \block {
+      \fun (x, y: Int^) \then
+      \let leftMatches:
+        NatOp.Add.program^ (Positive.program^ x) (Negative.program^ y) = NatOp.Add.program^ (Positive.specification x) (Negative.specification y) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^
+          (Positive.program^ x) (Positive.specification x) (Negative.program^ y) (Negative.specification y)
+          (congr!{Positive.T^ _} (\fun (f: _) => f x) _ _ Positive.coherence) (congr!{Negative.T^ _} (\fun (f: _) => f y) _ _ Negative.coherence) \then
+      \let rightMatches:
+        NatOp.Add.program^ (Positive.program^ y) (Negative.program^ x) = NatOp.Add.program^ (Positive.specification y) (Negative.specification x) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^
+          (Positive.program^ y) (Positive.specification y) (Negative.program^ x) (Negative.specification x)
+          (congr!{Positive.T^ _} (\fun (f: _) => f y) _ _ Positive.coherence) (congr!{Negative.T^ _} (\fun (f: _) => f x) _ _ Negative.coherence) \then
+      \let argumentsMatch:
+        NatLeb.program^ (NatOp.Add.program^ (Positive.program^ x) (Negative.program^ y)) (NatOp.Add.program^ (Positive.program^ y) (Negative.program^ x)) =
+        NatLeb.program^ (NatOp.Add.program^ (Positive.specification x) (Negative.specification y)) (NatOp.Add.program^ (Positive.specification y) (Negative.specification x)) :=
+        congr2!{N.Nat^ N.Nat^ B.Bool^} NatLeb.program^ _ _ _ _ leftMatches rightMatches \then
+      \return trans!{B.Bool^} _ _ _
+        (trans!{B.Bool^} _ _ _ argumentsMatch
+        (congr!{NatLeb.T^ _} (\fun (f: _) => f (NatOp.Add.program^ (Positive.specification x) (Negative.specification y)) (NatOp.Add.program^ (Positive.specification y) (Negative.specification x))) _ _ NatLeb.coherence))
+        (congr!{NatOp.Add.T^ B.Bool^}
+        (\fun (addition: _) => (NatLeb.specification (addition (Positive.specification x)
+      (Negative.specification y)) (addition (Positive.specification y) (Negative.specification x)))) _ _ NatOp.Add.coherence)
+    };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: Int^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: Int^) => matches arg0 arg1));
 }
+\import .LebImplementation[] \as LebParts;
+\definition Leb: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := LebParts.T,
+  program := \thunk (LebParts.program),
+  specification := LebParts.specification,
+  coherence := LebParts.coherence,
+};
 
-\correspondence IsZero: (Int -> B.Bool) {
-  \program := (\cfun (x: Int) => \program {
-  \bind v2: N.Nat <- (NatAbs::[program] x) \then
-  \bind v4: B.Bool <- (NatIsZero::[program] v2) \then
-  \return v4
-}),
-  \set := \fun (x: Int^) => (NatIsZero::[set] (NatAbs::[set] x)),
+\module LtbImplementation {
+  \definition T: \VType := \U((Int -> (Int -> B.Bool)));
 
-  \definition matches(x: Int^): IsZero::[program]^ x = IsZero::[set] x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} NatIsZero::[program]^ (NatAbs::[program]^ x) (NatAbs::[set] x) (congr!{NatAbs::[Type]^ _} (\fun (f: _) => f x) _ _ NatAbs::[coherence]))
-    (congr!{NatIsZero::[Type]^ _} (\fun (f: _) => f (NatAbs::[set] x)) _ _ NatIsZero::[coherence]);
-  \coherence := \axiom:funext(IsZero::[program]^, IsZero::[set], matches),
+  \definition program: (Int -> (Int -> B.Bool)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+    \bind v2: N.Nat <- ((\force Positive.program) x) \then
+    \bind v4: N.Nat <- ((\force Negative.program) y) \then
+    \bind v5: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running v2 v4) \then
+    \bind v7: N.Nat <- ((\force Positive.program) y) \then
+    \bind v9: N.Nat <- ((\force Negative.program) x) \then
+    \bind v10: N.Nat <- (\force NatOp.AddLoop.run) (NatOp.AddState::running v7 v9) \then
+    \bind v11: \U(N.Nat -> B.Bool) <- ((\force NatLtb.program) v5) \then
+    \bind v13: B.Bool <- (\force v11) v10 \then
+    \return v13
+  })));
+
+  \definition specification: T^ := \fun (x: Int^) (y: Int^) => (NatLtb.specification (NatOp.Add.specification (Positive.specification x)
+      (Negative.specification y)) (NatOp.Add.specification (Positive.specification y) (Negative.specification x)));
+
+  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> program^ x y = specification x y :=
+    \block {
+      \fun (x, y: Int^) \then
+      \let leftMatches:
+        NatOp.Add.program^ (Positive.program^ x) (Negative.program^ y) = NatOp.Add.program^ (Positive.specification x) (Negative.specification y) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^
+          (Positive.program^ x) (Positive.specification x) (Negative.program^ y) (Negative.specification y)
+          (congr!{Positive.T^ _} (\fun (f: _) => f x) _ _ Positive.coherence) (congr!{Negative.T^ _} (\fun (f: _) => f y) _ _ Negative.coherence) \then
+      \let rightMatches:
+        NatOp.Add.program^ (Positive.program^ y) (Negative.program^ x) = NatOp.Add.program^ (Positive.specification y) (Negative.specification x) :=
+        congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add.program^
+          (Positive.program^ y) (Positive.specification y) (Negative.program^ x) (Negative.specification x)
+          (congr!{Positive.T^ _} (\fun (f: _) => f y) _ _ Positive.coherence) (congr!{Negative.T^ _} (\fun (f: _) => f x) _ _ Negative.coherence) \then
+      \let argumentsMatch:
+        NatLtb.program^ (NatOp.Add.program^ (Positive.program^ x) (Negative.program^ y)) (NatOp.Add.program^ (Positive.program^ y) (Negative.program^ x)) =
+        NatLtb.program^ (NatOp.Add.program^ (Positive.specification x) (Negative.specification y)) (NatOp.Add.program^ (Positive.specification y) (Negative.specification x)) :=
+        congr2!{N.Nat^ N.Nat^ B.Bool^} NatLtb.program^ _ _ _ _ leftMatches rightMatches \then
+      \return trans!{B.Bool^} _ _ _
+        (trans!{B.Bool^} _ _ _ argumentsMatch
+        (congr!{NatLtb.T^ _} (\fun (f: _) => f (NatOp.Add.program^ (Positive.specification x) (Negative.specification y)) (NatOp.Add.program^ (Positive.specification y) (Negative.specification x))) _ _ NatLtb.coherence))
+        (congr!{NatOp.Add.T^ B.Bool^}
+        (\fun (addition: _) => (NatLtb.specification (addition (Positive.specification x)
+      (Negative.specification y)) (addition (Positive.specification y) (Negative.specification x)))) _ _ NatOp.Add.coherence)
+    };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: Int^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: Int^) => matches arg0 arg1));
 }
+\import .LtbImplementation[] \as LtbParts;
+\definition Ltb: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := LtbParts.T,
+  program := \thunk (LtbParts.program),
+  specification := LtbParts.specification,
+  coherence := LtbParts.coherence,
+};
 
-\correspondence Eqb: (Int -> (Int -> B.Bool)) {
-  \program := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
-  \bind v2: N.Nat <- (Positive::[program] x) \then
-  \bind v4: N.Nat <- (Negative::[program] y) \then
-  \bind v5: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running v2 v4) \then
-  \bind v7: N.Nat <- (Positive::[program] y) \then
-  \bind v9: N.Nat <- (Negative::[program] x) \then
-  \bind v10: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running v7 v9) \then
-  \bind v11: \U(N.Nat -> B.Bool) <- (NatEqb::[program] v5) \then
-  \bind v13: B.Bool <- (\force v11) v10 \then
-  \return v13
-}))),
-  \set := \fun (x: Int^) (y: Int^) => (NatEqb::[set] (NatOp.Add::[set] (Positive::[set] x)
-    (Negative::[set] y)) (NatOp.Add::[set] (Positive::[set] y) (Negative::[set] x))),
+\module MinImplementation {
+  \definition T: \VType := \U((Int -> (Int -> Int)));
 
-  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> Eqb::[program]^ x y = Eqb::[set] x y :=
-  \block {
-    \fun (x, y: Int^) \then
-    \let leftMatches:
-      NatOp.Add::[program]^ (Positive::[program]^ x) (Negative::[program]^ y) = NatOp.Add::[program]^ (Positive::[set] x) (Negative::[set] y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^
-        (Positive::[program]^ x) (Positive::[set] x) (Negative::[program]^ y) (Negative::[set] y)
-        (congr!{Positive::[Type]^ _} (\fun (f: _) => f x) _ _ Positive::[coherence]) (congr!{Negative::[Type]^ _} (\fun (f: _) => f y) _ _ Negative::[coherence]) \then
-    \let rightMatches:
-      NatOp.Add::[program]^ (Positive::[program]^ y) (Negative::[program]^ x) = NatOp.Add::[program]^ (Positive::[set] y) (Negative::[set] x) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^
-        (Positive::[program]^ y) (Positive::[set] y) (Negative::[program]^ x) (Negative::[set] x)
-        (congr!{Positive::[Type]^ _} (\fun (f: _) => f y) _ _ Positive::[coherence]) (congr!{Negative::[Type]^ _} (\fun (f: _) => f x) _ _ Negative::[coherence]) \then
-    \let argumentsMatch:
-      NatEqb::[program]^ (NatOp.Add::[program]^ (Positive::[program]^ x) (Negative::[program]^ y)) (NatOp.Add::[program]^ (Positive::[program]^ y) (Negative::[program]^ x)) =
-      NatEqb::[program]^ (NatOp.Add::[program]^ (Positive::[set] x) (Negative::[set] y)) (NatOp.Add::[program]^ (Positive::[set] y) (Negative::[set] x)) :=
-      congr2!{N.Nat^ N.Nat^ B.Bool^} NatEqb::[program]^ _ _ _ _ leftMatches rightMatches \then
-    \return trans!{B.Bool^} _ _ _
-      (trans!{B.Bool^} _ _ _ argumentsMatch
-      (congr!{NatEqb::[Type]^ _} (\fun (f: _) => f (NatOp.Add::[program]^ (Positive::[set] x) (Negative::[set] y)) (NatOp.Add::[program]^ (Positive::[set] y) (Negative::[set] x))) _ _ NatEqb::[coherence]))
-      (congr!{NatOp.Add::[Type]^ B.Bool^}
-      (\fun (addition: _) => (NatEqb::[set] (addition (Positive::[set] x)
-    (Negative::[set] y)) (addition (Positive::[set] y) (Negative::[set] x)))) _ _ NatOp.Add::[coherence])
-  };
-  \coherence := \axiom:funext(Eqb::[program]^, Eqb::[set], \fun (arg0: Int^) => \axiom:funext(Eqb::[program]^ arg0, Eqb::[set] arg0, \fun (arg1: Int^) => matches arg0 arg1)),
+  \definition program: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+    \bind v1: \U(Int -> B.Bool) <- ((\force Leb.program) x) \then
+    \bind v3: B.Bool <- (\force v1) y \then
+    \bind v4: \U(Int -> (Int -> Int)) <- ((\force Choose.program) v3) \then
+    \bind v5: \U(Int -> Int) <- (\force v4) x \then
+    \bind v7: Int <- (\force v5) y \then
+    \return v7
+  })));
+
+  \definition specification: T^ := \fun (x: Int^) (y: Int^) => (Choose.specification (Leb.specification x y) x y);
+
+  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> program^ x y = specification x y :=
+    \block {
+      \fun (x, y: Int^) \then
+      \let argumentsMatch:
+        Choose.program^ (Leb.program^ x y) x y = Choose.program^ (Leb.specification x y) x y :=
+        congr3!{B.Bool^ Int^ Int^ Int^} Choose.program^
+          (Leb.program^ x y) (Leb.specification x y) x x y y
+          (congr!{Leb.T^ _} (\fun (f: _) => f x y) _ _ Leb.coherence) (\refl(x)) (\refl(y)) \then
+      \return trans!{Int^} _ _ _ argumentsMatch (congr!{Choose.T^ _} (\fun (f: _) => f (Leb.specification x y) x y) _ _ Choose.coherence)
+    };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: Int^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: Int^) => matches arg0 arg1));
 }
+\import .MinImplementation[] \as MinParts;
+\definition Min: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := MinParts.T,
+  program := \thunk (MinParts.program),
+  specification := MinParts.specification,
+  coherence := MinParts.coherence,
+};
 
-\correspondence Leb: (Int -> (Int -> B.Bool)) {
-  \program := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
-  \bind v2: N.Nat <- (Positive::[program] x) \then
-  \bind v4: N.Nat <- (Negative::[program] y) \then
-  \bind v5: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running v2 v4) \then
-  \bind v7: N.Nat <- (Positive::[program] y) \then
-  \bind v9: N.Nat <- (Negative::[program] x) \then
-  \bind v10: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running v7 v9) \then
-  \bind v11: \U(N.Nat -> B.Bool) <- (NatLeb::[program] v5) \then
-  \bind v13: B.Bool <- (\force v11) v10 \then
-  \return v13
-}))),
-  \set := \fun (x: Int^) (y: Int^) => (NatLeb::[set] (NatOp.Add::[set] (Positive::[set] x)
-    (Negative::[set] y)) (NatOp.Add::[set] (Positive::[set] y) (Negative::[set] x))),
+\module MaxImplementation {
+  \definition T: \VType := \U((Int -> (Int -> Int)));
 
-  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> Leb::[program]^ x y = Leb::[set] x y :=
-  \block {
-    \fun (x, y: Int^) \then
-    \let leftMatches:
-      NatOp.Add::[program]^ (Positive::[program]^ x) (Negative::[program]^ y) = NatOp.Add::[program]^ (Positive::[set] x) (Negative::[set] y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^
-        (Positive::[program]^ x) (Positive::[set] x) (Negative::[program]^ y) (Negative::[set] y)
-        (congr!{Positive::[Type]^ _} (\fun (f: _) => f x) _ _ Positive::[coherence]) (congr!{Negative::[Type]^ _} (\fun (f: _) => f y) _ _ Negative::[coherence]) \then
-    \let rightMatches:
-      NatOp.Add::[program]^ (Positive::[program]^ y) (Negative::[program]^ x) = NatOp.Add::[program]^ (Positive::[set] y) (Negative::[set] x) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^
-        (Positive::[program]^ y) (Positive::[set] y) (Negative::[program]^ x) (Negative::[set] x)
-        (congr!{Positive::[Type]^ _} (\fun (f: _) => f y) _ _ Positive::[coherence]) (congr!{Negative::[Type]^ _} (\fun (f: _) => f x) _ _ Negative::[coherence]) \then
-    \let argumentsMatch:
-      NatLeb::[program]^ (NatOp.Add::[program]^ (Positive::[program]^ x) (Negative::[program]^ y)) (NatOp.Add::[program]^ (Positive::[program]^ y) (Negative::[program]^ x)) =
-      NatLeb::[program]^ (NatOp.Add::[program]^ (Positive::[set] x) (Negative::[set] y)) (NatOp.Add::[program]^ (Positive::[set] y) (Negative::[set] x)) :=
-      congr2!{N.Nat^ N.Nat^ B.Bool^} NatLeb::[program]^ _ _ _ _ leftMatches rightMatches \then
-    \return trans!{B.Bool^} _ _ _
-      (trans!{B.Bool^} _ _ _ argumentsMatch
-      (congr!{NatLeb::[Type]^ _} (\fun (f: _) => f (NatOp.Add::[program]^ (Positive::[set] x) (Negative::[set] y)) (NatOp.Add::[program]^ (Positive::[set] y) (Negative::[set] x))) _ _ NatLeb::[coherence]))
-      (congr!{NatOp.Add::[Type]^ B.Bool^}
-      (\fun (addition: _) => (NatLeb::[set] (addition (Positive::[set] x)
-    (Negative::[set] y)) (addition (Positive::[set] y) (Negative::[set] x)))) _ _ NatOp.Add::[coherence])
-  };
-  \coherence := \axiom:funext(Leb::[program]^, Leb::[set], \fun (arg0: Int^) => \axiom:funext(Leb::[program]^ arg0, Leb::[set] arg0, \fun (arg1: Int^) => matches arg0 arg1)),
+  \definition program: (Int -> (Int -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
+    \bind v1: \U(Int -> B.Bool) <- ((\force Leb.program) x) \then
+    \bind v3: B.Bool <- (\force v1) y \then
+    \bind v4: \U(Int -> (Int -> Int)) <- ((\force Choose.program) v3) \then
+    \bind v5: \U(Int -> Int) <- (\force v4) y \then
+    \bind v7: Int <- (\force v5) x \then
+    \return v7
+  })));
+
+  \definition specification: T^ := \fun (x: Int^) (y: Int^) => (Choose.specification (Leb.specification x y) y x);
+
+  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> program^ x y = specification x y :=
+    \block {
+      \fun (x, y: Int^) \then
+      \let argumentsMatch:
+        Choose.program^ (Leb.program^ x y) y x = Choose.program^ (Leb.specification x y) y x :=
+        congr3!{B.Bool^ Int^ Int^ Int^} Choose.program^
+          (Leb.program^ x y) (Leb.specification x y) y y x x
+          (congr!{Leb.T^ _} (\fun (f: _) => f x y) _ _ Leb.coherence) (\refl(y)) (\refl(x)) \then
+      \return trans!{Int^} _ _ _ argumentsMatch (congr!{Choose.T^ _} (\fun (f: _) => f (Leb.specification x y) y x) _ _ Choose.coherence)
+    };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: Int^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: Int^) => matches arg0 arg1));
 }
+\import .MaxImplementation[] \as MaxParts;
+\definition Max: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := MaxParts.T,
+  program := \thunk (MaxParts.program),
+  specification := MaxParts.specification,
+  coherence := MaxParts.coherence,
+};
 
-\correspondence Ltb: (Int -> (Int -> B.Bool)) {
-  \program := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
-  \bind v2: N.Nat <- (Positive::[program] x) \then
-  \bind v4: N.Nat <- (Negative::[program] y) \then
-  \bind v5: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running v2 v4) \then
-  \bind v7: N.Nat <- (Positive::[program] y) \then
-  \bind v9: N.Nat <- (Negative::[program] x) \then
-  \bind v10: N.Nat <- NatOp.AddLoop::[run] (NatOp.AddState::running v7 v9) \then
-  \bind v11: \U(N.Nat -> B.Bool) <- (NatLtb::[program] v5) \then
-  \bind v13: B.Bool <- (\force v11) v10 \then
-  \return v13
-}))),
-  \set := \fun (x: Int^) (y: Int^) => (NatLtb::[set] (NatOp.Add::[set] (Positive::[set] x)
-    (Negative::[set] y)) (NatOp.Add::[set] (Positive::[set] y) (Negative::[set] x))),
+\module SignImplementation {
+  \definition T: \VType := \U((Int -> Int));
 
-  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> Ltb::[program]^ x y = Ltb::[set] x y :=
-  \block {
-    \fun (x, y: Int^) \then
-    \let leftMatches:
-      NatOp.Add::[program]^ (Positive::[program]^ x) (Negative::[program]^ y) = NatOp.Add::[program]^ (Positive::[set] x) (Negative::[set] y) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^
-        (Positive::[program]^ x) (Positive::[set] x) (Negative::[program]^ y) (Negative::[set] y)
-        (congr!{Positive::[Type]^ _} (\fun (f: _) => f x) _ _ Positive::[coherence]) (congr!{Negative::[Type]^ _} (\fun (f: _) => f y) _ _ Negative::[coherence]) \then
-    \let rightMatches:
-      NatOp.Add::[program]^ (Positive::[program]^ y) (Negative::[program]^ x) = NatOp.Add::[program]^ (Positive::[set] y) (Negative::[set] x) :=
-      congr2!{N.Nat^ N.Nat^ N.Nat^} NatOp.Add::[program]^
-        (Positive::[program]^ y) (Positive::[set] y) (Negative::[program]^ x) (Negative::[set] x)
-        (congr!{Positive::[Type]^ _} (\fun (f: _) => f y) _ _ Positive::[coherence]) (congr!{Negative::[Type]^ _} (\fun (f: _) => f x) _ _ Negative::[coherence]) \then
-    \let argumentsMatch:
-      NatLtb::[program]^ (NatOp.Add::[program]^ (Positive::[program]^ x) (Negative::[program]^ y)) (NatOp.Add::[program]^ (Positive::[program]^ y) (Negative::[program]^ x)) =
-      NatLtb::[program]^ (NatOp.Add::[program]^ (Positive::[set] x) (Negative::[set] y)) (NatOp.Add::[program]^ (Positive::[set] y) (Negative::[set] x)) :=
-      congr2!{N.Nat^ N.Nat^ B.Bool^} NatLtb::[program]^ _ _ _ _ leftMatches rightMatches \then
-    \return trans!{B.Bool^} _ _ _
-      (trans!{B.Bool^} _ _ _ argumentsMatch
-      (congr!{NatLtb::[Type]^ _} (\fun (f: _) => f (NatOp.Add::[program]^ (Positive::[set] x) (Negative::[set] y)) (NatOp.Add::[program]^ (Positive::[set] y) (Negative::[set] x))) _ _ NatLtb::[coherence]))
-      (congr!{NatOp.Add::[Type]^ B.Bool^}
-      (\fun (addition: _) => (NatLtb::[set] (addition (Positive::[set] x)
-    (Negative::[set] y)) (addition (Positive::[set] y) (Negative::[set] x)))) _ _ NatOp.Add::[coherence])
-  };
-  \coherence := \axiom:funext(Ltb::[program]^, Ltb::[set], \fun (arg0: Int^) => \axiom:funext(Ltb::[program]^ arg0, Ltb::[set] arg0, \fun (arg1: Int^) => matches arg0 arg1)),
+  \definition program: (Int -> Int) := (\cfun (x: Int) => \program {
+    \bind v2: B.Bool <- ((\force IsZero.program) x) \then
+    \bind v4: N.Nat <- ((\force Negative.program) x) \then
+    \bind v6: B.Bool <- ((\force NatIsZero.program) v4) \then
+    \bind v7: \U(Int -> (Int -> Int)) <- ((\force Choose.program) v6) \then
+    \bind v8: \U(Int -> Int) <- (\force v7) (Int::ofNat (N.Nat::succ N.Nat::zero)) \then
+    \bind v10: Int <- (\force v8) (Int::negSucc N.Nat::zero) \then
+    \bind v11: \U(Int -> (Int -> Int)) <- ((\force Choose.program) v2) \then
+    \bind v12: \U(Int -> Int) <- (\force v11) (Int::ofNat N.Nat::zero) \then
+    \bind v14: Int <- (\force v12) v10 \then
+    \return v14
+  });
+
+  \definition specification: T^ := \fun (x: Int^) => (Choose.specification (IsZero.specification x) (Int^::ofNat N.Nat^::zero)
+      (Choose.specification (NatIsZero.specification (Negative.specification x)) (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc
+      N.Nat^::zero)));
+
+  \definition matches: \forall (x: Int^) -> program^ x = specification x :=
+    \block {
+      \fun (x: Int^) \then
+      \let negativeTestMatches:
+        NatIsZero.program^ (Negative.program^ x) = NatIsZero.specification (Negative.specification x) :=
+        trans!{B.Bool^} _ _ _
+          (congr!{N.Nat^ B.Bool^} NatIsZero.program^
+            (Negative.program^ x) (Negative.specification x) (congr!{Negative.T^ _} (\fun (f: _) => f x) _ _ Negative.coherence))
+          (congr!{NatIsZero.T^ _} (\fun (f: _) => f (Negative.specification x)) _ _ NatIsZero.coherence) \then
+      \let innerArgumentsMatch:
+        Choose.program^ (NatIsZero.program^ (Negative.program^ x))
+          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) =
+        Choose.program^ (NatIsZero.specification (Negative.specification x))
+          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) :=
+        congr3!{B.Bool^ Int^ Int^ Int^} Choose.program^
+          (NatIsZero.program^ (Negative.program^ x)) (NatIsZero.specification (Negative.specification x))
+          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::ofNat (N.Nat^::succ N.Nat^::zero))
+          (Int^::negSucc N.Nat^::zero) (Int^::negSucc N.Nat^::zero)
+          negativeTestMatches (\refl(Int^::ofNat (N.Nat^::succ N.Nat^::zero)))
+          (\refl(Int^::negSucc N.Nat^::zero)) \then
+      \let innerMatches:
+        Choose.program^ (NatIsZero.program^ (Negative.program^ x))
+          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) =
+        Choose.specification (NatIsZero.specification (Negative.specification x))
+          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) :=
+        trans!{Int^} _ _ _ innerArgumentsMatch
+          (congr!{Choose.T^ _} (\fun (f: _) => f (NatIsZero.specification (Negative.specification x)) (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) _ _ Choose.coherence) \then
+      \let outerArgumentsMatch:
+        Choose.program^ (IsZero.program^ x) (Int^::ofNat N.Nat^::zero)
+          (Choose.program^ (NatIsZero.program^ (Negative.program^ x))
+            (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) =
+        Choose.program^ (IsZero.specification x) (Int^::ofNat N.Nat^::zero)
+          (Choose.specification (NatIsZero.specification (Negative.specification x))
+            (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) :=
+        congr3!{B.Bool^ Int^ Int^ Int^} Choose.program^
+          _ _ _ _ _ _ (congr!{IsZero.T^ _} (\fun (f: _) => f x) _ _ IsZero.coherence)
+          (\refl(Int^::ofNat N.Nat^::zero)) innerMatches \then
+      \return trans!{Int^} _ _ _ outerArgumentsMatch
+        (congr!{Choose.T^ _} (\fun (f: _) => f (IsZero.specification x) (Int^::ofNat N.Nat^::zero) (Choose.specification (NatIsZero.specification (Negative.specification x))
+            (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero))) _ _ Choose.coherence)
+    };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .SignImplementation[] \as SignParts;
+\definition Sign: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := SignParts.T,
+  program := \thunk (SignParts.program),
+  specification := SignParts.specification,
+  coherence := SignParts.coherence,
+};
 
-\correspondence Min: (Int -> (Int -> Int)) {
-  \program := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
-  \bind v1: \U(Int -> B.Bool) <- (Leb::[program] x) \then
-  \bind v3: B.Bool <- (\force v1) y \then
-  \bind v4: \U(Int -> (Int -> Int)) <- (Choose::[program] v3) \then
-  \bind v5: \U(Int -> Int) <- (\force v4) x \then
-  \bind v7: Int <- (\force v5) y \then
-  \return v7
-}))),
-  \set := \fun (x: Int^) (y: Int^) => (Choose::[set] (Leb::[set] x y) x y),
+\module EvenImplementation {
+  \definition T: \VType := \U((Int -> B.Bool));
 
-  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> Min::[program]^ x y = Min::[set] x y :=
-  \block {
-    \fun (x, y: Int^) \then
-    \let argumentsMatch:
-      Choose::[program]^ (Leb::[program]^ x y) x y = Choose::[program]^ (Leb::[set] x y) x y :=
-      congr3!{B.Bool^ Int^ Int^ Int^} Choose::[program]^
-        (Leb::[program]^ x y) (Leb::[set] x y) x x y y
-        (congr!{Leb::[Type]^ _} (\fun (f: _) => f x y) _ _ Leb::[coherence]) (\refl(x)) (\refl(y)) \then
-    \return trans!{Int^} _ _ _ argumentsMatch (congr!{Choose::[Type]^ _} (\fun (f: _) => f (Leb::[set] x y) x y) _ _ Choose::[coherence])
-  };
-  \coherence := \axiom:funext(Min::[program]^, Min::[set], \fun (arg0: Int^) => \axiom:funext(Min::[program]^ arg0, Min::[set] arg0, \fun (arg1: Int^) => matches arg0 arg1)),
+  \definition program: (Int -> B.Bool) := (\cfun (x: Int) => \program {
+    \bind v2: N.Nat <- ((\force NatAbs.program) x) \then
+    \bind v4: B.Bool <- ((\force NatEven.program) v2) \then
+    \return v4
+  });
+
+  \definition specification: T^ := \fun (x: Int^) => (NatEven.specification (NatAbs.specification x));
+
+  \definition matches(x: Int^): program^ x = specification x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} NatEven.program^ (NatAbs.program^ x) (NatAbs.specification x) (congr!{NatAbs.T^ _} (\fun (f: _) => f x) _ _ NatAbs.coherence))
+      (congr!{NatEven.T^ _} (\fun (f: _) => f (NatAbs.specification x)) _ _ NatEven.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .EvenImplementation[] \as EvenParts;
+\definition Even: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := EvenParts.T,
+  program := \thunk (EvenParts.program),
+  specification := EvenParts.specification,
+  coherence := EvenParts.coherence,
+};
 
-\correspondence Max: (Int -> (Int -> Int)) {
-  \program := (\cfun (x: Int) => \return(\thunk(\cfun (y: Int) => \program {
-  \bind v1: \U(Int -> B.Bool) <- (Leb::[program] x) \then
-  \bind v3: B.Bool <- (\force v1) y \then
-  \bind v4: \U(Int -> (Int -> Int)) <- (Choose::[program] v3) \then
-  \bind v5: \U(Int -> Int) <- (\force v4) y \then
-  \bind v7: Int <- (\force v5) x \then
-  \return v7
-}))),
-  \set := \fun (x: Int^) (y: Int^) => (Choose::[set] (Leb::[set] x y) y x),
+\module OddImplementation {
+  \definition T: \VType := \U((Int -> B.Bool));
 
-  \definition matches: \forall (x: Int^) -> \forall (y: Int^) -> Max::[program]^ x y = Max::[set] x y :=
-  \block {
-    \fun (x, y: Int^) \then
-    \let argumentsMatch:
-      Choose::[program]^ (Leb::[program]^ x y) y x = Choose::[program]^ (Leb::[set] x y) y x :=
-      congr3!{B.Bool^ Int^ Int^ Int^} Choose::[program]^
-        (Leb::[program]^ x y) (Leb::[set] x y) y y x x
-        (congr!{Leb::[Type]^ _} (\fun (f: _) => f x y) _ _ Leb::[coherence]) (\refl(y)) (\refl(x)) \then
-    \return trans!{Int^} _ _ _ argumentsMatch (congr!{Choose::[Type]^ _} (\fun (f: _) => f (Leb::[set] x y) y x) _ _ Choose::[coherence])
-  };
-  \coherence := \axiom:funext(Max::[program]^, Max::[set], \fun (arg0: Int^) => \axiom:funext(Max::[program]^ arg0, Max::[set] arg0, \fun (arg1: Int^) => matches arg0 arg1)),
+  \definition program: (Int -> B.Bool) := (\cfun (x: Int) => \program {
+    \bind v2: N.Nat <- ((\force NatAbs.program) x) \then
+    \bind v4: B.Bool <- ((\force NatOdd.program) v2) \then
+    \return v4
+  });
+
+  \definition specification: T^ := \fun (x: Int^) => (NatOdd.specification (NatAbs.specification x));
+
+  \definition matches(x: Int^): program^ x = specification x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} NatOdd.program^ (NatAbs.program^ x) (NatAbs.specification x) (congr!{NatAbs.T^ _} (\fun (f: _) => f x) _ _ NatAbs.coherence))
+      (congr!{NatOdd.T^ _} (\fun (f: _) => f (NatAbs.specification x)) _ _ NatOdd.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
 }
+\import .OddImplementation[] \as OddParts;
+\definition Odd: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := OddParts.T,
+  program := \thunk (OddParts.program),
+  specification := OddParts.specification,
+  coherence := OddParts.coherence,
+};
 
-\correspondence Sign: (Int -> Int) {
-  \program := (\cfun (x: Int) => \program {
-  \bind v2: B.Bool <- (IsZero::[program] x) \then
-  \bind v4: N.Nat <- (Negative::[program] x) \then
-  \bind v6: B.Bool <- (NatIsZero::[program] v4) \then
-  \bind v7: \U(Int -> (Int -> Int)) <- (Choose::[program] v6) \then
-  \bind v8: \U(Int -> Int) <- (\force v7) (Int::ofNat (N.Nat::succ N.Nat::zero)) \then
-  \bind v10: Int <- (\force v8) (Int::negSucc N.Nat::zero) \then
-  \bind v11: \U(Int -> (Int -> Int)) <- (Choose::[program] v2) \then
-  \bind v12: \U(Int -> Int) <- (\force v11) (Int::ofNat N.Nat::zero) \then
-  \bind v14: Int <- (\force v12) v10 \then
-  \return v14
-}),
-  \set := \fun (x: Int^) => (Choose::[set] (IsZero::[set] x) (Int^::ofNat N.Nat^::zero)
-    (Choose::[set] (NatIsZero::[set] (Negative::[set] x)) (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc
-    N.Nat^::zero))),
+/* Apply a (\force Sign.program) after computing the magnitude once. */
 
-  \definition matches: \forall (x: Int^) -> Sign::[program]^ x = Sign::[set] x :=
-  \block {
-    \fun (x: Int^) \then
-    \let negativeTestMatches:
-      NatIsZero::[program]^ (Negative::[program]^ x) = NatIsZero::[set] (Negative::[set] x) :=
-      trans!{B.Bool^} _ _ _
-        (congr!{N.Nat^ B.Bool^} NatIsZero::[program]^
-          (Negative::[program]^ x) (Negative::[set] x) (congr!{Negative::[Type]^ _} (\fun (f: _) => f x) _ _ Negative::[coherence]))
-        (congr!{NatIsZero::[Type]^ _} (\fun (f: _) => f (Negative::[set] x)) _ _ NatIsZero::[coherence]) \then
-    \let innerArgumentsMatch:
-      Choose::[program]^ (NatIsZero::[program]^ (Negative::[program]^ x))
-        (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) =
-      Choose::[program]^ (NatIsZero::[set] (Negative::[set] x))
-        (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) :=
-      congr3!{B.Bool^ Int^ Int^ Int^} Choose::[program]^
-        (NatIsZero::[program]^ (Negative::[program]^ x)) (NatIsZero::[set] (Negative::[set] x))
-        (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::ofNat (N.Nat^::succ N.Nat^::zero))
-        (Int^::negSucc N.Nat^::zero) (Int^::negSucc N.Nat^::zero)
-        negativeTestMatches (\refl(Int^::ofNat (N.Nat^::succ N.Nat^::zero)))
-        (\refl(Int^::negSucc N.Nat^::zero)) \then
-    \let innerMatches:
-      Choose::[program]^ (NatIsZero::[program]^ (Negative::[program]^ x))
-        (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) =
-      Choose::[set] (NatIsZero::[set] (Negative::[set] x))
-        (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero) :=
-      trans!{Int^} _ _ _ innerArgumentsMatch
-        (congr!{Choose::[Type]^ _} (\fun (f: _) => f (NatIsZero::[set] (Negative::[set] x)) (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) _ _ Choose::[coherence]) \then
-    \let outerArgumentsMatch:
-      Choose::[program]^ (IsZero::[program]^ x) (Int^::ofNat N.Nat^::zero)
-        (Choose::[program]^ (NatIsZero::[program]^ (Negative::[program]^ x))
-          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) =
-      Choose::[program]^ (IsZero::[set] x) (Int^::ofNat N.Nat^::zero)
-        (Choose::[set] (NatIsZero::[set] (Negative::[set] x))
-          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero)) :=
-      congr3!{B.Bool^ Int^ Int^ Int^} Choose::[program]^
-        _ _ _ _ _ _ (congr!{IsZero::[Type]^ _} (\fun (f: _) => f x) _ _ IsZero::[coherence])
-        (\refl(Int^::ofNat N.Nat^::zero)) innerMatches \then
-    \return trans!{Int^} _ _ _ outerArgumentsMatch
-      (congr!{Choose::[Type]^ _} (\fun (f: _) => f (IsZero::[set] x) (Int^::ofNat N.Nat^::zero) (Choose::[set] (NatIsZero::[set] (Negative::[set] x))
-          (Int^::ofNat (N.Nat^::succ N.Nat^::zero)) (Int^::negSucc N.Nat^::zero))) _ _ Choose::[coherence])
-  };
-  \coherence := \axiom:funext(Sign::[program]^, Sign::[set], matches),
-}
+\module PowerSignImplementation {
+  \definition T: \VType := \U((B.Bool -> (N.Nat -> Int)));
 
-\correspondence Even: (Int -> B.Bool) {
-  \program := (\cfun (x: Int) => \program {
-  \bind v2: N.Nat <- (NatAbs::[program] x) \then
-  \bind v4: B.Bool <- (NatEven::[program] v2) \then
-  \return v4
-}),
-  \set := \fun (x: Int^) => (NatEven::[set] (NatAbs::[set] x)),
+  \definition program: (B.Bool -> (N.Nat -> Int)) := (\cfun (test: B.Bool) => \return(\thunk(\cfun (magnitude: N.Nat) => \match test \in B.Bool \with {
+      | false : \return(Int::ofNat magnitude)
+      | true : ((\force NegOfNat.program) magnitude)
+      })));
 
-  \definition matches(x: Int^): Even::[program]^ x = Even::[set] x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} NatEven::[program]^ (NatAbs::[program]^ x) (NatAbs::[set] x) (congr!{NatAbs::[Type]^ _} (\fun (f: _) => f x) _ _ NatAbs::[coherence]))
-    (congr!{NatEven::[Type]^ _} (\fun (f: _) => f (NatAbs::[set] x)) _ _ NatEven::[coherence]);
-  \coherence := \axiom:funext(Even::[program]^, Even::[set], matches),
-}
-
-\correspondence Odd: (Int -> B.Bool) {
-  \program := (\cfun (x: Int) => \program {
-  \bind v2: N.Nat <- (NatAbs::[program] x) \then
-  \bind v4: B.Bool <- (NatOdd::[program] v2) \then
-  \return v4
-}),
-  \set := \fun (x: Int^) => (NatOdd::[set] (NatAbs::[set] x)),
-
-  \definition matches(x: Int^): Odd::[program]^ x = Odd::[set] x := trans!{B.Bool^} _ _ _ (congr!{N.Nat^ B.Bool^} NatOdd::[program]^ (NatAbs::[program]^ x) (NatAbs::[set] x) (congr!{NatAbs::[Type]^ _} (\fun (f: _) => f x) _ _ NatAbs::[coherence]))
-    (congr!{NatOdd::[Type]^ _} (\fun (f: _) => f (NatAbs::[set] x)) _ _ NatOdd::[coherence]);
-  \coherence := \axiom:funext(Odd::[program]^, Odd::[set], matches),
-}
-
-/* Apply a Sign::[program] after computing the magnitude once. */
-\correspondence PowerSign: (B.Bool -> (N.Nat -> Int)) {
-  \program := (\cfun (test: B.Bool) => \return(\thunk(\cfun (magnitude: N.Nat) => \match test \in B.Bool \with {
-    | false : \return(Int::ofNat magnitude)
-    | true : (NegOfNat::[program] magnitude)
-    }))),
-  \set := \fun (test: B.Bool^) (magnitude: N.Nat^) =>
-  B.ite Int^ test (NegOfNat::[set] magnitude) (Int^::ofNat magnitude),
+  \definition specification: T^ := \fun (test: B.Bool^) (magnitude: N.Nat^) =>
+    B.ite Int^ test (NegOfNat.specification magnitude) (Int^::ofNat magnitude);
 
   \definition matches:
-    \forall (test: B.Bool^) -> \forall (magnitude: N.Nat^) ->
-  PowerSign::[program]^ test magnitude = PowerSign::[set] test magnitude :=
-  \induction (test: B.Bool^) \return \forall (magnitude: N.Nat^) ->
-    PowerSign::[program]^ test magnitude = PowerSign::[set] test magnitude \with {
-    | false : (\fun (magnitude: N.Nat^) => \refl(Int^::ofNat magnitude))
-    | true : (\fun (n: _) => congr!{NegOfNat::[Type]^ _} (\fun (f: NegOfNat::[Type]^) => f n) _ _ NegOfNat::[coherence])
-    };
-  \coherence := \axiom:funext(PowerSign::[program]^, PowerSign::[set], \fun (arg0: B.Bool^) => \axiom:funext(PowerSign::[program]^ arg0, PowerSign::[set] arg0, \fun (arg1: N.Nat^) => matches arg0 arg1)),
+      \forall (test: B.Bool^) -> \forall (magnitude: N.Nat^) ->
+    program^ test magnitude = specification test magnitude :=
+    \induction (test: B.Bool^) \return \forall (magnitude: N.Nat^) ->
+      program^ test magnitude = specification test magnitude \with {
+      | false : (\fun (magnitude: N.Nat^) => \refl(Int^::ofNat magnitude))
+      | true : (\fun (n: _) => congr!{NegOfNat.T^ _} (\fun (f: NegOfNat.T^) => f n) _ _ NegOfNat.coherence)
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: B.Bool^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: N.Nat^) => matches arg0 arg1));
 }
+\import .PowerSignImplementation[] \as PowerSignParts;
+\definition PowerSign: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := PowerSignParts.T,
+  program := \thunk (PowerSignParts.program),
+  specification := PowerSignParts.specification,
+  coherence := PowerSignParts.coherence,
+};
 
 \definition powerSignTestMatches(n, magnitude: N.Nat^):
-  PowerSign::[program]^ (NatOdd::[program]^ n) magnitude = PowerSign::[set] (NatOdd::[set] n) magnitude :=
-    \idelim NatOdd::[program]^ n = NatOdd::[set] n \with test: B.Bool^ =>
-      PowerSign::[program]^ (NatOdd::[program]^ n) magnitude = PowerSign::[set] test magnitude
-    \by { base: congr!{PowerSign::[Type]^ _} (\fun (f: _) => f (NatOdd::[program]^ n) magnitude) _ _ PowerSign::[coherence], equality: congr!{NatOdd::[Type]^ _} (\fun (f: _) => f n) _ _ NatOdd::[coherence] };
+  PowerSign.program^ (NatOdd.program^ n) magnitude = PowerSign.specification (NatOdd.specification n) magnitude :=
+    \idelim NatOdd.program^ n = NatOdd.specification n \with test: B.Bool^ =>
+      PowerSign.program^ (NatOdd.program^ n) magnitude = PowerSign.specification test magnitude
+    \by { base: congr!{PowerSign.T^ _} (\fun (f: _) => f (NatOdd.program^ n) magnitude) _ _ PowerSign.coherence, equality: congr!{NatOdd.T^ _} (\fun (f: _) => f n) _ _ NatOdd.coherence };
 
-\correspondence Pow: (Int -> (N.Nat -> Int)) {
-  \program := (\cfun (x: Int) => \return(\thunk(\cfun (n: N.Nat) => \match x \in Int \with {
-    | ofNat a : \program {
-  \bind f: \U(N.Nat -> N.Nat) <- (NatOp.Pow::[program] a) \then
-  \bind magnitude: N.Nat <- (\force f) n \then
-  \return Int::ofNat magnitude
+\module PowImplementation {
+  \definition T: \VType := \U((Int -> (N.Nat -> Int)));
+
+  \definition program: (Int -> (N.Nat -> Int)) := (\cfun (x: Int) => \return(\thunk(\cfun (n: N.Nat) => \match x \in Int \with {
+      | ofNat a : \program {
+    \bind f: \U(N.Nat -> N.Nat) <- ((\force NatOp.Pow.program) a) \then
+    \bind magnitude: N.Nat <- (\force f) n \then
+    \return Int::ofNat magnitude
 }
     | negSucc a : \program {
-  \bind f: \U(N.Nat -> N.Nat) <- (NatOp.Pow::[program] (N.Nat::succ a)) \then
+  \bind f: \U(N.Nat -> N.Nat) <- ((\force NatOp.Pow.program) (N.Nat::succ a)) \then
   \bind magnitude: N.Nat <- (\force f) n \then
-  \bind test: B.Bool <- (NatOdd::[program] n) \then
-  \bind sign: \U(N.Nat -> Int) <- (PowerSign::[program] test) \then
+  \bind test: B.Bool <- ((\force NatOdd.program) n) \then
+  \bind sign: \U(N.Nat -> Int) <- ((\force PowerSign.program) test) \then
   \bind result: Int <- (\force sign) magnitude \then
   \return result
 }
-    }))),
-  \set := \induction (x: Int^) \return N.Nat^ -> Int^ \with {
-    | ofNat : (\fun (a, n: N.Nat^) => Int^::ofNat (NatOp.Pow::[program]^ a n))
-    | negSucc : (\fun (a, n: N.Nat^) => PowerSign::[set] (NatOdd::[set] n) (NatOp.Pow::[program]^ (N.Nat^::succ a) n))
-    },
+    })));
 
-  \definition matches: \forall (x: Int^) -> \forall (n: N.Nat^) -> Pow::[program]^ x n = Pow::[set] x n :=
-  \induction (x: Int^) \return \forall (n: N.Nat^) -> Pow::[program]^ x n = Pow::[set] x n \with {
-    | ofNat : (\fun (a, n: N.Nat^) => \refl(Int^::ofNat (NatOp.Pow::[program]^ a n)))
-    | negSucc : (\fun (a, n: N.Nat^) => powerSignTestMatches n (NatOp.Pow::[program]^ (N.Nat^::succ a) n))
+\definition specification: T^ := \induction (x: Int^) \return N.Nat^ -> Int^ \with {
+    | ofNat : (\fun (a, n: N.Nat^) => Int^::ofNat (NatOp.Pow.program^ a n))
+    | negSucc : (\fun (a, n: N.Nat^) => PowerSign.specification (NatOdd.specification n) (NatOp.Pow.program^ (N.Nat^::succ a) n))
     };
-  \coherence := \axiom:funext(Pow::[program]^, Pow::[set], \fun (arg0: Int^) => \axiom:funext(Pow::[program]^ arg0, Pow::[set] arg0, \fun (arg1: N.Nat^) => matches arg0 arg1)),
+
+\definition matches: \forall (x: Int^) -> \forall (n: N.Nat^) -> program^ x n = specification x n :=
+  \induction (x: Int^) \return \forall (n: N.Nat^) -> program^ x n = specification x n \with {
+    | ofNat : (\fun (a, n: N.Nat^) => \refl(Int^::ofNat (NatOp.Pow.program^ a n)))
+    | negSucc : (\fun (a, n: N.Nat^) => powerSignTestMatches n (NatOp.Pow.program^ (N.Nat^::succ a) n))
+    };
+
+\definition coherence: program^ = specification := \axiom:funext(program^, specification, \fun (arg0: Int^) => \axiom:funext(program^ arg0, specification arg0, \fun (arg1: N.Nat^) => matches arg0 arg1));
 }
+\import .PowImplementation[] \as PowParts;
+\definition Pow: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := PowParts.T,
+  program := \thunk (PowParts.program),
+  specification := PowParts.specification,
+  coherence := PowParts.coherence,
+};
 
 \module Math;
 
@@ -914,7 +1304,7 @@
 
 \definition zeroNat: Nat := N.Nat^::zero;
 \definition oneNat: Nat := N.Nat^::succ N.Nat^::zero;
-/* Integer operations on the canonical OfNat::[program]/negSucc carrier. */
+/* Integer operations on the canonical (\force OfNat.program)/negSucc carrier. */
 \definition Integer: \Set := Int^;
 \definition integer(a, b: Nat): Integer := IM.normalize (pair a b);
 \definition zeroInteger: Integer := integer zeroNat zeroNat;
@@ -949,8 +1339,8 @@
 \definition integerEqTrans(x, y, z: Integer): x = y -> y = z -> x = z :=
   trans!{Integer} x y z;
 \definition integerEqOfFields(x, y: Integer):
-  Positive::[set] x = Positive::[set] y ->
-  Negative::[set] x = Negative::[set] y ->
+  Positive.specification x = Positive.specification y ->
+  Negative.specification x = Negative.specification y ->
   x = y :=
   \fun (positive: _) (negative: _) =>
     eqOfRepresentatives x y
@@ -1061,13 +1451,13 @@
           (IM.scaleRep (IM.representative x) (N.Nat^::succ k))
           (IM.scaleRep (IM.representative y) (N.Nat^::succ k)) xy));
 \definition scaleIntegerNatural(a, n: Nat):
-  scaleInteger (integer a zeroNat) n = integer (NatOp.Mul::[set] a n) zeroNat :=
+  scaleInteger (integer a zeroNat) n = integer (NatOp.Mul.specification a n) zeroNat :=
   IM.normalizeRespects _ _
     (IM.equivalentOfFields (IM.scaleRep (pair a zeroNat) n)
-      (pair (NatOp.Mul::[set] a n) zeroNat) (\refl(NatOp.Mul::[set] a n)) (NL.mulZeroLeft n));
+      (pair (NatOp.Mul.specification a n) zeroNat) (\refl(NatOp.Mul.specification a n)) (NL.mulZeroLeft n));
 \definition addIntegerNatural(a, b: Nat):
-  \({ integer a zeroNat } "+" { integer b zeroNat }\) = integer (NatOp.Add::[set] a b) zeroNat :=
-  \refl(integer (NatOp.Add::[set] a b) zeroNat);
+  \({ integer a zeroNat } "+" { integer b zeroNat }\) = integer (NatOp.Add.specification a b) zeroNat :=
+  \refl(integer (NatOp.Add.specification a b) zeroNat);
 
 \definition mulIntegerAssoc(x, y, z: Integer): \((x "*" y) "*" z\) = \(x "*" (y "*" z)\) :=
   \block {
@@ -1204,8 +1594,8 @@
     (IM.equivalentOfFields
       (IM.mulRep (IM.representative x) (pair n zeroNat))
       (IM.scaleRep (IM.representative x) n)
-      (\refl(NatOp.Mul::[set] (Positive::[set] x) n))
-      (NL.addZeroLeft (NatOp.Mul::[set] (Negative::[set] x) n)));
+      (\refl(NatOp.Mul.specification (Positive.specification x) n))
+      (NL.addZeroLeft (NatOp.Mul.specification (Negative.specification x) n)));
 \definition addIntegerSubCancelRight(x, y: Integer): \((x "+" { negInteger y }) "+" y\) = x :=
   eq_reason!{
     \((x "+" { negInteger y }) "+" y\)
@@ -1233,10 +1623,10 @@
   integer (N.Nat^::succ n) zeroNat = \(oneInteger "+" { integer n zeroNat }\) :=
   eq_reason!{
     { integer (N.Nat^::succ n) zeroNat }
-    "=" { integer (NatOp.Add::[set] oneNat n) zeroNat }
+    "=" { integer (NatOp.Add.specification oneNat n) zeroNat }
     "by" { congr!{Nat Integer} (\fun (k: Nat) => integer k zeroNat) _ _
       (sym!{Nat} _ _ (eq_reason!{
-        { NatOp.Add::[set] oneNat n } "=" { N.Nat^::succ (NatOp.Add::[set] zeroNat n) }
+        { NatOp.Add.specification oneNat n } "=" { N.Nat^::succ (NatOp.Add.specification zeroNat n) }
         "by" { NL.addSuccLeft zeroNat n }
         "=" { N.Nat^::succ n } "by" { NatOp.succCong _ _ (NL.addZeroLeft n) }
       })) }
@@ -1277,8 +1667,8 @@
 
 \definition integerAddShuffle:
   \forall (a, b, c, d: Nat) ->
-  NatOp.Add::[set] (NatOp.Add::[set] a b) (NatOp.Add::[set] c d) =
-    NatOp.Add::[set] (NatOp.Add::[set] a d) (NatOp.Add::[set] c b) :=
+  NatOp.Add.specification (NatOp.Add.specification a b) (NatOp.Add.specification c d) =
+    NatOp.Add.specification (NatOp.Add.specification a d) (NatOp.Add.specification c b) :=
   IM.addShuffle;
 
 \definition natSucc: Nat -> Nat := N.Nat^::succ;

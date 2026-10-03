@@ -1,9 +1,38 @@
+\module BundleSignatures {
+/* Program implementations, specifications, and terminating transitions. */
+\structure Correspondence {
+  T: \VType,
+  program: T,
+  specification: T^,
+  coherence: program^ = specification,
+}
+
+\definition Ready(State, Output: \Set)(P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+  \step-match t: \RunStep[State, Output] \return \Prop \with {
+    | \continue s: P s
+    | \finish result: \forall (Q: \Prop) -> Q -> Q
+  };
+
+\definition Terminates(State, Output: \Set)(step: State -> \RunStep[State, Output])(s: State): \Prop :=
+  \forall (P: State -> \Prop) ->
+    (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
+
+\structure Machine {
+  State: \VType,
+  Output: \VType,
+  step: \U(State ~> \F(\RunStep[State, Output])),
+  terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
+  run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
+    \run[State, Output](step, s) \by { terminates s }),
+}
+}
 \module Open(A: \VType) {
-  \machine echo {
-    \State := A,
-    \Output := A,
-    \step := \thunk(\cfun (s: A) => \return(\finish[A, A](s))),
-    \terminates := \fun (s: A^) (P: _) (h: _) => h s (\fun (Q: \Prop) (q: Q) => q),
-  }
+  \import \root.BundleSignatures[] \as Signatures;
+  \definition echo: Signatures.Machine := Signatures.Machine {
+    State := A, Output := A,
+    step := \thunk(\cfun(s: A) => \return(\finish[A, A](s))),
+    terminates := \fun(s: A^)(P: _)(h: _) => h s (\fun(Q: \Prop)(q: Q) => q),
+  };
+  \definition runbox: \Box[A ~> \F(A)] := \box[A ~> \F(A)](\force echo.run);
 }
 /* expect-error: Box requires a closed computation type */

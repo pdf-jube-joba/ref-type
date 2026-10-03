@@ -161,7 +161,7 @@ Program ブロックは `\program { ... }` の中に `\let`・`\bind` の文を 
 `T { field := value }` と書く。論理／Program 共通の構文であり、Program では次のように使う。
 
 ```text
-\record Pair[A: \VType]: \VType := { first: A, second: A };
+\structure Pair[A: \VType]: \VType := { first: A, second: A };
 \definition Pair(A: \VType)::first_again: Pair[A] ~> \F(A) := Pair[A]::first;
 \definition Pair(A: \VType)::get_first: \U(Pair[A] ~> \F(A)) :=
   \thunk (Pair[A]::first);
@@ -245,3 +245,37 @@ Box に入れる場合は `\F(A)` と `\return(value)` を使います。Program
 多相性、level 付き Box、boxed type application は kernel API から利用できます。
 API の例は [kernel の説明](kernel/README.md) を参照してください。
 `\eval`・`\normalize` も、名前解決した共通項に対する kernel の簡約を使います。
+
+## Structure の文脈と値表現
+
+structure の signature、具体化された field、定義の引数と結果は resolve に保持する。
+module と structure は同じ束縛 ID、依存文脈、module 代入、宣言 identity を使う。
+抽象 field と既定値は検査用の module 文脈で検査し、具体化された member は Checked の検証義務を経て既存の kernel の項へ展開する。
+
+```text
+\structure Relation { A: \Set, R: A -> A -> \Prop, }
+\definition Equality(A: \Set): Relation := Relation {
+  A := A, R := \fun(x, y: A) => x = y,
+};
+\definition carrier(r: Relation): \Set := r.A;
+```
+
+| 表面の宣言・利用 | kernel で検査するもの |
+| --- | --- |
+| `r: Relation` | `r.A: Set, r.R: r.A -> r.A -> Prop` の文脈 |
+| `Equality A` | 各引数の検査と、検査済み field への代入 |
+| `r.R x y` | 具体化された関係の通常の適用 |
+| `o.inner.member` | 子 signature の文脈へ再帰的に適用した置換 |
+| `T: VType, value: T` | Program の型文脈と値文脈 |
+| 計算の field | thunk 引数と force による計算 |
+| `forall(r: Relation) -> P` | field ごとの product とその形成規則 |
+| sort を指定した structure | 単一 constructor の帰納型と projection |
+| `where` による法則 | データ、法則の命題、refinement の検査 |
+
+structure を返す定義の部分適用は、残りの依存文脈と member の置換を保持する。
+定義を抽象引数として受け取る場合、member ごとの product 型を形成して適合を検査する。
+通常の関数値への変換も product の形成を検査する。
+存在量化の証人、等式、帰納法には sort を指定した値表現を使う。
+
+semantic API は signature と field の元の宣言位置、具体化前の参照先を保持する。
+キャッシュは source と依存する module の fingerprint、および実装 revision と schema から再利用を判定する。

@@ -91,6 +91,38 @@ impl Default for GlobalEnvironment {
 }
 
 impl term_elaborator::Handler for GlobalEnvironment {
+    fn reflect_front_expression(&mut self, expression: &SExp) -> Result<Exp, ElaborationError> {
+        let mut scope = program_term_elaborator::ProgramScope::new();
+        if let Ok(syntax) = ValueTypeExp::try_from(expression.clone())
+            && let Ok(ty) = scope.elaborate_value_type(&syntax, self)
+        {
+            ProgramCheckSession::new(&self.crate_env, &mut scope.context().clone())
+                .check_value_type(ty)
+                .map_err(|error| error.to_string())?;
+            return crate::raw::reflection::reflect_value_type(&self.crate_env, ty)
+                .map_err(|error| error.to_string().into());
+        }
+        if let Ok(syntax) = ValueTermExp::try_from(expression.clone()) {
+            let value = scope.elaborate_value(&syntax, self)?;
+            let (value, _) = scope.infer_value_term_with_metas(self, value)?;
+            scope.finish_metas(self)?;
+            let value = scope.zonk_module_value(self, value);
+            return crate::raw::reflection::reflect_value(&self.crate_env, value)
+                .map_err(|error| error.to_string().into());
+        }
+        let syntax: ComputationTermExp = expression.clone().try_into()?;
+        let computation = scope.elaborate_computation(&syntax, self)?;
+        let (computation, _) = scope.infer_computation_term_with_metas(self, computation)?;
+        scope.finish_metas(self)?;
+        let computation = scope.zonk_module_computation(self, computation);
+        crate::raw::reflection::reflect_computation(&self.crate_env, computation)
+            .map_err(|error| error.to_string().into())
+    }
+    fn check_program_member(&mut self, value: &SExp, ty: &SExp) -> Result<(), ElaborationError> {
+        let mut scope = program_term_elaborator::ProgramScope::new();
+        scope.check_member(value, ty, self)?;
+        scope.finish_metas(self)
+    }
     fn locate_error(&mut self, span: SourceSpan) {
         // Keep the innermost failing statement when enclosing lets unwind.
         if let Some(location) = &mut self.diagnostic_location
@@ -516,6 +548,7 @@ impl GlobalEnvironment {
         project: &resolve::Project,
     ) -> Result<(), ElaborationError> {
         self.analysis.references = project.references.clone();
+        self.analysis.declarations = project.declarations.clone();
         self.module_manager.hir_imports = project.imports.clone();
         self.module_manager.hir_bindings = project.bindings.clone();
         self.add_expanded_modules_to_root(project)

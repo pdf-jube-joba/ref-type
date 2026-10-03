@@ -367,8 +367,12 @@ impl<'a> Parser<'a> {
     fn parse_definition(&mut self) -> Result<ModuleItem, ParseError> {
         let first_name = self.expect_ident()?;
         let mut first_binders = Vec::new();
-        while self.peek() == Some(&Token::LParen) {
-            let binders = self.parse_rightbinds()?;
+        while matches!(self.peek(), Some(Token::LParen | Token::LBracket)) {
+            let binders = if self.peek() == Some(&Token::LBracket) {
+                self.parse_bracketed_rightbinds()?
+            } else {
+                self.parse_rightbinds()?
+            };
             first_binders.extend(binders);
         }
         let (owner, name, binders) = if self.bump_if_token(Token::DoubleColon) {
@@ -403,62 +407,68 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_record_decl(&mut self) -> Result<ModuleItem, ParseError> {
-        let type_name = self.expect_ident()?;
-        let mut parameters = Vec::new();
-        while self.peek() == Some(&Token::LBracket) {
-            let parsed = self.parse_bracketed_rightbinds()?;
-            parameters.extend(parsed);
-        }
-        self.expect_token(Token::Colon)?;
-        let result = self.parse_sexp()?;
-        let kind = match result {
-            SExp::Sort(sort) => InductiveKind::Pts(sort),
-            SExp::ValueType => InductiveKind::Program,
-            _ => {
-                return Err(ParseError {
-                    msg: "expected PTS sort or \\VType in record declaration".into(),
-                    start: self.span_at(self.pos.saturating_sub(1)).start,
-                    end: self.span_at(self.pos.saturating_sub(1)).end,
-                });
-            }
-        };
-        self.expect_token(Token::Assign)?;
-        self.expect_token(Token::LBrace)?;
-        let mut fields = Vec::new();
-        while !self.bump_if_token(Token::RBrace) {
-            let name = self.expect_ident()?;
-            self.expect_token(Token::Colon)?;
-            let ty = self.parse_sexp()?;
-            fields.push((name, ty));
-            if self.bump_if_token(Token::RBrace) {
-                break;
-            }
-            self.expect_token(Token::Comma)?;
-        }
-        self.expect_token(Token::Semicolon)?;
-        Ok(ModuleItem::Record {
-            type_name,
-            parameters,
-            kind,
-            fields,
-        })
-    }
-
     fn parse_structure(&mut self) -> Result<ModuleItem, ParseError> {
         let name = self.expect_ident()?;
         let mut parameters = Vec::new();
         while self.peek() == Some(&Token::LBracket) {
             parameters.extend(self.parse_bracketed_rightbinds()?);
         }
+        if self.peek() == Some(&Token::LBrace) {
+            self.expect_token(Token::LBrace)?;
+            let mut fields = Vec::new();
+            let mut names = std::collections::HashSet::new();
+            while !self.bump_if_token(Token::RBrace) {
+                let field = self.expect_ident()?;
+                if !names.insert(field.0.clone()) {
+                    return Err(self.eof_error("unique structure field"));
+                }
+                self.expect_token(Token::Colon)?;
+                let ty = self.parse_sexp()?;
+                let default = if self.bump_if_token(Token::Assign) {
+                    Some(self.parse_sexp()?)
+                } else {
+                    None
+                };
+                fields.push((field, ty, default));
+                if self.bump_if_token(Token::RBrace) {
+                    break;
+                }
+                self.expect_token(Token::Comma)?;
+            }
+            self.bump_if_token(Token::Semicolon);
+            return Ok(ModuleItem::Structure {
+                name,
+                kind: None,
+                laws: None,
+                parameters,
+                fields,
+            });
+        }
         self.expect_token(Token::Colon)?;
-        let kind = self.parse_sexp()?;
-        let SExp::Sort(sort @ crate::sort::Sort::Set(_)) = kind else {
-            return Err(self.eof_error("Set sort in structure declaration"));
+        let result = self.parse_sexp()?;
+        let kind = match result {
+            SExp::Sort(sort) => InductiveKind::Pts(sort),
+            SExp::ValueType => InductiveKind::Program,
+            _ => return Err(self.eof_error("PTS sort or \\VType in structure declaration")),
         };
         self.bump_if_token(Token::Assign);
         let fields = self.parse_structure_fields()?;
-        self.expect_keyword("\\where")?;
+        if !self.bump_if_keyword("\\where") {
+            self.bump_if_token(Token::Semicolon);
+            return Ok(ModuleItem::Structure {
+                name,
+                kind: Some(kind),
+                parameters,
+                laws: None,
+                fields: fields
+                    .into_iter()
+                    .map(|(name, ty)| (name, ty, None))
+                    .collect(),
+            });
+        }
+        let InductiveKind::Pts(crate::sort::Sort::Set(_)) = kind else {
+            return Err(self.eof_error("Set sort for a structure with laws"));
+        };
         let laws = self.parse_structure_fields()?;
         let mut names = std::collections::HashSet::new();
         for (field, _) in fields.iter().chain(&laws) {
@@ -471,9 +481,16 @@ impl<'a> Parser<'a> {
             }
         }
         self.bump_if_token(Token::Semicolon);
-        Ok(crate::sugar::structure(
-            name, parameters, sort, fields, laws,
-        ))
+        Ok(ModuleItem::Structure {
+            name,
+            parameters,
+            kind: Some(kind),
+            laws: Some(laws),
+            fields: fields
+                .into_iter()
+                .map(|(name, ty)| (name, ty, None))
+                .collect(),
+        })
     }
 
     fn parse_structure_fields(&mut self) -> Result<Vec<(Identifier, SExp)>, ParseError> {
@@ -489,83 +506,6 @@ impl<'a> Parser<'a> {
             self.expect_token(Token::Comma)?;
         }
         Ok(fields)
-    }
-
-    fn parse_bundle(&mut self, machine: bool) -> Result<ModuleItem, ParseError> {
-        let name = self.expect_ident()?;
-        let mut items = Vec::new();
-        let required: &[&str] = if machine {
-            &["State", "Output", "step", "terminates"]
-        } else {
-            self.expect_token(Token::Colon)?;
-            items.push(crate::sugar::correspondence_type(&name, self.parse_sexp()?));
-            &["program", "set", "coherence"]
-        };
-        self.expect_token(Token::LBrace)?;
-        let mut next = 0;
-        while !self.bump_if_token(Token::RBrace) {
-            if let Some(Token::KeyWord(keyword)) = self.peek().copied()
-                && required.contains(&&keyword[1..])
-            {
-                let field = &keyword[1..];
-                if required.get(next) != Some(&field) {
-                    return Err(ParseError {
-                        msg: format!(
-                            "expected bundle field {}, found {field}",
-                            required.get(next).unwrap_or(&"<end>")
-                        ),
-                        start: self.span_at(self.pos).start,
-                        end: self.span_at(self.pos).end,
-                    });
-                }
-                self.next();
-                self.expect_token(Token::Assign)?;
-                let body = self.parse_sexp()?;
-                items.push(if machine {
-                    crate::sugar::machine_field(&name, field, body)
-                } else {
-                    crate::sugar::correspondence_field(&name, field, body)
-                });
-                self.expect_token(Token::Comma)?;
-                next += 1;
-            } else if let Some(item) = self.try_parse_module_item()? {
-                if !matches!(
-                    item,
-                    ModuleItem::Definition { .. }
-                        | ModuleItem::Alias { .. }
-                        | ModuleItem::Inductive { .. }
-                        | ModuleItem::Record { .. }
-                        | ModuleItem::Scoped { .. }
-                        | ModuleItem::MathMacro { .. }
-                        | ModuleItem::UserMacro { .. }
-                        | ModuleItem::UseMacro { .. }
-                        | ModuleItem::Import { .. }
-                ) {
-                    return Err(self.eof_error("helper declaration in bundle"));
-                }
-                items.push(item);
-            } else {
-                return Err(self.eof_error("bundle field or helper declaration"));
-            }
-        }
-        if next != required.len() {
-            return Err(self.eof_error(&format!("bundle field {}", required[next])));
-        }
-        self.bump_if_token(Token::Semicolon);
-        let mut exports: Vec<_> = required
-            .iter()
-            .map(|field| crate::sugar::member(&name, field))
-            .collect();
-        if machine {
-            items.extend(crate::sugar::machine_runs(&name));
-            exports.extend([
-                crate::sugar::member(&name, "run"),
-                crate::sugar::member(&name, "runbox"),
-            ]);
-        } else {
-            exports.push(crate::sugar::member(&name, "Type"));
-        }
-        Ok(ModuleItem::Scoped { exports, items })
     }
 
     // (cosumed "\import" keyword) <path: ModuleAccessPath> "\as" <import_name: Ident> ";"
@@ -814,30 +754,6 @@ impl<'a> Parser<'a> {
         if self.bump_if_keyword("\\structure") {
             return self.parse_structure().map(Some);
         }
-        if self.bump_if_keyword("\\correspondence") {
-            return self.parse_bundle(false).map(Some);
-        }
-        if self.bump_if_keyword("\\machine") {
-            return self.parse_bundle(true).map(Some);
-        }
-        if self.bump_if_keyword("\\alias") {
-            let name = self.expect_ident()?;
-            let mut parameters = Vec::new();
-            while self.peek() == Some(&Token::LBracket) {
-                parameters.extend(self.parse_bracketed_rightbinds()?);
-            }
-            self.expect_token(Token::Colon)?;
-            let ty = self.parse_sexp()?;
-            self.expect_token(Token::Assign)?;
-            let body = self.parse_sexp()?;
-            self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::Alias {
-                name,
-                parameters,
-                ty,
-                body,
-            }));
-        }
         if self.bump_if_keyword("\\definition") {
             let def = self.parse_definition()?;
             return Ok(Some(def));
@@ -849,9 +765,6 @@ impl<'a> Parser<'a> {
         if self.bump_if_keyword("\\inductive") {
             let ind = self.parse_inductive_decl()?;
             return Ok(Some(ind));
-        }
-        if self.bump_if_keyword("\\record") {
-            return self.parse_record_decl().map(Some);
         }
         if self.bump_if_keyword("\\math-macro") {
             return self.parse_macro_decl(true).map(Some);

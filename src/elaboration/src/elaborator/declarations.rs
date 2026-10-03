@@ -2,7 +2,7 @@
 use super::*;
 
 impl GlobalEnvironment {
-    pub(super) fn elaborate_alias(
+    pub(super) fn elaborate_contextual_definition(
         &mut self,
         name: &Identifier,
         parameters: &[RightBind],
@@ -34,7 +34,7 @@ impl GlobalEnvironment {
         self.module_manager.add_def(
             &mut self.crate_env,
             name.clone(),
-            DefinedConstant::Alias {
+            DefinedConstant::Contextual {
                 parameters,
                 ty,
                 body,
@@ -158,7 +158,7 @@ impl GlobalEnvironment {
                 ) => true,
                 Some(module_manager::ItemAccessResult::Definition(item)) => matches!(
                     self.crate_env.resolve_definition(item.definition),
-                    Ok(DefinedConstant::Pts { .. } | DefinedConstant::Alias { .. })
+                    Ok(DefinedConstant::Pts { .. } | DefinedConstant::Contextual { .. })
                 ),
                 _ => false,
             };

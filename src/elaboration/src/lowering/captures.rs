@@ -312,7 +312,7 @@ impl Lowerer<'_> {
             && let Some(captures) = self.raw.arena().definition_captures(native)
         {
             let explicit = match self.raw.definition(id) {
-                DefinedConstant::Alias { parameters, .. } => parameters.len(),
+                DefinedConstant::Contextual { parameters, .. } => parameters.len(),
                 _ => self.raw.definition_parameters(id).len(),
             };
             return Ok(definition.context.len() - captures.len() - explicit);
@@ -387,7 +387,7 @@ impl Lowerer<'_> {
 
 pub(super) fn definition_roots(definition: &DefinedConstant) -> Vec<Term> {
     match *definition {
-        DefinedConstant::Alias {
+        DefinedConstant::Contextual {
             ref parameters,
             ty,
             body,

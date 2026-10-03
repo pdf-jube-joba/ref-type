@@ -117,12 +117,6 @@ pub enum ModuleItem {
         exports: Vec<Identifier>,
         items: Vec<ModuleItem>,
     },
-    Alias {
-        name: Identifier,
-        parameters: Vec<RightBind>,
-        ty: SExp,
-        body: SExp,
-    },
     Definition {
         owner: Option<AssociatedOwner>,
         name: Identifier,
@@ -136,6 +130,18 @@ pub enum ModuleItem {
         indices: Vec<RightBind>,
         kind: InductiveKind,
         constructors: Vec<(Identifier, Vec<RightBind>, SExp)>,
+    },
+    Structure {
+        name: Identifier,
+        kind: Option<InductiveKind>,
+        parameters: Vec<RightBind>,
+        fields: Vec<(Identifier, SExp, Option<SExp>)>,
+        laws: Option<Vec<(Identifier, SExp)>>,
+    },
+    Refinement {
+        name: Identifier,
+        fields: Vec<Identifier>,
+        laws: Vec<Identifier>,
     },
     Record {
         type_name: Identifier,
@@ -175,6 +181,9 @@ pub enum ModuleItem {
     },
     ComputationNormalize {
         exp: ComputationTermExp,
+    },
+    ValueTypeCheck {
+        ty: ValueTypeExp,
     },
     ValueCheck {
         exp: ValueTermExp,
@@ -252,6 +261,9 @@ pub struct RightBind {
 /// classification before elaboration.
 #[derive(Debug, Clone)]
 pub enum ValueTypeExp {
+    Deferred {
+        expression: Box<SExp>,
+    },
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,
@@ -269,6 +281,9 @@ pub enum ValueTypeExp {
 
 #[derive(Debug, Clone)]
 pub enum ComputationTypeExp {
+    Deferred {
+        expression: Box<SExp>,
+    },
     Meta {
         kind: SurfaceMeta,
         span: SourceSpan,
@@ -282,6 +297,9 @@ pub enum ComputationTypeExp {
 
 #[derive(Debug, Clone)]
 pub enum ValueTermExp {
+    Deferred {
+        expression: Box<SExp>,
+    },
     Ascribe {
         term: Box<ValueTermExp>,
         ty: Box<ValueTypeExp>,
@@ -318,6 +336,9 @@ pub enum ValueTermExp {
 
 #[derive(Debug, Clone)]
 pub enum ComputationTermExp {
+    Deferred {
+        expression: Box<SExp>,
+    },
     Ascribe {
         term: Box<ComputationTermExp>,
         ty: Box<ComputationTypeExp>,
@@ -447,6 +468,17 @@ impl std::fmt::Display for LocalAccess {
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
+    MemberAccess {
+        base: Box<SExp>,
+        field: Identifier,
+        parameters: Vec<SExp>,
+        span: SourceSpan,
+    },
+    MemberLiteral {
+        ty: Box<SExp>,
+        fields: Vec<(Identifier, SExp)>,
+    },
+
     Ascribe {
         term: Box<SExp>,
         ty: Box<SExp>,
@@ -762,6 +794,11 @@ impl TryFrom<SExp> for ValueTypeExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. }) => {
+                Ok(Self::Deferred {
+                    expression: Box::new(expression),
+                })
+            }
             SExp::Meta { kind, span } => Ok(Self::Meta { kind, span }),
             SExp::AccessPath { access, parameters } => Ok(Self::Access {
                 access,
@@ -795,6 +832,11 @@ impl TryFrom<SExp> for ComputationTypeExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. }) => {
+                Ok(Self::Deferred {
+                    expression: Box::new(expression),
+                })
+            }
             SExp::Meta { kind, span } => Ok(Self::Meta { kind, span }),
             SExp::ReturnType { value_ty } => Ok(Self::Return(Box::new((*value_ty).try_into()?))),
             SExp::ComputationFunction { domain, codomain } => Ok(Self::Function {
@@ -815,6 +857,13 @@ impl TryFrom<SExp> for ValueTermExp {
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         let (value, arguments) = decompose_surface_application(value);
         match value {
+            expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. })
+                if arguments.is_empty() =>
+            {
+                Ok(Self::Deferred {
+                    expression: Box::new(expression),
+                })
+            }
             SExp::Ascribe { term, ty } if arguments.is_empty() => Ok(Self::Ascribe {
                 term: Box::new((*term).try_into()?),
                 ty: Box::new((*ty).try_into()?),
@@ -839,10 +888,16 @@ impl TryFrom<SExp> for ValueTermExp {
                 if arguments.is_empty() {
                     Ok(Self::Access(access))
                 } else {
-                    Err(
-                        "Program values are not applied; only constructors take field arguments"
-                            .into(),
-                    )
+                    let mut expression = SExp::AccessPath { access, parameters };
+                    for argument in arguments {
+                        expression = SExp::App {
+                            func: Box::new(expression),
+                            arg: Box::new(argument),
+                        };
+                    }
+                    Ok(Self::Deferred {
+                        expression: Box::new(expression),
+                    })
                 }
             }
             SExp::AssociatedAccess { base, field, span } => {
@@ -861,6 +916,11 @@ impl TryFrom<SExp> for ValueTermExp {
                         .into_iter()
                         .map(TryInto::try_into)
                         .collect::<Result<_, _>>()?,
+                })
+            }
+            expression @ SExp::InferredProjection { .. } if arguments.is_empty() => {
+                Ok(Self::Deferred {
+                    expression: Box::new(expression),
                 })
             }
             SExp::Thunk { computation } if arguments.is_empty() => {
@@ -896,6 +956,11 @@ impl TryFrom<SExp> for ComputationTermExp {
     type Error = String;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
+            expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. }) => {
+                Ok(Self::Deferred {
+                    expression: Box::new(expression),
+                })
+            }
             SExp::Ascribe { term, ty } => Ok(Self::Ascribe {
                 term: Box::new((*term).try_into()?),
                 ty: Box::new((*ty).try_into()?),

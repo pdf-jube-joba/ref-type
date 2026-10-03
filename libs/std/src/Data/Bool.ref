@@ -1,3 +1,4 @@
+\import std.Program[] \as ProgramBundles;
 /* Boolean operations and their certified Program implementations. */
 \import std.Logic[].Proposition[] \as Logic;
 \use Logic.not;
@@ -28,152 +29,218 @@
       (cases (P Bool^::false) ff ft)
       (cases (P Bool^::true) tf tt);
 
-\correspondence Neg: Bool -> Bool {
-  \program := \fun (x: Bool) =>
-    \match x \in Bool \with {
-    | false : \return Bool::true
-    | true : \return Bool::false
-    },
-  \set := \fun (x: Bool^) =>
-    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
-    | false : Bool^::true
-    | true : Bool^::false
-    },
+\module NegImplementation {
+  \definition T: \VType := \U(Bool -> Bool);
+
+  \definition program: Bool -> Bool := \fun (x: Bool) =>
+      \match x \in Bool \with {
+      | false : \return Bool::true
+      | true : \return Bool::false
+      };
+
+  \definition specification: T^ := \fun (x: Bool^) =>
+      \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+      | false : Bool^::true
+      | true : Bool^::false
+      };
 
   \definition matches:
-    \forall (x: Bool^) ->
-    Neg::[program]^ x = Neg::[set] x :=
-    cases (\fun (x: _) =>
-      Neg::[program]^ x = Neg::[set] x)
-      (\refl(Neg::[set] Bool^::false))
-      (\refl(Neg::[set] Bool^::true));
-  \coherence := \axiom:funext(Neg::[program]^, Neg::[set], matches),
-}
+      \forall (x: Bool^) ->
+      program^ x = specification x :=
+      cases (\fun (x: _) =>
+        program^ x = specification x)
+        (\refl(specification Bool^::false))
+        (\refl(specification Bool^::true));
 
-\correspondence And: Bool -> Bool -> Bool {
-  \program := \fun (x, y: Bool) =>
-    \match x \in Bool \with {
-    | false : \return Bool::false
-    | true : \return y
-    },
-  \set := \fun (x, y: Bool^) =>
-    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
-    | false : Bool^::false
-    | true : y
-    },
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
+}
+\import .NegImplementation[] \as NegParts;
+\definition Neg: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := NegParts.T,
+  program := \thunk (NegParts.program),
+  specification := NegParts.specification,
+  coherence := NegParts.coherence,
+};
+
+\module AndImplementation {
+  \definition T: \VType := \U(Bool -> Bool -> Bool);
+
+  \definition program: Bool -> Bool -> Bool := \fun (x, y: Bool) =>
+      \match x \in Bool \with {
+      | false : \return Bool::false
+      | true : \return y
+      };
+
+  \definition specification: T^ := \fun (x, y: Bool^) =>
+      \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+      | false : Bool^::false
+      | true : y
+      };
 
   \definition matches:
-    \forall (x, y: Bool^) ->
-    And::[program]^ x y = And::[set] x y :=
-    cases2 (\fun (x, y: _) =>
-      And::[program]^ x y = And::[set] x y)
-      (\refl(And::[set] Bool^::false Bool^::false))
-      (\refl(And::[set] Bool^::false Bool^::true))
-      (\refl(And::[set] Bool^::true Bool^::false))
-      (\refl(And::[set] Bool^::true Bool^::true));
-  \coherence := \axiom:funext(And::[program]^, And::[set],
-    \fun (x: _) => \axiom:funext(And::[program]^ x, And::[set] x, matches x)),
-}
+      \forall (x, y: Bool^) ->
+      program^ x y = specification x y :=
+      cases2 (\fun (x, y: _) =>
+        program^ x y = specification x y)
+        (\refl(specification Bool^::false Bool^::false))
+        (\refl(specification Bool^::false Bool^::true))
+        (\refl(specification Bool^::true Bool^::false))
+        (\refl(specification Bool^::true Bool^::true));
 
-\correspondence Or: Bool -> Bool -> Bool {
-  \program := \fun (x, y: Bool) =>
-    \match x \in Bool \with {
-    | false : \return y
-    | true : \return Bool::true
-    },
-  \set := \fun (x, y: Bool^) =>
-    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
-    | false : y
-    | true : Bool^::true
-    },
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (x: _) => \axiom:funext(program^ x, specification x, matches x));
+}
+\import .AndImplementation[] \as AndParts;
+\definition And: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := AndParts.T,
+  program := \thunk (AndParts.program),
+  specification := AndParts.specification,
+  coherence := AndParts.coherence,
+};
+
+\module OrImplementation {
+  \definition T: \VType := \U(Bool -> Bool -> Bool);
+
+  \definition program: Bool -> Bool -> Bool := \fun (x, y: Bool) =>
+      \match x \in Bool \with {
+      | false : \return y
+      | true : \return Bool::true
+      };
+
+  \definition specification: T^ := \fun (x, y: Bool^) =>
+      \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+      | false : y
+      | true : Bool^::true
+      };
 
   \definition matches:
-    \forall (x, y: Bool^) ->
-    Or::[program]^ x y = Or::[set] x y :=
-    cases2 (\fun (x, y: _) =>
-      Or::[program]^ x y = Or::[set] x y)
-      (\refl(Or::[set] Bool^::false Bool^::false))
-      (\refl(Or::[set] Bool^::false Bool^::true))
-      (\refl(Or::[set] Bool^::true Bool^::false))
-      (\refl(Or::[set] Bool^::true Bool^::true));
-  \coherence := \axiom:funext(Or::[program]^, Or::[set],
-    \fun (x: _) => \axiom:funext(Or::[program]^ x, Or::[set] x, matches x)),
-}
+      \forall (x, y: Bool^) ->
+      program^ x y = specification x y :=
+      cases2 (\fun (x, y: _) =>
+        program^ x y = specification x y)
+        (\refl(specification Bool^::false Bool^::false))
+        (\refl(specification Bool^::false Bool^::true))
+        (\refl(specification Bool^::true Bool^::false))
+        (\refl(specification Bool^::true Bool^::true));
 
-\correspondence Xor: Bool -> Bool -> Bool {
-  \program := \fun (x, y: Bool) =>
-    \match x \in Bool \with {
-    | false : \return y
-    | true : Neg::[program] y
-    },
-  \set := \fun (x, y: Bool^) =>
-    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
-    | false : y
-    | true : Neg::[set] y
-    },
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (x: _) => \axiom:funext(program^ x, specification x, matches x));
+}
+\import .OrImplementation[] \as OrParts;
+\definition Or: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := OrParts.T,
+  program := \thunk (OrParts.program),
+  specification := OrParts.specification,
+  coherence := OrParts.coherence,
+};
+
+\module XorImplementation {
+  \definition T: \VType := \U(Bool -> Bool -> Bool);
+
+  \definition program: Bool -> Bool -> Bool := \fun (x, y: Bool) =>
+      \match x \in Bool \with {
+      | false : \return y
+      | true : (\force Neg.program) y
+      };
+
+  \definition specification: T^ := \fun (x, y: Bool^) =>
+      \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+      | false : y
+      | true : Neg.specification y
+      };
 
   \definition matches:
-    \forall (x, y: Bool^) ->
-    Xor::[program]^ x y = Xor::[set] x y :=
-    cases2 (\fun (x, y: _) =>
-      Xor::[program]^ x y = Xor::[set] x y)
-      (\refl(Xor::[set] Bool^::false Bool^::false))
-      (\refl(Xor::[set] Bool^::false Bool^::true))
-      (\refl(Xor::[set] Bool^::true Bool^::false))
-      (\refl(Xor::[set] Bool^::true Bool^::true));
-  \coherence := \axiom:funext(Xor::[program]^, Xor::[set],
-    \fun (x: _) => \axiom:funext(Xor::[program]^ x, Xor::[set] x, matches x)),
-}
+      \forall (x, y: Bool^) ->
+      program^ x y = specification x y :=
+      cases2 (\fun (x, y: _) =>
+        program^ x y = specification x y)
+        (\refl(specification Bool^::false Bool^::false))
+        (\refl(specification Bool^::false Bool^::true))
+        (\refl(specification Bool^::true Bool^::false))
+        (\refl(specification Bool^::true Bool^::true));
 
-\correspondence Implies: Bool -> Bool -> Bool {
-  \program := \fun (x, y: Bool) =>
-    \match x \in Bool \with {
-    | false : \return Bool::true
-    | true : \return y
-    },
-  \set := \fun (x, y: Bool^) =>
-    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
-    | false : Bool^::true
-    | true : y
-    },
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (x: _) => \axiom:funext(program^ x, specification x, matches x));
+}
+\import .XorImplementation[] \as XorParts;
+\definition Xor: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := XorParts.T,
+  program := \thunk (XorParts.program),
+  specification := XorParts.specification,
+  coherence := XorParts.coherence,
+};
+
+\module ImpliesImplementation {
+  \definition T: \VType := \U(Bool -> Bool -> Bool);
+
+  \definition program: Bool -> Bool -> Bool := \fun (x, y: Bool) =>
+      \match x \in Bool \with {
+      | false : \return Bool::true
+      | true : \return y
+      };
+
+  \definition specification: T^ := \fun (x, y: Bool^) =>
+      \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+      | false : Bool^::true
+      | true : y
+      };
 
   \definition matches:
-    \forall (x, y: Bool^) ->
-    Implies::[program]^ x y = Implies::[set] x y :=
-    cases2 (\fun (x, y: _) =>
-      Implies::[program]^ x y = Implies::[set] x y)
-      (\refl(Implies::[set] Bool^::false Bool^::false))
-      (\refl(Implies::[set] Bool^::false Bool^::true))
-      (\refl(Implies::[set] Bool^::true Bool^::false))
-      (\refl(Implies::[set] Bool^::true Bool^::true));
-  \coherence := \axiom:funext(Implies::[program]^, Implies::[set],
-    \fun (x: _) => \axiom:funext(Implies::[program]^ x, Implies::[set] x, matches x)),
-}
+      \forall (x, y: Bool^) ->
+      program^ x y = specification x y :=
+      cases2 (\fun (x, y: _) =>
+        program^ x y = specification x y)
+        (\refl(specification Bool^::false Bool^::false))
+        (\refl(specification Bool^::false Bool^::true))
+        (\refl(specification Bool^::true Bool^::false))
+        (\refl(specification Bool^::true Bool^::true));
 
-\correspondence Eqb: Bool -> Bool -> Bool {
-  \program := \fun (x, y: Bool) =>
-    \match x \in Bool \with {
-    | false : Neg::[program] y
-    | true : \return y
-    },
-  \set := \fun (x, y: Bool^) =>
-    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
-    | false : Neg::[set] y
-    | true : y
-    },
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (x: _) => \axiom:funext(program^ x, specification x, matches x));
+}
+\import .ImpliesImplementation[] \as ImpliesParts;
+\definition Implies: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := ImpliesParts.T,
+  program := \thunk (ImpliesParts.program),
+  specification := ImpliesParts.specification,
+  coherence := ImpliesParts.coherence,
+};
+
+\module EqbImplementation {
+  \definition T: \VType := \U(Bool -> Bool -> Bool);
+
+  \definition program: Bool -> Bool -> Bool := \fun (x, y: Bool) =>
+      \match x \in Bool \with {
+      | false : (\force Neg.program) y
+      | true : \return y
+      };
+
+  \definition specification: T^ := \fun (x, y: Bool^) =>
+      \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+      | false : Neg.specification y
+      | true : y
+      };
 
   \definition matches:
-    \forall (x, y: Bool^) ->
-    Eqb::[program]^ x y = Eqb::[set] x y :=
-    cases2 (\fun (x, y: _) =>
-      Eqb::[program]^ x y = Eqb::[set] x y)
-      (\refl(Eqb::[set] Bool^::false Bool^::false))
-      (\refl(Eqb::[set] Bool^::false Bool^::true))
-      (\refl(Eqb::[set] Bool^::true Bool^::false))
-      (\refl(Eqb::[set] Bool^::true Bool^::true));
-  \coherence := \axiom:funext(Eqb::[program]^, Eqb::[set],
-    \fun (x: _) => \axiom:funext(Eqb::[program]^ x, Eqb::[set] x, matches x)),
+      \forall (x, y: Bool^) ->
+      program^ x y = specification x y :=
+      cases2 (\fun (x, y: _) =>
+        program^ x y = specification x y)
+        (\refl(specification Bool^::false Bool^::false))
+        (\refl(specification Bool^::false Bool^::true))
+        (\refl(specification Bool^::true Bool^::false))
+        (\refl(specification Bool^::true Bool^::true));
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (x: _) => \axiom:funext(program^ x, specification x, matches x));
 }
+\import .EqbImplementation[] \as EqbParts;
+\definition Eqb: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := EqbParts.T,
+  program := \thunk (EqbParts.program),
+  specification := EqbParts.specification,
+  coherence := EqbParts.coherence,
+};
 
 \definition ite(A: \Set) (test: Bool^) (yes, no: A): A :=
   \match test \in Bool^ \return (\fun (_: Bool^) => A) \with {

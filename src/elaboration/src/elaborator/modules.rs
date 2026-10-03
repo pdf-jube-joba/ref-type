@@ -3,7 +3,6 @@ use super::*;
 
 fn declaration_profile_label(item: &ModuleItem) -> String {
     match item {
-        ModuleItem::Alias { name, .. } => format!("alias {}", name.as_str()),
         ModuleItem::Definition { name, .. } => format!("definition {}", name.as_str()),
         ModuleItem::Inductive { type_name, .. } => {
             format!("inductive {}", type_name.as_str())
@@ -298,6 +297,10 @@ impl GlobalEnvironment {
             }
         }
 
+        for (value, ty) in &module.parameter_checks {
+            program_scope.check_member(value, ty, self)?;
+        }
+        program_scope.finish_metas(self)?;
         self.record_parameters();
         Ok(())
     }
@@ -335,14 +338,10 @@ impl GlobalEnvironment {
         self.metavariables.clear();
         let mut local_scope = LocalScope::default();
         match decl {
-            ModuleItem::Scoped { .. } => return Err("unresolved declaration scope".into()),
-            ModuleItem::Alias {
-                name,
-                parameters,
-                ty,
-                body,
-            } => {
-                self.elaborate_alias(name, parameters, ty, body)?;
+            ModuleItem::Structure { .. }
+            | ModuleItem::Refinement { .. }
+            | ModuleItem::Scoped { .. } => {
+                return Err("unresolved frontend declaration".into());
             }
             ModuleItem::Definition {
                 owner,
@@ -485,6 +484,24 @@ impl GlobalEnvironment {
                     Ok(())
                 })();
                 if let Err(error) = pts_result {
+                    if owner.is_none() && !binders.is_empty() {
+                        self.metavariables.clear();
+                        match self.elaborate_contextual_definition(name, binders, ty, body) {
+                            Ok(()) => {
+                                self.record_declaration(decl, output_start);
+                                self.metavariables.clear();
+                                return Ok(());
+                            }
+                            Err(contextual_error) => {
+                                return Err(ElaborationError::alternatives(
+                                    std::iter::once(contextual_error)
+                                        .chain(std::iter::once(error))
+                                        .chain(program_errors)
+                                        .collect(),
+                                ));
+                            }
+                        }
+                    }
                     if program_errors.is_empty() {
                         return Err(error);
                     }
@@ -727,7 +744,16 @@ impl GlobalEnvironment {
             ModuleItem::ChildModule { .. } => {
                 return Err("child module in declaration execution order".into());
             }
-            ModuleItem::Import { path, import_name } => {
+            ModuleItem::Import {
+                path,
+                import_name,
+                checks,
+            } => {
+                let mut scope = program_term_elaborator::ProgramScope::new();
+                for (value, ty) in checks {
+                    scope.check_member(value, ty, self)?;
+                }
+                scope.finish_metas(self)?;
                 if self
                     .crate_env
                     .module(self.module_manager.current())
@@ -903,6 +929,19 @@ impl GlobalEnvironment {
             ModuleItem::Normalize { exp } => self.normalize_query(exp, &mut ctx)?,
             ModuleItem::ComputationEval { exp } => self.computation_eval_query(exp)?,
             ModuleItem::ComputationNormalize { exp } => self.computation_normalize_query(exp)?,
+            ModuleItem::MemberCheck { value, ty } => {
+                let mut scope = program_term_elaborator::ProgramScope::new();
+                scope.check_member(value, ty, self)?;
+                scope.finish_metas(self)?;
+            }
+            ModuleItem::ValueTypeCheck { ty } => {
+                let mut scope = program_term_elaborator::ProgramScope::new();
+                let ty = scope.elaborate_value_type(ty, self)?;
+                scope.finish_metas(self)?;
+                ProgramCheckSession::new(&self.crate_env, &mut scope.context().clone())
+                    .check_value_type(ty)
+                    .map_err(|error| error.to_string())?;
+            }
             ModuleItem::ValueCheck { exp, ty } => self.value_check_query(exp, ty)?,
             ModuleItem::ComputationCheck { exp, ty } => self.computation_check_query(exp, ty)?,
             ModuleItem::ValueInfer { exp } => self.value_infer_query(exp)?,

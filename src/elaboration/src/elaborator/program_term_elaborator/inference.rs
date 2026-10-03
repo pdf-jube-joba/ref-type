@@ -1,6 +1,5 @@
 //! Program surface holes use the kernel's shared contextual solver.
 use super::*;
-#[cfg(test)]
 use kernel::metavariables::Outcome;
 use kernel::{
     sort::{BaseSort, Sort},
@@ -287,8 +286,7 @@ impl ProgramScope {
             walk(self, &env.arena().core, expression(term)),
         )
     }
-    #[cfg(test)]
-    fn unify_terms(
+    pub(super) fn unify_terms(
         &mut self,
         environment: &GlobalEnvironment,
         left: Term,
@@ -390,6 +388,16 @@ impl ProgramScope {
         self.sync(environment);
         result
     }
+    pub(super) fn check_value_type_with_metas(
+        &mut self,
+        environment: &GlobalEnvironment,
+        ty: ValueType,
+    ) -> Result<(), ElaborationError> {
+        self.infer(environment, &self.context.clone(), Term::ValueType(ty))
+            .map(|_| ())
+            .map_err(|error| self.solver_error(environment, error))
+    }
+
     pub(super) fn infer_value_term(
         &mut self,
         environment: &GlobalEnvironment,
@@ -527,7 +535,12 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         record: &ProgramConstraintRecord,
     ) -> ConstraintDiagnostic {
-        let names = |id: MetaVarId| self.metas[id.index()].flavor.display_name(id);
+        let names = |id: MetaVarId| {
+            self.metas.get(id.index()).map_or_else(
+                || format!("_pts{}", id.index()),
+                |meta| meta.flavor.display_name(id),
+            )
+        };
         let printer = Printer::new(&environment.crate_env, &names);
         let (left, relation, right) = match record.constraint {
             ProgramConstraint::Equal(left, right) => (left, "≡", right),
@@ -552,7 +565,12 @@ impl ProgramScope {
     }
     fn goals(&self, environment: &GlobalEnvironment) -> Vec<MetaGoal> {
         let arena = environment.crate_env.arena();
-        let names = |id: MetaVarId| self.metas[id.index()].flavor.display_name(id);
+        let names = |id: MetaVarId| {
+            self.metas.get(id.index()).map_or_else(
+                || format!("_pts{}", id.index()),
+                |meta| meta.flavor.display_name(id),
+            )
+        };
         let printer = Printer::new(&environment.crate_env, &names);
         self.metas
             .iter()

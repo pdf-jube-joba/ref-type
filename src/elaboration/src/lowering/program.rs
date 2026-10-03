@@ -118,9 +118,7 @@ impl Lowerer<'_> {
         context: &mut raw::program::ProgramContext,
     ) -> Result<s::Expression, String> {
         match p {
-            raw::program::ProgramTerm::ValueTerm(value) => {
-                Ok(self.value_term(value, context)?)
-            }
+            raw::program::ProgramTerm::ValueTerm(value) => Ok(self.value_term(value, context)?),
             raw::program::ProgramTerm::ComputationTerm(computation) => {
                 Ok(self.computation_term(computation, context)?)
             }

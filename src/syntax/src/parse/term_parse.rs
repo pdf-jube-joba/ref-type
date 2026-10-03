@@ -1024,28 +1024,8 @@ impl<'a> TermParser<'a> {
                     return Ok(SExp::NamedMacro { name, tokens });
                 }
                 // `x`, `x.y`, `x [e1, ..., en]`, `x.ctor [e1, ..., en]`
-                let mut access = self.parse_access_path()?;
-                let mut parameters = self.parse_optional_parameters()?;
-                while self.peek() == Some(&Token::DoubleColon)
-                    && self
-                        .tokens
-                        .get(self.pos + 1)
-                        .is_some_and(|token| token.kind == Token::LBracket)
-                {
-                    self.next();
-                    self.next();
-                    let field = self.expect_ident()?;
-                    self.expect_token(Token::RBracket)?;
-                    let name = match &mut access {
-                        LocalAccess::Current { access, .. } => access,
-                        LocalAccess::Named { child, .. } => child,
-                    };
-                    *name = crate::sugar::member(name, field.as_str());
-                    if self.bump_if_token(Token::Caret) {
-                        name.0.push('^');
-                    }
-                    parameters.extend(self.parse_optional_parameters()?);
-                }
+                let access = self.parse_access_path()?;
+                let parameters = self.parse_optional_parameters()?;
 
                 let starts_record_body = match (
                     self.tokens.get(self.pos).map(|token| token.kind),
@@ -1060,12 +1040,6 @@ impl<'a> TermParser<'a> {
                 };
                 if starts_record_body {
                     let fields = self.parse_record_body()?;
-                    if self.bump_if_keyword("\\with") {
-                        let laws = self.parse_record_body()?;
-                        return Ok(crate::sugar::structure_literal(
-                            access, parameters, fields, laws,
-                        ));
-                    }
                     return Ok(SExp::RecordTypeCtor {
                         access,
                         parameters,
@@ -1174,6 +1148,21 @@ impl<'a> TermParser<'a> {
     fn parse_postfix(&mut self) -> Result<SExp, ParseError> {
         let mut expr = self.parse_atom()?;
         loop {
+            if self.bump_if_token(Token::Period) {
+                let mut field = self.expect_ident()?;
+                let span = self.span_at(self.position() - 1);
+                if self.bump_if_token(Token::Caret) {
+                    field.0.push('^');
+                }
+                let parameters = self.parse_optional_parameters()?;
+                expr = SExp::MemberAccess {
+                    base: Box::new(expr),
+                    field,
+                    parameters,
+                    span,
+                };
+                continue;
+            }
             if self.peek() == Some(&Token::Macro("#")) {
                 // #field{value} starts a separate atom and is applied to expr.
                 if matches!(
@@ -1189,6 +1178,23 @@ impl<'a> TermParser<'a> {
                     value: Box::new(expr),
                     field,
                     span,
+                };
+                continue;
+            }
+            if self.peek() == Some(&Token::LBrace)
+                && matches!(
+                    self.tokens.get(self.pos + 1).map(|t| &t.kind),
+                    Some(Token::Ident(_))
+                )
+                && matches!(
+                    self.tokens.get(self.pos + 2).map(|t| &t.kind),
+                    Some(Token::Assign)
+                )
+            {
+                let fields = self.parse_record_body()?;
+                expr = SExp::MemberLiteral {
+                    ty: Box::new(expr),
+                    fields,
                 };
                 continue;
             }
@@ -1585,7 +1591,7 @@ impl<'a> TermParser<'a> {
             return Ok(MacroExp::RawExp(exp));
         }
         if self.peek() != Some(&Token::LParen) && self.starts_atom() {
-            let exp = self.parse_atom()?;
+            let exp = self.parse_postfix()?;
             if self.allow_macro_parameters
                 && let SExp::AccessPath {
                     access: LocalAccess::Current { access, .. },

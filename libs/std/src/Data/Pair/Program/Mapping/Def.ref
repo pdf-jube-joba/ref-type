@@ -1,53 +1,91 @@
+\import std.Program[] \as ProgramBundles;
 /* The left computation runs before the right computation, once each. */
-\correspondence Map: (A -> C) ~> (B -> D) ~> Times[A, B] ~> \F(Times[C, D]) {
+
+\module MapImplementation {
+  \definition T: \VType := \U((A -> C) ~> (B -> D) ~> Times[A, B] ~> \F(Times[C, D]));
+
   \definition implementation(f: A -> C, g: B -> D, p: Times[A, B]): \F(Times[C, D]) :=
-    \match p \in Times \with {
-    | pair a b : \program {
-        \bind c: C <- \force f a \then
-        \bind d: D <- \force g b \then
-        \return Times[C, D]::pair c d
-      }
-    };
-  \program := implementation,
-  \set := map A^ B^ C^ D^,
-  \coherence := \axiom:funext(Map::[program]^, Map::[set],
-    \fun (f: A^ -> C^) => \axiom:funext(Map::[program]^ f, Map::[set] f,
-    \fun (g: B^ -> D^) => \axiom:funext(Map::[program]^ f g, Map::[set] f g,
-    \fun (p: Times^[A^, B^]) => \induction (p: Times^[A^, B^]) \return Map::[program]^ f g p = Map::[set] f g p \with {
-      | pair: \fun (a: A^) (b: B^) => \refl(Map::[set] f g (Times^[A^, B^]::pair a b))
-    } p))),
-}
+      \match p \in Times \with {
+      | pair a b : \program {
+          \bind c: C <- \force f a \then
+          \bind d: D <- \force g b \then
+          \return Times[C, D]::pair c d
+        }
+      };
 
-\correspondence MapFirst: (A -> C) ~> Times[A, B] ~> \F(Times[C, B]) {
+  \definition program: (A -> C) ~> (B -> D) ~> Times[A, B] ~> \F(Times[C, D]) := implementation;
+
+  \definition specification: T^ := map A^ B^ C^ D^;
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (f: A^ -> C^) => \axiom:funext(program^ f, specification f,
+      \fun (g: B^ -> D^) => \axiom:funext(program^ f g, specification f g,
+      \fun (p: Times^[A^, B^]) => \induction (p: Times^[A^, B^]) \return program^ f g p = specification f g p \with {
+        | pair: \fun (a: A^) (b: B^) => \refl(specification f g (Times^[A^, B^]::pair a b))
+      } p)));
+}
+\import .MapImplementation[] \as MapParts;
+\definition Map: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := MapParts.T,
+  program := \thunk (MapParts.program),
+  specification := MapParts.specification,
+  coherence := MapParts.coherence,
+};
+
+\module MapFirstImplementation {
+  \definition T: \VType := \U((A -> C) ~> Times[A, B] ~> \F(Times[C, B]));
+
   \definition implementation(f: A -> C, p: Times[A, B]): \F(Times[C, B]) :=
-    \match p \in Times \with {
-    | pair a b : \program {
-        \bind c: C <- \force f a \then
-        \return Times[C, B]::pair c b
-      }
-    };
-  \program := implementation,
-  \set := mapFirst A^ B^ C^,
-  \coherence := \axiom:funext(MapFirst::[program]^, MapFirst::[set],
-    \fun (f: A^ -> C^) => \axiom:funext(MapFirst::[program]^ f, MapFirst::[set] f,
-    \fun (p: Times^[A^, B^]) => \induction (p: Times^[A^, B^]) \return MapFirst::[program]^ f p = MapFirst::[set] f p \with {
-      | pair: \fun (a: A^) (b: B^) => \refl(MapFirst::[set] f (Times^[A^, B^]::pair a b))
-    } p)),
-}
+      \match p \in Times \with {
+      | pair a b : \program {
+          \bind c: C <- \force f a \then
+          \return Times[C, B]::pair c b
+        }
+      };
 
-\correspondence MapSecond: (B -> D) ~> Times[A, B] ~> \F(Times[A, D]) {
-  \definition implementation(g: B -> D, p: Times[A, B]): \F(Times[A, D]) :=
-    \match p \in Times \with {
-    | pair a b : \program {
-        \bind d: D <- \force g b \then
-        \return Times[A, D]::pair a d
-      }
-    };
-  \program := implementation,
-  \set := mapSecond A^ B^ D^,
-  \coherence := \axiom:funext(MapSecond::[program]^, MapSecond::[set],
-    \fun (g: B^ -> D^) => \axiom:funext(MapSecond::[program]^ g, MapSecond::[set] g,
-    \fun (p: Times^[A^, B^]) => \induction (p: Times^[A^, B^]) \return MapSecond::[program]^ g p = MapSecond::[set] g p \with {
-      | pair: \fun (a: A^) (b: B^) => \refl(MapSecond::[set] g (Times^[A^, B^]::pair a b))
-    } p)),
+  \definition program: (A -> C) ~> Times[A, B] ~> \F(Times[C, B]) := implementation;
+
+  \definition specification: T^ := mapFirst A^ B^ C^;
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (f: A^ -> C^) => \axiom:funext(program^ f, specification f,
+      \fun (p: Times^[A^, B^]) => \induction (p: Times^[A^, B^]) \return program^ f p = specification f p \with {
+        | pair: \fun (a: A^) (b: B^) => \refl(specification f (Times^[A^, B^]::pair a b))
+      } p));
 }
+\import .MapFirstImplementation[] \as MapFirstParts;
+\definition MapFirst: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := MapFirstParts.T,
+  program := \thunk (MapFirstParts.program),
+  specification := MapFirstParts.specification,
+  coherence := MapFirstParts.coherence,
+};
+
+\module MapSecondImplementation {
+  \definition T: \VType := \U((B -> D) ~> Times[A, B] ~> \F(Times[A, D]));
+
+  \definition implementation(g: B -> D, p: Times[A, B]): \F(Times[A, D]) :=
+      \match p \in Times \with {
+      | pair a b : \program {
+          \bind d: D <- \force g b \then
+          \return Times[A, D]::pair a d
+        }
+      };
+
+  \definition program: (B -> D) ~> Times[A, B] ~> \F(Times[A, D]) := implementation;
+
+  \definition specification: T^ := mapSecond A^ B^ D^;
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (g: B^ -> D^) => \axiom:funext(program^ g, specification g,
+      \fun (p: Times^[A^, B^]) => \induction (p: Times^[A^, B^]) \return program^ g p = specification g p \with {
+        | pair: \fun (a: A^) (b: B^) => \refl(specification g (Times^[A^, B^]::pair a b))
+      } p));
+}
+\import .MapSecondImplementation[] \as MapSecondParts;
+\definition MapSecond: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := MapSecondParts.T,
+  program := \thunk (MapSecondParts.program),
+  specification := MapSecondParts.specification,
+  coherence := MapSecondParts.coherence,
+};

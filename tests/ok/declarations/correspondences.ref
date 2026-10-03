@@ -1,39 +1,66 @@
+\module BundleSignatures {
+/* Program implementations, specifications, and terminating transitions. */
+\structure Correspondence {
+  T: \VType,
+  program: T,
+  specification: T^,
+  coherence: program^ = specification,
+}
+
+\definition Ready(State, Output: \Set)(P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+  \step-match t: \RunStep[State, Output] \return \Prop \with {
+    | \continue s: P s
+    | \finish result: \forall (Q: \Prop) -> Q -> Q
+  };
+
+\definition Terminates(State, Output: \Set)(step: State -> \RunStep[State, Output])(s: State): \Prop :=
+  \forall (P: State -> \Prop) ->
+    (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
+
+\structure Machine {
+  State: \VType,
+  Output: \VType,
+  step: \U(State ~> \F(\RunStep[State, Output])),
+  terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
+  run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
+    \run[State, Output](step, s) \by { terminates s }),
+}
+}
 \module Source(A: \VType) {
-  \correspondence identity: A ~> \F(A) {
-    \definition helper: A ~> \F(A) := \cfun (x: A) => \return x;
-    \program := helper,
-    \set := \fun (x: A^) => x,
-    \coherence := \refl(identity::[program]^),
+  \import \root.BundleSignatures[] \as Signatures;
+  \module Implementation {
+    \definition helper: A ~> \F(A) := \cfun(x: A) => \return x;
   }
-  \correspondence thunked: \U(A ~> \F(A)) {
-    \definition helper: A ~> \F(A) := identity::[program];
-    \program := \thunk(helper),
-    \set := identity::[set],
-    \coherence := identity::[coherence],
-  }
+  \import .Implementation[] \as Impl;
+  \definition identity: Signatures.Correspondence := Signatures.Correspondence {
+    T := \U(A ~> \F(A)), program := \thunk(Impl.helper),
+    specification := \fun(x: A^) => x, coherence := \refl(Impl.helper^),
+  };
+  \definition thunked: Signatures.Correspondence := identity;
 }
 \module Consumer {
+  \import \root.BundleSignatures[] \as Signatures;
   \inductive Unit: \VType := | unit: Unit;
   \import \root.Source[A := Unit] \as S;
-  \definition copy: S.identity::[Type] := S.identity::[program];
-  \definition thunked: S.thunked::[Type] := S.thunked::[program];
-  \definition reflected: S.identity::[Type]^ := S.identity::[set];
-  \macro reflectedType() := S.identity::[Type]^;
+  \definition copy: S.identity.T := S.identity.program;
+  \definition thunked: S.thunked.T := S.thunked.program;
+  \definition reflected: S.identity.T^ := S.identity.specification;
+  \macro reflectedType() := S.identity.T^;
   \definition fromMacro: reflectedType!{} := reflected;
-  \check S.identity::[coherence]: copy^ = reflected;
-  \definition result: \F(Unit) := copy Unit::unit;
+  \check S.identity.coherence: copy^ = reflected;
+  \definition result: \F(Unit) := (\force copy) Unit::unit;
   \definition reflectedResult: result^ = Unit^::unit := \refl(Unit^::unit);
-  \correspondence first: Unit ~> \F(Unit) {
+  \module FirstImplementation {
     \import \root.Source[A := Unit] \as Nested;
-    \program := Nested.identity::[program],
-    \set := Nested.identity::[set],
-    \coherence := Nested.identity::[coherence],
+    \definition value: Signatures.Correspondence := Nested.identity;
   }
-  \correspondence second: Unit ~> \F(Unit) {
+  \module SecondImplementation {
     \import \root.Source[A := Unit] \as Nested;
-    \program := Nested.identity::[program],
-    \set := Nested.identity::[set],
-    \coherence := Nested.identity::[coherence],
+    \definition value: Signatures.Correspondence := Nested.identity;
   }
-  \check first::[coherence]: first::[program]^ = second::[set];
+  \import .FirstImplementation[] \as First;
+  \import .SecondImplementation[] \as Second;
+  \definition first: Signatures.Correspondence := First.value;
+  \definition second: Signatures.Correspondence := Second.value;
+  \check first.coherence: first.program^ = second.specification;
 }

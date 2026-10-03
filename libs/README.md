@@ -103,7 +103,7 @@ congr2!{A B C} f a b c d ab cd
   };
 ```
 
-自然数の記法は `Add::[set]`・`Mul::[set]`、整数の記法は `addInteger`・`mulInteger` に展開される。
+自然数の記法は `Add.specification`・`Mul.specification`、整数の記法は `addInteger`・`mulInteger` に展開される。
 
 `congr2!` は `ab: a = b` と `cd: c = d` から `f a c = f b d` を直接作る。
 期待型から引数が分かる場合は値を `_` にできる。
@@ -121,13 +121,12 @@ congr2!{Nat^ Nat^ Nat^} natAdd _ _ _ _ leftEq rightEq
 ```
 
 現在の PTS では命題内で `Set` 自体を量化しないため、carrier はマクロ展開時に指定する。
-また module import は生成的であり、import ごとに別の型 instance を作る。
-同じモジュールで宣言した型に対しては、補助モジュールを再 import するより、使用箇所で等式マクロを具体化する方が安全である。
+同じ元 module に convertible な引数を渡す import は、定義と帰納型の identity を共有する。
 
 ## 代数構造
 
 代数構造は `\structure` でデータと法則をまとめて宣言する。
-`Monoid[A]::[Raw]` は単位元と演算、`Monoid[A]::[Law][s]` はその法則、`Monoid[A]::[Set]` は法則を満たす構造の型である。
+`Monoid[A].Raw` は単位元と演算、`Monoid[A].Law[s]` はその法則、`Monoid[A]` は法則を満たす構造の型である。
 構造の要素からは `#op{s}` と `#leftIdentity{s}` のようにデータと法則を直接取り出せる。
 
 `Alg.Monoid`、`Alg.Alg`、`Alg.Ring`、`Alg.Field` は次の構造を提供する。
@@ -180,23 +179,24 @@ Program では `P.Times[A, B]::pair a b` が値を構築する。
 
 | モジュール | 操作 | 引数と結果 |
 | --- | --- | --- |
-| `PD` | `Make::[program] a b`、`First::[program] p`、`Second::[program] p`、`Swap::[program] p` | 型関連操作と同じ |
-| `PM` | `Map::[program] f g p` | `f: \U(A ~> \F(C))`、`g: \U(B ~> \F(D))` で両成分を写す |
-| `PM` | `MapFirst::[program] f p`、`MapSecond::[program] g p` | 片側だけを写し、もう一方の値を保持する |
-| `PF` | `Curry::[program] f a b` | `f: \U(P.Times[A, B] ~> \F(C))` を呼ぶ |
-| `PF` | `Uncurry::[program] f p` | `f: \U(A ~> B ~> \F(C))` を呼ぶ |
-| `PF` | `Assoc::[program] p`、`Unassoc::[program] p` | 三成分の結合を組み替える |
+| `PD` | `(\force Make.program) a b`、`(\force First.program) p`、`(\force Second.program) p`、`(\force Swap.program) p` | 型関連操作と同じ |
+| `PM` | `(\force Map.program) f g p` | `f: \U(A ~> \F(C))`、`g: \U(B ~> \F(D))` で両成分を写す |
+| `PM` | `(\force MapFirst.program) f p`、`(\force MapSecond.program) g p` | 片側だけを写し、もう一方の値を保持する |
+| `PF` | `(\force Curry.program) f a b` | `f: \U(P.Times[A, B] ~> \F(C))` を呼ぶ |
+| `PF` | `(\force Uncurry.program) f p` | `f: \U(A ~> B ~> \F(C))` を呼ぶ |
+| `PF` | `(\force Assoc.program) p`、`(\force Unassoc.program) p` | 三成分の結合を組み替える |
 
-各操作は `\correspondence` で宣言し、`::[set]` は任意の Set を扱う親モジュールの演算を具体化する。
-`::[coherence]` は任意の反映された引数について Program 演算と Set 演算の一致を示す。
+各操作は `std.Program` の `Correspondence` を実装し、`.specification` は任意の Set を扱う親モジュールの演算を具体化する。
+`.coherence` は任意の反映された引数について Program 演算と Set 演算の一致を示す。
 
 `map` は左、右の順に各関数を1回ずつ実行する。
 関数は `\thunk f` の形で渡し、計算結果は `\bind` で受け取る。
-複数引数の計算は `Make::[program] a b` のように直接適用する。
+thunk の Program 演算は `\force` で実行する。
+複数引数の計算は `(\force Make.program) a b` のように直接適用する。
 
 ```text
 \definition transform(p: P.Times[A, B]): \F(C) := \program {
-  \bind mapped: P.Times[C, D] <- PM.Map::[program] (\thunk f) (\thunk g) p \then
+  \bind mapped: P.Times[C, D] <- (\force PM.Map.program) (\thunk f) (\thunk g) p \then
   \bind result: C <- P.Times::first mapped \then
   \return result
 };
@@ -223,24 +223,38 @@ Rat の `Integer` は Int の正規形キャリアを使い、形式差との往
 `unaryImageClass` / `binaryImageClass` は代表元上の image が期待する同値類に一致することを示し、`unaryImageClosed` / `binaryImageClosed` は image が再び商の要素になることを示す。
 演算ごとに同じ外延性証明を作り直す必要はない。
 
+## 関連型を持つ関係と商
+
+`Logic.Rel.RelationData` は `Carrier` と `relation`、`EquivalenceRelation` は関係の束とその法則を保持する。
+`Equality Carrier` は等号による同値関係を作り、`underlying` は元の関係を共有する。
+
+```text
+\import std.Logic[].Rel[] \as R;
+\definition equality: R.EquivalenceRelation := R.Equality Carrier;
+\import R.QuotientOf[r := R.underlying equality] \as Q;
+```
+
+`Q.quotient` は元の関係、商の `Carrier`、代表元からの `class`、同値な代表元についての `relatedEqual` を持つ。
+`relatedEqual` は同値関係の法則を型の前提として量化する。
+
 ## Program 演算と仕様
 
 Bool・Nat・Int は `\VType` の Program データであり、Set 側の型は `Bool^`・`Nat^`・`Int^`。
 反映後の constructor は `Bool^::true`、`Nat^::succ` のように参照する。
-Bool・Nat・Int の演算は `\correspondence` で実装・仕様・一致証明をまとめて宣言する。
+Bool・Nat・Int の演算は `Program.Correspondence` で実装・仕様・一致証明をまとめて宣言する。
 
 | member | 用途 |
 | --- | --- |
-| `Add::[program]` | Program の加算 |
-| `Add::[set]` | Set の加算仕様 |
-| `Add::[coherence]` | 実装の反映と仕様の等式 |
+| `Add.program` | Program の加算 |
+| `Add.specification` | Set の加算仕様 |
+| `Add.coherence` | 実装の反映と仕様の等式 |
 
-算術法則と数学側の構成は `::[set]` を使い、実行結果との接続には `::[coherence]` を使う。
-`AddLoop::[run]` や `IterLoop::[run]` は、状態遷移と停止性証明をまとめた `\machine` の実行関数である。
+算術法則と数学側の構成は `.specification` を使い、実行結果との接続には `.coherence` を使う。
+`AddLoop.run` や `IterLoop.run` は、状態遷移と停止性証明をまとめた `Program.Machine` の実行関数である。
 反復の構造は `Data.Nat.Iteration`、実装は `Iteration.Def[A := A]`、不変条件の保存は `Iteration.Prop[A := A]` にまとめる。
 Bool の代数法則と等式の消去は `Data.Bool.Prop`、集合上の条件分岐の法則は `Data.Bool.ConditionalLaws` にある。
 Bool は `Neg`、`And`、`Or`、`Xor`、`Implies`、`Eqb`、Int は `Diff`、`Neg`、`Add`、`Mul` などの対応宣言を公開する。
-Int の `Zero`、`One`、`MinusOne` も同じ member で定数の実装・仕様・一致証明を提供し、差分の計算は `DiffLoop::[run]` にまとめている。
+Int の `Zero`、`One`、`MinusOne` も同じ member で定数の実装・仕様・一致証明を提供し、差分の計算は `DiffLoop.run` にまとめている。
 
 `\run` は部分計算を表せるが、Set に反映する際には停止性証明が必要になる。
 

@@ -16,8 +16,11 @@ fn hex(key: &Fingerprint) -> String {
     key.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
+const SCHEMA: u32 = 2;
+
 #[derive(Serialize, Deserialize)]
 struct Record {
+    schema: u32,
     key: Fingerprint,
     checksum: Fingerprint,
     payload: String,
@@ -38,7 +41,10 @@ impl DiskCache {
             return None;
         }
         let record: Record = serde_json::from_slice(&fs::read(path).ok()?).ok()?;
-        if record.key != *key || record.checksum != fingerprint(record.payload.as_bytes()) {
+        if record.schema != SCHEMA
+            || record.key != *key
+            || record.checksum != fingerprint(record.payload.as_bytes())
+        {
             return None;
         }
         let result: ModuleResult = serde_json::from_str(&record.payload).ok()?;
@@ -51,6 +57,7 @@ impl DiskCache {
         fs::create_dir_all(&self.directory).map_err(|error| error.to_string())?;
         let payload = serde_json::to_string(result).map_err(|error| error.to_string())?;
         let bytes = serde_json::to_vec(&Record {
+            schema: SCHEMA,
             key: *key,
             checksum: fingerprint(payload.as_bytes()),
             payload,

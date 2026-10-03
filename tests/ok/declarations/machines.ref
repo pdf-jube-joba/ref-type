@@ -1,51 +1,73 @@
+\module BundleSignatures {
+/* Program implementations, specifications, and terminating transitions. */
+\structure Correspondence {
+  T: \VType,
+  program: T,
+  specification: T^,
+  coherence: program^ = specification,
+}
+
+\definition Ready(State, Output: \Set)(P: State -> \Prop): \RunStep[State, Output] -> \Prop :=
+  \step-match t: \RunStep[State, Output] \return \Prop \with {
+    | \continue s: P s
+    | \finish result: \forall (Q: \Prop) -> Q -> Q
+  };
+
+\definition Terminates(State, Output: \Set)(step: State -> \RunStep[State, Output])(s: State): \Prop :=
+  \forall (P: State -> \Prop) ->
+    (\forall (x: State) -> Ready State Output P (step x) -> P x) -> P s;
+
+\structure Machine {
+  State: \VType,
+  Output: \VType,
+  step: \U(State ~> \F(\RunStep[State, Output])),
+  terminates: \forall (s: State^) -> Terminates State^ Output^ step^ s,
+  run: \U(State ~> \F(Output)) := \thunk (\cfun (s: State) =>
+    \run[State, Output](step, s) \by { terminates s }),
+}
+}
 \module Machines {
-  \machine walk {
-    \inductive State: \VType := | first: State | last: State;
-    \macro stateType() := State;
-    \State := stateType!{},
-    \Output := State,
-    \step := \thunk(\cfun (s: State) => \match s \in State \with {
+  \import \root.BundleSignatures[] \as Signatures;
+  \inductive State: \VType := | first: State | last: State;
+  \definition step: \U(State ~> \F(\RunStep[State, State])) :=
+    \thunk(\cfun(s: State) => \match s \in State \with {
       | first: \return(\continue[State, State](State::last))
       | last: \return(\finish[State, State](State::last))
-    }),
-    \definition Terminates (s: State^): \Prop :=
-      \forall (P: State^ -> \Prop) ->
-        (\forall (x: State^) ->
-          (\step-match t: \RunStep[State^, State^] \return \Prop \with {
-            | \continue next: P next
-            | \finish output: \forall (Q: \Prop) -> Q -> Q
-          }) (walk::[step]^ x) -> P x) -> P s;
-    \definition lastTerminates: Terminates State^::last :=
-      \fun (predicate: State^ -> \Prop) (h: _) => h State^::last (\fun (Q: \Prop) (q: Q) => q);
-    \terminates := \induction (s: State^) \return Terminates s \with {
-      | first: \fun (predicate: State^ -> \Prop) (h: _) => h State^::first (lastTerminates predicate h)
+    });
+  \definition Terminates(s: State^): \Prop := Signatures.Terminates State^ State^ step^ s;
+  \definition lastTerminates: Terminates State^::last :=
+    \fun(predicate: State^ -> \Prop)(h: _) => h State^::last (\fun(Q: \Prop)(q: Q) => q);
+  \definition certificate: \forall(s: State^) -> Terminates s :=
+    \induction(s: State^) \return Terminates s \with {
+      | first: \fun(predicate: State^ -> \Prop)(h: _) => h State^::first (lastTerminates predicate h)
       | last: lastTerminates
-    },
-  }
-  \definition first: walk::[State] := walk::[State]::first;
-  \definition result: \F(walk::[Output]) := walk::[run] first;
-  \definition computed: result^ = walk::[Output]^::last := \refl(walk::[Output]^::last);
-  \definition input: \Box[\F(walk::[State])] := \box[_](\return first);
-  \definition boxedComputed:
-    \squash[_](\boxapp(walk::[runbox], input)) = walk::[Output]^::last := \refl(walk::[Output]^::last);
-
-  \correspondence finish: walk::[State] ~> \F(walk::[Output]) {
-    \program := walk::[run],
-    \set := \induction (s: walk::[State]^) \return walk::[Output]^ \with {
-      | first: walk::[Output]^::last
-      | last: walk::[Output]^::last
-    },
-    \coherence := \axiom:funext(finish::[program]^, finish::[set],
-      \induction (s: walk::[State]^) \return finish::[program]^ s = finish::[set] s \with {
-        | first: \refl(walk::[Output]^::last)
-        | last: \refl(walk::[Output]^::last)
+    };
+  \definition walk: Signatures.Machine := Signatures.Machine { State := State, Output := State, step := step, terminates := certificate };
+  \definition first: walk.State := walk.State::first;
+  \definition result: \F(walk.Output) := (\force walk.run) first;
+  \definition computed: result^ = walk.Output^::last := \refl(walk.Output^::last);
+  \definition runbox: \Box[walk.State ~> \F(walk.Output)] := \box[walk.State ~> \F(walk.Output)](\force walk.run);
+  \definition input: \Box[\F(walk.State)] := \box[\F(walk.State)](\return first);
+  \definition boxedComputed: \squash[_](\boxapp(runbox, input)) = walk.Output^::last := \refl(walk.Output^::last);
+  \definition specification: State^ -> State^ :=
+    \induction(s: State^) \return State^ \with {
+      | first: State^::last
+      | last: State^::last
+    };
+  \definition finish: Signatures.Correspondence := Signatures.Correspondence {
+    T := \U(walk.State ~> \F(walk.Output)),
+    program := walk.run,
+    specification := specification,
+    coherence := \axiom:funext(walk.run^, specification,
+      \induction(s: State^) \return walk.run^ s = specification s \with {
+        | first: \refl(State^::last)
+        | last: \refl(State^::last)
       }),
-  }
+  };
 }
 \module Consumer {
   \import \root.Machines[] \as M;
-  \definition run: M.walk::[State] ~> \F(M.walk::[Output]) := M.walk::[run];
-  \definition input: \Box[\F(M.walk::[State])] := \box[_](\return M.walk::[State]::first);
-  \definition computed:
-    \squash[_](\boxapp(M.walk::[runbox], input)) = M.walk::[Output]^::last := \refl(M.walk::[Output]^::last);
+  \definition run: M.walk.State ~> \F(M.walk.Output) := \force M.walk.run;
+  \definition input: \Box[\F(M.walk.State)] := \box[\F(M.walk.State)](\return M.walk.State::first);
+  \definition computed: \squash[_](\boxapp(M.runbox, input)) = M.walk.Output^::last := \refl(M.walk.Output^::last);
 }
