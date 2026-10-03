@@ -26,26 +26,23 @@ field を持つ宣言は `\structure` に統一し、constructor を明示する
 既存の `\record` の依存する field、literal、projection の用途をこの二つの宣言へ移行する。
 
 
-## 実装箇所
+## 現在の実装
 
-| 場所 | 役割 |
-| --- | --- |
-| `src/syntax/src/parse.rs`、`syntax.rs` | signature、既定値、sort、法則を保持した structure の AST |
-| `src/resolve/src/structures.rs` | signature、束、宣言の文脈と束縛 ID による置換 |
-| `src/resolve/src/structures/parameters.rs` | 入れ子の文脈展開、宣言引数の適合、部分具体化 |
-| `src/resolve/src/structures/declarations.rs` | 抽象 field、既定値、定義を検査する module 文脈の構築 |
-| `src/resolve/src/structures/normalization.rs` | field の具体化、全称量化、field 参照の source mapping |
-| `src/resolve/src/representation.rs` | sort を持つ値のデータ・法則・refinement の生成 |
-| `src/elaboration/src/elaborator/` | Set/Prop と Program の member 検査、product の形成、reflection |
-| `src/elaboration/src/lowering/` | 文脈引数の構築と既存 kernel の宣言登録 |
-| `src/sema/` | signature と field の semantic query、依存解析、schema 付きキャッシュ |
-| `libs/std/src/Program.ref` | 実装と仕様、停止性を備えた状態遷移の共通 signature |
-| `libs/std/src/Logic/Rel.ref` | 関連型を持つ関係、同値関係、商の束 |
+| 場所 | 現在の役割 | 計画での役割 |
+| --- | --- | --- |
+| `src/syntax/src/parse.rs` | structure と bundle の構文解析 | 宣言の束、signature、具体化、入れ子の AST を作る |
+| `src/syntax/src/sugar.rs` | Raw・Law・Set、machine、correspondence の宣言を生成する | 現在の生成内容を共通化し、意味のある展開を elaboration へ移す |
+| `src/resolve/src/hir.rs` | 宣言、module、束縛の HIR | signature と instance の識別子、member 参照、共有元を保持する |
+| `src/resolve/src/resolver.rs` | 名前解決と検査順の構築 | 子の scope、抽象 member、具体化、変換の依存関係を解決する |
+| `src/elaboration/src/elaborator/declarations.rs` | 宣言の文脈内検査、record などの elaboration | member のカテゴリ別検査と signature への適合検査を行う |
+| `src/elaboration/src/elaborator/module_manager.rs` | namespace の具体化と宣言 ID の対応付け | 束の具体化、共有、変換で同じ宣言の identity を保持する |
+| `src/elaboration/src/lowering/` | 文脈引数の構築と kernel への登録 | 束の member を既存の項・宣言・文脈引数へ展開する |
+| `src/sema/`、`extensions/lsp/` | semantic query、依存解析、診断、エディタへの情報提供 | member と生成宣言の対応、具体化の依存関係を公開する |
 
-sort を持つ structure のデータは単一 constructor の帰納型で表現する。
-法則付きの値はデータと法則の refinement で表現する。
-sort を持たない signature と具体化は front に保持し、各 member を検査済みの依存文脈と置換から展開する。
-module の具体化と同じ置換・宣言 identity を使い、親 parameter と未使用 parameter も適合検査へ含める。
+現在の `\structure` は、データ record、命題の law record、law を満たすデータの refinement を生成する。
+`\machine` と `\correspondence` も、専用の member と補助定義を持つ宣言へ展開される。
+既存の宣言の文脈内検査と具体化を、複数の依存する member に広げる。
+各 member の引数は宣言文脈として扱い、具体化時にその文脈へ置換を適用する。
 
 ## 宣言モデル
 
@@ -83,7 +80,7 @@ kernel の関数値として定義を利用する場合は、その signature �
 
 signature は要求する member の名前、カテゴリ、型、依存関係を持つ。
 実装は signature の member に対する束縛と、既定の定義から作る member を持つ。
-関連型・述語・Program 型を持つ signature は、まず宣言文脈として検査する。
+型や Kind を含む signature も、まず宣言文脈として検査する。
 次の例は構文案であり、最初の実装段階で parser と HIR の表現に合わせて確定する。
 
 ```text
@@ -110,8 +107,7 @@ member は宣言順の依存文脈を持ち、本体の検査に使う抽象 mem
 束の field も `a.member` で参照し、型位置の `a.A` と項位置の `a.value` を同じ名前解決で扱う。
 structure を受け取る宣言では、束の parameter を依存する member の文脈へ展開し、呼び出し時に実引数の member を対応付ける。
 その宣言の型と本体は展開後の文脈で検査し、関連型を含む引数への適用も共通の具体化として扱う。
-field の型注釈には `\Set`、`\Prop`、`\VType` と、その文脈で形成できる型を使う。
-`A -> A -> \Prop` のように型が Kind に分類される field も、member ごとの宣言カテゴリと既存の検査で扱う。
+`\Set`、`\Prop`、`\SetKind`、`\PropKind`、`\VType`、計算型などの扱いは、member ごとの宣言カテゴリと既存の検査で決定する。
 高階の型族を含む member も、その member の型と本体を宣言文脈で検査する。
 
 ### Structure 型の field と引数
@@ -202,8 +198,8 @@ nominal identity、依存する field の型、等式と帰納法の扱いを維
 固定された関連型・関連述語のもとで、データの型、法則の命題、法則付きの値の refinement を生成する現在の構成も利用する。
 内部で生成した型と操作は、structure の member と source location に対応付ける。
 
-関連する型や関係の member をどこまで値ごとに変えられるかは、生成する表現の分類と product rule に照らして検査する。
-`\structure Packed: \SetKind` の表現を生成する場合と、固定 member と値の組み合わせで表現する場合を整理する。
+関連する型や Kind の member をどこまで値ごとに変えられるかは、生成する表現の分類と product rule に照らして検査する。
+既存の `\record Packed: \SetKind` の表現を生成する場合と、固定 member と値の組み合わせで表現する場合を整理する。
 生成が成立しない場合は、必要となった sort と product rule、および問題の member を診断する。
 `a: A` による束の引数は宣言文脈への展開で扱う。
 束を通常の関数値の引数に含める場合、束を返す通常の関数、型を隠した束の存在量化については、利用例と必要な kernel 表現を設計課題として整理する。
@@ -319,28 +315,3 @@ cargo test --workspace
 完了時には、代表例とライブラリ全体が共通の宣言モデルで検証でき、通常の値表現と入れ子・共有・変換の双方が利用できることを確認する。
 現在の machine と correspondence の実行・証明の検証義務が、新しい member の定義として満たされることも確認する。
 状態遷移、実装と仕様の対応、データと法則の実装が、共通の structure と definition の構文と検査経路を使うことを確認する。
-
-## 実装結果
-
-signature と field の具体化、入れ子、関連する Program 型、既定値と証明、構造間の変換を共通の文脈展開で扱う。
-名前付き定義は通常の項と文脈付き定義を同じ構文で宣言し、structure を受け取り返す定義と部分適用も検査する。
-定義を抽象引数として渡す signature は、member ごとの product 型に展開して形成を検査する。
-
-通常の値、全称量化、存在量化には、それぞれ形成可能な kernel 表現を使う。
-関連型を隠した束の存在量化には Set の証人の表現が必要であり、要求と必要な判断を `gaps.md` に記録した。
-状態遷移の `run` はライブラリの既定値であり、具体化された実行の Box は既存の閉性検査を受ける。
-
-Bool・Nat・Int、直積演算、除算、GCD、実数・位相・解析と利用例を共通の宣言へ移行した。
-同値関係から商の束を作る利用例では、関連する台集合、関係、法則と商の演算の型の共有を検査する。
-semantic query は元の signature と field の位置を保持し、signature の変更による再検査と永続キャッシュの再利用を検証する。
-
-代表例は `tests/ok/declarations/signatures.ref` と `tests/projects/library/src/root.ref` にある。
-不整合の検査には、既定値の上書き、未使用引数、親・signature の parameter、Kind の field 型注釈、形成できない callback の product 型を含む。
-
-検証済みのコマンドは次のとおり。
-
-```sh
-cargo run --quiet --bin cli -- libs/std --no-cache
-cargo run --quiet --bin cli -- tests/projects/library --no-cache
-cargo test --workspace
-```

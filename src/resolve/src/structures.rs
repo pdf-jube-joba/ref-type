@@ -4,6 +4,8 @@ use super::*;
 
 #[path = "structures/declarations.rs"]
 mod declarations;
+#[path = "structures/existence.rs"]
+mod existence;
 #[path = "structures/normalization.rs"]
 mod normalization;
 #[path = "structures/parameters.rs"]

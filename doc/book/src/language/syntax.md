@@ -244,6 +244,22 @@ structure を返す定義の signature は、各 field の依存する関数型�
 定義を引数として渡す場合は、その関数型の形成と各 member の適合を検査する。
 束全体を kernel の項として使う場合は、sort を指定して通常の値表現を宣言する。
 
+関連型を含む宣言の束の存在命題は、命題への消去を表す全称量化へ展開する。
+`\exists Relation` の表現は `\forall(P: \Prop) -> (\forall(r: Relation) -> P) -> P` となり、内側の全称量化では field を順に束縛する。
+展開後の各 product 型は通常の product rule によって検査される。
+
+```text
+\definition existsRelation: \Prop := \exists(r: Relation);
+\definition witness(A: \Set): existsRelation := \exact(Equality A, Relation);
+\definition repack(e: existsRelation): existsRelation := \block {
+  \takefrom r: Relation \by e \then
+  \return \exact(r, Relation)
+};
+```
+
+`\exact` は field の適合を検査して存在証明を作る。
+`\take` と `\takefrom` は、隠した field をローカルな宣言文脈へ展開し、証人に依存しない命題を証明する。
+
 ```text
 \structure Point[A: \Set]: \Set {
   x: A,

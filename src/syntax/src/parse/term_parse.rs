@@ -578,6 +578,13 @@ impl<'a> TermParser<'a> {
         if self.bump_if_keyword("\\exists") {
             let bind = if self.peek() == Some(&Token::LBrace) {
                 self.parse_binding(Token::LBrace, Token::RBrace)?
+            } else if self.peek() == Some(&Token::LParen)
+                && matches!(
+                    self.tokens.get(self.pos + 2).map(|token| token.kind),
+                    Some(Token::Colon | Token::Comma)
+                )
+            {
+                self.parse_binding(Token::LParen, Token::RParen)?
             } else {
                 Bind::Named(RightBind {
                     vars: Vec::new(),

@@ -1,0 +1,64 @@
+\module AssociatedExistence {
+  \inductive Unit: \Set := | unit: Unit;
+  \structure Relation { A: \Set, R: A -> A -> \Prop, }
+  \definition Equality(A: \Set): Relation := Relation {
+    A := A,
+    R := \fun(x, y: A) => x = y,
+  };
+  \definition existsRelation: \Prop := \exists(r: Relation);
+  \definition witness: existsRelation := \exact(Equality Unit, Relation);
+  \definition introduce(r: Relation): existsRelation := \exact(r, Relation);
+  \definition keep: existsRelation -> existsRelation :=
+    \fun(e: existsRelation) => \take(r: Relation) => \exact(r, Relation) \by { e };
+  \definition keepBlock: existsRelation -> existsRelation := \block {
+    \fun(e: existsRelation) \then
+    \takefrom r: Relation \by e \then
+    \return \exact(r, Relation)
+  };
+
+  \structure Evidence[P: \Prop] {
+    A: \Set,
+    a: A,
+    proof: P,
+  }
+  \definition evidence: Evidence[Unit::unit = Unit::unit] :=
+    Evidence[Unit::unit = Unit::unit] {
+      A := Unit, a := Unit::unit, proof := \refl(Unit::unit),
+    };
+  \definition extract(P: \Prop)(e: \exists Evidence[P]): P :=
+    \take(r: Evidence[P]) => r.proof \by { e };
+  \definition extracted: Unit::unit = Unit::unit :=
+    extract (Unit::unit = Unit::unit) (\exact(evidence, Evidence[Unit::unit = Unit::unit]));
+
+  \structure Nested[P: \Prop] {
+    inner: Evidence[P],
+    relation: inner.A -> inner.A -> \Prop,
+    reflexive: \forall(x: inner.A) -> relation x x,
+  }
+  \definition nested: Nested[Unit::unit = Unit::unit] := Nested[Unit::unit = Unit::unit] {
+    inner := evidence,
+    relation := \fun(x, y: Unit) => x = y,
+    reflexive := \fun(x: Unit) => \refl(x),
+  };
+  \definition nestedWitness: \exists Nested[Unit::unit = Unit::unit] :=
+    \exact(nested, Nested[Unit::unit = Unit::unit]);
+  \definition extractNested(P: \Prop)(e: \exists Nested[P]): P := \block {
+    \takefrom r: Nested[P] \by e \then
+    \return r.inner.proof
+  };
+  \definition extractInner(P: \Prop)(e: \exists Nested[P]): \exists Evidence[P] :=
+    \take(r: Nested[P]) => \exact(r.inner, Evidence[P]) \by { e };
+  \definition extractedNested: Unit::unit = Unit::unit :=
+    extractNested (Unit::unit = Unit::unit) nestedWitness;
+
+  \structure Empty {}
+  \definition emptyWitness: \exists Empty := \exact(Empty {}, Empty);
+  \definition emptyElimination: \forall(P: \Prop) -> P -> \exists Empty -> P :=
+    \fun(P: \Prop)(p: P)(e: \exists Empty) => \take(r: Empty) => p \by { e };
+
+  \structure Sorted: \Set { value: Unit, }
+  \definition sortedWitness: \exists(s: Sorted) :=
+    \exact(Sorted { value := Unit::unit, }, Sorted);
+  \definition sortedElimination: \exists Sorted -> Unit::unit = Unit::unit :=
+    \fun(e: \exists Sorted) => \take(s: Sorted) => \refl(Unit::unit) \by { e };
+}

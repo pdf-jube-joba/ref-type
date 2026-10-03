@@ -82,6 +82,51 @@ impl Resolver {
             if error.is_some() {
                 return false;
             }
+            let expansion = match node {
+                SExp::Block(block)
+                    if block
+                        .statements
+                        .iter()
+                        .any(|statement| matches!(statement, Statement::TakeFrom { .. })) =>
+                {
+                    Some(block.as_term().map_err(|e| self.error(e)))
+                }
+                SExp::Exists {
+                    bind: Bind::Named(bind),
+                } if self.is_structure_type(&bind.ty) => {
+                    Some(Ok(self.structure_existence(&bind.ty)))
+                }
+                SExp::ExistsIntro { element, set } if self.is_structure_type(set) => {
+                    Some(self.structure_exists_intro(set, element, locals))
+                }
+                SExp::TakeProp {
+                    bind: Bind::Named(bind),
+                    body,
+                    existence,
+                } if self.is_structure_type(&bind.ty) => {
+                    if bind.vars.len() != 1 {
+                        Some(Err(
+                            self.error("existential elimination requires one witness")
+                        ))
+                    } else {
+                        Some(Ok(self.structure_exists_elim(bind, body, existence)))
+                    }
+                }
+                _ => None,
+            };
+            if let Some(expansion) = expansion {
+                match expansion {
+                    Ok(mut expression) => {
+                        if let Err(e) = self.normalize_structures(&mut expression, locals) {
+                            error = Some(e);
+                        } else {
+                            *node = expression;
+                        }
+                    }
+                    Err(e) => error = Some(e),
+                }
+                return false;
+            }
             if let SExp::AccessPath { access, parameters } = node
                 && parameters.is_empty()
                 && let Some(id) = self.front_binding(access, locals)
