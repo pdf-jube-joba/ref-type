@@ -4,7 +4,9 @@ use rustc_hash::FxHashMap;
 
 pub(crate) trait Rewrite {
     fn rewrite(&mut self, term: Term, depth: usize) -> Option<Term>;
-    fn remember(&mut self, _term: Term, _depth: usize, _result: Term) {}
+    fn finish(&mut self, _arena: &Arena, _term: Term, _depth: usize, result: Term) -> Term {
+        result
+    }
 }
 
 impl<F: FnMut(Term, usize) -> Option<Term>> Rewrite for F {
@@ -20,7 +22,7 @@ pub(crate) struct Memoized<F> {
     results: FxHashMap<(Term, usize), Term>,
 }
 
-impl<F: FnMut(Term, usize) -> Option<Term>> Memoized<F> {
+impl<F: Rewrite> Memoized<F> {
     pub(crate) fn new(rewrite: F) -> Self {
         Self {
             rewrite,
@@ -29,20 +31,22 @@ impl<F: FnMut(Term, usize) -> Option<Term>> Memoized<F> {
     }
 }
 
-impl<F: FnMut(Term, usize) -> Option<Term>> Rewrite for Memoized<F> {
+impl<F: Rewrite> Rewrite for Memoized<F> {
     fn rewrite(&mut self, term: Term, depth: usize) -> Option<Term> {
         if let Some(&result) = self.results.get(&(term, depth)) {
             return Some(result);
         }
-        let result = (self.rewrite)(term, depth)?;
+        let result = self.rewrite.rewrite(term, depth)?;
         if result != term {
-            self.remember(term, depth, result);
+            self.results.insert((term, depth), result);
         }
         Some(result)
     }
 
-    fn remember(&mut self, term: Term, depth: usize, result: Term) {
+    fn finish(&mut self, arena: &Arena, term: Term, depth: usize, result: Term) -> Term {
+        let result = self.rewrite.finish(arena, term, depth, result);
         self.results.insert((term, depth), result);
+        result
     }
 }
 
@@ -128,8 +132,10 @@ pub(crate) fn logical(arena: &Arena, e: Exp, depth: usize, rewrite: &mut impl Re
         other => super::calculus::map_children(other, |e| logical(arena, e, depth, rewrite)),
     };
     let result = arena.reuse_exp(e, result);
-    rewrite.remember(Term::Logical(e), depth, Term::Logical(result));
-    result
+    match rewrite.finish(arena, Term::Logical(e), depth, Term::Logical(result)) {
+        Term::Logical(result) => result,
+        _ => unreachable!("rewrite preserves the term family"),
+    }
 }
 
 fn program_argument(
@@ -191,8 +197,10 @@ pub(crate) fn value_type(
         other => other,
     };
     let result = arena.reuse_value_type(t, result);
-    rewrite.remember(Term::ValueType(t), depth, Term::ValueType(result));
-    result
+    match rewrite.finish(arena, Term::ValueType(t), depth, Term::ValueType(result)) {
+        Term::ValueType(result) => result,
+        _ => unreachable!("rewrite preserves the term family"),
+    }
 }
 
 pub(crate) fn computation_type(
@@ -224,12 +232,15 @@ pub(crate) fn computation_type(
         },
     };
     let result = arena.reuse_computation_type(t, result);
-    rewrite.remember(
+    match rewrite.finish(
+        arena,
         Term::ComputationType(t),
         depth,
         Term::ComputationType(result),
-    );
-    result
+    ) {
+        Term::ComputationType(result) => result,
+        _ => unreachable!("rewrite preserves the term family"),
+    }
 }
 
 pub(crate) fn value(
@@ -307,8 +318,10 @@ pub(crate) fn value(
         other => other,
     };
     let result = arena.reuse_value(v, result);
-    rewrite.remember(Term::Value(v), depth, Term::Value(result));
-    result
+    match rewrite.finish(arena, Term::Value(v), depth, Term::Value(result)) {
+        Term::Value(result) => result,
+        _ => unreachable!("rewrite preserves the term family"),
+    }
 }
 
 pub(crate) fn computation(
@@ -452,8 +465,15 @@ pub(crate) fn computation(
         other => other,
     };
     let result = arena.reuse_computation(c, result);
-    rewrite.remember(Term::Computation(c), depth, Term::Computation(result));
-    result
+    match rewrite.finish(
+        arena,
+        Term::Computation(c),
+        depth,
+        Term::Computation(result),
+    ) {
+        Term::Computation(result) => result,
+        _ => unreachable!("rewrite preserves the term family"),
+    }
 }
 
 impl Term {

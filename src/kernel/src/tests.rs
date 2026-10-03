@@ -1092,3 +1092,129 @@ fn annotated_program_values_can_be_forced_and_reflected() {
         .infer(reflected)
         .unwrap();
 }
+
+#[test]
+fn module_parameter_registration_requires_a_type() {
+    use crate::ids::ParameterId;
+    let mut env = Environment::new();
+    let a = env.arena.clone();
+    let set = sort(&a, BaseSort::Set(0));
+    let proof = lambda(
+        &a,
+        Mode::Pure,
+        sort(&a, BaseSort::Prop),
+        lambda(&a, Mode::Pure, a.bound(0), a.bound(0)),
+    );
+    Checker::new(&env, &mut MetaContext::new(), vec![])
+        .infer(proof)
+        .unwrap();
+    assert!(env.register_parameter(ParameterId(1), proof).is_err());
+    assert_eq!(env.parameter(ParameterId(1)), None);
+    env.register_parameter(ParameterId(1), set).unwrap();
+    let parameter = a.alloc(Node::Parameter(ParameterId(1)));
+    assert_eq!(
+        Checker::new(&env, &mut MetaContext::new(), vec![])
+            .infer(parameter)
+            .unwrap(),
+        set
+    );
+}
+
+#[test]
+fn inductive_registration_checks_the_arity_terminal_sort() {
+    use crate::{environment::InductiveSpec, ids::InductiveId};
+    let mut env = Environment::new();
+    let a = env.arena.clone();
+    let set = sort(&a, BaseSort::Set(0));
+    let proof = lambda(
+        &a,
+        Mode::Pure,
+        sort(&a, BaseSort::Prop),
+        lambda(&a, Mode::Pure, a.bound(0), a.bound(0)),
+    );
+    Checker::new(&env, &mut MetaContext::new(), vec![])
+        .infer(proof)
+        .unwrap();
+    let id = InductiveId(400);
+    let falsehood = a.alloc(Node::Product {
+        var: SymbolId::ANONYMOUS,
+        domain: sort(&a, BaseSort::Prop),
+        body: a.bound(0),
+    });
+    for arity in [proof, falsehood, sort(&a, BaseSort::Set(1)), a.bound(0)] {
+        assert!(
+            env.register_inductive(
+                id,
+                InductiveSpec {
+                    parameters: vec![binding(set)],
+                    arity,
+                    constructors: vec![],
+                    sort: Sort::Base(BaseSort::Set(0)),
+                }
+            )
+            .is_err()
+        );
+        assert!(env.inductive(id).is_none());
+    }
+    let arity = a.alloc(Node::Product {
+        var: SymbolId::ANONYMOUS,
+        domain: a.bound(0),
+        body: set,
+    });
+    env.register_inductive(
+        id,
+        InductiveSpec {
+            parameters: vec![binding(set)],
+            arity,
+            constructors: vec![],
+            sort: Sort::Base(BaseSort::Set(0)),
+        },
+    )
+    .unwrap();
+    let ty = a.alloc(Node::IndType {
+        inductive: id,
+        parameters: vec![a.bound(0)],
+    });
+    assert_eq!(
+        Checker::new(&env, &mut MetaContext::new(), vec![binding(set)])
+            .infer(ty)
+            .unwrap(),
+        arity
+    );
+    let id = InductiveId(401);
+    for invalid in [proof, sort(&a, BaseSort::Set(1)), arity] {
+        assert!(
+            env.register_inductive(
+                id,
+                InductiveSpec {
+                    parameters: vec![binding(set)],
+                    arity: invalid,
+                    constructors: vec![],
+                    sort: Sort::Upper(BaseSort::Set(0)),
+                }
+            )
+            .is_err()
+        );
+        assert!(env.inductive(id).is_none());
+    }
+    env.register_inductive(
+        id,
+        InductiveSpec {
+            parameters: vec![],
+            arity: set,
+            constructors: vec![],
+            sort: Sort::Upper(BaseSort::Set(0)),
+        },
+    )
+    .unwrap();
+    let ty = a.alloc(Node::IndType {
+        inductive: id,
+        parameters: vec![],
+    });
+    assert_eq!(
+        Checker::new(&env, &mut MetaContext::new(), vec![])
+            .infer(ty)
+            .unwrap(),
+        a.sort(Sort::Upper(BaseSort::Set(0)))
+    );
+}

@@ -14,6 +14,7 @@ pub(crate) struct ModuleGraph<'a> {
     pub roots: &'a [Module],
     pub units: Vec<Unit<'a>>,
     pub indices: BTreeMap<Vec<String>, usize>,
+    topology: Fingerprint,
 }
 
 impl<'a> ModuleGraph<'a> {
@@ -22,12 +23,14 @@ impl<'a> ModuleGraph<'a> {
             roots,
             units: Vec::new(),
             indices: BTreeMap::new(),
+            topology: fingerprint(&[]),
         };
         for root in roots {
             graph.collect(root, &[]);
         }
         // Header and scope membership changes can affect negative name lookups.
-        let topology = format!("{:?}", graph.indices.keys().collect::<Vec<_>>());
+        graph.topology =
+            fingerprint(format!("{:?}", graph.indices.keys().collect::<Vec<_>>()).as_bytes());
         let mut aliases: BTreeMap<Vec<String>, BTreeMap<String, Vec<String>>> = BTreeMap::new();
         for index in 0..graph.units.len() {
             let path = graph.units[index].path.clone();
@@ -47,7 +50,7 @@ impl<'a> ModuleGraph<'a> {
                 }
             }
             let mut local = format!(
-                "{topology}\n{:?}\n{:?}",
+                "{:?}\n{:?}",
                 module.parameters,
                 module.header_source.as_ref().map(|s| &s.id)
             );
@@ -190,6 +193,7 @@ impl<'a> ModuleGraph<'a> {
 
     pub fn key(&self, index: usize, settings: &Fingerprint) -> Fingerprint {
         let mut bytes = settings.to_vec();
+        bytes.extend(self.topology);
         for dependency in self.closure([index]) {
             bytes.extend(self.units[dependency].local_key);
         }
@@ -210,7 +214,15 @@ impl<'a> ModuleGraph<'a> {
             if !selected.contains(&index) {
                 return None;
             }
-            let mut result = module.clone();
+            let mut result = Module {
+                name: module.name.clone(),
+                parameters: module.parameters.clone(),
+                body: ModuleBody::External,
+                span: module.span,
+                declaration_spans: module.declaration_spans.clone(),
+                source: module.source.clone(),
+                header_source: module.header_source.clone(),
+            };
             if let ModuleBody::Inline(items) = &module.body {
                 let mut filtered = Vec::new();
                 let mut spans = Vec::new();

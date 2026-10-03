@@ -310,12 +310,236 @@ pub enum Node {
     },
 }
 
+// A child list records traversal order, nested binders, and vector fields.
+macro_rules! visit_slots {
+    ($visit:ident;) => {};
+    ($visit:ident; ..$children:ident @ $binders:ident, $($rest:tt)*) => {
+        for (i, child) in IntoIterator::into_iter($children).enumerate() {
+            $visit(child, $binders.get(i).map_or(0, Vec::len))?;
+        }
+        visit_slots!($visit; $($rest)*);
+    };
+    ($visit:ident; ..$children:ident, $($rest:tt)*) => {
+        for child in $children {
+            $visit(child, 0)?;
+        }
+        visit_slots!($visit; $($rest)*);
+    };
+    ($visit:ident; $child:ident @ $depth:expr, $($rest:tt)*) => {
+        $visit($child, $depth)?;
+        visit_slots!($visit; $($rest)*);
+    };
+    ($visit:ident; $child:ident, $($rest:tt)*) => {
+        $visit($child, 0)?;
+        visit_slots!($visit; $($rest)*);
+    };
+}
+
+// Shared field order and binder depths for borrowed traversal and rewriting.
+macro_rules! node_children {
+    ($node:expr, $visit:ident) => {
+        match $node {
+            Node::Ascribe { term, ty } => {
+                visit_slots!($visit; term, ty,);
+            }
+            Node::Sort(_) | Node::Bound(_) | Node::Parameter(_) => {
+                visit_slots!($visit; );
+            }
+            Node::Definition { arguments, .. } | Node::Meta { arguments, .. } => {
+                visit_slots!($visit; ..arguments,);
+            }
+            Node::Product { domain, body, .. } | Node::Lambda { domain, body, .. } => {
+                visit_slots!($visit; domain, body @ 1,);
+            }
+            Node::App { function, argument, .. }
+            | Node::BoxApp { function, argument }
+            | Node::BoxTypeApp { function, argument } => {
+                visit_slots!($visit; function, argument,);
+            }
+            Node::Reflect { term } => {
+                visit_slots!($visit; term,);
+            }
+            Node::Subset { set, predicate, .. } => {
+                visit_slots!($visit; set, predicate @ 1,);
+            }
+            Node::SubsetIntro { superset, subset, element, proof, .. } => {
+                visit_slots!($visit; superset, subset, element, proof,);
+            }
+            Node::Continue { state_ty, result_ty, next, .. }
+            | Node::ProgramContinue { state_ty, result_ty, next, .. } => {
+                visit_slots!($visit; state_ty, result_ty, next,);
+            }
+            Node::Finish { state_ty, result_ty, output, .. }
+            | Node::ProgramFinish { state_ty, result_ty, output, .. } => {
+                visit_slots!($visit; state_ty, result_ty, output,);
+            }
+            Node::SetRun { state_ty, result_ty, step, initial, accessibility, .. }
+            | Node::Run { state_ty, result_ty, step, initial, accessibility, .. } => {
+                visit_slots!($visit; state_ty, result_ty, step, initial, accessibility,);
+            }
+            Node::SetRunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                accessibility,
+                transition_equality,
+                ..
+            }
+            | Node::RunCase {
+                state_ty,
+                result_ty,
+                step,
+                initial,
+                transition,
+                accessibility,
+                transition_equality,
+                ..
+            } => {
+                visit_slots!($visit;
+                    state_ty,
+                    result_ty,
+                    step,
+                    initial,
+                    transition,
+                    accessibility,
+                    transition_equality,
+                );
+            }
+            Node::SetStepMatch { state_ty, result_ty, motive, on_continue, on_finish, } => {
+                visit_slots!($visit; state_ty, result_ty, motive, on_continue, on_finish,);
+            }
+            Node::ProgramStepMatch {
+                state_ty,
+                result_ty,
+                computation_ty: motive,
+                on_continue,
+                on_finish,
+                scrutinee,
+            } => {
+                visit_slots!($visit;
+                    state_ty,
+                    result_ty,
+                    motive,
+                    on_continue,
+                    on_finish,
+                    scrutinee,
+                );
+            }
+            Node::BoxProgram { program_ty, program, .. } => {
+                visit_slots!($visit; program_ty, program,);
+            }
+            Node::ForceBox { program_ty, boxed, .. } => {
+                visit_slots!($visit; program_ty, boxed,);
+            }
+            Node::Choice { set, existence, uniqueness, .. } => {
+                visit_slots!($visit; set, existence, uniqueness,);
+            }
+            Node::IndCtor { parameters, .. }
+            | Node::IndType { parameters, .. }
+            | Node::Inductive { parameters, .. } => {
+                visit_slots!($visit; ..parameters,);
+            }
+            Node::IndElim { scrutinee, motive, cases, .. } => {
+                visit_slots!($visit; scrutinee, motive, ..cases,);
+            }
+            Node::Case { scrutinee, motive, branches, .. } => {
+                visit_slots!($visit; scrutinee, motive, ..branches,);
+            }
+            Node::SetCase { scrutinee, branches, binders, .. }
+            | Node::ProgramCase { scrutinee, branches, binders, .. } => {
+                visit_slots!($visit; scrutinee, ..branches @ binders,);
+            }
+            Node::PowerSet { set, .. }
+            | Node::Exists { set, .. } => {
+                visit_slots!($visit; set,);
+            }
+            Node::TypeLift { superset, subset, .. } => {
+                visit_slots!($visit; superset, subset,);
+            }
+            Node::RunStep { state_ty, result_ty, .. }
+            | Node::ProgramRunStep { state_ty, result_ty, .. } => {
+                visit_slots!($visit; state_ty, result_ty,);
+            }
+            Node::BoxType { program_ty, .. } => {
+                visit_slots!($visit; program_ty,);
+            }
+            Node::IdRefl { element, .. } => {
+                visit_slots!($visit; element,);
+            }
+            Node::ExistsIntro { element, set, .. } => {
+                visit_slots!($visit; element, set,);
+            }
+            Node::SubsetElim { element, subset, superset, .. } => {
+                visit_slots!($visit; element, subset, superset,);
+            }
+            Node::IdElim { left, right, ty, predicate, base, equality, .. } => {
+                visit_slots!($visit; left, right, ty, predicate @ 1, base, equality,);
+            }
+            Node::TakeProp { domain, proposition, map, existence, .. } => {
+                visit_slots!($visit; domain, proposition, map, existence,);
+            }
+            Node::ChoiceEq { set, element, existence, uniqueness, .. } => {
+                visit_slots!($visit; set, element, existence, uniqueness,);
+            }
+            Node::SetExt { left, right, left_to_right, right_to_left, .. } => {
+                visit_slots!($visit; left, right, left_to_right, right_to_left,);
+            }
+            Node::FunExt { left, right, pointwise, .. } => {
+                visit_slots!($visit; left, right, pointwise,);
+            }
+            Node::ClassicalIndefiniteChoice { domain, family, inhabited, .. } => {
+                visit_slots!($visit; domain, family, inhabited,);
+            }
+            Node::Pred { superset, subset, element, .. } => {
+                visit_slots!($visit; superset, subset, element,);
+            }
+            Node::Equal { left, right, .. } => {
+                visit_slots!($visit; left, right,);
+            }
+            Node::ThunkValue { computation, .. } => {
+                visit_slots!($visit; computation,);
+            }
+            Node::InductiveConstructor { parameters, fields, .. } => {
+                visit_slots!($visit; ..parameters, ..fields,);
+            }
+            Node::Thunk { computation_ty, .. } => {
+                visit_slots!($visit; computation_ty,);
+            }
+            Node::Return { value, .. }
+            | Node::Force { value, .. } => {
+                visit_slots!($visit; value,);
+            }
+            Node::Sequence { value_ty, computation, body, .. } => {
+                visit_slots!($visit; value_ty, computation, body @ 1,);
+            }
+            Node::ValueLet { value_ty, value, body, .. } => {
+                visit_slots!($visit; value_ty, value, body @ 1,);
+            }
+            Node::ReturnType { value_ty, .. } => {
+                visit_slots!($visit; value_ty,);
+            }
+        }
+    };
+}
+
+impl Node {
+    fn try_for_each_child<E>(
+        &self,
+        mut visit: impl FnMut(Expression, usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        let mut slot = |child: &Expression, depth| visit(*child, depth);
+        node_children!(self, slot);
+        Ok(())
+    }
+}
+
 #[derive(Debug, Default)]
 struct Storage {
     nodes: Vec<Option<Rc<Node>>>,
     interned: FxHashMap<Rc<Node>, Expression>,
-    bounds: FxHashMap<Expression, Option<usize>>,
-    metas: FxHashMap<Expression, bool>,
+    properties: FxHashMap<Expression, (Option<usize>, bool)>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -342,7 +566,11 @@ impl Arena {
             .clone()
     }
     pub fn get(&self, e: Expression) -> Node {
-        (*self.read(e)).clone()
+        self.0.borrow().nodes[e.index()]
+            .as_ref()
+            .expect("discarded scratch expression")
+            .as_ref()
+            .clone()
     }
     pub fn len(&self) -> usize {
         self.0.borrow().interned.len()
@@ -391,42 +619,40 @@ impl Arena {
                 && let Some(node) = storage.nodes[i].take()
             {
                 storage.interned.remove(&node);
-                storage.bounds.remove(&e);
-                storage.metas.remove(&e);
+                storage.properties.remove(&e);
                 removed += 1;
             }
         }
         removed
     }
     pub fn contains_meta(&self, e: Expression) -> bool {
-        if let Some(&result) = self.0.borrow().metas.get(&e) {
-            return result;
-        }
-        let result = matches!(self.get(e), Node::Meta { .. })
-            || self
-                .children(e)
-                .into_iter()
-                .any(|(e, _)| self.contains_meta(e));
-        self.0.borrow_mut().metas.insert(e, result);
-        result
+        self.properties(e).1
     }
     pub fn max_loose_bound(&self, e: Expression) -> Option<usize> {
-        if let Some(&result) = self.0.borrow().bounds.get(&e) {
+        self.properties(e).0
+    }
+    fn properties(&self, e: Expression) -> (Option<usize>, bool) {
+        if let Some(&result) = self.0.borrow().properties.get(&e) {
             return result;
         }
-        let mut result = match self.get(e) {
-            Node::Bound(i) => Some(i),
-            _ => None,
-        };
-        for (child, depth) in self.children(e) {
-            if let Some(i) = self
-                .max_loose_bound(child)
-                .and_then(|i| i.checked_sub(depth))
-            {
-                result = Some(result.map_or(i, |old| old.max(i)));
+        let node = self.read(e);
+        let mut result = (
+            if let Node::Bound(i) = *node {
+                Some(i)
+            } else {
+                None
+            },
+            matches!(*node, Node::Meta { .. }),
+        );
+        let _: Result<(), std::convert::Infallible> = node.try_for_each_child(|child, depth| {
+            let (bound, meta) = self.properties(child);
+            if let Some(i) = bound.and_then(|i| i.checked_sub(depth)) {
+                result.0 = Some(result.0.map_or(i, |old| old.max(i)));
             }
-        }
-        self.0.borrow_mut().bounds.insert(e, result);
+            result.1 |= meta;
+            Ok(())
+        });
+        self.0.borrow_mut().properties.insert(e, result);
         result
     }
     pub fn node_counts(&self) -> Vec<(&'static str, usize)> {
@@ -445,474 +671,42 @@ impl Arena {
     pub fn map_children<E>(
         &self,
         e: Expression,
-        visit: impl FnMut(Expression, usize) -> Result<Expression, E>,
+        mut visit: impl FnMut(Expression, usize) -> Result<Expression, E>,
     ) -> Result<Expression, E> {
-        let original = self.read(e);
-        let node = self.map_node_children((*original).clone(), visit)?;
-        Ok(if *original == node {
-            e
-        } else {
-            self.alloc(node)
-        })
+        let mut changed = false;
+        let node = self.map_node_children(self.get(e), |child, depth| {
+            let mapped = visit(child, depth)?;
+            changed |= mapped != child;
+            Ok(mapped)
+        })?;
+        Ok(if changed { self.alloc(node) } else { e })
     }
     pub fn map_node_children<E>(
         &self,
         mut node: Node,
         mut visit: impl FnMut(Expression, usize) -> Result<Expression, E>,
     ) -> Result<Node, E> {
-        match &mut node {
-            Node::Ascribe { term, ty } => {
-                *term = visit(*term, 0)?;
-                *ty = visit(*ty, 0)?;
-            }
-            Node::Sort(_) | Node::Bound(_) | Node::Parameter(_) => {}
-            Node::Definition { arguments, .. } | Node::Meta { arguments, .. } => {
-                for argument in arguments {
-                    *argument = visit(*argument, 0)?;
-                }
-            }
-            Node::Product { domain, body, .. } | Node::Lambda { domain, body, .. } => {
-                *domain = visit(*domain, 0)?;
-                *body = visit(*body, 1)?;
-            }
-            Node::App {
-                function, argument, ..
-            } => {
-                *function = visit(*function, 0)?;
-                *argument = visit(*argument, 0)?;
-            }
-            Node::Reflect { term } => {
-                *term = visit(*term, 0)?;
-            }
-            Node::Subset { set, predicate, .. } => {
-                *set = visit(*set, 0)?;
-                *predicate = visit(*predicate, 1)?;
-            }
-            Node::SubsetIntro {
-                superset,
-                subset,
-                element,
-                proof,
-                ..
-            } => {
-                *superset = visit(*superset, 0)?;
-                *subset = visit(*subset, 0)?;
-                *element = visit(*element, 0)?;
-                *proof = visit(*proof, 0)?;
-            }
-            Node::Continue {
-                state_ty,
-                result_ty,
-                next,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *next = visit(*next, 0)?;
-            }
-            Node::Finish {
-                state_ty,
-                result_ty,
-                output,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *output = visit(*output, 0)?;
-            }
-            Node::SetRun {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                accessibility,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *step = visit(*step, 0)?;
-                *initial = visit(*initial, 0)?;
-                *accessibility = visit(*accessibility, 0)?;
-            }
-            Node::SetRunCase {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                transition,
-                accessibility,
-                transition_equality,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *step = visit(*step, 0)?;
-                *initial = visit(*initial, 0)?;
-                *transition = visit(*transition, 0)?;
-                *accessibility = visit(*accessibility, 0)?;
-                *transition_equality = visit(*transition_equality, 0)?;
-            }
-            Node::SetStepMatch {
-                state_ty,
-                result_ty,
-                motive,
-                on_continue,
-                on_finish,
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *motive = visit(*motive, 0)?;
-                *on_continue = visit(*on_continue, 0)?;
-                *on_finish = visit(*on_finish, 0)?;
-            }
-            Node::ProgramStepMatch {
-                state_ty,
-                result_ty,
-                computation_ty: motive,
-                on_continue,
-                on_finish,
-                scrutinee,
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *motive = visit(*motive, 0)?;
-                *on_continue = visit(*on_continue, 0)?;
-                *on_finish = visit(*on_finish, 0)?;
-                *scrutinee = visit(*scrutinee, 0)?;
-            }
-            Node::BoxProgram {
-                program_ty,
-                program,
-                ..
-            } => {
-                *program_ty = visit(*program_ty, 0)?;
-                *program = visit(*program, 0)?;
-            }
-            Node::ForceBox {
-                program_ty, boxed, ..
-            } => {
-                *program_ty = visit(*program_ty, 0)?;
-                *boxed = visit(*boxed, 0)?;
-            }
-            Node::BoxApp { function, argument } => {
-                *function = visit(*function, 0)?;
-                *argument = visit(*argument, 0)?;
-            }
-            Node::BoxTypeApp { function, argument } => {
-                *function = visit(*function, 0)?;
-                *argument = visit(*argument, 0)?;
-            }
-            Node::Choice {
-                set,
-                existence,
-                uniqueness,
-                ..
-            } => {
-                *set = visit(*set, 0)?;
-                *existence = visit(*existence, 0)?;
-                *uniqueness = visit(*uniqueness, 0)?;
-            }
-            Node::IndCtor { parameters, .. } => {
-                for child in parameters {
-                    *child = visit(*child, 0)?;
-                }
-            }
-            Node::IndElim {
-                scrutinee,
-                motive,
-                cases,
-                ..
-            } => {
-                *scrutinee = visit(*scrutinee, 0)?;
-                *motive = visit(*motive, 0)?;
-                for child in cases {
-                    *child = visit(*child, 0)?;
-                }
-            }
-            Node::Case {
-                scrutinee,
-                motive,
-                branches,
-                ..
-            } => {
-                *scrutinee = visit(*scrutinee, 0)?;
-                *motive = visit(*motive, 0)?;
-                for child in branches {
-                    *child = visit(*child, 0)?;
-                }
-            }
-            Node::SetCase {
-                scrutinee,
-                branches,
-                binders,
-                ..
-            } => {
-                *scrutinee = visit(*scrutinee, 0)?;
-                for (i, child) in branches.iter_mut().enumerate() {
-                    *child = visit(*child, binders.get(i).map_or(0, Vec::len))?;
-                }
-            }
-            Node::PowerSet { set, .. } => {
-                *set = visit(*set, 0)?;
-            }
-            Node::TypeLift {
-                superset, subset, ..
-            } => {
-                *superset = visit(*superset, 0)?;
-                *subset = visit(*subset, 0)?;
-            }
-            Node::RunStep {
-                state_ty,
-                result_ty,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-            }
-            Node::BoxType { program_ty, .. } => {
-                *program_ty = visit(*program_ty, 0)?;
-            }
-            Node::IndType { parameters, .. } => {
-                for child in parameters {
-                    *child = visit(*child, 0)?;
-                }
-            }
-            Node::IdRefl { element, .. } => {
-                *element = visit(*element, 0)?;
-            }
-            Node::ExistsIntro { element, set, .. } => {
-                *element = visit(*element, 0)?;
-                *set = visit(*set, 0)?;
-            }
-            Node::SubsetElim {
-                element,
-                subset,
-                superset,
-                ..
-            } => {
-                *element = visit(*element, 0)?;
-                *subset = visit(*subset, 0)?;
-                *superset = visit(*superset, 0)?;
-            }
-            Node::IdElim {
-                left,
-                right,
-                ty,
-                predicate,
-                base,
-                equality,
-                ..
-            } => {
-                *left = visit(*left, 0)?;
-                *right = visit(*right, 0)?;
-                *ty = visit(*ty, 0)?;
-                *predicate = visit(*predicate, 1)?;
-                *base = visit(*base, 0)?;
-                *equality = visit(*equality, 0)?;
-            }
-            Node::TakeProp {
-                domain,
-                proposition,
-                map,
-                existence,
-                ..
-            } => {
-                *domain = visit(*domain, 0)?;
-                *proposition = visit(*proposition, 0)?;
-                *map = visit(*map, 0)?;
-                *existence = visit(*existence, 0)?;
-            }
-            Node::ChoiceEq {
-                set,
-                element,
-                existence,
-                uniqueness,
-                ..
-            } => {
-                *set = visit(*set, 0)?;
-                *element = visit(*element, 0)?;
-                *existence = visit(*existence, 0)?;
-                *uniqueness = visit(*uniqueness, 0)?;
-            }
-            Node::SetExt {
-                left,
-                right,
-                left_to_right,
-                right_to_left,
-                ..
-            } => {
-                *left = visit(*left, 0)?;
-                *right = visit(*right, 0)?;
-                *left_to_right = visit(*left_to_right, 0)?;
-                *right_to_left = visit(*right_to_left, 0)?;
-            }
-            Node::FunExt {
-                left,
-                right,
-                pointwise,
-                ..
-            } => {
-                *left = visit(*left, 0)?;
-                *right = visit(*right, 0)?;
-                *pointwise = visit(*pointwise, 0)?;
-            }
-            Node::ClassicalIndefiniteChoice {
-                domain,
-                family,
-                inhabited,
-                ..
-            } => {
-                *domain = visit(*domain, 0)?;
-                *family = visit(*family, 0)?;
-                *inhabited = visit(*inhabited, 0)?;
-            }
-            Node::Pred {
-                superset,
-                subset,
-                element,
-                ..
-            } => {
-                *superset = visit(*superset, 0)?;
-                *subset = visit(*subset, 0)?;
-                *element = visit(*element, 0)?;
-            }
-            Node::Equal { left, right, .. } => {
-                *left = visit(*left, 0)?;
-                *right = visit(*right, 0)?;
-            }
-            Node::Exists { set, .. } => {
-                *set = visit(*set, 0)?;
-            }
-            Node::ThunkValue { computation, .. } => {
-                *computation = visit(*computation, 0)?;
-            }
-            Node::ProgramContinue {
-                state_ty,
-                result_ty,
-                next,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *next = visit(*next, 0)?;
-            }
-            Node::ProgramFinish {
-                state_ty,
-                result_ty,
-                output,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *output = visit(*output, 0)?;
-            }
-            Node::InductiveConstructor {
-                parameters, fields, ..
-            } => {
-                for child in parameters {
-                    *child = visit(*child, 0)?;
-                }
-                for child in fields {
-                    *child = visit(*child, 0)?;
-                }
-            }
-            Node::Thunk { computation_ty, .. } => {
-                *computation_ty = visit(*computation_ty, 0)?;
-            }
-            Node::ProgramRunStep {
-                state_ty,
-                result_ty,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-            }
-            Node::Inductive { parameters, .. } => {
-                for child in parameters {
-                    *child = visit(*child, 0)?;
-                }
-            }
-            Node::Return { value, .. } => {
-                *value = visit(*value, 0)?;
-            }
-            Node::Force { value, .. } => {
-                *value = visit(*value, 0)?;
-            }
-            Node::Sequence {
-                value_ty,
-                computation,
-                body,
-                ..
-            } => {
-                *value_ty = visit(*value_ty, 0)?;
-                *computation = visit(*computation, 0)?;
-                *body = visit(*body, 1)?;
-            }
-            Node::ValueLet {
-                value_ty,
-                value,
-                body,
-                ..
-            } => {
-                *value_ty = visit(*value_ty, 0)?;
-                *value = visit(*value, 0)?;
-                *body = visit(*body, 1)?;
-            }
-            Node::ProgramCase {
-                scrutinee,
-                branches,
-                binders,
-                ..
-            } => {
-                *scrutinee = visit(*scrutinee, 0)?;
-                for (i, child) in branches.iter_mut().enumerate() {
-                    *child = visit(*child, binders.get(i).map_or(0, Vec::len))?;
-                }
-            }
-            Node::Run {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                accessibility,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *step = visit(*step, 0)?;
-                *initial = visit(*initial, 0)?;
-                *accessibility = visit(*accessibility, 0)?;
-            }
-            Node::RunCase {
-                state_ty,
-                result_ty,
-                step,
-                initial,
-                transition,
-                accessibility,
-                transition_equality,
-                ..
-            } => {
-                *state_ty = visit(*state_ty, 0)?;
-                *result_ty = visit(*result_ty, 0)?;
-                *step = visit(*step, 0)?;
-                *initial = visit(*initial, 0)?;
-                *transition = visit(*transition, 0)?;
-                *accessibility = visit(*accessibility, 0)?;
-                *transition_equality = visit(*transition_equality, 0)?;
-            }
-            Node::ReturnType { value_ty, .. } => {
-                *value_ty = visit(*value_ty, 0)?;
-            }
-        }
+        let mut slot = |child: &mut Expression, depth| {
+            *child = visit(*child, depth)?;
+            Ok(())
+        };
+        node_children!(&mut node, slot);
         Ok(node)
+    }
+
+    pub fn try_for_each_child<E>(
+        &self,
+        e: Expression,
+        visit: impl FnMut(Expression, usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        self.read(e).try_for_each_child(visit)
     }
 
     pub fn children(&self, e: Expression) -> Vec<(Expression, usize)> {
         let mut children = Vec::new();
-        let _: Result<_, std::convert::Infallible> = self.map_children(e, |child, depth| {
+        let _: Result<_, std::convert::Infallible> = self.try_for_each_child(e, |child, depth| {
             children.push((child, depth));
-            Ok(child)
+            Ok(())
         });
         children
     }

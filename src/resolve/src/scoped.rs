@@ -4,12 +4,12 @@ use super::*;
 impl Resolver {
     pub(super) fn scoped_item(
         &mut self,
-        item: &mut ModuleItem,
+        mut item: ModuleItem,
         output: &mut Vec<ModuleItem>,
     ) -> Result<(), Diagnostic> {
         let ModuleItem::Scoped { exports, items } = item else {
-            self.item(item)?;
-            output.push(item.clone());
+            self.item(&mut item)?;
+            output.push(item);
             return Ok(());
         };
         let saved = self.scopes[self.current.0 as usize].clone();

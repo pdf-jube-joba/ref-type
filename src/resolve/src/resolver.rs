@@ -108,19 +108,6 @@ pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic
     for id in ids {
         resolver.module(id)?;
     }
-    fn assemble(module: &mut Module, outputs: &HashMap<ModuleId, Module>) {
-        *module = outputs[&module.id].clone();
-        if let ModuleBody::Inline(items) = &mut module.body {
-            for item in items {
-                if let ModuleItem::ChildModule { module } = item {
-                    assemble(module, outputs);
-                }
-            }
-        }
-    }
-    for module in &mut roots {
-        assemble(module, &resolver.output);
-    }
     let order = resolver
         .order
         .iter()
@@ -134,6 +121,19 @@ pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic
                 if items.iter().all(|item| matches!(item, ModuleItem::ChildModule { .. })))
         })
         .collect();
+    fn assemble(module: &mut Module, outputs: &mut HashMap<ModuleId, Module>) {
+        *module = outputs.remove(&module.id).expect("resolved module");
+        if let ModuleBody::Inline(items) = &mut module.body {
+            for item in items {
+                if let ModuleItem::ChildModule { module } = item {
+                    assemble(module, outputs);
+                }
+            }
+        }
+    }
+    for module in &mut roots {
+        assemble(module, &mut resolver.output);
+    }
     Ok(Project {
         order,
         modules: roots,
@@ -187,7 +187,14 @@ impl Resolver {
                 }
             }
         }
-        self.input.insert(module.id, module.clone());
+        let body = std::mem::replace(&mut module.body, ModuleBody::External);
+        self.input.insert(
+            module.id,
+            Module {
+                body,
+                ..module.clone()
+            },
+        );
     }
     fn path(&self, module: ModuleId) -> Vec<String> {
         let source = self.origins.get(&module).copied().unwrap_or(module);
@@ -396,7 +403,12 @@ impl Resolver {
         let public_declarations = std::mem::take(&mut self.public_declarations);
         let location = self.location.clone();
         self.current = id;
-        let mut module = self.input[&id].clone();
+        let input = self.input.get_mut(&id).expect("reserved module");
+        let body = std::mem::replace(&mut input.body, ModuleBody::External);
+        let mut module = Module {
+            body,
+            ..input.clone()
+        };
         self.location = module
             .header_source
             .as_ref()
@@ -420,7 +432,7 @@ impl Resolver {
         });
         let mut expanded = Vec::new();
         let mut expanded_spans = Vec::new();
-        for (index, mut item) in std::mem::take(items).into_iter().enumerate() {
+        for (index, item) in std::mem::take(items).into_iter().enumerate() {
             if namespace && matches!(item, ModuleItem::ChildModule { .. }) {
                 expanded.push(item);
                 expanded_spans.push(
@@ -441,7 +453,7 @@ impl Resolver {
                     .unwrap_or(module.span),
             });
             let start = expanded.len();
-            self.scoped_item(&mut item, &mut expanded)?;
+            self.scoped_item(item, &mut expanded)?;
             expanded_spans.extend(std::iter::repeat_n(
                 module
                     .declaration_spans

@@ -751,6 +751,46 @@ fn unchanged_program_transforms_reuse_arena_handles() {
 }
 
 #[test]
+fn remapping_program_type_meta_arguments_updates_value_definitions() {
+    use crate::raw::program::ProgramArgument;
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let old = DefId {
+        module: env.root_module(),
+        index: 100,
+    };
+    let new = DefId { index: 101, ..old };
+    let ty = arena.alloc(ValueTypeNode::Meta {
+        metavariable: MetaVarId(10),
+        spine: vec![
+            ProgramArgument::ValueType(arena.value_type_bound(0)),
+            ProgramArgument::ValueTerm(arena.alloc(ValueTermNode::DefinedConstant(old))),
+        ],
+    });
+    let remapped = remap_value_type_global_ids(
+        arena,
+        ty,
+        &std::collections::HashMap::from([(old, new)]),
+        &Default::default(),
+    );
+    let ValueTypeNode::Meta {
+        metavariable,
+        spine,
+    } = arena.get(remapped)
+    else {
+        panic!()
+    };
+    assert_eq!(metavariable, MetaVarId(10));
+    assert_eq!(
+        spine,
+        vec![
+            ProgramArgument::ValueType(arena.value_type_bound(0)),
+            ProgramArgument::ValueTerm(arena.alloc(ValueTermNode::DefinedConstant(new))),
+        ]
+    );
+}
+
+#[test]
 fn strengthening_rejects_a_dependent_program_type() {
     let env = CrateEnv::new();
     let arena = env.arena();

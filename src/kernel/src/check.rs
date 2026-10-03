@@ -516,7 +516,7 @@ impl<'a> Checker<'a> {
                 shift(self.arena(), self.context[position].ty, offset, 0)?
             }
             Node::Definition { id, arguments } => {
-                let definition = self.env.definition(id)?.clone();
+                let definition = self.env.definition(id)?;
                 self.arguments(&arguments, &definition.context)?;
                 instantiate(self.arena(), definition.ty, &arguments)?
             }
@@ -890,12 +890,7 @@ impl<'a> Checker<'a> {
                 inductive,
                 parameters,
             } => {
-                let spec = self
-                    .env
-                    .inductives
-                    .get(&inductive)
-                    .ok_or("unknown inductive")?
-                    .clone();
+                let spec = self.env.inductive(inductive).ok_or("unknown inductive")?;
                 self.arguments(&parameters, &spec.parameters)?;
                 if spec.sort.is_upper() {
                     self.arena().sort(spec.sort)
@@ -908,12 +903,7 @@ impl<'a> Checker<'a> {
                 constructor,
                 parameters,
             } => {
-                let spec = self
-                    .env
-                    .inductives
-                    .get(&inductive)
-                    .ok_or("unknown inductive")?
-                    .clone();
+                let spec = self.env.inductive(inductive).ok_or("unknown inductive")?;
                 self.arguments(&parameters, &spec.parameters)?;
                 let ty = *spec
                     .constructors
@@ -925,12 +915,7 @@ impl<'a> Checker<'a> {
                 inductive,
                 parameters,
             } => {
-                let spec = self
-                    .env
-                    .datatypes
-                    .get(&inductive)
-                    .ok_or("unknown datatype")?
-                    .clone();
+                let spec = self.env.datatype(inductive).ok_or("unknown datatype")?;
                 self.arguments(&parameters, &spec.parameters)?;
                 self.base(BaseSort::Value(spec.level))
             }
@@ -940,12 +925,7 @@ impl<'a> Checker<'a> {
                 parameters,
                 fields,
             } => {
-                let spec = self
-                    .env
-                    .datatypes
-                    .get(&inductive)
-                    .ok_or("unknown datatype")?
-                    .clone();
+                let spec = self.env.datatype(inductive).ok_or("unknown datatype")?;
                 self.arguments(&parameters, &spec.parameters)?;
                 let telescope = spec
                     .constructors
@@ -1486,12 +1466,7 @@ impl<'a> Checker<'a> {
                 ..
             } => {
                 let reflected = matches!(self.arena().get(parent), Node::SetCase { .. });
-                let spec = self
-                    .env
-                    .datatypes
-                    .get(&inductive)
-                    .ok_or("unknown datatype")?
-                    .clone();
+                let spec = self.env.datatype(inductive).ok_or("unknown datatype")?;
                 let ty = self.infer_open(scrutinee)?;
                 let parameters = match self.arena().get(self.head(ty)?) {
                     Node::Inductive { parameters, .. } | Node::IndType { parameters, .. } => {
@@ -1532,12 +1507,7 @@ impl<'a> Checker<'a> {
         branches: Vec<Expression>,
         reflected: bool,
     ) -> Result<Expression, Error> {
-        let spec = self
-            .env
-            .datatypes
-            .get(&inductive)
-            .ok_or("unknown datatype")?
-            .clone();
+        let spec = self.env.datatype(inductive).ok_or("unknown datatype")?;
         let mut result_ty = None;
         let ty = self.infer_open(scrutinee)?;
         let parameters = match self.arena().get(self.head(ty)?) {
@@ -1644,12 +1614,7 @@ impl<'a> Checker<'a> {
                 motive_body = self.application(motive_body, self.arena().bound(index))?;
             }
         }
-        let spec = self
-            .env
-            .inductives
-            .get(&inductive)
-            .ok_or("unknown inductive")?
-            .clone();
+        let spec = self.env.inductive(inductive).ok_or("unknown inductive")?;
         let ty = self.infer_open(scrutinee)?;
         let mut head = self.head(ty)?;
         while let Node::TypeLift { superset, .. } = self.arena().get(head) {

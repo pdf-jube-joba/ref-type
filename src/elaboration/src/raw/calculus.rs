@@ -4,7 +4,6 @@ use crate::raw::{
     environment::CrateEnv,
     exp::*,
     ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId},
-    program::ComputationType,
 };
 use std::collections::HashMap;
 
@@ -293,57 +292,16 @@ pub fn remap_all_global_ids(
     inductives: &HashMap<InductiveId, InductiveId>,
     program_inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> Exp {
-    // Rewrite children as well as the node's own identifiers. In particular,
-    // reflected cases and parameterized constructors contain further references
-    // to the source module, and boxes carry a separate Program syntax tree.
-    let original = arena.get(exp);
-    let mut node = map_children(original.clone(), |child| {
-        remap_all_global_ids(arena, child, definitions, inductives, program_inductives)
-    });
-    let remap_computation_type = |ty: &mut ComputationType| {
-        *ty = crate::raw::program_calculus::remap_computation_type_global_ids(
-            arena,
-            *ty,
-            definitions,
-            program_inductives,
-        );
+    let super::traversal::Term::Logical(result) = super::remapping::remap(
+        arena,
+        super::traversal::Term::Logical(exp),
+        definitions,
+        inductives,
+        program_inductives,
+    ) else {
+        unreachable!()
     };
-    match &mut node {
-        ExpNode::DefinedConstant(id) => {
-            *id = definitions.get(id).copied().unwrap_or(*id);
-        }
-        ExpNode::IndType { indspec, .. }
-        | ExpNode::IndCtor { indspec, .. }
-        | ExpNode::IndElim { indspec, .. }
-        | ExpNode::IndCase { indspec, .. } => {
-            *indspec = inductives.get(indspec).copied().unwrap_or(*indspec);
-        }
-        ExpNode::ReflectedProgramCase { indspec, .. } => {
-            *indspec = program_inductives.get(indspec).copied().unwrap_or(*indspec);
-        }
-        ExpNode::BoxType { program_ty } | ExpNode::ForceBox { program_ty, .. } => {
-            remap_computation_type(program_ty);
-        }
-        ExpNode::BoxProgram {
-            program_ty,
-            program,
-        } => {
-            remap_computation_type(program_ty);
-            *program = crate::raw::program_calculus::remap_computation_global_ids(
-                arena,
-                *program,
-                definitions,
-                program_inductives,
-                inductives,
-            );
-        }
-        _ => {}
-    }
-    if node == original {
-        exp
-    } else {
-        arena.alloc(node)
-    }
+    result
 }
 
 pub fn exp_is_alpha_eq(env: &CrateEnv, left: Exp, right: Exp) -> bool {

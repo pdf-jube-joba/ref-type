@@ -126,442 +126,76 @@ pub fn evaluate_computation(env: &CrateEnv, term: ComputationTerm) -> Evaluation
 }
 pub fn remap_value_type_global_ids(
     arena: &Arena,
-    ty: ValueType,
-    _definitions: &HashMap<DefId, DefId>,
+    term: ValueType,
+    definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> ValueType {
-    if inductives.is_empty() {
-        return ty;
-    }
-    match arena.get(ty) {
-        ValueTypeNode::Thunk { computation_ty } => arena.reuse_value_type(
-            ty,
-            ValueTypeNode::Thunk {
-                computation_ty: remap_computation_type_global_ids(
-                    arena,
-                    computation_ty,
-                    _definitions,
-                    inductives,
-                ),
-            },
-        ),
-        ValueTypeNode::RunStep {
-            state_ty,
-            result_ty,
-        } => arena.reuse_value_type(
-            ty,
-            ValueTypeNode::RunStep {
-                state_ty: remap_value_type_global_ids(arena, state_ty, _definitions, inductives),
-                result_ty: remap_value_type_global_ids(arena, result_ty, _definitions, inductives),
-            },
-        ),
-        ValueTypeNode::Inductive {
-            indspec,
-            parameters,
-        } => arena.reuse_value_type(
-            ty,
-            ValueTypeNode::Inductive {
-                indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
-                parameters: parameters
-                    .into_iter()
-                    .map(|p| remap_value_type_global_ids(arena, p, _definitions, inductives))
-                    .collect(),
-            },
-        ),
-        _ => ty,
-    }
+    let Term::ValueType(result) = super::remapping::remap(
+        arena,
+        Term::ValueType(term),
+        definitions,
+        &HashMap::new(),
+        inductives,
+    ) else {
+        unreachable!()
+    };
+    result
 }
 
 pub fn remap_computation_type_global_ids(
     arena: &Arena,
-    ty: ComputationType,
+    term: ComputationType,
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
 ) -> ComputationType {
-    if inductives.is_empty() {
-        return ty;
-    }
-    match arena.get(ty) {
-        ComputationTypeNode::Return { value_ty } => arena.reuse_computation_type(
-            ty,
-            ComputationTypeNode::Return {
-                value_ty: remap_value_type_global_ids(arena, value_ty, definitions, inductives),
-            },
-        ),
-        ComputationTypeNode::Function { domain, codomain } => arena.reuse_computation_type(
-            ty,
-            ComputationTypeNode::Function {
-                domain: remap_value_type_global_ids(arena, domain, definitions, inductives),
-                codomain: remap_computation_type_global_ids(
-                    arena,
-                    codomain,
-                    definitions,
-                    inductives,
-                ),
-            },
-        ),
-        ComputationTypeNode::Meta { .. } => ty,
-    }
-}
-
-fn remap_program_arguments(
-    arena: &Arena,
-    arguments: Vec<ProgramArgument>,
-    definitions: &HashMap<DefId, DefId>,
-    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
-    logical_inductives: &HashMap<crate::raw::ids::InductiveId, crate::raw::ids::InductiveId>,
-) -> Vec<ProgramArgument> {
-    arguments
-        .into_iter()
-        .map(|argument| match argument {
-            ProgramArgument::ValueType(ty) => ProgramArgument::ValueType(
-                remap_value_type_global_ids(arena, ty, definitions, inductives),
-            ),
-            ProgramArgument::ValueTerm(value) => ProgramArgument::ValueTerm(
-                remap_value_global_ids(arena, value, definitions, inductives, logical_inductives),
-            ),
-        })
-        .collect()
+    let Term::ComputationType(result) = super::remapping::remap(
+        arena,
+        Term::ComputationType(term),
+        definitions,
+        &HashMap::new(),
+        inductives,
+    ) else {
+        unreachable!()
+    };
+    result
 }
 
 pub fn remap_value_global_ids(
     arena: &Arena,
-    value: ValueTerm,
+    term: ValueTerm,
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
     logical_inductives: &HashMap<crate::raw::ids::InductiveId, crate::raw::ids::InductiveId>,
 ) -> ValueTerm {
-    if definitions.is_empty() && inductives.is_empty() && logical_inductives.is_empty() {
-        return value;
-    }
-    match arena.get(value) {
-        ValueTermNode::Ascribe { term, ty } => arena.reuse_value(
-            value,
-            ValueTermNode::Ascribe {
-                term: remap_value_global_ids(arena, term, definitions, inductives, logical_inductives),
-                ty: remap_value_type_global_ids(arena, ty, definitions, inductives),
-            },
-        ),
-        ValueTermNode::DefinitionInstance {
-            definition,
-            parameters,
-        } => arena.reuse_value(
-            value,
-            ValueTermNode::DefinitionInstance {
-                definition: definitions.get(&definition).copied().unwrap_or(definition),
-                parameters: parameters
-                    .into_iter()
-                    .map(|t| remap_value_type_global_ids(arena, t, definitions, inductives))
-                    .collect(),
-            },
-        ),
-        ValueTermNode::DefinedConstant(id) => arena.reuse_value(
-            value,
-            ValueTermNode::DefinedConstant(definitions.get(&id).copied().unwrap_or(id)),
-        ),
-        ValueTermNode::Meta {
-            metavariable,
-            spine,
-        } => arena.reuse_value(
-            value,
-            ValueTermNode::Meta {
-                metavariable,
-                spine: remap_program_arguments(
-                    arena,
-                    spine,
-                    definitions,
-                    inductives,
-                    logical_inductives,
-                ),
-            },
-        ),
-        ValueTermNode::Thunk { computation } => arena.reuse_value(
-            value,
-            ValueTermNode::Thunk {
-                computation: remap_computation_global_ids(
-                    arena,
-                    computation,
-                    definitions,
-                    inductives,
-                    logical_inductives,
-                ),
-            },
-        ),
-        ValueTermNode::Continue {
-            state_ty,
-            result_ty,
-            next,
-        } => arena.reuse_value(
-            value,
-            ValueTermNode::Continue {
-                state_ty: remap_value_type_global_ids(arena, state_ty, definitions, inductives),
-                result_ty: remap_value_type_global_ids(arena, result_ty, definitions, inductives),
-                next: remap_value_global_ids(
-                    arena,
-                    next,
-                    definitions,
-                    inductives,
-                    logical_inductives,
-                ),
-            },
-        ),
-        ValueTermNode::Finish {
-            state_ty,
-            result_ty,
-            output,
-        } => arena.reuse_value(
-            value,
-            ValueTermNode::Finish {
-                state_ty: remap_value_type_global_ids(arena, state_ty, definitions, inductives),
-                result_ty: remap_value_type_global_ids(arena, result_ty, definitions, inductives),
-                output: remap_value_global_ids(
-                    arena,
-                    output,
-                    definitions,
-                    inductives,
-                    logical_inductives,
-                ),
-            },
-        ),
-        ValueTermNode::InductiveConstructor {
-            indspec,
-            parameters,
-            idx,
-            fields,
-        } => arena.reuse_value(
-            value,
-            ValueTermNode::InductiveConstructor {
-                indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
-                parameters: parameters
-                    .into_iter()
-                    .map(|ty| remap_value_type_global_ids(arena, ty, definitions, inductives))
-                    .collect(),
-                idx,
-                fields: fields
-                    .into_iter()
-                    .map(|value| {
-                        remap_value_global_ids(
-                            arena,
-                            value,
-                            definitions,
-                            inductives,
-                            logical_inductives,
-                        )
-                    })
-                    .collect(),
-            },
-        ),
-        ValueTermNode::Bound(_) | ValueTermNode::ModuleParam(_) => value,
-    }
+    let Term::Value(result) = super::remapping::remap(
+        arena,
+        Term::Value(term),
+        definitions,
+        logical_inductives,
+        inductives,
+    ) else {
+        unreachable!()
+    };
+    result
 }
 
 pub fn remap_computation_global_ids(
     arena: &Arena,
-    computation: ComputationTerm,
+    term: ComputationTerm,
     definitions: &HashMap<DefId, DefId>,
     inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
     logical_inductives: &HashMap<crate::raw::ids::InductiveId, crate::raw::ids::InductiveId>,
 ) -> ComputationTerm {
-    if definitions.is_empty() && inductives.is_empty() && logical_inductives.is_empty() {
-        return computation;
-    }
-    let value =
-        |value| remap_value_global_ids(arena, value, definitions, inductives, logical_inductives);
-    let recur = |term| {
-        remap_computation_global_ids(arena, term, definitions, inductives, logical_inductives)
+    let Term::Computation(result) = super::remapping::remap(
+        arena,
+        Term::Computation(term),
+        definitions,
+        logical_inductives,
+        inductives,
+    ) else {
+        unreachable!()
     };
-    let value_ty = |ty| remap_value_type_global_ids(arena, ty, definitions, inductives);
-    let comp_ty = |ty| remap_computation_type_global_ids(arena, ty, definitions, inductives);
-    match arena.get(computation) {
-        ComputationTermNode::Ascribe { term, ty } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::Ascribe {
-                term: recur(term),
-                ty: comp_ty(ty),
-            },
-        ),
-        ComputationTermNode::DefinitionInstance {
-            definition,
-            parameters,
-        } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::DefinitionInstance {
-                definition: definitions.get(&definition).copied().unwrap_or(definition),
-                parameters: parameters
-                    .into_iter()
-                    .map(|t| remap_value_type_global_ids(arena, t, definitions, inductives))
-                    .collect(),
-            },
-        ),
-        ComputationTermNode::DefinedConstant(id) => arena.reuse_computation(
-            computation,
-            ComputationTermNode::DefinedConstant(definitions.get(&id).copied().unwrap_or(id)),
-        ),
-        ComputationTermNode::Meta {
-            metavariable,
-            spine,
-        } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::Meta {
-                metavariable,
-                spine: remap_program_arguments(
-                    arena,
-                    spine,
-                    definitions,
-                    inductives,
-                    logical_inductives,
-                ),
-            },
-        ),
-        ComputationTermNode::Return { value: item } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::Return { value: value(item) },
-        ),
-        ComputationTermNode::Force { value: item } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::Force { value: value(item) },
-        ),
-        ComputationTermNode::Lambda {
-            var,
-            value_ty: ty,
-            body,
-        } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::Lambda {
-                var,
-                value_ty: value_ty(ty),
-                body: recur(body),
-            },
-        ),
-        ComputationTermNode::Application {
-            computation: function,
-            value: argument,
-        } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::Application {
-                computation: recur(function),
-                value: value(argument),
-            },
-        ),
-        ComputationTermNode::Sequence {
-            computation: first,
-            var,
-            value_ty: ty,
-            body,
-        } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::Sequence {
-                computation: recur(first),
-                var,
-                value_ty: value_ty(ty),
-                body: recur(body),
-            },
-        ),
-        ComputationTermNode::ValueLet {
-            var,
-            value_ty: ty,
-            value: item,
-            body,
-        } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::ValueLet {
-                var,
-                value_ty: value_ty(ty),
-                value: value(item),
-                body: recur(body),
-            },
-        ),
-        ComputationTermNode::Case {
-            indspec,
-            scrutinee,
-            branches,
-        } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::Case {
-                indspec: inductives.get(&indspec).copied().unwrap_or(indspec),
-                scrutinee: value(scrutinee),
-                branches: branches
-                    .into_iter()
-                    .map(|branch| ProgramCaseBranch {
-                        binders: branch.binders,
-                        body: recur(branch.body),
-                    })
-                    .collect(),
-            },
-        ),
-        ComputationTermNode::StepMatch {
-            state_ty,
-            result_ty,
-            computation_ty,
-            on_continue,
-            on_finish,
-            scrutinee,
-        } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::StepMatch {
-                state_ty: value_ty(state_ty),
-                result_ty: value_ty(result_ty),
-                computation_ty: comp_ty(computation_ty),
-                on_continue: recur(on_continue),
-                on_finish: recur(on_finish),
-                scrutinee: value(scrutinee),
-            },
-        ),
-        ComputationTermNode::Run {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            accessibility,
-        } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::Run {
-                state_ty: value_ty(state_ty),
-                result_ty: value_ty(result_ty),
-                step: value(step),
-                initial: value(initial),
-                accessibility: crate::raw::calculus::remap_all_global_ids(
-                    arena,
-                    accessibility,
-                    definitions,
-                    logical_inductives,
-                    inductives,
-                ),
-            },
-        ),
-        ComputationTermNode::RunCase {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            transition,
-            accessibility,
-            transition_equality,
-        } => arena.reuse_computation(
-            computation,
-            ComputationTermNode::RunCase {
-                state_ty: value_ty(state_ty),
-                result_ty: value_ty(result_ty),
-                step: value(step),
-                initial: value(initial),
-                transition: recur(transition),
-                accessibility: crate::raw::calculus::remap_all_global_ids(
-                    arena,
-                    accessibility,
-                    definitions,
-                    logical_inductives,
-                    inductives,
-                ),
-                transition_equality: crate::raw::calculus::remap_all_global_ids(
-                    arena,
-                    transition_equality,
-                    definitions,
-                    logical_inductives,
-                    inductives,
-                ),
-            },
-        ),
-    }
+    result
 }
 
 pub fn subst_value_type_module_params(

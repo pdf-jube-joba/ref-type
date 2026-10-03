@@ -13,6 +13,7 @@ pub mod program_definitions;
 pub mod program_derivation;
 pub mod program_inductive;
 pub mod reflection;
+pub(crate) mod remapping;
 pub mod sort;
 #[cfg(test)]
 mod tests;

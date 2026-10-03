@@ -144,7 +144,10 @@ impl Environment {
             return Ok(());
         }
         let mut metas = crate::metavariables::MetaContext::new();
-        crate::check::Checker::new(self, &mut metas, vec![]).infer(ty)?;
+        let classifier = crate::check::Checker::new(self, &mut metas, vec![]).infer(ty)?;
+        if !matches!(self.arena.get(self.whnf(classifier)?), Node::Sort(_)) {
+            return Err("module parameter annotation must be a type".into());
+        }
         self.parameters.insert(id, ty);
         Ok(())
     }
@@ -331,6 +334,14 @@ impl Environment {
             let mut checker = Checker::new(self, &mut metas, spec.parameters.clone());
             checker.check_context()?;
             checker.infer(spec.arity)?;
+            let mut arity = spec.arity;
+            loop {
+                match self.arena.get(self.whnf(arity)?) {
+                    Node::Product { body, .. } if !spec.sort.is_upper() => arity = body,
+                    Node::Sort(sort) if sort == Sort::Base(spec.sort.base()) => break,
+                    _ => return Err("inductive arity does not end in its declared sort".into()),
+                }
+            }
             for &ty in &spec.constructors {
                 checker.metas.require_solved(&self.arena, [ty])?;
                 if checker.formation(ty)? != spec.sort {
