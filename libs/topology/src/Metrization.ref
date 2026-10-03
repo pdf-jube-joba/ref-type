@@ -14,6 +14,7 @@
 \import std.Data[].Nat[].Basic[].Prop[] \as NatOrder;
 \import std.Arithmetic[].Rat[].Estimates[] \as Estimates;
 \import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
 \import std.Logic[].Classical[] \as Classical;
 \import std.Logic[].Equality[] \as Equality;
 \import real.DedekindReal[] \as R;
@@ -37,9 +38,10 @@
   (x, y: Carrier)
   (allZero: \forall (pair: NatPair.NatPair) ->
     coordinateDistance topology coordinates pair x y = Real.zero): x = y :=
-  Logic.orElim (x = y) (Logic.Not (x = y)) (x = y)
-    (\fun (same: x = y) => same)
-    (\fun (different: Logic.Not (x = y)) => \block {
+  either!{
+    {x = y} "or" {Logic.Not (x = y)} "either" {x = y}
+    "lt:" {\fun (same: x = y) => same}
+    "rt:" {\fun (different: Logic.Not (x = y)) => \block {
       \takefrom pair: \Cast[NatPair.NatPair]
         ({ p : NatPair.NatPair \where
           Logic.And[#value{(#select{coordinates} p)} x = Real.zero,
@@ -70,7 +72,8 @@
               (#value{(#select{coordinates} pair)} x)
               (#value{(#select{coordinates} pair)} y) Real.one
               sameValues (#right{data}))))
-    })
+    }}
+  }
     (Classical.excludedMiddle (x = y));
 
 \structure PositiveWeights: \Set {
@@ -504,16 +507,17 @@
           | zero: Logic.Or[_, _]::right
               (NatOrder.zeroLe (N.Nat^::succ a))
           | succ: \fun (b: N.Nat^) (_: _) =>
-              Logic.orElim (NatOrder.Le a b) (NatOrder.Le b a)
-                (Logic.Or[
+              either!{
+                {NatOrder.Le a b} "or" {NatOrder.Le b a} "either" {Logic.Or[
                   NatOrder.Le (N.Nat^::succ a) (N.Nat^::succ b),
-                  NatOrder.Le (N.Nat^::succ b) (N.Nat^::succ a)])
-                (\fun (ab: NatOrder.Le a b) =>
+                  NatOrder.Le (N.Nat^::succ b) (N.Nat^::succ a)]}
+                "lt:" {\fun (ab: NatOrder.Le a b) =>
                   Logic.Or[_, _]::left
-                    (NatOrder.leSuccSucc a b ab))
-                (\fun (ba: NatOrder.Le b a) =>
+                    (NatOrder.leSuccSucc a b ab)}
+                "rt:" {\fun (ba: NatOrder.Le b a) =>
                   Logic.Or[_, _]::right
-                    (NatOrder.leSuccSucc b a ba))
+                    (NatOrder.leSuccSucc b a ba)}
+              }
                 (ih b)
         }
   };
@@ -583,11 +587,9 @@
     (SquareSmall topology coordinates x radius n) y)
   (pair: NatPair.NatPair):
   R.Le (SM.capped family pair x y) radius :=
-  Logic.orElim
-    (NatOrder.Le n (pairRank pair))
-    (NatOrder.Le (pairRank pair) n)
-    (R.Le (SM.capped family pair x y) radius)
-    (\fun (large: NatOrder.Le n (pairRank pair)) =>
+  either!{
+    {NatOrder.Le n (pairRank pair)} "or" {NatOrder.Le (pairRank pair) n} "either" {R.Le (SM.capped family pair x y) radius}
+    "lt:" {\fun (large: NatOrder.Le n (pairRank pair)) =>
       R.leTrans (SM.capped family pair x y)
         (#weight{family} pair) radius
         (RM.minLeft (#weight{family} pair)
@@ -596,8 +598,8 @@
           (#weight{family} pair) radius
           (sym!{R.Real} _ _ (weightEq pair))
           (RealOrder.leOfLt (#weight{errorWeights} pair)
-            radius (tail pair large))))
-    (\fun (small: NatOrder.Le (pairRank pair) n) =>
+            radius (tail pair large)))}
+    "rt:" {\fun (small: NatOrder.Le (pairRank pair) n) =>
       R.leTrans (SM.capped family pair x y)
         (#component{family} pair x y) radius
         (RM.minRight (#weight{family} pair)
@@ -610,7 +612,8 @@
             (coordinateDistance topology coordinates pair x y)
             radius
             (squareSmallContainsPair topology coordinates x radius
-              n pair small y inside))))
+              n pair small y inside)))}
+  }
     (natLeTotal n (pairRank pair));
 
 \definition squareDistanceBelow
@@ -839,10 +842,10 @@
       (\fun (y: Carrier) =>
         \fun (inBall: T.Member
           (Metric.Ball (SM.metric family) x radius) y) =>
-          Logic.orElim (T.Member U y) (Logic.Not (T.Member U y))
-            (T.Member U y)
-            (\fun (inU: T.Member U y) => inU)
-            (\fun (outside: Logic.Not (T.Member U y)) =>
+          either!{
+            {T.Member U y} "or" {Logic.Not (T.Member U y)} "either" {T.Member U y}
+            "lt:" {\fun (inU: T.Member U y) => inU}
+            "rt:" {\fun (outside: Logic.Not (T.Member U y)) =>
               Logic.falseElim (T.Member U y)
                 ((R.ltNotLeReverse (SM.distance family x y)
                   radius inBall)
@@ -855,7 +858,8 @@
                         weights family weightEq componentEq pair x y
                         (#left{data}) (#right{data} y outside))
                       (R.leRefl radius))
-                    (SM.cappedUpper family pair x y))))
+                    (SM.cappedUpper family pair x y)))}
+          }
             (Classical.excludedMiddle (T.Member U y)))
   };
 

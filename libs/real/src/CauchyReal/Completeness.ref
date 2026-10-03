@@ -359,12 +359,11 @@
                 \exists { j : Nat \where
                   MinimalGridUpper A base step j }) =>
                 \fun (upper: GridUpper A base step (N.Nat^::succ limit)) =>
-                  Logic.orElim (GridUpper A base step limit)
-                    (Logic.Not (GridUpper A base step limit))
-                    (\exists { j : Nat \where
-                      MinimalGridUpper A base step j })
-                    ih
-                    (\fun (notUpper: Logic.Not
+                  either!{
+                    {GridUpper A base step limit} "or" {Logic.Not (GridUpper A base step limit)} "either" {\exists { j : Nat \where
+                      MinimalGridUpper A base step j }}
+                    "lt:" {ih}
+                    "rt:" {\fun (notUpper: Logic.Not
                         (GridUpper A base step limit)) =>
                       \exact(
                         \into[Nat](N.Nat^::succ limit,
@@ -399,7 +398,8 @@
                                     Logic.Not
                                       (GridUpper A base step k)] })))) },
                         \Cast[Nat] ({ j : Nat \where
-                          MinimalGridUpper A base step j })))
+                          MinimalGridUpper A base step j }))}
+                  }
                     (Classical.excludedMiddle
                       (GridUpper A base step limit)))
         };
@@ -496,14 +496,12 @@
     (otherUpper: GridUpper A base otherStep other):
     RationalOperations.Le (GridValue step j)
       (addRat (GridValue otherStep other) step) :=
-  Logic.orElim
-    (j = N.Nat^::zero)
-    (\exists { k : Nat \where
+  either!{
+    {j = N.Nat^::zero} "or" {\exists { k : Nat \where
       Logic.And[j = N.Nat^::succ k,
-        Logic.Not (GridUpper A base step k)] })
-    (RationalOperations.Le (GridValue step j)
-      (addRat (GridValue otherStep other) step))
-    (\fun (zeroJ: j = N.Nat^::zero) =>
+        Logic.Not (GridUpper A base step k)] }} "either" {RationalOperations.Le (GridValue step j)
+      (addRat (GridValue otherStep other) step)}
+    "lt:" {\fun (zeroJ: j = N.Nat^::zero) =>
       \idelim N.Nat^::zero = j \with k: Nat =>
         RationalOperations.Le (GridValue step k)
           (addRat (GridValue otherStep other) step)
@@ -521,8 +519,8 @@
               (gridNonnegative otherStep otherPositive other)
               (leAddPositiveRight (GridValue otherStep other)
                 step positive)),
-          equality: sym!{Nat} j N.Nat^::zero zeroJ })
-    (\fun (predecessor: \exists { k : Nat \where
+          equality: sym!{Nat} j N.Nat^::zero zeroJ }}
+    "rt:" {\fun (predecessor: \exists { k : Nat \where
         Logic.And[j = N.Nat^::succ k,
           Logic.Not (GridUpper A base step k)] }) =>
       \block {
@@ -541,7 +539,8 @@
             (#left{(\bysub(Nat, { k : Nat \where Logic.And[
               j = N.Nat^::succ k,
               Logic.Not (GridUpper A base step k)] }, k))}) }
-      })
+      }}
+  }
     #right{minimal};
 
 \definition GridChoiceSet (A: \Pow Real) (base: CauchySeq::[Set])
@@ -689,17 +688,20 @@
 \definition seqLeOfNoReversePositive (x, y: CauchySeq::[Set])
     (noReverse: Logic.Not (S.EventuallyPositive (S.sub x y))):
     S.SeqLe x y :=
-  Logic.orElim (S.SeqLe x y) (S.SeqLe y x) (S.SeqLe x y)
-    (\fun (xy: S.SeqLe x y) => xy)
-    (\fun (yx: S.SeqLe y x) =>
-      Logic.orElim (Equivalent y x)
-        (S.EventuallyPositive (S.sub x y)) (S.SeqLe x y)
-        (\fun (same: Equivalent y x) =>
+  either!{
+    {S.SeqLe x y} "or" {S.SeqLe y x} "either" {S.SeqLe x y}
+    "lt:" {\fun (xy: S.SeqLe x y) => xy}
+    "rt:" {\fun (yx: S.SeqLe y x) =>
+      either!{
+        {Equivalent y x} "or" {S.EventuallyPositive (S.sub x y)} "either" {S.SeqLe x y}
+        "lt:" {\fun (same: Equivalent y x) =>
           Logic.Or[Equivalent x y,
             S.EventuallyPositive (S.sub y x)]::left
-            (equivalentSym y x same))
-        (\fun (positive: S.EventuallyPositive (S.sub x y)) =>
-          Logic.falseElim (S.SeqLe x y) (noReverse positive)) yx)
+            (equivalentSym y x same)}
+        "rt:" {\fun (positive: S.EventuallyPositive (S.sub x y)) =>
+          Logic.falseElim (S.SeqLe x y) (noReverse positive)}
+      } yx}
+  }
     (S.seqLeTotal x y);
 
 \definition eventuallyPositiveImpossibleOfNonpositive (x: CauchySeq::[Set])
@@ -984,17 +986,16 @@
     (notUpper: Logic.Not (GridUpper A base step n))
     (y: CauchySeq::[Set]) (upper: IsUpperBound A (O.class y)):
     O.Le (GridPoint base step n) (O.class y) :=
-  Logic.orElim
-    (O.Le (GridPoint base step n) (O.class y))
-    (O.Le (O.class y) (GridPoint base step n))
-    (O.Le (GridPoint base step n) (O.class y))
-    (\fun (lower: O.Le (GridPoint base step n) (O.class y)) => lower)
-    (\fun (reverse: O.Le (O.class y) (GridPoint base step n)) =>
+  either!{
+    {O.Le (GridPoint base step n) (O.class y)} "or" {O.Le (O.class y) (GridPoint base step n)} "either" {O.Le (GridPoint base step n) (O.class y)}
+    "lt:" {\fun (lower: O.Le (GridPoint base step n) (O.class y)) => lower}
+    "rt:" {\fun (reverse: O.Le (O.class y) (GridPoint base step n)) =>
       Logic.falseElim (O.Le (GridPoint base step n) (O.class y))
         (notUpper
           (\fun (z: Real) => \fun (member: Member A z) =>
             O.leTrans z (O.class y) (GridPoint base step n)
-              (upper z member) reverse)))
+              (upper z member) reverse))}
+  }
     (O.leTotal (GridPoint base step n) (O.class y));
 
 \definition successorGridLeTranslatedUpper
@@ -1025,14 +1026,12 @@
     (y: CauchySeq::[Set]) (upper: IsUpperBound A (O.class y)):
     S.SeqLe (TranslateSeq base (GridValue step j))
       (TranslateSeq y step) :=
-  Logic.orElim
-    (j = N.Nat^::zero)
-    (\exists { k : Nat \where Logic.And[
+  either!{
+    {j = N.Nat^::zero} "or" {\exists { k : Nat \where Logic.And[
       j = N.Nat^::succ k,
-      Logic.Not (GridUpper A base step k)] })
-    (S.SeqLe (TranslateSeq base (GridValue step j))
-      (TranslateSeq y step))
-    (\fun (zeroJ: j = N.Nat^::zero) =>
+      Logic.Not (GridUpper A base step k)] }} "either" {S.SeqLe (TranslateSeq base (GridValue step j))
+      (TranslateSeq y step)}
+    "lt:" {\fun (zeroJ: j = N.Nat^::zero) =>
       \idelim N.Nat^::zero = j \with k: Nat =>
         S.SeqLe (TranslateSeq base (GridValue step k))
           (TranslateSeq y step)
@@ -1050,8 +1049,8 @@
             (S.seqLeTrans base y (TranslateSeq y step)
               (O.seqLeOfClassLe base y (upper (O.class base) baseMember))
               (seqLeTranslatePositive y step positive)),
-          equality: sym!{Nat} j N.Nat^::zero zeroJ })
-    (\fun (predecessor: \exists { k : Nat \where Logic.And[
+          equality: sym!{Nat} j N.Nat^::zero zeroJ }}
+    "rt:" {\fun (predecessor: \exists { k : Nat \where Logic.And[
         j = N.Nat^::succ k,
         Logic.Not (GridUpper A base step k)] }) =>
       \block {
@@ -1069,7 +1068,8 @@
             (#left{(\bysub(Nat, { k : Nat \where Logic.And[
               j = N.Nat^::succ k,
               Logic.Not (GridUpper A base step k)] }, k))}) }
-      })
+      }}
+  }
     #right{minimal};
 
 \definition positiveAfterSmallConstant (x, y: CauchySeq::[Set])

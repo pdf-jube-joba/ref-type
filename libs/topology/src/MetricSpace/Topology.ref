@@ -1,3 +1,4 @@
+\use Logic.either;
 \definition openOfRadius(metric: Metric::[Set]) (U: \Pow Carrier) (x: Carrier)
   (radius: R.Real) (positive: R.Lt Real.zero radius)
   (contained: T.Subset (Ball metric x radius) U):
@@ -62,16 +63,17 @@
       \bysub(R.Real, NeighborhoodRadius metric U x, r) \then
     \let hs: \In[R.Real] (NeighborhoodRadius metric V x) s :=
       \bysub(R.Real, NeighborhoodRadius metric V x, s) \then
-    \return Logic.orElim (R.Le r s) (R.Le s r)
-      (\exists { t : R.Real \where
-        \In[R.Real] (NeighborhoodRadius metric (T.Intersection U V) x) t })
-      (intersectionRadius metric U V x r s hr hs)
-      (\fun (sr: R.Le s r) =>
+    \return either!{
+      {R.Le r s} "or" {R.Le s r} "either" {\exists { t : R.Real \where
+        \In[R.Real] (NeighborhoodRadius metric (T.Intersection U V) x) t }}
+      "lt:" {intersectionRadius metric U V x r s hr hs}
+      "rt:" {\fun (sr: R.Le s r) =>
         openOfRadius metric (T.Intersection U V) x s (#left{hs})
           (\fun (y: Carrier) => \fun (inBall: T.Member (Ball metric x s) y) =>
             T.intersectionMember U V y
               (#right{hr} y (ballMonotone metric x s r sr y inBall))
-              (#right{hs} y inBall)))
+              (#right{hs} y inBall))}
+    }
       (Order.leTotal r s)
   };
 

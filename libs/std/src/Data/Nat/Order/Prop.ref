@@ -14,6 +14,7 @@
 
 /* Order lemmas used for rational comparisons and common sequence bounds. */
 \import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
 \import std.Logic[].Order[] \as O;
 \import std.Logic[].Classical[] \as Classical;
 \definition Trichotomy (a, b: N.Nat^): \Prop := O.Trichotomy[N.Nat^, Basic.Lt, a, b];
@@ -315,14 +316,16 @@
         Logic.Not (P n) -> AdjacentBoundary P) =>
       \fun (atZero: P N.Nat^::zero) =>
         \fun (notAtSucc: Logic.Not (P (N.Nat^::succ n))) =>
-          Logic.orElim (P n) (Logic.Not (P n)) (AdjacentBoundary P)
-            (\fun (atN: P n) =>
+          either!{
+            {P n} "or" {Logic.Not (P n)} "either" {AdjacentBoundary P}
+            "lt:" {\fun (atN: P n) =>
               \exact(
                 \into[N.Nat^](n, { k : N.Nat^ \where Logic.And[P k,
                       Logic.Not (P (N.Nat^::succ k))] }) \by { Logic.And[P n,
                     Logic.Not (P (N.Nat^::succ n))]::# atN notAtSucc },
                 \Cast[N.Nat^] ({ k : N.Nat^ \where Logic.And[P k,
-                      Logic.Not (P (N.Nat^::succ k))] })))
-            (\fun (notAtN: Logic.Not (P n)) => ih atZero notAtN)
+                      Logic.Not (P (N.Nat^::succ k))] }))}
+            "rt:" {\fun (notAtN: Logic.Not (P n)) => ih atZero notAtN}
+          }
             (Classical.excludedMiddle (P n)))
     };

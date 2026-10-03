@@ -1,4 +1,52 @@
 /* Concrete boundary cases supplement the universally quantified library laws. */
+\module EitherExamples {
+  \import std.Logic[].Proposition[] \as L;
+  \use L.either;
+
+  \definition eliminate(P, Q, R: \Prop):
+    (P -> R) -> (Q -> R) -> L.Or[P, Q] -> R :=
+    \fun (p: P -> R) (q: Q -> R) => either!{
+      P "or" Q "either" R
+      "lt:" p
+      "rt:" q
+    };
+
+  \definition leftBranch(P: \Prop): L.Or[P, L.False] -> P := either!{
+    P "or" L.False "either" P
+    "lt:" {\fun (value: P) => value}
+    "rt:" {L.falseElim P}
+  };
+
+  \definition rightBranch(P: \Prop): L.Or[L.False, P] -> P := either!{
+    L.False "or" P "either" P
+    "lt:" {L.falseElim P}
+    "rt:" {\fun (value: P) => value}
+  };
+
+  \definition nested(P: \Prop): L.Or[L.False, L.Or[P, L.False]] -> P := either!{
+    L.False "or" {L.Or[P, L.False]} "either" P
+    "lt:" {L.falseElim P}
+    "rt:" either!{
+      P "or" L.False "either" P
+      "lt:" {\fun (value: P) => value}
+      "rt:" {L.falseElim P}
+    }
+  };
+
+  \definition appliedLeft(P: \Prop) (p: P): P :=
+    leftBranch P (L.Or[P, L.False]::left p);
+  \definition appliedRight(P: \Prop) (p: P): P :=
+    rightBranch P (L.Or[L.False, P]::right p);
+
+  \definition map(P, Q, R, S: \Prop):
+    (P -> R) -> (Q -> S) -> L.Or[P, Q] -> L.Or[R, S] :=
+    \fun (onLeft: P -> R) (onRight: Q -> S) => either!{
+      P "or" Q "either" {L.Or[R, S]}
+      "lt:" {\fun (p: P) => L.Or[_, _]::left (onLeft p)}
+      "rt:" {\fun (q: Q) => L.Or[_, _]::right (onRight q)}
+    };
+}
+
 \module ClassicalExamples {
   \import std.Logic[].Proposition[] \as L;
   \import std.Logic[].Classical[] \as C;

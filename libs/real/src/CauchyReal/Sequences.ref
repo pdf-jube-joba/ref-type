@@ -183,11 +183,9 @@
                     anchorClose },
             \Cast[Nat] ({ k : Nat \where
               EquivalentAt x zero eps k }))) \then
-    \return Logic.orElim
-      (RationalOperations.Le (half eps) (at x K))
-      (RationalOperations.Le (at x K) (negRat (half eps)))
-      (EventuallyApart x)
-      (\fun (positiveAnchor:
+    \return either!{
+      {RationalOperations.Le (half eps) (at x K)} "or" {RationalOperations.Le (at x K) (negRat (half eps))} "either" {EventuallyApart x}
+      "lt:" {\fun (positiveAnchor:
           RationalOperations.Le (half eps) (at x K)) =>
         Logic.Or[EventuallyPositive x, EventuallyNegative x]::left
           (\exact(
@@ -231,8 +229,8 @@
               \exists { k : Nat \where
                 Logic.And[Positive r,
                   \forall (n: Nat) -> NatLe k n ->
-                    RationalOperations.Le r (at x n)] } }))))
-      (\fun (negativeAnchor:
+                    RationalOperations.Le r (at x n)] } })))}
+      "rt:" {\fun (negativeAnchor:
           RationalOperations.Le (at x K) (negRat (half eps))) =>
         Logic.Or[EventuallyPositive x, EventuallyNegative x]::right
           (\exact(
@@ -276,7 +274,8 @@
               \exists { k : Nat \where
                 Logic.And[Positive r,
                   \forall (n: Nat) -> NatLe k n ->
-                    RationalOperations.Le (at x n) (negRat r)] } }))))
+                    RationalOperations.Le (at x n) (negRat r)] } })))}
+    }
       (notCloseDirection (at x K) (half eps) notClose)
   };
 
@@ -618,9 +617,11 @@
 
 \definition reciprocalCauchy (x: CauchySeq::[Set])
     (apart: EventuallyApart x): IsCauchy (ReciprocalSeq x) :=
-  Logic.orElim (EventuallyPositive x) (EventuallyNegative x)
-    (IsCauchy (ReciprocalSeq x))
-    (positiveReciprocalCauchy x) (negativeReciprocalCauchy x) apart;
+  either!{
+    {EventuallyPositive x} "or" {EventuallyNegative x} "either" {IsCauchy (ReciprocalSeq x)}
+    "lt:" {positiveReciprocalCauchy x}
+    "rt:" {negativeReciprocalCauchy x}
+  } apart;
 
 \definition ReciprocalGraph (x, y: CauchySeq::[Set]): \Prop :=
   \forall (n: Nat) ->
@@ -646,10 +647,10 @@
     Equivalent (mul y x) one :=
 
   \fun (eps: Rat) => \fun (positive: Positive eps) =>
-    Logic.orElim (EventuallyPositive x) (EventuallyNegative x)
-      (\exists { k : Nat \where
-        EquivalentAt (mul y x) one eps k })
-      (\fun (positiveApart: EventuallyPositive x) =>
+    either!{
+      {EventuallyPositive x} "or" {EventuallyNegative x} "either" {\exists { k : Nat \where
+        EquivalentAt (mul y x) one eps k }}
+      "lt:" {\fun (positiveApart: EventuallyPositive x) =>
         \block {
           \takefrom r: \Cast[Rat] ({ r : Rat \where
               \exists { k : Nat \where
@@ -692,8 +693,8 @@
                       positive },
               \Cast[Nat] ({ k : Nat \where
                 EquivalentAt (mul y x) one eps k }))
-        })
-      (\fun (negativeApart: EventuallyNegative x) =>
+        }}
+      "rt:" {\fun (negativeApart: EventuallyNegative x) =>
         \block {
           \takefrom r: \Cast[Rat] ({ r : Rat \where
               \exists { k : Nat \where
@@ -740,7 +741,8 @@
                       positive },
               \Cast[Nat] ({ k : Nat \where
                 EquivalentAt (mul y x) one eps k }))
-        })
+        }}
+    }
       apart;
 
 \definition addCauchy (x, y: CauchySeq::[Set]) (eps: Rat) (positive: Positive eps):
@@ -1269,84 +1271,89 @@
 \definition seqLeRespects (x, x2, y, y2: CauchySeq::[Set])
     (xx: Equivalent x x2) (yy: Equivalent y y2)
     (xy: SeqLe x y): SeqLe x2 y2 :=
-  Logic.orElim (Equivalent x y) (EventuallyPositive (sub y x))
-    (SeqLe x2 y2)
-    (\fun (same: Equivalent x y) =>
+  either!{
+    {Equivalent x y} "or" {EventuallyPositive (sub y x)} "either" {SeqLe x2 y2}
+    "lt:" {\fun (same: Equivalent x y) =>
       Logic.Or[Equivalent x2 y2, EventuallyPositive (sub y2 x2)]::left
         (equivalentTrans x2 x y2 (equivalentSym x x2 xx)
-          (equivalentTrans x y y2 same yy)))
-    (\fun (positiveDifference: EventuallyPositive (sub y x)) =>
+          (equivalentTrans x y y2 same yy))}
+    "rt:" {\fun (positiveDifference: EventuallyPositive (sub y x)) =>
       Logic.Or[Equivalent x2 y2, EventuallyPositive (sub y2 x2)]::right
         (eventuallyPositiveStable (sub y x) (sub y2 x2)
-          (subRespects y y2 x x2 yy xx) positiveDifference))
+          (subRespects y y2 x x2 yy xx) positiveDifference)}
+  }
     xy;
 
 \definition seqLeTrans (x, y, z: CauchySeq::[Set])
     (xy: SeqLe x y) (yz: SeqLe y z): SeqLe x z :=
-  Logic.orElim (Equivalent x y) (EventuallyPositive (sub y x))
-    (SeqLe x z)
-    (\fun (sameXY: Equivalent x y) =>
+  either!{
+    {Equivalent x y} "or" {EventuallyPositive (sub y x)} "either" {SeqLe x z}
+    "lt:" {\fun (sameXY: Equivalent x y) =>
       seqLeRespects y x z z (equivalentSym x y sameXY)
-        (equivalentRefl z) yz)
-    (\fun (positiveXY: EventuallyPositive (sub y x)) =>
-      Logic.orElim (Equivalent y z) (EventuallyPositive (sub z y))
-        (SeqLe x z)
-        (\fun (sameYZ: Equivalent y z) =>
-          seqLeRespects x x y z (equivalentRefl x) sameYZ xy)
-        (\fun (positiveYZ: EventuallyPositive (sub z y)) =>
+        (equivalentRefl z) yz}
+    "rt:" {\fun (positiveXY: EventuallyPositive (sub y x)) =>
+      either!{
+        {Equivalent y z} "or" {EventuallyPositive (sub z y)} "either" {SeqLe x z}
+        "lt:" {\fun (sameYZ: Equivalent y z) =>
+          seqLeRespects x x y z (equivalentRefl x) sameYZ xy}
+        "rt:" {\fun (positiveYZ: EventuallyPositive (sub z y)) =>
           Logic.Or[Equivalent x z, EventuallyPositive (sub z x)]::right
             (eventuallyPositiveStable
               (add (sub y x) (sub z y)) (sub z x)
               (subComposition x y z)
               (eventuallyPositiveAdd (sub y x) (sub z y)
-                positiveXY positiveYZ))) yz)
+                positiveXY positiveYZ))}
+      } yz}
+  }
     xy;
 
 \definition seqLeAntisym (x, y: CauchySeq::[Set])
     (xy: SeqLe x y) (yx: SeqLe y x): Equivalent x y :=
-  Logic.orElim (Equivalent x y) (EventuallyPositive (sub y x))
-    (Equivalent x y)
-    (\fun (same: Equivalent x y) => same)
-    (\fun (positiveXY: EventuallyPositive (sub y x)) =>
-      Logic.orElim (Equivalent y x) (EventuallyPositive (sub x y))
-        (Equivalent x y)
-        (\fun (same: Equivalent y x) => equivalentSym y x same)
-        (\fun (positiveYX: EventuallyPositive (sub x y)) =>
+  either!{
+    {Equivalent x y} "or" {EventuallyPositive (sub y x)} "either" {Equivalent x y}
+    "lt:" {\fun (same: Equivalent x y) => same}
+    "rt:" {\fun (positiveXY: EventuallyPositive (sub y x)) =>
+      either!{
+        {Equivalent y x} "or" {EventuallyPositive (sub x y)} "either" {Equivalent x y}
+        "lt:" {\fun (same: Equivalent y x) => equivalentSym y x same}
+        "rt:" {\fun (positiveYX: EventuallyPositive (sub x y)) =>
           Logic.falseElim (Equivalent x y)
             (eventuallyPositiveOppositeImpossible (sub y x)
               positiveXY
               (eventuallyPositiveStable (sub x y) (neg (sub y x))
                 (equivalentSym (neg (sub y x)) (sub x y)
-                  (subNeg y x)) positiveYX))) yx)
+                  (subNeg y x)) positiveYX))}
+      } yx}
+  }
     xy;
 
 \definition seqLeTotal (x, y: CauchySeq::[Set]):
     Logic.Or[SeqLe x y, SeqLe y x] :=
-  Logic.orElim (Equivalent (sub y x) zero)
-    (Logic.Not (Equivalent (sub y x) zero))
-    (Logic.Or[SeqLe x y, SeqLe y x])
-    (\fun (differenceZero: Equivalent (sub y x) zero) =>
+  either!{
+    {Equivalent (sub y x) zero} "or" {Logic.Not (Equivalent (sub y x) zero)} "either" {Logic.Or[SeqLe x y, SeqLe y x]}
+    "lt:" {\fun (differenceZero: Equivalent (sub y x) zero) =>
       Logic.Or[SeqLe x y, SeqLe y x]::left
         (Logic.Or[Equivalent x y, EventuallyPositive (sub y x)]::left
           (equivalentSym y x
-            (equivalentOfSubZero y x differenceZero))))
-    (\fun (differenceNonzero: Logic.Not (Equivalent (sub y x) zero)) =>
-      Logic.orElim (EventuallyPositive (sub y x))
-        (EventuallyNegative (sub y x))
-        (Logic.Or[SeqLe x y, SeqLe y x])
-        (\fun (positiveDifference: EventuallyPositive (sub y x)) =>
+            (equivalentOfSubZero y x differenceZero)))}
+    "rt:" {\fun (differenceNonzero: Logic.Not (Equivalent (sub y x) zero)) =>
+      either!{
+        {EventuallyPositive (sub y x)} "or" {EventuallyNegative (sub y x)} "either" {Logic.Or[SeqLe x y, SeqLe y x]}
+        "lt:" {\fun (positiveDifference: EventuallyPositive (sub y x)) =>
           Logic.Or[SeqLe x y, SeqLe y x]::left
             (Logic.Or[Equivalent x y,
-              EventuallyPositive (sub y x)]::right positiveDifference))
-        (\fun (negativeDifference: EventuallyNegative (sub y x)) =>
+              EventuallyPositive (sub y x)]::right positiveDifference)}
+        "rt:" {\fun (negativeDifference: EventuallyNegative (sub y x)) =>
           Logic.Or[SeqLe x y, SeqLe y x]::right
             (Logic.Or[Equivalent y x,
               EventuallyPositive (sub x y)]::right
               (eventuallyPositiveStable (neg (sub y x)) (sub x y)
                 (subNeg y x)
                 (eventuallyPositiveNegOfNegative (sub y x)
-                  negativeDifference))))
-        (nonEquivalentApart (sub y x) differenceNonzero))
+                  negativeDifference)))}
+      }
+        (nonEquivalentApart (sub y x) differenceNonzero)}
+  }
     (Classical.excludedMiddle (Equivalent (sub y x) zero));
 
 \definition subAddSameLeft (z, x, y: CauchySeq::[Set]):
@@ -1366,19 +1373,20 @@
 
 \definition seqLeAddLeft (z, x, y: CauchySeq::[Set])
     (xy: SeqLe x y): SeqLe (add z x) (add z y) :=
-  Logic.orElim (Equivalent x y) (EventuallyPositive (sub y x))
-    (SeqLe (add z x) (add z y))
-    (\fun (same: Equivalent x y) =>
+  either!{
+    {Equivalent x y} "or" {EventuallyPositive (sub y x)} "either" {SeqLe (add z x) (add z y)}
+    "lt:" {\fun (same: Equivalent x y) =>
       Logic.Or[Equivalent (add z x) (add z y),
         EventuallyPositive (sub (add z y) (add z x))]::left
-        (addRespects z z x y (equivalentRefl z) same))
-    (\fun (positiveDifference: EventuallyPositive (sub y x)) =>
+        (addRespects z z x y (equivalentRefl z) same)}
+    "rt:" {\fun (positiveDifference: EventuallyPositive (sub y x)) =>
       Logic.Or[Equivalent (add z x) (add z y),
         EventuallyPositive (sub (add z y) (add z x))]::right
         (eventuallyPositiveStable (sub y x)
           (sub (add z y) (add z x))
           (equivalentSym (sub (add z y) (add z x)) (sub y x)
-            (subAddSameLeft z x y)) positiveDifference))
+            (subAddSameLeft z x y)) positiveDifference)}
+  }
     xy;
 
 \definition subZeroEquivalent (x: CauchySeq::[Set]): Equivalent (sub x zero) x :=
@@ -1492,21 +1500,20 @@
     (zeroX: SeqLe zero x) (zeroY: SeqLe zero y):
     SeqLe zero (mul x y) :=
 
-  Logic.orElim (Equivalent zero x) (EventuallyPositive (sub x zero))
-    (SeqLe zero (mul x y))
-    (\fun (xZero: Equivalent zero x) =>
+  either!{
+    {Equivalent zero x} "or" {EventuallyPositive (sub x zero)} "either" {SeqLe zero (mul x y)}
+    "lt:" {\fun (xZero: Equivalent zero x) =>
       Logic.Or[Equivalent zero (mul x y),
         EventuallyPositive (sub (mul x y) zero)]::left
         (equivalentSym (mul x y) zero
           (equivalentTrans (mul x y) (mul zero y) zero
             (mulRespects x zero y y (equivalentSym zero x xZero)
               (equivalentRefl y))
-            (mulZeroLeft y))))
-    (\fun (xPositiveDifference: EventuallyPositive (sub x zero)) =>
-      Logic.orElim (Equivalent zero y)
-        (EventuallyPositive (sub y zero))
-        (SeqLe zero (mul x y))
-        (\fun (yZero: Equivalent zero y) =>
+            (mulZeroLeft y)))}
+    "rt:" {\fun (xPositiveDifference: EventuallyPositive (sub x zero)) =>
+      either!{
+        {Equivalent zero y} "or" {EventuallyPositive (sub y zero)} "either" {SeqLe zero (mul x y)}
+        "lt:" {\fun (yZero: Equivalent zero y) =>
           Logic.Or[Equivalent zero (mul x y),
             EventuallyPositive (sub (mul x y) zero)]::left
             (equivalentSym (mul x y) zero
@@ -1514,13 +1521,15 @@
                 (mulRespects x x y zero (equivalentRefl x)
                   (equivalentSym zero y yZero))
                 (equivalentTrans (mul x zero) (mul zero x) zero
-                  (mulComm x zero) (mulZeroLeft x)))))
-        (\fun (yPositiveDifference: EventuallyPositive (sub y zero)) =>
+                  (mulComm x zero) (mulZeroLeft x))))}
+        "rt:" {\fun (yPositiveDifference: EventuallyPositive (sub y zero)) =>
           seqLeZeroPositive (mul x y)
             (eventuallyPositiveMul x y
               (eventuallyPositiveStable (sub x zero) x
                 (subZeroEquivalent x) xPositiveDifference)
               (eventuallyPositiveStable (sub y zero) y
-                (subZeroEquivalent y) yPositiveDifference)))
-        zeroY)
+                (subZeroEquivalent y) yPositiveDifference))}
+      }
+        zeroY}
+  }
     zeroX;

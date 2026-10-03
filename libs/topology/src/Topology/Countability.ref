@@ -1,3 +1,4 @@
+\use Logic.either;
 /* Indexed unions and open covers used with countable bases. */
 \import std.Logic[].Classical[] \as Classical;
 
@@ -88,10 +89,9 @@
 \definition coverChoiceExists(family: \Pow (\Pow Carrier))
   (basis: N.Nat^ -> \Pow Carrier) (n: N.Nat^):
   \exists CoverChoice family basis n :=
-  Logic.orElim (HasCoverCandidate family basis n)
-    (Logic.Not (HasCoverCandidate family basis n))
-    (\exists CoverChoice family basis n)
-    (\fun (available: HasCoverCandidate family basis n) => \block {
+  either!{
+    {HasCoverCandidate family basis n} "or" {Logic.Not (HasCoverCandidate family basis n)} "either" {\exists CoverChoice family basis n}
+    "lt:" {\fun (available: HasCoverCandidate family basis n) => \block {
       \takefrom U: \Cast[\Pow Carrier] (CoverCandidates family basis n)
         \by available \then
       \return \exact(
@@ -99,13 +99,14 @@
           \by { Logic.Or[_, _]::left
             (\bysub(\Pow Carrier, CoverCandidates family basis n, U)) },
         CoverChoice family basis n)
-    })
-    (\fun (unavailable: Logic.Not (HasCoverCandidate family basis n)) =>
+    }}
+    "rt:" {\fun (unavailable: Logic.Not (HasCoverCandidate family basis n)) =>
       \exact(
         \into[\Pow Carrier](Empty, CoverChoices family basis n)
           \by { Logic.Or[_, _]::right
             (Logic.And[_, _]::# unavailable (\refl(Empty))) },
-        CoverChoice family basis n))
+        CoverChoice family basis n)}
+  }
     (Classical.excludedMiddle (HasCoverCandidate family basis n));
 
 \definition coverChoicesExist(family: \Pow (\Pow Carrier))
@@ -121,32 +122,30 @@
   (choice: CoverChoice family basis n)
   (available: HasCoverCandidate family basis n):
   FamilyMember (CoverCandidates family basis n) choice :=
-  Logic.orElim
-    (FamilyMember (CoverCandidates family basis n) choice)
-    (Logic.And[Logic.Not (HasCoverCandidate family basis n), choice = Empty])
-    (FamilyMember (CoverCandidates family basis n) choice)
-    (\fun (candidate: FamilyMember (CoverCandidates family basis n) choice) =>
-      candidate)
-    (\fun (fallback: Logic.And[
+  either!{
+    {FamilyMember (CoverCandidates family basis n) choice} "or" {Logic.And[Logic.Not (HasCoverCandidate family basis n), choice = Empty]} "either" {FamilyMember (CoverCandidates family basis n) choice}
+    "lt:" {\fun (candidate: FamilyMember (CoverCandidates family basis n) choice) =>
+      candidate}
+    "rt:" {\fun (fallback: Logic.And[
         Logic.Not (HasCoverCandidate family basis n), choice = Empty]) =>
       Logic.falseElim
         (FamilyMember (CoverCandidates family basis n) choice)
-        (#left{fallback} available))
+        (#left{fallback} available)}
+  }
     (\bysub(\Pow Carrier, CoverChoices family basis n, choice));
 
 \definition coverChoiceMemberOrEmpty(family: \Pow (\Pow Carrier))
   (basis: N.Nat^ -> \Pow Carrier) (n: N.Nat^)
   (choice: CoverChoice family basis n):
   Logic.Or[FamilyMember family choice, choice = Empty] :=
-  Logic.orElim
-    (FamilyMember (CoverCandidates family basis n) choice)
-    (Logic.And[Logic.Not (HasCoverCandidate family basis n), choice = Empty])
-    (Logic.Or[FamilyMember family choice, choice = Empty])
-    (\fun (candidate: FamilyMember (CoverCandidates family basis n) choice) =>
-      Logic.Or[_, _]::left (#left{candidate}))
-    (\fun (fallback: Logic.And[
+  either!{
+    {FamilyMember (CoverCandidates family basis n) choice} "or" {Logic.And[Logic.Not (HasCoverCandidate family basis n), choice = Empty]} "either" {Logic.Or[FamilyMember family choice, choice = Empty]}
+    "lt:" {\fun (candidate: FamilyMember (CoverCandidates family basis n) choice) =>
+      Logic.Or[_, _]::left (#left{candidate})}
+    "rt:" {\fun (fallback: Logic.And[
         Logic.Not (HasCoverCandidate family basis n), choice = Empty]) =>
-      Logic.Or[_, _]::right (#right{fallback}))
+      Logic.Or[_, _]::right (#right{fallback})}
+  }
     (\bysub(\Pow Carrier, CoverChoices family basis n, choice));
 
 \definition coverChoiceCoversBasis(family: \Pow (\Pow Carrier))

@@ -1,3 +1,4 @@
+\use Logic.either;
 /* A regular second-countable space is normal. */
 \import \parent.Countability[] \as Count;
 \import std.Logic[].Classical[] \as Classical;
@@ -70,13 +71,11 @@
     Logic.Or[FamilyMember (RegularFamily topology G) (selected n),
       selected n = Empty])
   (n: N.Nat^): \exists CompanionSet topology G (selected n) :=
-  Logic.orElim
-    (FamilyMember (RegularFamily topology G) (selected n))
-    (selected n = Empty)
-    (\exists CompanionSet topology G (selected n))
-    (\fun (member: FamilyMember (RegularFamily topology G) (selected n)) =>
-      #right{member})
-    (\fun (empty: selected n = Empty) =>
+  either!{
+    {FamilyMember (RegularFamily topology G) (selected n)} "or" {selected n = Empty} "either" {\exists CompanionSet topology G (selected n)}
+    "lt:" {\fun (member: FamilyMember (RegularFamily topology G) (selected n)) =>
+      #right{member}}
+    "rt:" {\fun (empty: selected n = Empty) =>
       \exact(
         \into[\Pow Carrier](Whole,
           { V : \Pow Carrier \where
@@ -88,7 +87,8 @@
               \with U: \Pow Carrier => Disjoint U Whole
               \by { base: emptyDisjoint Whole,
                 equality: sym!{\Pow Carrier} (selected n) Empty empty }) },
-        CompanionSet topology G (selected n)))
+        CompanionSet topology G (selected n))}
+  }
     (selectedMember n);
 
 \definition selectedCompanionsExist(topology: Topology::[Set])
@@ -108,17 +108,16 @@
     Logic.Or[FamilyMember (RegularFamily topology G) (selected n),
       selected n = Empty])
   (n: N.Nat^): IsOpenIn topology (selected n) :=
-  Logic.orElim
-    (FamilyMember (RegularFamily topology G) (selected n))
-    (selected n = Empty)
-    (IsOpenIn topology (selected n))
-    (\fun (member: FamilyMember (RegularFamily topology G) (selected n)) =>
-      #left{member})
-    (\fun (empty: selected n = Empty) =>
+  either!{
+    {FamilyMember (RegularFamily topology G) (selected n)} "or" {selected n = Empty} "either" {IsOpenIn topology (selected n)}
+    "lt:" {\fun (member: FamilyMember (RegularFamily topology G) (selected n)) =>
+      #left{member}}
+    "rt:" {\fun (empty: selected n = Empty) =>
       \idelim Empty = selected n
         \with U: \Pow Carrier => IsOpenIn topology U
         \by { base: #emptyOpen{(Topology::[law] topology)},
-          equality: sym!{\Pow Carrier} (selected n) Empty empty })
+          equality: sym!{\Pow Carrier} (selected n) Empty empty }}
+  }
     (selectedMember n);
 
 \structure RegularCover[topology: Topology::[Set], F, G: \Pow Carrier]: \Set {
@@ -199,13 +198,14 @@
           | zero: Logic.Or[_, _]::right
               (NatOrder.zeroLe (N.Nat^::succ a))
           | succ: \fun (b: N.Nat^) (_: _) =>
-              Logic.orElim (NatOrder.Le a b) (NatOrder.Le b a)
-                (Logic.Or[NatOrder.Le (N.Nat^::succ a) (N.Nat^::succ b),
-                  NatOrder.Le (N.Nat^::succ b) (N.Nat^::succ a)])
-                (\fun (ab: NatOrder.Le a b) =>
-                  Logic.Or[_, _]::left (NatOrder.leSuccSucc a b ab))
-                (\fun (ba: NatOrder.Le b a) =>
-                  Logic.Or[_, _]::right (NatOrder.leSuccSucc b a ba))
+              either!{
+                {NatOrder.Le a b} "or" {NatOrder.Le b a} "either" {Logic.Or[NatOrder.Le (N.Nat^::succ a) (N.Nat^::succ b),
+                  NatOrder.Le (N.Nat^::succ b) (N.Nat^::succ a)]}
+                "lt:" {\fun (ab: NatOrder.Le a b) =>
+                  Logic.Or[_, _]::left (NatOrder.leSuccSucc a b ab)}
+                "rt:" {\fun (ba: NatOrder.Le b a) =>
+                  Logic.Or[_, _]::right (NatOrder.leSuccSucc b a ba)}
+              }
                 (ih b)
         }
   };
@@ -237,17 +237,18 @@
           | zero: \fun (_: _) =>
               Logic.Or[_, _]::left (NatOrder.zeroLe (N.Nat^::succ n))
           | succ: \fun (i: N.Nat^) (_: _) (h: _) =>
-              Logic.orElim (NatOrder.Le i n) (i = N.Nat^::succ n)
-                (Logic.Or[
+              either!{
+                {NatOrder.Le i n} "or" {i = N.Nat^::succ n} "either" {Logic.Or[
                   NatOrder.Le (N.Nat^::succ i) (N.Nat^::succ n),
-                  N.Nat^::succ i = N.Nat^::succ (N.Nat^::succ n)])
-                (\fun (lower: NatOrder.Le i n) =>
-                  Logic.Or[_, _]::left (NatOrder.leSuccSucc i n lower))
-                (\fun (equal: i = N.Nat^::succ n) =>
+                  N.Nat^::succ i = N.Nat^::succ (N.Nat^::succ n)]}
+                "lt:" {\fun (lower: NatOrder.Le i n) =>
+                  Logic.Or[_, _]::left (NatOrder.leSuccSucc i n lower)}
+                "rt:" {\fun (equal: i = N.Nat^::succ n) =>
                   Logic.Or[_, _]::right
                     (congr!{N.Nat^ N.Nat^}
                       (\fun (k: N.Nat^) => N.Nat^::succ k)
-                      i (N.Nat^::succ n) equal))
+                      i (N.Nat^::succ n) equal)}
+              }
                 (ih i h)
         }
   };
@@ -287,19 +288,20 @@
                 (NatOrder.leZeroEq i lower) }
     | succ: \fun (n: N.Nat^) (ih: _) (i: N.Nat^)
         (lower: NatOrder.Le i (N.Nat^::succ n)) =>
-        Logic.orElim (NatOrder.Le i n) (i = N.Nat^::succ n)
-          (Subset (PrefixIntersection f (N.Nat^::succ n)) (f i))
-          (\fun (earlier: NatOrder.Le i n) =>
+        either!{
+          {NatOrder.Le i n} "or" {i = N.Nat^::succ n} "either" {Subset (PrefixIntersection f (N.Nat^::succ n)) (f i)}
+          "lt:" {\fun (earlier: NatOrder.Le i n) =>
             \fun (x: Carrier)
               (inside: Member (PrefixIntersection f (N.Nat^::succ n)) x) =>
-              ih i earlier x (#left{inside}))
-          (\fun (equal: i = N.Nat^::succ n) =>
+              ih i earlier x (#left{inside})}
+          "rt:" {\fun (equal: i = N.Nat^::succ n) =>
             \fun (x: Carrier)
               (inside: Member (PrefixIntersection f (N.Nat^::succ n)) x) =>
               \idelim N.Nat^::succ n = i
                 \with k: N.Nat^ => Member (f k) x
                 \by { base: #right{inside},
-                  equality: sym!{N.Nat^} i (N.Nat^::succ n) equal })
+                  equality: sym!{N.Nat^} i (N.Nat^::succ n) equal }}
+        }
           (leSuccSplit n i lower)
   };
 
@@ -407,15 +409,17 @@
   \fun (x: Carrier) =>
   \fun (inFirst: Member (RefinedFirst topology F G forward backward i) x) =>
   \fun (inSecond: Member (RefinedSecond topology F G forward backward j) x) =>
-    Logic.orElim (NatOrder.Le i j) (NatOrder.Le j i) Logic.False
-      (\fun (ij: NatOrder.Le i j) =>
+    either!{
+      {NatOrder.Le i j} "or" {NatOrder.Le j i} "either" Logic.False
+      "lt:" {\fun (ij: NatOrder.Le i j) =>
         #disjoint{forward} i x (#left{inFirst})
           (prefixContains (#second{forward}) j i ij x
-            (#right{inSecond})))
-      (\fun (ji: NatOrder.Le j i) =>
+            (#right{inSecond}))}
+      "rt:" {\fun (ji: NatOrder.Le j i) =>
         #disjoint{backward} j x (#left{inSecond})
           (prefixContains (#second{backward}) i j ji x
-            (#right{inFirst})))
+            (#right{inFirst}))}
+    }
       (leTotal i j);
 
 \definition refinedDisjoint(topology: Topology::[Set])

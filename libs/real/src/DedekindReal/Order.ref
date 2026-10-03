@@ -1,3 +1,4 @@
+\use Logic.either;
 \import RationalFractions.Order[] \as RationalOrder;
 \import std.Logic[].Classical[] \as Classical;
 \import std.Logic[].Equality[] \as Equality;
@@ -8,34 +9,42 @@
 \import \parent.Completeness[] \as Complete;
 
 \definition byContradiction (P: \Prop) (h: Logic.Not P -> Logic.False): P :=
-  Logic.orElim P (Logic.Not P) P
-    (\fun (p: P) => p)
-    (\fun (np: Logic.Not P) => Logic.falseElim P (h np))
+  either!{
+    P "or" {Logic.Not P} "either" P
+    "lt:" {\fun (p: P) => p}
+    "rt:" {\fun (np: Logic.Not P) => Logic.falseElim P (h np)}
+  }
     (Classical.excludedMiddle P);
 
 /* A member of x below a known member of y is in y; the other two
  * rational comparison cases contradict that the latter is outside x. */
 \definition separatedInclusion (x, y: Real) (q: Rat)
   (nq: Logic.Not (mem x q)) (yq: mem y q) (p: Rat) (xp: mem x p): mem y p :=
-  Logic.orElim (lt p q) (Logic.Or[RationalFractions.FractionEq p q, lt q p]) (mem y p)
-    (\fun (pq: lt p q) => #lower{y} p q pq yq)
-    (\fun (rest: Logic.Or[RationalFractions.FractionEq p q, lt q p]) =>
-      Logic.orElim (RationalFractions.FractionEq p q) (lt q p) (mem y p)
-        (\fun (pq: RationalFractions.FractionEq p q) =>
-          Logic.falseElim (mem y p) (nq (#respects{x} p q pq xp)))
-        (\fun (qp: lt q p) =>
-          Logic.falseElim (mem y p) (nq (#lower{x} q p qp xp)))
-        rest)
+  either!{
+    {lt p q} "or" {Logic.Or[RationalFractions.FractionEq p q, lt q p]} "either" {mem y p}
+    "lt:" {\fun (pq: lt p q) => #lower{y} p q pq yq}
+    "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq p q, lt q p]) =>
+      either!{
+        {RationalFractions.FractionEq p q} "or" {lt q p} "either" {mem y p}
+        "lt:" {\fun (pq: RationalFractions.FractionEq p q) =>
+          Logic.falseElim (mem y p) (nq (#respects{x} p q pq xp))}
+        "rt:" {\fun (qp: lt q p) =>
+          Logic.falseElim (mem y p) (nq (#lower{x} q p qp xp))}
+      }
+        rest}
+  }
     (RationalOrder.trichotomy p q);
 
 \definition leTotal (x, y: Real): Logic.Or[Le x y, Le y x] :=
-  Logic.orElim (Le x y) (Logic.Not (Le x y)) (Logic.Or[Le x y, Le y x])
-    (\fun (xy: Le x y) => Logic.Or[Le x y, Le y x]::left xy)
-    (\fun (nxy: Logic.Not (Le x y)) =>
+  either!{
+    {Le x y} "or" {Logic.Not (Le x y)} "either" {Logic.Or[Le x y, Le y x]}
+    "lt:" {\fun (xy: Le x y) => Logic.Or[Le x y, Le y x]::left xy}
+    "rt:" {\fun (nxy: Logic.Not (Le x y)) =>
       Logic.Or[Le x y, Le y x]::right
         (\fun (q: Rat) => \fun (yq: mem y q) =>
           byContradiction (mem x q)
-            (\fun (nq: Logic.Not (mem x q)) => nxy (separatedInclusion x y q nq yq))))
+            (\fun (nq: Logic.Not (mem x q)) => nxy (separatedInclusion x y q nq yq)))}
+  }
     (Classical.excludedMiddle (Le x y));
 
 \definition leOfLt (x, y: Real) (xy: Lt x y): Le x y :=
@@ -77,28 +86,31 @@
         \by { base: xy, equality: sym!{Real} x y same });
 
 \definition comparable: O.Comparable Real Lt := \fun (x, y: Real) =>
-  Logic.orElim (Le x y) (Le y x)
-    (O.Trichotomy[Real, Lt, x, y])
-    (\fun (xy: Le x y) =>
-      Logic.orElim (x = y) (Logic.Not (x = y))
-        (O.Trichotomy[Real, Lt, x, y])
-        (\fun (same: x = y) =>
-          O.Trichotomy[Real, Lt, x, y]::equal same)
-        (\fun (different: Logic.Not (x = y)) =>
+  either!{
+    {Le x y} "or" {Le y x} "either" {O.Trichotomy[Real, Lt, x, y]}
+    "lt:" {\fun (xy: Le x y) =>
+      either!{
+        {x = y} "or" {Logic.Not (x = y)} "either" {O.Trichotomy[Real, Lt, x, y]}
+        "lt:" {\fun (same: x = y) =>
+          O.Trichotomy[Real, Lt, x, y]::equal same}
+        "rt:" {\fun (different: Logic.Not (x = y)) =>
           O.Trichotomy[Real, Lt, x, y]::less
-            (ltOfLeNotEq x y xy different))
-        (Classical.excludedMiddle (x = y)))
-    (\fun (yx: Le y x) =>
-      Logic.orElim (x = y) (Logic.Not (x = y))
-        (O.Trichotomy[Real, Lt, x, y])
-        (\fun (same: x = y) =>
-          O.Trichotomy[Real, Lt, x, y]::equal same)
-        (\fun (different: Logic.Not (x = y)) =>
+            (ltOfLeNotEq x y xy different)}
+      }
+        (Classical.excludedMiddle (x = y))}
+    "rt:" {\fun (yx: Le y x) =>
+      either!{
+        {x = y} "or" {Logic.Not (x = y)} "either" {O.Trichotomy[Real, Lt, x, y]}
+        "lt:" {\fun (same: x = y) =>
+          O.Trichotomy[Real, Lt, x, y]::equal same}
+        "rt:" {\fun (different: Logic.Not (x = y)) =>
           O.Trichotomy[Real, Lt, x, y]::greater
             (ltOfLeNotEq y x yx
               (\fun (same: y = x) =>
-                different (sym!{Real} y x same))))
-        (Classical.excludedMiddle (x = y)))
+                different (sym!{Real} y x same)))}
+      }
+        (Classical.excludedMiddle (x = y))}
+  }
     (leTotal x y);
 
 \definition ltTrichotomy (x, y: Real):

@@ -1,3 +1,4 @@
+\use Logic.either;
 \import \parent.Def[] \as Def;
 
 \definition fractionAddZeroRight (x: Fraction): FractionEq (Def.add x zero) x :=
@@ -1599,99 +1600,113 @@
   Logic.Or[FractionEq x y, lt x y]::right xy;
 
 \definition leTrans (x, y, z: Fraction) (xy: Def.Le x y) (yz: Def.Le y z): Def.Le x z :=
-  Logic.orElim (FractionEq x y) (lt x y) (Def.Le x z)
-    (\fun (sameXY: FractionEq x y) =>
-      Logic.orElim (FractionEq y z) (lt y z) (Def.Le x z)
-        (\fun (sameYZ: FractionEq y z) =>
+  either!{
+    {FractionEq x y} "or" {lt x y} "either" {Def.Le x z}
+    "lt:" {\fun (sameXY: FractionEq x y) =>
+      either!{
+        {FractionEq y z} "or" {lt y z} "either" {Def.Le x z}
+        "lt:" {\fun (sameYZ: FractionEq y z) =>
           leOfEq x z (equiv_reason_terms!{fractionEqTrans { x }
             "~" { y } "by" { sameXY }
-            "~" { z } "by" { sameYZ }}))
-        (\fun (lessYZ: lt y z) =>
+            "~" { z } "by" { sameYZ }})}
+        "rt:" {\fun (lessYZ: lt y z) =>
           leOfLt x z
             (FractionOrder.ltReplaceLeft y x z
-              (fractionEqSym x y sameXY) lessYZ))
-        yz)
-    (\fun (lessXY: lt x y) =>
-      Logic.orElim (FractionEq y z) (lt y z) (Def.Le x z)
-        (\fun (sameYZ: FractionEq y z) =>
+              (fractionEqSym x y sameXY) lessYZ)}
+      }
+        yz}
+    "rt:" {\fun (lessXY: lt x y) =>
+      either!{
+        {FractionEq y z} "or" {lt y z} "either" {Def.Le x z}
+        "lt:" {\fun (sameYZ: FractionEq y z) =>
           leOfLt x z
-            (FractionOrder.ltReplaceRight x y z sameYZ lessXY))
-        (\fun (lessYZ: lt y z) =>
-          leOfLt x z (FractionOrder.ltTrans x y z lessXY lessYZ))
-        yz)
+            (FractionOrder.ltReplaceRight x y z sameYZ lessXY)}
+        "rt:" {\fun (lessYZ: lt y z) =>
+          leOfLt x z (FractionOrder.ltTrans x y z lessXY lessYZ)}
+      }
+        yz}
+  }
     xy;
 
 \definition ltLeTrans (x, y, z: Fraction) (xy: lt x y) (yz: Def.Le y z):
   lt x z :=
-  Logic.orElim (FractionEq y z) (lt y z) (lt x z)
-    (\fun (same: FractionEq y z) =>
-      FractionOrder.ltReplaceRight x y z same xy)
-    (\fun (less: lt y z) => FractionOrder.ltTrans x y z xy less)
+  either!{
+    {FractionEq y z} "or" {lt y z} "either" {lt x z}
+    "lt:" {\fun (same: FractionEq y z) =>
+      FractionOrder.ltReplaceRight x y z same xy}
+    "rt:" {\fun (less: lt y z) => FractionOrder.ltTrans x y z xy less}
+  }
     yz;
 
 \definition leLtTrans (x, y, z: Fraction) (xy: Def.Le x y) (yz: lt y z):
   lt x z :=
-  Logic.orElim (FractionEq x y) (lt x y) (lt x z)
-    (\fun (same: FractionEq x y) =>
-      FractionOrder.ltReplaceLeft y x z (fractionEqSym x y same) yz)
-    (\fun (less: lt x y) => FractionOrder.ltTrans x y z less yz)
+  either!{
+    {FractionEq x y} "or" {lt x y} "either" {lt x z}
+    "lt:" {\fun (same: FractionEq x y) =>
+      FractionOrder.ltReplaceLeft y x z (fractionEqSym x y same) yz}
+    "rt:" {\fun (less: lt x y) => FractionOrder.ltTrans x y z less yz}
+  }
     xy;
 
 \definition leMulPositiveRight (x, y, z: Fraction)
   (positive: lt zero z) (xy: Def.Le x y): Def.Le (Def.mul x z) (Def.mul y z) :=
-  Logic.orElim (FractionEq x y) (lt x y)
-    (Def.Le (Def.mul x z) (Def.mul y z))
-    (\fun (same: FractionEq x y) =>
+  either!{
+    {FractionEq x y} "or" {lt x y} "either" {Def.Le (Def.mul x z) (Def.mul y z)}
+    "lt:" {\fun (same: FractionEq x y) =>
       leOfEq (Def.mul x z) (Def.mul y z)
-        (fractionMulRespects x y z z same (fractionEqRefl z)))
-    (\fun (less: lt x y) =>
+        (fractionMulRespects x y z z same (fractionEqRefl z))}
+    "rt:" {\fun (less: lt x y) =>
       leOfLt (Def.mul x z) (Def.mul y z)
-        (ltMulPositiveRight x y z positive less))
+        (ltMulPositiveRight x y z positive less)}
+  }
     xy;
 
 \definition leMulPositiveLeft (z, x, y: Fraction)
   (positive: lt zero z) (xy: Def.Le x y): Def.Le (Def.mul z x) (Def.mul z y) :=
-  Logic.orElim (FractionEq x y) (lt x y)
-    (Def.Le (Def.mul z x) (Def.mul z y))
-    (\fun (same: FractionEq x y) =>
+  either!{
+    {FractionEq x y} "or" {lt x y} "either" {Def.Le (Def.mul z x) (Def.mul z y)}
+    "lt:" {\fun (same: FractionEq x y) =>
       leOfEq (Def.mul z x) (Def.mul z y)
-        (fractionMulRespects z z x y (fractionEqRefl z) same))
-    (\fun (less: lt x y) =>
+        (fractionMulRespects z z x y (fractionEqRefl z) same)}
+    "rt:" {\fun (less: lt x y) =>
       leOfLt (Def.mul z x) (Def.mul z y)
-        (ltMulPositiveLeft z x y positive less))
+        (ltMulPositiveLeft z x y positive less)}
+  }
     xy;
 
 \definition leMulNegativeRight (x, y, z: Fraction)
   (negative: lt z zero) (xy: Def.Le x y): Def.Le (Def.mul y z) (Def.mul x z) :=
-  Logic.orElim (FractionEq x y) (lt x y)
-    (Def.Le (Def.mul y z) (Def.mul x z))
-    (\fun (same: FractionEq x y) =>
+  either!{
+    {FractionEq x y} "or" {lt x y} "either" {Def.Le (Def.mul y z) (Def.mul x z)}
+    "lt:" {\fun (same: FractionEq x y) =>
       leOfEq (Def.mul y z) (Def.mul x z)
         (fractionMulRespects y x z z
-          (fractionEqSym x y same) (fractionEqRefl z)))
-    (\fun (less: lt x y) =>
+          (fractionEqSym x y same) (fractionEqRefl z))}
+    "rt:" {\fun (less: lt x y) =>
       leOfLt (Def.mul y z) (Def.mul x z)
-        (ltMulNegativeRight x y z negative less))
+        (ltMulNegativeRight x y z negative less)}
+  }
     xy;
 
 \definition leMulNegativeLeft (z, x, y: Fraction)
   (negative: lt z zero) (xy: Def.Le x y): Def.Le (Def.mul z y) (Def.mul z x) :=
-  Logic.orElim (FractionEq x y) (lt x y)
-    (Def.Le (Def.mul z y) (Def.mul z x))
-    (\fun (same: FractionEq x y) =>
+  either!{
+    {FractionEq x y} "or" {lt x y} "either" {Def.Le (Def.mul z y) (Def.mul z x)}
+    "lt:" {\fun (same: FractionEq x y) =>
       leOfEq (Def.mul z y) (Def.mul z x)
         (fractionMulRespects z z y x
-          (fractionEqRefl z) (fractionEqSym x y same)))
-    (\fun (less: lt x y) =>
+          (fractionEqRefl z) (fractionEqSym x y same))}
+    "rt:" {\fun (less: lt x y) =>
       leOfLt (Def.mul z y) (Def.mul z x)
-        (ltMulNegativeLeft z x y negative less))
+        (ltMulNegativeLeft z x y negative less)}
+  }
     xy;
 
 \definition leMulNonnegativeLeft (z, x, y: Fraction)
   (nonnegative: Def.Le zero z) (xy: Def.Le x y): Def.Le (Def.mul z x) (Def.mul z y) :=
-  Logic.orElim (FractionEq zero z) (lt zero z)
-    (Def.Le (Def.mul z x) (Def.mul z y))
-    (\fun (zeroZ: FractionEq zero z) =>
+  either!{
+    {FractionEq zero z} "or" {lt zero z} "either" {Def.Le (Def.mul z x) (Def.mul z y)}
+    "lt:" {\fun (zeroZ: FractionEq zero z) =>
       leOfEq (Def.mul z x) (Def.mul z y)
         (equiv_reason_terms!{fractionEqTrans { Def.mul z x }
           "~" { zero } "by" { equiv_reason_terms!{fractionEqTrans { Def.mul z x }
@@ -1702,16 +1717,17 @@
             (equiv_reason_terms!{fractionEqTrans { Def.mul z y }
               "~" { Def.mul zero y } "by" { fractionMulRespects z zero y y
                 (fractionEqSym _ _ zeroZ) (fractionEqRefl y) }
-              "~" { zero } "by" { fractionMulZeroLeft y }}) }}))
-    (\fun (positive: lt zero z) =>
-      leMulPositiveLeft z x y positive xy)
+              "~" { zero } "by" { fractionMulZeroLeft y }}) }})}
+    "rt:" {\fun (positive: lt zero z) =>
+      leMulPositiveLeft z x y positive xy}
+  }
     nonnegative;
 
 \definition leMulNonnegativeRight (x, y, z: Fraction)
   (nonnegative: Def.Le zero z) (xy: Def.Le x y): Def.Le (Def.mul x z) (Def.mul y z) :=
-  Logic.orElim (FractionEq zero z) (lt zero z)
-    (Def.Le (Def.mul x z) (Def.mul y z))
-    (\fun (zeroZ: FractionEq zero z) =>
+  either!{
+    {FractionEq zero z} "or" {lt zero z} "either" {Def.Le (Def.mul x z) (Def.mul y z)}
+    "lt:" {\fun (zeroZ: FractionEq zero z) =>
       leOfEq (Def.mul x z) (Def.mul y z)
         (equiv_reason_terms!{fractionEqTrans { Def.mul x z }
           "~" { zero } "by" { equiv_reason_terms!{fractionEqTrans { Def.mul x z }
@@ -1722,16 +1738,17 @@
             (equiv_reason_terms!{fractionEqTrans { Def.mul y z }
               "~" { Def.mul y zero } "by" { fractionMulRespects y y z zero
                 (fractionEqRefl y) (fractionEqSym _ _ zeroZ) }
-              "~" { zero } "by" { fractionMulZeroRight y }}) }}))
-    (\fun (positive: lt zero z) =>
-      leMulPositiveRight x y z positive xy)
+              "~" { zero } "by" { fractionMulZeroRight y }}) }})}
+    "rt:" {\fun (positive: lt zero z) =>
+      leMulPositiveRight x y z positive xy}
+  }
     nonnegative;
 
 \definition leMulNonpositiveLeft (z, x, y: Fraction)
   (nonpositive: Def.Le z zero) (xy: Def.Le x y): Def.Le (Def.mul z y) (Def.mul z x) :=
-  Logic.orElim (FractionEq z zero) (lt z zero)
-    (Def.Le (Def.mul z y) (Def.mul z x))
-    (\fun (zZero: FractionEq z zero) =>
+  either!{
+    {FractionEq z zero} "or" {lt z zero} "either" {Def.Le (Def.mul z y) (Def.mul z x)}
+    "lt:" {\fun (zZero: FractionEq z zero) =>
       leOfEq (Def.mul z y) (Def.mul z x)
         (equiv_reason_terms!{fractionEqTrans { Def.mul z y }
           "~" { zero } "by" { equiv_reason_terms!{fractionEqTrans { Def.mul z y }
@@ -1740,16 +1757,17 @@
           "~" { Def.mul z x } "by" { fractionEqSym _ _
             (equiv_reason_terms!{fractionEqTrans { Def.mul z x }
               "~" { Def.mul zero x } "by" { fractionMulRespects z zero x x zZero (fractionEqRefl x) }
-              "~" { zero } "by" { fractionMulZeroLeft x }}) }}))
-    (\fun (negative: lt z zero) =>
-      leMulNegativeLeft z x y negative xy)
+              "~" { zero } "by" { fractionMulZeroLeft x }}) }})}
+    "rt:" {\fun (negative: lt z zero) =>
+      leMulNegativeLeft z x y negative xy}
+  }
     nonpositive;
 
 \definition leMulNonpositiveRight (x, y, z: Fraction)
   (nonpositive: Def.Le z zero) (xy: Def.Le x y): Def.Le (Def.mul y z) (Def.mul x z) :=
-  Logic.orElim (FractionEq z zero) (lt z zero)
-    (Def.Le (Def.mul y z) (Def.mul x z))
-    (\fun (zZero: FractionEq z zero) =>
+  either!{
+    {FractionEq z zero} "or" {lt z zero} "either" {Def.Le (Def.mul y z) (Def.mul x z)}
+    "lt:" {\fun (zZero: FractionEq z zero) =>
       leOfEq (Def.mul y z) (Def.mul x z)
         (equiv_reason_terms!{fractionEqTrans { Def.mul y z }
           "~" { zero } "by" { equiv_reason_terms!{fractionEqTrans { Def.mul y z }
@@ -1760,39 +1778,44 @@
             (equiv_reason_terms!{fractionEqTrans { Def.mul x z }
               "~" { Def.mul x zero } "by" { fractionMulRespects x x z zero
                 (fractionEqRefl x) zZero }
-              "~" { zero } "by" { fractionMulZeroRight x }}) }}))
-    (\fun (negative: lt z zero) =>
-      leMulNegativeRight x y z negative xy)
+              "~" { zero } "by" { fractionMulZeroRight x }}) }})}
+    "rt:" {\fun (negative: lt z zero) =>
+      leMulNegativeRight x y z negative xy}
+  }
     nonpositive;
 
 \definition nonnegativeOrNegative (x: Fraction):
   Logic.Or[Def.Le zero x, lt x zero] :=
-  Logic.orElim (lt zero x)
-    (Logic.Or[FractionEq zero x, lt x zero])
-    (Logic.Or[Def.Le zero x, lt x zero])
-    (\fun (positive: lt zero x) =>
-      Logic.Or[Def.Le zero x, lt x zero]::left (leOfLt zero x positive))
-    (\fun (rest: Logic.Or[FractionEq zero x, lt x zero]) =>
-      Logic.orElim (FractionEq zero x) (lt x zero)
-        (Logic.Or[Def.Le zero x, lt x zero])
-        (\fun (same: FractionEq zero x) =>
-          Logic.Or[Def.Le zero x, lt x zero]::left (leOfEq zero x same))
-        (\fun (negative: lt x zero) =>
-          Logic.Or[Def.Le zero x, lt x zero]::right negative)
-        rest)
+  either!{
+    {lt zero x} "or" {Logic.Or[FractionEq zero x, lt x zero]} "either" {Logic.Or[Def.Le zero x, lt x zero]}
+    "lt:" {\fun (positive: lt zero x) =>
+      Logic.Or[Def.Le zero x, lt x zero]::left (leOfLt zero x positive)}
+    "rt:" {\fun (rest: Logic.Or[FractionEq zero x, lt x zero]) =>
+      either!{
+        {FractionEq zero x} "or" {lt x zero} "either" {Logic.Or[Def.Le zero x, lt x zero]}
+        "lt:" {\fun (same: FractionEq zero x) =>
+          Logic.Or[Def.Le zero x, lt x zero]::left (leOfEq zero x same)}
+        "rt:" {\fun (negative: lt x zero) =>
+          Logic.Or[Def.Le zero x, lt x zero]::right negative}
+      }
+        rest}
+  }
     (FractionOrder.trichotomy zero x);
 
 \definition leOfNotLtReverse (x, y: Fraction)
   (notReverse: Logic.Not (lt y x)): Def.Le x y :=
-  Logic.orElim (lt x y)
-    (Logic.Or[FractionEq x y, lt y x]) (Def.Le x y)
-    (\fun (less: lt x y) => leOfLt x y less)
-    (\fun (rest: Logic.Or[FractionEq x y, lt y x]) =>
-      Logic.orElim (FractionEq x y) (lt y x) (Def.Le x y)
-        (\fun (same: FractionEq x y) => leOfEq x y same)
-        (\fun (reverse: lt y x) =>
-          Logic.falseElim (Def.Le x y) (notReverse reverse))
-        rest)
+  either!{
+    {lt x y} "or" {Logic.Or[FractionEq x y, lt y x]} "either" {Def.Le x y}
+    "lt:" {\fun (less: lt x y) => leOfLt x y less}
+    "rt:" {\fun (rest: Logic.Or[FractionEq x y, lt y x]) =>
+      either!{
+        {FractionEq x y} "or" {lt y x} "either" {Def.Le x y}
+        "lt:" {\fun (same: FractionEq x y) => leOfEq x y same}
+        "rt:" {\fun (reverse: lt y x) =>
+          Logic.falseElim (Def.Le x y) (notReverse reverse)}
+      }
+        rest}
+  }
     (FractionOrder.trichotomy x y);
 
 \definition productInteriorAbove
@@ -1801,39 +1824,43 @@
   (qlc: lt q (Def.mul l c)) (qlv: lt q (Def.mul l v))
   (quc: lt q (Def.mul u c)) (quv: lt q (Def.mul u v)):
   lt q (Def.mul x y) :=
-  Logic.orElim (Def.Le zero y) (lt y zero) (lt q (Def.mul x y))
-    (\fun (yNonnegative: Def.Le zero y) =>
+  either!{
+    {Def.Le zero y} "or" {lt y zero} "either" {lt q (Def.mul x y)}
+    "lt:" {\fun (yNonnegative: Def.Le zero y) =>
       \block {
         \let lyxy: Def.Le (Def.mul l y) (Def.mul x y) :=
           leMulNonnegativeRight l x y yNonnegative lx \then
-        \return Logic.orElim (Def.Le zero l) (lt l zero)
-          (lt q (Def.mul x y))
-          (\fun (lNonnegative: Def.Le zero l) =>
+        \return either!{
+          {Def.Le zero l} "or" {lt l zero} "either" {lt q (Def.mul x y)}
+          "lt:" {\fun (lNonnegative: Def.Le zero l) =>
             ltLeTrans q (Def.mul l c) (Def.mul x y) qlc
               (leTrans (Def.mul l c) (Def.mul l y) (Def.mul x y)
-                (leMulNonnegativeLeft l c y lNonnegative cy) lyxy))
-          (\fun (lNegative: lt l zero) =>
+                (leMulNonnegativeLeft l c y lNonnegative cy) lyxy)}
+          "rt:" {\fun (lNegative: lt l zero) =>
             ltLeTrans q (Def.mul l v) (Def.mul x y) qlv
               (leTrans (Def.mul l v) (Def.mul l y) (Def.mul x y)
-                (leMulNegativeLeft l y v lNegative yv) lyxy))
+                (leMulNegativeLeft l y v lNegative yv) lyxy)}
+        }
           (nonnegativeOrNegative l)
-      })
-    (\fun (yNegative: lt y zero) =>
+      }}
+    "rt:" {\fun (yNegative: lt y zero) =>
       \block {
         \let uyxy: Def.Le (Def.mul u y) (Def.mul x y) :=
           leMulNegativeRight x u y yNegative xu \then
-        \return Logic.orElim (Def.Le zero u) (lt u zero)
-          (lt q (Def.mul x y))
-          (\fun (uNonnegative: Def.Le zero u) =>
+        \return either!{
+          {Def.Le zero u} "or" {lt u zero} "either" {lt q (Def.mul x y)}
+          "lt:" {\fun (uNonnegative: Def.Le zero u) =>
             ltLeTrans q (Def.mul u c) (Def.mul x y) quc
               (leTrans (Def.mul u c) (Def.mul u y) (Def.mul x y)
-                (leMulNonnegativeLeft u c y uNonnegative cy) uyxy))
-          (\fun (uNegative: lt u zero) =>
+                (leMulNonnegativeLeft u c y uNonnegative cy) uyxy)}
+          "rt:" {\fun (uNegative: lt u zero) =>
             ltLeTrans q (Def.mul u v) (Def.mul x y) quv
               (leTrans (Def.mul u v) (Def.mul u y) (Def.mul x y)
-                (leMulNegativeLeft u y v uNegative yv) uyxy))
+                (leMulNegativeLeft u y v uNegative yv) uyxy)}
+        }
           (nonnegativeOrNegative u)
-      })
+      }}
+  }
     (nonnegativeOrNegative y);
 
 \definition zeroLtMulPositive (x, y: Fraction)
@@ -1876,35 +1903,39 @@
 
 \definition ltMulPositiveCancelLeft (z, x, y: Fraction)
   (positive: lt zero z) (scaled: lt (Def.mul z x) (Def.mul z y)): lt x y :=
-  Logic.orElim (lt x y)
-    (Logic.Or[FractionEq x y, lt y x]) (lt x y)
-    (\fun (xy: lt x y) => xy)
-    (\fun (rest: Logic.Or[FractionEq x y, lt y x]) =>
-      Logic.orElim (FractionEq x y) (lt y x) (lt x y)
-        (\fun (same: FractionEq x y) =>
+  either!{
+    {lt x y} "or" {Logic.Or[FractionEq x y, lt y x]} "either" {lt x y}
+    "lt:" {\fun (xy: lt x y) => xy}
+    "rt:" {\fun (rest: Logic.Or[FractionEq x y, lt y x]) =>
+      either!{
+        {FractionEq x y} "or" {lt y x} "either" {lt x y}
+        "lt:" {\fun (same: FractionEq x y) =>
           Logic.falseElim (lt x y)
             (FractionOrder.ltIrrefl (Def.mul z x)
               (FractionOrder.ltReplaceRight
                 (Def.mul z x) (Def.mul z y) (Def.mul z x)
                 (fractionEqSym _ _
                   (fractionMulRespects z z x y
-                    (fractionEqRefl z) same)) scaled)))
-        (\fun (yx: lt y x) =>
+                    (fractionEqRefl z) same)) scaled))}
+        "rt:" {\fun (yx: lt y x) =>
           Logic.falseElim (lt x y)
             (FractionOrder.ltIrrefl (Def.mul z x)
               (FractionOrder.ltTrans (Def.mul z x) (Def.mul z y) (Def.mul z x)
-                scaled (ltMulPositiveLeft z y x positive yx))))
-        rest)
+                scaled (ltMulPositiveLeft z y x positive yx)))}
+      }
+        rest}
+  }
     (FractionOrder.trichotomy x y);
 
 \definition positiveOfPositiveProductOne (b, r: Fraction)
   (positive: lt zero b) (law: FractionEq (Def.mul b r) one): lt zero r :=
-  Logic.orElim (lt zero r)
-    (Logic.Or[FractionEq zero r, lt r zero]) (lt zero r)
-    (\fun (result: lt zero r) => result)
-    (\fun (rest: Logic.Or[FractionEq zero r, lt r zero]) =>
-      Logic.orElim (FractionEq zero r) (lt r zero) (lt zero r)
-        (\fun (zeroR: FractionEq zero r) =>
+  either!{
+    {lt zero r} "or" {Logic.Or[FractionEq zero r, lt r zero]} "either" {lt zero r}
+    "lt:" {\fun (result: lt zero r) => result}
+    "rt:" {\fun (rest: Logic.Or[FractionEq zero r, lt r zero]) =>
+      either!{
+        {FractionEq zero r} "or" {lt r zero} "either" {lt zero r}
+        "lt:" {\fun (zeroR: FractionEq zero r) =>
           Logic.falseElim (lt zero r)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltReplaceRight zero one zero
@@ -1913,24 +1944,27 @@
                   "~" { Def.mul b zero } "by" { fractionMulRespects b b r zero
                     (fractionEqRefl b) (fractionEqSym _ _ zeroR) }
                   "~" { zero } "by" { fractionMulZeroRight b }})
-                FractionOrder.zeroLtOne)))
-        (\fun (negative: lt r zero) =>
+                FractionOrder.zeroLtOne))}
+        "rt:" {\fun (negative: lt r zero) =>
           Logic.falseElim (lt zero r)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltTrans zero one zero FractionOrder.zeroLtOne
                 (FractionOrder.ltReplaceLeft (Def.mul b r) one zero law
-                  (mulLtZeroPositiveNegative b r positive negative)))))
-        rest)
+                  (mulLtZeroPositiveNegative b r positive negative))))}
+      }
+        rest}
+  }
     (FractionOrder.trichotomy zero r);
 
 \definition negativeOfNegativeProductOne (b, r: Fraction)
   (negative: lt b zero) (law: FractionEq (Def.mul b r) one): lt r zero :=
-  Logic.orElim (lt r zero)
-    (Logic.Or[FractionEq r zero, lt zero r]) (lt r zero)
-    (\fun (result: lt r zero) => result)
-    (\fun (rest: Logic.Or[FractionEq r zero, lt zero r]) =>
-      Logic.orElim (FractionEq r zero) (lt zero r) (lt r zero)
-        (\fun (rZero: FractionEq r zero) =>
+  either!{
+    {lt r zero} "or" {Logic.Or[FractionEq r zero, lt zero r]} "either" {lt r zero}
+    "lt:" {\fun (result: lt r zero) => result}
+    "rt:" {\fun (rest: Logic.Or[FractionEq r zero, lt zero r]) =>
+      either!{
+        {FractionEq r zero} "or" {lt zero r} "either" {lt r zero}
+        "lt:" {\fun (rZero: FractionEq r zero) =>
           Logic.falseElim (lt r zero)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltReplaceRight zero one zero
@@ -1939,62 +1973,70 @@
                   "~" { Def.mul b zero } "by" { fractionMulRespects b b r zero
                     (fractionEqRefl b) rZero }
                   "~" { zero } "by" { fractionMulZeroRight b }})
-                FractionOrder.zeroLtOne)))
-        (\fun (positive: lt zero r) =>
+                FractionOrder.zeroLtOne))}
+        "rt:" {\fun (positive: lt zero r) =>
           Logic.falseElim (lt r zero)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltTrans zero one zero FractionOrder.zeroLtOne
                 (FractionOrder.ltReplaceLeft (Def.mul b r) one zero law
-                  (mulLtZeroNegativePositive b r negative positive)))))
-        rest)
+                  (mulLtZeroNegativePositive b r negative positive))))}
+      }
+        rest}
+  }
     (FractionOrder.trichotomy r zero);
 
 \definition positiveRightOfPositiveProduct (a, b: Fraction)
   (aPositive: lt zero a) (productPositive: lt zero (Def.mul a b)):
   lt zero b :=
-  Logic.orElim (lt zero b)
-    (Logic.Or[FractionEq zero b, lt b zero]) (lt zero b)
-    (\fun (positive: lt zero b) => positive)
-    (\fun (rest: Logic.Or[FractionEq zero b, lt b zero]) =>
-      Logic.orElim (FractionEq zero b) (lt b zero) (lt zero b)
-        (\fun (zeroB: FractionEq zero b) =>
+  either!{
+    {lt zero b} "or" {Logic.Or[FractionEq zero b, lt b zero]} "either" {lt zero b}
+    "lt:" {\fun (positive: lt zero b) => positive}
+    "rt:" {\fun (rest: Logic.Or[FractionEq zero b, lt b zero]) =>
+      either!{
+        {FractionEq zero b} "or" {lt b zero} "either" {lt zero b}
+        "lt:" {\fun (zeroB: FractionEq zero b) =>
           Logic.falseElim (lt zero b)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltReplaceRight zero (Def.mul a b) zero
                 (equiv_reason_terms!{fractionEqTrans { Def.mul a b }
                   "~" { Def.mul a zero } "by" { fractionMulRespects a a b zero
                     (fractionEqRefl a) (fractionEqSym _ _ zeroB) }
-                  "~" { zero } "by" { fractionMulZeroRight a }}) productPositive)))
-        (\fun (negative: lt b zero) =>
+                  "~" { zero } "by" { fractionMulZeroRight a }}) productPositive))}
+        "rt:" {\fun (negative: lt b zero) =>
           Logic.falseElim (lt zero b)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltTrans zero (Def.mul a b) zero productPositive
-                (mulLtZeroPositiveNegative a b aPositive negative))))
-        rest)
+                (mulLtZeroPositiveNegative a b aPositive negative)))}
+      }
+        rest}
+  }
     (FractionOrder.trichotomy zero b);
 
 \definition negativeRightOfPositiveProduct (a, b: Fraction)
   (aNegative: lt a zero) (productPositive: lt zero (Def.mul a b)):
   lt b zero :=
-  Logic.orElim (lt b zero)
-    (Logic.Or[FractionEq b zero, lt zero b]) (lt b zero)
-    (\fun (negative: lt b zero) => negative)
-    (\fun (rest: Logic.Or[FractionEq b zero, lt zero b]) =>
-      Logic.orElim (FractionEq b zero) (lt zero b) (lt b zero)
-        (\fun (bZero: FractionEq b zero) =>
+  either!{
+    {lt b zero} "or" {Logic.Or[FractionEq b zero, lt zero b]} "either" {lt b zero}
+    "lt:" {\fun (negative: lt b zero) => negative}
+    "rt:" {\fun (rest: Logic.Or[FractionEq b zero, lt zero b]) =>
+      either!{
+        {FractionEq b zero} "or" {lt zero b} "either" {lt b zero}
+        "lt:" {\fun (bZero: FractionEq b zero) =>
           Logic.falseElim (lt b zero)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltReplaceRight zero (Def.mul a b) zero
                 (equiv_reason_terms!{fractionEqTrans { Def.mul a b }
                   "~" { Def.mul a zero } "by" { fractionMulRespects a a b zero
                     (fractionEqRefl a) bZero }
-                  "~" { zero } "by" { fractionMulZeroRight a }}) productPositive)))
-        (\fun (positive: lt zero b) =>
+                  "~" { zero } "by" { fractionMulZeroRight a }}) productPositive))}
+        "rt:" {\fun (positive: lt zero b) =>
           Logic.falseElim (lt b zero)
             (FractionOrder.ltIrrefl zero
               (FractionOrder.ltTrans zero (Def.mul a b) zero productPositive
-                (mulLtZeroNegativePositive a b aNegative positive))))
-        rest)
+                (mulLtZeroNegativePositive a b aNegative positive)))}
+      }
+        rest}
+  }
     (FractionOrder.trichotomy b zero);
 
 \definition reciprocalOrderPositive (a, b, r, s: Fraction)
@@ -2021,13 +2063,12 @@
     \let half: Fraction := Def.midpoint zero one \then
     \let halfPositive: lt zero half := ltMidpoint zero one FractionOrder.zeroLtOne \then
     \let halfBelowOne: lt half one := midpointLt zero one FractionOrder.zeroLtOne \then
-    \return Logic.orElim (lt zero c)
-      (Logic.Or[FractionEq zero c, lt c zero]) (Def.ContractingFactor q c)
-      (\fun (cPositive: lt zero c) =>
-        Logic.orElim (lt zero q)
-          (Logic.Or[FractionEq zero q, lt q zero])
-          (Def.ContractingFactor q c)
-          (\fun (qPositive: lt zero q) =>
+    \return either!{
+      {lt zero c} "or" {Logic.Or[FractionEq zero c, lt c zero]} "either" {Def.ContractingFactor q c}
+      "lt:" {\fun (cPositive: lt zero c) =>
+        either!{
+          {lt zero q} "or" {Logic.Or[FractionEq zero q, lt q zero]} "either" {Def.ContractingFactor q c}
+          "lt:" {\fun (qPositive: lt zero q) =>
             \block {
               \let r: Fraction := Def.reciprocal c \then
               \let law: FractionEq (Def.mul c r) one :=
@@ -2062,30 +2103,32 @@
               \return \exact(
                 \into[Fraction](a, { a : Fraction \where Def.ContractingFactorLaw[q, c, a] }) \by { Def.ContractingFactorLaw[q, c, a]::# aPositive aOne qac },
                 \Cast[Fraction] ({ a : Fraction \where Def.ContractingFactorLaw[q, c, a] }))
-            })
-          (\fun (restQ: Logic.Or[FractionEq zero q, lt q zero]) =>
+            }}
+          "rt:" {\fun (restQ: Logic.Or[FractionEq zero q, lt q zero]) =>
             \block {
               \let productPositive: lt zero (Def.mul half c) :=
                 zeroLtMulPositive half c halfPositive cPositive \then
               \let qProduct: lt q (Def.mul half c) :=
-                Logic.orElim (FractionEq zero q) (lt q zero)
-                  (lt q (Def.mul half c))
-                  (\fun (zeroQ: FractionEq zero q) =>
+                either!{
+                  {FractionEq zero q} "or" {lt q zero} "either" {lt q (Def.mul half c)}
+                  "lt:" {\fun (zeroQ: FractionEq zero q) =>
                     FractionOrder.ltReplaceLeft zero q (Def.mul half c)
-                      zeroQ productPositive)
-                  (\fun (qNegative: lt q zero) =>
+                      zeroQ productPositive}
+                  "rt:" {\fun (qNegative: lt q zero) =>
                     FractionOrder.ltTrans q zero (Def.mul half c)
-                      qNegative productPositive)
+                      qNegative productPositive}
+                }
                   restQ \then
               \return \exact(
                 \into[Fraction](half, { a : Fraction \where Def.ContractingFactorLaw[q, c, a] }) \by { Def.ContractingFactorLaw[q, c, half]::# halfPositive halfBelowOne qProduct },
                 \Cast[Fraction] ({ a : Fraction \where Def.ContractingFactorLaw[q, c, a] }))
-            })
-          (FractionOrder.trichotomy zero q))
-      (\fun (restC: Logic.Or[FractionEq zero c, lt c zero]) =>
-        Logic.orElim (FractionEq zero c) (lt c zero)
-          (Def.ContractingFactor q c)
-          (\fun (zeroC: FractionEq zero c) =>
+            }}
+        }
+          (FractionOrder.trichotomy zero q)}
+      "rt:" {\fun (restC: Logic.Or[FractionEq zero c, lt c zero]) =>
+        either!{
+          {FractionEq zero c} "or" {lt c zero} "either" {Def.ContractingFactor q c}
+          "lt:" {\fun (zeroC: FractionEq zero c) =>
             \block {
               \let qZero: lt q zero :=
                 FractionOrder.ltReplaceRight q c zero
@@ -2102,8 +2145,8 @@
               \return \exact(
                 \into[Fraction](half, { a : Fraction \where Def.ContractingFactorLaw[q, c, a] }) \by { Def.ContractingFactorLaw[q, c, half]::# halfPositive halfBelowOne qProduct },
                 \Cast[Fraction] ({ a : Fraction \where Def.ContractingFactorLaw[q, c, a] }))
-            })
-          (\fun (cNegative: lt c zero) =>
+            }}
+          "rt:" {\fun (cNegative: lt c zero) =>
             \block {
               \let cHalf: lt c (Def.mul half c) :=
                 FractionOrder.ltRespects
@@ -2115,8 +2158,10 @@
               \return \exact(
                 \into[Fraction](half, { a : Fraction \where Def.ContractingFactorLaw[q, c, a] }) \by { Def.ContractingFactorLaw[q, c, half]::# halfPositive halfBelowOne qProduct },
                 \Cast[Fraction] ({ a : Fraction \where Def.ContractingFactorLaw[q, c, a] }))
-            })
-          restC)
+            }}
+        }
+          restC}
+    }
       (FractionOrder.trichotomy zero c)
   };
 
@@ -2245,25 +2290,28 @@
 \definition fractionDoubleInjective (x, y: Fraction)
   (same: FractionEq (Def.add x x) (Def.add y y)):
   FractionEq x y :=
-  Logic.orElim (lt x y) (Logic.Or[FractionEq x y, lt y x])
-    (FractionEq x y)
-    (\fun (xy: lt x y) =>
+  either!{
+    {lt x y} "or" {Logic.Or[FractionEq x y, lt y x]} "either" {FractionEq x y}
+    "lt:" {\fun (xy: lt x y) =>
       Logic.falseElim (FractionEq x y)
         (FractionOrder.ltIrrefl (Def.add x x)
           (FractionOrder.ltReplaceRight
             (Def.add x x) (Def.add y y) (Def.add x x)
             (fractionEqSym _ _ same)
-            (ltAdd x y x y xy xy))))
-    (\fun (other: Logic.Or[FractionEq x y, lt y x]) =>
-      Logic.orElim (FractionEq x y) (lt y x) (FractionEq x y)
-        (\fun (eq: FractionEq x y) => eq)
-        (\fun (yx: lt y x) =>
+            (ltAdd x y x y xy xy)))}
+    "rt:" {\fun (other: Logic.Or[FractionEq x y, lt y x]) =>
+      either!{
+        {FractionEq x y} "or" {lt y x} "either" {FractionEq x y}
+        "lt:" {\fun (eq: FractionEq x y) => eq}
+        "rt:" {\fun (yx: lt y x) =>
           Logic.falseElim (FractionEq x y)
             (FractionOrder.ltIrrefl (Def.add y y)
               (FractionOrder.ltReplaceRight
                 (Def.add y y) (Def.add x x) (Def.add y y)
-                same (ltAdd y x y x yx yx))))
-        other)
+                same (ltAdd y x y x yx yx)))}
+      }
+        other}
+  }
     (FractionOrder.trichotomy x y);
 
 \definition subPositive (x, y: Fraction) (xy: lt x y):

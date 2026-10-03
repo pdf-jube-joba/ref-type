@@ -1,3 +1,4 @@
+\use Logic.either;
 /* A nonempty, bounded family of cuts has its union as least upper bound.
  * Classical.excludedMiddle uses the existing choice and setext axioms. */
 \import std.Logic[].Classical[] \as Classical;
@@ -65,12 +66,13 @@
 
 \definition unionLocated (S: \Pow Real) (p, q: Rat) (pq: lt p q):
   Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)] :=
-  Logic.orElim (UnionMember S q) (Logic.Not (UnionMember S q))
-    (Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)])
-    (\fun (sq: UnionMember S q) =>
-      Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::left (unionLower S p q pq sq))
-    (\fun (nq: Logic.Not (UnionMember S q)) =>
-      Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::right nq)
+  either!{
+    {UnionMember S q} "or" {Logic.Not (UnionMember S q)} "either" {Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]}
+    "lt:" {\fun (sq: UnionMember S q) =>
+      Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::left (unionLower S p q pq sq)}
+    "rt:" {\fun (nq: Logic.Not (UnionMember S q)) =>
+      Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::right nq}
+  }
     (Classical.excludedMiddle (UnionMember S q));
 
 \definition unionRespects (S: \Pow Real) (p, q: Rat)

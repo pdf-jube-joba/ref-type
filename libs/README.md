@@ -22,6 +22,21 @@
 例えば `std/src/Data/Nat/Division.ref` の `\module Def;` の本体は `std/src/Data/Nat/Division/Def.ref` にある。
 子ファイルは親のスコープを引き継ぐので、同じ依存を改めて import して型の instance を作り直さない。
 
+## 選言の場合分け
+
+`either!` は左右の証明から結論を導く関数を受け取り、`Logic.Or[P, Q] -> R` を構成する。
+
+```text
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+
+either!{
+  P "or" Q "either" R
+  "lt:" {\fun (p: P) => fromLeft p}
+  "rt:" {\fun (q: Q) => fromRight q}
+} disjunction
+```
+
 ## 等式と合同則
 
 等式の基本操作は carrier をマクロ引数にして使用する。

@@ -8,6 +8,7 @@
 \use Equality.sym;
 \use Equality.trans;
 \import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
 \import std.Data[].Bool[] \as B;
 
 /* The two subsets used by Diaconescu's argument are supplied explicitly here:
@@ -32,19 +33,19 @@
     (rightExists: \exists \Cast[B.Bool^] Right)
     (S: Candidate Left Right):
       \exists \Cast[B.Bool^] S :=
-    Logic.orElim
-      (S = Left) (S = Right)
-      (\exists \Cast[B.Bool^] S)
-      (\fun (e: S = Left) =>
+    either!{
+      {S = Left} "or" {S = Right} "either" {\exists \Cast[B.Bool^] S}
+      "lt:" {\fun (e: S = Left) =>
         \idelim Left = S
           \with T: \Pow B.Bool^ => \exists \Cast[B.Bool^] T
           \by { base: leftExists, equality:
-            sym!{\Pow B.Bool^} S Left e })
-      (\fun (e: S = Right) =>
+            sym!{\Pow B.Bool^} S Left e }}
+      "rt:" {\fun (e: S = Right) =>
         \idelim Right = S
           \with T: \Pow B.Bool^ => \exists \Cast[B.Bool^] T
           \by { base: rightExists, equality:
-            sym!{\Pow B.Bool^} S Right e })
+            sym!{\Pow B.Bool^} S Right e }}
+    }
       (\bysub(\Pow B.Bool^, Candidates Left Right, S));
 
 \definition Selection(Left, Right: \Pow B.Bool^): \Set :=
@@ -84,12 +85,12 @@
 \definition equalChoicesGiveP(P: \Prop) (u, v: B.Bool^)
     (uMember: Logic.Or[u = B.Bool^::false, P])
     (vMember: Logic.Or[v = B.Bool^::true, P]) (uv: u = v): P :=
-  Logic.orElim
-    (u = B.Bool^::false) P P
-    (\fun (uf: u = B.Bool^::false) =>
-      Logic.orElim
-        (v = B.Bool^::true) P P
-        (\fun (vt: v = B.Bool^::true) =>
+  either!{
+    {u = B.Bool^::false} "or" P "either" P
+    "lt:" {\fun (uf: u = B.Bool^::false) =>
+      either!{
+        {v = B.Bool^::true} "or" P "either" P
+        "lt:" {\fun (vt: v = B.Bool^::true) =>
           B.absurd P
             (trans!{B.Bool^}
               B.Bool^::false v B.Bool^::true
@@ -97,9 +98,11 @@
                 B.Bool^::false u v
                 (sym!{B.Bool^} u B.Bool^::false uf)
                 uv)
-              vt))
-        (\fun (p: P) => p) vMember)
-    (\fun (p: P) => p) uMember;
+              vt)}
+        "rt:" {\fun (p: P) => p}
+      } vMember}
+    "rt:" {\fun (p: P) => p}
+  } uMember;
 
 \definition selectedEqual(Left, Right: \Pow B.Bool^)
     (select: Selection Left Right) (e: Left = Right):
@@ -115,21 +118,20 @@
     (leftMember: Logic.Or[chooseLeft Left Right select = B.Bool^::false, P])
     (rightMember: Logic.Or[chooseRight Left Right select = B.Bool^::true, P])
     (collapse: P -> Left = Right): Logic.Or[P, Logic.Not P] :=
-  Logic.orElim
-    (chooseLeft Left Right select = chooseRight Left Right select)
-    (Logic.Not (
-      chooseLeft Left Right select = chooseRight Left Right select))
-    (Logic.Or[P, Logic.Not P])
-    (\fun (equal:
+  either!{
+    {chooseLeft Left Right select = chooseRight Left Right select} "or" {Logic.Not (
+      chooseLeft Left Right select = chooseRight Left Right select)} "either" {Logic.Or[P, Logic.Not P]}
+    "lt:" {\fun (equal:
         chooseLeft Left Right select = chooseRight Left Right select) =>
       Logic.Or[P, Logic.Not P]::left
         (equalChoicesGiveP P
           (chooseLeft Left Right select) (chooseRight Left Right select)
-          leftMember rightMember equal))
-    (\fun (unequal: Logic.Not (
+          leftMember rightMember equal)}
+    "rt:" {\fun (unequal: Logic.Not (
         chooseLeft Left Right select = chooseRight Left Right select)) =>
       Logic.Or[P, Logic.Not P]::right
-        (\fun (p: P) => unequal (selectedEqual Left Right select (collapse p))))
+        (\fun (p: P) => unequal (selectedEqual Left Right select (collapse p)))}
+  }
     (B.eqDecidable
       (chooseLeft Left Right select) (chooseRight Left Right select));
 

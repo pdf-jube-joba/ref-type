@@ -1,3 +1,4 @@
+\use Logic.either;
 \import \parent.Def[] \as Def;
 
 \import std.Arithmetic[].Rat[].Estimates[] \as Estimates;
@@ -19,13 +20,14 @@
 
 \definition lowerLocated (L: \Pow Rat) (lower: Lower L): Located L :=
   \fun (p, q: Rat) => \fun (pq: lt p q) =>
-    Logic.orElim (In L p) (Logic.Not (In L p))
-      (Logic.Or[In L p, Logic.Not (In L q)])
-      (\fun (lp: In L p) =>
-        Logic.Or[In L p, Logic.Not (In L q)]::left lp)
-      (\fun (np: Logic.Not (In L p)) =>
+    either!{
+      {In L p} "or" {Logic.Not (In L p)} "either" {Logic.Or[In L p, Logic.Not (In L q)]}
+      "lt:" {\fun (lp: In L p) =>
+        Logic.Or[In L p, Logic.Not (In L q)]::left lp}
+      "rt:" {\fun (np: Logic.Not (In L p)) =>
         Logic.Or[In L p, Logic.Not (In L q)]::right
-          (\fun (lq: In L q) => np (lower p q pq lq)))
+          (\fun (lq: In L q) => np (lower p q pq lq))}
+    }
       (Classical.excludedMiddle (In L p));
 
 \definition ratLowerInhabited (a: Rat): Inhabited (Def.RatLower a) :=
@@ -68,16 +70,19 @@
 
 \definition memberLtOutside (x: Real) (a, b: Rat)
   (xa: mem x a) (xb: Logic.Not (mem x b)): lt a b :=
-  Logic.orElim (lt a b)
-    (Logic.Or[RationalFractions.FractionEq a b, lt b a]) (lt a b)
-    (\fun (ab: lt a b) => ab)
-    (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, lt b a]) =>
-      Logic.orElim (RationalFractions.FractionEq a b) (lt b a) (lt a b)
-        (\fun (ab: RationalFractions.FractionEq a b) =>
-          Logic.falseElim (lt a b) (xb (#respects{x} a b ab xa)))
-        (\fun (ba: lt b a) =>
-          Logic.falseElim (lt a b) (xb (#lower{x} b a ba xa)))
-        rest)
+  either!{
+    {lt a b} "or" {Logic.Or[RationalFractions.FractionEq a b, lt b a]} "either" {lt a b}
+    "lt:" {\fun (ab: lt a b) => ab}
+    "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq a b, lt b a]) =>
+      either!{
+        {RationalFractions.FractionEq a b} "or" {lt b a} "either" {lt a b}
+        "lt:" {\fun (ab: RationalFractions.FractionEq a b) =>
+          Logic.falseElim (lt a b) (xb (#respects{x} a b ab xa))}
+        "rt:" {\fun (ba: lt b a) =>
+          Logic.falseElim (lt a b) (xb (#lower{x} b a ba xa))}
+      }
+        rest}
+  }
     (RationalOrder.trichotomy a b);
 
 \definition GridPredicate (x: Real) (a, e: Rat): Natural.Nat^ -> \Prop :=
@@ -811,10 +816,9 @@
   };
 
 \definition invInhabited (x: Real): Inhabited (Def.InvLower x) :=
-   Logic.orElim (underlying x = Def.RatLower zeroRat)
-    (Logic.Not (underlying x = Def.RatLower zeroRat))
-    (Inhabited (Def.InvLower x))
-    (\fun (zero: underlying x = Def.RatLower zeroRat) =>
+   either!{
+     {underlying x = Def.RatLower zeroRat} "or" {Logic.Not (underlying x = Def.RatLower zeroRat)} "either" {Inhabited (Def.InvLower x)}
+     "lt:" {\fun (zero: underlying x = Def.RatLower zeroRat) =>
       \block {
         \let q: Rat := RationalOperations.below zeroRat \then
         \return
@@ -827,39 +831,39 @@
             (Logic.And[underlying x = Def.RatLower zeroRat,
               lt q zeroRat]::# zero (RationalOperationsProp.belowLt zeroRat)) },
         \Cast[Rat] ({ q : Rat \where In (Def.InvLower x) q }))
-      })
-    (\fun (nonzero: Logic.Not (underlying x = Def.RatLower zeroRat)) =>
-      Logic.orElim (Lt x zeroReal)
-        (Logic.Or[x = zeroReal, Lt zeroReal x])
-        (Inhabited (Def.InvLower x))
-        (\fun (negative: Lt x zeroReal) =>
-          invInhabitedBelowZero x nonzero negative)
-        (\fun (rest: Logic.Or[x = zeroReal, Lt zeroReal x]) =>
-          Logic.orElim (x = zeroReal) (Lt zeroReal x)
-            (Inhabited (Def.InvLower x))
-            (\fun (same: x = zeroReal) =>
+      }}
+     "rt:" {\fun (nonzero: Logic.Not (underlying x = Def.RatLower zeroRat)) =>
+      either!{
+        {Lt x zeroReal} "or" {Logic.Or[x = zeroReal, Lt zeroReal x]} "either" {Inhabited (Def.InvLower x)}
+        "lt:" {\fun (negative: Lt x zeroReal) =>
+          invInhabitedBelowZero x nonzero negative}
+        "rt:" {\fun (rest: Logic.Or[x = zeroReal, Lt zeroReal x]) =>
+          either!{
+            {x = zeroReal} "or" {Lt zeroReal x} "either" {Inhabited (Def.InvLower x)}
+            "lt:" {\fun (same: x = zeroReal) =>
               Logic.falseElim (Inhabited (Def.InvLower x))
                 (nonzero
                   (\idelim zeroReal = x
                     \with z: Real => underlying z = Def.RatLower zeroRat
                     \by { base: \refl(Def.RatLower zeroRat), equality:
-                      sym!{Real} x zeroReal same })))
-            (\fun (positive: Lt zeroReal x) =>
-              invInhabitedAboveZero x nonzero positive)
-            rest)
-        (CutOrder.ltTrichotomy x zeroReal))
+                      sym!{Real} x zeroReal same }))}
+            "rt:" {\fun (positive: Lt zeroReal x) =>
+              invInhabitedAboveZero x nonzero positive}
+          }
+            rest}
+      }
+        (CutOrder.ltTrichotomy x zeroReal)}
+   }
     (Classical.excludedMiddle (underlying x = Def.RatLower zeroRat));
 
 \definition invLower (x: Real): Lower (Def.InvLower x) :=
 
   \fun (p, q: Rat) => \fun (pq: lt p q) =>
     \fun (member: In (Def.InvLower x) q) =>
-      Logic.orElim
-        (Logic.And[underlying x = Def.RatLower zeroRat, lt q zeroRat])
-        (Logic.And[Logic.Not (underlying x = Def.RatLower zeroRat),
-          Def.ReciprocalBelow x q])
-        (In (Def.InvLower x) p)
-        (\fun (atZero: Logic.And[
+      either!{
+        {Logic.And[underlying x = Def.RatLower zeroRat, lt q zeroRat]} "or" {Logic.And[Logic.Not (underlying x = Def.RatLower zeroRat),
+          Def.ReciprocalBelow x q]} "either" {In (Def.InvLower x) p}
+        "lt:" {\fun (atZero: Logic.And[
           underlying x = Def.RatLower zeroRat, lt q zeroRat]) =>
           Logic.Or[
             Logic.And[underlying x = Def.RatLower zeroRat, lt p zeroRat],
@@ -867,8 +871,8 @@
               Def.ReciprocalBelow x p]]::left
             (Logic.And[
               underlying x = Def.RatLower zeroRat, lt p zeroRat]::# (#left{atZero}) (RationalOrder.ltTrans p q zeroRat pq
-                  (#right{atZero}))))
-        (\fun (away: Logic.And[
+                  (#right{atZero})))}
+        "rt:" {\fun (away: Logic.And[
           Logic.Not (underlying x = Def.RatLower zeroRat),
           Def.ReciprocalBelow x q]) =>
           Logic.Or[
@@ -887,17 +891,16 @@
                       (mulRat b r) oneRat) =>
                     \fun (qr: lt q r) =>
                       reciprocalBelowIntro x p a b r xa xb positive law
-                        (RationalOrder.ltTrans p q r pq qr)))))
+                        (RationalOrder.ltTrans p q r pq qr))))}
+      }
         member;
 
 \definition invRounded (x: Real): Rounded (Def.InvLower x) :=
   \fun (q: Rat) => \fun (member: In (Def.InvLower x) q) =>
-    Logic.orElim
-      (Logic.And[underlying x = Def.RatLower zeroRat, lt q zeroRat])
-      (Logic.And[Logic.Not (underlying x = Def.RatLower zeroRat),
-        Def.ReciprocalBelow x q])
-      (\exists { r : Rat \where Logic.And[In (Def.InvLower x) r, lt q r] })
-      (\fun (atZero: Logic.And[
+    either!{
+      {Logic.And[underlying x = Def.RatLower zeroRat, lt q zeroRat]} "or" {Logic.And[Logic.Not (underlying x = Def.RatLower zeroRat),
+        Def.ReciprocalBelow x q]} "either" {\exists { r : Rat \where Logic.And[In (Def.InvLower x) r, lt q r] }}
+      "lt:" {\fun (atZero: Logic.And[
         underlying x = Def.RatLower zeroRat, lt q zeroRat]) =>
         \block {
           \let r: Rat := RationalOperations.midpoint q zeroRat \then
@@ -912,8 +915,8 @@
                         (#right{atZero})))) (RationalOperationsProp.ltMidpoint q zeroRat
                   (#right{atZero})) },
             \Cast[Rat] ({ r : Rat \where Logic.And[In (Def.InvLower x) r, lt q r] }))
-        })
-      (\fun (away: Logic.And[
+        }}
+      "rt:" {\fun (away: Logic.And[
         Logic.Not (underlying x = Def.RatLower zeroRat),
         Def.ReciprocalBelow x q]) =>
         reciprocalBelowElim x q
@@ -940,7 +943,8 @@
                               positive law
                               (RationalOperationsProp.midpointLt q r qr)))) (RationalOperationsProp.ltMidpoint q r qr) },
                   \Cast[Rat] ({ s : Rat \where Logic.And[In (Def.InvLower x) s, lt q s] }))
-              }))
+              })}
+    }
       member;
 
 \definition invRespects (x: Real): RespectsFractionEq (Def.InvLower x) :=
@@ -948,12 +952,10 @@
   \fun (p, q: Rat) =>
     \fun (same: RationalFractions.FractionEq p q) =>
       \fun (member: In (Def.InvLower x) p) =>
-        Logic.orElim
-          (Logic.And[underlying x = Def.RatLower zeroRat, lt p zeroRat])
-          (Logic.And[Logic.Not (underlying x = Def.RatLower zeroRat),
-            Def.ReciprocalBelow x p])
-          (In (Def.InvLower x) q)
-          (\fun (atZero: Logic.And[
+        either!{
+          {Logic.And[underlying x = Def.RatLower zeroRat, lt p zeroRat]} "or" {Logic.And[Logic.Not (underlying x = Def.RatLower zeroRat),
+            Def.ReciprocalBelow x p]} "either" {In (Def.InvLower x) q}
+          "lt:" {\fun (atZero: Logic.And[
             underlying x = Def.RatLower zeroRat, lt p zeroRat]) =>
             Logic.Or[
               Logic.And[underlying x = Def.RatLower zeroRat, lt q zeroRat],
@@ -961,8 +963,8 @@
                 Def.ReciprocalBelow x q]]::left
               (Logic.And[
                 underlying x = Def.RatLower zeroRat, lt q zeroRat]::# (#left{atZero}) (RationalOrder.ltReplaceLeft p q zeroRat same
-                    (#right{atZero}))))
-          (\fun (away: Logic.And[
+                    (#right{atZero})))}
+          "rt:" {\fun (away: Logic.And[
             Logic.Not (underlying x = Def.RatLower zeroRat),
             Def.ReciprocalBelow x p]) =>
             Logic.Or[
@@ -981,27 +983,27 @@
                         (mulRat b r) oneRat) =>
                       \fun (pr: lt p r) =>
                         reciprocalBelowIntro x q a b r xa xb positive law
-                          (RationalOrder.ltReplaceLeft p q r same pr)))))
+                          (RationalOrder.ltReplaceLeft p q r same pr))))}
+        }
           member;
 
 \definition invProperAtZero (x: Real)
   (zero: underlying x = Def.RatLower zeroRat): Proper (Def.InvLower x) :=
   \exact(
     \into[Rat](zeroRat, { q : Rat \where Logic.Not (In (Def.InvLower x) q) }) \by { \fun (member: In (Def.InvLower x) zeroRat) =>
-        Logic.orElim
-          (Logic.And[underlying x = Def.RatLower zeroRat,
-            lt zeroRat zeroRat])
-          (Logic.And[Logic.Not (underlying x = Def.RatLower zeroRat),
-            Def.ReciprocalBelow x zeroRat])
-          Logic.False
-          (\fun (atZero: Logic.And[
+        either!{
+          {Logic.And[underlying x = Def.RatLower zeroRat,
+            lt zeroRat zeroRat]} "or" {Logic.And[Logic.Not (underlying x = Def.RatLower zeroRat),
+            Def.ReciprocalBelow x zeroRat]} "either" Logic.False
+          "lt:" {\fun (atZero: Logic.And[
             underlying x = Def.RatLower zeroRat, lt zeroRat zeroRat]) =>
             RationalOrder.ltIrrefl zeroRat
-              (#right{atZero}))
-          (\fun (away: Logic.And[
+              (#right{atZero})}
+          "rt:" {\fun (away: Logic.And[
             Logic.Not (underlying x = Def.RatLower zeroRat),
             Def.ReciprocalBelow x zeroRat]) =>
-            #left{away} zero)
+            #left{away} zero}
+        }
           member },
     \Cast[Rat] ({ q : Rat \where Logic.Not (In (Def.InvLower x) q) }));
 
@@ -1019,16 +1021,14 @@
       (#right{separation}) \then
     \return \exact(
       \into[Rat](zeroRat, { q : Rat \where Logic.Not (In (Def.InvLower x) q) }) \by { \fun (member: In (Def.InvLower x) zeroRat) =>
-          Logic.orElim
-            (Logic.And[underlying x = Def.RatLower zeroRat,
-              lt zeroRat zeroRat])
-            (Logic.And[Logic.Not (underlying x = Def.RatLower zeroRat),
-              Def.ReciprocalBelow x zeroRat])
-            Logic.False
-            (\fun (atZero: Logic.And[
+          either!{
+            {Logic.And[underlying x = Def.RatLower zeroRat,
+              lt zeroRat zeroRat]} "or" {Logic.And[Logic.Not (underlying x = Def.RatLower zeroRat),
+              Def.ReciprocalBelow x zeroRat]} "either" Logic.False
+            "lt:" {\fun (atZero: Logic.And[
               underlying x = Def.RatLower zeroRat, lt zeroRat zeroRat]) =>
-              nonzero (#left{atZero}))
-            (\fun (away: Logic.And[
+              nonzero (#left{atZero})}
+            "rt:" {\fun (away: Logic.And[
               Logic.Not (underlying x = Def.RatLower zeroRat),
               Def.ReciprocalBelow x zeroRat]) =>
               reciprocalBelowElim x zeroRat
@@ -1053,7 +1053,8 @@
                       \return RationalOrder.ltIrrefl zeroRat
                         (RationalOrder.ltTrans zeroRat r zeroRat
                           zeroR rNegative)
-                    }))
+                    })}
+          }
             member },
         \Cast[Rat] ({ q : Rat \where Logic.Not (In (Def.InvLower x) q) }))
   };
@@ -1085,17 +1086,15 @@
         (RationalOperationsProp.numeratorNonZeroOfZeroLt a0 a0Positive) \then
     \return \exact(
       \into[Rat](s, { q : Rat \where Logic.Not (In (Def.InvLower x) q) }) \by { \fun (member: In (Def.InvLower x) s) =>
-          Logic.orElim
-            (Logic.And[underlying x = Def.RatLower zeroRat,
-              lt s zeroRat])
-            (Logic.And[
+          either!{
+            {Logic.And[underlying x = Def.RatLower zeroRat,
+              lt s zeroRat]} "or" {Logic.And[
               Logic.Not (underlying x = Def.RatLower zeroRat),
-              Def.ReciprocalBelow x s])
-            Logic.False
-            (\fun (atZero: Logic.And[
+              Def.ReciprocalBelow x s]} "either" Logic.False
+            "lt:" {\fun (atZero: Logic.And[
               underlying x = Def.RatLower zeroRat, lt s zeroRat]) =>
-              nonzero (#left{atZero}))
-            (\fun (away: Logic.And[
+              nonzero (#left{atZero})}
+            "rt:" {\fun (away: Logic.And[
               Logic.Not (underlying x = Def.RatLower zeroRat),
               Def.ReciprocalBelow x s]) =>
               reciprocalBelowElim x s
@@ -1116,37 +1115,39 @@
                           a0 b r s a0Positive a0b law a0Law \then
                       \return RationalOrder.ltIrrefl s
                         (RationalOrder.ltTrans s r s sr rs)
-                    }))
+                    })}
+          }
             member },
         \Cast[Rat] ({ q : Rat \where Logic.Not (In (Def.InvLower x) q) }))
   };
 
 \definition invProper (x: Real): Proper (Def.InvLower x) :=
-  Logic.orElim (underlying x = Def.RatLower zeroRat)
-    (Logic.Not (underlying x = Def.RatLower zeroRat))
-    (Proper (Def.InvLower x))
-    (\fun (zero: underlying x = Def.RatLower zeroRat) =>
-      invProperAtZero x zero)
-    (\fun (nonzero: Logic.Not (underlying x = Def.RatLower zeroRat)) =>
-      Logic.orElim (Lt x zeroReal)
-        (Logic.Or[x = zeroReal, Lt zeroReal x])
-        (Proper (Def.InvLower x))
-        (\fun (negative: Lt x zeroReal) =>
-          invProperBelowZero x nonzero negative)
-        (\fun (rest: Logic.Or[x = zeroReal, Lt zeroReal x]) =>
-          Logic.orElim (x = zeroReal) (Lt zeroReal x)
-            (Proper (Def.InvLower x))
-            (\fun (same: x = zeroReal) =>
+  either!{
+    {underlying x = Def.RatLower zeroRat} "or" {Logic.Not (underlying x = Def.RatLower zeroRat)} "either" {Proper (Def.InvLower x)}
+    "lt:" {\fun (zero: underlying x = Def.RatLower zeroRat) =>
+      invProperAtZero x zero}
+    "rt:" {\fun (nonzero: Logic.Not (underlying x = Def.RatLower zeroRat)) =>
+      either!{
+        {Lt x zeroReal} "or" {Logic.Or[x = zeroReal, Lt zeroReal x]} "either" {Proper (Def.InvLower x)}
+        "lt:" {\fun (negative: Lt x zeroReal) =>
+          invProperBelowZero x nonzero negative}
+        "rt:" {\fun (rest: Logic.Or[x = zeroReal, Lt zeroReal x]) =>
+          either!{
+            {x = zeroReal} "or" {Lt zeroReal x} "either" {Proper (Def.InvLower x)}
+            "lt:" {\fun (same: x = zeroReal) =>
               Logic.falseElim (Proper (Def.InvLower x))
                 (nonzero
                   (\idelim zeroReal = x
                     \with z: Real => underlying z = Def.RatLower zeroRat
                     \by { base: \refl(Def.RatLower zeroRat), equality:
-                      sym!{Real} x zeroReal same })))
-            (\fun (positive: Lt zeroReal x) =>
-              invProperAboveZero x nonzero positive)
-            rest)
-        (CutOrder.ltTrichotomy x zeroReal))
+                      sym!{Real} x zeroReal same }))}
+            "rt:" {\fun (positive: Lt zeroReal x) =>
+              invProperAboveZero x nonzero positive}
+          }
+            rest}
+      }
+        (CutOrder.ltTrichotomy x zeroReal)}
+  }
     (Classical.excludedMiddle (underlying x = Def.RatLower zeroRat));
 
 \definition invCut (x: Real): IsCut[Def.InvLower x] :=

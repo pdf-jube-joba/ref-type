@@ -18,9 +18,9 @@
 
 \definition inverseExistsClass (x: CauchySeq::[Set]):
     \exists { y : Real \where InverseSpec (class x) y } :=
-  Logic.orElim (class x = ArithmeticDef.zero) (Logic.Not (class x = ArithmeticDef.zero))
-    (\exists { y : Real \where InverseSpec (class x) y })
-    (\fun (same: class x = ArithmeticDef.zero) =>
+  either!{
+    {class x = ArithmeticDef.zero} "or" {Logic.Not (class x = ArithmeticDef.zero)} "either" {\exists { y : Real \where InverseSpec (class x) y }}
+    "lt:" {\fun (same: class x = ArithmeticDef.zero) =>
       \exact(
         \into[Real](ArithmeticDef.zero, { y : Real \where InverseSpec (class x) y })
           \by { Logic.And[class x = ArithmeticDef.zero -> ArithmeticDef.zero = ArithmeticDef.zero,
@@ -29,8 +29,8 @@
             (\fun (different: Logic.Not (class x = ArithmeticDef.zero)) =>
               Logic.falseElim (ArithmeticDef.mul ArithmeticDef.zero (class x) = ArithmeticDef.one)
                 (different same)) },
-        \Cast[Real] ({ y : Real \where InverseSpec (class x) y })))
-    (\fun (nonzero: Logic.Not (class x = ArithmeticDef.zero)) =>
+        \Cast[Real] ({ y : Real \where InverseSpec (class x) y }))}
+    "rt:" {\fun (nonzero: Logic.Not (class x = ArithmeticDef.zero)) =>
       \block {
         \let apart: S.EventuallyApart x := classNonzeroApart x nonzero \then
         \let invSeq: CauchySeq::[Set] :=
@@ -54,7 +54,8 @@
                   Logic.falseElim (class invSeq = ArithmeticDef.zero) (nonzero same))
                 (\fun (_: Logic.Not (class x = ArithmeticDef.zero)) => product) },
           \Cast[Real] ({ y : Real \where InverseSpec (class x) y }))
-      })
+      }}
+  }
     (Classical.excludedMiddle (class x = ArithmeticDef.zero));
 
 \definition inverseExists (x: Real):
@@ -91,20 +92,22 @@
     \forall (u, v: \Cast[Real] ({ y : Real \where InverseSpec x y })) ->
       u = v :=
   \fun (u, v: \Cast[Real] ({ y : Real \where InverseSpec x y })) =>
-    Logic.orElim (x = ArithmeticDef.zero) (Logic.Not (x = ArithmeticDef.zero)) (u = v)
-      (\fun (same: x = ArithmeticDef.zero) =>
+    either!{
+      {x = ArithmeticDef.zero} "or" {Logic.Not (x = ArithmeticDef.zero)} "either" {u = v}
+      "lt:" {\fun (same: x = ArithmeticDef.zero) =>
         trans!{Real} u ArithmeticDef.zero v
           (#left{(\bysub(Real, { y : Real \where InverseSpec x y }, u))}
             same)
           (sym!{Real} _ _
             (#left{(\bysub(Real, { y : Real \where InverseSpec x y }, v))}
-              same)))
-      (\fun (nonzero: Logic.Not (x = ArithmeticDef.zero)) =>
+              same))}
+      "rt:" {\fun (nonzero: Logic.Not (x = ArithmeticDef.zero)) =>
         inverseUniqueNonzero x u v nonzero
           (#right{(\bysub(Real, { y : Real \where InverseSpec x y }, u))}
             nonzero)
           (#right{(\bysub(Real, { y : Real \where InverseSpec x y }, v))}
-            nonzero))
+            nonzero)}
+    }
       (Classical.excludedMiddle (x = ArithmeticDef.zero));
 
 \definition InverseSet (x: Real): \Pow Real :=

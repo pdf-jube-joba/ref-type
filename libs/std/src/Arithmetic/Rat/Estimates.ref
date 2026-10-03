@@ -1,5 +1,6 @@
 /* Bounds and estimates for concrete rational fractions. */
 \import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
 \import std.Data[].Nat[] \as N;
 \import std.Data[].Nat[].Basic[].Prop[] \as NL;
 \import std.Data[].Nat[].Order[].Prop[] \as NatOrder;
@@ -35,29 +36,31 @@
 \definition leNegReverse (x, y: Rat)
     (xy: RationalOperations.Le x y):
     RationalOperations.Le (negRat y) (negRat x) :=
-  Logic.orElim (RationalFractions.FractionEq x y) (ltRat x y)
-    (RationalOperations.Le (negRat y) (negRat x))
-    (\fun (same: RationalFractions.FractionEq x y) =>
+  either!{
+    {RationalFractions.FractionEq x y} "or" {ltRat x y} "either" {RationalOperations.Le (negRat y) (negRat x)}
+    "lt:" {\fun (same: RationalFractions.FractionEq x y) =>
       RationalOperationsProp.leOfEq (negRat y) (negRat x)
         (RationalOperationsProp.fractionNegRespects y x
-          (RationalFractions.fractionEqSym _ _ same)))
-    (\fun (less: ltRat x y) =>
+          (RationalFractions.fractionEqSym _ _ same))}
+    "rt:" {\fun (less: ltRat x y) =>
       RationalOperationsProp.leOfLt (negRat y) (negRat x)
-        (RationalOperationsProp.ltNegReverse x y less))
+        (RationalOperationsProp.ltNegReverse x y less)}
+  }
     xy;
 
 \definition leAddRight (x, y, z: Rat)
     (xy: RationalOperations.Le x y):
     RationalOperations.Le (addRat x z) (addRat y z) :=
-  Logic.orElim (RationalFractions.FractionEq x y) (ltRat x y)
-    (RationalOperations.Le (addRat x z) (addRat y z))
-    (\fun (same: RationalFractions.FractionEq x y) =>
+  either!{
+    {RationalFractions.FractionEq x y} "or" {ltRat x y} "either" {RationalOperations.Le (addRat x z) (addRat y z)}
+    "lt:" {\fun (same: RationalFractions.FractionEq x y) =>
       RationalOperationsProp.leOfEq (addRat x z) (addRat y z)
         (RationalOperationsProp.fractionAddRespects x y z z same
-          (RationalFractions.fractionEqRefl z)))
-    (\fun (less: ltRat x y) =>
+          (RationalFractions.fractionEqRefl z))}
+    "rt:" {\fun (less: ltRat x y) =>
       RationalOperationsProp.leOfLt (addRat x z) (addRat y z)
-        (RationalOperationsProp.ltAddRight x y z less))
+        (RationalOperationsProp.ltAddRight x y z less)}
+  }
     xy;
 
 \definition leAddLeft (z, x, y: Rat)
@@ -82,16 +85,17 @@
     (xx: RationalFractions.FractionEq x x2)
     (yy: RationalFractions.FractionEq y y2)
     (xy: RationalOperations.Le x y): RationalOperations.Le x2 y2 :=
-  Logic.orElim (RationalFractions.FractionEq x y) (ltRat x y)
-    (RationalOperations.Le x2 y2)
-    (\fun (same: RationalFractions.FractionEq x y) =>
+  either!{
+    {RationalFractions.FractionEq x y} "or" {ltRat x y} "either" {RationalOperations.Le x2 y2}
+    "lt:" {\fun (same: RationalFractions.FractionEq x y) =>
       RationalOperationsProp.leOfEq x2 y2
         (RationalFractions.fractionEqTrans x2 x y2
           (RationalFractions.fractionEqSym _ _ xx)
-          (RationalFractions.fractionEqTrans x y y2 same yy)))
-    (\fun (less: ltRat x y) =>
+          (RationalFractions.fractionEqTrans x y y2 same yy))}
+    "rt:" {\fun (less: ltRat x y) =>
       RationalOperationsProp.leOfLt x2 y2
-        (RationalOrder.ltRespects x x2 y y2 xx yy less))
+        (RationalOrder.ltRespects x x2 y y2 xx yy less)}
+  }
     xy;
 
 \definition ltOfSubPositive (x, y: Rat)
@@ -309,20 +313,20 @@
     (aBound: Close a zeroRat A) (dBound: Close d zeroRat E):
     ltRat (mulRat a d) (mulRat A E) :=
 
-  Logic.orElim (RationalOperations.Le zeroRat a) (ltRat a zeroRat)
-    (ltRat (mulRat a d) (mulRat A E))
-    (\fun (aNonnegative: RationalOperations.Le zeroRat a) =>
-      Logic.orElim (RationalOperations.Le zeroRat d) (ltRat d zeroRat)
-        (ltRat (mulRat a d) (mulRat A E))
-        (\fun (dNonnegative: RationalOperations.Le zeroRat d) =>
+  either!{
+    {RationalOperations.Le zeroRat a} "or" {ltRat a zeroRat} "either" {ltRat (mulRat a d) (mulRat A E)}
+    "lt:" {\fun (aNonnegative: RationalOperations.Le zeroRat a) =>
+      either!{
+        {RationalOperations.Le zeroRat d} "or" {ltRat d zeroRat} "either" {ltRat (mulRat a d) (mulRat A E)}
+        "lt:" {\fun (dNonnegative: RationalOperations.Le zeroRat d) =>
           RationalOperationsProp.leLtTrans
             (mulRat a d) (mulRat A d) (mulRat A E)
             (RationalOperationsProp.leMulNonnegativeRight a A d dNonnegative
               (RationalOperationsProp.leOfLt a A
                 (ltBoundOfCloseZero a A aBound)))
             (RationalOperationsProp.ltMulPositiveLeft A d E Apositive
-              (ltBoundOfCloseZero d E dBound)))
-        (\fun (dNegative: ltRat d zeroRat) =>
+              (ltBoundOfCloseZero d E dBound))}
+        "rt:" {\fun (dNegative: ltRat d zeroRat) =>
           RationalOperationsProp.leLtTrans
             (mulRat a d) zeroRat (mulRat A E)
             (RationalOperationsProp.leTrans
@@ -333,12 +337,13 @@
               (RationalOperationsProp.leOfEq (mulRat a zeroRat) zeroRat
                 (RationalOperationsProp.fractionMulZeroRight a)))
             (RationalOperationsProp.zeroLtMulPositive A E
-              Apositive Epositive))
-        (RationalOperationsProp.nonnegativeOrNegative d))
-    (\fun (aNegative: ltRat a zeroRat) =>
-      Logic.orElim (RationalOperations.Le zeroRat d) (ltRat d zeroRat)
-        (ltRat (mulRat a d) (mulRat A E))
-        (\fun (dNonnegative: RationalOperations.Le zeroRat d) =>
+              Apositive Epositive)}
+      }
+        (RationalOperationsProp.nonnegativeOrNegative d)}
+    "rt:" {\fun (aNegative: ltRat a zeroRat) =>
+      either!{
+        {RationalOperations.Le zeroRat d} "or" {ltRat d zeroRat} "either" {ltRat (mulRat a d) (mulRat A E)}
+        "lt:" {\fun (dNonnegative: RationalOperations.Le zeroRat d) =>
           RationalOperationsProp.leLtTrans
             (mulRat a d) zeroRat (mulRat A E)
             (RationalOperationsProp.leTrans
@@ -349,8 +354,8 @@
               (RationalOperationsProp.leOfEq (mulRat zeroRat d) zeroRat
                 (RationalOperationsProp.fractionMulZeroLeft d)))
             (RationalOperationsProp.zeroLtMulPositive A E
-              Apositive Epositive))
-        (\fun (dNegative: ltRat d zeroRat) =>
+              Apositive Epositive)}
+        "rt:" {\fun (dNegative: ltRat d zeroRat) =>
           RationalOrder.ltReplaceLeft
             (mulRat (negRat a) (negRat d)) (mulRat a d) (mulRat A E)
             (RationalOperationsProp.fractionMulNegBoth a d)
@@ -363,8 +368,10 @@
                 (negLtBoundOfCloseZero a A aBound))
               (RationalOperationsProp.ltMulPositiveLeft A
                 (negRat d) E Apositive
-                (negLtBoundOfCloseZero d E dBound))))
-        (RationalOperationsProp.nonnegativeOrNegative d))
+                (negLtBoundOfCloseZero d E dBound)))}
+      }
+        (RationalOperationsProp.nonnegativeOrNegative d)}
+  }
     (RationalOperationsProp.nonnegativeOrNegative a);
 
 \definition closeNegRat (x, y, eps: Rat) (h: Close x y eps):
@@ -929,20 +936,21 @@
 
 \definition ltOfNotLe (x, y: Rat)
     (notLe: Logic.Not (RationalOperations.Le x y)): ltRat y x :=
-  Logic.orElim (ltRat x y)
-    (Logic.Or[RationalFractions.FractionEq x y, ltRat y x])
-    (ltRat y x)
-    (\fun (xy: ltRat x y) =>
+  either!{
+    {ltRat x y} "or" {Logic.Or[RationalFractions.FractionEq x y, ltRat y x]} "either" {ltRat y x}
+    "lt:" {\fun (xy: ltRat x y) =>
       Logic.falseElim (ltRat y x)
-        (notLe (RationalOperationsProp.leOfLt x y xy)))
-    (\fun (rest: Logic.Or[
+        (notLe (RationalOperationsProp.leOfLt x y xy))}
+    "rt:" {\fun (rest: Logic.Or[
         RationalFractions.FractionEq x y, ltRat y x]) =>
-      Logic.orElim (RationalFractions.FractionEq x y) (ltRat y x)
-        (ltRat y x)
-        (\fun (same: RationalFractions.FractionEq x y) =>
+      either!{
+        {RationalFractions.FractionEq x y} "or" {ltRat y x} "either" {ltRat y x}
+        "lt:" {\fun (same: RationalFractions.FractionEq x y) =>
           Logic.falseElim (ltRat y x)
-            (notLe (RationalOperationsProp.leOfEq x y same)))
-        (\fun (yx: ltRat y x) => yx) rest)
+            (notLe (RationalOperationsProp.leOfEq x y same))}
+        "rt:" {\fun (yx: ltRat y x) => yx}
+      } rest}
+  }
     (RationalOrder.trichotomy x y);
 
 \definition notCloseDirection (a, r: Rat)
@@ -951,17 +959,15 @@
       RationalOperations.Le r a,
       RationalOperations.Le a (negRat r)] :=
 
-  Logic.orElim
-    (RationalOperations.Le r a)
-    (Logic.Not (RationalOperations.Le r a))
-    (Logic.Or[
+  either!{
+    {RationalOperations.Le r a} "or" {Logic.Not (RationalOperations.Le r a)} "either" {Logic.Or[
       RationalOperations.Le r a,
-      RationalOperations.Le a (negRat r)])
-    (\fun (positive: RationalOperations.Le r a) =>
+      RationalOperations.Le a (negRat r)]}
+    "lt:" {\fun (positive: RationalOperations.Le r a) =>
       Logic.Or[
         RationalOperations.Le r a,
-        RationalOperations.Le a (negRat r)]::left positive)
-    (\fun (notPositive: Logic.Not (RationalOperations.Le r a)) =>
+        RationalOperations.Le a (negRat r)]::left positive}
+    "rt:" {\fun (notPositive: Logic.Not (RationalOperations.Le r a)) =>
       Logic.Or[
         RationalOperations.Le r a,
         RationalOperations.Le a (negRat r)]::right
@@ -985,7 +991,8 @@
                       (subRat zeroRat a) r
                       (RationalFractions.fractionEqSym _ _
                         (RationalOperationsProp.fractionAddZeroLeft (negRat a)))
-                      negativeClose)))))))
+                      negativeClose))))))}
+  }
     (Classical.excludedMiddle (RationalOperations.Le r a));
 
 \definition lowerOfClose (a, n, r: Rat)
@@ -1359,14 +1366,14 @@
     (xy: RationalOperations.Le x y):
     RationalOperations.Le (RationalOperations.reciprocal y)
       (RationalOperations.reciprocal x) :=
-  Logic.orElim (RationalFractions.FractionEq x y) (ltRat x y)
-    (RationalOperations.Le (RationalOperations.reciprocal y)
-      (RationalOperations.reciprocal x))
-    (\fun (same: RationalFractions.FractionEq x y) =>
+  either!{
+    {RationalFractions.FractionEq x y} "or" {ltRat x y} "either" {RationalOperations.Le (RationalOperations.reciprocal y)
+      (RationalOperations.reciprocal x)}
+    "lt:" {\fun (same: RationalFractions.FractionEq x y) =>
       RationalOperationsProp.leOfEq _ _
         (RationalFractions.fractionEqSym _ _
-          (reciprocalRespectsPositive x y xPositive yPositive same)))
-    (\fun (less: ltRat x y) =>
+          (reciprocalRespectsPositive x y xPositive yPositive same))}
+    "rt:" {\fun (less: ltRat x y) =>
       RationalOperationsProp.leOfLt _ _
         (RationalOperationsProp.reciprocalOrderPositive x y
           (RationalOperations.reciprocal y)
@@ -1374,7 +1381,8 @@
           (RationalOperationsProp.fractionMulReciprocal y
             (RationalOperationsProp.numeratorNonZeroOfZeroLt y yPositive))
           (RationalOperationsProp.fractionMulReciprocal x
-            (RationalOperationsProp.numeratorNonZeroOfZeroLt x xPositive))))
+            (RationalOperationsProp.numeratorNonZeroOfZeroLt x xPositive)))}
+  }
     xy;
 
 \definition error (n: Nat): Rat :=
@@ -1644,15 +1652,14 @@
 \definition positiveLeftFactor (a, b: Rat)
   (notNegative: Logic.Not (ltRat a zeroRat))
   (productPositive: ltRat zeroRat (mulRat a b)): ltRat zeroRat a :=
-  Logic.orElim (ltRat zeroRat a)
-    (Logic.Or[RationalFractions.FractionEq zeroRat a, ltRat a zeroRat])
-    (ltRat zeroRat a)
-    (\fun (positive: ltRat zeroRat a) => positive)
-    (\fun (rest: Logic.Or[
+  either!{
+    {ltRat zeroRat a} "or" {Logic.Or[RationalFractions.FractionEq zeroRat a, ltRat a zeroRat]} "either" {ltRat zeroRat a}
+    "lt:" {\fun (positive: ltRat zeroRat a) => positive}
+    "rt:" {\fun (rest: Logic.Or[
         RationalFractions.FractionEq zeroRat a, ltRat a zeroRat]) =>
-      Logic.orElim (RationalFractions.FractionEq zeroRat a)
-        (ltRat a zeroRat) (ltRat zeroRat a)
-        (\fun (zeroA: RationalFractions.FractionEq zeroRat a) =>
+      either!{
+        {RationalFractions.FractionEq zeroRat a} "or" {ltRat a zeroRat} "either" {ltRat zeroRat a}
+        "lt:" {\fun (zeroA: RationalFractions.FractionEq zeroRat a) =>
           Logic.falseElim (ltRat zeroRat a)
             (RationalOrder.ltIrrefl zeroRat
               (RationalOrder.ltReplaceRight zeroRat (mulRat a b) zeroRat
@@ -1661,10 +1668,12 @@
                     (RationalFractions.fractionEqSym _ _ zeroA)
                     (RationalFractions.fractionEqRefl b))
                   (RationalOperationsProp.fractionMulZeroLeft b))
-                productPositive)))
-        (\fun (negative: ltRat a zeroRat) =>
-          Logic.falseElim (ltRat zeroRat a) (notNegative negative))
-        rest)
+                productPositive))}
+        "rt:" {\fun (negative: ltRat a zeroRat) =>
+          Logic.falseElim (ltRat zeroRat a) (notNegative negative)}
+      }
+        rest}
+  }
     (RationalOrder.trichotomy zeroRat a);
 
 \definition positiveRightFactor (a, b: Rat)
@@ -1723,36 +1732,38 @@
 
 \definition belowBoth (a, b: Rat): BelowBoth a b :=
 
-  Logic.orElim (ltRat a b)
-    (Logic.Or[RationalFractions.FractionEq a b, ltRat b a]) (BelowBoth a b)
-    (\fun (ab: ltRat a b) =>
+  either!{
+    {ltRat a b} "or" {Logic.Or[RationalFractions.FractionEq a b, ltRat b a]} "either" {BelowBoth a b}
+    "lt:" {\fun (ab: ltRat a b) =>
       \exact(
         \into[Rat](RationalOperations.below a, { q : Rat \where Logic.And[ltRat q a, ltRat q b] }) \by { Logic.And[
             ltRat (RationalOperations.below a) a,
             ltRat (RationalOperations.below a) b]::# (RationalOperationsProp.belowLt a) (RationalOrder.ltTrans
               (RationalOperations.below a) a b
               (RationalOperationsProp.belowLt a) ab) },
-        \Cast[Rat] ({ q : Rat \where Logic.And[ltRat q a, ltRat q b] })))
-    (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, ltRat b a]) =>
-      Logic.orElim (RationalFractions.FractionEq a b) (ltRat b a)
-        (BelowBoth a b)
-        (\fun (ab: RationalFractions.FractionEq a b) =>
+        \Cast[Rat] ({ q : Rat \where Logic.And[ltRat q a, ltRat q b] }))}
+    "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq a b, ltRat b a]) =>
+      either!{
+        {RationalFractions.FractionEq a b} "or" {ltRat b a} "either" {BelowBoth a b}
+        "lt:" {\fun (ab: RationalFractions.FractionEq a b) =>
           \exact(
             \into[Rat](RationalOperations.below a, { q : Rat \where Logic.And[ltRat q a, ltRat q b] }) \by { Logic.And[
                 ltRat (RationalOperations.below a) a,
                 ltRat (RationalOperations.below a) b]::# (RationalOperationsProp.belowLt a) (RationalOrder.ltReplaceRight
                   (RationalOperations.below a) a b ab
                   (RationalOperationsProp.belowLt a)) },
-            \Cast[Rat] ({ q : Rat \where Logic.And[ltRat q a, ltRat q b] })))
-        (\fun (ba: ltRat b a) =>
+            \Cast[Rat] ({ q : Rat \where Logic.And[ltRat q a, ltRat q b] }))}
+        "rt:" {\fun (ba: ltRat b a) =>
           \exact(
             \into[Rat](RationalOperations.below b, { q : Rat \where Logic.And[ltRat q a, ltRat q b] }) \by { Logic.And[
                 ltRat (RationalOperations.below b) a,
                 ltRat (RationalOperations.below b) b]::# (RationalOrder.ltTrans
                   (RationalOperations.below b) b a
                   (RationalOperationsProp.belowLt b) ba) (RationalOperationsProp.belowLt b) },
-            \Cast[Rat] ({ q : Rat \where Logic.And[ltRat q a, ltRat q b] })))
-        rest)
+            \Cast[Rat] ({ q : Rat \where Logic.And[ltRat q a, ltRat q b] }))}
+      }
+        rest}
+  }
     (RationalOrder.trichotomy a b);
 
 \definition AboveBoth (a, b: Rat): \Prop :=
@@ -1760,20 +1771,20 @@
 
 \definition aboveBoth (a, b: Rat): AboveBoth a b :=
 
-  Logic.orElim (ltRat a b)
-    (Logic.Or[RationalFractions.FractionEq a b, ltRat b a]) (AboveBoth a b)
-    (\fun (ab: ltRat a b) =>
+  either!{
+    {ltRat a b} "or" {Logic.Or[RationalFractions.FractionEq a b, ltRat b a]} "either" {AboveBoth a b}
+    "lt:" {\fun (ab: ltRat a b) =>
       \exact(
         \into[Rat](RationalOperations.above b, { q : Rat \where Logic.And[ltRat a q, ltRat b q] }) \by { Logic.And[
             ltRat a (RationalOperations.above b),
             ltRat b (RationalOperations.above b)]::# (RationalOrder.ltTrans a b
               (RationalOperations.above b) ab
               (RationalOperationsProp.ltAbove b)) (RationalOperationsProp.ltAbove b) },
-        \Cast[Rat] ({ q : Rat \where Logic.And[ltRat a q, ltRat b q] })))
-    (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, ltRat b a]) =>
-      Logic.orElim (RationalFractions.FractionEq a b) (ltRat b a)
-        (AboveBoth a b)
-        (\fun (ab: RationalFractions.FractionEq a b) =>
+        \Cast[Rat] ({ q : Rat \where Logic.And[ltRat a q, ltRat b q] }))}
+    "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq a b, ltRat b a]) =>
+      either!{
+        {RationalFractions.FractionEq a b} "or" {ltRat b a} "either" {AboveBoth a b}
+        "lt:" {\fun (ab: RationalFractions.FractionEq a b) =>
           \exact(
             \into[Rat](RationalOperations.above b, { q : Rat \where Logic.And[ltRat a q, ltRat b q] }) \by { Logic.And[
                 ltRat a (RationalOperations.above b),
@@ -1781,16 +1792,18 @@
                   (RationalOperations.above b)
                   (RationalFractions.fractionEqSym _ _ ab)
                   (RationalOperationsProp.ltAbove b)) (RationalOperationsProp.ltAbove b) },
-            \Cast[Rat] ({ q : Rat \where Logic.And[ltRat a q, ltRat b q] })))
-        (\fun (ba: ltRat b a) =>
+            \Cast[Rat] ({ q : Rat \where Logic.And[ltRat a q, ltRat b q] }))}
+        "rt:" {\fun (ba: ltRat b a) =>
           \exact(
             \into[Rat](RationalOperations.above a, { q : Rat \where Logic.And[ltRat a q, ltRat b q] }) \by { Logic.And[
                 ltRat a (RationalOperations.above a),
                 ltRat b (RationalOperations.above a)]::# (RationalOperationsProp.ltAbove a) (RationalOrder.ltTrans b a
                   (RationalOperations.above a) ba
                   (RationalOperationsProp.ltAbove a)) },
-            \Cast[Rat] ({ q : Rat \where Logic.And[ltRat a q, ltRat b q] })))
-        rest)
+            \Cast[Rat] ({ q : Rat \where Logic.And[ltRat a q, ltRat b q] }))}
+      }
+        rest}
+  }
     (RationalOrder.trichotomy a b);
 
 \record BetweenBothLaw[q, a, b, r: Rat]: \Prop := {
@@ -1805,51 +1818,53 @@
 \definition betweenBoth (q, a, b: Rat) (qa: ltRat q a) (qb: ltRat q b):
   BetweenBoth q a b :=
 
-  Logic.orElim (ltRat a b)
-    (Logic.Or[RationalFractions.FractionEq a b, ltRat b a])
-    (BetweenBoth q a b)
-    (\fun (ab: ltRat a b) =>
+  either!{
+    {ltRat a b} "or" {Logic.Or[RationalFractions.FractionEq a b, ltRat b a]} "either" {BetweenBoth q a b}
+    "lt:" {\fun (ab: ltRat a b) =>
       \exact(
         \into[Rat](RationalOperations.midpoint q a, { r : Rat \where BetweenBothLaw[q, a, b, r] }) \by { BetweenBothLaw[q, a, b, RationalOperations.midpoint q a]::# (RationalOperationsProp.ltMidpoint q a qa) (RationalOperationsProp.midpointLt q a qa) (RationalOrder.ltTrans
                 (RationalOperations.midpoint q a) a b
                 (RationalOperationsProp.midpointLt q a qa) ab) },
-        \Cast[Rat] ({ r : Rat \where BetweenBothLaw[q, a, b, r] })))
-    (\fun (rest: Logic.Or[RationalFractions.FractionEq a b, ltRat b a]) =>
-      Logic.orElim (RationalFractions.FractionEq a b) (ltRat b a)
-        (BetweenBoth q a b)
-        (\fun (ab: RationalFractions.FractionEq a b) =>
+        \Cast[Rat] ({ r : Rat \where BetweenBothLaw[q, a, b, r] }))}
+    "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq a b, ltRat b a]) =>
+      either!{
+        {RationalFractions.FractionEq a b} "or" {ltRat b a} "either" {BetweenBoth q a b}
+        "lt:" {\fun (ab: RationalFractions.FractionEq a b) =>
           \exact(
             \into[Rat](RationalOperations.midpoint q a, { r : Rat \where BetweenBothLaw[q, a, b, r] }) \by { BetweenBothLaw[q, a, b, RationalOperations.midpoint q a]::# (RationalOperationsProp.ltMidpoint q a qa) (RationalOperationsProp.midpointLt q a qa) (RationalOrder.ltReplaceRight
                     (RationalOperations.midpoint q a) a b ab
                     (RationalOperationsProp.midpointLt q a qa)) },
-            \Cast[Rat] ({ r : Rat \where BetweenBothLaw[q, a, b, r] })))
-        (\fun (ba: ltRat b a) =>
+            \Cast[Rat] ({ r : Rat \where BetweenBothLaw[q, a, b, r] }))}
+        "rt:" {\fun (ba: ltRat b a) =>
           \exact(
             \into[Rat](RationalOperations.midpoint q b, { r : Rat \where BetweenBothLaw[q, a, b, r] }) \by { BetweenBothLaw[q, a, b, RationalOperations.midpoint q b]::# (RationalOperationsProp.ltMidpoint q b qb) (RationalOrder.ltTrans
                     (RationalOperations.midpoint q b) b a
                     (RationalOperationsProp.midpointLt q b qb) ba) (RationalOperationsProp.midpointLt q b qb) },
-            \Cast[Rat] ({ r : Rat \where BetweenBothLaw[q, a, b, r] })))
-        rest)
+            \Cast[Rat] ({ r : Rat \where BetweenBothLaw[q, a, b, r] }))}
+      }
+        rest}
+  }
     (RationalOrder.trichotomy a b);
 
 \definition zeroLtOfNotNegativeLt (t, a: Rat)
   (notNegative: Logic.Not (ltRat t zeroRat)) (ta: ltRat t a):
   ltRat zeroRat a :=
-  Logic.orElim (ltRat zeroRat t)
-    (Logic.Or[RationalFractions.FractionEq zeroRat t, ltRat t zeroRat])
-    (ltRat zeroRat a)
-    (\fun (positive: ltRat zeroRat t) =>
-      RationalOrder.ltTrans zeroRat t a positive ta)
-    (\fun (rest: Logic.Or[
+  either!{
+    {ltRat zeroRat t} "or" {Logic.Or[RationalFractions.FractionEq zeroRat t, ltRat t zeroRat]} "either" {ltRat zeroRat a}
+    "lt:" {\fun (positive: ltRat zeroRat t) =>
+      RationalOrder.ltTrans zeroRat t a positive ta}
+    "rt:" {\fun (rest: Logic.Or[
       RationalFractions.FractionEq zeroRat t, ltRat t zeroRat]) =>
-      Logic.orElim (RationalFractions.FractionEq zeroRat t)
-        (ltRat t zeroRat) (ltRat zeroRat a)
-        (\fun (same: RationalFractions.FractionEq zeroRat t) =>
+      either!{
+        {RationalFractions.FractionEq zeroRat t} "or" {ltRat t zeroRat} "either" {ltRat zeroRat a}
+        "lt:" {\fun (same: RationalFractions.FractionEq zeroRat t) =>
           RationalOrder.ltReplaceLeft t zeroRat a
-            (RationalFractions.fractionEqSym _ _ same) ta)
-        (\fun (negative: ltRat t zeroRat) =>
-          Logic.falseElim (ltRat zeroRat a) (notNegative negative))
-        rest)
+            (RationalFractions.fractionEqSym _ _ same) ta}
+        "rt:" {\fun (negative: ltRat t zeroRat) =>
+          Logic.falseElim (ltRat zeroRat a) (notNegative negative)}
+      }
+        rest}
+  }
     (RationalOrder.trichotomy zeroRat t);
 
 \definition closeSym (x, y, eps: Rat) (xy: Close x y eps): Close y x eps :=
@@ -1999,24 +2014,23 @@
   \block {
     \let productPositive: ltRat zeroRat (mulRat u v) :=
       RationalOperationsProp.zeroLtMulPositive u v uPositive vPositive \then
-    \return Logic.orElim (ltRat a zeroRat)
-      (Logic.Or[RationalFractions.FractionEq a zeroRat, ltRat zeroRat a])
-      Logic.False
-      (\fun (aNegative: ltRat a zeroRat) =>
+    \return either!{
+      {ltRat a zeroRat} "or" {Logic.Or[RationalFractions.FractionEq a zeroRat, ltRat zeroRat a]} "either" Logic.False
+      "lt:" {\fun (aNegative: ltRat a zeroRat) =>
         \block {
           \let acPositive: ltRat zeroRat (mulRat a c) :=
             RationalOrder.ltTrans zeroRat (mulRat u v) (mulRat a c)
               productPositive ac \then
           \let cNegative: ltRat c zeroRat :=
-            Logic.orElim (ltRat c zeroRat)
-              (Logic.Or[RationalFractions.FractionEq c zeroRat,
-                ltRat zeroRat c]) (ltRat c zeroRat)
-              (\fun (cNegative: ltRat c zeroRat) => cNegative)
-              (\fun (rest: Logic.Or[RationalFractions.FractionEq c zeroRat,
+            either!{
+              {ltRat c zeroRat} "or" {Logic.Or[RationalFractions.FractionEq c zeroRat,
+                ltRat zeroRat c]} "either" {ltRat c zeroRat}
+              "lt:" {\fun (cNegative: ltRat c zeroRat) => cNegative}
+              "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq c zeroRat,
                 ltRat zeroRat c]) =>
-                Logic.orElim (RationalFractions.FractionEq c zeroRat)
-                  (ltRat zeroRat c) (ltRat c zeroRat)
-                  (\fun (cz: RationalFractions.FractionEq c zeroRat) =>
+                either!{
+                  {RationalFractions.FractionEq c zeroRat} "or" {ltRat zeroRat c} "either" {ltRat c zeroRat}
+                  "lt:" {\fun (cz: RationalFractions.FractionEq c zeroRat) =>
                     Logic.falseElim (ltRat c zeroRat)
                       (RationalOrder.ltIrrefl zeroRat
                         (RationalOrder.ltReplaceRight zeroRat (mulRat a c)
@@ -2026,29 +2040,31 @@
                               a a c zeroRat
                               (RationalFractions.fractionEqRefl a) cz)
                             (RationalOperationsProp.fractionMulZeroRight a))
-                          acPositive)))
-                  (\fun (cPositive: ltRat zeroRat c) =>
+                          acPositive))}
+                  "rt:" {\fun (cPositive: ltRat zeroRat c) =>
                     Logic.falseElim (ltRat c zeroRat)
                       (RationalOrder.ltIrrefl zeroRat
                         (RationalOrder.ltTrans zeroRat (mulRat a c) zeroRat
                           acPositive
                           (RationalOperationsProp.mulLtZeroNegativePositive
-                            a c aNegative cPositive))))
-                  rest)
+                            a c aNegative cPositive)))}
+                }
+                  rest}
+            }
               (RationalOrder.trichotomy c zeroRat) \then
           \let bcPositive: ltRat zeroRat (mulRat b c) :=
             RationalOrder.ltTrans zeroRat (mulRat u v) (mulRat b c)
               productPositive bc \then
           \let bNegative: ltRat b zeroRat :=
-            Logic.orElim (ltRat b zeroRat)
-              (Logic.Or[RationalFractions.FractionEq b zeroRat,
-                ltRat zeroRat b]) (ltRat b zeroRat)
-              (\fun (bNegative: ltRat b zeroRat) => bNegative)
-              (\fun (rest: Logic.Or[RationalFractions.FractionEq b zeroRat,
+            either!{
+              {ltRat b zeroRat} "or" {Logic.Or[RationalFractions.FractionEq b zeroRat,
+                ltRat zeroRat b]} "either" {ltRat b zeroRat}
+              "lt:" {\fun (bNegative: ltRat b zeroRat) => bNegative}
+              "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq b zeroRat,
                 ltRat zeroRat b]) =>
-                Logic.orElim (RationalFractions.FractionEq b zeroRat)
-                  (ltRat zeroRat b) (ltRat b zeroRat)
-                  (\fun (bz: RationalFractions.FractionEq b zeroRat) =>
+                either!{
+                  {RationalFractions.FractionEq b zeroRat} "or" {ltRat zeroRat b} "either" {ltRat b zeroRat}
+                  "lt:" {\fun (bz: RationalFractions.FractionEq b zeroRat) =>
                     Logic.falseElim (ltRat b zeroRat)
                       (RationalOrder.ltIrrefl zeroRat
                         (RationalOrder.ltReplaceRight zeroRat (mulRat b c)
@@ -2058,29 +2074,31 @@
                               b zeroRat c c bz
                               (RationalFractions.fractionEqRefl c))
                             (RationalOperationsProp.fractionMulZeroLeft c))
-                          bcPositive)))
-                  (\fun (bPositive: ltRat zeroRat b) =>
+                          bcPositive))}
+                  "rt:" {\fun (bPositive: ltRat zeroRat b) =>
                     Logic.falseElim (ltRat b zeroRat)
                       (RationalOrder.ltIrrefl zeroRat
                         (RationalOrder.ltTrans zeroRat (mulRat b c) zeroRat
                           bcPositive
                           (RationalOperationsProp.mulLtZeroPositiveNegative
-                            b c bPositive cNegative))))
-                  rest)
+                            b c bPositive cNegative)))}
+                }
+                  rest}
+            }
               (RationalOrder.trichotomy b zeroRat) \then
           \let adPositive: ltRat zeroRat (mulRat a d) :=
             RationalOrder.ltTrans zeroRat (mulRat u v) (mulRat a d)
               productPositive ad \then
           \let dNegative: ltRat d zeroRat :=
-            Logic.orElim (ltRat d zeroRat)
-              (Logic.Or[RationalFractions.FractionEq d zeroRat,
-                ltRat zeroRat d]) (ltRat d zeroRat)
-              (\fun (dNegative: ltRat d zeroRat) => dNegative)
-              (\fun (rest: Logic.Or[RationalFractions.FractionEq d zeroRat,
+            either!{
+              {ltRat d zeroRat} "or" {Logic.Or[RationalFractions.FractionEq d zeroRat,
+                ltRat zeroRat d]} "either" {ltRat d zeroRat}
+              "lt:" {\fun (dNegative: ltRat d zeroRat) => dNegative}
+              "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq d zeroRat,
                 ltRat zeroRat d]) =>
-                Logic.orElim (RationalFractions.FractionEq d zeroRat)
-                  (ltRat zeroRat d) (ltRat d zeroRat)
-                  (\fun (dz: RationalFractions.FractionEq d zeroRat) =>
+                either!{
+                  {RationalFractions.FractionEq d zeroRat} "or" {ltRat zeroRat d} "either" {ltRat d zeroRat}
+                  "lt:" {\fun (dz: RationalFractions.FractionEq d zeroRat) =>
                     Logic.falseElim (ltRat d zeroRat)
                       (RationalOrder.ltIrrefl zeroRat
                         (RationalOrder.ltReplaceRight zeroRat (mulRat a d)
@@ -2090,15 +2108,17 @@
                               a a d zeroRat
                               (RationalFractions.fractionEqRefl a) dz)
                             (RationalOperationsProp.fractionMulZeroRight a))
-                          adPositive)))
-                  (\fun (dPositive: ltRat zeroRat d) =>
+                          adPositive))}
+                  "rt:" {\fun (dPositive: ltRat zeroRat d) =>
                     Logic.falseElim (ltRat d zeroRat)
                       (RationalOrder.ltIrrefl zeroRat
                         (RationalOrder.ltTrans zeroRat (mulRat a d) zeroRat
                           adPositive
                           (RationalOperationsProp.mulLtZeroNegativePositive
-                            a d aNegative dPositive))))
-                  rest)
+                            a d aNegative dPositive)))}
+                }
+                  rest}
+            }
               (RationalOrder.trichotomy d zeroRat) \then
           \let nuNegative: ltRat (negRat u) zeroRat :=
             RationalOrder.ltReplaceRight (negRat u) (negRat zeroRat) zeroRat
@@ -2122,12 +2142,12 @@
           \return RationalOrder.ltIrrefl (mulRat u v)
             (RationalOrder.ltTrans (mulRat u v) (mulRat b d)
               (mulRat u v) bd bounded)
-        })
-      (\fun (rest: Logic.Or[RationalFractions.FractionEq a zeroRat,
+        }}
+      "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq a zeroRat,
         ltRat zeroRat a]) =>
-        Logic.orElim (RationalFractions.FractionEq a zeroRat)
-          (ltRat zeroRat a) Logic.False
-          (\fun (az: RationalFractions.FractionEq a zeroRat) =>
+        either!{
+          {RationalFractions.FractionEq a zeroRat} "or" {ltRat zeroRat a} "either" Logic.False
+          "lt:" {\fun (az: RationalFractions.FractionEq a zeroRat) =>
             RationalOrder.ltIrrefl zeroRat
               (RationalOrder.ltTrans zeroRat (mulRat u v) zeroRat
                 productPositive
@@ -2137,28 +2157,28 @@
                     (RationalOperationsProp.fractionMulRespects
                       a zeroRat c c az
                       (RationalFractions.fractionEqRefl c))
-                    (RationalOperationsProp.fractionMulZeroLeft c)) ac)))
-          (\fun (aPositive: ltRat zeroRat a) =>
+                    (RationalOperationsProp.fractionMulZeroLeft c)) ac))}
+          "rt:" {\fun (aPositive: ltRat zeroRat a) =>
             \block {
               \let acPositive: ltRat zeroRat (mulRat a c) :=
                 RationalOrder.ltTrans zeroRat (mulRat u v) (mulRat a c)
                   productPositive ac \then
               \let cPositive: ltRat zeroRat c :=
-                Logic.orElim (ltRat c zeroRat)
-                  (Logic.Or[RationalFractions.FractionEq c zeroRat,
-                    ltRat zeroRat c]) (ltRat zeroRat c)
-                  (\fun (cNegative: ltRat c zeroRat) =>
+                either!{
+                  {ltRat c zeroRat} "or" {Logic.Or[RationalFractions.FractionEq c zeroRat,
+                    ltRat zeroRat c]} "either" {ltRat zeroRat c}
+                  "lt:" {\fun (cNegative: ltRat c zeroRat) =>
                     Logic.falseElim (ltRat zeroRat c)
                       (RationalOrder.ltIrrefl zeroRat
                         (RationalOrder.ltTrans zeroRat (mulRat a c) zeroRat
                           acPositive
                           (RationalOperationsProp.mulLtZeroPositiveNegative
-                            a c aPositive cNegative))))
-                  (\fun (cRest: Logic.Or[
+                            a c aPositive cNegative)))}
+                  "rt:" {\fun (cRest: Logic.Or[
                     RationalFractions.FractionEq c zeroRat, ltRat zeroRat c]) =>
-                    Logic.orElim (RationalFractions.FractionEq c zeroRat)
-                      (ltRat zeroRat c) (ltRat zeroRat c)
-                      (\fun (cz: RationalFractions.FractionEq c zeroRat) =>
+                    either!{
+                      {RationalFractions.FractionEq c zeroRat} "or" {ltRat zeroRat c} "either" {ltRat zeroRat c}
+                      "lt:" {\fun (cz: RationalFractions.FractionEq c zeroRat) =>
                         Logic.falseElim (ltRat zeroRat c)
                           (RationalOrder.ltIrrefl zeroRat
                             (RationalOrder.ltReplaceRight zeroRat (mulRat a c)
@@ -2168,9 +2188,11 @@
                                   a a c zeroRat
                                   (RationalFractions.fractionEqRefl a) cz)
                                 (RationalOperationsProp.fractionMulZeroRight a))
-                              acPositive)))
-                      (\fun (cPositive: ltRat zeroRat c) => cPositive)
-                      cRest)
+                              acPositive))}
+                      "rt:" {\fun (cPositive: ltRat zeroRat c) => cPositive}
+                    }
+                      cRest}
+                }
                   (RationalOrder.trichotomy c zeroRat) \then
               \let first: ltRat (mulRat a c) (mulRat u c) :=
                 RationalOperationsProp.ltMulPositiveRight a u c cPositive au \then
@@ -2182,7 +2204,9 @@
               \return RationalOrder.ltIrrefl (mulRat u v)
                 (RationalOrder.ltTrans (mulRat u v) (mulRat a c)
                   (mulRat u v) ac bounded)
-            })
-          rest)
+            }}
+        }
+          rest}
+    }
       (RationalOrder.trichotomy a zeroRat)
   };

@@ -12,16 +12,7 @@
 - record 分解構文 ... `\let-record { a := field1, b := field2 } := r => t` みたいな感じ。
 
 ## ライブラリ
-- `orElim` を `either!` みたいなマクロを使いたい。
-  ```
-  either!{
-    P "or" Q "either" R
-    "lt:" p2r
-    "rt:" q2r
-  }
-  ```
-  これで `Logic.Or[P, Q] -> R` の型。
-- 公理的実数の間の変換の定義
+- 実数の間の変換の定義
 
 ## エラー表示周り
 
