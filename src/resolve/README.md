@@ -11,11 +11,13 @@
 | `hir::LocalAccess` | ID で確定したローカル参照または namespace 内の参照 |
 | `Project::bindings` | 大域的な束縛の所属 module と parameter の位置 |
 | `Project::imports` | import による namespace の対応付け |
-| `Project::order` | 型検査へ渡す module 単位の依存順 |
+| `Project::order` | 型検査へ渡す module parameter と各宣言の実行順 |
 | `Project::references` | 型推論前に確定した参照先と source location |
 
 ID の有効範囲は一つの `Project` とする。
 elaboration は HIR の ID を自身の workspace 内の ID に対応付ける。
+`CheckStep::Parameters` で module parameter を検査し、`CheckStep::Declaration` で展開済みの各宣言を検査する。
+実行順は名前解決時に記録し、import 先の宣言の検査を利用箇所より先に置く。
 ローカル変数の shadowing と macro の衛生性も束縛 ID に反映する。
 macro の定義環境を保持して展開し、module parameter の捕捉は HIR の式として具体化する。
 展開済みの module には検査対象の宣言と query を残し、macro template の参照情報は定義元の source location に保持する。

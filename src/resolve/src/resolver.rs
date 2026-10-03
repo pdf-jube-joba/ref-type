@@ -50,12 +50,19 @@ pub struct Import {
     pub remapping: HashMap<ModuleId, ModuleId>,
 }
 
+/// Type-checking steps in lexical and import dependency order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckStep {
+    Parameters(ModuleId),
+    Declaration { module: ModuleId, index: usize },
+}
+
 #[derive(Debug, Clone)]
 pub struct Project {
     pub modules: Vec<Module>,
     pub references: Vec<Reference>,
     pub bindings: HashMap<BindingId, Binding>,
-    pub order: Vec<ModuleId>,
+    pub order: Vec<CheckStep>,
     pub imports: HashMap<BindingId, Import>,
 }
 
@@ -90,7 +97,7 @@ struct Resolver {
     current: ModuleId,
     references: RefCell<Vec<Reference>>,
     global_bindings: HashMap<BindingId, Binding>,
-    order: Vec<ModuleId>,
+    order: Vec<CheckStep>,
     declaration_scope: Option<u64>,
     public_declarations: HashSet<String>,
     next_declaration_scope: u64,
@@ -108,19 +115,6 @@ pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic
     for id in ids {
         resolver.module(id)?;
     }
-    let order = resolver
-        .order
-        .iter()
-        .copied()
-        .filter(|id| {
-            let parent = resolver.scopes[id.0 as usize].parent;
-            let Some(module) = parent.and_then(|parent| resolver.output.get(&parent)) else {
-                return true;
-            };
-            matches!(&module.body, ModuleBody::Inline(items)
-                if items.iter().all(|item| matches!(item, ModuleItem::ChildModule { .. })))
-        })
-        .collect();
     fn assemble(module: &mut Module, outputs: &mut HashMap<ModuleId, Module>) {
         *module = outputs.remove(&module.id).expect("resolved module");
         if let ModuleBody::Inline(items) = &mut module.body {
@@ -135,7 +129,7 @@ pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic
         assemble(module, &mut resolver.output);
     }
     Ok(Project {
-        order,
+        order: resolver.order,
         modules: roots,
         imports: resolver.imports,
         references: resolver.references.into_inner(),
@@ -418,6 +412,7 @@ impl Resolver {
                 span: module.span,
             });
         self.parameters(&mut module.parameters, &mut Vec::new(), true)?;
+        self.order.push(CheckStep::Parameters(id));
         let ModuleBody::Inline(items) = &mut module.body else {
             return Err(self.error("External module was not loaded"));
         };
@@ -465,31 +460,8 @@ impl Resolver {
         }
         *items = expanded;
         module.declaration_spans = expanded_spans;
-        let mut index = 0;
-        let mut spans = Vec::new();
-        items.retain(|item| {
-            let keep = !matches!(
-                item,
-                ModuleItem::MathMacro { .. }
-                    | ModuleItem::UserMacro { .. }
-                    | ModuleItem::UseMacro { .. }
-            );
-            if keep {
-                spans.push(
-                    module
-                        .declaration_spans
-                        .get(index)
-                        .copied()
-                        .unwrap_or(module.span),
-                );
-            }
-            index += 1;
-            keep
-        });
-        module.declaration_spans = spans;
         self.output.insert(id, module);
         self.states.insert(id, 2);
-        self.order.push(id);
         self.current = previous;
         self.declaration_scope = declaration_scope;
         self.public_declarations = public_declarations;

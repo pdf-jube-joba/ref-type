@@ -6,10 +6,10 @@ Dedekind 実数上の関数の極限と微分を扱う。
 | モジュール | 内容 |
 | --- | --- |
 | `Real` | 実数の型と演算、定数関数、恒等関数、一次関数 |
-| `Limit.Def` | ε–δ 極限 `HasLimitAt` と半径の条件 `Control` |
-| `Limit.Prop` | 定数・恒等関数の極限、点を除いた関数の一致による極限の移送 |
-| `Derivative.Def` | 差商 `slope`、微分 `HasDerivativeAt`、微分可能性、導関数付きの関数 |
-| `Derivative.Prop` | 定数・恒等関数・一次関数の微分則と微分可能な関数の構成 |
+| `Real.Limit.Def` | ε–δ 極限 `HasLimitAt` と半径の条件 `Control` |
+| `Real.Limit.Prop` | 定数・恒等関数の極限、点を除いた関数の一致による極限の移送 |
+| `Real.Derivative.Def` | 差商 `slope`、微分 `HasDerivativeAt`、微分可能性、導関数付きの関数 |
+| `Real.Derivative.Prop` | 定数・恒等関数・一次関数の微分則と微分可能な関数の構成 |
 
 `HasLimitAt f a l` は、任意の \(\varepsilon>0\) に対して \(\delta>0\) が存在し、\(x\ne a\) かつ \(d(x,a)<\delta\) ならば \(d(f(x),l)<\varepsilon\) が成り立つことを表す。
 `HasDerivativeAt f a m` は、差商
@@ -22,8 +22,8 @@ Dedekind 実数上の関数の極限と微分を扱う。
 
 ```text
 \import calculus.Real[] \as C;
-\import calculus.Derivative[].Def[] \as D;
-\import calculus.Derivative[].Prop[] \as Laws;
+\import C.Derivative[].Def[] \as D;
+\import C.Derivative[].Prop[] \as Laws;
 
 \definition affineDerivative: \forall (m, b, a: C.Real) ->
   D.HasDerivativeAt (C.affine m b) a m := Laws.affineDerivative;

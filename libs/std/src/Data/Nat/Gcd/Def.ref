@@ -1,9 +1,6 @@
-\import std.Data[].Nat[] \as N;
-\import std.Data[].Bool[] \as B;
 \import std.Data[].Pair[] \as P;
 \import std.Logic[].Equality[] \as Equality;
 \import std.Logic[].Proposition[] \as Logic;
-\import \parent.\parent.Basic[].Def[] \as Op;
 \import std.Data[].Nat[].Pair[].Def[] \as NatPairDef;
 \import std.Data[].Nat[].Division[].Def[] \as NatDivisionDef;
 \import std.Data[].Nat[].Basic[].Prop[] \as Basic;
@@ -15,60 +12,60 @@
 \use Equality.congr;
 
 \definition NatPair: \Set := NatPairDef.NatPair;
-\definition pair: N.Nat^ -> N.Nat^ -> NatPair := NatPairDef.natPair;
-\definition first: NatPair -> N.Nat^ := P.Times[N.Nat, N.Nat]::first^;
-\definition second: NatPair -> N.Nat^ := P.Times[N.Nat, N.Nat]::second^;
+\definition pair: Nat^ -> Nat^ -> NatPair := NatPairDef.natPair;
+\definition first: NatPair -> Nat^ := P.Times[Nat, Nat]::first^;
+\definition second: NatPair -> Nat^ := P.Times[Nat, Nat]::second^;
 
-\definition CommonDivisor (d, a, b: N.Nat^): \Prop :=
+\definition CommonDivisor (d, a, b: Nat^): \Prop :=
   Logic.And[D.Divides d a, D.Divides d b];
 
-\definition commonDivisorAt (d: N.Nat^) (p: NatPair): \Prop :=
+\definition commonDivisorAt (d: Nat^) (p: NatPair): \Prop :=
   CommonDivisor d (first p) (second p);
 
-\record IsGcd[a, b, g: N.Nat^]: \Prop := {
+\record IsGcd[a, b, g: Nat^]: \Prop := {
   dividesLeft: D.Divides g a,
   dividesRight: D.Divides g b,
-  greatest: \forall (d: N.Nat^) -> D.Divides d a -> D.Divides d b -> D.Divides d g,
+  greatest: \forall (d: Nat^) -> D.Divides d a -> D.Divides d b -> D.Divides d g,
 };
 
-\definition gcdPropertyUnique (a, b, g, h: N.Nat^)
+\definition gcdPropertyUnique (a, b, g, h: Nat^)
   (pg: IsGcd[a, b, g]) (ph: IsGcd[a, b, h]): g = h :=
   D.dividesAntisym g h
     ((ph #greatest) g (pg #dividesLeft) (pg #dividesRight))
     ((pg #greatest) h (ph #dividesLeft) (ph #dividesRight));
 
 /* Euclid's transition is stationary at (a,0). */
-\correspondence GcdNext: \U(P.Times[N.Nat, N.Nat] -> P.Times[N.Nat, N.Nat]) {
-  \program := \fun (p: P.Times[N.Nat, N.Nat]) =>
+\correspondence GcdNext: \U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]) {
+  \program := \fun (p: P.Times[Nat, Nat]) =>
     \match p \in P.Times \with {
-      | pair a b: \match b \in N.Nat \with {
-        | zero: \return P.Times[N.Nat, N.Nat]::pair a N.Nat::zero
+      | pair a b: \match b \in Nat \with {
+        | zero: \return P.Times[Nat, Nat]::pair a Nat::zero
         | succ d: \program {
-            \bind partial: \U(N.Nat -> N.Nat) <- NatDivisionDef.Mod::[program] a \then
-            \bind r: N.Nat <- (\force partial) (N.Nat::succ d) \then
-            \return P.Times[N.Nat, N.Nat]::pair (N.Nat::succ d) r
+            \bind partial: \U(Nat -> Nat) <- NatDivisionDef.Mod::[program] a \then
+            \bind r: Nat <- (\force partial) (Nat::succ d) \then
+            \return P.Times[Nat, Nat]::pair (Nat::succ d) r
           }
       }
     },
-  \set := \induction (p: P.Times^[N.Nat^, N.Nat^]) \return NatPair \with {
-    | pair: \fun (a, b: N.Nat^) =>
-      \induction (b: N.Nat^) \return NatPair \with {
-        | zero: pair a N.Nat^::zero
-        | succ: \fun (d: N.Nat^) (unused: _) =>
-          pair (N.Nat^::succ d) (NatDivisionDef.Mod::[set] a (N.Nat^::succ d))
+  \set := \induction (p: P.Times^[Nat^, Nat^]) \return NatPair \with {
+    | pair: \fun (a, b: Nat^) =>
+      \induction (b: Nat^) \return NatPair \with {
+        | zero: pair a Nat^::zero
+        | succ: \fun (d: Nat^) (unused: _) =>
+          pair (Nat^::succ d) (NatDivisionDef.Mod::[set] a (Nat^::succ d))
       } b
   },
 
   \definition matches: \forall (p: NatPair) -> GcdNext::[program]^ p = GcdNext::[set] p :=
-    \induction (p: P.Times^[N.Nat^, N.Nat^]) \return
+    \induction (p: P.Times^[Nat^, Nat^]) \return
       GcdNext::[program]^ p = GcdNext::[set] p \with {
-      | pair: \fun (a, b: N.Nat^) =>
-        \induction (b: N.Nat^) \return
+      | pair: \fun (a, b: Nat^) =>
+        \induction (b: Nat^) \return
           GcdNext::[program]^ (pair a b) = GcdNext::[set] (pair a b) \with {
-          | zero: \refl(pair a N.Nat^::zero)
-          | succ: \fun (d: N.Nat^) (unused: _) =>
+          | zero: \refl(pair a Nat^::zero)
+          | succ: \fun (d: Nat^) (unused: _) =>
             congr!{NatDivisionDef.Mod::[Type]^ NatPair}
-              (\fun (mod: _) => pair (N.Nat^::succ d) (mod a (N.Nat^::succ d)))
+              (\fun (mod: _) => pair (Nat^::succ d) (mod a (Nat^::succ d)))
               _ _ NatDivisionDef.Mod::[coherence]
         } b
     };
@@ -76,85 +73,85 @@
     \fun (p: NatPair) => matches p),
 }
 
-\definition gcdIter: NatPair -> N.Nat^ -> NatPair := NatPairDef.PairIter::[set] GcdNext::[set];
-\definition gcdFinal (a, b: N.Nat^): NatPair := gcdIter (pair a b) b;
-\definition gcdByIteration (a, b: N.Nat^): N.Nat^ := first (gcdFinal a b);
+\definition gcdIter: NatPair -> Nat^ -> NatPair := NatPairDef.PairIter::[set] GcdNext::[set];
+\definition gcdFinal (a, b: Nat^): NatPair := gcdIter (pair a b) b;
+\definition gcdByIteration (a, b: Nat^): Nat^ := first (gcdFinal a b);
 
 /* Starting at (a,b), b steps suffice because each nonzero remainder decreases. */
-\definition gcdIterZero: \forall (n, a: N.Nat^) ->
-  gcdIter (pair a N.Nat^::zero) n = pair a N.Nat^::zero :=
-  \induction (n: N.Nat^) \return \forall (a: N.Nat^) ->
-    gcdIter (pair a N.Nat^::zero) n = pair a N.Nat^::zero \with {
-    | zero: \fun (a: N.Nat^) => \refl(pair a N.Nat^::zero)
-    | succ: \fun (n: N.Nat^) (ih: _) (a: N.Nat^) =>
+\definition gcdIterZero: \forall (n, a: Nat^) ->
+  gcdIter (pair a Nat^::zero) n = pair a Nat^::zero :=
+  \induction (n: Nat^) \return \forall (a: Nat^) ->
+    gcdIter (pair a Nat^::zero) n = pair a Nat^::zero \with {
+    | zero: \fun (a: Nat^) => \refl(pair a Nat^::zero)
+    | succ: \fun (n: Nat^) (ih: _) (a: Nat^) =>
       congr!{NatPair NatPair} GcdNext::[set] _ _ (ih a)
   };
 
-\definition gcdIterSettles: \forall (n, a, b: N.Nat^) -> Basic.Le b n ->
-  second (gcdIter (pair a b) n) = N.Nat^::zero :=
-  \induction (n: N.Nat^) \return \forall (a, b: N.Nat^) -> Basic.Le b n ->
-    second (gcdIter (pair a b) n) = N.Nat^::zero \with {
-    | zero: \fun (a, b: N.Nat^) (h: _) => Basic.leZeroEq b h
-    | succ: \fun (n: N.Nat^) (ih: _) (a: N.Nat^) =>
-      \induction (b: N.Nat^) \return Basic.Le b (N.Nat^::succ n) ->
-        second (gcdIter (pair a b) (N.Nat^::succ n)) = N.Nat^::zero \with {
+\definition gcdIterSettles: \forall (n, a, b: Nat^) -> Basic.Le b n ->
+  second (gcdIter (pair a b) n) = Nat^::zero :=
+  \induction (n: Nat^) \return \forall (a, b: Nat^) -> Basic.Le b n ->
+    second (gcdIter (pair a b) n) = Nat^::zero \with {
+    | zero: \fun (a, b: Nat^) (h: _) => Basic.leZeroEq b h
+    | succ: \fun (n: Nat^) (ih: _) (a: Nat^) =>
+      \induction (b: Nat^) \return Basic.Le b (Nat^::succ n) ->
+        second (gcdIter (pair a b) (Nat^::succ n)) = Nat^::zero \with {
         | zero: \fun (h: _) =>
-          congr!{NatPair N.Nat^} second _ _ (gcdIterZero (N.Nat^::succ n) a)
-        | succ: \fun (d: N.Nat^) (unused: _) (h: _) =>
-          \idelim gcdIter (GcdNext::[set] (pair a (N.Nat^::succ d))) n =
-              GcdNext::[set] (gcdIter (pair a (N.Nat^::succ d)) n)
-            \with p: NatPair => second p = N.Nat^::zero
+          congr!{NatPair Nat^} second _ _ (gcdIterZero (Nat^::succ n) a)
+        | succ: \fun (d: Nat^) (unused: _) (h: _) =>
+          \idelim gcdIter (GcdNext::[set] (pair a (Nat^::succ d))) n =
+              GcdNext::[set] (gcdIter (pair a (Nat^::succ d)) n)
+            \with p: NatPair => second p = Nat^::zero
             \by {
-              base: ih (N.Nat^::succ d) (NatDivisionDef.Mod::[set] a (N.Nat^::succ d))
-                (Basic.leTrans (NatDivisionDef.Mod::[set] a (N.Nat^::succ d)) d n (D.modBound a d) h),
-              equality: (PairIteration.specification #advance) GcdNext::[set] n (pair a (N.Nat^::succ d))
+              base: ih (Nat^::succ d) (NatDivisionDef.Mod::[set] a (Nat^::succ d))
+                (Basic.leTrans (NatDivisionDef.Mod::[set] a (Nat^::succ d)) d n (D.modBound a d) h),
+              equality: (PairIteration.specification #advance) GcdNext::[set] n (pair a (Nat^::succ d))
             }
       }
   };
 
-\definition gcdFinalSecond (a, b: N.Nat^): second (gcdFinal a b) = N.Nat^::zero :=
+\definition gcdFinalSecond (a, b: Nat^): second (gcdFinal a b) = Nat^::zero :=
   gcdIterSettles b a b (Basic.leRefl b);
 
-\definition gcdNextPreserves (d: N.Nat^):
+\definition gcdNextPreserves (d: Nat^):
   \forall (p: NatPair) -> commonDivisorAt d p -> commonDivisorAt d (GcdNext::[set] p) :=
   NatPairDef.natPairElim
     (\fun (p: NatPair) => commonDivisorAt d p -> commonDivisorAt d (GcdNext::[set] p))
-    (\fun (a, b: N.Nat^) =>
-      \induction (b: N.Nat^) \return
+    (\fun (a, b: Nat^) =>
+      \induction (b: Nat^) \return
         CommonDivisor d a b -> commonDivisorAt d (GcdNext::[set] (pair a b)) \with {
         | zero: \fun (h: _) => h
-        | succ: \fun (k: N.Nat^) (unused: _) (h: CommonDivisor d a (N.Nat^::succ k)) =>
+        | succ: \fun (k: Nat^) (unused: _) (h: CommonDivisor d a (Nat^::succ k)) =>
           Logic.And[_, _] {
             left := h #right,
-            right := D.dividesMod d a (N.Nat^::succ k) (h #left) (h #right),
+            right := D.dividesMod d a (Nat^::succ k) (h #left) (h #right),
           }
       } b);
 
-\definition gcdNextReflects (d: N.Nat^):
+\definition gcdNextReflects (d: Nat^):
   \forall (p: NatPair) -> commonDivisorAt d (GcdNext::[set] p) -> commonDivisorAt d p :=
   NatPairDef.natPairElim
     (\fun (p: NatPair) => commonDivisorAt d (GcdNext::[set] p) -> commonDivisorAt d p)
-    (\fun (a, b: N.Nat^) =>
-      \induction (b: N.Nat^) \return
+    (\fun (a, b: Nat^) =>
+      \induction (b: Nat^) \return
         commonDivisorAt d (GcdNext::[set] (pair a b)) -> CommonDivisor d a b \with {
         | zero: \fun (h: _) => h
-        | succ: \fun (k: N.Nat^) (unused: _) (h: CommonDivisor d (N.Nat^::succ k) (NatDivisionDef.Mod::[set] a (N.Nat^::succ k))) =>
+        | succ: \fun (k: Nat^) (unused: _) (h: CommonDivisor d (Nat^::succ k) (NatDivisionDef.Mod::[set] a (Nat^::succ k))) =>
           Logic.And[_, _] {
-            left := D.dividesOfMod d a (N.Nat^::succ k) (h #left) (h #right),
+            left := D.dividesOfMod d a (Nat^::succ k) (h #left) (h #right),
             right := h #left,
           }
       } b);
 
-\definition gcdIterReflects (d, n: N.Nat^) (p: NatPair):
+\definition gcdIterReflects (d, n: Nat^) (p: NatPair):
   commonDivisorAt d (gcdIter p n) -> commonDivisorAt d p :=
   PairIterationProp.reflects GcdNext::[set] (commonDivisorAt d) (gcdNextReflects d) n p;
 
-\definition gcdByIterationCommonDivisor: \forall (a, b: N.Nat^) -> CommonDivisor (gcdByIteration a b) a b :=
+\definition gcdByIterationCommonDivisor: \forall (a, b: Nat^) -> CommonDivisor (gcdByIteration a b) a b :=
   \block {
-    \fun (a, b: N.Nat^) \then
+    \fun (a, b: Nat^) \then
     \let finalSecondDivides: D.Divides (gcdByIteration a b) (second (gcdFinal a b)) :=
-      D.dividesTransport (gcdByIteration a b) N.Nat^::zero (second (gcdFinal a b))
-        (sym!{N.Nat^} _ _ (gcdFinalSecond a b)) (D.dividesZero (gcdByIteration a b)) \then
+      D.dividesTransport (gcdByIteration a b) Nat^::zero (second (gcdFinal a b))
+        (sym!{Nat^} _ _ (gcdFinalSecond a b)) (D.dividesZero (gcdByIteration a b)) \then
     \let finalCommonDivisor:
       commonDivisorAt (gcdByIteration a b) (gcdFinal a b) :=
       Logic.And[_, _] {
@@ -163,15 +160,15 @@
       } \then
     \return gcdIterReflects (gcdByIteration a b) b (pair a b) finalCommonDivisor
   };
-\definition gcdByIterationDividesLeft (a, b: N.Nat^): D.Divides (gcdByIteration a b) a :=
+\definition gcdByIterationDividesLeft (a, b: Nat^): D.Divides (gcdByIteration a b) a :=
   (gcdByIterationCommonDivisor a b) #left;
 
-\definition gcdByIterationDividesRight (a, b: N.Nat^): D.Divides (gcdByIteration a b) b :=
+\definition gcdByIterationDividesRight (a, b: Nat^): D.Divides (gcdByIteration a b) b :=
   (gcdByIterationCommonDivisor a b) #right;
 
-\definition gcdByIterationGreatest: \forall (d, a, b: N.Nat^) -> D.Divides d a -> D.Divides d b -> D.Divides d (gcdByIteration a b) :=
+\definition gcdByIterationGreatest: \forall (d, a, b: Nat^) -> D.Divides d a -> D.Divides d b -> D.Divides d (gcdByIteration a b) :=
   \block {
-    \fun (d, a, b: N.Nat^) \then
+    \fun (d, a, b: Nat^) \then
     \fun (ha: D.Divides d a) (hb: D.Divides d b) \then
     \let finalCommonDivisor:
       commonDivisorAt d (gcdFinal a b) :=
@@ -182,49 +179,49 @@
     \return finalCommonDivisor #left
   };
 
-\definition gcdByIterationProperty (a, b: N.Nat^): IsGcd[a, b, gcdByIteration a b] :=
+\definition gcdByIterationProperty (a, b: Nat^): IsGcd[a, b, gcdByIteration a b] :=
   IsGcd[a, b, gcdByIteration a b] {
     dividesLeft := gcdByIterationDividesLeft a b,
     dividesRight := gcdByIterationDividesRight a b,
-    greatest := \fun (d: N.Nat^) => gcdByIterationGreatest d a b,
+    greatest := \fun (d: Nat^) => gcdByIterationGreatest d a b,
   };
 
-\definition GcdSet (a, b: N.Nat^): \Pow N.Nat^ :=
-  { g : N.Nat^ \where IsGcd[a, b, g] };
+\definition GcdSet (a, b: Nat^): \Pow Nat^ :=
+  { g : Nat^ \where IsGcd[a, b, g] };
 
-\definition GcdCandidate (a, b: N.Nat^): \Set := \Cast[N.Nat^] (GcdSet a b);
+\definition GcdCandidate (a, b: Nat^): \Set := \Cast[Nat^] (GcdSet a b);
 
-\definition gcdWitness (a, b: N.Nat^): GcdCandidate a b :=
-  \into[N.Nat^](gcdByIteration a b, GcdSet a b)
+\definition gcdWitness (a, b: Nat^): GcdCandidate a b :=
+  \into[Nat^](gcdByIteration a b, GcdSet a b)
     \by { gcdByIterationProperty a b };
 
-\definition gcdExists (a, b: N.Nat^): \exists GcdCandidate a b :=
+\definition gcdExists (a, b: Nat^): \exists GcdCandidate a b :=
   \exact(gcdWitness a b, GcdCandidate a b);
 
-\definition gcdUnique (a, b: N.Nat^) (g, h: GcdCandidate a b): g = h :=
+\definition gcdUnique (a, b: Nat^) (g, h: GcdCandidate a b): g = h :=
   gcdPropertyUnique a b g h
-    (\bysub(N.Nat^, GcdSet a b, g)) (\bysub(N.Nat^, GcdSet a b, h));
+    (\bysub(Nat^, GcdSet a b, g)) (\bysub(Nat^, GcdSet a b, h));
 
-\definition gcd (a, b: N.Nat^): N.Nat^ :=
+\definition gcd (a, b: Nat^): Nat^ :=
   \choice GcdCandidate a b
     \by { existence: gcdExists a b, uniqueness: gcdUnique a b };
 
-\definition gcdMatchesIteration (a, b: N.Nat^): gcd a b = gcdByIteration a b :=
-  sym!{N.Nat^} _ _ (\choiceeq gcdWitness a b \of GcdCandidate a b
+\definition gcdMatchesIteration (a, b: Nat^): gcd a b = gcdByIteration a b :=
+  sym!{Nat^} _ _ (\choiceeq gcdWitness a b \of GcdCandidate a b
     \by { existence: gcdExists a b, uniqueness: gcdUnique a b });
 
-\correspondence Gcd: N.Nat -> N.Nat -> N.Nat {
-  \program := \fun (a, b: N.Nat) => \program {
-    \bind result: P.Times[N.Nat, N.Nat] <- NatPairDef.PairIterLoop::[run]
-      (NatPairDef.PairIterState::running GcdNext::[program] (P.Times[N.Nat, N.Nat]::pair a b) b) \then
-    \bind divisor: N.Nat <- (P.Times[N.Nat, N.Nat]::first result) \then
+\correspondence Gcd: Nat -> Nat -> Nat {
+  \program := \fun (a, b: Nat) => \program {
+    \bind result: P.Times[Nat, Nat] <- NatPairDef.PairIterLoop::[run]
+      (NatPairDef.PairIterState::running GcdNext::[program] (P.Times[Nat, Nat]::pair a b) b) \then
+    \bind divisor: Nat <- (P.Times[Nat, Nat]::first result) \then
     \return divisor
   },
   \set := gcd,
 
-  \definition matches: \forall (a, b: N.Nat^) -> Gcd::[program]^ a b = Gcd::[set] a b :=
+  \definition matches: \forall (a, b: Nat^) -> Gcd::[program]^ a b = Gcd::[set] a b :=
     \block {
-      \fun (a, b: N.Nat^) \then
+      \fun (a, b: Nat^) \then
       \let iterationMatches:
         NatPairDef.PairIter::[program]^ GcdNext::[program]^ (pair a b) b =
           NatPairDef.PairIter::[set] GcdNext::[program]^ (pair a b) b :=
@@ -239,11 +236,11 @@
         NatPairDef.PairIter::[program]^ GcdNext::[program]^ (pair a b) b =
           gcdIter (pair a b) b :=
         trans!{NatPair} _ _ _ iterationMatches stepMatches \then
-      \return trans!{N.Nat^} _ _ _
-        (congr!{NatPair N.Nat^} first _ _ resultMatches)
-        (sym!{N.Nat^} _ _ (gcdMatchesIteration a b))
+      \return trans!{Nat^} _ _ _
+        (congr!{NatPair Nat^} first _ _ resultMatches)
+        (sym!{Nat^} _ _ (gcdMatchesIteration a b))
     };
   \coherence := \axiom:funext(Gcd::[program]^, Gcd::[set],
-    \fun (a: N.Nat^) => \axiom:funext(Gcd::[program]^ a, Gcd::[set] a,
-      \fun (b: N.Nat^) => matches a b)),
+    \fun (a: Nat^) => \axiom:funext(Gcd::[program]^ a, Gcd::[set] a,
+      \fun (b: Nat^) => matches a b)),
 }

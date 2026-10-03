@@ -58,23 +58,12 @@ impl<'a> ModuleGraph<'a> {
                 local.push_str(&format!("{:?}", module.span));
             }
             if let ModuleBody::Inline(items) = &module.body {
-                let namespace = items
-                    .iter()
-                    .all(|item| matches!(item, ModuleItem::ChildModule { .. }));
                 for (item_index, item) in items.iter().enumerate() {
                     if let ModuleItem::ChildModule { module } = item {
                         local.push_str(&format!(
                             "\nchild {} {:?}",
                             module.name.0, module.parameters
                         ));
-                        if !namespace {
-                            let child = graph
-                                .units
-                                .iter()
-                                .find(|unit| std::ptr::eq(unit.module, module.as_ref()))
-                                .expect("child was collected");
-                            graph.include_subtree(&child.path, &mut dependencies);
-                        }
                         continue;
                     }
                     local.push_str(&format!(

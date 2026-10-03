@@ -21,7 +21,7 @@ use crate::{
     metavariables::{ElaborationError, MetaStore},
     output::Output,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub mod analysis;
 mod declarations;
@@ -71,7 +71,6 @@ pub struct GlobalEnvironment {
     module_manager: module_manager::ModuleManager,
     metavariables: MetaStore,
     predeclared_modules: HashMap<*const Module, ModuleId>,
-    processed_modules: HashSet<ModuleId>,
 }
 
 impl Default for GlobalEnvironment {
@@ -87,7 +86,6 @@ impl Default for GlobalEnvironment {
             module_manager: Default::default(),
             metavariables: Default::default(),
             predeclared_modules: HashMap::new(),
-            processed_modules: HashSet::new(),
         }
     }
 }
@@ -547,27 +545,29 @@ impl GlobalEnvironment {
             collect(module, &mut scheduled);
         }
         self.predeclared_modules.clear();
-        self.processed_modules.clear();
         for module in modules {
             self.predeclare_module_tree(self.crate_env.root_module(), module)?;
         }
 
         let result = (|| {
-            for id in &project.order {
+            for step in &project.order {
+                let id = match step {
+                    resolve::CheckStep::Parameters(id) => id,
+                    resolve::CheckStep::Declaration { module, .. } => module,
+                };
                 let module = *scheduled
                     .get(id)
                     .ok_or("unknown HIR module in execution order")?;
                 let module_id = self.predeclared_modules[&(module as *const Module)];
-                if self.processed_modules.contains(&module_id) {
-                    continue;
+                self.module_manager.moveto(module_id);
+                match *step {
+                    resolve::CheckStep::Parameters(_) => {
+                        self.elaborate_module_parameters(module)?
+                    }
+                    resolve::CheckStep::Declaration { index, .. } => {
+                        self.elaborate_module_declaration(module, index)?
+                    }
                 }
-                let parent = self
-                    .crate_env
-                    .module(module_id)
-                    .parent()
-                    .expect("scheduled module has a parent");
-                self.module_manager.moveto(parent);
-                self.module_add_rec(module)?;
             }
             crate::lowering::Lowerer::new(&self.crate_env, &mut self.crate_env.kernel.borrow_mut())
                 .lower_all()
@@ -583,16 +583,6 @@ impl GlobalEnvironment {
             }),
             (result, _) => result,
         }
-    }
-
-    fn is_namespace_module(module: &Module) -> bool {
-        let ModuleBody::Inline(items) = &module.body else {
-            return false;
-        };
-        !items.is_empty()
-            && items
-                .iter()
-                .all(|item| matches!(item, ModuleItem::ChildModule { .. }))
     }
 
     #[cfg(test)]

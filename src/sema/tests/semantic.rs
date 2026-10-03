@@ -530,3 +530,41 @@ fn inspection_and_named_inference_diagnostics_reach_editor_queries() {
     );
     assert_eq!(&source[inferred.occurrences[0].range.clone()], "_12");
 }
+
+#[test]
+fn nested_child_edits_invalidate_parent_users_and_match_clean_checks() {
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert("/virtual/root.ref", r"\module Parent; \module Consumer;");
+    snapshot.insert(
+        "/virtual/Parent.ref",
+        r"
+        \inductive Unit: \Set := | first: Unit | second: Unit;
+        \definition Carrier: \Set := Unit;
+        \module Math;
+        \import \root.Parent[].Math[].Specification[].Def[] \as D;
+        \definition result: Carrier := D.result;
+    ",
+    );
+    snapshot.insert("/virtual/Parent/Math.ref", r"\module Specification;");
+    snapshot.insert("/virtual/Parent/Math/Specification.ref", r"\module Def;");
+    let file = "/virtual/Parent/Math/Specification/Def.ref";
+    snapshot.insert(file, r"\definition result: Carrier := Unit::first;");
+    snapshot.insert(
+        "/virtual/Consumer.ref",
+        r"
+        \import \root.Parent[] \as P;
+        \definition result: P.Carrier := P.result;
+    ",
+    );
+    let cache = Cache::new();
+    let mut database = Database::with_cache(&cache.0);
+    let first = database.check(&snapshot);
+    assert!(first.is_success(), "{first:?}");
+    assert_eq!(first, Database::with_cache(&cache.0).check(&snapshot));
+    let edited = snapshot.with_file(file, r"\definition result: Carrier := Unit::second;");
+    let changed = database.check(&edited);
+    assert!(changed.is_success(), "{changed:?}");
+    assert_ne!(first, changed);
+    assert_eq!(changed, Database::new().check(&edited));
+    assert_eq!(changed, Database::with_cache(&cache.0).check(&edited));
+}

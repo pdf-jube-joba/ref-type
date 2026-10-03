@@ -100,3 +100,61 @@ fn resolution_succeeds_before_an_ill_typed_term_is_rejected() {
     let project = resolve(r"\module M { \definition bad: \Prop := \Set; }");
     assert!(Checker::default().check(&project).is_err());
 }
+
+#[test]
+fn parent_definitions_are_checked_before_importing_nested_children() {
+    let project = resolve(
+        r"
+        \module Parent(A: \Set, value: A) {
+            \definition Carrier: \Set := A;
+            \definition shared: Carrier := value;
+            \module Math {
+                \module Specification {
+                    \module Def { \definition result: Carrier := shared; }
+                    \module Prop {
+                        \import \parent.Def[] \as Def;
+                        \definition result: Carrier := Def.result;
+                    }
+                }
+            }
+            \import \root.Parent[A := A, value := value].Math[].Specification[].Def[] \as D;
+            \definition result: Carrier := D.result;
+        }
+        \module Consumer {
+            \inductive Unit: \Set := | unit: Unit;
+            \import \root.Parent[A := Unit, value := Unit::unit] \as P;
+            \import P.Math[].Specification[].Prop[] \as Laws;
+            \definition direct: P.result = Unit::unit := \refl(Unit::unit);
+            \definition nested: Laws.result = P.result := \refl(Unit::unit);
+        }
+    ",
+    );
+    Checker::default().check(&project).unwrap();
+}
+
+#[test]
+fn instantiated_sibling_uses_common_parent_definitions_and_imports() {
+    let project = resolve(
+        r"
+        \module Source(A: \Set, value: A) { \definition get: A := value; }
+        \module Parent(A: \Set, value: A) {
+            \import \root.Source[A := A, value := value] \as Shared;
+            \definition Carrier: \Set := A;
+            \definition common: Carrier := Shared.get;
+            \module Limit {
+                \module Def { \definition result: Carrier := common; }
+                \module Prop {
+                    \import \parent.Def[] \as Def;
+                    \definition result: Carrier := Def.result;
+                }
+            }
+        }
+        \module Consumer {
+            \inductive Unit: \Set := | unit: Unit;
+            \import \root.Parent[A := Unit, value := Unit::unit].Limit[].Prop[] \as P;
+            \definition result: P.result = Unit::unit := \refl(Unit::unit);
+        }
+    ",
+    );
+    Checker::default().check(&project).unwrap();
+}

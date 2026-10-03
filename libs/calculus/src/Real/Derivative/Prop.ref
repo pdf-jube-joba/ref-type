@@ -1,0 +1,121 @@
+\import \parent.Def[] \as Def;
+
+\definition constantSlope: \forall (c, a, x: Real) ->
+  Def.slope (constant c) a x = zero :=
+  \fun (c, a, x: _) => eq_reason!{
+    {Def.slope (constant c) a x}
+    "=" {mul zero (inv (sub x a))}
+    "by" {congr!{Real Real} (\fun (y: _) => mul y (inv (sub x a))) _ _ (Laws.subSelf c)}
+    "=" zero "by" {Laws.fieldMulZeroLeft (inv (sub x a))}
+  };
+
+\definition constantDerivative: \forall (c, a: Real) ->
+  Def.HasDerivativeAt (constant c) a zero :=
+  \fun (c, a: _) =>
+    LimitLaws.congruentLimit (constant zero) (Def.slope (constant c) a)
+      (\fun (x: _) => sym!{Real} _ _ (constantSlope c a x))
+      a zero (LimitLaws.constantLimit zero a);
+
+\definition identitySlope: \forall (a, x: Real) -> Logic.Not (x = a) ->
+  Def.slope identity a x = one :=
+  \fun (a, x: _) (different: _) => eq_reason!{
+    {Def.slope identity a x}
+    "=" {mul (inv (sub x a)) (sub x a)}
+    "by" {Laws.fieldMulComm (sub x a) (inv (sub x a))}
+    "=" one
+    "by" {Laws.fieldInverseNonzero (sub x a)
+      (\fun (vanishes: _) => different (Metric.subZeroEq x a vanishes))}
+  };
+
+\definition identityDerivative: \forall (a: Real) ->
+  Def.HasDerivativeAt identity a one :=
+  \fun (a: _) =>
+    LimitLaws.puncturedCongruentLimit (constant one) (Def.slope identity a)
+      a one (\fun (x: _) (different: _) => sym!{Real} _ _ (identitySlope a x different))
+      (LimitLaws.constantLimit one a);
+
+\definition differentiableOfDerivative: \forall (f: Real -> Real) ->
+  \forall (a, derivative: Real) -> Def.HasDerivativeAt f a derivative ->
+  Def.DifferentiableAt f a :=
+  \fun (f: _) (a, derivative: _) (law: _) =>
+    \exact(
+      \into[Real](derivative, { d: Real \where Def.HasDerivativeAt f a d }) \by { law },
+      \Cast[Real] ({ d: Real \where Def.HasDerivativeAt f a d }));
+
+\definition constantFunction: \forall (c: Real) -> Def.HasDerivative (constant c) (constant zero) :=
+  \fun (c: _) => constantDerivative c;
+
+\definition identityFunction: Def.HasDerivative identity (constant one) := identityDerivative;
+
+\definition constantRaw(c: Real): Def.DifferentiableFunction::[Raw] :=
+  Def.DifferentiableFunction::[Raw] { function := constant c, derivative := constant zero };
+
+\definition constantDifferentiable(c: Real): Def.DifferentiableFunction::[Set] :=
+  \into[Def.DifferentiableFunction::[Raw]](constantRaw c, Def.DifferentiableFunction)
+  \by { Def.DifferentiableFunction::[Law][constantRaw c] { differentiable := constantFunction c } };
+
+\definition identityRaw: Def.DifferentiableFunction::[Raw] :=
+  Def.DifferentiableFunction::[Raw] { function := identity, derivative := constant one };
+
+\definition identityDifferentiable: Def.DifferentiableFunction::[Set] :=
+  \into[Def.DifferentiableFunction::[Raw]](identityRaw, Def.DifferentiableFunction)
+  \by { Def.DifferentiableFunction::[Law][identityRaw] { differentiable := identityFunction } };
+
+\definition shiftedDifference: \forall (u, v, b: Real) ->
+  sub (add u b) (add v b) = sub u v :=
+  \fun (u, v, b: _) => Laws.addCancelRight _ _ (add v b)
+    (trans!{Real} _ (add u b) _
+      (Metric.subAddCancel (add u b) (add v b))
+      (sym!{Real} _ _ (eq_reason!{
+        {add (sub u v) (add v b)}
+        "=" {add (add (sub u v) v) b}
+        "by" {sym!{Real} _ _ (Laws.addAssoc (sub u v) v b)}
+        "=" {add u b}
+        "by" {congr!{Real Real} (\fun (y: _) => add y b) _ _ (Metric.subAddCancel u v)}
+      })));
+
+\definition scaledDifference: \forall (m, x, a: Real) ->
+  sub (mul m x) (mul m a) = mul m (sub x a) :=
+  \fun (m, x, a: _) => sym!{Real} _ _ (eq_reason!{
+    {mul m (sub x a)}
+    "=" {add (mul m x) (mul m (Arithmetic.neg a))}
+    "by" {Laws.fieldMulAdd m x (Arithmetic.neg a)}
+    "=" {sub (mul m x) (mul m a)}
+    "by" {congr!{Real Real} (add (mul m x)) _ _ (Laws.fieldMulNegRight m a)}
+  });
+
+\definition affineSlope: \forall (m, b, a, x: Real) -> Logic.Not (x = a) ->
+  Def.slope (affine m b) a x = m :=
+  \fun (m, b, a, x: _) (different: _) => eq_reason!{
+    {Def.slope (affine m b) a x}
+    "=" {mul (sub (mul m x) (mul m a)) (inv (sub x a))}
+    "by" {congr!{Real Real} (\fun (y: _) => mul y (inv (sub x a))) _ _
+      (shiftedDifference (mul m x) (mul m a) b)}
+    "=" {mul (mul m (sub x a)) (inv (sub x a))}
+    "by" {congr!{Real Real} (\fun (y: _) => mul y (inv (sub x a))) _ _
+      (scaledDifference m x a)}
+    "=" {mul m (mul (sub x a) (inv (sub x a)))}
+    "by" {Laws.fieldMulAssoc m (sub x a) (inv (sub x a))}
+    "=" {mul m one}
+    "by" {congr!{Real Real} (mul m) _ _ (identitySlope a x different)}
+    "=" {mul one m} "by" {Laws.fieldMulComm m one}
+    "=" m "by" {Laws.fieldMulOneLeft m}
+  };
+
+\definition affineDerivative: \forall (m, b, a: Real) ->
+  Def.HasDerivativeAt (affine m b) a m :=
+  \fun (m, b, a: _) =>
+    LimitLaws.puncturedCongruentLimit (constant m) (Def.slope (affine m b) a)
+      a m (\fun (x: _) (different: _) => sym!{Real} _ _ (affineSlope m b a x different))
+      (LimitLaws.constantLimit m a);
+
+\definition affineFunction: \forall (m, b: Real) ->
+  Def.HasDerivative (affine m b) (constant m) :=
+  \fun (m, b: _) => affineDerivative m b;
+
+\definition affineRaw(m, b: Real): Def.DifferentiableFunction::[Raw] :=
+  Def.DifferentiableFunction::[Raw] { function := affine m b, derivative := constant m };
+
+\definition affineDifferentiable(m, b: Real): Def.DifferentiableFunction::[Set] :=
+  \into[Def.DifferentiableFunction::[Raw]](affineRaw m b, Def.DifferentiableFunction)
+  \by { Def.DifferentiableFunction::[Law][affineRaw m b] { differentiable := affineFunction m b } };

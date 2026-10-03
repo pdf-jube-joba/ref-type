@@ -75,22 +75,14 @@ impl ModuleManager {
         Ok(())
     }
 
-    pub(crate) fn reserve_child_and_moveto(
-        &mut self,
-        env: &mut CrateEnv,
-        module_name: String,
-    ) -> ModuleId {
-        let id = env.reserve_child_module(self.current, module_name);
-        self.current = id;
-        id
-    }
-
+    #[cfg(test)]
     pub(crate) fn moveto_parent(&mut self, env: &CrateEnv) {
         if let Some(parent) = env.module(self.current).parent() {
             self.current = parent;
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn publish_current_module(&self, env: &mut CrateEnv) -> Result<(), String> {
         env.publish_child_module(self.current)
     }

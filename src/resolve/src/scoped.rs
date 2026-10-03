@@ -9,6 +9,20 @@ impl Resolver {
     ) -> Result<(), Diagnostic> {
         let ModuleItem::Scoped { exports, items } = item else {
             self.item(&mut item)?;
+            if matches!(
+                item,
+                ModuleItem::MathMacro { .. }
+                    | ModuleItem::UserMacro { .. }
+                    | ModuleItem::UseMacro { .. }
+            ) {
+                return Ok(());
+            }
+            if !matches!(item, ModuleItem::ChildModule { .. }) {
+                self.order.push(CheckStep::Declaration {
+                    module: self.current,
+                    index: output.len(),
+                });
+            }
             output.push(item);
             return Ok(());
         };

@@ -1,200 +1,197 @@
-\import std.Data[].Nat[] \as N;
 \import std.Logic[].Equality[] \as Equality;
-\import std.Logic[].Proposition[] \as L;
 \use Equality.trans;
 \use Equality.eq_reason;
 \use Equality.congr;
 
 \import std.Data[].Bool[] \as B;
-\import std.Data[].Pair[] \as P;
 
-\definition zero: N.Nat := N.Nat::zero;
-\definition one: N.Nat := N.Nat::succ N.Nat::zero;
+\definition zero: Nat := Nat::zero;
+\definition one: Nat := Nat::succ Nat::zero;
 
 \inductive AddState: \VType :=
-| running: N.Nat -> N.Nat -> AddState
+| running: Nat -> Nat -> AddState
 ;
 
 \machine AddLoop {
   \State := AddState,
-  \Output := N.Nat,
+  \Output := Nat,
   \step := \thunk(\cfun (state: AddState) => \match state \in AddState \with {
     | running accumulator remaining :
-        \match remaining \in N.Nat \with {
+        \match remaining \in Nat \with {
           | zero :
-            \return(\finish[AddState, N.Nat](accumulator))
+            \return(\finish[AddState, Nat](accumulator))
           | succ smaller :
-            \return(\continue[AddState, N.Nat](AddState::running (N.Nat::succ accumulator) smaller))
+            \return(\continue[AddState, Nat](AddState::running (Nat::succ accumulator) smaller))
         }
   }),
 
-  \import std.Logic[].Termination[State := AddState^, Output := N.Nat^,
+  \import std.Logic[].Termination[State := AddState^, Output := Nat^,
     step := AddLoop::[step]^] \as Termination;
   \definition terminates:
-    \forall (remaining: N.Nat^) -> \forall (accumulator: N.Nat^) ->
+    \forall (remaining: Nat^) -> \forall (accumulator: Nat^) ->
       Termination.Holds (AddState^::running accumulator remaining) :=
-    \induction (n: N.Nat^) \return \forall (a: N.Nat^) -> Termination.Holds (AddState^::running a n) \with {
-      | zero : (\fun (a: N.Nat^) => Termination.intro (AddState^::running a N.Nat^::zero) Termination.trivial)
-      | succ : (\fun (n: N.Nat^) => \fun (ih: _) =>
-        \fun (a: N.Nat^) => Termination.intro (AddState^::running a (N.Nat^::succ n)) (ih (N.Nat^::succ a)))
+    \induction (n: Nat^) \return \forall (a: Nat^) -> Termination.Holds (AddState^::running a n) \with {
+      | zero : (\fun (a: Nat^) => Termination.intro (AddState^::running a Nat^::zero) Termination.trivial)
+      | succ : (\fun (n: Nat^) => \fun (ih: _) =>
+        \fun (a: Nat^) => Termination.intro (AddState^::running a (Nat^::succ n)) (ih (Nat^::succ a)))
     };
   \terminates := \induction (s: AddState^) \return
     Termination.Holds s \with {
-      | running: \fun (accumulator, remaining: N.Nat^) => terminates remaining accumulator
+      | running: \fun (accumulator, remaining: Nat^) => terminates remaining accumulator
     },
 }
 
-\definition succCong: \forall (a, b: N.Nat^) -> a = b -> N.Nat^::succ a = N.Nat^::succ b :=
-  congr!{N.Nat^ N.Nat^} (\fun (n: N.Nat^) => N.Nat^::succ n);
+\definition succCong: \forall (a, b: Nat^) -> a = b -> Nat^::succ a = Nat^::succ b :=
+  congr!{Nat^ Nat^} (\fun (n: Nat^) => Nat^::succ n);
 
-\correspondence Add: N.Nat -> N.Nat -> N.Nat {
-  \program := \fun (left, right: N.Nat) =>
+\correspondence Add: Nat -> Nat -> Nat {
+  \program := \fun (left, right: Nat) =>
     AddLoop::[run] (AddState::running left right),
-  \set := \fun (a, b: N.Nat^) =>
-    \induction (n: N.Nat^) \return N.Nat^ \with {
+  \set := \fun (a, b: Nat^) =>
+    \induction (n: Nat^) \return Nat^ \with {
     | zero : a
-    | succ : (\fun (n: N.Nat^) => \fun (sum: N.Nat^) => N.Nat^::succ sum)
+    | succ : (\fun (n: Nat^) => \fun (sum: Nat^) => Nat^::succ sum)
   } b,
 
-  \definition succLeft (a: N.Nat^):
-    \forall (b: N.Nat^) -> Add::[set] (N.Nat^::succ a) b = N.Nat^::succ (Add::[set] a b) :=
-    \induction (b: N.Nat^) \return Add::[set] (N.Nat^::succ a) b = N.Nat^::succ (Add::[set] a b) \with {
-      | zero : (\refl(N.Nat^::succ a))
-      | succ : (\fun (b: N.Nat^) => \fun (ih: _) =>
-        succCong (Add::[set] (N.Nat^::succ a) b) (N.Nat^::succ (Add::[set] a b)) ih)
+  \definition succLeft (a: Nat^):
+    \forall (b: Nat^) -> Add::[set] (Nat^::succ a) b = Nat^::succ (Add::[set] a b) :=
+    \induction (b: Nat^) \return Add::[set] (Nat^::succ a) b = Nat^::succ (Add::[set] a b) \with {
+      | zero : (\refl(Nat^::succ a))
+      | succ : (\fun (b: Nat^) => \fun (ih: _) =>
+        succCong (Add::[set] (Nat^::succ a) b) (Nat^::succ (Add::[set] a b)) ih)
     };
   \math-macro nat_add($x, "+", $y) := Add::[program]^ $x $y;
 
-  \definition matches: \forall (b, a: N.Nat^) -> \(a "+" b\) = Add::[set] a b :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> \(a "+" b\) = Add::[set] a b \with {
-      | zero : (\fun (a: N.Nat^) => \refl(a))
-      | succ : (\fun (b: N.Nat^) => \fun (ih: _) => \fun (a: N.Nat^) =>
+  \definition matches: \forall (b, a: Nat^) -> \(a "+" b\) = Add::[set] a b :=
+    \induction (b: Nat^) \return \forall (a: Nat^) -> \(a "+" b\) = Add::[set] a b \with {
+      | zero : (\fun (a: Nat^) => \refl(a))
+      | succ : (\fun (b: Nat^) => \fun (ih: _) => \fun (a: Nat^) =>
         eq_reason!{
-          \(a "+" { N.Nat^::succ b }\)
-          "=" { Add::[set] (N.Nat^::succ a) b } "by" { ih (N.Nat^::succ a) }
-          "=" { N.Nat^::succ (Add::[set] a b) } "by" { succLeft a b }
+          \(a "+" { Nat^::succ b }\)
+          "=" { Add::[set] (Nat^::succ a) b } "by" { ih (Nat^::succ a) }
+          "=" { Nat^::succ (Add::[set] a b) } "by" { succLeft a b }
         })
     };
   \coherence := \axiom:funext(Add::[program]^, Add::[set],
-    \fun (a: N.Nat^) => \axiom:funext(Add::[program]^ a, Add::[set] a,
-      \fun (b: N.Nat^) => matches b a)),
+    \fun (a: Nat^) => \axiom:funext(Add::[program]^ a, Add::[set] a,
+      \fun (b: Nat^) => matches b a)),
 }
 
 \math-macro nat_add($x, "+", $y) := Add::[set] $x $y;
 
-\correspondence Pred: N.Nat -> N.Nat {
-  \program := (\cfun (n: N.Nat) => \match n \in N.Nat \with { | zero : \return N.Nat::zero | succ k : \return k }),
-  \set := \fun (n: N.Nat^) =>
-    \induction (n: N.Nat^) \return N.Nat^ \with {
-    | zero : N.Nat^::zero
-    | succ : (\fun (k: N.Nat^) => \fun (_: _) => k)
+\correspondence Pred: Nat -> Nat {
+  \program := (\cfun (n: Nat) => \match n \in Nat \with { | zero : \return Nat::zero | succ k : \return k }),
+  \set := \fun (n: Nat^) =>
+    \induction (n: Nat^) \return Nat^ \with {
+    | zero : Nat^::zero
+    | succ : (\fun (k: Nat^) => \fun (_: _) => k)
   } n,
 
-  \definition matches: \forall (n: N.Nat^) -> Pred::[program]^ n = Pred::[set] n :=
-    \induction (n: N.Nat^) \return Pred::[program]^ n = Pred::[set] n \with {
-      | zero : (\refl(N.Nat^::zero))
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) => \refl(k))
+  \definition matches: \forall (n: Nat^) -> Pred::[program]^ n = Pred::[set] n :=
+    \induction (n: Nat^) \return Pred::[program]^ n = Pred::[set] n \with {
+      | zero : (\refl(Nat^::zero))
+      | succ : (\fun (k: Nat^) => \fun (ih: _) => \refl(k))
     };
   \coherence := \axiom:funext(Pred::[program]^, Pred::[set],
-    \fun (n: N.Nat^) => matches n),
+    \fun (n: Nat^) => matches n),
 }
 
-\correspondence IsZero: N.Nat -> B.Bool {
-  \program := (\cfun (n: N.Nat) => \match n \in N.Nat \with { | zero : \return B.Bool::true | succ k : \return B.Bool::false }),
-  \set := \fun (n: N.Nat^) =>
-    \induction (n: N.Nat^) \return B.Bool^ \with {
+\correspondence IsZero: Nat -> B.Bool {
+  \program := (\cfun (n: Nat) => \match n \in Nat \with { | zero : \return B.Bool::true | succ k : \return B.Bool::false }),
+  \set := \fun (n: Nat^) =>
+    \induction (n: Nat^) \return B.Bool^ \with {
     | zero : B.Bool^::true
-    | succ : (\fun (k: N.Nat^) => \fun (_: _) => B.Bool^::false)
+    | succ : (\fun (k: Nat^) => \fun (_: _) => B.Bool^::false)
   } n,
 
-  \definition matches: \forall (n: N.Nat^) -> IsZero::[program]^ n = IsZero::[set] n :=
-    \induction (n: N.Nat^) \return IsZero::[program]^ n = IsZero::[set] n \with {
+  \definition matches: \forall (n: Nat^) -> IsZero::[program]^ n = IsZero::[set] n :=
+    \induction (n: Nat^) \return IsZero::[program]^ n = IsZero::[set] n \with {
       | zero : (\refl(B.Bool^::true))
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) => \refl(B.Bool^::false))
+      | succ : (\fun (k: Nat^) => \fun (ih: _) => \refl(B.Bool^::false))
     };
   \coherence := \axiom:funext(IsZero::[program]^, IsZero::[set],
-    \fun (n: N.Nat^) => matches n),
+    \fun (n: Nat^) => matches n),
 }
 
 /* sub: both operands decrease on every continuing transition. */
-\inductive SubState: \VType := | running: N.Nat -> N.Nat -> SubState;
+\inductive SubState: \VType := | running: Nat -> Nat -> SubState;
 \machine SubLoop {
   \State := SubState,
-  \Output := N.Nat,
+  \Output := Nat,
   \step := \thunk(\cfun (state: SubState) => \match state \in SubState \with { | running a b :
-    \match b \in N.Nat \with {
-      | zero : \return(\finish[SubState, N.Nat](a))
-      | succ k : \match a \in N.Nat \with {
-        | zero : \return(\finish[SubState, N.Nat](N.Nat::zero))
-        | succ j : \return(\continue[SubState, N.Nat](SubState::running j k))
+    \match b \in Nat \with {
+      | zero : \return(\finish[SubState, Nat](a))
+      | succ k : \match a \in Nat \with {
+        | zero : \return(\finish[SubState, Nat](Nat::zero))
+        | succ j : \return(\continue[SubState, Nat](SubState::running j k))
       }
     }
   }),
 
-  \import std.Logic[].Termination[State := SubState^, Output := N.Nat^,
+  \import std.Logic[].Termination[State := SubState^, Output := Nat^,
     step := SubLoop::[step]^] \as Termination;
-  \definition terminates: \forall (b, a: N.Nat^) -> Termination.Holds (SubState^::running a b) :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Termination.Holds (SubState^::running a b) \with {
-      | zero : (\induction (a: N.Nat^) \return Termination.Holds (SubState^::running a N.Nat^::zero) \with {
-        | zero : (Termination.intro (SubState^::running N.Nat^::zero N.Nat^::zero) Termination.trivial)
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.intro (SubState^::running
-        (N.Nat^::succ j) N.Nat^::zero) Termination.trivial)
+  \definition terminates: \forall (b, a: Nat^) -> Termination.Holds (SubState^::running a b) :=
+    \induction (b: Nat^) \return \forall (a: Nat^) -> Termination.Holds (SubState^::running a b) \with {
+      | zero : (\induction (a: Nat^) \return Termination.Holds (SubState^::running a Nat^::zero) \with {
+        | zero : (Termination.intro (SubState^::running Nat^::zero Nat^::zero) Termination.trivial)
+        | succ : (\fun (j: Nat^) => \fun (unused: _) => Termination.intro (SubState^::running
+        (Nat^::succ j) Nat^::zero) Termination.trivial)
       })
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return Termination.Holds (SubState^::running a (N.Nat^::succ k)) \with {
-          | zero : (Termination.intro (SubState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial)
-          | succ : (\fun (j: N.Nat^) => \fun (unused: _) =>
-            Termination.intro (SubState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
+      | succ : (\fun (k: Nat^) => \fun (ih: _) =>
+        \induction (a: Nat^) \return Termination.Holds (SubState^::running a (Nat^::succ k)) \with {
+          | zero : (Termination.intro (SubState^::running Nat^::zero (Nat^::succ k)) Termination.trivial)
+          | succ : (\fun (j: Nat^) => \fun (unused: _) =>
+            Termination.intro (SubState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
         })
     };
   \terminates := \induction (s: SubState^) \return
     Termination.Holds s \with {
-      | running: \fun (a, b: N.Nat^) => terminates b a
+      | running: \fun (a, b: Nat^) => terminates b a
     },
 }
 
-\correspondence Sub: N.Nat -> N.Nat -> N.Nat {
-  \program := \fun (a, b: N.Nat) =>
+\correspondence Sub: Nat -> Nat -> Nat {
+  \program := \fun (a, b: Nat) =>
     SubLoop::[run] (SubState::running a b),
-  \set := \fun (a, b: N.Nat^) =>
-    \induction (b: N.Nat^) \return N.Nat^ -> N.Nat^ \with {
-    | zero : (\fun (a: N.Nat^) => a)
-    | succ : (\fun (k: N.Nat^) => \fun (rec: N.Nat^ -> N.Nat^) => \fun (a: N.Nat^) =>
-      \induction (a: N.Nat^) \return N.Nat^ \with {
-        | zero : N.Nat^::zero
-        | succ : (\fun (j: N.Nat^) => \fun (_: _) => rec j)
+  \set := \fun (a, b: Nat^) =>
+    \induction (b: Nat^) \return Nat^ -> Nat^ \with {
+    | zero : (\fun (a: Nat^) => a)
+    | succ : (\fun (k: Nat^) => \fun (rec: Nat^ -> Nat^) => \fun (a: Nat^) =>
+      \induction (a: Nat^) \return Nat^ \with {
+        | zero : Nat^::zero
+        | succ : (\fun (j: Nat^) => \fun (_: _) => rec j)
       } a)
   } b a,
 
-  \definition matches: \forall (b, a: N.Nat^) -> Sub::[program]^ a b = Sub::[set] a b :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Sub::[program]^ a b = Sub::[set] a b \with {
-      | zero : (\induction (a: N.Nat^) \return Sub::[program]^ a N.Nat^::zero = Sub::[set] a N.Nat^::zero \with {
-        | zero : (\refl(Sub::[set] N.Nat^::zero
-        N.Nat^::zero))
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => \refl(Sub::[set]
-        (N.Nat^::succ j) N.Nat^::zero))
+  \definition matches: \forall (b, a: Nat^) -> Sub::[program]^ a b = Sub::[set] a b :=
+    \induction (b: Nat^) \return \forall (a: Nat^) -> Sub::[program]^ a b = Sub::[set] a b \with {
+      | zero : (\induction (a: Nat^) \return Sub::[program]^ a Nat^::zero = Sub::[set] a Nat^::zero \with {
+        | zero : (\refl(Sub::[set] Nat^::zero
+        Nat^::zero))
+        | succ : (\fun (j: Nat^) => \fun (unused: _) => \refl(Sub::[set]
+        (Nat^::succ j) Nat^::zero))
       })
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return Sub::[program]^ a (N.Nat^::succ k) = Sub::[set] a (N.Nat^::succ k) \with {
-          | zero : (\refl(N.Nat^::zero))
-          | succ : (\fun (j: N.Nat^) => \fun (unused: _) => ih j)
+      | succ : (\fun (k: Nat^) => \fun (ih: _) =>
+        \induction (a: Nat^) \return Sub::[program]^ a (Nat^::succ k) = Sub::[set] a (Nat^::succ k) \with {
+          | zero : (\refl(Nat^::zero))
+          | succ : (\fun (j: Nat^) => \fun (unused: _) => ih j)
         })
     };
   \coherence := \axiom:funext(Sub::[program]^, Sub::[set],
-    \fun (a: N.Nat^) => \axiom:funext(Sub::[program]^ a, Sub::[set] a,
-      \fun (b: N.Nat^) => matches b a)),
+    \fun (a: Nat^) => \axiom:funext(Sub::[program]^ a, Sub::[set] a,
+      \fun (b: Nat^) => matches b a)),
 }
 
 /* eqb: both operands decrease on every continuing transition. */
-\inductive EqbState: \VType := | running: N.Nat -> N.Nat -> EqbState;
+\inductive EqbState: \VType := | running: Nat -> Nat -> EqbState;
 \machine EqbLoop {
   \State := EqbState,
   \Output := B.Bool,
   \step := \thunk(\cfun (state: EqbState) => \match state \in EqbState \with { | running a b :
-    \match b \in N.Nat \with {
-      | zero : \match a \in N.Nat \with { | zero : \return(\finish[EqbState, B.Bool](B.Bool::true)) | succ k :
+    \match b \in Nat \with {
+      | zero : \match a \in Nat \with { | zero : \return(\finish[EqbState, B.Bool](B.Bool::true)) | succ k :
         \return(\finish[EqbState, B.Bool](B.Bool::false)) }
-      | succ k : \match a \in N.Nat \with {
+      | succ k : \match a \in Nat \with {
         | zero : \return(\finish[EqbState, B.Bool](B.Bool::false))
         | succ j : \return(\continue[EqbState, B.Bool](EqbState::running j k))
       }
@@ -203,68 +200,68 @@
 
   \import std.Logic[].Termination[State := EqbState^, Output := B.Bool^,
     step := EqbLoop::[step]^] \as Termination;
-  \definition terminates: \forall (b, a: N.Nat^) -> Termination.Holds (EqbState^::running a b) :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Termination.Holds (EqbState^::running a b) \with {
-      | zero : (\induction (a: N.Nat^) \return Termination.Holds (EqbState^::running a N.Nat^::zero) \with {
-        | zero : (Termination.intro (EqbState^::running N.Nat^::zero N.Nat^::zero) Termination.trivial)
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.intro (EqbState^::running
-        (N.Nat^::succ j) N.Nat^::zero) Termination.trivial)
+  \definition terminates: \forall (b, a: Nat^) -> Termination.Holds (EqbState^::running a b) :=
+    \induction (b: Nat^) \return \forall (a: Nat^) -> Termination.Holds (EqbState^::running a b) \with {
+      | zero : (\induction (a: Nat^) \return Termination.Holds (EqbState^::running a Nat^::zero) \with {
+        | zero : (Termination.intro (EqbState^::running Nat^::zero Nat^::zero) Termination.trivial)
+        | succ : (\fun (j: Nat^) => \fun (unused: _) => Termination.intro (EqbState^::running
+        (Nat^::succ j) Nat^::zero) Termination.trivial)
       })
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return Termination.Holds (EqbState^::running a (N.Nat^::succ k)) \with {
-          | zero : (Termination.intro (EqbState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial)
-          | succ : (\fun (j: N.Nat^) => \fun (unused: _) =>
-            Termination.intro (EqbState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
+      | succ : (\fun (k: Nat^) => \fun (ih: _) =>
+        \induction (a: Nat^) \return Termination.Holds (EqbState^::running a (Nat^::succ k)) \with {
+          | zero : (Termination.intro (EqbState^::running Nat^::zero (Nat^::succ k)) Termination.trivial)
+          | succ : (\fun (j: Nat^) => \fun (unused: _) =>
+            Termination.intro (EqbState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
         })
     };
   \terminates := \induction (s: EqbState^) \return
     Termination.Holds s \with {
-      | running: \fun (a, b: N.Nat^) => terminates b a
+      | running: \fun (a, b: Nat^) => terminates b a
     },
 }
 
-\correspondence Eqb: N.Nat -> N.Nat -> B.Bool {
-  \program := \fun (a, b: N.Nat) =>
+\correspondence Eqb: Nat -> Nat -> B.Bool {
+  \program := \fun (a, b: Nat) =>
     EqbLoop::[run] (EqbState::running a b),
-  \set := \fun (a, b: N.Nat^) =>
-    \induction (b: N.Nat^) \return N.Nat^ -> B.Bool^ \with {
-    | zero : (\fun (a: N.Nat^) => IsZero::[set] a)
-    | succ : (\fun (k: N.Nat^) => \fun (rec: N.Nat^ -> B.Bool^) => \fun (a: N.Nat^) =>
-      \induction (a: N.Nat^) \return B.Bool^ \with {
+  \set := \fun (a, b: Nat^) =>
+    \induction (b: Nat^) \return Nat^ -> B.Bool^ \with {
+    | zero : (\fun (a: Nat^) => IsZero::[set] a)
+    | succ : (\fun (k: Nat^) => \fun (rec: Nat^ -> B.Bool^) => \fun (a: Nat^) =>
+      \induction (a: Nat^) \return B.Bool^ \with {
         | zero : B.Bool^::false
-        | succ : (\fun (j: N.Nat^) => \fun (_: _) => rec j)
+        | succ : (\fun (j: Nat^) => \fun (_: _) => rec j)
       } a)
   } b a,
 
-  \definition matches: \forall (b, a: N.Nat^) -> Eqb::[program]^ a b = Eqb::[set] a b :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Eqb::[program]^ a b = Eqb::[set] a b \with {
-      | zero : (\induction (a: N.Nat^) \return Eqb::[program]^ a N.Nat^::zero = Eqb::[set] a N.Nat^::zero \with {
-        | zero : (\refl(Eqb::[set] N.Nat^::zero
-        N.Nat^::zero))
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => \refl(Eqb::[set]
-        (N.Nat^::succ j) N.Nat^::zero))
+  \definition matches: \forall (b, a: Nat^) -> Eqb::[program]^ a b = Eqb::[set] a b :=
+    \induction (b: Nat^) \return \forall (a: Nat^) -> Eqb::[program]^ a b = Eqb::[set] a b \with {
+      | zero : (\induction (a: Nat^) \return Eqb::[program]^ a Nat^::zero = Eqb::[set] a Nat^::zero \with {
+        | zero : (\refl(Eqb::[set] Nat^::zero
+        Nat^::zero))
+        | succ : (\fun (j: Nat^) => \fun (unused: _) => \refl(Eqb::[set]
+        (Nat^::succ j) Nat^::zero))
       })
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return Eqb::[program]^ a (N.Nat^::succ k) = Eqb::[set] a (N.Nat^::succ k) \with {
+      | succ : (\fun (k: Nat^) => \fun (ih: _) =>
+        \induction (a: Nat^) \return Eqb::[program]^ a (Nat^::succ k) = Eqb::[set] a (Nat^::succ k) \with {
           | zero : (\refl(B.Bool^::false))
-          | succ : (\fun (j: N.Nat^) => \fun (unused: _) => ih j)
+          | succ : (\fun (j: Nat^) => \fun (unused: _) => ih j)
         })
     };
   \coherence := \axiom:funext(Eqb::[program]^, Eqb::[set],
-    \fun (a: N.Nat^) => \axiom:funext(Eqb::[program]^ a, Eqb::[set] a,
-      \fun (b: N.Nat^) => matches b a)),
+    \fun (a: Nat^) => \axiom:funext(Eqb::[program]^ a, Eqb::[set] a,
+      \fun (b: Nat^) => matches b a)),
 }
 
 /* leb: both operands decrease on every continuing transition. */
-\inductive LebState: \VType := | running: N.Nat -> N.Nat -> LebState;
+\inductive LebState: \VType := | running: Nat -> Nat -> LebState;
 \machine LebLoop {
   \State := LebState,
   \Output := B.Bool,
   \step := \thunk(\cfun (state: LebState) => \match state \in LebState \with { | running a b :
-    \match b \in N.Nat \with {
-      | zero : \match a \in N.Nat \with { | zero : \return(\finish[LebState, B.Bool](B.Bool::true)) | succ k :
+    \match b \in Nat \with {
+      | zero : \match a \in Nat \with { | zero : \return(\finish[LebState, B.Bool](B.Bool::true)) | succ k :
         \return(\finish[LebState, B.Bool](B.Bool::false)) }
-      | succ k : \match a \in N.Nat \with {
+      | succ k : \match a \in Nat \with {
         | zero : \return(\finish[LebState, B.Bool](B.Bool::true))
         | succ j : \return(\continue[LebState, B.Bool](LebState::running j k))
       }
@@ -273,67 +270,67 @@
 
   \import std.Logic[].Termination[State := LebState^, Output := B.Bool^,
     step := LebLoop::[step]^] \as Termination;
-  \definition terminates: \forall (b, a: N.Nat^) -> Termination.Holds (LebState^::running a b) :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Termination.Holds (LebState^::running a b) \with {
-      | zero : (\induction (a: N.Nat^) \return Termination.Holds (LebState^::running a N.Nat^::zero) \with {
-        | zero : (Termination.intro (LebState^::running N.Nat^::zero N.Nat^::zero) Termination.trivial)
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.intro (LebState^::running
-        (N.Nat^::succ j) N.Nat^::zero) Termination.trivial)
+  \definition terminates: \forall (b, a: Nat^) -> Termination.Holds (LebState^::running a b) :=
+    \induction (b: Nat^) \return \forall (a: Nat^) -> Termination.Holds (LebState^::running a b) \with {
+      | zero : (\induction (a: Nat^) \return Termination.Holds (LebState^::running a Nat^::zero) \with {
+        | zero : (Termination.intro (LebState^::running Nat^::zero Nat^::zero) Termination.trivial)
+        | succ : (\fun (j: Nat^) => \fun (unused: _) => Termination.intro (LebState^::running
+        (Nat^::succ j) Nat^::zero) Termination.trivial)
       })
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return Termination.Holds (LebState^::running a (N.Nat^::succ k)) \with {
-          | zero : (Termination.intro (LebState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial)
-          | succ : (\fun (j: N.Nat^) => \fun (unused: _) =>
-            Termination.intro (LebState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
+      | succ : (\fun (k: Nat^) => \fun (ih: _) =>
+        \induction (a: Nat^) \return Termination.Holds (LebState^::running a (Nat^::succ k)) \with {
+          | zero : (Termination.intro (LebState^::running Nat^::zero (Nat^::succ k)) Termination.trivial)
+          | succ : (\fun (j: Nat^) => \fun (unused: _) =>
+            Termination.intro (LebState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
         })
     };
   \terminates := \induction (s: LebState^) \return
     Termination.Holds s \with {
-      | running: \fun (a, b: N.Nat^) => terminates b a
+      | running: \fun (a, b: Nat^) => terminates b a
     },
 }
 
-\correspondence Leb: N.Nat -> N.Nat -> B.Bool {
-  \program := \fun (a, b: N.Nat) =>
+\correspondence Leb: Nat -> Nat -> B.Bool {
+  \program := \fun (a, b: Nat) =>
     LebLoop::[run] (LebState::running a b),
-  \set := \fun (a, b: N.Nat^) =>
-    \induction (b: N.Nat^) \return N.Nat^ -> B.Bool^ \with {
-    | zero : (\fun (a: N.Nat^) => IsZero::[set] a)
-    | succ : (\fun (k: N.Nat^) => \fun (rec: N.Nat^ -> B.Bool^) => \fun (a: N.Nat^) =>
-      \induction (a: N.Nat^) \return B.Bool^ \with {
+  \set := \fun (a, b: Nat^) =>
+    \induction (b: Nat^) \return Nat^ -> B.Bool^ \with {
+    | zero : (\fun (a: Nat^) => IsZero::[set] a)
+    | succ : (\fun (k: Nat^) => \fun (rec: Nat^ -> B.Bool^) => \fun (a: Nat^) =>
+      \induction (a: Nat^) \return B.Bool^ \with {
         | zero : B.Bool^::true
-        | succ : (\fun (j: N.Nat^) => \fun (_: _) => rec j)
+        | succ : (\fun (j: Nat^) => \fun (_: _) => rec j)
       } a)
   } b a,
 
-  \definition matches: \forall (b, a: N.Nat^) -> Leb::[program]^ a b = Leb::[set] a b :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Leb::[program]^ a b = Leb::[set] a b \with {
-      | zero : (\induction (a: N.Nat^) \return Leb::[program]^ a N.Nat^::zero = Leb::[set] a N.Nat^::zero \with {
-        | zero : (\refl(Leb::[set] N.Nat^::zero
-        N.Nat^::zero))
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => \refl(Leb::[set]
-        (N.Nat^::succ j) N.Nat^::zero))
+  \definition matches: \forall (b, a: Nat^) -> Leb::[program]^ a b = Leb::[set] a b :=
+    \induction (b: Nat^) \return \forall (a: Nat^) -> Leb::[program]^ a b = Leb::[set] a b \with {
+      | zero : (\induction (a: Nat^) \return Leb::[program]^ a Nat^::zero = Leb::[set] a Nat^::zero \with {
+        | zero : (\refl(Leb::[set] Nat^::zero
+        Nat^::zero))
+        | succ : (\fun (j: Nat^) => \fun (unused: _) => \refl(Leb::[set]
+        (Nat^::succ j) Nat^::zero))
       })
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return Leb::[program]^ a (N.Nat^::succ k) = Leb::[set] a (N.Nat^::succ k) \with {
+      | succ : (\fun (k: Nat^) => \fun (ih: _) =>
+        \induction (a: Nat^) \return Leb::[program]^ a (Nat^::succ k) = Leb::[set] a (Nat^::succ k) \with {
           | zero : (\refl(B.Bool^::true))
-          | succ : (\fun (j: N.Nat^) => \fun (unused: _) => ih j)
+          | succ : (\fun (j: Nat^) => \fun (unused: _) => ih j)
         })
     };
   \coherence := \axiom:funext(Leb::[program]^, Leb::[set],
-    \fun (a: N.Nat^) => \axiom:funext(Leb::[program]^ a, Leb::[set] a,
-      \fun (b: N.Nat^) => matches b a)),
+    \fun (a: Nat^) => \axiom:funext(Leb::[program]^ a, Leb::[set] a,
+      \fun (b: Nat^) => matches b a)),
 }
 
 /* ltb: both operands decrease on every continuing transition. */
-\inductive LtbState: \VType := | running: N.Nat -> N.Nat -> LtbState;
+\inductive LtbState: \VType := | running: Nat -> Nat -> LtbState;
 \machine LtbLoop {
   \State := LtbState,
   \Output := B.Bool,
   \step := \thunk(\cfun (state: LtbState) => \match state \in LtbState \with { | running a b :
-    \match b \in N.Nat \with {
+    \match b \in Nat \with {
       | zero : \return(\finish[LtbState, B.Bool](B.Bool::false))
-      | succ k : \match a \in N.Nat \with {
+      | succ k : \match a \in Nat \with {
         | zero : \return(\finish[LtbState, B.Bool](B.Bool::true))
         | succ j : \return(\continue[LtbState, B.Bool](LtbState::running j k))
       }
@@ -342,189 +339,189 @@
 
   \import std.Logic[].Termination[State := LtbState^, Output := B.Bool^,
     step := LtbLoop::[step]^] \as Termination;
-  \definition terminates: \forall (b, a: N.Nat^) -> Termination.Holds (LtbState^::running a b) :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Termination.Holds (LtbState^::running a b) \with {
-      | zero : (\induction (a: N.Nat^) \return Termination.Holds (LtbState^::running a N.Nat^::zero) \with {
-        | zero : (Termination.intro (LtbState^::running N.Nat^::zero N.Nat^::zero) Termination.trivial)
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => Termination.intro (LtbState^::running
-        (N.Nat^::succ j) N.Nat^::zero) Termination.trivial)
+  \definition terminates: \forall (b, a: Nat^) -> Termination.Holds (LtbState^::running a b) :=
+    \induction (b: Nat^) \return \forall (a: Nat^) -> Termination.Holds (LtbState^::running a b) \with {
+      | zero : (\induction (a: Nat^) \return Termination.Holds (LtbState^::running a Nat^::zero) \with {
+        | zero : (Termination.intro (LtbState^::running Nat^::zero Nat^::zero) Termination.trivial)
+        | succ : (\fun (j: Nat^) => \fun (unused: _) => Termination.intro (LtbState^::running
+        (Nat^::succ j) Nat^::zero) Termination.trivial)
       })
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return Termination.Holds (LtbState^::running a (N.Nat^::succ k)) \with {
-          | zero : (Termination.intro (LtbState^::running N.Nat^::zero (N.Nat^::succ k)) Termination.trivial)
-          | succ : (\fun (j: N.Nat^) => \fun (unused: _) =>
-            Termination.intro (LtbState^::running (N.Nat^::succ j) (N.Nat^::succ k)) (ih j))
+      | succ : (\fun (k: Nat^) => \fun (ih: _) =>
+        \induction (a: Nat^) \return Termination.Holds (LtbState^::running a (Nat^::succ k)) \with {
+          | zero : (Termination.intro (LtbState^::running Nat^::zero (Nat^::succ k)) Termination.trivial)
+          | succ : (\fun (j: Nat^) => \fun (unused: _) =>
+            Termination.intro (LtbState^::running (Nat^::succ j) (Nat^::succ k)) (ih j))
         })
     };
   \terminates := \induction (s: LtbState^) \return
     Termination.Holds s \with {
-      | running: \fun (a, b: N.Nat^) => terminates b a
+      | running: \fun (a, b: Nat^) => terminates b a
     },
 }
 
-\correspondence Ltb: N.Nat -> N.Nat -> B.Bool {
-  \program := \fun (a, b: N.Nat) =>
+\correspondence Ltb: Nat -> Nat -> B.Bool {
+  \program := \fun (a, b: Nat) =>
     LtbLoop::[run] (LtbState::running a b),
-  \set := \fun (a, b: N.Nat^) =>
-    \induction (b: N.Nat^) \return N.Nat^ -> B.Bool^ \with {
-    | zero : (\fun (a: N.Nat^) => B.Bool^::false)
-    | succ : (\fun (k: N.Nat^) => \fun (rec: N.Nat^ -> B.Bool^) => \fun (a: N.Nat^) =>
-      \induction (a: N.Nat^) \return B.Bool^ \with {
+  \set := \fun (a, b: Nat^) =>
+    \induction (b: Nat^) \return Nat^ -> B.Bool^ \with {
+    | zero : (\fun (a: Nat^) => B.Bool^::false)
+    | succ : (\fun (k: Nat^) => \fun (rec: Nat^ -> B.Bool^) => \fun (a: Nat^) =>
+      \induction (a: Nat^) \return B.Bool^ \with {
         | zero : B.Bool^::true
-        | succ : (\fun (j: N.Nat^) => \fun (_: _) => rec j)
+        | succ : (\fun (j: Nat^) => \fun (_: _) => rec j)
       } a)
   } b a,
 
-  \definition matches: \forall (b, a: N.Nat^) -> Ltb::[program]^ a b = Ltb::[set] a b :=
-    \induction (b: N.Nat^) \return \forall (a: N.Nat^) -> Ltb::[program]^ a b = Ltb::[set] a b \with {
-      | zero : (\induction (a: N.Nat^) \return Ltb::[program]^ a N.Nat^::zero = Ltb::[set] a N.Nat^::zero \with {
-        | zero : (\refl(Ltb::[set] N.Nat^::zero
-        N.Nat^::zero))
-        | succ : (\fun (j: N.Nat^) => \fun (unused: _) => \refl(Ltb::[set]
-        (N.Nat^::succ j) N.Nat^::zero))
+  \definition matches: \forall (b, a: Nat^) -> Ltb::[program]^ a b = Ltb::[set] a b :=
+    \induction (b: Nat^) \return \forall (a: Nat^) -> Ltb::[program]^ a b = Ltb::[set] a b \with {
+      | zero : (\induction (a: Nat^) \return Ltb::[program]^ a Nat^::zero = Ltb::[set] a Nat^::zero \with {
+        | zero : (\refl(Ltb::[set] Nat^::zero
+        Nat^::zero))
+        | succ : (\fun (j: Nat^) => \fun (unused: _) => \refl(Ltb::[set]
+        (Nat^::succ j) Nat^::zero))
       })
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \induction (a: N.Nat^) \return Ltb::[program]^ a (N.Nat^::succ k) = Ltb::[set] a (N.Nat^::succ k) \with {
+      | succ : (\fun (k: Nat^) => \fun (ih: _) =>
+        \induction (a: Nat^) \return Ltb::[program]^ a (Nat^::succ k) = Ltb::[set] a (Nat^::succ k) \with {
           | zero : (\refl(B.Bool^::true))
-          | succ : (\fun (j: N.Nat^) => \fun (unused: _) => ih j)
+          | succ : (\fun (j: Nat^) => \fun (unused: _) => ih j)
         })
     };
   \coherence := \axiom:funext(Ltb::[program]^, Ltb::[set],
-    \fun (a: N.Nat^) => \axiom:funext(Ltb::[program]^ a, Ltb::[set] a,
-      \fun (b: N.Nat^) => matches b a)),
+    \fun (a: Nat^) => \axiom:funext(Ltb::[program]^ a, Ltb::[set] a,
+      \fun (b: Nat^) => matches b a)),
 }
 
 /* A total iterator, shared by multiplication, powers and other finite loops. */
 \inductive IterState: \VType :=
-| running: \U(N.Nat -> N.Nat) -> N.Nat -> N.Nat -> IterState
+| running: \U(Nat -> Nat) -> Nat -> Nat -> IterState
 ;
 \machine IterLoop {
   \State := IterState,
-  \Output := N.Nat,
+  \Output := Nat,
   \step := \thunk(\cfun (state: IterState) => \match state \in IterState \with {
-    | running f value count : \match count \in N.Nat \with {
-      | zero : \return(\finish[IterState, N.Nat](value))
+    | running f value count : \match count \in Nat \with {
+      | zero : \return(\finish[IterState, Nat](value))
       | succ k : \program {
-        \bind next: N.Nat <- (\force f) value \then
-        \return \continue[IterState, N.Nat](IterState::running f next k)
+        \bind next: Nat <- (\force f) value \then
+        \return \continue[IterState, Nat](IterState::running f next k)
       }
     }
   }),
 
-  \import std.Logic[].Termination[State := IterState^, Output := N.Nat^,
+  \import std.Logic[].Termination[State := IterState^, Output := Nat^,
     step := IterLoop::[step]^] \as Termination;
-  \definition terminates: \forall (count: N.Nat^) (f: N.Nat^ -> N.Nat^) (value: N.Nat^) ->
+  \definition terminates: \forall (count: Nat^) (f: Nat^ -> Nat^) (value: Nat^) ->
     Termination.Holds (IterState^::running f value count) :=
-    \induction (count: N.Nat^) \return \forall (f: N.Nat^ -> N.Nat^) (value: N.Nat^) ->
+    \induction (count: Nat^) \return \forall (f: Nat^ -> Nat^) (value: Nat^) ->
       Termination.Holds (IterState^::running f value count) \with {
-      | zero: \fun (f: N.Nat^ -> N.Nat^) (value: N.Nat^) =>
-        Termination.intro (IterState^::running f value N.Nat^::zero) Termination.trivial
-      | succ: \fun (k: N.Nat^) (ih: _) (f: N.Nat^ -> N.Nat^) (value: N.Nat^) =>
-        Termination.intro (IterState^::running f value (N.Nat^::succ k)) (ih f (f value))
+      | zero: \fun (f: Nat^ -> Nat^) (value: Nat^) =>
+        Termination.intro (IterState^::running f value Nat^::zero) Termination.trivial
+      | succ: \fun (k: Nat^) (ih: _) (f: Nat^ -> Nat^) (value: Nat^) =>
+        Termination.intro (IterState^::running f value (Nat^::succ k)) (ih f (f value))
     };
   \terminates := \induction (s: IterState^) \return
     Termination.Holds s \with {
-      | running: \fun (f: N.Nat^ -> N.Nat^) (value, count: N.Nat^) => terminates count f value
+      | running: \fun (f: Nat^ -> Nat^) (value, count: Nat^) => terminates count f value
     },
 }
 
-\import std.Data[].Nat[].Iteration[].Def[A := N.Nat^] \as NatIteration;
+\import std.Data[].Nat[].Iteration[].Def[A := Nat^] \as NatIteration;
 
-\correspondence Iter: \U(N.Nat -> N.Nat) -> N.Nat -> N.Nat -> N.Nat {
-  \program := \fun (f: \U(N.Nat -> N.Nat)) =>
-    \fun (value, count: N.Nat) =>
+\correspondence Iter: \U(Nat -> Nat) -> Nat -> Nat -> Nat {
+  \program := \fun (f: \U(Nat -> Nat)) =>
+    \fun (value, count: Nat) =>
       IterLoop::[run] (IterState::running f value count),
   \set := NatIteration.specification #apply,
 
-  \definition matches (f: N.Nat^ -> N.Nat^): \forall (count, value: N.Nat^) ->
+  \definition matches (f: Nat^ -> Nat^): \forall (count, value: Nat^) ->
     Iter::[program]^ f value count = Iter::[set] f value count :=
-    \induction (count: N.Nat^) \return \forall (value: N.Nat^) -> Iter::[program]^ f value count = Iter::[set] f value count \with {
-      | zero : (\fun (value: N.Nat^) => \refl(value))
-      | succ : (\fun (k: N.Nat^) => \fun (ih: _) =>
-        \fun (value: N.Nat^) =>
+    \induction (count: Nat^) \return \forall (value: Nat^) -> Iter::[program]^ f value count = Iter::[set] f value count \with {
+      | zero : (\fun (value: Nat^) => \refl(value))
+      | succ : (\fun (k: Nat^) => \fun (ih: _) =>
+        \fun (value: Nat^) =>
           \idelim Iter::[set] f (f value) k = f (Iter::[set] f value k)
-            \with x: N.Nat^ => Iter::[program]^ f value (N.Nat^::succ k) = x
+            \with x: Nat^ => Iter::[program]^ f value (Nat^::succ k) = x
           \by { base: ih (f value), equality: (NatIteration.specification #advance) f k value })
     };
   \coherence := \axiom:funext(Iter::[program]^, Iter::[set],
-    \fun (f: N.Nat^ -> N.Nat^) => \axiom:funext(Iter::[program]^ f, Iter::[set] f,
-      \fun (value: N.Nat^) => \axiom:funext(Iter::[program]^ f value, Iter::[set] f value,
-        \fun (count: N.Nat^) => matches f count value))),
+    \fun (f: Nat^ -> Nat^) => \axiom:funext(Iter::[program]^ f, Iter::[set] f,
+      \fun (value: Nat^) => \axiom:funext(Iter::[program]^ f value, Iter::[set] f value,
+        \fun (count: Nat^) => matches f count value))),
 }
 
-\correspondence Mul: N.Nat -> N.Nat -> N.Nat {
-  \program := \fun (a, b: N.Nat) =>
+\correspondence Mul: Nat -> Nat -> Nat {
+  \program := \fun (a, b: Nat) =>
     IterLoop::[run] (IterState::running
-      \thunk(\cfun (current: N.Nat) => AddLoop::[run] (AddState::running a current))
-      N.Nat::zero b),
-  \set := \fun (a, b: N.Nat^) =>
-    Iter::[set] (Add::[set] a) N.Nat^::zero b,
+      \thunk(\cfun (current: Nat) => AddLoop::[run] (AddState::running a current))
+      Nat::zero b),
+  \set := \fun (a, b: Nat^) =>
+    Iter::[set] (Add::[set] a) Nat^::zero b,
   \math-macro nat_mul($x, "*", $y) := Mul::[program]^ $x $y;
 
-  \definition matches (a, b: N.Nat^): \(a "*" b\) = Mul::[set] a b :=
-    trans!{N.Nat^} _ _ _
-      (congr!{Iter::[Type]^ _} (\fun (f: _) => f (Add::[program]^ a) N.Nat^::zero b) _ _ Iter::[coherence])
-      (congr!{Add::[Type]^ N.Nat^}
-      (\fun (operation: _) => Iter::[set] (operation a) N.Nat^::zero b) _ _ Add::[coherence]);
+  \definition matches (a, b: Nat^): \(a "*" b\) = Mul::[set] a b :=
+    trans!{Nat^} _ _ _
+      (congr!{Iter::[Type]^ _} (\fun (f: _) => f (Add::[program]^ a) Nat^::zero b) _ _ Iter::[coherence])
+      (congr!{Add::[Type]^ Nat^}
+      (\fun (operation: _) => Iter::[set] (operation a) Nat^::zero b) _ _ Add::[coherence]);
   \coherence := \axiom:funext(Mul::[program]^, Mul::[set],
-    \fun (a: N.Nat^) => \axiom:funext(Mul::[program]^ a, Mul::[set] a,
-      \fun (b: N.Nat^) => matches a b)),
+    \fun (a: Nat^) => \axiom:funext(Mul::[program]^ a, Mul::[set] a,
+      \fun (b: Nat^) => matches a b)),
 }
 
 \math-macro nat_mul($x, "*", $y) := Mul::[set] $x $y;
 
-\correspondence Pow: N.Nat -> N.Nat -> N.Nat {
-  \program := \fun (a, b: N.Nat) =>
+\correspondence Pow: Nat -> Nat -> Nat {
+  \program := \fun (a, b: Nat) =>
     IterLoop::[run] (IterState::running
-      \thunk(\cfun (current: N.Nat) => IterLoop::[run] (IterState::running
-          \thunk(\cfun (next: N.Nat) => AddLoop::[run] (AddState::running a next))
-          N.Nat::zero current))
+      \thunk(\cfun (current: Nat) => IterLoop::[run] (IterState::running
+          \thunk(\cfun (next: Nat) => AddLoop::[run] (AddState::running a next))
+          Nat::zero current))
       one b),
-  \set := \fun (a, b: N.Nat^) =>
-    Iter::[set] (Mul::[set] a) (N.Nat^::succ N.Nat^::zero) b,
+  \set := \fun (a, b: Nat^) =>
+    Iter::[set] (Mul::[set] a) (Nat^::succ Nat^::zero) b,
 
-  \definition matches (a, b: N.Nat^): Pow::[program]^ a b = Pow::[set] a b :=
-    trans!{N.Nat^} _ _ _
-      (congr!{Iter::[Type]^ _} (\fun (f: _) => f (Mul::[program]^ a) (N.Nat^::succ N.Nat^::zero) b) _ _ Iter::[coherence])
-      (congr!{Mul::[Type]^ N.Nat^}
-      (\fun (operation: _) => Iter::[set] (operation a) (N.Nat^::succ N.Nat^::zero) b) _ _ Mul::[coherence]);
+  \definition matches (a, b: Nat^): Pow::[program]^ a b = Pow::[set] a b :=
+    trans!{Nat^} _ _ _
+      (congr!{Iter::[Type]^ _} (\fun (f: _) => f (Mul::[program]^ a) (Nat^::succ Nat^::zero) b) _ _ Iter::[coherence])
+      (congr!{Mul::[Type]^ Nat^}
+      (\fun (operation: _) => Iter::[set] (operation a) (Nat^::succ Nat^::zero) b) _ _ Mul::[coherence]);
   \coherence := \axiom:funext(Pow::[program]^, Pow::[set],
-    \fun (a: N.Nat^) => \axiom:funext(Pow::[program]^ a, Pow::[set] a,
-      \fun (b: N.Nat^) => matches a b)),
+    \fun (a: Nat^) => \axiom:funext(Pow::[program]^ a, Pow::[set] a,
+      \fun (b: Nat^) => matches a b)),
 }
 
 /* Selection is reflected once, then shared by min and max. */
-\correspondence Choose: B.Bool -> N.Nat -> N.Nat -> N.Nat {
+\correspondence Choose: B.Bool -> Nat -> Nat -> Nat {
   \program := \fun (test: B.Bool) =>
-    \fun (yes, no: N.Nat) =>
+    \fun (yes, no: Nat) =>
       \match test \in B.Bool \with { | false : \return no | true : \return yes },
-  \set := \fun (test: B.Bool^) (yes, no: N.Nat^) =>
-    B.ite N.Nat^ test yes no,
+  \set := \fun (test: B.Bool^) (yes, no: Nat^) =>
+    B.ite Nat^ test yes no,
 
-  \definition matches: \forall (test: B.Bool^) -> \forall (yes, no: N.Nat^) -> Choose::[program]^ test yes no = Choose::[set] test yes
+  \definition matches: \forall (test: B.Bool^) -> \forall (yes, no: Nat^) -> Choose::[program]^ test yes no = Choose::[set] test yes
     no :=
-    \induction (test: B.Bool^) \return \forall (yes, no: N.Nat^) -> Choose::[program]^ test yes no = Choose::[set] test yes no \with {
-      | false : (\fun (yes, no: N.Nat^) => \refl(no))
-      | true : (\fun (yes, no: N.Nat^) => \refl(yes))
+    \induction (test: B.Bool^) \return \forall (yes, no: Nat^) -> Choose::[program]^ test yes no = Choose::[set] test yes no \with {
+      | false : (\fun (yes, no: Nat^) => \refl(no))
+      | true : (\fun (yes, no: Nat^) => \refl(yes))
     };
   \coherence := \axiom:funext(Choose::[program]^, Choose::[set],
     \fun (test: B.Bool^) => \axiom:funext(Choose::[program]^ test, Choose::[set] test,
-      \fun (yes: N.Nat^) => \axiom:funext(Choose::[program]^ test yes, Choose::[set] test yes,
-        \fun (no: N.Nat^) => matches test yes no))),
+      \fun (yes: Nat^) => \axiom:funext(Choose::[program]^ test yes, Choose::[set] test yes,
+        \fun (no: Nat^) => matches test yes no))),
 }
 
-\correspondence Min: N.Nat -> N.Nat -> N.Nat {
-  \program := \fun (a, b: N.Nat) => \program {
+\correspondence Min: Nat -> Nat -> Nat {
+  \program := \fun (a, b: Nat) => \program {
     \bind test: B.Bool <- LtbLoop::[run] (LtbState::running a b) \then
-    \bind selected: N.Nat <- \match test \in B.Bool \with { | false : \return b | true : \return a } \then
+    \bind selected: Nat <- \match test \in B.Bool \with { | false : \return b | true : \return a } \then
     \return selected
   },
-  \set := \fun (a, b: N.Nat^) =>
+  \set := \fun (a, b: Nat^) =>
     Choose::[set] (Ltb::[set] a b) a b,
 
-  \definition matches: \forall (a, b: N.Nat^) -> Min::[program]^ a b = Min::[set] a b :=
+  \definition matches: \forall (a, b: Nat^) -> Min::[program]^ a b = Min::[set] a b :=
     \block {
-      \fun (a, b: N.Nat^) \then
+      \fun (a, b: Nat^) \then
       \let testMatches: Ltb::[program]^ a b = Ltb::[set] a b := (congr!{Ltb::[Type]^ _} (\fun (f: _) => f a b) _ _ Ltb::[coherence]) \then
       \return
       \idelim Ltb::[program]^ a b = Ltb::[set] a b
@@ -532,22 +529,22 @@
       \by { base: (congr!{Choose::[Type]^ _} (\fun (f: _) => f (Ltb::[program]^ a b) a b) _ _ Choose::[coherence]), equality: testMatches }
     };
   \coherence := \axiom:funext(Min::[program]^, Min::[set],
-    \fun (a: N.Nat^) => \axiom:funext(Min::[program]^ a, Min::[set] a,
-      \fun (b: N.Nat^) => matches a b)),
+    \fun (a: Nat^) => \axiom:funext(Min::[program]^ a, Min::[set] a,
+      \fun (b: Nat^) => matches a b)),
 }
 
-\correspondence Max: N.Nat -> N.Nat -> N.Nat {
-  \program := \fun (a, b: N.Nat) => \program {
+\correspondence Max: Nat -> Nat -> Nat {
+  \program := \fun (a, b: Nat) => \program {
     \bind test: B.Bool <- LtbLoop::[run] (LtbState::running a b) \then
-    \bind selected: N.Nat <- \match test \in B.Bool \with { | false : \return a | true : \return b } \then
+    \bind selected: Nat <- \match test \in B.Bool \with { | false : \return a | true : \return b } \then
     \return selected
   },
-  \set := \fun (a, b: N.Nat^) =>
+  \set := \fun (a, b: Nat^) =>
     Choose::[set] (Ltb::[set] a b) b a,
 
-  \definition matches: \forall (a, b: N.Nat^) -> Max::[program]^ a b = Max::[set] a b :=
+  \definition matches: \forall (a, b: Nat^) -> Max::[program]^ a b = Max::[set] a b :=
     \block {
-      \fun (a, b: N.Nat^) \then
+      \fun (a, b: Nat^) \then
       \let testMatches: Ltb::[program]^ a b = Ltb::[set] a b := (congr!{Ltb::[Type]^ _} (\fun (f: _) => f a b) _ _ Ltb::[coherence]) \then
       \return
       \idelim Ltb::[program]^ a b = Ltb::[set] a b
@@ -555,8 +552,8 @@
       \by { base: (congr!{Choose::[Type]^ _} (\fun (f: _) => f (Ltb::[program]^ a b) b a) _ _ Choose::[coherence]), equality: testMatches }
     };
   \coherence := \axiom:funext(Max::[program]^, Max::[set],
-    \fun (a: N.Nat^) => \axiom:funext(Max::[program]^ a, Max::[set] a,
-      \fun (b: N.Nat^) => matches a b)),
+    \fun (a: Nat^) => \axiom:funext(Max::[program]^ a, Max::[set] a,
+      \fun (b: Nat^) => matches a b)),
 }
 
 /* Pairs are Program data so that quotient/remainder and Euclidean states can

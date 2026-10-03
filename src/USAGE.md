@@ -57,6 +57,7 @@ typing span は無効で、型検査に必要な証明は各項の部分項と�
 `Alg/Ring.ref` を読み込む。ファイル名の大文字と小文字は宣言と一致させる。
 
 module は elaboration のパラメーター付き名前空間として扱う。
+型検査は module parameter と各宣言を単位として行い、親の共通定義、子の定義、その子を利用する親の後続定義の順に処理できる。
 import は引数の代入を保持し、その alias を起点に child module も参照できる。
 module 内で宣言した import alias はその子 module からも同じ名前で参照でき、子側の同名 import がある場合はそちらを優先する。
 各 module path には `[]` が必要で、parameter は名前と宣言順を一致させてすべて指定する。

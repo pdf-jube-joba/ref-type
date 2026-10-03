@@ -1,0 +1,55 @@
+\import \parent.Def[] \as Def;
+
+\definition constantLimit: \forall (c, a: Real) ->
+  Def.HasLimitAt (constant c) a c :=
+  \fun (c, a: _) (epsilon: _) (positive: _) =>
+    \exact(
+      \into[Real](epsilon, { delta: Real \where Def.Control[constant c, a, c, epsilon, delta] })
+      \by { Def.Control[constant c, a, c, epsilon, epsilon] {
+        positive := positive,
+        estimate := \fun (x: _) (different: _) (near: _) =>
+          R.ltReplaceLeft zero (distance c c) epsilon
+            (sym!{Real} _ _ (Metric.distanceSelf c)) positive,
+      } },
+      \Cast[Real] ({ delta: Real \where Def.Control[constant c, a, c, epsilon, delta] }));
+
+\definition identityLimit: \forall (a: Real) -> Def.HasLimitAt identity a a :=
+  \fun (a: _) (epsilon: _) (positive: _) =>
+    \exact(
+      \into[Real](epsilon, { delta: Real \where Def.Control[identity, a, a, epsilon, delta] })
+      \by { Def.Control[identity, a, a, epsilon, epsilon] {
+        positive := positive,
+        estimate := \fun (x: _) (different: _) (near: _) => near,
+      } },
+      \Cast[Real] ({ delta: Real \where Def.Control[identity, a, a, epsilon, delta] }));
+
+\definition puncturedCongruentLimit: \forall (f, g: Real -> Real) ->
+  \forall (a, l: Real) ->
+  (\forall (x: Real) -> Logic.Not (x = a) -> f x = g x) ->
+  Def.HasLimitAt f a l -> Def.HasLimitAt g a l :=
+  \fun (f, g: Real -> Real) (a, l: Real)
+    (same: \forall (x: Real) -> Logic.Not (x = a) -> f x = g x)
+    (limit: Def.HasLimitAt f a l) (epsilon: Real) (positive: R.Lt zero epsilon) =>
+  \block {
+    \takefrom delta: \Cast[Real] ({ d: Real \where Def.Control[f, a, l, epsilon, d] })
+      \by limit epsilon positive \then
+    \let control: Def.Control[f, a, l, epsilon, delta] :=
+      \bysub(Real, { d: Real \where Def.Control[f, a, l, epsilon, d] }, delta) \then
+    \return \exact(
+      \into[Real](delta, { d: Real \where Def.Control[g, a, l, epsilon, d] })
+      \by { Def.Control[g, a, l, epsilon, delta] {
+        positive := #positive{control},
+        estimate := \fun (x: Real) (different: Logic.Not (x = a))
+          (near: R.Lt (distance x a) delta) =>
+          R.ltReplaceLeft (distance (f x) l) (distance (g x) l) epsilon
+            (congr!{Real Real} (\fun (y: _) => distance y l) _ _ (same x different))
+            (#estimate{control} x different near),
+      } },
+      \Cast[Real] ({ d: Real \where Def.Control[g, a, l, epsilon, d] }))
+  };
+
+\definition congruentLimit: \forall (f, g: Real -> Real) ->
+  (\forall (x: Real) -> f x = g x) -> \forall (a, l: Real) ->
+  Def.HasLimitAt f a l -> Def.HasLimitAt g a l :=
+  \fun (f, g: _) (same: _) (a, l: _) =>
+    puncturedCongruentLimit f g a l (\fun (x: _) (different: _) => same x);
