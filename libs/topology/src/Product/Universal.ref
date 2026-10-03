@@ -207,18 +207,17 @@
   { x : X \where \In[B] V (g x) };
 
 \definition LeftContinuous(source: SourceTopology)
-  (left: \Pow (\Pow A)) (f: X -> A): \Prop :=
-  LeftMaps.Continuous #openSets{(Source.Topology::[raw] source)} left f;
+  (left: Left.Topology::[Set]) (f: X -> A): \Prop :=
+  LeftMaps.Continuous source left f;
 
 \definition RightContinuous(source: SourceTopology)
-  (right: \Pow (\Pow B)) (g: X -> B): \Prop :=
-  RightMaps.Continuous #openSets{(Source.Topology::[raw] source)} right g;
+  (right: Right.Topology::[Set]) (g: X -> B): \Prop :=
+  RightMaps.Continuous source right g;
 
 \definition PairContinuous(source: SourceTopology)
-  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (left: Left.Topology::[Set]) (right: Right.Topology::[Set])
   (f: X -> A) (g: X -> B): \Prop :=
-  PairMaps.Continuous #openSets{(Source.Topology::[raw] source)}
-    (openSets left right) (PairMap f g);
+  PairMaps.Continuous source (topology left right) (PairMap f g);
 
 \definition pairRectangleEq(f: X -> A) (g: X -> B)
   (U: \Pow A) (V: \Pow B):
@@ -238,48 +237,48 @@
           #left{member}
           #right{member}));
 
-\definition basisElim(left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+\definition basisElim(left: Left.Topology::[Set]) (right: Right.Topology::[Set])
   (W: \Pow CarrierSet) (P: \Prop)
-  (step: \forall (U: \Pow A) -> \In[\Pow A] left U ->
-    \forall (V: \Pow B) -> \In[\Pow B] right V ->
+  (step: \forall (U: \Pow A) -> Left.IsOpenIn left U ->
+    \forall (V: \Pow B) -> Right.IsOpenIn right V ->
       W = Rectangle U V -> P)
   (member: ProductSpace.FamilyMember (Basis left right) W): P :=
   \block {
     \takefrom U: \Cast[\Pow A]
       ({ U : \Pow A \where
-        Logic.And[\In[\Pow A] left U,
+        Logic.And[Left.IsOpenIn left U,
           \exists { V : \Pow B \where
-            Logic.And[\In[\Pow B] right V, W = Rectangle U V] }] })
+            Logic.And[Right.IsOpenIn right V, W = Rectangle U V] }] })
       \by member \then
-    \let leftEvidence: Logic.And[\In[\Pow A] left U,
+    \let leftEvidence: Logic.And[Left.IsOpenIn left U,
       \exists { V : \Pow B \where
-        Logic.And[\In[\Pow B] right V, W = Rectangle U V] }] :=
+        Logic.And[Right.IsOpenIn right V, W = Rectangle U V] }] :=
       \bysub(\Pow A,
         { U : \Pow A \where
-          Logic.And[\In[\Pow A] left U,
+          Logic.And[Left.IsOpenIn left U,
             \exists { V : \Pow B \where
-              Logic.And[\In[\Pow B] right V, W = Rectangle U V] }] }, U)
+              Logic.And[Right.IsOpenIn right V, W = Rectangle U V] }] }, U)
       \then
     \takefrom V: \Cast[\Pow B]
       ({ V : \Pow B \where
-        Logic.And[\In[\Pow B] right V, W = Rectangle U V] })
+        Logic.And[Right.IsOpenIn right V, W = Rectangle U V] })
       \by #right{leftEvidence} \then
-    \let rightEvidence: Logic.And[\In[\Pow B] right V,
+    \let rightEvidence: Logic.And[Right.IsOpenIn right V,
       W = Rectangle U V] :=
       \bysub(\Pow B,
         { V : \Pow B \where
-          Logic.And[\In[\Pow B] right V, W = Rectangle U V] }, V)
+          Logic.And[Right.IsOpenIn right V, W = Rectangle U V] }, V)
       \then
     \return step U #left{leftEvidence} V
       #left{rightEvidence} #right{rightEvidence}
   };
 
 \definition pairRectangleOpen(source: SourceTopology)
-  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (left: Left.Topology::[Set]) (right: Right.Topology::[Set])
   (f: X -> A) (g: X -> B) (U: \Pow A) (V: \Pow B)
   (fContinuous: LeftContinuous source left f)
   (gContinuous: RightContinuous source right g)
-  (openU: \In[\Pow A] left U) (openV: \In[\Pow B] right V):
+  (openU: Left.IsOpenIn left U) (openV: Right.IsOpenIn right V):
   Source.IsOpenIn source (Preimage (PairMap f g) (Rectangle U V)) :=
   openTransport source
     (Source.Intersection (LeftPreimage f U) (RightPreimage g V))
@@ -293,15 +292,15 @@
       (fContinuous U openU) (gContinuous V openV));
 
 \definition pairBasisOpen(source: SourceTopology)
-  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (left: Left.Topology::[Set]) (right: Right.Topology::[Set])
   (f: X -> A) (g: X -> B)
   (fContinuous: LeftContinuous source left f)
   (gContinuous: RightContinuous source right g)
   (W: \Pow CarrierSet) (member: ProductSpace.FamilyMember (Basis left right) W):
   Source.IsOpenIn source (Preimage (PairMap f g) W) :=
   basisElim left right W (Source.IsOpenIn source (Preimage (PairMap f g) W))
-    (\fun (U: \Pow A) => \fun (openU: \In[\Pow A] left U) =>
-      \fun (V: \Pow B) => \fun (openV: \In[\Pow B] right V) =>
+    (\fun (U: \Pow A) => \fun (openU: Left.IsOpenIn left U) =>
+      \fun (V: \Pow B) => \fun (openV: Right.IsOpenIn right V) =>
       \fun (equality: W = Rectangle U V) =>
         openTransport source
           (Preimage (PairMap f g) (Rectangle U V))
@@ -314,7 +313,7 @@
     member;
 
 \definition pairContinuous(source: SourceTopology)
-  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (left: Left.Topology::[Set]) (right: Right.Topology::[Set])
   (f: X -> A) (g: X -> B)
   (fContinuous: LeftContinuous source left f)
   (gContinuous: RightContinuous source right g):
@@ -325,33 +324,33 @@
 \definition WholeLeft: \Pow A := { a : A \where a = a };
 \definition WholeRight: \Pow B := { b : B \where b = b };
 
-\definition rectangleBasisMember(left: \Pow (\Pow A))
-  (right: \Pow (\Pow B)) (U: \Pow A) (V: \Pow B)
-  (openU: \In[\Pow A] left U) (openV: \In[\Pow B] right V):
+\definition rectangleBasisMember(left: Left.Topology::[Set])
+  (right: Right.Topology::[Set]) (U: \Pow A) (V: \Pow B)
+  (openU: Left.IsOpenIn left U) (openV: Right.IsOpenIn right V):
   ProductSpace.FamilyMember (Basis left right) (Rectangle U V) :=
   \exact(
     \into[\Pow A](U,
       { T : \Pow A \where
-        Logic.And[\In[\Pow A] left T,
+        Logic.And[Left.IsOpenIn left T,
           \exists { R : \Pow B \where
-            Logic.And[\In[\Pow B] right R,
+            Logic.And[Right.IsOpenIn right R,
               Rectangle U V = Rectangle T R] }] })
       \by {
         Logic.And[_, _]::# openU
           (\exact(
             \into[\Pow B](V,
               { R : \Pow B \where
-                Logic.And[\In[\Pow B] right R,
+                Logic.And[Right.IsOpenIn right R,
                   Rectangle U V = Rectangle U R] })
               \by { Logic.And[_, _]::# openV (\refl(Rectangle U V)) },
             \Cast[\Pow B] ({ R : \Pow B \where
-              Logic.And[\In[\Pow B] right R,
+              Logic.And[Right.IsOpenIn right R,
                 Rectangle U V = Rectangle U R] })))
       },
     \Cast[\Pow A] ({ T : \Pow A \where
-      Logic.And[\In[\Pow A] left T,
+      Logic.And[Left.IsOpenIn left T,
         \exists { R : \Pow B \where
-          Logic.And[\In[\Pow B] right R,
+          Logic.And[Right.IsOpenIn right R,
             Rectangle U V = Rectangle T R] }] }));
 
 \definition leftRectangleEq(f: X -> A) (g: X -> B) (U: \Pow A):
@@ -375,40 +374,36 @@
       Logic.And[_, _]::# (\refl(f x)) member));
 
 \definition leftOfPairContinuous(source: SourceTopology)
-  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (left: Left.Topology::[Set]) (right: Right.Topology::[Set])
   (f: X -> A) (g: X -> B)
-  (rightWhole: \In[\Pow B] right WholeRight)
   (continuous: PairContinuous source left right f g):
   LeftContinuous source left f :=
-  \fun (U: \Pow A) => \fun (openU: \In[\Pow A] left U) =>
+  \fun (U: \Pow A) => \fun (openU: Left.IsOpenIn left U) =>
     openTransport source
       (Preimage (PairMap f g) (Rectangle U WholeRight))
       (LeftPreimage f U) (leftRectangleEq f g U)
       (continuous (Rectangle U WholeRight)
         (ProductSpace.generatedBasisOpen (Basis left right)
           (Rectangle U WholeRight)
-          (rectangleBasisMember left right U WholeRight openU rightWhole)));
+          (rectangleBasisMember left right U WholeRight openU (#wholeOpen{right}))));
 
 \definition rightOfPairContinuous(source: SourceTopology)
-  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
+  (left: Left.Topology::[Set]) (right: Right.Topology::[Set])
   (f: X -> A) (g: X -> B)
-  (leftWhole: \In[\Pow A] left WholeLeft)
   (continuous: PairContinuous source left right f g):
   RightContinuous source right g :=
-  \fun (V: \Pow B) => \fun (openV: \In[\Pow B] right V) =>
+  \fun (V: \Pow B) => \fun (openV: Right.IsOpenIn right V) =>
     openTransport source
       (Preimage (PairMap f g) (Rectangle WholeLeft V))
       (RightPreimage g V) (rightRectangleEq f g V)
       (continuous (Rectangle WholeLeft V)
         (ProductSpace.generatedBasisOpen (Basis left right)
           (Rectangle WholeLeft V)
-          (rectangleBasisMember left right WholeLeft V leftWhole openV)));
+          (rectangleBasisMember left right WholeLeft V (#wholeOpen{left}) openV)));
 
 \definition universal(source: SourceTopology)
-  (left: \Pow (\Pow A)) (right: \Pow (\Pow B))
-  (f: X -> A) (g: X -> B)
-  (leftWhole: \In[\Pow A] left WholeLeft)
-  (rightWhole: \In[\Pow B] right WholeRight):
+  (left: Left.Topology::[Set]) (right: Right.Topology::[Set])
+  (f: X -> A) (g: X -> B):
   Logic.PropEquiv[PairContinuous source left right f g,
     Logic.And[LeftContinuous source left f,
       RightContinuous source right g]] :=
@@ -418,8 +413,8 @@
     ltr := \fun (continuous: PairContinuous source left right f g) =>
       Logic.And[LeftContinuous source left f,
         RightContinuous source right g]::#
-        (leftOfPairContinuous source left right f g rightWhole continuous)
-        (rightOfPairContinuous source left right f g leftWhole continuous),
+        (leftOfPairContinuous source left right f g continuous)
+        (rightOfPairContinuous source left right f g continuous),
     rtl := \fun (components: Logic.And[LeftContinuous source left f,
       RightContinuous source right g]) =>
       pairContinuous source left right f g

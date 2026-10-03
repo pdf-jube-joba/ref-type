@@ -1,44 +1,18 @@
-/* Continuity depends only on the open-set families of the two spaces. */
+/* Continuous maps between topological spaces. */
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
 \import std.Logic[].Proposition[] \as Logic;
 
 \definition Preimage(f: A -> B) (V: \Pow B): \Pow A :=
   { x : A \where \In[B] V (f x) };
 
-\definition Continuous(source: \Pow (\Pow A))
-  (target: \Pow (\Pow B)) (f: A -> B): \Prop :=
-  \forall (V: \Pow B) -> \In[\Pow B] target V ->
-    \In[\Pow A] source (Preimage f V);
+\definition Continuous(source: Source.Topology::[Set])
+  (target: Target.Topology::[Set]) (f: A -> B): \Prop :=
+  \forall (V: \Pow B) -> Target.IsOpenIn target V ->
+    Source.IsOpenIn source (Preimage f V);
 
 \definition compose(C: \Set) (f: A -> B) (g: B -> C): A -> C :=
   \fun (x: A) => g (f x);
-
-\definition SecondPreimage(C: \Set) (g: B -> C) (W: \Pow C): \Pow B :=
-  { y : B \where \In[C] W (g y) };
-
-\definition ThirdPreimage(C: \Set) (h: A -> C) (W: \Pow C): \Pow A :=
-  { x : A \where \In[C] W (h x) };
-
-\definition ContinuousFrom(C: \Set)
-  (source: \Pow (\Pow B)) (target: \Pow (\Pow C))
-  (g: B -> C): \Prop :=
-  \forall (W: \Pow C) -> \In[\Pow C] target W ->
-    \In[\Pow B] source (SecondPreimage C g W);
-
-\definition ContinuousTo(C: \Set)
-  (source: \Pow (\Pow A)) (target: \Pow (\Pow C))
-  (h: A -> C): \Prop :=
-  \forall (W: \Pow C) -> \In[\Pow C] target W ->
-    \In[\Pow A] source (ThirdPreimage C h W);
-
-\definition composeContinuous(C: \Set)
-  (source: \Pow (\Pow A)) (middle: \Pow (\Pow B))
-  (target: \Pow (\Pow C))
-  (f: A -> B) (g: B -> C)
-  (fContinuous: Continuous source middle f)
-  (gContinuous: ContinuousFrom C middle target g):
-  ContinuousTo C source target (compose C f g) :=
-  \fun (W: \Pow C) => \fun (open: \In[\Pow C] target W) =>
-    fContinuous (SecondPreimage C g W) (gContinuous W open);
 
 \definition RestrictedCarrier(S: \Pow A): \Set := \Cast[A] S;
 
@@ -52,23 +26,23 @@
   \Pow (RestrictedCarrier S) :=
   { x : RestrictedCarrier S \where \In[B] V (Restrict S f x) };
 
-\definition SubspaceBasis(source: \Pow (\Pow A)) (S: \Pow A):
+\definition SubspaceBasis(source: Source.Topology::[Set]) (S: \Pow A):
   \Pow (\Pow (RestrictedCarrier S)) :=
   { W : \Pow (RestrictedCarrier S) \where
     \exists { U : \Pow A \where
-      Logic.And[\In[\Pow A] source U, W = Trace S U] } };
+      Logic.And[Source.IsOpenIn source U, W = Trace S U] } };
 
-\definition restrictContinuous(source: \Pow (\Pow A))
-  (target: \Pow (\Pow B)) (S: \Pow A) (f: A -> B)
+\definition restrictBasisOpen(source: Source.Topology::[Set])
+  (target: Target.Topology::[Set]) (S: \Pow A) (f: A -> B)
   (continuous: Continuous source target f):
-  \forall (V: \Pow B) -> \In[\Pow B] target V ->
+  \forall (V: \Pow B) -> Target.IsOpenIn target V ->
     \In[\Pow (RestrictedCarrier S)] (SubspaceBasis source S)
       (RestrictedPreimage S f V) :=
-  \fun (V: \Pow B) => \fun (open: \In[\Pow B] target V) =>
+  \fun (V: \Pow B) => \fun (open: Target.IsOpenIn target V) =>
     \exact(
       \into[\Pow A](Preimage f V,
         { U : \Pow A \where
-          Logic.And[\In[\Pow A] source U,
+          Logic.And[Source.IsOpenIn source U,
             RestrictedPreimage S f V = Trace S U] })
         \by {
           Logic.And[_, _]::# (continuous V open)
@@ -77,5 +51,7 @@
               (\fun (x: RestrictedCarrier S) => \fun (member: \In[B] V (f x)) => member)))
         },
       \Cast[\Pow A] ({ U : \Pow A \where
-        Logic.And[\In[\Pow A] source U,
+        Logic.And[Source.IsOpenIn source U,
           RestrictedPreimage S f V = Trace S U] }));
+
+\module Restriction(S: \Pow A);
