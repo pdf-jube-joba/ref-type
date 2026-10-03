@@ -6,17 +6,23 @@
 \inductive False: \Prop :=
 ;
 
-\definition Not (P: \Prop): \Prop := P -> False;
+\definition Not(P: \Prop): \Prop := P -> False;
 
-\definition falseElim (P: \Prop) (impossible: False): P :=
-  \match impossible \in False \return (\fun (_: False) => P) \with {};
+\definition falseElim(P: \Prop):
+  False ->
+  P :=
+  \fun (impossible: False) =>
+    \match impossible \in False \return (\fun (_: False) => P) \with {};
 
 \record And[P, Q: \Prop]: \Prop := {
   left: P,
   right: Q,
 };
 
-\definition andElim(P, Q, R: \Prop) (curried: P -> Q -> R) (value: And[P, Q]): R := curried (value #left) (value #right);
+\definition andElim(P, Q, R: \Prop):
+  (P -> Q -> R) -> And[P, Q] ->
+  R := \fun (curried: P -> Q -> R) (value: And[P, Q]) =>
+    curried (value #left) (value #right);
 
 \inductive Or[P, Q: \Prop]: \Prop :=
 | left: P -> Or
@@ -47,10 +53,11 @@
 };
 
 /* これは PropEquiv にしなくていい */
-\definition andComm (P, Q: \Prop): And[P, Q] -> And[Q, P] := \fun (h: And[P, Q]) =>
+\definition andComm(P, Q: \Prop): And[P, Q] -> And[Q, P] := \fun (h: And[P, Q]) =>
   And[Q, P]::# (#right{h}) (#left{h});
 
-\definition andAssoc (P, Q, R: \Prop): PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] := PropEquiv[_1, _2] {
+\definition andAssoc(P, Q, R: \Prop):
+  PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] := PropEquiv[_1, _2] {
   ltr := \block {
     \fun (h: _1) \then
     \let p: P := h #left #left \then
@@ -67,13 +74,13 @@
   },
 };
 
-\definition orComm (P, Q: \Prop): Or[P, Q] -> Or[Q, P] := \fun (h: Or[P, Q]) =>
+\definition orComm(P, Q: \Prop): Or[P, Q] -> Or[Q, P] := \fun (h: Or[P, Q]) =>
   \match h \in Or \return (\fun (_: Or[P, Q]) => Or[Q, P]) \with {
   | left p : Or[Q, P]::right p
   | right q : Or[Q, P]::left q
   };
 
-\definition orAssoc (P, Q, R: \Prop): PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] := PropEquiv[_1, _2] {
+\definition orAssoc(P, Q, R: \Prop): PropEquiv[Or[Or[P, Q], R] \assign _1, Or[P, Or[Q, R]] \assign _2] := PropEquiv[_1, _2] {
   ltr := \fun (h: _1) =>
     \match h \in Or \return (\fun (_: Or[Or[P, Q], R]) => Or[P, Or[Q, R]]) \with {
     | left inner :
@@ -94,7 +101,8 @@
     }
 };
 
-\definition andOrDistrb (P, Q, R: \Prop): PropEquiv[And[P, Or[Q, R]] \assign _1, Or[And[P, Q], And[P, R]] \assign _2] := PropEquiv[_1, _2] {
+\definition andOrDistrb(P, Q, R: \Prop):
+  PropEquiv[And[P, Or[Q, R]] \assign _1, Or[And[P, Q], And[P, R]] \assign _2] := PropEquiv[_1, _2] {
   ltr := \block {
     \fun (h: And[_, _]) \then
     \let p: P := h #left \then

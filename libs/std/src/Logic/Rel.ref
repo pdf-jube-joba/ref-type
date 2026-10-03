@@ -7,28 +7,28 @@
 
 /* property */
 
-\definition Reflexive(Carrier: \Set)(R: Relation[Carrier]): \Prop :=
+\definition Reflexive(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x: Carrier) -> R x x;
 
-\definition Irreflexive(Carrier: \Set)(R: Relation[Carrier]): \Prop :=
+\definition Irreflexive(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x: Carrier) -> R x x -> Logic.False;
 
-\definition Symmetric(Carrier: \Set)(R: Relation[Carrier]): \Prop :=
+\definition Symmetric(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x, y: Carrier) -> R x y -> R y x;
 
-\definition Antisymmetric(Carrier: \Set)(R: Relation[Carrier]): \Prop :=
+\definition Antisymmetric(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x, y: Carrier) -> R x y -> R y x -> x = y;
 
-\definition Asymmetric(Carrier: \Set)(R: Relation[Carrier]): \Prop :=
+\definition Asymmetric(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x, y: Carrier) -> R x y -> R y x -> Logic.False;
 
-\definition Transitive(Carrier: \Set)(R: Relation[Carrier]): \Prop :=
+\definition Transitive(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x, y, z: Carrier) -> R x y -> R y z -> R x z;
 
-\definition Total(Carrier: \Set)(R: Relation[Carrier]): \Prop :=
+\definition Total(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x, y: Carrier) -> Logic.Or[R x y, R y x];
 
-\definition Subrelation(Carrier: \Set)(R, S: Relation[Carrier]): \Prop :=
+\definition Subrelation(Carrier: \Set) (R, S: Relation[Carrier]): \Prop :=
   \forall (x, y: Carrier) -> R x y -> S x y;
 
 \record Equivalence[Carrier: \Set, R: Relation[Carrier]]: \Prop := {
@@ -48,39 +48,42 @@
   trans: Transitive Carrier R,
 };
 
-\definition Reverse(Carrier: \Set)(R: Relation[Carrier]): Relation[Carrier] :=
-  \fun (x, y: Carrier) => R y x;
+\definition Reverse(Carrier: \Set) (R: Relation[Carrier]): Relation[Carrier] :=
+  \fun (x, y: _) => R y x;
 
-\definition Greater(Carrier: \Set)(less: Relation[Carrier]): Relation[Carrier] :=
+\definition Greater(Carrier: \Set) (less: Relation[Carrier]): Relation[Carrier] :=
   Reverse Carrier less;
 
-\definition lessGreaterInverse(Carrier: \Set)(less: Relation[Carrier])
-  (x, y: Carrier): Logic.PropEquiv[less x y, Greater Carrier less y x] :=
+\definition lessGreaterInverse(Carrier: \Set) (less: Relation[Carrier]) (x, y: Carrier):
+  Logic.PropEquiv[less x y, Greater Carrier less y x] :=
   Logic.PropEquiv[less x y, Greater Carrier less y x] {
     ltr := \fun (xy: less x y) => xy,
     rtl := \fun (xy: Greater Carrier less y x) => xy,
   };
 
-\definition reverseStrictOrder(Carrier: \Set)(R: Relation[Carrier])
-  (order: StrictOrder[Carrier, R]): StrictOrder[Carrier, Reverse Carrier R] :=
-  StrictOrder[Carrier, Reverse Carrier R] {
-    irrefl := order #irrefl,
-    trans := \fun (x, y, z: Carrier) (xy: R y x) (yz: R z y) =>
-      order #trans z y x yz xy,
-  };
+\definition reverseStrictOrder(Carrier: \Set) (R: Relation[Carrier]):
+  StrictOrder[Carrier, R] ->
+  StrictOrder[Carrier, Reverse Carrier R] :=
+  \fun (order: StrictOrder[Carrier, R]) =>
+    StrictOrder[Carrier, Reverse Carrier R] {
+      irrefl := order #irrefl,
+      trans := \fun (x, y, z: Carrier) (xy: R y x) (yz: R z y) =>
+        order #trans z y x yz xy,
+    };
 
-\definition greaterStrictOrder(Carrier: \Set)(less: Relation[Carrier])
-  (law: StrictOrder[Carrier, less]): StrictOrder[Carrier, Greater Carrier less] :=
-  reverseStrictOrder Carrier less law;
+\definition greaterStrictOrder(Carrier: \Set) (less: Relation[Carrier]):
+  StrictOrder[Carrier, less] ->
+  StrictOrder[Carrier, Greater Carrier less] :=
+  reverseStrictOrder Carrier less;
 
 /* as set */
 
 \definition RelPair(Carrier: \Set): \Set := \Pow (Pair.Times^[Carrier, Carrier]);
 
-\definition fst (A: \Set) (x: Pair.Times^[A, A]): A := Pair.first A A x;
-\definition snd (A: \Set) (x: Pair.Times^[A, A]): A := Pair.second A A x;
+\definition fst(A: \Set) (x: Pair.Times^[A, A]): A := Pair.first A A x;
+\definition snd(A: \Set) (x: Pair.Times^[A, A]): A := Pair.second A A x;
 
 \alias RelToPair[A: \Set, R: Relation[A]]: RelPair A := { x: Pair.Times^[A, A] \where R (fst A x) (snd A x) };
-\definition PairToRel (A: \Set) (X: \Pow ((Pair.Times^[A, A]) \assign _1)): Relation[A] := \fun (x, y: A) => \In[_1] X (Pair.Times^[A, A]::pair x y);
+\definition PairToRel(A: \Set) (X: \Pow ((Pair.Times^[A, A]) \assign _1)): Relation[A] := \fun (x, y: _) => \In[_1] X (Pair.Times^[A, A]::pair x y);
 
 \module Closure;

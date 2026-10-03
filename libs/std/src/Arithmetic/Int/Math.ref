@@ -1,6 +1,7 @@
 /* Cancelling a common summand is the key to representative independence. */
 \import std.Logic[].Rel[] \as Rel;
-\definition diffAddCommon: \forall (k, a, b: Nat) ->
+\definition diffAddCommon:
+  \forall (k, a, b: Nat) ->
   Diff::[set] (NatOp.Add::[set] a k) (NatOp.Add::[set] b k) = Diff::[set] a b :=
   \induction (k: N.Nat^) \return \forall (a, b: Nat) -> Diff::[set] (NatOp.Add::[set] a k) (NatOp.Add::[set] b k) = Diff::[set] a b \with {
     | zero : (\fun (a, b: Nat) => \refl(Diff::[set] a b))
@@ -10,15 +11,19 @@
         "by" { congr!{Nat Int^} (Diff::[set] (N.Nat^::succ (NatOp.Add::[set] a k))) _ _ (NL.addSuccRight b k) }
         "by" { ih a b }})
     };
-\definition diffRespects (a, b, c, d: Nat) (e: NatOp.Add::[set] a d = NatOp.Add::[set] c b): Diff::[set] a b = Diff::[set] c d :=
+\definition diffRespects(a, b, c, d: Nat):
+  NatOp.Add::[set] a d = NatOp.Add::[set] c b ->
+  Diff::[set] a b = Diff::[set] c d :=
+    \fun (e: NatOp.Add::[set] a d = NatOp.Add::[set] c b) =>
     equiv_reason!{trans!{Int^}
-      "by" { sym!{Int^} _ _ (diffAddCommon d a b) }
-      "by" { congr!{Nat Int^} (\fun (x: Nat) => Diff::[set] x (NatOp.Add::[set] b d)) _ _ e }
-      "by" { congr!{Nat Int^} (Diff::[set] (NatOp.Add::[set] c b)) _ _ (NL.addComm b d) }
-      "by" { diffAddCommon b c d }};
+        "by" { sym!{Int^} _ _ (diffAddCommon d a b) }
+        "by" { congr!{Nat Int^} (\fun (x: Nat) => Diff::[set] x (NatOp.Add::[set] b d)) _ _ e }
+        "by" { congr!{Nat Int^} (Diff::[set] (NatOp.Add::[set] c b)) _ _ (NL.addComm b d) }
+        "by" { diffAddCommon b c d }};
 
 /* The normal form represents the original formal difference. */
-\definition diffBalance: \forall (b, a: Nat) ->
+\definition diffBalance:
+  \forall (b, a: Nat) ->
   NatOp.Add::[set] a (Negative::[set] (Diff::[set] a b)) = NatOp.Add::[set] (Positive::[set] (Diff::[set] a b)) b :=
   \induction (b: N.Nat^) \return \forall (a: Nat) ->
       NatOp.Add::[set] a (Negative::[set] (Diff::[set] a b)) = NatOp.Add::[set] (Positive::[set] (Diff::[set] a b)) b \with {
@@ -37,14 +42,14 @@
       })
     };
 
-\definition Equivalent (x, y: Difference): \Prop :=
+\definition Equivalent(x, y: Difference): \Prop :=
   NatOp.Add::[set] (pos x) (negPart y) = NatOp.Add::[set] (pos y) (negPart x);
 \definition equivalentRefl: Rel.Reflexive Difference Equivalent :=
-  \fun (x: Difference) => \refl(NatOp.Add::[set] (pos x) (negPart x));
+  \fun (x: _) => \refl(NatOp.Add::[set] (pos x) (negPart x));
 \definition equivalentSym: Rel.Symmetric Difference Equivalent :=
-  \fun (x, y: Difference) (e: Equivalent x y) =>
-    sym!{Nat} (NatOp.Add::[set] (pos x) (negPart y)) (NatOp.Add::[set] (pos y) (negPart x)) e;
-\definition addShuffle (a, b, c, d: Nat):
+  \fun (x, y: _) =>
+    sym!{Nat} (NatOp.Add::[set] (pos x) (negPart y)) (NatOp.Add::[set] (pos y) (negPart x));
+\definition addShuffle(a, b, c, d: Nat):
   NatOp.Add::[set] (NatOp.Add::[set] a b) (NatOp.Add::[set] c d) = NatOp.Add::[set] (NatOp.Add::[set] a d) (NatOp.Add::[set] c b) := equiv_reason!{trans!{Nat}
                                                                            "by" { NL.addInterchange a b c d }
                                                                            "by" { congr!{Nat Nat} (NatOp.Add::[set] (NatOp.Add::[set] a c)) _ _ (NL.addComm b d) }
@@ -69,64 +74,79 @@
         "=" { NatOp.Add::[set] (NatOp.Add::[set] (pos z) (negPart x)) (NatOp.Add::[set] (pos y) (negPart y)) }
         "by" { sym!{Nat} _ _ (NL.addInterchange (pos z) (negPart x) (pos y) (negPart y)) }
       };
-\definition normalize (x: Difference): Int^ := Diff::[set] (pos x) (negPart x);
-\definition representative (z: Int^): Difference := pair (Positive::[set] z) (Negative::[set] z);
-\definition normalizeRespects (x, y: Difference): Equivalent x y -> normalize x = normalize y := diffRespects (pos x) (negPart x) (pos y) (negPart y);
-\definition representativeNormalize (x: Difference): Equivalent x (representative (normalize x)) := diffBalance (negPart x) (pos x);
-\definition equivalentOfNormalize (x, y: Difference) (e: normalize x = normalize y): Equivalent x y :=
+\definition normalize(x: Difference): Int^ := Diff::[set] (pos x) (negPart x);
+\definition representative(z: Int^): Difference := pair (Positive::[set] z) (Negative::[set] z);
+\definition normalizeRespects(x, y: Difference): Equivalent x y -> normalize x = normalize y := diffRespects (pos x) (negPart x) (pos y) (negPart y);
+\definition representativeNormalize(x: Difference): Equivalent x (representative (normalize x)) := diffBalance (negPart x) (pos x);
+\definition equivalentOfNormalize(x, y: Difference):
+  normalize x = normalize y ->
+  Equivalent x y :=
+    \fun (e: normalize x = normalize y) =>
     equiv_reason_terms!{equivalentTrans { x }
-      "~" { representative (normalize x) } "by" { representativeNormalize x }
-      "~" { y } "by" { \idelim normalize y = normalize x \with z: Int^ => Equivalent (representative z) y
-        \by { base: equivalentSym y (representative (normalize y)) (representativeNormalize y), equality: sym!{Int^} _ _ e } }};
+        "~" { representative (normalize x) } "by" { representativeNormalize x }
+        "~" { y } "by" { \idelim normalize y = normalize x \with z: Int^ => Equivalent (representative z) y
+          \by { base: equivalentSym y (representative (normalize y)) (representativeNormalize y), equality: sym!{Int^} _ _ e } }};
 
 /* Actual equivalence classes, not merely a setoid of representatives. */
-\definition ClassOf (x: Difference): \Pow Difference := { y : Difference \where Equivalent x y };
-\definition classOfEq (x, y: Difference) (xy: Equivalent x y): ClassOf x = ClassOf y :=
+\definition ClassOf(x: Difference): \Pow Difference := { y : Difference \where Equivalent x y };
+\definition classOfEq(x, y: Difference):
+  Equivalent x y ->
+  ClassOf x = ClassOf y :=
+    \fun (xy: Equivalent x y) =>
     \axiom:setext(ClassOf x, ClassOf y,
-      (\fun (z: Difference) => \fun (xz: Equivalent x z) => equiv_reason_terms!{equivalentTrans { y }
-        "~" { x } "by" { equivalentSym x y xy }
-        "~" { z } "by" { xz }}),
-      (\fun (z: Difference) => \fun (yz: Equivalent y z) => equiv_reason_terms!{equivalentTrans { x }
-        "~" { y } "by" { xy }
-        "~" { z } "by" { yz }}));
-\definition equivalentOfClassEq (x, y: Difference) (e: ClassOf x = ClassOf y): Equivalent x y :=
+        (\fun (z: Difference) => \fun (xz: Equivalent x z) => equiv_reason_terms!{equivalentTrans { y }
+          "~" { x } "by" { equivalentSym x y xy }
+          "~" { z } "by" { xz }}),
+        (\fun (z: Difference) => \fun (yz: Equivalent y z) => equiv_reason_terms!{equivalentTrans { x }
+          "~" { y } "by" { xy }
+          "~" { z } "by" { yz }}));
+\definition equivalentOfClassEq(x, y: Difference):
+  ClassOf x = ClassOf y ->
+  Equivalent x y :=
+    \fun (e: ClassOf x = ClassOf y) =>
     \idelim ClassOf y = ClassOf x \with C: \Pow Difference => \In[Difference] C y
-      \by { base: equivalentRefl y, equality:
-        \idelim ClassOf x = ClassOf y \with C: \Pow Difference => C = ClassOf x
-          \by { base: \refl(ClassOf x), equality: e } };
-\definition Representatives (C: \Pow Difference): \Pow Difference := { x : Difference \where C = ClassOf x };
-\definition IsClass (C: \Pow Difference): \Prop := \forall (P: \Prop) -> (\forall (x: Difference) -> C = ClassOf x -> P) -> P;
+        \by { base: equivalentRefl y, equality:
+          \idelim ClassOf x = ClassOf y \with C: \Pow Difference => C = ClassOf x
+            \by { base: \refl(ClassOf x), equality: e } };
+\definition Representatives(C: \Pow Difference): \Pow Difference := { x : Difference \where C = ClassOf x };
+\definition IsClass(C: \Pow Difference): \Prop := \forall (P: \Prop) -> (\forall (x: Difference) -> C = ClassOf x -> P) -> P;
 \definition ClassSet: \Pow (\Pow Difference) := { C : \Pow Difference \where IsClass C };
 \definition Grothendieck: \Set := \Cast[\Pow Difference] ClassSet;
-\definition class (x: Difference): Grothendieck :=
+\definition class(x: Difference): Grothendieck :=
   \into[\Pow Difference](ClassOf x, ClassSet) \by { (\fun (P: \Prop) => \fun (step: \forall (y: Difference) -> ClassOf x = ClassOf y -> P) => step x (\refl(ClassOf x))) };
-\definition toMath (z: Int^): Grothendieck := class (representative z);
-\definition classProperty (C: Grothendieck): IsClass C := \bysub(\Pow Difference, ClassSet, C);
-\definition representativesExist (C: Grothendieck): \exists \Cast[Difference] (Representatives C) := classProperty C (\exists \Cast[Difference] (Representatives C))
+\definition toMath(z: Int^): Grothendieck := class (representative z);
+\definition classProperty(C: Grothendieck): IsClass C := \bysub(\Pow Difference, ClassSet, C);
+\definition representativesExist(C: Grothendieck): \exists \Cast[Difference] (Representatives C) := classProperty C (\exists \Cast[Difference] (Representatives C))
     (\fun (x: Difference) => \fun (cx: C = ClassOf x) =>
       \exact(\into[Difference](x, Representatives C) \by { cx }, \Cast[Difference] (Representatives C)));
-\definition sameClassNormal (C: \Pow Difference) (x, y: Difference) (cx: C = ClassOf x) (cy: C = ClassOf y): normalize x = normalize y :=
-      normalizeRespects x y (equivalentOfClassEq x y
-        (\idelim C = ClassOf x \with D: \Pow Difference => D = ClassOf y \by { base: cy, equality: cx }));
-\definition normalFormsUnique (C: Grothendieck) (x: \Cast[Difference] (Representatives C)) (y: \Cast[Difference] (Representatives C)): normalize x =
+\definition sameClassNormal(C: \Pow Difference) (x, y: Difference):
+  C = ClassOf x -> C = ClassOf y ->
+  normalize x = normalize y :=
+      \fun (cx: C = ClassOf x) (cy: C = ClassOf y) =>
+    normalizeRespects x y (equivalentOfClassEq x y
+          (\idelim C = ClassOf x \with D: \Pow Difference => D = ClassOf y \by { base: cy, equality: cx }));
+\definition normalFormsUnique(C: Grothendieck) (x: \Cast[Difference] (Representatives C))
+  (y: \Cast[Difference] (Representatives C)):
+  normalize x =
     normalize y :=
     sameClassNormal C x y (\bysub(Difference, Representatives C, x)) (\bysub(Difference, Representatives C,
     y));
-\definition NormalForms (C: Grothendieck): \Pow Int^ :=
+\definition NormalForms(C: Grothendieck): \Pow Int^ :=
   { z : Int^ \where \exists { x : \Cast[Difference] (Representatives C) \where normalize x = z } };
-\definition NormalForm (C: Grothendieck): \Set := \Cast[Int^] (NormalForms C);
-\definition normalFormWitness (C: Grothendieck) (x: \Cast[Difference] (Representatives C)): NormalForm C :=
+\definition NormalForm(C: Grothendieck): \Set := \Cast[Int^] (NormalForms C);
+\definition normalFormWitness(C: Grothendieck) (x: \Cast[Difference] (Representatives C)):
+  NormalForm C :=
   \into[Int^](normalize x, NormalForms C) \by {
     \exact(\into[\Cast[Difference] (Representatives C)](x,
       { y : \Cast[Difference] (Representatives C) \where normalize y = normalize x })
       \by { \refl(normalize x) },
       \Cast[\Cast[Difference] (Representatives C)]
         ({ y : \Cast[Difference] (Representatives C) \where normalize y = normalize x })) };
-\definition normalFormExists (C: Grothendieck): \exists NormalForm C :=
+\definition normalFormExists(C: Grothendieck): \exists NormalForm C :=
   \take (x: \Cast[Difference] (Representatives C)) =>
     \exact(normalFormWitness C x, NormalForm C)
     \by { representativesExist C };
-\definition normalFormUnique (C: Grothendieck) (u, v: NormalForm C): u = v :=
+\definition normalFormUnique(C: Grothendieck) (u, v: NormalForm C): u = v :=
   \block {
     \takefrom x: \Cast[\Cast[Difference] (Representatives C)]
       ({ x : \Cast[Difference] (Representatives C) \where normalize x = u })
@@ -141,20 +161,20 @@
         (\bysub(\Cast[Difference] (Representatives C),
           { y : \Cast[Difference] (Representatives C) \where normalize y = v }, y)))
   };
-\definition fromMath (C: Grothendieck): Int^ :=
+\definition fromMath(C: Grothendieck): Int^ :=
   \choice NormalForm C
     \by { existence: normalFormExists C, uniqueness: normalFormUnique C };
-\definition normalFormEquals (C: Grothendieck) (x: \Cast[Difference] (Representatives C)):
+\definition normalFormEquals(C: Grothendieck) (x: \Cast[Difference] (Representatives C)):
   normalize x = fromMath C :=
   \choiceeq normalFormWitness C x \of NormalForm C
     \by { existence: normalFormExists C, uniqueness: normalFormUnique C };
-\definition fromClass (x: Difference): fromMath (class x) = normalize x :=
+\definition fromClass(x: Difference): fromMath (class x) = normalize x :=
   sym!{Int^} _ _ (normalFormEquals (class x)
     (\into[Difference](x, Representatives (class x)) \by { \refl(ClassOf x) }));
-\definition fromTo (z: Int^): fromMath (toMath z) = z := trans!{Int^} _ _ _ (fromClass (representative z)) (diffCanonical z);
-\definition toFromClass (x: Difference): toMath (normalize x) = class x := classOfEq (representative (normalize x)) x
+\definition fromTo(z: Int^): fromMath (toMath z) = z := trans!{Int^} _ _ _ (fromClass (representative z)) (diffCanonical z);
+\definition toFromClass(x: Difference): toMath (normalize x) = class x := classOfEq (representative (normalize x)) x
     (equivalentSym x (representative (normalize x)) (representativeNormalize x));
-\definition toFrom (C: Grothendieck): toMath (fromMath C) = C :=
+\definition toFrom(C: Grothendieck): toMath (fromMath C) = C :=
     \take (x: \Cast[Difference] (Representatives C)) =>
       \block {
         \let normalized: normalize x = fromMath C :=
@@ -170,184 +190,222 @@
       }
     \by { representativesExist C };
 
-\definition addRep (x, y: Difference): Difference :=
+\definition addRep(x, y: Difference): Difference :=
   pair (NatOp.Add::[set] (pos x) (pos y)) (NatOp.Add::[set] (negPart x) (negPart y));
-\definition negRep (x: Difference): Difference := pair (negPart x) (pos x);
-\definition subRep (x, y: Difference): Difference := addRep x (negRep y);
-\definition scaleRep (x: Difference) (n: Nat): Difference :=
+\definition negRep(x: Difference): Difference := pair (negPart x) (pos x);
+\definition subRep(x, y: Difference): Difference := addRep x (negRep y);
+\definition scaleRep(x: Difference) (n: Nat): Difference :=
   pair (NatOp.Mul::[set] (pos x) n) (NatOp.Mul::[set] (negPart x) n);
-\definition mulRep (x, y: Difference): Difference :=
+\definition mulRep(x, y: Difference): Difference :=
   pair (NatOp.Add::[set] (NatOp.Mul::[set] (pos x) (pos y)) (NatOp.Mul::[set] (negPart x) (negPart y)))
        (NatOp.Add::[set] (NatOp.Mul::[set] (pos x) (negPart y)) (NatOp.Mul::[set] (negPart x) (pos y)));
-\definition equivalentOfFields (x, y: Difference) (p: pos x = pos y) (n: negPart x = negPart y): Equivalent x y
-    :=
+\definition equivalentOfFields(x, y: Difference):
+  pos x = pos y -> negPart x = negPart y ->
+  Equivalent x y :=
+    \fun (p: _) (n: _) =>
     NL.addCong (pos x) (pos y) (negPart y) (negPart x) p (sym!{Nat} _ _ n);
-\definition addRepRespects (x, y, u, v: Difference) (xy: Equivalent x y) (uv: Equivalent u v): Equivalent (addRep x u) (addRep y v) :=
+\definition addRepRespects(x, y, u, v: Difference):
+  Equivalent x y -> Equivalent u v ->
+  Equivalent (addRep x u) (addRep y v) :=
+    \fun (xy: _) (uv: _) =>
     equiv_reason!{trans!{Nat}
-      "by" { NL.addInterchange (pos x) (pos u) (negPart y) (negPart v) }
-      "by" { NL.addCong (NatOp.Add::[set] (pos x) (negPart y)) (NatOp.Add::[set] (pos y) (negPart x))
-        (NatOp.Add::[set] (pos u) (negPart v)) (NatOp.Add::[set] (pos v) (negPart u)) xy uv }
-      "by" { sym!{Nat} _ _ (NL.addInterchange (pos y) (pos v) (negPart x) (negPart u)) }};
-\definition negRepRespects (x, y: Difference) (xy: Equivalent x y): Equivalent (negRep x) (negRep y) :=
+        "by" { NL.addInterchange (pos x) (pos u) (negPart y) (negPart v) }
+        "by" { NL.addCong (NatOp.Add::[set] (pos x) (negPart y)) (NatOp.Add::[set] (pos y) (negPart x))
+          (NatOp.Add::[set] (pos u) (negPart v)) (NatOp.Add::[set] (pos v) (negPart u)) xy uv }
+        "by" { sym!{Nat} _ _ (NL.addInterchange (pos y) (pos v) (negPart x) (negPart u)) }};
+\definition negRepRespects(x, y: Difference):
+  Equivalent x y ->
+  Equivalent (negRep x) (negRep y) :=
+    \fun (xy: _) =>
     trans!{Nat} _ _ _ (NL.addComm (negPart x) (pos y))
-      (trans!{Nat} (NatOp.Add::[set] (pos y) (negPart x)) (NatOp.Add::[set] (pos x) (negPart y))
-        (NatOp.Add::[set] (negPart y) (pos x))
-        (sym!{Nat} (NatOp.Add::[set] (pos x) (negPart y)) (NatOp.Add::[set] (pos y) (negPart x)) xy)
-        (NL.addComm (pos x) (negPart y)));
-\definition subRepRespects (x, y, u, v: Difference) (xy: Equivalent x y) (uv: Equivalent u v): Equivalent (subRep x u) (subRep y v) :=
+        (trans!{Nat} (NatOp.Add::[set] (pos y) (negPart x)) (NatOp.Add::[set] (pos x) (negPart y))
+          (NatOp.Add::[set] (negPart y) (pos x))
+          (sym!{Nat} (NatOp.Add::[set] (pos x) (negPart y)) (NatOp.Add::[set] (pos y) (negPart x)) xy)
+          (NL.addComm (pos x) (negPart y)));
+\definition subRepRespects(x, y, u, v: Difference):
+  Equivalent x y -> Equivalent u v ->
+  Equivalent (subRep x u) (subRep y v) :=
+    \fun (xy: _) (uv: _) =>
     addRepRespects x y (negRep u) (negRep v) xy (negRepRespects u v uv);
-\definition scaleRepRespects (x, y: Difference) (n: Nat) (xy: Equivalent x y): Equivalent (scaleRep x n) (scaleRep y n) :=
+\definition scaleRepRespects(x, y: Difference) (n: Nat):
+  Equivalent x y ->
+  Equivalent (scaleRep x n) (scaleRep y n) :=
+    \fun (xy: Equivalent x y) =>
     equiv_reason!{trans!{Nat}
-      "by" { sym!{Nat} _ _ (NL.mulDistribRight (pos x) (negPart y) n) }
-      "by" { congr!{Nat Nat} (\fun (a: Nat) => NatOp.Mul::[set] a n)
-        (NatOp.Add::[set] (pos x) (negPart y)) (NatOp.Add::[set] (pos y) (negPart x)) xy }
-      "by" { NL.mulDistribRight (pos y) (negPart x) n }};
-\definition mulRepAsSum (x, y: Difference):
+        "by" { sym!{Nat} _ _ (NL.mulDistribRight (pos x) (negPart y) n) }
+        "by" { congr!{Nat Nat} (\fun (a: Nat) => NatOp.Mul::[set] a n)
+          (NatOp.Add::[set] (pos x) (negPart y)) (NatOp.Add::[set] (pos y) (negPart x)) xy }
+        "by" { NL.mulDistribRight (pos y) (negPart x) n }};
+\definition mulRepAsSum(x, y: Difference):
   Equivalent (mulRep x y) (addRep (scaleRep x (pos y)) (negRep (scaleRep x (negPart y)))) := equivalentOfFields (mulRep x y)
     (addRep (scaleRep x (pos y)) (negRep (scaleRep x (negPart y))))
     (\refl(pos (mulRep x y))) (NL.addComm (NatOp.Mul::[set] (pos x) (negPart y)) (NatOp.Mul::[set] (negPart x) (pos y)));
-\definition mulRepComm (x, y: Difference): Equivalent (mulRep x y) (mulRep y x) := equivalentOfFields (mulRep x y) (mulRep y x)
+\definition mulRepComm(x, y: Difference): Equivalent (mulRep x y) (mulRep y x) := equivalentOfFields (mulRep x y) (mulRep y x)
     (NL.addCong _ _ _ _ (NL.mulComm (pos x) (pos y)) (NL.mulComm (negPart x) (negPart y)))
     (trans!{Nat} _ _ _
       (NL.addCong _ _ _ _ (NL.mulComm (pos x) (negPart y)) (NL.mulComm (negPart x) (pos y)))
       (NL.addComm (NatOp.Mul::[set] (negPart y) (pos x)) (NatOp.Mul::[set] (pos y) (negPart x))));
-\definition mulRepRespectsLeft (x, y, z: Difference) (xy: Equivalent x y): Equivalent (mulRep x z) (mulRep y z) :=
-  equiv_reason_terms!{equivalentTrans
-    { mulRep x z }
-    "~" { addRep (scaleRep x (pos z)) (negRep (scaleRep x (negPart z))) }
-    "by" { mulRepAsSum x z }
-    "~" { addRep (scaleRep y (pos z)) (negRep (scaleRep y (negPart z))) }
-    "by" { addRepRespects (scaleRep x (pos z)) (scaleRep y (pos z))
-      (negRep (scaleRep x (negPart z))) (negRep (scaleRep y (negPart z)))
-      (scaleRepRespects x y (pos z) xy)
-      (negRepRespects (scaleRep x (negPart z)) (scaleRep y (negPart z))
-        (scaleRepRespects x y (negPart z) xy)) }
-    "~" { mulRep y z }
-    "by" { equivalentSym (mulRep y z)
-      (addRep (scaleRep y (pos z)) (negRep (scaleRep y (negPart z)))) (mulRepAsSum y z) }};
-\definition mulRepRespects (x, y, u, v: Difference) (xy: Equivalent x y) (uv: Equivalent u v): Equivalent (mulRep x u) (mulRep y v) :=
-  equiv_reason_terms!{equivalentTrans
-    { mulRep x u }
-    "~" { mulRep y u } "by" { mulRepRespectsLeft x y u xy }
-    "~" { mulRep u y } "by" { mulRepComm y u }
-    "~" { mulRep v y } "by" { mulRepRespectsLeft u v y uv }
-    "~" { mulRep y v } "by" { mulRepComm v y }};
+\definition mulRepRespectsLeft(x, y, z: Difference):
+  Equivalent x y ->
+  Equivalent (mulRep x z) (mulRep y z) :=
+  \fun (xy: _) =>
+    equiv_reason_terms!{equivalentTrans
+      { mulRep x z }
+      "~" { addRep (scaleRep x (pos z)) (negRep (scaleRep x (negPart z))) }
+      "by" { mulRepAsSum x z }
+      "~" { addRep (scaleRep y (pos z)) (negRep (scaleRep y (negPart z))) }
+      "by" { addRepRespects (scaleRep x (pos z)) (scaleRep y (pos z))
+        (negRep (scaleRep x (negPart z))) (negRep (scaleRep y (negPart z)))
+        (scaleRepRespects x y (pos z) xy)
+        (negRepRespects (scaleRep x (negPart z)) (scaleRep y (negPart z))
+          (scaleRepRespects x y (negPart z) xy)) }
+      "~" { mulRep y z }
+      "by" { equivalentSym (mulRep y z)
+        (addRep (scaleRep y (pos z)) (negRep (scaleRep y (negPart z)))) (mulRepAsSum y z) }};
+\definition mulRepRespects(x, y, u, v: Difference):
+  Equivalent x y -> Equivalent u v ->
+  Equivalent (mulRep x u) (mulRep y v) :=
+  \fun (xy: _) (uv: _) =>
+    equiv_reason_terms!{equivalentTrans
+      { mulRep x u }
+      "~" { mulRep y u } "by" { mulRepRespectsLeft x y u xy }
+      "~" { mulRep u y } "by" { mulRepComm y u }
+      "~" { mulRep v y } "by" { mulRepRespectsLeft u v y uv }
+      "~" { mulRep y v } "by" { mulRepComm v y }};
 
-\definition toMathCong (x, y: Int^) (e: x = y): toMath x = toMath y :=
+\definition toMathCong(x, y: Int^):
+  x = y ->
+  toMath x = toMath y :=
+    \fun (e: x = y) =>
     \idelim x = y \with z: Int^ => toMath x = toMath z \by { base: \refl(toMath x), equality: e };
 
 /* Relational images define operations without choosing representatives. */
-\definition UnaryRespects (f: Difference -> Difference): \Prop :=
+\definition UnaryRespects(f: Difference -> Difference): \Prop :=
   \forall (x, y: Difference) -> Equivalent x y -> Equivalent (f x) (f y);
-\definition BinaryRespects (f: Difference -> Difference -> Difference): \Prop :=
+\definition BinaryRespects(f: Difference -> Difference -> Difference): \Prop :=
     \forall (x, y, u, v: Difference) -> Equivalent x y -> Equivalent u v -> Equivalent (f x u) (f y v);
-\definition sameClassRelated (C: \Pow Difference) (x, y: Difference) (cx: C = ClassOf x) (cy: C = ClassOf y): Equivalent x y :=
+\definition sameClassRelated(C: \Pow Difference) (x, y: Difference):
+  C = ClassOf x -> C = ClassOf y ->
+  Equivalent x y :=
+    \fun (cx: _) (cy: _) =>
     equivalentOfClassEq x y (trans!{\Pow Difference} (ClassOf x) C (ClassOf y) (sym!{\Pow Difference} C (ClassOf x) cx) cy);
-\definition UnaryImage (f: Difference -> Difference) (C: \Pow Difference): \Pow Difference :=
+\definition UnaryImage(f: Difference -> Difference) (C: \Pow Difference): \Pow Difference :=
     { z : Difference \where \forall (P: \Prop) ->
       (\forall (x: Difference) -> C = ClassOf x -> Equivalent (f x) z -> P) -> P };
-\definition unaryImageClass (f: Difference -> Difference) (respects: UnaryRespects f)
-  (C: \Pow Difference) (x: Difference) (cx: C = ClassOf x):
+\definition unaryImageClass(f: Difference -> Difference):
+  UnaryRespects f -> \forall (C: \Pow Difference) -> \forall (x: Difference) ->
+  C = ClassOf x ->
   UnaryImage f C = ClassOf (f x) :=
-      \axiom:setext(UnaryImage f C, ClassOf (f x),
-        (\fun (z: Difference) => \fun (hz: \In[Difference] (UnaryImage f C) z) =>
-          hz (Equivalent (f x) z)
-            (\fun (y: Difference) => \fun (cy: C = ClassOf y) => \fun (yz: Equivalent (f y) z) =>
-              equiv_reason_terms!{equivalentTrans { f x }
-                "~" { f y } "by" { respects x y (sameClassRelated C x y cx cy) }
-                "~" { z } "by" { yz }})),
-        (\fun (z: Difference) => \fun (xz: Equivalent (f x) z) =>
-          \fun (P: \Prop) => \fun (step: \forall (y: Difference) -> C = ClassOf y -> Equivalent (f y) z -> P) => step x cx xz));
-\definition unaryImageClosed (f: Difference -> Difference) (respects: UnaryRespects f)
-  (C: Grothendieck): IsClass (UnaryImage f C) :=
+      \fun (respects: UnaryRespects f) (C: \Pow Difference) (x: Difference) (cx: C = ClassOf x) =>
+    \axiom:setext(UnaryImage f C, ClassOf (f x),
+          (\fun (z: Difference) => \fun (hz: \In[Difference] (UnaryImage f C) z) =>
+            hz (Equivalent (f x) z)
+              (\fun (y: Difference) => \fun (cy: C = ClassOf y) => \fun (yz: Equivalent (f y) z) =>
+                equiv_reason_terms!{equivalentTrans { f x }
+                  "~" { f y } "by" { respects x y (sameClassRelated C x y cx cy) }
+                  "~" { z } "by" { yz }})),
+          (\fun (z: Difference) => \fun (xz: Equivalent (f x) z) =>
+            \fun (P: \Prop) => \fun (step: \forall (y: Difference) -> C = ClassOf y -> Equivalent (f y) z -> P) => step x cx xz));
+\definition unaryImageClosed(f: Difference -> Difference):
+  UnaryRespects f -> \forall (C: Grothendieck) ->
+  IsClass (UnaryImage f C) :=
+    \fun (respects: UnaryRespects f) (C: Grothendieck) =>
     classProperty C (IsClass (UnaryImage f C))
-      (\fun (x: Difference) => \fun (cx: C = ClassOf x) =>
-        \fun (P: \Prop) => \fun (step: \forall (y: Difference) -> UnaryImage f C = ClassOf y -> P) =>
-          step (f x) (unaryImageClass f respects C x cx));
-\definition BinaryImage (f: Difference -> Difference -> Difference) (C, D: \Pow Difference): \Pow Difference :=
+        (\fun (x: Difference) => \fun (cx: C = ClassOf x) =>
+          \fun (P: \Prop) => \fun (step: \forall (y: Difference) -> UnaryImage f C = ClassOf y -> P) =>
+            step (f x) (unaryImageClass f respects C x cx));
+\definition BinaryImage(f: Difference -> Difference -> Difference) (C, D: \Pow Difference):
+  \Pow Difference :=
     { z : Difference \where \forall (P: \Prop) ->
       (\forall (x, y: Difference) -> C = ClassOf x -> D = ClassOf y -> Equivalent (f x y) z -> P) -> P };
-\definition binaryImageClass (f: Difference -> Difference -> Difference) (respects: BinaryRespects f)
-  (C, D: \Pow Difference) (x, y: Difference)
-  (cx: C = ClassOf x) (dy: D = ClassOf y):
+\definition binaryImageClass(f: Difference -> Difference -> Difference):
+  BinaryRespects f -> \forall (C, D: \Pow Difference) ->
+  \forall (x, y: Difference) -> C = ClassOf x -> D = ClassOf y ->
   BinaryImage f C D = ClassOf (f x y) :=
-      \axiom:setext(BinaryImage f C D, ClassOf (f x y),
-        (\fun (z: Difference) => \fun (hz: \In[Difference] (BinaryImage f C D) z) =>
-          hz (Equivalent (f x y) z)
-            (\fun (u, v: Difference) => \fun (cu: C = ClassOf u) => \fun (dv: D = ClassOf v) => \fun (uvz: Equivalent (f u v) z)
-    =>
-              equiv_reason_terms!{equivalentTrans { f x y }
-                "~" { f u v } "by" { respects x u y v (sameClassRelated C x u cx cu) (sameClassRelated D y v dy dv) }
-                "~" { z } "by" { uvz }})),
-        (\fun (z: Difference) => \fun (xyz: Equivalent (f x y) z) =>
-          \fun (P: \Prop) => \fun (step: \forall (u, v: Difference) -> C = ClassOf u -> D = ClassOf v -> Equivalent (f u v) z ->
-    P) =>
-            step x y cx dy xyz));
-\definition binaryImageClosed (f: Difference -> Difference -> Difference) (respects: BinaryRespects f)
-  (C, D: Grothendieck): IsClass (BinaryImage f C D) :=
+      \fun (respects: BinaryRespects f) (C, D: \Pow Difference) (x, y: Difference) (cx: C = ClassOf x)
+        (dy: D = ClassOf y) =>
+    \axiom:setext(BinaryImage f C D, ClassOf (f x y),
+          (\fun (z: Difference) => \fun (hz: \In[Difference] (BinaryImage f C D) z) =>
+            hz (Equivalent (f x y) z)
+              (\fun (u, v: Difference) => \fun (cu: C = ClassOf u) => \fun (dv: D = ClassOf v) => \fun (uvz: Equivalent (f u v) z)
+      =>
+                equiv_reason_terms!{equivalentTrans { f x y }
+                  "~" { f u v } "by" { respects x u y v (sameClassRelated C x u cx cu) (sameClassRelated D y v dy dv) }
+                  "~" { z } "by" { uvz }})),
+          (\fun (z: Difference) => \fun (xyz: Equivalent (f x y) z) =>
+            \fun (P: \Prop) => \fun (step: \forall (u, v: Difference) -> C = ClassOf u -> D = ClassOf v -> Equivalent (f u v) z ->
+      P) =>
+              step x y cx dy xyz));
+\definition binaryImageClosed(f: Difference -> Difference -> Difference):
+  BinaryRespects f -> \forall (C, D: Grothendieck) ->
+  IsClass (BinaryImage f C D) :=
+    \fun (respects: BinaryRespects f) (C, D: Grothendieck) =>
     classProperty C (IsClass (BinaryImage f C D))
-      (\fun (x: Difference) => \fun (cx: C = ClassOf x) =>
-        classProperty D (IsClass (BinaryImage f C D))
-          (\fun (y: Difference) => \fun (dy: D = ClassOf y) =>
-            \fun (P: \Prop) => \fun (step: \forall (z: Difference) -> BinaryImage f C D = ClassOf z -> P) =>
-              step (f x y) (binaryImageClass f respects C D x y cx dy)));
+        (\fun (x: Difference) => \fun (cx: C = ClassOf x) =>
+          classProperty D (IsClass (BinaryImage f C D))
+            (\fun (y: Difference) => \fun (dy: D = ClassOf y) =>
+              \fun (P: \Prop) => \fun (step: \forall (z: Difference) -> BinaryImage f C D = ClassOf z -> P) =>
+                step (f x y) (binaryImageClass f respects C D x y cx dy)));
 
 /* Addition and multiplication use the formulas on formal differences. */
-\definition addMath (C, D: Grothendieck): Grothendieck :=
+\definition addMath(C, D: Grothendieck): Grothendieck :=
   \into[\Pow Difference](BinaryImage addRep C D, ClassSet) \by { binaryImageClosed addRep addRepRespects C
     D };
-\definition negMath (C: Grothendieck): Grothendieck :=
+\definition negMath(C: Grothendieck): Grothendieck :=
   \into[\Pow Difference](UnaryImage negRep C, ClassSet) \by { unaryImageClosed negRep negRepRespects C };
-\definition mulMath (C, D: Grothendieck): Grothendieck :=
+\definition mulMath(C, D: Grothendieck): Grothendieck :=
   \into[\Pow Difference](BinaryImage mulRep C D, ClassSet) \by { binaryImageClosed mulRep mulRepRespects C
     D };
-\definition subMath (x, y: Grothendieck): Grothendieck := addMath x
+\definition subMath(x, y: Grothendieck): Grothendieck := addMath x
     (negMath y);
-\definition addMathClass (x, y: Difference): addMath (class x) (class y) = class (addRep x y) := binaryImageClass addRep addRepRespects (class x) (class y) x y (\refl(ClassOf x))
+\definition addMathClass(x, y: Difference): addMath (class x) (class y) = class (addRep x y) := binaryImageClass addRep addRepRespects (class x) (class y) x y (\refl(ClassOf x))
     (\refl(ClassOf y));
-\definition negMathClass (x: Difference): negMath (class x) = class (negRep x) := unaryImageClass negRep negRepRespects (class x) x (\refl(ClassOf x));
-\definition mulMathClass (x, y: Difference): mulMath (class x) (class y) = class (mulRep x y) := binaryImageClass mulRep mulRepRespects (class x) (class y) x y (\refl(ClassOf x))
+\definition negMathClass(x: Difference): negMath (class x) = class (negRep x) := unaryImageClass negRep negRepRespects (class x) x (\refl(ClassOf x));
+\definition mulMathClass(x, y: Difference): mulMath (class x) (class y) = class (mulRep x y) := binaryImageClass mulRep mulRepRespects (class x) (class y) x y (\refl(ClassOf x))
     (\refl(ClassOf y));
-\definition addMathCongRight (x, y, z: Grothendieck) (e: y = z): addMath x y = addMath x z :=
+\definition addMathCongRight(x, y, z: Grothendieck):
+  y = z ->
+  addMath x y = addMath x z :=
+    \fun (e: y = z) =>
     (\idelim y = z \with C: \Pow Difference =>
-      \forall (hc: IsClass C) -> addMath x y = addMath x (\into[\Pow Difference](C, ClassSet) \by { hc })
-      \by { base: (\fun (hc: IsClass y) => \refl(addMath x y)), equality: e }) (classProperty z);
-\definition subMathClass (x, y: Difference): subMath (class x) (class y) = class (subRep x y) := trans!{\Pow Difference} (subMath (class x) (class y)) (addMath (class x) (class (negRep y))) (class
+        \forall (hc: IsClass C) -> addMath x y = addMath x (\into[\Pow Difference](C, ClassSet) \by { hc })
+        \by { base: (\fun (hc: IsClass y) => \refl(addMath x y)), equality: e }) (classProperty z);
+\definition subMathClass(x, y: Difference): subMath (class x) (class y) = class (subRep x y) := trans!{\Pow Difference} (subMath (class x) (class y)) (addMath (class x) (class (negRep y))) (class
     (subRep x y))
     (addMathCongRight (class x) (negMath (class y)) (class (negRep y)) (negMathClass y))
     (addMathClass x (negRep y));
-\definition addSetMatchesMath (x, y: Int^): toMath (Add::[set] x y) = addMath (toMath x) (toMath y) :=
+\definition addSetMatchesMath(x, y: Int^): toMath (Add::[set] x y) = addMath (toMath x) (toMath y) :=
   trans!{\Pow Difference} _ _ _ (toFromClass (addRep (representative x) (representative y)))
     (sym!{\Pow Difference} _ _ (addMathClass (representative x) (representative y)));
 
-\definition addMatchesMath (x, y: Int^): toMath (Add::[program]^ x y) = addMath (toMath x) (toMath y) :=
+\definition addMatchesMath(x, y: Int^): toMath (Add::[program]^ x y) = addMath (toMath x) (toMath y) :=
   trans!{\Pow Difference} _ _ _
     (toMathCong (Add::[program]^ x y) (Add::[set] x y)
       (congr!{Add::[Type]^ _} (\fun (operation: _) => operation x y) _ _ Add::[coherence]))
     (addSetMatchesMath x y);
-\definition negSetMatchesMath (x: Int^): toMath (Neg::[set] x) = negMath (toMath x) :=
+\definition negSetMatchesMath(x: Int^): toMath (Neg::[set] x) = negMath (toMath x) :=
   trans!{\Pow Difference} _ _ _ (toFromClass (negRep (representative x)))
     (sym!{\Pow Difference} _ _ (negMathClass (representative x)));
 
-\definition negMatchesMath (x: Int^): toMath (Neg::[program]^ x) = negMath (toMath x) :=
+\definition negMatchesMath(x: Int^): toMath (Neg::[program]^ x) = negMath (toMath x) :=
   trans!{\Pow Difference} _ _ _
     (toMathCong (Neg::[program]^ x) (Neg::[set] x)
       (congr!{Neg::[Type]^ _} (\fun (operation: _) => operation x) _ _ Neg::[coherence]))
     (negSetMatchesMath x);
-\definition mulSetMatchesMath (x, y: Int^): toMath (Mul::[set] x y) = mulMath (toMath x) (toMath y) :=
+\definition mulSetMatchesMath(x, y: Int^): toMath (Mul::[set] x y) = mulMath (toMath x) (toMath y) :=
   trans!{\Pow Difference} _ _ _ (toFromClass (mulRep (representative x) (representative y)))
     (sym!{\Pow Difference} _ _ (mulMathClass (representative x) (representative y)));
 
-\definition mulMatchesMath (x, y: Int^): toMath (Mul::[program]^ x y) = mulMath (toMath x) (toMath y) :=
+\definition mulMatchesMath(x, y: Int^): toMath (Mul::[program]^ x y) = mulMath (toMath x) (toMath y) :=
   trans!{\Pow Difference} _ _ _
     (toMathCong (Mul::[program]^ x y) (Mul::[set] x y)
       (congr!{Mul::[Type]^ _} (\fun (operation: _) => operation x y) _ _ Mul::[coherence]))
     (mulSetMatchesMath x y);
-\definition subMatchesMath (x, y: Int^): toMath (Sub::[program]^ x y) = subMath (toMath x) (toMath y) := trans!{\Pow Difference} (toMath (Sub::[program]^ x y)) (addMath (toMath x) (toMath (Neg::[program]^ y))) (subMath (toMath x)
+\definition subMatchesMath(x, y: Int^): toMath (Sub::[program]^ x y) = subMath (toMath x) (toMath y) := trans!{\Pow Difference} (toMath (Sub::[program]^ x y)) (addMath (toMath x) (toMath (Neg::[program]^ y))) (subMath (toMath x)
     (toMath y)) (addMatchesMath x (Neg::[program]^ y))
     (addMathCongRight (toMath x) (toMath (Neg::[program]^ y)) (negMath (toMath y)) (negMatchesMath y));
 
-\definition roundTripArg (x: Int^): x = fromMath (toMath x) := sym!{Int^} (fromMath (toMath x)) x (fromTo x);
+\definition roundTripArg(x: Int^): x = fromMath (toMath x) := sym!{Int^} (fromMath (toMath x)) x (fromTo x);
 
 \module Specification;
 \module Ring;

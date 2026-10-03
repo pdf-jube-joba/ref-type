@@ -12,11 +12,7 @@ Dedekind 実数上の関数の極限と微分を扱う。
 | `Real.Derivative.Prop` | 定数・恒等関数・一次関数の微分則と微分可能な関数の構成 |
 
 `HasLimitAt f a l` は、任意の \(\varepsilon>0\) に対して \(\delta>0\) が存在し、\(x\ne a\) かつ \(d(x,a)<\delta\) ならば \(d(f(x),l)<\varepsilon\) が成り立つことを表す。
-`HasDerivativeAt f a m` は、差商
-\[
-\frac{f(x)-f(a)}{x-a}
-\]
-の \(x\to a\) における極限が \(m\) であることを表す。
+`HasDerivativeAt f a m` は、差商 \[ \frac{f(x)-f(a)}{x-a} \] の \(x\to a\) における極限が \(m\) であることを表す。
 
 微分則は、定数関数の導関数が零、恒等関数の導関数が一、一次関数 \(x\mapsto mx+b\) の導関数が \(m\) であることを証明する。
 

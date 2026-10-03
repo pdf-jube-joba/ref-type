@@ -1,54 +1,67 @@
-\import std.Set[].Quotient[
-  A := CauchySeq::[Set], Equivalent := Equivalent,
-  equivalentRefl := equivalentRefl, equivalentSym := equivalentSym, equivalentTrans := equivalentTrans
-] \as Q;
+\import std.Set[].Quotient[A := CauchySeq::[Set], Equivalent := Equivalent] \as Q;
+\definition relationLaws: Q.EquivalenceLaws := Q.EquivalenceLaws {
+  reflexive := equivalentRefl,
+  symmetric := equivalentSym,
+  transitive := equivalentTrans,
+};
 
 \definition ClassOf: CauchySeq::[Set] -> \Pow CauchySeq::[Set] := Q.ClassOf;
-\definition classOfEq: \forall (x, y: CauchySeq::[Set]) -> Equivalent x y -> ClassOf x = ClassOf y := Q.classOfEq;
+\definition classOfEq: \forall (x, y: CauchySeq::[Set]) -> Equivalent x y -> ClassOf x = ClassOf y := Q.classOfEq relationLaws;
 \definition IsClass: \Pow CauchySeq::[Set] -> \Prop := Q.IsClass;
 \definition ClassSet: \Pow (\Pow CauchySeq::[Set]) := Q.ClassSet;
 \definition Real: \Set := Q.Carrier;
 \definition mem: Real -> CauchySeq::[Set] -> \Prop := Q.mem;
 \definition underlying: Real -> \Pow CauchySeq::[Set] := Q.underlying;
 \definition Eq: Real -> Real -> \Prop := Q.Eq;
-\definition eqByExt: \forall (x, y: Real) ->
+\definition eqByExt:
+  \forall (x, y: Real) ->
   (\forall (a: CauchySeq::[Set]) -> mem x a -> mem y a) -> (\forall (a: CauchySeq::[Set]) -> mem y a -> mem x a) -> Eq x y := Q.eqByExt;
 \definition classIsClass: \forall (x: CauchySeq::[Set]) -> IsClass (ClassOf x) := Q.classIsClass;
 \definition class: CauchySeq::[Set] -> Real := Q.class;
-\definition classMem: \forall (x, y: CauchySeq::[Set]) ->
+\definition classMem:
+  \forall (x, y: CauchySeq::[Set]) ->
   Equivalent x y -> mem (class x) y := Q.classMem;
-\definition relatedOfClassMem: \forall (x, y: CauchySeq::[Set]) ->
+\definition relatedOfClassMem:
+  \forall (x, y: CauchySeq::[Set]) ->
   mem (class x) y -> Equivalent x y := Q.relatedOfClassMem;
-\definition equivalentOfClassEq: \forall (x, y: CauchySeq::[Set]) ->
-  ClassOf x = ClassOf y -> Equivalent x y := Q.equivalentOfClassEq;
+\definition equivalentOfClassEq:
+  \forall (x, y: CauchySeq::[Set]) ->
+  ClassOf x = ClassOf y -> Equivalent x y := Q.equivalentOfClassEq relationLaws;
 
-\definition quotientInduction: \forall (P: Real -> \Prop) ->
+\definition quotientInduction:
+  \forall (P: Real -> \Prop) ->
   (\forall (x: CauchySeq::[Set]) -> P (class x)) ->
   \forall (x: Real) -> P x :=
   Q.induction;
 
-\definition UnaryImage: (CauchySeq::[Set] -> CauchySeq::[Set]) ->
+\definition UnaryImage:
+  (CauchySeq::[Set] -> CauchySeq::[Set]) ->
   \Pow CauchySeq::[Set] -> \Pow CauchySeq::[Set] := Q.UnaryImage;
-\definition BinaryImage: (CauchySeq::[Set] -> CauchySeq::[Set] -> CauchySeq::[Set]) ->
+\definition BinaryImage:
+  (CauchySeq::[Set] -> CauchySeq::[Set] -> CauchySeq::[Set]) ->
   \Pow CauchySeq::[Set] -> \Pow CauchySeq::[Set] -> \Pow CauchySeq::[Set] := Q.BinaryImage;
-\definition unaryImageClosed: \forall (f: CauchySeq::[Set] -> CauchySeq::[Set]) ->
+\definition unaryImageClosed:
+  \forall (f: CauchySeq::[Set] -> CauchySeq::[Set]) ->
   Q.UnaryRespects f -> \forall (x: Real) -> IsClass (UnaryImage f x) :=
-  Q.unaryImageClosed;
-\definition binaryImageClosed: \forall (f: CauchySeq::[Set] -> CauchySeq::[Set] -> CauchySeq::[Set]) ->
+  Q.unaryImageClosed relationLaws;
+\definition binaryImageClosed:
+  \forall (f: CauchySeq::[Set] -> CauchySeq::[Set] -> CauchySeq::[Set]) ->
   Q.BinaryRespects f -> \forall (x, y: Real) -> IsClass (BinaryImage f x y) :=
-  Q.binaryImageClosed;
-\definition unaryImageClass: \forall (f: CauchySeq::[Set] -> CauchySeq::[Set]) ->
-  \forall (respects: Q.UnaryRespects f) -> \forall (x: CauchySeq::[Set]) ->
+  Q.binaryImageClosed relationLaws;
+\definition unaryImageClass:
+  \forall (f: CauchySeq::[Set] -> CauchySeq::[Set]) ->
+  Q.UnaryRespects f -> \forall (x: CauchySeq::[Set]) ->
     UnaryImage f (class x) = ClassOf (f x) :=
   \fun (f: CauchySeq::[Set] -> CauchySeq::[Set]) =>
     \fun (respects: Q.UnaryRespects f) => \fun (x: CauchySeq::[Set]) =>
-      Q.unaryImageClass f respects (class x) x (\refl(ClassOf x));
-\definition binaryImageClass: \forall (f: CauchySeq::[Set] -> CauchySeq::[Set] -> CauchySeq::[Set]) ->
-  \forall (respects: Q.BinaryRespects f) -> \forall (x, y: CauchySeq::[Set]) ->
+      Q.unaryImageClass relationLaws f respects (class x) x (\refl(ClassOf x));
+\definition binaryImageClass:
+  \forall (f: CauchySeq::[Set] -> CauchySeq::[Set] -> CauchySeq::[Set]) ->
+  Q.BinaryRespects f -> \forall (x, y: CauchySeq::[Set]) ->
     BinaryImage f (class x) (class y) = ClassOf (f x y) :=
   \fun (f: CauchySeq::[Set] -> CauchySeq::[Set] -> CauchySeq::[Set]) =>
     \fun (respects: Q.BinaryRespects f) => \fun (x, y: CauchySeq::[Set]) =>
-      Q.binaryImageClass f respects (class x) (class y) x y
+      Q.binaryImageClass relationLaws f respects (class x) (class y) x y
         (\refl(ClassOf x)) (\refl(ClassOf y));
 
 /*

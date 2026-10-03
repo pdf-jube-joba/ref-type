@@ -24,18 +24,17 @@
     \In[\Pow A] P X;
 
 \definition finiteEmpty: Finite Empty :=
-  \fun (P: \Pow (\Pow A)) =>
-  \fun (empty: \In[\Pow A] P Empty) =>
-  \fun (insert: \forall (Y: \Pow A) -> \In[\Pow A] P Y ->
+  \fun (P: \Pow (\Pow A)) (empty: \In[\Pow A] P Empty)
+    (insert: \forall (Y: \Pow A) -> \In[\Pow A] P Y ->
     \forall (a: A) -> \In[\Pow A] P (Insert a Y)) => empty;
 
-\definition finiteInsert(a: A) (X: \Pow A) (finite: Finite X):
+\definition finiteInsert(a: A) (X: \Pow A):
+  Finite X ->
   Finite (Insert a X) :=
-  \fun (P: \Pow (\Pow A)) =>
-  \fun (empty: \In[\Pow A] P Empty) =>
-  \fun (insert: \forall (Y: \Pow A) -> \In[\Pow A] P Y ->
-    \forall (b: A) -> \In[\Pow A] P (Insert b Y)) =>
-    insert X (finite P empty insert) a;
+  \fun (finite: Finite X) (P: \Pow (\Pow A)) (empty: \In[\Pow A] P Empty)
+    (insert: \forall (Y: \Pow A) -> \In[\Pow A] P Y ->
+      \forall (b: A) -> \In[\Pow A] P (Insert b Y)) =>
+      insert X (finite P empty insert) a;
 
 \definition FiniteSubsetSet: \Pow (\Pow A) :=
   { X : \Pow A \where Finite X };
@@ -54,11 +53,9 @@
     (\forall (Y: \Pow A) -> \In[\Pow A] P Y ->
       \forall (a: A) -> \In[\Pow A] P (Insert a Y)) ->
     \forall (X: FiniteSubset) -> \In[\Pow A] P (underlying X) :=
-  \fun (P: \Pow (\Pow A)) =>
-  \fun (empty: \In[\Pow A] P Empty) =>
-  \fun (insert: \forall (Y: \Pow A) -> \In[\Pow A] P Y ->
-    \forall (a: A) -> \In[\Pow A] P (Insert a Y)) =>
-  \fun (X: FiniteSubset) => finite X P empty insert;
+  \fun (P: \Pow (\Pow A)) (empty: \In[\Pow A] P Empty)
+    (insert: \forall (Y: \Pow A) -> \In[\Pow A] P Y ->
+    \forall (a: A) -> \In[\Pow A] P (Insert a Y)) (X: FiniteSubset) => finite X P empty insert;
 
 \definition empty: FiniteSubset :=
   \into[\Pow A](Empty, FiniteSubsetSet) \by { finiteEmpty };
@@ -76,13 +73,13 @@
 \definition Member(X: FiniteSubset) (x: A): \Prop :=
   \In[A] (underlying X) x;
 
-\definition inInsertNew(a: A) (X: \Pow A):
-  \In[A] (Insert a X) a :=
+\definition inInsertNew(a: A) (X: \Pow A): \In[A] (Insert a X) a :=
   Logic.Or[a = a, \In[A] X a]::left (\refl(a));
 
-\definition inInsertOld(a: A) (X: \Pow A) (x: A)
-  (member: \In[A] X x): \In[A] (Insert a X) x :=
-  Logic.Or[x = a, \In[A] X x]::right member;
+\definition inInsertOld(a: A) (X: \Pow A) (x: A):
+  \In[A] X x ->
+  \In[A] (Insert a X) x :=
+  Logic.Or[x = a, \In[A] X x]::right;
 
 \definition inSingleton(a: A): \In[A] (Singleton a) a :=
   inInsertNew a Empty;

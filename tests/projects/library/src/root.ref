@@ -606,6 +606,20 @@
     \forall (x, y: RQ.Rat) ->
       RQ.mulRat x y = RQ.mulRat y x :=
     RQ.mulRatComm;
+  \import RQ.Division[].Def[] \as RQD;
+  \definition quotientDivision: RQ.Rat -> RQ.NonZeroRat -> RQ.Rat := RQD.div;
+  \definition quotientDivisionRepresentative:
+    \forall (a, b: RF.Fraction) -> \forall (nonzero: RF.NumeratorNonZero b) ->
+      RQD.div (RQ.class a)
+        (\into[RQ.Rat](RQ.class b, RQ.NonZeroRatSet) \by { RQ.classIsNonZero b nonzero }) =
+      RQ.class (RO.mul a (RO.reciprocal b)) :=
+    \block {
+      \fun (a, b: _) (nonzero: _) \then
+      \let denominator: RQ.NonZeroRat :=
+        \into[RQ.Rat](RQ.class b, RQ.NonZeroRatSet) \by { RQ.classIsNonZero b nonzero } \then
+      \return RQD.divOfRepresentatives (RQ.class a) denominator a b
+        (\refl(RQ.ClassOf a)) (\refl(RQ.ClassOf b))
+    };
 }
 
 \module DedekindRealExamples {
@@ -689,18 +703,20 @@
 
 \module QuotientExamples(A: \Set, x, y: A, xy: x = y) {
   \import std.Logic[].Equality[].Prop[A := A] \as E;
-  \import std.Set[].Quotient[
-    A := A, Equivalent := (\fun (a, b: A) => a = b),
-    equivalentRefl := (\fun (a: A) => \refl(a)), equivalentSym := E.sym, equivalentTrans := E.trans
-  ] \as Q;
-  \definition equalClasses: Q.ClassOf x = Q.ClassOf y := Q.classOfEq x y xy;
+  \import std.Set[].Quotient[A := A, Equivalent := (\fun (a, b: A) => a = b)] \as Q;
+  \definition relationLaws: Q.EquivalenceLaws := Q.EquivalenceLaws {
+    reflexive := \fun (a: _) => \refl(a),
+    symmetric := E.sym,
+    transitive := E.trans,
+  };
+  \definition equalClasses: Q.ClassOf x = Q.ClassOf y := Q.classOfEq relationLaws x y xy;
   \definition extensionality: \forall (a, b: Q.Carrier) ->
     (\forall (z: A) -> Q.mem a z -> Q.mem b z) -> (\forall (z: A) -> Q.mem b z -> Q.mem a z) -> a = b := Q.eqByExt;
   \definition identityRespects: Q.UnaryRespects (\fun (a: A) => a) :=
     \fun (a, b: A) => \fun (ab: a = b) => ab;
   \definition identityImageClosed:
     \forall (a: Q.Carrier) -> Q.IsClass (Q.UnaryImage (\fun (z: A) => z) a) :=
-    Q.unaryImageClosed (\fun (z: A) => z) identityRespects;
+    Q.unaryImageClosed relationLaws (\fun (z: A) => z) identityRespects;
 }
 \module TopologyExamples {
   \import std.Data[].Nat[] \as N;

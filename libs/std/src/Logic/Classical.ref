@@ -10,88 +10,90 @@
 \import std.Logic[].Proposition[] \as Logic;
 \use Logic.either;
 \import std.Data[].Bool[] \as B;
+\import B.Prop[] \as BoolLaws;
 
 /* The two subsets used by Diaconescu's argument are supplied explicitly here:
  * a Set cannot be returned by a top-level function of a proposition. */
-\definition Candidates(Left, Right: \Pow B.Bool^):
-    \Pow (\Pow B.Bool^) :=
+\definition Candidates(Left, Right: \Pow B.Bool^): \Pow (\Pow B.Bool^) :=
   { T : \Pow B.Bool^ \where Logic.Or[T = Left, T = Right] };
 
 \definition Candidate(Left, Right: \Pow B.Bool^): \Set :=
   \Cast[\Pow B.Bool^] (Candidates Left Right);
 
-\definition leftCandidate(Left, Right: \Pow B.Bool^):
-    Candidate Left Right :=
+\definition leftCandidate(Left, Right: \Pow B.Bool^): Candidate Left Right :=
   \into[\Pow B.Bool^](Left, Candidates Left Right) \by { Logic.Or[Left = Left, Left = Right]::left (\refl(Left)) };
 
-\definition rightCandidate(Left, Right: \Pow B.Bool^):
-    Candidate Left Right :=
+\definition rightCandidate(Left, Right: \Pow B.Bool^): Candidate Left Right :=
   \into[\Pow B.Bool^](Right, Candidates Left Right) \by { Logic.Or[Right = Left, Right = Right]::right (\refl(Right)) };
 
-\definition candidateInhabited(Left, Right: \Pow B.Bool^)
-    (leftExists: \exists \Cast[B.Bool^] Left)
-    (rightExists: \exists \Cast[B.Bool^] Right)
-    (S: Candidate Left Right):
-      \exists \Cast[B.Bool^] S :=
+\definition candidateInhabited(Left, Right: \Pow B.Bool^):
+  \exists \Cast[B.Bool^] Left ->
+  \exists \Cast[B.Bool^] Right -> \forall (S: Candidate Left Right) ->
+  \exists \Cast[B.Bool^] S :=
+    \fun (leftExists: \exists \Cast[B.Bool^] Left) (rightExists: \exists \Cast[B.Bool^] Right)
+      (S: Candidate Left Right) =>
     either!{
-      {S = Left} "or" {S = Right} "either" {\exists \Cast[B.Bool^] S}
-      "lt:" {\fun (e: S = Left) =>
-        \idelim Left = S
-          \with T: \Pow B.Bool^ => \exists \Cast[B.Bool^] T
-          \by { base: leftExists, equality:
-            sym!{\Pow B.Bool^} S Left e }}
-      "rt:" {\fun (e: S = Right) =>
-        \idelim Right = S
-          \with T: \Pow B.Bool^ => \exists \Cast[B.Bool^] T
-          \by { base: rightExists, equality:
-            sym!{\Pow B.Bool^} S Right e }}
-    }
-      (\bysub(\Pow B.Bool^, Candidates Left Right, S));
+        {S = Left} "or" {S = Right} "either" {\exists \Cast[B.Bool^] S}
+        "lt:" {\fun (e: S = Left) =>
+          \idelim Left = S
+            \with T: \Pow B.Bool^ => \exists \Cast[B.Bool^] T
+            \by { base: leftExists, equality:
+              sym!{\Pow B.Bool^} S Left e }}
+        "rt:" {\fun (e: S = Right) =>
+          \idelim Right = S
+            \with T: \Pow B.Bool^ => \exists \Cast[B.Bool^] T
+            \by { base: rightExists, equality:
+              sym!{\Pow B.Bool^} S Right e }}
+      }
+        (\bysub(\Pow B.Bool^, Candidates Left Right, S));
 
 \definition Selection(Left, Right: \Pow B.Bool^): \Set :=
   \forall (S: Candidate Left Right) ->
     \Cast[B.Bool^] S;
 
-\definition selectionExists(Left, Right: \Pow B.Bool^)
-    (leftExists: \exists \Cast[B.Bool^] Left)
-    (rightExists: \exists \Cast[B.Bool^] Right):
-    \exists Selection Left Right :=
-  \axiom:classicalIndefiniteChoice(
-    Candidate Left Right,
-    (\fun (S: Candidate Left Right) =>
-      \Cast[B.Bool^] S),
-    candidateInhabited Left Right leftExists rightExists);
+\definition selectionExists(Left, Right: \Pow B.Bool^):
+  \exists \Cast[B.Bool^] Left ->
+  \exists \Cast[B.Bool^] Right ->
+  \exists Selection Left Right :=
+  \fun (leftExists: \exists \Cast[B.Bool^] Left) (rightExists: \exists \Cast[B.Bool^] Right) =>
+    \axiom:classicalIndefiniteChoice(
+      Candidate Left Right,
+      (\fun (S: Candidate Left Right) =>
+        \Cast[B.Bool^] S),
+      candidateInhabited Left Right leftExists rightExists);
 
-\definition leftSelected(Left, Right: \Pow B.Bool^)
-    (select: Selection Left Right): \Cast[B.Bool^] Left :=
+\definition leftSelected(Left, Right: \Pow B.Bool^) (select: Selection Left Right):
+  \Cast[B.Bool^] Left :=
   select (leftCandidate Left Right);
 
-\definition rightSelected(Left, Right: \Pow B.Bool^)
-    (select: Selection Left Right): \Cast[B.Bool^] Right :=
+\definition rightSelected(Left, Right: \Pow B.Bool^) (select: Selection Left Right):
+  \Cast[B.Bool^] Right :=
   select (rightCandidate Left Right);
 
-\definition choose(Left, Right: \Pow B.Bool^)
-    (select: Selection Left Right) (S: Candidate Left Right): B.Bool^ :=
+\definition choose(Left, Right: \Pow B.Bool^) (select: Selection Left Right) (S: Candidate Left Right):
+  B.Bool^ :=
   select S;
 
-\definition chooseLeft(Left, Right: \Pow B.Bool^)
-    (select: Selection Left Right): B.Bool^ :=
+\definition chooseLeft(Left, Right: \Pow B.Bool^) (select: Selection Left Right): B.Bool^ :=
   choose Left Right select (leftCandidate Left Right);
 
-\definition chooseRight(Left, Right: \Pow B.Bool^)
-    (select: Selection Left Right): B.Bool^ :=
+\definition chooseRight(Left, Right: \Pow B.Bool^) (select: Selection Left Right): B.Bool^ :=
   choose Left Right select (rightCandidate Left Right);
 
-\definition equalChoicesGiveP(P: \Prop) (u, v: B.Bool^)
-    (uMember: Logic.Or[u = B.Bool^::false, P])
-    (vMember: Logic.Or[v = B.Bool^::true, P]) (uv: u = v): P :=
-  either!{
+\definition equalChoicesGiveP(P: \Prop) (u, v: B.Bool^):
+  Logic.Or[u = B.Bool^::false, P] ->
+  Logic.Or[v = B.Bool^::true, P] ->
+  u = v ->
+  P :=
+  \fun (uMember: Logic.Or[u = B.Bool^::false, P]) (vMember: Logic.Or[v = B.Bool^::true, P])
+    (uv: u = v) =>
+    either!{
     {u = B.Bool^::false} "or" P "either" P
     "lt:" {\fun (uf: u = B.Bool^::false) =>
       either!{
         {v = B.Bool^::true} "or" P "either" P
         "lt:" {\fun (vt: v = B.Bool^::true) =>
-          B.absurd P
+          BoolLaws.absurd P
             (trans!{B.Bool^}
               B.Bool^::false v B.Bool^::true
               (trans!{B.Bool^}
@@ -104,21 +106,26 @@
     "rt:" {\fun (p: P) => p}
   } uMember;
 
-\definition selectedEqual(Left, Right: \Pow B.Bool^)
-    (select: Selection Left Right) (e: Left = Right):
-    chooseLeft Left Right select = chooseRight Left Right select :=
-  \idelim leftCandidate Left Right = rightCandidate Left Right
-    \with S: Candidate Left Right =>
-      chooseLeft Left Right select =
-        choose Left Right select S
-    \by { base: \refl(chooseLeft Left Right select), equality: e };
+\definition selectedEqual(Left, Right: \Pow B.Bool^) (select: Selection Left Right):
+  Left = Right ->
+  chooseLeft Left Right select = chooseRight Left Right select :=
+  \fun (e: Left = Right) =>
+    \idelim leftCandidate Left Right = rightCandidate Left Right
+      \with S: Candidate Left Right =>
+        chooseLeft Left Right select =
+          choose Left Right select S
+      \by { base: \refl(chooseLeft Left Right select), equality: e };
 
-\definition excludedMiddleFromSelection(P: \Prop)
-    (Left, Right: \Pow B.Bool^) (select: Selection Left Right)
-    (leftMember: Logic.Or[chooseLeft Left Right select = B.Bool^::false, P])
+\definition excludedMiddleFromSelection(P: \Prop) (Left, Right: \Pow B.Bool^)
+  (select: Selection Left Right):
+  Logic.Or[chooseLeft Left Right select = B.Bool^::false, P] ->
+  Logic.Or[chooseRight Left Right select = B.Bool^::true, P] ->
+  (P -> Left = Right) ->
+  Logic.Or[P, Logic.Not P] :=
+  \fun (leftMember: Logic.Or[chooseLeft Left Right select = B.Bool^::false, P])
     (rightMember: Logic.Or[chooseRight Left Right select = B.Bool^::true, P])
-    (collapse: P -> Left = Right): Logic.Or[P, Logic.Not P] :=
-  either!{
+    (collapse: P -> Left = Right) =>
+    either!{
     {chooseLeft Left Right select = chooseRight Left Right select} "or" {Logic.Not (
       chooseLeft Left Right select = chooseRight Left Right select)} "either" {Logic.Or[P, Logic.Not P]}
     "lt:" {\fun (equal:
@@ -132,10 +139,11 @@
       Logic.Or[P, Logic.Not P]::right
         (\fun (p: P) => unequal (selectedEqual Left Right select (collapse p)))}
   }
-    (B.eqDecidable
+    (BoolLaws.eqDecidable
       (chooseLeft Left Right select) (chooseRight Left Right select));
 
-\definition excludedMiddle: \forall (P: \Prop) ->
+\definition excludedMiddle:
+  \forall (P: \Prop) ->
     Logic.Or[P, Logic.Not P] :=
   \block {
     \fun (P: \Prop) \then

@@ -1,14 +1,14 @@
 \import std.Logic[].Order[] \as O;
-\definition FractionTrichotomy (x, y: Fraction): \Prop :=
+\definition FractionTrichotomy(x, y: Fraction): \Prop :=
   Logic.Or[lt x y, Logic.Or[FractionEq x y, lt y x]];
-\definition trichotomy (x, y: Fraction): FractionTrichotomy x y :=
+\definition trichotomy(x, y: Fraction): FractionTrichotomy x y :=
   O.trichotomyOr I.Integer I.IntegerLt
     (I.mulInteger (#numerator{x}) (denominator y))
     (I.mulInteger (#numerator{y}) (denominator x))
     (IntegerOrder.trichotomy
       (I.mulInteger (#numerator{x}) (denominator y))
       (I.mulInteger (#numerator{y}) (denominator x)));
-\definition ltIrrefl (x: Fraction): Logic.Not (lt x x) :=
+\definition ltIrrefl(x: Fraction): Logic.Not (lt x x) :=
   IntegerOrder.ltIrrefl (I.mulInteger (#numerator{x}) (denominator x));
 
 \definition zeroLtOne: lt zero one :=
@@ -19,7 +19,7 @@
     (I.integerEqSym _ _ (I.mulIntegerOneLeft I.oneInteger))
     IntegerOrder.zeroLtOne;
 
-\definition mulSwapRight (a, b, c: I.Integer):
+\definition mulSwapRight(a, b, c: I.Integer):
   I.mulInteger (I.mulInteger a b) c =
     I.mulInteger (I.mulInteger a c) b :=
   equiv_reason!{I.integerEqTrans
@@ -28,37 +28,41 @@
       (I.integerEqRefl a) (I.mulIntegerComm b c) }
     "by" { I.integerEqSym _ _ (I.mulIntegerAssoc a c b) }};
 
-\definition ltMulDenominator (x, y: I.Integer) (d: I.Nat)
-  (xy: I.IntegerLt x y):
+\definition ltMulDenominator(x, y: I.Integer) (d: I.Nat):
+  I.IntegerLt x y ->
   I.IntegerLt
     (I.mulInteger x (I.integer (I.natSucc d) I.zeroNat))
     (I.mulInteger y (I.integer (I.natSucc d) I.zeroNat)) :=
-  IntegerOrder.ltRespects
-    (I.scaleInteger x (I.natSucc d))
-    (I.mulInteger x (I.integer (I.natSucc d) I.zeroNat))
-    (I.scaleInteger y (I.natSucc d))
-    (I.mulInteger y (I.integer (I.natSucc d) I.zeroNat))
-    (I.integerEqSym _ _ (I.mulIntegerNatural x (I.natSucc d)))
-    (I.integerEqSym _ _ (I.mulIntegerNatural y (I.natSucc d)))
-    (IntegerOrder.ltScaleSucc x y d xy);
-
-\definition ltCancelDenominator (x, y: I.Integer) (d: I.Nat)
-  (xy: I.IntegerLt
-    (I.mulInteger x (I.integer (I.natSucc d) I.zeroNat))
-    (I.mulInteger y (I.integer (I.natSucc d) I.zeroNat))):
-  I.IntegerLt x y :=
-  IntegerOrder.ltCancelScaleSucc x y d
-    (IntegerOrder.ltRespects
-      (I.mulInteger x (I.integer (I.natSucc d) I.zeroNat))
+  \fun (xy: _) =>
+    IntegerOrder.ltRespects
       (I.scaleInteger x (I.natSucc d))
-      (I.mulInteger y (I.integer (I.natSucc d) I.zeroNat))
+      (I.mulInteger x (I.integer (I.natSucc d) I.zeroNat))
       (I.scaleInteger y (I.natSucc d))
-      (I.mulIntegerNatural x (I.natSucc d))
-      (I.mulIntegerNatural y (I.natSucc d)) xy);
+      (I.mulInteger y (I.integer (I.natSucc d) I.zeroNat))
+      (I.integerEqSym _ _ (I.mulIntegerNatural x (I.natSucc d)))
+      (I.integerEqSym _ _ (I.mulIntegerNatural y (I.natSucc d)))
+      (IntegerOrder.ltScaleSucc x y d xy);
 
-\definition ltTrans (x, y, z: Fraction) (xy: lt x y) (yz: lt y z):
+\definition ltCancelDenominator(x, y: I.Integer) (d: I.Nat):
+  I.IntegerLt
+    (I.mulInteger x (I.integer (I.natSucc d) I.zeroNat))
+    (I.mulInteger y (I.integer (I.natSucc d) I.zeroNat)) ->
+  I.IntegerLt x y :=
+  \fun (xy: _) =>
+    IntegerOrder.ltCancelScaleSucc x y d
+      (IntegerOrder.ltRespects
+        (I.mulInteger x (I.integer (I.natSucc d) I.zeroNat))
+        (I.scaleInteger x (I.natSucc d))
+        (I.mulInteger y (I.integer (I.natSucc d) I.zeroNat))
+        (I.scaleInteger y (I.natSucc d))
+        (I.mulIntegerNatural x (I.natSucc d))
+        (I.mulIntegerNatural y (I.natSucc d)) xy);
+
+\definition ltTrans(x, y, z: Fraction):
+  lt x y -> lt y z ->
   lt x z :=
   \block {
+    \fun (xy: lt x y) (yz: lt y z) \then
     \let leftScaled: I.IntegerLt
       (I.mulInteger
         (I.mulInteger (#numerator{x}) (denominator y)) (denominator z))
@@ -110,9 +114,11 @@
       (#denominatorIndex{y}) aligned
   };
 
-\definition ltReplaceLeft (x, x2, y: Fraction)
-  (xx: FractionEq x x2) (xy: lt x y): lt x2 y :=
+\definition ltReplaceLeft(x, x2, y: Fraction):
+  FractionEq x x2 -> lt x y ->
+  lt x2 y :=
   \block {
+    \fun (xx: FractionEq x x2) (xy: lt x y) \then
     \let scaled: I.IntegerLt
       (I.mulInteger
         (I.mulInteger (#numerator{x}) (denominator y)) (denominator x2))
@@ -145,9 +151,11 @@
       (IntegerOrder.ltRespects _ _ _ _ lowerEq upperEq scaled)
   };
 
-\definition ltReplaceRight (x, y, y2: Fraction)
-  (yy: FractionEq y y2) (xy: lt x y): lt x y2 :=
+\definition ltReplaceRight(x, y, y2: Fraction):
+  FractionEq y y2 -> lt x y ->
+  lt x y2 :=
   \block {
+    \fun (yy: FractionEq y y2) (xy: lt x y) \then
     \let scaled: I.IntegerLt
       (I.mulInteger
         (I.mulInteger (#numerator{x}) (denominator y)) (denominator y2))
@@ -180,6 +188,8 @@
       (IntegerOrder.ltRespects _ _ _ _ lowerEq upperEq scaled)
   };
 
-\definition ltRespects (x, x2, y, y2: Fraction)
-  (xx: FractionEq x x2) (yy: FractionEq y y2) (xy: lt x y): lt x2 y2 :=
-  ltReplaceRight x2 y y2 yy (ltReplaceLeft x x2 y xx xy);
+\definition ltRespects(x, x2, y, y2: Fraction):
+  FractionEq x x2 -> FractionEq y y2 -> lt x y ->
+  lt x2 y2 :=
+  \fun (xx: _) (yy: _) (xy: _) =>
+    ltReplaceRight x2 y y2 yy (ltReplaceLeft x x2 y xx xy);

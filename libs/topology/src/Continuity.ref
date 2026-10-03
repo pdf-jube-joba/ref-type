@@ -6,13 +6,13 @@
 \definition Preimage(f: A -> B) (V: \Pow B): \Pow A :=
   { x : A \where \In[B] V (f x) };
 
-\definition Continuous(source: Source.Topology::[Set])
-  (target: Target.Topology::[Set]) (f: A -> B): \Prop :=
+\definition Continuous(source: Source.Topology::[Set]) (target: Target.Topology::[Set]) (f: A -> B):
+  \Prop :=
   \forall (V: \Pow B) -> Target.IsOpenIn target V ->
     Source.IsOpenIn source (Preimage f V);
 
 \definition compose(C: \Set) (f: A -> B) (g: B -> C): A -> C :=
-  \fun (x: A) => g (f x);
+  \fun (x: _) => g (f x);
 
 \definition RestrictedCarrier(S: \Pow A): \Set := \Cast[A] S;
 
@@ -20,10 +20,9 @@
   { x : RestrictedCarrier S \where \In[A] U x };
 
 \definition Restrict(S: \Pow A) (f: A -> B): RestrictedCarrier S -> B :=
-  \fun (x: RestrictedCarrier S) => f x;
+  \fun (x: _) => f x;
 
-\definition RestrictedPreimage(S: \Pow A) (f: A -> B) (V: \Pow B):
-  \Pow (RestrictedCarrier S) :=
+\definition RestrictedPreimage(S: \Pow A) (f: A -> B) (V: \Pow B): \Pow (RestrictedCarrier S) :=
   { x : RestrictedCarrier S \where \In[B] V (Restrict S f x) };
 
 \definition SubspaceBasis(source: Source.Topology::[Set]) (S: \Pow A):
@@ -32,26 +31,26 @@
     \exists { U : \Pow A \where
       Logic.And[Source.IsOpenIn source U, W = Trace S U] } };
 
-\definition restrictBasisOpen(source: Source.Topology::[Set])
-  (target: Target.Topology::[Set]) (S: \Pow A) (f: A -> B)
-  (continuous: Continuous source target f):
+\definition restrictBasisOpen(source: Source.Topology::[Set]) (target: Target.Topology::[Set])
+  (S: \Pow A) (f: A -> B):
+  Continuous source target f ->
   \forall (V: \Pow B) -> Target.IsOpenIn target V ->
     \In[\Pow (RestrictedCarrier S)] (SubspaceBasis source S)
       (RestrictedPreimage S f V) :=
-  \fun (V: \Pow B) => \fun (open: Target.IsOpenIn target V) =>
-    \exact(
-      \into[\Pow A](Preimage f V,
-        { U : \Pow A \where
+  \fun (continuous: Continuous source target f) (V: \Pow B) (open: Target.IsOpenIn target V) =>
+      \exact(
+        \into[\Pow A](Preimage f V,
+          { U : \Pow A \where
+            Logic.And[Source.IsOpenIn source U,
+              RestrictedPreimage S f V = Trace S U] })
+          \by {
+            Logic.And[_, _]::# (continuous V open)
+              (\axiom:setext(RestrictedPreimage S f V, Trace S (Preimage f V),
+                (\fun (x: RestrictedCarrier S) => \fun (member: \In[B] V (f x)) => member),
+                (\fun (x: RestrictedCarrier S) => \fun (member: \In[B] V (f x)) => member)))
+          },
+        \Cast[\Pow A] ({ U : \Pow A \where
           Logic.And[Source.IsOpenIn source U,
-            RestrictedPreimage S f V = Trace S U] })
-        \by {
-          Logic.And[_, _]::# (continuous V open)
-            (\axiom:setext(RestrictedPreimage S f V, Trace S (Preimage f V),
-              (\fun (x: RestrictedCarrier S) => \fun (member: \In[B] V (f x)) => member),
-              (\fun (x: RestrictedCarrier S) => \fun (member: \In[B] V (f x)) => member)))
-        },
-      \Cast[\Pow A] ({ U : \Pow A \where
-        Logic.And[Source.IsOpenIn source U,
-          RestrictedPreimage S f V = Trace S U] }));
+            RestrictedPreimage S f V = Trace S U] }));
 
 \module Restriction(S: \Pow A);

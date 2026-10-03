@@ -1,4 +1,4 @@
-/* Boolean computation lives in Program; Set operations are certified reflections. */
+/* Boolean operations and their certified Program implementations. */
 \import std.Logic[].Proposition[] \as Logic;
 \use Logic.not;
 \definition False: \Prop := Logic.False;
@@ -8,606 +8,178 @@
 | true: Bool
 ;
 
-\import std.Logic[].Algebra[].Def[] \as Law;
+\definition NotEq(x, y: Bool^): \Prop := not!{{ x = y }};
+\definition IsTrue(b: Bool^): \Prop := b = Bool^::true;
+\definition IsFalse(b: Bool^): \Prop := b = Bool^::false;
 
-\definition NotEq (x, y: Bool^): \Prop := not!{{ x = y }};
+\definition cases(P: Bool^ -> \Prop): P Bool^::false -> P Bool^::true -> \forall (b: Bool^) -> P b :=
+  \fun (onFalse: _) (onTrue: _) =>
+    \induction (b: Bool^) \return P b \with {
+    | false : onFalse
+    | true : onTrue
+    };
+
+\definition cases2(P: Bool^ -> Bool^ -> \Prop):
+  P Bool^::false Bool^::false -> P Bool^::false Bool^::true ->
+  P Bool^::true Bool^::false -> P Bool^::true Bool^::true ->
+  \forall (x, y: Bool^) -> P x y :=
+  \fun (ff: _) (ft: _) (tf: _) (tt: _) =>
+    cases (\fun (x: _) => \forall (y: Bool^) -> P x y)
+      (cases (P Bool^::false) ff ft)
+      (cases (P Bool^::true) tf tt);
 
 \correspondence Neg: Bool -> Bool {
-  \program := (\cfun (x: Bool) => \match x \in Bool \with { | false : \return Bool::true |
-  true : \return Bool::false }),
-  \set := \fun (x: Bool^) => \match x \in Bool^ \return (\fun (b: Bool^) => Bool^) \with {
-  | false : Bool^::true
-  | true : Bool^::false
-  },
+  \program := \fun (x: Bool) =>
+    \match x \in Bool \with {
+    | false : \return Bool::true
+    | true : \return Bool::false
+    },
+  \set := \fun (x: Bool^) =>
+    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+    | false : Bool^::true
+    | true : Bool^::false
+    },
 
-  \definition matches: \forall (x: Bool^) -> Neg::[program]^ x = Neg::[set] x :=
-  \block {
-    \fun (x: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Neg::[program]^ x = Neg::[set] x) \with {
-      | false : (\refl(Neg::[set] Bool^::false))
-      | true : (\refl(Neg::[set] Bool^::true))
-      }
-  };
+  \definition matches:
+    \forall (x: Bool^) ->
+    Neg::[program]^ x = Neg::[set] x :=
+    cases (\fun (x: _) =>
+      Neg::[program]^ x = Neg::[set] x)
+      (\refl(Neg::[set] Bool^::false))
+      (\refl(Neg::[set] Bool^::true));
   \coherence := \axiom:funext(Neg::[program]^, Neg::[set], matches),
 }
 
 \correspondence And: Bool -> Bool -> Bool {
-  \program := (\cfun (x: Bool) => \return(\thunk(\cfun (y: Bool) => \match x \in Bool \with { | false : \return Bool::false | true : \return y }))),
-  \set := \fun (x, y: Bool^) => \match x \in Bool^ \return (\fun (b: Bool^) => Bool^) \with {
-  | false : Bool^::false
-  | true : y
-  },
+  \program := \fun (x, y: Bool) =>
+    \match x \in Bool \with {
+    | false : \return Bool::false
+    | true : \return y
+    },
+  \set := \fun (x, y: Bool^) =>
+    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+    | false : Bool^::false
+    | true : y
+    },
 
-  \definition matches: \forall (x, y: Bool^) -> And::[program]^ x y = And::[set] x y :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \let falseCase: And::[program]^ Bool^::false y = And::[set] Bool^::false y :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => And::[program]^ Bool^::false y = And::[set] Bool^::false y) \with {
-        | false : (\refl(And::[set] Bool^::false Bool^::false))
-        | true : (\refl(And::[set] Bool^::false Bool^::true))
-        } \then
-    \let trueCase: And::[program]^ Bool^::true y = And::[set] Bool^::true y :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => And::[program]^ Bool^::true y = And::[set] Bool^::true y) \with {
-        | false : (\refl(And::[set] Bool^::true Bool^::false))
-        | true : (\refl(And::[set] Bool^::true Bool^::true))
-        } \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => And::[program]^ x y = And::[set] x y) \with {
-      | false : falseCase
-      | true : trueCase
-      }
-  };
-  \coherence := \axiom:funext(And::[program]^, And::[set], \fun (arg0: Bool^) => \axiom:funext(And::[program]^ arg0, And::[set] arg0, \fun (arg1: Bool^) => matches arg0 arg1)),
+  \definition matches:
+    \forall (x, y: Bool^) ->
+    And::[program]^ x y = And::[set] x y :=
+    cases2 (\fun (x, y: _) =>
+      And::[program]^ x y = And::[set] x y)
+      (\refl(And::[set] Bool^::false Bool^::false))
+      (\refl(And::[set] Bool^::false Bool^::true))
+      (\refl(And::[set] Bool^::true Bool^::false))
+      (\refl(And::[set] Bool^::true Bool^::true));
+  \coherence := \axiom:funext(And::[program]^, And::[set],
+    \fun (x: _) => \axiom:funext(And::[program]^ x, And::[set] x, matches x)),
 }
 
 \correspondence Or: Bool -> Bool -> Bool {
-  \program := (\cfun (x: Bool) => \return(\thunk(\cfun (y: Bool) => \match x \in Bool \with { | false : \return y | true : \return Bool::true }))),
-  \set := \fun (x, y: Bool^) => \match x \in Bool^ \return (\fun (b: Bool^) => Bool^) \with {
-  | false : y
-  | true : Bool^::true
-  },
+  \program := \fun (x, y: Bool) =>
+    \match x \in Bool \with {
+    | false : \return y
+    | true : \return Bool::true
+    },
+  \set := \fun (x, y: Bool^) =>
+    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+    | false : y
+    | true : Bool^::true
+    },
 
-  \definition matches: \forall (x, y: Bool^) -> Or::[program]^ x y = Or::[set] x y :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \let falseCase: Or::[program]^ Bool^::false y = Or::[set] Bool^::false y :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Or::[program]^ Bool^::false y = Or::[set] Bool^::false y) \with {
-        | false : (\refl(Or::[set] Bool^::false Bool^::false))
-        | true : (\refl(Or::[set] Bool^::false Bool^::true))
-        } \then
-    \let trueCase: Or::[program]^ Bool^::true y = Or::[set] Bool^::true y :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Or::[program]^ Bool^::true y = Or::[set] Bool^::true y) \with {
-        | false : (\refl(Or::[set] Bool^::true Bool^::false))
-        | true : (\refl(Or::[set] Bool^::true Bool^::true))
-        } \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Or::[program]^ x y = Or::[set] x y) \with {
-      | false : falseCase
-      | true : trueCase
-      }
-  };
-  \coherence := \axiom:funext(Or::[program]^, Or::[set], \fun (arg0: Bool^) => \axiom:funext(Or::[program]^ arg0, Or::[set] arg0, \fun (arg1: Bool^) => matches arg0 arg1)),
+  \definition matches:
+    \forall (x, y: Bool^) ->
+    Or::[program]^ x y = Or::[set] x y :=
+    cases2 (\fun (x, y: _) =>
+      Or::[program]^ x y = Or::[set] x y)
+      (\refl(Or::[set] Bool^::false Bool^::false))
+      (\refl(Or::[set] Bool^::false Bool^::true))
+      (\refl(Or::[set] Bool^::true Bool^::false))
+      (\refl(Or::[set] Bool^::true Bool^::true));
+  \coherence := \axiom:funext(Or::[program]^, Or::[set],
+    \fun (x: _) => \axiom:funext(Or::[program]^ x, Or::[set] x, matches x)),
 }
 
 \correspondence Xor: Bool -> Bool -> Bool {
-  \program := (\cfun (x: Bool) => \return(\thunk(\cfun (y: Bool) => \match x \in Bool \with { | false : \return y | true : (Neg::[program] y) }))),
-  \set := \fun (x, y: Bool^) => \match x \in Bool^ \return (\fun (b: Bool^) => Bool^) \with {
-  | false : y
-  | true : (Neg::[set]
-  y)
-  },
+  \program := \fun (x, y: Bool) =>
+    \match x \in Bool \with {
+    | false : \return y
+    | true : Neg::[program] y
+    },
+  \set := \fun (x, y: Bool^) =>
+    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+    | false : y
+    | true : Neg::[set] y
+    },
 
-  \definition matches: \forall (x, y: Bool^) -> Xor::[program]^ x y = Xor::[set] x y :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \let falseCase: Xor::[program]^ Bool^::false y = Xor::[set] Bool^::false y :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Xor::[program]^ Bool^::false y = Xor::[set] Bool^::false y) \with {
-        | false : (\refl(Xor::[set] Bool^::false Bool^::false))
-        | true : (\refl(Xor::[set] Bool^::false Bool^::true))
-        } \then
-    \let trueCase: Xor::[program]^ Bool^::true y = Xor::[set] Bool^::true y :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Xor::[program]^ Bool^::true y = Xor::[set] Bool^::true y) \with {
-        | false : (\refl(Xor::[set] Bool^::true Bool^::false))
-        | true : (\refl(Xor::[set] Bool^::true Bool^::true))
-        } \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Xor::[program]^ x y = Xor::[set] x y) \with {
-      | false : falseCase
-      | true : trueCase
-      }
-  };
-  \coherence := \axiom:funext(Xor::[program]^, Xor::[set], \fun (arg0: Bool^) => \axiom:funext(Xor::[program]^ arg0, Xor::[set] arg0, \fun (arg1: Bool^) => matches arg0 arg1)),
+  \definition matches:
+    \forall (x, y: Bool^) ->
+    Xor::[program]^ x y = Xor::[set] x y :=
+    cases2 (\fun (x, y: _) =>
+      Xor::[program]^ x y = Xor::[set] x y)
+      (\refl(Xor::[set] Bool^::false Bool^::false))
+      (\refl(Xor::[set] Bool^::false Bool^::true))
+      (\refl(Xor::[set] Bool^::true Bool^::false))
+      (\refl(Xor::[set] Bool^::true Bool^::true));
+  \coherence := \axiom:funext(Xor::[program]^, Xor::[set],
+    \fun (x: _) => \axiom:funext(Xor::[program]^ x, Xor::[set] x, matches x)),
 }
 
 \correspondence Implies: Bool -> Bool -> Bool {
-  \program := (\cfun (x: Bool) => \return(\thunk(\cfun (y: Bool) => \match x \in Bool \with { | false : \return Bool::true | true : \return y }))),
-  \set := \fun (x, y: Bool^) => \match x \in Bool^ \return (\fun (b: Bool^) => Bool^) \with {
-  | false : Bool^::true
-  | true : y
-  },
+  \program := \fun (x, y: Bool) =>
+    \match x \in Bool \with {
+    | false : \return Bool::true
+    | true : \return y
+    },
+  \set := \fun (x, y: Bool^) =>
+    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+    | false : Bool^::true
+    | true : y
+    },
 
-  \definition matches: \forall (x, y: Bool^) -> Implies::[program]^ x y = Implies::[set] x y :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \let falseCase: Implies::[program]^ Bool^::false y = Implies::[set] Bool^::false y :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Implies::[program]^ Bool^::false y = Implies::[set] Bool^::false y) \with {
-        | false : (\refl(Implies::[set] Bool^::false Bool^::false))
-        | true : (\refl(Implies::[set] Bool^::false Bool^::true))
-        } \then
-    \let trueCase: Implies::[program]^ Bool^::true y = Implies::[set] Bool^::true y :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Implies::[program]^ Bool^::true y = Implies::[set] Bool^::true y) \with {
-        | false : (\refl(Implies::[set] Bool^::true Bool^::false))
-        | true : (\refl(Implies::[set] Bool^::true Bool^::true))
-        } \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Implies::[program]^ x y = Implies::[set] x y) \with {
-      | false : falseCase
-      | true : trueCase
-      }
-  };
-  \coherence := \axiom:funext(Implies::[program]^, Implies::[set], \fun (arg0: Bool^) => \axiom:funext(Implies::[program]^ arg0, Implies::[set] arg0, \fun (arg1: Bool^) => matches arg0 arg1)),
+  \definition matches:
+    \forall (x, y: Bool^) ->
+    Implies::[program]^ x y = Implies::[set] x y :=
+    cases2 (\fun (x, y: _) =>
+      Implies::[program]^ x y = Implies::[set] x y)
+      (\refl(Implies::[set] Bool^::false Bool^::false))
+      (\refl(Implies::[set] Bool^::false Bool^::true))
+      (\refl(Implies::[set] Bool^::true Bool^::false))
+      (\refl(Implies::[set] Bool^::true Bool^::true));
+  \coherence := \axiom:funext(Implies::[program]^, Implies::[set],
+    \fun (x: _) => \axiom:funext(Implies::[program]^ x, Implies::[set] x, matches x)),
 }
 
 \correspondence Eqb: Bool -> Bool -> Bool {
-  \program := (\cfun (x: Bool) => \return(\thunk(\cfun (y: Bool) => \match x \in Bool \with { | false : (Neg::[program] y) | true : \return y }))),
-  \set := \fun (x, y: Bool^) => \match x \in Bool^ \return (\fun (b: Bool^) => Bool^) \with {
-  | false : (Neg::[set] y)
-  | true : y
-  },
+  \program := \fun (x, y: Bool) =>
+    \match x \in Bool \with {
+    | false : Neg::[program] y
+    | true : \return y
+    },
+  \set := \fun (x, y: Bool^) =>
+    \match x \in Bool^ \return (\fun (_: Bool^) => Bool^) \with {
+    | false : Neg::[set] y
+    | true : y
+    },
 
-  \definition matches: \forall (x, y: Bool^) -> Eqb::[program]^ x y = Eqb::[set] x y :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \let falseCase: Eqb::[program]^ Bool^::false y = Eqb::[set] Bool^::false y :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Eqb::[program]^ Bool^::false y = Eqb::[set] Bool^::false y) \with {
-        | false : (\refl(Eqb::[set] Bool^::false Bool^::false))
-        | true : (\refl(Eqb::[set] Bool^::false Bool^::true))
-        } \then
-    \let trueCase: Eqb::[program]^ Bool^::true y = Eqb::[set] Bool^::true y :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Eqb::[program]^ Bool^::true y = Eqb::[set] Bool^::true y) \with {
-        | false : (\refl(Eqb::[set] Bool^::true Bool^::false))
-        | true : (\refl(Eqb::[set] Bool^::true Bool^::true))
-        } \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Eqb::[program]^ x y = Eqb::[set] x y) \with {
-      | false : falseCase
-      | true : trueCase
-      }
-  };
-  \coherence := \axiom:funext(Eqb::[program]^, Eqb::[set], \fun (arg0: Bool^) => \axiom:funext(Eqb::[program]^ arg0, Eqb::[set] arg0, \fun (arg1: Bool^) => matches arg0 arg1)),
+  \definition matches:
+    \forall (x, y: Bool^) ->
+    Eqb::[program]^ x y = Eqb::[set] x y :=
+    cases2 (\fun (x, y: _) =>
+      Eqb::[program]^ x y = Eqb::[set] x y)
+      (\refl(Eqb::[set] Bool^::false Bool^::false))
+      (\refl(Eqb::[set] Bool^::false Bool^::true))
+      (\refl(Eqb::[set] Bool^::true Bool^::false))
+      (\refl(Eqb::[set] Bool^::true Bool^::true));
+  \coherence := \axiom:funext(Eqb::[program]^, Eqb::[set],
+    \fun (x: _) => \axiom:funext(Eqb::[program]^ x, Eqb::[set] x, matches x)),
 }
 
-\definition negInvolutive: \forall (x: Bool^) -> Neg::[set] (Neg::[set] x) = x :=
-  \block {
-    \fun (x: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Neg::[set] (Neg::[set] x) = x) \with {
-      | false : (\refl(Bool^::false))
-      | true : (\refl(Bool^::true))
-      }
-  };
-\definition andComm: Law.Commutative Bool^ And::[set] :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \let falseCase: And::[set] Bool^::false y = And::[set] y Bool^::false :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => And::[set] Bool^::false y = And::[set] y Bool^::false) \with {
-        | false : (\refl(And::[set] Bool^::false Bool^::false))
-        | true : (\refl(And::[set] Bool^::true Bool^::false))
-        } \then
-    \let trueCase: And::[set] Bool^::true y = And::[set] y Bool^::true :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => And::[set] Bool^::true y = And::[set] y Bool^::true) \with {
-        | false : (\refl(And::[set] Bool^::false Bool^::true))
-        | true : (\refl(And::[set] Bool^::true Bool^::true))
-        } \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => And::[set] x y = And::[set] y x) \with {
-      | false : falseCase
-      | true : trueCase
-      }
-  };
-\definition orComm: Law.Commutative Bool^ Or::[set] :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \let falseCase: Or::[set] Bool^::false y = Or::[set] y Bool^::false :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Or::[set] Bool^::false y = Or::[set] y Bool^::false) \with {
-        | false : (\refl(Or::[set] Bool^::false Bool^::false))
-        | true : (\refl(Or::[set] Bool^::true Bool^::false))
-        } \then
-    \let trueCase: Or::[set] Bool^::true y = Or::[set] y Bool^::true :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Or::[set] Bool^::true y = Or::[set] y Bool^::true) \with {
-        | false : (\refl(Or::[set] Bool^::false Bool^::true))
-        | true : (\refl(Or::[set] Bool^::true Bool^::true))
-        } \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Or::[set] x y = Or::[set] y x) \with {
-      | false : falseCase
-      | true : trueCase
-      }
-  };
-\definition xorComm: Law.Commutative Bool^ Xor::[set] :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \let falseCase: Xor::[set] Bool^::false y = Xor::[set] y Bool^::false :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Xor::[set] Bool^::false y = Xor::[set] y Bool^::false) \with {
-        | false : (\refl(Xor::[set] Bool^::false Bool^::false))
-        | true : (\refl(Xor::[set] Bool^::true Bool^::false))
-        } \then
-    \let trueCase: Xor::[set] Bool^::true y = Xor::[set] y Bool^::true :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Xor::[set] Bool^::true y = Xor::[set] y Bool^::true) \with {
-        | false : (\refl(Xor::[set] Bool^::false Bool^::true))
-        | true : (\refl(Xor::[set] Bool^::true Bool^::true))
-        } \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Xor::[set] x y = Xor::[set] y x) \with {
-      | false : falseCase
-      | true : trueCase
-      }
-  };
-\definition andAssoc: Law.Associative Bool^ And::[set] :=
-  \block {
-    \fun (x, y, z: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => And::[set] (And::[set] x y) z = And::[set] x (And::[set] y z)) \with {
-      | false : (\match y \in Bool^ \return (\fun (y: Bool^) => And::[set] (And::[set] Bool^::false y) z = And::[set] Bool^::false (And::[set] y z)) \with {
-        | false : (\match z \in Bool^ \return (\fun (z: Bool^) => And::[set]
-  (And::[set] Bool^::false Bool^::false) z = And::[set] Bool^::false (And::[set] Bool^::false z)) \with {
-          | false : (\refl(And::[set] Bool^::false
-  (And::[set] Bool^::false Bool^::false)))
-          | true : (\refl(And::[set] Bool^::false (And::[set] Bool^::false Bool^::true)))
-          })
-        | true : (\match z \in Bool^ \return (\fun (z: Bool^) => And::[set] (And::[set] Bool^::false Bool^::true) z = And::[set] Bool^::false (And::[set]
-  Bool^::true z)) \with {
-          | false : (\refl(And::[set] Bool^::false (And::[set] Bool^::true Bool^::false)))
-          | true : (\refl(And::[set] Bool^::false (And::[set]
-  Bool^::true Bool^::true)))
-          })
-        })
-      | true : (\match y \in Bool^ \return (\fun (y: Bool^) => And::[set] (And::[set] Bool^::true y) z = And::[set]
-  Bool^::true (And::[set] y z)) \with {
-        | false : (\match z \in Bool^ \return (\fun (z: Bool^) => And::[set] (And::[set] Bool^::true Bool^::false) z = And::[set]
-  Bool^::true (And::[set] Bool^::false z)) \with {
-          | false : (\refl(And::[set] Bool^::true (And::[set] Bool^::false Bool^::false)))
-          | true : (\refl(And::[set]
-  Bool^::true (And::[set] Bool^::false Bool^::true)))
-          })
-        | true : (\match z \in Bool^ \return (\fun (z: Bool^) => And::[set] (And::[set] Bool^::true
-  Bool^::true) z = And::[set] Bool^::true (And::[set] Bool^::true z)) \with {
-          | false : (\refl(And::[set] Bool^::true (And::[set] Bool^::true
-  Bool^::false)))
-          | true : (\refl(And::[set] Bool^::true (And::[set] Bool^::true Bool^::true)))
-          })
-        })
-      }
-  };
-\definition orAssoc: Law.Associative Bool^ Or::[set] :=
-  \block {
-    \fun (x, y, z: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Or::[set] (Or::[set] x y) z = Or::[set] x (Or::[set] y z)) \with {
-      | false : (\match y \in Bool^ \return (\fun (y: Bool^) => Or::[set] (Or::[set] Bool^::false y) z = Or::[set] Bool^::false (Or::[set] y z)) \with {
-        | false : (\match z \in Bool^ \return (\fun (z: Bool^) => Or::[set] (Or::[set]
-  Bool^::false Bool^::false) z = Or::[set] Bool^::false (Or::[set] Bool^::false z)) \with {
-          | false : (\refl(Or::[set] Bool^::false (Or::[set]
-  Bool^::false Bool^::false)))
-          | true : (\refl(Or::[set] Bool^::false (Or::[set] Bool^::false Bool^::true)))
-          })
-        | true : (\match z \in Bool^ \return (\fun (z: Bool^) => Or::[set] (Or::[set] Bool^::false Bool^::true) z = Or::[set] Bool^::false (Or::[set] Bool^::true z)) \with {
-          | false : (\refl(Or::[set]
-  Bool^::false (Or::[set] Bool^::true Bool^::false)))
-          | true : (\refl(Or::[set] Bool^::false (Or::[set] Bool^::true Bool^::true)))
-          })
-        })
-      | true : (\match y \in Bool^ \return (\fun (y: Bool^) => Or::[set] (Or::[set] Bool^::true y) z = Or::[set] Bool^::true (Or::[set] y z)) \with {
-        | false : (\match z \in Bool^ \return (\fun (z: Bool^) => Or::[set] (Or::[set] Bool^::true Bool^::false) z = Or::[set] Bool^::true (Or::[set] Bool^::false z)) \with {
-          | false : (\refl(Or::[set] Bool^::true (Or::[set] Bool^::false Bool^::false)))
-          | true : (\refl(Or::[set] Bool^::true (Or::[set] Bool^::false
-  Bool^::true)))
-          })
-        | true : (\match z \in Bool^ \return (\fun (z: Bool^) => Or::[set] (Or::[set] Bool^::true Bool^::true) z = Or::[set] Bool^::true
-  (Or::[set] Bool^::true z)) \with {
-          | false : (\refl(Or::[set] Bool^::true (Or::[set] Bool^::true Bool^::false)))
-          | true : (\refl(Or::[set] Bool^::true (Or::[set]
-  Bool^::true Bool^::true)))
-          })
-        })
-      }
-  };
-\definition xorAssoc: Law.Associative Bool^ Xor::[set] :=
-  \block {
-    \fun (x, y, z: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Xor::[set] (Xor::[set] x y) z = Xor::[set] x (Xor::[set] y z)) \with {
-      | false : (\match y \in Bool^ \return (\fun (y: Bool^) => Xor::[set] (Xor::[set] Bool^::false y) z = Xor::[set] Bool^::false (Xor::[set] y z)) \with {
-        | false : (\match z \in Bool^ \return (\fun (z: Bool^) => Xor::[set]
-  (Xor::[set] Bool^::false Bool^::false) z = Xor::[set] Bool^::false (Xor::[set] Bool^::false z)) \with {
-          | false : (\refl(Xor::[set] Bool^::false
-  (Xor::[set] Bool^::false Bool^::false)))
-          | true : (\refl(Xor::[set] Bool^::false (Xor::[set] Bool^::false Bool^::true)))
-          })
-        | true : (\match z \in Bool^ \return (\fun (z: Bool^) => Xor::[set] (Xor::[set] Bool^::false Bool^::true) z = Xor::[set] Bool^::false (Xor::[set]
-  Bool^::true z)) \with {
-          | false : (\refl(Xor::[set] Bool^::false (Xor::[set] Bool^::true Bool^::false)))
-          | true : (\refl(Xor::[set] Bool^::false (Xor::[set]
-  Bool^::true Bool^::true)))
-          })
-        })
-      | true : (\match y \in Bool^ \return (\fun (y: Bool^) => Xor::[set] (Xor::[set] Bool^::true y) z = Xor::[set]
-  Bool^::true (Xor::[set] y z)) \with {
-        | false : (\match z \in Bool^ \return (\fun (z: Bool^) => Xor::[set] (Xor::[set] Bool^::true Bool^::false) z = Xor::[set]
-  Bool^::true (Xor::[set] Bool^::false z)) \with {
-          | false : (\refl(Xor::[set] Bool^::true (Xor::[set] Bool^::false Bool^::false)))
-          | true : (\refl(Xor::[set]
-  Bool^::true (Xor::[set] Bool^::false Bool^::true)))
-          })
-        | true : (\match z \in Bool^ \return (\fun (z: Bool^) => Xor::[set] (Xor::[set] Bool^::true
-  Bool^::true) z = Xor::[set] Bool^::true (Xor::[set] Bool^::true z)) \with {
-          | false : (\refl(Xor::[set] Bool^::true (Xor::[set] Bool^::true
-  Bool^::false)))
-          | true : (\refl(Xor::[set] Bool^::true (Xor::[set] Bool^::true Bool^::true)))
-          })
-        })
-      }
-  };
-\definition andIdem: Law.Idempotent Bool^ And::[set] :=
-  \block {
-    \fun (x: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => And::[set] x x = x) \with {
-      | false : (\refl(Bool^::false))
-      | true : (\refl(Bool^::true))
-      }
-  };
-\definition orIdem: Law.Idempotent Bool^ Or::[set] :=
-  \block {
-    \fun (x: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Or::[set] x x = x) \with {
-      | false : (\refl(Bool^::false))
-      | true : (\refl(Bool^::true))
-      }
-  };
-\definition xorSelf: \forall (x: Bool^) -> Xor::[set] x x = Bool^::false :=
-  \block {
-    \fun (x: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Xor::[set] x x = Bool^::false) \with {
-      | false : (\refl(Bool^::false))
-      | true : (\refl(Bool^::false))
-      }
-  };
-\definition eqbRefl: \forall (x: Bool^) -> Eqb::[set] x x = Bool^::true :=
-  \block {
-    \fun (x: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Eqb::[set] x x = Bool^::true) \with {
-      | false : (\refl(Bool^::true))
-      | true : (\refl(Bool^::true))
-      }
-  };
-\definition deMorganAnd: \forall (x, y: Bool^) -> Neg::[set] (And::[set] x y) = Or::[set] (Neg::[set] x) (Neg::[set] y) :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Neg::[set] (And::[set] x y) = Or::[set] (Neg::[set] x) (Neg::[set] y)) \with {
-      | false : (\match y \in Bool^ \return (\fun (y: Bool^) => Neg::[set] (And::[set] Bool^::false y) = Or::[set] (Neg::[set] Bool^::false) (Neg::[set] y)) \with {
-        | false : (\refl(Or::[set] (Neg::[set]
-  Bool^::false) (Neg::[set] Bool^::false)))
-        | true : (\refl(Or::[set] (Neg::[set] Bool^::false) (Neg::[set] Bool^::true)))
-        })
-      | true : (\match y \in Bool^ \return (\fun (y: Bool^) => Neg::[set] (And::[set] Bool^::true y) = Or::[set] (Neg::[set] Bool^::true) (Neg::[set] y)) \with {
-        | false : (\refl(Or::[set] (Neg::[set]
-  Bool^::true) (Neg::[set] Bool^::false)))
-        | true : (\refl(Or::[set] (Neg::[set] Bool^::true) (Neg::[set] Bool^::true)))
-        })
-      }
-  };
-\definition deMorganOr: \forall (x, y: Bool^) -> Neg::[set] (Or::[set] x y) = And::[set] (Neg::[set] x) (Neg::[set] y) :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Neg::[set] (Or::[set] x y) = And::[set] (Neg::[set] x) (Neg::[set] y)) \with {
-      | false : (\match y \in Bool^ \return (\fun (y: Bool^) => Neg::[set] (Or::[set] Bool^::false y) = And::[set] (Neg::[set] Bool^::false) (Neg::[set] y)) \with {
-        | false : (\refl(And::[set] (Neg::[set]
-  Bool^::false) (Neg::[set] Bool^::false)))
-        | true : (\refl(And::[set] (Neg::[set] Bool^::false) (Neg::[set] Bool^::true)))
-        })
-      | true : (\match y \in Bool^ \return (\fun (y: Bool^) => Neg::[set] (Or::[set] Bool^::true y) = And::[set] (Neg::[set] Bool^::true) (Neg::[set] y)) \with {
-        | false : (\refl(And::[set] (Neg::[set]
-  Bool^::true) (Neg::[set] Bool^::false)))
-        | true : (\refl(And::[set] (Neg::[set] Bool^::true) (Neg::[set] Bool^::true)))
-        })
-      }
-  };
-\definition andDistrib: Law.LeftDistributive Bool^ And::[set] Or::[set] :=
-  \block {
-    \fun (x, y, z: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => And::[set] x (Or::[set] y z) = Or::[set] (And::[set] x y) (And::[set] x z)) \with {
-      | false : (\match y \in Bool^ \return (\fun (y: Bool^) => And::[set] Bool^::false (Or::[set] y z) = Or::[set] (And::[set] Bool^::false y) (And::[set]
-  Bool^::false z)) \with {
-        | false : (\match z \in Bool^ \return (\fun (z: Bool^) => And::[set] Bool^::false (Or::[set] Bool^::false z) = Or::[set] (And::[set]
-  Bool^::false Bool^::false) (And::[set] Bool^::false z)) \with {
-          | false : (\refl(Or::[set] (And::[set] Bool^::false Bool^::false) (And::[set]
-  Bool^::false Bool^::false)))
-          | true : (\refl(Or::[set] (And::[set] Bool^::false Bool^::false) (And::[set] Bool^::false Bool^::true)))
-          })
-        | true : (\match z \in Bool^ \return (\fun (z: Bool^) => And::[set] Bool^::false (Or::[set] Bool^::true z) = Or::[set] (And::[set] Bool^::false
-  Bool^::true) (And::[set] Bool^::false z)) \with {
-          | false : (\refl(Or::[set] (And::[set] Bool^::false Bool^::true) (And::[set] Bool^::false
-  Bool^::false)))
-          | true : (\refl(Or::[set] (And::[set] Bool^::false Bool^::true) (And::[set] Bool^::false Bool^::true)))
-          })
-        })
-      | true : (\match y \in Bool^ \return (\fun (y: Bool^) => And::[set] Bool^::true (Or::[set] y z) = Or::[set] (And::[set] Bool^::true y) (And::[set]
-  Bool^::true z)) \with {
-        | false : (\match z \in Bool^ \return (\fun (z: Bool^) => And::[set] Bool^::true (Or::[set] Bool^::false z) = Or::[set] (And::[set]
-  Bool^::true Bool^::false) (And::[set] Bool^::true z)) \with {
-          | false : (\refl(Or::[set] (And::[set] Bool^::true Bool^::false) (And::[set] Bool^::true
-  Bool^::false)))
-          | true : (\refl(Or::[set] (And::[set] Bool^::true Bool^::false) (And::[set] Bool^::true Bool^::true)))
-          })
-        | true : (\match z \in Bool^ \return (\fun (z: Bool^) => And::[set] Bool^::true (Or::[set] Bool^::true z) = Or::[set] (And::[set] Bool^::true Bool^::true) (And::[set]
-  Bool^::true z)) \with {
-          | false : (\refl(Or::[set] (And::[set] Bool^::true Bool^::true) (And::[set] Bool^::true Bool^::false)))
-          | true : (\refl(Or::[set]
-  (And::[set] Bool^::true Bool^::true) (And::[set] Bool^::true Bool^::true)))
-          })
-        })
-      }
-  };
-\definition orDistrib: Law.LeftDistributive Bool^ Or::[set] And::[set] :=
-  \block {
-    \fun (x, y, z: Bool^) \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Or::[set] x (And::[set] y z) = And::[set] (Or::[set] x y) (Or::[set] x z)) \with {
-      | false : (\match y \in Bool^ \return (\fun (y: Bool^) => Or::[set] Bool^::false (And::[set] y z) = And::[set] (Or::[set] Bool^::false y) (Or::[set] Bool^::false z)) \with {
-        | false : (\match z \in Bool^ \return (\fun (z: Bool^) => Or::[set] Bool^::false (And::[set] Bool^::false z) = And::[set] (Or::[set] Bool^::false
-  Bool^::false) (Or::[set] Bool^::false z)) \with {
-          | false : (\refl(And::[set] (Or::[set] Bool^::false Bool^::false) (Or::[set] Bool^::false
-  Bool^::false)))
-          | true : (\refl(And::[set] (Or::[set] Bool^::false Bool^::false) (Or::[set] Bool^::false Bool^::true)))
-          })
-        | true : (\match z \in Bool^ \return (\fun (z: Bool^) => Or::[set] Bool^::false (And::[set] Bool^::true z) = And::[set] (Or::[set] Bool^::false Bool^::true) (Or::[set]
-  Bool^::false z)) \with {
-          | false : (\refl(And::[set] (Or::[set] Bool^::false Bool^::true) (Or::[set] Bool^::false Bool^::false)))
-          | true : (\refl(And::[set]
-  (Or::[set] Bool^::false Bool^::true) (Or::[set] Bool^::false Bool^::true)))
-          })
-        })
-      | true : (\match y \in Bool^ \return (\fun (y: Bool^) => Or::[set]
-  Bool^::true (And::[set] y z) = And::[set] (Or::[set] Bool^::true y) (Or::[set] Bool^::true z)) \with {
-        | false : (\match z \in Bool^ \return (\fun (z: Bool^) => Or::[set] Bool^::true (And::[set] Bool^::false z) = And::[set] (Or::[set] Bool^::true Bool^::false) (Or::[set] Bool^::true z)) \with {
-          | false : (\refl(And::[set] (Or::[set] Bool^::true Bool^::false) (Or::[set] Bool^::true Bool^::false)))
-          | true : (\refl(And::[set] (Or::[set] Bool^::true
-  Bool^::false) (Or::[set] Bool^::true Bool^::true)))
-          })
-        | true : (\match z \in Bool^ \return (\fun (z: Bool^) => Or::[set] Bool^::true (And::[set]
-  Bool^::true z) = And::[set] (Or::[set] Bool^::true Bool^::true) (Or::[set] Bool^::true z)) \with {
-          | false : (\refl(And::[set] (Or::[set] Bool^::true
-  Bool^::true) (Or::[set] Bool^::true Bool^::false)))
-          | true : (\refl(And::[set] (Or::[set] Bool^::true Bool^::true) (Or::[set] Bool^::true
-  Bool^::true)))
-          })
-        })
-      }
-  };
-\definition andAbsorb: \forall (x, y: Bool^) -> And::[set] x (Or::[set] x y) = x :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \let falseCase: And::[set] Bool^::false (Or::[set] Bool^::false y) = Bool^::false :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => And::[set] Bool^::false (Or::[set] Bool^::false y) = Bool^::false) \with {
-        | false : (\refl(Bool^::false))
-        | true : (\refl(Bool^::false))
-        } \then
-    \let trueCase: And::[set] Bool^::true (Or::[set] Bool^::true y) = Bool^::true :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => And::[set] Bool^::true (Or::[set] Bool^::true y) = Bool^::true) \with {
-        | false : (\refl(Bool^::true))
-        | true : (\refl(Bool^::true))
-        } \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => And::[set] x (Or::[set] x y) = x) \with {
-      | false : falseCase
-      | true : trueCase
-      }
-  };
-\definition orAbsorb: \forall (x, y: Bool^) -> Or::[set] x (And::[set] x y) = x :=
-  \block {
-    \fun (x, y: Bool^) \then
-    \let falseCase: Or::[set] Bool^::false (And::[set] Bool^::false y) = Bool^::false :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Or::[set] Bool^::false (And::[set] Bool^::false y) = Bool^::false) \with {
-        | false : (\refl(Bool^::false))
-        | true : (\refl(Bool^::false))
-        } \then
-    \let trueCase: Or::[set] Bool^::true (And::[set] Bool^::true y) = Bool^::true :=
-      \match y \in Bool^ \return (\fun (y: Bool^) => Or::[set] Bool^::true (And::[set] Bool^::true y) = Bool^::true) \with {
-        | false : (\refl(Bool^::true))
-        | true : (\refl(Bool^::true))
-        } \then
-    \return \match x \in Bool^ \return (\fun (x: Bool^) => Or::[set] x (And::[set] x y) = x) \with {
-      | false : falseCase
-      | true : trueCase
-      }
+\definition ite(A: \Set) (test: Bool^) (yes, no: A): A :=
+  \match test \in Bool^ \return (\fun (_: Bool^) => A) \with {
+  | false : no
+  | true : yes
   };
 
-/* Propositional views And::[program] elimination of impossible Boolean equalities. */
-\definition IsTrue (b: Bool^): \Prop := b = Bool^::true;
-\definition IsFalse (b: Bool^): \Prop := b = Bool^::false;
-\definition falseNeTrue: NotEq Bool^::false Bool^::true :=
-  \block {
-    \fun (e: Bool^::false = Bool^::true) \then
-    \return \idelim Bool^::false = Bool^::true
-      \with b: Bool^ => \In[Bool^] (\match b \in Bool^ \return (\fun (b: Bool^) => \Pow Bool^) \with {
-        | false : ({ x : Bool^ \where Bool^::false = Bool^::false })
-        | true : ({ x : Bool^ \where Logic.False })
-        }) Bool^::false
-    \by { base: \refl(Bool^::false), equality: e }
-  };
-\definition trueNeFalse: NotEq Bool^::true Bool^::false :=
-  \block {
-    \fun (e: Bool^::true = Bool^::false) \then
-    \let reversed: Bool^::false = Bool^::true :=
-      \idelim Bool^::true = Bool^::false \with b: Bool^ => b = Bool^::true
-        \by { base: \refl(Bool^::true), equality: e } \then
-    \return falseNeTrue reversed
-  };
-\definition absurd: \forall (P: \Prop) -> Bool^::false = Bool^::true -> P :=
-  \block {
-    \fun (P: \Prop) \then
-    \fun (e: Bool^::false = Bool^::true) \then
-    \return \idelim Bool^::false = Bool^::true
-      \with b: Bool^ => \In[Bool^] (\match b \in Bool^ \return (\fun (b: Bool^) => \Pow Bool^) \with {
-        | false : ({ x : Bool^ \where Bool^::false = Bool^::false })
-        | true : ({ x : Bool^ \where P })
-        }) Bool^::false
-    \by { base: \refl(Bool^::false), equality: e }
-  };
-\definition falseEqDecidable(y: Bool^):
-    Logic.Or[Bool^::false = y, Logic.Not (Bool^::false = y)] :=
-  \match y \in Bool^ \return (\fun (y: Bool^) => Logic.Or[
-      Bool^::false = y, Logic.Not (Bool^::false = y)]) \with {
-    | false : Logic.Or[
-        Bool^::false = Bool^::false,
-        Logic.Not (Bool^::false = Bool^::false)
-      ]::left (\refl(Bool^::false))
-    | true : Logic.Or[
-        Bool^::false = Bool^::true,
-        Logic.Not (Bool^::false = Bool^::true)
-      ]::right falseNeTrue
-    };
-
-\definition trueEqDecidable(y: Bool^):
-    Logic.Or[Bool^::true = y, Logic.Not (Bool^::true = y)] :=
-  \match y \in Bool^ \return (\fun (y: Bool^) => Logic.Or[
-      Bool^::true = y, Logic.Not (Bool^::true = y)]) \with {
-    | false : Logic.Or[
-        Bool^::true = Bool^::false,
-        Logic.Not (Bool^::true = Bool^::false)
-      ]::right trueNeFalse
-    | true : Logic.Or[
-        Bool^::true = Bool^::true,
-        Logic.Not (Bool^::true = Bool^::true)
-      ]::left (\refl(Bool^::true))
-    };
-
-\definition eqDecidable:
-    \forall (x, y: Bool^) -> Logic.Or[x = y, Logic.Not (x = y)] :=
-  \fun (x, y: Bool^) =>
-    \match x \in Bool^ \return (\fun (x: Bool^) =>
-      \forall (y: Bool^) -> Logic.Or[x = y, Logic.Not (x = y)]) \with {
-      | false : falseEqDecidable
-      | true : trueEqDecidable
-      } y;
-
-\definition eqOfEqbTrue: \forall (a, b: Bool^) -> IsTrue (Eqb::[set] a b) -> a = b :=
-  \induction (a: Bool^) \return \forall (b: Bool^) -> IsTrue (Eqb::[set] a b) -> a = b \with {
-    | false : (\induction (b: Bool^) \return IsTrue (Eqb::[set] Bool^::false b) -> Bool^::false = b \with {
-      | false : (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::false))
-      | true : (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::false = Bool^::true) e)
-      })
-    | true : (\induction (b: Bool^) \return IsTrue (Eqb::[set] Bool^::true b) -> Bool^::true = b \with {
-      | false : (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::true = Bool^::false) e)
-      | true : (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::true))
-      })
-    };
-\definition eqbTrueOfEq: \forall (a, b: Bool^) -> a = b -> IsTrue (Eqb::[set] a b) :=
-  \block {
-    \fun (a, b: Bool^) \then
-    \fun (e: a = b) \then
-    \return \idelim a = b \with x: Bool^ => IsTrue (Eqb::[set] a x) \by { base: eqbRefl a, equality: e }
-  };
-
-/* Set-polymorphic selection: a box requires a closed Program type,
- * so this universe-polymorphic wrapper uses prec directly. */
-\definition ite (A: \Set) (test: Bool^) (yes: A) (no: A): A :=
-    \match test \in Bool^ \return (\fun (b: Bool^) => A) \with {
-      | false : no
-      | true : yes
-      };
-\module ConditionalLaws(A: \Set) {
-  \definition iteTrue (yes, no: A): ite A Bool^::true yes no = yes := \refl(yes);
-  \definition iteFalse (yes, no: A): ite A Bool^::false yes no = no := \refl(no);
-  \definition iteSame: \forall (test: Bool^) -> \forall (value: A) -> ite A test value value = value :=
-    \induction (test: Bool^) \return \forall (value: A) -> ite A test value value = value \with {
-      | false : (\fun (value: A) => \refl(value))
-      | true : (\fun (value: A) => \refl(value))
-      };
-}
+\module Prop;
+\module ConditionalLaws(A: \Set);

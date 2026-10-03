@@ -3,27 +3,32 @@
  * Classical.excludedMiddle uses the existing choice and setext axioms. */
 \import std.Logic[].Classical[] \as Classical;
 
-\definition Member (S: \Pow Real) (x: Real): \Prop := \In[Real] S x;
-\definition Nonempty (S: \Pow Real): \Prop :=
+\definition Member(S: \Pow Real) (x: Real): \Prop := \In[Real] S x;
+\definition Nonempty(S: \Pow Real): \Prop :=
   \exists { x : Real \where Member S x };
-\definition UpperBound (S: \Pow Real) (u: Real): \Prop :=
+\definition UpperBound(S: \Pow Real) (u: Real): \Prop :=
   \forall (x: Real) -> Member S x -> Le x u;
-\definition Bounded (S: \Pow Real): \Prop :=
+\definition Bounded(S: \Pow Real): \Prop :=
   \exists { u : Real \where UpperBound S u };
-\definition LeastUpperBound (S: \Pow Real) (u: Real): \Prop :=
+\definition LeastUpperBound(S: \Pow Real) (u: Real): \Prop :=
   Logic.And[UpperBound S u, \forall (v: Real) -> UpperBound S v -> Le u v];
 
 /* Church existential: there is x in S containing q. */
-\definition UnionMember (S: \Pow Real) (q: Rat): \Prop :=
+\definition UnionMember(S: \Pow Real) (q: Rat): \Prop :=
   \forall (P: \Prop) -> (\forall (x: Real) -> Member S x -> mem x q -> P) -> P;
-\definition Union (S: \Pow Real): \Pow Rat :=
+\definition Union(S: \Pow Real): \Pow Rat :=
   { q : Rat \where UnionMember S q };
-\definition unionIntro (S: \Pow Real) (x: Real) (sx: Member S x)
-  (q: Rat) (xq: mem x q) (P: \Prop)
-  (use: \forall (y: Real) -> Member S y -> mem y q -> P): P := use x sx xq;
+\definition unionIntro(S: \Pow Real) (x: Real):
+  Member S x -> \forall (q: Rat) -> mem x q -> \forall (P: \Prop) ->
+  (\forall (y: Real) -> Member S y -> mem y q -> P) ->
+  P := \fun (sx: _) (q: _) (xq: _) (P: \Prop) (use: _) =>
+    use x sx xq;
 
-\definition unionInhabited (S: \Pow Real) (nonempty: Nonempty S): Inhabited (Union S) :=
+\definition unionInhabited(S: \Pow Real):
+  Nonempty S ->
+  Inhabited (Union S) :=
   \block {
+    \fun (nonempty: Nonempty S) \then
     \takefrom x: \Cast[Real] ({ x : Real \where Member S x }) \by nonempty \then
     \takefrom q: \Cast[Rat] ({ q : Rat \where mem x q }) \by #inhabited{x} \then
     \return \exact(
@@ -32,8 +37,11 @@
         \Cast[Rat] ({ q : Rat \where In (Union S) q }))
   };
 
-\definition unionProper (S: \Pow Real) (bounded: Bounded S): Proper (Union S) :=
+\definition unionProper(S: \Pow Real):
+  Bounded S ->
+  Proper (Union S) :=
   \block {
+    \fun (bounded: Bounded S) \then
     \takefrom u: \Cast[Real] ({ u : Real \where UpperBound S u }) \by bounded \then
     \takefrom q: \Cast[Rat] ({ q : Rat \where Logic.Not (mem u q) }) \by #proper{u} \then
     \return \exact(
@@ -45,104 +53,126 @@
         \Cast[Rat] ({ q : Rat \where Logic.Not (In (Union S) q) }))
   };
 
-\definition unionLower (S: \Pow Real) (p, q: Rat) (pq: lt p q)
-  (sq: UnionMember S q): UnionMember S p :=
-  sq (UnionMember S p)
-    (\fun (x: Real) => \fun (sx: Member S x) => \fun (xq: mem x q) =>
-      unionIntro S x sx p (#lower{x} p q pq xq));
+\definition unionLower(S: \Pow Real) (p, q: Rat):
+  lt p q -> UnionMember S q ->
+  UnionMember S p :=
+  \fun (pq: lt p q) (sq: UnionMember S q) =>
+    sq (UnionMember S p)
+      (\fun (x: Real) => \fun (sx: Member S x) => \fun (xq: mem x q) =>
+        unionIntro S x sx p (#lower{x} p q pq xq));
 
-\definition unionRounded (S: \Pow Real) (p: Rat) (sp: UnionMember S p):
+\definition unionRounded(S: \Pow Real) (p: Rat):
+  UnionMember S p ->
   \exists { q : Rat \where Logic.And[In (Union S) q, lt p q] } :=
-  sp (\exists { q : Rat \where Logic.And[In (Union S) q, lt p q] })
-    (\fun (x: Real) => \fun (sx: Member S x) => \fun (xp: mem x p) =>
-      \block {
-        \takefrom q: \Cast[Rat] ({ q : Rat \where Logic.And[mem x q, lt p q] }) \by #rounded{x} p xp \then
-        \return \exact(
-            \into[Rat](q, { q : Rat \where Logic.And[In (Union S) q, lt p q] }) \by { Logic.And[In (Union S) q, lt p q]::# (unionIntro S x sx q
-                  (#left{(\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))})) (#right{(\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))}) },
-            \Cast[Rat] ({ q : Rat \where Logic.And[In (Union S) q, lt p q] }))
-      });
+  \fun (sp: UnionMember S p) =>
+    sp (\exists { q : Rat \where Logic.And[In (Union S) q, lt p q] })
+      (\fun (x: Real) => \fun (sx: Member S x) => \fun (xp: mem x p) =>
+        \block {
+          \takefrom q: \Cast[Rat] ({ q : Rat \where Logic.And[mem x q, lt p q] }) \by #rounded{x} p xp \then
+          \return \exact(
+              \into[Rat](q, { q : Rat \where Logic.And[In (Union S) q, lt p q] }) \by { Logic.And[In (Union S) q, lt p q]::# (unionIntro S x sx q
+                    (#left{(\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))})) (#right{(\bysub(Rat, { q : Rat \where Logic.And[mem x q, lt p q] }, q))}) },
+              \Cast[Rat] ({ q : Rat \where Logic.And[In (Union S) q, lt p q] }))
+        });
 
-\definition unionLocated (S: \Pow Real) (p, q: Rat) (pq: lt p q):
+\definition unionLocated(S: \Pow Real) (p, q: Rat):
+  lt p q ->
   Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)] :=
-  either!{
-    {UnionMember S q} "or" {Logic.Not (UnionMember S q)} "either" {Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]}
-    "lt:" {\fun (sq: UnionMember S q) =>
-      Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::left (unionLower S p q pq sq)}
-    "rt:" {\fun (nq: Logic.Not (UnionMember S q)) =>
-      Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::right nq}
-  }
-    (Classical.excludedMiddle (UnionMember S q));
+  \fun (pq: lt p q) =>
+    either!{
+      {UnionMember S q} "or" {Logic.Not (UnionMember S q)} "either" {Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]}
+      "lt:" {\fun (sq: UnionMember S q) =>
+        Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::left (unionLower S p q pq sq)}
+      "rt:" {\fun (nq: Logic.Not (UnionMember S q)) =>
+        Logic.Or[In (Union S) p, Logic.Not (In (Union S) q)]::right nq}
+    }
+      (Classical.excludedMiddle (UnionMember S q));
 
-\definition unionRespects (S: \Pow Real) (p, q: Rat)
-  (pq: RationalFractions.FractionEq p q) (sp: UnionMember S p): UnionMember S q :=
-  sp (UnionMember S q)
-    (\fun (x: Real) => \fun (sx: Member S x) => \fun (xp: mem x p) =>
-      unionIntro S x sx q (#respects{x} p q pq xp));
+\definition unionRespects(S: \Pow Real) (p, q: Rat):
+  RationalFractions.FractionEq p q -> UnionMember S p ->
+  UnionMember S q :=
+  \fun (pq: RationalFractions.FractionEq p q) (sp: UnionMember S p) =>
+    sp (UnionMember S q)
+      (\fun (x: Real) => \fun (sx: Member S x) => \fun (xp: mem x p) =>
+        unionIntro S x sx q (#respects{x} p q pq xp));
 
-\definition unionCut (S: \Pow Real) (nonempty: Nonempty S) (bounded: Bounded S):
+\definition unionCut(S: \Pow Real):
+  Nonempty S -> Bounded S ->
   IsCut[Union S] :=
-  IsCut[Union S] {
-    inhabited := unionInhabited S nonempty,
-    proper := unionProper S bounded,
-    lower := unionLower S,
-    rounded := unionRounded S,
-    located := unionLocated S,
-    respects := unionRespects S,
-  };
+  \fun (nonempty: _) (bounded: _) =>
+    IsCut[Union S] {
+      inhabited := unionInhabited S nonempty,
+      proper := unionProper S bounded,
+      lower := unionLower S,
+      rounded := unionRounded S,
+      located := unionLocated S,
+      respects := unionRespects S,
+    };
 
 /* Proofs constrain the input through a refinement, rather than a Prop -> Set product. */
 \definition FamilySet: \Pow (\Pow Real) :=
   { S : \Pow Real \where Logic.And[Nonempty S, Bounded S] };
 \definition Family: \Set := \Cast[\Pow Real] FamilySet;
-\definition supremum (S: Family): Real :=
+\definition supremum(S: Family): Real :=
   \into[\Pow Rat](Union S, CutSet) \by { unionCut S #left{S} #right{S} };
-\definition supremumUpper (S: Family) (x: Real) (sx: Member S x)
-  (q: Rat) (xq: mem x q): mem (supremum S) q :=
-  \idelim Union S = underlying (supremum S)
-    \with T: \Pow Rat => \In[Rat] T q
-    \by { base: unionIntro S x sx q xq, equality: \refl(Union S) };
-\definition supremumLeast (S: Family)
-  (u: Real) (ub: UpperBound S u) (q: Rat) (sq: mem (supremum S) q): mem u q :=
-  (\idelim underlying (supremum S) = Union S
-    \with T: \Pow Rat => \In[Rat] T q
-    \by { base: sq, equality: \refl(Union S) })
-    (mem u q) (\fun (x: Real) => \fun (sx: Member S x) => ub x sx q);
-\definition supremumLaw (S: Family): LeastUpperBound S (supremum S) :=
+\definition supremumUpper(S: Family) (x: Real):
+  Member S x -> \forall (q: Rat) -> mem x q ->
+  mem (supremum S) q :=
+  \fun (sx: Member S x) (q: Rat) (xq: mem x q) =>
+    \idelim Union S = underlying (supremum S)
+      \with T: \Pow Rat => \In[Rat] T q
+      \by { base: unionIntro S x sx q xq, equality: \refl(Union S) };
+\definition supremumLeast(S: Family) (u: Real):
+  UpperBound S u -> \forall (q: Rat) -> mem (supremum S) q ->
+  mem u q :=
+  \fun (ub: UpperBound S u) (q: Rat) (sq: mem (supremum S) q) =>
+    (\idelim underlying (supremum S) = Union S
+      \with T: \Pow Rat => \In[Rat] T q
+      \by { base: sq, equality: \refl(Union S) })
+      (mem u q) (\fun (x: Real) => \fun (sx: Member S x) => ub x sx q);
+\definition supremumLaw(S: Family): LeastUpperBound S (supremum S) :=
   Logic.And[UpperBound S (supremum S),
     \forall (v: Real) -> UpperBound S v -> Le (supremum S) v]::# (supremumUpper S) (supremumLeast S);
-\definition complete (S: \Pow Real) (ne: Nonempty S) (bd: Bounded S):
+\definition complete(S: \Pow Real):
+  Nonempty S -> Bounded S ->
   \exists { u : Real \where LeastUpperBound S u } :=
   \block {
+    \fun (ne: Nonempty S) (bd: Bounded S) \then
     \let family: Family := \into[\Pow Real](S, FamilySet) \by { Logic.And[Nonempty S, Bounded S]::# ne bd } \then
     \return \exact(\into[Real](supremum family, { u : Real \where LeastUpperBound S u }) \by { supremumLaw family },
       \Cast[Real] ({ u : Real \where LeastUpperBound S u }))
   };
-\definition leastUpperBoundUnique (S: \Pow Real) (u, v: Real)
-  (hu: LeastUpperBound S u) (hv: LeastUpperBound S v): u = v :=
-  leAntisym u v
-    (#right{hu} v #left{hv})
-    (#right{hv} u #left{hu});
+\definition leastUpperBoundUnique(S: \Pow Real) (u, v: Real):
+  LeastUpperBound S u -> LeastUpperBound S v ->
+  u = v :=
+  \fun (hu: LeastUpperBound S u) (hv: LeastUpperBound S v) =>
+    leAntisym u v
+      (#right{hu} v #left{hv})
+      (#right{hv} u #left{hu});
 
-\definition LowerBound (S: \Pow Real) (l: Real): \Prop :=
+\definition LowerBound(S: \Pow Real) (l: Real): \Prop :=
   \forall (x: Real) -> Member S x -> Le l x;
 
-\definition BoundedBelow (S: \Pow Real): \Prop :=
+\definition BoundedBelow(S: \Pow Real): \Prop :=
   \exists { l : Real \where LowerBound S l };
 
-\definition GreatestLowerBound (S: \Pow Real) (l: Real): \Prop :=
+\definition GreatestLowerBound(S: \Pow Real) (l: Real): \Prop :=
   Logic.And[LowerBound S l,
     \forall (v: Real) -> LowerBound S v -> Le v l];
 
-\definition LowerBounds (S: \Pow Real): \Pow Real :=
+\definition LowerBounds(S: \Pow Real): \Pow Real :=
   { l : Real \where LowerBound S l };
 
-\definition lowerBoundsNonempty (S: \Pow Real) (bounded: BoundedBelow S):
-  Nonempty (LowerBounds S) := bounded;
+\definition lowerBoundsNonempty(S: \Pow Real):
+  BoundedBelow S ->
+  Nonempty (LowerBounds S) := \fun (bounded: _) =>
+    bounded;
 
-\definition lowerBoundsBounded (S: \Pow Real) (nonempty: Nonempty S):
+\definition lowerBoundsBounded(S: \Pow Real):
+  Nonempty S ->
   Bounded (LowerBounds S) :=
   \block {
+    \fun (nonempty: Nonempty S) \then
     \takefrom x: \Cast[Real] ({ x : Real \where Member S x }) \by nonempty \then
     \return \exact(
         \into[Real](x, { u : Real \where UpperBound (LowerBounds S) u }) \by { \fun (l: Real) => \fun (lower: Member (LowerBounds S) l) =>
@@ -156,45 +186,46 @@
 \definition InfimumDomain: \Set :=
   \Cast[\Pow Real] InfimumDomainSet;
 
-\definition lowerFamily (S: InfimumDomain): Family :=
+\definition lowerFamily(S: InfimumDomain): Family :=
   \into[\Pow Real](LowerBounds S, FamilySet) \by { Logic.And[Nonempty (LowerBounds S), Bounded (LowerBounds S)]::# (lowerBoundsNonempty S #right{S}) (lowerBoundsBounded S #left{S}) };
 
-\definition infimum (S: InfimumDomain): Real :=
+\definition infimum(S: InfimumDomain): Real :=
   supremum (lowerFamily S);
 
-\definition lowerFamilyMemberLower (S: InfimumDomain) (l: Real)
-  (member: Member (lowerFamily S) l): LowerBound S l :=
-  \idelim (lowerFamily S) = LowerBounds S
-    \with T: \Pow Real => Member T l
-    \by { base: member, equality: \refl(LowerBounds S) };
+\definition lowerFamilyMemberLower(S: InfimumDomain) (l: Real):
+  Member (lowerFamily S) l ->
+  LowerBound S l :=
+  \fun (member: Member (lowerFamily S) l) =>
+    \idelim (lowerFamily S) = LowerBounds S
+      \with T: \Pow Real => Member T l
+      \by { base: member, equality: \refl(LowerBounds S) };
 
-\definition infimumLower (S: InfimumDomain):
-  LowerBound S (infimum S) :=
-  \fun (x: Real) => \fun (sx: Member S x) =>
-    \fun (q: Rat) => \fun (iq: mem (infimum S) q) =>
+\definition infimumLower(S: InfimumDomain): LowerBound S (infimum S) :=
+  \fun (x: Real) (sx: Member S x) (q: Rat) (iq: mem (infimum S) q) =>
       supremumLeast (lowerFamily S) x
         (\fun (l: Real) => \fun (lower: Member (lowerFamily S) l) =>
           \fun (r: Rat) => \fun (lr: mem l r) =>
             (lowerFamilyMemberLower S l lower) x sx r lr) q iq;
 
-\definition infimumGreatest (S: InfimumDomain)
-  (l: Real) (lower: LowerBound S l): Le l (infimum S) :=
-  \fun (q: Rat) => \fun (lq: mem l q) =>
-    supremumUpper (lowerFamily S) l
-      (\idelim LowerBounds S = (lowerFamily S)
-        \with T: \Pow Real => Member T l
-        \by { base: lower, equality: \refl(LowerBounds S) }) q lq;
+\definition infimumGreatest(S: InfimumDomain) (l: Real):
+  LowerBound S l ->
+  Le l (infimum S) :=
+  \fun (lower: LowerBound S l) (q: Rat) (lq: mem l q) =>
+      supremumUpper (lowerFamily S) l
+        (\idelim LowerBounds S = (lowerFamily S)
+          \with T: \Pow Real => Member T l
+          \by { base: lower, equality: \refl(LowerBounds S) }) q lq;
 
-\definition infimumLaw (S: InfimumDomain):
-  GreatestLowerBound S (infimum S) :=
+\definition infimumLaw(S: InfimumDomain): GreatestLowerBound S (infimum S) :=
   Logic.And[LowerBound S (infimum S),
     \forall (v: Real) -> LowerBound S v ->
       Le v (infimum S)]::# (infimumLower S) (infimumGreatest S);
 
-\definition completeBelow (S: \Pow Real)
-  (nonempty: Nonempty S) (bounded: BoundedBelow S):
+\definition completeBelow(S: \Pow Real):
+  Nonempty S -> BoundedBelow S ->
   \exists { l : Real \where GreatestLowerBound S l } :=
   \block {
+    \fun (nonempty: Nonempty S) (bounded: BoundedBelow S) \then
     \let domain: InfimumDomain :=
       \into[\Pow Real](S, InfimumDomainSet) \by { Logic.And[Nonempty S, BoundedBelow S]::# nonempty bounded } \then
     \return \exact(
@@ -202,8 +233,10 @@
       \Cast[Real] ({ l : Real \where GreatestLowerBound S l }))
   };
 
-\definition greatestLowerBoundUnique (S: \Pow Real) (l, m: Real)
-  (hl: GreatestLowerBound S l) (hm: GreatestLowerBound S m): l = m :=
-  leAntisym l m
-    (#right{hm} l #left{hl})
-    (#right{hl} m #left{hm});
+\definition greatestLowerBoundUnique(S: \Pow Real) (l, m: Real):
+  GreatestLowerBound S l -> GreatestLowerBound S m ->
+  l = m :=
+  \fun (hl: GreatestLowerBound S l) (hm: GreatestLowerBound S m) =>
+    leAntisym l m
+      (#right{hm} l #left{hl})
+      (#right{hl} m #left{hm});

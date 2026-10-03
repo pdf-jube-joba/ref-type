@@ -1,31 +1,36 @@
 \import \parent.Def[] \as Def;
 
 /* Elimination out of the quotient only uses unique-value take. */
-\definition mathInduction (P: Grothendieck -> \Prop)
-  (step: \forall (x: Difference) -> P (class x)) (C: Grothendieck): P C :=
+\definition mathInduction(P: Grothendieck -> \Prop):
+  (\forall (x: Difference) -> P (class x)) -> \forall (C: Grothendieck) ->
+  P C :=
+    \fun (step: \forall (x: Difference) -> P (class x)) (C: Grothendieck) =>
     \take (x: \Cast[Difference] (Representatives C)) =>
-      \block {
-        \let chosenClass: class x = C :=
-          sym!{\Pow Difference} _ _ (\bysub(Difference, Representatives C, x)) \then
-        \let transported:
-          \forall (hd: IsClass C) ->
-            P (\into[\Pow Difference](C, ClassSet) \by { hd }) :=
-          \idelim class x = C \with D: \Pow Difference =>
-            \forall (hd: IsClass D) ->
-              P (\into[\Pow Difference](D, ClassSet) \by { hd })
-            \by { base: \fun (hd: IsClass (class x)) => step x,
-              equality: chosenClass } \then
-        \return transported (classProperty C)
-      }
-    \by { representativesExist C };
-\definition addMathCongLeft (x, y, z: Grothendieck) (e: x = y): addMath x z = addMath y z :=
+        \block {
+          \let chosenClass: class x = C :=
+            sym!{\Pow Difference} _ _ (\bysub(Difference, Representatives C, x)) \then
+          \let transported:
+            \forall (hd: IsClass C) ->
+              P (\into[\Pow Difference](C, ClassSet) \by { hd }) :=
+            \idelim class x = C \with D: \Pow Difference =>
+              \forall (hd: IsClass D) ->
+                P (\into[\Pow Difference](D, ClassSet) \by { hd })
+              \by { base: \fun (hd: IsClass (class x)) => step x,
+                equality: chosenClass } \then
+          \return transported (classProperty C)
+        }
+      \by { representativesExist C };
+\definition addMathCongLeft(x, y, z: Grothendieck):
+  x = y ->
+  addMath x z = addMath y z :=
+    \fun (e: x = y) =>
     (\idelim x = y \with C: \Pow Difference =>
-      \forall (hc: IsClass C) -> addMath x z = addMath (\into[\Pow Difference](C, ClassSet) \by { hc }) z
-      \by { base: (\fun (hc: IsClass x) => \refl(addMath x z)), equality: e }) (classProperty y);
-\definition addRepComm (x, y: Difference): Equivalent (addRep x y) (addRep y x) := equivalentOfFields (addRep x y) (addRep y x)
+        \forall (hc: IsClass C) -> addMath x z = addMath (\into[\Pow Difference](C, ClassSet) \by { hc }) z
+        \by { base: (\fun (hc: IsClass x) => \refl(addMath x z)), equality: e }) (classProperty y);
+\definition addRepComm(x, y: Difference): Equivalent (addRep x y) (addRep y x) := equivalentOfFields (addRep x y) (addRep y x)
     (NL.addComm (pos x) (pos y)) (NL.addComm (negPart x) (negPart y));
-\definition addRepAssoc (x, y, z: Difference): Equivalent (addRep (addRep x y) z) (addRep x (addRep y z))
-    := equivalentOfFields (addRep (addRep x y) z) (addRep x (addRep y z))
+\definition addRepAssoc(x, y, z: Difference):
+  Equivalent (addRep (addRep x y) z) (addRep x (addRep y z)) := equivalentOfFields (addRep (addRep x y) z) (addRep x (addRep y z))
     (NL.addAssoc (pos x) (pos y) (pos z)) (NL.addAssoc (negPart x) (negPart y) (negPart z));
 \definition addMathZeroLeft: \forall (x: Grothendieck) -> addMath Def.zeroMath x = x :=
   mathInduction (\fun (x: Grothendieck) => addMath Def.zeroMath x = x)
@@ -51,8 +56,9 @@
             "by" { mulMathClass x y }
             "by" { classOfEq (mulRep x y) (mulRep y x) (mulRepComm x y) }
             "by" { sym!{\Pow Difference} _ _ (mulMathClass y x) }}));
-\definition addMathZeroRight (x: Grothendieck): addMath x Def.zeroMath = x := trans!{\Pow Difference} _ _ _ (addMathComm x Def.zeroMath) (addMathZeroLeft x);
-\definition addMathAssoc: \forall (x, y, z: Grothendieck) -> addMath (addMath x y) z = addMath x (addMath y z) :=
+\definition addMathZeroRight(x: Grothendieck): addMath x Def.zeroMath = x := trans!{\Pow Difference} _ _ _ (addMathComm x Def.zeroMath) (addMathZeroLeft x);
+\definition addMathAssoc:
+  \forall (x, y, z: Grothendieck) -> addMath (addMath x y) z = addMath x (addMath y z) :=
   mathInduction (\fun (x: Grothendieck) => \forall (y, z: Grothendieck) -> addMath (addMath x y) z = addMath x (addMath y
     z))
     (\fun (x: Difference) =>
@@ -78,34 +84,36 @@
       "by" { classOfEq (addRep (negRep x) x) (pair natZero!{} natZero!{})
         (trans!{Nat} _ _ _ (NL.addComm (negPart x) (pos x))
           (sym!{Nat} _ _ (NL.addZeroLeft (NatOp.Add::[set] (pos x) (negPart x))))) }});
-\definition toMathInjective (x, y: Int^) (e: toMath x = toMath y): x = y :=
+\definition toMathInjective(x, y: Int^):
+  toMath x = toMath y ->
+  x = y :=
+    \fun (e: toMath x = toMath y) =>
     trans!{Int^} x (fromMath (toMath x)) y (sym!{Int^} _ _ (fromTo x))
-      ((\idelim toMath y = toMath x \with C: \Pow Difference =>
-        \forall (hc: IsClass C) -> fromMath (\into[\Pow Difference](C, ClassSet) \by { hc }) = y
-        \by { base: (\fun (hc: IsClass (toMath y)) => fromTo y), equality: sym!{\Pow Difference} (toMath x) (toMath y) e })
-        (classProperty (toMath x)));
-\definition addComm (x, y: Int^): Add::[set] x y = Add::[set] y x := toMathInjective (Add::[set] x y) (Add::[set] y x)
+        ((\idelim toMath y = toMath x \with C: \Pow Difference =>
+          \forall (hc: IsClass C) -> fromMath (\into[\Pow Difference](C, ClassSet) \by { hc }) = y
+          \by { base: (\fun (hc: IsClass (toMath y)) => fromTo y), equality: sym!{\Pow Difference} (toMath x) (toMath y) e })
+          (classProperty (toMath x)));
+\definition addComm(x, y: Int^): Add::[set] x y = Add::[set] y x := toMathInjective (Add::[set] x y) (Add::[set] y x)
     (equiv_reason!{trans!{\Pow Difference}
       "by" { addSetMatchesMath x y }
       "by" { addMathComm (toMath x) (toMath y) }
       "by" { sym!{\Pow Difference} _ _ (addSetMatchesMath y x) }});
-\definition mulComm (x, y: Int^): Mul::[set] x y = Mul::[set] y x := toMathInjective (Mul::[set] x y) (Mul::[set] y x)
+\definition mulComm(x, y: Int^): Mul::[set] x y = Mul::[set] y x := toMathInjective (Mul::[set] x y) (Mul::[set] y x)
     (equiv_reason!{trans!{\Pow Difference}
       "by" { mulSetMatchesMath x y }
       "by" { mulMathComm (toMath x) (toMath y) }
       "by" { sym!{\Pow Difference} _ _ (mulSetMatchesMath y x) }});
-\definition addZeroLeft (x: Int^): Add::[set] Zero::[set] x = x := toMathInjective (Add::[set] Zero::[set] x) x
+\definition addZeroLeft(x: Int^): Add::[set] Zero::[set] x = x := toMathInjective (Add::[set] Zero::[set] x) x
     (trans!{\Pow Difference} _ _ _ (addSetMatchesMath Zero::[set] x) (addMathZeroLeft (toMath x)));
-\definition addZeroRight (x: Int^): Add::[set] x Zero::[set] = x := trans!{Int^} _ _ _ (addComm x Zero::[set]) (addZeroLeft x);
-\definition negInverse (x: Int^): Add::[set] (Neg::[set] x) x = Zero::[set] := toMathInjective (Add::[set] (Neg::[set] x) x) Zero::[set]
+\definition addZeroRight(x: Int^): Add::[set] x Zero::[set] = x := trans!{Int^} _ _ _ (addComm x Zero::[set]) (addZeroLeft x);
+\definition negInverse(x: Int^): Add::[set] (Neg::[set] x) x = Zero::[set] := toMathInjective (Add::[set] (Neg::[set] x) x) Zero::[set]
     (equiv_reason!{trans!{\Pow Difference}
       "by" { addSetMatchesMath (Neg::[set] x) x }
       "by" { addMathCongLeft (toMath (Neg::[set] x)) (negMath (toMath x)) (toMath x) (negSetMatchesMath
         x) }
       "by" { negMathInverse (toMath x) }});
 
-\definition addAssoc (x, y, z: Int^):
-  Add::[set] (Add::[set] x y) z = Add::[set] x (Add::[set] y z) :=
+\definition addAssoc(x, y, z: Int^): Add::[set] (Add::[set] x y) z = Add::[set] x (Add::[set] y z) :=
     toMathInjective (Add::[set] (Add::[set] x y) z) (Add::[set] x (Add::[set] y z))
       (equiv_reason!{trans!{\Pow Difference}
         "by" { addSetMatchesMath (Add::[set] x y) z }
@@ -123,6 +131,5 @@
         "by" { sym!{\Pow Difference} _ _
           (addSetMatchesMath x (Add::[set] y z)) }});
 
-\definition negInverseRight (x: Int^):
-  Add::[set] x (Neg::[set] x) = Zero::[set] :=
+\definition negInverseRight(x: Int^): Add::[set] x (Neg::[set] x) = Zero::[set] :=
     trans!{Int^} _ _ _ (addComm x (Neg::[set] x)) (negInverse x);

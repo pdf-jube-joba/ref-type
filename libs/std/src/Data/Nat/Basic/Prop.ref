@@ -6,6 +6,7 @@
 \use Equality.congr2;
 
 \import std.Data[].Bool[] \as B;
+\import B.Prop[] \as BoolLaws;
 
 \import std.Data[].Nat[].Basic[].Def[] \as Op;
 \use Op.nat_add;
@@ -14,11 +15,14 @@
 /* Arithmetic laws on the Set specifications. */
 \import std.Logic[].Rel[] \as Rel;
 \import std.Logic[].Algebra[].Def[] \as Law;
-\definition succInjective (a, b: Nat^) (e: Nat^::succ a = Nat^::succ b): a = b := congr!{Nat^ Nat^} Op.Pred::[set] (Nat^::succ a) (Nat^::succ b) e;
+\definition succInjective(a, b: Nat^):
+  Nat^::succ a = Nat^::succ b ->
+  a = b := congr!{Nat^ Nat^} Op.Pred::[set] (Nat^::succ a) (Nat^::succ b);
 \definition predZero: Op.Pred::[set] Nat^::zero = Nat^::zero := \refl(Nat^::zero);
-\definition predSucc (n: Nat^): Op.Pred::[set] (Nat^::succ n) = n := \refl(n);
-\definition addZeroRight (a: Nat^): \(a "+" { Nat^::zero }\) = a := \refl(a);
-\definition addSuccLeft: \forall (a, b: Nat^) ->
+\definition predSucc(n: Nat^): Op.Pred::[set] (Nat^::succ n) = n := \refl(n);
+\definition addZeroRight(a: Nat^): \(a "+" { Nat^::zero }\) = a := \refl(a);
+\definition addSuccLeft:
+  \forall (a, b: Nat^) ->
   \({ Nat^::succ a } "+" b\) = Nat^::succ \(a "+" b\) :=
   \fun (a, b: Nat^) =>
     (\induction (b: Nat^) \return \forall (a: Nat^) ->
@@ -26,14 +30,14 @@
       | zero: \fun (a: Nat^) => \refl(Nat^::succ a)
       | succ: \fun (b: Nat^) (ih: _) (a: Nat^) => Op.succCong _ _ (ih a)
     }) b a;
-\definition addSuccRight (a, b: Nat^): \(a "+" { Nat^::succ b }\) = Nat^::succ \(a "+" b\) := \refl(Nat^::succ \(a "+" b\));
+\definition addSuccRight(a, b: Nat^): \(a "+" { Nat^::succ b }\) = Nat^::succ \(a "+" b\) := \refl(Nat^::succ \(a "+" b\));
 \definition addZeroLeft: \forall (a: Nat^) -> \({ Nat^::zero } "+" a\) = a :=
   \induction (a: Nat^) \return \({ Nat^::zero } "+" a\) = a \with {
     | zero : (\refl(Nat^::zero))
     | succ : (\fun (a: Nat^) => \fun (ih: \({ Nat^::zero } "+" a\) = a) =>
       trans!{Nat^} _ _ _ (addSuccRight Nat^::zero a) (Op.succCong \({ Nat^::zero } "+" a\) a ih))
     };
-\definition addComm (a: Nat^): \forall (b: Nat^) -> \(a "+" b\) = \(b "+" a\) :=
+\definition addComm(a: Nat^): \forall (b: Nat^) -> \(a "+" b\) = \(b "+" a\) :=
   \induction (b: Nat^) \return \(a "+" b\) = \(b "+" a\) \with {
     | zero : sym!{Nat^} _ _ (addZeroLeft a)
     | succ : \fun (b: Nat^) (ih: \(a "+" b\) = \(b "+" a\)) => eq_reason!{
@@ -43,7 +47,8 @@
         "=" \({ Nat^::succ b } "+" a\) "by" { sym!{Nat^} _ _ (addSuccLeft b a) }
       }
   };
-\definition addAssoc (a, b: Nat^): \forall (c: Nat^) ->
+\definition addAssoc(a, b: Nat^):
+  \forall (c: Nat^) ->
   \((a "+" b) "+" c\) = \(a "+" (b "+" c)\) :=
   \induction (c: Nat^) \return \((a "+" b) "+" c\) = \(a "+" (b "+" c)\) \with {
     | zero : \refl(\(a "+" b\))
@@ -68,19 +73,19 @@
             (trans!{Nat^} _ _ _ e (addSuccRight b c)))))
     };
 \definition addCancelLeft: \forall (c, a, b: Nat^) -> \(c "+" a\) = \(c "+" b\) -> a = b :=
-  \fun (c, a, b: Nat^) (e: \(c "+" a\) = \(c "+" b\)) =>
+  \fun (c, a, b: _) (e: _) =>
     addCancelRight c a b eq_reason!{
       \(a "+" c\) "=" \(c "+" a\) "by" { addComm a c }
       "=" \(c "+" b\) "by" e
       "=" \(b "+" c\) "by" { addComm c b }
     };
-\definition subZeroRight (a: Nat^): Op.Sub::[set] a Nat^::zero = a := \refl(a);
+\definition subZeroRight(a: Nat^): Op.Sub::[set] a Nat^::zero = a := \refl(a);
 \definition subZeroLeft: \forall (a: Nat^) -> Op.Sub::[set] Nat^::zero a = Nat^::zero :=
   \induction (a: Nat^) \return Op.Sub::[set] Nat^::zero a = Nat^::zero \with {
     | zero : (\refl(Nat^::zero))
     | succ : (\fun (a: Nat^) => \fun (ih: Op.Sub::[set] Nat^::zero a = Nat^::zero) => \refl(Nat^::zero))
     };
-\definition subSuccSucc (a, b: Nat^): Op.Sub::[set] (Nat^::succ a) (Nat^::succ b) = Op.Sub::[set] a b := \refl(Op.Sub::[set] a b);
+\definition subSuccSucc(a, b: Nat^): Op.Sub::[set] (Nat^::succ a) (Nat^::succ b) = Op.Sub::[set] a b := \refl(Op.Sub::[set] a b);
 \definition subSelf: \forall (a: Nat^) -> Op.Sub::[set] a a = Nat^::zero :=
   \induction (a: Nat^) \return Op.Sub::[set] a a = Nat^::zero \with {
     | zero : (\refl(Nat^::zero))
@@ -93,19 +98,25 @@
       trans!{Nat^} _ _ _
         (congr!{Nat^ Nat^} (\fun (x: Nat^) => Op.Sub::[set] x (Nat^::succ b)) _ _ (addSuccRight a b)) (ih a))
     };
-\definition mulZeroRight (a: Nat^): \(a "*" { Nat^::zero }\) = Nat^::zero := \refl(Nat^::zero);
-\definition mulSuccRight (a, b: Nat^): \(a "*" { Nat^::succ b }\) = \(a "+" (a "*" b)\) :=
+\definition mulZeroRight(a: Nat^): \(a "*" { Nat^::zero }\) = Nat^::zero := \refl(Nat^::zero);
+\definition mulSuccRight(a, b: Nat^): \(a "*" { Nat^::succ b }\) = \(a "+" (a "*" b)\) :=
   \refl(\(a "+" (a "*" b)\));
-\definition powZero (a: Nat^): Op.Pow::[set] a Nat^::zero = Nat^::succ Nat^::zero := \refl(Nat^::succ
+\definition powZero(a: Nat^): Op.Pow::[set] a Nat^::zero = Nat^::succ Nat^::zero := \refl(Nat^::succ
   Nat^::zero);
-\definition powSucc (a, b: Nat^): Op.Pow::[set] a (Nat^::succ b) = \(a "*" { Op.Pow::[set] a b }\) :=
+\definition powSucc(a, b: Nat^): Op.Pow::[set] a (Nat^::succ b) = \(a "*" { Op.Pow::[set] a b }\) :=
   \refl(\(a "*" { Op.Pow::[set] a b }\));
 
 /* Boolean decisions can be consumed directly as propositions. */
-\definition zeroNeSucc (n: Nat^) (e: Nat^::zero = Nat^::succ n): B.False := B.trueNeFalse
+\definition zeroNeSucc(n: Nat^):
+  Nat^::zero = Nat^::succ n ->
+  B.False := \fun (e: Nat^::zero = Nat^::succ n) =>
+    BoolLaws.trueNeFalse
     (\idelim Nat^::zero = Nat^::succ n \with x: Nat^ => Op.IsZero::[set] Nat^::zero = Op.IsZero::[set] x
       \by { base: \refl(B.Bool^::true), equality: e });
-\definition succNeZero (n: Nat^) (e: Nat^::succ n = Nat^::zero): B.False := zeroNeSucc n (sym!{Nat^} _ _ e);
+\definition succNeZero(n: Nat^):
+  Nat^::succ n = Nat^::zero ->
+  B.False := \fun (e: _) =>
+    zeroNeSucc n (sym!{Nat^} _ _ e);
 \definition eqbRefl: \forall (n: Nat^) -> Op.Eqb::[set] n n = B.Bool^::true :=
   \induction (n: Nat^) \return Op.Eqb::[set] n n = B.Bool^::true \with {
     | zero : (\refl(B.Bool^::true))
@@ -119,7 +130,7 @@
           \fun (a: Nat^) \then
           \fun (unused: Op.Eqb::[set] a Nat^::zero = B.Bool^::true -> a = Nat^::zero) \then
           \fun (e: B.Bool^::false = B.Bool^::true) \then
-          \return B.absurd (Nat^::succ a = Nat^::zero) e
+          \return BoolLaws.absurd (Nat^::succ a = Nat^::zero) e
         }
       })
     | succ : \block {
@@ -128,7 +139,7 @@
         \return \induction (a: Nat^) \return
           Op.Eqb::[set] a (Nat^::succ b) = B.Bool^::true -> a = Nat^::succ b \with {
           | zero : \fun (e: B.Bool^::false = B.Bool^::true) =>
-              B.absurd (Nat^::zero = Nat^::succ b) e
+              BoolLaws.absurd (Nat^::zero = Nat^::succ b) e
           | succ : \block {
               \fun (a: Nat^) \then
               \fun (unused: Op.Eqb::[set] a (Nat^::succ b) = B.Bool^::true -> a = Nat^::succ b) \then
@@ -138,10 +149,13 @@
           }
       }
     };
-\definition eqbTrueOfEq (a, b: Nat^) (e: a = b): Op.Eqb::[set] a b = B.Bool^::true :=
+\definition eqbTrueOfEq(a, b: Nat^):
+  a = b ->
+  Op.Eqb::[set] a b = B.Bool^::true :=
+    \fun (e: a = b) =>
     \idelim a = b \with x: Nat^ => Op.Eqb::[set] a x = B.Bool^::true \by { base: eqbRefl a, equality: e };
-\definition Le (a, b: Nat^): \Prop := Op.Leb::[set] a b = B.Bool^::true;
-\definition Lt (a, b: Nat^): \Prop := Op.Ltb::[set] a b = B.Bool^::true;
+\definition Le(a, b: Nat^): \Prop := Op.Leb::[set] a b = B.Bool^::true;
+\definition Lt(a, b: Nat^): \Prop := Op.Ltb::[set] a b = B.Bool^::true;
 \definition leRefl: Rel.Reflexive Nat^ Le :=
   \induction (n: Nat^) \return Le n n \with {
     | zero : (\refl(B.Bool^::true))
@@ -154,17 +168,26 @@
     };
 \definition ltIrrefl: Rel.Irreflexive Nat^ Lt :=
   \induction (n: Nat^) \return Lt n n -> B.False \with {
-    | zero : B.falseNeTrue
+    | zero : BoolLaws.falseNeTrue
     | succ : (\fun (n: Nat^) => \fun (ih: Lt n n -> B.False) => ih)
     };
-\definition leSuccSucc (a, b: Nat^) (e: Le a b): Le (Nat^::succ a) (Nat^::succ b) := e;
-\definition leOfSuccSucc (a, b: Nat^) (e: Le (Nat^::succ a) (Nat^::succ b)): Le a b := e;
-\definition ltSuccSucc (a, b: Nat^) (e: Lt a b): Lt (Nat^::succ a) (Nat^::succ b) := e;
+\definition leSuccSucc(a, b: Nat^):
+  Le a b ->
+  Le (Nat^::succ a) (Nat^::succ b) := \fun (e: _) =>
+    e;
+\definition leOfSuccSucc(a, b: Nat^):
+  Le (Nat^::succ a) (Nat^::succ b) ->
+  Le a b := \fun (e: _) =>
+    e;
+\definition ltSuccSucc(a, b: Nat^):
+  Lt a b ->
+  Lt (Nat^::succ a) (Nat^::succ b) := \fun (e: _) =>
+    e;
 \definition leZeroEq: \forall (a: Nat^) -> Le a Nat^::zero -> a = Nat^::zero :=
   \induction (a: Nat^) \return Le a Nat^::zero -> a = Nat^::zero \with {
     | zero : (\fun (e: Le Nat^::zero Nat^::zero) => \refl(Nat^::zero))
     | succ : (\fun (a: Nat^) => \fun (ih: Le a Nat^::zero -> a = Nat^::zero) => \fun (e: Le (Nat^::succ a) Nat^::zero) =>
-      B.absurd (Nat^::succ a = Nat^::zero) e)
+      BoolLaws.absurd (Nat^::succ a = Nat^::zero) e)
     };
 \definition leAntisym: Rel.Antisymmetric Nat^ Le :=
   \induction (a: Nat^) \return \forall (b: Nat^) -> Le a b -> Le b a -> a = b \with {
@@ -200,7 +223,7 @@
         \return \induction (b: Nat^) \return \forall (c: Nat^) ->
           Le (Nat^::succ a) b -> Le b c -> Le (Nat^::succ a) c \with {
           | zero : \fun (c: Nat^) (ab: Le (Nat^::succ a) Nat^::zero)
-              (bc: Le Nat^::zero c) => B.absurd (Le (Nat^::succ a) c) ab
+              (bc: Le Nat^::zero c) => BoolLaws.absurd (Le (Nat^::succ a) c) ab
           | succ : \block {
               \fun (b: Nat^) \then
               \fun (unused: \forall (c: Nat^) ->
@@ -210,7 +233,7 @@
                   Le (Nat^::succ a) c \with {
                 | zero : \fun (ab: Le (Nat^::succ a) (Nat^::succ b))
                     (bc: Le (Nat^::succ b) Nat^::zero) =>
-                    B.absurd (Le (Nat^::succ a) Nat^::zero) bc
+                    BoolLaws.absurd (Le (Nat^::succ a) Nat^::zero) bc
                 | succ : \block {
                     \fun (c: Nat^) \then
                     \fun (unusedC: Le (Nat^::succ a) (Nat^::succ b) ->
@@ -235,9 +258,10 @@
     "by" { congr!{Nat^ Nat^} (\fun (n: Nat^) => \(n "+" c\)) _ _ (addComm a b) }
     "=" \(b "+" (a "+" c)\) "by" { addAssoc b a c }
   };
-\definition addInterchange: \forall (a, b, c, d: Nat^) ->
+\definition addInterchange:
+  \forall (a, b, c, d: Nat^) ->
   \((a "+" b) "+" (c "+" d)\) = \((a "+" c) "+" (b "+" d)\) :=
-  \fun (a, b, c, d: Nat^) => eq_reason!{
+  \fun (a, b, c, d: _) => eq_reason!{
     \((a "+" b) "+" (c "+" d)\)
     "=" \(a "+" (b "+" (c "+" d))\) "by" { addAssoc a b \(c "+" d\) }
     "=" \(a "+" (c "+" (b "+" d))\)
@@ -260,7 +284,8 @@
             (trans!{Nat^} \({ Nat^::zero } "+" ({ Nat^::succ Nat^::zero } "*" a)\) \({ Nat^::succ Nat^::zero } "*" a\) a
               (addZeroLeft \({ Nat^::succ Nat^::zero } "*" a\)) ih))))
     };
-\definition mulDistribRight (a, b: Nat^): \forall (c: Nat^) ->
+\definition mulDistribRight(a, b: Nat^):
+  \forall (c: Nat^) ->
   \((a "+" b) "*" c\) = \((a "*" c) "+" (b "*" c)\) :=
   \induction (c: Nat^) \return \((a "+" b) "*" c\) = \((a "*" c) "+" (b "*" c)\) \with {
     | zero : \refl(Nat^::zero)
@@ -278,7 +303,7 @@
       }
   };
 \definition mulSuccLeft: \forall (a, b: Nat^) -> \({ Nat^::succ a } "*" b\) = \(b "+" (a "*" b)\) :=
-  \fun (a, b: Nat^) => eq_reason!{
+  \fun (a, b: _) => eq_reason!{
     \({ Nat^::succ a } "*" b\)
     "=" \((a "*" b) "+" ({ Nat^::succ Nat^::zero } "*" b)\)
     "by" { mulDistribRight a (Nat^::succ Nat^::zero) b }
@@ -286,7 +311,7 @@
     "by" { congr!{Nat^ Nat^} (Op.Add::[set] \(a "*" b\)) _ _ (mulOneLeft b) }
     "=" \(b "+" (a "*" b)\) "by" { addComm \(a "*" b\) b }
   };
-\definition mulComm (a: Nat^): \forall (b: Nat^) -> \(a "*" b\) = \(b "*" a\) :=
+\definition mulComm(a: Nat^): \forall (b: Nat^) -> \(a "*" b\) = \(b "*" a\) :=
   \induction (b: Nat^) \return \(a "*" b\) = \(b "*" a\) \with {
     | zero : sym!{Nat^} _ _ (mulZeroLeft a)
     | succ : \fun (b: Nat^) (ih: \(a "*" b\) = \(b "*" a\)) => eq_reason!{
@@ -296,22 +321,24 @@
         "=" \({ Nat^::succ b } "*" a\) "by" { sym!{Nat^} _ _ (mulSuccLeft b a) }
       }
   };
-\definition mulOneRight (a: Nat^): \(a "*" { Nat^::succ Nat^::zero }\) = a :=
+\definition mulOneRight(a: Nat^): \(a "*" { Nat^::succ Nat^::zero }\) = a :=
   eq_reason!{
     \(a "*" { Nat^::succ Nat^::zero }\)
     "=" \({ Nat^::succ Nat^::zero } "*" a\) "by" { mulComm a (Nat^::succ Nat^::zero) }
     "=" a "by" { mulOneLeft a }
   };
-\definition mulDistribLeft: \forall (a, b, c: Nat^) ->
+\definition mulDistribLeft:
+  \forall (a, b, c: Nat^) ->
   \(a "*" (b "+" c)\) = \((a "*" b) "+" (a "*" c)\) :=
-  \fun (a, b, c: Nat^) => eq_reason!{
+  \fun (a, b, c: _) => eq_reason!{
     \(a "*" (b "+" c)\)
     "=" \((b "+" c) "*" a\) "by" { mulComm a \(b "+" c\) }
     "=" \((b "*" a) "+" (c "*" a)\) "by" { mulDistribRight b c a }
     "=" \((a "*" b) "+" (a "*" c)\)
     "by" { congr2!{Nat^ Nat^ Nat^} Op.Add::[set] _ _ _ _ (mulComm b a) (mulComm c a) }
   };
-\definition mulAssoc (a, b: Nat^): \forall (c: Nat^) ->
+\definition mulAssoc(a, b: Nat^):
+  \forall (c: Nat^) ->
   \((a "*" b) "*" c\) = \(a "*" (b "*" c)\) :=
   \induction (c: Nat^) \return \((a "*" b) "*" c\) = \(a "*" (b "*" c)\) \with {
     | zero : \refl(Nat^::zero)
@@ -327,23 +354,30 @@
       }
   };
 
-\definition zeroEqSuccElim (n: Nat^) (P: \Prop) (e: Nat^::zero = Nat^::succ n): P :=
-    B.absurd P
+\definition zeroEqSuccElim(n: Nat^) (P: \Prop):
+  Nat^::zero = Nat^::succ n ->
+  P :=
+    \fun (e: _) =>
+    BoolLaws.absurd P
       (sym!{B.Bool^} B.Bool^::true B.Bool^::false
         (congr!{Nat^ B.Bool^} Op.IsZero::[set] Nat^::zero (Nat^::succ n) e));
 
-\definition succEqZeroElim (n: Nat^) (P: \Prop) (e: Nat^::succ n = Nat^::zero): P :=
-    B.absurd P
+\definition succEqZeroElim(n: Nat^) (P: \Prop):
+  Nat^::succ n = Nat^::zero ->
+  P :=
+    \fun (e: _) =>
+    BoolLaws.absurd P
       (congr!{Nat^ B.Bool^} Op.IsZero::[set] (Nat^::succ n) Nat^::zero e);
 
-\definition mulSuccSucc (a, k: Nat^):
+\definition mulSuccSucc(a, k: Nat^):
   \({ Nat^::succ a } "*" { Nat^::succ k }\) =
     Nat^::succ \(k "+" (a "*" { Nat^::succ k })\) :=
     trans!{Nat^} _ _ _ (mulSuccLeft a (Nat^::succ k))
       (addSuccLeft k \(a "*" { Nat^::succ k }\));
 
 /* Multiplication by a successor is injective. */
-\definition mulCancelRightSucc: \forall (k, a, b: Nat^) ->
+\definition mulCancelRightSucc:
+  \forall (k, a, b: Nat^) ->
   \(a "*" { Nat^::succ k }\) = \(b "*" { Nat^::succ k }\) -> a = b :=
 
   \fun (k: Nat^) =>
@@ -399,24 +433,24 @@
 
 /* General Law views of the arithmetic theorems above. */
 \definition addCommutative: Law.Commutative Nat^ Op.Add::[set] :=
-  \fun (a, b: Nat^) => addComm a b;
+  addComm;
 \definition addAssociative: Law.Associative Nat^ Op.Add::[set] :=
-  \fun (a, b, c: Nat^) => addAssoc a b c;
+  addAssoc;
 \definition mulCommutative: Law.Commutative Nat^ Op.Mul::[set] :=
-  \fun (a, b: Nat^) => mulComm a b;
+  mulComm;
 \definition mulAssociative: Law.Associative Nat^ Op.Mul::[set] :=
-  \fun (a, b, c: Nat^) => mulAssoc a b c;
+  mulAssoc;
 \definition mulLeftDistributive: Law.LeftDistributive Nat^ Op.Mul::[set] Op.Add::[set] :=
   mulDistribLeft;
 \definition mulRightDistributive: Law.RightDistributive Nat^ Op.Mul::[set] Op.Add::[set] :=
-  \fun (a, b, c: Nat^) => mulDistribRight a b c;
+  mulDistribRight;
 
 \definition leStep: \forall (b, a: Nat^) -> Le a b -> Le a (Nat^::succ b) :=
   \induction (b: Nat^) \return \forall (a: Nat^) -> Le a b -> Le a (Nat^::succ b) \with {
     | zero : (\induction (a: Nat^) \return Le a Nat^::zero -> Le a (Nat^::succ Nat^::zero) \with {
       | zero : (\fun (_: Le Nat^::zero Nat^::zero) => \refl(B.Bool^::true))
       | succ : (\fun (a: Nat^) => \fun (_: Le a Nat^::zero -> Le a (Nat^::succ Nat^::zero)) =>
-        \fun (bad: Le (Nat^::succ a) Nat^::zero) => B.absurd (Le (Nat^::succ a) (Nat^::succ Nat^::zero)) bad)
+        \fun (bad: Le (Nat^::succ a) Nat^::zero) => BoolLaws.absurd (Le (Nat^::succ a) (Nat^::succ Nat^::zero)) bad)
       })
     | succ : (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> Le a b -> Le a (Nat^::succ b)) =>
       \induction (a: Nat^) \return Le a (Nat^::succ b) -> Le a (Nat^::succ (Nat^::succ b)) \with {
@@ -425,7 +459,7 @@
           \fun (h: Le (Nat^::succ a) (Nat^::succ b)) => ih a h)
       })
     };
-\definition leAddRight (a: Nat^): \forall (b: Nat^) -> Le a \(a "+" b\) :=
+\definition leAddRight(a: Nat^): \forall (b: Nat^) -> Le a \(a "+" b\) :=
   \induction (b: Nat^) \return Le a \(a "+" b\) \with {
     | zero : (leRefl a)
     | succ : (\fun (b: Nat^) => \fun (ih: Le a \(a "+" b\)) =>
@@ -433,7 +467,7 @@
         \with c: Nat^ => Le a c
         \by { base: leStep \(a "+" b\) a ih, equality: sym!{Nat^} _ _ (addSuccRight a b) })
     };
-\definition leAddLeft (a, b: Nat^): Le b \(a "+" b\) :=
+\definition leAddLeft(a, b: Nat^): Le b \(a "+" b\) :=
   \idelim \(b "+" a\) = \(a "+" b\) \with c: Nat^ => Le b c
     \by { base: leAddRight b a, equality: addComm b a };
 

@@ -6,6 +6,7 @@
 \use Equality.transport;
 
 \import std.Data[].Bool[] \as B;
+\import B.Prop[] \as BoolLaws;
 \import std.Data[].Pair[] \as P;
 
 \import std.Data[].Nat[].Basic[].Def[] \as Op;
@@ -18,12 +19,13 @@
 
 \import std.Data[].Nat[].Iteration[].Prop[A := NatPairDef.NatPair] \as PairIterationProp;
 
-\definition leSuccOfEqbFalse: \forall (d, r: Nat^) -> Basic.Le r d -> Op.Eqb::[set] r d = B.Bool^::false -> Basic.Le (Nat^::succ r) d :=
+\definition leSuccOfEqbFalse:
+  \forall (d, r: Nat^) -> Basic.Le r d -> Op.Eqb::[set] r d = B.Bool^::false -> Basic.Le (Nat^::succ r) d :=
   \induction (d: Nat^) \return \forall (r: Nat^) -> Basic.Le r d -> Op.Eqb::[set] r d = B.Bool^::false -> Basic.Le (Nat^::succ r) d \with {
     | zero : (\induction (r: Nat^) \return Basic.Le r Nat^::zero -> Op.Eqb::[set] r Nat^::zero = B.Bool^::false -> Basic.Le (Nat^::succ r) Nat^::zero \with {
       | zero : \fun (h: Basic.Le Nat^::zero Nat^::zero)
         (e: B.Bool^::true = B.Bool^::false) =>
-        B.absurd (Basic.Le (Nat^::succ Nat^::zero) Nat^::zero)
+        BoolLaws.absurd (Basic.Le (Nat^::succ Nat^::zero) Nat^::zero)
           (\idelim B.Bool^::true = B.Bool^::false \with t: B.Bool^ => t = B.Bool^::true
             \by { base: \refl(B.Bool^::true), equality: e })
       | succ : \block {
@@ -32,7 +34,7 @@
             Basic.Le (Nat^::succ r) Nat^::zero) \then
           \fun (h: Basic.Le (Nat^::succ r) Nat^::zero) \then
           \fun (e: Op.Eqb::[set] (Nat^::succ r) Nat^::zero = B.Bool^::false) \then
-          \return B.absurd (Basic.Le (Nat^::succ (Nat^::succ r)) Nat^::zero) h
+          \return BoolLaws.absurd (Basic.Le (Nat^::succ (Nat^::succ r)) Nat^::zero) h
         }
       })
     | succ : \block {
@@ -56,7 +58,8 @@
           }
       }
     };
-\definition divModNextBound: \forall (d: Nat^) -> \forall (p: NatPairDef.NatPair) -> Basic.Le (P.Times[Nat, Nat]::second^ p) d ->
+\definition divModNextBound:
+  \forall (d: Nat^) -> \forall (p: NatPairDef.NatPair) -> Basic.Le (P.Times[Nat, Nat]::second^ p) d ->
   Basic.Le (P.Times[Nat, Nat]::second^ (NatDivisionDef.DivModNext::[set] (Nat^::succ d) p)) d :=
   \fun (d: Nat^) => NatPairDef.natPairElim
     (\fun (p: NatPairDef.NatPair) => Basic.Le (P.Times[Nat, Nat]::second^ p) d -> Basic.Le (P.Times[Nat, Nat]::second^ (NatDivisionDef.DivModNext::[set] (Nat^::succ d) p)) d)
@@ -66,13 +69,14 @@
         | false : (\fun (e: Op.Eqb::[set] r d = B.Bool^::false) => leSuccOfEqbFalse d r h e)
         | true : (\fun (e: Op.Eqb::[set] r d = B.Bool^::true) => Basic.zeroLe d)
         }) (\refl(Op.Eqb::[set] r d)));
-\definition modBound (a, d: Nat^): Basic.Le (NatDivisionDef.Mod::[set] a (Nat^::succ d)) d := PairIterationProp.preserves (NatDivisionDef.DivModNext::[set] (Nat^::succ d))
+\definition modBound(a, d: Nat^): Basic.Le (NatDivisionDef.Mod::[set] a (Nat^::succ d)) d := PairIterationProp.preserves (NatDivisionDef.DivModNext::[set] (Nat^::succ d))
     (\fun (p: NatPairDef.NatPair) => Basic.Le (P.Times[Nat, Nat]::second^ p) d) (divModNextBound d) a
     (NatPairDef.natPair Nat^::zero Nat^::zero) (Basic.zeroLe d);
 
 /* Reconstruction holds even at divisor zero. */
-\definition divModValue (b: Nat^) (p: NatPairDef.NatPair): Nat^ := \((b "*" { P.Times[Nat, Nat]::first^ p }) "+" { P.Times[Nat, Nat]::second^ p }\);
-\definition divisionCarryValue: \forall (d, q: Nat^) ->
+\definition divModValue(b: Nat^) (p: NatPairDef.NatPair): Nat^ := \((b "*" { P.Times[Nat, Nat]::first^ p }) "+" { P.Times[Nat, Nat]::second^ p }\);
+\definition divisionCarryValue:
+  \forall (d, q: Nat^) ->
   divModValue (Nat^::succ d) (NatPairDef.natPair (Nat^::succ q) Nat^::zero) =
     Nat^::succ (divModValue (Nat^::succ d) (NatPairDef.natPair q d)) :=
   \block {
@@ -89,7 +93,8 @@
       (trans!{Nat^} _ _ _ exposeSuccessor
         (Op.succCong _ _ (Basic.addComm d \({ Nat^::succ d } "*" q\))))
   };
-\definition divModNextValue: \forall (b: Nat^) -> \forall (p: NatPairDef.NatPair) ->
+\definition divModNextValue:
+  \forall (b: Nat^) -> \forall (p: NatPairDef.NatPair) ->
   divModValue b (NatDivisionDef.DivModNext::[set] b p) = Nat^::succ (divModValue b p) :=
   \fun (b: Nat^) => NatPairDef.natPairElim
     (\fun (p: NatPairDef.NatPair) => divModValue b (NatDivisionDef.DivModNext::[set] b p) = Nat^::succ (divModValue b p))
@@ -106,7 +111,8 @@
               \by { base: divisionCarryValue d q, equality: sym!{Nat^} r d (Basic.eqOfEqbTrue d r e) })
         }) (\refl(Op.Eqb::[set] r d)))
       } b);
-\definition divModReconstructs: \forall (a, b: Nat^) -> divModValue b (NatDivisionDef.DivMod::[set] a b) = a :=
+\definition divModReconstructs:
+  \forall (a, b: Nat^) -> divModValue b (NatDivisionDef.DivMod::[set] a b) = a :=
   \induction (a: Nat^) \return \forall (b: Nat^) -> divModValue b (NatDivisionDef.DivMod::[set] a b) = a \with {
     | zero : (\fun (b: Nat^) => \refl(Nat^::zero))
     | succ : (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> divModValue b (NatDivisionDef.DivMod::[set] a b) = a) => \fun (b: Nat^) =>
@@ -114,46 +120,57 @@
     };
 
 /* Zero conventions and division of zero are universal equations. */
-\definition divModZeroDivisor: \forall (a: Nat^) -> NatDivisionDef.DivMod::[set] a Nat^::zero = NatPairDef.natPair Nat^::zero a :=
+\definition divModZeroDivisor:
+  \forall (a: Nat^) -> NatDivisionDef.DivMod::[set] a Nat^::zero = NatPairDef.natPair Nat^::zero a :=
   \induction (a: Nat^) \return NatDivisionDef.DivMod::[set] a Nat^::zero = NatPairDef.natPair Nat^::zero a \with {
     | zero : (\refl(NatPairDef.natPair Nat^::zero Nat^::zero))
     | succ : (\fun (a: Nat^) => \fun (ih: NatDivisionDef.DivMod::[set] a Nat^::zero = NatPairDef.natPair Nat^::zero a) =>
       congr!{NatPairDef.NatPair NatPairDef.NatPair} (NatDivisionDef.DivModNext::[set] Nat^::zero) (NatDivisionDef.DivMod::[set] a Nat^::zero) (NatPairDef.natPair Nat^::zero a) ih)
     };
-\definition divZeroRight (a: Nat^): NatDivisionDef.Div::[set] a Nat^::zero = Nat^::zero :=
+\definition divZeroRight(a: Nat^): NatDivisionDef.Div::[set] a Nat^::zero = Nat^::zero :=
   congr!{NatPairDef.NatPair Nat^} P.Times[Nat, Nat]::first^ _ _ (divModZeroDivisor a);
-\definition modZeroRight (a: Nat^): NatDivisionDef.Mod::[set] a Nat^::zero = a :=
+\definition modZeroRight(a: Nat^): NatDivisionDef.Mod::[set] a Nat^::zero = a :=
   congr!{NatPairDef.NatPair Nat^} P.Times[Nat, Nat]::second^ _ _ (divModZeroDivisor a);
-\definition divZeroLeft (b: Nat^): NatDivisionDef.Div::[set] Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
-\definition modZeroLeft (b: Nat^): NatDivisionDef.Mod::[set] Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
+\definition divZeroLeft(b: Nat^): NatDivisionDef.Div::[set] Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
+\definition modZeroLeft(b: Nat^): NatDivisionDef.Mod::[set] Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
 /* Divisibility is constructive: a proof supplies a natural-number factor to
  * any propositional consumer (the usual existential encoding). */
-\definition Divides (d, a: Nat^): \Prop := \forall (P: \Prop) -> (\forall (q: Nat^) -> a = \(d "*" q\) -> P) -> P;
-\definition dividesIntro (d, a, q: Nat^) (e: a = \(d "*" q\)): Divides d a := \fun (P: \Prop) =>
-    \fun (use: \forall (q: Nat^) -> a = \(d "*" q\) -> P) => use q e;
-\definition dividesZero (d: Nat^): Divides d Nat^::zero := dividesIntro d Nat^::zero Nat^::zero (\refl(Nat^::zero));
-\definition dividesSelf (d: Nat^): Divides d d := dividesIntro d d (Nat^::succ Nat^::zero) (sym!{Nat^} _ _ (Basic.mulOneRight d));
-\definition dividesTransport (d: Nat^): \forall (a, b: Nat^) -> a = b -> Divides d a -> Divides d b :=
+\definition Divides(d, a: Nat^): \Prop := \forall (P: \Prop) -> (\forall (q: Nat^) -> a = \(d "*" q\) -> P) -> P;
+\definition dividesIntro(d, a, q: Nat^):
+  a = \(d "*" q\) ->
+  Divides d a := \fun (e: a = \(d "*" q\)) (P: \Prop) (use: \forall (q: Nat^) -> a = \(d "*" q\) -> P) => use q e;
+\definition dividesZero(d: Nat^): Divides d Nat^::zero := dividesIntro d Nat^::zero Nat^::zero (\refl(Nat^::zero));
+\definition dividesSelf(d: Nat^): Divides d d := dividesIntro d d (Nat^::succ Nat^::zero) (sym!{Nat^} _ _ (Basic.mulOneRight d));
+\definition dividesTransport(d: Nat^): \forall (a, b: Nat^) -> a = b -> Divides d a -> Divides d b :=
   transport!{Nat^} (Divides d);
-\definition dividesAdd (d, a, b: Nat^) (ha: Divides d a) (hb: Divides d b): Divides d \(a "+" b\) :=
+\definition dividesAdd(d, a, b: Nat^):
+  Divides d a -> Divides d b ->
+  Divides d \(a "+" b\) :=
+    \fun (ha: Divides d a) (hb: Divides d b) =>
     ha (Divides d \(a "+" b\)) (\fun (x: Nat^) => \fun (ex: a = \(d "*" x\)) =>
-      hb (Divides d \(a "+" b\)) (\fun (y: Nat^) => \fun (ey: b = \(d "*" y\)) =>
-        dividesIntro d \(a "+" b\) \(x "+" y\)
-          (trans!{Nat^} _ _ _ (Basic.addCong _ _ _ _ ex ey) (sym!{Nat^} _ _ (Basic.mulDistribLeft d x y)))));
-\definition dividesMul (d, a, b: Nat^) (ha: Divides d a): Divides d \(a "*" b\) :=
+        hb (Divides d \(a "+" b\)) (\fun (y: Nat^) => \fun (ey: b = \(d "*" y\)) =>
+          dividesIntro d \(a "+" b\) \(x "+" y\)
+            (trans!{Nat^} _ _ _ (Basic.addCong _ _ _ _ ex ey) (sym!{Nat^} _ _ (Basic.mulDistribLeft d x y)))));
+\definition dividesMul(d, a, b: Nat^):
+  Divides d a ->
+  Divides d \(a "*" b\) :=
+    \fun (ha: Divides d a) =>
     ha (Divides d \(a "*" b\)) (\fun (x: Nat^) => \fun (ex: a = \(d "*" x\)) =>
-      dividesIntro d \(a "*" b\) \(x "*" b\)
-        (trans!{Nat^} _ _ _ (congr!{Nat^ Nat^} (\fun (n: Nat^) => \(n "*" b\)) _ _ ex) (Basic.mulAssoc d x b)));
-\definition subCong: \forall (a, b, c, d: Nat^) -> a = b -> c = d -> Op.Sub::[set] a c = Op.Sub::[set] b d :=
+        dividesIntro d \(a "*" b\) \(x "*" b\)
+          (trans!{Nat^} _ _ _ (congr!{Nat^ Nat^} (\fun (n: Nat^) => \(n "*" b\)) _ _ ex) (Basic.mulAssoc d x b)));
+\definition subCong:
+  \forall (a, b, c, d: Nat^) -> a = b -> c = d -> Op.Sub::[set] a c = Op.Sub::[set] b d :=
   congr2!{Nat^ Nat^ Nat^} Op.Sub::[set];
-\definition subAddBoth: \forall (c, a, b: Nat^) -> Op.Sub::[set] \(a "+" c\) \(b "+" c\) = Op.Sub::[set] a b :=
+\definition subAddBoth:
+  \forall (c, a, b: Nat^) -> Op.Sub::[set] \(a "+" c\) \(b "+" c\) = Op.Sub::[set] a b :=
   \induction (c: Nat^) \return \forall (a, b: Nat^) -> Op.Sub::[set] \(a "+" c\) \(b "+" c\) = Op.Sub::[set] a b \with {
     | zero : (\fun (a, b: Nat^) => \refl(Op.Sub::[set] a b))
     | succ : (\fun (c: Nat^) => \fun (ih: \forall (a, b: Nat^) -> Op.Sub::[set] \(a "+" c\) \(b "+" c\) = Op.Sub::[set] a b) =>
       \fun (a, b: Nat^) => trans!{Nat^} _ _ _
         (subCong _ _ _ _ (Basic.addSuccRight a c) (Basic.addSuccRight b c)) (ih a b))
     };
-\definition mulSub (d: Nat^): \forall (b, a: Nat^) -> Op.Sub::[set] \(d "*" a\) \(d "*" b\) = \(d "*" { Op.Sub::[set] a b }\) :=
+\definition mulSub(d: Nat^):
+  \forall (b, a: Nat^) -> Op.Sub::[set] \(d "*" a\) \(d "*" b\) = \(d "*" { Op.Sub::[set] a b }\) :=
   \induction (b: Nat^) \return \forall (a: Nat^) -> Op.Sub::[set] \(d "*" a\) \(d "*" b\) = \(d "*" { Op.Sub::[set] a b }\) \with {
     | zero : (\fun (a: Nat^) => \refl(\(d "*" a\)))
     | succ : (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> Op.Sub::[set] \(d "*" a\) \(d "*" b\) = \(d "*" { Op.Sub::[set] a b }\)) =>
@@ -166,12 +183,16 @@
               (trans!{Nat^} _ _ _ (subAddBoth d \(d "*" a\) \(d "*" b\)) (ih a))))
       })
     };
-\definition dividesSub (d, a, b: Nat^) (ha: Divides d a) (hb: Divides d b): Divides d (Op.Sub::[set] a b) :=
+\definition dividesSub(d, a, b: Nat^):
+  Divides d a -> Divides d b ->
+  Divides d (Op.Sub::[set] a b) :=
+    \fun (ha: Divides d a) (hb: Divides d b) =>
     ha (Divides d (Op.Sub::[set] a b)) (\fun (x: Nat^) => \fun (ex: a = \(d "*" x\)) =>
-      hb (Divides d (Op.Sub::[set] a b)) (\fun (y: Nat^) => \fun (ey: b = \(d "*" y\)) =>
-        dividesIntro d (Op.Sub::[set] a b) (Op.Sub::[set] x y)
-          (trans!{Nat^} _ _ _ (subCong _ _ _ _ ex ey) (mulSub d y x))));
-\definition modAsSub: \forall (a, b: Nat^) -> NatDivisionDef.Mod::[set] a b = Op.Sub::[set] a \(b "*" { NatDivisionDef.Div::[set] a b }\) :=
+        hb (Divides d (Op.Sub::[set] a b)) (\fun (y: Nat^) => \fun (ey: b = \(d "*" y\)) =>
+          dividesIntro d (Op.Sub::[set] a b) (Op.Sub::[set] x y)
+            (trans!{Nat^} _ _ _ (subCong _ _ _ _ ex ey) (mulSub d y x))));
+\definition modAsSub:
+  \forall (a, b: Nat^) -> NatDivisionDef.Mod::[set] a b = Op.Sub::[set] a \(b "*" { NatDivisionDef.Div::[set] a b }\) :=
   \block {
     \fun (a, b: Nat^) \then
     \let reconstruction:
@@ -189,7 +210,8 @@
       (sym!{Nat^} _ _ (Basic.subAddCancel \(b "*" { NatDivisionDef.Div::[set] a b }\) (NatDivisionDef.Mod::[set] a b)))
       subtractReconstruction
   };
-\definition dividesMod: \forall (d, a, b: Nat^) -> Divides d a -> Divides d b -> Divides d (NatDivisionDef.Mod::[set] a b) :=
+\definition dividesMod:
+  \forall (d, a, b: Nat^) -> Divides d a -> Divides d b -> Divides d (NatDivisionDef.Mod::[set] a b) :=
   \block {
     \fun (d, a, b: Nat^) \then
     \fun (ha: Divides d a) (hb: Divides d b) \then
@@ -200,7 +222,8 @@
     \return dividesTransport d (Op.Sub::[set] a \(b "*" { NatDivisionDef.Div::[set] a b }\)) (NatDivisionDef.Mod::[set] a b)
       (sym!{Nat^} _ _ (modAsSub a b)) differenceDivides
   };
-\definition dividesOfMod: \forall (d, a, b: Nat^) -> Divides d b -> Divides d (NatDivisionDef.Mod::[set] a b) -> Divides d a :=
+\definition dividesOfMod:
+  \forall (d, a, b: Nat^) -> Divides d b -> Divides d (NatDivisionDef.Mod::[set] a b) -> Divides d a :=
   \block {
     \fun (d, a, b: Nat^) \then
     \fun (hb: Divides d b) (hr: Divides d (NatDivisionDef.Mod::[set] a b)) \then
@@ -218,7 +241,7 @@
     | zero : (\induction (r: Nat^) \return Basic.Le r Nat^::zero -> Basic.Lt r (Nat^::succ Nat^::zero) \with {
       | zero : (\fun (h: Basic.Le Nat^::zero Nat^::zero) => \refl(B.Bool^::true))
       | succ : (\fun (r: Nat^) => \fun (ih: Basic.Le r Nat^::zero -> Basic.Lt r (Nat^::succ Nat^::zero)) =>
-        \fun (h: Basic.Le (Nat^::succ r) Nat^::zero) => B.absurd (Basic.Lt (Nat^::succ r) (Nat^::succ Nat^::zero)) h)
+        \fun (h: Basic.Le (Nat^::succ r) Nat^::zero) => BoolLaws.absurd (Basic.Lt (Nat^::succ r) (Nat^::succ Nat^::zero)) h)
       })
     | succ : (\fun (d: Nat^) => \fun (ih: \forall (r: Nat^) -> Basic.Le r d -> Basic.Lt r (Nat^::succ d)) =>
       \induction (r: Nat^) \return Basic.Le r (Nat^::succ d) -> Basic.Lt r (Nat^::succ (Nat^::succ d)) \with {
@@ -227,34 +250,40 @@
           \fun (h: Basic.Le (Nat^::succ r) (Nat^::succ d)) => ih r h)
       })
     };
-\definition modLt (a, d: Nat^): Basic.Lt (NatDivisionDef.Mod::[set] a (Nat^::succ d)) (Nat^::succ d) := leToLtSucc d (NatDivisionDef.Mod::[set] a (Nat^::succ d)) (modBound a d);
-\definition divModOne: \forall (a: Nat^) -> NatDivisionDef.DivMod::[set] a (Nat^::succ Nat^::zero) = NatPairDef.natPair a Nat^::zero :=
+\definition modLt(a, d: Nat^): Basic.Lt (NatDivisionDef.Mod::[set] a (Nat^::succ d)) (Nat^::succ d) := leToLtSucc d (NatDivisionDef.Mod::[set] a (Nat^::succ d)) (modBound a d);
+\definition divModOne:
+  \forall (a: Nat^) -> NatDivisionDef.DivMod::[set] a (Nat^::succ Nat^::zero) = NatPairDef.natPair a Nat^::zero :=
   \induction (a: Nat^) \return NatDivisionDef.DivMod::[set] a (Nat^::succ Nat^::zero) = NatPairDef.natPair a Nat^::zero \with {
     | zero : (\refl(NatPairDef.natPair Nat^::zero Nat^::zero))
     | succ : (\fun (a: Nat^) => \fun (ih: NatDivisionDef.DivMod::[set] a (Nat^::succ Nat^::zero) = NatPairDef.natPair a Nat^::zero) =>
       congr!{NatPairDef.NatPair NatPairDef.NatPair} (NatDivisionDef.DivModNext::[set] (Nat^::succ Nat^::zero))
         (NatDivisionDef.DivMod::[set] a (Nat^::succ Nat^::zero)) (NatPairDef.natPair a Nat^::zero) ih)
     };
-\definition divOne (a: Nat^): NatDivisionDef.Div::[set] a (Nat^::succ Nat^::zero) = a :=
+\definition divOne(a: Nat^): NatDivisionDef.Div::[set] a (Nat^::succ Nat^::zero) = a :=
   congr!{NatPairDef.NatPair Nat^} P.Times[Nat, Nat]::first^ _ _ (divModOne a);
-\definition modOne (a: Nat^): NatDivisionDef.Mod::[set] a (Nat^::succ Nat^::zero) = Nat^::zero :=
+\definition modOne(a: Nat^): NatDivisionDef.Mod::[set] a (Nat^::succ Nat^::zero) = Nat^::zero :=
   congr!{NatPairDef.NatPair Nat^} P.Times[Nat, Nat]::second^ _ _ (divModOne a);
 
-\definition dividesZeroLeft (a: Nat^) (h: Divides Nat^::zero a): a = Nat^::zero :=
-  h (a = Nat^::zero) (\fun (q: Nat^) (e: a = Op.Mul::[set] Nat^::zero q) =>
-    trans!{Nat^} _ _ _ e (Basic.mulZeroLeft q));
+\definition dividesZeroLeft(a: Nat^):
+  Divides Nat^::zero a ->
+  a = Nat^::zero :=
+  \fun (h: Divides Nat^::zero a) =>
+    h (a = Nat^::zero) (\fun (q: Nat^) (e: a = Op.Mul::[set] Nat^::zero q) =>
+      trans!{Nat^} _ _ _ e (Basic.mulZeroLeft q));
 
-\definition dividesLeSucc (d, a: Nat^) (h: Divides d (Nat^::succ a)):
+\definition dividesLeSucc(d, a: Nat^):
+  Divides d (Nat^::succ a) ->
   Basic.Le d (Nat^::succ a) :=
-  h (Basic.Le d (Nat^::succ a))
-    (\induction (q: Nat^) \return
-      Nat^::succ a = Op.Mul::[set] d q -> Basic.Le d (Nat^::succ a) \with {
-      | zero: \fun (e: Nat^::succ a = Nat^::zero) =>
-        Basic.succEqZeroElim a (Basic.Le d (Nat^::succ a)) e
-      | succ: \fun (q: Nat^) (unused: _) (e: _) =>
-        transport!{Nat^} (Basic.Le d) _ _ (sym!{Nat^} _ _ e)
-          (Basic.leAddRight d (Op.Mul::[set] d q))
-    });
+  \fun (h: Divides d (Nat^::succ a)) =>
+    h (Basic.Le d (Nat^::succ a))
+      (\induction (q: Nat^) \return
+        Nat^::succ a = Op.Mul::[set] d q -> Basic.Le d (Nat^::succ a) \with {
+        | zero: \fun (e: Nat^::succ a = Nat^::zero) =>
+          Basic.succEqZeroElim a (Basic.Le d (Nat^::succ a)) e
+        | succ: \fun (q: Nat^) (unused: _) (e: _) =>
+          transport!{Nat^} (Basic.Le d) _ _ (sym!{Nat^} _ _ e)
+            (Basic.leAddRight d (Op.Mul::[set] d q))
+      });
 
 \definition dividesAntisym: \forall (a, b: Nat^) -> Divides a b -> Divides b a -> a = b :=
   \induction (a: Nat^) \return

@@ -1,0 +1,88 @@
+\definition representativeMember(C: Rat) (a, z: Fraction): C = ClassOf a -> FractionEq a z -> mem C z :=
+  \fun (represented: _) (related: _) =>
+    \idelim ClassOf a = C \with D: \Pow Fraction => \In[Fraction] D z
+      \by { base: related, equality: sym!{\Pow Fraction} C (ClassOf a) represented };
+
+\definition memberRelated(C: Rat) (a, z: Fraction): C = ClassOf a -> mem C z -> FractionEq a z :=
+  \fun (represented: _) (member: _) =>
+    \idelim C = ClassOf a \with D: \Pow Fraction => \In[Fraction] D z
+      \by { base: member, equality: represented };
+
+\definition multiplyReciprocal(z, b: Fraction):
+  NumeratorNonZero b ->
+  FractionEq (ArithmeticDef.mul (ArithmeticDef.mul z b) (ArithmeticDef.reciprocal b)) z :=
+  \fun (nonzero: _) =>
+    fractionEqTrans _ _ _
+      (ArithmeticProp.fractionMulAssoc z b (ArithmeticDef.reciprocal b))
+      (fractionEqTrans _ _ _
+        (ArithmeticProp.fractionMulRespects z z
+          (ArithmeticDef.mul b (ArithmeticDef.reciprocal b)) one
+          (fractionEqRefl z) (ArithmeticProp.fractionMulReciprocal b nonzero))
+        (ArithmeticProp.fractionMulOneRight z));
+
+\definition divisionProduct(a, b: Fraction):
+  NumeratorNonZero b ->
+  FractionEq (ArithmeticDef.mul (ArithmeticDef.mul a (ArithmeticDef.reciprocal b)) b) a :=
+  \fun (nonzero: _) =>
+    fractionEqTrans _ _ _
+      (ArithmeticProp.fractionMulAssoc a (ArithmeticDef.reciprocal b) b)
+      (fractionEqTrans _ _ _
+        (ArithmeticProp.fractionMulRespects a a
+          (ArithmeticDef.mul (ArithmeticDef.reciprocal b) b) one
+          (fractionEqRefl a)
+          (fractionEqTrans _ _ _
+            (ArithmeticProp.fractionMulComm (ArithmeticDef.reciprocal b) b)
+            (ArithmeticProp.fractionMulReciprocal b nonzero)))
+        (ArithmeticProp.fractionMulOneRight a));
+
+\definition divClassOfRepresentatives(x: Rat) (y: NonZeroRat) (a, b: Fraction):
+  x = ClassOf a -> y = ClassOf b ->
+  DivClass x y = ClassOf (ArithmeticDef.mul a (ArithmeticDef.reciprocal b)) :=
+  \block {
+    \fun (representedX: _) (representedY: _) \then
+    \let nonzero: NumeratorNonZero b :=
+      nonZeroProperty y b (representativeMember y b b representedY (fractionEqRefl b)) \then
+    \let result: Fraction := ArithmeticDef.mul a (ArithmeticDef.reciprocal b) \then
+    \return \axiom:setext(DivClass x y, ClassOf result,
+      (\fun (z: Fraction) (member: DivisionMember x y z) =>
+        member (FractionEq result z)
+          (\fun (u, v: Fraction) (witness: DivisionWitness[x, y, z, u, v]) =>
+            \block {
+              \let au: FractionEq a u := memberRelated x a u representedX (#numerator{witness}) \then
+              \let bv: FractionEq b v := memberRelated y b v representedY (#denominator{witness}) \then
+              \let equation: FractionEq (ArithmeticDef.mul z b) a :=
+                fractionEqTrans _ _ _
+                  (ArithmeticProp.fractionMulRespects z z b v (fractionEqRefl z) bv)
+                  (fractionEqTrans _ _ _ (#equation{witness}) (fractionEqSym a u au)) \then
+              \return fractionEqSym z result
+                (fractionEqTrans _ _ _
+                  (fractionEqSym _ _ (multiplyReciprocal z b nonzero))
+                  (ArithmeticProp.fractionMulRespects
+                    (ArithmeticDef.mul z b) a
+                    (ArithmeticDef.reciprocal b) (ArithmeticDef.reciprocal b)
+                    equation (fractionEqRefl (ArithmeticDef.reciprocal b))))
+            })),
+      (\fun (z: Fraction) (related: FractionEq result z) =>
+        divisionMemberIntro x y z a b
+          (DivisionWitness[x, y, z, a, b] {
+            numerator := representativeMember x a a representedX (fractionEqRefl a),
+            denominator := representativeMember y b b representedY (fractionEqRefl b),
+            nonzero := nonzero,
+            equation := fractionEqTrans _ _ _
+              (ArithmeticProp.fractionMulRespects z result b b
+                (fractionEqSym result z related) (fractionEqRefl b))
+              (divisionProduct a b nonzero),
+          })))
+  };
+
+\definition divClassIsClass:
+  \forall (x: Rat) -> \forall (y: NonZeroRat) ->
+  IsClass (DivClass x y) :=
+  \fun (x: _) (y: _) =>
+    Q.classProperty x (IsClass (DivClass x y))
+      (\fun (a: Fraction) (representedX: x = ClassOf a) =>
+        Q.classProperty y (IsClass (DivClass x y))
+          (\fun (b: Fraction) (representedY: y = ClassOf b) =>
+            \fun (P: \Prop) (use: \forall (z: Fraction) -> DivClass x y = ClassOf z -> P) =>
+              use (ArithmeticDef.mul a (ArithmeticDef.reciprocal b))
+                (divClassOfRepresentatives x y a b representedX representedY)));

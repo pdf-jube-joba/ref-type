@@ -13,16 +13,27 @@
     Logic.And[\In[A] U (Pair.first A B p),
       \In[B] V (Pair.second A B p)] };
 
-\definition Basis(left: Left.Topology::[Set]) (right: Right.Topology::[Set]):
-  \Pow (\Pow CarrierSet) :=
-  { W : \Pow CarrierSet \where
-    \exists { U : \Pow A \where
-      Logic.And[Left.IsOpenIn left U,
-        \exists { V : \Pow B \where
-          Logic.And[Right.IsOpenIn right V, W = Rectangle U V] }] } };
+\record OpenRectangle[
+  left: Left.Topology::[Set], right: Right.Topology::[Set],
+  W: \Pow CarrierSet, U: \Pow A, V: \Pow B,
+]: \Prop := {
+  leftOpen: Left.IsOpenIn left U,
+  rightOpen: Right.IsOpenIn right V,
+  rectangle: W = Rectangle U V,
+};
 
-\definition topology(left: Left.Topology::[Set]) (right: Right.Topology::[Set]):
-  ProductTopology :=
+\definition RectangleRights(left: Left.Topology::[Set]) (right: Right.Topology::[Set])
+  (W: \Pow CarrierSet) (U: \Pow A): \Pow (\Pow B) :=
+  { V : \Pow B \where OpenRectangle[left, right, W, U, V] };
+
+\definition RectangleLefts(left: Left.Topology::[Set]) (right: Right.Topology::[Set])
+  (W: \Pow CarrierSet): \Pow (\Pow A) :=
+  { U : \Pow A \where \exists \Cast[\Pow B] (RectangleRights left right W U) };
+
+\definition Basis(left: Left.Topology::[Set]) (right: Right.Topology::[Set]): \Pow (\Pow CarrierSet) :=
+  { W : \Pow CarrierSet \where \exists \Cast[\Pow A] (RectangleLefts left right W) };
+
+\definition topology(left: Left.Topology::[Set]) (right: Right.Topology::[Set]): ProductTopology :=
   ProductSpace.generated (Basis left right);
 
 \definition openSets(left: Left.Topology::[Set]) (right: Right.Topology::[Set]):

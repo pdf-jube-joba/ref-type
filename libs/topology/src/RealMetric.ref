@@ -15,38 +15,44 @@
 \use Equality.trans;
 \use Equality.congr;
 
-\definition ofRatLe(a, b: Q.Fraction) (ab: QOp.Le a b):
+\definition ofRatLe(a, b: Q.Fraction):
+  QOp.Le a b ->
   R.Le (Real.ofRat a) (Real.ofRat b) :=
-  either!{
-    {Q.FractionEq a b} "or" {Q.lt a b} "either" {R.Le (Real.ofRat a) (Real.ofRat b)}
-    "lt:" {\fun (same: Q.FractionEq a b) =>
-      R.leReplaceRight (Real.ofRat a) (Real.ofRat a)
-        (Real.ofRat b) (RealLaws.ofRatRespects a b same)
-        (R.leRefl (Real.ofRat a))}
-    "rt:" {\fun (less: Q.lt a b) =>
-      Order.leOfLt (Real.ofRat a) (Real.ofRat b)
-        (RealLaws.ltOfRat a b less)}
-  }
-    ab;
+  \fun (ab: QOp.Le a b) =>
+    either!{
+      {Q.FractionEq a b} "or" {Q.lt a b} "either" {R.Le (Real.ofRat a) (Real.ofRat b)}
+      "lt:" {\fun (same: Q.FractionEq a b) =>
+        R.leReplaceRight (Real.ofRat a) (Real.ofRat a)
+          (Real.ofRat b) (RealLaws.ofRatRespects a b same)
+          (R.leRefl (Real.ofRat a))}
+      "rt:" {\fun (less: Q.lt a b) =>
+        Order.leOfLt (Real.ofRat a) (Real.ofRat b)
+          (RealLaws.ltOfRat a b less)}
+    }
+      ab;
 
-\definition ltOfMember(q: Q.Fraction) (x: R.Real)
-  (member: R.mem x q): R.Lt (Real.ofRat q) x :=
-  \exact(
-    \into[Q.Fraction](q,
-      { r: Q.Fraction \where
-        Logic.And[Logic.Not (R.mem (Real.ofRat q) r),
-          R.mem x r] })
-      \by { Logic.And[_, _]::#
-        (\fun (self: R.mem (Real.ofRat q) q) =>
-          QOrder.ltIrrefl q (RealLaws.ofRatMemLt q q self))
-        member },
-    \Cast[Q.Fraction]
-      ({ r: Q.Fraction \where
-        Logic.And[Logic.Not (R.mem (Real.ofRat q) r),
-          R.mem x r] }));
+\definition ltOfMember(q: Q.Fraction) (x: R.Real):
+  R.mem x q ->
+  R.Lt (Real.ofRat q) x :=
+  \fun (member: R.mem x q) =>
+    \exact(
+      \into[Q.Fraction](q,
+        { r: Q.Fraction \where
+          Logic.And[Logic.Not (R.mem (Real.ofRat q) r),
+            R.mem x r] })
+        \by { Logic.And[_, _]::#
+          (\fun (self: R.mem (Real.ofRat q) q) =>
+            QOrder.ltIrrefl q (RealLaws.ofRatMemLt q q self))
+          member },
+      \Cast[Q.Fraction]
+        ({ r: Q.Fraction \where
+          Logic.And[Logic.Not (R.mem (Real.ofRat q) r),
+            R.mem x r] }));
 
-\definition memberOfLt(q: Q.Fraction) (x: R.Real)
-  (less: R.Lt (Real.ofRat q) x): R.mem x q := \block {
+\definition memberOfLt(q: Q.Fraction) (x: R.Real):
+  R.Lt (Real.ofRat q) x ->
+  R.mem x q := \block {
+    \fun (less: R.Lt (Real.ofRat q) x) \then
     \takefrom r: \Cast[Q.Fraction]
       ({ r: Q.Fraction \where
         Logic.And[Logic.Not (R.mem (Real.ofRat q) r),
@@ -79,8 +85,10 @@
   \exists { r: Q.Fraction \where
     Logic.And[Q.lt r q, Logic.Not (R.mem x r)] };
 
-\definition upperCutOfLt(x: R.Real) (q: Q.Fraction)
-  (less: R.Lt x (Real.ofRat q)): UpperCut x q := \block {
+\definition upperCutOfLt(x: R.Real) (q: Q.Fraction):
+  R.Lt x (Real.ofRat q) ->
+  UpperCut x q := \block {
+    \fun (less: R.Lt x (Real.ofRat q)) \then
     \takefrom r: \Cast[Q.Fraction]
       ({ r: Q.Fraction \where
         Logic.And[Logic.Not (R.mem x r),
@@ -103,8 +111,10 @@
           Logic.And[Q.lt t q, Logic.Not (R.mem x t)] }))
   };
 
-\definition ltOfUpperCut(x: R.Real) (q: Q.Fraction)
-  (cut: UpperCut x q): R.Lt x (Real.ofRat q) := \block {
+\definition ltOfUpperCut(x: R.Real) (q: Q.Fraction):
+  UpperCut x q ->
+  R.Lt x (Real.ofRat q) := \block {
+    \fun (cut: UpperCut x q) \then
     \takefrom r: \Cast[Q.Fraction]
       ({ r: Q.Fraction \where
         Logic.And[Q.lt r q, Logic.Not (R.mem x r)] }) \by cut \then
@@ -128,39 +138,34 @@
 \definition PairFamily(a, b: R.Real): \Pow R.Real :=
   { x : R.Real \where Logic.Or[x = a, x = b] };
 
-\definition pairMemberLeft(a, b: R.Real):
-  Complete.Member (PairFamily a b) a :=
+\definition pairMemberLeft(a, b: R.Real): Complete.Member (PairFamily a b) a :=
   Logic.Or[_, _]::left (\refl(a));
 
-\definition pairMemberRight(a, b: R.Real):
-  Complete.Member (PairFamily a b) b :=
+\definition pairMemberRight(a, b: R.Real): Complete.Member (PairFamily a b) b :=
   Logic.Or[_, _]::right (\refl(b));
 
-\definition pairNonempty(a, b: R.Real):
-  Complete.Nonempty (PairFamily a b) :=
+\definition pairNonempty(a, b: R.Real): Complete.Nonempty (PairFamily a b) :=
   \exact(
     \into[R.Real](a, PairFamily a b)
       \by { pairMemberLeft a b },
     \Cast[R.Real] (PairFamily a b));
 
-\definition pairUpperBound(a, b, upper: R.Real)
-  (au: R.Le a upper) (bu: R.Le b upper):
+\definition pairUpperBound(a, b, upper: R.Real):
+  R.Le a upper -> R.Le b upper ->
   Complete.UpperBound (PairFamily a b) upper :=
-  \fun (x: R.Real) =>
-    \fun (member: Complete.Member (PairFamily a b) x) =>
-      either!{
-        {x = a} "or" {x = b} "either" {R.Le x upper}
-        "lt:" {\fun (same: x = a) =>
-          R.leReplaceLeft a x upper
-            (sym!{R.Real} x a same) au}
-        "rt:" {\fun (same: x = b) =>
-          R.leReplaceLeft b x upper
-            (sym!{R.Real} x b same) bu}
-      }
-        member;
+  \fun (au: R.Le a upper) (bu: R.Le b upper) (x: R.Real) (member: Complete.Member (PairFamily a b) x) =>
+        either!{
+          {x = a} "or" {x = b} "either" {R.Le x upper}
+          "lt:" {\fun (same: x = a) =>
+            R.leReplaceLeft a x upper
+              (sym!{R.Real} x a same) au}
+          "rt:" {\fun (same: x = b) =>
+            R.leReplaceLeft b x upper
+              (sym!{R.Real} x b same) bu}
+        }
+          member;
 
-\definition pairBounded(a, b: R.Real):
-  Complete.Bounded (PairFamily a b) :=
+\definition pairBounded(a, b: R.Real): Complete.Bounded (PairFamily a b) :=
   either!{
     {R.Le a b} "or" {R.Le b a} "either" {Complete.Bounded (PairFamily a b)}
     "lt:" {\fun (ab: R.Le a b) =>
@@ -200,10 +205,12 @@
   Complete.supremumUpper (pairAsFamily a b) b
     (pairMemberRight a b);
 
-\definition maxLeast(a, b, c: R.Real)
-  (ac: R.Le a c) (bc: R.Le b c): R.Le (max a b) c :=
-  Complete.supremumLeast (pairAsFamily a b) c
-    (pairUpperBound a b c ac bc);
+\definition maxLeast(a, b, c: R.Real):
+  R.Le a c -> R.Le b c ->
+  R.Le (max a b) c :=
+  \fun (ac: _) (bc: _) =>
+    Complete.supremumLeast (pairAsFamily a b) c
+      (pairUpperBound a b c ac bc);
 
 \definition maxComm(a, b: R.Real): max a b = max b a :=
   R.leAntisym (max a b) (max b a)
@@ -215,34 +222,44 @@
     (maxLeast a a a (R.leRefl a) (R.leRefl a))
     (maxLeft a a);
 
-\definition maxOfLe(a, b: R.Real) (ab: R.Le a b): max a b = b :=
-  R.leAntisym (max a b) b
-    (maxLeast a b b ab (R.leRefl b))
-    (maxRight a b);
+\definition maxOfLe(a, b: R.Real):
+  R.Le a b ->
+  max a b = b :=
+  \fun (ab: _) =>
+    R.leAntisym (max a b) b
+      (maxLeast a b b ab (R.leRefl b))
+      (maxRight a b);
 
-\definition maxOfGe(a, b: R.Real) (ba: R.Le b a): max a b = a :=
-  R.leAntisym (max a b) a
-    (maxLeast a b a (R.leRefl a) ba)
-    (maxLeft a b);
+\definition maxOfGe(a, b: R.Real):
+  R.Le b a ->
+  max a b = a :=
+  \fun (ba: _) =>
+    R.leAntisym (max a b) a
+      (maxLeast a b a (R.leRefl a) ba)
+      (maxLeft a b);
 
-\definition maxLt(a, b, r: R.Real)
-  (ar: R.Lt a r) (br: R.Lt b r): R.Lt (max a b) r :=
-  either!{
-    {R.Le a b} "or" {R.Le b a} "either" {R.Lt (max a b) r}
-    "lt:" {\fun (ab: R.Le a b) =>
-      R.ltReplaceLeft b (max a b) r
-        (sym!{R.Real} _ _ (maxOfLe a b ab)) br}
-    "rt:" {\fun (ba: R.Le b a) =>
-      R.ltReplaceLeft a (max a b) r
-        (sym!{R.Real} _ _ (maxOfGe a b ba)) ar}
-  }
-    (Order.leTotal a b);
+\definition maxLt(a, b, r: R.Real):
+  R.Lt a r -> R.Lt b r ->
+  R.Lt (max a b) r :=
+  \fun (ar: R.Lt a r) (br: R.Lt b r) =>
+    either!{
+      {R.Le a b} "or" {R.Le b a} "either" {R.Lt (max a b) r}
+      "lt:" {\fun (ab: R.Le a b) =>
+        R.ltReplaceLeft b (max a b) r
+          (sym!{R.Real} _ _ (maxOfLe a b ab)) br}
+      "rt:" {\fun (ba: R.Le b a) =>
+        R.ltReplaceLeft a (max a b) r
+          (sym!{R.Real} _ _ (maxOfGe a b ba)) ar}
+    }
+      (Order.leTotal a b);
 
-\definition maxMonotone(a, b, c, d: R.Real)
-  (ac: R.Le a c) (bd: R.Le b d): R.Le (max a b) (max c d) :=
-  maxLeast a b (max c d)
-    (R.leTrans a c (max c d) ac (maxLeft c d))
-    (R.leTrans b d (max c d) bd (maxRight c d));
+\definition maxMonotone(a, b, c, d: R.Real):
+  R.Le a c -> R.Le b d ->
+  R.Le (max a b) (max c d) :=
+  \fun (ac: _) (bd: _) =>
+    maxLeast a b (max c d)
+      (R.leTrans a c (max c d) ac (maxLeft c d))
+      (R.leTrans b d (max c d) bd (maxRight c d));
 
 \definition maxAdd(a, b, c, d: R.Real):
   R.Le (max (Real.add a c) (Real.add b d))
@@ -277,149 +294,168 @@
       (max (Real.neg a) (Real.neg b))
       (maxRight (Real.neg a) (Real.neg b)));
 
-\definition minGreatest(a, b, c: R.Real)
-  (ca: R.Le c a) (cb: R.Le c b): R.Le c (min a b) :=
-  R.leReplaceLeft (Real.neg (Real.neg c)) c (min a b)
-    (RealLaws.negInvolutive c)
-    (RealLaws.negAntitone
-      (max (Real.neg a) (Real.neg b)) (Real.neg c)
-      (maxLeast (Real.neg a) (Real.neg b) (Real.neg c)
-        (RealLaws.negAntitone c a ca)
-        (RealLaws.negAntitone c b cb)));
+\definition minGreatest(a, b, c: R.Real):
+  R.Le c a -> R.Le c b ->
+  R.Le c (min a b) :=
+  \fun (ca: _) (cb: _) =>
+    R.leReplaceLeft (Real.neg (Real.neg c)) c (min a b)
+      (RealLaws.negInvolutive c)
+      (RealLaws.negAntitone
+        (max (Real.neg a) (Real.neg b)) (Real.neg c)
+        (maxLeast (Real.neg a) (Real.neg b) (Real.neg c)
+          (RealLaws.negAntitone c a ca)
+          (RealLaws.negAntitone c b cb)));
 
 \definition minComm(a, b: R.Real): min a b = min b a :=
   congr!{R.Real R.Real} Real.neg _ _
     (maxComm (Real.neg a) (Real.neg b));
 
-\definition minReplace(a, a2, b, b2: R.Real)
-  (aa: a = a2) (bb: b = b2): min a b = min a2 b2 :=
-  trans!{R.Real} (min a b) (min a2 b) (min a2 b2)
-    (congr!{R.Real R.Real} (\fun (v: R.Real) => min v b)
-      a a2 aa)
-    (congr!{R.Real R.Real} (min a2) b b2 bb);
+\definition minReplace(a, a2, b, b2: R.Real):
+  a = a2 -> b = b2 ->
+  min a b = min a2 b2 :=
+  \fun (aa: a = a2) (bb: b = b2) =>
+    trans!{R.Real} (min a b) (min a2 b) (min a2 b2)
+      (congr!{R.Real R.Real} (\fun (v: R.Real) => min v b)
+        a a2 aa)
+      (congr!{R.Real R.Real} (min a2) b b2 bb);
 
 \definition minSame(a: R.Real): min a a = a :=
   trans!{R.Real} (min a a) (Real.neg (Real.neg a)) a
     (congr!{R.Real R.Real} Real.neg _ _ (maxSame (Real.neg a)))
     (RealLaws.negInvolutive a);
 
-\definition minOfLe(a, b: R.Real) (ab: R.Le a b): min a b = a :=
-  R.leAntisym (min a b) a (minLeft a b)
-    (minGreatest a b a (R.leRefl a) ab);
+\definition minOfLe(a, b: R.Real):
+  R.Le a b ->
+  min a b = a :=
+  \fun (ab: _) =>
+    R.leAntisym (min a b) a (minLeft a b)
+      (minGreatest a b a (R.leRefl a) ab);
 
-\definition minOfGe(a, b: R.Real) (ba: R.Le b a): min a b = b :=
-  R.leAntisym (min a b) b (minRight a b)
-    (minGreatest a b b ba (R.leRefl b));
+\definition minOfGe(a, b: R.Real):
+  R.Le b a ->
+  min a b = b :=
+  \fun (ba: _) =>
+    R.leAntisym (min a b) b (minRight a b)
+      (minGreatest a b b ba (R.leRefl b));
 
-\definition minPositiveZero(w, d: R.Real)
-  (positive: R.Lt Real.zero w)
-  (zero: min w d = Real.zero): d = Real.zero :=
-  either!{
-    {R.Le w d} "or" {R.Le d w} "either" {d = Real.zero}
-    "lt:" {\fun (wd: R.Le w d) =>
-      Logic.falseElim (d = Real.zero)
-        (Order.ltNotEq Real.zero w positive
-          (sym!{R.Real} w Real.zero
-            (trans!{R.Real} w (min w d) Real.zero
-              (sym!{R.Real} _ _ (minOfLe w d wd)) zero)))}
-    "rt:" {\fun (dw: R.Le d w) =>
-      trans!{R.Real} d (min w d) Real.zero
-        (sym!{R.Real} _ _ (minOfGe w d dw)) zero}
-  }
-    (Order.leTotal w d);
+\definition minPositiveZero(w, d: R.Real):
+  R.Lt Real.zero w -> \forall (zero: min w d = Real.zero) ->
+  d = Real.zero :=
+  \fun (positive: R.Lt Real.zero w) (zero: min w d = Real.zero) =>
+    either!{
+      {R.Le w d} "or" {R.Le d w} "either" {d = Real.zero}
+      "lt:" {\fun (wd: R.Le w d) =>
+        Logic.falseElim (d = Real.zero)
+          (Order.ltNotEq Real.zero w positive
+            (sym!{R.Real} w Real.zero
+              (trans!{R.Real} w (min w d) Real.zero
+                (sym!{R.Real} _ _ (minOfLe w d wd)) zero)))}
+      "rt:" {\fun (dw: R.Le d w) =>
+        trans!{R.Real} d (min w d) Real.zero
+          (sym!{R.Real} _ _ (minOfGe w d dw)) zero}
+    }
+      (Order.leTotal w d);
 
-\definition minNonnegative(a, b: R.Real)
-  (aPositive: R.Le Real.zero a)
-  (bPositive: R.Le Real.zero b):
+\definition minNonnegative(a, b: R.Real):
+  R.Le Real.zero a -> R.Le Real.zero b ->
   R.Le Real.zero (min a b) :=
-  minGreatest a b Real.zero aPositive bPositive;
+  minGreatest a b Real.zero;
 
-\definition minMonotone(a, b, c, d: R.Real)
-  (ac: R.Le a c) (bd: R.Le b d): R.Le (min a b) (min c d) :=
-  minGreatest c d (min a b)
-    (R.leTrans (min a b) a c (minLeft a b) ac)
-    (R.leTrans (min a b) b d (minRight a b) bd);
+\definition minMonotone(a, b, c, d: R.Real):
+  R.Le a c -> R.Le b d ->
+  R.Le (min a b) (min c d) :=
+  \fun (ac: _) (bd: _) =>
+    minGreatest c d (min a b)
+      (R.leTrans (min a b) a c (minLeft a b) ac)
+      (R.leTrans (min a b) b d (minRight a b) bd);
 
-\definition leAddOfNonnegative(a, b: R.Real)
-  (bPositive: R.Le Real.zero b): R.Le a (Real.add a b) :=
-  R.leReplaceLeft (Real.add a Real.zero) a (Real.add a b)
-    (RealLaws.addZeroRight a)
-    (RealLaws.addMonotoneLeft Real.zero b a bPositive);
+\definition leAddOfNonnegative(a, b: R.Real):
+  R.Le Real.zero b ->
+  R.Le a (Real.add a b) :=
+  \fun (bPositive: _) =>
+    R.leReplaceLeft (Real.add a Real.zero) a (Real.add a b)
+      (RealLaws.addZeroRight a)
+      (RealLaws.addMonotoneLeft Real.zero b a bPositive);
 
-\definition leAddRightOfNonnegative(a, b: R.Real)
-  (aPositive: R.Le Real.zero a): R.Le b (Real.add a b) :=
-  R.leReplaceLeft (Real.add Real.zero b) b (Real.add a b)
-    (RealLaws.addZeroLeft b)
-    (RealLaws.addMonotoneRight Real.zero a b aPositive);
+\definition leAddRightOfNonnegative(a, b: R.Real):
+  R.Le Real.zero a ->
+  R.Le b (Real.add a b) :=
+  \fun (aPositive: _) =>
+    R.leReplaceLeft (Real.add Real.zero b) b (Real.add a b)
+      (RealLaws.addZeroLeft b)
+      (RealLaws.addMonotoneRight Real.zero a b aPositive);
 
-\definition minSubadd(w, a, b: R.Real)
-  (wPositive: R.Le Real.zero w)
-  (aPositive: R.Le Real.zero a)
-  (bPositive: R.Le Real.zero b):
+\definition minSubadd(w, a, b: R.Real):
+  R.Le Real.zero w -> R.Le Real.zero a ->
+  R.Le Real.zero b ->
   R.Le (min w (Real.add a b))
     (Real.add (min w a) (min w b)) :=
-  either!{
-    {R.Le w a} "or" {R.Le a w} "either" {R.Le (min w (Real.add a b))
-      (Real.add (min w a) (min w b))}
-    "lt:" {\fun (wa: R.Le w a) =>
-      R.leTrans (min w (Real.add a b)) w
-        (Real.add (min w a) (min w b))
-        (minLeft w (Real.add a b))
-        (R.leTrans w (min w a)
+  \fun (wPositive: R.Le Real.zero w) (aPositive: R.Le Real.zero a) (bPositive: R.Le Real.zero b) =>
+    either!{
+      {R.Le w a} "or" {R.Le a w} "either" {R.Le (min w (Real.add a b))
+        (Real.add (min w a) (min w b))}
+      "lt:" {\fun (wa: R.Le w a) =>
+        R.leTrans (min w (Real.add a b)) w
           (Real.add (min w a) (min w b))
-          (minGreatest w a w (R.leRefl w) wa)
-          (leAddOfNonnegative (min w a) (min w b)
-            (minNonnegative w b wPositive bPositive)))}
-    "rt:" {\fun (aw: R.Le a w) =>
-      either!{
-        {R.Le w b} "or" {R.Le b w} "either" {R.Le (min w (Real.add a b))
-          (Real.add (min w a) (min w b))}
-        "lt:" {\fun (wb: R.Le w b) =>
-          R.leTrans (min w (Real.add a b)) w
+          (minLeft w (Real.add a b))
+          (R.leTrans w (min w a)
             (Real.add (min w a) (min w b))
-            (minLeft w (Real.add a b))
-            (R.leTrans w (min w b)
+            (minGreatest w a w (R.leRefl w) wa)
+            (leAddOfNonnegative (min w a) (min w b)
+              (minNonnegative w b wPositive bPositive)))}
+      "rt:" {\fun (aw: R.Le a w) =>
+        either!{
+          {R.Le w b} "or" {R.Le b w} "either" {R.Le (min w (Real.add a b))
+            (Real.add (min w a) (min w b))}
+          "lt:" {\fun (wb: R.Le w b) =>
+            R.leTrans (min w (Real.add a b)) w
               (Real.add (min w a) (min w b))
-              (minGreatest w b w (R.leRefl w) wb)
-              (leAddRightOfNonnegative (min w a) (min w b)
-                (minNonnegative w a wPositive aPositive)))}
-        "rt:" {\fun (bw: R.Le b w) =>
-          R.leTrans (min w (Real.add a b))
-            (Real.add a b)
-            (Real.add (min w a) (min w b))
-            (minRight w (Real.add a b))
-            (R.leTrans (Real.add a b)
-              (Real.add (min w a) b)
+              (minLeft w (Real.add a b))
+              (R.leTrans w (min w b)
+                (Real.add (min w a) (min w b))
+                (minGreatest w b w (R.leRefl w) wb)
+                (leAddRightOfNonnegative (min w a) (min w b)
+                  (minNonnegative w a wPositive aPositive)))}
+          "rt:" {\fun (bw: R.Le b w) =>
+            R.leTrans (min w (Real.add a b))
+              (Real.add a b)
               (Real.add (min w a) (min w b))
-              (RealLaws.addMonotoneRight a (min w a) b
-                (minGreatest w a a aw (R.leRefl a)))
-              (RealLaws.addMonotoneLeft b (min w b)
-                (min w a)
-                (minGreatest w b b bw (R.leRefl b))))}
-      }
-        (Order.leTotal w b)}
-  }
-    (Order.leTotal w a);
+              (minRight w (Real.add a b))
+              (R.leTrans (Real.add a b)
+                (Real.add (min w a) b)
+                (Real.add (min w a) (min w b))
+                (RealLaws.addMonotoneRight a (min w a) b
+                  (minGreatest w a a aw (R.leRefl a)))
+                (RealLaws.addMonotoneLeft b (min w b)
+                  (min w a)
+                  (minGreatest w b b bw (R.leRefl b))))}
+        }
+          (Order.leTotal w b)}
+    }
+      (Order.leTotal w a);
 
-\definition subNonnegative(x, y: R.Real) (yx: R.Le y x):
+\definition subNonnegative(x, y: R.Real):
+  R.Le y x ->
   R.Le Real.zero (Real.sub x y) :=
-  R.leReplace (Real.add y (Real.neg y)) Real.zero
-    (Real.add x (Real.neg y)) (Real.sub x y)
-    (RealLaws.addNegRight y) (\refl(Real.sub x y))
-    (RealLaws.addMonotoneRight y x (Real.neg y) yx);
+  \fun (yx: _) =>
+    R.leReplace (Real.add y (Real.neg y)) Real.zero
+      (Real.add x (Real.neg y)) (Real.sub x y)
+      (RealLaws.addNegRight y) (\refl(Real.sub x y))
+      (RealLaws.addMonotoneRight y x (Real.neg y) yx);
 
-\definition subZeroEq(x, y: R.Real)
-  (zero: Real.sub x y = Real.zero): x = y :=
-  RealLaws.addCancelRight x y (Real.neg y)
-    (trans!{R.Real} (Real.sub x y) Real.zero (Real.sub y y)
-      zero
-      (sym!{R.Real} _ _ (RealLaws.subSelf y)));
+\definition subZeroEq(x, y: R.Real):
+  Real.sub x y = Real.zero ->
+  x = y :=
+  \fun (zero: _) =>
+    RealLaws.addCancelRight x y (Real.neg y)
+      (trans!{R.Real} (Real.sub x y) Real.zero (Real.sub y y)
+        zero
+        (sym!{R.Real} _ _ (RealLaws.subSelf y)));
 
 \definition distance(x, y: R.Real): R.Real :=
   max (Real.sub x y) (Real.sub y x);
 
-\definition distanceNonnegative(x, y: R.Real):
-  R.Le Real.zero (distance x y) :=
+\definition distanceNonnegative(x, y: R.Real): R.Le Real.zero (distance x y) :=
   either!{
     {R.Le x y} "or" {R.Le y x} "either" {R.Le Real.zero (distance x y)}
     "lt:" {\fun (xy: R.Le x y) =>
@@ -435,41 +471,42 @@
   trans!{R.Real} (distance x x) (Real.sub x x) Real.zero
     (maxSame (Real.sub x x)) (RealLaws.subSelf x);
 
-\definition distanceSymmetric(x, y: R.Real):
-  distance x y = distance y x :=
+\definition distanceSymmetric(x, y: R.Real): distance x y = distance y x :=
   maxComm (Real.sub x y) (Real.sub y x);
 
-\definition distanceReplace(x, x2, y, y2: R.Real)
-  (xx: x = x2) (yy: y = y2):
+\definition distanceReplace(x, x2, y, y2: R.Real):
+  x = x2 -> y = y2 ->
   distance x y = distance x2 y2 :=
-  trans!{R.Real} (distance x y) (distance x2 y)
-    (distance x2 y2)
-    (congr!{R.Real R.Real} (\fun (z: R.Real) => distance z y)
-      x x2 xx)
-    (congr!{R.Real R.Real} (distance x2) y y2 yy);
+  \fun (xx: x = x2) (yy: y = y2) =>
+    trans!{R.Real} (distance x y) (distance x2 y)
+      (distance x2 y2)
+      (congr!{R.Real R.Real} (\fun (z: R.Real) => distance z y)
+        x x2 xx)
+      (congr!{R.Real R.Real} (distance x2) y y2 yy);
 
-\definition distanceSeparated(x, y: R.Real)
-  (zero: distance x y = Real.zero): x = y :=
-  either!{
-    {R.Le x y} "or" {R.Le y x} "either" {x = y}
-    "lt:" {\fun (xy: R.Le x y) =>
-      sym!{R.Real} y x
-        (subZeroEq y x
-          (R.leAntisym (Real.sub y x) Real.zero
-            (R.leReplaceRight (Real.sub y x) (distance x y) Real.zero zero
-              (maxRight (Real.sub x y) (Real.sub y x)))
-            (subNonnegative y x xy)))}
-    "rt:" {\fun (yx: R.Le y x) =>
-      subZeroEq x y
-        (R.leAntisym (Real.sub x y) Real.zero
-          (R.leReplaceRight (Real.sub x y) (distance x y) Real.zero zero
-            (maxLeft (Real.sub x y) (Real.sub y x)))
-          (subNonnegative x y yx))}
-  }
-    (Order.leTotal x y);
+\definition distanceSeparated(x, y: R.Real):
+  distance x y = Real.zero ->
+  x = y :=
+  \fun (zero: distance x y = Real.zero) =>
+    either!{
+      {R.Le x y} "or" {R.Le y x} "either" {x = y}
+      "lt:" {\fun (xy: R.Le x y) =>
+        sym!{R.Real} y x
+          (subZeroEq y x
+            (R.leAntisym (Real.sub y x) Real.zero
+              (R.leReplaceRight (Real.sub y x) (distance x y) Real.zero zero
+                (maxRight (Real.sub x y) (Real.sub y x)))
+              (subNonnegative y x xy)))}
+      "rt:" {\fun (yx: R.Le y x) =>
+        subZeroEq x y
+          (R.leAntisym (Real.sub x y) Real.zero
+            (R.leReplaceRight (Real.sub x y) (distance x y) Real.zero zero
+              (maxLeft (Real.sub x y) (Real.sub y x)))
+            (subNonnegative x y yx))}
+    }
+      (Order.leTotal x y);
 
-\definition subAddCancel(x, y: R.Real):
-  Real.add (Real.sub x y) y = x :=
+\definition subAddCancel(x, y: R.Real): Real.add (Real.sub x y) y = x :=
   trans!{R.Real} (Real.add (Real.sub x y) y)
     (Real.add x (Real.add (Real.neg y) y)) x
     (RealLaws.addAssoc x (Real.neg y) y)
@@ -478,8 +515,7 @@
       (congr!{R.Real R.Real} (Real.add x) _ _ (RealLaws.addNegLeft y))
       (RealLaws.addZeroRight x));
 
-\definition subTriangle(x, y, z: R.Real):
-  Real.add (Real.sub x y) (Real.sub y z) = Real.sub x z :=
+\definition subTriangle(x, y, z: R.Real): Real.add (Real.sub x y) (Real.sub y z) = Real.sub x z :=
   trans!{R.Real}
     (Real.add (Real.sub x y) (Real.sub y z))
     (Real.add (Real.add (Real.sub x y) y) (Real.neg z))
@@ -488,59 +524,64 @@
     (congr!{R.Real R.Real} (\fun (u: R.Real) => Real.add u (Real.neg z))
       _ _ (subAddCancel x y));
 
-\definition subLtToAdd(a, b, r: R.Real)
-  (less: R.Lt (Real.sub a b) r):
+\definition subLtToAdd(a, b, r: R.Real):
+  R.Lt (Real.sub a b) r ->
   R.Lt a (Real.add r b) :=
-  R.ltReplaceLeft (Real.add (Real.sub a b) b)
-    a (Real.add r b) (subAddCancel a b)
-    (RealLaws.ltAddRight (Real.sub a b) r b less);
+  \fun (less: _) =>
+    R.ltReplaceLeft (Real.add (Real.sub a b) b)
+      a (Real.add r b) (subAddCancel a b)
+      (RealLaws.ltAddRight (Real.sub a b) r b less);
 
-\definition addLtToSub(a, b, r: R.Real)
-  (less: R.Lt a (Real.add r b)):
+\definition addLtToSub(a, b, r: R.Real):
+  R.Lt a (Real.add r b) ->
   R.Lt (Real.sub a b) r :=
-  R.ltReplaceRight (Real.sub a b)
-    (Real.add (Real.add r b) (Real.neg b)) r
-    (RealLaws.addNegCancelRight b r)
-    (RealLaws.ltAddRight a (Real.add r b) (Real.neg b) less);
+  \fun (less: _) =>
+    R.ltReplaceRight (Real.sub a b)
+      (Real.add (Real.add r b) (Real.neg b)) r
+      (RealLaws.addNegCancelRight b r)
+      (RealLaws.ltAddRight a (Real.add r b) (Real.neg b) less);
 
-\definition subLtOfLower(a, b, r: R.Real)
-  (lower: R.Lt (Real.sub a r) b):
+\definition subLtOfLower(a, b, r: R.Real):
+  R.Lt (Real.sub a r) b ->
   R.Lt (Real.sub a b) r :=
-  addLtToSub a b r
-    (R.ltReplaceRight a (Real.add b r) (Real.add r b)
-      (RealLaws.addComm b r)
-      (R.ltReplaceLeft (Real.add (Real.sub a r) r)
-        a (Real.add b r) (subAddCancel a r)
-        (RealLaws.ltAddRight (Real.sub a r) b r lower)));
+  \fun (lower: _) =>
+    addLtToSub a b r
+      (R.ltReplaceRight a (Real.add b r) (Real.add r b)
+        (RealLaws.addComm b r)
+        (R.ltReplaceLeft (Real.add (Real.sub a r) r)
+          a (Real.add b r) (subAddCancel a r)
+          (RealLaws.ltAddRight (Real.sub a r) b r lower)));
 
-\definition distanceLtOfInterval(a, b, r: R.Real)
-  (lower: R.Lt (Real.sub a r) b)
-  (upper: R.Lt b (Real.add a r)):
+\definition distanceLtOfInterval(a, b, r: R.Real):
+  R.Lt (Real.sub a r) b -> R.Lt b (Real.add a r) ->
   R.Lt (distance a b) r :=
-  maxLt (Real.sub a b) (Real.sub b a) r
-    (subLtOfLower a b r lower)
-    (addLtToSub b a r
-      (R.ltReplaceRight b (Real.add a r) (Real.add r a)
-        (RealLaws.addComm a r) upper));
+  \fun (lower: _) (upper: _) =>
+    maxLt (Real.sub a b) (Real.sub b a) r
+      (subLtOfLower a b r lower)
+      (addLtToSub b a r
+        (R.ltReplaceRight b (Real.add a r) (Real.add r a)
+          (RealLaws.addComm a r) upper));
 
-\definition distanceLtLower(a, b, r: R.Real)
-  (near: R.Lt (distance a b) r):
+\definition distanceLtLower(a, b, r: R.Real):
+  R.Lt (distance a b) r ->
   R.Lt (Real.sub a r) b :=
-  addLtToSub a r b
-    (R.ltReplaceRight a (Real.add r b) (Real.add b r)
-      (RealLaws.addComm r b)
-      (subLtToAdd a b r
-        (R.leLtTrans (Real.sub a b) (distance a b) r
-          (maxLeft (Real.sub a b) (Real.sub b a)) near)));
+  \fun (near: _) =>
+    addLtToSub a r b
+      (R.ltReplaceRight a (Real.add r b) (Real.add b r)
+        (RealLaws.addComm r b)
+        (subLtToAdd a b r
+          (R.leLtTrans (Real.sub a b) (distance a b) r
+            (maxLeft (Real.sub a b) (Real.sub b a)) near)));
 
-\definition distanceLtUpper(a, b, r: R.Real)
-  (near: R.Lt (distance a b) r):
+\definition distanceLtUpper(a, b, r: R.Real):
+  R.Lt (distance a b) r ->
   R.Lt b (Real.add a r) :=
-  R.ltReplaceRight b (Real.add r a) (Real.add a r)
-    (RealLaws.addComm r a)
-    (subLtToAdd b a r
-      (R.leLtTrans (Real.sub b a) (distance a b) r
-        (maxRight (Real.sub a b) (Real.sub b a)) near));
+  \fun (near: _) =>
+    R.ltReplaceRight b (Real.add r a) (Real.add a r)
+      (RealLaws.addComm r a)
+      (subLtToAdd b a r
+        (R.leLtTrans (Real.sub b a) (distance a b) r
+          (maxRight (Real.sub a b) (Real.sub b a)) near));
 
 \definition distanceTriangle(x, y, z: R.Real):
   R.Le (distance x z) (Real.add (distance x y) (distance y z)) :=

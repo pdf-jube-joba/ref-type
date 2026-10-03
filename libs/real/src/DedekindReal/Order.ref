@@ -8,34 +8,40 @@
 \import real.AxiomaticReals[Carrier := Real] \as AR;
 \import \parent.Completeness[] \as Complete;
 
-\definition byContradiction (P: \Prop) (h: Logic.Not P -> Logic.False): P :=
-  either!{
-    P "or" {Logic.Not P} "either" P
-    "lt:" {\fun (p: P) => p}
-    "rt:" {\fun (np: Logic.Not P) => Logic.falseElim P (h np)}
-  }
-    (Classical.excludedMiddle P);
+\definition byContradiction(P: \Prop):
+  (Logic.Not P -> Logic.False) ->
+  P :=
+  \fun (h: Logic.Not P -> Logic.False) =>
+    either!{
+      P "or" {Logic.Not P} "either" P
+      "lt:" {\fun (p: P) => p}
+      "rt:" {\fun (np: Logic.Not P) => Logic.falseElim P (h np)}
+    }
+      (Classical.excludedMiddle P);
 
 /* A member of x below a known member of y is in y; the other two
  * rational comparison cases contradict that the latter is outside x. */
-\definition separatedInclusion (x, y: Real) (q: Rat)
-  (nq: Logic.Not (mem x q)) (yq: mem y q) (p: Rat) (xp: mem x p): mem y p :=
-  either!{
-    {lt p q} "or" {Logic.Or[RationalFractions.FractionEq p q, lt q p]} "either" {mem y p}
-    "lt:" {\fun (pq: lt p q) => #lower{y} p q pq yq}
-    "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq p q, lt q p]) =>
-      either!{
-        {RationalFractions.FractionEq p q} "or" {lt q p} "either" {mem y p}
-        "lt:" {\fun (pq: RationalFractions.FractionEq p q) =>
-          Logic.falseElim (mem y p) (nq (#respects{x} p q pq xp))}
-        "rt:" {\fun (qp: lt q p) =>
-          Logic.falseElim (mem y p) (nq (#lower{x} q p qp xp))}
-      }
-        rest}
-  }
-    (RationalOrder.trichotomy p q);
+\definition separatedInclusion(x, y: Real) (q: Rat):
+  Logic.Not (mem x q) -> mem y q -> \forall (p: Rat) ->
+  mem x p ->
+  mem y p :=
+  \fun (nq: Logic.Not (mem x q)) (yq: mem y q) (p: Rat) (xp: mem x p) =>
+    either!{
+      {lt p q} "or" {Logic.Or[RationalFractions.FractionEq p q, lt q p]} "either" {mem y p}
+      "lt:" {\fun (pq: lt p q) => #lower{y} p q pq yq}
+      "rt:" {\fun (rest: Logic.Or[RationalFractions.FractionEq p q, lt q p]) =>
+        either!{
+          {RationalFractions.FractionEq p q} "or" {lt q p} "either" {mem y p}
+          "lt:" {\fun (pq: RationalFractions.FractionEq p q) =>
+            Logic.falseElim (mem y p) (nq (#respects{x} p q pq xp))}
+          "rt:" {\fun (qp: lt q p) =>
+            Logic.falseElim (mem y p) (nq (#lower{x} q p qp xp))}
+        }
+          rest}
+    }
+      (RationalOrder.trichotomy p q);
 
-\definition leTotal (x, y: Real): Logic.Or[Le x y, Le y x] :=
+\definition leTotal(x, y: Real): Logic.Or[Le x y, Le y x] :=
   either!{
     {Le x y} "or" {Logic.Not (Le x y)} "either" {Logic.Or[Le x y, Le y x]}
     "lt:" {\fun (xy: Le x y) => Logic.Or[Le x y, Le y x]::left xy}
@@ -47,43 +53,59 @@
   }
     (Classical.excludedMiddle (Le x y));
 
-\definition leOfLt (x, y: Real) (xy: Lt x y): Le x y :=
+\definition leOfLt(x, y: Real):
+  Lt x y ->
+  Le x y :=
   \block {
+    \fun (xy: Lt x y) \then
     \takefrom q: \Cast[Rat] ({ q : Rat \where Logic.And[Logic.Not (mem x q), mem y q] }) \by xy \then
     \return separatedInclusion x y q
         (#left{(\bysub(Rat, { q : Rat \where Logic.And[Logic.Not (mem x q), mem y q] }, q))})
         (#right{(\bysub(Rat, { q : Rat \where Logic.And[Logic.Not (mem x q), mem y q] }, q))})
   };
-\definition ltTrans (x, y, z: Real) (xy: Lt x y) (yz: Lt y z): Lt x z :=
-  ltLeTrans x y z xy (leOfLt y z yz);
+\definition ltTrans(x, y, z: Real):
+  Lt x y -> Lt y z ->
+  Lt x z :=
+  \fun (xy: _) (yz: _) =>
+    ltLeTrans x y z xy (leOfLt y z yz);
 
-\definition notLtReverseOfLe (x, y: Real) (xy: Le x y): Logic.Not (Lt y x) :=
-  \fun (yx: Lt y x) => (ltNotLeReverse y x yx) xy;
+\definition notLtReverseOfLe(x, y: Real):
+  Le x y ->
+  Logic.Not (Lt y x) :=
+  \fun (xy: Le x y) (yx: Lt y x) => (ltNotLeReverse y x yx) xy;
 
-\definition leOfNotLtReverse (x, y: Real) (notReverse: Logic.Not (Lt y x)):
+\definition leOfNotLtReverse(x, y: Real):
+  Logic.Not (Lt y x) ->
   Le x y :=
-  \fun (q: Rat) => \fun (xq: mem x q) =>
-    byContradiction (mem y q)
-      (\fun (nyq: Logic.Not (mem y q)) =>
-        notReverse
-          (\exact(
-            \into[Rat](q, { r : Rat \where Logic.And[Logic.Not (mem y r), mem x r] }) \by { Logic.And[Logic.Not (mem y q), mem x q]::# nyq xq },
-            \Cast[Rat] ({ r : Rat \where Logic.And[Logic.Not (mem y r), mem x r] }))));
+  \fun (notReverse: Logic.Not (Lt y x)) (q: Rat) (xq: mem x q) =>
+      byContradiction (mem y q)
+        (\fun (nyq: Logic.Not (mem y q)) =>
+          notReverse
+            (\exact(
+              \into[Rat](q, { r : Rat \where Logic.And[Logic.Not (mem y r), mem x r] }) \by { Logic.And[Logic.Not (mem y q), mem x q]::# nyq xq },
+              \Cast[Rat] ({ r : Rat \where Logic.And[Logic.Not (mem y r), mem x r] }))));
 
-\definition ltOfLeNotEq (x, y: Real) (xy: Le x y)
-  (different: Logic.Not (x = y)): Lt x y :=
-  byContradiction (Lt x y)
-    (\fun (notLt: Logic.Not (Lt x y)) =>
-      different (leAntisym x y xy (leOfNotLtReverse y x notLt)));
+\definition ltOfLeNotEq(x, y: Real):
+  Le x y -> Logic.Not (x = y) ->
+  Lt x y :=
+  \fun (xy: Le x y) (different: Logic.Not (x = y)) =>
+    byContradiction (Lt x y)
+      (\fun (notLt: Logic.Not (Lt x y)) =>
+        different (leAntisym x y xy (leOfNotLtReverse y x notLt)));
 
-\definition ltAsym (x, y: Real) (xy: Lt x y): Logic.Not (Lt y x) :=
-  notLtReverseOfLe x y (leOfLt x y xy);
+\definition ltAsym(x, y: Real):
+  Lt x y ->
+  Logic.Not (Lt y x) :=
+  \fun (xy: _) =>
+    notLtReverseOfLe x y (leOfLt x y xy);
 
-\definition ltNotEq (x, y: Real) (xy: Lt x y): Logic.Not (x = y) :=
-  \fun (same: x = y) =>
-    ltIrrefl x
-      (\idelim y = x \with z: Real => Lt x z
-        \by { base: xy, equality: sym!{Real} x y same });
+\definition ltNotEq(x, y: Real):
+  Lt x y ->
+  Logic.Not (x = y) :=
+  \fun (xy: Lt x y) (same: x = y) =>
+      ltIrrefl x
+        (\idelim y = x \with z: Real => Lt x z
+          \by { base: xy, equality: sym!{Real} x y same });
 
 \definition comparable: O.Comparable Real Lt := \fun (x, y: Real) =>
   either!{
@@ -113,19 +135,17 @@
   }
     (leTotal x y);
 
-\definition ltTrichotomy (x, y: Real):
-  Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]] :=
+\definition ltTrichotomy(x, y: Real): Logic.Or[Lt x y, Logic.Or[x = y, Lt y x]] :=
   O.trichotomyOr Real Lt x y (comparable x y);
 
 /* This relation is used by every arithmetic structure on the cut carrier. */
 \definition leRelation: \Pow (Pair.Times^[Real, Real]) :=
   { p : Pair.Times^[Real, Real] \where Le (Pair.first Real Real p) (Pair.second Real Real p) };
-\definition withOrder (zero, one: Real) (add: Real -> Real -> Real)
-  (neg: Real -> Real) (mul: Real -> Real -> Real) (inv: Real -> Real):
-  AR.AxiomaticRealStructure::[Raw] :=
+\definition withOrder(zero, one: Real) (add: Real -> Real -> Real) (neg: Real -> Real)
+  (mul: Real -> Real -> Real) (inv: Real -> Real): AR.AxiomaticRealStructure::[Raw] :=
   AR.AxiomaticRealStructure::[Raw]::# zero one add neg mul inv leRelation;
-\definition linearOrder (zero, one: Real) (add: Real -> Real -> Real)
-  (neg: Real -> Real) (mul: Real -> Real -> Real) (inv: Real -> Real):
+\definition linearOrder(zero, one: Real) (add: Real -> Real -> Real) (neg: Real -> Real)
+  (mul: Real -> Real -> Real) (inv: Real -> Real):
   AR.LinearOrderLaws[#leRelation{withOrder zero one add neg mul inv}] :=
   AR.LinearOrderLaws[#leRelation{withOrder zero one add neg mul inv}] {
     reflexive := leRefl,
@@ -133,6 +153,6 @@
     antisymmetric := leAntisym,
     total := leTotal,
   };
-\definition completeness (zero, one: Real) (add: Real -> Real -> Real)
-  (neg: Real -> Real) (mul: Real -> Real -> Real) (inv: Real -> Real):
+\definition completeness(zero, one: Real) (add: Real -> Real -> Real) (neg: Real -> Real)
+  (mul: Real -> Real -> Real) (inv: Real -> Real):
   AR.Completeness (withOrder zero one add neg mul inv) := Complete.complete;

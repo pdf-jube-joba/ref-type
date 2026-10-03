@@ -1,81 +1,83 @@
 \use Logic.either;
-\definition openOfRadius(metric: Metric::[Set]) (U: \Pow Carrier) (x: Carrier)
-  (radius: R.Real) (positive: R.Lt Real.zero radius)
-  (contained: T.Subset (Ball metric x radius) U):
+\definition openOfRadius(metric: Metric::[Set]) (U: \Pow Carrier) (x: Carrier) (radius: R.Real):
+  R.Lt Real.zero radius -> T.Subset (Ball metric x radius) U ->
   \exists { r : R.Real \where \In[R.Real] (NeighborhoodRadius metric U x) r } :=
-  \exact(
-    \into[R.Real](radius, NeighborhoodRadius metric U x) \by {
-      Logic.And[_, _]::# positive contained
-    },
-    \Cast[R.Real] (NeighborhoodRadius metric U x));
+  \fun (positive: R.Lt Real.zero radius) (contained: T.Subset (Ball metric x radius) U) =>
+    \exact(
+      \into[R.Real](radius, NeighborhoodRadius metric U x) \by {
+        Logic.And[_, _]::# positive contained
+      },
+      \Cast[R.Real] (NeighborhoodRadius metric U x));
 
 \definition emptyOpen(metric: Metric::[Set]): IsOpen metric T.Empty :=
-  \fun (x: Carrier) => \fun (inside: T.Member T.Empty x) =>
+  \fun (x: Carrier) (inside: T.Member T.Empty x) =>
     Logic.falseElim
       (\exists { r : R.Real \where \In[R.Real] (NeighborhoodRadius metric T.Empty x) r })
       inside;
 
 \definition wholeOpen(metric: Metric::[Set]): IsOpen metric T.Whole :=
-  \fun (x: Carrier) => \fun (_: T.Member T.Whole x) =>
+  \fun (x: Carrier) (_: T.Member T.Whole x) =>
     openOfRadius metric T.Whole x Real.one
       (Order.ltOfLeNotEq Real.zero Real.one RealLaws.oneNonnegative RealLaws.zeroNeOne)
       (\fun (y: Carrier) => \fun (_: T.Member (Ball metric x Real.one) y) => \refl(y));
 
-\definition unionOpen(metric: Metric::[Set]) (family: \Pow (\Pow Carrier))
-  (allOpen: \forall (U: \Pow Carrier) -> T.FamilyMember family U -> IsOpen metric U):
+\definition unionOpen(metric: Metric::[Set]) (family: \Pow (\Pow Carrier)):
+  (\forall (U: \Pow Carrier) -> T.FamilyMember family U -> IsOpen metric U) ->
   IsOpen metric (T.Union family) :=
-  \fun (x: Carrier) => \fun (inside: T.Member (T.Union family) x) =>
-    T.unionMemberElim family x
-      (\exists { r : R.Real \where
-        \In[R.Real] (NeighborhoodRadius metric (T.Union family) x) r })
-      (\fun (U: \Pow Carrier) => \fun (inFamily: T.FamilyMember family U) =>
-        \fun (inU: T.Member U x) => \block {
-          \takefrom r: \Cast[R.Real] (NeighborhoodRadius metric U x)
-            \by allOpen U inFamily x inU \then
-          \let h: Logic.And[R.Lt Real.zero r, T.Subset (Ball metric x r) U] :=
-            \bysub(R.Real, NeighborhoodRadius metric U x, r) \then
-          \return openOfRadius metric (T.Union family) x r (#left{h})
-            (\fun (y: Carrier) => \fun (inBall: T.Member (Ball metric x r) y) =>
-              T.unionMemberOf family U y inFamily (#right{h} y inBall))
-        }) inside;
+  \fun (allOpen: \forall (U: \Pow Carrier) -> T.FamilyMember family U -> IsOpen metric U) =>
+    \fun (x: Carrier) => \fun (inside: T.Member (T.Union family) x) =>
+      T.unionMemberElim family x
+        (\exists { r : R.Real \where
+          \In[R.Real] (NeighborhoodRadius metric (T.Union family) x) r })
+        (\fun (U: \Pow Carrier) => \fun (inFamily: T.FamilyMember family U) =>
+          \fun (inU: T.Member U x) => \block {
+            \takefrom r: \Cast[R.Real] (NeighborhoodRadius metric U x)
+              \by allOpen U inFamily x inU \then
+            \let h: Logic.And[R.Lt Real.zero r, T.Subset (Ball metric x r) U] :=
+              \bysub(R.Real, NeighborhoodRadius metric U x, r) \then
+            \return openOfRadius metric (T.Union family) x r (#left{h})
+              (\fun (y: Carrier) => \fun (inBall: T.Member (Ball metric x r) y) =>
+                T.unionMemberOf family U y inFamily (#right{h} y inBall))
+          }) inside;
 
-\definition intersectionRadius(metric: Metric::[Set]) (U, V: \Pow Carrier)
-  (x: Carrier) (r, s: R.Real)
-  (hr: \In[R.Real] (NeighborhoodRadius metric U x) r)
-  (hs: \In[R.Real] (NeighborhoodRadius metric V x) s)
-  (rs: R.Le r s):
+\definition intersectionRadius(metric: Metric::[Set]) (U, V: \Pow Carrier) (x: Carrier) (r, s: R.Real):
+  \In[R.Real] (NeighborhoodRadius metric U x) r ->
+  \In[R.Real] (NeighborhoodRadius metric V x) s -> R.Le r s ->
   \exists { t : R.Real \where
     \In[R.Real] (NeighborhoodRadius metric (T.Intersection U V) x) t } :=
-  openOfRadius metric (T.Intersection U V) x r (#left{hr})
-    (\fun (y: Carrier) => \fun (inside: T.Member (Ball metric x r) y) =>
-      T.intersectionMember U V y (#right{hr} y inside)
-        (#right{hs} y (ballMonotone metric x r s rs y inside)));
+  \fun (hr: \In[R.Real] (NeighborhoodRadius metric U x) r)
+    (hs: \In[R.Real] (NeighborhoodRadius metric V x) s) (rs: R.Le r s) =>
+    openOfRadius metric (T.Intersection U V) x r (#left{hr})
+      (\fun (y: Carrier) => \fun (inside: T.Member (Ball metric x r) y) =>
+        T.intersectionMember U V y (#right{hr} y inside)
+          (#right{hs} y (ballMonotone metric x r s rs y inside)));
 
-\definition intersectionOpen(metric: Metric::[Set]) (U, V: \Pow Carrier)
-  (uOpen: IsOpen metric U) (vOpen: IsOpen metric V):
+\definition intersectionOpen(metric: Metric::[Set]) (U, V: \Pow Carrier):
+  IsOpen metric U -> IsOpen metric V ->
   IsOpen metric (T.Intersection U V) :=
-  \fun (x: Carrier) => \fun (inside: T.Member (T.Intersection U V) x) => \block {
-    \takefrom r: \Cast[R.Real] (NeighborhoodRadius metric U x)
-      \by uOpen x (#left{inside}) \then
-    \takefrom s: \Cast[R.Real] (NeighborhoodRadius metric V x)
-      \by vOpen x (#right{inside}) \then
-    \let hr: \In[R.Real] (NeighborhoodRadius metric U x) r :=
-      \bysub(R.Real, NeighborhoodRadius metric U x, r) \then
-    \let hs: \In[R.Real] (NeighborhoodRadius metric V x) s :=
-      \bysub(R.Real, NeighborhoodRadius metric V x, s) \then
-    \return either!{
-      {R.Le r s} "or" {R.Le s r} "either" {\exists { t : R.Real \where
-        \In[R.Real] (NeighborhoodRadius metric (T.Intersection U V) x) t }}
-      "lt:" {intersectionRadius metric U V x r s hr hs}
-      "rt:" {\fun (sr: R.Le s r) =>
-        openOfRadius metric (T.Intersection U V) x s (#left{hs})
-          (\fun (y: Carrier) => \fun (inBall: T.Member (Ball metric x s) y) =>
-            T.intersectionMember U V y
-              (#right{hr} y (ballMonotone metric x s r sr y inBall))
-              (#right{hs} y inBall))}
-    }
-      (Order.leTotal r s)
-  };
+  \fun (uOpen: IsOpen metric U) (vOpen: IsOpen metric V) (x: Carrier)
+    (inside: T.Member (T.Intersection U V) x) => \block {
+      \takefrom r: \Cast[R.Real] (NeighborhoodRadius metric U x)
+        \by uOpen x (#left{inside}) \then
+      \takefrom s: \Cast[R.Real] (NeighborhoodRadius metric V x)
+        \by vOpen x (#right{inside}) \then
+      \let hr: \In[R.Real] (NeighborhoodRadius metric U x) r :=
+        \bysub(R.Real, NeighborhoodRadius metric U x, r) \then
+      \let hs: \In[R.Real] (NeighborhoodRadius metric V x) s :=
+        \bysub(R.Real, NeighborhoodRadius metric V x, s) \then
+      \return either!{
+        {R.Le r s} "or" {R.Le s r} "either" {\exists { t : R.Real \where
+          \In[R.Real] (NeighborhoodRadius metric (T.Intersection U V) x) t }}
+        "lt:" {intersectionRadius metric U V x r s hr hs}
+        "rt:" {\fun (sr: R.Le s r) =>
+          openOfRadius metric (T.Intersection U V) x s (#left{hs})
+            (\fun (y: Carrier) => \fun (inBall: T.Member (Ball metric x s) y) =>
+              T.intersectionMember U V y
+                (#right{hr} y (ballMonotone metric x s r sr y inBall))
+                (#right{hs} y inBall))}
+      }
+        (Order.leTotal r s)
+    };
 
 \definition raw(metric: Metric::[Set]): T.Topology::[Raw] :=
   T.Topology::[Raw] {
@@ -107,8 +109,7 @@
 \definition Metrizable(space: T.Topology::[Set]): \Prop :=
   \exists { metric : Metric::[Set] \where Compatible metric space };
 
-\definition inducedMetrizable(metric: Metric::[Set]):
-  Metrizable (topology metric) :=
+\definition inducedMetrizable(metric: Metric::[Set]): Metrizable (topology metric) :=
   \exact(
     \into[Metric::[Set]](metric,
       { m : Metric::[Set] \where Compatible m (topology metric) })
@@ -119,7 +120,7 @@
 /* At y in B(x, r), the radius r - d(x, y) stays inside B(x, r). */
 \definition ballOpen(metric: Metric::[Set]) (x: Carrier) (radius: R.Real):
   IsOpen metric (Ball metric x radius) :=
-  \fun (y: Carrier) => \fun (inside: T.Member (Ball metric x radius) y) => \block {
+  \fun (y: Carrier) (inside: T.Member (Ball metric x radius) y) => \block {
     \let d: R.Real := #distance{metric} x y \then
     \let remaining: R.Real := Real.add (Real.neg d) radius \then
     \let positive: R.Lt Real.zero remaining :=
@@ -141,14 +142,15 @@
   T.IsOpenIn (topology metric) (Ball metric x radius) :=
   #rtl{(openIff metric (Ball metric x radius))} (ballOpen metric x radius);
 
-\definition positiveDistance(metric: Metric::[Set]) (x, y: Carrier)
-  (different: Logic.Not (x = y)):
+\definition positiveDistance(metric: Metric::[Set]) (x, y: Carrier):
+  Logic.Not (x = y) ->
   R.Lt Real.zero (#distance{metric} x y) :=
-  Order.ltOfLeNotEq Real.zero (#distance{metric} x y)
-    (#nonnegative{metric} x y)
-    (\fun (zero: Real.zero = #distance{metric} x y) =>
-      different (#separated{metric} x y
-        (sym!{R.Real} Real.zero (#distance{metric} x y) zero)));
+  \fun (different: Logic.Not (x = y)) =>
+    Order.ltOfLeNotEq Real.zero (#distance{metric} x y)
+      (#nonnegative{metric} x y)
+      (\fun (zero: Real.zero = #distance{metric} x y) =>
+        different (#separated{metric} x y
+          (sym!{R.Real} Real.zero (#distance{metric} x y) zero)));
 
 \definition singletonClosed(metric: Metric::[Set]) (x: Carrier):
   T.IsClosedIn (topology metric) (T.Singleton x) :=
@@ -167,9 +169,11 @@
 \definition topologyT1(metric: Metric::[Set]): T.IsT1 (topology metric) :=
   singletonClosed metric;
 
-\definition metrizableT1(space: T.Topology::[Set])
-  (metrizable: Metrizable space): T.IsT1 space :=
+\definition metrizableT1(space: T.Topology::[Set]):
+  Metrizable space ->
+  T.IsT1 space :=
   \block {
+    \fun (metrizable: Metrizable space) \then
     \takefrom metric: \Cast[Metric::[Set]]
       ({ m : Metric::[Set] \where Compatible m space })
       \by metrizable \then

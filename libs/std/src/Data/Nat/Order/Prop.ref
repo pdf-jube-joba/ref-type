@@ -4,6 +4,7 @@
 \use Equality.congr;
 
 \import std.Data[].Bool[] \as B;
+\import B.Prop[] \as BoolLaws;
 
 \import std.Data[].Nat[].Basic[].Def[] \as Op;
 \use Op.nat_add;
@@ -16,15 +17,17 @@
 \use Logic.either;
 \import std.Logic[].Order[] \as O;
 \import std.Logic[].Classical[] \as Classical;
-\definition Trichotomy (a, b: Nat^): \Prop := O.Trichotomy[Nat^, Basic.Lt, a, b];
-\definition comparisonSucc (a, b: Nat^) (h: Trichotomy a b):
+\definition Trichotomy(a, b: Nat^): \Prop := O.Trichotomy[Nat^, Basic.Lt, a, b];
+\definition comparisonSucc(a, b: Nat^):
+  Trichotomy a b ->
   Trichotomy (Nat^::succ a) (Nat^::succ b) :=
-  \match h \in O.Trichotomy \return (\fun (_: Trichotomy a b) =>
-    Trichotomy (Nat^::succ a) (Nat^::succ b)) \with {
-  | less ab : O.Trichotomy[Nat^, Basic.Lt, Nat^::succ a, Nat^::succ b]::less ab
-  | equal ab : O.Trichotomy[Nat^, Basic.Lt, Nat^::succ a, Nat^::succ b]::equal (Op.succCong a b ab)
-  | greater ba : O.Trichotomy[Nat^, Basic.Lt, Nat^::succ a, Nat^::succ b]::greater ba
-  };
+  \fun (h: Trichotomy a b) =>
+    \match h \in O.Trichotomy \return (\fun (_: Trichotomy a b) =>
+      Trichotomy (Nat^::succ a) (Nat^::succ b)) \with {
+    | less ab : O.Trichotomy[Nat^, Basic.Lt, Nat^::succ a, Nat^::succ b]::less ab
+    | equal ab : O.Trichotomy[Nat^, Basic.Lt, Nat^::succ a, Nat^::succ b]::equal (Op.succCong a b ab)
+    | greater ba : O.Trichotomy[Nat^, Basic.Lt, Nat^::succ a, Nat^::succ b]::greater ba
+    };
 \definition trichotomy: \forall (a, b: Nat^) -> Trichotomy a b :=
   \induction (a: Nat^) \return \forall (b: Nat^) -> Trichotomy a b \with {
     | zero : (\induction (b: Nat^) \return Trichotomy Nat^::zero b \with {
@@ -43,16 +46,18 @@
 
 \definition ltZero: \forall (a: Nat^) -> Basic.Lt a Nat^::zero -> Logic.False :=
   \induction (a: Nat^) \return Basic.Lt a Nat^::zero -> Logic.False \with {
-    | zero : B.falseNeTrue
+    | zero : BoolLaws.falseNeTrue
     | succ : (\fun (a: Nat^) => \fun (_: Basic.Lt a Nat^::zero -> Logic.False) =>
-      B.falseNeTrue)
+      BoolLaws.falseNeTrue)
     };
 
-\definition zeroLtSucc (a: Nat^): Basic.Lt Nat^::zero (Nat^::succ a) :=
+\definition zeroLtSucc(a: Nat^): Basic.Lt Nat^::zero (Nat^::succ a) :=
   \refl(B.Bool^::true);
 
-\definition ltOfSuccSucc (a, b: Nat^)
-  (h: Basic.Lt (Nat^::succ a) (Nat^::succ b)): Basic.Lt a b := h;
+\definition ltOfSuccSucc(a, b: Nat^):
+  Basic.Lt (Nat^::succ a) (Nat^::succ b) ->
+  Basic.Lt a b := \fun (h: _) =>
+    h;
 
 \definition ltStep: \forall (a, b: Nat^) -> Basic.Lt a b -> Basic.Lt a (Nat^::succ b) :=
   \induction (a: Nat^) \return \forall (b: Nat^) -> Basic.Lt a b -> Basic.Lt a (Nat^::succ b) \with {
@@ -70,7 +75,8 @@
       })
     };
 
-\definition zeroLtOfLt (b: Nat^): \forall (c: Nat^) ->
+\definition zeroLtOfLt(b: Nat^):
+  \forall (c: Nat^) ->
   Basic.Lt b c -> Basic.Lt Nat^::zero c :=
   \induction (c: Nat^) \return Basic.Lt b c -> Basic.Lt Nat^::zero c \with {
     | zero : (\fun (bad: Basic.Lt b Nat^::zero) =>
@@ -116,7 +122,8 @@
       }
     };
 
-\definition ltAddRight (a, b: Nat^): \forall (c: Nat^) ->
+\definition ltAddRight(a, b: Nat^):
+  \forall (c: Nat^) ->
   Basic.Lt a b -> Basic.Lt \(a "+" c\) \(b "+" c\) :=
   \induction (c: Nat^) \return Basic.Lt a b -> Basic.Lt \(a "+" c\) \(b "+" c\) \with {
     | zero : (\fun (ab: Basic.Lt a b) => ab)
@@ -133,25 +140,30 @@
               sym!{Nat^} _ _ (Basic.addSuccRight a c) })
     };
 
-\definition ltAddLeft (c, a, b: Nat^) (ab: Basic.Lt a b):
+\definition ltAddLeft(c, a, b: Nat^):
+  Basic.Lt a b ->
   Basic.Lt \(c "+" a\) \(c "+" b\) :=
-  \idelim \(a "+" c\) = \(c "+" a\)
-    \with left: Nat^ => Basic.Lt left \(c "+" b\)
-    \by { base:
-      \idelim \(b "+" c\) = \(c "+" b\)
-        \with right: Nat^ => Basic.Lt \(a "+" c\) right
-        \by { base: ltAddRight a b c ab, equality: Basic.addComm b c }, equality:
-      Basic.addComm a c };
+  \fun (ab: Basic.Lt a b) =>
+    \idelim \(a "+" c\) = \(c "+" a\)
+      \with left: Nat^ => Basic.Lt left \(c "+" b\)
+      \by { base:
+        \idelim \(b "+" c\) = \(c "+" b\)
+          \with right: Nat^ => Basic.Lt \(a "+" c\) right
+          \by { base: ltAddRight a b c ab, equality: Basic.addComm b c }, equality:
+        Basic.addComm a c };
 
-\definition ltRespects (a, b, c, d: Nat^) (ac: a = c) (bd: b = d)
-  (ab: Basic.Lt a b): Basic.Lt c d :=
-  \idelim a = c \with left: Nat^ => Basic.Lt left d
-    \by { base:
-      \idelim b = d \with right: Nat^ => Basic.Lt a right
-        \by { base: ab, equality: bd }, equality:
-      ac };
+\definition ltRespects(a, b, c, d: Nat^):
+  a = c -> b = d -> Basic.Lt a b ->
+  Basic.Lt c d :=
+  \fun (ac: a = c) (bd: b = d) (ab: Basic.Lt a b) =>
+    \idelim a = c \with left: Nat^ => Basic.Lt left d
+      \by { base:
+        \idelim b = d \with right: Nat^ => Basic.Lt a right
+          \by { base: ab, equality: bd }, equality:
+        ac };
 
-\definition ltCancelRight (a, b: Nat^): \forall (c: Nat^) ->
+\definition ltCancelRight(a, b: Nat^):
+  \forall (c: Nat^) ->
   Basic.Lt \(a "+" c\) \(b "+" c\) -> Basic.Lt a b :=
   \induction (c: Nat^) \return Basic.Lt \(a "+" c\) \(b "+" c\) -> Basic.Lt a b \with {
     | zero : (\fun (ab: Basic.Lt a b) => ab)
@@ -166,32 +178,42 @@
                 (Basic.addSuccRight a c) (Basic.addSuccRight b c) ab)))
     };
 
-\definition ltCancelLeft (c, a, b: Nat^)
-  (ab: Basic.Lt \(c "+" a\) \(c "+" b\)): Basic.Lt a b :=
-  ltCancelRight a b c
-    (ltRespects \(c "+" a\) \(c "+" b\)
-      \(a "+" c\) \(b "+" c\)
-      (Basic.addComm c a) (Basic.addComm c b) ab);
+\definition ltCancelLeft(c, a, b: Nat^):
+  Basic.Lt \(c "+" a\) \(c "+" b\) ->
+  Basic.Lt a b :=
+  \fun (ab: _) =>
+    ltCancelRight a b c
+      (ltRespects \(c "+" a\) \(c "+" b\)
+        \(a "+" c\) \(b "+" c\)
+        (Basic.addComm c a) (Basic.addComm c b) ab);
 
-\definition addRotate (a, b, c: Nat^):
-  \((a "+" b) "+" c\) = \((a "+" c) "+" b\) :=
+\definition addRotate(a, b, c: Nat^): \((a "+" b) "+" c\) = \((a "+" c) "+" b\) :=
   trans!{Nat^} _ _ _ (Basic.addAssoc a b c)
     (trans!{Nat^} _ _ _
       (congr!{Nat^ Nat^} (Op.Add::[set] a) _ _ (Basic.addComm b c))
       (sym!{Nat^} _ _ (Basic.addAssoc a c b)));
 
-\definition ltAsym (a, b: Nat^) (ab: Basic.Lt a b) (ba: Basic.Lt b a): Logic.False :=
-  Basic.ltIrrefl a (ltTrans a b a ab ba);
-\definition ltNotEq (a, b: Nat^) (ab: Basic.Lt a b) (same: a = b): Logic.False :=
-  Basic.ltIrrefl a
-    (ltRespects a b a a (\refl(a)) (sym!{Nat^} _ _ same) ab);
+\definition ltAsym(a, b: Nat^):
+  Basic.Lt a b -> Basic.Lt b a ->
+  Logic.False :=
+  \fun (ab: _) (ba: _) =>
+    Basic.ltIrrefl a (ltTrans a b a ab ba);
+\definition ltNotEq(a, b: Nat^):
+  Basic.Lt a b -> a = b ->
+  Logic.False :=
+  \fun (ab: _) (same: _) =>
+    Basic.ltIrrefl a
+      (ltRespects a b a a (\refl(a)) (sym!{Nat^} _ _ same) ab);
 
-\definition ltAdd (a, b, c, d: Nat^) (ab: Basic.Lt a b) (cd: Basic.Lt c d):
+\definition ltAdd(a, b, c, d: Nat^):
+  Basic.Lt a b -> Basic.Lt c d ->
   Basic.Lt \(a "+" c\) \(b "+" d\) :=
-  ltTrans \(a "+" c\) \(b "+" c\) \(b "+" d\)
-    (ltAddRight a b c ab) (ltAddLeft b c d cd);
+  \fun (ab: _) (cd: _) =>
+    ltTrans \(a "+" c\) \(b "+" c\) \(b "+" d\)
+      (ltAddRight a b c ab) (ltAddLeft b c d cd);
 
-\definition ltMulSuccRight (a, b: Nat^): \forall (k: Nat^) ->
+\definition ltMulSuccRight(a, b: Nat^):
+  \forall (k: Nat^) ->
   Basic.Lt a b -> Basic.Lt \(a "*" { Nat^::succ k }\) \(b "*" { Nat^::succ k }\) :=
   \induction (k: Nat^) \return Basic.Lt a b ->
     Basic.Lt \(a "*" { Nat^::succ k }\) \(b "*" { Nat^::succ k }\) \with {
@@ -215,24 +237,27 @@
               \(b "*" { Nat^::succ k }\) ab (ih ab)))
     };
 
-\definition ltCancelMulSuccRight (a, b, k: Nat^)
-  (scaled: Basic.Lt \(a "*" { Nat^::succ k }\)
-    \(b "*" { Nat^::succ k }\)): Basic.Lt a b :=
-  \match (trichotomy a b) \in O.Trichotomy
-    \return (\fun (_: Trichotomy a b) => Basic.Lt a b) \with {
-  | less ab : ab
-  | equal ab :
-          Logic.falseElim (Basic.Lt a b)
-            (ltNotEq \(a "*" { Nat^::succ k }\)
-              \(b "*" { Nat^::succ k }\) scaled
-              (congr!{Nat^ Nat^} (\fun (n: Nat^) =>
-                \(n "*" { Nat^::succ k }\)) a b ab))
-  | greater ba :
-          Logic.falseElim (Basic.Lt a b)
-            (ltAsym \(a "*" { Nat^::succ k }\)
-              \(b "*" { Nat^::succ k }\) scaled
-              (ltMulSuccRight b a k ba))
-  };
+\definition ltCancelMulSuccRight(a, b, k: Nat^):
+  Basic.Lt \(a "*" { Nat^::succ k }\)
+    \(b "*" { Nat^::succ k }\) ->
+  Basic.Lt a b :=
+  \fun (scaled: Basic.Lt \(a "*" { Nat^::succ k }\)
+    \(b "*" { Nat^::succ k }\)) =>
+    \match (trichotomy a b) \in O.Trichotomy
+      \return (\fun (_: Trichotomy a b) => Basic.Lt a b) \with {
+    | less ab : ab
+    | equal ab :
+            Logic.falseElim (Basic.Lt a b)
+              (ltNotEq \(a "*" { Nat^::succ k }\)
+                \(b "*" { Nat^::succ k }\) scaled
+                (congr!{Nat^ Nat^} (\fun (n: Nat^) =>
+                  \(n "*" { Nat^::succ k }\)) a b ab))
+    | greater ba :
+            Logic.falseElim (Basic.Lt a b)
+              (ltAsym \(a "*" { Nat^::succ k }\)
+                \(b "*" { Nat^::succ k }\) scaled
+                (ltMulSuccRight b a k ba))
+    };
 
 \definition ltSelfSucc: \forall (a: Nat^) -> Basic.Lt a (Nat^::succ a) :=
   \induction (a: Nat^) \return Basic.Lt a (Nat^::succ a) \with {
@@ -240,7 +265,8 @@
     | succ : (\fun (a: Nat^) => \fun (ih: Basic.Lt a (Nat^::succ a)) => ih)
     };
 
-\definition ltSuccPlus (a: Nat^): \forall (c: Nat^) ->
+\definition ltSuccPlus(a: Nat^):
+  \forall (c: Nat^) ->
   Basic.Lt a \({ Nat^::succ a } "+" c\) :=
   \induction (c: Nat^) \return Basic.Lt a \({ Nat^::succ a } "+" c\) \with {
     | zero : (ltSelfSucc a)
@@ -252,8 +278,7 @@
           (ltStep a \({ Nat^::succ a } "+" c\) ih))
     };
 
-\definition ltPositiveProduct (a, k: Nat^):
-  Basic.Lt a \({ Nat^::succ k } "*" { Nat^::succ a }\) :=
+\definition ltPositiveProduct(a, k: Nat^): Basic.Lt a \({ Nat^::succ k } "*" { Nat^::succ a }\) :=
   ltRespects a
     \({ Nat^::succ a } "+" ({ Nat^::succ a } "*" k)\)
     a \({ Nat^::succ k } "*" { Nat^::succ a }\)
@@ -263,46 +288,42 @@
       (Basic.mulComm (Nat^::succ a) (Nat^::succ k)))
     (ltSuccPlus a \({ Nat^::succ a } "*" k\));
 
-\definition commonBound (m, n: Nat^): Nat^ :=
+\definition commonBound(m, n: Nat^): Nat^ :=
   Op.Add::[set] m n;
 
-\definition leftLeCommonBound (m, n: Nat^): Basic.Le m (commonBound m n) :=
+\definition leftLeCommonBound(m, n: Nat^): Basic.Le m (commonBound m n) :=
   Basic.leAddRight m n;
 
-\definition rightLeCommonBound (m, n: Nat^): Basic.Le n (commonBound m n) :=
+\definition rightLeCommonBound(m, n: Nat^): Basic.Le n (commonBound m n) :=
   Basic.leAddLeft m n;
 
-\definition fourBound (a, b, c, d: Nat^): Nat^ :=
+\definition fourBound(a, b, c, d: Nat^): Nat^ :=
   commonBound (commonBound a b) (commonBound c d);
 
-\definition firstLeFourBound (a, b, c, d: Nat^):
-    Basic.Le a (fourBound a b c d) :=
+\definition firstLeFourBound(a, b, c, d: Nat^): Basic.Le a (fourBound a b c d) :=
   Basic.leTrans a (commonBound a b) (fourBound a b c d)
     (leftLeCommonBound a b)
     (leftLeCommonBound (commonBound a b) (commonBound c d));
 
-\definition secondLeFourBound (a, b, c, d: Nat^):
-    Basic.Le b (fourBound a b c d) :=
+\definition secondLeFourBound(a, b, c, d: Nat^): Basic.Le b (fourBound a b c d) :=
   Basic.leTrans b (commonBound a b) (fourBound a b c d)
     (rightLeCommonBound a b)
     (leftLeCommonBound (commonBound a b) (commonBound c d));
 
-\definition thirdLeFourBound (a, b, c, d: Nat^):
-    Basic.Le c (fourBound a b c d) :=
+\definition thirdLeFourBound(a, b, c, d: Nat^): Basic.Le c (fourBound a b c d) :=
   Basic.leTrans c (commonBound c d) (fourBound a b c d)
     (leftLeCommonBound c d)
     (rightLeCommonBound (commonBound a b) (commonBound c d));
 
-\definition fourthLeFourBound (a, b, c, d: Nat^):
-    Basic.Le d (fourBound a b c d) :=
+\definition fourthLeFourBound(a, b, c, d: Nat^): Basic.Le d (fourBound a b c d) :=
   Basic.leTrans d (commonBound c d) (fourBound a b c d)
     (rightLeCommonBound c d)
     (rightLeCommonBound (commonBound a b) (commonBound c d));
 
-\definition AdjacentBoundary (P: Nat^ -> \Prop): \Prop :=
+\definition AdjacentBoundary(P: Nat^ -> \Prop): \Prop :=
   \exists { k : Nat^ \where Logic.And[P k, Logic.Not (P (Nat^::succ k))] };
 
-\definition finiteBoundary (P: Nat^ -> \Prop):
+\definition finiteBoundary(P: Nat^ -> \Prop):
   \forall (n: Nat^) -> P Nat^::zero ->
     Logic.Not (P n) -> AdjacentBoundary P :=
   \induction (n: Nat^) \return P Nat^::zero ->

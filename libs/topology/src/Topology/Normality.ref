@@ -4,119 +4,129 @@
 \import std.Data[].Nat[].Basic[].Prop[] \as NatOrder;
 \use Equality.congr;
 
-\definition ComplementOfDisjoint(F, G: \Pow Carrier)
-  (disjoint: Disjoint F G): Subset F (Complement G) :=
-  \fun (x: Carrier) => \fun (inF: Member F x) =>
-    \fun (inG: Member G x) => disjoint x inF inG;
+\definition ComplementOfDisjoint(F, G: \Pow Carrier):
+  Disjoint F G ->
+  Subset F (Complement G) :=
+  \fun (disjoint: Disjoint F G) (x: Carrier) (inF: Member F x) (inG: Member G x) => disjoint x inF inG;
 
 \definition emptyDisjoint(G: \Pow Carrier): Disjoint Empty G :=
-  \fun (x: Carrier) => \fun (empty: Member Empty x) =>
+  \fun (x: Carrier) (empty: Member Empty x) =>
     Logic.falseElim (Member G x -> Logic.False) empty;
 
 \definition wholeContains(G: \Pow Carrier): Subset G Whole :=
-  \fun (x: Carrier) => \fun (_: Member G x) => \refl(x);
+  \fun (x: Carrier) (_: Member G x) => \refl(x);
 
-\definition Companion(topology: Topology::[Set])
-  (G, U: \Pow Carrier): \Prop :=
+\definition Companion(topology: Topology::[Set]) (G, U: \Pow Carrier): \Prop :=
   \exists { V : \Pow Carrier \where
     NormalPartner[topology, G, U, V] };
 
-\definition RegularFamily(topology: Topology::[Set])
-  (G: \Pow Carrier): \Pow (\Pow Carrier) :=
+\definition RegularFamily(topology: Topology::[Set]) (G: \Pow Carrier): \Pow (\Pow Carrier) :=
   { U : \Pow Carrier \where
     Logic.And[IsOpenIn topology U, Companion topology G U] };
 
-\definition regularFamilyOpen(topology: Topology::[Set])
-  (G, U: \Pow Carrier)
-  (member: FamilyMember (RegularFamily topology G) U):
-  IsOpenIn topology U := #left{member};
+\definition regularFamilyOpen(topology: Topology::[Set]) (G, U: \Pow Carrier):
+  FamilyMember (RegularFamily topology G) U ->
+  IsOpenIn topology U := \fun (member: FamilyMember (RegularFamily topology G) U) =>
+    #left{member};
 
-\definition regularFamilyCovers(topology: Topology::[Set])
-  (regular: IsRegular topology) (F, G: \Pow Carrier)
-  (gClosed: IsClosedIn topology G) (disjoint: Disjoint F G):
+\definition regularFamilyCovers(topology: Topology::[Set]):
+  IsRegular topology -> \forall (F, G: \Pow Carrier) ->
+  IsClosedIn topology G -> Disjoint F G ->
   Covers (RegularFamily topology G) F :=
-  \fun (x: Carrier) => \fun (inF: Member F x) => \block {
-    \takefrom U: \Cast[\Pow Carrier]
-      ({ U : \Pow Carrier \where
-        RegularChoice[topology, G, x, U] })
-      \by regular G gClosed x (ComplementOfDisjoint F G disjoint x inF) \then
-    \let data: RegularChoice[topology, G, x, U] :=
-      \bysub(\Pow Carrier,
-        { W : \Pow Carrier \where
-          RegularChoice[topology, G, x, W] }, U) \then
-    \return unionMemberOf (RegularFamily topology G) U x
-      (Logic.And[_, _]::# (#open{data}) (#partner{data}))
-      (#contains{data})
-  };
+  \fun (regular: IsRegular topology) (F, G: \Pow Carrier) (gClosed: IsClosedIn topology G)
+    (disjoint: Disjoint F G) (x: Carrier) (inF: Member F x) => \block {
+      \takefrom U: \Cast[\Pow Carrier]
+        ({ U : \Pow Carrier \where
+          RegularChoice[topology, G, x, U] })
+        \by regular G gClosed x (ComplementOfDisjoint F G disjoint x inF) \then
+      \let data: RegularChoice[topology, G, x, U] :=
+        \bysub(\Pow Carrier,
+          { W : \Pow Carrier \where
+            RegularChoice[topology, G, x, W] }, U) \then
+      \return unionMemberOf (RegularFamily topology G) U x
+        (Logic.And[_, _]::# (#open{data}) (#partner{data}))
+        (#contains{data})
+    };
 
-\definition regularFamilyCover(topology: Topology::[Set])
-  (regular: IsRegular topology) (F, G: \Pow Carrier)
-  (gClosed: IsClosedIn topology G) (disjoint: Disjoint F G):
+\definition regularFamilyCover(topology: Topology::[Set]):
+  IsRegular topology -> \forall (F, G: \Pow Carrier) ->
+  IsClosedIn topology G -> Disjoint F G ->
   IsOpenCover topology (RegularFamily topology G) F :=
-  Logic.And[_, _]::#
-    (regularFamilyCovers topology regular F G gClosed disjoint)
-    (regularFamilyOpen topology G);
+  \fun (regular: IsRegular topology) (F, G: \Pow Carrier) (gClosed: IsClosedIn topology G)
+    (disjoint: Disjoint F G) =>
+    Logic.And[_, _]::#
+      (regularFamilyCovers topology regular F G gClosed disjoint)
+      (regularFamilyOpen topology G);
 
-\definition CompanionSet(topology: Topology::[Set])
-  (G, U: \Pow Carrier): \Set :=
+\definition CompanionSet(topology: Topology::[Set]) (G, U: \Pow Carrier): \Set :=
   \Cast[\Pow Carrier]
     ({ V : \Pow Carrier \where
       NormalPartner[topology, G, U, V] });
 
-\definition selectedCompanionExists(topology: Topology::[Set])
-  (G: \Pow Carrier) (selected: N.Nat^ -> \Pow Carrier)
-  (selectedMember: \forall (n: N.Nat^) ->
+\definition selectedCompanionExists(topology: Topology::[Set]) (G: \Pow Carrier)
+  (selected: N.Nat^ -> \Pow Carrier):
+  (\forall (n: N.Nat^) ->
     Logic.Or[FamilyMember (RegularFamily topology G) (selected n),
-      selected n = Empty])
-  (n: N.Nat^): \exists CompanionSet topology G (selected n) :=
-  either!{
-    {FamilyMember (RegularFamily topology G) (selected n)} "or" {selected n = Empty} "either" {\exists CompanionSet topology G (selected n)}
-    "lt:" {\fun (member: FamilyMember (RegularFamily topology G) (selected n)) =>
-      #right{member}}
-    "rt:" {\fun (empty: selected n = Empty) =>
-      \exact(
-        \into[\Pow Carrier](Whole,
-          { V : \Pow Carrier \where
-            NormalPartner[topology, G, (selected n), V] })
-          \by { NormalPartner[topology, G, (selected n), Whole]::#
-            (#wholeOpen{(Topology::[law] topology)})
-            (wholeContains G)
-            (\idelim Empty = selected n
-              \with U: \Pow Carrier => Disjoint U Whole
-              \by { base: emptyDisjoint Whole,
-                equality: sym!{\Pow Carrier} (selected n) Empty empty }) },
-        CompanionSet topology G (selected n))}
-  }
-    (selectedMember n);
+      selected n = Empty]) ->
+  \forall (n: N.Nat^) ->
+  \exists CompanionSet topology G (selected n) :=
+  \fun (selectedMember: \forall (n: N.Nat^) ->
+    Logic.Or[FamilyMember (RegularFamily topology G) (selected n),
+      selected n = Empty]) (n: N.Nat^) =>
+    either!{
+      {FamilyMember (RegularFamily topology G) (selected n)} "or" {selected n = Empty} "either" {\exists CompanionSet topology G (selected n)}
+      "lt:" {\fun (member: FamilyMember (RegularFamily topology G) (selected n)) =>
+        #right{member}}
+      "rt:" {\fun (empty: selected n = Empty) =>
+        \exact(
+          \into[\Pow Carrier](Whole,
+            { V : \Pow Carrier \where
+              NormalPartner[topology, G, (selected n), V] })
+            \by { NormalPartner[topology, G, (selected n), Whole]::#
+              (#wholeOpen{(Topology::[law] topology)})
+              (wholeContains G)
+              (\idelim Empty = selected n
+                \with U: \Pow Carrier => Disjoint U Whole
+                \by { base: emptyDisjoint Whole,
+                  equality: sym!{\Pow Carrier} (selected n) Empty empty }) },
+          CompanionSet topology G (selected n))}
+    }
+      (selectedMember n);
 
-\definition selectedCompanionsExist(topology: Topology::[Set])
-  (G: \Pow Carrier) (selected: N.Nat^ -> \Pow Carrier)
-  (selectedMember: \forall (n: N.Nat^) ->
+\definition selectedCompanionsExist(topology: Topology::[Set]) (G: \Pow Carrier)
+  (selected: N.Nat^ -> \Pow Carrier):
+  (\forall (n: N.Nat^) ->
     Logic.Or[FamilyMember (RegularFamily topology G) (selected n),
-      selected n = Empty]):
+      selected n = Empty]) ->
   \exists (\forall (n: N.Nat^) -> CompanionSet topology G (selected n)) :=
-  \axiom:classicalIndefiniteChoice(
-    N.Nat^,
-    (\fun (n: N.Nat^) => CompanionSet topology G (selected n)),
-    selectedCompanionExists topology G selected selectedMember);
-
-\definition selectedOpen(topology: Topology::[Set])
-  (G: \Pow Carrier) (selected: N.Nat^ -> \Pow Carrier)
-  (selectedMember: \forall (n: N.Nat^) ->
+  \fun (selectedMember: \forall (n: N.Nat^) ->
     Logic.Or[FamilyMember (RegularFamily topology G) (selected n),
-      selected n = Empty])
-  (n: N.Nat^): IsOpenIn topology (selected n) :=
-  either!{
-    {FamilyMember (RegularFamily topology G) (selected n)} "or" {selected n = Empty} "either" {IsOpenIn topology (selected n)}
-    "lt:" {\fun (member: FamilyMember (RegularFamily topology G) (selected n)) =>
-      #left{member}}
-    "rt:" {\fun (empty: selected n = Empty) =>
-      \idelim Empty = selected n
-        \with U: \Pow Carrier => IsOpenIn topology U
-        \by { base: #emptyOpen{(Topology::[law] topology)},
-          equality: sym!{\Pow Carrier} (selected n) Empty empty }}
-  }
-    (selectedMember n);
+      selected n = Empty]) =>
+    \axiom:classicalIndefiniteChoice(
+      N.Nat^,
+      (\fun (n: N.Nat^) => CompanionSet topology G (selected n)),
+      selectedCompanionExists topology G selected selectedMember);
+
+\definition selectedOpen(topology: Topology::[Set]) (G: \Pow Carrier) (selected: N.Nat^ -> \Pow Carrier):
+  (\forall (n: N.Nat^) ->
+    Logic.Or[FamilyMember (RegularFamily topology G) (selected n),
+      selected n = Empty]) ->
+  \forall (n: N.Nat^) ->
+  IsOpenIn topology (selected n) :=
+  \fun (selectedMember: \forall (n: N.Nat^) ->
+    Logic.Or[FamilyMember (RegularFamily topology G) (selected n),
+      selected n = Empty]) (n: N.Nat^) =>
+    either!{
+      {FamilyMember (RegularFamily topology G) (selected n)} "or" {selected n = Empty} "either" {IsOpenIn topology (selected n)}
+      "lt:" {\fun (member: FamilyMember (RegularFamily topology G) (selected n)) =>
+        #left{member}}
+      "rt:" {\fun (empty: selected n = Empty) =>
+        \idelim Empty = selected n
+          \with U: \Pow Carrier => IsOpenIn topology U
+          \by { base: #emptyOpen{(Topology::[law] topology)},
+            equality: sym!{\Pow Carrier} (selected n) Empty empty }}
+    }
+      (selectedMember n);
 
 \structure RegularCover[topology: Topology::[Set], F, G: \Pow Carrier]: \Set {
   first: N.Nat^ -> \Pow Carrier,
@@ -129,13 +139,16 @@
   disjoint: \forall (n: N.Nat^) -> Disjoint (first n) (second n),
 }
 
-\definition regularCover(topology: Topology::[Set])
-  (secondCountable: IsSecondCountable topology)
-  (regular: IsRegular topology)
-  (F, G: \Pow Carrier)
-  (gClosed: IsClosedIn topology G) (disjoint: Disjoint F G):
+\definition regularCover(topology: Topology::[Set]):
+  IsSecondCountable topology ->
+  IsRegular topology ->
+  \forall (F, G: \Pow Carrier) ->
+  IsClosedIn topology G ->
+  Disjoint F G ->
   \exists RegularCover[topology, F, G]::[Set] :=
   \block {
+    \fun (secondCountable: IsSecondCountable topology) (regular: IsRegular topology)
+      (F, G: \Pow Carrier) (gClosed: IsClosedIn topology G) (disjoint: Disjoint F G) \then
     \takefrom selected: \Cast[N.Nat^ -> \Pow Carrier]
       ({ f : N.Nat^ -> \Pow Carrier \where
         Logic.And[
@@ -183,7 +196,8 @@
       }, RegularCover[topology, F, G]::[Set])
   };
 
-\definition leTotal: \forall (a, b: N.Nat^) ->
+\definition leTotal:
+  \forall (a, b: N.Nat^) ->
   Logic.Or[NatOrder.Le a b, NatOrder.Le b a] :=
   \induction (a: N.Nat^) \return \forall (b: N.Nat^) ->
     Logic.Or[NatOrder.Le a b, NatOrder.Le b a] \with {
@@ -208,7 +222,8 @@
         }
   };
 
-\definition leSuccSplit: \forall (n, i: N.Nat^) ->
+\definition leSuccSplit:
+  \forall (n, i: N.Nat^) ->
   NatOrder.Le i (N.Nat^::succ n) ->
     Logic.Or[NatOrder.Le i n, i = N.Nat^::succ n] :=
   \induction (n: N.Nat^) \return \forall (i: N.Nat^) ->
@@ -251,26 +266,25 @@
         }
   };
 
-\definition PrefixIntersection(f: N.Nat^ -> \Pow Carrier)
-  (n: N.Nat^): \Pow Carrier :=
+\definition PrefixIntersection(f: N.Nat^ -> \Pow Carrier) (n: N.Nat^): \Pow Carrier :=
   \induction (k: N.Nat^) \return \Pow Carrier \with {
     | zero: f N.Nat^::zero
     | succ: \fun (k: N.Nat^) (previous: \Pow Carrier) =>
         Intersection previous (f (N.Nat^::succ k))
   } n;
 
-\definition prefixOpen(topology: Topology::[Set])
-  (f: N.Nat^ -> \Pow Carrier)
-  (allOpen: \forall (n: N.Nat^) -> IsOpenIn topology (f n)):
+\definition prefixOpen(topology: Topology::[Set]) (f: N.Nat^ -> \Pow Carrier):
+  (\forall (n: N.Nat^) -> IsOpenIn topology (f n)) ->
   \forall (n: N.Nat^) -> IsOpenIn topology (PrefixIntersection f n) :=
-  \induction (n: N.Nat^) \return
-    IsOpenIn topology (PrefixIntersection f n) \with {
-    | zero: allOpen N.Nat^::zero
-    | succ: \fun (n: N.Nat^) (ih: _) =>
-        #intersectionOpen{(Topology::[law] topology)}
-          (PrefixIntersection f n) (f (N.Nat^::succ n))
-          ih (allOpen (N.Nat^::succ n))
-  };
+  \fun (allOpen: \forall (n: N.Nat^) -> IsOpenIn topology (f n)) =>
+    \induction (n: N.Nat^) \return
+      IsOpenIn topology (PrefixIntersection f n) \with {
+      | zero: allOpen N.Nat^::zero
+      | succ: \fun (n: N.Nat^) (ih: _) =>
+          #intersectionOpen{(Topology::[law] topology)}
+            (PrefixIntersection f n) (f (N.Nat^::succ n))
+            ih (allOpen (N.Nat^::succ n))
+    };
 
 \definition prefixContains(f: N.Nat^ -> \Pow Carrier):
   \forall (n, i: N.Nat^) -> NatOrder.Le i n ->
@@ -303,69 +317,61 @@
           (leSuccSplit n i lower)
   };
 
-\definition prefixContainsSet(f: N.Nat^ -> \Pow Carrier)
-  (S: \Pow Carrier)
-  (contained: \forall (n: N.Nat^) -> Subset S (f n)):
+\definition prefixContainsSet(f: N.Nat^ -> \Pow Carrier) (S: \Pow Carrier):
+  (\forall (n: N.Nat^) -> Subset S (f n)) ->
   \forall (n: N.Nat^) -> Subset S (PrefixIntersection f n) :=
-  \induction (n: N.Nat^) \return
-    Subset S (PrefixIntersection f n) \with {
-    | zero: contained N.Nat^::zero
-    | succ: \fun (n: N.Nat^) (ih: _) =>
-        \fun (x: Carrier) (inS: Member S x) =>
-          Logic.And[_, _]::#
-            (ih x inS) (contained (N.Nat^::succ n) x inS)
-  };
+  \fun (contained: \forall (n: N.Nat^) -> Subset S (f n)) =>
+    \induction (n: N.Nat^) \return
+      Subset S (PrefixIntersection f n) \with {
+      | zero: contained N.Nat^::zero
+      | succ: \fun (n: N.Nat^) (ih: _) =>
+          \fun (x: Carrier) (inS: Member S x) =>
+            Logic.And[_, _]::#
+              (ih x inS) (contained (N.Nat^::succ n) x inS)
+    };
 
-\definition flipDisjoint(F, G: \Pow Carrier)
-  (disjoint: Disjoint F G): Disjoint G F :=
-  \fun (x: Carrier) => \fun (inG: Member G x) =>
-    \fun (inF: Member F x) => disjoint x inF inG;
+\definition flipDisjoint(F, G: \Pow Carrier):
+  Disjoint F G ->
+  Disjoint G F :=
+  \fun (disjoint: Disjoint F G) (x: Carrier) (inG: Member G x) (inF: Member F x) => disjoint x inF inG;
 
-\definition RefinedFirst(topology: Topology::[Set])
-  (F, G: \Pow Carrier)
-  (forward: RegularCover[topology, F, G]::[Set])
-  (backward: RegularCover[topology, G, F]::[Set])
+\definition RefinedFirst(topology: Topology::[Set]) (F, G: \Pow Carrier)
+  (forward: RegularCover[topology, F, G]::[Set]) (backward: RegularCover[topology, G, F]::[Set])
   (n: N.Nat^): \Pow Carrier :=
   Intersection (#first{forward} n)
     (PrefixIntersection (#second{backward}) n);
 
-\definition RefinedSecond(topology: Topology::[Set])
-  (F, G: \Pow Carrier)
-  (forward: RegularCover[topology, F, G]::[Set])
-  (backward: RegularCover[topology, G, F]::[Set])
+\definition RefinedSecond(topology: Topology::[Set]) (F, G: \Pow Carrier)
+  (forward: RegularCover[topology, F, G]::[Set]) (backward: RegularCover[topology, G, F]::[Set])
   (n: N.Nat^): \Pow Carrier :=
   Intersection (#first{backward} n)
     (PrefixIntersection (#second{forward}) n);
 
-\definition refinedFirstOpen(topology: Topology::[Set])
-  (F, G: \Pow Carrier)
-  (forward: RegularCover[topology, F, G]::[Set])
-  (backward: RegularCover[topology, G, F]::[Set])
-  (n: N.Nat^): IsOpenIn topology
+\definition refinedFirstOpen(topology: Topology::[Set]) (F, G: \Pow Carrier)
+  (forward: RegularCover[topology, F, G]::[Set]) (backward: RegularCover[topology, G, F]::[Set])
+  (n: N.Nat^):
+  IsOpenIn topology
     (RefinedFirst topology F G forward backward n) :=
   #intersectionOpen{(Topology::[law] topology)}
     (#first{forward} n) (PrefixIntersection (#second{backward}) n)
     (#firstOpen{forward} n)
     (prefixOpen topology (#second{backward}) (#secondOpen{backward}) n);
 
-\definition refinedSecondOpen(topology: Topology::[Set])
-  (F, G: \Pow Carrier)
-  (forward: RegularCover[topology, F, G]::[Set])
-  (backward: RegularCover[topology, G, F]::[Set])
-  (n: N.Nat^): IsOpenIn topology
+\definition refinedSecondOpen(topology: Topology::[Set]) (F, G: \Pow Carrier)
+  (forward: RegularCover[topology, F, G]::[Set]) (backward: RegularCover[topology, G, F]::[Set])
+  (n: N.Nat^):
+  IsOpenIn topology
     (RefinedSecond topology F G forward backward n) :=
   #intersectionOpen{(Topology::[law] topology)}
     (#first{backward} n) (PrefixIntersection (#second{forward}) n)
     (#firstOpen{backward} n)
     (prefixOpen topology (#second{forward}) (#secondOpen{forward}) n);
 
-\definition refinedFirstCovers(topology: Topology::[Set])
-  (F, G: \Pow Carrier)
-  (forward: RegularCover[topology, F, G]::[Set])
-  (backward: RegularCover[topology, G, F]::[Set]):
+\definition refinedFirstCovers(topology: Topology::[Set]) (F, G: \Pow Carrier)
+  (forward: RegularCover[topology, F, G]::[Set]) (backward: RegularCover[topology, G, F]::[Set]):
   Subset F
     (Count.IndexedUnion (RefinedFirst topology F G forward backward)) :=
-  \fun (x: Carrier) => \fun (inF: Member F x) =>
+  \fun (x: Carrier) (inF: Member F x) =>
     Count.indexedUnionElim (#first{forward}) x
       (Member (Count.IndexedUnion
         (RefinedFirst topology F G forward backward)) x)
@@ -378,13 +384,11 @@
                 (#contains{backward}) n x inF)))
       (#covers{forward} x inF);
 
-\definition refinedSecondCovers(topology: Topology::[Set])
-  (F, G: \Pow Carrier)
-  (forward: RegularCover[topology, F, G]::[Set])
-  (backward: RegularCover[topology, G, F]::[Set]):
+\definition refinedSecondCovers(topology: Topology::[Set]) (F, G: \Pow Carrier)
+  (forward: RegularCover[topology, F, G]::[Set]) (backward: RegularCover[topology, G, F]::[Set]):
   Subset G
     (Count.IndexedUnion (RefinedSecond topology F G forward backward)) :=
-  \fun (x: Carrier) => \fun (inG: Member G x) =>
+  \fun (x: Carrier) (inG: Member G x) =>
     Count.indexedUnionElim (#first{backward}) x
       (Member (Count.IndexedUnion
         (RefinedSecond topology F G forward backward)) x)
@@ -397,16 +401,13 @@
                 (#contains{forward}) n x inG)))
       (#covers{backward} x inG);
 
-\definition refinedDisjointAt(topology: Topology::[Set])
-  (F, G: \Pow Carrier)
-  (forward: RegularCover[topology, F, G]::[Set])
-  (backward: RegularCover[topology, G, F]::[Set])
+\definition refinedDisjointAt(topology: Topology::[Set]) (F, G: \Pow Carrier)
+  (forward: RegularCover[topology, F, G]::[Set]) (backward: RegularCover[topology, G, F]::[Set])
   (i, j: N.Nat^):
   Disjoint (RefinedFirst topology F G forward backward i)
     (RefinedSecond topology F G forward backward j) :=
-  \fun (x: Carrier) =>
-  \fun (inFirst: Member (RefinedFirst topology F G forward backward i) x) =>
-  \fun (inSecond: Member (RefinedSecond topology F G forward backward j) x) =>
+  \fun (x: Carrier) (inFirst: Member (RefinedFirst topology F G forward backward i) x)
+    (inSecond: Member (RefinedSecond topology F G forward backward j) x) =>
     either!{
       {NatOrder.Le i j} "or" {NatOrder.Le j i} "either" Logic.False
       "lt:" {\fun (ij: NatOrder.Le i j) =>
@@ -420,17 +421,15 @@
     }
       (leTotal i j);
 
-\definition refinedDisjoint(topology: Topology::[Set])
-  (F, G: \Pow Carrier)
-  (forward: RegularCover[topology, F, G]::[Set])
-  (backward: RegularCover[topology, G, F]::[Set]):
+\definition refinedDisjoint(topology: Topology::[Set]) (F, G: \Pow Carrier)
+  (forward: RegularCover[topology, F, G]::[Set]) (backward: RegularCover[topology, G, F]::[Set]):
   Disjoint
     (Count.IndexedUnion (RefinedFirst topology F G forward backward))
     (Count.IndexedUnion (RefinedSecond topology F G forward backward)) :=
-  \fun (x: Carrier) =>
-  \fun (inFirst: Member
-    (Count.IndexedUnion (RefinedFirst topology F G forward backward)) x) =>
-  \fun (inSecond: Member
+  \fun (x: Carrier)
+    (inFirst: Member
+    (Count.IndexedUnion (RefinedFirst topology F G forward backward)) x)
+    (inSecond: Member
     (Count.IndexedUnion (RefinedSecond topology F G forward backward)) x) =>
     Count.indexedUnionElim
       (RefinedFirst topology F G forward backward) x Logic.False
@@ -447,46 +446,45 @@
             inSecond)
       inFirst;
 
-\definition regularSecondCountableNormal(topology: Topology::[Set])
-  (regular: IsRegular topology)
-  (secondCountable: IsSecondCountable topology): IsNormal topology :=
-  \fun (F, G: \Pow Carrier) =>
-  \fun (fClosed: IsClosedIn topology F) =>
-  \fun (gClosed: IsClosedIn topology G) =>
-  \fun (disjoint: Disjoint F G) => \block {
-    \takefrom forward: RegularCover[topology, F, G]::[Set]
-      \by regularCover topology secondCountable regular
-        F G gClosed disjoint \then
-    \takefrom backward: RegularCover[topology, G, F]::[Set]
-      \by regularCover topology secondCountable regular
-        G F fClosed (flipDisjoint F G disjoint) \then
-    \let U: \Pow Carrier :=
-      Count.IndexedUnion (RefinedFirst topology F G forward backward) \then
-    \let V: \Pow Carrier :=
-      Count.IndexedUnion (RefinedSecond topology F G forward backward) \then
-    \return \exact(
-      \into[\Pow Carrier](U,
-        { W : \Pow Carrier \where
-          NormalChoice[topology, F, G, W] })
-        \by { NormalChoice[topology, F, G, U]::#
-          (Count.indexedUnionOpen topology
-            (RefinedFirst topology F G forward backward)
-            (refinedFirstOpen topology F G forward backward))
-          (refinedFirstCovers topology F G forward backward)
-          (\exact(
-            \into[\Pow Carrier](V,
-              { Z : \Pow Carrier \where
-                NormalPartner[topology, G, U, Z] })
-              \by { NormalPartner[topology, G, U, V]::#
-                (Count.indexedUnionOpen topology
-                  (RefinedSecond topology F G forward backward)
-                  (refinedSecondOpen topology F G forward backward))
-                (refinedSecondCovers topology F G forward backward)
-                (refinedDisjoint topology F G forward backward) },
-            \Cast[\Pow Carrier]
-              ({ Z : \Pow Carrier \where
-                NormalPartner[topology, G, U, Z] }))) },
-      \Cast[\Pow Carrier]
-        ({ W : \Pow Carrier \where
-          NormalChoice[topology, F, G, W] }))
-  };
+\definition regularSecondCountableNormal(topology: Topology::[Set]):
+  IsRegular topology -> IsSecondCountable topology ->
+  IsNormal topology :=
+  \fun (regular: IsRegular topology) (secondCountable: IsSecondCountable topology)
+    (F, G: \Pow Carrier) (fClosed: IsClosedIn topology F) (gClosed: IsClosedIn topology G)
+    (disjoint: Disjoint F G) => \block {
+      \takefrom forward: RegularCover[topology, F, G]::[Set]
+        \by regularCover topology secondCountable regular
+          F G gClosed disjoint \then
+      \takefrom backward: RegularCover[topology, G, F]::[Set]
+        \by regularCover topology secondCountable regular
+          G F fClosed (flipDisjoint F G disjoint) \then
+      \let U: \Pow Carrier :=
+        Count.IndexedUnion (RefinedFirst topology F G forward backward) \then
+      \let V: \Pow Carrier :=
+        Count.IndexedUnion (RefinedSecond topology F G forward backward) \then
+      \return \exact(
+        \into[\Pow Carrier](U,
+          { W : \Pow Carrier \where
+            NormalChoice[topology, F, G, W] })
+          \by { NormalChoice[topology, F, G, U]::#
+            (Count.indexedUnionOpen topology
+              (RefinedFirst topology F G forward backward)
+              (refinedFirstOpen topology F G forward backward))
+            (refinedFirstCovers topology F G forward backward)
+            (\exact(
+              \into[\Pow Carrier](V,
+                { Z : \Pow Carrier \where
+                  NormalPartner[topology, G, U, Z] })
+                \by { NormalPartner[topology, G, U, V]::#
+                  (Count.indexedUnionOpen topology
+                    (RefinedSecond topology F G forward backward)
+                    (refinedSecondOpen topology F G forward backward))
+                  (refinedSecondCovers topology F G forward backward)
+                  (refinedDisjoint topology F G forward backward) },
+              \Cast[\Pow Carrier]
+                ({ Z : \Pow Carrier \where
+                  NormalPartner[topology, G, U, Z] }))) },
+        \Cast[\Pow Carrier]
+          ({ W : \Pow Carrier \where
+            NormalChoice[topology, F, G, W] }))
+    };
