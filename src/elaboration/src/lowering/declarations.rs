@@ -25,12 +25,12 @@ impl Lowerer<'_> {
             }
             pending.push((id, true));
             for dependency in self.definition_dependencies(id).into_iter().rev() {
-                if !self
+                if self
                     .raw
                     .kernel_definitions
                     .borrow()
                     .get(&dependency)
-                    .is_some_and(|&id| self.kernel.definition(id).is_ok())
+                    .is_none_or(|&id| self.kernel.definition(id).is_err())
                 {
                     pending.push((dependency, false))
                 }

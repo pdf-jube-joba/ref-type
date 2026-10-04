@@ -7,11 +7,40 @@ use std::{cell::RefCell, rc::Rc};
 use crate::raw::{
     ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{
-        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode, ValueTerm,
-        ValueTermNode, ValueType, ValueTypeNode,
+        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode,
+        ProgramArgument, ValueTerm, ValueTermNode, ValueType, ValueTypeNode,
     },
     sort::Sort,
 };
+
+fn split_program_spine(
+    spine: Vec<ProgramArgument>,
+) -> (Vec<bool>, Vec<kernel::syntax::Expression>) {
+    spine
+        .into_iter()
+        .map(|argument| match argument {
+            ProgramArgument::ValueType(value) => (true, value.0),
+            ProgramArgument::ValueTerm(value) => (false, value.0),
+        })
+        .unzip()
+}
+
+fn join_program_spine(
+    arguments: Vec<kernel::syntax::Expression>,
+    kinds: Vec<bool>,
+) -> Vec<ProgramArgument> {
+    arguments
+        .into_iter()
+        .zip(kinds)
+        .map(|(expression, is_type)| {
+            if is_type {
+                ProgramArgument::ValueType(ValueType(expression))
+            } else {
+                ProgramArgument::ValueTerm(ValueTerm(expression))
+            }
+        })
+        .collect()
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Exp(pub(crate) kernel::syntax::Expression);
@@ -1111,17 +1140,7 @@ impl ArenaNode for ValueTypeNode {
                 metavariable,
                 spine,
             } => {
-                let kinds = spine
-                    .iter()
-                    .map(|a| matches!(a, super::program::ProgramArgument::ValueType(_)))
-                    .collect();
-                let args = spine
-                    .into_iter()
-                    .map(|a| match a {
-                        super::program::ProgramArgument::ValueType(e) => e.0,
-                        super::program::ProgramArgument::ValueTerm(e) => e.0,
-                    })
-                    .collect();
+                let (kinds, args) = split_program_spine(spine);
                 return ValueType(arena.atom(Atom::Meta(1, metavariable, kinds), args));
             }
             ValueTypeNode::Bound(i) => N::Bound(i),
@@ -1162,17 +1181,7 @@ impl ArenaHandle for ValueType {
             N::Meta { id, arguments } => match arena.atom_key(id) {
                 Atom::Meta(_, metavariable, kinds) => ValueTypeNode::Meta {
                     metavariable,
-                    spine: arguments
-                        .into_iter()
-                        .zip(kinds)
-                        .map(|(e, ty)| {
-                            if ty {
-                                super::program::ProgramArgument::ValueType(ValueType(e))
-                            } else {
-                                super::program::ProgramArgument::ValueTerm(ValueTerm(e))
-                            }
-                        })
-                        .collect(),
+                    spine: join_program_spine(arguments, kinds),
                 },
                 _ => panic!("Program atom category"),
             },
@@ -1193,17 +1202,7 @@ impl ArenaNode for ComputationTypeNode {
                 metavariable,
                 spine,
             } => {
-                let kinds = spine
-                    .iter()
-                    .map(|a| matches!(a, super::program::ProgramArgument::ValueType(_)))
-                    .collect();
-                let args = spine
-                    .into_iter()
-                    .map(|a| match a {
-                        super::program::ProgramArgument::ValueType(e) => e.0,
-                        super::program::ProgramArgument::ValueTerm(e) => e.0,
-                    })
-                    .collect();
+                let (kinds, args) = split_program_spine(spine);
                 return ComputationType(arena.atom(Atom::Meta(2, metavariable, kinds), args));
             }
             ComputationTypeNode::Function { domain, codomain } => N::Product {
@@ -1228,17 +1227,7 @@ impl ArenaHandle for ComputationType {
             N::Meta { id, arguments } => match arena.atom_key(id) {
                 Atom::Meta(_, metavariable, kinds) => ComputationTypeNode::Meta {
                     metavariable,
-                    spine: arguments
-                        .into_iter()
-                        .zip(kinds)
-                        .map(|(e, ty)| {
-                            if ty {
-                                super::program::ProgramArgument::ValueType(ValueType(e))
-                            } else {
-                                super::program::ProgramArgument::ValueTerm(ValueTerm(e))
-                            }
-                        })
-                        .collect(),
+                    spine: join_program_spine(arguments, kinds),
                 },
                 _ => panic!("Program atom category"),
             },
@@ -1297,17 +1286,7 @@ impl ArenaNode for ValueTermNode {
                 metavariable,
                 spine,
             } => {
-                let kinds = spine
-                    .iter()
-                    .map(|a| matches!(a, super::program::ProgramArgument::ValueType(_)))
-                    .collect();
-                let args = spine
-                    .into_iter()
-                    .map(|a| match a {
-                        super::program::ProgramArgument::ValueType(e) => e.0,
-                        super::program::ProgramArgument::ValueTerm(e) => e.0,
-                    })
-                    .collect();
+                let (kinds, args) = split_program_spine(spine);
                 return ValueTerm(arena.atom(Atom::Meta(3, metavariable, kinds), args));
             }
             ValueTermNode::Bound(i) => N::Bound(i),
@@ -1380,17 +1359,7 @@ impl ArenaHandle for ValueTerm {
             N::Meta { id, arguments } => match arena.atom_key(id) {
                 Atom::Meta(_, metavariable, kinds) => ValueTermNode::Meta {
                     metavariable,
-                    spine: arguments
-                        .into_iter()
-                        .zip(kinds)
-                        .map(|(e, ty)| {
-                            if ty {
-                                super::program::ProgramArgument::ValueType(ValueType(e))
-                            } else {
-                                super::program::ProgramArgument::ValueTerm(ValueTerm(e))
-                            }
-                        })
-                        .collect(),
+                    spine: join_program_spine(arguments, kinds),
                 },
                 Atom::Definition(id) => ValueTermNode::DefinedConstant(id),
                 Atom::Instance(definition) => ValueTermNode::DefinitionInstance {
@@ -1485,17 +1454,7 @@ impl ArenaNode for ComputationTermNode {
                 metavariable,
                 spine,
             } => {
-                let kinds = spine
-                    .iter()
-                    .map(|a| matches!(a, super::program::ProgramArgument::ValueType(_)))
-                    .collect();
-                let args = spine
-                    .into_iter()
-                    .map(|a| match a {
-                        super::program::ProgramArgument::ValueType(e) => e.0,
-                        super::program::ProgramArgument::ValueTerm(e) => e.0,
-                    })
-                    .collect();
+                let (kinds, args) = split_program_spine(spine);
                 return ComputationTerm(arena.atom(Atom::Meta(4, metavariable, kinds), args));
             }
             ComputationTermNode::DefinedConstant(id) => {
@@ -1628,17 +1587,7 @@ impl ArenaHandle for ComputationTerm {
             N::Meta { id, arguments } => match arena.atom_key(id) {
                 Atom::Meta(_, metavariable, kinds) => ComputationTermNode::Meta {
                     metavariable,
-                    spine: arguments
-                        .into_iter()
-                        .zip(kinds)
-                        .map(|(e, ty)| {
-                            if ty {
-                                super::program::ProgramArgument::ValueType(ValueType(e))
-                            } else {
-                                super::program::ProgramArgument::ValueTerm(ValueTerm(e))
-                            }
-                        })
-                        .collect(),
+                    spine: join_program_spine(arguments, kinds),
                 },
                 Atom::Definition(id) => ComputationTermNode::DefinedConstant(id),
                 Atom::Instance(definition) => ComputationTermNode::DefinitionInstance {
