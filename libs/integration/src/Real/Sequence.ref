@@ -1,0 +1,118 @@
+\import \parent.Estimates[] \as E;
+
+\definition Control(s: N.Nat^ -> Real) (epsilon: Real) (threshold: N.Nat^): \Prop :=
+  \forall (m, n: N.Nat^) -> Nat.Le threshold m -> Nat.Le threshold n -> R.Lt (distance (s m) (s n)) epsilon;
+
+\definition Cauchy(s: N.Nat^ -> Real): \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { threshold: N.Nat^ \where Control s epsilon threshold };
+
+\definition LimitControl(s: N.Nat^ -> Real) (value, epsilon: Real) (threshold: N.Nat^): \Prop :=
+  \forall (n: N.Nat^) -> Nat.Le threshold n -> R.Lt (distance (s n) value) epsilon;
+
+\definition Converges(s: N.Nat^ -> Real) (value: Real): \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { threshold: N.Nat^ \where LimitControl s value epsilon threshold };
+
+\definition EventuallyLower(s: N.Nat^ -> Real) (lower: Real): \Prop :=
+  \exists { threshold: N.Nat^ \where \forall (n: N.Nat^) -> Nat.Le threshold n -> R.Le lower (s n) };
+
+\definition LowerValues(s: N.Nat^ -> Real): \Pow Real := { lower: Real \where EventuallyLower s lower };
+
+\definition tailLower: \forall (s: N.Nat^ -> Real) -> \forall (epsilon: Real) -> \forall (threshold, n: N.Nat^) ->
+  Control s epsilon threshold -> Nat.Le threshold n -> EventuallyLower s (sub (s n) epsilon) :=
+  \fun (s: _) (epsilon: _) (threshold, n: _) (control: Control s epsilon threshold) (later: _) =>
+    \exact(\into[N.Nat^](threshold, { k: N.Nat^ \where \forall (m: N.Nat^) -> Nat.Le k m -> R.Le (sub (s n) epsilon) (s m) }) \by {
+      \fun (m: _) (laterM: _) => Order.leOfLt _ _ (Metric.distanceLtLower (s n) (s m) epsilon (control n m later laterM)) },
+      \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (m: N.Nat^) -> Nat.Le k m -> R.Le (sub (s n) epsilon) (s m) }));
+
+\definition lowerUpper: \forall (s: N.Nat^ -> Real) -> \forall (epsilon: Real) -> \forall (threshold, n: N.Nat^) ->
+  Control s epsilon threshold -> Nat.Le threshold n -> Complete.UpperBound (LowerValues s) (add (s n) epsilon) :=
+  \fun (s: _) (epsilon: _) (threshold, n: _) (control: Control s epsilon threshold) (later: _) (lower: _) (eventual: EventuallyLower s lower) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where \forall (m: N.Nat^) -> Nat.Le k m -> R.Le lower (s m) }) \by eventual \then
+    \let m: N.Nat^ := NatOrder.commonBound threshold k \then
+    \return R.leTrans lower (s m) (add (s n) epsilon)
+      ((\bysub(N.Nat^, { k: N.Nat^ \where \forall (m: N.Nat^) -> Nat.Le k m -> R.Le lower (s m) }, k))
+        m (NatOrder.rightLeCommonBound threshold k))
+      (Order.leOfLt _ _ (Metric.distanceLtUpper (s n) (s m) epsilon (control n m later (NatOrder.leftLeCommonBound threshold k))))
+  };
+
+\definition onePositive: R.Lt zero Op.one := Order.ltOfLeNotEq zero Op.one Laws.oneNonnegative Laws.zeroNeOne;
+
+\definition CauchySequence: \Set := \Cast[N.Nat^ -> Real] ({ s: N.Nat^ -> Real \where Cauchy s });
+\definition cauchyLaw(s: CauchySequence): Cauchy s := \bysub(N.Nat^ -> Real, { t: N.Nat^ -> Real \where Cauchy t }, s);
+
+\definition lowerNonempty: \forall (s: CauchySequence) -> Complete.Nonempty (LowerValues s) :=
+  \fun (s: CauchySequence) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ n: N.Nat^ \where Control s Op.one n }) \by cauchyLaw s Op.one onePositive \then
+    \return \exact(\into[Real](sub (s k) Op.one, LowerValues s) \by {
+      tailLower s Op.one k k (\bysub(N.Nat^, { n: N.Nat^ \where Control s Op.one n }, k)) (Nat.leRefl k) },
+      \Cast[Real] (LowerValues s))
+  };
+
+\definition lowerBounded: \forall (s: CauchySequence) -> Complete.Bounded (LowerValues s) :=
+  \fun (s: CauchySequence) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ n: N.Nat^ \where Control s Op.one n }) \by cauchyLaw s Op.one onePositive \then
+    \return \exact(\into[Real](add (s k) Op.one, { upper: Real \where Complete.UpperBound (LowerValues s) upper }) \by {
+      lowerUpper s Op.one k k (\bysub(N.Nat^, { n: N.Nat^ \where Control s Op.one n }, k)) (Nat.leRefl k) },
+      \Cast[Real] ({ upper: Real \where Complete.UpperBound (LowerValues s) upper }))
+  };
+
+\definition lowerFamily(s: CauchySequence): Complete.Family :=
+  \into[\Pow Real](LowerValues s, Complete.FamilySet) \by { Logic.And[_, _]::# (lowerNonempty s) (lowerBounded s) };
+
+\definition lowerMember(s: CauchySequence) (lower: Real): EventuallyLower s lower -> Complete.Member (lowerFamily s) lower :=
+  \fun (law: EventuallyLower s lower) =>
+    \idelim LowerValues s = lowerFamily s \with family: \Pow Real => Complete.Member family lower
+      \by { base: law, equality: \refl(LowerValues s) };
+
+\definition lowerMemberLaw(s: CauchySequence) (lower: Real): Complete.Member (lowerFamily s) lower -> EventuallyLower s lower :=
+  \fun (law: Complete.Member (lowerFamily s) lower) =>
+    \idelim lowerFamily s = LowerValues s \with family: \Pow Real => Complete.Member family lower
+      \by { base: law, equality: \refl(LowerValues s) };
+
+\definition limit(s: CauchySequence): Real := Complete.supremum (lowerFamily s);
+
+\definition limitLaw: \forall (s: CauchySequence) -> Converges s (limit s) :=
+  \fun (s: CauchySequence) (epsilon: _) (positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Control s (mul half epsilon) k })
+      \by cauchyLaw s (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \let control: Control s (mul half epsilon) k := \bysub(N.Nat^, { k: N.Nat^ \where Control s (mul half epsilon) k }, k) \then
+    \return \exact(\into[N.Nat^](k, { k: N.Nat^ \where LimitControl s (limit s) epsilon k }) \by {
+      \fun (n: _) (later: _) => R.leLtTrans _ _ _
+        (E.distanceLeOfInterval (s n) (limit s) (mul half epsilon)
+          (Complete.supremumUpper (lowerFamily s) (sub (s n) (mul half epsilon))
+            (lowerMember s _ (tailLower s (mul half epsilon) k n control later)))
+          (Complete.supremumLeast (lowerFamily s) (add (s n) (mul half epsilon))
+            (\fun (lower: Real) (law: Complete.Member (lowerFamily s) lower) =>
+              lowerUpper s (mul half epsilon) k n control later lower (lowerMemberLaw s lower law))))
+        (E.halfStrict epsilon positive) },
+      \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s (limit s) epsilon k }))
+  };
+
+\definition constantControl: \forall (value, epsilon: Real) -> R.Lt zero epsilon -> \forall (threshold: N.Nat^) ->
+  LimitControl (\fun (n: N.Nat^) => value) value epsilon threshold :=
+  \fun (value, epsilon: Real) (positive: R.Lt zero epsilon) (threshold, n: N.Nat^) (later: Nat.Le threshold n) =>
+    R.ltReplaceLeft zero (distance value value) epsilon (sym!{Real} _ _ (Metric.distanceSelf value)) positive;
+
+\definition constantConverges: \forall (value: Real) -> Converges (\fun (n: N.Nat^) => value) value :=
+  \fun (value: _) (epsilon: _) (positive: _) =>
+    \exact(\into[N.Nat^](N.Nat^::zero, { k: N.Nat^ \where LimitControl (\fun (n: N.Nat^) => value) value epsilon k }) \by {
+      constantControl value epsilon positive N.Nat^::zero },
+      \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl (\fun (n: N.Nat^) => value) value epsilon k }));
+
+\definition limitUnique: \forall (s: N.Nat^ -> Real) -> \forall (u, v: Real) -> Converges s u -> Converges s v -> u = v :=
+  \fun (s: _) (u, v: _) (hu: Converges s u) (hv: Converges s v) =>
+  E.separatedBySmall u v (\fun (epsilon: _) (positive: _) => \block {
+    \takefrom Nu: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s u (mul half epsilon) k })
+      \by hu (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \takefrom Nv: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s v (mul half epsilon) k })
+      \by hv (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \let n: N.Nat^ := NatOrder.commonBound Nu Nv \then
+    \return (\fun (bound: R.Le (distance u v) epsilon) => bound) (R.leReplaceRight _ _ _ (E.halfTwice epsilon)
+      (R.leTrans _ _ _ (Metric.distanceTriangle u (s n) v)
+        (E.addLe _ _ _ _
+          (Order.leOfLt _ _ (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric _ _)
+            ((\bysub(N.Nat^, { k: N.Nat^ \where LimitControl s u (mul half epsilon) k }, Nu))
+              n (NatOrder.leftLeCommonBound Nu Nv))))
+          (Order.leOfLt _ _ ((\bysub(N.Nat^, { k: N.Nat^ \where LimitControl s v (mul half epsilon) k }, Nv))
+            n (NatOrder.rightLeCommonBound Nu Nv))))))
+  });

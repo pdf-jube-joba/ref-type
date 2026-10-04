@@ -1,0 +1,110 @@
+\import \parent.Def[] \as Def;
+
+\definition integralUnique: \forall (f: Real -> Real) -> \forall (u, v: Real) ->
+  Def.Approximates f u -> Def.Approximates f v -> u = v :=
+  \fun (f: _) (u, v: _) (hu: Def.Approximates f u) (hv: Def.Approximates f v) =>
+  E.separatedBySmall u v (\fun (epsilon: _) (positive: _) => \block {
+    \takefrom Nu: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.Control f u (mul half epsilon) n })
+      \by hu (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \takefrom Nv: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.Control f v (mul half epsilon) n })
+      \by hv (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \let n: N.Nat^ := NatOrder.commonBound Nu Nv \then
+    \let tags: D.Tags := D.leftTags n a b \then
+    \let su: R.Lt (distance (D.sum f tags a b) u) (mul half epsilon) :=
+      (\bysub(N.Nat^, { k: N.Nat^ \where Def.Control f u (mul half epsilon) k }, Nu))
+        n (NatOrder.leftLeCommonBound Nu Nv) tags (D.leftTagsLevel n a b) (D.leftTagsValid n a b interval.ordered) \then
+    \let sv: R.Lt (distance (D.sum f tags a b) v) (mul half epsilon) :=
+      (\bysub(N.Nat^, { k: N.Nat^ \where Def.Control f v (mul half epsilon) k }, Nv))
+        n (NatOrder.rightLeCommonBound Nu Nv) tags (D.leftTagsLevel n a b) (D.leftTagsValid n a b interval.ordered) \then
+    \return (\fun (bound: R.Le (distance u v) epsilon) => bound) (Order.leOfLt _ _ (R.ltReplaceRight _ _ _ (E.halfTwice epsilon)
+      (R.leLtTrans _ _ _ (Metric.distanceTriangle u (D.sum f tags a b) v)
+        (E.addLt _ _ _ _ (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric _ _) su) sv))))
+  });
+
+\definition constantBounded(c: Real): Def.Bounded (\fun (x: Real) => c) :=
+  \exact(\into[Real](distance c zero,
+    { bound: Real \where \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance c zero) bound })
+    \by { \fun (x: Real) (ax: R.Le a x) (xb: R.Le x b) => R.leRefl (distance c zero) },
+    \Cast[Real] ({ bound: Real \where \forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (distance c zero) bound }));
+
+\definition constantControl: \forall (c, epsilon: Real) -> R.Lt zero epsilon -> \forall (threshold: N.Nat^) ->
+  Def.Control (\fun (x: Real) => c) (mul (sub b a) c) epsilon threshold :=
+  \fun (c, epsilon: Real) (positive: R.Lt zero epsilon) (threshold, n: N.Nat^) (later: Nat.Le threshold n)
+    (tags: D.Tags) (level: D.Level tags n) (valid: D.Valid tags a b) =>
+    R.ltReplaceLeft zero (distance (D.sum (\fun (x: Real) => c) tags a b) (mul (sub b a) c)) epsilon
+      (sym!{Real} _ _ (trans!{Real} _ _ _
+        (Metric.distanceReplace _ _ _ _ (D.sumConstant c tags a b) (\refl(mul (sub b a) c)))
+        (Metric.distanceSelf (mul (sub b a) c)))) positive;
+
+\definition constantApproximates: \forall (c: Real) -> Def.Approximates (\fun (x: Real) => c) (mul (sub b a) c) :=
+  \fun (c, epsilon: Real) (positive: R.Lt zero epsilon) =>
+    \exact(\into[N.Nat^](N.Nat^::zero, { threshold: N.Nat^ \where Def.Control (\fun (x: Real) => c) (mul (sub b a) c) epsilon threshold })
+      \by { constantControl c epsilon positive N.Nat^::zero },
+      \Cast[N.Nat^] ({ threshold: N.Nat^ \where Def.Control (\fun (x: Real) => c) (mul (sub b a) c) epsilon threshold }));
+
+\definition constant(c: Real): Def.Function := Def.Function {
+  function := \fun (x: Real) => c,
+  integral := mul (sub b a) c,
+  hasIntegral := Def.HasIntegral[_, _] {
+    bounded := constantBounded c,
+    approximation := constantApproximates c,
+  },
+};
+
+\definition smallSelf: \forall (f: Real -> Real) -> \forall (epsilon: Real) -> R.Lt zero epsilon -> Def.SmallL1 f f epsilon :=
+  \fun (f: _) (epsilon: _) (positive: _) =>
+    \exact(\into[N.Nat^](N.Nat^::zero, { n: N.Nat^ \where Def.NormControl f f epsilon n }) \by {
+      \fun (n: _) (later: _) (tags: _) (level: _) (valid: _) =>
+        R.ltReplaceLeft zero (D.normSum f f tags a b) epsilon (sym!{Real} _ _ (D.normSelf f tags a b)) positive },
+      \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl f f epsilon n }));
+
+\definition smallSymmetric: \forall (f, g: Real -> Real) -> \forall (epsilon: Real) ->
+  Def.SmallL1 f g epsilon -> Def.SmallL1 g f epsilon :=
+  \fun (f, g: _) (epsilon: _) (small: Def.SmallL1 f g epsilon) => \block {
+    \takefrom N0: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl f g epsilon n }) \by small \then
+    \return \exact(\into[N.Nat^](N0, { n: N.Nat^ \where Def.NormControl g f epsilon n }) \by {
+      \fun (n: _) (later: _) (tags: _) (level: _) (valid: _) =>
+        R.ltReplaceLeft _ _ _ (D.normSymmetric f g tags a b)
+          ((\bysub(N.Nat^, { k: N.Nat^ \where Def.NormControl f g epsilon k }, N0)) n later tags level valid) },
+      \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl g f epsilon n }))
+  };
+
+\definition smallTriangle: \forall (f, g, h: Real -> Real) -> \forall (epsilon: Real) ->
+  Def.SmallL1 f g (mul half epsilon) -> Def.SmallL1 g h (mul half epsilon) -> Def.SmallL1 f h epsilon :=
+  \fun (f, g, h: _) (epsilon: _) (fg: Def.SmallL1 f g (mul half epsilon)) (gh: Def.SmallL1 g h (mul half epsilon)) => \block {
+    \takefrom Nfg: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl f g (mul half epsilon) n }) \by fg \then
+    \takefrom Ngh: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl g h (mul half epsilon) n }) \by gh \then
+    \return \exact(\into[N.Nat^](NatOrder.commonBound Nfg Ngh, { k: N.Nat^ \where Def.NormControl f h epsilon k }) \by {
+      \fun (n: _) (later: _) (tags: _) (level: _) (valid: _) => R.ltReplaceRight _ _ _ (E.halfTwice epsilon)
+        (R.leLtTrans _ _ _ (D.normTriangle f g h tags a b interval.ordered valid)
+          (E.addLt _ _ _ _
+            ((\bysub(N.Nat^, { k: N.Nat^ \where Def.NormControl f g (mul half epsilon) k }, Nfg))
+              n (Nat.leTrans _ _ _ (NatOrder.leftLeCommonBound Nfg Ngh) later) tags level valid)
+            ((\bysub(N.Nat^, { k: N.Nat^ \where Def.NormControl g h (mul half epsilon) k }, Ngh))
+              n (Nat.leTrans _ _ _ (NatOrder.rightLeCommonBound Nfg Ngh) later) tags level valid))) },
+      \Cast[N.Nat^] ({ k: N.Nat^ \where Def.NormControl f h epsilon k }))
+  };
+
+\definition integralClose: \forall (f, g: Def.Function) -> \forall (radius: Real) ->
+  Def.SmallL1 f.function g.function radius -> R.Le (distance f.integral g.integral) radius :=
+  \fun (f, g: Def.Function) (radius: _) (small: Def.SmallL1 f.function g.function radius) =>
+  E.leOfSmall (distance f.integral g.integral) radius (\fun (epsilon: _) (positive: _) => \block {
+    \takefrom Nf: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.Control f.function f.integral (mul half epsilon) n })
+      \by f.hasIntegral.approximation (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \takefrom Ng: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.Control g.function g.integral (mul half epsilon) n })
+      \by g.hasIntegral.approximation (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \takefrom Nd: \Cast[N.Nat^] ({ n: N.Nat^ \where Def.NormControl f.function g.function radius n }) \by small \then
+    \let n: N.Nat^ := NatOrder.fourBound Nf Ng Nd N.Nat^::zero \then
+    \let tags: D.Tags := D.leftTags n a b \then
+    \let level: D.Level tags n := D.leftTagsLevel n a b \then
+    \let valid: D.Valid tags a b := D.leftTagsValid n a b interval.ordered \then
+    \return (\fun (bound: R.Le (distance f.integral g.integral) (add radius epsilon)) => bound) (Order.leOfLt _ _ (E.distancePerturb f.integral (D.sum f.function tags a b) (D.sum g.function tags a b) g.integral radius epsilon
+      (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric _ _)
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Def.Control f.function f.integral (mul half epsilon) k }, Nf))
+          n (NatOrder.firstLeFourBound Nf Ng Nd N.Nat^::zero) tags level valid))
+      (R.leLtTrans _ _ _ (D.sumDistance f.function g.function tags a b interval.ordered)
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Def.NormControl f.function g.function radius k }, Nd))
+          n (NatOrder.thirdLeFourBound Nf Ng Nd N.Nat^::zero) tags level valid))
+      ((\bysub(N.Nat^, { k: N.Nat^ \where Def.Control g.function g.integral (mul half epsilon) k }, Ng))
+        n (NatOrder.secondLeFourBound Nf Ng Nd N.Nat^::zero) tags level valid)))
+  });

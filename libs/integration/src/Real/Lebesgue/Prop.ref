@@ -1,0 +1,158 @@
+\import \parent.Def[] \as Def;
+
+\definition equivalentReflexive: \forall (s: Def.Representation) -> Def.Equivalent s s :=
+  \fun (s: Def.Representation) (epsilon: _) (positive: _) =>
+    \exact(\into[N.Nat^](N.Nat^::zero, { k: N.Nat^ \where Def.EquivalenceControl s s epsilon k }) \by {
+      \fun (n: _) (later: _) => RP.smallSelf (s n).function epsilon positive },
+      \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl s s epsilon k }));
+
+\definition equivalentSymmetric: \forall (s, t: Def.Representation) -> Def.Equivalent s t -> Def.Equivalent t s :=
+  \fun (s, t: Def.Representation) (same: Def.Equivalent s t) (epsilon: _) (positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl s t epsilon k }) \by same epsilon positive \then
+    \return \exact(\into[N.Nat^](k, { k: N.Nat^ \where Def.EquivalenceControl t s epsilon k }) \by {
+      \fun (n: _) (later: _) => RP.smallSymmetric _ _ epsilon
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl s t epsilon k }, k)) n later) },
+      \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl t s epsilon k }))
+  };
+
+\definition equivalentTransitive: \forall (s, t, u: Def.Representation) -> Def.Equivalent s t -> Def.Equivalent t u -> Def.Equivalent s u :=
+  \fun (s, t, u: Def.Representation) (st: Def.Equivalent s t) (tu: Def.Equivalent t u) (epsilon: _) (positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl s t (mul half epsilon) k })
+      \by st (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \takefrom l: \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl t u (mul half epsilon) k })
+      \by tu (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \return \exact(\into[N.Nat^](NatOrder.commonBound k l, { k: N.Nat^ \where Def.EquivalenceControl s u epsilon k }) \by {
+      \fun (n: _) (later: _) => RP.smallTriangle (s n).function (t n).function (u n).function epsilon
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl s t (mul half epsilon) k }, k))
+          n (Nat.leTrans _ _ _ (NatOrder.leftLeCommonBound k l) later))
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl t u (mul half epsilon) k }, l))
+          n (Nat.leTrans _ _ _ (NatOrder.rightLeCommonBound k l) later)) },
+      \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl s u epsilon k }))
+  };
+
+\definition equivalenceLaws: Def.EquivalenceLaws := Def.EquivalenceLaws {
+  reflexive := equivalentReflexive,
+  symmetric := equivalentSymmetric,
+  transitive := equivalentTransitive,
+};
+
+\definition integralSequenceCauchy: \forall (s: Def.Representation) -> S.Cauchy (Def.integralSequence s) :=
+  \fun (s: Def.Representation) (epsilon: _) (positive: _) => \block {
+    \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Def.Control s (mul half epsilon) k })
+      \by Def.cauchyLaw s (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \return \exact(\into[N.Nat^](k, { k: N.Nat^ \where S.Control (Def.integralSequence s) epsilon k }) \by {
+      \fun (m, n: _) (laterM: _) (laterN: _) => R.leLtTrans _ _ _
+        (RP.integralClose (s m) (s n) (mul half epsilon)
+          ((\bysub(N.Nat^, { k: N.Nat^ \where Def.Control s (mul half epsilon) k }, k)) m n laterM laterN))
+        (E.halfStrict epsilon positive) },
+      \Cast[N.Nat^] ({ k: N.Nat^ \where S.Control (Def.integralSequence s) epsilon k }))
+  };
+
+\definition numericSequence(s: Def.Representation): S.CauchySequence :=
+  \into[N.Nat^ -> Real](Def.integralSequence s, { sequence: N.Nat^ -> Real \where S.Cauchy sequence })
+    \by { integralSequenceCauchy s };
+
+\definition representativeIntegral(s: Def.Representation): Real := S.limit (numericSequence s);
+\definition representativeLaw: \forall (s: Def.Representation) -> S.Converges (Def.integralSequence s) (representativeIntegral s) :=
+  \fun (s: Def.Representation) => S.limitLaw (numericSequence s);
+
+\definition representativesAgree: \forall (s, t: Def.Representation) -> Def.Equivalent s t -> representativeIntegral s = representativeIntegral t :=
+  \fun (s, t: Def.Representation) (same: Def.Equivalent s t) =>
+  E.separatedBySmall (representativeIntegral s) (representativeIntegral t) (\fun (epsilon: _) (positive: _) => \block {
+    \let radius: Real := mul half (mul half epsilon) \then
+    \let radiusPositive: R.Lt zero radius := E.halfOfPositive (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+    \takefrom ks: \Cast[N.Nat^] ({ k: N.Nat^ \where S.LimitControl (Def.integralSequence s) (representativeIntegral s) radius k })
+      \by representativeLaw s radius radiusPositive \then
+    \takefrom kt: \Cast[N.Nat^] ({ k: N.Nat^ \where S.LimitControl (Def.integralSequence t) (representativeIntegral t) radius k })
+      \by representativeLaw t radius radiusPositive \then
+    \takefrom kd: \Cast[N.Nat^] ({ k: N.Nat^ \where Def.EquivalenceControl s t radius k }) \by same radius radiusPositive \then
+    \let n: N.Nat^ := NatOrder.fourBound ks kt kd N.Nat^::zero \then
+    \let nearS: R.Le (distance (representativeIntegral s) (s n).integral) radius := Order.leOfLt _ _
+      (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric _ _)
+        ((\bysub(N.Nat^, { k: N.Nat^ \where S.LimitControl (Def.integralSequence s) (representativeIntegral s) radius k }, ks))
+          n (NatOrder.firstLeFourBound ks kt kd N.Nat^::zero))) \then
+    \let nearT: R.Le (distance (t n).integral (representativeIntegral t)) radius := Order.leOfLt _ _
+      ((\bysub(N.Nat^, { k: N.Nat^ \where S.LimitControl (Def.integralSequence t) (representativeIntegral t) radius k }, kt))
+        n (NatOrder.secondLeFourBound ks kt kd N.Nat^::zero)) \then
+    \let nearPair: R.Le (distance (s n).integral (t n).integral) radius :=
+      RP.integralClose (s n) (t n) radius
+        ((\bysub(N.Nat^, { k: N.Nat^ \where Def.EquivalenceControl s t radius k }, kd))
+          n (NatOrder.thirdLeFourBound ks kt kd N.Nat^::zero)) \then
+    \return R.leTrans (distance (representativeIntegral s) (representativeIntegral t)) (add radius (add radius radius)) epsilon
+      (R.leTrans _ _ _ (E.distanceBridge (representativeIntegral s) (s n).integral (t n).integral (representativeIntegral t))
+        (E.addLe _ _ _ _ nearS (E.addLe _ _ _ _ nearPair nearT)))
+      (E.threeQuarterLe epsilon (Order.leOfLt zero epsilon positive))
+  });
+
+\definition candidateLaw(f: Def.Function) (value: Def.IntegralCandidate f): Def.IntegralLaw f value :=
+  \bysub(Real, { value: Real \where Def.IntegralLaw f value }, value);
+
+\definition classIntegralLaw: \forall (s: Def.Representation) -> Def.IntegralLaw (Def.class s) (representativeIntegral s) :=
+  \fun (s, t: Def.Representation) (member: Def.mem (Def.class s) t) =>
+    \idelim representativeIntegral t = representativeIntegral s \with value: Real => S.Converges (Def.integralSequence t) value
+      \by { base: representativeLaw t,
+        equality: sym!{Real} _ _ (representativesAgree s t (Def.relatedOfClassMem s t member)) };
+
+\definition candidateExists: \forall (f: Def.Function) -> \exists Def.IntegralCandidate f :=
+  Def.induction (\fun (f: Def.Function) => \exists Def.IntegralCandidate f)
+    (\fun (s: Def.Representation) =>
+      \exact(\into[Real](representativeIntegral s, { value: Real \where Def.IntegralLaw (Def.class s) value })
+        \by { classIntegralLaw s }, Def.IntegralCandidate (Def.class s)));
+
+\definition candidateUnique: \forall (f: Def.Function) -> \forall (u, v: Def.IntegralCandidate f) -> u = v :=
+  Def.induction (\fun (f: Def.Function) => \forall (u, v: Def.IntegralCandidate f) -> u = v)
+    (\fun (s: Def.Representation) (u, v: Def.IntegralCandidate (Def.class s)) =>
+      S.limitUnique (Def.integralSequence s) u v
+        (candidateLaw (Def.class s) u s (Def.classMem s s (equivalentReflexive s)))
+        (candidateLaw (Def.class s) v s (Def.classMem s s (equivalentReflexive s))));
+
+\definition integral(f: Def.Function): Real :=
+  \choice Def.IntegralCandidate f \by { existence: candidateExists f, uniqueness: candidateUnique f };
+
+\definition integralLaw: \forall (f: Def.Function) -> Def.IntegralLaw f (integral f) :=
+  \fun (f: Def.Function) => candidateLaw f
+    (\choice Def.IntegralCandidate f \by { existence: candidateExists f, uniqueness: candidateUnique f });
+
+\definition integralOfClass: \forall (s: Def.Representation) -> integral (Def.class s) = representativeIntegral s :=
+  \fun (s: Def.Representation) => S.limitUnique (Def.integralSequence s) (integral (Def.class s)) (representativeIntegral s)
+    (integralLaw (Def.class s) s (Def.classMem s s (equivalentReflexive s))) (representativeLaw s);
+
+\definition equivalentClasses: \forall (s, t: Def.Representation) -> Def.Equivalent s t -> Def.class s = Def.class t :=
+  \fun (s, t: Def.Representation) (same: Def.Equivalent s t) =>
+    \axiom:setext(Def.ClassOf s, Def.ClassOf t,
+      (\fun (u: Def.Representation) (su: Def.Equivalent s u) => equivalentTransitive t s u (equivalentSymmetric s t same) su),
+      (\fun (u: Def.Representation) (tu: Def.Equivalent t u) => equivalentTransitive s t u same tu));
+
+\definition constantRepresentation(f: RI.Function): Def.Representation :=
+  \into[N.Nat^ -> RI.Function](\fun (n: N.Nat^) => f, { sequence: N.Nat^ -> RI.Function \where Def.Cauchy sequence }) \by {
+    \fun (epsilon: _) (positive: _) =>
+      \exact(\into[N.Nat^](N.Nat^::zero, { k: N.Nat^ \where Def.Control (\fun (n: N.Nat^) => f) epsilon k }) \by {
+        \fun (m, n: _) (laterM: _) (laterN: _) => RP.smallSelf f.function epsilon positive },
+        \Cast[N.Nat^] ({ k: N.Nat^ \where Def.Control (\fun (n: N.Nat^) => f) epsilon k })) };
+
+\definition ofRiemann(f: RI.Function): Def.Function := Def.class (constantRepresentation f);
+
+\definition riemannAgreement: \forall (f: RI.Function) -> integral (ofRiemann f) = f.integral :=
+  \fun (f: RI.Function) => S.limitUnique (Def.integralSequence (constantRepresentation f)) (integral (ofRiemann f)) f.integral
+    (integralLaw (ofRiemann f) (constantRepresentation f)
+      (Def.classMem (constantRepresentation f) (constantRepresentation f) (equivalentReflexive (constantRepresentation f))))
+    (S.constantConverges f.integral);
+
+\structure Agreement[f: Real -> Real, value: Real, lebesgue: Def.Function]: \Prop {
+  represents: \exists { riemann: RI.Function \where Logic.And[#function{riemann} = f, ofRiemann riemann = lebesgue] },
+  integral: integral lebesgue = value,
+}
+
+\definition riemannLebesgueAgreement: \forall (f: Real -> Real) -> \forall (value: Real) ->
+  RI.HasIntegral[f, value] -> \exists { lebesgue: Def.Function \where Agreement[f, value, lebesgue] } :=
+  \fun (f: _) (value: _) (riemannLaw: RI.HasIntegral[f, value]) => \block {
+    \let riemann: RI.Function := RI.Function { function := f, integral := value, hasIntegral := riemannLaw } \then
+    \return \exact(\into[Def.Function](ofRiemann riemann, { lebesgue: Def.Function \where Agreement[f, value, lebesgue] }) \by {
+      Agreement[_, _, _] {
+        represents := \exact(\into[RI.Function](riemann,
+          { candidate: RI.Function \where Logic.And[#function{candidate} = f, ofRiemann candidate = ofRiemann riemann] }) \by {
+            Logic.And[_, _]::# (\refl(f)) (\refl(ofRiemann riemann)) },
+          \Cast[RI.Function] ({ candidate: RI.Function \where Logic.And[#function{candidate} = f, ofRiemann candidate = ofRiemann riemann] })),
+        integral := riemannAgreement riemann,
+      } }, \Cast[Def.Function] ({ lebesgue: Def.Function \where Agreement[f, value, lebesgue] }))
+  };

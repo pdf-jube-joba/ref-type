@@ -1,0 +1,156 @@
+\import \parent.Estimates[] \as E;
+
+\inductive Tags: \Set :=
+| tag: Real -> Tags
+| split: Tags -> Tags -> Tags
+;
+
+\definition sum(f: Real -> Real) (tags: Tags) (a, b: Real): Real :=
+  \prec[Tags, \fun (tags: Tags) => Real -> Real -> Real]
+    (\fun (x, a, b: _) => mul (sub b a) (f x))
+    (\fun (left: Tags) (leftSum: Real -> Real -> Real) (right: Tags) (rightSum: Real -> Real -> Real) (a, b: _) =>
+      add (leftSum a (midpoint a b)) (rightSum (midpoint a b) b)) tags a b;
+
+\definition validSet(tags: Tags): Real -> \Pow Real :=
+  \prec[Tags, \fun (tags: Tags) => Real -> \Pow Real]
+    (\fun (x, a: _) => { b: Real \where Logic.And[R.Le a x, R.Le x b] })
+    (\fun (left: Tags) (leftValid: Real -> \Pow Real) (right: Tags) (rightValid: Real -> \Pow Real) (a: _) =>
+      { b: Real \where Logic.And[\In[Real] (leftValid a) (midpoint a b),
+        \In[Real] (rightValid (midpoint a b)) b] }) tags;
+
+\definition Valid(tags: Tags) (a, b: Real): \Prop := \In[Real] (validSet tags a) b;
+
+\structure SplitLevel[n: N.Nat^, leftLevel, rightLevel: \Pow N.Nat^, k: N.Nat^]: \Prop {
+  successor: n = N.Nat^::succ k,
+  left: \In[N.Nat^] leftLevel k,
+  right: \In[N.Nat^] rightLevel k,
+}
+
+\definition levelSet(tags: Tags): \Pow N.Nat^ :=
+  \prec[Tags, \fun (tags: Tags) => \Pow N.Nat^]
+    (\fun (x: _) => { n: N.Nat^ \where n = N.Nat^::zero })
+    (\fun (left: Tags) (leftLevel: \Pow N.Nat^) (right: Tags) (rightLevel: \Pow N.Nat^) =>
+      { n: N.Nat^ \where \exists { k: N.Nat^ \where SplitLevel[n, leftLevel, rightLevel, k] } }) tags;
+
+\definition Level(tags: Tags) (n: N.Nat^): \Prop := \In[N.Nat^] (levelSet tags) n;
+
+\definition leftTags(n: N.Nat^) (a, b: Real): Tags :=
+  \prec[N.Nat^, \fun (n: N.Nat^) => Real -> Real -> Tags]
+    (\fun (a, b: _) => Tags::tag a)
+    (\fun (n: _) (previous: Real -> Real -> Tags) (a, b: _) =>
+      Tags::split (previous a (midpoint a b)) (previous (midpoint a b) b)) n a b;
+
+\definition leftTagsLevel: \forall (n: N.Nat^) -> \forall (a, b: Real) -> Level (leftTags n a b) n :=
+  \induction (n: N.Nat^) \return \forall (a, b: Real) -> Level (leftTags n a b) n \with {
+    | zero: \fun (a, b: _) => \refl(N.Nat^::zero)
+    | succ: \fun (n: _) (ih: _) (a, b: _) =>
+      \exact(\into[N.Nat^](n, { k: N.Nat^ \where SplitLevel[N.Nat^::succ n,
+        levelSet (leftTags n a (midpoint a b)), levelSet (leftTags n (midpoint a b) b), k] }) \by {
+        SplitLevel[_, _, _, _] {
+          successor := \refl(N.Nat^::succ n),
+          left := ih a (midpoint a b),
+          right := ih (midpoint a b) b,
+        } },
+        \Cast[N.Nat^] ({ k: N.Nat^ \where SplitLevel[N.Nat^::succ n,
+          levelSet (leftTags n a (midpoint a b)), levelSet (leftTags n (midpoint a b) b), k] }))
+  };
+
+\definition leftTagsValid: \forall (n: N.Nat^) -> \forall (a, b: Real) -> R.Le a b -> Valid (leftTags n a b) a b :=
+  \induction (n: N.Nat^) \return \forall (a, b: Real) -> R.Le a b -> Valid (leftTags n a b) a b \with {
+    | zero: \fun (a, b: _) (ab: _) => Logic.And[_, _]::# (R.leRefl a) ab
+    | succ: \fun (n: _) (ih: _) (a, b: _) (ab: _) => Logic.And[_, _]::#
+      (ih a (midpoint a b) (E.midpointLeft a b ab))
+      (ih (midpoint a b) b (E.midpointRight a b ab))
+  };
+
+\definition sumZero: \forall (tags: Tags) -> \forall (a, b: Real) -> sum (\fun (x: Real) => zero) tags a b = zero :=
+  \induction (tags: Tags) \return \forall (a, b: Real) -> sum (\fun (x: Real) => zero) tags a b = zero \with {
+    | tag: \fun (x, a, b: _) => Laws.fieldMulZeroRight (sub b a)
+    | split: \fun (left: _) (ihLeft: _) (right: _) (ihRight: _) (a, b: _) =>
+      trans!{Real} _ _ _
+        (congr2!{Real Real Real} add _ _ _ _ (ihLeft a (midpoint a b)) (ihRight (midpoint a b) b))
+        (Laws.addZeroLeft zero)
+  };
+
+\definition sumCongruent(f, g: Real -> Real):
+  (\forall (x: Real) -> f x = g x) -> \forall (tags: Tags) -> \forall (a, b: Real) -> sum f tags a b = sum g tags a b :=
+  \fun (same: _) => \induction (tags: Tags) \return \forall (a, b: Real) -> sum f tags a b = sum g tags a b \with {
+    | tag: \fun (x, a, b: _) => congr!{Real Real} (mul (sub b a)) _ _ (same x)
+    | split: \fun (left: _) (ihLeft: _) (right: _) (ihRight: _) (a, b: _) =>
+      congr2!{Real Real Real} add _ _ _ _ (ihLeft a (midpoint a b)) (ihRight (midpoint a b) b)
+  };
+
+\definition sumAdd(f, g: Real -> Real): \forall (tags: Tags) -> \forall (a, b: Real) ->
+  sum (\fun (x: Real) => add (f x) (g x)) tags a b = add (sum f tags a b) (sum g tags a b) :=
+  \induction (tags: Tags) \return \forall (a, b: Real) ->
+    sum (\fun (x: Real) => add (f x) (g x)) tags a b = add (sum f tags a b) (sum g tags a b) \with {
+    | tag: \fun (x, a, b: _) => Laws.fieldMulAdd (sub b a) (f x) (g x)
+    | split: \fun (left: _) (ihLeft: _) (right: _) (ihRight: _) (a, b: _) =>
+      trans!{Real} _ _ _
+        (congr2!{Real Real Real} add _ _ _ _ (ihLeft a (midpoint a b)) (ihRight (midpoint a b) b))
+        (E.addShuffle (sum f left a (midpoint a b)) (sum g left a (midpoint a b))
+          (sum f right (midpoint a b) b) (sum g right (midpoint a b) b))
+  };
+
+\definition sumConstant(c: Real): \forall (tags: Tags) -> \forall (a, b: Real) ->
+  sum (\fun (x: Real) => c) tags a b = mul (sub b a) c :=
+  \induction (tags: Tags) \return \forall (a, b: Real) -> sum (\fun (x: Real) => c) tags a b = mul (sub b a) c \with {
+    | tag: \fun (x, a, b: _) => \refl(mul (sub b a) c)
+    | split: \fun (left: _) (ihLeft: _) (right: _) (ihRight: _) (a, b: _) => eq_reason!{
+      { sum (\fun (x: Real) => c) (Tags::split left right) a b }
+      "=" { add (mul (sub (midpoint a b) a) c) (mul (sub b (midpoint a b)) c) } "by" {
+        congr2!{Real Real Real} add _ _ _ _ (ihLeft a (midpoint a b)) (ihRight (midpoint a b) b) }
+      "=" { add (mul c (sub (midpoint a b) a)) (mul c (sub b (midpoint a b))) } "by" {
+        congr2!{Real Real Real} add _ _ _ _ (Laws.fieldMulComm _ c) (Laws.fieldMulComm _ c) }
+      "=" { mul c (add (sub (midpoint a b) a) (sub b (midpoint a b))) } "by" { sym!{Real} _ _ (Laws.fieldMulAdd c _ _) }
+      "=" { mul c (sub b a) } "by" { congr!{Real Real} (mul c) _ _
+        (trans!{Real} _ _ _ (Laws.addComm _ _) (Metric.subTriangle b (midpoint a b) a)) }
+      "=" { mul (sub b a) c } "by" { Laws.fieldMulComm c (sub b a) }
+    }
+  };
+
+\definition sumMonotone(f, g: Real -> Real): \forall (tags: Tags) -> \forall (a, b: Real) ->
+  R.Le a b -> Valid tags a b ->
+  (\forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (f x) (g x)) ->
+  R.Le (sum f tags a b) (sum g tags a b) :=
+  \induction (tags: Tags) \return \forall (a, b: Real) -> R.Le a b -> Valid tags a b ->
+    (\forall (x: Real) -> R.Le a x -> R.Le x b -> R.Le (f x) (g x)) ->
+    R.Le (sum f tags a b) (sum g tags a b) \with {
+    | tag: \fun (x, a, b: _) (ab: _) (valid: Logic.And[R.Le a x, R.Le x b]) (ordered: _) =>
+      E.mulMonotone (sub b a) (f x) (g x) (Metric.subNonnegative b a ab) (ordered x #left{valid} #right{valid})
+    | split: \fun (left: _) (ihLeft: _) (right: _) (ihRight: _) (a, b: _) (ab: _)
+        (valid: Logic.And[Valid left a (midpoint a b), Valid right (midpoint a b) b]) (ordered: _) =>
+      E.addLe _ _ _ _
+        (ihLeft a (midpoint a b) (E.midpointLeft a b ab) #left{valid}
+          (\fun (x: _) (ax: _) (xm: _) => ordered x ax (R.leTrans x (midpoint a b) b xm (E.midpointRight a b ab))))
+        (ihRight (midpoint a b) b (E.midpointRight a b ab) #right{valid}
+          (\fun (x: _) (mx: _) (xb: _) => ordered x (R.leTrans a (midpoint a b) x (E.midpointLeft a b ab) mx) xb))
+  };
+
+\definition normSum(f, g: Real -> Real) (tags: Tags) (a, b: Real): Real :=
+  sum (\fun (x: Real) => distance (f x) (g x)) tags a b;
+
+\definition sumDistance(f, g: Real -> Real): \forall (tags: Tags) -> \forall (a, b: Real) ->
+  R.Le a b -> R.Le (distance (sum f tags a b) (sum g tags a b)) (normSum f g tags a b) :=
+  \induction (tags: Tags) \return \forall (a, b: Real) -> R.Le a b ->
+    R.Le (distance (sum f tags a b) (sum g tags a b)) (normSum f g tags a b) \with {
+    | tag: \fun (x, a, b: _) (ab: _) => E.distanceMul (sub b a) (f x) (g x) (Metric.subNonnegative b a ab)
+    | split: \fun (left: _) (ihLeft: _) (right: _) (ihRight: _) (a, b: _) (ab: _) => R.leTrans _ _ _
+      (E.distanceAdd (sum f left a (midpoint a b)) (sum f right (midpoint a b) b)
+        (sum g left a (midpoint a b)) (sum g right (midpoint a b) b))
+      (E.addLe _ _ _ _ (ihLeft a (midpoint a b) (E.midpointLeft a b ab))
+        (ihRight (midpoint a b) b (E.midpointRight a b ab)))
+  };
+
+\definition normSelf(f: Real -> Real) (tags: Tags) (a, b: Real): normSum f f tags a b = zero :=
+  trans!{Real} _ _ _ (sumCongruent _ _ (\fun (x: _) => Metric.distanceSelf (f x)) tags a b)
+    (sumZero tags a b);
+
+\definition normSymmetric(f, g: Real -> Real) (tags: Tags) (a, b: Real):
+  normSum f g tags a b = normSum g f tags a b :=
+  sumCongruent _ _ (\fun (x: _) => Metric.distanceSymmetric (f x) (g x)) tags a b;
+
+\definition normTriangle(f, g, h: Real -> Real) (tags: Tags) (a, b: Real): R.Le a b -> Valid tags a b ->
+  R.Le (normSum f h tags a b) (add (normSum f g tags a b) (normSum g h tags a b)) :=
+  \fun (ab: _) (valid: _) => R.leReplaceRight _ _ _ (sumAdd _ _ tags a b)
+    (sumMonotone _ _ tags a b ab valid (\fun (x: _) (ax: _) (xb: _) => Metric.distanceTriangle (f x) (g x) (h x)));

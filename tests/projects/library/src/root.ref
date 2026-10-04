@@ -1013,3 +1013,73 @@
   \definition selfClass: quotient.class Unit::unit = quotient.class Unit::unit :=
     quotient.relatedEqual equality.laws Unit::unit Unit::unit (\refl(Unit::unit));
 }
+
+\module IntegrationExamples {
+  \import integration.Real[] \as I;
+  \import real.DedekindReal[] \as R;
+  \import R.Arithmetic[].Prop[] \as Laws;
+  \import std.Logic[].Equality[] \as Equality;
+  \use Equality.trans;
+  \use Equality.congr;
+
+  \definition interval: I.Interval := I.Interval {
+    left := I.zero,
+    right := I.one,
+    ordered := Laws.oneNonnegative,
+  };
+  \import I.Riemann[interval := interval].Def[] \as Riemann;
+  \import I.Riemann[interval := interval].Prop[] \as RI;
+  \import I.Lebesgue[interval := interval].Def[] \as Lebesgue;
+  \import I.Lebesgue[interval := interval].Prop[] \as LI;
+
+  \definition constantRiemannValue: \forall (c: I.Real) -> (RI.constant c).integral = c :=
+    \fun (c: I.Real) => trans!{I.Real} _ _ _
+      (congr!{I.Real I.Real} (\fun (length: I.Real) => I.mul length c) _ _ (Laws.subZeroRight I.one))
+      (Laws.fieldMulOneLeft c);
+
+  \definition constantLebesgueValue: \forall (c: I.Real) -> LI.integral (LI.ofRiemann (RI.constant c)) = c :=
+    \fun (c: I.Real) => trans!{I.Real} _ _ _ (LI.riemannAgreement (RI.constant c)) (constantRiemannValue c);
+
+  \definition signedExample: LI.integral (LI.ofRiemann (RI.constant (I.neg I.one))) = I.neg I.one :=
+    constantLebesgueValue (I.neg I.one);
+
+
+  \import std.Data[].Nat[] \as N;
+  \definition zeroRiemann: Riemann.Function := Riemann.Function {
+    function := \fun (x: I.Real) => I.zero,
+    integral := I.zero,
+    hasIntegral := \idelim (RI.constant I.zero).integral = I.zero \with value: I.Real =>
+      Riemann.HasIntegral[(\fun (x: I.Real) => I.zero), value]
+      \by { base: (RI.constant I.zero).hasIntegral, equality: constantRiemannValue I.zero },
+  };
+
+  \definition zeroRepresentationsEquivalent:
+    Lebesgue.Equivalent (LI.constantRepresentation (RI.constant I.zero)) (LI.constantRepresentation zeroRiemann) :=
+    \fun (epsilon: I.Real) (positive: R.Lt I.zero epsilon) =>
+      \exact(\into[N.Nat^](N.Nat^::zero, { threshold: N.Nat^ \where
+        Lebesgue.EquivalenceControl (LI.constantRepresentation (RI.constant I.zero)) (LI.constantRepresentation zeroRiemann) epsilon threshold }) \by {
+          \fun (n: N.Nat^) (later: _) => RI.smallSelf (\fun (x: I.Real) => I.zero) epsilon positive },
+        \Cast[N.Nat^] ({ threshold: N.Nat^ \where
+          Lebesgue.EquivalenceControl (LI.constantRepresentation (RI.constant I.zero)) (LI.constantRepresentation zeroRiemann) epsilon threshold }));
+
+  \definition zeroClassIndependent: LI.ofRiemann (RI.constant I.zero) = LI.ofRiemann zeroRiemann :=
+    LI.equivalentClasses (LI.constantRepresentation (RI.constant I.zero)) (LI.constantRepresentation zeroRiemann) zeroRepresentationsEquivalent;
+
+  \definition allRiemannFunctions: \forall (f: I.Real -> I.Real) -> \forall (value: I.Real) ->
+    Riemann.HasIntegral[f, value] -> \exists { lebesgue: Lebesgue.Function \where LI.Agreement[f, value, lebesgue] } :=
+    LI.riemannLebesgueAgreement;
+
+  \definition pointInterval: I.Interval := I.Interval {
+    left := I.zero,
+    right := I.zero,
+    ordered := R.leRefl I.zero,
+  };
+  \import I.Riemann[interval := pointInterval].Prop[] \as PointRI;
+  \import I.Lebesgue[interval := pointInterval].Prop[] \as PointLI;
+
+  \definition pointIntegral: \forall (c: I.Real) -> PointLI.integral (PointLI.ofRiemann (PointRI.constant c)) = I.zero :=
+    \fun (c: I.Real) => trans!{I.Real} _ _ _ (PointLI.riemannAgreement (PointRI.constant c))
+      (trans!{I.Real} _ _ _
+        (congr!{I.Real I.Real} (\fun (length: I.Real) => I.mul length c) _ _ (Laws.subSelf I.zero))
+        (Laws.fieldMulZeroLeft c));
+}

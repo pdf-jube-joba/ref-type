@@ -1,0 +1,63 @@
+\definition Control(sequence: N.Nat^ -> RI.Function) (epsilon: Real) (threshold: N.Nat^): \Prop :=
+  \forall (m, n: N.Nat^) -> Nat.Le threshold m -> Nat.Le threshold n ->
+    RI.SmallL1 (sequence m).function (sequence n).function epsilon;
+
+\definition Cauchy(sequence: N.Nat^ -> RI.Function): \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { threshold: N.Nat^ \where Control sequence epsilon threshold };
+
+\definition Representation: \Set :=
+  \Cast[N.Nat^ -> RI.Function] ({ sequence: N.Nat^ -> RI.Function \where Cauchy sequence });
+
+\definition cauchyLaw(sequence: Representation): Cauchy sequence :=
+  \bysub(N.Nat^ -> RI.Function, { sequence: N.Nat^ -> RI.Function \where Cauchy sequence }, sequence);
+
+\definition EquivalenceControl(s, t: Representation) (epsilon: Real) (threshold: N.Nat^): \Prop :=
+  \forall (n: N.Nat^) -> Nat.Le threshold n -> RI.SmallL1 (s n).function (t n).function epsilon;
+
+\definition Equivalent(s, t: Representation): \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { threshold: N.Nat^ \where EquivalenceControl s t epsilon threshold };
+
+\structure EquivalenceLaws: \Prop {
+  reflexive: \forall (s: Representation) -> Equivalent s s,
+  symmetric: \forall (s, t: Representation) -> Equivalent s t -> Equivalent t s,
+  transitive: \forall (s, t, u: Representation) -> Equivalent s t -> Equivalent t u -> Equivalent s u,
+}
+
+\definition ClassOf(s: Representation): \Pow Representation := { t: Representation \where Equivalent s t };
+\definition IsClass(f: \Pow Representation): \Prop :=
+  \forall (P: \Prop) -> (\forall (s: Representation) -> f = ClassOf s -> P) -> P;
+\definition Classes: \Pow (\Pow Representation) := { f: \Pow Representation \where IsClass f };
+\definition Function: \Set := \Cast[\Pow Representation] Classes;
+\definition mem(f: Function) (s: Representation): \Prop := \In[Representation] f s;
+
+\definition class(s: Representation): Function :=
+  \into[\Pow Representation](ClassOf s, Classes) \by {
+    \fun (P: \Prop) (use: \forall (t: Representation) -> ClassOf s = ClassOf t -> P) => use s (\refl(ClassOf s)) };
+
+\definition classMem(s, t: Representation): Equivalent s t -> mem (class s) t :=
+  \fun (related: Equivalent s t) =>
+    \idelim ClassOf s = class s \with f: \Pow Representation => \In[Representation] f t
+      \by { base: related, equality: \refl(ClassOf s) };
+
+\definition relatedOfClassMem(s, t: Representation): mem (class s) t -> Equivalent s t :=
+  \fun (member: mem (class s) t) =>
+    \idelim class s = ClassOf s \with f: \Pow Representation => \In[Representation] f t
+      \by { base: member, equality: \refl(ClassOf s) };
+
+\definition classProperty(f: Function): IsClass f := \bysub(\Pow Representation, Classes, f);
+
+\definition induction(P: Function -> \Prop):
+  (\forall (s: Representation) -> P (class s)) -> \forall (f: Function) -> P f :=
+  \fun (step: \forall (s: Representation) -> P (class s)) (f: Function) =>
+    classProperty f (P f) (\fun (s: Representation) (same: f = ClassOf s) =>
+      (\idelim class s = f \with g: \Pow Representation =>
+        \forall (law: IsClass g) -> P (\into[\Pow Representation](g, Classes) \by { law })
+        \by { base: \fun (law: IsClass (class s)) => step s,
+          equality: sym!{\Pow Representation} f (ClassOf s) same }) (classProperty f));
+
+\definition integralSequence(s: Representation) (n: N.Nat^): Real := (s n).integral;
+
+\definition IntegralLaw(f: Function) (value: Real): \Prop :=
+  \forall (s: Representation) -> mem f s -> S.Converges (integralSequence s) value;
+
+\definition IntegralCandidate(f: Function): \Set := \Cast[Real] ({ value: Real \where IntegralLaw f value });

@@ -1,0 +1,153 @@
+\definition addLe(a, b, c, d: Real): R.Le a c -> R.Le b d -> R.Le (add a b) (add c d) :=
+  \fun (ac: _) (bd: _) => R.leTrans _ _ _
+    (Laws.addMonotoneRight a c b ac) (Laws.addMonotoneLeft b d c bd);
+
+\definition addLt(a, b, c, d: Real): R.Lt a c -> R.Lt b d -> R.Lt (add a b) (add c d) :=
+  \fun (ac: _) (bd: _) => Order.ltTrans _ _ _
+    (Laws.ltAddRight a c b ac) (Laws.ltAddLeft c b d bd);
+
+\definition mulSub(w, x, y: Real): mul w (sub x y) = sub (mul w x) (mul w y) :=
+  trans!{Real} _ _ _ (Laws.fieldMulAdd w x (Op.neg y))
+    (congr!{Real Real} (add (mul w x)) _ _ (Laws.fieldMulNegRight w y));
+
+\definition mulMonotone(w, x, y: Real): R.Le zero w -> R.Le x y -> R.Le (mul w x) (mul w y) :=
+  \fun (positive: _) (xy: _) => Laws.leAddCancelRight _ _ (Op.neg (mul w x))
+    (R.leReplace zero (sub (mul w x) (mul w x)) (mul w (sub y x))
+      (sub (mul w y) (mul w x))
+      (sym!{Real} _ _ (Laws.subSelf (mul w x))) (mulSub w y x)
+      (Laws.fieldMulNonnegative w (sub y x) positive (Metric.subNonnegative y x xy)));
+
+\definition halfNonnegative: R.Le zero half :=
+  Order.leOfLt zero half (Laws.ltOfRat Q.zeroRat Q.halfRat Q.halfPositive);
+
+\definition halfDouble: add half half = Op.one :=
+  trans!{Real} _ _ _ (Laws.ofRatAdd Q.halfRat Q.halfRat)
+    (Laws.ofRatRespects _ _ Q.halfDouble);
+
+\definition halfTwice(x: Real): add (mul half x) (mul half x) = x :=
+  eq_reason!{
+    { add (mul half x) (mul half x) }
+    "=" { add (mul x half) (mul x half) } "by" {
+      congr2!{Real Real Real} add _ _ _ _ (Laws.fieldMulComm half x) (Laws.fieldMulComm half x) }
+    "=" { mul x (add half half) } "by" { sym!{Real} _ _ (Laws.fieldMulAdd x half half) }
+    "=" { mul (add half half) x } "by" { Laws.fieldMulComm x (add half half) }
+    "=" { mul Op.one x } "by" { congr!{Real Real} (\fun (w: _) => mul w x) _ _ halfDouble }
+    "=" x "by" { Laws.fieldMulOneLeft x }
+  };
+
+\definition halfOfPositive(x: Real): R.Lt zero x -> R.Lt zero (mul half x) :=
+  \fun (positive: R.Lt zero x) => Order.byContradiction (R.Lt zero (mul half x))
+    (\fun (notPositive: _) => R.ltNotLeReverse zero x positive
+      (R.leReplace (add (mul half x) (mul half x)) x (add zero zero) zero
+        (halfTwice x) (Laws.addZeroLeft zero)
+        (addLe _ _ _ _ (Order.leOfNotLtReverse _ _ notPositive)
+          (Order.leOfNotLtReverse _ _ notPositive))));
+
+\definition halfBelow(x: Real): R.Le zero x -> R.Le (mul half x) x :=
+  \fun (positive: _) => R.leReplaceRight _ _ _ (halfTwice x)
+    (Metric.leAddOfNonnegative _ _ (Laws.fieldMulNonnegative half x halfNonnegative positive));
+
+\definition midpointLeft(a, b: Real): R.Le a b -> R.Le a (midpoint a b) :=
+  \fun (ab: _) => Metric.leAddOfNonnegative a (mul half (sub b a))
+    (Laws.fieldMulNonnegative half (sub b a) halfNonnegative (Metric.subNonnegative b a ab));
+
+\definition midpointRight(a, b: Real): R.Le a b -> R.Le (midpoint a b) b :=
+  \fun (ab: _) => R.leReplaceRight _ _ _ (Metric.subAddCancel b a)
+    (R.leReplaceRight _ _ _ (Laws.addComm a (sub b a))
+      (Laws.addMonotoneLeft _ _ a (halfBelow (sub b a) (Metric.subNonnegative b a ab))));
+
+\definition addShuffle(a, b, c, d: Real):
+  add (add a b) (add c d) = add (add a c) (add b d) :=
+  eq_reason!{
+    { add (add a b) (add c d) }
+    "=" { add a (add b (add c d)) } "by" { Laws.addAssoc a b (add c d) }
+    "=" { add a (add (add b c) d) } "by" { congr!{Real Real} (add a) _ _ (sym!{Real} _ _ (Laws.addAssoc b c d)) }
+    "=" { add a (add (add c b) d) } "by" { congr!{Real Real} (\fun (v: _) => add a (add v d)) _ _ (Laws.addComm b c) }
+    "=" { add a (add c (add b d)) } "by" { congr!{Real Real} (add a) _ _ (Laws.addAssoc c b d) }
+    "=" { add (add a c) (add b d) } "by" { sym!{Real} _ _ (Laws.addAssoc a c (add b d)) }
+  };
+
+\definition subAdd(a, b, c, d: Real):
+  sub (add a b) (add c d) = add (sub a c) (sub b d) :=
+  trans!{Real} _ _ _
+    (congr!{Real Real} (add (add a b)) _ _ (Laws.negAdd c d))
+    (addShuffle a b (Op.neg c) (Op.neg d));
+
+\definition distanceAdd(a, b, c, d: Real):
+  R.Le (distance (add a b) (add c d)) (add (distance a c) (distance b d)) :=
+  R.leReplaceLeft _ _ _
+    (sym!{Real} _ _ (congr2!{Real Real Real} Metric.max _ _ _ _ (subAdd a b c d) (subAdd c d a b)))
+    (Metric.maxAdd (sub a c) (sub c a) (sub b d) (sub d b));
+
+\definition distanceMul(w, x, y: Real): R.Le zero w ->
+  R.Le (distance (mul w x) (mul w y)) (mul w (distance x y)) :=
+  \fun (positive: _) => Metric.maxLeast _ _ _
+    (R.leReplaceLeft _ _ _ (mulSub w x y)
+      (mulMonotone w _ _ positive (Metric.maxLeft _ _)))
+    (R.leReplaceLeft _ _ _ (mulSub w y x)
+      (mulMonotone w _ _ positive (Metric.maxRight _ _)));
+
+\definition halfStrict(x: Real): R.Lt zero x -> R.Lt (mul half x) x :=
+  \fun (positive: _) => R.ltReplaceRight _ _ _ (halfTwice x)
+    (R.ltReplaceLeft _ _ _ (Laws.addZeroRight (mul half x))
+      (Laws.ltAddLeft (mul half x) zero (mul half x) (halfOfPositive x positive)));
+
+\definition addSubCancel(x, y: Real): add y (sub x y) = x :=
+  trans!{Real} _ _ _ (Laws.addComm y (sub x y)) (Metric.subAddCancel x y);
+
+\definition distanceLeOfInterval(x, y, r: Real): R.Le (sub x r) y -> R.Le y (add x r) -> R.Le (distance x y) r :=
+  \fun (lower: _) (upper: _) => Metric.maxLeast _ _ _
+    (Laws.leAddCancelRight _ _ y
+      (R.leReplaceLeft _ _ _ (sym!{Real} _ _ (Metric.subAddCancel x y))
+        (R.leReplaceRight _ _ _ (Laws.addComm y r)
+          (R.leReplaceLeft _ _ _ (Metric.subAddCancel x r)
+            (Laws.addMonotoneRight (sub x r) y r lower)))))
+    (Laws.leAddCancelRight _ _ x
+      (R.leReplaceLeft _ _ _ (sym!{Real} _ _ (Metric.subAddCancel y x))
+        (R.leReplaceRight _ _ _ (Laws.addComm x r) upper)));
+
+\definition leOfSmall(x, r: Real):
+  (\forall (epsilon: Real) -> R.Lt zero epsilon -> R.Le x (add r epsilon)) -> R.Le x r :=
+  \fun (small: _) => Order.leOfNotLtReverse x r
+    (\fun (rx: R.Lt r x) => \block {
+      \let gap: Real := sub x r \then
+      \let positive: R.Lt zero gap := R.ltReplaceLeft _ _ _ (Laws.subSelf r)
+        (Laws.ltAddRight r x (Op.neg r) rx) \then
+      \return R.ltNotLeReverse (add r (mul half gap)) x
+        (R.ltReplaceRight _ _ _ (addSubCancel x r)
+          (Laws.ltAddLeft r (mul half gap) gap (halfStrict gap positive)))
+        (small (mul half gap) (halfOfPositive gap positive))
+    });
+
+\definition separatedBySmall(x, y: Real):
+  (\forall (epsilon: Real) -> R.Lt zero epsilon -> R.Le (distance x y) epsilon) -> x = y :=
+  \fun (small: _) => Metric.distanceSeparated x y
+    (R.leAntisym _ _
+      (leOfSmall (distance x y) zero (\fun (epsilon: _) (positive: _) =>
+        R.leReplaceRight _ _ _ (sym!{Real} _ _ (Laws.addZeroLeft epsilon)) (small epsilon positive)))
+      (Metric.distanceNonnegative x y));
+
+\definition distanceBridge(a, b, c, d: Real):
+  R.Le (distance a d) (add (distance a b) (add (distance b c) (distance c d))) :=
+  R.leTrans _ _ _ (Metric.distanceTriangle a b d)
+    (Laws.addMonotoneLeft _ _ (distance a b) (Metric.distanceTriangle b c d));
+
+\definition distancePerturb(a, b, c, d, r, epsilon: Real):
+  R.Lt (distance a b) (mul half epsilon) -> R.Lt (distance b c) r ->
+  R.Lt (distance c d) (mul half epsilon) -> R.Lt (distance a d) (add r epsilon) :=
+  \fun (ab: _) (bc: _) (cd: _) => R.ltReplaceRight _ _ _
+    (trans!{Real} _ _ _ (sym!{Real} _ _ (Laws.addAssoc (mul half epsilon) r (mul half epsilon)))
+      (trans!{Real} _ _ _
+        (congr!{Real Real} (\fun (x: _) => add x (mul half epsilon)) _ _ (Laws.addComm (mul half epsilon) r))
+        (trans!{Real} _ _ _ (Laws.addAssoc r (mul half epsilon) (mul half epsilon))
+          (congr!{Real Real} (add r) _ _ (halfTwice epsilon)))))
+    (R.leLtTrans _ _ _ (distanceBridge a b c d)
+      (addLt _ _ _ _ ab (addLt _ _ _ _ bc cd)));
+
+\definition threeQuarterLe(epsilon: Real): R.Le zero epsilon ->
+  R.Le (add (mul half (mul half epsilon)) (add (mul half (mul half epsilon)) (mul half (mul half epsilon)))) epsilon :=
+  \fun (positive: _) => R.leReplaceRight _ _ _ (halfTwice epsilon)
+    (R.leReplaceLeft _ _ _
+      (sym!{Real} _ _ (congr!{Real Real} (add (mul half (mul half epsilon))) _ _ (halfTwice (mul half epsilon))))
+      (Laws.addMonotoneRight (mul half (mul half epsilon)) (mul half epsilon) (mul half epsilon)
+        (halfBelow (mul half epsilon) (Laws.fieldMulNonnegative half epsilon halfNonnegative positive))));

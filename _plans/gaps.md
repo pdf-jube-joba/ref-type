@@ -50,3 +50,36 @@ Directions::nil
 ```
 
 多変数微分の微分順序では、現在は `Lists.List[Coordinate]::nil` と `\induction (directions: Lists.List[Coordinate])` を使っている。
+
+## 帰納型の再帰的な述語
+
+帰納型の再帰を使って、命題値の述語を直接定義したい。
+
+```text
+\definition Valid(tags: Tags) (a, b: Real): \Prop :=
+  \prec[Tags, \fun (tags: Tags) => Real -> Real -> \Prop]
+    (\fun (x, a, b: Real) => Logic.And[Le a x, Le x b])
+    (\fun (left: Tags) (leftValid: Real -> Real -> \Prop)
+      (right: Tags) (rightValid: Real -> Real -> \Prop) (a, b: Real) =>
+      Logic.And[leftValid a (midpoint a b), rightValid (midpoint a b) b]) tags a b;
+```
+
+現在の recursor はこの motive を `upper sort has no classifier` として拒否する。
+積分のタグ付き分割では、`Real -> \Pow Real` に対する再帰で適切なタグの集合を作り、所属命題から `Valid` を定義している。
+
+
+## モジュール引数に依存する部分集合型の商
+
+区間に依存する部分集合型を、汎用の商モジュールの台集合として渡したい。
+
+```text
+\module Lebesgue(interval: Interval) {
+  \definition Representation: \Set :=
+    \Cast[Nat -> Riemann.Function] ({ sequence: Nat -> Riemann.Function \where Cauchy sequence });
+  \import std.Set[].Quotient[A := Representation, Equivalent := Equivalent] \as Q;
+  \definition Function: \Set := Q.Carrier;
+}
+```
+
+現在は区間を具体化して積分の定義を利用すると、具体化済みの `Representation` と、区間引数を受け取る元の定義が convertible と判定されない。
+積分ライブラリでは、代表列の同値類を同じモジュール内で構成している。
