@@ -72,18 +72,10 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
             return Ok(Some(message));
         }
     };
-    let cache_directory = args.cache_dir.clone().unwrap_or_else(|| {
-        let entry = snapshot.entry();
-        let root = if entry
-            .extension()
-            .is_some_and(|extension| extension == "ref")
-        {
-            entry.parent().expect("source file has a parent directory")
-        } else {
-            entry
-        };
-        root.join("refcache")
-    });
+    let cache_directory = args
+        .cache_dir
+        .clone()
+        .unwrap_or_else(|| snapshot.default_cache_directory());
     if args.clear_cache {
         clear_cache_directory(&cache_directory)?;
     }

@@ -49,13 +49,7 @@ impl SourceSnapshot {
     /// not change this snapshot. Invalid syntax is reported by semantic queries.
     pub fn read(entry: impl AsRef<Path>) -> Result<Self, String> {
         let mut snapshot = Self::new(entry);
-        let mut roots = vec![
-            if snapshot.entry.extension().is_some_and(|ext| ext == "ref") {
-                snapshot.entry.parent().unwrap().to_path_buf()
-            } else {
-                snapshot.entry.clone()
-            },
-        ];
+        let mut roots = vec![snapshot.root_directory().to_path_buf()];
         let mut visited = BTreeSet::new();
         while let Some(root) = roots.pop() {
             let identity = root
@@ -127,6 +121,20 @@ impl SourceSnapshot {
 
     pub fn entry(&self) -> &Path {
         &self.entry
+    }
+    pub fn root_directory(&self) -> &Path {
+        if self
+            .entry
+            .extension()
+            .is_some_and(|extension| extension == "ref")
+        {
+            self.entry.parent().unwrap_or(Path::new("/"))
+        } else {
+            &self.entry
+        }
+    }
+    pub fn default_cache_directory(&self) -> PathBuf {
+        self.root_directory().join("refcache")
     }
     pub fn files(&self) -> impl Iterator<Item = (&Path, &Arc<SourceFile>)> {
         self.files
