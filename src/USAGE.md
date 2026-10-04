@@ -199,10 +199,12 @@ elaboration の型不一致には局所文脈・対象の項・推論した型�
 宣言ごとの処理時間と定義内の各段階を調べる場合は、`REF_TYPE_PROFILE_DECLARATIONS=1` を指定します。
 出力には module の完全名を表示し、環境変数の値に名前の一部を指定すると一致する宣言だけを表示します。
 where 節の局所定義の検査時間は `REF_TYPE_PROFILE_LOCAL_DEFINITIONS=1` で表示し、同様に名前で絞り込めます。
+`REF_TYPE_PROFILE_LOWERING=1` は kernel 定義への変換と登録の時間を表示し、最後の全体検証も含めて名前で絞り込めます。
 
 ```sh
 REF_TYPE_PROFILE_DECLARATIONS=fieldMulAssocNN cargo run -p cli -- libs/std
 REF_TYPE_PROFILE_LOCAL_DEFINITIONS=right cargo run -p cli -- libs/std
+REF_TYPE_PROFILE_LOWERING=Restriction.functor cargo run --release -p cli -- --no-cache libs/category
 ```
 
 未解決ゴールには文脈・要求される型・制約を表示します。ファイルから読み込んだ宣言のエラーには

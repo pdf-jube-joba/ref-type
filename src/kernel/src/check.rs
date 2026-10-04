@@ -646,10 +646,14 @@ impl<'a> Checker<'a> {
                 };
                 self.check_at("check argument type for application", argument, domain)?;
                 if !self.solving {
-                    let sort = self.formation(ty)?;
-                    if (mode == Mode::Computation)
-                        != matches!(sort, Sort::Base(BaseSort::Computation(_)))
-                    {
+                    // Inference has already established that `ty` is a product.
+                    // Every product rule with a logical domain has a logical result;
+                    // checking its domain avoids rechecking the entire dependent tail
+                    // after each argument in a long application spine.
+                    let domain_sort = self.formation(domain)?;
+                    let computation = domain_sort.base().is_program()
+                        && matches!(self.formation(ty)?, Sort::Base(BaseSort::Computation(_)));
+                    if (mode == Mode::Computation) != computation {
                         return Err("application evaluation mode mismatch".into());
                     }
                 }
@@ -1802,4 +1806,41 @@ impl<'a> Checker<'a> {
 struct Motive {
     domains: Vec<Expression>,
     body: Expression,
+}
+
+#[cfg(test)]
+mod context_tests {
+    use super::*;
+
+    #[test]
+    fn inference_distinguishes_sibling_scopes_and_restores_context_after_errors() {
+        let env = Environment::new();
+        let mut metas = MetaContext::new();
+        let set = env.arena.sort(Sort::Base(BaseSort::Set(0)));
+        let prop = env.arena.sort(Sort::Base(BaseSort::Prop));
+        let bound = env.arena.bound(0);
+        let mut checker = Checker::new(
+            &env,
+            &mut metas,
+            vec![Binding {
+                var: SymbolId::ANONYMOUS,
+                ty: set,
+            }],
+        );
+        checker.check_context().unwrap();
+        assert_eq!(checker.infer_open(bound).unwrap(), set);
+        checker
+            .under(SymbolId::ANONYMOUS, bound, |checker| {
+                assert_eq!(checker.infer_open(bound)?, env.arena.bound(1));
+                Ok(())
+            })
+            .unwrap();
+        let result: Result<(), Error> = checker.under(SymbolId::ANONYMOUS, prop, |checker| {
+            assert_eq!(checker.infer_open(bound)?, prop);
+            Err("leave this scope".into())
+        });
+        assert!(result.is_err());
+        assert_eq!(checker.context().len(), 1);
+        assert_eq!(checker.infer_open(bound).unwrap(), set);
+    }
 }

@@ -49,6 +49,42 @@ mod tests {
     use super::*;
 
     #[test]
+    fn arena_properties_are_rebuilt_when_restoring_a_checkpoint() {
+        use kernel::{
+            ids::SymbolId,
+            metavariables::MetaContext,
+            sort::{BaseSort, Sort},
+            syntax::{Arena, Node},
+        };
+
+        let arena = Arena::new();
+        let set = arena.sort(Sort::Base(BaseSort::Set(0)));
+        let hole = MetaContext::new().fresh(&arena, vec![], Some(set));
+        let open = arena.alloc(Node::Product {
+            var: SymbolId::ANONYMOUS,
+            domain: hole,
+            body: arena.bound(3),
+        });
+        let bytes = miniz_oxide::inflate::decompress_to_vec_with_limit(
+            &serialize(&arena).unwrap(),
+            MAX_ENVIRONMENT_BYTES,
+        )
+        .unwrap();
+        let restored: Arena = postcard::from_bytes(&bytes).unwrap();
+        assert_eq!(restored.max_loose_bound(set), None);
+        assert!(!restored.contains_meta(set));
+        assert_eq!(restored.max_loose_bound(open), Some(2));
+        assert!(restored.contains_meta(open));
+        let extended = restored.alloc(Node::Product {
+            var: SymbolId::ANONYMOUS,
+            domain: set,
+            body: open,
+        });
+        assert_eq!(restored.max_loose_bound(extended), Some(1));
+        assert!(restored.contains_meta(extended));
+    }
+
+    #[test]
     fn serialization_stops_at_the_checkpoint_budget() {
         let data = vec![0_u8; MAX_ENVIRONMENT_BYTES];
         assert_eq!(serialize(&data), Err(Error::SerializeBufferFull));

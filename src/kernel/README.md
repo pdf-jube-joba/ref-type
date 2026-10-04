@@ -43,6 +43,9 @@ assert_eq!(Checker::new(&env, &mut metas, vec![]).infer(reference)?, ty);
 参照の型は宣言型への同時代入で求め、簡約時には本体へ同じ引数を代入する。
 Program 定義は反映先の定義も検査して登録する。
 
+論理 sort を domain に持つ積型は必ず論理側の型なので、適用の `Mode` 判定には domain の形成を使い、残りの関数型全体の形成を繰り返さない。
+Program の domain では積型の sort で判定する。
+
 module の parameter は、名前解決中の開いた式では `ParameterId` により参照する。
 parameter の型は登録時に検査し、完成した定義は parameter を telescope と明示的な文脈引数に閉じる。
 宣言名・source location・module の所属は elaboration が保持する。
@@ -83,6 +86,7 @@ reflection は未解決の Program 項を `Reflect` として保持し、代入�
 Program の評価は computation の評価位置に従う。
 run の証明は検査と代入の対象であり、定義的等価性では証明を消去して比較する。
 
+Arena はノード作成時に自由変数の最大添字とメタ変数の有無を集計する。
 完成した項の推論・弱頭簡約・変換可能性を環境にキャッシュする。
 検査文脈の ID とメタ変数の有無は束縛の接頭辞ごとに保持し、文脈を延長したときに差分を計算する。
 変数の型はその binding から求め、文脈の移動に必要な型のシフトを再利用する。

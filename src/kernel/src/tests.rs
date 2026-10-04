@@ -1314,3 +1314,75 @@ fn constraint_outcomes_survive_unrelated_goals_and_follow_rollback() {
     metas.finish(&env).unwrap();
     assert!(metas.is_discharged(&constraint));
 }
+
+#[test]
+fn arena_properties_follow_binders_metas_and_scratch_lifetimes() {
+    let a = Arena::new();
+    let set = sort(&a, BaseSort::Set(0));
+    let mut metas = MetaContext::new();
+    let hole = metas.fresh(&a, vec![], Some(set));
+    let open = product(&a, hole, a.bound(3));
+    assert!(a.contains_meta(open));
+    assert_eq!(a.max_loose_bound(open), Some(2));
+    let mark = a.scratch_mark();
+    let retained = lambda(&a, Mode::Pure, set, open);
+    let discarded = product(&a, set, a.bound(100));
+    assert_eq!(a.max_loose_bound(discarded), Some(99));
+    a.finish_scratch(mark, [retained]);
+    assert!(!a.is_live(discarded));
+    assert!(a.contains_meta(retained));
+    assert_eq!(a.max_loose_bound(retained), Some(1));
+    let rebuilt = product(&a, set, a.bound(100));
+    assert_ne!(rebuilt, discarded);
+    assert_eq!(a.max_loose_bound(rebuilt), Some(99));
+    assert!(!a.contains_meta(rebuilt));
+}
+
+#[test]
+fn application_modes_preserve_logical_program_and_type_family_checks() {
+    let mut env = Environment::new();
+    let (_, nat, zero) = natural(&mut env);
+    let a = env.arena.clone();
+    let set = sort(&a, BaseSort::Set(0));
+    let value = sort(&a, BaseSort::Value(0));
+    let mut metas = MetaContext::new();
+
+    let logical = lambda(&a, Mode::Pure, set, a.bound(0));
+    let mut checker = Checker::new(&env, &mut metas, vec![binding(set)]);
+    assert_eq!(
+        checker
+            .infer(apply(&a, Mode::Pure, logical, a.bound(0)))
+            .unwrap(),
+        set
+    );
+    assert!(
+        checker
+            .infer(apply(&a, Mode::Computation, logical, a.bound(0)))
+            .is_err()
+    );
+    assert!(checker.infer(apply(&a, Mode::Pure, logical, zero)).is_err());
+
+    let body = a.alloc(Node::Return { value: a.bound(0) });
+    let program = lambda(&a, Mode::Computation, nat, body);
+    let mut checker = Checker::new(&env, &mut metas, vec![]);
+    let expected = a.alloc(Node::ReturnType { value_ty: nat });
+    assert_eq!(
+        checker
+            .infer(apply(&a, Mode::Computation, program, zero))
+            .unwrap(),
+        expected
+    );
+    assert!(checker.infer(apply(&a, Mode::Pure, program, zero)).is_err());
+
+    // A Program type parameter can also form a pure type family.
+    let family = lambda(&a, Mode::Pure, value, a.bound(0));
+    assert_eq!(
+        checker.infer(apply(&a, Mode::Pure, family, nat)).unwrap(),
+        value
+    );
+    assert!(
+        checker
+            .infer(apply(&a, Mode::Computation, family, nat))
+            .is_err()
+    );
+}
