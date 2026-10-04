@@ -1,0 +1,89 @@
+\import \parent.Def[] \as Def;
+\import R.Order[] \as Order;
+
+\definition positiveProduct: \forall (x, y: Real) -> R.Lt zero x -> R.Lt zero y ->
+  R.Lt zero (mul x y) :=
+  \fun (x: _) (y: _) (positiveX: _) (positiveY: _) =>
+    Order.ltOfLeNotEq zero (mul x y)
+      (Laws.fieldMulNonnegative x y (Order.leOfLt zero x positiveX) (Order.leOfLt zero y positiveY))
+      (\fun (vanishes: zero = mul x y) =>
+        Order.ltNotEq zero y positiveY (sym!{Real} _ _ (eq_reason!{
+          y "=" {mul one y} "by" {sym!{Real} _ _ (Laws.fieldMulOneLeft y)}
+          "=" {mul (mul (inv x) x) y}
+          "by" {congr!{Real Real} (\fun (t: _) => mul t y) _ _
+            (sym!{Real} _ _ (Laws.fieldInverseNonzero x
+              (\fun (same: _) => Order.ltNotEq zero x positiveX (sym!{Real} _ _ same))))}
+          "=" {mul (inv x) (mul x y)} "by" {Laws.fieldMulAssoc (inv x) x y}
+          "=" {mul (inv x) zero}
+          "by" {congr!{Real Real} (mul (inv x)) _ _ (sym!{Real} _ _ vanishes)}
+          "=" zero "by" {Laws.fieldMulZeroRight (inv x)}
+        })));
+
+\definition zeroDifferential: Def.LinearMap := Def.LinearMap {
+  apply := Space.constantFunction zero,
+  additive := \fun (x: _) (y: _) => sym!{Real} _ _ (Laws.addZeroLeft zero),
+  homogeneous := \fun (c: _) (x: _) => sym!{Real} _ _ (Laws.fieldMulZeroRight c),
+};
+
+\definition constantRemainder: \forall (c: Real) -> \forall (a, h: Point) ->
+  Def.remainder (Space.constantFunction c) a zeroDifferential h = zero :=
+  \fun (c: _) (a: _) (h: _) =>
+    trans!{Real} _ (sub zero zero) _
+      (congr!{Real Real} (\fun (t: _) => sub t zero) _ _ (Laws.subSelf c))
+      (Laws.subSelf zero);
+
+\definition differentialOfZeroRemainder: \forall (f: Function) -> \forall (differential: Def.LinearMap) ->
+  (\forall (a, h: Point) -> Def.remainder f a differential h = zero) ->
+  Def.HasDifferential f (\fun (a: _) => differential) :=
+  \block {
+    \fun (f: _) (differential: _) (vanishes: _) (a: _) (epsilon: _) (positive: _) \then
+    \return \exact(
+      \into[Real](epsilon,
+        { delta: Real \where Def.DifferentialControl[f, a, differential, epsilon, delta] })
+        \by { Def.DifferentialControl[f, a, differential, epsilon, epsilon] {
+          positive := positive,
+          estimate := \fun (h: _) (nonzero: _) (near: _) =>
+            R.ltReplaceLeft zero (distance (Def.remainder f a differential h) zero)
+              (mul epsilon (Space.norm h))
+              (sym!{Real} _ _ (trans!{Real} _ (distance zero zero) _
+                (congr!{Real Real} (\fun (t: _) => distance t zero) _ _ (vanishes a h))
+                (Metric.distanceSelf zero)))
+              (positiveProduct epsilon (Space.norm h) positive nonzero),
+        } },
+      \Cast[Real] ({ delta: Real \where
+        Def.DifferentialControl[f, a, differential, epsilon, delta] }))
+  };
+
+\definition constantDifferential: \forall (c: Real) ->
+  Def.HasDifferential (Space.constantFunction c) (\fun (a: _) => zeroDifferential) :=
+  \fun (c: _) => differentialOfZeroRemainder (Space.constantFunction c) zeroDifferential (constantRemainder c);
+
+\definition coordinateDifferential(i: Coordinate): Def.LinearMap := Def.LinearMap {
+  apply := Space.projection i,
+  additive := \fun (x: _) (y: _) => \refl(add (x i) (y i)),
+  homogeneous := \fun (c: _) (x: _) => \refl(mul c (x i)),
+};
+
+\definition addedDifference: \forall (u, v: Real) -> sub (add u v) u = v :=
+  \fun (u: _) (v: _) => Laws.addCancelRight _ _ u
+    (trans!{Real} _ (add u v) _ (Metric.subAddCancel (add u v) u) (Laws.addComm u v));
+
+\definition projectionRemainder: \forall (i: Coordinate) -> \forall (a, h: Point) ->
+  Def.remainder (Space.projection i) a (coordinateDifferential i) h = zero :=
+  \fun (i: _) (a: Point) (h: Point) =>
+    trans!{Real} _ (sub (h i) (h i)) _
+      (congr!{Real Real} (\fun (t: _) => sub t (h i)) _ _ (addedDifference (a i) (h i)))
+      (Laws.subSelf (h i));
+
+\definition projectionDifferential: \forall (i: Coordinate) ->
+  Def.HasDifferential (Space.projection i) (\fun (a: _) => coordinateDifferential i) :=
+  \fun (i: _) => differentialOfZeroRemainder (Space.projection i) (coordinateDifferential i) (projectionRemainder i);
+
+\definition differentiableOfDifferential: \forall (f: Function) -> \forall (a: Point) ->
+  \forall (differential: Def.LinearMap) -> Def.HasDifferentialAt f a differential ->
+  Def.DifferentiableAt f a :=
+  \fun (f: _) (a: _) (differential: _) (law: _) =>
+    \exact(
+      \into[Def.LinearMap](differential,
+        { d: Def.LinearMap \where Def.HasDifferentialAt f a d }) \by { law },
+      \Cast[Def.LinearMap] ({ d: Def.LinearMap \where Def.HasDifferentialAt f a d }));

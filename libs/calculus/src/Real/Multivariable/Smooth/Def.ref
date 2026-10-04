@@ -1,0 +1,46 @@
+\definition Directions: \Set := Lists.List[Coordinate];
+\definition PartialFamily: \Set := Directions -> Function;
+\definition order(directions: Directions): N.Nat^ := Lists.length Coordinate directions;
+
+\structure PartialFamilyLaws[f: Function, k: N.Nat^, derivatives: PartialFamily]: \Prop {
+  function: derivatives Lists.List[Coordinate]::nil = f,
+  derivative: \forall (directions: Directions) -> NatLaws.Lt (order directions) k ->
+    \forall (i: Coordinate) -> Partial.HasPartialDerivative (derivatives directions) i
+      (derivatives (Lists.List[Coordinate]::cons i directions)),
+}
+
+\structure ContDiffLaws[f: Function, k: N.Nat^, derivatives: PartialFamily]: \Prop {
+  partials: PartialFamilyLaws[f, k, derivatives],
+  continuous: \forall (directions: Directions) -> NatLaws.Le (order directions) k ->
+    Space.Continuous (derivatives directions),
+}
+
+\definition ContDiff(k: N.Nat^) (f: Function): \Prop :=
+  \exists { derivatives: PartialFamily \where ContDiffLaws[f, k, derivatives] };
+
+\definition Smooth(f: Function): \Prop := \forall (k: N.Nat^) -> ContDiff k f;
+
+\definition multiplicity(i: Coordinate) (directions: Directions): N.Nat^ :=
+  Lists.foldr Coordinate N.Nat^
+    (\fun (j: _) (count: _) =>
+      Bool.ite N.Nat^ (NatOp.Eqb.specification (Fin.value n j) (Fin.value n i))
+        (N.Nat^::succ count) count)
+    N.Nat^::zero directions;
+
+\definition SameMultiIndex(left, right: Directions): \Prop :=
+  \forall (i: Coordinate) -> multiplicity i left = multiplicity i right;
+
+\definition PermutationInvariantAt(k: N.Nat^) (derivatives: PartialFamily) (a: Point): \Prop :=
+  \forall (left, right: Directions) -> NatLaws.Le (order left) k -> NatLaws.Le (order right) k ->
+    SameMultiIndex left right -> derivatives left a = derivatives right a;
+
+\structure CommutingPartialsLaws[f: Function, k: N.Nat^, derivatives: PartialFamily, a: Point]: \Prop {
+  partials: PartialFamilyLaws[f, k, derivatives],
+  commutes: PermutationInvariantAt k derivatives a,
+}
+
+\definition CommutingPartialsAt(k: N.Nat^) (f: Function) (a: Point): \Prop :=
+  \exists { derivatives: PartialFamily \where CommutingPartialsLaws[f, k, derivatives, a] };
+
+\definition CommutingPartials(k: N.Nat^) (f: Function): \Prop :=
+  \forall (a: Point) -> CommutingPartialsAt k f a;

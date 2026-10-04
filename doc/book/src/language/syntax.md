@@ -304,7 +304,14 @@ structure の全称量化は field の依存する product に展開し、各 pr
 
 `identity.program` は thunk の値、`identity.specification` は反映先の仕様、`identity.coherence` は両者の等式である。
 `Machine` の `State`、`Output`、`step`、`terminates` を実装すると、`run` の既定値が停止性証明を使って実行する。
-具体化された計算は `\box[_](\force machine.run)` で Box の閉性検査を受ける。
+具体化された Machine の実行は `runBox` マクロで Box にする。
+
+```text
+\use P.runBox;
+runBox!{machine}
+```
+
+展開した計算は、呼出側で Box の閉性検査を受ける。
 
 ### check と評価
 

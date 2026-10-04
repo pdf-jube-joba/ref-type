@@ -28,6 +28,163 @@
     \fun (m, b: _) => #differentiable{(affineFunction m b)};
 }
 
+\module MultivariableCalculusExamples {
+  \import std.Data[].Nat[] \as N;
+  \import std.Data[].FinSet[] \as Fin;
+  \import std.Data[].List[] \as Lists;
+  \import std.Logic[].Proposition[] \as Logic;
+  \import calculus.Real[] \as C;
+  \import std.Logic[].Equality[] \as Equality;
+  \use Equality.trans;
+  \use Equality.sym;
+
+  \module Dimension(n: N.Nat^) {
+    \import C.Multivariable[n := n] \as M;
+    \import M.Space[].Def[] \as Space;
+    \import M.Partial[].Def[] \as Partial;
+    \import M.Partial[].Prop[] \as PartialLaws;
+    \import M.Differential[].Def[] \as Differential;
+    \import M.Differential[].Prop[] \as DifferentialLaws;
+    \import M.Directional[].Def[] \as Directional;
+    \import M.Directional[].Prop[] \as DirectionalLaws;
+    \import M.Smooth[].Def[] \as Smooth;
+    \import M.Smooth[].Prop[] \as SmoothLaws;
+
+    \definition projectionPartial: \forall (i: M.Coordinate) ->
+      Partial.HasPartialDerivative (Space.projection i) i (Space.constantFunction C.one) :=
+      PartialLaws.projectionPartial;
+
+    \definition constantDifferential: \forall (c: C.Real) ->
+      Differential.HasDifferential (Space.constantFunction c) (\fun (a: _) => DifferentialLaws.zeroDifferential) :=
+      DifferentialLaws.constantDifferential;
+
+    \definition constantDifferentiable: \forall (c: C.Real) -> \forall (a: M.Point) ->
+      Differential.DifferentiableAt (Space.constantFunction c) a :=
+      \fun (c: _) (a: _) => DifferentialLaws.differentiableOfDifferential
+        (Space.constantFunction c) a DifferentialLaws.zeroDifferential (DifferentialLaws.constantDifferential c a);
+
+    \definition coordinateDifferential(i: M.Coordinate): Differential.LinearMap :=
+      DifferentialLaws.coordinateDifferential i;
+
+    \definition projectionDifferential: \forall (i: M.Coordinate) ->
+      Differential.HasDifferential (Space.projection i) (\fun (a: _) => coordinateDifferential i) :=
+      DifferentialLaws.projectionDifferential;
+
+    \definition constantMixedPartials: \forall (c: C.Real) ->
+      Partial.MixedPartialsCommute (Space.constantFunction c) := PartialLaws.constantMixedPartialsCommute;
+
+    \definition constantSmooth: \forall (c: C.Real) -> Smooth.Smooth (Space.constantFunction c) :=
+      SmoothLaws.constantSmooth;
+
+    \definition constantCn: \forall (k: N.Nat^) -> \forall (c: C.Real) ->
+      Smooth.ContDiff k (Space.constantFunction c) := SmoothLaws.constantContDiff;
+
+    \definition cZero: \forall (f: M.Function) ->
+      Logic.PropEquiv[Smooth.ContDiff N.Nat^::zero f, Space.Continuous f] := SmoothLaws.contDiffZero;
+
+    \definition zeroCommutingPartials: \forall (k: N.Nat^) ->
+      Smooth.CommutingPartials k (Space.constantFunction C.zero) := SmoothLaws.zeroCommutingPartials;
+
+    \definition constantAlongCurve: \forall (c: C.Real) -> \forall (curve: Directional.Curve) ->
+      Directional.HasDirectionalDerivativeAlong (Space.constantFunction c) curve C.zero :=
+      DirectionalLaws.constantDirectionalDerivative;
+
+    \definition constantAlongDirection: \forall (c: C.Real) -> \forall (point, velocity: M.Point) ->
+      Directional.HasDirectionalDerivativeAt (Space.constantFunction c) point velocity C.zero :=
+      DirectionalLaws.constantDirectionalDerivativeAt;
+
+    \definition lineDirection: \forall (interval: Directional.ParameterInterval) ->
+      \forall (point, velocity: M.Point) ->
+      Directional.CurveDirection[Directional.line interval point velocity, point, velocity] :=
+      \fun (interval: _) (point: _) (velocity: _) =>
+        Directional.CurveDirection[Directional.line interval point velocity, point, velocity] {
+          center := DirectionalLaws.lineCenter interval point velocity,
+          tangent := DirectionalLaws.lineTangent interval point velocity,
+        };
+
+    \definition differentIntervals: \forall (first, second: Directional.ParameterInterval) ->
+      \forall (point, velocity: M.Point) -> \forall (c: C.Real) ->
+      Directional.AgreementConditions[Space.constantFunction c,
+        Directional.line first point velocity, Directional.line second point velocity,
+        velocity, DifferentialLaws.zeroDifferential] :=
+      \fun (first: _) (second: _) (point: _) (velocity: _) (c: _) =>
+        Directional.AgreementConditions[Space.constantFunction c,
+          Directional.line first point velocity, Directional.line second point velocity,
+          velocity, DifferentialLaws.zeroDifferential] {
+          direction := Directional.SameDirection[
+            Directional.line first point velocity, Directional.line second point velocity, velocity] {
+            center := trans!{M.Point} _ point _ (DirectionalLaws.lineCenter first point velocity)
+              (sym!{M.Point} _ _ (DirectionalLaws.lineCenter second point velocity)),
+            firstTangent := DirectionalLaws.lineTangent first point velocity,
+            secondTangent := DirectionalLaws.lineTangent second point velocity,
+          },
+          differentiable := DifferentialLaws.constantDifferential c
+            (Directional.center (Directional.line first point velocity)),
+        };
+
+    \definition curvesAgree: \forall (c: C.Real) -> \forall (first, second: Directional.Curve) ->
+      Directional.DirectionalDerivativesAgree (Space.constantFunction c) first second :=
+      DirectionalLaws.constantDerivativesAgree;
+
+    \definition projectionAlongLine: \forall (interval: Directional.ParameterInterval) ->
+      \forall (point, velocity: M.Point) -> \forall (i: M.Coordinate) ->
+      Directional.HasDirectionalDerivativeAlong (Space.projection i)
+        (Directional.line interval point velocity) (velocity i) :=
+      \fun (interval: _) (point: _) (velocity: _) (i: _) =>
+        DirectionalLaws.projectionDirectionalDerivative (Directional.line interval point velocity) velocity
+          (DirectionalLaws.lineTangent interval point velocity) i;
+
+    \definition projectionsAgree: \forall (first, second: Directional.Curve) ->
+      \forall (velocity: M.Point) -> Directional.SameDirection[first, second, velocity] ->
+      \forall (i: M.Coordinate) -> Directional.DirectionalDerivativesAgree (Space.projection i) first second :=
+      DirectionalLaws.projectionDerivativesAgree;
+
+    \definition sameTangentImages: \forall (f: M.Function) -> \forall (first, second: Directional.Curve) ->
+      \forall (velocity: M.Point) -> \forall (differential: Differential.LinearMap) ->
+      Directional.AgreementConditions[f, first, second, velocity, differential] ->
+      Directional.DifferentialAgreementConditions[f, first, second, velocity, velocity, differential] :=
+      DirectionalLaws.differentialAgreementOfSameDirection;
+  }
+
+  \import C.Multivariable[n := N.Nat^::zero] \as Empty;
+  \import Empty.Space[].Def[] \as EmptySpace;
+  \definition emptyNorm: \forall (x: Empty.Point) -> EmptySpace.norm x = C.zero :=
+    \fun (x: _) => \refl(C.zero);
+
+  \definition two: N.Nat^ := N.Nat^::succ (N.Nat^::succ N.Nat^::zero);
+  \import C.Multivariable[n := two] \as Two;
+  \import Two.Space[].Def[] \as TwoSpace;
+  \import Two.Partial[].Def[] \as TwoPartial;
+  \import Two.Partial[].Prop[] \as TwoPartialLaws;
+  \import Two.Differential[].Prop[] \as TwoDifferential;
+  \import Two.Smooth[].Def[] \as TwoSmooth;
+
+  \definition first: Two.Coordinate := Fin.zero (N.Nat^::succ N.Nat^::zero);
+  \definition second: Two.Coordinate := Fin.succ (N.Nat^::succ N.Nat^::zero) (Fin.zero N.Nat^::zero);
+
+  \definition replaceFirst: \forall (x: Two.Point) -> \forall (t: C.Real) ->
+    TwoSpace.replace x first t first = t := \fun (x: _) (t: _) => \refl(t);
+  \definition preserveSecond: \forall (x: Two.Point) -> \forall (t: C.Real) ->
+    TwoSpace.replace x first t second = x second := \fun (x: _) (t: _) => \refl(x second);
+  \definition secondPartial:
+    TwoPartial.HasPartialDerivative (TwoSpace.projection second) second (TwoSpace.constantFunction C.one) :=
+    TwoPartialLaws.projectionPartial second;
+  \definition differentialApplication: \forall (h: Two.Point) ->
+    #apply{(TwoDifferential.coordinateDifferential second)} h = h second := \fun (h: _) => \refl(h second);
+
+  \definition ij: TwoSmooth.Directions :=
+    Lists.List[Two.Coordinate]::cons first
+      (Lists.List[Two.Coordinate]::cons second Lists.List[Two.Coordinate]::nil);
+  \definition ji: TwoSmooth.Directions :=
+    Lists.List[Two.Coordinate]::cons second
+      (Lists.List[Two.Coordinate]::cons first Lists.List[Two.Coordinate]::nil);
+  \definition mixedOrder: TwoSmooth.order ij = two := \refl(two);
+  \definition firstMultiplicity: TwoSmooth.multiplicity first ij = TwoSmooth.multiplicity first ji :=
+    \refl(N.Nat^::succ N.Nat^::zero);
+  \definition secondMultiplicity: TwoSmooth.multiplicity second ij = TwoSmooth.multiplicity second ji :=
+    \refl(N.Nat^::succ N.Nat^::zero);
+}
+
 \module EitherExamples {
   \import std.Logic[].Proposition[] \as L;
   \use L.either;
@@ -83,6 +240,8 @@
 }
 
 \module NaturalExamples {
+  \import std.Program[] \as Program;
+  \use Program.runBox;
   \import std.Data[].Nat[] \as N;
   \import std.Data[].Nat[].Basic[].Def[] \as NatOp;
   \import std.Data[].Nat[].Pair[].Def[] \as NatPairDef;
@@ -121,7 +280,7 @@
   \definition additionInput: \Box[\F(NatOp.AddLoop.State)] :=
     \box[_](\return NatOp.AddState::running two three);
   \definition bundledSum:
-    \squash[_](\boxapp(NatOp.AddLoopRunbox, additionInput)) = N.Nat^::succ four^ :=
+    \squash[_](\boxapp(runBox!{NatOp.AddLoop}, additionInput)) = N.Nat^::succ four^ :=
     \refl(N.Nat^::succ four^);
   \import std.Data[].Nat[].Iteration[] \as Iteration;
   \import Iteration.Def[A := N.Nat^] \as NI;

@@ -1,0 +1,41 @@
+\import \parent.Def[] \as Def;
+\import \parent.\parent.Space[].Prop[] \as SpaceLaws;
+
+\definition constantPartial: \forall (c: Real) -> \forall (i: Coordinate) ->
+  Def.HasPartialDerivative (Space.constantFunction c) i (Space.constantFunction zero) :=
+  \fun (c: _) (i: _) (a: _) => DerivativeLaws.constantDerivative c (a i);
+
+\definition projectionPartial: \forall (i: Coordinate) ->
+  Def.HasPartialDerivative (Space.projection i) i (Space.constantFunction one) :=
+  \fun (i: _) (a: _) =>
+    \idelim identity = Def.section (Space.projection i) a i
+      \with f: (Real -> Real) => Derivative.HasDerivativeAt f (a i) one
+      \by {
+        base: DerivativeLaws.identityDerivative (a i),
+        equality: \axiom:funext(identity, Def.section (Space.projection i) a i,
+          \fun (t: _) => sym!{Real} _ _ (SpaceLaws.replaceSame a i t))
+      };
+
+\definition constantMixedPartialsCommute: \forall (c: Real) ->
+  Def.MixedPartialsCommute (Space.constantFunction c) :=
+  \block {
+    \fun (c: _) (i: _) (j: _) (a: _) \then
+    \let data: Def.MixedPartialData := Def.MixedPartialData {
+      firstI := Space.constantFunction zero,
+      firstJ := Space.constantFunction zero,
+      mixedIJ := zero,
+      mixedJI := zero,
+    } \then
+    \return \exact(
+      \into[Def.MixedPartialData](data,
+        { data: Def.MixedPartialData \where Def.MixedPartialLaws[Space.constantFunction c, i, j, a, data] })
+        \by { Def.MixedPartialLaws[Space.constantFunction c, i, j, a, data] {
+          firstI := constantPartial c i,
+          firstJ := constantPartial c j,
+          mixedIJ := constantPartial zero i a,
+          mixedJI := constantPartial zero j a,
+          commutes := \refl(zero),
+        } },
+      \Cast[Def.MixedPartialData]
+        ({ data: Def.MixedPartialData \where Def.MixedPartialLaws[Space.constantFunction c, i, j, a, data] }))
+  };

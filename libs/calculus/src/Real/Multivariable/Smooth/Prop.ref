@@ -1,0 +1,105 @@
+\import \parent.Def[] \as Def;
+\import \parent.\parent.Space[].Prop[] \as SpaceLaws;
+\import \parent.\parent.Partial[].Prop[] \as PartialLaws;
+\import N.Order[].Prop[] \as NatOrder;
+
+\definition contDiffZero: \forall (f: Function) ->
+  Logic.PropEquiv[Def.ContDiff N.Nat^::zero f, Space.Continuous f] :=
+  \fun (f: _) => Logic.PropEquiv[Def.ContDiff N.Nat^::zero f, Space.Continuous f] {
+    ltr := \block {
+      \fun (regular: _) \then
+      \takefrom derivatives: \Cast[Def.PartialFamily]
+        ({ derivatives: Def.PartialFamily \where Def.ContDiffLaws[f, N.Nat^::zero, derivatives] })
+        \by regular \then
+      \let laws: Def.ContDiffLaws[f, N.Nat^::zero, derivatives] :=
+        \bysub(Def.PartialFamily,
+          { derivatives: Def.PartialFamily \where Def.ContDiffLaws[f, N.Nat^::zero, derivatives] }, derivatives) \then
+      \return \idelim derivatives Lists.List[Coordinate]::nil = f
+        \with g: Function => Space.Continuous g
+        \by {
+          base: #continuous{laws} Lists.List[Coordinate]::nil (NatLaws.leRefl N.Nat^::zero),
+          equality: #function{(#partials{laws})}
+        }
+    },
+    rtl := \block {
+      \fun (continuous: _) \then
+      \let derivatives: Def.PartialFamily := \fun (directions: _) => f \then
+      \return \exact(
+        \into[Def.PartialFamily](derivatives,
+          { derivatives: Def.PartialFamily \where Def.ContDiffLaws[f, N.Nat^::zero, derivatives] })
+          \by { Def.ContDiffLaws[f, N.Nat^::zero, derivatives] {
+            partials := Def.PartialFamilyLaws[f, N.Nat^::zero, derivatives] {
+              function := \refl(f),
+              derivative := \fun (directions: _) (bound: _) (i: _) =>
+                Logic.falseElim (Partial.HasPartialDerivative f i f)
+                  (NatOrder.ltZero (Def.order directions) bound),
+            },
+            continuous := \fun (directions: _) (bound: _) => continuous,
+          } },
+        \Cast[Def.PartialFamily]
+          ({ derivatives: Def.PartialFamily \where Def.ContDiffLaws[f, N.Nat^::zero, derivatives] }))
+    },
+  };
+
+\definition constantPartials(c: Real): Def.PartialFamily :=
+  \fun (directions: _) =>
+    \match directions \in Lists.List \return (\fun (_: _) => Function) \with {
+      | nil : Space.constantFunction c
+      | cons i tail : Space.constantFunction zero
+    };
+
+\definition constantPartialLaws: \forall (c: Real) -> \forall (k: N.Nat^) ->
+  Def.PartialFamilyLaws[Space.constantFunction c, k, constantPartials c] :=
+  \fun (c: _) (k: _) => Def.PartialFamilyLaws[Space.constantFunction c, k, constantPartials c] {
+    function := \refl(Space.constantFunction c),
+    derivative := \induction (directions: Lists.List[Coordinate]) \return
+      NatLaws.Lt (Def.order directions) k -> \forall (i: Coordinate) ->
+        Partial.HasPartialDerivative (constantPartials c directions) i
+          (constantPartials c (Lists.List[Coordinate]::cons i directions)) \with {
+      | nil : \fun (bound: _) (i: _) => PartialLaws.constantPartial c i
+      | cons : \fun (head: _) (tail: _) (ih: _) (bound: _) (i: _) => PartialLaws.constantPartial zero i
+    },
+  };
+
+\definition constantContDiff: \forall (k: N.Nat^) -> \forall (c: Real) ->
+  Def.ContDiff k (Space.constantFunction c) :=
+  \block {
+    \fun (k: _) (c: _) \then
+    \return \exact(
+      \into[Def.PartialFamily](constantPartials c,
+        { derivatives: Def.PartialFamily \where Def.ContDiffLaws[Space.constantFunction c, k, derivatives] })
+        \by { Def.ContDiffLaws[Space.constantFunction c, k, constantPartials c] {
+          partials := constantPartialLaws c k,
+          continuous := \induction (directions: Lists.List[Coordinate]) \return
+            NatLaws.Le (Def.order directions) k -> Space.Continuous (constantPartials c directions) \with {
+            | nil : \fun (bound: _) => SpaceLaws.constantContinuous c
+            | cons : \fun (head: _) (tail: _) (ih: _) (bound: _) => SpaceLaws.constantContinuous zero
+          },
+        } },
+      \Cast[Def.PartialFamily]
+        ({ derivatives: Def.PartialFamily \where Def.ContDiffLaws[Space.constantFunction c, k, derivatives] }))
+  };
+
+\definition constantSmooth: \forall (c: Real) -> Def.Smooth (Space.constantFunction c) :=
+  \fun (c: _) (k: _) => constantContDiff k c;
+
+\definition zeroPartials: Def.PartialFamily := \fun (directions: _) => Space.constantFunction zero;
+
+\definition zeroCommutingPartials: \forall (k: N.Nat^) ->
+  Def.CommutingPartials k (Space.constantFunction zero) :=
+  \block {
+    \fun (k: _) (a: _) \then
+    \return \exact(
+      \into[Def.PartialFamily](zeroPartials,
+        { derivatives: Def.PartialFamily \where
+          Def.CommutingPartialsLaws[Space.constantFunction zero, k, derivatives, a] })
+        \by { Def.CommutingPartialsLaws[Space.constantFunction zero, k, zeroPartials, a] {
+          partials := Def.PartialFamilyLaws[Space.constantFunction zero, k, zeroPartials] {
+            function := \refl(Space.constantFunction zero),
+            derivative := \fun (directions: _) (bound: _) (i: _) => PartialLaws.constantPartial zero i,
+          },
+          commutes := \fun (left: _) (right: _) (leftBound: _) (rightBound: _) (same: _) => \refl(zero),
+        } },
+      \Cast[Def.PartialFamily] ({ derivatives: Def.PartialFamily \where
+        Def.CommutingPartialsLaws[Space.constantFunction zero, k, derivatives, a] }))
+  };

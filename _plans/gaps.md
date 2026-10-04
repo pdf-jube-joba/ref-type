@@ -1,6 +1,18 @@
 ## record eta 則
 record に対する eta がない。 `s = { fiel1 := 2 #field }` が示せない。
 
+## Machine の実行を Box にする定義
+
+Machine を引数に取り、その実行を Box にする共通の定義を書きたい。
+
+```text
+\definition runBox(machine: Machine): \Box[machine.State ~> \F(machine.Output)] :=
+  \box[_](\force machine.run);
+```
+
+現在は引数の State と Output が未確定なため、Box の閉性検査でこの定義を検査できない。
+`std.Program.runBox` はマクロとして提供し、呼出側で具体化した Machine の実行を検査している。
+
 ## 命題を条件とする集合値の構成
 
 命題の証明を引数に取り、集合値を返す関数を書きたい。
@@ -21,3 +33,20 @@ record に対する eta がない。 `s = { fiel1 := 2 #field }` が示せない
 
 現在の elaborator は射影を処理する時点で `value` の型を確定できず、この例には `value: And[P, Q]` が必要になる。
 存在証明を `\takefrom` で消去する証明でも、同様に引数の型を明示する必要がある。
+部分集合型の引数でも、型を `_` と書いたときに宣言された部分集合型を保持したまま台集合の演算へ渡したい。
+方向微分の差商では、`t` を `inv t` に使うと `Real` と推論されるため、`t: Parameter interval` と明示している。
+
+## 定義した型名からの帰納型の操作
+
+`\definition` で名前を付けた帰納型に対して、その名前で constructor の参照と帰納法を書きたい。
+
+```text
+\definition Directions: \Set := Lists.List[Coordinate];
+Directions::nil
+\induction (directions: Directions) \return P directions \with {
+  | nil : base
+  | cons : step
+}
+```
+
+多変数微分の微分順序では、現在は `Lists.List[Coordinate]::nil` と `\induction (directions: Lists.List[Coordinate])` を使っている。

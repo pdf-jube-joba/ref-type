@@ -1,0 +1,28 @@
+\import \parent.Def[] \as Def;
+\import Bool.ConditionalLaws[A := Real] \as Conditional;
+
+\definition replaceSame: \forall (x: Point) -> \forall (i: Coordinate) -> \forall (t: Real) ->
+  Def.replace x i t i = t :=
+  \fun (x: Point) (i: _) (t: _) =>
+    \idelim Bool.Bool^::true = NatOp.Eqb.specification (Fin.value n i) (Fin.value n i)
+      \with test: Bool.Bool^ => Bool.ite Real test t (x i) = t
+      \by {
+        base: Conditional.iteTrue t (x i),
+        equality: sym!{Bool.Bool^} _ _ (NatLaws.eqbRefl (Fin.value n i))
+      };
+
+\definition constantContinuous: \forall (c: Real) -> Def.Continuous (Def.constantFunction c) :=
+  \block {
+    \fun (c: _) (a: _) (epsilon: _) \then
+    \fun (positive: _) \then
+    \return \exact(
+      \into[Real](epsilon,
+        { delta: Real \where Def.ContinuityControl[Def.constantFunction c, a, epsilon, delta] })
+        \by { Def.ContinuityControl[Def.constantFunction c, a, epsilon, epsilon] {
+          positive := positive,
+          estimate := \fun (x: _) (near: _) =>
+            R.ltReplaceLeft zero (distance c c) epsilon
+              (sym!{Real} _ _ (Metric.distanceSelf c)) positive,
+        } },
+      \Cast[Real] ({ delta: Real \where Def.ContinuityControl[Def.constantFunction c, a, epsilon, delta] }))
+  };

@@ -1,0 +1,81 @@
+\structure ParameterInterval: \Set {
+  left: Real,
+  right: Real,
+  leftNegative: R.Lt left zero,
+  rightPositive: R.Lt zero right,
+}
+
+\definition Parameter(interval: ParameterInterval): \Set :=
+  \Cast[Real] ({ t: Real \where Logic.And[R.Lt interval.left t, R.Lt t interval.right] });
+
+\definition zeroParameter(interval: ParameterInterval): Parameter interval :=
+  \into[Real](zero,
+    { t: Real \where Logic.And[R.Lt interval.left t, R.Lt t interval.right] })
+    \by { Logic.And[_, _]::# (#leftNegative{interval}) (#rightPositive{interval}) };
+
+\structure Curve: \Set {
+  interval: ParameterInterval,
+  path: Parameter interval -> Point,
+}
+
+\definition center(curve: Curve): Point := #path{curve} (zeroParameter (#interval{curve}));
+
+\definition slope(f: Function) (curve: Curve) (t: Parameter (#interval{curve})): Real :=
+  mul (sub (f (#path{curve} t)) (f (center curve))) (inv t);
+
+\structure Control[f: Function, curve: Curve, value, epsilon, delta: Real]: \Prop {
+  positive: R.Lt zero delta,
+  estimate: \forall (t: Parameter (#interval{curve})) -> Logic.Not (t = zero) ->
+    R.Lt (distance t zero) delta -> R.Lt (distance (slope f curve t) value) epsilon,
+}
+
+\definition HasDirectionalDerivativeAlong(f: Function) (curve: Curve) (value: Real): \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon ->
+    \exists { delta: Real \where Control[f, curve, value, epsilon, delta] };
+
+\definition DirectionallyDifferentiableAlong(f: Function) (curve: Curve): \Prop :=
+  \exists { value: Real \where HasDirectionalDerivativeAlong f curve value };
+
+\definition HasTangent(curve: Curve) (velocity: Point): \Prop :=
+  \forall (i: Coordinate) -> HasDirectionalDerivativeAlong (Space.projection i) curve (velocity i);
+
+\structure CurveDirection[curve: Curve, point, velocity: Point]: \Prop {
+  center: center curve = point,
+  tangent: HasTangent curve velocity,
+}
+
+\definition HasDirectionalDerivativeAt(f: Function) (point, velocity: Point) (value: Real): \Prop :=
+  \forall (curve: Curve) -> CurveDirection[curve, point, velocity] ->
+    HasDirectionalDerivativeAlong f curve value;
+
+\structure SameDirection[first, second: Curve, velocity: Point]: \Prop {
+  center: center first = center second,
+  firstTangent: HasTangent first velocity,
+  secondTangent: HasTangent second velocity,
+}
+
+\structure AgreementConditions[f: Function, first, second: Curve, velocity: Point, differential: Differential.LinearMap]: \Prop {
+  direction: SameDirection[first, second, velocity],
+  differentiable: Differential.HasDifferentialAt f (center first) differential,
+}
+
+\structure DifferentialAgreementConditions[f: Function, first, second: Curve, firstVelocity, secondVelocity: Point, differential: Differential.LinearMap]: \Prop {
+  sameCenter: center first = center second,
+  firstTangent: HasTangent first firstVelocity,
+  secondTangent: HasTangent second secondVelocity,
+  differentiable: Differential.HasDifferentialAt f (center first) differential,
+  images: #apply{differential} firstVelocity = #apply{differential} secondVelocity,
+}
+
+\structure Agreement[f: Function, first, second: Curve, value: Real]: \Prop {
+  firstDerivative: HasDirectionalDerivativeAlong f first value,
+  secondDerivative: HasDirectionalDerivativeAlong f second value,
+}
+
+\definition DirectionalDerivativesAgree(f: Function) (first, second: Curve): \Prop :=
+  \exists { value: Real \where Agreement[f, first, second, value] };
+
+\definition line(interval: ParameterInterval) (point, velocity: Point): Curve := Curve {
+  interval := interval,
+  path := \fun (t: Parameter interval) => Space.addPoint point (Space.scale t velocity),
+};

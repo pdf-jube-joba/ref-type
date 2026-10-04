@@ -1,0 +1,37 @@
+\structure LinearMap: \Set {
+  apply: Point -> Real,
+  additive: \forall (x, y: Point) -> apply (Space.addPoint x y) = add (apply x) (apply y),
+  homogeneous: \forall (c: Real) -> \forall (x: Point) -> apply (Space.scale c x) = mul c (apply x),
+}
+
+\definition remainder(f: Function) (a: Point) (differential: LinearMap) (h: Point): Real :=
+  sub (sub (f (Space.addPoint a h)) (f a)) (#apply{differential} h);
+
+\structure DifferentialControl[f: Function, a: Point, differential: LinearMap, epsilon, delta: Real]: \Prop {
+  positive: R.Lt zero delta,
+  estimate: \forall (h: Point) -> R.Lt zero (Space.norm h) -> R.Lt (Space.norm h) delta ->
+    R.Lt (distance (remainder f a differential h) zero) (mul epsilon (Space.norm h)),
+}
+
+\definition HasDifferentialAt(f: Function) (a: Point) (differential: LinearMap): \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon ->
+    \exists { delta: Real \where DifferentialControl[f, a, differential, epsilon, delta] };
+
+\definition DifferentiableAt(f: Function) (a: Point): \Prop :=
+  \exists { differential: LinearMap \where HasDifferentialAt f a differential };
+
+\definition HasDifferential(f: Function) (differential: Point -> LinearMap): \Prop :=
+  \forall (a: Point) -> HasDifferentialAt f a (differential a);
+
+\structure DifferentiableFunctionData: \Set {
+  function: Function,
+  differential: Point -> LinearMap,
+}
+
+\structure DifferentiableFunctionLaws[data: DifferentiableFunctionData]: \Prop {
+  differentiable: HasDifferential data.function data.differential,
+}
+
+\definition DifferentiableFunction: \Set :=
+  \Cast[DifferentiableFunctionData]
+    ({ data: DifferentiableFunctionData \where DifferentiableFunctionLaws[data] });
