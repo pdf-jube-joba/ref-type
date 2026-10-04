@@ -90,8 +90,6 @@ struct Scope {
     substitutions: HashMap<BindingId, SExp>,
 }
 
-#[path = "representation.rs"]
-mod representation;
 #[path = "structures.rs"]
 mod structures;
 
@@ -100,7 +98,6 @@ struct Resolver {
     declarations: Vec<Declaration>,
     structures: HashMap<BindingId, structures::Structure>,
     computation_bindings: HashSet<BindingId>,
-    refinements: HashMap<BindingId, structures::Refinement>,
     front_definitions: HashMap<BindingId, structures::Definition>,
     structure_values: HashMap<BindingId, structures::Value>,
     last_inputs: Vec<structures::Input>,
@@ -483,29 +480,19 @@ impl Resolver {
     fn item(&mut self, item: &mut ModuleItem) -> Result<(), Diagnostic> {
         let mut locals = Vec::new();
         match item {
-            ModuleItem::Refinement { name, fields, laws } => {
-                let access = LocalAccess::Current {
-                    span: SourceSpan::default(),
-                    access: name.clone(),
-                };
-                let id = self
-                    .front_binding(&access, &[])
-                    .ok_or_else(|| self.error("unknown structure declaration"))?;
-                let mut members = HashMap::new();
-                for field in ["Raw", "Law", "Set", "raw", "law", "Predicate"] {
-                    let mut expression =
-                        structures::variable(Identifier(format!("{}::[{field}]", name.0)));
-                    self.expression(&mut expression, &mut Vec::new())?;
-                    members.insert(field.to_owned(), expression);
+            ModuleItem::SetStructure {
+                name,
+                parameters,
+                fields,
+                ..
+            } => {
+                self.parameters(parameters, &mut locals, false)?;
+                self.publish(name);
+                for (name, ty) in fields {
+                    self.expression(ty, &mut locals)?;
+                    self.binding(name);
+                    locals.push(HashMap::from([(name.0.clone(), name.clone())]));
                 }
-                self.refinements.insert(
-                    id,
-                    structures::Refinement {
-                        fields: fields.iter().map(|n| n.0.clone()).collect(),
-                        laws: laws.iter().map(|n| n.0.clone()).collect(),
-                        members,
-                    },
-                );
             }
             ModuleItem::Structure { .. } => {
                 unreachable!("structure signatures are expanded before ordinary declarations")

@@ -439,7 +439,6 @@ impl<'a> Parser<'a> {
             return Ok(ModuleItem::Structure {
                 name,
                 kind: None,
-                laws: None,
                 parameters,
                 fields,
             });
@@ -453,25 +452,8 @@ impl<'a> Parser<'a> {
         };
         self.bump_if_token(Token::Assign);
         let fields = self.parse_structure_fields()?;
-        if !self.bump_if_keyword("\\where") {
-            self.bump_if_token(Token::Semicolon);
-            return Ok(ModuleItem::Structure {
-                name,
-                kind: Some(kind),
-                parameters,
-                laws: None,
-                fields: fields
-                    .into_iter()
-                    .map(|(name, ty)| (name, ty, None))
-                    .collect(),
-            });
-        }
-        let InductiveKind::Pts(crate::sort::Sort::Set(_)) = kind else {
-            return Err(self.eof_error("Set sort for a structure with laws"));
-        };
-        let laws = self.parse_structure_fields()?;
         let mut names = std::collections::HashSet::new();
-        for (field, _) in fields.iter().chain(&laws) {
+        for (field, _) in &fields {
             if !names.insert(field.as_str()) {
                 return Err(ParseError {
                     msg: format!("duplicate structure field: {}", field.0),
@@ -485,7 +467,6 @@ impl<'a> Parser<'a> {
             name,
             parameters,
             kind: Some(kind),
-            laws: Some(laws),
             fields: fields
                 .into_iter()
                 .map(|(name, ty)| (name, ty, None))

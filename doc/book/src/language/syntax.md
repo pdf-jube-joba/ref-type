@@ -268,7 +268,6 @@ structure を返す定義の signature は、各 field の依存する関数型�
 \structure EqualPair[A: \Set]: \Set {
   first: A,
   second: A,
-} \where {
   same: first = second,
 }
 \definition pair(A: \Set)(x: A): EqualPair[A] := EqualPair[A] {
@@ -279,16 +278,9 @@ structure を返す定義の signature は、各 field の依存する関数型�
 ```
 
 sort を持つ structure は単一 constructor の帰納型と projection に展開する。
-`\where` を持つ structure はデータの帰納型、法則の命題、法則を満たす値の refinement に展開する。
+`\Set` の structure の field は型検査によって data と law に分類する。
+law を含む structure はデータの帰納型、法則の命題、法則を満たす値の refinement に展開する。
 通常の値も `p.x` で field を参照できる。
-
-| アクセス | 型または意味 |
-| --- | --- |
-| `EqualPair[A].Raw` | データの型 |
-| `EqualPair[A].Law[r]` | データ `r` の法則 |
-| `EqualPair[A]` | 法則を満たす値の型 |
-| `EqualPair[A].raw` | データを取り出す関数 |
-| `EqualPair[A].law` | 法則の証明を取り出す関数 |
 
 structure の全称量化は field の依存する product に展開し、各 product の形成を検査する。
 通常の値表現には存在量化・等式・帰納法も適用できる。

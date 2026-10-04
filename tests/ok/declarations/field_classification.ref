@@ -1,0 +1,45 @@
+\module FieldClassification(A: \Set, a: A, P: \Prop, p: P) {
+  \definition Reflexive[B: \Set, x: B]: \Prop := x = x;
+  \structure Mixed: \Set {
+    first: A,
+    evidence: P,
+    second: A,
+    same: Reflexive[A, first],
+  }
+  \definition mixed: Mixed := Mixed {
+    second := a,
+    same := \refl(a),
+    evidence := p,
+    first := a,
+  };
+  \definition evidence(s: Mixed): P := s.evidence;
+  \definition first(s: Mixed): A := s.first;
+  \definition law(s: Mixed): Reflexive[A, s.first] := s.same;
+
+  \structure OnlyProof: \Set { evidence: P, }
+  \definition onlyProof: OnlyProof := OnlyProof { evidence := p, };
+  \definition extract(s: OnlyProof): P := s.evidence;
+
+  \structure Plain: \Set { value: A, }
+  \definition plain: Plain := Plain { value := a, };
+  \definition viaProjection(s: Plain): A := Plain::value s;
+  \definition identity(s: Plain): Plain := s;
+}
+
+\module StructureSource(A: \Set) {
+  \structure Plain: \Set { value: A, }
+  \structure Checked: \Set { value: A, same: value = value, }
+}
+
+\module StructureImports {
+  \inductive Unit: \Set := | unit: Unit;
+  \import \root.StructureSource[A := Unit] \as First;
+  \import \root.StructureSource[A := Unit] \as Second;
+  \definition checked: First.Checked := First.Checked {
+    value := Unit::unit,
+    same := \refl(Unit::unit),
+  };
+  \definition plain: First.Plain := First.Plain { value := Unit::unit, };
+  \definition shared(p: First.Plain): Second.Plain := p;
+  \definition projected: plain.value = Unit::unit := \refl(Unit::unit);
+}

@@ -14,20 +14,10 @@ impl Resolver {
                 .get(location.span.start..location.span.end)
                 .unwrap_or("");
             let declaration = match &item {
-                ModuleItem::Structure {
-                    name,
-                    kind: None,
-                    fields,
-                    laws,
-                    ..
-                } => Some((
+                ModuleItem::Structure { name, fields, .. } => Some((
                     name,
                     "structure",
-                    fields
-                        .iter()
-                        .map(|(name, _, _)| name)
-                        .chain(laws.iter().flatten().map(|(name, _)| name))
-                        .collect::<Vec<_>>(),
+                    fields.iter().map(|(name, _, _)| name).collect::<Vec<_>>(),
                 )),
                 ModuleItem::Definition {
                     owner: None,
@@ -89,17 +79,18 @@ impl Resolver {
             kind,
             parameters,
             fields,
-            laws,
         } = item
         {
             if let Some(kind) = kind {
-                if let Some(laws) = laws {
-                    let InductiveKind::Pts(sort) = kind else {
-                        return Err(self.error("laws require a Set representation"));
-                    };
+                if let InductiveKind::Pts(sort @ syntax::sort::Sort::Set(_)) = kind {
                     let fields = fields.into_iter().map(|(name, ty, _)| (name, ty)).collect();
                     return self.scoped_item(
-                        representation::structure(name, parameters, sort, fields, laws),
+                        ModuleItem::SetStructure {
+                            name,
+                            parameters,
+                            sort,
+                            fields,
+                        },
                         output,
                     );
                 }
@@ -115,10 +106,6 @@ impl Resolver {
                 );
             }
             return self.compile_structure(name, parameters, fields, output);
-        }
-        if matches!(item, ModuleItem::Refinement { .. }) {
-            self.item(&mut item)?;
-            return Ok(());
         }
         let ModuleItem::Scoped { exports, items } = item else {
             self.item(&mut item)?;

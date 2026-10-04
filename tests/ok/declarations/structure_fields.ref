@@ -1,0 +1,51 @@
+\module StructureFieldNames {
+  \inductive Unit: \Set := | unit: Unit;
+  \structure A {
+    Raw: \Set,
+    Law: \Set,
+    Set: \Set,
+    raw: Raw,
+    law: Law,
+    Predicate: Set,
+  }
+  \definition a: A := A {
+    Raw := Unit, Law := Unit, Set := Unit,
+    raw := Unit::unit, law := Unit::unit, Predicate := Unit::unit,
+  };
+  \definition selected: \Set := a.Raw;
+  \definition field: a.Set := a.Predicate;
+  \definition copy(s: A): A := A {
+    Raw := s.Raw, Law := s.Law, Set := s.Set,
+    raw := s.raw, law := s.law, Predicate := s.Predicate,
+  };
+  \check (copy a).raw: Unit;
+
+  \structure Sorted: \Set {
+    Raw: Unit, Law: Unit, Set: Unit, raw: Unit, Predicate: Unit,
+    law: raw = Raw,
+  }
+  \definition sorted: Sorted := Sorted {
+    Raw := Unit::unit, Law := Unit::unit, Set := Unit::unit,
+    raw := Unit::unit, Predicate := Unit::unit, law := \refl(Unit::unit),
+  };
+  \check sorted.law: sorted.raw = sorted.Raw;
+  \definition computes: sorted.Set = Unit::unit := \refl(Unit::unit);
+
+  \structure Data: \Set { value: Unit, }
+  \structure Laws[d: Data]: \Prop { same: d.value = d.value, }
+  \definition Refined: \Set := \Cast[Data] ({ d: Data \where Laws[d] });
+  \definition refined: Refined := Refined {
+    value := Unit::unit, same := \refl(Unit::unit),
+  };
+  \check refined.same: refined.value = refined.value;
+  \definition alias: \Set := Refined;
+  \definition viaAlias: alias := alias { value := Unit::unit, same := \refl(Unit::unit), };
+  \check viaAlias.same: viaAlias.value = viaAlias.value;
+}
+
+\module ImportedStructureFields {
+  \import \root.StructureFieldNames[] \as S;
+  \definition value: S.Unit := S.sorted.Set;
+  \check S.a.Raw: \Set;
+  \check S.refined.same: S.refined.value = S.refined.value;
+}

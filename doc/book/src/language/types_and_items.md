@@ -1,7 +1,7 @@
 # 型関連 item と structure
 
 型に関連したアイテムと record の定義を扱う。
-データと law を分離する `\structure` の構文は[表面構文](syntax.md#structure)を参照。
+structure の宣言と、data と law の値表現は [structure](structure.md) を参照。
 
 ## 名前へのアクセス
 

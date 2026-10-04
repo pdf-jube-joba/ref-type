@@ -2,30 +2,35 @@
 \import std.Alg[].Ring[] \as R;
 \use Logic.not;
 
-\structure Field[Carrier: \Set]: \Set {
+\structure FieldData[Carrier: \Set]: \Set {
   zero: Carrier,
   one: Carrier,
   add: Carrier -> Carrier -> Carrier,
   neg: Carrier -> Carrier,
   mul: Carrier -> Carrier -> Carrier,
   inv: Carrier -> Carrier,
-} \where {
-  ring: R.CommutativeRing[Carrier].Law[R.CommutativeRing[Carrier].Raw::# ((R.Ring[Carrier].Raw::# zero one add neg mul))],
-  nontrivial: (not!{{ zero = one }}),
-  inverse: (\forall (x: Carrier) -> not!{{ x = zero }} -> mul (inv x) x = one),
 }
 
-\definition fieldRing (Carrier: \Set) (s: Field[Carrier].Raw): R.Ring[Carrier].Raw :=
-  R.Ring[Carrier].Raw::# (#zero{s}) (#one{s}) (#add{s}) (#neg{s}) (#mul{s});
-\definition FieldNonZero (Carrier: \Set) (s: Field[Carrier].Raw) (x: Carrier): \Prop :=
+\structure FieldLaws[Carrier: \Set, data: FieldData[Carrier]]: \Prop {
+  ring: R.CommutativeRingLaws[Carrier, R.CommutativeRingData[Carrier]::# ((R.RingData[Carrier]::# data.zero data.one data.add data.neg data.mul))],
+  nontrivial: (not!{{ data.zero = data.one }}),
+  inverse: (\forall (x: Carrier) -> not!{{ x = data.zero }} -> data.mul (data.inv x) x = data.one),
+}
+
+\definition Field[Carrier: \Set]: \Set :=
+  \Cast[FieldData[Carrier]] ({ data: FieldData[Carrier] \where FieldLaws[Carrier, data] });
+
+\definition fieldRing (Carrier: \Set) (s: FieldData[Carrier]): R.RingData[Carrier] :=
+  R.RingData[Carrier]::# (#zero{s}) (#one{s}) (#add{s}) (#neg{s}) (#mul{s});
+\definition FieldNonZero (Carrier: \Set) (s: FieldData[Carrier]) (x: Carrier): \Prop :=
     not!{{ x = #zero{s} }};
-\definition FieldNontrivial (Carrier: \Set) (s: Field[Carrier].Raw): \Prop :=
+\definition FieldNontrivial (Carrier: \Set) (s: FieldData[Carrier]): \Prop :=
     not!{{ #zero{s} = #one{s} }};
-\definition FieldInverseLaws (Carrier: \Set) (s: Field[Carrier].Raw): \Prop :=
+\definition FieldInverseLaws (Carrier: \Set) (s: FieldData[Carrier]): \Prop :=
     \forall (x: Carrier) -> FieldNonZero Carrier s x ->
       #mul{s} (#inv{s} x) x = #one{s};
 
 \definition fieldAsCommutativeRing (Carrier: \Set) (s: Field[Carrier]): R.CommutativeRing[Carrier] :=
-    \into[R.CommutativeRing[Carrier].Raw](R.CommutativeRing[Carrier].Raw::# (fieldRing Carrier s), R.CommutativeRing[Carrier]) \by {
+    \into[R.CommutativeRingData[Carrier]](R.CommutativeRingData[Carrier]::# (fieldRing Carrier s), R.CommutativeRing[Carrier]) \by {
       #ring{s}
     };

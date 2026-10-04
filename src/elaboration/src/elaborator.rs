@@ -30,6 +30,7 @@ mod modules;
 mod profiling;
 pub(crate) mod program_term_elaborator;
 mod queries;
+mod structures;
 pub(crate) mod term_elaborator;
 
 fn apply_pts_projection(arena: &Arena, definition: DefId, parameters: &[Exp], value: Exp) -> Exp {

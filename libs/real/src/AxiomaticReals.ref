@@ -54,7 +54,7 @@
       RelationLe leRelation zero (mul x y),
 };
 
-\structure AxiomaticRealStructure: \Set {
+\structure AxiomaticRealStructureData: \Set {
   zero: Carrier,
   one: Carrier,
   add: Carrier -> Carrier -> Carrier,
@@ -62,33 +62,38 @@
   mul: Carrier -> Carrier -> Carrier,
   inv: Carrier -> Carrier,
   leRelation: \Pow (Pair.Times^[Carrier, Carrier]),
-} \where {
-  field: FieldLaws[zero, one, add, neg, mul, inv],
-  order: LinearOrderLaws[leRelation],
-  orderedField: OrderedFieldLaws[zero, add, mul, leRelation],
-  completeness: Complete leRelation,
 }
 
-\definition Le (s: AxiomaticRealStructure.Raw) (x, y: Carrier): \Prop :=
+\structure AxiomaticRealStructureLaws[data: AxiomaticRealStructureData]: \Prop {
+  field: FieldLaws[data.zero, data.one, data.add, data.neg, data.mul, data.inv],
+  order: LinearOrderLaws[data.leRelation],
+  orderedField: OrderedFieldLaws[data.zero, data.add, data.mul, data.leRelation],
+  completeness: Complete data.leRelation,
+}
+
+\definition AxiomaticRealStructure: \Set :=
+  \Cast[AxiomaticRealStructureData] ({ data: AxiomaticRealStructureData \where AxiomaticRealStructureLaws[data] });
+
+\definition Le (s: AxiomaticRealStructureData) (x, y: Carrier): \Prop :=
   RelationLe (#leRelation{s}) x y;
 
-\definition NonZero (s: AxiomaticRealStructure.Raw) (x: Carrier): \Prop :=
+\definition NonZero (s: AxiomaticRealStructureData) (x: Carrier): \Prop :=
     not!{{ x = #zero{s} }};
 
-\definition IsUpperBound (s: AxiomaticRealStructure.Raw) (A: \Pow Carrier) (u: Carrier): \Prop :=
+\definition IsUpperBound (s: AxiomaticRealStructureData) (A: \Pow Carrier) (u: Carrier): \Prop :=
     \forall (x: Carrier) -> In A x -> Le s x u;
 
-\definition BoundedAbove (s: AxiomaticRealStructure.Raw) (A: \Pow Carrier): \Prop :=
+\definition BoundedAbove (s: AxiomaticRealStructureData) (A: \Pow Carrier): \Prop :=
     \exists { u : Carrier \where IsUpperBound s A u };
 
-\definition IsLeastUpperBound (s: AxiomaticRealStructure.Raw) (A: \Pow Carrier) (u: Carrier): \Prop :=
+\definition IsLeastUpperBound (s: AxiomaticRealStructureData) (A: \Pow Carrier) (u: Carrier): \Prop :=
     and!{{ IsUpperBound s A u }
       { \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v }};
 
-\definition HasLeastUpperBound (s: AxiomaticRealStructure.Raw) (A: \Pow Carrier): \Prop :=
+\definition HasLeastUpperBound (s: AxiomaticRealStructureData) (A: \Pow Carrier): \Prop :=
     \exists { u : Carrier \where IsLeastUpperBound s A u };
 
-\definition Completeness (s: AxiomaticRealStructure.Raw): \Prop :=
+\definition Completeness (s: AxiomaticRealStructureData): \Prop :=
     \forall (A: \Pow Carrier) -> Inhabited A -> BoundedAbove s A ->
       HasLeastUpperBound s A;
 

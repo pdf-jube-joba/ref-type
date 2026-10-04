@@ -630,3 +630,29 @@ fn structure_members_preserve_source_identity_and_invalidate_users() {
     assert_eq!(database.stats().reused_modules, 1);
     assert_eq!(changed, Database::new().check(&edited));
 }
+
+#[test]
+fn structure_namespace_contains_source_declarations() {
+    let cache = Cache::new();
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert("/virtual/root.ref", "\\module Shapes;\n");
+    snapshot.insert(
+        "/virtual/Shapes.ref",
+        r"\inductive Unit: \Set := | unit: Unit;
+\structure S: \Set { Raw: Unit, law: Raw = Raw, }
+\definition s: S := S { Raw := Unit::unit, law := \refl(Unit::unit), };",
+    );
+    let result = Database::with_cache(&cache.0).check(&snapshot);
+    assert!(result.is_success(), "{result:?}");
+    let names = result
+        .declarations()
+        .map(|declaration| declaration.id.name.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        names,
+        std::collections::BTreeSet::from(["S", "S::Raw", "S::law", "Unit", "Unit::unit", "s",])
+    );
+    let mut fresh = Database::with_cache(&cache.0);
+    assert_eq!(result, fresh.check(&snapshot));
+    assert_eq!(fresh.stats().checked_modules, 0);
+}

@@ -1,21 +1,31 @@
 /* Algebraic structures keep Set-valued data separate from Prop-valued laws. */
 \import std.Logic[].Algebra[].Def[] \as Law;
 
-\structure Monoid[Carrier: \Set]: \Set {
+\structure MonoidData[Carrier: \Set]: \Set {
   unit: Carrier,
   op: Carrier -> Carrier -> Carrier,
-} \where {
-  leftIdentity: Law.LeftUnital Carrier op unit,
-  rightIdentity: Law.RightUnital Carrier op unit,
-  associative: Law.Associative Carrier op,
 }
 
-\structure CommutativeMonoid[Carrier: \Set]: \Set {
-  base: Monoid[Carrier].Raw,
-} \where {
-  monoid: Monoid[Carrier].Law[base],
-  commutative: Law.Commutative Carrier (#op{base}),
+\structure MonoidLaws[Carrier: \Set, data: MonoidData[Carrier]]: \Prop {
+  leftIdentity: Law.LeftUnital Carrier data.op data.unit,
+  rightIdentity: Law.RightUnital Carrier data.op data.unit,
+  associative: Law.Associative Carrier data.op,
 }
+
+\definition Monoid[Carrier: \Set]: \Set :=
+  \Cast[MonoidData[Carrier]] ({ data: MonoidData[Carrier] \where MonoidLaws[Carrier, data] });
+
+\structure CommutativeMonoidData[Carrier: \Set]: \Set {
+  base: MonoidData[Carrier],
+}
+
+\structure CommutativeMonoidLaws[Carrier: \Set, data: CommutativeMonoidData[Carrier]]: \Prop {
+  monoid: MonoidLaws[Carrier, data.base],
+  commutative: Law.Commutative Carrier (#op{data.base}),
+}
+
+\definition CommutativeMonoid[Carrier: \Set]: \Set :=
+  \Cast[CommutativeMonoidData[Carrier]] ({ data: CommutativeMonoidData[Carrier] \where CommutativeMonoidLaws[Carrier, data] });
 
 \definition asMonoid (Carrier: \Set) (s: CommutativeMonoid[Carrier]): Monoid[Carrier] :=
-  \into[Monoid[Carrier].Raw](#base{s}, Monoid[Carrier]) \by { #monoid{s} };
+  \into[MonoidData[Carrier]](#base{s}, Monoid[Carrier]) \by { #monoid{s} };

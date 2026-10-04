@@ -103,6 +103,112 @@ impl Default for LocalScope {
 }
 
 impl LocalScope {
+    fn elab_structure_literal(
+        &mut self,
+        ty: Exp,
+        fields: &[(Identifier, SExp)],
+        handler: &mut impl Handler,
+    ) -> Result<Exp, ElaborationError> {
+        let ty = whnf(handler.env(), handler.zonk(ty));
+        if let ExpNode::TypeLift { superset, subset } = handler.arena().get(ty) {
+            let data_ty = whnf(handler.env(), superset);
+            let ExpNode::IndType { indspec, .. } = handler.arena().get(data_ty) else {
+                return Err("expected a structure data type".into());
+            };
+            if handler.env().record_for_inductive(indspec).is_none() {
+                return Err("expected a structure data type".into());
+            }
+            let constructor = &handler.env().inductive(indspec).constructors()[0];
+            let data_names = constructor
+                .telescope
+                .iter()
+                .map(|binder| match binder {
+                    crate::raw::inductive::CtorBinder::Simple((name, _)) => {
+                        handler.symbol(*name).to_owned()
+                    }
+                    _ => unreachable!("structure fields are simple constructor binders"),
+                })
+                .collect::<Vec<_>>();
+            let (data, laws): (Vec<_>, Vec<_>) = fields
+                .iter()
+                .cloned()
+                .partition(|(name, _)| data_names.iter().any(|field| field == name.as_str()));
+            let element = self.elab_structure_literal(superset, &data, handler)?;
+            let law_ty = handler.arena().alloc(ExpNode::Pred {
+                superset,
+                subset,
+                element,
+            });
+            let proof = self.elab_structure_literal(law_ty, &laws, handler)?;
+            return Ok(handler.arena().alloc(ExpNode::SubsetIntro {
+                superset,
+                subset,
+                element,
+                proof,
+            }));
+        }
+        let ExpNode::IndType {
+            indspec,
+            parameters,
+        } = handler.arena().get(ty)
+        else {
+            return Err("expected a structure type in a structure literal".into());
+        };
+        if handler.env().record_for_inductive(indspec).is_none() {
+            return Err("expected a structure type in a structure literal".into());
+        }
+        let constructor_spec = handler.env().inductive(indspec).constructors()[0]
+            .instantiate_parameters(handler.arena(), &parameters);
+        let mut supplied = std::collections::HashMap::new();
+        for (name, value) in fields {
+            if supplied.insert(name.as_str(), value).is_some() {
+                return Err(format!(
+                    "Structure field {} was supplied more than once",
+                    name.as_str()
+                )
+                .into());
+            }
+        }
+        let mut ordered = Vec::with_capacity(constructor_spec.telescope.len());
+        for binder in &constructor_spec.telescope {
+            let crate::raw::inductive::CtorBinder::Simple((name, field_ty)) = binder else {
+                unreachable!("structure fields are simple constructor binders")
+            };
+            let name = handler.symbol(*name).to_owned();
+            let value = supplied
+                .remove(name.as_str())
+                .ok_or_else(|| format!("Missing structure field {name}"))?;
+            let expected = instantiate_telescope(handler.arena(), *field_ty, &ordered);
+            ordered.push(self.elab_with_expected(value, expected, handler)?);
+        }
+        if let Some(name) = supplied.keys().next() {
+            return Err(format!("Unknown structure field {name}").into());
+        }
+        let constructor = handler.arena().alloc(ExpNode::IndCtor {
+            indspec,
+            parameters,
+            idx: 0,
+        });
+        Ok(crate::raw::utils::assoc_apply(
+            handler.arena(),
+            constructor,
+            ordered,
+        ))
+    }
+
+    fn elab_subset(
+        &mut self,
+        subset: &SExp,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, ElaborationError> {
+        let expression = self.elab_exp_rec(subset, handler)?;
+        let normalized = whnf(handler.env(), handler.zonk(expression));
+        Ok(match handler.arena().get(normalized) {
+            ExpNode::TypeLift { subset, .. } => subset,
+            _ => expression,
+        })
+    }
+
     fn elab_with_expected(
         &mut self,
         exp: &SExp,
@@ -1130,7 +1236,7 @@ impl LocalScope {
                 proof,
             } => {
                 let superset_elab = self.elab_exp_rec(superset, handler)?;
-                let subset_elab = self.elab_exp_rec(subset, handler)?;
+                let subset_elab = self.elab_subset(subset, handler)?;
                 let element_elab = self.elab_exp_rec(element, handler)?;
                 let proof_elab = self.elab_exp_rec(proof, handler)?;
                 Ok(handler.arena().alloc(ExpNode::SubsetIntro {
@@ -1450,78 +1556,14 @@ impl LocalScope {
                 parameters,
                 fields,
             } => {
-                let parameters: Vec<Exp> = parameters
-                    .iter()
-                    .map(|e| self.elab_exp_rec(e, handler))
-                    .collect::<Result<_, _>>()?;
-                let item = handler.get_item_from_access_path(access)?;
-                let (declared_names, pts_inductive) = match item {
-                    ItemAccessResult::Record(record) => {
-                        let constructor =
-                            &handler.env().inductive(record.inductive).constructors()[0];
-                        let names = constructor
-                            .telescope
-                            .iter()
-                            .map(|binder| match binder {
-                                crate::raw::inductive::CtorBinder::Simple((name, _)) => {
-                                    handler.symbol(*name).to_string()
-                                }
-                                _ => {
-                                    unreachable!("structure fields are simple constructor binders")
-                                }
-                            })
-                            .collect::<Vec<_>>();
-                        (names, record.inductive)
-                    }
-                    _ => {
-                        return Err(format!(
-                            "Expected structure type in structure literal access path {:?}",
-                            access
-                        )
-                        .into());
-                    }
-                };
-                let mut supplied = std::collections::HashMap::new();
-                for (field_name, value) in fields {
-                    if supplied.insert(field_name.as_str(), value).is_some() {
-                        return Err(format!(
-                            "Structure field {} was supplied more than once",
-                            field_name.as_str()
-                        )
-                        .into());
-                    }
-                }
-                for supplied_name in supplied.keys() {
-                    if !declared_names.iter().any(|name| name == supplied_name) {
-                        return Err(format!("Unknown structure field {supplied_name}").into());
-                    }
-                }
-                let constructor_spec = handler.env().inductive(pts_inductive).constructors()[0]
-                    .instantiate_parameters(handler.arena(), &parameters);
-                let mut ordered = Vec::with_capacity(declared_names.len());
-                for (index, declared_name) in declared_names.into_iter().enumerate() {
-                    let value = supplied
-                        .get(declared_name.as_str())
-                        .ok_or_else(|| format!("Missing structure field {declared_name}"))?;
-                    let crate::raw::inductive::CtorBinder::Simple((_, field_ty)) =
-                        constructor_spec.telescope[index]
-                    else {
-                        unreachable!("structure fields are simple constructor binders")
-                    };
-                    let expected = instantiate_telescope(handler.arena(), field_ty, &ordered);
-                    ordered.push(self.elab_with_expected(value, expected, handler)?);
-                }
-
-                let constructor = handler.arena().alloc(ExpNode::IndCtor {
-                    indspec: pts_inductive,
-                    parameters,
-                    idx: 0,
-                });
-                Ok(crate::raw::utils::assoc_apply(
-                    handler.arena(),
-                    constructor,
-                    ordered,
-                ))
+                let ty = self.elab_exp_rec(
+                    &SExp::AccessPath {
+                        access: access.clone(),
+                        parameters: parameters.clone(),
+                    },
+                    handler,
+                )?;
+                self.elab_structure_literal(ty, fields, handler)
             }
 
             SExp::PowerSet { set } => {
@@ -1649,7 +1691,7 @@ impl LocalScope {
                 superset,
             } => {
                 let element = self.elab_exp_rec(element, handler)?;
-                let subset = self.elab_exp_rec(subset, handler)?;
+                let subset = self.elab_subset(subset, handler)?;
                 let superset = self.elab_exp_rec(superset, handler)?;
                 Ok(handler.arena().alloc(ExpNode::Prove(Prove::SubsetElim {
                     element,

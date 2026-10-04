@@ -126,7 +126,7 @@ congr2!{Nat^ Nat^ Nat^} natAdd _ _ _ _ leftEq rightEq
 ## 代数構造
 
 代数構造は `\structure` でデータと法則をまとめて宣言する。
-`Monoid[A].Raw` は単位元と演算、`Monoid[A].Law[s]` はその法則、`Monoid[A]` は法則を満たす構造の型である。
+`MonoidData[A]` は単位元と演算、`MonoidLaws[A, s]` はその法則、`Monoid[A]` は法則を満たす構造の型である。
 構造の要素からは `#op{s}` と `#leftIdentity{s}` のようにデータと法則を直接取り出せる。
 
 `Alg.Monoid`、`Alg.Alg`、`Alg.Ring`、`Alg.Field` は次の構造を提供する。

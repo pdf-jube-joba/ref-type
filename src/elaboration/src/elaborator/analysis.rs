@@ -122,12 +122,16 @@ impl GlobalEnvironment {
             ),
             ModuleItem::Inductive { type_name, .. } => (type_name.as_str(), "inductive", None),
             ModuleItem::Record { type_name, .. } => (type_name.as_str(), "structure", None),
+            ModuleItem::SetStructure { name, .. } => (name.as_str(), "structure", None),
             ModuleItem::Import { import_name, .. } => (import_name.as_str(), "import", None),
             ModuleItem::MathMacro { name, .. } | ModuleItem::UserMacro { name, .. } => {
                 (name.as_str(), "macro", None)
             }
             _ => return,
         };
+        if name.starts_with('<') || owner.is_some_and(|name| name.starts_with('<')) {
+            return;
+        }
         let published = env.module(module_id).item(owner.unwrap_or(name));
         let ty = match published {
             Some(Item::Definition { definition, .. }) => Some(definition_type(env, *definition)),

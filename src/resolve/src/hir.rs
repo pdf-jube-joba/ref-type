@@ -86,17 +86,17 @@ pub enum ModuleItem {
         kind: Option<InductiveKind>,
         parameters: Vec<RightBind>,
         fields: Vec<(Identifier, SExp, Option<SExp>)>,
-        laws: Option<Vec<(Identifier, SExp)>>,
-    },
-    Refinement {
-        name: Identifier,
-        fields: Vec<Identifier>,
-        laws: Vec<Identifier>,
     },
     Record {
         type_name: Identifier,
         parameters: Vec<RightBind>,
         kind: InductiveKind,
+        fields: Vec<(Identifier, SExp)>,
+    },
+    SetStructure {
+        name: Identifier,
+        parameters: Vec<RightBind>,
+        sort: syntax::sort::Sort,
         fields: Vec<(Identifier, SExp)>,
     },
     ChildModule {

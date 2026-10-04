@@ -12,13 +12,6 @@ mod normalization;
 mod parameters;
 
 #[derive(Clone)]
-pub(super) struct Refinement {
-    pub fields: Vec<String>,
-    pub laws: Vec<String>,
-    pub members: HashMap<String, SExp>,
-}
-
-#[derive(Clone)]
 pub(super) struct Structure {
     pub ambient: HashMap<BindingId, SExp>,
     pub parameters: Vec<RightBind>,

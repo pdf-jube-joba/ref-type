@@ -316,6 +316,22 @@ impl GlobalEnvironment {
         let decl = declarations
             .get(index)
             .ok_or("unknown declaration in execution order")?;
+        let location = module.source.as_ref().map(|source| SourceLocation {
+            source: source.clone(),
+            span: module
+                .declaration_spans
+                .get(index)
+                .copied()
+                .unwrap_or(module.span),
+        });
+        self.elaborate_declaration(decl, location)
+    }
+
+    pub(super) fn elaborate_declaration(
+        &mut self,
+        decl: &ModuleItem,
+        location: Option<SourceLocation>,
+    ) -> Result<(), ElaborationError> {
         let mut ctx = self.module_manager.current_context(&self.crate_env);
         let mut profile_timer =
             profiling::ProfileTimer::start("REF_TYPE_PROFILE_DECLARATIONS", || {
@@ -325,22 +341,21 @@ impl GlobalEnvironment {
                     declaration_profile_label(decl)
                 )
             });
-        self.diagnostic_location = module.source.as_ref().map(|source| SourceLocation {
-            source: source.clone(),
-            span: module
-                .declaration_spans
-                .get(index)
-                .copied()
-                .unwrap_or(module.span),
-        });
+        self.diagnostic_location = location;
         self.module_manager.reference_location = self.diagnostic_location.clone();
         let output_start = self.outputs.len();
         self.metavariables.clear();
         let mut local_scope = LocalScope::default();
         match decl {
-            ModuleItem::Structure { .. }
-            | ModuleItem::Refinement { .. }
-            | ModuleItem::Scoped { .. } => {
+            ModuleItem::SetStructure {
+                name,
+                parameters,
+                sort,
+                fields,
+            } => {
+                self.elaborate_set_structure(name, parameters, *sort, fields)?;
+            }
+            ModuleItem::Structure { .. } | ModuleItem::Scoped { .. } => {
                 return Err("unresolved frontend declaration".into());
             }
             ModuleItem::Definition {

@@ -1,77 +1,6 @@
 use super::*;
 
 impl Resolver {
-    pub(in crate::resolver) fn refinement_literal(
-        &self,
-        refinement: &Refinement,
-        parameters: &[SExp],
-        fields: &[(Identifier, SExp)],
-    ) -> Result<SExp, Diagnostic> {
-        let member = |name: &str, extra: Vec<SExp>| {
-            let mut expression = refinement.members[name].clone();
-            let SExp::AccessPath {
-                parameters: args, ..
-            } = &mut expression
-            else {
-                unreachable!()
-            };
-            *args = parameters.to_vec();
-            args.extend(extra);
-            expression
-        };
-        let raw = member("Raw", Vec::new());
-        let subset = member("Predicate", Vec::new());
-        let name = Identifier("<structure-literal>".into());
-        let value = variable(name.clone());
-        let mut data = Vec::new();
-        let mut laws = Vec::new();
-        for (name, value) in fields {
-            if refinement.fields.contains(&name.0) {
-                data.push((name.clone(), value.clone()));
-            } else if refinement.laws.contains(&name.0) {
-                laws.push((name.clone(), value.clone()));
-            } else {
-                return Err(self.error(format!("unknown structure field: {}", name.0)));
-            }
-        }
-        let SExp::AccessPath {
-            access: raw_access,
-            parameters: raw_parameters,
-        } = raw.clone()
-        else {
-            unreachable!()
-        };
-        let SExp::AccessPath {
-            access: law_access,
-            parameters: law_parameters,
-        } = member("Law", vec![value.clone()])
-        else {
-            unreachable!()
-        };
-        Ok(SExp::Where {
-            clauses: vec![(
-                name,
-                raw.clone(),
-                SExp::RecordTypeCtor {
-                    access: raw_access,
-                    parameters: raw_parameters,
-                    fields: data,
-                },
-            )],
-            exp: Box::new(SExp::SubsetIntro {
-                superset: Box::new(raw),
-                subset: Box::new(subset),
-                element: Box::new(value),
-                proof: Box::new(SExp::RecordTypeCtor {
-                    access: law_access,
-                    parameters: law_parameters,
-                    fields: laws,
-                }),
-            }),
-            span: None,
-        })
-    }
-
     pub(in crate::resolver) fn normalize_structures(
         &mut self,
         expression: &mut SExp,
@@ -157,38 +86,6 @@ impl Resolver {
                 };
                 return false;
             }
-            if let SExp::RecordTypeCtor {
-                access:
-                    LocalAccess::Named {
-                        access: root,
-                        child,
-                        span,
-                    },
-                parameters,
-                fields,
-            } = node
-                && let Some(id) = self.front_binding(
-                    &LocalAccess::Current {
-                        access: root.clone(),
-                        span: *span,
-                    },
-                    locals,
-                )
-                && let Some(refinement) = self.refinements.get(&id)
-                && let Some(member) = refinement.members.get(child.as_str())
-                && let SExp::AccessPath {
-                    access,
-                    parameters: args,
-                } = member
-            {
-                let mut args = args.clone();
-                args.extend(parameters.clone());
-                *node = SExp::RecordTypeCtor {
-                    access: access.clone(),
-                    parameters: args,
-                    fields: fields.clone(),
-                };
-            }
             if let SExp::MemberLiteral { ty, fields } = node {
                 if let Err(e) = self.normalize_structures(ty, locals) {
                     error = Some(e);
@@ -232,39 +129,6 @@ impl Resolver {
                         body: Box::new(result),
                     }
                 };
-            }
-            if let SExp::SubsetIntro { subset, .. } | SExp::SubsetElim { subset, .. } = node
-                && let SExp::AccessPath { access, parameters } = subset.as_ref()
-                && let Some(id) = self.front_binding(access, locals)
-                && let Some(refinement) = self.refinements.get(&id)
-            {
-                let mut expression =
-                    self.instantiate_front_expression(&refinement.members["Predicate"], access);
-                if let SExp::AccessPath {
-                    parameters: args, ..
-                } = &mut expression
-                {
-                    *args = parameters.clone();
-                }
-                **subset = expression;
-            }
-            if let SExp::RecordTypeCtor {
-                access,
-                parameters,
-                fields,
-            } = node
-                && let Some(id) = self.front_binding(access, locals)
-                && let Some(refinement) = self.refinements.get(&id)
-            {
-                match self.refinement_literal(refinement, parameters, fields) {
-                    Ok(expression) => {
-                        *node = self.instantiate_front_expression(&expression, access)
-                    }
-                    Err(e) => {
-                        error = Some(e);
-                        return false;
-                    }
-                }
             }
             if matches!(
                 node,
@@ -443,24 +307,7 @@ impl Resolver {
                     }
                     Err(e) => error = Some(e),
                     _ => {
-                        if let SExp::AccessPath {
-                            access,
-                            parameters: base_parameters,
-                        } = &base
-                            && let Some(id) = self.front_binding(access, locals)
-                            && let Some(refinement) = self.refinements.get(&id)
-                            && let Some(member) = refinement.members.get(field.as_str())
-                        {
-                            let mut expression = self.instantiate_front_expression(member, access);
-                            if let SExp::AccessPath {
-                                parameters: args, ..
-                            } = &mut expression
-                            {
-                                *args = base_parameters.clone();
-                                args.extend(parameters.clone());
-                            }
-                            *node = expression;
-                        } else if matches!(node, SExp::MemberAccess { .. })
+                        if matches!(node, SExp::MemberAccess { .. })
                             || matches!(&base, SExp::AccessPath { access, .. } if self.front_binding(access, locals).is_some())
                         {
                             let mut result = SExp::InferredProjection {

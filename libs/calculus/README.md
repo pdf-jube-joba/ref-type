@@ -24,7 +24,7 @@ Dedekind 実数上の関数の極限と微分を扱う。
 \definition affineDerivative: \forall (m, b, a: C.Real) ->
   D.HasDerivativeAt (C.affine m b) a m := Laws.affineDerivative;
 
-\definition affineFunction(m, b: C.Real): D.DifferentiableFunction::[Set] :=
+\definition affineFunction(m, b: C.Real): D.DifferentiableFunction :=
   Laws.affineDifferentiable m b;
 ```
 
