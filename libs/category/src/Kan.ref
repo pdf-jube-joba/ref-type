@@ -1,0 +1,145 @@
+\import category.Category[] \as Cat;
+\import category.Functor[] \as Functors;
+\import category.Natural[] \as Nat;
+\import Nat.Operations[] \as Vertical;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+
+\definition restrictedMap[
+  A, B, C: \Set,
+  AHom: A -> A -> \Set,
+  BHom: B -> B -> \Set,
+  CHom: C -> C -> \Set,
+  K: Functors.FunctorMap[A, B, AHom, BHom],
+  G: Functors.FunctorMap[B, C, BHom, CHom],
+]: Functors.FunctorMap[A, C, AHom, CHom] := Functors.FunctorMap[A, C, AHom, CHom] {
+  object := \fun (u: A) => G.object (K.object u),
+  map := \fun (u, v: A) (f: AHom u v) => G.map (K.object u) (K.object v) (K.map u v f),
+};
+
+\definition UnitData[
+  A, B, C: \Set,
+  AHom: A -> A -> \Set,
+  BHom: B -> B -> \Set,
+  CHom: C -> C -> \Set,
+  target: Cat.CategoryData[C, CHom],
+  K: Functors.FunctorMap[A, B, AHom, BHom],
+  F: Functors.FunctorMap[A, C, AHom, CHom],
+  G: Functors.FunctorMap[B, C, BHom, CHom],
+]: \Set := Nat.TransformationData[A, C, AHom, CHom, target, F, restrictedMap[A, B, C, AHom, BHom, CHom, K, G]];
+
+\definition CounitData[
+  A, B, C: \Set,
+  AHom: A -> A -> \Set,
+  BHom: B -> B -> \Set,
+  CHom: C -> C -> \Set,
+  target: Cat.CategoryData[C, CHom],
+  K: Functors.FunctorMap[A, B, AHom, BHom],
+  F: Functors.FunctorMap[A, C, AHom, CHom],
+  G: Functors.FunctorMap[B, C, BHom, CHom],
+]: \Set := Nat.TransformationData[A, C, AHom, CHom, target, restrictedMap[A, B, C, AHom, BHom, CHom, K, G], F];
+
+\structure LeftData[
+  A, B, C: \Set,
+  AHom: A -> A -> \Set,
+  BHom: B -> B -> \Set,
+  CHom: C -> C -> \Set,
+  target: Cat.CategoryData[C, CHom],
+  K: Functors.FunctorMap[A, B, AHom, BHom],
+  F: Functors.FunctorMap[A, C, AHom, CHom],
+  source: Cat.CategoryData[B, BHom],
+]: \Set {
+  extension: Functors.FunctorData[B, C, BHom, CHom, source, target],
+  unit: UnitData[A, B, C, AHom, BHom, CHom, target, K, F, extension],
+  factor: \forall (G: Functors.FunctorData[B, C, BHom, CHom, source, target]) ->
+    UnitData[A, B, C, AHom, BHom, CHom, target, K, F, G] ->
+    Nat.TransformationData[B, C, BHom, CHom, target, extension, G],
+  factorization: \forall (G: Functors.FunctorData[B, C, BHom, CHom, source, target]) ->
+    \forall (a: UnitData[A, B, C, AHom, BHom, CHom, target, K, F, G]) -> \forall (u: A) ->
+    target.compose (F.object u) (extension.object (K.object u)) (G.object (K.object u))
+      (factor G a (K.object u)) (unit u) = a u,
+  unique: \forall (G: Functors.FunctorData[B, C, BHom, CHom, source, target]) ->
+    \forall (a: UnitData[A, B, C, AHom, BHom, CHom, target, K, F, G]) ->
+    \forall (g: Nat.TransformationData[B, C, BHom, CHom, target, extension, G]) ->
+    (\forall (u: A) -> target.compose (F.object u) (extension.object (K.object u)) (G.object (K.object u))
+        (g (K.object u)) (unit u) = a u) -> g = factor G a,
+}
+
+\structure RightData[
+  A, B, C: \Set,
+  AHom: A -> A -> \Set,
+  BHom: B -> B -> \Set,
+  CHom: C -> C -> \Set,
+  target: Cat.CategoryData[C, CHom],
+  K: Functors.FunctorMap[A, B, AHom, BHom],
+  F: Functors.FunctorMap[A, C, AHom, CHom],
+  source: Cat.CategoryData[B, BHom],
+]: \Set {
+  extension: Functors.FunctorData[B, C, BHom, CHom, source, target],
+  counit: CounitData[A, B, C, AHom, BHom, CHom, target, K, F, extension],
+  factor: \forall (G: Functors.FunctorData[B, C, BHom, CHom, source, target]) ->
+    CounitData[A, B, C, AHom, BHom, CHom, target, K, F, G] ->
+    Nat.TransformationData[B, C, BHom, CHom, target, G, extension],
+  factorization: \forall (G: Functors.FunctorData[B, C, BHom, CHom, source, target]) ->
+    \forall (a: CounitData[A, B, C, AHom, BHom, CHom, target, K, F, G]) -> \forall (u: A) ->
+    target.compose (G.object (K.object u)) (extension.object (K.object u)) (F.object u)
+      (counit u) (factor G a (K.object u)) = a u,
+  unique: \forall (G: Functors.FunctorData[B, C, BHom, CHom, source, target]) ->
+    \forall (a: CounitData[A, B, C, AHom, BHom, CHom, target, K, F, G]) ->
+    \forall (g: Nat.TransformationData[B, C, BHom, CHom, target, G, extension]) ->
+    (\forall (u: A) -> target.compose (G.object (K.object u)) (extension.object (K.object u)) (F.object u)
+        (counit u) (g (K.object u)) = a u) -> g = factor G a,
+}
+
+\module Along(A, B, C: Cat.Category, K: Functors.Functor A B, F: Functors.Functor A C) {
+  \definition at(G: Functors.Functor B C) (u: A.Object): C.Object := G.object (K.object u);
+  \definition UnitFamily(G: Functors.Functor B C): \Set :=
+    \forall (u: A.Object) -> C.Hom (F.object u) (at G u);
+  \definition Unit(G: Functors.Functor B C): \Set :=
+    UnitData[A.Object, B.Object, C.Object, A.Hom, B.Hom, C.Hom, C.structure, K, F, G];
+  \definition CounitFamily(G: Functors.Functor B C): \Set :=
+    \forall (u: A.Object) -> C.Hom (at G u) (F.object u);
+  \definition Counit(G: Functors.Functor B C): \Set :=
+    CounitData[A.Object, B.Object, C.Object, A.Hom, B.Hom, C.Hom, C.structure, K, F, G];
+  \definition Left: \Set :=
+    LeftData[A.Object, B.Object, C.Object, A.Hom, B.Hom, C.Hom, C.structure, K, F, B.structure];
+  \definition Right: \Set :=
+    RightData[A.Object, B.Object, C.Object, A.Hom, B.Hom, C.Hom, C.structure, K, F, B.structure];
+  \module Prop;
+}
+
+\module Identity(A, C: Cat.Category, F: Functors.Functor A C) {
+  \definition identity: Functors.Functor A A := Functors.identity A;
+  \definition Left: \Set := LeftData[A.Object, A.Object, C.Object, A.Hom, A.Hom, C.Hom, C.structure, identity, F, A.structure];
+  \definition Right: \Set := RightData[A.Object, A.Object, C.Object, A.Hom, A.Hom, C.Hom, C.structure, identity, F, A.structure];
+
+  \definition Unit(G: Functors.Functor A C): \Set := UnitData[A.Object, A.Object, C.Object, A.Hom, A.Hom, C.Hom, C.structure, identity, F, G];
+  \definition Counit(G: Functors.Functor A C): \Set := CounitData[A.Object, A.Object, C.Object, A.Hom, A.Hom, C.Hom, C.structure, identity, F, G];
+
+  \definition left: Left := Left {
+    extension := F,
+    unit := Vertical.identity A C F,
+    factor := \fun (G: Functors.Functor A C) (a: Unit G) => a,
+    factorization := \fun (G: Functors.Functor A C) (a: Unit G) (u: A.Object) =>
+      C.laws.rightIdentity (F.object u) (G.object u) (a u),
+    unique := \fun (G: Functors.Functor A C) (a: Unit G)
+      (g: Nat.Transformation A C F G) (commutes: _) => \axiom:funext(g, a,
+        \fun (u: A.Object) => trans!{{C.Hom (F.object u) (G.object u)}} _ _ _
+          (sym!{{C.Hom (F.object u) (G.object u)}} _ _ (C.laws.rightIdentity (F.object u) (G.object u) (g u))) (commutes u)),
+  };
+
+  \definition right: Right := Right {
+    extension := F,
+    counit := Vertical.identity A C F,
+    factor := \fun (G: Functors.Functor A C) (a: Counit G) => a,
+    factorization := \fun (G: Functors.Functor A C) (a: Counit G) (u: A.Object) =>
+      C.laws.leftIdentity (G.object u) (F.object u) (a u),
+    unique := \fun (G: Functors.Functor A C) (a: Counit G)
+      (g: Nat.Transformation A C G F) (commutes: _) => \axiom:funext(g, a,
+        \fun (u: A.Object) => trans!{{C.Hom (G.object u) (F.object u)}} _ _ _
+          (sym!{{C.Hom (G.object u) (F.object u)}} _ _ (C.laws.leftIdentity (G.object u) (F.object u) (g u))) (commutes u)),
+  };
+}

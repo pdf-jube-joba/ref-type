@@ -11,6 +11,7 @@ const PROCESS_TIMEOUT: Duration = Duration::from_secs(20);
 // This project elaborates and checks the entire library. Allow enough time for
 // the debug-build process when it runs concurrently with the other test cases.
 const LIBRARY_TIMEOUT: Duration = Duration::from_secs(180);
+static LIBRARY_CHECK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -54,10 +55,22 @@ fn run_ref_file_with_timeout(
     args: &[&str],
     timeout: Duration,
 ) -> Result<Output, String> {
+    run_ref_file_with_environment(workspace, path, args, timeout, &[])
+}
+
+fn run_ref_file_with_environment(
+    workspace: &Path,
+    path: &Path,
+    args: &[&str],
+    timeout: Duration,
+    environment: &[(&str, &str)],
+) -> Result<Output, String> {
     let mut child = Command::new(env!("CARGO_BIN_EXE_cli"))
         .arg(path)
         .args(args)
         .env_remove("RUST_LOG")
+        .env_remove("REF_TYPE_COMPACT_DIAGNOSTICS")
+        .envs(environment.iter().copied())
         .current_dir(workspace)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
@@ -193,6 +206,7 @@ fn ng_ref_files_fail() {
 
 #[test]
 fn library_examples_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
     let workspace = workspace_root();
     let path = workspace.join("tests/projects/library");
     let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
@@ -204,6 +218,16 @@ fn library_examples_succeed() {
         "{}",
         output_details(&output)
     );
+}
+
+#[test]
+fn category_examples_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    let path = workspace.join("tests/projects/category");
+    let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(output.status.success(), "{}", output_details(&output));
 }
 
 #[test]
@@ -363,6 +387,113 @@ fn goals_show_context_constraints_and_source() {
         assert!(stderr.contains(expected), "missing {expected}: {stderr}");
     }
     assert!(!stderr.contains('\x1b'));
+}
+
+#[test]
+fn compact_diagnostics_preserve_errors_and_goal_context() {
+    let workspace = workspace_root();
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write("root.ref", "\\module Child;\n");
+    fixture.write("Child.ref", "\\definition bad: \\Prop := \\Set;\n");
+    for path in [
+        root,
+        workspace.join("tests/ng/metavariables/contextual_unsolved_goal.ref"),
+        workspace.join("tests/ng/metavariables/solved_inspection_program.ref"),
+    ] {
+        let normal = run_ref_file_with_args(&workspace, &path, &["--no-cache"]).unwrap();
+        let compact = run_ref_file_with_environment(
+            &workspace,
+            &path,
+            &["--no-cache"],
+            PROCESS_TIMEOUT,
+            &[("REF_TYPE_COMPACT_DIAGNOSTICS", "1")],
+        )
+        .unwrap();
+        assert_eq!(normal.status.code(), Some(1));
+        assert_eq!(compact.status.code(), normal.status.code());
+        let normal = String::from_utf8_lossy(&normal.stderr);
+        let compact = String::from_utf8_lossy(&compact.stderr);
+        assert!(!compact.contains("constraints:"), "{compact}");
+        for line in compact.lines().filter(|line| line.contains(".ref:")) {
+            assert!(normal.contains(line), "source location changed: {compact}");
+        }
+        assert!(compact.contains('^'), "{compact}");
+        if path.ends_with("contextual_unsolved_goal.ref")
+            || path.ends_with("solved_inspection_program.ref")
+        {
+            assert!(normal.contains("constraints:"), "{normal}");
+            for expected in ["inspection hole", "context:", "goal:", "A:"] {
+                assert!(compact.contains(expected), "missing {expected}: {compact}");
+            }
+            let expected = if path.ends_with("contextual_unsolved_goal.ref") {
+                "x:"
+            } else {
+                "solution:"
+            };
+            assert!(compact.contains(expected), "missing {expected}: {compact}");
+        } else {
+            assert!(normal.contains("[Residual]"), "{normal}");
+            assert!(!compact.contains("[Residual]"), "{compact}");
+            assert!(compact.contains("Child.ref:1:1"), "{compact}");
+            // The first error line must retain the original failure message.
+            let error = compact
+                .lines()
+                .find(|line| line.contains("Error:"))
+                .unwrap();
+            assert!(normal.contains(error), "error message changed: {compact}");
+        }
+    }
+}
+
+#[test]
+fn compact_diagnostics_return_the_first_error_without_rechecking_other_modules() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write("root.ref", "\\module First;\n\\module Second;\n");
+    for name in ["First.ref", "Second.ref"] {
+        fixture.write(name, "\\definition bad: \\Prop := \\Set;\n");
+    }
+    let normal = run_ref_file(&fixture.0, &root).unwrap();
+    let compact = run_ref_file_with_environment(
+        &fixture.0,
+        &root,
+        &[],
+        PROCESS_TIMEOUT,
+        &[("REF_TYPE_COMPACT_DIAGNOSTICS", "1")],
+    )
+    .unwrap();
+    assert_eq!(normal.status.code(), Some(1));
+    assert_eq!(compact.status.code(), normal.status.code());
+    let normal = String::from_utf8_lossy(&normal.stderr);
+    let compact = String::from_utf8_lossy(&compact.stderr);
+    assert!(normal.contains("First.ref:1:1"), "{normal}");
+    assert!(normal.contains("Second.ref:1:1"), "{normal}");
+    assert!(compact.contains("First.ref:1:1"), "{compact}");
+    assert!(!compact.contains("Second.ref:"), "{compact}");
+}
+
+#[test]
+fn compact_parse_errors_skip_independent_typechecking() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write("root.ref", "\\module Broken;\n\\module Good;\n");
+    fixture.write("Broken.ref", "\\definition bad: \\Prop := ;\n");
+    fixture.write("Good.ref", "\\infer \\Set;\n");
+    let normal = run_ref_file(&fixture.0, &root).unwrap();
+    let compact = run_ref_file_with_environment(
+        &fixture.0,
+        &root,
+        &[],
+        PROCESS_TIMEOUT,
+        &[("REF_TYPE_COMPACT_DIAGNOSTICS", "1")],
+    )
+    .unwrap();
+    assert_eq!(normal.status.code(), Some(1));
+    assert_eq!(compact.status.code(), normal.status.code());
+    assert!(String::from_utf8_lossy(&normal.stdout).contains("\\Set"));
+    assert!(compact.stdout.is_empty());
+    let normal = String::from_utf8_lossy(&normal.stderr);
+    let compact = String::from_utf8_lossy(&compact.stderr);
+    assert!(compact.contains("Broken.ref:1:"), "{compact}");
+    assert_eq!(compact, normal);
 }
 
 #[test]

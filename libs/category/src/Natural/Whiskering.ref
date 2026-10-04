@@ -1,0 +1,87 @@
+\import category.Natural[].Operations[] \as Vertical;
+
+\module Context(C, D, E: Cat.Category) {
+  \definition precomposeFamily(F, G: Functors.Functor D E)
+    (a: Family D E F G) (K: Functors.Functor C D):
+    \forall (u: C.Object) -> E.Hom (F.object (K.object u)) (G.object (K.object u)) :=
+    \fun (u: C.Object) => a (K.object u);
+
+  \definition precomposeNatural: \forall (F, G: Functors.Functor D E) ->
+    \forall (a: Transformation D E F G) -> \forall (K: Functors.Functor C D) ->
+    \forall (u, v: C.Object) -> \forall (f: C.Hom u v) ->
+    E.structure.compose (F.object (K.object u)) (G.object (K.object u)) (G.object (K.object v))
+      (G.map (K.object u) (K.object v) (K.map u v f)) (a (K.object u)) =
+    E.structure.compose (F.object (K.object u)) (F.object (K.object v)) (G.object (K.object v))
+      (a (K.object v)) (F.map (K.object u) (K.object v) (K.map u v f)) :=
+    \fun (F, G: Functors.Functor D E) (a: Transformation D E F G) (K: Functors.Functor C D) =>
+      \fun (u, v: C.Object) (f: C.Hom u v) => natural D E F G a (K.object u) (K.object v) (K.map u v f);
+
+  \definition PreFamily(F, G: Functors.Functor D E) (K: Functors.Functor C D): \Set :=
+    \forall (u: C.Object) -> E.Hom (F.object (K.object u)) (G.object (K.object u));
+
+  \definition PreNaturality(F, G: Functors.Functor D E) (K: Functors.Functor C D)
+    (a: PreFamily F G K): \Prop :=
+    \forall (u, v: C.Object) -> \forall (f: C.Hom u v) ->
+      E.structure.compose (F.object (K.object u)) (G.object (K.object u)) (G.object (K.object v))
+        (G.map (K.object u) (K.object v) (K.map u v f)) (a u) =
+      E.structure.compose (F.object (K.object u)) (F.object (K.object v)) (G.object (K.object v))
+        (a v) (F.map (K.object u) (K.object v) (K.map u v f));
+
+  \definition PreTransformation(F, G: Functors.Functor D E) (K: Functors.Functor C D): \Set :=
+    \Cast[PreFamily F G K] ({ a: PreFamily F G K \where PreNaturality F G K a });
+
+  \definition precompose(F, G: Functors.Functor D E)
+    (a: Transformation D E F G) (K: Functors.Functor C D): PreTransformation F G K :=
+    \into[PreFamily F G K](precomposeFamily F G a K, PreTransformation F G K)
+      \by { precomposeNatural F G a K };
+
+  \definition postcomposeFamily(F, G: Functors.Functor C D)
+    (H: Functors.Functor D E) (a: Family C D F G):
+    \forall (u: C.Object) -> E.Hom (H.object (F.object u)) (H.object (G.object u)) :=
+    \fun (u: C.Object) => H.map (F.object u) (G.object u) (a u);
+
+  \definition postcomposeNatural: \forall (F, G: Functors.Functor C D) ->
+    \forall (H: Functors.Functor D E) -> \forall (a: Transformation C D F G) ->
+    \forall (u, v: C.Object) -> \forall (f: C.Hom u v) ->
+    E.structure.compose (H.object (F.object u)) (H.object (G.object u)) (H.object (G.object v))
+      (H.map (G.object u) (G.object v) (G.map u v f)) (H.map (F.object u) (G.object u) (a u)) =
+    E.structure.compose (H.object (F.object u)) (H.object (F.object v)) (H.object (G.object v))
+      (H.map (F.object v) (G.object v) (a v)) (H.map (F.object u) (F.object v) (F.map u v f)) :=
+    \fun (F, G: Functors.Functor C D) (H: Functors.Functor D E) (a: Transformation C D F G) =>
+      \fun (u, v: C.Object) (f: C.Hom u v) => eq_reason!{
+        { E.structure.compose (H.object (F.object u)) (H.object (G.object u)) (H.object (G.object v))
+          (H.map (G.object u) (G.object v) (G.map u v f)) (H.map (F.object u) (G.object u) (a u)) }
+        "=" { H.map (F.object u) (G.object v)
+          (D.structure.compose (F.object u) (G.object u) (G.object v) (G.map u v f) (a u)) }
+        "by" { sym!{{E.Hom (H.object (F.object u)) (H.object (G.object v))}} _ _
+          (H.mapCompose (F.object u) (G.object u) (G.object v) (G.map u v f) (a u)) }
+        "=" { H.map (F.object u) (G.object v)
+          (D.structure.compose (F.object u) (F.object v) (G.object v) (a v) (F.map u v f)) }
+        "by" { congr!{{D.Hom (F.object u) (G.object v)} {E.Hom (H.object (F.object u)) (H.object (G.object v))}}
+          (H.map (F.object u) (G.object v)) _ _ (natural C D F G a u v f) }
+        "=" { E.structure.compose (H.object (F.object u)) (H.object (F.object v)) (H.object (G.object v))
+          (H.map (F.object v) (G.object v) (a v)) (H.map (F.object u) (F.object v) (F.map u v f)) }
+        "by" { H.mapCompose (F.object u) (F.object v) (G.object v) (a v) (F.map u v f) }
+      };
+
+  \definition PostFamily(F, G: Functors.Functor C D) (H: Functors.Functor D E): \Set :=
+    \forall (u: C.Object) -> E.Hom (H.object (F.object u)) (H.object (G.object u));
+
+  \definition PostNaturality(F, G: Functors.Functor C D) (H: Functors.Functor D E)
+    (a: PostFamily F G H): \Prop :=
+    \forall (u, v: C.Object) -> \forall (f: C.Hom u v) ->
+      E.structure.compose (H.object (F.object u)) (H.object (G.object u)) (H.object (G.object v))
+        (H.map (G.object u) (G.object v) (G.map u v f)) (a u) =
+      E.structure.compose (H.object (F.object u)) (H.object (F.object v)) (H.object (G.object v))
+        (a v) (H.map (F.object u) (F.object v) (F.map u v f));
+
+  \definition PostTransformation(F, G: Functors.Functor C D) (H: Functors.Functor D E): \Set :=
+    \Cast[PostFamily F G H] ({ a: PostFamily F G H \where PostNaturality F G H a });
+
+  \definition postcompose(F, G: Functors.Functor C D)
+    (H: Functors.Functor D E) (a: Transformation C D F G): PostTransformation F G H :=
+    \into[PostFamily F G H](postcomposeFamily F G H a, PostTransformation F G H)
+      \by { postcomposeNatural F G H a };
+
+  \module Laws;
+}

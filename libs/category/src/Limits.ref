@@ -1,0 +1,124 @@
+\import category.Category[] \as Cat;
+\import category.Functor[] \as Functors;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason;
+
+\module Diagram(J, C: Cat.Category, F: Functors.Functor J C) {
+  \import Cat.Isomorphism[C := C] \as Iso;
+
+  \structure Cone: \Set {
+    vertex: C.Object,
+    leg: \forall (i: J.Object) -> C.Hom vertex (F.object i),
+    commutes: \forall (i, j: J.Object) -> \forall (f: J.Hom i j) ->
+      C.structure.compose vertex (F.object i) (F.object j) (F.map i j f) (leg i) = leg j,
+  }
+
+  \structure Cocone: \Set {
+    vertex: C.Object,
+    leg: \forall (i: J.Object) -> C.Hom (F.object i) vertex,
+    commutes: \forall (i, j: J.Object) -> \forall (f: J.Hom i j) ->
+      C.structure.compose (F.object i) (F.object j) vertex (leg j) (F.map i j f) = leg i,
+  }
+
+  \structure Limit: \Set {
+    cone: Cone,
+    lift: \forall (t: Cone) -> C.Hom t.vertex cone.vertex,
+    factorization: \forall (t: Cone) -> \forall (i: J.Object) ->
+      C.structure.compose t.vertex cone.vertex (F.object i) (cone.leg i) (lift t) = t.leg i,
+    unique: \forall (t: Cone) -> \forall (f: C.Hom t.vertex cone.vertex) ->
+      (\forall (i: J.Object) -> C.structure.compose t.vertex cone.vertex (F.object i) (cone.leg i) f = t.leg i) ->
+      f = lift t,
+  }
+
+  \structure Colimit: \Set {
+    cocone: Cocone,
+    descend: \forall (t: Cocone) -> C.Hom cocone.vertex t.vertex,
+    factorization: \forall (t: Cocone) -> \forall (i: J.Object) ->
+      C.structure.compose (F.object i) cocone.vertex t.vertex (descend t) (cocone.leg i) = t.leg i,
+    unique: \forall (t: Cocone) -> \forall (f: C.Hom cocone.vertex t.vertex) ->
+      (\forall (i: J.Object) -> C.structure.compose (F.object i) cocone.vertex t.vertex f (cocone.leg i) = t.leg i) ->
+      f = descend t,
+  }
+
+  \definition limitEndomorphismIdentity: \forall (L: Limit) ->
+    \forall (f: C.Hom L.cone.vertex L.cone.vertex) ->
+    (\forall (i: J.Object) -> C.structure.compose _ _ _ (L.cone.leg i) f = L.cone.leg i) ->
+    f = C.structure.identity L.cone.vertex :=
+    \fun (L: Limit) (f: C.Hom L.cone.vertex L.cone.vertex) (commutes: _) => eq_reason!{
+      f "=" { L.lift L.cone } "by" { L.unique L.cone f commutes }
+      "=" { C.structure.identity L.cone.vertex }
+      "by" { sym!{{C.Hom L.cone.vertex L.cone.vertex}} _ _
+        (L.unique L.cone (C.structure.identity L.cone.vertex)
+          (\fun (i: J.Object) => C.laws.rightIdentity _ _ (L.cone.leg i))) }
+    };
+
+  \definition colimitEndomorphismIdentity: \forall (L: Colimit) ->
+    \forall (f: C.Hom L.cocone.vertex L.cocone.vertex) ->
+    (\forall (i: J.Object) -> C.structure.compose _ _ _ f (L.cocone.leg i) = L.cocone.leg i) ->
+    f = C.structure.identity L.cocone.vertex :=
+    \fun (L: Colimit) (f: C.Hom L.cocone.vertex L.cocone.vertex) (commutes: _) => eq_reason!{
+      f "=" { L.descend L.cocone } "by" { L.unique L.cocone f commutes }
+      "=" { C.structure.identity L.cocone.vertex }
+      "by" { sym!{{C.Hom L.cocone.vertex L.cocone.vertex}} _ _
+        (L.unique L.cocone (C.structure.identity L.cocone.vertex)
+          (\fun (i: J.Object) => C.laws.leftIdentity _ _ (L.cocone.leg i))) }
+    };
+
+  \definition limitUnique: \forall (L, M: Limit) -> Iso.Isomorphism[L.cone.vertex, M.cone.vertex] :=
+    \fun (L, M: Limit) => Iso.Isomorphism[L.cone.vertex, M.cone.vertex] {
+      forward := M.lift L.cone,
+      backward := L.lift M.cone,
+      leftInverse := limitEndomorphismIdentity L _ (\fun (i: J.Object) => eq_reason!{
+        { C.structure.compose _ _ _ (L.cone.leg i)
+          (C.structure.compose _ _ _ (L.lift M.cone) (M.lift L.cone)) }
+        "=" { C.structure.compose _ _ _
+          (C.structure.compose _ _ _ (L.cone.leg i) (L.lift M.cone)) (M.lift L.cone) }
+        "by" { C.laws.associative _ _ _ _ _ _ _ }
+        "=" { C.structure.compose _ _ _ (M.cone.leg i) (M.lift L.cone) }
+        "by" { congr!{{C.Hom M.cone.vertex (F.object i)} {C.Hom L.cone.vertex (F.object i)}}
+          (\fun (t: _) => C.structure.compose _ _ _ t (M.lift L.cone)) _ _ (L.factorization M.cone i) }
+        "=" { L.cone.leg i } "by" { M.factorization L.cone i }
+      }),
+      rightInverse := limitEndomorphismIdentity M _ (\fun (i: J.Object) => eq_reason!{
+        { C.structure.compose _ _ _ (M.cone.leg i)
+          (C.structure.compose _ _ _ (M.lift L.cone) (L.lift M.cone)) }
+        "=" { C.structure.compose _ _ _
+          (C.structure.compose _ _ _ (M.cone.leg i) (M.lift L.cone)) (L.lift M.cone) }
+        "by" { C.laws.associative _ _ _ _ _ _ _ }
+        "=" { C.structure.compose _ _ _ (L.cone.leg i) (L.lift M.cone) }
+        "by" { congr!{{C.Hom L.cone.vertex (F.object i)} {C.Hom M.cone.vertex (F.object i)}}
+          (\fun (t: _) => C.structure.compose _ _ _ t (L.lift M.cone)) _ _ (M.factorization L.cone i) }
+        "=" { M.cone.leg i } "by" { L.factorization M.cone i }
+      }),
+    };
+
+  \definition colimitUnique: \forall (L, M: Colimit) -> Iso.Isomorphism[L.cocone.vertex, M.cocone.vertex] :=
+    \fun (L, M: Colimit) => Iso.Isomorphism[L.cocone.vertex, M.cocone.vertex] {
+      forward := L.descend M.cocone,
+      backward := M.descend L.cocone,
+      leftInverse := colimitEndomorphismIdentity L _ (\fun (i: J.Object) => eq_reason!{
+        { C.structure.compose _ _ _
+          (C.structure.compose _ _ _ (M.descend L.cocone) (L.descend M.cocone)) (L.cocone.leg i) }
+        "=" { C.structure.compose _ _ _ (M.descend L.cocone)
+          (C.structure.compose _ _ _ (L.descend M.cocone) (L.cocone.leg i)) }
+        "by" { sym!{{C.Hom (F.object i) L.cocone.vertex}} _ _ (C.laws.associative _ _ _ _ _ _ _) }
+        "=" { C.structure.compose _ _ _ (M.descend L.cocone) (M.cocone.leg i) }
+        "by" { congr!{{C.Hom (F.object i) M.cocone.vertex} {C.Hom (F.object i) L.cocone.vertex}}
+          (C.structure.compose _ _ _ (M.descend L.cocone)) _ _ (L.factorization M.cocone i) }
+        "=" { L.cocone.leg i } "by" { M.factorization L.cocone i }
+      }),
+      rightInverse := colimitEndomorphismIdentity M _ (\fun (i: J.Object) => eq_reason!{
+        { C.structure.compose _ _ _
+          (C.structure.compose _ _ _ (L.descend M.cocone) (M.descend L.cocone)) (M.cocone.leg i) }
+        "=" { C.structure.compose _ _ _ (L.descend M.cocone)
+          (C.structure.compose _ _ _ (M.descend L.cocone) (M.cocone.leg i)) }
+        "by" { sym!{{C.Hom (F.object i) M.cocone.vertex}} _ _ (C.laws.associative _ _ _ _ _ _ _) }
+        "=" { C.structure.compose _ _ _ (L.descend M.cocone) (L.cocone.leg i) }
+        "by" { congr!{{C.Hom (F.object i) L.cocone.vertex} {C.Hom (F.object i) M.cocone.vertex}}
+          (C.structure.compose _ _ _ (L.descend M.cocone)) _ _ (M.factorization L.cocone i) }
+        "=" { M.cocone.leg i } "by" { L.factorization M.cocone i }
+      }),
+    };
+}

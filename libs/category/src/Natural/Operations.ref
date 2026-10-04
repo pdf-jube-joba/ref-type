@@ -1,0 +1,66 @@
+\definition identityFamily(C, D: Cat.Category) (F: Functors.Functor C D): Family C D F F :=
+  \fun (u: C.Object) => D.structure.identity (F.object u);
+
+\definition identityNatural(C, D: Cat.Category): \forall (F: Functors.Functor C D) ->
+  Naturality C D F F (identityFamily C D F) :=
+  \fun (F: Functors.Functor C D) (u, v: C.Object) (f: C.Hom u v) =>
+    trans!{{D.Hom (F.object u) (F.object v)}}
+      (D.structure.compose (F.object u) (F.object u) (F.object v) (F.map u v f) (D.structure.identity (F.object u)))
+      (F.map u v f)
+      (D.structure.compose (F.object u) (F.object v) (F.object v) (D.structure.identity (F.object v)) (F.map u v f))
+      (D.laws.rightIdentity (F.object u) (F.object v) (F.map u v f))
+      (sym!{{D.Hom (F.object u) (F.object v)}}
+        (D.structure.compose (F.object u) (F.object v) (F.object v) (D.structure.identity (F.object v)) (F.map u v f))
+        (F.map u v f) (D.laws.leftIdentity (F.object u) (F.object v) (F.map u v f)));
+
+\definition identity(C, D: Cat.Category) (F: Functors.Functor C D): Transformation C D F F :=
+  \into[Family C D F F](identityFamily C D F, Transformation C D F F) \by { identityNatural C D F };
+
+\definition composeFamily(C, D: Cat.Category) (F, G, H: Functors.Functor C D)
+  (b: Family C D G H) (a: Family C D F G): Family C D F H :=
+  \fun (u: C.Object) => D.structure.compose (F.object u) (G.object u) (H.object u) (b u) (a u);
+
+\definition composeNatural(C, D: Cat.Category): \forall (F, G, H: Functors.Functor C D) ->
+  \forall (b: Transformation C D G H) -> \forall (a: Transformation C D F G) ->
+  Naturality C D F H (composeFamily C D F G H b a) :=
+  \fun (F, G, H: Functors.Functor C D) (b: Transformation C D G H) (a: Transformation C D F G)
+    (u, v: C.Object) (f: C.Hom u v) => \block {
+    \let Arrow: \Set := D.Hom (F.object u) (H.object v) \then
+    \let s0: Arrow := D.structure.compose (F.object u) (H.object u) (H.object v) (H.map u v f)
+      (D.structure.compose (F.object u) (G.object u) (H.object u) (b u) (a u)) \then
+    \let s1: Arrow := D.structure.compose (F.object u) (G.object u) (H.object v)
+      (D.structure.compose (G.object u) (H.object u) (H.object v) (H.map u v f) (b u)) (a u) \then
+    \let s2: Arrow := D.structure.compose (F.object u) (G.object u) (H.object v)
+      (D.structure.compose (G.object u) (G.object v) (H.object v) (b v) (G.map u v f)) (a u) \then
+    \let s3: Arrow := D.structure.compose (F.object u) (G.object v) (H.object v) (b v)
+      (D.structure.compose (F.object u) (G.object u) (G.object v) (G.map u v f) (a u)) \then
+    \let s4: Arrow := D.structure.compose (F.object u) (G.object v) (H.object v) (b v)
+      (D.structure.compose (F.object u) (F.object v) (G.object v) (a v) (F.map u v f)) \then
+    \let s5: Arrow := D.structure.compose (F.object u) (F.object v) (H.object v)
+      (D.structure.compose (F.object v) (G.object v) (H.object v) (b v) (a v)) (F.map u v f) \then
+    \let e01: s0 = s1 := D.laws.associative (F.object u) (G.object u) (H.object u) (H.object v)
+      (H.map u v f) (b u) (a u) \then
+    \let e12: s1 = s2 := congr!{{D.Hom (G.object u) (H.object v)} Arrow}
+      (\fun (t: D.Hom (G.object u) (H.object v)) => D.structure.compose (F.object u) (G.object u) (H.object v) t (a u))
+      (D.structure.compose (G.object u) (H.object u) (H.object v) (H.map u v f) (b u))
+      (D.structure.compose (G.object u) (G.object v) (H.object v) (b v) (G.map u v f)) (natural C D G H b u v f) \then
+    \let e23: s2 = s3 := sym!{Arrow} s3 s2
+      (D.laws.associative (F.object u) (G.object u) (G.object v) (H.object v) (b v) (G.map u v f) (a u)) \then
+    \let e34: s3 = s4 := congr!{{D.Hom (F.object u) (G.object v)} Arrow}
+      (D.structure.compose (F.object u) (G.object v) (H.object v) (b v))
+      (D.structure.compose (F.object u) (G.object u) (G.object v) (G.map u v f) (a u))
+      (D.structure.compose (F.object u) (F.object v) (G.object v) (a v) (F.map u v f)) (natural C D F G a u v f) \then
+    \let e45: s4 = s5 := D.laws.associative (F.object u) (F.object v) (G.object v) (H.object v)
+      (b v) (a v) (F.map u v f) \then
+    \let e02: s0 = s2 := trans!{Arrow} s0 s1 s2 e01 e12 \then
+    \let e03: s0 = s3 := trans!{Arrow} s0 s2 s3 e02 e23 \then
+    \let e04: s0 = s4 := trans!{Arrow} s0 s3 s4 e03 e34 \then
+    \return trans!{Arrow} s0 s4 s5 e04 e45
+  };
+
+\definition compose(C, D: Cat.Category) (F, G, H: Functors.Functor C D)
+  (b: Transformation C D G H) (a: Transformation C D F G): Transformation C D F H :=
+  \into[Family C D F H](composeFamily C D F G H b a, Transformation C D F H)
+    \by { composeNatural C D F G H b a };
+
+\module Laws(C, D: Cat.Category);

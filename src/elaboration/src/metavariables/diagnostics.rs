@@ -199,7 +199,9 @@ fn format_goals(f: &mut fmt::Formatter<'_>, goals: &[MetaGoal]) -> fmt::Result {
         if let Some(solution) = &goal.solution {
             writeln!(f, "solution: {solution}")?;
         }
-        writeln!(f, "constraints:")?;
+        if !goal.constraints.is_empty() {
+            writeln!(f, "constraints:")?;
+        }
         for constraint in &goal.constraints {
             writeln!(f, "  {constraint}")?;
         }

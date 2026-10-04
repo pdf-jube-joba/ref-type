@@ -1,0 +1,178 @@
+\import category.Category[] \as Cat;
+\import category.Functor[] \as Functors;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason;
+
+\module Object(C: Cat.Category) {
+  \import Cat.Isomorphism[C := C] \as Iso;
+
+  \structure Initial: \Set {
+    vertex: C.Object,
+    arrow: \forall (u: C.Object) -> C.Hom vertex u,
+    unique: \forall (u: C.Object) -> \forall (f: C.Hom vertex u) -> f = arrow u,
+  }
+
+  \structure Terminal: \Set {
+    vertex: C.Object,
+    arrow: \forall (u: C.Object) -> C.Hom u vertex,
+    unique: \forall (u: C.Object) -> \forall (f: C.Hom u vertex) -> f = arrow u,
+  }
+
+  \definition initialUnique: \forall (I, J: Initial) -> Iso.Isomorphism[I.vertex, J.vertex] :=
+    \fun (I, J: Initial) => Iso.Isomorphism[I.vertex, J.vertex] {
+      forward := I.arrow J.vertex,
+      backward := J.arrow I.vertex,
+      leftInverse := eq_reason!{
+        { C.structure.compose _ _ _ (J.arrow I.vertex) (I.arrow J.vertex) }
+        "=" { I.arrow I.vertex } "by" { I.unique _ _ }
+        "=" { C.structure.identity I.vertex }
+        "by" { sym!{{C.Hom I.vertex I.vertex}} _ _ (I.unique _ _) }
+      },
+      rightInverse := eq_reason!{
+        { C.structure.compose _ _ _ (I.arrow J.vertex) (J.arrow I.vertex) }
+        "=" { J.arrow J.vertex } "by" { J.unique _ _ }
+        "=" { C.structure.identity J.vertex }
+        "by" { sym!{{C.Hom J.vertex J.vertex}} _ _ (J.unique _ _) }
+      },
+    };
+
+  \definition terminalUnique: \forall (I, J: Terminal) -> Iso.Isomorphism[I.vertex, J.vertex] :=
+    \fun (I, J: Terminal) => Iso.Isomorphism[I.vertex, J.vertex] {
+      forward := J.arrow I.vertex,
+      backward := I.arrow J.vertex,
+      leftInverse := eq_reason!{
+        { C.structure.compose _ _ _ (I.arrow J.vertex) (J.arrow I.vertex) }
+        "=" { I.arrow I.vertex } "by" { I.unique _ _ }
+        "=" { C.structure.identity I.vertex }
+        "by" { sym!{{C.Hom I.vertex I.vertex}} _ _ (I.unique _ _) }
+      },
+      rightInverse := eq_reason!{
+        { C.structure.compose _ _ _ (J.arrow I.vertex) (I.arrow J.vertex) }
+        "=" { J.arrow J.vertex } "by" { J.unique _ _ }
+        "=" { C.structure.identity J.vertex }
+        "by" { sym!{{C.Hom J.vertex J.vertex}} _ _ (J.unique _ _) }
+      },
+    };
+}
+
+/* A universal arrow bundles its mediating map and its computation and uniqueness laws. */
+\module Arrow(C, D: Cat.Category, U: Functors.Functor C D, d: D.Object) {
+  \structure From: \Set {
+    vertex: C.Object,
+    unit: D.Hom d (U.object vertex),
+    factor: \forall (u: C.Object) -> D.Hom d (U.object u) -> C.Hom vertex u,
+    factorization: \forall (u: C.Object) -> \forall (f: D.Hom d (U.object u)) ->
+      D.structure.compose d (U.object vertex) (U.object u) (U.map vertex u (factor u f)) unit = f,
+    unique: \forall (u: C.Object) -> \forall (f: D.Hom d (U.object u)) ->
+      \forall (g: C.Hom vertex u) ->
+      D.structure.compose d (U.object vertex) (U.object u) (U.map vertex u g) unit = f -> g = factor u f,
+  }
+
+  \structure To: \Set {
+    vertex: C.Object,
+    counit: D.Hom (U.object vertex) d,
+    factor: \forall (u: C.Object) -> D.Hom (U.object u) d -> C.Hom u vertex,
+    factorization: \forall (u: C.Object) -> \forall (f: D.Hom (U.object u) d) ->
+      D.structure.compose (U.object u) (U.object vertex) d counit (U.map u vertex (factor u f)) = f,
+    unique: \forall (u: C.Object) -> \forall (f: D.Hom (U.object u) d) ->
+      \forall (g: C.Hom u vertex) ->
+      D.structure.compose (U.object u) (U.object vertex) d counit (U.map u vertex g) = f -> g = factor u f,
+  }
+  \import Cat.Isomorphism[C := C] \as Iso;
+
+  \definition fromEndomorphismIdentity: \forall (S: From) -> \forall (f: C.Hom S.vertex S.vertex) ->
+    D.structure.compose d (U.object S.vertex) (U.object S.vertex) (U.map S.vertex S.vertex f) S.unit = S.unit ->
+    f = C.structure.identity S.vertex :=
+    \fun (S: From) (f: C.Hom S.vertex S.vertex) (commutes: _) => eq_reason!{
+      f "=" { S.factor S.vertex S.unit } "by" { S.unique _ _ f commutes }
+      "=" { C.structure.identity S.vertex }
+      "by" { sym!{{C.Hom S.vertex S.vertex}} _ _ (S.unique _ _ (C.structure.identity S.vertex)
+        (eq_reason!{
+          { D.structure.compose _ _ _ (U.map S.vertex S.vertex (C.structure.identity S.vertex)) S.unit }
+          "=" { D.structure.compose _ _ _ (D.structure.identity (U.object S.vertex)) S.unit }
+          "by" { congr!{{D.Hom (U.object S.vertex) (U.object S.vertex)} {D.Hom d (U.object S.vertex)}}
+            (\fun (t: _) => D.structure.compose _ _ _ t S.unit) _ _ (U.mapIdentity S.vertex) }
+          "=" { S.unit } "by" { D.laws.leftIdentity _ _ _ }
+        })) }
+    };
+
+  \definition fromCompositeFactorization: \forall (S, T: From) ->
+    D.structure.compose d (U.object S.vertex) (U.object S.vertex)
+      (U.map S.vertex S.vertex (C.structure.compose S.vertex T.vertex S.vertex
+        (T.factor S.vertex S.unit) (S.factor T.vertex T.unit))) S.unit = S.unit :=
+    \fun (S, T: From) => eq_reason!{
+      { D.structure.compose _ _ _ (U.map S.vertex S.vertex
+        (C.structure.compose _ _ _ (T.factor S.vertex S.unit) (S.factor T.vertex T.unit))) S.unit }
+      "=" { D.structure.compose _ _ _ (D.structure.compose _ _ _
+        (U.map T.vertex S.vertex (T.factor S.vertex S.unit))
+        (U.map S.vertex T.vertex (S.factor T.vertex T.unit))) S.unit }
+      "by" { congr!{{D.Hom (U.object S.vertex) (U.object S.vertex)} {D.Hom d (U.object S.vertex)}}
+        (\fun (t: _) => D.structure.compose _ _ _ t S.unit) _ _ (U.mapCompose _ _ _ _ _) }
+      "=" { D.structure.compose _ _ _ (U.map T.vertex S.vertex (T.factor S.vertex S.unit))
+        (D.structure.compose _ _ _ (U.map S.vertex T.vertex (S.factor T.vertex T.unit)) S.unit) }
+      "by" { sym!{{D.Hom d (U.object S.vertex)}} _ _ (D.laws.associative _ _ _ _ _ _ _) }
+      "=" { D.structure.compose _ _ _ (U.map T.vertex S.vertex (T.factor S.vertex S.unit)) T.unit }
+      "by" { congr!{{D.Hom d (U.object T.vertex)} {D.Hom d (U.object S.vertex)}}
+        (D.structure.compose _ _ _ (U.map T.vertex S.vertex (T.factor S.vertex S.unit)))
+        _ _ (S.factorization T.vertex T.unit) }
+      "=" { S.unit } "by" { T.factorization S.vertex S.unit }
+    };
+
+  \definition fromUnique: \forall (S, T: From) -> Iso.Isomorphism[S.vertex, T.vertex] :=
+    \fun (S, T: From) => Iso.Isomorphism[S.vertex, T.vertex] {
+      forward := S.factor T.vertex T.unit,
+      backward := T.factor S.vertex S.unit,
+      leftInverse := fromEndomorphismIdentity S _ (fromCompositeFactorization S T),
+      rightInverse := fromEndomorphismIdentity T _ (fromCompositeFactorization T S),
+    };
+
+  \definition toEndomorphismIdentity: \forall (S: To) -> \forall (f: C.Hom S.vertex S.vertex) ->
+    D.structure.compose (U.object S.vertex) (U.object S.vertex) d S.counit (U.map S.vertex S.vertex f) = S.counit ->
+    f = C.structure.identity S.vertex :=
+    \fun (S: To) (f: C.Hom S.vertex S.vertex) (commutes: _) => eq_reason!{
+      f "=" { S.factor S.vertex S.counit } "by" { S.unique _ _ f commutes }
+      "=" { C.structure.identity S.vertex }
+      "by" { sym!{{C.Hom S.vertex S.vertex}} _ _ (S.unique _ _ (C.structure.identity S.vertex)
+        (eq_reason!{
+          { D.structure.compose _ _ _ S.counit (U.map S.vertex S.vertex (C.structure.identity S.vertex)) }
+          "=" { D.structure.compose _ _ _ S.counit (D.structure.identity (U.object S.vertex)) }
+          "by" { congr!{{D.Hom (U.object S.vertex) (U.object S.vertex)} {D.Hom (U.object S.vertex) d}}
+            (D.structure.compose _ _ _ S.counit) _ _ (U.mapIdentity S.vertex) }
+          "=" { S.counit } "by" { D.laws.rightIdentity _ _ _ }
+        })) }
+    };
+
+  \definition toCompositeFactorization: \forall (S, T: To) ->
+    D.structure.compose (U.object S.vertex) (U.object S.vertex) d S.counit
+      (U.map S.vertex S.vertex (C.structure.compose S.vertex T.vertex S.vertex
+        (S.factor T.vertex T.counit) (T.factor S.vertex S.counit))) = S.counit :=
+    \fun (S, T: To) => eq_reason!{
+      { D.structure.compose _ _ _ S.counit (U.map S.vertex S.vertex
+        (C.structure.compose _ _ _ (S.factor T.vertex T.counit) (T.factor S.vertex S.counit))) }
+      "=" { D.structure.compose _ _ _ S.counit (D.structure.compose _ _ _
+        (U.map T.vertex S.vertex (S.factor T.vertex T.counit))
+        (U.map S.vertex T.vertex (T.factor S.vertex S.counit))) }
+      "by" { congr!{{D.Hom (U.object S.vertex) (U.object S.vertex)} {D.Hom (U.object S.vertex) d}}
+        (D.structure.compose _ _ _ S.counit) _ _ (U.mapCompose _ _ _ _ _) }
+      "=" { D.structure.compose _ _ _ (D.structure.compose _ _ _ S.counit
+        (U.map T.vertex S.vertex (S.factor T.vertex T.counit)))
+        (U.map S.vertex T.vertex (T.factor S.vertex S.counit)) }
+      "by" { D.laws.associative _ _ _ _ _ _ _ }
+      "=" { D.structure.compose _ _ _ T.counit (U.map S.vertex T.vertex (T.factor S.vertex S.counit)) }
+      "by" { congr!{{D.Hom (U.object T.vertex) d} {D.Hom (U.object S.vertex) d}}
+        (\fun (t: _) => D.structure.compose _ _ _ t (U.map S.vertex T.vertex (T.factor S.vertex S.counit)))
+        _ _ (S.factorization T.vertex T.counit) }
+      "=" { S.counit } "by" { T.factorization S.vertex S.counit }
+    };
+
+  \definition toUnique: \forall (S, T: To) -> Iso.Isomorphism[S.vertex, T.vertex] :=
+    \fun (S, T: To) => Iso.Isomorphism[S.vertex, T.vertex] {
+      forward := T.factor S.vertex S.counit,
+      backward := S.factor T.vertex T.counit,
+      leftInverse := toEndomorphismIdentity S _ (toCompositeFactorization S T),
+      rightInverse := toEndomorphismIdentity T _ (toCompositeFactorization T S),
+    };
+
+}

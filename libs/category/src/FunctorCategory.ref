@@ -1,0 +1,46 @@
+\import category.Category[] \as Cat;
+\import category.Functor[] \as Functors;
+\import category.Natural[] \as Nat;
+\import Nat.Operations[] \as Vertical;
+\import Nat.Whiskering[] \as Whiskering;
+
+\module Between(C, D: Cat.Category) {
+  \import Vertical.Laws[C := C, D := D] \as Laws;
+  \definition data:
+    Cat.CategoryData[Functors.Functor C D, Nat.Transformation C D] :=
+    Cat.CategoryData[Functors.Functor C D, Nat.Transformation C D] {
+      identity := Vertical.identity C D,
+      compose := Vertical.compose C D,
+    };
+
+  \definition category: Cat.Category := Cat.Category {
+    Object := Functors.Functor C D,
+    Hom := Nat.Transformation C D,
+    structure := data,
+    laws := Cat.CategoryLaws[Functors.Functor C D, Nat.Transformation C D, data] {
+      leftIdentity := \fun (F, G: Functors.Functor C D) (a: Nat.Transformation C D F G) => Laws.leftIdentity F G a,
+      rightIdentity := \fun (F, G: Functors.Functor C D) (a: Nat.Transformation C D F G) => Laws.rightIdentity F G a,
+      associative := \fun (F, G, H, I: Functors.Functor C D) (c: Nat.Transformation C D H I) (b: Nat.Transformation C D G H) (a: Nat.Transformation C D F G) => Laws.associative F G H I c b a,
+    },
+  };
+
+}
+
+\module Restriction(A, B, C: Cat.Category, K: Functors.Functor A B) {
+  \import category.FunctorCategory[].Between[C := B, D := C] \as BC;
+  \import category.FunctorCategory[].Between[C := A, D := C] \as AC;
+  \import Whiskering.Context[C := A, D := B, E := C] \as W;
+  \import W.Laws[] \as RestrictionLaws;
+  \definition functor:
+    Functors.Functor BC.category AC.category :=
+    Functors.FunctorData[Functors.Functor B C, Functors.Functor A C,
+      Nat.Transformation B C, Nat.Transformation A C, BC.data, AC.data] {
+      object := \fun (F: Functors.Functor B C) => Functors.compose A B C F K,
+      map := \fun (F, G: Functors.Functor B C) (a: Nat.Transformation B C F G) =>
+        W.precompose F G a K,
+      mapIdentity := \fun (F: Functors.Functor B C) => RestrictionLaws.precomposeIdentity F K,
+      mapCompose := \fun (F, G, H: Functors.Functor B C)
+        (b: Nat.Transformation B C G H) (a: Nat.Transformation B C F G) =>
+        RestrictionLaws.precomposeCompose F G H b a K,
+    };
+}

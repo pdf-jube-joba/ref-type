@@ -1,0 +1,43 @@
+\structure Isomorphism[u, v: C.Object]: \Set {
+  forward: C.Hom u v,
+  backward: C.Hom v u,
+  leftInverse: C.structure.compose u v u backward forward = C.structure.identity u,
+  rightInverse: C.structure.compose v u v forward backward = C.structure.identity v,
+}
+
+\definition identity(u: C.Object): Isomorphism[u, u] := Isomorphism[u, u] {
+  forward := C.structure.identity u,
+  backward := C.structure.identity u,
+  leftInverse := C.laws.leftIdentity u u (C.structure.identity u),
+  rightInverse := C.laws.leftIdentity u u (C.structure.identity u),
+};
+
+\definition inverse(u, v: C.Object) (i: Isomorphism[u, v]): Isomorphism[v, u] :=
+  Isomorphism[v, u] {
+    forward := i.backward,
+    backward := i.forward,
+    leftInverse := i.rightInverse,
+    rightInverse := i.leftInverse,
+  };
+
+\definition cancelLeft: \forall (u, v, w: C.Object) -> \forall (i: Isomorphism[v, w]) ->
+  \forall (f, g: C.Hom u v) ->
+  C.structure.compose u v w i.forward f = C.structure.compose u v w i.forward g -> f = g :=
+  \fun (u, v, w: C.Object) (i: Isomorphism[v, w]) (f, g: C.Hom u v) (equal: _) =>
+    eq_reason!{
+      f "=" { C.structure.compose u v v (C.structure.identity v) f }
+      "by" { sym!{{C.Hom u v}} _ _ (C.laws.leftIdentity u v f) }
+      "=" { C.structure.compose u v v (C.structure.compose v w v i.backward i.forward) f }
+      "by" { congr!{{C.Hom v v} {C.Hom u v}} (\fun (t: _) => C.structure.compose u v v t f)
+        _ _ (sym!{{C.Hom v v}} _ _ i.leftInverse) }
+      "=" { C.structure.compose u w v i.backward (C.structure.compose u v w i.forward f) }
+      "by" { sym!{{C.Hom u v}} _ _ (C.laws.associative u v w v i.backward i.forward f) }
+      "=" { C.structure.compose u w v i.backward (C.structure.compose u v w i.forward g) }
+      "by" { congr!{{C.Hom u w} {C.Hom u v}} (C.structure.compose u w v i.backward) _ _ equal }
+      "=" { C.structure.compose u v v (C.structure.compose v w v i.backward i.forward) g }
+      "by" { C.laws.associative u v w v i.backward i.forward g }
+      "=" { C.structure.compose u v v (C.structure.identity v) g }
+      "by" { congr!{{C.Hom v v} {C.Hom u v}} (\fun (t: _) => C.structure.compose u v v t g)
+        _ _ i.leftInverse }
+      "=" g "by" { C.laws.leftIdentity u v g }
+    };

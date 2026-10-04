@@ -1,0 +1,124 @@
+\import category.Category[] \as Cat;
+\import category.Functor[] \as Functors;
+\import category.Universal[] \as Universal;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason;
+
+\module Between(C, D: Cat.Category) {
+  \structure Adjunction[L: Functors.Functor C D, R: Functors.Functor D C]: \Set {
+    transpose: \forall (u: C.Object) -> \forall (v: D.Object) -> D.Hom (L.object u) v -> C.Hom u (R.object v),
+    untranspose: \forall (u: C.Object) -> \forall (v: D.Object) -> C.Hom u (R.object v) -> D.Hom (L.object u) v,
+    leftInverse: \forall (u: C.Object) -> \forall (v: D.Object) -> \forall (f: D.Hom (L.object u) v) ->
+      untranspose u v (transpose u v f) = f,
+    rightInverse: \forall (u: C.Object) -> \forall (v: D.Object) -> \forall (g: C.Hom u (R.object v)) ->
+      transpose u v (untranspose u v g) = g,
+    naturalSource: \forall (u, u2: C.Object) -> \forall (v: D.Object) ->
+      \forall (p: C.Hom u u2) -> \forall (f: D.Hom (L.object u2) v) ->
+      transpose u v (D.structure.compose (L.object u) (L.object u2) v f (L.map u u2 p)) =
+        C.structure.compose u u2 (R.object v) (transpose u2 v f) p,
+    naturalTarget: \forall (u: C.Object) -> \forall (v, v2: D.Object) ->
+      \forall (q: D.Hom v v2) -> \forall (f: D.Hom (L.object u) v) ->
+      transpose u v2 (D.structure.compose (L.object u) v v2 q f) =
+        C.structure.compose u (R.object v) (R.object v2) (R.map v v2 q) (transpose u v f),
+  }
+
+  \module Pair(L: Functors.Functor C D, R: Functors.Functor D C) {
+    \definition unit(adj: Adjunction[L, R]) (u: C.Object): C.Hom u (R.object (L.object u)) :=
+      adj.transpose u (L.object u) (D.structure.identity (L.object u));
+
+    \definition counit(adj: Adjunction[L, R]) (v: D.Object): D.Hom (L.object (R.object v)) v :=
+      adj.untranspose (R.object v) v (C.structure.identity (R.object v));
+
+    \definition transposeFormula: \forall (adj: Adjunction[L, R]) ->
+      \forall (u: C.Object) -> \forall (v: D.Object) -> \forall (f: D.Hom (L.object u) v) ->
+      adj.transpose u v f = C.structure.compose u (R.object (L.object u)) (R.object v)
+        (R.map (L.object u) v f) (unit adj u) :=
+      \fun (adj: Adjunction[L, R]) (u: C.Object) (v: D.Object) (f: D.Hom (L.object u) v) => eq_reason!{
+        { adj.transpose u v f }
+        "=" { adj.transpose u v (D.structure.compose (L.object u) (L.object u) v f (D.structure.identity (L.object u))) }
+        "by" { congr!{{D.Hom (L.object u) v} {C.Hom u (R.object v)}} (adj.transpose u v)
+          _ _ (sym!{{D.Hom (L.object u) v}} _ _ (D.laws.rightIdentity (L.object u) v f)) }
+        "=" { C.structure.compose u (R.object (L.object u)) (R.object v) (R.map (L.object u) v f) (unit adj u) }
+        "by" { adj.naturalTarget u (L.object u) v f (D.structure.identity (L.object u)) }
+      };
+
+    \definition transposeInjective: \forall (adj: Adjunction[L, R]) ->
+      \forall (u: C.Object) -> \forall (v: D.Object) -> \forall (f, g: D.Hom (L.object u) v) ->
+      adj.transpose u v f = adj.transpose u v g -> f = g :=
+      \fun (adj: Adjunction[L, R]) (u: C.Object) (v: D.Object)
+        (f, g: D.Hom (L.object u) v) (equal: _) => eq_reason!{
+        f "=" { adj.untranspose u v (adj.transpose u v f) }
+        "by" { sym!{{D.Hom (L.object u) v}} _ _ (adj.leftInverse u v f) }
+        "=" { adj.untranspose u v (adj.transpose u v g) }
+        "by" { congr!{{C.Hom u (R.object v)} {D.Hom (L.object u) v}} (adj.untranspose u v) _ _ equal }
+        "=" g "by" { adj.leftInverse u v g }
+      };
+
+    \definition leftTriangle: \forall (adj: Adjunction[L, R]) -> \forall (u: C.Object) ->
+      D.structure.compose (L.object u) (L.object (R.object (L.object u))) (L.object u)
+        (counit adj (L.object u)) (L.map u (R.object (L.object u)) (unit adj u)) = D.structure.identity (L.object u) :=
+      \fun (adj: Adjunction[L, R]) (u: C.Object) => transposeInjective adj u (L.object u) _ _ (eq_reason!{
+        { adj.transpose u (L.object u) (D.structure.compose (L.object u) (L.object (R.object (L.object u))) (L.object u)
+          (counit adj (L.object u)) (L.map u (R.object (L.object u)) (unit adj u))) }
+        "=" { C.structure.compose u (R.object (L.object u)) (R.object (L.object u))
+          (adj.transpose (R.object (L.object u)) (L.object u) (counit adj (L.object u))) (unit adj u) }
+        "by" { adj.naturalSource u (R.object (L.object u)) (L.object u) (unit adj u) (counit adj (L.object u)) }
+        "=" { C.structure.compose u (R.object (L.object u)) (R.object (L.object u)) (C.structure.identity (R.object (L.object u))) (unit adj u) }
+        "by" { congr!{{C.Hom (R.object (L.object u)) (R.object (L.object u))} {C.Hom u (R.object (L.object u))}}
+          (\fun (t: _) => C.structure.compose u (R.object (L.object u)) (R.object (L.object u)) t (unit adj u)) _ _ (adj.rightInverse (R.object (L.object u)) (L.object u) (C.structure.identity (R.object (L.object u)))) }
+        "=" { unit adj u } "by" { C.laws.leftIdentity u (R.object (L.object u)) (unit adj u) }
+      });
+
+    \definition rightTriangle: \forall (adj: Adjunction[L, R]) -> \forall (v: D.Object) ->
+      C.structure.compose (R.object v) (R.object (L.object (R.object v))) (R.object v)
+        (R.map (L.object (R.object v)) v (counit adj v)) (unit adj (R.object v)) = C.structure.identity (R.object v) :=
+      \fun (adj: Adjunction[L, R]) (v: D.Object) => eq_reason!{
+        { C.structure.compose (R.object v) (R.object (L.object (R.object v))) (R.object v) (R.map (L.object (R.object v)) v (counit adj v)) (unit adj (R.object v)) }
+        "=" { adj.transpose (R.object v) v (counit adj v) }
+        "by" { sym!{{C.Hom (R.object v) (R.object v)}} _ _ (transposeFormula adj (R.object v) v (counit adj v)) }
+        "=" { C.structure.identity (R.object v) } "by" { adj.rightInverse (R.object v) v (C.structure.identity (R.object v)) }
+      };
+
+    \module AtSource(adj: Adjunction[L, R], u: C.Object) {
+      \import Universal.Arrow[C := D, D := C, U := R, d := u] \as UniversalArrow;
+      \definition universal: UniversalArrow.From := UniversalArrow.From {
+        vertex := L.object u,
+        unit := unit adj u,
+        factor := \fun (v: D.Object) => adj.untranspose u v,
+        factorization := \fun (v: D.Object) (g: C.Hom u (R.object v)) => eq_reason!{
+          { C.structure.compose u (R.object (L.object u)) (R.object v) (R.map (L.object u) v (adj.untranspose u v g)) (unit adj u) }
+          "=" { adj.transpose u v (adj.untranspose u v g) }
+          "by" { sym!{{C.Hom u (R.object v)}} _ _ (transposeFormula adj u v (adj.untranspose u v g)) }
+          "=" g "by" { adj.rightInverse u v g }
+        },
+        unique := \fun (v: D.Object) (g: C.Hom u (R.object v)) (f: D.Hom (L.object u) v) (commutes: _) => eq_reason!{
+          f "=" { adj.untranspose u v (adj.transpose u v f) }
+          "by" { sym!{{D.Hom (L.object u) v}} _ _ (adj.leftInverse u v f) }
+          "=" { adj.untranspose u v g }
+          "by" { congr!{{C.Hom u (R.object v)} {D.Hom (L.object u) v}} (adj.untranspose u v) _ _
+            (eq_reason!{ { adj.transpose u v f }
+              "=" { C.structure.compose u (R.object (L.object u)) (R.object v) (R.map (L.object u) v f) (unit adj u) }
+              "by" { transposeFormula adj u v f }
+              "=" g "by" commutes }) }
+        },
+      };
+    }
+  }
+}
+
+\module Identity(C: Cat.Category) {
+  \import category.Adjunction[].Between[C := C, D := C] \as A;
+  \definition adjunction: A.Adjunction[Functors.identity C, Functors.identity C] :=
+    A.Adjunction[Functors.identity C, Functors.identity C] {
+      transpose := \fun (u, v: C.Object) (f: C.Hom u v) => f,
+      untranspose := \fun (u, v: C.Object) (f: C.Hom u v) => f,
+      leftInverse := \fun (u, v: C.Object) (f: C.Hom u v) => \refl(f),
+      rightInverse := \fun (u, v: C.Object) (f: C.Hom u v) => \refl(f),
+      naturalSource := \fun (u, u2, v: C.Object) (p: C.Hom u u2) (f: C.Hom u2 v) =>
+        \refl(C.structure.compose u u2 v f p),
+      naturalTarget := \fun (u, v, v2: C.Object) (q: C.Hom v v2) (f: C.Hom u v) =>
+        \refl(C.structure.compose u v v2 q f),
+    };
+}

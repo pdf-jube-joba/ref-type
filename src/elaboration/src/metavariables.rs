@@ -381,6 +381,9 @@ impl MetaStore {
         }
     }
     pub(crate) fn constraint_error(&self, env: &CrateEnv, message: String) -> ElaborationError {
+        if std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1") {
+            return ElaborationError::Message(message);
+        }
         let state = self.failure.unwrap_or(MetaState::Contradiction);
         let mut goals = self.goals(env);
         for goal in &mut goals {
@@ -582,22 +585,26 @@ impl MetaStore {
     }
     fn goal_for(&self, env: &CrateEnv, id: MetaVarId) -> MetaGoal {
         let entry = &self.entries[id.index()];
+        let compact = std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1");
         let mut related = HashSet::from([id]);
-        loop {
-            let before = related.len();
-            for record in &self.constraints {
-                let metas = metas_in_constraint(env, &record.original);
-                if metas.iter().any(|meta| related.contains(meta)) {
-                    related.extend(metas);
+        if !compact {
+            loop {
+                let before = related.len();
+                for record in &self.constraints {
+                    let metas = metas_in_constraint(env, &record.original);
+                    if metas.iter().any(|meta| related.contains(meta)) {
+                        related.extend(metas);
+                    }
                 }
-            }
-            if related.len() == before {
-                break;
+                if related.len() == before {
+                    break;
+                }
             }
         }
         let constraints = self
             .constraints
             .iter()
+            .filter(|_| !compact)
             .filter(|record| {
                 metas_in_constraint(env, &record.original)
                     .iter()

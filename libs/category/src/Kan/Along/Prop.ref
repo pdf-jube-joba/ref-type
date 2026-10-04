@@ -1,0 +1,100 @@
+\import Nat.Isomorphism[C := B, D := C] \as Iso;
+
+\definition leftEndomorphismIdentity: \forall (L: Left) ->
+  \forall (p: Nat.Transformation B C L.extension L.extension) ->
+  (\forall (u: A.Object) -> C.structure.compose (F.object u) (at L.extension u) (at L.extension u)
+    (p (K.object u)) (L.unit u) = L.unit u) -> p = Vertical.identity B C L.extension :=
+  \fun (L: Left) (p: Nat.Transformation B C L.extension L.extension) (commutes: _) =>
+    trans!{{Nat.Family B C L.extension L.extension}}
+      p (L.factor L.extension L.unit) (Vertical.identity B C L.extension)
+      (L.unique L.extension L.unit p commutes)
+      (sym!{{Nat.Family B C L.extension L.extension}}
+        (Vertical.identity B C L.extension) (L.factor L.extension L.unit)
+        (L.unique L.extension L.unit (Vertical.identity B C L.extension)
+          (\fun (u: A.Object) => C.laws.leftIdentity (F.object u) (at L.extension u) (L.unit u))));
+
+\definition rightEndomorphismIdentity: \forall (L: Right) ->
+  \forall (p: Nat.Transformation B C L.extension L.extension) ->
+  (\forall (u: A.Object) -> C.structure.compose (at L.extension u) (at L.extension u) (F.object u)
+    (L.counit u) (p (K.object u)) = L.counit u) -> p = Vertical.identity B C L.extension :=
+  \fun (L: Right) (p: Nat.Transformation B C L.extension L.extension) (commutes: _) =>
+    trans!{{Nat.Family B C L.extension L.extension}}
+      p (L.factor L.extension L.counit) (Vertical.identity B C L.extension)
+      (L.unique L.extension L.counit p commutes)
+      (sym!{{Nat.Family B C L.extension L.extension}}
+        (Vertical.identity B C L.extension) (L.factor L.extension L.counit)
+        (L.unique L.extension L.counit (Vertical.identity B C L.extension)
+          (\fun (u: A.Object) => C.laws.rightIdentity (at L.extension u) (F.object u) (L.counit u))));
+
+\definition leftRoundtrip: \forall (L, M: Left) ->
+  Vertical.compose B C L.extension M.extension L.extension
+    (M.factor L.extension L.unit) (L.factor M.extension M.unit) = Vertical.identity B C L.extension :=
+  \fun (L, M: Left) => leftEndomorphismIdentity L
+    (Vertical.compose B C L.extension M.extension L.extension
+      (M.factor L.extension L.unit) (L.factor M.extension M.unit))
+    (\fun (u: A.Object) => eq_reason!{
+      { C.structure.compose (F.object u) (at L.extension u) (at L.extension u)
+        (C.structure.compose (at L.extension u) (at M.extension u) (at L.extension u)
+          (M.factor L.extension L.unit (K.object u)) (L.factor M.extension M.unit (K.object u))) (L.unit u) }
+      "=" { C.structure.compose (F.object u) (at M.extension u) (at L.extension u)
+        (M.factor L.extension L.unit (K.object u))
+        (C.structure.compose (F.object u) (at L.extension u) (at M.extension u)
+          (L.factor M.extension M.unit (K.object u)) (L.unit u)) }
+      "by" { sym!{{C.Hom (F.object u) (at L.extension u)}} _ _
+        (C.laws.associative (F.object u) (at L.extension u) (at M.extension u) (at L.extension u)
+          (M.factor L.extension L.unit (K.object u)) (L.factor M.extension M.unit (K.object u)) (L.unit u)) }
+      "=" { C.structure.compose (F.object u) (at M.extension u) (at L.extension u)
+        (M.factor L.extension L.unit (K.object u)) (M.unit u) }
+      "by" { congr!{{C.Hom (F.object u) (at M.extension u)} {C.Hom (F.object u) (at L.extension u)}}
+        (C.structure.compose (F.object u) (at M.extension u) (at L.extension u)
+          (M.factor L.extension L.unit (K.object u))) _ _ (L.factorization M.extension M.unit u) }
+      "=" { L.unit u } "by" { M.factorization L.extension L.unit u }
+    });
+
+\definition rightRoundtrip: \forall (L, M: Right) ->
+  Vertical.compose B C L.extension M.extension L.extension
+    (L.factor M.extension M.counit) (M.factor L.extension L.counit) = Vertical.identity B C L.extension :=
+  \fun (L, M: Right) => rightEndomorphismIdentity L
+    (Vertical.compose B C L.extension M.extension L.extension
+      (L.factor M.extension M.counit) (M.factor L.extension L.counit))
+    (\fun (u: A.Object) => eq_reason!{
+      { C.structure.compose (at L.extension u) (at L.extension u) (F.object u) (L.counit u)
+        (C.structure.compose (at L.extension u) (at M.extension u) (at L.extension u)
+          (L.factor M.extension M.counit (K.object u)) (M.factor L.extension L.counit (K.object u))) }
+      "=" { C.structure.compose (at L.extension u) (at M.extension u) (F.object u)
+        (C.structure.compose (at M.extension u) (at L.extension u) (F.object u)
+          (L.counit u) (L.factor M.extension M.counit (K.object u)))
+        (M.factor L.extension L.counit (K.object u)) }
+      "by" { C.laws.associative (at L.extension u) (at M.extension u) (at L.extension u) (F.object u)
+        (L.counit u) (L.factor M.extension M.counit (K.object u)) (M.factor L.extension L.counit (K.object u)) }
+      "=" { C.structure.compose (at L.extension u) (at M.extension u) (F.object u)
+        (M.counit u) (M.factor L.extension L.counit (K.object u)) }
+      "by" { congr!{{C.Hom (at M.extension u) (F.object u)} {C.Hom (at L.extension u) (F.object u)}}
+        (\fun (t: _) => C.structure.compose (at L.extension u) (at M.extension u) (F.object u)
+          t (M.factor L.extension L.counit (K.object u))) _ _ (L.factorization M.extension M.counit u) }
+      "=" { L.counit u } "by" { M.factorization L.extension L.counit u }
+    });
+
+\definition leftUnique: \forall (L, M: Left) -> Iso.Isomorphism[L.extension, M.extension] :=
+  \fun (L, M: Left) => Iso.Isomorphism[L.extension, M.extension] {
+    forward := L.factor M.extension M.unit,
+    backward := M.factor L.extension L.unit,
+    leftInverse := \fun (v: B.Object) =>
+      congr!{{Nat.Family B C L.extension L.extension} {C.Hom (L.extension.object v) (L.extension.object v)}}
+        (\fun (t: Nat.Family B C L.extension L.extension) => t v) _ _ (leftRoundtrip L M),
+    rightInverse := \fun (v: B.Object) =>
+      congr!{{Nat.Family B C M.extension M.extension} {C.Hom (M.extension.object v) (M.extension.object v)}}
+        (\fun (t: Nat.Family B C M.extension M.extension) => t v) _ _ (leftRoundtrip M L),
+  };
+
+\definition rightUnique: \forall (L, M: Right) -> Iso.Isomorphism[L.extension, M.extension] :=
+  \fun (L, M: Right) => Iso.Isomorphism[L.extension, M.extension] {
+    forward := M.factor L.extension L.counit,
+    backward := L.factor M.extension M.counit,
+    leftInverse := \fun (v: B.Object) =>
+      congr!{{Nat.Family B C L.extension L.extension} {C.Hom (L.extension.object v) (L.extension.object v)}}
+        (\fun (t: Nat.Family B C L.extension L.extension) => t v) _ _ (rightRoundtrip L M),
+    rightInverse := \fun (v: B.Object) =>
+      congr!{{Nat.Family B C M.extension M.extension} {C.Hom (M.extension.object v) (M.extension.object v)}}
+        (\fun (t: Nat.Family B C M.extension M.extension) => t v) _ _ (rightRoundtrip M L),
+  };

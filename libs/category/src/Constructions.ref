@@ -1,0 +1,59 @@
+\import category.Category[] \as Cat;
+\import category.Functor[] \as Functors;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+
+\inductive Unit: \Set := | unit: Unit;
+
+\definition unitUnique: \forall (u: Unit) -> u = Unit::unit :=
+  \induction (u: Unit) \return u = Unit::unit \with {
+    | unit : \refl(Unit::unit)
+  };
+
+\definition terminalData: Cat.CategoryData[Unit, \fun (u, v: Unit) => Unit] :=
+  Cat.CategoryData[Unit, \fun (u, v: Unit) => Unit] {
+    identity := \fun (u: Unit) => Unit::unit,
+    compose := \fun (u, v, w: Unit) (g, f: Unit) => Unit::unit,
+  };
+
+\definition terminal: Cat.Category := Cat.Category {
+  Object := Unit,
+  Hom := \fun (u, v: Unit) => Unit,
+  structure := terminalData,
+  laws := Cat.CategoryLaws[Unit, \fun (u, v: Unit) => Unit, terminalData] {
+    leftIdentity := \fun (u, v: Unit) (f: Unit) => sym!{Unit} f Unit::unit (unitUnique f),
+    rightIdentity := \fun (u, v: Unit) (f: Unit) => sym!{Unit} f Unit::unit (unitUnique f),
+    associative := \fun (u, v, w, t: Unit) (h, g, f: Unit) => \refl(Unit::unit),
+  },
+};
+
+\definition collapse(C: Cat.Category): Functors.Functor C terminal :=
+  Functors.FunctorData[C.Object, Unit, C.Hom, \fun (u, v: Unit) => Unit, C.structure, terminalData] {
+    object := \fun (u: C.Object) => Unit::unit,
+    map := \fun (u, v: C.Object) (f: C.Hom u v) => Unit::unit,
+    mapIdentity := \fun (u: C.Object) => \refl(Unit::unit),
+    mapCompose := \fun (u, v, w: C.Object) (g: C.Hom v w) (f: C.Hom u v) => \refl(Unit::unit),
+  };
+
+\definition FunctionHom(Index: \Set) (Carrier: Index -> \Set) (u, v: Index): \Set := Carrier u -> Carrier v;
+
+\definition functionData(Index: \Set) (Carrier: Index -> \Set):
+  Cat.CategoryData[Index, FunctionHom Index Carrier] := Cat.CategoryData[Index, FunctionHom Index Carrier] {
+    identity := \fun (u: Index) (p: Carrier u) => p,
+    compose := \fun (u, v, w: Index) (g: Carrier v -> Carrier w) (f: Carrier u -> Carrier v) (p: Carrier u) => g (f p),
+  };
+
+\definition functions(Index: \Set) (Carrier: Index -> \Set): Cat.Category := Cat.Category {
+  Object := Index,
+  Hom := FunctionHom Index Carrier,
+  structure := functionData Index Carrier,
+  laws := Cat.CategoryLaws[Index, FunctionHom Index Carrier, functionData Index Carrier] {
+    leftIdentity := \fun (u, v: Index) (f: Carrier u -> Carrier v) =>
+      \axiom:funext(\fun (p: Carrier u) => f p, f, \fun (p: Carrier u) => \refl(f p)),
+    rightIdentity := \fun (u, v: Index) (f: Carrier u -> Carrier v) =>
+      \axiom:funext(\fun (p: Carrier u) => f p, f, \fun (p: Carrier u) => \refl(f p)),
+    associative := \fun (u, v, w, t: Index)
+      (h: Carrier w -> Carrier t) (g: Carrier v -> Carrier w) (f: Carrier u -> Carrier v) =>
+      \refl(\fun (p: Carrier u) => h (g (f p))),
+  },
+};

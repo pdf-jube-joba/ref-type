@@ -1,0 +1,65 @@
+\import category.Category[] \as Cat;
+\import category.Constructions[] \as Concrete;
+\import category.Functor[] \as Functors;
+\import category.Natural[] \as Nat;
+\import Nat.Operations[] \as Vertical;
+
+\inductive Bit: \Set := | zero: Bit | one: Bit;
+
+\definition Carrier: Concrete.Unit -> \Set := \fun (u: Concrete.Unit) => Bit;
+\definition C: Cat.Category := Concrete.functions Concrete.Unit Carrier;
+\definition u: C.Object := Concrete.Unit::unit;
+\definition one: C.Hom u u := \fun (p: Bit) => Bit::one;
+\definition identity: Functors.Functor C C := Functors.identity C;
+
+\definition mapped: identity.map u u one Bit::zero = Bit::one := \refl(Bit::one);
+\definition doubleIdentity: Functors.Functor C C := Functors.compose C C C identity identity;
+\definition composedMap: doubleIdentity.map u u one Bit::zero = Bit::one := \refl(Bit::one);
+\definition composed: C.structure.compose u u u one one Bit::zero = Bit::one := \refl(Bit::one);
+\definition opposite: Cat.Category := Cat.opposite C;
+\definition reversed: opposite.structure.compose u u u one one Bit::zero = Bit::one := \refl(Bit::one);
+
+\definition naturalIdentity: Nat.Transformation C C identity identity := Vertical.identity C C identity;
+\import Vertical.Laws[C := C, D := C] \as NaturalLaws;
+\definition verticalIdentity:
+  Vertical.compose C C identity identity identity naturalIdentity naturalIdentity = naturalIdentity :=
+  NaturalLaws.leftIdentity identity identity naturalIdentity;
+
+\import category.FunctorCategory[].Between[C := C, D := C] \as Endofunctors;
+\definition endofunctor: Endofunctors.category.Object := identity;
+\definition endomorphism: Endofunctors.category.Hom endofunctor endofunctor := naturalIdentity;
+
+\import category.Adjunction[].Identity[C := C] \as IdentityAdjunction;
+\import category.Adjunction[].Between[C := C, D := C].Pair[L := identity, R := identity] \as Adjunction;
+\definition leftTriangle:
+  C.structure.compose u u u
+    (Adjunction.counit IdentityAdjunction.adjunction u)
+    (identity.map u u (Adjunction.unit IdentityAdjunction.adjunction u)) = C.structure.identity u :=
+  Adjunction.leftTriangle IdentityAdjunction.adjunction u;
+
+\import category.Kan[].Along[A := C, B := C, C := C, K := identity, F := identity] \as Extensions;
+\import category.Kan[].Identity[A := C, C := C, F := identity] \as IdentityKan;
+\definition left: Extensions.Left := IdentityKan.left;
+\definition right: Extensions.Right := IdentityKan.right;
+\definition leftFactor:
+  left.factor identity naturalIdentity u Bit::zero = Bit::zero := \refl(Bit::zero);
+\definition rightFactor:
+  right.factor identity naturalIdentity u Bit::zero = Bit::zero := \refl(Bit::zero);
+
+\import Extensions.Prop[] \as KanProperties;
+\definition leftIsomorphism: _ := KanProperties.leftUnique left left;
+\definition leftInverse:
+  C.structure.compose u u u (leftIsomorphism.backward u) (leftIsomorphism.forward u) = C.structure.identity u :=
+  leftIsomorphism.leftInverse u;
+\definition rightIsomorphism: _ := KanProperties.rightUnique right right;
+\definition rightInverse:
+  C.structure.compose u u u (rightIsomorphism.forward u) (rightIsomorphism.backward u) = C.structure.identity u :=
+  rightIsomorphism.rightInverse u;
+
+\import category.SetValued[].On[C := C] \as Sets;
+\definition represented: Sets.Diagram := Sets.hom u;
+\import Sets.Yoneda[P := represented, u := u] \as Yoneda;
+\definition yonedaEvaluation: Yoneda.evaluate (Yoneda.fromElement one) = one := Yoneda.evaluateFromElement one;
+\definition yonedaInverse:
+  Yoneda.fromElement (Yoneda.evaluate (Yoneda.fromElement one)) = Yoneda.fromElement one :=
+  Yoneda.fromElementEvaluate (Yoneda.fromElement one);

@@ -1,0 +1,51 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+
+/* Composition is written compose x y z g f, with f: x -> y and g: y -> z. */
+\structure CategoryData[Object: \Set, Hom: Object -> Object -> \Set]: \Set {
+  identity: \forall (x: Object) -> Hom x x,
+  compose: \forall (x, y, z: Object) -> Hom y z -> Hom x y -> Hom x z,
+}
+
+\structure CategoryLaws[Object: \Set, Hom: Object -> Object -> \Set, data: CategoryData[Object, Hom]]: \Prop {
+  leftIdentity: \forall (x, y: Object) -> \forall (f: Hom x y) ->
+    data.compose x y y (data.identity y) f = f,
+  rightIdentity: \forall (x, y: Object) -> \forall (f: Hom x y) ->
+    data.compose x x y f (data.identity x) = f,
+  associative: \forall (w, x, y, z: Object) ->
+    \forall (h: Hom y z) -> \forall (g: Hom x y) -> \forall (f: Hom w x) ->
+    data.compose w y z h (data.compose w x y g f) =
+      data.compose w x z (data.compose x y z h g) f,
+}
+
+\structure Category {
+  Object: \Set,
+  Hom: Object -> Object -> \Set,
+  structure: CategoryData[Object, Hom],
+  laws: CategoryLaws[Object, Hom, structure],
+}
+
+\definition opposite(C: Category): Category := Category {
+  Object := C.Object,
+  Hom := \fun (x, y: C.Object) => C.Hom y x,
+  structure := CategoryData[C.Object, \fun (x, y: C.Object) => C.Hom y x] {
+    identity := C.structure.identity,
+    compose := \fun (x, y, z: C.Object) (g: C.Hom z y) (f: C.Hom y x) => C.structure.compose z y x f g,
+  },
+  laws := CategoryLaws[C.Object, \fun (u, v: C.Object) => C.Hom v u,
+    CategoryData[C.Object, \fun (u, v: C.Object) => C.Hom v u] {
+      identity := C.structure.identity,
+      compose := \fun (u, v, w: C.Object) (g: C.Hom w v) (f: C.Hom v u) => C.structure.compose w v u f g,
+    }] {
+    leftIdentity := \fun (x, y: C.Object) (f: _) => C.laws.rightIdentity y x f,
+    rightIdentity := \fun (x, y: C.Object) (f: _) => C.laws.leftIdentity y x f,
+    associative := \fun (w, x, y, z: C.Object) (h: C.Hom z y) (g: C.Hom y x) (f: C.Hom x w) =>
+      sym!{{C.Hom z w}} _ _ (C.laws.associative z y x w f g h),
+  },
+};
+
+\module Prop(C: Category);
+\module Isomorphism(C: Category);

@@ -1,0 +1,62 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+
+\import category.Category[] \as Cat;
+\import category.Functor[] \as Functors;
+
+/* Natural families depend only on the object sets, hom families, and maps. */
+\definition FamilyData[
+  Source, Target: \Set,
+  SourceHom: Source -> Source -> \Set,
+  TargetHom: Target -> Target -> \Set,
+  F, G: Functors.FunctorMap[Source, Target, SourceHom, TargetHom],
+]: \Set := \forall (u: Source) -> TargetHom (F.object u) (G.object u);
+
+\definition NaturalityData[
+  Source, Target: \Set,
+  SourceHom: Source -> Source -> \Set,
+  TargetHom: Target -> Target -> \Set,
+  target: Cat.CategoryData[Target, TargetHom],
+  F, G: Functors.FunctorMap[Source, Target, SourceHom, TargetHom],
+] (a: FamilyData[Source, Target, SourceHom, TargetHom, F, G]): \Prop :=
+  \forall (u, v: Source) -> \forall (f: SourceHom u v) ->
+    target.compose (F.object u) (G.object u) (G.object v) (G.map u v f) (a u) =
+      target.compose (F.object u) (F.object v) (G.object v) (a v) (F.map u v f);
+
+\definition TransformationData[
+  Source, Target: \Set,
+  SourceHom: Source -> Source -> \Set,
+  TargetHom: Target -> Target -> \Set,
+  target: Cat.CategoryData[Target, TargetHom],
+  F, G: Functors.FunctorMap[Source, Target, SourceHom, TargetHom],
+]: \Set := \Cast[FamilyData[Source, Target, SourceHom, TargetHom, F, G]]
+  ({ a: FamilyData[Source, Target, SourceHom, TargetHom, F, G] \where
+    NaturalityData[Source, Target, SourceHom, TargetHom, target, F, G] a });
+
+\definition Family(C, D: Cat.Category) (F, G: Functors.Functor C D): \Set :=
+  FamilyData[C.Object, D.Object, C.Hom, D.Hom, F, G];
+
+\definition Naturality(C, D: Cat.Category) (F, G: Functors.Functor C D)
+  (a: Family C D F G): \Prop := NaturalityData[C.Object, D.Object, C.Hom, D.Hom, D.structure, F, G] a;
+
+\definition Transformation(C, D: Cat.Category) (F, G: Functors.Functor C D): \Set :=
+  TransformationData[C.Object, D.Object, C.Hom, D.Hom, D.structure, F, G];
+
+\definition natural(C, D: Cat.Category):
+  \forall (F, G: Functors.Functor C D) -> \forall (a: Transformation C D F G) ->
+  Naturality C D F G a :=
+  \fun (F, G: Functors.Functor C D) (a: Transformation C D F G) =>
+    \bysub(Family C D F G, { b: Family C D F G \where Naturality C D F G b }, a);
+
+\definition ext(C, D: Cat.Category):
+  \forall (F, G: Functors.Functor C D) -> \forall (a, b: Transformation C D F G) ->
+  (\forall (x: C.Object) -> a x = b x) -> a = b :=
+  \fun (F, G: Functors.Functor C D)
+    (a, b: Transformation C D F G) (pointwise: _) => \axiom:funext(a, b, pointwise);
+
+\module Operations;
+\module Whiskering;
+\module Isomorphism(C, D: Cat.Category);

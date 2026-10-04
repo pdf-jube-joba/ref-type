@@ -101,3 +101,68 @@ Directions::nil
 
 この形で基底を構成し、モジュールを実数の体に具体化してトレースを検査すると、座標空間の法則の検査で具体化済みの `Example[K := Real, field := realField].Unit` と元の `Example.Unit` が convertible と判定されない。
 線形代数の利用例では、添字型を体のパラメーターを持つモジュールの外で宣言している。
+
+
+## 圏の signature を添字に取る Set の構造
+
+対象の集合と射の集合族を持つ圏を、そのまま関手の構造の添字に使いたい。
+
+```text
+\structure Functor[C, D: Category]: \Set {
+  object: C.Object -> D.Object,
+  map: \forall (u, v: C.Object) -> C.Hom u v -> D.Hom (object u) (object v),
+}
+\definition identity(C: Category): Functor[C, C] := Functor[C, C] {
+  object := \fun (u: C.Object) => u,
+  map := \fun (u, v: C.Object) (f: C.Hom u v) => f,
+};
+```
+
+現在は、Set をフィールドに持つ signature 全体を Set の構造の添字にすると、フィールドのアクセスや sort の検査に失敗する。
+圏論ライブラリでは、対象の集合、射の集合族、演算のデータを別々の添字に持つ構造を用意し、`Functor C D` という contextual な定義でまとめている。
+
+## contextual な定義をモジュール引数に渡す
+
+証明内の型を推論させた関手の定義を、モジュール引数に直接渡したい。
+
+```text
+\import category.Kan[].Along[A := A, B := A, C := C,
+  K := Functors.identity A, F := F] \as Extension;
+```
+
+現在は contextual な定義の展開後に残る `_` が `module arguments do not allow inference holes` として拒否される。
+圏論ライブラリでは、先に `\definition identity: Functors.Functor A A := Functors.identity A;` を検査し、その名前をモジュール引数に渡している。
+
+
+## ブロックで導入した contextual な関手の射影
+
+関手を証明ブロックの中で導入し、その対象写像を使いたい。
+
+```text
+\definition component(C, D: Cat.Category):
+  \forall (F, G, H: Functors.Functor C D) -> \forall (u: C.Object) ->
+  D.Hom (F.object u) (H.object u) -> D.Hom (F.object u) (H.object u) := \block {
+    \fun (F, G, H: Functors.Functor C D) \then
+    \fun (u: C.Object) \then
+    \let Arrow: \Set := D.Hom (F.object u) (H.object u) \then
+    \fun (f: Arrow) \then
+    \return f
+  };
+```
+
+圏論の垂直合成の証明では、この形の `F.object` が `Module import 'F' was not found` になった。
+現在は関手を導入する lambda をブロックの外に置き、ブロック内では中間式と証明を定義している。
+
+## 集合値関手の内部で具体化した自然変換の型
+
+集合値関手のモジュール内で、表現可能関手からの自然変換の型を既存のモジュールから取得したい。
+
+```text
+\module Yoneda(P: Diagram, u: C.Object) {
+  \import category.SetValued[].On[C := C].Transformations[P := hom u, Q := P] \as Maps;
+  \definition evaluate(a: Maps.Transformation): P.Carrier u := a u (C.structure.identity u);
+}
+```
+
+関数の圏に具体化して `evaluateFromElement` を使うと、具体的な対象集合 `Unit` と、具体化前の `C.Object` が convertible と判定されなかった。
+現在の米田の全単射は、同じスコープ内で自然変換の部分集合型を定義している。

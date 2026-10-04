@@ -1,0 +1,101 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.eq_reason;
+
+\import category.Category[] \as Cat;
+
+\structure FunctorMap[
+  Source, Target: \Set,
+  SourceHom: Source -> Source -> \Set,
+  TargetHom: Target -> Target -> \Set,
+]: \Set {
+  object: Source -> Target,
+  map: \forall (u, v: Source) -> SourceHom u v -> TargetHom (object u) (object v),
+}
+
+\structure FunctorLaws[
+  Source, Target: \Set,
+  SourceHom: Source -> Source -> \Set,
+  TargetHom: Target -> Target -> \Set,
+  source: Cat.CategoryData[Source, SourceHom],
+  target: Cat.CategoryData[Target, TargetHom],
+  data: FunctorMap[Source, Target, SourceHom, TargetHom],
+]: \Prop {
+  mapIdentity: \forall (u: Source) -> data.map u u (source.identity u) = target.identity (data.object u),
+  mapCompose: \forall (u, v, w: Source) ->
+    \forall (g: SourceHom v w) -> \forall (f: SourceHom u v) ->
+    data.map u w (source.compose u v w g f) =
+      target.compose (data.object u) (data.object v) (data.object w) (data.map v w g) (data.map u v f),
+}
+
+\definition FunctorData[
+  Source, Target: \Set,
+  SourceHom: Source -> Source -> \Set,
+  TargetHom: Target -> Target -> \Set,
+  source: Cat.CategoryData[Source, SourceHom],
+  target: Cat.CategoryData[Target, TargetHom],
+]: \Set :=
+  \Cast[FunctorMap[Source, Target, SourceHom, TargetHom]]
+    ({ data: FunctorMap[Source, Target, SourceHom, TargetHom] \where
+      FunctorLaws[Source, Target, SourceHom, TargetHom, source, target, data] });
+
+\definition Functor(C, D: Cat.Category): \Set :=
+  FunctorData[C.Object, D.Object, C.Hom, D.Hom, C.structure, D.structure];
+
+\definition identity(C: Cat.Category): Functor C C := FunctorData[C.Object, C.Object, C.Hom, C.Hom, C.structure, C.structure] {
+  object := \fun (u: C.Object) => u,
+  map := \fun (u, v: C.Object) (f: _) => f,
+  mapIdentity := \fun (u: C.Object) => \refl(C.structure.identity u),
+  mapCompose := \fun (u, v, w: C.Object) (g: C.Hom v w) (f: C.Hom u v) => \refl(C.structure.compose u v w g f),
+};
+
+\definition composedMap(C, D, E: Cat.Category) (G: Functor D E) (F: Functor C D):
+  FunctorMap[C.Object, E.Object, C.Hom, E.Hom] := FunctorMap[C.Object, E.Object, C.Hom, E.Hom] {
+    object := \fun (u: C.Object) => G.object (F.object u),
+    map := \fun (u, v: C.Object) (f: _) => G.map (F.object u) (F.object v) (F.map u v f),
+  };
+
+\definition composedLaws(C, D, E: Cat.Category): \forall (G: Functor D E) -> \forall (F: Functor C D) ->
+  FunctorLaws[C.Object, E.Object, C.Hom, E.Hom, C.structure, E.structure, composedMap C D E G F] :=
+  \fun (G: Functor D E) (F: Functor C D) =>
+  FunctorLaws[C.Object, E.Object, C.Hom, E.Hom, C.structure, E.structure, composedMap C D E G F] {
+    mapIdentity := \fun (u: C.Object) => eq_reason!{
+      { G.map (F.object u) (F.object u) (F.map u u (C.structure.identity u)) }
+      "=" { G.map (F.object u) (F.object u) (D.structure.identity (F.object u)) }
+      "by" { congr!{{D.Hom (F.object u) (F.object u)} {E.Hom (G.object (F.object u)) (G.object (F.object u))}}
+        (G.map (F.object u) (F.object u)) _ _ (F.mapIdentity u) }
+      "=" { E.structure.identity (G.object (F.object u)) } "by" { G.mapIdentity (F.object u) }
+    },
+    mapCompose := \fun (u, v, w: C.Object) (g: C.Hom v w) (f: C.Hom u v) => eq_reason!{
+      { G.map (F.object u) (F.object w) (F.map u w (C.structure.compose u v w g f)) }
+      "=" { G.map (F.object u) (F.object w)
+        (D.structure.compose (F.object u) (F.object v) (F.object w) (F.map v w g) (F.map u v f)) }
+      "by" { congr!{{D.Hom (F.object u) (F.object w)} {E.Hom (G.object (F.object u)) (G.object (F.object w))}}
+        (G.map (F.object u) (F.object w)) _ _ (F.mapCompose u v w g f) }
+      "=" { E.structure.compose (G.object (F.object u)) (G.object (F.object v)) (G.object (F.object w))
+        (G.map (F.object v) (F.object w) (F.map v w g))
+        (G.map (F.object u) (F.object v) (F.map u v f)) }
+      "by" { G.mapCompose (F.object u) (F.object v) (F.object w) (F.map v w g) (F.map u v f) }
+    },
+  };
+
+\definition compose(C, D, E: Cat.Category) (G: Functor D E) (F: Functor C D): Functor C E :=
+  \into[FunctorMap[C.Object, E.Object, C.Hom, E.Hom]](composedMap C D E G F, Functor C E)
+    \by { composedLaws C D E G F };
+
+\definition opposite(C, D: Cat.Category) (F: Functor C D):
+  Functor (Cat.opposite C) (Cat.opposite D) := FunctorData[C.Object, D.Object, \fun (u, v: C.Object) => C.Hom v u, \fun (u, v: D.Object) => D.Hom v u, (Cat.opposite C).structure, (Cat.opposite D).structure] {
+    object := F.object,
+    map := \fun (u, v: C.Object) => F.map v u,
+    mapIdentity := F.mapIdentity,
+    mapCompose := \fun (u, v, w: C.Object) (g: C.Hom w v) (f: C.Hom v u) => F.mapCompose w v u f g,
+  };
+
+\definition constant(C, D: Cat.Category) (d: D.Object): Functor C D := FunctorData[C.Object, D.Object, C.Hom, D.Hom, C.structure, D.structure] {
+  object := \fun (u: C.Object) => d,
+  map := \fun (u, v: C.Object) (f: _) => D.structure.identity d,
+  mapIdentity := \fun (u: C.Object) => \refl(D.structure.identity d),
+  mapCompose := \fun (u, v, w: C.Object) (g: C.Hom v w) (f: C.Hom u v) =>
+    sym!{{D.Hom d d}} _ _ (D.laws.leftIdentity d d (D.structure.identity d)),
+};

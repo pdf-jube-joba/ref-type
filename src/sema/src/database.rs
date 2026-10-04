@@ -149,9 +149,13 @@ impl Database {
     ) -> Arc<SemanticResult> {
         self.stats = QueryStats::default();
         self.verification_statistics.clear();
+        let compact = std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1");
         let (modules, parse_diagnostics) = match self.load(snapshot) {
             Ok(modules) => modules,
-            Err(diagnostics) => {
+            Err(mut diagnostics) => {
+                if compact {
+                    diagnostics.truncate(1);
+                }
                 return Arc::new(SemanticResult {
                     modules: vec![],
                     diagnostics,
@@ -203,6 +207,13 @@ impl Database {
                 })
             })
             .collect();
+        if compact && !diagnostics.is_empty() {
+            diagnostics.truncate(1);
+            return Arc::new(SemanticResult {
+                modules: vec![],
+                diagnostics,
+            });
+        }
         let mut settings = format!(
             "{}\n{}\n{}",
             env!("REF_SEMA_REVISION"),
@@ -303,10 +314,12 @@ impl Database {
             collect_analysis(&workspace, &graph, &mut fresh);
             if let Err(error) = &checked {
                 diagnostics.push(diagnostic(error));
-                if let Some(&failed) = graph.indices.get(&resolved.as_ref().err().map_or_else(
-                    || workspace.active_module_path(),
-                    |error| error.module.clone(),
-                )) {
+                if !compact
+                    && let Some(&failed) = graph.indices.get(&resolved.as_ref().err().map_or_else(
+                        || workspace.active_module_path(),
+                        |error| error.module.clone(),
+                    ))
+                {
                     // Continue independent scopes in a fresh workspace after an error.
                     pending = selected
                         .iter()

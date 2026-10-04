@@ -1,6 +1,6 @@
 # 標準ライブラリ
 
-各パッケージの `src/root.ref` は公開モジュールの一覧、`tests/projects/library/src/root.ref` は利用例を兼ねたライブラリ全体の型検査である。
+各パッケージの `src/root.ref` は公開モジュールの一覧、`tests/projects/library/src/root.ref` と `tests/projects/category/src/root.ref` は利用例を兼ねたライブラリの型検査である。
 現在の処理系には任意の証明を通す `admit` / `sorry` はない。
 処理系が持つ組み込み公理は、必要な前提を検査する `\axiom:setext`、`\axiom:funext`、`\axiom:classicalIndefiniteChoice` の3つである。
 集合の外延性、対応宣言の関数の外延性、古典論理の選択に、それぞれの公理を使う。
@@ -21,6 +21,7 @@
 | 幾何 | `topology/src/root.ref` | 位相空間、実数値の距離空間と誘導位相 |
 | 微分 | `calculus/src/root.ref` | 実数関数の極限、一変数の微分、任意次元の偏微分・全微分、混合偏微分の交換可能性と滑らかさ |
 | 積分 | `integration/src/root.ref` | 有界閉区間のリーマン積分、\(L^1\) 完備化によるルベーグ積分、両積分の一致 |
+| 圏論 | `category/src/root.ref` | 圏、関手、自然変換、米田の補題、普遍射、極限・余極限、随伴、左右の Kan 拡張 |
 
 モジュールは関心ごとに階層を分け、定義は末端の `Def`、性質と証明は末端の `Prop` に置く。
 例えば `std/src/Data/Nat/Division.ref` の `\module Def;` の本体は `std/src/Data/Nat/Division/Def.ref` にある。
@@ -343,12 +344,14 @@ Cauchy 実数は有理数列を「差が零へ収束する」関係で割った�
 線形代数のライブラリは `linear_algebra` パッケージにあり、[定義と利用例](linear_algebra/README.md)を参照できる。
 微分のライブラリは `calculus` パッケージにあり、[定義と利用例](calculus/README.md)を参照できる。
 複素数のライブラリは `complex` パッケージにあり、[定義と利用例](complex/README.md)を参照できる。
+圏論のライブラリは `category` パッケージにあり、[定義と利用例](category/README.md)を参照できる。
 
 ```sh
 cargo run --quiet --bin cli -- libs/std
 cargo run --quiet --bin cli -- tests/projects/library
+cargo run --quiet --bin cli -- tests/projects/category
 cargo test --workspace
 ```
 
-最初の2つはライブラリ定義と公開 API の利用例を型検査する。
+最初の3つはライブラリ定義と公開 API の利用例を型検査する。
 最後のコマンドは、処理系の unit test、`.ref` の成功・失敗テスト、doc test をすべて実行する。

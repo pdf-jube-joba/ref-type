@@ -1,0 +1,34 @@
+\import category.Natural[].Operations[] \as Vertical;
+\import Cat.Isomorphism[C := D] \as Arrows;
+
+\structure Isomorphism[F, G: Functors.Functor C D]: \Set {
+  forward: Transformation C D F G,
+  backward: Transformation C D G F,
+  leftInverse: \forall (u: C.Object) ->
+    D.structure.compose (F.object u) (G.object u) (F.object u) (backward u) (forward u) = D.structure.identity (F.object u),
+  rightInverse: \forall (u: C.Object) ->
+    D.structure.compose (G.object u) (F.object u) (G.object u) (forward u) (backward u) = D.structure.identity (G.object u),
+}
+
+\definition component(F, G: Functors.Functor C D) (i: Isomorphism[F, G]) (u: C.Object):
+  Arrows.Isomorphism[F.object u, G.object u] := Arrows.Isomorphism[F.object u, G.object u] {
+    forward := i.forward u,
+    backward := i.backward u,
+    leftInverse := i.leftInverse u,
+    rightInverse := i.rightInverse u,
+  };
+
+\definition identity(F: Functors.Functor C D): Isomorphism[F, F] := Isomorphism[F, F] {
+  forward := Vertical.identity C D F,
+  backward := Vertical.identity C D F,
+  leftInverse := \fun (u: C.Object) => D.laws.leftIdentity (F.object u) (F.object u) (D.structure.identity (F.object u)),
+  rightInverse := \fun (u: C.Object) => D.laws.leftIdentity (F.object u) (F.object u) (D.structure.identity (F.object u)),
+};
+
+\definition inverse(F, G: Functors.Functor C D) (i: Isomorphism[F, G]): Isomorphism[G, F] :=
+  Isomorphism[G, F] {
+    forward := i.backward,
+    backward := i.forward,
+    leftInverse := i.rightInverse,
+    rightInverse := i.leftInverse,
+  };

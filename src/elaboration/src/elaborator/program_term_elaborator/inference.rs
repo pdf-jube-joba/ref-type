@@ -564,6 +564,7 @@ impl ProgramScope {
         }
     }
     fn goals(&self, environment: &GlobalEnvironment) -> Vec<MetaGoal> {
+        let compact = std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1");
         let arena = environment.crate_env.arena();
         let names = |id: MetaVarId| {
             self.metas.get(id.index()).map_or_else(
@@ -696,6 +697,7 @@ impl ProgramScope {
                     constraints: self
                         .constraints
                         .iter()
+                        .filter(|_| !compact)
                         .filter(|record| {
                             record
                                 .origins
@@ -709,6 +711,9 @@ impl ProgramScope {
             .collect()
     }
     fn solver_error(&self, environment: &GlobalEnvironment, message: String) -> ElaborationError {
+        if std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1") {
+            return ElaborationError::Message(message);
+        }
         let mut goals = self.goals(environment);
         let state = if self
             .constraints
