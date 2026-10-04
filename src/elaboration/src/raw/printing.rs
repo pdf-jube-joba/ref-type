@@ -22,8 +22,18 @@ pub fn format_sort(sort: &Sort) -> String {
     }
 }
 
+#[derive(Default)]
+struct RenderState {
+    depth: usize,
+    visited: usize,
+    omitted: usize,
+    shared: std::collections::HashMap<kernel::syntax::Expression, usize>,
+}
+
 pub struct Printer<'a> {
     env: &'a CrateEnv,
+    rendering: std::cell::RefCell<RenderState>,
+    bounded: bool,
     meta_name: Option<&'a dyn Fn(crate::raw::ids::MetaVarId) -> String>,
 }
 impl<'a> Printer<'a> {
@@ -33,15 +43,56 @@ impl<'a> Printer<'a> {
     ) -> Self {
         Self {
             env,
+            rendering: Default::default(),
             meta_name: Some(meta_name),
+            bounded: true,
         }
     }
     fn debug(env: &'a CrateEnv) -> Self {
         Self {
             env,
+            rendering: Default::default(),
             meta_name: None,
+            bounded: false,
         }
     }
+    fn bounded_expression(
+        &self,
+        expression: kernel::syntax::Expression,
+        render: impl FnOnce() -> String,
+    ) -> String {
+        if !self.bounded {
+            return render();
+        }
+        let mut state = self.rendering.borrow_mut();
+        let root = state.depth == 0;
+        if root {
+            *state = RenderState::default();
+        }
+        if state.depth >= 48 || state.visited >= 512 {
+            state.omitted += 1;
+            return "…".into();
+        }
+        if let Some(id) = state.shared.get(&expression) {
+            return format!("@expr{id}");
+        }
+        state.depth += 1;
+        state.visited += 1;
+        drop(state);
+        let mut text = crate::diagnostics::bounded(render(), crate::diagnostics::EXPRESSION_BYTES);
+        let mut state = self.rendering.borrow_mut();
+        state.depth -= 1;
+        if text.len() > 256 && !root {
+            let id = state.shared.len();
+            state.shared.insert(expression, id);
+            text = format!("(@expr{id} := {text})");
+        }
+        if root && state.omitted > 0 {
+            text.push_str(&format!(" ({} subexpressions omitted)", state.omitted));
+        }
+        crate::diagnostics::bounded(text, crate::diagnostics::EXPRESSION_BYTES)
+    }
+
     fn format_meta(&self, id: crate::raw::ids::MetaVarId, category: &str) -> String {
         self.meta_name
             .map_or_else(|| format!("?{category}{}", id.0), |name| name(id))
@@ -82,6 +133,10 @@ impl<'a> Printer<'a> {
     }
 
     pub fn format_exp(&self, exp: Exp) -> String {
+        self.bounded_expression(exp.0, || self.format_exp_inner(exp))
+    }
+
+    fn format_exp_inner(&self, exp: Exp) -> String {
         let env = self.env;
         let arena = env.arena();
         let child = |exp| self.format_exp(exp);
@@ -439,6 +494,10 @@ impl<'a> Printer<'a> {
     }
 
     pub fn format_value_type(&self, ty: ValueType) -> String {
+        self.bounded_expression(ty.0, || self.format_value_type_inner(ty))
+    }
+
+    fn format_value_type_inner(&self, ty: ValueType) -> String {
         let env = self.env;
         let arena = env.arena();
         match arena.get(ty) {
@@ -470,6 +529,10 @@ impl<'a> Printer<'a> {
     }
 
     pub fn format_computation_type(&self, ty: ComputationType) -> String {
+        self.bounded_expression(ty.0, || self.format_computation_type_inner(ty))
+    }
+
+    fn format_computation_type_inner(&self, ty: ComputationType) -> String {
         let env = self.env;
         match env.arena().get(ty) {
             ComputationTypeNode::Meta { metavariable, .. } => self.format_meta(metavariable, "ct"),
@@ -493,6 +556,10 @@ impl<'a> Printer<'a> {
     }
 
     pub fn format_value(&self, value: ValueTerm) -> String {
+        self.bounded_expression(value.0, || self.format_value_inner(value))
+    }
+
+    fn format_value_inner(&self, value: ValueTerm) -> String {
         let env = self.env;
         match env.arena().get(value) {
             ValueTermNode::Ascribe { term, ty } => format!(
@@ -568,6 +635,10 @@ impl<'a> Printer<'a> {
     }
 
     pub fn format_computation(&self, term: ComputationTerm) -> String {
+        self.bounded_expression(term.0, || self.format_computation_inner(term))
+    }
+
+    fn format_computation_inner(&self, term: ComputationTerm) -> String {
         let env = self.env;
         match env.arena().get(term) {
             ComputationTermNode::Ascribe { term, ty } => format!(

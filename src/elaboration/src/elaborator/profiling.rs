@@ -4,6 +4,7 @@ pub(super) struct ProfileTimer {
     label: String,
     started: Instant,
     checkpoint: Instant,
+    diagnostics: std::time::Duration,
 }
 
 impl ProfileTimer {
@@ -18,6 +19,7 @@ impl ProfileTimer {
             label,
             started,
             checkpoint: started,
+            diagnostics: crate::diagnostics::diagnostic_time(),
         })
     }
 
@@ -34,6 +36,12 @@ impl ProfileTimer {
 
 impl Drop for ProfileTimer {
     fn drop(&mut self) {
-        eprintln!("{:>10.3?}  {}", self.started.elapsed(), self.label);
+        eprintln!(
+            "{:>10.3?}  {} (excluding diagnostics)",
+            self.started.elapsed().saturating_sub(
+                crate::diagnostics::diagnostic_time().saturating_sub(self.diagnostics)
+            ),
+            self.label
+        );
     }
 }

@@ -50,6 +50,12 @@ impl Lowerer<'_> {
             return Ok(());
         }
         tracing::debug!(target:"ref_type::lowering",?id,"lower definition");
+        let _phase = std::env::var_os("REF_TYPE_PROFILE_PHASES").map(|_| {
+            crate::profiling::Phase::start(format!(
+                "lowering.definition:{}",
+                raw::printing::definition_name(self.raw, id)
+            ))
+        });
         let captures = self.captures(Declaration::Definition(id));
         let base = self.raw.definition_context(id.module).len();
         let depth = self.raw.definition_parameters(id).len();
@@ -295,6 +301,8 @@ impl Lowerer<'_> {
     }
 
     pub(crate) fn lower_all(&mut self) -> Result<(), String> {
+        let _phase = crate::profiling::Phase::start("lowering.all");
+        let parameters = crate::profiling::Phase::start("lowering.parameters");
         for id in self.raw.parameter_ids() {
             let captures = self.captures(Declaration::Parameter(id));
             self.in_scope(captures, 0, 0, |this| {
@@ -304,12 +312,18 @@ impl Lowerer<'_> {
                     .map_err(|error| super::diagnostics::format_error(this.raw, &error))
             })?;
         }
+        drop(parameters);
+        let inductives = crate::profiling::Phase::start("lowering.inductives");
         for id in self.raw.inductive_ids() {
             self.inductive(id)?
         }
+        drop(inductives);
+        let datatypes = crate::profiling::Phase::start("lowering.datatypes");
         for id in self.raw.datatype_ids() {
             self.datatype(id)?
         }
+        drop(datatypes);
+        let _definitions = crate::profiling::Phase::start("lowering.definitions");
         for id in self.raw.definition_ids() {
             self.definition(id)?
         }

@@ -36,10 +36,22 @@ module の特殊化と未解決の名前参照は elaboration が処理する。
 `Checker::statistics` はノード数・キャッシュ件数・module の具体化件数を返す。
 `Checker::kernel_environment` から kernel の検証済み環境を参照できる。
 `REF_TYPE_PROFILE_DECLARATIONS` は宣言ごとの処理時間を表示する。
-`REF_TYPE_COMPACT_DIAGNOSTICS=1` はエラー診断に付随する制約の再検査と一覧の生成を省略する。
+`--diagnostics compact` または `REF_TYPE_COMPACT_DIAGNOSTICS=1` は制約の探索と一覧の生成を省略する。
+`--diagnostics detailed` は詳細な制約表示を選び、CLI の指定は環境変数より優先する。
+エラー本体・ゴール・source location を先に保持し、選ばれたエラーの詳細は API の診断への変換時に生成する。
+制約の状態は検査と solver が記録し、診断では保存済みの状態を表示する。
+制約の探索は 2,048 回・式ノード 32,768 個、表示は一覧ごとに 32 件、ゴールは 64 件までとする。
+式は深さ 48・512 ノード・4 KiB、文脈は 128 項目・8 KiB、エラーメッセージは 64 KiB までとし、省略量を表示する。
+ソースの抜粋はエラー位置を含む 240 文字までとし、元の行番号と列番号を保つ。
+大きい共有式は `@expr0` などの参照を使って表示する。
 大きな証明の失敗を調べるときも、エラー本体と source location を表示できる。
-CLI のパッケージ検査では最初のエラーで停止し、独立したモジュールの後続検査も省略する。
-構文エラーがある場合は、型検査を始める前にそのエラーを返す。
+簡潔な診断を選んだ CLI のパッケージ検査では最初のエラーで停止し、独立したモジュールの後続検査も省略する。
+このモードで構文エラーがある場合は、型検査を始める前にそのエラーを返す。
+`REF_TYPE_PROFILE_DIAGNOSTICS=1` は診断の保存・ゴール生成・詳細生成・表示の時間と、プロセスの RSS および開始時との差を表示する。
+`REF_TYPE_PROFILE_DECLARATIONS` の宣言時間は診断生成時間を除く。
+`REF_TYPE_PROFILE_PHASES=1` は名前解決・検査・環境の保存と復元・kernel 登録などの経過時間と RSS を表示する。
+kernel 登録は定義名ごとにも計測し、表面構文の宣言検査とは別に確認できる。
+`REF_TYPE_PROFILE_MODULES=1` は読込・引数検査・具体化・失敗後の復旧を区別し、参照元・引数・環境の版・キャッシュの命中を記録する。
 `REF_TYPE_PROFILE_NAMESPACES` は import ごとの名前空間数・遅延宣言数・ID 対応表の件数を表示する。
 同じ import で作る名前空間と遅延宣言は、完成済みの ID 対応表を共有する。
 
@@ -47,6 +59,10 @@ CLI のパッケージ検査では最初のエラーで停止し、独立した�
 
 `Checker::check_range` は HIR の検査順に沿って処理を進め、指定した区切りで環境を直列化する。
 保存した checkpoint は、その batch の検証成功後に公開する。
+失敗前の検査済み prefix は問い合わせ内で保持し、独立したスコープの復旧に再利用する。
+復旧時も HIR の配置と環境キーを保ち、失敗したスコープとその依存元を後続検査から除く。
+問い合わせ内では名前解決に成功した HIR と checkpoint の計画を共有する。
+`QueryStats::recovery_environment_hits` は復旧用の環境再利用回数を表す。
 `Checker::restore_environment` は identity と checksum を確認したローカルの checkpoint を読み、raw と kernel が共有する arena を復元する。
 名前解決で得た binding・import と source text は、再開時の project から更新する。
 直列化と展開にはサイズ上限を設け、具体化の対応表は環境内の ID で共有する。

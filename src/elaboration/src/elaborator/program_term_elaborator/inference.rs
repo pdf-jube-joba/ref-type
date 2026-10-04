@@ -422,12 +422,15 @@ impl ProgramScope {
     ) -> Result<(), ElaborationError> {
         let result = self.core.finish(&environment.crate_env.kernel.borrow());
         self.sync(environment);
-        let goals = self.goals(environment);
+        let goals =
+            crate::diagnostics::with_diagnostic_mode(crate::DiagnosticMode::Compact, || {
+                self.goals(environment)
+            });
         match result {
             Ok(()) if goals.is_empty() => Ok(()),
-            Ok(()) => Err(ElaborationError::Metavariables(goals)),
+            Ok(()) => Err(self.defer_goals(goals)),
             Err(kernel::metavariables::Error::Unresolved { .. }) if !goals.is_empty() => {
-                Err(ElaborationError::Metavariables(goals))
+                Err(self.defer_goals(goals))
             }
             Err(e) => Err(self.solver_error(
                 environment,
@@ -560,11 +563,13 @@ impl ProgramScope {
                 self.zonk_term(environment, right),
             ),
             status: record.status,
-            origins: record.origins.clone(),
+            origins: record.origins.iter().take(32).copied().collect(),
+            omitted_origins: record.origins.len().saturating_sub(32),
         }
     }
-    fn goals(&self, environment: &GlobalEnvironment) -> Vec<MetaGoal> {
-        let compact = std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1");
+    pub(crate) fn goals(&self, environment: &GlobalEnvironment) -> Vec<MetaGoal> {
+        let _profile = crate::diagnostics::DiagnosticProfile::start("program-goals");
+        let compact = crate::diagnostics::compact();
         let arena = environment.crate_env.arena();
         let names = |id: MetaVarId| {
             self.metas.get(id.index()).map_or_else(
@@ -573,9 +578,27 @@ impl ProgramScope {
             )
         };
         let printer = Printer::new(&environment.crate_env, &names);
-        self.metas
+        let candidates: Vec<_> = self
+            .metas
             .iter()
             .enumerate()
+            .filter(|(index, meta)| {
+                if meta.flavor == MetaFlavor::Synthetic {
+                    self.core
+                        .entry(self.core_ids[*index])
+                        .is_ok_and(|entry| entry.assignment.is_none())
+                } else {
+                    meta.flavor == MetaFlavor::Goal
+                        || !meta.solution.is_some_and(|term| {
+                            metas(arena, self.zonk_term(environment, term)).is_empty()
+                        })
+                }
+            })
+            .collect();
+        let omitted = candidates.len().saturating_sub(crate::diagnostics::GOALS);
+        let mut goals: Vec<_> = candidates
+            .into_iter()
+            .take(crate::diagnostics::GOALS)
             .filter_map(|(index, meta)| {
                 if meta.flavor == MetaFlavor::Synthetic {
                     let entry = self.core.entry(self.core_ids[index]).ok()?;
@@ -595,14 +618,12 @@ impl ProgramScope {
                         flavor: meta.flavor,
                         span: meta.span,
                         occurrences: meta.occurrences.clone(),
-                        context: entry
-                            .context
-                            .iter()
-                            .map(|b| {
+                        context: crate::diagnostics::format_context(
+                            entry.context.len(),
+                            entry.context.iter().map(|b| {
                                 format!("{}: {}", environment.crate_env.symbol(b.var), format(b.ty))
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", "),
+                            }),
+                        ),
                         principal: entry
                             .expected
                             .map(|ty| format!("{} : {}", names(id), format(ty))),
@@ -610,6 +631,8 @@ impl ProgramScope {
                         state: MetaState::InsufficientInformation,
                         dependencies: vec![],
                         constraints: vec![],
+                        omitted_constraints: 0,
+                        omitted_goals: 0,
                     });
                 }
                 let id = MetaVarId(index as u32);
@@ -636,46 +659,80 @@ impl ProgramScope {
                 } else {
                     MetaState::Waiting
                 };
-                let local_context = meta
-                    .context
-                    .iter()
-                    .map(|entry| match entry {
-                        ProgramContextEntry::ValueType { var } => {
-                            format!("{}: \\VType", environment.crate_env.symbol(*var))
-                        }
-                        ProgramContextEntry::ValueTerm { var, ty } => format!(
-                            "{}: {}",
-                            environment.crate_env.symbol(*var),
-                            printer.format_value_type(self.zonk_value_type(environment, *ty))
-                        ),
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                let mut module_context = Vec::new();
+                let mut modules = Vec::new();
                 let mut module = Some(environment.module_manager.current());
                 while let Some(id) = module {
-                    let current = environment.crate_env.module(id);
-                    for parameter in current.parameters() {
-                        let name = environment.crate_env.symbol(parameter.name);
-                        let ty = match parameter.kind {
-                            crate::raw::environment::ModuleParameterKind::ProgramType => {
-                                "\\VType".to_string()
-                            }
-                            crate::raw::environment::ModuleParameterKind::ProgramValue { ty } => {
-                                printer.format_value_type(ty)
-                            }
-                            crate::raw::environment::ModuleParameterKind::Pts { ty } => {
-                                printer.format_exp(ty)
-                            }
-                        };
-                        module_context.push(format!("{name}: {ty}"));
-                    }
-                    module = current.parent();
+                    modules.push(id);
+                    module = environment.crate_env.module(id).parent();
                 }
-                if !local_context.is_empty() {
-                    module_context.push(local_context);
-                }
-                let context = module_context.join(", ");
+                let count = meta.context.len()
+                    + modules
+                        .iter()
+                        .map(|&id| environment.crate_env.module(id).parameters().len())
+                        .sum::<usize>();
+                let parameters = modules
+                    .iter()
+                    .flat_map(|&id| environment.crate_env.module(id).parameters());
+                let context = crate::diagnostics::format_context(
+                    count,
+                    parameters
+                        .map(|parameter| {
+                            let name = environment.crate_env.symbol(parameter.name);
+                            let ty = match parameter.kind {
+                                crate::raw::environment::ModuleParameterKind::ProgramType => {
+                                    "\\VType".to_string()
+                                }
+                                crate::raw::environment::ModuleParameterKind::ProgramValue {
+                                    ty,
+                                } => printer.format_value_type(ty),
+                                crate::raw::environment::ModuleParameterKind::Pts { ty } => {
+                                    printer.format_exp(ty)
+                                }
+                            };
+                            format!("{name}: {ty}")
+                        })
+                        .chain(meta.context.iter().map(|entry| match entry {
+                            ProgramContextEntry::ValueType { var } => {
+                                format!("{}: \\VType", environment.crate_env.symbol(*var))
+                            }
+                            ProgramContextEntry::ValueTerm { var, ty } => format!(
+                                "{}: {}",
+                                environment.crate_env.symbol(*var),
+                                printer.format_value_type(self.zonk_value_type(environment, *ty))
+                            ),
+                        })),
+                );
+                let related: Vec<_> = self
+                    .constraints
+                    .iter()
+                    .take(if compact {
+                        0
+                    } else {
+                        crate::diagnostics::SEARCH
+                    })
+                    .filter(|record| {
+                        record
+                            .origins
+                            .iter()
+                            .any(|span| meta.occurrences.contains(span))
+                    })
+                    .collect();
+                let omitted_constraints = if compact {
+                    0
+                } else {
+                    related
+                        .len()
+                        .saturating_sub(crate::diagnostics::CONSTRAINTS)
+                        + self
+                            .constraints
+                            .len()
+                            .saturating_sub(crate::diagnostics::SEARCH)
+                };
+                let constraints = related
+                    .into_iter()
+                    .take(crate::diagnostics::CONSTRAINTS)
+                    .map(|record| self.constraint_diagnostic(environment, record))
+                    .collect();
                 let expected =
                     expected.map(|term| print_term(&printer, term)).or_else(|| {
                         match meta.category {
@@ -694,24 +751,59 @@ impl ProgramScope {
                     solution: solution.map(|term| print_term(&printer, term)),
                     state,
                     dependencies,
-                    constraints: self
-                        .constraints
-                        .iter()
-                        .filter(|_| !compact)
-                        .filter(|record| {
-                            record
-                                .origins
-                                .iter()
-                                .any(|span| meta.occurrences.contains(span))
-                        })
-                        .map(|record| self.constraint_diagnostic(environment, record))
-                        .collect(),
+                    omitted_goals: 0,
+                    omitted_constraints,
+                    constraints,
                 })
             })
-            .collect()
+            .collect();
+        if let Some(goal) = goals.last_mut() {
+            goal.omitted_goals = omitted;
+        }
+        goals
+    }
+    fn defer_goals(&self, goals: Vec<MetaGoal>) -> ElaborationError {
+        let summary = ElaborationError::Metavariables(goals);
+        if crate::diagnostics::compact() {
+            return summary;
+        }
+        let _profile = crate::diagnostics::DiagnosticProfile::start("capture");
+        ElaborationError::Deferred {
+            summary: Box::new(summary),
+            details: std::rc::Rc::new(crate::metavariables::diagnostics::DeferredDetails::Program(
+                self.diagnostic_snapshot(),
+                None,
+            )),
+        }
     }
     fn solver_error(&self, environment: &GlobalEnvironment, message: String) -> ElaborationError {
-        if std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1") {
+        if crate::diagnostics::compact() {
+            return ElaborationError::Message(message);
+        }
+        let _profile = crate::diagnostics::DiagnosticProfile::start("capture");
+        let goals =
+            crate::diagnostics::with_diagnostic_mode(crate::DiagnosticMode::Compact, || {
+                self.goals(environment)
+            });
+        ElaborationError::Deferred {
+            summary: Box::new(ElaborationError::ConstraintFailure {
+                message: message.clone(),
+                constraints: vec![],
+                goals,
+                omitted_constraints: 0,
+            }),
+            details: std::rc::Rc::new(crate::metavariables::diagnostics::DeferredDetails::Program(
+                self.diagnostic_snapshot(),
+                Some(message),
+            )),
+        }
+    }
+    pub(crate) fn detailed_error(
+        &self,
+        environment: &GlobalEnvironment,
+        message: String,
+    ) -> ElaborationError {
+        if crate::diagnostics::compact() {
             return ElaborationError::Message(message);
         }
         let mut goals = self.goals(environment);
@@ -734,9 +826,14 @@ impl ProgramScope {
             constraints: self
                 .constraints
                 .iter()
+                .take(crate::diagnostics::CONSTRAINTS)
                 .map(|record| self.constraint_diagnostic(environment, record))
                 .collect(),
             goals,
+            omitted_constraints: self
+                .constraints
+                .len()
+                .saturating_sub(crate::diagnostics::CONSTRAINTS),
         }
     }
     pub(super) fn zonk_value_type(

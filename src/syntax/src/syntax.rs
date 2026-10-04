@@ -51,14 +51,39 @@ impl SourceLocation {
         while !text.is_char_boundary(end) {
             end -= 1;
         }
-        let width = text[start..end].chars().count().max(1);
-        format!(
-            "{}:{line}:{column}\n  |\n{line:>2} | {}\n  | {}{}",
+        let window_start = if text[line_start..line_end].chars().take(241).count() <= 240 {
+            line_start
+        } else {
+            text[line_start..start]
+                .char_indices()
+                .rev()
+                .nth(79)
+                .map_or(line_start, |(offset, _)| line_start + offset)
+        };
+        let window_end = text[window_start..line_end]
+            .char_indices()
+            .nth(240)
+            .map_or(line_end, |(offset, _)| window_start + offset);
+        let omitted = (window_start - line_start) + (line_end - window_end);
+        let prefix = if window_start > line_start {
+            "… "
+        } else {
+            ""
+        };
+        let suffix = if window_end < line_end { " …" } else { "" };
+        let indent = prefix.chars().count() + text[window_start..start].chars().count();
+        let width = text[start..end.min(window_end)].chars().count().max(1);
+        let mut result = format!(
+            "{}:{line}:{column}\n  |\n{line:>2} | {prefix}{}{suffix}\n  | {}{}",
             self.source.id.0.display(),
-            &text[line_start..line_end],
-            " ".repeat(column - 1),
+            &text[window_start..window_end],
+            " ".repeat(indent),
             "^".repeat(width)
-        )
+        );
+        if omitted > 0 {
+            result.push_str(&format!("\n  | … {omitted} source bytes omitted"));
+        }
+        result
     }
 }
 
@@ -1226,5 +1251,30 @@ impl LocalAccess {
         match self {
             Self::Current { span, .. } | Self::Named { span, .. } => *span,
         }
+    }
+}
+
+#[cfg(test)]
+mod source_location_tests {
+    use super::*;
+
+    #[test]
+    fn long_unicode_lines_keep_the_error_column_and_a_bounded_excerpt() {
+        let text = format!("{}?{}", "あ".repeat(20_000), "い".repeat(20_000));
+        let location = SourceLocation {
+            source: std::sync::Arc::new(SourceFile {
+                id: SourceId("long.ref".into()),
+                text,
+            }),
+            span: SourceSpan {
+                start: 60_000,
+                end: 120_001,
+            },
+        };
+        let rendered = location.render();
+        assert!(rendered.starts_with("long.ref:1:20001\n"));
+        assert!(rendered.contains('?') && rendered.contains('^'));
+        assert!(rendered.contains("source bytes omitted"));
+        assert!(rendered.len() < 2048);
     }
 }

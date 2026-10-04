@@ -50,6 +50,8 @@ pub struct Environment {
     pub(crate) conversions: RefCell<Cache<(Expression, Expression, bool), bool>>,
     #[serde(skip)]
     pub(crate) heads: RefCell<Cache<Expression, Expression>>,
+    #[serde(skip)]
+    shifted: RefCell<Cache<(Expression, usize), Expression>>,
 }
 impl Default for Environment {
     fn default() -> Self {
@@ -66,10 +68,21 @@ impl Default for Environment {
             inferred: RefCell::default(),
             conversions: RefCell::default(),
             heads: RefCell::default(),
+            shifted: RefCell::default(),
         }
     }
 }
 impl Environment {
+    /// Append-only declaration layout, usable as a version within this environment.
+    pub fn diagnostic_version(&self) -> (u64, usize, usize, usize, usize) {
+        (
+            self.identity,
+            self.definitions.len(),
+            self.inductives.len(),
+            self.datatypes.len(),
+            self.parameters.len(),
+        )
+    }
     pub fn new() -> Self {
         Self::default()
     }
@@ -98,12 +111,13 @@ impl Environment {
     pub fn datatype(&self, id: ProgramInductiveId) -> Option<&Datatype> {
         self.datatypes.get(&id)
     }
-    pub fn cache_counts(&self) -> [(&'static str, usize); 4] {
+    pub fn cache_counts(&self) -> [(&'static str, usize); 5] {
         [
             ("heads", self.heads.borrow().len()),
             ("inferred", self.inferred.borrow().len()),
             ("conversions", self.conversions.borrow().len()),
             ("context bindings", self.contexts.borrow().len()),
+            ("shifted types", self.shifted.borrow().len()),
         ]
     }
     pub fn declaration_node_count(&self) -> usize {
@@ -133,6 +147,18 @@ impl Environment {
     }
     pub fn parameter(&self, id: ParameterId) -> Option<Expression> {
         self.parameters.get(&id).copied()
+    }
+    pub(crate) fn shifted(&self, ty: Expression, offset: usize) -> Result<Expression, String> {
+        if self.arena.max_loose_bound(ty).is_none() {
+            return Ok(ty);
+        }
+        let key = (ty, offset);
+        if let Some(&result) = self.shifted.borrow().get(&key) {
+            return Ok(result);
+        }
+        let result = shift(&self.arena, ty, offset, 0)?;
+        self.shifted.borrow_mut().insert(key, result);
+        Ok(result)
     }
     pub fn register_parameter(
         &mut self,
@@ -391,6 +417,7 @@ impl Environment {
         self.heads.borrow_mut().begin_scratch();
         self.inferred.borrow_mut().begin_scratch();
         self.conversions.borrow_mut().begin_scratch();
+        self.shifted.borrow_mut().begin_scratch();
         let result = self.register_definition_inner(metas, definition);
         let mut roots = metas.roots();
         // Earlier declarations and context bindings predate the scratch arena mark.
@@ -398,7 +425,9 @@ impl Environment {
             roots.extend([definition.ty, definition.body]);
             roots.extend(definition.context.iter().map(|b| b.ty));
         }
-        roots.extend(self.contexts.borrow().bindings_since(contexts).copied());
+        // Contexts interned during registration are temporary inference keys.
+        // Discard them with their cache entries instead of retaining their entire DAGs.
+        self.contexts.borrow_mut().truncate(contexts);
         if let Err(crate::metavariables::Error::TypeMismatch(error)) = &result {
             roots.extend([error.term, error.inferred, error.expected]);
             roots.extend(error.context.iter().map(|b| b.ty));
@@ -409,17 +438,19 @@ impl Environment {
         });
         self.inferred
             .borrow_mut()
-            .finish_scratch(|(_, key), value| {
-                !removed || self.arena.is_live(*key) && self.arena.is_live(*value)
+            .finish_scratch(|(context, key), value| {
+                context.within(contexts)
+                    && (!removed || self.arena.is_live(*key) && self.arena.is_live(*value))
             });
         self.conversions
             .borrow_mut()
             .finish_scratch(|(left, right, _), _| {
                 !removed || self.arena.is_live(*left) && self.arena.is_live(*right)
             });
-        if removed {
-            metas.retain_caches(&self.arena);
-        }
+        self.shifted.borrow_mut().finish_scratch(|(ty, _), result| {
+            !removed || self.arena.is_live(*ty) && self.arena.is_live(*result)
+        });
+        metas.retain_caches(&self.arena, contexts);
         result
     }
     fn register_definition_inner(

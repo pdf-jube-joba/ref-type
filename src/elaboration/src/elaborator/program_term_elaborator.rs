@@ -81,6 +81,17 @@ impl Default for ProgramScope {
 }
 
 impl ProgramScope {
+    fn diagnostic_snapshot(&self) -> Self {
+        Self {
+            core: self.core.diagnostic_snapshot(),
+            core_ids: self.core_ids.clone(),
+            ids: self.ids.clone(),
+            metas: self.metas.clone(),
+            constraints: self.constraints.clone(),
+            ..Self::new()
+        }
+    }
+
     fn associated_arguments(
         &mut self,
         environment: &mut GlobalEnvironment,

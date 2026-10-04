@@ -30,8 +30,14 @@ impl Flavor for Buffer {
 }
 
 pub(crate) fn serialize(value: &impl Serialize) -> Result<Vec<u8>> {
-    let bytes: Vec<u8> = postcard::serialize_with_flavor(value, Buffer::default())?;
-    let compressed = miniz_oxide::deflate::compress_to_vec(&bytes, 1);
+    let bytes: Vec<u8> = {
+        let _phase = crate::profiling::Phase::start("environment.serialize");
+        postcard::serialize_with_flavor(value, Buffer::default())?
+    };
+    let compressed = {
+        let _phase = crate::profiling::Phase::start("environment.compress");
+        miniz_oxide::deflate::compress_to_vec(&bytes, 1)
+    };
     if compressed.len() > MAX_ENVIRONMENT_BYTES {
         return Err(Error::SerializeBufferFull);
     }

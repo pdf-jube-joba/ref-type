@@ -16,6 +16,8 @@ pub(super) fn format_error(raw: &CrateEnv, error: &CheckError) -> String {
         locals: vec![],
         remaining: 512,
         depth: 0,
+        shared: Default::default(),
+        omitted: 0,
     };
     let mut context = Vec::new();
     for binding in &error.context {
@@ -50,6 +52,8 @@ pub(crate) fn format_expression(
         locals: vec![],
         remaining: 512,
         depth: 0,
+        shared: Default::default(),
+        omitted: 0,
     };
     for binding in context {
         renderer.bind(binding.var);
@@ -68,6 +72,8 @@ struct Renderer<'a> {
     locals: Vec<Local>,
     remaining: usize,
     depth: usize,
+    shared: std::collections::HashMap<Expression, usize>,
+    omitted: usize,
 }
 
 // Larger precedence binds more tightly: binders, equality, application, atoms.
@@ -98,13 +104,31 @@ impl Renderer<'_> {
     }
 
     fn render(&mut self, e: Expression) -> Term {
-        if self.remaining == 0 || self.depth >= 64 {
+        if self.remaining == 0 || self.depth >= 48 {
+            self.omitted += 1;
             return Term::atom("…");
+        }
+        // A reference rendered outside binders retains its meaning at every use here.
+        let share = self.locals.is_empty();
+        if share && let Some(id) = self.shared.get(&e) {
+            return Term::atom(format!("@expr{id}"));
         }
         self.remaining -= 1;
         self.depth += 1;
-        let term = self.term(e);
+        let mut term = self.term(e);
         self.depth -= 1;
+        term.text = crate::diagnostics::bounded(term.text, crate::diagnostics::EXPRESSION_BYTES);
+        if share && self.depth > 0 && term.text.len() > 256 {
+            let id = self.shared.len();
+            self.shared.insert(e, id);
+            term = Term::atom(format!("(@expr{id} := {})", term.text));
+        }
+        if self.depth == 0 && self.omitted > 0 {
+            term.text
+                .push_str(&format!(" ({} subexpressions omitted)", self.omitted));
+            self.omitted = 0;
+        }
+        term.text = crate::diagnostics::bounded(term.text, crate::diagnostics::EXPRESSION_BYTES);
         term
     }
 

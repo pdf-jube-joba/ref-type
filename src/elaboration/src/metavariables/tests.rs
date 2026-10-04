@@ -220,6 +220,18 @@ fn later_solution_discharges_a_previously_blocked_equation() {
     });
     assert!(!store.unify(&env, non_pattern, set).unwrap());
     assert!(store.unify(&env, meta, set).unwrap());
+    let unrelated = store
+        .fresh(
+            &env,
+            SurfaceMeta::Implicit,
+            SourceSpan::default(),
+            &context,
+            1,
+        )
+        .unwrap();
+    assert!(store.finish(&env).is_err());
+    assert_eq!(store.constraints[0].status, ConstraintStatus::Discharged);
+    store.unify(&env, unrelated, set).unwrap();
     store.finish(&env).unwrap();
     assert!(
         store
@@ -237,4 +249,66 @@ fn solved_proof_hole_has_a_concrete_expected_type() {
     let principal = goal.principal.as_ref().unwrap();
     assert!(principal.contains('A'), "{error}");
     assert!(!principal.contains("<inferred"), "{error}");
+}
+
+#[test]
+fn shared_expressions_and_many_constraints_have_bounded_diagnostics() {
+    use super::*;
+    use crate::diagnostics::{DiagnosticMode, with_diagnostic_mode};
+    let environment = GlobalEnvironment::default();
+    let env = &environment.crate_env;
+    let mut store = MetaStore::default();
+    let meta = store
+        .fresh(
+            env,
+            SurfaceMeta::Goal,
+            SourceSpan { start: 12, end: 13 },
+            &vec![],
+            0,
+        )
+        .unwrap();
+    let mut shared = env.arena().sort(Sort::Prop);
+    // This DAG would have more than 2^48 leaves if expanded as a tree.
+    for _ in 0..48 {
+        shared = env.arena().alloc(ExpNode::Equal {
+            left: shared,
+            right: shared,
+        });
+    }
+    let principal = GoalConstraint::HasType {
+        term: meta,
+        expected: shared,
+    };
+    store.entries[0].principal = Some(principal.clone());
+    for _ in 0..5000 {
+        store.constrain(env, principal.clone());
+    }
+    let started = std::time::Instant::now();
+    let compact = with_diagnostic_mode(DiagnosticMode::Compact, || store.goal_error(env));
+    assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    let text = compact.to_string();
+    assert!(text.len() < 8192, "{} bytes", text.len());
+    assert!(
+        text.contains("goal:") && text.contains("context:") && text.contains("@expr"),
+        "{text}"
+    );
+    assert!(!text.contains("constraints:"));
+    let detailed = with_diagnostic_mode(DiagnosticMode::Detailed, || {
+        let deferred = store.goal_error(env);
+        assert!(matches!(deferred, ElaborationError::Deferred { .. }));
+        assert!(deferred.goals()[0].constraints.is_empty());
+        deferred.materialize(&environment)
+    });
+    assert_eq!(compact.goals()[0].span, detailed.goals()[0].span);
+    assert_eq!(compact.goals()[0].principal, detailed.goals()[0].principal);
+    assert_eq!(
+        detailed.goals()[0].constraints.len(),
+        crate::diagnostics::CONSTRAINTS
+    );
+    assert!(
+        detailed
+            .to_string()
+            .contains("constraints omitted or not searched")
+    );
+    assert!(detailed.to_string().len() < 512 * 1024);
 }

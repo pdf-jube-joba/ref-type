@@ -81,6 +81,7 @@ pub struct Diagnostic {
 }
 impl Diagnostic {
     pub fn render(&self, snapshot: &SourceSnapshot) -> String {
+        let _profile = elaboration::diagnostics::DiagnosticProfile::start("source");
         match &self.location {
             Some(location) => format!("{}\n{}", self.message, location.render(snapshot)),
             None => self.message.clone(),
@@ -183,6 +184,7 @@ pub struct QueryStats {
     pub disk_writes: usize,
     pub cache_write_failures: usize,
     pub environment_hits: usize,
+    pub recovery_environment_hits: usize,
     pub environment_writes: usize,
     pub restored_modules: usize,
     pub environment_bytes: usize,

@@ -99,6 +99,7 @@ pub struct Snapshot {
     session: u64,
     revision: u64,
     history_len: usize,
+    discharged_len: usize,
     entries: Vec<Option<Entry>>,
     constraints: Vec<Constraint>,
 }
@@ -107,6 +108,8 @@ pub struct MetaContext {
     session: u64,
     history: Vec<Constraint>,
     recorded: FxHashSet<Constraint>,
+    discharged: FxHashSet<Constraint>,
+    discharge_log: Vec<Constraint>,
     entries: Vec<Option<Entry>>,
     constraints: Vec<Constraint>,
     revision: u64,
@@ -120,6 +123,8 @@ impl Default for MetaContext {
             entries: Vec::new(),
             history: Vec::new(),
             recorded: FxHashSet::default(),
+            discharged: FxHashSet::default(),
+            discharge_log: Vec::new(),
             constraints: Vec::new(),
             revision: 0,
             zonked: Default::default(),
@@ -128,6 +133,15 @@ impl Default for MetaContext {
     }
 }
 impl MetaContext {
+    /// Retain solutions for diagnostic zonking without copying solver work or caches.
+    pub fn diagnostic_snapshot(&self) -> Self {
+        Self {
+            session: self.session,
+            entries: self.entries.clone(),
+            revision: self.revision,
+            ..Self::default()
+        }
+    }
     pub fn new() -> Self {
         Self::default()
     }
@@ -138,6 +152,14 @@ impl MetaContext {
     }
     pub fn history(&self) -> &[Constraint] {
         &self.history
+    }
+    pub fn is_discharged(&self, constraint: &Constraint) -> bool {
+        self.discharged.contains(constraint)
+    }
+    fn discharge(&mut self, constraint: Constraint) {
+        if self.discharged.insert(constraint.clone()) {
+            self.discharge_log.push(constraint);
+        }
     }
     fn record(&mut self, constraint: Constraint) {
         if self.recorded.insert(constraint.clone()) {
@@ -186,12 +208,13 @@ impl MetaContext {
         }
         roots
     }
-    pub(crate) fn retain_caches(&mut self, arena: &Arena) {
+    pub(crate) fn retain_caches(&mut self, arena: &Arena, contexts: usize) {
         self.zonked
             .get_mut()
             .retain(|key, value| arena.is_live(*key) && arena.is_live(*value));
-        self.inferred
-            .retain(|(_, key), value| arena.is_live(*key) && arena.is_live(*value));
+        self.inferred.retain(|(context, key), value| {
+            context.within(contexts) && arena.is_live(*key) && arena.is_live(*value)
+        });
     }
     pub fn entries(&self) -> impl Iterator<Item = (MetaId, &Entry)> {
         self.entries
@@ -309,6 +332,7 @@ impl MetaContext {
             session: self.session,
             revision: self.revision,
             history_len: self.history.len(),
+            discharged_len: self.discharge_log.len(),
             entries: self.entries.clone(),
             constraints: self.constraints.clone(),
         }
@@ -364,6 +388,9 @@ impl MetaContext {
         self.entries.resize_with(len, || None);
         self.constraints = snapshot.constraints;
         self.revision = snapshot.revision;
+        for constraint in self.discharge_log.drain(snapshot.discharged_len..) {
+            self.discharged.remove(&constraint);
+        }
         for constraint in self.history.drain(snapshot.history_len..) {
             self.recorded.remove(&constraint);
         }
@@ -970,6 +997,7 @@ impl MetaContext {
                         blocked.push(constraint);
                     } else {
                         waiting.remove(&constraint);
+                        self.discharge(constraint);
                     }
                     pending.append(&mut self.constraints);
                 }

@@ -20,6 +20,7 @@ impl EnvironmentPlan {
         graph: &ModuleGraph<'_>,
         settings: &Fingerprint,
     ) -> Self {
+        let _phase = elaboration::profiling::Phase::start("query.environment-plan");
         fn collect<'a>(
             module: &'a Module,
             parent: &[String],

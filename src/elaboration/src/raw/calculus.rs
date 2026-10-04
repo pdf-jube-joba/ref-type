@@ -369,6 +369,7 @@ fn conversion(env: &CrateEnv, left: Exp, right: Exp, erase: bool) -> bool {
         _ => false,
     }
 }
+#[allow(dead_code)] // Retained for kernel debugging and regression tests.
 pub fn erased_convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
     conversion(env, left, right, true)
 }

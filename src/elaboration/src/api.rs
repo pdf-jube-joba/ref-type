@@ -100,6 +100,9 @@ impl Checker {
     }
 
     fn diagnostic(&self, error: &ElaborationError) -> Diagnostic {
+        let _profile = crate::diagnostics::DiagnosticProfile::start("render");
+        let error = error.materialize(&self.workspace);
+        let error = &error;
         let (location, error) = match error {
             ElaborationError::Located { location, error } => {
                 (Some(location.clone()), error.as_ref())
@@ -135,9 +138,12 @@ impl Checker {
             })
             .collect();
         Diagnostic {
-            message: format!(
-                "Elaboration Error: {}",
-                metavariables::format_elaboration_error(env, error)
+            message: crate::diagnostics::bounded(
+                format!(
+                    "Elaboration Error: {}",
+                    metavariables::format_elaboration_error(env, error)
+                ),
+                crate::diagnostics::MESSAGE_BYTES,
             ),
             location,
             goals,
@@ -152,10 +158,15 @@ impl Checker {
         if bytes.len() > crate::MAX_ENVIRONMENT_BYTES {
             return None;
         }
+        let inflate = crate::profiling::Phase::start("environment.inflate");
         let bytes =
             miniz_oxide::inflate::decompress_to_vec_with_limit(bytes, crate::MAX_ENVIRONMENT_BYTES)
                 .ok()?;
+        drop(inflate);
+        let decode = crate::profiling::Phase::start("environment.deserialize");
         let mut workspace: GlobalEnvironment = postcard::from_bytes(&bytes).ok()?;
+        drop(decode);
+        let _phase = crate::profiling::Phase::start("environment.reconnect");
         workspace.crate_env.restore_shared_arena();
         Some(Self { workspace })
     }

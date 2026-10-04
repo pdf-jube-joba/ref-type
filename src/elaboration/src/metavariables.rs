@@ -1,10 +1,7 @@
 //! Source holes and diagnostics backed by the kernel's contextual solver.
 use crate::hir::{SourceSpan, SurfaceMeta};
 use crate::raw::{
-    calculus::{
-        base_carrier, erased_convertible, instantiate, instantiate_telescope, map_children,
-    },
-    derivation::CheckSession,
+    calculus::{base_carrier, instantiate, instantiate_telescope, map_children},
     environment::CrateEnv,
     exp::{Exp, ExpContext, ExpContextEntry, ExpNode},
     ids::{InductiveId, MetaVarId, ModuleId},
@@ -16,7 +13,7 @@ use kernel::{
     syntax::{MetaId, Node},
 };
 use std::collections::{HashMap, HashSet};
-mod diagnostics;
+pub(crate) mod diagnostics;
 #[cfg(test)]
 mod tests;
 pub use diagnostics::{
@@ -49,6 +46,18 @@ pub(crate) struct MetaStore {
     sources: HashMap<Exp, Vec<SourceSpan>>,
 }
 impl MetaStore {
+    fn diagnostic_snapshot(&self) -> Self {
+        Self {
+            core: self.core.diagnostic_snapshot(),
+            ids: self.ids.clone(),
+            core_ids: self.core_ids.clone(),
+            entries: self.entries.clone(),
+            constraints: self.constraints.clone(),
+            failure: self.failure,
+            ..Self::default()
+        }
+    }
+
     pub(crate) fn clear(&mut self) {
         *self = Self::default();
     }
@@ -104,6 +113,7 @@ impl MetaStore {
                 };
                 self.entries[source.index()].principal = Some(constraint.clone());
                 self.constraints.push(ConstraintRecord {
+                    core: None,
                     original: constraint,
                     status: ConstraintStatus::Residual,
                     origins: self.entries[source.index()].occurrences.clone(),
@@ -113,6 +123,7 @@ impl MetaStore {
         let history = self.core.history()[self.reported..].to_vec();
         self.reported = self.core.history().len();
         for constraint in history {
+            let retained = constraint.clone();
             let goal = match constraint {
                 Constraint::Equal { left, right, .. } => GoalConstraint::Equal {
                     left: Exp(left),
@@ -131,6 +142,7 @@ impl MetaStore {
                 _ => continue,
             };
             self.constrain(env, goal);
+            self.constraints.last_mut().unwrap().core = Some(retained);
         }
     }
     pub(crate) fn fresh(
@@ -246,19 +258,28 @@ impl MetaStore {
         self.current_context = context.clone();
         let constraint = GoalConstraint::HasType { term, expected };
         self.set_principal_for_meta(env, term, &constraint);
+        let index = self.constraints.len();
         self.constrain(env, constraint);
         let result = crate::kernel_bridge::logical(
             env,
             context,
             &[term, expected],
             |env, context, terms| {
-                self.core
-                    .check(env, context, terms[0], terms[1])
-                    .map(|_| ())
+                self.constraints[index].core = Some(Constraint::HasType {
+                    context: context.clone(),
+                    term: terms[0],
+                    expected: terms[1],
+                });
+                self.core.check(env, context, terms[0], terms[1])
             },
         );
         self.sync(env);
-        result
+        self.constraints[index].status = match result {
+            Ok(Outcome::Solved) => ConstraintStatus::Discharged,
+            Ok(Outcome::Blocked) => ConstraintStatus::Blocked,
+            Err(_) => ConstraintStatus::Failed,
+        };
+        result.map(|_| ())
     }
     pub(crate) fn infer_pts(
         &mut self,
@@ -311,7 +332,14 @@ impl MetaStore {
             env,
             &self.current_context,
             &[left, right],
-            |env, context, terms| self.core.unify(env, &context, terms[0], terms[1]),
+            |env, context, terms| {
+                self.constraints[index].core = Some(Constraint::Equal {
+                    context: context.clone(),
+                    left: terms[0],
+                    right: terms[1],
+                });
+                self.core.unify(env, &context, terms[0], terms[1])
+            },
         )
         .map(|o| o == Outcome::Solved);
         self.constraints[index].status = match result {
@@ -359,29 +387,83 @@ impl MetaStore {
         let result = self.core.finish(&env.kernel.borrow());
         self.sync(env);
         for record in &mut self.constraints {
-            if result.is_ok() {
+            if result.is_ok()
+                || record
+                    .core
+                    .as_ref()
+                    .is_some_and(|constraint| self.core.is_discharged(constraint))
+            {
                 record.status = ConstraintStatus::Discharged;
             }
         }
         match result {
-            Err(kernel::metavariables::Error::Unresolved { .. }) => {
-                Err(ElaborationError::Metavariables(self.goals(env)))
-            }
+            Err(kernel::metavariables::Error::Unresolved { .. }) => Err(self.goal_error(env)),
             Err(error) => {
                 Err(self.constraint_error(env, crate::lowering::format_kernel_error(env, &error)))
             }
             Ok(()) => {
-                let goals = self.goals(env);
+                let goals = crate::diagnostics::with_diagnostic_mode(
+                    crate::DiagnosticMode::Compact,
+                    || self.goals(env),
+                );
                 if goals.is_empty() {
                     Ok(())
                 } else {
-                    Err(ElaborationError::Metavariables(goals))
+                    Err(self.defer_goals(goals))
                 }
             }
         }
     }
+    fn goal_error(&self, env: &CrateEnv) -> ElaborationError {
+        let goals =
+            crate::diagnostics::with_diagnostic_mode(crate::DiagnosticMode::Compact, || {
+                self.goals(env)
+            });
+        self.defer_goals(goals)
+    }
+    fn defer_goals(&self, goals: Vec<MetaGoal>) -> ElaborationError {
+        let summary = ElaborationError::Metavariables(goals);
+        if crate::diagnostics::compact() {
+            return summary;
+        }
+        let _profile = crate::diagnostics::DiagnosticProfile::start("capture");
+        ElaborationError::Deferred {
+            summary: Box::new(summary),
+            details: std::rc::Rc::new(diagnostics::DeferredDetails::Logical(
+                self.diagnostic_snapshot(),
+                None,
+            )),
+        }
+    }
     pub(crate) fn constraint_error(&self, env: &CrateEnv, message: String) -> ElaborationError {
-        if std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1") {
+        if crate::diagnostics::compact() {
+            return ElaborationError::Message(message);
+        }
+        let _profile = crate::diagnostics::DiagnosticProfile::start("capture");
+        let mut goals =
+            crate::diagnostics::with_diagnostic_mode(crate::DiagnosticMode::Compact, || {
+                self.goals(env)
+            });
+        for goal in &mut goals {
+            if goal.state != MetaState::Solved {
+                goal.state = self.failure.unwrap_or(MetaState::Contradiction);
+            }
+        }
+        ElaborationError::Deferred {
+            summary: Box::new(ElaborationError::ConstraintFailure {
+                message: message.clone(),
+                constraints: vec![],
+                goals,
+                omitted_constraints: 0,
+            }),
+            details: std::rc::Rc::new(diagnostics::DeferredDetails::Logical(
+                self.diagnostic_snapshot(),
+                Some(message),
+            )),
+        }
+    }
+    pub(crate) fn detailed_error(&self, env: &CrateEnv, message: String) -> ElaborationError {
+        if crate::diagnostics::compact() {
             return ElaborationError::Message(message);
         }
         let state = self.failure.unwrap_or(MetaState::Contradiction);
@@ -396,9 +478,14 @@ impl MetaStore {
             constraints: self
                 .constraints
                 .iter()
+                .take(crate::diagnostics::CONSTRAINTS)
                 .map(|record| self.constraint_diagnostic(env, record))
                 .collect(),
             goals,
+            omitted_constraints: self
+                .constraints
+                .len()
+                .saturating_sub(crate::diagnostics::CONSTRAINTS),
         }
     }
     pub(crate) fn record_source(&mut self, env: &CrateEnv, term: Exp, span: SourceSpan) {
@@ -419,6 +506,7 @@ impl MetaStore {
         origins.sort_by_key(|span| (span.start, span.end));
         origins.dedup();
         self.constraints.push(ConstraintRecord {
+            core: None,
             origins,
             original: constraint,
             status: ConstraintStatus::Residual,
@@ -490,8 +578,10 @@ impl MetaStore {
             .assignment
             .is_some_and(|value| !self.contains_unsolved(env, value))
     }
-    fn goals(&self, env: &CrateEnv) -> Vec<MetaGoal> {
+    pub(crate) fn goals(&self, env: &CrateEnv) -> Vec<MetaGoal> {
+        let _profile = crate::diagnostics::DiagnosticProfile::start("logical-goals");
         let mut attached = HashSet::new();
+        let mut seen = HashSet::new();
         for entry in &self.entries {
             if entry.flavor != MetaFlavor::Synthetic {
                 let roots = entry
@@ -501,7 +591,6 @@ impl MetaStore {
                     .chain(entry.context.iter().map(|b| b.ty))
                     .map(|e| e.0);
                 let mut pending = roots.collect::<Vec<_>>();
-                let mut seen = HashSet::new();
                 while let Some(e) = pending.pop() {
                     if !seen.insert(e) {
                         continue;
@@ -519,7 +608,8 @@ impl MetaStore {
                 }
             }
         }
-        self.entries
+        let candidates: Vec<_> = self
+            .entries
             .iter()
             .enumerate()
             .filter_map(|(index, entry)| {
@@ -527,9 +617,19 @@ impl MetaStore {
                 (entry.flavor == MetaFlavor::Goal
                     || (!self.solved(env, id)
                         && (entry.flavor != MetaFlavor::Synthetic || !attached.contains(&id))))
-                .then(|| self.goal_for(env, id))
+                .then_some(id)
             })
-            .collect()
+            .collect();
+        let omitted = candidates.len().saturating_sub(crate::diagnostics::GOALS);
+        let mut goals: Vec<_> = candidates
+            .into_iter()
+            .take(crate::diagnostics::GOALS)
+            .map(|id| self.goal_for(env, id))
+            .collect();
+        if let Some(goal) = goals.last_mut() {
+            goal.omitted_goals = omitted;
+        }
+        goals
     }
     fn constraint_diagnostic(
         &self,
@@ -539,82 +639,84 @@ impl MetaStore {
         let names = |id: MetaVarId| self.entries[id.index()].flavor.display_name(id);
         let printer = crate::raw::printing::Printer::new(env, &names);
         let normalized = self.zonk_constraint(env, &record.original);
-        let mut context = match &record.original {
-            GoalConstraint::HasType { term, .. } | GoalConstraint::IsSort { term } => {
-                match env.arena().get(*term) {
-                    ExpNode::Meta { metavariable, .. } => {
-                        self.entries[metavariable.index()].context.clone()
-                    }
-                    _ => Vec::new(),
-                }
-            }
-            _ => Vec::new(),
-        };
-        for binding in &mut context {
-            binding.ty = self.zonk(env, binding.ty);
-        }
-        let status = match &normalized {
-            GoalConstraint::Equal { left, right } if erased_convertible(env, *left, *right) => {
-                ConstraintStatus::Discharged
-            }
-            GoalConstraint::HasType { term, expected }
-                if !self.contains_unsolved(env, *term)
-                    && !self.contains_unsolved(env, *expected)
-                    && CheckSession::new(env, &mut context)
-                        .check_pts(*term, *expected)
-                        .is_ok() =>
-            {
-                ConstraintStatus::Discharged
-            }
-            GoalConstraint::IsSort { term }
-                if !self.contains_unsolved(env, *term)
-                    && CheckSession::new(env, &mut context)
-                        .infer_sort(*term)
-                        .is_ok() =>
-            {
-                ConstraintStatus::Discharged
-            }
-            _ => record.status,
-        };
         ConstraintDiagnostic {
             original: format_constraint(&printer, &record.original),
             normalized: format_constraint(&printer, &normalized),
-            status,
-            origins: record.origins.clone(),
+            status: record.status,
+            origins: record.origins.iter().take(32).copied().collect(),
+            omitted_origins: record.origins.len().saturating_sub(32),
         }
     }
     fn goal_for(&self, env: &CrateEnv, id: MetaVarId) -> MetaGoal {
         let entry = &self.entries[id.index()];
-        let compact = std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1");
+        let compact = crate::diagnostics::compact();
         let mut related = HashSet::from([id]);
+        let mut selected = std::collections::BTreeSet::new();
+        let mut examined = 0;
+        let mut remaining_nodes = crate::diagnostics::SEARCH * 16;
         if !compact {
             loop {
-                let before = related.len();
-                for record in &self.constraints {
-                    let metas = metas_in_constraint(env, &record.original);
-                    if metas.iter().any(|meta| related.contains(meta)) {
+                let before = selected.len();
+                for (index, record) in self.constraints.iter().enumerate() {
+                    if examined >= crate::diagnostics::SEARCH || remaining_nodes == 0 {
+                        break;
+                    }
+                    examined += 1;
+                    let mut metas = HashSet::new();
+                    let mut pending = constraint_expressions(&record.original);
+                    let mut seen = HashSet::new();
+                    while let Some(exp) = pending.pop() {
+                        if !seen.insert(exp) {
+                            continue;
+                        }
+                        if remaining_nodes == 0 {
+                            break;
+                        }
+                        remaining_nodes -= 1;
+                        match env.arena().get(exp) {
+                            ExpNode::Meta {
+                                metavariable,
+                                spine,
+                            } => {
+                                metas.insert(metavariable);
+                                pending.extend(spine);
+                            }
+                            node => pending.extend(node_children(node)),
+                        }
+                    }
+                    if metas.iter().any(|meta| related.contains(meta))
+                        || record
+                            .origins
+                            .iter()
+                            .any(|span| entry.occurrences.contains(span))
+                    {
                         related.extend(metas);
+                        selected.insert(index);
                     }
                 }
-                if related.len() == before {
+                if selected.len() == before
+                    || examined >= crate::diagnostics::SEARCH
+                    || remaining_nodes == 0
+                {
                     break;
                 }
             }
         }
-        let constraints = self
-            .constraints
-            .iter()
-            .filter(|_| !compact)
-            .filter(|record| {
-                metas_in_constraint(env, &record.original)
-                    .iter()
-                    .any(|meta| related.contains(meta))
-                    || record
-                        .origins
-                        .iter()
-                        .any(|span| entry.occurrences.contains(span))
-            })
-            .map(|record| self.constraint_diagnostic(env, record))
+        let omitted_constraints = if compact {
+            0
+        } else if examined >= crate::diagnostics::SEARCH || remaining_nodes == 0 {
+            self.constraints
+                .len()
+                .saturating_sub(selected.len().min(crate::diagnostics::CONSTRAINTS))
+        } else {
+            selected
+                .len()
+                .saturating_sub(crate::diagnostics::CONSTRAINTS)
+        };
+        let constraints = selected
+            .into_iter()
+            .take(crate::diagnostics::CONSTRAINTS)
+            .map(|index| self.constraint_diagnostic(env, &self.constraints[index]))
             .collect();
         // Dependencies are unresolved metas in this goal's type or assignment,
         // rather than every meta which ever shared a constraint.
@@ -646,6 +748,7 @@ impl MetaStore {
         let context = entry
             .context
             .iter()
+            .take(128)
             .map(|binding| crate::raw::exp::ExpContextEntry {
                 var: binding.var,
                 ty: self.zonk(env, binding.ty),
@@ -668,13 +771,24 @@ impl MetaStore {
             flavor: entry.flavor,
             span: entry.span,
             occurrences: entry.occurrences.clone(),
-            context: printer.format_ctx(&context),
+            context: {
+                let mut text = printer.format_ctx(&context);
+                if entry.context.len() > 128 {
+                    text.push_str(&format!(
+                        "; … {} context entries omitted",
+                        entry.context.len() - 128
+                    ));
+                }
+                crate::diagnostics::bounded(text, 8192)
+            },
             principal,
             solution: entry
                 .assignment
                 .map(|value| printer.format_exp(self.zonk(env, value))),
             state,
             constraints,
+            omitted_constraints,
+            omitted_goals: 0,
             dependencies,
         }
     }
@@ -713,9 +827,12 @@ fn metas_in_constraint(env: &CrateEnv, constraint: &GoalConstraint) -> HashSet<M
 }
 
 fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
-    fn collect(env: &CrateEnv, exp: Exp, result: &mut HashSet<MetaVarId>, seen: &mut HashSet<Exp>) {
+    let mut result = HashSet::new();
+    let mut seen = HashSet::new();
+    let mut pending = vec![exp];
+    while let Some(exp) = pending.pop() {
         if !seen.insert(exp) {
-            return;
+            continue;
         }
         match env.arena().get(exp) {
             ExpNode::Meta {
@@ -723,19 +840,11 @@ fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
                 spine,
             } => {
                 result.insert(metavariable);
-                for child in spine {
-                    collect(env, child, result, seen);
-                }
+                pending.extend(spine);
             }
-            node => {
-                for child in node_children(node) {
-                    collect(env, child, result, seen);
-                }
-            }
+            node => pending.extend(node_children(node)),
         }
     }
-    let mut result = HashSet::new();
-    collect(env, exp, &mut result, &mut HashSet::new());
     result
 }
 

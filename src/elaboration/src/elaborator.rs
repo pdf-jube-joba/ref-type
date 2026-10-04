@@ -550,6 +550,7 @@ impl GlobalEnvironment {
         })?;
         self.source_modules = source;
         self.add_project(&project)
+            .map_err(|error| error.materialize(self))
     }
 
     pub(crate) fn add_project(

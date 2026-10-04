@@ -432,8 +432,8 @@ fn compact_diagnostics_preserve_errors_and_goal_context() {
             };
             assert!(compact.contains(expected), "missing {expected}: {compact}");
         } else {
-            assert!(normal.contains("[Residual]"), "{normal}");
-            assert!(!compact.contains("[Residual]"), "{compact}");
+            assert!(normal.contains("[Failed]"), "{normal}");
+            assert!(!compact.contains("[Failed]"), "{compact}");
             assert!(compact.contains("Child.ref:1:1"), "{compact}");
             // The first error line must retain the original failure message.
             let error = compact
@@ -733,4 +733,77 @@ fn separate_processes_restore_dependency_environments_after_an_edit() {
     assert!(clean.status.success(), "{}", output_details(&clean));
     assert_eq!(changed.stdout, clean.stdout);
     assert!(String::from_utf8_lossy(&clean.stderr).contains("environment_bytes: 0"));
+}
+
+#[test]
+fn diagnostic_cli_options_override_the_environment() {
+    let workspace = workspace_root();
+    let path = workspace.join("tests/ng/metavariables/contextual_unsolved_goal.ref");
+    for (mode, environment, detailed) in [("compact", "0", false), ("detailed", "1", true)] {
+        let result = run_ref_file_with_environment(
+            &workspace,
+            &path,
+            &["--no-cache", "--diagnostics", mode],
+            PROCESS_TIMEOUT,
+            &[
+                ("REF_TYPE_COMPACT_DIAGNOSTICS", environment),
+                ("REF_TYPE_PROFILE_DIAGNOSTICS", "1"),
+            ],
+        )
+        .unwrap();
+        assert_eq!(result.status.code(), Some(1));
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        assert_eq!(stderr.contains("constraints:"), detailed, "{stderr}");
+        for expected in ["context:", "goal:", "diagnostics phase=", "rss_delta_kib="] {
+            assert!(stderr.contains(expected), "{stderr}");
+        }
+    }
+}
+
+#[test]
+fn parent_and_external_references_share_checked_child_declarations() {
+    let fixture = FixtureDirectory::new();
+    let path = fixture.write(
+        "root.ref",
+        r"
+\module Parent {
+  \module Child { \definition marker: \Prop := \forall (P: \Prop) -> P -> P; }
+  \import \root.Parent[].Child[] \as Local;
+  \infer Local.marker;
+}
+\module Other {
+  \import \root.Parent[].Child[] \as External;
+  \infer External.marker;
+}",
+    );
+    let result = run_ref_file_with_environment(
+        &fixture.0,
+        &path,
+        &["--no-cache"],
+        PROCESS_TIMEOUT,
+        &[
+            ("REF_TYPE_PROFILE_MODULES", "1"),
+            ("REF_TYPE_PROFILE_DECLARATIONS", "1"),
+        ],
+    )
+    .unwrap();
+    assert!(result.status.success(), "{}", output_details(&result));
+    let log = String::from_utf8_lossy(&result.stderr);
+    assert_eq!(
+        log.matches("definition marker (excluding diagnostics)")
+            .count(),
+        1,
+        "{log}"
+    );
+    assert!(
+        log.contains("phase=specialization-cache") && log.contains("misses=0"),
+        "{log}"
+    );
+    assert!(
+        log.contains("phase=load") && log.contains("environment="),
+        "{log}"
+    );
+    let output = String::from_utf8_lossy(&result.stdout);
+    let lines: Vec<_> = output.lines().collect();
+    assert_eq!(lines.len(), 2, "{output}");
 }

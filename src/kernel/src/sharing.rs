@@ -64,6 +64,12 @@ impl<K: Copy + Eq + Hash, V> Cache<K, V> {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ContextId(u32);
 
+impl ContextId {
+    pub(crate) fn within(self, bindings: usize) -> bool {
+        self.0 as usize <= bindings
+    }
+}
+
 #[derive(Debug)]
 pub struct ContextInterner<T> {
     extensions: FxHashMap<(ContextId, T), ContextId>,
@@ -106,8 +112,10 @@ impl<T: Clone + Eq + Hash> ContextInterner<T> {
         self.bindings.len()
     }
 
-    pub(crate) fn bindings_since(&self, mark: usize) -> impl Iterator<Item = &T> {
-        self.bindings[mark..].iter().map(|(_, binding)| binding)
+    pub(crate) fn truncate(&mut self, mark: usize) {
+        for binding in self.bindings.drain(mark..) {
+            self.extensions.remove(&binding);
+        }
     }
 
     pub fn is_empty(&self) -> bool {

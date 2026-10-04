@@ -831,3 +831,99 @@ fn user_body_edits_reuse_imports_scheduled_after_its_parameters() {
     assert_eq!(database.stats().checked_modules, 1);
     assert_eq!(database.stats().restored_modules, 1);
 }
+
+#[test]
+fn diagnostic_mode_is_part_of_the_query_identity() {
+    use sema::{CheckOptions, DiagnosticMode};
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert(
+        "/virtual/root.ref",
+        r"\module M(A: \Set) { \definition pending: A := ?; }",
+    );
+    let mut database = Database::new();
+    let compact = database.check_with_options(
+        &snapshot,
+        &CheckOptions {
+            diagnostics: DiagnosticMode::Compact,
+            ..Default::default()
+        },
+    );
+    let detailed = database.check_with_options(
+        &snapshot,
+        &CheckOptions {
+            diagnostics: DiagnosticMode::Detailed,
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        compact.diagnostics[0].location,
+        detailed.diagnostics[0].location
+    );
+    assert!(!compact.diagnostics[0].message.contains("constraints:"));
+    assert!(detailed.diagnostics[0].message.contains("constraints:"));
+    let cached = database.check_with_options(
+        &snapshot,
+        &CheckOptions {
+            diagnostics: DiagnosticMode::Compact,
+            ..Default::default()
+        },
+    );
+    assert_eq!(compact, cached);
+}
+
+#[test]
+fn recovery_reuses_verified_dependencies_without_retrying_failed_modules() {
+    use sema::{CheckOptions, DiagnosticMode};
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert(
+        "/virtual/root.ref",
+        "\\module Base; \\module First; \\module Second;",
+    );
+    snapshot.insert(
+        "/virtual/Base.ref",
+        r"\definition P: \Prop := \forall (X: \Prop) -> X -> X;",
+    );
+    for name in ["First", "Second"] {
+        snapshot.insert(
+            format!("/virtual/{name}.ref"),
+            r"\import \root.Base[] \as B; \definition bad: B.P := \Set;",
+        );
+    }
+    let mut database = Database::new();
+    let detailed = database.check_with_options(
+        &snapshot,
+        &CheckOptions {
+            force: true,
+            diagnostics: DiagnosticMode::Detailed,
+            ..Default::default()
+        },
+    );
+    assert_eq!(detailed.diagnostics.len(), 2, "{detailed:?}");
+    assert!(
+        database.stats().recovery_environment_hits >= 1,
+        "{:?}",
+        database.stats()
+    );
+    assert!(
+        database.stats().restored_modules >= 1,
+        "{:?}",
+        database.stats()
+    );
+    let compact = Database::new().check_with_options(
+        &snapshot,
+        &CheckOptions {
+            force: true,
+            diagnostics: DiagnosticMode::Compact,
+            ..Default::default()
+        },
+    );
+    assert_eq!(compact.diagnostics.len(), 1);
+    assert_eq!(
+        compact.diagnostics[0].location,
+        detailed.diagnostics[0].location
+    );
+    assert_eq!(
+        compact.diagnostics[0].message.lines().next(),
+        detailed.diagnostics[0].message.lines().next()
+    );
+}

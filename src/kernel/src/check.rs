@@ -9,9 +9,11 @@ use crate::{
 };
 
 pub struct Checker<'a> {
-    pub env: &'a Environment,
+    env: &'a Environment,
     pub metas: &'a mut MetaContext,
-    pub context: Context,
+    context: Context,
+    // The interned telescope and meta presence are extended once per binder.
+    context_states: Vec<(crate::sharing::ContextId, bool)>,
     pub(crate) solving: bool,
 }
 impl<'a> Checker<'a> {
@@ -20,8 +22,29 @@ impl<'a> Checker<'a> {
             env,
             metas,
             context,
+            context_states: Vec::new(),
             solving: false,
         }
+    }
+    pub fn context(&self) -> &Context {
+        &self.context
+    }
+    fn context_state(&mut self) -> (crate::sharing::ContextId, bool) {
+        let (mut id, mut has_metas) = self.context_states.last().copied().unwrap_or_default();
+        // Closed terms need no context key. Intern only prefixes used by an open term.
+        for binding in &self.context[self.context_states.len()..] {
+            id = self.env.contexts.borrow_mut().push(id, binding.ty);
+            has_metas |= self.arena().contains_meta(binding.ty);
+            self.context_states.push((id, has_metas));
+        }
+        (id, has_metas)
+    }
+    fn push_binding(&mut self, binding: Binding) {
+        self.context.push(binding);
+    }
+    fn truncate_context(&mut self, length: usize) {
+        self.context.truncate(length);
+        self.context_states.truncate(length);
     }
     fn arena(&self) -> &Arena {
         &self.env.arena
@@ -41,9 +64,9 @@ impl<'a> Checker<'a> {
         ty: Expression,
         f: impl FnOnce(&mut Self) -> Result<T, Error>,
     ) -> Result<T, Error> {
-        self.context.push(Binding { var, ty });
+        self.push_binding(Binding { var, ty });
         let result = f(self);
-        self.context.pop();
+        self.truncate_context(self.context.len() - 1);
         result
     }
     pub fn check_context(&mut self) -> Result<(), Error> {
@@ -52,14 +75,16 @@ impl<'a> Checker<'a> {
                 .require_solved(self.arena(), self.context.iter().map(|b| b.ty))?;
         }
         let context = std::mem::take(&mut self.context);
+        let states = std::mem::take(&mut self.context_states);
         let result = (|| {
             for binding in &context {
                 self.formation(binding.ty)?;
-                self.context.push(binding.clone());
+                self.push_binding(binding.clone());
             }
             Ok(())
         })();
         self.context = context;
+        self.context_states = states;
         result
     }
     #[tracing::instrument(target = "ref_type::typing", level = "debug", name = "kernel_infer", skip_all, fields(?term))]
@@ -116,7 +141,7 @@ impl<'a> Checker<'a> {
             } = self.arena().get(body)
             {
                 self.formation(domain)?;
-                self.context.push(Binding { var, ty: domain });
+                self.push_binding(Binding { var, ty: domain });
                 binders.push((var, domain));
                 body = next;
             }
@@ -130,7 +155,7 @@ impl<'a> Checker<'a> {
             }
             Ok(ty)
         })();
-        self.context.truncate(mark);
+        self.truncate_context(mark);
         result
     }
     pub(crate) fn formation(&mut self, e: Expression) -> Result<Sort, Error> {
@@ -437,22 +462,20 @@ impl<'a> Checker<'a> {
         }
     }
     pub(crate) fn infer_open(&mut self, term: Expression) -> Result<Expression, Error> {
+        // These rules depend on one binding at most, not on the whole telescope.
+        if matches!(
+            *self.arena().read(term),
+            Node::Bound(_) | Node::Sort(_) | Node::Parameter(_)
+        ) {
+            return self.infer_framed(term);
+        }
         let closed = self.arena().max_loose_bound(term).is_none();
-        let complete = !self.arena().contains_meta(term)
-            && (closed
-                || self
-                    .context
-                    .iter()
-                    .all(|b| !self.arena().contains_meta(b.ty)));
+        let complete = !self.arena().contains_meta(term) && (closed || !self.context_state().1);
         if !complete {
             if self.solving {
                 return self.infer_framed(term);
             }
-            let context = self
-                .env
-                .contexts
-                .borrow_mut()
-                .intern(self.context.iter().map(|b| b.ty));
+            let context = self.context_state().0;
             if let Some(&ty) = self.metas.inferred.get(&(context, term)) {
                 return Ok(ty);
             }
@@ -465,10 +488,7 @@ impl<'a> Checker<'a> {
         let context = if closed {
             crate::sharing::ContextId::default()
         } else {
-            self.env
-                .contexts
-                .borrow_mut()
-                .intern(self.context.iter().map(|b| b.ty))
+            self.context_state().0
         };
         if let Some(&ty) = self.env.inferred.borrow().get(&(context, term)) {
             return Ok(ty);
@@ -515,7 +535,7 @@ impl<'a> Checker<'a> {
                     .len()
                     .checked_sub(offset)
                     .ok_or("bound variable outside context")?;
-                shift(self.arena(), self.context[position].ty, offset, 0)?
+                self.env.shifted(self.context[position].ty, offset)?
             }
             Node::Definition { id, arguments } => {
                 let definition = self.env.definition(id)?;
@@ -1538,7 +1558,7 @@ impl<'a> Checker<'a> {
                     field.ty
                 };
                 let ty = instantiate(branch.arena(), field, &parameters)?;
-                branch.context.push(Binding {
+                branch.push_binding(Binding {
                     var: binders[i][j],
                     ty: branch.lifted(ty, j)?,
                 });
@@ -1673,7 +1693,7 @@ impl<'a> Checker<'a> {
                 return Err("motive domain mismatch".into());
             }
             local.formation(expected)?;
-            local.context.push(Binding { var, ty: expected });
+            local.push_binding(Binding { var, ty: expected });
         }
         let result_sort = local.formation(motive.body)?;
         let permitted = match (spec.sort, result_sort) {

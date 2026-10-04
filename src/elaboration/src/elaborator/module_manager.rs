@@ -376,6 +376,17 @@ impl ModuleManager {
         base: Option<ModuleId>,
         calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
     ) -> Result<ModuleId, String> {
+        let mut profile = super::profiling::ProfileTimer::start("REF_TYPE_PROFILE_MODULES", || {
+            format!(
+                "modules phase=reference from={:?} source={source:?} base={base:?} context={:?} arguments={calls:?} environment={:?} location={:?}",
+                self.current,
+                env.context_id(context),
+                env.kernel.borrow().diagnostic_version(),
+                self.reference_location
+                    .as_ref()
+                    .map(|location| (&location.source.id, location.span))
+            )
+        });
         let (mut substitutions, mut remapping) = base.map_or_else(
             || (Vec::new(), DeclarationRemapping::default()),
             |base| {
@@ -530,6 +541,11 @@ impl ModuleManager {
             return Err("Module instantiation path must contain at least one module".into());
         }
 
+        if let Some(timer) = &mut profile {
+            timer.checkpoint("modules phase=arguments");
+        }
+        let cache_hits = std::cell::Cell::new(0usize);
+        let cache_misses = std::cell::Cell::new(0usize);
         // Reserve stable IDs and publish only metadata. Declaration bodies are
         // transformed by CrateEnv when one of these IDs is first requested.
         let mut materialization_sources = Vec::new();
@@ -573,6 +589,11 @@ impl ModuleManager {
                             .map_or(source_id, |origin| origin.source),
                     );
                     if fresh {
+                        cache_misses.set(cache_misses.get() + 1);
+                    } else {
+                        cache_hits.set(cache_hits.get() + 1);
+                    }
+                    if fresh {
                         lazy_definitions.push(id);
                     }
                     id
@@ -598,6 +619,11 @@ impl ModuleManager {
                             &remapping,
                         );
                         remapping.inductive_ids.insert(inductive, id);
+                        if fresh {
+                            cache_misses.set(cache_misses.get() + 1);
+                        } else {
+                            cache_hits.set(cache_hits.get() + 1);
+                        }
                         if fresh {
                             lazy_inductives.push(id);
                         }
@@ -625,6 +651,11 @@ impl ModuleManager {
                             &remapping,
                         );
                         remapping.inductive_ids.insert(inductive, id);
+                        if fresh {
+                            cache_misses.set(cache_misses.get() + 1);
+                        } else {
+                            cache_hits.set(cache_hits.get() + 1);
+                        }
                         if fresh {
                             lazy_inductives.push(id);
                         }
@@ -655,6 +686,11 @@ impl ModuleManager {
                         );
                         remapping.inductive_ids.insert(reflected, reflected_id);
                         if fresh {
+                            cache_misses.set(cache_misses.get() + 1);
+                        } else {
+                            cache_hits.set(cache_hits.get() + 1);
+                        }
+                        if fresh {
                             lazy_inductives.push(reflected_id);
                         }
                         let (id, fresh) = env.reserve_lazy_program_inductive(
@@ -665,6 +701,11 @@ impl ModuleManager {
                             &remapping,
                         );
                         remapping.program_inductive_ids.insert(inductive, id);
+                        if fresh {
+                            cache_misses.set(cache_misses.get() + 1);
+                        } else {
+                            cache_hits.set(cache_hits.get() + 1);
+                        }
                         if fresh {
                             lazy_datatypes.push(id);
                         }
@@ -693,6 +734,14 @@ impl ModuleManager {
             });
         }
 
+        if let Some(timer) = &mut profile {
+            timer.checkpoint("modules phase=materialize");
+            eprintln!(
+                "modules phase=specialization-cache source={source:?} hits={} misses={}",
+                cache_hits.get(),
+                cache_misses.get()
+            );
+        }
         if std::env::var_os("REF_TYPE_PROFILE_NAMESPACES").is_some() {
             eprintln!(
                 "namespace {:?}: {} groups, {} definitions, {} inductives, {} datatypes; remapping: {} modules, {} definitions, {} inductives, {} datatypes",

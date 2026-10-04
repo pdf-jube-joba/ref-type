@@ -759,6 +759,81 @@ fn registration_reclaims_scratch_nodes_and_keeps_definitions_and_error_terms() {
 }
 
 #[test]
+fn registration_reclaims_temporary_contexts_without_reusing_stale_types() {
+    let mut env = Environment::new();
+    let a = env.arena.clone();
+    let set = sort(&a, BaseSort::Set(0));
+    let prop = sort(&a, BaseSort::Prop);
+    let outer = vec![binding(sort(&a, BaseSort::Set(1)))];
+    let body = lambda(&a, Mode::Pure, set, a.bound(1));
+    let mut metas = MetaContext::new();
+    let expected = Checker::new(&env, &mut metas, outer.clone())
+        .infer(body)
+        .unwrap();
+    for binding_ty in [set, prop, set, prop] {
+        let ty = a.alloc(Node::Product {
+            var: SymbolId::ANONYMOUS,
+            domain: set,
+            body: binding_ty,
+        });
+        let contexts = env.contexts.borrow().len();
+        let id = env
+            .register_definition(
+                &mut metas,
+                Definition {
+                    context: vec![binding(binding_ty)],
+                    ty,
+                    body,
+                },
+            )
+            .unwrap();
+        assert_eq!(env.contexts.borrow().len(), contexts);
+        let reference = env.reference(id, vec![a.bound(0)]).unwrap();
+        assert_eq!(
+            Checker::new(&env, &mut metas, vec![binding(binding_ty)])
+                .infer(reference)
+                .unwrap(),
+            ty
+        );
+        assert_eq!(
+            Checker::new(&env, &mut metas, outer.clone())
+                .infer(body)
+                .unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
+fn inference_restores_outer_context_after_successful_and_failed_binders() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let set = sort(a, BaseSort::Set(0));
+    let prop = sort(a, BaseSort::Prop);
+    let ctx = vec![binding(set), binding(a.bound(0))];
+    let mut metas = MetaContext::new();
+    let mut checker = Checker::new(&env, &mut metas, ctx.clone());
+    for domain in [set, prop] {
+        let term = lambda(a, Mode::Pure, domain, a.bound(0));
+        let ty = checker.infer(term).unwrap();
+        assert!(
+            matches!(a.get(ty), Node::Product { domain: actual, body, .. }
+            if actual == domain && body == domain)
+        );
+        assert_eq!(checker.infer(a.bound(0)).unwrap(), a.bound(1));
+    }
+    let bad = lambda(
+        a,
+        Mode::Pure,
+        set,
+        apply(a, Mode::Pure, a.bound(0), a.bound(0)),
+    );
+    assert!(checker.infer(bad).is_err());
+    assert_eq!(checker.context(), &ctx);
+    assert_eq!(checker.infer(a.bound(0)).unwrap(), a.bound(1));
+}
+
+#[test]
 fn kind_valued_step_match_retains_its_result_universe() {
     let env = Environment::new();
     let a = &env.arena;
@@ -1217,4 +1292,25 @@ fn inductive_registration_checks_the_arity_terminal_sort() {
             .unwrap(),
         a.sort(Sort::Upper(BaseSort::Set(0)))
     );
+}
+
+#[test]
+fn constraint_outcomes_survive_unrelated_goals_and_follow_rollback() {
+    let env = Environment::new();
+    let mut metas = MetaContext::new();
+    let proposition = env.arena.sort(Sort::Base(BaseSort::Prop));
+    let constraint = Constraint::Equal {
+        context: vec![],
+        left: proposition,
+        right: proposition,
+    };
+    metas.constrain(constraint.clone());
+    let snapshot = metas.snapshot();
+    metas.fresh(&env.arena, vec![], None);
+    assert!(matches!(metas.finish(&env), Err(Error::Unresolved { .. })));
+    assert!(metas.is_discharged(&constraint));
+    metas.rollback(snapshot).unwrap();
+    assert!(!metas.is_discharged(&constraint));
+    metas.finish(&env).unwrap();
+    assert!(metas.is_discharged(&constraint));
 }

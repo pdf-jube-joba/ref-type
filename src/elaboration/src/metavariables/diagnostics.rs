@@ -45,6 +45,7 @@ pub enum ConstraintStatus {
 }
 #[derive(Debug, Clone)]
 pub struct ConstraintRecord {
+    pub core: Option<kernel::metavariables::Constraint>,
     pub original: GoalConstraint,
     pub status: ConstraintStatus,
     pub origins: Vec<SourceSpan>,
@@ -77,6 +78,7 @@ pub struct ConstraintDiagnostic {
     pub normalized: String,
     pub status: ConstraintStatus,
     pub origins: Vec<SourceSpan>,
+    pub omitted_origins: usize,
 }
 impl fmt::Display for ConstraintDiagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -90,6 +92,9 @@ impl fmt::Display for ConstraintDiagnostic {
                 write!(f, " {}..{}", span.start, span.end)?;
             }
             write!(f, ")")?;
+        }
+        if self.omitted_origins > 0 {
+            write!(f, " ({} origins omitted)", self.omitted_origins)?;
         }
         Ok(())
     }
@@ -107,6 +112,8 @@ pub struct MetaGoal {
     pub solution: Option<String>,
     pub state: MetaState,
     pub constraints: Vec<ConstraintDiagnostic>,
+    pub omitted_constraints: usize,
+    pub omitted_goals: usize,
     pub dependencies: Vec<MetaVarId>,
 }
 impl MetaGoal {
@@ -117,6 +124,11 @@ impl MetaGoal {
 
 #[derive(Debug, Clone)]
 pub enum ElaborationError {
+    Alternatives(Vec<ElaborationError>),
+    Deferred {
+        summary: Box<ElaborationError>,
+        details: std::rc::Rc<DeferredDetails>,
+    },
     Located {
         location: SourceLocation,
         error: Box<ElaborationError>,
@@ -126,43 +138,96 @@ pub enum ElaborationError {
         message: String,
         constraints: Vec<ConstraintDiagnostic>,
         goals: Vec<MetaGoal>,
+        omitted_constraints: usize,
     },
     Metavariables(Vec<MetaGoal>),
 }
+#[derive(Debug)]
+pub(crate) enum DeferredDetails {
+    Logical(super::MetaStore, Option<String>),
+    Program(
+        crate::elaborator::program_term_elaborator::ProgramScope,
+        Option<String>,
+    ),
+}
+
 impl ElaborationError {
+    pub(crate) fn materialize(&self, env: &crate::elaborator::GlobalEnvironment) -> Self {
+        let _profile = crate::diagnostics::DiagnosticProfile::start("details");
+        match self {
+            Self::Located { location, error } => Self::Located {
+                location: location.clone(),
+                error: Box::new(error.materialize(env)),
+            },
+            Self::Deferred { summary, details } => {
+                if crate::diagnostics::compact() {
+                    return *summary.clone();
+                }
+                match details.as_ref() {
+                    DeferredDetails::Logical(store, Some(message)) => {
+                        store.detailed_error(&env.crate_env, message.clone())
+                    }
+                    DeferredDetails::Logical(store, None) => {
+                        Self::Metavariables(store.goals(&env.crate_env))
+                    }
+                    DeferredDetails::Program(scope, Some(message)) => {
+                        scope.detailed_error(env, message.clone())
+                    }
+                    DeferredDetails::Program(scope, None) => Self::Metavariables(scope.goals(env)),
+                }
+            }
+            Self::Alternatives(errors) => Self::Message(
+                errors
+                    .iter()
+                    .map(|error| error.materialize(env).to_string())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ),
+            other => other.clone(),
+        }
+    }
+
     pub fn alternatives(errors: Vec<Self>) -> Self {
         if let Some(index) = errors.iter().position(|error| !error.goals().is_empty()) {
             return errors.into_iter().nth(index).expect("existing error");
         }
-        Self::Message(
-            errors
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join("\n"),
-        )
+        Self::Alternatives(errors)
     }
     pub fn goals(&self) -> &[MetaGoal] {
         match self {
-            Self::Located { error, .. } => error.goals(),
+            Self::Located { error, .. } | Self::Deferred { summary: error, .. } => error.goals(),
             Self::Metavariables(goals) | Self::ConstraintFailure { goals, .. } => goals,
-            Self::Message(_) => &[],
+            Self::Message(_) | Self::Alternatives(_) => &[],
         }
     }
 }
 impl fmt::Display for ElaborationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Alternatives(errors) => {
+                for (index, error) in errors.iter().enumerate() {
+                    if index > 0 {
+                        writeln!(f)?;
+                    }
+                    write!(f, "{error}")?;
+                }
+                Ok(())
+            }
+            Self::Deferred { summary, .. } => summary.fmt(f),
             Self::Located { location, error } => write!(f, "{error}\n{}", location.render()),
             Self::Message(message) => f.write_str(message),
             Self::ConstraintFailure {
                 message,
                 constraints,
                 goals,
+                omitted_constraints,
             } => {
                 writeln!(f, "{message}")?;
                 for constraint in constraints {
                     writeln!(f, "{constraint}")?;
+                }
+                if *omitted_constraints > 0 {
+                    writeln!(f, "… {omitted_constraints} constraints omitted")?;
                 }
                 format_goals(f, goals)
             }
@@ -204,6 +269,16 @@ fn format_goals(f: &mut fmt::Formatter<'_>, goals: &[MetaGoal]) -> fmt::Result {
         }
         for constraint in &goal.constraints {
             writeln!(f, "  {constraint}")?;
+        }
+        if goal.omitted_constraints > 0 {
+            writeln!(
+                f,
+                "  … {} constraints omitted or not searched",
+                goal.omitted_constraints
+            )?;
+        }
+        if goal.omitted_goals > 0 {
+            writeln!(f, "… {} goals omitted", goal.omitted_goals)?;
         }
     }
     Ok(())

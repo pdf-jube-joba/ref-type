@@ -19,6 +19,7 @@ pub struct CheckOptions {
     /// Run verification even when a checked result exists (e.g. tracing).
     pub force: bool,
     pub collect_statistics: bool,
+    pub diagnostics: elaboration::DiagnosticMode,
 }
 
 /// Mutable query storage. Results and snapshots can outlive the database.
@@ -88,6 +89,7 @@ impl Database {
         &mut self,
         snapshot: &SourceSnapshot,
     ) -> Result<(Vec<syntax::Module>, Vec<Diagnostic>), Vec<Diagnostic>> {
+        let started = std::time::Instant::now();
         let mut loader = SnapshotLoader {
             snapshot,
             cache: &mut self.parses,
@@ -100,6 +102,14 @@ impl Database {
             ::project::package_loader::load_package_with(snapshot.entry(), &mut loader)
                 .map(|graph| graph.modules)
         };
+        if std::env::var_os("REF_TYPE_PROFILE_MODULES").is_some() {
+            eprintln!(
+                "modules phase=load elapsed_us={} parsed={} cache_hits={}",
+                started.elapsed().as_micros(),
+                loader.stats.parsed_files,
+                loader.stats.reused_parses
+            );
+        }
         match result {
             Ok(modules) => Ok((modules, loader.diagnostics)),
             Err(message) if loader.diagnostics.is_empty() => Err(vec![Diagnostic {
@@ -119,7 +129,9 @@ impl Database {
         snapshot: &SourceSnapshot,
         options: &CheckOptions,
     ) -> Arc<SemanticResult> {
-        self.query(snapshot, options, |_| true)
+        elaboration::diagnostics::with_diagnostic_mode(options.diagnostics, || {
+            self.query(snapshot, options, |_| true)
+        })
     }
     /// Check the named module and the scopes/imports on which it depends.
     pub fn module(&mut self, snapshot: &SourceSnapshot, path: &[String]) -> Arc<SemanticResult> {
@@ -157,8 +169,9 @@ impl Database {
             environment_bytes: self.environments.bytes(),
             ..QueryStats::default()
         };
+        let _phase = elaboration::profiling::Phase::start("query.total");
         self.verification_statistics.clear();
-        let compact = std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1");
+        let compact = options.diagnostics == elaboration::DiagnosticMode::Compact;
         let (modules, parse_diagnostics) = match self.load(snapshot) {
             Ok(modules) => modules,
             Err(mut diagnostics) => {
@@ -171,7 +184,10 @@ impl Database {
                 });
             }
         };
-        let graph = ModuleGraph::new(&modules);
+        let graph = {
+            let _phase = elaboration::profiling::Phase::start("query.graph");
+            ModuleGraph::new(&modules)
+        };
         let requested = graph.closure(
             graph
                 .units
@@ -245,6 +261,7 @@ impl Database {
         for &index in &requested {
             query_bytes.extend(keys[index]);
         }
+        query_bytes.push(u8::from(compact));
         query_bytes.extend(serde_json::to_vec(&diagnostics).expect("diagnostics serialize"));
         let query_key = fingerprint(&query_bytes);
         if !options.force
@@ -284,38 +301,78 @@ impl Database {
         }
         let mut pending = graph.closure(misses.iter().copied());
         let mut recovering = false;
+        let mut recovery_environments = EnvironmentCache::default();
+        let mut full_resolution = None;
+        let mut full_plan = None;
         while !pending.is_empty() {
             let selected = std::mem::take(&mut pending);
             let mut workspace = Checker::default();
             // Keep the complete requested layout stable across edits. A failed
             // resolution still uses the smaller batch for independent recovery.
-            let available = if recovering {
-                selected.clone()
-            } else {
-                requested.difference(&blocked).copied().collect()
+            let available = requested.difference(&blocked).copied().collect();
+            let profile_modules = std::env::var_os("REF_TYPE_PROFILE_MODULES").is_some();
+            if profile_modules {
+                eprintln!(
+                    "modules phase=check retry={recovering} selected={selected:?} environment={settings:?}"
+                );
+            }
+            let full = full_resolution.get_or_insert_with(|| {
+                let _phase = elaboration::profiling::Phase::start("query.resolve");
+                resolve::resolve(&graph.selected(&available))
+            });
+            let fallback;
+            let resolved = match &*full {
+                Ok(project) => Ok(project),
+                Err(_) => {
+                    let _phase = elaboration::profiling::Phase::start("query.resolve-recovery");
+                    fallback = resolve::resolve(&graph.selected(&selected));
+                    fallback.as_ref()
+                }
             };
-            recovering = true;
-            let resolved = resolve::resolve(&graph.selected(&available))
-                .or_else(|_| resolve::resolve(&graph.selected(&selected)));
             let mut saved = EnvironmentCache::default();
+            let check_phase = elaboration::profiling::Phase::start("query.check-batch");
             let checked = match &resolved {
                 Ok(project) => {
-                    let plan = EnvironmentPlan::new(project, &graph, &settings);
+                    let fallback_plan;
+                    let plan = if full.is_ok() {
+                        full_plan
+                            .get_or_insert_with(|| EnvironmentPlan::new(project, &graph, &settings))
+                    } else {
+                        fallback_plan = EnvironmentPlan::new(project, &graph, &settings);
+                        &fallback_plan
+                    };
                     let end = plan.end(&selected);
                     let mut start = 0;
-                    if !options.force && !options.collect_statistics {
+                    if recovering || (!options.force && !options.collect_statistics) {
                         for &(position, key) in plan
                             .checkpoints
                             .iter()
                             .rev()
                             .filter(|(position, _)| *position <= end)
                         {
-                            let bytes = self.environments.get(&key).or_else(|| {
-                                let bytes: Arc<[u8]> =
-                                    self.disk.as_ref()?.read_environment(&key)?.into();
-                                self.environments.insert(key, bytes.clone());
-                                Some(bytes)
-                            });
+                            let bytes = recovery_environments
+                                .get(&key)
+                                .or_else(|| {
+                                    if options.force || options.collect_statistics {
+                                        return None;
+                                    }
+                                    self.environments.get(&key)
+                                })
+                                .or_else(|| {
+                                    if options.force || options.collect_statistics {
+                                        return None;
+                                    }
+                                    let bytes: Arc<[u8]> =
+                                        self.disk.as_ref()?.read_environment(&key)?.into();
+                                    self.environments.insert(key, bytes.clone());
+                                    Some(bytes)
+                                });
+                            if profile_modules {
+                                eprintln!(
+                                    "modules phase=restore position={position} cache_hit={} environment={key:?}",
+                                    bytes.is_some()
+                                );
+                            }
                             if bytes.is_some()
                                 && std::env::var_os("REF_TYPE_PROFILE_ENVIRONMENTS").is_some()
                             {
@@ -326,7 +383,11 @@ impl Database {
                             {
                                 workspace = restored;
                                 start = position;
-                                self.stats.environment_hits += 1;
+                                if recovering {
+                                    self.stats.recovery_environment_hits += 1;
+                                } else {
+                                    self.stats.environment_hits += 1;
+                                }
                                 break;
                             }
                         }
@@ -345,12 +406,14 @@ impl Database {
                         .collect::<BTreeSet<_>>()
                         .difference(&checked)
                         .count();
-                    let checkpoints =
-                        if (options.force || options.collect_statistics) && self.disk.is_none() {
-                            BTreeSet::new()
-                        } else {
-                            plan.save_points()
-                        };
+                    let checkpoints = if compact
+                        && (options.force || options.collect_statistics)
+                        && self.disk.is_none()
+                    {
+                        BTreeSet::new()
+                    } else {
+                        plan.save_points()
+                    };
                     workspace.check_range(
                         project,
                         start,
@@ -386,8 +449,13 @@ impl Database {
                     })
                 }
             };
-            if checked.is_ok() {
-                for (key, bytes) in saved.into_entries() {
+            drop(check_phase);
+            recovering = true;
+            for (key, bytes) in saved.into_entries() {
+                recovery_environments.insert(key, bytes.clone());
+                if checked.is_ok()
+                    && !((options.force || options.collect_statistics) && self.disk.is_none())
+                {
                     if let Some(disk) = &self.disk {
                         match disk.write_environment(&key, &bytes) {
                             Ok(()) => self.stats.environment_writes += 1,
@@ -422,7 +490,10 @@ impl Database {
                     )
                 })
                 .collect();
-            collect_analysis(&workspace, &graph, &mut fresh);
+            {
+                let _phase = elaboration::profiling::Phase::start("query.collect-analysis");
+                collect_analysis(&workspace, &graph, &mut fresh);
+            }
             if let Err(error) = &checked {
                 diagnostics.push(diagnostic(error));
                 if !compact
@@ -455,6 +526,8 @@ impl Database {
                     results.insert(index, result);
                 }
             }
+            let _phase = elaboration::profiling::Phase::start("query.drop-workspace");
+            drop(workspace);
         }
         let result = Arc::new(SemanticResult {
             modules: results

@@ -13,3 +13,5 @@ pub use database::{CheckOptions, Database};
 pub use parsing::{ParseKind, ParseResult, ParsedSyntax};
 
 mod environment;
+
+pub use elaboration::DiagnosticMode;

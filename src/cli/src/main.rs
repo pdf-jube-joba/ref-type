@@ -30,6 +30,15 @@ struct Args {
     /// parse・チェック・キャッシュ再利用の件数を表示する
     #[arg(long)]
     cache_stats: bool,
+    /// 簡潔な診断（compact）か制約を含む詳細診断（detailed）を選ぶ
+    #[arg(long, value_enum)]
+    diagnostics: Option<DiagnosticMode>,
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
+enum DiagnosticMode {
+    Compact,
+    Detailed,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -98,6 +107,11 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
             &sema::CheckOptions {
                 force: args.trace || args.no_cache || args.full_check,
                 collect_statistics: args.stats,
+                diagnostics: match args.diagnostics {
+                    Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,
+                    Some(DiagnosticMode::Detailed) => sema::DiagnosticMode::Detailed,
+                    None => sema::DiagnosticMode::default(),
+                },
                 ..sema::CheckOptions::default()
             },
         );
