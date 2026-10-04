@@ -11,17 +11,39 @@ use crate::{
 pub struct Checker<'a> {
     pub env: &'a Environment,
     pub metas: &'a mut MetaContext,
-    pub context: Context,
+    context: Context,
+    // One entry per prefix, including the empty context. Expressions are immutable,
+    // so both the identity and syntactic presence of metas survive assignments.
+    context_prefixes: Vec<(crate::sharing::ContextId, bool)>,
     pub(crate) solving: bool,
 }
 impl<'a> Checker<'a> {
     pub fn new(env: &'a Environment, metas: &'a mut MetaContext, context: Context) -> Self {
-        Self {
+        let mut checker = Self {
             env,
             metas,
-            context,
+            context: vec![],
+            context_prefixes: vec![(crate::sharing::ContextId::default(), false)],
             solving: false,
+        };
+        for binding in context {
+            checker.push_binding(binding);
         }
+        checker
+    }
+    pub fn context(&self) -> &Context {
+        &self.context
+    }
+    fn push_binding(&mut self, binding: Binding) {
+        let (parent, has_meta) = *self.context_prefixes.last().unwrap();
+        let id = self.env.contexts.borrow_mut().push(parent, binding.ty);
+        let has_meta = has_meta || self.arena().contains_meta(binding.ty);
+        self.context.push(binding);
+        self.context_prefixes.push((id, has_meta));
+    }
+    fn truncate_context(&mut self, len: usize) {
+        self.context.truncate(len);
+        self.context_prefixes.truncate(len + 1);
     }
     fn arena(&self) -> &Arena {
         &self.env.arena
@@ -41,9 +63,9 @@ impl<'a> Checker<'a> {
         ty: Expression,
         f: impl FnOnce(&mut Self) -> Result<T, Error>,
     ) -> Result<T, Error> {
-        self.context.push(Binding { var, ty });
+        self.push_binding(Binding { var, ty });
         let result = f(self);
-        self.context.pop();
+        self.truncate_context(self.context.len() - 1);
         result
     }
     pub fn check_context(&mut self) -> Result<(), Error> {
@@ -52,14 +74,19 @@ impl<'a> Checker<'a> {
                 .require_solved(self.arena(), self.context.iter().map(|b| b.ty))?;
         }
         let context = std::mem::take(&mut self.context);
+        let prefixes = std::mem::replace(
+            &mut self.context_prefixes,
+            vec![(crate::sharing::ContextId::default(), false)],
+        );
         let result = (|| {
             for binding in &context {
                 self.formation(binding.ty)?;
-                self.context.push(binding.clone());
+                self.push_binding(binding.clone());
             }
             Ok(())
         })();
         self.context = context;
+        self.context_prefixes = prefixes;
         result
     }
     #[tracing::instrument(target = "ref_type::typing", level = "debug", name = "kernel_infer", skip_all, fields(?term))]
@@ -116,7 +143,7 @@ impl<'a> Checker<'a> {
             } = self.arena().get(body)
             {
                 self.formation(domain)?;
-                self.context.push(Binding { var, ty: domain });
+                self.push_binding(Binding { var, ty: domain });
                 binders.push((var, domain));
                 body = next;
             }
@@ -130,7 +157,7 @@ impl<'a> Checker<'a> {
             }
             Ok(ty)
         })();
-        self.context.truncate(mark);
+        self.truncate_context(mark);
         result
     }
     pub(crate) fn formation(&mut self, e: Expression) -> Result<Sort, Error> {
@@ -438,21 +465,13 @@ impl<'a> Checker<'a> {
     }
     pub(crate) fn infer_open(&mut self, term: Expression) -> Result<Expression, Error> {
         let closed = self.arena().max_loose_bound(term).is_none();
-        let complete = !self.arena().contains_meta(term)
-            && (closed
-                || self
-                    .context
-                    .iter()
-                    .all(|b| !self.arena().contains_meta(b.ty)));
+        let (context_id, context_has_meta) = *self.context_prefixes.last().unwrap();
+        let complete = !self.arena().contains_meta(term) && (closed || !context_has_meta);
         if !complete {
             if self.solving {
                 return self.infer_framed(term);
             }
-            let context = self
-                .env
-                .contexts
-                .borrow_mut()
-                .intern(self.context.iter().map(|b| b.ty));
+            let context = context_id;
             if let Some(&ty) = self.metas.inferred.get(&(context, term)) {
                 return Ok(ty);
             }
@@ -465,10 +484,7 @@ impl<'a> Checker<'a> {
         let context = if closed {
             crate::sharing::ContextId::default()
         } else {
-            self.env
-                .contexts
-                .borrow_mut()
-                .intern(self.context.iter().map(|b| b.ty))
+            context_id
         };
         if let Some(&ty) = self.env.inferred.borrow().get(&(context, term)) {
             return Ok(ty);
@@ -626,10 +642,14 @@ impl<'a> Checker<'a> {
                 };
                 self.check_at("check argument type for application", argument, domain)?;
                 if !self.solving {
-                    let sort = self.formation(ty)?;
-                    if (mode == Mode::Computation)
-                        != matches!(sort, Sort::Base(BaseSort::Computation(_)))
-                    {
+                    // Inference has already established that `ty` is a product.
+                    // Every product rule with a logical domain has a logical result;
+                    // checking its domain avoids rechecking the entire dependent tail
+                    // after each argument in a long application spine.
+                    let domain_sort = self.formation(domain)?;
+                    let computation = domain_sort.base().is_program()
+                        && matches!(self.formation(ty)?, Sort::Base(BaseSort::Computation(_)));
+                    if (mode == Mode::Computation) != computation {
                         return Err("application evaluation mode mismatch".into());
                     }
                 }
@@ -1538,7 +1558,7 @@ impl<'a> Checker<'a> {
                     field.ty
                 };
                 let ty = instantiate(branch.arena(), field, &parameters)?;
-                branch.context.push(Binding {
+                branch.push_binding(Binding {
                     var: binders[i][j],
                     ty: branch.lifted(ty, j)?,
                 });
@@ -1673,7 +1693,7 @@ impl<'a> Checker<'a> {
                 return Err("motive domain mismatch".into());
             }
             local.formation(expected)?;
-            local.context.push(Binding { var, ty: expected });
+            local.push_binding(Binding { var, ty: expected });
         }
         let result_sort = local.formation(motive.body)?;
         let permitted = match (spec.sort, result_sort) {
@@ -1782,4 +1802,41 @@ impl<'a> Checker<'a> {
 struct Motive {
     domains: Vec<Expression>,
     body: Expression,
+}
+
+#[cfg(test)]
+mod context_tests {
+    use super::*;
+
+    #[test]
+    fn inference_distinguishes_sibling_scopes_and_restores_context_after_errors() {
+        let env = Environment::new();
+        let mut metas = MetaContext::new();
+        let set = env.arena.sort(Sort::Base(BaseSort::Set(0)));
+        let prop = env.arena.sort(Sort::Base(BaseSort::Prop));
+        let bound = env.arena.bound(0);
+        let mut checker = Checker::new(
+            &env,
+            &mut metas,
+            vec![Binding {
+                var: SymbolId::ANONYMOUS,
+                ty: set,
+            }],
+        );
+        checker.check_context().unwrap();
+        assert_eq!(checker.infer_open(bound).unwrap(), set);
+        checker
+            .under(SymbolId::ANONYMOUS, bound, |checker| {
+                assert_eq!(checker.infer_open(bound)?, env.arena.bound(1));
+                Ok(())
+            })
+            .unwrap();
+        let result: Result<(), Error> = checker.under(SymbolId::ANONYMOUS, prop, |checker| {
+            assert_eq!(checker.infer_open(bound)?, prop);
+            Err("leave this scope".into())
+        });
+        assert!(result.is_err());
+        assert_eq!(checker.context().len(), 1);
+        assert_eq!(checker.infer_open(bound).unwrap(), set);
+    }
 }

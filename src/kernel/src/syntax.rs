@@ -539,7 +539,7 @@ impl Node {
 struct Storage {
     nodes: Vec<Option<Rc<Node>>>,
     interned: FxHashMap<Rc<Node>, Expression>,
-    properties: FxHashMap<Expression, (Option<usize>, bool)>,
+    properties: Vec<(Option<usize>, bool)>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -553,7 +553,26 @@ impl Arena {
         if let Some(&e) = storage.interned.get(&node) {
             return e;
         }
+        // Children already belong to this immutable DAG. Compute their summary
+        // once, so the hot inference/substitution paths only index a vector.
+        let mut properties = (
+            if let Node::Bound(i) = node {
+                Some(i)
+            } else {
+                None
+            },
+            matches!(node, Node::Meta { .. }),
+        );
+        let _: Result<(), std::convert::Infallible> = node.try_for_each_child(|child, depth| {
+            let (bound, meta) = storage.properties[child.index()];
+            if let Some(i) = bound.and_then(|i| i.checked_sub(depth)) {
+                properties.0 = Some(properties.0.map_or(i, |old| old.max(i)));
+            }
+            properties.1 |= meta;
+            Ok(())
+        });
         let e = Expression(u32::try_from(storage.nodes.len()).expect("expression arena exhausted"));
+        storage.properties.push(properties);
         let node = Rc::new(node);
         storage.nodes.push(Some(node.clone()));
         storage.interned.insert(node, e);
@@ -619,7 +638,6 @@ impl Arena {
                 && let Some(node) = storage.nodes[i].take()
             {
                 storage.interned.remove(&node);
-                storage.properties.remove(&e);
                 removed += 1;
             }
         }
@@ -632,28 +650,7 @@ impl Arena {
         self.properties(e).0
     }
     fn properties(&self, e: Expression) -> (Option<usize>, bool) {
-        if let Some(&result) = self.0.borrow().properties.get(&e) {
-            return result;
-        }
-        let node = self.read(e);
-        let mut result = (
-            if let Node::Bound(i) = *node {
-                Some(i)
-            } else {
-                None
-            },
-            matches!(*node, Node::Meta { .. }),
-        );
-        let _: Result<(), std::convert::Infallible> = node.try_for_each_child(|child, depth| {
-            let (bound, meta) = self.properties(child);
-            if let Some(i) = bound.and_then(|i| i.checked_sub(depth)) {
-                result.0 = Some(result.0.map_or(i, |old| old.max(i)));
-            }
-            result.1 |= meta;
-            Ok(())
-        });
-        self.0.borrow_mut().properties.insert(e, result);
-        result
+        self.0.borrow().properties[e.index()]
     }
     pub fn node_counts(&self) -> Vec<(&'static str, usize)> {
         vec![("Expression", self.len())]

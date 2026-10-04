@@ -50,5 +50,12 @@ cargo run --quiet --bin cli -- libs/category
 cargo run --quiet --bin cli -- tests/projects/category
 ```
 
+ビルド時間を除いて永続キャッシュなしの検査時間を測る場合は、release 版を先にビルドする。
+
+```sh
+cargo build --release --bin cli
+time target/release/cli --no-cache libs/category
+```
+
 検査は一つずつ実行する。
 大きな失敗の調査には `REF_TYPE_COMPACT_DIAGNOSTICS=1` を設定し、エラー本体とソース位置を確認できる。

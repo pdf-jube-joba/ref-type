@@ -68,6 +68,7 @@ pub struct ContextId(u32);
 pub struct ContextInterner<T> {
     extensions: FxHashMap<(ContextId, T), ContextId>,
     bindings: Vec<(ContextId, T)>,
+    last: Vec<(T, ContextId)>,
 }
 
 impl<T> Default for ContextInterner<T> {
@@ -75,6 +76,7 @@ impl<T> Default for ContextInterner<T> {
         Self {
             extensions: FxHashMap::default(),
             bindings: Vec::new(),
+            last: Vec::new(),
         }
     }
 }
@@ -95,11 +97,23 @@ impl<T: Clone + Eq + Hash> ContextInterner<T> {
     }
 
     pub fn intern(&mut self, bindings: impl IntoIterator<Item = T>) -> ContextId {
-        bindings
-            .into_iter()
-            .fold(ContextId::default(), |parent, binding| {
-                self.push(parent, binding)
-            })
+        // Frontend traversals repeatedly request the same context or extend its
+        // prefix. Compare that prefix directly instead of hashing every binding.
+        let mut parent = ContextId::default();
+        let mut len = 0;
+        for binding in bindings {
+            parent = if let Some((_, id)) = self.last.get(len).filter(|(b, _)| *b == binding) {
+                *id
+            } else {
+                self.last.truncate(len);
+                let id = self.push(parent, binding.clone());
+                self.last.push((binding, id));
+                id
+            };
+            len += 1;
+        }
+        self.last.truncate(len);
+        parent
     }
 
     pub fn len(&self) -> usize {
@@ -118,6 +132,22 @@ impl<T: Clone + Eq + Hash> ContextInterner<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interning_reuses_prefixes_across_extensions_and_sibling_contexts() {
+        let mut contexts = ContextInterner::default();
+        let a = contexts.intern([1, 2, 3]);
+        assert_eq!(contexts.intern([1, 2, 3]), a);
+        let b = contexts.intern([1, 2]);
+        assert_eq!(contexts.parent(a), b);
+        let sibling = contexts.intern([1, 4, 3]);
+        assert_ne!(sibling, a);
+        assert_eq!(contexts.intern([1, 2, 3]), a);
+        let extended = contexts.push(a, 5);
+        assert_eq!(contexts.intern([1, 2, 3, 5]), extended);
+        assert_eq!(contexts.intern([]), ContextId::default());
+        assert_eq!(contexts.intern([1, 2, 3]), a);
+    }
 
     #[test]
     fn scratch_cleanup_visits_writes_including_replaced_entries() {

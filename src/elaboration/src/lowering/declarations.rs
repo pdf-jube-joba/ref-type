@@ -60,6 +60,10 @@ impl Lowerer<'_> {
     }
 
     fn lower_definition(&mut self, id: DefId) -> Result<(), String> {
+        let mut timer = crate::elaborator::profiling::ProfileTimer::start(
+            "REF_TYPE_PROFILE_LOWERING",
+            || raw::printing::definition_name(self.raw, id),
+        );
         let raw = self.raw.definition(id).clone();
         let parameters = self.raw.definition_parameters(id).to_vec();
         let mut program_context = parameters
@@ -105,6 +109,9 @@ impl Lowerer<'_> {
                 (body, ty, self.program_context(&program_context)?)
             }
         };
+        if let Some(timer) = &mut timer {
+            timer.checkpoint("lower terms");
+        }
         let kernel_id = self
             .kernel
             .register_definition(
@@ -122,6 +129,9 @@ impl Lowerer<'_> {
                     super::diagnostics::format_error(self.raw, &e)
                 )
             })?;
+        if let Some(timer) = &mut timer {
+            timer.checkpoint("kernel registration");
+        }
         self.raw.arena().bind_definition(
             kernel_id,
             Some(id),
