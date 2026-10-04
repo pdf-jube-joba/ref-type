@@ -1,0 +1,27 @@
+\import \parent.\parent.Laws[V := W, space := target] \as Laws;
+\definition zeroMap: Map := Map {
+  apply := \fun (x: _) => #zero{target},
+  preservesZero := \refl(#zero{target}),
+  preservesAdd := \fun (x, y: _) => sym!{W} _ _ (Laws.zeroLeft (#zero{target})),
+  preservesScale := \fun (a: _) (x: _) => sym!{W} _ _ (Laws.scaleZero a),
+};
+\definition plus(f, g: Map): Map := Map {
+  apply := \fun (x: _) => #add{target} (#apply{f} x) (#apply{g} x),
+  preservesZero := trans!{W} _ _ _
+    (congr2!{W W W} (#add{target}) _ _ _ _ (#preservesZero{f}) (#preservesZero{g})) (Laws.zeroLeft (#zero{target})),
+  preservesAdd := \fun (x, y: _) => trans!{W} _ _ _
+    (congr2!{W W W} (#add{target}) _ _ _ _ (#preservesAdd{f} x y) (#preservesAdd{g} x y))
+    (Laws.shuffle (#apply{f} x) (#apply{f} y) (#apply{g} x) (#apply{g} y)),
+  preservesScale := \fun (a: _) (x: _) => trans!{W} _ _ _
+    (congr2!{W W W} (#add{target}) _ _ _ _ (#preservesScale{f} a x) (#preservesScale{g} a x))
+    (sym!{W} _ _ (#vectorAdd{target} a (#apply{f} x) (#apply{g} x))),
+};
+\definition scale(a: K) (f: Map): Map := Map {
+  apply := \fun (x: _) => #smul{target} a (#apply{f} x),
+  preservesZero := trans!{W} _ _ _ (congr!{W W} (#smul{target} a) _ _ (#preservesZero{f})) (Laws.scaleZero a),
+  preservesAdd := \fun (x, y: _) => trans!{W} _ _ _
+    (congr!{W W} (#smul{target} a) _ _ (#preservesAdd{f} x y)) (#vectorAdd{target} a (#apply{f} x) (#apply{f} y)),
+  preservesScale := \fun (c: _) (x: _) => trans!{W} _ _ _
+    (congr!{W W} (#smul{target} a) _ _ (#preservesScale{f} c x)) (Laws.scaleComm a c (#apply{f} x)),
+};
+\definition negative(f: Map): Map := scale (neg one) f;

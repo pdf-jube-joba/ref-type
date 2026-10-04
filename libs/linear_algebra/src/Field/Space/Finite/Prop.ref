@@ -1,0 +1,56 @@
+\definition coordinatesInjective: \forall (b: Basis) -> \forall (x, y: V) -> coordinates b x = coordinates b y -> x = y :=
+  \fun (b: Basis) (x, y: _) (equal: _) => eq_reason!{
+    x "=" {synthesize b (coordinates b x)} "by" {sym!{V} _ _ (#reconstruction{b} x)}
+      "=" {synthesize b (coordinates b y)} "by" {congr!{Coordinates.Vector V} (synthesize b) _ _ equal}
+      "=" y "by" {#reconstruction{b} y}
+  };
+
+\definition synthesis(b: Basis): Decode.Map := Decode.Map {
+  apply := synthesize b,
+  preservesZero := coordinatesInjective b _ _ (trans!{Coordinates.Vector} _ _ _
+    (#coordinateReconstruction{b} Coordinates.origin) (sym!{Coordinates.Vector} _ _ (#preservesZero{(#coordinates{b})}))),
+  preservesAdd := \fun (x, y: _) => coordinatesInjective b _ _ (eq_reason!{
+    {coordinates b (synthesize b (Coordinates.plus x y))}
+    "=" {Coordinates.plus x y} "by" {#coordinateReconstruction{b} (Coordinates.plus x y)}
+    "=" {Coordinates.plus (coordinates b (synthesize b x)) (coordinates b (synthesize b y))} "by" {
+      sym!{Coordinates.Vector} _ _ (congr2!{Coordinates.Vector Coordinates.Vector Coordinates.Vector} Coordinates.plus _ _ _ _
+        (#coordinateReconstruction{b} x) (#coordinateReconstruction{b} y))}
+    "=" {coordinates b (#add{space} (synthesize b x) (synthesize b y))} "by" {
+      sym!{Coordinates.Vector} _ _ (#preservesAdd{(#coordinates{b})} (synthesize b x) (synthesize b y))}
+  }),
+  preservesScale := \fun (a: _) (x: _) => coordinatesInjective b _ _ (eq_reason!{
+    {coordinates b (synthesize b (Coordinates.scale a x))}
+    "=" {Coordinates.scale a x} "by" {#coordinateReconstruction{b} (Coordinates.scale a x)}
+    "=" {Coordinates.scale a (coordinates b (synthesize b x))} "by" {
+      sym!{Coordinates.Vector} _ _ (congr!{Coordinates.Vector Coordinates.Vector} (Coordinates.scale a) _ _ (#coordinateReconstruction{b} x))}
+    "=" {coordinates b (#smul{space} a (synthesize b x))} "by" {
+      sym!{Coordinates.Vector} _ _ (#preservesScale{(#coordinates{b})} a (synthesize b x))}
+  }),
+};
+
+\definition evaluateSum: \forall (indices: Lists.List[I]) -> \forall (f: I -> V) -> \forall (h: Dual.Map) ->
+  #apply{h} (vectorSum indices f) = Sums.sum indices (\fun (i: _) => #apply{h} (f i)) :=
+  \induction (indices: Lists.List[I]) \return \forall (f: I -> V) -> \forall (h: Dual.Map) ->
+    #apply{h} (vectorSum indices f) = Sums.sum indices (\fun (i: _) => #apply{h} (f i)) \with {
+  | nil : \fun (f: _) (h: Dual.Map) => #preservesZero{h}
+  | cons : \fun (i: I) (tail: Lists.List[I])
+      (ih: \forall (f: I -> V) -> \forall (h: Dual.Map) ->
+        #apply{h} (vectorSum tail f) = Sums.sum tail (\fun (i: _) => #apply{h} (f i)))
+      (f: I -> V) (h: Dual.Map) => trans!{K} _ _ _
+      (#preservesAdd{h} (f i) (vectorSum tail f))
+      (congr!{K K} (add (#apply{h} (f i))) _ _ (ih f h))
+  };
+
+\definition functionalExpansion: \forall (b: Basis) -> \forall (h: Dual.Map) -> \forall (x: V) ->
+  #apply{h} x = Sums.sum (#indices{b}) (\fun (i: _) => mul (coordinates b x i) (#apply{h} (#vectors{b} i))) :=
+  \fun (b: Basis) (h: Dual.Map) (x: _) => eq_reason!{
+    {#apply{h} x}
+    "=" {#apply{h} (synthesize b (coordinates b x))} "by" {congr!{V K} (#apply{h}) _ _ (sym!{V} _ _ (#reconstruction{b} x))}
+    "=" {Sums.sum (#indices{b}) (\fun (i: _) => #apply{h} (#smul{space} (coordinates b x i) (#vectors{b} i)))} "by" {
+      evaluateSum (#indices{b}) (\fun (i: _) => #smul{space} (coordinates b x i) (#vectors{b} i)) h}
+    "=" {Sums.sum (#indices{b}) (\fun (i: _) => mul (coordinates b x i) (#apply{h} (#vectors{b} i)))} "by" {
+      SumLaws.congruent (#indices{b})
+        (\fun (i: _) => #apply{h} (#smul{space} (coordinates b x i) (#vectors{b} i)))
+        (\fun (i: _) => mul (coordinates b x i) (#apply{h} (#vectors{b} i)))
+        (\fun (i: _) => #preservesScale{h} (coordinates b x i) (#vectors{b} i))}
+  };

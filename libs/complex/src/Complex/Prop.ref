@@ -1,0 +1,200 @@
+\import \parent.Def[] \as Def;
+\import \parent.Scalar[] \as S;
+
+\definition ext: \forall (z, w: Complex) -> re z = re w -> im z = im w -> z = w := PairLaws.ext;
+\definition eta: \forall (z: Complex) -> make (re z) (im z) = z := PairLaws.eta;
+\definition makeCong: \forall (a, b, c, d: Real) -> a = b -> c = d -> make a c = make b d :=
+  congr2!{Real Real Complex} make;
+\definition reMake: \forall (a, b: Real) -> re (make a b) = a := PairLaws.firstPair;
+\definition imMake: \forall (a, b: Real) -> im (make a b) = b := PairLaws.secondPair;
+
+\definition ofRealInjective: \forall (a, b: Real) -> Def.ofReal a = Def.ofReal b -> a = b :=
+  \fun (a, b: _) => congr!{Complex Real} re _ _;
+\definition zeroNeOne: Logic.Not (Def.zero = Def.one) :=
+  \fun (same: _) => RealLaws.zeroNeOne (ofRealInjective S.zero S.one same);
+
+\definition addZeroLeft: \forall (z: Complex) -> Def.add Def.zero z = z :=
+  \fun (z: _) => ext (Def.add Def.zero z) z (RealLaws.addZeroLeft (re z)) (RealLaws.addZeroLeft (im z));
+\definition addZeroRight: \forall (z: Complex) -> Def.add z Def.zero = z :=
+  \fun (z: _) => ext (Def.add z Def.zero) z (RealLaws.addZeroRight (re z)) (RealLaws.addZeroRight (im z));
+\definition addComm: \forall (z, w: Complex) -> Def.add z w = Def.add w z :=
+  \fun (z, w: _) => makeCong _ _ _ _ (RealLaws.addComm (re z) (re w)) (RealLaws.addComm (im z) (im w));
+\definition addAssoc: \forall (z, w, u: Complex) -> Def.add (Def.add z w) u = Def.add z (Def.add w u) :=
+  \fun (z, w, u: _) => makeCong _ _ _ _
+    (RealLaws.addAssoc (re z) (re w) (re u)) (RealLaws.addAssoc (im z) (im w) (im u));
+\definition addNegLeft: \forall (z: Complex) -> Def.add (Def.neg z) z = Def.zero :=
+  \fun (z: _) => makeCong _ _ _ _ (RealLaws.addNegLeft (re z)) (RealLaws.addNegLeft (im z));
+\definition addNegRight: \forall (z: Complex) -> Def.add z (Def.neg z) = Def.zero :=
+  \fun (z: _) => makeCong _ _ _ _ (RealLaws.addNegRight (re z)) (RealLaws.addNegRight (im z));
+\definition negNeg: \forall (z: Complex) -> Def.neg (Def.neg z) = z :=
+  \fun (z: _) => ext (Def.neg (Def.neg z)) z (RealLaws.negInvolutive (re z)) (RealLaws.negInvolutive (im z));
+\definition subSelf: \forall (z: Complex) -> Def.sub z z = Def.zero := addNegRight;
+\definition conjConj: \forall (z: Complex) -> Def.conj (Def.conj z) = z :=
+  \fun (z: _) => ext (Def.conj (Def.conj z)) z (\refl(re z)) (RealLaws.negInvolutive (im z));
+\definition conjAdd: \forall (z, w: Complex) -> Def.conj (Def.add z w) = Def.add (Def.conj z) (Def.conj w) :=
+  \fun (z, w: _) => makeCong _ _ _ _ (\refl(S.add (re z) (re w))) (RealLaws.negAdd (im z) (im w));
+\definition conjOfReal: \forall (a: Real) -> Def.conj (Def.ofReal a) = Def.ofReal a :=
+  \fun (a: _) => makeCong _ _ _ _ (\refl(a)) RealLaws.negZero;
+\definition normSqConj: \forall (z: Complex) -> Def.normSq (Def.conj z) = Def.normSq z :=
+  \fun (z: _) => congr!{Real Real} (S.add (S.mul (re z) (re z))) _ _ (RealLaws.fieldMulNegBoth (im z) (im z));
+
+\definition mulComm: \forall (z, w: Complex) -> Def.mul z w = Def.mul w z :=
+  \fun (z, w: _) => makeCong _ _ _ _
+    (congr2!{Real Real Real} S.sub _ _ _ _
+      (RealLaws.fieldMulComm (re z) (re w)) (RealLaws.fieldMulComm (im z) (im w)))
+    (trans!{Real} _ _ _
+      (congr2!{Real Real Real} S.add _ _ _ _
+        (RealLaws.fieldMulComm (re z) (im w)) (RealLaws.fieldMulComm (im z) (re w)))
+      (RealLaws.addComm (S.mul (im w) (re z)) (S.mul (re w) (im z))));
+\definition mulOneLeft: \forall (z: Complex) -> Def.mul Def.one z = z :=
+  \fun (z: _) => ext (Def.mul Def.one z) z
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.sub _ _ _ _
+      (RealLaws.fieldMulOneLeft (re z)) (RealLaws.fieldMulZeroLeft (im z))) (RealLaws.subZeroRight (re z)))
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.add _ _ _ _
+      (RealLaws.fieldMulOneLeft (im z)) (RealLaws.fieldMulZeroLeft (re z))) (RealLaws.addZeroRight (im z)));
+\definition mulOneRight: \forall (z: Complex) -> Def.mul z Def.one = z :=
+  \fun (z: _) => trans!{Complex} _ _ _ (mulComm z Def.one) (mulOneLeft z);
+\definition mulZeroLeft: \forall (z: Complex) -> Def.mul Def.zero z = Def.zero :=
+  \fun (z: _) => makeCong _ _ _ _
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.sub _ _ _ _
+      (RealLaws.fieldMulZeroLeft (re z)) (RealLaws.fieldMulZeroLeft (im z))) (RealLaws.subSelf S.zero))
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.add _ _ _ _
+      (RealLaws.fieldMulZeroLeft (im z)) (RealLaws.fieldMulZeroLeft (re z))) (RealLaws.addZeroLeft S.zero));
+\definition mulZeroRight: \forall (z: Complex) -> Def.mul z Def.zero = Def.zero :=
+  \fun (z: _) => trans!{Complex} _ _ _ (mulComm z Def.zero) (mulZeroLeft z);
+\definition iSquared: Def.mul Def.i Def.i = Def.neg Def.one :=
+  makeCong _ _ _ _
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.sub _ _ _ _
+      (RealLaws.fieldMulZeroLeft S.zero) (RealLaws.fieldMulOneLeft S.one)) (RealLaws.addZeroLeft (S.neg S.one)))
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.add _ _ _ _
+      (RealLaws.fieldMulZeroLeft S.one) (RealLaws.fieldMulZeroRight S.one))
+      (trans!{Real} _ _ _ (RealLaws.addZeroLeft S.zero) (sym!{Real} _ _ RealLaws.negZero)));
+
+\definition mulAddLeft: \forall (z, w, u: Complex) ->
+  Def.mul z (Def.add w u) = Def.add (Def.mul z w) (Def.mul z u) :=
+  \fun (z, w, u: _) => makeCong _ _ _ _
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.sub _ _ _ _
+      (RealLaws.fieldMulAdd (re z) (re w) (re u)) (RealLaws.fieldMulAdd (im z) (im w) (im u)))
+      (S.subAdd (S.mul (re z) (re w)) (S.mul (re z) (re u)) (S.mul (im z) (im w)) (S.mul (im z) (im u))))
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.add _ _ _ _
+      (RealLaws.fieldMulAdd (re z) (im w) (im u)) (RealLaws.fieldMulAdd (im z) (re w) (re u)))
+      (S.addFour (S.mul (re z) (im w)) (S.mul (re z) (im u)) (S.mul (im z) (re w)) (S.mul (im z) (re u))));
+\definition mulAddRight: \forall (z, w, u: Complex) ->
+  Def.mul (Def.add z w) u = Def.add (Def.mul z u) (Def.mul w u) :=
+  \fun (z, w, u: _) => eq_reason!{
+    {Def.mul (Def.add z w) u} "=" {Def.mul u (Def.add z w)} "by" {mulComm (Def.add z w) u}
+    "=" {Def.add (Def.mul u z) (Def.mul u w)} "by" {mulAddLeft u z w}
+    "=" {Def.add (Def.mul z u) (Def.mul w u)} "by" {
+      congr2!{Complex Complex Complex} Def.add _ _ _ _ (mulComm u z) (mulComm u w)}
+  };
+\definition conjMul: \forall (z, w: Complex) -> Def.conj (Def.mul z w) = Def.mul (Def.conj z) (Def.conj w) :=
+  \fun (z, w: _) => makeCong _ _ _ _
+    (congr!{Real Real} (S.sub (S.mul (re z) (re w))) _ _
+      (sym!{Real} _ _ (RealLaws.fieldMulNegBoth (im z) (im w))))
+    (trans!{Real} _ _ _ (RealLaws.negAdd (S.mul (re z) (im w)) (S.mul (im z) (re w)))
+      (congr2!{Real Real Real} S.add _ _ _ _
+        (sym!{Real} _ _ (RealLaws.fieldMulNegRight (re z) (im w)))
+        (sym!{Real} _ _ (RealLaws.fieldMulNegLeft (im z) (re w)))));
+\definition conjMulSelf: \forall (z: Complex) -> Def.mul (Def.conj z) z = Def.ofReal (Def.normSq z) :=
+  \fun (z: _) => makeCong _ _ _ _
+    (trans!{Real} _ _ _ (congr!{Real Real} (S.sub (S.mul (re z) (re z))) _ _
+      (RealLaws.fieldMulNegLeft (im z) (im z))) (S.subNeg (S.mul (re z) (re z)) (S.mul (im z) (im z))))
+    (trans!{Real} _ _ _ (congr!{Real Real} (S.add (S.mul (re z) (im z))) _ _
+      (trans!{Real} _ _ _ (RealLaws.fieldMulNegLeft (im z) (re z))
+        (congr!{Real Real} S.neg _ _ (RealLaws.fieldMulComm (im z) (re z)))))
+      (RealLaws.addNegRight (S.mul (re z) (im z))));
+\definition mulConjSelf: \forall (z: Complex) -> Def.mul z (Def.conj z) = Def.ofReal (Def.normSq z) :=
+  \fun (z: _) => trans!{Complex} _ _ _ (mulComm z (Def.conj z)) (conjMulSelf z);
+\definition scaleMulLeft: \forall (a: Real) -> \forall (z, w: Complex) ->
+  Def.mul (Def.scale a z) w = Def.scale a (Def.mul z w) :=
+  \fun (a: _) (z, w: _) => makeCong _ _ _ _
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.sub _ _ _ _
+      (RealLaws.fieldMulAssoc a (re z) (re w)) (RealLaws.fieldMulAssoc a (im z) (im w)))
+      (sym!{Real} _ _ (S.mulSub a (S.mul (re z) (re w)) (S.mul (im z) (im w)))))
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.add _ _ _ _
+      (RealLaws.fieldMulAssoc a (re z) (im w)) (RealLaws.fieldMulAssoc a (im z) (re w)))
+      (sym!{Real} _ _ (RealLaws.fieldMulAdd a (S.mul (re z) (im w)) (S.mul (im z) (re w)))));
+\definition normSqNonnegative: \forall (z: Complex) -> R.Le S.zero (Def.normSq z) :=
+  \fun (z: _) => RealLaws.addNonnegative (S.mul (re z) (re z)) (S.mul (im z) (im z))
+    (S.squareNonnegative (re z)) (S.squareNonnegative (im z));
+\definition normSqZero: \forall (z: Complex) -> Def.normSq z = S.zero -> z = Def.zero :=
+  \fun (z: _) (sum: _) => ext z Def.zero
+    (S.sumSquaresZeroLeft (re z) (im z) sum)
+    (S.sumSquaresZeroLeft (im z) (re z)
+      (trans!{Real} _ _ _ (RealLaws.addComm (S.mul (im z) (im z)) (S.mul (re z) (re z))) sum));
+\definition normSqNonzero: \forall (z: Complex) -> Def.NonZero z -> Logic.Not (Def.normSq z = S.zero) :=
+  \fun (z: _) (nonzero: _) (sum: _) => nonzero (normSqZero z sum);
+\definition inverseNonzero: \forall (z: Complex) -> Def.NonZero z -> Def.mul (Def.inv z) z = Def.one :=
+  \fun (z: _) (nonzero: _) => eq_reason!{
+    {Def.mul (Def.inv z) z}
+    "=" {Def.scale (RealLaws.fieldInv (Def.normSq z)) (Def.mul (Def.conj z) z)} "by" {
+      scaleMulLeft (RealLaws.fieldInv (Def.normSq z)) (Def.conj z) z}
+    "=" {Def.scale (RealLaws.fieldInv (Def.normSq z)) (Def.ofReal (Def.normSq z))} "by" {
+      congr!{Complex Complex} (Def.scale (RealLaws.fieldInv (Def.normSq z))) _ _ (conjMulSelf z)}
+    "=" Def.one "by" {makeCong _ _ _ _
+      (RealLaws.fieldInverseNonzero (Def.normSq z) (normSqNonzero z nonzero))
+      (RealLaws.fieldMulZeroRight (RealLaws.fieldInv (Def.normSq z)))}
+  };
+\definition inverseNonzeroRight: \forall (z: Complex) -> Def.NonZero z -> Def.mul z (Def.inv z) = Def.one :=
+  \fun (z: _) (nonzero: _) => trans!{Complex} _ _ _ (mulComm z (Def.inv z)) (inverseNonzero z nonzero);
+
+\definition mulAssoc: \forall (z, w, u: Complex) -> Def.mul (Def.mul z w) u = Def.mul z (Def.mul w u) :=
+  \fun (z, w, u: _) => makeCong _ _ _ _
+    (S.assocRealPart (re z) (im z) (re w) (im w) (re u) (im u))
+    (S.assocImaginaryPart (re z) (im z) (re w) (im w) (re u) (im u));
+
+\definition ofRealAdd: \forall (a, b: Real) -> Def.ofReal (S.add a b) = Def.add (Def.ofReal a) (Def.ofReal b) :=
+  \fun (a, b: _) => makeCong _ _ _ _ (\refl(S.add a b)) (sym!{Real} _ _ (RealLaws.addZeroLeft S.zero));
+\definition ofRealNeg: \forall (a: Real) -> Def.ofReal (S.neg a) = Def.neg (Def.ofReal a) :=
+  \fun (a: _) => makeCong _ _ _ _ (\refl(S.neg a)) (sym!{Real} _ _ RealLaws.negZero);
+\definition ofRealMul: \forall (a, b: Real) -> Def.mul (Def.ofReal a) (Def.ofReal b) = Def.ofReal (S.mul a b) :=
+  \fun (a, b: _) => makeCong _ _ _ _
+    (trans!{Real} _ _ _ (congr!{Real Real} (S.sub (S.mul a b)) _ _ (RealLaws.fieldMulZeroLeft S.zero))
+      (RealLaws.subZeroRight (S.mul a b)))
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} S.add _ _ _ _
+      (RealLaws.fieldMulZeroRight a) (RealLaws.fieldMulZeroLeft b)) (RealLaws.addZeroLeft S.zero));
+\definition scaleZero: \forall (a: Real) -> Def.scale a Def.zero = Def.zero :=
+  \fun (a: _) => makeCong _ _ _ _ (RealLaws.fieldMulZeroRight a) (RealLaws.fieldMulZeroRight a);
+\definition invZero: Def.inv Def.zero = Def.zero :=
+  trans!{Complex} _ _ _
+    (congr!{Complex Complex} (Def.scale (RealLaws.fieldInv (Def.normSq Def.zero))) _ _ (conjOfReal S.zero))
+    (scaleZero (RealLaws.fieldInv (Def.normSq Def.zero)));
+\definition divZeroRight: \forall (z: Complex) -> Def.div z Def.zero = Def.zero :=
+  \fun (z: _) => trans!{Complex} _ _ _ (congr!{Complex Complex} (Def.mul z) _ _ invZero) (mulZeroRight z);
+\definition divSelf: \forall (z: Complex) -> Def.NonZero z -> Def.div z z = Def.one := inverseNonzeroRight;
+\definition divMulCancel: \forall (z, w: Complex) -> Def.NonZero w -> Def.mul (Def.div z w) w = z :=
+  \fun (z, w: _) (nonzero: _) => eq_reason!{
+    {Def.mul (Def.div z w) w} "=" {Def.mul z (Def.mul (Def.inv w) w)} "by" {mulAssoc z (Def.inv w) w}
+    "=" {Def.mul z Def.one} "by" {congr!{Complex Complex} (Def.mul z) _ _ (inverseNonzero w nonzero)}
+    "=" z "by" {mulOneRight z}
+  };
+\definition iNonzero: Def.NonZero Def.i :=
+  \fun (same: _) => RealLaws.zeroNeOne (sym!{Real} _ _ (congr!{Complex Real} im Def.i Def.zero same));
+
+\definition mulSwap: \forall (z, w, u: Complex) -> Def.mul z (Def.mul w u) = Def.mul w (Def.mul z u) :=
+  \fun (z, w, u: _) => eq_reason!{
+    {Def.mul z (Def.mul w u)} "=" {Def.mul (Def.mul z w) u} "by" {sym!{Complex} _ _ (mulAssoc z w u)}
+    "=" {Def.mul (Def.mul w z) u} "by" {congr!{Complex Complex} (\fun (t: _) => Def.mul t u) _ _ (mulComm z w)}
+    "=" {Def.mul w (Def.mul z u)} "by" {mulAssoc w z u}
+  };
+\definition mulFour: \forall (z, w, u, v: Complex) ->
+  Def.mul (Def.mul z w) (Def.mul u v) = Def.mul (Def.mul z u) (Def.mul w v) :=
+  \fun (z, w, u, v: _) => eq_reason!{
+    {Def.mul (Def.mul z w) (Def.mul u v)} "=" {Def.mul z (Def.mul w (Def.mul u v))} "by" {mulAssoc z w (Def.mul u v)}
+    "=" {Def.mul z (Def.mul u (Def.mul w v))} "by" {congr!{Complex Complex} (Def.mul z) _ _ (mulSwap w u v)}
+    "=" {Def.mul (Def.mul z u) (Def.mul w v)} "by" {sym!{Complex} _ _ (mulAssoc z u (Def.mul w v))}
+  };
+\definition normSqMul: \forall (z, w: Complex) -> Def.normSq (Def.mul z w) = S.mul (Def.normSq z) (Def.normSq w) :=
+  \fun (z, w: _) => ofRealInjective _ _ (eq_reason!{
+    {Def.ofReal (Def.normSq (Def.mul z w))}
+    "=" {Def.mul (Def.conj (Def.mul z w)) (Def.mul z w)} "by" {sym!{Complex} _ _ (conjMulSelf (Def.mul z w))}
+    "=" {Def.mul (Def.mul (Def.conj z) (Def.conj w)) (Def.mul z w)} "by" {
+      congr!{Complex Complex} (\fun (t: _) => Def.mul t (Def.mul z w)) _ _ (conjMul z w)}
+    "=" {Def.mul (Def.mul (Def.conj z) z) (Def.mul (Def.conj w) w)} "by" {mulFour (Def.conj z) (Def.conj w) z w}
+    "=" {Def.mul (Def.ofReal (Def.normSq z)) (Def.ofReal (Def.normSq w))} "by" {
+      congr2!{Complex Complex Complex} Def.mul _ _ _ _ (conjMulSelf z) (conjMulSelf w)}
+    "=" {Def.ofReal (S.mul (Def.normSq z) (Def.normSq w))} "by" {ofRealMul (Def.normSq z) (Def.normSq w)}
+  });
+\definition normSqPositive: \forall (z: Complex) -> Def.NonZero z -> R.Lt S.zero (Def.normSq z) :=
+  \fun (z: _) (nonzero: _) => RealOrder.ltOfLeNotEq S.zero (Def.normSq z) (normSqNonnegative z)
+    (\fun (same: _) => normSqNonzero z nonzero (sym!{Real} _ _ same));

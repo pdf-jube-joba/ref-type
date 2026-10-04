@@ -1,0 +1,32 @@
+\import Algebra.Linear[V := V, W := V, source := space, target := space] \as End;
+\structure InnerProductData: \Set {
+  inner: V -> V -> Scalar,
+}
+\structure InnerProductLaws[data: InnerProductData]: \Prop {
+  symmetric: \forall (x, y: V) -> data.inner x y = data.inner y x,
+  zeroRight: \forall (x: V) -> data.inner x (#zero{space}) = D.zero,
+  addRight: \forall (x, y, z: V) -> data.inner x (#add{space} y z) = D.add (data.inner x y) (data.inner x z),
+  scaleRight: \forall (a: Scalar) (x, y: V) -> data.inner x (#smul{space} a y) = P.fieldMul a (data.inner x y),
+  nonnegative: \forall (x: V) -> R.Le D.zero (data.inner x x),
+  definite: \forall (x: V) -> data.inner x x = D.zero -> x = #zero{space},
+}
+\definition InnerProduct: \Set := \Cast[InnerProductData] ({ data: InnerProductData \where InnerProductLaws[data] });
+\definition normSquared(h: InnerProduct) (x: V): Scalar := #inner{h} x x;
+\definition Orthogonal(h: InnerProduct) (x, y: V): \Prop := #inner{h} x y = D.zero;
+\definition SelfAdjoint(h: InnerProduct) (f: End.Map): \Prop :=
+  \forall (x, y: V) -> #inner{h} (#apply{f} x) y = #inner{h} x (#apply{f} y);
+\definition Isometry(h: InnerProduct) (f: End.Map): \Prop :=
+  \forall (x, y: V) -> #inner{h} (#apply{f} x) (#apply{f} y) = #inner{h} x y;
+\definition scaleLeft: \forall (h: InnerProduct) -> \forall (a: Scalar) -> \forall (x, y: V) ->
+  #inner{h} (#smul{space} a x) y = P.fieldMul a (#inner{h} x y) :=
+  \fun (h: InnerProduct) (a: _) (x, y: _) => trans!{Scalar} _ _ _ (#symmetric{h} (#smul{space} a x) y)
+    (trans!{Scalar} _ _ _ (#scaleRight{h} a y x) (congr!{Scalar Scalar} (P.fieldMul a) _ _ (#symmetric{h} y x)));
+\import Algebra.Form[V := V, space := space] \as Forms;
+\definition asBilinear(h: InnerProduct): Forms.Bilinear := Forms.Bilinear {
+  form := #inner{h},
+  zeroLeft := \fun (x: _) => trans!{Scalar} _ _ _ (#symmetric{h} (#zero{space}) x) (#zeroRight{h} x),
+  zeroRight := #zeroRight{h},
+  addLeft := \fun (x, y, z: _) => trans!{Scalar} _ _ _ (#symmetric{h} (#add{space} x y) z)
+    (trans!{Scalar} _ _ _ (#addRight{h} z x y) (congr2!{Scalar Scalar Scalar} D.add _ _ _ _ (#symmetric{h} z x) (#symmetric{h} z y))),
+  addRight := #addRight{h}, scaleLeft := scaleLeft h, scaleRight := #scaleRight{h},
+};

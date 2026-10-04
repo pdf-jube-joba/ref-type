@@ -1,0 +1,22 @@
+\structure MapData: \Set {
+  apply: V -> W,
+}
+\structure MapLaws[data: MapData]: \Prop {
+  preservesZero: data.apply (#zero{source}) = #zero{target},
+  preservesAdd: \forall (x, y: V) -> data.apply (#add{source} x y) = #add{target} (data.apply x) (data.apply y),
+  preservesScale: \forall (a: K) (x: V) -> data.apply (#smul{source} a x) = #smul{target} a (data.apply x),
+}
+\definition Map: \Set := \Cast[MapData] ({ data: MapData \where MapLaws[data] });
+\module Composition(U: \Set, domain: VectorSpace U) {
+  \import \parent.\parent.Linear[V := U, W := V, source := domain, target := source] \as Before;
+  \import \parent.\parent.Linear[V := U, W := W, source := domain, target := target] \as Result;
+  \definition compose(f: Map) (g: Before.Map): Result.Map := Result.Map {
+    apply := \fun (x: _) => #apply{f} (#apply{g} x),
+    preservesZero := trans!{W} _ _ _ (congr!{V W} (#apply{f}) _ _ (#preservesZero{g})) (#preservesZero{f}),
+    preservesAdd := \fun (x, y: _) => trans!{W} _ _ _
+      (congr!{V W} (#apply{f}) _ _ (#preservesAdd{g} x y)) (#preservesAdd{f} (#apply{g} x) (#apply{g} y)),
+    preservesScale := \fun (a: _) (x: _) => trans!{W} _ _ _
+      (congr!{V W} (#apply{f}) _ _ (#preservesScale{g} a x)) (#preservesScale{f} a (#apply{g} x)),
+  };
+}
+\module Operations;

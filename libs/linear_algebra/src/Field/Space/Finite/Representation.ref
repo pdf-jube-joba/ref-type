@@ -1,0 +1,69 @@
+\import \parent.Prop[] \as Laws;
+\import \parent.\parent.Finite[V := W, I := J, space := target] \as Other;
+\import Other.Prop[] \as OtherLaws;
+\import \parent.\parent.Linear[V := V, W := W, source := space, target := target] \as Maps;
+\import \parent.\parent.Matrix[I := J, J := I] \as Matrices;
+\import \parent.\parent.Coordinates[I := I] \as SourceCoordinates;
+\import \parent.\parent.Coordinates[I := J] \as TargetCoordinates;
+\import \parent.\parent.Linear[V := SourceCoordinates.Vector, W := TargetCoordinates.Vector, source := SourceCoordinates.space, target := TargetCoordinates.space] \as CoordinateMaps;
+\import CoordinateMaps.Composition[U := V, domain := space] \as EncodeMatrix;
+\import \parent.\parent.Linear[V := TargetCoordinates.Vector, W := W, source := TargetCoordinates.space, target := target] \as Decoding;
+\import Decoding.Composition[U := V, domain := space] \as DecodeMatrix;
+\import \parent.\parent.Linear[V := W, W := K, source := target, target := scalarSpace] \as TargetDual;
+\import TargetDual.Composition[U := V, domain := space] \as ComposeFunctional;
+
+\definition toMatrix(b: Basis) (c: Other.Basis) (f: Maps.Map): Matrices.Matrix :=
+  \fun (j: _) (i: _) => Other.coordinates c (#apply{f} (#vectors{b} i)) j;
+\definition fromMatrix(b: Basis) (c: Other.Basis) (a: Matrices.Matrix): Maps.Map :=
+  DecodeMatrix.compose (OtherLaws.synthesis c)
+    (EncodeMatrix.compose (Matrices.asLinear (#indices{b}) a) (#coordinates{b}));
+
+\definition actionLaw: \forall (b: Basis) -> \forall (c: Other.Basis) -> \forall (f: Maps.Map) -> \forall (x: V) ->
+  Other.coordinates c (#apply{f} x) = Matrices.action (#indices{b}) (toMatrix b c f) (coordinates b x) :=
+  \fun (b: Basis) (c: Other.Basis) (f: Maps.Map) (x: _) =>
+    \axiom:funext(Other.coordinates c (#apply{f} x), Matrices.action (#indices{b}) (toMatrix b c f) (coordinates b x),
+      \fun (j: _) => trans!{K} _ _ _
+        (Laws.functionalExpansion b (ComposeFunctional.compose (Other.coordinate c j) f) x)
+        (SumLaws.congruent (#indices{b})
+          (\fun (i: _) => mul (coordinates b x i) (Other.coordinates c (#apply{f} (#vectors{b} i)) j))
+          (\fun (i: _) => mul (Other.coordinates c (#apply{f} (#vectors{b} i)) j) (coordinates b x i))
+          (\fun (i: _) =>
+          mulComm (coordinates b x i) (Other.coordinates c (#apply{f} (#vectors{b} i)) j))));
+
+\definition mapRoundTrip: \forall (b: Basis) -> \forall (c: Other.Basis) -> \forall (f: Maps.Map) -> \forall (x: V) ->
+  #apply{(fromMatrix b c (toMatrix b c f))} x = #apply{f} x :=
+  \fun (b: Basis) (c: Other.Basis) (f: Maps.Map) (x: _) => trans!{W} _ _ _
+    (congr!{TargetCoordinates.Vector W} (Other.synthesize c) _ _ (sym!{TargetCoordinates.Vector} _ _ (actionLaw b c f x)))
+    (#reconstruction{c} (#apply{f} x));
+
+\definition matrixRoundTrip: \forall (b: Basis) -> \forall (c: Other.Basis) -> \forall (a: Matrices.Matrix) ->
+  toMatrix b c (fromMatrix b c a) = a :=
+  \fun (b: Basis) (c: Other.Basis) (a: _) =>
+    \axiom:funext(toMatrix b c (fromMatrix b c a), a, \fun (j: _) =>
+      \axiom:funext(toMatrix b c (fromMatrix b c a) j, a j, \fun (i: _) => trans!{K} _ _ _
+        (congr!{TargetCoordinates.Vector K} (\fun (x: _) => x j) _ _
+          (#coordinateReconstruction{c} (Matrices.action (#indices{b}) a (coordinates b (#vectors{b} i)))))
+        (#dualReconstruction{b} (a j) i)));
+\module Composition(U, H: \Set, domain: VectorSpace U) {
+  \import \parent.\parent.\parent.Finite[V := U, I := H, space := domain] \as Before;
+  \import Before.Representation[W := V, J := I, target := space] \as BeforeRepresentation;
+  \import Before.Representation[W := W, J := J, target := target] \as ResultRepresentation;
+  \import \parent.\parent.\parent.Linear[V := U, W := V, source := domain, target := space] \as BeforeMaps;
+  \import Maps.Composition[U := U, domain := domain] \as Compose;
+  \import Matrices.Composition[H := H] \as Product;
+  \definition compositionMatrix: \forall (a: Before.Basis) -> \forall (b: Basis) -> \forall (c: Other.Basis) ->
+    \forall (f: Maps.Map) -> \forall (g: BeforeMaps.Map) ->
+    ResultRepresentation.toMatrix a c (Compose.compose f g) =
+      Product.multiply (#indices{b}) (toMatrix b c f) (BeforeRepresentation.toMatrix a b g) :=
+    \fun (a: Before.Basis) (b: Basis) (c: Other.Basis) (f: Maps.Map) (g: BeforeMaps.Map) =>
+      \axiom:funext(ResultRepresentation.toMatrix a c (Compose.compose f g),
+        Product.multiply (#indices{b}) (toMatrix b c f) (BeforeRepresentation.toMatrix a b g), \fun (j: _) =>
+        \axiom:funext(ResultRepresentation.toMatrix a c (Compose.compose f g) j,
+          Product.multiply (#indices{b}) (toMatrix b c f) (BeforeRepresentation.toMatrix a b g) j, \fun (h: _) =>
+          trans!{K} _ _ _
+            (Laws.functionalExpansion b (ComposeFunctional.compose (Other.coordinate c j) f) (#apply{g} (#vectors{a} h)))
+            (SumLaws.congruent (#indices{b})
+              (\fun (i: _) => mul (coordinates b (#apply{g} (#vectors{a} h)) i) (Other.coordinates c (#apply{f} (#vectors{b} i)) j))
+              (\fun (i: _) => mul (Other.coordinates c (#apply{f} (#vectors{b} i)) j) (coordinates b (#apply{g} (#vectors{a} h)) i))
+              (\fun (i: _) => mulComm (coordinates b (#apply{g} (#vectors{a} h)) i) (Other.coordinates c (#apply{f} (#vectors{b} i)) j)))));
+}

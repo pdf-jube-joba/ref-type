@@ -1,0 +1,40 @@
+\import \parent.Matrix[I := I, J := I] \as Matrices;
+\import \parent.Sums[I := I] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\definition trace(indices: Lists.List[I]) (a: Matrices.Matrix): K := Sums.sum indices (\fun (i: _) => a i i);
+\definition traceAdd: \forall (indices: Lists.List[I]) -> \forall (a, b: Matrices.Matrix) ->
+  trace indices (Matrices.plus a b) = add (trace indices a) (trace indices b) :=
+  \fun (indices: _) (a, b: _) => SumLaws.additive indices _ _;
+\definition traceScale: \forall (indices: Lists.List[I]) -> \forall (c: K) -> \forall (a: Matrices.Matrix) ->
+  trace indices (Matrices.scale c a) = mul c (trace indices a) :=
+  \fun (indices: _) (c: _) (a: _) => SumLaws.multiplyLeft indices c _;
+\definition traceTranspose: \forall (indices: Lists.List[I]) -> \forall (a: Matrices.Matrix) ->
+  trace indices (Matrices.transpose a) = trace indices a := \fun (indices: _) (a: _) => \refl(trace indices a);
+\module Cyclic(J: \Set) {
+  \import \parent.\parent.Matrix[I := I, J := J] \as Forward;
+  \import Forward.Composition[H := I] \as ForwardProduct;
+  \import \parent.\parent.Matrix[I := J, J := I] \as Backward;
+  \import Backward.Composition[H := J] \as BackwardProduct;
+  \import \parent.\parent.Square[I := J] \as Other;
+  \import \parent.\parent.Sums[I := J] \as OtherSums;
+  \import Sums.Prop[].Exchange[J := J] \as Exchange;
+  \import OtherSums.Prop[] \as OtherLaws;
+  \definition traceCyclic: \forall (xs: Lists.List[I]) -> \forall (ys: Lists.List[J]) ->
+    \forall (a: Forward.Matrix) -> \forall (b: Backward.Matrix) ->
+    trace xs (ForwardProduct.multiply ys a b) = Other.trace ys (BackwardProduct.multiply xs b a) :=
+    \fun (xs: Lists.List[I]) (ys: Lists.List[J]) (a: Forward.Matrix) (b: Backward.Matrix) => trans!{K} _ _ _
+      (Exchange.exchange xs ys (\fun (i: _) (j: _) => mul (a i j) (b j i)))
+      (OtherLaws.congruent ys
+        (\fun (j: _) => Sums.sum xs (\fun (i: _) => mul (a i j) (b j i)))
+        (\fun (j: _) => Sums.sum xs (\fun (i: _) => mul (b j i) (a i j)))
+        (\fun (j: _) => SumLaws.congruent xs (\fun (i: _) => mul (a i j) (b j i)) (\fun (i: _) => mul (b j i) (a i j)) (\fun (i: _) => mulComm (a i j) (b j i))));
+}
+\import \parent.Coordinates[I := I] \as Coordinates;
+\import \parent.Eigen[V := Coordinates.Vector, space := Coordinates.space] \as Eigen;
+\definition Symmetric(a: Matrices.Matrix): \Prop := \forall (i, j: I) -> a i j = a j i;
+\definition Eigenspace(indices: Lists.List[I]) (a: Matrices.Matrix) (lambda: K): \Pow Coordinates.Vector :=
+  Eigen.Eigenspace (Matrices.asLinear indices a) lambda;
+\definition Eigenvector(indices: Lists.List[I]) (a: Matrices.Matrix) (lambda: K) (x: Coordinates.Vector): \Prop :=
+  Eigen.Eigenvector[Matrices.asLinear indices a, lambda, x];
+\definition Eigenvalue(indices: Lists.List[I]) (a: Matrices.Matrix) (lambda: K): \Prop :=
+  Eigen.Eigenvalue (Matrices.asLinear indices a) lambda;

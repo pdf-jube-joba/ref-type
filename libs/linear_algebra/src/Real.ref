@@ -1,0 +1,33 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\import std.Alg[].Field[] \as Fields;
+\import real.DedekindReal[] \as R;
+\import R.Arithmetic[].Def[] \as D;
+\import R.Arithmetic[].Prop[] \as P;
+\import std.Alg[].Ring[] \as Ring;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition field: Fields.Field[R.Real] := Fields.Field[R.Real] {
+  zero := D.zero, one := D.one, add := D.add, neg := D.neg, mul := P.fieldMul, inv := P.fieldInv,
+  ring := Ring.CommutativeRingLaws[R.Real, Ring.CommutativeRingData[R.Real]::# (Ring.RingData[R.Real]::# D.zero D.one D.add D.neg P.fieldMul)] {
+    ring := Ring.RingLaws[R.Real, Ring.RingData[R.Real]::# D.zero D.one D.add D.neg P.fieldMul] {
+      semiring := Alg.SemiringLaws[R.Real, Alg.SemiringData[R.Real]::# D.zero D.one D.add P.fieldMul] {
+        additive := Monoid.CommutativeMonoidLaws[R.Real, Monoid.CommutativeMonoidData[R.Real]::# (Monoid.MonoidData[R.Real]::# D.zero D.add)] {
+          monoid := Monoid.MonoidLaws[R.Real, Monoid.MonoidData[R.Real]::# D.zero D.add] {
+            leftIdentity := P.addZeroLeft, rightIdentity := P.addZeroRight, associative := P.addAssoc,
+          }, commutative := P.addComm,
+        },
+        multiplicative := Monoid.MonoidLaws[R.Real, Monoid.MonoidData[R.Real]::# D.one P.fieldMul] {
+          leftIdentity := P.fieldMulOneLeft, rightIdentity := (\fun (x: _) => trans!{R.Real} _ _ _ (P.fieldMulComm x D.one) (P.fieldMulOneLeft x)), associative := P.fieldMulAssoc,
+        },
+        leftDistributive := P.fieldMulAdd, rightDistributive := (\fun (x, y, z: _) => trans!{R.Real} _ _ _ (P.fieldMulComm (D.add x y) z) (trans!{R.Real} _ _ _ (P.fieldMulAdd z x y) (congr2!{R.Real R.Real R.Real} D.add _ _ _ _ (P.fieldMulComm z x) (P.fieldMulComm z y)))),
+        zeroAbsorbsLeft := P.fieldMulZeroLeft, zeroAbsorbsRight := P.fieldMulZeroRight,
+      }, additiveInverse := P.addNegLeft,
+    }, mulCommutative := P.fieldMulComm,
+  }, nontrivial := P.zeroNeOne, inverse := P.fieldInverseNonzero,
+};
+\import \root.Field[].Space[K := R.Real, field := field] \as Algebra;
+\definition Scalar: \Set := R.Real;
+\module InnerProduct(V: \Set, space: Algebra.VectorSpace V);

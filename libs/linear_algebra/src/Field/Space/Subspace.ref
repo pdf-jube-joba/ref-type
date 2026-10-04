@@ -1,0 +1,26 @@
+\structure SubspaceData: \Set {
+  carrier: \Pow V,
+}
+\structure SubspaceLaws[data: SubspaceData]: \Prop {
+  containsZero: \In[V] data.carrier (#zero{space}),
+  closedAdd: \forall (x, y: V) -> \In[V] data.carrier x -> \In[V] data.carrier y -> \In[V] data.carrier (#add{space} x y),
+  closedScale: \forall (a: K) (x: V) -> \In[V] data.carrier x -> \In[V] data.carrier (#smul{space} a x),
+}
+\definition Subspace: \Set := \Cast[SubspaceData] ({ data: SubspaceData \where SubspaceLaws[data] });
+\definition Member(s: SubspaceData) (x: V): \Prop := \In[V] (#carrier{s}) x;
+\module Kernel(W: \Set, target: VectorSpace W) {
+  \import \parent.\parent.Linear[V := V, W := W, source := space, target := target] \as Maps;
+  \import \parent.\parent.Laws[V := W, space := target] \as TargetLaws;
+  \definition kernel(f: Maps.Map): Subspace := Subspace {
+    carrier := { x: V \where #apply{f} x = #zero{target} },
+    containsZero := #preservesZero{f},
+    closedAdd := \fun (x, y: _) (hx: _) (hy: _) => eq_reason!{
+      {#apply{f} (#add{space} x y)}
+      "=" {#add{target} (#apply{f} x) (#apply{f} y)} "by" {#preservesAdd{f} x y}
+      "=" {#add{target} (#zero{target}) (#zero{target})} "by" {congr2!{W W W} (#add{target}) _ _ _ _ hx hy}
+      "=" {#zero{target}} "by" {TargetLaws.zeroLeft (#zero{target})}
+    },
+    closedScale := \fun (a: _) (x: _) (hx: _) => trans!{W} _ _ _ (#preservesScale{f} a x)
+      (trans!{W} _ _ _ (congr!{W W} (#smul{target} a) _ _ hx) (TargetLaws.scaleZero a)),
+  };
+}

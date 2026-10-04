@@ -1,0 +1,70 @@
+\import \parent.Eigen[V := V, space := space] \as Abstract;
+\import \parent.Linear[V := V, W := V, source := space, target := space] \as End;
+\import \parent.Finite[V := V, I := I, space := space] \as Finite;
+\import Finite.Prop[] \as BasisLaws;
+\import Finite.Representation[W := V, J := I, target := space] \as Representation;
+\import \parent.Coordinates[I := I] \as CoordinateSpace;
+\import \parent.Eigen[V := CoordinateSpace.Vector, space := CoordinateSpace.space] \as CoordinateEigen;
+\import \parent.Matrix[I := I, J := I] \as Matrices;
+\import \parent.Linear[V := CoordinateSpace.Vector, W := CoordinateSpace.Vector, source := CoordinateSpace.space, target := CoordinateSpace.space] \as CoordinateEnd;
+\definition represented(b: Finite.Basis) (f: End.Map): CoordinateEnd.Map :=
+  Matrices.asLinear (#indices{b}) (Representation.toMatrix b b f);
+\definition equationCorrespondence: \forall (b: Finite.Basis) -> \forall (f: End.Map) -> \forall (lambda: K) -> \forall (x: V) ->
+  Logic.PropEquiv[Abstract.EigenEquation f lambda x, CoordinateEigen.EigenEquation (represented b f) lambda (Finite.coordinates b x)] :=
+  \fun (b: Finite.Basis) (f: End.Map) (lambda: K) (x: V) => Logic.PropEquiv[_, _] {
+    ltr := \fun (equal: Abstract.EigenEquation f lambda x) => eq_reason!{
+      {#apply{(represented b f)} (Finite.coordinates b x)}
+      "=" {Finite.coordinates b (#apply{f} x)} "by" {sym!{CoordinateSpace.Vector} _ _ (Representation.actionLaw b b f x)}
+      "=" {Finite.coordinates b (#smul{space} lambda x)} "by" {congr!{V CoordinateSpace.Vector} (Finite.coordinates b) _ _ equal}
+      "=" {CoordinateSpace.scale lambda (Finite.coordinates b x)} "by" {#preservesScale{(#coordinates{b})} lambda x}
+    },
+    rtl := \fun (equal: CoordinateEigen.EigenEquation (represented b f) lambda (Finite.coordinates b x)) => BasisLaws.coordinatesInjective b (#apply{f} x) (#smul{space} lambda x) (eq_reason!{
+      {Finite.coordinates b (#apply{f} x)}
+      "=" {#apply{(represented b f)} (Finite.coordinates b x)} "by" {Representation.actionLaw b b f x}
+      "=" {CoordinateSpace.scale lambda (Finite.coordinates b x)} "by" equal
+      "=" {Finite.coordinates b (#smul{space} lambda x)} "by" {sym!{CoordinateSpace.Vector} _ _ (#preservesScale{(#coordinates{b})} lambda x)}
+    }),
+  };
+\definition nonzeroCorrespondence: \forall (b: Finite.Basis) -> \forall (x: V) ->
+  Logic.PropEquiv[Logic.Not (x = #zero{space}), Logic.Not (Finite.coordinates b x = CoordinateSpace.origin)] :=
+  \fun (b: Finite.Basis) (x: V) => Logic.PropEquiv[_, _] {
+    ltr := \fun (nonzero: Logic.Not (x = #zero{space})) (equal: Finite.coordinates b x = CoordinateSpace.origin) => nonzero (BasisLaws.coordinatesInjective b _ _
+      (trans!{CoordinateSpace.Vector} _ _ _ equal (sym!{CoordinateSpace.Vector} _ _ (#preservesZero{(#coordinates{b})})))),
+    rtl := \fun (nonzero: Logic.Not (Finite.coordinates b x = CoordinateSpace.origin)) (equal: x = #zero{space}) => nonzero (trans!{CoordinateSpace.Vector} _ _ _
+      (congr!{V CoordinateSpace.Vector} (Finite.coordinates b) _ _ equal) (#preservesZero{(#coordinates{b})})),
+  };
+\definition eigenvectorCorrespondence: \forall (b: Finite.Basis) -> \forall (f: End.Map) -> \forall (lambda: K) -> \forall (x: V) ->
+  Logic.PropEquiv[Abstract.Eigenvector[f, lambda, x], CoordinateEigen.Eigenvector[represented b f, lambda, Finite.coordinates b x]] :=
+  \fun (b: Finite.Basis) (f: End.Map) (lambda: K) (x: V) => Logic.PropEquiv[_, _] {
+    ltr := \fun (e: Abstract.Eigenvector[f, lambda, x]) => CoordinateEigen.Eigenvector[_, _, _] {
+      nonzero := #ltr{(nonzeroCorrespondence b x)} (#nonzero{e}),
+      equation := #ltr{(equationCorrespondence b f lambda x)} (#equation{e}),
+    },
+    rtl := \fun (e: CoordinateEigen.Eigenvector[represented b f, lambda, Finite.coordinates b x]) => Abstract.Eigenvector[_, _, _] {
+      nonzero := #rtl{(nonzeroCorrespondence b x)} (#nonzero{e}),
+      equation := #rtl{(equationCorrespondence b f lambda x)} (#equation{e}),
+    },
+  };
+\definition eigenvalueCorrespondence: \forall (b: Finite.Basis) -> \forall (f: End.Map) -> \forall (lambda: K) ->
+  Logic.PropEquiv[Abstract.Eigenvalue f lambda, CoordinateEigen.Eigenvalue (represented b f) lambda] :=
+  \fun (b: Finite.Basis) (f: End.Map) (lambda: K) => Logic.PropEquiv[_, _] {
+    ltr := \block {
+      \fun (e: Abstract.Eigenvalue f lambda) \then
+      \takefrom x: \Cast[V] ({ x: V \where Abstract.Eigenvector[f, lambda, x] }) \by e \then
+      \return CoordinateEigen.eigenvalueOfEigenvector (represented b f) lambda (Finite.coordinates b x)
+        (#ltr{(eigenvectorCorrespondence b f lambda x)} (\bysub(V, { x: V \where Abstract.Eigenvector[f, lambda, x] }, x)))
+    },
+    rtl := \block {
+      \fun (e: CoordinateEigen.Eigenvalue (represented b f) lambda) \then
+      \takefrom y: \Cast[CoordinateSpace.Vector] ({ y: CoordinateSpace.Vector \where CoordinateEigen.Eigenvector[represented b f, lambda, y] }) \by e \then
+      \let transported: CoordinateEigen.Eigenvector[represented b f, lambda, Finite.coordinates b (Finite.synthesize b y)] :=
+        \idelim y = Finite.coordinates b (Finite.synthesize b y)
+          \with z: CoordinateSpace.Vector => CoordinateEigen.Eigenvector[represented b f, lambda, z]
+          \by {
+            base: \bysub(CoordinateSpace.Vector, { y: CoordinateSpace.Vector \where CoordinateEigen.Eigenvector[represented b f, lambda, y] }, y),
+            equality: sym!{CoordinateSpace.Vector} _ _ (#coordinateReconstruction{b} y)
+          } \then
+      \return Abstract.eigenvalueOfEigenvector f lambda (Finite.synthesize b y)
+        (#rtl{(eigenvectorCorrespondence b f lambda (Finite.synthesize b y))} transported)
+    },
+  };

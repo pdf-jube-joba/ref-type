@@ -83,3 +83,21 @@ Directions::nil
 
 現在は区間を具体化して積分の定義を利用すると、具体化済みの `Representation` と、区間引数を受け取る元の定義が convertible と判定されない。
 積分ライブラリでは、代表列の同値類を同じモジュール内で構成している。
+
+## 具体化したモジュール内の型と座標空間
+
+体をパラメーターに取るモジュールの中で有限添字型を宣言し、その型を座標空間や基底の添字に使いたい。
+
+```text
+\import std.Alg[].Field[] \as Fields;
+
+\module Example(K: \Set, field: Fields.Field[K]) {
+  \import linear_algebra.Field[].Space[K := K, field := field] \as Algebra;
+  \inductive Unit: \Set := | unit: Unit;
+  \import Algebra.Coordinates[I := Unit] \as Coordinates;
+  \import Algebra.Finite[V := K, I := Unit, space := Algebra.scalarSpace] \as Finite;
+}
+```
+
+この形で基底を構成し、モジュールを実数の体に具体化してトレースを検査すると、座標空間の法則の検査で具体化済みの `Example[K := Real, field := realField].Unit` と元の `Example.Unit` が convertible と判定されない。
+線形代数の利用例では、添字型を体のパラメーターを持つモジュールの外で宣言している。

@@ -1,0 +1,27 @@
+\import \parent.Representation[W := V, J := I, target := space] \as Representation;
+\import \parent.\parent.Square[I := I] \as Matrices;
+\import End.Operations[] \as Operations;
+\definition traceMatrix: \forall (b: Basis) -> \forall (f: End.Map) ->
+  trace b f = Matrices.trace (#indices{b}) (Representation.toMatrix b b f) :=
+  \fun (b: Basis) (f: End.Map) => \refl(trace b f);
+\definition traceZero: \forall (b: Basis) -> trace b Operations.zeroMap = zero :=
+  \fun (b: Basis) => trans!{K} _ _ _
+    (SumLaws.congruent (#indices{b}) (\fun (i: _) => coordinates b (#zero{space}) i) (\fun (i: _) => zero)
+      (\fun (i: _) => congr!{Coordinates.Vector K} (\fun (x: _) => x i) _ _ (#preservesZero{(#coordinates{b})})))
+    (SumLaws.zeroSum (#indices{b}));
+\definition traceAdd: \forall (b: Basis) -> \forall (f, g: End.Map) ->
+  trace b (Operations.plus f g) = add (trace b f) (trace b g) :=
+  \fun (b: Basis) (f, g: End.Map) => trans!{K} _ _ _
+    (SumLaws.congruent (#indices{b})
+      (\fun (i: _) => coordinates b (#add{space} (#apply{f} (#vectors{b} i)) (#apply{g} (#vectors{b} i))) i)
+      (\fun (i: _) => add (coordinates b (#apply{f} (#vectors{b} i)) i) (coordinates b (#apply{g} (#vectors{b} i)) i))
+      (\fun (i: _) => #preservesAdd{(coordinate b i)} (#apply{f} (#vectors{b} i)) (#apply{g} (#vectors{b} i))))
+    (SumLaws.additive (#indices{b}) (\fun (i: _) => coordinates b (#apply{f} (#vectors{b} i)) i) (\fun (i: _) => coordinates b (#apply{g} (#vectors{b} i)) i));
+\definition traceScale: \forall (b: Basis) -> \forall (a: K) -> \forall (f: End.Map) ->
+  trace b (Operations.scale a f) = mul a (trace b f) :=
+  \fun (b: Basis) (a: _) (f: End.Map) => trans!{K} _ _ _
+    (SumLaws.congruent (#indices{b})
+      (\fun (i: _) => coordinates b (#smul{space} a (#apply{f} (#vectors{b} i))) i)
+      (\fun (i: _) => mul a (coordinates b (#apply{f} (#vectors{b} i)) i))
+      (\fun (i: _) => #preservesScale{(coordinate b i)} a (#apply{f} (#vectors{b} i))))
+    (SumLaws.multiplyLeft (#indices{b}) a (\fun (i: _) => coordinates b (#apply{f} (#vectors{b} i)) i));

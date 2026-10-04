@@ -1,0 +1,74 @@
+\import C.Def[] \as D;
+\import C.Prop[] \as P;
+\import real.DedekindReal[] \as R;
+\import R.Arithmetic[].Def[] \as RealOp;
+\import R.Arithmetic[].Prop[] \as RealLaws;
+\import R.Order[] \as RealOrder;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.eq_reason;
+\import Algebra.Linear[V := V, W := V, source := space, target := space] \as End;
+\import Algebra.Eigen[V := V, space := space] \as Eigen;
+
+\structure InnerProductData: \Set {
+  inner: V -> V -> Scalar,
+}
+\structure InnerProductLaws[data: InnerProductData]: \Prop {
+  conjugateSymmetric: \forall (x, y: V) -> data.inner x y = D.conj (data.inner y x),
+  zeroRight: \forall (x: V) -> data.inner x (#zero{space}) = D.zero,
+  addRight: \forall (x, y, z: V) -> data.inner x (#add{space} y z) = D.add (data.inner x y) (data.inner x z),
+  scaleRight: \forall (a: Scalar) (x, y: V) -> data.inner x (#smul{space} a y) = D.mul a (data.inner x y),
+  nonnegative: \forall (x: V) -> R.Le RealOp.zero (C.re (data.inner x x)),
+  definite: \forall (x: V) -> data.inner x x = D.zero -> x = #zero{space},
+}
+\definition InnerProduct: \Set := \Cast[InnerProductData] ({ data: InnerProductData \where InnerProductLaws[data] });
+\definition normSquared(h: InnerProduct) (x: V): R.Real := C.re (#inner{h} x x);
+\definition Orthogonal(h: InnerProduct) (x, y: V): \Prop := #inner{h} x y = D.zero;
+\definition SelfAdjoint(h: InnerProduct) (f: End.Map): \Prop :=
+  \forall (x, y: V) -> #inner{h} (#apply{f} x) y = #inner{h} x (#apply{f} y);
+\definition Isometry(h: InnerProduct) (f: End.Map): \Prop :=
+  \forall (x, y: V) -> #inner{h} (#apply{f} x) (#apply{f} y) = #inner{h} x y;
+\definition scaleLeft: \forall (h: InnerProduct) -> \forall (a: Scalar) -> \forall (x, y: V) ->
+  #inner{h} (#smul{space} a x) y = D.mul (D.conj a) (#inner{h} x y) :=
+  \fun (h: InnerProduct) (a: _) (x, y: _) => eq_reason!{
+    {#inner{h} (#smul{space} a x) y}
+    "=" {D.conj (#inner{h} y (#smul{space} a x))} "by" {#conjugateSymmetric{h} (#smul{space} a x) y}
+    "=" {D.conj (D.mul a (#inner{h} y x))} "by" {congr!{Scalar Scalar} D.conj _ _ (#scaleRight{h} a y x)}
+    "=" {D.mul (D.conj a) (D.conj (#inner{h} y x))} "by" {P.conjMul a (#inner{h} y x)}
+    "=" {D.mul (D.conj a) (#inner{h} x y)} "by" {congr!{Scalar Scalar} (D.mul (D.conj a)) _ _ (sym!{Scalar} _ _ (#conjugateSymmetric{h} x y))}
+  };
+
+\definition selfAdjointEigenvalueConjugate: \forall (h: InnerProduct) -> \forall (f: End.Map) -> \forall (lambda: Scalar) -> \forall (x: V) ->
+  SelfAdjoint h f -> Eigen.Eigenvector[f, lambda, x] -> D.conj lambda = lambda :=
+  \fun (h: InnerProduct) (f: End.Map) (lambda: _) (x: _) (selfAdjoint: SelfAdjoint h f) (e: Eigen.Eigenvector[f, lambda, x]) =>
+    Algebra.mulCancelRight (D.conj lambda) lambda (#inner{h} x x)
+      (\fun (zero: _) => #nonzero{e} (#definite{h} x zero))
+      (eq_reason!{
+        {D.mul (D.conj lambda) (#inner{h} x x)}
+        "=" {#inner{h} (#smul{space} lambda x) x} "by" {sym!{Scalar} _ _ (scaleLeft h lambda x x)}
+        "=" {#inner{h} (#apply{f} x) x} "by" {congr!{V Scalar} (\fun (v: _) => #inner{h} v x) _ _ (sym!{V} _ _ (#equation{e}))}
+        "=" {#inner{h} x (#apply{f} x)} "by" {selfAdjoint x x}
+        "=" {#inner{h} x (#smul{space} lambda x)} "by" {congr!{V Scalar} (#inner{h} x) _ _ (#equation{e})}
+        "=" {D.mul lambda (#inner{h} x x)} "by" {#scaleRight{h} lambda x x}
+      });
+
+\definition negFixedZero: \forall (a: R.Real) -> RealOp.neg a = a -> a = RealOp.zero :=
+  \fun (a: _) (fixed: _) =>
+    \match RealOrder.leTotal a RealOp.zero \in Logic.Or \return (\fun (_: _) => a = RealOp.zero) \with {
+    | left below : R.leAntisym a RealOp.zero below
+        (R.leReplace (RealOp.neg RealOp.zero) RealOp.zero (RealOp.neg a) a RealLaws.negZero fixed
+          (RealLaws.negAntitone a RealOp.zero below))
+    | right above : R.leAntisym a RealOp.zero
+        (R.leReplace (RealOp.neg a) a (RealOp.neg RealOp.zero) RealOp.zero fixed RealLaws.negZero
+          (RealLaws.negAntitone RealOp.zero a above)) above
+    };
+\definition conjugateFixedReal: \forall (z: Scalar) -> D.conj z = z -> z = D.ofReal (C.re z) :=
+  \fun (z: _) (fixed: _) => P.ext z (D.ofReal (C.re z)) (\refl(C.re z))
+    (negFixedZero (C.im z) (congr!{Scalar R.Real} C.im _ _ fixed));
+\definition selfAdjointEigenvalueReal: \forall (h: InnerProduct) -> \forall (f: End.Map) -> \forall (lambda: Scalar) -> \forall (x: V) ->
+  SelfAdjoint h f -> Eigen.Eigenvector[f, lambda, x] -> lambda = D.ofReal (C.re lambda) :=
+  \fun (h: InnerProduct) (f: End.Map) (lambda: _) (x: _) (selfAdjoint: _) (e: _) =>
+    conjugateFixedReal lambda (selfAdjointEigenvalueConjugate h f lambda x selfAdjoint e);

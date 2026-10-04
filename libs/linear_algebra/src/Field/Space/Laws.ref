@@ -1,0 +1,39 @@
+\definition origin: V := #zero{space};
+\definition plus: V -> V -> V := #add{space};
+\definition negative: V -> V := #neg{space};
+\definition scale: K -> V -> V := #smul{space};
+\definition zeroLeft: \forall (x: V) -> plus origin x = x := #leftIdentity{(#monoid{(#group{(#additive{space})})})};
+\definition zeroRight: \forall (x: V) -> plus x origin = x := #rightIdentity{(#monoid{(#group{(#additive{space})})})};
+\definition assoc: \forall (x, y, z: V) -> plus (plus x y) z = plus x (plus y z) := #associative{(#monoid{(#group{(#additive{space})})})};
+\definition inverseLeft: \forall (x: V) -> plus (negative x) x = origin := #leftInverse{(#group{(#additive{space})})};
+\definition cancelLeft: \forall (a, x, y: V) -> plus a x = plus a y -> x = y :=
+  \fun (a, x, y: _) (equal: _) => eq_reason!{
+    x "=" {plus origin x} "by" {sym!{V} _ _ (zeroLeft x)}
+    "=" {plus (plus (negative a) a) x} "by" {congr!{V V} (\fun (t: _) => plus t x) _ _ (sym!{V} _ _ (inverseLeft a))}
+    "=" {plus (negative a) (plus a x)} "by" {assoc (negative a) a x}
+    "=" {plus (negative a) (plus a y)} "by" {congr!{V V} (plus (negative a)) _ _ equal}
+    "=" {plus (plus (negative a) a) y} "by" {sym!{V} _ _ (assoc (negative a) a y)}
+    "=" {plus origin y} "by" {congr!{V V} (\fun (t: _) => plus t y) _ _ (inverseLeft a)}
+    "=" y "by" {zeroLeft y}
+  };
+\definition idempotentZero: \forall (x: V) -> plus x x = x -> x = origin :=
+  \fun (x: _) (equal: _) => cancelLeft x x origin (trans!{V} _ _ _ equal (sym!{V} _ _ (zeroRight x)));
+\definition scaleZero: \forall (a: K) -> scale a origin = origin :=
+  \fun (a: _) => idempotentZero (scale a origin) (trans!{V} _ _ _
+    (sym!{V} _ _ (#vectorAdd{space} a origin origin)) (congr!{V V} (scale a) _ _ (zeroLeft origin)));
+\definition zeroScale: \forall (x: V) -> scale zero x = origin :=
+  \fun (x: _) => idempotentZero (scale zero x) (trans!{V} _ _ _
+    (sym!{V} _ _ (#scalarAdd{space} zero zero x)) (congr!{K V} (\fun (a: _) => scale a x) _ _ (addZeroLeft zero)));
+\definition scaleComm: \forall (a, b: K) -> \forall (x: V) -> scale a (scale b x) = scale b (scale a x) :=
+  \fun (a, b: _) (x: _) => trans!{V} _ _ _ (sym!{V} _ _ (#scalarAssoc{space} a b x))
+    (trans!{V} _ _ _ (congr!{K V} (\fun (c: _) => scale c x) _ _ (mulComm a b)) (#scalarAssoc{space} b a x));
+\definition comm: \forall (x, y: V) -> plus x y = plus y x := #commutative{(#additive{space})};
+\definition shuffle: \forall (a, b, c, d: V) -> plus (plus a b) (plus c d) = plus (plus a c) (plus b d) :=
+  \fun (a, b, c, d: _) => eq_reason!{
+    {plus (plus a b) (plus c d)}
+    "=" {plus a (plus b (plus c d))} "by" {assoc a b (plus c d)}
+    "=" {plus a (plus (plus b c) d)} "by" {congr!{V V} (plus a) _ _ (sym!{V} _ _ (assoc b c d))}
+    "=" {plus a (plus (plus c b) d)} "by" {congr!{V V} (\fun (x: _) => plus a (plus x d)) _ _ (comm b c)}
+    "=" {plus a (plus c (plus b d))} "by" {congr!{V V} (plus a) _ _ (assoc c b d)}
+    "=" {plus (plus a c) (plus b d)} "by" {sym!{V} _ _ (assoc a c (plus b d))}
+  };

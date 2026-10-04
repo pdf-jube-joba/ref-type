@@ -1,0 +1,76 @@
+\import std.Alg[].Ring[] \as Ring;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+
+\definition zero: K := #zero{field};
+\definition one: K := #one{field};
+\definition add: K -> K -> K := #add{field};
+\definition neg: K -> K := #neg{field};
+\definition mul: K -> K -> K := #mul{field};
+\definition inv: K -> K := #inv{field};
+\definition ring: Ring.Ring[K] :=
+  Ring.commutativeRingAsRing K (Fields.fieldAsCommutativeRing K field);
+\definition VectorSpace(Carrier: \Set): \Set := Ring.RingModule[K, Carrier, ring];
+
+\definition addZeroLeft: \forall (a: K) -> add zero a = a := #leftIdentity{(#monoid{(#additive{(#semiring{ring})})})};
+\definition addZeroRight: \forall (a: K) -> add a zero = a := #rightIdentity{(#monoid{(#additive{(#semiring{ring})})})};
+\definition addAssoc: \forall (a, b, c: K) -> add (add a b) c = add a (add b c) := #associative{(#monoid{(#additive{(#semiring{ring})})})};
+\definition addComm: \forall (a, b: K) -> add a b = add b a := #commutative{(#additive{(#semiring{ring})})};
+\definition mulOneLeft: \forall (a: K) -> mul one a = a := #leftIdentity{(#multiplicative{(#semiring{ring})})};
+\definition mulOneRight: \forall (a: K) -> mul a one = a := #rightIdentity{(#multiplicative{(#semiring{ring})})};
+\definition mulAssoc: \forall (a, b, c: K) -> mul (mul a b) c = mul a (mul b c) := #associative{(#multiplicative{(#semiring{ring})})};
+\definition mulComm: \forall (a, b: K) -> mul a b = mul b a := #mulCommutative{(#ring{field})};
+\definition mulAdd: \forall (a, b, c: K) -> mul a (add b c) = add (mul a b) (mul a c) := #leftDistributive{(#semiring{ring})};
+\definition addMul: \forall (a, b, c: K) -> mul (add a b) c = add (mul a c) (mul b c) := #rightDistributive{(#semiring{ring})};
+\definition mulZeroLeft: \forall (a: K) -> mul zero a = zero := #zeroAbsorbsLeft{(#semiring{ring})};
+\definition mulZeroRight: \forall (a: K) -> mul a zero = zero := #zeroAbsorbsRight{(#semiring{ring})};
+\definition addNegLeft: \forall (a: K) -> add (neg a) a = zero := #additiveInverse{ring};
+\definition addNegRight: \forall (a: K) -> add a (neg a) = zero :=
+  \fun (a: _) => trans!{K} _ _ _ (addComm a (neg a)) (addNegLeft a);
+
+\definition scalarSpace: VectorSpace K := Ring.RingModule[K, K, ring] {
+  zero := zero, add := add, neg := neg, smul := mul,
+  additive := Alg.CommutativeGroupLaws[K, Alg.CommutativeGroupData[K]::# (Alg.GroupData[K]::# zero add neg)] {
+    group := Alg.GroupLaws[K, Alg.GroupData[K]::# zero add neg] {
+      monoid := Monoid.MonoidLaws[K, Monoid.MonoidData[K]::# zero add] {
+        leftIdentity := addZeroLeft, rightIdentity := addZeroRight, associative := addAssoc,
+      },
+      leftInverse := addNegLeft, rightInverse := addNegRight,
+    },
+    commutative := addComm,
+  },
+  scalarOne := mulOneLeft, scalarAssoc := mulAssoc, scalarAdd := addMul, vectorAdd := mulAdd,
+};
+
+\definition mulCancelRight: \forall (a, b, c: K) -> Logic.Not (c = zero) -> mul a c = mul b c -> a = b :=
+  \fun (a, b, c: _) (nonzero: _) (equal: _) => eq_reason!{
+    a "=" {mul a one} "by" {sym!{K} _ _ (mulOneRight a)}
+    "=" {mul a (mul c (inv c))} "by" {congr!{K K} (mul a) _ _
+      (sym!{K} _ _ (trans!{K} _ _ _ (mulComm c (inv c)) (#inverse{field} c nonzero)))}
+    "=" {mul (mul a c) (inv c)} "by" {sym!{K} _ _ (mulAssoc a c (inv c))}
+    "=" {mul (mul b c) (inv c)} "by" {congr!{K K} (\fun (t: _) => mul t (inv c)) _ _ equal}
+    "=" {mul b (mul c (inv c))} "by" {mulAssoc b c (inv c)}
+    "=" {mul b one} "by" {congr!{K K} (mul b) _ _
+      (trans!{K} _ _ _ (mulComm c (inv c)) (#inverse{field} c nonzero))}
+    "=" b "by" {mulOneRight b}
+  };
+
+\module Laws(V: \Set, space: VectorSpace V);
+\module Coordinates(I: \Set);
+\module Linear(V, W: \Set, source: VectorSpace V, target: VectorSpace W);
+\module Sums(I: \Set);
+\module Subspace(V: \Set, space: VectorSpace V);
+\module Form(V: \Set, space: VectorSpace V);
+\module Matrix(I, J: \Set);
+\module Eigen(V: \Set, space: VectorSpace V);
+\module Square(I: \Set);
+\module Finite(V, I: \Set, space: VectorSpace V);
+\module EigenCoordinates(V, I: \Set, space: VectorSpace V);

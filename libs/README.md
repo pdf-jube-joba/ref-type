@@ -16,6 +16,8 @@
 | 代数 | `Alg/Monoid.ref`、`Alg/Alg.ref`、`Alg/Ring.ref`、`Alg/Field.ref` | Monoid、Group、Semiring、Ring、Field、環上の加群、環上の代数 |
 | 算術 | `Arithmetic/Int.ref`、`Arithmetic/Rat.ref`、`Arithmetic/IntAlgebra.ref` と各子モジュール | 整数、有理数、整数の代数構造 |
 | 実数 | `real/src/AxiomaticReals.ref`、`real/src/DedekindReal.ref`、`real/src/CauchyReal.ref` と各子モジュール | 公理的実数、Dedekind 実数、Cauchy 実数 |
+| 複素数 | `complex/src/Complex.ref` と各子モジュール | 実数対による複素数、四則演算、共役、絶対値の二乗、体の構造 |
+| 線形代数 | `linear_algebra/src/root.ref` | 一般の体上のベクトル空間、線形写像、有限基底、行列表示、トレース、固有値・固有ベクトル、実内積とエルミート内積 |
 | 幾何 | `topology/src/root.ref` | 位相空間、実数値の距離空間と誘導位相 |
 | 微分 | `calculus/src/root.ref` | 実数関数の極限、一変数の微分、任意次元の偏微分・全微分、混合偏微分の交換可能性と滑らかさ |
 | 積分 | `integration/src/root.ref` | 有界閉区間のリーマン積分、\(L^1\) 完備化によるルベーグ積分、両積分の一致 |
@@ -338,7 +340,9 @@ Cauchy 実数は有理数列を「差が零へ収束する」関係で割った�
 
 ## 型検査
 
+線形代数のライブラリは `linear_algebra` パッケージにあり、[定義と利用例](linear_algebra/README.md)を参照できる。
 微分のライブラリは `calculus` パッケージにあり、[定義と利用例](calculus/README.md)を参照できる。
+複素数のライブラリは `complex` パッケージにあり、[定義と利用例](complex/README.md)を参照できる。
 
 ```sh
 cargo run --quiet --bin cli -- libs/std

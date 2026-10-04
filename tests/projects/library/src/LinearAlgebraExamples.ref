@@ -1,0 +1,198 @@
+\import std.Alg[].Field[] \as Fields;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+
+\inductive Empty: \Set := ;
+\inductive Unit: \Set := | unit: Unit;
+\module OverField(K: \Set, field: Fields.Field[K]) {
+  \import linear_algebra.Field[].Space[K := K, field := field] \as Algebra;
+  \import Algebra.Coordinates[I := Unit] \as Coordinates;
+  \import Algebra.Finite[V := K, I := Unit, space := Algebra.scalarSpace] \as Finite;
+  \import Algebra.Linear[V := K, W := Coordinates.Vector, source := Algebra.scalarSpace, target := Coordinates.space] \as Encode;
+  \import Algebra.Eigen[V := K, space := Algebra.scalarSpace] \as Eigen;
+  \import Algebra.Linear[V := K, W := K, source := Algebra.scalarSpace, target := Algebra.scalarSpace] \as End;
+  \import Finite.Trace[] \as Trace;
+  \import Finite.Rebase[J := Unit] \as Rebase;
+  \import Finite.Representation[W := K, J := Unit, target := Algebra.scalarSpace] \as Representation;
+  \import Algebra.EigenCoordinates[V := K, I := Unit, space := Algebra.scalarSpace] \as EigenCoordinates;
+  \import Algebra.Sums[I := Unit] \as Sums;
+  \definition indices: Lists.List[Unit] := Lists.List[Unit]::cons Unit::unit Lists.List[Unit]::nil;
+  \definition constant(x: K): Coordinates.Vector := \fun (i: _) => x;
+  \definition encode: Encode.Map := Encode.Map {
+    apply := constant,
+    preservesZero := \refl(constant Algebra.zero),
+    preservesAdd := \fun (x, y: _) => \refl(constant (Algebra.add x y)),
+    preservesScale := \fun (a: _) (x: _) => \refl(constant (Algebra.mul a x)),
+  };
+  \definition raw: Finite.BasisData := Finite.BasisData {
+    indices := indices, vectors := \fun (i: _) => Algebra.one, coordinates := encode,
+  };
+  \definition expand(x: Coordinates.Vector): Finite.synthesize raw x = x Unit::unit :=
+    trans!{K} _ _ _ (Algebra.addZeroRight _) (Algebra.mulOneRight (x Unit::unit));
+  \definition basis: Finite.Basis := Finite.Basis {
+    indices := indices, vectors := \fun (i: _) => Algebra.one, coordinates := encode,
+    distinct := Sums.distinctCons Unit::unit Lists.List[Unit]::nil (\fun (impossible: Logic.False) => impossible) Sums.distinctNil,
+    dualReconstruction := \fun (x: _) => \induction (i: Unit) \return
+      Sums.sum indices (\fun (j: _) => Algebra.mul (x j) (Finite.coordinates raw (Algebra.one) j)) = x i \with {
+      | unit : trans!{K} _ _ _ (Algebra.addZeroRight _) (Algebra.mulOneRight (x Unit::unit))
+    },
+    reconstruction := \fun (x: _) => expand (constant x),
+    coordinateReconstruction := \fun (x: Coordinates.Vector) =>
+      \axiom:funext(Finite.coordinates raw (Finite.synthesize raw x), x,
+        \induction (i: Unit) \return Finite.coordinates raw (Finite.synthesize raw x) i = x i \with {
+          | unit : expand x
+        }),
+  };
+  \definition traceScalar: \forall (a: K) -> Finite.trace basis (Eigen.scalar a) = a :=
+    \fun (a: _) => trans!{K} _ _ _ (Algebra.addZeroRight _) (Algebra.mulOneRight a);
+  \definition matrixScalar: \forall (a: K) -> Representation.toMatrix basis basis (Eigen.scalar a) Unit::unit Unit::unit = a :=
+    \fun (a: _) => Algebra.mulOneRight a;
+  \definition roundTrip: \forall (a: K) -> \forall (x: K) ->
+    #apply{(Representation.fromMatrix basis basis (Representation.toMatrix basis basis (Eigen.scalar a)))} x = Algebra.mul a x :=
+    \fun (a: _) (x: _) => Representation.mapRoundTrip basis basis (Eigen.scalar a) x;
+  \definition eigenvector: \forall (a: K) -> Eigen.Eigenvector[Eigen.scalar a, a, Algebra.one] :=
+    \fun (a: _) => Eigen.scalarEigenvector a Algebra.one (\fun (equal: _) => #nontrivial{field} (sym!{K} _ _ equal));
+  \definition eigenvalue: \forall (a: K) -> Eigen.Eigenvalue (Eigen.scalar a) a :=
+    \fun (a: _) => Eigen.eigenvalueOfEigenvector (Eigen.scalar a) a Algebra.one (eigenvector a);
+  \import Algebra.Coordinates[I := Unit] \as CoordinateSpace;
+  \import Algebra.Eigen[V := CoordinateSpace.Vector, space := CoordinateSpace.space] \as CoordinateEigen;
+  \definition coordinateEigenvector: \forall (a: K) ->
+    CoordinateEigen.Eigenvector[EigenCoordinates.represented basis (Eigen.scalar a), a, Finite.coordinates basis Algebra.one] :=
+    \fun (a: _) => #ltr{(EigenCoordinates.eigenvectorCorrespondence basis (Eigen.scalar a) a Algebra.one)} (eigenvector a);
+  \definition basisIndependence: \forall (b: Finite.Basis) -> \forall (f: End.Map) -> Finite.trace basis f = Finite.trace b f :=
+    \fun (b: Finite.Basis) (f: End.Map) => Rebase.traceIndependent basis b f;
+}
+\module RealScalar {
+  \import linear_algebra.Real[] \as R;
+  \import \parent.OverField[K := R.Scalar, field := R.field] \as Examples;
+  \import real.DedekindReal[].Arithmetic[].Def[] \as D;
+  \import linear_algebra.Field[].Space[K := R.Scalar, field := R.field] \as Algebra;
+  \import Algebra.Finite[V := R.Scalar, I := Unit, space := Algebra.scalarSpace] \as Finite;
+  \import Algebra.Eigen[V := R.Scalar, space := Algebra.scalarSpace] \as Eigen;
+  \definition traceIdentity: Finite.trace Examples.basis Eigen.identity = D.one :=
+    trans!{R.Scalar} _ _ _ (Algebra.addZeroRight _) (\refl(D.one));
+}
+\module ComplexScalar {
+  \import linear_algebra.Complex[] \as C;
+  \import \parent.OverField[K := C.Scalar, field := C.field] \as Examples;
+  \import complex.Complex[].Def[] \as D;
+  \import linear_algebra.Field[].Space[K := C.Scalar, field := C.field] \as Algebra;
+  \import Algebra.Eigen[V := C.Scalar, space := Algebra.scalarSpace] \as Eigen;
+  \definition imaginaryEigenvalue: Eigen.Eigenvalue (Eigen.scalar D.i) D.i := Examples.eigenvalue D.i;
+}
+\module EmptyDimension(K: \Set, field: Fields.Field[K]) {
+  \import linear_algebra.Field[].Space[K := K, field := field] \as Algebra;
+  \import Algebra.Coordinates[I := Empty] \as Coordinates;
+  \import Algebra.Finite[V := Coordinates.Vector, I := Empty, space := Coordinates.space] \as Finite;
+  \import Algebra.Eigen[V := Coordinates.Vector, space := Coordinates.space] \as Eigen;
+  \import Algebra.Linear[V := Coordinates.Vector, W := Coordinates.Vector, source := Coordinates.space, target := Coordinates.space] \as End;
+  \import Algebra.Sums[I := Empty] \as Sums;
+  \definition vectors: Empty -> Coordinates.Vector :=
+    \fun (i: Empty) => \match i \in Empty \return (\fun (_: Empty) => Coordinates.Vector) \with {};
+  \definition allZero: \forall (x: Coordinates.Vector) -> Coordinates.origin = x :=
+    \fun (x: Coordinates.Vector) => \axiom:funext(Coordinates.origin, x,
+      \fun (i: Empty) => \match i \in Empty \return (\fun (i: Empty) => Algebra.zero = x i) \with {});
+  \definition basis: Finite.Basis := Finite.Basis {
+    indices := Lists.List[Empty]::nil, vectors := vectors, coordinates := Eigen.identity,
+    distinct := Sums.distinctNil,
+    reconstruction := allZero,
+    coordinateReconstruction := allZero,
+    dualReconstruction := \fun (x: Coordinates.Vector) (i: Empty) =>
+      \match i \in Empty \return (\fun (i: Empty) => Algebra.zero = x i) \with {},
+  };
+  \definition traceEmpty: \forall (f: End.Map) -> Finite.trace basis f = Algebra.zero := \fun (f: End.Map) => \refl(Algebra.zero);
+  \definition noEigenvalues: \forall (f: End.Map) -> \forall (lambda: K) -> Logic.Not (Eigen.Eigenvalue f lambda) :=
+    \block {
+      \fun (f: End.Map) (lambda: _) (exists: Eigen.Eigenvalue f lambda) \then
+      \takefrom x: \Cast[Coordinates.Vector] ({ x: Coordinates.Vector \where Eigen.Eigenvector[f, lambda, x] }) \by exists \then
+      \return #nonzero{(\bysub(Coordinates.Vector, { x: Coordinates.Vector \where Eigen.Eigenvector[f, lambda, x] }, x))}
+        (sym!{Coordinates.Vector} _ _ (allZero x))
+    };
+}
+\module HermitianScalar {
+  \import linear_algebra.Complex[] \as Scalars;
+  \import complex.Complex[] \as C;
+  \import C.Def[] \as D;
+  \import C.Prop[] \as P;
+  \import real.DedekindReal[] \as R;
+  \import R.Arithmetic[].Def[] \as RealOp;
+  \import linear_algebra.Field[].Space[K := Scalars.Scalar, field := Scalars.field] \as Algebra;
+  \import Scalars.InnerProduct[V := Scalars.Scalar, space := Algebra.scalarSpace] \as Inner;
+  \import Algebra.Eigen[V := Scalars.Scalar, space := Algebra.scalarSpace] \as Eigen;
+  \use Equality.eq_reason;
+  \definition inner: Inner.InnerProduct := Inner.InnerProduct {
+    inner := \fun (x, y: _) => D.mul (D.conj x) y,
+    conjugateSymmetric := \fun (x, y: _) => eq_reason!{
+      {D.mul (D.conj x) y}
+      "=" {D.mul y (D.conj x)} "by" {P.mulComm (D.conj x) y}
+      "=" {D.mul (D.conj (D.conj y)) (D.conj x)} "by" {
+        congr!{C.Complex C.Complex} (\fun (z: _) => D.mul z (D.conj x)) _ _ (sym!{C.Complex} _ _ (P.conjConj y))}
+      "=" {D.conj (D.mul (D.conj y) x)} "by" {sym!{C.Complex} _ _ (P.conjMul (D.conj y) x)}
+    },
+    zeroRight := \fun (x: _) => P.mulZeroRight (D.conj x),
+    addRight := \fun (x, y, z: _) => P.mulAddLeft (D.conj x) y z,
+    scaleRight := \fun (a: _) (x, y: _) => P.mulSwap (D.conj x) a y,
+    nonnegative := \fun (x: _) => R.leReplaceRight RealOp.zero (D.normSq x) (C.re (D.mul (D.conj x) x))
+      (sym!{R.Real} _ _ (congr!{C.Complex R.Real} C.re _ _ (P.conjMulSelf x))) (P.normSqNonnegative x),
+    definite := \fun (x: _) (equal: _) => P.normSqZero x (trans!{R.Real} _ _ _
+      (sym!{R.Real} _ _ (congr!{C.Complex R.Real} C.re _ _ (P.conjMulSelf x)))
+      (congr!{C.Complex R.Real} C.re _ _ equal)),
+  };
+  \definition realScalarSelfAdjoint: \forall (a: R.Real) -> Inner.SelfAdjoint inner (Eigen.scalar (D.ofReal a)) :=
+    \fun (a: _) (x, y: _) => eq_reason!{
+      {#inner{inner} (D.mul (D.ofReal a) x) y}
+      "=" {D.mul (D.conj (D.ofReal a)) (#inner{inner} x y)} "by" {Inner.scaleLeft inner (D.ofReal a) x y}
+      "=" {D.mul (D.ofReal a) (#inner{inner} x y)} "by" {
+        congr!{C.Complex C.Complex} (\fun (z: _) => D.mul z (#inner{inner} x y)) _ _ (P.conjOfReal a)}
+      "=" {#inner{inner} x (D.mul (D.ofReal a) y)} "by" {sym!{C.Complex} _ _ (#scaleRight{inner} (D.ofReal a) x y)}
+    };
+  \definition selfAdjointSpectrum: \forall (a: R.Real) ->
+    D.ofReal a = D.ofReal (C.re (D.ofReal a)) :=
+    \fun (a: _) => Inner.selfAdjointEigenvalueReal inner (Eigen.scalar (D.ofReal a)) (D.ofReal a) D.one
+      (realScalarSelfAdjoint a)
+      (Eigen.scalarEigenvector (D.ofReal a) D.one (\fun (equal: _) => P.zeroNeOne (sym!{C.Complex} _ _ equal)));
+}
+\module TwoByTwo(K: \Set, field: Fields.Field[K]) {
+  \import std.Data[].Bool[] \as Bool;
+  \import linear_algebra.Field[].Space[K := K, field := field] \as Algebra;
+  \import Algebra.Coordinates[I := Bool.Bool^] \as Coordinates;
+  \import Algebra.Matrix[I := Bool.Bool^, J := Bool.Bool^] \as Matrices;
+  \import Matrices.Composition[H := Bool.Bool^] \as Product;
+  \import Algebra.Square[I := Bool.Bool^] \as Square;
+  \import Algebra.Eigen[V := Coordinates.Vector, space := Coordinates.space] \as Eigen;
+  \definition indices: Lists.List[Bool.Bool^] :=
+    Lists.List[Bool.Bool^]::cons Bool.Bool^::false (Lists.List[Bool.Bool^]::cons Bool.Bool^::true Lists.List[Bool.Bool^]::nil);
+  \definition upper(a, b, c: K): Matrices.Matrix :=
+    \fun (i: _) (j: _) => Bool.ite K i (Bool.ite K j c Algebra.zero) (Bool.ite K j b a);
+  \definition traceUpper: \forall (a, b, c: K) -> Square.trace indices (upper a b c) = Algebra.add a c :=
+    \fun (a, b, c: _) => congr!{K K} (Algebra.add a) _ _ (Algebra.addZeroRight c);
+  \definition productOffDiagonal: \forall (a, b, c, d, e, f: K) ->
+    Product.multiply indices (upper a b c) (upper d e f) Bool.Bool^::false Bool.Bool^::true =
+      Algebra.add (Algebra.mul a e) (Algebra.mul b f) :=
+    \fun (a, b, c, d, e, f: _) => congr!{K K} (Algebra.add (Algebra.mul a e)) _ _ (Algebra.addZeroRight (Algebra.mul b f));
+  \definition first: Coordinates.Vector := \fun (i: _) => Bool.ite K i Algebra.zero Algebra.one;
+  \definition firstNonzero: Logic.Not (first = Coordinates.origin) :=
+    \fun (equal: _) => #nontrivial{field} (sym!{K} _ _
+      (congr!{Coordinates.Vector K} (\fun (x: _) => x Bool.Bool^::false) _ _ equal));
+  \definition firstEigenvector: \forall (a, b, c: K) ->
+    Square.Eigenvector indices (upper a b c) a first :=
+    \fun (a, b, c: K) => Eigen.Eigenvector[Matrices.asLinear indices (upper a b c), a, first] {
+      nonzero := firstNonzero,
+      equation := \axiom:funext(Matrices.action indices (upper a b c) first, Coordinates.scale a first,
+        \induction (i: Bool.Bool^) \return
+          Matrices.action indices (upper a b c) first i = Coordinates.scale a first i \with {
+        | false : trans!{K} _ _ _
+            (congr!{K K} (Algebra.add (Algebra.mul a Algebra.one)) _ _
+              (trans!{K} _ _ _ (Algebra.addZeroRight (Algebra.mul b Algebra.zero)) (Algebra.mulZeroRight b)))
+            (Algebra.addZeroRight (Algebra.mul a Algebra.one))
+        | true : trans!{K} _ _ _
+            (congr!{K K} (\fun (t: _) => Algebra.add t (Algebra.add (Algebra.mul c Algebra.zero) Algebra.zero)) _ _ (Algebra.mulZeroLeft Algebra.one))
+            (trans!{K} _ _ _ (Algebra.addZeroLeft _) (trans!{K} _ _ _
+              (Algebra.addZeroRight _) (trans!{K} _ _ _ (Algebra.mulZeroRight c) (sym!{K} _ _ (Algebra.mulZeroRight a)))))
+        }),
+    };
+}

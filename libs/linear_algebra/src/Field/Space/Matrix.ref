@@ -1,0 +1,37 @@
+\import \parent.Coordinates[I := I] \as Rows;
+\import \parent.Coordinates[I := J] \as Columns;
+\import \parent.Sums[I := J] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import \parent.Linear[V := Columns.Vector, W := Rows.Vector, source := Columns.space, target := Rows.space] \as Maps;
+
+\definition Matrix: \Set := I -> J -> K;
+\definition zeroMatrix: Matrix := \fun (i: _) (j: _) => zero;
+\definition plus(a, b: Matrix): Matrix := \fun (i: _) (j: _) => add (a i j) (b i j);
+\definition scale(c: K) (a: Matrix): Matrix := \fun (i: _) (j: _) => mul c (a i j);
+\definition transpose(a: Matrix): J -> I -> K := \fun (j: _) (i: _) => a i j;
+\definition action(indices: Lists.List[J]) (a: Matrix) (x: Columns.Vector): Rows.Vector :=
+  \fun (i: _) => Sums.sum indices (\fun (j: _) => mul (a i j) (x j));
+
+\definition asLinear(indices: Lists.List[J]) (a: Matrix): Maps.Map := Maps.Map {
+  apply := action indices a,
+  preservesZero := \axiom:funext(action indices a Columns.origin, Rows.origin, \fun (i: _) =>
+    trans!{K} _ _ _ (SumLaws.congruent indices (\fun (j: _) => mul (a i j) zero) (\fun (j: _) => zero) (\fun (j: _) => mulZeroRight (a i j))) (SumLaws.zeroSum indices)),
+  preservesAdd := \fun (x, y: Columns.Vector) => \axiom:funext(action indices a (Columns.plus x y), Rows.plus (action indices a x) (action indices a y),
+    \fun (i: _) => trans!{K} _ _ _
+      (SumLaws.congruent indices (\fun (j: _) => mul (a i j) (add (x j) (y j)))
+        (\fun (j: _) => add (mul (a i j) (x j)) (mul (a i j) (y j))) (\fun (j: _) => mulAdd (a i j) (x j) (y j)))
+      (SumLaws.additive indices (\fun (j: _) => mul (a i j) (x j)) (\fun (j: _) => mul (a i j) (y j)))),
+  preservesScale := \fun (c: K) (x: Columns.Vector) => \axiom:funext(action indices a (Columns.scale c x), Rows.scale c (action indices a x),
+    \fun (i: _) => trans!{K} _ _ _
+      (SumLaws.congruent indices (\fun (j: _) => mul (a i j) (mul c (x j)))
+        (\fun (j: _) => mul c (mul (a i j) (x j))) (\fun (j: _) => eq_reason!{
+        {mul (a i j) (mul c (x j))}
+        "=" {mul (mul (a i j) c) (x j)} "by" {sym!{K} _ _ (mulAssoc (a i j) c (x j))}
+        "=" {mul (mul c (a i j)) (x j)} "by" {congr!{K K} (\fun (t: _) => mul t (x j)) _ _ (mulComm (a i j) c)}
+        "=" {mul c (mul (a i j) (x j))} "by" {mulAssoc c (a i j) (x j)}
+      })) (SumLaws.multiplyLeft indices c (\fun (j: _) => mul (a i j) (x j)))),
+};
+\module Composition(H: \Set) {
+  \definition multiply(indices: Lists.List[J]) (a: Matrix) (b: J -> H -> K): I -> H -> K :=
+    \fun (i: _) (h: _) => Sums.sum indices (\fun (j: _) => mul (a i j) (b j h));
+}

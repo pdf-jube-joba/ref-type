@@ -1,0 +1,45 @@
+\import std.Data[].Nat[] \as N;
+\import \parent.Coordinates[I := I] \as Coordinates;
+\import \parent.Linear[V := V, W := Coordinates.Vector, source := space, target := Coordinates.space] \as Encode;
+\import \parent.Linear[V := Coordinates.Vector, W := V, source := Coordinates.space, target := space] \as Decode;
+\import \parent.Linear[V := V, W := K, source := space, target := scalarSpace] \as Dual;
+\import \parent.Linear[V := V, W := V, source := space, target := space] \as End;
+\import \parent.Sums[I := I] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+
+\definition CoordinateVector: \Set := Coordinates.Vector;
+\definition vectorSum(indices: Lists.List[I]) (f: I -> V): V :=
+  Lists.foldr I V (\fun (i: _) (tail: _) => #add{space} (f i) tail) (#zero{space}) indices;
+
+\structure BasisData: \Set {
+  indices: Lists.List[I],
+  vectors: I -> V,
+  coordinates: Encode.Map,
+}
+\definition synthesize(b: BasisData) (x: Coordinates.Vector): V :=
+  vectorSum (#indices{b}) (\fun (i: _) => #smul{space} (x i) (#vectors{b} i));
+\definition coordinates(b: BasisData) (v: V): Coordinates.Vector := #apply{(#coordinates{b})} v;
+
+\structure BasisLaws[data: BasisData]: \Prop {
+  distinct: Sums.Distinct data.indices,
+  dualReconstruction: \forall (x: Coordinates.Vector) -> \forall (i: I) ->
+    Sums.sum data.indices (\fun (j: I) => mul (x j) (coordinates data (data.vectors i) j)) = x i,
+  reconstruction: \forall (v: V) -> synthesize data (coordinates data v) = v,
+  coordinateReconstruction: \forall (x: Coordinates.Vector) -> coordinates data (synthesize data x) = x,
+}
+\definition Basis: \Set := \Cast[BasisData] ({ data: BasisData \where BasisLaws[data] });
+\definition dimension(b: BasisData): N.Nat^ := Lists.length I (#indices{b});
+\definition FiniteDimensional: \Prop := \exists { b: BasisData \where BasisLaws[b] };
+
+\definition coordinate(b: BasisData) (i: I): Dual.Map := Dual.Map {
+  apply := \fun (v: _) => coordinates b v i,
+  preservesZero := congr!{Coordinates.Vector K} (\fun (x: _) => x i) _ _ (#preservesZero{(#coordinates{b})}),
+  preservesAdd := \fun (x, y: _) => congr!{Coordinates.Vector K} (\fun (x: _) => x i) _ _ (#preservesAdd{(#coordinates{b})} x y),
+  preservesScale := \fun (a: _) (x: _) => congr!{Coordinates.Vector K} (\fun (x: _) => x i) _ _ (#preservesScale{(#coordinates{b})} a x),
+};
+\definition trace(b: Basis) (f: End.Map): K :=
+  Sums.sum (#indices{b}) (\fun (i: _) => coordinates b (#apply{f} (#vectors{b} i)) i);
+\module Prop;
+\module Rebase(J: \Set);
+\module Representation(W, J: \Set, target: VectorSpace W);
+\module Trace;

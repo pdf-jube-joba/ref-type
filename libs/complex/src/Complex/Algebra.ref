@@ -1,0 +1,61 @@
+\import \parent.Def[] \as Def;
+\import \parent.Prop[] \as Laws;
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Ring[] \as Ring;
+\import std.Alg[].Field[] \as Field;
+
+\definition additiveMonoidData: Monoid.MonoidData[Complex] :=
+  Monoid.MonoidData[Complex] { unit := Def.zero, op := Def.add, };
+\definition additiveMonoidLaws: Monoid.MonoidLaws[Complex, additiveMonoidData] :=
+  Monoid.MonoidLaws[Complex, additiveMonoidData] {
+    leftIdentity := Laws.addZeroLeft, rightIdentity := Laws.addZeroRight, associative := Laws.addAssoc,
+  };
+\definition additiveGroupData: Alg.GroupData[Complex] :=
+  Alg.GroupData[Complex] { unit := Def.zero, op := Def.add, inv := Def.neg, };
+\definition additiveGroupLaws: Alg.GroupLaws[Complex, additiveGroupData] :=
+  Alg.GroupLaws[Complex, additiveGroupData] {
+    monoid := additiveMonoidLaws, leftInverse := Laws.addNegLeft, rightInverse := Laws.addNegRight,
+  };
+\definition additiveGroup: Alg.CommutativeGroup[Complex] :=
+  Alg.CommutativeGroup[Complex] {
+    base := additiveGroupData, group := additiveGroupLaws, commutative := Laws.addComm,
+  };
+\definition multiplicativeMonoidData: Monoid.MonoidData[Complex] :=
+  Monoid.MonoidData[Complex] { unit := Def.one, op := Def.mul, };
+\definition multiplicativeMonoidLaws: Monoid.MonoidLaws[Complex, multiplicativeMonoidData] :=
+  Monoid.MonoidLaws[Complex, multiplicativeMonoidData] {
+    leftIdentity := Laws.mulOneLeft, rightIdentity := Laws.mulOneRight, associative := Laws.mulAssoc,
+  };
+\definition semiringData: Alg.SemiringData[Complex] :=
+  Alg.SemiringData[Complex] { zero := Def.zero, one := Def.one, add := Def.add, mul := Def.mul, };
+\definition semiringLaws: Alg.SemiringLaws[Complex, semiringData] :=
+  Alg.SemiringLaws[Complex, semiringData] {
+    additive := Monoid.CommutativeMonoidLaws[Complex, Monoid.CommutativeMonoidData[Complex]::# additiveMonoidData] {
+      monoid := additiveMonoidLaws, commutative := Laws.addComm,
+    },
+    multiplicative := multiplicativeMonoidLaws,
+    leftDistributive := Laws.mulAddLeft, rightDistributive := Laws.mulAddRight,
+    zeroAbsorbsLeft := Laws.mulZeroLeft, zeroAbsorbsRight := Laws.mulZeroRight,
+  };
+\definition ringData: Ring.RingData[Complex] :=
+  Ring.RingData[Complex] { zero := Def.zero, one := Def.one, add := Def.add, neg := Def.neg, mul := Def.mul, };
+\definition ringLaws: Ring.RingLaws[Complex, ringData] :=
+  Ring.RingLaws[Complex, ringData] { semiring := semiringLaws, additiveInverse := Laws.addNegLeft, };
+\definition commutativeRingData: Ring.CommutativeRingData[Complex] :=
+  Ring.CommutativeRingData[Complex] { base := ringData, };
+\definition commutativeRingLaws: Ring.CommutativeRingLaws[Complex, commutativeRingData] :=
+  Ring.CommutativeRingLaws[Complex, commutativeRingData] { ring := ringLaws, mulCommutative := Laws.mulComm, };
+\definition commutativeRing: Ring.CommutativeRing[Complex] :=
+  \into[Ring.CommutativeRingData[Complex]](commutativeRingData, Ring.CommutativeRing[Complex])
+    \by { commutativeRingLaws };
+\definition fieldData: Field.FieldData[Complex] :=
+  Field.FieldData[Complex] {
+    zero := Def.zero, one := Def.one, add := Def.add, neg := Def.neg, mul := Def.mul, inv := Def.inv,
+  };
+\definition fieldLaws: Field.FieldLaws[Complex, fieldData] :=
+  Field.FieldLaws[Complex, fieldData] {
+    ring := commutativeRingLaws, nontrivial := Laws.zeroNeOne, inverse := Laws.inverseNonzero,
+  };
+\definition field: Field.Field[Complex] :=
+  \into[Field.FieldData[Complex]](fieldData, Field.Field[Complex]) \by { fieldLaws };
