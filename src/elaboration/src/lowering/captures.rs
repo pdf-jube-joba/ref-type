@@ -157,7 +157,10 @@ impl Lowerer<'_> {
                     ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => {
                         Some(Declaration::Parameter(id))
                     }
-                    ExpNode::DefinedConstant(id) => Some(Declaration::Definition(id)),
+                    ExpNode::DefinedConstant(id)
+                    | ExpNode::DefinitionInstance { definition: id, .. } => {
+                        Some(Declaration::Definition(id))
+                    }
                     ExpNode::IndType { indspec, .. }
                     | ExpNode::IndCtor { indspec, .. }
                     | ExpNode::IndElim { indspec, .. }
@@ -306,18 +309,22 @@ impl Lowerer<'_> {
             .collect()
     }
 
+    fn definition_parameter_count(&self, id: DefId) -> usize {
+        match self.raw.definition(id) {
+            DefinedConstant::Contextual { parameters, .. } => parameters.len(),
+            _ => self.raw.definition_parameters(id).len(),
+        }
+    }
+
     pub(super) fn definition_ambient(&mut self, id: DefId) -> Result<usize, String> {
         if let Some(native) = self.raw.kernel_definitions.borrow().get(&id).copied()
             && let Ok(definition) = self.kernel.definition(native)
             && let Some(captures) = self.raw.arena().definition_captures(native)
         {
-            let explicit = match self.raw.definition(id) {
-                DefinedConstant::Contextual { parameters, .. } => parameters.len(),
-                _ => self.raw.definition_parameters(id).len(),
-            };
+            let explicit = self.definition_parameter_count(id);
             return Ok(definition.context.len() - captures.len() - explicit);
         }
-        let parameters = self.raw.definition_parameters(id).len();
+        let parameters = self.definition_parameter_count(id);
         let own = definition_roots(self.raw.definition(id))
             .into_iter()
             .any(|root| {
@@ -338,7 +345,7 @@ impl Lowerer<'_> {
             if let Some(native) = native {
                 let captures = self.captures(Declaration::Definition(dependency)).len();
                 open |= self.kernel.definition(native)?.context.len()
-                    > captures + self.raw.definition_parameters(dependency).len();
+                    > captures + self.definition_parameter_count(dependency);
             }
         }
         Ok(if open {
@@ -353,6 +360,16 @@ impl Lowerer<'_> {
         id: DefId,
         depth: usize,
         program: bool,
+    ) -> Result<s::Expression, String> {
+        self.definition_expression_with_parameters(id, depth, program, &[])
+    }
+
+    pub(super) fn definition_expression_with_parameters(
+        &mut self,
+        id: DefId,
+        depth: usize,
+        program: bool,
+        parameters: &[s::Expression],
     ) -> Result<s::Expression, String> {
         self.definition(id)?;
         let captures = self.captures(Declaration::Definition(id));
@@ -373,6 +390,7 @@ impl Lowerer<'_> {
             .get(&id)
             .copied()
             .ok_or("unknown definition")?;
+        arguments.extend_from_slice(parameters);
         self.kernel.reference(kernel_id, arguments)
     }
 

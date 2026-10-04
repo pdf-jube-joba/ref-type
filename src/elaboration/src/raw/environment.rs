@@ -561,12 +561,12 @@ impl CrateEnv {
                 for &(var, ty) in parameters {
                     CheckSession::new(self, &mut pts_context)
                         .infer_sort(ty)
-                        .map_err(|error| format!("alias parameter check failed: {error}"))?;
+                        .map_err(|error| format!("definition parameter check failed: {error}"))?;
                     pts_context.push(crate::raw::exp::ExpContextEntry { var, ty });
                 }
                 CheckSession::new(self, &mut pts_context)
                     .check_pts(body, ty)
-                    .map_err(|error| format!("alias body check failed: {error}"))?;
+                    .map_err(|error| format!("definition body check failed: {error}"))?;
             }
             DefinedConstant::Pts { ty, body } => {
                 CheckSession::new(self, &mut pts_context)

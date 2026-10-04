@@ -1,12 +1,13 @@
 use crate::raw::{
-    environment::{CrateEnv, ModuleItem},
-    ids::ModuleId,
+    environment::{CrateEnv, DefinedConstant, ModuleItem},
+    ids::{DefId, ModuleId},
     printing::format_module,
 };
 use rustc_hash::FxHashMap;
 
 pub(super) struct Names {
     pub definitions: FxHashMap<kernel::ids::DefinitionId, String>,
+    pub contextual_parameters: FxHashMap<kernel::ids::DefinitionId, usize>,
     pub inductives: FxHashMap<kernel::ids::InductiveId, (String, Vec<String>)>,
     pub datatypes: FxHashMap<kernel::ids::ProgramInductiveId, (String, Vec<String>)>,
 }
@@ -15,6 +16,7 @@ impl Names {
     pub fn new(env: &CrateEnv) -> Self {
         let mut names = Self {
             definitions: FxHashMap::default(),
+            contextual_parameters: FxHashMap::default(),
             inductives: FxHashMap::default(),
             datatypes: FxHashMap::default(),
         };
@@ -42,9 +44,7 @@ impl Names {
                     if definition.module != module {
                         continue;
                     }
-                    if let Some(&id) = env.kernel_definitions.borrow().get(definition) {
-                        self.definitions.insert(id, name);
-                    }
+                    self.definition(env, *definition, name);
                     continue;
                 }
                 ModuleItem::Inductive {
@@ -96,9 +96,16 @@ impl Names {
                 }
             };
             for (field, id) in associated {
-                if let Some(&id) = env.kernel_definitions.borrow().get(id) {
-                    self.definitions.insert(id, format!("{name}::{field}"));
-                }
+                self.definition(env, *id, format!("{name}::{field}"));
+            }
+        }
+    }
+
+    fn definition(&mut self, env: &CrateEnv, definition: DefId, name: String) {
+        if let Some(&id) = env.kernel_definitions.borrow().get(&definition) {
+            self.definitions.insert(id, name);
+            if let DefinedConstant::Contextual { parameters, .. } = env.definition(definition) {
+                self.contextual_parameters.insert(id, parameters.len());
             }
         }
     }

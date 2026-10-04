@@ -293,13 +293,14 @@ impl MetaContext {
                 continue;
             }
             if let Node::Meta { id, .. } = arena.get(e)
-                && ids.insert(id) {
-                    let entry = self.entry(id)?;
-                    result.push((id, entry.expected, entry.assignment));
-                    pending.extend(entry.expected);
-                    pending.extend(entry.assignment);
-                    pending.extend(entry.context.iter().map(|b| b.ty));
-                }
+                && ids.insert(id)
+            {
+                let entry = self.entry(id)?;
+                result.push((id, entry.expected, entry.assignment));
+                pending.extend(entry.expected);
+                pending.extend(entry.assignment);
+                pending.extend(entry.context.iter().map(|b| b.ty));
+            }
             pending.extend(arena.children(e).into_iter().map(|(e, _)| e));
         }
         result.sort_by_key(|(id, _, _)| id.index);

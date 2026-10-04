@@ -82,6 +82,21 @@ impl Lowerer<'_> {
             ExpNode::DefinedConstant(definition) => {
                 self.definition_expression(definition, ctx.len() - self.scope.logical_base, false)?
             }
+            ExpNode::DefinitionInstance {
+                definition,
+                arguments,
+            } => {
+                let parameters = arguments
+                    .into_iter()
+                    .map(|argument| self.set(argument, ctx, m))
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.definition_expression_with_parameters(
+                    definition,
+                    ctx.len() - self.scope.logical_base,
+                    false,
+                    &parameters,
+                )?
+            }
             ExpNode::SubSet {
                 var,
                 set,
@@ -121,10 +136,9 @@ impl Lowerer<'_> {
             ExpNode::TypeLift { superset, subset } => {
                 let superset = self.set(superset, ctx, m)?;
                 let subset = self.set(subset, ctx, m)?;
-                self.kernel.arena().alloc(s::Node::TypeLift {
-                    superset,
-                    subset,
-                })
+                self.kernel
+                    .arena()
+                    .alloc(s::Node::TypeLift { superset, subset })
             }
             ExpNode::Pred {
                 superset,
@@ -143,10 +157,7 @@ impl Lowerer<'_> {
             ExpNode::Equal { left, right } => {
                 let left = self.set(left, ctx, m)?;
                 let right = self.set(right, ctx, m)?;
-                self.kernel.arena().alloc(s::Node::Equal {
-                    left,
-                    right,
-                })
+                self.kernel.arena().alloc(s::Node::Equal { left, right })
             }
             ExpNode::Exists { set } => {
                 let set = self.set(set, ctx, m)?;
@@ -286,10 +297,9 @@ impl Lowerer<'_> {
             ExpNode::ForceBox { program_ty, boxed } => {
                 let program_ty = self.computation_type(program_ty)?;
                 let boxed = self.set(boxed, ctx, m)?;
-                self.kernel.arena().alloc(s::Node::ForceBox {
-                    program_ty,
-                    boxed,
-                })
+                self.kernel
+                    .arena()
+                    .alloc(s::Node::ForceBox { program_ty, boxed })
             }
             ExpNode::IndType {
                 indspec,
@@ -416,17 +426,14 @@ impl Lowerer<'_> {
             ExpNode::Prove(prove) => match prove {
                 Prove::IdRefl { element } => {
                     let element = self.set(element, ctx, m)?;
-                    self.kernel
-                        .arena()
-                        .alloc(s::Node::IdRefl { element })
+                    self.kernel.arena().alloc(s::Node::IdRefl { element })
                 }
                 Prove::ExistsIntro { element, set } => {
                     let element = self.set(element, ctx, m)?;
                     let set = self.set(set, ctx, m)?;
-                    self.kernel.arena().alloc(s::Node::ExistsIntro {
-                        element,
-                        set,
-                    })
+                    self.kernel
+                        .arena()
+                        .alloc(s::Node::ExistsIntro { element, set })
                 }
                 Prove::SubsetElim {
                     element,

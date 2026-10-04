@@ -18,6 +18,7 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
         | ExpNode::DefinedConstant(_)
         | ExpNode::BoxType { .. } => {}
         ExpNode::Meta { spine, .. } => vecs!(spine),
+        ExpNode::DefinitionInstance { arguments, .. } => vecs!(arguments),
         ExpNode::Prod { ty, body, .. } | ExpNode::Lam { ty, body, .. } => one!(ty, body),
         ExpNode::Ascribe {
             term: func,

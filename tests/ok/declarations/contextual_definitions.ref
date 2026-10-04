@@ -1,0 +1,45 @@
+\module ContextualDefinitions(A: \Set, a: A, P: \Prop, p: P) {
+  \definition choose(h: P)(x: A): A := x;
+  \definition chosen: A := choose p a;
+  \definition partiallyApplied: A -> A := choose p;
+  \definition computes: partiallyApplied a = a := \refl(a);
+  \definition dependent(B: \Set)(x: B): B := x;
+  \definition dependentComputes: dependent A a = a := \refl(a);
+  \definition Inferred(x: _): A := x;
+  \definition inferredComputes: Inferred a = a := \refl(a);
+  \definition predicate(R: A -> \Prop): \Prop := R a;
+  \definition predicateProof: predicate (\fun(x: A) => x = x) := \refl(a);
+
+  \structure Holder[B: \Set]: \Set { value: B, }
+  \definition Holder(B: \Set)::choose(h: P)(x: B): B := x;
+  \definition Holder(B: \Set)::Relation: \PropKind := B -> B -> \Prop;
+  \definition associatedPartial: A -> A := Holder[A]::choose p;
+  \definition associatedComputes: Holder[A]::choose p a = a := \refl(a);
+  \definition associatedInferred: Holder::choose p a = a := \refl(a);
+  \definition equality: Holder[A]::Relation := \fun(x, y: A) => x = y;
+  \definition equalityProof: equality a a := \refl(a);
+
+  \definition Restricted: \Set := \Cast[\Pow A] ({ S: \Pow A \where P });
+  \definition forget(S: Restricted): \Pow A := S;
+  \definition extensional(S: Restricted): forget S = forget S :=
+    \axiom:setext(forget S, forget S,
+      \fun(x: A)(h: \In[A] (forget S) x) => h,
+      \fun(x: A)(h: \In[A] (forget S) x) => h);
+
+  \structure Relation { Carrier: \Set, relation: Carrier -> Carrier -> \Prop, }
+  \definition Equality(B: \Set): Relation := Relation {
+    Carrier := B, relation := \fun(x, y: B) => x = y,
+  };
+  \definition withStructure(h: P)(r: Relation)(x: r.Carrier): r.Carrier := x;
+  \definition structureComputes: withStructure p (Equality A) a = a := \refl(a);
+}
+
+\module ContextualImports(A: \Set, a: A, P: \Prop, p: P) {
+  \import \root.ContextualDefinitions[A := A, a := a, P := P, p := p] \as D;
+  \definition chosen: A := D.choose p a;
+  \definition partiallyApplied: A -> A := D.choose p;
+  \definition computes: partiallyApplied a = a := \refl(a);
+  \definition associated: D.Holder[A]::choose p a = a := \refl(a);
+  \definition family: D.Holder[A]::Relation := \fun(x, y: A) => x = y;
+  \definition familyProof: family a a := \refl(a);
+}

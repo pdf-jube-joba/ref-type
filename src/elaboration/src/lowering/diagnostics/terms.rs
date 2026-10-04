@@ -67,31 +67,17 @@ impl Renderer<'_> {
                 subset,
                 element,
                 proof,
-            } => self.call(
-                "into",
-                &[
-                    (*superset),
-                    (*subset),
-                    (*element),
-                    (*proof),
-                ],
-            ),
+            } => self.call("into", &[(*superset), (*subset), (*element), (*proof)]),
             Continue {
                 state_ty,
                 result_ty,
                 next,
-            } => self.call(
-                "continue",
-                &[(*state_ty), (*result_ty), (*next)],
-            ),
+            } => self.call("continue", &[(*state_ty), (*result_ty), (*next)]),
             Finish {
                 state_ty,
                 result_ty,
                 output,
-            } => self.call(
-                "finish",
-                &[(*state_ty), (*result_ty), (*output)],
-            ),
+            } => self.call("finish", &[(*state_ty), (*result_ty), (*output)]),
             SetRun {
                 state_ty,
                 result_ty,
@@ -136,13 +122,7 @@ impl Renderer<'_> {
                 on_finish,
             } => self.call(
                 "stepMatchSet",
-                &[
-                    *state_ty,
-                    *result_ty,
-                    *motive,
-                    *on_continue,
-                    *on_finish,
-                ],
+                &[*state_ty, *result_ty, *motive, *on_continue, *on_finish],
             ),
             ProgramStepMatch {
                 state_ty,
@@ -166,9 +146,7 @@ impl Renderer<'_> {
                 program_ty,
                 program,
             } => self.call("box", &[(*program_ty), (*program)]),
-            ForceBox { program_ty, boxed } => {
-                self.call("squash", &[(*program_ty), (*boxed)])
-            }
+            ForceBox { program_ty, boxed } => self.call("squash", &[(*program_ty), (*boxed)]),
             BoxApp {
                 function, argument, ..
             } => self.call("boxapp", &[(*function), (*argument)]),
@@ -194,11 +172,7 @@ impl Renderer<'_> {
                 inductive,
                 constructor,
                 parameters,
-            } => self.inductive(
-                *inductive,
-                Some(*constructor),
-                parameters.to_vec(),
-            ),
+            } => self.inductive(*inductive, Some(*constructor), parameters.to_vec()),
             IndElim {
                 inductive,
                 scrutinee,
@@ -216,16 +190,9 @@ impl Renderer<'_> {
                 binders,
                 scrutinee,
                 branches,
-            } => self.case(
-                *inductive,
-                *scrutinee,
-                binders,
-                branches.to_vec(),
-            ),
+            } => self.case(*inductive, *scrutinee, binders, branches.to_vec()),
             PowerSet { set } => self.call("Pow", &[(*set)]),
-            TypeLift { superset, subset } => {
-                self.call("Cast", &[(*superset), (*subset)])
-            }
+            TypeLift { superset, subset } => self.call("Cast", &[(*superset), (*subset)]),
             RunStep {
                 state_ty,
                 result_ty,
@@ -234,21 +201,14 @@ impl Renderer<'_> {
             IndType {
                 inductive,
                 parameters,
-            } => self.inductive(
-                *inductive,
-                None,
-                parameters.to_vec(),
-            ),
+            } => self.inductive(*inductive, None, parameters.to_vec()),
             IdRefl { element } => self.call("refl", &[(*element)]),
             ExistsIntro { element, set } => self.call("exact", &[(*element), (*set)]),
             SubsetElim {
                 element,
                 subset,
                 superset,
-            } => self.call(
-                "subset_elim",
-                &[(*element), (*subset), (*superset)],
-            ),
+            } => self.call("subset_elim", &[(*element), (*subset), (*superset)]),
             IdElim {
                 var,
                 left,
@@ -257,15 +217,7 @@ impl Renderer<'_> {
                 predicate,
                 base,
                 equality,
-            } => self.id_elim(
-                *var,
-                *left,
-                *right,
-                *ty,
-                *predicate,
-                *base,
-                *equality,
-            ),
+            } => self.id_elim(*var, *left, *right, *ty, *predicate, *base, *equality),
             TakeProp {
                 domain,
                 proposition,
@@ -299,21 +251,13 @@ impl Renderer<'_> {
                 right_to_left,
             } => self.call(
                 "axiom:setext",
-                &[
-                    (*left),
-                    (*right),
-                    (*left_to_right),
-                    (*right_to_left),
-                ],
+                &[(*left), (*right), (*left_to_right), (*right_to_left)],
             ),
             FunExt {
                 left,
                 right,
                 pointwise,
-            } => self.call(
-                "axiom:funext",
-                &[(*left), (*right), (*pointwise)],
-            ),
+            } => self.call("axiom:funext", &[(*left), (*right), (*pointwise)]),
             ClassicalIndefiniteChoice {
                 domain,
                 family,
@@ -326,10 +270,7 @@ impl Renderer<'_> {
                 superset,
                 subset,
                 element,
-            } => self.call(
-                "In",
-                &[(*superset), (*subset), (*element)],
-            ),
+            } => self.call("In", &[(*superset), (*subset), (*element)]),
             Equal { left, right } => Term::new(
                 format!(
                     "{} = {}",
@@ -344,18 +285,12 @@ impl Renderer<'_> {
                 state_ty,
                 result_ty,
                 next,
-            } => self.call(
-                "continue",
-                &[(*state_ty), (*result_ty), (*next)],
-            ),
+            } => self.call("continue", &[(*state_ty), (*result_ty), (*next)]),
             ProgramFinish {
                 state_ty,
                 result_ty,
                 output,
-            } => self.call(
-                "finish",
-                &[(*state_ty), (*result_ty), (*output)],
-            ),
+            } => self.call("finish", &[(*state_ty), (*result_ty), (*output)]),
             InductiveConstructor {
                 inductive,
                 constructor,
@@ -375,11 +310,7 @@ impl Renderer<'_> {
             Inductive {
                 inductive,
                 parameters,
-            } => self.datatype(
-                *inductive,
-                None,
-                parameters.to_vec(),
-            ),
+            } => self.datatype(*inductive, None, parameters.to_vec()),
             Return { value } => self.call("return", &[(*value)]),
             Force { value } => self.call("force", &[(*value)]),
             Sequence {
@@ -387,36 +318,19 @@ impl Renderer<'_> {
                 value_ty,
                 computation,
                 body,
-            } => self.let_term(
-                *var,
-                *value_ty,
-                *computation,
-                *body,
-                true,
-            ),
+            } => self.let_term(*var, *value_ty, *computation, *body, true),
             ValueLet {
                 var,
                 value_ty,
                 value,
                 body,
-            } => self.let_term(
-                *var,
-                *value_ty,
-                *value,
-                *body,
-                false,
-            ),
+            } => self.let_term(*var, *value_ty, *value, *body, false),
             ProgramCase {
                 inductive,
                 binders,
                 scrutinee,
                 branches,
-            } => self.case(
-                *inductive,
-                *scrutinee,
-                binders,
-                branches.to_vec(),
-            ),
+            } => self.case(*inductive, *scrutinee, binders, branches.to_vec()),
             Run {
                 state_ty,
                 result_ty,

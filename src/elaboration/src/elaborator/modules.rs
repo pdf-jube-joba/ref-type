@@ -432,91 +432,15 @@ impl GlobalEnvironment {
                         .map(|owner| owner.parameters.clone())
                         .unwrap_or_default();
                     all_binders.extend(binders.clone());
-                    let mut ty = ty.clone();
-                    let mut body = body.clone();
-                    for binder in all_binders.into_iter().rev() {
-                        ty = SExp::Prod {
-                            bind: Bind::Named(binder.clone()),
-                            body: Box::new(ty),
-                        };
-                        body = SExp::Lam {
-                            bind: Bind::Named(binder),
-                            body: Box::new(body),
-                        };
-                    }
-                    let ty_elab = local_scope.elab_exp(&ty, self)?;
-                    if let Some(timer) = &mut profile_timer {
-                        timer.checkpoint("type elaboration");
-                    }
-                    let body_elab = local_scope.elab_exp(&body, self)?;
-                    if let Some(timer) = &mut profile_timer {
-                        timer.checkpoint("body elaboration");
-                    }
-                    if !self.metavariables.is_empty() {
-                        self.check_term_with_metavariables(&mut ctx, body_elab, ty_elab)
-                            .map_err(|message| {
-                                self.metavariables
-                                    .constraint_error(&self.crate_env, message)
-                            })?;
-                        self.finish_metavariables()?;
-                    }
-                    if let Some(timer) = &mut profile_timer {
-                        timer.checkpoint("metavariable checking");
-                    }
-                    let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
-                    let body_elab = self.metavariables.zonk(&self.crate_env, body_elab);
-                    if let Some(timer) = &mut profile_timer {
-                        timer.checkpoint("zonking");
-                    }
-                    self.validate_definition(&mut ctx, body_elab, ty_elab)
-                        .map_err(|message| {
-                            format!(
-                                "Definition {} body does not check against declared type: {message}",
-                                name.as_str()
-                            )
-                        })?;
-                    if let Some(timer) = &mut profile_timer {
-                        timer.checkpoint("strict checking");
-                    }
-                    let defined_constant = DefinedConstant::Pts {
-                        ty: ty_elab,
-                        body: body_elab,
-                    };
-                    if let Some(owner) = owner {
-                        self.module_manager.add_associated_def(
-                            &mut self.crate_env,
-                            &owner.type_name,
-                            name.clone(),
-                            defined_constant,
-                        )?;
-                    } else {
-                        self.module_manager.add_def(
-                            &mut self.crate_env,
-                            name.clone(),
-                            defined_constant,
-                        )?;
-                    }
-                    Ok(())
+                    self.elaborate_contextual_definition(
+                        owner.as_ref(),
+                        name,
+                        &all_binders,
+                        ty,
+                        body,
+                    )
                 })();
                 if let Err(error) = pts_result {
-                    if owner.is_none() && !binders.is_empty() {
-                        self.metavariables.clear();
-                        match self.elaborate_contextual_definition(name, binders, ty, body) {
-                            Ok(()) => {
-                                self.record_declaration(decl, output_start);
-                                self.metavariables.clear();
-                                return Ok(());
-                            }
-                            Err(contextual_error) => {
-                                return Err(ElaborationError::alternatives(
-                                    std::iter::once(contextual_error)
-                                        .chain(std::iter::once(error))
-                                        .chain(program_errors)
-                                        .collect(),
-                                ));
-                            }
-                        }
-                    }
                     if program_errors.is_empty() {
                         return Err(error);
                     }

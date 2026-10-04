@@ -24,7 +24,10 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
         term.visit_children(env.arena(), |child, _| pending.push(child));
         let (definition, inductive, datatype, parameter) = match term {
             Term::Logical(e) => match env.arena().get(e) {
-                ExpNode::DefinedConstant(id) => (Some(id), None, None, None),
+                ExpNode::DefinedConstant(id)
+                | ExpNode::DefinitionInstance { definition: id, .. } => {
+                    (Some(id), None, None, None)
+                }
                 ExpNode::IndType { indspec, .. }
                 | ExpNode::IndCtor { indspec, .. }
                 | ExpNode::IndElim { indspec, .. }

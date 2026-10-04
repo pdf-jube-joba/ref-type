@@ -97,20 +97,12 @@ impl Lowerer<'_> {
             raw::environment::DefinedConstant::ProgramValue { ty, body, .. } => {
                 let ty = self.value_type(ty)?;
                 let body = self.value_term(body, &mut program_context)?;
-                (
-                    body,
-                    ty,
-                    self.program_context(&program_context)?,
-                )
+                (body, ty, self.program_context(&program_context)?)
             }
             raw::environment::DefinedConstant::ProgramComputation { ty, body, .. } => {
                 let ty = self.computation_type(ty)?;
                 let body = self.computation_term(body, &mut program_context)?;
-                (
-                    body,
-                    ty,
-                    self.program_context(&program_context)?,
-                )
+                (body, ty, self.program_context(&program_context)?)
             }
         };
         let kernel_id = self
@@ -133,6 +125,10 @@ impl Lowerer<'_> {
         self.raw.arena().bind_definition(
             kernel_id,
             Some(id),
+            matches!(
+                self.raw.definition(id),
+                raw::environment::DefinedConstant::Contextual { .. }
+            ),
             self.scope.captures.clone(),
             self.kernel
                 .definition(kernel_id)
@@ -143,6 +139,7 @@ impl Lowerer<'_> {
             self.raw.arena().bind_definition(
                 reflected,
                 None,
+                false,
                 self.scope.captures.clone(),
                 self.kernel
                     .definition(reflected)

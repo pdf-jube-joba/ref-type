@@ -6,7 +6,9 @@ mod macros;
 
 mod program;
 mod resolver;
-pub use resolver::{Binding, CheckStep, Declaration, Diagnostic, Import, Project, Reference, resolve};
+pub use resolver::{
+    Binding, CheckStep, Declaration, Diagnostic, Import, Project, Reference, resolve,
+};
 
 /// Structural traversal shared by downstream HIR consumers.
 pub mod visit {

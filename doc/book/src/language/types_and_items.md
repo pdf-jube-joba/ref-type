@@ -20,12 +20,12 @@ Nat<PtBin>::bin a b
 
 ```text
 \definition Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
-\definition Predicate[Carrier: \Set]: _ := Carrier -> \Prop;
+\definition Predicate(Carrier: \Set): _ := Carrier -> \Prop;
 ```
 
 definition の parameter は宣言を検査する文脈として保持する。
-`Relation[A]` は elaboration 中に `A -> A -> \Prop` へ展開され、既存の kernel で検査する。
-この展開の型付けは、parameter の文脈に対する代入補題で説明できる。
+`Relation[A]` と `Predicate A` は、文脈付きの定義参照に引数を渡すことで、それぞれ `A -> A -> \Prop` と `A -> \Prop` を表す。
+この参照の型付けは、parameter の文脈に対する代入補題で説明できる。
 
 ## 帰納型の型関連 item
 

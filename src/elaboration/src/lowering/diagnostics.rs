@@ -174,7 +174,19 @@ impl Renderer<'_> {
             .get(&id)
             .cloned()
             .unwrap_or_else(|| format!("{id:?}"));
-        if arguments.is_empty() {
+        if let Some(&count) = self.names.contextual_parameters.get(&id) {
+            let split = arguments.len().saturating_sub(count);
+            let mut function = if split == 0 {
+                Term::atom(name)
+            } else {
+                self.call(&name, &arguments[..split])
+            };
+            for &argument in &arguments[split..] {
+                let argument = self.expression(argument, 3);
+                function = Term::new(format!("{} {argument}", function.text), 2);
+            }
+            function
+        } else if arguments.is_empty() {
             Term::atom(name)
         } else {
             self.call(&name, arguments)

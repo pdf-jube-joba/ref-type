@@ -153,13 +153,16 @@ module argument では metavariable の推論を行わない。
 \definition Type(parameters)::item(arguments): type := expression;
 ```
 
-括弧付き binder は複数 group 書ける。型と本体から Set/Prop、Program value、Program computation のいずれかに分類される。`Type::item` は型関連 item で、owner の parameter を先頭に束縛した定義になる。
+括弧付き binder は複数 group 書ける。
+`:` の左の binder を宣言文脈に追加して、結果の型と本体を検査する。
+型と本体から Set/Prop、Program value、Program computation のいずれかに分類される。
+`Type::item` は型関連 item で、owner の parameter を先頭に持つ宣言になる。
 
-Program computation 定義の引数は CBV の糖衣である。
+Program computation の本体も、引数を追加した Program の文脈で検査する。
 
 ```text
 \definition f(x: A, y: B): C := body;
-/* A ~> B ~> C と \cfun (x: A) (y: B) => body に相当 */
+/* x: A, y: B の文脈で body: C を検査する。 */
 ```
 
 ### 文脈付きの definition
@@ -169,9 +172,9 @@ Program computation 定義の引数は CBV の糖衣である。
 \definition At[A: \Set, x: A, P: A -> \Prop]: \Prop := P x;
 ```
 
-引数を宣言文脈に追加して本体を検査し、適用時に各引数を検査して具体化する。
+適用時に各引数を検査し、宣言の引数へ代入して結果を具体化する。
 product 型を形成できる定義は通常の関数として使える。
-文脈付き定義を部分適用した項も、残りの引数について既存の product rule を満たす場合に関数へ変換できる。
+部分適用では、渡した引数を代入した後、残りの引数について既存の product rule を満たす場合に関数へ変換できる。
 
 ### inductive
 

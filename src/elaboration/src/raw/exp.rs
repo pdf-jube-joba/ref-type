@@ -94,6 +94,10 @@ pub enum ExpNode {
         spine: Vec<Exp>,
     },
     DefinedConstant(DefId),
+    DefinitionInstance {
+        definition: DefId,
+        arguments: Vec<Exp>,
+    },
     Prod {
         var: SymbolId,
         ty: Exp,
@@ -269,6 +273,7 @@ struct Atoms {
 #[derive(Debug, Clone)]
 struct DefinitionView {
     source: Option<DefId>,
+    contextual: bool,
     captures: Vec<ModuleParamId>,
     body: kernel::syntax::Expression,
 }
@@ -309,6 +314,7 @@ impl Arena {
         &self,
         id: kernel::ids::DefinitionId,
         source: Option<DefId>,
+        contextual: bool,
         captures: Vec<ModuleParamId>,
         body: kernel::syntax::Expression,
     ) {
@@ -316,6 +322,7 @@ impl Arena {
             id,
             DefinitionView {
                 source,
+                contextual,
                 captures,
                 body,
             },
@@ -380,7 +387,7 @@ impl Arena {
                 });
         if nominal && let Some(source) = view.source {
             let parameters = arguments[view.captures.len()..].to_vec();
-            if program && !parameters.is_empty() {
+            if view.contextual || program && !parameters.is_empty() {
                 return self.atom(Atom::Instance(source), parameters);
             }
             let mut result = self.atom(Atom::Definition(source), vec![]);
@@ -758,6 +765,15 @@ impl ArenaNode for ExpNode {
             ExpNode::Bound(i) => N::Bound(i),
             ExpNode::ModuleParam(id) => N::Parameter(id.into()),
             ExpNode::DefinedConstant(id) => return Exp(arena.atom(Atom::Definition(id), vec![])),
+            ExpNode::DefinitionInstance {
+                definition,
+                arguments,
+            } => {
+                return Exp(arena.atom(
+                    Atom::Instance(definition),
+                    arguments.into_iter().map(|e| e.0).collect(),
+                ));
+            }
             ExpNode::Sort(sort) => N::Sort(lower_sort(sort)),
             ExpNode::ReflectedProgramParam(id) => N::Reflect {
                 term: arena.core.alloc(N::Parameter(id.into())),
@@ -1026,11 +1042,14 @@ impl ArenaHandle for Exp {
             },
             N::Meta { id, arguments } => match arena.atom_key(id) {
                 Atom::Definition(id) => ExpNode::DefinedConstant(id),
+                Atom::Instance(definition) => ExpNode::DefinitionInstance {
+                    definition,
+                    arguments: arguments.into_iter().map(Exp).collect(),
+                },
                 Atom::Meta(_, metavariable, _) => ExpNode::Meta {
                     metavariable,
                     spine: arguments.into_iter().map(Exp).collect(),
                 },
-                _ => panic!("logical atom category"),
             },
             N::Parameter(id) => ExpNode::ModuleParam(id.into()),
             N::Bound(i) => ExpNode::Bound(i),

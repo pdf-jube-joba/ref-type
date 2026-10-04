@@ -178,9 +178,10 @@ impl<'a> Checker<'a> {
             out: &mut std::collections::HashSet<usize>,
         ) {
             if let Node::Bound(i) = *arena.read(e)
-                && i >= depth {
-                    out.insert(i - depth);
-                }
+                && i >= depth
+            {
+                out.insert(i - depth);
+            }
             for (child, binders) in arena.children(e) {
                 indices(arena, child, depth + binders, out);
             }
@@ -317,25 +318,26 @@ impl<'a> Checker<'a> {
                 self.env,
                 self.metas.zonk(self.arena(), inferred)?,
                 self.metas.zonk(self.arena(), expected)?,
-            ) {
-                eprintln!(
-                    "conversion difference {path:?}: {:?} != {:?}",
-                    self.arena().get(left),
-                    self.arena().get(right)
-                );
-                fn show(a: &Arena, e: Expression, depth: usize, remaining: &mut usize) {
-                    if depth > 9 || *remaining == 0 {
-                        return;
-                    }
-                    *remaining -= 1;
-                    eprintln!("{} {e:?}: {:?}", " ".repeat(depth), a.get(e));
-                    for (child, _) in a.children(e) {
-                        show(a, child, depth + 1, remaining);
-                    }
+            )
+        {
+            eprintln!(
+                "conversion difference {path:?}: {:?} != {:?}",
+                self.arena().get(left),
+                self.arena().get(right)
+            );
+            fn show(a: &Arena, e: Expression, depth: usize, remaining: &mut usize) {
+                if depth > 9 || *remaining == 0 {
+                    return;
                 }
-                show(self.arena(), left, 0, &mut 50);
-                show(self.arena(), right, 0, &mut 50);
+                *remaining -= 1;
+                eprintln!("{} {e:?}: {:?}", " ".repeat(depth), a.get(e));
+                for (child, _) in a.children(e) {
+                    show(a, child, depth + 1, remaining);
+                }
             }
+            show(self.arena(), left, 0, &mut 50);
+            show(self.arena(), right, 0, &mut 50);
+        }
         Err(Error::TypeMismatch(Box::new(
             crate::metavariables::TypeMismatch {
                 arena: self.env.arena.clone(),
@@ -1183,9 +1185,8 @@ impl<'a> Checker<'a> {
                         }),
                     )?;
                 }
-                let body = self.head(
-                    self.application(self.lifted(motive, 1)?, self.arena().bound(0))?,
-                )?;
+                let body =
+                    self.head(self.application(self.lifted(motive, 1)?, self.arena().bound(0))?)?;
                 Ok(self.alloc(Node::Product {
                     var: SymbolId::ANONYMOUS,
                     domain: step,

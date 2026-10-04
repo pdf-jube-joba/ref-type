@@ -126,6 +126,18 @@ impl<'a> Printer<'a> {
                 )
             }
             ExpNode::DefinedConstant(definition) => definition_name(env, definition),
+            ExpNode::DefinitionInstance {
+                definition,
+                arguments,
+            } => format!(
+                "{}[{}]",
+                definition_name(env, definition),
+                arguments
+                    .into_iter()
+                    .map(|e| self.format_exp(e))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             ExpNode::IndType {
                 indspec,
                 parameters,

@@ -173,13 +173,14 @@ fn logical_case_is_distinct_from_inductive_elimination() {
     else {
         panic!("missing predecessor definition");
     };
-    let DefinedConstant::Pts { body, .. } = env.definition(*definition) else {
+    let DefinedConstant::Contextual {
+        parameters, body, ..
+    } = env.definition(*definition)
+    else {
         panic!("predecessor should be a logical definition");
     };
-    assert!(matches!(
-        env.arena().get(*body),
-        ExpNode::Lam { body, .. } if matches!(env.arena().get(body), ExpNode::IndCase { .. })
-    ));
+    assert_eq!(parameters.len(), 1);
+    assert!(matches!(env.arena().get(*body), ExpNode::IndCase { .. }));
 }
 
 #[test]
@@ -2383,4 +2384,37 @@ fn ascription_preserves_the_declared_type_after_subset_weakening() {
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     assert!(environment.add_modules_to_root(&modules).is_err());
+}
+
+#[test]
+fn definition_parameters_form_contexts_and_calls_share_the_checked_body() {
+    let modules = parse::str_parse_modules(
+        r"\module Contexts(A: \Set, P: \Prop, p: P, Unused: \Set) {
+            \definition choose(h: P)(x: A): A := x;
+            \definition selected(x: A): A := choose p x;
+        }",
+    )
+    .unwrap();
+    let mut global = GlobalEnvironment::default();
+    global.add_new_module_to_root(&modules[0]).unwrap();
+    let raw = global.crate_env();
+    let module = raw.module(raw.module(raw.root_module()).children()[0]);
+    let definition = |name| match module.item(name).unwrap() {
+        ModuleItem::Definition { definition, .. } => *definition,
+        _ => panic!("expected definition"),
+    };
+    let choose = definition("choose");
+    let DefinedConstant::Contextual { parameters, .. } = raw.definition(choose) else {
+        panic!("expected a contextual definition")
+    };
+    assert_eq!(parameters.len(), 2);
+    let env = global.kernel_env();
+    let choose = raw.kernel_definitions.borrow()[&choose];
+    assert_eq!(env.definition(choose).unwrap().context.len(), 4);
+    let selected = raw.kernel_definitions.borrow()[&definition("selected")];
+    assert_eq!(env.definition(selected).unwrap().context.len(), 4);
+    assert_eq!(
+        env.referenced_definition(env.definition(selected).unwrap().body),
+        Some(choose)
+    );
 }

@@ -103,6 +103,53 @@ impl Default for LocalScope {
 }
 
 impl LocalScope {
+    fn definition_reference(
+        &mut self,
+        definition: DefId,
+        arguments: Vec<Exp>,
+        handler: &mut impl Handler,
+    ) -> Result<Exp, ElaborationError> {
+        let DefinedConstant::Contextual { parameters, ty, .. } =
+            handler.env().resolve_definition(definition)?.clone()
+        else {
+            let constant = handler.arena().alloc(ExpNode::DefinedConstant(definition));
+            return Ok(crate::raw::utils::assoc_apply(
+                handler.arena(),
+                constant,
+                arguments,
+            ));
+        };
+        if arguments.len() > parameters.len() {
+            return Err(format!(
+                "Definition expects at most {} argument(s), found {}",
+                parameters.len(),
+                arguments.len()
+            )
+            .into());
+        }
+        for (index, argument) in arguments.iter().enumerate() {
+            let expected =
+                instantiate_telescope(handler.arena(), parameters[index].1, &arguments[..index]);
+            handler.check(&mut self.typing_binds, *argument, expected)?;
+        }
+        let remaining = parameters[arguments.len()..].to_vec();
+        let reference = handler.arena().alloc(ExpNode::DefinitionInstance {
+            definition,
+            arguments: (0..parameters.len())
+                .rev()
+                .map(|index| handler.arena().exp_bound(index))
+                .collect(),
+        });
+        let body = crate::raw::utils::assoc_lam(handler.arena(), remaining.clone(), reference);
+        let value = instantiate_telescope(handler.arena(), body, &arguments);
+        if !remaining.is_empty() {
+            let ty = crate::raw::utils::assoc_prod(handler.arena(), remaining, ty);
+            let ty = instantiate_telescope(handler.arena(), ty, &arguments);
+            handler.check(&mut self.typing_binds, value, ty)?;
+        }
+        Ok(value)
+    }
+
     fn elab_structure_literal(
         &mut self,
         ty: Exp,
@@ -670,45 +717,15 @@ impl LocalScope {
                 let item = handler.get_item_from_access_path(access)?;
                 match item {
                     ItemAccessResult::Definition(ModItemDefinition { definition, .. }) => {
-                        if let DefinedConstant::Contextual {
-                            parameters: telescope,
-                            ty,
-                            body,
-                        } = handler.env().resolve_definition(definition)?.clone()
-                        {
-                            if parameters.len() > telescope.len() {
-                                return Err(format!(
-                                    "Definition {access} expects at most {} argument(s), found {}",
-                                    telescope.len(),
-                                    parameters.len()
-                                )
-                                .into());
-                            }
-                            let mut arguments = Vec::with_capacity(parameters.len());
-                            for (expression, (_, ty)) in parameters.iter().zip(&telescope) {
-                                let argument = self.elab_exp_rec(expression, handler)?;
-                                let expected = crate::raw::calculus::instantiate_telescope(
-                                    handler.arena(),
-                                    *ty,
-                                    &arguments,
-                                );
-                                handler.check(&mut self.typing_binds, argument, expected)?;
-                                arguments.push(argument);
-                            }
-                            let remaining = telescope[arguments.len()..].to_vec();
-                            let body = crate::raw::utils::assoc_lam(
-                                handler.arena(),
-                                remaining.clone(),
-                                body,
-                            );
-                            let value = instantiate_telescope(handler.arena(), body, &arguments);
-                            if !remaining.is_empty() {
-                                let ty =
-                                    crate::raw::utils::assoc_prod(handler.arena(), remaining, ty);
-                                let ty = instantiate_telescope(handler.arena(), ty, &arguments);
-                                handler.check(&mut self.typing_binds, value, ty)?;
-                            }
-                            return Ok(value);
+                        if matches!(
+                            handler.env().resolve_definition(definition)?,
+                            DefinedConstant::Contextual { .. }
+                        ) {
+                            let arguments = parameters
+                                .iter()
+                                .map(|expression| self.elab_exp_rec(expression, handler))
+                                .collect::<Result<Vec<_>, _>>()?;
+                            return self.definition_reference(definition, arguments, handler);
                         }
                         if !matches!(
                             handler.env().definition(definition),
@@ -868,13 +885,7 @@ impl LocalScope {
                                 let count = handler.env().inductive(inductive).parameters().len();
                                 let parameters =
                                     self.associated_parameters(parameters, count, handler)?;
-                                let definition =
-                                    handler.arena().alloc(ExpNode::DefinedConstant(*definition));
-                                return Ok(crate::raw::utils::assoc_apply(
-                                    handler.arena(),
-                                    definition,
-                                    parameters,
-                                ));
+                                return self.definition_reference(*definition, parameters, handler);
                             }
                             Err(format!(
                                 "Associated item {} not found in inductive type {}",
@@ -903,13 +914,7 @@ impl LocalScope {
                                     handler.env().inductive(record.inductive).parameters().len();
                                 let parameters =
                                     self.associated_parameters(parameters, count, handler)?;
-                                let definition =
-                                    handler.arena().alloc(ExpNode::DefinedConstant(*definition));
-                                return Ok(crate::raw::utils::assoc_apply(
-                                    handler.arena(),
-                                    definition,
-                                    parameters,
-                                ));
+                                return self.definition_reference(*definition, parameters, handler);
                             }
                             let count =
                                 handler.env().inductive(record.inductive).parameters().len();
@@ -1165,17 +1170,58 @@ impl LocalScope {
                         ..
                     } = handler.env().resolve_definition(item.definition)?.clone()
                 {
-                    let count = telescope.len().saturating_sub(parameters.len());
-                    if arguments.len() >= count {
-                        let mut supplied = parameters.clone();
-                        supplied.extend(arguments.iter().take(count).map(|e| (*e).clone()));
-                        let mut value = self.elab_exp_rec(
-                            &SExp::AccessPath {
-                                access: access.clone(),
-                                parameters: supplied,
-                            },
-                            handler,
-                        )?;
+                    let count = telescope
+                        .len()
+                        .saturating_sub(parameters.len())
+                        .min(arguments.len());
+                    let mut supplied = parameters.clone();
+                    supplied.extend(arguments.iter().take(count).map(|e| (*e).clone()));
+                    let mut value = self.elab_exp_rec(
+                        &SExp::AccessPath {
+                            access: access.clone(),
+                            parameters: supplied,
+                        },
+                        handler,
+                    )?;
+                    for argument in arguments.iter().skip(count) {
+                        let arg = self.elab_exp_rec(argument, handler)?;
+                        value = handler.arena().alloc(ExpNode::App { func: value, arg });
+                    }
+                    return Ok(value);
+                }
+                if let SExp::AssociatedAccess { base, field, .. } = head
+                    && let SExp::AccessPath { access, parameters } = base.as_ref()
+                    && let Ok(item) = handler.get_item_from_access_path(access)
+                {
+                    let (inductive, members) = match item {
+                        ItemAccessResult::Inductive(item) => {
+                            (Some(item.inductive), item.associated_definitions)
+                        }
+                        ItemAccessResult::Record(item) => {
+                            (Some(item.inductive), item.associated_definitions)
+                        }
+                        _ => (None, Vec::new()),
+                    };
+                    if let Some(inductive) = inductive
+                        && let Some((_, definition)) =
+                            members.iter().find(|(name, _)| name == field)
+                        && let DefinedConstant::Contextual {
+                            parameters: telescope,
+                            ..
+                        } = handler.env().resolve_definition(*definition)?.clone()
+                    {
+                        let owner_count = handler.env().inductive(inductive).parameters().len();
+                        let mut supplied =
+                            self.associated_parameters(parameters, owner_count, handler)?;
+                        let count = telescope
+                            .len()
+                            .saturating_sub(owner_count)
+                            .min(arguments.len());
+                        for argument in arguments.iter().take(count) {
+                            supplied.push(self.elab_exp_rec(argument, handler)?);
+                        }
+                        let mut value =
+                            self.definition_reference(*definition, supplied, handler)?;
                         for argument in arguments.iter().skip(count) {
                             let arg = self.elab_exp_rec(argument, handler)?;
                             value = handler.arena().alloc(ExpNode::App { func: value, arg });

@@ -195,10 +195,11 @@ impl Environment {
                 continue;
             }
             if let Some(next) = crate::reduction::root(self, e)?
-                && next != e {
-                    e = next;
-                    continue;
-                }
+                && next != e
+            {
+                e = next;
+                continue;
+            }
             let next = crate::reduction::map_head(self, e, |child| self.whnf(child))?;
             if next == e {
                 self.heads.borrow_mut().insert(expression, e);
@@ -404,9 +405,11 @@ impl Environment {
         self.heads.borrow_mut().finish_scratch(|key, value| {
             !removed || self.arena.is_live(*key) && self.arena.is_live(*value)
         });
-        self.inferred.borrow_mut().finish_scratch(|(_, key), value| {
-            !removed || self.arena.is_live(*key) && self.arena.is_live(*value)
-        });
+        self.inferred
+            .borrow_mut()
+            .finish_scratch(|(_, key), value| {
+                !removed || self.arena.is_live(*key) && self.arena.is_live(*value)
+            });
         self.conversions
             .borrow_mut()
             .finish_scratch(|(left, right, _), _| {

@@ -16,7 +16,7 @@ fn hex(key: &Fingerprint) -> String {
     key.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-const SCHEMA: u32 = 4;
+const SCHEMA: u32 = 5;
 
 #[derive(Serialize, Deserialize)]
 struct Record {

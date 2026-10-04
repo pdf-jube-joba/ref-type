@@ -4,6 +4,7 @@ use super::*;
 impl GlobalEnvironment {
     pub(super) fn elaborate_contextual_definition(
         &mut self,
+        owner: Option<&AssociatedOwner>,
         name: &Identifier,
         parameters: &[RightBind],
         ty: &SExp,
@@ -25,21 +26,32 @@ impl GlobalEnvironment {
                     .constraint_error(&self.crate_env, message)
             })?;
         self.finish_metavariables()?;
-        let parameters = parameters
+        let parameters: Vec<_> = parameters
             .into_iter()
             .map(|(var, ty)| (var, self.metavariables.zonk(&self.crate_env, ty)))
             .collect();
         let ty = self.metavariables.zonk(&self.crate_env, ty);
         let body = self.metavariables.zonk(&self.crate_env, body);
-        self.module_manager.add_def(
-            &mut self.crate_env,
-            name.clone(),
+        let definition = if parameters.is_empty() {
+            DefinedConstant::Pts { ty, body }
+        } else {
             DefinedConstant::Contextual {
                 parameters,
                 ty,
                 body,
-            },
-        )?;
+            }
+        };
+        if let Some(owner) = owner {
+            self.module_manager.add_associated_def(
+                &mut self.crate_env,
+                &owner.type_name,
+                name.clone(),
+                definition,
+            )?;
+        } else {
+            self.module_manager
+                .add_def(&mut self.crate_env, name.clone(), definition)?;
+        }
         Ok(())
     }
 
@@ -94,33 +106,33 @@ impl GlobalEnvironment {
             }
         }
 
-        let mut ty = surface_ty.clone();
-        let mut body = surface_body.clone();
-        for binder in binders.iter().rev() {
-            for var in binder.vars.iter().rev() {
-                ty = SExp::ComputationFunction {
-                    domain: binder.ty.clone(),
-                    codomain: Box::new(ty),
-                };
-                body = SExp::ComputationLam {
-                    var: var.clone(),
-                    value_ty: binder.ty.clone(),
-                    body: Box::new(body),
-                };
-            }
-        }
-        let computation_ty = ComputationTypeExp::try_from(ty);
-        let computation_body = ComputationTermExp::try_from(body);
+        let computation_ty = ComputationTypeExp::try_from(surface_ty.clone());
+        let computation_body = ComputationTermExp::try_from(surface_body.clone());
         if let (Ok(ty), Ok(body)) = (&computation_ty, &computation_body) {
             let ty = ty.clone();
             let body = body.clone();
             self.metavariables.clear();
             let attempt = (|| -> Result<_, ElaborationError> {
                 let (mut scope, parameters) = self.program_associated_scope(owner)?;
+                let mut context_parameters = Vec::new();
+                for binder in binders {
+                    for var in &binder.vars {
+                        let annotation = ValueTypeExp::try_from((*binder.ty).clone())?;
+                        let ty = scope.elaborate_value_type(&annotation, self)?;
+                        let var = self.crate_env.intern_name(var);
+                        scope.push_value(var, ty);
+                        context_parameters.push((var, ty));
+                    }
+                }
                 let ty = scope.elaborate_computation_type(&ty, self)?;
                 let body = scope.elaborate_computation(&body, self)?;
                 let (body, ty) = scope.check_computation_term_with_metas(self, body, ty)?;
                 let mut context = scope.context().clone();
+                for entry in &mut context {
+                    if let crate::raw::program::ProgramContextEntry::ValueTerm { ty, .. } = entry {
+                        *ty = scope.zonk_module_value_type(self, *ty);
+                    }
+                }
                 ProgramCheckSession::new(&self.crate_env, &mut context)
                     .check_computation_term(body, ty)
                     .map_err(|error| {
@@ -129,6 +141,40 @@ impl GlobalEnvironment {
                             name.as_str()
                         )
                     })?;
+                // CBPV function types do not bind their argument in the
+                // codomain. Close types over the value context before wrapping
+                // the checked computation as a reusable function.
+                let arena = self.crate_env.arena();
+                let close_type = |mut expression, count| -> Result<_, ElaborationError> {
+                    for _ in 0..count {
+                        expression = kernel::calculus::strengthen(&arena.core, expression, 0)
+                            .map_err(|error| error.to_string())?;
+                    }
+                    Ok(expression)
+                };
+                let mut ty = crate::raw::program::ComputationType(close_type(
+                    ty.0,
+                    context_parameters.len(),
+                )?);
+                let mut body = body;
+                for (index, (var, domain)) in context_parameters.into_iter().enumerate().rev() {
+                    let domain = scope.zonk_module_value_type(self, domain);
+                    let function_domain =
+                        crate::raw::program::ValueType(close_type(domain.0, index)?);
+                    ty = self.crate_env.arena().alloc(
+                        crate::raw::program::ComputationTypeNode::Function {
+                            domain: function_domain,
+                            codomain: ty,
+                        },
+                    );
+                    body = self.crate_env.arena().alloc(
+                        crate::raw::program::ComputationTermNode::Lambda {
+                            var,
+                            value_ty: domain,
+                            body,
+                        },
+                    );
+                }
                 Ok((parameters, DefinedConstant::ProgramComputation { ty, body }))
             })();
             match attempt {
@@ -349,17 +395,6 @@ impl GlobalEnvironment {
             )?;
         }
         Ok(())
-    }
-
-    pub(super) fn validate_definition(
-        &self,
-        context: &mut ExpContext,
-        body: Exp,
-        ty: Exp,
-    ) -> Result<(), String> {
-        CheckSession::new(&self.crate_env, context)
-            .check_pts(body, ty)
-            .map_err(|error| format!("Set/Prop definition check failed: {error}"))
     }
 
     pub(super) fn add_record_projection_definitions(

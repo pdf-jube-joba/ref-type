@@ -64,6 +64,16 @@ pub(crate) fn logical(arena: &Arena, e: Exp, depth: usize, rewrite: &mut impl Re
         return result;
     }
     let result = match arena.get(e) {
+        ExpNode::DefinitionInstance {
+            definition,
+            arguments,
+        } => ExpNode::DefinitionInstance {
+            definition,
+            arguments: arguments
+                .into_iter()
+                .map(|e| logical(arena, e, depth, rewrite))
+                .collect(),
+        },
         ExpNode::Prod { var, ty, body } => ExpNode::Prod {
             var,
             ty: logical(arena, ty, depth, rewrite),

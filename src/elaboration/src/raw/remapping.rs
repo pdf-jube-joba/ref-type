@@ -23,7 +23,8 @@ impl Rewrite for Remapping<'_> {
             Term::Logical(e) => {
                 let mut node = arena.get(e);
                 match &mut node {
-                    ExpNode::DefinedConstant(id) => {
+                    ExpNode::DefinedConstant(id)
+                    | ExpNode::DefinitionInstance { definition: id, .. } => {
                         *id = self.definitions.get(id).copied().unwrap_or(*id);
                     }
                     ExpNode::IndType { indspec, .. }

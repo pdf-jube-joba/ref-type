@@ -589,9 +589,10 @@ fn beta_head(env: &Environment, e: Expression, erase: bool) -> Result<Expression
             if let Node::Lambda {
                 mode: actual, body, ..
             } = env.arena.get(function)
-                && mode == actual {
-                    return beta_head(env, instantiate(&env.arena, body, &[argument])?, erase);
-                }
+                && mode == actual
+            {
+                return beta_head(env, instantiate(&env.arena, body, &[argument])?, erase);
+            }
             Ok(env.arena.alloc(Node::App {
                 mode,
                 function,
