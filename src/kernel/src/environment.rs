@@ -8,34 +8,33 @@ use crate::{
     syntax::*,
 };
 use rustc_hash::FxHashMap;
-use std::{
-    cell::RefCell,
-    sync::atomic::{AtomicU64, Ordering},
-};
+use std::cell::RefCell;
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Definition {
     pub context: Context,
     pub ty: Expression,
     pub body: Expression,
 }
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct InductiveSpec {
     pub parameters: Context,
     pub arity: Expression,
     pub constructors: Vec<Expression>,
     pub sort: Sort,
 }
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Datatype {
     pub parameters: Context,
     pub level: usize,
     pub constructors: Vec<Context>,
     pub reflected: InductiveId,
 }
-#[derive(Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct Environment {
+    #[serde(skip)]
     pub arena: Arena,
+    #[serde(deserialize_with = "crate::ids::deserialize_identity")]
     pub(crate) identity: u64,
     pub(crate) definitions: Vec<Definition>,
     parameters: FxHashMap<ParameterId, Expression>,
@@ -43,17 +42,20 @@ pub struct Environment {
     program_parameters: FxHashMap<DefinitionId, Vec<bool>>,
     pub(crate) inductives: FxHashMap<InductiveId, InductiveSpec>,
     pub(crate) datatypes: FxHashMap<ProgramInductiveId, Datatype>,
+    #[serde(skip)]
     pub(crate) contexts: RefCell<crate::sharing::ContextInterner<Expression>>,
+    #[serde(skip)]
     pub(crate) inferred: RefCell<Cache<(crate::sharing::ContextId, Expression), Expression>>,
+    #[serde(skip)]
     pub(crate) conversions: RefCell<Cache<(Expression, Expression, bool), bool>>,
+    #[serde(skip)]
     pub(crate) heads: RefCell<Cache<Expression, Expression>>,
 }
 impl Default for Environment {
     fn default() -> Self {
-        static NEXT: AtomicU64 = AtomicU64::new(1);
         Self {
             arena: Arena::new(),
-            identity: NEXT.fetch_add(1, Ordering::Relaxed),
+            identity: crate::ids::fresh_identity(),
             definitions: Vec::new(),
             parameters: FxHashMap::default(),
             reflected: FxHashMap::default(),

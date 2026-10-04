@@ -62,16 +62,23 @@ fn projected_record_field_type(
 }
 
 // Workspace state for surface elaboration and kernel checking.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct GlobalEnvironment {
     #[cfg(test)]
+    #[serde(skip)]
     source_modules: Vec<::syntax::syntax::Module>,
-    crate_env: CrateEnv,
+    pub(crate) crate_env: CrateEnv,
+    #[serde(skip)]
     outputs: Vec<Output>,
     analysis: crate::analysis::Analysis,
+    #[serde(skip)]
     diagnostic_location: Option<SourceLocation>,
     module_manager: module_manager::ModuleManager,
+    #[serde(skip)]
     metavariables: MetaStore,
+    #[serde(skip)]
     predeclared_modules: HashMap<*const Module, ModuleId>,
+    resolved_declarations: usize,
 }
 
 impl Default for GlobalEnvironment {
@@ -87,6 +94,7 @@ impl Default for GlobalEnvironment {
             module_manager: Default::default(),
             metavariables: Default::default(),
             predeclared_modules: HashMap::new(),
+            resolved_declarations: 0,
         }
     }
 }
@@ -548,16 +556,43 @@ impl GlobalEnvironment {
         &mut self,
         project: &resolve::Project,
     ) -> Result<(), ElaborationError> {
+        self.add_project_range(
+            project,
+            0,
+            project.order.len(),
+            &(0..project.order.len()).collect(),
+            &mut |_, _| {},
+        )
+    }
+
+    pub(crate) fn add_project_range(
+        &mut self,
+        project: &resolve::Project,
+        start: usize,
+        end: usize,
+        selected: &std::collections::BTreeSet<usize>,
+        checkpoint: &mut impl FnMut(usize, &Self),
+    ) -> Result<(), ElaborationError> {
         self.analysis.references = project.references.clone();
+        let checked = self
+            .analysis
+            .declarations
+            .split_off(self.resolved_declarations);
         self.analysis.declarations = project.declarations.clone();
+        self.resolved_declarations = self.analysis.declarations.len();
+        self.analysis.declarations.extend(checked);
         self.module_manager.hir_imports = project.imports.clone();
         self.module_manager.hir_bindings = project.bindings.clone();
-        self.add_expanded_modules_to_root(project)
+        self.add_expanded_modules_to_root(project, start, end, selected, checkpoint)
     }
 
     fn add_expanded_modules_to_root(
         &mut self,
         project: &resolve::Project,
+        start: usize,
+        end: usize,
+        selected: &std::collections::BTreeSet<usize>,
+        checkpoint: &mut impl FnMut(usize, &Self),
     ) -> Result<(), ElaborationError> {
         self.diagnostic_location = None;
         let modules = &project.modules;
@@ -578,13 +613,63 @@ impl GlobalEnvironment {
         for module in modules {
             collect(module, &mut scheduled);
         }
+        if start != 0 {
+            let sources: HashMap<_, _> = scheduled
+                .values()
+                .flat_map(|module| {
+                    module
+                        .source
+                        .iter()
+                        .chain(&module.header_source)
+                        .map(|source| (source.id.clone(), source.clone()))
+                })
+                .collect();
+            let restore = |location: &mut SourceLocation| -> Result<(), ElaborationError> {
+                location.source = sources
+                    .get(&location.source.id)
+                    .cloned()
+                    .ok_or("checkpoint source missing from project")?;
+                Ok(())
+            };
+            for declaration in &mut self.analysis.declarations {
+                restore(&mut declaration.location)?;
+            }
+            for output in &mut self.analysis.outputs {
+                restore(&mut output.location)?;
+            }
+            for reference in self.module_manager.references.get_mut() {
+                restore(&mut reference.location)?;
+            }
+        }
         self.predeclared_modules.clear();
-        for module in modules {
-            self.predeclare_module_tree(self.crate_env.root_module(), module)?;
+        if start == 0 {
+            for module in modules {
+                self.predeclare_module_tree(self.crate_env.root_module(), module)?;
+            }
+        } else {
+            self.module_manager.hir_module_bindings.clear();
+            for (&id, module) in &scheduled {
+                let typed = self.module_manager.hir_modules[&id];
+                self.predeclared_modules.insert(*module, typed);
+                if let Some(binding) = module.name.1 {
+                    self.module_manager
+                        .hir_module_bindings
+                        .insert(binding, typed);
+                }
+            }
+            let source_modules = scheduled
+                .keys()
+                .map(|id| (*id, self.module_manager.hir_modules[id]))
+                .collect();
+            self.crate_env
+                .refresh_hir_names(&source_modules, &project.bindings);
         }
 
         let result = (|| {
-            for step in &project.order {
+            for (position, step) in project.order.iter().enumerate().take(end).skip(start) {
+                if !selected.contains(&position) {
+                    continue;
+                }
                 let id = match step {
                     resolve::CheckStep::Parameters(id) => id,
                     resolve::CheckStep::Declaration { module, .. } => module,
@@ -602,6 +687,7 @@ impl GlobalEnvironment {
                         self.elaborate_module_declaration(module, index)?
                     }
                 }
+                checkpoint(position + 1, self);
             }
             crate::lowering::Lowerer::new(&self.crate_env, &mut self.crate_env.kernel.borrow_mut())
                 .lower_all()

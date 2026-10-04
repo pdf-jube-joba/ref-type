@@ -182,4 +182,9 @@ pub struct QueryStats {
     pub disk_hits: usize,
     pub disk_writes: usize,
     pub cache_write_failures: usize,
+    pub environment_hits: usize,
+    pub environment_writes: usize,
+    pub restored_modules: usize,
+    pub environment_bytes: usize,
+    pub environment_skips: usize,
 }

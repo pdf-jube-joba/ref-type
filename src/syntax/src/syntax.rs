@@ -1,7 +1,7 @@
 //! Parsed surface syntax, independent of resolution and type inference.
 use crate::sort::Sort;
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct SourceSpan {
     pub start: usize,
     pub end: usize,
@@ -19,16 +19,18 @@ pub enum SurfaceMeta {
 }
 
 /// A source file identity, retained together with the original text.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SourceId(pub std::path::PathBuf);
 
-#[derive(Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct SourceFile {
     pub id: SourceId,
+    // Checking snapshots save source identities; the current project reattaches text.
+    #[serde(skip)]
     pub text: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct SourceLocation {
     pub source: std::sync::Arc<SourceFile>,
     pub span: SourceSpan,

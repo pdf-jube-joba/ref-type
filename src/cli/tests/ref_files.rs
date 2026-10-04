@@ -705,3 +705,32 @@ fn separate_processes_reuse_checked_results_and_detect_source_changes() {
     assert_eq!(changed.status, clean.status);
     assert_eq!(changed.stdout, clean.stdout);
 }
+
+#[test]
+fn separate_processes_restore_dependency_environments_after_an_edit() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write("root.ref", r"\module Base; \module Use;");
+    fixture.write(
+        "Base.ref",
+        r"\inductive Unit: \Set := | unit: Unit; \definition value: Unit := Unit::unit;",
+    );
+    fixture.write("Use.ref", r"\import \root.Base[] \as B; \infer B.value;");
+    let cache = fixture.0.join("cache");
+    let args = ["--cache-dir", cache.to_str().unwrap(), "--cache-stats"];
+    let first = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+    assert!(first.status.success(), "{}", output_details(&first));
+    fixture.write(
+        "Use.ref",
+        r"\import \root.Base[] \as B; \definition copy: B.Unit := B.value; \normalize copy;",
+    );
+    let changed = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+    assert!(changed.status.success(), "{}", output_details(&changed));
+    let stats = String::from_utf8_lossy(&changed.stderr);
+    assert!(stats.contains("checked_modules: 1"), "{stats}");
+    assert!(stats.contains("environment_hits: 1"), "{stats}");
+    let clean =
+        run_ref_file_with_args(&fixture.0, &root, &["--no-cache", "--cache-stats"]).unwrap();
+    assert!(clean.status.success(), "{}", output_details(&clean));
+    assert_eq!(changed.stdout, clean.stdout);
+    assert!(String::from_utf8_lossy(&clean.stderr).contains("environment_bytes: 0"));
+}

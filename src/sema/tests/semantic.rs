@@ -35,9 +35,17 @@ fn editing_std_nat_basic_preserves_termination_imports() {
     let first = database.file(&snapshot, &file);
     assert!(first.is_success(), "{:?}", first.diagnostics);
     let text = &snapshot.source(&file).unwrap().text;
-    let edited = snapshot.with_file(&file, format!("{text}\n/* edited */\n"));
+    let edited = snapshot.with_file(
+        &file,
+        format!(
+            r"{text}
+\definition environmentProbe: \Prop := \forall (P: \Prop) -> P -> P;"
+        ),
+    );
     let changed = database.file(&edited, &file);
     assert!(changed.is_success(), "{:?}", changed.diagnostics);
+    assert_eq!(database.stats().environment_hits, 1);
+    assert_eq!(changed, Database::new().file(&edited, &file));
 }
 
 struct Cache(PathBuf);
@@ -655,4 +663,171 @@ fn structure_namespace_contains_source_declarations() {
     let mut fresh = Database::with_cache(&cache.0);
     assert_eq!(result, fresh.check(&snapshot));
     assert_eq!(fresh.stats().checked_modules, 0);
+}
+
+#[test]
+fn edited_user_restores_dependency_environment_in_memory_and_from_disk() {
+    let snapshot = project();
+    let cache = Cache::new();
+    let mut database = Database::with_cache(&cache.0);
+    assert!(database.check(&snapshot).is_success());
+    assert!(database.stats().environment_writes > 0);
+    assert_eq!(database.stats().cache_write_failures, 0);
+    for (index, mut database) in [database, Database::with_cache(&cache.0)]
+        .into_iter()
+        .enumerate()
+    {
+        let edited = snapshot.with_file(
+            "/virtual/Left.ref",
+            format!(
+                "\\import \\root.Base[] \\as B;\n\\definition changed{index}: \\Prop := B.P;\n"
+            ),
+        );
+        let clean = Database::new().check(&edited);
+        assert!(clean.is_success(), "{clean:?}");
+        assert_eq!(database.check(&edited), clean);
+        assert_eq!(
+            database.stats().checked_modules,
+            1,
+            "{:?}",
+            database.stats()
+        );
+        assert_eq!(database.stats().restored_modules, 1);
+        assert_eq!(database.stats().environment_hits, 1);
+    }
+}
+
+#[test]
+fn restored_environment_preserves_instantiations_program_reflection_and_outputs() {
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert(
+        "/virtual/root.ref",
+        r"\module Source; \module Library; \module Use;",
+    );
+    snapshot.insert(
+        "/virtual/Source.ref",
+        r"
+\inductive Box[X: \VType]: \VType := | box: X -> Box;
+\module Record(A: \Set, a: A) {
+  \structure Box: \Set := { value: A, };
+  \definition boxed: Box := Box { value := a };
+}",
+    );
+    snapshot.insert(
+        "/virtual/Library.ref",
+        r"
+\import \root.Source[] \as S;
+\inductive Unit: \VType := | unit: Unit;
+\definition boxed: S.Box[Unit] := S.Box[Unit]::box Unit::unit;
+\definition package: \Box[\F(S.Box[Unit])] := \box[_](\return(boxed));
+\import \root.Source[].Record[A := Unit^, a := Unit^::unit] \as R;
+\check R.Box::value R.boxed: Unit^;
+\normalize \squash[_](package);
+",
+    );
+    let user = r"\import \root.Library[] \as L; \infer L.boxed^;";
+    snapshot.insert("/virtual/Use.ref", user);
+    let cache = Cache::new();
+    let first = Database::with_cache(&cache.0).check(&snapshot);
+    assert!(first.is_success(), "{first:?}");
+    let edited = snapshot.with_file(
+        "/virtual/Use.ref",
+        format!("{user}\n\\normalize \\squash[_](L.package);"),
+    );
+    let mut database = Database::with_cache(&cache.0);
+    let result = database.check(&edited);
+    assert!(result.is_success(), "{result:?}");
+    assert_eq!(
+        database.stats().checked_modules,
+        1,
+        "{:?}",
+        database.stats()
+    );
+    assert_eq!(database.stats().environment_hits, 1);
+    assert_eq!(result, Database::new().check(&edited));
+}
+
+#[test]
+fn damaged_environment_falls_back_and_restored_errors_match_full_checks() {
+    let snapshot = project();
+    let cache = Cache::new();
+    assert!(Database::with_cache(&cache.0).check(&snapshot).is_success());
+    let edited = snapshot.with_file(
+        "/virtual/Left.ref",
+        r"\import \root.Base[] \as B; \definition wrong: B.P := ?;",
+    );
+    let mut database = Database::with_cache(&cache.0);
+    let failed = database.check(&edited);
+    assert!(!failed.is_success());
+    assert_eq!(database.stats().environment_hits, 1);
+    assert_eq!(failed, Database::new().check(&edited));
+    for entry in fs::read_dir(&cache.0).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_some_and(|ext| ext == "env") {
+            fs::write(path, b"damaged environment").unwrap();
+        }
+    }
+    let mut database = Database::with_cache(&cache.0);
+    assert_eq!(database.check(&edited), failed);
+    assert_eq!(database.stats().environment_hits, 0);
+}
+
+#[test]
+fn checking_disjoint_steps_does_not_publish_a_complete_prefix() {
+    let mut snapshot = project();
+    snapshot.insert(
+        "/virtual/root.ref",
+        r"\module Extra; \module Base; \module Left; \module Right;",
+    );
+    snapshot.insert(
+        "/virtual/Extra.ref",
+        r"\inductive Unit: \Set := | unit: Unit;",
+    );
+    snapshot.insert(
+        "/virtual/Right.ref",
+        r"\import \root.Extra[] \as E; \definition x: E.Unit := E.Unit::unit;",
+    );
+    let cache = Cache::new();
+    assert!(Database::with_cache(&cache.0).check(&snapshot).is_success());
+    for entry in fs::read_dir(&cache.0).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_some_and(|ext| ext == "env") {
+            fs::write(path, "damaged").unwrap();
+        }
+    }
+    let edited = snapshot.with_file(
+        "/virtual/Left.ref",
+        r"\import \root.Base[] \as B; \definition q: \Prop := B.P;",
+    );
+    let mut database = Database::with_cache(&cache.0);
+    assert_eq!(database.check(&edited), Database::new().check(&edited));
+    assert_eq!(database.stats().checked_modules, 2);
+    assert_eq!(database.stats().environment_writes, 0);
+    let edited = edited.with_file(
+        "/virtual/Right.ref",
+        r"\import \root.Extra[] \as E; \definition y: E.Unit := E.Unit::unit;",
+    );
+    let result = Database::with_cache(&cache.0).check(&edited);
+    assert!(result.is_success(), "{result:?}");
+    assert_eq!(result, Database::new().check(&edited));
+}
+
+#[test]
+fn user_body_edits_reuse_imports_scheduled_after_its_parameters() {
+    let mut snapshot = project();
+    snapshot.insert(
+        "/virtual/root.ref",
+        r"\module Left; \module Base; \module Right;",
+    );
+    let cache = Cache::new();
+    assert!(Database::with_cache(&cache.0).check(&snapshot).is_success());
+    let edited = snapshot.with_file(
+        "/virtual/Left.ref",
+        r"\import \root.Base[] \as B; \definition renamed: \Prop := B.P;",
+    );
+    let mut database = Database::with_cache(&cache.0);
+    assert_eq!(database.check(&edited), Database::new().check(&edited));
+    assert_eq!(database.stats().environment_hits, 1);
+    assert_eq!(database.stats().checked_modules, 1);
+    assert_eq!(database.stats().restored_modules, 1);
 }

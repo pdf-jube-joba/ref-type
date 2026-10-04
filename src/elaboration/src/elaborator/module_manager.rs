@@ -13,7 +13,7 @@ use crate::raw::ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInduct
 #[cfg(test)]
 use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{ProgramContext, ProgramContextEntry};
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap};
 
 #[derive(Debug, Clone)]
 pub(crate) enum ItemAccessResult {
@@ -28,15 +28,18 @@ pub(crate) enum ItemAccessResult {
     ProgramValueParameter(ModuleParamId),
 }
 
-#[derive(Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub(crate) struct ModuleManager {
     current: ModuleId,
+    #[serde(skip)]
     pub(crate) reference_location: Option<crate::hir::SourceLocation>,
     pub(crate) references: RefCell<Vec<crate::analysis::Reference>>,
     pub(crate) hir_module_bindings: HashMap<resolve::hir::BindingId, ModuleId>,
     pub(crate) hir_aliases: HashMap<resolve::hir::BindingId, ModuleId>,
+    #[serde(skip)]
     pub(crate) hir_bindings: HashMap<resolve::hir::BindingId, resolve::Binding>,
     pub(crate) hir_modules: HashMap<resolve::hir::ModuleId, ModuleId>,
+    #[serde(skip)]
     pub(crate) hir_imports: HashMap<resolve::hir::BindingId, resolve::Import>,
 }
 
@@ -377,7 +380,10 @@ impl ModuleManager {
             || (Vec::new(), DeclarationRemapping::default()),
             |base| {
                 let base = env.binding(base);
-                (base.arguments.clone(), (*base.remapping).clone())
+                (
+                    base.arguments.clone(),
+                    env.remapping(base.remapping).clone(),
+                )
             },
         );
         let mut reflected_substitutions = substitutions
@@ -702,15 +708,15 @@ impl ModuleManager {
             );
         }
         // All declarations and bindings from this import use the same frozen map.
-        let remapping = Rc::new(remapping);
+        let remapping = env.store_remapping(remapping);
         for id in lazy_definitions {
-            env.set_lazy_definition_remapping(id, remapping.clone());
+            env.set_lazy_definition_remapping(id, remapping);
         }
         for id in lazy_inductives {
-            env.set_lazy_inductive_remapping(id, remapping.clone());
+            env.set_lazy_inductive_remapping(id, remapping);
         }
         for id in lazy_datatypes {
-            env.set_lazy_program_inductive_remapping(id, remapping.clone());
+            env.set_lazy_program_inductive_remapping(id, remapping);
         }
 
         let mut last_binding = None;
@@ -724,7 +730,7 @@ impl ModuleManager {
                 group.namespace,
                 substitutions.clone(),
                 group.origins,
-                remapping.clone(),
+                remapping,
             );
             if group.path_component {
                 last_binding = Some(binding);
@@ -853,8 +859,8 @@ impl ModuleManager {
         let typed = env.binding(binding);
         for (source, instance) in &import.remapping {
             if let Some(source) = self.hir_modules.get(source).copied() {
-                let target = typed
-                    .remapping
+                let target = env
+                    .remapping(typed.remapping)
                     .module_ids
                     .get(&source)
                     .copied()

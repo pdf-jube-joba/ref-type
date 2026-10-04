@@ -42,7 +42,7 @@ fn join_program_spine(
         .collect()
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Exp(pub(crate) kernel::syntax::Expression);
 
 impl Exp {}
@@ -263,7 +263,7 @@ pub enum ExpNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ExpContextEntry {
     pub var: SymbolId,
     pub ty: Exp,
@@ -287,19 +287,20 @@ pub trait ArenaHandle: Copy {
     fn get(self, arena: &Arena) -> Self::Node;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Atom {
     Definition(DefId),
     Instance(DefId),
     Meta(u8, MetaVarId, Vec<bool>),
 }
-#[derive(Debug, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Default)]
 struct Atoms {
     ids: FxHashMap<Atom, kernel::syntax::MetaId>,
     keys: FxHashMap<kernel::syntax::MetaId, Atom>,
+    #[serde(skip)]
     allocator: kernel::metavariables::MetaContext,
 }
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct DefinitionView {
     source: Option<DefId>,
     contextual: bool,
@@ -307,10 +308,11 @@ struct DefinitionView {
     body: kernel::syntax::Expression,
 }
 /// The frontend uses the kernel DAG. Names awaiting resolution are frontend-owned atoms.
-#[derive(Debug, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Default)]
 pub struct Arena {
     pub(crate) core: kernel::syntax::Arena,
     atoms: RefCell<Atoms>,
+    #[serde(skip)]
     loose_bounds: RefCell<FxHashMap<Term, Option<usize>>>,
     pub(crate) datatype_reflections:
         RefCell<FxHashMap<kernel::ids::ProgramInductiveId, kernel::ids::InductiveId>>,

@@ -42,3 +42,11 @@ CLI のパッケージ検査では最初のエラーで停止し、独立した�
 構文エラーがある場合は、型検査を始める前にそのエラーを返す。
 `REF_TYPE_PROFILE_NAMESPACES` は import ごとの名前空間数・遅延宣言数・ID 対応表の件数を表示する。
 同じ import で作る名前空間と遅延宣言は、完成済みの ID 対応表を共有する。
+
+## 検査環境の checkpoint
+
+`Checker::check_range` は HIR の検査順に沿って処理を進め、指定した区切りで環境を直列化する。
+保存した checkpoint は、その batch の検証成功後に公開する。
+`Checker::restore_environment` は identity と checksum を確認したローカルの checkpoint を読み、raw と kernel が共有する arena を復元する。
+名前解決で得た binding・import と source text は、再開時の project から更新する。
+直列化と展開にはサイズ上限を設け、具体化の対応表は環境内の ID で共有する。

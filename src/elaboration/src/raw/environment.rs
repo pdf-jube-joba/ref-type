@@ -12,10 +12,9 @@ use rustc_hash::FxHashMap;
 use std::{
     cell::{Cell, OnceCell, RefCell},
     collections::{HashMap, HashSet},
-    rc::Rc,
 };
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum DefinedConstant {
     Contextual {
         parameters: Vec<(SymbolId, Exp)>,
@@ -47,13 +46,13 @@ impl DefinedConstant {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ModuleParameter {
     pub name: SymbolId,
     pub kind: ModuleParameterKind,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy)]
 pub enum ModuleParameterKind {
     Pts { ty: Exp },
     ProgramType,
@@ -69,7 +68,7 @@ impl ModuleParameter {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModuleArgument {
     Pts(Exp),
     ProgramType(ValueType),
@@ -82,7 +81,7 @@ impl From<Exp> for ModuleArgument {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ModuleItem {
     Definition {
         name: String,
@@ -120,17 +119,20 @@ impl ModuleItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct NamespaceBinding {
     pub source: ModuleId,
     pub materialized: ModuleId,
     pub arguments: Vec<(ModuleParamId, ModuleArgument)>,
     /// Maps definitions in `materialized` back to definitions in `source`.
     pub definition_origins: HashMap<DefId, DefId>,
-    pub(crate) remapping: Rc<DeclarationRemapping>,
+    pub(crate) remapping: RemappingId,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct RemappingId(usize);
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Default)]
 pub(crate) struct DeclarationRemapping {
     pub module_ids: HashMap<ModuleId, ModuleId>,
     pub definition_ids: HashMap<DefId, DefId>,
@@ -138,26 +140,26 @@ pub(crate) struct DeclarationRemapping {
     pub program_inductive_ids: HashMap<ProgramInductiveId, ProgramInductiveId>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct LazyDefinition {
     source: DefId,
     substitutions: Vec<(ModuleParamId, ModuleArgument)>,
     reflected_substitutions: Vec<(ModuleParamId, Exp)>,
-    remapping: Rc<DeclarationRemapping>,
+    remapping: RemappingId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct LazyInductive {
     source: InductiveId,
     substitutions: Vec<(ModuleParamId, Exp)>,
-    remapping: Rc<DeclarationRemapping>,
+    remapping: RemappingId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct LazyProgramInductive {
     source: ProgramInductiveId,
     substitutions: Vec<(ModuleParamId, ModuleArgument)>,
-    remapping: Rc<DeclarationRemapping>,
+    remapping: RemappingId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -173,14 +175,17 @@ pub struct MaterializationStats {
     pub datatypes: usize,
 }
 
-#[derive(Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct ModuleEnv {
     name: String,
     parent: Option<ModuleId>,
     children: Vec<ModuleId>,
     parameters: Vec<ModuleParameter>,
+    #[serde(with = "cells")]
     definitions: Vec<OnceCell<DefinedConstant>>,
+    #[serde(with = "cells")]
     inductives: Vec<OnceCell<InductiveTypeSpecs>>,
+    #[serde(with = "cells")]
     program_inductives: Vec<OnceCell<ProgramInductiveTypeSpecs>>,
     items: Vec<ModuleItem>,
     names: HashMap<String, usize>,
@@ -250,22 +255,26 @@ impl ModuleEnv {
 
 type InferenceCache = FxHashMap<(Exp, ContextId), Exp>;
 
-#[derive(Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct CrateEnv {
     pub(crate) kernel: RefCell<kernel::environment::Environment>,
     pub(crate) kernel_definitions: RefCell<HashMap<DefId, kernel::ids::DefinitionId>>,
     hir_symbols: HashMap<resolve::hir::BindingId, SymbolId>,
     definition_parameters: HashMap<DefId, Vec<SymbolId>>,
     arena: Arena,
+    #[serde(skip)]
     pub(crate) inference_cache: std::cell::RefCell<InferenceCache>,
+    #[serde(skip)]
     pub(crate) contexts: RefCell<ContextInterner<Exp>>,
     // Raw nodes and registered declarations are immutable. Weak-head reduction
     // depends only on those, not on the elaborator's context or meta assignments.
+    #[serde(skip)]
     pub(crate) whnf_cache: RefCell<FxHashMap<Exp, Exp>>,
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,
     namespace_bindings: HashMap<ModuleId, NamespaceBinding>,
+    remappings: Vec<DeclarationRemapping>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
     checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
     lazy_definitions: HashMap<DefId, LazyDefinition>,
@@ -275,10 +284,15 @@ pub struct CrateEnv {
     nominal_datatypes:
         HashMap<ProgramInductiveId, super::namespaces::Specialization<ProgramInductiveId>>,
     lazy_program_inductives: HashMap<ProgramInductiveId, LazyProgramInductive>,
+    #[serde(skip)]
     materializing_definitions: RefCell<HashSet<DefId>>,
+    #[serde(skip)]
     failed_definitions: RefCell<HashMap<DefId, String>>,
+    #[serde(skip)]
     materialized_definitions: Cell<usize>,
+    #[serde(skip)]
     materialized_inductives: Cell<usize>,
+    #[serde(skip)]
     materialized_datatypes: Cell<usize>,
 }
 
@@ -328,6 +342,7 @@ impl CrateEnv {
             symbol_ids,
             modules: vec![ModuleEnv::new("root".into(), None, vec![])],
             namespace_bindings: HashMap::new(),
+            remappings: vec![DeclarationRemapping::default()],
             checking_scopes: HashMap::new(),
             checking_contexts: HashMap::new(),
             lazy_definitions: HashMap::new(),
@@ -655,7 +670,7 @@ impl CrateEnv {
                     )
                 })
                 .collect::<Vec<_>>();
-            let remap = &lazy.remapping;
+            let remap = self.remapping(lazy.remapping);
             let logical_at = |e, depth| {
                 let shifted;
                 let substitutions = if depth == 0 {
@@ -832,7 +847,7 @@ impl CrateEnv {
                 source,
                 substitutions,
                 reflected_substitutions,
-                remapping: Rc::default(),
+                remapping: RemappingId(0),
             },
         );
         self.nominal_definitions.insert(
@@ -845,11 +860,7 @@ impl CrateEnv {
         (id, true)
     }
 
-    pub(crate) fn set_lazy_definition_remapping(
-        &mut self,
-        id: DefId,
-        remapping: Rc<DeclarationRemapping>,
-    ) {
+    pub(crate) fn set_lazy_definition_remapping(&mut self, id: DefId, remapping: RemappingId) {
         self.lazy_definitions
             .get_mut(&id)
             .expect("lazy definition")
@@ -895,8 +906,8 @@ impl CrateEnv {
                 .clone()
                 .remap_global_ids(
                     self.arena(),
-                    &lazy.remapping.definition_ids,
-                    &lazy.remapping.inductive_ids,
+                    &self.remapping(lazy.remapping).definition_ids,
+                    &self.remapping(lazy.remapping).inductive_ids,
                 )
                 .instantiate(self.arena(), &lazy.substitutions);
             let _ = slot.set(spec);
@@ -953,17 +964,13 @@ impl CrateEnv {
             LazyInductive {
                 source,
                 substitutions: reflected_substitutions,
-                remapping: Rc::default(),
+                remapping: RemappingId(0),
             },
         );
         (id, true)
     }
 
-    pub(crate) fn set_lazy_inductive_remapping(
-        &mut self,
-        id: InductiveId,
-        remapping: Rc<DeclarationRemapping>,
-    ) {
+    pub(crate) fn set_lazy_inductive_remapping(&mut self, id: InductiveId, remapping: RemappingId) {
         self.lazy_inductives
             .get_mut(&id)
             .expect("lazy inductive")
@@ -1009,9 +1016,9 @@ impl CrateEnv {
                 .clone()
                 .remap_global_ids(
                     self.arena(),
-                    &lazy.remapping.definition_ids,
-                    &lazy.remapping.inductive_ids,
-                    &lazy.remapping.program_inductive_ids,
+                    &self.remapping(lazy.remapping).definition_ids,
+                    &self.remapping(lazy.remapping).inductive_ids,
+                    &self.remapping(lazy.remapping).program_inductive_ids,
                 )
                 .instantiate(self.arena(), &lazy.substitutions);
             let _ = slot.set(spec);
@@ -1068,7 +1075,7 @@ impl CrateEnv {
             LazyProgramInductive {
                 source,
                 substitutions,
-                remapping: Rc::default(),
+                remapping: RemappingId(0),
             },
         );
         (id, true)
@@ -1077,7 +1084,7 @@ impl CrateEnv {
     pub(crate) fn set_lazy_program_inductive_remapping(
         &mut self,
         id: ProgramInductiveId,
-        remapping: Rc<DeclarationRemapping>,
+        remapping: RemappingId,
     ) {
         self.lazy_program_inductives
             .get_mut(&id)
@@ -1092,7 +1099,7 @@ impl CrateEnv {
         materialized: ModuleId,
         arguments: Vec<(ModuleParamId, ModuleArgument)>,
         definition_origins: HashMap<DefId, DefId>,
-        remapping: Rc<DeclarationRemapping>,
+        remapping: RemappingId,
     ) -> ModuleId {
         self.module_mut(owner).bindings.push(materialized);
         let previous = self.namespace_bindings.insert(
@@ -1364,5 +1371,59 @@ impl CrateEnv {
                     })
             })
             .collect()
+    }
+}
+
+impl CrateEnv {
+    pub(crate) fn store_remapping(&mut self, remapping: DeclarationRemapping) -> RemappingId {
+        let id = RemappingId(self.remappings.len());
+        self.remappings.push(remapping);
+        id
+    }
+
+    pub(crate) fn remapping(&self, id: RemappingId) -> &DeclarationRemapping {
+        &self.remappings[id.0]
+    }
+
+    pub(crate) fn restore_shared_arena(&mut self) {
+        self.kernel.get_mut().arena = self.arena.core.clone();
+    }
+
+    pub(crate) fn refresh_hir_names(
+        &mut self,
+        modules: &HashMap<resolve::hir::ModuleId, ModuleId>,
+        bindings: &HashMap<resolve::hir::BindingId, resolve::Binding>,
+    ) {
+        for &module in modules.values() {
+            self.modules[module.index()].hir_names.clear();
+        }
+        for (&id, binding) in bindings {
+            if binding.parameter.is_none()
+                && let Some(&module) = modules.get(&binding.module)
+            {
+                self.register_hir_name(module, id, binding.name.clone());
+            }
+        }
+    }
+}
+
+mod cells {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::cell::OnceCell;
+
+    pub fn serialize<T: Serialize, S: Serializer>(
+        cells: &[OnceCell<T>],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(cells.iter().map(OnceCell::get))
+    }
+
+    pub fn deserialize<'de, T: Deserialize<'de>, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Vec<OnceCell<T>>, D::Error> {
+        Ok(Vec::<Option<T>>::deserialize(deserializer)?
+            .into_iter()
+            .map(|value| value.map_or_else(OnceCell::new, OnceCell::from))
+            .collect())
     }
 }

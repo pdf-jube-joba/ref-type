@@ -4,7 +4,7 @@ use crate::sort::Sort;
 use rustc_hash::FxHashMap;
 use std::{cell::RefCell, rc::Rc};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Expression(u32);
 impl Expression {
     pub fn index(self) -> usize {
@@ -12,19 +12,20 @@ impl Expression {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MetaId {
+    #[serde(deserialize_with = "crate::ids::deserialize_identity")]
     pub(crate) session: u64,
     pub(crate) index: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Mode {
     Pure,
     Computation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Node {
     Ascribe {
         term: Expression,
@@ -712,9 +713,42 @@ impl Arena {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Binding {
     pub var: SymbolId,
     pub ty: Expression,
 }
 pub type Context = Vec<Binding>;
+
+// Node indices remain stable across snapshots; interning tables are reconstructed.
+impl serde::Serialize for Arena {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.0.borrow().nodes.serialize(serializer)
+    }
+}
+impl<'de> serde::Deserialize<'de> for Arena {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let nodes = Vec::<Option<Rc<Node>>>::deserialize(deserializer)?;
+        let mut interned = FxHashMap::default();
+        for (index, node) in nodes.iter().enumerate() {
+            if let Some(node) = node {
+                let expression =
+                    Expression(u32::try_from(index).map_err(serde::de::Error::custom)?);
+                node.try_for_each_child(|child, _| {
+                    if child.index() >= index
+                        || !nodes.get(child.index()).is_some_and(Option::is_some)
+                    {
+                        return Err(serde::de::Error::custom("invalid arena reference"));
+                    }
+                    Ok(())
+                })?;
+                interned.insert(node.clone(), expression);
+            }
+        }
+        Ok(Self(Rc::new(RefCell::new(Storage {
+            nodes,
+            interned,
+            properties: FxHashMap::default(),
+        }))))
+    }
+}

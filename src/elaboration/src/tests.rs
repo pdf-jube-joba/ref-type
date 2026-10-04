@@ -414,7 +414,7 @@ fn child_bindings_share_types_and_inherit_parent_substitutions() {
     let c1 = env.binding(env.module(consumer).import("C1").unwrap());
     let c2 = env.binding(env.module(consumer).import("C2").unwrap());
     assert_eq!(
-        c1.remapping.module_ids.get(&p.source),
+        env.remapping(c1.remapping).module_ids.get(&p.source),
         Some(&p.materialized)
     );
     let local = |binding: &crate::raw::environment::NamespaceBinding| {
@@ -526,16 +526,20 @@ fn namespace_remappings_are_shared_and_extensions_preserve_parent_maps() {
     let inherited = env.binding(bindings[0]);
     let wrapper = env.binding(env.module(consumer).import("W").unwrap());
     let child = env.binding(env.module(consumer).import("C").unwrap());
-    assert!(std::rc::Rc::ptr_eq(
-        &inherited.remapping,
-        &wrapper.remapping
-    ));
-    assert!(!std::rc::Rc::ptr_eq(&wrapper.remapping, &child.remapping));
-    assert_eq!(wrapper.remapping.module_ids.len(), 2);
-    assert_eq!(child.remapping.module_ids.len(), 3);
-    assert!(!wrapper.remapping.module_ids.contains_key(&child.source));
-    for (source, target) in &wrapper.remapping.module_ids {
-        assert_eq!(child.remapping.module_ids.get(source), Some(target));
+    assert_eq!(inherited.remapping, wrapper.remapping);
+    assert_ne!(wrapper.remapping, child.remapping);
+    assert_eq!(env.remapping(wrapper.remapping).module_ids.len(), 2);
+    assert_eq!(env.remapping(child.remapping).module_ids.len(), 3);
+    assert!(
+        !env.remapping(wrapper.remapping)
+            .module_ids
+            .contains_key(&child.source)
+    );
+    for (source, target) in &env.remapping(wrapper.remapping).module_ids {
+        assert_eq!(
+            env.remapping(child.remapping).module_ids.get(source),
+            Some(target)
+        );
     }
 }
 

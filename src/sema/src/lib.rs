@@ -11,3 +11,5 @@ mod graph;
 mod parsing;
 pub use database::{CheckOptions, Database};
 pub use parsing::{ParseKind, ParseResult, ParsedSyntax};
+
+mod environment;

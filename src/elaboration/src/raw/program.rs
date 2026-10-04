@@ -4,7 +4,7 @@ use crate::raw::ids::{DefId, MetaVarId, ModuleParamId, ProgramInductiveId, Symbo
 
 macro_rules! handle {
     ($name:ident) => {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub struct $name(pub(crate) kernel::syntax::Expression);
     };
 }

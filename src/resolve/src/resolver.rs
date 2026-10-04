@@ -24,18 +24,21 @@ impl std::fmt::Display for Diagnostic {
 }
 impl std::error::Error for Diagnostic {}
 
+type DeclarationKind = &'static str;
+
 /// A frontend declaration whose signature need not denote a kernel type.
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Declaration {
     pub module: Vec<String>,
     pub name: String,
-    pub kind: &'static str,
+    #[serde(deserialize_with = "declaration_kind")]
+    pub kind: DeclarationKind,
     pub location: SourceLocation,
     pub ty: Option<String>,
 }
 
 /// A source occurrence whose lexical target is known before type inference.
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Reference {
     pub module: Vec<String>,
     pub location: SourceLocation,
@@ -1192,5 +1195,22 @@ impl Resolver {
         self.expression(&mut expression, locals)?;
         *value = expression.try_into().map_err(|e| self.error(e))?;
         Ok(())
+    }
+}
+
+fn declaration_kind<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<&'static str, D::Error> {
+    let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+    match value.as_str() {
+        "definition" => Ok("definition"),
+        "inductive" => Ok("inductive"),
+        "structure" => Ok("structure"),
+        "macro" => Ok("macro"),
+        "import" => Ok("import"),
+        "constructor" => Ok("constructor"),
+        "field" => Ok("field"),
+        "parameter" => Ok("parameter"),
+        _ => Err(serde::de::Error::custom("unknown declaration kind")),
     }
 }

@@ -65,7 +65,7 @@ impl GlobalEnvironment {
         let inherited_arguments = base
             .map(|base| self.crate_env.binding(base).arguments.clone())
             .unwrap_or_default();
-        let base_remapping = base.map(|base| self.crate_env.binding(base).remapping.clone());
+        let base_remapping = base.map(|base| self.crate_env.binding(base).remapping);
         let mut substitutions = inherited_arguments
             .into_iter()
             .map(|(parameter, argument)| {
@@ -122,7 +122,8 @@ impl GlobalEnvironment {
                 match (parameter.kind, *argument) {
                     (ModuleParameterKind::Pts { ty }, ModuleArgument::Pts(exp)) => {
                         let mut expected = ty;
-                        if let Some(remapping) = &base_remapping {
+                        if let Some(remapping) = base_remapping {
+                            let remapping = self.crate_env.remapping(remapping);
                             expected = remap_all_global_ids(
                                 self.crate_env.arena(),
                                 expected,
@@ -787,7 +788,9 @@ impl GlobalEnvironment {
                                         &program_substitutions,
                                     );
                                 if let Some(base) = base {
-                                    let remapping = &self.crate_env.binding(base).remapping;
+                                    let remapping = self
+                                        .crate_env
+                                        .remapping(self.crate_env.binding(base).remapping);
                                     expected =
                                         crate::raw::program_calculus::remap_value_type_global_ids(
                                             self.crate_env.arena(),

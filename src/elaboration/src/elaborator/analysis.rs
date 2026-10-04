@@ -13,16 +13,17 @@ pub use resolve::Declaration;
 
 pub use resolve::Reference;
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct Output {
     pub module: Vec<String>,
     pub location: SourceLocation,
     pub text: String,
 }
 
-#[derive(Default, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Default, Debug)]
 pub struct Analysis {
     pub declarations: Vec<Declaration>,
+    #[serde(skip)]
     pub references: Vec<Reference>,
     pub outputs: Vec<Output>,
 }

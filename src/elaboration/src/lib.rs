@@ -30,3 +30,6 @@ mod api;
 pub use api::{Checker, Diagnostic, Goal, Statistics};
 
 mod kernel_bridge;
+
+mod checkpoint;
+pub use checkpoint::MAX_ENVIRONMENT_BYTES;

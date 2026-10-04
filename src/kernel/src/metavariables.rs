@@ -1,7 +1,6 @@
 //! Contextual metavariables and transactional unification on shared PTS terms.
 use crate::{calculus::*, environment::Environment, syntax::*};
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug, Clone)]
 pub enum Error {
@@ -116,9 +115,8 @@ pub struct MetaContext {
 }
 impl Default for MetaContext {
     fn default() -> Self {
-        static NEXT: AtomicU64 = AtomicU64::new(1);
         Self {
-            session: NEXT.fetch_add(1, Ordering::Relaxed),
+            session: crate::ids::fresh_identity(),
             entries: Vec::new(),
             history: Vec::new(),
             recorded: FxHashSet::default(),

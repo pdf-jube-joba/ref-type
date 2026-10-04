@@ -12,7 +12,7 @@ use crate::raw::{
 
 use super::exp::*;
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct InductiveTypeSpecs {
     parameters: Vec<(SymbolId, Exp)>,
     indices: Vec<(SymbolId, Exp)>,
@@ -214,13 +214,13 @@ fn bound_arguments(arena: &Arena, len: usize) -> Vec<Exp> {
     (0..len).rev().map(|index| arena.exp_bound(index)).collect()
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct CtorType {
     pub telescope: Vec<CtorBinder>,
     pub indices: Vec<Exp>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub enum CtorBinder {
     StrictPositive {
         binders: Vec<(SymbolId, Exp)>,

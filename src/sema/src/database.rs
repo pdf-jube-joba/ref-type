@@ -1,5 +1,6 @@
 use crate::{
     cache::{DiskCache, Fingerprint, fingerprint},
+    environment::{EnvironmentCache, EnvironmentPlan},
     graph::ModuleGraph,
     parsing::{ParseCache, SnapshotLoader},
     *,
@@ -21,12 +22,13 @@ pub struct CheckOptions {
 }
 
 /// Mutable query storage. Results and snapshots can outlive the database.
-/// Elaboration workspaces are dropped after each checking batch.
+/// Checked environments are retained as detached, serializable checkpoints.
 #[derive(Default)]
 pub struct Database {
     parses: ParseCache,
     checked: HashMap<Fingerprint, Arc<ModuleResult>>,
     queries: HashMap<Fingerprint, Arc<SemanticResult>>,
+    environments: EnvironmentCache,
     disk: Option<DiskCache>,
     stats: QueryStats,
     verification_statistics: Vec<String>,
@@ -52,6 +54,7 @@ impl Database {
         self.parses.clear();
         self.checked.clear();
         self.queries.clear();
+        self.environments.clear();
     }
 
     pub fn parse(
@@ -69,7 +72,10 @@ impl Database {
         &mut self,
         snapshot: &SourceSnapshot,
     ) -> Result<Vec<syntax::Module>, Vec<Diagnostic>> {
-        self.stats = QueryStats::default();
+        self.stats = QueryStats {
+            environment_bytes: self.environments.bytes(),
+            ..QueryStats::default()
+        };
         let (modules, diagnostics) = self.load(snapshot)?;
         if diagnostics.is_empty() {
             Ok(modules)
@@ -147,7 +153,10 @@ impl Database {
         options: &CheckOptions,
         select: impl Fn(&crate::graph::Unit<'_>) -> bool,
     ) -> Arc<SemanticResult> {
-        self.stats = QueryStats::default();
+        self.stats = QueryStats {
+            environment_bytes: self.environments.bytes(),
+            ..QueryStats::default()
+        };
         self.verification_statistics.clear();
         let compact = std::env::var("REF_TYPE_COMPACT_DIAGNOSTICS").as_deref() == Ok("1");
         let (modules, parse_diagnostics) = match self.load(snapshot) {
@@ -243,6 +252,7 @@ impl Database {
             && let Some(result) = self.queries.get(&query_key)
         {
             self.stats.reused_modules = result.modules.len();
+            self.stats.environment_bytes = self.environments.bytes();
             return result.clone();
         }
         let mut results = BTreeMap::new();
@@ -273,19 +283,120 @@ impl Database {
             }
         }
         let mut pending = graph.closure(misses.iter().copied());
+        let mut recovering = false;
         while !pending.is_empty() {
             let selected = std::mem::take(&mut pending);
-            self.stats.checked_modules += selected.len();
             let mut workspace = Checker::default();
-            let resolved = resolve::resolve(&graph.selected(&selected));
-            let checked = match &resolved {
-                Ok(project) => workspace.check(project),
-                Err(error) => Err(elaboration::Diagnostic {
-                    message: format!("Resolution Error: {}", error.message),
-                    location: error.location.clone(),
-                    goals: Vec::new(),
-                }),
+            // Keep the complete requested layout stable across edits. A failed
+            // resolution still uses the smaller batch for independent recovery.
+            let available = if recovering {
+                selected.clone()
+            } else {
+                requested.difference(&blocked).copied().collect()
             };
+            recovering = true;
+            let resolved = resolve::resolve(&graph.selected(&available))
+                .or_else(|_| resolve::resolve(&graph.selected(&selected)));
+            let mut saved = EnvironmentCache::default();
+            let checked = match &resolved {
+                Ok(project) => {
+                    let plan = EnvironmentPlan::new(project, &graph, &settings);
+                    let end = plan.end(&selected);
+                    let mut start = 0;
+                    if !options.force && !options.collect_statistics {
+                        for &(position, key) in plan
+                            .checkpoints
+                            .iter()
+                            .rev()
+                            .filter(|(position, _)| *position <= end)
+                        {
+                            let bytes = self.environments.get(&key).or_else(|| {
+                                let bytes: Arc<[u8]> =
+                                    self.disk.as_ref()?.read_environment(&key)?.into();
+                                self.environments.insert(key, bytes.clone());
+                                Some(bytes)
+                            });
+                            if bytes.is_some()
+                                && std::env::var_os("REF_TYPE_PROFILE_ENVIRONMENTS").is_some()
+                            {
+                                eprintln!("restoring environment at {position}");
+                            }
+                            if let Some(restored) =
+                                bytes.as_deref().and_then(Checker::restore_environment)
+                            {
+                                workspace = restored;
+                                start = position;
+                                self.stats.environment_hits += 1;
+                                break;
+                            }
+                        }
+                    }
+                    let selected_steps: BTreeSet<_> = (start..end)
+                        .filter(|&position| selected.contains(&plan.steps[position]))
+                        .collect();
+                    let checked: BTreeSet<_> = selected_steps
+                        .iter()
+                        .map(|&position| plan.steps[position])
+                        .collect();
+                    self.stats.checked_modules += checked.len();
+                    self.stats.restored_modules += plan.steps[..start]
+                        .iter()
+                        .copied()
+                        .collect::<BTreeSet<_>>()
+                        .difference(&checked)
+                        .count();
+                    let checkpoints =
+                        if (options.force || options.collect_statistics) && self.disk.is_none() {
+                            BTreeSet::new()
+                        } else {
+                            plan.save_points()
+                        };
+                    workspace.check_range(
+                        project,
+                        start,
+                        end,
+                        &selected_steps,
+                        &checkpoints,
+                        |position, bytes| match bytes {
+                            Ok(bytes) => {
+                                let key = plan
+                                    .checkpoints
+                                    .iter()
+                                    .find(|(step, _)| *step == position)
+                                    .unwrap()
+                                    .1;
+                                if std::env::var_os("REF_TYPE_PROFILE_ENVIRONMENTS").is_some() {
+                                    eprintln!(
+                                        "environment checkpoint {position}: {} bytes",
+                                        bytes.len()
+                                    );
+                                }
+                                saved.insert(key, bytes.into());
+                            }
+                            Err(_) => self.stats.environment_skips += 1,
+                        },
+                    )
+                }
+                Err(error) => {
+                    self.stats.checked_modules += selected.len();
+                    Err(elaboration::Diagnostic {
+                        message: format!("Resolution Error: {}", error.message),
+                        location: error.location.clone(),
+                        goals: Vec::new(),
+                    })
+                }
+            };
+            if checked.is_ok() {
+                for (key, bytes) in saved.into_entries() {
+                    if let Some(disk) = &self.disk {
+                        match disk.write_environment(&key, &bytes) {
+                            Ok(()) => self.stats.environment_writes += 1,
+                            Err(_) => self.stats.cache_write_failures += 1,
+                        }
+                    }
+                    self.environments.insert(key, bytes);
+                }
+            }
             if options.collect_statistics {
                 self.verification_statistics = workspace.statistics().lines();
             }
@@ -352,6 +463,7 @@ impl Database {
                 .collect(),
             diagnostics,
         });
+        self.stats.environment_bytes = self.environments.bytes();
         self.queries.insert(query_key, result.clone());
         result
     }

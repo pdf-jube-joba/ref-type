@@ -74,17 +74,25 @@ semantic cache の単位は module で、宣言の変更は所属 module を無�
 scope に含まれる module の追加・削除もキーに反映する。
 
 未変更の query は同じ `Arc<SemanticResult>` を返し、goal を含む失敗結果も実行中に再利用する。
-一部が変わった場合は、変更された module とその利用者を調べ、必要な依存先を含む module 群を `resolve` で HIR に変換し、elaboration と kernel 検査に渡す。
-この再構築には未変更の依存先も含まれるため、編集対象の依存関係が広い場合は再チェックする範囲も広がる。
-処理中の metavariable と constraint は宣言ごとに解放し、raw と kernel の workspace は検査する module 群の処理後に解放する。
-`clear_memory` で query と parse の保持結果を解放できる。
+一部が変わった場合は、変更された module とその利用者を調べ、要求された scope を `resolve` で HIR に変換する。
+検査順の先頭から一致する最長の checkpoint を復元し、変更された module と必要な依存先の elaboration と kernel 検査を進める。
+checkpoint の identity は module の構成、解決済みの宣言・binding・import、source の位置と検査順を含む。
+早い位置の変更や module 構成の変更では、一致する区間が短くなり、未変更の依存先も再検査する場合がある。
+処理中の metavariable と constraint は宣言ごとに解放し、workspace は検査する module 群の処理後に解放する。
+`clear_memory` で query、parse、環境 checkpoint の保持結果を解放できる。
 
 ## 永続キャッシュ
 
 kernel が検証を完了した module 群から、型・参照・出力などの semantic result を JSON に保存する。
 保存対象は `ModuleResult` で、検証済みの状態、依存先、宣言位置、表示用の型、名前参照、query 出力を保持する。
-AST は実行中の parse cache に保持し、raw IR と kernel term は検査する module 群の workspace 内で構築する。
-変更された module の再検査には、未変更の依存先の workspace も再構築する。
+AST は実行中の parse cache に保持する。
+検証済みの batch から、raw と kernel の環境、項の arena、名前空間、具体化の対応表、semantic observations を checkpoint として保存する。
+checkpoint は postcard のバイナリを DEFLATE で圧縮した `.env` ファイルで、別の process からも検査を再開できる。
+raw と kernel の arena、および具体化の対応表は共有を保ち、source text は現在の snapshot から復元する。
+推論・簡約の一時 cache は復元先で再構築する。
+直列化の負荷を抑えるため、1 回の batch で保存する候補を検査順に分散した最大 32 箇所にする。
+単一 checkpoint は圧縮前後とも 16 MiB、暫定 checkpoint と memory cache はそれぞれ合計 64 MiB を上限とし、保持量を超えた場合は保存時点の近い checkpoint を間引いて依存先の環境も残す。
+上限を超える checkpoint の保存は `environment_skips` に計上し、通常の検査を継続する。
 キーには source の構文と位置、依存関係、package manifest、追加設定、checker の実装・依存関係・Rust toolchain・target の fingerprint を含める。
 キャッシュ保存先には `Path` を使い、名前解決・型検査へ渡す中間表現と分けて管理する。
 checker の fingerprint は build script が各 crate の Rust source、Cargo manifest、lockfile から生成する。
@@ -109,6 +117,8 @@ source tree の読み込みでは `refcache/` を除外する。
 `--parse-only` は parse と module 読み込みを行う。
 `--trace` と `--stats` は実際の検証を実行し、その処理のログと arena の統計を表示する。
 `--cache-stats` は parse 件数、再利用件数、検査する module 群の大きさ、disk cache の読み書き件数を表示する。
+`environment_hits` は復元した checkpoint 数、`restored_modules` は復元によって検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計バイト数を表す。
+`REF_TYPE_PROFILE_ENVIRONMENTS=1` は checkpoint の fingerprint、復元位置、保存サイズを stderr に表示する。
 
 ## 検証
 

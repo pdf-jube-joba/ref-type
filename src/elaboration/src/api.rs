@@ -144,3 +144,46 @@ impl Checker {
         }
     }
 }
+
+impl Checker {
+    /// Restore a locally trusted checkpoint after its identity and checksum were checked.
+    /// The raw frontend and the kernel must resume with the same expression arena.
+    pub fn restore_environment(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() > crate::MAX_ENVIRONMENT_BYTES {
+            return None;
+        }
+        let bytes =
+            miniz_oxide::inflate::decompress_to_vec_with_limit(bytes, crate::MAX_ENVIRONMENT_BYTES)
+                .ok()?;
+        let mut workspace: GlobalEnvironment = postcard::from_bytes(&bytes).ok()?;
+        workspace.crate_env.restore_shared_arena();
+        Some(Self { workspace })
+    }
+
+    /// Continue the resolved order using a matching prefix checkpoint.
+    /// Checkpoints are provisional until this call succeeds.
+    pub fn check_range(
+        &mut self,
+        project: &resolve::Project,
+        start: usize,
+        end: usize,
+        selected: &std::collections::BTreeSet<usize>,
+        checkpoints: &std::collections::BTreeSet<usize>,
+        mut save: impl FnMut(usize, Result<Vec<u8>, String>),
+    ) -> Result<(), Diagnostic> {
+        // Prefix keys are valid only up to the first omitted checking step.
+        let first_gap = (start..end)
+            .find(|position| !selected.contains(position))
+            .unwrap_or(end);
+        self.workspace
+            .add_project_range(project, start, end, selected, &mut |position, workspace| {
+                if position <= first_gap && checkpoints.contains(&position) {
+                    save(
+                        position,
+                        crate::checkpoint::serialize(workspace).map_err(|error| error.to_string()),
+                    );
+                }
+            })
+            .map_err(|error| self.diagnostic(&error))
+    }
+}

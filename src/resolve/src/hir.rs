@@ -4,9 +4,13 @@ pub use syntax::syntax::{
     MacroToken, SourceFile, SourceId, SourceLocation, SourceSpan, SurfaceMeta,
 };
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq, Hash,
+)]
 pub struct ModuleId(pub u32);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
 pub struct BindingId(pub u64);
 
 /// Spelling for diagnostics and the resolved binding, where the name denotes one.
