@@ -1,7 +1,7 @@
 # 微分
 
 Dedekind 実数上の関数の極限と微分を扱う。
-実数の演算には `real.DedekindReal.Arithmetic.Prop` の符号付きの乗法・逆数を使い、距離には `topology.RealMetric` を使う。
+実数の演算には `real.DedekindReal.Arithmetic.Prop` の符号付きの乗法・逆数を使い、距離には `real.Analysis.Distance` を使う。
 
 | モジュール | 内容 |
 | --- | --- |

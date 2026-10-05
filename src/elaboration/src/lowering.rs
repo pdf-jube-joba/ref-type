@@ -1,6 +1,5 @@
 //! Source identities, module capture telescopes, and checked kernel declarations.
 use crate::raw::{self, exp::*, ids::*, sort::Sort as RawSort};
-use kernel::sharing::ContextId;
 use kernel::{environment as ke, sort as k, syntax as s};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -22,7 +21,10 @@ pub(crate) struct Lowerer<'a> {
     active_program: FxHashSet<ProgramInductiveId>,
     scope: Scope,
     capture_cache: FxHashMap<Declaration, Vec<ModuleParamId>>,
-    cache: FxHashMap<(Exp, ContextId, ModuleId), s::Expression>,
+    // Translation uses binder depth, not binding classifiers. Type checking
+    // still uses the full telescope in the kernel. `in_scope` isolates captures,
+    // logical/proof bases and nominal mode; Program mode can change within it.
+    cache: FxHashMap<(Exp, usize, ModuleId, usize, bool), s::Expression>,
 }
 
 impl<'a> Lowerer<'a> {
@@ -100,6 +102,9 @@ impl<'a> Lowerer<'a> {
     }
 
     pub(crate) fn nominal(&mut self, base: usize) {
+        if !self.scope.nominal || self.scope.logical_base != base {
+            self.cache.clear();
+        }
         self.scope.nominal = true;
         self.scope.logical_base = base;
     }
@@ -202,4 +207,56 @@ pub(crate) fn format_kernel_error(
     error: &kernel::metavariables::Error,
 ) -> String {
     diagnostics::format_error(raw, error)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn translation_shares_depth_without_sharing_typing_judgements() {
+        let raw = raw::environment::CrateEnv::new();
+        let mut kernel = ke::Environment::new();
+        let mut lower = Lowerer::new(&raw, &mut kernel);
+        lower.nominal(0);
+        let e = raw.arena().alloc(ExpNode::Ascribe {
+            term: raw.arena().exp_bound(0),
+            ty: raw.arena().sort(RawSort::Set(0)),
+        });
+        let module = raw.root_module();
+        let mut metas = kernel::metavariables::MetaContext::new();
+        for (sort, valid) in [(RawSort::Set(0), true), (RawSort::Prop, false)] {
+            let mut context = vec![ExpContextEntry {
+                var: SymbolId::ANONYMOUS,
+                ty: raw.arena().sort(sort),
+            }];
+            let term = lower.set(e, &mut context, module).unwrap();
+            let context = lower.nominal_context(&context, 0, module).unwrap();
+            assert_eq!(
+                kernel::check::Checker::new(lower.kernel, &mut metas, context)
+                    .infer(term)
+                    .is_ok(),
+                valid
+            );
+        }
+        // Reflection depends on binder depth even when the source term is shared.
+        lower
+            .in_scope(vec![], 0, 0, |lower| {
+                lower.scope.proof_base = Some(1);
+                let bound = raw.arena().exp_bound(0);
+                let binding = ExpContextEntry {
+                    var: SymbolId::ANONYMOUS,
+                    ty: raw.arena().sort(RawSort::Set(0)),
+                };
+                let reflected = lower.set(bound, &mut vec![binding.clone()], module)?;
+                assert!(matches!(
+                    lower.kernel.arena().get(reflected),
+                    s::Node::Reflect { .. }
+                ));
+                let local = lower.set(bound, &mut vec![binding.clone(), binding], module)?;
+                assert_eq!(lower.kernel.arena().get(local), s::Node::Bound(0));
+                Ok(())
+            })
+            .unwrap();
+    }
 }

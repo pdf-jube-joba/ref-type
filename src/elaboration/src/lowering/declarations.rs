@@ -66,10 +66,10 @@ impl Lowerer<'_> {
     }
 
     fn lower_definition(&mut self, id: DefId) -> Result<(), String> {
-        let mut timer = crate::elaborator::profiling::ProfileTimer::start(
-            "REF_TYPE_PROFILE_LOWERING",
-            || raw::printing::definition_name(self.raw, id),
-        );
+        let mut timer =
+            crate::elaborator::profiling::ProfileTimer::start("REF_TYPE_PROFILE_LOWERING", || {
+                raw::printing::definition_name(self.raw, id)
+            });
         let raw = self.raw.definition(id).clone();
         let parameters = self.raw.definition_parameters(id).to_vec();
         let mut program_context = parameters

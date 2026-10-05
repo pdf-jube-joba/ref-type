@@ -19,6 +19,12 @@
 source 用 view は表面構文の論理・Program の解釈に使い、型検査・単一化・簡約・reflection は kernel の共通操作へ委譲する。
 module の特殊化と未解決の名前参照は elaboration が処理する。
 
+論理式の lowering は、項・束縛の深さ・module・Program の深さとモードをキーに共有する。
+文脈の型は kernel で検査し、lowering の構文変換には束縛の位置を使う。
+捕捉する parameter や nominal なスコープが変わると共有表を切り替える。
+kernel に登録済みの不変な宣言は依存先の具体化が完了しているため、bridge は参照に渡された実引数を走査する。
+module 引数の閉性は共有された部分式ごとの自由変数情報から判定する。
+
 `_` は出現ごとの穴、番号付きの穴は宣言内で共有する穴として登録する。
 `?` は通常の kernel メタ変数に検査用ゴールの情報を付け、解決済みの場合も表示して module の elaboration を失敗させる。
 各宣言の終了時には kernel の `finish` を通し、自動生成した穴や残存制約も確認する。

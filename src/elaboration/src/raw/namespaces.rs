@@ -113,36 +113,14 @@ impl CrateEnv {
         arguments: &[(ModuleParamId, ModuleArgument)],
     ) -> bool {
         use super::traversal::Term;
-        let mut closed = true;
-        for (_, arg) in arguments {
+        arguments.iter().all(|(_, arg)| {
             let term = match *arg {
                 ModuleArgument::Pts(e) => Term::Logical(e),
                 ModuleArgument::ProgramType(t) => Term::ValueType(t),
                 ModuleArgument::ProgramValue(v) => Term::Value(v),
             };
-            term.walk(self.arena(), 0, &mut |term, depth| {
-                let index = match term {
-                    Term::Logical(e) => match self.arena().get(e) {
-                        super::exp::ExpNode::Bound(i) => Some(i),
-                        _ => None,
-                    },
-                    Term::ValueType(t) => match self.arena().get(t) {
-                        ValueTypeNode::Bound(i) => Some(i),
-                        _ => None,
-                    },
-                    Term::Value(v) => match self.arena().get(v) {
-                        ValueTermNode::Bound(i) => Some(i),
-                        _ => None,
-                    },
-                    _ => None,
-                };
-                if index.is_some_and(|i| i >= depth) {
-                    closed = false;
-                }
-                None
-            });
-        }
-        closed
+            self.arena().max_loose_bound(term).is_none()
+        })
     }
 
     pub(crate) fn namespace_arguments_equal(

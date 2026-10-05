@@ -2,7 +2,7 @@
 
 `Field.Space[K := K, field := field]` は任意の体 \(K\) 上の線形代数を提供する。
 ベクトル空間には既存の `std.Alg.Ring.RingModule` を使い、体から得られる環をスカラー環とする。
-`Real.field` は Dedekind 実数、`Complex.field` は実数対で構成した複素数の体である。
+`Real.field` は `real.Analysis.Algebra.field` が提供する Dedekind 実数の体、`Complex.field` は実数対で構成した複素数の体である。
 
 | モジュール | 内容 |
 | --- | --- |

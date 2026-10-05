@@ -7,9 +7,11 @@ Dedekind 実数の対として \(\mathbb{C}=\mathbb{R}\times\mathbb{R}\) を構�
 | --- | --- |
 | `Complex` | `Real`、`Complex`、構築関数 `make`、実部 `re`、虚部 `im` |
 | `Complex.Def` | `zero`、`one`、`i`、実数の埋め込み、四則演算、実数倍、共役、絶対値の二乗 |
-| `Complex.Scalar` | 成分の証明で使う実数の恒等式と平方の性質 |
+| `Complex.Multiplication` | 複素乗法の結合則に使う実部・虚部の計算 |
 | `Complex.Prop` | 外延性、埋め込みの単射性と演算保存、算術法則、共役、絶対値の二乗、逆数と除法の法則 |
 | `Complex.Algebra` | 加法可換群、可換環、体の構造 |
+
+実数の恒等式と平方の性質は `real.Analysis.Algebra` を使う。
 
 `make a b` は \(a+bi\) を表す。
 共役と絶対値の二乗、逆数は次の式で定義する。

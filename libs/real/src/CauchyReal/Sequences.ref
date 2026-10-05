@@ -665,106 +665,65 @@
 
 \definition reciprocalMulEquivalent(x, y: CauchySeq):
   EventuallyApart x -> ReciprocalGraph x y ->
-  Equivalent (mul y x) one :=
-
-  \fun (apart: EventuallyApart x) (graph: ReciprocalGraph x y) (eps: Rat) (positive: Positive eps) =>
-      either!{
-        {EventuallyPositive x} "or" {EventuallyNegative x} "either" {\exists { k : Nat \where
-          EquivalentAt (mul y x) one eps k }}
-        "lt:" {\fun (positiveApart: EventuallyPositive x) =>
-          \block {
-            \takefrom r: \Cast[Rat] ({ r : Rat \where
-                \exists { k : Nat \where
-                  Logic.And[Positive r,
-                    \forall (n: Nat) -> NatLe k n ->
-                      RationalOperations.Le r (at x n)] } }) \by positiveApart \then
-            \takefrom N: \Cast[Nat] ({ k : Nat \where
-                Logic.And[Positive r,
-                  \forall (n: Nat) -> NatLe k n ->
-                    RationalOperations.Le r (at x n)] }) \by \bysub(Rat, { r : Rat \where
-              \exists { k : Nat \where
-                Logic.And[Positive r,
-                  \forall (n: Nat) -> NatLe k n ->
-                    RationalOperations.Le r (at x n)] } }, r) \then
-            \return \exact(
-                \into[Nat](N, { k : Nat \where
-                  EquivalentAt (mul y x) one eps k }) \by {
-                    \fun (n: Nat) => \fun (Nn: NatLe N n) =>
-                      closeOfFractionEq (mulRat (at y n) (at x n))
-                        oneRat eps
-                        (RationalFractions.fractionEqTrans _ _ _
-                          (RationalOperationsProp.fractionMulRespects
-                            (at y n) (RationalOperations.reciprocal (at x n))
-                            (at x n) (at x n)
-                            (reciprocalGraphFractionEq x y graph n)
-                            (RationalFractions.fractionEqRefl _))
-                          (reciprocalLeftLaw (at x n)
-                            (RationalOperationsProp.numeratorNonZeroOfZeroLt
-                              (at x n)
-                              (RationalOperationsProp.ltLeTrans zeroRat r (at x n)
-                                #left{(\bysub(Nat, { k : Nat \where
-                                  Logic.And[Positive r,
-                                    \forall (j: Nat) -> NatLe k j ->
-                                      RationalOperations.Le r (at x j)] }, N))}
-                                (#right{(\bysub(Nat, { k : Nat \where
-                                  Logic.And[Positive r,
-                                    \forall (j: Nat) -> NatLe k j ->
-                                      RationalOperations.Le r (at x j)] }, N))}
-                                  n Nn)))))
-                        positive },
-                \Cast[Nat] ({ k : Nat \where
-                  EquivalentAt (mul y x) one eps k }))
-          }}
-        "rt:" {\fun (negativeApart: EventuallyNegative x) =>
-          \block {
-            \takefrom r: \Cast[Rat] ({ r : Rat \where
-                \exists { k : Nat \where
-                  Logic.And[Positive r,
-                    \forall (n: Nat) -> NatLe k n ->
-                      RationalOperations.Le (at x n) (negRat r)] } }) \by negativeApart \then
-            \takefrom N: \Cast[Nat] ({ k : Nat \where
-                Logic.And[Positive r,
-                  \forall (n: Nat) -> NatLe k n ->
-                    RationalOperations.Le (at x n) (negRat r)] }) \by \bysub(Rat, { r : Rat \where
-              \exists { k : Nat \where
-                Logic.And[Positive r,
-                  \forall (n: Nat) -> NatLe k n ->
-                    RationalOperations.Le (at x n) (negRat r)] } }, r) \then
-            \return \exact(
-                \into[Nat](N, { k : Nat \where
-                  EquivalentAt (mul y x) one eps k }) \by {
-                    \fun (n: Nat) => \fun (Nn: NatLe N n) =>
-                      closeOfFractionEq (mulRat (at y n) (at x n))
-                        oneRat eps
-                        (RationalFractions.fractionEqTrans _ _ _
-                          (RationalOperationsProp.fractionMulRespects
-                            (at y n) (RationalOperations.reciprocal (at x n))
-                            (at x n) (at x n)
-                            (reciprocalGraphFractionEq x y graph n)
-                            (RationalFractions.fractionEqRefl _))
-                          (reciprocalLeftLaw (at x n)
-                            (RationalOperationsProp.numeratorNonZeroOfLtZero
-                              (at x n)
-                              (RationalOperationsProp.leLtTrans (at x n) (negRat r)
-                                zeroRat
-                                (#right{(\bysub(Nat, { k : Nat \where
-                                  Logic.And[Positive r,
-                                    \forall (j: Nat) -> NatLe k j ->
-                                      RationalOperations.Le (at x j)
-                                        (negRat r)] }, N))}
-                                  n Nn)
-                                (RationalOperationsProp.ltNegReverse zeroRat r
-                                  #left{(\bysub(Nat, { k : Nat \where
-                                    Logic.And[Positive r,
-                                      \forall (j: Nat) -> NatLe k j ->
-                                        RationalOperations.Le (at x j)
-                                          (negRat r)] }, N))})))))
-                        positive },
-                \Cast[Nat] ({ k : Nat \where
-                  EquivalentAt (mul y x) one eps k }))
-          }}
-      }
-        apart;
+  Equivalent (mul y x) one := \block {
+  \fun (apart: EventuallyApart x) (graph: ReciprocalGraph x y) (eps: Rat) (positive: Positive eps) \then
+  \let productOne: \forall (n: Nat) -> RationalFractions.NumeratorNonZero (at x n) ->
+    Close (mulRat (at y n) (at x n)) oneRat eps := \block {
+    \fun (n: Nat) (nonzero: RationalFractions.NumeratorNonZero (at x n)) \then
+    \let product: RationalFractions.FractionEq (mulRat (at y n) (at x n)) oneRat :=
+      RationalFractions.fractionEqTrans _ _ _
+        (RationalOperationsProp.fractionMulRespects
+          (at y n) (RationalOperations.reciprocal (at x n)) (at x n) (at x n)
+          (reciprocalGraphFractionEq x y graph n) (RationalFractions.fractionEqRefl _))
+        (reciprocalLeftLaw (at x n) nonzero) \then
+    \return closeOfFractionEq (mulRat (at y n) (at x n)) oneRat eps product positive
+  } \then
+  \return either!{
+    {EventuallyPositive x} "or" {EventuallyNegative x} "either" {\exists { k: Nat \where
+      EquivalentAt (mul y x) one eps k }}
+    "lt:" {\block {
+      \fun (positiveApart: EventuallyPositive x) \then
+      \takefrom r: \Cast[Rat] ({ r: Rat \where \exists { k: Nat \where
+        Logic.And[Positive r, \forall (n: Nat) -> NatLe k n -> RationalOperations.Le r (at x n)] } })
+        \by positiveApart \then
+      \let LowerBound: Nat -> \Prop := \fun (k: Nat) =>
+        Logic.And[Positive r, \forall (n: Nat) -> NatLe k n -> RationalOperations.Le r (at x n)] \then
+      \takefrom N: \Cast[Nat] ({ k: Nat \where LowerBound k })
+        \by \bysub(Rat, { r: Rat \where \exists { k: Nat \where
+          Logic.And[Positive r, \forall (n: Nat) -> NatLe k n -> RationalOperations.Le r (at x n)] } }, r) \then
+      \let lower: LowerBound N := \bysub(Nat, { k: Nat \where LowerBound k }, N) \then
+      \let close: EquivalentAt (mul y x) one eps N := \block {
+        \fun (n: Nat) (Nn: NatLe N n) \then
+        \let positiveTerm: ltRat zeroRat (at x n) :=
+          RationalOperationsProp.ltLeTrans zeroRat r (at x n) #left{lower} (#right{lower} n Nn) \then
+        \return productOne n (RationalOperationsProp.numeratorNonZeroOfZeroLt (at x n) positiveTerm)
+      } \then
+      \return \exact(\into[Nat](N, { k: Nat \where EquivalentAt (mul y x) one eps k }) \by { close },
+        \Cast[Nat] ({ k: Nat \where EquivalentAt (mul y x) one eps k }))
+    }}
+    "rt:" {\block {
+      \fun (negativeApart: EventuallyNegative x) \then
+      \takefrom r: \Cast[Rat] ({ r: Rat \where \exists { k: Nat \where
+        Logic.And[Positive r, \forall (n: Nat) -> NatLe k n -> RationalOperations.Le (at x n) (negRat r)] } })
+        \by negativeApart \then
+      \let UpperBound: Nat -> \Prop := \fun (k: Nat) =>
+        Logic.And[Positive r, \forall (n: Nat) -> NatLe k n -> RationalOperations.Le (at x n) (negRat r)] \then
+      \takefrom N: \Cast[Nat] ({ k: Nat \where UpperBound k })
+        \by \bysub(Rat, { r: Rat \where \exists { k: Nat \where
+          Logic.And[Positive r, \forall (n: Nat) -> NatLe k n -> RationalOperations.Le (at x n) (negRat r)] } }, r) \then
+      \let upper: UpperBound N := \bysub(Nat, { k: Nat \where UpperBound k }, N) \then
+      \let close: EquivalentAt (mul y x) one eps N := \block {
+        \fun (n: Nat) (Nn: NatLe N n) \then
+        \let negativeTerm: ltRat (at x n) zeroRat :=
+          RationalOperationsProp.leLtTrans (at x n) (negRat r) zeroRat
+            (#right{upper} n Nn) (RationalOperationsProp.ltNegReverse zeroRat r #left{upper}) \then
+        \return productOne n (RationalOperationsProp.numeratorNonZeroOfLtZero (at x n) negativeTerm)
+      } \then
+      \return \exact(\into[Nat](N, { k: Nat \where EquivalentAt (mul y x) one eps k }) \by { close },
+        \Cast[Nat] ({ k: Nat \where EquivalentAt (mul y x) one eps k }))
+    }}
+  } apart
+};
 
 \definition addCauchy(x, y: CauchySeq) (eps: Rat):
   Positive eps ->

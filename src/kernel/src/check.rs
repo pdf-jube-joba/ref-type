@@ -388,7 +388,7 @@ impl<'a> Checker<'a> {
         for (i, binding) in context.iter().enumerate() {
             self.check_open(
                 arguments[i],
-                instantiate(self.arena(), binding.ty, &arguments[..i])?,
+                self.env.instantiate(binding.ty, &arguments[..i])?,
             )?;
         }
         Ok(())
@@ -540,7 +540,7 @@ impl<'a> Checker<'a> {
             Node::Definition { id, arguments } => {
                 let definition = self.env.definition(id)?;
                 self.arguments(&arguments, &definition.context)?;
-                instantiate(self.arena(), definition.ty, &arguments)?
+                self.env.instantiate(definition.ty, &arguments)?
             }
             Node::Meta { id, arguments } => {
                 let entry = self.metas.entry(id)?;
@@ -558,7 +558,7 @@ impl<'a> Checker<'a> {
                             self.env,
                             id,
                             &arguments,
-                            instantiate(self.arena(), ty, &arguments)?,
+                            self.env.instantiate(ty, &arguments)?,
                         )?;
                         ty
                     }
@@ -569,7 +569,7 @@ impl<'a> Checker<'a> {
                             constraints: 0,
                         })?;
                         let ty = Checker::new(self.env, self.metas, context).infer(value)?;
-                        return Ok(instantiate(self.arena(), ty, &arguments)?);
+                        return Ok(self.env.instantiate(ty, &arguments)?);
                     }
                 };
                 if !self.solving
@@ -577,7 +577,7 @@ impl<'a> Checker<'a> {
                 {
                     Checker::new(self.env, self.metas, context).check(value, expected)?;
                 }
-                instantiate(self.arena(), expected, &arguments)?
+                self.env.instantiate(expected, &arguments)?
             }
             Node::Product { var, domain, body } => {
                 let a = self.formation(domain)?;
@@ -657,7 +657,7 @@ impl<'a> Checker<'a> {
                         return Err("application evaluation mode mismatch".into());
                     }
                 }
-                instantiate(self.arena(), body, &[argument])?
+                self.env.instantiate(body, &[argument])?
             }
             Node::Reflect { term } => {
                 let ty = self.infer_open(term)?;
@@ -782,14 +782,14 @@ impl<'a> Checker<'a> {
                 self.check_at(
                     "check base",
                     base,
-                    instantiate(self.arena(), predicate, &[left])?,
+                    self.env.instantiate(predicate, &[left])?,
                 )?;
                 self.check_at(
                     "check equality proof",
                     equality,
                     self.alloc(Node::Equal { left, right }),
                 )?;
-                instantiate(self.arena(), predicate, &[right])?
+                self.env.instantiate(predicate, &[right])?
             }
             Node::RunStep {
                 state_ty,
@@ -894,7 +894,7 @@ impl<'a> Checker<'a> {
                 if !self.solving {
                     self.under(var, value_ty, |c| c.program_type(ty, true))?;
                 }
-                instantiate(self.arena(), ty, &[computation])?
+                self.env.instantiate(ty, &[computation])?
             }
             Node::ValueLet {
                 var,
@@ -910,7 +910,7 @@ impl<'a> Checker<'a> {
                 if !self.solving {
                     self.under(var, value_ty, |c| c.program_type(ty, true))?;
                 }
-                instantiate(self.arena(), ty, &[value])?
+                self.env.instantiate(ty, &[value])?
             }
             Node::IndType {
                 inductive,
@@ -921,7 +921,7 @@ impl<'a> Checker<'a> {
                 if spec.sort.is_upper() {
                     self.arena().sort(spec.sort)
                 } else {
-                    instantiate(self.arena(), spec.arity, &parameters)?
+                    self.env.instantiate(spec.arity, &parameters)?
                 }
             }
             Node::IndCtor {
@@ -935,7 +935,7 @@ impl<'a> Checker<'a> {
                     .constructors
                     .get(constructor)
                     .ok_or("unknown constructor")?;
-                instantiate(self.arena(), ty, &parameters)?
+                self.env.instantiate(ty, &parameters)?
             }
             Node::Inductive {
                 inductive,
@@ -961,7 +961,7 @@ impl<'a> Checker<'a> {
                     return Err("constructor field count mismatch".into());
                 }
                 for (field, binding) in fields.iter().zip(telescope) {
-                    self.check_open(*field, instantiate(self.arena(), binding.ty, &parameters)?)?;
+                    self.check_open(*field, self.env.instantiate(binding.ty, &parameters)?)?;
                 }
                 self.alloc(Node::Inductive {
                     inductive,
@@ -1277,7 +1277,7 @@ impl<'a> Checker<'a> {
                     argument,
                     self.alloc(Node::BoxType { program_ty: input }),
                 )?;
-                let codomain = instantiate(self.arena(), body, &[argument])?;
+                let codomain = self.env.instantiate(body, &[argument])?;
                 self.closed_program_type(codomain)?;
                 Ok(self.alloc(Node::BoxType {
                     program_ty: codomain,
@@ -1300,7 +1300,7 @@ impl<'a> Checker<'a> {
                     return Err("boxed type argument must be closed".into());
                 }
                 self.check_at("check argument type for application", argument, domain)?;
-                let program_ty = instantiate(self.arena(), codomain, &[argument])?;
+                let program_ty = self.env.instantiate(codomain, &[argument])?;
                 Ok(self.alloc(Node::BoxType { program_ty }))
             }
             Node::IndElim {
@@ -1364,9 +1364,9 @@ impl<'a> Checker<'a> {
             return Err("motive argument count mismatch".into());
         }
         for (i, (&arg, &ty)) in args.iter().zip(&motive.domains).enumerate() {
-            self.check_open(arg, instantiate(self.arena(), ty, &args[..i])?)?;
+            self.check_open(arg, self.env.instantiate(ty, &args[..i])?)?;
         }
-        instantiate(self.arena(), motive.body, args).map_err(Error::from)
+        self.env.instantiate(motive.body, args).map_err(Error::from)
     }
     fn lift_motive(&self, m: &Motive) -> Result<Motive, Error> {
         Ok(Motive {
@@ -1511,7 +1511,7 @@ impl<'a> Checker<'a> {
                     } else {
                         field.ty
                     };
-                    let ty = instantiate(self.arena(), ty, &parameters)?;
+                    let ty = self.env.instantiate(ty, &parameters)?;
                     context.push(Binding {
                         var,
                         ty: shift(self.arena(), ty, j, 0)?,
@@ -1561,7 +1561,7 @@ impl<'a> Checker<'a> {
                 } else {
                     field.ty
                 };
-                let ty = instantiate(branch.arena(), field, &parameters)?;
+                let ty = branch.env.instantiate(field, &parameters)?;
                 branch.push_binding(Binding {
                     var: binders[i][j],
                     ty: branch.lifted(ty, j)?,
@@ -1667,7 +1667,7 @@ impl<'a> Checker<'a> {
             return Err("motive telescope length mismatch".into());
         }
         let mut expected_domains = vec![];
-        let mut arity = instantiate(self.arena(), spec.arity, &parameters)?;
+        let mut arity = self.env.instantiate(spec.arity, &parameters)?;
         while let Node::Product { domain, body, .. } = self.arena().get(self.head(arity)?) {
             expected_domains.push(domain);
             arity = body;
@@ -1715,7 +1715,7 @@ impl<'a> Checker<'a> {
         args.push(scrutinee);
         let applied = self.apply_motive(&motive, &args)?;
         for (i, case) in cases.into_iter().enumerate() {
-            let ctor_ty = instantiate(self.arena(), spec.constructors[i], &parameters)?;
+            let ctor_ty = self.env.instantiate(spec.constructors[i], &parameters)?;
             self.formation(ctor_ty)?;
             let ctor = self.alloc(Node::IndCtor {
                 inductive,

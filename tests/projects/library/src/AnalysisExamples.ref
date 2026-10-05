@@ -1,0 +1,35 @@
+/* Shared scalar laws, limits and the metric-space adapter use the same reals. */
+\import real.Analysis[] \as Real;
+\import Real.Algebra[] \as Algebra;
+\import Real.Distance[] \as Distance;
+\import Real.Sequence[] \as Sequence;
+\import real.DedekindReal[] \as R;
+\import topology.RealMetric[] \as RealMetric;
+\import linear_algebra.Real[] \as Linear;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+
+\definition sameField: Linear.field = Algebra.field := \refl(Algebra.field);
+\definition sameDistance: \forall (x, y: Real.Real) ->
+  #distance{RealMetric.metric} x y = Real.distance x y :=
+  \fun (x, y: _) => \refl(Real.distance x y);
+\definition scalarRightIdentity: \forall (x: Real.Real) ->
+  Real.mul x Real.one = x := Algebra.mulOneRight;
+\definition squareNonnegative: \forall (x: Real.Real) ->
+  R.Le Real.zero (Real.mul x x) := Algebra.squareNonnegative;
+
+\definition constant(value: Real.Real): Sequence.CauchySequence :=
+  \into[N.Nat^ -> Real.Real](\fun (n: N.Nat^) => value,
+    { s: N.Nat^ -> Real.Real \where Sequence.Cauchy s }) \by {
+    \fun (epsilon: _) (positive: _) =>
+      \exact(\into[N.Nat^](N.Nat^::zero,
+        { k: N.Nat^ \where Sequence.Control (\fun (n: N.Nat^) => value) epsilon k }) \by {
+        \fun (m, n: N.Nat^) (laterM: _) (laterN: _) =>
+          R.ltReplaceLeft Real.zero (Real.distance value value) epsilon
+            (sym!{Real.Real} _ _ (Distance.distanceSelf value)) positive },
+        \Cast[N.Nat^] ({ k: N.Nat^ \where Sequence.Control (\fun (n: N.Nat^) => value) epsilon k }))
+  };
+\definition limitConstant: \forall (value: Real.Real) -> Sequence.limit (constant value) = value :=
+  \fun (value: _) => Sequence.limitUnique (constant value) (Sequence.limit (constant value)) value
+    (Sequence.limitLaw (constant value)) (Sequence.constantConverges value);

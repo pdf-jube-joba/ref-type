@@ -50,10 +50,11 @@
   \fun (x, y: _) =>
     sym!{Nat} (NatOp.Add.specification (pos x) (negPart y)) (NatOp.Add.specification (pos y) (negPart x));
 \definition addShuffle(a, b, c, d: Nat):
-  NatOp.Add.specification (NatOp.Add.specification a b) (NatOp.Add.specification c d) = NatOp.Add.specification (NatOp.Add.specification a d) (NatOp.Add.specification c b) := equiv_reason!{trans!{Nat}
-                                                                           "by" { NL.addInterchange a b c d }
-                                                                           "by" { congr!{Nat Nat} (NatOp.Add.specification (NatOp.Add.specification a c)) _ _ (NL.addComm b d) }
-                                                                           "by" { sym!{Nat} _ _ (NL.addInterchange a d c b) }};
+  NatOp.Add.specification (NatOp.Add.specification a b) (NatOp.Add.specification c d) = NatOp.Add.specification (NatOp.Add.specification a d) (NatOp.Add.specification c b) :=
+  equiv_reason!{trans!{Nat}
+    "by" { NL.addInterchange a b c d }
+    "by" { congr!{Nat Nat} (NatOp.Add.specification (NatOp.Add.specification a c)) _ _ (NL.addComm b d) }
+    "by" { sym!{Nat} _ _ (NL.addInterchange a d c b) }};
 \definition equivalentTrans: Rel.Transitive Difference Equivalent :=
   \fun (x, y, z: Difference) (xy: Equivalent x y) (yz: Equivalent y z) =>
     NL.addCancelRight (NatOp.Add.specification (pos y) (negPart y))
@@ -87,35 +88,37 @@
         "~" { y } "by" { \idelim normalize y = normalize x \with z: Int^ => Equivalent (representative z) y
           \by { base: equivalentSym y (representative (normalize y)) (representativeNormalize y), equality: sym!{Int^} _ _ e } }};
 
+/* Specialize the shared quotient implementation to formal differences. */
+\import std.Set[].Quotient[A := Difference, Equivalent := Equivalent] \as Quotient;
+\definition equivalenceLaws: Quotient.EquivalenceLaws := Quotient.EquivalenceLaws {
+  reflexive := equivalentRefl,
+  symmetric := equivalentSym,
+  transitive := equivalentTrans,
+};
+
 /* Actual equivalence classes, not merely a setoid of representatives. */
-\definition ClassOf(x: Difference): \Pow Difference := { y : Difference \where Equivalent x y };
+\definition ClassOf(x: Difference): \Pow Difference :=
+  Quotient.ClassOf x;
 \definition classOfEq(x, y: Difference):
   Equivalent x y ->
   ClassOf x = ClassOf y :=
-    \fun (xy: Equivalent x y) =>
-    \axiom:setext(ClassOf x, ClassOf y,
-        (\fun (z: Difference) => \fun (xz: Equivalent x z) => equiv_reason_terms!{equivalentTrans { y }
-          "~" { x } "by" { equivalentSym x y xy }
-          "~" { z } "by" { xz }}),
-        (\fun (z: Difference) => \fun (yz: Equivalent y z) => equiv_reason_terms!{equivalentTrans { x }
-          "~" { y } "by" { xy }
-          "~" { z } "by" { yz }}));
+  Quotient.classOfEq equivalenceLaws x y;
 \definition equivalentOfClassEq(x, y: Difference):
   ClassOf x = ClassOf y ->
   Equivalent x y :=
-    \fun (e: ClassOf x = ClassOf y) =>
-    \idelim ClassOf y = ClassOf x \with C: \Pow Difference => \In[Difference] C y
-        \by { base: equivalentRefl y, equality:
-          \idelim ClassOf x = ClassOf y \with C: \Pow Difference => C = ClassOf x
-            \by { base: \refl(ClassOf x), equality: e } };
+  Quotient.equivalentOfClassEq equivalenceLaws x y;
 \definition Representatives(C: \Pow Difference): \Pow Difference := { x : Difference \where C = ClassOf x };
-\definition IsClass(C: \Pow Difference): \Prop := \forall (P: \Prop) -> (\forall (x: Difference) -> C = ClassOf x -> P) -> P;
-\definition ClassSet: \Pow (\Pow Difference) := { C : \Pow Difference \where IsClass C };
-\definition Grothendieck: \Set := \Cast[\Pow Difference] ClassSet;
+\definition IsClass(C: \Pow Difference): \Prop :=
+  Quotient.IsClass C;
+\definition ClassSet: \Pow (\Pow Difference) :=
+  Quotient.ClassSet;
+\definition Grothendieck: \Set :=
+  Quotient.Carrier;
 \definition class(x: Difference): Grothendieck :=
-  \into[\Pow Difference](ClassOf x, ClassSet) \by { (\fun (P: \Prop) => \fun (step: \forall (y: Difference) -> ClassOf x = ClassOf y -> P) => step x (\refl(ClassOf x))) };
+  Quotient.class x;
 \definition toMath(z: Int^): Grothendieck := class (representative z);
-\definition classProperty(C: Grothendieck): IsClass C := \bysub(\Pow Difference, ClassSet, C);
+\definition classProperty(C: Grothendieck): IsClass C :=
+  Quotient.classProperty C;
 \definition representativesExist(C: Grothendieck): \exists \Cast[Difference] (Representatives C) := classProperty C (\exists \Cast[Difference] (Representatives C))
     (\fun (x: Difference) => \fun (cx: C = ClassOf x) =>
       \exact(\into[Difference](x, Representatives C) \by { cx }, \Cast[Difference] (Representatives C)));
@@ -281,71 +284,36 @@
 
 /* Relational images define operations without choosing representatives. */
 \definition UnaryRespects(f: Difference -> Difference): \Prop :=
-  \forall (x, y: Difference) -> Equivalent x y -> Equivalent (f x) (f y);
+  Quotient.UnaryRespects f;
 \definition BinaryRespects(f: Difference -> Difference -> Difference): \Prop :=
-    \forall (x, y, u, v: Difference) -> Equivalent x y -> Equivalent u v -> Equivalent (f x u) (f y v);
+  Quotient.BinaryRespects f;
 \definition sameClassRelated(C: \Pow Difference) (x, y: Difference):
   C = ClassOf x -> C = ClassOf y ->
   Equivalent x y :=
-    \fun (cx: _) (cy: _) =>
-    equivalentOfClassEq x y (trans!{\Pow Difference} (ClassOf x) C (ClassOf y) (sym!{\Pow Difference} C (ClassOf x) cx) cy);
+  Quotient.sameClassRelated equivalenceLaws C x y;
 \definition UnaryImage(f: Difference -> Difference) (C: \Pow Difference): \Pow Difference :=
-    { z : Difference \where \forall (P: \Prop) ->
-      (\forall (x: Difference) -> C = ClassOf x -> Equivalent (f x) z -> P) -> P };
+  Quotient.UnaryImage f C;
 \definition unaryImageClass(f: Difference -> Difference):
   UnaryRespects f -> \forall (C: \Pow Difference) -> \forall (x: Difference) ->
   C = ClassOf x ->
   UnaryImage f C = ClassOf (f x) :=
-      \fun (respects: UnaryRespects f) (C: \Pow Difference) (x: Difference) (cx: C = ClassOf x) =>
-    \axiom:setext(UnaryImage f C, ClassOf (f x),
-          (\fun (z: Difference) => \fun (hz: \In[Difference] (UnaryImage f C) z) =>
-            hz (Equivalent (f x) z)
-              (\fun (y: Difference) => \fun (cy: C = ClassOf y) => \fun (yz: Equivalent (f y) z) =>
-                equiv_reason_terms!{equivalentTrans { f x }
-                  "~" { f y } "by" { respects x y (sameClassRelated C x y cx cy) }
-                  "~" { z } "by" { yz }})),
-          (\fun (z: Difference) => \fun (xz: Equivalent (f x) z) =>
-            \fun (P: \Prop) => \fun (step: \forall (y: Difference) -> C = ClassOf y -> Equivalent (f y) z -> P) => step x cx xz));
+  Quotient.unaryImageClass equivalenceLaws f;
 \definition unaryImageClosed(f: Difference -> Difference):
   UnaryRespects f -> \forall (C: Grothendieck) ->
   IsClass (UnaryImage f C) :=
-    \fun (respects: UnaryRespects f) (C: Grothendieck) =>
-    classProperty C (IsClass (UnaryImage f C))
-        (\fun (x: Difference) => \fun (cx: C = ClassOf x) =>
-          \fun (P: \Prop) => \fun (step: \forall (y: Difference) -> UnaryImage f C = ClassOf y -> P) =>
-            step (f x) (unaryImageClass f respects C x cx));
+  Quotient.unaryImageClosed equivalenceLaws f;
 \definition BinaryImage(f: Difference -> Difference -> Difference) (C, D: \Pow Difference):
   \Pow Difference :=
-    { z : Difference \where \forall (P: \Prop) ->
-      (\forall (x, y: Difference) -> C = ClassOf x -> D = ClassOf y -> Equivalent (f x y) z -> P) -> P };
+  Quotient.BinaryImage f C D;
 \definition binaryImageClass(f: Difference -> Difference -> Difference):
   BinaryRespects f -> \forall (C, D: \Pow Difference) ->
   \forall (x, y: Difference) -> C = ClassOf x -> D = ClassOf y ->
   BinaryImage f C D = ClassOf (f x y) :=
-      \fun (respects: BinaryRespects f) (C, D: \Pow Difference) (x, y: Difference) (cx: C = ClassOf x)
-        (dy: D = ClassOf y) =>
-    \axiom:setext(BinaryImage f C D, ClassOf (f x y),
-          (\fun (z: Difference) => \fun (hz: \In[Difference] (BinaryImage f C D) z) =>
-            hz (Equivalent (f x y) z)
-              (\fun (u, v: Difference) => \fun (cu: C = ClassOf u) => \fun (dv: D = ClassOf v) => \fun (uvz: Equivalent (f u v) z)
-      =>
-                equiv_reason_terms!{equivalentTrans { f x y }
-                  "~" { f u v } "by" { respects x u y v (sameClassRelated C x u cx cu) (sameClassRelated D y v dy dv) }
-                  "~" { z } "by" { uvz }})),
-          (\fun (z: Difference) => \fun (xyz: Equivalent (f x y) z) =>
-            \fun (P: \Prop) => \fun (step: \forall (u, v: Difference) -> C = ClassOf u -> D = ClassOf v -> Equivalent (f u v) z ->
-      P) =>
-              step x y cx dy xyz));
+  Quotient.binaryImageClass equivalenceLaws f;
 \definition binaryImageClosed(f: Difference -> Difference -> Difference):
   BinaryRespects f -> \forall (C, D: Grothendieck) ->
   IsClass (BinaryImage f C D) :=
-    \fun (respects: BinaryRespects f) (C, D: Grothendieck) =>
-    classProperty C (IsClass (BinaryImage f C D))
-        (\fun (x: Difference) => \fun (cx: C = ClassOf x) =>
-          classProperty D (IsClass (BinaryImage f C D))
-            (\fun (y: Difference) => \fun (dy: D = ClassOf y) =>
-              \fun (P: \Prop) => \fun (step: \forall (z: Difference) -> BinaryImage f C D = ClassOf z -> P) =>
-                step (f x y) (binaryImageClass f respects C D x y cx dy)));
+  Quotient.binaryImageClosed equivalenceLaws f;
 
 /* Addition and multiplication use the formulas on formal differences. */
 \definition addMath(C, D: Grothendieck): Grothendieck :=

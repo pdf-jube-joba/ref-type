@@ -1,3 +1,5 @@
+\import \parent.Algebra[] \as Algebra;
+
 \definition addLe(a, b, c, d: Real): R.Le a c -> R.Le b d -> R.Le (add a b) (add c d) :=
   \fun (ac: _) (bd: _) => R.leTrans _ _ _
     (Laws.addMonotoneRight a c b ac) (Laws.addMonotoneLeft b d c bd);
@@ -7,8 +9,7 @@
     (Laws.ltAddRight a c b ac) (Laws.ltAddLeft c b d bd);
 
 \definition mulSub(w, x, y: Real): mul w (sub x y) = sub (mul w x) (mul w y) :=
-  trans!{Real} _ _ _ (Laws.fieldMulAdd w x (Op.neg y))
-    (congr!{Real Real} (add (mul w x)) _ _ (Laws.fieldMulNegRight w y));
+  Algebra.mulSub w x y;
 
 \definition mulMonotone(w, x, y: Real): R.Le zero w -> R.Le x y -> R.Le (mul w x) (mul w y) :=
   \fun (positive: _) (xy: _) => Laws.leAddCancelRight _ _ (Op.neg (mul w x))
@@ -58,20 +59,11 @@
 
 \definition addShuffle(a, b, c, d: Real):
   add (add a b) (add c d) = add (add a c) (add b d) :=
-  eq_reason!{
-    { add (add a b) (add c d) }
-    "=" { add a (add b (add c d)) } "by" { Laws.addAssoc a b (add c d) }
-    "=" { add a (add (add b c) d) } "by" { congr!{Real Real} (add a) _ _ (sym!{Real} _ _ (Laws.addAssoc b c d)) }
-    "=" { add a (add (add c b) d) } "by" { congr!{Real Real} (\fun (v: _) => add a (add v d)) _ _ (Laws.addComm b c) }
-    "=" { add a (add c (add b d)) } "by" { congr!{Real Real} (add a) _ _ (Laws.addAssoc c b d) }
-    "=" { add (add a c) (add b d) } "by" { sym!{Real} _ _ (Laws.addAssoc a c (add b d)) }
-  };
+  Algebra.addFour a b c d;
 
 \definition subAdd(a, b, c, d: Real):
   sub (add a b) (add c d) = add (sub a c) (sub b d) :=
-  trans!{Real} _ _ _
-    (congr!{Real Real} (add (add a b)) _ _ (Laws.negAdd c d))
-    (addShuffle a b (Op.neg c) (Op.neg d));
+  Algebra.subAdd a b c d;
 
 \definition distanceAdd(a, b, c, d: Real):
   R.Le (distance (add a b) (add c d)) (add (distance a c) (distance b d)) :=
@@ -134,15 +126,23 @@
 
 \definition distancePerturb(a, b, c, d, r, epsilon: Real):
   R.Lt (distance a b) (mul half epsilon) -> R.Lt (distance b c) r ->
-  R.Lt (distance c d) (mul half epsilon) -> R.Lt (distance a d) (add r epsilon) :=
-  \fun (ab: _) (bc: _) (cd: _) => R.ltReplaceRight _ _ _
-    (trans!{Real} _ _ _ (sym!{Real} _ _ (Laws.addAssoc (mul half epsilon) r (mul half epsilon)))
-      (trans!{Real} _ _ _
-        (congr!{Real Real} (\fun (x: _) => add x (mul half epsilon)) _ _ (Laws.addComm (mul half epsilon) r))
-        (trans!{Real} _ _ _ (Laws.addAssoc r (mul half epsilon) (mul half epsilon))
-          (congr!{Real Real} (add r) _ _ (halfTwice epsilon)))))
+  R.Lt (distance c d) (mul half epsilon) -> R.Lt (distance a d) (add r epsilon) := \block {
+  \fun (ab: _) (bc: _) (cd: _) \then
+  \let combinedRadius: add (mul half epsilon) (add r (mul half epsilon)) = add r epsilon :=
+    eq_reason!{
+      { add (mul half epsilon) (add r (mul half epsilon)) }
+      "=" { add (add (mul half epsilon) r) (mul half epsilon) }
+        "by" { sym!{Real} _ _ (Laws.addAssoc (mul half epsilon) r (mul half epsilon)) }
+      "=" { add (add r (mul half epsilon)) (mul half epsilon) }
+        "by" { congr!{Real Real} (\fun (x: _) => add x (mul half epsilon)) _ _ (Laws.addComm (mul half epsilon) r) }
+      "=" { add r (add (mul half epsilon) (mul half epsilon)) }
+        "by" { Laws.addAssoc r (mul half epsilon) (mul half epsilon) }
+      "=" { add r epsilon } "by" { congr!{Real Real} (add r) _ _ (halfTwice epsilon) }
+    } \then
+  \return R.ltReplaceRight _ _ _ combinedRadius
     (R.leLtTrans _ _ _ (distanceBridge a b c d)
-      (addLt _ _ _ _ ab (addLt _ _ _ _ bc cd)));
+      (addLt _ _ _ _ ab (addLt _ _ _ _ bc cd)))
+};
 
 \definition threeQuarterLe(epsilon: Real): R.Le zero epsilon ->
   R.Le (add (mul half (mul half epsilon)) (add (mul half (mul half epsilon)) (mul half (mul half epsilon)))) epsilon :=

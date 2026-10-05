@@ -328,83 +328,45 @@
   Logic.And[GridUpper A base step n, Boundary A base step n];
 
 \definition firstGridUpper:
-  \forall (A: \Pow Real) ->
-    \forall (base: CauchySeq) -> \forall (step: Rat) ->
-    \forall (limit: Nat) -> GridUpper A base step limit ->
-      \exists { j : Nat \where MinimalGridUpper A base step j } :=
-  \fun (A: \Pow Real) =>
-    \fun (base: CauchySeq) =>
-      \fun (step: Rat) =>
-        \induction (limit: N.Nat^) \return
-          GridUpper A base step limit ->
-            \exists { j : Nat \where MinimalGridUpper A base step j }
-        \with {
-          | zero : (\fun (upper: GridUpper A base step N.Nat^::zero) =>
-              \exact(
-                \into[Nat](N.Nat^::zero,
-                  { j : Nat \where MinimalGridUpper A base step j })
-                  \by {
-                    Logic.And[
-                      GridUpper A base step N.Nat^::zero,
-                      Boundary A base step N.Nat^::zero]::#
-                      upper
-                      (Logic.Or[
-                        N.Nat^::zero = N.Nat^::zero,
-                        \exists { k : Nat \where Logic.And[
-                          N.Nat^::zero = N.Nat^::succ k,
-                          Logic.Not (GridUpper A base step k)] }]::left
-                        (\refl(N.Nat^::zero))) },
-                \Cast[Nat] ({ j : Nat \where
-                  MinimalGridUpper A base step j })))
-          | succ : (\fun (limit: Nat) =>
-              \fun (ih: GridUpper A base step limit ->
-                \exists { j : Nat \where
-                  MinimalGridUpper A base step j }) =>
-                \fun (upper: GridUpper A base step (N.Nat^::succ limit)) =>
-                  either!{
-                    {GridUpper A base step limit} "or" {Logic.Not (GridUpper A base step limit)} "either" {\exists { j : Nat \where
-                      MinimalGridUpper A base step j }}
-                    "lt:" {ih}
-                    "rt:" {\fun (notUpper: Logic.Not
-                        (GridUpper A base step limit)) =>
-                      \exact(
-                        \into[Nat](N.Nat^::succ limit,
-                          { j : Nat \where
-                            MinimalGridUpper A base step j })
-                          \by {
-                            Logic.And[
-                              GridUpper A base step (N.Nat^::succ limit),
-                              Boundary A base step
-                                (N.Nat^::succ limit)]::#
-                              upper
-                              (Logic.Or[
-                                N.Nat^::succ limit = N.Nat^::zero,
-                                \exists { k : Nat \where Logic.And[
-                                  N.Nat^::succ limit = N.Nat^::succ k,
-                                  Logic.Not (GridUpper A base step k)] }
-                                ]::right
-                                (\exact(
-                                  \into[Nat](limit, { k : Nat \where
-                                    Logic.And[
-                                      N.Nat^::succ limit = N.Nat^::succ k,
-                                      Logic.Not
-                                        (GridUpper A base step k)] })
-                                    \by { Logic.And[
-                                      N.Nat^::succ limit =
-                                        N.Nat^::succ limit,
-                                      Logic.Not
-                                        (GridUpper A base step limit)]::#
-                                      (\refl(N.Nat^::succ limit)) notUpper },
-                                  \Cast[Nat] ({ k : Nat \where Logic.And[
-                                    N.Nat^::succ limit = N.Nat^::succ k,
-                                    Logic.Not
-                                      (GridUpper A base step k)] })))) },
-                        \Cast[Nat] ({ j : Nat \where
-                          MinimalGridUpper A base step j }))}
-                  }
-                    (Classical.excludedMiddle
-                      (GridUpper A base step limit)))
-        };
+  \forall (A: \Pow Real) -> \forall (base: CauchySeq) -> \forall (step: Rat) ->
+  \forall (limit: Nat) -> GridUpper A base step limit ->
+    \exists { j: Nat \where MinimalGridUpper A base step j } :=
+  \fun (A: \Pow Real) (base: CauchySeq) (step: Rat) =>
+    \induction (limit: N.Nat^) \return GridUpper A base step limit ->
+      \exists { j: Nat \where MinimalGridUpper A base step j } \with {
+      | zero : \block {
+        \fun (upper: GridUpper A base step N.Nat^::zero) \then
+        \let boundary: Boundary A base step N.Nat^::zero :=
+          Logic.Or[_, _]::left (\refl(N.Nat^::zero)) \then
+        \return \exact(\into[Nat](N.Nat^::zero, { j: Nat \where MinimalGridUpper A base step j })
+          \by { Logic.And[_, _]::# upper boundary },
+          \Cast[Nat] ({ j: Nat \where MinimalGridUpper A base step j }))
+      }
+      | succ : \block {
+        \fun (limit: Nat)
+          (ih: GridUpper A base step limit -> \exists { j: Nat \where MinimalGridUpper A base step j })
+          (upper: GridUpper A base step (N.Nat^::succ limit)) \then
+        \return either!{
+          {GridUpper A base step limit} "or" {Logic.Not (GridUpper A base step limit)}
+          "either" {\exists { j: Nat \where MinimalGridUpper A base step j }}
+          "lt:" {ih}
+          "rt:" {\block {
+            \fun (notUpper: Logic.Not (GridUpper A base step limit)) \then
+            \let predecessor: \exists { k: Nat \where
+              Logic.And[N.Nat^::succ limit = N.Nat^::succ k, Logic.Not (GridUpper A base step k)] } :=
+              \exact(\into[Nat](limit, { k: Nat \where
+                Logic.And[N.Nat^::succ limit = N.Nat^::succ k, Logic.Not (GridUpper A base step k)] })
+                \by { Logic.And[_, _]::# (\refl(N.Nat^::succ limit)) notUpper },
+                \Cast[Nat] ({ k: Nat \where
+                  Logic.And[N.Nat^::succ limit = N.Nat^::succ k, Logic.Not (GridUpper A base step k)] })) \then
+            \let boundary: Boundary A base step (N.Nat^::succ limit) := Logic.Or[_, _]::right predecessor \then
+            \return \exact(\into[Nat](N.Nat^::succ limit, { j: Nat \where MinimalGridUpper A base step j })
+              \by { Logic.And[_, _]::# upper boundary },
+              \Cast[Nat] ({ j: Nat \where MinimalGridUpper A base step j }))
+          }}
+        } (Classical.excludedMiddle (GridUpper A base step limit))
+      }
+    };
 
 \definition terminalGridUpper(A: \Pow Real) (base: CauchySeq) (step: Rat):
   Positive step -> BoundedAbove A ->

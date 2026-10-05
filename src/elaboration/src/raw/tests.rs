@@ -90,6 +90,36 @@ fn inference_cache_tracks_shadowing_and_context_validation() {
 }
 
 #[test]
+fn namespace_sharing_checks_free_variables_in_shared_argument_dags() {
+    let env = CrateEnv::new();
+    let a = env.arena();
+    let id = ModuleParamId {
+        module: env.root_module(),
+        position: 0,
+    };
+    let mut body = a.exp_bound(0);
+    for _ in 0..24 {
+        body = a.alloc(ExpNode::App {
+            func: body,
+            arg: body,
+        });
+    }
+    let closed = a.alloc(ExpNode::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty: a.sort(Sort::Set(0)),
+        body,
+    });
+    assert!(env.namespace_arguments_shareable(&[(id, ModuleArgument::Pts(closed))]));
+    for argument in [
+        ModuleArgument::Pts(body),
+        ModuleArgument::ProgramType(a.alloc(ValueTypeNode::Bound(0))),
+        ModuleArgument::ProgramValue(a.alloc(ValueTermNode::Bound(0))),
+    ] {
+        assert!(!env.namespace_arguments_shareable(&[(id, argument)]));
+    }
+}
+
+#[test]
 fn logical_arena_interns_nodes() {
     let env = CrateEnv::new();
     let arena = env.arena();
