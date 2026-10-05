@@ -82,17 +82,17 @@
 
 \definition localAdmissiblePair(topology: Topology):
   IsT1 topology -> IsNormal topology ->
-  \forall (basis: N.Nat^ -> \Pow Carrier) -> IsCountableBasis topology basis ->
+  \forall (basis: N.Nat^ -> \Pow Carrier) -> IsCountableBasis[topology, basis] ->
   \forall (U: \Pow Carrier) -> IsOpenIn topology U -> \forall (x: Carrier) ->
   Member U x ->
   LocalAdmissiblePair topology basis x U := \block {
     \fun (t1: IsT1 topology) (normal: IsNormal topology) (basis: N.Nat^ -> \Pow Carrier)
-      (isBasis: IsCountableBasis topology basis) (U: \Pow Carrier) (open: IsOpenIn topology U)
+      (isBasis: IsCountableBasis[topology, basis]) (U: \Pow Carrier) (open: IsOpenIn topology U)
       (x: Carrier) (member: Member U x) \then
     \takefrom j: \Cast[N.Nat^]
       ({ n : N.Nat^ \where
         Logic.And[Member (basis n) x, Subset (basis n) U] })
-      \by #right{isBasis} U open x member \then
+      \by #refines{isBasis} U open x member \then
     \let jData: Logic.And[Member (basis j) x,
       Subset (basis j) U] :=
       \bysub(N.Nat^,
@@ -102,7 +102,7 @@
       Singleton x, basis j]
       \by Urysohn.shrink topology normal
         (Singleton x) (basis j) (t1 x)
-        (#left{isBasis} j)
+        (#open{isBasis} j)
         (singletonWithin (basis j) x (#left{jData})) \then
     \let xInner: Member (#inner{shrink}) x :=
       #contains{shrink} x (\refl(x)) \then
@@ -110,7 +110,7 @@
       ({ n : N.Nat^ \where
         Logic.And[Member (basis n) x,
           Subset (basis n) (#inner{shrink})] })
-      \by #right{isBasis} (#inner{shrink})
+      \by #refines{isBasis} (#inner{shrink})
         (#innerOpen{shrink}) x xInner \then
     \let iData: Logic.And[Member (basis i) x,
       Subset (basis i) (#inner{shrink})] :=
@@ -195,11 +195,11 @@
 \definition pairSeparatorExists(topology: Topology):
   IsNormal topology ->
   \forall (basis: N.Nat^ -> \Pow Carrier) ->
-  IsCountableBasis topology basis ->
+  IsCountableBasis[topology, basis] ->
   \forall (pair: NatPair.NatPair) ->
   \exists PairSeparator[topology, basis, pair] :=
   \fun (normal: IsNormal topology) (basis: N.Nat^ -> \Pow Carrier)
-    (isBasis: IsCountableBasis topology basis) (pair: NatPair.NatPair) =>
+    (isBasis: IsCountableBasis[topology, basis]) (pair: NatPair.NatPair) =>
     either!{
       {AdmissibleBasisPair topology basis pair} "or" {Logic.Not (AdmissibleBasisPair topology basis pair)} "either" {\exists PairSeparator[topology, basis, pair]}
       "lt:" {\fun (admissible: AdmissibleBasisPair topology basis pair) => \block {
@@ -212,7 +212,7 @@
             (#envelope{data}) (Complement (basis j))
             (#envelopeClosed{data})
             (Urysohn.openComplementClosed topology (basis j)
-              (#left{isBasis} j))
+              (#open{isBasis} j))
             (\fun (x: Carrier) =>
               \fun (inE: Member (#envelope{data}) x) =>
               \fun (outside: Member (Complement (basis j)) x) =>
@@ -266,11 +266,11 @@
 \definition pairSeparatorsExist(topology: Topology):
   IsNormal topology ->
   \forall (basis: N.Nat^ -> \Pow Carrier) ->
-  IsCountableBasis topology basis ->
+  IsCountableBasis[topology, basis] ->
   \exists (\forall (pair: NatPair.NatPair) ->
     PairSeparator[topology, basis, pair]) :=
   \fun (normal: IsNormal topology) (basis: N.Nat^ -> \Pow Carrier)
-    (isBasis: IsCountableBasis topology basis) =>
+    (isBasis: IsCountableBasis[topology, basis]) =>
     \axiom:classicalIndefiniteChoice(
       NatPair.NatPair,
       (\fun (pair: NatPair.NatPair) =>
@@ -311,7 +311,7 @@
 
 \definition locallySeparatingCoordinate(topology: Topology):
   IsT1 topology -> IsNormal topology ->
-  \forall (basis: N.Nat^ -> \Pow Carrier) -> IsCountableBasis topology basis ->
+  \forall (basis: N.Nat^ -> \Pow Carrier) -> IsCountableBasis[topology, basis] ->
   \forall (select: \forall (pair: NatPair.NatPair) ->
     PairSeparator[topology, basis, pair]) ->
   \forall (U: \Pow Carrier) -> IsOpenIn topology U -> \forall (x: Carrier) ->
@@ -321,7 +321,7 @@
       \forall (y: Carrier) -> Logic.Not (Member U y) ->
         #value{(select pair)} y = Real.one] } := \block {
     \fun (t1: IsT1 topology) (normal: IsNormal topology) (basis: N.Nat^ -> \Pow Carrier)
-      (isBasis: IsCountableBasis topology basis)
+      (isBasis: IsCountableBasis[topology, basis])
       (select: \forall (pair: NatPair.NatPair) ->
     PairSeparator[topology, basis, pair]) (U: \Pow Carrier) (open: IsOpenIn topology U)
       (x: Carrier) (member: Member U x) \then
@@ -366,7 +366,7 @@
   basis: N.Nat^ -> \Pow Carrier,
   select: \forall (pair: NatPair.NatPair) ->
     PairSeparator[topology, basis, pair],
-  isBasis: IsCountableBasis topology basis,
+  isBasis: IsCountableBasis[topology, basis],
 }
 
 \definition separationCoordinatesExist(topology: Topology):
@@ -376,12 +376,12 @@
     \fun (t3: IsT3 topology) (secondCountable: IsSecondCountable topology) \then
     \takefrom basis: \Cast[N.Nat^ -> \Pow Carrier]
       ({ f : N.Nat^ -> \Pow Carrier \where
-        IsCountableBasis topology f })
+        IsCountableBasis[topology, f] })
       \by secondCountable \then
-    \let isBasis: IsCountableBasis topology basis :=
+    \let isBasis: IsCountableBasis[topology, basis] :=
       \bysub(N.Nat^ -> \Pow Carrier,
         { f : N.Nat^ -> \Pow Carrier \where
-          IsCountableBasis topology f }, basis) \then
+          IsCountableBasis[topology, f] }, basis) \then
     \takefrom select:
       \forall (pair: NatPair.NatPair) ->
         PairSeparator[topology, basis, pair]

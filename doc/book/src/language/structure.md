@@ -90,6 +90,10 @@ field に本体を付けると、literal で省略した場合の既定の定義
 既定の定義は、literal で指定された field を代入した後に検査される。
 既定値を上書きした場合、その値に依存する後続 field の型と本体にも代入が適用される。
 
+`\Prop` を明示した structure にも既定の証明を付けられる。
+この証明は宣言時に先行 field の文脈で検査され、literal では指定された先行 field を引数として適用される。
+法則付きの集合の literal でも、対応する命題の structure にある既定の証明を利用できる。
+
 ## module と定義への受け渡し
 
 module の parameter にも structure を指定できる。

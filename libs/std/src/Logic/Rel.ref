@@ -2,19 +2,15 @@
 \import std.Logic[].Proposition[] \as Logic;
 \import std.Data[].Pair[] \as Pair;
 
-/* definition */
-\definition Relation[Carrier: \Set]: \PropKind := Carrier -> Carrier -> \Prop;
-
-/* property */
-
-\definition Reflexive(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
-  \forall (x: Carrier) -> R x x;
+\import std.Logic[].Relation[] \as RelationDef;
+\definition Relation[Carrier: \Set]: \PropKind := RelationDef.Relation[Carrier];
+\definition Reflexive(Carrier: \Set)(R: Relation[Carrier]): \Prop := RelationDef.Reflexive Carrier R;
+\definition Symmetric(Carrier: \Set)(R: Relation[Carrier]): \Prop := RelationDef.Symmetric Carrier R;
+\definition Transitive(Carrier: \Set)(R: Relation[Carrier]): \Prop := RelationDef.Transitive Carrier R;
+\definition Equivalence[Carrier: \Set, R: Relation[Carrier]]: \Prop := RelationDef.Equivalence[Carrier, R];
 
 \definition Irreflexive(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x: Carrier) -> R x x -> Logic.False;
-
-\definition Symmetric(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
-  \forall (x, y: Carrier) -> R x y -> R y x;
 
 \definition Antisymmetric(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x, y: Carrier) -> R x y -> R y x -> x = y;
@@ -22,20 +18,11 @@
 \definition Asymmetric(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x, y: Carrier) -> R x y -> R y x -> Logic.False;
 
-\definition Transitive(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
-  \forall (x, y, z: Carrier) -> R x y -> R y z -> R x z;
-
 \definition Total(Carrier: \Set) (R: Relation[Carrier]): \Prop :=
   \forall (x, y: Carrier) -> Logic.Or[R x y, R y x];
 
 \definition Subrelation(Carrier: \Set) (R, S: Relation[Carrier]): \Prop :=
   \forall (x, y: Carrier) -> R x y -> S x y;
-
-\structure Equivalence[Carrier: \Set, R: Relation[Carrier]]: \Prop := {
-  refl: Reflexive Carrier R,
-  sym: Symmetric Carrier R,
-  trans: Transitive Carrier R,
-};
 
 \structure Ordering[Carrier: \Set, R: Relation[Carrier]]: \Prop := {
   refl: Reflexive Carrier R,
@@ -125,17 +112,4 @@
     \forall (x, y: source.Carrier) -> source.relation x y -> class x = class y,
 }
 
-\module QuotientOf(r: RelationData) {
-  \import std.Set[].Quotient[A := r.Carrier, Equivalent := r.relation] \as Q;
-  \definition quotient: QuotientData := QuotientData {
-    source := r,
-    Carrier := Q.Carrier,
-    class := Q.class,
-    relatedEqual := \fun (laws: Equivalence[r.Carrier, r.relation]) =>
-      Q.classOfEq (Q.EquivalenceLaws {
-        reflexive := laws.refl,
-        symmetric := laws.sym,
-        transitive := laws.trans,
-      }),
-  };
-}
+\module QuotientOf(r: RelationData);

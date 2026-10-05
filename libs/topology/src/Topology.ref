@@ -213,17 +213,16 @@
   \fun (t3: IsT3 topology) (x, y: Carrier) (different: Logic.Not (x = y)) =>
       #right{t3} (Singleton y) (#left{t3} y) x different;
 
-\definition IsCountableBasis(topology: Topology) (basis: N.Nat^ -> \Pow Carrier): \Prop :=
-  Logic.And[
-    \forall (n: N.Nat^) -> IsOpenIn topology (basis n),
-    \forall (U: \Pow Carrier) -> IsOpenIn topology U ->
-      \forall (x: Carrier) -> Member U x ->
-        \exists { n : N.Nat^ \where
-          Logic.And[Member (basis n) x, Subset (basis n) U] }];
+\structure IsCountableBasis[topology: Topology, basis: N.Nat^ -> \Pow Carrier]: \Prop {
+  open: \forall (n: N.Nat^) -> IsOpenIn topology (basis n),
+  refines: \forall (U: \Pow Carrier) -> IsOpenIn topology U ->
+    \forall (x: Carrier) -> Member U x ->
+      \exists { n: N.Nat^ \where Logic.And[Member (basis n) x, Subset (basis n) U] },
+}
 
 \definition IsSecondCountable(topology: Topology): \Prop :=
   \exists { basis : N.Nat^ -> \Pow Carrier \where
-    IsCountableBasis topology basis };
+    IsCountableBasis[topology, basis] };
 
 \structure NormalChoice[
   topology: Topology, F, G, U: \Pow Carrier,
@@ -243,25 +242,27 @@
 \definition Covers(family: \Pow (\Pow Carrier)) (S: \Pow Carrier): \Prop :=
   Subset S (Union family);
 
-\definition IsOpenCover(topology: Topology) (family: \Pow (\Pow Carrier)) (S: \Pow Carrier):
-  \Prop :=
-  Logic.And[Covers family S,
-    \forall (U: \Pow Carrier) -> FamilyMember family U -> IsOpenIn topology U];
+\structure IsOpenCover[topology: Topology, family: \Pow (\Pow Carrier), S: \Pow Carrier]: \Prop {
+  covers: Covers family S,
+  open: \forall (U: \Pow Carrier) -> FamilyMember family U -> IsOpenIn topology U,
+}
 
-\definition IsCompactIn(topology: Topology) (S: \Pow Carrier): \Prop :=
-  \forall (family: \Pow (\Pow Carrier)) -> IsOpenCover topology family S ->
-    \exists { finite : FiniteFamilies.FiniteSubset \where
-      Logic.And[\forall (U: \Pow Carrier) ->
-        FiniteFamilies.Member finite U -> FamilyMember family U,
-        Covers (FiniteFamilies.underlying finite) S] };
+\structure FiniteSubcover[family: \Pow (\Pow Carrier), S: \Pow Carrier, finite: FiniteFamilies.FiniteSubset]: \Prop {
+  included: \forall (U: \Pow Carrier) -> FiniteFamilies.Member finite U -> FamilyMember family U,
+  covers: Covers (FiniteFamilies.underlying finite) S,
+}
+
+\definition IsCompactIn(topology: Topology)(S: \Pow Carrier): \Prop :=
+  \forall (family: \Pow (\Pow Carrier)) -> IsOpenCover[topology, family, S] ->
+    \exists { finite: FiniteFamilies.FiniteSubset \where FiniteSubcover[family, S, finite] };
 
 \definition IsCompact(topology: Topology): \Prop :=
   IsCompactIn topology Whole;
 
 \definition GeneratedOpen(basis: \Pow (\Pow Carrier)) (S: \Pow Carrier): \Prop :=
-  \forall (candidate: TopologyData) -> TopologyLaws[candidate] ->
-    (\forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpen candidate U) ->
-    IsOpen candidate S;
+  \forall (candidate: Topology) ->
+    (\forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpenIn candidate U) ->
+    IsOpenIn candidate S;
 
 \definition GeneratedRaw(basis: \Pow (\Pow Carrier)): TopologyData :=
   TopologyData {
@@ -270,33 +271,29 @@
 
 \definition generatedLaws(basis: \Pow (\Pow Carrier)): TopologyLaws[GeneratedRaw basis] :=
   TopologyLaws[GeneratedRaw basis] {
-    emptyOpen := \fun (candidate: TopologyData) =>
-      \fun (h: TopologyLaws[candidate]) =>
-      \fun (_: \forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpen candidate U) =>
-        #emptyOpen{h},
-    wholeOpen := \fun (candidate: TopologyData) =>
-      \fun (h: TopologyLaws[candidate]) =>
-      \fun (_: \forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpen candidate U) =>
-        #wholeOpen{h},
+    emptyOpen := \fun (candidate: Topology) =>
+      \fun (_: \forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpenIn candidate U) =>
+        #emptyOpen{(topologyLaws candidate)},
+    wholeOpen := \fun (candidate: Topology) =>
+      \fun (_: \forall (U: \Pow Carrier) -> FamilyMember basis U -> IsOpenIn candidate U) =>
+        #wholeOpen{(topologyLaws candidate)},
     unionOpen := \fun (family: \Pow (\Pow Carrier)) =>
       \fun (allOpen: \forall (S: \Pow Carrier) -> FamilyMember family S ->
         IsOpen (GeneratedRaw basis) S) =>
-      \fun (candidate: TopologyData) =>
-      \fun (h: TopologyLaws[candidate]) =>
+      \fun (candidate: Topology) =>
       \fun (containsBasis: \forall (U: \Pow Carrier) -> FamilyMember basis U ->
-        IsOpen candidate U) =>
-        #unionOpen{h} family
+        IsOpenIn candidate U) =>
+        #unionOpen{(topologyLaws candidate)} family
           (\fun (S: \Pow Carrier) => \fun (member: FamilyMember family S) =>
-            allOpen S member candidate h containsBasis),
+            allOpen S member candidate containsBasis),
     intersectionOpen := \fun (S, T: \Pow Carrier) =>
       \fun (sOpen: IsOpen (GeneratedRaw basis) S) =>
       \fun (tOpen: IsOpen (GeneratedRaw basis) T) =>
-      \fun (candidate: TopologyData) =>
-      \fun (h: TopologyLaws[candidate]) =>
+      \fun (candidate: Topology) =>
       \fun (containsBasis: \forall (U: \Pow Carrier) -> FamilyMember basis U ->
-        IsOpen candidate U) =>
-        #intersectionOpen{h} S T
-          (sOpen candidate h containsBasis) (tOpen candidate h containsBasis),
+        IsOpenIn candidate U) =>
+        #intersectionOpen{(topologyLaws candidate)} S T
+          (sOpen candidate containsBasis) (tOpen candidate containsBasis),
   };
 
 \definition generated(basis: \Pow (\Pow Carrier)): Topology :=
@@ -315,10 +312,9 @@
     \idelim GeneratedRaw basis = topologyData (generated basis)
       \with candidate: TopologyData => IsOpen candidate S
       \by {
-        base: \fun (candidate: TopologyData) =>
-          \fun (_: TopologyLaws[candidate]) =>
+        base: \fun (candidate: Topology) =>
           \fun (containsBasis: \forall (U: \Pow Carrier) ->
-            FamilyMember basis U -> IsOpen candidate U) =>
+            FamilyMember basis U -> IsOpenIn candidate U) =>
             containsBasis S member,
         equality: sym!{TopologyData}
           (topologyData (generated basis)) (GeneratedRaw basis) (generatedRawEq basis)
@@ -335,7 +331,7 @@
     (\idelim topologyData (generated basis) = GeneratedRaw basis
       \with source: TopologyData => IsOpen source S
       \by { base: open, equality: generatedRawEq basis })
-      (topologyData candidate) (topologyLaws candidate) containsBasis;
+      candidate containsBasis;
 
 \definition IndiscreteBasis: \Pow (\Pow Carrier) :=
   { S : \Pow Carrier \where Logic.Or[S = Empty, S = Whole] };

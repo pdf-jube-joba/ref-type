@@ -172,22 +172,22 @@
       \Cast[Rat] ({ a : Rat \where Logic.And[mem x a, Logic.Not (mem x (addRat a e))] }))
   };
 
-\definition sumIntro(x, y: Real) (q, a, b: Rat):
+\definition sumIntro(x, y: Real)(q, a, b: Rat):
   mem x a -> mem y b -> lt q (addRat a b) -> In (Def.SumLower x y) q :=
-  \fun (xa: _) (yb: _) (qab: _) (P: \Prop) (use: _) =>
-    use a b (Def.SumWitness[x, y, q, a, b] {
-      leftMember := xa,
-      rightMember := yb,
-      below := qab,
-    });
+  \fun (xa: _) (yb: _) (qab: _) =>
+    \exact(Def.SumWitness[x, y, q] {
+      left := a, right := b, leftMember := xa, rightMember := yb, below := qab,
+    }, Def.SumWitness[x, y, q]);
 
-\definition sumElim(x, y: Real) (q: Rat):
+\definition sumElim(x, y: Real)(q: Rat):
   In (Def.SumLower x y) q -> \forall (P: \Prop) ->
-  (\forall (a, b: Rat) -> mem x a -> mem y b -> lt q (addRat a b) -> P) -> P :=
-  \fun (member: In (Def.SumLower x y) q) (P: \Prop)
-    (use: \forall (a, b: Rat) -> mem x a -> mem y b -> lt q (addRat a b) -> P) =>
-      member P (\fun (a, b: Rat) (witness: Def.SumWitness[x, y, q, a, b]) =>
-        use a b (#leftMember{witness}) (#rightMember{witness}) (#below{witness}));
+  (\forall (a, b: Rat) -> mem x a -> mem y b -> lt q (addRat a b) -> P) -> P := \block {
+    \fun (member: In (Def.SumLower x y) q) (P: \Prop)
+      (use: \forall (a, b: Rat) -> mem x a -> mem y b -> lt q (addRat a b) -> P) \then
+    \takefrom witness: Def.SumWitness[x, y, q] \by member \then
+    \return use #left{witness} #right{witness}
+      #leftMember{witness} #rightMember{witness} #below{witness}
+  };
 
 \definition sumContainsAdd(x, y: Real) (a, b: Rat):
   mem x a -> mem y b ->
@@ -452,9 +452,16 @@
     mem y c -> Logic.Not (mem y d) ->
     lt q (mulRat a c) -> lt q (mulRat a d) ->
     lt q (mulRat b c) -> lt q (mulRat b d) -> P) ->
-  P :=
-  \fun (member: _) =>
-    member;
+  P := \block {
+    \fun (member: Def.ProductBelow x y q) (P: \Prop)
+      (use: \forall (a, b, c, d: Rat) -> mem x a -> Logic.Not (mem x b) ->
+        mem y c -> Logic.Not (mem y d) -> lt q (mulRat a c) -> lt q (mulRat a d) ->
+        lt q (mulRat b c) -> lt q (mulRat b d) -> P) \then
+    \takefrom witness: Def.ProductWitness[x, y, q] \by member \then
+    \return use #leftLower{witness} #leftUpper{witness} #rightLower{witness} #rightUpper{witness}
+      #leftMember{witness} #leftOutside{witness} #rightMember{witness} #rightOutside{witness}
+      #lowerLower{witness} #lowerUpper{witness} #upperLower{witness} #upperUpper{witness}
+  };
 
 \definition positiveCornersImpossible(u, v, a, b, c, d: Rat):
   lt zeroRat u -> lt zeroRat v -> lt a u ->
@@ -507,111 +514,136 @@
       \bysub(Rat, { v : Rat \where SymmetricBoundLaw[y, v] }, v) \then
     \return \exact(
       \into[Rat](mulRat u v, { q : Rat \where Logic.Not (In (Def.MulLower x y) q) }) \by { \fun (member: Def.ProductBelow x y (mulRat u v)) =>
-          productBelowElim x y (mulRat u v) member Logic.False
-            (\fun (a, b, c, d: Rat) =>
-              \fun (xa: mem x a) =>
-              \fun (xb: Logic.Not (mem x b)) =>
-              \fun (yc: mem y c) =>
-              \fun (yd: Logic.Not (mem y d)) =>
-              \fun (ac: lt (mulRat u v) (mulRat a c)) =>
-              \fun (ad: lt (mulRat u v) (mulRat a d)) =>
-              \fun (bc: lt (mulRat u v) (mulRat b c)) =>
-              \fun (bd: lt (mulRat u v) (mulRat b d)) =>
-                \block {
-                  \let au: lt a u := memberLtOutside x a u xa
-                    (#outside{uLaw}) \then
-                  \let nub: lt (negRat u) b :=
-                    memberLtOutside x (negRat u) b
-                      (#inside{uLaw}) xb \then
-                  \let cv: lt c v := memberLtOutside y c v yc
-                    (#outside{vLaw}) \then
-                  \let nvd: lt (negRat v) d :=
-                    memberLtOutside y (negRat v) d
-                      (#inside{vLaw}) yd \then
-                  \return positiveCornersImpossible u v a b c d
-                    (#positive{uLaw})
-                    (#positive{vLaw})
-                    au nub cv nvd ac ad bc bd
-                }) },
+          \block {
+            \takefrom productWitness: Def.ProductWitness[x, y, (mulRat u v)]
+              \by member \then
+            \let a: _ := #leftLower{productWitness} \then
+            \let b: _ := #leftUpper{productWitness} \then
+            \let c: _ := #rightLower{productWitness} \then
+            \let d: _ := #rightUpper{productWitness} \then
+            \let xa: _ := #leftMember{productWitness} \then
+            \let xb: _ := #leftOutside{productWitness} \then
+            \let yc: _ := #rightMember{productWitness} \then
+            \let yd: _ := #rightOutside{productWitness} \then
+            \let ac: _ := #lowerLower{productWitness} \then
+            \let ad: _ := #lowerUpper{productWitness} \then
+            \let bc: _ := #upperLower{productWitness} \then
+            \let bd: _ := #upperUpper{productWitness} \then
+            \let au: lt a u := memberLtOutside x a u xa
+              (#outside{uLaw}) \then
+            \let nub: lt (negRat u) b :=
+              memberLtOutside x (negRat u) b
+                (#inside{uLaw}) xb \then
+            \let cv: lt c v := memberLtOutside y c v yc
+              (#outside{vLaw}) \then
+            \let nvd: lt (negRat v) d :=
+              memberLtOutside y (negRat v) d
+                (#inside{vLaw}) yd \then
+            \return positiveCornersImpossible u v a b c d
+              (#positive{uLaw})
+              (#positive{vLaw})
+              au nub cv nvd ac ad bc bd
+          } },
       \Cast[Rat] ({ q : Rat \where Logic.Not (In (Def.MulLower x y) q) }))
   };
 
 \definition productLower(x, y: Real): Lower (Def.MulLower x y) :=
   \fun (p, q: Rat) (pq: lt p q) (member: Def.ProductBelow x y q) =>
-      productBelowElim x y q member (Def.ProductBelow x y p)
-        (\fun (a, b, c, d: Rat) =>
-          \fun (xa: mem x a) => \fun (xb: Logic.Not (mem x b)) =>
-          \fun (yc: mem y c) => \fun (yd: Logic.Not (mem y d)) =>
-          \fun (ac: lt q (mulRat a c)) =>
-          \fun (ad: lt q (mulRat a d)) =>
-          \fun (bc: lt q (mulRat b c)) =>
-          \fun (bd: lt q (mulRat b d)) =>
-            Def.productBelowIntro x y p a b c d xa xb yc yd
+      \block {
+        \takefrom productWitness: Def.ProductWitness[x, y, q]
+          \by member \then
+        \let a: _ := #leftLower{productWitness} \then
+        \let b: _ := #leftUpper{productWitness} \then
+        \let c: _ := #rightLower{productWitness} \then
+        \let d: _ := #rightUpper{productWitness} \then
+        \let xa: _ := #leftMember{productWitness} \then
+        \let xb: _ := #leftOutside{productWitness} \then
+        \let yc: _ := #rightMember{productWitness} \then
+        \let yd: _ := #rightOutside{productWitness} \then
+        \let ac: _ := #lowerLower{productWitness} \then
+        \let ad: _ := #lowerUpper{productWitness} \then
+        \let bc: _ := #upperLower{productWitness} \then
+        \let bd: _ := #upperUpper{productWitness} \then
+        \return Def.productBelowIntro x y p a b c d xa xb yc yd
               (RationalOrder.ltTrans p q (mulRat a c) pq ac)
               (RationalOrder.ltTrans p q (mulRat a d) pq ad)
               (RationalOrder.ltTrans p q (mulRat b c) pq bc)
-              (RationalOrder.ltTrans p q (mulRat b d) pq bd));
+              (RationalOrder.ltTrans p q (mulRat b d) pq bd)
+      };
 
 \definition productRounded(x, y: Real): Rounded (Def.MulLower x y) :=
   \fun (q: Rat) (member: Def.ProductBelow x y q) =>
-    productBelowElim x y q member
-      (\exists { r : Rat \where Logic.And[In (Def.MulLower x y) r, lt q r] })
-      (\fun (a, b, c, d: Rat) =>
-        \fun (xa: mem x a) => \fun (xb: Logic.Not (mem x b)) =>
-        \fun (yc: mem y c) => \fun (yd: Logic.Not (mem y d)) =>
-        \fun (ac: lt q (mulRat a c)) =>
-        \fun (ad: lt q (mulRat a d)) =>
-        \fun (bc: lt q (mulRat b c)) =>
-        \fun (bd: lt q (mulRat b d)) =>
-          \block {
-            \takefrom u: \Cast[Rat] ({ u : Rat \where Estimates.BetweenBothLaw[q, mulRat a c, mulRat a d, u] })
-              \by Estimates.betweenBoth q (mulRat a c) (mulRat a d) ac ad \then
-            \takefrom v: \Cast[Rat] ({ v : Rat \where Estimates.BetweenBothLaw[q, mulRat b c, mulRat b d, v] })
-              \by Estimates.betweenBoth q (mulRat b c) (mulRat b d) bc bd \then
-            \let uLaw: Estimates.BetweenBothLaw[q, mulRat a c, mulRat a d, u] :=
-              \bysub(Rat, { u : Rat \where Estimates.BetweenBothLaw[q, mulRat a c, mulRat a d, u] }, u) \then
-            \let vLaw: Estimates.BetweenBothLaw[q, mulRat b c, mulRat b d, v] :=
-              \bysub(Rat, { v : Rat \where Estimates.BetweenBothLaw[q, mulRat b c, mulRat b d, v] }, v) \then
-            \takefrom r: \Cast[Rat] ({ r : Rat \where Estimates.BetweenBothLaw[q, u, v, r] })
-              \by Estimates.betweenBoth q u v #above{uLaw} #above{vLaw} \then
-            \let rLaw: Estimates.BetweenBothLaw[q, u, v, r] :=
-              \bysub(Rat, { r : Rat \where Estimates.BetweenBothLaw[q, u, v, r] }, r) \then
-            \let qr: lt q r := #above{rLaw} \then
-            \let ru: lt r u := #belowLeft{rLaw} \then
-            \let rv: lt r v := #belowRight{rLaw} \then
-            \let uac: lt u (mulRat a c) := #belowLeft{uLaw} \then
-            \let uad: lt u (mulRat a d) := #belowRight{uLaw} \then
-            \let vbc: lt v (mulRat b c) := #belowLeft{vLaw} \then
-            \let vbd: lt v (mulRat b d) := #belowRight{vLaw} \then
-            \let rac: lt r (mulRat a c) :=
-              RationalOrder.ltTrans r u (mulRat a c) ru uac \then
-            \let rad: lt r (mulRat a d) :=
-              RationalOrder.ltTrans r u (mulRat a d) ru uad \then
-            \let rbc: lt r (mulRat b c) :=
-              RationalOrder.ltTrans r v (mulRat b c) rv vbc \then
-            \let rbd: lt r (mulRat b d) :=
-              RationalOrder.ltTrans r v (mulRat b d) rv vbd \then
-            \return \exact(
-              \into[Rat](r, { r : Rat \where Logic.And[In (Def.MulLower x y) r, lt q r] }) \by { Logic.And[In (Def.MulLower x y) r, lt q r]::# (Def.productBelowIntro x y r a b c d
-                    xa xb yc yd rac rad rbc rbd) qr },
-              \Cast[Rat] ({ r : Rat \where Logic.And[In (Def.MulLower x y) r, lt q r] }))
-          });
+    \block {
+      \takefrom productWitness: Def.ProductWitness[x, y, q]
+        \by member \then
+      \let a: _ := #leftLower{productWitness} \then
+      \let b: _ := #leftUpper{productWitness} \then
+      \let c: _ := #rightLower{productWitness} \then
+      \let d: _ := #rightUpper{productWitness} \then
+      \let xa: _ := #leftMember{productWitness} \then
+      \let xb: _ := #leftOutside{productWitness} \then
+      \let yc: _ := #rightMember{productWitness} \then
+      \let yd: _ := #rightOutside{productWitness} \then
+      \let ac: _ := #lowerLower{productWitness} \then
+      \let ad: _ := #lowerUpper{productWitness} \then
+      \let bc: _ := #upperLower{productWitness} \then
+      \let bd: _ := #upperUpper{productWitness} \then
+      \takefrom u: \Cast[Rat] ({ u : Rat \where Estimates.BetweenBothLaw[q, mulRat a c, mulRat a d, u] })
+        \by Estimates.betweenBoth q (mulRat a c) (mulRat a d) ac ad \then
+      \takefrom v: \Cast[Rat] ({ v : Rat \where Estimates.BetweenBothLaw[q, mulRat b c, mulRat b d, v] })
+        \by Estimates.betweenBoth q (mulRat b c) (mulRat b d) bc bd \then
+      \let uLaw: Estimates.BetweenBothLaw[q, mulRat a c, mulRat a d, u] :=
+        \bysub(Rat, { u : Rat \where Estimates.BetweenBothLaw[q, mulRat a c, mulRat a d, u] }, u) \then
+      \let vLaw: Estimates.BetweenBothLaw[q, mulRat b c, mulRat b d, v] :=
+        \bysub(Rat, { v : Rat \where Estimates.BetweenBothLaw[q, mulRat b c, mulRat b d, v] }, v) \then
+      \takefrom r: \Cast[Rat] ({ r : Rat \where Estimates.BetweenBothLaw[q, u, v, r] })
+        \by Estimates.betweenBoth q u v #above{uLaw} #above{vLaw} \then
+      \let rLaw: Estimates.BetweenBothLaw[q, u, v, r] :=
+        \bysub(Rat, { r : Rat \where Estimates.BetweenBothLaw[q, u, v, r] }, r) \then
+      \let qr: lt q r := #above{rLaw} \then
+      \let ru: lt r u := #belowLeft{rLaw} \then
+      \let rv: lt r v := #belowRight{rLaw} \then
+      \let uac: lt u (mulRat a c) := #belowLeft{uLaw} \then
+      \let uad: lt u (mulRat a d) := #belowRight{uLaw} \then
+      \let vbc: lt v (mulRat b c) := #belowLeft{vLaw} \then
+      \let vbd: lt v (mulRat b d) := #belowRight{vLaw} \then
+      \let rac: lt r (mulRat a c) :=
+        RationalOrder.ltTrans r u (mulRat a c) ru uac \then
+      \let rad: lt r (mulRat a d) :=
+        RationalOrder.ltTrans r u (mulRat a d) ru uad \then
+      \let rbc: lt r (mulRat b c) :=
+        RationalOrder.ltTrans r v (mulRat b c) rv vbc \then
+      \let rbd: lt r (mulRat b d) :=
+        RationalOrder.ltTrans r v (mulRat b d) rv vbd \then
+      \return \exact(
+        \into[Rat](r, { r : Rat \where Logic.And[In (Def.MulLower x y) r, lt q r] }) \by { Logic.And[In (Def.MulLower x y) r, lt q r]::# (Def.productBelowIntro x y r a b c d
+              xa xb yc yd rac rad rbc rbd) qr },
+        \Cast[Rat] ({ r : Rat \where Logic.And[In (Def.MulLower x y) r, lt q r] }))
+    };
 
 \definition productRespects(x, y: Real): RespectsFractionEq (Def.MulLower x y) :=
   \fun (p, q: Rat) (pq: RationalFractions.FractionEq p q) (member: Def.ProductBelow x y p) =>
-        productBelowElim x y p member (Def.ProductBelow x y q)
-          (\fun (a, b, c, d: Rat) =>
-            \fun (xa: mem x a) => \fun (xb: Logic.Not (mem x b)) =>
-            \fun (yc: mem y c) => \fun (yd: Logic.Not (mem y d)) =>
-            \fun (ac: lt p (mulRat a c)) =>
-            \fun (ad: lt p (mulRat a d)) =>
-            \fun (bc: lt p (mulRat b c)) =>
-            \fun (bd: lt p (mulRat b d)) =>
-              Def.productBelowIntro x y q a b c d xa xb yc yd
+        \block {
+          \takefrom productWitness: Def.ProductWitness[x, y, p]
+            \by member \then
+          \let a: _ := #leftLower{productWitness} \then
+          \let b: _ := #leftUpper{productWitness} \then
+          \let c: _ := #rightLower{productWitness} \then
+          \let d: _ := #rightUpper{productWitness} \then
+          \let xa: _ := #leftMember{productWitness} \then
+          \let xb: _ := #leftOutside{productWitness} \then
+          \let yc: _ := #rightMember{productWitness} \then
+          \let yd: _ := #rightOutside{productWitness} \then
+          \let ac: _ := #lowerLower{productWitness} \then
+          \let ad: _ := #lowerUpper{productWitness} \then
+          \let bc: _ := #upperLower{productWitness} \then
+          \let bd: _ := #upperUpper{productWitness} \then
+          \return Def.productBelowIntro x y q a b c d xa xb yc yd
                 (RationalOrder.ltReplaceLeft p q (mulRat a c) pq ac)
                 (RationalOrder.ltReplaceLeft p q (mulRat a d) pq ad)
                 (RationalOrder.ltReplaceLeft p q (mulRat b c) pq bc)
-                (RationalOrder.ltReplaceLeft p q (mulRat b d) pq bd));
+                (RationalOrder.ltReplaceLeft p q (mulRat b d) pq bd)
+        };
 
 \definition mulCut(x, y: Real): IsCut[Def.MulLower x y] :=
   IsCut[Def.MulLower x y] {
@@ -623,18 +655,14 @@
     respects := productRespects x y,
   };
 
-\definition reciprocalBelowIntro(x: Real) (q, a, b, r: Rat):
-  mem x a -> Logic.Not (mem x b) ->
-  lt zeroRat (mulRat a b) ->
-  RationalFractions.FractionEq (mulRat b r) oneRat -> lt q r ->
-  Def.ReciprocalBelow x q :=
-  \fun (xa: mem x a) (xb: Logic.Not (mem x b)) (positive: lt zeroRat (mulRat a b))
-    (law: RationalFractions.FractionEq (mulRat b r) oneRat) (qr: lt q r) (P: \Prop)
-    (use: \forall (a, b, r: Rat) -> mem x a ->
-        Logic.Not (mem x b) -> lt zeroRat (mulRat a b) ->
-        RationalFractions.FractionEq (mulRat b r) oneRat ->
-        lt q r -> P) =>
-        use a b r xa xb positive law qr;
+\definition reciprocalBelowIntro(x: Real)(q, a, b, r: Rat):
+  mem x a -> Logic.Not (mem x b) -> lt zeroRat (mulRat a b) ->
+  RationalFractions.FractionEq (mulRat b r) oneRat -> lt q r -> Def.ReciprocalBelow x q :=
+  \fun (xa: _) (xb: _) (positive: _) (law: _) (qr: _) =>
+    \exact(Def.ReciprocalWitness[x, q] {
+      lower := a, upper := b, reciprocal := r,
+      member := xa, outside := xb, positive := positive, inverse := law, below := qr,
+    }, Def.ReciprocalWitness[x, q]);
 
 \definition reciprocalBelowElim(x: Real) (q: Rat):
   Def.ReciprocalBelow x q -> \forall (P: \Prop) ->
@@ -642,9 +670,14 @@
     Logic.Not (mem x b) -> lt zeroRat (mulRat a b) ->
     RationalFractions.FractionEq (mulRat b r) oneRat ->
     lt q r -> P) ->
-  P :=
-  \fun (member: _) =>
-    member;
+  P := \block {
+    \fun (member: Def.ReciprocalBelow x q) (P: \Prop)
+      (use: \forall (a, b, r: Rat) -> mem x a -> Logic.Not (mem x b) ->
+        lt zeroRat (mulRat a b) -> RationalFractions.FractionEq (mulRat b r) oneRat -> lt q r -> P) \then
+    \takefrom witness: Def.ReciprocalWitness[x, q] \by member \then
+    \return use #lower{witness} #upper{witness} #reciprocal{witness}
+      #member{witness} #outside{witness} #positive{witness} #inverse{witness} #below{witness}
+  };
 
 \definition zeroReal: Real :=
   \into[\Pow Rat](Def.RatLower zeroRat, CutSet) \by { ratCut zeroRat };
@@ -821,17 +854,20 @@
               Def.ReciprocalBelow x p]]::right
             (Logic.And[
               Logic.Not (underlying x = Def.RatLower zeroRat),
-              Def.ReciprocalBelow x p]::# (#left{away}) (reciprocalBelowElim x q
-                  (#right{away})
-                  (Def.ReciprocalBelow x p)
-                  (\fun (a, b, r: Rat) => \fun (xa: mem x a) =>
-                    \fun (xb: Logic.Not (mem x b)) =>
-                    \fun (positive: lt zeroRat (mulRat a b)) =>
-                    \fun (law: RationalFractions.FractionEq
-                      (mulRat b r) oneRat) =>
-                    \fun (qr: lt q r) =>
-                      reciprocalBelowIntro x p a b r xa xb positive law
-                        (RationalOrder.ltTrans p q r pq qr))))}
+              Def.ReciprocalBelow x p]::# (#left{away}) (\block {
+                \takefrom reciprocalWitness: Def.ReciprocalWitness[x, q]
+                  \by (#right{away}) \then
+                \let a: _ := #lower{reciprocalWitness} \then
+                \let b: _ := #upper{reciprocalWitness} \then
+                \let r: _ := #reciprocal{reciprocalWitness} \then
+                \let xa: _ := #member{reciprocalWitness} \then
+                \let xb: _ := #outside{reciprocalWitness} \then
+                \let positive: _ := #positive{reciprocalWitness} \then
+                \let law: _ := #inverse{reciprocalWitness} \then
+                \let qr: _ := #below{reciprocalWitness} \then
+                \return reciprocalBelowIntro x p a b r xa xb positive law
+                        (RationalOrder.ltTrans p q r pq qr)
+              }))}
       }
         member;
 
@@ -859,31 +895,32 @@
       "rt:" {\fun (away: Logic.And[
         Logic.Not (underlying x = Def.RatLower zeroRat),
         Def.ReciprocalBelow x q]) =>
-        reciprocalBelowElim x q
-          (#right{away})
-          (\exists { s : Rat \where Logic.And[In (Def.InvLower x) s, lt q s] })
-          (\fun (a, b, r: Rat) => \fun (xa: mem x a) =>
-            \fun (xb: Logic.Not (mem x b)) =>
-            \fun (positive: lt zeroRat (mulRat a b)) =>
-            \fun (law: RationalFractions.FractionEq
-              (mulRat b r) oneRat) =>
-            \fun (qr: lt q r) =>
-              \block {
-                \let s: Rat := RationalOperations.midpoint q r \then
-                \return \exact(
-                  \into[Rat](s, { s : Rat \where Logic.And[In (Def.InvLower x) s, lt q s] }) \by { Logic.And[In (Def.InvLower x) s, lt q s]::# (Logic.Or[
-                        Logic.And[underlying x = Def.RatLower zeroRat,
-                          lt s zeroRat],
-                        Logic.And[
-                          Logic.Not (underlying x = Def.RatLower zeroRat),
-                          Def.ReciprocalBelow x s]]::right
-                        (Logic.And[
-                          Logic.Not (underlying x = Def.RatLower zeroRat),
-                          Def.ReciprocalBelow x s]::# (#left{away}) (reciprocalBelowIntro x s a b r xa xb
-                              positive law
-                              (RationalOperationsProp.midpointLt q r qr)))) (RationalOperationsProp.ltMidpoint q r qr) },
-                  \Cast[Rat] ({ s : Rat \where Logic.And[In (Def.InvLower x) s, lt q s] }))
-              })}
+        \block {
+          \takefrom reciprocalWitness: Def.ReciprocalWitness[x, q]
+            \by (#right{away}) \then
+          \let a: _ := #lower{reciprocalWitness} \then
+          \let b: _ := #upper{reciprocalWitness} \then
+          \let r: _ := #reciprocal{reciprocalWitness} \then
+          \let xa: _ := #member{reciprocalWitness} \then
+          \let xb: _ := #outside{reciprocalWitness} \then
+          \let positive: _ := #positive{reciprocalWitness} \then
+          \let law: _ := #inverse{reciprocalWitness} \then
+          \let qr: _ := #below{reciprocalWitness} \then
+          \let s: Rat := RationalOperations.midpoint q r \then
+          \return \exact(
+            \into[Rat](s, { s : Rat \where Logic.And[In (Def.InvLower x) s, lt q s] }) \by { Logic.And[In (Def.InvLower x) s, lt q s]::# (Logic.Or[
+                  Logic.And[underlying x = Def.RatLower zeroRat,
+                    lt s zeroRat],
+                  Logic.And[
+                    Logic.Not (underlying x = Def.RatLower zeroRat),
+                    Def.ReciprocalBelow x s]]::right
+                  (Logic.And[
+                    Logic.Not (underlying x = Def.RatLower zeroRat),
+                    Def.ReciprocalBelow x s]::# (#left{away}) (reciprocalBelowIntro x s a b r xa xb
+                        positive law
+                        (RationalOperationsProp.midpointLt q r qr)))) (RationalOperationsProp.ltMidpoint q r qr) },
+            \Cast[Rat] ({ s : Rat \where Logic.And[In (Def.InvLower x) s, lt q s] }))
+        }}
     }
       member;
 
@@ -911,17 +948,20 @@
                 Def.ReciprocalBelow x q]]::right
               (Logic.And[
                 Logic.Not (underlying x = Def.RatLower zeroRat),
-                Def.ReciprocalBelow x q]::# (#left{away}) (reciprocalBelowElim x p
-                    (#right{away})
-                    (Def.ReciprocalBelow x q)
-                    (\fun (a, b, r: Rat) => \fun (xa: mem x a) =>
-                      \fun (xb: Logic.Not (mem x b)) =>
-                      \fun (positive: lt zeroRat (mulRat a b)) =>
-                      \fun (law: RationalFractions.FractionEq
-                        (mulRat b r) oneRat) =>
-                      \fun (pr: lt p r) =>
-                        reciprocalBelowIntro x q a b r xa xb positive law
-                          (RationalOrder.ltReplaceLeft p q r same pr))))}
+                Def.ReciprocalBelow x q]::# (#left{away}) (\block {
+                  \takefrom reciprocalWitness: Def.ReciprocalWitness[x, p]
+                    \by (#right{away}) \then
+                  \let a: _ := #lower{reciprocalWitness} \then
+                  \let b: _ := #upper{reciprocalWitness} \then
+                  \let r: _ := #reciprocal{reciprocalWitness} \then
+                  \let xa: _ := #member{reciprocalWitness} \then
+                  \let xb: _ := #outside{reciprocalWitness} \then
+                  \let positive: _ := #positive{reciprocalWitness} \then
+                  \let law: _ := #inverse{reciprocalWitness} \then
+                  \let pr: _ := #below{reciprocalWitness} \then
+                  \return reciprocalBelowIntro x q a b r xa xb positive law
+                          (RationalOrder.ltReplaceLeft p q r same pr)
+                }))}
         }
           member;
 
@@ -973,29 +1013,29 @@
             "rt:" {\fun (away: Logic.And[
               Logic.Not (underlying x = Def.RatLower zeroRat),
               Def.ReciprocalBelow x zeroRat]) =>
-              reciprocalBelowElim x zeroRat
-                (#right{away})
-                Logic.False
-                (\fun (a, b, r: Rat) => \fun (xa: mem x a) =>
-                  \fun (_: Logic.Not (mem x b)) =>
-                  \fun (productPositive: lt zeroRat (mulRat a b)) =>
-                  \fun (law: RationalFractions.FractionEq
-                    (mulRat b r) oneRat) =>
-                  \fun (zeroR: lt zeroRat r) =>
-                    \block {
-                      \let au: lt a u := memberLtOutside x a u xa xu \then
-                      \let aNegative: lt a zeroRat :=
-                        RationalOrder.ltTrans a u zeroRat au uNegative \then
-                      \let bNegative: lt b zeroRat :=
-                        RationalOperationsProp.negativeRightOfPositiveProduct
-                          a b aNegative productPositive \then
-                      \let rNegative: lt r zeroRat :=
-                        RationalOperationsProp.negativeOfNegativeProductOne
-                          b r bNegative law \then
-                      \return RationalOrder.ltIrrefl zeroRat
-                        (RationalOrder.ltTrans zeroRat r zeroRat
-                          zeroR rNegative)
-                    })}
+              \block {
+                \takefrom reciprocalWitness: Def.ReciprocalWitness[x, zeroRat]
+                  \by (#right{away}) \then
+                \let a: _ := #lower{reciprocalWitness} \then
+                \let b: _ := #upper{reciprocalWitness} \then
+                \let r: _ := #reciprocal{reciprocalWitness} \then
+                \let xa: _ := #member{reciprocalWitness} \then
+                \let productPositive: _ := #positive{reciprocalWitness} \then
+                \let law: _ := #inverse{reciprocalWitness} \then
+                \let zeroR: _ := #below{reciprocalWitness} \then
+                \let au: lt a u := memberLtOutside x a u xa xu \then
+                \let aNegative: lt a zeroRat :=
+                  RationalOrder.ltTrans a u zeroRat au uNegative \then
+                \let bNegative: lt b zeroRat :=
+                  RationalOperationsProp.negativeRightOfPositiveProduct
+                    a b aNegative productPositive \then
+                \let rNegative: lt r zeroRat :=
+                  RationalOperationsProp.negativeOfNegativeProductOne
+                    b r bNegative law \then
+                \return RationalOrder.ltIrrefl zeroRat
+                  (RationalOrder.ltTrans zeroRat r zeroRat
+                    zeroR rNegative)
+              }}
           }
             member },
         \Cast[Rat] ({ q : Rat \where Logic.Not (In (Def.InvLower x) q) }))
@@ -1041,25 +1081,25 @@
             "rt:" {\fun (away: Logic.And[
               Logic.Not (underlying x = Def.RatLower zeroRat),
               Def.ReciprocalBelow x s]) =>
-              reciprocalBelowElim x s
-                (#right{away})
-                Logic.False
-                (\fun (a, b, r: Rat) =>
-                  \fun (unusedXa: mem x a) =>
-                  \fun (xb: Logic.Not (mem x b)) =>
-                  \fun (unusedPositive: lt zeroRat (mulRat a b)) =>
-                  \fun (law: RationalFractions.FractionEq
-                    (mulRat b r) oneRat) =>
-                  \fun (sr: lt s r) =>
-                    \block {
-                      \let a0b: lt a0 b :=
-                        memberLtOutside x a0 b xa0 xb \then
-                      \let rs: lt r s :=
-                        RationalOperationsProp.reciprocalOrderPositive
-                          a0 b r s a0Positive a0b law a0Law \then
-                      \return RationalOrder.ltIrrefl s
-                        (RationalOrder.ltTrans s r s sr rs)
-                    })}
+              \block {
+                \takefrom reciprocalWitness: Def.ReciprocalWitness[x, s]
+                  \by (#right{away}) \then
+                \let a: _ := #lower{reciprocalWitness} \then
+                \let b: _ := #upper{reciprocalWitness} \then
+                \let r: _ := #reciprocal{reciprocalWitness} \then
+                \let unusedXa: _ := #member{reciprocalWitness} \then
+                \let xb: _ := #outside{reciprocalWitness} \then
+                \let unusedPositive: _ := #positive{reciprocalWitness} \then
+                \let law: _ := #inverse{reciprocalWitness} \then
+                \let sr: _ := #below{reciprocalWitness} \then
+                \let a0b: lt a0 b :=
+                  memberLtOutside x a0 b xa0 xb \then
+                \let rs: lt r s :=
+                  RationalOperationsProp.reciprocalOrderPositive
+                    a0 b r s a0Positive a0b law a0Law \then
+                \return RationalOrder.ltIrrefl s
+                  (RationalOrder.ltTrans s r s sr rs)
+              }}
           }
             member },
         \Cast[Rat] ({ q : Rat \where Logic.Not (In (Def.InvLower x) q) }))

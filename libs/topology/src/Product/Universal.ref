@@ -190,13 +190,10 @@
     ProductSpace.FamilyMember basis W ->
     Source.IsOpenIn source (Preimage h W)) (W: \Pow CarrierSet)
     (open: ProductSpace.IsOpenIn (ProductSpace.generated basis) W) =>
-    (\idelim
-      ProductSpace.topologyData (ProductSpace.generated basis) =
-        ProductSpace.GeneratedRaw basis
-      \with candidate: ProductSpace.TopologyData =>
-        ProductSpace.IsOpen candidate W
-      \by { base: open, equality: ProductSpace.generatedRawEq basis })
-      (PullbackRaw source h) (pullbackLaws source h) basisPreimagesOpen;
+    ProductSpace.generatedLeast basis
+      (\into[ProductSpace.TopologyData](PullbackRaw source h, ProductSpace.Topology)
+        \by { pullbackLaws source h })
+      basisPreimagesOpen W open;
 
 \definition PairMap(f: X -> A) (g: X -> B): X -> CarrierSet :=
   \fun (x: _) => Pair.pair A B (f x) (g x);
@@ -243,12 +240,11 @@
     \fun (step: \forall (U: \Pow A) -> Left.IsOpenIn left U ->
       \forall (V: \Pow B) -> Right.IsOpenIn right V -> W = Rectangle U V -> P)
       (member: ProductSpace.FamilyMember (Basis left right) W) \then
-    \takefrom U: \Cast[\Pow A] (RectangleLefts left right W) \by member \then
-    \takefrom V: \Cast[\Pow B] (RectangleRights left right W U)
-      \by \bysub(\Pow A, RectangleLefts left right W, U) \then
-    \let rectangle: OpenRectangle[left, right, W, U, V] :=
-      \bysub(\Pow B, RectangleRights left right W U, V) \then
-    \return step U (#leftOpen{rectangle}) V (#rightOpen{rectangle}) (#rectangle{rectangle})
+    \takefrom witness: RectangleWitness[left, right, W] \by member \then
+    \let rectangle: OpenRectangle[left, right, W, #leftSet{witness}, #rightSet{witness}] :=
+      #rectangle{witness} \then
+    \return step #leftSet{witness} #leftOpen{rectangle} #rightSet{witness}
+      #rightOpen{rectangle} #rectangle{rectangle}
   };
 
 \definition pairRectangleOpen(source: SourceTopology) (left: Left.Topology)
@@ -310,19 +306,12 @@
   ProductSpace.FamilyMember (Basis left right) (Rectangle U V) :=
   \block {
     \fun (openU: _) (openV: _) \then
-    \let rightWitness: \Cast[\Pow B] (RectangleRights left right (Rectangle U V) U) :=
-      \into[\Pow B](V, RectangleRights left right (Rectangle U V) U) \by {
-        OpenRectangle[left, right, Rectangle U V, U, V] {
-          leftOpen := openU,
-          rightOpen := openV,
-          rectangle := \refl(Rectangle U V),
-        }
-      } \then
-    \return \exact(
-      \into[\Pow A](U, RectangleLefts left right (Rectangle U V)) \by {
-        \exact(rightWitness, \Cast[\Pow B] (RectangleRights left right (Rectangle U V) U))
+    \return \exact(RectangleWitness[left, right, Rectangle U V] {
+      leftSet := U, rightSet := V,
+      rectangle := OpenRectangle[left, right, Rectangle U V, U, V] {
+        leftOpen := openU, rightOpen := openV, rectangle := \refl(Rectangle U V),
       },
-      \Cast[\Pow A] (RectangleLefts left right (Rectangle U V)))
+    }, RectangleWitness[left, right, Rectangle U V])
   };
 
 \definition leftRectangleEq(f: X -> A) (g: X -> B) (U: \Pow A):

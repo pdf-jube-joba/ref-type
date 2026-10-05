@@ -158,3 +158,47 @@ fn instantiated_sibling_uses_common_parent_definitions_and_imports() {
     );
     Checker::default().check(&project).unwrap();
 }
+
+#[test]
+fn proposition_structure_defaults_follow_parameters_and_supplied_fields() {
+    let project = resolve(
+        r"\module Defaults {
+            \module Definitions(A: \Set) {
+                \structure Data: \Set { value: A }
+                \structure Laws[data: Data]: \Prop {
+                    required: data.value = data.value,
+                    copy: data.value = data.value := required,
+                    final: data.value = data.value := copy,
+                }
+                \definition Bundle: \Set :=
+                    \Cast[Data] ({ data: Data \where Laws[data] });
+            }
+            \module Use(A: \Set, a: A) {
+                \import \parent.Definitions[A := A] \as D;
+                \definition inferred: D.Bundle := D.Bundle {
+                    value := a,
+                    required := \refl(a),
+                };
+                \definition overridden: D.Bundle := D.Bundle {
+                    value := a,
+                    required := \refl(a),
+                    copy := \refl(a),
+                };
+                \definition result: a = a := #final{overridden};
+            }
+        }",
+    );
+    Checker::default().check(&project).unwrap();
+}
+
+#[test]
+fn proposition_structure_default_is_checked_when_declared() {
+    let project = resolve(
+        r"\module InvalidDefault(A: \Set, a: A) {
+            \structure Laws: \Prop {
+                invalid: a = a := a,
+            }
+        }",
+    );
+    assert!(Checker::default().check(&project).is_err());
+}

@@ -82,6 +82,47 @@ impl Resolver {
         } = item
         {
             if let Some(kind) = kind {
+                let defaults = fields.iter().any(|(_, _, default)| default.is_some());
+                if defaults {
+                    if !matches!(kind, InductiveKind::Pts(syntax::sort::Sort::Prop)) {
+                        return Err(self.error("default fields in a sorted structure require Prop"));
+                    }
+                    self.scoped_item(
+                        ModuleItem::Record {
+                            type_name: name.clone(),
+                            parameters: parameters.clone(),
+                            kind,
+                            fields: fields
+                                .iter()
+                                .map(|(name, ty, _)| (name.clone(), ty.clone()))
+                                .collect(),
+                        },
+                        output,
+                    )?;
+                    let mut preceding = Vec::new();
+                    for (field, ty, default) in fields {
+                        if let Some(body) = default {
+                            self.scoped_item(
+                                ModuleItem::Definition {
+                                    owner: Some(AssociatedOwner {
+                                        type_name: name.clone(),
+                                        parameters: parameters.clone(),
+                                    }),
+                                    name: Identifier(format!("<default:{}>", field.0)),
+                                    binders: preceding.clone(),
+                                    ty: ty.clone(),
+                                    body,
+                                },
+                                output,
+                            )?;
+                        }
+                        preceding.push(RightBind {
+                            vars: vec![field],
+                            ty: Box::new(ty),
+                        });
+                    }
+                    return Ok(());
+                }
                 if let InductiveKind::Pts(sort @ syntax::sort::Sort::Set(_)) = kind {
                     let fields = fields.into_iter().map(|(name, ty, _)| (name, ty)).collect();
                     return self.scoped_item(

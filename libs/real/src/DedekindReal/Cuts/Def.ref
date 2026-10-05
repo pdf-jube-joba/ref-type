@@ -1,15 +1,16 @@
 
 \definition RatLower(a: Rat): \Pow Rat := { q : Rat \where lt q a };
 
-\structure SumWitness[x, y: Real, q, a, b: Rat]: \Prop := {
-  leftMember: mem x a,
-  rightMember: mem y b,
-  below: lt q (addRat a b),
+\structure SumWitness[x, y: Real, q: Rat]: \Set {
+  left: Rat,
+  right: Rat,
+  leftMember: mem x left,
+  rightMember: mem y right,
+  below: lt q (addRat left right),
 };
 
 \definition SumMember(x, y: Real) (q: Rat): \Prop :=
-  \forall (P: \Prop) ->
-    (\forall (a, b: Rat) -> SumWitness[x, y, q, a, b] -> P) -> P;
+  \exists SumWitness[x, y, q];
 
 \definition SumLower(x, y: Real): \Pow Rat :=
   { q : Rat \where SumMember x y q };
@@ -19,38 +20,53 @@
 
 /* Use both endpoints of rational intervals. Multiplying arbitrary lower
  * bounds alone gives an unbounded set even for zero times zero. */
-\definition ProductBelow(x, y: Real) (q: Rat): \Prop :=
-  \forall (P: \Prop) ->
-    (\forall (a, b, c, d: Rat) ->
-      mem x a -> Logic.Not (mem x b) ->
-      mem y c -> Logic.Not (mem y d) ->
-      lt q (mulRat a c) -> lt q (mulRat a d) ->
-      lt q (mulRat b c) -> lt q (mulRat b d) -> P) -> P;
+\structure ProductWitness[x, y: Real, q: Rat]: \Set {
+  leftLower: Rat,
+  leftUpper: Rat,
+  rightLower: Rat,
+  rightUpper: Rat,
+  leftMember: mem x leftLower,
+  leftOutside: Logic.Not (mem x leftUpper),
+  rightMember: mem y rightLower,
+  rightOutside: Logic.Not (mem y rightUpper),
+  lowerLower: lt q (mulRat leftLower rightLower),
+  lowerUpper: lt q (mulRat leftLower rightUpper),
+  upperLower: lt q (mulRat leftUpper rightLower),
+  upperUpper: lt q (mulRat leftUpper rightUpper),
+}
+
+\definition ProductBelow(x, y: Real)(q: Rat): \Prop :=
+  \exists ProductWitness[x, y, q];
 
 \definition MulLower(x, y: Real): \Pow Rat :=
   { q : Rat \where ProductBelow x y q };
 
-\definition productBelowIntro(x, y: Real) (q, a, b, c, d: Rat):
-  mem x a -> Logic.Not (mem x b) -> mem y c ->
-  Logic.Not (mem y d) -> lt q (mulRat a c) ->
-  lt q (mulRat a d) -> lt q (mulRat b c) ->
-  lt q (mulRat b d) -> \forall (P: \Prop) ->
-  (\forall (a, b, c, d: Rat) ->
-    mem x a -> Logic.Not (mem x b) -> mem y c -> Logic.Not (mem y d) ->
-    lt q (mulRat a c) -> lt q (mulRat a d) ->
-    lt q (mulRat b c) -> lt q (mulRat b d) -> P) ->
-  P :=
-  \fun (xa: _) (xb: _) (yc: _) (yd: _) (ac: _) (ad: _) (bc: _) (bd: _) (P: \Prop) (use: _) =>
-    use a b c d xa xb yc yd ac ad bc bd;
+\definition productBelowIntro(x, y: Real)(q, a, b, c, d: Rat):
+  mem x a -> Logic.Not (mem x b) -> mem y c -> Logic.Not (mem y d) ->
+  lt q (mulRat a c) -> lt q (mulRat a d) ->
+  lt q (mulRat b c) -> lt q (mulRat b d) -> ProductBelow x y q :=
+  \fun (xa: _) (xb: _) (yc: _) (yd: _) (ac: _) (ad: _) (bc: _) (bd: _) =>
+    \exact(ProductWitness[x, y, q] {
+      leftLower := a, leftUpper := b, rightLower := c, rightUpper := d,
+      leftMember := xa, leftOutside := xb, rightMember := yc, rightOutside := yd,
+      lowerLower := ac, lowerUpper := ad, upperLower := bc, upperUpper := bd,
+    }, ProductWitness[x, y, q]);
 
 /* Away from zero, reciprocal reverses each interval whose endpoints have
  * the same sign. A rational reciprocal is specified by b*r = 1.
  * The first disjunct fixes the convention inv 0 = 0. */
-\definition ReciprocalBelow(x: Real) (q: Rat): \Prop :=
-  \forall (P: \Prop) ->
-    (\forall (a, b, r: Rat) -> mem x a -> Logic.Not (mem x b) ->
-      lt zeroRat (mulRat a b) ->
-      RationalFractions.FractionEq (mulRat b r) oneRat -> lt q r -> P) -> P;
+\structure ReciprocalWitness[x: Real, q: Rat]: \Set {
+  lower: Rat,
+  upper: Rat,
+  reciprocal: Rat,
+  member: mem x lower,
+  outside: Logic.Not (mem x upper),
+  positive: lt zeroRat (mulRat lower upper),
+  inverse: RationalFractions.FractionEq (mulRat upper reciprocal) oneRat,
+  below: lt q reciprocal,
+}
+\definition ReciprocalBelow(x: Real)(q: Rat): \Prop :=
+  \exists ReciprocalWitness[x, q];
 \definition InvLower(x: Real): \Pow Rat :=
   { q : Rat \where Logic.Or[
     Logic.And[underlying x = RatLower zeroRat, lt q zeroRat],

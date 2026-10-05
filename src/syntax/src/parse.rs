@@ -413,47 +413,21 @@ impl<'a> Parser<'a> {
         while self.peek() == Some(&Token::LBracket) {
             parameters.extend(self.parse_bracketed_rightbinds()?);
         }
-        if self.peek() == Some(&Token::LBrace) {
-            self.expect_token(Token::LBrace)?;
-            let mut fields = Vec::new();
-            let mut names = std::collections::HashSet::new();
-            while !self.bump_if_token(Token::RBrace) {
-                let field = self.expect_ident()?;
-                if !names.insert(field.0.clone()) {
-                    return Err(self.eof_error("unique structure field"));
-                }
-                self.expect_token(Token::Colon)?;
-                let ty = self.parse_sexp()?;
-                let default = if self.bump_if_token(Token::Assign) {
-                    Some(self.parse_sexp()?)
-                } else {
-                    None
-                };
-                fields.push((field, ty, default));
-                if self.bump_if_token(Token::RBrace) {
-                    break;
-                }
-                self.expect_token(Token::Comma)?;
-            }
-            self.bump_if_token(Token::Semicolon);
-            return Ok(ModuleItem::Structure {
-                name,
-                kind: None,
-                parameters,
-                fields,
-            });
-        }
-        self.expect_token(Token::Colon)?;
-        let result = self.parse_sexp()?;
-        let kind = match result {
-            SExp::Sort(sort) => InductiveKind::Pts(sort),
-            SExp::ValueType => InductiveKind::Program,
-            _ => return Err(self.eof_error("PTS sort or \\VType in structure declaration")),
+        let kind = if self.peek() == Some(&Token::LBrace) {
+            None
+        } else {
+            self.expect_token(Token::Colon)?;
+            let kind = match self.parse_sexp()? {
+                SExp::Sort(sort) => InductiveKind::Pts(sort),
+                SExp::ValueType => InductiveKind::Program,
+                _ => return Err(self.eof_error("PTS sort or \\VType in structure declaration")),
+            };
+            self.bump_if_token(Token::Assign);
+            Some(kind)
         };
-        self.bump_if_token(Token::Assign);
         let fields = self.parse_structure_fields()?;
         let mut names = std::collections::HashSet::new();
-        for (field, _) in &fields {
+        for (field, _, _) in &fields {
             if !names.insert(field.as_str()) {
                 return Err(ParseError {
                     msg: format!("duplicate structure field: {}", field.0),
@@ -466,21 +440,26 @@ impl<'a> Parser<'a> {
         Ok(ModuleItem::Structure {
             name,
             parameters,
-            kind: Some(kind),
-            fields: fields
-                .into_iter()
-                .map(|(name, ty)| (name, ty, None))
-                .collect(),
+            kind,
+            fields,
         })
     }
 
-    fn parse_structure_fields(&mut self) -> Result<Vec<(Identifier, SExp)>, ParseError> {
+    fn parse_structure_fields(
+        &mut self,
+    ) -> Result<Vec<(Identifier, SExp, Option<SExp>)>, ParseError> {
         self.expect_token(Token::LBrace)?;
         let mut fields = Vec::new();
         while !self.bump_if_token(Token::RBrace) {
             let name = self.expect_ident()?;
             self.expect_token(Token::Colon)?;
-            fields.push((name, self.parse_sexp()?));
+            let ty = self.parse_sexp()?;
+            let default = if self.bump_if_token(Token::Assign) {
+                Some(self.parse_sexp()?)
+            } else {
+                None
+            };
+            fields.push((name, ty, default));
             if self.bump_if_token(Token::RBrace) {
                 break;
             }

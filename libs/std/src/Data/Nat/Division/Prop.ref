@@ -133,31 +133,38 @@
   congr!{NatPairDef.NatPair Nat^} P.Times[Nat, Nat]::second^ _ _ (divModZeroDivisor a);
 \definition divZeroLeft(b: Nat^): NatDivisionDef.Div.specification Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
 \definition modZeroLeft(b: Nat^): NatDivisionDef.Mod.specification Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
-/* Divisibility is constructive: a proof supplies a natural-number factor to
- * any propositional consumer (the usual existential encoding). */
-\definition Divides(d, a: Nat^): \Prop := \forall (P: \Prop) -> (\forall (q: Nat^) -> a = \(d "*" q\) -> P) -> P;
+/* Divisibility supplies a natural-number factor. */
+\definition Factors(d, a: Nat^): \Set :=
+  \Cast[Nat^] ({ q: Nat^ \where a = \(d "*" q\) });
+\definition Divides(d, a: Nat^): \Prop := \exists Factors d a;
+\definition factorEquation(d, a: Nat^)(q: Factors d a): a = \(d "*" q\) :=
+  \bysub(Nat^, Factors d a, q);
 \definition dividesIntro(d, a, q: Nat^):
-  a = \(d "*" q\) ->
-  Divides d a := \fun (e: a = \(d "*" q\)) (P: \Prop) (use: \forall (q: Nat^) -> a = \(d "*" q\) -> P) => use q e;
+  a = \(d "*" q\) -> Divides d a :=
+  \fun (e: _) => \exact(\into[Nat^](q, Factors d a) \by { e }, Factors d a);
 \definition dividesZero(d: Nat^): Divides d Nat^::zero := dividesIntro d Nat^::zero Nat^::zero (\refl(Nat^::zero));
 \definition dividesSelf(d: Nat^): Divides d d := dividesIntro d d (Nat^::succ Nat^::zero) (sym!{Nat^} _ _ (Basic.mulOneRight d));
 \definition dividesTransport(d: Nat^): \forall (a, b: Nat^) -> a = b -> Divides d a -> Divides d b :=
   transport!{Nat^} (Divides d);
 \definition dividesAdd(d, a, b: Nat^):
-  Divides d a -> Divides d b ->
-  Divides d \(a "+" b\) :=
-    \fun (ha: Divides d a) (hb: Divides d b) =>
-    ha (Divides d \(a "+" b\)) (\fun (x: Nat^) => \fun (ex: a = \(d "*" x\)) =>
-        hb (Divides d \(a "+" b\)) (\fun (y: Nat^) => \fun (ey: b = \(d "*" y\)) =>
-          dividesIntro d \(a "+" b\) \(x "+" y\)
-            (trans!{Nat^} _ _ _ (Basic.addCong _ _ _ _ ex ey) (sym!{Nat^} _ _ (Basic.mulDistribLeft d x y)))));
+  Divides d a -> Divides d b -> Divides d \(a "+" b\) := \block {
+    \fun (ha: _) (hb: _) \then
+    \takefrom x: Factors d a \by ha \then
+    \takefrom y: Factors d b \by hb \then
+    \return dividesIntro d \(a "+" b\) \(x "+" y\)
+      (trans!{Nat^} _ _ _
+        (Basic.addCong _ _ _ _ (factorEquation d a x) (factorEquation d b y))
+        (sym!{Nat^} _ _ (Basic.mulDistribLeft d x y)))
+  };
 \definition dividesMul(d, a, b: Nat^):
-  Divides d a ->
-  Divides d \(a "*" b\) :=
-    \fun (ha: Divides d a) =>
-    ha (Divides d \(a "*" b\)) (\fun (x: Nat^) => \fun (ex: a = \(d "*" x\)) =>
-        dividesIntro d \(a "*" b\) \(x "*" b\)
-          (trans!{Nat^} _ _ _ (congr!{Nat^ Nat^} (\fun (n: Nat^) => \(n "*" b\)) _ _ ex) (Basic.mulAssoc d x b)));
+  Divides d a -> Divides d \(a "*" b\) := \block {
+    \fun (ha: _) \then
+    \takefrom x: Factors d a \by ha \then
+    \return dividesIntro d \(a "*" b\) \(x "*" b\)
+      (trans!{Nat^} _ _ _
+        (congr!{Nat^ Nat^} (\fun (n: _) => \(n "*" b\)) _ _ (factorEquation d a x))
+        (Basic.mulAssoc d x b))
+  };
 \definition subCong:
   \forall (a, b, c, d: Nat^) -> a = b -> c = d -> Op.Sub.specification a c = Op.Sub.specification b d :=
   congr2!{Nat^ Nat^ Nat^} Op.Sub.specification;
@@ -184,13 +191,14 @@
       })
     };
 \definition dividesSub(d, a, b: Nat^):
-  Divides d a -> Divides d b ->
-  Divides d (Op.Sub.specification a b) :=
-    \fun (ha: Divides d a) (hb: Divides d b) =>
-    ha (Divides d (Op.Sub.specification a b)) (\fun (x: Nat^) => \fun (ex: a = \(d "*" x\)) =>
-        hb (Divides d (Op.Sub.specification a b)) (\fun (y: Nat^) => \fun (ey: b = \(d "*" y\)) =>
-          dividesIntro d (Op.Sub.specification a b) (Op.Sub.specification x y)
-            (trans!{Nat^} _ _ _ (subCong _ _ _ _ ex ey) (mulSub d y x))));
+  Divides d a -> Divides d b -> Divides d (Op.Sub.specification a b) := \block {
+    \fun (ha: _) (hb: _) \then
+    \takefrom x: Factors d a \by ha \then
+    \takefrom y: Factors d b \by hb \then
+    \return dividesIntro d (Op.Sub.specification a b) (Op.Sub.specification x y)
+      (trans!{Nat^} _ _ _
+        (subCong _ _ _ _ (factorEquation d a x) (factorEquation d b y)) (mulSub d y x))
+  };
 \definition modAsSub:
   \forall (a, b: Nat^) -> NatDivisionDef.Mod.specification a b = Op.Sub.specification a \(b "*" { NatDivisionDef.Div.specification a b }\) :=
   \block {
@@ -265,25 +273,26 @@
   congr!{NatPairDef.NatPair Nat^} P.Times[Nat, Nat]::second^ _ _ (divModOne a);
 
 \definition dividesZeroLeft(a: Nat^):
-  Divides Nat^::zero a ->
-  a = Nat^::zero :=
-  \fun (h: Divides Nat^::zero a) =>
-    h (a = Nat^::zero) (\fun (q: Nat^) (e: a = Op.Mul.specification Nat^::zero q) =>
-      trans!{Nat^} _ _ _ e (Basic.mulZeroLeft q));
+  Divides Nat^::zero a -> a = Nat^::zero := \block {
+    \fun (h: _) \then
+    \takefrom q: Factors Nat^::zero a \by h \then
+    \let result: a = Nat^::zero :=
+      trans!{Nat^} _ _ _ (factorEquation Nat^::zero a q) (Basic.mulZeroLeft q) \then
+    \return result
+  };
 
 \definition dividesLeSucc(d, a: Nat^):
-  Divides d (Nat^::succ a) ->
-  Basic.Le d (Nat^::succ a) :=
-  \fun (h: Divides d (Nat^::succ a)) =>
-    h (Basic.Le d (Nat^::succ a))
-      (\induction (q: Nat^) \return
-        Nat^::succ a = Op.Mul.specification d q -> Basic.Le d (Nat^::succ a) \with {
-        | zero: \fun (e: Nat^::succ a = Nat^::zero) =>
-          Basic.succEqZeroElim a (Basic.Le d (Nat^::succ a)) e
-        | succ: \fun (q: Nat^) (unused: _) (e: _) =>
-          transport!{Nat^} (Basic.Le d) _ _ (sym!{Nat^} _ _ e)
-            (Basic.leAddRight d (Op.Mul.specification d q))
-      });
+  Divides d (Nat^::succ a) -> Basic.Le d (Nat^::succ a) := \block {
+    \fun (h: _) \then
+    \takefrom q: Factors d (Nat^::succ a) \by h \then
+    \return (\induction (q: Nat^) \return
+      Nat^::succ a = Op.Mul.specification d q -> Basic.Le d (Nat^::succ a) \with {
+      | zero: \fun (e: _) => Basic.succEqZeroElim a (Basic.Le d (Nat^::succ a)) e
+      | succ: \fun (q: _) (unused: _) (e: _) =>
+        transport!{Nat^} (Basic.Le d) _ _ (sym!{Nat^} _ _ e)
+          (Basic.leAddRight d (Op.Mul.specification d q))
+    }) q (factorEquation d (Nat^::succ a) q)
+  };
 
 \definition dividesAntisym: \forall (a, b: Nat^) -> Divides a b -> Divides b a -> a = b :=
   \induction (a: Nat^) \return

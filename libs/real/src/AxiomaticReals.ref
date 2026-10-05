@@ -6,23 +6,27 @@
 \use Logic.and;
 \use Logic.or;
 
-\definition RelationLe(relation: \Pow (Pair.Times^[Carrier, Carrier])) (x, y: Carrier): \Prop :=
-  \In[Pair.Times^[Carrier, Carrier]] relation (Pair.pair _ _ x y);
+\definition RelationLe(relation: Rel.RelPair Carrier) (x, y: Carrier): \Prop :=
+  Rel.PairToRel Carrier relation x y;
 
 \definition In (A: \Pow Carrier) (x: Carrier): \Prop := \In[Carrier] A x;
 
 \definition Inhabited (A: \Pow Carrier): \Prop :=
-    \exists { x : Carrier \where In A x };
+    \exists \Cast[Carrier] A;
 
-\definition UpperBound(relation: \Pow (Pair.Times^[Carrier, Carrier]))
+\definition UpperBound(relation: Rel.RelPair Carrier)
   (A: \Pow Carrier) (u: Carrier): \Prop :=
   \forall (x: Carrier) -> In A x -> RelationLe relation x u;
 
-\definition Complete(relation: \Pow (Pair.Times^[Carrier, Carrier])): \Prop :=
+\structure LeastUpperBound[relation: Rel.RelPair Carrier, A: \Pow Carrier, u: Carrier]: \Prop {
+  upper: UpperBound relation A u,
+  least: \forall (v: Carrier) -> UpperBound relation A v -> RelationLe relation u v,
+}
+
+\definition Complete(relation: Rel.RelPair Carrier): \Prop :=
   \forall (A: \Pow Carrier) -> Inhabited A ->
     (\exists { u: Carrier \where UpperBound relation A u }) ->
-    \exists { u: Carrier \where Logic.And[UpperBound relation A u,
-      \forall (v: Carrier) -> UpperBound relation A v -> RelationLe relation u v] };
+    \exists { u: Carrier \where LeastUpperBound[relation, A, u] };
 
 \structure FieldLaws[zero, one: Carrier, add: Carrier -> Carrier -> Carrier,
   neg: Carrier -> Carrier, mul: Carrier -> Carrier -> Carrier, inv: Carrier -> Carrier]: \Prop := {
@@ -38,7 +42,7 @@
   inverse: \forall (x: Carrier) -> not!{{ x = zero }} -> mul (inv x) x = one,
 };
 
-\structure LinearOrderLaws[leRelation: \Pow (Pair.Times^[Carrier, Carrier])]: \Prop := {
+\structure LinearOrderLaws[leRelation: Rel.RelPair Carrier]: \Prop := {
   reflexive: Rel.Reflexive Carrier (RelationLe leRelation),
   transitive: Rel.Transitive Carrier (RelationLe leRelation),
   antisymmetric: Rel.Antisymmetric Carrier (RelationLe leRelation),
@@ -46,7 +50,7 @@
 };
 
 \structure OrderedFieldLaws[zero: Carrier, add: Carrier -> Carrier -> Carrier,
-  mul: Carrier -> Carrier -> Carrier, leRelation: \Pow (Pair.Times^[Carrier, Carrier])]: \Prop := {
+  mul: Carrier -> Carrier -> Carrier, leRelation: Rel.RelPair Carrier]: \Prop := {
   addMonotone: \forall (x, y, z: Carrier) -> RelationLe leRelation x y ->
     RelationLe leRelation (add z x) (add z y),
   nonnegativeMul: \forall (x, y: Carrier) ->
@@ -61,7 +65,7 @@
   neg: Carrier -> Carrier,
   mul: Carrier -> Carrier -> Carrier,
   inv: Carrier -> Carrier,
-  leRelation: \Pow (Pair.Times^[Carrier, Carrier]),
+  leRelation: Rel.RelPair Carrier,
 }
 
 \structure AxiomaticRealStructureLaws[data: AxiomaticRealStructureData]: \Prop {
@@ -87,8 +91,7 @@
     \exists { u : Carrier \where IsUpperBound s A u };
 
 \definition IsLeastUpperBound (s: AxiomaticRealStructureData) (A: \Pow Carrier) (u: Carrier): \Prop :=
-    and!{{ IsUpperBound s A u }
-      { \forall (v: Carrier) -> IsUpperBound s A v -> Le s u v }};
+    LeastUpperBound[#leRelation{s}, A, u];
 
 \definition HasLeastUpperBound (s: AxiomaticRealStructureData) (A: \Pow Carrier): \Prop :=
     \exists { u : Carrier \where IsLeastUpperBound s A u };

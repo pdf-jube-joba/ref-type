@@ -222,11 +222,33 @@ impl LocalScope {
                 unreachable!("structure fields are simple constructor binders")
             };
             let name = handler.symbol(*name).to_owned();
-            let value = supplied
-                .remove(name.as_str())
-                .ok_or_else(|| format!("Missing structure field {name}"))?;
             let expected = instantiate_telescope(handler.arena(), *field_ty, &ordered);
-            ordered.push(self.elab_with_expected(value, expected, handler)?);
+            let value = if let Some(value) = supplied.remove(name.as_str()) {
+                self.elab_with_expected(value, expected, handler)?
+            } else {
+                let default_name = format!("<default:{name}>");
+                let Some(crate::raw::environment::ModuleItem::Record {
+                    associated_definitions,
+                    ..
+                }) = handler.env().record_for_inductive(indspec)
+                else {
+                    unreachable!("structure type was checked above")
+                };
+                let definition = associated_definitions
+                    .iter()
+                    .find(|(name, _)| name == &default_name)
+                    .map(|(_, definition)| *definition)
+                    .ok_or_else(|| format!("Missing structure field {name}"))?;
+                let arguments = parameters
+                    .iter()
+                    .copied()
+                    .chain(ordered.iter().copied())
+                    .collect();
+                let value = self.definition_reference(definition, arguments, handler)?;
+                handler.check(&mut self.typing_binds, value, expected)?;
+                value
+            };
+            ordered.push(value);
         }
         if let Some(name) = supplied.keys().next() {
             return Err(format!("Unknown structure field {name}").into());

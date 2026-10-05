@@ -3,9 +3,9 @@
 
 \import std.Set[].Quotient[A := Fraction, Equivalent := FractionEq] \as Q;
 \definition relationLaws: Q.EquivalenceLaws := Q.EquivalenceLaws {
-  reflexive := fractionEqRefl,
-  symmetric := fractionEqSym,
-  transitive := fractionEqTrans,
+  refl := fractionEqRefl,
+  sym := fractionEqSym,
+  trans := fractionEqTrans,
 };
 
 \definition ClassOf: Fraction -> \Pow Fraction := Q.ClassOf;
@@ -294,13 +294,20 @@
   equation: FractionEq (ArithmeticDef.mul z b) a,
 };
 
-\definition DivisionMember(x: Rat) (y: NonZeroRat) (z: Fraction): \Prop :=
-  \forall (P: \Prop) ->
-    (\forall (a, b: Fraction) -> DivisionWitness[x, y, z, a, b] -> P) -> P;
+\definition DivisionDenominators(x: Rat)(y: NonZeroRat)(z, a: Fraction): \Set :=
+  \Cast[Fraction] ({ b: Fraction \where DivisionWitness[x, y, z, a, b] });
+\definition DivisionNumerators(x: Rat)(y: NonZeroRat)(z: Fraction): \Set :=
+  \Cast[Fraction] ({ a: Fraction \where \exists DivisionDenominators x y z a });
+\definition DivisionMember(x: Rat)(y: NonZeroRat)(z: Fraction): \Prop :=
+  \exists DivisionNumerators x y z;
 
-\definition divisionMemberIntro(x: Rat) (y: NonZeroRat) (z, a, b: Fraction):
+\definition divisionMemberIntro(x: Rat)(y: NonZeroRat)(z, a, b: Fraction):
   DivisionWitness[x, y, z, a, b] -> DivisionMember x y z :=
-  \fun (witness: _) (P: \Prop) (use: _) => use a b witness;
+  \fun (witness: _) => \exact(
+    \into[Fraction](a, DivisionNumerators x y z) \by {
+      \exact(\into[Fraction](b, DivisionDenominators x y z a) \by { witness },
+        DivisionDenominators x y z a)
+    }, DivisionNumerators x y z);
 
 \definition DivClass(x: Rat) (y: NonZeroRat): \Pow Fraction :=
   { z : Fraction \where DivisionMember x y z };

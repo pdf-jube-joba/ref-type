@@ -1,8 +1,5 @@
-\structure EquivalenceLaws: \Prop := {
-  reflexive: \forall (x: A) -> Equivalent x x,
-  symmetric: \forall (x, y: A) -> Equivalent x y -> Equivalent y x,
-  transitive: \forall (x, y, z: A) -> Equivalent x y -> Equivalent y z -> Equivalent x z,
-};
+\import std.Logic[].Relation[] \as Rel;
+\definition EquivalenceLaws: \Prop := Rel.Equivalence[A, Equivalent];
 
 /* Equivalence classes and representative-independent operations. */
 \import std.Logic[].Equality[] \as QuotientEquality;
@@ -21,8 +18,8 @@
   ClassOf x = ClassOf y :=
   \fun (laws: EquivalenceLaws) (x, y: A) (xy: Equivalent x y) =>
     \axiom:setext(ClassOf x, ClassOf y,
-      \fun (z: A)(xz: _) => #transitive{laws} y x z (#symmetric{laws} x y xy) xz,
-      \fun (z: A)(yz: _) => #transitive{laws} x y z xy yz);
+      \fun (z: A)(xz: _) => #trans{laws} y x z (#sym{laws} x y xy) xz,
+      \fun (z: A)(yz: _) => #trans{laws} x y z xy yz);
 
 \definition Representative(C: \Pow A): \Set :=
   \Cast[A] ({ x: A \where C = ClassOf x });
@@ -86,7 +83,7 @@
   Equivalent x y :=
   \fun (laws: EquivalenceLaws) (x, y: A) (e: ClassOf x = ClassOf y) =>
     \idelim ClassOf y = ClassOf x \with C: \Pow A => \In[A] C y
-      \by { base: #reflexive{laws} y, equality: sym!{\Pow A} (ClassOf x) (ClassOf y) e };
+      \by { base: #refl{laws} y, equality: sym!{\Pow A} (ClassOf x) (ClassOf y) e };
 
 \definition sameClassRelated:
   EquivalenceLaws ->
@@ -122,7 +119,7 @@
         \fun (z: A)(member: \In[A] (UnaryImage f C) z) \then
         \takefrom witness: UnaryWitness[f, C, z] \by member \then
         \let y: Representative C := #representative{witness} \then
-        \return #transitive{laws} (f x) (f y) z
+        \return #trans{laws} (f x) (f y) z
           (respects x y (sameClassRelated laws C x y cx (represents C y))) #related{witness}
       },
       \fun (z: A)(related: _) => \exact(UnaryWitness[f, C, z] {
@@ -165,7 +162,7 @@
         \takefrom witness: BinaryWitness[f, C, D, z] \by member \then
         \let u: Representative C := #left{witness} \then
         \let v: Representative D := #right{witness} \then
-        \return #transitive{laws} (f x y) (f u v) z
+        \return #trans{laws} (f x y) (f u v) z
           (respects x u y v
             (sameClassRelated laws C x u cx (represents C u))
             (sameClassRelated laws D y v dy (represents D v))) #related{witness}
