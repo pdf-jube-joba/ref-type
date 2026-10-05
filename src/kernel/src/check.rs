@@ -1304,17 +1304,25 @@ impl<'a> Checker<'a> {
                 Ok(self.alloc(Node::BoxType { program_ty }))
             }
             Node::IndElim {
+                motive_bindings,
                 inductive,
                 scrutinee,
                 motive,
                 cases,
-            } => self.inductive_elimination(inductive, scrutinee, motive, cases, true),
+            } => self.inductive_elimination(
+                inductive,
+                scrutinee,
+                Some(motive_bindings),
+                motive,
+                cases,
+                true,
+            ),
             Node::Case {
                 inductive,
                 scrutinee,
                 motive,
                 branches,
-            } => self.inductive_elimination(inductive, scrutinee, motive, branches, false),
+            } => self.inductive_elimination(inductive, scrutinee, None, motive, branches, false),
             Node::SetCase {
                 inductive,
                 binders,
@@ -1478,6 +1486,22 @@ impl<'a> Checker<'a> {
             Node::Sequence { var, value_ty, .. } | Node::ValueLet { var, value_ty, .. } => {
                 Binding { var, ty: value_ty }
             }
+            Node::IndElim {
+                motive_bindings, ..
+            } => {
+                // Child order: scrutinee, telescope domains, motive body, cases.
+                let depth = slot
+                    .checked_sub(1)
+                    .filter(|&depth| depth <= motive_bindings.len())
+                    .ok_or("invalid motive binder slot")?;
+                context.extend(
+                    motive_bindings
+                        .into_iter()
+                        .take(depth)
+                        .map(|(var, ty)| Binding { var, ty }),
+                );
+                return Ok(context);
+            }
             Node::ProgramCase {
                 inductive,
                 binders,
@@ -1609,6 +1633,7 @@ impl<'a> Checker<'a> {
         &mut self,
         inductive: InductiveId,
         scrutinee: Expression,
+        motive_bindings: Option<Vec<(SymbolId, Expression)>>,
         motive_term: Expression,
         cases: Vec<Expression>,
         recursive: bool,
@@ -1616,27 +1641,31 @@ impl<'a> Checker<'a> {
         let mut motive_vars = vec![];
         let mut motive_domains = vec![];
         let mut motive_body = motive_term;
-        while let Node::Lambda {
-            mode: Mode::Pure,
-            var,
-            domain,
-            body,
-        } = self.arena().get(motive_body)
-        {
-            motive_vars.push(var);
-            motive_domains.push(domain);
-            motive_body = body;
-        }
-        if motive_domains.is_empty() {
-            let mut ty = self.infer_open(motive_term)?;
-            while let Node::Product { var, domain, body } = self.arena().get(self.head(ty)?) {
+        if let Some(bindings) = motive_bindings {
+            (motive_vars, motive_domains) = bindings.into_iter().unzip();
+        } else {
+            while let Node::Lambda {
+                mode: Mode::Pure,
+                var,
+                domain,
+                body,
+            } = self.arena().get(motive_body)
+            {
                 motive_vars.push(var);
                 motive_domains.push(domain);
-                ty = body;
+                motive_body = body;
             }
-            motive_body = shift(self.arena(), motive_term, motive_domains.len(), 0)?;
-            for index in (0..motive_domains.len()).rev() {
-                motive_body = self.application(motive_body, self.arena().bound(index))?;
+            if motive_domains.is_empty() {
+                let mut ty = self.infer_open(motive_term)?;
+                while let Node::Product { var, domain, body } = self.arena().get(self.head(ty)?) {
+                    motive_vars.push(var);
+                    motive_domains.push(domain);
+                    ty = body;
+                }
+                motive_body = shift(self.arena(), motive_term, motive_domains.len(), 0)?;
+                for index in (0..motive_domains.len()).rev() {
+                    motive_body = self.application(motive_body, self.arena().bound(index))?;
+                }
             }
         }
         let spec = self.env.inductive(inductive).ok_or("unknown inductive")?;

@@ -56,7 +56,8 @@ fn main() {
     let elimination = a.alloc(Node::IndElim {
         inductive: unit_id,
         scrutinee: value,
-        motive,
+        motive_bindings: vec![(SymbolId::ANONYMOUS, unit)],
+        motive: prop,
         cases: vec![proposition],
     });
     let ty = Checker::new(&env, &mut MetaContext::new(), vec![])
@@ -129,7 +130,8 @@ fn main() {
     let proof = a.alloc(Node::IndElim {
         inductive: record_id,
         scrutinee: s,
-        motive: lambda(&a, record, eta),
+        motive_bindings: vec![(SymbolId::ANONYMOUS, record)],
+        motive: eta,
         cases: vec![lambda(
             &a,
             unit,

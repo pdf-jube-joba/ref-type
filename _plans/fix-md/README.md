@@ -27,7 +27,7 @@ G01〜G10 は現行の [`gaps.md`](../gaps.md) の掲載順と一致する。
 | [G09](#g09) | [ブロックで導入した contextual な関手の射影](../gaps.md#g09) | 再現。block のローカル束縛を伴わずに射影を正規化し、名前解決で module import と解釈する。 |
 | [G10](#g10) | [集合値関手の内部で具体化した自然変換の型](../gaps.md#g10) | 現行 main では再現せず。自己完結した2例と実ライブラリの一時コピーによる確認が成功。解消コミットは未特定。 |
 | [G11](#g11) | [Machine の実行を Box にする定義](../box-parameters.md#g11) | 再現。kernel が開いた computation type を拒否する、現行仕様の閉性制限。 |
-| [G12](#g12) | [帰納型の再帰的な述語](../inductive-kind-motives.md#g12) | `prec` と `induction` の双方で再現。elaboration が motive を通常の lambda として先に推論する。直接の kernel 消去は成功。 |
+| [G12](#g12) | [帰納型の再帰的な述語](../inductive-kind-motives.md#g12) | 修正済み。`induction` が開いた motive を直接検査し、命題・述語への再帰が成功。 |
 
 ## 単独ファイルとしての実行条件
 
@@ -290,19 +290,15 @@ payload の型検査や reflection を通す前に、この computation type の
 
 ## G12: 命題値の再帰
 
-- **G12.01** [`12-01-predicate-prec.ref`](cases/12-01-predicate-prec.ref): `prec[Nat, fun(n: Nat) => Prop]`。終了1。
-- **G12.02** [`12-02-predicate-induction.ref`](cases/12-02-predicate-induction.ref): 同じ帰納型で `return Prop`。終了1。
-- 両方の診断は `Failed to infer elaborated Set/Prop expression: upper sort has no classifier`、規則の経路は `Sort` → `Product` → `Lambda`。
-- **G12.03** [`12-03-predicate-powerset.ref`](cases/12-03-predicate-powerset.ref): `Pow Nat` へ再帰し、所属命題で述語を取り出す。終了0。
+修正前は `prec` と `induction` が motive の通常のラムダを先に推論し、`upper sort has no classifier` で失敗した。
+修正後は kernel の `IndElim` に telescope と本体を渡し、次の三例が成功する。
 
-元の `Tags`、実数、二項述語を、自然数と命題自体への再帰まで縮約した。
-[`Induction`](../../src/elaboration/src/elaborator/term_elaborator.rs#L1417) と [`IndElimPrim`](../../src/elaboration/src/elaborator/term_elaborator.rs#L1458) は `handler.infer(motive)` の後で recursor を生成する。
-通常の lambda の型形成では `PropKind` の classifier が必要となり、[`Node::Sort(Upper)`](../../src/kernel/src/check.rs#L528) が拒否する。
+- **G12.01** [`12-01-predicate-family.ref`](cases/12-01-predicate-family.ref): `return Nat -> Prop` による述語の再帰。
+- **G12.02** [`12-02-predicate-induction.ref`](cases/12-02-predicate-induction.ref): `return Prop` による命題の再帰。
+- **G12.03** [`12-03-predicate-powerset.ref`](cases/12-03-predicate-powerset.ref): `Pow Nat` への再帰と所属命題。
 
-一方、[`inductive_elimination`](../../src/kernel/src/check.rs#L1608) は明示 lambda を motive の束縛列と本体へ分解し、本体を開いた文脈で検査する。
-Set から `Upper(Prop)` への消去も許可している。
-`kernel_probe.rs` で通常の motive lambda の拒否と、同じ motive を直接 `IndElim` に渡した場合の受理・簡約を測定した。
-したがって、現行 kernel がこの消去を一律に禁止している、という原因説明にはならない。
+通常の motive ラムダの拒否と、開いた motive による消去・簡約の成功は `kernel_probe.rs` で確認する。
+元の実数上の二項述語 `Valid` も `libs/integration/src/Real/Division.ref` で直接の `induction` に変更した。
 
 ## Kernel の独立確認と全体検証
 

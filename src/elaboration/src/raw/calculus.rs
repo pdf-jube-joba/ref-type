@@ -29,11 +29,15 @@ pub fn map_children(mut node: ExpNode, mut map: impl FnMut(Exp) -> Exp) -> ExpNo
             vecs!(parameters)
         }
         ExpNode::IndElim {
+            motive_bindings,
             elim,
             return_type,
             cases,
             ..
         } => {
+            for (_, ty) in motive_bindings {
+                *ty = map(*ty);
+            }
             one!(elim, return_type);
             vecs!(cases);
         }

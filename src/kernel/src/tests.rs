@@ -1603,3 +1603,206 @@ fn application_modes_preserve_logical_program_and_type_family_checks() {
             .is_err()
     );
 }
+
+#[test]
+fn open_induction_motive_traversal_preserves_telescope_scope() {
+    use crate::calculus::{alpha_equal, max_loose_bound, shift};
+    use crate::ids::InductiveId;
+    let env = Environment::new();
+    let a = env.arena();
+    // Ambient A, x : A. The motive telescope is (B : Set, y : B).
+    let set = a.sort(Sort::Base(BaseSort::Set(0)));
+    let term = a.alloc(Node::IndElim {
+        inductive: InductiveId(0),
+        scrutinee: a.bound(0),
+        motive_bindings: vec![
+            (SymbolId::ANONYMOUS, set),
+            (SymbolId::ANONYMOUS, a.bound(0)),
+        ],
+        motive: a.bound(3),
+        cases: vec![a.bound(1)],
+    });
+    assert_eq!(max_loose_bound(a, term), Some(1));
+    let shifted = shift(a, term, 2, 0).unwrap();
+    let Node::IndElim {
+        motive_bindings,
+        motive,
+        scrutinee,
+        cases,
+        ..
+    } = a.get(shifted)
+    else {
+        panic!()
+    };
+    assert_eq!(motive_bindings[1].1, a.bound(0));
+    assert_eq!(motive, a.bound(5));
+    assert_eq!(scrutinee, a.bound(2));
+    assert_eq!(cases, vec![a.bound(3)]);
+    let closed = instantiate(a, term, &[set, set]).unwrap();
+    assert_eq!(max_loose_bound(a, closed), None);
+    let mut renamed = a.get(term);
+    if let Node::IndElim {
+        motive_bindings, ..
+    } = &mut renamed
+    {
+        motive_bindings[0].0 = SymbolId(17);
+        motive_bindings[1].0 = SymbolId(18);
+    }
+    assert!(alpha_equal(a, term, a.alloc(renamed)));
+}
+
+#[test]
+fn open_induction_motive_sort_boundaries_and_subject_reduction() {
+    use crate::{environment::InductiveSpec, ids::InductiveId, reduction::convertible};
+    use BaseSort::{Prop, Set};
+    // The motive body's classifier is the elimination target sort.
+    for (source_sort, target_sort, singleton, allowed) in [
+        (Sort::Base(Set(0)), Sort::Base(Set(0)), false, true),
+        (Sort::Base(Set(0)), Sort::Base(Set(1)), false, true),
+        (Sort::Base(Set(1)), Sort::Base(Set(0)), false, false),
+        (Sort::Base(Set(0)), Sort::Base(Prop), false, true),
+        (Sort::Base(Set(0)), Sort::Upper(Prop), false, true),
+        (Sort::Base(Prop), Sort::Base(Prop), false, true),
+        (Sort::Base(Prop), Sort::Upper(Prop), false, false),
+        (Sort::Base(Prop), Sort::Upper(Prop), true, true),
+        (Sort::Base(Set(0)), Sort::Upper(Set(0)), false, false),
+        (Sort::Base(Set(0)), Sort::Upper(Set(0)), true, true),
+    ] {
+        let mut env = Environment::new();
+        let a = env.arena().clone();
+        let source_id = InductiveId(0);
+        let source = a.alloc(Node::IndType {
+            inductive: source_id,
+            parameters: vec![],
+        });
+        let count = if singleton { 1 } else { 2 };
+        env.register_inductive(
+            source_id,
+            InductiveSpec {
+                parameters: vec![],
+                arity: a.sort(source_sort),
+                constructors: vec![source; count],
+                sort: source_sort,
+            },
+        )
+        .unwrap();
+        let target_id = InductiveId(1);
+        let target_base = Sort::Base(target_sort.base());
+        let target = a.alloc(Node::IndType {
+            inductive: target_id,
+            parameters: vec![],
+        });
+        env.register_inductive(
+            target_id,
+            InductiveSpec {
+                parameters: vec![],
+                arity: a.sort(target_base),
+                constructors: vec![target],
+                sort: target_base,
+            },
+        )
+        .unwrap();
+        let (motive, branch) = if target_sort.is_upper() {
+            (a.sort(target_base), target)
+        } else {
+            (
+                target,
+                a.alloc(Node::IndCtor {
+                    inductive: target_id,
+                    constructor: 0,
+                    parameters: vec![],
+                }),
+            )
+        };
+        let term = a.alloc(Node::IndElim {
+            inductive: source_id,
+            scrutinee: a.alloc(Node::IndCtor {
+                inductive: source_id,
+                constructor: 0,
+                parameters: vec![],
+            }),
+            motive_bindings: vec![(SymbolId::ANONYMOUS, source)],
+            motive,
+            cases: vec![branch; count],
+        });
+        let mut metas = MetaContext::new();
+        let inferred = Checker::new(&env, &mut metas, vec![]).infer(term);
+        assert_eq!(
+            inferred.is_ok(),
+            allowed,
+            "{source_sort:?} -> {target_sort:?}, singleton={singleton}: {inferred:?}"
+        );
+        if allowed {
+            let reduced = env.whnf(term).unwrap();
+            let reduced_type = Checker::new(&env, &mut metas, vec![])
+                .infer(reduced)
+                .unwrap();
+            assert!(convertible(&env, inferred.unwrap(), reduced_type).unwrap());
+            assert!(convertible(&env, reduced, branch).unwrap());
+        } else {
+            assert!(
+                inferred
+                    .unwrap_err()
+                    .to_string()
+                    .contains("forbidden large elimination")
+            );
+        }
+        if target_sort.is_upper() {
+            let lambda = a.alloc(Node::Lambda {
+                mode: Mode::Pure,
+                var: SymbolId::ANONYMOUS,
+                domain: source,
+                body: motive,
+            });
+            assert!(
+                Checker::new(&env, &mut metas, vec![])
+                    .infer(lambda)
+                    .is_err()
+            );
+        }
+    }
+}
+
+#[test]
+fn motive_unification_extends_context_through_dependent_telescope() {
+    use crate::ids::InductiveId;
+    let env = Environment::new();
+    let a = env.arena();
+    let set = a.sort(Sort::Base(BaseSort::Set(0)));
+    let var = SymbolId::ANONYMOUS;
+    let context = vec![
+        Binding { var, ty: set },
+        Binding {
+            var,
+            ty: a.bound(0),
+        },
+    ];
+    let mut metas = MetaContext::new();
+    let mut under_b = context.clone();
+    under_b.push(Binding { var, ty: set });
+    let domain = metas.fresh(a, under_b.clone(), Some(set));
+    let mut under_y = under_b;
+    under_y.push(Binding { var, ty: domain });
+    let body = metas.fresh(a, under_y, Some(set));
+    let left = a.alloc(Node::IndElim {
+        inductive: InductiveId(0),
+        scrutinee: a.bound(0),
+        motive_bindings: vec![(var, set), (var, domain)],
+        motive: body,
+        cases: vec![],
+    });
+    let right = a.alloc(Node::IndElim {
+        inductive: InductiveId(0),
+        scrutinee: a.bound(0),
+        motive_bindings: vec![(var, set), (var, a.bound(0))],
+        motive: a.bound(3),
+        cases: vec![],
+    });
+    assert_eq!(
+        metas.unify(&env, &context, left, right).unwrap(),
+        Outcome::Solved
+    );
+    metas.finish(&env).unwrap();
+    assert_eq!(metas.zonk(a, domain).unwrap(), a.bound(0));
+    assert_eq!(metas.zonk(a, body).unwrap(), a.bound(3));
+}

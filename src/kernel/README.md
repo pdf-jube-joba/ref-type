@@ -52,6 +52,28 @@ parameter の型は登録時に検査し、完成した定義は parameter を t
 
 `register_inductive` は arity・constructor の戻り先・sort・strict positivity を検査する。
 `register_datatype` は Program の field と parameter を検査し、Set の鏡像を登録する。
+
+`IndElim` は `motive_bindings` に添字と要素の telescope、`motive` にその文脈での型の本体を保持する。
+型検査の前提は \(\Gamma,\vec i:\vec I,x:D\,\vec i\vdash P:s\) であり、結果型と再帰仮定の型は本体への同時代入で構成する。
+各 domain は帰納型の arity と照合し、枝は constructor への代入結果で検査する。
+constructor の簡約では通常の引数と再帰結果を枝に渡す。
+構文の子の走査は domain ごとの先行 binder 数と本体の telescope 長を保持し、shift・代入・自由変数・conversion が同じ束縛規則を使う。
+
+消去先は本体 `P` の sort によって決まる。
+以下の表は上から順に適用する。
+
+| 消去元 | `P` の sort | 許可条件 |
+| --- | --- | --- |
+| `Set(i)` | `Set(j)` | \(i\le j\) |
+| 任意 | `Prop` | 許可 |
+| `Set(i)` または `PropKind` | `PropKind` | 許可 |
+| その他 | 任意 | singleton elimination |
+
+singleton elimination の条件は constructor が一つ、arity が添字を持たず、constructor の各 domain が自身の帰納型を含まないことである。
+`P := Prop` と `P := A -> Prop` は `PropKind` に分類される。
+この規則は型の族を開いた文脈で扱い、upper sort の classifier を追加しない。
+通常のラムダ・積の形成、帰納型の正値性・universe 検査はそれぞれの規則で行う。
+
 Box の閉性検査は定義参照の引数も走査する。
 
 ### refinement の型検査と簡約

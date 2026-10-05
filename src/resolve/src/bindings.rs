@@ -254,33 +254,26 @@ pub(crate) fn alpha_rename(
             }
         }
         SExp::Induction {
-            binder,
+            binders,
             return_type,
             cases,
         } => {
-            alpha_rename(&mut binder.ty, order, counter, scopes);
-            let local = binder
-                .vars
-                .iter_mut()
-                .map(|var| fresh_binder(var, order, counter))
-                .collect();
-            scopes.push(local);
+            for binder in binders.iter_mut() {
+                alpha_rename(&mut binder.ty, order, counter, scopes);
+                let local = binder
+                    .vars
+                    .iter_mut()
+                    .map(|var| fresh_binder(var, order, counter))
+                    .collect();
+                scopes.push(local);
+            }
             alpha_rename(return_type, order, counter, scopes);
-            scopes.pop();
+            for _ in binders {
+                scopes.pop();
+            }
             for (_, case) in cases {
                 alpha_rename(case, order, counter, scopes);
             }
-        }
-        SExp::IndElimPrim {
-            path,
-            parameters,
-            motive,
-        } => {
-            rename_access(path, scopes);
-            for parameter in parameters {
-                alpha_rename(parameter, order, counter, scopes);
-            }
-            alpha_rename(motive, order, counter, scopes);
         }
         SExp::ComputationLam {
             var,

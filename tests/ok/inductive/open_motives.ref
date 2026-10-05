@@ -1,0 +1,45 @@
+\module OpenMotives {
+  \inductive Nat: \Set := | zero: Nat | succ: Nat -> Nat;
+
+  \definition proposition: Nat -> \Prop :=
+    \induction (n: Nat) \return \Prop \with {
+      | zero: Nat::zero = Nat::zero
+      | succ: \fun (n: _) (previous: \Prop) => previous
+    };
+  \definition propositionStep: proposition (Nat::succ Nat::zero) := \refl(Nat::zero);
+
+  \definition predicate(Q: \Prop): Nat -> Nat -> \Prop :=
+    \induction (n: Nat) \return Nat -> \Prop \with {
+      | zero: \fun (m: _) => Q
+      | succ: \fun (n: _) (previous: Nat -> \Prop) (m: _) => previous m
+    };
+  \definition captured: predicate (Nat::zero = Nat::zero) (Nat::succ Nat::zero) Nat::zero :=
+    \refl(Nat::zero);
+
+  \inductive Family[A: \Set]: \forall (x: A) -> \Set :=
+    | leaf: \forall (x: A) -> Family x
+    | next: \forall (x: A) -> Family x -> Family x;
+  \definition indexed(A: \Set): \forall (x: A) -> Family[A] x -> \Prop :=
+    \induction (x: A) (value: Family[A] x) \return \Prop \with {
+      | leaf: \fun (x: _) => x = x
+      | next: \fun (x: _) (value: _) (previous: \Prop) => previous
+    };
+  \definition indexedStep: indexed Nat Nat::zero
+    (Family[Nat]::next Nat::zero (Family[Nat]::leaf Nat::zero)) := \refl(Nat::zero);
+  \definition indexedIdentity(A: \Set): \forall (x: A) -> Family[A] x -> Family[A] x :=
+    \induction (x: A) (value: Family[A] x) \return Family[A] x \with {
+      | leaf: \fun (x: _) => Family[A]::leaf x
+      | next: \fun (x: _) (value: _) (previous: _) => Family[A]::next x previous
+    };
+  \definition indexedEquality: indexedIdentity Nat Nat::zero (Family[Nat]::leaf Nat::zero) =
+    Family[Nat]::leaf Nat::zero := \refl(Family[Nat]::leaf Nat::zero);
+
+  \inductive Tree: \Set := | leaf: Nat -> Tree | node: (Nat -> Tree) -> Tree;
+  \definition higherOrder: Tree -> Nat -> \Prop :=
+    \induction (tree: Tree) \return Nat -> \Prop \with {
+      | leaf: \fun (n: _) (m: _) => n = m
+      | node: \fun (children: _) (previous: Nat -> Nat -> \Prop) (m: _) => previous m m
+    };
+  \definition higherOrderStep: higherOrder (Tree::node (\fun (n: Nat) => Tree::leaf n)) Nat::zero :=
+    \refl(Nat::zero);
+}

@@ -2,6 +2,26 @@
 use super::*;
 
 impl Lowerer<'_> {
+    fn induction_motive(
+        &mut self,
+        bindings: &[(SymbolId, Exp)],
+        body: Exp,
+        ctx: &mut ExpContext,
+        m: ModuleId,
+    ) -> Result<(Vec<(SymbolId, s::Expression)>, s::Expression), String> {
+        let Some((&(var, domain), tail)) = bindings.split_first() else {
+            return Ok((Vec::new(), self.set(body, ctx, m)?));
+        };
+        let ty = self.set(domain, ctx, m)?;
+        let (tail, body) = self.under(ctx, var, domain, |this, ctx| {
+            this.induction_motive(tail, body, ctx, m)
+        })?;
+        let mut bindings = Vec::with_capacity(tail.len() + 1);
+        bindings.push((var, ty));
+        bindings.extend(tail);
+        Ok((bindings, body))
+    }
+
     fn logical_key(
         &self,
         e: Exp,
@@ -361,6 +381,7 @@ impl Lowerer<'_> {
                 })
             }
             ExpNode::IndElim {
+                motive_bindings,
                 indspec,
                 elim,
                 return_type,
@@ -368,12 +389,14 @@ impl Lowerer<'_> {
             } => {
                 self.inductive(indspec)?;
                 let scrutinee = self.set(elim, ctx, m)?;
-                let motive = self.set(return_type, ctx, m)?;
+                let (motive_bindings, motive) =
+                    self.induction_motive(&motive_bindings, return_type, ctx, m)?;
                 let cases = cases
                     .into_iter()
                     .map(|e| self.set(e, ctx, m))
                     .collect::<Result<_, _>>()?;
                 self.kernel.arena().alloc(s::Node::IndElim {
+                    motive_bindings,
                     inductive: indspec.into(),
                     scrutinee,
                     motive,

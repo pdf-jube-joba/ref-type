@@ -10,7 +10,6 @@ use crate::raw::calculus::{
 use crate::raw::environment::{CrateEnv, DefinedConstant};
 use crate::raw::exp::*;
 use crate::raw::ids::*;
-use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{ComputationTerm, ComputationType, ValueType};
 
 pub(crate) trait Handler {
@@ -1378,15 +1377,19 @@ impl LocalScope {
                 }))
             }
             SExp::Induction {
-                binder,
+                binders,
                 return_type,
                 cases,
             } => {
-                let SExp::AccessPath {
-                    access: path,
-                    parameters,
-                } = binder.ty.as_ref()
-                else {
+                let mut head = binders
+                    .last()
+                    .ok_or("expected induction binders")?
+                    .ty
+                    .as_ref();
+                while let SExp::App { func, .. } = head {
+                    head = func;
+                }
+                let SExp::AccessPath { access: path, .. } = head else {
                     return Err("Induction binder type must name an inductive type".into());
                 };
                 let (ctor_names, inductive) = match handler.get_item_from_access_path(path)? {
@@ -1397,76 +1400,44 @@ impl LocalScope {
                     }) => (ctor_names, inductive),
                     _ => return Err("Induction binder type must name an inductive type".into()),
                 };
-                let parameters = parameters
-                    .iter()
-                    .map(|parameter| self.elab_exp_rec(parameter, handler))
-                    .collect::<Result<Vec<_>, _>>()?;
-                let domain = handler.arena().alloc(ExpNode::IndType {
-                    indspec: inductive,
-                    parameters: parameters.clone(),
-                });
-                let var = handler.intern_name(&binder.vars[0]);
-                self.push_binded_var(var, domain);
-                let motive_body = self.elab_exp_rec(return_type, handler);
-                self.pop_binded_var();
-                let motive = handler.arena().alloc(ExpNode::Lam {
-                    var,
-                    ty: domain,
-                    body: motive_body?,
-                });
-                let motive_kind = handler.infer(&mut self.typing_binds, motive)?;
-                let mut induction = InductiveTypeSpecs::primitive_recursion(
-                    handler.arena(),
-                    inductive,
-                    handler.env().inductive(inductive),
-                    &parameters,
-                    motive_kind,
-                );
-                induction = handler.arena().alloc(ExpNode::App {
-                    func: induction,
-                    arg: motive,
-                });
-                for case in self.elab_inductive_cases(&ctor_names, cases, handler)? {
-                    induction = handler.arena().alloc(ExpNode::App {
-                        func: induction,
-                        arg: case,
-                    });
-                }
-                Ok(induction)
-            }
-            SExp::IndElimPrim {
-                path,
-                parameters,
-                motive,
-            } => {
-                let inductive = match handler.get_item_from_access_path(path)? {
-                    ItemAccessResult::Inductive(ModItemInductive { inductive, .. }) => inductive,
-                    _ => {
-                        return Err(format!(
-                            "Expected inductive type in ind elim prim access path {:?}",
-                            path
-                        )
-                        .into());
+                let bindings_mark = self.bindings.len();
+                let context_mark = self.typing_binds.len();
+                let motive = (|| {
+                    let mut telescope = Vec::new();
+                    for binder in binders {
+                        let domain = self.elab_exp_rec(&binder.ty, handler)?;
+                        for (depth, name) in binder.vars.iter().enumerate() {
+                            let var = handler.intern_name(name);
+                            let domain = shift_bound_indices(handler.arena(), domain, depth, 0);
+                            telescope.push((var, domain));
+                            self.push_binded_var(var, domain);
+                        }
                     }
-                };
-
-                let parameters: Vec<Exp> = parameters
-                    .iter()
-                    .map(|e| self.elab_exp_rec(e, handler))
-                    .collect::<Result<_, _>>()?;
-                let motive = self.elab_exp_rec(motive, handler)?;
-                let motive_kind = handler.infer(&mut self.typing_binds, motive)?;
-                let recursion = InductiveTypeSpecs::primitive_recursion(
-                    handler.arena(),
-                    inductive,
-                    handler.env().inductive(inductive),
-                    &parameters,
-                    motive_kind,
-                );
-                Ok(handler.arena().alloc(ExpNode::App {
-                    func: recursion,
-                    arg: motive,
-                }))
+                    Ok::<_, ElaborationError>((telescope, self.elab_exp_rec(return_type, handler)?))
+                })();
+                self.bindings.truncate(bindings_mark);
+                self.typing_binds.truncate(context_mark);
+                let (telescope, motive_body) = motive?;
+                let cases = self.elab_inductive_cases(&ctor_names, cases, handler)?;
+                let arena = handler.arena();
+                let depth = telescope.len();
+                let body = arena.alloc(ExpNode::IndElim {
+                    indspec: inductive,
+                    elim: arena.exp_bound(0),
+                    motive_bindings: telescope
+                        .iter()
+                        .enumerate()
+                        .map(|(i, &(var, domain))| {
+                            (var, shift_bound_indices(arena, domain, depth, i))
+                        })
+                        .collect(),
+                    return_type: shift_bound_indices(arena, motive_body, depth, depth),
+                    cases: cases
+                        .into_iter()
+                        .map(|case| shift_bound_indices(arena, case, depth, 0))
+                        .collect(),
+                });
+                Ok(crate::raw::utils::assoc_lam(arena, telescope, body))
             }
             SExp::RunStep {
                 state_ty,

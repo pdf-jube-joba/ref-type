@@ -245,6 +245,13 @@ pub fn skeleton(arena: &Arena, expression: Expression) -> Node {
         | Node::IdElim { var, .. }
         | Node::Sequence { var, .. }
         | Node::ValueLet { var, .. } => *var = SymbolId::ANONYMOUS,
+        Node::IndElim {
+            motive_bindings, ..
+        } => {
+            for (var, _) in motive_bindings {
+                *var = SymbolId::ANONYMOUS;
+            }
+        }
         Node::SetCase { binders, .. } | Node::ProgramCase { binders, .. } => {
             for vars in binders {
                 vars.fill(SymbolId::ANONYMOUS);

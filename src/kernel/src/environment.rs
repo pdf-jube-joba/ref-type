@@ -327,6 +327,31 @@ impl Environment {
             return Ok(());
         }
         let e = self.whnf(expression)?;
+        // An indexed recursive occurrence is positive at the head; its indices
+        // and parameters must themselves be free of the inductive being defined.
+        let mut head = e;
+        let mut arguments = Vec::new();
+        while let Node::App {
+            function, argument, ..
+        } = self.arena.get(head)
+        {
+            arguments.push(argument);
+            head = function;
+        }
+        if let Node::IndType {
+            inductive,
+            parameters,
+        } = self.arena.get(head)
+            && inductive == target
+        {
+            if !positive {
+                return Err("inductive occurs in a non-strictly-positive position".into());
+            }
+            for argument in arguments.into_iter().chain(parameters) {
+                self.check_positive(argument, target, false)?;
+            }
+            return Ok(());
+        }
         let inductive = match self.arena.get(e) {
             Node::IndType { inductive, .. } => Some(inductive == target),
             _ => None,

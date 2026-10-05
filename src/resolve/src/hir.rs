@@ -599,17 +599,10 @@ pub enum SExp {
         branches: Vec<(Identifier, Vec<Identifier>, SExp)>,
     },
     Induction {
-        binder: RightBind,
+        binders: Vec<RightBind>,
         return_type: Box<SExp>,
         cases: Vec<(Identifier, SExp)>,
     },
-    // primitive elimination for inductive type
-    IndElimPrim {
-        path: LocalAccess,
-        parameters: Vec<SExp>,
-        motive: Box<SExp>,
-    },
-
     // --- CBPV Program ------------------------------------------------------
     ThunkType {
         computation_ty: Box<SExp>,

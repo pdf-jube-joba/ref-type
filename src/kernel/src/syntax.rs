@@ -140,6 +140,7 @@ pub enum Node {
         parameters: Vec<Expression>,
     },
     IndElim {
+        motive_bindings: Vec<(SymbolId, Expression)>,
         inductive: InductiveId,
         scrutinee: Expression,
         motive: Expression,
@@ -442,8 +443,13 @@ macro_rules! node_children {
             | Node::Inductive { parameters, .. } => {
                 visit_slots!($visit; ..parameters,);
             }
-            Node::IndElim { scrutinee, motive, cases, .. } => {
-                visit_slots!($visit; scrutinee, motive, ..cases,);
+            Node::IndElim { scrutinee, motive_bindings, motive, cases, .. } => {
+                $visit(scrutinee, 0)?;
+                let depth = motive_bindings.len();
+                for (i, (_, domain)) in IntoIterator::into_iter(motive_bindings).enumerate() {
+                    $visit(domain, i)?;
+                }
+                visit_slots!($visit; motive @ depth, ..cases,);
             }
             Node::Case { scrutinee, motive, branches, .. } => {
                 visit_slots!($visit; scrutinee, motive, ..branches,);

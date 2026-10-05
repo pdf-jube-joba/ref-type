@@ -80,10 +80,6 @@ impl InductiveTypeSpecs {
         utils::assoc_prod(arena, self.indices.clone(), sort)
     }
 
-    pub fn constructor_len(&self) -> usize {
-        self.constructors.len()
-    }
-
     pub fn type_of_constructor(
         arena: &Arena,
         inductive: InductiveId,
@@ -133,85 +129,6 @@ impl InductiveTypeSpecs {
             .collect();
         Self::unchecked(parameters, indices, self.sort, constructors)
     }
-
-    pub fn primitive_recursion(
-        arena: &Arena,
-        inductive: InductiveId,
-        indspec: &Self,
-        parameters: &[Exp],
-        motive_kind: Exp,
-    ) -> Exp {
-        let this = arena.alloc(ExpNode::IndType {
-            indspec: inductive,
-            parameters: parameters.to_vec(),
-        });
-        let mut telescope = vec![];
-        let q = SymbolId::ANONYMOUS;
-        telescope.push((q, motive_kind));
-
-        let mut cases = vec![];
-        for index in 0..indspec.constructor_len() {
-            let case_var = SymbolId::ANONYMOUS;
-            // The case is declared after the motive and all preceding cases.
-            // Parameters supplied at the \prec site live outside that generated
-            // telescope, so rebase them before substituting them into the
-            // constructor telescope.
-            let case_parameters = parameters
-                .iter()
-                .map(|parameter| shift_bound_indices(arena, *parameter, telescope.len(), 0))
-                .collect::<Vec<_>>();
-            let constructor =
-                indspec.constructors[index].instantiate_parameters(arena, &case_parameters);
-            let q_exp = arena.exp_bound(telescope.len() - 1);
-            let constructor_exp = arena.alloc(ExpNode::IndCtor {
-                indspec: inductive,
-                parameters: case_parameters.clone(),
-                idx: index,
-            });
-            let case_this = arena.alloc(ExpNode::IndType {
-                indspec: inductive,
-                parameters: case_parameters,
-            });
-            let case_ty = eliminator_type(arena, &constructor, q_exp, constructor_exp, case_this);
-            telescope.push((case_var, case_ty));
-        }
-
-        let c = SymbolId::ANONYMOUS;
-        let indices = indspec.instantiate_indices(arena, parameters);
-        let case_count = indspec.constructor_len();
-        let index_arguments = bound_arguments(arena, indices.len());
-        let shifted_this = shift_bound_indices(arena, this, telescope.len() + indices.len(), 0);
-        let c_ty = utils::assoc_apply(arena, shifted_this, index_arguments);
-        telescope.extend(indices);
-        telescope.push((c, c_ty));
-
-        let final_len = telescope.len();
-        cases.extend((0..case_count).map(|index| arena.exp_bound(final_len - 1 - (1 + index))));
-        let body = arena.alloc(ExpNode::IndElim {
-            indspec: inductive,
-            elim: arena.exp_bound(0),
-            return_type: arena.exp_bound(final_len - 1),
-            cases,
-        });
-        utils::assoc_lam(arena, telescope, body)
-    }
-
-    fn instantiate_indices(&self, arena: &Arena, parameters: &[Exp]) -> Vec<(SymbolId, Exp)> {
-        self.indices
-            .iter()
-            .enumerate()
-            .map(|(inner, (name, ty))| {
-                (
-                    *name,
-                    instantiate_outer_telescope(arena, *ty, parameters, inner),
-                )
-            })
-            .collect()
-    }
-}
-
-fn bound_arguments(arena: &Arena, len: usize) -> Vec<Exp> {
-    (0..len).rev().map(|index| arena.exp_bound(index)).collect()
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
@@ -376,33 +293,12 @@ impl CtorType {
     }
 }
 
-pub fn eliminator_type(
-    arena: &Arena,
-    constructor: &CtorType,
-    q: Exp,
-    constructor_term: Exp,
-    this: Exp,
-) -> Exp {
-    branch_type(arena, constructor, q, constructor_term, this, true)
-}
-
 pub fn case_type(
     arena: &Arena,
     constructor: &CtorType,
     q: Exp,
     constructor_term: Exp,
     this: Exp,
-) -> Exp {
-    branch_type(arena, constructor, q, constructor_term, this, false)
-}
-
-fn branch_type(
-    arena: &Arena,
-    constructor: &CtorType,
-    q: Exp,
-    constructor_term: Exp,
-    this: Exp,
-    recursive_hypotheses: bool,
 ) -> Exp {
     let mut telescope = vec![];
     let mut applied_constructor = constructor_term;
@@ -462,26 +358,6 @@ fn branch_type(
                 });
                 telescope.push((SymbolId::ANONYMOUS, recursive_ty));
                 constructor_positions.push(telescope.len() - 1);
-
-                if recursive_hypotheses {
-                    let recursive_arguments = bound_arguments(arena, binders.len());
-                    let recursive_call = utils::assoc_apply(
-                        arena,
-                        arena.exp_bound(binders.len()),
-                        recursive_arguments,
-                    );
-                    let shifted_q =
-                        shift_bound_indices(arena, q, telescope.len() + binders.len(), 0);
-                    let motive = utils::assoc_apply(arena, shifted_q, recursive_indices);
-                    let hypothesis_result = arena.alloc(ExpNode::App {
-                        func: motive,
-                        arg: recursive_call,
-                    });
-                    let hypothesis_ty =
-                        utils::assoc_prod(arena, recursive_binders, hypothesis_result);
-                    telescope.push((SymbolId::ANONYMOUS, hypothesis_ty));
-                    applied_constructor = shift_bound_indices(arena, applied_constructor, 1, 0);
-                }
             }
         }
     }

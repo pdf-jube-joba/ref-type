@@ -470,11 +470,6 @@ impl GlobalEnvironment {
                     arena.exp_bound(0),
                     &preceding_ids,
                 )?;
-                let motive = arena.alloc(ExpNode::Lam {
-                    var: structure_var,
-                    ty: motive_record_ty,
-                    body: motive_result,
-                });
 
                 let constructor =
                     spec.constructors()[0].instantiate_parameters(arena, &parameters_under_value);
@@ -493,7 +488,8 @@ impl GlobalEnvironment {
                 let elimination = arena.alloc(ExpNode::IndElim {
                     indspec: inductive,
                     elim: arena.exp_bound(0),
-                    return_type: motive,
+                    motive_bindings: vec![(structure_var, motive_record_ty)],
+                    return_type: motive_result,
                     cases: vec![case],
                 });
                 let projection = arena.alloc(ExpNode::Lam {

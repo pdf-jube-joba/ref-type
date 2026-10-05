@@ -174,11 +174,23 @@ impl Renderer<'_> {
                 parameters,
             } => self.inductive(*inductive, Some(*constructor), parameters.to_vec()),
             IndElim {
+                motive_bindings,
                 inductive,
                 scrutinee,
                 motive,
                 cases,
-            } => self.elimination(true, *inductive, *scrutinee, *motive, cases.clone()),
+            } => {
+                let mut motive = *motive;
+                for &(var, domain) in motive_bindings.iter().rev() {
+                    motive = self.arena.alloc(kernel::syntax::Node::Lambda {
+                        mode: kernel::syntax::Mode::Pure,
+                        var,
+                        domain,
+                        body: motive,
+                    });
+                }
+                self.elimination(true, *inductive, *scrutinee, motive, cases.clone())
+            }
             Case {
                 inductive,
                 scrutinee,

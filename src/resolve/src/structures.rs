@@ -205,10 +205,6 @@ impl Resolver {
                     path: LocalAccess::Resolved { module, .. },
                     ..
                 }
-                | SExp::IndElimPrim {
-                    path: LocalAccess::Resolved { module, .. },
-                    ..
-                }
                 | SExp::ProgramCase {
                     path: LocalAccess::Resolved { module, .. },
                     ..

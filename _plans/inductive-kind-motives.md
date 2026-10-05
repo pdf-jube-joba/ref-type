@@ -1,150 +1,80 @@
 <a id="g12"></a>
 
->  ## G12: 帰納型の再帰的な述語
->
->  帰納型の再帰を使って、命題値の述語を直接定義したい。
->
->  ```text
->  \definition Valid(tags: Tags) (a, b: Real): \Prop :=
->    \prec[Tags, \fun (tags: Tags) => Real -> Real -> \Prop]
->      (\fun (x, a, b: Real) => Logic.And[Le a x, Le x b])
->      (\fun (left: Tags) (leftValid: Real -> Real -> \Prop)
->        (right: Tags) (rightValid: Real -> Real -> \Prop) (a, b: Real) =>
->        Logic.And[leftValid a (midpoint a b), rightValid (midpoint a b) b]) tags a b;
->  ```
->
->  現在の recursor はこの motive を `upper sort has no classifier` として拒否する。
->  積分のタグ付き分割では、`Real -> \Pow Real` に対する再帰で適切なタグの集合を作り、所属命題から `Valid` を定義している。
+# G12: 開いた motive による帰納型の消去
 
+実装済み。
+`IndElim` の motive を telescope と本体に分け、表面構文を `\induction` に統一した。
 G12 は [`gaps.md`](gaps.md) から分割した項目である。
-再現例・対照例と原因は [調査報告 G12](fix-md/README.md#g12) を参照。
+再現例と調査の経緯は [調査報告 G12](fix-md/README.md#g12) を参照。
 
-# Upper sort に分類される motive と帰納型の消去
+## 型検査と表現
 
-## 検討する規則
-
-帰納型 `Ind` と、文脈内での判断 \(\Gamma,x:\mathrm{Ind}\vdash P:\PropKind\) があるとき、`P` を return に置いた帰納法を許すことを検討する。
-scrutinee を \(t:\mathrm{Ind}\) とすると、枝が適切に型付けされる場合、結果の型は \(P[t/x]\) になる。
+`IndElim.motive_bindings` は添字と要素の束縛変数列、`IndElim.motive` はその文脈にある型の本体である。
+elaboration の raw 表現も同じ束縛構造を持つ。
+型検査では帰納型の arity から telescope の期待型を求め、各 domain を照合した文脈で本体の formation を検査する。
+前提は \(\Gamma,\vec i:\vec I,x:D\,\vec i\vdash P:s\) であり、結果型は \(P[\vec j/\vec i,t/x]\) になる。
+constructor の枝と再帰仮定の型も同じ本体への代入で構成する。
 
 ```text
-\induction (x: Ind) \return P \with {
-  | constructor : branch
+\definition Valid: Nat -> \Prop :=
+  \induction (n: Nat) \return \Prop \with {
+    | zero: Nat::zero = Nat::zero
+    | succ: \fun (n: _) (previous: \Prop) => previous
+  };
+```
+
+`P := Prop` と `P := Real -> Real -> Prop` は `PropKind` に分類される。
+それぞれ命題、実数上の二項述語を構成する帰納法になる。
+通常の motive ラムダの型形成は upper sort の classifier を要求するが、本体の formation はその文脈内で成立する。
+変更前の自然数の例は `Sort` → `Product` → `Lambda` の経路で `upper sort has no classifier` となることを確認した。
+
+## 表面構文と elaboration
+
+```text
+\induction (n: Nat) (xs: Vec[A] n) \return P n xs \with {
+  | nil: base
+  | cons: step
 }
 ```
 
-この記法の `x` は motive の束縛変数であり、結果は適用先の scrutinee に依存する。
-上の例は constructor と branch を省略した模式例である。
-添字付き帰納型では、添字と帰納型の要素を合わせた telescope の下で `P` を検査する。
+elaborator は binder の文脈で本体を elaboration し、枝を外側の文脈で elaboration する。
+添字と要素を受け取る外側のラムダの中に `IndElim` を直接生成する。
+motive と枝を引数として受け取る汎用 recursor の生成は廃止した。
+`prec` の構文、AST/HIR の variant、名前解決と elaboration の経路も削除した。
+既存ライブラリとテストの用途は constructor 名付きの枝へ移した。
+`libs/integration/src/Real/Division.ref` の `Valid` は `Real -> Real -> Prop` への直接の再帰を使う。
 
-## 命題、述語の型、motive の区別
+添字付き帰納型の検証で、宣言時の添字文脈が constructor の文脈へ漏れる問題と、正値性検査が添字への適用を負の出現として扱う問題も修正した。
+添字と parameter の中の再帰的出現は正値性検査で検出する。
 
-次の二つは分類が異なる。
+## 束縛、代入、簡約
 
-```text
-Logic.And[Le a x, Le x b] : \Prop
-Real -> Real -> \Prop : \PropKind
-```
+kernel の共通構文走査は telescope の各 domain を先行 binder 数、本体を telescope 長の下で扱う。
+shift、同時代入、自由変数、metavariable の走査はこの規則を共有する。
+conversion の構造比較では motive の変数名を消去し、telescope 長と子の束縛深さを保持する。
+elaboration の module parameter の代入・宣言参照の変換にも同じ束縛深さを適用した。
+単一化では比較対象の domain または本体に対応する telescope の prefix を文脈へ追加する。
+constructor への簡約は各再帰引数に同じ開いた motive の消去式を作り、枝に帰納仮定として渡す。
+共有構文の永続化形式の変更に合わせて semantic cache の schema を更新した。
 
-前者は命題であり、後者は命題値の関数を分類する型である。
-`P := Real -> Real -> \Prop` とした帰納法の結果は、`Real -> Real -> \Prop` 型の述語になる。
-`P := \Prop` とした帰納法の結果は、`\Prop` 型の命題になる。
-どちらも motive の本体は `\PropKind` に分類される。
-一方、`P` 自体が命題で \(P:\Prop\) なら、帰納法の結果は `P` の証明になる。
+## 許可範囲と整合性の検討
 
-枝のラムダと motive のラムダも区別する必要がある。
+消去元と本体の sort の許可条件は [kernel の仕様](../src/kernel/README.md) に記載した。
+今回の表現変更は従来の kernel が明示ラムダから取り出していた telescope と本体を直接格納するものであり、受理されていた直接の kernel 消去と対応する。
+`Set(i)` から `PropKind` への消去は従来の kernel の許可条件であり、通常の表面構文からも到達できるようになった。
+命題値の族は、constructor ごとに命題を与え、再帰的な位置に同じ族の結果を渡す構造再帰として扱われる。
+枝の本体と帰納仮定の型は同じ motive への代入で得るため、通常の積と代入の規則で検査する。
 
-```text
-\fun (x, a, b: Real) => Logic.And[Le a x, Le x b]
-  : Real -> Real -> Real -> \Prop
+upper sort の分類規則、積の非可述性、帰納型の universe 条件は既存の規則を使う。
+命題の帰納型からの大きな消去には既存の singleton 条件が適用される。
+型や命題を field に持つ structure の射影も、この条件と通常の field 型の形成を経由する。
+これらは実装上の規則の対応と型保存の確認であり、singleton 条件や非可述な積を含む体系全体の整合性証明とは区別する。
 
-\fun (tags: Tags) => Real -> Real -> \Prop
-  : \forall (tags: Tags) -> \PropKind
-```
+## 検証
 
-枝のラムダの型は `\PropKind` に分類されるため、通常の積の形成規則で扱える。
-motive のラムダについては、その型の形成に `\PropKind` の classifier が必要になる。
-現在の体系では upper sort に classifier がなく、通常のラムダとしての型付けはここで成立しない。
-
-## Motive を開いた型の族として扱う
-
-消去規則の前提を \(\Gamma,x:\mathrm{Ind}\vdash P:s\) として直接与えれば、motive 全体を通常の関数項として型付けする必要はない。
-必要なのは、束縛変数の型が正しく、本体 `P` が許可された sort `s` に分類されることである。
-`s = \PropKind` でも、この前提自体は upper sort の classifier を要求しない。
-
-たとえば、自然数の帰納法を使って命題を作る次の式が候補になる。
-
-```text
-\induction (n: N.Nat^) \return \Prop \with {
-  | zero: Q
-  | succ: \fun (n: _) (previous: \Prop) => Logic.And[Q, previous]
-}
-```
-
-ここで `Q: \Prop` とする。
-結果は自然数に対応する命題であり、再帰結果 `previous` も命題である。
-constructor における motive の代入結果を枝の期待型にし、再帰的な引数については同じ motive から再帰結果の型を作る。
-
-この設計では、motive を消去式の内部で束縛された構文として保持する。
-通常の application を経由せず、scrutinee や constructor を motive の本体へ代入することで結果の型を得る。
-本体の型付け、代入による型付けの保存、枝への簡約による型の保存が必要になる。
-
-## 現在の kernel との対応
-
-[`inductive_elimination`](../src/kernel/src/check.rs) は、明示された pure lambda を引数列と本体へ分解している。
-引数列を帰納型の添字と要素の型に照合し、その文脈で `formation(motive.body)` を呼ぶ。
-motive 全体への通常の `infer_open` は、この分解ができた場合には呼ばれない。
-lambda が明示されていない場合は、通常の型推論から引数列を取り出す経路を使う。
-
-現在の許可条件には、`Set(i)` の帰納型から `PropKind` への消去が含まれる。
-したがって、上記の案の中心部分は既に kernel に存在する。
-[`motive_type`](../src/kernel/src/check.rs) も lambda を剥がして検査するが、現在の呼び出し先は step match であり、帰納型の消去とは別の経路である。
-
-一方、[`elaborator`](../src/elaboration/src/elaborator/term_elaborator.rs) は `\induction` と `\prec` の両方で motive を通常の lambda として型推論している。
-さらに、`primitive_recursion` で motive、枝、scrutinee を受け取る関数を生成し、motive と枝を適用する。
-この経路では、kernel の消去規則による特別扱いに到達する前に、upper sort を返す motive の型付けが問題になる。
-[G12: 帰納型の再帰的な述語](#g12)の例については、この経路と実際のエラーの対応を実行して確認する。
-
-## Kernel の表現と表面構文の統一
-
-kernel の motive は、通常の lambda 項の代わりに、束縛変数 `(x: A)` とその文脈内の本体 `P` の組で保持する案とする。
-添字付き帰納型では、束縛変数の telescope と本体の組へ一般化する。
-型検査時に lambda を剥がす方式から、構文自体が型の族の束縛構造を表す方式へ揃える。
-代入、shift、自由変数の検査、conversion、簡約は、この束縛構造に対応させる。
-
-表面構文は `\induction` に統一し、`\prec` の用途を constructor 名付きの枝へ移す案とする。
-現在の関数値を返す `\induction` は、scrutinee を受け取る外側の lambda と、motive と枝を直接持つ kernel の `IndElim` に変換する。
-この外側の lambda は、motive を関数項として包装する lambda とは役割が異なる。
-motive と枝を引数に取る汎用 recursor の生成を経由せず、開いた文脈の本体 `P` を直接検査する。
-
-## Upper sort の分類と整合性
-
-この消去規則は `\PropKind` に classifier を追加しない。
-motive の本体を開いた文脈で検査する規則と、`\PropKind` を通常の型として分類する規則は分けて考える必要がある。
-今回の述語の構成だけから System U を得るとはいえない。
-
-ただし、motive の扱いを整理するだけで体系全体の整合性が証明されるわけではない。
-消去元の sort、許可する消去先、帰納型の形成規則、積の非可述性を合わせて検討する必要がある。
-特に、命題の帰納型からの消去に同じ許可を一律に広げる場合は、証明から命題や型を取り出す規則の強さを別途検討する。
-
-`P := \Prop` の消去は、帰納型の要素に応じて命題を構成するため、type family を定義する機能になる。
-`P := Real -> Real -> \Prop` の例も、帰納型の要素と実数の引数に応じて命題を構成する。
-motive を束縛変数と本体の組に変えることは表現の整理だが、表面構文でこれらを通せるようにすることは利用可能な機能に関わる。
-「通常の lambda として検査する必要がなくなった」という理由だけで消去先を広げると、組み合わせによって矛盾を導入する可能性がある。
-
-整合性の検討では、次を確認する。
-
-- 消去元と消去先の sort の組ごとの許可条件、および singleton elimination の条件。
-- 帰納型の正値性と universe の条件、および再帰結果として命題や型を受け取る枝の型付け。
-- 積の非可述性や、型・命題をデータとして包装して取り出す操作との組み合わせ。
-- 開いた motive への代入の保存と、constructor に対する簡約の subject reduction。
-
-型保存や個別の例の成功は、体系全体の整合性の証明とは区別する。
-既存の体系への解釈などによって、許可する type family の範囲を正当化する必要がある。
-
-## 方針案
-
-kernel の motive を telescope と本体の組にし、表面構文を `\induction` に統一する方針を検討する。
-`P: \PropKind` を許す条件を明示し、通常のラムダの型付けとの違いを仕様に記載する。
-type family の形成として整合性を検討し、消去規則の許可範囲を確定する。
-実装を変更する前に、現行の `Valid` の例と、命題を直接構成する自然数の例を確認する。
-変更が必要なら、その結果に基づいて表面構文から kernel までの分類の扱いを揃える。
+- `tests/ok/inductive/open_motives.ref`: 命題、述語、外側の変数、parameter と添字を持つ再帰、依存する結果型、関数を介した再帰仮定、constructor の計算規則。
+- kernel テスト: telescope の shift・代入・自由変数・alpha 同値、sort の許可と拒否、singleton 条件、簡約前後の型保存。
+- `tests/ng/inductive_motive_large_elimination.ref` と `inductive_motive_telescope.ref`: 許可されない大きな消去と不完全な telescope。
+- G12 の三つの再現・対照例と `kernel_probe.py`。
+- `cargo test --workspace --no-fail-fast`: 314 テスト成功、失敗・無視ともに0。積分・category を含むライブラリの検証も成功。
+- `cargo fmt --all --check` と `git diff --check`: 成功。

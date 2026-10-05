@@ -151,6 +151,7 @@ pub enum ExpNode {
         idx: usize,
     },
     IndElim {
+        motive_bindings: Vec<(SymbolId, Exp)>,
         indspec: InductiveId,
         elim: Exp,
         return_type: Exp,
@@ -618,11 +619,13 @@ impl ArenaNode for ExpNode {
                 constructor: idx,
             },
             ExpNode::IndElim {
+                motive_bindings,
                 indspec,
                 elim,
                 return_type,
                 cases,
             } => N::IndElim {
+                motive_bindings: motive_bindings.into_iter().map(|(v, t)| (v, t.0)).collect(),
                 inductive: indspec.into(),
                 scrutinee: elim.0,
                 motive: return_type.0,
@@ -880,12 +883,17 @@ impl ArenaHandle for Exp {
                 idx: constructor,
             },
             N::IndElim {
+                motive_bindings,
                 inductive,
                 scrutinee,
                 motive,
                 cases,
                 ..
             } => ExpNode::IndElim {
+                motive_bindings: motive_bindings
+                    .into_iter()
+                    .map(|(v, t)| (v, Exp(t)))
+                    .collect(),
                 indspec: InductiveId {
                     module: crate::raw::ids::ModuleId((inductive.0 >> 32) as u32),
                     index: inductive.0 as u32,

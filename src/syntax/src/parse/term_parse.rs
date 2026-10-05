@@ -539,11 +539,13 @@ impl<'a> TermParser<'a> {
             });
         }
         if self.bump_if_keyword("\\induction") {
-            let mut binds = self.parse_simple_binds_paren()?;
-            if binds.len() != 1 || binds[0].vars.len() != 1 {
-                return Err(self.error("expected exactly one induction binder"));
+            let mut binders = self.parse_simple_binds_paren()?;
+            while self.peek() == Some(&Token::LParen) {
+                binders.extend(self.parse_simple_binds_paren()?);
             }
-            let binder = binds.pop().unwrap();
+            if binders.is_empty() || binders.iter().any(|binder| binder.vars.is_empty()) {
+                return Err(self.error("expected induction binders"));
+            }
             self.expect_keyword("\\return")?;
             let return_type = self.parse_sexp()?;
             self.expect_keyword("\\with")?;
@@ -554,24 +556,9 @@ impl<'a> TermParser<'a> {
                 Ok((case_name, case))
             })?;
             return Ok(SExp::Induction {
-                binder,
+                binders,
                 return_type: Box::new(return_type),
                 cases,
-            });
-        }
-        if self.bump_if_keyword("\\prec") {
-            // r"\prec" "[" <path: AccessPath> <parameter>? "," <motive: SExp> "]"
-            self.expect_token(Token::LBracket)?;
-            let path = self.parse_access_path()?;
-            let parameters = self.parse_optional_parameters()?;
-            self.expect_token(Token::Comma)?;
-            let motive = self.parse_sexp()?;
-            self.expect_token(Token::RBracket)?;
-
-            return Ok(SExp::IndElimPrim {
-                path,
-                parameters,
-                motive: Box::new(motive),
             });
         }
         // r"\exists" <binding>

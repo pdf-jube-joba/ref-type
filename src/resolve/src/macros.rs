@@ -445,14 +445,6 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
                 walk_sexp_control(parameter, action);
             }
         }
-        SExp::IndElimPrim {
-            parameters, motive, ..
-        } => {
-            for parameter in parameters {
-                walk_sexp_control(parameter, action);
-            }
-            walk_sexp_control(motive, action);
-        }
         SExp::Assign { value: base, .. }
         | SExp::ReflectTerm { expression: base }
         | SExp::ConversionTarget { expression: base }
@@ -551,11 +543,13 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
             }
         }
         SExp::Induction {
-            binder,
+            binders,
             return_type,
             cases,
         } => {
-            walk_sexp_control(&mut binder.ty, action);
+            for binder in binders {
+                walk_sexp_control(&mut binder.ty, action);
+            }
             walk_sexp_control(return_type, action);
             for (_, case) in cases {
                 walk_sexp_control(case, action);

@@ -84,6 +84,29 @@ pub(crate) fn logical(arena: &Arena, e: Exp, depth: usize, rewrite: &mut impl Re
             ty: logical(arena, ty, depth, rewrite),
             body: logical(arena, body, depth + 1, rewrite),
         },
+        ExpNode::IndElim {
+            indspec,
+            elim,
+            motive_bindings,
+            return_type,
+            cases,
+        } => {
+            let inner = depth + motive_bindings.len();
+            ExpNode::IndElim {
+                indspec,
+                elim: logical(arena, elim, depth, rewrite),
+                motive_bindings: motive_bindings
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, (var, ty))| (var, logical(arena, ty, depth + i, rewrite)))
+                    .collect(),
+                return_type: logical(arena, return_type, inner, rewrite),
+                cases: cases
+                    .into_iter()
+                    .map(|case| logical(arena, case, depth, rewrite))
+                    .collect(),
+            }
+        }
         ExpNode::SubSet {
             var,
             set,

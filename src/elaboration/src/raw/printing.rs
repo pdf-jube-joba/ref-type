@@ -210,6 +210,7 @@ impl<'a> Printer<'a> {
                 parameters.into_iter().map(child).collect(),
             ),
             ExpNode::IndElim {
+                motive_bindings,
                 indspec,
                 elim,
                 return_type,
@@ -219,7 +220,11 @@ impl<'a> Printer<'a> {
                 child(elim),
                 self.format_module(indspec.module),
                 indspec.index,
-                child(return_type),
+                child(crate::raw::utils::assoc_lam(
+                    env.arena(),
+                    motive_bindings,
+                    return_type
+                )),
                 cases.into_iter().map(child).collect::<Vec<_>>().join(", ")
             ),
             ExpNode::IndCase {

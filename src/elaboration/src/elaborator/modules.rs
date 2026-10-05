@@ -486,7 +486,8 @@ impl GlobalEnvironment {
                 // binding is memorized in local scope
                 let mut parameter_elab =
                     local_scope.elab_telescope_bind_in_decl(parameters, self)?;
-                let mut indices_elab = local_scope.elab_telescope_bind_in_decl(indices, self)?;
+                let mut index_scope = local_scope.clone();
+                let mut indices_elab = index_scope.elab_telescope_bind_in_decl(indices, self)?;
                 if !self.metavariables.is_empty() {
                     self.finish_metavariables()?;
                     for (_, ty) in &mut parameter_elab {

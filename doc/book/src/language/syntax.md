@@ -485,15 +485,24 @@ choice と choiceeq の証明引数は型検査され、定義的等価性の比
 | constructor1 : branch1
 | constructor2 : branch2
 }
-
-\prec[Type[parameters], motive] branch1 branch2
 ```
 
 `\match` と `\induction` の branch は `|` または `}` で終わる。
 Set/Prop の `\match` では `\return` に結果型を指定し、branch の見出しで constructor の引数を束縛する。
 `\induction` は `x` を result type 内で束縛し、帰納型上の関数を構成する。
 `\induction` の branch 本体は constructor の引数と帰納法の仮定を受け取る関数である。
-`\prec` は primitive recursor の atom で、後ろに branch を通常の application として渡す。
+添字付き帰納型では、添字に続けて要素を束縛する。
+
+```text
+\induction (n: Nat) (xs: Vec[A] n) \return P n xs \with {
+| nil: base
+| cons: step
+}
+```
+
+結果型は binder の文脈で型として検査する。
+たとえば `\return \Prop` や `\return Real -> Real -> \Prop` は `\PropKind` に分類され、Set の帰納型から命題や述語を再帰的に構成できる。
+枝はこの結果型を constructor に代入した型を持ち、再帰的な引数の直後に、その引数での帰納法の仮定を受け取る。
 
 ### logical block
 

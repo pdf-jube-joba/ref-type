@@ -6,19 +6,19 @@
 ;
 
 \definition sum(f: Real -> Real) (tags: Tags) (a, b: Real): Real :=
-  \prec[Tags, \fun (tags: Tags) => Real -> Real -> Real]
-    (\fun (x, a, b: _) => mul (sub b a) (f x))
-    (\fun (left: Tags) (leftSum: Real -> Real -> Real) (right: Tags) (rightSum: Real -> Real -> Real) (a, b: _) =>
-      add (leftSum a (midpoint a b)) (rightSum (midpoint a b) b)) tags a b;
+  \induction (tags: Tags) \return Real -> Real -> Real \with {
+    | tag: \fun (x, a, b: _) => mul (sub b a) (f x)
+    | split: \fun (left: Tags) (leftSum: Real -> Real -> Real) (right: Tags) (rightSum: Real -> Real -> Real) (a, b: _) =>
+      add (leftSum a (midpoint a b)) (rightSum (midpoint a b) b)
+  } tags a b;
 
-\definition validSet(tags: Tags): Real -> \Pow Real :=
-  \prec[Tags, \fun (tags: Tags) => Real -> \Pow Real]
-    (\fun (x, a: _) => { b: Real \where Logic.And[R.Le a x, R.Le x b] })
-    (\fun (left: Tags) (leftValid: Real -> \Pow Real) (right: Tags) (rightValid: Real -> \Pow Real) (a: _) =>
-      { b: Real \where Logic.And[\In[Real] (leftValid a) (midpoint a b),
-        \In[Real] (rightValid (midpoint a b)) b] }) tags;
-
-\definition Valid(tags: Tags) (a, b: Real): \Prop := \In[Real] (validSet tags a) b;
+\definition Valid(tags: Tags) (a, b: Real): \Prop :=
+  \induction (tags: Tags) \return Real -> Real -> \Prop \with {
+    | tag: \fun (x, a, b: _) => Logic.And[R.Le a x, R.Le x b]
+    | split: \fun (left: Tags) (leftValid: Real -> Real -> \Prop)
+        (right: Tags) (rightValid: Real -> Real -> \Prop) (a, b: _) =>
+      Logic.And[leftValid a (midpoint a b), rightValid (midpoint a b) b]
+  } tags a b;
 
 \structure SplitLevel[n: N.Nat^, leftLevel, rightLevel: \Pow N.Nat^, k: N.Nat^]: \Prop {
   successor: n = N.Nat^::succ k,
@@ -27,18 +27,20 @@
 }
 
 \definition levelSet(tags: Tags): \Pow N.Nat^ :=
-  \prec[Tags, \fun (tags: Tags) => \Pow N.Nat^]
-    (\fun (x: _) => { n: N.Nat^ \where n = N.Nat^::zero })
-    (\fun (left: Tags) (leftLevel: \Pow N.Nat^) (right: Tags) (rightLevel: \Pow N.Nat^) =>
-      { n: N.Nat^ \where \exists { k: N.Nat^ \where SplitLevel[n, leftLevel, rightLevel, k] } }) tags;
+  \induction (tags: Tags) \return \Pow N.Nat^ \with {
+    | tag: \fun (x: _) => { n: N.Nat^ \where n = N.Nat^::zero }
+    | split: \fun (left: Tags) (leftLevel: \Pow N.Nat^) (right: Tags) (rightLevel: \Pow N.Nat^) =>
+      { n: N.Nat^ \where \exists { k: N.Nat^ \where SplitLevel[n, leftLevel, rightLevel, k] } }
+  } tags;
 
 \definition Level(tags: Tags) (n: N.Nat^): \Prop := \In[N.Nat^] (levelSet tags) n;
 
 \definition leftTags(n: N.Nat^) (a, b: Real): Tags :=
-  \prec[N.Nat^, \fun (n: N.Nat^) => Real -> Real -> Tags]
-    (\fun (a, b: _) => Tags::tag a)
-    (\fun (n: _) (previous: Real -> Real -> Tags) (a, b: _) =>
-      Tags::split (previous a (midpoint a b)) (previous (midpoint a b) b)) n a b;
+  \induction (n: N.Nat^) \return Real -> Real -> Tags \with {
+    | zero: \fun (a, b: _) => Tags::tag a
+    | succ: \fun (n: _) (previous: Real -> Real -> Tags) (a, b: _) =>
+      Tags::split (previous a (midpoint a b)) (previous (midpoint a b) b)
+  } n a b;
 
 \definition leftTagsLevel: \forall (n: N.Nat^) -> \forall (a, b: Real) -> Level (leftTags n a b) n :=
   \induction (n: N.Nat^) \return \forall (a, b: Real) -> Level (leftTags n a b) n \with {

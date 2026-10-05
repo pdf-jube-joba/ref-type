@@ -265,7 +265,6 @@ impl Resolver {
                 | SExp::AccessPath { access, .. }
                 | SExp::RecordTypeCtor { access, .. }
                 | SExp::IndCase { path: access, .. }
-                | SExp::IndElimPrim { path: access, .. }
                 | SExp::ProgramCase { path: access, .. } => {
                     result = self.access(self.current, access);
                 }
@@ -727,7 +726,6 @@ impl Resolver {
                 | SExp::AccessPath { access, .. }
                 | SExp::RecordTypeCtor { access, .. }
                 | SExp::IndCase { path: access, .. }
-                | SExp::IndElimPrim { path: access, .. }
                 | SExp::ProgramCase { path: access, .. } => {
                     if !matches!(access, LocalAccess::Current { access, .. } if access.as_str().starts_with("<macro:"))
                     {
@@ -1125,10 +1123,6 @@ impl Resolver {
                         ..
                     }
                     | SExp::IndCase {
-                        path: LocalAccess::Resolved { module, .. },
-                        ..
-                    }
-                    | SExp::IndElimPrim {
                         path: LocalAccess::Resolved { module, .. },
                         ..
                     }
