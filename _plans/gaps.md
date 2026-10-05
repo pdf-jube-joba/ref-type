@@ -167,9 +167,9 @@ Directions::nil
 関数の圏に具体化して `evaluateFromElement` を使うと、具体的な対象集合 `Unit` と、具体化前の `C.Object` が convertible と判定されなかった。
 現在の米田の全単射は、同じスコープ内で自然変換の部分集合型を定義している。
 
-## refinement で包んだ集合への所属命題の conversion
+## refinement で包んだ集合への所属命題の conversion（解消済み）
 
-`ClassOf x` を `\into` で商の元 `class x` にしたとき、`mem (class x) y` と `Equivalent x y` を直接同じ命題として使いたい。
+`ClassOf x` を `\into` で商の元 `class x` にしたとき、`mem (class x) y` と `Equivalent x y` を直接同じ命題として使える。
 
 ```text
 \definition classMem(x, y: A): Equivalent x y -> mem (class x) y :=
@@ -179,11 +179,10 @@ Directions::nil
 体系の [subset intro と subset weak](../doc/book/src/system.md#power-set-subset) は項そのものを変更せず、[predicate の reduction](../doc/book/src/system.md#setprop-1) は内包集合への所属をその述語の適用へ簡約する。
 したがって、この場合は `Equivalent` を任意の二項関係としても `mem (class x) y` が `Equivalent x y` に簡約される。
 
-処理系は `\into` を `SubsetIntro` ノードとして保持する。
-[reduction.rs](../src/kernel/src/reduction.rs) の `Pred` の root reduction は集合引数が `Subset` の場合だけ適用されるが、[environment.rs](../src/kernel/src/environment.rs) の `whnf` はその引数を処理するときに `SubsetIntro` を消去しない。
-集合引数に `SubsetIntro` が残るため、所属命題の頭部簡約が止まり、述語の適用との conversion に失敗する。
+処理系は `\into` を `SubsetIntro` ノードとして保持して所属証拠を検査し、Set の消去操作では `Environment::erased_head` を通して内側の値を観測する。
+[reduction.rs](../src/kernel/src/reduction.rs) の `Pred` もこの操作を使うため、集合引数の refinement を透過して所属命題を簡約できる。
 
-商や同値関係を使わない次の形でも再現する。
+商や同値関係を使わない次の形も型検査できる。
 
 ```text
 \module PredicateReview(A: \Set, P: A -> \Prop) {
@@ -196,8 +195,8 @@ Directions::nil
 }
 ```
 
-再ビルドした CLI で、`P x` から `\In[A] bare x` への恒等証明と、`\In[A] bare x` から `\In[A] refined x` への恒等証明はそれぞれ通るが、上の `direct` は `types are not convertible` になることを確認した。
-現在の `std.Set.Quotient.classMem` と `relatedOfClassMem` の `\idelim` は、この処理系の conversion の不足を回避している。
+`std.Set.Quotient.classMem` と `relatedOfClassMem`、Lebesgue の商の同じ証明を、恒等関数で書く形に整理した。
+[回帰テスト](../tests/ok/system/refinement_eliminators.ref) では、入れ子の refinement、型注釈、所属証明の取り出し、step-match/run、Box の消去を検査する。
 
 > [!note]
 > `mem (class x) y`

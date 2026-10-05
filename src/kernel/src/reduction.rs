@@ -187,7 +187,11 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
             mode,
             function,
             argument,
-        } => match a.get(function) {
+        } => match a.get(if mode == Mode::Pure {
+            env.erased_head(function)?
+        } else {
+            function
+        }) {
             Node::Lambda {
                 mode: actual, body, ..
             } if mode == actual => instantiate(a, body, &[argument])?,
@@ -195,7 +199,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
                 on_continue,
                 on_finish,
                 ..
-            } if mode == Mode::Pure => match a.get(env.whnf(argument)?) {
+            } if mode == Mode::Pure => match a.get(env.erased_head(argument)?) {
                 Node::Continue { next, .. } => app(env, Mode::Pure, on_continue, next),
                 Node::Finish { output, .. } => app(env, Mode::Pure, on_finish, output),
                 _ => return Ok(None),
@@ -204,7 +208,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
         },
         Node::Pred {
             subset, element, ..
-        } => match a.get(subset) {
+        } => match a.get(env.erased_head(subset)?) {
             Node::Subset { predicate, .. } => instantiate(a, predicate, &[element])?,
             _ => return Ok(None),
         },
@@ -266,7 +270,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
             branches,
             ..
         } => {
-            let (head, args) = decompose(env, scrutinee);
+            let (head, args) = decompose(env, env.erased_head(scrutinee)?);
             let id = env
                 .datatypes
                 .get(&inductive)
@@ -301,7 +305,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
             let Node::BoxProgram {
                 program_ty: actual,
                 program,
-            } = a.get(boxed)
+            } = a.get(env.erased_head(boxed)?)
             else {
                 return Ok(None);
             };
@@ -316,14 +320,14 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
             let Node::BoxProgram {
                 program: function,
                 program_ty,
-            } = a.get(function)
+            } = a.get(env.erased_head(function)?)
             else {
                 return Ok(None);
             };
             let Node::Product { body: codomain, .. } = a.get(env.whnf(program_ty)?) else {
                 return Err("boxed function type must be product".into());
             };
-            let Node::BoxProgram { program, .. } = a.get(argument) else {
+            let Node::BoxProgram { program, .. } = a.get(env.erased_head(argument)?) else {
                 return Ok(None);
             };
             let Node::Return { value } = a.get(program) else {
@@ -340,7 +344,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
             let Node::BoxProgram {
                 program: function,
                 program_ty,
-            } = a.get(function)
+            } = a.get(env.erased_head(function)?)
             else {
                 return Ok(None);
             };
@@ -402,7 +406,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
             transition,
             accessibility,
             transition_equality,
-        } => match a.get(transition) {
+        } => match a.get(env.erased_head(transition)?) {
             Node::Finish { output, .. } => output,
             Node::Continue { next, .. } => {
                 let accessibility = crate::termination::descent(

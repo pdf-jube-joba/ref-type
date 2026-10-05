@@ -1,0 +1,70 @@
+\module Refinement {
+  \definition Checked(A: \Set): \Set := \Cast[A] ({ x: A \where x = x });
+  \definition refine(A: \Set)(x: A): Checked A :=
+    \into[A](x, { y: A \where y = y }) \by { \refl(x) };
+}
+
+\module RefinedMembership(A: \Set, P: A -> \Prop, S: \Pow A) {
+  \import \root.Refinement[] \as R;
+  \definition bare: \Pow A := { x: A \where P x };
+  \definition refined: R.Checked (\Pow A) := R.refine (\Pow A) bare;
+  \definition nested: R.Checked (R.Checked (\Pow A)) :=
+    R.refine (R.Checked (\Pow A)) refined;
+
+  \definition direct(x: A): P x -> \In[A] nested x := \fun (h: _) => h;
+  \definition reverse(x: A): \In[A] nested x -> P x := \fun (h: _) => h;
+  \definition annotated(x: A): P x -> \In[A] (nested \of \Pow A) x :=
+    \fun (h: _) => h;
+  \definition opaque(x: A): \In[A] S x -> \In[A] (R.refine (\Pow A) S) x :=
+    \fun (h: _) => h;
+
+  \definition retain: \forall (x: \Cast[A] bare) -> \In[A] nested x :=
+    \fun (x: _) => \bysub(A, bare, x);
+  \definition make(x: A): P x -> \exists \Cast[A] nested := \block {
+    \fun (h: P x) \then
+    \return \exact(\into[A](x, nested) \by { h }, \Cast[A] nested)
+  };
+}
+
+\module RefinedSteps {
+  \import \root.Refinement[] \as R;
+  \inductive Unit: \Set := | unit: Unit;
+  \definition Step: \Set := \RunStep[Unit, Unit];
+  \definition select: Step -> Unit :=
+    \step-match t: \RunStep[Unit, Unit] \return Unit \with {
+      | \continue next: next
+      | \finish output: output
+    };
+  \definition next: R.Checked Step := R.refine Step (\continue[Unit, Unit](Unit::unit));
+  \definition done: R.Checked Step := R.refine Step (\finish[Unit, Unit](Unit::unit));
+  \definition selectNext: select next = Unit::unit := \refl(Unit::unit);
+  \definition selectDone: select done = Unit::unit := \refl(Unit::unit);
+
+  \definition step(s: Unit): Step := done;
+  \definition Terminates(s: Unit): \Prop :=
+    \forall (P: Unit -> \Prop) ->
+      (\forall (x: Unit) ->
+        (\step-match t: \RunStep[Unit, Unit] \return \Prop \with {
+          | \continue next: P next
+          | \finish output: \forall (Q: \Prop) -> Q -> Q
+        }) (step x) -> P x) -> P s;
+  \definition terminates(s: Unit): Terminates s :=
+    \fun (P: _) (h: _) => h s (\fun (Q: \Prop)(q: Q) => q);
+  \definition run: \run[Unit, Unit](step, Unit::unit) \by { terminates Unit::unit } = Unit::unit :=
+    \refl(Unit::unit);
+}
+
+\module RefinedBoxes {
+  \import \root.Refinement[] \as R;
+  \inductive Bit: \VType := | zero: Bit | one: Bit;
+  \definition identity: \Box[Bit ~> \F(Bit)] :=
+    \box[_](\cfun (x: Bit) => \return x);
+  \definition input: \Box[\F(Bit)] := \box[_](\return Bit::one);
+  \definition checkedIdentity: R.Checked (\Box[Bit ~> \F(Bit)]) :=
+    R.refine (\Box[Bit ~> \F(Bit)]) identity;
+  \definition checkedInput: R.Checked (\Box[\F(Bit)]) := R.refine (\Box[\F(Bit)]) input;
+  \definition squash: \squash[\F(Bit)](checkedInput) = Bit^::one := \refl(Bit^::one);
+  \definition apply: \squash[_](\boxapp(
+    checkedIdentity \of \Box[Bit ~> \F(Bit)], checkedInput)) = Bit^::one :=
+    \refl(Bit^::one);
+}

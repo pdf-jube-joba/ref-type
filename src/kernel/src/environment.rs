@@ -251,6 +251,9 @@ impl Environment {
         Err("head normalization fuel exhausted".into())
     }
 
+    /// Observe the underlying value of a checked refinement introduction.
+    /// Set eliminators and conversion use this view; type synthesis inspects
+    /// the original term so its membership evidence and refined type survive.
     pub fn erased_head(&self, mut e: Expression) -> Result<Expression, String> {
         loop {
             e = self.whnf(e)?;

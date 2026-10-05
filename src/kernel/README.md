@@ -54,6 +54,20 @@ parameter の型は登録時に検査し、完成した定義は parameter を t
 `register_datatype` は Program の field と parameter を検査し、Set の鏡像を登録する。
 Box の閉性検査は定義参照の引数も走査する。
 
+### refinement の型検査と簡約
+
+型推論は元の項を調べ、`SubsetIntro { superset: A, subset: S, element: t, proof: h }` について \(t:A\) と \(h:\Pred(A,S,t)\) を検査し、`TypeLift(A, S)` を返す。
+期待型への検査では、推論した refinement 型から台集合への weakening を使う。
+lambda の引数型に穴がある場合は、期待される product の domain を伝えて body を検査し、最終的に解決済みの元の項を厳密に検査する。
+この段階で所属証拠と refinement 型を保持することで、後続の `\bysub` にも所属条件を渡せる。
+
+値の観測には `Environment::erased_head` を使い、頭部の `SubsetIntro` をその `element` として扱う。
+これは体系の subset intro/weak が subject を変えないことに対応する。
+conversion に加え、Set の関数適用、所属、帰納型の消去、step-match/runCase、Box の消去はこの値の見方を共有する。
+例えば集合引数が refinement で包まれていても、\(\Pred(A,\{x:B\mid P\},t)\) は \(P[x:=t]\) に簡約する。
+型注釈で台集合へ弱めた場合も、内側の refinement の導入を同じように透過する。
+`TypeLift(A, S)` 自体は型として保持され、項の注釈の消去とは区別される。
+
 ## メタ変数と制約
 
 `MetaContext::fresh` は宣言文脈と期待型を保持するメタ変数を作る。

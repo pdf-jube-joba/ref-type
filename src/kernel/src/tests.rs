@@ -255,6 +255,135 @@ fn apply(a: &Arena, mode: Mode, function: Expression, argument: Expression) -> E
         argument,
     })
 }
+fn refine(a: &Arena, ty: Expression, value: Expression) -> Expression {
+    a.alloc(Node::SubsetIntro {
+        superset: ty,
+        subset: a.alloc(Node::Subset {
+            var: SymbolId::ANONYMOUS,
+            set: ty,
+            predicate: a.alloc(Node::Equal {
+                left: a.bound(0),
+                right: a.bound(0),
+            }),
+        }),
+        element: value,
+        proof: a.alloc(Node::IdRefl { element: value }),
+    })
+}
+
+#[test]
+fn refined_predicates_reduce_without_losing_typing_evidence() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let prop = sort(a, BaseSort::Prop);
+    // A : Set, P : A -> Prop, x : A.
+    let context = vec![
+        binding(sort(a, BaseSort::Set(0))),
+        binding(product(a, a.bound(0), prop)),
+        binding(a.bound(1)),
+    ];
+    let powerset = a.alloc(Node::PowerSet { set: a.bound(2) });
+    let bare = a.alloc(Node::Subset {
+        var: SymbolId::ANONYMOUS,
+        set: a.bound(2),
+        predicate: apply(a, Mode::Pure, a.bound(2), a.bound(0)),
+    });
+    let refined = refine(a, powerset, bare);
+    let mut metas = MetaContext::new();
+    let mut checker = Checker::new(&env, &mut metas, context.clone());
+    let refined_ty = checker.infer(refined).unwrap();
+    assert!(matches!(a.get(refined_ty), Node::TypeLift { .. }));
+    checker.check(refined, powerset).unwrap();
+    assert!(checker.check(bare, refined_ty).is_err());
+    assert!(!reduction::erased_convertible(&env, refined_ty, powerset).unwrap());
+
+    let mut invalid = a.get(refined);
+    let Node::SubsetIntro { proof, .. } = &mut invalid else {
+        unreachable!()
+    };
+    *proof = a.alloc(Node::IdRefl {
+        element: a.bound(0),
+    });
+    assert!(checker.infer(a.alloc(invalid)).is_err());
+
+    let nested = refine(a, refined_ty, refined);
+    checker.infer(nested).unwrap();
+    let membership = |subset, element| {
+        a.alloc(Node::Pred {
+            superset: a.bound(2),
+            subset,
+            element,
+        })
+    };
+    let expected = apply(a, Mode::Pure, a.bound(1), a.bound(0));
+    let bare_pred = membership(bare, a.bound(0));
+    let nested_pred = membership(nested, a.bound(0));
+    for left in [expected, bare_pred, nested_pred] {
+        for right in [expected, bare_pred, nested_pred] {
+            assert!(reduction::erased_convertible(&env, left, right).unwrap());
+        }
+        assert_eq!(env.whnf(left).unwrap(), expected);
+        assert_eq!(reduction::normalize(&env, left).unwrap(), expected);
+    }
+
+    // The same reduction must expose a contextual hole to unification.
+    let element = metas.fresh(a, context.clone(), Some(a.bound(2)));
+    assert_eq!(
+        metas
+            .unify(&env, &context, membership(nested, element), expected)
+            .unwrap(),
+        Outcome::Solved
+    );
+    metas.finish(&env).unwrap();
+    assert_eq!(metas.zonk(a, element).unwrap(), a.bound(0));
+
+    // Expected propositions propagate through a lambda with an inferred domain.
+    let domain = metas.fresh(a, context.clone(), Some(prop));
+    let identity = lambda(a, Mode::Pure, domain, a.bound(0));
+    let expected_ty = product(a, expected, shift(a, nested_pred, 1, 0).unwrap());
+    metas
+        .check(&env, context.clone(), identity, expected_ty)
+        .unwrap();
+    metas.finish(&env).unwrap();
+    Checker::new(&env, &mut metas, context)
+        .check(identity, expected_ty)
+        .unwrap();
+}
+
+#[test]
+fn refined_function_and_reflected_case_normalize() {
+    let mut env = Environment::new();
+    let (id, program_ty, zero) = natural(&mut env);
+    let a = &env.arena;
+    let ty = env.reflect_bound(program_ty).unwrap();
+    let zero = env.reflect_bound(zero).unwrap();
+    let mut metas = MetaContext::new();
+    let identity = lambda(a, Mode::Pure, ty, a.bound(0));
+    let identity_ty = Checker::new(&env, &mut metas, vec![])
+        .infer(identity)
+        .unwrap();
+    let applied = apply(a, Mode::Pure, refine(a, identity_ty, identity), zero);
+    let case = a.alloc(Node::SetCase {
+        inductive: id,
+        binders: vec![vec![], vec![SymbolId::ANONYMOUS]],
+        scrutinee: a.alloc(Node::Ascribe {
+            term: refine(a, ty, zero),
+            ty,
+        }),
+        branches: vec![zero, a.bound(0)],
+    });
+    for term in [applied, case] {
+        Checker::new(&env, &mut metas, vec![])
+            .check(term, ty)
+            .unwrap();
+        assert_eq!(env.whnf(term).unwrap(), env.whnf(zero).unwrap());
+        assert_eq!(
+            reduction::normalize(&env, term).unwrap(),
+            reduction::normalize(&env, zero).unwrap()
+        );
+    }
+}
+
 fn natural(env: &mut Environment) -> (ProgramInductiveId, Expression, Expression) {
     let id = ProgramInductiveId(0);
     let reflected = InductiveId(0);
@@ -992,7 +1121,10 @@ fn closed_polymorphic_box_applies_types_then_values() {
         computation_ty: ty0,
     });
     let applied = a.alloc(Node::BoxTypeApp {
-        function: boxed,
+        function: a.alloc(Node::Ascribe {
+            term: refine(a, a.alloc(Node::BoxType { program_ty: ty1 }), boxed),
+            ty: a.alloc(Node::BoxType { program_ty: ty1 }),
+        }),
         argument: arg_ty,
     });
     let arg = a.alloc(Node::ThunkValue { computation: id0 });
