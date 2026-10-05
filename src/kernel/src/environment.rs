@@ -52,6 +52,8 @@ pub struct Environment {
     pub(crate) heads: RefCell<Cache<Expression, Expression>>,
     #[serde(skip)]
     shifted: RefCell<Cache<(Expression, usize), Expression>>,
+    #[serde(skip)]
+    instantiations: RefCell<Instantiations>,
 }
 impl Default for Environment {
     fn default() -> Self {
@@ -69,6 +71,7 @@ impl Default for Environment {
             conversions: RefCell::default(),
             heads: RefCell::default(),
             shifted: RefCell::default(),
+            instantiations: RefCell::default(),
         }
     }
 }
@@ -111,13 +114,14 @@ impl Environment {
     pub fn datatype(&self, id: ProgramInductiveId) -> Option<&Datatype> {
         self.datatypes.get(&id)
     }
-    pub fn cache_counts(&self) -> [(&'static str, usize); 5] {
+    pub fn cache_counts(&self) -> [(&'static str, usize); 6] {
         [
             ("heads", self.heads.borrow().len()),
             ("inferred", self.inferred.borrow().len()),
             ("conversions", self.conversions.borrow().len()),
             ("context bindings", self.contexts.borrow().len()),
             ("shifted types", self.shifted.borrow().len()),
+            ("instantiations", self.instantiations.borrow().len()),
         ]
     }
     pub fn declaration_node_count(&self) -> usize {
@@ -147,6 +151,15 @@ impl Environment {
     }
     pub fn parameter(&self, id: ParameterId) -> Option<Expression> {
         self.parameters.get(&id).copied()
+    }
+    pub(crate) fn instantiate(
+        &self,
+        term: Expression,
+        arguments: &[Expression],
+    ) -> Result<Expression, String> {
+        self.instantiations
+            .borrow_mut()
+            .apply(&self.arena, term, arguments)
     }
     pub(crate) fn shifted(&self, ty: Expression, offset: usize) -> Result<Expression, String> {
         if self.arena.max_loose_bound(ty).is_none() {
@@ -418,6 +431,7 @@ impl Environment {
         self.inferred.borrow_mut().begin_scratch();
         self.conversions.borrow_mut().begin_scratch();
         self.shifted.borrow_mut().begin_scratch();
+        let substitutions = self.instantiations.borrow_mut().begin_scratch();
         let result = self.register_definition_inner(metas, definition);
         let mut roots = metas.roots();
         // Earlier declarations and context bindings predate the scratch arena mark.
@@ -451,6 +465,9 @@ impl Environment {
             !removed || self.arena.is_live(*ty) && self.arena.is_live(*result)
         });
         metas.retain_caches(&self.arena, contexts);
+        self.instantiations
+            .borrow_mut()
+            .finish_scratch(&self.arena, substitutions);
         result
     }
     fn register_definition_inner(

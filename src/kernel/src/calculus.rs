@@ -1,7 +1,49 @@
 //! Binder-aware operations on the shared expression DAG.
 use crate::ids::SymbolId;
+use crate::sharing::{Cache, ContextId, ContextInterner};
 use crate::syntax::{Arena, Expression, Node};
 use rustc_hash::{FxHashMap, FxHashSet};
+
+/// Syntax-only substitutions shared by judgements in one environment. Argument
+/// telescopes are interned so keys do not repeatedly own the same argument list.
+#[derive(Debug, Default)]
+pub(crate) struct Instantiations {
+    arguments: ContextInterner<Expression>,
+    results: SubstitutionResults,
+}
+
+type SubstitutionResults = Cache<(Expression, ContextId, usize), Expression>;
+
+impl Instantiations {
+    pub fn apply(
+        &mut self,
+        arena: &Arena,
+        term: Expression,
+        arguments: &[Expression],
+    ) -> Result<Expression, String> {
+        if arguments.is_empty() || arena.max_loose_bound(term).is_none() {
+            return Ok(term);
+        }
+        let id = self.arguments.intern(arguments.iter().copied());
+        substitute(arena, term, arguments, 0, id, &mut self.results)
+    }
+
+    pub fn len(&self) -> usize {
+        self.results.len()
+    }
+
+    pub fn begin_scratch(&mut self) -> usize {
+        self.results.begin_scratch();
+        self.arguments.len()
+    }
+
+    pub fn finish_scratch(&mut self, arena: &Arena, mark: usize) {
+        self.arguments.truncate(mark);
+        self.results.finish_scratch(|(term, arguments, _), result| {
+            arguments.within(mark) && arena.is_live(*term) && arena.is_live(*result)
+        });
+    }
+}
 
 pub fn shift(
     arena: &Arena,
@@ -59,17 +101,36 @@ pub fn instantiate_at(
     arguments: &[Expression],
     inner: usize,
 ) -> Result<Expression, String> {
+    substitute(
+        arena,
+        e,
+        arguments,
+        inner,
+        ContextId::default(),
+        &mut Cache::default(),
+    )
+}
+
+fn substitute(
+    arena: &Arena,
+    e: Expression,
+    arguments: &[Expression],
+    inner: usize,
+    id: ContextId,
+    cache: &mut SubstitutionResults,
+) -> Result<Expression, String> {
     fn walk(
         arena: &Arena,
         e: Expression,
         arguments: &[Expression],
         depth: usize,
-        cache: &mut FxHashMap<(Expression, usize), Expression>,
+        id: ContextId,
+        cache: &mut SubstitutionResults,
     ) -> Result<Expression, String> {
         if arena.max_loose_bound(e).is_none_or(|i| i < depth) {
             return Ok(e);
         }
-        if let Some(&e) = cache.get(&(e, depth)) {
+        if let Some(&e) = cache.get(&(e, id, depth)) {
             return Ok(e);
         }
         let result = match *arena.read(e) {
@@ -87,17 +148,31 @@ pub fn instantiate_at(
                     child,
                     arguments,
                     depth.checked_add(bound).ok_or("binder depth overflow")?,
+                    id,
                     cache,
                 )
             })?,
         };
-        cache.insert((e, depth), result);
+        cache.insert((e, id, depth), result);
         Ok(result)
     }
     if arguments.is_empty() {
         return Ok(e);
     }
-    walk(arena, e, arguments, inner, &mut FxHashMap::default())
+    // Replacing a telescope by its own variables leaves terms in that
+    // telescope unchanged. Outer free variables would still need lowering.
+    if arena
+        .max_loose_bound(e)
+        .is_none_or(|i| i < inner || i - inner < arguments.len())
+        && arguments
+            .iter()
+            .rev()
+            .enumerate()
+            .all(|(index, &argument)| matches!(*arena.read(argument), Node::Bound(i) if i == index))
+    {
+        return Ok(e);
+    }
+    walk(arena, e, arguments, inner, id, cache)
 }
 
 /// Abstract an occurrence's distinct variable arguments into its declaration telescope.

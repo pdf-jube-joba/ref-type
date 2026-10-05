@@ -11,6 +11,8 @@ use crate::{
 use rustc_hash::FxHashSet;
 
 /// Materialize source templates before borrowing the kernel environment.
+/// Registered declarations are immutable and their dependencies are already
+/// materialized. Each reference's actual arguments are still visited below.
 fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
     let mut seen = FxHashSet::default();
     let mut definitions = FxHashSet::default();
@@ -66,6 +68,7 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
         };
         if let Some(id) = parameter
             && parameters.insert(id)
+            && env.kernel.borrow().parameter(id.into()).is_none()
         {
             match env
                 .module_parameter_opt(id)
@@ -103,6 +106,7 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
         }
         if let Some(id) = inductive
             && inductives.insert(id)
+            && env.kernel.borrow().inductive(id.into()).is_none()
         {
             let spec = env.inductive(id);
             pending.extend(spec.parameters().iter().map(|(_, e)| Term::Logical(*e)));
@@ -123,6 +127,7 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
         if let Some(id) = datatype
             && env.has_program_inductive(id)
             && datatypes.insert(id)
+            && env.kernel.borrow().datatype(id.into()).is_none()
         {
             let spec = env.program_inductive(id);
             pending.extend(

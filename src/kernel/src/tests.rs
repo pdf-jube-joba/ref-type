@@ -313,6 +313,91 @@ fn simultaneous_substitution_and_batched_application_preserve_sharing() {
         expected
     );
 }
+
+#[test]
+fn identity_substitution_respects_inner_binders_and_outer_free_variables() {
+    use crate::calculus::instantiate_at;
+    let a = Arena::new();
+    let set = sort(&a, BaseSort::Set(0));
+    let term = lambda(&a, Mode::Pure, a.bound(1), a.bound(2));
+    let identity = [a.bound(1), a.bound(0)];
+    assert_eq!(instantiate(&a, term, &identity).unwrap(), term);
+    assert_eq!(instantiate_at(&a, term, &[a.bound(0)], 1).unwrap(), term);
+    assert_eq!(
+        instantiate_at(&a, a.bound(0), &[set], 1).unwrap(),
+        a.bound(0)
+    );
+    // The same argument list removes variables outside the replaced telescope.
+    assert_eq!(instantiate(&a, a.bound(3), &identity).unwrap(), a.bound(1));
+    assert_eq!(
+        instantiate_at(&a, a.bound(3), &identity, 1).unwrap(),
+        a.bound(1)
+    );
+    let permutation = [a.bound(0), a.bound(1)];
+    assert_eq!(
+        instantiate(&a, term, &permutation).unwrap(),
+        lambda(&a, Mode::Pure, a.bound(0), a.bound(1))
+    );
+}
+
+#[test]
+fn shared_substitution_respects_telescope_length_and_argument_order() {
+    let env = Environment::new();
+    let a = env.arena();
+    let body = lambda(a, Mode::Pure, a.bound(1), a.bound(2));
+    let expected = lambda(a, Mode::Pure, a.bound(4), a.bound(5));
+    assert_eq!(
+        env.instantiate(body, &[a.bound(4), a.bound(3)]).unwrap(),
+        expected
+    );
+    assert_eq!(
+        env.instantiate(body, &[a.bound(5), a.bound(4), a.bound(3)])
+            .unwrap(),
+        expected
+    );
+    assert_eq!(env.shifted(body, 3).unwrap(), expected);
+    assert_eq!(
+        env.instantiate(a.bound(2), &[a.bound(4), a.bound(3)])
+            .unwrap(),
+        a.bound(0)
+    );
+    assert_eq!(
+        env.instantiate(body, &[a.bound(3), a.bound(4)]).unwrap(),
+        lambda(a, Mode::Pure, a.bound(3), a.bound(4))
+    );
+}
+
+#[test]
+fn shared_instantiations_distinguish_arguments_and_reclaim_scratch_keys() {
+    use crate::calculus::Instantiations;
+    let a = Arena::new();
+    let mut substitutions = Instantiations::default();
+    let body = a.alloc(Node::IdRefl {
+        element: a.bound(0),
+    });
+    let set = sort(&a, BaseSort::Set(0));
+    let prop = sort(&a, BaseSort::Prop);
+    let stable = substitutions.apply(&a, body, &[set]).unwrap();
+    assert_eq!(substitutions.apply(&a, body, &[set]).unwrap(), stable);
+    let stable_entries = substitutions.len();
+    assert!(stable_entries > 0);
+    for argument in [prop, set, prop] {
+        let mark = a.scratch_mark();
+        let cache_mark = substitutions.begin_scratch();
+        let temporary = lambda(&a, Mode::Pure, argument, a.bound(0));
+        let result = substitutions.apply(&a, body, &[temporary]).unwrap();
+        assert_eq!(a.get(result), Node::IdRefl { element: temporary });
+        a.finish_scratch(mark, []);
+        substitutions.finish_scratch(&a, cache_mark);
+        assert!(!a.is_live(result));
+        assert_eq!(substitutions.len(), stable_entries);
+        assert_eq!(substitutions.apply(&a, body, &[set]).unwrap(), stable);
+    }
+    let nested = product(&a, body, body);
+    let expected = product(&a, stable, body);
+    assert_eq!(substitutions.apply(&a, nested, &[set]).unwrap(), expected);
+}
+
 #[test]
 fn binder_traversal_includes_motives_annotations_and_proofs() {
     let a = Arena::new();

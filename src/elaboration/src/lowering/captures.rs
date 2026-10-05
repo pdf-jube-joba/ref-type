@@ -395,6 +395,7 @@ impl Lowerer<'_> {
     }
 
     pub(crate) fn prepare_query(&mut self, roots: Vec<Term>) {
+        self.cache.clear();
         let mut captures = FxHashSet::default();
         for dependency in self.dependencies(roots) {
             captures.extend(self.captures(dependency));

@@ -2,6 +2,20 @@
 use super::*;
 
 impl Lowerer<'_> {
+    fn logical_key(
+        &self,
+        e: Exp,
+        depth: usize,
+        m: ModuleId,
+    ) -> (Exp, usize, ModuleId, usize, bool) {
+        (
+            e,
+            depth,
+            m,
+            self.scope.program_depth,
+            self.scope.program_context,
+        )
+    }
     // Reflected Program data can contain long constructor applications.
     // Keep their recursive path out of the large match for the other forms.
     pub(crate) fn set(
@@ -16,7 +30,7 @@ impl Lowerer<'_> {
         let ExpNode::App { func, arg } = self.raw.arena().get(e) else {
             return self.set_non_application(e, ctx, m);
         };
-        let key = (e, self.raw.context_id(ctx), m);
+        let key = self.logical_key(e, ctx.len(), m);
         if let Some(&result) = self.cache.get(&key) {
             return Ok(result);
         }
@@ -49,7 +63,7 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, String> {
-        let key = (e, self.raw.context_id(ctx), m);
+        let key = self.logical_key(e, ctx.len(), m);
         if let Some(&v) = self.cache.get(&key) {
             return Ok(v);
         }

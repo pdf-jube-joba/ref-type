@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""Measure uncached library checks in fresh CLI processes (Linux, Python stdlib)."""
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import statistics
+import subprocess
+import time
+
+LIBRARIES = (
+    "std", "real", "complex", "linear_algebra", "topology", "calculus",
+    "integration", "category",
+)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--binary", type=Path, default=Path("target/debug/cli"))
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--runs", type=int, default=3)
+    parser.add_argument("--libraries", nargs="+", choices=LIBRARIES, default=LIBRARIES)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    if platform.system() != "Linux" or args.runs < 1:
+        parser.error("Linux and a positive --runs value are required")
+    root = args.root.resolve()
+    binary = args.binary.resolve()
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    logs = args.output.parent / (args.output.stem + "-logs")
+    logs.mkdir(exist_ok=True)
+    inputs = hashlib.sha256()
+    for path in sorted((root / "libs").rglob("*")):
+        if path.suffix == ".ref" or path.name == "ref.toml":
+            inputs.update(str(path.relative_to(root)).encode() + b"\0")
+            inputs.update(path.read_bytes() + b"\0")
+    environment = {k: v for k, v in os.environ.items() if not k.startswith("REF_TYPE_PROFILE")}
+    result = {
+        "platform": platform.platform(),
+        "binary": str(binary),
+        "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+        "library_sources_sha256": inputs.hexdigest(),
+        "flags": ["--no-cache", "--diagnostics", "compact"],
+        "runs": args.runs,
+        "measurements": [],
+    }
+    for run in range(1, args.runs + 1):
+        for library in args.libraries:
+            log = logs / f"{run}-{library}.log"
+            command = [str(binary), f"libs/{library}", *result["flags"]]
+            start = time.perf_counter()
+            with log.open("w") as output:
+                child = subprocess.Popen(command, cwd=root, env=environment,
+                                         stdout=output, stderr=subprocess.STDOUT)
+                try:
+                    _, status, usage = os.wait4(child.pid, 0)
+                    child.returncode = os.waitstatus_to_exitcode(status)
+                except BaseException:
+                    child.terminate()
+                    child.wait()
+                    raise
+            row = {
+                "run": run, "library": library,
+                "seconds": round(time.perf_counter() - start, 4),
+                "user_seconds": usage.ru_utime, "system_seconds": usage.ru_stime,
+                "maxrss_kib": usage.ru_maxrss, "exit": child.returncode,
+            }
+            result["measurements"].append(row)
+            args.output.write_text(json.dumps(result, indent=2) + "\n")
+            print(json.dumps(row), flush=True)
+            if child.returncode:
+                raise SystemExit(f"Check failed; see {log}")
+    for library in args.libraries:
+        rows = [row for row in result["measurements"] if row["library"] == library]
+        seconds = [row["seconds"] for row in rows]
+        print(f"{library}: median {statistics.median(seconds):.3f}s "
+              f"({min(seconds):.3f}–{max(seconds):.3f}s), "
+              f"peak {max(row['maxrss_kib'] for row in rows) / 1024:.1f} MiB")
+
+
+if __name__ == "__main__":
+    main()
