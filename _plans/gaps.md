@@ -1,18 +1,6 @@
 ## record eta 則
 record に対する eta がない。 `s = { fiel1 := 2 #field }` が示せない。
 
-## Machine の実行を Box にする定義
-
-Machine を引数に取り、その実行を Box にする共通の定義を書きたい。
-
-```text
-\definition runBox(machine: Machine): \Box[machine.State ~> \F(machine.Output)] :=
-  \box[_](\force machine.run);
-```
-
-現在は引数の State と Output が未確定なため、Box の閉性検査でこの定義を検査できない。
-`std.Program.runBox` はマクロとして提供し、呼出側で具体化した Machine の実行を検査している。
-
 ## 命題を条件とする集合値の構成
 
 命題の証明を引数に取り、集合値を返す関数を書きたい。
@@ -20,7 +8,7 @@ Machine を引数に取り、その実行を Box にする共通の定義を書�
 
 > [!note]
 > この引用欄は人間のメモです。
-> 矛盾しなさそうなのは言われているんですが、こういう Prop -> Set はちょっと許しがたい。
+> 矛盾しなさそうなのは言われているんですが、こういう Prop -> Set はちょっと許しがたい気がするので、保留する。
 
 ## 宣言された型からの証明引数の推論
 
@@ -50,23 +38,6 @@ Directions::nil
 ```
 
 多変数微分の微分順序では、現在は `Lists.List[Coordinate]::nil` と `\induction (directions: Lists.List[Coordinate])` を使っている。
-
-## 帰納型の再帰的な述語
-
-帰納型の再帰を使って、命題値の述語を直接定義したい。
-
-```text
-\definition Valid(tags: Tags) (a, b: Real): \Prop :=
-  \prec[Tags, \fun (tags: Tags) => Real -> Real -> \Prop]
-    (\fun (x, a, b: Real) => Logic.And[Le a x, Le x b])
-    (\fun (left: Tags) (leftValid: Real -> Real -> \Prop)
-      (right: Tags) (rightValid: Real -> Real -> \Prop) (a, b: Real) =>
-      Logic.And[leftValid a (midpoint a b), rightValid (midpoint a b) b]) tags a b;
-```
-
-現在の recursor はこの motive を `upper sort has no classifier` として拒否する。
-積分のタグ付き分割では、`Real -> \Pow Real` に対する再帰で適切なタグの集合を作り、所属命題から `Valid` を定義している。
-
 
 ## モジュール引数に依存する部分集合型の商
 
@@ -166,39 +137,3 @@ Directions::nil
 
 関数の圏に具体化して `evaluateFromElement` を使うと、具体的な対象集合 `Unit` と、具体化前の `C.Object` が convertible と判定されなかった。
 現在の米田の全単射は、同じスコープ内で自然変換の部分集合型を定義している。
-
-## refinement で包んだ集合への所属命題の conversion（解消済み）
-
-`ClassOf x` を `\into` で商の元 `class x` にしたとき、`mem (class x) y` と `Equivalent x y` を直接同じ命題として使える。
-
-```text
-\definition classMem(x, y: A): Equivalent x y -> mem (class x) y :=
-  \fun (xy: Equivalent x y) => xy;
-```
-
-体系の [subset intro と subset weak](../doc/book/src/system.md#power-set-subset) は項そのものを変更せず、[predicate の reduction](../doc/book/src/system.md#setprop-1) は内包集合への所属をその述語の適用へ簡約する。
-したがって、この場合は `Equivalent` を任意の二項関係としても `mem (class x) y` が `Equivalent x y` に簡約される。
-
-処理系は `\into` を `SubsetIntro` ノードとして保持して所属証拠を検査し、Set の消去操作では `Environment::erased_head` を通して内側の値を観測する。
-[reduction.rs](../src/kernel/src/reduction.rs) の `Pred` もこの操作を使うため、集合引数の refinement を透過して所属命題を簡約できる。
-
-商や同値関係を使わない次の形も型検査できる。
-
-```text
-\module PredicateReview(A: \Set, P: A -> \Prop) {
-  \definition bare: \Pow A := { x: A \where P x };
-  \definition family: \Pow (\Pow A) := { S: \Pow A \where S = S };
-  \definition refined: \Cast[\Pow A] family :=
-    \into[\Pow A](bare, family) \by { \refl(bare) };
-  \definition direct(x: A): P x -> \In[A] refined x :=
-    \fun (h: P x) => h;
-}
-```
-
-`std.Set.Quotient.classMem` と `relatedOfClassMem`、Lebesgue の商の同じ証明を、恒等関数で書く形に整理した。
-[回帰テスト](../tests/ok/system/refinement_eliminators.ref) では、入れ子の refinement、型注釈、所属証明の取り出し、step-match/run、Box の消去を検査する。
-
-> [!note]
-> `mem (class x) y`
-> = `\In[A] (\into[\Pow A] (ClassOf x, ClassSet) \by {classIsClass x} ) y`
-> = `\In[A] (\into[\Pow A] ( { y : A \where Equivalent x y }, { C: \Pow A \where IsClass C}) \by `
