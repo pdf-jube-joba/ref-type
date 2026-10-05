@@ -197,6 +197,8 @@ Rat の `Integer` は Int の正規形キャリアを使い、形式差との往
 ## 商への演算の持ち上げ
 
 `Quotient[A := A, Equivalent := relation]` は関係の同値類を構成する。
+`Representative C` は `C = ClassOf x` を満たす代表元の部分集合型であり、`IsClass C` は `\exists Representative C` である。
+代表元は `classProperty` の存在証明から `\takefrom` で取り出し、その同値類との等式は `represents` で参照する。
 商の定理は `EquivalenceLaws` を命題内の前提として量化し、反射律・対称律・推移律を record にまとめて受け取る。
 `Quotient` は、同値関係を保つ単項・二項演算のために `UnaryRespects` / `BinaryRespects`、`UnaryImage` / `BinaryImage` を提供する。
 `induction` は商についての命題を代表元の場合へ帰着する。

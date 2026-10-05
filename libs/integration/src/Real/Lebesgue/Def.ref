@@ -24,15 +24,17 @@
 }
 
 \definition ClassOf(s: Representation): \Pow Representation := { t: Representation \where Equivalent s t };
-\definition IsClass(f: \Pow Representation): \Prop :=
-  \forall (P: \Prop) -> (\forall (s: Representation) -> f = ClassOf s -> P) -> P;
+\definition Representative(f: \Pow Representation): \Set :=
+  \Cast[Representation] ({ s: Representation \where f = ClassOf s });
+\definition IsClass(f: \Pow Representation): \Prop := \exists Representative f;
 \definition Classes: \Pow (\Pow Representation) := { f: \Pow Representation \where IsClass f };
 \definition Function: \Set := \Cast[\Pow Representation] Classes;
 \definition mem(f: Function) (s: Representation): \Prop := \In[Representation] f s;
 
 \definition class(s: Representation): Function :=
   \into[\Pow Representation](ClassOf s, Classes) \by {
-    \fun (P: \Prop) (use: \forall (t: Representation) -> ClassOf s = ClassOf t -> P) => use s (\refl(ClassOf s)) };
+    \exact(\into[Representation](s, Representative (ClassOf s)) \by { \refl(ClassOf s) },
+      Representative (ClassOf s)) };
 
 \definition classMem(s, t: Representation): Equivalent s t -> mem (class s) t :=
   \fun (related: _) => related;
@@ -43,13 +45,13 @@
 \definition classProperty(f: Function): IsClass f := \bysub(\Pow Representation, Classes, f);
 
 \definition induction(P: Function -> \Prop):
-  (\forall (s: Representation) -> P (class s)) -> \forall (f: Function) -> P f :=
-  \fun (step: \forall (s: Representation) -> P (class s)) (f: Function) =>
-    classProperty f (P f) (\fun (s: Representation) (same: f = ClassOf s) =>
-      (\idelim class s = f \with g: \Pow Representation =>
-        \forall (law: IsClass g) -> P (\into[\Pow Representation](g, Classes) \by { law })
-        \by { base: \fun (law: IsClass (class s)) => step s,
-          equality: sym!{\Pow Representation} f (ClassOf s) same }) (classProperty f));
+  (\forall (s: Representation) -> P (class s)) -> \forall (f: Function) -> P f := \block {
+    \fun (step: \forall (s: Representation) -> P (class s))(f: Function) \then
+    \takefrom s: Representative f \by classProperty f \then
+    \return \idelim class s = f \with g: Function => P g
+      \by { base: step s,
+        equality: sym!{Function} f (class s) (\bysub(Representation, Representative f, s)) }
+  };
 
 \definition integralSequence(s: Representation) (n: N.Nat^): Real := (s n).integral;
 
