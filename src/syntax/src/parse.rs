@@ -121,14 +121,25 @@ static PROOF_TERM_KEYWORDS: &[&str] = &[
 ];
 
 fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, ParseError> {
+    lex_with_comments(input, |_| {})
+}
+
+fn lex_with_comments<'a>(
+    input: &'a str,
+    mut comment: impl FnMut(SourceSpan),
+) -> Result<Vec<SpannedToken<'a>>, ParseError> {
     let mut lexer = Token::lexer(input);
     let mut out = Vec::new();
 
     let mut comment_level = 0;
+    let mut comment_start = 0;
 
     while let Some(tok) = lexer.next() {
         match tok {
             Ok(Token::CommentStart) => {
+                if comment_level == 0 {
+                    comment_start = lexer.span().start;
+                }
                 comment_level += 1;
             }
             Ok(Token::CommentEnd) => {
@@ -140,6 +151,12 @@ fn lex_all<'a>(input: &'a str) -> Result<Vec<SpannedToken<'a>>, ParseError> {
                     });
                 }
                 comment_level -= 1;
+                if comment_level == 0 {
+                    comment(SourceSpan {
+                        start: comment_start,
+                        end: lexer.span().end,
+                    });
+                }
             }
             Ok(_) if comment_level > 0 => {
                 continue; // skip tokens inside comments
@@ -207,6 +224,7 @@ pub struct ParseError {
     end: usize,
 }
 
+pub mod documentation;
 mod term_parse;
 
 trait TokenCursor<'a>: Sized {
