@@ -1,4 +1,6 @@
->  ## 帰納型の再帰的な述語
+<a id="g12"></a>
+
+>  ## G12: 帰納型の再帰的な述語
 >
 >  帰納型の再帰を使って、命題値の述語を直接定義したい。
 >
@@ -13,6 +15,9 @@
 >
 >  現在の recursor はこの motive を `upper sort has no classifier` として拒否する。
 >  積分のタグ付き分割では、`Real -> \Pow Real` に対する再帰で適切なタグの集合を作り、所属命題から `Valid` を定義している。
+
+G12 は [`gaps.md`](gaps.md) から分割した項目である。
+再現例・対照例と原因は [調査報告 G12](fix-md/README.md#g12) を参照。
 
 # Upper sort に分類される motive と帰納型の消去
 
@@ -97,7 +102,7 @@ lambda が明示されていない場合は、通常の型推論から引数列�
 一方、[`elaborator`](../src/elaboration/src/elaborator/term_elaborator.rs) は `\induction` と `\prec` の両方で motive を通常の lambda として型推論している。
 さらに、`primitive_recursion` で motive、枝、scrutinee を受け取る関数を生成し、motive と枝を適用する。
 この経路では、kernel の消去規則による特別扱いに到達する前に、upper sort を返す motive の型付けが問題になる。
-[`gaps.md` の「帰納型の再帰的な述語」](gaps.md#帰納型の再帰的な述語)の例については、この経路と実際のエラーの対応を実行して確認する。
+[G12: 帰納型の再帰的な述語](#g12)の例については、この経路と実際のエラーの対応を実行して確認する。
 
 ## Kernel の表現と表面構文の統一
 
