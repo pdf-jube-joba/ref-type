@@ -7,13 +7,14 @@ Dedekind 実数の有界閉区間上で、リーマン積分とルベーグ積�
 | モジュール | 内容 |
 | --- | --- |
 | `Real` | 実数の演算、端点と順序を持つ `Interval` |
-| `Real.Estimates` | 非負の重みに対する単調性、距離の評価、任意小の誤差からの順序・等式 |
 | `Real.Division` | 二等分のタグ付き分割、リーマン和、和の線形性・単調性・距離の評価 |
-| `Real.Sequence` | 実数列の Cauchy 条件、極限、完備性からの極限の構成と一意性 |
 | `Real.Riemann[interval].Def` | 有界性、リーマン積分の条件、積分値付きの関数、\(L^1\) の近さ |
 | `Real.Riemann[interval].Prop` | 積分値の一意性、定数関数、積分値の距離と \(L^1\) の近さの関係 |
 | `Real.Lebesgue[interval].Def` | \(L^1\) Cauchy 列、同値関係、完備化の元、積分の仕様 |
 | `Real.Lebesgue[interval].Prop` | 同値関係の法則、ルベーグ積分の構成、代表列によらないこと、リーマン積分との一致 |
+
+実数の評価は `real.Analysis.Estimates`、実数列の収束と極限は `real.Analysis.Sequence` を使う。
+これらは積分に依存しない共通の実数解析である。
 
 ## リーマン積分
 
@@ -59,7 +60,7 @@ Dedekind 実数の有界閉区間上で、リーマン積分とルベーグ積�
 \]
 を帰納法で証明し、`integralClose` によって積分値の距離を評価する。
 これにより \(L^1\) Cauchy 列の積分値も Cauchy 列になる。
-`Sequence.limitLaw` は完備性から極限を構成し、`representativesAgree` は同値な代表列の極限値が等しいことを示す。
+`real.Analysis.Sequence.limitLaw` は完備性から極限を構成し、`representativesAgree` は同値な代表列の極限値が等しいことを示す。
 `candidateExists` と `candidateUnique` を用いた一意選択が `integral` を定義する。
 `integralOfClass` は任意の代表列から構成した元の積分値を、その列の積分値の極限と結び付ける。
 

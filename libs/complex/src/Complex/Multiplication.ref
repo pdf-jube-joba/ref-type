@@ -1,0 +1,42 @@
+/* Component identities for associativity of complex multiplication. */
+\import real.Analysis[].Algebra[] \as Scalar;
+\definition add: Real -> Real -> Real := RealOp.add;
+\definition sub: Real -> Real -> Real := RealOp.sub;
+\definition mul: Real -> Real -> Real := RealLaws.fieldMul;
+
+\definition assocRealPart: \forall (a, b, c, d, e, f: Real) ->
+  sub (mul (sub (mul a c) (mul b d)) e) (mul (add (mul a d) (mul b c)) f) =
+  sub (mul a (sub (mul c e) (mul d f))) (mul b (add (mul c f) (mul d e))) :=
+  \fun (a, b, c, d, e, f: _) => eq_reason!{
+    {sub (mul (sub (mul a c) (mul b d)) e) (mul (add (mul a d) (mul b c)) f)}
+    "=" {sub (sub (mul (mul a c) e) (mul (mul b d) e)) (add (mul (mul a d) f) (mul (mul b c) f))} "by" {
+      congr2!{Real Real Real} sub _ _ _ _ (Scalar.subMul (mul a c) (mul b d) e) (Scalar.mulAddRight (mul a d) (mul b c) f)}
+    "=" {sub (sub (mul a (mul c e)) (mul b (mul d e))) (add (mul a (mul d f)) (mul b (mul c f)))} "by" {
+      congr2!{Real Real Real} sub _ _ _ _
+        (congr2!{Real Real Real} sub _ _ _ _ (RealLaws.fieldMulAssoc a c e) (RealLaws.fieldMulAssoc b d e))
+        (congr2!{Real Real Real} add _ _ _ _ (RealLaws.fieldMulAssoc a d f) (RealLaws.fieldMulAssoc b c f))}
+    "=" {sub (sub (mul a (mul c e)) (mul a (mul d f))) (add (mul b (mul c f)) (mul b (mul d e)))} "by" {
+      Scalar.subShuffle (mul a (mul c e)) (mul b (mul d e)) (mul a (mul d f)) (mul b (mul c f))}
+    "=" {sub (mul a (sub (mul c e) (mul d f))) (mul b (add (mul c f) (mul d e)))} "by" {
+      congr2!{Real Real Real} sub _ _ _ _
+        (sym!{Real} _ _ (Scalar.mulSub a (mul c e) (mul d f)))
+        (sym!{Real} _ _ (RealLaws.fieldMulAdd b (mul c f) (mul d e)))}
+  };
+\definition assocImaginaryPart: \forall (a, b, c, d, e, f: Real) ->
+  add (mul (sub (mul a c) (mul b d)) f) (mul (add (mul a d) (mul b c)) e) =
+  add (mul a (add (mul c f) (mul d e))) (mul b (sub (mul c e) (mul d f))) :=
+  \fun (a, b, c, d, e, f: _) => eq_reason!{
+    {add (mul (sub (mul a c) (mul b d)) f) (mul (add (mul a d) (mul b c)) e)}
+    "=" {add (sub (mul (mul a c) f) (mul (mul b d) f)) (add (mul (mul a d) e) (mul (mul b c) e))} "by" {
+      congr2!{Real Real Real} add _ _ _ _ (Scalar.subMul (mul a c) (mul b d) f) (Scalar.mulAddRight (mul a d) (mul b c) e)}
+    "=" {add (sub (mul a (mul c f)) (mul b (mul d f))) (add (mul a (mul d e)) (mul b (mul c e)))} "by" {
+      congr2!{Real Real Real} add _ _ _ _
+        (congr2!{Real Real Real} sub _ _ _ _ (RealLaws.fieldMulAssoc a c f) (RealLaws.fieldMulAssoc b d f))
+        (congr2!{Real Real Real} add _ _ _ _ (RealLaws.fieldMulAssoc a d e) (RealLaws.fieldMulAssoc b c e))}
+    "=" {add (add (mul a (mul c f)) (mul a (mul d e))) (sub (mul b (mul c e)) (mul b (mul d f)))} "by" {
+      Scalar.mixedShuffle (mul a (mul c f)) (mul b (mul d f)) (mul a (mul d e)) (mul b (mul c e))}
+    "=" {add (mul a (add (mul c f) (mul d e))) (mul b (sub (mul c e) (mul d f)))} "by" {
+      congr2!{Real Real Real} add _ _ _ _
+        (sym!{Real} _ _ (RealLaws.fieldMulAdd a (mul c f) (mul d e)))
+        (sym!{Real} _ _ (Scalar.mulSub b (mul c e) (mul d f)))}
+  };

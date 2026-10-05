@@ -99,20 +99,25 @@
       constantControl value epsilon positive N.Nat^::zero },
       \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl (\fun (n: N.Nat^) => value) value epsilon k }));
 
-\definition limitUnique: \forall (s: N.Nat^ -> Real) -> \forall (u, v: Real) -> Converges s u -> Converges s v -> u = v :=
-  \fun (s: _) (u, v: _) (hu: Converges s u) (hv: Converges s v) =>
-  E.separatedBySmall u v (\fun (epsilon: _) (positive: _) => \block {
-    \takefrom Nu: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s u (mul half epsilon) k })
-      \by hu (mul half epsilon) (E.halfOfPositive epsilon positive) \then
-    \takefrom Nv: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s v (mul half epsilon) k })
-      \by hv (mul half epsilon) (E.halfOfPositive epsilon positive) \then
-    \let n: N.Nat^ := NatOrder.commonBound Nu Nv \then
-    \return (\fun (bound: R.Le (distance u v) epsilon) => bound) (R.leReplaceRight _ _ _ (E.halfTwice epsilon)
-      (R.leTrans _ _ _ (Metric.distanceTriangle u (s n) v)
-        (E.addLe _ _ _ _
-          (Order.leOfLt _ _ (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric _ _)
-            ((\bysub(N.Nat^, { k: N.Nat^ \where LimitControl s u (mul half epsilon) k }, Nu))
-              n (NatOrder.leftLeCommonBound Nu Nv))))
-          (Order.leOfLt _ _ ((\bysub(N.Nat^, { k: N.Nat^ \where LimitControl s v (mul half epsilon) k }, Nv))
-            n (NatOrder.rightLeCommonBound Nu Nv))))))
-  });
+\definition limitUnique: \forall (s: N.Nat^ -> Real) -> \forall (u, v: Real) -> Converges s u -> Converges s v -> u = v := \block {
+  \fun (s: _) (u, v: _) (hu: Converges s u) (hv: Converges s v) \then
+  \enough _ \by { E.separatedBySmall u v } \then
+  \fun (epsilon: _) (positive: _) \then
+  \takefrom Nu: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s u (mul half epsilon) k })
+    \by hu (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+  \takefrom Nv: \Cast[N.Nat^] ({ k: N.Nat^ \where LimitControl s v (mul half epsilon) k })
+    \by hv (mul half epsilon) (E.halfOfPositive epsilon positive) \then
+  \let n: N.Nat^ := NatOrder.commonBound Nu Nv \then
+  \let nearU: R.Lt (distance (s n) u) (mul half epsilon) :=
+    (\bysub(N.Nat^, { k: N.Nat^ \where LimitControl s u (mul half epsilon) k }, Nu))
+      n (NatOrder.leftLeCommonBound Nu Nv) \then
+  \let nearV: R.Lt (distance (s n) v) (mul half epsilon) :=
+    (\bysub(N.Nat^, { k: N.Nat^ \where LimitControl s v (mul half epsilon) k }, Nv))
+      n (NatOrder.rightLeCommonBound Nu Nv) \then
+  \enough R.Le (distance u v) (add (mul half epsilon) (mul half epsilon))
+    \by { R.leReplaceRight (distance u v) _ epsilon (E.halfTwice epsilon) } \then
+  \return R.leTrans _ _ _ (Metric.distanceTriangle u (s n) v)
+    (E.addLe _ _ _ _
+      (Order.leOfLt _ _ (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric _ _) nearU))
+      (Order.leOfLt _ _ nearV))
+};

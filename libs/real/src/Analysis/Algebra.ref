@@ -1,0 +1,137 @@
+/* Derived scalar identities and positivity of squares. */
+\definition mulOneRight: \forall (a: Real) -> mul a one = a :=
+  \fun (a: _) => trans!{Real} _ _ _ (Laws.fieldMulComm a one) (Laws.fieldMulOneLeft a);
+\definition mulAddRight: \forall (a, b, c: Real) -> mul (add a b) c = add (mul a c) (mul b c) :=
+  \fun (a, b, c: _) => eq_reason!{
+    {mul (add a b) c} "=" {mul c (add a b)} "by" {Laws.fieldMulComm (add a b) c}
+    "=" {add (mul c a) (mul c b)} "by" {Laws.fieldMulAdd c a b}
+    "=" {add (mul a c) (mul b c)} "by" {
+      congr2!{Real Real Real} add _ _ _ _ (Laws.fieldMulComm c a) (Laws.fieldMulComm c b)}
+  };
+\definition addSwap: \forall (a, b, c: Real) -> add a (add b c) = add b (add a c) :=
+  \fun (a, b, c: _) => eq_reason!{
+    {add a (add b c)} "=" {add (add a b) c} "by" {sym!{Real} _ _ (Laws.addAssoc a b c)}
+    "=" {add (add b a) c} "by" {congr!{Real Real} (\fun (t: _) => add t c) _ _ (Laws.addComm a b)}
+    "=" {add b (add a c)} "by" {Laws.addAssoc b a c}
+  };
+\definition addFour: \forall (a, b, c, d: Real) ->
+  add (add a b) (add c d) = add (add a c) (add b d) :=
+  \fun (a, b, c, d: _) => eq_reason!{
+    {add (add a b) (add c d)} "=" {add a (add b (add c d))} "by" {Laws.addAssoc a b (add c d)}
+    "=" {add a (add c (add b d))} "by" {congr!{Real Real} (add a) _ _ (addSwap b c d)}
+    "=" {add (add a c) (add b d)} "by" {sym!{Real} _ _ (Laws.addAssoc a c (add b d))}
+  };
+\definition subAdd: \forall (a, b, c, d: Real) ->
+  sub (add a b) (add c d) = add (sub a c) (sub b d) :=
+  \fun (a, b, c, d: _) => trans!{Real} _ _ _
+    (congr!{Real Real} (add (add a b)) _ _ (Laws.negAdd c d))
+    (addFour a b (neg c) (neg d));
+\definition mulSub: \forall (a, b, c: Real) -> mul a (sub b c) = sub (mul a b) (mul a c) :=
+  \fun (a, b, c: _) => trans!{Real} _ _ _ (Laws.fieldMulAdd a b (neg c))
+    (congr!{Real Real} (add (mul a b)) _ _ (Laws.fieldMulNegRight a c));
+\definition subMul: \forall (a, b, c: Real) -> mul (sub a b) c = sub (mul a c) (mul b c) :=
+  \fun (a, b, c: _) => trans!{Real} _ _ _ (mulAddRight a (neg b) c)
+    (congr!{Real Real} (add (mul a c)) _ _ (Laws.fieldMulNegLeft b c));
+\definition subNeg: \forall (a, b: Real) -> sub a (neg b) = add a b :=
+  \fun (a, b: _) => congr!{Real Real} (add a) _ _ (Laws.negInvolutive b);
+\definition negSub: \forall (a, b: Real) -> neg (sub a b) = sub b a :=
+  \fun (a, b: _) => eq_reason!{
+    {neg (sub a b)} "=" {add (neg a) (neg (neg b))} "by" {Laws.negAdd a (neg b)}
+    "=" {add (neg a) b} "by" {congr!{Real Real} (add (neg a)) _ _ (Laws.negInvolutive b)}
+    "=" {sub b a} "by" {Laws.addComm (neg a) b}
+  };
+
+\definition subShuffle: \forall (a, b, c, d: Real) ->
+  sub (sub a b) (add c d) = sub (sub a c) (add d b) :=
+  \fun (a, b, c, d: _) => eq_reason!{
+    {sub (sub a b) (add c d)}
+    "=" {add (add a (neg b)) (add (neg c) (neg d))} "by" {
+      congr!{Real Real} (add (sub a b)) _ _ (Laws.negAdd c d)}
+    "=" {add (add a (neg c)) (add (neg b) (neg d))} "by" {addFour a (neg b) (neg c) (neg d)}
+    "=" {add (sub a c) (add (neg d) (neg b))} "by" {
+      congr!{Real Real} (add (sub a c)) _ _ (Laws.addComm (neg b) (neg d))}
+    "=" {sub (sub a c) (add d b)} "by" {
+      congr!{Real Real} (add (sub a c)) _ _ (sym!{Real} _ _ (Laws.negAdd d b))}
+  };
+\definition mixedShuffle: \forall (a, b, c, d: Real) ->
+  add (sub a b) (add c d) = add (add a c) (sub d b) :=
+  \fun (a, b, c, d: _) => trans!{Real} _ _ _ (addFour a (neg b) c d)
+    (congr!{Real Real} (add (add a c)) _ _ (Laws.addComm (neg b) d));
+
+\use Logic.either;
+\definition squareNonnegative: \forall (a: Real) -> R.Le zero (mul a a) :=
+  \fun (a: _) => either!{
+    {R.Le zero a} "or" {R.Lt a zero} "either" {R.Le zero (mul a a)}
+    "lt:" {\fun (nonnegative: _) => Laws.fieldMulNonnegative a a nonnegative nonnegative}
+    "rt:" {\fun (negative: _) => R.leReplaceRight zero (mul (neg a) (neg a)) (mul a a)
+      (Laws.fieldMulNegBoth a a)
+      (Laws.fieldMulNonnegative (neg a) (neg a)
+        (Laws.nonnegativeNegOfNegative a negative) (Laws.nonnegativeNegOfNegative a negative))}
+  } (Laws.nonnegativeOrNegativeReal a);
+\definition squareZero: \forall (a: Real) -> mul a a = zero -> a = zero :=
+  \fun (a: Real) (square: _) => Order.byContradiction (a = zero)
+    (\fun (nonzero: Logic.Not (a = zero)) => nonzero (eq_reason!{
+      a "=" {mul one a} "by" {sym!{Real} _ _ (Laws.fieldMulOneLeft a)}
+      "=" {mul (mul (Laws.fieldInv a) a) a} "by" {
+        congr!{Real Real} (\fun (t: _) => mul t a) _ _ (sym!{Real} _ _ (Laws.fieldInverseNonzero a nonzero))}
+      "=" {mul (Laws.fieldInv a) (mul a a)} "by" {Laws.fieldMulAssoc (Laws.fieldInv a) a a}
+      "=" {mul (Laws.fieldInv a) zero} "by" {congr!{Real Real} (mul (Laws.fieldInv a)) _ _ square}
+      "=" zero "by" {Laws.fieldMulZeroRight (Laws.fieldInv a)}
+    }));
+\definition leAddRight: \forall (a, b: Real) -> R.Le zero b -> R.Le a (add a b) :=
+  \fun (a, b: _) (nonnegative: _) => R.leReplaceLeft (add a zero) a (add a b)
+    (Laws.addZeroRight a) (Laws.addMonotoneLeft zero b a nonnegative);
+\definition sumSquaresZeroLeft: \forall (a, b: Real) -> add (mul a a) (mul b b) = zero -> a = zero :=
+  \fun (a, b: _) (sum: _) => squareZero a
+    (R.leAntisym (mul a a) zero
+      (R.leReplaceRight (mul a a) (add (mul a a) (mul b b)) zero sum
+        (leAddRight (mul a a) (mul b b) (squareNonnegative b)))
+      (squareNonnegative a));
+
+
+/* Package the established real operations for clients over an arbitrary field. */
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Ring[] \as Ring;
+\import std.Alg[].Field[] \as Fields;
+
+\definition field: Fields.Field[Real] := \block {
+  \let additiveData: Monoid.MonoidData[Real] := Monoid.MonoidData[Real] {
+    unit := zero, op := add,
+  } \then
+  \let additive: Monoid.CommutativeMonoidLaws[Real, Monoid.CommutativeMonoidData[Real]::# additiveData] :=
+    Monoid.CommutativeMonoidLaws[Real, Monoid.CommutativeMonoidData[Real]::# additiveData] {
+      monoid := Monoid.MonoidLaws[Real, additiveData] {
+        leftIdentity := Laws.addZeroLeft, rightIdentity := Laws.addZeroRight, associative := Laws.addAssoc,
+      },
+      commutative := Laws.addComm,
+    } \then
+  \let multiplicativeData: Monoid.MonoidData[Real] := Monoid.MonoidData[Real] {
+    unit := one, op := mul,
+  } \then
+  \let multiplicative: Monoid.MonoidLaws[Real, multiplicativeData] := Monoid.MonoidLaws[Real, multiplicativeData] {
+    leftIdentity := Laws.fieldMulOneLeft, rightIdentity := mulOneRight, associative := Laws.fieldMulAssoc,
+  } \then
+  \let semiringData: Alg.SemiringData[Real] := Alg.SemiringData[Real] {
+    zero := zero, one := one, add := add, mul := mul,
+  } \then
+  \let semiring: Alg.SemiringLaws[Real, semiringData] := Alg.SemiringLaws[Real, semiringData] {
+    additive := additive, multiplicative := multiplicative,
+    leftDistributive := Laws.fieldMulAdd, rightDistributive := mulAddRight,
+    zeroAbsorbsLeft := Laws.fieldMulZeroLeft, zeroAbsorbsRight := Laws.fieldMulZeroRight,
+  } \then
+  \let ringData: Ring.RingData[Real] := Ring.RingData[Real] {
+    zero := zero, one := one, add := add, neg := neg, mul := mul,
+  } \then
+  \let ring: Ring.RingLaws[Real, ringData] := Ring.RingLaws[Real, ringData] {
+    semiring := semiring, additiveInverse := Laws.addNegLeft,
+  } \then
+  \let commutative: Ring.CommutativeRingLaws[Real, Ring.CommutativeRingData[Real]::# ringData] :=
+    Ring.CommutativeRingLaws[Real, Ring.CommutativeRingData[Real]::# ringData] {
+      ring := ring, mulCommutative := Laws.fieldMulComm,
+    } \then
+  \return Fields.Field[Real] {
+    zero := zero, one := one, add := add, neg := neg, mul := mul, inv := Laws.fieldInv,
+    ring := commutative, nontrivial := Laws.zeroNeOne, inverse := Laws.fieldInverseNonzero,
+  }
+};
