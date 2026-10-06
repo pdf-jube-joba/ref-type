@@ -41,13 +41,14 @@ def validate_catalog():
     detail_headings = list(re.finditer(r"^## (G\d{2}(?:・G\d{2})*):", report, re.MULTILINE))
     require([ident for heading in detail_headings for ident in heading[1].split("・")]
             == [item["id"] for item in items], "README: explanation headings differ from catalog")
-    documented = re.findall(r"\*\*(G\d{2}\.\d{2})\*\* \[`([^`]+)`\]\(cases/([^\)]+)\)", report)
+    documented = re.findall(r"\*\*(G\d{2}\.\d{2})\*\* \[`([^`]+)`\]\(([^\)]+)\)", report)
     for index, heading in enumerate(detail_headings):
         end = detail_headings[index + 1].start() if index + 1 < len(detail_headings) else len(report)
         section_ids = re.findall(r"\*\*(G\d{2})\.\d{2}\*\*", report[heading.end():end])
         require(all(ident in heading[1].split("・") for ident in section_ids),
                 f"README: case under wrong parent heading {heading[1]}")
     cases = []
+    directories = set()
     for number, item in enumerate(items, 1):
         ident = item["id"]
         require(ident == f"G{number:02}", f"catalog: expected parent G{number:02}")
@@ -66,22 +67,25 @@ def validate_catalog():
         require(f'[{item["title"]}]({item["source"]}#{item["anchor"]})' in report,
                 f"{ident}: wrong report source link")
         require(item["cases"], f"{ident}: no cases")
+        directory = Path(item.get("case_directory", "cases"))
+        directories.add(HERE / directory)
         for branch, case in enumerate(item["cases"], 1):
             case_id, filename = case["id"], case["file"]
+            path = (directory / filename).as_posix()
             require(case_id == f"{ident}.{branch:02}", f"{ident}: nonsequential branch ID")
             require(re.fullmatch(rf"{number:02}-{branch:02}-[a-z0-9-]+\.ref", filename),
                     f"{case_id}: filename prefix differs")
-            require(documented.count((case_id, filename, filename)) == 1,
+            require(documented.count((case_id, filename, path)) == 1,
                     f"{case_id}: missing, duplicate or mismatched README explanation")
-            data = (HERE / "cases" / filename).read_bytes()
+            data = (HERE / path).read_bytes()
             lines = len(data.splitlines())
             require(0 < lines <= 30, f"{case_id}: {lines} physical lines (maximum 30)")
-            cases.append({"id": case_id, "case": filename, "lines": lines,
+            cases.append({"id": case_id, "case": filename, "path": path, "lines": lines,
                           "sha256": hashlib.sha256(data).hexdigest()})
     names = [case["case"] for case in cases]
     require(len(names) == len(set(names)), "catalog: duplicate file")
-    require(set(names) == {p.relative_to(HERE / "cases").as_posix()
-                           for p in (HERE / "cases").rglob("*.ref")},
+    require({(HERE / case["path"]).resolve() for case in cases}
+            == {p.resolve() for directory in directories for p in directory.rglob("*.ref")},
             "catalog: missing or unregistered .ref file")
     require(len(documented) == len(cases), "README: extra case explanations")
     require([entry[0] for entry in documented] == [case["id"] for case in cases],
@@ -118,7 +122,7 @@ def main():
            if k != "RUST_LOG" and not k.startswith(("REF_TYPE_", "REF_INVESTIGATION_"))}
     results = []
     for case in cases:
-        source = HERE / "cases" / case["case"]
+        source = HERE / case["path"]
         expected = re.findall(r"^/\* expect-error: (.+) \*/$", source.read_text(), re.MULTILINE)
         expected_exit = 1 if expected else 0
         result = {**case, "expected_exit": expected_exit, "expected_errors": expected}

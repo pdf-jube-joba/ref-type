@@ -12,6 +12,8 @@
 修正前の CLI でも G03.01・G03.03・G04.01・G04.03 の失敗を再確認し、修正後は対照例を含む10例が成功する。
 以下の G03・G04 の記述と例の期待値は実装後の状態であり、他の項目と `evidence/` は当初の調査記録である。
 後から `gaps.md` に加わった G13 は、この G01〜G12 の調査カタログには含めない。
+Rust の回帰テストは crate 内の fixture を直接参照し、`_plans` に依存しない。
+`_plans` をリポジトリ外へ一時退避して再コンパイルし、`cargo test --locked --offline --workspace` の328テストが成功することを確認した。
 
 ```sh
 cargo build --locked -p cli
@@ -52,7 +54,8 @@ G01〜G10 は現行の [`gaps.md`](../gaps.md) の掲載順と一致する。
 
 ## 単独ファイルとしての実行条件
 
-`cases/` の各 `.ref` は、それぞれ必要な定義とトップレベルの `\module` を含む。
+G03・G04 の10例は [`src/elaboration/tests/fixtures/gaps_g03_g04`](../../src/elaboration/tests/fixtures/gaps_g03_g04)、残りの例は `cases/` にある。
+各 `.ref` は、それぞれ必要な定義とトップレベルの `\module` を含む。
 他の `.ref`、`ref.toml`、標準ライブラリ、外部パッケージを必要としない。
 同一ファイル内の `\root.Repro[]` などの参照は、外部ファイルの import ではない。
 CLI の `.ref` 入力はトップレベルに module を要求するので、元文書の式や宣言を module に収めている。
@@ -131,12 +134,12 @@ sort を持つ structure は単一 constructor の帰納型へ展開される（
 
 | 例 | 期待・確認対象 | 実測 |
 | --- | --- | --- |
-| **G03.01** [`03-01-infer-projection.ref`](cases/03-01-infer-projection.ref) | 元文書の `andElim`。`value: _` を宣言型から決める。 | 終了0。 |
-| **G03.02** [`03-02-explicit-projection.ref`](cases/03-02-explicit-projection.ref) | `value: And[P,Q]` のみ明示。 | 終了0。 |
-| **G03.03** [`03-03-infer-take-continuation.ref`](cases/03-03-infer-take-continuation.ref) | `exists A -> (A -> P) -> P` の存在消去で `step: _` を推論する。 | 終了0。 |
-| **G03.04** [`03-04-explicit-take-continuation.ref`](cases/03-04-explicit-take-continuation.ref) | `step: A -> P` のみ明示。存在証明 `e` は `_` のまま。 | 終了0。 |
-| **G03.05** [`03-05-infer-take.ref`](cases/03-05-infer-take.ref) | 証人を関数へ渡さず、既知の証明を返す存在消去。`e: _`。 | 終了0。 |
-| **G03.06** [`03-06-infer-subset.ref`](cases/03-06-infer-subset.ref) | 部分集合型の引数を `f: A -> A` に渡した後にも `bysub` で所属を取り出す。 | 終了0。 |
+| **G03.01** [`03-01-infer-projection.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-01-infer-projection.ref) | 元文書の `andElim`。`value: _` を宣言型から決める。 | 終了0。 |
+| **G03.02** [`03-02-explicit-projection.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-02-explicit-projection.ref) | `value: And[P,Q]` のみ明示。 | 終了0。 |
+| **G03.03** [`03-03-infer-take-continuation.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-03-infer-take-continuation.ref) | `exists A -> (A -> P) -> P` の存在消去で `step: _` を推論する。 | 終了0。 |
+| **G03.04** [`03-04-explicit-take-continuation.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-04-explicit-take-continuation.ref) | `step: A -> P` のみ明示。存在証明 `e` は `_` のまま。 | 終了0。 |
+| **G03.05** [`03-05-infer-take.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-05-infer-take.ref) | 証人を関数へ渡さず、既知の証明を返す存在消去。`e: _`。 | 終了0。 |
+| **G03.06** [`03-06-infer-subset.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-06-infer-subset.ref) | 部分集合型の引数を `f: A -> A` に渡した後にも `bysub` で所属を取り出す。 | 終了0。 |
 
 定義本体を宣言型の期待値付きで elaboration し、lambda の注釈を本体の射影や存在消去より先に単一化する。
 同じ期待型を複数変数の束縛、ブロック、型注釈付き局所定義、structure の検査用ラッパーへ伝える。
@@ -148,10 +151,10 @@ sort を持つ structure は単一 constructor の帰納型へ展開される（
 
 ## G04: 定義名を経由する帰納型の操作
 
-- **G04.01** [`04-01-alias-constructor.ref`](cases/04-01-alias-constructor.ref): `Directions := List[Coordinate]` の後の `Directions::nil`。終了0。
-- **G04.02** [`04-02-direct-constructor.ref`](cases/04-02-direct-constructor.ref): constructor の参照を `List[Coordinate]::nil` に戻す。終了0。
-- **G04.03** [`04-03-alias-induction.ref`](cases/04-03-alias-induction.ref): `induction (xs: Directions)`。終了0。
-- **G04.04** [`04-04-direct-induction.ref`](cases/04-04-direct-induction.ref): 帰納法の型を `List[Coordinate]` に戻す。終了0。
+- **G04.01** [`04-01-alias-constructor.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/04-01-alias-constructor.ref): `Directions := List[Coordinate]` の後の `Directions::nil`。終了0。
+- **G04.02** [`04-02-direct-constructor.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/04-02-direct-constructor.ref): constructor の参照を `List[Coordinate]::nil` に戻す。終了0。
+- **G04.03** [`04-03-alias-induction.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/04-03-alias-induction.ref): `induction (xs: Directions)`。終了0。
+- **G04.04** [`04-04-direct-induction.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/04-04-direct-induction.ref): 帰納法の型を `List[Coordinate]` に戻す。終了0。
 
 関連名のアクセスは型を検査してから正規化し、展開結果の帰納型と実引数から constructor を構成する。
 帰納法は motive の telescope を elaboration した後に末尾の型を正規化するため、添字付きの別名も扱える。
