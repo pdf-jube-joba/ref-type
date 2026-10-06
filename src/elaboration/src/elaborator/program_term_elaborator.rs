@@ -264,12 +264,12 @@ impl ProgramScope {
                 let context =
                     crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
                         .map_err(|error| error.to_string())?;
-                let mut scope = LocalScope::from_typing_context(context);
+                let mut scope = LocalScope::from_typing_context(context.clone());
                 let left = scope.elab_exp(value, environment)?;
                 let right = scope.elab_exp(expression, environment)?;
                 scope.infer_elaborated(left, environment)?;
                 scope.infer_elaborated(right, environment)?;
-                super::term_elaborator::Handler::unify(environment, left, right)?;
+                super::term_elaborator::Handler::unify(environment, &context, left, right)?;
             }
         } else if matches!(ty, SExp::ValueType) {
             let syntax: ValueTypeExp = value.clone().try_into()?;

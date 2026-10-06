@@ -13,7 +13,7 @@ impl GlobalEnvironment {
         let mut scope = LocalScope::default();
         let parameters = scope.elab_telescope_bind_in_decl(parameters, self)?;
         let ty = scope.elab_exp(ty, self)?;
-        let body = scope.elab_exp(body, self)?;
+        let body = scope.elab_with_expected(body, ty, self)?;
         let mut context = self.module_manager.current_context(&self.crate_env);
         context.extend(
             parameters

@@ -325,6 +325,17 @@ impl MetaStore {
             _ => Err("expression does not have a sort".into()),
         }
     }
+    pub(crate) fn unify_in_context(
+        &mut self,
+        env: &CrateEnv,
+        context: &ExpContext,
+        left: Exp,
+        right: Exp,
+    ) -> Result<bool, String> {
+        self.current_context = context.clone();
+        self.unify(env, left, right)
+    }
+
     pub(crate) fn unify(&mut self, env: &CrateEnv, left: Exp, right: Exp) -> Result<bool, String> {
         let index = self.constraints.len();
         self.constrain(env, GoalConstraint::Equal { left, right });

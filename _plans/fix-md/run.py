@@ -27,55 +27,65 @@ def validate_catalog():
             raise ValueError(message)
 
     require(headings and len(headings) == len(raw_headings), "gaps.md: unnumbered heading")
-    require([ident for ident, _ in headings] == [f"G{i:02}" for i in range(1, len(headings) + 1)],
+    ids = [ident for ident, _ in headings]
+    require(ids == sorted(set(ids)),
             "gaps.md: numbering does not follow heading order")
-    require(headings == [(item["id"], item["title"]) for item in items[:len(headings)]],
+    # Later gaps may follow IDs whose source is a split document (G11/G12).
+    # This historical catalog validates only its registered parent IDs.
+    registered = {item["id"] for item in items}
+    require([heading for heading in headings if heading[0] in registered]
+            == [(item["id"], item["title"]) for item in items if item["source"] == "../gaps.md"],
             "catalog: parent IDs/titles differ from gaps.md order")
     require(re.findall(r"^\| \[(G\d{2})\]\(#g\d{2}\) \|", report, re.MULTILINE)
             == [item["id"] for item in items], "README: parent table order differs from catalog")
     detail_headings = list(re.finditer(r"^## (G\d{2}(?:・G\d{2})*):", report, re.MULTILINE))
     require([ident for heading in detail_headings for ident in heading[1].split("・")]
             == [item["id"] for item in items], "README: explanation headings differ from catalog")
-    documented = re.findall(r"\*\*(G\d{2}\.\d{2})\*\* \[`([^`]+)`\]\(cases/([^\)]+)\)", report)
+    documented = re.findall(r"\*\*(G\d{2}\.\d{2})\*\* \[`([^`]+)`\]\(([^\)]+)\)", report)
     for index, heading in enumerate(detail_headings):
         end = detail_headings[index + 1].start() if index + 1 < len(detail_headings) else len(report)
         section_ids = re.findall(r"\*\*(G\d{2})\.\d{2}\*\*", report[heading.end():end])
         require(all(ident in heading[1].split("・") for ident in section_ids),
                 f"README: case under wrong parent heading {heading[1]}")
     cases = []
+    directories = set()
     for number, item in enumerate(items, 1):
         ident = item["id"]
         require(ident == f"G{number:02}", f"catalog: expected parent G{number:02}")
         source = (HERE / item["source"]).read_text()
         source_headings = re.findall(r"^(?:>\s*)?## (G\d{2}): (.+)$", source, re.MULTILINE)
         require((ident, item["title"]) in source_headings, f"{ident}: source heading differs")
-        require((item["source"] == "../gaps.md") == (number <= len(headings)),
+        require((item["source"] == "../gaps.md") == (ident in ids),
                 f"{ident}: wrong main/split source")
-        if number > len(headings):
+        if item["source"] not in ("../gaps.md", "README.md"):
             require(source_headings == [(ident, item["title"])], f"{ident}: extra split-source IDs")
         require(item["anchor"] == ident.lower(), f"{ident}: wrong source anchor")
         require(f'<a id="{item["anchor"]}"></a>' in source, f"{ident}: missing source anchor")
         require(f'<a id="{ident.lower()}"></a>' in report, f"{ident}: missing report anchor")
-        require(f"(fix-md/README.md#{ident.lower()})" in source, f"{ident}: missing backlink")
+        if item["source"] != "README.md":
+            require(f"(fix-md/README.md#{ident.lower()})" in source, f"{ident}: missing backlink")
         require(f'[{item["title"]}]({item["source"]}#{item["anchor"]})' in report,
                 f"{ident}: wrong report source link")
         require(item["cases"], f"{ident}: no cases")
+        directory = Path(item.get("case_directory", "cases"))
+        directories.add(HERE / directory)
         for branch, case in enumerate(item["cases"], 1):
             case_id, filename = case["id"], case["file"]
+            path = (directory / filename).as_posix()
             require(case_id == f"{ident}.{branch:02}", f"{ident}: nonsequential branch ID")
             require(re.fullmatch(rf"{number:02}-{branch:02}-[a-z0-9-]+\.ref", filename),
                     f"{case_id}: filename prefix differs")
-            require(documented.count((case_id, filename, filename)) == 1,
+            require(documented.count((case_id, filename, path)) == 1,
                     f"{case_id}: missing, duplicate or mismatched README explanation")
-            data = (HERE / "cases" / filename).read_bytes()
+            data = (HERE / path).read_bytes()
             lines = len(data.splitlines())
             require(0 < lines <= 30, f"{case_id}: {lines} physical lines (maximum 30)")
-            cases.append({"id": case_id, "case": filename, "lines": lines,
+            cases.append({"id": case_id, "case": filename, "path": path, "lines": lines,
                           "sha256": hashlib.sha256(data).hexdigest()})
     names = [case["case"] for case in cases]
     require(len(names) == len(set(names)), "catalog: duplicate file")
-    require(set(names) == {p.relative_to(HERE / "cases").as_posix()
-                           for p in (HERE / "cases").rglob("*.ref")},
+    require({(HERE / case["path"]).resolve() for case in cases}
+            == {p.resolve() for directory in directories for p in directory.rglob("*.ref")},
             "catalog: missing or unregistered .ref file")
     require(len(documented) == len(cases), "README: extra case explanations")
     require([entry[0] for entry in documented] == [case["id"] for case in cases],
@@ -89,12 +99,18 @@ def main():
     parser.add_argument("--cli", type=Path, default=ROOT / "target/debug/cli")
     parser.add_argument("--output", type=Path, help="write all measured results as JSON")
     parser.add_argument("--validate-only", action="store_true", help="check numbering and physical line counts")
+    parser.add_argument("--groups", nargs="+", help="run only selected catalog parents, e.g. G03 G04")
     args = parser.parse_args()
     try:
         catalog, cases = validate_catalog()
     except (ValueError, KeyError, OSError) as error:
         print(f"Catalog validation failed: {error}")
         return 1
+    if args.groups:
+        unknown = set(args.groups) - {item["id"] for item in catalog["items"]}
+        if unknown:
+            parser.error(f"unknown catalog parents: {', '.join(sorted(unknown))}")
+        cases = [case for case in cases if case["id"].split(".")[0] in args.groups]
     if args.validate_only:
         if args.output:
             parser.error("--output requires execution; omit --validate-only")
@@ -106,7 +122,7 @@ def main():
            if k != "RUST_LOG" and not k.startswith(("REF_TYPE_", "REF_INVESTIGATION_"))}
     results = []
     for case in cases:
-        source = HERE / "cases" / case["case"]
+        source = HERE / case["path"]
         expected = re.findall(r"^/\* expect-error: (.+) \*/$", source.read_text(), re.MULTILINE)
         expected_exit = 1 if expected else 0
         result = {**case, "expected_exit": expected_exit, "expected_errors": expected}

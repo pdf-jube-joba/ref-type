@@ -70,6 +70,14 @@ Program の datatype、constructor、record literal、型関連 item の paramet
 | `?` | 期待型と文脈を調べるための hole |
 
 推論変数は制約から解決する。
+定義の宣言型は本体の lambda へ期待型として渡されるため、射影や存在消去に使う引数の注釈も `_` にできる。
+複数変数の束縛、ブロック、型注釈付き局所定義でもこの期待型を使い、部分集合型を保持する。
+
+```text
+\definition andElim(P, Q, R: \Prop): (P -> Q -> R) -> And[P, Q] -> R :=
+  \fun (curried: _) (value: _) => curried (value #left) (value #right);
+```
+
 共有する推論変数の解は、各出現に共通する外側の binder に依存できる。
 束縛名の `_` は匿名名である。
 

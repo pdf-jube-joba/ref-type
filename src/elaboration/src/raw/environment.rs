@@ -1222,6 +1222,16 @@ impl CrateEnv {
         Ok(())
     }
 
+    pub(crate) fn item_for_inductive(&self, inductive: InductiveId) -> Option<&ModuleItem> {
+        self.modules.iter().flat_map(ModuleEnv::items).find(|item| {
+            matches!(item,
+                ModuleItem::Inductive { inductive: candidate, .. }
+                | ModuleItem::Record { inductive: candidate, .. }
+                | ModuleItem::ProgramInductive { reflected: candidate, .. }
+                if *candidate == inductive)
+        })
+    }
+
     pub fn record_for_inductive(&self, inductive: InductiveId) -> Option<&ModuleItem> {
         self.modules.iter().flat_map(ModuleEnv::items).find(|item| {
             matches!(item, ModuleItem::Record { inductive: candidate, .. } if *candidate == inductive)

@@ -1,10 +1,33 @@
 # `gaps.md` と分割先の再現・原因調査
 
-調査・再検証ベースは `9c84db29074bd2712f1efa4ec18f4d2a925fb651`。
+当初の調査・再検証ベースは `9c84db29074bd2712f1efa4ec18f4d2a925fb651`。
 `git fetch origin` 後の `origin/main` の SHA を確認し、指定された `d56d19914e9cc9c3fa5fe1e54415ec042bd20e62` が祖先に含まれることを `git merge-base --is-ancestor` で検証した。
 作業ツリーが clean な状態から `investigate/gaps-numbering-minimal` を作成した。
-当初の原因調査は `d56d199…` で行っており、今回のベースとの間に `src/`、`libs/`、`tests/`、Cargo manifest・lockfile の変更はない。
+当初の原因調査は `d56d199…` で行っており、当時の再検証ベース `9c84db2…` との間に `src/`、`libs/`、`tests/`、Cargo manifest・lockfile の変更はなかった。
 実行環境は Linux x86_64、Rust 1.95.0、Python 3.12。
+
+## G03・G04 の実装後の再検証
+
+2026-10-06、最新 main `6571149ca98b78191db0066b2e00b64740c797cc` から G03・G04 を修正した。
+修正前の CLI でも G03.01・G03.03・G04.01・G04.03 の失敗を再確認し、修正後は対照例を含む10例が成功する。
+以下の G03・G04 の記述と例の期待値は実装後の状態であり、他の項目と `evidence/` は当初の調査記録である。
+後から `gaps.md` に加わった G13 は、この G01〜G12 の調査カタログには含めない。
+Rust の回帰テストは crate 内の fixture を直接参照し、`_plans` に依存しない。
+`_plans` をリポジトリ外へ一時退避して再コンパイルし、`cargo test --locked --offline --workspace` の328テストが成功することを確認した。
+
+```sh
+cargo build --locked -p cli
+python3 _plans/fix-md/run.py --groups G03 G04
+cargo test --locked -p elaboration --test gaps_g03_g04
+```
+
+`cargo test --locked --workspace` は追加の6テストを含む328テストが成功し、`cargo fmt --all -- --check` と `git diff --check` も成功した。
+`tests/bench_libraries.py --runs 1` で std・real・complex・linear_algebra・topology・calculus・integration・category の全8ライブラリを `--no-cache --diagnostics compact` で検査し、すべて終了0を確認した。
+誤った証明・注釈、存在証人の集合値への脱出、部分集合への証明なしの導入、不正な constructor 引数・名前・枝、禁止された Prop 消去を拒否する回帰テストを含む。
+
+`Logic.Proposition.andElim` の `(curried: P -> Q -> R) (value: And[P, Q])` を `(curried: _) (value: _)` に短縮した。
+方向微分の部分集合型注釈を `_` にし、微分順序の `Lists.List[Coordinate]::nil` と帰納法を `Directions` 経由に変更した。
+変更した5つのライブラリ `.ref` は24,055文字から23,749文字へ306文字、499行から498行へ1行減り、宣言された定理の型と証明内容を維持している。
 
 ## 対象文書の対応
 
@@ -18,8 +41,8 @@ G01〜G10 は現行の [`gaps.md`](../gaps.md) の掲載順と一致する。
 | --- | --- | --- |
 | [G01](#g01) | [record eta 則](../gaps.md#g01) | 変数に対する定義的 eta はない。kernel の conversion で失敗。命題的等式は kernel の帰納法で証明できる。 |
 | [G02](#g02) | [命題を条件とする集合値の構成](../gaps.md#g02) | 一級の `P -> A` は sort の積規則により拒否。contextual な `choose(h: P): A` は成功。 |
-| [G03](#g03) | [宣言された型からの証明引数の推論](../gaps.md#g03) | 射影と存在消去の継続の穴で再現。存在証明の引数だけの穴と、部分集合型の保持は今回の例で成功。 |
-| [G04](#g04) | [定義した型名からの帰納型の操作](../gaps.md#g04) | constructor と induction の双方で再現。elaboration が宣言の種類を要求し、定義の本体を展開しない。 |
+| [G03](#g03) | [宣言された型からの証明引数の推論](../gaps.md#g03) | 対応済み。宣言型を lambda・ブロック・局所定義へ渡し、現在の束縛文脈で型を単一化する。 |
+| [G04](#g04) | [定義した型名からの帰納型の操作](../gaps.md#g04) | 対応済み。型の展開結果から constructor と induction の帰納型を解決する。 |
 | [G05](#g05) | [モジュール引数に依存する部分集合型の商](../gaps.md#g05) | 再現。具体化時の宣言予約順と共有判定により、内側 import の古い型参照を再利用する。 |
 | [G06](#g06) | [具体化したモジュール内の型と座標空間](../gaps.md#g06) | 内部の帰納型の同じ不一致を恒等関数まで縮約して再現。G05 と同じ具体化・共有経路。 |
 | [G07](#g07) | [圏の signature を添字に取る Set の構造](../gaps.md#g07) | 再現。signature parameter の宣言側の展開と、利用側の実引数の展開が揃わない。 |
@@ -27,11 +50,12 @@ G01〜G10 は現行の [`gaps.md`](../gaps.md) の掲載順と一致する。
 | [G09](#g09) | [ブロックで導入した contextual な関手の射影](../gaps.md#g09) | 再現。block のローカル束縛を伴わずに射影を正規化し、名前解決で module import と解釈する。 |
 | [G10](#g10) | [集合値関手の内部で具体化した自然変換の型](../gaps.md#g10) | 現行 main では再現せず。自己完結した2例と実ライブラリの一時コピーによる確認が成功。解消コミットは未特定。 |
 | [G11](#g11) | [Machine の実行を Box にする定義](../box-parameters.md#g11) | 再現。kernel が開いた computation type を拒否する、現行仕様の閉性制限。 |
-| [G12](#g12) | [帰納型の再帰的な述語](#g12) | 修正済み。`induction` が開いた motive を直接検査し、命題・述語への再帰が成功。 |
+| [G12](#g12) | [帰納型の再帰的な述語](README.md#g12) | 修正済み。`induction` が開いた motive を直接検査し、命題・述語への再帰が成功。 |
 
 ## 単独ファイルとしての実行条件
 
-`cases/` の各 `.ref` は、それぞれ必要な定義とトップレベルの `\module` を含む。
+G03・G04 の10例は [`src/elaboration/tests/fixtures/gaps_g03_g04`](../../src/elaboration/tests/fixtures/gaps_g03_g04)、残りの例は `cases/` にある。
+各 `.ref` は、それぞれ必要な定義とトップレベルの `\module` を含む。
 他の `.ref`、`ref.toml`、標準ライブラリ、外部パッケージを必要としない。
 同一ファイル内の `\root.Repro[]` などの参照は、外部ファイルの import ではない。
 CLI の `.ref` 入力はトップレベルに module を要求するので、元文書の式や宣言を module に収めている。
@@ -110,40 +134,33 @@ sort を持つ structure は単一 constructor の帰納型へ展開される（
 
 | 例 | 期待・確認対象 | 実測 |
 | --- | --- | --- |
-| **G03.01** [`03-01-infer-projection.ref`](cases/03-01-infer-projection.ref) | 元文書の `andElim`。`value: _` を宣言型から決める。 | 終了1、`Expected inductive type for field projection`。 |
-| **G03.02** [`03-02-explicit-projection.ref`](cases/03-02-explicit-projection.ref) | `value: And[P,Q]` のみ明示。 | 終了0。 |
-| **G03.03** [`03-03-infer-take-continuation.ref`](cases/03-03-infer-take-continuation.ref) | `exists A -> (A -> P) -> P` の存在消去で `step: _` を推論する。 | 終了1、`occurs check failed`。 |
-| **G03.04** [`03-04-explicit-take-continuation.ref`](cases/03-04-explicit-take-continuation.ref) | `step: A -> P` のみ明示。存在証明 `e` は `_` のまま。 | 終了0。 |
-| **G03.05** [`03-05-infer-take.ref`](cases/03-05-infer-take.ref) | 証人を関数へ渡さず、既知の証明を返す存在消去。`e: _`。 | 終了0。 |
-| **G03.06** [`03-06-infer-subset.ref`](cases/03-06-infer-subset.ref) | 部分集合型の引数を `f: A -> A` に渡した後にも `bysub` で所属を取り出す。 | 終了0。 |
+| **G03.01** [`03-01-infer-projection.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-01-infer-projection.ref) | 元文書の `andElim`。`value: _` を宣言型から決める。 | 終了0。 |
+| **G03.02** [`03-02-explicit-projection.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-02-explicit-projection.ref) | `value: And[P,Q]` のみ明示。 | 終了0。 |
+| **G03.03** [`03-03-infer-take-continuation.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-03-infer-take-continuation.ref) | `exists A -> (A -> P) -> P` の存在消去で `step: _` を推論する。 | 終了0。 |
+| **G03.04** [`03-04-explicit-take-continuation.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-04-explicit-take-continuation.ref) | `step: A -> P` のみ明示。存在証明 `e` は `_` のまま。 | 終了0。 |
+| **G03.05** [`03-05-infer-take.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-05-infer-take.ref) | 証人を関数へ渡さず、既知の証明を返す存在消去。`e: _`。 | 終了0。 |
+| **G03.06** [`03-06-infer-subset.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/03-06-infer-subset.ref) | 部分集合型の引数を `f: A -> A` に渡した後にも `bysub` で所属を取り出す。 | 終了0。 |
 
-射影の経路は、宣言型と本体を個別に `elab_exp` する [`elaborate_contextual_definition`](../../src/elaboration/src/elaborator/declarations.rs#L16) → [`field_projection`](../../src/elaboration/src/elaborator.rs#L256)。
-射影はその場で base の型を推論し、`IndType` または refinement を要求する。
-宣言型を使った kernel の検査へ進む前に、未確定の `value` の型で失敗する。
-
-存在消去では [`elab_take_map`](../../src/elaboration/src/elaborator/term_elaborator.rs#L604) が消去用 lambda の型を早期に推論する。
-この中の `step x` で、[`Checker` の `Node::App`](../../src/kernel/src/check.rs#L616) は未確定の関数型に対し、新しい domain と body のメタ変数を現在の文脈全体で作る。
-その文脈には `step` とその未確定な型自身が入っている。
-[`MetaContext::occurs`](../../src/kernel/src/metavariables.rs#L511) はメタ変数の文脈中の型も辿るので、関数型を新しい product に割り当てる際に自己依存を検出する。
-`kernel_probe.rs` でも、型が穴であるローカル関数の適用だけで同じ拒否を確認した。
-存在消去そのものが kernel にないのではなく、期待型を早期検査へ届ける経路と、この未確定関数型の推論に問題がある。
-
-存在証明の注釈を常に明示する必要があるという結論にはならない。
-部分集合型の保持も現行のこの例では成功し、過去の方向微分の完全な式が同じ結果になるかは、この縮約例だけでは断定しない。
+定義本体を宣言型の期待値付きで elaboration し、lambda の注釈を本体の射影や存在消去より先に単一化する。
+同じ期待型を複数変数の束縛、ブロック、型注釈付き局所定義、structure の検査用ラッパーへ伝える。
+単一化は module 引数と現在のローカル束縛を含む文脈で行い、依存型や部分集合型を保持する。
+完成した定義は従来どおり kernel で再検査する。
+期待型なしの未知の関数適用を一般に推論できるようにする変更ではなく、当初の `kernel_probe.rs` にある独立した未知関数型の制限とは区別する。
 
 <a id="g04"></a>
 
 ## G04: 定義名を経由する帰納型の操作
 
-- **G04.01** [`04-01-alias-constructor.ref`](cases/04-01-alias-constructor.ref): `Directions := List[Coordinate]` の後の `Directions::nil`。終了1、`Expected inductive constructor or record type in base of associated access`。
-- **G04.02** [`04-02-direct-constructor.ref`](cases/04-02-direct-constructor.ref): constructor の参照を `List[Coordinate]::nil` に戻す。終了0。
-- **G04.03** [`04-03-alias-induction.ref`](cases/04-03-alias-induction.ref): `induction (xs: Directions)`。終了1、`Induction binder type must name an inductive type`。
-- **G04.04** [`04-04-direct-induction.ref`](cases/04-04-direct-induction.ref): 帰納法の型を `List[Coordinate]` に戻す。終了0。
+- **G04.01** [`04-01-alias-constructor.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/04-01-alias-constructor.ref): `Directions := List[Coordinate]` の後の `Directions::nil`。終了0。
+- **G04.02** [`04-02-direct-constructor.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/04-02-direct-constructor.ref): constructor の参照を `List[Coordinate]::nil` に戻す。終了0。
+- **G04.03** [`04-03-alias-induction.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/04-03-alias-induction.ref): `induction (xs: Directions)`。終了0。
+- **G04.04** [`04-04-direct-induction.ref`](../../src/elaboration/tests/fixtures/gaps_g03_g04/04-04-direct-induction.ref): 帰納法の型を `List[Coordinate]` に戻す。終了0。
 
-関連名のアクセスは [`term_elaborator`](../../src/elaboration/src/elaborator/term_elaborator.rs#L793) で `ItemAccessResult::Inductive` / `Record` を要求する。
-[`SExp::Induction`](../../src/elaboration/src/elaborator/term_elaborator.rs#L1380) はさらに `Inductive` 宣言を直接要求する。
-`Directions` は名前解決できているが、その宣言の種類は `Definition` であり、本体を型として正規化してから判定する経路ではない。
-失敗は kernel の `List` の conversion ではなく、elaboration にある宣言種別の制限である。
+関連名のアクセスは型を検査してから正規化し、展開結果の帰納型と実引数から constructor を構成する。
+帰納法は motive の telescope を elaboration した後に末尾の型を正規化するため、添字付きの別名も扱える。
+複数段の定義、contextual な型定義、具体化した module の型名に対応する。
+部分集合型の台集合を帰納型として取り出すことはせず、constructor の引数、帰納法の枝・motive、Prop の消去制限は元の kernel で検査する。
+追加回帰テストは [`gaps_g03_g04.rs`](../../src/elaboration/tests/gaps_g03_g04.rs) を参照。
 
 <a id="g05"></a>
 
@@ -288,7 +305,7 @@ payload の型検査や reflection を通す前に、この computation type の
 
 <a id="g12"></a>
 
-## G12: 命題値の再帰
+## G12: 帰納型の再帰的な述語
 
 修正前は `prec` と `induction` が motive の通常のラムダを先に推論し、`upper sort has no classifier` で失敗した。
 修正後は kernel の `IndElim` に telescope と本体を渡し、次の三例が成功する。

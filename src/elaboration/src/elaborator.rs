@@ -316,9 +316,16 @@ impl term_elaborator::Handler for GlobalEnvironment {
         .into())
     }
 
-    fn unify(&mut self, left: Exp, right: Exp) -> Result<(), ElaborationError> {
+    fn unify(
+        &mut self,
+        local_ctx: &ExpContext,
+        left: Exp,
+        right: Exp,
+    ) -> Result<(), ElaborationError> {
+        let mut context = self.module_manager.current_context(&self.crate_env);
+        context.extend(local_ctx.iter().cloned());
         self.metavariables
-            .unify(&self.crate_env, left, right)
+            .unify_in_context(&self.crate_env, &context, left, right)
             .map(|_| ())
             .map_err(|message| {
                 self.metavariables

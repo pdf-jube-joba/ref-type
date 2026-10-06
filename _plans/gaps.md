@@ -40,10 +40,10 @@ record に対する eta がない。 `s = { fiel1 := 2 #field }` が示せない
   \fun (curried: _) (value: _) => curried (value #left) (value #right);
 ```
 
-現在の elaborator は射影を処理する時点で `value` の型を確定できず、この例には `value: And[P, Q]` が必要になる。
-存在証明を `\takefrom` で消去する証明でも、同様に引数の型を明示する必要がある。
-部分集合型の引数でも、型を `_` と書いたときに宣言された部分集合型を保持したまま台集合の演算へ渡したい。
-方向微分の差商では、`t` を `inv t` に使うと `Real` と推論されるため、`t: Parameter interval` と明示している。
+対応済み。
+定義の宣言型を本体の lambda に渡し、射影や `\takefrom` の継続を処理する前に引数の型を確定する。
+複数変数を束縛する lambda、ブロック、型注釈付きの局所定義にも期待型を渡す。
+部分集合型の引数は、台集合の演算に渡しても宣言された型を保持する。
 
 <a id="g04"></a>
 
@@ -65,7 +65,10 @@ Directions::nil
 }
 ```
 
-多変数微分の微分順序では、現在は `Lists.List[Coordinate]::nil` と `\induction (directions: Lists.List[Coordinate])` を使っている。
+対応済み。
+型の定義を展開して帰納型を特定し、constructor の参照と帰納法を構成する。
+多変数微分では `Directions::nil` と `\induction (directions: Directions)` を利用する。
+部分集合型は帰納型そのものとして扱わず、元の constructor の引数検査と消去規則を維持する。
 
 <a id="g05"></a>
 

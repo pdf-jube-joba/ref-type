@@ -7,7 +7,7 @@ use crate::raw::calculus::{
     exp_contains_bound, instantiate, instantiate_telescope, shift_bound_indices, type_head_normal,
     whnf,
 };
-use crate::raw::environment::{CrateEnv, DefinedConstant};
+use crate::raw::environment::{CrateEnv, DefinedConstant, ModuleItem};
 use crate::raw::exp::*;
 use crate::raw::ids::*;
 use crate::raw::program::{ComputationTerm, ComputationType, ValueType};
@@ -36,7 +36,12 @@ pub(crate) trait Handler {
         e: Exp,
         ty: Exp,
     ) -> Result<(), ElaborationError>;
-    fn unify(&mut self, left: Exp, right: Exp) -> Result<(), ElaborationError>;
+    fn unify(
+        &mut self,
+        local_ctx: &ExpContext,
+        left: Exp,
+        right: Exp,
+    ) -> Result<(), ElaborationError>;
     fn zonk(&self, exp: Exp) -> Exp;
     fn match_parameters(
         &mut self,
@@ -102,6 +107,58 @@ impl Default for LocalScope {
 }
 
 impl LocalScope {
+    // Resolve the declaration metadata only after reduction has identified the
+    // actual datatype. Refinements are deliberately not stripped here.
+    fn inductive_item(
+        inductive: InductiveId,
+        handler: &impl Handler,
+    ) -> Result<ItemAccessResult, ElaborationError> {
+        let item = handler
+            .env()
+            .item_for_inductive(inductive)
+            .ok_or("Inductive declaration metadata was not found")?;
+        let name = |name: &String| Identifier(name.clone());
+        Ok(match item {
+            ModuleItem::Inductive {
+                name: type_name,
+                constructor_names,
+                associated_definitions,
+                ..
+            } => ItemAccessResult::Inductive(ModItemInductive {
+                type_name: name(type_name),
+                ctor_names: constructor_names.iter().map(name).collect(),
+                associated_definitions: associated_definitions
+                    .iter()
+                    .map(|(n, d)| (name(n), *d))
+                    .collect(),
+                inductive,
+            }),
+            ModuleItem::Record {
+                name: type_name,
+                associated_definitions,
+                ..
+            } => ItemAccessResult::Record(ModItemRecord {
+                type_name: name(type_name),
+                associated_definitions: associated_definitions
+                    .iter()
+                    .map(|(n, d)| (name(n), *d))
+                    .collect(),
+                inductive,
+            }),
+            ModuleItem::ProgramInductive {
+                name: type_name,
+                constructor_names,
+                ..
+            } => ItemAccessResult::Inductive(ModItemInductive {
+                type_name: name(type_name),
+                ctor_names: constructor_names.iter().map(name).collect(),
+                associated_definitions: Vec::new(),
+                inductive,
+            }),
+            ModuleItem::Definition { .. } => unreachable!(),
+        })
+    }
+
     fn definition_reference(
         &mut self,
         definition: DefId,
@@ -277,7 +334,7 @@ impl LocalScope {
         })
     }
 
-    fn elab_with_expected(
+    pub(crate) fn elab_with_expected(
         &mut self,
         exp: &SExp,
         expected: Exp,
@@ -287,27 +344,50 @@ impl LocalScope {
             bind: Bind::Named(bind),
             body,
         } = exp
-            && bind.vars.len() == 1
+            && !bind.vars.is_empty()
         {
-            let expected = whnf(handler.env(), handler.zonk(expected));
-            if let ExpNode::Prod {
-                ty, body: result, ..
-            } = handler.arena().get(expected)
-            {
+            let bindings_mark = self.bindings.len();
+            let context_mark = self.typing_binds.len();
+            let result = (|| {
                 let annotation = self.elab_exp_rec(&bind.ty, handler)?;
-                handler.unify(annotation, ty)?;
-                let var = handler.intern_name(&bind.vars[0]);
-                self.push_named_binder(var, annotation, handler);
-                let elaborated = self.elab_with_expected(body, result, handler);
-                self.pop_binded_var();
-                return Ok(handler.arena().alloc(ExpNode::Lam {
-                    var,
-                    ty: annotation,
-                    body: elaborated?,
-                }));
-            }
+                let mut expected = Some(expected);
+                let mut telescope = Vec::new();
+                for (depth, name) in bind.vars.iter().enumerate() {
+                    let annotation = shift_bound_indices(handler.arena(), annotation, depth, 0);
+                    let normalized = expected.map(|ty| whnf(handler.env(), handler.zonk(ty)));
+                    expected = match normalized.map(|ty| handler.arena().get(ty)) {
+                        Some(ExpNode::Prod { ty, body, .. }) => {
+                            handler.unify(&self.typing_binds, annotation, ty)?;
+                            Some(body)
+                        }
+                        _ => None,
+                    };
+                    let var = handler.intern_name(name);
+                    telescope.push((var, annotation));
+                    self.push_named_binder(var, annotation, handler);
+                    // An unknown expected type still uses ordinary inference.
+                    // The enclosing check will validate the resulting lambda.
+                }
+                let body = match expected {
+                    Some(expected) => self.elab_with_expected(body, expected, handler)?,
+                    None => self.elab_exp_rec(body, handler)?,
+                };
+                Ok(crate::raw::utils::assoc_lam(
+                    handler.arena(),
+                    telescope,
+                    body,
+                ))
+            })();
+            self.bindings.truncate(bindings_mark);
+            self.typing_binds.truncate(context_mark);
+            return result;
         }
-        self.elab_exp_rec(exp, handler)
+        match exp {
+            SExp::Checked { .. } | SExp::Where { .. } | SExp::Block(_) => {
+                self.elab_exp_inner(exp, Some(expected), handler)
+            }
+            _ => self.elab_exp_rec(exp, handler),
+        }
     }
     pub(crate) fn new() -> Self {
         LocalScope {
@@ -641,7 +721,7 @@ impl LocalScope {
         exp: &SExp,
         handler: &mut impl Handler,
     ) -> Result<Exp, ElaborationError> {
-        let result = self.elab_exp_inner(exp, handler)?;
+        let result = self.elab_exp_inner(exp, None, handler)?;
         let span = match exp {
             SExp::AccessPath { access, .. } => Some(access.span()),
             SExp::Meta { span, .. } | SExp::Assign { span, .. } => Some(*span),
@@ -656,6 +736,7 @@ impl LocalScope {
     fn elab_exp_inner(
         &mut self,
         exp: &SExp,
+        expected: Option<Exp>,
         handler: &mut impl Handler,
     ) -> Result<Exp, ElaborationError> {
         match exp {
@@ -668,7 +749,7 @@ impl LocalScope {
                         ) {
                             handler.infer(&mut self.typing_binds, left)?;
                             handler.infer(&mut self.typing_binds, right)?;
-                            handler.unify(left, right)?;
+                            handler.unify(&self.typing_binds, left, right)?;
                         } else {
                             handler.check_program_member(value, ty)?;
                         }
@@ -681,7 +762,10 @@ impl LocalScope {
                         handler.check_program_member(value, ty)?;
                     }
                 }
-                self.elab_exp_rec(body, handler)
+                match expected {
+                    Some(expected) => self.elab_with_expected(body, expected, handler),
+                    None => self.elab_exp_rec(body, handler),
+                }
             }
             SExp::ConversionTarget { .. } | SExp::ProgramValueReference { .. } => {
                 Err("Program value requires reflection".into())
@@ -878,6 +962,36 @@ impl LocalScope {
                             &reflected_parameters,
                         ));
                     }
+                    let (item, parameters) = match item {
+                        ItemAccessResult::Inductive(ref item) => {
+                            let count = handler.env().inductive(item.inductive).parameters().len();
+                            let parameters =
+                                self.associated_parameters(parameters, count, handler)?;
+                            (ItemAccessResult::Inductive(item.clone()), parameters)
+                        }
+                        ItemAccessResult::Record(ref record) => {
+                            let count =
+                                handler.env().inductive(record.inductive).parameters().len();
+                            let parameters =
+                                self.associated_parameters(parameters, count, handler)?;
+                            (ItemAccessResult::Record(record.clone()), parameters)
+                        }
+                        _ => {
+                            let ty = self.elab_exp_rec(base, handler)?;
+                            handler.infer(&mut self.typing_binds, ty)?;
+                            let ty = whnf(handler.env(), handler.zonk(ty));
+                            let ExpNode::IndType {
+                                indspec,
+                                parameters,
+                            } = handler.arena().get(ty)
+                            else {
+                                return Err(
+                                    "Expected inductive type in base of associated access".into()
+                                );
+                            };
+                            (Self::inductive_item(indspec, handler)?, parameters)
+                        }
+                    };
                     match item {
                         ItemAccessResult::Inductive(ModItemInductive {
                             inductive,
@@ -888,10 +1002,6 @@ impl LocalScope {
                         }) => {
                             for (idx, ctor_name) in ctor_names.iter().enumerate() {
                                 if ctor_name.as_str() == field.as_str() {
-                                    let count =
-                                        handler.env().inductive(inductive).parameters().len();
-                                    let parameters =
-                                        self.associated_parameters(parameters, count, handler)?;
                                     return Ok(handler.arena().alloc(ExpNode::IndCtor {
                                         indspec: inductive,
                                         idx,
@@ -903,9 +1013,6 @@ impl LocalScope {
                                 .iter()
                                 .find(|(name, _)| name.as_str() == field.as_str())
                             {
-                                let count = handler.env().inductive(inductive).parameters().len();
-                                let parameters =
-                                    self.associated_parameters(parameters, count, handler)?;
                                 return self.definition_reference(*definition, parameters, handler);
                             }
                             Err(format!(
@@ -916,10 +1023,6 @@ impl LocalScope {
                         }
                         ItemAccessResult::Record(record) => {
                             if field.as_str() == "#" {
-                                let count =
-                                    handler.env().inductive(record.inductive).parameters().len();
-                                let parameters =
-                                    self.associated_parameters(parameters, count, handler)?;
                                 return Ok(handler.arena().alloc(ExpNode::IndCtor {
                                     indspec: record.inductive,
                                     idx: 0,
@@ -931,16 +1034,8 @@ impl LocalScope {
                                 .iter()
                                 .find(|(name, _)| name.as_str() == field.as_str())
                             {
-                                let count =
-                                    handler.env().inductive(record.inductive).parameters().len();
-                                let parameters =
-                                    self.associated_parameters(parameters, count, handler)?;
                                 return self.definition_reference(*definition, parameters, handler);
                             }
-                            let count =
-                                handler.env().inductive(record.inductive).parameters().len();
-                            let parameters =
-                                self.associated_parameters(parameters, count, handler)?;
                             let record_ty = handler.arena().alloc(ExpNode::IndType {
                                 indspec: record.inductive,
                                 parameters: parameters.clone(),
@@ -1011,7 +1106,7 @@ impl LocalScope {
                     for (name, ty, body) in clauses {
                         let value = (|| {
                             let ty = self.elab_exp_rec(ty, handler)?;
-                            let body = self.elab_exp_rec(body, handler)?;
+                            let body = self.elab_with_expected(body, ty, handler)?;
                             let value = handler.arena().alloc(ExpNode::Ascribe { term: body, ty });
                             // Check even unused definitions, before publishing their
                             // names. This also records constraints for implicit types.
@@ -1034,7 +1129,10 @@ impl LocalScope {
                         let name = handler.intern_name(name);
                         self.push_decl_var_exp(name, value);
                     }
-                    self.elab_exp_rec(exp, handler)
+                    match expected {
+                        Some(expected) => self.elab_with_expected(exp, expected, handler),
+                        None => self.elab_exp_rec(exp, handler),
+                    }
                 })();
                 self.bindings.truncate(declaration_mark);
                 self.typing_binds.truncate(depth);
@@ -1381,25 +1479,6 @@ impl LocalScope {
                 return_type,
                 cases,
             } => {
-                let mut head = binders
-                    .last()
-                    .ok_or("expected induction binders")?
-                    .ty
-                    .as_ref();
-                while let SExp::App { func, .. } = head {
-                    head = func;
-                }
-                let SExp::AccessPath { access: path, .. } = head else {
-                    return Err("Induction binder type must name an inductive type".into());
-                };
-                let (ctor_names, inductive) = match handler.get_item_from_access_path(path)? {
-                    ItemAccessResult::Inductive(ModItemInductive {
-                        ctor_names,
-                        inductive,
-                        ..
-                    }) => (ctor_names, inductive),
-                    _ => return Err("Induction binder type must name an inductive type".into()),
-                };
                 let bindings_mark = self.bindings.len();
                 let context_mark = self.typing_binds.len();
                 let motive = (|| {
@@ -1418,6 +1497,20 @@ impl LocalScope {
                 self.bindings.truncate(bindings_mark);
                 self.typing_binds.truncate(context_mark);
                 let (telescope, motive_body) = motive?;
+                let (_, domain) = telescope.last().ok_or("expected induction binders")?;
+                let domain = whnf(handler.env(), handler.zonk(*domain));
+                let (head, _) = crate::raw::utils::decompose_app(handler.arena(), domain);
+                let ExpNode::IndType {
+                    indspec: inductive, ..
+                } = handler.arena().get(head)
+                else {
+                    return Err("Induction binder type must reduce to an inductive type".into());
+                };
+                let ItemAccessResult::Inductive(ModItemInductive { ctor_names, .. }) =
+                    Self::inductive_item(inductive, handler)?
+                else {
+                    return Err("Induction binder type must reduce to an inductive type".into());
+                };
                 let cases = self.elab_inductive_cases(&ctor_names, cases, handler)?;
                 let arena = handler.arena();
                 let depth = telescope.len();
@@ -1855,7 +1948,10 @@ impl LocalScope {
             }
             SExp::Block(block) => {
                 let term = block.as_term()?;
-                self.elab_exp_rec(&term, handler)
+                match expected {
+                    Some(expected) => self.elab_with_expected(&term, expected, handler),
+                    None => self.elab_exp_rec(&term, handler),
+                }
             }
             SExp::Program(_) => {
                 Err("Program block syntax cannot be elaborated as a Set/Prop expression".into())
