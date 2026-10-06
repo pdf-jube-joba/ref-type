@@ -215,5 +215,6 @@ parameter を持つ List の要素を、Set 側でも直接場合分けしたい
 }
 ```
 
-2026-10-06 の CLI では構文解析後、`motive telescope length mismatch` で失敗した。
-処理系の消去項の構成・検査を調べる必要がある。
+2026-10-06 に修正済み。
+`\return` に指定した結果型から、具体化した帰納型の添字と要素を束縛する定数 motive を構成する。
+回帰テストは `src/elaboration/tests/parameterized_match.rs` にある。
