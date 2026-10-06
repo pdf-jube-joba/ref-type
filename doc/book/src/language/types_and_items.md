@@ -23,6 +23,21 @@ List[A]::singleton x
 Import.List[A]::singleton x
 ```
 
+`\definition` で名前を付けた型も、展開して帰納型になれば constructor と帰納法に使える。
+
+```text
+\definition Values: \Set := List[A];
+\definition empty: Values := Values::nil;
+\definition copy: Values -> Values :=
+  \induction (xs: Values) \return Values \with {
+    | nil: Values::nil
+    | cons: \fun (x: A) (xs, previous: Values) => Values::cons x previous
+  };
+```
+
+別名の parameter と帰納法の添字は、展開先の型のものを保持する。
+部分集合型は、その台集合の帰納型とは区別する。
+
 ## Program の record
 
 `\VType` の record は非依存・非再帰の値 field を持ち、thunk 型 `\U C` も使える。
