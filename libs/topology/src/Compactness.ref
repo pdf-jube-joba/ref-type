@@ -1,0 +1,71 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Topology[Carrier := A].Compactness[] \as SourceCompact;
+\import std.Set[].FiniteSubset[A := \Pow A] \as SourceFinite;
+\import std.Set[].FiniteSubset[A := \Pow B] \as TargetFinite;
+\import SourceFinite.Selection[B := \Pow B] \as Selection;
+\import topology.Maps[A := A, B := B] \as Maps;
+\import topology.Continuity[A := A, B := B] \as Continuous;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\definition PreimageRelation(f: A -> B) (family: \Pow (\Pow B)) (U: \Pow A) (V: \Pow B): \Prop :=
+  Logic.And[Target.FamilyMember family V, U = Maps.Preimage f V];
+\definition continuousImage: \forall (source: Source.Topology) (target: Target.Topology) (f: A -> B) ->
+  Continuous.Continuous source target f ->
+  \forall (S: \Pow A) -> Source.IsCompactIn source S -> Target.IsCompactIn target (Maps.Image f S) := \block {
+  \fun (source: Source.Topology) (target: Target.Topology) (f: A -> B)
+    (continuous: Continuous.Continuous source target f) (S: \Pow A) (compact: Source.IsCompactIn source S)
+    (family: \Pow (\Pow B)) (cover: Target.IsOpenCover[target, family, Maps.Image f S]) \then
+  \let pullback: \Pow (\Pow A) := Maps.PullbackFamily f family \then
+  \takefrom finite: \Cast[SourceFinite.FiniteSubset]
+    ({ finite: SourceFinite.FiniteSubset \where Source.FiniteSubcover[pullback, S, finite] })
+    \by compact pullback (Source.IsOpenCover[source, pullback, S] {
+      open := \fun (U: _) (member: _) => Maps.pullbackElim f family U (Source.IsOpenIn source U)
+        (\fun (V: _) (inFamily: _) (equal: _) => \idelim Maps.Preimage f V = U
+          \with W: \Pow A => Source.IsOpenIn source W
+          \by { base: continuous V (#open{cover} V inFamily), equality: sym!{\Pow A} _ _ equal }) member,
+      covers := \fun (x: _) (inS: _) => Target.unionMemberElim family (f x) (Source.Member (Source.Union pullback) x)
+        (\fun (V: _) (inFamily: _) (inV: _) => Source.unionMemberOf pullback (Maps.Preimage f V) x
+          (Maps.pullbackMember f family V inFamily) inV)
+        (#covers{cover} (f x) (Maps.imageMember f S x inS)),
+    }) \then
+  \let data: Source.FiniteSubcover[pullback, S, finite] := \bysub(SourceFinite.FiniteSubset,
+    { finite: SourceFinite.FiniteSubset \where Source.FiniteSubcover[pullback, S, finite] }, finite) \then
+  \takefrom selected: Selection.Selection[PreimageRelation f family, finite]
+    \by Selection.existsSelection (PreimageRelation f family) finite
+      (\fun (U: _) (inFinite: _) => Maps.pullbackElim f family U
+        (\exists { V: \Pow B \where PreimageRelation f family U V })
+        (\fun (V: _) (inFamily: _) (equal: _) => \exact(\into[\Pow B](V,
+          { V: \Pow B \where PreimageRelation f family U V }) \by { Logic.And[_, _]::# inFamily equal },
+          \Cast[\Pow B] ({ V: \Pow B \where PreimageRelation f family U V }))) (#included{data} U inFinite)) \then
+  \let result: TargetFinite.FiniteSubset := #finite{selected} \then
+  \let resultCover: Target.FiniteSubcover[family, Maps.Image f S, result] := Target.FiniteSubcover[family, Maps.Image f S, result] {
+    included := \block {
+      \fun (V: \Pow B) (member: TargetFinite.Member result V) \then
+      \takefrom U: Selection.RelatedWitness (PreimageRelation f family) finite V \by #included{selected} V member \then
+      \let evidence: Logic.And[SourceFinite.Member finite U, PreimageRelation f family U V] :=
+        \bysub(\Pow A, { U: \Pow A \where Logic.And[SourceFinite.Member finite U, PreimageRelation f family U V] }, U) \then
+      \return #left{(#right{evidence})}
+    },
+    covers := \fun (y: B) (member: Target.Member (Maps.Image f S) y) => Maps.imageElim f S y
+      (Target.Member (Target.Union result) y)
+      (\fun (x: A) (inS: Source.Member S x) (equal: f x = y) => Source.unionMemberElim finite x
+        (Target.Member (Target.Union result) y)
+        (\block {
+          \fun (U: \Pow A) (inFinite: SourceFinite.Member finite U) (inU: Source.Member U x) \then
+          \takefrom V: Selection.CoveredWitness (PreimageRelation f family) result U \by #covers{selected} U inFinite \then
+          \let evidence: Logic.And[TargetFinite.Member result V, PreimageRelation f family U V] :=
+            \bysub(\Pow B, { V: \Pow B \where Logic.And[TargetFinite.Member result V, PreimageRelation f family U V] }, V) \then
+          \let inPreimage: Source.Member (Maps.Preimage f V) x :=
+            \idelim U = Maps.Preimage f V \with W: \Pow A => Source.Member W x
+              \by { base: inU, equality: #right{(#right{evidence})} } \then
+          \return Target.unionMemberOf result V y (#left{evidence})
+            (\idelim f x = y \with z: B => Target.Member V z \by { base: inPreimage, equality: equal })
+        }) (#covers{data} x inS)) member,
+  } \then
+  \return \exact(\into[TargetFinite.FiniteSubset](result,
+    { F: TargetFinite.FiniteSubset \where Target.FiniteSubcover[family, Maps.Image f S, F] }) \by { resultCover },
+    \Cast[TargetFinite.FiniteSubset] ({ F: TargetFinite.FiniteSubset \where Target.FiniteSubcover[family, Maps.Image f S, F] }))
+};

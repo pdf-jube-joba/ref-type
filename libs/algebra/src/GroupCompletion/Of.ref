@@ -1,0 +1,183 @@
+\import algebra.Monoid[].Of[Carrier := M, monoid := monoid] \as Sum;
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := M, B := M] \as PairLaws;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\import std.Logic[].Relation[] \as Relation;
+
+\definition Difference: \Set := Pair.Times^[M, M];
+\definition pair: M -> M -> Difference := Pair.pair M M;
+\definition positive: Difference -> M := Pair.first M M;
+\definition negative: Difference -> M := Pair.second M M;
+\definition add: M -> M -> M := Sum.add;
+\definition zero: M := Sum.zero;
+\definition Balance(x, y: Difference) (e: M): \Prop :=
+  add (add (positive x) (negative y)) e = add (add (positive y) (negative x)) e;
+\definition Equivalent(x, y: Difference): \Prop :=
+  \exists { e: M \where Balance x y e };
+\import std.Set[].Quotient[A := Difference, Equivalent := Equivalent] \as Q;
+\definition related(x, y: Difference) (e: M): Balance x y e -> Equivalent x y :=
+  \fun (balance: _) => \exact(\into[M](e, { e: M \where Balance x y e }) \by { balance },
+    \Cast[M] ({ e: M \where Balance x y e }));
+\definition equivalentRefl: \forall (x: Difference) -> Equivalent x x :=
+  \fun (x: _) => related x x zero (\refl(add (add (positive x) (negative x)) zero));
+\definition equivalentSym: \forall (x, y: Difference) -> Equivalent x y -> Equivalent y x := \block {
+  \fun (x, y: _) (relatedXY: _) \then
+  \takefrom e: \Cast[M] ({ e: M \where Balance x y e }) \by relatedXY \then
+  \return related y x e (sym!{M} _ _ (\bysub(M, { e: M \where Balance x y e }, e)))
+};
+\definition regroup(a, b, c, d, e, f: M):
+  add (add (add a b) e) (add (add c d) f) =
+  add (add a d) (add (add b c) (add e f)) :=
+  eq_reason!{{add (add (add a b) e) (add (add c d) f)}
+    "=" {add (add (add a b) (add c d)) (add e f)}
+    "by" {Sum.four (add a b) e (add c d) f}
+    "=" {add (add (add a d) (add b c)) (add e f)}
+    "by" {congr!{M M} (\fun (x: _) => add x (add e f)) _ _
+      (trans!{M} _ _ _ (congr!{M M} (add (add a b)) _ _ (Sum.comm c d)) (Sum.four a b d c))}
+    "=" {add (add a d) (add (add b c) (add e f))}
+    "by" {Sum.assoc (add a d) (add b c) (add e f)}};
+\definition equivalentTrans: \forall (x, y, z: Difference) -> Equivalent x y -> Equivalent y z -> Equivalent x z := \block {
+  \fun (x, y, z: _) (xy: _) (yz: _) \then
+  \takefrom e: \Cast[M] ({ e: M \where Balance x y e }) \by xy \then
+  \takefrom f: \Cast[M] ({ f: M \where Balance y z f }) \by yz \then
+  \let exy: Balance x y e := \bysub(M, { e: M \where Balance x y e }, e) \then
+  \let eyz: Balance y z f := \bysub(M, { f: M \where Balance y z f }, f) \then
+  \let stable: M := add (add (negative y) (positive y)) (add e f) \then
+  \return related x z stable
+    (eq_reason!{{add (add (positive x) (negative z)) stable}
+      "=" {add (add (add (positive x) (negative y)) e) (add (add (positive y) (negative z)) f)}
+      "by" {sym!{M} _ _ (regroup (positive x) (negative y) (positive y) (negative z) e f)}
+      "=" {add (add (add (positive y) (negative x)) e) (add (add (positive z) (negative y)) f)}
+      "by" {congr2!{M M M} add _ _ _ _ exy eyz}
+      "=" {add (add (add (positive z) (negative y)) f) (add (add (positive y) (negative x)) e)}
+      "by" {Sum.comm (add (add (positive y) (negative x)) e) (add (add (positive z) (negative y)) f)}
+      "=" {add (add (positive z) (negative x)) (add (add (negative y) (positive y)) (add f e))}
+      "by" {regroup (positive z) (negative y) (positive y) (negative x) f e}
+      "=" {add (add (positive z) (negative x)) stable}
+      "by" {congr!{M M} (\fun (k: _) => add (add (positive z) (negative x)) (add (add (negative y) (positive y)) k)) _ _ (Sum.comm f e)}})
+};
+\definition equivalence: Q.EquivalenceLaws := Q.EquivalenceLaws {
+  refl := equivalentRefl, sym := equivalentSym, trans := equivalentTrans,
+};
+
+\definition Carrier: \Set := Q.Carrier;
+\definition class: Difference -> Carrier := Q.class;
+\definition classRelated: \forall (x, y: Difference) -> Equivalent x y -> class x = class y := Q.classOfEq equivalence;
+\definition zeroRep: Difference := pair zero zero;
+\definition addRep(x, y: Difference): Difference := pair (add (positive x) (positive y)) (add (negative x) (negative y));
+\definition negRep(x: Difference): Difference := pair (negative x) (positive x);
+\definition parallel(a, b, c, d, e, f: M):
+  add (add (add a b) (add c d)) (add e f) = add (add (add a c) e) (add (add b d) f) :=
+  trans!{M} _ _ _
+    (congr!{M M} (\fun (x: _) => add x (add e f)) _ _ (Sum.four a b c d))
+    (sym!{M} _ _ (Sum.four (add a c) e (add b d) f));
+\definition addRespects: Q.BinaryRespects addRep := \block {
+  \fun (x, y, u, v: _) (xy: _) (uv: _) \then
+  \takefrom e: \Cast[M] ({ e: M \where Balance x y e }) \by xy \then
+  \takefrom f: \Cast[M] ({ f: M \where Balance u v f }) \by uv \then
+  \return related (addRep x u) (addRep y v) (add e f)
+    (eq_reason!{{add (add (add (positive x) (positive u)) (add (negative y) (negative v))) (add e f)}
+      "=" {add (add (add (positive x) (negative y)) e) (add (add (positive u) (negative v)) f)}
+      "by" {parallel (positive x) (positive u) (negative y) (negative v) e f}
+      "=" {add (add (add (positive y) (negative x)) e) (add (add (positive v) (negative u)) f)}
+      "by" {congr2!{M M M} add _ _ _ _
+        (\bysub(M, { e: M \where Balance x y e }, e)) (\bysub(M, { f: M \where Balance u v f }, f))}
+      "=" {add (add (add (positive y) (positive v)) (add (negative x) (negative u))) (add e f)}
+      "by" {sym!{M} _ _ (parallel (positive y) (positive v) (negative x) (negative u) e f)}})
+};
+\definition negRespects: Q.UnaryRespects negRep := \block {
+  \fun (x, y: _) (xy: _) \then
+  \takefrom e: \Cast[M] ({ e: M \where Balance x y e }) \by xy \then
+  \return related (negRep x) (negRep y) e
+    (eq_reason!{{add (add (negative x) (positive y)) e}
+      "=" {add (add (positive y) (negative x)) e} "by" {congr!{M M} (\fun (x: _) => add x e) _ _ (Sum.comm (negative x) (positive y))}
+      "=" {add (add (positive x) (negative y)) e} "by" {sym!{M} _ _ (\bysub(M, { e: M \where Balance x y e }, e))}
+      "=" {add (add (negative y) (positive x)) e} "by" {congr!{M M} (\fun (x: _) => add x e) _ _ (Sum.comm (positive x) (negative y))}})
+};
+\import algebra.Quotient[A := Difference, relation := Equivalent] \as Quotient;
+\import Quotient.Operations[] \as Operations;
+\definition unit: Carrier := class zeroRep;
+\definition plus: Carrier -> Carrier -> Carrier := Operations.binary equivalence addRep addRespects;
+\definition inverse: Carrier -> Carrier := Operations.unary equivalence negRep negRespects;
+\definition addClass: \forall (x, y: Difference) -> plus (class x) (class y) = class (addRep x y) :=
+  Operations.binaryClass equivalence addRep addRespects;
+\definition negClass: \forall (x: Difference) -> inverse (class x) = class (negRep x) :=
+  Operations.unaryClass equivalence negRep negRespects;
+\definition classFields: \forall (x, y: Difference) -> positive x = positive y -> negative x = negative y -> class x = class y :=
+  \fun (x, y: _) (pos: _) (neg: _) => congr!{Difference Carrier} class x y (PairLaws.ext x y pos neg);
+\definition plusZeroLeft: \forall (C: Carrier) -> plus unit C = C :=
+  Q.induction (\fun (C: _) => plus unit C = C)
+    (\fun (x: _) => trans!{Carrier} _ _ _ (addClass zeroRep x)
+      (classFields (addRep zeroRep x) x (Sum.zeroLeft (positive x)) (Sum.zeroLeft (negative x))));
+\definition plusComm: \forall (C, D: Carrier) -> plus C D = plus D C :=
+  Q.induction (\fun (C: _) => \forall (D: Carrier) -> plus C D = plus D C)
+    (\fun (x: _) => Q.induction (\fun (D: _) => plus (class x) D = plus D (class x))
+      (\fun (y: _) => eq_reason!{{plus (class x) (class y)}
+        "=" {class (addRep x y)} "by" {addClass x y}
+        "=" {class (addRep y x)} "by" {classFields (addRep x y) (addRep y x) (Sum.comm (positive x) (positive y)) (Sum.comm (negative x) (negative y))}
+        "=" {plus (class y) (class x)} "by" {sym!{Carrier} _ _ (addClass y x)}}));
+\definition plusZeroRight: \forall (C: Carrier) -> plus C unit = C :=
+  \fun (C: _) => trans!{Carrier} _ _ _ (plusComm C unit) (plusZeroLeft C);
+\definition plusAssoc: \forall (C, D, E: Carrier) -> plus (plus C D) E = plus C (plus D E) :=
+  Q.induction (\fun (C: _) => \forall (D, E: Carrier) -> plus (plus C D) E = plus C (plus D E))
+    (\fun (x: _) => Q.induction (\fun (D: _) => \forall (E: Carrier) -> plus (plus (class x) D) E = plus (class x) (plus D E))
+      (\fun (y: _) => Q.induction (\fun (E: _) => plus (plus (class x) (class y)) E = plus (class x) (plus (class y) E))
+        (\fun (z: _) => eq_reason!{{plus (plus (class x) (class y)) (class z)}
+          "=" {plus (class (addRep x y)) (class z)} "by" {congr!{Carrier Carrier} (\fun (C: _) => plus C (class z)) _ _ (addClass x y)}
+          "=" {class (addRep (addRep x y) z)} "by" {addClass (addRep x y) z}
+          "=" {class (addRep x (addRep y z))} "by" {classFields (addRep (addRep x y) z) (addRep x (addRep y z))
+            (Sum.assoc (positive x) (positive y) (positive z)) (Sum.assoc (negative x) (negative y) (negative z))}
+          "=" {plus (class x) (class (addRep y z))} "by" {sym!{Carrier} _ _ (addClass x (addRep y z))}
+          "=" {plus (class x) (plus (class y) (class z))} "by" {congr!{Carrier Carrier} (plus (class x)) _ _ (sym!{Carrier} _ _ (addClass y z))}})));
+\definition inverseLeft: \forall (C: Carrier) -> plus (inverse C) C = unit :=
+  Q.induction (\fun (C: _) => plus (inverse C) C = unit)
+    (\fun (x: _) => eq_reason!{{plus (inverse (class x)) (class x)}
+      "=" {plus (class (negRep x)) (class x)} "by" {congr!{Carrier Carrier} (\fun (C: _) => plus C (class x)) _ _ (negClass x)}
+      "=" {class (addRep (negRep x) x)} "by" {addClass (negRep x) x}
+      "=" unit "by" {Q.classOfEq equivalence (addRep (negRep x) x) zeroRep
+        (related (addRep (negRep x) x) zeroRep zero
+          (trans!{M} _ _ _
+            (congr!{M M} (\fun (a: _) => add (add a zero) zero) _ _ (Sum.comm (negative x) (positive x)))
+            (congr!{M M} (\fun (a: _) => add a zero) _ _ (Sum.comm (add (positive x) (negative x)) zero))))}});
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition group: Alg.CommutativeGroup[Carrier] := Alg.CommutativeGroup[Carrier] {
+  base := Alg.GroupData[Carrier]::# unit plus inverse,
+  group := Alg.GroupLaws[Carrier, (Alg.GroupData[Carrier]::# unit plus inverse)] {
+    monoid := Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# unit plus)] {
+      leftIdentity := plusZeroLeft, rightIdentity := plusZeroRight, associative := plusAssoc,
+    },
+    leftInverse := inverseLeft,
+    rightInverse := \fun (C: _) => trans!{Carrier} _ _ _ (plusComm C (inverse C)) (inverseLeft C),
+  },
+  commutative := plusComm,
+};
+\definition include(a: M): Carrier := class (pair a zero);
+\definition includeAdd: \forall (a, b: M) -> include (add a b) = plus (include a) (include b) :=
+  \fun (a, b: _) => trans!{Carrier} _ _ _
+    (classFields (pair (add a b) zero) (addRep (pair a zero) (pair b zero))
+      (\refl(add a b)) (sym!{M} _ _ (Sum.zeroLeft zero)))
+    (sym!{Carrier} _ _ (addClass (pair a zero) (pair b zero)));
+\definition asMonoid: Monoid.Monoid[Carrier] := Monoid.Monoid[Carrier] {
+  unit := unit, op := plus, leftIdentity := plusZeroLeft, rightIdentity := plusZeroRight, associative := plusAssoc,
+};
+\import algebra.Hom[A := M, B := Carrier] \as Inclusion;
+\definition inclusion: Inclusion.MonoidMap (Monoid.asMonoid M monoid) asMonoid :=
+  \into[M -> Carrier](include, Inclusion.MonoidMap (Monoid.asMonoid M monoid) asMonoid) \by {
+    Inclusion.MonoidLaws[Monoid.asMonoid M monoid, asMonoid, include] {
+      unit := \refl(unit), operation := includeAdd,
+    }
+  };
+\definition differenceClass: \forall (a, b: M) -> plus (include a) (inverse (include b)) = class (pair a b) :=
+  \fun (a, b: _) => eq_reason!{{plus (include a) (inverse (include b))}
+    "=" {plus (class (pair a zero)) (class (negRep (pair b zero)))}
+    "by" {congr!{Carrier Carrier} (plus (include a)) _ _ (negClass (pair b zero))}
+    "=" {class (addRep (pair a zero) (negRep (pair b zero)))} "by" {addClass (pair a zero) (negRep (pair b zero))}
+    "=" {class (pair a b)} "by" {classFields (addRep (pair a zero) (negRep (pair b zero))) (pair a b)
+      (Sum.zeroRight a) (Sum.zeroLeft b)}};
+\module Universal(K: \Set, target: Alg.CommutativeGroup[K]);

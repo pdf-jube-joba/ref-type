@@ -20,6 +20,8 @@ target/debug/cli _plans/fix-md/cases/01-01-record-eta.ref --no-cache --diagnosti
 | --- | --- | --- |
 | [G01](#g01) | record の変数と具体値 | 変数で失敗、具体値で成功。 |
 | [G02](#g02) | 通常の関数と contextual な定義 | 通常の関数で失敗、contextual な定義で成功。 |
+| [G03](#g03) | 関係を持つ record とデータ・法則の分離 | record の射影生成で失敗、分離すると成功。 |
+| [G04](#g04) | 親の macro 読み込み位置と子の再読み込み | 宣言後の読み込みと再読み込みで失敗、宣言前の読み込みを継承すると成功。 |
 | [G11](#g11) | Machine の引数と具体値 | 引数で失敗、具体値で成功。 |
 
 <a id="g01"></a>
@@ -45,6 +47,31 @@ target/debug/cli _plans/fix-md/cases/01-01-record-eta.ref --no-cache --diagnosti
 | [02-02-proof-contextual.ref](cases/02-02-proof-contextual.ref) | `choose(h: P): A := a`。 | 成功。 |
 
 命題 `P`、集合 `A`、返す値 `a` は共通で、証明引数を通常の関数にするか contextual な定義にするかだけを変える。
+
+<a id="g03"></a>
+
+## G03: 関係を parameter に持つ record
+
+| サンプル | 条件 | 結果 |
+| --- | --- | --- |
+| [03-01-relation-record.ref](cases/03-01-relation-record.ref) | `Selection[relation]: \Set` に値と法則を保持する。 | 失敗：`Generated projection value does not typecheck: no product rule for these sorts`。 |
+| [03-02-relation-record-split.ref](cases/03-02-relation-record-split.ref) | データと法則を分け、部分集合型で結ぶ。 | 成功。 |
+
+保持する値と条件は共通で、record に関係 parameter を渡すか、法則を満たすデータの部分集合型を使うかを比較する。
+
+<a id="g04"></a>
+
+## G04: macro の読み込みと継承
+
+| サンプル | 条件 | 結果 |
+| --- | --- | --- |
+| [04-01-macro-late.ref](cases/04-01-macro-late.ref) | 親の `\use` は子の宣言より後。 | 失敗：`Named macro 'reflexive' is not visible`。 |
+| [04-02-macro-early.ref](cases/04-02-macro-early.ref) | 親の `\use` は子の宣言より前。 | 成功。 |
+| [04-03-macro-duplicate.ref](cases/04-03-macro-duplicate.ref) | 子で同じ macro を再び `\use` する。 | 失敗：`Macro 'reflexive' is already visible`。 |
+| [04-04-macro-inherited.ref](cases/04-04-macro-inherited.ref) | 子で継承された macro を利用する。 | 成功。 |
+
+最初の組は親の `\use` の位置だけを変え、次の組は子の `\use` の有無だけを変えている。
+macro の定義、引数、子で検査する等式は共通である。
 
 <a id="g11"></a>
 

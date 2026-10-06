@@ -1,0 +1,48 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Continuity[A := A, B := B] \as Maps;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition ContinuousOn(source: Source.Topology) (target: Target.Topology) (f: A -> B) (U: \Pow A): \Prop :=
+  \forall (V: \Pow B) -> Target.IsOpenIn target V -> Source.IsOpenIn source (Source.Intersection U (Maps.Preimage f V));
+\definition openCover: \forall (source: Source.Topology) (target: Target.Topology) (f: A -> B)
+  (family: \Pow (\Pow A)) -> Source.Covers family Source.Whole ->
+  (\forall (U: \Pow A) -> Source.FamilyMember family U -> ContinuousOn source target f U) -> Maps.Continuous source target f :=
+  \fun (source: _) (target: _) (f: _) (family: _) (covers: _) (local: _) (V: _) (open: _) =>
+    Source.openOfNeighborhoods source (Maps.Preimage f V)
+      (\fun (x: A) (inPreimage: Source.Member (Maps.Preimage f V) x) => Source.unionMemberElim family x
+        (\exists { W: \Pow A \where Source.OpenNeighborhood[source, x, Maps.Preimage f V, W] })
+        (\fun (U: _) (inFamily: _) (inU: _) => \exact(\into[\Pow A](Source.Intersection U (Maps.Preimage f V),
+          { W: \Pow A \where Source.OpenNeighborhood[source, x, Maps.Preimage f V, W] }) \by {
+            Source.OpenNeighborhood[source, x, Maps.Preimage f V, Source.Intersection U (Maps.Preimage f V)] {
+              open := local U inFamily V open,
+              contains := Logic.And[_, _]::# inU inPreimage,
+              within := \fun (y: A) (member: Source.Member (Source.Intersection U (Maps.Preimage f V)) y) => #right{member},
+            }
+          }, \Cast[\Pow A] ({ W: \Pow A \where Source.OpenNeighborhood[source, x, Maps.Preimage f V, W] })))
+        (covers x (\refl(x))));
+\import Source.Finite[] \as FiniteSets;
+\import Target.Finite[] \as TargetSets;
+\import std.Set[].FiniteSubset[A := \Pow A] \as Finite;
+\definition ClosedOn(source: Source.Topology) (target: Target.Topology) (f: A -> B) (F: \Pow A): \Prop :=
+  \forall (V: \Pow B) -> Target.IsClosedIn target V -> Source.IsClosedIn source (Source.Intersection F (Maps.Preimage f V));
+\definition finiteClosedCover: \forall (source: Source.Topology) (target: Target.Topology) (f: A -> B) (family: Finite.FiniteSubset) ->
+  Source.Covers family Source.Whole ->
+  (\forall (F: \Pow A) -> Finite.Member family F -> Source.IsClosedIn source F) ->
+  (\forall (F: \Pow A) -> Finite.Member family F -> ClosedOn source target f F) -> Maps.Continuous source target f :=
+  \fun (source: _) (target: _) (f: _) (family: _) (covers: _) (closed: _) (local: _) (V: _) (open: _) => \block {
+    \let P: \Pow A := Maps.Preimage f (Target.Complement V) \then
+    \let pieces: Source.IsClosedIn source (Source.Intersection (Source.Union family) P) :=
+      FiniteSets.finiteClosedPieces source P family
+        (\fun (F: _) (member: _) => local F member (Target.Complement V) (TargetSets.openComplementClosed target V open)) \then
+    \let equality: Source.Complement (Source.Intersection (Source.Union family) P) = Maps.Preimage f V :=
+      \axiom:setext(Source.Complement (Source.Intersection (Source.Union family) P), Maps.Preimage f V,
+        \fun (x: A) (outside: Source.Member (Source.Complement (Source.Intersection (Source.Union family) P)) x) =>
+          FiniteSets.doubleNegElim (Target.Member V (f x))
+            (\fun (notInV: Logic.Not (Target.Member V (f x))) => outside (Logic.And[_, _]::# (covers x (\refl(x))) notInV)),
+        \fun (x: A) (inV: Source.Member (Maps.Preimage f V) x) (member: Source.Member (Source.Intersection (Source.Union family) P) x) => #right{member} inV) \then
+    \return \idelim Source.Complement (Source.Intersection (Source.Union family) P) = Maps.Preimage f V
+      \with W: \Pow A => Source.IsOpenIn source W \by { base: pieces, equality: equality }
+  };
+\module Restriction(U: \Pow A);

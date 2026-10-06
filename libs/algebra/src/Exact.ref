@@ -1,0 +1,38 @@
+\import std.Alg[].Alg[] \as Alg;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition Kernel(f: A -> B) (zero: B): \Pow A := { x: A \where f x = zero };
+\definition Image(f: A -> B): \Pow B := { y: B \where \exists { x: A \where f x = y } };
+\definition imageMember(f: A -> B) (x: A): \In[B] (Image f) (f x) :=
+  \exact(\into[A](x, { y: A \where f y = f x }) \by { \refl(f x) },
+    \Cast[A] ({ y: A \where f y = f x }));
+\definition imageElim(f: A -> B) (y: B) (P: \Prop):
+  (\forall (x: A) -> f x = y -> P) -> \In[B] (Image f) y -> P := \block {
+  \fun (step: \forall (x: A) -> f x = y -> P) (member: \In[B] (Image f) y) \then
+  \takefrom x: \Cast[A] ({ x: A \where f x = y }) \by member \then
+  \return step x (\bysub(A, { x: A \where f x = y }, x))
+};
+\module At(C: \Set) {
+  \definition Exact(f: A -> B) (g: B -> C) (zero: C): \Prop :=
+    Image f = { y: B \where g y = zero };
+  \definition exactOfMembers: \forall (f: A -> B) (g: B -> C) (zero: C) ->
+    (\forall (x: A) -> g (f x) = zero) ->
+    (\forall (y: B) -> g y = zero -> \In[B] (Image f) y) -> Exact f g zero :=
+    \fun (f: A -> B) (g: B -> C) (zero: C)
+      (vanishes: \forall (x: A) -> g (f x) = zero)
+      (lifts: \forall (y: B) -> g y = zero -> \In[B] (Image f) y) =>
+      \axiom:setext(Image f, { y: B \where g y = zero },
+        \fun (y: B) (member: \In[B] (Image f) y) => imageElim f y (g y = zero)
+          (\fun (x: A) (equal: f x = y) => trans!{C} _ _ _
+            (congr!{B C} g _ _ (sym!{B} _ _ equal)) (vanishes x)) member, lifts);
+  \definition compositeZero: \forall (f: A -> B) (g: B -> C) (zero: C) -> Exact f g zero ->
+    \forall (x: A) -> g (f x) = zero :=
+    \fun (f: _) (g: _) (zero: _) (exact: _) (x: _) =>
+      \idelim Image f = { y: B \where g y = zero }
+        \with S: \Pow B => \In[B] S (f x)
+        \by { base: imageMember f x, equality: exact };
+}
+\module Groups(source: Alg.CommutativeGroup[A], target: Alg.CommutativeGroup[B]);

@@ -1,0 +1,44 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Maps[A := A, B := B] \as Maps;
+\import topology.Continuity[A := A, B := B] \as Continuous;
+\import std.Logic[].Proposition[] \as Logic;
+
+/* The final topology of a map; surjectivity identifies quotient maps. */
+\definition topology(source: Source.Topology) (q: A -> B): Target.Topology :=
+  \into[Target.TopologyData](Maps.PullbackRaw source q, Target.Topology)
+    \by { Maps.pullbackLaws source q };
+\definition Surjective(q: A -> B): \Prop :=
+  \forall (y: B) -> \exists { x: A \where q x = y };
+\definition open(source: Source.Topology) (q: A -> B) (U: \Pow B):
+  Logic.PropEquiv[Target.IsOpenIn (topology source q) U,
+    Source.IsOpenIn source (Maps.Preimage q U)] := Logic.PropEquiv[_, _] {
+    ltr := \fun (h: _) => h, rtl := \fun (h: _) => h,
+  };
+\definition projectionContinuous: \forall (source: Source.Topology) (q: A -> B) ->
+  Continuous.Continuous source (topology source q) q :=
+  \fun (source: _) (q: _) (U: _) (open: _) => open;
+\structure IsQuotientMap[source: Source.Topology, target: Target.Topology, q: A -> B]: \Prop {
+  onto: Surjective q,
+  continuous: Continuous.Continuous source target q,
+  reflectsOpen: \forall (U: \Pow B) -> Source.IsOpenIn source (Maps.Preimage q U) -> Target.IsOpenIn target U,
+}
+\definition quotientMap: \forall (source: Source.Topology) (q: A -> B) -> Surjective q ->
+  IsQuotientMap[source, topology source q, q] :=
+  \fun (source: _) (q: _) (onto: _) => IsQuotientMap[source, topology source q, q] {
+    onto := onto, continuous := projectionContinuous source q,
+    reflectsOpen := \fun (U: _) (h: _) => h,
+  };
+\module Universal(C: \Set) {
+  \import topology.Topology[Carrier := C] \as Range;
+  \import topology.Continuity[A := B, B := C] \as After;
+  \import topology.Continuity[A := A, B := C] \as Composite;
+  \definition continuous: \forall (source: Source.Topology) (q: A -> B)
+    (target: Range.Topology) (f: B -> C) ->
+    Logic.PropEquiv[After.Continuous (topology source q) target f,
+      Composite.Continuous source target (\fun (x: _) => f (q x))] :=
+    \fun (source: _) (q: _) (target: _) (f: _) => Logic.PropEquiv[_, _] {
+      ltr := \fun (h: _) (U: _) (open: _) => h U open,
+      rtl := \fun (h: _) (U: _) (open: _) => h U open,
+    };
+}

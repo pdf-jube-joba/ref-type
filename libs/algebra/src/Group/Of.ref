@@ -1,0 +1,74 @@
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+
+\definition zero: Carrier := #unit{(#base{group})};
+\definition add: Carrier -> Carrier -> Carrier := #op{(#base{group})};
+\definition neg: Carrier -> Carrier := #inv{(#base{group})};
+\definition additive: Monoid.CommutativeMonoid[Carrier] := Monoid.CommutativeMonoid[Carrier] {
+  base := Monoid.MonoidData[Carrier]::# zero add,
+  monoid := #monoid{(#group{group})},
+  commutative := #commutative{group},
+};
+\import algebra.Monoid[].Of[Carrier := Carrier, monoid := additive] \as Sum;
+\definition zeroLeft: \forall (a: Carrier) -> add zero a = a := Sum.zeroLeft;
+\definition zeroRight: \forall (a: Carrier) -> add a zero = a := Sum.zeroRight;
+\definition assoc: \forall (a, b, c: Carrier) -> add (add a b) c = add a (add b c) := Sum.assoc;
+\definition comm: \forall (a, b: Carrier) -> add a b = add b a := Sum.comm;
+\definition inverseLeft: \forall (a: Carrier) -> add (neg a) a = zero := #leftInverse{(#group{group})};
+\definition inverseRight: \forall (a: Carrier) -> add a (neg a) = zero := #rightInverse{(#group{group})};
+
+\definition cancelLeft(a, b, c: Carrier): add a b = add a c -> b = c :=
+  \fun (equal: _) => eq_reason!{{b}
+    "=" {add zero b} "by" {sym!{Carrier} _ _ (zeroLeft b)}
+    "=" {add (add (neg a) a) b} "by" {congr!{Carrier Carrier} (\fun (x: _) => add x b) _ _ (sym!{Carrier} _ _ (inverseLeft a))}
+    "=" {add (neg a) (add a b)} "by" {assoc (neg a) a b}
+    "=" {add (neg a) (add a c)} "by" {congr!{Carrier Carrier} (add (neg a)) _ _ equal}
+    "=" {add (add (neg a) a) c} "by" {sym!{Carrier} _ _ (assoc (neg a) a c)}
+    "=" {add zero c} "by" {congr!{Carrier Carrier} (\fun (x: _) => add x c) _ _ (inverseLeft a)}
+    "=" c "by" {zeroLeft c}};
+
+\definition cancelRight(a, b, c: Carrier): add b a = add c a -> b = c :=
+  \fun (equal: _) => cancelLeft a b c (trans!{Carrier} _ _ _ (comm a b) (trans!{Carrier} _ _ _ equal (comm c a)));
+
+\definition inverseUnique(a, b: Carrier): add b a = zero -> b = neg a :=
+  \fun (equal: _) => cancelRight a b (neg a) (trans!{Carrier} _ _ _ equal (sym!{Carrier} _ _ (inverseLeft a)));
+
+\definition negZero: neg zero = zero :=
+  trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (zeroRight (neg zero))) (inverseLeft zero);
+
+\definition negNeg(a: Carrier): neg (neg a) = a :=
+  sym!{Carrier} _ _ (inverseUnique (neg a) a (inverseRight a));
+
+\definition negAdd(a, b: Carrier): neg (add a b) = add (neg a) (neg b) :=
+  sym!{Carrier} _ _ (inverseUnique (add a b) (add (neg a) (neg b))
+    (eq_reason!{{add (add (neg a) (neg b)) (add a b)}
+      "=" {add (add (neg a) a) (add (neg b) b)} "by" {Sum.four (neg a) (neg b) a b}
+      "=" {add zero zero} "by" {congr2!{Carrier Carrier Carrier} add _ _ _ _ (inverseLeft a) (inverseLeft b)}
+      "=" zero "by" {zeroLeft zero}}));
+
+\definition difference(a, b: Carrier): Carrier := add a (neg b);
+\module Subgroups;
+\definition balancedDifference(a, b, c, d: Carrier):
+  add a d = add c b -> difference a b = difference c d :=
+  \fun (balance: _) => eq_reason!{{difference a b}
+    "=" {add (difference a b) zero} "by" {sym!{Carrier} _ _ (zeroRight (difference a b))}
+    "=" {add (difference a b) (add d (neg d))}
+    "by" {congr!{Carrier Carrier} (add (difference a b)) _ _ (sym!{Carrier} _ _ (inverseRight d))}
+    "=" {add (add a d) (add (neg b) (neg d))} "by" {sym!{Carrier} _ _ (Sum.four a d (neg b) (neg d))}
+    "=" {add (add c b) (add (neg b) (neg d))}
+    "by" {congr!{Carrier Carrier} (\fun (x: _) => add x (add (neg b) (neg d))) _ _ balance}
+    "=" {add (difference c d) (add b (neg b))}
+    "by" {trans!{Carrier} _ _ _
+      (congr!{Carrier Carrier} (add (add c b)) _ _ (comm (neg b) (neg d))) (Sum.four c b (neg d) (neg b))}
+    "=" {add (difference c d) zero} "by" {congr!{Carrier Carrier} (add (difference c d)) _ _ (inverseRight b)}
+    "=" {difference c d} "by" {zeroRight (difference c d)}};
+
+\definition four: \forall (a, b, c, d: Carrier) -> add (add a b) (add c d) = add (add a c) (add b d) := Sum.four;
+\definition differenceAdd(a, b, c, d: Carrier): difference (add a b) (add c d) = add (difference a c) (difference b d) :=
+  trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (add (add a b)) _ _ (negAdd c d)) (four a b (neg c) (neg d));

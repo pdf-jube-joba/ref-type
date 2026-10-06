@@ -1,0 +1,34 @@
+\import Source.Urysohn[] \as Urysohn;
+\import Line.CompactIntervals[] \as Intervals;
+\import std.Arithmetic[].Rat[].Fractions[] \as Q;
+\definition continuous: \forall (source: Source.Topology) (F, G: \Pow A) (f: Urysohn.UrysohnFunction[source, F, G]) ->
+  Continuous source (#value{f}) :=
+  \fun (source: _) (F, G: _) (f: _) => continuousOfLocal source (#value{f}) (\block {
+    \fun (x: A) (r: Real.Real) (positive: R.Lt Real.zero r) \then
+    \let value: A -> Real.Real := #value{f} \then
+    \takefrom lower: \Cast[Q.Fraction] ({ q: Q.Fraction \where Logic.And[R.Lt (Real.sub (value x) r) (Op.ofRat q), R.Lt (Op.ofRat q) (value x)] })
+      \by Laws.rationalDensity (Real.sub (value x) r) (value x) (Intervals.subPositive (value x) r positive) \then
+    \let lowerData: Logic.And[R.Lt (Real.sub (value x) r) (Op.ofRat lower), R.Lt (Op.ofRat lower) (value x)] :=
+      \bysub(Q.Fraction, { q: Q.Fraction \where Logic.And[R.Lt (Real.sub (value x) r) (Op.ofRat q), R.Lt (Op.ofRat q) (value x)] }, lower) \then
+    \takefrom upper: \Cast[Q.Fraction] ({ q: Q.Fraction \where Logic.And[R.Lt (value x) (Op.ofRat q), R.Lt (Op.ofRat q) (Real.add (value x) r)] })
+      \by Laws.rationalDensity (value x) (Real.add (value x) r) (Intervals.addPositive (value x) r positive) \then
+    \let upperData: Logic.And[R.Lt (value x) (Op.ofRat upper), R.Lt (Op.ofRat upper) (Real.add (value x) r)] :=
+      \bysub(Q.Fraction, { q: Q.Fraction \where Logic.And[R.Lt (value x) (Op.ofRat q), R.Lt (Op.ofRat q) (Real.add (value x) r)] }, upper) \then
+    \let U: \Pow A := Source.Intersection (Urysohn.FunctionLowerRay value lower) (Urysohn.FunctionUpperCut value upper) \then
+    \return \exact(\into[\Pow A](U, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small value x r, U] }) \by {
+      Source.OpenNeighborhood[source, x, Small value x r, U] {
+        open := #intersectionOpen{(Source.topologyLaws source)} (Urysohn.FunctionLowerRay value lower) (Urysohn.FunctionUpperCut value upper)
+          (#lowerOpen{f} lower) (#upperOpen{f} upper),
+        contains := Logic.And[_, _]::# (Distance.memberOfLt lower (value x) (#right{lowerData}))
+          (Distance.upperCutOfLt (value x) upper (#left{upperData})),
+        within := \fun (y: A) (member: Source.Member U y) => Distance.distanceLtOfInterval (value x) (value y) r
+          (Order.ltTrans _ _ _ (#left{lowerData}) (Distance.ltOfMember lower (value y) (#left{member})))
+          (Order.ltTrans _ _ _ (Distance.ltOfUpperCut (value y) upper (#right{member})) (#right{upperData})),
+      }
+    }, \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small value x r, U] }))
+  });
+\import \parent.Bounded[] \as Bounded;
+\definition bounded(source: Source.Topology) (F, G: \Pow A) (f: Urysohn.UrysohnFunction[source, F, G]): Bounded.Function[source] :=
+  \into[A -> Real.Real](#value{f}, Bounded.Function[source]) \by {
+    Bounded.FunctionLaws[source, #value{f}] { continuous := continuous source F G f, nonnegative := #nonnegative{f}, bounded := #bounded{f} }
+  };

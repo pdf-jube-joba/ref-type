@@ -1,0 +1,271 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\structure Neighborhood[left: Left.Topology, right: Right.Topology, point: CarrierSet, O: \Pow CarrierSet]: \Set {
+  leftSet: \Pow A,
+  rightSet: \Pow B,
+  leftOpen: Left.IsOpenIn left leftSet,
+  rightOpen: Right.IsOpenIn right rightSet,
+  leftContains: Left.Member leftSet (Pair.first A B point),
+  rightContains: Right.Member rightSet (Pair.second A B point),
+  within: ProductSpace.Subset (Rectangle leftSet rightSet) O,
+}
+\definition LocallyRectangular(left: Left.Topology) (right: Right.Topology) (O: \Pow CarrierSet): \Prop :=
+  \forall (point: CarrierSet) -> ProductSpace.Member O point -> \exists Neighborhood[left, right, point, O];
+\definition LocalRaw(left: Left.Topology) (right: Right.Topology): ProductSpace.TopologyData := ProductSpace.TopologyData {
+  openSets := { O: \Pow CarrierSet \where LocallyRectangular left right O },
+};
+\definition localLaws(left: Left.Topology) (right: Right.Topology): ProductSpace.TopologyLaws[LocalRaw left right] :=
+  ProductSpace.TopologyLaws[LocalRaw left right] {
+    emptyOpen := \fun (point: _) (empty: _) => Logic.falseElim (\exists Neighborhood[left, right, point, ProductSpace.Empty]) empty,
+    wholeOpen := \fun (point: _) (_: _) => \exact(Neighborhood[left, right, point, ProductSpace.Whole] {
+      leftSet := Left.Whole, rightSet := Right.Whole,
+      leftOpen := #wholeOpen{(Left.topologyLaws left)}, rightOpen := #wholeOpen{(Right.topologyLaws right)},
+      leftContains := \refl(Pair.first A B point), rightContains := \refl(Pair.second A B point),
+      within := \fun (p: _) (_: _) => \refl(p),
+    }, Neighborhood[left, right, point, ProductSpace.Whole]),
+    unionOpen := \fun (family: \Pow (\Pow CarrierSet))
+      (open: \forall (O: \Pow CarrierSet) -> ProductSpace.FamilyMember family O -> LocallyRectangular left right O)
+      (point: CarrierSet) (member: ProductSpace.Member (ProductSpace.Union family) point) =>
+      ProductSpace.unionMemberElim family point (\exists Neighborhood[left, right, point, ProductSpace.Union family])
+        (\block {
+          \fun (O: \Pow CarrierSet) (inFamily: ProductSpace.FamilyMember family O) (inO: ProductSpace.Member O point) \then
+          \takefrom n: Neighborhood[left, right, point, O] \by open O inFamily point inO \then
+          \return \exact(Neighborhood[left, right, point, ProductSpace.Union family] {
+            leftSet := #leftSet{n}, rightSet := #rightSet{n}, leftOpen := #leftOpen{n}, rightOpen := #rightOpen{n},
+            leftContains := #leftContains{n}, rightContains := #rightContains{n},
+            within := \fun (p: _) (h: _) => ProductSpace.unionMemberOf family O p inFamily (#within{n} p h),
+          }, Neighborhood[left, right, point, ProductSpace.Union family])
+        }) member,
+    intersectionOpen := \block {
+      \fun (O, P: \Pow CarrierSet) (oo: LocallyRectangular left right O) (po: LocallyRectangular left right P)
+        (point: CarrierSet) (member: ProductSpace.Member (ProductSpace.Intersection O P) point) \then
+      \takefrom n: Neighborhood[left, right, point, O] \by oo point (#left{member}) \then
+      \takefrom m: Neighborhood[left, right, point, P] \by po point (#right{member}) \then
+      \return \exact(Neighborhood[left, right, point, ProductSpace.Intersection O P] {
+        leftSet := Left.Intersection (#leftSet{n}) (#leftSet{m}), rightSet := Right.Intersection (#rightSet{n}) (#rightSet{m}),
+        leftOpen := #intersectionOpen{(Left.topologyLaws left)} (#leftSet{n}) (#leftSet{m}) (#leftOpen{n}) (#leftOpen{m}),
+        rightOpen := #intersectionOpen{(Right.topologyLaws right)} (#rightSet{n}) (#rightSet{m}) (#rightOpen{n}) (#rightOpen{m}),
+        leftContains := Logic.And[_, _]::# (#leftContains{n}) (#leftContains{m}),
+        rightContains := Logic.And[_, _]::# (#rightContains{n}) (#rightContains{m}),
+        within := \fun (p: CarrierSet)
+          (h: ProductSpace.Member (Rectangle (Left.Intersection (#leftSet{n}) (#leftSet{m})) (Right.Intersection (#rightSet{n}) (#rightSet{m}))) p) =>
+          Logic.And[_, _]::# (#within{n} p (Logic.And[_, _]::# (#left{(#left{h})}) (#left{(#right{h})})))
+            (#within{m} p (Logic.And[_, _]::# (#right{(#left{h})}) (#right{(#right{h})}))),
+      }, Neighborhood[left, right, point, ProductSpace.Intersection O P])
+    },
+  };
+\definition rectangleNeighborhoods: \forall (left: Left.Topology) (right: Right.Topology) (O: \Pow CarrierSet) ->
+  ProductSpace.IsOpenIn (topology left right) O -> LocallyRectangular left right O :=
+  \fun (left: _) (right: _) (O: _) (open: _) => ProductSpace.generatedLeast (Basis left right)
+    (\into[ProductSpace.TopologyData](LocalRaw left right, ProductSpace.Topology) \by { localLaws left right })
+    (\block {
+      \fun (W: \Pow CarrierSet) (member: ProductSpace.FamilyMember (Basis left right) W) \then
+      \takefrom rectangle: RectangleWitness[left, right, W] \by member \then
+      \let U: \Pow A := #leftSet{rectangle} \then
+      \let V: \Pow B := #rightSet{rectangle} \then
+      \let data: OpenRectangle[left, right, W, U, V] := #rectangle{rectangle} \then
+      \return \fun (point: CarrierSet) (inW: ProductSpace.Member W point) => \block {
+        \let contains: ProductSpace.Member (Rectangle U V) point := \idelim W = Rectangle U V
+          \with T: \Pow CarrierSet => ProductSpace.Member T point \by { base: inW, equality: #rectangle{data} } \then
+        \return \exact(Neighborhood[left, right, point, W] {
+          leftSet := U, rightSet := V, leftOpen := #leftOpen{data}, rightOpen := #rightOpen{data},
+          leftContains := #left{contains}, rightContains := #right{contains},
+          within := \fun (p: _) (h: _) => \idelim Rectangle U V = W \with T: \Pow CarrierSet => ProductSpace.Member T p
+            \by { base: h, equality: sym!{\Pow CarrierSet} _ _ (#rectangle{data}) },
+        }, Neighborhood[left, right, point, W])
+      }
+    }) O open;
+
+\import std.Set[].FiniteSubset[A := \Pow A] \as LeftFinite;
+\import std.Set[].FiniteSubset[A := \Pow B] \as RightFinite;
+\import RightFinite.Selection[B := \Pow A] \as Selection;
+\import Left.Finite[] \as LeftSets;
+\structure TubePair[left: Left.Topology, right: Right.Topology, a: A, O: \Pow CarrierSet, V: \Pow B, U: \Pow A]: \Prop {
+  leftOpen: Left.IsOpenIn left U,
+  rightOpen: Right.IsOpenIn right V,
+  contains: Left.Member U a,
+  within: ProductSpace.Subset (Rectangle U V) O,
+}
+\definition TubeFamily(left: Left.Topology) (right: Right.Topology) (a: A) (O: \Pow CarrierSet): \Pow (\Pow B) :=
+  { V: \Pow B \where \exists { U: \Pow A \where TubePair[left, right, a, O, V, U] } };
+\definition tubePairExists(left: Left.Topology) (right: Right.Topology) (a: A) (O: \Pow CarrierSet) (V: \Pow B) (U: \Pow A):
+  TubePair[left, right, a, O, V, U] -> Right.FamilyMember (TubeFamily left right a O) V :=
+  \fun (pair: _) => \exact(\into[\Pow A](U, { U: \Pow A \where TubePair[left, right, a, O, V, U] }) \by { pair },
+    \Cast[\Pow A] ({ U: \Pow A \where TubePair[left, right, a, O, V, U] }));
+\structure Tube[left: Left.Topology, a: A, O: \Pow CarrierSet, S: \Pow B]: \Set {
+  neighborhood: \Pow A,
+  open: Left.IsOpenIn left neighborhood,
+  contains: Left.Member neighborhood a,
+  within: \forall (x: A) -> Left.Member neighborhood x -> \forall (y: B) -> Right.Member S y -> ProductSpace.Member O (Pair.pair A B x y),
+}
+\definition tubeLemma: \forall (left: Left.Topology) (right: Right.Topology) (S: \Pow B) -> Right.IsCompactIn right S ->
+  \forall (a: A) (O: \Pow CarrierSet) -> ProductSpace.IsOpenIn (topology left right) O ->
+  (\forall (b: B) -> Right.Member S b -> ProductSpace.Member O (Pair.pair A B a b)) -> \exists Tube[left, a, O, S] := \block {
+  \fun (left: Left.Topology) (right: Right.Topology) (S: \Pow B) (compact: Right.IsCompactIn right S)
+    (a: A) (O: \Pow CarrierSet) (open: ProductSpace.IsOpenIn (topology left right) O)
+    (fiber: \forall (b: B) -> Right.Member S b -> ProductSpace.Member O (Pair.pair A B a b)) \then
+  \let family: \Pow (\Pow B) := TubeFamily left right a O \then
+  \let cover: Right.IsOpenCover[right, family, S] := Right.IsOpenCover[right, family, S] {
+    covers := \block {
+      \fun (b: B) (inS: Right.Member S b) \then
+      \takefrom n: Neighborhood[left, right, Pair.pair A B a b, O] \by rectangleNeighborhoods left right O open (Pair.pair A B a b) (fiber b inS) \then
+      \return Right.unionMemberOf family (#rightSet{n}) b
+        (tubePairExists left right a O (#rightSet{n}) (#leftSet{n}) (TubePair[left, right, a, O, #rightSet{n}, #leftSet{n}] {
+          leftOpen := #leftOpen{n}, rightOpen := #rightOpen{n}, contains := #leftContains{n}, within := #within{n},
+        })) (#rightContains{n})
+    },
+    open := \block {
+      \fun (V: \Pow B) (member: Right.FamilyMember family V) \then
+      \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where TubePair[left, right, a, O, V, U] }) \by member \then
+      \return #rightOpen{(\bysub(\Pow A, { U: \Pow A \where TubePair[left, right, a, O, V, U] }, U))}
+    },
+  } \then
+  \takefrom finite: \Cast[RightFinite.FiniteSubset] ({ finite: RightFinite.FiniteSubset \where Right.FiniteSubcover[family, S, finite] })
+    \by compact family cover \then
+  \let subcover: Right.FiniteSubcover[family, S, finite] := \bysub(RightFinite.FiniteSubset,
+    { finite: RightFinite.FiniteSubset \where Right.FiniteSubcover[family, S, finite] }, finite) \then
+  \let relation: \Pow B -> \Pow A -> \Prop := \fun (V: _) (U: _) => TubePair[left, right, a, O, V, U] \then
+  \takefrom selected: Selection.Selection[relation, finite]
+    \by Selection.existsSelection relation finite (\fun (V: _) (member: _) => #included{subcover} V member) \then
+  \let leftFinite: LeftFinite.FiniteSubset := #finite{selected} \then
+  \let partner: \forall (U: \Pow A) -> LeftFinite.Member leftFinite U ->
+      Logic.And[Left.IsOpenIn left U, Left.Member U a] :=
+    \fun (U: \Pow A) (member: LeftFinite.Member leftFinite U) =>
+      Selection.includedElim relation finite selected U (Logic.And[Left.IsOpenIn left U, Left.Member U a])
+        (\fun (V: \Pow B) (_: RightFinite.Member finite V) (pair: TubePair[left, right, a, O, V, U]) =>
+          Logic.And[_, _]::# (#leftOpen{pair}) (#contains{pair})) member \then
+  \return \exact(Tube[left, a, O, S] {
+    neighborhood := LeftSets.Meet leftFinite,
+    open := LeftSets.meetOpen left leftFinite (\fun (U: _) (member: _) => #left{(partner U member)}),
+    contains := \fun (U: _) (member: _) => #right{(partner U member)},
+    within := \fun (x: A) (member: Left.Member (LeftSets.Meet leftFinite) x) (y: B) (inS: Right.Member S y) =>
+      Right.unionMemberElim finite y (ProductSpace.Member O (Pair.pair A B x y))
+        (\block {
+          \fun (V: \Pow B) (inFinite: RightFinite.Member finite V) (inV: Right.Member V y) \then
+          \takefrom U: Selection.CoveredWitness relation leftFinite V \by #covers{selected} V inFinite \then
+          \let data: Logic.And[LeftFinite.Member leftFinite U, TubePair[left, right, a, O, V, U]] :=
+            \bysub(\Pow A, { U: \Pow A \where Logic.And[LeftFinite.Member leftFinite U, TubePair[left, right, a, O, V, U]] }, U) \then
+          \return #within{(#right{data})} (Pair.pair A B x y) (Logic.And[_, _]::# (member U (#left{data})) inV)
+        }) (#covers{subcover} y inS),
+  }, Tube[left, a, O, S])
+};
+
+\import std.Set[].FiniteSubset[A := \Pow CarrierSet] \as ProductFinite;
+\import ProductFinite.Family[] \as FiniteUnions;
+\import LeftFinite.Selection[B := ProductFinite.FiniteSubset] \as CoverSelection;
+\import RightFinite.Selection[B := ProductFinite.FiniteSubset] \as RightCoverSelection;
+\import ProductSpace.Compactness[] \as CompactSets;
+\import \parent.Universal[X := B] \as FiberMaps;
+\import topology.Maps[A := B, B := A] \as ConstantMaps;
+\import topology.Maps[A := B, B := CarrierSet] \as ImageMaps;
+\import topology.Compactness[A := B, B := CarrierSet] \as ImageCompactness;
+\import std.Data[].Pair[].Prop[A := A, B := B] \as PairLaws;
+\definition fiber(a: A): B -> CarrierSet := \fun (b: B) => Pair.pair A B a b;
+\definition fiberContinuous: \forall (left: Left.Topology) (right: Right.Topology) (a: A) ->
+  FiberMaps.PairContinuous right left right (\fun (_: B) => a) (\fun (b: B) => b) :=
+  \fun (left: _) (right: _) (a: _) => FiberMaps.pairContinuous right left right
+    (\fun (_: B) => a) (\fun (b: B) => b) (ConstantMaps.constantContinuous right left a)
+    (\fun (V: \Pow B) (open: Right.IsOpenIn right V) =>
+      FiberMaps.openTransport right V (FiberMaps.RightPreimage (\fun (b: B) => b) V)
+        (\axiom:setext(V, FiberMaps.RightPreimage (\fun (b: B) => b) V,
+          \fun (b: B) (member: Right.Member V b) => member,
+          \fun (b: B) (member: Right.Member V b) => member)) open);
+\structure LocalCover[left: Left.Topology, T: \Pow B, family: \Pow (\Pow CarrierSet), U: \Pow A, finite: ProductFinite.FiniteSubset]: \Prop {
+  open: Left.IsOpenIn left U,
+  included: \forall (O: \Pow CarrierSet) -> ProductFinite.Member finite O -> ProductSpace.FamilyMember family O,
+  within: \forall (a: A) -> Left.Member U a -> \forall (b: B) -> Right.Member T b ->
+    ProductSpace.Member (ProductSpace.Union finite) (Pair.pair A B a b),
+}
+\definition LocalFamily(left: Left.Topology) (T: \Pow B) (family: \Pow (\Pow CarrierSet)): \Pow (\Pow A) :=
+  { U: \Pow A \where \exists { F: ProductFinite.FiniteSubset \where LocalCover[left, T, family, U, F] } };
+\definition localCoverExists: \forall (left: Left.Topology) (right: Right.Topology) (S: \Pow A) (T: \Pow B) ->
+  Right.IsCompactIn right T -> \forall (family: \Pow (\Pow CarrierSet)) ->
+  ProductSpace.IsOpenCover[topology left right, family, Rectangle S T] ->
+  \forall (a: A) -> Left.Member S a ->
+    Left.Member (Left.Union (LocalFamily left T family)) a := \block {
+  \fun (left: Left.Topology) (right: Right.Topology) (S: \Pow A) (T: \Pow B) (compact: Right.IsCompactIn right T)
+    (family: \Pow (\Pow CarrierSet)) (cover: ProductSpace.IsOpenCover[topology left right, family, Rectangle S T])
+    (a: A) (inS: Left.Member S a) \then
+  \takefrom F: \Cast[ProductFinite.FiniteSubset]
+    ({ F: ProductFinite.FiniteSubset \where ProductSpace.FiniteSubcover[family, ImageMaps.Image (fiber a) T, F] })
+    \by ImageCompactness.continuousImage right (topology left right) (fiber a) (fiberContinuous left right a) T compact family
+      (ProductSpace.IsOpenCover[topology left right, family, ImageMaps.Image (fiber a) T] {
+        open := #open{cover},
+        covers := \fun (p: CarrierSet) (member: ProductSpace.Member (ImageMaps.Image (fiber a) T) p) =>
+          ImageMaps.imageElim (fiber a) T p (ProductSpace.Member (ProductSpace.Union family) p)
+            (\fun (b: B) (inT: Right.Member T b) (equal: fiber a b = p) =>
+              \idelim fiber a b = p \with q: CarrierSet => ProductSpace.Member (ProductSpace.Union family) q
+                \by { base: #covers{cover} (fiber a b) (Logic.And[_, _]::# inS inT), equality: equal }) member,
+      }) \then
+  \let subcover: ProductSpace.FiniteSubcover[family, ImageMaps.Image (fiber a) T, F] := \bysub(ProductFinite.FiniteSubset,
+    { F: ProductFinite.FiniteSubset \where ProductSpace.FiniteSubcover[family, ImageMaps.Image (fiber a) T, F] }, F) \then
+  \takefrom tube: Tube[left, a, ProductSpace.Union F, T] \by tubeLemma left right T compact a (ProductSpace.Union F)
+    (#unionOpen{(ProductSpace.topologyLaws (topology left right))} F
+      (\fun (O: _) (member: _) => #open{cover} O (#included{subcover} O member)))
+    (\fun (b: _) (inT: _) => #covers{subcover} (fiber a b) (ImageMaps.imageMember (fiber a) T b inT)) \then
+  \let U: \Pow A := #neighborhood{tube} \then
+  \return Left.unionMemberOf (LocalFamily left T family) U a
+    (\exact(\into[ProductFinite.FiniteSubset](F,
+      { F: ProductFinite.FiniteSubset \where LocalCover[left, T, family, U, F] }) \by {
+        LocalCover[left, T, family, U, F] { open := #open{tube}, included := #included{subcover}, within := #within{tube} }
+      }, \Cast[ProductFinite.FiniteSubset] ({ F: ProductFinite.FiniteSubset \where LocalCover[left, T, family, U, F] })))
+    (#contains{tube})
+};
+\definition productCompactIn: \forall (left: Left.Topology) (right: Right.Topology) (S: \Pow A) (T: \Pow B) ->
+  Left.IsCompactIn left S -> Right.IsCompactIn right T -> ProductSpace.IsCompactIn (topology left right) (Rectangle S T) := \block {
+  \fun (left: Left.Topology) (right: Right.Topology) (S: \Pow A) (T: \Pow B)
+    (leftCompact: Left.IsCompactIn left S) (rightCompact: Right.IsCompactIn right T)
+    (family: \Pow (\Pow CarrierSet)) (cover: ProductSpace.IsOpenCover[topology left right, family, Rectangle S T]) \then
+  \let local: \Pow (\Pow A) := LocalFamily left T family \then
+  \takefrom F: \Cast[LeftFinite.FiniteSubset] ({ F: LeftFinite.FiniteSubset \where Left.FiniteSubcover[local, S, F] })
+    \by leftCompact local (Left.IsOpenCover[left, local, S] {
+      covers := localCoverExists left right S T rightCompact family cover,
+      open := \block {
+        \fun (U: \Pow A) (member: Left.FamilyMember local U) \then
+        \takefrom finite: \Cast[ProductFinite.FiniteSubset]
+          ({ finite: ProductFinite.FiniteSubset \where LocalCover[left, T, family, U, finite] }) \by member \then
+        \return #open{(\bysub(ProductFinite.FiniteSubset,
+          { finite: ProductFinite.FiniteSubset \where LocalCover[left, T, family, U, finite] }, finite))}
+      },
+    }) \then
+  \let subcover: Left.FiniteSubcover[local, S, F] := \bysub(LeftFinite.FiniteSubset,
+    { F: LeftFinite.FiniteSubset \where Left.FiniteSubcover[local, S, F] }, F) \then
+  \let relation: \Pow A -> ProductFinite.FiniteSubset -> \Prop :=
+    \fun (U: _) (finite: _) => LocalCover[left, T, family, U, finite] \then
+  \takefrom selected: CoverSelection.Selection[relation, F] \by CoverSelection.existsSelection relation F
+    (\fun (U: _) (member: _) => #included{subcover} U member) \then
+  \let result: ProductFinite.FiniteSubset := FiniteUnions.unions (#finite{selected}) \then
+  \return CompactSets.subcoverExists family (Rectangle S T) result
+    (ProductSpace.FiniteSubcover[family, Rectangle S T, result] {
+      included := \fun (O: \Pow CarrierSet) (member: ProductFinite.Member result O) =>
+        FiniteUnions.memberElim (#finite{selected}) O (ProductSpace.FamilyMember family O)
+          (\fun (finite: ProductFinite.FiniteSubset) (chosen: \In[ProductFinite.FiniteSubset] (#finite{selected}) finite)
+            (inFinite: ProductFinite.Member finite O) => CoverSelection.includedElim relation F selected finite
+              (ProductSpace.FamilyMember family O)
+              (\fun (U: _) (_: _) (data: LocalCover[left, T, family, U, finite]) => #included{data} O inFinite) chosen) member,
+      covers := \fun (p: CarrierSet) (member: ProductSpace.Member (Rectangle S T) p) =>
+        Left.unionMemberElim F (Pair.first A B p) (ProductSpace.Member (ProductSpace.Union result) p)
+          (\fun (U: \Pow A) (inF: LeftFinite.Member F U) (inU: Left.Member U (Pair.first A B p)) =>
+            CoverSelection.coversElim relation F selected U (ProductSpace.Member (ProductSpace.Union result) p)
+              (\fun (finite: ProductFinite.FiniteSubset) (chosen: \In[ProductFinite.FiniteSubset] (#finite{selected}) finite)
+                (data: LocalCover[left, T, family, U, finite]) =>
+                ProductSpace.unionMemberElim finite (Pair.pair A B (Pair.first A B p) (Pair.second A B p))
+                  (ProductSpace.Member (ProductSpace.Union result) p)
+                  (\fun (O: _) (inFinite: _) (inO: _) => ProductSpace.unionMemberOf result O p
+                    (FiniteUnions.memberOf (#finite{selected}) finite O chosen inFinite)
+                    (\idelim Pair.pair A B (Pair.first A B p) (Pair.second A B p) = p
+                      \with q: CarrierSet => ProductSpace.Member O q \by { base: inO, equality: PairLaws.eta p }))
+                  (#within{data} (Pair.first A B p) inU (Pair.second A B p) (#right{member}))) inF)
+          (#covers{subcover} (Pair.first A B p) (#left{member})),
+    })
+};
+\definition productCompact: \forall (left: Left.Topology) (right: Right.Topology) ->
+  Left.IsCompact left -> Right.IsCompact right -> ProductSpace.IsCompact (topology left right) :=
+  \fun (left: _) (right: _) (lc: _) (rc: _) => \idelim Rectangle Left.Whole Right.Whole = ProductSpace.Whole
+    \with S: \Pow CarrierSet => ProductSpace.IsCompactIn (topology left right) S \by {
+      base: productCompactIn left right Left.Whole Right.Whole lc rc,
+      equality: \axiom:setext(Rectangle Left.Whole Right.Whole, ProductSpace.Whole,
+        \fun (p: CarrierSet) (_: _) => \refl(p),
+        \fun (p: CarrierSet) (_: _) => Logic.And[_, _]::# (\refl(Pair.first A B p)) (\refl(Pair.second A B p)))
+    };

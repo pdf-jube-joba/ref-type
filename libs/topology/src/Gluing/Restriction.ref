@@ -1,0 +1,62 @@
+\import topology.Topology[Carrier := A].Subspace[S := U] \as Subspace;
+\import topology.Topology[Carrier := \Cast[A] U] \as Sub;
+\import topology.Continuity[A := \Cast[A] U, B := B] \as Restricted;
+\definition localFromRestriction: \forall (source: Source.Topology) (target: Target.Topology) (f: A -> B) ->
+  Source.IsOpenIn source U ->
+  Restricted.Continuous (Subspace.topology source) target (\fun (x: \Cast[A] U) => f x) -> ContinuousOn source target f U :=
+  \fun (source: _) (target: _) (f: _) (openU: _) (continuous: _) (V: _) (openV: _) =>
+    Subspace.openTraceElim source (Restricted.Preimage (\fun (x: \Cast[A] U) => f x) V)
+      (Source.IsOpenIn source (Source.Intersection U (Maps.Preimage f V)))
+      (\fun (W: \Pow A) (openW: Source.IsOpenIn source W)
+        (same: Restricted.Preimage (\fun (x: \Cast[A] U) => f x) V = Subspace.Trace W) =>
+        \idelim Source.Intersection U W = Source.Intersection U (Maps.Preimage f V)
+          \with T: \Pow A => Source.IsOpenIn source T
+          \by { base: #intersectionOpen{(Source.topologyLaws source)} U W openU openW,
+            equality: \axiom:setext(Source.Intersection U W, Source.Intersection U (Maps.Preimage f V),
+              \fun (x: A) (member: Source.Member (Source.Intersection U W) x) => \block {
+                \let point: \Cast[A] U := \into[A](x, U) \by { #left{member} } \then
+                \let relative: Sub.Member (Restricted.Preimage (\fun (x: \Cast[A] U) => f x) V) point :=
+                  \idelim Subspace.Trace W = Restricted.Preimage (\fun (x: \Cast[A] U) => f x) V
+                    \with T: \Pow (\Cast[A] U) => Sub.Member T point
+                    \by { base: #right{member}, equality: sym!{\Pow (\Cast[A] U)} _ _ same } \then
+                \return Logic.And[_, _]::# (#left{member}) relative
+              },
+              \fun (x: A) (member: Source.Member (Source.Intersection U (Maps.Preimage f V)) x) => \block {
+                \let point: \Cast[A] U := \into[A](x, U) \by { #left{member} } \then
+                \let ambient: Sub.Member (Subspace.Trace W) point :=
+                  \idelim Restricted.Preimage (\fun (x: \Cast[A] U) => f x) V = Subspace.Trace W
+                    \with T: \Pow (\Cast[A] U) => Sub.Member T point
+                    \by { base: #right{member}, equality: same } \then
+                \return Logic.And[_, _]::# (#left{member}) ambient
+              }) })
+      (Subspace.openRepresentation source (Restricted.Preimage (\fun (x: \Cast[A] U) => f x) V) (continuous V openV));
+\definition closedFromRestriction: \forall (source: Source.Topology) (target: Target.Topology) (f: A -> B) ->
+  Source.IsClosedIn source U ->
+  Restricted.Continuous (Subspace.topology source) target (\fun (x: \Cast[A] U) => f x) -> ClosedOn source target f U :=
+  \fun (source: _) (target: _) (f: _) (closedU: _) (continuous: _) (V: _) (closedV: _) =>
+    Subspace.openTraceElim source (Restricted.Preimage (\fun (x: \Cast[A] U) => f x) (Target.Complement V))
+      (Source.IsClosedIn source (Source.Intersection U (Maps.Preimage f V)))
+      (\fun (W: \Pow A) (openW: Source.IsOpenIn source W)
+        (same: Restricted.Preimage (\fun (x: \Cast[A] U) => f x) (Target.Complement V) = Subspace.Trace W) =>
+        \idelim Source.Intersection U (Source.Complement W) = Source.Intersection U (Maps.Preimage f V)
+          \with T: \Pow A => Source.IsClosedIn source T \by {
+            base: FiniteSets.intersectionClosed source U (Source.Complement W) closedU (FiniteSets.openComplementClosed source W openW),
+            equality: \axiom:setext(Source.Intersection U (Source.Complement W), Source.Intersection U (Maps.Preimage f V),
+              \fun (x: A) (member: Source.Member (Source.Intersection U (Source.Complement W)) x) => \block {
+                \let point: \Cast[A] U := \into[A](x, U) \by { #left{member} } \then
+                \let inV: Target.Member V (f x) := FiniteSets.doubleNegElim (Target.Member V (f x))
+                  (\fun (outside: Logic.Not (Target.Member V (f x))) => #right{member}
+                    (\idelim Restricted.Preimage (\fun (x: \Cast[A] U) => f x) (Target.Complement V) = Subspace.Trace W
+                      \with T: \Pow (\Cast[A] U) => Sub.Member T point \by { base: outside, equality: same })) \then
+                \return Logic.And[_, _]::# (#left{member}) inV
+              },
+              \fun (x: A) (member: Source.Member (Source.Intersection U (Maps.Preimage f V)) x) => \block {
+                \let point: \Cast[A] U := \into[A](x, U) \by { #left{member} } \then
+                \return Logic.And[_, _]::# (#left{member}) (\fun (inW: Source.Member W x) =>
+                  (\idelim Subspace.Trace W = Restricted.Preimage (\fun (x: \Cast[A] U) => f x) (Target.Complement V)
+                    \with T: \Pow (\Cast[A] U) => Sub.Member T point
+                    \by { base: inW, equality: sym!{\Pow (\Cast[A] U)} _ _ same }) (#right{member}))
+              })
+          })
+      (Subspace.openRepresentation source (Restricted.Preimage (\fun (x: \Cast[A] U) => f x) (Target.Complement V))
+        (continuous (Target.Complement V) closedV));

@@ -1,0 +1,169 @@
+\import std.Set[].Quotient[A := A, Equivalent := relation] \as Q;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition Carrier: \Set := Q.Carrier;
+\definition class: A -> Carrier := Q.class;
+\definition classRelated: \forall (laws: Q.EquivalenceLaws) (x, y: A) -> relation x y -> class x = class y := Q.classOfEq;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Alg[].Ring[] \as Ring;
+
+\module Operations {
+  \definition unary(laws: Q.EquivalenceLaws) (f: A -> A) (respects: Q.UnaryRespects f) (C: Carrier): Carrier :=
+    \into[\Pow A](Q.UnaryImage f C, Q.ClassSet) \by { Q.unaryImageClosed laws f respects C };
+  \definition binary(laws: Q.EquivalenceLaws) (f: A -> A -> A) (respects: Q.BinaryRespects f) (C, D: Carrier): Carrier :=
+    \into[\Pow A](Q.BinaryImage f C D, Q.ClassSet) \by { Q.binaryImageClosed laws f respects C D };
+  \definition unaryClass: \forall (laws: Q.EquivalenceLaws) (f: A -> A) (respects: Q.UnaryRespects f)
+    (x: A) -> unary laws f respects (class x) = class (f x) :=
+    \fun (laws: _) (f: _) (respects: _) (x: _) => Q.unaryImageClass laws f respects (class x) x (\refl(Q.ClassOf x));
+  \definition binaryClass: \forall (laws: Q.EquivalenceLaws) (f: A -> A -> A) (respects: Q.BinaryRespects f)
+    (x, y: A) -> binary laws f respects (class x) (class y) = class (f x y) :=
+    \fun (laws: _) (f: _) (respects: _) (x, y: _) => Q.binaryImageClass laws f respects (class x) (class y) x y
+      (\refl(Q.ClassOf x)) (\refl(Q.ClassOf y));
+  \use Equality.congr2;
+  \use Equality.eq_reason;
+  \definition leftIdentity: \forall (laws: Q.EquivalenceLaws) (f: A -> A -> A) (respects: Q.BinaryRespects f) (unit: A) ->
+    (\forall (x: A) -> relation (f unit x) x) ->
+    \forall (C: Carrier) -> binary laws f respects (class unit) C = C :=
+    \fun (laws: _) (f: _) (respects: _) (unit: _) (identity: _) => Q.induction
+      (\fun (C: _) => binary laws f respects (class unit) C = C)
+      (\fun (x: A) => trans!{Carrier} _ _ _ (binaryClass laws f respects unit x) (classRelated laws (f unit x) x (identity x)));
+  \definition rightIdentity: \forall (laws: Q.EquivalenceLaws) (f: A -> A -> A) (respects: Q.BinaryRespects f) (unit: A) ->
+    (\forall (x: A) -> relation (f x unit) x) ->
+    \forall (C: Carrier) -> binary laws f respects C (class unit) = C :=
+    \fun (laws: _) (f: _) (respects: _) (unit: _) (identity: _) => Q.induction
+      (\fun (C: _) => binary laws f respects C (class unit) = C)
+      (\fun (x: A) => trans!{Carrier} _ _ _ (binaryClass laws f respects x unit) (classRelated laws (f x unit) x (identity x)));
+  \definition commutative: \forall (laws: Q.EquivalenceLaws) (f: A -> A -> A) (respects: Q.BinaryRespects f) ->
+    (\forall (x, y: A) -> relation (f x y) (f y x)) ->
+    \forall (C, D: Carrier) -> binary laws f respects C D = binary laws f respects D C :=
+    \fun (laws: _) (f: _) (respects: _) (comm: _) => Q.induction
+      (\fun (C: _) => \forall (D: Carrier) -> binary laws f respects C D = binary laws f respects D C)
+      (\fun (x: A) => Q.induction (\fun (D: _) => binary laws f respects (class x) D = binary laws f respects D (class x))
+        (\fun (y: A) => trans!{Carrier} _ _ _ (binaryClass laws f respects x y)
+          (trans!{Carrier} _ _ _ (classRelated laws (f x y) (f y x) (comm x y)) (sym!{Carrier} _ _ (binaryClass laws f respects y x)))));
+  \definition associative: \forall (laws: Q.EquivalenceLaws) (f: A -> A -> A) (respects: Q.BinaryRespects f) ->
+    (\forall (x, y, z: A) -> relation (f (f x y) z) (f x (f y z))) ->
+    \forall (C, D, E: Carrier) -> binary laws f respects (binary laws f respects C D) E = binary laws f respects C (binary laws f respects D E) :=
+    \fun (laws: _) (f: _) (respects: _) (assoc: _) => Q.induction
+      (\fun (C: _) => \forall (D, E: Carrier) -> binary laws f respects (binary laws f respects C D) E = binary laws f respects C (binary laws f respects D E))
+      (\fun (x: A) => Q.induction
+        (\fun (D: _) => \forall (E: Carrier) -> binary laws f respects (binary laws f respects (class x) D) E = binary laws f respects (class x) (binary laws f respects D E))
+        (\fun (y: A) => Q.induction
+          (\fun (E: _) => binary laws f respects (binary laws f respects (class x) (class y)) E = binary laws f respects (class x) (binary laws f respects (class y) E))
+          (\fun (z: A) => eq_reason!{{binary laws f respects (binary laws f respects (class x) (class y)) (class z)}
+            "=" {binary laws f respects (class (f x y)) (class z)} "by" {congr!{Carrier Carrier} (\fun (C: _) => binary laws f respects C (class z)) _ _ (binaryClass laws f respects x y)}
+            "=" {class (f (f x y) z)} "by" {binaryClass laws f respects (f x y) z}
+            "=" {class (f x (f y z))} "by" {classRelated laws (f (f x y) z) (f x (f y z)) (assoc x y z)}
+            "=" {binary laws f respects (class x) (class (f y z))} "by" {sym!{Carrier} _ _ (binaryClass laws f respects x (f y z))}
+            "=" {binary laws f respects (class x) (binary laws f respects (class y) (class z))}
+            "by" {congr!{Carrier Carrier} (binary laws f respects (class x)) _ _ (sym!{Carrier} _ _ (binaryClass laws f respects y z))}})));
+  \definition inverseLeft: \forall (laws: Q.EquivalenceLaws) (f: A -> A -> A) (fr: Q.BinaryRespects f)
+    (g: A -> A) (gr: Q.UnaryRespects g) (unit: A) ->
+    (\forall (x: A) -> relation (f (g x) x) unit) ->
+    \forall (C: Carrier) -> binary laws f fr (unary laws g gr C) C = class unit :=
+    \fun (laws: _) (f: _) (fr: _) (g: _) (gr: _) (unit: _) (inverse: _) => Q.induction
+      (\fun (C: _) => binary laws f fr (unary laws g gr C) C = class unit)
+      (\fun (x: A) => eq_reason!{{binary laws f fr (unary laws g gr (class x)) (class x)}
+        "=" {binary laws f fr (class (g x)) (class x)} "by" {congr!{Carrier Carrier} (\fun (C: _) => binary laws f fr C (class x)) _ _ (unaryClass laws g gr x)}
+        "=" {class (f (g x) x)} "by" {binaryClass laws f fr (g x) x}
+        "=" {class unit} "by" {classRelated laws (f (g x) x) unit (inverse x)}});
+  \definition absorbsLeft: \forall (laws: Q.EquivalenceLaws) (f: A -> A -> A) (fr: Q.BinaryRespects f) (unit: A) ->
+    (\forall (x: A) -> relation (f unit x) unit) ->
+    \forall (C: Carrier) -> binary laws f fr (class unit) C = class unit :=
+    \fun (laws: _) (f: _) (fr: _) (unit: _) (absorbs: _) => Q.induction
+      (\fun (C: _) => binary laws f fr (class unit) C = class unit)
+      (\fun (x: A) => trans!{Carrier} _ _ _ (binaryClass laws f fr unit x) (classRelated laws (f unit x) unit (absorbs x)));
+  \definition distributiveLeft: \forall (laws: Q.EquivalenceLaws) (f, g: A -> A -> A) (fr: Q.BinaryRespects f) (gr: Q.BinaryRespects g) ->
+    (\forall (x, y, z: A) -> relation (f x (g y z)) (g (f x y) (f x z))) ->
+    \forall (C, D, E: Carrier) -> binary laws f fr C (binary laws g gr D E) = binary laws g gr (binary laws f fr C D) (binary laws f fr C E) :=
+    \fun (laws: _) (f, g: _) (fr: _) (gr: _) (distributes: _) => Q.induction
+      (\fun (C: _) => \forall (D, E: Carrier) -> binary laws f fr C (binary laws g gr D E) = binary laws g gr (binary laws f fr C D) (binary laws f fr C E))
+      (\fun (x: A) => Q.induction
+        (\fun (D: _) => \forall (E: Carrier) -> binary laws f fr (class x) (binary laws g gr D E) = binary laws g gr (binary laws f fr (class x) D) (binary laws f fr (class x) E))
+        (\fun (y: A) => Q.induction
+          (\fun (E: _) => binary laws f fr (class x) (binary laws g gr (class y) E) = binary laws g gr (binary laws f fr (class x) (class y)) (binary laws f fr (class x) E))
+          (\fun (z: A) => eq_reason!{{binary laws f fr (class x) (binary laws g gr (class y) (class z))}
+            "=" {binary laws f fr (class x) (class (g y z))} "by" {congr!{Carrier Carrier} (binary laws f fr (class x)) _ _ (binaryClass laws g gr y z)}
+            "=" {class (f x (g y z))} "by" {binaryClass laws f fr x (g y z)}
+            "=" {class (g (f x y) (f x z))} "by" {classRelated laws (f x (g y z)) (g (f x y) (f x z)) (distributes x y z)}
+            "=" {binary laws g gr (class (f x y)) (class (f x z))} "by" {sym!{Carrier} _ _ (binaryClass laws g gr (f x y) (f x z))}
+            "=" {binary laws g gr (binary laws f fr (class x) (class y)) (binary laws f fr (class x) (class z))}
+            "by" {congr2!{Carrier Carrier Carrier} (binary laws g gr) _ _ _ _
+              (sym!{Carrier} _ _ (binaryClass laws f fr x y)) (sym!{Carrier} _ _ (binaryClass laws f fr x z))}})));
+
+}
+
+\module Groups;
+\module Rings;
+
+\module Lift(B: \Set) {
+  \definition Respects(f: A -> B): \Prop :=
+    \forall (x, y: A) -> relation x y -> f x = f y;
+  \definition Values(f: A -> B) (C: Carrier): \Pow B :=
+    { y: B \where \exists { x: Q.Representative C \where f x = y } };
+  \definition Value(f: A -> B) (C: Carrier): \Set := \Cast[B] (Values f C);
+  \definition witness(f: A -> B) (C: Carrier) (x: Q.Representative C): Value f C :=
+    \into[B](f x, Values f C) \by {
+      \exact(\into[Q.Representative C](x, { z: Q.Representative C \where f z = f x }) \by { \refl(f x) },
+        \Cast[Q.Representative C] ({ z: Q.Representative C \where f z = f x }))
+    };
+  \definition existsValue(f: A -> B): \forall (C: Carrier) -> \exists Value f C := \block {
+    \fun (C: _) \then
+    \takefrom x: Q.Representative C \by Q.classProperty C \then
+    \return \exact(witness f C x, Value f C)
+  };
+  \definition uniqueValue:
+    Q.EquivalenceLaws -> \forall (f: A -> B) -> Respects f ->
+    \forall (C: Carrier) (u, v: Value f C) -> u = v := \block {
+    \fun (laws: _) (f: _) (respects: _) (C: _) (u, v: _) \then
+    \takefrom x: \Cast[Q.Representative C] ({ x: Q.Representative C \where f x = u })
+      \by \bysub(B, Values f C, u) \then
+    \takefrom y: \Cast[Q.Representative C] ({ y: Q.Representative C \where f y = v })
+      \by \bysub(B, Values f C, v) \then
+    \return trans!{B} u (f x) v
+      (sym!{B} _ _ (\bysub(Q.Representative C, { x: Q.Representative C \where f x = u }, x)))
+      (trans!{B} _ _ _
+        (respects x y (Q.sameClassRelated laws C x y (Q.represents C x) (Q.represents C y)))
+        (\bysub(Q.Representative C, { y: Q.Representative C \where f y = v }, y)))
+  };
+  \definition apply(laws: Q.EquivalenceLaws) (f: A -> B) (respects: Respects f) (C: Carrier): B :=
+    \choice Value f C \by { existence: existsValue f C, uniqueness: uniqueValue laws f respects C };
+  \definition onRepresentative:
+    \forall (laws: Q.EquivalenceLaws) (f: A -> B) (respects: Respects f)
+      (C: Carrier) (x: Q.Representative C) -> apply laws f respects C = f x :=
+    \fun (laws: _) (f: _) (respects: _) (C: _) (x: _) =>
+      sym!{B} _ _ (\choiceeq witness f C x \of Value f C
+        \by { existence: existsValue f C, uniqueness: uniqueValue laws f respects C });
+  \definition onClass:
+    \forall (laws: Q.EquivalenceLaws) (f: A -> B) (respects: Respects f)
+      (x: A) -> apply laws f respects (class x) = f x :=
+    \fun (laws: _) (f: _) (respects: _) (x: _) => onRepresentative laws f respects (class x)
+      (\into[A](x, Q.Representative (class x)) \by { \refl(Q.ClassOf x) });
+  \definition unique:
+    \forall (laws: Q.EquivalenceLaws) (f: A -> B) (respects: Respects f) (g: Carrier -> B) ->
+    (\forall (x: A) -> g (class x) = f x) -> g = apply laws f respects :=
+    \fun (laws: _) (f: _) (respects: _) (g: _) (agrees: _) =>
+      \axiom:funext(g, apply laws f respects,
+        Q.induction (\fun (C: _) => g C = apply laws f respects C)
+          (\fun (x: _) => trans!{B} _ _ _ (agrees x) (sym!{B} _ _ (onClass laws f respects x))));
+  \import \parent.Operations[] \as Operations;
+  \use Equality.congr2;
+  \use Equality.eq_reason;
+  \definition preservesBinary: \forall (laws: Q.EquivalenceLaws) (f: A -> B) (respects: Respects f)
+    (g: A -> A -> A) (gr: Q.BinaryRespects g) (h: B -> B -> B) ->
+    (\forall (x, y: A) -> f (g x y) = h (f x) (f y)) ->
+    \forall (C, D: Carrier) -> apply laws f respects (Operations.binary laws g gr C D) = h (apply laws f respects C) (apply laws f respects D) :=
+    \fun (laws: _) (f: _) (respects: _) (g: _) (gr: _) (h: _) (preserves: _) => Q.induction
+      (\fun (C: _) => \forall (D: Carrier) -> apply laws f respects (Operations.binary laws g gr C D) = h (apply laws f respects C) (apply laws f respects D))
+      (\fun (x: A) => Q.induction (\fun (D: _) => apply laws f respects (Operations.binary laws g gr (class x) D) = h (apply laws f respects (class x)) (apply laws f respects D))
+        (\fun (y: A) => eq_reason!{{apply laws f respects (Operations.binary laws g gr (class x) (class y))}
+          "=" {apply laws f respects (class (g x y))} "by" {congr!{Carrier B} (apply laws f respects) _ _ (Operations.binaryClass laws g gr x y)}
+          "=" {f (g x y)} "by" {onClass laws f respects (g x y)}
+          "=" {h (f x) (f y)} "by" {preserves x y}
+          "=" {h (apply laws f respects (class x)) (apply laws f respects (class y))}
+          "by" {congr2!{B B B} h _ _ _ _ (sym!{B} _ _ (onClass laws f respects x)) (sym!{B} _ _ (onClass laws f respects y))}}));
+
+}

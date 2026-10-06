@@ -1,0 +1,57 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Continuity[A := A, B := B] \as Forward;
+\import topology.Continuity[A := B, B := A] \as Backward;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+
+\structure Data: \Set {
+  forward: A -> B,
+  backward: B -> A,
+}
+\structure Laws[source: Source.Topology, target: Target.Topology, data: Data]: \Prop {
+  leftInverse: \forall (x: A) -> data.backward (data.forward x) = x,
+  rightInverse: \forall (y: B) -> data.forward (data.backward y) = y,
+  forwardContinuous: Forward.Continuous source target data.forward,
+  backwardContinuous: Backward.Continuous target source data.backward,
+}
+\definition Homeomorphism[source: Source.Topology, target: Target.Topology]: \Set :=
+  \Cast[Data] ({ data: Data \where Laws[source, target, data] });
+\definition laws(source: Source.Topology) (target: Target.Topology) (h: Homeomorphism[source, target]):
+  Laws[source, target, h] := \bysub(Data, Homeomorphism[source, target], h);
+\module Inverse {
+  \import topology.Homeomorphism[A := B, B := A] \as Reverse;
+  \definition inverse(source: Source.Topology) (target: Target.Topology)
+    (h: Homeomorphism[source, target]): Reverse.Homeomorphism[target, source] :=
+    Reverse.Homeomorphism[target, source] {
+      forward := #backward{h}, backward := #forward{h},
+      leftInverse := #rightInverse{(laws source target h)},
+      rightInverse := #leftInverse{(laws source target h)},
+      forwardContinuous := #backwardContinuous{(laws source target h)},
+      backwardContinuous := #forwardContinuous{(laws source target h)},
+    };
+}
+\module Composition(C: \Set) {
+  \import topology.Topology[Carrier := C] \as Range;
+  \import topology.Homeomorphism[A := B, B := C] \as After;
+  \import topology.Homeomorphism[A := A, B := C] \as Result;
+  \import topology.Composition[A := A, B := B, C := C] \as Compose;
+  \import topology.Composition[A := C, B := B, C := A] \as ComposeBack;
+  \definition compose(source: Source.Topology) (middle: Target.Topology) (target: Range.Topology)
+    (f: Homeomorphism[source, middle]) (g: After.Homeomorphism[middle, target]):
+    Result.Homeomorphism[source, target] := Result.Homeomorphism[source, target] {
+      forward := \fun (x: _) => #forward{g} (#forward{f} x),
+      backward := \fun (x: _) => #backward{f} (#backward{g} x),
+      leftInverse := \fun (x: _) => trans!{A} _ _ _
+        (congr!{B A} (#backward{f}) _ _ (#leftInverse{(After.laws middle target g)} (#forward{f} x)))
+        (#leftInverse{(laws source middle f)} x),
+      rightInverse := \fun (x: _) => trans!{C} _ _ _
+        (congr!{B C} (#forward{g}) _ _ (#rightInverse{(laws source middle f)} (#backward{g} x)))
+        (#rightInverse{(After.laws middle target g)} x),
+      forwardContinuous := Compose.composeContinuous source middle target (#forward{f}) (#forward{g})
+        (#forwardContinuous{(laws source middle f)}) (#forwardContinuous{(After.laws middle target g)}),
+      backwardContinuous := ComposeBack.composeContinuous target middle source (#backward{g}) (#backward{f})
+        (#backwardContinuous{(After.laws middle target g)}) (#backwardContinuous{(laws source middle f)}),
+    };
+}

@@ -1,0 +1,54 @@
+\import std.Set[].FiniteSubset[A := \Pow A] \as FiniteOpen;
+\import FiniteOpen.Selection[B := Bump[source, family]] \as Selection;
+\import \parent.\parent.Bumps[] \as Bumps;
+\definition RegionRelation(U: \Pow A) (bump: Bump[source, family]): \Prop := U = #oneRegion{bump};
+\definition Regions: \Pow (\Pow A) :=
+  { U: \Pow A \where \exists { bump: Bump[source, family] \where RegionRelation U bump } };
+\definition regionMember(bump: Bump[source, family]): Space.FamilyMember Regions (#oneRegion{bump}) :=
+  \exact(\into[Bump[source, family]](bump, { b: Bump[source, family] \where RegionRelation (#oneRegion{bump}) b }) \by {
+    \refl(#oneRegion{bump})
+  }, \Cast[Bump[source, family]] ({ b: Bump[source, family] \where RegionRelation (#oneRegion{bump}) b }));
+\definition existsPartition: Space.IsCompact source -> Space.IsT2 source -> Space.IsOpenCover[source, family, Space.Whole] -> \exists Partition := \block {
+  \fun (compact: Space.IsCompact source) (hausdorff: Space.IsT2 source) (cover: Space.IsOpenCover[source, family, Space.Whole]) \then
+  \let regionCover: Space.IsOpenCover[source, Regions, Space.Whole] := Space.IsOpenCover[source, Regions, Space.Whole] {
+    open := \block {
+      \fun (U: \Pow A) (member: Space.FamilyMember Regions U) \then
+      \takefrom bump: \Cast[Bump[source, family]] ({ bump: Bump[source, family] \where RegionRelation U bump }) \by member \then
+      \return \idelim #oneRegion{bump} = U \with V: \Pow A => Space.IsOpenIn source V \by {
+        base: #regionOpen{bump}, equality: sym!{\Pow A} _ _ (\bysub(Bump[source, family], { bump: Bump[source, family] \where RegionRelation U bump }, bump))
+      }
+    },
+    covers := \block {
+      \fun (x: A) (_: Space.Member Space.Whole x) \then
+      \takefrom bump: \Cast[Bump[source, family]] ({ bump: Bump[source, family] \where Space.Member (#oneRegion{bump}) x })
+        \by Bumps.localBump source compact hausdorff family cover x \then
+      \return Space.unionMemberOf Regions (#oneRegion{bump}) x (regionMember bump)
+        (\bysub(Bump[source, family], { bump: Bump[source, family] \where Space.Member (#oneRegion{bump}) x }, bump))
+    },
+  } \then
+  \takefrom F: \Cast[FiniteOpen.FiniteSubset] ({ F: FiniteOpen.FiniteSubset \where Space.FiniteSubcover[Regions, Space.Whole, F] })
+    \by compact Regions regionCover \then
+  \let subcover: Space.FiniteSubcover[Regions, Space.Whole, F] := \bysub(FiniteOpen.FiniteSubset,
+    { F: FiniteOpen.FiniteSubset \where Space.FiniteSubcover[Regions, Space.Whole, F] }, F) \then
+  \takefrom selected: Selection.Selection[RegionRelation, F] \by Selection.existsSelection RegionRelation F
+    (\fun (U: \Pow A) (member: FiniteOpen.Member F U) => #included{subcover} U member) \then
+  \let finite: FiniteBumps.FiniteSubset := #finite{selected} \then
+  \takefrom bumps: Enumeration.Enumeration[finite] \by Enumeration.existsEnumeration finite \then
+  \let enumeration: Enumeration.Enumerates[finite, bumps] := \bysub(L.List[Bump[source, family]], Enumeration.Enumeration[finite], bumps) \then
+  \let zeroResidue: \forall (x: A) -> residue bumps x = Real.zero :=
+    \fun (x: A) => Space.unionMemberElim F x (residue bumps x = Real.zero)
+      (\fun (U: \Pow A) (inF: FiniteOpen.Member F U) (inU: Space.Member U x) =>
+        Selection.coversElim RegionRelation F selected U (residue bumps x = Real.zero)
+          (\fun (bump: Bump[source, family]) (chosen: FiniteBumps.Member finite bump) (equal: RegionRelation U bump) =>
+            residueZero bumps bump (#exhaustive{enumeration} bump chosen) x
+              (#oneOn{bump} x (\idelim U = #oneRegion{bump} \with V: \Pow A => Space.Member V x \by { base: inU, equality: equal }))) inF)
+      (#covers{subcover} x (\refl(x))) \then
+  \return \exact(Partition {
+    parts := normalize bumps,
+    total := \fun (x: A) => eq_reason!{{sum (normalize bumps) x}
+      "=" {Real.add (sum (normalize bumps) x) Real.zero} "by" {sym!{Real.Real} _ _ (Laws.addZeroRight (sum (normalize bumps) x))}
+      "=" {Real.add (sum (normalize bumps) x) (residue bumps x)}
+      "by" {congr!{Real.Real Real.Real} (Real.add (sum (normalize bumps) x)) _ _ (sym!{Real.Real} _ _ (zeroResidue x))}
+      "=" Real.one "by" {normalizationLaw bumps x}},
+  }, Partition)
+};

@@ -1,0 +1,77 @@
+\structure FunctionLaws[source: Source.Topology, f: A -> Real.Real]: \Prop {
+  continuous: Continuous source f,
+  nonnegative: \forall (x: A) -> R.Le Real.zero (f x),
+  bounded: \forall (x: A) -> R.Le (f x) Real.one,
+}
+\definition Function[source: Source.Topology]: \Set :=
+  \Cast[A -> Real.Real] ({ f: A -> Real.Real \where FunctionLaws[source, f] });
+\definition laws(source: Source.Topology) (f: Function[source]): FunctionLaws[source, f] :=
+  \bysub(A -> Real.Real, Function[source], f);
+\definition multiplyBound(a, d: Real.Real): R.Le a Real.one -> R.Le Real.zero d -> R.Le (Real.mul a d) d :=
+  \fun (bound: _) (nonnegative: _) => R.leReplaceLeft (Real.mul d a) (Real.mul a d) d (Laws.fieldMulComm d a)
+    (R.leReplaceRight (Real.mul d a) (Real.mul d Real.one) d (Algebra.mulOneRight d)
+      (Estimates.mulMonotone d a Real.one nonnegative bound));
+\definition productDistance(a, b, c, d: Real.Real):
+  R.Le Real.zero a -> R.Le a Real.one -> R.Le Real.zero d -> R.Le d Real.one ->
+  R.Le (Real.distance (Real.mul a b) (Real.mul c d)) (Real.add (Real.distance b d) (Real.distance a c)) :=
+  \fun (an: _) (ab: _) (dn: _) (db: _) => R.leTrans _ _ _
+    (Distance.distanceTriangle (Real.mul a b) (Real.mul a d) (Real.mul c d))
+    (Estimates.addLe _ _ (Real.distance b d) (Real.distance a c)
+      (R.leTrans _ _ _ (Estimates.distanceMul a b d an) (multiplyBound a (Real.distance b d) ab (Distance.distanceNonnegative b d)))
+      (R.leReplaceLeft (Real.distance (Real.mul d a) (Real.mul d c)) (Real.distance (Real.mul a d) (Real.mul c d)) (Real.distance a c)
+        (congr2!{Real.Real Real.Real Real.Real} Real.distance _ _ _ _ (Laws.fieldMulComm d a) (Laws.fieldMulComm d c))
+        (R.leTrans _ _ _ (Estimates.distanceMul d a c dn) (multiplyBound d (Real.distance a c) db (Distance.distanceNonnegative a c)))));
+\definition productContinuous: \forall (source: Source.Topology) (f, g: Function[source]) ->
+  Continuous source (\fun (x: A) => Real.mul (f x) (g x)) :=
+  \fun (source: _) (f, g: Function[source]) => continuousOfLocal source (\fun (x: A) => Real.mul (f x) (g x)) (\block {
+    \fun (x: A) (r: Real.Real) (positive: R.Lt Real.zero r) \then
+    \let h: Real.Real := Real.mul Real.half r \then
+    \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x h, U] })
+      \by localOfContinuous source f (#continuous{(laws source f)}) x h (Estimates.halfOfPositive r positive) \then
+    \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where Source.OpenNeighborhood[source, x, Small g x h, V] })
+      \by localOfContinuous source g (#continuous{(laws source g)}) x h (Estimates.halfOfPositive r positive) \then
+    \let ud: Source.OpenNeighborhood[source, x, Small f x h, U] := \bysub(\Pow A,
+      { U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x h, U] }, U) \then
+    \let vd: Source.OpenNeighborhood[source, x, Small g x h, V] := \bysub(\Pow A,
+      { V: \Pow A \where Source.OpenNeighborhood[source, x, Small g x h, V] }, V) \then
+    \let W: \Pow A := Source.Intersection U V \then
+    \return \exact(\into[\Pow A](W, { W: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.mul (f x) (g x)) x r, W] }) \by {
+      Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.mul (f x) (g x)) x r, W] {
+        open := #intersectionOpen{(Source.topologyLaws source)} U V (#open{ud}) (#open{vd}),
+        contains := Logic.And[_, _]::# (#contains{ud}) (#contains{vd}),
+        within := \fun (y: A) (member: Source.Member W y) => R.leLtTrans _ _ r
+          (productDistance (f x) (g x) (f y) (g y) (#nonnegative{(laws source f)} x) (#bounded{(laws source f)} x)
+            (#nonnegative{(laws source g)} y) (#bounded{(laws source g)} y))
+          (R.ltReplaceRight _ (Real.add h h) r (Estimates.halfTwice r)
+            (Estimates.addLt (Real.distance (g x) (g y)) (Real.distance (f x) (f y)) h h
+              (#within{vd} y (#right{member})) (#within{ud} y (#left{member})))),
+      }
+    }, \Cast[\Pow A] ({ W: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.mul (f x) (g x)) x r, W] }))
+  });
+\definition product(source: Source.Topology) (f, g: Function[source]): Function[source] :=
+  \into[A -> Real.Real](\fun (x: A) => Real.mul (f x) (g x), Function[source]) \by {
+    FunctionLaws[source, (\fun (x: A) => Real.mul (f x) (g x))] {
+      continuous := productContinuous source f g,
+      nonnegative := \fun (x: A) => Laws.fieldMulNonnegative (f x) (g x) (#nonnegative{(laws source f)} x) (#nonnegative{(laws source g)} x),
+      bounded := \fun (x: A) => R.leTrans _ _ _ (multiplyBound (f x) (g x) (#bounded{(laws source f)} x) (#nonnegative{(laws source g)} x))
+        (#bounded{(laws source g)} x),
+    }
+  };
+\definition complement(source: Source.Topology) (f: Function[source]): Function[source] :=
+  \into[A -> Real.Real](\fun (x: A) => Real.sub Real.one (f x), Function[source]) \by {
+    FunctionLaws[source, (\fun (x: A) => Real.sub Real.one (f x))] {
+      continuous := subContinuous source (\fun (_: A) => Real.one) f (constantContinuous source Real.one) (#continuous{(laws source f)}),
+      nonnegative := \fun (x: A) => Distance.subNonnegative Real.one (f x) (#bounded{(laws source f)} x),
+      bounded := \fun (x: A) => Laws.leAddCancelRight _ _ (f x)
+        (R.leReplaceLeft Real.one (Real.add (Real.sub Real.one (f x)) (f x)) (Real.add Real.one (f x))
+          (sym!{Real.Real} _ _ (Distance.subAddCancel Real.one (f x)))
+          (Algebra.leAddRight Real.one (f x) (#nonnegative{(laws source f)} x))),
+    }
+  };
+\definition constant(source: Source.Topology) (value: Real.Real)
+  (nonnegative: R.Le Real.zero value) (bounded: R.Le value Real.one): Function[source] :=
+  \into[A -> Real.Real](\fun (_: A) => value, Function[source]) \by {
+    FunctionLaws[source, (\fun (_: A) => value)] {
+      continuous := constantContinuous source value, nonnegative := \fun (_: A) => nonnegative, bounded := \fun (_: A) => bounded,
+    }
+  };

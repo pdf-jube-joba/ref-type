@@ -1,0 +1,43 @@
+\import topology.Topology[Carrier := X] \as Domain;
+\import topology.Continuity[A := X, B := A] \as First;
+\import topology.Composition[A := X, B := A, C := B] \as Compose;
+\module From(domain: Domain.Topology) {
+  \import topology.FunctionSpace[A := X, B := B] \as ResultFunctions;
+  \import ResultFunctions.Of[source := domain, target := target] \as Result;
+  \import topology.Topology[Carrier := Result.Carrier] \as Range;
+  \import topology.Maps[A := Carrier, B := Result.Carrier] \as FunctionMaps;
+  \import topology.Continuity[A := Carrier, B := Result.Carrier] \as FunctionContinuity;
+  \import topology.Maps[A := X, B := A] \as SetMaps;
+  \import topology.Compactness[A := X, B := A] \as Compact;
+  \definition precompose(p: X -> A) (pc: First.Continuous domain source p) (f: Carrier): Result.Carrier :=
+    \into[X -> B](\fun (x: _) => f (p x), Result.Carrier) \by {
+      Compose.composeContinuous domain source target p f pc (continuous f)
+    };
+  \definition subbasicPreimage: \forall (p: X -> A) (pc: First.Continuous domain source p) (K: \Pow X) (U: \Pow B) ->
+    FunctionMaps.Preimage (precompose p pc) (Result.Subbasic K U) = Subbasic (SetMaps.Image p K) U :=
+    \fun (p: _) (pc: _) (K: _) (U: _) =>
+      \axiom:setext(FunctionMaps.Preimage (precompose p pc) (Result.Subbasic K U), Subbasic (SetMaps.Image p K) U,
+        \fun (f: Carrier) (h: Space.Member (FunctionMaps.Preimage (precompose p pc) (Result.Subbasic K U)) f)
+          (y: A) (member: Source.Member (SetMaps.Image p K) y) => SetMaps.imageElim p K y (Target.Member U (f y))
+            (\fun (x: X) (inK: Domain.Member K x) (same: p x = y) =>
+              \idelim p x = y \with z: A => Target.Member U (f z) \by { base: h x inK, equality: same }) member,
+        \fun (f: Carrier) (h: Space.Member (Subbasic (SetMaps.Image p K) U) f) (x: X) (member: Domain.Member K x) =>
+          h (p x) (SetMaps.imageMember p K x member));
+  \definition precomposeContinuous: \forall (p: X -> A) (pc: First.Continuous domain source p) ->
+    FunctionContinuity.Continuous topology Result.topology (precompose p pc) :=
+    \fun (p: _) (pc: _) => FunctionMaps.generatedContinuous topology (precompose p pc) Result.Basis
+      (\block {
+        \fun (W: \Pow Result.Carrier) (member: Range.FamilyMember Result.Basis W) \then
+        \takefrom witness: Result.SubbasicWitness[W] \by member \then
+        \let K: \Pow X := #compactSet{witness} \then
+        \let U: \Pow B := #openSet{witness} \then
+        \let same: FunctionMaps.Preimage (precompose p pc) W = Subbasic (SetMaps.Image p K) U :=
+          \idelim Result.Subbasic K U = W
+            \with V: \Pow Result.Carrier => FunctionMaps.Preimage (precompose p pc) V = Subbasic (SetMaps.Image p K) U
+            \by { base: subbasicPreimage p pc K U, equality: sym!{\Pow Result.Carrier} _ _ (#same{witness}) } \then
+        \return \idelim Subbasic (SetMaps.Image p K) U = FunctionMaps.Preimage (precompose p pc) W
+          \with V: \Pow Carrier => Space.IsOpenIn topology V
+          \by { base: subbasicOpen (SetMaps.Image p K) U (Compact.continuousImage domain source p pc K (#compact{witness})) (#open{witness}),
+            equality: sym!{\Pow Carrier} _ _ same }
+      });
+}

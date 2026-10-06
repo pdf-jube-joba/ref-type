@@ -1,0 +1,86 @@
+\import algebra.Hom[A := M, B := K] \as InputHom;
+\import algebra.Hom[A := Carrier, B := K] \as OutputHom;
+\definition targetGroup: Alg.CommutativeGroup[K] := Ring.additiveGroup K target;
+\import algebra.Group[].Of[Carrier := K, group := targetGroup] \as H;
+\import C.Universal[K := K, target := targetGroup] \as Extension;
+\definition InputMap: \Set := InputHom.SemiringMap semiring (Ring.ringAsSemiring K target);
+\definition additiveInput(f: InputMap): Extension.Map :=
+  \into[M -> K](f, Extension.Map) \by {
+    InputHom.MonoidLaws[Extension.domain, Extension.codomain, f] {
+      unit := #zero{(InputHom.semiringLaws semiring (Ring.ringAsSemiring K target) f)},
+      operation := #add{(InputHom.semiringLaws semiring (Ring.ringAsSemiring K target) f)},
+    }
+  };
+\definition extend(f: InputMap): Carrier -> K := Extension.extend (additiveInput f);
+\definition includes: \forall (f: InputMap) (a: M) -> extend f (include a) = f a :=
+  \fun (f: _) => Extension.extendIncludes (additiveInput f);
+\definition additiveMap(f: InputMap): OutputHom.MonoidMap C.asMonoid Extension.codomain := Extension.extension (additiveInput f);
+\definition composeBefore(h: OutputHom.MonoidMap C.asMonoid Extension.codomain) (g: Endomorphism):
+  OutputHom.MonoidMap C.asMonoid Extension.codomain :=
+  \into[Carrier -> K](\fun (x: _) => h (g x), OutputHom.MonoidMap C.asMonoid Extension.codomain) \by {
+    OutputHom.MonoidLaws[C.asMonoid, Extension.codomain, (\fun (x: _) => h (g x))] {
+      unit := trans!{K} _ _ _ (congr!{Carrier K} h _ _ (#unit{(Output.monoidLaws C.asMonoid Universal.codomain g)}))
+        (#unit{(OutputHom.monoidLaws C.asMonoid Extension.codomain h)}),
+      operation := \fun (x, y: _) => trans!{K} _ _ _ (congr!{Carrier K} h _ _ (#operation{(Output.monoidLaws C.asMonoid Universal.codomain g)} x y))
+        (#operation{(OutputHom.monoidLaws C.asMonoid Extension.codomain h)} (g x) (g y)),
+    }
+  };
+\definition targetMultiply(h: OutputHom.MonoidMap C.asMonoid Extension.codomain) (a: K):
+  OutputHom.MonoidMap C.asMonoid Extension.codomain :=
+  \into[Carrier -> K](\fun (x: _) => #mul{target} a (h x), OutputHom.MonoidMap C.asMonoid Extension.codomain) \by {
+    OutputHom.MonoidLaws[C.asMonoid, Extension.codomain, (\fun (x: _) => #mul{target} a (h x))] {
+      unit := trans!{K} _ _ _ (congr!{K K} (#mul{target} a) _ _ (#unit{(OutputHom.monoidLaws C.asMonoid Extension.codomain h)}))
+        (#zeroAbsorbsRight{(#semiring{target})} a),
+      operation := \fun (x, y: _) => trans!{K} _ _ _
+        (congr!{K K} (#mul{target} a) _ _ (#operation{(OutputHom.monoidLaws C.asMonoid Extension.codomain h)} x y))
+        (#leftDistributive{(#semiring{target})} a (h x) (h y)),
+    }
+  };
+\definition targetMultiplyRight(h: OutputHom.MonoidMap C.asMonoid Extension.codomain) (a: K):
+  OutputHom.MonoidMap C.asMonoid Extension.codomain :=
+  \into[Carrier -> K](\fun (x: _) => #mul{target} (h x) a, OutputHom.MonoidMap C.asMonoid Extension.codomain) \by {
+    OutputHom.MonoidLaws[C.asMonoid, Extension.codomain, (\fun (x: _) => #mul{target} (h x) a)] {
+      unit := trans!{K} _ _ _ (congr!{K K} (\fun (x: _) => #mul{target} x a) _ _ (#unit{(OutputHom.monoidLaws C.asMonoid Extension.codomain h)}))
+        (#zeroAbsorbsLeft{(#semiring{target})} a),
+      operation := \fun (x, y: _) => trans!{K} _ _ _
+        (congr!{K K} (\fun (x: _) => #mul{target} x a) _ _ (#operation{(OutputHom.monoidLaws C.asMonoid Extension.codomain h)} x y))
+        (#rightDistributive{(#semiring{target})} (h x) (h y) a),
+    }
+  };
+\definition scalar: \forall (f: InputMap) (a: M) (x: Carrier) -> extend f (scale a x) = #mul{target} (f a) (extend f x) :=
+  \fun (f: _) (a: _) (x: _) => congr!{{Carrier -> K} K} (\fun (g: _) => g x) _ _
+    (Extension.ext (composeBefore (additiveMap f) (scaleMap a)) (targetMultiply (additiveMap f) (f a))
+      (\fun (b: _) => eq_reason!{{extend f (scale a (include b))}
+        "=" {extend f (include (#mul{semiring} a b))} "by" {congr!{Carrier K} (extend f) _ _ (scaleIncludes a b)}
+        "=" {f (#mul{semiring} a b)} "by" {includes f (#mul{semiring} a b)}
+        "=" {#mul{target} (f a) (f b)} "by" {#mul{(InputHom.semiringLaws semiring (Ring.ringAsSemiring K target) f)} a b}
+        "=" {#mul{target} (f a) (extend f (include b))} "by" {congr!{K K} (#mul{target} (f a)) _ _ (sym!{K} _ _ (includes f b))}}));
+\definition multiplication: \forall (f: InputMap) (x, y: Carrier) ->
+  extend f (mul x y) = #mul{target} (extend f x) (extend f y) :=
+  \fun (f: _) (x, y: _) => congr!{{Carrier -> K} K} (\fun (g: _) => g x) _ _
+    (Extension.ext (composeBefore (additiveMap f) (leftMultiply y)) (targetMultiplyRight (additiveMap f) (extend f y))
+      (\fun (a: _) => eq_reason!{{extend f (mul (include a) y)}
+        "=" {extend f (scale a y)} "by" {congr!{Carrier K} (extend f) _ _ (mulIncludes a y)}
+        "=" {#mul{target} (f a) (extend f y)} "by" {scalar f a y}
+        "=" {#mul{target} (extend f (include a)) (extend f y)}
+        "by" {congr!{K K} (\fun (b: _) => #mul{target} b (extend f y)) _ _ (sym!{K} _ _ (includes f a))}}));
+\definition extension(f: InputMap): OutputHom.RingMap ring target :=
+  \into[Carrier -> K](extend f, OutputHom.RingMap ring target) \by {
+    OutputHom.SemiringLaws[Ring.ringAsSemiring Carrier ring, Ring.ringAsSemiring K target, extend f] {
+      zero := #unit{(OutputHom.monoidLaws C.asMonoid Extension.codomain (additiveMap f))},
+      one := trans!{K} _ _ _ (includes f (#one{semiring})) (#one{(InputHom.semiringLaws semiring (Ring.ringAsSemiring K target) f)}),
+      add := Extension.extendAdd (additiveInput f), mul := multiplication f,
+    }
+  };
+\definition unique: \forall (f: InputMap) (h: OutputHom.RingMap ring target) ->
+  (\forall (a: M) -> h (include a) = f a) -> h = extend f := \block {
+  \fun (f: InputMap) (h: OutputHom.RingMap ring target) (agrees: \forall (a: M) -> h (include a) = f a) \then
+  \let additive: OutputHom.MonoidMap C.asMonoid Extension.codomain :=
+    \into[Carrier -> K](h, OutputHom.MonoidMap C.asMonoid Extension.codomain) \by {
+      OutputHom.MonoidLaws[C.asMonoid, Extension.codomain, h] {
+        unit := #zero{(OutputHom.semiringLaws (Ring.ringAsSemiring Carrier ring) (Ring.ringAsSemiring K target) h)},
+        operation := #add{(OutputHom.semiringLaws (Ring.ringAsSemiring Carrier ring) (Ring.ringAsSemiring K target) h)},
+      }
+    } \then
+  \return Extension.unique (additiveInput f) additive agrees
+};

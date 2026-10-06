@@ -1,0 +1,29 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].Bool[] \as B;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\import algebra.FreeCommutativeRing[].Over[R := R, coefficients := coefficients, Variables := B.Bool^] \as Free;
+\definition positive: Free.Expression := Free.Expression::variable B.Bool^::true;
+\definition negative: Free.Expression := Free.Expression::variable B.Bool^::false;
+\definition Relation(x, y: Free.Expression): \Prop :=
+  Logic.And[x = Free.Expression::product positive negative, y = Free.oneExpr];
+\import Free.Presentation[relations := Relation] \as P;
+\definition Carrier: \Set := P.Carrier;
+\definition ring: Ring.CommutativeRing[Carrier] := P.ring;
+\definition constant: R -> Carrier := P.constant;
+\definition zero: Carrier := P.zero;
+\definition one: Carrier := P.one;
+\definition add: Carrier -> Carrier -> Carrier := P.add;
+\definition neg: Carrier -> Carrier := P.neg;
+\definition mul: Carrier -> Carrier -> Carrier := P.mul;
+\definition X: Carrier := P.variable B.Bool^::true;
+\definition inverseX: Carrier := P.variable B.Bool^::false;
+\import algebra.Quotient[A := Free.Expression, relation := P.Equivalent] \as Q;
+\definition inverse: mul X inverseX = one :=
+  trans!{Carrier} _ _ _ (P.mulClass positive negative)
+    (Q.classRelated P.equivalence (Free.Expression::product positive negative) Free.oneExpr
+      (P.relationIncluded (Free.Expression::product positive negative) Free.oneExpr
+        (Logic.And[_, _]::# (\refl(Free.Expression::product positive negative)) (\refl(Free.oneExpr)))));
+\use Equality.eq_reason;
+\module Universal(K: \Set, target: Ring.CommutativeRing[K]);

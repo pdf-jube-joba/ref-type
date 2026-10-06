@@ -1,0 +1,35 @@
+\import std.Data[].List[] \as L;
+\definition Occurs(a: A) (xs: L.List[A]): \Prop :=
+  \induction (xs: L.List[A]) \return \Prop \with {
+    | nil: Logic.False
+    | cons: \fun (head: A) (tail: L.List[A]) (rest: \Prop) => Logic.Or[a = head, rest]
+  } xs;
+\structure Enumerates[X: \Pow A, xs: L.List[A]]: \Prop {
+  included: \forall (a: A) -> Occurs a xs -> \In[A] X a,
+  exhaustive: \forall (a: A) -> \In[A] X a -> Occurs a xs,
+}
+\definition Enumeration[X: \Pow A]: \Set := \Cast[L.List[A]] ({ xs: L.List[A] \where Enumerates[X, xs] });
+\definition existsEnumeration: \forall (X: FiniteSubset) -> \exists Enumeration[X] :=
+  induction ({ X: \Pow A \where \exists Enumeration[X] })
+    (\exact(\into[L.List[A]](L.List[A]::nil, Enumeration[Empty]) \by {
+      Enumerates[Empty, L.List[A]::nil] {
+        included := \fun (a: A) (empty: Logic.False) => empty,
+        exhaustive := \fun (a: A) (empty: Logic.False) => empty,
+      }
+    }, Enumeration[Empty]))
+    (\block {
+      \fun (X: \Pow A) (ih: \exists Enumeration[X]) (a: A) \then
+      \takefrom xs: Enumeration[X] \by ih \then
+      \let data: Enumerates[X, xs] := \bysub(L.List[A], Enumeration[X], xs) \then
+      \let result: L.List[A] := L.List[A]::cons a xs \then
+      \return \exact(\into[L.List[A]](result, Enumeration[Insert a X]) \by {
+        Enumerates[Insert a X, result] {
+          included := \fun (b: A) (member: Occurs b result) => either!{{b = a} "or" {Occurs b xs} "either" {\In[A] (Insert a X) b}
+            "lt:" {Logic.Or[_, _]::left}
+            "rt:" {\fun (old: _) => inInsertOld a X b (#included{data} b old)}} member,
+          exhaustive := \fun (b: A) (member: \In[A] (Insert a X) b) => either!{{b = a} "or" {\In[A] X b} "either" {Occurs b result}
+            "lt:" {Logic.Or[_, _]::left}
+            "rt:" {\fun (old: _) => Logic.Or[_, _]::right (#exhaustive{data} b old)}} member,
+        }
+      }, Enumeration[Insert a X])
+    });

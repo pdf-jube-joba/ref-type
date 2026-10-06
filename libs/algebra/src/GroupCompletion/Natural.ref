@@ -1,0 +1,83 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Op;
+\import N.Basic[].Prop[] \as Laws;
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Arithmetic[].Int[] \as I;
+\import I.Math[] \as Integers;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition monoid: Monoid.CommutativeMonoid[N.Nat^] := Monoid.CommutativeMonoid[N.Nat^] {
+  base := Monoid.MonoidData[N.Nat^]::# N.Nat^::zero Op.add,
+  monoid := Monoid.MonoidLaws[N.Nat^, (Monoid.MonoidData[N.Nat^]::# N.Nat^::zero Op.add)] {
+    leftIdentity := Laws.addZeroLeft, rightIdentity := Laws.addZeroRight, associative := Laws.addAssociative,
+  },
+  commutative := Laws.addCommutative,
+};
+\import \parent.Of[M := N.Nat^, monoid := monoid] \as Completion;
+\import algebra.Quotient[A := Completion.Difference, relation := Completion.Equivalent].Lift[B := I.Int^] \as Lift;
+\definition Carrier: \Set := Completion.Carrier;
+\definition normalize(x: Completion.Difference): I.Int^ := I.Diff.specification (Completion.positive x) (Completion.negative x);
+\definition normalizeRespects: Lift.Respects normalize := \block {
+  \fun (x, y: Completion.Difference) (related: Completion.Equivalent x y) \then
+  \takefrom e: \Cast[N.Nat^] ({ e: N.Nat^ \where Completion.Balance x y e }) \by related \then
+  \return Integers.diffRespects (Completion.positive x) (Completion.negative x) (Completion.positive y) (Completion.negative y)
+    (Laws.addCancelRight e _ _ (\bysub(N.Nat^, { e: N.Nat^ \where Completion.Balance x y e }, e)))
+};
+\definition toInt: Carrier -> I.Int^ := Lift.apply Completion.equivalence normalize normalizeRespects;
+\definition toIntClass: \forall (x: Completion.Difference) -> toInt (Completion.class x) = normalize x :=
+  Lift.onClass Completion.equivalence normalize normalizeRespects;
+\definition representative(z: I.Int^): Completion.Difference := Completion.pair (I.Positive.specification z) (I.Negative.specification z);
+\definition fromInt(z: I.Int^): Carrier := Completion.class (representative z);
+\definition toFrom: \forall (z: I.Int^) -> toInt (fromInt z) = z :=
+  \fun (z: _) => trans!{I.Int^} _ _ _ (toIntClass (representative z)) (I.diffCanonical z);
+\import std.Set[].Quotient[A := Completion.Difference, Equivalent := Completion.Equivalent] \as Q;
+\definition fromTo: \forall (C: Carrier) -> fromInt (toInt C) = C :=
+  Q.induction (\fun (C: _) => fromInt (toInt C) = C)
+    (\fun (x: Completion.Difference) => trans!{Carrier} _ _ _
+      (congr!{I.Int^ Carrier} fromInt _ _ (toIntClass x))
+      (Completion.classRelated (representative (normalize x)) x
+        (Completion.equivalentSym x (representative (normalize x))
+          (Completion.related x (representative (normalize x)) N.Nat^::zero
+            (congr!{N.Nat^ N.Nat^} (\fun (n: _) => Op.add n N.Nat^::zero) _ _
+              (Integers.diffBalance (Completion.negative x) (Completion.positive x)))))));
+
+\import I.Math[].Specification[].Prop[] \as IntegerLaws;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\definition oldRepresentative(x: Completion.Difference): I.Difference := I.pair (Completion.positive x) (Completion.negative x);
+\definition normalizeMath: \forall (x: Completion.Difference) -> Integers.toMath (normalize x) = Integers.class (oldRepresentative x) :=
+  \fun (x: _) => Integers.toFromClass (oldRepresentative x);
+\definition normalizeAdd: \forall (x, y: Completion.Difference) ->
+  normalize (Completion.addRep x y) = I.Add.specification (normalize x) (normalize y) :=
+  \fun (x, y: _) => IntegerLaws.toMathInjective _ _
+    (eq_reason!{{Integers.toMath (normalize (Completion.addRep x y))}
+      "=" {Integers.class (Integers.addRep (oldRepresentative x) (oldRepresentative y))}
+      "by" {normalizeMath (Completion.addRep x y)}
+      "=" {Integers.addMath (Integers.class (oldRepresentative x)) (Integers.class (oldRepresentative y))}
+      "by" {sym!{Integers.Grothendieck} _ _ (Integers.addMathClass (oldRepresentative x) (oldRepresentative y))}
+      "=" {Integers.addMath (Integers.toMath (normalize x)) (Integers.toMath (normalize y))}
+      "by" {congr2!{Integers.Grothendieck Integers.Grothendieck Integers.Grothendieck} Integers.addMath _ _ _ _
+        (sym!{Integers.Grothendieck} _ _ (normalizeMath x)) (sym!{Integers.Grothendieck} _ _ (normalizeMath y))}
+      "=" {Integers.toMath (I.Add.specification (normalize x) (normalize y))}
+      "by" {sym!{Integers.Grothendieck} _ _ (Integers.addSetMatchesMath (normalize x) (normalize y))}});
+\definition toIntAdd: \forall (C, D: Carrier) -> toInt (Completion.plus C D) = I.Add.specification (toInt C) (toInt D) :=
+  Q.induction (\fun (C: _) => \forall (D: Carrier) -> toInt (Completion.plus C D) = I.Add.specification (toInt C) (toInt D))
+    (\fun (x: Completion.Difference) => Q.induction (\fun (D: _) => toInt (Completion.plus (Completion.class x) D) =
+      I.Add.specification (toInt (Completion.class x)) (toInt D))
+      (\fun (y: Completion.Difference) => eq_reason!{{toInt (Completion.plus (Completion.class x) (Completion.class y))}
+        "=" {toInt (Completion.class (Completion.addRep x y))} "by" {congr!{Carrier I.Int^} toInt _ _ (Completion.addClass x y)}
+        "=" {normalize (Completion.addRep x y)} "by" {toIntClass (Completion.addRep x y)}
+        "=" {I.Add.specification (normalize x) (normalize y)} "by" {normalizeAdd x y}
+        "=" {I.Add.specification (toInt (Completion.class x)) (toInt (Completion.class y))}
+        "by" {congr2!{I.Int^ I.Int^ I.Int^} I.Add.specification _ _ _ _
+          (sym!{I.Int^} _ _ (toIntClass x)) (sym!{I.Int^} _ _ (toIntClass y))}}));
+\definition fromIntAdd: \forall (a, b: I.Int^) -> fromInt (I.Add.specification a b) = Completion.plus (fromInt a) (fromInt b) :=
+  \fun (a, b: _) => eq_reason!{{fromInt (I.Add.specification a b)}
+    "=" {fromInt (I.Add.specification (toInt (fromInt a)) (toInt (fromInt b)))}
+    "by" {congr!{I.Int^ Carrier} fromInt _ _ (congr2!{I.Int^ I.Int^ I.Int^} I.Add.specification _ _ _ _
+      (sym!{I.Int^} _ _ (toFrom a)) (sym!{I.Int^} _ _ (toFrom b)))}
+    "=" {fromInt (toInt (Completion.plus (fromInt a) (fromInt b)))}
+    "by" {congr!{I.Int^ Carrier} fromInt _ _ (sym!{I.Int^} _ _ (toIntAdd (fromInt a) (fromInt b)))}
+    "=" {Completion.plus (fromInt a) (fromInt b)} "by" {fromTo (Completion.plus (fromInt a) (fromInt b))}};

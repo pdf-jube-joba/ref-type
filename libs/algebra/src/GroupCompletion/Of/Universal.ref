@@ -1,0 +1,92 @@
+\import algebra.Group[].Of[Carrier := K, group := target] \as G;
+\import algebra.Hom[A := M, B := K] \as Input;
+\import algebra.Hom[A := Carrier, B := K] \as Output;
+\import Quotient.Lift[B := K] \as Lift;
+\definition domain: Monoid.Monoid[M] := Monoid.asMonoid M monoid;
+\definition codomain: Monoid.Monoid[K] := Monoid.asMonoid K G.additive;
+\definition Map: \Set := Input.MonoidMap domain codomain;
+\definition imageBalance(f: Map) (a, b, e: M):
+  f (add (add a b) e) = G.add (G.add (f a) (f b)) (f e) :=
+  trans!{K} _ _ _ (#operation{(Input.monoidLaws domain codomain f)} (add a b) e)
+    (congr!{K K} (\fun (x: _) => G.add x (f e)) _ _ (#operation{(Input.monoidLaws domain codomain f)} a b));
+\definition evaluate(f: Map) (x: Difference): K := G.difference (f (positive x)) (f (negative x));
+\definition respects: \forall (f: Map) -> Lift.Respects (evaluate f) := \block {
+  \fun (f: _) (x, y: _) (xy: _) \then
+  \takefrom e: \Cast[M] ({ e: M \where Balance x y e }) \by xy \then
+  \let balance: G.add (G.add (f (positive x)) (f (negative y))) (f e) =
+      G.add (G.add (f (positive y)) (f (negative x))) (f e) :=
+    eq_reason!{{G.add (G.add (f (positive x)) (f (negative y))) (f e)}
+      "=" {f (add (add (positive x) (negative y)) e)} "by" {sym!{K} _ _ (imageBalance f (positive x) (negative y) e)}
+      "=" {f (add (add (positive y) (negative x)) e)} "by" {congr!{M K} f _ _ (\bysub(M, { e: M \where Balance x y e }, e))}
+      "=" {G.add (G.add (f (positive y)) (f (negative x))) (f e)} "by" {imageBalance f (positive y) (negative x) e}} \then
+  \return G.balancedDifference (f (positive x)) (f (negative x)) (f (positive y)) (f (negative y))
+    (G.cancelRight (f e) _ _ balance)
+};
+\definition extend(f: Map): Carrier -> K := Lift.apply equivalence (evaluate f) (respects f);
+\definition extendClass: \forall (f: Map) (x: Difference) -> extend f (class x) = evaluate f x :=
+  \fun (f: _) => Lift.onClass equivalence (evaluate f) (respects f);
+\definition evaluateAdd: \forall (f: Map) (x, y: Difference) ->
+  evaluate f (addRep x y) = G.add (evaluate f x) (evaluate f y) :=
+  \fun (f: _) (x, y: _) => eq_reason!{{evaluate f (addRep x y)}
+    "=" {G.add (G.add (f (positive x)) (f (positive y))) (G.neg (G.add (f (negative x)) (f (negative y))))}
+    "by" {congr2!{K K K} G.difference _ _ _ _
+      (#operation{(Input.monoidLaws domain codomain f)} (positive x) (positive y))
+      (#operation{(Input.monoidLaws domain codomain f)} (negative x) (negative y))}
+    "=" {G.add (G.add (f (positive x)) (f (positive y))) (G.add (G.neg (f (negative x))) (G.neg (f (negative y))))}
+    "by" {congr!{K K} (G.add (G.add (f (positive x)) (f (positive y)))) _ _ (G.negAdd (f (negative x)) (f (negative y)))}
+    "=" {G.add (evaluate f x) (evaluate f y)}
+    "by" {G.four (f (positive x)) (f (positive y)) (G.neg (f (negative x))) (G.neg (f (negative y)))}};
+\definition extendAdd: \forall (f: Map) (C, D: Carrier) -> extend f (plus C D) = G.add (extend f C) (extend f D) :=
+  \fun (f: _) => Q.induction (\fun (C: _) => \forall (D: Carrier) -> extend f (plus C D) = G.add (extend f C) (extend f D))
+    (\fun (x: _) => Q.induction (\fun (D: _) => extend f (plus (class x) D) = G.add (extend f (class x)) (extend f D))
+      (\fun (y: _) => eq_reason!{{extend f (plus (class x) (class y))}
+        "=" {extend f (class (addRep x y))} "by" {congr!{Carrier K} (extend f) _ _ (addClass x y)}
+        "=" {evaluate f (addRep x y)} "by" {extendClass f (addRep x y)}
+        "=" {G.add (evaluate f x) (evaluate f y)} "by" {evaluateAdd f x y}
+        "=" {G.add (extend f (class x)) (extend f (class y))} "by" {congr2!{K K K} G.add _ _ _ _
+          (sym!{K} _ _ (extendClass f x)) (sym!{K} _ _ (extendClass f y))}}));
+\definition extendIncludes: \forall (f: Map) (a: M) -> extend f (include a) = f a :=
+  \fun (f: _) (a: _) => eq_reason!{{extend f (include a)}
+    "=" {G.difference (f a) (f zero)} "by" {extendClass f (pair a zero)}
+    "=" {G.difference (f a) G.zero} "by" {congr!{K K} (G.difference (f a)) _ _ (#unit{(Input.monoidLaws domain codomain f)})}
+    "=" {G.add (f a) G.zero} "by" {congr!{K K} (G.add (f a)) _ _ G.negZero}
+    "=" {f a} "by" {G.zeroRight (f a)}};
+\definition extension(f: Map): Output.MonoidMap asMonoid codomain :=
+  \into[Carrier -> K](extend f, Output.MonoidMap asMonoid codomain) \by {
+    Output.MonoidLaws[asMonoid, codomain, extend f] {
+      unit := trans!{K} _ _ _ (extendIncludes f zero) (#unit{(Input.monoidLaws domain codomain f)}),
+      operation := extendAdd f,
+    }
+  };
+\definition homInverse: \forall (h: Output.MonoidMap asMonoid codomain) (C: Carrier) -> h (inverse C) = G.neg (h C) :=
+  \fun (h: _) (C: _) => G.inverseUnique (h C) (h (inverse C))
+    (eq_reason!{{G.add (h (inverse C)) (h C)}
+      "=" {h (plus (inverse C) C)} "by" {sym!{K} _ _ (#operation{(Output.monoidLaws asMonoid codomain h)} (inverse C) C)}
+      "=" {h unit} "by" {congr!{Carrier K} h _ _ (inverseLeft C)}
+      "=" {G.zero} "by" {#unit{(Output.monoidLaws asMonoid codomain h)}}});
+\definition unique: \forall (f: Map) (h: Output.MonoidMap asMonoid codomain) ->
+  (\forall (a: M) -> h (include a) = f a) -> h = extend f :=
+  \fun (f: _) (h: _) (agrees: _) => Lift.unique equivalence (evaluate f) (respects f) h
+    (\fun (x: _) => eq_reason!{{h (class x)}
+      "=" {h (class (pair (positive x) (negative x)))} "by" {congr!{Carrier K} h _ _ (sym!{Carrier} _ _ (congr!{Difference Carrier} class _ _ (PairLaws.eta x)))}
+      "=" {h (plus (include (positive x)) (inverse (include (negative x))))}
+      "by" {congr!{Carrier K} h _ _ (sym!{Carrier} _ _ (differenceClass (positive x) (negative x)))}
+      "=" {G.add (h (include (positive x))) (h (inverse (include (negative x))))}
+      "by" {#operation{(Output.monoidLaws asMonoid codomain h)} (include (positive x)) (inverse (include (negative x)))}
+      "=" {G.add (h (include (positive x))) (G.neg (h (include (negative x))))}
+      "by" {congr!{K K} (G.add (h (include (positive x)))) _ _ (homInverse h (include (negative x)))}
+      "=" {evaluate f x} "by" {congr2!{K K K} G.difference _ _ _ _ (agrees (positive x)) (agrees (negative x))}});
+
+\definition restrict(h: Output.MonoidMap asMonoid codomain): Map :=
+  \into[M -> K](\fun (a: _) => h (include a), Map) \by {
+    Input.MonoidLaws[domain, codomain, (\fun (a: _) => h (include a))] {
+      unit := #unit{(Output.monoidLaws asMonoid codomain h)},
+      operation := \fun (a, b: _) => trans!{K} _ _ _ (congr!{Carrier K} h _ _ (includeAdd a b))
+        (#operation{(Output.monoidLaws asMonoid codomain h)} (include a) (include b)),
+    }
+  };
+\definition ext: \forall (h, k: Output.MonoidMap asMonoid codomain) ->
+  (\forall (a: M) -> h (include a) = k (include a)) -> h = k :=
+  \fun (h, k: _) (agrees: _) => trans!{{Carrier -> K}} _ _ _
+    (unique (restrict h) h (\fun (a: _) => \refl(h (include a))))
+    (sym!{{Carrier -> K}} _ _ (unique (restrict h) k (\fun (a: _) => sym!{K} _ _ (agrees a))));
