@@ -1,5 +1,9 @@
 # Ref Type エディタ拡張
 
+`extensions/docs` は `libs/` の宣言、署名、ドキュメントコメント、ソースを探索するローカル HTML ブラウザーです。
+`cd extensions/docs && cargo run` で起動し、`http://127.0.0.1:3030/` を開きます。
+詳細は [docs/README.md](docs/README.md) を参照してください。
+
 `extensions/playground` はブラウザでコードを編集し、診断と評価結果を確認する Web playground です。
 `cargo run -p playground` で起動し、表示された URL を開きます。
 詳細は [playground/README.md](playground/README.md) を参照してください。
