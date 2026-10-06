@@ -548,13 +548,15 @@ impl ModuleManager {
         let cache_misses = std::cell::Cell::new(0usize);
         // Reserve stable IDs and publish only metadata. Declaration bodies are
         // transformed by CrateEnv when one of these IDs is first requested.
-        let mut materialization_sources = Vec::new();
-        for source_module in route {
+        // Imported specialization arguments may refer to any declaration in the
+        // enclosing route. Finalize those IDs before consulting the import cache.
+        let mut materialization_sources: Vec<_> =
+            route.iter().map(|&module| (module, module, true)).collect();
+        for &source_module in &route {
             materialization_sources.extend(env.module(source_module).bindings().iter().map(|id| {
                 let binding = env.binding(*id);
                 (binding.source, binding.materialized, false)
             }));
-            materialization_sources.push((source_module, source_module, true));
         }
 
         struct ReservedGroup {
@@ -568,34 +570,26 @@ impl ModuleManager {
         let mut lazy_definitions = Vec::new();
         let mut lazy_inductives = Vec::new();
         let mut lazy_datatypes = Vec::new();
-        for (source_module, item_source, path_component) in materialization_sources {
+        let mut namespaces = Vec::with_capacity(materialization_sources.len());
+        for (_, item_source, _) in &materialization_sources {
             let materialized = env.add_module_in_scope(self.current, context.clone())?;
-            remapping.module_ids.insert(item_source, materialized);
-            env.copy_hir_names(item_source, materialized);
-            let mut origins = HashMap::new();
+            remapping.module_ids.insert(*item_source, materialized);
+            env.copy_hir_names(*item_source, materialized);
+            namespaces.push(materialized);
+        }
+        for ((source_module, item_source, path_component), materialized) in
+            materialization_sources.into_iter().zip(namespaces)
+        {
             let mut reserve_definition =
                 |env: &mut CrateEnv, remapping: &mut DeclarationRemapping, source_id: DefId| {
-                    let (id, fresh) = env.reserve_lazy_definition(
+                    let id = env.reserve_lazy_definition(
                         materialized,
                         source_id,
                         substitutions.clone(),
                         reflected_substitutions.clone(),
-                        remapping,
                     );
                     remapping.definition_ids.insert(source_id, id);
-                    origins.insert(
-                        id,
-                        env.definition_origin(source_id)
-                            .map_or(source_id, |origin| origin.source),
-                    );
-                    if fresh {
-                        cache_misses.set(cache_misses.get() + 1);
-                    } else {
-                        cache_hits.set(cache_hits.get() + 1);
-                    }
-                    if fresh {
-                        lazy_definitions.push(id);
-                    }
+                    lazy_definitions.push(id);
                     id
                 };
             let mut items = Vec::new();
@@ -611,22 +605,13 @@ impl ModuleManager {
                         associated_definitions,
                         inductive,
                     } => {
-                        let (id, fresh) = env.reserve_lazy_inductive(
+                        let id = env.reserve_lazy_inductive(
                             materialized,
                             inductive,
-                            substitutions.clone(),
                             reflected_substitutions.clone(),
-                            &remapping,
                         );
                         remapping.inductive_ids.insert(inductive, id);
-                        if fresh {
-                            cache_misses.set(cache_misses.get() + 1);
-                        } else {
-                            cache_hits.set(cache_hits.get() + 1);
-                        }
-                        if fresh {
-                            lazy_inductives.push(id);
-                        }
+                        lazy_inductives.push(id);
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
@@ -643,22 +628,13 @@ impl ModuleManager {
                         associated_definitions,
                         inductive,
                     } => {
-                        let (id, fresh) = env.reserve_lazy_inductive(
+                        let id = env.reserve_lazy_inductive(
                             materialized,
                             inductive,
-                            substitutions.clone(),
                             reflected_substitutions.clone(),
-                            &remapping,
                         );
                         remapping.inductive_ids.insert(inductive, id);
-                        if fresh {
-                            cache_misses.set(cache_misses.get() + 1);
-                        } else {
-                            cache_hits.set(cache_hits.get() + 1);
-                        }
-                        if fresh {
-                            lazy_inductives.push(id);
-                        }
+                        lazy_inductives.push(id);
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
@@ -677,38 +653,20 @@ impl ModuleManager {
                         inductive,
                         reflected,
                     } => {
-                        let (reflected_id, fresh) = env.reserve_lazy_inductive(
+                        let reflected_id = env.reserve_lazy_inductive(
                             materialized,
                             reflected,
-                            substitutions.clone(),
                             reflected_substitutions.clone(),
-                            &remapping,
                         );
                         remapping.inductive_ids.insert(reflected, reflected_id);
-                        if fresh {
-                            cache_misses.set(cache_misses.get() + 1);
-                        } else {
-                            cache_hits.set(cache_hits.get() + 1);
-                        }
-                        if fresh {
-                            lazy_inductives.push(reflected_id);
-                        }
-                        let (id, fresh) = env.reserve_lazy_program_inductive(
+                        lazy_inductives.push(reflected_id);
+                        let id = env.reserve_lazy_program_inductive(
                             materialized,
                             inductive,
                             substitutions.clone(),
-                            reflected_substitutions.clone(),
-                            &remapping,
                         );
                         remapping.program_inductive_ids.insert(inductive, id);
-                        if fresh {
-                            cache_misses.set(cache_misses.get() + 1);
-                        } else {
-                            cache_hits.set(cache_hits.get() + 1);
-                        }
-                        if fresh {
-                            lazy_datatypes.push(id);
-                        }
+                        lazy_datatypes.push(id);
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
@@ -730,10 +688,104 @@ impl ModuleManager {
                 path_component,
                 namespace: materialized,
                 items,
-                origins,
+                origins: HashMap::new(),
             });
         }
 
+        // Every declaration is resolvable before conversion in the reuse cache.
+        let shared_remapping = env.store_remapping(remapping.clone());
+        for &id in &lazy_definitions {
+            env.set_lazy_definition_remapping(id, shared_remapping);
+        }
+        for &id in &lazy_inductives {
+            env.set_lazy_inductive_remapping(id, shared_remapping);
+        }
+        for &id in &lazy_datatypes {
+            env.set_lazy_program_inductive_remapping(id, shared_remapping);
+        }
+
+        // Enclosing declarations precede imports; imports retain their dependency order.
+        // Replace reserved IDs with canonical IDs as each specialization is resolved.
+        macro_rules! reuse {
+            ($id:expr, $method:ident, $table:ident) => {{
+                let reserved = *$id;
+                let (source, canonical, fresh) = env.$method(
+                    reserved,
+                    &substitutions,
+                    &reflected_substitutions,
+                    &remapping,
+                );
+                if fresh {
+                    cache_misses.set(cache_misses.get() + 1);
+                } else {
+                    cache_hits.set(cache_hits.get() + 1);
+                }
+                remapping.$table.insert(source, canonical);
+                remapping.$table.insert(reserved, canonical);
+                let shared = env.reserved_remapping_mut(shared_remapping);
+                shared.$table.insert(source, canonical);
+                shared.$table.insert(reserved, canonical);
+                *$id = canonical;
+                source
+            }};
+        }
+        for group in &mut groups {
+            let mut origins = HashMap::new();
+            for item in &mut group.items {
+                match item {
+                    ModuleItem::Definition { definition, .. } => {
+                        let source = reuse!(definition, reuse_lazy_definition, definition_ids);
+                        origins.insert(
+                            *definition,
+                            env.definition_origin(source)
+                                .map_or(source, |origin| origin.source),
+                        );
+                    }
+                    ModuleItem::Inductive {
+                        inductive,
+                        associated_definitions,
+                        ..
+                    }
+                    | ModuleItem::Record {
+                        inductive,
+                        associated_definitions,
+                        ..
+                    } => {
+                        reuse!(inductive, reuse_lazy_inductive, inductive_ids);
+                        for (_, definition) in associated_definitions {
+                            let source = reuse!(definition, reuse_lazy_definition, definition_ids);
+                            origins.insert(
+                                *definition,
+                                env.definition_origin(source)
+                                    .map_or(source, |origin| origin.source),
+                            );
+                        }
+                    }
+                    ModuleItem::ProgramInductive {
+                        inductive,
+                        reflected,
+                        associated_definitions,
+                        ..
+                    } => {
+                        reuse!(reflected, reuse_lazy_inductive, inductive_ids);
+                        reuse!(
+                            inductive,
+                            reuse_lazy_program_inductive,
+                            program_inductive_ids
+                        );
+                        for (_, definition) in associated_definitions {
+                            let source = reuse!(definition, reuse_lazy_definition, definition_ids);
+                            origins.insert(
+                                *definition,
+                                env.definition_origin(source)
+                                    .map_or(source, |origin| origin.source),
+                            );
+                        }
+                    }
+                }
+            }
+            group.origins = origins;
+        }
         if let Some(timer) = &mut profile {
             timer.checkpoint("modules phase=materialize");
             eprintln!(
@@ -756,17 +808,7 @@ impl ModuleManager {
                 remapping.program_inductive_ids.len(),
             );
         }
-        // All declarations and bindings from this import use the same frozen map.
-        let remapping = env.store_remapping(remapping);
-        for id in lazy_definitions {
-            env.set_lazy_definition_remapping(id, remapping);
-        }
-        for id in lazy_inductives {
-            env.set_lazy_inductive_remapping(id, remapping);
-        }
-        for id in lazy_datatypes {
-            env.set_lazy_program_inductive_remapping(id, remapping);
-        }
+        let remapping = shared_remapping;
 
         let mut last_binding = None;
         for group in groups {

@@ -100,6 +100,7 @@ mod structures;
 struct Resolver {
     declarations: Vec<Declaration>,
     structures: HashMap<BindingId, structures::Structure>,
+    parameter_signatures: HashMap<BindingId, structures::ParameterSignature>,
     computation_bindings: HashSet<BindingId>,
     front_definitions: HashMap<BindingId, structures::Definition>,
     structure_values: HashMap<BindingId, structures::Value>,
@@ -490,6 +491,7 @@ impl Resolver {
             } => {
                 self.parameters(parameters, &mut locals, false)?;
                 self.publish(name);
+                self.register_parameter_signature(name, parameters);
                 for (name, ty) in fields {
                     self.expression(ty, &mut locals)?;
                     self.binding(name);
@@ -539,8 +541,13 @@ impl Resolver {
                 ..
             } => {
                 self.parameters(parameters, &mut locals, false)?;
+                let inputs = self.last_inputs.clone();
+                let checks = self.last_parameter_checks.clone();
                 self.parameters(indices, &mut locals.clone(), false)?;
                 self.publish(type_name);
+                self.last_inputs = inputs;
+                self.last_parameter_checks = checks;
+                self.register_parameter_signature(type_name, parameters);
                 for (name, binders, ty) in constructors {
                     self.binding(name);
                     let mut scope = locals.clone();
@@ -556,6 +563,7 @@ impl Resolver {
             } => {
                 self.parameters(parameters, &mut locals, false)?;
                 self.publish(type_name);
+                self.register_parameter_signature(type_name, parameters);
                 for (name, ty) in fields {
                     self.expression(ty, &mut locals)?;
                     self.binding(name);
@@ -714,11 +722,10 @@ impl Resolver {
                 | SExp::AccessPath { access, .. }
                 | SExp::RecordTypeCtor { access, .. }
                 | SExp::IndCase { path: access, .. }
-                | SExp::ProgramCase { path: access, .. } => {
-                    if !matches!(access, LocalAccess::Current { access, .. } if access.as_str().starts_with("<macro:"))
-                    {
-                        result = self.access(self.current, access);
-                    }
+                | SExp::ProgramCase { path: access, .. }
+                    if !matches!(&*access, LocalAccess::Current { access, .. } if access.as_str().starts_with("<macro:")) =>
+                {
+                    result = self.access(self.current, access);
                 }
                 _ => {}
             }

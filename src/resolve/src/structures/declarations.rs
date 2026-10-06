@@ -18,7 +18,8 @@ impl Resolver {
     }
 
     pub(in crate::resolver) fn is_structure_type(&self, ty: &SExp) -> bool {
-        self.structure_type(ty).is_some()
+        matches!(ty, SExp::AccessPath { access, .. }
+            if self.front_binding(access, &[]).is_some_and(|id| self.structures.contains_key(&id)))
     }
 
     pub(in crate::resolver) fn compile_structure_definition(
@@ -98,7 +99,7 @@ impl Resolver {
             return Ok(());
         }
         let (signature, shape, mut substitutions) = self
-            .structure_type(&ty)
+            .structure_type(&ty, &[])?
             .ok_or_else(|| self.error("expected a structure result signature"))?;
         let mut value = self
             .structure_value(&body, &[])?
@@ -142,7 +143,7 @@ impl Resolver {
                 .1
                 .clone();
             let expected = substitute(expected, &substitutions);
-            if self.structure_type(&expected).is_some() {
+            if self.structure_type(&expected, &[])?.is_some() {
                 let nested = self
                     .structure_value(&expression, &[])?
                     .ok_or_else(|| self.error("expected nested structure"))?;
@@ -236,6 +237,8 @@ impl Resolver {
         let mut checked_fields = fields;
         let mut checked_parameters = parameters;
         self.parameters(&mut checked_parameters, &mut field_scope, false)?;
+        let inputs = self.last_inputs.clone();
+        let checks = self.last_parameter_checks.clone();
         for (field, ty, default) in &mut checked_fields {
             self.expression(ty, &mut field_scope)?;
             if let Some(body) = default {
@@ -371,6 +374,8 @@ impl Resolver {
             Structure {
                 ambient,
                 parameters: checked_parameters,
+                inputs,
+                checks,
                 fields: checked_fields,
             },
         );
