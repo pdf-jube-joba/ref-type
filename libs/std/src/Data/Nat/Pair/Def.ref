@@ -1,16 +1,14 @@
-\import std.Program[] \as ProgramBundles;
-\import std.Logic[].Equality[] \as Equality;
-\use Equality.trans;
-\use Equality.eq_reason;
-\use Equality.congr;
-
 \import std.Data[].Bool[] \as B;
 \import std.Data[].Pair[] \as P;
 
 \definition NatPair: \Set := P.Times^[Nat^, Nat^];
+
 \definition natPair: Nat^ -> Nat^ -> NatPair := P.pair Nat^ Nat^;
+
 \definition natPairFirst: NatPair -> Nat^ := P.first Nat^ Nat^;
+
 \definition natPairSecond: NatPair -> Nat^ := P.second Nat^ Nat^;
+
 \definition natPairElim (Q: NatPair -> \Prop):
   (\forall (a, b: Nat^) -> Q (natPair a b)) -> \forall (p: NatPair) -> Q p :=
   \fun (pairCase: \forall (a, b: Nat^) -> Q (natPair a b)) =>
@@ -18,118 +16,9 @@
       | pair : pairCase
     };
 
-/* A pair-valued finite iterator. Its count, not the payload, proves totality. */
-\inductive PairIterState: \VType :=
-| running: \U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]) -> P.Times[Nat, Nat] -> Nat -> PairIterState
-;
-
-\module PairIterLoopImplementation {
-  \definition State: \VType := PairIterState;
-
-  \definition Output: \VType := P.Times[Nat, Nat];
-
-  \definition step: \U(State ~> \F(\RunStep[State, Output])) := \thunk(\cfun (state: PairIterState) => \match state \in PairIterState \with {
-      | running f value count : \match count \in Nat \with {
-        | zero : \return(\finish[PairIterState, P.Times[Nat, Nat]](value))
-        | succ k : \program {
-          \bind next: P.Times[Nat, Nat] <- (\force f) value \then
-          \return \continue[PairIterState, P.Times[Nat, Nat]](PairIterState::running f next k)
-        }
-      }
-    });
-
-  \import std.Logic[].Termination[State := PairIterState^, Output := NatPair,
-      step := step^] \as Termination;
-
-  \definition terminates: \forall (count: Nat^) (f: NatPair -> NatPair) (value: NatPair) ->
-      Termination.Holds (PairIterState^::running f value count) :=
-      \induction (count: Nat^) \return \forall (f: NatPair -> NatPair) (value: NatPair) ->
-        Termination.Holds (PairIterState^::running f value count) \with {
-        | zero: \fun (f: NatPair -> NatPair) (value: NatPair) =>
-          Termination.intro (PairIterState^::running f value Nat^::zero) Termination.trivial
-        | succ: \fun (k: Nat^) (ih: _) (f: NatPair -> NatPair) (value: NatPair) =>
-          Termination.intro (PairIterState^::running f value (Nat^::succ k)) (ih f (f value))
-      };
-
-  \definition certificate: \forall (s: State^) -> ProgramBundles.Terminates State^ Output^ step^ s := \induction (s: PairIterState^) \return
-      Termination.Holds s \with {
-        | running: \fun (f: NatPair -> NatPair) (value: NatPair) (count: Nat^) => terminates count f value
-      };
-}
-\import .PairIterLoopImplementation[] \as PairIterLoopParts;
-\definition PairIterLoop: ProgramBundles.Machine := ProgramBundles.Machine {
-  State := PairIterLoopParts.State,
-  Output := PairIterLoopParts.Output,
-  step := PairIterLoopParts.step,
-  terminates := PairIterLoopParts.certificate,
-};
-
 \import std.Data[].Nat[].Iteration[].Def[A := NatPair] \as PairIteration;
 
-\module PairIterImplementation {
-  \definition T: \VType := \U(\U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]) -> P.Times[Nat, Nat] -> Nat -> P.Times[Nat, Nat]);
+\definition pairIter: (NatPair -> NatPair) -> NatPair -> Nat^ -> NatPair := PairIteration.specification #apply;
 
-  \definition program: \U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]) -> P.Times[Nat, Nat] -> Nat -> P.Times[Nat, Nat] := \fun (f: \U(P.Times[Nat, Nat] -> P.Times[Nat, Nat])) =>
-      \fun (value: P.Times[Nat, Nat]) =>
-        \fun (count: Nat) =>
-          (\force PairIterLoop.run) (PairIterState::running f value count);
-
-  \definition specification: T^ := PairIteration.specification #apply;
-
-  \definition matches (f: NatPair -> NatPair): \forall (count: Nat^) -> \forall (value: NatPair) ->
-      program^ f value count = specification f value count :=
-      \induction (count: Nat^) \return \forall (value: NatPair) -> program^ f value count = specification f value count \with {
-        | zero : (\fun (value: NatPair) => \refl(value))
-        | succ : (\fun (k: Nat^) => \fun (ih: _) =>
-          \fun (value: NatPair) =>
-            \idelim specification f (f value) k = f (specification f value k)
-              \with x: NatPair => program^ f value (Nat^::succ k) = x
-            \by { base: ih (f value), equality: (PairIteration.specification #advance) f k value })
-      };
-
-  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
-      \fun (f: NatPair -> NatPair) => \axiom:funext(program^ f, specification f,
-        \fun (value: NatPair) => \axiom:funext(program^ f value, specification f value,
-          \fun (count: Nat^) => matches f count value)));
-}
-\import .PairIterImplementation[] \as PairIterParts;
-\definition PairIter: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
-  T := PairIterParts.T,
-  program := \thunk (PairIterParts.program),
-  specification := PairIterParts.specification,
-  coherence := PairIterParts.coherence,
-};
-
-\module PairChooseImplementation {
-  \definition T: \VType := \U(B.Bool -> P.Times[Nat, Nat] -> P.Times[Nat, Nat] -> P.Times[Nat, Nat]);
-
-  \definition program: B.Bool -> P.Times[Nat, Nat] -> P.Times[Nat, Nat] -> P.Times[Nat, Nat] := \fun (test: B.Bool) =>
-      \fun (yes, no: P.Times[Nat, Nat]) =>
-        \match test \in B.Bool \with { | false : \return no | true : \return yes };
-
-  \definition specification: T^ := \fun (test: B.Bool^) (yes, no: NatPair) =>
+\definition pairChoose: B.Bool^ -> NatPair -> NatPair -> NatPair := \fun (test: B.Bool^) (yes, no: NatPair) =>
       B.ite NatPair test yes no;
-
-  \definition matches: \forall (test: B.Bool^) -> \forall (yes, no: NatPair) ->
-      program^ test yes no = specification test yes no :=
-      \induction (test: B.Bool^) \return \forall (yes, no: NatPair) -> program^ test yes no = specification test yes no \with {
-        | false : (\fun (yes, no: NatPair) => \refl(no))
-        | true : (\fun (yes, no: NatPair) => \refl(yes))
-      };
-
-  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
-      \fun (test: B.Bool^) => \axiom:funext(program^ test, specification test,
-        \fun (yes: NatPair) => \axiom:funext(program^ test yes, specification test yes,
-          \fun (no: NatPair) => matches test yes no)));
-}
-\import .PairChooseImplementation[] \as PairChooseParts;
-\definition PairChoose: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
-  T := PairChooseParts.T,
-  program := \thunk (PairChooseParts.program),
-  specification := PairChooseParts.specification,
-  coherence := PairChooseParts.coherence,
-};
-
-/* Consume one unit of the dividend. At a positive divisor's boundary the
- * remainder wraps to zero and the quotient increases. At divisor zero only
- * the remainder increases: div a 0 = 0, mod a 0 = a. */

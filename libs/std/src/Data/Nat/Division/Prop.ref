@@ -20,9 +20,9 @@
 \import std.Data[].Nat[].Iteration[].Prop[A := NatPairDef.NatPair] \as PairIterationProp;
 
 \definition leSuccOfEqbFalse:
-  \forall (d, r: Nat^) -> Basic.Le r d -> Op.Eqb.specification r d = B.Bool^::false -> Basic.Le (Nat^::succ r) d :=
-  \induction (d: Nat^) \return \forall (r: Nat^) -> Basic.Le r d -> Op.Eqb.specification r d = B.Bool^::false -> Basic.Le (Nat^::succ r) d \with {
-    | zero : (\induction (r: Nat^) \return Basic.Le r Nat^::zero -> Op.Eqb.specification r Nat^::zero = B.Bool^::false -> Basic.Le (Nat^::succ r) Nat^::zero \with {
+  \forall (d, r: Nat^) -> Basic.Le r d -> Op.eqb r d = B.Bool^::false -> Basic.Le (Nat^::succ r) d :=
+  \induction (d: Nat^) \return \forall (r: Nat^) -> Basic.Le r d -> Op.eqb r d = B.Bool^::false -> Basic.Le (Nat^::succ r) d \with {
+    | zero : (\induction (r: Nat^) \return Basic.Le r Nat^::zero -> Op.eqb r Nat^::zero = B.Bool^::false -> Basic.Le (Nat^::succ r) Nat^::zero \with {
       | zero : \fun (h: Basic.Le Nat^::zero Nat^::zero)
         (e: B.Bool^::true = B.Bool^::false) =>
         BoolLaws.absurd (Basic.Le (Nat^::succ Nat^::zero) Nat^::zero)
@@ -30,29 +30,29 @@
             \by { base: \refl(B.Bool^::true), equality: e })
       | succ : \block {
           \fun (r: Nat^) \then
-          \fun (ih: Basic.Le r Nat^::zero -> Op.Eqb.specification r Nat^::zero = B.Bool^::false ->
+          \fun (ih: Basic.Le r Nat^::zero -> Op.eqb r Nat^::zero = B.Bool^::false ->
             Basic.Le (Nat^::succ r) Nat^::zero) \then
           \fun (h: Basic.Le (Nat^::succ r) Nat^::zero) \then
-          \fun (e: Op.Eqb.specification (Nat^::succ r) Nat^::zero = B.Bool^::false) \then
+          \fun (e: Op.eqb (Nat^::succ r) Nat^::zero = B.Bool^::false) \then
           \return BoolLaws.absurd (Basic.Le (Nat^::succ (Nat^::succ r)) Nat^::zero) h
         }
       })
     | succ : \block {
         \fun (d: Nat^) \then
-        \fun (ih: \forall (r: Nat^) -> Basic.Le r d -> Op.Eqb.specification r d = B.Bool^::false ->
+        \fun (ih: \forall (r: Nat^) -> Basic.Le r d -> Op.eqb r d = B.Bool^::false ->
           Basic.Le (Nat^::succ r) d) \then
         \return \induction (r: Nat^) \return Basic.Le r (Nat^::succ d) ->
-          Op.Eqb.specification r (Nat^::succ d) = B.Bool^::false ->
+          Op.eqb r (Nat^::succ d) = B.Bool^::false ->
           Basic.Le (Nat^::succ r) (Nat^::succ d) \with {
           | zero : \fun (h: Basic.Le Nat^::zero (Nat^::succ d))
-              (e: Op.Eqb.specification Nat^::zero (Nat^::succ d) = B.Bool^::false) => Basic.zeroLe d
+              (e: Op.eqb Nat^::zero (Nat^::succ d) = B.Bool^::false) => Basic.zeroLe d
           | succ : \block {
               \fun (r: Nat^) \then
               \fun (unused: Basic.Le r (Nat^::succ d) ->
-                Op.Eqb.specification r (Nat^::succ d) = B.Bool^::false ->
+                Op.eqb r (Nat^::succ d) = B.Bool^::false ->
                 Basic.Le (Nat^::succ r) (Nat^::succ d)) \then
               \fun (h: Basic.Le (Nat^::succ r) (Nat^::succ d)) \then
-              \fun (e: Op.Eqb.specification (Nat^::succ r) (Nat^::succ d) = B.Bool^::false) \then
+              \fun (e: Op.eqb (Nat^::succ r) (Nat^::succ d) = B.Bool^::false) \then
               \return ih r h e
             }
           }
@@ -60,16 +60,16 @@
     };
 \definition divModNextBound:
   \forall (d: Nat^) -> \forall (p: NatPairDef.NatPair) -> Basic.Le (P.Times[Nat, Nat]::second^ p) d ->
-  Basic.Le (P.Times[Nat, Nat]::second^ (NatDivisionDef.DivModNext.specification (Nat^::succ d) p)) d :=
+  Basic.Le (P.Times[Nat, Nat]::second^ (NatDivisionDef.divModNext (Nat^::succ d) p)) d :=
   \fun (d: Nat^) => NatPairDef.natPairElim
-    (\fun (p: NatPairDef.NatPair) => Basic.Le (P.Times[Nat, Nat]::second^ p) d -> Basic.Le (P.Times[Nat, Nat]::second^ (NatDivisionDef.DivModNext.specification (Nat^::succ d) p)) d)
+    (\fun (p: NatPairDef.NatPair) => Basic.Le (P.Times[Nat, Nat]::second^ p) d -> Basic.Le (P.Times[Nat, Nat]::second^ (NatDivisionDef.divModNext (Nat^::succ d) p)) d)
     (\fun (q, r: Nat^) => \fun (h: Basic.Le r d) =>
-      (\match (Op.Eqb.specification r d) \in B.Bool^ \return (\fun (hit: B.Bool^) => Op.Eqb.specification r d = hit ->
-          Basic.Le (P.Times[Nat, Nat]::second^ (NatPairDef.PairChoose.specification hit (NatPairDef.natPair (Nat^::succ q) Nat^::zero) (NatPairDef.natPair q (Nat^::succ r)))) d) \with {
-        | false : (\fun (e: Op.Eqb.specification r d = B.Bool^::false) => leSuccOfEqbFalse d r h e)
-        | true : (\fun (e: Op.Eqb.specification r d = B.Bool^::true) => Basic.zeroLe d)
-        }) (\refl(Op.Eqb.specification r d)));
-\definition modBound(a, d: Nat^): Basic.Le (NatDivisionDef.Mod.specification a (Nat^::succ d)) d := PairIterationProp.preserves (NatDivisionDef.DivModNext.specification (Nat^::succ d))
+      (\match (Op.eqb r d) \in B.Bool^ \return (\fun (hit: B.Bool^) => Op.eqb r d = hit ->
+          Basic.Le (P.Times[Nat, Nat]::second^ (NatPairDef.pairChoose hit (NatPairDef.natPair (Nat^::succ q) Nat^::zero) (NatPairDef.natPair q (Nat^::succ r)))) d) \with {
+        | false : (\fun (e: Op.eqb r d = B.Bool^::false) => leSuccOfEqbFalse d r h e)
+        | true : (\fun (e: Op.eqb r d = B.Bool^::true) => Basic.zeroLe d)
+        }) (\refl(Op.eqb r d)));
+\definition modBound(a, d: Nat^): Basic.Le (NatDivisionDef.mod a (Nat^::succ d)) d := PairIterationProp.preserves (NatDivisionDef.divModNext (Nat^::succ d))
     (\fun (p: NatPairDef.NatPair) => Basic.Le (P.Times[Nat, Nat]::second^ p) d) (divModNextBound d) a
     (NatPairDef.natPair Nat^::zero Nat^::zero) (Basic.zeroLe d);
 
@@ -95,44 +95,44 @@
   };
 \definition divModNextValue:
   \forall (b: Nat^) -> \forall (p: NatPairDef.NatPair) ->
-  divModValue b (NatDivisionDef.DivModNext.specification b p) = Nat^::succ (divModValue b p) :=
+  divModValue b (NatDivisionDef.divModNext b p) = Nat^::succ (divModValue b p) :=
   \fun (b: Nat^) => NatPairDef.natPairElim
-    (\fun (p: NatPairDef.NatPair) => divModValue b (NatDivisionDef.DivModNext.specification b p) = Nat^::succ (divModValue b p))
-    (\fun (q, r: Nat^) => \induction (b: Nat^) \return divModValue b (NatDivisionDef.DivModNext.specification b (NatPairDef.natPair q r)) = Nat^::succ (divModValue b (NatPairDef.natPair q r)) \with {
+    (\fun (p: NatPairDef.NatPair) => divModValue b (NatDivisionDef.divModNext b p) = Nat^::succ (divModValue b p))
+    (\fun (q, r: Nat^) => \induction (b: Nat^) \return divModValue b (NatDivisionDef.divModNext b (NatPairDef.natPair q r)) = Nat^::succ (divModValue b (NatPairDef.natPair q r)) \with {
       | zero : (Basic.addSuccRight \({ Nat^::zero } "*" q\) r)
-      | succ : (\fun (d: Nat^) => \fun (_: _) => (\match (Op.Eqb.specification r d) \in B.Bool^ \return (\fun (hit: B.Bool^) => Op.Eqb.specification r d = hit ->
-            divModValue (Nat^::succ d) (NatPairDef.PairChoose.specification hit (NatPairDef.natPair (Nat^::succ q) Nat^::zero) (NatPairDef.natPair q (Nat^::succ r))) =
+      | succ : (\fun (d: Nat^) => \fun (_: _) => (\match (Op.eqb r d) \in B.Bool^ \return (\fun (hit: B.Bool^) => Op.eqb r d = hit ->
+            divModValue (Nat^::succ d) (NatPairDef.pairChoose hit (NatPairDef.natPair (Nat^::succ q) Nat^::zero) (NatPairDef.natPair q (Nat^::succ r))) =
               Nat^::succ (divModValue (Nat^::succ d) (NatPairDef.natPair q r))) \with {
-        | false : (\fun (e: Op.Eqb.specification r d = B.Bool^::false) => Basic.addSuccRight \({ Nat^::succ d } "*" q\) r)
-        | true : (\fun (e: Op.Eqb.specification r d = B.Bool^::true) =>
+        | false : (\fun (e: Op.eqb r d = B.Bool^::false) => Basic.addSuccRight \({ Nat^::succ d } "*" q\) r)
+        | true : (\fun (e: Op.eqb r d = B.Bool^::true) =>
             \idelim d = r \with x: Nat^ =>
               divModValue (Nat^::succ d) (NatPairDef.natPair (Nat^::succ q) Nat^::zero) =
                 Nat^::succ (divModValue (Nat^::succ d) (NatPairDef.natPair q x))
               \by { base: divisionCarryValue d q, equality: sym!{Nat^} r d (Basic.eqOfEqbTrue d r e) })
-        }) (\refl(Op.Eqb.specification r d)))
+        }) (\refl(Op.eqb r d)))
       } b);
 \definition divModReconstructs:
-  \forall (a, b: Nat^) -> divModValue b (NatDivisionDef.DivMod.specification a b) = a :=
-  \induction (a: Nat^) \return \forall (b: Nat^) -> divModValue b (NatDivisionDef.DivMod.specification a b) = a \with {
+  \forall (a, b: Nat^) -> divModValue b (NatDivisionDef.divMod a b) = a :=
+  \induction (a: Nat^) \return \forall (b: Nat^) -> divModValue b (NatDivisionDef.divMod a b) = a \with {
     | zero : (\fun (b: Nat^) => \refl(Nat^::zero))
-    | succ : (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> divModValue b (NatDivisionDef.DivMod.specification a b) = a) => \fun (b: Nat^) =>
-      trans!{Nat^} _ _ _ (divModNextValue b (NatDivisionDef.DivMod.specification a b)) (Op.succCong _ _ (ih b)))
+    | succ : (\fun (a: Nat^) => \fun (ih: \forall (b: Nat^) -> divModValue b (NatDivisionDef.divMod a b) = a) => \fun (b: Nat^) =>
+      trans!{Nat^} _ _ _ (divModNextValue b (NatDivisionDef.divMod a b)) (Op.succCong _ _ (ih b)))
     };
 
 /* Zero conventions and division of zero are universal equations. */
 \definition divModZeroDivisor:
-  \forall (a: Nat^) -> NatDivisionDef.DivMod.specification a Nat^::zero = NatPairDef.natPair Nat^::zero a :=
-  \induction (a: Nat^) \return NatDivisionDef.DivMod.specification a Nat^::zero = NatPairDef.natPair Nat^::zero a \with {
+  \forall (a: Nat^) -> NatDivisionDef.divMod a Nat^::zero = NatPairDef.natPair Nat^::zero a :=
+  \induction (a: Nat^) \return NatDivisionDef.divMod a Nat^::zero = NatPairDef.natPair Nat^::zero a \with {
     | zero : (\refl(NatPairDef.natPair Nat^::zero Nat^::zero))
-    | succ : (\fun (a: Nat^) => \fun (ih: NatDivisionDef.DivMod.specification a Nat^::zero = NatPairDef.natPair Nat^::zero a) =>
-      congr!{NatPairDef.NatPair NatPairDef.NatPair} (NatDivisionDef.DivModNext.specification Nat^::zero) (NatDivisionDef.DivMod.specification a Nat^::zero) (NatPairDef.natPair Nat^::zero a) ih)
+    | succ : (\fun (a: Nat^) => \fun (ih: NatDivisionDef.divMod a Nat^::zero = NatPairDef.natPair Nat^::zero a) =>
+      congr!{NatPairDef.NatPair NatPairDef.NatPair} (NatDivisionDef.divModNext Nat^::zero) (NatDivisionDef.divMod a Nat^::zero) (NatPairDef.natPair Nat^::zero a) ih)
     };
-\definition divZeroRight(a: Nat^): NatDivisionDef.Div.specification a Nat^::zero = Nat^::zero :=
+\definition divZeroRight(a: Nat^): NatDivisionDef.div a Nat^::zero = Nat^::zero :=
   congr!{NatPairDef.NatPair Nat^} P.Times[Nat, Nat]::first^ _ _ (divModZeroDivisor a);
-\definition modZeroRight(a: Nat^): NatDivisionDef.Mod.specification a Nat^::zero = a :=
+\definition modZeroRight(a: Nat^): NatDivisionDef.mod a Nat^::zero = a :=
   congr!{NatPairDef.NatPair Nat^} P.Times[Nat, Nat]::second^ _ _ (divModZeroDivisor a);
-\definition divZeroLeft(b: Nat^): NatDivisionDef.Div.specification Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
-\definition modZeroLeft(b: Nat^): NatDivisionDef.Mod.specification Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
+\definition divZeroLeft(b: Nat^): NatDivisionDef.div Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
+\definition modZeroLeft(b: Nat^): NatDivisionDef.mod Nat^::zero b = Nat^::zero := \refl(Nat^::zero);
 /* Divisibility supplies a natural-number factor. */
 \definition Factors(d, a: Nat^): \Set :=
   \Cast[Nat^] ({ q: Nat^ \where a = \(d "*" q\) });
@@ -166,81 +166,81 @@
         (Basic.mulAssoc d x b))
   };
 \definition subCong:
-  \forall (a, b, c, d: Nat^) -> a = b -> c = d -> Op.Sub.specification a c = Op.Sub.specification b d :=
-  congr2!{Nat^ Nat^ Nat^} Op.Sub.specification;
+  \forall (a, b, c, d: Nat^) -> a = b -> c = d -> Op.sub a c = Op.sub b d :=
+  congr2!{Nat^ Nat^ Nat^} Op.sub;
 \definition subAddBoth:
-  \forall (c, a, b: Nat^) -> Op.Sub.specification \(a "+" c\) \(b "+" c\) = Op.Sub.specification a b :=
-  \induction (c: Nat^) \return \forall (a, b: Nat^) -> Op.Sub.specification \(a "+" c\) \(b "+" c\) = Op.Sub.specification a b \with {
-    | zero : (\fun (a, b: Nat^) => \refl(Op.Sub.specification a b))
-    | succ : (\fun (c: Nat^) => \fun (ih: \forall (a, b: Nat^) -> Op.Sub.specification \(a "+" c\) \(b "+" c\) = Op.Sub.specification a b) =>
+  \forall (c, a, b: Nat^) -> Op.sub \(a "+" c\) \(b "+" c\) = Op.sub a b :=
+  \induction (c: Nat^) \return \forall (a, b: Nat^) -> Op.sub \(a "+" c\) \(b "+" c\) = Op.sub a b \with {
+    | zero : (\fun (a, b: Nat^) => \refl(Op.sub a b))
+    | succ : (\fun (c: Nat^) => \fun (ih: \forall (a, b: Nat^) -> Op.sub \(a "+" c\) \(b "+" c\) = Op.sub a b) =>
       \fun (a, b: Nat^) => trans!{Nat^} _ _ _
         (subCong _ _ _ _ (Basic.addSuccRight a c) (Basic.addSuccRight b c)) (ih a b))
     };
 \definition mulSub(d: Nat^):
-  \forall (b, a: Nat^) -> Op.Sub.specification \(d "*" a\) \(d "*" b\) = \(d "*" { Op.Sub.specification a b }\) :=
-  \induction (b: Nat^) \return \forall (a: Nat^) -> Op.Sub.specification \(d "*" a\) \(d "*" b\) = \(d "*" { Op.Sub.specification a b }\) \with {
+  \forall (b, a: Nat^) -> Op.sub \(d "*" a\) \(d "*" b\) = \(d "*" { Op.sub a b }\) :=
+  \induction (b: Nat^) \return \forall (a: Nat^) -> Op.sub \(d "*" a\) \(d "*" b\) = \(d "*" { Op.sub a b }\) \with {
     | zero : (\fun (a: Nat^) => \refl(\(d "*" a\)))
-    | succ : (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> Op.Sub.specification \(d "*" a\) \(d "*" b\) = \(d "*" { Op.Sub.specification a b }\)) =>
-      \induction (a: Nat^) \return Op.Sub.specification \(d "*" a\) \(d "*" { Nat^::succ b }\) = \(d "*" { Op.Sub.specification a (Nat^::succ b) }\) \with {
+    | succ : (\fun (b: Nat^) => \fun (ih: \forall (a: Nat^) -> Op.sub \(d "*" a\) \(d "*" b\) = \(d "*" { Op.sub a b }\)) =>
+      \induction (a: Nat^) \return Op.sub \(d "*" a\) \(d "*" { Nat^::succ b }\) = \(d "*" { Op.sub a (Nat^::succ b) }\) \with {
       | zero : (trans!{Nat^} _ _ _ (Basic.subZeroLeft \(d "*" { Nat^::succ b }\))
-          (sym!{Nat^} _ _ (congr!{Nat^ Nat^} (Op.Mul.specification d) _ _ (Basic.subZeroLeft (Nat^::succ b)))))
-      | succ : (\fun (a: Nat^) => \fun (unused: Op.Sub.specification \(d "*" a\) \(d "*" { Nat^::succ b }\) = \(d "*" { Op.Sub.specification a (Nat^::succ b) }\)) =>
+          (sym!{Nat^} _ _ (congr!{Nat^ Nat^} (Op.mul d) _ _ (Basic.subZeroLeft (Nat^::succ b)))))
+      | succ : (\fun (a: Nat^) => \fun (unused: Op.sub \(d "*" a\) \(d "*" { Nat^::succ b }\) = \(d "*" { Op.sub a (Nat^::succ b) }\)) =>
           trans!{Nat^} _ _ _ (subCong _ _ _ _ (Basic.mulSuccRight d a) (Basic.mulSuccRight d b))
             (trans!{Nat^} _ _ _ (subCong _ _ _ _ (Basic.addComm d \(d "*" a\)) (Basic.addComm d \(d "*" b\)))
               (trans!{Nat^} _ _ _ (subAddBoth d \(d "*" a\) \(d "*" b\)) (ih a))))
       })
     };
 \definition dividesSub(d, a, b: Nat^):
-  Divides d a -> Divides d b -> Divides d (Op.Sub.specification a b) := \block {
+  Divides d a -> Divides d b -> Divides d (Op.sub a b) := \block {
     \fun (ha: _) (hb: _) \then
     \takefrom x: Factors d a \by ha \then
     \takefrom y: Factors d b \by hb \then
-    \return dividesIntro d (Op.Sub.specification a b) (Op.Sub.specification x y)
+    \return dividesIntro d (Op.sub a b) (Op.sub x y)
       (trans!{Nat^} _ _ _
         (subCong _ _ _ _ (factorEquation d a x) (factorEquation d b y)) (mulSub d y x))
   };
 \definition modAsSub:
-  \forall (a, b: Nat^) -> NatDivisionDef.Mod.specification a b = Op.Sub.specification a \(b "*" { NatDivisionDef.Div.specification a b }\) :=
+  \forall (a, b: Nat^) -> NatDivisionDef.mod a b = Op.sub a \(b "*" { NatDivisionDef.div a b }\) :=
   \block {
     \fun (a, b: Nat^) \then
     \let reconstruction:
-      \({ NatDivisionDef.Mod.specification a b } "+" (b "*" { NatDivisionDef.Div.specification a b })\) = a :=
+      \({ NatDivisionDef.mod a b } "+" (b "*" { NatDivisionDef.div a b })\) = a :=
       trans!{Nat^} _ _ _
-        (Basic.addComm (NatDivisionDef.Mod.specification a b) \(b "*" { NatDivisionDef.Div.specification a b }\))
+        (Basic.addComm (NatDivisionDef.mod a b) \(b "*" { NatDivisionDef.div a b }\))
         (divModReconstructs a b) \then
     \let subtractReconstruction:
-      Op.Sub.specification \({ NatDivisionDef.Mod.specification a b } "+" (b "*" { NatDivisionDef.Div.specification a b })\)
-        \(b "*" { NatDivisionDef.Div.specification a b }\) =
-      Op.Sub.specification a \(b "*" { NatDivisionDef.Div.specification a b }\) :=
-      congr!{Nat^ Nat^} (\fun (x: Nat^) => Op.Sub.specification x \(b "*" { NatDivisionDef.Div.specification a b }\))
+      Op.sub \({ NatDivisionDef.mod a b } "+" (b "*" { NatDivisionDef.div a b })\)
+        \(b "*" { NatDivisionDef.div a b }\) =
+      Op.sub a \(b "*" { NatDivisionDef.div a b }\) :=
+      congr!{Nat^ Nat^} (\fun (x: Nat^) => Op.sub x \(b "*" { NatDivisionDef.div a b }\))
         _ _ reconstruction \then
     \return trans!{Nat^} _ _ _
-      (sym!{Nat^} _ _ (Basic.subAddCancel \(b "*" { NatDivisionDef.Div.specification a b }\) (NatDivisionDef.Mod.specification a b)))
+      (sym!{Nat^} _ _ (Basic.subAddCancel \(b "*" { NatDivisionDef.div a b }\) (NatDivisionDef.mod a b)))
       subtractReconstruction
   };
 \definition dividesMod:
-  \forall (d, a, b: Nat^) -> Divides d a -> Divides d b -> Divides d (NatDivisionDef.Mod.specification a b) :=
+  \forall (d, a, b: Nat^) -> Divides d a -> Divides d b -> Divides d (NatDivisionDef.mod a b) :=
   \block {
     \fun (d, a, b: Nat^) \then
     \fun (ha: Divides d a) (hb: Divides d b) \then
-    \let productDivides: Divides d \(b "*" { NatDivisionDef.Div.specification a b }\) :=
-      dividesMul d b (NatDivisionDef.Div.specification a b) hb \then
-    \let differenceDivides: Divides d (Op.Sub.specification a \(b "*" { NatDivisionDef.Div.specification a b }\)) :=
-      dividesSub d a \(b "*" { NatDivisionDef.Div.specification a b }\) ha productDivides \then
-    \return dividesTransport d (Op.Sub.specification a \(b "*" { NatDivisionDef.Div.specification a b }\)) (NatDivisionDef.Mod.specification a b)
+    \let productDivides: Divides d \(b "*" { NatDivisionDef.div a b }\) :=
+      dividesMul d b (NatDivisionDef.div a b) hb \then
+    \let differenceDivides: Divides d (Op.sub a \(b "*" { NatDivisionDef.div a b }\)) :=
+      dividesSub d a \(b "*" { NatDivisionDef.div a b }\) ha productDivides \then
+    \return dividesTransport d (Op.sub a \(b "*" { NatDivisionDef.div a b }\)) (NatDivisionDef.mod a b)
       (sym!{Nat^} _ _ (modAsSub a b)) differenceDivides
   };
 \definition dividesOfMod:
-  \forall (d, a, b: Nat^) -> Divides d b -> Divides d (NatDivisionDef.Mod.specification a b) -> Divides d a :=
+  \forall (d, a, b: Nat^) -> Divides d b -> Divides d (NatDivisionDef.mod a b) -> Divides d a :=
   \block {
     \fun (d, a, b: Nat^) \then
-    \fun (hb: Divides d b) (hr: Divides d (NatDivisionDef.Mod.specification a b)) \then
-    \let quotientProductDivides: Divides d \(b "*" { NatDivisionDef.Div.specification a b }\) :=
-      dividesMul d b (NatDivisionDef.Div.specification a b) hb \then
+    \fun (hb: Divides d b) (hr: Divides d (NatDivisionDef.mod a b)) \then
+    \let quotientProductDivides: Divides d \(b "*" { NatDivisionDef.div a b }\) :=
+      dividesMul d b (NatDivisionDef.div a b) hb \then
     \let reconstructionDivides:
-      Divides d \((b "*" { NatDivisionDef.Div.specification a b }) "+" { NatDivisionDef.Mod.specification a b }\) :=
-      dividesAdd d \(b "*" { NatDivisionDef.Div.specification a b }\) (NatDivisionDef.Mod.specification a b) quotientProductDivides hr \then
-    \return dividesTransport d \((b "*" { NatDivisionDef.Div.specification a b }) "+" { NatDivisionDef.Mod.specification a b }\) a
+      Divides d \((b "*" { NatDivisionDef.div a b }) "+" { NatDivisionDef.mod a b }\) :=
+      dividesAdd d \(b "*" { NatDivisionDef.div a b }\) (NatDivisionDef.mod a b) quotientProductDivides hr \then
+    \return dividesTransport d \((b "*" { NatDivisionDef.div a b }) "+" { NatDivisionDef.mod a b }\) a
       (divModReconstructs a b) reconstructionDivides
   };
 
@@ -258,18 +258,18 @@
           \fun (h: Basic.Le (Nat^::succ r) (Nat^::succ d)) => ih r h)
       })
     };
-\definition modLt(a, d: Nat^): Basic.Lt (NatDivisionDef.Mod.specification a (Nat^::succ d)) (Nat^::succ d) := leToLtSucc d (NatDivisionDef.Mod.specification a (Nat^::succ d)) (modBound a d);
+\definition modLt(a, d: Nat^): Basic.Lt (NatDivisionDef.mod a (Nat^::succ d)) (Nat^::succ d) := leToLtSucc d (NatDivisionDef.mod a (Nat^::succ d)) (modBound a d);
 \definition divModOne:
-  \forall (a: Nat^) -> NatDivisionDef.DivMod.specification a (Nat^::succ Nat^::zero) = NatPairDef.natPair a Nat^::zero :=
-  \induction (a: Nat^) \return NatDivisionDef.DivMod.specification a (Nat^::succ Nat^::zero) = NatPairDef.natPair a Nat^::zero \with {
+  \forall (a: Nat^) -> NatDivisionDef.divMod a (Nat^::succ Nat^::zero) = NatPairDef.natPair a Nat^::zero :=
+  \induction (a: Nat^) \return NatDivisionDef.divMod a (Nat^::succ Nat^::zero) = NatPairDef.natPair a Nat^::zero \with {
     | zero : (\refl(NatPairDef.natPair Nat^::zero Nat^::zero))
-    | succ : (\fun (a: Nat^) => \fun (ih: NatDivisionDef.DivMod.specification a (Nat^::succ Nat^::zero) = NatPairDef.natPair a Nat^::zero) =>
-      congr!{NatPairDef.NatPair NatPairDef.NatPair} (NatDivisionDef.DivModNext.specification (Nat^::succ Nat^::zero))
-        (NatDivisionDef.DivMod.specification a (Nat^::succ Nat^::zero)) (NatPairDef.natPair a Nat^::zero) ih)
+    | succ : (\fun (a: Nat^) => \fun (ih: NatDivisionDef.divMod a (Nat^::succ Nat^::zero) = NatPairDef.natPair a Nat^::zero) =>
+      congr!{NatPairDef.NatPair NatPairDef.NatPair} (NatDivisionDef.divModNext (Nat^::succ Nat^::zero))
+        (NatDivisionDef.divMod a (Nat^::succ Nat^::zero)) (NatPairDef.natPair a Nat^::zero) ih)
     };
-\definition divOne(a: Nat^): NatDivisionDef.Div.specification a (Nat^::succ Nat^::zero) = a :=
+\definition divOne(a: Nat^): NatDivisionDef.div a (Nat^::succ Nat^::zero) = a :=
   congr!{NatPairDef.NatPair Nat^} P.Times[Nat, Nat]::first^ _ _ (divModOne a);
-\definition modOne(a: Nat^): NatDivisionDef.Mod.specification a (Nat^::succ Nat^::zero) = Nat^::zero :=
+\definition modOne(a: Nat^): NatDivisionDef.mod a (Nat^::succ Nat^::zero) = Nat^::zero :=
   congr!{NatPairDef.NatPair Nat^} P.Times[Nat, Nat]::second^ _ _ (divModOne a);
 
 \definition dividesZeroLeft(a: Nat^):
@@ -286,11 +286,11 @@
     \fun (h: _) \then
     \takefrom q: Factors d (Nat^::succ a) \by h \then
     \return (\induction (q: Nat^) \return
-      Nat^::succ a = Op.Mul.specification d q -> Basic.Le d (Nat^::succ a) \with {
+      Nat^::succ a = Op.mul d q -> Basic.Le d (Nat^::succ a) \with {
       | zero: \fun (e: _) => Basic.succEqZeroElim a (Basic.Le d (Nat^::succ a)) e
       | succ: \fun (q: _) (unused: _) (e: _) =>
         transport!{Nat^} (Basic.Le d) _ _ (sym!{Nat^} _ _ e)
-          (Basic.leAddRight d (Op.Mul.specification d q))
+          (Basic.leAddRight d (Op.mul d q))
     }) q (factorEquation d (Nat^::succ a) q)
   };
 

@@ -1,0 +1,44 @@
+\import std.Data[].Bool[] \as B;
+\import std.Data[].Pair[] \as P;
+\import std.Data[].Nat[].Basic[].Program[] \as BasicProgram;
+\import std.Data[].Nat[].Pair[].Program[] \as PairProgram;
+
+\definition divModNext: \U(Nat -> P.Times[Nat, Nat] -> P.Times[Nat, Nat]) :=
+  \thunk (\fun (b: Nat) =>
+      \fun (p: P.Times[Nat, Nat]) =>
+        \match p \in P.Times \with {
+          | pair q r : \match b \in Nat \with {
+            | zero : \return(P.Times[Nat, Nat]::pair q (Nat::succ r))
+            | succ d :
+            \program {
+              \bind hit: B.Bool <- (\force BasicProgram.EqbLoop.run) (BasicProgram.EqbState::running r d) \then
+              \bind pick: \U(P.Times[Nat, Nat] -> (P.Times[Nat, Nat] -> P.Times[Nat, Nat])) <- ((\force PairProgram.pairChoose) hit) \then
+              \bind pickYes: \U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]) <- (\force pick) (P.Times[Nat, Nat]::pair (Nat::succ q) Nat::zero) \then
+              \bind next: P.Times[Nat, Nat] <- (\force pickYes) (P.Times[Nat, Nat]::pair q (Nat::succ r)) \then
+              \return next
+            }
+          }
+        });
+
+\definition divMod: \U(Nat -> Nat -> P.Times[Nat, Nat]) :=
+  \thunk (\fun (a, b: Nat) => \program {
+      \bind advance: \U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]) <- ((\force divModNext) b) \then
+      \bind result: P.Times[Nat, Nat] <- (\force PairProgram.PairIterLoop.run) (PairProgram.PairIterState::running advance (P.Times[Nat, Nat]::pair Nat::zero Nat::zero) a) \then
+      \return result
+    });
+
+\definition div: \U(Nat -> Nat -> Nat) :=
+  \thunk (\fun (a, b: Nat) => \program {
+      \bind partial: \U(Nat -> P.Times[Nat, Nat]) <- ((\force divMod) a) \then
+      \bind result: P.Times[Nat, Nat] <- (\force partial) b \then
+      \bind quotient: Nat <- (P.Times[Nat, Nat]::first result) \then
+      \return quotient
+    });
+
+\definition mod: \U(Nat -> Nat -> Nat) :=
+  \thunk (\fun (a, b: Nat) => \program {
+      \bind partial: \U(Nat -> P.Times[Nat, Nat]) <- ((\force divMod) a) \then
+      \bind result: P.Times[Nat, Nat] <- (\force partial) b \then
+      \bind remainder: Nat <- (P.Times[Nat, Nat]::second result) \then
+      \return remainder
+    });

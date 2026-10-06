@@ -1,0 +1,65 @@
+\import \parent.Def[] \as Def;
+\import \parent.Program[] \as Programs;
+\import std.Program[] \as ProgramBundles;
+\import \parent.\parent.Basic[].Def[] \as Op;
+\import \parent.\parent.Basic[].ProgramProp[] \as OpProgramProp;
+\import std.Data[].Nat[].Division[].Program[] \as NatDivisionProgram;
+\import std.Data[].Nat[].Division[].ProgramProp[] \as NatDivisionProgramProp;
+\import std.Data[].Bool[] \as B;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+
+\definition twoCoherence: Programs.two^ = Def.two := \refl(Def.two);
+
+\module EvenProof {
+  \definition T: \VType := \U(Nat -> B.Bool);
+
+  \definition program: T := Programs.even;
+
+  \definition specification: T^ := Def.even;
+
+  \definition matches (n: Nat^): program^ n = specification n :=
+      trans!{B.Bool^} _ _ _
+        (congr!{OpProgramProp.IsZero.T^ B.Bool^}
+          (\fun (test: _) => test (NatDivisionProgram.mod^ n Def.two)) _ _ OpProgramProp.IsZero.coherence)
+        (congr!{NatDivisionProgramProp.Mod.T^ B.Bool^}
+          (\fun (mod: _) => Op.isZero (mod n Def.two)) _ _ NatDivisionProgramProp.Mod.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
+}
+
+\import .EvenProof[] \as EvenParts;
+
+\definition Even: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := EvenParts.T,
+  program := EvenParts.program,
+  specification := EvenParts.specification,
+  coherence := EvenParts.coherence,
+};
+
+\module OddProof {
+  \definition T: \VType := \U(Nat -> B.Bool);
+
+  \definition program: T := Programs.odd;
+
+  \definition specification: T^ := Def.odd;
+
+  \definition matches (n: Nat^): program^ n = specification n :=
+      trans!{B.Bool^} _ _ _
+        (congr!{OpProgramProp.Eqb.T^ B.Bool^}
+          (\fun (test: _) => test (NatDivisionProgram.mod^ n Def.two) Op.one) _ _ OpProgramProp.Eqb.coherence)
+        (congr!{NatDivisionProgramProp.Mod.T^ B.Bool^}
+          (\fun (mod: _) => Op.eqb (mod n Def.two) Op.one) _ _ NatDivisionProgramProp.Mod.coherence);
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
+}
+
+\import .OddProof[] \as OddParts;
+
+\definition Odd: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := OddParts.T,
+  program := OddParts.program,
+  specification := OddParts.specification,
+  coherence := OddParts.coherence,
+};

@@ -35,6 +35,7 @@ target/debug/cli _plans/fix-md/cases/05-01-dependent-type-minimal.ref --no-cache
 | [G11](#g11) | Machine の引数と具体値 | 引数で失敗、具体値で成功。 |
 | [G12](#g12) | 同じ述語の再帰定義と定数関数 | 両方成功。 |
 | [G13](#g13) | 帰納型の parameter の有無 | 両方成功。 |
+| [G14](#g14) | 算術関数の引数を宣言ヘッダと lambda のどちらに置くか | ライブラリでヘッダ形式の一致性証明が失敗、lambda 形式で成功。 |
 
 <a id="g01"></a>
 
@@ -210,3 +211,12 @@ Machine の型、実行、Box の型と本体は共通で、Box の型は両側�
 
 差分は帰納型の parameter の宣言と、それに伴う引数型 `List[A]` / `List` だけである。
 要素型・constructor・結果型 `Bool`・match の枝は共通で、型 parameter の有無を比較する。
+
+<a id="g14"></a>
+
+## G14: 引数付きの算術定義を一致性証明で使う
+
+比較対象は [Basic.Def](../../libs/std/src/Data/Nat/Basic/Def.ref) の算術関数と、[Parity.ProgramProp](../../libs/std/src/Data/Nat/Parity/ProgramProp.ref) の一致性証明である。
+`add`・`pred`・`isZero`・`sub`・`eqb`・`leb`・`ltb`・`mul`・`pow`・`choose`・`min`・`max` の本体を保ち、引数を宣言ヘッダに移すと `EvenProof.matches` で `occurs check failed` が発生した。
+現在の lambda 形式では成功する。
+この比較は標準ライブラリ全体で確認しており、単独の最小サンプルへの縮約は未実施である。

@@ -37,8 +37,8 @@ eq_reason!{{ f a } "=" { f b } "by" { congr!{A B} f a b ab }}
 ## Program と算術
 
 Bool・Nat・Int は Program のデータで、反映した型は `Bool^`・`Nat^`・`Int^` である。
-演算は `Program.Correspondence` の `program`・`specification`・`coherence` で実装、Set の仕様、一致証明をまとめる。
-算術法則には `.specification`、実装との接続には `.coherence` を使う。
+Bool と Int の演算は `Program.Correspondence` の `program`・`specification`・`coherence` で実装、Set の仕様、一致証明をまとめる。
+Nat の演算は数学的な関数を `Def`、計算実装を `Program`、両者の対応を `ProgramProp` から参照する。
 反復計算は `Program.Machine` の `step`・`terminates`・`run` で扱う。
 
 | module | 内容 |
@@ -52,7 +52,10 @@ Bool・Nat・Int は Program のデータで、反映した型は `Bool^`・`Nat
 | `Arithmetic.Rat.Fractions` | 正分母の分数と交差積による同値関係 |
 | `Rat.Fractions.Quotient` | 商上の四則演算と代表元上の計算との一致 |
 
-各演算 module の `Def` と `Prop` が実装と法則を公開する。
+Nat の各演算 module は、`Def` に Set 上の数学的な定義、`Prop` にその法則を置く。
+計算実装と停止性は `Program`、数学的な関数との一致証明と `Correspondence` は `ProgramProp` に置く。
+例えば `Data.Nat.Basic.Def.add` が数学的な加算、`Data.Nat.Basic.Program.add` が計算用の thunk、`Data.Nat.Basic.ProgramProp.Add.coherence` が両者の一致証明である。
+汎用の Set 上の反復は `Data.Nat.Iteration.Def` にある。
 自然数では `div a 0 = 0`、`mod a 0 = a`、`0^0 = 1` とする。
 単項表現なので大きな具体値の評価には向かない。
 Int は `ofNat n` / `negSucc n` の正規形を持ち、`toMath` / `fromMath` が群完成と対応する。

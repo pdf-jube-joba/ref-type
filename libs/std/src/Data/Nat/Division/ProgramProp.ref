@@ -1,0 +1,127 @@
+\import \parent.Def[] \as Def;
+\import \parent.Program[] \as Programs;
+\import std.Program[] \as ProgramBundles;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\import std.Data[].Pair[] \as P;
+\import std.Data[].Nat[].Basic[].Program[] \as BasicProgram;
+\import std.Data[].Nat[].Basic[].ProgramProp[] \as BasicProgramProp;
+\import std.Data[].Nat[].Pair[].Def[] \as Pair;
+\import std.Data[].Nat[].Pair[].ProgramProp[] \as PairProgramProp;
+
+\module DivModNextProof {
+  \definition T: \VType := \U(Nat -> P.Times[Nat, Nat] -> P.Times[Nat, Nat]);
+
+  \definition program: T := Programs.divModNext;
+
+  \definition specification: T^ := Def.divModNext;
+
+  \definition matches (b: Nat^): \forall (p: Pair.NatPair) ->
+      program^ b p = specification b p :=
+      \induction (p: P.Times^[Nat^, Nat^]) \return program^ b p = specification b p \with {
+        | pair : (\fun (q, r: Nat^) => \induction (b: Nat^) \return program^ b (Pair.natPair q r) = specification b (Pair.natPair q r) \with {
+          | zero : (\refl(Pair.natPair q (Nat^::succ r)))
+          | succ : (\fun (d: Nat^) => \fun (_: _) => (trans!{Pair.NatPair} _ _ _
+            (congr!{PairProgramProp.PairChoose.T^ _} (\fun (f: _) => f (BasicProgram.eqb^ r d) (Pair.natPair (Nat^::succ q) Nat^::zero) (Pair.natPair q (Nat^::succ r))) _ _ PairProgramProp.PairChoose.coherence)
+            (congr!{BasicProgramProp.Eqb.T^ Pair.NatPair}
+              (\fun (equal: _) => Pair.pairChoose (equal r d)
+                (Pair.natPair (Nat^::succ q) Nat^::zero) (Pair.natPair q (Nat^::succ r)))
+              _ _ BasicProgramProp.Eqb.coherence)))
+        } b)
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (b: Nat^) => \axiom:funext(program^ b, specification b,
+        \fun (p: Pair.NatPair) => matches b p));
+}
+
+\import .DivModNextProof[] \as DivModNextParts;
+
+\definition DivModNext: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := DivModNextParts.T,
+  program := DivModNextParts.program,
+  specification := DivModNextParts.specification,
+  coherence := DivModNextParts.coherence,
+};
+
+\module DivModProof {
+  \definition T: \VType := \U(Nat -> Nat -> P.Times[Nat, Nat]);
+
+  \definition program: T := Programs.divMod;
+
+  \definition specification: T^ := Def.divMod;
+
+  \definition matches: \forall (a, b: Nat^) -> program^ a b = specification a b :=
+      \block {
+        \fun (a, b: Nat^) \then
+        \let iterationMatches:
+          program^ a b = Pair.pairIter (DivModNext.program^ b) (Pair.natPair Nat^::zero Nat^::zero) a :=
+          (congr!{PairProgramProp.PairIter.T^ _} (\fun (f: _) => f (DivModNext.program^ b) (Pair.natPair Nat^::zero Nat^::zero) a) _ _ PairProgramProp.PairIter.coherence) \then
+        \let stepMatches:
+          Pair.pairIter (DivModNext.program^ b) (Pair.natPair Nat^::zero Nat^::zero) a = specification a b :=
+          congr!{DivModNext.T^ Pair.NatPair}
+            (\fun (next: _) => Pair.pairIter (next b) (Pair.natPair Nat^::zero Nat^::zero) a)
+            _ _ DivModNext.coherence \then
+        \return trans!{Pair.NatPair} _ _ _ iterationMatches stepMatches
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (a: Nat^) => \axiom:funext(program^ a, specification a,
+        \fun (b: Nat^) => matches a b));
+}
+
+\import .DivModProof[] \as DivModParts;
+
+\definition DivMod: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := DivModParts.T,
+  program := DivModParts.program,
+  specification := DivModParts.specification,
+  coherence := DivModParts.coherence,
+};
+
+\module DivProof {
+  \definition T: \VType := \U(Nat -> Nat -> Nat);
+
+  \definition program: T := Programs.div;
+
+  \definition specification: T^ := Def.div;
+
+  \definition matches (a, b: Nat^): program^ a b = specification a b := congr!{Pair.NatPair Nat^} P.Times[Nat, Nat]::first^ _ _ ((congr!{DivMod.T^ _} (\fun (f: _) => f a b) _ _ DivMod.coherence));
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (a: Nat^) => \axiom:funext(program^ a, specification a,
+        \fun (b: Nat^) => matches a b));
+}
+
+\import .DivProof[] \as DivParts;
+
+\definition Div: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := DivParts.T,
+  program := DivParts.program,
+  specification := DivParts.specification,
+  coherence := DivParts.coherence,
+};
+
+\module ModProof {
+  \definition T: \VType := \U(Nat -> Nat -> Nat);
+
+  \definition program: T := Programs.mod;
+
+  \definition specification: T^ := Def.mod;
+
+  \definition matches (a, b: Nat^): program^ a b = specification a b := congr!{Pair.NatPair Nat^} P.Times[Nat, Nat]::second^ _ _ ((congr!{DivMod.T^ _} (\fun (f: _) => f a b) _ _ DivMod.coherence));
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (a: Nat^) => \axiom:funext(program^ a, specification a,
+        \fun (b: Nat^) => matches a b));
+}
+
+\import .ModProof[] \as ModParts;
+
+\definition Mod: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := ModParts.T,
+  program := ModParts.program,
+  specification := ModParts.specification,
+  coherence := ModParts.coherence,
+};

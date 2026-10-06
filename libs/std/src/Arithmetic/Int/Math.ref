@@ -2,39 +2,39 @@
 \import std.Logic[].Rel[] \as Rel;
 \definition diffAddCommon:
   \forall (k, a, b: Nat) ->
-  Diff.specification (NatOp.Add.specification a k) (NatOp.Add.specification b k) = Diff.specification a b :=
-  \induction (k: N.Nat^) \return \forall (a, b: Nat) -> Diff.specification (NatOp.Add.specification a k) (NatOp.Add.specification b k) = Diff.specification a b \with {
+  Diff.specification (NatOp.add a k) (NatOp.add b k) = Diff.specification a b :=
+  \induction (k: N.Nat^) \return \forall (a, b: Nat) -> Diff.specification (NatOp.add a k) (NatOp.add b k) = Diff.specification a b \with {
     | zero : (\fun (a, b: Nat) => \refl(Diff.specification a b))
-    | succ : (\fun (k: Nat) => \fun (ih: \forall (a, b: Nat) -> Diff.specification (NatOp.Add.specification a k) (NatOp.Add.specification b k) = Diff.specification a b) =>
+    | succ : (\fun (k: Nat) => \fun (ih: \forall (a, b: Nat) -> Diff.specification (NatOp.add a k) (NatOp.add b k) = Diff.specification a b) =>
       \fun (a, b: Nat) => equiv_reason!{trans!{Int^}
-        "by" { congr!{Nat Int^} (\fun (x: Nat) => Diff.specification x (NatOp.Add.specification b (N.Nat^::succ k))) _ _ (NL.addSuccRight a k) }
-        "by" { congr!{Nat Int^} (Diff.specification (N.Nat^::succ (NatOp.Add.specification a k))) _ _ (NL.addSuccRight b k) }
+        "by" { congr!{Nat Int^} (\fun (x: Nat) => Diff.specification x (NatOp.add b (N.Nat^::succ k))) _ _ (NL.addSuccRight a k) }
+        "by" { congr!{Nat Int^} (Diff.specification (N.Nat^::succ (NatOp.add a k))) _ _ (NL.addSuccRight b k) }
         "by" { ih a b }})
     };
 \definition diffRespects(a, b, c, d: Nat):
-  NatOp.Add.specification a d = NatOp.Add.specification c b ->
+  NatOp.add a d = NatOp.add c b ->
   Diff.specification a b = Diff.specification c d :=
-    \fun (e: NatOp.Add.specification a d = NatOp.Add.specification c b) =>
+    \fun (e: NatOp.add a d = NatOp.add c b) =>
     equiv_reason!{trans!{Int^}
         "by" { sym!{Int^} _ _ (diffAddCommon d a b) }
-        "by" { congr!{Nat Int^} (\fun (x: Nat) => Diff.specification x (NatOp.Add.specification b d)) _ _ e }
-        "by" { congr!{Nat Int^} (Diff.specification (NatOp.Add.specification c b)) _ _ (NL.addComm b d) }
+        "by" { congr!{Nat Int^} (\fun (x: Nat) => Diff.specification x (NatOp.add b d)) _ _ e }
+        "by" { congr!{Nat Int^} (Diff.specification (NatOp.add c b)) _ _ (NL.addComm b d) }
         "by" { diffAddCommon b c d }};
 
 /* The normal form represents the original formal difference. */
 \definition diffBalance:
   \forall (b, a: Nat) ->
-  NatOp.Add.specification a (Negative.specification (Diff.specification a b)) = NatOp.Add.specification (Positive.specification (Diff.specification a b)) b :=
+  NatOp.add a (Negative.specification (Diff.specification a b)) = NatOp.add (Positive.specification (Diff.specification a b)) b :=
   \induction (b: N.Nat^) \return \forall (a: Nat) ->
-      NatOp.Add.specification a (Negative.specification (Diff.specification a b)) = NatOp.Add.specification (Positive.specification (Diff.specification a b)) b \with {
+      NatOp.add a (Negative.specification (Diff.specification a b)) = NatOp.add (Positive.specification (Diff.specification a b)) b \with {
     | zero : (\fun (a: Nat) => \refl(a))
     | succ : (\fun (b: Nat) => \fun (ih: \forall (a: Nat) ->
-      NatOp.Add.specification a (Negative.specification (Diff.specification a b)) = NatOp.Add.specification (Positive.specification (Diff.specification a b)) b) =>
-      \induction (a: N.Nat^) \return NatOp.Add.specification a (Negative.specification (Diff.specification a (N.Nat^::succ b))) =
-          NatOp.Add.specification (Positive.specification (Diff.specification a (N.Nat^::succ b))) (N.Nat^::succ b) \with {
-      | zero : (\refl(NatOp.Add.specification N.Nat^::zero (N.Nat^::succ b)))
-      | succ : (\fun (a: Nat) => \fun (unused: NatOp.Add.specification a (Negative.specification (Diff.specification a (N.Nat^::succ b))) =
-          NatOp.Add.specification (Positive.specification (Diff.specification a (N.Nat^::succ b))) (N.Nat^::succ b)) =>
+      NatOp.add a (Negative.specification (Diff.specification a b)) = NatOp.add (Positive.specification (Diff.specification a b)) b) =>
+      \induction (a: N.Nat^) \return NatOp.add a (Negative.specification (Diff.specification a (N.Nat^::succ b))) =
+          NatOp.add (Positive.specification (Diff.specification a (N.Nat^::succ b))) (N.Nat^::succ b) \with {
+      | zero : (\refl(NatOp.add N.Nat^::zero (N.Nat^::succ b)))
+      | succ : (\fun (a: Nat) => \fun (unused: NatOp.add a (Negative.specification (Diff.specification a (N.Nat^::succ b))) =
+          NatOp.add (Positive.specification (Diff.specification a (N.Nat^::succ b))) (N.Nat^::succ b)) =>
           equiv_reason!{trans!{Nat}
             "by" { NL.addSuccLeft a (Negative.specification (Diff.specification a b)) }
             "by" { NatOp.succCong _ _ (ih a) }
@@ -43,36 +43,36 @@
     };
 
 \definition Equivalent(x, y: Difference): \Prop :=
-  NatOp.Add.specification (pos x) (negPart y) = NatOp.Add.specification (pos y) (negPart x);
+  NatOp.add (pos x) (negPart y) = NatOp.add (pos y) (negPart x);
 \definition equivalentRefl: Rel.Reflexive Difference Equivalent :=
-  \fun (x: _) => \refl(NatOp.Add.specification (pos x) (negPart x));
+  \fun (x: _) => \refl(NatOp.add (pos x) (negPart x));
 \definition equivalentSym: Rel.Symmetric Difference Equivalent :=
   \fun (x, y: _) =>
-    sym!{Nat} (NatOp.Add.specification (pos x) (negPart y)) (NatOp.Add.specification (pos y) (negPart x));
+    sym!{Nat} (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart x));
 \definition addShuffle(a, b, c, d: Nat):
-  NatOp.Add.specification (NatOp.Add.specification a b) (NatOp.Add.specification c d) = NatOp.Add.specification (NatOp.Add.specification a d) (NatOp.Add.specification c b) :=
+  NatOp.add (NatOp.add a b) (NatOp.add c d) = NatOp.add (NatOp.add a d) (NatOp.add c b) :=
   equiv_reason!{trans!{Nat}
     "by" { NL.addInterchange a b c d }
-    "by" { congr!{Nat Nat} (NatOp.Add.specification (NatOp.Add.specification a c)) _ _ (NL.addComm b d) }
+    "by" { congr!{Nat Nat} (NatOp.add (NatOp.add a c)) _ _ (NL.addComm b d) }
     "by" { sym!{Nat} _ _ (NL.addInterchange a d c b) }};
 \definition equivalentTrans: Rel.Transitive Difference Equivalent :=
   \fun (x, y, z: Difference) (xy: Equivalent x y) (yz: Equivalent y z) =>
-    NL.addCancelRight (NatOp.Add.specification (pos y) (negPart y))
-      (NatOp.Add.specification (pos x) (negPart z)) (NatOp.Add.specification (pos z) (negPart x))
+    NL.addCancelRight (NatOp.add (pos y) (negPart y))
+      (NatOp.add (pos x) (negPart z)) (NatOp.add (pos z) (negPart x))
       eq_reason!{
-        { NatOp.Add.specification (NatOp.Add.specification (pos x) (negPart z)) (NatOp.Add.specification (pos y) (negPart y)) }
-        "=" { NatOp.Add.specification (NatOp.Add.specification (pos x) (negPart y)) (NatOp.Add.specification (pos y) (negPart z)) }
+        { NatOp.add (NatOp.add (pos x) (negPart z)) (NatOp.add (pos y) (negPart y)) }
+        "=" { NatOp.add (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart z)) }
         "by" { addShuffle (pos x) (negPart z) (pos y) (negPart y) }
-        "=" { NatOp.Add.specification (NatOp.Add.specification (pos y) (negPart x)) (NatOp.Add.specification (pos z) (negPart y)) }
-        "by" { congr2!{Nat Nat Nat} NatOp.Add.specification
-          (NatOp.Add.specification (pos x) (negPart y)) (NatOp.Add.specification (pos y) (negPart x))
-          (NatOp.Add.specification (pos y) (negPart z)) (NatOp.Add.specification (pos z) (negPart y)) xy yz }
-        "=" { NatOp.Add.specification (NatOp.Add.specification (pos y) (pos z)) (NatOp.Add.specification (negPart x) (negPart y)) }
+        "=" { NatOp.add (NatOp.add (pos y) (negPart x)) (NatOp.add (pos z) (negPart y)) }
+        "by" { congr2!{Nat Nat Nat} NatOp.add
+          (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart x))
+          (NatOp.add (pos y) (negPart z)) (NatOp.add (pos z) (negPart y)) xy yz }
+        "=" { NatOp.add (NatOp.add (pos y) (pos z)) (NatOp.add (negPart x) (negPart y)) }
         "by" { NL.addInterchange (pos y) (negPart x) (pos z) (negPart y) }
-        "=" { NatOp.Add.specification (NatOp.Add.specification (pos z) (pos y)) (NatOp.Add.specification (negPart x) (negPart y)) }
-        "by" { congr!{Nat Nat} (\fun (n: Nat) => NatOp.Add.specification n (NatOp.Add.specification (negPart x) (negPart y)))
+        "=" { NatOp.add (NatOp.add (pos z) (pos y)) (NatOp.add (negPart x) (negPart y)) }
+        "by" { congr!{Nat Nat} (\fun (n: Nat) => NatOp.add n (NatOp.add (negPart x) (negPart y)))
           _ _ (NL.addComm (pos y) (pos z)) }
-        "=" { NatOp.Add.specification (NatOp.Add.specification (pos z) (negPart x)) (NatOp.Add.specification (pos y) (negPart y)) }
+        "=" { NatOp.add (NatOp.add (pos z) (negPart x)) (NatOp.add (pos y) (negPart y)) }
         "by" { sym!{Nat} _ _ (NL.addInterchange (pos z) (negPart x) (pos y) (negPart y)) }
       };
 \definition normalize(x: Difference): Int^ := Diff.specification (pos x) (negPart x);
@@ -193,14 +193,14 @@
     \by { representativesExist C };
 
 \definition addRep(x, y: Difference): Difference :=
-  pair (NatOp.Add.specification (pos x) (pos y)) (NatOp.Add.specification (negPart x) (negPart y));
+  pair (NatOp.add (pos x) (pos y)) (NatOp.add (negPart x) (negPart y));
 \definition negRep(x: Difference): Difference := pair (negPart x) (pos x);
 \definition subRep(x, y: Difference): Difference := addRep x (negRep y);
 \definition scaleRep(x: Difference) (n: Nat): Difference :=
-  pair (NatOp.Mul.specification (pos x) n) (NatOp.Mul.specification (negPart x) n);
+  pair (NatOp.mul (pos x) n) (NatOp.mul (negPart x) n);
 \definition mulRep(x, y: Difference): Difference :=
-  pair (NatOp.Add.specification (NatOp.Mul.specification (pos x) (pos y)) (NatOp.Mul.specification (negPart x) (negPart y)))
-       (NatOp.Add.specification (NatOp.Mul.specification (pos x) (negPart y)) (NatOp.Mul.specification (negPart x) (pos y)));
+  pair (NatOp.add (NatOp.mul (pos x) (pos y)) (NatOp.mul (negPart x) (negPart y)))
+       (NatOp.add (NatOp.mul (pos x) (negPart y)) (NatOp.mul (negPart x) (pos y)));
 \definition equivalentOfFields(x, y: Difference):
   pos x = pos y -> negPart x = negPart y ->
   Equivalent x y :=
@@ -212,17 +212,17 @@
     \fun (xy: _) (uv: _) =>
     equiv_reason!{trans!{Nat}
         "by" { NL.addInterchange (pos x) (pos u) (negPart y) (negPart v) }
-        "by" { NL.addCong (NatOp.Add.specification (pos x) (negPart y)) (NatOp.Add.specification (pos y) (negPart x))
-          (NatOp.Add.specification (pos u) (negPart v)) (NatOp.Add.specification (pos v) (negPart u)) xy uv }
+        "by" { NL.addCong (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart x))
+          (NatOp.add (pos u) (negPart v)) (NatOp.add (pos v) (negPart u)) xy uv }
         "by" { sym!{Nat} _ _ (NL.addInterchange (pos y) (pos v) (negPart x) (negPart u)) }};
 \definition negRepRespects(x, y: Difference):
   Equivalent x y ->
   Equivalent (negRep x) (negRep y) :=
     \fun (xy: _) =>
     trans!{Nat} _ _ _ (NL.addComm (negPart x) (pos y))
-        (trans!{Nat} (NatOp.Add.specification (pos y) (negPart x)) (NatOp.Add.specification (pos x) (negPart y))
-          (NatOp.Add.specification (negPart y) (pos x))
-          (sym!{Nat} (NatOp.Add.specification (pos x) (negPart y)) (NatOp.Add.specification (pos y) (negPart x)) xy)
+        (trans!{Nat} (NatOp.add (pos y) (negPart x)) (NatOp.add (pos x) (negPart y))
+          (NatOp.add (negPart y) (pos x))
+          (sym!{Nat} (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart x)) xy)
           (NL.addComm (pos x) (negPart y)));
 \definition subRepRespects(x, y, u, v: Difference):
   Equivalent x y -> Equivalent u v ->
@@ -235,18 +235,18 @@
     \fun (xy: Equivalent x y) =>
     equiv_reason!{trans!{Nat}
         "by" { sym!{Nat} _ _ (NL.mulDistribRight (pos x) (negPart y) n) }
-        "by" { congr!{Nat Nat} (\fun (a: Nat) => NatOp.Mul.specification a n)
-          (NatOp.Add.specification (pos x) (negPart y)) (NatOp.Add.specification (pos y) (negPart x)) xy }
+        "by" { congr!{Nat Nat} (\fun (a: Nat) => NatOp.mul a n)
+          (NatOp.add (pos x) (negPart y)) (NatOp.add (pos y) (negPart x)) xy }
         "by" { NL.mulDistribRight (pos y) (negPart x) n }};
 \definition mulRepAsSum(x, y: Difference):
   Equivalent (mulRep x y) (addRep (scaleRep x (pos y)) (negRep (scaleRep x (negPart y)))) := equivalentOfFields (mulRep x y)
     (addRep (scaleRep x (pos y)) (negRep (scaleRep x (negPart y))))
-    (\refl(pos (mulRep x y))) (NL.addComm (NatOp.Mul.specification (pos x) (negPart y)) (NatOp.Mul.specification (negPart x) (pos y)));
+    (\refl(pos (mulRep x y))) (NL.addComm (NatOp.mul (pos x) (negPart y)) (NatOp.mul (negPart x) (pos y)));
 \definition mulRepComm(x, y: Difference): Equivalent (mulRep x y) (mulRep y x) := equivalentOfFields (mulRep x y) (mulRep y x)
     (NL.addCong _ _ _ _ (NL.mulComm (pos x) (pos y)) (NL.mulComm (negPart x) (negPart y)))
     (trans!{Nat} _ _ _
       (NL.addCong _ _ _ _ (NL.mulComm (pos x) (negPart y)) (NL.mulComm (negPart x) (pos y)))
-      (NL.addComm (NatOp.Mul.specification (negPart y) (pos x)) (NatOp.Mul.specification (pos y) (negPart x))));
+      (NL.addComm (NatOp.mul (negPart y) (pos x)) (NatOp.mul (pos y) (negPart x))));
 \definition mulRepRespectsLeft(x, y, z: Difference):
   Equivalent x y ->
   Equivalent (mulRep x z) (mulRep y z) :=

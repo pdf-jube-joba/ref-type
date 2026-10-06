@@ -134,3 +134,11 @@ parameter を持つ List の要素を、Set 側でも直接場合分けしたい
 対応済み。
 [最小比較: G13](fix-md/README.md#g13) は、同じ要素型を使い、List 自身に parameter を持たせる場合と持たせない場合を比較する。
 constructor、結果型、match の枝は共通で、両方成功する。
+
+<a id="g14"></a>
+
+## G14: 引数付きの算術定義を一致性証明で使う
+
+自然数の算術関数を `\definition isZero(n: Nat^): B.Bool^ := ...` のように宣言ヘッダで引数を取る定義として書き、import 先の一致性証明でも合同則の暗黙引数を推論させたい。
+[Basic.Def](../libs/std/src/Data/Nat/Basic/Def.ref) の算術関数をこの形式に変更すると、[Parity.ProgramProp](../libs/std/src/Data/Nat/Parity/ProgramProp.ref) の `EvenProof.matches` で `occurs check failed` と暗黙 metavariable の矛盾が発生した。
+同じ関数を `\definition isZero: Nat^ -> B.Bool^ := \fun (n: Nat^) => ...` の形式で定義すると、一致性証明を含む標準ライブラリ全体の検査が成功する。

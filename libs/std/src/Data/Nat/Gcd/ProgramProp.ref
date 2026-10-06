@@ -1,0 +1,89 @@
+\import \parent.Def[] \as Def;
+\import \parent.Program[] \as Programs;
+\import std.Program[] \as ProgramBundles;
+\import std.Data[].Pair[] \as P;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Data[].Nat[].Pair[].Def[] \as NatPairDef;
+\import std.Data[].Nat[].Pair[].Program[] \as NatPairProgram;
+\import std.Data[].Nat[].Pair[].ProgramProp[] \as NatPairProgramProp;
+\import std.Data[].Nat[].Division[].ProgramProp[] \as NatDivisionProgramProp;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+
+\module GcdNextProof {
+  \definition T: \VType := \U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]);
+
+  \definition program: T := Programs.gcdNext;
+
+  \definition specification: T^ := Def.gcdNext;
+
+  \definition matches: \forall (p: Def.NatPair) -> program^ p = specification p :=
+      \induction (p: P.Times^[Nat^, Nat^]) \return
+        program^ p = specification p \with {
+        | pair: \fun (a, b: Nat^) =>
+          \induction (b: Nat^) \return
+            program^ (Def.pair a b) = specification (Def.pair a b) \with {
+            | zero: \refl(Def.pair a Nat^::zero)
+            | succ: \fun (d: Nat^) (unused: _) =>
+              congr!{NatDivisionProgramProp.Mod.T^ Def.NatPair}
+                (\fun (mod: _) => Def.pair (Nat^::succ d) (mod a (Nat^::succ d)))
+                _ _ NatDivisionProgramProp.Mod.coherence
+          } b
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (p: Def.NatPair) => matches p);
+}
+
+\import .GcdNextProof[] \as GcdNextParts;
+
+\definition GcdNext: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := GcdNextParts.T,
+  program := GcdNextParts.program,
+  specification := GcdNextParts.specification,
+  coherence := GcdNextParts.coherence,
+};
+
+\module GcdProof {
+  \definition T: \VType := \U(Nat -> Nat -> Nat);
+
+  \definition program: T := Programs.gcd;
+
+  \definition specification: T^ := Def.gcd;
+
+  \definition matches: \forall (a, b: Nat^) -> program^ a b = specification a b :=
+      \block {
+        \fun (a, b: Nat^) \then
+        \let iterationMatches:
+          NatPairProgram.pairIter^ GcdNext.program^ (Def.pair a b) b =
+            NatPairDef.pairIter GcdNext.program^ (Def.pair a b) b :=
+          congr!{NatPairProgramProp.PairIter.T^ _} (\fun (f: _) => f GcdNext.program^ (Def.pair a b) b) _ _ NatPairProgramProp.PairIter.coherence \then
+        \let stepMatches:
+          NatPairDef.pairIter GcdNext.program^ (Def.pair a b) b =
+            Def.gcdIter (Def.pair a b) b :=
+          congr!{GcdNext.T^ Def.NatPair}
+            (\fun (next: _) => NatPairDef.pairIter next (Def.pair a b) b)
+            _ _ GcdNext.coherence \then
+        \let resultMatches:
+          NatPairProgram.pairIter^ GcdNext.program^ (Def.pair a b) b =
+            Def.gcdIter (Def.pair a b) b :=
+          trans!{Def.NatPair} _ _ _ iterationMatches stepMatches \then
+        \return trans!{Nat^} _ _ _
+          (congr!{Def.NatPair Nat^} Def.first _ _ resultMatches)
+          (sym!{Nat^} _ _ (Def.gcdMatchesIteration a b))
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (a: Nat^) => \axiom:funext(program^ a, specification a,
+        \fun (b: Nat^) => matches a b));
+}
+
+\import .GcdProof[] \as GcdParts;
+
+\definition Gcd: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := GcdParts.T,
+  program := GcdParts.program,
+  specification := GcdParts.specification,
+  coherence := GcdParts.coherence,
+};

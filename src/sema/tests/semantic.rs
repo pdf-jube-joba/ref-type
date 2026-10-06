@@ -27,9 +27,9 @@ fn project() -> SourceSnapshot {
 }
 
 #[test]
-fn editing_std_nat_basic_preserves_termination_imports() {
+fn editing_std_nat_basic_program_preserves_termination_imports() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../libs/std");
-    let file = root.join("src/Data/Nat/Basic/Def.ref");
+    let file = root.join("src/Data/Nat/Basic/Program.ref");
     let snapshot = SourceSnapshot::read(&root).unwrap();
     let mut database = Database::new();
     let first = database.file(&snapshot, &file);
