@@ -15,7 +15,16 @@ mod parameters;
 pub(super) struct Structure {
     pub ambient: HashMap<BindingId, SExp>,
     pub parameters: Vec<RightBind>,
+    pub inputs: Vec<Input>,
+    pub checks: Vec<(SExp, SExp)>,
     pub fields: Vec<(Identifier, SExp, Option<SExp>)>,
+}
+
+#[derive(Clone)]
+pub(super) struct ParameterSignature {
+    pub parameters: Vec<RightBind>,
+    pub inputs: Vec<Input>,
+    pub checks: Vec<(SExp, SExp)>,
 }
 
 #[derive(Clone)]
@@ -230,12 +239,19 @@ impl Resolver {
     fn structure_type(
         &self,
         expression: &SExp,
-    ) -> Option<(BindingId, Structure, HashMap<BindingId, SExp>)> {
+        locals: &[HashMap<String, Identifier>],
+    ) -> Result<Option<(BindingId, Structure, HashMap<BindingId, SExp>)>, Diagnostic> {
         let SExp::AccessPath { access, parameters } = expression else {
-            return None;
+            return Ok(None);
         };
-        let id = self.front_binding(access, &[])?;
-        let mut signature = self.structures.get(&id)?.clone();
+        let Some(mut signature) = self
+            .front_binding(access, locals)
+            .and_then(|id| self.structures.get(&id))
+            .cloned()
+        else {
+            return Ok(None);
+        };
+        let id = self.front_binding(access, locals).unwrap();
         for bind in &mut signature.parameters {
             *bind.ty = self.instantiate_front_expression(&bind.ty, access);
         }
@@ -245,23 +261,32 @@ impl Resolver {
                 *body = self.instantiate_front_expression(body, access);
             }
         }
+        for (value, ty) in &mut signature.checks {
+            *value = self.instantiate_front_expression(value, access);
+            *ty = self.instantiate_front_expression(ty, access);
+        }
+        let (parameters, checks) = self.expand_type_arguments(
+            &signature.parameters,
+            &signature.inputs,
+            parameters,
+            access,
+            locals,
+        )?;
+        signature.checks.extend(checks);
         let names = signature
             .parameters
             .iter()
             .flat_map(|b| &b.vars)
             .collect::<Vec<_>>();
-        if names.len() != parameters.len() {
-            return None;
-        }
         let mut substitutions: HashMap<_, _> = names
             .into_iter()
             .zip(parameters)
-            .map(|(n, v)| (n.1.unwrap(), v.clone()))
+            .map(|(n, v)| (n.1.unwrap(), v))
             .collect();
         for (id, expression) in &signature.ambient {
             substitutions.insert(*id, self.instantiate_front_expression(expression, access));
         }
-        Some((id, signature, substitutions))
+        Ok(Some((id, signature, substitutions)))
     }
 
     fn bind_structure_field(
@@ -323,6 +348,12 @@ impl Resolver {
                     )
                 })
             })
+            .chain(
+                shape
+                    .checks
+                    .iter()
+                    .map(|(value, ty)| (substitute(value, arguments), substitute(ty, arguments))),
+            )
             .collect()
     }
 
@@ -464,7 +495,9 @@ impl Resolver {
                     access: access.clone(),
                     parameters: parameters.clone(),
                 };
-                let Some((signature, shape, mut substitutions)) = self.structure_type(&ty) else {
+                let Some((signature, shape, mut substitutions)) =
+                    self.structure_type(&ty, locals)?
+                else {
                     return Ok(None);
                 };
                 let mut supplied = HashMap::new();
@@ -483,7 +516,7 @@ impl Resolver {
                             self.error(format!("missing structure field: {}", name.0))
                         })?;
                     let expected = substitute(ty, &substitutions);
-                    if let Some((signature, _, _)) = self.structure_type(&expected) {
+                    if let Some((signature, _, _)) = self.structure_type(&expected, locals)? {
                         let nested = self
                             .structure_value(&value, locals)?
                             .filter(|value| value.signature == signature)
@@ -492,7 +525,7 @@ impl Resolver {
                             })?;
                         checks.extend(nested.checks);
                         for (id, expected) in
-                            ordered_arguments(&self.structure_type(&expected).unwrap().2)
+                            ordered_arguments(&self.structure_type(&expected, locals)?.unwrap().2)
                         {
                             if let Some(actual) = nested.arguments.get(&id) {
                                 checks.push((
@@ -510,7 +543,7 @@ impl Resolver {
                         checks.push((value.clone(), expected));
                     }
                     let value = if self
-                        .structure_type(&substitute(ty, &substitutions))
+                        .structure_type(&substitute(ty, &substitutions), locals)?
                         .is_some()
                         || matches!(ty, SExp::ValueType)
                     {
@@ -529,7 +562,7 @@ impl Resolver {
                     return Err(self.error("unknown structure field"));
                 }
                 Ok(Some(Value {
-                    arguments: self.structure_type(&ty).unwrap().2,
+                    arguments: self.structure_type(&ty, locals)?.unwrap().2,
                     signature,
                     parameters: Vec::new(),
                     fields: result,

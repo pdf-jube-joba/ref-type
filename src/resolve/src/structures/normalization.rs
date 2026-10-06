@@ -12,14 +12,7 @@ impl Resolver {
                 return false;
             }
             let expansion = match node {
-                SExp::Block(block)
-                    if block
-                        .statements
-                        .iter()
-                        .any(|statement| matches!(statement, Statement::TakeFrom { .. })) =>
-                {
-                    Some(block.as_term().map_err(|e| self.error(e)))
-                }
+                SExp::Block(block) => Some(block.as_term().map_err(|e| self.error(e))),
                 SExp::Exists {
                     bind: Bind::Named(bind),
                 } if self.is_structure_type(&bind.ty) => {
@@ -56,6 +49,118 @@ impl Resolver {
                 }
                 return false;
             }
+            if let SExp::Where { exp, clauses, .. } = node {
+                let mut scope = locals.to_vec();
+                for (name, ty, body) in clauses {
+                    if let Err(e) = self
+                        .normalize_structures(ty, &scope)
+                        .and_then(|()| self.normalize_structures(body, &scope))
+                    {
+                        error = Some(e);
+                        return false;
+                    }
+                    if name.1.is_none() {
+                        self.binding(name);
+                    }
+                    scope.push(HashMap::from([(name.0.clone(), name.clone())]));
+                }
+                if let Err(e) = self.normalize_structures(exp, &scope) {
+                    error = Some(e);
+                }
+                return false;
+            }
+            if let SExp::MemberLiteral { ty, fields } = node {
+                let SExp::AccessPath { access, parameters } = ty.as_ref() else {
+                    error = Some(self.error("expected a structure type before a literal"));
+                    return false;
+                };
+                let mut literal = SExp::RecordTypeCtor {
+                    access: access.clone(),
+                    parameters: parameters.clone(),
+                    fields: fields.clone(),
+                };
+                match self.normalize_structures(&mut literal, locals) {
+                    Ok(()) => *node = literal,
+                    Err(e) => error = Some(e),
+                }
+                return false;
+            }
+            if let SExp::AccessPath { access, parameters }
+            | SExp::RecordTypeCtor {
+                access, parameters, ..
+            } = node
+                && let Some(id) = self.front_binding(access, locals)
+                && (self.structures.contains_key(&id)
+                    || self.parameter_signatures.contains_key(&id))
+            {
+                for argument in parameters.iter_mut() {
+                    if let Err(e) = self.normalize_structures(argument, locals) {
+                        error = Some(e);
+                        return false;
+                    }
+                }
+                if self.structures.contains_key(&id) {
+                    let ty = SExp::AccessPath {
+                        access: access.clone(),
+                        parameters: parameters.clone(),
+                    };
+                    if let Err(e) = self.structure_type(&ty, locals) {
+                        error = Some(e);
+                        return false;
+                    }
+                } else if !parameters.is_empty()
+                    && let Some(signature) = self.parameter_signatures.get(&id).cloned()
+                {
+                    let (actual, mut checks) = match self.expand_type_arguments(
+                        &signature.parameters,
+                        &signature.inputs,
+                        parameters,
+                        access,
+                        locals,
+                    ) {
+                        Ok(result) => result,
+                        Err(e) => {
+                            error = Some(e);
+                            return false;
+                        }
+                    };
+                    let substitutions = signature
+                        .parameters
+                        .iter()
+                        .zip(&actual)
+                        .map(|(bind, value)| (bind.vars[0].1.unwrap(), value.clone()))
+                        .collect();
+                    checks.extend(signature.checks.iter().map(|(value, ty)| {
+                        (
+                            substitute(
+                                &self.instantiate_front_expression(value, access),
+                                &substitutions,
+                            ),
+                            substitute(
+                                &self.instantiate_front_expression(ty, access),
+                                &substitutions,
+                            ),
+                        )
+                    }));
+                    *parameters = actual;
+                    if let SExp::RecordTypeCtor { fields, .. } = node {
+                        for (_, value) in fields {
+                            if let Err(e) = self.normalize_structures(value, locals) {
+                                error = Some(e);
+                                return false;
+                            }
+                        }
+                    }
+                    if !checks.is_empty() {
+                        *node = SExp::Checked {
+                            checks,
+                            body: Box::new(node.clone()),
+                        };
+                    }
+                    // The arguments have already been normalized in their surface form.
+                    return false;
+                }
+            }
             if let SExp::AccessPath { access, parameters } = node
                 && parameters.is_empty()
                 && let Some(id) = self.front_binding(access, locals)
@@ -85,21 +190,6 @@ impl Resolver {
                     value
                 };
                 return false;
-            }
-            if let SExp::MemberLiteral { ty, fields } = node {
-                if let Err(e) = self.normalize_structures(ty, locals) {
-                    error = Some(e);
-                    return false;
-                }
-                let SExp::AccessPath { access, parameters } = ty.as_ref() else {
-                    error = Some(self.error("expected a structure type before a literal"));
-                    return false;
-                };
-                *node = SExp::RecordTypeCtor {
-                    access: access.clone(),
-                    parameters: parameters.clone(),
-                    fields: fields.clone(),
-                };
             }
             if let SExp::AssociatedAccess { base, field, span } = node {
                 if let Err(e) = self.normalize_structures(base, locals) {
@@ -154,7 +244,7 @@ impl Resolver {
                 };
                 let mut scope = locals.to_vec();
                 let mut parameters = vec![bind.clone()];
-                if self.structure_type(&bind.ty).is_some() {
+                if self.is_structure_type(&bind.ty) {
                     if let Err(e) =
                         self.expand_structure_parameters(&mut parameters, &mut scope, false)
                     {
@@ -181,7 +271,7 @@ impl Resolver {
                     return false;
                 }
                 let mut result = (**body).clone();
-                if self.structure_type(&bind.ty).is_some() && !parameter_checks.is_empty() {
+                if self.is_structure_type(&bind.ty) && !parameter_checks.is_empty() {
                     result = SExp::Checked {
                         checks: parameter_checks,
                         body: Box::new(result),

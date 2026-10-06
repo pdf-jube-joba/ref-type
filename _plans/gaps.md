@@ -62,12 +62,9 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 
 区間に依存する部分集合型を、汎用の商モジュールの台集合として渡したい。
 
-[最小比較: G05](fix-md/README.md#g05) は、部分集合の条件が外側のモジュール引数に依存するかだけを変える。
-商を恒等関数に縮めた組と、商の構成を残した組があり、どちらも引数に依存する場合に失敗する。
-具体化済みの `Representation` と、具体化前の定義への参照が残る型が convertible と判定されない。
-
-[外側の引数を内部 import に渡す比較](fix-md/cases/05-05-forward-context.ref)では、`Pass` に未使用の `u: Unit` を追加し、`u := u` を渡すと成功する。
-G06 と同じ、具体化時の宣言 ID の置き換えと既存定義の再利用の順序に関係する症状と考えられる。
+対応済み。
+[最小比較: G05](fix-md/README.md#g05) の依存する部分集合型と商を含む全5ケースが成功する。
+外側の宣言 ID を確定してから内部 import の定義を再利用することで、具体化済みの `Representation` に型参照がそろう。
 
 <a id="g06"></a>
 
@@ -75,14 +72,9 @@ G06 と同じ、具体化時の宣言 ID の置き換えと既存定義の再利
 
 体を parameter に取るモジュールの中で有限添字型を宣言し、その型を座標空間や基底の添字に使いたい。
 
-[最小比較: G06](fix-md/README.md#g06) は、座標空間の操作を恒等関数に縮め、内部 import の関数を使うか、添字型を内部で宣言するかを別々に比較する。
-内部の帰納型を内部 import の関数に渡す場合に失敗する。
-具体化済みの `Outer.Unit` と元の `Outer.Unit` が convertible と判定されない。
-
-原因は、内部 import の定義を再利用するか判定する時点で、外側の宣言 ID の置き換え表が未完成なことである。
-`bind_namespace_from` は内部 import を外側の宣言より先に処理し、`reserve_lazy_definition` は未置換の `Outer.Unit` を引数として既存の `Pass.identity` を再利用する。
-後で `Outer.Unit` の新しい ID を割り当てても、再利用された定義は再具体化されない。
-[外側の引数を内部 import に渡す比較](fix-md/cases/06-04-forward-context.ref)では、`Pass` に未使用の `K: \Set` を追加し、`K := K` を渡して具体化の引数を変えると成功する。
+対応済み。
+[最小比較: G06](fix-md/README.md#g06) の全4ケースが成功する。
+宣言を予約して完全な置換表を設定した後に再利用を判定し、内部の帰納型、型の別名、連続した import の参照を具体化後の ID に対応させる。
 
 <a id="g07"></a>
 
@@ -90,13 +82,11 @@ G06 と同じ、具体化時の宣言 ID の置き換えと既存定義の再利
 
 対象の集合と射の集合族を持つ圏を、そのまま関手の構造の添字に使いたい。
 
-[最小比較: G07](fix-md/README.md#g07) は、signature を Set のフィールド1つまで縮め、同じ構造の実引数を signature 全体と展開済みのフィールドで切り替える。
-signature 全体を渡す場合に、実引数のアクセスで失敗する。
-
-sort を指定しない `\structure A[Carrier: \Set]` と `\structure ALaw[Carrier: \Set, data: A[Carrier]]` を定義し、別の structure の field に `data: A[Carrier], law: ALaw[Carrier, data]` と書きたい。
-現在は `ALaw` の parameter が field ごとに展開され、`ALaw[Carrier, data]` では引数の個数が一致せず、`name does not denote a Program value type: 'Carrier'` で失敗する。
-`A` の field が `unit, op, inv` の場合、`ALaw[Carrier, data.unit, data.op, data.inv]` と展開して渡すと成功する。
-`A` に sort `: \Set` を指定した record では、`ALaw[Carrier, data]` のまま成功する。
+対応済み。
+[最小比較: G07](fix-md/README.md#g07) は、signature 全体と展開済みフィールドを渡す両方のケースが成功する。
+宣言時の引数の形を保持し、利用側でも構造体の引数を対応するフィールドへ展開する。
+`\structure A[Carrier: \Set]` と `\structure ALaw[Carrier: \Set, data: A[Carrier]]` に対して、`ALaw[Carrier, data]` をそのまま使える。
+引数の個数が不一致の場合は、構造体の引数個数の診断を返す。
 
 <a id="g08"></a>
 
@@ -114,13 +104,9 @@ sort を指定しない `\structure A[Carrier: \Set]` と `\structure ALaw[Carri
 
 関手を証明ブロックの中で導入し、その対象写像を使いたい。
 
-[最小比較: G09](fix-md/README.md#g09) は、関手をフィールド1つの record に縮め、射影の記法と lambda の位置を別々に比較する。
-ブロック内で導入した変数の `x.field` は `Module import 'x' was not found` で失敗する。
-`x #field` にする場合と、lambda をブロックの外へ置く場合は成功する。
-
-原因は、局所変数の束縛処理より前に行う `normalize_structures` が、通常のブロック内の `\fun` と `\let` で局所スコープを更新しないことである。
-この段階で `x.field` を射影に変換できず、後続の名前解決が `x` をモジュールの import 名として扱う。
-[`\let` の比較](fix-md/cases/09-04-block-let.ref)でも `y.field` は同じ理由で失敗し、[`y #field`](fix-md/cases/09-05-block-let-hash.ref)は成功する。
+対応済み。
+[最小比較: G09](fix-md/README.md#g09) の全5ケースが成功する。
+ブロックを lambda と局所定義へ変換してから構造体を展開し、`\fun`・`\let` の束縛と shadowing を射影の解決にも反映する。
 
 <a id="g10"></a>
 

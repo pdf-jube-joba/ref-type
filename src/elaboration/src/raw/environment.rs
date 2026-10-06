@@ -804,36 +804,7 @@ impl CrateEnv {
         source: DefId,
         substitutions: Vec<(ModuleParamId, ModuleArgument)>,
         reflected_substitutions: Vec<(ModuleParamId, Exp)>,
-        remapping: &DeclarationRemapping,
-    ) -> (DefId, bool) {
-        let origin = self
-            .nominal_definitions
-            .get(&source)
-            .cloned()
-            .unwrap_or_else(|| super::namespaces::Specialization {
-                source,
-                arguments: self.namespace_arguments(source.module),
-            });
-        let arguments = self.substitute_namespace_arguments(
-            &origin.arguments,
-            &substitutions,
-            &reflected_substitutions,
-            remapping,
-        );
-        if self
-            .namespace_arguments_equal(&arguments, &self.namespace_arguments(origin.source.module))
-        {
-            return (origin.source, false);
-        }
-        if self.namespace_arguments_shareable(&arguments)
-            && let Some((&id, _)) = self.nominal_definitions.iter().find(|(_, candidate)| {
-                candidate.source == origin.source
-                    && self.namespace_arguments_shareable(&arguments)
-                    && self.namespace_arguments_equal(&arguments, &candidate.arguments)
-            })
-        {
-            return (id, false);
-        }
+    ) -> DefId {
         let parameters = self.definition_parameters(source).to_vec();
         let index = self.module(module).definitions.len() as u32;
         self.module_mut(module).definitions.push(OnceCell::new());
@@ -850,6 +821,45 @@ impl CrateEnv {
                 remapping: RemappingId(0),
             },
         );
+        id
+    }
+
+    pub(crate) fn reuse_lazy_definition(
+        &mut self,
+        id: DefId,
+        substitutions: &[(ModuleParamId, ModuleArgument)],
+        reflected_substitutions: &[(ModuleParamId, Exp)],
+        remapping: &DeclarationRemapping,
+    ) -> (DefId, DefId, bool) {
+        let source = self.lazy_definitions[&id].source;
+        let origin = self
+            .nominal_definitions
+            .get(&source)
+            .cloned()
+            .unwrap_or_else(|| super::namespaces::Specialization {
+                source,
+                arguments: self.namespace_arguments(source.module),
+            });
+        let arguments = self.substitute_namespace_arguments(
+            &origin.arguments,
+            substitutions,
+            reflected_substitutions,
+            remapping,
+        );
+        if self
+            .namespace_arguments_equal(&arguments, &self.namespace_arguments(origin.source.module))
+        {
+            return (source, origin.source, false);
+        }
+        if self.namespace_arguments_shareable(&arguments)
+            && let Some((&id, _)) = self.nominal_definitions.iter().find(|(_, candidate)| {
+                candidate.source == origin.source
+                    && self.namespace_arguments_shareable(&arguments)
+                    && self.namespace_arguments_equal(&arguments, &candidate.arguments)
+            })
+        {
+            return (source, id, false);
+        }
         self.nominal_definitions.insert(
             id,
             super::namespaces::Specialization {
@@ -857,7 +867,7 @@ impl CrateEnv {
                 arguments,
             },
         );
-        (id, true)
+        (source, id, true)
     }
 
     pub(crate) fn set_lazy_definition_remapping(&mut self, id: DefId, remapping: RemappingId) {
@@ -921,10 +931,28 @@ impl CrateEnv {
         &mut self,
         module: ModuleId,
         source: InductiveId,
-        substitutions: Vec<(ModuleParamId, ModuleArgument)>,
         reflected_substitutions: Vec<(ModuleParamId, Exp)>,
+    ) -> InductiveId {
+        let id = self.reserve_inductive(module);
+        self.lazy_inductives.insert(
+            id,
+            LazyInductive {
+                source,
+                substitutions: reflected_substitutions,
+                remapping: RemappingId(0),
+            },
+        );
+        id
+    }
+
+    pub(crate) fn reuse_lazy_inductive(
+        &mut self,
+        id: InductiveId,
+        substitutions: &[(ModuleParamId, ModuleArgument)],
+        reflected_substitutions: &[(ModuleParamId, Exp)],
         remapping: &DeclarationRemapping,
-    ) -> (InductiveId, bool) {
+    ) -> (InductiveId, InductiveId, bool) {
+        let source = self.lazy_inductives[&id].source;
         let origin = self
             .nominal_inductives
             .get(&source)
@@ -935,23 +963,22 @@ impl CrateEnv {
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
-            &substitutions,
-            &reflected_substitutions,
+            substitutions,
+            reflected_substitutions,
             remapping,
         );
         if self
             .namespace_arguments_equal(&arguments, &self.namespace_arguments(origin.source.module))
         {
-            return (origin.source, false);
+            return (source, origin.source, false);
         }
         if let Some((&id, _)) = self.nominal_inductives.iter().find(|(_, candidate)| {
             candidate.source == origin.source
                 && self.namespace_arguments_shareable(&arguments)
                 && self.namespace_arguments_equal(&arguments, &candidate.arguments)
         }) {
-            return (id, false);
+            return (source, id, false);
         }
-        let id = self.reserve_inductive(module);
         self.nominal_inductives.insert(
             id,
             super::namespaces::Specialization {
@@ -959,15 +986,7 @@ impl CrateEnv {
                 arguments,
             },
         );
-        self.lazy_inductives.insert(
-            id,
-            LazyInductive {
-                source,
-                substitutions: reflected_substitutions,
-                remapping: RemappingId(0),
-            },
-        );
-        (id, true)
+        (source, id, true)
     }
 
     pub(crate) fn set_lazy_inductive_remapping(&mut self, id: InductiveId, remapping: RemappingId) {
@@ -1033,9 +1052,27 @@ impl CrateEnv {
         module: ModuleId,
         source: ProgramInductiveId,
         substitutions: Vec<(ModuleParamId, ModuleArgument)>,
-        reflected_substitutions: Vec<(ModuleParamId, Exp)>,
+    ) -> ProgramInductiveId {
+        let id = self.reserve_program_inductive(module);
+        self.lazy_program_inductives.insert(
+            id,
+            LazyProgramInductive {
+                source,
+                substitutions,
+                remapping: RemappingId(0),
+            },
+        );
+        id
+    }
+
+    pub(crate) fn reuse_lazy_program_inductive(
+        &mut self,
+        id: ProgramInductiveId,
+        substitutions: &[(ModuleParamId, ModuleArgument)],
+        reflected_substitutions: &[(ModuleParamId, Exp)],
         remapping: &DeclarationRemapping,
-    ) -> (ProgramInductiveId, bool) {
+    ) -> (ProgramInductiveId, ProgramInductiveId, bool) {
+        let source = self.lazy_program_inductives[&id].source;
         let origin = self
             .nominal_datatypes
             .get(&source)
@@ -1046,23 +1083,22 @@ impl CrateEnv {
             });
         let arguments = self.substitute_namespace_arguments(
             &origin.arguments,
-            &substitutions,
-            &reflected_substitutions,
+            substitutions,
+            reflected_substitutions,
             remapping,
         );
         if self
             .namespace_arguments_equal(&arguments, &self.namespace_arguments(origin.source.module))
         {
-            return (origin.source, false);
+            return (source, origin.source, false);
         }
         if let Some((&id, _)) = self.nominal_datatypes.iter().find(|(_, candidate)| {
             candidate.source == origin.source
                 && self.namespace_arguments_shareable(&arguments)
                 && self.namespace_arguments_equal(&arguments, &candidate.arguments)
         }) {
-            return (id, false);
+            return (source, id, false);
         }
-        let id = self.reserve_program_inductive(module);
         self.nominal_datatypes.insert(
             id,
             super::namespaces::Specialization {
@@ -1070,15 +1106,7 @@ impl CrateEnv {
                 arguments,
             },
         );
-        self.lazy_program_inductives.insert(
-            id,
-            LazyProgramInductive {
-                source,
-                substitutions,
-                remapping: RemappingId(0),
-            },
-        );
-        (id, true)
+        (source, id, true)
     }
 
     pub(crate) fn set_lazy_program_inductive_remapping(
@@ -1389,6 +1417,11 @@ impl CrateEnv {
         let id = RemappingId(self.remappings.len());
         self.remappings.push(remapping);
         id
+    }
+
+    /// Canonicalize a reserved graph before its namespace bindings are published.
+    pub(crate) fn reserved_remapping_mut(&mut self, id: RemappingId) -> &mut DeclarationRemapping {
+        &mut self.remappings[id.0]
     }
 
     pub(crate) fn remapping(&self, id: RemappingId) -> &DeclarationRemapping {

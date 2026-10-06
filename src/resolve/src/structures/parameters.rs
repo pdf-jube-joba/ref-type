@@ -1,6 +1,78 @@
 use super::*;
 
 impl Resolver {
+    pub(in crate::resolver) fn register_parameter_signature(
+        &mut self,
+        name: &Identifier,
+        parameters: &[RightBind],
+    ) {
+        if self
+            .last_inputs
+            .iter()
+            .any(|input| input.signature.is_some())
+        {
+            self.parameter_signatures.insert(
+                name.1.unwrap(),
+                ParameterSignature {
+                    parameters: parameters.to_vec(),
+                    inputs: self.last_inputs.clone(),
+                    checks: self.last_parameter_checks.clone(),
+                },
+            );
+        }
+    }
+
+    pub(in crate::resolver) fn expand_type_arguments(
+        &self,
+        parameters: &[RightBind],
+        inputs: &[Input],
+        supplied: &[SExp],
+        access: &LocalAccess,
+        locals: &[HashMap<String, Identifier>],
+    ) -> Result<(Vec<SExp>, Vec<(SExp, SExp)>), Diagnostic> {
+        // Explicit field arguments remain useful when constructing a telescope.
+        let flattened = supplied.len() == parameters.len();
+        if supplied.len() != inputs.len() {
+            if flattened {
+                return Ok((supplied.to_vec(), Vec::new()));
+            }
+            return Err(self.error(format!(
+                "structure argument count mismatch: expected {}, got {}",
+                inputs.len(),
+                supplied.len()
+            )));
+        }
+        let mut actual = Vec::new();
+        let mut checks = Vec::new();
+        let mut substitutions = HashMap::new();
+        for (input, argument) in inputs.iter().zip(supplied) {
+            let mut input = input.clone();
+            self.instantiate_input(&mut input, access);
+            for value in input.arguments.values_mut() {
+                *value = substitute(value, &substitutions);
+            }
+            let fields = if input.signature.is_some()
+                && !(flattened && self.structure_value(argument, locals)?.is_none())
+            {
+                let (fields, guards) = self.callback_arguments(&input, argument, locals)?;
+                checks.extend(guards);
+                fields
+            } else {
+                vec![if input.computation {
+                    thunk(argument.clone())
+                } else {
+                    argument.clone()
+                }]
+            };
+            for field in fields {
+                let parameter = &parameters[actual.len()];
+                substitutions.insert(parameter.vars[0].1.unwrap(), field.clone());
+                actual.push(field);
+            }
+        }
+        Ok((actual, checks))
+    }
+
     pub(in crate::resolver) fn declaration_signature(
         &self,
         ty: &SExp,
@@ -111,6 +183,7 @@ impl Resolver {
         let mut parameter_checks = Vec::new();
         let mut position = 0;
         for mut bind in std::mem::take(parameters) {
+            self.normalize_structures(&mut bind.ty, locals)?;
             if let Some((domain, result)) = self.declaration_signature(&bind.ty) {
                 for mut name in bind.vars {
                     let mut domain = domain.clone();
@@ -191,7 +264,9 @@ impl Resolver {
                         thunks: result_input.thunks,
                     });
                 }
-            } else if let Some((signature, shape, mut arguments)) = self.structure_type(&bind.ty) {
+            } else if let Some((signature, shape, mut arguments)) =
+                self.structure_type(&bind.ty, locals)?
+            {
                 for (id, mut argument) in ordered_arguments(&arguments) {
                     self.expression(&mut argument, locals)?;
                     arguments.insert(id, argument);
@@ -215,7 +290,7 @@ impl Resolver {
                     let mut thunks = HashSet::new();
                     for (field, ty, _) in &shape.fields {
                         let mut ty = substitute(ty, &values);
-                        if self.structure_type(&ty).is_some() {
+                        if self.structure_type(&ty, locals)?.is_some() {
                             let child_name = format!("{}.{}", name.0, field.0);
                             let mut nested = vec![RightBind {
                                 vars: vec![Identifier(child_name.clone())],
