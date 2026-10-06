@@ -13,7 +13,7 @@
 >  `std.Program.runBox` はマクロとして提供し、呼出側で具体化した Machine の実行を検査している。
 
 G11 は [`gaps.md`](gaps.md) から分割した項目である。
-再現例・対照例と原因は [調査報告 G11](fix-md/README.md#g11) を参照。
+最小例・対照例と検査結果は [比較サンプル G11](fix-md/README.md#g11) を参照。
 
 # Box の parameter と評価開始条件
 

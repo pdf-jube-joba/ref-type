@@ -1,16 +1,18 @@
-# 言語処理系の未対応項目
+# 言語で書きたい構成と比較例
 
-G01〜G10 はこの文書の掲載順である。
-各例の枝番・実測・原因は [調査報告と対応表](fix-md/README.md#対象文書の対応) を参照。
-分割済みの検討は [G11: Machine の実行を Box にする定義](box-parameters.md#g11) と [G12: 帰納型の再帰的な述語](fix-md/README.md#g12) に続けて採番する。
+各項目の最小例と対照例は [比較サンプル一覧](fix-md/README.md#対象文書の対応) にまとめる。
+リンク先の `.ref` は、全文を playground.md に貼り付けて単独で検査できる。
+比較する条件と現在の結果は各項目のリンク先に記載する。
+G11 の検討は [Box の parameter](box-parameters.md#g11) に分けている。
 
 <a id="g01"></a>
 
 ## G01: record eta 則
 
-[再現例・原因: G01](fix-md/README.md#g01)
+record の変数 `s` と、各フィールドを射影して再構成した record を、定義的に等しいものとして扱いたい。
 
-record に対する eta がない。 `s = { fiel1 := 2 #field }` が示せない。
+[最小比較: G01](fix-md/README.md#g01) は、変数と具体的な record に対して同じ等式を `refl` で検査する。
+変数では `types are not convertible` で失敗し、具体値では成功する。
 
 <a id="g02"></a>
 
@@ -19,10 +21,11 @@ record に対する eta がない。 `s = { fiel1 := 2 #field }` が示せない
 
 ## G02: 命題を条件とする集合値の構成
 
-[再現例・原因: G02](fix-md/README.md#g02)
-
 命題の証明を引数に取り、集合値を返す関数を書きたい。
 位相空間の正規性から得られる開集合や Urysohn 関数を、正規性の証明と閉集合の証明を引数とする集合値の関数として構成できると、存在証明を何度も展開せずに利用できる。
+
+[最小比較: G02](fix-md/README.md#g02) は、同じ証明引数と集合値について、通常の関数と contextual な定義を比較する。
+通常の関数型 `P -> A` は sort の積規則で失敗し、contextual な `choose(h: P): A` は成功する。
 
 <a id="g03"></a>
 
@@ -31,19 +34,11 @@ record に対する eta がない。 `s = { fiel1 := 2 #field }` が示せない
 
 ## G03: 宣言された型からの証明引数の推論
 
-[再現例・原因: G03](fix-md/README.md#g03)
-
 証明の引数の型を、定義の宣言された型から推論して record の射影や存在証明の消去に使いたい。
 
-```text
-\definition andElim(P, Q, R: \Prop): (P -> Q -> R) -> And[P, Q] -> R :=
-  \fun (curried: _) (value: _) => curried (value #left) (value #right);
-```
-
 対応済み。
-定義の宣言型を本体の lambda に渡し、射影や `\takefrom` の継続を処理する前に引数の型を確定する。
-複数変数を束縛する lambda、ブロック、型注釈付きの局所定義にも期待型を渡す。
-部分集合型の引数は、台集合の演算に渡しても宣言された型を保持する。
+[最小比較: G03](fix-md/README.md#g03) は、射影、存在消去の証人と継続、部分集合の元について、同じ定義の型注釈だけを `_` と明示型で切り替える。
+全例が成功する。
 
 <a id="g04"></a>
 
@@ -52,23 +47,11 @@ record に対する eta がない。 `s = { fiel1 := 2 #field }` が示せない
 
 ## G04: 定義した型名からの帰納型の操作
 
-[再現例・原因: G04](fix-md/README.md#g04)
-
 `\definition` で名前を付けた帰納型に対して、その名前で constructor の参照と帰納法を書きたい。
 
-```text
-\definition Directions: \Set := Lists.List[Coordinate];
-Directions::nil
-\induction (directions: Directions) \return P directions \with {
-  | nil : base
-  | cons : step
-}
-```
-
 対応済み。
-型の定義を展開して帰納型を特定し、constructor の参照と帰納法を構成する。
-多変数微分では `Directions::nil` と `\induction (directions: Directions)` を利用する。
-部分集合型は帰納型そのものとして扱わず、元の constructor の引数検査と消去規則を維持する。
+[最小比較: G04](fix-md/README.md#g04) は、constructor の参照名と帰納法の対象型を、それぞれ定義した名前と元の帰納型名で切り替える。
+両方成功する。
 
 <a id="g05"></a>
 
@@ -77,125 +60,70 @@ Directions::nil
 
 ## G05: モジュール引数に依存する部分集合型の商
 
-[再現例・原因: G05](fix-md/README.md#g05)
-
 区間に依存する部分集合型を、汎用の商モジュールの台集合として渡したい。
 
-```text
-\module Lebesgue(interval: Interval) {
-  \definition Representation: \Set :=
-    \Cast[Nat -> Riemann.Function] ({ sequence: Nat -> Riemann.Function \where Cauchy sequence });
-  \import std.Set[].Quotient[A := Representation, Equivalent := Equivalent] \as Q;
-  \definition Function: \Set := Q.Carrier;
-}
-```
-
-現在は区間を具体化して積分の定義を利用すると、具体化済みの `Representation` と、区間引数を受け取る元の定義が convertible と判定されない。
-積分ライブラリでは、代表列の同値類を同じモジュール内で構成している。
+[最小比較: G05](fix-md/README.md#g05) は、部分集合の条件が外側のモジュール引数に依存するかだけを変える。
+商を恒等関数に縮めた組と、商の構成を残した組があり、どちらも引数に依存する場合に失敗する。
+具体化済みの `Representation` と、具体化前の定義への参照が残る型が convertible と判定されない。
 
 <a id="g06"></a>
 
 ## G06: 具体化したモジュール内の型と座標空間
 
-[再現例・原因: G06](fix-md/README.md#g06)
+体を parameter に取るモジュールの中で有限添字型を宣言し、その型を座標空間や基底の添字に使いたい。
 
-体をパラメーターに取るモジュールの中で有限添字型を宣言し、その型を座標空間や基底の添字に使いたい。
-
-```text
-\import std.Alg[].Field[] \as Fields;
-
-\module Example(K: \Set, field: Fields.Field[K]) {
-  \import linear_algebra.Field[].Space[K := K, field := field] \as Algebra;
-  \inductive Unit: \Set := | unit: Unit;
-  \import Algebra.Coordinates[I := Unit] \as Coordinates;
-  \import Algebra.Finite[V := K, I := Unit, space := Algebra.scalarSpace] \as Finite;
-}
-```
-
-この形で基底を構成し、モジュールを実数の体に具体化してトレースを検査すると、座標空間の法則の検査で具体化済みの `Example[K := Real, field := realField].Unit` と元の `Example.Unit` が convertible と判定されない。
-線形代数の利用例では、添字型を体のパラメーターを持つモジュールの外で宣言している。
-
+[最小比較: G06](fix-md/README.md#g06) は、座標空間の操作を恒等関数に縮め、内部 import の関数を使うか、添字型を内部で宣言するかを別々に比較する。
+内部の帰納型を内部 import の関数に渡す場合に失敗する。
+具体化済みの `Outer.Unit` と元の `Outer.Unit` が convertible と判定されない。
 
 <a id="g07"></a>
 
 ## G07: 圏の signature を添字に取る Set の構造
 
-[再現例・原因: G07](fix-md/README.md#g07)
-
 対象の集合と射の集合族を持つ圏を、そのまま関手の構造の添字に使いたい。
 
-```text
-\structure Functor[C, D: Category]: \Set {
-  object: C.Object -> D.Object,
-  map: \forall (u, v: C.Object) -> C.Hom u v -> D.Hom (object u) (object v),
-}
-\definition identity(C: Category): Functor[C, C] := Functor[C, C] {
-  object := \fun (u: C.Object) => u,
-  map := \fun (u, v: C.Object) (f: C.Hom u v) => f,
-};
-```
-
-現在は、Set をフィールドに持つ signature 全体を Set の構造の添字にすると、フィールドのアクセスや sort の検査に失敗する。
-圏論ライブラリでは、対象の集合、射の集合族、演算のデータを別々の添字に持つ構造を用意し、`Functor C D` という contextual な定義でまとめている。
+[最小比較: G07](fix-md/README.md#g07) は、signature を Set のフィールド1つまで縮め、同じ構造の実引数を signature 全体と展開済みのフィールドで切り替える。
+signature 全体を渡す場合に、実引数のアクセスで失敗する。
 
 <a id="g08"></a>
 
 ## G08: contextual な定義をモジュール引数に渡す
 
-[再現例・原因: G08](fix-md/README.md#g08)
-
 証明内の型を推論させた関手の定義を、モジュール引数に直接渡したい。
 
-```text
-\import category.Kan[].Along[A := A, B := A, C := C,
-  K := Functors.identity A, F := F] \as Extension;
-```
-
-現在は contextual な定義の展開後に残る `_` が `module arguments do not allow inference holes` として拒否される。
-圏論ライブラリでは、先に `\definition identity: Functors.Functor A A := Functors.identity A;` を検査し、その名前をモジュール引数に渡している。
-
+[最小比較: G08](fix-md/README.md#g08) は、signature を取る恒等関数まで縮め、lambda の型注釈と、検査済みの定義名を渡すことの影響を別々に比較する。
+`_` を含む contextual な定義を直接渡すと `module arguments do not allow inference holes` で失敗する。
+型注釈を明示する場合と、先に型注釈付きの定義を検査してその名前を渡す場合は成功する。
 
 <a id="g09"></a>
 
 ## G09: ブロックで導入した contextual な関手の射影
 
-[再現例・原因: G09](fix-md/README.md#g09)
-
 関手を証明ブロックの中で導入し、その対象写像を使いたい。
 
-```text
-\definition component(C, D: Cat.Category):
-  \forall (F, G, H: Functors.Functor C D) -> \forall (u: C.Object) ->
-  D.Hom (F.object u) (H.object u) -> D.Hom (F.object u) (H.object u) := \block {
-    \fun (F, G, H: Functors.Functor C D) \then
-    \fun (u: C.Object) \then
-    \let Arrow: \Set := D.Hom (F.object u) (H.object u) \then
-    \fun (f: Arrow) \then
-    \return f
-  };
-```
-
-圏論の垂直合成の証明では、この形の `F.object` が `Module import 'F' was not found` になった。
-現在は関手を導入する lambda をブロックの外に置き、ブロック内では中間式と証明を定義している。
+[最小比較: G09](fix-md/README.md#g09) は、関手をフィールド1つの record に縮め、射影の記法と lambda の位置を別々に比較する。
+ブロック内で導入した変数の `x.field` は `Module import 'x' was not found` で失敗する。
+`x #field` にする場合と、lambda をブロックの外へ置く場合は成功する。
 
 <a id="g10"></a>
 
 ## G10: 集合値関手の内部で具体化した自然変換の型
 
-[再現例・原因: G10](fix-md/README.md#g10)
-
 集合値関手のモジュール内で、表現可能関手からの自然変換の型を既存のモジュールから取得したい。
 
-```text
-\module Yoneda(P: Diagram, u: C.Object) {
-  \import category.SetValued[].On[C := C].Transformations[P := hom u, Q := P] \as Maps;
-  \definition evaluate(a: Maps.Transformation): P.Carrier u := a u (C.structure.identity u);
-}
-```
+[最小比較: G10](fix-md/README.md#g10) は、自己関数を射とする圏に限定し、自然変換型を内部 import する場合と同じ型を内部で定義する場合を比較する。
+自然性と、具体化後の `evaluateFromElement` の等式は共通で、両方成功する。
+過去に報告した `Unit` と `C.Object` の不一致は、この比較では再現していない。
 
-関数の圏に具体化して `evaluateFromElement` を使うと、具体的な対象集合 `Unit` と、具体化前の `C.Object` が convertible と判定されなかった。
-現在の米田の全単射は、同じスコープ内で自然変換の部分集合型を定義している。
+<a id="g12"></a>
 
+## G12: 帰納型の再帰的な述語
+
+帰納法で命題や述語を再帰的に定義したい。
+
+対応済み。
+[最小比較: G12](fix-md/README.md#g12) は、述語族、命題、冪集合について、同じ述語の再帰定義と非再帰の定数関数を比較する。
+定義の検査と、同じ入力に対する簡約の検査が両方成功する。
 
 <a id="g13"></a>
 
@@ -203,18 +131,6 @@ Directions::nil
 
 parameter を持つ List の要素を、Set 側でも直接場合分けしたい。
 
-```text
-\module Example {
-  \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List;
-  \inductive Bool: \Set := | false: Bool | true: Bool;
-  \definition List(A: \Set)::isEmpty(xs: List[A]): Bool :=
-    \match xs \in List \return Bool \with {
-      | nil: Bool::true
-      | cons x rest: Bool::false
-    };
-}
-```
-
-2026-10-06 に修正済み。
-`\return` に指定した結果型から、具体化した帰納型の添字と要素を束縛する定数 motive を構成する。
-回帰テストは `src/elaboration/tests/parameterized_match.rs` にある。
+対応済み。
+[最小比較: G13](fix-md/README.md#g13) は、同じ要素型を使い、List 自身に parameter を持たせる場合と持たせない場合を比較する。
+constructor、結果型、match の枝は共通で、両方成功する。
