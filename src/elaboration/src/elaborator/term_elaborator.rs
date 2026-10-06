@@ -1435,7 +1435,62 @@ impl LocalScope {
                 let scrutinee = self.elab_exp_rec(scrutinee, handler)?;
                 let parameters =
                     handler.match_parameters(&mut self.typing_binds, scrutinee, inductive)?;
-                let return_type_elab = self.elab_exp_rec(return_type, handler)?;
+                let mut return_type_elab = self.elab_exp_rec(return_type, handler)?;
+                // Motive lambdas are checked by the eliminator itself: their
+                // function type need not have an ordinary product formation rule.
+                let explicit_motive = matches!(
+                    handler
+                        .arena()
+                        .get(whnf(handler.env(), handler.zonk(return_type_elab))),
+                    ExpNode::Lam { .. }
+                );
+                let constant_motive = if explicit_motive {
+                    false
+                } else {
+                    let ty = handler.infer(&mut self.typing_binds, return_type_elab)?;
+                    matches!(
+                        handler
+                            .arena()
+                            .get(type_head_normal(handler.env(), handler.zonk(ty))),
+                        ExpNode::Sort(_)
+                    )
+                };
+                if constant_motive {
+                    // A result type denotes a constant motive; explicit motive
+                    // functions retain their index and scrutinee dependencies.
+                    let arena = handler.arena();
+                    let arity = handler.env().inductive(inductive).arity(arena);
+                    let mut arity = instantiate_telescope(arena, arity, &parameters);
+                    let mut telescope = Vec::new();
+                    while let ExpNode::Prod { var, ty, body } =
+                        arena.get(type_head_normal(handler.env(), arity))
+                    {
+                        telescope.push((var, ty));
+                        arity = body;
+                    }
+                    let depth = telescope.len();
+                    let instance = arena.alloc(ExpNode::IndType {
+                        indspec: inductive,
+                        parameters: parameters
+                            .iter()
+                            .map(|&parameter| shift_bound_indices(arena, parameter, depth, 0))
+                            .collect(),
+                    });
+                    let instance = crate::raw::utils::assoc_apply(
+                        arena,
+                        instance,
+                        (0..depth)
+                            .rev()
+                            .map(|index| arena.exp_bound(index))
+                            .collect(),
+                    );
+                    telescope.push((SymbolId::ANONYMOUS, instance));
+                    return_type_elab = crate::raw::utils::assoc_lam(
+                        arena,
+                        telescope,
+                        shift_bound_indices(arena, return_type_elab, depth + 1, 0),
+                    );
+                }
                 let ordered = Self::ordered_inductive_cases(&ctor_names, branches, |case| &case.0)?;
                 let this = handler.arena().alloc(ExpNode::IndType {
                     indspec: inductive,
