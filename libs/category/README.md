@@ -26,36 +26,6 @@
 自然性と因子化の等式は、各対象と各射について量化している。
 `Kan.Along.Prop` の `leftUnique` と `rightUnique` は、同じ \(K,F\) に対する二つの拡張の間の自然同型を構成する。
 
-```text
-\import category.Category[] \as Cat;
-\import category.Functor[] \as Functors;
+[利用例](../../tests/projects/category/src/root.ref) は圏・関手・自然変換と普遍性を検査する。
 
-\module Example(A, C: Cat.Category, F: Functors.Functor A C) {
-  \definition identity: Functors.Functor A A := Functors.identity A;
-  \import category.Kan[].Along[A := A, B := A, C := C,
-    K := identity, F := F] \as Extension;
-  \import category.Kan[].Identity[A := A, C := C, F := F] \as Identity;
-  \definition left: Extension.Left := Identity.left;
-  \definition right: Extension.Right := Identity.right;
-}
-```
-
-集合値関手は `SetValued.On` の集合族として扱い、反変の場合は反対圏を使う。
-関数の圏 `Constructions.functions` は、集合で添字付けられた集合族を対象として使う。
-
-## 検査
-
-```sh
-cargo run --quiet --bin cli -- libs/category
-cargo run --quiet --bin cli -- tests/projects/category
-```
-
-ビルド時間を除いて永続キャッシュなしの検査時間を測る場合は、release 版を先にビルドする。
-
-```sh
-cargo build --release --bin cli
-time target/release/cli --no-cache libs/category
-```
-
-検査は一つずつ実行する。
-大きな失敗の調査には `REF_TYPE_COMPACT_DIAGNOSTICS=1` を設定し、エラー本体とソース位置を確認できる。
+検査方法は [ライブラリ一覧](../README.md#型検査) を参照。

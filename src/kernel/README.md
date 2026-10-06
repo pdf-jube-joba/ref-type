@@ -1,17 +1,22 @@
 # PTS kernel
 
-sort・型・項・証明は共通の `syntax::Expression` と `syntax::Node` で表す。
-`Expression` は所有する `Arena` 内の intern 済み handle であり、子の項と binder の型も同じ handle を使う。
-`Arena::get` はノードのコピー、`Arena::read` は構造操作の間も保持できる共有参照を返す。
-型規則は `check`、束縛と代入は `calculus`、簡約と評価は `reduction`、reflection は `reflection` にある。
+sort・型・項・証明を共通の `syntax::Expression` と `Node` で表す。
+`Expression` は `Arena` 内の intern 済み handle であり、子の項と binder の型も同じ arena を使う。
 
-`Context` は `Binding { var, ty }` を外側から並べた telescope とする。
-`Bound(0)` は最も内側の変数を表し、各 binding の型はそれ以前の文脈で解釈する。
-`SymbolId` は表示用の名前であり、alpha 等価性は binder の名前を除いて比較する。
-型規則は `sort::Sort` の公理と product 関係を使い、Program の型には型変数への依存条件を課す。
-論理側と Program 側の lambda・適用は `Mode` で評価規則を区別する。
+| モジュール | 担当 |
+| --- | --- |
+| [check](src/check.rs) | 型判断 |
+| [sort](src/sort.rs) | sort の公理と product 関係 |
+| [calculus](src/calculus.rs) | 束縛、shift、代入 |
+| [reduction](src/reduction.rs) | 簡約・評価・conversion |
+| [reflection](src/reflection.rs) | Program の反映 |
+| [metavariables](src/metavariables.rs) | 単一化と保留制約 |
+| [environment](src/environment.rs) | 宣言登録と検証済み環境 |
 
-## 型推論と定義
+`Context` は `Binding { var, ty }` を外側から並べた telescope で、各型は先行する文脈で解釈する。
+`Bound(0)` は最も内側の変数、`SymbolId` は表示名であり、alpha 等価性は名前に依存しない。
+
+## 型推論と登録
 
 ```rust
 use kernel::{check::Checker, environment::{Definition, Environment},
@@ -37,112 +42,41 @@ assert_eq!(Checker::new(&env, &mut metas, vec![]).infer(reference)?, ty);
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-`Checker::infer` と `Checker::check` は文脈の形成を確認し、対象・期待型・文脈に未解決メタ変数があれば `Error::Unresolved` を返す。
-`Environment::register_definition` は `MetaContext::finish` と厳密な型検査を行い、検証済みの `Definition { context, ty, body }` を定義 arena に保存する。
-登録の戻り値が `DefinitionId` であり、参照は `Node::Definition { id, arguments }` で表す。
-参照の型は宣言型への同時代入で求め、簡約時には本体へ同じ引数を代入する。
-Program 定義は反映先の定義も検査して登録する。
-
-論理 sort を domain に持つ積型は必ず論理側の型なので、適用の `Mode` 判定には domain の形成を使い、残りの関数型全体の形成を繰り返さない。
-Program の domain では積型の sort で判定する。
-
-module の parameter は、名前解決中の開いた式では `ParameterId` により参照する。
-parameter の型は登録時に検査し、完成した定義は parameter を telescope と明示的な文脈引数に閉じる。
-宣言名・source location・module の所属は elaboration が保持する。
+公開 `infer` / `check` は文脈の形成を確認し、未解決メタ変数があれば `Error::Unresolved` を返す。
+`register_definition` は `finish` と厳密な型検査後に `DefinitionId` を返す。
+定義参照は宣言型と本体に文脈引数を同時代入し、Program 定義は反映先も検査して登録する。
+module 名や source location は elaboration が保持する。
 
 `register_inductive` は arity・constructor の戻り先・sort・strict positivity を検査する。
 `register_datatype` は Program の field と parameter を検査し、Set の鏡像を登録する。
+`IndElim` は motive の telescope と本体を別に保持し、添字・要素・再帰仮定を代入して各枝を検査する。
+消去先の制限と singleton elimination は [check.rs](src/check.rs) を参照。
 
-`IndElim` は `motive_bindings` に添字と要素の telescope、`motive` にその文脈での型の本体を保持する。
-型検査の前提は \(\Gamma,\vec i:\vec I,x:D\,\vec i\vdash P:s\) であり、結果型と再帰仮定の型は本体への同時代入で構成する。
-各 domain は帰納型の arity と照合し、枝は constructor への代入結果で検査する。
-constructor の簡約では通常の引数と再帰結果を枝に渡す。
-構文の子の走査は domain ごとの先行 binder 数と本体の telescope 長を保持し、shift・代入・自由変数・conversion が同じ束縛規則を使う。
+## Refinement とメタ変数
 
-消去先は本体 `P` の sort によって決まる。
-以下の表は上から順に適用する。
+`SubsetIntro` は要素と所属証拠を検査し、refinement 型 `TypeLift` を返す。
+台集合へ弱めても所属証拠を保持する。
+`Environment::erased_head` は値の観測時に導入を透過し、conversion・適用・所属・消去が同じ値の見方を使う。
 
-| 消去元 | `P` の sort | 許可条件 |
-| --- | --- | --- |
-| `Set(i)` | `Set(j)` | \(i\le j\) |
-| 任意 | `Prop` | 許可 |
-| `Set(i)` または `PropKind` | `PropKind` | 許可 |
-| その他 | 任意 | singleton elimination |
-
-singleton elimination の条件は constructor が一つ、arity が添字を持たず、constructor の各 domain が自身の帰納型を含まないことである。
-`P := Prop` と `P := A -> Prop` は `PropKind` に分類される。
-この規則は型の族を開いた文脈で扱い、upper sort の classifier を追加しない。
-通常のラムダ・積の形成、帰納型の正値性・universe 検査はそれぞれの規則で行う。
-
-Box の閉性検査は定義参照の引数も走査する。
-
-### refinement の型検査と簡約
-
-型推論は元の項を調べ、`SubsetIntro { superset: A, subset: S, element: t, proof: h }` について \(t:A\) と \(h:\Pred(A,S,t)\) を検査し、`TypeLift(A, S)` を返す。
-期待型への検査では、推論した refinement 型から台集合への weakening を使う。
-lambda の引数型に穴がある場合は、期待される product の domain を伝えて body を検査し、最終的に解決済みの元の項を厳密に検査する。
-この段階で所属証拠と refinement 型を保持することで、後続の `\bysub` にも所属条件を渡せる。
-
-値の観測には `Environment::erased_head` を使い、頭部の `SubsetIntro` をその `element` として扱う。
-これは体系の subset intro/weak が subject を変えないことに対応する。
-conversion に加え、Set の関数適用、所属、帰納型の消去、step-match/runCase、Box の消去はこの値の見方を共有する。
-例えば集合引数が refinement で包まれていても、\(\Pred(A,\{x:B\mid P\},t)\) は \(P[x:=t]\) に簡約する。
-型注釈で台集合へ弱めた場合も、内側の refinement の導入を同じように透過する。
-`TypeLift(A, S)` 自体は型として保持され、項の注釈の消去とは区別される。
-
-## メタ変数と制約
-
-`MetaContext::fresh` は宣言文脈と期待型を保持するメタ変数を作る。
-`Node::Meta { id, arguments }` の引数列は、宣言文脈から出現文脈への代入を表す。
-メタ変数 ID は session ごとに区別し、構文ノードは不変のまま、代入を `MetaContext` に保存する。
+メタ変数は宣言文脈と期待型を持ち、出現ごとの引数列が宣言文脈からの代入を表す。
 
 | 操作 | 役割 |
 | --- | --- |
-| `infer`・`check` | 厳密な checker と共通の型規則から制約を生成する |
-| `unify` | 定義的等価性と contextual pattern の抽象化を使い、解決・保留・矛盾を返す |
-| `solve_pending` | 代入や期待型の更新後に保留した判断を再実行する |
-| `finish` | 全メタ変数と全検査義務の完了を確認し、残存があれば失敗する |
-| `zonk` | 解決済みメタ変数に文脈引数を代入する |
-| `snapshot`・`rollback` | 試行前の代入と制約を復元する |
-| `restrict` | 共有する穴の文脈を共通の接頭辞へ制限する |
+| `fresh` / `restrict` | 穴を作成 / 文脈を共通の接頭辞へ制限 |
+| `infer` / `check` / `unify` | 制約生成・単一化 |
+| `solve_pending` / `finish` | 保留判断の再実行 / 全検査義務の完了確認 |
+| `zonk` | 解決済みメタ変数の代入 |
+| `snapshot` / `rollback` | 試行前の状態を保存・復元 |
 
-occurs check は代入候補・期待型・宣言文脈を通じた循環を検出する。
-候補の型検査に追加情報が必要な場合は、その検査義務も完了条件に含める。
-`finish` は自動生成した穴と、結果の項から到達しない穴も確認する。
-reflection は未解決の Program 項を `Reflect` として保持し、代入後に簡約する。
+occurs check は候補・期待型・宣言文脈を通じた循環も検出する。
+`finish` は結果から到達しない穴も確認する。
+`_` や `?` の表面上の区別と位置情報は elaboration が管理する。
 
-`_`・番号付きの穴・`?` の名前と source location は elaboration の情報である。
-`?` も kernel の通常のメタ変数として解き、elaboration は求まった解を含むゴールを表示する。
-`?` を含む module は、ゴールの確認を求める入力として elaboration の失敗を返す。
+## 共有と調査
 
-## 共有・診断・計測
-
-束縛の走査は `Arena::map_children` に集約し、型引数・binder 注釈・証明も変換する。
-同時代入と弱頭簡約は連続する lambda の引数をまとめて処理する。
-Program の評価は computation の評価位置に従う。
-run の証明は検査と代入の対象であり、定義的等価性では証明を消去して比較する。
-
-Arena はノード作成時に自由変数の最大添字とメタ変数の有無を集計する。
-完成した項の推論・弱頭簡約・変換可能性を環境にキャッシュする。
-検査文脈の ID とメタ変数の有無は束縛の接頭辞ごとに保持し、文脈を延長したときに差分を計算する。
-変数の型はその binding から求め、文脈の移動に必要な型のシフトを再利用する。
-型検査での同時代入は、項・引数列・binder の深さをキーに部分式の結果を環境内で共有する。
-引数列は telescope として intern し、全自由変数を覆う恒等代入は元の項を返す。
-これは構文の変換結果であり、引数の型検査と期待型との比較はそれぞれの検査文脈で行う。
-未解決メタ変数を含む判断は、代入状態を参照して計算する。
-型不一致のエラーは文脈・対象・推論型・期待型と共有 Arena を保持する。
-ノード数とキャッシュ件数は環境の統計 API から取得できる。
-
-## 一時ノードと診断
-
-定義登録の検査で生じた一時ノードは、登録済み定義、メタ変数の文脈・型・代入・制約、型不一致の診断、保持中の read snapshot から到達する項を生存対象として回収する。
-回収した handle の番号は再利用せず、関連する推論・簡約・conversion キャッシュも整理する。
-定義登録中に作った一時的な文脈 ID は登録終了時に破棄し、その ID を使う推論キャッシュも破棄する。
-同時代入の引数列 ID も同じ境界で破棄し、回収した式や破棄した ID を参照する代入結果を取り除く。
-これらの共有表は直列化せず、復元した環境では再計算する。
-`cache_counts` は推論・弱頭簡約・conversion・文脈・シフトした型・同時代入の共有件数を返す。
-`reduction::first_difference` は、頭部簡約後に異なる部分項とそこへの経路を返す。
-
-メタ変数には `OriginId` を対応付けられ、`constraint_origins` で関連する由来を取得できる。
-保留制約は依存するメタ変数の型・代入を追跡し、その状態が変わると再実行する。
-永続キャッシュの fingerprint は `sema/build.rs` が kernel を含む Rust ソースから生成する。
+束縛を含む構造走査は `Arena::map_children` に集約する。
+環境は推論・弱頭簡約・conversion・文脈・型の shift・同時代入を共有し、`cache_counts` で件数を取得できる。
+定義登録で生じた一時ノードと共有表は、生存する宣言・メタ変数・診断・read snapshot を保って整理する。
+共有表は直列化せず、復元後に再計算する。
+`reduction::first_difference` は簡約後に異なる部分項とその経路を返す。
+計測方法は [利用方法](../USAGE.md#診断と計測) を参照。

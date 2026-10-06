@@ -1,37 +1,33 @@
-# Ref Type エディタ拡張
+# エディタとブラウザー
 
-`extensions/docs` は `libs/` の宣言、署名、ドキュメントコメント、ソースを探索するローカル HTML ブラウザーです。
-`cd extensions/docs && cargo run` で起動し、`http://127.0.0.1:3030/` を開きます。
-詳細は [docs/README.md](docs/README.md) を参照してください。
+| 拡張 | 起動・機能 |
+| --- | --- |
+| [docs](docs/README.md) | `cargo run -p ref-docs`。ライブラリの署名・コメント・ソースを読む |
+| [playground](playground/README.md) | `cargo run -p playground`。コードを編集して検査・評価する |
+| [VS Code](vscode/README.md) / LSP | 診断、定義への移動、ホバー、参照検索。保存前の変更も検査する |
 
-`extensions/playground` はブラウザでコードを編集し、診断と評価結果を確認する Web playground です。
-`cargo run -p playground` で起動し、表示された URL を開きます。
-詳細は [playground/README.md](playground/README.md) を参照してください。
+Cargo のコマンドはリポジトリのルートで実行する。
 
-`extensions/lsp` は `.ref` の診断、定義への移動、型のホバー表示、参照検索を提供します。
-編集中の内容を検証し、保存前の変更も診断へ反映します。
+## VS Code の開発
 
 ```sh
 cargo build -p ref-lsp
-cd extensions/vscode
-npm ci
-npm run compile
+npm ci --prefix extensions/vscode
+npm run compile --prefix extensions/vscode
+code --extensionDevelopmentPath="$PWD/extensions/vscode"
 ```
 
-リポジトリのルートから `code --extensionDevelopmentPath="$PWD/extensions/vscode"` で拡張を起動します。
-リポジトリをワークスペースとして開くと `target/debug/ref-lsp` を使います。
-別の配置では `ref-lsp` を PATH に置くか、`ref.server.path` に実行ファイルを指定します。
-`ref.toml` を含むパッケージ、または `root.ref` を起点とするモジュール群を検証します。
+リポジトリを開くと `target/debug/ref-lsp` を使う。
+別の配置では PATH または `ref.server.path` でサーバーを指定する。
+検査は `ref.toml` の package、または `root.ref` を起点にする。
 
-## VSIX の作成とインストール
+## VSIX
 
 ```sh
-cd extensions/vscode
-npm ci
-npm run package
-code --install-extension ../dist/ref-type-0.1.0-linux-x64.vsix
+npm ci --prefix extensions/vscode
+npm run package --prefix extensions/vscode
+code --install-extension extensions/dist/ref-type-0.1.0-linux-x64.vsix
 ```
 
-`npm run package` は現在の OS 向けに LSP サーバーをビルドして同梱し、`extensions/dist/` に VSIX を作成します。
-生成されるファイル名の OS と CPU の部分は実行環境に応じて変わります。
-インストール後は VS Code で `.ref` ファイルを開くと拡張が起動します。
+package は現在の OS 向けの LSP を同梱して `extensions/dist/` に VSIX を作る。
+生成されたファイル名に合わせてインストールする。

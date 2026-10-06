@@ -2,7 +2,7 @@
 
 ## 1. 役割
 
-この文書は [proof.md](../proof.md) の自然言語証明を Lean へ移すための設計だけを
+この文書は [proof.md](../../doc/book/src/props/proof.md) の自然言語証明を Lean へ移すための設計だけを
 扱う。数学的証明の本体は `proof.md` に置き、ここでは次を記す。
 
 - Lean 上の定義の形。

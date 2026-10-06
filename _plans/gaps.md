@@ -2,7 +2,7 @@
 
 G01〜G10 はこの文書の掲載順である。
 各例の枝番・実測・原因は [調査報告と対応表](fix-md/README.md#対象文書の対応) を参照。
-分割済みの検討は [G11: Machine の実行を Box にする定義](box-parameters.md#g11) と [G12: 帰納型の再帰的な述語](inductive-kind-motives.md#g12) に続けて採番する。
+分割済みの検討は [G11: Machine の実行を Box にする定義](box-parameters.md#g11) と [G12: 帰納型の再帰的な述語](fix-md/README.md#g12) に続けて採番する。
 
 <a id="g01"></a>
 
@@ -184,3 +184,25 @@ Directions::nil
 
 関数の圏に具体化して `evaluateFromElement` を使うと、具体的な対象集合 `Unit` と、具体化前の `C.Object` が convertible と判定されなかった。
 現在の米田の全単射は、同じスコープ内で自然変換の部分集合型を定義している。
+
+
+<a id="g13"></a>
+
+## G13: parameter を持つ帰納型の match
+
+parameter を持つ List の要素を、Set 側でも直接場合分けしたい。
+
+```text
+\module Example {
+  \inductive List[A: \Set]: \Set := | nil: List | cons: A -> List -> List;
+  \inductive Bool: \Set := | false: Bool | true: Bool;
+  \definition List(A: \Set)::isEmpty(xs: List[A]): Bool :=
+    \match xs \in List \return Bool \with {
+      | nil: Bool::true
+      | cons x rest: Bool::false
+    };
+}
+```
+
+2026-10-06 の CLI では構文解析後、`motive telescope length mismatch` で失敗した。
+処理系の消去項の構成・検査を調べる必要がある。

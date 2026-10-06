@@ -9,7 +9,7 @@
 ## 対象文書の対応
 
 G01〜G10 は現行の [`gaps.md`](../gaps.md) の掲載順と一致する。
-分割済みの [`box-parameters.md`](../box-parameters.md#g11) を G11、[`inductive-kind-motives.md`](../inductive-kind-motives.md#g12) を G12 として続ける。
+[`box-parameters.md`](../box-parameters.md#g11) を G11、[帰納型の再帰的な述語](#g12) を G12 として続ける。
 各例の ID は `G親番号.枝番`、ファイル名は `親番号-枝番-内容.ref` で、失敗例と対照例を同じ親番号にまとめる。
 元文書の人間のメモは保持している。
 対応データは [`catalog.json`](catalog.json) に保存する。
@@ -27,7 +27,7 @@ G01〜G10 は現行の [`gaps.md`](../gaps.md) の掲載順と一致する。
 | [G09](#g09) | [ブロックで導入した contextual な関手の射影](../gaps.md#g09) | 再現。block のローカル束縛を伴わずに射影を正規化し、名前解決で module import と解釈する。 |
 | [G10](#g10) | [集合値関手の内部で具体化した自然変換の型](../gaps.md#g10) | 現行 main では再現せず。自己完結した2例と実ライブラリの一時コピーによる確認が成功。解消コミットは未特定。 |
 | [G11](#g11) | [Machine の実行を Box にする定義](../box-parameters.md#g11) | 再現。kernel が開いた computation type を拒否する、現行仕様の閉性制限。 |
-| [G12](#g12) | [帰納型の再帰的な述語](../inductive-kind-motives.md#g12) | 修正済み。`induction` が開いた motive を直接検査し、命題・述語への再帰が成功。 |
+| [G12](#g12) | [帰納型の再帰的な述語](#g12) | 修正済み。`induction` が開いた motive を直接検査し、命題・述語への再帰が成功。 |
 
 ## 単独ファイルとしての実行条件
 
@@ -81,7 +81,7 @@ python3 _plans/fix-md/run.py --output /tmp/ref-results.json
 - **G01.01** [`01-01-record-eta.ref`](cases/01-01-record-eta.ref): `s = Record { field := s.field }` を `refl(s)` で示したい。終了1、`types are not convertible`。
 - **G01.02** [`01-02-record-eta-concrete.ref`](cases/01-02-record-eta-concrete.ref): `s` を具体的な constructor 値にした対照例。終了0。
 
-sort を持つ structure は単一 constructor の帰納型へ展開される（[言語仕様](../../doc/book/src/language/structure.md#sort-を持つ値表現)）。
+sort を持つ structure は単一 constructor の帰納型へ展開される（[言語仕様](../../doc/book/src/language/structure.md#sort-を持つ-record)）。
 [`reduction::convertible`](../../src/kernel/src/reduction.rs#L609) は beta・弱頭簡約と構文の比較を行い、変数と constructor による再構成を一致させる record eta 規則を持たない。
 変数の射影は簡約しないため、左の変数と右の constructor 適用が異なるまま残る。
 具体的な record では射影が簡約し、対照例が成功する。

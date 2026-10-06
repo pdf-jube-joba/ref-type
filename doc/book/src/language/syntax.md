@@ -3,25 +3,6 @@
 現在の `.ref` ファイルで使われている表面構文を、目的別にまとめる。
 例中の `<...>` は実際の名前や式に置き換えるメタ記号である。
 
-目的別の入口:
-
-- [字句と共通記法](#1-字句と共通記法)
-- [module](#2-module) / [宣言](#3-宣言)
-- [式の共通構文](#4-式の共通構文)
-- [Set/Prop](#5-setprop) / [Program](#6-program-cbpv)
-- [一般再帰・Run・Box](#7-一般再帰runbox) / [マクロ](#8-マクロ)
-
-目的別の入口:
-
-- [字句・名前・metavariable](#1-字句と共通記法)
-- [module と import](#2-module)
-- [宣言](#3-宣言)
-- [式の優先順位](#4-式の共通構文)
-- [Set/Prop](#5-setprop)
-- [Program](#6-program-cbpv)
-- [再帰・Box](#7-一般再帰runbox)
-- [マクロ](#8-マクロ)
-
 ## 1. 字句と共通記法
 
 ### 字句
@@ -41,8 +22,8 @@
 -> ~> <- => :=
 ```
 
-その他の記号列は一つのマクロトークンになる。別々の記号トークンを隣接させる場合は空白で
-区切る。
+その他の記号列は一つのマクロトークンになる。
+別々の記号トークンを隣接させる場合は空白で区切る。
 
 ### parameter と名前
 
@@ -97,13 +78,9 @@ Set/Prop の式には `\assign` で番号付き推論変数との等式を登録
 式の値は左辺のままで、既に解がある場合は整合性を検査する。
 `\assign` の結合順位は矢印より弱い。
 
-```ref
-\definition andAssoc (P, Q, R: \Prop):
-  PropEquiv[And[And[P, Q], R] \assign _1, And[P, And[Q, R]] \assign _2] :=
-  PropEquiv[_1, _2] {
-    lt := \fun (h: _1) => And[_, _]::# (h #left #left) (And[_, _]::# (h #left #right) (h #right)),
-    rt := \fun (h: _2) => And[_, _]::# (And[_, _]::# (h #left) (h #right #left)) (h #right #right),
-  };
+```text
+\definition Relation[A: \Set]: \PropKind := A -> A -> \Prop;
+\definition diagonal(A: \Set)(R: Relation[A] \assign _1): _1 := R;
 ```
 
 `?` がある module の elaboration は失敗し、その位置の期待型、ローカル変数、関連する制約を報告する。
@@ -125,8 +102,8 @@ Set/Prop の式には `\assign` で番号付き推論変数との等式を登録
 \module Name(parameters);
 ```
 
-`;` で終わる宣言は外部 module である。対応する `Name.ref` には外側の module 宣言を書かず、
-module item だけを置く。子 module のファイルパスは module の入れ子に対応する。
+`;` で終わる宣言は外部 module で、対応する `Name.ref` に module item を置く。
+子 module のファイルパスは module の入れ子に対応する。
 
 ### import
 
@@ -139,8 +116,8 @@ module item だけを置く。子 module のファイルパスは module の入�
 \import ExistingAlias.Child[x := value] \as Child;
 ```
 
-各 path 要素は `Name[arg := expression, ...]` で書き、parameter の個数・名前・順序を宣言と一致させる。先頭の `.` は現在の module から、パッケージ名はそのパッケージのルートから、`\parent.` は一つ上の module から探索する。
-既存 alias から child module を instance 化するときは `Alias.Child[...]` と書く。
+parameter の個数・名前・順序を宣言と一致させる。
+先頭の `.` は現在の module、パッケージ名はそのルート、`\parent.` は一つ上の module から探索する。
 module argument では metavariable の推論を行わない。
 
 ## 3. 宣言
@@ -157,13 +134,6 @@ module argument では metavariable の推論を行わない。
 `:` の左の binder を宣言文脈に追加して、結果の型と本体を検査する。
 型と本体から Set/Prop、Program value、Program computation のいずれかに分類される。
 `Type::item` は型関連 item で、owner の parameter を先頭に持つ宣言になる。
-
-Program computation の本体も、引数を追加した Program の文脈で検査する。
-
-```text
-\definition f(x: A, y: B): C := body;
-/* x: A, y: B の文脈で body: C を検査する。 */
-```
 
 ### 文脈付きの definition
 
@@ -204,89 +174,8 @@ constructor は `Type[parameters]::constructor arguments` で参照する。
 
 ### structure
 
-```text
-\structure Relation {
-  A: \Set,
-  R: A -> A -> \Prop,
-}
-\definition Equality(A: \Set): Relation := Relation {
-  A := A,
-  R := \fun(x, y: A) => x = y,
-};
-\structure Outer {
-  inner: Relation,
-  element: inner.A,
-}
-\definition related(o: Outer): \Prop := o.inner.R o.element o.element;
-```
-
-structure は宣言順に依存する field の signature を持つ。
-field は Set/Prop の型・項、Program の値型・値・計算、子の structure を保持する。
-literal は全ての required field を一度ずつ指定し、既定値を持つ field は省略できる。
-既定値とその証明は、先行 field の具体化と上書きのもとで検査される。
-
-```text
-\structure ProgramData {
-  T: \VType,
-  value: T,
-  result: \F(T) := \return value,
-}
-```
-
-名前付き定義の引数や結果にも structure の signature を指定できる。
-束の引数は field の依存文脈へ展開し、束の結果は検査済みの member の対応として保持する。
-入れ子の field は再帰的に同じ文脈へ展開する。
-計算 field は内部の thunk 引数を通じて具体化し、field アクセスは元の計算を返す。
-
-```text
-\definition select(make: \forall(A: \Set) -> Relation)(A: \Set): Relation := make A;
-\definition ForUnit: \forall(x: Unit) -> Relation := factory Unit;
-```
-
-structure を返す定義の signature は、各 field の依存する関数型へ展開する。
-定義を引数として渡す場合は、その関数型の形成と各 member の適合を検査する。
-束全体を kernel の項として使う場合は、sort を指定して通常の値表現を宣言する。
-
-関連型を含む宣言の束の存在命題は、命題への消去を表す全称量化へ展開する。
-`\exists Relation` の表現は `\forall(P: \Prop) -> (\forall(r: Relation) -> P) -> P` となり、内側の全称量化では field を順に束縛する。
-展開後の各 product 型は通常の product rule によって検査される。
-
-```text
-\definition existsRelation: \Prop := \exists(r: Relation);
-\definition witness(A: \Set): existsRelation := \exact(Equality A, Relation);
-\definition repack(e: existsRelation): existsRelation := \block {
-  \takefrom r: Relation \by e \then
-  \return \exact(r, Relation)
-};
-```
-
-`\exact` は field の適合を検査して存在証明を作る。
-`\take` と `\takefrom` は、隠した field をローカルな宣言文脈へ展開し、証人に依存しない命題を証明する。
-
-```text
-\structure Point[A: \Set]: \Set {
-  x: A,
-  y: A,
-}
-\structure EqualPair[A: \Set]: \Set {
-  first: A,
-  second: A,
-  same: first = second,
-}
-\definition pair(A: \Set)(x: A): EqualPair[A] := EqualPair[A] {
-  first := x,
-  second := x,
-  same := \refl(x),
-};
-```
-
-sort を持つ structure は単一 constructor の帰納型と projection に展開する。
-`\Set` の structure の field は型検査によって data と law に分類する。
-law を含む structure はデータの帰納型、法則の命題、法則を満たす値の refinement に展開する。
-通常の値も `p.x` で field を参照できる。
-
-structure の全称量化は field の依存する product に展開し、各 product の形成を検査する。
-通常の値表現には存在量化・等式・帰納法も適用できる。
+関連型・操作・法則をまとめる宣言の束と、sort を指定した record を扱う。
+宣言・literal・既定値・量化は [structure](structure.md)、型関連定義と射影は [型関連 item](types_and_items.md) を参照。
 
 ### 実装と仕様、状態遷移
 
@@ -645,68 +534,7 @@ Box の対象は computation type である。value を入れるときは `\F(A)
 
 ## 8. マクロ
 
-### 定義と可視性
-
-```text
-\math-macro name(pattern) := template;
-\macro name(pattern) := template;
-\use ImportAlias.macroName;
-```
-
-同じ module と親 module の可視な macro は直接使える。import した macro は `\use` で導入する。
-同名 macro を同時に可視にはできない。
-
-### pattern
-
-pattern の要素はコンマで区切る。
-
-| pattern | 捕捉するもの |
-| --- | --- |
-| $name | 通常の式一つ |
-| name | 記号または引用トークン一つ（名前付き macro） |
-| ..name | 残りの列 0 個以上（名前付き macro） |
-| \+ | 固定記号トークン |
-| "tag" | 固定引用トークン |
-| (pattern, ...) | 入れ子の列 |
-
-`..name` は各列の末尾に一つだけ置く。`->`、`~>`、`<-`、`=>`、`:=`、`|`、`:`、`;`、`.`、`,`、`=`、`!`、`::`、`^` は固定 macro token にできない。数式 macro は `$name` capture だけを使う。
-
-### 呼び出しと template
-
-```text
-\(x + y \)
-name!{x "+" y}
-name!{_ f}
-name!{{ f x } "keep"}
-```
-
-数式 macro は `\( ... \)`、名前付き macro は `name!{ ... }` で呼ぶ。名前と `!` の間に空白を入れない。呼出列の要素はコンマでなく空白または token 境界で並べる。
-
-macro 列内の `( ... )` は常に入れ子の macro 列である。通常の複合式を一つ渡すときは `{ expression }` と書く。その内部では通常の式構文を使う。
-
-template では $name が式 capture、bare name が token capture、..name が列の splice になる。
-template の自由な名前は定義側、capture した式は呼出側の scope で解決する。macro の branch
-が導入する binder は call-site の名前を捕捉しない。
-
-### token match
-
-名前付き macro の template 内だけで `\tmatch` を使える。
-
-```text
-\tmatch token {
-| \+ => expression
-| "+" => expression
-| ($head, ..tail) => expression
-| () => expression
-| _ => default
-}
-```
-
-pattern は固定記号、固定引用 token、入れ子の列、_ のいずれかである。branch は上から最初に
-一致したものを使う。空の branch 集合も書け、網羅性は要求されない。branch 内の capture はその
-branch 本体だけで有効である。
-
-名前付き macro は自分自身を呼べる。それ以外の nested macro は宣言時点で可視だったものだけを
-呼べる。macro 展開深さの上限は 128 である。
+数式マクロは `\( ... \)`、名前付きマクロは `name!{ ... }` で呼ぶ。
+定義・pattern・展開の規則は [マクロ](macro.md) を参照。
 
 実行方法と診断は [利用方法](../../../../src/USAGE.md) を参照する。

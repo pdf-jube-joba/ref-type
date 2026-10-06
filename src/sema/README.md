@@ -1,153 +1,74 @@
-# Semantic API と incremental checker
+# Semantic API とキャッシュ
 
-`sema::Database` が source snapshot から parse 結果と semantic result を計算する。
-CLI の通常チェックも同じ API を使う。
-
-| crate | 入力と結果 |
-| --- | --- |
-| `project` | ファイル・manifest・source snapshot → 読み込み済みの AST |
-| `syntax` | source text → span を持つ構文 |
-| `resolve` | AST → 名前解決と macro 展開を終えた型推論前の HIR |
-| `elaboration` | HIR → 型推論、kernel による検証、診断・統計・semantic observations |
-| `sema` | immutable な source snapshot → 依存関係、query cache、永続化できる semantic result |
-| `kernel` | 共通 PTS 項と宣言 → 型検査・単一化・登録 |
+`sema::Database` は immutable な `SourceSnapshot` から検査結果を計算する。
+CLI と LSP が同じ API を利用する。
+crate ごとの役割は [言語処理系](../../doc/book/src/language/implementation.md) を参照。
 
 ## API
 
 ```rust
-use sema::{Database, DeclarationId, ParseKind, SourceSnapshot};
+use sema::{Database, ParseKind, SourceSnapshot};
 
 let source = SourceSnapshot::read("libs/std")?;
 let mut db = Database::with_cache("libs/std/refcache");
 let checked = db.check(&source);
 assert!(checked.is_success());
 
-let id = DeclarationId {
-    module: vec!["std".into(), "Nat".into()],
-    name: "Nat".into(),
-};
-let declaration = db.declaration(&source, &id);
-
-let edited = source.with_file(
-    "libs/std/src/Data/Nat.ref",
-    std::fs::read_to_string("libs/std/src/Data/Nat.ref").unwrap(),
-);
-let parsed = db.parse(&edited, "libs/std/src/Data/Nat.ref", ParseKind::Module);
-let file = db.file(&edited, "libs/std/src/Data/Nat.ref");
+let path = "libs/std/src/Data/Nat.ref";
+let edited = source.with_file(path, std::fs::read_to_string(path)?);
+let parsed = db.parse(&edited, path, ParseKind::Module);
 ```
 
-`project` が提供する `SourceSnapshot::read` は source tree と path dependencies の内容を取り込み、以後の query はその内容を参照する。
-`with_file` と `without_file` は元の snapshot を保持したまま編集後の snapshot を作る。
-`SourceSnapshot::new` と `insert` を使うと、ファイルシステムに存在しない source も扱える。
-ファイルの identity と symlink の対応は読み込み時に固定する。
+snapshot は source tree と path dependencies の内容・ファイル identity を読み込み時に固定する。
+`with_file` / `without_file` は元の snapshot を保持して編集後の snapshot を作る。
+メモリ上だけの source は `SourceSnapshot::new` と `insert` で構築できる。
 
 | 問い合わせ | 結果 |
 | --- | --- |
-| `Database::parse` | root または外部 module の構文と parse diagnostics |
-| `Database::parse_project` | package と外部ファイルを結合した module 構文 |
-| `Database::module` / `file` | 対象 module とその依存先の semantic result |
-| `Database::declaration` | 宣言の ID、種類、位置、elaboration 後の型表示 |
-| `Database::check` | project 全体の semantic result |
-| `SemanticResult::definition_at` / `references_to` | 名前解決で確定した参照と宣言位置 |
-| `SemanticResult::type_at` | 宣言または参照位置の型表示 |
-| `SemanticResult::all_diagnostics` / `goals` | diagnostics、goal の位置・文脈・判断・制約 |
+| `Database::parse` / `parse_project` | ファイルの構文と診断 / package 全体の module 構文 |
+| `Database::module` / `file` / `check` | module / ファイル / project 全体の semantic result |
+| `Database::declaration` | 指定した宣言の情報を含む semantic result |
+| `SemanticResult::declaration` | `DeclarationId` に対応する宣言 |
+| `definition_at` / `references_to` / `type_at` | 参照先・参照箇所・表示用の型 |
+| `all_diagnostics` / `goals` / `outputs` | 診断・ゴール・query 出力 |
 
-位置はファイルの絶対パスと UTF-8 byte offset の半開区間で表す。
-宣言 ID は module path と宣言名で構成し、constructor と associated definition は `Type::member` を名前に使う。
-名前参照は解決時の source span を保持し、宣言位置は宣言全体の span を保持する。
-型と出力は module の名前を使って表示し、query ごとの arena の割り当て順から独立させる。
-module parameter、constructor、record field、associated definition も宣言として取得できる。
-同名の module が繰り返される場合、二つ目以降の semantic path に `#2`、`#3` のような出現番号を付ける。
-macro template の参照は template の定義位置に記録する。
-local binder の文脈は goal に保存する。
+位置は絶対パスと UTF-8 byte offset の半開区間で表す。
+宣言 ID は module path と宣言名からなり、constructor と型関連 item は `Type::member` を使う。
+`Verified` は kernel の検証完了、`Incomplete` は失敗時の途中結果を表す。
+詳細診断では失敗後も独立した scope を検査する。
 
-型検査が失敗した場合も、その時点までに得た宣言・参照・goal を返し、独立した scope の検査を続ける。
-`ModuleStatus::Verified` は kernel の検証を完了した結果を表し、`Incomplete` は失敗時に取得できた途中の情報を表す。
-外部 module に parse error がある場合は、その module と依存する module を保留し、独立した module の情報を返す。
+## 再利用
 
-## 再利用と依存関係
+parse cache はファイル identity・内容・解析方式、semantic cache は module とその依存関係をキーにする。
+未変更の問い合わせは同じ `Arc<SemanticResult>` を返し、失敗結果も実行中に再利用する。
+変更時には該当 module と利用者を無効化し、検査順の一致する prefix checkpoint から再開する。
+早い位置の変更や module 構成の変更では、未変更の module も再検査する場合がある。
+`clear_memory` は query・parse・環境 checkpoint の保持結果を解放する。
 
-parse cache はファイルの identity、内容、root と module の解析方式をキーにする。
-semantic cache の単位は module で、宣言の変更は所属 module を無効化する。
-依存先には親 scope、import 先とその子 module、継承した import alias、macro を公開する scope を含める。
-宣言と子 module が混在する scope は宣言順の影響もまとめて扱う。
-scope に含まれる module の追加・削除もキーに反映する。
+永続キャッシュは検証済みの semantic result を JSON、raw / kernel の共有 arena と環境を圧縮した checkpoint を `.env` に保存する。
+キーには source・依存関係・manifest・検査設定・checker の実装と toolchain の fingerprint を含める。
+破損・形式違い・読み込み失敗は再計算し、保存失敗は検証結果を変えず統計に記録する。
+サイズ上限や保存候補の選択は [environment.rs](src/environment.rs)、実装 fingerprint は [build.rs](build.rs) を参照。
 
-未変更の query は同じ `Arc<SemanticResult>` を返し、goal を含む失敗結果も実行中に再利用する。
-一部が変わった場合は、変更された module とその利用者を調べ、要求された scope を `resolve` で HIR に変換する。
-検査順の先頭から一致する最長の checkpoint を復元し、変更された module と必要な依存先の elaboration と kernel 検査を進める。
-checkpoint の identity は module の構成、解決済みの宣言・binding・import、source の位置と検査順を含む。
-早い位置の変更や module 構成の変更では、一致する区間が短くなり、未変更の依存先も再検査する場合がある。
-処理中の metavariable と constraint は宣言ごとに解放し、workspace は検査する module 群の処理後に解放する。
-`clear_memory` で query、parse、環境 checkpoint の保持結果を解放できる。
+## CLI と検証
 
-## 永続キャッシュ
-
-kernel が検証を完了した module 群から、型・参照・出力などの semantic result を JSON に保存する。
-保存対象は `ModuleResult` で、検証済みの状態、依存先、宣言位置、表示用の型、名前参照、query 出力を保持する。
-AST は実行中の parse cache に保持する。
-検証済みの batch から、raw と kernel の環境、項の arena、名前空間、具体化の対応表、semantic observations を checkpoint として保存する。
-checkpoint は postcard のバイナリを DEFLATE で圧縮した `.env` ファイルで、別の process からも検査を再開できる。
-raw と kernel の arena、および具体化の対応表は共有を保ち、source text は現在の snapshot から復元する。
-推論・簡約の一時 cache は復元先で再構築する。
-直列化の負荷を抑えるため、1 回の batch で保存する候補を検査順に分散した最大 32 箇所にする。
-単一 checkpoint は圧縮前後とも 16 MiB、暫定 checkpoint と memory cache はそれぞれ合計 64 MiB を上限とし、保持量を超えた場合は保存時点の近い checkpoint を間引いて依存先の環境も残す。
-上限を超える checkpoint の保存は `environment_skips` に計上し、通常の検査を継続する。
-キーには source の構文と位置、依存関係、package manifest、追加設定、checker の実装・依存関係・Rust toolchain・target の fingerprint を含める。
-キャッシュ保存先には `Path` を使い、名前解決・型検査へ渡す中間表現と分けて管理する。
-checker の fingerprint は build script が各 crate の Rust source、Cargo manifest、lockfile から生成する。
-
-キャッシュには payload の SHA-256 checksum を付け、一時ファイルからの rename で保存する。
-破損・形式の違い・読み込み失敗は cache miss として source から再計算する。
-保存に失敗した場合も検証結果を返し、`cache_write_failures` に件数を記録する。
-キャッシュはローカルの検査済み結果を再利用するための保存先である。
+リポジトリのルートで同じコマンドを二度実行すると、別プロセスでの再利用を確認できる。
 
 ```sh
-cargo run --release --locked --offline -- libs/std --cache-stats
-cargo run --release --locked --offline -- libs/std --cache-stats
-cargo run --release --locked --offline -- libs/std --no-cache
-cargo run --release --locked --offline -- libs/std --full-check
+cargo run -p cli --release --locked -- libs/std --cache-stats
+cargo run -p cli --release --locked -- libs/std --cache-stats
+cargo run -p cli --release --locked -- libs/std --no-cache
+cargo run -p cli --release --locked -- libs/std --full-check
 ```
 
-CLI は `libs/std` の検査結果を `libs/std/refcache/` に保存し、単独の `.ref` ファイルを指定した場合はその親ディレクトリの `refcache/` に保存する。
-`--cache-dir` で保存先を変更できる。
-`--full-check` はキャッシュを再利用せず依存先を含む全体を検証し、検証済みの結果でキャッシュを更新する。
-`--no-cache` はキャッシュの読み書きを無効にして全体を検証する。
-source tree の読み込みでは `refcache/` を除外する。
-`--parse-only` は parse と module 読み込みを行う。
-`--trace` と `--stats` は実際の検証を実行し、その処理のログと arena の統計を表示する。
-`--cache-stats` は parse 件数、再利用件数、検査する module 群の大きさ、disk cache の読み書き件数を表示する。
-`environment_hits` は復元した checkpoint 数、`restored_modules` は復元によって検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計バイト数を表す。
-`REF_TYPE_PROFILE_ENVIRONMENTS=1` は checkpoint の fingerprint、復元位置、保存サイズを stderr に表示する。
+`--no-cache` は永続キャッシュの読み書きを無効にし、`--full-check` は再検証後にキャッシュを更新する。
+保存先などの指定は [利用方法](../USAGE.md#検査とキャッシュ) を参照。
+`environment_hits` は復元した checkpoint 数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計サイズである。
 
-## 検証
+[semantic API のテスト](tests/semantic.rs) は編集、依存変更、位置情報、永続化と破損時の再構築を確認する。
+[incremental example](examples/incremental.rs) は buffer 編集後の結果と全再構築の一致も検査する。
 
 ```sh
-cargo test --workspace --locked --offline
-cargo clippy --workspace --all-targets --locked --offline -- -D warnings
+cargo test -p sema --locked
+cargo run -p sema --release --locked --example incremental -- libs/std libs/std/src/Alg/Alg.ref
 ```
-
-semantic API のテストは `tests/semantic.rs` にあり、buffer 編集、依存先・import・macro・manifest の変更、goal、source location、永続化と破損時の再構築を確認する。
-CLI の既存 fixtures と library project もこの frontend を通る。
-
-module の部分編集による再利用は、次の example で未編集・再実行・buffer 編集・全再構築を比較できる。
-
-```sh
-cargo run --release --locked --offline -p sema --example incremental -- libs/std libs/std/src/Alg/Alg.ref
-```
-
-example は編集後の incremental result と全再構築の semantic result が一致することも確認する。
-
-### 計測例
-
-2026-09-26 に release build の `libs/std` で測定した。
-別プロセスの CLI を各３回実行し、stdout の一致も確認した。
-
-| 条件 | 経過時間 | 最大 RSS | 検査対象 module 数 |
-| --- | --- | --- | --- |
-| 空の disk cache | 2.44–2.84 秒 | 約 201 MiB | 63 |
-| 別プロセスの disk cache 再利用 | 0.12–0.14 秒 | 約 55 MiB | 0 |
-
-名称変更前の `incremental` example では、初回 3.13 秒、同じ snapshot への再問い合わせ 57 ms、`Algebra/Algebra.ref` への宣言追加後 1.50 秒だった。
-編集後の全再構築は 2.98 秒で、両方の semantic result は一致した。
-編集時は 51 ファイル中１ファイルを再解析し、依存先の再構築を含む 38 module を検査した。

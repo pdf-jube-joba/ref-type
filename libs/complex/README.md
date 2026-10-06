@@ -22,24 +22,8 @@ Dedekind 実数の対として \(\mathbb{C}=\mathbb{R}\times\mathbb{R}\) を構�
 (a+bi)^{-1}=\frac{a-bi}{a^2+b^2}.
 \]
 
-`normSqNonnegative`、`normSqZero`、`normSqPositive` はそれぞれ絶対値の二乗の非負性、零ならば元も零であること、非零の元では正であることを証明する。
-`normSqMul` は積の絶対値の二乗が各絶対値の二乗の積になることを証明する。
-`inverseNonzero` は非零の元について逆数との積が一になることを示し、`Algebra.field` はこれを既存の `Alg.Field` にまとめる。
 零の逆数と零による除法は零とする。
 
-```text
-\import complex.Complex[] \as C;
-\import C.Def[] \as D;
-\import C.Prop[] \as Laws;
-\import C.Algebra[] \as Algebra;
+[利用例](../../tests/projects/library/src/ComplexExamples.ref) は演算・共役・体の構造を検査する。
 
-\definition imaginarySquare: D.mul D.i D.i = D.neg D.one := Laws.iSquared;
-\definition quotient: D.div D.i D.i = D.one := Laws.divSelf D.i Laws.iNonzero;
-```
-
-[利用例](../../tests/projects/library/src/ComplexExamples.ref)は \((1+i)^2=2i\)、\((1+i)\overline{(1+i)}=2\)、\(i/i=1\)、零による除法と体の構造からの法則の取り出しを検査する。
-
-```sh
-cargo run --quiet --bin cli -- libs/complex
-cargo run --quiet --bin cli -- tests/projects/library
-```
+検査方法は [ライブラリ一覧](../README.md#型検査) を参照。
