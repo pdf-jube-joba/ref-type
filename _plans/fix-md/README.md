@@ -15,6 +15,15 @@
 G05・G06・G07・G09 は対応済みで、比較用ケースを含む全16ケースが成功する。
 回帰テストは [gaps_g05_g09.rs](../../src/elaboration/tests/gaps_g05_g09.rs) にあり、複数フィールドの構造体、型の別名、連続した import、局所変数の shadowing と引数個数の診断も検査する。
 
+2026-10-07、`7aee112` の処理系で既存47ファイルを再検査し、43件が成功した。
+失敗する例は G01・G02・G08・G11 の各1件である。
+さらに G14 の最小比較を3ファイル追加し、宣言ヘッダ形式と型推論を組み合わせた1件の失敗、lambda 形式と型注釈を明示した2件の成功を確認した。
+
+G08・G14 も対応済みで、両項目の全6ケースが成功する。
+回帰テストは [gaps_g08_g14.rs](../../src/elaboration/tests/gaps_g08_g14.rs) にある。
+G10 は他の修正に伴って解消済みとして扱い、比較の両ケースが成功する。
+修正後の全50ファイルでは47件が成功し、G01・G02・G11 の各1件が現行の規則による失敗として残る。
+
 個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
@@ -35,13 +44,13 @@ target/debug/cli _plans/fix-md/cases/05-01-dependent-type-minimal.ref --no-cache
 | [G05](#g05) | 部分集合の条件がモジュール引数に依存するか | 対応済み。比較用ケースも成功。 |
 | [G06](#g06) | 内部の帰納型の宣言位置、内部 import の関数を使うか | 対応済み。比較用ケースも成功。 |
 | [G07](#g07) | signature 全体と展開済みのフィールドを実引数にするか | 対応済み。比較用ケースも成功。 |
-| [G08](#g08) | 展開される定義の穴、検査済みの名前を渡すか | 穴を含む定義を直接渡す場合に失敗。 |
+| [G08](#g08) | 展開される定義の穴、検査済みの名前を渡すか | 対応済み。全ケース成功。 |
 | [G09](#g09) | 射影の記法、lambda の位置 | 対応済み。比較用ケースも成功。 |
-| [G10](#g10) | 内部 import した型と同じスコープで定義した型 | 両方成功。元の失敗は再現せず。 |
+| [G10](#g10) | 内部 import した型と同じスコープで定義した型 | 他の修正に伴って解消済み。両方成功。 |
 | [G11](#g11) | Machine の引数と具体値 | 引数で失敗、具体値で成功。 |
 | [G12](#g12) | 同じ述語の再帰定義と定数関数 | 両方成功。 |
 | [G13](#g13) | 帰納型の parameter の有無 | 両方成功。 |
-| [G14](#g14) | 算術関数の引数を宣言ヘッダと lambda のどちらに置くか | ライブラリでヘッダ形式の一致性証明が失敗、lambda 形式で成功。 |
+| [G14](#g14) | 恒等関数の宣言形式と、合同則に渡す lambda の型注釈 | 対応済み。全ケース成功。 |
 
 <a id="g01"></a>
 
@@ -148,6 +157,8 @@ target/debug/cli _plans/fix-md/cases/05-01-dependent-type-minimal.ref --no-cache
 
 ## G08: contextual な定義をモジュール引数に渡す
 
+対応済み。以下は修正前の比較結果である。
+
 | 比較 | 変える条件 | 結果 |
 | --- | --- | --- |
 | [08-01-contextual-argument.ref](cases/08-01-contextual-argument.ref) / [08-02-explicit-argument.ref](cases/08-02-explicit-argument.ref) | `identity` の lambda 注釈を `_` / `C.A` にする。 | 前者は失敗、後者は成功。 |
@@ -185,8 +196,8 @@ signature を取る contextual な恒等関数まで縮め、入力の型と渡�
 
 対象集合、射、自然性、`fromElement`、具体化後の `evaluateFromElement` の等式は共通で、自然変換型を取得する場所だけを変える。
 射を対象集合上の自己関数、合成を関数合成とする圏の表現可能関手に限定し、自然性と評価の等式を検査する。
-この範囲では元の `Unit` と `C.Object` の不一致は再現しない。
-任意の集合値関手に対する元の利用例全体が修正されたかは、この比較からは判断できない。
+他の修正に伴って解消済みとして扱う。
+解消した変更は特定していないが、元の `Unit` と `C.Object` の不一致は再現しない。
 
 <a id="g11"></a>
 
@@ -233,7 +244,19 @@ Machine の型、実行、Box の型と本体は共通で、Box の型は両側�
 
 ## G14: 引数付きの算術定義を一致性証明で使う
 
+対応済み。
+修正後は最小比較の全3ケースと、算術定義12個を宣言ヘッダ形式に変えた標準ライブラリ全体が成功する。
+以下は修正前の比較結果である。
+
 比較対象は [Basic.Def](../../libs/std/src/Data/Nat/Basic/Def.ref) の算術関数と、[Parity.ProgramProp](../../libs/std/src/Data/Nat/Parity/ProgramProp.ref) の一致性証明である。
 `add`・`pred`・`isZero`・`sub`・`eqb`・`leb`・`ltb`・`mul`・`pow`・`choose`・`min`・`max` の本体を保ち、引数を宣言ヘッダに移すと `EvenProof.matches` で `occurs check failed` が発生した。
 現在の lambda 形式では成功する。
-この比較は標準ライブラリ全体で確認しており、単独の最小サンプルへの縮約は未実施である。
+2026-10-07 の再検査では、`isZero` だけを宣言ヘッダ形式に変えても同じ場所で失敗した。
+
+| 比較 | 変える条件 | 結果 |
+| --- | --- | --- |
+| [14-01-contextual-inference.ref](cases/14-01-contextual-inference.ref) / [14-02-lambda-inference.ref](cases/14-02-lambda-inference.ref) | 恒等関数を `identity(n: A): A := n` / `identity: A -> A := \fun (n: A) => n` と定義する。 | 前者は `occurs check failed`、後者は成功。 |
+| [14-01-contextual-inference.ref](cases/14-01-contextual-inference.ref) / [14-03-explicit-inference.ref](cases/14-03-explicit-inference.ref) | 合同則に渡す `\fun (f: _) => identity (f n)` の注釈を `_` / `End` にする。 | 前者は `occurs check failed`、後者は成功。 |
+
+最小比較では `End` は `A -> A` で、算術・Program・import は使わない。
+集合、恒等関数の本体、証明対象、合同則は共通である。

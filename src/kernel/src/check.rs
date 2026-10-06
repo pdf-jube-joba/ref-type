@@ -625,10 +625,33 @@ impl<'a> Checker<'a> {
                         if self.solving
                             && !self.metas.unresolved(self.arena(), [ty])?.is_empty() =>
                     {
-                        let domain = self
-                            .metas
-                            .fresh(&self.env.arena, self.context.clone(), None);
-                        let mut context = self.context.clone();
+                        // Refine a type hole in its declaration context. The
+                        // application context can contain a function whose type
+                        // is this very hole, making fresh children cyclic.
+                        let (mut context, arguments, target) =
+                            match self.arena().get(self.head(ty)?) {
+                                Node::Meta { id, arguments } => {
+                                    let context = self.metas.entry(id)?.context.clone();
+                                    let target = self.alloc(Node::Meta {
+                                        id,
+                                        arguments: (0..context.len())
+                                            .rev()
+                                            .map(|i| self.arena().bound(i))
+                                            .collect(),
+                                    });
+                                    (context, arguments, target)
+                                }
+                                _ => (
+                                    self.context.clone(),
+                                    (0..self.context.len())
+                                        .rev()
+                                        .map(|i| self.arena().bound(i))
+                                        .collect(),
+                                    ty,
+                                ),
+                            };
+                        let declaration = context.clone();
+                        let domain = self.metas.fresh(&self.env.arena, context.clone(), None);
                         context.push(Binding {
                             var: SymbolId::ANONYMOUS,
                             ty: domain,
@@ -639,8 +662,11 @@ impl<'a> Checker<'a> {
                             domain,
                             body,
                         });
-                        self.metas.unify(self.env, &self.context, ty, product)?;
-                        (domain, body)
+                        // Solve the declaration before instantiating it: an
+                        // occurrence such as ?T[x, x] is not a pattern spine.
+                        self.metas.unify(self.env, &declaration, target, product)?;
+                        let product = self.env.instantiate(product, &arguments)?;
+                        self.product(product)?
                     }
                     Err(error) => return Err(error),
                 };

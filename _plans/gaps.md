@@ -88,9 +88,10 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 
 証明内の型を推論させた関手の定義を、モジュール引数に直接渡したい。
 
-[最小比較: G08](fix-md/README.md#g08) は、signature を取る恒等関数まで縮め、lambda の型注釈と、検査済みの定義名を渡すことの影響を別々に比較する。
-`_` を含む contextual な定義を直接渡すと `module arguments do not allow inference holes` で失敗する。
-型注釈を明示する場合と、先に型注釈付きの定義を検査してその名前を渡す場合は成功する。
+対応済み。
+[最小比較: G08](fix-md/README.md#g08) の全3ケースが成功する。
+import の明示的な引数の検査を定義の展開前に行い、定義内部の型注釈の推論を妨げないようにした。
+展開した本体に定義の型注釈を保持し、渡し先の型との適合と推論の完了を検査する。
 
 <a id="g09"></a>
 
@@ -108,9 +109,9 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 
 集合値関手のモジュール内で、表現可能関手からの自然変換の型を既存のモジュールから取得したい。
 
-[最小比較: G10](fix-md/README.md#g10) は、自己関数を射とする圏に限定し、自然変換型を内部 import する場合と同じ型を内部で定義する場合を比較する。
-自然性と、具体化後の `evaluateFromElement` の等式は共通で、両方成功する。
-過去に報告した `Unit` と `C.Object` の不一致は、この比較では再現していない。
+他の修正に伴って解消済みとして扱う。
+解消した変更は特定していないが、[最小比較: G10](fix-md/README.md#g10) の両ケースが成功する。
+自然性と、具体化後の `evaluateFromElement` の等式も検査でき、過去に報告した `Unit` と `C.Object` の不一致は再現しない。
 
 <a id="g12"></a>
 
@@ -137,5 +138,10 @@ constructor、結果型、match の枝は共通で、両方成功する。
 ## G14: 引数付きの算術定義を一致性証明で使う
 
 自然数の算術関数を `\definition isZero(n: Nat^): B.Bool^ := ...` のように宣言ヘッダで引数を取る定義として書き、import 先の一致性証明でも合同則の暗黙引数を推論させたい。
-[Basic.Def](../libs/std/src/Data/Nat/Basic/Def.ref) の算術関数をこの形式に変更すると、[Parity.ProgramProp](../libs/std/src/Data/Nat/Parity/ProgramProp.ref) の `EvenProof.matches` で `occurs check failed` と暗黙 metavariable の矛盾が発生した。
-同じ関数を `\definition isZero: Nat^ -> B.Bool^ := \fun (n: Nat^) => ...` の形式で定義すると、一致性証明を含む標準ライブラリ全体の検査が成功する。
+対応済み。
+[最小比較: G14](fix-md/README.md#g14) は、算術・Program・import を除き、任意の集合の恒等関数と合同則だけに縮めた例である。
+宣言ヘッダ形式、lambda 形式、明示した型注釈の全3ケースが成功する。
+未知の関数型を product に具体化する際、引数型と戻り値型の穴を元の型の穴の宣言文脈で作り、適用位置の文脈へ代入するようにした。
+関数自身の未確定型を新しい穴の文脈へ含めてしまうことによる、誤った `occurs check failed` を解消した。
+同じ変数を繰り返して渡した場合にも、宣言文脈で型を確定してから代入することで推論を完了できる。
+[Basic.Def](../libs/std/src/Data/Nat/Basic/Def.ref) の算術定義12個を宣言ヘッダ形式に変更した一時コピーでも、[Parity.ProgramProp](../libs/std/src/Data/Nat/Parity/ProgramProp.ref) を含む標準ライブラリ全体の検査が成功する。

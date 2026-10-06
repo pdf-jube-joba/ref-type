@@ -251,6 +251,13 @@ impl Resolver {
         scopes: &mut Vec<HashMap<String, Identifier>>,
     ) -> Result<(), Diagnostic> {
         self.expand(exp)?;
+        self.expanded_expression(exp, scopes)
+    }
+    fn expanded_expression(
+        &mut self,
+        exp: &mut SExp,
+        scopes: &mut Vec<HashMap<String, Identifier>>,
+    ) -> Result<(), Diagnostic> {
         self.normalize_structures(exp, scopes)?;
         self.lexical(exp, scopes);
         self.resolve_expressions(exp)
@@ -938,7 +945,24 @@ impl Resolver {
         let mut route = Vec::new();
         for (child, arguments) in calls {
             for (_, argument) in arguments.iter_mut() {
-                self.expression(argument, &mut Vec::new())?;
+                self.expand(argument)?;
+                // Check the supplied expression before expanding definitions:
+                // their internal inference holes belong to their own bodies.
+                let mut has_meta = false;
+                macros::walk_sexp_control(argument, &mut |node| {
+                    if matches!(node, SExp::Meta { .. }) {
+                        has_meta = true;
+                        false
+                    } else {
+                        true
+                    }
+                });
+                if has_meta {
+                    return Err(
+                        self.error("module arguments do not allow inference holes (`_` or `?`)")
+                    );
+                }
+                self.expanded_expression(argument, &mut Vec::new())?;
             }
             target = *self.scopes[target.0 as usize]
                 .children

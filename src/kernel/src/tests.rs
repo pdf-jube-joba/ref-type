@@ -159,6 +159,36 @@ fn indirect_occurs_check_and_orphan_obligations() {
 }
 
 #[test]
+fn inferred_function_type_uses_its_own_context_and_dependent_codomain() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let mut metas = MetaContext::new();
+    let mut declaration = context(&env);
+    let prop = a.sort(Sort::Base(BaseSort::Prop));
+    // A : Set, P : A -> Prop; the function type is unknown here.
+    declaration.push(binding(product(a, a.bound(0), prop)));
+    let hole = metas.fresh(a, declaration.clone(), None);
+    let mut occurrence = declaration.clone();
+    occurrence.push(binding(hole));
+    occurrence.push(binding(a.bound(2)));
+    // In A, P, f : ?T[A, P], x : A, infer f x : P x.
+    let term = apply(a, Mode::Pure, a.bound(1), a.bound(0));
+    let expected = apply(a, Mode::Pure, a.bound(2), a.bound(0));
+    metas
+        .check(&env, occurrence.clone(), term, expected)
+        .unwrap();
+    metas.finish(&env).unwrap();
+    let function_type = product(a, a.bound(1), apply(a, Mode::Pure, a.bound(1), a.bound(0)));
+    assert!(
+        crate::reduction::erased_convertible(&env, metas.zonk(a, hole).unwrap(), function_type,)
+            .unwrap()
+    );
+    Checker::new(&env, &mut metas, occurrence)
+        .check(term, expected)
+        .unwrap();
+}
+
+#[test]
 fn instantiation_visits_proof_operands_and_every_branch() {
     let env = Environment::new();
     let mut metas = MetaContext::new();

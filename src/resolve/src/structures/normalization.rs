@@ -485,9 +485,18 @@ impl Resolver {
                             ty: Box::new(substitute(&bind.ty, &substitutions)),
                         })
                         .collect();
-                    let body = substitute(&definition.body, &substitutions);
+                    let mut body = substitute(&definition.body, &substitutions);
                     let ty = substitute(&definition.ty, &substitutions);
-                    checks.push((body.clone(), ty));
+                    if matches!(ty, SExp::ValueType) {
+                        checks.push((body.clone(), ty));
+                    } else {
+                        // Keep the declared type on the returned expression;
+                        // checking a separate copy would infer its holes again.
+                        body = SExp::Ascribe {
+                            term: Box::new(body),
+                            ty: Box::new(ty),
+                        };
+                    }
                     let reflected = match access {
                         LocalAccess::Current { access, .. }
                         | LocalAccess::Resolved { access, .. } => access.as_str().ends_with('^'),
