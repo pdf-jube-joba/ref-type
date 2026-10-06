@@ -149,13 +149,7 @@ extend_enum!(ModuleItem {
     UseMacro { import_name, macro_name },
     Eval { exp },
     Normalize { exp },
-    ComputationEval { exp },
-    ComputationNormalize { exp },
     ValueTypeCheck { ty },
-    ValueCheck { exp, ty },
-    ComputationCheck { exp, ty },
-    ValueInfer { exp },
-    ComputationInfer { exp },
     Check { exp, ty },
     Infer { exp },
 } special {

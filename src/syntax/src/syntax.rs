@@ -198,28 +198,8 @@ pub enum ModuleItem {
     Normalize {
         exp: SExp,
     },
-    ComputationEval {
-        exp: ComputationTermExp,
-    },
-    ComputationNormalize {
-        exp: ComputationTermExp,
-    },
     ValueTypeCheck {
         ty: ValueTypeExp,
-    },
-    ValueCheck {
-        exp: ValueTermExp,
-        ty: ValueTypeExp,
-    },
-    ComputationCheck {
-        exp: ComputationTermExp,
-        ty: ComputationTypeExp,
-    },
-    ValueInfer {
-        exp: ValueTermExp,
-    },
-    ComputationInfer {
-        exp: ComputationTermExp,
     },
     Check {
         exp: SExp,
@@ -278,9 +258,8 @@ pub struct RightBind {
     pub ty: Box<SExp>,
 }
 
-/// Surface Program syntax is split into the same four categories as the
-/// kernel.  Parsing a category-specific declaration performs this
-/// classification before elaboration.
+/// Program expression views mirror the kernel's four syntactic categories.
+/// Shared queries retain `SExp` until elaboration selects a judgement.
 #[derive(Debug, Clone)]
 pub enum ValueTypeExp {
     Deferred {

@@ -1,7 +1,218 @@
 //! Elaborate, certify, and evaluate interactive queries.
 use super::*;
+use crate::raw::program::{ProgramTerm, ProgramType};
+use program_term_elaborator::ProgramScope;
+
+struct ProgramQuery {
+    scope: ProgramScope,
+    term: ProgramTerm,
+    expected: Option<ProgramType>,
+}
 
 impl GlobalEnvironment {
+    fn elaborate_program_query(
+        &mut self,
+        exp: &SExp,
+        expected: Option<&SExp>,
+        computations_only: bool,
+    ) -> Result<ProgramQuery, Vec<ElaborationError>> {
+        let mut errors = Vec::new();
+        // As in definitions, a bare CBV lambda/arrow denotes a computation.
+        // Explicit thunks and value types select the value judgement.
+        for computation in [true, false] {
+            if !computation && computations_only {
+                break;
+            }
+            self.metavariables.clear();
+            let attempt = (|| -> Result<ProgramQuery, ElaborationError> {
+                let mut scope = ProgramScope::new();
+                let (term, expected) = if computation {
+                    let expected = expected
+                        .map(|ty| {
+                            let ty = ComputationTypeExp::try_from(ty.clone())?;
+                            scope
+                                .elaborate_computation_type(&ty, self)
+                                .map(ProgramType::ComputationType)
+                        })
+                        .transpose()?;
+                    let exp = ComputationTermExp::try_from(exp.clone())?;
+                    let term = scope.elaborate_computation(&exp, self)?;
+                    (ProgramTerm::ComputationTerm(term), expected)
+                } else {
+                    let expected = expected
+                        .map(|ty| {
+                            let ty = ValueTypeExp::try_from(ty.clone())?;
+                            scope
+                                .elaborate_value_type(&ty, self)
+                                .map(ProgramType::ValueType)
+                        })
+                        .transpose()?;
+                    let exp = ValueTermExp::try_from(exp.clone())?;
+                    let term = scope.elaborate_value(&exp, self)?;
+                    (ProgramTerm::ValueTerm(term), expected)
+                };
+                Ok(ProgramQuery {
+                    scope,
+                    term,
+                    expected,
+                })
+            })();
+            match attempt {
+                Ok(query) => return Ok(query),
+                Err(error) => errors.push(error),
+            }
+        }
+        self.metavariables.clear();
+        Err(errors)
+    }
+
+    fn program_type_query(&mut self, query: ProgramQuery) -> Result<(), ElaborationError> {
+        let ProgramQuery {
+            mut scope,
+            term,
+            expected,
+        } = query;
+        let (term, ty, output) = match (term, expected) {
+            (ProgramTerm::ValueTerm(value), expected) => {
+                let (value, ty) = match expected {
+                    Some(ProgramType::ValueType(ty)) => {
+                        scope.check_value_term_with_metas(self, value, ty)?
+                    }
+                    None => scope.infer_value_term_with_metas(self, value)?,
+                    _ => unreachable!("query type and term categories agree"),
+                };
+                (
+                    ProgramTerm::ValueTerm(value),
+                    ProgramType::ValueType(ty),
+                    Output::ValueType(ty),
+                )
+            }
+            (ProgramTerm::ComputationTerm(computation), expected) => {
+                let (computation, ty) = match expected {
+                    Some(ProgramType::ComputationType(ty)) => {
+                        scope.check_computation_term_with_metas(self, computation, ty)?
+                    }
+                    None => scope.infer_computation_term_with_metas(self, computation)?,
+                    _ => unreachable!("query type and term categories agree"),
+                };
+                (
+                    ProgramTerm::ComputationTerm(computation),
+                    ProgramType::ComputationType(ty),
+                    Output::ComputationType(ty),
+                )
+            }
+        };
+        self.certify_program_query(scope.context(), term, ty)?;
+        self.outputs.push(output);
+        Ok(())
+    }
+
+    pub(super) fn check_query(
+        &mut self,
+        exp: &SExp,
+        ty: &SExp,
+        ctx: &mut ExpContext,
+    ) -> Result<(), ElaborationError> {
+        match self.elaborate_program_query(exp, Some(ty), false) {
+            Ok(query) => self.program_type_query(query),
+            Err(mut errors) => self.pts_check_query(exp, ty, ctx).map_err(|error| {
+                errors.insert(0, error);
+                ElaborationError::alternatives(errors)
+            }),
+        }
+    }
+
+    pub(super) fn infer_query(
+        &mut self,
+        exp: &SExp,
+        ctx: &mut ExpContext,
+    ) -> Result<(), ElaborationError> {
+        match self.elaborate_program_query(exp, None, false) {
+            Ok(query) => self.program_type_query(query),
+            Err(mut errors) => self.pts_infer_query(exp, ctx).map_err(|error| {
+                errors.insert(0, error);
+                ElaborationError::alternatives(errors)
+            }),
+        }
+    }
+
+    fn evaluation_query(
+        &mut self,
+        exp: &SExp,
+        ctx: &mut ExpContext,
+        normalize: bool,
+    ) -> Result<(), ElaborationError> {
+        match self.elaborate_program_query(exp, None, true) {
+            Ok(ProgramQuery {
+                mut scope,
+                term: ProgramTerm::ComputationTerm(mut computation),
+                ..
+            }) => {
+                // Raw evaluation permits stuck non-recursive syntax. Runs and
+                // inference holes require checking before evaluation.
+                if scope.query_requires_checking() {
+                    let (checked, ty) =
+                        scope.infer_computation_term_with_metas(self, computation)?;
+                    self.certify_program_query(
+                        scope.context(),
+                        ProgramTerm::ComputationTerm(checked),
+                        ProgramType::ComputationType(ty),
+                    )?;
+                    computation = checked;
+                }
+                let output = if normalize {
+                    match crate::raw::program_calculus::evaluate_computation(
+                        &self.crate_env,
+                        computation,
+                    ) {
+                        crate::raw::program_calculus::Evaluation::Normal(result) => {
+                            Output::ComputationTerm(result)
+                        }
+                        crate::raw::program_calculus::Evaluation::OutOfFuel(result) => {
+                            Output::OutOfFuel(result)
+                        }
+                    }
+                } else {
+                    let reduced = crate::raw::program_calculus::reduce_computation_once(
+                        &self.crate_env,
+                        computation,
+                    );
+                    Output::ComputationTerm(reduced.unwrap_or(computation))
+                };
+                self.outputs.push(output);
+                Ok(())
+            }
+            Ok(_) => unreachable!("evaluation elaborates computations only"),
+            Err(mut errors) => {
+                let result = if normalize {
+                    self.pts_normalize_query(exp, ctx)
+                } else {
+                    self.pts_eval_query(exp, ctx)
+                };
+                result.map_err(|error| {
+                    errors.insert(0, error);
+                    ElaborationError::alternatives(errors)
+                })
+            }
+        }
+    }
+
+    pub(super) fn eval_query(
+        &mut self,
+        exp: &SExp,
+        ctx: &mut ExpContext,
+    ) -> Result<(), ElaborationError> {
+        self.evaluation_query(exp, ctx, false)
+    }
+
+    pub(super) fn normalize_query(
+        &mut self,
+        exp: &SExp,
+        ctx: &mut ExpContext,
+    ) -> Result<(), ElaborationError> {
+        self.evaluation_query(exp, ctx, true)
+    }
+
     fn elaborate_query_term(
         &mut self,
         exp: &SExp,
@@ -20,26 +231,6 @@ impl GlobalEnvironment {
         Ok(self.metavariables.zonk(&self.crate_env, exp_elab))
     }
 
-    fn elaborate_query_computation(
-        &mut self,
-        exp: &ComputationTermExp,
-    ) -> Result<crate::raw::program::ComputationTerm, ElaborationError> {
-        let mut scope = program_term_elaborator::ProgramScope::new();
-        let computation = scope.elaborate_computation(exp, self)?;
-        // Raw evaluation still permits stuck non-recursive syntax. Explicit
-        // runs must have their proofs checked before any evaluation takes place.
-        if !scope.query_requires_checking() {
-            return Ok(computation);
-        }
-        let (computation, ty) = scope.infer_computation_term_with_metas(self, computation)?;
-        self.certify_program_query(
-            scope.context(),
-            crate::raw::program::ProgramTerm::ComputationTerm(computation),
-            crate::raw::program::ProgramType::ComputationType(ty),
-        )?;
-        Ok(computation)
-    }
-
     fn certify_query(&mut self, context: &ExpContext, term: Exp, ty: Exp) -> Result<(), String> {
         crate::lowering::Lowerer::new(&self.crate_env, &mut self.crate_env.kernel.borrow_mut())
             .check_query(context, self.module_manager.current(), term, ty)
@@ -55,11 +246,7 @@ impl GlobalEnvironment {
             .check_program_query(context, term, ty)
     }
 
-    pub(super) fn eval_query(
-        &mut self,
-        exp: &SExp,
-        ctx: &mut ExpContext,
-    ) -> Result<(), ElaborationError> {
+    fn pts_eval_query(&mut self, exp: &SExp, ctx: &mut ExpContext) -> Result<(), ElaborationError> {
         let exp_elab = self.elaborate_query_term(exp, ctx)?;
         self.outputs.push(Output::Exp(
             crate::raw::calculus::reduce_one(&self.crate_env, exp_elab).unwrap_or(exp_elab),
@@ -67,7 +254,7 @@ impl GlobalEnvironment {
         Ok(())
     }
 
-    pub(super) fn normalize_query(
+    fn pts_normalize_query(
         &mut self,
         exp: &SExp,
         ctx: &mut ExpContext,
@@ -81,110 +268,7 @@ impl GlobalEnvironment {
         Ok(())
     }
 
-    pub(super) fn computation_eval_query(
-        &mut self,
-        exp: &ComputationTermExp,
-    ) -> Result<(), ElaborationError> {
-        let computation = self.elaborate_query_computation(exp)?;
-        let reduced =
-            crate::raw::program_calculus::reduce_computation_once(&self.crate_env, computation);
-        self.outputs
-            .push(Output::ComputationTerm(reduced.unwrap_or(computation)));
-        Ok(())
-    }
-
-    pub(super) fn computation_normalize_query(
-        &mut self,
-        exp: &ComputationTermExp,
-    ) -> Result<(), ElaborationError> {
-        let computation = self.elaborate_query_computation(exp)?;
-        self.outputs.push(
-            match crate::raw::program_calculus::evaluate_computation(&self.crate_env, computation) {
-                crate::raw::program_calculus::Evaluation::Normal(result) => {
-                    Output::ComputationTerm(result)
-                }
-                crate::raw::program_calculus::Evaluation::OutOfFuel(result) => {
-                    Output::OutOfFuel(result)
-                }
-            },
-        );
-        Ok(())
-    }
-
-    pub(super) fn value_check_query(
-        &mut self,
-        exp: &ValueTermExp,
-        ty: &ValueTypeExp,
-    ) -> Result<(), ElaborationError> {
-        let mut scope = program_term_elaborator::ProgramScope::new();
-        let ty = scope.elaborate_value_type(ty, self)?;
-        let value = scope.elaborate_value(exp, self)?;
-        let (value, ty) = scope.check_value_term_with_metas(self, value, ty)?;
-        let mut context = scope.context().clone();
-        ProgramCheckSession::new(&self.crate_env, &mut context)
-            .check_value_term(value, ty)
-            .map_err(|error| format!("Program value check failed: {error}"))?;
-        self.certify_program_query(
-            scope.context(),
-            crate::raw::program::ProgramTerm::ValueTerm(value),
-            crate::raw::program::ProgramType::ValueType(ty),
-        )?;
-        self.outputs.push(Output::ValueType(ty));
-        Ok(())
-    }
-
-    pub(super) fn computation_check_query(
-        &mut self,
-        exp: &ComputationTermExp,
-        ty: &ComputationTypeExp,
-    ) -> Result<(), ElaborationError> {
-        let mut scope = program_term_elaborator::ProgramScope::new();
-        let ty = scope.elaborate_computation_type(ty, self)?;
-        let computation = scope.elaborate_computation(exp, self)?;
-        let (computation, ty) = scope.check_computation_term_with_metas(self, computation, ty)?;
-        let mut context = scope.context().clone();
-        ProgramCheckSession::new(&self.crate_env, &mut context)
-            .check_computation_term(computation, ty)
-            .map_err(|error| format!("Program computation check failed: {error}"))?;
-        self.certify_program_query(
-            scope.context(),
-            crate::raw::program::ProgramTerm::ComputationTerm(computation),
-            crate::raw::program::ProgramType::ComputationType(ty),
-        )?;
-        self.outputs.push(Output::ComputationType(ty));
-        Ok(())
-    }
-
-    pub(super) fn value_infer_query(&mut self, exp: &ValueTermExp) -> Result<(), ElaborationError> {
-        let mut scope = program_term_elaborator::ProgramScope::new();
-        let value = scope.elaborate_value(exp, self)?;
-        let (value, ty) = scope.infer_value_term_with_metas(self, value)?;
-        self.certify_program_query(
-            scope.context(),
-            crate::raw::program::ProgramTerm::ValueTerm(value),
-            crate::raw::program::ProgramType::ValueType(ty),
-        )?;
-        self.outputs.push(Output::ValueType(ty));
-        Ok(())
-    }
-
-    pub(super) fn computation_infer_query(
-        &mut self,
-        exp: &ComputationTermExp,
-    ) -> Result<(), ElaborationError> {
-        let mut scope = program_term_elaborator::ProgramScope::new();
-        let computation = scope.elaborate_computation(exp, self)?;
-        let (computation, ty) = scope.infer_computation_term_with_metas(self, computation)?;
-        self.certify_program_query(
-            scope.context(),
-            crate::raw::program::ProgramTerm::ComputationTerm(computation),
-            crate::raw::program::ProgramType::ComputationType(ty),
-        )?;
-        self.outputs.push(Output::ComputationType(ty));
-        Ok(())
-    }
-
-    pub(super) fn check_query(
+    fn pts_check_query(
         &mut self,
         exp: &SExp,
         ty: &SExp,
@@ -214,7 +298,7 @@ impl GlobalEnvironment {
         Ok(())
     }
 
-    pub(super) fn infer_query(
+    fn pts_infer_query(
         &mut self,
         exp: &SExp,
         ctx: &mut ExpContext,
@@ -232,5 +316,62 @@ impl GlobalEnvironment {
             Err(error) => Output::Message(format!("infer failed: {error}")),
         });
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ::syntax::parse;
+
+    #[test]
+    fn unified_queries_dispatch_by_type_and_term() {
+        let source = r#"
+            \module Queries(A: \VType, x: A) {
+                \inductive Unit: \Set := | unit: Unit;
+                \definition logical: Unit := Unit::unit;
+                \check logical: Unit;
+                \infer logical;
+                \eval logical;
+                \normalize logical;
+
+                \definition value: A := x;
+                \definition computation: \F(A) := \return x;
+                \check value: A;
+                \infer value;
+                \check computation: \F(A);
+                \infer computation;
+                \eval computation;
+                \normalize computation;
+            }
+        "#;
+        let modules = parse::str_parse_modules(source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        environment.add_new_module_to_root(&modules[0]).unwrap();
+        use crate::output::Output;
+        assert!(matches!(
+            environment.outputs.as_slice(),
+            [
+                Output::Exp(_),
+                Output::Exp(_),
+                Output::Exp(_),
+                Output::Exp(_),
+                Output::ValueType(_),
+                Output::ValueType(_),
+                Output::ComputationType(_),
+                Output::ComputationType(_),
+                Output::ComputationTerm(_),
+                Output::ComputationTerm(_),
+            ]
+        ));
+        for output in &environment.outputs[8..] {
+            let Output::ComputationTerm(term) = output else {
+                unreachable!()
+            };
+            assert!(matches!(
+                environment.crate_env.arena().get(*term),
+                crate::raw::program::ComputationTermNode::Return { .. }
+            ));
+        }
     }
 }

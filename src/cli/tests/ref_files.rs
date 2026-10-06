@@ -540,9 +540,9 @@ fn external_program_module_parameters_are_instantiated_in_nested_modules() {
   \inductive Unit: \VType := | unit: Unit;
   \import \root.Source[X := Unit, x := Unit::unit] \as S;
   \import \root.Source[X := Unit, x := Unit::unit].Child[] \as C;
-  \vcheck S.value: Unit;
-  \ccheck S.result: \F(Unit);
-  \vcheck C.value: Unit;
+  \check S.value: Unit;
+  \check S.result: \F(Unit);
+  \check C.value: Unit;
   \definition package: \Box[\F(Unit)] := \box[\F(Unit)](\return(C.value));
   \normalize \squash[\F(Unit)](package);
 }

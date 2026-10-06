@@ -212,24 +212,21 @@ runBox!{machine}
 
 ### check と評価
 
-Set/Prop:
+Set/Prop と Program に共通の文を使う。
+`\check` は指定された型、`\infer`・`\eval`・`\normalize` は式と参照先に応じて処理する。
 
 ```text
 \check expression: type;
 \infer expression;
 \eval expression;
 \normalize expression;
-```
 
-Program:
-
-```text
-\vcheck value: value-type;
-\vinfer value;
-\ccheck computation: computation-type;
-\cinfer computation;
-\ceval computation;
-\cnormalize computation;
+\check value: value-type;
+\infer value;
+\check computation: computation-type;
+\infer computation;
+\eval computation;
+\normalize computation;
 ```
 
 ## 4. 式の共通構文

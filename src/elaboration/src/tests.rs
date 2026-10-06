@@ -394,8 +394,8 @@ fn child_bindings_share_types_and_inherit_parent_substitutions() {
             \import C1.Grandchild[] \as G;
             \definition inherited1: P.Token := C1.inherited;
             \definition inherited2: P.Token := C2.inherited;
-            \vcheck C1.program_inherited: P.PToken;
-            \vcheck C1.inherited_x: Unit;
+            \check C1.program_inherited: P.PToken;
+            \check C1.inherited_x: Unit;
             \definition grandparent_value: P.Token := G.parent_value;
             \definition parent_value: C1.Local := G.child_value;
         }
@@ -488,7 +488,7 @@ fn nested_namespaces_follow_module_dependency_order() {
         \module Consumer {
             \import \root.Parent[] \as P;
             \import P.Operation[].Derived[] \as D;
-            \vcheck D.zero: P.Nat;
+            \check D.zero: P.Nat;
             \definition zeroMatches: D.zero^ = P.Nat^::zero := \refl(P.Nat^::zero);
         }
     "#;
@@ -993,24 +993,6 @@ fn squash_and_box_infer_implicit_program_types() {
 }
 
 #[test]
-fn program_value_and_computation_commands_are_separate() {
-    let source = r#"
-            \module ProgramTypeMeta(A: \VType, x: A) {
-                \definition value: A := x;
-                \definition computation: \F(A) := \return(x);
-                \ceval computation;
-            \vinfer value;
-            \cinfer computation;
-            \vcheck value: A;
-            \ccheck computation: \F(A);
-        }
-    "#;
-    let modules = parse::str_parse_modules(source).unwrap();
-    let mut environment = GlobalEnvironment::default();
-    environment.add_new_module_to_root(&modules[0]).unwrap();
-}
-
-#[test]
 fn module_parameter_hole_uses_the_same_structured_ambiguity() {
     let modules = parse::str_parse_modules(r#"\module Pending(A: _) {}"#).unwrap();
     let mut environment = GlobalEnvironment::default();
@@ -1283,7 +1265,7 @@ fn general_recursion_surface_typechecks_and_normalizes() {
                 }) (f^ s) -> P s) -> P a^)
         ) {
             \definition result: \F(B) := \run[A, B](f, a) \by { termination };
-            \cnormalize \run[A, B](f, a) \by { termination };
+            \normalize \run[A, B](f, a) \by { termination };
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1307,7 +1289,7 @@ fn program_value_let_solves_and_zonks_type_annotations() {
         \module AnnotatedLet(A: \VType, a: A) {
             \definition identity: \F(A) := (\let x: _ := a \in \return(x));
             \definition nested: \F(A) := (\let x: A := a \in (\let y: _ := x \in \return(y)));
-            \cinfer (\let x: _ := a \in \return(x));
+            \infer (\let x: _ := a \in \return(x));
         }
     "#,
     )
@@ -1676,7 +1658,7 @@ fn program_proofs_follow_local_binders_and_module_instantiation() {
               }) (f^ s) -> P s) -> P s), a: A) {
           \import \root.Generic[A := A, step := f, total := p] \as G;
           \definition result: \F(A) := G.runCase a;
-          \cnormalize result;
+          \normalize result;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -2424,8 +2406,8 @@ fn ascription_supports_program_values_computations_and_reflection() {
             \definition thunk: \U(A ~> \F A) := \thunk identity;
             \definition forced: \F A := \force (thunk \of \U(A ~> \F A)) a;
             \definition reflected: value^ = a^ := \refl(a^);
-            \ccheck computation: \F A;
-            \vcheck a \of A: A;
+            \check computation: \F A;
+            \check a \of A: A;
         }
         \module ProgramUse {
             \inductive Bool: \VType := | yes: Bool;

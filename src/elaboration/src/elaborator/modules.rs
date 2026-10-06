@@ -889,8 +889,6 @@ impl GlobalEnvironment {
             | ModuleItem::UseMacro { .. } => {}
             ModuleItem::Eval { exp } => self.eval_query(exp, &mut ctx)?,
             ModuleItem::Normalize { exp } => self.normalize_query(exp, &mut ctx)?,
-            ModuleItem::ComputationEval { exp } => self.computation_eval_query(exp)?,
-            ModuleItem::ComputationNormalize { exp } => self.computation_normalize_query(exp)?,
             ModuleItem::MemberCheck { value, ty } => {
                 let mut scope = program_term_elaborator::ProgramScope::new();
                 scope.check_member(value, ty, self)?;
@@ -904,10 +902,6 @@ impl GlobalEnvironment {
                     .check_value_type(ty)
                     .map_err(|error| error.to_string())?;
             }
-            ModuleItem::ValueCheck { exp, ty } => self.value_check_query(exp, ty)?,
-            ModuleItem::ComputationCheck { exp, ty } => self.computation_check_query(exp, ty)?,
-            ModuleItem::ValueInfer { exp } => self.value_infer_query(exp)?,
-            ModuleItem::ComputationInfer { exp } => self.computation_infer_query(exp)?,
             ModuleItem::Check { exp, ty } => self.check_query(exp, ty, &mut ctx)?,
             ModuleItem::Infer { exp } => self.infer_query(exp, &mut ctx)?,
         }

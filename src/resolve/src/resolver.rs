@@ -621,23 +621,11 @@ impl Resolver {
                 self.expression(exp, &mut locals)?;
                 self.expression(ty, &mut locals)?;
             }
-            ModuleItem::ComputationEval { exp }
-            | ModuleItem::ComputationNormalize { exp }
-            | ModuleItem::ComputationInfer { exp } => self.computation(exp, &mut locals)?,
-            ModuleItem::ValueInfer { exp } => self.value(exp, &mut locals)?,
             ModuleItem::MemberCheck { value, ty } => {
                 self.expression(value, &mut locals)?;
                 self.expression(ty, &mut locals)?;
             }
             ModuleItem::ValueTypeCheck { ty } => self.value_type(ty, &mut locals)?,
-            ModuleItem::ValueCheck { exp, ty } => {
-                self.value(exp, &mut locals)?;
-                self.value_type(ty, &mut locals)?;
-            }
-            ModuleItem::ComputationCheck { exp, ty } => {
-                self.computation(exp, &mut locals)?;
-                self.computation_type(ty, &mut locals)?;
-            }
         }
         Ok(())
     }
@@ -1150,39 +1138,9 @@ impl Resolver {
 }
 
 impl Resolver {
-    fn value(
-        &mut self,
-        value: &mut ValueTermExp,
-        locals: &mut Vec<HashMap<String, Identifier>>,
-    ) -> Result<(), Diagnostic> {
-        let mut expression: SExp = value.clone().into();
-        self.expression(&mut expression, locals)?;
-        *value = expression.try_into().map_err(|e| self.error(e))?;
-        Ok(())
-    }
-    fn computation(
-        &mut self,
-        value: &mut ComputationTermExp,
-        locals: &mut Vec<HashMap<String, Identifier>>,
-    ) -> Result<(), Diagnostic> {
-        let mut expression: SExp = value.clone().into();
-        self.expression(&mut expression, locals)?;
-        *value = expression.try_into().map_err(|e| self.error(e))?;
-        Ok(())
-    }
     fn value_type(
         &mut self,
         value: &mut ValueTypeExp,
-        locals: &mut Vec<HashMap<String, Identifier>>,
-    ) -> Result<(), Diagnostic> {
-        let mut expression: SExp = value.clone().into();
-        self.expression(&mut expression, locals)?;
-        *value = expression.try_into().map_err(|e| self.error(e))?;
-        Ok(())
-    }
-    fn computation_type(
-        &mut self,
-        value: &mut ComputationTypeExp,
         locals: &mut Vec<HashMap<String, Identifier>>,
     ) -> Result<(), Diagnostic> {
         let mut expression: SExp = value.clone().into();
