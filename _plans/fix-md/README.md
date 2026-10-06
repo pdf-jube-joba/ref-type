@@ -9,6 +9,9 @@
 構文解析は全件成功し、型検査は34件成功、9件が下記の診断で失敗した。
 修正済みの項目は両側が成功する比較として残している。
 
+名前処理の追加調査で、G05・G06 の外側の引数を渡す比較と、G09 の `\let` による射影の比較を4ファイル追加した。
+追加分は3件成功し、`09-04-block-let.ref` は `Module import 'y' was not found` で失敗する。
+
 個別に CLI で確認する場合は、リポジトリのルートで実行する。
 
 ```sh
@@ -97,8 +100,9 @@ target/debug/cli _plans/fix-md/cases/05-01-dependent-type-minimal.ref --no-cache
 | --- | --- | --- |
 | [05-01-dependent-type-minimal.ref](cases/05-01-dependent-type-minimal.ref) / [05-02-independent-type.ref](cases/05-02-independent-type.ref) | `Representation` の条件を `x = u` / `x = x` にする。 | 前者は失敗、後者は成功。 |
 | [05-03-dependent-quotient.ref](cases/05-03-dependent-quotient.ref) / [05-04-independent-quotient.ref](cases/05-04-independent-quotient.ref) | `Representation` の条件を `x = interval` / `x = x` にする。 | 前者は失敗、後者は成功。 |
+| [05-01-dependent-type-minimal.ref](cases/05-01-dependent-type-minimal.ref) / [05-05-forward-context.ref](cases/05-05-forward-context.ref) | `Pass` に未使用の引数 `u: Unit` を追加して `u := u` を渡す。 | 前者は失敗、後者は成功。 |
 
-各組の差分は部分集合の条件の右辺だけである。
+最初の2組の差分は部分集合の条件の右辺だけである。
 外側のモジュールの具体化、内部 import、具体化後の関数呼び出しは共通である。
 失敗時は `definition body check failed: types are not convertible` と診断され、具体化済みの `Representation` と具体化前の定義への参照が残る型が比較される。
 最初の組は商を恒等関数に縮めても同じ不一致が生じることを確認し、次の組は代表元・同値類・商の台集合を残して比較する。
@@ -111,6 +115,7 @@ target/debug/cli _plans/fix-md/cases/05-01-dependent-type-minimal.ref --no-cache
 | --- | --- | --- |
 | [06-01-inner-inductive-minimal.ref](cases/06-01-inner-inductive-minimal.ref) / [06-03-direct-identity.ref](cases/06-03-direct-identity.ref) | 恒等関数の本体を `P.identity x` / `x` にする。 | 前者は失敗、後者は成功。 |
 | [06-01-inner-inductive-minimal.ref](cases/06-01-inner-inductive-minimal.ref) / [06-02-outer-inductive.ref](cases/06-02-outer-inductive.ref) | `Unit` の宣言を parameter のあるモジュールの内部 / 外部に置く。 | 前者は失敗、後者は成功。 |
+| [06-01-inner-inductive-minimal.ref](cases/06-01-inner-inductive-minimal.ref) / [06-04-forward-context.ref](cases/06-04-forward-context.ref) | `Pass` に未使用の引数 `K: \Set` を追加して `K := K` を渡す。 | 前者は失敗、後者は成功。 |
 
 最初の組は1つの式だけを変え、内部 import を経由することの影響を確認する。
 次の組は宣言を移し、利用側の型参照を `O.Unit` から `Unit` に合わせる。
@@ -152,6 +157,7 @@ signature を取る contextual な恒等関数まで縮め、入力の型と渡�
 | --- | --- | --- |
 | [09-01-block-minimal.ref](cases/09-01-block-minimal.ref) / [09-02-block-hash-projection.ref](cases/09-02-block-hash-projection.ref) | 射影を `x.field` / `x #field` にする。 | 前者は失敗、後者は成功。 |
 | [09-01-block-minimal.ref](cases/09-01-block-minimal.ref) / [09-03-lambda-outside.ref](cases/09-03-lambda-outside.ref) | `x` を導入する lambda をブロックの内部 / 外部に置く。 | 前者は失敗、後者は成功。 |
+| [09-04-block-let.ref](cases/09-04-block-let.ref) / [09-05-block-let-hash.ref](cases/09-05-block-let-hash.ref) | ブロックの `\let` で導入した `y` の射影を `y.field` / `y #field` にする。 | 前者は失敗、後者は成功。 |
 
 関手をフィールド1つの record に縮め、同じ型の同じフィールドを取り出す。
 次の組でも `x.field` を維持するので、射影の記法と束縛の位置を別々に比較できる。
