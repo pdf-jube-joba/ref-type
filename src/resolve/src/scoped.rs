@@ -79,6 +79,7 @@ impl Resolver {
             kind,
             parameters,
             fields,
+            field_spans,
         } = item
         {
             if let Some(kind) = kind {
@@ -146,7 +147,7 @@ impl Resolver {
                     output,
                 );
             }
-            return self.compile_structure(name, parameters, fields, output);
+            return self.compile_structure(name, parameters, fields, field_spans, output);
         }
         let ModuleItem::Scoped { exports, items } = item else {
             self.item(&mut item)?;

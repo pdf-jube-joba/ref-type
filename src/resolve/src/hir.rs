@@ -35,11 +35,19 @@ pub struct Module {
     pub name: Identifier,
     pub parameters: Vec<RightBind>, // given parameters for module
     pub parameter_checks: Vec<(SExp, SExp)>,
+    /// Source fields represented by parameters in a generated module.
+    pub parameter_sources: std::collections::HashMap<String, ParameterSource>,
     pub body: ModuleBody,
     pub span: SourceSpan,
     pub declaration_spans: Vec<SourceSpan>,
     pub source: Option<std::sync::Arc<SourceFile>>,
     pub header_source: Option<std::sync::Arc<SourceFile>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ParameterSource {
+    pub description: String,
+    pub span: SourceSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -90,6 +98,7 @@ pub enum ModuleItem {
         kind: Option<InductiveKind>,
         parameters: Vec<RightBind>,
         fields: Vec<(Identifier, SExp, Option<SExp>)>,
+        field_spans: Vec<SourceSpan>,
     },
     Record {
         type_name: Identifier,

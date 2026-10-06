@@ -1052,6 +1052,89 @@ fn rich_goal_format_contains_context_and_constraints() {
 }
 
 #[test]
+fn structure_field_type_errors_preserve_source_context() {
+    use ::syntax::syntax::{SourceFile, SourceId};
+
+    let category = r"\module Playground {
+  \structure Cat {
+    Ob: \Set,
+    Hom: Ob -> Ob -> \Set,
+    id: \forall (x: Ob) -> Hom x x,
+    cp: \forall (x, y, z: Ob) -> Hom y z -> Hom x y -> Hom y z,
+    l_id: \forall (x, y: Ob) (f: Hom x y) -> cp x y y (id y) f,
+  }
+}";
+    let callback = r"\module Playground {
+  \structure Relation { A: \Set, R: A -> A -> \Prop }
+  \structure Factory {
+    make: \forall(P: \Prop)(h: P) -> Relation,
+  }
+}";
+    for (text, field, line, reason) in [
+        (category, "Cat.l_id", 7, "expected a sort"),
+        (callback, "Factory.make", 4, "no product rule"),
+    ] {
+        let source = std::sync::Arc::new(SourceFile {
+            id: SourceId("structure-error.ref".into()),
+            text: text.into(),
+        });
+        let mut modules = parse::parse_modules_from_source(&source).unwrap();
+        for module in &mut modules {
+            module.source = Some(source.clone());
+            module.header_source = Some(source.clone());
+        }
+        let mut environment = GlobalEnvironment::default();
+        let error = environment.add_modules_to_root(&modules).unwrap_err();
+        let rendered =
+            crate::metavariables::format_elaboration_error(environment.crate_env(), &error);
+        assert!(
+            rendered.contains(&format!(
+                "Structure field '{field}' must have a type or proposition"
+            )),
+            "{rendered}"
+        );
+        assert!(rendered.contains(reason), "{rendered}");
+        assert!(
+            rendered.contains(&format!("structure-error.ref:{line}:5")),
+            "{rendered}"
+        );
+        let ElaborationError::Located { location, .. } = error else {
+            panic!("expected a field location");
+        };
+        let snippet = &source.text[location.span.start..location.span.end];
+        assert_eq!(
+            snippet,
+            text.lines()
+                .nth(line - 1)
+                .unwrap()
+                .trim()
+                .trim_end_matches(',')
+        );
+    }
+
+    let corrected = category
+        .replace("-> Hom y z,", "-> Hom x z,")
+        .replace("-> cp x y y (id y) f,", "-> cp x y y (id y) f = f,");
+    let modules = parse::str_parse_modules(&corrected).unwrap();
+    GlobalEnvironment::default()
+        .add_modules_to_root(&modules)
+        .unwrap();
+}
+
+#[test]
+fn module_parameter_type_errors_keep_module_context() {
+    let modules = parse::str_parse_modules(r"\module Invalid(A: \Set, a: A, bad: a) {}").unwrap();
+    let mut environment = GlobalEnvironment::default();
+    let error = environment.add_modules_to_root(&modules).unwrap_err();
+    let rendered = crate::metavariables::format_elaboration_error(environment.crate_env(), &error);
+    assert!(
+        rendered.contains("Module parameter must have a type or proposition"),
+        "{rendered}"
+    );
+    assert!(rendered.contains("expected a sort"), "{rendered}");
+}
+
+#[test]
 fn dependency_ordered_module_errors_include_source_location() {
     let source = std::sync::Arc::new(::syntax::syntax::SourceFile {
         id: ::syntax::syntax::SourceId("dependency-error.ref".into()),

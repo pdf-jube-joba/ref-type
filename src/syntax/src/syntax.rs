@@ -163,6 +163,7 @@ pub enum ModuleItem {
         kind: Option<InductiveKind>,
         parameters: Vec<RightBind>,
         fields: Vec<(Identifier, SExp, Option<SExp>)>,
+        field_spans: Vec<SourceSpan>,
     },
     Record {
         type_name: Identifier,

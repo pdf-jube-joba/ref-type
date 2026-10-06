@@ -50,6 +50,7 @@ impl Resolver {
             name: Identifier(format!("<definition:{}>", name.0)),
             parameters: binders,
             parameter_checks: Vec::new(),
+            parameter_sources: HashMap::new(),
             declaration_spans: Vec::new(),
             body: ModuleBody::Inline(Vec::new()),
             span,
@@ -191,11 +192,25 @@ impl Resolver {
         mut name: Identifier,
         parameters: Vec<RightBind>,
         fields: Vec<(Identifier, SExp, Option<SExp>)>,
+        field_spans: Vec<SourceSpan>,
         output: &mut Vec<ModuleItem>,
     ) -> Result<(), Diagnostic> {
         let location = self.location.clone();
         let span = location.as_ref().map_or(SourceSpan::default(), |l| l.span);
         let mut telescope = parameters.clone();
+        let parameter_sources = fields
+            .iter()
+            .enumerate()
+            .map(|(index, (field, _, _))| {
+                (
+                    field.0.clone(),
+                    ParameterSource {
+                        description: format!("Structure field '{}.{}'", name.0, field.0),
+                        span: field_spans.get(index).copied().unwrap_or(span),
+                    },
+                )
+            })
+            .collect();
         for (field, ty, _) in &fields {
             telescope.push(RightBind {
                 vars: vec![field.clone()],
@@ -207,6 +222,7 @@ impl Resolver {
             name: Identifier(format!("<structure:{}>", name.as_str())),
             parameters: telescope,
             parameter_checks: Vec::new(),
+            parameter_sources,
             declaration_spans: Vec::new(),
             body: ModuleBody::Inline(Vec::new()),
             span,
@@ -294,6 +310,7 @@ impl Resolver {
                     name: Identifier(format!("<default:{}.{}>", name.0, field.0)),
                     parameters: required.clone(),
                     parameter_checks: Vec::new(),
+                    parameter_sources: module.parameter_sources.clone(),
                     declaration_spans: vec![span],
                     body: ModuleBody::Inline(vec![item]),
                     span,

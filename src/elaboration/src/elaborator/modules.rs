@@ -217,6 +217,18 @@ impl GlobalEnvironment {
         let mut program_scope = program_term_elaborator::ProgramScope::new();
 
         for RightBind { vars, ty } in parameters.iter() {
+            // Structure-valued fields expand to parameters named `field.member`.
+            let source = vars.first().and_then(|name| {
+                module
+                    .parameter_sources
+                    .get(name.as_str().split('.').next().unwrap())
+            });
+            self.diagnostic_location = module.header_source.as_ref().map(|file| SourceLocation {
+                source: file.clone(),
+                span: source.map_or(module.span, |source| source.span),
+            });
+            self.module_manager.reference_location = self.diagnostic_location.clone();
+            let subject = source.map_or("Module parameter", |source| source.description.as_str());
             let parameter_kind = if matches!(ty.as_ref(), SExp::ValueType) {
                 ModuleParameterKind::ProgramType
             } else if !matches!(ty.as_ref(), SExp::Meta { .. })
@@ -229,7 +241,7 @@ impl GlobalEnvironment {
                 ProgramCheckSession::new(&self.crate_env, &mut program_context)
                     .check_value_type(program_ty)
                     .map_err(|error| {
-                        format!("Program module parameter has an ill-formed value type: {error}")
+                        format!("{subject} has an ill-formed Program value type: {error}")
                     })?;
                 ModuleParameterKind::ProgramValue { ty: program_ty }
             } else if let Ok(mut pts_ty) = local_scope.elab_exp(ty, self) {
@@ -250,7 +262,9 @@ impl GlobalEnvironment {
                 }
                 CheckSession::new(&self.crate_env, &mut ctx)
                     .infer_sort(pts_ty)
-                    .map_err(|error| format!("Module parameter type is not Set/Prop: {error}"))?;
+                    .map_err(|error| {
+                        format!("{subject} must have a type or proposition: {error}")
+                    })?;
                 ModuleParameterKind::Pts { ty: pts_ty }
             } else {
                 let program_ty: ValueTypeExp = ty.as_ref().clone().try_into()?;
@@ -260,7 +274,7 @@ impl GlobalEnvironment {
                 ProgramCheckSession::new(&self.crate_env, &mut program_context)
                     .check_value_type(program_ty)
                     .map_err(|error| {
-                        format!("Program module parameter has an ill-formed value type: {error}")
+                        format!("{subject} has an ill-formed Program value type: {error}")
                     })?;
                 ModuleParameterKind::ProgramValue { ty: program_ty }
             };
@@ -298,6 +312,11 @@ impl GlobalEnvironment {
             }
         }
 
+        self.diagnostic_location = module.header_source.as_ref().map(|source| SourceLocation {
+            source: source.clone(),
+            span: module.span,
+        });
+        self.module_manager.reference_location = self.diagnostic_location.clone();
         for (value, ty) in &module.parameter_checks {
             program_scope.check_member(value, ty, self)?;
         }

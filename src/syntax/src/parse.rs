@@ -442,7 +442,8 @@ impl<'a> Parser<'a> {
             self.bump_if_token(Token::Assign);
             Some(kind)
         };
-        let fields = self.parse_structure_fields()?;
+        let mut field_spans = Vec::new();
+        let fields = self.parse_structure_fields(&mut field_spans)?;
         let mut names = std::collections::HashSet::new();
         for (field, _, _) in &fields {
             if !names.insert(field.as_str()) {
@@ -459,15 +460,18 @@ impl<'a> Parser<'a> {
             parameters,
             kind,
             fields,
+            field_spans,
         })
     }
 
     fn parse_structure_fields(
         &mut self,
+        spans: &mut Vec<SourceSpan>,
     ) -> Result<Vec<(Identifier, SExp, Option<SExp>)>, ParseError> {
         self.expect_token(Token::LBrace)?;
         let mut fields = Vec::new();
         while !self.bump_if_token(Token::RBrace) {
+            let start = self.span_at(self.pos).start;
             let name = self.expect_ident()?;
             self.expect_token(Token::Colon)?;
             let ty = self.parse_sexp()?;
@@ -477,6 +481,10 @@ impl<'a> Parser<'a> {
                 None
             };
             fields.push((name, ty, default));
+            spans.push(SourceSpan {
+                start,
+                end: self.span_at(self.pos - 1).end,
+            });
             if self.bump_if_token(Token::RBrace) {
                 break;
             }
