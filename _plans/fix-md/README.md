@@ -24,7 +24,7 @@ target/debug/cli _plans/fix-md/cases/01-01-record-eta.ref --no-cache --diagnosti
 | [G03](#g03) | 関係を持つ record とデータ・法則の分離 | record の射影生成で失敗、分離すると成功。 |
 | [G04](#g04) | 親の macro 読み込み位置と子の再読み込み | 宣言後の読み込みと再読み込みで失敗、宣言前の読み込みを継承すると成功。 |
 | [G05](#g05) | 式中の module 具体化と台集合を返す関数 | 式中の具体化は構文解析で失敗、関数は成功。 |
-| [G06](#g06) | 積の定理の定義元と parameter を持つ利用側 | 定義元は成功、利用側は型の具体化で失敗。 |
+| [G06](#g06) | 積の定理の定義元と parameter を持つ利用側 | 修正済み。両方成功。 |
 | [G11](#g11) | Machine の引数と具体値 | 引数で失敗、具体値で成功。 |
 
 <a id="g01"></a>
@@ -107,6 +107,6 @@ Machine の型、実行、Box の型と本体は共通で、Box の型は両側�
 
 ## G06: 積のコンパクト性定理の具体化
 
-[再現プロジェクト](../reproductions/g06-product-compactness/ref.toml) は、`topology` に依存し、同じ命題を持つ定理に `Product.Compactness.productCompact` を適用する。
-[診断と実行方法](../gaps.md#g06) に、成功する定義元の検査と失敗する利用側の検査を記載する。
+[再現プロジェクト](../reproductions/g06-product-compactness/ref.toml) は、`topology` に依存し、同じ命題を持つ定理に `Product.Compactness.productCompact` と `productCompactIn` を適用する。
+[診断と実行方法](../gaps.md#g06) に、修正前の診断と、修正後に両方成功する定義元・利用側の検査を記載する。
 単独ファイルへ貼り付ける形式ではない。

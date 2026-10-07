@@ -750,6 +750,11 @@ impl ModuleManager {
             env.set_lazy_program_inductive_remapping(id, shared_remapping);
         }
 
+        // Parameter-free namespaces always reuse their original declarations.
+        // Finalize them before conversion can materialize a dependent definition:
+        // otherwise that definition permanently retains a provisional nominal ID.
+        groups.sort_by_key(|group| !env.namespace_arguments(group.source).is_empty());
+
         // Enclosing declarations precede imports; imports retain their dependency order.
         // Replace reserved IDs with canonical IDs as each specialization is resolved.
         macro_rules! reuse {

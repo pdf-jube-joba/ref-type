@@ -68,12 +68,12 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 
 <a id="g06"></a>
 
-## G06: 積のコンパクト性定理の module 具体化
+## G06: 積のコンパクト性定理の module 具体化（修正済み）
 
 `topology.Product[A := I, B := K].Compactness` の `productCompact` を、集合を parameter に持つ別の module から通常の定理として利用したい。
-元の `topology` パッケージは検査できるが、定理の利用側では、コンパクト被覆を表す有限集合の型が積空間の集合族として扱われず、`types are not convertible` で失敗する。
+修正前は元の `topology` パッケージを検査できても、定理の利用側でコンパクト被覆を表す有限集合の型が積空間の集合族として扱われず、`types are not convertible` で失敗していた。
 
-[再現プロジェクト](reproductions/g06-product-compactness/src/Coordinates/Compactness.ref) は、二つの集合の位相と積の定理だけを読み込み、仮定を量化した同じ命題へ `productCompact` を適用する。
+[再現プロジェクト](reproductions/g06-product-compactness/src/Coordinates/Compactness.ref) は、二つの集合の位相と積の定理だけを読み込み、仮定を量化した同じ命題へ `productCompact` と `productCompactIn` を適用する。
 キャッシュを使わず、リポジトリのルートから実行する。
 
 ```sh
@@ -81,14 +81,14 @@ target/debug/cli libs/topology --no-cache --diagnostics compact
 target/debug/cli _plans/reproductions/g06-product-compactness --no-cache --diagnostics compact
 ```
 
-前者は成功し、後者は次の型の不一致で失敗する。
+現在は両方とも成功する。
+修正前の利用側では、次の型の不一致が発生していた。
 
 ```text
 inferred: std.Set.FiniteSubset[A := I, B := K].FiniteSubset(K, I)
 expected: Pow(Pow(std.Data.Pair.Times^[I, K]))
 ```
 
-実際の診断では module parameter の所在を表す修飾が付く。
-台集合の別名を使わず、利用側の有限集合の import を除いても再現する。
-座標空間の有限支持部分集合の帰納法では `productCompactIn` の利用時に同じ不一致が現れ、有限座標のコンパクト性と円板・球面のコンパクト性の実装を止めている。
-この定理の具体化を修正して再現例が成功した後、閉円板のコンパクト性から有限 CW 対の cofibration へ進む。
+原因は module 具体化時の参照の確定順序にあった。
+型の比較で依存定義を実体化する際、積型の仮の ID がその定義に残り、後で確定した元の積型と異なる型として扱われていた。
+parameter を持たない module の参照を先に確定することで修正し、再現プロジェクトを CLI の回帰テストに追加した。
