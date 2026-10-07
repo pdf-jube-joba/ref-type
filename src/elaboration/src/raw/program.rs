@@ -185,7 +185,7 @@ pub enum ComputationTermNode {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ProgramContextEntry {
     ValueType { var: SymbolId },
     ValueTerm { var: SymbolId, ty: ValueType },

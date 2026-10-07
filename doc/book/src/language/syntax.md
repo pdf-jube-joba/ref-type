@@ -141,7 +141,7 @@ module argument では metavariable の推論を行わない。
 
 参照の位置で module 引数を検査し、具体化した module の item を取り出す。
 関数の引数や record の先行 field を参照できる。
-局所変数を使う帰納型や Program 値の具体化には、[G05 の制限](../../../../_plans/gaps.md#g05) が残っている。
+帰納型の具体化と Program の局所値を渡す例は、[G05](../../../../_plans/gaps.md#g05) を参照。
 
 ## 3. 宣言
 

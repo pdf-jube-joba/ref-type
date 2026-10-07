@@ -315,33 +315,39 @@ pub struct Arena {
     atoms: RefCell<Atoms>,
     #[serde(skip)]
     loose_bounds: RefCell<FxHashMap<Term, Option<usize>>>,
+    #[serde(skip)]
+    pub(crate) lowered_definitions: RefCell<rustc_hash::FxHashSet<kernel::syntax::Expression>>,
     pub(crate) datatype_reflections:
         RefCell<FxHashMap<kernel::ids::ProgramInductiveId, kernel::ids::InductiveId>>,
-    pub(crate) inductive_captures: RefCell<FxHashMap<kernel::ids::InductiveId, (usize, usize)>>,
+    pub(crate) inductive_captures:
+        RefCell<FxHashMap<kernel::ids::InductiveId, (Vec<ModuleParamId>, usize)>>,
     definitions: RefCell<FxHashMap<kernel::ids::DefinitionId, DefinitionView>>,
 }
 impl Arena {
     pub fn new() -> Self {
         Self::default()
     }
-    fn source_inductive_parameters(
+    pub(crate) fn split_inductive_arguments<'a>(
         &self,
-        id: kernel::ids::InductiveId,
-        parameters: Vec<kernel::syntax::Expression>,
-    ) -> Vec<Exp> {
-        let skip = self
-            .inductive_captures
-            .borrow()
-            .get(&id)
-            .filter(|(captures, explicit)| {
-                *captures + *explicit == parameters.len()
-                    && parameters[..*captures]
-                        .iter()
-                        .all(|&e| matches!(self.core.get(e), kernel::syntax::Node::Parameter(_)))
-            })
-            .map_or(0, |(captures, _)| *captures);
-        parameters.into_iter().skip(skip).map(Exp).collect()
+        id: InductiveId,
+        parameters: &'a [Exp],
+    ) -> (Vec<(ModuleParamId, Exp)>, &'a [Exp]) {
+        if let Some((captures, explicit)) = self.inductive_captures.borrow().get(&id.into())
+            && !captures.is_empty()
+            && parameters.len() == captures.len() + explicit
+        {
+            return (
+                captures
+                    .iter()
+                    .copied()
+                    .zip(parameters.iter().copied())
+                    .collect(),
+                &parameters[captures.len()..],
+            );
+        }
+        (Vec::new(), parameters)
     }
+
     pub(crate) fn bind_definition(
         &self,
         id: kernel::ids::DefinitionId,
@@ -867,7 +873,7 @@ impl ArenaHandle for Exp {
                     module: crate::raw::ids::ModuleId((inductive.0 >> 32) as u32),
                     index: inductive.0 as u32,
                 },
-                parameters: arena.source_inductive_parameters(inductive, parameters),
+                parameters: parameters.into_iter().map(Exp).collect(),
             },
             N::IndCtor {
                 inductive,
@@ -879,7 +885,7 @@ impl ArenaHandle for Exp {
                     module: crate::raw::ids::ModuleId((inductive.0 >> 32) as u32),
                     index: inductive.0 as u32,
                 },
-                parameters: arena.source_inductive_parameters(inductive, parameters),
+                parameters: parameters.into_iter().map(Exp).collect(),
                 idx: constructor,
             },
             N::IndElim {

@@ -41,17 +41,26 @@ impl ModItemRecord {
         e: Exp,
         field_name: &Identifier,
         parameters: &[Exp],
-    ) -> Option<Exp> {
+    ) -> Result<Option<Exp>, String> {
         let arena = env.arena();
-        let (_, definition) = self
+        let Some((_, definition)) = self
             .associated_definitions
             .iter()
-            .find(|(name, _)| name == field_name)?;
-        let projection = arena.alloc(ExpNode::DefinedConstant(*definition));
-        Some(crate::raw::utils::assoc_apply(
+            .find(|(name, _)| name == field_name)
+        else {
+            return Ok(None);
+        };
+        let (substitutions, parameters) =
+            arena.split_inductive_arguments(self.inductive, parameters);
+        let projection = if substitutions.is_empty() {
+            arena.alloc(ExpNode::DefinedConstant(*definition))
+        } else {
+            crate::kernel_bridge::captured_definition(env, *definition, &substitutions, &[])?
+        };
+        Ok(Some(crate::raw::utils::assoc_apply(
             arena,
             projection,
             parameters.iter().copied().chain([e]).collect(),
-        ))
+        )))
     }
 }

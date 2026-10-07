@@ -1836,3 +1836,21 @@ fn motive_unification_extends_context_through_dependent_telescope() {
     assert_eq!(metas.zonk(a, domain).unwrap(), a.bound(0));
     assert_eq!(metas.zonk(a, body).unwrap(), a.bound(3));
 }
+
+#[test]
+fn reflection_of_a_rigid_parameter_is_a_normal_form() {
+    let mut env = Environment::new();
+    let id = crate::ids::ParameterId(0);
+    let ty = env.arena.sort(Sort::Base(BaseSort::Value(0)));
+    env.register_parameter(id, ty).unwrap();
+    let parameter = env.arena.alloc(Node::Parameter(id));
+    let reflected = env.arena.alloc(Node::Reflect { term: parameter });
+    assert_eq!(
+        crate::reduction::reduce_once(&env, reflected).unwrap(),
+        None
+    );
+    assert_eq!(
+        crate::reduction::normalize(&env, reflected).unwrap(),
+        reflected
+    );
+}

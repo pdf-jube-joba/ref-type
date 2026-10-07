@@ -57,14 +57,14 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 
 <a id="g05"></a>
 
-## G05: 式の中での module の具体化
+## G05: 式の中での module の具体化（修正済み）
 
 依存するセルの次元を引数として `Euclidean.Dimension[n := dimension].Disk` のように台集合を参照したい。
 [最小比較: G05](fix-md/README.md#g05) の `F.Dimension[A := A].Carrier` と、[実ライブラリの例](../tests/projects/module-expressions/src/Cells.ref) は検査に成功する。
 関数の引数、lambda の束縛変数、record の先行 field を module 引数として、定義を参照できる。
 macro の展開先でも宣言元の参照を保持し、package の読み込みとキャッシュの依存関係にも式中の module 参照を含める。
 
-局所変数に依存する帰納型の具体化と Program 値の引数には、次の制限が残っている。
+局所変数に依存する帰納型も具体化でき、同じ宣言と引数による型は一致する。
 
 ```text
 \module Family(A: \Set) {
@@ -74,8 +74,8 @@ macro の展開先でも宣言元の参照を保持し、package の読み込み
   Family[A := A].Box::box x;
 ```
 
-このように module 内の帰納型を局所変数で具体化したいが、帰納型の kernel 登録が局所文脈を parameter として保持できず、型検査に失敗する。
-閉じた集合を引数とする同じ帰納型の具体化は成功する。
+帰納型の kernel 登録では元の宣言に module 引数を明示的に渡し、局所文脈を保持する。
+record の field 射影と既定値にも同じ引数を引き継ぐ。
 
 ```text
 \inductive Unit: \VType := | unit: Unit;
@@ -83,8 +83,8 @@ macro の展開先でも宣言元の参照を保持し、package の読み込み
 \definition identity(x: Unit): \F(Unit) := \return Value[A := Unit, x := x].value;
 ```
 
-Program の局所値も module 引数へ渡したいが、具体化先の引数検査と定義の登録が Program の局所文脈を引き継げず、型検査に失敗する。
-閉じた Program 値を渡す具体化は成功する。
+Program の局所値は、引数検査と定義の登録まで局所文脈を引き継ぐ。
+lambda、Program block、case branch、macro 内の束縛変数についても回帰テストで検査する。
 
 <a id="g06"></a>
 
@@ -115,14 +115,15 @@ parameter を持たない module の参照を先に確定することで修正�
 
 <a id="g07"></a>
 
-## G07: ホモトピー同値の反射の具体化
+## G07: ホモトピー同値の反射の具体化（修正済み）
 
 [Homotopy.ref の reflectedTwice](../tests/projects/topological-k-theory/src/Homotopy.ref) で、閉区間の反射を二回合成したホモトピー同値を構成したい。
-次の検査は `reflectedTwice` の型検査で失敗する。
+次の検査は `reflectedTwice` を含めて成功する。
 
 ```sh
 target/debug/cli tests/projects/topological-k-theory --no-cache --diagnostics compact
 ```
 
-推論された位相は `Topology[A := Interval.Carrier, B := Interval.Carrier].Topology` である一方、期待型には `HomotopyEquivalence` の束縛変数 `B` による具体化が残り、`types are not convertible` になる。
-G05 対応前の処理系でも同じ位置と診断で再現する。
+修正前は推論された位相が `Topology[A := Interval.Carrier, B := Interval.Carrier].Topology` である一方、期待型には `HomotopyEquivalence` の束縛変数 `B` による具体化が残り、`types are not convertible` になっていた。
+G05 対応前の処理系でも同じ位置と診断で再現した。
+検査済みの定義を保存するときに、依存先の参照と具体化した引数を保持することで解消した。

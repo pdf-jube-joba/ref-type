@@ -13,7 +13,7 @@ pub(super) enum Declaration {
 
 impl Lowerer<'_> {
     fn roots(&self, declaration: Declaration) -> Vec<Term> {
-        match declaration {
+        let mut roots = match declaration {
             Declaration::Definition(id) => definition_roots(self.raw.definition(id)),
             Declaration::Parameter(id) => match self.raw.module_parameter_opt(id).unwrap().kind {
                 ModuleParameterKind::Pts { ty } => vec![Term::Logical(ty)],
@@ -49,7 +49,22 @@ impl Lowerer<'_> {
                 .iter()
                 .flat_map(|c| c.fields().iter().map(|(_, ty)| Term::ValueType(*ty)))
                 .collect(),
+        };
+        if let Declaration::Inductive(id) = declaration
+            && !self.raw.is_program_mirror(id)
+        {
+            let arguments = self
+                .raw
+                .inductive_specialization(id)
+                .map(|origin| origin.arguments.clone())
+                .unwrap_or_else(|| self.raw.namespace_arguments(id.module));
+            roots.extend(arguments.into_iter().map(|(_, argument)| match argument {
+                raw::environment::ModuleArgument::Pts(e) => Term::Logical(e),
+                raw::environment::ModuleArgument::ProgramType(t) => Term::ValueType(t),
+                raw::environment::ModuleArgument::ProgramValue(v) => Term::Value(v),
+            }));
         }
+        roots
     }
 
     pub(super) fn definition_dependencies(&self, id: DefId) -> Vec<DefId> {
@@ -153,6 +168,11 @@ impl Lowerer<'_> {
                 continue;
             }
             let dependency = match term {
+                Term::Logical(e)
+                    if matches!(self.raw.arena().core.get(e.0), s::Node::Definition { .. }) =>
+                {
+                    None
+                }
                 Term::Logical(e) => match self.raw.arena().get(e) {
                     ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => {
                         Some(Declaration::Parameter(id))
@@ -161,10 +181,34 @@ impl Lowerer<'_> {
                     | ExpNode::DefinitionInstance { definition: id, .. } => {
                         Some(Declaration::Definition(id))
                     }
-                    ExpNode::IndType { indspec, .. }
-                    | ExpNode::IndCtor { indspec, .. }
-                    | ExpNode::IndElim { indspec, .. }
-                    | ExpNode::IndCase { indspec, .. } => Some(Declaration::Inductive(indspec)),
+                    ExpNode::IndType {
+                        indspec,
+                        parameters,
+                    }
+                    | ExpNode::IndCtor {
+                        indspec,
+                        parameters,
+                        ..
+                    } => {
+                        let source = self
+                            .raw
+                            .inductive_specialization(indspec)
+                            .map_or(indspec, |origin| origin.source);
+                        let explicit = self
+                            .raw
+                            .arena()
+                            .inductive_captures
+                            .borrow()
+                            .get(&source.into())
+                            .is_some_and(|(captures, explicit)| {
+                                !captures.is_empty()
+                                    && parameters.len() == captures.len() + explicit
+                            });
+                        // Fully applied kernel references carry their actual captures
+                        // in the term; the declaration's original parameters are bound.
+                        (!explicit).then_some(Declaration::Inductive(indspec))
+                    }
+                    ExpNode::IndElim { .. } | ExpNode::IndCase { .. } => None,
                     ExpNode::ReflectedProgramCase { indspec, .. } => {
                         Some(Declaration::Datatype(indspec))
                     }

@@ -150,6 +150,43 @@ fn temporary_module_dependencies_invalidate_cached_users() {
 }
 
 #[test]
+fn cached_temporary_modules_preserve_local_contexts() {
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert("/virtual/root.ref", r"\module Library; \module Use;");
+    snapshot.insert(
+        "/virtual/Library.ref",
+        r"
+        \module Family(A: \Set) { \structure Box: \Set { value: A, } }
+        \definition get(A: \Set)(x: Family[A := A].Box): A := x.value;
+        \inductive Unit: \VType := | unit: Unit;
+        \module Value(x: Unit) { \definition value: Unit := x; }
+        \definition identity(x: Unit): \F(Unit) := \return Value[x := x].value;
+    ",
+    );
+    let user = r"\import \root.Library[] \as L;
+        \definition beta(x: L.Unit^): L.identity^ x = x := \refl(x);
+        \definition get(A: \Set)(x: L.Family[A := A].Box): A := L.get A x;
+    ";
+    snapshot.insert("/virtual/Use.ref", user);
+    let cache = Cache::new();
+    let initial = Database::with_cache(&cache.0).check(&snapshot);
+    assert!(initial.is_success(), "{initial:?}");
+    let edited = snapshot.with_file(
+        "/virtual/Use.ref",
+        format!("{user}\n\\definition p: \\Prop := \\forall (P: \\Prop) -> P -> P;"),
+    );
+    let mut restored = Database::with_cache(&cache.0);
+    let result = restored.check(&edited);
+    assert!(result.is_success(), "{result:?}");
+    assert!(
+        restored.stats().environment_hits > 0,
+        "{:?}",
+        restored.stats()
+    );
+    assert_eq!(result, Database::new().check(&edited));
+}
+
+#[test]
 fn persistent_results_survive_database_recreation_and_corruption_is_a_miss() {
     let cache = Cache::new();
     let snapshot = project();

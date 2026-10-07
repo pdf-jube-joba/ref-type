@@ -298,7 +298,7 @@ impl ProgramScope {
             && let Ok(expected) = self.elaborate_computation_type(&syntax, environment)
         {
             let syntax: ComputationTermExp = value.clone().try_into()?;
-            let value = self.elaborate_computation(&syntax, environment)?;
+            let value = self.elaborate_computation_expected(&syntax, expected, environment)?;
             self.check_computation_term_with_metas(environment, value, expected)?;
         } else {
             let context =
@@ -763,6 +763,58 @@ impl ProgramScope {
         }
     }
 
+    pub(crate) fn elaborate_computation_expected(
+        &mut self,
+        expression: &ComputationTermExp,
+        expected: ComputationType,
+        environment: &mut GlobalEnvironment,
+    ) -> Result<ComputationTerm, ElaborationError> {
+        if let ComputationTermExp::Checked { checks, body } = expression {
+            for (value, ty) in checks {
+                self.check_member(value, ty, environment)?;
+            }
+            return self.elaborate_computation_expected(body, expected, environment);
+        }
+        let expected = self.resolve_computation_type_head(environment, expected);
+        if let ComputationTermExp::Lambda {
+            var,
+            value_ty,
+            body,
+        } = expression
+            && let ComputationTypeNode::Function { domain, codomain } =
+                environment.crate_env.arena().get(expected)
+        {
+            let annotation = self.elaborate_value_type(value_ty, environment)?;
+            self.unify_terms(
+                environment,
+                Term::ValueType(annotation),
+                Term::ValueType(domain),
+            )?;
+            let value_ty = self.zonk_value_type(environment, domain);
+            let var = environment.crate_env.intern_name(var);
+            self.names.push(var);
+            self.context
+                .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+            let Term::ComputationType(codomain) =
+                Term::ComputationType(codomain).shift(environment.crate_env.arena(), 1, 0)
+            else {
+                unreachable!()
+            };
+            let body = self.elaborate_computation_expected(body, codomain, environment);
+            self.names.pop();
+            self.context.pop();
+            return Ok(environment
+                .crate_env
+                .arena()
+                .alloc(ComputationTermNode::Lambda {
+                    var,
+                    value_ty,
+                    body: body?,
+                }));
+        }
+        self.elaborate_computation(expression, environment)
+    }
+
     pub(crate) fn elaborate_computation(
         &mut self,
         expression: &ComputationTermExp,
@@ -796,7 +848,7 @@ impl ProgramScope {
             }
             ComputationTermExp::Ascribe { term, ty } => {
                 let ty = self.elaborate_computation_type(ty, environment)?;
-                let term = self.elaborate_computation(term, environment)?;
+                let term = self.elaborate_computation_expected(term, ty, environment)?;
                 Ok(environment
                     .crate_env
                     .arena()
@@ -967,6 +1019,18 @@ impl ProgramScope {
             } => {
                 let computation = self.elaborate_computation(computation, environment)?;
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
+                let expected = environment
+                    .crate_env
+                    .arena()
+                    .alloc(ComputationTypeNode::Return { value_ty });
+                self.solve_computation(
+                    environment,
+                    &mut self.context.clone(),
+                    computation,
+                    expected,
+                )
+                .map_err(|message| self.solver_error(environment, message))?;
+                let value_ty = self.zonk_value_type(environment, value_ty);
                 let var = environment.crate_env.intern_name(var);
                 self.names.push(var);
                 self.context
@@ -992,6 +1056,9 @@ impl ProgramScope {
             } => {
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
                 let value = self.elaborate_value(value, environment)?;
+                self.solve_value(environment, &mut self.context.clone(), value, value_ty)
+                    .map_err(|message| self.solver_error(environment, message))?;
+                let value_ty = self.zonk_value_type(environment, value_ty);
                 let var = environment.crate_env.intern_name(var);
                 self.names.push(var);
                 self.context

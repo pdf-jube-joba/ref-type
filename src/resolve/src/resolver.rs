@@ -253,11 +253,57 @@ impl Resolver {
         self.expand(exp)?;
         self.expanded_expression(exp, scopes)
     }
+    fn prepare_module_argument_bindings(
+        &mut self,
+        exp: &mut SExp,
+        scopes: &mut Vec<HashMap<String, Identifier>>,
+    ) {
+        fn path(node: &mut SExp) -> Option<&mut Box<ModuleInstantiatePath>> {
+            match node {
+                SExp::ModuleInstance { path, .. } => Some(path),
+                SExp::AccessPath { access, .. }
+                | SExp::RecordTypeCtor { access, .. }
+                | SExp::ProgramValueReference { access }
+                | SExp::IndCase { path: access, .. }
+                | SExp::ProgramCase { path: access, .. } => {
+                    if let LocalAccess::Instantiated { path, .. } = access {
+                        Some(path)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+        }
+        let mut found = false;
+        macros::walk_sexp_mut(exp, &mut |node| found |= path(node).is_some());
+        if !found {
+            return;
+        }
+        // Bind module arguments in their lexical scopes before normalization.
+        // Other expressions retain their source form for structure expansion.
+        let mut bound = exp.clone();
+        self.lexical(&mut bound, scopes);
+        let mut paths = Vec::new();
+        macros::walk_sexp_mut(&mut bound, &mut |node| {
+            if let Some(path) = path(node) {
+                paths.push(path.clone());
+            }
+        });
+        let mut paths = paths.into_iter();
+        macros::walk_sexp_mut(exp, &mut |node| {
+            if let Some(path) = path(node) {
+                *path = paths.next().expect("matching expression traversal");
+            }
+        });
+    }
+
     fn expanded_expression(
         &mut self,
         exp: &mut SExp,
         scopes: &mut Vec<HashMap<String, Identifier>>,
     ) -> Result<(), Diagnostic> {
+        self.prepare_module_argument_bindings(exp, scopes);
         self.normalize_structures(exp, scopes)?;
         self.lexical(exp, scopes);
         self.resolve_expressions(exp)
@@ -712,6 +758,7 @@ impl Resolver {
         macros::rename_template_binders(template, self.fresh_hygiene());
         let order = self.next_macro;
         self.next_macro += 1;
+        self.prepare_module_argument_bindings(template, &mut Vec::new());
         self.normalize_structures(template, &[])?;
         let mut result = Ok(());
         macros::walk_sexp_mut(template, &mut |node| {

@@ -277,6 +277,7 @@ pub struct CrateEnv {
     remappings: Vec<DeclarationRemapping>,
     checking_scopes: HashMap<ModuleId, ModuleId>,
     checking_contexts: HashMap<ModuleId, crate::raw::exp::ExpContext>,
+    checking_program_contexts: HashMap<ModuleId, crate::raw::program::ProgramContext>,
     lazy_definitions: HashMap<DefId, LazyDefinition>,
     lazy_inductives: HashMap<InductiveId, LazyInductive>,
     nominal_definitions: HashMap<DefId, super::namespaces::Specialization<DefId>>,
@@ -345,6 +346,7 @@ impl CrateEnv {
             remappings: vec![DeclarationRemapping::default()],
             checking_scopes: HashMap::new(),
             checking_contexts: HashMap::new(),
+            checking_program_contexts: HashMap::new(),
             lazy_definitions: HashMap::new(),
             lazy_inductives: HashMap::new(),
             nominal_definitions: HashMap::new(),
@@ -514,7 +516,8 @@ impl CrateEnv {
         let span = tracing::debug_span!(target: "ref_type::environment",
             "register_definition", ?module, kind = definition.kind_name());
         let _entered = span.enter();
-        self.check_definition(module, &definition, &parameters)
+        let definition = self
+            .check_definition(module, &definition, &parameters)
             .inspect_err(|error| {
                 tracing::error!(target: "ref_type::environment", %error, "definition rejected");
             })?;
@@ -533,7 +536,7 @@ impl CrateEnv {
         module: ModuleId,
         definition: &DefinedConstant,
         type_parameters: &[SymbolId],
-    ) -> Result<(), String> {
+    ) -> Result<DefinedConstant, String> {
         use crate::raw::{derivation::CheckSession, program_derivation::ProgramCheckSession};
         let mut ancestors = Vec::new();
         let mut current = Some(module);
@@ -563,30 +566,44 @@ impl CrateEnv {
         if let Some(context) = self.checking_contexts.get(&module) {
             pts_context = context.clone();
         }
-        let mut program_context = type_parameters
-            .iter()
-            .map(|var| crate::raw::program::ProgramContextEntry::ValueType { var: *var })
-            .collect();
+        let mut program_context = self.program_definition_context(module);
+        program_context.extend(
+            type_parameters
+                .iter()
+                .map(|var| crate::raw::program::ProgramContextEntry::ValueType { var: *var }),
+        );
         match *definition {
             DefinedConstant::Contextual {
                 ref parameters,
                 ty,
                 body,
             } => {
+                let mut resolved_parameters = Vec::new();
                 for &(var, ty) in parameters {
                     CheckSession::new(self, &mut pts_context)
                         .infer_sort(ty)
                         .map_err(|error| format!("definition parameter check failed: {error}"))?;
+                    let ty =
+                        crate::kernel_bridge::logical(self, &pts_context, &[ty], |_, _, terms| {
+                            Ok(Exp(terms[0]))
+                        })?;
+                    resolved_parameters.push((var, ty));
                     pts_context.push(crate::raw::exp::ExpContextEntry { var, ty });
                 }
-                CheckSession::new(self, &mut pts_context)
-                    .check_pts(body, ty)
+                let (body, ty) = CheckSession::new(self, &mut pts_context)
+                    .check_pts_resolved(body, ty)
                     .map_err(|error| format!("definition body check failed: {error}"))?;
+                return Ok(DefinedConstant::Contextual {
+                    parameters: resolved_parameters,
+                    ty,
+                    body,
+                });
             }
             DefinedConstant::Pts { ty, body } => {
-                CheckSession::new(self, &mut pts_context)
-                    .check_pts(body, ty)
+                let (body, ty) = CheckSession::new(self, &mut pts_context)
+                    .check_pts_resolved(body, ty)
                     .map_err(|error| format!("definition check failed: {error}"))?;
+                return Ok(DefinedConstant::Pts { ty, body });
             }
             DefinedConstant::ProgramValue { ty, body } => {
                 ProgramCheckSession::new(self, &mut program_context)
@@ -601,7 +618,7 @@ impl CrateEnv {
                     })?;
             }
         }
-        Ok(())
+        Ok(definition.clone())
     }
 
     pub fn definition(&self, id: DefId) -> &DefinedConstant {
@@ -779,7 +796,14 @@ impl CrateEnv {
                     }
                 }
             };
-            self.check_definition(id.module, &definition, self.definition_parameters(id))?;
+            let definition = self
+                .check_definition(id.module, &definition, self.definition_parameters(id))
+                .map_err(|error| {
+                    format!(
+                        "specializing {}: {error}",
+                        super::printing::definition_name(self, lazy.source)
+                    )
+                })?;
             slot.set(definition)
                 .map_err(|_| format!("definition {id:?} was materialized twice"))?;
             Ok(slot.get().expect("definition was just initialized"))
@@ -943,6 +967,25 @@ impl CrateEnv {
             },
         );
         id
+    }
+
+    pub(crate) fn is_program_mirror(&self, id: InductiveId) -> bool {
+        let source = self
+            .nominal_inductives
+            .get(&id)
+            .map_or(id, |origin| origin.source);
+        self.module(source.module)
+            .program_inductives
+            .iter()
+            .filter_map(OnceCell::get)
+            .any(|spec| spec.reflected() == source)
+    }
+
+    pub(crate) fn inductive_specialization(
+        &self,
+        id: InductiveId,
+    ) -> Option<&super::namespaces::Specialization<InductiveId>> {
+        self.nominal_inductives.get(&id)
     }
 
     pub(crate) fn reuse_lazy_inductive(
@@ -1306,6 +1349,26 @@ impl CrateEnv {
 }
 
 impl CrateEnv {
+    pub(crate) fn set_program_context(
+        &mut self,
+        module: ModuleId,
+        context: crate::raw::program::ProgramContext,
+    ) {
+        if !context.is_empty() {
+            self.checking_program_contexts.insert(module, context);
+        }
+    }
+
+    pub(crate) fn program_definition_context(
+        &self,
+        module: ModuleId,
+    ) -> crate::raw::program::ProgramContext {
+        self.checking_program_contexts
+            .get(&module)
+            .cloned()
+            .unwrap_or_default()
+    }
+
     pub(crate) fn definition_context(&self, module: ModuleId) -> crate::raw::exp::ExpContext {
         if let Some(context) = self.checking_contexts.get(&module) {
             return context.clone();

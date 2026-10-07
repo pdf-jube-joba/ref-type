@@ -334,9 +334,12 @@ impl term_elaborator::Handler for GlobalEnvironment {
                         .get_moditem_record(&self.crate_env, indspec)
                     {
                         found_record = true;
-                        if let Some(projection) =
-                            record.field_projection(&self.crate_env, value, field_name, &parameters)
-                        {
+                        if let Some(projection) = record.field_projection(
+                            &self.crate_env,
+                            value,
+                            field_name,
+                            &parameters,
+                        )? {
                             return Ok(projection);
                         }
                     }
@@ -462,7 +465,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         let ty = ComputationTypeExp::try_from(ty.clone())?;
         let computation = ComputationTermExp::try_from(computation.clone())?;
         let ty = scope.elaborate_computation_type(&ty, self)?;
-        let computation = scope.elaborate_computation(&computation, self)?;
+        let computation = scope.elaborate_computation_expected(&computation, ty, self)?;
         let (computation, ty) = scope.check_computation_term_with_metas(self, computation, ty)?;
         Ok((ty, computation))
     }

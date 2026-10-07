@@ -55,23 +55,6 @@ impl<'a> Lowerer<'a> {
         }
         match self.kernel.arena().get(e) {
             s::Node::Definition { .. } => true,
-            s::Node::IndType {
-                inductive,
-                parameters,
-            }
-            | s::Node::IndCtor {
-                inductive,
-                parameters,
-                ..
-            } => self
-                .raw
-                .arena()
-                .inductive_captures
-                .borrow()
-                .get(&inductive)
-                .is_some_and(|(captures, explicit)| {
-                    *captures > 0 && parameters.len() == captures + explicit
-                }),
             s::Node::Inductive {
                 inductive,
                 parameters,

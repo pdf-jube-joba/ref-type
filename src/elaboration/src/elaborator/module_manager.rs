@@ -328,6 +328,7 @@ impl ModuleManager {
         Some(record)
     }
 
+    #[cfg(test)]
     fn resolve_start(
         &self,
         env: &CrateEnv,
@@ -346,6 +347,7 @@ impl ModuleManager {
         Ok(module)
     }
 
+    #[cfg(test)]
     pub(crate) fn bind_namespace(
         &mut self,
         env: &mut CrateEnv,
@@ -357,21 +359,23 @@ impl ModuleManager {
         self.bind_namespace_from(env, context, source, None, calls)
     }
 
-    pub(crate) fn bind_namespace_from_alias(
-        &mut self,
-        env: &mut CrateEnv,
-        context: &mut ExpContext,
-        base: ModuleId,
-        calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
-    ) -> Result<ModuleId, String> {
-        let source = env.binding(base).source;
-        self.bind_namespace_from(env, context, source, Some(base), calls)
-    }
-
+    #[cfg(test)]
     pub(crate) fn bind_namespace_from(
         &mut self,
         env: &mut CrateEnv,
         context: &mut ExpContext,
+        source: ModuleId,
+        base: Option<ModuleId>,
+        calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
+    ) -> Result<ModuleId, String> {
+        self.bind_namespace_in_context(env, context, &Vec::new(), source, base, calls)
+    }
+
+    pub(crate) fn bind_namespace_in_context(
+        &mut self,
+        env: &mut CrateEnv,
+        context: &mut ExpContext,
+        program_context: &crate::raw::program::ProgramContext,
         mut source: ModuleId,
         base: Option<ModuleId>,
         calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
@@ -389,8 +393,22 @@ impl ModuleManager {
         if let Some(split) = split {
             let mut prefix = calls;
             let suffix = prefix.split_off(split);
-            let parent = self.bind_namespace_from(env, context, source, base, prefix)?;
-            return self.bind_namespace_from_alias(env, context, parent, suffix);
+            let parent = self.bind_namespace_in_context(
+                env,
+                context,
+                program_context,
+                source,
+                base,
+                prefix,
+            )?;
+            return self.bind_namespace_in_context(
+                env,
+                context,
+                program_context,
+                env.binding(parent).source,
+                Some(parent),
+                suffix,
+            );
         }
         let mut profile = super::profiling::ProfileTimer::start("REF_TYPE_PROFILE_MODULES", || {
             format!(
@@ -488,7 +506,7 @@ impl ModuleManager {
                     (ModuleParameterKind::ProgramType, ModuleArgument::ProgramType(ty)) => {
                         crate::raw::program_derivation::ProgramCheckSession::new(
                             env,
-                            &mut Vec::new(),
+                            &mut program_context.clone(),
                         )
                         .check_value_type(*ty)
                         .map_err(|error| {
@@ -512,7 +530,7 @@ impl ModuleManager {
                         );
                         crate::raw::program_derivation::ProgramCheckSession::new(
                             env,
-                            &mut Vec::new(),
+                            &mut program_context.clone(),
                         )
                         .check_value_term(*value, expected)
                         .map_err(|error| {
@@ -616,6 +634,7 @@ impl ModuleManager {
         let mut namespaces = Vec::with_capacity(materialization_sources.len());
         for (_, item_source, _) in &materialization_sources {
             let materialized = env.add_module_in_scope(self.current, context.clone())?;
+            env.set_program_context(materialized, program_context.clone());
             remapping.module_ids.insert(*item_source, materialized);
             env.copy_hir_names(*item_source, materialized);
             namespaces.push(materialized);
@@ -1663,12 +1682,6 @@ mod tests {
         else {
             unreachable!()
         };
-        let ExpNode::DefinedConstant(remapped_parent) =
-            env.arena().get(pts_body(env.definition(*child_definition)))
-        else {
-            panic!("child definition should refer to the materialized parent definition")
-        };
-        assert_ne!(remapped_parent, parent_definition);
         let child = env
             .arena()
             .alloc(ExpNode::DefinedConstant(*child_definition));

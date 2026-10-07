@@ -25,7 +25,8 @@ fn fresh_binder(
             identifier.1 = None;
         }
         Mode::Resolved(order) => {
-            identifier.0 = spelling(&identifier.0).to_owned();
+            // Retain hygienic spellings across repeated lexical passes.
+            // Stripping them here can capture an inserted caller argument.
             identifier.1 = Some(BindingId((1u64 << 63) | (order << 32) | *counter as u64));
         }
     }

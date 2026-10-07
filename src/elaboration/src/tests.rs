@@ -2271,7 +2271,7 @@ fn kernel_declarations_capture_parameters_and_preserve_reference_labels() {
     };
     assert_eq!(
         env.inductive((*inductive).into()).unwrap().parameters.len(),
-        1
+        3
     );
 }
 
@@ -2577,4 +2577,18 @@ fn carrier_aliases_keep_their_identity_across_nested_specializations() {
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     environment.add_modules_to_root(&modules).unwrap();
+}
+#[test]
+fn debug_printing_bounds_shared_expression_expansion() {
+    let env = crate::raw::environment::CrateEnv::new();
+    let mut expression = env.arena().sort(crate::raw::sort::Sort::Set(0));
+    for _ in 0..30 {
+        expression = env.arena().alloc(crate::raw::exp::ExpNode::App {
+            func: expression,
+            arg: expression,
+        });
+    }
+    let rendered = crate::raw::printing::format_exp(&env, expression);
+    assert!(rendered.len() <= crate::diagnostics::EXPRESSION_BYTES);
+    assert!(rendered.contains("@expr") || rendered.contains('…'));
 }

@@ -63,6 +63,23 @@ pub(crate) fn logical(arena: &Arena, e: Exp, depth: usize, rewrite: &mut impl Re
     if let Some(Term::Logical(result)) = rewrite.rewrite(Term::Logical(e), depth) {
         return result;
     }
+    // A registered definition is closed over these explicit arguments.
+    // Reifying its frontend name here would lose the current specialization.
+    if let kernel::syntax::Node::Definition { id, arguments } = arena.core.get(e.0) {
+        let arguments = arguments
+            .into_iter()
+            .map(|argument| logical(arena, Exp(argument), depth, rewrite).0)
+            .collect();
+        let result = Exp(arena
+            .core
+            .alloc(kernel::syntax::Node::Definition { id, arguments }));
+        let Term::Logical(result) =
+            rewrite.finish(arena, Term::Logical(e), depth, Term::Logical(result))
+        else {
+            unreachable!("rewrite preserves the term family")
+        };
+        return result;
+    }
     let result = match arena.get(e) {
         ExpNode::DefinitionInstance {
             definition,
@@ -524,8 +541,8 @@ impl Term {
 
     pub(crate) fn bound_index(self, arena: &Arena) -> Option<usize> {
         match self {
-            Term::Logical(e) => match *arena.borrow_exp(e) {
-                ExpNode::Bound(index) => Some(index),
+            Term::Logical(e) => match arena.core.get(e.0) {
+                kernel::syntax::Node::Bound(index) => Some(index),
                 _ => None,
             },
             Term::ValueType(t) => match *arena.borrow_value_type(t) {
@@ -582,6 +599,14 @@ impl Term {
             0,
             &mut Memoized::new(|term: Term, depth| {
                 let replacement = match term {
+                    Term::Logical(e)
+                        if matches!(
+                            arena.core.get(e.0),
+                            kernel::syntax::Node::Definition { .. }
+                        ) =>
+                    {
+                        None
+                    }
                     Term::Logical(e) => match arena.get(e) {
                         ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => reflected
                             .iter()

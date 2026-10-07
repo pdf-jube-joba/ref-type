@@ -21,6 +21,9 @@ impl Rewrite for Remapping<'_> {
     fn finish(&mut self, arena: &Arena, _term: Term, _depth: usize, result: Term) -> Term {
         match result {
             Term::Logical(e) => {
+                if matches!(arena.core.get(e.0), kernel::syntax::Node::Definition { .. }) {
+                    return result;
+                }
                 let mut node = arena.get(e);
                 match &mut node {
                     ExpNode::DefinedConstant(id)

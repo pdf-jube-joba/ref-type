@@ -36,7 +36,11 @@ impl GlobalEnvironment {
                         })
                         .transpose()?;
                     let exp = ComputationTermExp::try_from(exp.clone())?;
-                    let term = scope.elaborate_computation(&exp, self)?;
+                    let term = if let Some(ProgramType::ComputationType(ty)) = expected {
+                        scope.elaborate_computation_expected(&exp, ty, self)?
+                    } else {
+                        scope.elaborate_computation(&exp, self)?
+                    };
                     (ProgramTerm::ComputationTerm(term), expected)
                 } else {
                     let expected = expected

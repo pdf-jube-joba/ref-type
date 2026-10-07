@@ -271,8 +271,16 @@ impl LocalScope {
         if handler.env().record_for_inductive(indspec).is_none() {
             return Err("expected a structure type in a structure literal".into());
         }
-        let constructor_spec = handler.env().inductive(indspec).constructors()[0]
-            .instantiate_parameters(handler.arena(), &parameters);
+        let (substitutions, explicit) = handler
+            .arena()
+            .split_inductive_arguments(indspec, &parameters);
+        let constructor_spec = handler.env().inductive(indspec).constructors()[0].clone();
+        let constructor = handler.arena().alloc(ExpNode::IndCtor {
+            indspec,
+            parameters: parameters.clone(),
+            idx: 0,
+        });
+        let mut constructor_ty = handler.infer(&mut self.typing_binds, constructor)?;
         let mut supplied = std::collections::HashMap::new();
         for (name, value) in fields {
             if supplied.insert(name.as_str(), value).is_some() {
@@ -285,11 +293,18 @@ impl LocalScope {
         }
         let mut ordered = Vec::with_capacity(constructor_spec.telescope.len());
         for binder in &constructor_spec.telescope {
-            let crate::raw::inductive::CtorBinder::Simple((name, field_ty)) = binder else {
+            let crate::raw::inductive::CtorBinder::Simple((name, _)) = binder else {
                 unreachable!("structure fields are simple constructor binders")
             };
             let name = handler.symbol(*name).to_owned();
-            let expected = instantiate_telescope(handler.arena(), *field_ty, &ordered);
+            let ExpNode::Prod {
+                ty: expected,
+                body: remaining,
+                ..
+            } = handler.arena().get(whnf(handler.env(), constructor_ty))
+            else {
+                return Err("record constructor has too few fields".into());
+            };
             let value = if let Some(value) = supplied.remove(name.as_str()) {
                 self.elab_with_expected(value, expected, handler)?
             } else {
@@ -306,25 +321,30 @@ impl LocalScope {
                     .find(|(name, _)| name == &default_name)
                     .map(|(_, definition)| *definition)
                     .ok_or_else(|| format!("Missing structure field {name}"))?;
-                let arguments = parameters
+                let arguments = explicit
                     .iter()
                     .copied()
                     .chain(ordered.iter().copied())
-                    .collect();
-                let value = self.definition_reference(definition, arguments, handler)?;
+                    .collect::<Vec<_>>();
+                let value = if substitutions.is_empty() {
+                    self.definition_reference(definition, arguments, handler)?
+                } else {
+                    crate::kernel_bridge::captured_definition(
+                        handler.env(),
+                        definition,
+                        &substitutions,
+                        &arguments,
+                    )?
+                };
                 handler.check(&mut self.typing_binds, value, expected)?;
                 value
             };
+            constructor_ty = instantiate(handler.arena(), remaining, value);
             ordered.push(value);
         }
         if let Some(name) = supplied.keys().next() {
             return Err(format!("Unknown structure field {name}").into());
         }
-        let constructor = handler.arena().alloc(ExpNode::IndCtor {
-            indspec,
-            parameters,
-            idx: 0,
-        });
         Ok(crate::raw::utils::assoc_apply(
             handler.arena(),
             constructor,
@@ -1082,7 +1102,7 @@ impl LocalScope {
                                 value,
                                 field,
                                 &shifted_parameters,
-                            ) else {
+                            )? else {
                                 return Err(format!(
                                     "Associated item {} not found in structure {}",
                                     field.as_str(),
@@ -1399,7 +1419,7 @@ impl LocalScope {
                                 && indspec == record.inductive
                             {
                                 return Ok(record
-                                    .field_projection(handler.env(), value, field, &parameters)
+                                    .field_projection(handler.env(), value, field, &parameters)?
                                     .ok_or_else(|| {
                                         format!(
                                             "Associated item {} not found in structure {}",

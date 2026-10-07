@@ -182,14 +182,8 @@ fn instantiated_module_types_remain_distinguishable() {
     }",
     );
     let error = mismatch(&global, "M", "a", "b");
-    assert!(
-        error.contains(r"Template[A := \root.M.A].Wrapped"),
-        "{error}"
-    );
-    assert!(
-        error.contains(r"Template[A := \root.M.B].Wrapped"),
-        "{error}"
-    );
+    assert!(error.contains(r"Template.Wrapped[\root.M.A]"), "{error}");
+    assert!(error.contains(r"Template.Wrapped[\root.M.B]"), "{error}");
     let inferred = error
         .lines()
         .find(|line| line.starts_with("inferred:"))

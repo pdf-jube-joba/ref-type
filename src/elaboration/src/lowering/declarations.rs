@@ -72,10 +72,13 @@ impl Lowerer<'_> {
             });
         let raw = self.raw.definition(id).clone();
         let parameters = self.raw.definition_parameters(id).to_vec();
-        let mut program_context = parameters
-            .iter()
-            .map(|var| raw::program::ProgramContextEntry::ValueType { var: *var })
-            .collect::<Vec<_>>();
+        let mut program_context = self.raw.program_definition_context(id.module);
+        program_context.extend(
+            parameters
+                .iter()
+                .map(|var| raw::program::ProgramContextEntry::ValueType { var: *var }),
+        );
+        self.scope.program_depth = program_context.len();
         let (body, classifier, context) = match raw {
             raw::environment::DefinedConstant::Contextual {
                 parameters,
@@ -174,6 +177,12 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn inductive(&mut self, id: InductiveId) -> Result<(), String> {
+        if let Some(origin) = self.raw.inductive_specialization(id)
+            && !self.raw.is_program_mirror(id)
+        {
+            return self.inductive(origin.source);
+        }
+
         if self.kernel.inductive(id.into()).is_some() || !self.active.insert(id) {
             return Ok(());
         }
@@ -247,7 +256,7 @@ impl Lowerer<'_> {
             .arena()
             .inductive_captures
             .borrow_mut()
-            .insert(id.into(), (self.scope.captures.len(), parameters.len()));
+            .insert(id.into(), (self.scope.captures.clone(), parameters.len()));
         Ok(())
     }
 

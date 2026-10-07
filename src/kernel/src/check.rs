@@ -389,7 +389,16 @@ impl<'a> Checker<'a> {
             self.check_open(
                 arguments[i],
                 self.env.instantiate(binding.ty, &arguments[..i])?,
-            )?;
+            )
+            .inspect_err(|_| {
+                if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some() {
+                    eprintln!(
+                        "argument {i}: {:?}; classifier {:?}",
+                        self.arena().get(arguments[i]),
+                        self.arena().get(binding.ty)
+                    );
+                }
+            })?;
         }
         Ok(())
     }

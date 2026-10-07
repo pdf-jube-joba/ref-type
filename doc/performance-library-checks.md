@@ -77,3 +77,34 @@ perf report -i /tmp/g05.perf --stdio --no-children --percent-limit 2 --sort symb
 G05 の8テストを valgrind の Memcheck でも検査し、エラー0件、definitely lost と indirectly lost は0 bytesだった。
 Rust のテストランナーのスレッド初期化に由来する possibly lost 48 bytes と still reachable 548 bytes が残った。
 このメモリ検査は小さな回帰テストを対象とし、実ライブラリ全体を対象とするものではない。
+
+## G05 の局所文脈対応と周辺の検査（2026-10-07）
+
+局所変数による帰納型の具体化、Program 値の引数、record の射影と既定値、macro 内の束縛、キャッシュ復元を検査した。
+検査済みの定義と帰納型の参照では具体化した引数を保持し、多段の具体化で元の module の変数が残る G07 も修正した。
+kernel の reflection が同じ式を次の還元結果として返すケースには、還元が進まないことを検出する回帰テストを追加した。
+
+`perf` でコピーとメモリ確保を調べ、定義参照の再展開を減らした。
+変換済みの定義参照は式の同一性で再利用し、診断用の式と module 名の整形には共通の展開上限を設けた。
+共有された式を30段重ねた入力でも、診断文字列の生成量を抑えることを検査した。
+
+前回の G05 部分対応版と今回の版を、ビルドや別の計測を重ねずに `hyperfine --warmup 1 --runs 5` で比較した。
+同じ dev profile と `--no-cache --diagnostics compact` を使い、[測定値と実行ファイルのハッシュ](benchmarks/g05-audit-2026-10-07.json) を保存した。
+
+| 入力 | 修正前の平均 ± 標準偏差 | 修正後の平均 ± 標準偏差 |
+| --- | ---: | ---: |
+| `std` 全体 | 2.502 ± 0.139秒 | 2.478 ± 0.060秒 |
+| 通常の関数参照500定義 | 22.1 ± 1.1ms | 21.1 ± 0.6ms |
+| 一時 module 経由の参照500定義 | 29.1 ± 1.0ms | 30.7 ± 1.3ms |
+
+`std` の実行時間はほぼ同じで、小さな一時 module の入力には約1.6msの増加があった。
+最終版の `std` も `perf record -F 49 --call-graph dwarf,16384` で記録し、258サンプルを取得した。
+
+Rust の unit・integration test は349件、CLI は27件が成功した。
+CLI の検査には G05、G06、category、通常のライブラリ例を含む。
+別途、`tests/projects/topological-k-theory` をキャッシュなしで最後まで検査し、G07 の `reflectedTwice` も成功した。
+この処理ログ付きの単発検査は114.05秒、最大 RSS は3296572 KiBだった。
+検査の一部でテスト用ビルドを並行したため、この値はリソース使用量の参考値である。
+
+G05 の20テストを valgrind の Memcheck でも実行し、エラー0件、definitely lost と indirectly lost は0 bytesだった。
+テストランナー由来の possibly lost 48 bytes と still reachable 548 bytes は前回と同じだった。

@@ -20,11 +20,24 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
     let mut datatypes = FxHashSet::default();
     let mut parameters = FxHashSet::default();
     while let Some(term) = pending.pop() {
+        if let Term::Logical(e) = term
+            && env.arena().lowered_definitions.borrow().contains(&e.0)
+        {
+            continue;
+        }
         if !seen.insert(term) {
             continue;
         }
         term.visit_children(env.arena(), |child, _| pending.push(child));
         let (definition, inductive, datatype, parameter) = match term {
+            Term::Logical(e)
+                if matches!(
+                    env.arena().core.get(e.0),
+                    kernel::syntax::Node::Definition { .. }
+                ) =>
+            {
+                (None, None, None, None)
+            }
             Term::Logical(e) => match env.arena().get(e) {
                 ExpNode::DefinedConstant(id)
                 | ExpNode::DefinitionInstance { definition: id, .. } => {
@@ -108,6 +121,22 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
             && inductives.insert(id)
             && env.kernel.borrow().inductive(id.into()).is_none()
         {
+            if !env.is_program_mirror(id) {
+                let arguments = if let Some(origin) = env.inductive_specialization(id) {
+                    pending.push(Term::Logical(env.arena().alloc(ExpNode::IndType {
+                        indspec: origin.source,
+                        parameters: vec![],
+                    })));
+                    origin.arguments.clone()
+                } else {
+                    env.namespace_arguments(id.module)
+                };
+                pending.extend(arguments.into_iter().map(|(_, argument)| match argument {
+                    crate::raw::environment::ModuleArgument::Pts(e) => Term::Logical(e),
+                    crate::raw::environment::ModuleArgument::ProgramType(t) => Term::ValueType(t),
+                    crate::raw::environment::ModuleArgument::ProgramValue(v) => Term::Value(v),
+                }));
+            }
             let spec = env.inductive(id);
             pending.extend(spec.parameters().iter().map(|(_, e)| Term::Logical(*e)));
             pending.push(Term::Logical(spec.arity(env.arena())));
@@ -256,4 +285,43 @@ pub(crate) fn expression<T>(
         term => lower.source_term(term, &mut vec![])?,
     };
     f(&kernel, e)
+}
+
+pub(crate) fn captured_definition(
+    env: &CrateEnv,
+    definition: crate::raw::ids::DefId,
+    substitutions: &[(crate::raw::ids::ModuleParamId, Exp)],
+    parameters: &[Exp],
+) -> Result<Exp, String> {
+    let actual = substitutions
+        .iter()
+        .map(|(id, value)| expression(env, Term::Logical(*value), |_, term| Ok((*id, term))))
+        .collect::<Result<Vec<_>, _>>()?;
+    let reference = if matches!(
+        env.definition(definition),
+        DefinedConstant::Contextual { .. }
+    ) {
+        env.arena().alloc(ExpNode::DefinitionInstance {
+            definition,
+            arguments: parameters.to_vec(),
+        })
+    } else {
+        env.arena().alloc(ExpNode::DefinedConstant(definition))
+    };
+    expression(env, Term::Logical(reference), |kernel, reference| {
+        let kernel::syntax::Node::Definition { id, mut arguments } = kernel.arena().get(reference)
+        else {
+            return Err("expected a definition reference".into());
+        };
+        let captures = env
+            .arena()
+            .definition_captures(id)
+            .ok_or("missing definition captures")?;
+        for (parameter, argument) in captures.iter().zip(&mut arguments) {
+            if let Some((_, value)) = actual.iter().find(|(id, _)| id == parameter) {
+                *argument = *value;
+            }
+        }
+        kernel.reference(id, arguments).map(Exp)
+    })
 }

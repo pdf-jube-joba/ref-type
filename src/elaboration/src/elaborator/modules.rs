@@ -165,23 +165,21 @@ impl GlobalEnvironment {
         }
 
         self.solve_module_arguments(&mut ctx, initial_source, base, &mut args)?;
+        for entry in &mut ctx {
+            entry.ty = self.metavariables.zonk(&self.crate_env, entry.ty);
+        }
 
-        let access_result = if let Some(base) = base {
-            self.module_manager
-                .bind_namespace_from_alias(&mut self.crate_env, &mut ctx, base, args)
-        } else if source_override.is_some() {
-            self.module_manager.bind_namespace_from(
+        let access_result = self
+            .module_manager
+            .bind_namespace_in_context(
                 &mut self.crate_env,
                 &mut ctx,
+                program_scope.context(),
                 initial_source,
-                None,
+                base,
                 args,
             )
-        } else {
-            self.module_manager
-                .bind_namespace(&mut self.crate_env, &mut ctx, from, args)
-        }
-        .map_err(|e| format!("Module instantiation failed: {}", e))?;
+            .map_err(|e| format!("Module instantiation failed: {}", e))?;
 
         Ok(access_result)
     }
