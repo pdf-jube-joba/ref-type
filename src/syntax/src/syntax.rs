@@ -1228,7 +1228,9 @@ pub enum Statement {
 impl LocalAccess {
     pub fn span(&self) -> SourceSpan {
         match self {
-            Self::Instantiated { span, .. } | Self::Current { span, .. } | Self::Named { span, .. } => *span,
+            Self::Instantiated { span, .. }
+            | Self::Current { span, .. }
+            | Self::Named { span, .. } => *span,
         }
     }
 }

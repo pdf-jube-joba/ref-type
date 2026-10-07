@@ -27,158 +27,161 @@ impl GlobalEnvironment {
         program_scope: &mut program_term_elaborator::ProgramScope,
     ) -> Result<ModuleId, ElaborationError> {
         let mut ctx = local_scope.context().clone();
-    let source_override = if let ModuleInstantiatePath::FromModule { module, .. } = path {
-        Some(self.module_manager.hir_module(*module).ok_or("unknown module expression scope")?)
-    } else { None };
-    let (from, base, calls) = match path {
-        ModuleInstantiatePath::FromModule { calls, .. } => (None, None, calls),
-        ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
-            (Some(*back_parent), None, calls)
-        }
-        ModuleInstantiatePath::FromRoot { calls } => (None, None, calls),
-        ModuleInstantiatePath::FromImport { import_name, calls } => {
-            let binding = self
-                .module_manager
-                .hir_import(&self.crate_env, import_name)
-                .ok_or_else(|| {
-                    format!("Module import '{}' was not found", import_name.as_str())
-                })?;
-            (None, Some(binding), calls)
-        }
-    };
-
-    let mut source = if let Some(source) = source_override {
-        source
-    } else if let Some(base) = base {
-        self.crate_env.binding(base).source
-    } else if let Some(back_parent) = from {
-        let mut module = self.module_manager.current();
-        for _ in 0..back_parent {
-            module = self
-                .crate_env
-                .module(module)
-                .parent()
-                .ok_or("already at root module")?;
-        }
-        module
-    } else {
-        self.crate_env.root_module()
-    };
-    let initial_source = source;
-    let mut program_substitutions = base
-        .map(|base| self.crate_env.binding(base).arguments.clone())
-        .unwrap_or_default();
-    let mut args = Vec::with_capacity(calls.len());
-    for (child_name, supplied) in calls.iter() {
-        let child = self
-            .module_manager
-            .hir_child(&self.crate_env, source, child_name)
-            .ok_or_else(|| {
-                format!("child module '{}' was not found", child_name.as_str())
-            })?;
-        let parameters = self.crate_env.module(child).parameters().to_vec();
-        if supplied.len() != parameters.len() {
-            return Err(format!(
-                "module '{}' argument count mismatch",
-                child_name.as_str()
+        let source_override = if let ModuleInstantiatePath::FromModule { module, .. } = path {
+            Some(
+                self.module_manager
+                    .hir_module(*module)
+                    .ok_or("unknown module expression scope")?,
             )
-            .into());
-        }
-        let mut elaborated = Vec::with_capacity(supplied.len());
-        for (position, ((name, expression), parameter)) in
-            supplied.iter().zip(parameters).enumerate()
-        {
-            if name.as_str() != self.crate_env.symbol(parameter.name) {
-                return Err(format!(
-                    "module '{}' argument name mismatch",
-                    child_name.as_str()
-                )
-                .into());
+        } else {
+            None
+        };
+        let (from, base, calls) = match path {
+            ModuleInstantiatePath::FromModule { calls, .. } => (None, None, calls),
+            ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
+                (Some(*back_parent), None, calls)
             }
-            let argument = match parameter.kind {
-                ModuleParameterKind::Pts { .. } => {
-                    ModuleArgument::Pts(local_scope.elab_exp(expression, self)?)
+            ModuleInstantiatePath::FromRoot { calls } => (None, None, calls),
+            ModuleInstantiatePath::FromImport { import_name, calls } => {
+                let binding = self
+                    .module_manager
+                    .hir_import(&self.crate_env, import_name)
+                    .ok_or_else(|| {
+                        format!("Module import '{}' was not found", import_name.as_str())
+                    })?;
+                (None, Some(binding), calls)
+            }
+        };
+
+        let mut source = if let Some(source) = source_override {
+            source
+        } else if let Some(base) = base {
+            self.crate_env.binding(base).source
+        } else if let Some(back_parent) = from {
+            let mut module = self.module_manager.current();
+            for _ in 0..back_parent {
+                module = self
+                    .crate_env
+                    .module(module)
+                    .parent()
+                    .ok_or("already at root module")?;
+            }
+            module
+        } else {
+            self.crate_env.root_module()
+        };
+        let initial_source = source;
+        let mut program_substitutions = base
+            .map(|base| self.crate_env.binding(base).arguments.clone())
+            .unwrap_or_default();
+        let mut args = Vec::with_capacity(calls.len());
+        for (child_name, supplied) in calls.iter() {
+            let child = self
+                .module_manager
+                .hir_child(&self.crate_env, source, child_name)
+                .ok_or_else(|| format!("child module '{}' was not found", child_name.as_str()))?;
+            let parameters = self.crate_env.module(child).parameters().to_vec();
+            if supplied.len() != parameters.len() {
+                return Err(
+                    format!("module '{}' argument count mismatch", child_name.as_str()).into(),
+                );
+            }
+            let mut elaborated = Vec::with_capacity(supplied.len());
+            for (position, ((name, expression), parameter)) in
+                supplied.iter().zip(parameters).enumerate()
+            {
+                if name.as_str() != self.crate_env.symbol(parameter.name) {
+                    return Err(
+                        format!("module '{}' argument name mismatch", child_name.as_str()).into(),
+                    );
                 }
-                ModuleParameterKind::ProgramType => {
-                    let syntax: ValueTypeExp = expression.clone().try_into()?;
-                    let ty = program_scope.elaborate_value_type(&syntax, self)?;
-                    ModuleArgument::ProgramType(ty)
-                }
-                ModuleParameterKind::ProgramValue { ty } => {
-                    let syntax: ValueTermExp = expression.clone().try_into()?;
-                    let value = program_scope.elaborate_value(&syntax, self)?;
-                    let mut expected =
-                        crate::raw::program_calculus::subst_value_type_module_params(
-                            self.crate_env.arena(),
-                            ty,
-                            &program_substitutions,
-                        );
-                    if let Some(base) = base {
-                        let remapping = self
-                            .crate_env
-                            .remapping(self.crate_env.binding(base).remapping);
-                        expected =
-                            crate::raw::program_calculus::remap_value_type_global_ids(
+                let argument = match parameter.kind {
+                    ModuleParameterKind::Pts { .. } => {
+                        ModuleArgument::Pts(local_scope.elab_exp(expression, self)?)
+                    }
+                    ModuleParameterKind::ProgramType => {
+                        let syntax: ValueTypeExp = expression.clone().try_into()?;
+                        let ty = program_scope.elaborate_value_type(&syntax, self)?;
+                        ModuleArgument::ProgramType(ty)
+                    }
+                    ModuleParameterKind::ProgramValue { ty } => {
+                        let syntax: ValueTermExp = expression.clone().try_into()?;
+                        let value = program_scope.elaborate_value(&syntax, self)?;
+                        let mut expected =
+                            crate::raw::program_calculus::subst_value_type_module_params(
+                                self.crate_env.arena(),
+                                ty,
+                                &program_substitutions,
+                            );
+                        if let Some(base) = base {
+                            let remapping = self
+                                .crate_env
+                                .remapping(self.crate_env.binding(base).remapping);
+                            expected = crate::raw::program_calculus::remap_value_type_global_ids(
                                 self.crate_env.arena(),
                                 expected,
                                 &remapping.definition_ids,
                                 &remapping.program_inductive_ids,
                             );
+                        }
+                        let (value, _) =
+                            program_scope.check_value_term_with_metas(self, value, expected)?;
+                        ModuleArgument::ProgramValue(value)
                     }
-                    let (value, _) = program_scope
-                        .check_value_term_with_metas(self, value, expected)?;
-                    ModuleArgument::ProgramValue(value)
-                }
-            };
-            program_substitutions.push((
-                ModuleParamId {
-                    module: child,
-                    position: position as u32,
-                },
-                argument,
-            ));
-            elaborated.push((name.clone(), argument));
+                };
+                program_substitutions.push((
+                    ModuleParamId {
+                        module: child,
+                        position: position as u32,
+                    },
+                    argument,
+                ));
+                elaborated.push((name.clone(), argument));
+            }
+            args.push((child_name.clone(), elaborated));
+            source = child;
         }
-        args.push((child_name.clone(), elaborated));
-        source = child;
-    }
-    program_scope.finish_metas(self)?;
-    for (_, arguments) in &mut args {
-        for (_, argument) in arguments {
-            match argument {
-                ModuleArgument::ProgramType(ty) => {
-                    *ty = program_scope.zonk_module_value_type(self, *ty);
-                    ProgramCheckSession::new(&self.crate_env, &mut program_scope.context().clone())
+        program_scope.finish_metas(self)?;
+        for (_, arguments) in &mut args {
+            for (_, argument) in arguments {
+                match argument {
+                    ModuleArgument::ProgramType(ty) => {
+                        *ty = program_scope.zonk_module_value_type(self, *ty);
+                        ProgramCheckSession::new(
+                            &self.crate_env,
+                            &mut program_scope.context().clone(),
+                        )
                         .check_value_type(*ty)
                         .map_err(|error| {
-                            format!(
-                                "Program type module argument is ill-formed: {error}"
-                            )
+                            format!("Program type module argument is ill-formed: {error}")
                         })?;
+                    }
+                    ModuleArgument::ProgramValue(value) => {
+                        *value = program_scope.zonk_module_value(self, *value);
+                    }
+                    ModuleArgument::Pts(_) => {}
                 }
-                ModuleArgument::ProgramValue(value) => {
-                    *value = program_scope.zonk_module_value(self, *value);
-                }
-                ModuleArgument::Pts(_) => {}
             }
         }
-    }
 
-    self.solve_module_arguments(&mut ctx, initial_source, base, &mut args)?;
+        self.solve_module_arguments(&mut ctx, initial_source, base, &mut args)?;
 
-    let access_result = if let Some(base) = base {
-        self.module_manager.bind_namespace_from_alias(
-            &mut self.crate_env,
-            &mut ctx,
-            base,
-            args,
-        )
-    } else if source_override.is_some() {
-        self.module_manager.bind_namespace_from(&mut self.crate_env, &mut ctx, initial_source, None, args)
-    } else {
-        self.module_manager.bind_namespace(&mut self.crate_env, &mut ctx, from, args)
-    }
-    .map_err(|e| format!("Module instantiation failed: {}", e))?;
+        let access_result = if let Some(base) = base {
+            self.module_manager
+                .bind_namespace_from_alias(&mut self.crate_env, &mut ctx, base, args)
+        } else if source_override.is_some() {
+            self.module_manager.bind_namespace_from(
+                &mut self.crate_env,
+                &mut ctx,
+                initial_source,
+                None,
+                args,
+            )
+        } else {
+            self.module_manager
+                .bind_namespace(&mut self.crate_env, &mut ctx, from, args)
+        }
+        .map_err(|e| format!("Module instantiation failed: {}", e))?;
 
         Ok(access_result)
     }
@@ -857,9 +860,8 @@ impl GlobalEnvironment {
                     )
                     .into());
                 }
-                let access_result = self.instantiate_module_expression(
-                    path, &mut local_scope, &mut scope,
-                )?;
+                let access_result =
+                    self.instantiate_module_expression(path, &mut local_scope, &mut scope)?;
 
                 self.module_manager.register_hir_import(
                     &self.crate_env,

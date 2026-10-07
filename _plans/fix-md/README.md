@@ -23,7 +23,7 @@ target/debug/cli _plans/fix-md/cases/01-01-record-eta.ref --no-cache --diagnosti
 | [G02](#g02) | 通常の関数と contextual な定義 | 通常の関数で失敗、contextual な定義で成功。 |
 | [G03](#g03) | 関係を持つ record とデータ・法則の分離 | record の射影生成で失敗、分離すると成功。 |
 | [G04](#g04) | 親の macro 読み込み位置と子の再読み込み | 宣言後の読み込みと再読み込みで失敗、宣言前の読み込みを継承すると成功。 |
-| [G05](#g05) | 式中の module 具体化と台集合を返す関数 | 式中の具体化は構文解析で失敗、関数は成功。 |
+| [G05](#g05) | 式中の module 具体化と台集合を返す関数 | 式中の具体化・関数とも成功。 |
 | [G06](#g06) | 積の定理の定義元と parameter を持つ利用側 | 修正済み。両方成功。 |
 | [G11](#g11) | Machine の引数と具体値 | 引数で失敗、具体値で成功。 |
 
@@ -97,7 +97,7 @@ Machine の型、実行、Box の型と本体は共通で、Box の型は両側�
 
 | サンプル | 条件 | 結果 |
 | --- | --- | --- |
-| [05-01-module-expression.ref](cases/05-01-module-expression.ref) | 引数を module の具体化へ渡して台集合を参照する。 | 失敗：`expected RBracket, found Assign`。 |
+| [05-01-module-expression.ref](cases/05-01-module-expression.ref) | 引数を module の具体化へ渡して台集合を参照する。 | 成功。 |
 | [05-02-carrier-function.ref](cases/05-02-carrier-function.ref) | 台集合を返す通常の関数へ引数を渡す。 | 成功。 |
 
 両方とも引数の集合をそのまま返す型族を定義する。

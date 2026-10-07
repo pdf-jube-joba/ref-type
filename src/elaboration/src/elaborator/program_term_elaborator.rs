@@ -226,7 +226,9 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         access: &LocalAccess,
     ) -> Result<ItemAccessResult, ElaborationError> {
-        Ok(environment.module_manager.get_item(&environment.crate_env, access)
+        Ok(environment
+            .module_manager
+            .get_item(&environment.crate_env, access)
             .ok_or_else(|| format!("Program name was not found: {access}"))?)
     }
 
@@ -248,11 +250,16 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<(), ElaborationError> {
         if let SExp::ModuleInstance { path, import_name } = value {
-            let context = crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
-                .map_err(|error| error.to_string())?;
+            let context =
+                crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
+                    .map_err(|error| error.to_string())?;
             let mut scope = LocalScope::from_typing_context(context);
             let binding = environment.instantiate_module_expression(path, &mut scope, self)?;
-            environment.module_manager.register_hir_import(&environment.crate_env, import_name, binding);
+            environment.module_manager.register_hir_import(
+                &environment.crate_env,
+                import_name,
+                binding,
+            );
             return Ok(());
         }
         if let SExp::ConversionTarget { expression } = ty {

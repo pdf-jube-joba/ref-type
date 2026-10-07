@@ -206,7 +206,10 @@ fn qualify_imports(module: &mut Module, package: &str, available: &HashSet<Strin
         let replacement = match path {
             ModuleInstantiatePath::FromRoot { calls } => Some((package.to_owned(), calls.clone())),
             ModuleInstantiatePath::FromImport { import_name, calls }
-                if available.contains(import_name.as_str()) => Some((import_name.0.clone(), calls.clone())),
+                if available.contains(import_name.as_str()) =>
+            {
+                Some((import_name.0.clone(), calls.clone()))
+            }
             _ => None,
         };
         if let Some((name, calls)) = replacement {

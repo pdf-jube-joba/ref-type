@@ -60,11 +60,31 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 ## G05: 式の中での module の具体化
 
 依存するセルの次元を引数として `Euclidean.Dimension[n := dimension].Disk` のように台集合を参照したい。
-現在は module の具体化を import 宣言で行うため、関数の引数や record の field に依存する値を、この形の式へ渡せない。
+[最小比較: G05](fix-md/README.md#g05) の `F.Dimension[A := A].Carrier` と、[実ライブラリの例](../tests/projects/module-expressions/src/Cells.ref) は検査に成功する。
+関数の引数、lambda の束縛変数、record の先行 field を module 引数として、定義を参照できる。
+macro の展開先でも宣言元の参照を保持し、package の読み込みとキャッシュの依存関係にも式中の module 参照を含める。
 
-[最小比較: G05](fix-md/README.md#g05) の `F.Dimension[A := A].Carrier` は `expected RBracket, found Assign` で構文解析に失敗する。
-台集合を返す通常の関数 `F.carrier A` なら型検査が通る。
-`algebraic_topology.Euclidean` は `Disk(n)` と `coordinateCarrier(n)` を関数として公開し、固定した次元の位相・境界は `Dimension` の import から利用することで回避している。
+局所変数に依存する帰納型の具体化と Program 値の引数には、次の制限が残っている。
+
+```text
+\module Family(A: \Set) {
+  \inductive Box: \Set := | box: A -> Box;
+}
+\definition box(A: \Set)(x: A): Family[A := A].Box :=
+  Family[A := A].Box::box x;
+```
+
+このように module 内の帰納型を局所変数で具体化したいが、帰納型の kernel 登録が局所文脈を parameter として保持できず、型検査に失敗する。
+閉じた集合を引数とする同じ帰納型の具体化は成功する。
+
+```text
+\inductive Unit: \VType := | unit: Unit;
+\module Value(A: \VType, x: A) { \definition value: A := x; }
+\definition identity(x: Unit): \F(Unit) := \return Value[A := Unit, x := x].value;
+```
+
+Program の局所値も module 引数へ渡したいが、具体化先の引数検査と定義の登録が Program の局所文脈を引き継げず、型検査に失敗する。
+閉じた Program 値を渡す具体化は成功する。
 
 <a id="g06"></a>
 
@@ -92,3 +112,17 @@ expected: Pow(Pow(std.Data.Pair.Times^[I, K]))
 原因は module 具体化時の参照の確定順序にあった。
 型の比較で依存定義を実体化する際、積型の仮の ID がその定義に残り、後で確定した元の積型と異なる型として扱われていた。
 parameter を持たない module の参照を先に確定することで修正し、再現プロジェクトを CLI の回帰テストに追加した。
+
+<a id="g07"></a>
+
+## G07: ホモトピー同値の反射の具体化
+
+[Homotopy.ref の reflectedTwice](../tests/projects/topological-k-theory/src/Homotopy.ref) で、閉区間の反射を二回合成したホモトピー同値を構成したい。
+次の検査は `reflectedTwice` の型検査で失敗する。
+
+```sh
+target/debug/cli tests/projects/topological-k-theory --no-cache --diagnostics compact
+```
+
+推論された位相は `Topology[A := Interval.Carrier, B := Interval.Carrier].Topology` である一方、期待型には `HomotopyEquivalence` の束縛変数 `B` による具体化が残り、`types are not convertible` になる。
+G05 対応前の処理系でも同じ位置と診断で再現する。

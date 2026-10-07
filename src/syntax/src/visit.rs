@@ -13,16 +13,32 @@ macro_rules! leaf {
         }
     )*};
 }
-leaf!(Identifier, SourceSpan, SurfaceMeta, Sort, InductiveKind, MacroToken,
-    MacroSeqAtom, TokenMatchPattern, SourceFile, u32, usize, String);
+leaf!(
+    Identifier,
+    SourceSpan,
+    SurfaceMeta,
+    Sort,
+    InductiveKind,
+    MacroToken,
+    MacroSeqAtom,
+    TokenMatchPattern,
+    SourceFile,
+    u32,
+    usize,
+    String
+);
 impl<T: ModulePaths> ModulePaths for Vec<T> {
     fn visit_module_paths(&mut self, action: &mut impl FnMut(&mut ModuleInstantiatePath)) {
-        for item in self { item.visit_module_paths(action); }
+        for item in self {
+            item.visit_module_paths(action);
+        }
     }
 }
 impl<T: ModulePaths> ModulePaths for Option<T> {
     fn visit_module_paths(&mut self, action: &mut impl FnMut(&mut ModuleInstantiatePath)) {
-        if let Some(item) = self { item.visit_module_paths(action); }
+        if let Some(item) = self {
+            item.visit_module_paths(action);
+        }
     }
 }
 impl<T: ModulePaths> ModulePaths for Box<T> {
@@ -75,13 +91,22 @@ impl ModulePaths for ModuleInstantiatePath {
     fn visit_module_paths(&mut self, action: &mut impl FnMut(&mut ModuleInstantiatePath)) {
         action(self);
         let calls = match self {
-            Self::FromCurrent { calls, .. } | Self::FromRoot { calls }
+            Self::FromCurrent { calls, .. }
+            | Self::FromRoot { calls }
             | Self::FromImport { calls, .. } => calls,
         };
         calls.visit_module_paths(action);
     }
 }
-visit_struct!(Module { name, parameters, body, span, declaration_spans, source, header_source });
+visit_struct!(Module {
+    name,
+    parameters,
+    body,
+    span,
+    declaration_spans,
+    source,
+    header_source
+});
 visit_enum!(ModuleBody {
     Inline(value0),
     External,

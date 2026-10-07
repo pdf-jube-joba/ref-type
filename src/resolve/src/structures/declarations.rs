@@ -31,6 +31,12 @@ impl Resolver {
         output: &mut Vec<ModuleItem>,
     ) -> Result<(), Diagnostic> {
         let mut binders = binders;
+        // Generated declaration modules must retain the source module's paths.
+        for binder in &mut binders {
+            self.anchor_module_expressions(&mut binder.ty)?;
+        }
+        self.anchor_module_expressions(&mut ty)?;
+        self.anchor_module_expressions(&mut body)?;
         if let Some((domain, result)) = self.declaration_signature(&ty) {
             for bind in &domain {
                 for name in &bind.vars {

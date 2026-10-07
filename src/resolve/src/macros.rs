@@ -414,14 +414,17 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
         return;
     }
     let access = match exp {
-        SExp::AccessPath { access, .. } | SExp::RecordTypeCtor { access, .. }
+        SExp::AccessPath { access, .. }
+        | SExp::RecordTypeCtor { access, .. }
         | SExp::ProgramValueReference { access }
-        | SExp::IndCase { path: access, .. } | SExp::ProgramCase { path: access, .. } => Some(access),
+        | SExp::IndCase { path: access, .. }
+        | SExp::ProgramCase { path: access, .. } => Some(access),
         _ => None,
     };
     if let Some(LocalAccess::Instantiated { path, .. }) = access {
         let calls = match path.as_mut() {
-            ModuleInstantiatePath::FromModule { calls, .. } | ModuleInstantiatePath::FromCurrent { calls, .. }
+            ModuleInstantiatePath::FromModule { calls, .. }
+            | ModuleInstantiatePath::FromCurrent { calls, .. }
             | ModuleInstantiatePath::FromRoot { calls }
             | ModuleInstantiatePath::FromImport { calls, .. } => calls,
         };
@@ -434,7 +437,8 @@ pub fn walk_sexp_control(exp: &mut SExp, action: &mut impl FnMut(&mut SExp) -> b
     match exp {
         SExp::ModuleInstance { path, .. } => {
             let calls = match path.as_mut() {
-                ModuleInstantiatePath::FromModule { calls, .. } | ModuleInstantiatePath::FromCurrent { calls, .. }
+                ModuleInstantiatePath::FromModule { calls, .. }
+                | ModuleInstantiatePath::FromCurrent { calls, .. }
                 | ModuleInstantiatePath::FromRoot { calls }
                 | ModuleInstantiatePath::FromImport { calls, .. } => calls,
             };

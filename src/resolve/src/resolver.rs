@@ -312,7 +312,9 @@ impl Resolver {
                 *span,
             ),
             LocalAccess::Resolved { .. } => return Ok(()),
-            LocalAccess::Instantiated { .. } => return Err(self.error("unresolved module expression")),
+            LocalAccess::Instantiated { .. } => {
+                return Err(self.error("unresolved module expression"));
+            }
         };
         let spelling = name.as_str().trim_end_matches('^');
         loop {
@@ -1021,7 +1023,8 @@ impl Resolver {
                         for bind in &mut input.callback_parameters {
                             *bind.ty = structures::substitute(&bind.ty, &argument_substitutions);
                         }
-                        let (fields, guards) = self.callback_arguments(&input, &argument, locals)?;
+                        let (fields, guards) =
+                            self.callback_arguments(&input, &argument, locals)?;
                         checks.extend(guards);
                         for (path, expression) in input.fields.iter().zip(fields) {
                             expanded.push((Identifier(format!("{}.{}", name.0, path)), expression));
@@ -1151,6 +1154,25 @@ impl Resolver {
                     true
                 });
                 macros::walk_sexp_mut(&mut definition.template, &mut |node| match node {
+                    SExp::ModuleInstance { path, import_name } => {
+                        if let ModuleInstantiatePath::FromModule { module, .. } = path.as_mut() {
+                            *module = remapping.get(module).copied().unwrap_or(*module);
+                        }
+                        if let Some(mut import) =
+                            import_name.1.and_then(|id| self.imports.get(&id)).cloned()
+                        {
+                            import.target = remapping
+                                .get(&import.target)
+                                .copied()
+                                .unwrap_or(import.target);
+                            for target in import.remapping.values_mut() {
+                                *target = remapping.get(target).copied().unwrap_or(*target);
+                            }
+                            import_name.1 = None;
+                            let binding = self.binding(import_name);
+                            self.imports.insert(binding, import);
+                        }
+                    }
                     SExp::AccessPath {
                         access: LocalAccess::Resolved { module, .. },
                         ..

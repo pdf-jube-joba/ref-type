@@ -53,3 +53,27 @@ category 単体の最大値は716.0 MiBから754.3 MiBとなった。
 当時の検証は workspace の307テストと全8ライブラリで成功した。
 この表の生データ `doc/benchmarks/library-checks-2026-10-05.json` は、この checkout には含まれていない。
 現行版の測定には上記のスクリプトを使う。
+
+
+## G05 の計測（2026-10-07）
+
+同じ dev profile で、G05 の式中の module 具体化と再利用処理を測定した。
+[測定値](benchmarks/g05-2026-10-07.json) に hyperfine の各実行時間と GNU time の最大 RSS を保存した。
+
+500個の定義が同じ恒等関数を参照する小さな入力を5回ずつ検査したところ、通常の関数参照は G05 対応前21.5 ± 1.5ms、対応後21.8 ± 1.2ms、一時 module を介する参照は28.0 ± 1.1msだった。
+各値は平均と標準偏差であり、この入力では既存構文の明確な速度低下は見られなかった。
+
+```sh
+perf record -F 49 --call-graph dwarf,8192 -o /tmp/g05.perf -- \
+  target/debug/cli tests/projects/module-expressions --no-cache --diagnostics compact
+perf report -i /tmp/g05.perf --stdio --no-children --percent-limit 2 --sort symbol
+```
+
+実ライブラリの検査では `reuse_lazy_definition` が CPU cycle の自己サンプルの約9%を占め、`Arena::get`、ノード比較、確保も上位に現れた。
+元の宣言ごとに再利用候補を索引化する変更を試したが、`std` の5回測定は2.533 ± 0.042秒→2.497 ± 0.037秒、大きな G05 の実例の各1回測定は73.797秒→87.077秒となった。
+後者の最大 RSS は3268076 KiB→3268200 KiBで、両方の検査が成功した。
+単発測定には変動があるものの速度改善を確認できず、索引化は採用していない。
+
+G05 の8テストを valgrind の Memcheck でも検査し、エラー0件、definitely lost と indirectly lost は0 bytesだった。
+Rust のテストランナーのスレッド初期化に由来する possibly lost 48 bytes と still reachable 548 bytes が残った。
+このメモリ検査は小さな回帰テストを対象とし、実ライブラリ全体を対象とするものではない。

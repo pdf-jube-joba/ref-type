@@ -128,6 +128,21 @@ parameter の個数・名前・順序を宣言と一致させる。
 先頭の `.` は現在の module、パッケージ名はそのルート、`\parent.` は一つ上の module から探索する。
 module argument では metavariable の推論を行わない。
 
+### 式中の具体化
+
+```text
+\definition carrier(A: \Set): \Set := Family[A := A].Carrier;
+\definition disk(n: Nat^): \Set := Euclidean.Dimension[n := n].Disk;
+\structure Cell: \Set {
+  dimension: Nat^,
+  point: Euclidean.Dimension[n := dimension].Disk,
+}
+```
+
+参照の位置で module 引数を検査し、具体化した module の item を取り出す。
+関数の引数や record の先行 field を参照できる。
+局所変数を使う帰納型や Program 値の具体化には、[G05 の制限](../../../../_plans/gaps.md#g05) が残っている。
+
 ## 3. 宣言
 
 ### definition

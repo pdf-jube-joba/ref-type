@@ -24,7 +24,11 @@ pub(crate) trait Handler {
         name: &Identifier,
         scope: &mut LocalScope,
     ) -> Result<(), ElaborationError>;
-    fn materialize_module_term(&mut self, context: &ExpContext, term: Exp) -> Result<Exp, ElaborationError>;
+    fn materialize_module_term(
+        &mut self,
+        context: &ExpContext,
+        term: Exp,
+    ) -> Result<Exp, ElaborationError>;
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
@@ -779,15 +783,18 @@ impl LocalScope {
                     Some(expected) => self.elab_with_expected(body, expected, handler),
                     None => self.elab_exp_rec(body, handler),
                 }?;
-                if checks.iter().any(|(value, _)| matches!(value, SExp::ModuleInstance { .. })) {
+                if checks
+                    .iter()
+                    .any(|(value, _)| matches!(value, SExp::ModuleInstance { .. }))
+                {
                     handler.materialize_module_term(&self.typing_binds, value)
                 } else {
                     Ok(value)
                 }
             }
-            SExp::ModuleInstance { .. } | SExp::ConversionTarget { .. } | SExp::ProgramValueReference { .. } => {
-                Err("Program value requires reflection".into())
-            }
+            SExp::ModuleInstance { .. }
+            | SExp::ConversionTarget { .. }
+            | SExp::ProgramValueReference { .. } => Err("Program value requires reflection".into()),
             SExp::MemberAccess { .. } | SExp::MemberLiteral { .. } => {
                 Err("unresolved structure member".into())
             }

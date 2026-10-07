@@ -1,8 +1,8 @@
 //! Resolution dependencies, including scopes, imports and macro environments.
 use crate::cache::{Fingerprint, fingerprint};
 use ::syntax::syntax::{Module, ModuleBody, ModuleInstantiatePath, ModuleItem};
-use std::collections::{BTreeMap, BTreeSet};
 use ::syntax::visit::ModulePaths;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) struct Unit<'a> {
     pub path: Vec<String>,
@@ -103,7 +103,10 @@ impl<'a> ModuleGraph<'a> {
         item.clone().visit_module_paths(&mut |import| {
             self.include_module_path(import, path, visible, dependencies);
         });
-        if let ModuleItem::Import { path: import, import_name } = item
+        if let ModuleItem::Import {
+            path: import,
+            import_name,
+        } = item
             && let Some(target) = Self::module_target(import, path, visible)
         {
             visible.insert(import_name.0.clone(), target);

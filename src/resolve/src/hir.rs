@@ -172,7 +172,10 @@ pub type ModuleCall = (Identifier, Vec<(Identifier, SExp)>);
 
 #[derive(Debug, Clone)]
 pub enum ModuleInstantiatePath {
-    FromModule { module: ModuleId, calls: Vec<ModuleCall> },
+    FromModule {
+        module: ModuleId,
+        calls: Vec<ModuleCall>,
+    },
     FromCurrent {
         back_parent: usize,
         calls: Vec<ModuleCall>,
@@ -1322,9 +1325,10 @@ pub enum Statement {
 impl LocalAccess {
     pub fn span(&self) -> SourceSpan {
         match self {
-            Self::Instantiated { span, .. } | Self::Current { span, .. } | Self::Named { span, .. } | Self::Resolved { span, .. } => {
-                *span
-            }
+            Self::Instantiated { span, .. }
+            | Self::Current { span, .. }
+            | Self::Named { span, .. }
+            | Self::Resolved { span, .. } => *span,
         }
     }
 }

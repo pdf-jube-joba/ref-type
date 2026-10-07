@@ -901,15 +901,22 @@ impl<'a> TermParser<'a> {
         let token = |offset: usize| self.tokens.get(position + offset).map(|token| token.kind);
         matches!(token(0), Some(Token::Ident(_)))
             && token(1) == Some(Token::LBracket)
-            && (matches!((token(2), token(3)), (Some(Token::Ident(_)), Some(Token::Assign)))
-                || (token(2) == Some(Token::RBracket) && token(3) == Some(Token::Period)))
+            && (matches!(
+                (token(2), token(3)),
+                (Some(Token::Ident(_)), Some(Token::Assign))
+            ) || (token(2) == Some(Token::RBracket) && token(3) == Some(Token::Period)))
     }
 
     fn starts_module_expression(&self) -> bool {
-        matches!(self.peek(), Some(Token::Period | Token::KeyWord("\\root" | "\\parent")))
-            || self.starts_module_call_at(self.pos)
+        matches!(
+            self.peek(),
+            Some(Token::Period | Token::KeyWord("\\root" | "\\parent"))
+        ) || self.starts_module_call_at(self.pos)
             || (matches!(self.peek(), Some(Token::Ident(_)))
-                && self.tokens.get(self.pos + 1).is_some_and(|t| t.kind == Token::Period)
+                && self
+                    .tokens
+                    .get(self.pos + 1)
+                    .is_some_and(|t| t.kind == Token::Period)
                 && self.starts_module_call_at(self.pos + 2))
     }
 
@@ -919,20 +926,36 @@ impl<'a> TermParser<'a> {
             self.expect_token(Token::Period)?;
             ModuleInstantiatePath::FromRoot { calls: Vec::new() }
         } else if self.bump_if_token(Token::Period) {
-            ModuleInstantiatePath::FromCurrent { back_parent: 0, calls: Vec::new() }
+            ModuleInstantiatePath::FromCurrent {
+                back_parent: 0,
+                calls: Vec::new(),
+            }
         } else if self.peek() == Some(&Token::KeyWord("\\parent")) {
             let mut back_parent = 0;
             while self.bump_if_keyword("\\parent") {
                 self.expect_token(Token::Period)?;
                 back_parent += 1;
             }
-            ModuleInstantiatePath::FromCurrent { back_parent, calls: Vec::new() }
-        } else if self.tokens.get(self.pos + 1).is_some_and(|t| t.kind == Token::Period) {
+            ModuleInstantiatePath::FromCurrent {
+                back_parent,
+                calls: Vec::new(),
+            }
+        } else if self
+            .tokens
+            .get(self.pos + 1)
+            .is_some_and(|t| t.kind == Token::Period)
+        {
             let import_name = self.expect_ident()?;
             self.expect_token(Token::Period)?;
-            ModuleInstantiatePath::FromImport { import_name, calls: Vec::new() }
+            ModuleInstantiatePath::FromImport {
+                import_name,
+                calls: Vec::new(),
+            }
         } else {
-            ModuleInstantiatePath::FromCurrent { back_parent: 0, calls: Vec::new() }
+            ModuleInstantiatePath::FromCurrent {
+                back_parent: 0,
+                calls: Vec::new(),
+            }
         };
         let calls = match &mut path {
             ModuleInstantiatePath::FromRoot { calls }
@@ -948,7 +971,9 @@ impl<'a> TermParser<'a> {
                     let parameter = self.expect_ident()?;
                     self.expect_token(Token::Assign)?;
                     arguments.push((parameter, self.parse_sexp()?));
-                    if self.bump_if_token(Token::RBracket) { break; }
+                    if self.bump_if_token(Token::RBracket) {
+                        break;
+                    }
                     self.expect_token(Token::Comma)?;
                 }
             }
@@ -960,8 +985,12 @@ impl<'a> TermParser<'a> {
             child.0.push('^');
         }
         Ok(LocalAccess::Instantiated {
-            span: SourceSpan { start, end: self.span_at(self.pos - 1).end },
-            path: Box::new(path), child,
+            span: SourceSpan {
+                start,
+                end: self.span_at(self.pos - 1).end,
+            },
+            path: Box::new(path),
+            child,
         })
     }
 
@@ -1402,8 +1431,8 @@ impl<'a> TermParser<'a> {
         match self.peek() {
             Some(
                 Token::Ident(_)
-                    | Token::Period
-                    | Token::KeyWord("\\root" | "\\parent")
+                | Token::Period
+                | Token::KeyWord("\\root" | "\\parent")
                 | Token::Hole
                 | Token::Metavariable(_)
                 | Token::MacroVar(_)

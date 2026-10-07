@@ -1,6 +1,45 @@
 use super::*;
 
 impl Resolver {
+    fn anchor_module_path(&self, path: &mut ModuleInstantiatePath) -> Result<(), Diagnostic> {
+        if let ModuleInstantiatePath::FromCurrent { back_parent, calls } = path {
+            let mut module = self.current;
+            for _ in 0..*back_parent {
+                module = self.scopes[module.0 as usize]
+                    .parent
+                    .ok_or_else(|| self.error("already at root module"))?;
+            }
+            *path = ModuleInstantiatePath::FromModule {
+                module,
+                calls: std::mem::take(calls),
+            };
+        }
+        Ok(())
+    }
+
+    pub(in crate::resolver) fn anchor_module_expressions(
+        &self,
+        expression: &mut SExp,
+    ) -> Result<(), Diagnostic> {
+        let mut result = Ok(());
+        macros::walk_sexp_mut(expression, &mut |node| {
+            let access = match node {
+                SExp::AccessPath { access, .. }
+                | SExp::RecordTypeCtor { access, .. }
+                | SExp::ProgramValueReference { access }
+                | SExp::IndCase { path: access, .. }
+                | SExp::ProgramCase { path: access, .. } => Some(access),
+                _ => None,
+            };
+            if result.is_ok()
+                && let Some(LocalAccess::Instantiated { path, .. }) = access
+            {
+                result = self.anchor_module_path(path);
+            }
+        });
+        result
+    }
+
     pub(in crate::resolver) fn normalize_structures(
         &mut self,
         expression: &mut SExp,
@@ -12,42 +51,52 @@ impl Resolver {
                 return false;
             }
             let access = match node {
-                SExp::AccessPath { access, .. } | SExp::RecordTypeCtor { access, .. }
+                SExp::AccessPath { access, .. }
+                | SExp::RecordTypeCtor { access, .. }
                 | SExp::ProgramValueReference { access }
-                | SExp::IndCase { path: access, .. } | SExp::ProgramCase { path: access, .. } => Some(access),
+                | SExp::IndCase { path: access, .. }
+                | SExp::ProgramCase { path: access, .. } => Some(access),
                 _ => None,
             };
             if let Some(access @ LocalAccess::Instantiated { .. }) = access {
-                let LocalAccess::Instantiated { span, path, child } = access else { unreachable!() };
-                if let ModuleInstantiatePath::FromCurrent { back_parent, calls } = path.as_mut() {
-                    let mut module = self.current;
-                    for _ in 0..*back_parent {
-                        let Some(parent) = self.scopes[module.0 as usize].parent else {
-                            error = Some(self.error("already at root module"));
-                            return false;
-                        };
-                        module = parent;
-                    }
-                    **path = ModuleInstantiatePath::FromModule { module, calls: calls.clone() };
+                let LocalAccess::Instantiated { span, path, child } = access else {
+                    unreachable!()
+                };
+                if let Err(e) = self.anchor_module_path(path) {
+                    error = Some(e);
+                    return false;
                 }
                 let mut import_name = Identifier(format!("<temporary:{}>", self.next_expression));
                 let mut checks = Vec::new();
                 self.next_expression += 1;
-                if let Err(e) = self.resolve_import_in_scope(path, &mut import_name, &mut checks, locals) {
+                if let Err(e) =
+                    self.resolve_import_in_scope(path, &mut import_name, &mut checks, locals)
+                {
                     error = Some(e);
                     return false;
                 }
                 let mut member = LocalAccess::Named {
-                    span: *span, access: import_name.clone(), child: child.clone(),
+                    span: *span,
+                    access: import_name.clone(),
+                    child: child.clone(),
                 };
                 if let Err(e) = self.access(self.current, &mut member) {
                     error = Some(e);
                     return false;
                 }
-                let mut guards = vec![(SExp::ModuleInstance { path: path.clone(), import_name }, SExp::ValueType)];
+                let mut guards = vec![(
+                    SExp::ModuleInstance {
+                        path: path.clone(),
+                        import_name,
+                    },
+                    SExp::ValueType,
+                )];
                 guards.extend(checks);
                 *access = member;
-                *node = SExp::Checked { checks: guards, body: Box::new(node.clone()) };
+                *node = SExp::Checked {
+                    checks: guards,
+                    body: Box::new(node.clone()),
+                };
                 if let Err(e) = self.normalize_structures(node, locals) {
                     error = Some(e);
                 }
@@ -56,10 +105,19 @@ impl Resolver {
             if let SExp::App { func, arg } = node
                 && {
                     let mut head = func.as_ref();
-                    while let SExp::App { func, .. } | SExp::AssociatedAccess { base: func, .. } = head {
+                    while let SExp::App { func, .. } | SExp::AssociatedAccess { base: func, .. } =
+                        head
+                    {
                         head = func;
                     }
-                    matches!(head, SExp::Checked { .. } | SExp::AccessPath { access: LocalAccess::Instantiated { .. }, .. })
+                    matches!(
+                        head,
+                        SExp::Checked { .. }
+                            | SExp::AccessPath {
+                                access: LocalAccess::Instantiated { .. },
+                                ..
+                            }
+                    )
                 }
             {
                 if let Err(e) = self.normalize_structures(func, locals) {
@@ -69,7 +127,10 @@ impl Resolver {
                 if let SExp::Checked { checks, body } = func.as_ref() {
                     *node = SExp::Checked {
                         checks: checks.clone(),
-                        body: Box::new(SExp::App { func: body.clone(), arg: arg.clone() }),
+                        body: Box::new(SExp::App {
+                            func: body.clone(),
+                            arg: arg.clone(),
+                        }),
                     };
                     if let Err(e) = self.normalize_structures(node, locals) {
                         error = Some(e);

@@ -263,8 +263,13 @@ fn module_expression_library_examples_succeed() {
     let _check = LIBRARY_CHECK.lock().unwrap();
     let workspace = workspace_root();
     let path = workspace.join("tests/projects/module-expressions");
-    let output = run_ref_file_with_timeout(&workspace, &path, &["--no-cache"], TOPOLOGICAL_K_THEORY_TIMEOUT)
-        .unwrap_or_else(|error| panic!("{error}"));
+    let output = run_ref_file_with_timeout(
+        &workspace,
+        &path,
+        &["--no-cache"],
+        TOPOLOGICAL_K_THEORY_TIMEOUT,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
     assert!(output.status.success(), "{}", output_details(&output));
 }
 
@@ -272,16 +277,26 @@ fn module_expression_library_examples_succeed() {
 fn packages_resolve_temporary_module_expressions() {
     let fixture = FixtureDirectory::new();
     fixture.write("shared/ref.toml", "[package]\nname = \"shared\"\n");
-    fixture.write("shared/src/root.ref", r"\module Family(A: \Set) { \definition Carrier: \Set := A; }");
-    fixture.write("main/ref.toml", "[package]\nname = \"main\"\n[dependencies]\nshared = { path = \"../shared\" }\n");
-    fixture.write("main/src/root.ref", r"\module Local(A: \Set) { \definition Carrier: \Set := A; }
+    fixture.write(
+        "shared/src/root.ref",
+        r"\module Family(A: \Set) { \definition Carrier: \Set := A; }",
+    );
+    fixture.write(
+        "main/ref.toml",
+        "[package]\nname = \"main\"\n[dependencies]\nshared = { path = \"../shared\" }\n",
+    );
+    fixture.write(
+        "main/src/root.ref",
+        r"\module Local(A: \Set) { \definition Carrier: \Set := A; }
         \module Consumer {
             \definition dependency(A: \Set): \Set := shared.Family[A := A].Carrier;
             \definition rooted(A: \Set): \Set := \root.Local[A := A].Carrier;
             \definition same(A: \Set)(x: dependency A): rooted A := x;
-        }");
-    let output = run_ref_file_with_args(&workspace_root(), &fixture.0.join("main"), &["--no-cache"])
-        .unwrap_or_else(|error| panic!("{error}"));
+        }",
+    );
+    let output =
+        run_ref_file_with_args(&workspace_root(), &fixture.0.join("main"), &["--no-cache"])
+            .unwrap_or_else(|error| panic!("{error}"));
     assert!(output.status.success(), "{}", output_details(&output));
 }
 
