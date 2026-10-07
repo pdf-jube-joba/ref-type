@@ -1,0 +1,30 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import Interval.Arithmetic[] \as Arithmetic;
+\import real.Analysis[] \as Real;
+\import topology.RealLine[] \as Line;
+\import topology.Topology[Carrier := Interval.Carrier] \as Space;
+\definition Carrier: \Set := Interval.Carrier;
+\definition topology: Space.Topology := Interval.topology;
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Continuity[A := A, B := Carrier] \as Maps;
+\import topology.Continuity[A := A, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one] \as Into;
+\import topology.Continuity[A := Carrier, B := Real.Real] \as Inclusion;
+\import topology.Composition[A := A, B := Carrier, C := Real.Real] \as Include;
+\import topology.Composition[A := A, B := Carrier, C := Carrier] \as Reverse;
+\import topology.RealFunctions[A := A].Product[] \as Product;
+\definition multiplyContinuous: \forall (source: Source.Topology) (f, g: A -> Carrier) ->
+  Maps.Continuous source topology f -> Maps.Continuous source topology g ->
+  Maps.Continuous source topology (\fun (x: A) => Arithmetic.multiply (f x) (g x)) :=
+  \fun (source: _) (f, g: _) (fc: _) (gc: _) => Into.corestrictContinuous source Line.topology
+    (\fun (x: A) => Arithmetic.multiply (f x) (g x))
+    (Product.continuous source (\fun (x: A) => f x) (\fun (x: A) => g x)
+      (Include.composeContinuous source topology Line.topology f (\fun (t: Carrier) => t) fc (Interval.inclusionContinuous))
+      (Include.composeContinuous source topology Line.topology g (\fun (t: Carrier) => t) gc (Interval.inclusionContinuous)));
+\definition advanceContinuous: \forall (source: Source.Topology) (f, g: A -> Carrier) ->
+  Maps.Continuous source topology f -> Maps.Continuous source topology g ->
+  Maps.Continuous source topology (\fun (x: A) => Arithmetic.advance (f x) (g x)) :=
+  \fun (source: _) (f, g: _) (fc: _) (gc: _) => Reverse.composeContinuous source topology topology
+    (\fun (x: A) => Arithmetic.multiply (Interval.reverse (f x)) (Interval.reverse (g x))) Interval.reverse
+    (multiplyContinuous source (\fun (x: A) => Interval.reverse (f x)) (\fun (x: A) => Interval.reverse (g x))
+      (Reverse.composeContinuous source topology topology f Interval.reverse fc Interval.reverseContinuous)
+      (Reverse.composeContinuous source topology topology g Interval.reverse gc Interval.reverseContinuous)) Interval.reverseContinuous;

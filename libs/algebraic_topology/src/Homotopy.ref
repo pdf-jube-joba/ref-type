@@ -61,6 +61,20 @@
 \definition Relative(S: \Pow A) (f: A -> B) (h: Family): \Prop :=
   \forall (t: Interval.Carrier) (x: A) -> \In[A] S x -> h (Cylinder.at t x) = f x;
 \module Composition(C: \Set);
+\module Concatenation;
+\definition startContinuous: \forall (source: Source.Topology) (target: Target.Topology) (f, g: A -> B)
+  (h: Homotopy[source, target, f, g]) -> Maps.Continuous source target f := \block {
+  \fun (source: _) (target: _) (f, g: _) (h: _) \then
+  \let family: A -> B := \fun (x: A) => h (Cylinder.at Interval.start x) \then
+  \let continuous: Maps.Continuous source target family :=
+    \fun (U: \Pow B) (open: Target.IsOpenIn target U) => Cylinder.atContinuous source Interval.start
+      (CylinderMaps.Preimage h U) (#continuous{(laws source target f g h)} U open) \then
+  \return \idelim family = f \with k: (A -> B) => Maps.Continuous source target k
+    \by { base: continuous, equality: \axiom:funext(family, f, #start{(laws source target f g h)}) }
+};
+\definition endContinuous: \forall (source: Source.Topology) (target: Target.Topology) (f, g: A -> B)
+  (h: Homotopy[source, target, f, g]) -> Maps.Continuous source target g :=
+  \fun (source: _) (target: _) (f, g: _) (h: _) => startContinuous source target g f (reverse source target f g h);
 \structure RelativeLaws[source: Source.Topology, target: Target.Topology, S: \Pow A, f, g: A -> B, family: Family]: \Prop {
   homotopy: Laws[source, target, f, g, family],
   fixed: Relative S f family,
@@ -78,3 +92,29 @@
   \fun (source: _) (target: _) (S: _) (f, g: _) (h: _) (x: A) (member: _) =>
     trans!{B} _ _ _ (sym!{B} _ _ (#fixed{(relativeLaws source target S f g h)} Interval.end x member))
       (#end{(#homotopy{(relativeLaws source target S f g h)})} x);
+\definition reverseRelative(source: Source.Topology) (target: Target.Topology) (S: \Pow A) (f, g: A -> B)
+  (h: RelativeHomotopy[source, target, S, f, g]): RelativeHomotopy[source, target, S, g, f] := \block {
+  \let reversed: Homotopy[source, target, g, f] := reverse source target f g (forgetRelative source target S f g h) \then
+  \return \into[Family](reversed, RelativeHomotopy[source, target, S, g, f]) \by {
+    RelativeLaws[source, target, S, g, f, reversed] {
+      homotopy := laws source target g f reversed,
+      fixed := \fun (t: Interval.Carrier) (x: A) (member: \In[A] S x) => trans!{B} _ _ _
+        (#fixed{(relativeLaws source target S f g h)} (Interval.reverse t) x member)
+        (relativeEndpoints source target S f g h x member),
+    }
+  }
+};
+\module RelativeConcatenation;
+\definition constantRelative(source: Source.Topology) (target: Target.Topology) (S: \Pow A) (f: A -> B)
+  (continuous: Maps.Continuous source target f): RelativeHomotopy[source, target, S, f, f] := \block {
+  \let h: Homotopy[source, target, f, f] := constant source target f continuous \then
+  \return \into[Family](h, RelativeHomotopy[source, target, S, f, f]) \by {
+    RelativeLaws[source, target, S, f, f, h] {
+      homotopy := laws source target f f h,
+      fixed := \fun (t: Interval.Carrier) (x: A) (member: \In[A] S x) => \refl(f x),
+    }
+  }
+};
+\definition RelativeHomotopic(source: Source.Topology) (target: Target.Topology) (S: \Pow A) (f, g: A -> B): \Prop :=
+  \exists RelativeHomotopy[source, target, S, f, g];
+\module RelativeRelation;

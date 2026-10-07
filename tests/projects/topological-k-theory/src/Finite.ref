@@ -1,0 +1,52 @@
+\inductive Unit: \Set := | unit: Unit;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\import real.Analysis[] \as R;
+\import linear_algebra.Real[] \as Scalar;
+\import linear_algebra.Field[].Space[K := R.Real, field := Scalar.field] \as Algebra;
+\import Algebra.Coordinates[I := Unit] \as Coordinates;
+\import Algebra.Finite[V := R.Real, I := Unit, space := Algebra.scalarSpace] \as Finite;
+\import Algebra.Linear[V := R.Real, W := Coordinates.Vector, source := Algebra.scalarSpace, target := Coordinates.space] \as Encode;
+\import Algebra.Sums[I := Unit] \as Sums;
+\definition indices: Lists.List[Unit] := Lists.List[Unit]::cons Unit::unit Lists.List[Unit]::nil;
+\definition constant(x: R.Real): Coordinates.Vector := \fun (_: Unit) => x;
+\definition encode: Encode.Map := Encode.Map {
+  apply := constant,
+  preservesAdd := \fun (x, y: R.Real) => \refl(constant (R.add x y)),
+  preservesScale := \fun (a, x: R.Real) => \refl(constant (R.mul a x)),
+};
+\definition raw: Finite.BasisData := Finite.BasisData {
+  indices := indices, vectors := \fun (_: Unit) => R.one, coordinates := encode,
+};
+\definition expand(x: Coordinates.Vector): Finite.synthesize raw x = x Unit::unit :=
+  trans!{R.Real} _ _ _ (Algebra.addZeroRight _) (Algebra.mulOneRight (x Unit::unit));
+\definition basis: Finite.Basis := Finite.Basis {
+  indices := indices, vectors := \fun (_: Unit) => R.one, coordinates := encode,
+  distinct := Sums.distinctCons Unit::unit Lists.List[Unit]::nil (\fun (empty: Logic.False) => empty) Sums.distinctNil,
+  dualReconstruction := \fun (x: _) => \induction (i: Unit) \return
+    Sums.sum indices (\fun (j: Unit) => Algebra.mul (x j) (Finite.coordinates raw R.one j)) = x i \with {
+      | unit: trans!{R.Real} _ _ _ (Algebra.addZeroRight _) (Algebra.mulOneRight (x Unit::unit))
+    },
+  reconstruction := \fun (x: _) => expand (constant x),
+  coordinateReconstruction := \fun (x: Coordinates.Vector) => \axiom:funext(Finite.coordinates raw (Finite.synthesize raw x), x,
+    \induction (i: Unit) \return Finite.coordinates raw (Finite.synthesize raw x) i = x i \with { | unit: expand x }),
+};
+\import topological_algebra.Real[] \as RealTopology;
+\import topological_algebra.Topology[K := R.Real] \as Structures;
+\import topological_algebra.FiniteDimensional[K := R.Real].Over[field := Scalar.field].Space[V := R.Real, I := Unit, space := Algebra.scalarSpace] \as Topology;
+\import topology.Topology[Carrier := R.Real] \as Space;
+\import Topology.Linear[W := R.Real, J := Unit, target := Algebra.scalarSpace] \as Linear;
+\import Topology.Comparison[J := Unit] \as Change;
+\import Algebra.Eigen[V := R.Real, space := Algebra.scalarSpace] \as ScalarMaps;
+\definition coordinateHomeomorphism: _ := Topology.coordinateHomeomorphism RealTopology.topology basis;
+\definition scalarLinearContinuous: \forall (a: R.Real) ->
+  \forall (U: \Pow R.Real) ->
+  Space.IsOpenIn (Linear.rangeTopology RealTopology.topology basis) U ->
+  Space.IsOpenIn (Topology.topology RealTopology.topology basis) ({ x: R.Real \where \In[R.Real] U (R.mul a x) }) :=
+  \fun (a: R.Real) => Linear.continuous RealTopology.topology (Structures.ringLaws RealTopology.topologicalRing) basis basis (ScalarMaps.scalar a);
+\definition basisChange: _ := Change.homeomorphism RealTopology.topology (Structures.ringLaws RealTopology.topologicalRing) basis basis;
+\import Scalar.Dimension[].Space[V := R.Real, I := Unit, space := Algebra.scalarSpace] \as Dimension;
+\definition dimensionInvariant: \forall (other: Finite.Basis) -> Finite.dimension basis = Finite.dimension other := Dimension.invariant basis;

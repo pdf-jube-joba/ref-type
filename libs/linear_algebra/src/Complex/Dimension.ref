@@ -1,0 +1,23 @@
+\import std.Data[].Nat[] \as N;
+\import real.Analysis[] \as Real;
+\import linear_algebra.Real[].Dimension[] \as RealDimension;
+\import C.Def[] \as Operations;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition naturalScalar: N.Nat^ -> Scalar :=
+  \induction (n: N.Nat^) \return Scalar \with {
+    | zero: Operations.zero
+    | succ: \fun (n: N.Nat^) (value: Scalar) => Operations.add Operations.one value
+  };
+\definition realPart: \forall (n: N.Nat^) -> C.re (naturalScalar n) = RealDimension.naturalScalar n :=
+  \induction (n: N.Nat^) \return C.re (naturalScalar n) = RealDimension.naturalScalar n \with {
+    | zero: \refl(Real.zero)
+    | succ: \fun (n: N.Nat^) (ih: _) => congr!{Real.Real Real.Real} (Real.add Real.one) _ _ ih
+  };
+\definition injective: \forall (n, m: N.Nat^) -> naturalScalar n = naturalScalar m -> n = m :=
+  \fun (n, m: N.Nat^) (equal: _) => RealDimension.injective n m
+    (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (realPart n))
+      (trans!{Real.Real} _ _ _ (congr!{Scalar Real.Real} C.re _ _ equal) (realPart m)));
+\module Space(V, I: \Set, space: Algebra.VectorSpace V);

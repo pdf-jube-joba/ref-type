@@ -14,3 +14,31 @@
 \definition diagonal: Real.Real -> Sum.Carrier := #apply{(Pair.pair identity identity)};
 \definition diagonalFirst: \forall (x: Real.Real) -> Sum.first (diagonal x) = x := \fun (x: _) => \refl(x);
 \definition diagonalSecond: \forall (x: Real.Real) -> Sum.second (diagonal x) = x := \fun (x: _) => \refl(x);
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import real.DedekindReal[].Arithmetic[].Prop[] \as ScalarLaws;
+\import Real.Algebra[] \as ScalarAlgebra;
+\import Algebra.Dual[V := Real.Real, source := Algebra.scalarSpace] \as Dual;
+\import Dual.Precomposition[W := Real.Real, target := Algebra.scalarSpace] \as DualMaps;
+\definition functional: Dual.Carrier := Dual.fromMap identity;
+\definition functionalValue: \forall (x: Real.Real) -> functional x = x := \fun (x: _) => \refl(x);
+\definition dualIdentityValue: \forall (f: Dual.Carrier) (x: Real.Real) -> #apply{(DualMaps.map identity)} f x = f x :=
+  \fun (f: _) (x: _) => \refl(f x);
+\import Algebra.Tensor[V := Real.Real, W := Real.Real, left := Algebra.scalarSpace, right := Algebra.scalarSpace] \as Tensor;
+\import Tensor.Universal[U := Real.Real, target := Algebra.scalarSpace] \as TensorMaps;
+\definition multiplicationLaws: Tensor.BilinearLaws[Real.Real, Algebra.scalarSpace, Real.mul] :=
+  Tensor.BilinearLaws[Real.Real, Algebra.scalarSpace, Real.mul] {
+    addLeft := ScalarAlgebra.mulAddRight,
+    addRight := ScalarLaws.fieldMulAdd,
+    scaleLeft := ScalarLaws.fieldMulAssoc,
+    scaleRight := \fun (a, x, y: Real.Real) => trans!{Real.Real} _ _ _
+      (sym!{Real.Real} _ _ (ScalarLaws.fieldMulAssoc x a y))
+      (trans!{Real.Real} _ _ _
+        (congr!{Real.Real Real.Real} (\fun (t: Real.Real) => Real.mul t y) _ _ (ScalarLaws.fieldMulComm x a))
+        (ScalarLaws.fieldMulAssoc a x y)),
+  };
+\definition tensorContraction: _ := TensorMaps.map Real.mul multiplicationLaws;
+\definition tensorProductValue: \forall (x, y: Real.Real) -> #apply{tensorContraction} (Tensor.tensor x y) = Real.mul x y :=
+  TensorMaps.onTensor Real.mul multiplicationLaws;

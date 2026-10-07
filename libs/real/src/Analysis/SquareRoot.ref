@@ -1,0 +1,182 @@
+\import \parent.Algebra[] \as Algebra;
+\import \parent.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Bounds;
+\use Logic.either;
+\definition radicand(x: Real): Real := Metric.max zero x;
+\definition Candidates(x: Real): \Pow Real := { y: Real \where Logic.And[R.Le zero y, R.Le (mul y y) (radicand x)] };
+\definition radicandNonnegative: \forall (x: Real) -> R.Le zero (radicand x) := \fun (x: _) => Metric.maxLeft zero x;
+\definition first: \forall (x: Real) -> Complete.Member (Candidates x) zero :=
+  \fun (x: _) => Logic.And[_, _]::# (R.leRefl zero)
+    (R.leReplaceLeft zero (mul zero zero) (radicand x) (sym!{Real} _ _ (Laws.fieldMulZeroLeft zero)) (radicandNonnegative x));
+\definition candidateBound: \forall (x: Real) -> Complete.UpperBound (Candidates x) (Metric.max one (radicand x)) :=
+  \fun (x: _) (y: _) (member: Logic.And[R.Le zero y, R.Le (mul y y) (radicand x)]) =>
+    either!{{R.Le y one} "or" {R.Le one y} "either" {R.Le y (Metric.max one (radicand x))}
+      "lt:" {\fun (le: _) => R.leTrans _ _ _ le (Metric.maxLeft one (radicand x))}
+      "rt:" {\fun (le: _) => R.leTrans y (mul y y) _
+        (R.leReplaceLeft (mul y one) y (mul y y) (Algebra.mulOneRight y) (Estimates.mulMonotone y one y (#left{member}) le))
+        (R.leTrans _ _ _ (#right{member}) (Metric.maxRight one (radicand x)))}} (Order.leTotal y one);
+\definition family(x: Real): Complete.Family := \into[\Pow Real](Candidates x, Complete.FamilySet) \by {
+  Logic.And[_, _]::#
+    (\exact(\into[Real](zero, Candidates x) \by { first x }, \Cast[Real] (Candidates x)))
+    (\exact(\into[Real](Metric.max one (radicand x), { u: Real \where Complete.UpperBound (Candidates x) u }) \by { candidateBound x },
+      \Cast[Real] ({ u: Real \where Complete.UpperBound (Candidates x) u })))
+};
+\definition sqrt(x: Real): Real := Complete.supremum (family x);
+\definition nonnegative: \forall (x: Real) -> R.Le zero (sqrt x) := \fun (x: _) => Complete.supremumUpper (family x) zero (first x);
+\definition subPositive: \forall (a, b: Real) -> R.Lt b a -> R.Lt zero (sub a b) :=
+  \fun (a, b: _) (less: _) => R.ltReplaceLeft (sub b b) zero (sub a b) (Laws.subSelf b) (Laws.ltAddRight b a (neg b) less);
+\definition addPositive: \forall (a, b: Real) -> R.Lt zero b -> R.Lt a (add a b) :=
+  \fun (a, b: _) (positive: _) => R.ltReplaceLeft (add a zero) a (add a b) (Laws.addZeroRight a) (Laws.ltAddLeft a zero b positive);
+\definition subBelow: \forall (a, b: Real) -> R.Lt zero b -> R.Lt (sub a b) a :=
+  \fun (a, b: _) (positive: _) => Laws.ltAddCancelRight (sub a b) a b
+    (R.ltReplaceLeft a (add (sub a b) b) (add a b) (sym!{Real} _ _ (Metric.subAddCancel a b)) (addPositive a b positive));
+\definition belowSupremum: \forall (S: Complete.Family) (lower: Real) -> R.Lt lower (Complete.supremum S) ->
+  \exists { y: Real \where Logic.And[Complete.Member S y, R.Lt lower y] } :=
+  \fun (S: _) (lower: _) (less: _) => Order.byContradiction
+    (\exists { y: Real \where Logic.And[Complete.Member S y, R.Lt lower y] })
+    (\fun (none: _) => R.ltNotLeReverse lower (Complete.supremum S) less (Complete.supremumLeast S lower
+      (\fun (y: _) (member: _) => Order.leOfNotLtReverse y lower (\fun (ly: R.Lt lower y) =>
+        none (\exact(\into[Real](y, { y: Real \where Logic.And[Complete.Member S y, R.Lt lower y] }) \by { Logic.And[_, _]::# member ly },
+          \Cast[Real] ({ y: Real \where Logic.And[Complete.Member S y, R.Lt lower y] })))))));
+\definition squareBelow: \forall (x: Real) -> R.Le (mul (sqrt x) (sqrt x)) (radicand x) := \block {
+  \fun (x: Real) \then
+  \let s: Real := sqrt x \then
+  \return Order.leOfNotLtReverse (mul s s) (radicand x) (\block {
+    \fun (greater: R.Lt (radicand x) (mul s s)) \then
+    \let gap: Real := sub (mul s s) (radicand x) \then
+    \let gp: R.Lt zero gap := subPositive (mul s s) (radicand x) greater \then
+    \let c: Real := Bounds.coefficient s s \then
+    \let cp: R.Lt zero c := Bounds.coefficientPositive s s \then
+    \let delta: Real := Bounds.radius c gap \then
+    \let dp: R.Lt zero delta := Bounds.radiusPositive c gap cp gp \then
+    \takefrom y: \Cast[Real] ({ y: Real \where Logic.And[Complete.Member (family x) y, R.Lt (sub s delta) y] })
+      \by belowSupremum (family x) (sub s delta) (subBelow s delta dp) \then
+    \let data: Logic.And[Complete.Member (family x) y, R.Lt (sub s delta) y] :=
+      \bysub(Real, { y: Real \where Logic.And[Complete.Member (family x) y, R.Lt (sub s delta) y] }, y) \then
+    \let near: R.Lt (distance s y) delta := Metric.distanceLtOfInterval s y delta (#right{data})
+      (R.leLtTrans y s (add s delta) (Complete.supremumUpper (family x) y (#left{data})) (addPositive s delta dp)) \then
+    \let squaresNear: R.Lt (distance (mul s s) (mul y y)) gap := R.leLtTrans _ _ gap
+      (Bounds.localProductDistance s s y y delta (Order.leOfLt _ _ dp) (Bounds.radiusBelowOne c gap) near near)
+      (Bounds.radiusSmall c gap cp gp) \then
+    \return R.ltNotLeReverse (radicand x) (mul y y)
+      (R.ltReplaceLeft (sub (mul s s) gap) (radicand x) (mul y y) (Algebra.subSub (mul s s) (radicand x))
+        (Metric.distanceLtLower (mul s s) (mul y y) gap squaresNear)) (#right{(#left{data})})
+  })
+};
+\definition squareAbove: \forall (x: Real) -> R.Le (radicand x) (mul (sqrt x) (sqrt x)) := \block {
+  \fun (x: Real) \then
+  \let s: Real := sqrt x \then
+  \return Order.leOfNotLtReverse (radicand x) (mul s s) (\block {
+    \fun (less: R.Lt (mul s s) (radicand x)) \then
+    \let gap: Real := sub (radicand x) (mul s s) \then
+    \let gp: R.Lt zero gap := subPositive (radicand x) (mul s s) less \then
+    \let c: Real := Bounds.coefficient s s \then
+    \let cp: R.Lt zero c := Bounds.coefficientPositive s s \then
+    \let delta: Real := Bounds.radius c gap \then
+    \let dp: R.Lt zero delta := Bounds.radiusPositive c gap cp gp \then
+    \let h: Real := mul half delta \then
+    \let hp: R.Lt zero h := Estimates.halfOfPositive delta dp \then
+    \let y: Real := add s h \then
+    \let sy: R.Lt s y := addPositive s h hp \then
+    \let near: R.Lt (distance s y) delta := Metric.distanceLtOfInterval s y delta
+      (Order.ltTrans (sub s delta) s y (subBelow s delta dp) sy)
+      (Laws.ltAddLeft s h delta (Estimates.halfStrict delta dp)) \then
+    \let squaresNear: R.Lt (distance (mul s s) (mul y y)) gap := R.leLtTrans _ _ gap
+      (Bounds.localProductDistance s s y y delta (Order.leOfLt _ _ dp) (Bounds.radiusBelowOne c gap) near near)
+      (Bounds.radiusSmall c gap cp gp) \then
+    \let candidate: Complete.Member (Candidates x) y := Logic.And[_, _]::#
+      (Order.leOfLt zero y (R.leLtTrans zero s y (nonnegative x) sy))
+      (Order.leOfLt (mul y y) (radicand x)
+        (R.ltReplaceRight (mul y y) (add (mul s s) gap) (radicand x) (Estimates.addSubCancel (radicand x) (mul s s))
+          (Metric.distanceLtUpper (mul s s) (mul y y) gap squaresNear))) \then
+    \return R.ltNotLeReverse s y sy (Complete.supremumUpper (family x) y candidate)
+  })
+};
+\definition square: \forall (x: Real) -> mul (sqrt x) (sqrt x) = radicand x :=
+  \fun (x: _) => R.leAntisym _ _ (squareBelow x) (squareAbove x);
+\definition squareOfNonnegative: \forall (x: Real) -> R.Le zero x -> mul (sqrt x) (sqrt x) = x :=
+  \fun (x: _) (positive: _) => trans!{Real} _ _ _ (square x) (Metric.maxOfLe zero x positive);
+\definition mulStrict: \forall (w, x, y: Real) -> R.Lt zero w -> R.Lt x y -> R.Lt (mul w x) (mul w y) :=
+  \fun (w, x, y: _) (wp: _) (xy: _) => Laws.ltAddCancelRight (mul w x) (mul w y) (neg (mul w x))
+    (R.ltReplaceLeft zero (sub (mul w x) (mul w x)) (sub (mul w y) (mul w x))
+      (sym!{Real} _ _ (Laws.subSelf (mul w x)))
+      (R.ltReplaceRight zero (mul w (sub y x)) (sub (mul w y) (mul w x)) (Algebra.mulSub w y x)
+        (Bounds.mulPositive w (sub y x) wp (subPositive y x xy))));
+\definition squareStrict: \forall (a, b: Real) -> R.Le zero a -> R.Lt a b -> R.Lt (mul a a) (mul b b) :=
+  \fun (a, b: _) (ap: _) (ab: _) => R.leLtTrans _ (mul b a) _
+    (R.leReplaceRight (mul a a) (mul a b) (mul b a) (Laws.fieldMulComm a b)
+      (Estimates.mulMonotone a a b ap (Order.leOfLt _ _ ab)))
+    (mulStrict b a b (R.leLtTrans zero a b ap ab) ab);
+\definition squareMonotone: \forall (a, b: Real) -> R.Le zero a -> R.Le zero b -> R.Le a b -> R.Le (mul a a) (mul b b) :=
+  \fun (a, b: _) (ap: _) (bp: _) (ab: _) => R.leTrans _ (mul a b) _ (Estimates.mulMonotone a a b ap ab)
+    (R.leReplaceLeft (mul b a) (mul a b) (mul b b) (Laws.fieldMulComm b a) (Estimates.mulMonotone b a b bp ab));
+\definition squaresInjective: \forall (a, b: Real) -> R.Le zero a -> R.Le zero b -> mul a a = mul b b -> a = b :=
+  \fun (a, b: _) (ap: _) (bp: _) (equal: _) => R.leAntisym a b
+    (Order.leOfNotLtReverse a b (\fun (less: R.Lt b a) => Order.ltNotEq (mul b b) (mul a a) (squareStrict b a bp less) (sym!{Real} _ _ equal)))
+    (Order.leOfNotLtReverse b a (\fun (less: R.Lt a b) => Order.ltNotEq (mul a a) (mul b b) (squareStrict a b ap less) equal));
+\definition unique: \forall (x, y: Real) -> R.Le zero y -> mul y y = radicand x -> y = sqrt x :=
+  \fun (x, y: _) (yp: _) (equal: _) => squaresInjective y (sqrt x) yp (nonnegative x) (trans!{Real} _ _ _ equal (sym!{Real} _ _ (square x)));
+\definition sqrtSquared: \forall (y: Real) -> R.Le zero y -> sqrt (mul y y) = y :=
+  \fun (y: _) (yp: _) => sym!{Real} _ _ (unique (mul y y) y yp (sym!{Real} _ _ (Metric.maxOfLe zero (mul y y) (Algebra.squareNonnegative y))));
+\definition sqrtZero: sqrt zero = zero := sym!{Real} _ _ (unique zero zero (R.leRefl zero)
+  (trans!{Real} _ _ _ (Laws.fieldMulZeroLeft zero) (sym!{Real} _ _ (Metric.maxSame zero))));
+\definition sqrtOne: sqrt one = one := sym!{Real} _ _ (unique one one Laws.oneNonnegative
+  (trans!{Real} _ _ _ (Laws.fieldMulOneLeft one) (sym!{Real} _ _ (Metric.maxOfLe zero one Laws.oneNonnegative))));
+\definition distanceOrdered: \forall (a, b: Real) -> R.Le a b -> distance a b = sub b a :=
+  \fun (a, b: _) (ab: _) => Metric.maxOfLe (sub a b) (sub b a)
+    (R.leReplaceLeft (neg (sub b a)) (sub a b) (sub b a) (Algebra.negSub b a)
+      (R.leTrans _ zero _ (Bounds.negNonnegative (sub b a) (Metric.subNonnegative b a ab)) (Metric.subNonnegative b a ab)));
+\definition differenceOfSquares: \forall (a, b: Real) -> mul (sub b a) (add b a) = sub (mul b b) (mul a a) :=
+  \fun (a, b: _) => eq_reason!{
+    {mul (sub b a) (add b a)}
+    "=" {add (mul b (add b a)) (mul (neg a) (add b a))} "by" {Algebra.mulAddRight b (neg a) (add b a)}
+    "=" {add (add (mul b b) (mul b a)) (neg (mul a (add b a)))} "by" {congr2!{Real Real Real} add _ _ _ _
+      (Laws.fieldMulAdd b b a) (Laws.fieldMulNegLeft a (add b a))}
+    "=" {add (add (mul b b) (mul b a)) (neg (add (mul a b) (mul a a)))} "by" {
+      congr!{Real Real} (\fun (t: Real) => add (add (mul b b) (mul b a)) (neg t)) _ _ (Laws.fieldMulAdd a b a)}
+    "=" {add (add (mul b b) (mul b a)) (add (neg (mul a b)) (neg (mul a a)))} "by" {
+      congr!{Real Real} (add (add (mul b b) (mul b a))) _ _ (Laws.negAdd (mul a b) (mul a a))}
+    "=" {add (add (mul b b) (mul b a)) (add (neg (mul a a)) (neg (mul a b)))} "by" {
+      congr!{Real Real} (add (add (mul b b) (mul b a))) _ _ (Laws.addComm (neg (mul a b)) (neg (mul a a)))}
+    "=" {add (sub (mul b b) (mul a a)) (sub (mul b a) (mul a b))} "by" {Algebra.addFour (mul b b) (mul b a) (neg (mul a a)) (neg (mul a b))}
+    "=" {add (sub (mul b b) (mul a a)) zero} "by" {congr!{Real Real} (add (sub (mul b b) (mul a a))) _ _
+      (trans!{Real} _ _ _ (congr!{Real Real} (\fun (t: Real) => sub t (mul a b)) _ _ (Laws.fieldMulComm b a)) (Laws.subSelf (mul a b)))}
+    "=" {sub (mul b b) (mul a a)} "by" {Laws.addZeroRight (sub (mul b b) (mul a a))}
+  };
+\definition squareDistanceOrdered: \forall (a, b: Real) -> R.Le zero a -> R.Le zero b -> R.Le a b ->
+  R.Le (mul (distance a b) (distance a b)) (distance (mul a a) (mul b b)) := \block {
+  \fun (a, b: _) (ap: _) (bp: _) (ab: _) \then
+  \let q: Real := sub b a \then
+  \let qp: R.Le zero q := Metric.subNonnegative b a ab \then
+  \let qBound: R.Le q (add b a) := Laws.addMonotoneLeft (neg a) a b (R.leTrans _ zero _ (Bounds.negNonnegative a ap) ap) \then
+  \let squareBound: R.Le (mul q q) (sub (mul b b) (mul a a)) :=
+    R.leReplaceRight _ (mul q (add b a)) (sub (mul b b) (mul a a)) (differenceOfSquares a b)
+      (Estimates.mulMonotone q q (add b a) qp qBound) \then
+  \return R.leReplace (mul q q) (mul (distance a b) (distance a b))
+    (sub (mul b b) (mul a a)) (distance (mul a a) (mul b b))
+    (congr2!{Real Real Real} mul _ _ _ _ (sym!{Real} _ _ (distanceOrdered a b ab)) (sym!{Real} _ _ (distanceOrdered a b ab)))
+    (sym!{Real} _ _ (distanceOrdered (mul a a) (mul b b) (squareMonotone a b ap bp ab))) squareBound
+};
+\definition squareDistance: \forall (a, b: Real) -> R.Le zero a -> R.Le zero b ->
+  R.Le (mul (distance a b) (distance a b)) (distance (mul a a) (mul b b)) :=
+  \fun (a, b: _) (ap: _) (bp: _) => either!{{R.Le a b} "or" {R.Le b a}
+    "either" {R.Le (mul (distance a b) (distance a b)) (distance (mul a a) (mul b b))}
+    "lt:" {squareDistanceOrdered a b ap bp}
+    "rt:" {\fun (ba: _) => R.leReplace (mul (distance b a) (distance b a)) (mul (distance a b) (distance a b))
+      (distance (mul b b) (mul a a)) (distance (mul a a) (mul b b))
+      (congr2!{Real Real Real} mul _ _ _ _ (Metric.distanceSymmetric b a) (Metric.distanceSymmetric b a))
+      (Metric.distanceSymmetric (mul b b) (mul a a)) (squareDistanceOrdered b a bp ap ba)}} (Order.leTotal a b);
+\definition distanceOfRoots: \forall (x, y: Real) ->
+  R.Le (mul (distance (sqrt x) (sqrt y)) (distance (sqrt x) (sqrt y))) (distance x y) :=
+  \fun (x, y: _) => R.leTrans _ (distance (radicand x) (radicand y)) _
+    (R.leReplaceRight _ (distance (mul (sqrt x) (sqrt x)) (mul (sqrt y) (sqrt y))) (distance (radicand x) (radicand y))
+      (congr2!{Real Real Real} distance _ _ _ _ (square x) (square y)) (squareDistance (sqrt x) (sqrt y) (nonnegative x) (nonnegative y)))
+    (Estimates.maxDistance zero x zero y (distance x y)
+      (R.leReplaceLeft zero (distance zero zero) (distance x y) (sym!{Real} _ _ (Metric.distanceSelf zero)) (Metric.distanceNonnegative x y))
+      (R.leRefl (distance x y)));
+\definition rootsNear: \forall (x, y, r: Real) -> R.Lt zero r -> R.Lt (distance x y) (mul r r) -> R.Lt (distance (sqrt x) (sqrt y)) r :=
+  \fun (x, y, r: _) (rp: _) (near: _) => Order.byContradiction (R.Lt (distance (sqrt x) (sqrt y)) r)
+    (\fun (notNear: _) => R.ltNotLeReverse (distance x y) (mul r r) near
+      (R.leTrans _ (mul (distance (sqrt x) (sqrt y)) (distance (sqrt x) (sqrt y))) _
+        (squareMonotone r (distance (sqrt x) (sqrt y)) (Order.leOfLt _ _ rp) (Metric.distanceNonnegative (sqrt x) (sqrt y))
+          (Order.leOfNotLtReverse r (distance (sqrt x) (sqrt y)) notNear)) (distanceOfRoots x y)));

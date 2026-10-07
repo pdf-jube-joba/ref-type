@@ -1,0 +1,43 @@
+\import Algebra.Finite[V := V, I := I, space := space] \as Finite;
+\import topological_algebra.Coordinates[K := K, I := I] \as Coordinates;
+\import topology.Topology[Carrier := K] \as Scalars;
+\import topology.Topology[Carrier := V] \as Space;
+\import topology.Topology[Carrier := Coordinates.Carrier] \as CoordinateSpace;
+\import topology.Quotient[A := Coordinates.Carrier, B := V] \as Transport;
+\import topology.Homeomorphism[A := V, B := Coordinates.Carrier] \as Homeo;
+\import topology.Continuity[A := V, B := Coordinates.Carrier] \as Forward;
+\import topology.Continuity[A := Coordinates.Carrier, B := V] \as Backward;
+\import topology.Continuity[A := Coordinates.Carrier, B := Coordinates.Carrier] \as Self;
+\import topology.Maps[A := Coordinates.Carrier, B := Coordinates.Carrier].Identity[] \as Identity;
+\import std.Logic[].Equality[] \as Equality;
+\import Equality.Prop[A := Coordinates.Carrier -> Coordinates.Carrier] \as FunctionEquality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition topology(scalar: Scalars.Topology) (basis: Finite.Basis): Space.Topology :=
+  Transport.topology (Coordinates.topology scalar) (Finite.synthesize basis);
+\definition synthesisContinuous: \forall (scalar: Scalars.Topology) (basis: Finite.Basis) ->
+  Backward.Continuous (Coordinates.topology scalar) (topology scalar basis) (Finite.synthesize basis) :=
+  \fun (scalar: _) (basis: _) => Transport.projectionContinuous (Coordinates.topology scalar) (Finite.synthesize basis);
+\definition coordinateContinuous: \forall (scalar: Scalars.Topology) (basis: Finite.Basis) ->
+  Forward.Continuous (topology scalar basis) (Coordinates.topology scalar) (Finite.coordinates basis) :=
+  \fun (scalar: _) (basis: _) => \block {
+    \let equal: (\fun (x: Coordinates.Carrier) => Finite.coordinates basis (Finite.synthesize basis x)) =
+      (\fun (x: Coordinates.Carrier) => x) := \axiom:funext(
+        (\fun (x: Coordinates.Carrier) => Finite.coordinates basis (Finite.synthesize basis x)),
+        (\fun (x: Coordinates.Carrier) => x), #coordinateReconstruction{basis}) \then
+    \return \idelim (\fun (x: Coordinates.Carrier) => x) =
+      (\fun (x: Coordinates.Carrier) => Finite.coordinates basis (Finite.synthesize basis x))
+      \with f: (Coordinates.Carrier -> Coordinates.Carrier) =>
+        Self.Continuous (Coordinates.topology scalar) (Coordinates.topology scalar) f
+      \by { base: Identity.continuous (Coordinates.topology scalar), equality: FunctionEquality.sym _ _ equal }
+  };
+\definition coordinateHomeomorphism(scalar: Scalars.Topology) (basis: Finite.Basis):
+  Homeo.Homeomorphism[topology scalar basis, Coordinates.topology scalar] := Homeo.Homeomorphism[_, _] {
+    forward := Finite.coordinates basis, backward := Finite.synthesize basis,
+    leftInverse := #reconstruction{basis}, rightInverse := #coordinateReconstruction{basis},
+    forwardContinuous := coordinateContinuous scalar basis, backwardContinuous := synthesisContinuous scalar basis,
+  };
+\module Functional;
+\module Linear(W, J: \Set, target: Algebra.VectorSpace W);
+\module Comparison(J: \Set);

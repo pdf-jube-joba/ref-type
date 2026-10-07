@@ -8,7 +8,7 @@
 | [algebra](algebra/README.md) | 準同型、商群・商環、群完成、多項式、完全性 | std |
 | [real](real/README.md) | 実数の構成・完備性、演算・距離・数列 | std |
 | [complex](complex/README.md) | 実数対による複素数と体の構造 | std, real |
-| [linear_algebra](linear_algebra/README.md) | 体上の線形代数、実数・複素数への具体化 | std, real, complex |
+| [linear_algebra](linear_algebra/README.md) | 体上の線形代数、実数・複素数への具体化 | std, real, complex, algebra |
 | [topology](topology/README.md) | 位相空間、コンパクト性、商・貼り合わせ、有限従属分割、距離化 | std, real |
 | [topological_algebra](topological_algebra/README.md) | 位相的代数、座標空間・行列位相、成分による連続性判定 | std, real, complex, algebra, linear_algebra, topology |
 | [algebraic_topology](algebraic_topology/README.md) | ホモトピー、基点付き商構成、mapping cone、ホモトピー拡張性、有限 CW 対 | std, real, topology, topological_algebra |

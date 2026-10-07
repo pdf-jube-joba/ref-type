@@ -14,6 +14,9 @@
 | `Space.Linear` | 線形写像、合成 |
 | `Space.Linear.Operations` | 零写像、線形写像の和・スカラー倍・負号 |
 | `Space.Subspace` | 部分空間と線形写像の核 |
+| `Space.Subspace.Of` | 部分空間上のベクトル空間と線形な包含 |
+| `Space.Dual` / `Space.Dual.Precomposition` | 線形汎関数の空間、評価、線形写像による反変な引き戻し |
+| `Space.Tensor` / `Space.Tensor.Universal` | 双線形評価で定める商、純テンソル、双線形写像を一意に降ろす普遍性 |
 | `Space.Form` | 双線形形式、対称性、交代性、非退化性、随伴 |
 | `Space.Sums` | 有限和、添字列の重複のないこと |
 | `Space.Sums.Prop` | 有限和の加法・スカラー倍、二重和の交換 |
@@ -22,6 +25,8 @@
 | `Space.Finite.Representation` | 線形写像と行列の双方向の変換、往復の法則、合成と行列積の対応 |
 | `Space.Finite.Rebase` | 基底変換行列、異なる添字集合の基底間でのトレースの一致 |
 | `Space.Finite.Trace` | 表現行列の対角和との一致、零写像・加法・スカラー倍の法則 |
+| `Space.Finite.Dimension` / `Space.Finite.Dual` | 基底の長さのスカラー値の一致、双対基底の構成と次元の法則 |
+| `Real.Dimension.Space` / `Complex.Dimension.Space` | 自然数の埋め込みの単射性による実数・複素数上の次元の不変性 |
 | `Space.Matrix` | 長方形行列、和、スカラー倍、転置、作用、行列積 |
 | `Space.Square` | 対角和、転置・加法・スカラー倍の法則、積の巡回性、行列の固有値・固有ベクトル |
 | `Space.Eigen` | 抽象線形写像の固有値・固有ベクトル・固有空間、恒等写像とスカラー写像 |

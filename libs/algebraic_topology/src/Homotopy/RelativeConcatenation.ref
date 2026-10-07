@@ -1,0 +1,36 @@
+\import \parent.Concatenation[] \as Ordinary;
+\import algebraic_topology.TimeSubdivision[A := A] \as Subdivision;
+\import topology.Gluing[A := Cylinder.Carrier, B := B].Pasting[F := Subdivision.LeftSet, G := Subdivision.RightSet] \as Pasting;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\definition concatenate(source: Source.Topology) (target: Target.Topology) (S: \Pow A) (f, g, k: A -> B)
+  (h: RelativeHomotopy[source, target, S, f, g]) (j: RelativeHomotopy[source, target, S, g, k]):
+  RelativeHomotopy[source, target, S, f, k] := \block {
+  \let first: Homotopy[source, target, f, g] := forgetRelative source target S f g h \then
+  \let second: Homotopy[source, target, g, k] := forgetRelative source target S g k j \then
+  \let combined: Homotopy[source, target, f, k] := Ordinary.concatenate source target f g k first second \then
+  \return \into[Family](combined, RelativeHomotopy[source, target, S, f, k]) \by {
+    RelativeLaws[source, target, S, f, k, combined] {
+      homotopy := laws source target f k combined,
+      fixed := \fun (t: Interval.Carrier) (x: A) (member: \In[A] S x) =>
+        either!{{\In[Cylinder.Carrier] Subdivision.LeftSet (Cylinder.at t x)} "or"
+          {\In[Cylinder.Carrier] Subdivision.RightSet (Cylinder.at t x)} "either" {combined (Cylinder.at t x) = f x}
+          "lt:" {\fun (left: _) => trans!{B} _ _ _
+            (Pasting.onLeft (\fun (p: Subdivision.Left) => first (Subdivision.leftMap p))
+              (\fun (p: Subdivision.Right) => second (Subdivision.rightMap p)) Subdivision.covered
+              (Ordinary.compatible source target f g k first second)
+              (\into[Cylinder.Carrier](Cylinder.at t x, Subdivision.LeftSet) \by { left }))
+            (#fixed{(relativeLaws source target S f g h)}
+              (Subdivision.leftTime (\into[Cylinder.Carrier](Cylinder.at t x, Subdivision.LeftSet) \by { left })) x member)}
+          "rt:" {\fun (right: _) => trans!{B} _ _ _
+            (Pasting.onRight (\fun (p: Subdivision.Left) => first (Subdivision.leftMap p))
+              (\fun (p: Subdivision.Right) => second (Subdivision.rightMap p)) Subdivision.covered
+              (Ordinary.compatible source target f g k first second)
+              (\into[Cylinder.Carrier](Cylinder.at t x, Subdivision.RightSet) \by { right }))
+            (trans!{B} _ _ _ (#fixed{(relativeLaws source target S g k j)}
+              (Subdivision.rightTime (\into[Cylinder.Carrier](Cylinder.at t x, Subdivision.RightSet) \by { right })) x member)
+              (sym!{B} _ _ (relativeEndpoints source target S f g h x member)))}}
+          (Subdivision.covered (Cylinder.at t x)),
+    }
+  }
+};

@@ -1,0 +1,135 @@
+\import topology.Topology[Carrier := X] \as Factor;
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Product[A := X, B := A] \as Domain;
+\import topology.Product[A := X, B := B] \as Codomain;
+\import topology.Product[A := A, B := X] \as Swapped;
+\import Domain.Compactness[] \as Rectangles;
+\import Swapped.Compactness[] \as Tubes;
+\import Factor.Compactness[] \as Compact;
+\import Factor.Urysohn[] \as Shrinking;
+\import topology.Quotient[A := A, B := B] \as Quotient;
+\import topology.Quotient[A := Domain.CarrierSet, B := Codomain.CarrierSet] \as ProductQuotient;
+\import topology.Continuity[A := Domain.CarrierSet, B := Codomain.CarrierSet] \as MapContinuity;
+\import topology.Maps[A := Domain.CarrierSet, B := Codomain.CarrierSet] \as MapSets;
+\import topology.Maps[A := A, B := B] \as QuotientSets;
+\import topology.Topology[Carrier := Domain.CarrierSet] \as DomainSpace;
+\import topology.Topology[Carrier := Codomain.CarrierSet] \as CodomainSpace;
+\import topology.Topology[Carrier := Swapped.CarrierSet] \as SwappedSpace;
+\import topology.Continuity[A := Swapped.CarrierSet, B := Domain.CarrierSet] \as SwapMaps;
+\import Codomain.Universal[X := Domain.CarrierSet] \as Pairs;
+\import Domain.Maps[] \as Projections;
+\import Swapped.Maps[] \as SwappedProjections;
+\import Domain.Universal[X := Swapped.CarrierSet] \as Swap;
+\import topology.Composition[A := Domain.CarrierSet, B := A, C := B] \as Compose;
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := X, B := B] \as PairLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition map(q: A -> B) (p: Domain.CarrierSet): Codomain.CarrierSet :=
+  Pair.pair X B (Pair.first X A p) (q (Pair.second X A p));
+\definition swap(p: Swapped.CarrierSet): Domain.CarrierSet :=
+  Pair.pair X A (Pair.second A X p) (Pair.first A X p);
+\definition mapContinuous: \forall (factor: Factor.Topology) (source: Source.Topology) (target: Target.Topology)
+  (q: A -> B) -> Quotient.IsQuotientMap[source, target, q] ->
+  MapContinuity.Continuous (Domain.topology factor source) (Codomain.topology factor target) (map q) :=
+  \fun (factor: _) (source: _) (target: _) (q: _) (laws: _) =>
+    Pairs.pairContinuous (Domain.topology factor source) factor target (Pair.first X A)
+      (\fun (p: Domain.CarrierSet) => q (Pair.second X A p))
+      (Projections.firstContinuous factor source)
+      (Compose.composeContinuous (Domain.topology factor source) source target (Pair.second X A) q
+        (Projections.secondContinuous factor source) #continuous{laws});
+\definition swapContinuous: \forall (factor: Factor.Topology) (source: Source.Topology) ->
+  SwapMaps.Continuous (Swapped.topology source factor) (Domain.topology factor source) swap :=
+  \fun (factor: _) (source: _) => Swap.pairContinuous (Swapped.topology source factor) factor source
+    (Pair.second A X) (Pair.first A X) (SwappedProjections.secondContinuous source factor) (SwappedProjections.firstContinuous source factor);
+\definition TubeSet(q: A -> B) (K: \Pow X) (W: \Pow Codomain.CarrierSet): \Pow B :=
+  { b: B \where \forall (x: X) -> Factor.Member K x -> CodomainSpace.Member W (Pair.pair X B x b) };
+\definition tubePreimageOpen: \forall (factor: Factor.Topology) (source: Source.Topology) (q: A -> B) (K: \Pow X) ->
+  Factor.IsCompactIn factor K -> \forall (W: \Pow Codomain.CarrierSet) ->
+  DomainSpace.IsOpenIn (Domain.topology factor source) (MapSets.Preimage (map q) W) ->
+  Source.IsOpenIn source (QuotientSets.Preimage q (TubeSet q K W)) := \block {
+  \fun (factor: _) (source: _) (q: _) (K: _) (compact: _) (W: _) (open: _) \then
+  \let O: \Pow Swapped.CarrierSet := { p: Swapped.CarrierSet \where CodomainSpace.Member W (Pair.pair X B (Pair.second A X p) (q (Pair.first A X p))) } \then
+  \let oo: SwappedSpace.IsOpenIn (Swapped.topology source factor) O :=
+    swapContinuous factor source (MapSets.Preimage (map q) W) open \then
+  \return Source.openOfNeighborhoods source (QuotientSets.Preimage q (TubeSet q K W)) (\block {
+    \fun (a: A) (member: Source.Member (QuotientSets.Preimage q (TubeSet q K W)) a) \then
+    \takefrom tube: Tubes.Tube[source, a, O, K] \by Tubes.tubeLemma source factor K compact a O oo member \then
+    \return \exact(\into[\Pow A](#neighborhood{tube}, { U: \Pow A \where
+      Source.OpenNeighborhood[source, a, QuotientSets.Preimage q (TubeSet q K W), U] }) \by {
+      Source.OpenNeighborhood[source, a, QuotientSets.Preimage q (TubeSet q K W), #neighborhood{tube}] {
+        open := #open{tube}, contains := #contains{tube},
+        within := \fun (b: A) (inU: _) (x: X) (inK: _) => #within{tube} b inU x inK,
+      }
+    }, \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, a, QuotientSets.Preimage q (TubeSet q K W), U] }))
+  })
+};
+\import Codomain.Universal[X := Codomain.CarrierSet] \as OpenRectangles;
+\definition reflectsOpen: \forall (factor: Factor.Topology) -> Factor.IsCompact factor -> Factor.IsT2 factor ->
+  \forall (source: Source.Topology) (target: Target.Topology) (q: A -> B) -> Quotient.IsQuotientMap[source, target, q] ->
+  \forall (W: \Pow Codomain.CarrierSet) ->
+  DomainSpace.IsOpenIn (Domain.topology factor source) (MapSets.Preimage (map q) W) ->
+  CodomainSpace.IsOpenIn (Codomain.topology factor target) W := \block {
+  \fun (factor: _) (compact: _) (hausdorff: _) (source: _) (target: _) (q: _) (laws: _) (W: _) (open: _) \then
+  \return CodomainSpace.openOfNeighborhoods (Codomain.topology factor target) W (\block {
+    \fun (p: Codomain.CarrierSet) (member: CodomainSpace.Member W p) \then
+    \let x: X := Pair.first X B p \then
+    \let b: B := Pair.second X B p \then
+    \takefrom a: \Cast[A] ({ a: A \where q a = b }) \by #onto{laws} b \then
+    \let equal: q a = b := \bysub(A, { a: A \where q a = b }, a) \then
+    \let same: Pair.pair X B x (q a) = p := trans!{Codomain.CarrierSet} _ _ _
+      (congr!{B Codomain.CarrierSet} (Pair.pair X B x) _ _ equal) (PairLaws.eta p) \then
+    \let preimageMember: DomainSpace.Member (MapSets.Preimage (map q) W) (Pair.pair X A x a) :=
+      \idelim p = Pair.pair X B x (q a) \with z: Codomain.CarrierSet => CodomainSpace.Member W z
+        \by { base: member, equality: sym!{Codomain.CarrierSet} _ _ same } \then
+    \takefrom rectangle: Rectangles.Neighborhood[factor, source, Pair.pair X A x a, MapSets.Preimage (map q) W]
+      \by Rectangles.rectangleNeighborhoods factor source (MapSets.Preimage (map q) W) open (Pair.pair X A x a) preimageMember \then
+    \takefrom shrink: Shrinking.ShrinkData[factor, Factor.Singleton x, #leftSet{rectangle}] \by
+      Shrinking.shrink factor (Compact.compactHausdorffNormal factor compact hausdorff)
+        (Factor.Singleton x) (#leftSet{rectangle}) (Compact.hausdorffT1 factor hausdorff x) (#leftOpen{rectangle})
+        (\fun (y: X) (yx: y = x) => \idelim x = y \with z: X => Factor.Member (#leftSet{rectangle}) z
+          \by { base: #leftContains{rectangle}, equality: sym!{X} _ _ yx }) \then
+    \let K: \Pow X := #envelope{shrink} \then
+    \let V: \Pow B := TubeSet q K W \then
+    \let vc: Target.IsOpenIn target V := #reflectsOpen{laws} V
+      (tubePreimageOpen factor source q K (Compact.closedCompact factor compact K #envelopeClosed{shrink}) W open) \then
+    \let contains: Target.Member V b := \fun (y: X) (inK: Factor.Member K y) =>
+      \idelim q a = b \with c: B => CodomainSpace.Member W (Pair.pair X B y c)
+        \by { base: #within{rectangle} (Pair.pair X A y a)
+          (Logic.And[_, _]::# (#within{shrink} y inK) #rightContains{rectangle}), equality: equal } \then
+    \let U: \Pow Codomain.CarrierSet := Codomain.Rectangle (#inner{shrink}) V \then
+    \return \exact(\into[\Pow Codomain.CarrierSet](U, { U: \Pow Codomain.CarrierSet \where
+      CodomainSpace.OpenNeighborhood[Codomain.topology factor target, p, W, U] }) \by {
+      CodomainSpace.OpenNeighborhood[Codomain.topology factor target, p, W, U] {
+        open := CodomainSpace.generatedBasisOpen (Codomain.Basis factor target) U
+          (OpenRectangles.rectangleBasisMember factor target (#inner{shrink}) V #innerOpen{shrink} vc),
+        contains := Logic.And[_, _]::# (#contains{shrink} x (\refl(x))) contains,
+        within := \fun (z: Codomain.CarrierSet) (inU: CodomainSpace.Member U z) =>
+          \idelim Pair.pair X B (Pair.first X B z) (Pair.second X B z) = z
+            \with w: Codomain.CarrierSet => CodomainSpace.Member W w
+            \by { base: #right{inU} (Pair.first X B z) (#enclosed{shrink} (Pair.first X B z) #left{inU}), equality: PairLaws.eta z },
+      }
+    }, \Cast[\Pow Codomain.CarrierSet] ({ U: \Pow Codomain.CarrierSet \where CodomainSpace.OpenNeighborhood[Codomain.topology factor target, p, W, U] }))
+  })
+};
+\definition surjective: \forall (q: A -> B) -> Quotient.Surjective q -> ProductQuotient.Surjective (map q) := \block {
+  \fun (q: _) (onto: _) (p: Codomain.CarrierSet) \then
+  \takefrom a: \Cast[A] ({ a: A \where q a = Pair.second X B p }) \by onto (Pair.second X B p) \then
+  \let equal: map q (Pair.pair X A (Pair.first X B p) a) = p :=
+    trans!{Codomain.CarrierSet} _ _ _
+      (congr!{B Codomain.CarrierSet} (Pair.pair X B (Pair.first X B p)) _ _
+        (\bysub(A, { a: A \where q a = Pair.second X B p }, a))) (PairLaws.eta p) \then
+  \return \exact(\into[Domain.CarrierSet](Pair.pair X A (Pair.first X B p) a, { z: Domain.CarrierSet \where map q z = p })
+    \by { equal }, \Cast[Domain.CarrierSet] ({ z: Domain.CarrierSet \where map q z = p }))
+};
+\definition quotientMap: \forall (factor: Factor.Topology) -> Factor.IsCompact factor -> Factor.IsT2 factor ->
+  \forall (source: Source.Topology) (target: Target.Topology) (q: A -> B) -> Quotient.IsQuotientMap[source, target, q] ->
+  ProductQuotient.IsQuotientMap[Domain.topology factor source, Codomain.topology factor target, map q] :=
+  \fun (factor: _) (compact: _) (hausdorff: _) (source: _) (target: _) (q: _) (laws: _) => ProductQuotient.IsQuotientMap[_, _, map q] {
+    onto := surjective q #onto{laws}, continuous := mapContinuous factor source target q laws,
+    reflectsOpen := reflectsOpen factor compact hausdorff source target q laws,
+  };

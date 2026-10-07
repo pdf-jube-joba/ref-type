@@ -1,0 +1,98 @@
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := Interval.Carrier, B := A] \as CylinderPairs;
+\import algebraic_topology.Interval[].Arithmetic[] \as Times;
+\import algebraic_topology.Cylinder[A := Cylinder.Carrier] \as Double;
+\import algebraic_topology.Cylinder[A := Carrier] \as ConeCylinder;
+\import Quotient.Descent[B := Carrier] \as Descend;
+\import topology.RelationQuotient[A := Cylinder.Carrier, relation := Quotient.Related] \as Classes;
+\import std.Set[].Quotient[A := Cylinder.Carrier, Equivalent := Quotient.Related] \as Representatives;
+\import topology.Topology[Carrier := Double.Carrier] \as DoubleSpace;
+\import topology.Continuity[A := Double.Carrier, B := Cylinder.Carrier] \as IntoCylinderMaps;
+\import topology.Continuity[A := Double.Carrier, B := Carrier] \as RawMaps;
+\import topology.Continuity[A := ConeCylinder.Carrier, B := Carrier] \as HomotopyMaps;
+\import topology.Continuity[A := Double.Carrier, B := Interval.Carrier] \as TimeMaps;
+\import topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := Interval.Carrier] \as InnerTime;
+\import topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := A] \as InnerPoint;
+\import topology.Composition[A := Double.Carrier, B := Cylinder.Carrier, C := Carrier] \as IntoCone;
+\import topology.Product[A := Interval.Carrier, B := A].Universal[X := Double.Carrier] \as PairInto;
+\import algebraic_topology.IntervalFunctions[A := Double.Carrier] \as TimeFunctions;
+\import topology.ProductQuotient[X := Interval.Carrier, A := Cylinder.Carrier, B := Carrier] \as ProductMap;
+\import topology.Quotient[A := Double.Carrier, B := ConeCylinder.Carrier] \as OuterQuotient;
+\import topology.Topology[Carrier := Interval.Carrier] \as IntervalSpace;
+\import algebraic_topology.Homotopy[A := Carrier, B := Carrier] \as Homotopy;
+\import std.Logic[].Equality[] \as Equality;
+\import Equality.Prop[A := Double.Carrier -> Carrier] \as FamilyEquality;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\use Equality.congr;
+\use Equality.sym;
+\use Equality.trans;
+\definition rawAt(t: Interval.Carrier) (p: Cylinder.Carrier): Carrier :=
+  class (Cylinder.at (Times.advance t (Cylinder.time p)) (Cylinder.point p));
+\definition respects: \forall (t: Interval.Carrier) -> Descend.Respects (rawAt t) :=
+  \fun (t: _) (p, q: Cylinder.Carrier) (related: Quotient.Related p q) =>
+    either!{{p = q} "or" {Logic.And[\In[Cylinder.Carrier] Top p, \In[Cylinder.Carrier] Top q]}
+      "either" {rawAt t p = rawAt t q}
+      "lt:" {\fun (equal: _) => congr!{Cylinder.Carrier Carrier} (rawAt t) _ _ equal}
+      "rt:" {\fun (both: Logic.And[\In[Cylinder.Carrier] Top p, \In[Cylinder.Carrier] Top q]) => Quotient.collapsed
+        (Cylinder.at (Times.advance t (Cylinder.time p)) (Cylinder.point p))
+        (Cylinder.at (Times.advance t (Cylinder.time q)) (Cylinder.point q))
+        (trans!{Interval.Carrier} _ _ _ (congr!{Interval.Carrier Interval.Carrier} (Times.advance t) _ _ #left{both}) (Times.advanceTop t))
+        (trans!{Interval.Carrier} _ _ _ (congr!{Interval.Carrier Interval.Carrier} (Times.advance t) _ _ #right{both}) (Times.advanceTop t))}} related;
+\definition at(t: Interval.Carrier): Carrier -> Carrier := Descend.apply (rawAt t) (respects t);
+\definition family(p: ConeCylinder.Carrier): Carrier := at (ConeCylinder.time p) (ConeCylinder.point p);
+\definition raw(p: Double.Carrier): Carrier := rawAt (Double.time p) (Double.point p);
+\definition onClass: \forall (t: Interval.Carrier) (p: Cylinder.Carrier) -> at t (class p) = rawAt t p :=
+  \fun (t: _) (p: _) => Descend.onClass (rawAt t) (respects t) p;
+\definition rawContinuous: \forall (source: Source.Topology) ->
+  RawMaps.Continuous (Double.topology (Cylinder.topology source)) (topology source) raw :=
+  \fun (source: _) => IntoCone.composeContinuous (Double.topology (Cylinder.topology source))
+    (Cylinder.topology source) (topology source)
+    (\fun (p: Double.Carrier) => Cylinder.at (Times.advance (Double.time p) (Cylinder.time (Double.point p))) (Cylinder.point (Double.point p))) class
+    (PairInto.pairContinuous (Double.topology (Cylinder.topology source)) Interval.topology source
+      (\fun (p: Double.Carrier) => Times.advance (Double.time p) (Cylinder.time (Double.point p)))
+      (\fun (p: Double.Carrier) => Cylinder.point (Double.point p))
+      (TimeFunctions.advanceContinuous (Double.topology (Cylinder.topology source)) Double.time
+        (\fun (p: Double.Carrier) => Cylinder.time (Double.point p))
+        (Double.timeContinuous (Cylinder.topology source))
+        (InnerTime.composeContinuous (Double.topology (Cylinder.topology source)) (Cylinder.topology source) Interval.topology
+          Double.point Cylinder.time (Double.pointContinuous (Cylinder.topology source)) (Cylinder.timeContinuous source)))
+      (InnerPoint.composeContinuous (Double.topology (Cylinder.topology source)) (Cylinder.topology source) source
+        Double.point Cylinder.point (Double.pointContinuous (Cylinder.topology source)) (Cylinder.pointContinuous source)))
+    (Quotient.projectionContinuous (Cylinder.topology source));
+\definition continuous: \forall (source: Source.Topology) ->
+  HomotopyMaps.Continuous (ConeCylinder.topology (topology source)) (topology source) family := \block {
+  \fun (source: _) \then
+  \let quotient: OuterQuotient.IsQuotientMap[Double.topology (Cylinder.topology source), ConeCylinder.topology (topology source), ProductMap.map class] := ProductMap.quotientMap Interval.topology Interval.compact Interval.hausdorff
+    (Cylinder.topology source) (topology source) class (Classes.quotientMap (Cylinder.topology source)) \then
+  \let composite: Double.Carrier -> Carrier := \fun (p: Double.Carrier) => family (ProductMap.map class p) \then
+  \let equal: composite = raw := \axiom:funext(composite, raw,
+    (\fun (p: Double.Carrier) => onClass (Double.time p) (Double.point p))) \then
+  \let rawContinuous: RawMaps.Continuous (Double.topology (Cylinder.topology source)) (topology source) composite :=
+    \idelim raw = composite \with f: (Double.Carrier -> Carrier) =>
+      RawMaps.Continuous (Double.topology (Cylinder.topology source)) (topology source) f
+      \by { base: rawContinuous source, equality: FamilyEquality.sym _ _ equal } \then
+  \return \fun (U: \Pow Carrier) (open: Space.IsOpenIn (topology source) U) =>
+    #reflectsOpen{quotient} (HomotopyMaps.Preimage family U) (rawContinuous U open)
+};
+\definition atStart: \forall (c: Carrier) -> at Interval.start c = c :=
+  Representatives.induction (\fun (c: Carrier) => at Interval.start c = c)
+    (\fun (p: Cylinder.Carrier) => trans!{Carrier} _ _ _ (onClass Interval.start p)
+      (congr!{Cylinder.Carrier Carrier} class _ _
+        (trans!{Cylinder.Carrier} _ _ _
+          (congr!{Interval.Carrier Cylinder.Carrier} (\fun (t: Interval.Carrier) => Cylinder.at t (Cylinder.point p)) _ _ (Times.advanceStart (Cylinder.time p)))
+          (CylinderPairs.eta p))));
+\definition atEnd: \forall (a: A) (c: Carrier) -> at Interval.end c = apex a :=
+  \fun (a: A) => Representatives.induction (\fun (c: Carrier) => at Interval.end c = apex a)
+    (\fun (p: Cylinder.Carrier) => trans!{Carrier} _ _ _ (onClass Interval.end p)
+      (trans!{Carrier} _ _ _
+        (congr!{Cylinder.Carrier Carrier} class _ _
+          (congr!{Interval.Carrier Cylinder.Carrier} (\fun (t: Interval.Carrier) => Cylinder.at t (Cylinder.point p)) _ _ (Times.advanceEnd (Cylinder.time p))))
+        (apexIndependent (Cylinder.point p) a)));
+\definition contract(source: Source.Topology) (a: A):
+  Homotopy.Homotopy[topology source, topology source, (\fun (c: Carrier) => c), (\fun (_: Carrier) => apex a)] :=
+  \into[Homotopy.Family](family, Homotopy.Homotopy[_, _, (\fun (c: Carrier) => c), (\fun (_: Carrier) => apex a)]) \by {
+    Homotopy.Laws[_, _, (\fun (c: Carrier) => c), (\fun (_: Carrier) => apex a), family] {
+      continuous := continuous source, start := atStart, end := atEnd a,
+    }
+  };

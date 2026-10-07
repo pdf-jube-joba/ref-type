@@ -1,0 +1,18 @@
+\import Real.SquareRoot[] \as Root;
+\import Real.Estimates[].Product[] \as Bounds;
+\definition continuous: \forall (source: Source.Topology) (f: A -> Real.Real) -> Continuous source f ->
+  Continuous source (\fun (x: A) => Root.sqrt (f x)) :=
+  \fun (source: _) (f: _) (fc: _) => continuousOfLocal source (\fun (x: A) => Root.sqrt (f x)) (\block {
+    \fun (x: A) (r: Real.Real) (positive: R.Lt Real.zero r) \then
+    \let delta: Real.Real := Real.mul r r \then
+    \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x delta, U] })
+      \by localOfContinuous source f fc x delta (Bounds.mulPositive r r positive positive) \then
+    \let data: Source.OpenNeighborhood[source, x, Small f x delta, U] :=
+      \bysub(\Pow A, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x delta, U] }, U) \then
+    \return \exact(\into[\Pow A](U, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Root.sqrt (f x)) x r, U] }) \by {
+      Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Root.sqrt (f x)) x r, U] {
+        open := #open{data}, contains := #contains{data},
+        within := \fun (y: A) (member: Source.Member U y) => Root.rootsNear (f x) (f y) r positive (#within{data} y member),
+      }
+    }, \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Root.sqrt (f x)) x r, U] }))
+  });

@@ -3,6 +3,12 @@
 \import topology.Continuity[A := A, B := Carrier] \as Maps;
 \import Product.Universal[X := A] \as Into;
 \import topology.RealFunctions[A := A] \as ScalarFunctions;
+\import ScalarFunctions.Product[] \as ScalarProduct;
+\import ScalarFunctions.SquareRoot[] \as ScalarRoot;
+\import ScalarFunctions.Reciprocal[] \as ScalarInverse;
+\import Scalar.Absolute[] \as Absolute;
+\import Scalar.Prop[] \as ScalarLaws;
+\import real.DedekindReal[].Arithmetic[].Prop[] \as RealLaws;
 \definition realContinuous: \forall (source: Source.Topology) (f: A -> Carrier) -> Maps.Continuous source topology f ->
   ScalarFunctions.Continuous source (\fun (x: A) => Scalar.re (f x)) :=
   \fun (source: _) (f: _) (continuous: _) => \fun (U: \Pow Real.Real) (open: _) =>
@@ -26,3 +32,50 @@
   \fun (source: _) (f: _) (fc: _) => Into.pairContinuous source Line.topology Line.topology
     (\fun (x: A) => Scalar.re (f x)) (\fun (x: A) => Real.neg (Scalar.im (f x)))
     (realContinuous source f fc) (ScalarFunctions.negContinuous source (\fun (x: A) => Scalar.im (f x)) (imaginaryContinuous source f fc));
+\definition negationContinuous: \forall (source: Source.Topology) (f: A -> Carrier) -> Maps.Continuous source topology f ->
+  Maps.Continuous source topology (\fun (x: A) => Operations.neg (f x)) :=
+  \fun (source: _) (f: _) (fc: _) => Into.pairContinuous source Line.topology Line.topology
+    (\fun (x: A) => Real.neg (Scalar.re (f x))) (\fun (x: A) => Real.neg (Scalar.im (f x)))
+    (ScalarFunctions.negContinuous source (\fun (x: A) => Scalar.re (f x)) (realContinuous source f fc))
+    (ScalarFunctions.negContinuous source (\fun (x: A) => Scalar.im (f x)) (imaginaryContinuous source f fc));
+\definition multiplicationContinuous: \forall (source: Source.Topology) (f, g: A -> Carrier) ->
+  Maps.Continuous source topology f -> Maps.Continuous source topology g ->
+  Maps.Continuous source topology (\fun (x: A) => Operations.mul (f x) (g x)) :=
+  \fun (source: _) (f, g: _) (fc: _) (gc: _) => Into.pairContinuous source Line.topology Line.topology
+    (\fun (x: A) => Real.sub (Real.mul (Scalar.re (f x)) (Scalar.re (g x))) (Real.mul (Scalar.im (f x)) (Scalar.im (g x))))
+    (\fun (x: A) => Real.add (Real.mul (Scalar.re (f x)) (Scalar.im (g x))) (Real.mul (Scalar.im (f x)) (Scalar.re (g x))))
+    (ScalarFunctions.subContinuous source _ _
+      (ScalarProduct.continuous source (\fun (x: A) => Scalar.re (f x)) (\fun (x: A) => Scalar.re (g x))
+        (realContinuous source f fc) (realContinuous source g gc))
+      (ScalarProduct.continuous source (\fun (x: A) => Scalar.im (f x)) (\fun (x: A) => Scalar.im (g x))
+        (imaginaryContinuous source f fc) (imaginaryContinuous source g gc)))
+    (ScalarFunctions.sumContinuous source _ _
+      (ScalarProduct.continuous source (\fun (x: A) => Scalar.re (f x)) (\fun (x: A) => Scalar.im (g x))
+        (realContinuous source f fc) (imaginaryContinuous source g gc))
+      (ScalarProduct.continuous source (\fun (x: A) => Scalar.im (f x)) (\fun (x: A) => Scalar.re (g x))
+        (imaginaryContinuous source f fc) (realContinuous source g gc)));
+\definition normSquaredContinuous: \forall (source: Source.Topology) (f: A -> Carrier) -> Maps.Continuous source topology f ->
+  ScalarFunctions.Continuous source (\fun (x: A) => Operations.normSq (f x)) :=
+  \fun (source: _) (f: _) (fc: _) => ScalarFunctions.sumContinuous source _ _
+    (ScalarProduct.continuous source (\fun (x: A) => Scalar.re (f x)) (\fun (x: A) => Scalar.re (f x))
+      (realContinuous source f fc) (realContinuous source f fc))
+    (ScalarProduct.continuous source (\fun (x: A) => Scalar.im (f x)) (\fun (x: A) => Scalar.im (f x))
+      (imaginaryContinuous source f fc) (imaginaryContinuous source f fc));
+\definition absoluteContinuous: \forall (source: Source.Topology) (f: A -> Carrier) -> Maps.Continuous source topology f ->
+  ScalarFunctions.Continuous source (\fun (x: A) => Absolute.abs (f x)) :=
+  \fun (source: _) (f: _) (fc: _) => ScalarRoot.continuous source (\fun (x: A) => Operations.normSq (f x))
+    (normSquaredContinuous source f fc);
+\definition scaleContinuous: \forall (source: Source.Topology) (c: A -> Real.Real) (f: A -> Carrier) ->
+  ScalarFunctions.Continuous source c -> Maps.Continuous source topology f ->
+  Maps.Continuous source topology (\fun (x: A) => Operations.scale (c x) (f x)) :=
+  \fun (source: _) (c: _) (f: _) (cc: _) (fc: _) => Into.pairContinuous source Line.topology Line.topology
+    (\fun (x: A) => Real.mul (c x) (Scalar.re (f x))) (\fun (x: A) => Real.mul (c x) (Scalar.im (f x)))
+    (ScalarProduct.continuous source c (\fun (x: A) => Scalar.re (f x)) cc (realContinuous source f fc))
+    (ScalarProduct.continuous source c (\fun (x: A) => Scalar.im (f x)) cc (imaginaryContinuous source f fc));
+\definition inverseContinuous: \forall (source: Source.Topology) (f: A -> Carrier) -> Maps.Continuous source topology f ->
+  (\forall (x: A) -> Operations.NonZero (f x)) -> Maps.Continuous source topology (\fun (x: A) => Operations.inv (f x)) :=
+  \fun (source: _) (f: _) (fc: _) (nonzero: _) => scaleContinuous source
+    (\fun (x: A) => RealLaws.fieldInv (Operations.normSq (f x))) (\fun (x: A) => Operations.conj (f x))
+    (ScalarInverse.continuousPositive source (\fun (x: A) => Operations.normSq (f x)) (normSquaredContinuous source f fc)
+      (\fun (x: A) => ScalarLaws.normSqPositive (f x) (nonzero x)))
+    (conjugateContinuous source f fc);

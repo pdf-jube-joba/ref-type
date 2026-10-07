@@ -1,0 +1,77 @@
+\import \parent.BinaryClosed[F := F, G := G] \as Closed;
+\import topology.Topology[Carrier := A].Subspace[S := F] \as LeftSubspace;
+\import topology.Topology[Carrier := A].Subspace[S := G] \as RightSubspace;
+\import topology.Continuity[A := \Cast[A] F, B := B] \as LeftMaps;
+\import topology.Continuity[A := \Cast[A] G, B := B] \as RightMaps;
+\use Logic.either;
+\use Equality.trans;
+\use Equality.congr;
+\definition Left: \Set := \Cast[A] F;
+\definition Right: \Set := \Cast[A] G;
+\definition Covered: \Prop := \forall (x: A) -> Logic.Or[Source.Member F x, Source.Member G x];
+\definition Compatible(f: Left -> B) (g: Right -> B): \Prop :=
+  \forall (a: Left) (b: Right) -> a = b -> f a = g b;
+\structure ValueLaws[f: Left -> B, g: Right -> B, x: A, y: B]: \Prop {
+  left: \forall (a: Left) -> a = x -> y = f a,
+  right: \forall (b: Right) -> b = x -> y = g b,
+}
+\definition Value(f: Left -> B) (g: Right -> B) (x: A): \Set :=
+  \Cast[B] ({ y: B \where ValueLaws[f, g, x, y] });
+\definition leftValue(f: Left -> B) (g: Right -> B) (compatible: Compatible f g) (a: Left): Value f g a :=
+  \into[B](f a, Value f g a) \by {
+    ValueLaws[f, g, a, f a] {
+      left := \fun (b: Left) (equal: b = a) => congr!{Left B} f _ _ (sym!{A} _ _ equal),
+      right := \fun (b: Right) (equal: b = a) => compatible a b (sym!{A} _ _ equal),
+    }
+  };
+\definition rightValue(f: Left -> B) (g: Right -> B) (compatible: Compatible f g) (b: Right): Value f g b :=
+  \into[B](g b, Value f g b) \by {
+    ValueLaws[f, g, b, g b] {
+      left := \fun (a: Left) (equal: a = b) => sym!{B} _ _ (compatible a b equal),
+      right := \fun (a: Right) (equal: a = b) => congr!{Right B} g _ _ (sym!{A} _ _ equal),
+    }
+  };
+\definition existsValue: \forall (f: Left -> B) (g: Right -> B) -> Covered -> Compatible f g ->
+  \forall (x: A) -> \exists Value f g x :=
+  \fun (f: _) (g: _) (covered: _) (compatible: _) (x: A) =>
+    either!{{Source.Member F x} "or" {Source.Member G x} "either" {\exists Value f g x}
+      "lt:" {\fun (member: _) => \exact(leftValue f g compatible (\into[A](x, F) \by { member }), Value f g x)}
+      "rt:" {\fun (member: _) => \exact(rightValue f g compatible (\into[A](x, G) \by { member }), Value f g x)}} (covered x);
+\definition uniqueValue: \forall (f: Left -> B) (g: Right -> B) -> Covered ->
+  \forall (x: A) (u, v: Value f g x) -> u = v :=
+  \fun (f: _) (g: _) (covered: _) (x: A) (u, v: _) =>
+    either!{{Source.Member F x} "or" {Source.Member G x} "either" {u = v}
+      "lt:" {\fun (member: _) => trans!{B} _ _ _
+        (#left{(\bysub(B, Value f g x, u))} (\into[A](x, F) \by { member }) (\refl(x)))
+        (sym!{B} _ _ (#left{(\bysub(B, Value f g x, v))} (\into[A](x, F) \by { member }) (\refl(x))))}
+      "rt:" {\fun (member: _) => trans!{B} _ _ _
+        (#right{(\bysub(B, Value f g x, u))} (\into[A](x, G) \by { member }) (\refl(x)))
+        (sym!{B} _ _ (#right{(\bysub(B, Value f g x, v))} (\into[A](x, G) \by { member }) (\refl(x))))}} (covered x);
+\definition apply(f: Left -> B) (g: Right -> B) (covered: Covered) (compatible: Compatible f g) (x: A): B :=
+  \choice Value f g x \by { existence: existsValue f g covered compatible x, uniqueness: uniqueValue f g covered x };
+\definition onLeft: \forall (f: Left -> B) (g: Right -> B) (covered: Covered) (compatible: Compatible f g) (a: Left) ->
+  apply f g covered compatible a = f a :=
+  \fun (f: _) (g: _) (covered: _) (compatible: _) (a: _) => sym!{B} _ _
+    (\choiceeq leftValue f g compatible a \of Value f g a
+      \by { existence: existsValue f g covered compatible a, uniqueness: uniqueValue f g covered a });
+\definition onRight: \forall (f: Left -> B) (g: Right -> B) (covered: Covered) (compatible: Compatible f g) (b: Right) ->
+  apply f g covered compatible b = g b :=
+  \fun (f: _) (g: _) (covered: _) (compatible: _) (b: _) => sym!{B} _ _
+    (\choiceeq rightValue f g compatible b \of Value f g b
+      \by { existence: existsValue f g covered compatible b, uniqueness: uniqueValue f g covered b });
+\definition continuous: \forall (source: Source.Topology) (target: Target.Topology)
+  (f: Left -> B) (g: Right -> B) (covered: Covered) (compatible: Compatible f g) ->
+  Source.IsClosedIn source F -> Source.IsClosedIn source G ->
+  LeftMaps.Continuous (LeftSubspace.topology source) target f ->
+  RightMaps.Continuous (RightSubspace.topology source) target g ->
+  Maps.Continuous source target (apply f g covered compatible) :=
+  \fun (source: _) (target: _) (f: _) (g: _) (covered: _) (compatible: _) (fc: _) (gc: _) (left: _) (right: _) =>
+    Closed.continuous source target (apply f g covered compatible) fc gc covered
+      (\idelim f = (\fun (x: Left) => apply f g covered compatible x)
+        \with h: (Left -> B) => LeftMaps.Continuous (LeftSubspace.topology source) target h
+        \by { base: left, equality: \axiom:funext(f, (\fun (x: Left) => apply f g covered compatible x),
+          \fun (x: Left) => sym!{B} _ _ (onLeft f g covered compatible x)) })
+      (\idelim g = (\fun (x: Right) => apply f g covered compatible x)
+        \with h: (Right -> B) => RightMaps.Continuous (RightSubspace.topology source) target h
+        \by { base: right, equality: \axiom:funext(g, (\fun (x: Right) => apply f g covered compatible x),
+          \fun (x: Right) => sym!{B} _ _ (onRight f g covered compatible x)) });

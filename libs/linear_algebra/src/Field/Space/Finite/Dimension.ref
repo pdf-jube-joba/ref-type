@@ -1,0 +1,47 @@
+\import \parent.\parent.Coordinates[I := I].Kronecker[] \as Kronecker;
+\import \parent.\parent.Sums[I := I].Single[] \as Single;
+\import \parent.\parent.Eigen[V := V, space := space] \as Eigen;
+\definition naturalScalar: N.Nat^ -> K :=
+  \induction (n: N.Nat^) \return K \with {
+    | zero: zero
+    | succ: \fun (n: N.Nat^) (value: K) => add one value
+  };
+\definition diagonalOne: \forall (b: Basis) (i: I) -> \In[I] (Sums.keys #indices{b}) i -> coordinates b (#vectors{b} i) i = one := \block {
+  \fun (b: Basis) (i: I) (member: _) \then
+  \let x: Coordinates.Vector := \fun (j: I) => Kronecker.delta i j \then
+  \let coefficient: I -> K := \fun (j: I) => coordinates b (#vectors{b} i) j \then
+  \return trans!{K} _ _ _ (sym!{K} _ _ (Single.extract #indices{b} #distinct{b} i member coefficient))
+    (trans!{K} _ _ _ (#dualReconstruction{b} x i) (Kronecker.self i))
+};
+\definition sumOnes: \forall (indices: Lists.List[I]) -> Sums.sum indices (\fun (_: I) => one) = naturalScalar (Lists.length I indices) :=
+  \induction (indices: Lists.List[I]) \return Sums.sum indices (\fun (_: I) => one) = naturalScalar (Lists.length I indices) \with {
+    | nil: \refl(zero)
+    | cons: \fun (i: I) (tail: Lists.List[I]) (ih: _) => congr!{K K} (add one) _ _ ih
+  };
+\definition identityTrace: \forall (b: Basis) -> trace b Eigen.identity = naturalScalar (dimension b) :=
+  \fun (b: Basis) => trans!{K} _ _ _
+    (SumLaws.congruentOnKeys #indices{b} (\fun (i: I) => coordinates b (#vectors{b} i) i) (\fun (_: I) => one) (diagonalOne b))
+    (sumOnes #indices{b});
+\module Comparison(J: \Set) {
+  \import \parent.\parent.Rebase[J := J] \as Rebase;
+  \import \parent.\parent.\parent.Finite[V := V, I := J, space := space] \as Other;
+  \import Other.Dimension[] \as OtherDimension;
+  \definition equalScalarDimension: \forall (b: Basis) (c: Other.Basis) -> naturalScalar (dimension b) = OtherDimension.naturalScalar (Other.dimension c) :=
+    \fun (b: Basis) (c: Other.Basis) => trans!{K} _ _ _ (sym!{K} _ _ (identityTrace b))
+      (trans!{K} _ _ _ (Rebase.traceIndependent b c Eigen.identity) (OtherDimension.identityTrace c));
+}
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition indicesExhaustive: \forall (b: Basis) (i: I) -> \In[I] (Sums.keys #indices{b}) i :=
+  \fun (b: Basis) (i: I) => either!{{\In[I] (Sums.keys #indices{b}) i} "or" {Logic.Not (\In[I] (Sums.keys #indices{b}) i)}
+    "either" {\In[I] (Sums.keys #indices{b}) i}
+    "lt:" {\fun (member: _) => member}
+    "rt:" {\fun (absent: Logic.Not (\In[I] (Sums.keys #indices{b}) i)) => Logic.falseElim (\In[I] (Sums.keys #indices{b}) i)
+      (#nontrivial{field} (trans!{K} _ _ _ (sym!{K} _ _ (Single.absent #indices{b} i absent
+          (\fun (j: I) => coordinates b (#vectors{b} i) j)))
+        (trans!{K} _ _ _ (#dualReconstruction{b} (\fun (j: I) => Kronecker.delta i j) i) (Kronecker.self i))))}}
+    (Classical.excludedMiddle (\In[I] (Sums.keys #indices{b}) i));
+\definition biorthogonal: \forall (b: Basis) (i, j: I) -> coordinates b (#vectors{b} i) j = Kronecker.delta j i :=
+  \fun (b: Basis) (i, j: I) => trans!{K} _ _ _
+    (sym!{K} _ _ (Single.extract #indices{b} #distinct{b} j (indicesExhaustive b j) (\fun (k: I) => coordinates b (#vectors{b} i) k)))
+    (#dualReconstruction{b} (\fun (k: I) => Kronecker.delta j k) i);

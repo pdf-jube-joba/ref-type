@@ -79,6 +79,8 @@ Program 側の型関連操作は計算を返すので、結果を `\bind` で受
 
 `Pair.Program` の `Def`・`Mapping.Def`・`Functions.Def` は対応宣言として同じ操作を提供する。
 [FiniteSubset](src/Set/FiniteSubset.ref) は空集合と有限回の `insert` で生成される部分集合型である。
+`Data.FinSet` は要素の列挙と網羅性、`Fin(n+1)` と `Option[Fin(n)]` の往復を提供する。
+`Data.FinSet.Scope.finiteWhole` は列挙から有限性を示し、`Set.FiniteSubset.Enumeration.finiteOfEnumeration` は一般の有限リストから集合の有限性を導く。
 
 ## 商と代数構造
 

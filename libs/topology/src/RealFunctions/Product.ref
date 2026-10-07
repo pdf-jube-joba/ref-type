@@ -1,0 +1,29 @@
+\import Real.Estimates[].Product[] \as Bounds;
+\definition continuous: \forall (source: Source.Topology) (f, g: A -> Real.Real) ->
+  Continuous source f -> Continuous source g -> Continuous source (\fun (x: A) => Real.mul (f x) (g x)) :=
+  \fun (source: _) (f, g: _) (fc: _) (gc: _) => continuousOfLocal source (\fun (x: A) => Real.mul (f x) (g x)) (\block {
+    \fun (x: A) (r: Real.Real) (positive: R.Lt Real.zero r) \then
+    \let c: Real.Real := Bounds.coefficient (f x) (g x) \then
+    \let cp: R.Lt Real.zero c := Bounds.coefficientPositive (f x) (g x) \then
+    \let delta: Real.Real := Bounds.radius c r \then
+    \let dp: R.Lt Real.zero delta := Bounds.radiusPositive c r cp positive \then
+    \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x delta, U] })
+      \by localOfContinuous source f fc x delta dp \then
+    \takefrom V: \Cast[\Pow A] ({ V: \Pow A \where Source.OpenNeighborhood[source, x, Small g x delta, V] })
+      \by localOfContinuous source g gc x delta dp \then
+    \let ud: Source.OpenNeighborhood[source, x, Small f x delta, U] := \bysub(\Pow A,
+      { U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x delta, U] }, U) \then
+    \let vd: Source.OpenNeighborhood[source, x, Small g x delta, V] := \bysub(\Pow A,
+      { V: \Pow A \where Source.OpenNeighborhood[source, x, Small g x delta, V] }, V) \then
+    \let W: \Pow A := Source.Intersection U V \then
+    \return \exact(\into[\Pow A](W, { W: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.mul (f x) (g x)) x r, W] }) \by {
+      Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.mul (f x) (g x)) x r, W] {
+        open := #intersectionOpen{(Source.topologyLaws source)} U V (#open{ud}) (#open{vd}),
+        contains := Logic.And[_, _]::# (#contains{ud}) (#contains{vd}),
+        within := \fun (y: A) (member: Source.Member W y) => R.leLtTrans _ (Real.mul c delta) r
+          (Bounds.localProductDistance (f x) (g x) (f y) (g y) delta (Order.leOfLt _ _ dp) (Bounds.radiusBelowOne c r)
+            (#within{ud} y (#left{member})) (#within{vd} y (#right{member})))
+          (Bounds.radiusSmall c r cp positive),
+      }
+    }, \Cast[\Pow A] ({ W: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Real.mul (f x) (g x)) x r, W] }))
+  });

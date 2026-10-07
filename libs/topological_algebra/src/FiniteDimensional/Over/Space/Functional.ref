@@ -1,0 +1,31 @@
+\import std.Alg[].Field[] \as Fields;
+\import Finite.Prop[] \as BasisLaws;
+\import Algebra.Linear[V := V, W := K, source := space, target := Algebra.scalarSpace] \as Dual;
+\import topological_algebra.Topology[K := K] \as Structures;
+\import Structures.Functions[A := V] \as Operations;
+\import \parent.\parent.Functions[A := V, I := I] \as Sums;
+\import topology.Continuity[A := V, B := K] \as Maps;
+\import topology.Maps[A := V, B := K] \as Constants;
+\import topology.Composition[A := V, B := Coordinates.Carrier, C := K] \as Evaluation;
+\import std.Logic[].Equality[] \as Equality;
+\import Equality.Prop[A := V -> K] \as FunctionEquality;
+\definition scalarRing: _ := Fields.fieldAsCommutativeRing K field;
+\definition componentContinuous: \forall (scalar: Scalars.Topology) (basis: Finite.Basis) (i: I) ->
+  Maps.Continuous (topology scalar basis) scalar (\fun (x: V) => Finite.coordinates basis x i) :=
+  \fun (scalar: _) (basis: _) (i: I) => Evaluation.composeContinuous (topology scalar basis)
+    (Coordinates.topology scalar) scalar (Finite.coordinates basis) (Coordinates.evaluate i)
+    (coordinateContinuous scalar basis) (Coordinates.evaluationContinuous scalar i);
+\definition continuous: \forall (scalar: Scalars.Topology) -> Structures.RingLaws[scalar, scalarRing] ->
+  \forall (basis: Finite.Basis) (f: Dual.Map) -> Maps.Continuous (topology scalar basis) scalar (#apply{f}) :=
+  \fun (scalar: _) (laws: _) (basis: _) (f: Dual.Map) => \block {
+    \let expansion: V -> K := Sums.sum #indices{basis}
+      (\fun (i: I) (x: V) => Algebra.mul (Finite.coordinates basis x i) (#apply{f} (#vectors{basis} i))) \then
+    \let equal: (#apply{f}) = expansion := \axiom:funext((#apply{f}), expansion, BasisLaws.functionalExpansion basis f) \then
+    \return \idelim expansion = (#apply{f}) \with g: (V -> K) => Maps.Continuous (topology scalar basis) scalar g
+      \by { base: Sums.sumContinuous (topology scalar basis) scalar laws #indices{basis}
+        (\fun (i: I) (x: V) => Algebra.mul (Finite.coordinates basis x i) (#apply{f} (#vectors{basis} i)))
+        (\fun (i: I) => Operations.multiplicationContinuous (topology scalar basis) scalar scalarRing laws
+          (\fun (x: V) => Finite.coordinates basis x i) (\fun (_: V) => #apply{f} (#vectors{basis} i))
+          (componentContinuous scalar basis i) (Constants.constantContinuous (topology scalar basis) scalar (#apply{f} (#vectors{basis} i)))),
+        equality: FunctionEquality.sym _ _ equal }
+  };

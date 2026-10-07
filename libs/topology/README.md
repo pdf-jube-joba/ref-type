@@ -10,6 +10,7 @@
 | `Structures` | 台集合を parameter に持つ共通の位相データ・法則・位相の型。 |
 | `Topology` | 位相、生成位相、開被覆、コンパクト性と分離性。 |
 | `Topology.Subspace` | 部分空間位相、部分空間の開集合の ambient な開集合による表示。 |
+| `Topology.Subspace.Properties` / `MetricSpace.Topology.Hausdorff` | 部分空間のコンパクト性・Hausdorff 性、距離位相の Hausdorff 性。 |
 | `Topology.Finite` / `Topology.Closure` | 有限交叉・閉集合の有限和、閉包とその最小性。 |
 | `Topology.Compactness` | 空集合・一点集合・二集合の和のコンパクト性、閉部分集合、Hausdorff 空間のコンパクト集合の閉性、コンパクト Hausdorff 空間の正規性。 |
 | `Compactness` | コンパクト集合の連続像のコンパクト性。 |
@@ -21,12 +22,16 @@
 | `Quotient` | 写像の終位相、商写像、商からの写像の連続性の普遍性。 |
 | `Homeomorphism` | 同相写像、逆写像、合成。 |
 | `Gluing` | 開被覆と有限閉被覆による連続性の貼り合わせ、部分空間への制限からの局所条件の導出。 |
+| `Gluing.BinaryClosed` / `Gluing.Pasting` | 二つの閉集合の被覆上での連続性判定と一致する写像の貼り合わせ。 |
+| `ProductQuotient` | コンパクト Hausdorff 因子と商写像の積が商写像となる定理。 |
+| `RealFunctions.Product` / `Lattice` / `SquareRoot` / `Reciprocal` | 一般の実数値関数の積、最大・最小・絶対値、平方根、非零逆数の連続性。 |
 | `RealFunctions` | 実数値関数の局所連続性判定、和・差、\([0,1]\) に値を持つ関数の積、Urysohn 関数の連続性。 |
 | `PartitionOfUnity` | コンパクト Hausdorff 空間の開被覆に従属する有限分割。 |
 | `FunctionSpace.Of` | 連続写像の集合上の compact-open 位相と、連続写像との前合成の連続性。 |
 | `LocallyCompact` | コンパクト近傍、局所コンパクト性、コンパクト空間の局所コンパクト性。 |
 
-有限積は `Product.Compactness.productCompact` を反復して構成できる。
+有限積のコンパクト性の定理は `Product.Compactness.productCompact` にある。
+別 module からの具体化には [G06](../../_plans/gaps.md#g06) の処理系の問題があり、有限座標空間への反復利用はそこで停止している。
 閉区間の定理 `intervalCompact` は、端点の順序を仮定せず、空区間と一点区間も含む。
 
 ## 有限従属分割

@@ -1,0 +1,80 @@
+\import \parent.Def[] \as Def;
+\import \parent.Prop[] \as Laws;
+\import real.Analysis[] \as Scalars;
+\import Scalars.Algebra[] \as ScalarAlgebra;
+\import Scalars.Estimates[] \as Estimates;
+\import Scalars.SquareRoot[] \as Root;
+\import Scalars.Distance[] \as Distance;
+\definition abs(z: Complex): Real := Root.sqrt (Def.normSq z);
+\definition nonnegative: \forall (z: Complex) -> R.Le RealOp.zero (abs z) := \fun (z: _) => Root.nonnegative (Def.normSq z);
+\definition square: \forall (z: Complex) -> Scalars.mul (abs z) (abs z) = Def.normSq z :=
+  \fun (z: _) => Root.squareOfNonnegative (Def.normSq z) (Laws.normSqNonnegative z);
+\definition zeroOfAbsZero: \forall (z: Complex) -> abs z = RealOp.zero -> z = Def.zero :=
+  \fun (z: _) (equal: _) => Laws.normSqZero z (trans!{Real} _ _ _ (sym!{Real} _ _ (square z))
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} Scalars.mul _ _ _ _ equal equal) (RealLaws.fieldMulZeroLeft RealOp.zero)));
+\definition positive: \forall (z: Complex) -> Def.NonZero z -> R.Lt RealOp.zero (abs z) :=
+  \fun (z: _) (nonzero: _) => RealOrder.ltOfLeNotEq RealOp.zero (abs z) (nonnegative z)
+    (\fun (equal: RealOp.zero = abs z) => nonzero (zeroOfAbsZero z (sym!{Real} _ _ equal)));
+\definition conjugate: \forall (z: Complex) -> abs (Def.conj z) = abs z :=
+  \fun (z: _) => congr!{Real Real} Root.sqrt _ _ (Laws.normSqConj z);
+\definition multiplicative: \forall (z, w: Complex) -> abs (Def.mul z w) = Scalars.mul (abs z) (abs w) :=
+  \fun (z, w: _) => sym!{Real} _ _ (Root.unique (Def.normSq (Def.mul z w)) (Scalars.mul (abs z) (abs w))
+    (RealLaws.fieldMulNonnegative (abs z) (abs w) (nonnegative z) (nonnegative w))
+    (eq_reason!{
+      {Scalars.mul (Scalars.mul (abs z) (abs w)) (Scalars.mul (abs z) (abs w))}
+      "=" {Scalars.mul (Scalars.mul (abs z) (abs z)) (Scalars.mul (abs w) (abs w))} "by" {ScalarAlgebra.mulFour (abs z) (abs w) (abs z) (abs w)}
+      "=" {Scalars.mul (Def.normSq z) (Def.normSq w)} "by" {congr2!{Real Real Real} Scalars.mul _ _ _ _ (square z) (square w)}
+      "=" {Def.normSq (Def.mul z w)} "by" {sym!{Real} _ _ (Laws.normSqMul z w)}
+      "=" {Root.radicand (Def.normSq (Def.mul z w))} "by" {sym!{Real} _ _ (Distance.maxOfLe RealOp.zero (Def.normSq (Def.mul z w)) (Laws.normSqNonnegative (Def.mul z w)))}
+    }));
+\definition realPartBound: \forall (z: Complex) -> R.Le (re z) (abs z) :=
+  \fun (z: _) => RealOrder.leOfNotLtReverse (re z) (abs z) (\fun (greater: R.Lt (abs z) (re z)) =>
+    R.ltNotLeReverse (Def.normSq z) (Scalars.mul (re z) (re z))
+      (R.ltReplaceLeft (Scalars.mul (abs z) (abs z)) (Def.normSq z) (Scalars.mul (re z) (re z)) (square z)
+        (Root.squareStrict (abs z) (re z) (nonnegative z) greater))
+      (ScalarAlgebra.leAddRight (Scalars.mul (re z) (re z)) (Scalars.mul (im z) (im z)) (ScalarAlgebra.squareNonnegative (im z))));
+\definition inner(z, w: Complex): Real := Scalars.add (Scalars.mul (re z) (re w)) (Scalars.mul (im z) (im w));
+\definition innerAsProduct: \forall (z, w: Complex) -> re (Def.mul z (Def.conj w)) = inner z w :=
+  \fun (z, w: _) => trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (x: Real) => Scalars.sub (Scalars.mul (re z) (re w)) x) _ _ (RealLaws.fieldMulNegRight (im z) (im w)))
+    (ScalarAlgebra.subNeg (Scalars.mul (re z) (re w)) (Scalars.mul (im z) (im w)));
+\definition innerBound: \forall (z, w: Complex) -> R.Le (inner z w) (Scalars.mul (abs z) (abs w)) :=
+  \fun (z, w: _) => R.leReplace (re (Def.mul z (Def.conj w))) (inner z w) (abs (Def.mul z (Def.conj w))) (Scalars.mul (abs z) (abs w))
+    (innerAsProduct z w)
+    (trans!{Real} _ _ _ (multiplicative z (Def.conj w)) (congr!{Real Real} (Scalars.mul (abs z)) _ _ (conjugate w)))
+    (realPartBound (Def.mul z (Def.conj w)));
+\definition normSqAdd: \forall (z, w: Complex) -> Def.normSq (Def.add z w) =
+  Scalars.add (Scalars.add (Def.normSq z) (Def.normSq w)) (Scalars.add (inner z w) (inner z w)) :=
+  \fun (z, w: _) => eq_reason!{
+    {Def.normSq (Def.add z w)}
+    "=" {Scalars.add
+      (Scalars.add (Scalars.add (Scalars.mul (re z) (re z)) (Scalars.mul (re w) (re w))) (Scalars.add (Scalars.mul (re z) (re w)) (Scalars.mul (re z) (re w))))
+      (Scalars.add (Scalars.add (Scalars.mul (im z) (im z)) (Scalars.mul (im w) (im w))) (Scalars.add (Scalars.mul (im z) (im w)) (Scalars.mul (im z) (im w))))}
+      "by" {congr2!{Real Real Real} Scalars.add _ _ _ _ (ScalarAlgebra.squareAdd (re z) (re w)) (ScalarAlgebra.squareAdd (im z) (im w))}
+    "=" {Scalars.add
+      (Scalars.add (Scalars.add (Scalars.mul (re z) (re z)) (Scalars.mul (re w) (re w))) (Scalars.add (Scalars.mul (im z) (im z)) (Scalars.mul (im w) (im w))))
+      (Scalars.add (Scalars.add (Scalars.mul (re z) (re w)) (Scalars.mul (re z) (re w))) (Scalars.add (Scalars.mul (im z) (im w)) (Scalars.mul (im z) (im w))))}
+      "by" {ScalarAlgebra.addFour _ _ _ _}
+    "=" {Scalars.add (Scalars.add (Def.normSq z) (Def.normSq w)) (Scalars.add (inner z w) (inner z w))}
+      "by" {congr2!{Real Real Real} Scalars.add _ _ _ _
+        (ScalarAlgebra.addFour (Scalars.mul (re z) (re z)) (Scalars.mul (re w) (re w)) (Scalars.mul (im z) (im z)) (Scalars.mul (im w) (im w)))
+        (ScalarAlgebra.addFour (Scalars.mul (re z) (re w)) (Scalars.mul (re z) (re w)) (Scalars.mul (im z) (im w)) (Scalars.mul (im z) (im w)))}
+  };
+\definition triangle: \forall (z, w: Complex) -> R.Le (abs (Def.add z w)) (Scalars.add (abs z) (abs w)) := \block {
+  \fun (z, w: _) \then
+  \let s: Real := Scalars.add (abs z) (abs w) \then
+  \let squareBound: R.Le (Scalars.mul (abs (Def.add z w)) (abs (Def.add z w))) (Scalars.mul s s) :=
+    R.leReplace (Def.normSq (Def.add z w)) (Scalars.mul (abs (Def.add z w)) (abs (Def.add z w)))
+      (Scalars.add (Scalars.add (Def.normSq z) (Def.normSq w)) (Scalars.add (Scalars.mul (abs z) (abs w)) (Scalars.mul (abs z) (abs w)))) (Scalars.mul s s)
+      (sym!{Real} _ _ (square (Def.add z w)))
+      (sym!{Real} _ _ (trans!{Real} _ _ _ (ScalarAlgebra.squareAdd (abs z) (abs w))
+        (congr!{Real Real} (\fun (t: Real) => Scalars.add t (Scalars.add (Scalars.mul (abs z) (abs w)) (Scalars.mul (abs z) (abs w)))) _ _
+          (congr2!{Real Real Real} Scalars.add _ _ _ _ (square z) (square w)))))
+      (R.leReplaceLeft _ (Def.normSq (Def.add z w)) _ (sym!{Real} _ _ (normSqAdd z w))
+        (RealLaws.addMonotoneLeft _ _ (Scalars.add (Def.normSq z) (Def.normSq w))
+          (Estimates.addLe _ _ _ _ (innerBound z w) (innerBound z w)))) \then
+  \return RealOrder.leOfNotLtReverse (abs (Def.add z w)) s (\fun (less: R.Lt s (abs (Def.add z w))) =>
+    R.ltNotLeReverse (Scalars.mul s s) (Scalars.mul (abs (Def.add z w)) (abs (Def.add z w)))
+      (Root.squareStrict s (abs (Def.add z w)) (RealLaws.addNonnegative (abs z) (abs w) (nonnegative z) (nonnegative w)) less)
+      squareBound)
+};

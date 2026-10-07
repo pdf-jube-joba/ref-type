@@ -1,0 +1,36 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topological_algebra.Topology[K := K] \as Top;
+\import Top.Functions[A := A] \as ScalarFunctions;
+\import topology.Continuity[A := A, B := K] \as ScalarMaps;
+\import topology.Maps[A := A, B := K] \as Constants;
+\import topological_algebra.Matrix[K := K, I := J, J := H] \as Right;
+\import topological_algebra.Matrix[K := K, I := I, J := H] \as Result;
+\import \parent.\parent.Functions[A := A] \as LeftFunctions;
+\import Right.Operations[].Functions[A := A] \as RightFunctions;
+\import Result.Universal[A := A] \as Into;
+\import topology.Continuity[A := A, B := Carrier] \as LeftMaps;
+\import topology.Continuity[A := A, B := Right.Carrier] \as RightMaps;
+\import topology.Continuity[A := A, B := Result.Carrier] \as ResultMaps;
+\definition sumContinuous: \forall (source: Source.Topology) (ring: Top.TopologicalRing) (indices: Lists.List[J]) (f: J -> A -> K) ->
+  (\forall (j: J) -> ScalarMaps.Continuous source (#topology{ring}) (f j)) ->
+  ScalarMaps.Continuous source (#topology{ring}) (\fun (x: A) => sum (#ring{ring}) indices (\fun (j: J) => f j x)) :=
+  \fun (source: _) (ring: _) => \induction (indices: Lists.List[J]) \return \forall (f: J -> A -> K) ->
+    (\forall (j: J) -> ScalarMaps.Continuous source (#topology{ring}) (f j)) ->
+    ScalarMaps.Continuous source (#topology{ring}) (\fun (x: A) => sum (#ring{ring}) indices (\fun (j: J) => f j x)) \with {
+      | nil: \fun (f: _) (_: _) => Constants.constantContinuous source (#topology{ring}) (#zero{(#base{(#ring{ring})})})
+      | cons: \fun (j: J) (tail: Lists.List[J]) (ih: _) (f: _) (fc: _) =>
+        ScalarFunctions.ringAdditionContinuous source (#topology{ring}) (#ring{ring}) (Top.ringLaws ring)
+          (f j) (\fun (x: A) => sum (#ring{ring}) tail (\fun (j: J) => f j x)) (fc j) (ih f fc)
+    };
+\definition continuous: \forall (source: Source.Topology) (ring: Top.TopologicalRing) (indices: Lists.List[J])
+  (a: A -> Carrier) (b: A -> Right.Carrier) ->
+  LeftMaps.Continuous source (topology (#topology{ring})) a ->
+  RightMaps.Continuous source (Right.topology (#topology{ring})) b ->
+  ResultMaps.Continuous source (Result.topology (#topology{ring})) (\fun (x: A) => multiply (#ring{ring}) indices (a x) (b x)) :=
+  \fun (source: _) (ring: _) (indices: _) (a: _) (b: _) (ac: _) (bc: _) => Into.continuous source (#topology{ring})
+    (\fun (x: A) => multiply (#ring{ring}) indices (a x) (b x)) (\fun (i: I) (h: H) =>
+      sumContinuous source ring indices (\fun (j: J) (x: A) => #mul{(#base{(#ring{ring})})} (a x i j) (b x j h))
+        (\fun (j: J) => ScalarFunctions.multiplicationContinuous source (#topology{ring}) (#ring{ring}) (Top.ringLaws ring)
+          (\fun (x: A) => a x i j) (\fun (x: A) => b x j h)
+          (LeftFunctions.componentContinuous source (#topology{ring}) a ac i j)
+          (RightFunctions.componentContinuous source (#topology{ring}) b bc j h)));

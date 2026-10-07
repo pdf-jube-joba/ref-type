@@ -1,7 +1,8 @@
 # 言語で書きたい構成と比較例
 
 各項目の最小例と対照例は [比較サンプル一覧](fix-md/README.md#対象文書の対応) にまとめる。
-リンク先の `.ref` は、全文を playground.md に貼り付けて単独で検査できる。
+G01〜G05 と G11 の `.ref` は、全文を playground.md に貼り付けて単独で検査できる。
+G06 は依存ライブラリの具体化を検査するプロジェクトとして実行する。
 比較する条件と現在の結果は各項目のリンク先に記載する。
 G11 の検討は [Box の parameter](box-parameters.md#g11) に分けている。
 
@@ -64,3 +65,30 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 [最小比較: G05](fix-md/README.md#g05) の `F.Dimension[A := A].Carrier` は `expected RBracket, found Assign` で構文解析に失敗する。
 台集合を返す通常の関数 `F.carrier A` なら型検査が通る。
 `algebraic_topology.Euclidean` は `Disk(n)` と `coordinateCarrier(n)` を関数として公開し、固定した次元の位相・境界は `Dimension` の import から利用することで回避している。
+
+<a id="g06"></a>
+
+## G06: 積のコンパクト性定理の module 具体化
+
+`topology.Product[A := I, B := K].Compactness` の `productCompact` を、集合を parameter に持つ別の module から通常の定理として利用したい。
+元の `topology` パッケージは検査できるが、定理の利用側では、コンパクト被覆を表す有限集合の型が積空間の集合族として扱われず、`types are not convertible` で失敗する。
+
+[再現プロジェクト](reproductions/g06-product-compactness/src/Coordinates/Compactness.ref) は、二つの集合の位相と積の定理だけを読み込み、仮定を量化した同じ命題へ `productCompact` を適用する。
+キャッシュを使わず、リポジトリのルートから実行する。
+
+```sh
+target/debug/cli libs/topology --no-cache --diagnostics compact
+target/debug/cli _plans/reproductions/g06-product-compactness --no-cache --diagnostics compact
+```
+
+前者は成功し、後者は次の型の不一致で失敗する。
+
+```text
+inferred: std.Set.FiniteSubset[A := I, B := K].FiniteSubset(K, I)
+expected: Pow(Pow(std.Data.Pair.Times^[I, K]))
+```
+
+実際の診断では module parameter の所在を表す修飾が付く。
+台集合の別名を使わず、利用側の有限集合の import を除いても再現する。
+座標空間の有限支持部分集合の帰納法では `productCompactIn` の利用時に同じ不一致が現れ、有限座標のコンパクト性と円板・球面のコンパクト性の実装を止めている。
+この定理の具体化を修正して再現例が成功した後、閉円板のコンパクト性から有限 CW 対の cofibration へ進む。

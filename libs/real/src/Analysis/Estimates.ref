@@ -151,3 +151,41 @@
       (sym!{Real} _ _ (congr!{Real Real} (add (mul half (mul half epsilon))) _ _ (halfTwice (mul half epsilon))))
       (Laws.addMonotoneRight (mul half (mul half epsilon)) (mul half epsilon) (mul half epsilon)
         (halfBelow (mul half epsilon) (Laws.fieldMulNonnegative half epsilon halfNonnegative positive))));
+
+\definition distanceLeUpper: \forall (x, y, r: Real) -> R.Le (distance x y) r -> R.Le y (add x r) :=
+  \fun (x, y, r: _) (near: _) => R.leReplaceLeft (add (sub y x) x) y (add x r) (Metric.subAddCancel y x)
+    (R.leReplaceRight _ (add r x) (add x r) (Laws.addComm r x)
+      (Laws.addMonotoneRight (sub y x) r x (R.leTrans _ _ _ (Metric.maxRight (sub x y) (sub y x)) near)));
+\definition distanceLeLower: \forall (x, y, r: Real) -> R.Le (distance x y) r -> R.Le (sub x r) y :=
+  \fun (x, y, r: _) (near: _) => Laws.leAddCancelRight (sub x r) y r
+    (R.leReplaceLeft x (add (sub x r) r) (add y r) (sym!{Real} _ _ (Metric.subAddCancel x r))
+      (distanceLeUpper y x r (R.leReplaceLeft (distance x y) (distance y x) r (Metric.distanceSymmetric x y) near)));
+\definition maxUpper: \forall (a, b, c, d, r: Real) -> R.Le (distance a c) r -> R.Le (distance b d) r ->
+  R.Le (Metric.max c d) (add (Metric.max a b) r) :=
+  \fun (a, b, c, d, r: _) (ac: _) (bd: _) => Metric.maxLeast c d _
+    (R.leTrans _ _ _ (distanceLeUpper a c r ac) (Laws.addMonotoneRight a (Metric.max a b) r (Metric.maxLeft a b)))
+    (R.leTrans _ _ _ (distanceLeUpper b d r bd) (Laws.addMonotoneRight b (Metric.max a b) r (Metric.maxRight a b)));
+\definition maxDistance: \forall (a, b, c, d, r: Real) -> R.Le (distance a c) r -> R.Le (distance b d) r ->
+  R.Le (distance (Metric.max a b) (Metric.max c d)) r :=
+  \fun (a, b, c, d, r: _) (ac: _) (bd: _) => distanceLeOfInterval (Metric.max a b) (Metric.max c d) r
+    (Laws.leAddCancelRight (sub (Metric.max a b) r) (Metric.max c d) r
+      (R.leReplaceLeft (Metric.max a b) (add (sub (Metric.max a b) r) r) (add (Metric.max c d) r)
+        (sym!{Real} _ _ (Metric.subAddCancel (Metric.max a b) r))
+        (maxUpper c d a b r
+          (R.leReplaceLeft (distance a c) (distance c a) r (Metric.distanceSymmetric a c) ac)
+          (R.leReplaceLeft (distance b d) (distance d b) r (Metric.distanceSymmetric b d) bd))))
+    (maxUpper a b c d r ac bd);
+\definition distanceFromPoint: \forall (p, x, y: Real) -> R.Le (distance (distance p x) (distance p y)) (distance x y) :=
+  \fun (p, x, y: _) => Metric.maxLeast _ _ (distance x y)
+    (Laws.leAddCancelRight _ _ (distance p y)
+      (R.leReplaceLeft (distance p x) (add (sub (distance p x) (distance p y)) (distance p y))
+        (add (distance x y) (distance p y)) (sym!{Real} _ _ (Metric.subAddCancel (distance p x) (distance p y)))
+        (R.leReplaceRight _ (add (distance p y) (distance y x)) (add (distance x y) (distance p y))
+          (trans!{Real} _ _ _ (congr!{Real Real} (add (distance p y)) _ _ (Metric.distanceSymmetric y x)) (Laws.addComm (distance p y) (distance x y)))
+          (Metric.distanceTriangle p y x))))
+    (Laws.leAddCancelRight _ _ (distance p x)
+      (R.leReplaceLeft (distance p y) (add (sub (distance p y) (distance p x)) (distance p x))
+        (add (distance x y) (distance p x)) (sym!{Real} _ _ (Metric.subAddCancel (distance p y) (distance p x)))
+        (R.leReplaceRight _ (add (distance p x) (distance x y)) (add (distance x y) (distance p x))
+          (Laws.addComm (distance p x) (distance x y)) (Metric.distanceTriangle p x y))));
+\module Product;

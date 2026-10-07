@@ -1,0 +1,37 @@
+\import \parent.Restriction[U := F] \as Left;
+\import \parent.Restriction[U := G] \as Right;
+\import topology.Topology[Carrier := A].Subspace[S := F] \as LeftSubspace;
+\import topology.Topology[Carrier := A].Subspace[S := G] \as RightSubspace;
+\import topology.Continuity[A := \Cast[A] F, B := B] \as LeftMaps;
+\import topology.Continuity[A := \Cast[A] G, B := B] \as RightMaps;
+\use Logic.either;
+\definition continuous: \forall (source: Source.Topology) (target: Target.Topology) (f: A -> B) ->
+  Source.IsClosedIn source F -> Source.IsClosedIn source G ->
+  (\forall (x: A) -> Logic.Or[Source.Member F x, Source.Member G x]) ->
+  LeftMaps.Continuous (LeftSubspace.topology source) target (\fun (x: \Cast[A] F) => f x) ->
+  RightMaps.Continuous (RightSubspace.topology source) target (\fun (x: \Cast[A] G) => f x) ->
+  Maps.Continuous source target f := \block {
+  \fun (source: _) (target: _) (f: _) (fc: _) (gc: _) (covers: _) (left: _) (right: _) \then
+  \let family: Finite.FiniteSubset := Finite.unorderedPair F G \then
+  \return finiteClosedCover source target f family
+    (\fun (x: A) (_: Source.Member Source.Whole x) =>
+      either!{{Source.Member F x} "or" {Source.Member G x} "either" {Source.Member (Source.Union family) x}
+        "lt:" {\fun (inF: _) => Source.unionMemberOf family F x (Finite.inUnorderedPairLeft F G) inF}
+        "rt:" {\fun (inG: _) => Source.unionMemberOf family G x (Finite.inUnorderedPairRight F G) inG}} (covers x))
+    (\fun (U: \Pow A) (member: Finite.Member family U) =>
+      either!{{U = F} "or" {Logic.Or[U = G, Logic.False]} "either" {Source.IsClosedIn source U}
+        "lt:" {\fun (equal: _) => \idelim F = U \with W: \Pow A => Source.IsClosedIn source W
+          \by { base: fc, equality: sym!{\Pow A} _ _ equal }}
+        "rt:" {\fun (old: _) => either!{{U = G} "or" {Logic.False} "either" {Source.IsClosedIn source U}
+          "lt:" {\fun (equal: _) => \idelim G = U \with W: \Pow A => Source.IsClosedIn source W
+            \by { base: gc, equality: sym!{\Pow A} _ _ equal }}
+          "rt:" {Logic.falseElim (Source.IsClosedIn source U)}} old}} member)
+    (\fun (U: \Pow A) (member: Finite.Member family U) =>
+      either!{{U = F} "or" {Logic.Or[U = G, Logic.False]} "either" {ClosedOn source target f U}
+        "lt:" {\fun (equal: _) => \idelim F = U \with W: \Pow A => ClosedOn source target f W
+          \by { base: Left.closedFromRestriction source target f fc left, equality: sym!{\Pow A} _ _ equal }}
+        "rt:" {\fun (old: _) => either!{{U = G} "or" {Logic.False} "either" {ClosedOn source target f U}
+          "lt:" {\fun (equal: _) => \idelim G = U \with W: \Pow A => ClosedOn source target f W
+            \by { base: Right.closedFromRestriction source target f gc right, equality: sym!{\Pow A} _ _ equal }}
+          "rt:" {Logic.falseElim (ClosedOn source target f U)}} old}} member)
+};
