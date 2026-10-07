@@ -1,0 +1,37 @@
+\import real.Analysis[] \as Analysis;
+\import Analysis.Estimates[] \as Estimates;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\definition separatedBalls: \forall (metric: Metric) (x, y: Carrier) -> Logic.Not (x = y) ->
+  T.Disjoint (Ball metric x (Analysis.mul Analysis.half (#distance{metric} x y)))
+    (Ball metric y (Analysis.mul Analysis.half (#distance{metric} x y))) :=
+  \fun (metric: _) (x, y: _) (different: _) (z: Carrier) (xz: _) (yz: _) =>
+    R.ltNotLeReverse (Analysis.add (#distance{metric} x z) (#distance{metric} z y))
+      (#distance{metric} x y)
+      (R.ltReplaceRight _
+        (Analysis.add (Analysis.mul Analysis.half (#distance{metric} x y)) (Analysis.mul Analysis.half (#distance{metric} x y)))
+        (#distance{metric} x y) (Estimates.halfTwice (#distance{metric} x y))
+        (Estimates.addLt (#distance{metric} x z) (#distance{metric} z y)
+          (Analysis.mul Analysis.half (#distance{metric} x y)) (Analysis.mul Analysis.half (#distance{metric} x y)) xz
+          (R.ltReplaceLeft (#distance{metric} y z) (#distance{metric} z y)
+            (Analysis.mul Analysis.half (#distance{metric} x y)) (#symmetric{metric} y z) yz)))
+      (#triangle{metric} x z y);
+\definition topologyT2: \forall (metric: Metric) -> T.IsT2 (topology metric) :=
+  \fun (metric: _) (x, y: Carrier) (different: _) => \block {
+    \let radius: R.Real := Analysis.mul Analysis.half (#distance{metric} x y) \then
+    \let rp: R.Lt Analysis.zero radius := Estimates.halfOfPositive (#distance{metric} x y) (positiveDistance metric x y different) \then
+    \return \exact(\into[\Pow Carrier](Ball metric x radius, { U: \Pow Carrier \where T.RegularChoice[topology metric, T.Singleton y, x, U] }) \by {
+      T.RegularChoice[topology metric, T.Singleton y, x, Ball metric x radius] {
+        open := ballOpenIn metric x radius, contains := ballCenter metric x radius rp,
+        partner := \exact(\into[\Pow Carrier](Ball metric y radius, { V: \Pow Carrier \where T.NormalPartner[topology metric, T.Singleton y, Ball metric x radius, V] }) \by {
+          T.NormalPartner[topology metric, T.Singleton y, Ball metric x radius, Ball metric y radius] {
+            open := ballOpenIn metric y radius,
+            covers := \fun (z: Carrier) (equal: z = y) => \idelim y = z
+              \with w: Carrier => T.Member (Ball metric y radius) w
+              \by { base: ballCenter metric y radius rp, equality: sym!{Carrier} _ _ equal },
+            disjoint := separatedBalls metric x y different,
+          }
+        }, \Cast[\Pow Carrier] ({ V: \Pow Carrier \where T.NormalPartner[topology metric, T.Singleton y, Ball metric x radius, V] })),
+      }
+    }, \Cast[\Pow Carrier] ({ U: \Pow Carrier \where T.RegularChoice[topology metric, T.Singleton y, x, U] }))
+  };

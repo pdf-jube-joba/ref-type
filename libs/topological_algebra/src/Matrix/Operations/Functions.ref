@@ -1,0 +1,33 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Continuity[A := A, B := Carrier] \as Maps;
+\import topology.Continuity[A := A, B := K] \as ScalarMaps;
+\import \parent.\parent.Universal[A := A] \as Into;
+\import topological_algebra.Topology[K := K] \as Top;
+\import Top.Functions[A := A] \as ScalarFunctions;
+\definition componentContinuous: \forall (source: Source.Topology) (scalar: Scalars.Topology) (f: A -> Carrier) ->
+  Maps.Continuous source (topology scalar) f -> \forall (i: I) (j: J) ->
+  ScalarMaps.Continuous source scalar (\fun (x: A) => f x i j) :=
+  \fun (source: _) (scalar: _) (f: _) (fc: _) (i: I) (j: J) (U: \Pow K) (open: _) =>
+    fc (Evaluation.Preimage (entry i j) U) (entryContinuous scalar i j U open);
+\definition additionContinuous: \forall (source: Source.Topology) (ring: Top.TopologicalRing) (f, g: A -> Carrier) ->
+  Maps.Continuous source (topology (#topology{ring})) f -> Maps.Continuous source (topology (#topology{ring})) g ->
+  Maps.Continuous source (topology (#topology{ring})) (\fun (x: A) => plus (#ring{ring}) (f x) (g x)) :=
+  \fun (source: _) (ring: _) (f, g: _) (fc: _) (gc: _) => Into.continuous source (#topology{ring})
+    (\fun (x: A) => plus (#ring{ring}) (f x) (g x)) (\fun (i: I) (j: J) =>
+      ScalarFunctions.ringAdditionContinuous source (#topology{ring}) (#ring{ring}) (Top.ringLaws ring)
+        (\fun (x: A) => f x i j) (\fun (x: A) => g x i j)
+        (componentContinuous source (#topology{ring}) f fc i j) (componentContinuous source (#topology{ring}) g gc i j));
+\definition negationContinuous: \forall (source: Source.Topology) (ring: Top.TopologicalRing) (f: A -> Carrier) ->
+  Maps.Continuous source (topology (#topology{ring})) f ->
+  Maps.Continuous source (topology (#topology{ring})) (\fun (x: A) => negative (#ring{ring}) (f x)) :=
+  \fun (source: _) (ring: _) (f: _) (fc: _) => Into.continuous source (#topology{ring})
+    (\fun (x: A) => negative (#ring{ring}) (f x)) (\fun (i: I) (j: J) =>
+      ScalarFunctions.ringNegationContinuous source (#topology{ring}) (#ring{ring}) (Top.ringLaws ring)
+        (\fun (x: A) => f x i j) (componentContinuous source (#topology{ring}) f fc i j));
+\definition scaleContinuous: \forall (source: Source.Topology) (ring: Top.TopologicalRing) (c: A -> K) (f: A -> Carrier) ->
+  ScalarMaps.Continuous source (#topology{ring}) c -> Maps.Continuous source (topology (#topology{ring})) f ->
+  Maps.Continuous source (topology (#topology{ring})) (\fun (x: A) => scale (#ring{ring}) (c x) (f x)) :=
+  \fun (source: _) (ring: _) (c: _) (f: _) (cc: _) (fc: _) => Into.continuous source (#topology{ring})
+    (\fun (x: A) => scale (#ring{ring}) (c x) (f x)) (\fun (i: I) (j: J) =>
+      ScalarFunctions.multiplicationContinuous source (#topology{ring}) (#ring{ring}) (Top.ringLaws ring)
+        c (\fun (x: A) => f x i j) cc (componentContinuous source (#topology{ring}) f fc i j));

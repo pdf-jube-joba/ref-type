@@ -1,0 +1,61 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\import algebraic_topology.HomotopyEquivalence[A := B, B := C] \as Second;
+\import algebraic_topology.HomotopyEquivalence[A := A, B := C] \as Result;
+\import topology.Topology[Carrier := C] \as Range;
+\import topology.Composition[A := A, B := B, C := C] \as ForwardComposition;
+\import topology.Composition[A := C, B := B, C := A] \as BackwardComposition;
+\import algebraic_topology.Homotopy[A := B, B := B] \as Middle;
+\import Middle.Composition[C := A] \as LeftPre;
+\import Middle.Composition[C := C] \as RightPre;
+\import algebraic_topology.Homotopy[A := A, B := B].Composition[C := A] \as LeftPost;
+\import algebraic_topology.Homotopy[A := C, B := B].Composition[C := C] \as RightPost;
+\import algebraic_topology.Homotopy[A := A, B := B] \as LeftIntermediate;
+\import algebraic_topology.Homotopy[A := C, B := B] \as RightIntermediate;
+\import Left.Concatenation[] \as LeftTrans;
+\import algebraic_topology.Homotopy[A := C, B := C] \as Last;
+\import Last.Concatenation[] \as RightTrans;
+\definition compose(source: Source.Topology) (middle: Target.Topology) (target: Range.Topology)
+  (e: Equivalence[source, middle]) (d: Second.Equivalence[middle, target]): Result.Equivalence[source, target] := \block {
+  \let el: Laws[source, middle, e] := laws source middle e \then
+  \let dl: Second.Laws[middle, target, d] := Second.laws middle target d \then
+  \return Result.Equivalence[source, target] {
+    forward := \fun (x: A) => d.forward (e.forward x),
+    backward := \fun (y: C) => e.backward (d.backward y),
+    forwardContinuous := ForwardComposition.composeContinuous source middle target e.forward d.forward
+      (#forwardContinuous{el}) (#forwardContinuous{dl}),
+    backwardContinuous := BackwardComposition.composeContinuous target middle source d.backward e.backward
+      (#backwardContinuous{dl}) (#backwardContinuous{el}),
+    leftInverse := \block {
+      \takefrom h: Middle.Homotopy[middle, middle, (\fun (y: B) => d.backward (d.forward y)), (\fun (y: B) => y)]
+        \by #leftInverse{dl} \then
+      \let pre: LeftIntermediate.Homotopy[source, middle,
+        (\fun (x: A) => d.backward (d.forward (e.forward x))), (\fun (x: A) => e.forward x)] := LeftPre.precompose source middle middle
+        (\fun (y: B) => d.backward (d.forward y)) (\fun (y: B) => y) h e.forward (#forwardContinuous{el}) \then
+      \let post: _ := LeftPost.postcompose source middle source
+        (\fun (x: A) => d.backward (d.forward (e.forward x))) (\fun (x: A) => e.forward x) pre e.backward (#backwardContinuous{el}) \then
+      \return LeftTrans.transitive source source
+        (\fun (x: A) => e.backward (d.backward (d.forward (e.forward x))))
+        (\fun (x: A) => e.backward (e.forward x)) (\fun (x: A) => x)
+        (\exact(post, Left.Homotopy[source, source,
+          (\fun (x: A) => e.backward (d.backward (d.forward (e.forward x)))), (\fun (x: A) => e.backward (e.forward x))]))
+        (#leftInverse{el})
+    },
+    rightInverse := \block {
+      \takefrom h: Middle.Homotopy[middle, middle, (\fun (y: B) => e.forward (e.backward y)), (\fun (y: B) => y)]
+        \by #rightInverse{el} \then
+      \let pre: RightIntermediate.Homotopy[target, middle,
+        (\fun (y: C) => e.forward (e.backward (d.backward y))), (\fun (y: C) => d.backward y)] := RightPre.precompose target middle middle
+        (\fun (y: B) => e.forward (e.backward y)) (\fun (y: B) => y) h d.backward (#backwardContinuous{dl}) \then
+      \let post: _ := RightPost.postcompose target middle target
+        (\fun (y: C) => e.forward (e.backward (d.backward y))) (\fun (y: C) => d.backward y) pre d.forward (#forwardContinuous{dl}) \then
+      \return RightTrans.transitive target target
+        (\fun (y: C) => d.forward (e.forward (e.backward (d.backward y))))
+        (\fun (y: C) => d.forward (d.backward y)) (\fun (y: C) => y)
+        (\exact(post, Last.Homotopy[target, target,
+          (\fun (y: C) => d.forward (e.forward (e.backward (d.backward y)))), (\fun (y: C) => d.forward (d.backward y))]))
+        (#rightInverse{dl})
+    },
+  }
+};

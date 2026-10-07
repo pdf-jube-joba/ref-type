@@ -11,6 +11,8 @@
 | `Analysis.Distance` | 有理数の埋め込み、最大・最小、距離の法則 |
 | `Analysis.Estimates` | 重み付き距離、中点、微小な誤差による順序・等式の判定 |
 | `Analysis.Sequence` | 実数列の Cauchy 条件、収束、極限の構成と一意性 |
+| `Analysis.SquareRoot` | 上限からの平方根の構成、非負性・平方・一意性、平方根の距離評価 |
+| `Analysis.Estimates.Product` / `Analysis.Inverse` | 積と逆数の距離評価、正負の領域での逆数の制御 |
 
 `topology.RealMetric` が距離空間、`linear_algebra.Real` がベクトル空間への接続を提供する。
 

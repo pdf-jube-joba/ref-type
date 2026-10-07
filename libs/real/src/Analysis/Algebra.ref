@@ -1,4 +1,10 @@
 /* Derived scalar identities and positivity of squares. */
+\definition mulSwap: \forall (a, b, c: Real) -> mul a (mul b c) = mul b (mul a c) :=
+  \fun (a, b, c: _) => trans!{Real} _ _ _ (sym!{Real} _ _ (Laws.fieldMulAssoc a b c))
+    (trans!{Real} _ _ _ (congr!{Real Real} (\fun (t: Real) => mul t c) _ _ (Laws.fieldMulComm a b)) (Laws.fieldMulAssoc b a c));
+\definition mulFour: \forall (a, b, c, d: Real) -> mul (mul a b) (mul c d) = mul (mul a c) (mul b d) :=
+  \fun (a, b, c, d: _) => trans!{Real} _ _ _ (Laws.fieldMulAssoc a b (mul c d))
+    (trans!{Real} _ _ _ (congr!{Real Real} (mul a) _ _ (mulSwap b c d)) (sym!{Real} _ _ (Laws.fieldMulAssoc a c (mul b d))));
 \definition mulOneRight: \forall (a: Real) -> mul a one = a :=
   \fun (a: _) => trans!{Real} _ _ _ (Laws.fieldMulComm a one) (Laws.fieldMulOneLeft a);
 \definition mulAddRight: \forall (a, b, c: Real) -> mul (add a b) c = add (mul a c) (mul b c) :=
@@ -39,6 +45,19 @@
     {neg (sub a b)} "=" {add (neg a) (neg (neg b))} "by" {Laws.negAdd a (neg b)}
     "=" {add (neg a) b} "by" {congr!{Real Real} (add (neg a)) _ _ (Laws.negInvolutive b)}
     "=" {sub b a} "by" {Laws.addComm (neg a) b}
+  };
+\definition subSub: \forall (a, b: Real) -> sub a (sub a b) = b :=
+  \fun (a, b: _) => trans!{Real} _ _ _ (congr!{Real Real} (add a) _ _ (negSub a b))
+    (trans!{Real} _ _ _ (addSwap a b (neg a))
+      (trans!{Real} _ _ _ (congr!{Real Real} (add b) _ _ (Laws.addNegRight a)) (Laws.addZeroRight b)));
+\definition squareAdd: \forall (a, b: Real) -> mul (add a b) (add a b) = add (add (mul a a) (mul b b)) (add (mul a b) (mul a b)) :=
+  \fun (a, b: _) => eq_reason!{
+    {mul (add a b) (add a b)} "=" {add (mul a (add a b)) (mul b (add a b))} "by" {mulAddRight a b (add a b)}
+    "=" {add (add (mul a a) (mul a b)) (add (mul b a) (mul b b))} "by" {
+      congr2!{Real Real Real} add _ _ _ _ (Laws.fieldMulAdd a a b) (Laws.fieldMulAdd b a b)}
+    "=" {add (add (mul a a) (mul a b)) (add (mul b b) (mul a b))} "by" {congr!{Real Real} (add (add (mul a a) (mul a b))) _ _
+      (trans!{Real} _ _ _ (Laws.addComm (mul b a) (mul b b)) (congr!{Real Real} (add (mul b b)) _ _ (Laws.fieldMulComm b a)))}
+    "=" {add (add (mul a a) (mul b b)) (add (mul a b) (mul a b))} "by" {addFour (mul a a) (mul a b) (mul b b) (mul a b)}
   };
 
 \definition subShuffle: \forall (a, b, c, d: Real) ->

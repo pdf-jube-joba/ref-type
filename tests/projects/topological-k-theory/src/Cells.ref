@@ -1,0 +1,40 @@
+\inductive Point: \Set := | point: Point;
+\import std.Data[].Nat[] \as N;
+\import algebraic_topology.Euclidean[].Dimension[n := N.Nat^::succ N.Nat^::zero] \as Disk;
+\import algebraic_topology.CW[A := Point].Attach[n := N.Nat^::succ N.Nat^::zero].Along[attach := (\fun (_: Disk.Sphere) => Point::point)] \as Attached;
+\import algebraic_topology.CW[A := Point].Attach[n := N.Nat^::succ N.Nat^::zero] \as Boundary;
+\definition circleSeam: \forall (x: Disk.Sphere) -> Attached.inclusion Point::point = Attached.characteristic (Boundary.boundaryInclusion x) := Attached.attached;
+\import topology.Topology[Carrier := Point] \as Space;
+\import topology.Continuity[A := Disk.Disk, B := Attached.Carrier] \as CellMaps;
+\definition circleCharacteristicContinuous: CellMaps.Continuous Disk.diskTopology (Attached.topology Space.Discrete) Attached.characteristic := Attached.characteristicContinuous Space.Discrete;
+\definition circleTopology: _ := Attached.topology Space.Discrete;
+
+\inductive Empty: \Set := ;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].List[] \as Lists;
+\import algebraic_topology.Euclidean[] \as Euclidean;
+\import topology.Topology[Carrier := Empty] \as EmptySpace;
+\import algebraic_topology.CW[A := Empty] \as CW;
+\definition impossible(P: \Prop) (x: Empty): P :=
+  \match x \in Empty \return (\fun (_: Empty) => P) \with {};
+\definition emptyCells: CW.Cells := Lists.List[CW.CellData]::nil;
+\definition emptyComplex: CW.FiniteComplex[EmptySpace.Discrete] := CW.FiniteComplex[EmptySpace.Discrete] {
+  cells := emptyCells,
+  hausdorff := \fun (x, y: Empty) (different: _) => impossible _ x,
+  cellLaws := \fun (cell: CW.CellData) (member: Logic.False) => Logic.falseElim _ member,
+  covers := \fun (x: Empty) => impossible (\exists CW.CoverWitness[emptyCells, x]) x,
+  disjoint := \fun (cell, other: CW.CellData) (member: Logic.False) (otherMember: _) (x: Empty) (inCell: _) (inOther: _) => Logic.falseElim (cell = other) member,
+  boundary := \fun (cell: CW.CellData) (member: Logic.False) (p: _) (onBoundary: _) => Logic.falseElim _ member,
+  weakTopology := \fun (U: \Pow Empty) => Logic.PropEquiv[EmptySpace.IsOpenIn EmptySpace.Discrete U,
+    (\forall (cell: CW.CellData) -> CW.CellMember emptyCells cell -> Euclidean.OpenInDisk (#dimension{cell}) (CW.Pullback cell U))] {
+      ltr := \fun (open: _) (cell: CW.CellData) (member: Logic.False) => Logic.falseElim _ member,
+      rtl := \fun (local: _) => EmptySpace.discreteOpen U,
+    },
+};
+\import CW.Pair[source := EmptySpace.Discrete, complex := emptyComplex] \as EmptyPair;
+\import EmptyPair.Of[subcomplex := EmptyPair.empty] \as Quotient;
+\definition emptyPairQuotient: _ := Quotient.quotientTopology;
+\import Disk.Geometry[] \as Geometry;
+\import topology.Topology[Carrier := Disk.Coordinate] \as Ambient;
+\definition diskIsClosed: Ambient.IsClosedIn Disk.topology Disk.ClosedBall := Geometry.diskClosed;
+\definition sphereIsClosed: Ambient.IsClosedIn Disk.topology Disk.Boundary := Geometry.sphereClosed;

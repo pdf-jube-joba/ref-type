@@ -1,0 +1,43 @@
+\import Sum.Universal[C := D] \as SumMaps;
+\import Quotient.Descent[C := D] \as Lift;
+\import topology.Topology[Carrier := D] \as Target;
+\import topology.Continuity[A := A, B := D] \as LeftContinuous;
+\import topology.Continuity[A := B, B := D] \as RightContinuous;
+\import topology.Continuity[A := Carrier, B := D] \as Maps;
+\definition Compatible(f: A -> D) (g: B -> D): \Prop := \forall (c: C) -> f (u c) = g (v c);
+\definition respects: \forall (f: A -> D) (g: B -> D) -> Compatible f g -> Lift.Respects (SumMaps.copair f g) :=
+  \fun (f: _) (g: _) (compatible: _) (x, y: Sum.Carrier) (related: Related x y) =>
+    related (\fun (a, b: Sum.Carrier) => SumMaps.copair f g a = SumMaps.copair f g b)
+      (\block {
+        \fun (a, b: Sum.Carrier) (edge: Edge a b) \then
+        \takefrom c: \Cast[C] ({ c: C \where Logic.And[a = Sum.inl (u c), b = Sum.inr (v c)] }) \by edge \then
+        \let endpoints: Logic.And[a = Sum.inl (u c), b = Sum.inr (v c)] :=
+          \bysub(C, { c: C \where Logic.And[a = Sum.inl (u c), b = Sum.inr (v c)] }, c) \then
+        \let equal: SumMaps.copair f g a = SumMaps.copair f g b := trans!{D} _ _ _ (congr!{Sum.Carrier D} (SumMaps.copair f g) _ _ (#left{endpoints}))
+          (trans!{D} _ _ _ (compatible c) (sym!{D} _ _ (congr!{Sum.Carrier D} (SumMaps.copair f g) _ _ (#right{endpoints})))) \then
+        \return equal
+      })
+      (\fun (a: Sum.Carrier) => \refl(SumMaps.copair f g a))
+      (\fun (a, b: Sum.Carrier) (e: SumMaps.copair f g a = SumMaps.copair f g b) => sym!{D} _ _ e)
+      (\fun (a, b, c: Sum.Carrier) (ab: _) (bc: _) => trans!{D} _ _ _ ab bc);
+\definition apply(f: A -> D) (g: B -> D) (compatible: Compatible f g): Carrier -> D :=
+  Lift.apply equivalence (SumMaps.copair f g) (respects f g compatible);
+\definition onLeft: \forall (f: A -> D) (g: B -> D) (compatible: Compatible f g) (x: A) -> apply f g compatible (inl x) = f x :=
+  \fun (f: _) (g: _) (compatible: _) (x: A) => Lift.onClass equivalence (SumMaps.copair f g) (respects f g compatible) (Sum.inl x);
+\definition onRight: \forall (f: A -> D) (g: B -> D) (compatible: Compatible f g) (y: B) -> apply f g compatible (inr y) = g y :=
+  \fun (f: _) (g: _) (compatible: _) (y: B) => Lift.onClass equivalence (SumMaps.copair f g) (respects f g compatible) (Sum.inr y);
+\definition continuous: \forall (left: Left.Topology) (right: Right.Topology) (target: Target.Topology)
+  (f: A -> D) (g: B -> D) (compatible: Compatible f g) ->
+  LeftContinuous.Continuous left target f -> RightContinuous.Continuous right target g ->
+  Maps.Continuous (topology left right) target (apply f g compatible) :=
+  \fun (left: _) (right: _) (target: _) (f: _) (g: _) (compatible: _) (fc: _) (gc: _) =>
+    Lift.continuous (Sum.topology left right) target equivalence (SumMaps.copair f g) (respects f g compatible)
+      (SumMaps.continuous left right target f g fc gc);
+\definition unique: \forall (f: A -> D) (g: B -> D) (compatible: Compatible f g) (h: Carrier -> D) ->
+  (\forall (x: A) -> h (inl x) = f x) -> (\forall (y: B) -> h (inr y) = g y) -> h = apply f g compatible :=
+  \fun (f: _) (g: _) (compatible: _) (h: _) (onLeft: _) (onRight: _) =>
+    Lift.unique equivalence (SumMaps.copair f g) (respects f g compatible) h
+      (\induction (p: Sum.Carrier) \return h (class p) = SumMaps.copair f g p \with {
+        | inl : onLeft
+        | inr : onRight
+      });

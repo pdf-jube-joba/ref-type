@@ -1,0 +1,88 @@
+\import algebraic_topology.TimeSubdivision[A := A] \as Subdivision;
+\import topology.Gluing[A := Cylinder.Carrier, B := B].Pasting[F := Subdivision.LeftSet, G := Subdivision.RightSet] \as Pasting;
+\import real.Analysis[] \as Real;
+\import real.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as ScalarLaws;
+\import Real.Estimates[] \as Estimates;
+\import std.Logic[].Proposition[] \as Logic;
+\use Equality.congr2;
+\use Logic.either;
+\definition leftBoundary: \forall (p: Subdivision.Left) -> Cylinder.time p = Interval.middle -> Subdivision.leftTime p = Interval.end :=
+  \fun (p: _) (equal: _) => trans!{Real.Real} _ _ _
+    (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ equal equal) Estimates.halfDouble;
+\definition rightBoundary: \forall (p: Subdivision.Right) -> Cylinder.time p = Interval.middle -> Subdivision.rightTime p = Interval.start :=
+  \fun (p: _) (equal: _) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (t: Real.Real) => Real.sub t Real.one) _ _
+      (trans!{Real.Real} _ _ _ (congr2!{Real.Real Real.Real Real.Real} Real.add _ _ _ _ equal equal) Estimates.halfDouble))
+    (ScalarLaws.subSelf Real.one);
+\definition compatible(source: Source.Topology) (target: Target.Topology) (f, g, k: A -> B)
+  (h: Homotopy[source, target, f, g]) (j: Homotopy[source, target, g, k]):
+  Pasting.Compatible (\fun (p: Subdivision.Left) => h (Subdivision.leftMap p))
+    (\fun (p: Subdivision.Right) => j (Subdivision.rightMap p)) := \block {
+  \fun (p: Subdivision.Left) (q: Subdivision.Right) (equal: p = q) \then
+  \let timeEqual: Cylinder.time p = Cylinder.time q := congr!{Cylinder.Carrier Interval.Carrier} Cylinder.time _ _ equal \then
+  \let boundary: Cylinder.time p = Interval.middle := R.leAntisym _ _
+    (\bysub(Cylinder.Carrier, Subdivision.LeftSet, p))
+    (R.leReplaceRight Real.half (Cylinder.time q) (Cylinder.time p) (sym!{Real.Real} _ _ timeEqual)
+      (\bysub(Cylinder.Carrier, Subdivision.RightSet, q))) \then
+  \let rightMiddle: Cylinder.time q = Interval.middle := trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ timeEqual) boundary \then
+  \return trans!{B} _ _ _
+    (trans!{B} _ _ _
+      (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => h (Cylinder.at t (Cylinder.point p))) _ _ (leftBoundary p boundary))
+      (#end{(laws source target f g h)} (Cylinder.point p)))
+    (trans!{B} _ _ _ (congr!{A B} g _ _ (congr!{Cylinder.Carrier A} Cylinder.point _ _ equal))
+      (sym!{B} _ _ (trans!{B} _ _ _
+        (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => j (Cylinder.at t (Cylinder.point q))) _ _ (rightBoundary q rightMiddle))
+        (#start{(laws source target g k j)} (Cylinder.point q)))))
+};
+\definition family(source: Source.Topology) (target: Target.Topology) (f, g, k: A -> B)
+  (h: Homotopy[source, target, f, g]) (j: Homotopy[source, target, g, k]): Family :=
+  Pasting.apply (\fun (p: Subdivision.Left) => h (Subdivision.leftMap p))
+    (\fun (p: Subdivision.Right) => j (Subdivision.rightMap p)) Subdivision.covered (compatible source target f g k h j);
+\definition startPoint(x: A): Subdivision.Left :=
+  \into[Cylinder.Carrier](Cylinder.at Interval.start x, Subdivision.LeftSet) \by { Estimates.halfNonnegative };
+\definition endPoint(x: A): Subdivision.Right :=
+  \into[Cylinder.Carrier](Cylinder.at Interval.end x, Subdivision.RightSet) \by { #right{(Interval.bounds Interval.middle)} };
+\definition leftStartTime(x: A): Subdivision.leftTime (startPoint x) = Interval.start := ScalarLaws.addZeroLeft Real.zero;
+\definition rightEndTime(x: A): Subdivision.rightTime (endPoint x) = Interval.end := ScalarLaws.addNegCancelRight Real.one Real.one;
+\definition familyStart: \forall (source: Source.Topology) (target: Target.Topology) (f, g, k: A -> B)
+  (h: Homotopy[source, target, f, g]) (j: Homotopy[source, target, g, k]) (x: A) ->
+  family source target f g k h j (Cylinder.at Interval.start x) = f x :=
+  \fun (source: _) (target: _) (f, g, k: _) (h: _) (j: _) (x: A) => trans!{B} _ _ _
+    (Pasting.onLeft (\fun (p: Subdivision.Left) => h (Subdivision.leftMap p))
+      (\fun (p: Subdivision.Right) => j (Subdivision.rightMap p)) Subdivision.covered (compatible source target f g k h j) (startPoint x))
+    (trans!{B} _ _ _
+      (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => h (Cylinder.at t x)) _ _ (leftStartTime x))
+      (#start{(laws source target f g h)} x));
+\definition familyEnd: \forall (source: Source.Topology) (target: Target.Topology) (f, g, k: A -> B)
+  (h: Homotopy[source, target, f, g]) (j: Homotopy[source, target, g, k]) (x: A) ->
+  family source target f g k h j (Cylinder.at Interval.end x) = k x :=
+  \fun (source: _) (target: _) (f, g, k: _) (h: _) (j: _) (x: A) => trans!{B} _ _ _
+    (Pasting.onRight (\fun (p: Subdivision.Left) => h (Subdivision.leftMap p))
+      (\fun (p: Subdivision.Right) => j (Subdivision.rightMap p)) Subdivision.covered (compatible source target f g k h j) (endPoint x))
+    (trans!{B} _ _ _
+      (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => j (Cylinder.at t x)) _ _ (rightEndTime x))
+      (#end{(laws source target g k j)} x));
+\definition concatenate(source: Source.Topology) (target: Target.Topology) (f, g, k: A -> B)
+  (h: Homotopy[source, target, f, g]) (j: Homotopy[source, target, g, k]): Homotopy[source, target, f, k] :=
+  \into[Family](family source target f g k h j, Homotopy[source, target, f, k]) \by {
+    Laws[source, target, f, k, family source target f g k h j] {
+      continuous := Pasting.continuous (Cylinder.topology source) target
+        (\fun (p: Subdivision.Left) => h (Subdivision.leftMap p))
+        (\fun (p: Subdivision.Right) => j (Subdivision.rightMap p)) Subdivision.covered (compatible source target f g k h j)
+        (Subdivision.leftClosed source) (Subdivision.rightClosed source)
+        (\fun (U: \Pow B) (open: Target.IsOpenIn target U) => Subdivision.leftContinuous source
+          (CylinderMaps.Preimage h U) (#continuous{(laws source target f g h)} U open))
+        (\fun (U: \Pow B) (open: Target.IsOpenIn target U) => Subdivision.rightContinuous source
+          (CylinderMaps.Preimage j U) (#continuous{(laws source target g k j)} U open)),
+      start := familyStart source target f g k h j,
+      end := familyEnd source target f g k h j,
+    }
+  };
+\definition transitive: \forall (source: Source.Topology) (target: Target.Topology) (f, g, k: A -> B) ->
+  Homotopic source target f g -> Homotopic source target g k -> Homotopic source target f k := \block {
+  \fun (source: _) (target: _) (f, g, k: _) (first: _) (second: _) \then
+  \takefrom h: Homotopy[source, target, f, g] \by first \then
+  \takefrom j: Homotopy[source, target, g, k] \by second \then
+  \return \exact(concatenate source target f g k h j, Homotopy[source, target, f, k])
+};

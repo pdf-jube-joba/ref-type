@@ -1,0 +1,32 @@
+\structure SubcomplexData: \Set {
+  cells: Cells,
+}
+\structure SubcomplexLaws[data: SubcomplexData]: \Prop {
+  included: \forall (cell: CellData) -> CellMember data.cells cell -> CellMember (#cells{complex}) cell,
+  boundary: \forall (cell: CellData) -> CellMember data.cells cell -> \forall (p: Euclidean.Disk (#dimension{cell})) ->
+    \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.boundaryAt (#dimension{cell})) p ->
+    \exists BoundaryWitness[data.cells, cell, (#characteristic{cell} p)],
+}
+\definition Subcomplex: \Set := \Cast[SubcomplexData] ({ data: SubcomplexData \where SubcomplexLaws[data] });
+\module Of(subcomplex: Subcomplex) {
+  \definition Subset: \Pow A := { x: A \where \exists { cell: CellData \where
+    Logic.And[CellMember (#cells{subcomplex}) cell, \In[A] (ClosedImage cell) x] } };
+  \import Space.Subspace[S := Subset] \as Subspace;
+  \import algebraic_topology.Collapse[A := A, subset := Subset] \as Collapsed;
+  \import topology.Topology[Carrier := Collapsed.Carrier] \as QuotientSpace;
+  \definition Carrier: \Set := Subspace.CarrierSet;
+  \definition quotientCarrier: \Set := Collapsed.Carrier;
+  \definition quotientTopology: QuotientSpace.Topology := Collapsed.topology source;
+  \definition quotient: A -> quotientCarrier := Collapsed.class;
+}
+\definition whole: Subcomplex := Subcomplex {
+  cells := #cells{complex},
+  included := \fun (cell: CellData) (member: CellMember (#cells{complex}) cell) => member,
+  boundary := #boundary{(laws source complex)},
+};
+\definition empty: Subcomplex := Subcomplex {
+  cells := Lists.List[CellData]::nil,
+  included := \fun (cell: CellData) (member: Logic.False) => Logic.falseElim (CellMember (#cells{complex}) cell) member,
+  boundary := \fun (cell: CellData) (member: Logic.False) (p: Euclidean.Disk (#dimension{cell})) (onBoundary: _) =>
+    Logic.falseElim (\exists BoundaryWitness[Lists.List[CellData]::nil, cell, (#characteristic{cell} p)]) member,
+};

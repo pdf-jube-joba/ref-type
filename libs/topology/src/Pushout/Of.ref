@@ -1,0 +1,33 @@
+\definition Edge(x, y: Sum.Carrier): \Prop :=
+  \exists { c: C \where Logic.And[x = Sum.inl (u c), y = Sum.inr (v c)] };
+\definition Related: Sum.Carrier -> Sum.Carrier -> \Prop := Closure.EquivalenceClosure Sum.Carrier Edge;
+\import topology.RelationQuotient[A := Sum.Carrier, relation := Related] \as Quotient;
+\import topology.Topology[Carrier := Quotient.Carrier] \as Space;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition class: Sum.Carrier -> Carrier := Quotient.class;
+\definition topology(left: Left.Topology) (right: Right.Topology): Space.Topology :=
+  Quotient.topology (Sum.topology left right);
+\definition inl(x: A): Carrier := class (Sum.inl x);
+\definition inr(y: B): Carrier := class (Sum.inr y);
+\definition equivalence: Quotient.Laws := Quotient.Laws {
+  refl := Closure.equivalenceClosureRefl Sum.Carrier Edge,
+  sym := Closure.equivalenceClosureSym Sum.Carrier Edge,
+  trans := Closure.equivalenceClosureTrans Sum.Carrier Edge,
+};
+\definition glued: \forall (c: C) -> inl (u c) = inr (v c) :=
+  \fun (c: C) => Quotient.relatedEqual equivalence _ _
+    (Closure.equivalenceClosureOf Sum.Carrier Edge _ _
+      (\exact(\into[C](c, { d: C \where Logic.And[Sum.inl (u c) = Sum.inl (u d), Sum.inr (v c) = Sum.inr (v d)] })
+        \by { Logic.And[_, _]::# (\refl(Sum.inl (u c))) (\refl(Sum.inr (v c))) },
+        \Cast[C] ({ d: C \where Logic.And[Sum.inl (u c) = Sum.inl (u d), Sum.inr (v c) = Sum.inr (v d)] }))));
+\module Universal(D: \Set);
+\import topology.Continuity[A := A, B := Carrier] \as LeftInclusion;
+\import topology.Continuity[A := B, B := Carrier] \as RightInclusion;
+\definition inlContinuous: \forall (left: Left.Topology) (right: Right.Topology) ->
+  LeftInclusion.Continuous left (topology left right) inl :=
+  \fun (left: _) (right: _) (U: _) (open: _) => Sum.inlContinuous left right
+    ({ p: Sum.Carrier \where \In[Carrier] U (class p) }) (Quotient.projectionContinuous (Sum.topology left right) U open);
+\definition inrContinuous: \forall (left: Left.Topology) (right: Right.Topology) ->
+  RightInclusion.Continuous right (topology left right) inr :=
+  \fun (left: _) (right: _) (U: _) (open: _) => Sum.inrContinuous left right
+    ({ p: Sum.Carrier \where \In[Carrier] U (class p) }) (Quotient.projectionContinuous (Sum.topology left right) U open);

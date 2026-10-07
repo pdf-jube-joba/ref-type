@@ -10,6 +10,7 @@ Dedekind 実数の対として \(\mathbb{C}=\mathbb{R}\times\mathbb{R}\) を構�
 | `Complex.Multiplication` | 複素乗法の結合則に使う実部・虚部の計算 |
 | `Complex.Prop` | 外延性、埋め込みの単射性と演算保存、算術法則、共役、絶対値の二乗、逆数と除法の法則 |
 | `Complex.Algebra` | 加法可換群、可換環、体の構造 |
+| `Complex.Absolute` | 二乗ノルムの平方根による絶対値、非負性、零の判定、積・共役・三角不等式 |
 
 実数の恒等式と平方の性質は `real.Analysis.Algebra` を使う。
 

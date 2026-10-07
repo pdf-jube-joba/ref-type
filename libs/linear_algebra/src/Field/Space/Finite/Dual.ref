@@ -1,0 +1,74 @@
+\import \parent.\parent.Dual[V := V, source := space] \as Functionals;
+\import \parent.Dimension[] \as Dimension;
+\import \parent.\parent.Finite[V := Functionals.Carrier, I := I, space := Functionals.space] \as DualFinite;
+\import DualFinite.Prop[] \as DualBasisLaws;
+\import \parent.\parent.Linear[V := Functionals.Carrier, W := Coordinates.Vector, source := Functionals.space, target := Coordinates.space] \as Encode;
+\import \parent.\parent.Coordinates[I := I].Kronecker[] \as Kronecker;
+\import \parent.\parent.Sums[I := I].Single[] \as Single;
+\definition vectors(b: Basis) (i: I): Functionals.Carrier := Functionals.fromMap (coordinate b i);
+\definition encode(b: Basis): Encode.Map := Encode.Map {
+  apply := \fun (f: Functionals.Carrier) (i: I) => f (#vectors{b} i),
+  preservesAdd := \fun (f, g: Functionals.Carrier) => \refl(\fun (i: I) => add (f (#vectors{b} i)) (g (#vectors{b} i))),
+  preservesScale := \fun (a: K) (f: Functionals.Carrier) => \refl(\fun (i: I) => mul a (f (#vectors{b} i))),
+};
+\definition raw(b: Basis): DualFinite.BasisData := DualFinite.BasisData {
+  indices := #indices{b}, vectors := vectors b, coordinates := encode b,
+};
+\definition synthesisEvaluation: \forall (b: Basis) (x: Coordinates.Vector) (v: V) ->
+  DualFinite.synthesize (raw b) x v = Sums.sum #indices{b} (\fun (i: I) => mul (x i) (coordinates b v i)) :=
+  \fun (b: Basis) (x: Coordinates.Vector) (v: V) => DualBasisLaws.evaluateSum #indices{b}
+    (\fun (i: I) => #smul{Functionals.space} (x i) (vectors b i)) (Functionals.evaluate v);
+\definition evaluationSum: \forall (indices: Lists.List[I]) (f: I -> V) (h: Functionals.Carrier) ->
+  h (vectorSum indices f) = Sums.sum indices (\fun (i: I) => h (f i)) :=
+  \induction (indices: Lists.List[I]) \return \forall (f: I -> V) (h: Functionals.Carrier) ->
+    h (vectorSum indices f) = Sums.sum indices (\fun (i: I) => h (f i)) \with {
+      | nil: \fun (f: _) (h: Functionals.Carrier) => #preservesZero{(Functionals.laws h)}
+      | cons: \fun (i: I) (tail: Lists.List[I]) (ih: _) (f: _) (h: Functionals.Carrier) =>
+        trans!{K} _ _ _ (#preservesAdd{(Functionals.laws h)} (f i) (vectorSum tail f))
+          (congr!{K K} (add (h (f i))) _ _ (ih f h))
+    };
+\definition functionalExpansion: \forall (b: Basis) (f: Functionals.Carrier) (v: V) ->
+  f v = Sums.sum #indices{b} (\fun (i: I) => mul (coordinates b v i) (f (#vectors{b} i))) :=
+  \fun (b: Basis) (f: Functionals.Carrier) (v: V) => trans!{K} _ _ _
+    (congr!{V K} f _ _ (sym!{V} _ _ (#reconstruction{b} v)))
+    (trans!{K} _ _ _ (evaluationSum #indices{b} (\fun (i: I) => #smul{space} (coordinates b v i) (#vectors{b} i)) f)
+      (SumLaws.congruent #indices{b}
+        (\fun (i: I) => f (#smul{space} (coordinates b v i) (#vectors{b} i)))
+        (\fun (i: I) => mul (coordinates b v i) (f (#vectors{b} i)))
+        (\fun (i: I) => #preservesScale{(Functionals.laws f)} (coordinates b v i) (#vectors{b} i))));
+\definition reconstruction: \forall (b: Basis) (f: Functionals.Carrier) ->
+  DualFinite.synthesize (raw b) (DualFinite.coordinates (raw b) f) = f :=
+  \fun (b: Basis) (f: Functionals.Carrier) => Functionals.ext
+    (DualFinite.synthesize (raw b) (DualFinite.coordinates (raw b) f)) f (\fun (v: V) => trans!{K} _ _ _
+      (synthesisEvaluation b (DualFinite.coordinates (raw b) f) v)
+      (trans!{K} _ _ _ (SumLaws.congruent #indices{b}
+        (\fun (i: I) => mul (f (#vectors{b} i)) (coordinates b v i))
+        (\fun (i: I) => mul (coordinates b v i) (f (#vectors{b} i)))
+        (\fun (i: I) => mulComm (f (#vectors{b} i)) (coordinates b v i)))
+        (sym!{K} _ _ (functionalExpansion b f v))));
+\definition coordinateReconstruction: \forall (b: Basis) (x: Coordinates.Vector) ->
+  DualFinite.coordinates (raw b) (DualFinite.synthesize (raw b) x) = x :=
+  \fun (b: Basis) (x: Coordinates.Vector) => \axiom:funext(
+    DualFinite.coordinates (raw b) (DualFinite.synthesize (raw b) x), x,
+    (\fun (i: I) => trans!{K} _ _ _ (synthesisEvaluation b x (#vectors{b} i))
+      (trans!{K} _ _ _ (SumLaws.congruent #indices{b}
+        (\fun (j: I) => mul (x j) (coordinates b (#vectors{b} i) j))
+        (\fun (j: I) => mul (Kronecker.delta i j) (x j))
+        (\fun (j: I) => trans!{K} _ _ _ (mulComm (x j) (coordinates b (#vectors{b} i) j))
+          (congr!{K K} (\fun (a: K) => mul a (x j)) _ _
+            (trans!{K} _ _ _ (Dimension.biorthogonal b i j) (Kronecker.symmetric j i)))))
+        (Single.extract #indices{b} #distinct{b} i (Dimension.indicesExhaustive b i) x))));
+\definition dualReconstruction: \forall (b: Basis) (x: Coordinates.Vector) (i: I) ->
+  Sums.sum #indices{b} (\fun (j: I) => mul (x j) (DualFinite.coordinates (raw b) (vectors b i) j)) = x i :=
+  \fun (b: Basis) (x: Coordinates.Vector) (i: I) => trans!{K} _ _ _ (SumLaws.congruent #indices{b}
+    (\fun (j: I) => mul (x j) (coordinates b (#vectors{b} j) i))
+    (\fun (j: I) => mul (Kronecker.delta i j) (x j))
+    (\fun (j: I) => trans!{K} _ _ _ (mulComm (x j) (coordinates b (#vectors{b} j) i))
+      (congr!{K K} (\fun (a: K) => mul a (x j)) _ _ (Dimension.biorthogonal b j i))))
+    (Single.extract #indices{b} #distinct{b} i (Dimension.indicesExhaustive b i) x);
+\definition basis(b: Basis): DualFinite.Basis := DualFinite.Basis {
+  indices := #indices{b}, vectors := vectors b, coordinates := encode b,
+  distinct := #distinct{b}, reconstruction := reconstruction b,
+  coordinateReconstruction := coordinateReconstruction b, dualReconstruction := dualReconstruction b,
+};
+\definition dimensionLaw: \forall (b: Basis) -> DualFinite.dimension (basis b) = dimension b := \fun (b: Basis) => \refl(dimension b);

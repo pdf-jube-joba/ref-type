@@ -1,0 +1,27 @@
+\definition multiply(t, s: Carrier): Carrier := \into[Real.Real](Real.mul t s, Line.ClosedInterval Real.zero Real.one) \by {
+  Logic.And[_, _]::# (Laws.fieldMulNonnegative t s #left{(bounds t)} #left{(bounds s)})
+    (R.leTrans _ s Real.one
+      (R.leReplace (Real.mul s t) (Real.mul t s) (Real.mul s Real.one) s (Laws.fieldMulComm s t) (Algebra.mulOneRight s)
+        (Estimates.mulMonotone s t Real.one #left{(bounds s)} #right{(bounds t)})) #right{(bounds s)})
+};
+\definition advance(t, s: Carrier): Carrier := reverse (multiply (reverse t) (reverse s));
+\definition multiplyAfterStart: \forall (s: Carrier) -> multiply (reverse start) (reverse s) = reverse s :=
+  \fun (s: Carrier) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (reverse s)) _ _ reverseStart)
+    (Laws.fieldMulOneLeft (reverse s));
+\definition multiplyAfterEnd: \forall (s: Carrier) -> multiply (reverse end) (reverse s) = start :=
+  \fun (s: Carrier) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (\fun (r: Real.Real) => Real.mul r (reverse s)) _ _ reverseEnd)
+    (Laws.fieldMulZeroLeft (reverse s));
+\definition multiplyAfterTop: \forall (t: Carrier) -> multiply (reverse t) (reverse end) = start :=
+  \fun (t: Carrier) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.mul (reverse t)) _ _ reverseEnd) (Laws.fieldMulZeroRight (reverse t));
+\definition advanceStart: \forall (s: Carrier) -> advance start s = s :=
+  \fun (s: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} reverse _ _ (multiplyAfterStart s)) (reverseInvolutive s);
+\definition advanceEnd: \forall (s: Carrier) -> advance end s = end :=
+  \fun (s: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} reverse _ _ (multiplyAfterEnd s)) reverseStart;
+\definition advanceTop: \forall (t: Carrier) -> advance t end = end :=
+  \fun (t: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} reverse _ _ (multiplyAfterTop t)) reverseStart;

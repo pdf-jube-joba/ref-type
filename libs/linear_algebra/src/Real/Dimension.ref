@@ -1,0 +1,40 @@
+\import std.Data[].Nat[] \as N;
+\import real.Analysis[] \as Analysis;
+\import Analysis.Estimates[].Product[] \as Bounds;
+\import Algebra.Laws[V := R.Real, space := Algebra.scalarSpace] \as Laws;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Proposition[] \as Logic;
+\use Equality.sym;
+\definition naturalScalar: N.Nat^ -> R.Real :=
+  \induction (n: N.Nat^) \return R.Real \with {
+    | zero: Analysis.zero
+    | succ: \fun (n: N.Nat^) (value: R.Real) => Analysis.add Analysis.one value
+  };
+\definition nonnegative: \forall (n: N.Nat^) -> R.Le Analysis.zero (naturalScalar n) :=
+  \induction (n: N.Nat^) \return R.Le Analysis.zero (naturalScalar n) \with {
+    | zero: R.leRefl Analysis.zero
+    | succ: \fun (n: N.Nat^) (ih: _) => P.addNonnegative Analysis.one (naturalScalar n) P.oneNonnegative ih
+  };
+\definition successorPositive: \forall (n: N.Nat^) -> R.Lt Analysis.zero (naturalScalar (N.Nat^::succ n)) :=
+  \fun (n: N.Nat^) => R.ltLeTrans Analysis.zero Analysis.one (naturalScalar (N.Nat^::succ n)) Bounds.onePositive
+    (R.leReplaceLeft (Analysis.add Analysis.one Analysis.zero) Analysis.one (Analysis.add Analysis.one (naturalScalar n))
+      (P.addZeroRight Analysis.one) (P.addMonotoneLeft Analysis.zero (naturalScalar n) Analysis.one (nonnegative n)));
+\definition zeroCase: \forall (m: N.Nat^) -> naturalScalar N.Nat^::zero = naturalScalar m -> N.Nat^::zero = m :=
+  \induction (m: N.Nat^) \return naturalScalar N.Nat^::zero = naturalScalar m -> N.Nat^::zero = m \with {
+    | zero: \fun (equal: _) => \refl(N.Nat^::zero)
+    | succ: \fun (m: N.Nat^) (ih: _) (equal: _) => Logic.falseElim (N.Nat^::zero = N.Nat^::succ m)
+      (R.ltIrrefl Analysis.zero (R.ltReplaceRight Analysis.zero (naturalScalar (N.Nat^::succ m)) Analysis.zero
+        (sym!{R.Real} _ _ equal) (successorPositive m)))
+  };
+\definition injective: \forall (n, m: N.Nat^) -> naturalScalar n = naturalScalar m -> n = m :=
+  \induction (n: N.Nat^) \return \forall (m: N.Nat^) -> naturalScalar n = naturalScalar m -> n = m \with {
+    | zero: zeroCase
+    | succ: \fun (n: N.Nat^) (ih: \forall (m: N.Nat^) -> naturalScalar n = naturalScalar m -> n = m) =>
+      \induction (m: N.Nat^) \return naturalScalar (N.Nat^::succ n) = naturalScalar m -> N.Nat^::succ n = m \with {
+        | zero: \fun (equal: _) => Logic.falseElim (N.Nat^::succ n = N.Nat^::zero)
+          (R.ltIrrefl Analysis.zero (R.ltReplaceRight Analysis.zero (naturalScalar (N.Nat^::succ n)) Analysis.zero equal (successorPositive n)))
+        | succ: \fun (m: N.Nat^) (inner: _) (equal: _) => congr!{N.Nat^ N.Nat^} N.Nat^::succ _ _
+          (ih m (Laws.cancelLeft Analysis.one (naturalScalar n) (naturalScalar m) equal))
+      }
+  };
+\module Space(V, I: \Set, space: Algebra.VectorSpace V);

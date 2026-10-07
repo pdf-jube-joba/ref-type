@@ -498,6 +498,59 @@ fn nested_namespaces_follow_module_dependency_order() {
 }
 
 #[test]
+fn diamond_import_chains_keep_namespace_growth_linear() {
+    let mut source = String::from(
+        r"\module Base { \inductive Unit: \Set := | unit: Unit; }
+          \module Layer0 { \import \root.Base[] \as B;
+            \definition value: B.Unit := B.Unit::unit; }",
+    );
+    for level in 1..10 {
+        let previous = level - 1;
+        source.push_str(&format!(
+            r"\module Layer{level} {{
+                \import \root.Layer{previous}[] \as Left;
+                \import \root.Layer{previous}[] \as Right;
+                \definition agree: Left.value = Right.value := \refl(Left.value);
+                \import \root.Base[] \as B;
+                \definition value: B.Unit := Left.value;
+            }}"
+        ));
+    }
+    let modules = parse::str_parse_modules(&source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+    let env = environment.crate_env();
+    let layers = &env.module(env.root_module()).children()[1..];
+    for (level, &layer) in layers.iter().enumerate() {
+        assert!(
+            env.module(layer).bindings().len() <= 2 * (level + 1) + 1,
+            "Layer{level} duplicated its inherited namespaces"
+        );
+    }
+}
+
+#[test]
+fn nested_module_arguments_specialize_parent_imported_types() {
+    let source = r"
+        \module Top(A: \Set) { \structure T: \Set { x: A } }
+        \module Parent(A: \Set) {
+            \import \root.Top[A := A] \as Base;
+            \module Child(value: Base.T) { \definition get: A := #x{value}; }
+        }
+        \module Test {
+            \inductive Point: \Set := | point: Point;
+            \import \root.Top[A := Point] \as Top;
+            \definition x: Top.T := Top.T { x := Point::point };
+            \import \root.Parent[A := Point].Child[value := x] \as C;
+            \definition result: C.get = Point::point := \refl(Point::point);
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
 fn namespace_remappings_are_shared_and_extensions_preserve_parent_maps() {
     let source = r"
         \module Source(A: \Set) {
@@ -2486,4 +2539,42 @@ fn definition_parameters_form_contexts_and_calls_share_the_checked_body() {
         env.referenced_definition(env.definition(selected).unwrap().body),
         Some(choose)
     );
+}
+
+#[test]
+fn carrier_aliases_keep_their_identity_across_nested_specializations() {
+    let source = r"
+        \module Types(A: \Set) { \structure T: \Set { x: A } }
+        \module Pair(A, B: \Set) { \structure P: \Set { first: A, second: B } }
+        \module Product(A, B: \Set) {
+          \import \root.Pair[A := A, B := B] \as P;
+          \definition Carrier: \Set := P.P;
+          \import \root.Types[A := Carrier] \as Top;
+          \module Universal(X: \Set) {
+            \import \root.Types[A := X] \as Source;
+            \definition Source: \Set := Source.T;
+            \definition Target: \Set := Top.T;
+            \definition identity(source: Source) (target: Target): X -> Carrier -> \Prop := \fun (x: X) (y: Carrier) => #x{source} = x;
+          }
+        }
+        \module Complex {
+          \inductive Real: \Set := | zero: Real;
+          \import \root.Product[A := Real, B := Real] \as Product;
+          \definition Carrier: \Set := Product.Carrier;
+          \module Functions(A: \Set) {
+            \import Product.Universal[X := A] \as Into;
+            \definition Source: \Set := Into.Source;
+            \definition Target: \Set := Into.Target;
+            \definition apply(source: Source) (target: Target): A -> Carrier -> \Prop := Into.identity source target;
+          }
+        }
+        \module Consumer {
+          \import \root.Complex[] \as Complex;
+          \import Complex.Functions[A := Complex.Carrier] \as Functions;
+          \definition same(x: Functions.Source): Functions.Target := x;
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
 }

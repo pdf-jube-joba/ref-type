@@ -1,0 +1,97 @@
+\import \parent.Algebra[] \as Algebra;
+\import \parent.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Bounds;
+\import \parent.SquareRoot[] \as Root;
+\definition inverseUnique: \forall (x, y: Real) -> Logic.Not (x = zero) -> mul y x = one -> y = Laws.fieldInv x :=
+  \fun (x, y: _) (nonzero: _) (equal: _) => eq_reason!{
+    y "=" {mul y one} "by" {sym!{Real} _ _ (Algebra.mulOneRight y)}
+    "=" {mul y (mul x (Laws.fieldInv x))} "by" {congr!{Real Real} (mul y) _ _
+      (sym!{Real} _ _ (trans!{Real} _ _ _ (Laws.fieldMulComm x (Laws.fieldInv x)) (Laws.fieldInverseNonzero x nonzero)))}
+    "=" {mul (mul y x) (Laws.fieldInv x)} "by" {sym!{Real} _ _ (Laws.fieldMulAssoc y x (Laws.fieldInv x))}
+    "=" {mul one (Laws.fieldInv x)} "by" {congr!{Real Real} (\fun (t: Real) => mul t (Laws.fieldInv x)) _ _ equal}
+    "=" {Laws.fieldInv x} "by" {Laws.fieldMulOneLeft (Laws.fieldInv x)}
+  };
+\definition negNonzero: \forall (x: Real) -> Logic.Not (x = zero) -> Logic.Not (neg x = zero) :=
+  \fun (x: _) (nonzero: _) (equal: _) => nonzero (trans!{Real} _ _ _ (sym!{Real} _ _ (Laws.negInvolutive x))
+    (trans!{Real} _ _ _ (congr!{Real Real} neg _ _ equal) Laws.negZero));
+\definition inverseNeg: \forall (x: Real) -> Logic.Not (x = zero) -> Laws.fieldInv (neg x) = neg (Laws.fieldInv x) :=
+  \fun (x: _) (nonzero: _) => sym!{Real} _ _ (inverseUnique (neg x) (neg (Laws.fieldInv x)) (negNonzero x nonzero)
+    (trans!{Real} _ _ _ (Laws.fieldMulNegBoth (Laws.fieldInv x) x) (Laws.fieldInverseNonzero x nonzero)));
+\definition positiveNonzero: \forall (x: Real) -> R.Lt zero x -> Logic.Not (x = zero) :=
+  \fun (x: _) (positive: _) (equal: _) => Order.ltNotEq zero x positive (sym!{Real} _ _ equal);
+\definition invAntitone: \forall (a, b: Real) -> R.Lt zero a -> R.Lt zero b -> R.Le a b -> R.Le (Laws.fieldInv b) (Laws.fieldInv a) :=
+  \fun (a, b: _) (ap: _) (bp: _) (ab: _) => Order.leOfNotLtReverse (Laws.fieldInv b) (Laws.fieldInv a)
+    (\fun (less: R.Lt (Laws.fieldInv a) (Laws.fieldInv b)) => R.ltNotLeReverse one (mul a (Laws.fieldInv b))
+      (R.ltReplaceLeft (mul a (Laws.fieldInv a)) one (mul a (Laws.fieldInv b))
+        (trans!{Real} _ _ _ (Laws.fieldMulComm a (Laws.fieldInv a)) (Laws.fieldInverseNonzero a (positiveNonzero a ap)))
+        (Root.mulStrict a (Laws.fieldInv a) (Laws.fieldInv b) ap less))
+      (R.leReplace
+        (mul (Laws.fieldInv b) a) (mul a (Laws.fieldInv b)) (mul (Laws.fieldInv b) b) one
+        (Laws.fieldMulComm (Laws.fieldInv b) a) (Laws.fieldInverseNonzero b (positiveNonzero b bp))
+        (Estimates.mulMonotone (Laws.fieldInv b) a b (Order.leOfLt _ _ (Bounds.invPositive b bp)) ab)));
+\definition inverseProduct: \forall (x, y: Real) -> Logic.Not (y = zero) ->
+  mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) y = Laws.fieldInv x :=
+  \fun (x, y: _) (nonzero: _) => trans!{Real} _ _ _ (Laws.fieldMulAssoc (Laws.fieldInv x) (Laws.fieldInv y) y)
+    (trans!{Real} _ _ _ (congr!{Real Real} (mul (Laws.fieldInv x)) _ _ (Laws.fieldInverseNonzero y nonzero)) (Algebra.mulOneRight (Laws.fieldInv x)));
+\definition distanceInversePositive: \forall (x, y: Real) -> R.Lt zero x -> R.Lt zero y ->
+  R.Le (distance (Laws.fieldInv x) (Laws.fieldInv y)) (mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) (distance x y)) :=
+  \fun (x, y: _) (xp: _) (yp: _) => R.leReplace
+    (distance (mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) y) (mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) x))
+    (distance (Laws.fieldInv x) (Laws.fieldInv y))
+    (mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) (distance y x))
+    (mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) (distance x y))
+    (congr2!{Real Real Real} distance _ _ _ _ (inverseProduct x y (positiveNonzero y yp))
+      (trans!{Real} _ _ _ (congr!{Real Real} (\fun (t: Real) => mul t x) _ _ (Laws.fieldMulComm (Laws.fieldInv x) (Laws.fieldInv y)))
+        (inverseProduct y x (positiveNonzero x xp))))
+    (congr!{Real Real} (mul (mul (Laws.fieldInv x) (Laws.fieldInv y))) _ _ (Metric.distanceSymmetric y x))
+    (Estimates.distanceMul (mul (Laws.fieldInv x) (Laws.fieldInv y)) y x
+      (Laws.fieldMulNonnegative (Laws.fieldInv x) (Laws.fieldInv y)
+        (Order.leOfLt _ _ (Bounds.invPositive x xp)) (Order.leOfLt _ _ (Bounds.invPositive y yp))));
+\definition halfComplement: \forall (x: Real) -> sub x (mul half x) = mul half x :=
+  \fun (x: _) => trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (t: Real) => sub t (mul half x)) _ _ (sym!{Real} _ _ (Estimates.halfTwice x)))
+    (Laws.addNegCancelRight (mul half x) (mul half x));
+\definition coefficient(x: Real): Real := mul (Laws.fieldInv x) (Laws.fieldInv (mul half x));
+\definition coefficientPositive: \forall (x: Real) -> R.Lt zero x -> R.Lt zero (coefficient x) :=
+  \fun (x: _) (xp: _) => Bounds.mulPositive (Laws.fieldInv x) (Laws.fieldInv (mul half x))
+    (Bounds.invPositive x xp) (Bounds.invPositive (mul half x) (Estimates.halfOfPositive x xp));
+\definition radius(x, r: Real): Real := Metric.min (mul half x) (Bounds.radius (coefficient x) r);
+\definition radiusPositive: \forall (x, r: Real) -> R.Lt zero x -> R.Lt zero r -> R.Lt zero (radius x r) :=
+  \fun (x, r: _) (xp: _) (rp: _) => Bounds.minPositive (mul half x) (Bounds.radius (coefficient x) r)
+    (Estimates.halfOfPositive x xp) (Bounds.radiusPositive (coefficient x) r (coefficientPositive x xp) rp);
+\definition inverseNear: \forall (x, y, r: Real) -> R.Lt zero x -> R.Lt zero r -> R.Lt (distance x y) (radius x r) ->
+  R.Lt (distance (Laws.fieldInv x) (Laws.fieldInv y)) r := \block {
+  \fun (x, y, r: _) (xp: _) (rp: _) (near: _) \then
+  \let h: Real := mul half x \then
+  \let hp: R.Lt zero h := Estimates.halfOfPositive x xp \then
+  \let hy: R.Lt h y := R.ltReplaceLeft (sub x h) h y (halfComplement x)
+    (Metric.distanceLtLower x y h (R.ltLeTrans _ _ h near (Metric.minLeft h (Bounds.radius (coefficient x) r)))) \then
+  \let yp: R.Lt zero y := Order.ltTrans zero h y hp hy \then
+  \let c: Real := coefficient x \then
+  \let cp: R.Lt zero c := coefficientPositive x xp \then
+  \let coefBound: R.Le (mul (Laws.fieldInv x) (Laws.fieldInv y)) c :=
+    Estimates.mulMonotone (Laws.fieldInv x) (Laws.fieldInv y) (Laws.fieldInv h)
+      (Order.leOfLt _ _ (Bounds.invPositive x xp)) (invAntitone h y hp yp (Order.leOfLt h y hy)) \then
+  \let bound: R.Le (distance (Laws.fieldInv x) (Laws.fieldInv y)) (mul c (radius x r)) :=
+    R.leTrans _ _ _ (distanceInversePositive x y xp yp)
+      (R.leTrans _ (mul c (distance x y)) _
+        (R.leReplace (mul (distance x y) (mul (Laws.fieldInv x) (Laws.fieldInv y))) (mul (mul (Laws.fieldInv x) (Laws.fieldInv y)) (distance x y))
+          (mul (distance x y) c) (mul c (distance x y))
+          (Laws.fieldMulComm (distance x y) (mul (Laws.fieldInv x) (Laws.fieldInv y))) (Laws.fieldMulComm (distance x y) c)
+          (Estimates.mulMonotone (distance x y) _ c (Metric.distanceNonnegative x y) coefBound))
+        (Estimates.mulMonotone c (distance x y) (radius x r) (Order.leOfLt _ _ cp) (Order.leOfLt _ _ near))) \then
+  \return R.leLtTrans _ _ r bound
+    (R.leLtTrans _ _ r
+      (Estimates.mulMonotone c (radius x r) (Bounds.radius c r) (Order.leOfLt _ _ cp) (Metric.minRight h (Bounds.radius c r)))
+      (Bounds.radiusSmall c r cp rp))
+};
+\definition inverseNearNegative: \forall (x, y, r: Real) -> R.Lt x zero -> Logic.Not (x = zero) -> Logic.Not (y = zero) ->
+  R.Lt zero r -> R.Lt (distance x y) (radius (neg x) r) -> R.Lt (distance (Laws.fieldInv x) (Laws.fieldInv y)) r :=
+  \fun (x, y, r: _) (negative: _) (xn: _) (yn: _) (rp: _) (near: _) =>
+    R.ltReplaceLeft (distance (Laws.fieldInv (neg x)) (Laws.fieldInv (neg y))) (distance (Laws.fieldInv x) (Laws.fieldInv y)) r
+      (trans!{Real} _ _ _ (congr2!{Real Real Real} distance _ _ _ _ (inverseNeg x xn) (inverseNeg y yn))
+        (Bounds.distanceNeg (Laws.fieldInv x) (Laws.fieldInv y)))
+      (inverseNear (neg x) (neg y) r
+        (Order.ltOfLeNotEq zero (neg x) (Laws.nonnegativeNegOfNegative x negative)
+          (\fun (equal: zero = neg x) => negNonzero x xn (sym!{Real} _ _ equal))) rp
+        (R.ltReplaceLeft (distance x y) (distance (neg x) (neg y)) (radius (neg x) r) (sym!{Real} _ _ (Bounds.distanceNeg x y)) near));

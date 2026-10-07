@@ -1,0 +1,64 @@
+\import real.Analysis[] \as Real;
+\import real.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import Real.Algebra[] \as Algebra;
+\import topology.RealLine[] \as Line;
+\import topology.Topology[Carrier := Real.Real] \as Ambient;
+\import Ambient.Subspace[S := Line.ClosedInterval Real.zero Real.one] \as Sub;
+\import topology.Topology[Carrier := Sub.CarrierSet] \as Space;
+\import topology.RealFunctions[A := Sub.CarrierSet] \as Functions;
+\import topology.Continuity[A := Sub.CarrierSet, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one] \as Into;
+\import topology.Continuity[A := Sub.CarrierSet, B := Sub.CarrierSet] \as Maps;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+
+\definition Carrier: \Set := Sub.CarrierSet;
+\definition topology: Space.Topology := Sub.topology Line.topology;
+\definition start: Carrier := \into[Real.Real](Real.zero, Line.ClosedInterval Real.zero Real.one)
+  \by { Logic.And[_, _]::# (R.leRefl Real.zero) Laws.oneNonnegative };
+\definition end: Carrier := \into[Real.Real](Real.one, Line.ClosedInterval Real.zero Real.one)
+  \by { Logic.And[_, _]::# Laws.oneNonnegative (R.leRefl Real.one) };
+\definition bounds(t: Carrier): Logic.And[R.Le Real.zero t, R.Le t Real.one] :=
+  \bysub(Real.Real, Line.ClosedInterval Real.zero Real.one, t);
+\definition reverse(t: Carrier): Carrier :=
+  \into[Real.Real](Real.sub Real.one t, Line.ClosedInterval Real.zero Real.one) \by {
+    Logic.And[_, _]::# (Distance.subNonnegative Real.one t (#right{(bounds t)}))
+      (Laws.leAddCancelRight _ _ t
+        (R.leReplaceLeft Real.one (Real.add (Real.sub Real.one t) t) (Real.add Real.one t)
+          (sym!{Real.Real} _ _ (Distance.subAddCancel Real.one t))
+          (Algebra.leAddRight Real.one t (#left{(bounds t)}))))
+  };
+\definition reverseStart: reverse start = end := Laws.subZeroRight Real.one;
+\definition reverseEnd: reverse end = start := Laws.subSelf Real.one;
+\definition reverseInvolutive: \forall (t: Carrier) -> reverse (reverse t) = t :=
+  \fun (t: Carrier) => trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.add Real.one) _ _ (Laws.negAdd Real.one (Real.neg t)))
+    (trans!{Real.Real} _ _ _
+      (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.add Real.one (Real.add (Real.neg Real.one) x)) _ _ (Laws.negInvolutive t))
+      (trans!{Real.Real} _ _ _ (sym!{Real.Real} _ _ (Laws.addAssoc Real.one (Real.neg Real.one) t))
+        (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (x: Real.Real) => Real.add x t) _ _
+          (trans!{Real.Real} _ _ _ (Laws.addComm Real.one (Real.neg Real.one)) (Laws.addNegLeft Real.one))) (Laws.addZeroLeft t))));
+\definition reverseContinuous: Maps.Continuous topology topology reverse :=
+  Into.corestrictContinuous topology Line.topology reverse
+    (Functions.subContinuous topology (\fun (_: Carrier) => Real.one) (\fun (t: Carrier) => t)
+      (Functions.constantContinuous topology Real.one) (Into.inclusionContinuous Line.topology));
+
+\definition middle: Carrier := \into[Real.Real](Real.half, Line.ClosedInterval Real.zero Real.one) \by {
+  Logic.And[_, _]::# Estimates.halfNonnegative
+    (R.leReplaceLeft (Real.mul Real.half Real.one) Real.half Real.one
+      (Algebra.mulOneRight Real.half) (Estimates.halfBelow Real.one Laws.oneNonnegative))
+};
+\import Sub.Properties[] \as SubspaceProperties;
+\import Line.CompactIntervals[] \as CompactIntervals;
+\import topology.RealMetric[] \as Metric;
+\import topology.MetricSpace[Carrier := Real.Real].Topology[].Hausdorff[] \as Hausdorff;
+\definition compact: Space.IsCompact topology := SubspaceProperties.compact Line.topology (CompactIntervals.intervalCompact Real.zero Real.one);
+\definition hausdorff: Space.IsT2 topology := SubspaceProperties.hausdorff Line.topology (Hausdorff.topologyT2 Metric.metric);
+\definition inclusionContinuous: \forall (U: \Pow Real.Real) -> Ambient.IsOpenIn Line.topology U ->
+  Space.IsOpenIn topology ({ t: Carrier \where \In[Real.Real] U t }) := Sub.traceOpen Line.topology;
+\module Arithmetic;

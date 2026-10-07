@@ -11,6 +11,9 @@ const PROCESS_TIMEOUT: Duration = Duration::from_secs(20);
 // This project elaborates and checks the entire library. Allow enough time for
 // the debug-build process when it runs concurrently with the other test cases.
 const LIBRARY_TIMEOUT: Duration = Duration::from_secs(180);
+// The uncached topology project also checks finite-dimensional algebra and
+// quotient homotopies; its expanded dependency graph exceeds three minutes.
+const TOPOLOGICAL_K_THEORY_TIMEOUT: Duration = Duration::from_secs(600);
 static LIBRARY_CHECK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn workspace_root() -> PathBuf {
@@ -218,6 +221,21 @@ fn library_examples_succeed() {
         "{}",
         output_details(&output)
     );
+}
+
+#[test]
+fn topological_k_theory_foundations_examples_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    let path = workspace.join("tests/projects/topological-k-theory");
+    let output = run_ref_file_with_timeout(
+        &workspace,
+        &path,
+        &["--no-cache"],
+        TOPOLOGICAL_K_THEORY_TIMEOUT,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    assert!(output.status.success(), "{}", output_details(&output));
 }
 
 #[test]

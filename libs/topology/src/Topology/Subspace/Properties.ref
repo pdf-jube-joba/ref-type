@@ -1,0 +1,71 @@
+\import std.Set[].FiniteSubset[A := \Pow Carrier] \as AmbientFinite;
+\import std.Set[].FiniteSubset[A := \Pow CarrierSet] \as SubFinite;
+\import AmbientFinite.Selection[B := \Pow CarrierSet] \as Selection;
+\import Sub.Compactness[] \as SubCompact;
+\import std.Logic[].Equality[] \as Equality;
+\definition hausdorff: \forall (ambient: Topology) -> IsT2 ambient -> Sub.IsT2 (topology ambient) := \block {
+  \fun (ambient: _) (separated: _) (x, y: CarrierSet) (different: _) \then
+  \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where RegularChoice[ambient, Singleton y, x, U] }) \by separated x y different \then
+  \let data: RegularChoice[ambient, Singleton y, x, U] := \bysub(\Pow Carrier, { U: \Pow Carrier \where RegularChoice[ambient, Singleton y, x, U] }, U) \then
+  \takefrom V: \Cast[\Pow Carrier] ({ V: \Pow Carrier \where NormalPartner[ambient, Singleton y, U, V] }) \by #partner{data} \then
+  \let partner: NormalPartner[ambient, Singleton y, U, V] := \bysub(\Pow Carrier, { V: \Pow Carrier \where NormalPartner[ambient, Singleton y, U, V] }, V) \then
+  \return \exact(\into[\Pow CarrierSet](Trace U, { W: \Pow CarrierSet \where Sub.RegularChoice[topology ambient, Sub.Singleton y, x, W] }) \by {
+    Sub.RegularChoice[topology ambient, Sub.Singleton y, x, Trace U] {
+      open := traceOpen ambient U #open{data}, contains := #contains{data},
+      partner := \exact(\into[\Pow CarrierSet](Trace V, { W: \Pow CarrierSet \where Sub.NormalPartner[topology ambient, Sub.Singleton y, Trace U, W] }) \by {
+        Sub.NormalPartner[topology ambient, Sub.Singleton y, Trace U, Trace V] {
+          open := traceOpen ambient V #open{partner},
+          covers := \fun (z: CarrierSet) (equal: z = y) => #covers{partner} z equal,
+          disjoint := \fun (z: CarrierSet) (inU: _) (inV: _) => #disjoint{partner} z inU inV,
+        }
+      }, \Cast[\Pow CarrierSet] ({ W: \Pow CarrierSet \where Sub.NormalPartner[topology ambient, Sub.Singleton y, Trace U, W] })),
+    }
+  }, \Cast[\Pow CarrierSet] ({ W: \Pow CarrierSet \where Sub.RegularChoice[topology ambient, Sub.Singleton y, x, W] }))
+};
+\definition TraceRelation(family: \Pow (\Pow CarrierSet)) (U: \Pow Carrier) (W: \Pow CarrierSet): \Prop :=
+  Logic.And[Sub.FamilyMember family W, W = Trace U];
+\definition compact: \forall (ambient: Topology) -> IsCompactIn ambient S -> Sub.IsCompact (topology ambient) := \block {
+  \fun (ambient: _) (compact: _) (family: \Pow (\Pow CarrierSet)) (cover: Sub.IsOpenCover[topology ambient, family, Sub.Whole]) \then
+  \let lifted: \Pow (\Pow Carrier) := LiftedFamily ambient family \then
+  \let liftedCover: IsOpenCover[ambient, lifted, S] := IsOpenCover[ambient, lifted, S] {
+    open := \fun (U: _) (member: _) => #left{member},
+    covers := \block {
+      \fun (x: Carrier) (inS: Member S x) \then
+      \let point: CarrierSet := \into[Carrier](x, S) \by { inS } \then
+      \return Sub.unionMemberElim family point (Member (Union lifted) x)
+        (\fun (W: \Pow CarrierSet) (inFamily: _) (inW: _) => openTraceElim ambient W (Member (Union lifted) x)
+          (\fun (U: \Pow Carrier) (open: _) (same: W = Trace U) => unionMemberOf lifted U x
+            (liftedMember ambient family U W open inFamily same)
+            (\idelim W = Trace U \with Z: \Pow CarrierSet => Sub.Member Z point \by { base: inW, equality: same }))
+          (openRepresentation ambient W (#open{cover} W inFamily))) (#covers{cover} point (\refl(point)))
+    },
+  } \then
+  \takefrom finite: \Cast[AmbientFinite.FiniteSubset] ({ F: AmbientFinite.FiniteSubset \where FiniteSubcover[lifted, S, F] })
+    \by compact lifted liftedCover \then
+  \let data: FiniteSubcover[lifted, S, finite] := \bysub(AmbientFinite.FiniteSubset,
+    { F: AmbientFinite.FiniteSubset \where FiniteSubcover[lifted, S, F] }, finite) \then
+  \takefrom selected: Selection.Selection[TraceRelation family, finite] \by
+    Selection.existsSelection (TraceRelation family) finite (\fun (U: \Pow Carrier) (member: AmbientFinite.Member finite U) =>
+      liftedElim ambient family U (\exists { W: \Pow CarrierSet \where TraceRelation family U W })
+        (\fun (W: _) (inFamily: _) (same: _) => \exact(\into[\Pow CarrierSet](W,
+          { W: \Pow CarrierSet \where TraceRelation family U W }) \by { Logic.And[_, _]::# inFamily same },
+          \Cast[\Pow CarrierSet] ({ W: \Pow CarrierSet \where TraceRelation family U W }))) (#included{data} U member)) \then
+  \let result: SubFinite.FiniteSubset := #finite{selected} \then
+  \return SubCompact.subcoverExists family Sub.Whole result (Sub.FiniteSubcover[family, Sub.Whole, result] {
+    included := \block {
+      \fun (W: \Pow CarrierSet) (member: SubFinite.Member result W) \then
+      \takefrom U: Selection.RelatedWitness (TraceRelation family) finite W \by #included{selected} W member \then
+      \return #left{(#right{(\bysub(\Pow Carrier,
+        { U: \Pow Carrier \where Logic.And[AmbientFinite.Member finite U, TraceRelation family U W] }, U))})}
+    },
+    covers := \fun (x: CarrierSet) (whole: _) => unionMemberElim finite x (Sub.Member (Sub.Union result) x) (\block {
+      \fun (U: \Pow Carrier) (member: AmbientFinite.Member finite U) (inU: Member U x) \then
+      \takefrom W: Selection.CoveredWitness (TraceRelation family) result U \by #covers{selected} U member \then
+      \let wd: Logic.And[SubFinite.Member result W, TraceRelation family U W] := \bysub(\Pow CarrierSet,
+        { W: \Pow CarrierSet \where Logic.And[SubFinite.Member result W, TraceRelation family U W] }, W) \then
+      \return Sub.unionMemberOf result W x #left{wd}
+        (\idelim Trace U = W \with Z: \Pow CarrierSet => Sub.Member Z x
+          \by { base: inU, equality: sym!{\Pow CarrierSet} _ _ #right{(#right{wd})} })
+    }) (#covers{data} x (\bysub(Carrier, S, x))),
+  })
+};

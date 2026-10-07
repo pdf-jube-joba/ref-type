@@ -1,0 +1,91 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := Cylinder.Carrier] \as Space;
+\import real.Analysis[] \as Real;
+\import real.DedekindReal[] \as R;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import R.Order[] \as Order;
+\import Real.Estimates[] \as Estimates;
+\import Real.Distance[] \as Distance;
+\import topology.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import topology.RealFunctions[A := Cylinder.Carrier] \as Functions;
+\import topology.Continuity[A := Interval.Carrier, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one] \as Scalar;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\definition LeftSet: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where R.Le (Cylinder.time p) Real.half };
+\definition RightSet: \Pow Cylinder.Carrier := { p: Cylinder.Carrier \where R.Le Real.half (Cylinder.time p) };
+\definition Left: \Set := \Cast[Cylinder.Carrier] LeftSet;
+\definition Right: \Set := \Cast[Cylinder.Carrier] RightSet;
+\import Space.Subspace[S := LeftSet] \as LeftSubspace;
+\import Space.Subspace[S := RightSet] \as RightSubspace;
+\import topology.Topology[Carrier := Left] \as LeftSpace;
+\import topology.Topology[Carrier := Right] \as RightSpace;
+\definition leftTopology(source: Source.Topology): LeftSpace.Topology := LeftSubspace.topology (Cylinder.topology source);
+\definition rightTopology(source: Source.Topology): RightSpace.Topology := RightSubspace.topology (Cylinder.topology source);
+\definition covered: \forall (p: Cylinder.Carrier) -> Logic.Or[Space.Member LeftSet p, Space.Member RightSet p] :=
+  \fun (p: _) => Order.leTotal (Cylinder.time p) Real.half;
+\definition scalarTimeContinuous: \forall (source: Source.Topology) ->
+  Functions.Continuous (Cylinder.topology source) (\fun (p: Cylinder.Carrier) => Cylinder.time p) :=
+  \fun (source: _) (U: \Pow Real.Real) (open: _) =>
+    Cylinder.timeContinuous source ({ t: Interval.Carrier \where \In[Real.Real] U t })
+      (Scalar.inclusionContinuous Line.topology U open);
+\definition leftClosed: \forall (source: Source.Topology) -> Space.IsClosedIn (Cylinder.topology source) LeftSet :=
+  \fun (source: _) => scalarTimeContinuous source ({ t: Real.Real \where Logic.Not (R.Le t Real.half) }) (Rays.atMostClosed Real.half);
+\definition rightClosed: \forall (source: Source.Topology) -> Space.IsClosedIn (Cylinder.topology source) RightSet :=
+  \fun (source: _) => scalarTimeContinuous source ({ t: Real.Real \where Logic.Not (R.Le Real.half t) }) (Rays.atLeastClosed Real.half);
+\definition leftTime(p: Left): Interval.Carrier :=
+  \into[Real.Real](Real.add (Cylinder.time p) (Cylinder.time p), Line.ClosedInterval Real.zero Real.one) \by {
+    Logic.And[_, _]::#
+      (R.leReplaceLeft (Real.add Real.zero Real.zero) Real.zero _ (Laws.addZeroLeft Real.zero)
+        (Estimates.addLe _ _ _ _ (#left{(Interval.bounds (Cylinder.time p))}) (#left{(Interval.bounds (Cylinder.time p))})))
+      (R.leReplaceRight _ (Real.add Real.half Real.half) Real.one Estimates.halfDouble
+        (Estimates.addLe _ _ _ _ (\bysub(Cylinder.Carrier, LeftSet, p)) (\bysub(Cylinder.Carrier, LeftSet, p))))
+  };
+\definition rightTime(p: Right): Interval.Carrier :=
+  \into[Real.Real](Real.sub (Real.add (Cylinder.time p) (Cylinder.time p)) Real.one, Line.ClosedInterval Real.zero Real.one) \by {
+    Logic.And[_, _]::#
+      (Distance.subNonnegative (Real.add (Cylinder.time p) (Cylinder.time p)) Real.one
+        (R.leReplaceLeft (Real.add Real.half Real.half) Real.one _ Estimates.halfDouble
+          (Estimates.addLe _ _ _ _ (\bysub(Cylinder.Carrier, RightSet, p)) (\bysub(Cylinder.Carrier, RightSet, p)))))
+      (R.leReplaceRight _ (Real.sub (Real.add Real.one Real.one) Real.one) Real.one
+        (Laws.addNegCancelRight Real.one Real.one)
+        (Laws.addMonotoneRight _ _ (Real.neg Real.one)
+          (Estimates.addLe _ _ _ _ (#right{(Interval.bounds (Cylinder.time p))}) (#right{(Interval.bounds (Cylinder.time p))}))))
+  };
+\import topology.RealFunctions[A := Left] \as LeftFunctions;
+\import topology.RealFunctions[A := Right] \as RightFunctions;
+\import topology.Continuity[A := Left, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one] \as LeftInto;
+\import topology.Continuity[A := Right, B := Real.Real].Corestriction[S := Line.ClosedInterval Real.zero Real.one] \as RightInto;
+\import topology.Continuity[A := Cylinder.Carrier, B := Real.Real].Restriction[S := LeftSet] \as LeftRestriction;
+\import topology.Continuity[A := Cylinder.Carrier, B := Real.Real].Restriction[S := RightSet] \as RightRestriction;
+\import topology.Product[A := Interval.Carrier, B := A].Universal[X := Left] \as LeftPair;
+\import topology.Product[A := Interval.Carrier, B := A].Universal[X := Right] \as RightPair;
+\import topology.Continuity[A := Cylinder.Carrier, B := A].Restriction[S := LeftSet] \as LeftPoint;
+\import topology.Continuity[A := Cylinder.Carrier, B := A].Restriction[S := RightSet] \as RightPoint;
+\definition leftMap(p: Left): Cylinder.Carrier := Cylinder.at (leftTime p) (Cylinder.point p);
+\definition rightMap(p: Right): Cylinder.Carrier := Cylinder.at (rightTime p) (Cylinder.point p);
+\definition leftContinuous: \forall (source: Source.Topology) -> LeftPair.PairContinuous (leftTopology source) Interval.topology source leftTime
+  (\fun (p: Left) => Cylinder.point p) :=
+  \fun (source: _) => LeftPair.pairContinuous (leftTopology source) Interval.topology source leftTime (\fun (p: Left) => Cylinder.point p)
+    (LeftInto.corestrictContinuous (leftTopology source) Line.topology leftTime
+      (LeftFunctions.sumContinuous (leftTopology source) (\fun (p: Left) => Cylinder.time p) (\fun (p: Left) => Cylinder.time p)
+        (LeftRestriction.restrictContinuous (Cylinder.topology source) Line.topology (\fun (p: Cylinder.Carrier) => Cylinder.time p) (scalarTimeContinuous source))
+        (LeftRestriction.restrictContinuous (Cylinder.topology source) Line.topology (\fun (p: Cylinder.Carrier) => Cylinder.time p) (scalarTimeContinuous source))))
+    (LeftPoint.restrictContinuous (Cylinder.topology source) source Cylinder.point (Cylinder.pointContinuous source));
+\definition rightContinuous: \forall (source: Source.Topology) -> RightPair.PairContinuous (rightTopology source) Interval.topology source rightTime
+  (\fun (p: Right) => Cylinder.point p) :=
+  \fun (source: _) => RightPair.pairContinuous (rightTopology source) Interval.topology source rightTime (\fun (p: Right) => Cylinder.point p)
+    (RightInto.corestrictContinuous (rightTopology source) Line.topology rightTime
+      (RightFunctions.subContinuous (rightTopology source)
+        (\fun (p: Right) => Real.add (Cylinder.time p) (Cylinder.time p)) (\fun (_: Right) => Real.one)
+        (RightFunctions.sumContinuous (rightTopology source) (\fun (p: Right) => Cylinder.time p) (\fun (p: Right) => Cylinder.time p)
+          (RightRestriction.restrictContinuous (Cylinder.topology source) Line.topology (\fun (p: Cylinder.Carrier) => Cylinder.time p) (scalarTimeContinuous source))
+          (RightRestriction.restrictContinuous (Cylinder.topology source) Line.topology (\fun (p: Cylinder.Carrier) => Cylinder.time p) (scalarTimeContinuous source)))
+        (RightFunctions.constantContinuous (rightTopology source) Real.one)))
+    (RightPoint.restrictContinuous (Cylinder.topology source) source Cylinder.point (Cylinder.pointContinuous source));

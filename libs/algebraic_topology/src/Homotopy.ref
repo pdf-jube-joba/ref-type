@@ -1,0 +1,120 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Continuity[A := A, B := B] \as Maps;
+\import topology.Continuity[A := Cylinder.Carrier, B := B] \as CylinderMaps;
+\import topology.Composition[A := Cylinder.Carrier, B := A, C := B] \as Projection;
+\import topology.Composition[A := Cylinder.Carrier, B := Cylinder.Carrier, C := B] \as Reverse;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+
+\definition Family: \Set := Cylinder.Carrier -> B;
+\structure Laws[source: Source.Topology, target: Target.Topology, f, g: A -> B, family: Family]: \Prop {
+  continuous: CylinderMaps.Continuous (Cylinder.topology source) target family,
+  start: \forall (x: A) -> family (Cylinder.at Interval.start x) = f x,
+  end: \forall (x: A) -> family (Cylinder.at Interval.end x) = g x,
+}
+\definition Homotopy[source: Source.Topology, target: Target.Topology, f, g: A -> B]: \Set :=
+  \Cast[Family] ({ family: Family \where Laws[source, target, f, g, family] });
+\definition laws(source: Source.Topology) (target: Target.Topology) (f, g: A -> B)
+  (h: Homotopy[source, target, f, g]): Laws[source, target, f, g, h] :=
+  \bysub(Family, Homotopy[source, target, f, g], h);
+\definition Homotopic(source: Source.Topology) (target: Target.Topology) (f, g: A -> B): \Prop :=
+  \exists Homotopy[source, target, f, g];
+\definition constant(source: Source.Topology) (target: Target.Topology) (f: A -> B)
+  (continuous: Maps.Continuous source target f): Homotopy[source, target, f, f] :=
+  \into[Family](\fun (p: Cylinder.Carrier) => f (Cylinder.point p), Homotopy[source, target, f, f]) \by {
+    Laws[source, target, f, f, (\fun (p: Cylinder.Carrier) => f (Cylinder.point p))] {
+      continuous := Projection.composeContinuous (Cylinder.topology source) source target Cylinder.point f
+        (Cylinder.pointContinuous source) continuous,
+      start := \fun (x: A) => \refl(f x),
+      end := \fun (x: A) => \refl(f x),
+    }
+  };
+\definition reflexive: \forall (source: Source.Topology) (target: Target.Topology) (f: A -> B) ->
+  Maps.Continuous source target f -> Homotopic source target f f :=
+  \fun (source: _) (target: _) (f: _) (continuous: _) =>
+    \exact(constant source target f continuous, Homotopy[source, target, f, f]);
+\definition reverse(source: Source.Topology) (target: Target.Topology) (f, g: A -> B)
+  (h: Homotopy[source, target, f, g]): Homotopy[source, target, g, f] :=
+  \into[Family](\fun (p: Cylinder.Carrier) => h (Cylinder.reverse p), Homotopy[source, target, g, f]) \by {
+    Laws[source, target, g, f, (\fun (p: Cylinder.Carrier) => h (Cylinder.reverse p))] {
+      continuous := Reverse.composeContinuous (Cylinder.topology source) (Cylinder.topology source) target Cylinder.reverse h
+        (Cylinder.reverseContinuous source) (#continuous{(laws source target f g h)}),
+      start := \fun (x: A) => trans!{B} _ _ _
+        (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => h (Cylinder.at t x)) _ _ Interval.reverseStart)
+        (#end{(laws source target f g h)} x),
+      end := \fun (x: A) => trans!{B} _ _ _
+        (congr!{Interval.Carrier B} (\fun (t: Interval.Carrier) => h (Cylinder.at t x)) _ _ Interval.reverseEnd)
+        (#start{(laws source target f g h)} x),
+    }
+  };
+\definition symmetric: \forall (source: Source.Topology) (target: Target.Topology) (f, g: A -> B) ->
+  Homotopic source target f g -> Homotopic source target g f := \block {
+  \fun (source: _) (target: _) (f, g: _) (exists: Homotopic source target f g) \then
+  \takefrom h: Homotopy[source, target, f, g] \by exists \then
+  \return \exact(reverse source target f g h, Homotopy[source, target, g, f])
+};
+\definition Relative(S: \Pow A) (f: A -> B) (h: Family): \Prop :=
+  \forall (t: Interval.Carrier) (x: A) -> \In[A] S x -> h (Cylinder.at t x) = f x;
+\module Composition(C: \Set);
+\module Concatenation;
+\definition startContinuous: \forall (source: Source.Topology) (target: Target.Topology) (f, g: A -> B)
+  (h: Homotopy[source, target, f, g]) -> Maps.Continuous source target f := \block {
+  \fun (source: _) (target: _) (f, g: _) (h: _) \then
+  \let family: A -> B := \fun (x: A) => h (Cylinder.at Interval.start x) \then
+  \let continuous: Maps.Continuous source target family :=
+    \fun (U: \Pow B) (open: Target.IsOpenIn target U) => Cylinder.atContinuous source Interval.start
+      (CylinderMaps.Preimage h U) (#continuous{(laws source target f g h)} U open) \then
+  \return \idelim family = f \with k: (A -> B) => Maps.Continuous source target k
+    \by { base: continuous, equality: \axiom:funext(family, f, #start{(laws source target f g h)}) }
+};
+\definition endContinuous: \forall (source: Source.Topology) (target: Target.Topology) (f, g: A -> B)
+  (h: Homotopy[source, target, f, g]) -> Maps.Continuous source target g :=
+  \fun (source: _) (target: _) (f, g: _) (h: _) => startContinuous source target g f (reverse source target f g h);
+\structure RelativeLaws[source: Source.Topology, target: Target.Topology, S: \Pow A, f, g: A -> B, family: Family]: \Prop {
+  homotopy: Laws[source, target, f, g, family],
+  fixed: Relative S f family,
+}
+\definition RelativeHomotopy[source: Source.Topology, target: Target.Topology, S: \Pow A, f, g: A -> B]: \Set :=
+  \Cast[Family] ({ family: Family \where RelativeLaws[source, target, S, f, g, family] });
+\definition relativeLaws(source: Source.Topology) (target: Target.Topology) (S: \Pow A) (f, g: A -> B)
+  (h: RelativeHomotopy[source, target, S, f, g]): RelativeLaws[source, target, S, f, g, h] :=
+  \bysub(Family, RelativeHomotopy[source, target, S, f, g], h);
+\definition forgetRelative(source: Source.Topology) (target: Target.Topology) (S: \Pow A) (f, g: A -> B)
+  (h: RelativeHomotopy[source, target, S, f, g]): Homotopy[source, target, f, g] :=
+  \into[Family](h, Homotopy[source, target, f, g]) \by { #homotopy{(relativeLaws source target S f g h)} };
+\definition relativeEndpoints: \forall (source: Source.Topology) (target: Target.Topology) (S: \Pow A) (f, g: A -> B)
+  (h: RelativeHomotopy[source, target, S, f, g]) (x: A) -> \In[A] S x -> f x = g x :=
+  \fun (source: _) (target: _) (S: _) (f, g: _) (h: _) (x: A) (member: _) =>
+    trans!{B} _ _ _ (sym!{B} _ _ (#fixed{(relativeLaws source target S f g h)} Interval.end x member))
+      (#end{(#homotopy{(relativeLaws source target S f g h)})} x);
+\definition reverseRelative(source: Source.Topology) (target: Target.Topology) (S: \Pow A) (f, g: A -> B)
+  (h: RelativeHomotopy[source, target, S, f, g]): RelativeHomotopy[source, target, S, g, f] := \block {
+  \let reversed: Homotopy[source, target, g, f] := reverse source target f g (forgetRelative source target S f g h) \then
+  \return \into[Family](reversed, RelativeHomotopy[source, target, S, g, f]) \by {
+    RelativeLaws[source, target, S, g, f, reversed] {
+      homotopy := laws source target g f reversed,
+      fixed := \fun (t: Interval.Carrier) (x: A) (member: \In[A] S x) => trans!{B} _ _ _
+        (#fixed{(relativeLaws source target S f g h)} (Interval.reverse t) x member)
+        (relativeEndpoints source target S f g h x member),
+    }
+  }
+};
+\module RelativeConcatenation;
+\definition constantRelative(source: Source.Topology) (target: Target.Topology) (S: \Pow A) (f: A -> B)
+  (continuous: Maps.Continuous source target f): RelativeHomotopy[source, target, S, f, f] := \block {
+  \let h: Homotopy[source, target, f, f] := constant source target f continuous \then
+  \return \into[Family](h, RelativeHomotopy[source, target, S, f, f]) \by {
+    RelativeLaws[source, target, S, f, f, h] {
+      homotopy := laws source target f f h,
+      fixed := \fun (t: Interval.Carrier) (x: A) (member: \In[A] S x) => \refl(f x),
+    }
+  }
+};
+\definition RelativeHomotopic(source: Source.Topology) (target: Target.Topology) (S: \Pow A) (f, g: A -> B): \Prop :=
+  \exists RelativeHomotopy[source, target, S, f, g];
+\module RelativeRelation;

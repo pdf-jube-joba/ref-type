@@ -1,0 +1,84 @@
+\import topology.RealFunctions[A := Coordinate] \as Functions;
+\import Functions.Product[] \as Products;
+\import Functions.SquareRoot[] \as SquareRoots;
+\import Real.SquareRoot[] \as Root;
+\import topology.RealLine[].Rays[] \as Rays;
+\import topology.MetricSpace[Carrier := Real.Real].Topology[] \as ScalarTopology;
+\import topology.RealMetric[] \as ScalarMetric;
+\definition squareSum(indices: Lists.List[Index]) (f: Index -> Coordinate -> Real.Real): Coordinate -> Real.Real :=
+  \fun (x: Coordinate) => Lists.foldr Index Real.Real
+    (\fun (i: Index) (tail: Real.Real) => Real.add (Real.mul (f i x) (f i x)) tail) Real.zero indices;
+\definition squareSumContinuous: \forall (indices: Lists.List[Index]) (f: Index -> Coordinate -> Real.Real) ->
+  (\forall (i: Index) -> Functions.Continuous topology (f i)) -> Functions.Continuous topology (squareSum indices f) :=
+  \induction (indices: Lists.List[Index]) \return \forall (f: Index -> Coordinate -> Real.Real) ->
+    (\forall (i: Index) -> Functions.Continuous topology (f i)) -> Functions.Continuous topology (squareSum indices f) \with {
+      | nil: \fun (f: _) (_: _) => Functions.constantContinuous topology Real.zero
+      | cons: \fun (i: Index) (tail: Lists.List[Index]) (ih: _) (f: _) (fc: _) =>
+        Functions.sumContinuous topology (\fun (x: Coordinate) => Real.mul (f i x) (f i x)) (squareSum tail f)
+          (Products.continuous topology (f i) (f i) (fc i) (fc i)) (ih f fc)
+    };
+\definition normSquaredContinuous: Functions.Continuous topology normSquared :=
+  squareSumContinuous (Fin.elements n) (\fun (i: Index) (x: Coordinate) => x i)
+    (\fun (i: Index) => Coordinates.evaluationContinuous Line.topology i);
+\definition norm(x: Coordinate): Real.Real := Root.sqrt (normSquared x);
+\definition normContinuous: Functions.Continuous topology norm := SquareRoots.continuous topology normSquared normSquaredContinuous;
+\definition diskClosed: Space.IsClosedIn topology ClosedBall :=
+  normSquaredContinuous ({ r: Real.Real \where Logic.Not (R.Le r Real.one) }) (Rays.atMostClosed Real.one);
+\definition sphereClosed: Space.IsClosedIn topology Boundary :=
+  normSquaredContinuous ({ r: Real.Real \where Logic.Not (r = Real.one) }) (ScalarTopology.singletonClosed ScalarMetric.metric Real.one);
+\import Real.Algebra[] \as Algebra;
+\import Real.Distance[] \as Distance;
+\import R.Arithmetic[].Prop[] \as Laws;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\definition sumSquares(indices: Lists.List[Index]) (x: Coordinate): Real.Real :=
+  squareSum indices (\fun (i: Index) (x: Coordinate) => x i) x;
+\definition sumSquaresNonnegative: \forall (indices: Lists.List[Index]) (x: Coordinate) -> R.Le Real.zero (sumSquares indices x) :=
+  \induction (indices: Lists.List[Index]) \return \forall (x: Coordinate) -> R.Le Real.zero (sumSquares indices x) \with {
+    | nil: \fun (x: Coordinate) => R.leRefl Real.zero
+    | cons: \fun (i: Index) (tail: Lists.List[Index]) (ih: _) (x: Coordinate) =>
+      Laws.addNonnegative (Real.mul (x i) (x i)) (sumSquares tail x) (Algebra.squareNonnegative (x i)) (ih x)
+  };
+\definition normSquaredNonnegative: \forall (x: Coordinate) -> R.Le Real.zero (normSquared x) := sumSquaresNonnegative (Fin.elements n);
+\definition componentSquareBound: \forall (indices: Lists.List[Index]) (x: Coordinate) (i: Index) ->
+  Fin.Occurs n i indices -> R.Le (Real.mul (x i) (x i)) (sumSquares indices x) :=
+  \induction (indices: Lists.List[Index]) \return \forall (x: Coordinate) (i: Index) ->
+    Fin.Occurs n i indices -> R.Le (Real.mul (x i) (x i)) (sumSquares indices x) \with {
+    | nil: \fun (x: Coordinate) (i: Index) (empty: Logic.False) => Logic.falseElim _ empty
+    | cons: \fun (j: Index) (tail: Lists.List[Index]) (ih: _) (x: Coordinate) (i: Index) (member: _) =>
+      either!{{i = j} "or" {Fin.Occurs n i tail}
+        "either" {R.Le (Real.mul (x i) (x i)) (sumSquares (Lists.List[Index]::cons j tail) x)}
+        "lt:" {\fun (equal: i = j) => R.leReplaceLeft (Real.mul (x j) (x j)) (Real.mul (x i) (x i))
+          (sumSquares (Lists.List[Index]::cons j tail) x)
+          (congr!{Index Real.Real} (\fun (k: Index) => Real.mul (x k) (x k)) _ _ (sym!{Index} _ _ equal))
+          (Algebra.leAddRight (Real.mul (x j) (x j)) (sumSquares tail x) (sumSquaresNonnegative tail x))}
+        "rt:" {\fun (old: _) => R.leTrans _ (sumSquares tail x) _ (ih x i old)
+          (Distance.leAddRightOfNonnegative (Real.mul (x j) (x j)) (sumSquares tail x) (Algebra.squareNonnegative (x j)))}} member
+  };
+\definition coordinateSquareBound: \forall (x: Coordinate) (i: Index) -> R.Le (Real.mul (x i) (x i)) (normSquared x) :=
+  \fun (x: Coordinate) (i: Index) => componentSquareBound (Fin.elements n) x i (Fin.exhaustive n i);
+\definition normSquaredZero: \forall (x: Coordinate) -> normSquared x = Real.zero -> x = (\fun (_: Index) => Real.zero) :=
+  \fun (x: Coordinate) (equal: _) => \axiom:funext(x, (\fun (_: Index) => Real.zero),
+    (\fun (i: Index) => Algebra.squareZero (x i)
+      (R.leAntisym _ Real.zero
+        (R.leReplaceRight _ (normSquared x) Real.zero equal (coordinateSquareBound x i)) (Algebra.squareNonnegative (x i)))));
+\definition normSquaredOfNorm: \forall (x: Coordinate) -> Real.mul (norm x) (norm x) = normSquared x :=
+  \fun (x: Coordinate) => Root.squareOfNonnegative (normSquared x) (normSquaredNonnegative x);
+\import R.Order[] \as Order;
+\import Real.Estimates[].Product[] \as Bounds;
+\definition upperUnitBound: \forall (r: Real.Real) -> R.Le (Real.mul r r) Real.one -> R.Le r Real.one :=
+  \fun (r: Real.Real) (bound: _) => Order.leOfNotLtReverse r Real.one (\fun (large: R.Lt Real.one r) =>
+    R.ltNotLeReverse Real.one (Real.mul r r)
+      (R.ltReplaceLeft (Real.mul Real.one Real.one) Real.one (Real.mul r r) (Algebra.mulOneRight Real.one)
+        (Root.squareStrict Real.one r Laws.oneNonnegative large)) bound);
+\definition unitBounds: \forall (r: Real.Real) -> R.Le (Real.mul r r) Real.one ->
+  Logic.And[R.Le (Real.neg Real.one) r, R.Le r Real.one] :=
+  \fun (r: Real.Real) (bound: _) => Logic.And[_, _]::#
+    (R.leReplaceRight (Real.neg Real.one) (Real.neg (Real.neg r)) r (Laws.negInvolutive r)
+      (Laws.negAntitone (Real.neg r) Real.one (upperUnitBound (Real.neg r)
+        (R.leReplaceLeft (Real.mul r r) (Real.mul (Real.neg r) (Real.neg r)) Real.one
+          (sym!{Real.Real} _ _ (Laws.fieldMulNegBoth r r)) bound))))
+    (upperUnitBound r bound);

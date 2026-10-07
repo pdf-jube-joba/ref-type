@@ -1,0 +1,21 @@
+\import \parent.\parent.Dual[V := W, source := target] \as Other;
+\import \parent.\parent.Linear[V := V, W := W, source := source, target := target] \as Forward;
+\import \parent.\parent.Linear[V := Other.Carrier, W := Carrier, source := Other.space, target := space] \as Backward;
+\definition apply(f: Forward.Map) (g: Other.Carrier): Carrier :=
+  \into[Functions.Vector](\fun (x: V) => g (#apply{f} x), #carrier{subspace}) \by {
+    Maps.MapLaws[Maps.MapData { apply := \fun (x: V) => g (#apply{f} x) }] {
+      preservesAdd := \fun (x, y: V) => trans!{K} _ _ _
+        (congr!{W K} g _ _ (#preservesAdd{f} x y)) (#preservesAdd{(Other.laws g)} (#apply{f} x) (#apply{f} y)),
+      preservesScale := \fun (a: K) (x: V) => trans!{K} _ _ _
+        (congr!{W K} g _ _ (#preservesScale{f} a x)) (#preservesScale{(Other.laws g)} a (#apply{f} x)),
+    }
+  };
+\definition map(f: Forward.Map): Backward.Map := Backward.Map {
+  apply := apply f,
+  preservesAdd := \fun (g, h: Other.Carrier) => ext
+    (apply f (#add{Other.space} g h)) (#add{space} (apply f g) (apply f h))
+    (\fun (x: V) => \refl(add (g (#apply{f} x)) (h (#apply{f} x)))),
+  preservesScale := \fun (a: K) (g: Other.Carrier) => ext
+    (apply f (#smul{Other.space} a g)) (#smul{space} a (apply f g))
+    (\fun (x: V) => \refl(mul a (g (#apply{f} x)))),
+};

@@ -1,0 +1,51 @@
+\import Real.Inverse[] \as Inverse;
+\definition localPositive: \forall (source: Source.Topology) (f: A -> Real.Real) -> Continuous source f ->
+  \forall (x: A) (r: Real.Real) -> R.Lt Real.zero (f x) -> R.Lt Real.zero r ->
+  \exists { U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Laws.fieldInv (f x)) x r, U] } := \block {
+  \fun (source: _) (f: _) (fc: _) (x: A) (r: Real.Real) (xp: _) (rp: _) \then
+  \let delta: Real.Real := Inverse.radius (f x) r \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x delta, U] })
+    \by localOfContinuous source f fc x delta (Inverse.radiusPositive (f x) r xp rp) \then
+  \let data: Source.OpenNeighborhood[source, x, Small f x delta, U] :=
+    \bysub(\Pow A, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x delta, U] }, U) \then
+  \return \exact(\into[\Pow A](U, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Laws.fieldInv (f x)) x r, U] }) \by {
+    Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Laws.fieldInv (f x)) x r, U] {
+      open := #open{data}, contains := #contains{data},
+      within := \fun (y: A) (member: Source.Member U y) => Inverse.inverseNear (f x) (f y) r xp rp (#within{data} y member),
+    }
+  }, \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Laws.fieldInv (f x)) x r, U] }))
+};
+\definition localNegative: \forall (source: Source.Topology) (f: A -> Real.Real) -> Continuous source f ->
+  (\forall (y: A) -> Logic.Not (f y = Real.zero)) -> \forall (x: A) (r: Real.Real) ->
+  R.Lt (f x) Real.zero -> R.Lt Real.zero r ->
+  \exists { U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Laws.fieldInv (f x)) x r, U] } := \block {
+  \fun (source: _) (f: _) (fc: _) (nonzero: _) (x: A) (r: Real.Real) (negative: _) (rp: _) \then
+  \let xp: R.Lt Real.zero (Real.neg (f x)) := Order.ltOfLeNotEq Real.zero (Real.neg (f x)) (Laws.nonnegativeNegOfNegative (f x) negative)
+    (\fun (equal: Real.zero = Real.neg (f x)) => Inverse.negNonzero (f x) (nonzero x) (sym!{Real.Real} _ _ equal)) \then
+  \let delta: Real.Real := Inverse.radius (Real.neg (f x)) r \then
+  \takefrom U: \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x delta, U] })
+    \by localOfContinuous source f fc x delta (Inverse.radiusPositive (Real.neg (f x)) r xp rp) \then
+  \let data: Source.OpenNeighborhood[source, x, Small f x delta, U] :=
+    \bysub(\Pow A, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small f x delta, U] }, U) \then
+  \return \exact(\into[\Pow A](U, { U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Laws.fieldInv (f x)) x r, U] }) \by {
+    Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Laws.fieldInv (f x)) x r, U] {
+      open := #open{data}, contains := #contains{data},
+      within := \fun (y: A) (member: Source.Member U y) => Inverse.inverseNearNegative (f x) (f y) r negative (nonzero x) (nonzero y) rp (#within{data} y member),
+    }
+  }, \Cast[\Pow A] ({ U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Laws.fieldInv (f x)) x r, U] }))
+};
+\definition continuousPositive: \forall (source: Source.Topology) (f: A -> Real.Real) -> Continuous source f ->
+  (\forall (x: A) -> R.Lt Real.zero (f x)) -> Continuous source (\fun (x: A) => Laws.fieldInv (f x)) :=
+  \fun (source: _) (f: _) (fc: _) (positive: _) => continuousOfLocal source (\fun (x: A) => Laws.fieldInv (f x))
+    (\fun (x: A) (r: Real.Real) (rp: _) => localPositive source f fc x r (positive x) rp);
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition continuous: \forall (source: Source.Topology) (f: A -> Real.Real) -> Continuous source f ->
+  (\forall (x: A) -> Logic.Not (f x = Real.zero)) -> Continuous source (\fun (x: A) => Laws.fieldInv (f x)) :=
+  \fun (source: _) (f: _) (fc: _) (nonzero: _) => continuousOfLocal source (\fun (x: A) => Laws.fieldInv (f x))
+    (\fun (x: A) (r: Real.Real) (rp: _) =>
+      either!{{R.Le Real.zero (f x)} "or" {R.Lt (f x) Real.zero}
+        "either" {\exists { U: \Pow A \where Source.OpenNeighborhood[source, x, Small (\fun (x: A) => Laws.fieldInv (f x)) x r, U] }}
+        "lt:" {\fun (nonnegative: _) => localPositive source f fc x r
+          (Order.ltOfLeNotEq Real.zero (f x) nonnegative (\fun (equal: Real.zero = f x) => nonzero x (sym!{Real.Real} _ _ equal))) rp}
+        "rt:" {\fun (negative: _) => localNegative source f fc nonzero x r negative rp}} (Laws.nonnegativeOrNegativeReal (f x)));

@@ -1,0 +1,71 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].List[] \as Lists;
+\import std.Logic[].Proposition[] \as Logic;
+\import topology.Topology[Carrier := A] \as Space;
+\import algebraic_topology.Euclidean[] \as Euclidean;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\structure CellData: \Set {
+  dimension: N.Nat^,
+  characteristic: Euclidean.Disk dimension -> A,
+}
+\definition Cells: \Set := Lists.List[CellData];
+\definition members(cells: Cells): \Pow CellData := Lists.foldr CellData (\Pow CellData)
+  (\fun (cell: CellData) (tail: \Pow CellData) => { c: CellData \where Logic.Or[c = cell, \In[CellData] tail c] })
+  ({ c: CellData \where Logic.False }) cells;
+\definition CellMember(cells: Cells) (cell: CellData): \Prop := \In[CellData] (members cells) cell;
+\definition ClosedImage(cell: CellData): \Pow A := { x: A \where \exists { p: Euclidean.Disk (#dimension{cell}) \where #characteristic{cell} p = x } };
+\definition InteriorImage(cell: CellData): \Pow A := { x: A \where \exists { p: Euclidean.Disk (#dimension{cell}) \where
+  Logic.And[\In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) p, #characteristic{cell} p = x] } };
+\definition Pullback(cell: CellData) (U: \Pow A): \Pow (Euclidean.Disk (#dimension{cell})) :=
+  { p: Euclidean.Disk (#dimension{cell}) \where \In[A] U (#characteristic{cell} p) };
+\structure InteriorPartWitness[cell: CellData, U: \Pow (Euclidean.Disk (#dimension{cell})), x: A]: \Set {
+  point: Euclidean.Disk (#dimension{cell}),
+  member: \In[Euclidean.Disk (#dimension{cell})] U point,
+  interior: \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) point,
+  image: #characteristic{cell} point = x,
+}
+\definition InteriorPart(cell: CellData) (U: \Pow (Euclidean.Disk (#dimension{cell}))): \Pow A :=
+  { x: A \where \exists InteriorPartWitness[cell, U, x] };
+\import N.Basic[].Prop[] \as Nat;
+\structure CoverWitness[cells: Cells, x: A]: \Set {
+  cell: CellData,
+  member: CellMember cells cell,
+  contains: \In[A] (InteriorImage cell) x,
+}
+\structure BoundaryWitness[cells: Cells, cell: CellData, x: A]: \Set {
+  other: CellData,
+  member: CellMember cells other,
+  lower: Nat.Lt (#dimension{other}) (#dimension{cell}),
+  contains: \In[A] (InteriorImage other) x,
+}
+\structure ComplexData: \Set {
+  cells: Cells,
+}
+\structure CellLaws[source: Space.Topology, cell: CellData]: \Prop {
+  continuous: \forall (U: \Pow A) -> Space.IsOpenIn source U -> Euclidean.OpenInDisk (#dimension{cell}) (Pullback cell U),
+  closed: Space.IsClosedIn source (ClosedImage cell),
+  injectiveInterior: \forall (p, q: Euclidean.Disk (#dimension{cell})) ->
+    \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) p ->
+    \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.interiorAt (#dimension{cell})) q ->
+    #characteristic{cell} p = #characteristic{cell} q -> p = q,
+  inverseContinuous: \forall (U: \Pow (Euclidean.Disk (#dimension{cell}))) -> Euclidean.OpenInDisk (#dimension{cell}) U ->
+    \exists { V: \Pow A \where Logic.And[Space.IsOpenIn source V, InteriorPart cell U = Space.Intersection (InteriorImage cell) V] },
+}
+\structure ComplexLaws[source: Space.Topology, data: ComplexData]: \Prop {
+  hausdorff: Space.IsT2 source,
+  cellLaws: \forall (cell: CellData) -> CellMember data.cells cell -> CellLaws[source, cell],
+  covers: \forall (x: A) -> \exists CoverWitness[data.cells, x],
+  disjoint: \forall (cell, other: CellData) -> CellMember data.cells cell -> CellMember data.cells other ->
+    \forall (x: A) -> \In[A] (InteriorImage cell) x -> \In[A] (InteriorImage other) x -> cell = other,
+  boundary: \forall (cell: CellData) -> CellMember data.cells cell -> \forall (p: Euclidean.Disk (#dimension{cell})) ->
+    \In[Euclidean.coordinateCarrier (#dimension{cell})] (Euclidean.boundaryAt (#dimension{cell})) p ->
+    \exists BoundaryWitness[data.cells, cell, (#characteristic{cell} p)],
+  weakTopology: \forall (U: \Pow A) -> Logic.PropEquiv[Space.IsOpenIn source U,
+    \forall (cell: CellData) -> CellMember data.cells cell -> Euclidean.OpenInDisk (#dimension{cell}) (Pullback cell U)],
+}
+\definition FiniteComplex[source: Space.Topology]: \Set := \Cast[ComplexData] ({ data: ComplexData \where ComplexLaws[source, data] });
+\definition laws(source: Space.Topology) (complex: FiniteComplex[source]): ComplexLaws[source, complex] := \bysub(ComplexData, FiniteComplex[source], complex);
+\module Cell(cell: CellData);
+\module Attach(n: N.Nat^);
+\module Pair(source: Space.Topology, complex: FiniteComplex[source]);
