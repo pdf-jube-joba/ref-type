@@ -68,7 +68,7 @@ impl ModuleParameter {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModuleArgument {
     Pts(Exp),
     ProgramType(ValueType),
@@ -81,7 +81,7 @@ impl From<Exp> for ModuleArgument {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ModuleItem {
     Definition {
         name: String,

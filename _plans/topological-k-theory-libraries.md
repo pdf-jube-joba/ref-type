@@ -184,6 +184,7 @@ flowchart TD
     linear_algebra --> topological_algebra
     algebra --> topological_algebra
     topology --> algebraic_topology
+    topological_algebra --> algebraic_topology
     topological_algebra --> vector_bundles
     algebraic_topology --> vector_bundles
     vector_bundles --> topological_k_theory
@@ -344,3 +345,13 @@ Hopf 線束の構成と \(S^2\) の環構造は、基本積定理を具体例に
 `tests/projects/topological-k-theory` を分野間の利用例の受け皿にし、群完成、束の引き戻し、Hopf 線束、相対群、球面の計算を段階的に追加する。
 処理系の問題は最小例、数学ライブラリの問題は構成を通して使う例で検査する。
 公開時には、証明済みの対象範囲、主要定理、具体例、依存パッケージが README から対応して読める状態にする。
+
+## 構成 API の実装状況
+
+`algebra` の群完成・商・完全性の基礎と、`topology` のコンパクト性・有限従属分割に続いて、`topological_algebra` と `algebraic_topology` の構成 API を追加した。
+座標空間と行列位相、直和と線形同型、位相的な直和と pushout、ホモトピー、基点付き商、mapping cone、retraction によるホモトピー拡張、有限 CW 対のデータとセル付着を接続する。
+証明済みの対象と構成の条件は、各パッケージの README に対応する module 名とともに記載している。
+
+[分野間の利用例](../tests/projects/topological-k-theory/src/root.ref) には、自然数の群完成と整数、直和への対角写像、区間のホモトピーと反転、商の崩壊、セル付着と特性写像の連続性、空の有限 CW 対、複素行列族の連続性がある。
+この構成 API の整備は、上の段階 2・5・6 の完了条件に含まれる定理群の証明とは区別する。
+次元の不変性・テンソル積・行列式・逆行列、連続な直交化と局所的な部分空間表示、有限 CW 対からの cofibration 条件の導出、近似・根群・スペクトル分離は、それぞれの完了条件に従って実装する単位となる。

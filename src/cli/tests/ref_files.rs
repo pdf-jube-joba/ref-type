@@ -221,6 +221,16 @@ fn library_examples_succeed() {
 }
 
 #[test]
+fn topological_k_theory_foundations_examples_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    let path = workspace.join("tests/projects/topological-k-theory");
+    let output = run_ref_file_with_timeout(&workspace, &path, &["--no-cache"], LIBRARY_TIMEOUT)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
 fn category_examples_succeed() {
     let _check = LIBRARY_CHECK.lock().unwrap();
     let workspace = workspace_root();

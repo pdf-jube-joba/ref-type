@@ -1,0 +1,43 @@
+\import algebraic_topology.Cylinder[A := A] \as Cylinder;
+\import algebraic_topology.Interval[] \as Interval;
+\import topology.Topology[Carrier := A] \as Space;
+\import Space.Subspace[S := subset] \as Subspace;
+\import algebraic_topology.Cylinder[A := Subspace.CarrierSet] \as SubCylinder;
+\import topology.Pushout[A := A, B := SubCylinder.Carrier, C := Subspace.CarrierSet] \as Pushout;
+\import Pushout.Of[u := (\fun (x: Subspace.CarrierSet) => x), v := SubCylinder.at Interval.start] \as Wedge;
+\import Wedge.Universal[D := Cylinder.Carrier] \as Embed;
+\import topology.Product[A := Interval.Carrier, B := A].Universal[X := SubCylinder.Carrier] \as ProductMaps;
+\import topology.Continuity[A := Subspace.CarrierSet, B := A] \as Inclusion;
+\import topology.Continuity[A := A, B := A].Corestriction[S := subset] \as SubspaceMaps;
+\import topology.Composition[A := SubCylinder.Carrier, B := Subspace.CarrierSet, C := A] \as IncludePoint;
+\import topology.Topology[Carrier := Wedge.Carrier] \as WedgeSpace;
+\import topology.Topology[Carrier := Cylinder.Carrier] \as CylinderSpace;
+\import topology.Continuity[A := Cylinder.Carrier, B := Wedge.Carrier] \as RetractMaps;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition include(p: SubCylinder.Carrier): Cylinder.Carrier := Cylinder.at (SubCylinder.time p) (SubCylinder.point p);
+\definition embeddingCompatible: Embed.Compatible (Cylinder.at Interval.start) include := \fun (x: Subspace.CarrierSet) => \refl(Cylinder.at Interval.start x);
+\definition embedding: Wedge.Carrier -> Cylinder.Carrier := Embed.apply (Cylinder.at Interval.start) include embeddingCompatible;
+\definition includeContinuous: \forall (source: Space.Topology) -> ProductMaps.PairContinuous (SubCylinder.topology (Subspace.topology source)) Interval.topology source SubCylinder.time (\fun (p: SubCylinder.Carrier) => SubCylinder.point p) :=
+  \fun (source: _) => ProductMaps.pairContinuous (SubCylinder.topology (Subspace.topology source)) Interval.topology source
+    SubCylinder.time (\fun (p: SubCylinder.Carrier) => SubCylinder.point p)
+    (SubCylinder.timeContinuous (Subspace.topology source))
+    (IncludePoint.composeContinuous (SubCylinder.topology (Subspace.topology source)) (Subspace.topology source) source
+      SubCylinder.point (\fun (x: Subspace.CarrierSet) => x) (SubCylinder.pointContinuous (Subspace.topology source)) (SubspaceMaps.inclusionContinuous source));
+\definition wedgeTopology(source: Space.Topology): WedgeSpace.Topology := Wedge.topology source (SubCylinder.topology (Subspace.topology source));
+\import topology.Continuity[A := Wedge.Carrier, B := Cylinder.Carrier] \as EmbedMaps;
+\definition embeddingContinuous: \forall (source: Space.Topology) -> EmbedMaps.Continuous (wedgeTopology source) (Cylinder.topology source) embedding :=
+  \fun (source: _) => Embed.continuous source (SubCylinder.topology (Subspace.topology source)) (Cylinder.topology source)
+    (Cylinder.at Interval.start) include embeddingCompatible (Cylinder.atContinuous source Interval.start) (includeContinuous source);
+\structure RetractionData: \Set {
+  apply: Cylinder.Carrier -> Wedge.Carrier,
+}
+\structure RetractionLaws[source: Space.Topology, data: RetractionData]: \Prop {
+  continuous: RetractMaps.Continuous (Cylinder.topology source) (wedgeTopology source) data.apply,
+  fixes: \forall (w: Wedge.Carrier) -> data.apply (embedding w) = w,
+}
+\definition Retraction[source: Space.Topology]: \Set := \Cast[RetractionData] ({ data: RetractionData \where RetractionLaws[source, data] });
+\definition IsCofibration(source: Space.Topology): \Prop := \exists Retraction[source];
+\module ForTarget(B: \Set);

@@ -376,6 +376,22 @@ impl ModuleManager {
         base: Option<ModuleId>,
         calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
     ) -> Result<ModuleId, String> {
+        // A child's argument type can refer to declarations imported by its
+        // parameterized parent. Substituting parameters in the type expression
+        // alone does not specialize those declarations. Publish the parent
+        // namespace first so the child is checked with its declaration map.
+        let mut has_arguments = false;
+        let split = calls.iter().position(|(_, arguments)| {
+            let dependent_stage = has_arguments && !arguments.is_empty();
+            has_arguments |= !arguments.is_empty();
+            dependent_stage
+        });
+        if let Some(split) = split {
+            let mut prefix = calls;
+            let suffix = prefix.split_off(split);
+            let parent = self.bind_namespace_from(env, context, source, base, prefix)?;
+            return self.bind_namespace_from_alias(env, context, parent, suffix);
+        }
         let mut profile = super::profiling::ProfileTimer::start("REF_TYPE_PROFILE_MODULES", || {
             format!(
                 "modules phase=reference from={:?} source={source:?} base={base:?} context={:?} arguments={calls:?} environment={:?} location={:?}",
@@ -559,6 +575,33 @@ impl ModuleManager {
             }));
         }
 
+        // Repeated imports retain separate namespace metadata, even when their
+        // declarations already share canonical IDs. Materializing all copies
+        // makes an import chain grow exponentially. Coalesce only namespaces
+        // with the same source, declaration identities, and argument environment;
+        // distinct specializations and path components remain separate.
+        let mut seen = HashMap::new();
+        let mut unique_sources = Vec::new();
+        let mut aliases = Vec::new();
+        for (source_module, item_source, path_component) in materialization_sources {
+            let arguments = env
+                .namespace_binding_id(item_source)
+                .map(|id| env.binding(id).arguments.clone());
+            let key = (
+                source_module,
+                env.module(item_source).items().to_vec(),
+                arguments,
+            );
+            if !path_component && let Some(&index) = seen.get(&key) {
+                aliases.push((item_source, index));
+                continue;
+            }
+            let index = unique_sources.len();
+            seen.insert(key, index);
+            unique_sources.push((source_module, item_source, path_component));
+        }
+        let materialization_sources = unique_sources;
+
         struct ReservedGroup {
             source: ModuleId,
             path_component: bool,
@@ -576,6 +619,9 @@ impl ModuleManager {
             remapping.module_ids.insert(*item_source, materialized);
             env.copy_hir_names(*item_source, materialized);
             namespaces.push(materialized);
+        }
+        for (item_source, index) in aliases {
+            remapping.module_ids.insert(item_source, namespaces[index]);
         }
         for ((source_module, item_source, path_component), materialized) in
             materialization_sources.into_iter().zip(namespaces)

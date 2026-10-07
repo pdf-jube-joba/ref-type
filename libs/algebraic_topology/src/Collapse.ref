@@ -1,0 +1,38 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Logic.either;
+\use Equality.sym;
+\use Equality.trans;
+\definition Related(x, y: A): \Prop := Logic.Or[x = y, Logic.And[\In[A] subset x, \In[A] subset y]];
+\import topology.RelationQuotient[A := A, relation := Related] \as Quotient;
+\import topology.Topology[Carrier := Quotient.Carrier] \as Space;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition class: A -> Carrier := Quotient.class;
+\definition topology(source: Source.Topology): Space.Topology := Quotient.topology source;
+\definition equivalence: Quotient.Laws := Quotient.Laws {
+  refl := \fun (x: A) => Logic.Or[_, _]::left (\refl(x)),
+  sym := \fun (x, y: A) (r: Related x y) =>
+    either!{{x = y} "or" {Logic.And[\In[A] subset x, \In[A] subset y]} "either" {Related y x}
+      "lt:" {\fun (e: x = y) => Logic.Or[_, _]::left (sym!{A} _ _ e)}
+      "rt:" {\fun (h: Logic.And[\In[A] subset x, \In[A] subset y]) => Logic.Or[_, _]::right (Logic.And[_, _]::# (#right{h}) (#left{h}))}} r,
+  trans := \fun (x, y, z: A) (xy: Related x y) (yz: Related y z) =>
+    either!{{x = y} "or" {Logic.And[\In[A] subset x, \In[A] subset y]} "either" {Related x z}
+      "lt:" {\fun (e: x = y) => \idelim y = x \with w: A => Related w z \by { base: yz, equality: sym!{A} _ _ e }}
+      "rt:" {\fun (h: Logic.And[\In[A] subset x, \In[A] subset y]) =>
+        either!{{y = z} "or" {Logic.And[\In[A] subset y, \In[A] subset z]} "either" {Related x z}
+          "lt:" {\fun (e: y = z) => Logic.Or[_, _]::right (Logic.And[_, _]::# (#left{h})
+            (\idelim y = z \with w: A => \In[A] subset w \by { base: #right{h}, equality: e }))}
+          "rt:" {\fun (k: Logic.And[\In[A] subset y, \In[A] subset z]) => Logic.Or[_, _]::right (Logic.And[_, _]::# (#left{h}) (#right{k}))}} yz}} xy,
+};
+\definition collapsed: \forall (x, y: A) -> \In[A] subset x -> \In[A] subset y -> class x = class y :=
+  \fun (x, y: A) (hx: _) (hy: _) => Quotient.relatedEqual equivalence x y (Logic.Or[_, _]::right (Logic.And[_, _]::# hx hy));
+\definition projectionContinuous: \forall (source: Source.Topology) ->
+  \forall (U: \Pow Carrier) -> Space.IsOpenIn (topology source) U ->
+    Source.IsOpenIn source ({ x: A \where \In[Carrier] U (class x) }) := Quotient.projectionContinuous;
+\module Descent(B: \Set) {
+  \import Quotient.Descent[C := B] \as Lift;
+  \definition Respects(f: A -> B): \Prop := Lift.Respects f;
+  \definition apply(f: A -> B) (respects: Respects f): Carrier -> B := Lift.apply equivalence f respects;
+  \definition onClass: \forall (f: A -> B) (respects: Respects f) (x: A) -> apply f respects (class x) = f x := Lift.onClass equivalence;
+}

@@ -53,3 +53,14 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 一方、親で既に読み込んだ同じ macro を子で再び `\use` すると、`Macro 'reflexive' is already visible` で失敗する。
 現在は子の宣言より前に親で読み込み、子では継承された macro を利用することで回避している。
 `algebra.LaurentPolynomial` の `eq_reason` と `topology.Topology.Subspace` の `sym` で、それぞれこの問題を確認した。
+
+<a id="g05"></a>
+
+## G05: 式の中での module の具体化
+
+依存するセルの次元を引数として `Euclidean.Dimension[n := dimension].Disk` のように台集合を参照したい。
+現在は module の具体化を import 宣言で行うため、関数の引数や record の field に依存する値を、この形の式へ渡せない。
+
+[最小比較: G05](fix-md/README.md#g05) の `F.Dimension[A := A].Carrier` は `expected RBracket, found Assign` で構文解析に失敗する。
+台集合を返す通常の関数 `F.carrier A` なら型検査が通る。
+`algebraic_topology.Euclidean` は `Disk(n)` と `coordinateCarrier(n)` を関数として公開し、固定した次元の位相・境界は `Dimension` の import から利用することで回避している。

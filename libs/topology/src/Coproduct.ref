@@ -1,0 +1,58 @@
+\import std.Data[].Sum[] \as Sum;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import topology.Topology[Carrier := A] \as Left;
+\import topology.Topology[Carrier := B] \as Right;
+\definition Carrier: \Set := Sum.Sum[A, B];
+\definition inl: A -> Carrier := Sum.Sum[A, B]::inl;
+\definition inr: B -> Carrier := Sum.Sum[A, B]::inr;
+\import topology.Topology[Carrier := Carrier] \as Space;
+\import topology.Maps[A := A, B := Carrier] \as LeftMaps;
+\import topology.Maps[A := B, B := Carrier] \as RightMaps;
+\definition Raw(left: Left.Topology) (right: Right.Topology): Space.TopologyData := Space.TopologyData {
+  openSets := { U: \Pow Carrier \where Logic.And[Left.IsOpenIn left (LeftMaps.Preimage inl U), Right.IsOpenIn right (RightMaps.Preimage inr U)] },
+};
+\definition laws(left: Left.Topology) (right: Right.Topology): Space.TopologyLaws[Raw left right] := Space.TopologyLaws[Raw left right] {
+  emptyOpen := Logic.And[_, _]::#
+    (LeftMaps.openTransport left Left.Empty (LeftMaps.Preimage inl Space.Empty)
+      (sym!{\Pow A} _ _ (LeftMaps.preimageEmptyEq inl)) (#emptyOpen{(Left.topologyLaws left)}))
+    (RightMaps.openTransport right Right.Empty (RightMaps.Preimage inr Space.Empty)
+      (sym!{\Pow B} _ _ (RightMaps.preimageEmptyEq inr)) (#emptyOpen{(Right.topologyLaws right)})),
+  wholeOpen := Logic.And[_, _]::#
+    (LeftMaps.openTransport left Left.Whole (LeftMaps.Preimage inl Space.Whole)
+      (sym!{\Pow A} _ _ (LeftMaps.preimageWholeEq inl)) (#wholeOpen{(Left.topologyLaws left)}))
+    (RightMaps.openTransport right Right.Whole (RightMaps.Preimage inr Space.Whole)
+      (sym!{\Pow B} _ _ (RightMaps.preimageWholeEq inr)) (#wholeOpen{(Right.topologyLaws right)})),
+  unionOpen := \fun (family: _) (open: _) => Logic.And[_, _]::#
+    (LeftMaps.openTransport left (Left.Union (LeftMaps.PullbackFamily inl family)) (LeftMaps.Preimage inl (Space.Union family))
+      (sym!{\Pow A} _ _ (LeftMaps.preimageUnionEq inl family))
+      (#unionOpen{(Left.topologyLaws left)} (LeftMaps.PullbackFamily inl family)
+        (\fun (U: _) (member: _) => LeftMaps.pullbackElim inl family U (Left.IsOpenIn left U)
+          (\fun (W: _) (fw: _) (same: _) => LeftMaps.openTransport left (LeftMaps.Preimage inl W) U
+            (sym!{\Pow A} _ _ same) (#left{(open W fw)})) member)))
+    (RightMaps.openTransport right (Right.Union (RightMaps.PullbackFamily inr family)) (RightMaps.Preimage inr (Space.Union family))
+      (sym!{\Pow B} _ _ (RightMaps.preimageUnionEq inr family))
+      (#unionOpen{(Right.topologyLaws right)} (RightMaps.PullbackFamily inr family)
+        (\fun (U: _) (member: _) => RightMaps.pullbackElim inr family U (Right.IsOpenIn right U)
+          (\fun (W: _) (fw: _) (same: _) => RightMaps.openTransport right (RightMaps.Preimage inr W) U
+            (sym!{\Pow B} _ _ same) (#right{(open W fw)})) member))),
+  intersectionOpen := \fun (U, V: _) (uo: _) (vo: _) => Logic.And[_, _]::#
+    (LeftMaps.openTransport left (Left.Intersection (LeftMaps.Preimage inl U) (LeftMaps.Preimage inl V)) (LeftMaps.Preimage inl (Space.Intersection U V))
+      (sym!{\Pow A} _ _ (LeftMaps.preimageIntersectionEq inl U V))
+      (#intersectionOpen{(Left.topologyLaws left)} _ _ (#left{uo}) (#left{vo})))
+    (RightMaps.openTransport right (Right.Intersection (RightMaps.Preimage inr U) (RightMaps.Preimage inr V)) (RightMaps.Preimage inr (Space.Intersection U V))
+      (sym!{\Pow B} _ _ (RightMaps.preimageIntersectionEq inr U V))
+      (#intersectionOpen{(Right.topologyLaws right)} _ _ (#right{uo}) (#right{vo}))),
+};
+\definition topology(left: Left.Topology) (right: Right.Topology): Space.Topology :=
+  \into[Space.TopologyData](Raw left right, Space.Topology) \by { laws left right };
+\module Universal(C: \Set);
+\import topology.Continuity[A := A, B := Carrier] \as LeftInclusion;
+\import topology.Continuity[A := B, B := Carrier] \as RightInclusion;
+\definition inlContinuous: \forall (left: Left.Topology) (right: Right.Topology) ->
+  LeftInclusion.Continuous left (topology left right) inl :=
+  \fun (left: _) (right: _) (U: _) (open: _) => #left{open};
+\definition inrContinuous: \forall (left: Left.Topology) (right: Right.Topology) ->
+  RightInclusion.Continuous right (topology left right) inr :=
+  \fun (left: _) (right: _) (U: _) (open: _) => #right{open};

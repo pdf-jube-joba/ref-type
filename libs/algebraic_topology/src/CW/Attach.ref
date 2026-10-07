@@ -1,0 +1,22 @@
+\import Euclidean.Dimension[n := n] \as Model;
+\import real.DedekindReal[] \as R;
+\import real.Analysis[] \as Real;
+\definition boundaryInclusion(x: Model.Sphere): Model.Disk :=
+  \into[Model.Coordinate](x, Model.ClosedBall) \by {
+    \idelim Real.one = Model.normSquared x \with value: Real.Real => R.Le value Real.one
+      \by { base: R.leRefl Real.one,
+        equality: sym!{Real.Real} _ _ (\bysub(Model.Coordinate, Model.Boundary, x)) }
+  };
+\import topology.Pushout[A := A, B := Model.Disk, C := Model.Sphere] \as Pushout;
+\module Along(attach: Model.Sphere -> A) {
+  \import Pushout.Of[u := attach, v := boundaryInclusion] \as Attached;
+  \import topology.Topology[Carrier := Attached.Carrier] \as Target;
+  \definition Carrier: \Set := Attached.Carrier;
+  \definition topology(source: Space.Topology): Target.Topology := Attached.topology source Model.diskTopology;
+  \definition inclusion: A -> Carrier := Attached.inl;
+  \definition characteristic: Model.Disk -> Carrier := Attached.inr;
+  \definition attached: \forall (x: Model.Sphere) -> inclusion (attach x) = characteristic (boundaryInclusion x) := Attached.glued;
+  \import topology.Continuity[A := Model.Disk, B := Carrier] \as CellMaps;
+  \definition characteristicContinuous: \forall (source: Space.Topology) -> CellMaps.Continuous Model.diskTopology (topology source) characteristic :=
+    \fun (source: _) => Attached.inrContinuous source Model.diskTopology;
+}

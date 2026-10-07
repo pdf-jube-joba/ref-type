@@ -1,0 +1,25 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Set[].Quotient[A := A, Equivalent := relation] \as Classes;
+\import topology.Quotient[A := A, B := Classes.Carrier] \as Final;
+\import topology.Topology[Carrier := Classes.Carrier] \as Space;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition Carrier: \Set := Classes.Carrier;
+\definition Laws: \Prop := Classes.EquivalenceLaws;
+\definition class: A -> Carrier := Classes.class;
+\definition topology(source: Source.Topology): Space.Topology := Final.topology source class;
+\definition relatedEqual: \forall (laws: Laws) (x, y: A) -> relation x y -> class x = class y := Classes.classOfEq;
+\definition equalRelated: \forall (laws: Laws) (x, y: A) -> class x = class y -> relation x y := Classes.equivalentOfClassEq;
+\definition surjective: Final.Surjective class := Classes.induction
+  (\fun (C: Carrier) => \exists { x: A \where class x = C })
+  (\fun (x: A) => \exact(\into[A](x, { y: A \where class y = class x }) \by { \refl(class x) },
+    \Cast[A] ({ y: A \where class y = class x })));
+\definition quotientMap: \forall (source: Source.Topology) -> Final.IsQuotientMap[source, topology source, class] :=
+  \fun (source: _) => Final.quotientMap source class surjective;
+\definition projectionContinuous: \forall (source: Source.Topology) ->
+  \forall (U: \Pow Carrier) -> Space.IsOpenIn (topology source) U ->
+    Source.IsOpenIn source ({ x: A \where \In[Carrier] U (class x) }) := \fun (source: _) => Final.projectionContinuous source class;
+\module Descent(C: \Set);

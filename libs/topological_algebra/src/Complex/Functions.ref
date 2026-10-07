@@ -1,0 +1,28 @@
+\import topology.Continuity[A := Carrier, B := Real.Real] \as ProjectionMaps;
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Continuity[A := A, B := Carrier] \as Maps;
+\import Product.Universal[X := A] \as Into;
+\import topology.RealFunctions[A := A] \as ScalarFunctions;
+\definition realContinuous: \forall (source: Source.Topology) (f: A -> Carrier) -> Maps.Continuous source topology f ->
+  ScalarFunctions.Continuous source (\fun (x: A) => Scalar.re (f x)) :=
+  \fun (source: _) (f: _) (continuous: _) => \fun (U: \Pow Real.Real) (open: _) =>
+    continuous (ProjectionMaps.Preimage Scalar.re U) (Projections.firstContinuous Line.topology Line.topology U open);
+\definition imaginaryContinuous: \forall (source: Source.Topology) (f: A -> Carrier) -> Maps.Continuous source topology f ->
+  ScalarFunctions.Continuous source (\fun (x: A) => Scalar.im (f x)) :=
+  \fun (source: _) (f: _) (continuous: _) => \fun (U: \Pow Real.Real) (open: _) =>
+    continuous (ProjectionMaps.Preimage Scalar.im U) (Projections.secondContinuous Line.topology Line.topology U open);
+\definition additionContinuous: \forall (source: Source.Topology) (f, g: A -> Carrier) ->
+  Maps.Continuous source topology f -> Maps.Continuous source topology g ->
+  Maps.Continuous source topology (\fun (x: A) => Operations.add (f x) (g x)) :=
+  \fun (source: _) (f, g: _) (fc: _) (gc: _) => Into.pairContinuous source Line.topology Line.topology
+    (\fun (x: A) => Real.add (Scalar.re (f x)) (Scalar.re (g x)))
+    (\fun (x: A) => Real.add (Scalar.im (f x)) (Scalar.im (g x)))
+    (ScalarFunctions.sumContinuous source (\fun (x: A) => Scalar.re (f x)) (\fun (x: A) => Scalar.re (g x))
+      (realContinuous source f fc) (realContinuous source g gc))
+    (ScalarFunctions.sumContinuous source (\fun (x: A) => Scalar.im (f x)) (\fun (x: A) => Scalar.im (g x))
+      (imaginaryContinuous source f fc) (imaginaryContinuous source g gc));
+\definition conjugateContinuous: \forall (source: Source.Topology) (f: A -> Carrier) -> Maps.Continuous source topology f ->
+  Maps.Continuous source topology (\fun (x: A) => Operations.conj (f x)) :=
+  \fun (source: _) (f: _) (fc: _) => Into.pairContinuous source Line.topology Line.topology
+    (\fun (x: A) => Scalar.re (f x)) (\fun (x: A) => Real.neg (Scalar.im (f x)))
+    (realContinuous source f fc) (ScalarFunctions.negContinuous source (\fun (x: A) => Scalar.im (f x)) (imaginaryContinuous source f fc));

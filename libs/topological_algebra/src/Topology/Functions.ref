@@ -1,0 +1,26 @@
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Continuity[A := A, B := K] \as Maps;
+\import Product.Universal[X := A] \as Pairs;
+\import topology.Composition[A := A, B := Product.CarrierSet, C := K] \as Compose;
+\definition additionContinuous: \forall (source: Source.Topology) (space: Space.Topology)
+  (group: Alg.CommutativeGroup[K]) -> AdditiveLaws[space, group] ->
+  \forall (f, g: A -> K) -> Maps.Continuous source space f -> Maps.Continuous source space g ->
+  Maps.Continuous source space (\fun (x: A) => #op{(#base{group})} (f x) (g x)) :=
+  \fun (source: _) (space: _) (group: _) (laws: _) (f, g: _) (fc: _) (gc: _) =>
+    Compose.composeContinuous source (Product.topology space space) space (Pairs.PairMap f g)
+      (\fun (p: Product.CarrierSet) => #op{(#base{group})} (Pair.first K K p) (Pair.second K K p))
+      (Pairs.pairContinuous source space space f g fc gc) (#addition{laws});
+\definition inverseContinuous: \forall (source: Source.Topology) (space: Space.Topology)
+  (group: Alg.CommutativeGroup[K]) -> AdditiveLaws[space, group] ->
+  \forall (f: A -> K) -> Maps.Continuous source space f ->
+  Maps.Continuous source space (\fun (x: A) => #inv{(#base{group})} (f x)) :=
+  \fun (source: _) (space: _) (group: _) (laws: _) (f: _) (continuous: _) (U: _) (open: _) =>
+    continuous (Unary.Preimage (#inv{(#base{group})}) U) (#inverse{laws} U open);
+\definition multiplicationContinuous: \forall (source: Source.Topology) (space: Space.Topology)
+  (ring: Ring.CommutativeRing[K]) -> RingLaws[space, ring] ->
+  \forall (f, g: A -> K) -> Maps.Continuous source space f -> Maps.Continuous source space g ->
+  Maps.Continuous source space (\fun (x: A) => #mul{(#base{ring})} (f x) (g x)) :=
+  \fun (source: _) (space: _) (ring: _) (laws: _) (f, g: _) (fc: _) (gc: _) =>
+    Compose.composeContinuous source (Product.topology space space) space (Pairs.PairMap f g)
+      (\fun (p: Product.CarrierSet) => #mul{(#base{ring})} (Pair.first K K p) (Pair.second K K p))
+      (Pairs.pairContinuous source space space f g fc gc) (#multiplication{laws});

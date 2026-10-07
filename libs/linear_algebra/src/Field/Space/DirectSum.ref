@@ -1,0 +1,36 @@
+\import std.Data[].Pair[] \as Pair;
+\import Pair.Prop[A := V, B := W] \as Pairs;
+\import \parent.Laws[V := V, space := left] \as Left;
+\import \parent.Laws[V := W, space := right] \as Right;
+\definition Carrier: \Set := Pair.Times^[V, W];
+\definition make: V -> W -> Carrier := Pair.pair V W;
+\definition first: Carrier -> V := Pair.first V W;
+\definition second: Carrier -> W := Pair.second V W;
+\definition origin: Carrier := make (#zero{left}) (#zero{right});
+\definition plus(x, y: Carrier): Carrier := make (#add{left} (first x) (first y)) (#add{right} (second x) (second y));
+\definition negative(x: Carrier): Carrier := make (#neg{left} (first x)) (#neg{right} (second x));
+\definition scale(a: K) (x: Carrier): Carrier := make (#smul{left} a (first x)) (#smul{right} a (second x));
+\definition space: VectorSpace Carrier := Ring.RingModule[K, Carrier, ring] {
+  zero := origin, add := plus, neg := negative, smul := scale,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# origin plus negative)] {
+    group := Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# origin plus negative] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# origin plus] {
+        leftIdentity := \fun (x: Carrier) => Pairs.ext (plus origin x) x (Left.zeroLeft (first x)) (Right.zeroLeft (second x)),
+        rightIdentity := \fun (x: Carrier) => Pairs.ext (plus x origin) x (Left.zeroRight (first x)) (Right.zeroRight (second x)),
+        associative := \fun (x, y, z: Carrier) => Pairs.ext (plus (plus x y) z) (plus x (plus y z))
+          (Left.assoc (first x) (first y) (first z)) (Right.assoc (second x) (second y) (second z)),
+      },
+      leftInverse := \fun (x: Carrier) => Pairs.ext (plus (negative x) x) origin (Left.inverseLeft (first x)) (Right.inverseLeft (second x)),
+      rightInverse := \fun (x: Carrier) => Pairs.ext (plus x (negative x)) origin
+        (trans!{V} _ _ _ (Left.comm (first x) (Left.negative (first x))) (Left.inverseLeft (first x)))
+        (trans!{W} _ _ _ (Right.comm (second x) (Right.negative (second x))) (Right.inverseLeft (second x))),
+    },
+    commutative := \fun (x, y: Carrier) => Pairs.ext (plus x y) (plus y x)
+      (Left.comm (first x) (first y)) (Right.comm (second x) (second y)),
+  },
+  scalarOne := \fun (x: Carrier) => Pairs.ext (scale one x) x (#scalarOne{left} (first x)) (#scalarOne{right} (second x)),
+  scalarAssoc := \fun (a, b: K) (x: Carrier) => Pairs.ext (scale (mul a b) x) (scale a (scale b x)) (#scalarAssoc{left} a b (first x)) (#scalarAssoc{right} a b (second x)),
+  scalarAdd := \fun (a, b: K) (x: Carrier) => Pairs.ext (scale (add a b) x) (plus (scale a x) (scale b x)) (#scalarAdd{left} a b (first x)) (#scalarAdd{right} a b (second x)),
+  vectorAdd := \fun (a: K) (x, y: Carrier) => Pairs.ext (scale a (plus x y)) (plus (scale a x) (scale a y)) (#vectorAdd{left} a (first x) (first y)) (#vectorAdd{right} a (second x) (second y)),
+};
+\module Universal(U: \Set, domain: VectorSpace U);

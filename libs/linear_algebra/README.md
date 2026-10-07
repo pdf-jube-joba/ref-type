@@ -7,6 +7,8 @@
 | モジュール | 内容 |
 | --- | --- |
 | `Field.Space` | 体の演算と法則、`VectorSpace`、スカラー自身のベクトル空間 |
+| `Space.Isomorphism` | 双方向の線形写像と逆の法則、単射性と全射性。 |
+| `Space.DirectSum` | 二空間の積上のベクトル空間構造と、写像を組にする普遍性。 |
 | `Space.Coordinates` | 添字集合から体への関数で表す座標空間 |
 | `Space.Laws` | 加法の消去、零のスカラー倍、スカラー倍の交換 |
 | `Space.Linear` | 線形写像、合成 |

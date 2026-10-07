@@ -12,8 +12,8 @@ import subprocess
 import time
 
 LIBRARIES = (
-    "std", "real", "complex", "linear_algebra", "topology", "calculus",
-    "integration", "category",
+    "std", "algebra", "real", "complex", "linear_algebra", "topology", "calculus",
+    "integration", "category", "topological_algebra", "algebraic_topology",
 )
 
 
