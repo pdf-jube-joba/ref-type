@@ -127,3 +127,26 @@ target/debug/cli tests/projects/topological-k-theory --no-cache --diagnostics co
 修正前は推論された位相が `Topology[A := Interval.Carrier, B := Interval.Carrier].Topology` である一方、期待型には `HomotopyEquivalence` の束縛変数 `B` による具体化が残り、`types are not convertible` になっていた。
 G05 対応前の処理系でも同じ位置と診断で再現した。
 検査済みの定義を保存するときに、依存先の参照と具体化した引数を保持することで解消した。
+
+<a id="g08"></a>
+
+## G08: 点に依存する商の型と有限引数の関数型
+
+多様体の各点 `x` の接空間を通常の型値の定義 `tangent M x` で返し、点ごとの交代形式の台集合を `\forall (x: M.Point) -> (Fin.Fin k -> tangent M x) -> Real` として公開したい。
+
+[最小比較プロジェクト](reproductions/g08-pointwise-quotient/README.md)は、点に依存する代表元の型と `std.Set.Quotient` の組合せまで縮小している。
+直接の関数型による `sections` は `uncaptured parameter ModuleParamId { ... }` で失敗する。
+通常の型値定義 `Function(A, B): Set := A -> B` を使った比較例は成功するが、同じ比較例に点・引数列ごとの等式判定を追加すると、`equal` で `expected Program value-type syntax` が出る。
+
+点ごとの型を `At` module へ分ける比較例では、lambda の有限引数列を `Fin.Fin k -> fiber M x` で注釈すると `uncaptured parameter` で失敗し、`_` または `At.Arguments` を使うと成功する。
+局所的な回避例も記録しており、構成全体の不可能性を示した結果ではない。
+
+2026-10-07 に `a8498cb` の処理系で、全5例をキャッシュなしで検査した。
+`uncaptured parameter` は lowering の capture 検査から返される診断で、修正箇所の特定は未完了である。
+
+```sh
+python3 _plans/reproductions/g08-pointwise-quotient/check.py
+```
+
+[多様体・De Rham 計画](manifolds-de-rham.md)の初期の表現検査で判明した処理系障害として、同計画の停止条件を適用した。
+影響する構成は、第4節の点に依存する接空間と、第6節の点ごとの交代形式の解釈・等式判定である。
