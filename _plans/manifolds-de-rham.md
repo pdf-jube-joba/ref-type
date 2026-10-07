@@ -49,7 +49,8 @@
 
 `calculus` に `linear_algebra`・`topology`・`topological_algebra` への依存を加え、座標と線形写像の既存構造を共有する。
 `topological_algebra` の位相・距離の同値性は同パッケージで証明し、それを `calculus` が利用する向きにする。
-`homological_algebra` は `std`・`algebra`・`linear_algebra` に依存する。
+`homological_algebra` の一般加群・複体の構成と依存は [ホモロジー代数計画](homological-algebra.md) に統合する。
+同パッケージは `std`・`algebra`・`category` に依存し、体上の余鎖複体はその具体化として利用する。
 `manifolds` は `std`・`real`・`linear_algebra`・`topology`・`topological_algebra`・`calculus` に依存する。
 `differential_forms` はこれらと `manifolds`・`homological_algebra` に依存し、`manifolds` からの逆向きの依存は生じない構成とする。
 各 `ref.toml` はソースから直接 import するパッケージを依存として宣言する。
@@ -99,6 +100,7 @@ Schwarz の定理は後の \(d^2=0\) と引き戻しの自然性の証明に使�
 
 部分空間について零部分空間、像、逆像、包含を整備する。
 商 \(V/W\) は \(v\sim w\iff v-w\in W\) による `std.Set.Quotient` の具体化として作り、加法・スカラー倍・商写像・線形写像の降下と普遍性を証明する。
+一般の商加群は [ホモロジー代数計画の第1節](homological-algebra.md#1-加群自由加群商) が所有し、ここでは体上への具体化を公開する。
 部分空間 \(B\subseteq Z\subseteq V\) の場合に、\(B\) を \(Z\) の部分空間へ移す構成を公開する。
 
 ## 3. アトラスと滑らかな多様体
@@ -193,6 +195,7 @@ Schwarz の定理と外積の交代性から \(d^2=0\) を導く。
 ## 7. 余鎖複体と De Rham コホモロジー
 
 `homological_algebra` に、自然数次数のベクトル空間族 \(C^k\)、線形写像 \(d_k:C^k\to C^{k+1}\)、二乗零の法則を持つ `CochainComplex` を定義する。
+内部では [ホモロジー代数計画の第2節](homological-algebra.md#2-複体ホモロジーホモトピー) の整数次数の加群複体を用い、負次数を零で埋めた非負次数の API として公開する。
 次数によって台集合が変わる族は宣言の束を用いて表現し、通常の値 record が必要な部分は次数ごとのデータに分ける。
 余鎖写像、恒等写像、合成とコホモロジー上の誘導線形写像を構成する。
 
