@@ -182,7 +182,7 @@ impl Resolver {
         self.access(self.current, &mut access).ok()?;
         match access {
             LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. } => access.1,
-            LocalAccess::Named { .. } => None,
+            LocalAccess::Named { .. } | LocalAccess::Instantiated { .. } => None,
         }
     }
 

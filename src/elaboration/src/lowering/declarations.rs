@@ -138,9 +138,12 @@ impl Lowerer<'_> {
         if let Some(timer) = &mut timer {
             timer.checkpoint("kernel registration");
         }
+        // An open specialization captures local binders. Reify its body rather
+        // than a bare frontend name so later substitutions can see those binders.
+        let source = (self.definition_ambient(id)? == 0).then_some(id);
         self.raw.arena().bind_definition(
             kernel_id,
-            Some(id),
+            source,
             matches!(
                 self.raw.definition(id),
                 raw::environment::DefinedConstant::Contextual { .. }

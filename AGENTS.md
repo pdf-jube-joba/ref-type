@@ -1,6 +1,6 @@
 ## 計測や分析
-ローカル環境の場合には perf は `/usr/lib/linux-tools/7.0.0-38-generic` にあります。
-クラウドで AI が動いている場合は perf、hyperfine、GNU time、valgrind、heaptrack がそのまま使えます。
+perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
+（多分）
 
 ## 実装のやりかた
 重要な点: `_plans/` に書かれている1つのプランの実装時は、最後までやってから停止する。

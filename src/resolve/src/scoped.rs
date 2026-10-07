@@ -220,7 +220,7 @@ impl Resolver {
             LocalAccess::Named { access, child, .. } => {
                 (self.import(self.current, access.as_str())?, child)
             }
-            LocalAccess::Resolved { .. } => return None,
+            LocalAccess::Resolved { .. } | LocalAccess::Instantiated { .. } => return None,
         };
         let spelling = name.as_str().trim_end_matches('^');
         if !spelling.contains("::[")
@@ -262,6 +262,7 @@ impl Resolver {
                         access
                     }
                     LocalAccess::Named { child, .. } => child,
+                    LocalAccess::Instantiated { child, .. } => child,
                 };
                 name.0.push('^');
                 SExp::AccessPath {

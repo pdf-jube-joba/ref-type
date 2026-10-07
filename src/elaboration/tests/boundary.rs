@@ -66,6 +66,7 @@ fn resolved_module_routes_are_independent_of_display_names() {
             if let ModuleItem::Import { path, .. } = item {
                 let calls = match path {
                     ModuleInstantiatePath::FromRoot { calls }
+                    | ModuleInstantiatePath::FromModule { calls, .. }
                     | ModuleInstantiatePath::FromCurrent { calls, .. } => calls,
                     ModuleInstantiatePath::FromImport { import_name, calls } => {
                         assert!(import_name.1.is_some());

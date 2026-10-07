@@ -11,6 +11,72 @@ impl Resolver {
             if error.is_some() {
                 return false;
             }
+            let access = match node {
+                SExp::AccessPath { access, .. } | SExp::RecordTypeCtor { access, .. }
+                | SExp::ProgramValueReference { access }
+                | SExp::IndCase { path: access, .. } | SExp::ProgramCase { path: access, .. } => Some(access),
+                _ => None,
+            };
+            if let Some(access @ LocalAccess::Instantiated { .. }) = access {
+                let LocalAccess::Instantiated { span, path, child } = access else { unreachable!() };
+                if let ModuleInstantiatePath::FromCurrent { back_parent, calls } = path.as_mut() {
+                    let mut module = self.current;
+                    for _ in 0..*back_parent {
+                        let Some(parent) = self.scopes[module.0 as usize].parent else {
+                            error = Some(self.error("already at root module"));
+                            return false;
+                        };
+                        module = parent;
+                    }
+                    **path = ModuleInstantiatePath::FromModule { module, calls: calls.clone() };
+                }
+                let mut import_name = Identifier(format!("<temporary:{}>", self.next_expression));
+                let mut checks = Vec::new();
+                self.next_expression += 1;
+                if let Err(e) = self.resolve_import_in_scope(path, &mut import_name, &mut checks, locals) {
+                    error = Some(e);
+                    return false;
+                }
+                let mut member = LocalAccess::Named {
+                    span: *span, access: import_name.clone(), child: child.clone(),
+                };
+                if let Err(e) = self.access(self.current, &mut member) {
+                    error = Some(e);
+                    return false;
+                }
+                let mut guards = vec![(SExp::ModuleInstance { path: path.clone(), import_name }, SExp::ValueType)];
+                guards.extend(checks);
+                *access = member;
+                *node = SExp::Checked { checks: guards, body: Box::new(node.clone()) };
+                if let Err(e) = self.normalize_structures(node, locals) {
+                    error = Some(e);
+                }
+                return false;
+            }
+            if let SExp::App { func, arg } = node
+                && {
+                    let mut head = func.as_ref();
+                    while let SExp::App { func, .. } | SExp::AssociatedAccess { base: func, .. } = head {
+                        head = func;
+                    }
+                    matches!(head, SExp::Checked { .. } | SExp::AccessPath { access: LocalAccess::Instantiated { .. }, .. })
+                }
+            {
+                if let Err(e) = self.normalize_structures(func, locals) {
+                    error = Some(e);
+                    return false;
+                }
+                if let SExp::Checked { checks, body } = func.as_ref() {
+                    *node = SExp::Checked {
+                        checks: checks.clone(),
+                        body: Box::new(SExp::App { func: body.clone(), arg: arg.clone() }),
+                    };
+                    if let Err(e) = self.normalize_structures(node, locals) {
+                        error = Some(e);
+                    }
+                    return false;
+                }
+            }
             let expansion = match node {
                 SExp::Block(block) => Some(block.as_term().map_err(|e| self.error(e))),
                 SExp::Exists {
@@ -173,6 +239,7 @@ impl Resolver {
                         access.0 = access.0.trim_end_matches('^').to_owned();
                         reflected
                     }
+                    LocalAccess::Instantiated { .. } => unreachable!(),
                     LocalAccess::Named { child, .. } => {
                         let reflected = child.0.ends_with('^');
                         child.0 = child.0.trim_end_matches('^').to_owned();
@@ -501,6 +568,7 @@ impl Resolver {
                         LocalAccess::Current { access, .. }
                         | LocalAccess::Resolved { access, .. } => access.as_str().ends_with('^'),
                         LocalAccess::Named { child, .. } => child.as_str().ends_with('^'),
+                        LocalAccess::Instantiated { .. } => unreachable!(),
                     };
                     let mut result = abstract_parameters(
                         &remaining,

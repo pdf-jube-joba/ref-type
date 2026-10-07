@@ -368,7 +368,7 @@ impl ModuleManager {
         self.bind_namespace_from(env, context, source, Some(base), calls)
     }
 
-    fn bind_namespace_from(
+    pub(crate) fn bind_namespace_from(
         &mut self,
         env: &mut CrateEnv,
         context: &mut ExpContext,
@@ -978,6 +978,10 @@ impl ModuleManager {
         }
     }
 
+    pub(crate) fn hir_module(&self, module: crate::hir::ModuleId) -> Option<ModuleId> {
+        self.hir_modules.get(&module).copied()
+    }
+
     pub(crate) fn hir_import(&self, env: &CrateEnv, name: &Identifier) -> Option<ModuleId> {
         if let Some(id) = name.1 {
             self.hir_aliases.get(&id).copied()
@@ -1094,7 +1098,7 @@ pub(crate) fn resolve_access(
             let binding = env.resolve_import(from, access.as_str())?;
             (env.binding(binding).materialized, child.as_str(), false)
         }
-        LocalAccess::Resolved { .. } => return None,
+        LocalAccess::Resolved { .. } | LocalAccess::Instantiated { .. } => return None,
     };
     let (name, _reflected) = reference
         .strip_suffix('^')

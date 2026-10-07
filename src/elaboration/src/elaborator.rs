@@ -238,13 +238,40 @@ impl term_elaborator::Handler for GlobalEnvironment {
         self.crate_env.intern_name(name)
     }
 
+    fn instantiate_module(
+        &mut self,
+        path: &ModuleInstantiatePath,
+        name: &Identifier,
+        scope: &mut LocalScope,
+    ) -> Result<(), ElaborationError> {
+        let mut program_scope = program_term_elaborator::ProgramScope::new();
+        let binding = self.instantiate_module_expression(path, scope, &mut program_scope)?;
+        self.module_manager.register_hir_import(&self.crate_env, name, binding);
+        Ok(())
+    }
+
+    fn materialize_module_term(&mut self, context: &ExpContext, term: Exp) -> Result<Exp, ElaborationError> {
+        use crate::raw::traversal::{Term, Rewrite, Memoized};
+        struct Reify;
+        impl Rewrite for Reify {
+            fn rewrite(&mut self, _: Term, _: usize) -> Option<Term> { None }
+            fn finish(&mut self, arena: &Arena, _: Term, _: usize, result: Term) -> Term {
+                match result {
+                    Term::Logical(e) => Term::Logical(arena.alloc(arena.get(e))),
+                    _ => result,
+                }
+            }
+        }
+        let term = crate::kernel_bridge::logical(&self.crate_env, context, &[term], |_, _, terms| Ok(Exp(terms[0])))?;
+        let Term::Logical(term) = Term::Logical(term).walk(self.crate_env.arena(), 0, &mut Memoized::new(Reify)) else { unreachable!() };
+        Ok(term)
+    }
+
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
     ) -> Result<ItemAccessResult, ElaborationError> {
-        Ok(self
-            .module_manager
-            .get_item(&self.crate_env, access_path)
+        Ok(self.module_manager.get_item(&self.crate_env, access_path)
             .ok_or_else(|| format!("Failed to access item at path {access_path:?}"))?)
     }
 

@@ -172,6 +172,7 @@ pub type ModuleCall = (Identifier, Vec<(Identifier, SExp)>);
 
 #[derive(Debug, Clone)]
 pub enum ModuleInstantiatePath {
+    FromModule { module: ModuleId, calls: Vec<ModuleCall> },
     FromCurrent {
         back_parent: usize,
         calls: Vec<ModuleCall>,
@@ -416,6 +417,11 @@ pub enum Bind {
 #[derive(Debug, Clone)]
 // some access path to access defined constant or inductive type
 pub enum LocalAccess {
+    Instantiated {
+        span: SourceSpan,
+        path: Box<ModuleInstantiatePath>,
+        child: Identifier,
+    },
     // accessing inductive type or defined constant
     Current {
         span: SourceSpan,
@@ -438,6 +444,7 @@ pub enum LocalAccess {
 impl std::fmt::Display for LocalAccess {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Instantiated { child, .. } => write!(formatter, "<module>.{}", child.as_str()),
             Self::Resolved { display, .. } => formatter.write_str(display),
             Self::Current { access, .. } => formatter.write_str(access.as_str()),
             Self::Named { access, child, .. } => {
@@ -450,6 +457,10 @@ impl std::fmt::Display for LocalAccess {
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
+    ModuleInstance {
+        path: Box<ModuleInstantiatePath>,
+        import_name: Identifier,
+    },
     ConversionTarget {
         expression: Box<SExp>,
     },
@@ -1311,7 +1322,7 @@ pub enum Statement {
 impl LocalAccess {
     pub fn span(&self) -> SourceSpan {
         match self {
-            Self::Current { span, .. } | Self::Named { span, .. } | Self::Resolved { span, .. } => {
+            Self::Instantiated { span, .. } | Self::Current { span, .. } | Self::Named { span, .. } | Self::Resolved { span, .. } => {
                 *span
             }
         }

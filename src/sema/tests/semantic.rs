@@ -132,6 +132,24 @@ fn dependency_edits_invalidate_users_and_match_a_clean_check() {
 }
 
 #[test]
+fn temporary_module_dependencies_invalidate_cached_users() {
+    let original = project().with_file(
+        "/virtual/Left.ref",
+        r"\definition p: \Prop := \root.Base[].P;",
+    );
+    let mut database = Database::new();
+    let initial = database.check(&original);
+    assert!(initial.is_success(), "{initial:?}");
+    assert_eq!(database.check(&original), initial);
+    assert_eq!(database.stats().checked_modules, 0);
+    let edited = original.with_file("/virtual/Base.ref", r"\definition P: \Set := \Prop;");
+    let changed = database.check(&edited);
+    assert!(!changed.is_success(), "{changed:?}");
+    assert_eq!(changed, Database::new().check(&edited));
+    assert!(database.check(&original).is_success());
+}
+
+#[test]
 fn persistent_results_survive_database_recreation_and_corruption_is_a_miss() {
     let cache = Cache::new();
     let snapshot = project();

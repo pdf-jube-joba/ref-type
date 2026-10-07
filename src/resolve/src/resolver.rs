@@ -312,6 +312,7 @@ impl Resolver {
                 *span,
             ),
             LocalAccess::Resolved { .. } => return Ok(()),
+            LocalAccess::Instantiated { .. } => return Err(self.error("unresolved module expression")),
         };
         let spelling = name.as_str().trim_end_matches('^');
         loop {
@@ -902,7 +903,18 @@ impl Resolver {
         name: &mut Identifier,
         checks: &mut Vec<(SExp, SExp)>,
     ) -> Result<(), Diagnostic> {
+        self.resolve_import_in_scope(path, name, checks, &[])
+    }
+
+    fn resolve_import_in_scope(
+        &mut self,
+        path: &mut ModuleInstantiatePath,
+        name: &mut Identifier,
+        checks: &mut Vec<(SExp, SExp)>,
+        locals: &[HashMap<String, Identifier>],
+    ) -> Result<(), Diagnostic> {
         let (mut target, calls) = match path {
+            ModuleInstantiatePath::FromModule { module, calls } => (*module, calls),
             ModuleInstantiatePath::FromRoot { calls } => (ModuleId(0), calls),
             ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
                 let mut base = self.current;
@@ -962,7 +974,13 @@ impl Resolver {
                         self.error("module arguments do not allow inference holes (`_` or `?`)")
                     );
                 }
-                self.expanded_expression(argument, &mut Vec::new())?;
+                let mut template = false;
+                macros::walk_sexp_mut(argument, &mut |node| {
+                    template |= matches!(node, SExp::MacroParameter(_));
+                });
+                if !template {
+                    self.expanded_expression(argument, &mut locals.to_vec())?;
+                }
             }
             target = *self.scopes[target.0 as usize]
                 .children
@@ -1003,7 +1021,7 @@ impl Resolver {
                         for bind in &mut input.callback_parameters {
                             *bind.ty = structures::substitute(&bind.ty, &argument_substitutions);
                         }
-                        let (fields, guards) = self.callback_arguments(&input, &argument, &[])?;
+                        let (fields, guards) = self.callback_arguments(&input, &argument, locals)?;
                         checks.extend(guards);
                         for (path, expression) in input.fields.iter().zip(fields) {
                             expanded.push((Identifier(format!("{}.{}", name.0, path)), expression));

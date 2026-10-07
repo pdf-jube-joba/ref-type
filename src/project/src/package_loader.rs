@@ -201,37 +201,18 @@ fn valid_name(name: &str) -> bool {
 }
 
 fn qualify_imports(module: &mut Module, package: &str, available: &HashSet<String>) {
-    let ModuleBody::Inline(items) = &mut module.body else {
-        return;
-    };
-    qualify_item_imports(items, package, available);
-}
-
-fn qualify_item_imports(items: &mut [ModuleItem], package: &str, available: &HashSet<String>) {
-    for item in items {
-        match item {
-            ModuleItem::Scoped { items, .. } => qualify_item_imports(items, package, available),
-            ModuleItem::ChildModule { module } => qualify_imports(module, package, available),
-            ModuleItem::Import { path, .. } => {
-                let replacement = match path {
-                    ModuleInstantiatePath::FromRoot { calls } => {
-                        Some((package.to_owned(), calls.clone()))
-                    }
-                    ModuleInstantiatePath::FromImport { import_name, calls }
-                        if available.contains(import_name.as_str()) =>
-                    {
-                        Some((import_name.0.clone(), calls.clone()))
-                    }
-                    _ => None,
-                };
-                if let Some((name, calls)) = replacement {
-                    let mut qualified = Vec::with_capacity(calls.len() + 1);
-                    qualified.push((Identifier(name), Vec::new()));
-                    qualified.extend(calls);
-                    *path = ModuleInstantiatePath::FromRoot { calls: qualified };
-                }
-            }
-            _ => {}
+    use syntax::visit::ModulePaths;
+    module.visit_module_paths(&mut |path| {
+        let replacement = match path {
+            ModuleInstantiatePath::FromRoot { calls } => Some((package.to_owned(), calls.clone())),
+            ModuleInstantiatePath::FromImport { import_name, calls }
+                if available.contains(import_name.as_str()) => Some((import_name.0.clone(), calls.clone())),
+            _ => None,
+        };
+        if let Some((name, calls)) = replacement {
+            let mut qualified = vec![(Identifier(name), Vec::new())];
+            qualified.extend(calls);
+            *path = ModuleInstantiatePath::FromRoot { calls: qualified };
         }
-    }
+    });
 }

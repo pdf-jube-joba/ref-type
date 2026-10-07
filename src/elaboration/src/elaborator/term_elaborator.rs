@@ -18,6 +18,13 @@ pub(crate) trait Handler {
     fn locate_error(&mut self, span: SourceSpan);
     fn env(&self) -> &CrateEnv;
     fn arena(&self) -> &Arena;
+    fn instantiate_module(
+        &mut self,
+        path: &ModuleInstantiatePath,
+        name: &Identifier,
+        scope: &mut LocalScope,
+    ) -> Result<(), ElaborationError>;
+    fn materialize_module_term(&mut self, context: &ExpContext, term: Exp) -> Result<Exp, ElaborationError>;
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
@@ -389,6 +396,10 @@ impl LocalScope {
             _ => self.elab_exp_rec(exp, handler),
         }
     }
+    pub(crate) fn context(&self) -> &ExpContext {
+        &self.typing_binds
+    }
+
     pub(crate) fn new() -> Self {
         LocalScope {
             bindings: vec![],
@@ -742,7 +753,9 @@ impl LocalScope {
         match exp {
             SExp::Checked { checks, body } => {
                 for (value, ty) in checks {
-                    if let SExp::ConversionTarget { expression } = ty {
+                    if let SExp::ModuleInstance { path, import_name } = value {
+                        handler.instantiate_module(path, import_name, self)?;
+                    } else if let SExp::ConversionTarget { expression } = ty {
                         if let (Ok(left), Ok(right)) = (
                             self.elab_exp_rec(value, handler),
                             self.elab_exp_rec(expression, handler),
@@ -762,12 +775,17 @@ impl LocalScope {
                         handler.check_program_member(value, ty)?;
                     }
                 }
-                match expected {
+                let value = match expected {
                     Some(expected) => self.elab_with_expected(body, expected, handler),
                     None => self.elab_exp_rec(body, handler),
+                }?;
+                if checks.iter().any(|(value, _)| matches!(value, SExp::ModuleInstance { .. })) {
+                    handler.materialize_module_term(&self.typing_binds, value)
+                } else {
+                    Ok(value)
                 }
             }
-            SExp::ConversionTarget { .. } | SExp::ProgramValueReference { .. } => {
+            SExp::ModuleInstance { .. } | SExp::ConversionTarget { .. } | SExp::ProgramValueReference { .. } => {
                 Err("Program value requires reflection".into())
             }
             SExp::MemberAccess { .. } | SExp::MemberLiteral { .. } => {

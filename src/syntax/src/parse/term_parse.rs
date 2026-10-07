@@ -897,8 +897,79 @@ impl<'a> TermParser<'a> {
         Ok(params)
     }
 
+    fn starts_module_call_at(&self, position: usize) -> bool {
+        let token = |offset: usize| self.tokens.get(position + offset).map(|token| token.kind);
+        matches!(token(0), Some(Token::Ident(_)))
+            && token(1) == Some(Token::LBracket)
+            && (matches!((token(2), token(3)), (Some(Token::Ident(_)), Some(Token::Assign)))
+                || (token(2) == Some(Token::RBracket) && token(3) == Some(Token::Period)))
+    }
+
+    fn starts_module_expression(&self) -> bool {
+        matches!(self.peek(), Some(Token::Period | Token::KeyWord("\\root" | "\\parent")))
+            || self.starts_module_call_at(self.pos)
+            || (matches!(self.peek(), Some(Token::Ident(_)))
+                && self.tokens.get(self.pos + 1).is_some_and(|t| t.kind == Token::Period)
+                && self.starts_module_call_at(self.pos + 2))
+    }
+
+    fn parse_module_expression_access(&mut self) -> Result<LocalAccess, ParseError> {
+        let start = self.span_at(self.pos).start;
+        let mut path = if self.bump_if_keyword("\\root") {
+            self.expect_token(Token::Period)?;
+            ModuleInstantiatePath::FromRoot { calls: Vec::new() }
+        } else if self.bump_if_token(Token::Period) {
+            ModuleInstantiatePath::FromCurrent { back_parent: 0, calls: Vec::new() }
+        } else if self.peek() == Some(&Token::KeyWord("\\parent")) {
+            let mut back_parent = 0;
+            while self.bump_if_keyword("\\parent") {
+                self.expect_token(Token::Period)?;
+                back_parent += 1;
+            }
+            ModuleInstantiatePath::FromCurrent { back_parent, calls: Vec::new() }
+        } else if self.tokens.get(self.pos + 1).is_some_and(|t| t.kind == Token::Period) {
+            let import_name = self.expect_ident()?;
+            self.expect_token(Token::Period)?;
+            ModuleInstantiatePath::FromImport { import_name, calls: Vec::new() }
+        } else {
+            ModuleInstantiatePath::FromCurrent { back_parent: 0, calls: Vec::new() }
+        };
+        let calls = match &mut path {
+            ModuleInstantiatePath::FromRoot { calls }
+            | ModuleInstantiatePath::FromCurrent { calls, .. }
+            | ModuleInstantiatePath::FromImport { calls, .. } => calls,
+        };
+        while self.starts_module_call_at(self.pos) {
+            let name = self.expect_ident()?;
+            self.expect_token(Token::LBracket)?;
+            let mut arguments = Vec::new();
+            if !self.bump_if_token(Token::RBracket) {
+                loop {
+                    let parameter = self.expect_ident()?;
+                    self.expect_token(Token::Assign)?;
+                    arguments.push((parameter, self.parse_sexp()?));
+                    if self.bump_if_token(Token::RBracket) { break; }
+                    self.expect_token(Token::Comma)?;
+                }
+            }
+            calls.push((name, arguments));
+            self.expect_token(Token::Period)?;
+        }
+        let mut child = self.expect_ident()?;
+        if self.bump_if_token(Token::Caret) {
+            child.0.push('^');
+        }
+        Ok(LocalAccess::Instantiated {
+            span: SourceSpan { start, end: self.span_at(self.pos - 1).end },
+            path: Box::new(path), child,
+        })
+    }
+
     // A local or imported name, optionally followed by explicit Set reflection.
     fn parse_access_path(&mut self) -> Result<LocalAccess, ParseError> {
+        if self.starts_module_expression() {
+            return self.parse_module_expression_access();
+        }
         let start = self.span_at(self.position()).start;
         let first = self.expect_ident()?;
         let (namespace, mut name) = if self.bump_if_token(Token::Period) {
@@ -1004,7 +1075,7 @@ impl<'a> TermParser<'a> {
                     },
                 })
             }
-            Some(Token::Ident(_)) => {
+            Some(Token::Ident(_) | Token::Period | Token::KeyWord("\\root" | "\\parent")) => {
                 if let (Some(name), Some(bang)) =
                     (self.tokens.get(self.pos), self.tokens.get(self.pos + 1))
                     && matches!(bang.kind, Token::Exclamation)
@@ -1331,6 +1402,8 @@ impl<'a> TermParser<'a> {
         match self.peek() {
             Some(
                 Token::Ident(_)
+                    | Token::Period
+                    | Token::KeyWord("\\root" | "\\parent")
                 | Token::Hole
                 | Token::Metavariable(_)
                 | Token::MacroVar(_)
