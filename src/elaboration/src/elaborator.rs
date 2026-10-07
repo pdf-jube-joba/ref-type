@@ -1,25 +1,23 @@
-use crate::raw::ids::ModuleId;
-use crate::raw::{
-    calculus::{
-        exp_contains_inductive, exp_subst_map, instantiate_telescope, remap_all_global_ids,
-        shift_bound_indices, whnf,
-    },
-    derivation::CheckSession,
-    environment::{
-        CrateEnv, DefinedConstant, ModuleArgument, ModuleParameter, ModuleParameterKind,
-    },
-    exp::*,
-    ids::*,
-    inductive::{CtorBinder, InductiveTypeSpecs},
-    program_derivation::ProgramCheckSession,
-    program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
-    sort::Sort,
-};
 use crate::{
     elaborator::{module_manager::ItemAccessResult, term_elaborator::LocalScope},
     hir::*,
+    kernel_bridge::{instantiate_telescope, shift_bound_indices, whnf},
     metavariables::{ElaborationError, MetaStore},
     output::Output,
+    raw::{
+        derivation::CheckSession,
+        environment::{
+            CrateEnv, DefinedConstant, ModuleArgument, ModuleParameter, ModuleParameterKind,
+        },
+        exp::*,
+        ids::{ModuleId, *},
+        inductive::{CtorBinder, InductiveTypeSpecs},
+        program_derivation::ProgramCheckSession,
+        program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
+        remapping::{exp_subst_map, remap_all_global_ids},
+        sort::Sort,
+        traversal::exp_contains_inductive,
+    },
 };
 use std::collections::HashMap;
 

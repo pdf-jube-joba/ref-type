@@ -1,5 +1,4 @@
 //! Crate/module declarations and materialized-binding provenance.
-
 use crate::raw::{
     exp::{Arena, Exp},
     ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId, SymbolId},
@@ -683,7 +682,7 @@ impl CrateEnv {
                 .map(|(p, e)| {
                     (
                         *p,
-                        super::calculus::shift_bound_indices(self.arena(), *e, count, 0),
+                        crate::kernel_bridge::shift_bound_indices(self.arena(), *e, count, 0),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -699,15 +698,20 @@ impl CrateEnv {
                         .map(|&(p, value)| {
                             (
                                 p,
-                                super::calculus::shift_bound_indices(self.arena(), value, depth, 0),
+                                crate::kernel_bridge::shift_bound_indices(
+                                    self.arena(),
+                                    value,
+                                    depth,
+                                    0,
+                                ),
                             )
                         })
                         .collect::<Vec<_>>();
                     &shifted
                 };
-                super::calculus::exp_subst_map(
+                crate::raw::remapping::exp_subst_map(
                     self.arena(),
-                    super::calculus::remap_all_global_ids(
+                    crate::raw::remapping::remap_all_global_ids(
                         self.arena(),
                         e,
                         &remap.definition_ids,
@@ -719,9 +723,9 @@ impl CrateEnv {
             };
             let logical = |e| logical_at(e, 0);
             let value_ty = |t| {
-                super::program_calculus::subst_value_type_module_params(
+                crate::raw::remapping::subst_value_type_module_params(
                     self.arena(),
-                    super::program_calculus::remap_value_type_global_ids(
+                    crate::raw::remapping::remap_value_type_global_ids(
                         self.arena(),
                         t,
                         &remap.definition_ids,
@@ -731,9 +735,9 @@ impl CrateEnv {
                 )
             };
             let comp_ty = |t| {
-                super::program_calculus::subst_computation_type_module_params(
+                crate::raw::remapping::subst_computation_type_module_params(
                     self.arena(),
-                    super::program_calculus::remap_computation_type_global_ids(
+                    crate::raw::remapping::remap_computation_type_global_ids(
                         self.arena(),
                         t,
                         &remap.definition_ids,
@@ -765,9 +769,9 @@ impl CrateEnv {
                 },
                 DefinedConstant::ProgramValue { ty, body } => DefinedConstant::ProgramValue {
                     ty: value_ty(ty),
-                    body: super::program_calculus::subst_value_module_params(
+                    body: crate::raw::remapping::subst_value_module_params(
                         self.arena(),
-                        super::program_calculus::remap_value_global_ids(
+                        crate::raw::remapping::remap_value_global_ids(
                             self.arena(),
                             body,
                             &remap.definition_ids,
@@ -781,9 +785,9 @@ impl CrateEnv {
                 DefinedConstant::ProgramComputation { ty, body } => {
                     DefinedConstant::ProgramComputation {
                         ty: comp_ty(ty),
-                        body: super::program_calculus::subst_computation_module_params(
+                        body: crate::raw::remapping::subst_computation_module_params(
                             self.arena(),
-                            super::program_calculus::remap_computation_global_ids(
+                            crate::raw::remapping::remap_computation_global_ids(
                                 self.arena(),
                                 body,
                                 &remap.definition_ids,

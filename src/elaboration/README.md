@@ -12,8 +12,11 @@
 | [raw/](src/raw) | source 用 view、module 環境、名前と宣言 ID の対応 |
 | [lowering/](src/lowering) | parameter の捕捉、文脈引数、kernel の宣言登録 |
 | [kernel_bridge.rs](src/kernel_bridge.rs) | 遅延した具体化と kernel API への接続 |
+| [kernel_bridge/terms.rs](src/kernel_bridge/terms.rs) | source 用 handle から kernel の束縛操作・簡約・評価を呼ぶ adapter |
 
 型検査・単一化・簡約・reflection は kernel に委譲する。
+項の子の順序・binder の深さ・自由な束縛変数の情報も kernel の共有 API を使う。
+`raw/traversal.rs` は source 用 view の分類を行い、`raw/remapping.rs` は module parameter の置換と source の宣言 ID の付け替えを行う。
 宣言の確定時に `finish` で全メタ変数と保留制約の解決を確認する。
 `?` は解決済みでもゴールを表示して検査を失敗させる。
 

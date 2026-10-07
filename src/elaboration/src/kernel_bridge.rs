@@ -325,3 +325,6 @@ pub(crate) fn captured_definition(
         kernel.reference(id, arguments).map(Exp)
     })
 }
+
+mod terms;
+pub(crate) use terms::*;

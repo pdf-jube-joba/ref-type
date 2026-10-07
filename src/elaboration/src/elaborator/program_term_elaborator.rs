@@ -1,19 +1,4 @@
 //! Elaboration for the four disjoint Program syntactic categories.
-
-use crate::metavariables::{
-    ConstraintDiagnostic, ConstraintStatus, ElaborationError, MetaFlavor, MetaGoal, MetaState,
-};
-use crate::raw::{
-    environment::DefinedConstant,
-    ids::{MetaVarId, SymbolId},
-    program::{
-        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode,
-        ProgramArgument, ProgramContext, ProgramContextEntry, ValueTerm, ValueTermNode, ValueType,
-        ValueTypeNode,
-    },
-    program_derivation::ProgramCheckSession,
-};
-use crate::raw::{exp::Arena, printing::Printer, traversal::Term};
 use crate::{
     elaborator::{
         GlobalEnvironment, module_manager::ItemAccessResult, term_elaborator::LocalScope,
@@ -21,6 +6,22 @@ use crate::{
     hir::{
         ComputationTermExp, ComputationTypeExp, LocalAccess, ProgramFunctionExp, SExp, SourceSpan,
         SurfaceMeta, ValueTermExp, ValueTypeExp,
+    },
+    metavariables::{
+        ConstraintDiagnostic, ConstraintStatus, ElaborationError, MetaFlavor, MetaGoal, MetaState,
+    },
+    raw::{
+        environment::DefinedConstant,
+        exp::Arena,
+        ids::{MetaVarId, SymbolId},
+        printing::Printer,
+        program::{
+            ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode,
+            ProgramArgument, ProgramContext, ProgramContextEntry, ValueTerm, ValueTermNode,
+            ValueType, ValueTypeNode,
+        },
+        program_derivation::ProgramCheckSession,
+        traversal::Term,
     },
 };
 use std::collections::{HashMap, HashSet};
@@ -1129,7 +1130,7 @@ impl ProgramScope {
                         binders.iter().zip(field_types).enumerate()
                     {
                         let binder = environment.crate_env.intern_name(binder);
-                        let ty = crate::raw::program_calculus::shift_value_type_indices(
+                        let ty = crate::kernel_bridge::shift_value_type_indices(
                             environment.crate_env.arena(),
                             ty,
                             field_index,
@@ -1369,7 +1370,7 @@ impl ProgramScope {
                         else {
                             unreachable!()
                         };
-                        let ty = crate::raw::program_definitions::instantiate_value_type(
+                        let ty = crate::kernel_bridge::instantiate_value_type_parameters(
                             environment.crate_env.arena(),
                             ty,
                             &parameters,
@@ -1392,7 +1393,7 @@ impl ProgramScope {
                         else {
                             unreachable!()
                         };
-                        let ty = crate::raw::program_definitions::instantiate_computation_type(
+                        let ty = crate::kernel_bridge::instantiate_computation_type_parameters(
                             environment.crate_env.arena(),
                             ty,
                             &parameters,

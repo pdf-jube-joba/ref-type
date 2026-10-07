@@ -19,7 +19,7 @@ impl GlobalEnvironment {
             let classifier = scope.infer_elaborated(elaborated, self)?;
             self.finish_metavariables()?;
             let classifier = self.metavariables.zonk(&self.crate_env, classifier);
-            let classifier = crate::raw::calculus::whnf(&self.crate_env, classifier);
+            let classifier = crate::kernel_bridge::whnf(&self.crate_env, classifier);
             if matches!(
                 self.crate_env.arena().get(classifier),
                 ExpNode::Sort(Sort::Prop)

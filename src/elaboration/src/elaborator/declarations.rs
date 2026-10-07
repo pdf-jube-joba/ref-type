@@ -636,7 +636,7 @@ impl GlobalEnvironment {
             let telescope = constructor.fields().iter().enumerate().map(|(field_index, (name, ty))| {
                 let ty = crate::raw::reflection::reflect_value_type(&self.crate_env, *ty)
                     .map_err(|error| format!("cannot reflect Program constructor field: {error}"))?;
-                let ty = crate::raw::calculus::shift_bound_indices(
+                let ty = crate::kernel_bridge::shift_bound_indices(
                     self.crate_env.arena(),
                     ty,
                     field_index,

@@ -1,8 +1,11 @@
-use crate::raw::{
-    environment::{DefinedConstant, ModuleItem},
-    exp::ExpNode,
+use crate::{
+    elaborator::GlobalEnvironment,
+    metavariables::ElaborationError,
+    raw::{
+        environment::{DefinedConstant, ModuleItem},
+        exp::ExpNode,
+    },
 };
-use crate::{elaborator::GlobalEnvironment, metavariables::ElaborationError};
 use ::syntax::{
     parse,
     syntax::{SExp, SurfaceMeta},
@@ -1517,8 +1520,10 @@ fn step_match_distinguishes_branch_and_result_sorts() {
 
 #[test]
 fn run_step_inference_with_metavariables_preserves_the_universe() {
-    use crate::metavariables::MetaStore;
-    use crate::raw::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort};
+    use crate::{
+        metavariables::MetaStore,
+        raw::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort},
+    };
     use ::syntax::syntax::SourceSpan;
 
     for level in [0, 2] {
@@ -1633,10 +1638,12 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
 
 #[test]
 fn program_run_proofs_remain_valid_after_every_reduction() {
-    use crate::raw::{
-        environment::{DefinedConstant, ModuleItem},
-        program_calculus::reduce_computation_once,
-        program_derivation::ProgramCheckSession,
+    use crate::{
+        kernel_bridge::reduce_computation_once,
+        raw::{
+            environment::{DefinedConstant, ModuleItem},
+            program_derivation::ProgramCheckSession,
+        },
     };
     for source in [
         include_str!("../../../tests/ok/general-recursion/finish.ref"),
@@ -1723,9 +1730,9 @@ fn program_proofs_follow_local_binders_and_module_instantiation() {
 
 #[test]
 fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
-    use crate::raw::{
-        program::{ComputationTermNode, ValueTermNode},
-        program_calculus::{Evaluation, evaluate_computation},
+    use crate::{
+        kernel_bridge::{Evaluation, evaluate_computation},
+        raw::program::{ComputationTermNode, ValueTermNode},
     };
     let modules = parse::str_parse_modules(include_str!(
         "../../../tests/ok/general-recursion/block-syntax.ref"
@@ -1806,9 +1813,9 @@ fn program_application_classification_preserves_cbpv_boundaries() {
 
 #[test]
 fn program_cbv_arrows_and_lambdas_elaborate_to_alpha_equivalent_cbpv() {
-    use crate::raw::{
-        environment::{DefinedConstant, ModuleItem},
-        program_calculus::{computation_is_alpha_eq, computation_type_is_alpha_eq},
+    use crate::{
+        kernel_bridge::{computation_is_alpha_eq, computation_type_is_alpha_eq},
+        raw::environment::{DefinedConstant, ModuleItem},
     };
 
     let modules = parse::str_parse_modules(include_str!(
@@ -1887,12 +1894,12 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
     };
     let (ty, body) = checked_definition("f");
     let (explicit_ty, explicit_body) = checked_definition("explicit");
-    assert!(crate::raw::program_calculus::computation_type_is_alpha_eq(
+    assert!(crate::kernel_bridge::computation_type_is_alpha_eq(
         env.arena(),
         ty,
         explicit_ty
     ));
-    assert!(crate::raw::program_calculus::computation_is_alpha_eq(
+    assert!(crate::kernel_bridge::computation_is_alpha_eq(
         env.arena(),
         body,
         explicit_body
@@ -1900,7 +1907,7 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
     let reflection = crate::raw::reflection::reflect_computation(env, body).unwrap();
     let explicit_reflection =
         crate::raw::reflection::reflect_computation(env, explicit_body).unwrap();
-    assert!(crate::raw::calculus::exp_is_alpha_eq(
+    assert!(crate::kernel_bridge::exp_is_alpha_eq(
         env,
         reflection,
         explicit_reflection
@@ -1915,9 +1922,9 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
 
 #[test]
 fn program_records_generate_checked_projections_and_swap_fields() {
-    use crate::raw::{
-        program::{ComputationTermNode as C, ValueTermNode as V},
-        program_calculus::{Evaluation, evaluate_computation},
+    use crate::{
+        kernel_bridge::{Evaluation, evaluate_computation},
+        raw::program::{ComputationTermNode as C, ValueTermNode as V},
     };
     let modules =
         parse::str_parse_modules(include_str!("../../../tests/ok/program-items/records.ref"))
@@ -2018,9 +2025,9 @@ fn program_associated_imports_remap_later_declarations() {
 
 #[test]
 fn program_definition_parameters_are_substituted_simultaneously_under_binders() {
-    use crate::raw::{
-        program::{ComputationTermNode as C, ValueTypeNode as T},
-        program_definitions::instantiate_computation,
+    use crate::{
+        kernel_bridge::instantiate_computation_parameters,
+        raw::program::{ComputationTermNode as C, ValueTypeNode as T},
     };
     let env = crate::raw::environment::CrateEnv::new();
     let arena = env.arena();
@@ -2036,7 +2043,7 @@ fn program_definition_parameters_are_substituted_simultaneously_under_binders() 
             }),
         }),
     });
-    let instantiated = instantiate_computation(
+    let instantiated = instantiate_computation_parameters(
         &env,
         body,
         &[arena.value_type_bound(0), arena.value_type_bound(1)],

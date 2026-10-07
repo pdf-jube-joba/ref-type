@@ -107,17 +107,16 @@ impl GlobalEnvironment {
                     ModuleParameterKind::ProgramValue { ty } => {
                         let syntax: ValueTermExp = expression.clone().try_into()?;
                         let value = program_scope.elaborate_value(&syntax, self)?;
-                        let mut expected =
-                            crate::raw::program_calculus::subst_value_type_module_params(
-                                self.crate_env.arena(),
-                                ty,
-                                &program_substitutions,
-                            );
+                        let mut expected = crate::raw::remapping::subst_value_type_module_params(
+                            self.crate_env.arena(),
+                            ty,
+                            &program_substitutions,
+                        );
                         if let Some(base) = base {
                             let remapping = self
                                 .crate_env
                                 .remapping(self.crate_env.binding(base).remapping);
-                            expected = crate::raw::program_calculus::remap_value_type_global_ids(
+                            expected = crate::raw::remapping::remap_value_type_global_ids(
                                 self.crate_env.arena(),
                                 expected,
                                 &remapping.definition_ids,

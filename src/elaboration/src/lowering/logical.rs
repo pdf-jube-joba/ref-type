@@ -49,7 +49,7 @@ impl Lowerer<'_> {
             let shift = ctx
                 .len()
                 .saturating_sub(self.raw.definition_context(id.module).len());
-            let term = raw::calculus::shift_bound_indices(self.raw.arena(), term, shift, 0);
+            let term = crate::kernel_bridge::shift_bound_indices(self.raw.arena(), term, shift, 0);
             arguments.push(self.set(term, ctx, module)?);
         }
         Ok((origin.source.into(), arguments))

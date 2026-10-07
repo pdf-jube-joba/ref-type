@@ -1,9 +1,5 @@
 //! Source-facing views and provenance for the shared kernel expression arena.
-
 use super::traversal::Term;
-use rustc_hash::FxHashMap;
-use std::{cell::RefCell, rc::Rc};
-
 use crate::raw::{
     ids::{DefId, InductiveId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
     program::{
@@ -12,6 +8,8 @@ use crate::raw::{
     },
     sort::Sort,
 };
+use rustc_hash::FxHashMap;
+use std::{cell::RefCell, rc::Rc};
 
 fn split_program_spine(
     spine: Vec<ProgramArgument>,
@@ -314,8 +312,6 @@ pub struct Arena {
     pub(crate) core: kernel::syntax::Arena,
     atoms: RefCell<Atoms>,
     #[serde(skip)]
-    loose_bounds: RefCell<FxHashMap<Term, Option<usize>>>,
-    #[serde(skip)]
     pub(crate) lowered_definitions: RefCell<rustc_hash::FxHashSet<kernel::syntax::Expression>>,
     pub(crate) datatype_reflections:
         RefCell<FxHashMap<kernel::ids::ProgramInductiveId, kernel::ids::InductiveId>>,
@@ -400,7 +396,7 @@ impl Arena {
             .expect("source definition")
             .body
     }
-    fn reference_view(
+    pub(crate) fn reference_view(
         &self,
         id: kernel::ids::DefinitionId,
         arguments: Vec<kernel::syntax::Expression>,
@@ -476,20 +472,7 @@ impl Arena {
         handle.get(self)
     }
     pub(crate) fn max_loose_bound(&self, term: Term) -> Option<usize> {
-        if let Some(&max) = self.loose_bounds.borrow().get(&term) {
-            return max;
-        }
-        let mut result = term.bound_index(self);
-        term.visit_children(self, |child, depth| {
-            if let Some(index) = self
-                .max_loose_bound(child)
-                .and_then(|i| i.checked_sub(depth))
-            {
-                result = Some(result.map_or(index, |old| old.max(index)));
-            }
-        });
-        self.loose_bounds.borrow_mut().insert(term, result);
-        result
+        self.core.max_loose_bound(term.expression())
     }
     pub fn node_counts(&self) -> [(&'static str, usize); 1] {
         [("Expression", self.core.len())]
@@ -515,29 +498,12 @@ impl Arena {
             self.alloc(node)
         }
     }
-    pub(crate) fn borrow_value_type(&self, e: ValueType) -> Rc<ValueTypeNode> {
-        Rc::new(self.get(e))
-    }
-    pub(crate) fn reuse_computation_type(
-        &self,
-        original: ComputationType,
-        node: ComputationTypeNode,
-    ) -> ComputationType {
-        if self.get(original) == node {
-            original
-        } else {
-            self.alloc(node)
-        }
-    }
     pub(crate) fn reuse_value(&self, original: ValueTerm, node: ValueTermNode) -> ValueTerm {
         if self.get(original) == node {
             original
         } else {
             self.alloc(node)
         }
-    }
-    pub(crate) fn borrow_value(&self, e: ValueTerm) -> Rc<ValueTermNode> {
-        Rc::new(self.get(e))
     }
     pub(crate) fn reuse_computation(
         &self,
@@ -582,7 +548,6 @@ impl Arena {
         }
     }
 }
-
 use kernel::syntax::{Mode, Node as N};
 impl ArenaNode for ExpNode {
     type Handle = Exp;

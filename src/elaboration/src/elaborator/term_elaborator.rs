@@ -1,16 +1,19 @@
-use crate::elaborator::ItemAccessResult;
-use crate::elaborator::profiling::ProfileTimer;
-use crate::hir::*;
-use crate::items::{ModItemDefinition, ModItemInductive, ModItemRecord};
-use crate::metavariables::ElaborationError;
-use crate::raw::calculus::{
-    exp_contains_bound, instantiate, instantiate_telescope, shift_bound_indices, type_head_normal,
-    whnf,
+use crate::{
+    elaborator::{ItemAccessResult, profiling::ProfileTimer},
+    hir::*,
+    items::{ModItemDefinition, ModItemInductive, ModItemRecord},
+    kernel_bridge::{
+        instantiate, instantiate_telescope, shift_bound_indices, type_head_normal, whnf,
+    },
+    metavariables::ElaborationError,
+    raw::{
+        environment::{CrateEnv, DefinedConstant, ModuleItem},
+        exp::*,
+        ids::*,
+        program::{ComputationTerm, ComputationType, ValueType},
+        traversal::exp_contains_bound,
+    },
 };
-use crate::raw::environment::{CrateEnv, DefinedConstant, ModuleItem};
-use crate::raw::exp::*;
-use crate::raw::ids::*;
-use crate::raw::program::{ComputationTerm, ComputationType, ValueType};
 
 pub(crate) trait Handler {
     fn reflect_front_expression(&mut self, expression: &SExp) -> Result<Exp, ElaborationError>;
@@ -1001,7 +1004,7 @@ impl LocalScope {
                             }
                         };
                         let reflected = reflected.map_err(|error| error.to_string())?;
-                        return Ok(crate::raw::calculus::instantiate_telescope(
+                        return Ok(crate::kernel_bridge::instantiate_telescope(
                             handler.arena(),
                             reflected,
                             &reflected_parameters,
@@ -1088,7 +1091,7 @@ impl LocalScope {
                             let shifted_parameters = parameters
                                 .iter()
                                 .map(|parameter| {
-                                    crate::raw::calculus::shift_bound_indices(
+                                    crate::kernel_bridge::shift_bound_indices(
                                         handler.arena(),
                                         *parameter,
                                         1,

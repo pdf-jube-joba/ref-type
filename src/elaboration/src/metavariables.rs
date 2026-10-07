@@ -1,12 +1,14 @@
 //! Source holes and diagnostics backed by the kernel's contextual solver.
-use crate::hir::{SourceSpan, SurfaceMeta};
-use crate::raw::{
-    calculus::{base_carrier, instantiate, instantiate_telescope, map_children},
-    environment::CrateEnv,
-    exp::{Exp, ExpContext, ExpContextEntry, ExpNode},
-    ids::{InductiveId, MetaVarId, ModuleId},
-    sort::Sort,
-    utils::{assoc_apply, decompose_app},
+use crate::{
+    hir::{SourceSpan, SurfaceMeta},
+    kernel_bridge::{base_carrier, instantiate, instantiate_telescope},
+    raw::{
+        environment::CrateEnv,
+        exp::{Exp, ExpContext, ExpContextEntry, ExpNode},
+        ids::{InductiveId, MetaVarId, ModuleId},
+        sort::Sort,
+        utils::{assoc_apply, decompose_app},
+    },
 };
 use kernel::{
     metavariables::{Constraint, MetaContext, Outcome},
@@ -692,7 +694,7 @@ impl MetaStore {
                                 metas.insert(metavariable);
                                 pending.extend(spine);
                             }
-                            node => pending.extend(node_children(node)),
+                            _ => pending.extend(logical_children(env, exp)),
                         }
                     }
                     if metas.iter().any(|meta| related.contains(meta))
@@ -853,17 +855,19 @@ fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
                 result.insert(metavariable);
                 pending.extend(spine);
             }
-            node => pending.extend(node_children(node)),
+            _ => pending.extend(logical_children(env, exp)),
         }
     }
     result
 }
 
-fn node_children(node: ExpNode) -> Vec<Exp> {
+fn logical_children(env: &CrateEnv, exp: Exp) -> Vec<Exp> {
+    use crate::raw::traversal::Term;
     let mut children = Vec::new();
-    let _ = map_children(node, |child| {
-        children.push(child);
-        child
+    Term::Logical(exp).visit_children(env.arena(), |child, _| {
+        if let Term::Logical(child) = child {
+            children.push(child);
+        }
     });
     children
 }

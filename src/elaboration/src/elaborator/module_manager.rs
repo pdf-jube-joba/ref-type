@@ -1,18 +1,22 @@
-use crate::hir::{Identifier, LocalAccess};
-use crate::items::{ModItemDefinition, ModItemInductive, ModItemProgramInductive, ModItemRecord};
-use crate::raw::calculus::{exp_subst_map, remap_all_global_ids};
-use crate::raw::derivation::CheckSession;
-#[cfg(test)]
-use crate::raw::environment::ModuleParameter;
-use crate::raw::environment::{
-    CrateEnv, DeclarationRemapping, DefinedConstant, ModuleArgument, ModuleItem,
-    ModuleParameterKind,
-};
-use crate::raw::exp::{Exp, ExpContext, ExpContextEntry};
-use crate::raw::ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId};
-#[cfg(test)]
-use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{ProgramContext, ProgramContextEntry};
+#[cfg(test)]
+use crate::raw::{environment::ModuleParameter, inductive::InductiveTypeSpecs};
+use crate::raw::{
+    environment::{
+        CrateEnv, DeclarationRemapping, DefinedConstant, ModuleArgument, ModuleItem,
+        ModuleParameterKind,
+    },
+    exp::{Exp, ExpContext, ExpContextEntry},
+    ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
+};
+use crate::{
+    hir::{Identifier, LocalAccess},
+    items::{ModItemDefinition, ModItemInductive, ModItemProgramInductive, ModItemRecord},
+    raw::{
+        derivation::CheckSession,
+        remapping::{exp_subst_map, remap_all_global_ids},
+    },
+};
 use std::{cell::RefCell, collections::HashMap};
 
 #[derive(Debug, Clone)]
@@ -517,13 +521,13 @@ impl ModuleManager {
                         ModuleParameterKind::ProgramValue { ty },
                         ModuleArgument::ProgramValue(value),
                     ) => {
-                        let expected = crate::raw::program_calculus::remap_value_type_global_ids(
+                        let expected = crate::raw::remapping::remap_value_type_global_ids(
                             env.arena(),
                             ty,
                             &remapping.definition_ids,
                             &remapping.program_inductive_ids,
                         );
-                        let expected = crate::raw::program_calculus::subst_value_type_module_params(
+                        let expected = crate::raw::remapping::subst_value_type_module_params(
                             env.arena(),
                             expected,
                             &substitutions,
@@ -1286,9 +1290,11 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::raw::exp::ExpNode;
-    use crate::raw::inductive::{CtorType, InductiveTypeSpecs};
-    use crate::raw::sort::Sort;
+    use crate::raw::{
+        exp::ExpNode,
+        inductive::{CtorType, InductiveTypeSpecs},
+        sort::Sort,
+    };
 
     fn pts_body(definition: &DefinedConstant) -> Exp {
         match definition {
@@ -1685,9 +1691,9 @@ mod tests {
         let child = env
             .arena()
             .alloc(ExpNode::DefinedConstant(*child_definition));
-        assert!(crate::raw::calculus::exp_is_alpha_eq(
+        assert!(crate::kernel_bridge::exp_is_alpha_eq(
             &env,
-            crate::raw::calculus::whnf(&env, child),
+            crate::kernel_bridge::whnf(&env, child),
             argument,
         ));
     }
@@ -1809,9 +1815,9 @@ mod tests {
             unreachable!()
         };
         let result = env.arena().alloc(ExpNode::DefinedConstant(*definition));
-        assert!(crate::raw::calculus::exp_is_alpha_eq(
+        assert!(crate::kernel_bridge::exp_is_alpha_eq(
             &env,
-            crate::raw::calculus::whnf(&env, result),
+            crate::kernel_bridge::whnf(&env, result),
             argument,
         ));
     }

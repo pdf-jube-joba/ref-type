@@ -165,22 +165,17 @@ impl GlobalEnvironment {
                     computation = checked;
                 }
                 let output = if normalize {
-                    match crate::raw::program_calculus::evaluate_computation(
-                        &self.crate_env,
-                        computation,
-                    ) {
-                        crate::raw::program_calculus::Evaluation::Normal(result) => {
+                    match crate::kernel_bridge::evaluate_computation(&self.crate_env, computation) {
+                        crate::kernel_bridge::Evaluation::Normal(result) => {
                             Output::ComputationTerm(result)
                         }
-                        crate::raw::program_calculus::Evaluation::OutOfFuel(result) => {
+                        crate::kernel_bridge::Evaluation::OutOfFuel(result) => {
                             Output::OutOfFuel(result)
                         }
                     }
                 } else {
-                    let reduced = crate::raw::program_calculus::reduce_computation_once(
-                        &self.crate_env,
-                        computation,
-                    );
+                    let reduced =
+                        crate::kernel_bridge::reduce_computation_once(&self.crate_env, computation);
                     Output::ComputationTerm(reduced.unwrap_or(computation))
                 };
                 self.outputs.push(output);
@@ -253,7 +248,7 @@ impl GlobalEnvironment {
     fn pts_eval_query(&mut self, exp: &SExp, ctx: &mut ExpContext) -> Result<(), ElaborationError> {
         let exp_elab = self.elaborate_query_term(exp, ctx)?;
         self.outputs.push(Output::Exp(
-            crate::raw::calculus::reduce_one(&self.crate_env, exp_elab).unwrap_or(exp_elab),
+            crate::kernel_bridge::reduce_one(&self.crate_env, exp_elab).unwrap_or(exp_elab),
         ));
         Ok(())
     }
@@ -265,7 +260,7 @@ impl GlobalEnvironment {
     ) -> Result<(), ElaborationError> {
         let exp_elab = self.elaborate_query_term(exp, ctx)?;
         self.outputs
-            .push(Output::Exp(crate::raw::calculus::normalize(
+            .push(Output::Exp(crate::kernel_bridge::normalize(
                 &self.crate_env,
                 exp_elab,
             )));

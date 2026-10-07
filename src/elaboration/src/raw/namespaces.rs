@@ -2,7 +2,7 @@
 //!
 //! Namespace aliases do not confer identity. Only the original declaration and
 //! its arguments do; conversion in the kernel still compares ordinary type IDs.
-use super::{calculus, environment::*, exp::Exp, ids::*, program::*, program_calculus as pc};
+use super::{environment::*, exp::Exp, ids::*, program::*};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub(crate) struct Specialization<I> {
@@ -64,33 +64,35 @@ impl CrateEnv {
                 // Remap the source graph first. Inserted caller arguments must not
                 // themselves be remapped or substituted a second time.
                 let argument = match *argument {
-                    ModuleArgument::Pts(e) => ModuleArgument::Pts(calculus::exp_subst_map(
-                        self.arena(),
-                        calculus::remap_all_global_ids(
+                    ModuleArgument::Pts(e) => {
+                        ModuleArgument::Pts(crate::raw::remapping::exp_subst_map(
                             self.arena(),
-                            e,
-                            &remapping.definition_ids,
-                            &remapping.inductive_ids,
-                            &remapping.program_inductive_ids,
-                        ),
-                        reflected,
-                    )),
-                    ModuleArgument::ProgramType(t) => {
-                        ModuleArgument::ProgramType(pc::subst_value_type_module_params(
+                            crate::raw::remapping::remap_all_global_ids(
+                                self.arena(),
+                                e,
+                                &remapping.definition_ids,
+                                &remapping.inductive_ids,
+                                &remapping.program_inductive_ids,
+                            ),
+                            reflected,
+                        ))
+                    }
+                    ModuleArgument::ProgramType(t) => ModuleArgument::ProgramType(
+                        crate::raw::remapping::subst_value_type_module_params(
                             self.arena(),
-                            pc::remap_value_type_global_ids(
+                            crate::raw::remapping::remap_value_type_global_ids(
                                 self.arena(),
                                 t,
                                 &remapping.definition_ids,
                                 &remapping.program_inductive_ids,
                             ),
                             substitutions,
-                        ))
-                    }
-                    ModuleArgument::ProgramValue(v) => {
-                        ModuleArgument::ProgramValue(pc::subst_value_module_params(
+                        ),
+                    ),
+                    ModuleArgument::ProgramValue(v) => ModuleArgument::ProgramValue(
+                        crate::raw::remapping::subst_value_module_params(
                             self.arena(),
-                            pc::remap_value_global_ids(
+                            crate::raw::remapping::remap_value_global_ids(
                                 self.arena(),
                                 v,
                                 &remapping.definition_ids,
@@ -99,8 +101,8 @@ impl CrateEnv {
                             ),
                             substitutions,
                             reflected,
-                        ))
-                    }
+                        ),
+                    ),
                 };
                 (*id, argument)
             })
@@ -133,10 +135,10 @@ impl CrateEnv {
                 lp == rp
                     && match (*l, *r) {
                         (ModuleArgument::Pts(l), ModuleArgument::Pts(r)) => {
-                            calculus::convertible(self, l, r)
+                            crate::kernel_bridge::convertible(self, l, r)
                         }
                         (ModuleArgument::ProgramType(l), ModuleArgument::ProgramType(r)) => {
-                            pc::value_type_is_alpha_eq(self.arena(), l, r)
+                            crate::kernel_bridge::value_type_is_alpha_eq(self.arena(), l, r)
                         }
                         (ModuleArgument::ProgramValue(l), ModuleArgument::ProgramValue(r)) => {
                             l == r
@@ -150,7 +152,7 @@ impl CrateEnv {
                                         ProgramTerm::ValueTerm(r),
                                     ),
                                 ) {
-                                    (Ok(l), Ok(r)) => calculus::convertible(self, l, r),
+                                    (Ok(l), Ok(r)) => crate::kernel_bridge::convertible(self, l, r),
                                     _ => false,
                                 }
                         }
