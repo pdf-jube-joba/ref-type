@@ -4,7 +4,7 @@ use crate::{
     environment::Environment,
     ids::{InductiveId, ProgramInductiveId, SymbolId},
     metavariables::{Error, MetaContext},
-    sort::{BaseSort, Sort},
+    sort::{BaseSort, ProductRule, Sort},
     syntax::*,
 };
 
@@ -591,7 +591,7 @@ impl<'a> Checker<'a> {
             Node::Product { var, domain, body } => {
                 let a = self.formation(domain)?;
                 let b = self.under(var, domain, |c| c.formation(body))?;
-                let result = a.product(b).ok_or("no product rule for these sorts")?;
+                let result = ProductRule::new(a, b)?.result;
                 if result.base().is_program() {
                     self.type_dependencies(term)?;
                 }

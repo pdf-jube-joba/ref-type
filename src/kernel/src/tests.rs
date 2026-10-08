@@ -1206,6 +1206,30 @@ fn product_signature_and_overflow_cover_all_program_relations() {
 }
 
 #[test]
+fn product_rule_errors_identify_both_sorts_and_their_levels() {
+    use crate::sort::ProductRule;
+    use BaseSort::*;
+    use Sort::{Base as B, Upper as U};
+    assert_eq!(
+        ProductRule::new(U(Value(2)), B(Value(4))).unwrap_err(),
+        "no product rule for domain \\VKind(2) and body \\VType(4)"
+    );
+    let env = Environment::new();
+    let a = &env.arena;
+    let proposition = sort(a, Prop);
+    let context = vec![binding(proposition)];
+    let ty = product(a, a.bound(0), proposition);
+    let error = Checker::new(&env, &mut MetaContext::new(), context)
+        .infer(ty)
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("no product rule for domain \\Prop and body \\PropKind")
+    );
+}
+
+#[test]
 fn set_and_prop_product_universes_are_non_cumulative() {
     use BaseSort::*;
     use Sort::{Base as B, Upper as U};

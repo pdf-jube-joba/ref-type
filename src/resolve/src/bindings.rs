@@ -35,6 +35,16 @@ fn fresh_binder(
 }
 
 fn rename_access(access: &mut LocalAccess, scopes: &[HashMap<String, Identifier>]) {
+    if let LocalAccess::Named { access, .. } = access {
+        if let Some(fresh) = scopes
+            .iter()
+            .rev()
+            .find_map(|scope| scope.get(access.as_str()))
+        {
+            *access = fresh.clone();
+        }
+        return;
+    }
     let LocalAccess::Current { access, .. } = access else {
         return;
     };

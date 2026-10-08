@@ -1149,3 +1149,104 @@ fn parent_and_external_references_share_checked_child_declarations() {
     let lines: Vec<_> = output.lines().collect();
     assert_eq!(lines.len(), 2, "{output}");
 }
+
+#[test]
+fn structure_result_arrows_check_lambdas_and_their_applications() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r"\module Playground(Carrier: \Set, x: Carrier) {
+  \structure A[Carrier: \Set] { a: Carrier }
+  \structure B[Carrier: \Set] { b: Carrier }
+  \definition AtoB[Carrier: \Set]: A[Carrier] -> B[Carrier] :=
+    \fun (data: A[Carrier]) => B[Carrier] { b := data.a };
+  \definition choose[Carrier: \Set]: A[Carrier] -> A[Carrier] -> B[Carrier] :=
+    \fun (left, right: A[Carrier]) => B[Carrier] { b := right.a };
+  \definition make[Carrier: \Set]: Carrier -> B[Carrier] :=
+    \fun (value: Carrier) => B[Carrier] { b := value };
+  \definition dependent: \forall (Carrier: \Set) -> A[Carrier] -> B[Carrier] :=
+    \fun (Carrier: \Set) => \fun (data: A[Carrier]) => B[Carrier] { b := data.a };
+  \definition captured: \forall (value: Carrier) -> B[Carrier] :=
+    \fun (value: Carrier) => B[Carrier] { b := (\fun (x: Carrier) => value) x };
+  \definition input: A[Carrier] := A[Carrier] { a := x };
+  \definition output: B[Carrier] := AtoB[Carrier] input;
+  \definition chosen: B[Carrier] := choose[Carrier] input input;
+  \definition made: B[Carrier] := make[Carrier] x;
+  \definition dep: B[Carrier] := dependent Carrier input;
+  \definition cap: B[Carrier] := captured x;
+  \definition sameDependent: dep.b = x := \refl(x);
+  \definition sameCaptured: cap.b = x := \refl(x);
+  \definition same: output.b = x := \refl(x);
+  \definition sameChosen: chosen.b = x := \refl(x);
+  \definition sameMade: made.b = x := \refl(x);
+}
+",
+    );
+    let result = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert!(result.status.success(), "{}", output_details(&result));
+}
+
+#[test]
+fn structure_type_projection_diagnostics_explain_value_access_and_keep_the_location() {
+    let fixture = FixtureDirectory::new();
+    let source = r"\module Playground {
+  \structure A: \SetKind {
+    Carrier: \Set,
+    a: Carrier,
+  }
+
+  \structure ALaw {
+    data: A,
+    some: A.a = A.a,
+  }
+}";
+    let root = fixture.write("root.ref", source);
+    let result = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert_eq!(result.status.code(), Some(1), "{}", output_details(&result));
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    for expected in ["structure type 'A'", "data.a", "A::a", "root.ref:9:", "^^^"] {
+        assert!(stderr.contains(expected), "missing {expected}: {stderr}");
+    }
+    fixture.write("root.ref", &source.replace("A.a = A.a", "data.a = data.a"));
+    let valid = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert!(valid.status.success(), "{}", output_details(&valid));
+}
+
+#[test]
+fn generated_projection_diagnostics_show_the_rejected_product_sorts() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r"\module M { \structure Bad: \Prop { b: \Prop } }",
+    );
+    for mode in ["compact", "detailed"] {
+        let result =
+            run_ref_file_with_args(&fixture.0, &root, &["--no-cache", "--diagnostics", mode])
+                .unwrap();
+        assert_eq!(result.status.code(), Some(1), "{}", output_details(&result));
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        for expected in [
+            "Generated projection b",
+            r"domain \Prop and body \PropKind",
+            "root.ref:1:",
+        ] {
+            assert!(stderr.contains(expected), "missing {expected}: {stderr}");
+        }
+    }
+}
+
+#[test]
+fn structure_result_lambdas_check_their_parameter_annotations() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r"\module M(A: \Set, B: \Set) {
+  \structure Box[Carrier: \Set] { value: Carrier }
+  \definition bad: A -> Box[B] := \fun (value: B) => Box[B] { value := value };
+}",
+    );
+    let result = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert_eq!(result.status.code(), Some(1), "{}", output_details(&result));
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(stderr.contains("not convertible"), "{stderr}");
+}

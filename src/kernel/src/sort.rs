@@ -18,6 +18,27 @@ pub struct ProductRule {
     pub result: Sort,
 }
 
+impl std::fmt::Display for Sort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use BaseSort::*;
+        let (name, level) = match self {
+            Self::Base(Set(i)) => ("Set", Some(i)),
+            Self::Upper(Set(i)) => ("SetKind", Some(i)),
+            Self::Base(Prop) => ("Prop", None),
+            Self::Upper(Prop) => ("PropKind", None),
+            Self::Base(Value(i)) => ("VType", Some(i)),
+            Self::Upper(Value(i)) => ("VKind", Some(i)),
+            Self::Base(Computation(i)) => ("CType", Some(i)),
+            Self::Upper(Computation(i)) => ("CKind", Some(i)),
+        };
+        write!(f, "\\{name}")?;
+        if let Some(level) = level {
+            write!(f, "({level})")?;
+        }
+        Ok(())
+    }
+}
+
 impl BaseSort {
     pub fn level(self) -> Option<usize> {
         match self {
@@ -84,7 +105,7 @@ impl ProductRule {
             body,
             result: domain
                 .product(body)
-                .ok_or("no product rule for these sorts")?,
+                .ok_or_else(|| format!("no product rule for domain {domain} and body {body}"))?,
         })
     }
 

@@ -524,6 +524,18 @@ impl term_elaborator::Handler for GlobalEnvironment {
         let infer_type_e = self.infer(local_ctx, e).map_err(|error| {
             format!("Failed to infer type of expression for field projection: {error}")
         })?;
+        if let ExpNode::IndType { indspec, .. } =
+            self.crate_env.arena().get(whnf(&self.crate_env, e))
+            && let Some(record) = self
+                .module_manager
+                .get_moditem_record(&self.crate_env, indspec)
+        {
+            let name = record.type_name.as_str();
+            return Err(format!(
+                "Cannot project field '{}' from structure type '{name}'; use a structure value (e.g. data.{}) or {name}::{} for the projection function",
+                field_name.as_str(), field_name.as_str(), field_name.as_str()
+            ).into());
+        }
         let mut candidates = vec![(e, infer_type_e)];
         let mut found_inductive = false;
         let mut found_record = false;

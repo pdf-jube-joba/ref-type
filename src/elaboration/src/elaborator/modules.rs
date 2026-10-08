@@ -375,39 +375,45 @@ impl GlobalEnvironment {
                         format!("{subject} has an ill-formed Program value type: {error}")
                     })?;
                 ModuleParameterKind::ProgramValue { ty: program_ty }
-            } else if let Ok(mut pts_ty) = local_scope.elab_exp(ty, self) {
-                if !self.metavariables.is_empty() {
-                    self.metavariables
-                        .infer_sort(
-                            &self.crate_env,
-                            self.module_manager.current(),
-                            &mut ctx,
-                            pts_ty,
-                        )
-                        .map_err(|message| {
-                            self.metavariables
-                                .constraint_error(&self.crate_env, message)
-                        })?;
-                    self.finish_metavariables()?;
-                    pts_ty = self.metavariables.zonk(&self.crate_env, pts_ty);
-                }
-                CheckSession::new(&self.crate_env, &mut ctx)
-                    .infer_sort(pts_ty)
-                    .map_err(|error| {
-                        format!("{subject} must have a type or proposition: {error}")
-                    })?;
-                ModuleParameterKind::Pts { ty: pts_ty }
             } else {
-                let program_ty: ValueTypeExp = ty.as_ref().clone().try_into()?;
-                let program_ty = program_scope.elaborate_value_type(&program_ty, self)?;
-                program_scope.finish_metas(self)?;
-                let mut program_context = program_scope.context().clone();
-                ProgramCheckSession::new(&self.crate_env, &mut program_context)
-                    .check_value_type(program_ty)
-                    .map_err(|error| {
-                        format!("{subject} has an ill-formed Program value type: {error}")
-                    })?;
-                ModuleParameterKind::ProgramValue { ty: program_ty }
+                match local_scope.elab_exp(ty, self) {
+                    Ok(mut pts_ty) => {
+                        if !self.metavariables.is_empty() {
+                            self.metavariables
+                                .infer_sort(
+                                    &self.crate_env,
+                                    self.module_manager.current(),
+                                    &mut ctx,
+                                    pts_ty,
+                                )
+                                .map_err(|message| {
+                                    self.metavariables
+                                        .constraint_error(&self.crate_env, message)
+                                })?;
+                            self.finish_metavariables()?;
+                            pts_ty = self.metavariables.zonk(&self.crate_env, pts_ty);
+                        }
+                        CheckSession::new(&self.crate_env, &mut ctx)
+                            .infer_sort(pts_ty)
+                            .map_err(|error| {
+                                format!("{subject} must have a type or proposition: {error}")
+                            })?;
+                        ModuleParameterKind::Pts { ty: pts_ty }
+                    }
+                    Err(pts_error) => {
+                        let program_ty =
+                            ValueTypeExp::try_from(ty.as_ref().clone()).map_err(|_| pts_error)?;
+                        let program_ty = program_scope.elaborate_value_type(&program_ty, self)?;
+                        program_scope.finish_metas(self)?;
+                        let mut program_context = program_scope.context().clone();
+                        ProgramCheckSession::new(&self.crate_env, &mut program_context)
+                            .check_value_type(program_ty)
+                            .map_err(|error| {
+                                format!("{subject} has an ill-formed Program value type: {error}")
+                            })?;
+                        ModuleParameterKind::ProgramValue { ty: program_ty }
+                    }
+                }
             };
 
             for v in vars {

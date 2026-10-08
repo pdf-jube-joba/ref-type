@@ -1,6 +1,92 @@
 use super::*;
 
 impl Resolver {
+    fn is_declaration_lambda(&self, expression: &SExp) -> bool {
+        match expression {
+            SExp::Lam {
+                bind: Bind::Named(bind),
+                body,
+            } => {
+                self.is_structure_type(&bind.ty)
+                    || self.declaration_signature(&bind.ty).is_some()
+                    || self.is_declaration_lambda(body)
+            }
+            SExp::Block(block) => block
+                .as_term()
+                .is_ok_and(|body| self.is_declaration_lambda(&body)),
+            SExp::Checked { body, .. } => self.is_declaration_lambda(body),
+            SExp::MemberLiteral { ty, .. } => self.is_structure_type(ty),
+            SExp::RecordTypeCtor { access, .. } => self
+                .front_binding(access, &[])
+                .is_some_and(|id| self.structures.contains_key(&id)),
+            SExp::App { func, .. } => self.is_declaration_lambda(func),
+            SExp::AccessPath { access, .. } => self
+                .front_binding(access, &[])
+                .is_some_and(|id| self.structure_values.contains_key(&id)),
+            _ => false,
+        }
+    }
+
+    fn apply_declaration_lambda(
+        &mut self,
+        function: &SExp,
+        argument: &SExp,
+        locals: &[HashMap<String, Identifier>],
+    ) -> Result<SExp, Diagnostic> {
+        // Give inserted arguments and lambda binders distinct lexical identities.
+        let mut function = function.clone();
+        macros::rename_template_binders(&mut function, self.fresh_hygiene());
+        self.lexical(&mut function, &mut locals.to_vec());
+        let SExp::Lam {
+            bind: Bind::Named(mut bind),
+            body,
+        } = function
+        else {
+            unreachable!()
+        };
+        let name = bind.vars.remove(0);
+        let mut argument = argument.clone();
+        self.expression(&mut argument, &mut locals.to_vec())?;
+
+        let mut parameters = vec![RightBind {
+            vars: vec![name.clone()],
+            ty: bind.ty.clone(),
+        }];
+        let mut scope = locals.to_vec();
+        self.expand_structure_parameters(&mut parameters, &mut scope, false)?;
+        let input = self.last_inputs[0].clone();
+        let (arguments, mut checks) = if input.signature.is_some() {
+            self.callback_arguments(&input, &argument, locals)?
+        } else {
+            (
+                vec![if input.computation {
+                    thunk(argument.clone())
+                } else {
+                    argument.clone()
+                }],
+                Vec::new(),
+            )
+        };
+        let mut substitutions = HashMap::new();
+        for (parameter, argument) in parameters.iter().zip(arguments) {
+            checks.push((argument.clone(), substitute(&parameter.ty, &substitutions)));
+            substitutions.insert(parameter.vars[0].1.unwrap(), argument);
+        }
+        let mut result = if bind.vars.is_empty() {
+            *body
+        } else {
+            SExp::Lam {
+                bind: Bind::Named(bind),
+                body,
+            }
+        };
+        result = substitute(&result, &HashMap::from([(name.1.unwrap(), argument)]));
+        Ok(SExp::Checked {
+            checks,
+            body: Box::new(result),
+        })
+    }
+
     fn anchor_module_path(&self, path: &mut ModuleInstantiatePath) -> Result<(), Diagnostic> {
         if let ModuleInstantiatePath::FromCurrent { back_parent, calls } = path {
             let mut module = self.current;
@@ -48,6 +134,53 @@ impl Resolver {
         let mut error = None;
         macros::walk_sexp_control(expression, &mut |node| {
             if error.is_some() {
+                return false;
+            }
+            let mut head = &*node;
+            let mut arguments = Vec::new();
+            while let SExp::App { func, arg } = head {
+                arguments.push(arg.as_ref());
+                head = func;
+            }
+            if !arguments.is_empty()
+                && matches!(head, SExp::Lam { bind: Bind::Named(bind), .. } if !bind.vars.is_empty())
+                && self.is_declaration_lambda(head)
+            {
+                let mut result = head.clone();
+                let mut checks = Vec::new();
+                for argument in arguments.into_iter().rev() {
+                    if matches!(&result, SExp::Lam { bind: Bind::Named(bind), .. } if !bind.vars.is_empty())
+                    {
+                        match self.apply_declaration_lambda(&result, argument, locals) {
+                            Ok(SExp::Checked {
+                                checks: guards,
+                                body,
+                            }) => {
+                                checks.extend(guards);
+                                result = *body;
+                            }
+                            Ok(_) => unreachable!(),
+                            Err(e) => {
+                                error = Some(e);
+                                return false;
+                            }
+                        }
+                    } else {
+                        result = SExp::App {
+                            func: Box::new(result),
+                            arg: Box::new(argument.clone()),
+                        };
+                    }
+                }
+                let mut result = SExp::Checked {
+                    checks,
+                    body: Box::new(result),
+                };
+                if let Err(e) = self.normalize_structures(&mut result, locals) {
+                    error = Some(e);
+                } else {
+                    *node = result;
+                }
                 return false;
             }
             let access = match node {
@@ -113,6 +246,10 @@ impl Resolver {
                     matches!(
                         head,
                         SExp::Checked { .. }
+                            | SExp::Lam {
+                                bind: Bind::Named(_),
+                                ..
+                            }
                             | SExp::AccessPath {
                                 access: LocalAccess::Instantiated { .. },
                                 ..

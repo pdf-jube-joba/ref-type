@@ -82,6 +82,25 @@ pub(in crate::resolver) fn substitute(
 ) -> SExp {
     let mut expression = expression.clone();
     macros::walk_sexp_control(&mut expression, &mut |node| {
+        if let SExp::AccessPath {
+            access:
+                LocalAccess::Named {
+                    access,
+                    child,
+                    span,
+                },
+            parameters,
+        } = node
+            && let Some(value) = access.1.and_then(|id| values.get(&id))
+        {
+            *node = SExp::MemberAccess {
+                base: Box::new(value.clone()),
+                field: child.clone(),
+                parameters: parameters.clone(),
+                span: *span,
+            };
+            return false;
+        }
         if let SExp::ProgramValueReference {
             access: LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
         } = node
