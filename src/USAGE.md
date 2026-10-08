@@ -54,7 +54,14 @@ cargo run -p cli --release --locked -- libs/std --full-check-local
 `--cache-stats` の `environment_hits` は復元した checkpoint 数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計サイズである。
 
 通常の検査、`--full-check`、`--full-check-local`、`--no-cache` は、子 module を含む各 module の `check` / `skip` と所要秒数を標準エラーに表示する。
-`check` の秒数はその module の検査時間、`skip` の秒数は検査結果のキャッシュ読み込み時間である。
+秒数は module ごとの読み込み・構文解析・名前解決と展開・検査・解析情報の収集・検査結果のキャッシュ処理を合計した実測の経過時間であり、処理の終了時に表示する。
+子 module や依存 module の時間は、その module 自身に計上する。
+生成された内部 module の時間は、元のソース module に計上する。
+再利用した module にも、今回実際に行った解析やキャッシュ処理の時間を表示する。
+`shared` は `total` から各 module の時間合計を引いた値であり、個別の module に計上していない処理の時間を表す。
+ソース全体の読み込み、共通の環境準備、checkpoint の保存・復元、環境の解放などが含まれる。
+各 module と `shared` の秒数の合計が `total` に一致するのは、この計算方法によるものであり、独立した計測値同士の一致を確認した結果ではない。
+`total` は CLI 内の引数処理から module の計測結果の表示と環境の解放までの時間であり、Cargo のビルド・プロセス起動時間と最後の `shared` / `total` の表示時間は別である。
 
 ```sh
 cargo run -p cli -- libs/topology --full-check-local

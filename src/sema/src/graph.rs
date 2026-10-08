@@ -34,6 +34,7 @@ impl<'a> ModuleGraph<'a> {
             fingerprint(format!("{:?}", graph.indices.keys().collect::<Vec<_>>()).as_bytes());
         let mut aliases: BTreeMap<Vec<String>, BTreeMap<String, Vec<String>>> = BTreeMap::new();
         for index in 0..graph.units.len() {
+            let _time = timing::Scope::module(|| graph.units[index].path.clone());
             let path = graph.units[index].path.clone();
             let parent = &path[..path.len() - 1];
             let mut visible = aliases.get(parent).cloned().unwrap_or_default();
@@ -203,6 +204,7 @@ impl<'a> ModuleGraph<'a> {
     }
 
     pub fn key(&self, index: usize, settings: &Fingerprint) -> Fingerprint {
+        let _time = timing::Scope::module(|| self.units[index].path.clone());
         let mut bytes = settings.to_vec();
         bytes.extend(self.topology);
         for dependency in self.closure([index]) {
@@ -222,6 +224,7 @@ impl<'a> ModuleGraph<'a> {
                 .units
                 .iter()
                 .position(|unit| std::ptr::eq(unit.module, module))?;
+            let _time = timing::Scope::module(|| graph.units[index].path.clone());
             if !selected.contains(&index) {
                 return None;
             }

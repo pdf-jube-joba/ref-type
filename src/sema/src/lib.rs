@@ -17,3 +17,5 @@ pub use progress::{ModuleProgress, ProgressAction};
 mod environment;
 
 pub use elaboration::DiagnosticMode;
+
+pub use timing;

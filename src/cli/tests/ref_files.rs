@@ -602,7 +602,12 @@ fn compact_parse_errors_skip_independent_typechecking() {
     assert!(compact.contains("Broken.ref:1:"), "{compact}");
     let diagnostic_lines = |text: &str| {
         text.lines()
-            .filter(|line| !line.starts_with("check ") && !line.starts_with("skip "))
+            .filter(|line| {
+                !line.starts_with("check ")
+                    && !line.starts_with("skip ")
+                    && !line.starts_with("shared (")
+                    && !line.starts_with("total (")
+            })
             .map(str::to_owned)
             .collect::<Vec<_>>()
     };
@@ -717,7 +722,10 @@ fn trace_is_on_stderr_and_preserves_command_output() {
     assert!(
         String::from_utf8_lossy(&normal.stderr)
             .lines()
-            .all(|line| line.starts_with("check ") || line.starts_with("skip "))
+            .all(|line| line.starts_with("check ")
+                || line.starts_with("skip ")
+                || line.starts_with("shared (")
+                || line.starts_with("total ("))
     );
     let stderr = String::from_utf8_lossy(&traced.stderr);
     assert!(stderr.contains("kernel_check"), "{stderr}");
@@ -955,6 +963,34 @@ fn module_progress_reports_checks_skips_children_and_seconds_in_every_mode() {
             let seconds = line.split_once(" (").unwrap().1.strip_suffix("s)").unwrap();
             assert!(seconds.parse::<f64>().unwrap() >= 0.0, "{line}");
         }
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let seconds = |line: &str| {
+            line.split_once(" (")
+                .unwrap()
+                .1
+                .strip_suffix("s)")
+                .unwrap()
+                .parse::<f64>()
+                .unwrap()
+        };
+        let shared = seconds(
+            stderr
+                .lines()
+                .find(|line| line.starts_with("shared ("))
+                .unwrap(),
+        );
+        let total = seconds(
+            stderr
+                .lines()
+                .find(|line| line.starts_with("total ("))
+                .unwrap(),
+        );
+        let sum = lines.iter().map(|line| seconds(line)).sum::<f64>() + shared;
+        assert!(total > 0.0);
+        assert!(
+            (sum - total).abs() <= total * 0.01,
+            "sum={sum}, total={total}: {stderr}"
+        );
         let mut quiet_args = args.clone();
         quiet_args.push("--no-progress");
         let quiet = run_ref_file_with_args(&fixture.0, &root, &quiet_args).unwrap();

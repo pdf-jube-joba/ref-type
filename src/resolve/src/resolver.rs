@@ -195,6 +195,7 @@ impl Resolver {
         let mut path = self.paths.get(&parent).cloned().unwrap_or_default();
         path.push(component);
         self.paths.insert(module.id, path);
+        let _time = timing::Scope::module(|| self.path(module.id));
         self.scopes.push(Scope {
             parent: Some(parent),
             ..Scope::default()
@@ -443,6 +444,7 @@ impl Resolver {
         Ok(())
     }
     fn module(&mut self, id: ModuleId) -> Result<(), Diagnostic> {
+        let _time = timing::Scope::module(|| self.path(id));
         match self.states.get(&id) {
             Some(2) => return Ok(()),
             Some(1) => return Err(self.error("cyclic module import dependency")),

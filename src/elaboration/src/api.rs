@@ -207,6 +207,7 @@ impl Checker {
                 selected,
                 &mut |position, workspace| {
                     if position <= first_gap && checkpoints.contains(&position) {
+                        let _time = timing::Scope::shared();
                         save(
                             position,
                             crate::checkpoint::serialize(workspace)

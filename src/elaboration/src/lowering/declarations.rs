@@ -49,6 +49,8 @@ impl Lowerer<'_> {
         {
             return Ok(());
         }
+        let _time =
+            timing::Scope::module(|| crate::elaborator::analysis::module_path(self.raw, id.module));
         tracing::debug!(target:"ref_type::lowering",?id,"lower definition");
         let _phase = std::env::var_os("REF_TYPE_PROFILE_PHASES").map(|_| {
             crate::profiling::Phase::start(format!(
@@ -196,6 +198,8 @@ impl Lowerer<'_> {
     }
 
     fn lower_inductive(&mut self, id: InductiveId, mut ctx: ExpContext) -> Result<(), String> {
+        let _time =
+            timing::Scope::module(|| crate::elaborator::analysis::module_path(self.raw, id.module));
         let m = id.module;
         let raw = self.raw.inductive(id).clone();
         let parameters = raw
@@ -279,6 +283,8 @@ impl Lowerer<'_> {
     }
 
     fn lower_datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
+        let _time =
+            timing::Scope::module(|| crate::elaborator::analysis::module_path(self.raw, id.module));
         let raw = self.raw.program_inductive(id).clone();
         let mut parameters = self.capture_context(true)?;
         for &var in raw.parameters() {
@@ -326,6 +332,9 @@ impl Lowerer<'_> {
         let _phase = crate::profiling::Phase::start("lowering.all");
         let parameters = crate::profiling::Phase::start("lowering.parameters");
         for id in self.raw.parameter_ids() {
+            let _time = timing::Scope::module(|| {
+                crate::elaborator::analysis::module_path(self.raw, id.module)
+            });
             let captures = self.captures(Declaration::Parameter(id));
             self.in_scope(captures, 0, 0, |this| {
                 let context = this.capture_context(true)?;

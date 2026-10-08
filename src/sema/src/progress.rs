@@ -14,23 +14,24 @@ pub enum ProgressAction {
 pub struct ModuleProgress {
     pub path: Vec<String>,
     pub action: ProgressAction,
+    /// Exclusive time across loading, resolution, checking and result storage.
     pub elapsed: Duration,
 }
 
 struct State {
     path: Vec<String>,
-    elapsed: Duration,
     cached: bool,
     checked: bool,
-    reported: bool,
 }
 
-/// Track source modules; synthetic modules share their enclosing source unit.
+/// Report after all module work, including analysis and cache writes, has finished.
+/// Synthetic modules are charged to their enclosing source module by timing scopes.
 pub(crate) struct Reporter {
     callback: Option<fn(&ModuleProgress)>,
     modules: BTreeMap<usize, State>,
     steps: BTreeMap<usize, usize>,
     last: BTreeMap<usize, usize>,
+    order: Vec<usize>,
 }
 
 impl Reporter {
@@ -44,15 +45,12 @@ impl Reporter {
             .iter()
             .filter(|&&index| callback.is_some() && (!package || graph.units[index].path.len() > 1))
             .map(|&index| {
-                let unit = &graph.units[index];
                 (
                     index,
                     State {
-                        path: unit.path.clone(),
-                        elapsed: Duration::ZERO,
+                        path: graph.units[index].path.clone(),
                         cached: false,
                         checked: false,
-                        reported: false,
                     },
                 )
             })
@@ -62,13 +60,13 @@ impl Reporter {
             modules,
             steps: BTreeMap::new(),
             last: BTreeMap::new(),
+            order: Vec::new(),
         }
     }
 
-    pub fn reused(&mut self, index: usize, elapsed: Duration) {
+    pub fn reused(&mut self, index: usize, _: Duration) {
         if let Some(state) = self.modules.get_mut(&index) {
             state.cached = true;
-            state.elapsed += elapsed;
         }
     }
 
@@ -80,9 +78,9 @@ impl Reporter {
     }
 
     pub fn skip_cached(&mut self) {
-        for (&index, state) in &mut self.modules {
-            if state.cached && !self.last.contains_key(&index) {
-                Self::report(self.callback, state, ProgressAction::Skip);
+        for (&index, state) in &self.modules {
+            if state.cached && !self.last.contains_key(&index) && !self.order.contains(&index) {
+                self.order.push(index);
             }
         }
     }
@@ -110,40 +108,50 @@ impl Reporter {
         self.skip_cached();
     }
 
-    pub fn step(&mut self, position: usize, elapsed: Duration) {
-        let Some(index) = self.steps.get(&position) else {
+    pub fn step(&mut self, position: usize, _: Duration) {
+        let Some(&index) = self.steps.get(&position) else {
             return;
         };
-        let Some(state) = self.modules.get_mut(index) else {
+        let Some(state) = self.modules.get_mut(&index) else {
             return;
         };
-        if !state.checked {
-            state.elapsed = Duration::ZERO;
-            state.checked = true;
-        }
-        state.elapsed += elapsed;
-        if self.last.get(index) == Some(&position) {
-            Self::report(self.callback, state, ProgressAction::Check);
+        state.checked = true;
+        if self.last.get(&index) == Some(&position) && !self.order.contains(&index) {
+            self.order.push(index);
         }
     }
 
     pub fn finish_batch(&mut self) {
-        for state in self.modules.values_mut().filter(|state| state.checked) {
-            Self::report(self.callback, state, ProgressAction::Check);
+        for (&index, state) in &self.modules {
+            if state.checked && !self.order.contains(&index) {
+                self.order.push(index);
+            }
         }
         self.last.clear();
     }
+}
 
-    fn report(callback: Option<fn(&ModuleProgress)>, state: &mut State, action: ProgressAction) {
-        if state.reported {
+impl Drop for Reporter {
+    fn drop(&mut self) {
+        self.skip_cached();
+        let Some(callback) = self.callback else {
             return;
+        };
+        for (&index, state) in &self.modules {
+            if !self.order.contains(&index) && timing::elapsed(&state.path) > Duration::ZERO {
+                self.order.push(index);
+            }
         }
-        state.reported = true;
-        if let Some(callback) = callback {
+        for &index in &self.order {
+            let state = &self.modules[&index];
             callback(&ModuleProgress {
                 path: state.path.clone(),
-                action,
-                elapsed: state.elapsed,
+                action: if state.cached && !state.checked {
+                    ProgressAction::Skip
+                } else {
+                    ProgressAction::Check
+                },
+                elapsed: timing::elapsed(&state.path),
             });
         }
     }

@@ -790,6 +790,7 @@ impl GlobalEnvironment {
         let child = self
             .crate_env
             .reserve_child_module(parent, module.name.0.clone());
+        let _time = timing::Scope::module(|| analysis::module_path(&self.crate_env, child));
         self.crate_env.publish_child_module(child)?;
         self.predeclared_modules.insert(module, child);
         self.module_manager.hir_modules.insert(module.id, child);
@@ -966,6 +967,8 @@ impl GlobalEnvironment {
                     .get(id)
                     .ok_or("unknown HIR module in execution order")?;
                 let module_id = self.predeclared_modules[&(module as *const Module)];
+                let _time =
+                    timing::Scope::module(|| analysis::module_path(&self.crate_env, module_id));
                 self.module_manager.moveto(module_id);
                 let started = std::time::Instant::now();
                 let result = match *step {

@@ -982,3 +982,45 @@ fn recovery_reuses_verified_dependencies_without_retrying_failed_modules() {
         detailed.diagnostics[0].message.lines().next()
     );
 }
+
+#[test]
+fn module_timings_include_preparation_and_keep_generated_scopes_with_the_source() {
+    use std::{cell::RefCell, time::Duration};
+    thread_local! {
+        static EVENTS: RefCell<Vec<sema::ModuleProgress>> = const { RefCell::new(Vec::new()) };
+    }
+    fn receive(event: &sema::ModuleProgress) {
+        EVENTS.with_borrow_mut(|events| events.push(event.clone()));
+    }
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert(
+        "/virtual/root.ref",
+        r"\module Parent(C: \Set, x: C) {
+        \structure Box[Carrier: \Set] { value: Carrier }
+        \definition make[Carrier: \Set]: Carrier -> Box[Carrier] :=
+            \fun (value: Carrier) => Box[Carrier] { value := value };
+        \definition box: Box[C] := make[C] x;
+        \module Child { \definition value: C := x; }
+    }",
+    );
+    let session = sema::timing::Session::start(true);
+    let result = Database::new().check_with_options(
+        &snapshot,
+        &sema::CheckOptions {
+            force: true,
+            progress: Some(receive),
+            ..Default::default()
+        },
+    );
+    assert!(result.is_success(), "{:?}", result.diagnostics);
+    let measurements = session.finish().unwrap();
+    EVENTS.with_borrow_mut(|events| {
+        assert_eq!(events.len(), 2);
+        assert_eq!(measurements.modules.len(), 2);
+        for event in events.drain(..) {
+            assert!(event.elapsed > Duration::ZERO);
+            assert_eq!(event.elapsed, measurements.modules[&event.path]);
+        }
+    });
+    assert!(measurements.modules.values().sum::<Duration>() <= measurements.total);
+}

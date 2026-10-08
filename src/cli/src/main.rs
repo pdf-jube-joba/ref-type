@@ -1,5 +1,9 @@
 use clap::Parser;
-use std::{io::IsTerminal, path::PathBuf};
+use std::{cell::RefCell, io::IsTerminal, path::PathBuf, time::Duration};
+
+thread_local! {
+    static PROGRESS: RefCell<Vec<sema::ModuleProgress>> = const { RefCell::new(Vec::new()) };
+}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -48,9 +52,45 @@ enum DiagnosticMode {
 }
 
 fn main() -> anyhow::Result<()> {
+    let timing = sema::timing::Session::start(true);
     let args = Args::parse();
+    let timing = if args.no_progress || args.parse_only {
+        drop(timing);
+        sema::timing::Session::start(false)
+    } else {
+        timing
+    };
     init_tracing(args.trace)?;
-    let err = run_path(&args)?;
+    let result = run_path(&args);
+    if let Some(measurements) = timing.measurements() {
+        let mut modules = Duration::ZERO;
+        PROGRESS.with_borrow_mut(|events| {
+            for progress in events.drain(..) {
+                let elapsed = measurements
+                    .modules
+                    .get(&progress.path)
+                    .copied()
+                    .unwrap_or(progress.elapsed);
+                modules += elapsed;
+                let action = match progress.action {
+                    sema::ProgressAction::Check => "check",
+                    sema::ProgressAction::Skip => "skip",
+                };
+                eprintln!(
+                    "{action} {} ({:.9}s)",
+                    progress.path.join("."),
+                    elapsed.as_secs_f64()
+                );
+            }
+        });
+        let measurements = timing.finish().expect("CLI owns the timing session");
+        eprintln!(
+            "shared ({:.9}s)",
+            (measurements.total - modules).as_secs_f64()
+        );
+        eprintln!("total ({:.9}s)", measurements.total.as_secs_f64());
+    }
+    let err = result?;
     if err.is_some() {
         std::process::exit(1);
     }
@@ -149,15 +189,7 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
 }
 
 fn show_progress(progress: &sema::ModuleProgress) {
-    let action = match progress.action {
-        sema::ProgressAction::Check => "check",
-        sema::ProgressAction::Skip => "skip",
-    };
-    eprintln!(
-        "{action} {} ({:.3}s)",
-        progress.path.join("."),
-        progress.elapsed.as_secs_f64()
-    );
+    PROGRESS.with_borrow_mut(|events| events.push(progress.clone()));
 }
 
 fn clear_cache_directory(directory: &std::path::Path) -> anyhow::Result<()> {

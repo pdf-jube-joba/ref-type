@@ -20,7 +20,7 @@ pub struct CheckOptions {
     pub force: bool,
     /// Recheck the entry package while reusing dependency results and environments.
     pub force_local: bool,
-    /// Receive completion events for source modules, including child modules.
+    /// Receive source module timings after analysis and result storage finish.
     pub progress: Option<fn(&ModuleProgress)>,
     pub collect_statistics: bool,
     pub diagnostics: elaboration::DiagnosticMode,
@@ -200,6 +200,7 @@ impl Database {
         options: &CheckOptions,
         select: impl Fn(&crate::graph::Unit<'_>) -> bool,
     ) -> Arc<SemanticResult> {
+        let _timing = timing::Session::start(options.progress.is_some());
         self.stats = QueryStats {
             environment_bytes: self.environments.bytes(),
             ..QueryStats::default()
@@ -326,6 +327,7 @@ impl Database {
         let mut results = BTreeMap::new();
         let mut misses = BTreeSet::new();
         for &index in &requested {
+            let _time = timing::Scope::module(|| graph.units[index].path.clone());
             if blocked.contains(&index) {
                 continue;
             }
@@ -579,6 +581,7 @@ impl Database {
                 }
             }
             for (index, result) in fresh {
+                let _time = timing::Scope::module(|| graph.units[index].path.clone());
                 let result = Arc::new(result);
                 // Only batches accepted by the kernel produce persistent records.
                 if checked.is_ok() {
@@ -600,7 +603,10 @@ impl Database {
         let result = Arc::new(SemanticResult {
             modules: results
                 .into_values()
-                .map(|result| result.as_ref().clone())
+                .map(|result| {
+                    let _time = timing::Scope::module(|| result.path.clone());
+                    result.as_ref().clone()
+                })
                 .collect(),
             diagnostics,
         });
@@ -624,6 +630,7 @@ fn collect_analysis(
     results: &mut BTreeMap<usize, ModuleResult>,
 ) {
     for declaration in &workspace.analysis().declarations {
+        let _time = timing::Scope::module(|| declaration.module.clone());
         if let Some(result) = graph
             .indices
             .get(&declaration.module)
@@ -641,6 +648,7 @@ fn collect_analysis(
         }
     }
     for reference in &workspace.analysis().references {
+        let _time = timing::Scope::module(|| reference.module.clone());
         if let Some(result) = graph
             .indices
             .get(&reference.module)
@@ -657,12 +665,14 @@ fn collect_analysis(
         }
     }
     for result in results.values_mut() {
+        let _time = timing::Scope::module(|| result.path.clone());
         let mut seen = HashSet::new();
         result
             .references
             .retain(|reference| seen.insert(reference.clone()));
     }
     for output in &workspace.analysis().outputs {
+        let _time = timing::Scope::module(|| output.module.clone());
         if let Some(result) = graph
             .indices
             .get(&output.module)

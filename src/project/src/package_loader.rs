@@ -1,4 +1,4 @@
-use crate::module_loader::{DiskSource, SourceProvider, load_modules};
+use crate::module_loader::{DiskSource, SourceProvider, load_modules_in_scope};
 use std::{
     collections::{HashMap, HashSet},
     path::{Path, PathBuf},
@@ -109,7 +109,8 @@ impl Loader {
             dependencies.push(id);
         }
         let source = package.directory.join("src/root.ref");
-        let mut children = load_modules(&source, provider)?;
+        let mut children =
+            load_modules_in_scope(&source, provider, std::slice::from_ref(&package.name))?;
         for child in &mut children {
             qualify_imports(child, &package.name, &available);
         }
