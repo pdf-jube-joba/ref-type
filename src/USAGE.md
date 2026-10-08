@@ -41,6 +41,18 @@ std = { path = "../std" }
 
 キャッシュの仕組みと API は [sema](sema/README.md) を参照。
 
+同じコマンドを二度実行すると、別プロセスでのキャッシュ再利用を確認できる。
+
+```sh
+cargo run -p cli --release --locked -- libs/std --cache-stats
+cargo run -p cli --release --locked -- libs/std --cache-stats
+cargo run -p cli --release --locked -- libs/std --no-cache
+cargo run -p cli --release --locked -- libs/std --full-check
+cargo run -p cli --release --locked -- libs/std --full-check-local
+```
+
+`--cache-stats` の `environment_hits` は復元した checkpoint 数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計サイズである。
+
 通常の検査、`--full-check`、`--full-check-local`、`--no-cache` は、子 module を含む各 module の `check` / `skip` と所要秒数を標準エラーに表示する。
 `check` の秒数はその module の検査時間、`skip` の秒数は検査結果のキャッシュ読み込み時間である。
 
@@ -60,7 +72,8 @@ B の変更、キャッシュの欠損・破損がある場合は、現在の依
 ログと診断は標準エラー、query の結果は標準出力に書く。
 診断にはファイル位置、局所文脈、要求された型と制約を表示する。
 `#0` は最も内側の束縛を指す。
-`_` は推論する穴、`_0` などは宣言内で共有する穴、`?` は解決後も診断を返す確認用のゴールである。
+`_` は推論する穴、`_0` などは宣言内で共有する穴である。
+`?` は確認用のゴールであり、解決済みでもゴールを表示して検査を失敗させる。
 
 `RUST_LOG` は `--trace` の既定フィルタより優先する。
 

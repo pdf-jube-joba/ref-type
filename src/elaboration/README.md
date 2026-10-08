@@ -18,7 +18,6 @@
 項の子の順序・binder の深さ・自由な束縛変数の情報も kernel の共有 API を使う。
 `raw/traversal.rs` は source 用 view の分類を行い、`raw/remapping.rs` は module parameter の置換と source の宣言 ID の付け替えを行う。
 宣言の確定時に `finish` で全メタ変数と保留制約の解決を確認する。
-`?` は解決済みでもゴールを表示して検査を失敗させる。
 
 ## API と診断
 
@@ -31,6 +30,7 @@ CLI の診断モードと計測環境変数は [利用方法](../USAGE.md#診断
 ## 環境 checkpoint
 
 `check_range` は検査順の指定区間を処理し、選んだ位置で環境を直列化する。
+`check_range_with_progress` は各検査ステップの位置と所要時間も callback に通知する。
 checkpoint は batch の検証成功後に公開し、失敗前の prefix は問い合わせ内の復旧にも使う。
 `restore_environment` は圧縮 checkpoint を復元し、raw と kernel の arena を再接続する。
 identity と checksum の確認は呼び出し側の `sema` が行う。
