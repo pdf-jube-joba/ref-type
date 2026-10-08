@@ -10,10 +10,14 @@ fn check(source: &str) -> Result<(), String> {
 }
 
 #[test]
-fn g05_module_expression() {
-    check(include_str!(
-        "../../../_plans/fix-md/cases/05-01-module-expression.ref"
-    ))
+fn module_expression_returns_carrier() {
+    check(
+        r"\module Family { \module Dimension(A: \Set) { \definition Carrier: \Set := A; } }
+        \module Consumer {
+            \import \root.Family[] \as F;
+            \definition Carrier(A: \Set): \Set := F.Dimension[A := A].Carrier;
+        }",
+    )
     .unwrap();
 }
 

@@ -7,21 +7,20 @@
 一般の理論と有限行列による計算を接続し、計算結果は元の核を像で割った加群との同型として返す。
 
 [特異コホモロジー計画](singular-cohomology.md) はこの基盤を使って位相空間のコホモロジーを計算する。
-[多様体・De Rham 計画](manifolds-de-rham.md) の体上の余鎖複体と商ベクトル空間は、本計画の加群上の構成を具体化して共有する。
+[De Rham コホモロジー](../libs/differential_forms/README.md) の余鎖複体と商ベクトル空間は、実装済みの加群上の構成を利用している。
 この文書全体を一つの実装単位とし、各節は中間検査点とする。
 一般のアーベル圏上の導来関手、導来圏、スペクトル系列は、この実装を用いて拡張する後続の単位とする。
 
 ## 現状
 
-2026-10-07 時点のソースを調査した。
-今回の計画作成では既存ライブラリ全体の型検査は再実行していない。
+加群・複体の実装済み API は [algebra](../libs/algebra/README.md) と [homological_algebra](../libs/homological_algebra/README.md) にまとめる。
 
-| 既存の実装 | 再利用する内容 | 不足 |
+| 既存の実装 | 再利用する内容 | 本計画で追加する内容 |
 | --- | --- | --- |
-| `std.Alg.Ring` | 環・可換環・`RingModule` と加法可換群への変換 | 加群準同型・部分加群・商加群の一般構成 |
+| `algebra.Module` | 加群準同型・同型、関数加群、部分加群、核・像・商と商の普遍性 | 第一同型定理、自由加群、直和、一般加群のテンソル積、射影加群 |
+| `homological_algebra.Cochain`、`Integer` | 自然数・整数次数の余鎖複体、コホモロジー、誘導写像、零拡張と復元 | 鎖複体、鎖ホモトピー、シフト、cone、長完全列、分解と有限計算 |
 | `algebra.Exact`、`Exact.Groups` | 核・像・完全性、可換群の核と像 | 短完全列、接続準同型、図式補題 |
-| `std.Set.Quotient`、`algebra.Quotient` | 商と演算・写像の降下 | 商加群と核・余核の普遍性 |
-| `linear_algebra.Field.Space` | 線形写像・部分空間・有限和・テンソル積 | 環上への一般化、任意集合上の自由加群 |
+| `linear_algebra.Field.Space` | 線形写像・部分空間・商・有限和・テンソル積 | 一般加群の構成との接続 |
 | `std.Data.Nat.Gcd`、`Division` | 最大公約数と除法の数学的仕様・Program・対応証明 | 整数の拡張 Euclid、行列の整数基本変形、Smith 標準形 |
 | `category` | 小圏、関手、自然変換、極限・随伴 | 加法圏・アーベル圏の語彙、加群族との接続 |
 
@@ -33,7 +32,7 @@
 | `algebra` | `Module`、`Module.Hom`、`Submodule`、`Quotient`、`Free`、`DirectSum`、`Product`、`Tensor`、`Projective`、`IntegerMatrix`、`Smith` |
 | `linear_algebra` | 一般加群構成の体上への具体化と既存 API との同型・整合性 |
 | `category` | `Preadditive`、`Additive`、`Abelian` の構造と基本的な普遍性 |
-| `homological_algebra`（新設） | `Chain`、`Cochain`、`Homology`、`Cohomology`、`Map`、`Homotopy`、`Cone`、`ExactSequence`、`Resolution`、`Ext`、`Tor`、`UniversalCoefficient`、`Kunneth`、`Finite` |
+| `homological_algebra` | `Chain`、`Cochain`、`Homology`、`Cohomology`、`Map`、`Homotopy`、`Cone`、`ExactSequence`、`Resolution`、`Ext`、`Tor`、`UniversalCoefficient`、`Kunneth`、`Finite` |
 
 `homological_algebra` の直接依存は `std`・`algebra`・`category` とする。
 一般の加群構成は `algebra` が所有し、体固有の構成と既存の利用側は `linear_algebra` が接続する。

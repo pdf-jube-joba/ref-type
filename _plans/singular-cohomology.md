@@ -13,11 +13,9 @@ De Rham 同型、Poincaré 双対性、一般の無限 CW 複体、局所係数�
 
 ## 現状とパッケージ分割
 
-2026-10-07 時点で `algebraic_topology` には区間・ホモトピー・ホモトピー同値・cone・suspension・cofiber・有限 CW 対がある。
+`algebraic_topology` には区間・ホモトピー・ホモトピー同値・cone・suspension・cofiber・有限 CW 対がある。
 有限 CW 複体は特性写像・内部の同相条件・弱位相などを入力データとして保持する。
-球面・円板のコンパクト性と有限 CW 対の cofibration は [G06](gaps.md#g06) の module 具体化問題で停止していると記録されている。
 特異鎖、単体複体、ホモロジー、カップ積、セル境界の次数計算は追加が必要である。
-今回の計画作成ではソースと文書を確認し、ライブラリ全体の型検査は再実行していない。
 
 | パッケージ | 追加する module 群と役割 |
 | --- | --- |
@@ -29,7 +27,7 @@ De Rham 同型、Poincaré 双対性、一般の無限 CW 複体、局所係数�
 `singular_cohomology` は `std`・`algebra`・`real`・`topology`・`topological_algebra`・`algebraic_topology`・`homological_algebra` を直接の利用に応じて依存に持つ。
 幾何的な実現と空間の構成は `algebraic_topology`、そのコホモロジーの計算と比較定理は `singular_cohomology` が担当する。
 `algebraic_topology` から `singular_cohomology` への依存は生じない構成とする。
-実数係数の群は [De Rham 計画](manifolds-de-rham.md) と同じ Dedekind 実数・加群構造を使う。
+実数係数の群は [De Rham コホモロジー](../libs/differential_forms/README.md) と同じ Dedekind 実数・加群構造を使う。
 
 ## 1. 標準単体と位相的な前提
 
@@ -44,10 +42,8 @@ t_i\ge0,\ \sum_i t_i=1\}.
 面写像の添字は \(0,\ldots,n\)、境界の符号は \((-1)^i\) とする。
 台集合を返す通常の定義を公開し、次数が引数として変化する場合に利用できるようにする。
 
-G06 の現状を再検査し、単体のコンパクト性に必要な有限積の具体化を通す。
 単位区間の有限積のコンパクト性、単体の閉性、コンパクト距離空間の Lebesgue 数と連続写像の一様連続性を証明する。
 重心細分の直径評価と、有限鎖の各特異単体を十分細分すれば被覆の一つに入ることを示す基盤にする。
-G06 が再現して必要な構成ができない場合は、言語処理系の障害として理由を記録して停止する。
 
 ## 2. 特異鎖・余鎖・相対群
 

@@ -29,7 +29,6 @@
 `FiniteComplex` は複体の条件を保持する部分集合型であり、セル付着の台集合だけから条件を自動的に得るものではない。
 `Cofibration.ForTarget.homotopyExtension` は任意の対象空間・部分集合・値域について量化し、cofibration 条件からホモトピー拡張性を証明する。
 CW 対の商と、cofibration の延長定理はそれぞれ独立に利用できる。
-閉円板・球面のコンパクト性を導く積の定理の具体化が [G06](../../_plans/gaps.md#g06) で失敗するため、有限 CW 対から cofibration 条件を導く実装はそこで停止している。
 `Cone.Contraction.contract` は入力空間の点を受け取り、その点で表示した頂点へ恒等写像を収縮する。
 積と商写像の定理を使い、時刻と cone の点の両方についての連続性を証明している。
 

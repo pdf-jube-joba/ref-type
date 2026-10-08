@@ -267,7 +267,7 @@ fn pointwise_quotient_representations_succeed() {
         "05-alias-equality",
     ] {
         let path = workspace
-            .join("_plans/reproductions/g08-pointwise-quotient")
+            .join("tests/projects/pointwise-quotient")
             .join(representation);
         let output = run_ref_file_with_timeout(&workspace, &path, &["--no-cache"], LIBRARY_TIMEOUT)
             .unwrap_or_else(|error| panic!("{error}"));
@@ -279,7 +279,7 @@ fn pointwise_quotient_representations_succeed() {
 fn product_compactness_specialization_succeeds() {
     let _check = LIBRARY_CHECK.lock().unwrap();
     let workspace = workspace_root();
-    let path = workspace.join("_plans/reproductions/g06-product-compactness");
+    let path = workspace.join("tests/projects/product-compactness");
     let output = run_ref_file_with_timeout(&workspace, &path, &["--no-cache"], LIBRARY_TIMEOUT)
         .unwrap_or_else(|error| panic!("{error}"));
     assert!(output.status.success(), "{}", output_details(&output));

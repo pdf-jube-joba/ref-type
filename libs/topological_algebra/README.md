@@ -31,8 +31,6 @@
 [行列の利用例](../../tests/projects/topological-k-theory/src/Matrix.ref) は実数・複素数の位相的環と複素行列の積を検査する。
 [有限次元空間の利用例](../../tests/projects/topological-k-theory/src/Finite.ref) は実数上の線形写像・座標同相・基底変更を検査する。
 
-有限座標空間のコンパクト性は、二因子積の定理の具体化が [G06](../../_plans/gaps.md#g06) の型の不一致で失敗するため、ここで実装を停止している。
-
 ```sh
 target/debug/cli libs/topological_algebra --no-cache --diagnostics compact
 target/debug/cli tests/projects/topological-k-theory --no-cache --diagnostics compact

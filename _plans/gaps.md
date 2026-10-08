@@ -1,10 +1,9 @@
 # 言語で書きたい構成と比較例
 
-各項目の最小例と対照例は [比較サンプル一覧](fix-md/README.md#対象文書の対応) にまとめる。
-G01〜G05 と G11 の `.ref` は、全文を playground.md に貼り付けて単独で検査できる。
-G06 は依存ライブラリの具体化を検査するプロジェクトとして実行する。
+最小例と対照例は [比較サンプル一覧](fix-md/README.md#対象文書の対応) にまとめる。
+G01〜G04 と G11 の `.ref` は、全文を playground.md に貼り付けて単独で検査できる。
 比較する条件と現在の結果は各項目のリンク先に記載する。
-G11 の検討は [Box の parameter](box-parameters.md#g11) に分けている。
+Box の検討は [Box の parameter](box-parameters.md#g11) に分けている。
 
 <a id="g01"></a>
 
@@ -14,6 +13,9 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 
 [最小比較: G01](fix-md/README.md#g01) は、変数と具体的な record に対して同じ等式を `refl` で検査する。
 変数では `types are not convertible` で失敗し、具体値では成功する。
+
+法則を含む `\Set` の structure はデータ・法則・部分集合型へ展開されるため、公開された型に直接 `\induction` を適用してデータの constructor を指定することはできない。
+[実数値線形写像](../libs/calculus/src/Real/Multivariable/Differential/Def.ref)は `LinearData` と `LinearLaws` を明示的に分け、通常のデータ record の帰納法から再構成の等式を示す。
 
 <a id="g02"></a>
 
@@ -27,6 +29,12 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 
 [最小比較: G02](fix-md/README.md#g02) は、同じ証明引数と集合値について、通常の関数と contextual な定義を比較する。
 通常の関数型 `P -> A` は sort の積規則で失敗し、contextual な `choose(h: P): A` は成功する。
+
+滑らかな遷移写像の互換性から写像の値を作る構成を、`Compatible -> Maps.Map U V` の型と lambda で書きたい。
+この型は `Prop` から `Set` への積になるため、現在の積規則では `no product rule` になる。
+[`Atlas.Pair.smoothMap`](../libs/manifolds/src/Dimension/Atlas.ref) のように証明を宣言の明示的な引数へ移すと、同じ構成を記述できる。
+小さいアトラスから滑らかな多様体を作る `Smooth.From.manifold` と、鳩の巣原理の証明で使う有限添字の縮小にもこの表現を適用している。
+定理の仮定は命題全体の量化に含め、集合値を返す構成関数と区別する。
 
 <a id="g03"></a>
 
@@ -54,99 +62,6 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 一方、親で既に読み込んだ同じ macro を子で再び `\use` すると、`Macro 'reflexive' is already visible` で失敗する。
 現在は子の宣言より前に親で読み込み、子では継承された macro を利用することで回避している。
 `algebra.LaurentPolynomial` の `eq_reason` と `topology.Topology.Subspace` の `sym` で、それぞれこの問題を確認した。
-
-<a id="g05"></a>
-
-## G05: 式の中での module の具体化（修正済み）
-
-依存するセルの次元を引数として `Euclidean.Dimension[n := dimension].Disk` のように台集合を参照したい。
-[最小比較: G05](fix-md/README.md#g05) の `F.Dimension[A := A].Carrier` と、[実ライブラリの例](../tests/projects/module-expressions/src/Cells.ref) は検査に成功する。
-関数の引数、lambda の束縛変数、record の先行 field を module 引数として、定義を参照できる。
-macro の展開先でも宣言元の参照を保持し、package の読み込みとキャッシュの依存関係にも式中の module 参照を含める。
-
-局所変数に依存する帰納型も具体化でき、同じ宣言と引数による型は一致する。
-
-```text
-\module Family(A: \Set) {
-  \inductive Box: \Set := | box: A -> Box;
-}
-\definition box(A: \Set)(x: A): Family[A := A].Box :=
-  Family[A := A].Box::box x;
-```
-
-帰納型の kernel 登録では元の宣言に module 引数を明示的に渡し、局所文脈を保持する。
-record の field 射影と既定値にも同じ引数を引き継ぐ。
-
-```text
-\inductive Unit: \VType := | unit: Unit;
-\module Value(A: \VType, x: A) { \definition value: A := x; }
-\definition identity(x: Unit): \F(Unit) := \return Value[A := Unit, x := x].value;
-```
-
-Program の局所値は、引数検査と定義の登録まで局所文脈を引き継ぐ。
-lambda、Program block、case branch、macro 内の束縛変数についても回帰テストで検査する。
-
-<a id="g06"></a>
-
-## G06: 積のコンパクト性定理の module 具体化（修正済み）
-
-`topology.Product[A := I, B := K].Compactness` の `productCompact` を、集合を parameter に持つ別の module から通常の定理として利用したい。
-修正前は元の `topology` パッケージを検査できても、定理の利用側でコンパクト被覆を表す有限集合の型が積空間の集合族として扱われず、`types are not convertible` で失敗していた。
-
-[再現プロジェクト](reproductions/g06-product-compactness/src/Coordinates/Compactness.ref) は、二つの集合の位相と積の定理だけを読み込み、仮定を量化した同じ命題へ `productCompact` と `productCompactIn` を適用する。
-キャッシュを使わず、リポジトリのルートから実行する。
-
-```sh
-target/debug/cli libs/topology --no-cache --diagnostics compact
-target/debug/cli _plans/reproductions/g06-product-compactness --no-cache --diagnostics compact
-```
-
-現在は両方とも成功する。
-修正前の利用側では、次の型の不一致が発生していた。
-
-```text
-inferred: std.Set.FiniteSubset[A := I, B := K].FiniteSubset(K, I)
-expected: Pow(Pow(std.Data.Pair.Times^[I, K]))
-```
-
-原因は module 具体化時の参照の確定順序にあった。
-型の比較で依存定義を実体化する際、積型の仮の ID がその定義に残り、後で確定した元の積型と異なる型として扱われていた。
-parameter を持たない module の参照を先に確定することで修正し、再現プロジェクトを CLI の回帰テストに追加した。
-
-<a id="g07"></a>
-
-## G07: ホモトピー同値の反射の具体化（修正済み）
-
-[Homotopy.ref の reflectedTwice](../tests/projects/topological-k-theory/src/Homotopy.ref) で、閉区間の反射を二回合成したホモトピー同値を構成したい。
-次の検査は `reflectedTwice` を含めて成功する。
-
-```sh
-target/debug/cli tests/projects/topological-k-theory --no-cache --diagnostics compact
-```
-
-修正前は推論された位相が `Topology[A := Interval.Carrier, B := Interval.Carrier].Topology` である一方、期待型には `HomotopyEquivalence` の束縛変数 `B` による具体化が残り、`types are not convertible` になっていた。
-G05 対応前の処理系でも同じ位置と診断で再現した。
-検査済みの定義を保存するときに、依存先の参照と具体化した引数を保持することで解消した。
-
-<a id="g08"></a>
-
-## G08: 点に依存する商の型と有限引数の関数型（修正済み）
-
-多様体の各点 `x` の接空間を通常の型値の定義 `tangent M x` で返し、点ごとの交代形式の台集合を `\forall (x: M.Point) -> (Fin.Fin k -> tangent M x) -> Real` として公開したい。
-[最小比較プロジェクト](reproductions/g08-pointwise-quotient/README.md)の全5例は、現在の処理系でキャッシュなしの検査に成功する。
-修正前には直接の関数型や lambda の注釈で `uncaptured parameter` が出て、等式判定でも検査に失敗していた。
-
-局所的な module 具体化で保持する束縛変数の型にだけ現れる module parameter が、kernel 登録時の capture に含まれていなかった。
-定義の型・本体・明示的な引数に加え、局所文脈の束縛変数の型も依存として追跡することで解消した。
-診断には元の module 名と capture 済みの引数も含め、同種の不整合の調査に利用できる。
-
-```sh
-python3 _plans/reproductions/g08-pointwise-quotient/check.py
-target/debug/cli tests/projects/manifolds-de-rham --no-cache --diagnostics compact
-```
-
-[利用側の点ごとの API](../tests/projects/manifolds-de-rham/src/Pointwise.ref)では、商の型、有限引数列、二段階の外延性、恒等操作の等式証明を検査する。
-[コホモロジーの利用例](../tests/projects/manifolds-de-rham/src/Cohomology.ref)では、次数に応じた部分加群の台集合と核の部分集合型の具体化を検査する。
 
 ## G09: 台集合に依存する位相と record 内の具体化
 
@@ -186,23 +101,13 @@ namespace での具体化を通常の命題値定義 `Hausdorff(M)(space)` と `
 [`Examples.Euclidean`](../libs/manifolds/src/Dimension/Examples/Euclidean.ref) と [`Examples.Empty`](../libs/manifolds/src/Dimension/Examples/Empty.ref) は、飽和したアトラスを持つ滑らかな多様体の構造を直接組み立てる。
 [`Geometry`](../tests/projects/manifolds-de-rham/src/Geometry.ref) では、この表現による二次元の滑らかな多様体の返却と、標準多様体・空多様体の滑らかな恒等写像を検査する。
 
-## G10: record の帰納法（修正済み）
+<a id="g11"></a>
 
-record のフィールドから元の値を再構成する等式を、単一の constructor に対する帰納法で証明したい。
-`\induction ... \with { | # : ... }` の分岐名を parser が identifier として受け取らず、elaborator も record を帰納法の対象として扱わなかった。
-constructor `#` の分岐と record の通常の帰納法を実装した。
-[型パラメータを持つ record の再構成](../tests/ok/system/record_induction.ref)と[有理数の列挙](../libs/std/src/Arithmetic/Rat/Enumeration.ref)で検査する。
+## G11: Machine の実行を Box にする定義
 
-法則を含む `\Set` の structure はデータ・法則・部分集合型へ展開されるため、公開された型に直接 `\induction` を適用してデータの constructor を指定することはできない。
-[実数値線形写像](../libs/calculus/src/Real/Multivariable/Differential/Def.ref)は `LinearData` と `LinearLaws` を明示的に分け、通常のデータ record の帰納法から再構成の等式を示す。
-
-## G11: 証明を引数に取る集合値の構成
-
-滑らかな遷移写像の互換性から写像の値を作る構成を、`Compatible -> Maps.Map U V` の型と lambda で書きたい。
-この型は `Prop` から `Set` への積になるため、現在の積規則では `no product rule` になる。
-[`Atlas.Pair.smoothMap`](../libs/manifolds/src/Dimension/Atlas.ref) のように証明を宣言の明示的な引数へ移すと、同じ構成を記述できる。
-小さいアトラスから滑らかな多様体を作る `Smooth.From.manifold` と、鳩の巣原理の証明で使う有限添字の縮小にもこの表現を適用している。
-定理の仮定は命題全体の量化に含め、集合値を返す構成関数と区別する。
+Machine を引数に取り、その実行を Box にする共通の定義を書きたい。
+[最小比較: G11](fix-md/README.md#g11) は、Machine の引数で `Box requires a closed computation type` になり、具体値では成功する。
+parameter と評価開始条件の検討は [Box の parameter](box-parameters.md#g11) にまとめる。
 
 ## G12: 等しい次数間の集合値の移送
 
@@ -212,26 +117,11 @@ constructor `#` の分岐と record の通常の帰納法を実装した。
 [`Regrade`](../libs/differential_forms/src/Euclidean/On/Regrade.ref) は等式を明示的な構成引数として受け取り、埋め込んだ表示が保存されることと線形性を証明する。
 次数の異なる表現を比較する結合則・次数付き可換則にも同じ表示を用いる。
 
-## G13: inline module から返す構造値（修正済み）
-
-開部分多様体の構造を `OpenSubmanifold.On[M := M].In[U := domains i].manifold` から通常の定義として返したい。
-構造値の解析が inline module の引数検査を保持するラッパーを扱わず、`definition does not satisfy structure result signature` になった。
-ラッパー内の構造値を解析し、保持されているすべての引数検査を構造の検査へ渡すことで解消した。
-同じ構造を使う貼り合わせの構成は [`Gluing.On.Cover.Piece`](../libs/differential_forms/src/Gluing/On/Cover/Piece.ref) にある。
-処理系の回帰テストでは、型値とその値を持つ構造を直接返す構成と、誤った型の module 引数の拒否を検査する。
-
-## G14: 具体化した定義を含む点依存の族の検査（修正済み）
-
-接空間のベクトル空間や、`\fun (omega: Form k)(x: M.Point) => At[x := x].value omega` で点ごとの形式の族を定義したい。
-検査済みの定義を具体化して参照すると、ソース位置に未解決変数を関連付ける探索が定義の証明本体まで展開し、メモリ上限に達した。
-定義は検査時に閉じているため、未解決変数の探索は kernel の式を使い、定義参照の実引数をたどるよう修正した。
-回帰テストでは、定義の本体が使わない実引数に含まれる未解決変数も検出し、ソース位置を保持することを確認する。
+## G15: 外延性の引数推論と存在証人を使う局所証明
 
 座標の `decode` は商から降下した値の部分集合型を持つため、`decode (encode v)` を返す lambda の型推論は、通常の座標ベクトルより強い値域を返す。
 その lambda と通常の引数列を直接 `funext` で比較すると、右辺にこの強い値域が要求された。
 [`Pointwise.CoordinateRecovery`](../libs/differential_forms/src/Forms/On/Pointwise/CoordinateRecovery.ref) では、座標引数列を返す通常の定義 `roundtrip` に型を指定し、その外延性から復元の証明を構成する。
-
-## G15: 外延性の引数推論と存在証人を使う局所証明
 
 引き戻しの局所表示の等式を `Restricted.ext k _ _ (pointwise omega)` と書きたい。
 点ごとの等式から二つの形式を推論する際に、形式を表す metavariable の等式が残り、宣言された等式との比較が失敗した。

@@ -31,7 +31,6 @@
 | `LocallyCompact` | コンパクト近傍、局所コンパクト性、コンパクト空間の局所コンパクト性。 |
 
 有限積のコンパクト性の定理は `Product.Compactness.productCompact` にある。
-別 module からの具体化には [G06](../../_plans/gaps.md#g06) の処理系の問題があり、有限座標空間への反復利用はそこで停止している。
 閉区間の定理 `intervalCompact` は、端点の順序を仮定せず、空区間と一点区間も含む。
 
 ## 有限従属分割
