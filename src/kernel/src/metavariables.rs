@@ -577,6 +577,7 @@ impl MetaContext {
         left: Expression,
         right: Expression,
     ) -> Result<Outcome, Error> {
+        let _cost = timing::costs::Scope::enter("kernel.meta-unify");
         if !env.arena.contains_meta(left) && !env.arena.contains_meta(right) {
             return if crate::reduction::erased_convertible(env, left, right)? {
                 Ok(Outcome::Solved)
@@ -804,6 +805,7 @@ impl MetaContext {
         term: Expression,
         expected: Expression,
     ) -> Result<Outcome, Error> {
+        let _cost = timing::costs::Scope::enter("kernel.meta-check");
         if [term, expected]
             .into_iter()
             .chain(context.iter().map(|b| b.ty))
@@ -890,6 +892,7 @@ impl MetaContext {
         context: Context,
         term: Expression,
     ) -> Result<Expression, Error> {
+        let _cost = timing::costs::Scope::enter("kernel.meta-infer");
         if std::iter::once(term)
             .chain(context.iter().map(|b| b.ty))
             .all(|e| !env.arena.contains_meta(e))
@@ -939,6 +942,7 @@ impl MetaContext {
         }
     }
     pub fn solve_pending(&mut self, env: &Environment) -> Result<Outcome, Error> {
+        let _cost = timing::costs::Scope::enter("kernel.meta-solve_pending");
         let snapshot = self.snapshot();
         let result = (|| {
             let mut waiting = FxHashMap::default();
@@ -1018,6 +1022,7 @@ impl MetaContext {
     }
     /// A declaration succeeds only after every generated meta and obligation is solved.
     pub fn finish(&mut self, env: &Environment) -> Result<(), Error> {
+        let _cost = timing::costs::Scope::enter("kernel.meta-finish");
         self.solve_pending(env)?;
         let metas = self
             .entries

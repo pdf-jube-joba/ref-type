@@ -108,3 +108,92 @@ CLI の検査には G05、G06、category、通常のライブラリ例を含む�
 
 G05 の20テストを valgrind の Memcheck でも実行し、エラー0件、definitely lost と indirectly lost は0 bytesだった。
 テストランナー由来の possibly lost 48 bytes と still reachable 548 bytes は前回と同じだった。
+
+## 名前解決の計測と高速化（2026-10-08）
+
+Linux x86_64、Rust 1.99.0、dev profile（`opt-level = 2`）で、変更前の `8368462c8fe4932298d6f534ab5bf2aa10855ba2` と変更後を比較した。
+両方に同じライブラリソースを渡し、新しい CLI プロセスで各3回、`--no-cache --no-progress --diagnostics compact` を指定した。
+検査中はビルドや別の検査を並行実行せず、OS のファイルキャッシュは維持した。
+
+全体の経過時間は計測ログを無効にして採り、最大 RSS は `wait4` の値を使う。
+[変更前](benchmarks/resolver-before-2026-10-08.json) と [変更後](benchmarks/resolver-after-2026-10-08.json) に、実行ファイルとライブラリソースの SHA-256、各実行の値を保存した。
+
+| ライブラリ | 変更前 秒 | 変更後 秒 | 速度比 | 最大 RSS 前→後 MiB |
+| --- | ---: | ---: | ---: | ---: |
+| `std` | 9.885 | 2.566 | 3.85倍 | 3881.5 → 405.1 |
+| `category` | 12.473 | 5.066 | 2.46倍 | 3973.6 → 502.2 |
+| `real` | 16.494 | 4.271 | 3.86倍 | 6357.9 → 573.1 |
+| `topology` | 20.016 | 6.981 | 2.87倍 | 6849.2 → 889.7 |
+
+経過時間は3回の中央値、最大 RSS は3回で観測した最大値である。
+依存ライブラリの検査と semantic analysis の収集も各行に含む。
+
+resolver の処理は既存の `REF_TYPE_PROFILE_PHASES=1` でも別に各3回測った。
+`query.resolve` は選択された構文木の準備と resolver の呼び出しを囲み、resolver 内部の短い呼び出しの時計を動かさない。
+[変更前の phase ログ](benchmarks/resolver-before-phases-2026-10-08.json) と [変更後の phase ログ](benchmarks/resolver-after-phases-2026-10-08.json) の中央値は次の通りである。
+
+| ライブラリ | 名前解決 前→後 秒 | 速度比 |
+| --- | ---: | ---: |
+| `std` | 4.492 → 0.762 | 5.90倍 |
+| `category` | 5.126 → 0.840 | 6.10倍 |
+| `real` | 7.126 → 1.113 | 6.40倍 |
+| `topology` | 8.104 → 1.436 | 5.64倍 |
+
+```sh
+python3 tests/bench_libraries.py --binary /path/to/cli --profile-phases --no-progress \
+  --runs 3 --libraries std category real topology --output /tmp/resolver-phases.json
+```
+
+### 集計ログ
+
+`REF_TYPE_PROFILE_COSTS` で、resolver、elaboration 中の参照検索、namespace 具体化、lowering、kernel の判断 API を個別に測る。
+各 scope のログには呼び出し回数、包含時間、子 scope の時間を引いた排他的時間、最長の呼び出し時間を出す。
+グループの時間は排他的時間の和であり、再帰や入れ子の呼び出しを二重加算しない。
+kernel のグループは check・infer・制約解決・宣言登録・変換・評価の API を含む。
+resolver のグループは構造の展開と macro 展開も含む。
+
+```sh
+REF_TYPE_PROFILE_COSTS=1 target/debug/cli libs/std --no-cache --no-progress --diagnostics compact
+REF_TYPE_PROFILE_COSTS=resolve.total,kernel. \
+  target/debug/cli libs/category --no-cache --no-progress --diagnostics compact
+python3 tests/bench_libraries.py --profile-costs resolve.total,kernel. --no-progress \
+  --runs 3 --libraries std category real topology --output /tmp/resolver-costs.json
+```
+
+[変更前の詳細ログ](benchmarks/name-resolution-costs-2026-10-08.json) では、4ライブラリとも resolver 全体が kernel のグループを上回った。
+`std` の中央値は resolver 5.372秒、kernel 0.583秒で、resolver 内の参照検索・記録が1.404秒、構造の正規化自身が3.484秒だった。
+構造の正規化は約176万回、`access` は約316万回呼ばれていた。
+構造かどうかを判定する検索でも参照情報を追加していたため、同じソース位置の情報が大量に複製されていた。
+
+詳細計測は短い呼び出しにも時計と集計表の処理を加える。
+改善後の比較では `resolve.total,kernel.` で対象を絞り、resolver の内部の短い呼び出しの計測負荷を抑えた。
+[改善後の詳細ログ](benchmarks/resolver-after-details-2026-10-08.json) も各1回保存し、`std` の全体時間は詳細計測ありで3.264秒だった。
+[改善後の集計](benchmarks/resolver-after-costs-2026-10-08.json) の中央値は次の通りである。
+
+| ライブラリ | resolver 秒 | kernel 秒 |
+| --- | ---: | ---: |
+| `std` | 0.772 | 0.499 |
+| `category` | 0.898 | 1.036 |
+| `real` | 1.177 | 0.902 |
+| `topology` | 1.543 | 1.833 |
+
+改善後は `category` と `topology` で kernel が resolver を上回った。
+`std` では参照記録の試行が2,154,372回あり、出力された参照は35,383件だった。
+
+### 実装
+
+構造の判定には借用した識別子を使い、診断用の文字列と解決済みアクセスのコピーを減らした。
+識別子の参照情報はソース位置・所有 module・対象の束縛で重複を抑え、semantic analysis に渡す量を減らした。
+通常の束縛式は本文をその場で正規化し、局所文脈は push と truncate で復元する。
+構造として展開するときに引数を集め、通常の関数適用では引数のコピーと作業ベクトルの確保を減らした。
+空の代入と module 対応表に対する走査を省き、名前の表は `Arc` で共有して宣言追加時に更新する。
+内部の名前表と ID の索引に `FxHashMap` を使い、具体化済み module の探索を線形走査から索引に変えた。
+
+改善途中の `std` を `perf record -e cycles:u -F 99 --call-graph dwarf,8192` でも調べた。
+文字列の SipHash、局所文脈の HashMap の検索とコピー、メモリ確保が上位に現れ、文脈の復元と内部の索引の変更につながった。
+
+4ライブラリの反復検査に加え、algebra・complex・linear_algebra・calculus・integration・topological_algebra・algebraic_topology をキャッシュなしで各1回検査し、すべて成功した。
+[追加のライブラリ検査](benchmarks/resolver-library-validation-2026-10-08.json) に時間と最大 RSS を保存した。
+Rust の unit・integration・doc test は CLI 以外の386件と CLI の38件が成功した。
+CLI の検査には manifolds/de Rham、module 式、商集合、積のコンパクト性、位相的 K 理論を含む。
+変更した6 crate の全 target に対する `cargo clippy -- -D warnings` も成功した。

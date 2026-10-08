@@ -31,7 +31,7 @@ impl Resolver {
         &mut self,
         function: &SExp,
         argument: &SExp,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Result<SExp, Diagnostic> {
         // Give inserted arguments and lambda binders distinct lexical identities.
         let mut function = function.clone();
@@ -129,26 +129,30 @@ impl Resolver {
     pub(in crate::resolver) fn normalize_structures(
         &mut self,
         expression: &mut SExp,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Result<(), Diagnostic> {
+        self.normalize_in_scope(expression, &mut locals.to_vec())
+    }
+
+    fn normalize_in_scope(
+        &mut self,
+        expression: &mut SExp,
+        locals: &mut Vec<LocalScope>,
+    ) -> Result<(), Diagnostic> {
+        let _cost = timing::costs::Scope::enter("resolve.structure-normalization");
         let mut error = None;
         macros::walk_sexp_control(expression, &mut |node| {
             if error.is_some() {
                 return false;
             }
-            let mut head = &*node;
-            let mut arguments = Vec::new();
-            while let SExp::App { func, arg } = head {
-                arguments.push(arg.as_ref());
-                head = func;
-            }
-            if !arguments.is_empty()
+            let head = application_head(node);
+            if matches!(node, SExp::App { .. })
                 && matches!(head, SExp::Lam { bind: Bind::Named(bind), .. } if !bind.vars.is_empty())
                 && self.is_declaration_lambda(head)
             {
                 let mut result = head.clone();
                 let mut checks = Vec::new();
-                for argument in arguments.into_iter().rev() {
+                for argument in application_arguments(node) {
                     if matches!(&result, SExp::Lam { bind: Bind::Named(bind), .. } if !bind.vars.is_empty())
                     {
                         match self.apply_declaration_lambda(&result, argument, locals) {
@@ -176,7 +180,7 @@ impl Resolver {
                     checks,
                     body: Box::new(result),
                 };
-                if let Err(e) = self.normalize_structures(&mut result, locals) {
+                if let Err(e) = self.normalize_in_scope(&mut result, locals) {
                     error = Some(e);
                 } else {
                     *node = result;
@@ -230,7 +234,7 @@ impl Resolver {
                     checks: guards,
                     body: Box::new(node.clone()),
                 };
-                if let Err(e) = self.normalize_structures(node, locals) {
+                if let Err(e) = self.normalize_in_scope(node, locals) {
                     error = Some(e);
                 }
                 return false;
@@ -257,7 +261,7 @@ impl Resolver {
                     )
                 }
             {
-                if let Err(e) = self.normalize_structures(func, locals) {
+                if let Err(e) = self.normalize_in_scope(func, locals) {
                     error = Some(e);
                     return false;
                 }
@@ -269,7 +273,7 @@ impl Resolver {
                             arg: arg.clone(),
                         }),
                     };
-                    if let Err(e) = self.normalize_structures(node, locals) {
+                    if let Err(e) = self.normalize_in_scope(node, locals) {
                         error = Some(e);
                     }
                     return false;
@@ -303,7 +307,7 @@ impl Resolver {
             if let Some(expansion) = expansion {
                 match expansion {
                     Ok(mut expression) => {
-                        if let Err(e) = self.normalize_structures(&mut expression, locals) {
+                        if let Err(e) = self.normalize_in_scope(&mut expression, locals) {
                             error = Some(e);
                         } else {
                             *node = expression;
@@ -318,7 +322,7 @@ impl Resolver {
                 for (name, ty, body) in clauses {
                     if let Err(e) = self
                         .normalize_structures(ty, &scope)
-                        .and_then(|()| self.normalize_structures(body, &scope))
+                        .and_then(|()| self.normalize_in_scope(body, &mut scope))
                     {
                         error = Some(e);
                         return false;
@@ -326,9 +330,9 @@ impl Resolver {
                     if name.1.is_none() {
                         self.binding(name);
                     }
-                    scope.push(HashMap::from([(name.0.clone(), name.clone())]));
+                    scope.push(LocalScope::from_iter([(name.0.clone(), name.clone())]));
                 }
-                if let Err(e) = self.normalize_structures(exp, &scope) {
+                if let Err(e) = self.normalize_in_scope(exp, &mut scope) {
                     error = Some(e);
                 }
                 return false;
@@ -343,7 +347,7 @@ impl Resolver {
                     parameters: parameters.clone(),
                     fields: fields.clone(),
                 };
-                match self.normalize_structures(&mut literal, locals) {
+                match self.normalize_in_scope(&mut literal, locals) {
                     Ok(()) => *node = literal,
                     Err(e) => error = Some(e),
                 }
@@ -358,7 +362,7 @@ impl Resolver {
                     || self.parameter_signatures.contains_key(&id))
             {
                 for argument in parameters.iter_mut() {
-                    if let Err(e) = self.normalize_structures(argument, locals) {
+                    if let Err(e) = self.normalize_in_scope(argument, locals) {
                         error = Some(e);
                         return false;
                     }
@@ -409,7 +413,7 @@ impl Resolver {
                     *parameters = actual;
                     if let SExp::RecordTypeCtor { fields, .. } = node {
                         for (_, value) in fields {
-                            if let Err(e) = self.normalize_structures(value, locals) {
+                            if let Err(e) = self.normalize_in_scope(value, locals) {
                                 error = Some(e);
                                 return false;
                             }
@@ -457,7 +461,7 @@ impl Resolver {
                 return false;
             }
             if let SExp::AssociatedAccess { base, field, span } = node {
-                if let Err(e) = self.normalize_structures(base, locals) {
+                if let Err(e) = self.normalize_in_scope(base, locals) {
                     error = Some(e);
                     return false;
                 }
@@ -507,36 +511,47 @@ impl Resolver {
                 else {
                     unreachable!()
                 };
-                let mut scope = locals.to_vec();
-                let mut parameters = vec![bind.clone()];
-                if self.is_structure_type(&bind.ty) {
-                    if let Err(e) =
-                        self.expand_structure_parameters(&mut parameters, &mut scope, false)
-                    {
+                // Ordinary binders keep their tree in place. Rebuilding their
+                // bodies would copy every nested subtree once per outer binder.
+                if !self.is_structure_type(&bind.ty) {
+                    if let Err(e) = self.normalize_in_scope(&mut bind.ty, locals) {
                         error = Some(e);
                         return false;
                     }
-                } else {
-                    if let Err(e) = self.normalize_structures(&mut parameters[0].ty, &scope) {
-                        error = Some(e);
-                        return false;
-                    }
-                    let mut names = HashMap::new();
-                    for name in &mut parameters[0].vars {
+                    let mut names = LocalScope::default();
+                    for name in &mut bind.vars {
                         if name.1.is_none() {
                             self.binding(name);
                         }
                         names.insert(name.0.clone(), name.clone());
                     }
-                    scope.push(names);
+                    let mark = locals.len();
+                    locals.push(names);
+                    if let Err(e) = self.normalize_in_scope(body, locals) {
+                        error = Some(e);
+                    }
+                    locals.truncate(mark);
+                    return false;
                 }
-                let parameter_checks = self.last_parameter_checks.clone();
-                if let Err(e) = self.normalize_structures(body, &scope) {
+                let mut scope = locals.clone();
+                let mut parameters = vec![bind.clone()];
+                if let Err(e) = self.expand_structure_parameters(&mut parameters, &mut scope, false)
+                {
                     error = Some(e);
                     return false;
                 }
-                let mut result = (**body).clone();
-                if self.is_structure_type(&bind.ty) && !parameter_checks.is_empty() {
+                let parameter_checks = self.last_parameter_checks.clone();
+                if let Err(e) = self.normalize_in_scope(body, &mut scope) {
+                    error = Some(e);
+                    return false;
+                }
+                let (SExp::Prod { body, .. } | SExp::Lam { body, .. }) =
+                    std::mem::replace(node, SExp::ValueType)
+                else {
+                    unreachable!()
+                };
+                let mut result = *body;
+                if !parameter_checks.is_empty() {
                     result = SExp::Checked {
                         checks: parameter_checks,
                         body: Box::new(result),
@@ -681,13 +696,7 @@ impl Resolver {
                     }
                 }
             }
-            let mut arguments = Vec::new();
-            let mut head = &*node;
-            while let SExp::App { func, arg } = head {
-                arguments.push((**arg).clone());
-                head = func;
-            }
-            arguments.reverse();
+            let head = application_head(node);
             if let SExp::AccessPath { access, parameters } = head
                 && let Some(id) = self.front_binding(access, locals)
                 && let Some(definition) = self.front_definitions.get(&id).cloned()
@@ -702,7 +711,7 @@ impl Resolver {
                     *bind.ty = self.instantiate_front_expression(&bind.ty, access);
                 }
                 let mut supplied = parameters.clone();
-                supplied.extend(arguments.clone());
+                supplied.extend(application_arguments(node).into_iter().cloned());
                 {
                     let mut actual = Vec::new();
                     let mut checks = Vec::new();

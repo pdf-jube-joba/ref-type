@@ -68,6 +68,7 @@ impl Lowerer<'_> {
     }
 
     fn lower_definition(&mut self, id: DefId) -> Result<(), String> {
+        let _cost = timing::costs::Scope::enter("lower.lower_definition");
         let mut timer =
             crate::elaborator::profiling::ProfileTimer::start("REF_TYPE_PROFILE_LOWERING", || {
                 raw::printing::definition_name(self.raw, id)
@@ -198,6 +199,7 @@ impl Lowerer<'_> {
     }
 
     fn lower_inductive(&mut self, id: InductiveId, mut ctx: ExpContext) -> Result<(), String> {
+        let _cost = timing::costs::Scope::enter("lower.lower_inductive");
         let _time =
             timing::Scope::module(|| crate::elaborator::analysis::module_path(self.raw, id.module));
         let m = id.module;
@@ -283,6 +285,7 @@ impl Lowerer<'_> {
     }
 
     fn lower_datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
+        let _cost = timing::costs::Scope::enter("lower.lower_datatype");
         let _time =
             timing::Scope::module(|| crate::elaborator::analysis::module_path(self.raw, id.module));
         let raw = self.raw.program_inductive(id).clone();

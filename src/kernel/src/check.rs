@@ -70,6 +70,7 @@ impl<'a> Checker<'a> {
         result
     }
     pub fn check_context(&mut self) -> Result<(), Error> {
+        let _cost = timing::costs::Scope::enter("kernel.check_context");
         if !self.solving {
             self.metas
                 .require_solved(self.arena(), self.context.iter().map(|b| b.ty))?;
@@ -89,6 +90,7 @@ impl<'a> Checker<'a> {
     }
     #[tracing::instrument(target = "ref_type::typing", level = "debug", name = "kernel_infer", skip_all, fields(?term))]
     pub fn infer(&mut self, term: Expression) -> Result<Expression, Error> {
+        let _cost = timing::costs::Scope::enter("kernel.infer");
         self.metas.require_solved(
             self.arena(),
             std::iter::once(term).chain(self.context.iter().map(|b| b.ty)),
@@ -100,6 +102,7 @@ impl<'a> Checker<'a> {
     }
     #[tracing::instrument(target = "ref_type::typing", level = "debug", name = "kernel_check", skip_all, fields(?term, ?expected))]
     pub fn check(&mut self, term: Expression, expected: Expression) -> Result<(), Error> {
+        let _cost = timing::costs::Scope::enter("kernel.check");
         self.metas.require_solved(
             self.arena(),
             [term, expected]
@@ -110,6 +113,7 @@ impl<'a> Checker<'a> {
         self.check_open(term, expected)
     }
     pub(crate) fn validate(&mut self, term: Expression) -> Result<(), Error> {
+        let _cost = timing::costs::Scope::enter("kernel.validate");
         self.metas.require_solved(
             self.arena(),
             std::iter::once(term).chain(self.context.iter().map(|b| b.ty)),
@@ -124,6 +128,7 @@ impl<'a> Checker<'a> {
         self.infer_open(term).map(|_| ())
     }
     pub fn motive_type(&mut self, motive: Expression) -> Result<Expression, Error> {
+        let _cost = timing::costs::Scope::enter("kernel.motive_type");
         self.check_context()?;
         self.metas.require_solved(
             self.arena(),

@@ -1286,3 +1286,47 @@ fn structure_result_lambdas_check_their_parameter_annotations() {
     let stderr = String::from_utf8_lossy(&result.stderr);
     assert!(stderr.contains("not convertible"), "{stderr}");
 }
+
+#[test]
+fn cost_profiles_finish_on_success_and_type_errors_without_progress_logs() {
+    let fixture = FixtureDirectory::new();
+    for (source, success) in [
+        (
+            r"\module Root { \definition identity(P: \Prop)(p: P): P := p; }",
+            true,
+        ),
+        (
+            r"\module Root { \definition invalid: \Prop := \Set; }",
+            false,
+        ),
+    ] {
+        let path = fixture.write("root.ref", source);
+        let output = run_ref_file_with_environment(
+            &fixture.0,
+            &path,
+            &["--no-cache", "--no-progress", "--diagnostics", "compact"],
+            PROCESS_TIMEOUT,
+            &[("REF_TYPE_PROFILE_COSTS", "resolve.total,kernel.")],
+        )
+        .unwrap();
+        assert_eq!(
+            output.status.success(),
+            success,
+            "{}",
+            output_details(&output)
+        );
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("cost=resolve.total calls=1"), "{stderr}");
+        assert!(
+            stderr.contains("cost_group=kernel exclusive_us="),
+            "{stderr}"
+        );
+        assert_eq!(
+            stderr.matches("cost_total elapsed_us=").count(),
+            1,
+            "{stderr}"
+        );
+        assert!(!stderr.contains("cost=resolve.front-binding"), "{stderr}");
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("cost="));
+    }
+}

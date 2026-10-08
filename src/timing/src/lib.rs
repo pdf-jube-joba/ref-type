@@ -5,6 +5,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+pub mod costs;
+
 #[derive(Default, Debug)]
 pub struct Measurements {
     pub total: Duration,

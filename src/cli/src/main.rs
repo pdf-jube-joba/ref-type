@@ -60,6 +60,7 @@ fn main() -> anyhow::Result<()> {
     } else {
         timing
     };
+    let cost_session = sema::timing::costs::Session::start();
     init_tracing(args.trace)?;
     let result = run_path(&args);
     if let Some(measurements) = timing.measurements() {
@@ -90,6 +91,7 @@ fn main() -> anyhow::Result<()> {
         );
         eprintln!("total ({:.9}s)", measurements.total.as_secs_f64());
     }
+    drop(cost_session);
     let err = result?;
     if err.is_some() {
         std::process::exit(1);

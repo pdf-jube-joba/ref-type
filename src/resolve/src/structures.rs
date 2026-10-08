@@ -57,6 +57,23 @@ pub(super) struct Input {
     pub thunks: HashSet<String>,
 }
 
+fn application_head(mut expression: &SExp) -> &SExp {
+    while let SExp::App { func, .. } = expression {
+        expression = func;
+    }
+    expression
+}
+
+fn application_arguments(mut expression: &SExp) -> Vec<&SExp> {
+    let mut arguments = Vec::new();
+    while let SExp::App { func, arg } = expression {
+        arguments.push(arg.as_ref());
+        expression = func;
+    }
+    arguments.reverse();
+    arguments
+}
+
 pub(super) fn variable(name: Identifier) -> SExp {
     SExp::AccessPath {
         access: LocalAccess::Current {
@@ -81,6 +98,9 @@ pub(in crate::resolver) fn substitute(
     values: &HashMap<BindingId, SExp>,
 ) -> SExp {
     let mut expression = expression.clone();
+    if values.is_empty() {
+        return expression;
+    }
     macros::walk_sexp_control(&mut expression, &mut |node| {
         if let SExp::AccessPath {
             access:
@@ -142,6 +162,9 @@ fn abstract_parameters(parameters: &[RightBind], mut expression: SExp) -> SExp {
         .flat_map(|bind| bind.vars.iter())
         .filter_map(|name| name.1)
         .collect();
+    if local_ids.is_empty() {
+        return expression;
+    }
     macros::walk_sexp_mut(&mut expression, &mut |node| {
         if let SExp::AccessPath { access, .. } | SExp::ProgramValueReference { access } = node
             && let LocalAccess::Resolved {
@@ -184,8 +207,9 @@ impl Resolver {
     pub(super) fn front_binding(
         &self,
         access: &LocalAccess,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Option<BindingId> {
+        let _cost = timing::costs::Scope::enter("resolve.front-binding");
         if let LocalAccess::Current { access: name, .. }
         | LocalAccess::Resolved { access: name, .. } = access
             && name.1.is_some()
@@ -197,12 +221,23 @@ impl Resolver {
         {
             return name.1;
         }
-        let mut access = access.clone();
-        self.access(self.current, &mut access).ok()?;
-        match access {
-            LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. } => access.1,
-            LocalAccess::Named { .. } | LocalAccess::Instantiated { .. } => None,
-        }
+        let (module, name, inherit, span) = match access {
+            LocalAccess::Current { access, span } => (self.current, access, true, *span),
+            LocalAccess::Named {
+                access,
+                child,
+                span,
+            } => (
+                self.import(self.current, access.as_str())?,
+                child,
+                false,
+                *span,
+            ),
+            LocalAccess::Resolved { .. } | LocalAccess::Instantiated { .. } => return None,
+        };
+        let (module, id) = self.find_name(module, name.as_str(), inherit)?;
+        self.record_reference(module, id, name.as_str(), span);
+        Some(id)
     }
 
     fn instantiate_front_expression(&self, expression: &SExp, access: &LocalAccess) -> SExp {
@@ -216,6 +251,9 @@ impl Resolver {
         };
         let scope = &self.scopes[module.0 as usize];
         let mut expression = substitute(expression, &scope.substitutions);
+        if scope.remapping.is_empty() {
+            return expression;
+        }
         macros::walk_sexp_mut(&mut expression, &mut |node| {
             let module = match node {
                 SExp::ProgramValueReference {
@@ -258,7 +296,7 @@ impl Resolver {
     fn structure_type(
         &self,
         expression: &SExp,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Result<Option<(BindingId, Structure, HashMap<BindingId, SExp>)>, Diagnostic> {
         let SExp::AccessPath { access, parameters } = expression else {
             return Ok(None);
@@ -379,7 +417,7 @@ impl Resolver {
     fn structure_value(
         &self,
         expression: &SExp,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Result<Option<Value>, Diagnostic> {
         // Inline module selection preserves argument checks around its value.
         // A structure still denotes its fields inside that wrapper; retain all
@@ -418,13 +456,7 @@ impl Resolver {
             }
             return Ok(result);
         }
-        let mut head = expression;
-        let mut arguments = Vec::new();
-        while let SExp::App { func, arg } = head {
-            arguments.push((**arg).clone());
-            head = func;
-        }
-        arguments.reverse();
+        let head = application_head(expression);
         if let SExp::AccessPath { access, parameters } = head
             && let Some(id) = self.front_binding(access, locals)
             && let Some(template) = self.structure_values.get(&id)
@@ -447,7 +479,7 @@ impl Resolver {
                 *ty = self.instantiate_front_expression(ty, access);
             }
             let mut supplied = parameters.clone();
-            supplied.extend(arguments);
+            supplied.extend(application_arguments(expression).into_iter().cloned());
             if supplied.len() > template.inputs.len() {
                 return Err(self.error("structure declaration argument count mismatch"));
             }

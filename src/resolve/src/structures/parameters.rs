@@ -28,7 +28,7 @@ impl Resolver {
         inputs: &[Input],
         supplied: &[SExp],
         access: &LocalAccess,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Result<(Vec<SExp>, Vec<(SExp, SExp)>), Diagnostic> {
         // Explicit field arguments remain useful when constructing a telescope.
         let flattened = supplied.len() == parameters.len();
@@ -84,23 +84,31 @@ impl Resolver {
             body,
         } = result
         {
-            let mut bind = bind.clone();
-            if bind.vars.is_empty() {
-                bind.vars
-                    .push(Identifier(format!("<argument:{}>", parameters.len())));
-            }
             parameters.push(bind);
             result = body;
         }
-        (!parameters.is_empty() && self.is_structure_type(result))
-            .then(|| (parameters, result.clone()))
+        if parameters.is_empty() || !self.is_structure_type(result) {
+            return None;
+        }
+        let parameters = parameters
+            .into_iter()
+            .enumerate()
+            .map(|(index, bind)| {
+                let mut bind = bind.clone();
+                if bind.vars.is_empty() {
+                    bind.vars.push(Identifier(format!("<argument:{index}>")));
+                }
+                bind
+            })
+            .collect();
+        Some((parameters, result.clone()))
     }
 
     pub(in crate::resolver) fn callback_arguments(
         &self,
         input: &Input,
         argument: &SExp,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Result<(Vec<SExp>, Vec<(SExp, SExp)>), Diagnostic> {
         let value = self
             .structure_value(argument, locals)?
@@ -175,9 +183,10 @@ impl Resolver {
     pub(in crate::resolver) fn expand_structure_parameters(
         &mut self,
         parameters: &mut Vec<RightBind>,
-        locals: &mut Vec<HashMap<String, Identifier>>,
+        locals: &mut Vec<LocalScope>,
         module: bool,
     ) -> Result<(), Diagnostic> {
+        let _cost = timing::costs::Scope::enter("resolve.structure-parameters");
         let mut flattened = Vec::new();
         let mut inputs = Vec::new();
         let mut parameter_checks = Vec::new();
@@ -250,7 +259,7 @@ impl Resolver {
                     } else {
                         self.binding(&mut name);
                     }
-                    locals.push(HashMap::from([(name.0.clone(), name.clone())]));
+                    locals.push(LocalScope::from_iter([(name.0.clone(), name.clone())]));
                     let signature = value.signature;
                     self.structure_values.insert(name.1.unwrap(), value);
                     inputs.push(Input {
@@ -283,7 +292,7 @@ impl Resolver {
                     } else {
                         self.binding(&mut name);
                     }
-                    locals.push(HashMap::from([(name.0.clone(), name.clone())]));
+                    locals.push(LocalScope::from_iter([(name.0.clone(), name.clone())]));
                     let mut values = arguments.clone();
                     let mut fields = Vec::new();
                     let mut paths = Vec::new();
@@ -365,7 +374,7 @@ impl Resolver {
                         } else {
                             self.binding(&mut scalar);
                         }
-                        locals.push(HashMap::from([(scalar.0.clone(), scalar.clone())]));
+                        locals.push(LocalScope::from_iter([(scalar.0.clone(), scalar.clone())]));
                         let value = if computation {
                             force_reference(scalar.clone())
                         } else {
@@ -409,7 +418,7 @@ impl Resolver {
                     });
                 }
                 self.expression(&mut bind.ty, locals)?;
-                let mut scope = HashMap::new();
+                let mut scope = LocalScope::default();
                 for name in &mut bind.vars {
                     if module {
                         self.publish(name);

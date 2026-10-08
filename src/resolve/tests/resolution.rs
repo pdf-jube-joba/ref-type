@@ -213,3 +213,46 @@ fn macro_value_let_uses_callers_type_and_its_own_binder() {
     };
     assert_eq!(access.1, var.1);
 }
+
+#[test]
+fn normalization_records_each_source_occurrence_once() {
+    use std::{collections::HashSet, sync::Arc};
+    let text = r"\module M(A: \Set, a: A) {
+        \definition identity(x: A): A := x;
+        \definition value: A := identity a;
+        \definition bound: A := (\fun (x: A) => identity x) a;
+    }";
+    let source = Arc::new(SourceFile {
+        id: SourceId("/virtual/M.ref".into()),
+        text: text.into(),
+    });
+    let mut modules = syntax::parse::parse_modules_from_source(&source).unwrap();
+    modules[0].source = Some(source);
+    let project = resolve(&modules).unwrap();
+    let mut occurrences = HashSet::new();
+    for reference in &project.references {
+        assert!(
+            occurrences.insert((
+                &reference.module,
+                reference.location.span.start,
+                reference.location.span.end,
+                &reference.target_module,
+                &reference.target_name,
+            )),
+            "duplicate source occurrence: {reference:?}"
+        );
+    }
+    let uses: Vec<_> = project
+        .references
+        .iter()
+        .filter(|reference| reference.target_name == "identity")
+        .collect();
+    assert_eq!(uses.len(), 2);
+    assert_ne!(uses[0].location.span, uses[1].location.span);
+    for reference in uses {
+        assert_eq!(
+            &text[reference.location.span.start..reference.location.span.end],
+            "identity"
+        );
+    }
+}

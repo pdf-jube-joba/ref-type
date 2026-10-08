@@ -185,7 +185,10 @@ impl Resolver {
         let scope = &mut self.scopes[self.current.0 as usize];
         for name in exports {
             if let Some(id) = local.names.get(name.as_str()) {
-                if scope.names.insert(name.0.clone(), *id).is_some() {
+                if Arc::make_mut(&mut scope.names)
+                    .insert(name.0.clone(), *id)
+                    .is_some()
+                {
                     return Err(self.error(format!("duplicate declaration: {}", name.0)));
                 }
             } else if let Some(template) = local

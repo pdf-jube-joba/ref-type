@@ -14,6 +14,7 @@ use rustc_hash::FxHashSet;
 /// Registered declarations are immutable and their dependencies are already
 /// materialized. Each reference's actual arguments are still visited below.
 fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
+    let _cost = timing::costs::Scope::enter("bridge.prepare");
     let mut seen = FxHashSet::default();
     let mut definitions = FxHashSet::default();
     let mut inductives = FxHashSet::default();
@@ -196,6 +197,7 @@ pub(crate) fn logical_in_scope<T>(
         Vec<kernel::syntax::Expression>,
     ) -> Result<T, kernel::metavariables::Error>,
 ) -> Result<T, String> {
+    let _cost = timing::costs::Scope::enter("bridge.logical_in_scope");
     let profile = std::env::var_os("REF_TYPE_PROFILE_BRIDGE").is_some();
     if profile {
         eprintln!(
@@ -240,6 +242,7 @@ pub(crate) fn program<T>(
         Vec<kernel::syntax::Expression>,
     ) -> Result<T, kernel::metavariables::Error>,
 ) -> Result<T, String> {
+    let _cost = timing::costs::Scope::enter("bridge.program");
     use crate::raw::program::ProgramContextEntry;
     let mut pending = roots.to_vec();
     pending.extend(context.iter().filter_map(|b| match b {
@@ -265,6 +268,7 @@ pub(crate) fn expression<T>(
     term: Term,
     f: impl FnOnce(&kernel::environment::Environment, kernel::syntax::Expression) -> Result<T, String>,
 ) -> Result<T, String> {
+    let _cost = timing::costs::Scope::enter("bridge.expression");
     prepare(env, vec![term])?;
     let mut depth = env
         .arena()

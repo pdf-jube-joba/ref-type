@@ -384,6 +384,7 @@ impl ModuleManager {
         base: Option<ModuleId>,
         calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
     ) -> Result<ModuleId, String> {
+        let _cost = timing::costs::Scope::enter("namespace.bind");
         // A child's argument type can refer to declarations imported by its
         // parameterized parent. Substituting parameters in the type expression
         // alone does not specialize those declarations. Publish the parent
@@ -1272,6 +1273,7 @@ impl ModuleManager {
         env: &CrateEnv,
         access: &LocalAccess,
     ) -> Option<ItemAccessResult> {
+        let _cost = timing::costs::Scope::enter("names.get-item");
         let (target, item) = self.resolve_hir_access(env, access)?;
         // Template references are recorded at their definition, before expansion.
         if !matches!(access, LocalAccess::Resolved { .. }) {
@@ -1286,6 +1288,7 @@ pub(crate) fn resolve_access(
     from: ModuleId,
     access: &LocalAccess,
 ) -> Option<(ModuleId, ItemAccessResult)> {
+    let _cost = timing::costs::Scope::enter("names.resolve-access");
     let (mut module, reference, inherit) = match access {
         LocalAccess::Current { access, .. } => (from, access.as_str(), true),
         LocalAccess::Named { access, child, .. } => {

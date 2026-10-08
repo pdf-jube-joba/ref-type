@@ -682,6 +682,7 @@ impl CrateEnv {
     }
 
     pub fn resolve_definition(&self, id: DefId) -> Result<&DefinedConstant, String> {
+        let _cost = timing::costs::Scope::enter("materialize.definition");
         let slot = &self.module(id.module).definitions[id.index as usize];
         if let Some(definition) = slot.get() {
             return Ok(definition);
@@ -915,6 +916,7 @@ impl CrateEnv {
         reflected_substitutions: &[(ModuleParamId, Exp)],
         remapping: &DeclarationRemapping,
     ) -> (DefId, DefId, bool) {
+        let _cost = timing::costs::Scope::enter("namespace.reuse-definition");
         let source = self.lazy_definitions[&id].source;
         let origin = self
             .nominal_definitions
@@ -1108,6 +1110,7 @@ impl CrateEnv {
         reflected_substitutions: &[(ModuleParamId, Exp)],
         remapping: &DeclarationRemapping,
     ) -> (InductiveId, InductiveId, bool) {
+        let _cost = timing::costs::Scope::enter("namespace.reuse-inductive");
         let source = self.lazy_inductives[&id].source;
         let origin = self
             .nominal_inductives
@@ -1253,6 +1256,7 @@ impl CrateEnv {
         reflected_substitutions: &[(ModuleParamId, Exp)],
         remapping: &DeclarationRemapping,
     ) -> (ProgramInductiveId, ProgramInductiveId, bool) {
+        let _cost = timing::costs::Scope::enter("namespace.reuse-datatype");
         let source = self.lazy_program_inductives[&id].source;
         let origin = self
             .nominal_datatypes

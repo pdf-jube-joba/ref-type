@@ -60,6 +60,7 @@ impl Database {
         entry: impl AsRef<Path>,
         reuse_dependency_sources: bool,
     ) -> Result<SourceSnapshot, String> {
+        let _cost = timing::costs::Scope::enter("source.snapshot");
         SourceSnapshot::read_with_dependency_cache(entry, |own, root| {
             reuse_dependency_sources.then(|| self.disk.as_ref()?.read_sources(own, root))?
         })
@@ -109,6 +110,7 @@ impl Database {
     }
 
     fn load(&mut self, snapshot: &SourceSnapshot) -> Result<LoadedProject, Vec<Diagnostic>> {
+        let _cost = timing::costs::Scope::enter("source.load");
         let started = std::time::Instant::now();
         let mut loader = SnapshotLoader {
             snapshot,
@@ -200,6 +202,8 @@ impl Database {
         options: &CheckOptions,
         select: impl Fn(&crate::graph::Unit<'_>) -> bool,
     ) -> Arc<SemanticResult> {
+        let _cost_session = timing::costs::Session::start();
+        let _cost = timing::costs::Scope::enter("query.total");
         let _timing = timing::Session::start(options.progress.is_some());
         self.stats = QueryStats {
             environment_bytes: self.environments.bytes(),
@@ -226,6 +230,7 @@ impl Database {
         };
         let graph = {
             let _phase = elaboration::profiling::Phase::start("query.graph");
+            let _cost = timing::costs::Scope::enter("query.graph");
             ModuleGraph::new(&modules)
         };
         let package_input = !snapshot.entry().extension().is_some_and(|ext| ext == "ref");
@@ -373,6 +378,7 @@ impl Database {
             }
             let full = full_resolution.get_or_insert_with(|| {
                 let _phase = elaboration::profiling::Phase::start("query.resolve");
+                let _cost = timing::costs::Scope::enter("query.resolve");
                 resolve::resolve(&graph.selected(&available))
             });
             let fallback;
@@ -380,12 +386,14 @@ impl Database {
                 Ok(project) => Ok(project),
                 Err(_) => {
                     let _phase = elaboration::profiling::Phase::start("query.resolve-recovery");
+                    let _cost = timing::costs::Scope::enter("query.resolve-recovery");
                     fallback = resolve::resolve(&graph.selected(&selected));
                     fallback.as_ref()
                 }
             };
             let mut saved = EnvironmentCache::default();
             let check_phase = elaboration::profiling::Phase::start("query.check-batch");
+            let check_cost = timing::costs::Scope::enter("query.check-batch");
             let checked = match &resolved {
                 Ok(project) => {
                     let fallback_plan;
@@ -519,6 +527,7 @@ impl Database {
                     })
                 }
             };
+            drop(check_cost);
             drop(check_phase);
             recovering = true;
             for (key, bytes) in saved.into_entries() {
@@ -562,6 +571,7 @@ impl Database {
                 .collect();
             {
                 let _phase = elaboration::profiling::Phase::start("query.collect-analysis");
+                let _cost = timing::costs::Scope::enter("query.collect-analysis");
                 collect_analysis(&workspace, &graph, &mut fresh);
             }
             if let Err(error) = &checked {
@@ -598,6 +608,7 @@ impl Database {
                 }
             }
             let _phase = elaboration::profiling::Phase::start("query.drop-workspace");
+            let _cost = timing::costs::Scope::enter("query.drop-workspace");
             drop(workspace);
         }
         let result = Arc::new(SemanticResult {

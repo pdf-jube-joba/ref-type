@@ -54,7 +54,7 @@ impl Resolver {
         &mut self,
         ty: &SExp,
         element: &SExp,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Result<SExp, Diagnostic> {
         let mut parameters = vec![RightBind {
             vars: vec![Identifier("<existence-witness>".into())],
