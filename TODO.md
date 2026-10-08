@@ -13,6 +13,7 @@
 - 実数の間の変換の定義
 
 ## エラー表示周り
+### item path が表示されてる？
 ```
 \module Playground {
 \structure A[Carrier: \Set]: \Set {
@@ -43,6 +44,19 @@ Elaboration Error: Failed to access item at path Resolved { span: SourceSpan { s
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ```
 エラーの内容がわかりにくい。
+### structure に対しては module parameter と表示する。
+```
+\structure Packed[F: \Set -> \SetKind] {
+  Cr: \Set,
+  data: F Cr,
+}
+```
+これのエラーが
+```
+Elaboration Error: Module parameter must have a type or proposition: upper sort has no classifier
+rule: "Sort"
+rule: "Product"
+```
 
 ## コードのよくない点
 
