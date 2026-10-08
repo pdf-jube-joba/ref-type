@@ -218,3 +218,19 @@ parameter を持つ List の要素を、Set 側でも直接場合分けしたい
 2026-10-06 に修正済み。
 `\return` に指定した結果型から、具体化した帰納型の添字と要素を束縛する定数 motive を構成する。
 回帰テストは `src/elaboration/tests/parameterized_match.rs` にある。
+
+<a id="g14"></a>
+
+## G14: signature の族に対する台集合の束ね直し
+
+台集合を parameter に持つ任意の signature の族を受け取り、台集合を field に含めた signature と相互変換を共通の定義で構成したい。
+たとえば、次の二つの構造の対応を、各構造の field を列挙せずに記述したい。
+
+```text
+\structure A[Carrier: \Set] { op1: Carrier, }
+\structure ASet { Carrier: \Set, op1: Carrier, }
+```
+
+現在の signature は宣言された field の依存文脈へ展開され、signature の族そのものを parameter に取る仕組みがない。
+sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る signature に `Carrier: \Set` と `data: F Carrier` を持たせて汎用の相互変換を定義できる。
+元の例と同じ field 配置を得るには、依存する field の型と本体を保って展開する仕組みも必要になる。

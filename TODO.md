@@ -13,6 +13,36 @@
 - 実数の間の変換の定義
 
 ## エラー表示周り
+```
+\module Playground {
+\structure A[Carrier: \Set]: \Set {
+  op1: Carrier,
+}
+
+\definition F: \forall (Carrier: \Set) -> \Set := \fun (Carrier: \Set) => A[Carrier];
+
+}
+```
+これは `\Set` を明示しているので通る。
+```
+\module Playground {
+\structure A[Carrier: \Set] {
+  op1: Carrier,
+}
+
+\definition F: \forall (Carrier: \Set) -> \Set := \fun (Carrier: \Set) => A[Carrier];
+
+}
+```
+これは通らない:
+```
+Elaboration Error: Failed to access item at path Resolved { span: SourceSpan { start: 144, end: 145 }, module: ModuleId(1), access: Name("A", Some(BindingId(6))), display: "A" }
+/playground/root.ref:6:1
+  |
+ 6 | \definition F: \forall (Carrier: \Set) -> \Set := \fun (Carrier: \Set) => A[Carrier];
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+エラーの内容がわかりにくい。
 
 ## コードのよくない点
 
