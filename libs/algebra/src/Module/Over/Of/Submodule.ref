@@ -1,0 +1,81 @@
+\import \parent.\parent.Submodule[V := V, space := space] \as Core;
+\definition Submodule: \Set := Core.Submodule;
+\definition Member(S: Submodule)(x: V): \Prop := Core.Member S x;
+\definition negativeClosed: \forall (S: Submodule)(x: V) -> Member S x -> Member S (neg x) := Core.negativeClosed;
+\definition differenceClosed: \forall (S: Submodule)(x, y: V) -> Member S x -> Member S y -> Member S (Group.difference x y) := Core.differenceClosed;
+\import Group.Subgroups[] \as Subgroups;
+\definition closed(S: Submodule): Subgroups.Closed[#carrier{S}] := Core.closed S;
+
+\module Of(S: Submodule);
+\module Quotient(S: Submodule);
+
+\definition whole: Submodule := Submodule {
+  carrier := { x: V \where x = x },
+  zero := \refl(zero),
+  addition := \fun (x, y: V)(left: _)(right: _) => \refl(add x y),
+  scalar := \fun (a: R)(x: V)(member: _) => \refl(scale a x),
+};
+\definition zeroSubmodule: Submodule := Submodule {
+  carrier := { x: V \where x = zero },
+  zero := \refl(zero),
+  addition := \fun (x, y: V)(left: x = zero)(right: y = zero) =>
+    trans!{V} _ _ _ (congr2!{V V V} add _ _ _ _ left right) (Group.zeroLeft zero),
+  scalar := \fun (a: R)(x: V)(member: x = zero) =>
+    trans!{V} _ _ _ (congr!{V V} (scale a) _ _ member) (scaleZero a),
+};
+\definition Included(B, Z: Submodule): \Prop := \forall (x: V) -> Member B x -> Member Z x;
+\module Inside(Z: Submodule) {
+  \import \parent.Of[S := Z] \as ZSpace;
+  \import \parent.\parent.\parent.Submodule[V := ZSpace.Carrier, space := ZSpace.moduleSpace] \as Sub;
+  \definition inside(B: Submodule)(included: Included B Z): Sub.Submodule := Sub.Submodule {
+    carrier := { x: ZSpace.Carrier \where Member B x },
+    zero := #zero{B},
+    addition := \fun (x, y: ZSpace.Carrier)(left: _)(right: _) => #addition{B} x y left right,
+    scalar := \fun (a: R)(x: ZSpace.Carrier)(member: _) => #scalar{B} a x member,
+  };
+}
+\module Kernel(W: \Set, target: Space W) {
+  \import \parent.\parent.\parent.Hom[V := V, W := W, source := space, target := target] \as Maps;
+  \import \parent.\parent.\parent.Laws[V := W, space := target] \as Target;
+  \import algebra.Group[].Of[Carrier := W, group := Target.additive] \as TargetGroup;
+  \definition kernel(f: Maps.Map): Submodule := Submodule {
+    carrier := { x: V \where #apply{f} x = Target.zero },
+    zero := Maps.zeroPreserved f,
+    addition := \fun (x, y: V)(left: #apply{f} x = Target.zero)(right: #apply{f} y = Target.zero) =>
+      trans!{W} _ _ _ (#addition{f} x y)
+        (trans!{W} _ _ _ (congr2!{W W W} Target.add _ _ _ _ left right) (TargetGroup.zeroLeft Target.zero)),
+    scalar := \fun (a: R)(x: V)(member: #apply{f} x = Target.zero) => trans!{W} _ _ _ (#scalar{f} a x)
+      (trans!{W} _ _ _ (congr!{W W} (Target.scale a) _ _ member) (Target.scaleZero a)),
+  };
+}
+\module Image(U: \Set, source: Space U) {
+  \import \parent.\parent.\parent.Hom[V := U, W := V, source := source, target := space] \as Maps;
+  \import \parent.\parent.\parent.Laws[V := U, space := source] \as Source;
+  \definition Points(f: Maps.Map): \Pow V := { y: V \where \exists { x: U \where #apply{f} x = y } };
+  \definition member(f: Maps.Map)(x: U): \In[V] (Points f) (#apply{f} x) :=
+    \exact(\into[U](x, { z: U \where #apply{f} z = #apply{f} x }) \by { \refl(#apply{f} x) },
+      \Cast[U] ({ z: U \where #apply{f} z = #apply{f} x }));
+  \definition eliminate(f: Maps.Map)(y: V)(P: \Prop):
+    (\forall (x: U) -> #apply{f} x = y -> P) -> \In[V] (Points f) y -> P := \block {
+      \fun (step: _)(exists: _) \then
+      \takefrom x: \Cast[U] ({ x: U \where #apply{f} x = y }) \by exists \then
+      \let result: P := step x (\bysub(U, { x: U \where #apply{f} x = y }, x)) \then
+      \return result
+    };
+  \definition image(f: Maps.Map): Submodule := Submodule {
+    carrier := Points f,
+    zero := \idelim #apply{f} Source.zero = zero \with y: V => \In[V] (Points f) y \by {
+      base: member f Source.zero, equality: Maps.zeroPreserved f
+    },
+    addition := \fun (y, z: V)(left: \In[V] (Points f) y)(right: \In[V] (Points f) z) =>
+      eliminate f y (\In[V] (Points f) (add y z))
+        (\fun (x: U)(fx: #apply{f} x = y) => eliminate f z (\In[V] (Points f) (add y z))
+          (\fun (w: U)(fw: #apply{f} w = z) => \idelim #apply{f} (Source.add x w) = add y z \with v: V => \In[V] (Points f) v \by {
+            base: member f (Source.add x w), equality: trans!{V} _ _ _ (#addition{f} x w) (congr2!{V V V} add _ _ _ _ fx fw)
+          }) right) left,
+    scalar := \fun (a: R)(y: V)(exists: \In[V] (Points f) y) => eliminate f y (\In[V] (Points f) (scale a y))
+      (\fun (x: U)(fx: #apply{f} x = y) => \idelim #apply{f} (Source.scale a x) = scale a y \with v: V => \In[V] (Points f) v \by {
+        base: member f (Source.scale a x), equality: trans!{V} _ _ _ (#scalar{f} a x) (congr!{V V} (scale a) _ _ fx)
+      }) exists,
+  };
+}

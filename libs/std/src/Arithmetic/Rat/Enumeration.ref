@@ -1,0 +1,53 @@
+\import \parent.Fractions[] \as Fractions;
+\import N.Pair[].Def[] \as Pair;
+\import N.Pair[].Enumeration[] \as Pairs;
+\definition integerValue(p: Pair.NatPair): I.Integer := I.integer (Pair.natPairFirst p) (Pair.natPairSecond p);
+\definition integer(k: N.Nat^): I.Integer := integerValue (Pairs.enumerate k);
+\definition IntegerOccurs(x: I.Integer): \Prop := \exists { k: N.Nat^ \where integer k = x };
+\definition integerExhaustive: \forall (x: I.Integer) -> IntegerOccurs x :=
+  \induction (x: I.Int^) \return IntegerOccurs x \with {
+    | ofNat: \block {
+      \fun (a: N.Nat^) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Pairs.enumerate k = Pair.natPair a N.Nat^::zero }) \by Pairs.exhaustive a N.Nat^::zero \then
+      \let found: Pairs.enumerate k = Pair.natPair a N.Nat^::zero := \bysub(N.Nat^,
+        { k: N.Nat^ \where Pairs.enumerate k = Pair.natPair a N.Nat^::zero }, k) \then
+      \return \exact(\into[N.Nat^](k, { l: N.Nat^ \where integer l = I.Int^::ofNat a }) \by {
+        trans!{I.Integer} _ _ _ (congr!{Pair.NatPair I.Integer} integerValue _ _ found) (sym!{I.Integer} _ _ (I.ofNatAsInteger a))
+      }, \Cast[N.Nat^] ({ l: N.Nat^ \where integer l = I.Int^::ofNat a }))
+    }
+    | negSucc: \block {
+      \fun (a: N.Nat^) \then
+      \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Pairs.enumerate k = Pair.natPair N.Nat^::zero (N.Nat^::succ a) }) \by Pairs.exhaustive N.Nat^::zero (N.Nat^::succ a) \then
+      \let found: Pairs.enumerate k = Pair.natPair N.Nat^::zero (N.Nat^::succ a) := \bysub(N.Nat^,
+        { k: N.Nat^ \where Pairs.enumerate k = Pair.natPair N.Nat^::zero (N.Nat^::succ a) }, k) \then
+      \return \exact(\into[N.Nat^](k, { l: N.Nat^ \where integer l = I.Int^::negSucc a }) \by {
+        trans!{I.Integer} _ _ _ (congr!{Pair.NatPair I.Integer} integerValue _ _ found)
+          (I.integerEqOfFields (I.integer N.Nat^::zero (N.Nat^::succ a)) (I.Int^::negSucc a) (\refl(N.Nat^::zero)) (\refl(N.Nat^::succ a)))
+      }, \Cast[N.Nat^] ({ l: N.Nat^ \where integer l = I.Int^::negSucc a }))
+    }
+  };
+\definition fractionValue(p: Pair.NatPair): Fractions.Fraction := Fractions.Fraction {
+  numerator := integer (Pair.natPairFirst p), denominatorIndex := Pair.natPairSecond p,
+};
+\definition fraction(k: N.Nat^): Fractions.Fraction := fractionValue (Pairs.enumerate k);
+\definition eta: \forall (x: Fractions.Fraction) -> Fractions.Fraction::# (#numerator{x}) (#denominatorIndex{x}) = x :=
+  \induction (x: Fractions.Fraction) \return Fractions.Fraction::# (#numerator{x}) (#denominatorIndex{x}) = x \with {
+    | # : \fun (a: I.Integer)(b: N.Nat^) => \refl(Fractions.Fraction::# a b)
+  };
+\definition exhaustive: \forall (x: Fractions.Fraction) -> \exists { k: N.Nat^ \where fraction k = x } := \block {
+  \fun (x: _) \then
+  \takefrom a: \Cast[N.Nat^] ({ k: N.Nat^ \where integer k = #numerator{x} }) \by integerExhaustive (#numerator{x}) \then
+  \let numeratorLaw: integer a = #numerator{x} := \bysub(N.Nat^, { k: N.Nat^ \where integer k = #numerator{x} }, a) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Pairs.enumerate k = Pair.natPair a (#denominatorIndex{x}) }) \by Pairs.exhaustive a (#denominatorIndex{x}) \then
+  \let found: Pairs.enumerate k = Pair.natPair a (#denominatorIndex{x}) := \bysub(N.Nat^,
+    { k: N.Nat^ \where Pairs.enumerate k = Pair.natPair a (#denominatorIndex{x}) }, k) \then
+  \return \exact(\into[N.Nat^](k, { l: N.Nat^ \where fraction l = x }) \by {
+    trans!{Fractions.Fraction} _ _ _ (congr!{Pair.NatPair Fractions.Fraction} fractionValue _ _ found)
+      (trans!{Fractions.Fraction} _ _ _ (congr!{I.Integer Fractions.Fraction} (\fun (z: I.Integer) => Fractions.Fraction { numerator := z, denominatorIndex := #denominatorIndex{x} })
+        (integer a) (#numerator{x}) numeratorLaw) (eta x))
+  }, \Cast[N.Nat^] ({ l: N.Nat^ \where fraction l = x }))
+};
+\import std.Set[].Countability[A := Fractions.Fraction] \as Countability;
+\definition enumerator: Countability.Enumerator := Countability.Enumerator {
+  sequence := fraction, exhaustive := exhaustive,
+};

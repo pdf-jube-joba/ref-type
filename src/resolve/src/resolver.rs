@@ -9,6 +9,7 @@ use crate::{
 use std::{
     cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
+    sync::Arc,
 };
 
 #[derive(Debug, Clone)]
@@ -60,7 +61,7 @@ pub struct Import {
     pub owner: ModuleId,
     pub name: String,
     pub target: ModuleId,
-    pub remapping: HashMap<ModuleId, ModuleId>,
+    pub remapping: Arc<HashMap<ModuleId, ModuleId>>,
 }
 
 /// Type-checking steps in lexical and import dependency order.
@@ -89,8 +90,8 @@ struct Scope {
     import_ids: HashMap<String, BindingId>,
     macros: Vec<MacroDefinition>,
     used: Vec<MacroDefinition>,
-    remapping: HashMap<ModuleId, ModuleId>,
-    substitutions: HashMap<BindingId, SExp>,
+    remapping: Arc<HashMap<ModuleId, ModuleId>>,
+    substitutions: Arc<HashMap<BindingId, SExp>>,
 }
 
 #[path = "structures.rs"]
@@ -1001,8 +1002,8 @@ impl Resolver {
                 )
             }
         };
-        let mut remapping = self.scopes[target.0 as usize].remapping.clone();
-        let mut substitutions = self.scopes[target.0 as usize].substitutions.clone();
+        let mut remapping = (*self.scopes[target.0 as usize].remapping).clone();
+        let mut substitutions = (*self.scopes[target.0 as usize].substitutions).clone();
         let mut route = Vec::new();
         for (child, arguments) in calls {
             for (_, argument) in arguments.iter_mut() {
@@ -1119,7 +1120,7 @@ impl Resolver {
                 owner: self.current,
                 name: name.0.clone(),
                 target,
-                remapping,
+                remapping: Arc::new(remapping),
             },
         );
         Ok(())
@@ -1168,6 +1169,11 @@ impl Resolver {
             allocate(self, import, remapping, &mut pairs);
         }
         let result = allocate(self, source, remapping, &mut pairs);
+        // Every scope in this graph has the same completed correspondence.
+        // Sharing immutable maps avoids copying the whole graph per scope.
+        let shared_remapping = Arc::new(remapping.clone());
+        let mut merged_substitutions: HashMap<usize, Arc<HashMap<BindingId, SExp>>> =
+            HashMap::new();
         for (source, id) in pairs {
             let mut scope = self.scopes[source.0 as usize].clone();
             scope.parent = scope
@@ -1212,7 +1218,7 @@ impl Resolver {
                                 .get(&import.target)
                                 .copied()
                                 .unwrap_or(import.target);
-                            for target in import.remapping.values_mut() {
+                            for target in Arc::make_mut(&mut import.remapping).values_mut() {
                                 *target = remapping.get(target).copied().unwrap_or(*target);
                             }
                             import_name.1 = None;
@@ -1247,8 +1253,18 @@ impl Resolver {
                     _ => {}
                 });
             }
-            scope.remapping = remapping.clone();
-            scope.substitutions.extend(substitutions.clone());
+            scope.remapping = shared_remapping.clone();
+            let key = if scope.substitutions.is_empty() {
+                0
+            } else {
+                Arc::as_ptr(&scope.substitutions) as usize
+            };
+            let merged = merged_substitutions.entry(key).or_insert_with(|| {
+                let mut merged = (*scope.substitutions).clone();
+                merged.extend(substitutions.clone());
+                Arc::new(merged)
+            });
+            scope.substitutions = merged.clone();
             self.scopes[id.0 as usize] = scope;
         }
         result

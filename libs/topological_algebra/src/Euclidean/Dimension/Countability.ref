@@ -1,0 +1,92 @@
+\import \parent.Def[] \as Def;
+\import \parent.Norm[] \as Norm;
+\import \parent.Topology[] \as Euclidean;
+\import topology.Topology[Carrier := Point] \as Space;
+\import Space.IndexedIntersections[] \as Intersections;
+\import topology.Topology[Carrier := Real] \as Scalars;
+\import topology.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import Line.CompactIntervals[] \as Intervals;
+\import topology.MetricSpace[Carrier := Point] \as Metrics;
+\import std.Arithmetic[].Rat[].Estimates[] \as Q;
+\import std.Arithmetic[].Rat[].Enumeration[] \as Rationals;
+\import std.Set[].Countability[A := Q.Rat].FinitePowers[] \as Tuples;
+\import N.Pair[].Def[] \as Pair;
+\import N.Pair[].Enumeration[] \as Pairs;
+\import real.Analysis[].Estimates[] \as Bounds;
+\import R.Arithmetic[].Def[] \as Arithmetic;
+\use Equality.congr2;
+\definition Endpoints: \Set := Coordinate -> Q.Rat;
+\definition lower(k: N.Nat^): Endpoints := Tuples.sequence Rationals.enumerator n (Pair.natPairFirst (Pairs.enumerate k));
+\definition upper(k: N.Nat^): Endpoints := Tuples.sequence Rationals.enumerator n (Pair.natPairSecond (Pairs.enumerate k));
+\definition rectangle(a, b: Endpoints): \Pow Point :=
+  { x: Point \where \forall (i: Coordinate) -> Logic.And[R.Lt (Arithmetic.ofRat (a i)) (x i), R.Lt (x i) (Arithmetic.ofRat (b i))] };
+\definition rectangleOpen: \forall (a, b: Endpoints) -> Space.IsOpenIn Euclidean.topology (rectangle a b) :=
+  \fun (a, b: _) => Intersections.open Euclidean.topology n
+    (\fun (i: Coordinate) => { x: Point \where Logic.And[R.Lt (Arithmetic.ofRat (a i)) (x i), R.Lt (x i) (Arithmetic.ofRat (b i))] })
+    (\fun (i: Coordinate) => Euclidean.coordinateContinuous i (Line.OpenInterval (Arithmetic.ofRat (a i)) (Arithmetic.ofRat (b i)))
+      (#intersectionOpen{(Scalars.topologyLaws Line.topology)} (Rays.Above (Arithmetic.ofRat (a i))) (Rays.Below (Arithmetic.ofRat (b i)))
+        (Rays.aboveOpen (Arithmetic.ofRat (a i))) (Rays.belowOpen (Arithmetic.ofRat (b i)))));
+\definition basis(k: N.Nat^): \Pow Point := rectangle (lower k) (upper k);
+\definition appears: \forall (a, b: Endpoints) -> \exists { k: N.Nat^ \where basis k = rectangle a b } := \block {
+  \fun (a, b: _) \then
+  \takefrom l: \Cast[N.Nat^] ({ k: N.Nat^ \where Tuples.sequence Rationals.enumerator n k = a }) \by Tuples.exhaustive Rationals.enumerator n a \then
+  \let left: Tuples.sequence Rationals.enumerator n l = a := \bysub(N.Nat^, { k: N.Nat^ \where Tuples.sequence Rationals.enumerator n k = a }, l) \then
+  \takefrom r: \Cast[N.Nat^] ({ k: N.Nat^ \where Tuples.sequence Rationals.enumerator n k = b }) \by Tuples.exhaustive Rationals.enumerator n b \then
+  \let right: Tuples.sequence Rationals.enumerator n r = b := \bysub(N.Nat^, { k: N.Nat^ \where Tuples.sequence Rationals.enumerator n k = b }, r) \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where Pairs.enumerate k = Pair.natPair l r }) \by Pairs.exhaustive l r \then
+  \let code: Pairs.enumerate k = Pair.natPair l r := \bysub(N.Nat^, { k: N.Nat^ \where Pairs.enumerate k = Pair.natPair l r }, k) \then
+  \return \exact(\into[N.Nat^](k, { k: N.Nat^ \where basis k = rectangle a b }) \by {
+    congr2!{Endpoints Endpoints {\Pow Point}} rectangle (lower k) a (upper k) b
+      (trans!{Endpoints} _ _ _ (congr!{Pair.NatPair Endpoints} (\fun (p: Pair.NatPair) => Tuples.sequence Rationals.enumerator n (Pair.natPairFirst p)) _ _ code) left)
+      (trans!{Endpoints} _ _ _ (congr!{Pair.NatPair Endpoints} (\fun (p: Pair.NatPair) => Tuples.sequence Rationals.enumerator n (Pair.natPairSecond p)) _ _ code) right)
+  }, \Cast[N.Nat^] ({ k: N.Nat^ \where basis k = rectangle a b }))
+};
+\definition LowerValues(x: Point)(h: Real)(i: Coordinate): \Set := \Cast[Q.Rat]
+  ({ q: Q.Rat \where Logic.And[R.Lt (sub (x i) h) (Arithmetic.ofRat q), R.Lt (Arithmetic.ofRat q) (x i)] });
+\definition UpperValues(x: Point)(h: Real)(i: Coordinate): \Set := \Cast[Q.Rat]
+  ({ q: Q.Rat \where Logic.And[R.Lt (x i) (Arithmetic.ofRat q), R.Lt (Arithmetic.ofRat q) (add (x i) h)] });
+\definition refines: \forall (U: \Pow Point) -> Space.IsOpenIn Euclidean.topology U ->
+  \forall (x: Point) -> Space.Member U x -> \exists { k: N.Nat^ \where Logic.And[Space.Member (basis k) x, Space.Subset (basis k) U] } := \block {
+  \fun (U: _)(open: _)(x: _)(member: _) \then
+  \takefrom rho: \Cast[Real] (Metrics.NeighborhoodRadius Norm.metric U x) \by open x member \then
+  \let ball: Logic.And[R.Lt zero rho, Space.Subset (Metrics.Ball Norm.metric x rho) U] := \bysub(Real, Metrics.NeighborhoodRadius Norm.metric U x, rho) \then
+  \let h: Real := mul real.Analysis[].half rho \then
+  \let positive: R.Lt zero h := Bounds.halfOfPositive rho (#left{ball}) \then
+  \takefrom a: (\forall (i: Coordinate) -> LowerValues x h i) \by \axiom:classicalIndefiniteChoice(Coordinate,
+    (\fun (i: Coordinate) => LowerValues x h i), (\fun (i: Coordinate) => Laws.rationalDensity (sub (x i) h) (x i) (Intervals.subPositive (x i) h positive))) \then
+  \takefrom b: (\forall (i: Coordinate) -> UpperValues x h i) \by \axiom:classicalIndefiniteChoice(Coordinate,
+    (\fun (i: Coordinate) => UpperValues x h i), (\fun (i: Coordinate) => Laws.rationalDensity (x i) (add (x i) h) (Intervals.addPositive (x i) h positive))) \then
+  \let left: Endpoints := \fun (i: Coordinate) => a i \then
+  \let right: Endpoints := \fun (i: Coordinate) => b i \then
+  \let leftLaw: \forall (i: Coordinate) -> Logic.And[R.Lt (sub (x i) h) (Arithmetic.ofRat (left i)), R.Lt (Arithmetic.ofRat (left i)) (x i)] :=
+    \fun (i: Coordinate) => \bysub(Q.Rat, { q: Q.Rat \where Logic.And[R.Lt (sub (x i) h) (Arithmetic.ofRat q), R.Lt (Arithmetic.ofRat q) (x i)] }, a i) \then
+  \let rightLaw: \forall (i: Coordinate) -> Logic.And[R.Lt (x i) (Arithmetic.ofRat (right i)), R.Lt (Arithmetic.ofRat (right i)) (add (x i) h)] :=
+    \fun (i: Coordinate) => \bysub(Q.Rat, { q: Q.Rat \where Logic.And[R.Lt (x i) (Arithmetic.ofRat q), R.Lt (Arithmetic.ofRat q) (add (x i) h)] }, b i) \then
+  \let contains: Space.Member (rectangle left right) x := \fun (i: Coordinate) => Logic.And[_, _]::# (#right{(leftLaw i)}) (#left{(rightLaw i)}) \then
+  \let within: Space.Subset (rectangle left right) U := \block {
+    \fun (y: Point)(inside: Space.Member (rectangle left right) y) \then
+    \let distanceBound: R.Le (Def.pointDistance y x) h := Norm.finiteUpper n (Def.subPoint y x) h (R.Order[].leOfLt zero h positive)
+      (\fun (i: Coordinate) => R.leReplaceLeft (distance (y i) (x i)) (distance (sub (y i) (x i)) zero) h
+        (sym!{Real} (distance (sub (y i) (x i)) zero) (distance (y i) (x i)) (Norm.distanceDifference (y i) (x i)))
+        (R.Order[].leOfLt (distance (y i) (x i)) h (R.ltReplaceLeft (distance (x i) (y i)) (distance (y i) (x i)) h (Metric.distanceSymmetric (x i) (y i))
+          (Metric.distanceLtOfInterval (x i) (y i) h
+            (R.Order[].ltTrans (sub (x i) h) (Arithmetic.ofRat (left i)) (y i) (#left{(leftLaw i)}) (#left{(inside i)}))
+            (R.Order[].ltTrans (y i) (Arithmetic.ofRat (right i)) (add (x i) h) (#right{(inside i)}) (#right{(rightLaw i)})))))) \then
+    \return #right{ball} y (R.ltReplaceLeft (Def.pointDistance y x) (Def.pointDistance x y) rho (Norm.distanceSymmetric y x)
+      (R.leLtTrans (Def.pointDistance y x) h rho distanceBound (Bounds.halfStrict rho (#left{ball}))))
+  } \then
+  \takefrom k: \Cast[N.Nat^] ({ k: N.Nat^ \where basis k = rectangle left right }) \by appears left right \then
+  \let same: basis k = rectangle left right := \bysub(N.Nat^, { k: N.Nat^ \where basis k = rectangle left right }, k) \then
+  \return \exact(\into[N.Nat^](k, { k: N.Nat^ \where Logic.And[Space.Member (basis k) x, Space.Subset (basis k) U] }) \by {
+    \idelim rectangle left right = basis k \with W: \Pow Point => Logic.And[Space.Member W x, Space.Subset W U] \by {
+      base: Logic.And[_, _]::# contains within, equality: sym!{\Pow Point} (basis k) (rectangle left right) same
+    }
+  }, \Cast[N.Nat^] ({ k: N.Nat^ \where Logic.And[Space.Member (basis k) x, Space.Subset (basis k) U] }))
+};
+\definition basisLaws: Space.IsCountableBasis[Euclidean.topology, basis] := Space.IsCountableBasis[Euclidean.topology, basis] {
+  open := \fun (k: N.Nat^) => rectangleOpen (lower k) (upper k), refines := refines,
+};
+\definition secondCountable: Space.IsSecondCountable Euclidean.topology := \exact(\into[N.Nat^ -> \Pow Point](basis,
+  { b: N.Nat^ -> \Pow Point \where Space.IsCountableBasis[Euclidean.topology, b] }) \by { basisLaws },
+  \Cast[N.Nat^ -> \Pow Point] ({ b: N.Nat^ -> \Pow Point \where Space.IsCountableBasis[Euclidean.topology, b] }));

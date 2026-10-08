@@ -1,0 +1,31 @@
+\import \parent.\parent.FamilySpace[k := k] \as Families;
+\import Euclidean.On[U := Transition.domain].At[k := k] \as Target;
+\import Spaces.Linear[V := Family k, W := Euclidean.LocalForm Transition.domain k, source := Families.space, target := Target.space] \as Linear;
+\definition restriction: Linear.Map := Linear.Map {
+  apply := restrict k,
+  preservesAdd := \fun (omega, eta: Family k) => #preservesAdd{(Restriction.At[k := k].map included)} (omega left) (eta left),
+  preservesScale := \fun (a: Reals.Real)(omega: Family k) => #preservesScale{(Restriction.At[k := k].map included)} a (omega left),
+};
+\definition pullback: Linear.Map := Linear.Map {
+  apply := transport k,
+  preservesAdd := \fun (omega, eta: Family k) => Pullback.At[k := k].addition (omega right) (eta right),
+  preservesScale := \fun (a: Reals.Real)(omega: Family k) => Pullback.At[k := k].scalar a (omega right),
+};
+\definition zero: Agreement k Families.zero :=
+  trans!{{Euclidean.LocalForm Transition.domain k}} (restrict k Families.zero) Target.zero (transport k Families.zero)
+    #preservesZero{restriction} (sym!{{Euclidean.LocalForm Transition.domain k}} (transport k Families.zero) Target.zero #preservesZero{pullback});
+\definition addition: \forall (omega, eta: Family k) -> Agreement k omega -> Agreement k eta -> Agreement k (Families.plus omega eta) :=
+  \fun (omega, eta: Family k)(first: Agreement k omega)(second: Agreement k eta) => trans!{{Euclidean.LocalForm Transition.domain k}}
+    (restrict k (Families.plus omega eta)) (Target.plus (restrict k omega) (restrict k eta)) (transport k (Families.plus omega eta))
+    (#preservesAdd{restriction} omega eta)
+    (trans!{{Euclidean.LocalForm Transition.domain k}} (Target.plus (restrict k omega) (restrict k eta)) (Target.plus (transport k omega) (transport k eta)) (transport k (Families.plus omega eta))
+      (congr2!{{Euclidean.LocalForm Transition.domain k} {Euclidean.LocalForm Transition.domain k} {Euclidean.LocalForm Transition.domain k}} Target.plus
+        (restrict k omega) (transport k omega) (restrict k eta) (transport k eta) first second)
+      (sym!{{Euclidean.LocalForm Transition.domain k}} (transport k (Families.plus omega eta)) (Target.plus (transport k omega) (transport k eta)) (#preservesAdd{pullback} omega eta)));
+\definition scalar: \forall (a: Reals.Real)(omega: Family k) -> Agreement k omega -> Agreement k (Families.scale a omega) :=
+  \fun (a: Reals.Real)(omega: Family k)(equal: Agreement k omega) => trans!{{Euclidean.LocalForm Transition.domain k}}
+    (restrict k (Families.scale a omega)) (Target.scale a (restrict k omega)) (transport k (Families.scale a omega))
+    (#preservesScale{restriction} a omega)
+    (trans!{{Euclidean.LocalForm Transition.domain k}} (Target.scale a (restrict k omega)) (Target.scale a (transport k omega)) (transport k (Families.scale a omega))
+      (congr!{{Euclidean.LocalForm Transition.domain k} {Euclidean.LocalForm Transition.domain k}} (Target.scale a) (restrict k omega) (transport k omega) equal)
+      (sym!{{Euclidean.LocalForm Transition.domain k}} (transport k (Families.scale a omega)) (Target.scale a (transport k omega)) (#preservesScale{pullback} a omega)));

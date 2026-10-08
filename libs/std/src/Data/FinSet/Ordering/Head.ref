@@ -1,0 +1,42 @@
+\import \root.Data[].FinSet[].Tuples[A := Fin (N.Nat^::succ n)] \as Tuples;
+\definition tuple: Fin (N.Nat^::succ k) -> Fin (N.Nat^::succ n) := Tuples.extend k (zero n) (\fun (i: Fin k) => succ n (f i));
+\definition atZero: tuple (zero k) = zero n := Tuples.atZero k (zero n) (\fun (i: Fin k) => succ n (f i));
+\definition atSuccessor: \forall (i: Fin k) -> tuple (succ k i) = succ n (f i) :=
+  \fun (i: Fin k) => Tuples.atSuccessor k (zero n) (\fun (i: Fin k) => succ n (f i)) i;
+\definition zeroBefore: \forall (i: Fin k) -> NL.Lt (tuple (zero k)) (tuple (succ k i)) :=
+  \fun (i: Fin k) => \idelim zero n = tuple (zero k) \with a: Fin (N.Nat^::succ n) =>
+    NL.Lt a (tuple (succ k i)) \by {
+      base: \idelim succ n (f i) = tuple (succ k i) \with b: Fin (N.Nat^::succ n) => NL.Lt (zero n) b \by {
+        base: \refl(B.Bool^::true), equality: sym!{{Fin (N.Nat^::succ n)}} (tuple (succ k i)) (succ n (f i)) (atSuccessor i)
+      }, equality: sym!{{Fin (N.Nat^::succ n)}} (tuple (zero k)) (zero n) atZero
+    };
+\definition successors: Increasing k n f -> \forall (i, j: Fin k) -> NL.Lt i j -> NL.Lt (tuple (succ k i)) (tuple (succ k j)) :=
+  \fun (ordered: Increasing k n f)(i, j: Fin k)(less: NL.Lt i j) =>
+    \idelim succ n (f i) = tuple (succ k i) \with a: Fin (N.Nat^::succ n) => NL.Lt a (tuple (succ k j)) \by {
+      base: \idelim succ n (f j) = tuple (succ k j) \with b: Fin (N.Nat^::succ n) => NL.Lt (succ n (f i)) b \by {
+        base: NL.ltSuccSucc (f i) (f j) (ordered i j less),
+        equality: sym!{{Fin (N.Nat^::succ n)}} (tuple (succ k j)) (succ n (f j)) (atSuccessor j)
+      }, equality: sym!{{Fin (N.Nat^::succ n)}} (tuple (succ k i)) (succ n (f i)) (atSuccessor i)
+    };
+\definition splitIncreasing: Increasing k n f -> \forall (u, v: Option.Option[Fin k]) ->
+  NL.Lt (inflate k u) (inflate k v) -> NL.Lt (tuple (inflate k u)) (tuple (inflate k v)) :=
+  \fun (ordered: Increasing k n f) => \induction (u: Option.Option[Fin k]) \return \forall (v: Option.Option[Fin k]) ->
+    NL.Lt (inflate k u) (inflate k v) -> NL.Lt (tuple (inflate k u)) (tuple (inflate k v)) \with {
+      | none: \induction (v: Option.Option[Fin k]) \return NL.Lt (zero k) (inflate k v) -> NL.Lt (tuple (zero k)) (tuple (inflate k v)) \with {
+        | none: \fun (less: NL.Lt (zero k) (zero k)) => Logic.falseElim (NL.Lt (tuple (zero k)) (tuple (zero k))) (NL.ltIrrefl (zero k) less)
+        | some: \fun (j: Fin k)(less: NL.Lt (zero k) (succ k j)) => zeroBefore j
+      }
+      | some: \fun (i: Fin k) => \induction (v: Option.Option[Fin k]) \return NL.Lt (succ k i) (inflate k v) -> NL.Lt (tuple (succ k i)) (tuple (inflate k v)) \with {
+        | none: \fun (less: NL.Lt (succ k i) (zero k)) => Logic.falseElim (NL.Lt (tuple (succ k i)) (tuple (zero k))) (zeroImpossible (succ k i) less)
+        | some: \fun (j: Fin k)(less: NL.Lt (succ k i) (succ k j)) => successors ordered i j less
+      }
+    };
+\definition increasing: Increasing k n f -> Increasing (N.Nat^::succ k) (N.Nat^::succ n) tuple :=
+  \fun (ordered: Increasing k n f)(i, j: Fin (N.Nat^::succ k))(less: NL.Lt i j) =>
+    \idelim inflate k (split k i) = i \with a: Fin (N.Nat^::succ k) =>
+      NL.Lt a j -> NL.Lt (tuple a) (tuple j) \by {
+        base: \idelim inflate k (split k j) = j \with b: Fin (N.Nat^::succ k) =>
+          NL.Lt (inflate k (split k i)) b -> NL.Lt (tuple (inflate k (split k i))) (tuple b) \by {
+            base: splitIncreasing ordered (split k i) (split k j), equality: inflateSplit k j
+          }, equality: inflateSplit k i
+      } less;

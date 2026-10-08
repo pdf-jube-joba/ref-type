@@ -1,0 +1,53 @@
+\import \parent.FamilySpace[k := k] \as Families;
+\import Spaces.Subspace[V := Family k, space := Families.space] \as Subspaces;
+\definition subspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { omega: Family k \where Compatible k omega },
+  containsZero := \fun (left, right: Chart) => \parent.Pair[left := left, right := right].At[k := k].zero,
+  closedAdd := \fun (omega, eta: Family k)(first: Compatible k omega)(second: Compatible k eta)(left, right: Chart) =>
+    \parent.Pair[left := left, right := right].At[k := k].addition omega eta (first left right) (second left right),
+  closedScale := \fun (a: Reals.Real)(omega: Family k)(compatible: Compatible k omega)(left, right: Chart) =>
+    \parent.Pair[left := left, right := right].At[k := k].scalar a omega (compatible left right),
+};
+\import Subspaces.Of[subspace := subspace] \as Induced;
+\definition space: Spaces.VectorSpace (Form k) := Induced.induced;
+\definition zero: Form k := #zero{space};
+\definition plus: Form k -> Form k -> Form k := #add{space};
+\definition scale: Reals.Real -> Form k -> Form k := #smul{space};
+
+\import Global.Pointwise[k := k] \as Pointwise;
+\module Point(x: M.Point);
+\definition value(omega: Form k): Global.PointFamily k := \fun (x: M.Point) => Point[x := x].value omega;
+\module Coordinates(chart: Global.Chart);
+\definition regular: \forall (omega: Form k) -> Pointwise.SmoothPointFamily (value omega) :=
+  \fun (omega: Form k)(chart: Global.Chart) => Coordinates[chart := chart].regular omega;
+\definition extend(omega: Form k): Global.Form k :=
+  Pointwise.fromPointwise (\into[Global.PointFamily k](value omega, Pointwise.RegularPointFamily) \by { regular omega });
+\definition evaluation: \forall (omega: Form k) -> Pointwise.value (extend omega) = value omega :=
+  \fun (omega: Form k) => Pointwise.rightInverse
+    (\into[Global.PointFamily k](value omega, Pointwise.RegularPointFamily) \by { regular omega });
+\definition restrictFamily(omega: Global.Form k): Family k := \fun (chart: Chart) => omega (globalChart chart);
+\definition restrictCompatible: \forall (omega: Global.Form k) -> Compatible k (restrictFamily omega) :=
+  \fun (omega: Global.Form k)(left, right: Chart) => (\bysub(Global.Family k,
+    { family: Global.Family k \where Global.Compatible k family }, omega)) (globalChart left) (globalChart right);
+\definition restrict(omega: Global.Form k): Form k := \into[Family k](restrictFamily omega, { f: Family k \where Compatible k f }) \by { restrictCompatible omega };
+\module Recovery(chart: Chart);
+\definition leftInverse: \forall (omega: Form k) -> restrict (extend omega) = omega :=
+  \fun (omega: Form k) => ext k (restrict (extend omega)) omega (\fun (chart: Chart) => Recovery[chart := chart].law omega);
+\definition valueRestrict: \forall (omega: Global.Form k)(x: M.Point) -> value (restrict omega) x = Pointwise.value omega x := \block {
+  \fun (omega: Global.Form k)(x: M.Point) \then
+  \takefrom chart: Point[x := x].LocalChart \by Point[x := x].chartExists \then
+  \let result: value (restrict omega) x = Pointwise.value omega x :=
+    trans!{{Global.PointForm k x}} _ (Point[x := x].ofChart (restrict omega) chart) _
+    (Point[x := x].inChart (restrict omega) chart)
+    (sym!{{Global.PointForm k x}} _ _ (Pointwise.At[x := x].inChart omega chart)) \then
+  \return result
+};
+\definition rightInverse: \forall (omega: Global.Form k) -> extend (restrict omega) = omega :=
+  \fun (omega: Global.Form k) => Pointwise.Algebra[].injective (extend (restrict omega)) omega
+    (trans!{{Global.PointFamily k}} _ (value (restrict omega)) _ (evaluation (restrict omega))
+      (\axiom:funext(value (restrict omega), Pointwise.value omega, valueRestrict omega)));
+\definition injective: \forall (omega, eta: Global.Form k) -> restrict omega = restrict eta -> omega = eta :=
+  \fun (omega, eta: Global.Form k)(same: restrict omega = restrict eta) => trans!{{Global.Form k}} omega (extend (restrict omega)) eta
+    (sym!{{Global.Form k}} _ _ (rightInverse omega))
+    (trans!{{Global.Form k}} _ (extend (restrict eta)) eta (congr!{{Form k} {Global.Form k}} extend _ _ same) (rightInverse eta));
+\module Linear;

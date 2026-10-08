@@ -1,0 +1,20 @@
+\import \parent.Step[k := k] \as Construction;
+\import Product.Degrees[p := degreeOne, q := k] \as Wedge;
+\import Product.Regrade[k := Nat.add degreeOne k, l := N.Nat^::succ k] \as Regrade;
+\definition tail(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n): Fin.Fin k -> Fin.Fin n :=
+  \fun (i: Fin.Fin k) => indices (Fin.succ k i);
+\definition series: \forall (indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) ->
+  Product.component (N.Nat^::succ k) (word (N.Nat^::succ k) indices) =
+    Shuffle.product (Covectors.value (\fun (v: Coordinates.Vector) => v (indices (Fin.zero k)))) (Product.component k (word k (tail indices))) :=
+  \fun (indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) => trans!{{Shuffle.Function}}
+    (Product.component (N.Nat^::succ k) (word (N.Nat^::succ k) indices))
+    (Product.component (Nat.add degreeOne k) (Wedge.wedge (coordinate (indices (Fin.zero k))) (word k (tail indices))))
+    (Shuffle.product (Covectors.value (\fun (v: Coordinates.Vector) => v (indices (Fin.zero k)))) (Product.component k (word k (tail indices))))
+    (Regrade.series (Wedge.wedge (coordinate (indices (Fin.zero k))) (word k (tail indices))) Construction.degree)
+    (trans!{{Shuffle.Function}}
+      (Product.component (Nat.add degreeOne k) (Wedge.wedge (coordinate (indices (Fin.zero k))) (word k (tail indices))))
+      (Shuffle.product (coordinateSeries (indices (Fin.zero k))) (Product.component k (word k (tail indices))))
+      (Shuffle.product (Covectors.value (\fun (v: Coordinates.Vector) => v (indices (Fin.zero k)))) (Product.component k (word k (tail indices))))
+      (Wedge.componentWedge (coordinate (indices (Fin.zero k))) (word k (tail indices)))
+      (congr!{{Shuffle.Function} {Shuffle.Function}} (\fun (f: Shuffle.Function) => Shuffle.product f (Product.component k (word k (tail indices))))
+        (coordinateSeries (indices (Fin.zero k))) (Covectors.value (\fun (v: Coordinates.Vector) => v (indices (Fin.zero k)))) (coordinateIdentity (indices (Fin.zero k)))));

@@ -1,0 +1,38 @@
+\import LocalForward.Differential[U := U, V := V, f := forward, a := a] \as FirstD;
+\definition b: TargetOpen.Carrier V := forwardPoint a;
+\import LocalBackward.Differential[U := V, V := U, f := backward, a := b] \as SecondD;
+\import LocalDiffeomorphisms.Differential[U := U, V := V, f := value, a := a] \as Chain;
+\import LocalDiffeomorphisms.Inverse[U := U, V := V, f := value] \as Reverse;
+\import calculus.Diffeomorphism[n := m, m := n].Differential[U := V, V := U, f := Reverse.inverse, a := b] \as ReverseChain;
+\import real.Analysis[] \as Reals;
+\import Reals.Algebra[] \as Algebra;
+\import linear_algebra.Field[].Space[K := Reals.Real, field := Algebra.field] \as Spaces;
+\import std.Data[].FinSet[] \as Fin;
+\import Spaces.Coordinates[I := Fin.Fin n] \as SourceVectors;
+\import Spaces.Coordinates[I := Fin.Fin m] \as TargetVectors;
+\import Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space] \as ForwardMaps;
+\import Spaces.Linear[V := TargetVectors.Vector, W := SourceVectors.Vector, source := TargetVectors.space, target := SourceVectors.space] \as BackwardMaps;
+\import Spaces.Linear[V := SourceVectors.Vector, W := SourceVectors.Vector, source := SourceVectors.space, target := SourceVectors.space] \as SourceMaps;
+\import Spaces.Linear[V := TargetVectors.Vector, W := TargetVectors.Vector, source := TargetVectors.space, target := TargetVectors.space] \as TargetMaps;
+\import BackwardMaps.Composition[U := SourceVectors.Vector, domain := SourceVectors.space] \as LeftComposition;
+\import ForwardMaps.Composition[U := TargetVectors.Vector, domain := TargetVectors.space] \as RightComposition;
+\definition forwardAt(c: SourceOpen.Carrier U): ForwardMaps.Map := LocalForward.Differential[U := U, V := V, f := forward, a := c].value;
+\definition returnPoint: SourceOpen.Carrier U := backwardPoint b;
+\definition forwardAgreement: forwardAt returnPoint = FirstD.value :=
+  congr!{{SourceOpen.Carrier U} {ForwardMaps.Map}} forwardAt returnPoint a (leftInverse a);
+\definition leftInverseLaw: \forall (v: SourceVectors.Vector) -> #apply{SecondD.value} (#apply{FirstD.value} v) = v :=
+  \fun (v: SourceVectors.Vector) => congr!{{SourceMaps.Map} {SourceVectors.Vector}}
+    (\fun (d: SourceMaps.Map) => #apply{d} v) Chain.candidate calculus.Identity[n := n].linear Chain.inverseJacobian;
+\definition rightInverseLaw: \forall (w: TargetVectors.Vector) -> #apply{FirstD.value} (#apply{SecondD.value} w) = w :=
+  \fun (w: TargetVectors.Vector) => trans!{{TargetVectors.Vector}}
+    (#apply{FirstD.value} (#apply{SecondD.value} w)) (#apply{(forwardAt returnPoint)} (#apply{SecondD.value} w)) w
+    (congr!{{ForwardMaps.Map} {TargetVectors.Vector}} (\fun (d: ForwardMaps.Map) => #apply{d} (#apply{SecondD.value} w))
+      FirstD.value (forwardAt returnPoint) (sym!{{ForwardMaps.Map}} (forwardAt returnPoint) FirstD.value forwardAgreement))
+    (congr!{{TargetMaps.Map} {TargetVectors.Vector}} (\fun (d: TargetMaps.Map) => #apply{d} w)
+      ReverseChain.candidate calculus.Identity[n := m].linear ReverseChain.inverseJacobian);
+\import Spaces.Isomorphism[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := FirstD.value, backward := SecondD.value, leftInverse := leftInverseLaw, rightInverse := rightInverseLaw,
+};
+\definition forward: ForwardMaps.Map := FirstD.value;
+\definition backward: BackwardMaps.Map := SecondD.value;

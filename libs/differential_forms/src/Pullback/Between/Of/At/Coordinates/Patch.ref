@@ -1,0 +1,21 @@
+\import Maps.Coordinates[f := f, left := chart, right := right] \as Coordinates;
+\definition coordinateMap: Calculus.Map Coordinates.domain #image{right} :=
+  Coordinates.map ((\bysub(Maps.ContinuousMap, { g: Maps.ContinuousMap \where Maps.Chartwise g }, f)) chart right
+    (SourceForms.member chart) (TargetForms.member right));
+\import \root.Euclidean[n := n].Pullback[m := m, U := Coordinates.domain, V := #image{right}, f := coordinateMap] \as LocalPullback;
+\import \root.Euclidean[n := n].On[U := Coordinates.domain] \as Restricted;
+\module At(a: Open.Carrier Coordinates.domain);
+\definition agreement: \forall (omega: TargetForms.Form k)(a: Open.Carrier Coordinates.domain)(arguments: SourceMultilinear.Arguments k) ->
+  SourceCoordinates.family (pointwise k omega) (Open.inclusion Coordinates.domain #image{chart} (included right) a) arguments =
+    LocalPullback.apply k (omega right) a arguments :=
+      \fun (omega: TargetForms.Form k)(a: Open.Carrier Coordinates.domain)(arguments: SourceMultilinear.Arguments k) => At[a := a].agreement omega arguments;
+\definition regular: \forall (omega: TargetForms.Form k)(arguments: SourceMultilinear.Arguments k) ->
+  Open.Smooth[].SmoothOn Coordinates.domain
+    (\fun (a: Open.Carrier Coordinates.domain) => SourceCoordinates.family (pointwise k omega)
+      (Open.inclusion Coordinates.domain #image{chart} (included right) a) arguments) :=
+        \fun (omega: TargetForms.Form k)(arguments: SourceMultilinear.Arguments k) =>
+          Restricted.smoothOfEqual (\fun (a: Open.Carrier Coordinates.domain) => LocalPullback.apply k (omega right) a arguments)
+            (\fun (a: Open.Carrier Coordinates.domain) => SourceCoordinates.family (pointwise k omega)
+              (Open.inclusion Coordinates.domain #image{chart} (included right) a) arguments)
+            (\fun (a: Open.Carrier Coordinates.domain) => sym!{{Reals.Real}} _ _ (agreement omega a arguments))
+            (LocalPullback.regular k (omega right) arguments);

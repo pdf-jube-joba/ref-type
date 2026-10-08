@@ -1,0 +1,41 @@
+\definition Injective(k, n: N.Nat^)(f: Fin k -> Fin n): \Prop := \forall (i, j: Fin k) -> f i = f j -> i = j;
+\module Reduction(k, n: N.Nat^, f: Fin (N.Nat^::succ k) -> Fin (N.Nat^::succ n));
+\definition Impossible(n: N.Nat^): \Prop := \forall (k: N.Nat^) -> NL.Lt n k ->
+  \forall (f: Fin k -> Fin n) -> Injective k n f -> Logic.False;
+\definition noInjection: \forall (n: N.Nat^) -> Impossible n :=
+  \induction (n: N.Nat^) \return Impossible n \with {
+    | zero: \induction (k: N.Nat^) \return NL.Lt N.Nat^::zero k ->
+      \forall (f: Fin k -> Fin N.Nat^::zero) -> Injective k N.Nat^::zero f -> Logic.False \with {
+        | zero: \fun (large: NL.Lt N.Nat^::zero N.Nat^::zero)(f: Fin N.Nat^::zero -> Fin N.Nat^::zero)(injective: Injective N.Nat^::zero N.Nat^::zero f) => zeroImpossible N.Nat^::zero large
+        | succ: \fun (k: N.Nat^)(unused: NL.Lt N.Nat^::zero k -> \forall (g: Fin k -> Fin N.Nat^::zero) -> Injective k N.Nat^::zero g -> Logic.False)(large: NL.Lt N.Nat^::zero (N.Nat^::succ k))(f: Fin (N.Nat^::succ k) -> Fin N.Nat^::zero)(injective: Injective (N.Nat^::succ k) N.Nat^::zero f) =>
+          zeroImpossible (f (zero k)) (bound N.Nat^::zero (f (zero k)))
+      }
+    | succ: \fun (n: N.Nat^)(previous: Impossible n) => \induction (k: N.Nat^) \return NL.Lt (N.Nat^::succ n) k ->
+      \forall (f: Fin k -> Fin (N.Nat^::succ n)) -> Injective k (N.Nat^::succ n) f -> Logic.False \with {
+        | zero: \fun (large: NL.Lt (N.Nat^::succ n) N.Nat^::zero)(f: Fin N.Nat^::zero -> Fin (N.Nat^::succ n))(injective: Injective N.Nat^::zero (N.Nat^::succ n) f) => zeroImpossible (N.Nat^::succ n) large
+        | succ: \fun (k: N.Nat^)(unused: NL.Lt (N.Nat^::succ n) k -> \forall (g: Fin k -> Fin (N.Nat^::succ n)) -> Injective k (N.Nat^::succ n) g -> Logic.False)(large: NL.Lt (N.Nat^::succ n) (N.Nat^::succ k))
+          (f: Fin (N.Nat^::succ k) -> Fin (N.Nat^::succ n))(injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f) =>
+            Reduction[k := k, n := n, f := f].impossible (previous k large) injective
+      }
+  };
+\structure Collision[k, n: N.Nat^, f: Fin k -> Fin n]: \Set {
+  first: Fin k,
+  second: Fin k,
+  different: Logic.Not (first = second),
+  same: f first = f second,
+}
+\import std.Logic[].Classical[] \as Classical;
+\definition collisionExists: \forall (k, n: N.Nat^)(f: Fin k -> Fin n) -> NL.Lt n k -> \exists Collision[k, n, f] :=
+  \fun (k, n: N.Nat^)(f: Fin k -> Fin n)(large: NL.Lt n k) =>
+    either!{{\exists Collision[k, n, f]} "or" {Logic.Not (\exists Collision[k, n, f])} "either" {\exists Collision[k, n, f]}
+      "lt:" {\fun (collision: \exists Collision[k, n, f]) => collision}
+      "rt:" {\block {
+        \fun (none: Logic.Not (\exists Collision[k, n, f])) \then
+        \let injective: Injective k n f := \fun (i, j: Fin k)(same: f i = f j) =>
+          either!{{i = j} "or" {Logic.Not (i = j)} "either" {i = j}
+            "lt:" {\fun (equal: i = j) => equal}
+            "rt:" {\fun (different: Logic.Not (i = j)) => Logic.falseElim (i = j)
+              (none (\exact(Collision[k, n, f] { first := i, second := j, different := different, same := same }, Collision[k, n, f])))}}
+            (Classical.excludedMiddle (i = j)) \then
+        \return Logic.falseElim (\exists Collision[k, n, f]) (noInjection n k large f injective)
+      }}} (Classical.excludedMiddle (\exists Collision[k, n, f]));

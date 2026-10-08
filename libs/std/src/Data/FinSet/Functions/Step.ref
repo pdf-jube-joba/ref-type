@@ -1,0 +1,35 @@
+\import Sets.FiniteSubset[A := Tuple k] \as Source;
+\import Sets.FiniteSubset[A := Tuple (N.Nat^::succ k)] \as Target;
+\import Source.Image[B := Tuple (N.Nat^::succ k)] \as Images;
+\import Target.Family[] \as Families;
+\import \root.Data[].FinSet[].Scope[n := n] \as Heads;
+\import Sets.FiniteSubset[A := Fin n] \as HeadSets;
+\import HeadSets.Image[B := Target.FiniteSubset] \as HeadImages;
+\import Sets.FiniteSubset[A := Target.FiniteSubset] \as FamilySets;
+\definition tails(previous: Finiteness k): Source.FiniteSubset :=
+  \into[\Pow (Tuple k)](Whole k, Source.FiniteSubsetSet) \by { previous };
+\definition withHead(previous: Finiteness k)(head: Fin n): Target.FiniteSubset :=
+  Images.value (Tuples.extend k head) (tails previous);
+\definition family(previous: Finiteness k): FamilySets.FiniteSubset :=
+  HeadImages.value (withHead previous) Heads.finite;
+\definition combined(previous: Finiteness k): Target.FiniteSubset := Families.unions (family previous);
+\definition covers: \forall (previous: Finiteness k)(f: Tuple (N.Nat^::succ k)) -> Target.Member (combined previous) f :=
+  \fun (previous: Finiteness k)(f: Tuple (N.Nat^::succ k)) =>
+    \idelim Tuples.extend k (f (zero k)) (\fun (i: Fin k) => f (succ k i)) = f
+      \with g: Tuple (N.Nat^::succ k) => Target.Member (combined previous) g \by {
+        base: Families.memberOf (family previous) (withHead previous (f (zero k)))
+          (Tuples.extend k (f (zero k)) (\fun (i: Fin k) => f (succ k i)))
+          (HeadImages.member (withHead previous) Heads.finite (f (zero k)) (\refl(f (zero k))))
+          (Images.member (Tuples.extend k (f (zero k))) (tails previous) (\fun (i: Fin k) => f (succ k i))
+            (\refl(\fun (i: Fin k) => f (succ k i)))),
+        equality: Tuples.recover k f
+      };
+\definition whole: \forall (previous: Finiteness k) -> Target.underlying (combined previous) = Whole (N.Nat^::succ k) :=
+  \fun (previous: Finiteness k) => \axiom:setext(Target.underlying (combined previous), Whole (N.Nat^::succ k),
+    \fun (f: Tuple (N.Nat^::succ k))(member: Target.Member (combined previous) f) => \refl(f),
+    \fun (f: Tuple (N.Nat^::succ k))(member: f = f) => covers previous f);
+\definition law: Finiteness k -> Finiteness (N.Nat^::succ k) :=
+  \fun (previous: Finiteness k) =>
+    \idelim Target.underlying (combined previous) = Whole (N.Nat^::succ k) \with X: \Pow (Tuple (N.Nat^::succ k)) => Target.Finite X \by {
+      base: Target.finite (combined previous), equality: whole previous
+    };

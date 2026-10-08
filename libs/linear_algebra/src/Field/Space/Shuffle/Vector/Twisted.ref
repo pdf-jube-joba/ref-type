@@ -1,0 +1,26 @@
+\definition addition: Linear f -> \forall (xs: Lists.List[I])(i: N.Nat^) -> NatLaws.Lt i (Lists.length I xs) -> \forall (x, y: I) ->
+  twist f (Replace.apply xs i (#add{space} x y)) = add (twist f (Replace.apply xs i x)) (twist f (Replace.apply xs i y)) := \block {
+  \fun (linear: Linear f)(xs: Lists.List[I])(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length I xs))(x, y: I) \then
+  \let s: K := Sign.value (Lists.length I xs) \then
+  \let fx: K := f (Replace.apply xs i x) \then
+  \let fy: K := f (Replace.apply xs i y) \then
+  \return eq_reason!{
+    {twist f (Replace.apply xs i (#add{space} x y))} "=" {mul s (f (Replace.apply xs i (#add{space} x y)))} "by" {twistReplacement f xs i (#add{space} x y)}
+    "=" {mul s (add fx fy)} "by" {congr!{K K} (mul s) _ _ (#addition{linear} xs i bound x y)}
+    "=" {add (mul s fx) (mul s fy)} "by" {mulAdd s fx fy}
+    "=" {add (twist f (Replace.apply xs i x)) (twist f (Replace.apply xs i y))} "by" {congr2!{K K K} add _ _ _ _
+      (sym!{K} _ _ (twistReplacement f xs i x)) (sym!{K} _ _ (twistReplacement f xs i y))}
+  }
+};
+\definition scalar: Linear f -> \forall (xs: Lists.List[I])(i: N.Nat^) -> NatLaws.Lt i (Lists.length I xs) -> \forall (a: K)(x: I) ->
+  twist f (Replace.apply xs i (#smul{space} a x)) = mul a (twist f (Replace.apply xs i x)) := \block {
+  \fun (linear: Linear f)(xs: Lists.List[I])(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length I xs))(a: K)(x: I) \then
+  \let s: K := Sign.value (Lists.length I xs) \then
+  \let fx: K := f (Replace.apply xs i x) \then
+  \return eq_reason!{
+    {twist f (Replace.apply xs i (#smul{space} a x))} "=" {mul s (f (Replace.apply xs i (#smul{space} a x)))} "by" {twistReplacement f xs i (#smul{space} a x)}
+    "=" {mul s (mul a fx)} "by" {congr!{K K} (mul s) _ _ (#scalar{linear} xs i bound a x)}
+    "=" {mul a (mul s fx)} "by" {Scalars.scaleComm s a fx}
+    "=" {mul a (twist f (Replace.apply xs i x))} "by" {congr!{K K} (mul a) _ _ (sym!{K} _ _ (twistReplacement f xs i x))}
+  }
+};

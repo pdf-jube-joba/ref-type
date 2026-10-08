@@ -1,0 +1,56 @@
+\import std.Set[].Quotient[A := C, Equivalent := OtherEquivalent] \as Other;
+\definition Respects(f: A -> C -> B): \Prop := \forall (x, u: A)(y, v: C) ->
+  Equivalent x u -> OtherEquivalent y v -> f x y = f u v;
+\definition Values(f: A -> C -> B)(left: Carrier)(right: Other.Carrier): \Pow B :=
+  { z: B \where \forall (x: A)(y: C) -> left = class x -> right = Other.class y -> z = f x y };
+\definition Value(f: A -> C -> B)(left: Carrier)(right: Other.Carrier): \Set := \Cast[B] (Values f left right);
+\definition classValue: \forall (laws: EquivalenceLaws)(otherLaws: Other.EquivalenceLaws)
+  (f: A -> C -> B) -> Respects f -> \forall (x: A)(y: C) ->
+  \In[B] (Values f (class x) (Other.class y)) (f x y) :=
+  \fun (laws: EquivalenceLaws)(otherLaws: Other.EquivalenceLaws)(f: A -> C -> B)
+    (respects: Respects f)(x: A)(y: C)(u: A)(v: C)
+    (left: class x = class u)(right: Other.class y = Other.class v) =>
+      respects x u y v (equivalentOfClassEq laws x u left) (Other.equivalentOfClassEq otherLaws y v right);
+\definition existsValue: \forall (laws: EquivalenceLaws)(otherLaws: Other.EquivalenceLaws)
+  (f: A -> C -> B) -> Respects f -> \forall (left: Carrier)(right: Other.Carrier) -> \exists Value f left right :=
+  \fun (laws: EquivalenceLaws)(otherLaws: Other.EquivalenceLaws)(f: A -> C -> B)(respects: Respects f) =>
+    induction (\fun (left: Carrier) => \forall (right: Other.Carrier) -> \exists Value f left right)
+      (\fun (x: A) => Other.induction (\fun (right: Other.Carrier) => \exists Value f (class x) right)
+        (\fun (y: C) => \exact(\into[B](f x y, Values f (class x) (Other.class y)) \by {
+          classValue laws otherLaws f respects x y
+        }, Value f (class x) (Other.class y))));
+\definition uniqueValue: \forall (f: A -> C -> B)(left: Carrier)(right: Other.Carrier)
+  (u, v: Value f left right) -> u = v :=
+  \fun (f: A -> C -> B) => induction (\fun (left: Carrier) => \forall (right: Other.Carrier)(u, v: Value f left right) -> u = v)
+    (\fun (x: A) => Other.induction (\fun (right: Other.Carrier) => \forall (u, v: Value f (class x) right) -> u = v)
+      (\fun (y: C)(u, v: Value f (class x) (Other.class y)) => trans!{B} u (f x y) v
+        ((\bysub(B, Values f (class x) (Other.class y), u)) x y (\refl(class x)) (\refl(Other.class y)))
+        (sym!{B} v (f x y) ((\bysub(B, Values f (class x) (Other.class y), v)) x y (\refl(class x)) (\refl(Other.class y))))));
+\definition value(laws: EquivalenceLaws)(otherLaws: Other.EquivalenceLaws)(f: A -> C -> B)
+  (respects: Respects f)(left: Carrier)(right: Other.Carrier): B :=
+    \choice Value f left right \by {
+      existence: existsValue laws otherLaws f respects left right,
+      uniqueness: uniqueValue f left right
+    };
+\definition onClass: \forall (laws: EquivalenceLaws)(otherLaws: Other.EquivalenceLaws)(f: A -> C -> B)
+  (respects: Respects f)(x: A)(y: C) -> value laws otherLaws f respects (class x) (Other.class y) = f x y :=
+  \fun (laws: EquivalenceLaws)(otherLaws: Other.EquivalenceLaws)(f: A -> C -> B)(respects: Respects f)(x: A)(y: C) =>
+    sym!{B} (f x y) (value laws otherLaws f respects (class x) (Other.class y))
+      (\choiceeq \into[B](f x y, Values f (class x) (Other.class y)) \by {
+        classValue laws otherLaws f respects x y
+      } \of Value f (class x) (Other.class y) \by {
+        existence: existsValue laws otherLaws f respects (class x) (Other.class y),
+        uniqueness: uniqueValue f (class x) (Other.class y)
+      });
+\definition uniqueness: \forall (laws: EquivalenceLaws)(otherLaws: Other.EquivalenceLaws)(f: A -> C -> B)
+  (respects: Respects f)(g: Carrier -> Other.Carrier -> B) ->
+  (\forall (x: A)(y: C) -> g (class x) (Other.class y) = f x y) -> g = value laws otherLaws f respects :=
+  \fun (laws: EquivalenceLaws)(otherLaws: Other.EquivalenceLaws)(f: A -> C -> B)(respects: Respects f)
+    (g: Carrier -> Other.Carrier -> B)(same: \forall (x: A)(y: C) -> g (class x) (Other.class y) = f x y) =>
+      \axiom:funext(g, value laws otherLaws f respects,
+        induction (\fun (left: Carrier) => g left = value laws otherLaws f respects left)
+          (\fun (x: A) => \axiom:funext(g (class x), value laws otherLaws f respects (class x),
+            Other.induction (\fun (right: Other.Carrier) => g (class x) right = value laws otherLaws f respects (class x) right)
+              (\fun (y: C) => trans!{B} (g (class x) (Other.class y)) (f x y)
+                (value laws otherLaws f respects (class x) (Other.class y)) (same x y)
+                (sym!{B} (value laws otherLaws f respects (class x) (Other.class y)) (f x y) (onClass laws otherLaws f respects x y))))));

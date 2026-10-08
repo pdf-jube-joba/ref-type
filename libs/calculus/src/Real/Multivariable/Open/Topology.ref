@@ -1,0 +1,34 @@
+\import topological_algebra.Euclidean[].Dimension[n := n].Topology[] \as Euclidean;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as MetricLaws;
+\import topology.Topology[Carrier := Point] \as Space;
+\import topology.MetricSpace[Carrier := Point] \as MetricSpace;
+\definition open: \forall (U: OpenSet) -> Space.IsOpenIn Euclidean.topology (#points{U}) := \block {
+  \fun (U: OpenSet)(a: Point)(member: _) \then
+  \takefrom radius: \Cast[Real] ({ r: Real \where BallInside[#points{U}, a, r] }) \by #open{U} a member \then
+  \let ball: BallInside[#points{U}, a, radius] := \bysub(Real, { r: Real \where BallInside[#points{U}, a, r] }, radius) \then
+  \return \exact(\into[Real](radius, MetricSpace.NeighborhoodRadius MetricLaws.metric (#points{U}) a) \by {
+    Logic.And[_, _]::# (#positive{ball}) (\fun (x: Point)(near: _) => #included{ball} x
+      (R.ltReplaceLeft (Coordinates.pointDistance a x) (Coordinates.pointDistance x a) radius (MetricLaws.distanceSymmetric a x) near))
+  }, \Cast[Real] (MetricSpace.NeighborhoodRadius MetricLaws.metric (#points{U}) a))
+};
+\definition ofOpen(points: \Pow Point)(proof: Space.IsOpenIn Euclidean.topology points): OpenSet := OpenSet {
+  points := points,
+  open := \block {
+    \fun (a: Point)(member: _) \then
+    \takefrom radius: \Cast[Real] (MetricSpace.NeighborhoodRadius MetricLaws.metric points a) \by proof a member \then
+    \let ball: Logic.And[R.Lt zero radius, Space.Subset (MetricSpace.Ball MetricLaws.metric a radius) points] :=
+      \bysub(Real, MetricSpace.NeighborhoodRadius MetricLaws.metric points a, radius) \then
+    \return \exact(\into[Real](radius, { r: Real \where BallInside[points, a, r] }) \by {
+      BallInside[points, a, radius] {
+        positive := #left{ball},
+        included := \fun (x: Point)(near: _) => #right{ball} x
+          (R.ltReplaceLeft (Coordinates.pointDistance x a) (Coordinates.pointDistance a x) radius (MetricLaws.distanceSymmetric x a) near),
+      }
+    }, \Cast[Real] ({ r: Real \where BallInside[points, a, r] }))
+  },
+};
+\module Of(U: OpenSet) {
+  \import Space.Subspace[S := #points{U}] \as Subspace;
+  \definition topology: topology.Topology[Carrier := Carrier U].Topology := Subspace.topology Euclidean.topology;
+  \module Continuity;
+}

@@ -1,0 +1,15 @@
+\import \parent.Operations[] \as Operations;
+\definition scaled(c: Real)(g: ScalarFunction U): ScalarFunction U := \fun (x: Carrier U) => mul c (g x);
+\module At(a: Carrier U) {
+  \import \parent.\parent.Section[U := U, f := f, a := a, i := i] \as Section;
+  \import \parent.\parent.\parent.\parent.\parent.Derivative[].Operations[] \as Derivatives;
+  \definition partial: \forall (c: Real)(df: ScalarFunction U) -> HasPartialDerivative U f i df ->
+    HasPartialDerivativeAt U (scaled c f) i a (scaled c df a) :=
+    \fun (c: _)(df: _)(law: _) => Operations.sectionPartial U (scaled c f) a i (\fun (t: Real) => mul c (Section.value t)) (mul c (df a))
+      (congr!{Real Real} (mul c) (Section.value (a i)) (f a) Section.center)
+      (\fun (t: Real)(x: Carrier U)(replaced: _) => congr!{Real Real} (mul c) (Section.value t) (f x) (Section.agreement t x replaced))
+      (Derivatives.scaleDerivative c Section.value (a i) (df a) (Section.derivative (df a) (law a)));
+}
+\definition partial: \forall (c: Real)(df: ScalarFunction U) -> HasPartialDerivative U f i df ->
+  HasPartialDerivative U (scaled c f) i (scaled c df) :=
+  \fun (c: _)(df: _)(law: _)(a: Carrier U) => At[a := a].partial c df law;

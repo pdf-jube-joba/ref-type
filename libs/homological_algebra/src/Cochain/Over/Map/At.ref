@@ -1,0 +1,78 @@
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\import Modules.Hom[V := C.family.Carrier k, W := D.family.Carrier k,
+  source := C.family.space k, target := D.family.space k] \as Linear;
+\definition linear(f: Map): Linear.Map := Linear.Map {
+  apply := #apply{f} k, addition := #addition{f} k, scalar := #scalar{f} k,
+};
+\definition zeroPreserved: \forall (f: Map) ->
+  #apply{f} k (#zero{(C.family.space k)}) = #zero{(D.family.space k)} :=
+  \fun (f: Map) => Linear.zeroPreserved (linear f);
+\import \parent.\parent.At[C := C, k := k] \as Source;
+\import \parent.\parent.At[C := D, k := k] \as Target;
+\import Modules.Hom[V := Source.CycleCarrier, W := Target.CycleCarrier,
+  source := Source.cycleSpace, target := Target.cycleSpace] \as CycleMaps;
+\definition preservesClosed: \forall (f: Map)(x: Source.CycleCarrier) ->
+  #apply{D.differential} k (#apply{f} k x) = #zero{(D.family.space (next k))} :=
+  \fun (f: Map)(x: Source.CycleCarrier) => trans!{{D.family.Carrier (next k)}}
+    (#apply{D.differential} k (#apply{f} k x)) (#apply{f} (next k) (#apply{C.differential} k x))
+    (#zero{(D.family.space (next k))}) (#commutes{f} k x)
+    (trans!{{D.family.Carrier (next k)}} (#apply{f} (next k) (#apply{C.differential} k x))
+      (#apply{f} (next k) (#zero{(C.family.space (next k))})) (#zero{(D.family.space (next k))})
+      (congr!{{C.family.Carrier (next k)} {D.family.Carrier (next k)}} (#apply{f} (next k))
+        (#apply{C.differential} k x) (#zero{(C.family.space (next k))})
+        (\bysub(C.family.Carrier k, #carrier{Source.cycles}, x)))
+      (\parent.At[k := next k].zeroPreserved f));
+\definition cyclesMap(f: Map): CycleMaps.Map := CycleMaps.Map {
+  apply := \fun (x: Source.CycleCarrier) => Target.cycle (#apply{f} k x) (preservesClosed f x),
+  addition := \fun (x, y: Source.CycleCarrier) => #addition{f} k x y,
+  scalar := \fun (a: R)(x: Source.CycleCarrier) => #scalar{f} k a x,
+};
+
+\definition preservesBoundaries: \forall (f: Map)(j: N.Nat^)(x: C.family.Carrier j) ->
+  \In[C.family.Carrier j] (Source.Boundaries j) x ->
+  \In[D.family.Carrier j] (Target.Boundaries j) (#apply{f} j x) :=
+  \fun (f: Map) => \induction (j: N.Nat^) \return \forall (x: C.family.Carrier j) ->
+    \In[C.family.Carrier j] (Source.Boundaries j) x ->
+    \In[D.family.Carrier j] (Target.Boundaries j) (#apply{f} j x) \with {
+      | zero: \fun (x: C.family.Carrier N.Nat^::zero)(equal: x = #zero{(C.family.space N.Nat^::zero)}) =>
+        trans!{{D.family.Carrier N.Nat^::zero}} (#apply{f} N.Nat^::zero x)
+          (#apply{f} N.Nat^::zero (#zero{(C.family.space N.Nat^::zero)})) (#zero{(D.family.space N.Nat^::zero)})
+          (congr!{{C.family.Carrier N.Nat^::zero} {D.family.Carrier N.Nat^::zero}} (#apply{f} N.Nat^::zero)
+            x (#zero{(C.family.space N.Nat^::zero)}) equal)
+          (\parent.At[k := N.Nat^::zero].zeroPreserved f)
+      | succ: \block {
+        \fun (j: N.Nat^)(previous: \forall (z: C.family.Carrier j) -> \In[C.family.Carrier j] (Source.Boundaries j) z ->
+          \In[D.family.Carrier j] (Target.Boundaries j) (#apply{f} j z))
+          (x: C.family.Carrier (next j))(exists: \In[C.family.Carrier (next j)] (Source.Boundaries (next j)) x) \then
+        \takefrom y: \Cast[C.family.Carrier j] ({ y: C.family.Carrier j \where #apply{C.differential} j y = x }) \by exists \then
+        \let equal: #apply{D.differential} j (#apply{f} j y) = #apply{f} (next j) x :=
+          trans!{{D.family.Carrier (next j)}} (#apply{D.differential} j (#apply{f} j y))
+            (#apply{f} (next j) (#apply{C.differential} j y)) (#apply{f} (next j) x)
+            (#commutes{f} j y)
+            (congr!{{C.family.Carrier (next j)} {D.family.Carrier (next j)}} (#apply{f} (next j))
+              (#apply{C.differential} j y) x (\bysub(C.family.Carrier j, { y: C.family.Carrier j \where #apply{C.differential} j y = x }, y))) \then
+        \return \exact(\into[D.family.Carrier j](#apply{f} j y,
+          { z: D.family.Carrier j \where #apply{D.differential} j z = #apply{f} (next j) x }) \by { equal },
+          \Cast[D.family.Carrier j] ({ z: D.family.Carrier j \where #apply{D.differential} j z = #apply{f} (next j) x }))
+      }
+    };
+
+\import Modules.Of[V := Source.CycleCarrier, space := Source.cycleSpace] \as SourceModule;
+\import SourceModule.Submodule[] \as SourceSubspaces;
+\import SourceSubspaces.Quotient[S := Source.boundariesInside] \as SourceQuotient;
+\import SourceQuotient.To[W := Target.Cohomology, target := Target.cohomologySpace] \as Descent;
+\import Modules.Hom[V := Source.CycleCarrier, W := Target.Cohomology,
+  source := Source.cycleSpace, target := Target.cohomologySpace] \as Raw;
+\import Modules.Hom[V := Target.CycleCarrier, W := Target.Cohomology,
+  source := Target.cycleSpace, target := Target.cohomologySpace] \as Projection;
+\import Projection.Composition[U := Source.CycleCarrier, domain := Source.cycleSpace] \as Compose;
+\definition onCycles(f: Map): Raw.Map := Compose.compose Target.classLinear (cyclesMap f);
+\definition vanishes: \forall (f: Map) -> Descent.Vanishes (onCycles f) :=
+  \fun (f: Map)(x: Source.CycleCarrier)(boundary: \In[Source.CycleCarrier] (#carrier{Source.boundariesInside}) x) =>
+    Target.boundaryClassZero (#apply{(cyclesMap f)} x) (preservesBoundaries f k x boundary);
+\import Modules.Hom[V := Source.Cohomology, W := Target.Cohomology,
+  source := Source.cohomologySpace, target := Target.cohomologySpace] \as Induced;
+\definition induced(f: Map): Induced.Map := Descent.descend (onCycles f) (vanishes f);
+\definition onClass: \forall (f: Map)(x: Source.CycleCarrier) ->
+  #apply{(induced f)} (Source.classOf x) = Target.classOf (#apply{(cyclesMap f)} x) :=
+  \fun (f: Map) => Descent.onClass (onCycles f) (vanishes f);

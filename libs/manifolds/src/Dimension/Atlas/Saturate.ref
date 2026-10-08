@@ -1,0 +1,16 @@
+\definition ChartsIn: \Set := \Cast[Charts.Chart] (#charts{atlas});
+\module Pair(left, right: Charts.Chart);
+\definition compatible: \forall (left, right: Charts.Chart) -> Compatibility[atlas, left] -> Compatibility[atlas, right] -> Compatible left right :=
+  \fun (left, right: Charts.Chart)(leftCompatible: Compatibility[atlas, left])(rightCompatible: Compatibility[atlas, right]) =>
+    Pair[left := left, right := right].compatible leftCompatible rightCompatible;
+\definition data: Data := Data { charts := Saturation atlas };
+\definition laws: Laws[data] := Laws[data] {
+  covers := saturationCovers atlas,
+  compatible := compatible,
+};
+\definition saturated: Atlas := \into[Data](data, { value: Data \where Laws[value] }) \by { laws };
+\definition maximal: \forall (chart: Charts.Chart) -> Compatibility[saturated, chart] -> Member saturated chart :=
+  \fun (chart: Charts.Chart)(compatible: Compatibility[saturated, chart]) => Compatibility[atlas, chart] {
+    forward := \fun (other: Charts.Chart)(member: Member atlas other) => #forward{compatible} other (includedInSaturation atlas other member),
+    backward := \fun (other: Charts.Chart)(member: Member atlas other) => #backward{compatible} other (includedInSaturation atlas other member),
+  };

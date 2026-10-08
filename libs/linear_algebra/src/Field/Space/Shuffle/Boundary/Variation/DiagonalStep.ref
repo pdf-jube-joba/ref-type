@@ -1,0 +1,27 @@
+\definition law:
+  (\forall (f: Other.Function) -> Alternating.Laws[f] -> \forall (v: I) -> Symmetric -> apply (diagonal f v) xs = insert (hessian v) f xs) ->
+  \forall (head: I)(f: Other.Function) -> Alternating.Laws[f] -> \forall (v: I) -> Symmetric ->
+  apply (diagonal f v) (Lists.List[I]::cons head xs) = insert (hessian v) f (Lists.List[I]::cons head xs) := \block {
+  \fun (previous: \forall (f: Other.Function) -> Alternating.Laws[f] -> \forall (v: I) -> Symmetric -> apply (diagonal f v) xs = insert (hessian v) f xs)
+    (head: I)(f: Other.Function)(alternating: Alternating.Laws[f])(v: I)(symmetric: Symmetric) \then
+  \let shifted: Other.Function := Other.shift (map head) f \then
+  \let H: I -> Function := \fun (w: I) => shift head (diagonal f v w) \then
+  \let G: I -> Function := diagonal shifted v \then
+  \let opposite: \forall (w: I)(ys: Lists.List[I]) -> H w ys = neg (G w ys) := \fun (w: I)(ys: Lists.List[I]) =>
+    #swap{alternating} Lists.List[J]::nil (hessian w v) (map head) (mapped ys) \then
+  \return eq_reason!{
+    {apply (diagonal f v) (Lists.List[I]::cons head xs)}
+    "=" {add (f (Lists.List[J]::cons (hessian v head) (mapped xs))) (neg (apply H xs))} "by" {
+      congr!{K K} (\fun (value: K) => add value (neg (apply H xs))) _ _
+        (congr!{J K} (\fun (z: J) => f (Lists.List[J]::cons z (mapped xs))) (hessian head v) (hessian v head) (symmetric head v))}
+    "=" {add (f (Lists.List[J]::cons (hessian v head) (mapped xs))) (neg (neg (apply G xs)))} "by" {
+      congr!{K K} (\fun (value: K) => add (f (Lists.List[J]::cons (hessian v head) (mapped xs))) (neg value)) _ _
+        (trans!{K} (apply H xs) (apply (\fun (w: I) => Alternation.negative (G w)) xs) (neg (apply G xs))
+          (congruent xs H (\fun (w: I) => Alternation.negative (G w)) opposite) (negative xs G))}
+    "=" {add (f (Lists.List[J]::cons (hessian v head) (mapped xs))) (apply G xs)} "by" {
+      congr!{K K} (add (f (Lists.List[J]::cons (hessian v head) (mapped xs)))) _ _ (Sign.doubleNegative (apply G xs))}
+    "=" {insert (hessian v) f (Lists.List[I]::cons head xs)} "by" {
+      congr!{K K} (add (f (Lists.List[J]::cons (hessian v head) (mapped xs)))) _ _
+        (previous shifted (Alternating.shifted f alternating (map head)) v symmetric)}
+  }
+};

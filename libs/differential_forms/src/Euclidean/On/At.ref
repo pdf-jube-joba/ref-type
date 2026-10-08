@@ -1,0 +1,26 @@
+\import Alternating.At[k := k] \as Values;
+\import Modules.Functions[X := Open.Carrier U, V := Alternating.Form k, target := Values.vectorSpace] \as Families;
+\import Spaces.Subspace[V := Family k, space := Families.space] \as Subspaces;
+\definition subspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { omega: Family k \where SmoothFamily k omega },
+  containsZero := \fun (arguments: Multilinear.Arguments k) => Operations.constantSmooth U Spaces.zero,
+  closedAdd := \fun (omega, eta: Family k)(left: SmoothFamily k omega)(right: SmoothFamily k eta)(arguments: Multilinear.Arguments k) =>
+    Operations.addSmooth U (\fun (x: Open.Carrier U) => omega x arguments) (\fun (x: Open.Carrier U) => eta x arguments) (left arguments) (right arguments),
+  closedScale := \fun (c: Reals.Real)(omega: Family k)(smooth: SmoothFamily k omega)(arguments: Multilinear.Arguments k) =>
+    Operations.mulSmooth U (\fun (x: Open.Carrier U) => c) (\fun (x: Open.Carrier U) => omega x arguments)
+      (Operations.constantSmooth U c) (smooth arguments),
+};
+\import Subspaces.Of[subspace := subspace] \as Induced;
+\definition space: Spaces.VectorSpace (Form k) := Induced.induced;
+\definition zero: Form k := #zero{space};
+\definition plus: Form k -> Form k -> Form k := #add{space};
+\definition scale: Reals.Real -> Form k -> Form k := #smul{space};
+\definition constant(omega: Alternating.Form k): Form k :=
+  \into[Family k](\fun (x: Open.Carrier U) => omega, { omega: Family k \where SmoothFamily k omega }) \by {
+    \fun (arguments: Multilinear.Arguments k) => Operations.constantSmooth U (omega arguments)
+  };
+\definition multiply(f: Smooth.SmoothFunction U)(omega: Form k): Form k :=
+  \into[Family k](\fun (x: Open.Carrier U) => Values.scale (f x) (omega x), Form k) \by {
+    \fun (arguments: Multilinear.Arguments k) => Operations.mulSmooth U f (\fun (x: Open.Carrier U) => omega x arguments)
+      (\bysub(Open.ScalarFunction U, Smooth.SmoothFunction U, f)) (\bysub(Family k, Form k, omega) arguments)
+  };

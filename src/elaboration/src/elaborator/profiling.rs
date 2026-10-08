@@ -14,6 +14,7 @@ impl ProfileTimer {
         if filter != "1" && !label.contains(&filter) {
             return None;
         }
+        eprintln!("checking {label}");
         let started = Instant::now();
         Some(Self {
             label,

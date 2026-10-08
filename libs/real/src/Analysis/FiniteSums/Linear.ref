@@ -1,0 +1,33 @@
+\import std.Data[].Bool[] \as Bool;
+\import N.Basic[].Def[] \as Naturals;
+\import N.Basic[].Prop[] \as NatLaws;
+\import Fin.Tuples[A := Real] \as Tuples;
+\definition Vector(n: N.Nat^): \Set := Fin.Fin n -> Real;
+\definition origin(n: N.Nat^): Vector n := \fun (i: Fin.Fin n) => zero;
+\definition plus(n: N.Nat^)(x, y: Vector n): Vector n := \fun (i: Fin.Fin n) => add (x i) (y i);
+\definition scale(n: N.Nat^)(c: Real)(x: Vector n): Vector n := \fun (i: Fin.Fin n) => mul c (x i);
+\definition basis(n: N.Nat^)(i: Fin.Fin n): Vector n :=
+  \fun (j: Fin.Fin n) => Bool.ite Real (Naturals.eqb (Fin.value n j) (Fin.value n i)) one zero;
+\structure Data[n: N.Nat^]: \Set {
+  apply: Vector n -> Real,
+  additive: \forall (x, y: Vector n) -> apply (plus n x y) = add (apply x) (apply y),
+  homogeneous: \forall (c: Real)(x: Vector n) -> apply (scale n c x) = mul c (apply x),
+}
+\definition Map(n: N.Nat^): \Set := Data[n];
+\definition zeroImage: \forall (n: N.Nat^)(f: Map n) -> #apply{f} (origin n) = zero :=
+  \fun (n: _)(f: _) => trans!{Real} _ _ _
+    (sym!{Real} _ _ (congr!{{Vector n} Real} (#apply{f}) (scale n zero (origin n)) (origin n)
+      (\axiom:funext(scale n zero (origin n), origin n, \fun (i: Fin.Fin n) => Laws.fieldMulZeroLeft zero))))
+    (trans!{Real} _ _ _ (#homogeneous{f} zero (origin n)) (Laws.fieldMulZeroLeft (#apply{f} (origin n))));
+\definition emptyVector: \forall (x: Vector N.Nat^::zero) -> x = origin N.Nat^::zero :=
+  \fun (x: _) => \axiom:funext(x, origin N.Nat^::zero,
+    \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim (x i = zero) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\module Step(n: N.Nat^);
+\definition expansion: \forall (n: N.Nat^)(f: Map n)(x: Vector n) ->
+  #apply{f} x = sum n (\fun (i: Fin.Fin n) => mul (x i) (#apply{f} (basis n i))) :=
+  \induction (n: N.Nat^) \return \forall (f: Map n)(x: Vector n) ->
+    #apply{f} x = sum n (\fun (i: Fin.Fin n) => mul (x i) (#apply{f} (basis n i))) \with {
+      | zero: \fun (f: Map N.Nat^::zero)(x: Vector N.Nat^::zero) => trans!{Real} (#apply{f} x) (#apply{f} (origin N.Nat^::zero)) zero
+        (congr!{{Vector N.Nat^::zero} Real} (#apply{f}) x (origin N.Nat^::zero) (emptyVector x)) (zeroImage N.Nat^::zero f)
+      | succ: \fun (n: N.Nat^)(previous: \forall (f: Map n)(x: Vector n) -> #apply{f} x = sum n (\fun (i: Fin.Fin n) => mul (x i) (#apply{f} (basis n i)))) => Step[n := n].expansion previous
+    };

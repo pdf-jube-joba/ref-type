@@ -1,0 +1,31 @@
+\import real.Analysis[] \as R;
+\import R.Algebra[] \as Algebra;
+\import linear_algebra.Field[] \as Field;
+\import Field.Space[K := R.Real, field := Algebra.field] \as Linear;
+\import Linear.Multilinear[V := R.Real, space := Linear.scalarSpace] \as Multilinear;
+\import Multilinear.Alternating[] \as Forms;
+\import Forms.DegreeZero[] \as DegreeZero;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\definition scalarForm: \forall (value: R.Real) -> Forms.Form N.Nat^::zero := DegreeZero.constant;
+\definition evaluateScalar: \forall (value: R.Real) -> (scalarForm value) DegreeZero.emptyArguments = value :=
+  \fun (value: _) => \refl(value);
+\definition recoverZeroForm: \forall (omega: Forms.Form N.Nat^::zero) ->
+  DegreeZero.constant (omega DegreeZero.emptyArguments) = omega :=
+  #rightInverse{DegreeZero.isomorphism};
+\import Linear.Linear[V := R.Real, W := R.Real, source := Linear.scalarSpace, target := Linear.scalarSpace] \as Maps;
+\definition identity: Maps.Map := Maps.Map {
+  apply := \fun (x: R.Real) => x,
+  preservesAdd := \fun (x, y: R.Real) => \refl(R.add x y),
+  preservesScale := \fun (a, x: R.Real) => \refl(R.mul a x),
+};
+\import Forms.Precomposition[W := R.Real, target := Linear.scalarSpace] \as Pullback;
+\module Degree(k: N.Nat^) {
+  \import Forms.At[k := k] \as At;
+  \definition pullbackIdentity: \forall (omega: Forms.Form k) -> Pullback.precompose k identity omega = omega :=
+    \fun (omega: _) => At.ext (Pullback.precompose k identity omega) omega
+      (\fun (v: _) => congr!{{Multilinear.Arguments k} {R.Real}} omega
+        (Pullback.arguments k identity v) v
+        (\axiom:funext(Pullback.arguments k identity v, v, \fun (i: std.Data[].FinSet[].Fin k) => \refl(v i))));
+}

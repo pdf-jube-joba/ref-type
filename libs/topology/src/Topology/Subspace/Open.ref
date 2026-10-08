@@ -1,0 +1,40 @@
+\use Equality.congr;
+\definition inclusion: CarrierSet -> Carrier := \fun (x: CarrierSet) => x;
+\definition image(W: \Pow CarrierSet): \Pow Carrier :=
+  { x: Carrier \where \exists { y: CarrierSet \where Logic.And[Sub.Member W y, y = x] } };
+\definition imageMember(W: \Pow CarrierSet)(x: CarrierSet): Sub.Member W x -> Member (image W) x :=
+  \fun (member: _) => \exact(\into[CarrierSet](x, { y: CarrierSet \where Logic.And[Sub.Member W y, y = x] }) \by {
+    Logic.And[_, _]::# member (\refl(x))
+  }, \Cast[CarrierSet] ({ y: CarrierSet \where Logic.And[Sub.Member W y, y = x] }));
+\definition imageElim(W: \Pow CarrierSet)(x: Carrier)(P: \Prop):
+  (\forall (y: CarrierSet) -> Sub.Member W y -> y = x -> P) -> Member (image W) x -> P := \block {
+  \fun (step: _)(member: _) \then
+  \takefrom y: \Cast[CarrierSet] ({ y: CarrierSet \where Logic.And[Sub.Member W y, y = x] }) \by member \then
+  \let data: Logic.And[Sub.Member W y, y = x] := \bysub(CarrierSet,
+    { y: CarrierSet \where Logic.And[Sub.Member W y, y = x] }, y) \then
+  \return step y (#left{data}) (#right{data})
+};
+\definition imageTrace: \forall (U: \Pow Carrier) -> image (Trace U) = Intersection S U :=
+  \fun (U: \Pow Carrier) => \axiom:setext(image (Trace U), Intersection S U,
+    \fun (x: Carrier)(member: Member (image (Trace U)) x) => imageElim (Trace U) x (Member (Intersection S U) x)
+      (\fun (y: CarrierSet)(inU: Sub.Member (Trace U) y)(equal: y = x) => \idelim y = x
+        \with z: Carrier => Member (Intersection S U) z \by {
+          base: Logic.And[_, _]::# (\bysub(Carrier, S, y)) inU, equality: equal
+        }) member,
+    \fun (x: Carrier)(member: Member (Intersection S U) x) => imageMember (Trace U)
+      (\into[Carrier](x, S) \by { #left{member} }) (#right{member}));
+\definition imageOpen: \forall (ambient: Topology) -> IsOpenIn ambient S -> \forall (W: \Pow CarrierSet) ->
+  Sub.IsOpenIn (topology ambient) W -> IsOpenIn ambient (image W) :=
+  \fun (ambient: _)(openS: _)(W: _)(openW: _) => openTraceElim ambient W (IsOpenIn ambient (image W))
+    (\fun (U: _)(openU: _)(same: W = Trace U) => \idelim Intersection S U = image W
+      \with V: \Pow Carrier => IsOpenIn ambient V \by {
+        base: #intersectionOpen{(topologyLaws ambient)} S U openS openU,
+        equality: sym!{\Pow Carrier} (image W) (Intersection S U)
+          (trans!{\Pow Carrier} (image W) (image (Trace U)) (Intersection S U)
+            (congr!{{\Pow CarrierSet} {\Pow Carrier}} image W (Trace U) same) (imageTrace U))
+      }) (openRepresentation ambient W openW);
+\definition imageIncluded: \forall (W: \Pow CarrierSet) -> Subset (image W) S :=
+  \fun (W: _)(x: _)(member: _) => imageElim W x (Member S x)
+    (\fun (y: CarrierSet)(inW: _)(equal: y = x) => \idelim y = x \with z: Carrier => Member S z \by {
+      base: \bysub(Carrier, S, y), equality: equal
+    }) member;

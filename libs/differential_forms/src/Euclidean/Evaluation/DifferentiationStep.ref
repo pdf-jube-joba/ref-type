@@ -1,0 +1,71 @@
+\import \parent.Contract[k := k] \as Contract;
+\import \parent.Differential[k := k] \as D;
+\import \parent.Differential[k := N.Nat^::succ k] \as NextD;
+\import \parent.ArgumentDifferential[k := k] \as TailD;
+\import \parent.ArgumentDifferential[k := N.Nat^::succ k] \as ArgumentD;
+\import Multilinear.Contraction[k := k].Expansion[I := Fin.Fin n, b := Basis.basis] \as Expansion;
+\import Regularity.Derivative[] \as Partials;
+\import Partials.Linear[U := U] \as Linear;
+\definition contracted(j: Fin.Fin n): RegularFamily k := Contract.apply omega (Basis.vectors j);
+\definition head(arguments: RegularArguments (N.Nat^::succ k))(j: Fin.Fin n): Functions.Function := ArgumentD.coordinate arguments (Fin.zero k) j;
+\definition coefficient(arguments: RegularArguments (N.Nat^::succ k))(j: Fin.Fin n): Functions.Function :=
+  variableEvaluation k (contracted j) (Contract.tail arguments);
+\definition term(arguments: RegularArguments (N.Nat^::succ k))(j: Fin.Fin n): Functions.Function := Functions.product (head arguments j) (coefficient arguments j);
+\definition evaluation: \forall (arguments: RegularArguments (N.Nat^::succ k)) ->
+  variableEvaluation (N.Nat^::succ k) omega arguments = Sums.function (Fin.elements n) (term arguments) :=
+  \fun (arguments: RegularArguments (N.Nat^::succ k)) => Functions.ext
+    (variableEvaluation (N.Nat^::succ k) omega arguments) (Sums.function (Fin.elements n) (term arguments))
+    (\fun (x: Source.Carrier U) => trans!{{Reals.Real}} (omega x (arguments x))
+      (omega x (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x)))
+      (Sums.function (Fin.elements n) (term arguments) x)
+      (congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Reals.Real}} (omega x) (arguments x)
+        (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x))
+        (sym!{{Multilinear.Arguments (N.Nat^::succ k)}} (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x)) (arguments x) (Arguments.recover k (arguments x))))
+      (Expansion.law (omega x) (arguments x (Fin.zero k)) (Contract.tail arguments x)));
+\definition derivativeTerm(i: Fin.Fin m)(arguments: RegularArguments (N.Nat^::succ k))(j: Fin.Fin n): Functions.Function :=
+  Functions.plus (Functions.product (Partials.derivative U (head arguments j) i) (coefficient arguments j))
+    (Functions.product (head arguments j) (Partials.derivative U (coefficient arguments j) i));
+\definition derivative: \forall (i: Fin.Fin m)(arguments: RegularArguments (N.Nat^::succ k)) ->
+  Partials.derivative U (variableEvaluation (N.Nat^::succ k) omega arguments) i = Sums.function (Fin.elements n) (derivativeTerm i arguments) :=
+  \fun (i: Fin.Fin m)(arguments: RegularArguments (N.Nat^::succ k)) => trans!{{Functions.Function}}
+    (Partials.derivative U (variableEvaluation (N.Nat^::succ k) omega arguments) i)
+    (Partials.derivative U (Sums.function (Fin.elements n) (term arguments)) i)
+    (Sums.function (Fin.elements n) (derivativeTerm i arguments))
+    (congr!{{Functions.Function} {Functions.Function}} (\fun (h: Functions.Function) => Partials.derivative U h i)
+      (variableEvaluation (N.Nat^::succ k) omega arguments) (Sums.function (Fin.elements n) (term arguments)) (evaluation arguments))
+    (trans!{{Functions.Function}} (Partials.derivative U (Sums.function (Fin.elements n) (term arguments)) i)
+      (Sums.function (Fin.elements n) (\fun (j: Fin.Fin n) => Partials.derivative U (term arguments j) i))
+      (Sums.function (Fin.elements n) (derivativeTerm i arguments))
+      (Sums.derivative i (Fin.elements n) (term arguments))
+      (Sums.congruent (Fin.elements n) (\fun (j: Fin.Fin n) => Partials.derivative U (term arguments j) i) (derivativeTerm i arguments)
+        (\fun (j: Fin.Fin n) => Linear.product i (head arguments j) (coefficient arguments j))));
+\import Multilinear.Properties[] \as Updates;
+\definition tailDerivative: \forall (i: Fin.Fin m)(arguments: RegularArguments (N.Nat^::succ k))(x: Source.Carrier U)(slot: Fin.Fin k) ->
+  TailD.apply i (Contract.tail arguments) x slot = ArgumentD.apply i arguments x (Fin.succ k slot) :=
+  \fun (i: Fin.Fin m)(arguments: RegularArguments (N.Nat^::succ k))(x: Source.Carrier U)(slot: Fin.Fin k) =>
+    \axiom:funext(TailD.apply i (Contract.tail arguments) x slot, ArgumentD.apply i arguments x (Fin.succ k slot),
+      \fun (j: Fin.Fin n) => congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => Partials.derivative U h i x)
+        (TailD.coordinate (Contract.tail arguments) slot j) (ArgumentD.coordinate arguments (Fin.succ k slot) j)
+        (Functions.ext (TailD.coordinate (Contract.tail arguments) slot j) (ArgumentD.coordinate arguments (Fin.succ k slot) j)
+          (\fun (y: Source.Carrier U) => \refl(arguments y (Fin.succ k slot) j))));
+\definition tailUpdate: \forall (arguments: RegularArguments (N.Nat^::succ k))(x: Source.Carrier U)(slot: Fin.Fin k)(v: Vectors.Vector) ->
+  Arguments.extend k (arguments x (Fin.zero k)) (Multilinear.update k (Contract.tail arguments x) slot v) =
+    Multilinear.update (N.Nat^::succ k) (arguments x) (Fin.succ k slot) v :=
+  \fun (arguments: RegularArguments (N.Nat^::succ k))(x: Source.Carrier U)(slot: Fin.Fin k)(v: Vectors.Vector) =>
+    trans!{{Multilinear.Arguments (N.Nat^::succ k)}}
+      (Arguments.extend k (arguments x (Fin.zero k)) (Multilinear.update k (Contract.tail arguments x) slot v))
+      (Multilinear.update (N.Nat^::succ k) (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x)) (Fin.succ k slot) v)
+      (Multilinear.update (N.Nat^::succ k) (arguments x) (Fin.succ k slot) v)
+      (sym!{{Multilinear.Arguments (N.Nat^::succ k)}}
+        (Multilinear.update (N.Nat^::succ k) (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x)) (Fin.succ k slot) v)
+        (Arguments.extend k (arguments x (Fin.zero k)) (Multilinear.update k (Contract.tail arguments x) slot v))
+        (Updates.extendUpdate k (arguments x (Fin.zero k)) (Contract.tail arguments x) slot v))
+      (congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Multilinear.Arguments (N.Nat^::succ k)}}
+        (\fun (values: Multilinear.Arguments (N.Nat^::succ k)) => Multilinear.update (N.Nat^::succ k) values (Fin.succ k slot) v)
+        (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x)) (arguments x) (Arguments.recover k (arguments x)));
+
+\module At(arguments: RegularArguments (N.Nat^::succ k), i: Fin.Fin m, x: Source.Carrier U);
+\definition law: DifferentiationLaw k -> \forall (arguments: RegularArguments (N.Nat^::succ k))(i: Fin.Fin m)(x: Source.Carrier U) ->
+  Partials.derivative U (variableEvaluation (N.Nat^::succ k) omega arguments) i x = derivativeValue (N.Nat^::succ k) omega arguments i x :=
+  \fun (previous: DifferentiationLaw k)(arguments: RegularArguments (N.Nat^::succ k))(i: Fin.Fin m)(x: Source.Carrier U) =>
+    At[arguments := arguments, i := i, x := x].law previous;

@@ -1,0 +1,54 @@
+\import Global.Pointwise[k := k] \as Pointwise;
+\module AtPoint(i: I, x: Point i) {
+  \import manifolds.OpenSubmanifold[n := n].On[M := M].In[U := domains i] \as Submanifold;
+  \import Submanifold.Inclusion[].Differential[].At[x := x] \as Inclusion;
+  \import manifolds.Tangent[n := n].On[M := Submanifold.manifold] \as LocalTangent;
+  \import Spaces.Multilinear[V := Tangent.Vector x, space := Tangent.space x].Alternating[] \as Alternating;
+  \import Alternating.Precomposition[W := LocalTangent.Vector x, target := LocalTangent.space x] \as Precomposition;
+  \definition value: Global.PointForm k x := Precomposition.precompose k Inclusion.inverse
+    (\root.Forms[n := n].On[M := Submanifold.manifold].Pointwise[k := k].value (forms i) x);
+}
+\definition point(x: M.Point)(i: Indices x): Point i := \into[M.Point](x, domains i) \by {
+  \bysub(I, { i: I \where \In[M.Point] (domains i) x }, i)
+};
+\definition localValue(x: M.Point)(i: Indices x): Global.PointForm k x := AtPoint[i := i, x := point x i].value;
+\definition Compatible: \Prop := \forall (x: M.Point)(i, j: Indices x) -> localValue x i = localValue x j;
+\definition Values(x: M.Point): \Set := \Cast[Global.PointForm k x] ({ value: Global.PointForm k x \where
+  \forall (i: Indices x) -> value = localValue x i });
+\definition exists: Covers -> Compatible -> \forall (x: M.Point) -> \exists Values x := \block {
+  \fun (covers: Covers)(compatible: Compatible)(x: M.Point) \then
+  \takefrom i: Indices x \by covers x \then
+  \return \exact(\into[Global.PointForm k x](localValue x i, Values x) \by {
+    \fun (j: Indices x) => compatible x i j
+  }, Values x)
+};
+\definition unique: Covers -> \forall (x: M.Point)(f, g: Values x) -> f = g := \block {
+  \fun (covers: Covers)(x: M.Point)(f, g: Values x) \then
+  \takefrom i: Indices x \by covers x \then
+  \return trans!{{Global.PointForm k x}} f (localValue x i) g
+    ((\bysub(Global.PointForm k x, Values x, f)) i)
+    (sym!{{Global.PointForm k x}} _ _ ((\bysub(Global.PointForm k x, Values x, g)) i))
+};
+\definition chosen(covers: Covers)(compatible: Compatible)(x: M.Point): Values x :=
+  \choice Values x \by { existence: exists covers compatible x, uniqueness: unique covers x };
+\definition family(covers: Covers)(compatible: Compatible): Global.PointFamily k := \fun (x: M.Point) => chosen covers compatible x;
+\definition agrees: \forall (covers: Covers)(compatible: Compatible)(x: M.Point)(i: Indices x) -> family covers compatible x = localValue x i :=
+  \fun (covers: Covers)(compatible: Compatible)(x: M.Point)(i: Indices x) =>
+    (\bysub(Global.PointForm k x, Values x, chosen covers compatible x)) i;
+\module Coordinates(chart: Global.Chart);
+\definition regular: \forall (covers: Covers)(compatible: Compatible) -> Pointwise.SmoothPointFamily (family covers compatible) :=
+  \fun (covers: Covers)(compatible: Compatible)(chart: Global.Chart) => Coordinates[chart := chart].regular covers compatible;
+\definition apply(covers: Covers)(compatible: Compatible): Global.Form k :=
+  Pointwise.fromPointwise (\into[Global.PointFamily k](family covers compatible, Pointwise.RegularPointFamily) \by { regular covers compatible });
+\definition evaluation: \forall (covers: Covers)(compatible: Compatible) -> Pointwise.value (apply covers compatible) = family covers compatible :=
+  \fun (covers: Covers)(compatible: Compatible) => Pointwise.rightInverse
+    (\into[Global.PointFamily k](family covers compatible, Pointwise.RegularPointFamily) \by { regular covers compatible });
+\module Restriction(i: I);
+\definition restrictionCompatible: \forall (omega: Global.Form k) ->
+  (\forall (i: I) -> \root.Restriction[n := n].On[M := M].To[U := domains i].apply k omega = forms i) -> Compatible :=
+    \fun (omega: Global.Form k)(same: _)(x: M.Point)(i, j: Indices x) => \axiom:funext(localValue x i, localValue x j,
+      \fun (arguments: Fin.Fin k -> Tangent.Vector x) => trans!{{Reals.Real}} (localValue x i arguments) (Pointwise.value omega x arguments)
+        (localValue x j arguments)
+        (sym!{{Reals.Real}} _ _ (Restriction[i := i].AtPoint[x := point x i].ambientAgreement omega (same i) arguments))
+        (Restriction[i := j].AtPoint[x := point x j].ambientAgreement omega (same j) arguments));
+\module Uniqueness;

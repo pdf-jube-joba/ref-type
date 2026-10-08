@@ -1,0 +1,92 @@
+\import Smooth.Algebra[U := U] \as Functions;
+\import Smooth.Derivative[] \as Derivatives;
+\import Derivatives.Linear[U := U] \as Differentiation;
+\import \parent.At[k := k] \as Forms;
+\definition function(i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U): Multilinear.Function k :=
+  \fun (arguments: Multilinear.Arguments k) => Derivatives.derivative U (evaluate k omega arguments) i x;
+\definition evaluationAddition: \forall (omega: Form k)(arguments: Multilinear.Arguments k)(j: Fin.Fin k)(v, w: Vectors.Vector) ->
+  evaluate k omega (Multilinear.update k arguments j (Vectors.plus v w)) =
+    Functions.plus (evaluate k omega (Multilinear.update k arguments j v)) (evaluate k omega (Multilinear.update k arguments j w)) :=
+  \fun (omega: Form k)(arguments: Multilinear.Arguments k)(j: Fin.Fin k)(v, w: Vectors.Vector) =>
+    Functions.ext (evaluate k omega (Multilinear.update k arguments j (Vectors.plus v w)))
+      (Functions.plus (evaluate k omega (Multilinear.update k arguments j v)) (evaluate k omega (Multilinear.update k arguments j w))) (\fun (x: Open.Carrier U) => #addition{(#linear{(\bysub(Multilinear.Function k, Alternating.Form k, omega x))})} arguments j v w);
+\definition evaluationScalar: \forall (omega: Form k)(arguments: Multilinear.Arguments k)(j: Fin.Fin k)(a: Reals.Real)(v: Vectors.Vector) ->
+  evaluate k omega (Multilinear.update k arguments j (Vectors.scale a v)) =
+    Functions.scale a (evaluate k omega (Multilinear.update k arguments j v)) :=
+  \fun (omega: Form k)(arguments: Multilinear.Arguments k)(j: Fin.Fin k)(a: Reals.Real)(v: Vectors.Vector) =>
+    Functions.ext (evaluate k omega (Multilinear.update k arguments j (Vectors.scale a v)))
+      (Functions.scale a (evaluate k omega (Multilinear.update k arguments j v))) (\fun (x: Open.Carrier U) => #scalar{(#linear{(\bysub(Multilinear.Function k, Alternating.Form k, omega x))})} arguments j a v);
+\definition evaluationZero: \forall (omega: Form k)(arguments: Multilinear.Arguments k)(j, l: Fin.Fin k) -> Logic.Not (j = l) -> arguments j = arguments l ->
+  evaluate k omega arguments = Functions.origin :=
+  \fun (omega: Form k)(arguments: Multilinear.Arguments k)(j, l: Fin.Fin k)(different: Logic.Not (j = l))(equal: arguments j = arguments l) =>
+    Functions.ext (evaluate k omega arguments) Functions.origin (\fun (x: Open.Carrier U) => #alternating{(\bysub(Multilinear.Function k, Alternating.Form k, omega x))} arguments j l different equal);
+\definition linear: \forall (i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U) -> Multilinear.Laws[k, function i omega x] :=
+  \fun (i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U) => Multilinear.Laws[k, function i omega x] {
+    addition := \fun (arguments: Multilinear.Arguments k)(j: Fin.Fin k)(v, w: Vectors.Vector) =>
+      trans!{{Reals.Real}} _ _ _
+        (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x) _ _ (evaluationAddition omega arguments j v w))
+        (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) _ _
+          (Differentiation.addition i (evaluate k omega (Multilinear.update k arguments j v)) (evaluate k omega (Multilinear.update k arguments j w)))),
+    scalar := \fun (arguments: Multilinear.Arguments k)(j: Fin.Fin k)(a: Reals.Real)(v: Vectors.Vector) =>
+      trans!{{Reals.Real}} _ _ _
+        (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x) _ _ (evaluationScalar omega arguments j a v))
+        (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) _ _
+          (Differentiation.scalar i a (evaluate k omega (Multilinear.update k arguments j v)))),
+  };
+\definition alternating: \forall (i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U)(arguments: Multilinear.Arguments k)(j, l: Fin.Fin k) ->
+  Logic.Not (j = l) -> arguments j = arguments l -> function i omega x arguments = Spaces.zero :=
+  \fun (i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U)(arguments: Multilinear.Arguments k)(j, l: Fin.Fin k)(different: Logic.Not (j = l))(equal: arguments j = arguments l) =>
+    trans!{{Reals.Real}} _ _ _
+      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x) _ _ (evaluationZero omega arguments j l different equal))
+      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) _ _ (#preservesZero{(Differentiation.map i)}));
+\definition value(i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U): Alternating.Form k :=
+  \into[Multilinear.Function k](function i omega x, Alternating.Form k) \by {
+    Alternating.AlternatingLaws[k, function i omega x] { linear := linear i omega x, alternating := alternating i omega x }
+  };
+\definition apply(i: Fin.Fin n)(omega: Form k): Form k :=
+  \into[Family k](value i omega, { omega: Family k \where SmoothFamily k omega }) \by {
+    \fun (arguments: Multilinear.Arguments k) => smoothOfEqual
+      (Derivatives.derivative U (evaluate k omega arguments) i) (\fun (x: Open.Carrier U) => value i omega x arguments)
+      (\fun (x: Open.Carrier U) => \refl(function i omega x arguments))
+      (Derivatives.partialSmooth U (evaluate k omega arguments) i)
+  };
+\definition evaluation: \forall (i: Fin.Fin n)(omega: Form k)(arguments: Multilinear.Arguments k) ->
+  evaluate k (apply i omega) arguments = Derivatives.derivative U (evaluate k omega arguments) i :=
+  \fun (i: Fin.Fin n)(omega: Form k)(arguments: Multilinear.Arguments k) => Functions.ext (evaluate k (apply i omega) arguments) (Derivatives.derivative U (evaluate k omega arguments) i)
+    (\fun (x: Open.Carrier U) => \refl(function i omega x arguments));
+\definition addition: \forall (i: Fin.Fin n)(omega, eta: Form k) -> apply i (Forms.plus omega eta) = Forms.plus (apply i omega) (apply i eta) :=
+  \fun (i: Fin.Fin n)(omega, eta: Form k) => ext k (apply i (Forms.plus omega eta)) (Forms.plus (apply i omega) (apply i eta)) (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments k) =>
+    trans!{{Reals.Real}} _ _ _
+      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x) _ _
+        (Functions.ext (evaluate k (Forms.plus omega eta) arguments) (Functions.plus (evaluate k omega arguments) (evaluate k eta arguments))
+          (\fun (x: Open.Carrier U) => \refl(Spaces.add (omega x arguments) (eta x arguments)))))
+      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) _ _
+        (Differentiation.addition i (evaluate k omega arguments) (evaluate k eta arguments))));
+\definition scalar: \forall (i: Fin.Fin n)(a: Reals.Real)(omega: Form k) -> apply i (Forms.scale a omega) = Forms.scale a (apply i omega) :=
+  \fun (i: Fin.Fin n)(a: Reals.Real)(omega: Form k) => ext k (apply i (Forms.scale a omega)) (Forms.scale a (apply i omega)) (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments k) =>
+    trans!{{Reals.Real}} _ _ _
+      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x) _ _
+        (Functions.ext (evaluate k (Forms.scale a omega) arguments) (Functions.scale a (evaluate k omega arguments))
+          (\fun (x: Open.Carrier U) => \refl(Spaces.mul a (omega x arguments)))))
+      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) _ _
+        (Differentiation.scalar i a (evaluate k omega arguments))));
+\import Smooth.Mixed[] \as Mixed;
+\definition commute: \forall (i, j: Fin.Fin n)(omega: Form k) -> apply j (apply i omega) = apply i (apply j omega) :=
+  \fun (i, j: Fin.Fin n)(omega: Form k) => ext k (apply j (apply i omega)) (apply i (apply j omega)) (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments k) =>
+    trans!{{Reals.Real}} _ _ _
+      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f j x) _ _ (evaluation i omega arguments))
+      (trans!{{Reals.Real}} _ _ _
+        (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) _ _ (Mixed.commute U (evaluate k omega arguments) i j))
+        (sym!{{Reals.Real}} _ _
+          (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x) _ _ (evaluation j omega arguments)))));
+\import Spaces.Linear[V := Form k, W := Form k, source := Forms.space, target := Forms.space] \as Maps;
+\definition map(i: Fin.Fin n): Maps.Map := Maps.Map {
+  apply := apply i, preservesAdd := addition i, preservesScale := scalar i,
+};
+\definition constant: \forall (i: Fin.Fin n)(omega: Alternating.Form k) -> apply i (Forms.constant omega) = Forms.zero :=
+  \fun (i: Fin.Fin n)(omega: Alternating.Form k) => ext k (apply i (Forms.constant omega)) Forms.zero
+    (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments k) => trans!{{Reals.Real}} _ _ _
+      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x)
+        (evaluate k (Forms.constant omega) arguments) (Functions.constant (omega arguments))
+        (Functions.ext (evaluate k (Forms.constant omega) arguments) (Functions.constant (omega arguments)) (\fun (x: Open.Carrier U) => \refl(omega arguments))))
+      (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) _ _ (Differentiation.constant i (omega arguments))));

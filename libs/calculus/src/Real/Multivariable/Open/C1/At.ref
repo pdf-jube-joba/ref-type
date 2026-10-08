@@ -1,0 +1,59 @@
+\definition coefficients: Point := \fun (i: Coordinate) => g i a;
+\definition differential: Differentials.LinearMap := Linear.functional coefficients;
+\definition count: Real := Sums.sum n (\fun (i: Coordinate) => one);
+\definition countNonnegative: R.Le zero count := Sums.nonnegative n (\fun (i: Coordinate) => one) (\fun (i: Coordinate) => Laws.oneNonnegative);
+\definition budgetCoefficient: Real := Product.coefficient count zero;
+\definition budgetPositive: R.Lt zero budgetCoefficient := Product.coefficientPositive count zero;
+\definition countBound: R.Le count budgetCoefficient := R.leReplaceLeft (Product.abs count) count budgetCoefficient
+  (Product.absOfNonnegative count countNonnegative)
+  (Metric.leAddOfNonnegative (Product.abs count) (add (Product.abs zero) one)
+    (Laws.addNonnegative (Product.abs zero) one (Product.absNonnegative zero) Laws.oneNonnegative));
+\definition tolerance(epsilon: Real): Real := Product.radius budgetCoefficient epsilon;
+\definition tolerancePositive: \forall (epsilon: Real) -> R.Lt zero epsilon -> R.Lt zero (tolerance epsilon) :=
+  \fun (epsilon: Real)(positive: _) => Product.radiusPositive budgetCoefficient epsilon budgetPositive positive;
+\definition budgetSmall: \forall (epsilon: Real) -> R.Lt zero epsilon -> R.Lt (mul count (tolerance epsilon)) epsilon :=
+  \fun (epsilon: Real)(positive: _) => R.leLtTrans (mul count (tolerance epsilon)) (mul budgetCoefficient (tolerance epsilon)) epsilon
+    (R.leReplace (mul (tolerance epsilon) count) (mul count (tolerance epsilon)) (mul (tolerance epsilon) budgetCoefficient) (mul budgetCoefficient (tolerance epsilon))
+      (Laws.fieldMulComm (tolerance epsilon) count) (Laws.fieldMulComm (tolerance epsilon) budgetCoefficient)
+      (Bounds.mulMonotone (tolerance epsilon) count budgetCoefficient (R.Order[].leOfLt zero (tolerance epsilon) (tolerancePositive epsilon positive)) countBound))
+    (Product.radiusSmall budgetCoefficient epsilon budgetPositive positive);
+\definition Controls(theta: Real): \Set := \forall (i: Coordinate) ->
+  \Cast[Real] ({ delta: Real \where Analysis.ContinuityControl[U, g i, a, theta, delta] });
+\definition chooseControls: \forall (theta: Real) -> R.Lt zero theta ->
+  (\forall (i: Coordinate) -> Analysis.ContinuousAt U (g i) a) -> \exists Controls theta :=
+  \fun (theta: Real)(positive: _)(continuous: _) => \axiom:classicalIndefiniteChoice(Coordinate,
+    (\fun (i: Coordinate) => \Cast[Real] ({ delta: Real \where Analysis.ContinuityControl[U, g i, a, theta, delta] })),
+    \fun (i: Coordinate) => continuous i theta positive);
+\module Point(x: Carrier U);
+\definition differentiable: (\forall (i: Coordinate) -> Analysis.HasPartialDerivative U f i (g i)) ->
+  (\forall (i: Coordinate) -> Analysis.ContinuousAt U (g i) a) -> Analysis.HasDifferentialAt U f a differential := \block {
+  \fun (partials: _)(continuous: _)(epsilon: Real)(positive: _) \then
+  \let theta: Real := tolerance epsilon \then
+  \let thetaPositive: R.Lt zero theta := tolerancePositive epsilon positive \then
+  \takefrom controls: Controls theta \by chooseControls theta thetaPositive continuous \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where BallInside[#points{U}, a, r] }) \by #open{U} a (\bysub(Point, #points{U}, a)) \then
+  \let ball: BallInside[#points{U}, a, rho] := \bysub(Real, { r: Real \where BallInside[#points{U}, a, r] }, rho) \then
+  \let radii: Coordinate -> Real := \fun (i: Coordinate) => controls i \then
+  \let smallest: Real := Sums.Bounds[].minimum n radii \then
+  \let smallestPositive: R.Lt zero smallest := Sums.Bounds[].positive n radii (\fun (i: Coordinate) =>
+    #positive{(\bysub(Real, { delta: Real \where Analysis.ContinuityControl[U, g i, a, theta, delta] }, controls i))}) \then
+  \let delta: Real := Metric.min rho smallest \then
+  \return \exact(\into[Real](delta,
+    { r: Real \where Analysis.DifferentialControl[U, f, a, differential, epsilon, r] }) \by {
+      Analysis.DifferentialControl[U, f, a, differential, epsilon, delta] {
+        positive := Product.minPositive rho smallest (#positive{ball}) smallestPositive,
+        estimate := \block {
+          \fun (x: Carrier U)(nonzero: R.Lt zero (Coordinates.pointDistance x a))(near: R.Lt (Coordinates.pointDistance x a) delta) \then
+          \let r: Real := Coordinates.pointDistance x a \then
+          \let remainder: Real := distance (Analysis.remainder U f a differential x) zero \then
+          \let bounded: R.Le remainder (mul (mul count theta) r) := Point[x := x].bound rho theta controls ball
+            (R.ltLeTrans r delta rho near (Metric.minLeft rho smallest)) (R.Order[].leOfLt zero theta thetaPositive) partials
+            (R.ltLeTrans r delta smallest near (Metric.minRight rho smallest)) \then
+          \let smaller: R.Lt (mul (mul count theta) r) (mul epsilon r) := R.ltReplaceRight (mul (mul count theta) r) (mul r epsilon) (mul epsilon r) (Laws.fieldMulComm r epsilon)
+            (R.ltReplaceLeft (mul r (mul count theta)) (mul (mul count theta) r) (mul r epsilon) (Laws.fieldMulComm r (mul count theta))
+              (Product.mulStrict r (mul count theta) epsilon nonzero (budgetSmall epsilon positive))) \then
+          \return R.leLtTrans remainder (mul (mul count theta) r) (mul epsilon r) bounded smaller
+        },
+      }
+    }, \Cast[Real] ({ r: Real \where Analysis.DifferentialControl[U, f, a, differential, epsilon, r] }))
+};

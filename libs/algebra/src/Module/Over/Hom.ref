@@ -1,0 +1,52 @@
+\import \parent.Laws[V := V, space := source] \as Source;
+\import \parent.Laws[V := W, space := target] \as Target;
+\import algebra.Group[].Of[Carrier := V, group := Source.additive] \as SourceGroup;
+\import algebra.Group[].Of[Carrier := W, group := Target.additive] \as TargetGroup;
+\structure Data: \Set {
+  apply: V -> W,
+}
+\structure Laws[data: Data]: \Prop {
+  addition: \forall (x, y: V) -> data.apply (Source.add x y) = Target.add (data.apply x) (data.apply y),
+  scalar: \forall (a: R)(x: V) -> data.apply (Source.scale a x) = Target.scale a (data.apply x),
+}
+\definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition zeroPreserved: \forall (f: Map) -> #apply{f} Source.zero = Target.zero :=
+  \fun (f: _) => TargetGroup.cancelLeft (#apply{f} Source.zero) (#apply{f} Source.zero) Target.zero
+    (trans!{W} _ _ _
+      (trans!{W} _ _ _ (sym!{W} _ _ (#addition{f} Source.zero Source.zero))
+        (congr!{V W} (#apply{f}) _ _ (SourceGroup.zeroLeft Source.zero)))
+      (sym!{W} _ _ (TargetGroup.zeroRight (#apply{f} Source.zero))));
+\definition negativePreserved: \forall (f: Map)(x: V) -> #apply{f} (Source.neg x) = Target.neg (#apply{f} x) :=
+  \fun (f: _)(x: _) => TargetGroup.inverseUnique (#apply{f} x) (#apply{f} (Source.neg x))
+    (trans!{W} _ _ _ (sym!{W} _ _ (#addition{f} (Source.neg x) x))
+      (trans!{W} _ _ _ (congr!{V W} (#apply{f}) _ _ (SourceGroup.inverseLeft x)) (zeroPreserved f)));
+\definition differencePreserved: \forall (f: Map)(x, y: V) ->
+  #apply{f} (SourceGroup.difference x y) = TargetGroup.difference (#apply{f} x) (#apply{f} y) :=
+  \fun (f: _)(x, y: _) => trans!{W} _ _ _ (#addition{f} x (Source.neg y))
+    (congr!{W W} (Target.add (#apply{f} x)) _ _ (negativePreserved f y));
+
+\definition zeroMap: Map := Map {
+  apply := \fun (x: V) => Target.zero,
+  addition := \fun (x, y: V) => sym!{W} _ _ (TargetGroup.zeroLeft Target.zero),
+  scalar := \fun (a: R)(x: V) => sym!{W} _ _ (Target.scaleZero a),
+};
+\definition plus(f, g: Map): Map := Map {
+  apply := \fun (x: V) => Target.add (#apply{f} x) (#apply{g} x),
+  addition := \fun (x, y: V) => trans!{W} _ _ _
+    (congr2!{W W W} Target.add _ _ _ _ (#addition{f} x y) (#addition{g} x y))
+    (TargetGroup.four (#apply{f} x) (#apply{f} y) (#apply{g} x) (#apply{g} y)),
+  scalar := \fun (a: R)(x: V) => trans!{W} _ _ _
+    (congr2!{W W W} Target.add _ _ _ _ (#scalar{f} a x) (#scalar{g} a x))
+    (sym!{W} _ _ (#vectorAdd{target} a (#apply{f} x) (#apply{g} x))),
+};
+\module Composition(U: \Set, domain: Space U) {
+  \import \parent.\parent.Hom[V := U, W := V, source := domain, target := source] \as Before;
+  \import \parent.\parent.Hom[V := U, W := W, source := domain, target := target] \as Result;
+  \definition compose(f: Map)(g: Before.Map): Result.Map := Result.Map {
+    apply := \fun (x: U) => #apply{f} (#apply{g} x),
+    addition := \fun (x, y: U) => trans!{W} _ _ _
+      (congr!{V W} (#apply{f}) _ _ (#addition{g} x y)) (#addition{f} (#apply{g} x) (#apply{g} y)),
+    scalar := \fun (a: R)(x: U) => trans!{W} _ _ _
+      (congr!{V W} (#apply{f}) _ _ (#scalar{g} a x)) (#scalar{f} a (#apply{g} x)),
+  };
+}

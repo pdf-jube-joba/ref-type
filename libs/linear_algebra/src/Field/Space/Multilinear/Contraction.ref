@@ -1,0 +1,42 @@
+\import Fin.Tuples[A := V] \as Tuples;
+\import \parent.Properties[] \as Updates;
+\definition value(f: Form (N.Nat^::succ k))(head: V): Function k := \fun (tail: Arguments k) => f (Tuples.extend k head tail);
+\definition addition: \forall (f: Form (N.Nat^::succ k))(head: V)(arguments: Arguments k)(i: Fin.Fin k)(x, y: V) ->
+  value f head (update k arguments i (#add{space} x y)) = add (value f head (update k arguments i x)) (value f head (update k arguments i y)) :=
+  \fun (f: Form (N.Nat^::succ k))(head: V)(arguments: Arguments k)(i: Fin.Fin k)(x, y: V) => trans!{K} _ _ _
+    (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (sym!{{Arguments (N.Nat^::succ k)}} _ _ (Updates.extendUpdate k head arguments i (#add{space} x y))))
+    (trans!{K} _ _ _ (#addition{(\bysub(Function (N.Nat^::succ k), Form (N.Nat^::succ k), f))} (Tuples.extend k head arguments) (Fin.succ k i) x y)
+      (congr2!{K K K} add _ _ _ _
+        (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (Updates.extendUpdate k head arguments i x))
+        (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (Updates.extendUpdate k head arguments i y))));
+\definition scalar: \forall (f: Form (N.Nat^::succ k))(head: V)(arguments: Arguments k)(i: Fin.Fin k)(a: K)(x: V) ->
+  value f head (update k arguments i (#smul{space} a x)) = mul a (value f head (update k arguments i x)) :=
+  \fun (f: Form (N.Nat^::succ k))(head: V)(arguments: Arguments k)(i: Fin.Fin k)(a: K)(x: V) => trans!{K} _ _ _
+    (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (sym!{{Arguments (N.Nat^::succ k)}} _ _ (Updates.extendUpdate k head arguments i (#smul{space} a x))))
+    (trans!{K} _ _ _ (#scalar{(\bysub(Function (N.Nat^::succ k), Form (N.Nat^::succ k), f))} (Tuples.extend k head arguments) (Fin.succ k i) a x)
+      (congr!{K K} (mul a) _ _ (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (Updates.extendUpdate k head arguments i x))));
+\definition apply(f: Form (N.Nat^::succ k))(head: V): Form k := \into[Function k](value f head, { g: Function k \where Laws[k, g] }) \by {
+  Laws[k, value f head] { addition := addition f head, scalar := scalar f head }
+};
+\definition headAddition: \forall (f: Form (N.Nat^::succ k))(x, y: V)(arguments: Arguments k) ->
+  value f (#add{space} x y) arguments = add (value f x arguments) (value f y arguments) :=
+  \fun (f: Form (N.Nat^::succ k))(x, y: V)(arguments: Arguments k) => trans!{K} _ _ _
+    (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (sym!{{Arguments (N.Nat^::succ k)}} _ _ (Updates.extendHead k (#zero{space}) arguments (#add{space} x y))))
+    (trans!{K} _ _ _ (#addition{(\bysub(Function (N.Nat^::succ k), Form (N.Nat^::succ k), f))} (Tuples.extend k (#zero{space}) arguments) (Fin.zero k) x y)
+      (congr2!{K K K} add _ _ _ _
+        (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (Updates.extendHead k (#zero{space}) arguments x))
+        (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (Updates.extendHead k (#zero{space}) arguments y))));
+\definition headScalar: \forall (a: K)(f: Form (N.Nat^::succ k))(x: V)(arguments: Arguments k) ->
+  value f (#smul{space} a x) arguments = mul a (value f x arguments) :=
+  \fun (a: K)(f: Form (N.Nat^::succ k))(x: V)(arguments: Arguments k) => trans!{K} _ _ _
+    (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (sym!{{Arguments (N.Nat^::succ k)}} _ _ (Updates.extendHead k (#zero{space}) arguments (#smul{space} a x))))
+    (trans!{K} _ _ _ (#scalar{(\bysub(Function (N.Nat^::succ k), Form (N.Nat^::succ k), f))} (Tuples.extend k (#zero{space}) arguments) (Fin.zero k) a x)
+      (congr!{K K} (mul a) _ _ (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (Updates.extendHead k (#zero{space}) arguments x))));
+\import \parent.\parent.Linear[V := V, W := K, source := space, target := scalarSpace] \as HeadMaps;
+\definition headMap(f: Form (N.Nat^::succ k))(arguments: Arguments k): HeadMaps.Map := HeadMaps.Map {
+  apply := \fun (x: V) => value f x arguments,
+  preservesAdd := \fun (x, y: V) => headAddition f x y arguments,
+  preservesScale := \fun (a: K)(x: V) => headScalar a f x arguments,
+};
+\definition BasisType(I: \Set): \Set := \parent.\parent.Finite[V := V, I := I, space := space].Basis;
+\module Expansion(I: \Set, b: BasisType I);

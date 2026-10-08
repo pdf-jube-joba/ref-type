@@ -1,0 +1,69 @@
+
+\import \parent.JacobianDifferentiation[] \as JacobianPartial;
+\import SourceForms.Regrade[k := k, l := l] \as SourceDegree;
+\import TargetForms.Regrade[k := k, l := l] \as TargetDegree;
+\import \parent.Conversion[k := k, l := l] \as Conversion;
+\import SourceForms.Partial[k := k] \as SourcePartial;
+\import SourceForms.Partial[k := l] \as ConvertedPartial;
+\import TargetForms.Partial[k := l] \as TargetPartial;
+\import SourceForms.Series[k := k] \as SourceSeries;
+\import TargetForms.Series[k := k] \as TargetSeries;
+\import TargetOpen.Smooth[].Derivative[] \as TargetDerivatives;
+\import TargetOpen.Smooth[].Algebra[U := V] \as TargetFunctions;
+\import Smooth.Algebra[U := U] \as Functions;
+\import Evaluation.Differential[k := l] \as FamilyPartial;
+\import Evaluation.ArgumentDifferential[k := l] \as ArgumentPartial;
+\import real.Analysis[].FiniteSums[] \as FiniteSums;
+\definition composed(omega: TargetForms.Form k): Evaluation.RegularFamily l :=
+  \into[Evaluation.Family l]((\fun (x: Open.Carrier U) => TargetAlternating.asMultilinear l (TargetDegree.convert omega (Maps.apply U V f x))),
+    { family: Evaluation.Family l \where Evaluation.CoefficientSmooth l family }) \by {
+      \fun (indices: Fin.Fin l -> Fin.Fin m) => Composition.smooth
+        (TargetForms.evaluate l (TargetDegree.convert omega) (\fun (slot: Fin.Fin l) => TargetBasis.vectors (indices slot)))
+    };
+\definition arguments(data: Multilinear.Arguments l): Evaluation.RegularArguments l :=
+  \into[Evaluation.VariableArguments l]((\fun (x: Open.Carrier U)(slot: Fin.Fin l) => #apply{(jacobian x)} (data slot)),
+    { args: Evaluation.VariableArguments l \where Evaluation.ArgumentSmooth l args }) \by {
+      \fun (slot: Fin.Fin l)(j: Fin.Fin m) => vectorSmooth (data slot) j
+    };
+\definition evaluation: \forall (omega: TargetForms.Form k)(data: Multilinear.Arguments l) ->
+  SourceForms.evaluate l (SourceDegree.convert (apply k omega)) data = Evaluation.variableEvaluation l (composed omega) (arguments data) :=
+  \fun (omega: TargetForms.Form k)(data: Multilinear.Arguments l) => Functions.ext
+    (SourceForms.evaluate l (SourceDegree.convert (apply k omega)) data) (Evaluation.variableEvaluation l (composed omega) (arguments data))
+    (\fun (x: Open.Carrier U) => congr!{{SourceForms.Form l} {Reals.Real}} (\fun (local: SourceForms.Form l) => local x data)
+      (SourceDegree.convert (apply k omega)) (apply l (TargetDegree.convert omega)) (Conversion.law omega));
+\definition constantEvaluation: \forall (omega: TargetForms.Form k)(data: TargetMultilinear.Arguments l) ->
+  Evaluation.evaluate l (composed omega) data = Composition.function (TargetForms.evaluate l (TargetDegree.convert omega) data) :=
+  \fun (omega: TargetForms.Form k)(data: TargetMultilinear.Arguments l) => Functions.ext
+    (Evaluation.evaluate l (composed omega) data) (Composition.function (TargetForms.evaluate l (TargetDegree.convert omega) data))
+    (\fun (x: Open.Carrier U) => \refl(TargetDegree.convert omega (Maps.apply U V f x) data));
+\definition coefficientDerivative: \forall (omega: TargetForms.Form k)(data: TargetMultilinear.Arguments l)(i: Fin.Fin n)(x: Open.Carrier U) ->
+  FamilyPartial.apply i (composed omega) x data = FiniteSums.sum m
+    (\fun (j: Fin.Fin m) => Spaces.mul (TargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) data) (matrix j i x)) :=
+  \fun (omega: TargetForms.Form k)(data: TargetMultilinear.Arguments l)(i: Fin.Fin n)(x: Open.Carrier U) => trans!{{Reals.Real}}
+    (FamilyPartial.apply i (composed omega) x data)
+    (Partials.derivative U (Composition.function (TargetForms.evaluate l (TargetDegree.convert omega) data)) i x)
+    (FiniteSums.sum m (\fun (j: Fin.Fin m) => Spaces.mul (TargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) data) (matrix j i x)))
+    (congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => Partials.derivative U h i x)
+      (Evaluation.evaluate l (composed omega) data) (Composition.function (TargetForms.evaluate l (TargetDegree.convert omega) data)) (constantEvaluation omega data))
+    (Composition.derivative (TargetForms.evaluate l (TargetDegree.convert omega) data) i x);
+\definition evaluationDerivative: \forall (omega: TargetForms.Form k)(data: Multilinear.Arguments l)(i: Fin.Fin n)(x: Open.Carrier U) ->
+  ConvertedPartial.apply i (SourceDegree.convert (apply k omega)) x data = Evaluation.derivativeValue l (composed omega) (arguments data) i x :=
+  \fun (omega: TargetForms.Form k)(data: Multilinear.Arguments l)(i: Fin.Fin n)(x: Open.Carrier U) => trans!{{Reals.Real}}
+    (ConvertedPartial.apply i (SourceDegree.convert (apply k omega)) x data)
+    (Partials.derivative U (Evaluation.variableEvaluation l (composed omega) (arguments data)) i x)
+    (Evaluation.derivativeValue l (composed omega) (arguments data) i x)
+    (congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => Partials.derivative U h i x)
+      (SourceForms.evaluate l (SourceDegree.convert (apply k omega)) data) (Evaluation.variableEvaluation l (composed omega) (arguments data)) (evaluation omega data))
+    (Evaluation.differentiation l (composed omega) (arguments data) i x);
+
+\definition argumentDerivative: \forall (data: Multilinear.Arguments l)(i: Fin.Fin n)(x: Open.Carrier U)(slot: Fin.Fin l) ->
+  ArgumentPartial.apply i (arguments data) x slot = JacobianPartial.partial i (data slot) x :=
+  \fun (data: Multilinear.Arguments l)(i: Fin.Fin n)(x: Open.Carrier U)(slot: Fin.Fin l) => \axiom:funext(
+    ArgumentPartial.apply i (arguments data) x slot, JacobianPartial.partial i (data slot) x, \fun (j: Fin.Fin m) =>
+      trans!{{Reals.Real}} (ArgumentPartial.apply i (arguments data) x slot j)
+        (Partials.derivative U (JacobianPartial.function (data slot) j) i x) (JacobianPartial.partial i (data slot) x j)
+        (congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => Partials.derivative U h i x)
+          (ArgumentPartial.coordinate (arguments data) slot j) (JacobianPartial.function (data slot) j)
+          (Functions.ext (ArgumentPartial.coordinate (arguments data) slot j) (JacobianPartial.function (data slot) j)
+            (\fun (a: Open.Carrier U) => \refl(#apply{(jacobian a)} (data slot) j))))
+        (JacobianPartial.derivative (data slot) j i x));

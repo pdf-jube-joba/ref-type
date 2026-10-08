@@ -1,0 +1,33 @@
+\import Coordinates.IncreasingBasis[k := k] \as Values;
+\import Alternating.At[k := k] \as PointForms;
+\import Alternating.Dimension[n := n, b := Basis.basis].Increasing[k := k] \as Increasing;
+\import \parent.\parent.At[k := k] \as Forms;
+\definition Tuple: \Set := Fin.Fin k -> Fin.Fin n;
+\definition Enumeration: \Set := Increasing.Enumeration;
+\definition existsEnumeration: \exists Enumeration := Increasing.existsEnumeration;
+\import \parent.\parent.Summation[k := k, I := Tuple] \as Evaluation;
+\import Spaces.Sums[I := Tuple].Vector[V := Form k, space := Forms.space] \as Sums;
+\definition assemble(indices: Lists.List[Tuple])(coefficients: Tuple -> Smooth.SmoothFunction U): Form k :=
+  Sums.sum indices (\fun (i: Tuple) => Forms.multiply (coefficients i) (word k i));
+\definition assembleAt: \forall (indices: Lists.List[Tuple])(coefficients: Tuple -> Smooth.SmoothFunction U)(x: Open.Carrier U) ->
+  assemble indices coefficients x = Values.assemble indices (\fun (i: Tuple) => coefficients i x) :=
+  \fun (indices: Lists.List[Tuple])(coefficients: Tuple -> Smooth.SmoothFunction U)(x: Open.Carrier U) =>
+    PointForms.ext (assemble indices coefficients x) (Values.assemble indices (\fun (i: Tuple) => coefficients i x))
+      (\fun (arguments: Multilinear.Arguments k) => trans!{{Reals.Real}}
+        (assemble indices coefficients x arguments)
+        (Spaces.Sums[I := Tuple].sum indices (\fun (i: Tuple) => Spaces.mul (coefficients i x) (Coordinates.word k i arguments)))
+        (Values.assemble indices (\fun (i: Tuple) => coefficients i x) arguments)
+        (Evaluation.evaluateSum indices (\fun (i: Tuple) => Forms.multiply (coefficients i) (word k i)) x arguments)
+        (sym!{{Reals.Real}} _ _ (Values.evaluateAssemble indices (\fun (i: Tuple) => coefficients i x) arguments)));
+\definition reconstruction: \forall (omega: Form k)(enumeration: Enumeration) -> assemble enumeration (coefficient k omega) = omega :=
+  \fun (omega: Form k)(enumeration: Enumeration) => \axiom:funext(assemble enumeration (coefficient k omega), omega,
+    \fun (x: Open.Carrier U) => trans!{{Alternating.Form k}}
+      (assemble enumeration (coefficient k omega) x) (Values.assemble enumeration (Values.coefficient (omega x))) (omega x)
+      (assembleAt enumeration (coefficient k omega) x) (Values.reconstruction (omega x) enumeration));
+\import \parent.\parent.Partial[k := k] \as Partials;
+\import Smooth.Derivative[] \as Derivatives;
+\definition partialCoefficients: \forall (j: Fin.Fin n)(omega: Form k)(enumeration: Enumeration) ->
+  Partials.apply j omega = assemble enumeration (\fun (i: Tuple) => Derivatives.derivative U (coefficient k omega i) j) :=
+  \fun (j: Fin.Fin n)(omega: Form k)(enumeration: Enumeration) =>
+    sym!{{Form k}} (assemble enumeration (coefficient k (Partials.apply j omega))) (Partials.apply j omega) (reconstruction (Partials.apply j omega) enumeration);
+\module Differential;

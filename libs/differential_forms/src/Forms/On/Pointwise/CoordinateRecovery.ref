@@ -1,0 +1,18 @@
+\import \parent.At[x := x] \as Current;
+\import Tangent.At[x := x] \as TangentAt;
+\definition roundtrip(chart: TangentAt.Chart)(arguments: Multilinear.Arguments k): Multilinear.Arguments k :=
+  \fun (slot: Fin.Fin k) => TangentAt.Coordinate[chart := chart].decode (TangentAt.Coordinate[chart := chart].encode (arguments slot));
+\definition roundtripLaw: \forall (chart: TangentAt.Chart)(arguments: Multilinear.Arguments k) -> roundtrip chart arguments = arguments :=
+  \fun (chart: TangentAt.Chart)(arguments: Multilinear.Arguments k) => \axiom:funext(roundtrip chart arguments, arguments,
+    \fun (slot: Fin.Fin k) => TangentAt.Coordinate[chart := chart].decodeEncode (arguments slot));
+\definition recover: \forall (omega: Form k)(chart: TangentAt.Chart) -> Current.pointCoordinates (value omega) chart = omega (Current.globalChart chart) (TangentAt.coordinate chart) :=
+  \fun (omega: Form k)(chart: TangentAt.Chart) => \axiom:funext(Current.pointCoordinates (value omega) chart,
+    omega (Current.globalChart chart) (TangentAt.coordinate chart), \fun (arguments: Multilinear.Arguments k) =>
+      trans!{{Reals.Real}}
+        (Current.pointCoordinates (value omega) chart arguments)
+        (Current.ofChart omega chart (\fun (slot: Fin.Fin k) => TangentAt.Coordinate[chart := chart].encode (arguments slot)))
+        (omega (Current.globalChart chart) (TangentAt.coordinate chart) arguments)
+        (congr!{{PointForm k x} {Reals.Real}} (\fun (f: PointForm k x) => f (\fun (slot: Fin.Fin k) => TangentAt.Coordinate[chart := chart].encode (arguments slot)))
+          (Current.value omega) (Current.ofChart omega chart) (Current.inChart omega chart))
+        (congr!{{Multilinear.Arguments k} {Reals.Real}} (omega (Current.globalChart chart) (TangentAt.coordinate chart))
+          (roundtrip chart arguments) arguments (roundtripLaw chart arguments)));

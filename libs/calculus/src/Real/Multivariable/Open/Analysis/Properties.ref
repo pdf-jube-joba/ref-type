@@ -1,0 +1,48 @@
+\import \parent.\parent.\parent.Space[].Prop[] \as SpaceLaws;
+\import \parent.\parent.\parent.\parent.Limit[].Operations[] \as Limits;
+\import real.Analysis[] \as RealAnalysis;
+\import RealAnalysis.Estimates[] \as Bounds;
+\import Bounds.Product[] \as Product;
+\import R.Order[] \as Order;
+\definition partialUnique: \forall (U: OpenSet)(f: ScalarFunction U)(i: Coordinate)(a: Carrier U)(d, e: Real) ->
+  HasPartialDerivativeAt U f i a d -> HasPartialDerivativeAt U f i a e -> d = e := \block {
+  \fun (U: _)(f: _)(i: _)(a: _)(d, e: _)(left: _)(right: _) \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where BallInside[#points{U}, a, r] }) \by #open{U} a (\bysub(Point, #points{U}, a)) \then
+  \let ball: BallInside[#points{U}, a, rho] := \bysub(Real, { r: Real \where BallInside[#points{U}, a, r] }, rho) \then
+  \return Bounds.separatedBySmall d e (\block {
+    \fun (epsilon: Real)(positive: _) \then
+    \let half: Real := mul RealAnalysis.half epsilon \then
+    \let hp: R.Lt zero half := Bounds.halfOfPositive epsilon positive \then
+    \takefrom dl: \Cast[Real] ({ r: Real \where PartialControl[U, f, a, i, d, half, r] }) \by left half hp \then
+    \takefrom dr: \Cast[Real] ({ r: Real \where PartialControl[U, f, a, i, e, half, r] }) \by right half hp \then
+    \let cl: PartialControl[U, f, a, i, d, half, dl] := \bysub(Real, { r: Real \where PartialControl[U, f, a, i, d, half, r] }, dl) \then
+    \let cr: PartialControl[U, f, a, i, e, half, dr] := \bysub(Real, { r: Real \where PartialControl[U, f, a, i, e, half, r] }, dr) \then
+    \let r: Real := Metric.min rho (Metric.min dl dr) \then
+    \let rp: R.Lt zero r := Product.minPositive rho (Metric.min dl dr) (#positive{ball})
+      (Product.minPositive dl dr (#positive{cl}) (#positive{cr})) \then
+    \let t: Real := Limits.nearby (a i) r \then
+    \let near: R.Lt (distance t (a i)) r := Limits.nearbyClose (a i) r rp \then
+    \let different: Logic.Not (t = a i) := Limits.nearbyDifferent (a i) r rp \then
+    \let x: Carrier U := \into[Point](Coordinates.replace a i t, #points{U}) \by {
+      #included{ball} (Coordinates.replace a i t)
+        (R.ltReplaceLeft (distance t (a i)) (Coordinates.pointDistance (Coordinates.replace a i t) a) rho
+          (sym!{Real} _ _ (SpaceLaws.replaceDistance a i t)) (R.ltLeTrans _ _ _ near (Metric.minLeft rho (Metric.min dl dr))))
+    } \then
+    \let slope: Real := mul (sub (f x) (f a)) (inv (sub t (a i))) \then
+    \let first: R.Lt (distance d slope) half := R.ltReplaceLeft (distance slope d) (distance d slope) half (Metric.distanceSymmetric slope d)
+      (#estimate{cl} t x (\refl(Coordinates.replace a i t)) different
+        (R.ltLeTrans _ _ _ near (R.leTrans r (Metric.min dl dr) dl (Metric.minRight rho (Metric.min dl dr)) (Metric.minLeft dl dr)))) \then
+    \let second: R.Lt (distance slope e) half := #estimate{cr} t x (\refl(Coordinates.replace a i t)) different
+      (R.ltLeTrans _ _ _ near (R.leTrans r (Metric.min dl dr) dr (Metric.minRight rho (Metric.min dl dr)) (Metric.minRight dl dr))) \then
+    \return Order.leOfLt _ _ (R.ltReplaceRight (distance d e) (add half half) epsilon (Bounds.halfTwice epsilon)
+      (R.leLtTrans _ _ _ (Metric.distanceTriangle d slope e) (Bounds.addLt _ _ _ _ first second)))
+  })
+};
+\import \parent.\parent.\parent.Space[].Linear[] \as Linear;
+\use Equality.congr2;
+\definition remainderAtSelf: \forall (U: OpenSet)(f: ScalarFunction U)(a: Carrier U)(d: Differentials.LinearMap) -> remainder U f a d a = zero := \block {
+  \fun (U: OpenSet)(f: ScalarFunction U)(a: Carrier U)(d: Differentials.LinearMap) \then
+  \let difference: Coordinates.subPoint a a = Coordinates.origin := \axiom:funext(Coordinates.subPoint a a, Coordinates.origin, \fun (i: Coordinate) => Laws.subSelf (a i)) \then
+  \let image: #apply{d} (Coordinates.subPoint a a) = zero := trans!{Real} _ _ _ (congr!{Point Real} (#apply{d}) _ _ difference) (Linear.zeroImage d) \then
+  \return trans!{Real} _ _ _ (congr2!{Real Real Real} sub _ _ _ _ (Laws.subSelf (f a)) image) (Laws.subSelf zero)
+};

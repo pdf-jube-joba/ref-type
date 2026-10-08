@@ -1,0 +1,47 @@
+\import \parent.Def[] \as Def;
+\import \parent.Operations[] \as Operations;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+
+\structure Agreement[f, g: Real -> Real, a, radius: Real]: \Prop {
+  positive: R.Lt zero radius,
+  equal: \forall (x: Real) -> R.Lt (distance x a) radius -> f x = g x,
+}
+\definition LocallyEqual(f, g: Real -> Real)(a: Real): \Prop :=
+  \exists { radius: Real \where Agreement[f, g, a, radius] };
+
+\definition center: \forall (f, g: Real -> Real)(a: Real) -> LocallyEqual f g a -> f a = g a := \block {
+  \fun (f, g: _)(a: _)(local: _) \then
+  \takefrom radius: \Cast[Real] ({ r: Real \where Agreement[f, g, a, r] }) \by local \then
+  \let agreement: Agreement[f, g, a, radius] := \bysub(Real, { r: Real \where Agreement[f, g, a, r] }, radius) \then
+  \let equal: f a = g a := #equal{agreement} a
+    (R.ltReplaceLeft zero (distance a a) radius (sym!{Real} _ _ (Metric.distanceSelf a)) (#positive{agreement})) \then
+  \return equal
+};
+
+\definition transfer: \forall (f, g: Real -> Real)(a, l: Real) ->
+  LocallyEqual f g a -> Def.HasLimitAt f a l -> Def.HasLimitAt g a l := \block {
+  \fun (f, g: _)(a, l: _)(local: _)(limit: _)(epsilon: _)(positive: _) \then
+  \takefrom radius: \Cast[Real] ({ r: Real \where Agreement[f, g, a, r] }) \by local \then
+  \let agreement: Agreement[f, g, a, radius] := \bysub(Real, { r: Real \where Agreement[f, g, a, r] }, radius) \then
+  \takefrom delta: \Cast[Real] ({ d: Real \where Def.Control[f, a, l, epsilon, d] }) \by limit epsilon positive \then
+  \let control: Def.Control[f, a, l, epsilon, delta] := \bysub(Real, { d: Real \where Def.Control[f, a, l, epsilon, d] }, delta) \then
+  \return \exact(\into[Real](Metric.min radius delta,
+    { d: Real \where Def.Control[g, a, l, epsilon, d] }) \by {
+      Def.Control[g, a, l, epsilon, Metric.min radius delta] {
+        positive := Product.minPositive radius delta (#positive{agreement}) (#positive{control}),
+        estimate := \fun (x: Real)(different: Logic.Not (x = a))(near: _) =>
+          R.ltReplaceLeft (distance (f x) l) (distance (g x) l) epsilon
+            (congr!{Real Real} (\fun (t: _) => distance t l) _ _
+              (#equal{agreement} x (R.ltLeTrans _ _ _ near (Metric.minLeft radius delta))))
+            (#estimate{control} x different (R.ltLeTrans _ _ _ near (Metric.minRight radius delta))),
+      }
+    }, \Cast[Real] ({ d: Real \where Def.Control[g, a, l, epsilon, d] }))
+};
+
+\definition continuous: \forall (f, g: Real -> Real)(a: Real) ->
+  LocallyEqual f g a -> Def.ContinuousAt f a -> Def.ContinuousAt g a :=
+  \fun (f, g: _)(a: _)(local: _)(continuity: _) => \idelim f a = g a \with l: Real =>
+    Def.HasLimitAt g a l \by {
+      base: transfer f g a (f a) local continuity,
+      equality: center f g a local
+    };

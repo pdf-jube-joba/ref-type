@@ -1,0 +1,71 @@
+\import \parent.Coordinate[chart := chart] \as Coordinate;
+\import \parent.CoordinateOperations[chart := chart] \as Preserves;
+\import \parent.Operations[] \as Operations;
+\import Spaces.Laws[V := Vectors.Vector, space := Vectors.space] \as VectorLaws;
+\definition zeroLeft: \forall (v: Vector) -> Operations.plus Operations.origin v = v :=
+  \fun (v: Vector) => Coordinate.injective _ _ (eq_reason!{
+    {Coordinate.decode (Operations.plus Operations.origin v)} "=" {Vectors.plus (Coordinate.decode Operations.origin) (Coordinate.decode v)} "by" {Preserves.addition Operations.origin v}
+    "=" {Vectors.plus Vectors.origin (Coordinate.decode v)} "by" {congr!{{Vectors.Vector} {Vectors.Vector}} (\fun (w: Vectors.Vector) => Vectors.plus w (Coordinate.decode v)) _ _ Preserves.origin}
+    "=" {Coordinate.decode v} "by" {VectorLaws.zeroLeft (Coordinate.decode v)}
+  });
+\definition commutative: \forall (u, v: Vector) -> Operations.plus u v = Operations.plus v u :=
+  \fun (u, v: Vector) => Coordinate.injective _ _ (trans!{{Vectors.Vector}} _ _ _ (Preserves.addition u v)
+    (trans!{{Vectors.Vector}} _ _ _ (VectorLaws.comm (Coordinate.decode u) (Coordinate.decode v)) (sym!{{Vectors.Vector}} _ _ (Preserves.addition v u))));
+\definition zeroRight: \forall (v: Vector) -> Operations.plus v Operations.origin = v :=
+  \fun (v: Vector) => trans!{Vector} _ _ _ (commutative v Operations.origin) (zeroLeft v);
+\definition associative: \forall (u, v, w: Vector) -> Operations.plus (Operations.plus u v) w = Operations.plus u (Operations.plus v w) :=
+  \fun (u, v, w: Vector) => Coordinate.injective _ _ (eq_reason!{
+    {Coordinate.decode (Operations.plus (Operations.plus u v) w)}
+    "=" {Vectors.plus (Coordinate.decode (Operations.plus u v)) (Coordinate.decode w)} "by" {Preserves.addition (Operations.plus u v) w}
+    "=" {Vectors.plus (Vectors.plus (Coordinate.decode u) (Coordinate.decode v)) (Coordinate.decode w)} "by" {congr!{{Vectors.Vector} {Vectors.Vector}} (\fun (a: Vectors.Vector) => Vectors.plus a (Coordinate.decode w)) _ _ (Preserves.addition u v)}
+    "=" {Vectors.plus (Coordinate.decode u) (Vectors.plus (Coordinate.decode v) (Coordinate.decode w))} "by" {VectorLaws.assoc (Coordinate.decode u) (Coordinate.decode v) (Coordinate.decode w)}
+    "=" {Vectors.plus (Coordinate.decode u) (Coordinate.decode (Operations.plus v w))} "by" {congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.plus (Coordinate.decode u)) _ _ (sym!{{Vectors.Vector}} _ _ (Preserves.addition v w))}
+    "=" {Coordinate.decode (Operations.plus u (Operations.plus v w))} "by" {sym!{{Vectors.Vector}} _ _ (Preserves.addition u (Operations.plus v w))}
+  });
+\definition inverseLeft: \forall (v: Vector) -> Operations.plus (Operations.negative v) v = Operations.origin :=
+  \fun (v: Vector) => Coordinate.injective _ _ (eq_reason!{
+    {Coordinate.decode (Operations.plus (Operations.negative v) v)} "=" {Vectors.plus (Coordinate.decode (Operations.negative v)) (Coordinate.decode v)} "by" {Preserves.addition (Operations.negative v) v}
+    "=" {Vectors.plus (Vectors.negative (Coordinate.decode v)) (Coordinate.decode v)} "by" {congr!{{Vectors.Vector} {Vectors.Vector}} (\fun (w: Vectors.Vector) => Vectors.plus w (Coordinate.decode v)) _ _ (Preserves.negative v)}
+    "=" {Vectors.origin} "by" {VectorLaws.inverseLeft (Coordinate.decode v)}
+    "=" {Coordinate.decode Operations.origin} "by" {sym!{{Vectors.Vector}} _ _ Preserves.origin}
+  });
+\definition inverseRight: \forall (v: Vector) -> Operations.plus v (Operations.negative v) = Operations.origin :=
+  \fun (v: Vector) => trans!{Vector} _ _ _ (commutative v (Operations.negative v)) (inverseLeft v);
+\definition scalarOne: \forall (v: Vector) -> Operations.scale Real.one v = v :=
+  \fun (v: Vector) => Coordinate.injective _ _ (trans!{{Vectors.Vector}} _ _ _ (Preserves.scalar Real.one v) (#scalarOne{Vectors.space} (Coordinate.decode v)));
+\definition scalarAssociative: \forall (a, b: Real.Real)(v: Vector) -> Operations.scale (Real.mul a b) v = Operations.scale a (Operations.scale b v) :=
+  \fun (a, b: Real.Real)(v: Vector) => Coordinate.injective _ _ (eq_reason!{
+    {Coordinate.decode (Operations.scale (Real.mul a b) v)} "=" {Vectors.scale (Real.mul a b) (Coordinate.decode v)} "by" {Preserves.scalar (Real.mul a b) v}
+    "=" {Vectors.scale a (Vectors.scale b (Coordinate.decode v))} "by" {#scalarAssoc{Vectors.space} a b (Coordinate.decode v)}
+    "=" {Vectors.scale a (Coordinate.decode (Operations.scale b v))} "by" {congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.scale a) _ _ (sym!{{Vectors.Vector}} _ _ (Preserves.scalar b v))}
+    "=" {Coordinate.decode (Operations.scale a (Operations.scale b v))} "by" {sym!{{Vectors.Vector}} _ _ (Preserves.scalar a (Operations.scale b v))}
+  });
+\definition scalarAdditive: \forall (a, b: Real.Real)(v: Vector) -> Operations.scale (Real.add a b) v = Operations.plus (Operations.scale a v) (Operations.scale b v) :=
+  \fun (a, b: Real.Real)(v: Vector) => Coordinate.injective _ _ (eq_reason!{
+    {Coordinate.decode (Operations.scale (Real.add a b) v)} "=" {Vectors.scale (Real.add a b) (Coordinate.decode v)} "by" {Preserves.scalar (Real.add a b) v}
+    "=" {Vectors.plus (Vectors.scale a (Coordinate.decode v)) (Vectors.scale b (Coordinate.decode v))} "by" {#scalarAdd{Vectors.space} a b (Coordinate.decode v)}
+    "=" {Vectors.plus (Coordinate.decode (Operations.scale a v)) (Coordinate.decode (Operations.scale b v))} "by" {congr2!{{Vectors.Vector} {Vectors.Vector} {Vectors.Vector}} Vectors.plus _ _ _ _
+      (sym!{{Vectors.Vector}} _ _ (Preserves.scalar a v)) (sym!{{Vectors.Vector}} _ _ (Preserves.scalar b v))}
+    "=" {Coordinate.decode (Operations.plus (Operations.scale a v) (Operations.scale b v))} "by" {sym!{{Vectors.Vector}} _ _ (Preserves.addition (Operations.scale a v) (Operations.scale b v))}
+  });
+\definition vectorAdditive: \forall (a: Real.Real)(u, v: Vector) -> Operations.scale a (Operations.plus u v) = Operations.plus (Operations.scale a u) (Operations.scale a v) :=
+  \fun (a: Real.Real)(u, v: Vector) => Coordinate.injective _ _ (eq_reason!{
+    {Coordinate.decode (Operations.scale a (Operations.plus u v))} "=" {Vectors.scale a (Coordinate.decode (Operations.plus u v))} "by" {Preserves.scalar a (Operations.plus u v)}
+    "=" {Vectors.scale a (Vectors.plus (Coordinate.decode u) (Coordinate.decode v))} "by" {congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.scale a) _ _ (Preserves.addition u v)}
+    "=" {Vectors.plus (Vectors.scale a (Coordinate.decode u)) (Vectors.scale a (Coordinate.decode v))} "by" {#vectorAdd{Vectors.space} a (Coordinate.decode u) (Coordinate.decode v)}
+    "=" {Vectors.plus (Coordinate.decode (Operations.scale a u)) (Coordinate.decode (Operations.scale a v))} "by" {congr2!{{Vectors.Vector} {Vectors.Vector} {Vectors.Vector}} Vectors.plus _ _ _ _
+      (sym!{{Vectors.Vector}} _ _ (Preserves.scalar a u)) (sym!{{Vectors.Vector}} _ _ (Preserves.scalar a v))}
+    "=" {Coordinate.decode (Operations.plus (Operations.scale a u) (Operations.scale a v))} "by" {sym!{{Vectors.Vector}} _ _ (Preserves.addition (Operations.scale a u) (Operations.scale a v))}
+  });
+\definition laws: Ring.RingModuleLaws[Real.Real, Vector, Spaces.ring, data] := Ring.RingModuleLaws[Real.Real, Vector, Spaces.ring, data] {
+  additive := Alg.CommutativeGroupLaws[Vector, Alg.CommutativeGroupData[Vector]::# (Alg.GroupData[Vector]::# Operations.origin Operations.plus Operations.negative)] {
+    group := Alg.GroupLaws[Vector, Alg.GroupData[Vector]::# Operations.origin Operations.plus Operations.negative] {
+      monoid := Monoid.MonoidLaws[Vector, Monoid.MonoidData[Vector]::# Operations.origin Operations.plus] {
+        leftIdentity := zeroLeft, rightIdentity := zeroRight, associative := associative,
+      },
+      leftInverse := inverseLeft, rightInverse := inverseRight,
+    },
+    commutative := commutative,
+  },
+  scalarOne := scalarOne, scalarAssoc := scalarAssociative, scalarAdd := scalarAdditive, vectorAdd := vectorAdditive,
+};

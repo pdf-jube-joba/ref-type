@@ -1,0 +1,107 @@
+
+\definition l: N.Nat^ := Lists.length (Vectors.Vector) xs;
+\definition data: Multilinear.Arguments l := SourceList.tuple xs;
+\definition mapped: Lists.List[TargetVectors.Vector] := Lists.map (Vectors.Vector) (TargetVectors.Vector) (#apply{(jacobian x)}) xs;
+\definition mappedData: TargetMultilinear.Arguments l := \fun (slot: Fin.Fin l) => #apply{(jacobian x)} (data slot);
+\import \parent.\parent.Differentiation[k := k, l := l] \as Differential;
+\import SourceForms.Regrade[k := k, l := l] \as SourceDegree;
+\import TargetForms.Regrade[k := k, l := l] \as TargetDegree;
+\import SourceForms.Partial[k := l] \as ConvertedPartial;
+\import TargetForms.Partial[k := l] \as ConvertedTargetPartial;
+\import Shuffle.Boundary[].Variation[J := TargetVectors.Vector, map := #apply{(jacobian x)}, hessian := JacobianPartial.hessian x] \as Variation;
+\import Variation.Finite[] \as Positional;
+\import Spaces.Sums[I := Fin.Fin l] \as SlotSums;
+\import SlotSums.Prop[] \as SlotLaws;
+\definition sourceLaw: \forall (omega: TargetForms.Form k)(i: Fin.Fin n) ->
+  Exterior.component k (SourcePartial.apply i (apply k omega) x) xs = ConvertedPartial.apply i (SourceDegree.convert (apply k omega)) x data :=
+  \fun (omega: TargetForms.Form k)(i: Fin.Fin n) => trans!{{Reals.Real}}
+    (Exterior.component k (SourcePartial.apply i (apply k omega) x) xs)
+    (SourceDegree.convert (SourcePartial.apply i (apply k omega)) x data)
+    (ConvertedPartial.apply i (SourceDegree.convert (apply k omega)) x data)
+    (congr!{{Lists.List[Vectors.Vector]} {Reals.Real}} (Exterior.component k (SourcePartial.apply i (apply k omega) x)) xs (SourceList.list l data)
+      (sym!{{Lists.List[Vectors.Vector]}} (SourceList.list l data) xs (SourceList.listTuple xs)))
+    (congr!{{SourceForms.Form l} {Reals.Real}} (\fun (local: SourceForms.Form l) => local x data)
+      (SourceDegree.convert (SourcePartial.apply i (apply k omega))) (ConvertedPartial.apply i (SourceDegree.convert (apply k omega)))
+      (sym!{{SourceForms.Form l}} (ConvertedPartial.apply i (SourceDegree.convert (apply k omega)))
+        (SourceDegree.convert (SourcePartial.apply i (apply k omega))) (SourceDegree.conversionPartial i (apply k omega))));
+\definition mappedList: TargetList.list l mappedData = mapped :=
+  trans!{{Lists.List[TargetVectors.Vector]}} (TargetList.list l mappedData)
+    (Lists.map (Vectors.Vector) (TargetVectors.Vector) (#apply{(jacobian x)}) (SourceList.list l data)) mapped
+    (Mapping.listMap l (#apply{(jacobian x)}) data)
+    (congr!{{Lists.List[Vectors.Vector]} {Lists.List[TargetVectors.Vector]}} (Lists.map (Vectors.Vector) (TargetVectors.Vector) (#apply{(jacobian x)}))
+      (SourceList.list l data) xs (SourceList.listTuple xs));
+\definition targetLaw: \forall (omega: TargetForms.Form k)(j: Fin.Fin m) ->
+  ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData =
+    TargetExterior.component k (TargetPartial.apply j omega (Maps.apply U V f x)) mapped :=
+  \fun (omega: TargetForms.Form k)(j: Fin.Fin m) => trans!{{Reals.Real}}
+    (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData)
+    (TargetDegree.convert (TargetPartial.apply j omega) (Maps.apply U V f x) mappedData)
+    (TargetExterior.component k (TargetPartial.apply j omega (Maps.apply U V f x)) mapped)
+    (congr!{{TargetForms.Form l} {Reals.Real}} (\fun (local: TargetForms.Form l) => local (Maps.apply U V f x) mappedData)
+      (ConvertedTargetPartial.apply j (TargetDegree.convert omega)) (TargetDegree.convert (TargetPartial.apply j omega)) (TargetDegree.conversionPartial j omega))
+    (congr!{{Lists.List[TargetVectors.Vector]} {Reals.Real}} (TargetExterior.component k (TargetPartial.apply j omega (Maps.apply U V f x)))
+      (TargetList.list l mappedData) mapped mappedList);
+\definition coefficientLaw: \forall (omega: TargetForms.Form k)(i: Fin.Fin n) ->
+  Evaluation.Differential[k := l].apply i (Differential.composed omega) x mappedData = coefficients omega i x xs :=
+  \fun (omega: TargetForms.Form k)(i: Fin.Fin n) => trans!{{Reals.Real}}
+    (Evaluation.Differential[k := l].apply i (Differential.composed omega) x mappedData)
+    (Enumeration.recursiveSum m (\fun (j: Fin.Fin m) => Spaces.mul (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData) (matrix j i x)))
+    (coefficients omega i x xs)
+    (Differential.coefficientDerivative omega mappedData i x)
+    (trans!{{Reals.Real}}
+      (Enumeration.recursiveSum m (\fun (j: Fin.Fin m) => Spaces.mul (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData) (matrix j i x)))
+      (TargetSums.sum (Fin.elements m) (\fun (j: Fin.Fin m) => Spaces.mul (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData) (matrix j i x)))
+      (coefficients omega i x xs)
+      (sym!{{Reals.Real}} (TargetSums.sum (Fin.elements m) (\fun (j: Fin.Fin m) => Spaces.mul (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData) (matrix j i x)))
+        (Enumeration.recursiveSum m (\fun (j: Fin.Fin m) => Spaces.mul (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData) (matrix j i x)))
+        (Enumeration.sumLaw m (\fun (j: Fin.Fin m) => Spaces.mul (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData) (matrix j i x))))
+      (TargetSumLaws.congruent (Fin.elements m)
+        (\fun (j: Fin.Fin m) => Spaces.mul (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData) (matrix j i x))
+        (\fun (j: Fin.Fin m) => Spaces.mul (TargetExterior.component k (TargetPartial.apply j omega (Maps.apply U V f x)) mapped) (matrix j i x))
+        (\fun (j: Fin.Fin m) => congr!{{Reals.Real} {Reals.Real}} (\fun (a: Reals.Real) => Spaces.mul a (matrix j i x))
+          (ConvertedTargetPartial.apply j (TargetDegree.convert omega) (Maps.apply U V f x) mappedData)
+          (TargetExterior.component k (TargetPartial.apply j omega (Maps.apply U V f x)) mapped) (targetLaw omega j))));
+\definition slotLaw: \forall (omega: TargetForms.Form k)(i: Fin.Fin n)(slot: Fin.Fin l) ->
+  Evaluation.slotTerm l (Differential.composed omega) (Differential.arguments data) i x slot =
+    TargetExterior.component k (omega (Maps.apply U V f x)) (Lists.Replace[A := TargetVectors.Vector].apply mapped slot (JacobianPartial.partial i (data slot) x)) :=
+  \fun (omega: TargetForms.Form k)(i: Fin.Fin n)(slot: Fin.Fin l) => trans!{{Reals.Real}}
+    (Evaluation.slotTerm l (Differential.composed omega) (Differential.arguments data) i x slot)
+    (TargetDegree.convert omega (Maps.apply U V f x) (TargetMultilinear.update l mappedData slot (JacobianPartial.partial i (data slot) x)))
+    (TargetExterior.component k (omega (Maps.apply U V f x)) (Lists.Replace[A := TargetVectors.Vector].apply mapped slot (JacobianPartial.partial i (data slot) x)))
+    (congr!{{TargetVectors.Vector} {Reals.Real}} (\fun (v: TargetVectors.Vector) => TargetDegree.convert omega (Maps.apply U V f x) (TargetMultilinear.update l mappedData slot v))
+      (Evaluation.ArgumentDifferential[k := l].apply i (Differential.arguments data) x slot) (JacobianPartial.partial i (data slot) x) (Differential.argumentDerivative data i x slot))
+    (congr!{{Lists.List[TargetVectors.Vector]} {Reals.Real}} (TargetExterior.component k (omega (Maps.apply U V f x)))
+      (TargetList.list l (TargetMultilinear.update l mappedData slot (JacobianPartial.partial i (data slot) x)))
+      (Lists.Replace[A := TargetVectors.Vector].apply mapped slot (JacobianPartial.partial i (data slot) x))
+      (trans!{{Lists.List[TargetVectors.Vector]}}
+        (TargetList.list l (TargetMultilinear.update l mappedData slot (JacobianPartial.partial i (data slot) x)))
+        (Lists.Replace[A := TargetVectors.Vector].apply (TargetList.list l mappedData) slot (JacobianPartial.partial i (data slot) x))
+        (Lists.Replace[A := TargetVectors.Vector].apply mapped slot (JacobianPartial.partial i (data slot) x))
+        (TargetArguments.updateList l mappedData slot (JacobianPartial.partial i (data slot) x))
+        (congr!{{Lists.List[TargetVectors.Vector]} {Lists.List[TargetVectors.Vector]}} (\fun (ys: Lists.List[TargetVectors.Vector]) => Lists.Replace[A := TargetVectors.Vector].apply ys slot (JacobianPartial.partial i (data slot) x))
+          (TargetList.list l mappedData) mapped mappedList)));
+\definition variationLaw: \forall (omega: TargetForms.Form k)(i: Fin.Fin n) ->
+  SlotSums.sum (Fin.elements l) (Evaluation.slotTerm l (Differential.composed omega) (Differential.arguments data) i x) = variation omega i x xs :=
+  \fun (omega: TargetForms.Form k)(i: Fin.Fin n) => trans!{{Reals.Real}}
+    (SlotSums.sum (Fin.elements l) (Evaluation.slotTerm l (Differential.composed omega) (Differential.arguments data) i x))
+    (Positional.positional (\fun (v: Vectors.Vector) => JacobianPartial.partial i v x) (TargetExterior.component k (omega (Maps.apply U V f x))) xs)
+    (variation omega i x xs)
+    (SlotLaws.congruent (Fin.elements l) (Evaluation.slotTerm l (Differential.composed omega) (Differential.arguments data) i x)
+      (\fun (slot: Fin.Fin l) => TargetExterior.component k (omega (Maps.apply U V f x)) (Lists.Replace[A := TargetVectors.Vector].apply mapped slot (JacobianPartial.partial i (data slot) x))) (slotLaw omega i))
+    (sym!{{Reals.Real}} (variation omega i x xs)
+      (Positional.positional (\fun (v: Vectors.Vector) => JacobianPartial.partial i v x) (TargetExterior.component k (omega (Maps.apply U V f x))) xs)
+      (Positional.law xs (\fun (v: Vectors.Vector) => JacobianPartial.partial i v x) (TargetExterior.component k (omega (Maps.apply U V f x)))));
+\definition law: \forall (omega: TargetForms.Form k)(i: Fin.Fin n) ->
+  Exterior.component k (SourcePartial.apply i (apply k omega) x) xs = Spaces.add (coefficients omega i x xs) (variation omega i x xs) :=
+  \fun (omega: TargetForms.Form k)(i: Fin.Fin n) => trans!{{Reals.Real}}
+    (Exterior.component k (SourcePartial.apply i (apply k omega) x) xs)
+    (Evaluation.derivativeValue l (Differential.composed omega) (Differential.arguments data) i x)
+    (Spaces.add (coefficients omega i x xs) (variation omega i x xs))
+    (trans!{{Reals.Real}} (Exterior.component k (SourcePartial.apply i (apply k omega) x) xs)
+      (ConvertedPartial.apply i (SourceDegree.convert (apply k omega)) x data)
+      (Evaluation.derivativeValue l (Differential.composed omega) (Differential.arguments data) i x)
+      (sourceLaw omega i) (Differential.evaluationDerivative omega data i x))
+    (congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add
+      (Evaluation.Differential[k := l].apply i (Differential.composed omega) x mappedData) (coefficients omega i x xs)
+      (SlotSums.sum (Fin.elements l) (Evaluation.slotTerm l (Differential.composed omega) (Differential.arguments data) i x)) (variation omega i x xs)
+      (coefficientLaw omega i) (variationLaw omega i));

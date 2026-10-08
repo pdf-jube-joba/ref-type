@@ -14,7 +14,27 @@ pub(super) enum Declaration {
 impl Lowerer<'_> {
     fn roots(&self, declaration: Declaration) -> Vec<Term> {
         let mut roots = match declaration {
-            Declaration::Definition(id) => definition_roots(self.raw.definition(id)),
+            Declaration::Definition(id) => {
+                let mut roots = definition_roots(self.raw.definition(id));
+                let parameters = self.definition_parameter_count(id);
+                let uses_local_context = roots.iter().any(|root| {
+                    self.raw
+                        .arena()
+                        .max_loose_bound(*root)
+                        .is_some_and(|index| index >= parameters)
+                });
+                if uses_local_context {
+                    // Open specialization also retains the classifiers of its
+                    // local binders. Closed definitions must stay closed.
+                    roots.extend(
+                        self.raw
+                            .definition_context(id.module)
+                            .iter()
+                            .map(|binding| Term::Logical(binding.ty)),
+                    );
+                }
+                roots
+            }
             Declaration::Parameter(id) => match self.raw.module_parameter_opt(id).unwrap().kind {
                 ModuleParameterKind::Pts { ty } => vec![Term::Logical(ty)],
                 ModuleParameterKind::ProgramType => vec![],
@@ -273,7 +293,15 @@ impl Lowerer<'_> {
             .captures
             .iter()
             .position(|p| *p == id)
-            .ok_or_else(|| format!("uncaptured parameter {id:?}"))?;
+            .ok_or_else(|| {
+                let meta_name = |meta| format!("{meta:?}");
+                let printer = raw::printing::Printer::new(self.raw, &meta_name);
+                format!(
+                    "uncaptured parameter {id:?} from {}; captured parameters: {:?}",
+                    printer.format_module(id.module),
+                    self.scope.captures
+                )
+            })?;
         Ok(depth + self.scope.captures.len() - position - 1)
     }
 

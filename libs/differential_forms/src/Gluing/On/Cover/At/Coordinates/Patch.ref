@@ -1,0 +1,36 @@
+\import manifolds.OpenSubmanifold[n := n].On[M := M].In[U := domains i] \as Submanifold;
+\import Charts.Restricted[U := domains i].Of[chart := chart] \as Restricted;
+\definition image: Open.OpenSet := Restricted.image;
+\import \root.Forms[n := n].On[M := Submanifold.manifold] \as LocalForms;
+\import LocalForms.Pointwise[k := k] \as LocalPointwise;
+\import manifolds.Tangent[n := n].On[M := Submanifold.manifold] \as LocalTangent;
+\import \root.Euclidean[n := n].On[U := image] \as ImageForms;
+\import manifolds.Dimension[n := n].Chart[M := (Submanifold.manifold).Point, space := (Submanifold.manifold).space] \as LocalCharts;
+\import manifolds.Dimension[n := n].Atlas[M := (Submanifold.manifold).Point, space := (Submanifold.manifold).space] \as LocalAtlas;
+\definition original: Submanifold.OriginalChart := \into[Charts.Chart](chart, #charts{M.atlas}) \by { Global.member chart };
+\definition localChart: LocalForms.Chart := \into[LocalCharts.Chart](Restricted.value, #charts{(Submanifold.manifold).atlas}) \by {
+  LocalAtlas.includedInSaturation Submanifold.atlas Restricted.value
+    (\exact(\into[Submanifold.OriginalChart](original, { c: Submanifold.OriginalChart \where Submanifold.restricted c = Restricted.value }) \by {
+      \refl(Restricted.value)
+    }, \Cast[Submanifold.OriginalChart] ({ c: Submanifold.OriginalChart \where Submanifold.restricted c = Restricted.value })))
+};
+\definition included: Open.Included image #image{chart} := \block {
+  \fun (a: Vectors.Vector)(member: \In[Vectors.Vector] (#points{image}) a) \then
+  \let point: Open.Carrier image := \into[Vectors.Vector](a, #points{image}) \by { member } \then
+  \return \bysub(Vectors.Vector, #points{(#image{chart})}, Restricted.oldCoordinate point)
+};
+\import topology.Topology[Carrier := Vectors.Vector].Subspace[S := #points{(#image{chart})}].Open[] \as OpenImage;
+\definition contains: \forall (a: Open.Carrier #image{chart}) -> \In[M.Point] (domains i) (Charts.point chart a) -> \In[Vectors.Vector] (#points{image}) a :=
+  \fun (a: Open.Carrier #image{chart})(member: \In[M.Point] (domains i) (Charts.point chart a)) => OpenImage.imageMember Restricted.overlap a member;
+\module At(a: Open.Carrier image);
+\definition agreement: \forall (covers: Covers)(compatible: Compatible)(a: Open.Carrier image)(arguments: Multilinear.Arguments k) ->
+  Coordinates.family (family covers compatible) (Open.inclusion image #image{chart} included a) arguments = forms i localChart a arguments :=
+    \fun (covers: Covers)(compatible: Compatible)(a: Open.Carrier image)(arguments: Multilinear.Arguments k) => At[a := a].agreement covers compatible arguments;
+\definition regular: \forall (covers: Covers)(compatible: Compatible)(arguments: Multilinear.Arguments k) -> Open.Smooth[].SmoothOn image
+  (\fun (a: Open.Carrier image) => Coordinates.family (family covers compatible) (Open.inclusion image #image{chart} included a) arguments) :=
+    \fun (covers: Covers)(compatible: Compatible)(arguments: Multilinear.Arguments k) => ImageForms.smoothOfEqual
+      (\fun (a: Open.Carrier image) => forms i localChart a arguments)
+      (\fun (a: Open.Carrier image) => Coordinates.family (family covers compatible) (Open.inclusion image #image{chart} included a) arguments)
+      (\fun (a: Open.Carrier image) => sym!{{Reals.Real}} _ _ (agreement covers compatible a arguments))
+      ((\bysub(ImageForms.Family k,
+        { omega: ImageForms.Family k \where ImageForms.SmoothFamily k omega }, forms i localChart)) arguments);

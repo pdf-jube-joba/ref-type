@@ -1,0 +1,47 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\definition two: N.Nat^ := N.Nat^::succ (N.Nat^::succ N.Nat^::zero);
+\import calculus.Real[] \as R;
+\import R.Multivariable[n := two] \as Plane;
+\import Plane.Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Operations;
+\import Smooth.Derivative[] \as Differentiation;
+\import Open.Analysis[].Operations[] \as Arithmetic;
+\import Open.Examples[] \as Examples;
+\import Plane.Space[].Def[] \as Coordinates;
+\definition first: Plane.Coordinate := Fin.zero (N.Nat^::succ N.Nat^::zero);
+\definition second: Plane.Coordinate := Fin.succ (N.Nat^::succ N.Nat^::zero) (Fin.zero N.Nat^::zero);
+\definition x(U: Open.OpenSet): Open.ScalarFunction U := \fun (a: Open.Carrier U) => a first;
+\definition y(U: Open.OpenSet): Open.ScalarFunction U := \fun (a: Open.Carrier U) => a second;
+\definition square(U: Open.OpenSet): Open.ScalarFunction U := Arithmetic.times U (x U) (x U);
+\definition squareSmooth: \forall (U: Open.OpenSet) -> Smooth.SmoothOn U (square U) :=
+  \fun (U: _) => Operations.mulSmooth U (x U) (x U) (Examples.projectionSmooth U first) (Examples.projectionSmooth U first);
+\definition shearCoordinate(U: Open.OpenSet): Open.ScalarFunction U := Arithmetic.plus U (y U) (square U);
+\definition shearSmooth: \forall (U: Open.OpenSet) -> Smooth.SmoothOn U (shearCoordinate U) :=
+  \fun (U: _) => Operations.addSmooth U (y U) (square U) (Examples.projectionSmooth U second) (squareSmooth U);
+\definition squareFunction(U: Open.OpenSet): Differentiation.Function U :=
+  \into[Open.ScalarFunction U](square U, { f: Open.ScalarFunction U \where Smooth.SmoothOn U f }) \by { squareSmooth U };
+\definition derivative(U: Open.OpenSet): Differentiation.Function U := Differentiation.derivative U (squareFunction U) first;
+\definition derivativeLaw: \forall (U: Open.OpenSet) -> Open.Analysis[].HasPartialDerivative U (squareFunction U) first (derivative U) :=
+  \fun (U: _) => Differentiation.partialLaw U (squareFunction U) first;
+\import Open.Restriction[] \as Restriction;
+\definition restrictedShear: \forall (U, V: Open.OpenSet)(included: Open.Included U V) ->
+  Smooth.SmoothOn U (Open.restrict U V included (shearCoordinate V)) :=
+  \fun (U, V: _)(included: _) => Restriction.localSmooth U V included (shearCoordinate V) (shearSmooth V);
+\import Open.Whole[] \as Whole;
+\import Plane.Smooth[].Def[] \as Global;
+\definition globalSquare: Global.Smooth (Whole.function (square Open.whole)) := Whole.smooth (square Open.whole) (squareSmooth Open.whole);
+\import Smooth.Differential[] \as Total;
+\definition totalDerivative(U: Open.OpenSet)(a: Open.Carrier U): Plane.Differential[].Def[].LinearMap := Total.value U (squareFunction U) a;
+\definition totalDerivativeLaw: \forall (U: Open.OpenSet)(a: Open.Carrier U) -> Open.Analysis[].HasDifferentialAt U (squareFunction U) a (totalDerivative U a) :=
+  \fun (U: Open.OpenSet)(a: Open.Carrier U) => Total.law U (squareFunction U) a;
+\definition totalDerivativeUnique: \forall (U: Open.OpenSet)(a: Open.Carrier U)(d: Plane.Differential[].Def[].LinearMap) ->
+  Open.Analysis[].HasDifferentialAt U (squareFunction U) a d -> d = totalDerivative U a :=
+  \fun (U: Open.OpenSet)(a: Open.Carrier U)(d: Plane.Differential[].Def[].LinearMap)(law: _) =>
+    Open.Analysis[].Differential[U := U, f := squareFunction U, a := a, d := d].uniqueness (totalDerivative U a) law (totalDerivativeLaw U a);
+\import Smooth.Mixed[] \as Mixed;
+\definition mixedDerivatives: \forall (U: Open.OpenSet) ->
+  Differentiation.derivative U (Differentiation.derivative U (squareFunction U) first) second =
+  Differentiation.derivative U (Differentiation.derivative U (squareFunction U) second) first :=
+  \fun (U: Open.OpenSet) => Mixed.commute U (squareFunction U) first second;

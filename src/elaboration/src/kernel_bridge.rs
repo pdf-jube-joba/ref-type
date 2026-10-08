@@ -196,9 +196,19 @@ pub(crate) fn logical_in_scope<T>(
         Vec<kernel::syntax::Expression>,
     ) -> Result<T, kernel::metavariables::Error>,
 ) -> Result<T, String> {
+    let profile = std::env::var_os("REF_TYPE_PROFILE_BRIDGE").is_some();
+    if profile {
+        eprintln!(
+            "bridge prepare roots={roots:?} context={} base={base}",
+            context.len()
+        );
+    }
     let mut pending = roots.iter().copied().map(Term::Logical).collect::<Vec<_>>();
     pending.extend(context.iter().map(|b| Term::Logical(b.ty)));
     prepare(env, pending)?;
+    if profile {
+        eprintln!("bridge lower roots={roots:?}");
+    }
     let mut kernel = env.kernel.borrow_mut();
     let mut lower = Lowerer::new(env, &mut kernel);
     lower.nominal(base);
@@ -209,7 +219,15 @@ pub(crate) fn logical_in_scope<T>(
         .map(|&e| lower.set(e, &mut local, module))
         .collect::<Result<Vec<_>, _>>()?;
     let context = lower.nominal_context(context, base, module)?;
-    f(&kernel, context, terms).map_err(|error| crate::lowering::format_kernel_error(env, &error))
+    if profile {
+        eprintln!("bridge kernel roots={terms:?}");
+    }
+    let result = f(&kernel, context, terms)
+        .map_err(|error| crate::lowering::format_kernel_error(env, &error));
+    if profile {
+        eprintln!("bridge finished roots={roots:?}");
+    }
+    result
 }
 
 pub(crate) fn program<T>(
@@ -324,4 +342,18 @@ pub(crate) fn captured_definition(
         }
         kernel.reference(id, arguments).map(Exp)
     })
+}
+
+/// Specialize a logical expression after its dependencies have explicit captures.
+pub(crate) fn captured_expression(
+    env: &CrateEnv,
+    value: Exp,
+    substitutions: &[(crate::raw::ids::ModuleParamId, Exp)],
+) -> Result<Exp, String> {
+    let value = expression(env, Term::Logical(value), |_, value| Ok(Exp(value)))?;
+    Ok(crate::raw::calculus::exp_subst_map(
+        env.arena(),
+        value,
+        substitutions,
+    ))
 }

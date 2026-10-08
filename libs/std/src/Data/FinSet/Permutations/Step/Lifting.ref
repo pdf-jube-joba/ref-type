@@ -1,0 +1,39 @@
+\definition lift(s: Swap): Large.Swap := Large.Swap { first := succ n #first{s}, second := succ n #second{s} };
+\definition liftWord(word: Word): Large.Word := Lists.map Swap Large.Swap lift word;
+\definition conditionalSuccessor: \forall (test: B.Bool^)(yes, no: Fin n) ->
+  B.ite (Fin (N.Nat^::succ n)) test (succ n yes) (succ n no) = succ n (B.ite (Fin n) test yes no) :=
+  \induction (test: B.Bool^) \return \forall (yes, no: Fin n) ->
+    B.ite (Fin (N.Nat^::succ n)) test (succ n yes) (succ n no) = succ n (B.ite (Fin n) test yes no) \with {
+      | false: \fun (yes, no: Fin n) => \refl(succ n no)
+      | true: \fun (yes, no: Fin n) => \refl(succ n yes)
+    };
+\definition swapZero: \forall (s: Swap) -> Large.swap (lift s) (zero n) = zero n :=
+  \fun (s: Swap) => \refl(zero n);
+\import N.Basic[].Def[] \as Nat;
+\definition swapSuccessor: \forall (s: Swap)(i: Fin n) -> Large.swap (lift s) (succ n i) = succ n (swap s i) :=
+  \fun (s: Swap)(i: Fin n) => trans!{{Fin (N.Nat^::succ n)}} (Large.swap (lift s) (succ n i))
+    (B.ite (Fin (N.Nat^::succ n)) (Nat.eqb i #first{s}) (succ n #second{s})
+      (succ n (B.ite (Fin n) (Nat.eqb i #second{s}) #first{s} i))) (succ n (swap s i))
+    (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}}
+      (\fun (v: Fin (N.Nat^::succ n)) => B.ite (Fin (N.Nat^::succ n)) (Nat.eqb i #first{s}) (succ n #second{s}) v)
+      (B.ite (Fin (N.Nat^::succ n)) (Nat.eqb i #second{s}) (succ n #first{s}) (succ n i))
+      (succ n (B.ite (Fin n) (Nat.eqb i #second{s}) #first{s} i))
+      (conditionalSuccessor (Nat.eqb i #second{s}) #first{s} i))
+    (conditionalSuccessor (Nat.eqb i #first{s}) #second{s} (B.ite (Fin n) (Nat.eqb i #second{s}) #first{s} i));
+\definition zero: \forall (word: Word) -> Large.action (liftWord word) (zero n) = zero n :=
+  \induction (word: Word) \return Large.action (liftWord word) (zero n) = zero n \with {
+    | nil: \refl(zero n)
+    | cons: \fun (s: Swap)(tail: Word)(previous: Large.action (liftWord tail) (zero n) = zero n) =>
+      trans!{{Fin (N.Nat^::succ n)}} (Large.action (liftWord (Lists.List[Swap]::cons s tail)) (zero n))
+        (Large.action (liftWord tail) (zero n)) (zero n)
+        (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (Large.action (liftWord tail)) (Large.swap (lift s) (zero n)) (zero n) (swapZero s)) previous
+  };
+\definition successor: \forall (word: Word)(i: Fin n) -> Large.action (liftWord word) (succ n i) = succ n (action word i) :=
+  \induction (word: Word) \return \forall (i: Fin n) -> Large.action (liftWord word) (succ n i) = succ n (action word i) \with {
+    | nil: \fun (i: Fin n) => \refl(succ n i)
+    | cons: \fun (s: Swap)(tail: Word)(previous: \forall (i: Fin n) -> Large.action (liftWord tail) (succ n i) = succ n (action tail i))(i: Fin n) =>
+      trans!{{Fin (N.Nat^::succ n)}} (Large.action (liftWord (Lists.List[Swap]::cons s tail)) (succ n i))
+        (Large.action (liftWord tail) (succ n (swap s i))) (succ n (action tail (swap s i)))
+        (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (Large.action (liftWord tail)) (Large.swap (lift s) (succ n i)) (succ n (swap s i)) (swapSuccessor s i))
+        (previous (swap s i))
+  };

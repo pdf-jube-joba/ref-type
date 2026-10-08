@@ -1,0 +1,48 @@
+\import Original.Restricted[U := U] \as Restricted;
+\definition Point: \Set := Restricted.Point;
+\definition space: topology.Structures[].Topology[Point] := Restricted.restrictedTopology;
+\import \root.Dimension[n := n].Chart[M := Point, space := space] \as Charts;
+\import \root.Dimension[n := n].Atlas[M := Point, space := space] \as Atlases;
+\import \root.Dimension[n := n].Atlas[M := M.Point, space := M.space] \as OriginalAtlas;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Open.Restriction[] \as Restriction;
+\definition OriginalChart: \Set := \Cast[Original.Chart] #charts{M.atlas};
+\definition restricted(chart: OriginalChart): Charts.Chart := Restricted.Of[chart := chart].value;
+\definition Member(chart: Charts.Chart): \Prop := \exists { original: OriginalChart \where restricted original = chart };
+\definition charts: \Pow Charts.Chart := { chart: Charts.Chart \where Member chart };
+\module Pair(left, right: OriginalChart);
+\definition compatible: \forall (left, right: Charts.Chart) -> Member left -> Member right -> Atlases.Compatible left right := \block {
+  \fun (left, right: Charts.Chart)(leftMember: Member left)(rightMember: Member right) \then
+  \takefrom a: \Cast[OriginalChart] ({ original: OriginalChart \where restricted original = left }) \by leftMember \then
+  \takefrom b: \Cast[OriginalChart] ({ original: OriginalChart \where restricted original = right }) \by rightMember \then
+  \let leftEqual: restricted a = left := \bysub(OriginalChart, { original: OriginalChart \where restricted original = left }, a) \then
+  \let rightEqual: restricted b = right := \bysub(OriginalChart, { original: OriginalChart \where restricted original = right }, b) \then
+  \return \idelim restricted a = left \with l: Charts.Chart => Atlases.Compatible l right \by {
+    base: \idelim restricted b = right \with r: Charts.Chart => Atlases.Compatible (restricted a) r \by {
+      base: Pair[left := a, right := b].compatible, equality: rightEqual
+    }, equality: leftEqual
+  }
+};
+\definition covers: \forall (x: Point) -> \exists { chart: Charts.Chart \where Logic.And[Member chart, Charts.Contains chart x] } := \block {
+  \fun (x: Point) \then
+  \takefrom original: \Cast[Original.Chart] ({ c: Original.Chart \where Logic.And[OriginalAtlas.Member M.atlas c, Original.Contains c x] })
+    \by #covers{M.atlas} x \then
+  \let witness: Logic.And[OriginalAtlas.Member M.atlas original, Original.Contains original x] :=
+    \bysub(Original.Chart, { c: Original.Chart \where Logic.And[OriginalAtlas.Member M.atlas c, Original.Contains c x] }, original) \then
+  \let chosen: OriginalChart := \into[Original.Chart](original, #charts{M.atlas}) \by { #left{witness} } \then
+  \return \exact(\into[Charts.Chart](restricted chosen, { c: Charts.Chart \where Logic.And[Member c, Charts.Contains c x] }) \by {
+    Logic.And[_, _]::#
+      (\exact(\into[OriginalChart](chosen, { c: OriginalChart \where restricted c = restricted chosen }) \by { \refl(restricted chosen) },
+        \Cast[OriginalChart] ({ c: OriginalChart \where restricted c = restricted chosen })))
+      (#right{witness})
+  }, \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[Member c, Charts.Contains c x] }))
+};
+\definition atlas: Atlases.Atlas := Atlases.Atlas { charts := charts, covers := covers, compatible := compatible };
+\import topology.Topology[Carrier := M.Point].Subspace[S := U].Properties[] \as Topological;
+\definition manifold: Model.Manifold := Model.Manifold {
+  Point := Point, space := space, atlas := Atlases.saturate atlas,
+  hausdorff := Topological.hausdorff M.space M.hausdorff,
+  secondCountable := Topological.secondCountable M.space M.secondCountable,
+};
+\module Inclusion;

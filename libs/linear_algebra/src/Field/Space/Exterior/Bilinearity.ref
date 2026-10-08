@@ -1,0 +1,51 @@
+\import \parent.Degrees[p := p, q := q] \as Product;
+\import \parent.Components[k := p] \as LeftComponents;
+\import \parent.Components[k := q] \as RightComponents;
+\import Alternating.At[k := p] \as Left;
+\import Alternating.At[k := q] \as Right;
+\import Alternating.At[k := Nat.add p q] \as Result;
+\import Shuffle.Laws[] \as Laws;
+\definition additiveLeft: \forall (f, f2: Form p)(g: Form q) -> Product.wedge (Left.plus f f2) g = Result.plus (Product.wedge f g) (Product.wedge f2 g) :=
+  \fun (f, f2: Form p)(g: Form q) => Result.ext _ _ (\block {
+    \fun (arguments: Multilinear.Arguments (Nat.add p q)) \then
+    \let xs: Lists.List[V] := TuplesList.list (Nat.add p q) arguments \then
+    \return trans!{K} (Shuffle.product (component p (Left.plus f f2)) (component q g) xs)
+      (Shuffle.product (Shuffle.plus (component p f) (component p f2)) (component q g) xs)
+      (add (Shuffle.product (component p f) (component q g) xs) (Shuffle.product (component p f2) (component q g) xs))
+        (Laws.congruent (component p (Left.plus f f2)) (Shuffle.plus (component p f) (component p f2)) (component q g) (component q g)
+          (LeftComponents.addition f f2) (\fun (ys: Lists.List[V]) => \refl(component q g ys)) xs)
+        (Laws.additiveLeft (component p f) (component p f2) (component q g) xs)
+  });
+\definition additiveRight: \forall (f: Form p)(g, g2: Form q) -> Product.wedge f (Right.plus g g2) = Result.plus (Product.wedge f g) (Product.wedge f g2) :=
+  \fun (f: Form p)(g, g2: Form q) => Result.ext _ _ (\block {
+    \fun (arguments: Multilinear.Arguments (Nat.add p q)) \then
+    \let xs: Lists.List[V] := TuplesList.list (Nat.add p q) arguments \then
+    \return trans!{K} (Shuffle.product (component p f) (component q (Right.plus g g2)) xs)
+      (Shuffle.product (component p f) (Shuffle.plus (component q g) (component q g2)) xs)
+      (add (Shuffle.product (component p f) (component q g) xs) (Shuffle.product (component p f) (component q g2) xs))
+        (Laws.congruent (component p f) (component p f) (component q (Right.plus g g2)) (Shuffle.plus (component q g) (component q g2))
+          (\fun (ys: Lists.List[V]) => \refl(component p f ys)) (RightComponents.addition g g2) xs)
+        (Laws.additiveRight (component p f) (component q g) (component q g2) xs)
+  });
+\definition scalarLeft: \forall (a: K)(f: Form p)(g: Form q) -> Product.wedge (Left.scale a f) g = Result.scale a (Product.wedge f g) :=
+  \fun (a: K)(f: Form p)(g: Form q) => Result.ext _ _ (\block {
+    \fun (arguments: Multilinear.Arguments (Nat.add p q)) \then
+    \let xs: Lists.List[V] := TuplesList.list (Nat.add p q) arguments \then
+    \return trans!{K} (Shuffle.product (component p (Left.scale a f)) (component q g) xs)
+      (Shuffle.product (Shuffle.scale a (component p f)) (component q g) xs)
+      (mul a (Shuffle.product (component p f) (component q g) xs))
+        (Laws.congruent (component p (Left.scale a f)) (Shuffle.scale a (component p f)) (component q g) (component q g)
+          (LeftComponents.scalar a f) (\fun (ys: Lists.List[V]) => \refl(component q g ys)) xs)
+        (Laws.scalarLeft a (component p f) (component q g) xs)
+  });
+\definition scalarRight: \forall (a: K)(f: Form p)(g: Form q) -> Product.wedge f (Right.scale a g) = Result.scale a (Product.wedge f g) :=
+  \fun (a: K)(f: Form p)(g: Form q) => Result.ext _ _ (\block {
+    \fun (arguments: Multilinear.Arguments (Nat.add p q)) \then
+    \let xs: Lists.List[V] := TuplesList.list (Nat.add p q) arguments \then
+    \return trans!{K} (Shuffle.product (component p f) (component q (Right.scale a g)) xs)
+      (Shuffle.product (component p f) (Shuffle.scale a (component q g)) xs)
+      (mul a (Shuffle.product (component p f) (component q g) xs))
+        (Laws.congruent (component p f) (component p f) (component q (Right.scale a g)) (Shuffle.scale a (component q g))
+          (\fun (ys: Lists.List[V]) => \refl(component p f ys)) (RightComponents.scalar a g) xs)
+        (Laws.scalarRight a (component p f) (component q g) xs)
+  });

@@ -14,6 +14,8 @@ const LIBRARY_TIMEOUT: Duration = Duration::from_secs(180);
 // The uncached topology project also checks finite-dimensional algebra and
 // quotient homotopies; its expanded dependency graph exceeds three minutes.
 const TOPOLOGICAL_K_THEORY_TIMEOUT: Duration = Duration::from_secs(600);
+// Smooth atlas saturation checks the uncached analysis and chart libraries too.
+const MANIFOLDS_DE_RHAM_TIMEOUT: Duration = Duration::from_secs(3600);
 static LIBRARY_CHECK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn workspace_root() -> PathBuf {
@@ -236,6 +238,41 @@ fn topological_k_theory_foundations_examples_succeed() {
     )
     .unwrap_or_else(|error| panic!("{error}"));
     assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
+fn manifolds_de_rham_examples_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    let path = workspace.join("tests/projects/manifolds-de-rham");
+    let output = run_ref_file_with_timeout(
+        &workspace,
+        &path,
+        &["--no-cache"],
+        MANIFOLDS_DE_RHAM_TIMEOUT,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
+fn pointwise_quotient_representations_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    for representation in [
+        "01-direct-type",
+        "02-function-alias",
+        "03-explicit-lambda",
+        "04-scoped-lambda",
+        "05-alias-equality",
+    ] {
+        let path = workspace
+            .join("_plans/reproductions/g08-pointwise-quotient")
+            .join(representation);
+        let output = run_ref_file_with_timeout(&workspace, &path, &["--no-cache"], LIBRARY_TIMEOUT)
+            .unwrap_or_else(|error| panic!("{error}"));
+        assert!(output.status.success(), "{}", output_details(&output));
+    }
 }
 
 #[test]

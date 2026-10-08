@@ -1,0 +1,30 @@
+\import \parent.SeriesStep[k := k] \as Series;
+\import Ordering.Bounds[k := k, n := n] \as Bounds;
+\import Multilinear.ListSeries[k := N.Nat^::succ k] \as WholeSeries;
+\import Multilinear.ListSeries[k := k] \as TailSeries;
+\definition law: Diagonal k -> Diagonal (N.Nat^::succ k) := \block {
+  \fun (previous: Diagonal k)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n)(increasing: Ordering.Increasing (N.Nat^::succ k) n indices) \then
+  \let h: Fin.Fin n := indices (Fin.zero k) \then
+  \let t: Fin.Fin k -> Fin.Fin n := Bounds.tail indices \then
+  \let arguments: Multilinear.Arguments (N.Nat^::succ k) := \fun (i: Fin.Fin (N.Nat^::succ k)) => vectors (indices i) \then
+  \let xs: Lists.List[Coordinates.Vector] := VectorLists.list k (\fun (i: Fin.Fin k) => vectors (t i)) \then
+  \let f: Coordinates.Vector -> K := \fun (v: Coordinates.Vector) => v h \then
+  \let g: Shuffle.Function := Product.component k (word k t) \then
+  \let vanishing: AllVectors.Holds (\fun (v: Coordinates.Vector) => f v = zero) xs :=
+    VectorLists.all k (\fun (i: Fin.Fin k) => vectors (t i)) (\fun (v: Coordinates.Vector) => f v = zero)
+      (\fun (i: Fin.Fin k) => Kronecker.different (t i) h (\fun (same: t i = h) =>
+        Bounds.unequal h (t i) (Bounds.headTail indices increasing i) (sym!{{Fin.Fin n}} (t i) h same))) \then
+  \return eq_reason!{
+    {word (N.Nat^::succ k) indices arguments}
+    "=" {Product.component (N.Nat^::succ k) (word (N.Nat^::succ k) indices) (VectorLists.list (N.Nat^::succ k) arguments)} "by" {
+      sym!{K} _ _ (WholeSeries.onArguments (word (N.Nat^::succ k) indices) arguments)}
+    "=" {Shuffle.product (Covectors.value f) g (Lists.List[Coordinates.Vector]::cons (vectors h) xs)} "by" {
+      congr!{{Shuffle.Function} K} (\fun (series: Shuffle.Function) => series (Lists.List[Coordinates.Vector]::cons (vectors h) xs)) _ _ (Series.series indices)}
+    "=" {mul (f (vectors h)) (g xs)} "by" {Covectors.atHead (vectors h) xs f g vanishing}
+    "=" {mul one (word k t (\fun (i: Fin.Fin k) => vectors (t i)))} "by" {
+      congr2!{K K K} mul (f (vectors h)) one (g xs) (word k t (\fun (i: Fin.Fin k) => vectors (t i)))
+        (Kronecker.self h) (TailSeries.onArguments (word k t) (\fun (i: Fin.Fin k) => vectors (t i)))}
+    "=" {mul one one} "by" {congr!{K K} (mul one) _ _ (previous t (Bounds.tailIncreasing indices increasing))}
+    "=" one "by" {mulOneLeft one}
+  }
+};

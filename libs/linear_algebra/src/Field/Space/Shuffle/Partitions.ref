@@ -1,0 +1,34 @@
+\import Lists.All[A := Split] \as All;
+\import All.Mapping[B := Split] \as AllMapping;
+\import N.Basic[].Prop[] \as NatLaws;
+\definition Length(k: N.Nat^)(split: Split): \Prop := Nat.add (Lists.length I #left{split}) (Lists.length I #right{split}) = k;
+\definition leftLength: \forall (i: I)(k: N.Nat^)(split: Split) -> Length k split -> Length (N.Nat^::succ k) (insertLeft i split) :=
+  \fun (i: I)(k: N.Nat^)(split: Split)(law: Length k split) => trans!{N.Nat^}
+    (Nat.add (N.Nat^::succ (Lists.length I #left{split})) (Lists.length I #right{split}))
+    (N.Nat^::succ (Nat.add (Lists.length I #left{split}) (Lists.length I #right{split}))) (N.Nat^::succ k)
+      (NatLaws.addSuccLeft (Lists.length I #left{split}) (Lists.length I #right{split}))
+      (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ (Nat.add (Lists.length I #left{split}) (Lists.length I #right{split})) k law);
+\definition rightLength: \forall (i: I)(k: N.Nat^)(split: Split) -> Length k split -> Length (N.Nat^::succ k) (insertRight i split) :=
+  \fun (i: I)(k: N.Nat^)(split: Split)(law: Length k split) =>
+    congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ (Nat.add (Lists.length I #left{split}) (Lists.length I #right{split})) k law;
+\definition lengths: \forall (xs: Lists.List[I]) -> All.Holds (Length (Lists.length I xs)) (partitions xs) :=
+  \induction (xs: Lists.List[I]) \return All.Holds (Length (Lists.length I xs)) (partitions xs) \with {
+    | nil: Logic.And[Length N.Nat^::zero empty, Logic.True]::# (\refl(N.Nat^::zero)) Logic.True::intro
+    | cons: \fun (i: I)(xs: Lists.List[I])(previous: All.Holds (Length (Lists.length I xs)) (partitions xs)) =>
+      All.appendAll (Length (N.Nat^::succ (Lists.length I xs)))
+        (Lists.map Split Split (insertLeft i) (partitions xs)) (Lists.map Split Split (insertRight i) (partitions xs))
+        (AllMapping.mapAll (Length (Lists.length I xs)) (Length (N.Nat^::succ (Lists.length I xs))) (insertLeft i) (partitions xs)
+          (leftLength i (Lists.length I xs)) previous)
+        (AllMapping.mapAll (Length (Lists.length I xs)) (Length (N.Nat^::succ (Lists.length I xs))) (insertRight i) (partitions xs)
+          (rightLength i (Lists.length I xs)) previous)
+  };
+\module Swapping(xs: Lists.List[I]);
+\definition swappingEmpty: \forall (h: Split -> K) -> Sums.sum (partitions Lists.List[I]::nil) (\fun (s: Split) => h (swap s)) = Sums.sum (partitions Lists.List[I]::nil) h :=
+  \fun (h: Split -> K) => congr!{K K} (\fun (a: K) => add a zero) (h (swap empty)) (h empty)
+    (congr!{Split K} h (swap empty) empty swapEmpty);
+\definition swapping: \forall (xs: Lists.List[I])(h: Split -> K) -> Sums.sum (partitions xs) (\fun (s: Split) => h (swap s)) = Sums.sum (partitions xs) h :=
+  \induction (xs: Lists.List[I]) \return \forall (h: Split -> K) -> Sums.sum (partitions xs) (\fun (s: Split) => h (swap s)) = Sums.sum (partitions xs) h \with {
+    | nil: swappingEmpty
+    | cons: \fun (i: I)(xs: Lists.List[I])
+      (previous: \forall (h: Split -> K) -> Sums.sum (partitions xs) (\fun (s: Split) => h (swap s)) = Sums.sum (partitions xs) h) => Swapping[xs := xs].step previous i
+  };

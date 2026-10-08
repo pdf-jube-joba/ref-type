@@ -1,0 +1,57 @@
+\import \parent.\parent.\parent.Space[].Prop[] \as SpaceLaws;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\use Equality.congr2;
+\definition partial: \forall (U, V: OpenSet)(included: Included V U)(f: ScalarFunction U)(g: ScalarFunction V)(i: Coordinate)(a: Carrier V)(d: Real) ->
+  (\forall (z: Carrier V) -> f (inclusion V U included z) = g z) -> HasPartialDerivativeAt V g i a d ->
+  HasPartialDerivativeAt U f i (inclusion V U included a) d := \block {
+  \fun (U, V: _)(included: _)(f: _)(g: _)(i: _)(a: _)(d: _)(agrees: _)(local: _)(epsilon: Real)(positive: _) \then
+  \let b: Carrier U := inclusion V U included a \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where BallInside[#points{V}, a, r] }) \by #open{V} a (\bysub(Point, #points{V}, a)) \then
+  \let ball: BallInside[#points{V}, a, rho] := \bysub(Real, { r: Real \where BallInside[#points{V}, a, r] }, rho) \then
+  \takefrom delta: \Cast[Real] ({ r: Real \where PartialControl[V, g, a, i, d, epsilon, r] }) \by local epsilon positive \then
+  \let control: PartialControl[V, g, a, i, d, epsilon, delta] := \bysub(Real, { r: Real \where PartialControl[V, g, a, i, d, epsilon, r] }, delta) \then
+  \return \exact(\into[Real](Metric.min rho delta, { r: Real \where PartialControl[U, f, b, i, d, epsilon, r] }) \by {
+    PartialControl[U, f, b, i, d, epsilon, Metric.min rho delta] {
+      positive := Product.minPositive rho delta (#positive{ball}) (#positive{control}),
+      estimate := \block {
+        \fun (t: Real)(x: Carrier U)(replaced: x = Coordinates.replace b i t)(different: _)(near: _) \then
+        \let closeness: R.Lt (Coordinates.pointDistance x a) rho := R.ltReplaceLeft (distance t (a i)) (Coordinates.pointDistance x a) rho
+          (trans!{Real} (distance t (a i)) (Coordinates.pointDistance (Coordinates.replace a i t) a) (Coordinates.pointDistance x a)
+            (sym!{Real} (Coordinates.pointDistance (Coordinates.replace a i t) a) (distance t (a i)) (SpaceLaws.replaceDistance a i t))
+            (congr!{Point Real} (\fun (y: Point) => Coordinates.pointDistance y a) (Coordinates.replace a i t) x
+              (sym!{Point} x (Coordinates.replace a i t) replaced))) (R.ltLeTrans _ _ _ near (Metric.minLeft rho delta)) \then
+        \let y: Carrier V := \into[Point](x, #points{V}) \by { #included{ball} x closeness } \then
+        \return R.ltReplaceLeft (distance (mul (sub (g y) (g a)) (inv (sub t (a i)))) d)
+          (distance (mul (sub (f x) (f b)) (inv (sub t (b i)))) d) epsilon
+          (congr!{Real Real} (\fun (s: Real) => distance (mul s (inv (sub t (a i)))) d)
+            (sub (g y) (g a)) (sub (f x) (f b))
+            (congr2!{Real Real Real} sub (g y) (f x) (g a) (f b)
+              (sym!{Real} (f x) (g y) (agrees y)) (sym!{Real} (f b) (g a) (agrees a))))
+          (#estimate{control} t y replaced different (R.ltLeTrans _ _ _ near (Metric.minRight rho delta)))
+      },
+    }
+  }, \Cast[Real] ({ r: Real \where PartialControl[U, f, b, i, d, epsilon, r] }))
+};
+
+\definition continuous: \forall (U, V: OpenSet)(included: Included V U)(f: ScalarFunction U)(g: ScalarFunction V)(a: Carrier V) ->
+  (\forall (z: Carrier V) -> f (inclusion V U included z) = g z) -> ContinuousAt V g a -> ContinuousAt U f (inclusion V U included a) := \block {
+  \fun (U, V: _)(included: _)(f: _)(g: _)(a: _)(agrees: _)(local: _)(epsilon: Real)(positive: _) \then
+  \let b: Carrier U := inclusion V U included a \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where BallInside[#points{V}, a, r] }) \by #open{V} a (\bysub(Point, #points{V}, a)) \then
+  \let ball: BallInside[#points{V}, a, rho] := \bysub(Real, { r: Real \where BallInside[#points{V}, a, r] }, rho) \then
+  \takefrom delta: \Cast[Real] ({ r: Real \where ContinuityControl[V, g, a, epsilon, r] }) \by local epsilon positive \then
+  \let control: ContinuityControl[V, g, a, epsilon, delta] := \bysub(Real, { r: Real \where ContinuityControl[V, g, a, epsilon, r] }, delta) \then
+  \return \exact(\into[Real](Metric.min rho delta, { r: Real \where ContinuityControl[U, f, b, epsilon, r] }) \by {
+    ContinuityControl[U, f, b, epsilon, Metric.min rho delta] {
+      positive := Product.minPositive rho delta (#positive{ball}) (#positive{control}),
+      estimate := \block {
+        \fun (x: Carrier U)(near: _) \then
+        \let y: Carrier V := \into[Point](x, #points{V}) \by { #included{ball} x (R.ltLeTrans _ _ _ near (Metric.minLeft rho delta)) } \then
+        \return R.ltReplaceLeft (distance (g y) (g a)) (distance (f x) (f b)) epsilon
+          (congr2!{Real Real Real} distance (g y) (f x) (g a) (f b)
+            (sym!{Real} (f x) (g y) (agrees y)) (sym!{Real} (f b) (g a) (agrees a)))
+          (#estimate{control} y (R.ltLeTrans _ _ _ near (Metric.minRight rho delta)))
+      },
+    }
+  }, \Cast[Real] ({ r: Real \where ContinuityControl[U, f, b, epsilon, r] }))
+};

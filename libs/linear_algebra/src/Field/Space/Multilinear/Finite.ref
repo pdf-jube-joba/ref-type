@@ -1,0 +1,40 @@
+\import \parent.\parent.Finite[V := V, I := I, space := space] \as Basis;
+\import Fin.Tuples[A := I] \as Indices;
+\import Indices.Mapping[B := V] \as Mapping;
+\import Fin.Tuples[A := V] \as Tuples;
+\import Fin.Empty[A := I] \as EmptyIndices;
+\import Fin.Empty[A := V] \as EmptyArguments;
+\definition coefficients(k: N.Nat^)(f: Form k): (Fin.Fin k -> I) -> K :=
+  \fun (indices: Fin.Fin k -> I) => f (\fun (j: Fin.Fin k) => #vectors{b} (indices j));
+\definition EqualCoefficients(k: N.Nat^)(f, g: Form k): \Prop :=
+  \forall (indices: Fin.Fin k -> I) -> coefficients k f indices = coefficients k g indices;
+\definition Extensionality(k: N.Nat^): \Prop := \forall (f, g: Form k) -> EqualCoefficients k f g -> f = g;
+\definition ExpansionOperator(k: N.Nat^): \Set := Form k -> Arguments k -> K;
+\module At(k: N.Nat^);
+\module Expanded(k: N.Nat^, previous: ExpansionOperator k);
+\definition expansion: \forall (k: N.Nat^) -> ExpansionOperator k :=
+  \induction (k: N.Nat^) \return ExpansionOperator k \with {
+    | zero: \fun (f: Form N.Nat^::zero)(arguments: Arguments N.Nat^::zero) => f EmptyArguments.function
+    | succ: \fun (k: N.Nat^)(previous: ExpansionOperator k) => Expanded[k := k, previous := previous].value
+  };
+\definition ExpansionLaw(k: N.Nat^): \Prop := \forall (f: Form k)(arguments: Arguments k) -> expansion k f arguments = f arguments;
+\definition expansionLaw: \forall (k: N.Nat^) -> ExpansionLaw k :=
+  \induction (k: N.Nat^) \return ExpansionLaw k \with {
+    | zero: \fun (f: Form N.Nat^::zero)(arguments: Arguments N.Nat^::zero) =>
+      congr!{{Arguments N.Nat^::zero} K} f EmptyArguments.function arguments (EmptyArguments.unique EmptyArguments.function arguments)
+    | succ: \fun (k: N.Nat^)(previous: ExpansionLaw k) => At[k := k].expandLaw (expansion k) previous
+  };
+\definition zeroExt: Extensionality N.Nat^::zero := \block {
+  \fun (f, g: Form N.Nat^::zero)(same: EqualCoefficients N.Nat^::zero f g) \then
+  \let basisArguments: Arguments N.Nat^::zero := \fun (i: Fin.Fin N.Nat^::zero) => #vectors{b} (EmptyIndices.function i) \then
+  \return \axiom:funext(f, g, \fun (arguments: Arguments N.Nat^::zero) =>
+    trans!{K} (f arguments) (f basisArguments) (g arguments)
+      (congr!{{Arguments N.Nat^::zero} K} f arguments basisArguments (EmptyArguments.unique arguments basisArguments))
+      (trans!{K} (f basisArguments) (g basisArguments) (g arguments) (same EmptyIndices.function)
+        (congr!{{Arguments N.Nat^::zero} K} g basisArguments arguments (EmptyArguments.unique basisArguments arguments))))
+};
+\definition basisExt: \forall (k: N.Nat^) -> Extensionality k :=
+  \induction (k: N.Nat^) \return Extensionality k \with {
+    | zero: zeroExt
+    | succ: \fun (k: N.Nat^)(previous: Extensionality k) => At[k := k].step previous
+  };

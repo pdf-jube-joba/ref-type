@@ -1,0 +1,24 @@
+\import \parent.Chart[M := M, space := space] \as Charts;
+\import Open.Smooth[] \as Analysis;
+\module Pair(left, right: Charts.Chart) {
+  \import Charts.Transition[left := left, right := right] \as Transition;
+  \definition Compatible: \Prop := \forall (i: Coordinates.Coordinate) -> Analysis.SmoothOn Transition.domain
+    (\fun (x: Open.Carrier Transition.domain) => Transition.vector x i);
+}
+\definition Compatible(left, right: Charts.Chart): \Prop := Pair[left := left, right := right].Compatible;
+\structure Data: \Set {
+  charts: \Pow Charts.Chart,
+}
+\definition Member(data: Data)(chart: Charts.Chart): \Prop := \In[Charts.Chart] #charts{data} chart;
+\structure Laws[data: Data]: \Prop {
+  covers: \forall (x: M) -> \exists { chart: Charts.Chart \where Logic.And[Member data chart, Charts.Contains chart x] },
+  compatible: \forall (left, right: Charts.Chart) -> Member data left -> Member data right -> Compatible left right,
+}
+\definition Atlas: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\structure Compatibility[data: Atlas, chart: Charts.Chart]: \Prop {
+  forward: \forall (other: Charts.Chart) -> Member data other -> Compatible chart other,
+  backward: \forall (other: Charts.Chart) -> Member data other -> Compatible other chart,
+}
+\definition Saturation(atlas: Atlas): \Pow Charts.Chart := { chart: Charts.Chart \where Compatibility[atlas, chart] };
+\definition IsMaximal(atlas: Atlas): \Prop := \forall (chart: Charts.Chart) -> Compatibility[atlas, chart] -> Member atlas chart;
+\definition MaximalAtlas: \Set := \Cast[Atlas] ({ atlas: Atlas \where IsMaximal atlas });

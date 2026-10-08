@@ -1,0 +1,17 @@
+\definition HasZero: \Prop := \exists { pivot: Fin (N.Nat^::succ k) \where f pivot = zero n };
+\import \parent.\parent.Reduction[k := N.Nat^::succ k, n := n, f := f] \as Reduction;
+\definition avoids: Logic.Not HasZero -> Reduction.AvoidsZero :=
+  \fun (none: Logic.Not HasZero)(i: Fin (N.Nat^::succ k))(same: f i = zero n) =>
+    none (\exact(\into[Fin (N.Nat^::succ k)](i, { pivot: Fin (N.Nat^::succ k) \where f pivot = zero n }) \by { same },
+      \Cast[Fin (N.Nat^::succ k)] ({ pivot: Fin (N.Nat^::succ k) \where f pivot = zero n })));
+\definition law: Existence n -> Injective (N.Nat^::succ k) (N.Nat^::succ n) f -> \exists Ordered (N.Nat^::succ k) (N.Nat^::succ n) f :=
+  \fun (previous: Existence n)(injection: Injective (N.Nat^::succ k) (N.Nat^::succ n) f) =>
+    either!{{HasZero} "or" {Logic.Not HasZero} "either" {\exists Ordered (N.Nat^::succ k) (N.Nat^::succ n) f}
+      "lt:" {\block {
+        \fun (exists: HasZero) \then
+        \takefrom pivot: \Cast[Fin (N.Nat^::succ k)] ({ pivot: Fin (N.Nat^::succ k) \where f pivot = zero n }) \by exists \then
+        \return \parent.\parent.Pivot[k := k, n := n, f := f, pivot := pivot].ordered previous injection
+          (\bysub(Fin (N.Nat^::succ k), { pivot: Fin (N.Nat^::succ k) \where f pivot = zero n }, pivot))
+      }}
+      "rt:" {\fun (none: Logic.Not HasZero) => Reduction.ordered previous (avoids none) injection}}
+      (Classical.excludedMiddle HasZero);

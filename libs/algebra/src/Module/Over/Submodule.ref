@@ -1,0 +1,29 @@
+\import \parent.Laws[V := V, space := space] \as ModuleLaws;
+\definition zero: V := ModuleLaws.zero;
+\definition add: V -> V -> V := ModuleLaws.add;
+\definition neg: V -> V := ModuleLaws.neg;
+\definition scale: R -> V -> V := ModuleLaws.scale;
+\definition additive: Alg.CommutativeGroup[V] := ModuleLaws.additive;
+\import algebra.Group[].Of[Carrier := V, group := additive] \as Group;
+\definition negativeOne: \forall (x: V) -> scale (#neg{ring} (#one{ring})) x = neg x := ModuleLaws.negativeOne;
+\structure Data: \Set {
+  carrier: \Pow V,
+}
+\structure Laws[data: Data]: \Prop {
+  zero: \In[V] data.carrier zero,
+  addition: \forall (x, y: V) -> \In[V] data.carrier x -> \In[V] data.carrier y -> \In[V] data.carrier (add x y),
+  scalar: \forall (a: R)(x: V) -> \In[V] data.carrier x -> \In[V] data.carrier (scale a x),
+}
+\definition Submodule: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition Member(S: Submodule)(x: V): \Prop := \In[V] (#carrier{S}) x;
+\definition negativeClosed: \forall (S: Submodule)(x: V) -> Member S x -> Member S (neg x) :=
+  \fun (S: _)(x: _)(member: _) => \idelim scale (#neg{ring} (#one{ring})) x = neg x \with y: V => Member S y \by {
+    base: #scalar{S} (#neg{ring} (#one{ring})) x member,
+    equality: negativeOne x
+  };
+\definition differenceClosed: \forall (S: Submodule)(x, y: V) -> Member S x -> Member S y -> Member S (Group.difference x y) :=
+  \fun (S: _)(x, y: _)(left: _)(right: _) => #addition{S} x (neg y) left (negativeClosed S y right);
+\import Group.Subgroups[] \as Subgroups;
+\definition closed(S: Submodule): Subgroups.Closed[#carrier{S}] := Subgroups.Closed[#carrier{S}] {
+  zero := #zero{S}, add := #addition{S}, neg := negativeClosed S,
+};

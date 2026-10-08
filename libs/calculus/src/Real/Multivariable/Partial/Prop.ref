@@ -15,6 +15,30 @@
         equality: \axiom:funext(identity, Def.section (Space.projection i) a i,
           \fun (t: _) => sym!{Real} _ _ (SpaceLaws.replaceSame a i t))
       };
+\definition kronecker(i, j: Coordinate): Real := Bool.ite Real (NatOp.eqb (Fin.value n i) (Fin.value n j)) one zero;
+\definition projectionPartialAny: \forall (i, j: Coordinate) -> Def.HasPartialDerivative (Space.projection i) j (Space.constantFunction (kronecker i j)) :=
+  \fun (i, j: Coordinate)(a: Point) => Bool.cases
+    (\fun (b: Bool.Bool^) => NatOp.eqb (Fin.value n i) (Fin.value n j) = b ->
+      Derivative.HasDerivativeAt (Def.section (Space.projection i) a j) (a j) (Bool.ite Real b one zero))
+    (\fun (equal: _) => \idelim constant (a i) = Def.section (Space.projection i) a j
+      \with f: (Real -> Real) => Derivative.HasDerivativeAt f (a j) zero \by {
+        base: DerivativeLaws.constantDerivative (a i) (a j),
+        equality: \axiom:funext(constant (a i), Def.section (Space.projection i) a j, \fun (t: Real) =>
+          \idelim Bool.Bool^::false = NatOp.eqb (Fin.value n i) (Fin.value n j)
+            \with b: Bool.Bool^ => a i = Bool.ite Real b t (a i) \by {
+              base: \refl(a i), equality: sym!{{Bool.Bool^}} _ _ equal
+            })
+      })
+    (\fun (equal: _) => \idelim identity = Def.section (Space.projection i) a j
+      \with f: (Real -> Real) => Derivative.HasDerivativeAt f (a j) one \by {
+        base: DerivativeLaws.identityDerivative (a j),
+        equality: \axiom:funext(identity, Def.section (Space.projection i) a j, \fun (t: Real) =>
+          \idelim Bool.Bool^::true = NatOp.eqb (Fin.value n i) (Fin.value n j)
+            \with b: Bool.Bool^ => t = Bool.ite Real b t (a i) \by {
+              base: \refl(t), equality: sym!{{Bool.Bool^}} _ _ equal
+            })
+      })
+    (NatOp.eqb (Fin.value n i) (Fin.value n j)) (\refl(NatOp.eqb (Fin.value n i) (Fin.value n j)));
 
 \definition constantMixedPartialsCommute: \forall (c: Real) ->
   Def.MixedPartialsCommute (Space.constantFunction c) :=

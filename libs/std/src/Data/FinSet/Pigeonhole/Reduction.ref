@@ -1,0 +1,25 @@
+\import \parent.\parent.Transposition[n := N.Nat^::succ n, a := f (zero k), b := zero n] \as Swap;
+\definition normalized(i: Fin (N.Nat^::succ k)): Fin (N.Nat^::succ n) := Swap.apply (f i);
+\definition normalizedZero: normalized (zero k) = zero n := Swap.onFirst;
+\definition normalizedInjective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f -> Injective (N.Nat^::succ k) (N.Nat^::succ n) normalized :=
+  \fun (injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f)(i, j: Fin (N.Nat^::succ k))(same: normalized i = normalized j) => injective i j (Swap.injective (f i) (f j) same);
+\definition nonzero: Injective (N.Nat^::succ k) (N.Nat^::succ n) f -> \forall (i: Fin k) -> Logic.Not (normalized (succ k i) = zero n) :=
+  \fun (injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f)(i: Fin k)(same: normalized (succ k i) = zero n) =>
+    NL.succNeZero i (normalizedInjective injective (succ k i) (zero k)
+      (trans!{{Fin (N.Nat^::succ n)}} (normalized (succ k i)) (zero n) (normalized (zero k)) same
+        (sym!{{Fin (N.Nat^::succ n)}} (normalized (zero k)) (zero n) normalizedZero)));
+\definition positive(injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f)(i: Fin k): Nonzero n :=
+  \into[Fin (N.Nat^::succ n)](normalized (succ k i), Nonzero n) \by { nonzero injective i };
+\definition lower(injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f)(i: Fin k): Fin n := predecessor n (positive injective i);
+\definition lowerInjective: \forall (injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f) -> Injective k n (lower injective) :=
+  \fun (injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f)(i, j: Fin k)(same: lower injective i = lower injective j) =>
+    NL.succInjective i j (normalizedInjective injective (succ k i) (succ k j)
+      (trans!{{Fin (N.Nat^::succ n)}} (normalized (succ k i)) (succ n (lower injective i)) (normalized (succ k j))
+        (sym!{{Fin (N.Nat^::succ n)}} (succ n (lower injective i)) (normalized (succ k i)) (successorPredecessor n (positive injective i)))
+        (trans!{{Fin (N.Nat^::succ n)}} (succ n (lower injective i)) (succ n (lower injective j)) (normalized (succ k j))
+          (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (lower injective i) (lower injective j) same)
+          (successorPredecessor n (positive injective j)))));
+\definition impossible: (\forall (f: Fin k -> Fin n) -> Injective k n f -> Logic.False) ->
+  \forall (injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f) -> Logic.False :=
+  \fun (previous: \forall (g: Fin k -> Fin n) -> Injective k n g -> Logic.False)
+    (injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f) => previous (lower injective) (lowerInjective injective);

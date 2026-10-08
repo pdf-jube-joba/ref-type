@@ -1,0 +1,82 @@
+\import \root.Data[].FinSet[].Permutations[n := N.Nat^::succ n] \as Large;
+\import \root.Data[].FinSet[].Tuples[A := Fin (N.Nat^::succ n)] \as Tuples;
+\definition pivot: Fin (N.Nat^::succ n) := #backward{p} (zero n);
+\import \root.Data[].FinSet[].Transposition[n := N.Nat^::succ n, a := zero n, b := pivot] \as Head;
+\definition residual(i: Fin (N.Nat^::succ n)): Fin (N.Nat^::succ n) := #forward{p} (Head.apply i);
+\definition inverse(i: Fin (N.Nat^::succ n)): Fin (N.Nat^::succ n) := Head.apply (#backward{p} i);
+\definition fixesZero: residual (zero n) = zero n := trans!{{Fin (N.Nat^::succ n)}} (residual (zero n)) (#forward{p} pivot) (zero n)
+  (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} #forward{p} (Head.apply (zero n)) pivot Head.onFirst)
+  (#rightInverse{(Large.laws p)} (zero n));
+\definition inverseZero: inverse (zero n) = zero n := Head.onSecond;
+\definition leftInverse: \forall (i: Fin (N.Nat^::succ n)) -> inverse (residual i) = i :=
+  \fun (i: Fin (N.Nat^::succ n)) => trans!{{Fin (N.Nat^::succ n)}} (inverse (residual i)) (Head.apply (Head.apply i)) i
+    (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} Head.apply (#backward{p} (#forward{p} (Head.apply i))) (Head.apply i)
+      (#leftInverse{(Large.laws p)} (Head.apply i))) (Head.involution i);
+\definition rightInverse: \forall (i: Fin (N.Nat^::succ n)) -> residual (inverse i) = i :=
+  \fun (i: Fin (N.Nat^::succ n)) => trans!{{Fin (N.Nat^::succ n)}} (residual (inverse i)) (#forward{p} (#backward{p} i)) i
+    (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} #forward{p} (Head.apply (Head.apply (#backward{p} i))) (#backward{p} i)
+      (Head.involution (#backward{p} i))) (#rightInverse{(Large.laws p)} i);
+\definition successorNonzero: \forall (i: Fin n) -> Logic.Not (succ n i = zero n) :=
+  \fun (i: Fin n) => NL.succNeZero i;
+\definition residualNonzero: \forall (i: Fin n) -> Logic.Not (residual (succ n i) = zero n) :=
+  \fun (i: Fin n)(same: residual (succ n i) = zero n) => successorNonzero i
+    (trans!{{Fin (N.Nat^::succ n)}} (succ n i) (inverse (residual (succ n i))) (zero n)
+      (sym!{{Fin (N.Nat^::succ n)}} (inverse (residual (succ n i))) (succ n i) (leftInverse (succ n i)))
+      (trans!{{Fin (N.Nat^::succ n)}} (inverse (residual (succ n i))) (inverse (zero n)) (zero n)
+        (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} inverse (residual (succ n i)) (zero n) same) inverseZero));
+\definition inverseNonzero: \forall (i: Fin n) -> Logic.Not (inverse (succ n i) = zero n) :=
+  \fun (i: Fin n)(same: inverse (succ n i) = zero n) => successorNonzero i
+    (trans!{{Fin (N.Nat^::succ n)}} (succ n i) (residual (inverse (succ n i))) (zero n)
+      (sym!{{Fin (N.Nat^::succ n)}} (residual (inverse (succ n i))) (succ n i) (rightInverse (succ n i)))
+      (trans!{{Fin (N.Nat^::succ n)}} (residual (inverse (succ n i))) (residual (zero n)) (zero n)
+        (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} residual (inverse (succ n i)) (zero n) same) fixesZero));
+\definition forwardNonzero(i: Fin n): Nonzero n := \into[Fin (N.Nat^::succ n)](residual (succ n i), Nonzero n) \by { residualNonzero i };
+\definition backwardNonzero(i: Fin n): Nonzero n := \into[Fin (N.Nat^::succ n)](inverse (succ n i), Nonzero n) \by { inverseNonzero i };
+\definition forward(i: Fin n): Fin n := predecessor n (forwardNonzero i);
+\definition backward(i: Fin n): Fin n := predecessor n (backwardNonzero i);
+\definition forwardSuccessor: \forall (i: Fin n) -> succ n (forward i) = residual (succ n i) :=
+  \fun (i: Fin n) => successorPredecessor n (forwardNonzero i);
+\definition backwardSuccessor: \forall (i: Fin n) -> succ n (backward i) = inverse (succ n i) :=
+  \fun (i: Fin n) => successorPredecessor n (backwardNonzero i);
+\definition reducedData: Data := Data { forward := forward, backward := backward };
+\definition reducedLaws: Laws[reducedData] := Laws[reducedData] {
+  leftInverse := \fun (i: Fin n) => NL.succInjective (backward (forward i)) i
+    (trans!{{Fin (N.Nat^::succ n)}} (succ n (backward (forward i))) (inverse (succ n (forward i))) (succ n i)
+      (backwardSuccessor (forward i))
+      (trans!{{Fin (N.Nat^::succ n)}} (inverse (succ n (forward i))) (inverse (residual (succ n i))) (succ n i)
+        (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} inverse (succ n (forward i)) (residual (succ n i)) (forwardSuccessor i))
+        (leftInverse (succ n i)))),
+  rightInverse := \fun (i: Fin n) => NL.succInjective (forward (backward i)) i
+    (trans!{{Fin (N.Nat^::succ n)}} (succ n (forward (backward i))) (residual (succ n (backward i))) (succ n i)
+      (forwardSuccessor (backward i))
+      (trans!{{Fin (N.Nat^::succ n)}} (residual (succ n (backward i))) (residual (inverse (succ n i))) (succ n i)
+        (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} residual (succ n (backward i)) (inverse (succ n i)) (backwardSuccessor i))
+        (rightInverse (succ n i)))),
+};
+\definition reduced: Permutation := \into[Data](reducedData, { data: Data \where Laws[data] }) \by { reducedLaws };
+\module Lifting;
+\definition liftedRepresents: \forall (word: Word) -> Represents reduced word -> Large.action (Lifting[].liftWord word) = residual :=
+  \fun (word: Word)(represents: Represents reduced word) => Tuples.extensionality n (Large.action (Lifting[].liftWord word)) residual
+    (trans!{{Fin (N.Nat^::succ n)}} (Large.action (Lifting[].liftWord word) (zero n)) (zero n) (residual (zero n))
+      (Lifting[].zero word) (sym!{{Fin (N.Nat^::succ n)}} (residual (zero n)) (zero n) fixesZero))
+    (\fun (i: Fin n) => trans!{{Fin (N.Nat^::succ n)}} (Large.action (Lifting[].liftWord word) (succ n i)) (succ n (action word i)) (residual (succ n i))
+      (Lifting[].successor word i)
+      (trans!{{Fin (N.Nat^::succ n)}} (succ n (action word i)) (succ n (forward i)) (residual (succ n i))
+        (congr!{{Fin n -> Fin n} {Fin (N.Nat^::succ n)}} (\fun (f: Fin n -> Fin n) => succ n (f i)) (action word) forward represents)
+        (forwardSuccessor i)));
+\definition word(tail: Word): Large.Word := Lists.List[Large.Swap]::cons (Large.Swap { first := zero n, second := pivot }) (Lifting[].liftWord tail);
+\definition represents: \forall (tail: Word) -> Represents reduced tail -> Large.Represents p (word tail) :=
+  \fun (tail: Word)(valid: Represents reduced tail) => \axiom:funext(Large.action (word tail), #forward{p},
+    \fun (i: Fin (N.Nat^::succ n)) => trans!{{Fin (N.Nat^::succ n)}} (Large.action (word tail) i) (residual (Head.apply i)) (#forward{p} i)
+      (congr!{{Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}}
+        (\fun (f: Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n)) => f (Head.apply i))
+        (Large.action (Lifting[].liftWord tail)) residual (liftedRepresents tail valid))
+      (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} #forward{p} (Head.apply (Head.apply i)) i (Head.involution i)));
+\definition exists: (\forall (q: Permutation) -> \exists { tail: Word \where Represents q tail }) ->
+  \exists { result: Large.Word \where Large.Represents p result } := \block {
+  \fun (previous: \forall (q: Permutation) -> \exists { tail: Word \where Represents q tail }) \then
+  \takefrom tail: \Cast[Word] ({ tail: Word \where Represents reduced tail }) \by previous reduced \then
+  \return \exact(\into[Large.Word](word tail, { result: Large.Word \where Large.Represents p result }) \by {
+    represents tail (\bysub(Word, { tail: Word \where Represents reduced tail }, tail))
+  }, \Cast[Large.Word] ({ result: Large.Word \where Large.Represents p result }))
+};

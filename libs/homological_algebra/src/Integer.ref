@@ -1,0 +1,42 @@
+\import std.Arithmetic[].Int[] \as Integers;
+\import std.Data[].Nat[] \as N;
+\import std.Alg[].Ring[] \as Ring;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\definition Degree: \Set := Integers.Int^;
+\definition next: Degree -> Degree := \induction (z: Degree) \return Degree \with {
+  | ofNat: \fun (n: N.Nat^) => Integers.Int^::ofNat (N.Nat^::succ n)
+  | negSucc: \induction (n: N.Nat^) \return Degree \with {
+    | zero: Integers.Int^::ofNat N.Nat^::zero
+    | succ: \fun (n: N.Nat^)(unused: Degree) => Integers.Int^::negSucc n
+  }
+};
+\definition previous: Degree -> Degree := \induction (z: Degree) \return Degree \with {
+  | ofNat: \induction (n: N.Nat^) \return Degree \with {
+    | zero: Integers.Int^::negSucc N.Nat^::zero
+    | succ: \fun (n: N.Nat^)(unused: Degree) => Integers.Int^::ofNat n
+  }
+  | negSucc: \fun (n: N.Nat^) => Integers.Int^::negSucc (N.Nat^::succ n)
+};
+\definition nextPrevious: \forall (z: Degree) -> next (previous z) = z :=
+  \induction (z: Degree) \return next (previous z) = z \with {
+    | ofNat: \induction (n: N.Nat^) \return next (previous (Integers.Int^::ofNat n)) = Integers.Int^::ofNat n \with {
+      | zero: \refl(Integers.Int^::ofNat N.Nat^::zero)
+      | succ: \fun (n: N.Nat^)(unused: next (previous (Integers.Int^::ofNat n)) = Integers.Int^::ofNat n) => \refl(Integers.Int^::ofNat (N.Nat^::succ n))
+    }
+    | negSucc: \fun (n: N.Nat^) => \refl(Integers.Int^::negSucc n)
+  };
+\definition previousNext: \forall (z: Degree) -> previous (next z) = z :=
+  \induction (z: Degree) \return previous (next z) = z \with {
+    | ofNat: \fun (n: N.Nat^) => \refl(Integers.Int^::ofNat n)
+    | negSucc: \induction (n: N.Nat^) \return previous (next (Integers.Int^::negSucc n)) = Integers.Int^::negSucc n \with {
+      | zero: \refl(Integers.Int^::negSucc N.Nat^::zero)
+      | succ: \fun (n: N.Nat^)(unused: previous (next (Integers.Int^::negSucc n)) = Integers.Int^::negSucc n) => \refl(Integers.Int^::negSucc (N.Nat^::succ n))
+    }
+  };
+\module Over(R: \Set, ring: Ring.Ring[R]);

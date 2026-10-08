@@ -1,0 +1,17 @@
+\import \parent.Smooth[] \as Smooth;
+\import \parent.LocalSmooth[U := U, f := f] \as Local;
+\definition Inclusions: \Prop := \forall (i: I) -> Included (domains i) U;
+\definition Indices(a: Carrier U): \Pow I := { i: I \where \In[Point] (#points{(domains i)}) a };
+\definition Covers: \Prop := \forall (a: Carrier U) -> \exists \Cast[I] (Indices a);
+\definition Regular(included: Inclusions): \Prop := \forall (i: I) -> Smooth.SmoothOn (domains i) (restrict (domains i) U (included i) f);
+\definition locality: \forall (included: Inclusions) -> Covers -> Regular included -> Local.IsLocal := \block {
+  \fun (included: Inclusions)(covers: Covers)(regular: Regular included)(a: Carrier U) \then
+  \takefrom i: \Cast[I] (Indices a) \by covers a \then
+  \let member: \In[Point] (#points{(domains i)}) a := \bysub(I, Indices a, i) \then
+  \let patch: Local.Patch := Local.Patch {
+    domain := domains i, included := included i, smooth := regular i,
+  } \then
+  \return \exact(\into[Local.Patch](patch, Local.Patches a) \by { member }, \Cast[Local.Patch] (Local.Patches a))
+};
+\definition smooth: \forall (included: Inclusions) -> Covers -> Regular included -> Smooth.SmoothOn U f :=
+  \fun (included: _)(covers: _)(regular: _) => Local.smooth (locality included covers regular);

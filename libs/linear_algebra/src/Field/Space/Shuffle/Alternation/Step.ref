@@ -1,0 +1,21 @@
+\definition law: (\forall (f, g: Function) -> Laws[f] -> Laws[g] -> AtLaws[prefix, product f g]) ->
+  \forall (head: I)(f, g: Function) -> Laws[f] -> Laws[g] -> AtLaws[Lists.List[I]::cons head prefix, product f g] := \block {
+  \fun (previous: \forall (f, g: Function) -> Laws[f] -> Laws[g] -> AtLaws[prefix, product f g])(head: I)(f, g: Function)(lf: Laws[f])(lg: Laws[g]) \then
+  \let left: AtLaws[prefix, product (shift head f) g] := previous (shift head f) g (shifted f lf head) lg \then
+  \let right: AtLaws[prefix, product (twist f) (shift head g)] := previous (twist f) (shift head g) (twisted f lf) (shifted g lg head) \then
+  \return AtLaws[Lists.List[I]::cons head prefix, product f g] {
+    swap := \fun (x, y: I)(xs: Lists.List[I]) => eq_reason!{
+      {product f g (Lists.List[I]::cons head (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons y xs))))}
+      "=" {add (product (shift head f) g (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons y xs)))) (product (twist f) (shift head g) (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons y xs))))} "by" {atCons head (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons y xs))) f g}
+      "=" {add (neg (product (shift head f) g (Lists.append I prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs))))) (neg (product (twist f) (shift head g) (Lists.append I prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs)))))} "by" {congr2!{K K K} add _ _ _ _ (#swap{left} x y xs) (#swap{right} x y xs)}
+      "=" {neg (add (product (shift head f) g (Lists.append I prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs)))) (product (twist f) (shift head g) (Lists.append I prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs)))))} "by" {sym!{K} _ _ (Sign.negativeAddition _ _)}
+      "=" {neg (product f g (Lists.List[I]::cons head (Lists.append I prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs)))))} "by" {congr!{K K} neg _ _ (sym!{K} _ _ (atCons head (Lists.append I prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs))) f g))}
+    },
+    repeated := \fun (x: I)(xs: Lists.List[I]) => eq_reason!{
+      {product f g (Lists.List[I]::cons head (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons x xs))))}
+      "=" {add (product (shift head f) g (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons x xs)))) (product (twist f) (shift head g) (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons x xs))))} "by" {atCons head (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons x xs))) f g}
+      "=" {add zero zero} "by" {congr2!{K K K} add _ _ _ _ (#repeated{left} x xs) (#repeated{right} x xs)}
+      "=" zero "by" {addZeroLeft zero}
+    },
+  }
+};

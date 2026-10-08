@@ -1,0 +1,56 @@
+\import Source.Subspace[S := #domain{chart}] \as OldDomain;
+\import topology.Topology[Carrier := LocalPoint chart] \as OldDomainTopology;
+\import topology.Topology[Carrier := Open.Carrier #image{chart}] \as OldImageTopology;
+\import topology.Topology[Carrier := Coordinates.Point] \as Ambient;
+\import Ambient.Subspace[S := #points{(#image{chart})}].Open[] \as OpenImage;
+\import topology.Continuity[A := Open.Carrier #image{chart}, B := LocalPoint chart] \as Inverse;
+\import topology.Homeomorphism[A := LocalPoint chart, B := Open.Carrier #image{chart}] \as Homeomorphisms;
+\import \parent.\parent.Of[chart := chart] \as Geometry;
+\definition domains: \Pow Point := Subspace.Trace #domain{chart};
+\definition overlap: \Pow (Open.Carrier #image{chart}) := Inverse.Preimage (point chart) (OldDomain.Trace U);
+\definition openU: Source.IsOpenIn space U := \bysub(\Pow M, OpenSubset, U);
+\definition overlapOpen: OldImageTopology.IsOpenIn (imageTopology #image{chart}) overlap :=
+  #backwardContinuous{(Homeomorphisms.laws (domainTopology #domain{chart}) (imageTopology #image{chart}) #coordinates{chart})}
+    (OldDomain.Trace U) (OldDomain.traceOpen space U openU);
+\definition points: \Pow Coordinates.Point := OpenImage.image overlap;
+\definition pointsOpen: Ambient.IsOpenIn Euclidean.topology points :=
+  OpenImage.imageOpen Euclidean.topology (OpenTopology.open #image{chart}) overlap overlapOpen;
+\definition image: Open.OpenSet := OpenTopology.ofOpen points pointsOpen;
+\definition Domain: \Set := Charts.Domain domains;
+\definition oldPoint(x: Domain): LocalPoint chart :=
+  \into[M](x, #domain{chart}) \by { \bysub(Point, domains, x) };
+\definition oldCoordinate(x: Open.Carrier image): Open.Carrier #image{chart} :=
+  \into[Coordinates.Point](x, #points{(#image{chart})}) \by { OpenImage.imageIncluded overlap x (\bysub(Coordinates.Point, points, x)) };
+\definition forwardMember: \forall (x: Domain) -> \In[Coordinates.Point] points (coordinate chart (oldPoint x)) :=
+  \fun (x: Domain) => OpenImage.imageMember overlap (coordinate chart (oldPoint x))
+    (\idelim oldPoint x = point chart (coordinate chart (oldPoint x)) \with y: LocalPoint chart => \In[M] U y \by {
+      base: \bysub(M, U, x),
+      equality: sym!{{LocalPoint chart}} (point chart (coordinate chart (oldPoint x))) (oldPoint x) (Geometry.pointCoordinate (oldPoint x))
+    });
+\definition forward(x: Domain): Open.Carrier image :=
+  \into[Coordinates.Point](coordinate chart (oldPoint x), points) \by { forwardMember x };
+\definition backwardMember: \forall (x: Open.Carrier image) -> \In[M] U (point chart (oldCoordinate x)) :=
+  \fun (x: Open.Carrier image) => OpenImage.imageElim overlap x (\In[M] U (point chart (oldCoordinate x)))
+    (\fun (y: Open.Carrier #image{chart})(member: OldImageTopology.Member overlap y)(same: y = x) =>
+      \idelim y = oldCoordinate x \with z: Open.Carrier #image{chart} => \In[M] U (point chart z) \by {
+        base: member, equality: same
+      }) (\bysub(Coordinates.Point, points, x));
+\definition backward(x: Open.Carrier image): Domain :=
+  \into[Point](\into[M](point chart (oldCoordinate x), U) \by { backwardMember x }, domains) \by {
+    \bysub(M, #domain{chart}, point chart (oldCoordinate x))
+  };
+\definition leftInverse: \forall (x: Domain) -> backward (forward x) = x :=
+  \fun (x: Domain) => Geometry.pointCoordinate (oldPoint x);
+\definition rightInverse: \forall (x: Open.Carrier image) -> forward (backward x) = x :=
+  \fun (x: Open.Carrier image) => Geometry.coordinatePoint (oldCoordinate x);
+\definition oldDomainTopology: topology.Structures[].Topology[LocalPoint chart] := domainTopology #domain{chart};
+\module Continuity;
+\import Continuity[] \as Continuous;
+\definition value: Charts.Chart := Charts.Chart {
+  domain := domains, image := image,
+  coordinates := topology.Homeomorphism[A := Domain, B := Open.Carrier image].Homeomorphism[Charts.domainTopology domains, Charts.imageTopology image] {
+    forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+    forwardContinuous := Continuous.forwardContinuous, backwardContinuous := Continuous.backwardContinuous,
+  },
+  open := Subspace.traceOpen space #domain{chart} #open{chart},
+};

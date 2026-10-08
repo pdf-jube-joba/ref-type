@@ -1,0 +1,27 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\import std.Data[].FinSet[] \as Fin;
+\import \root.Identity[n := n] \as Identity;
+\import \root.Vector[n := n, m := n] \as Vector;
+\import \root.Vector[n := n, m := m] \as Inner;
+\import Forward.Differential[U := U, V := V, f := #forward{f}, a := a] \as First;
+\import Backward.Differential[U := V, V := U, f := #backward{f}, a := Forward.apply U V (#forward{f}) a] \as Second;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import linear_algebra.Field[].Space[K := Reals.Real, field := Algebra.field] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Domain;
+\import Spaces.Coordinates[I := Fin.Fin m] \as Middle;
+\import Spaces.Linear[V := Middle.Vector, W := Domain.Vector, source := Middle.space, target := Domain.space] \as EndMaps;
+\import EndMaps.Composition[U := Domain.Vector, domain := Domain.space] \as Composition;
+\definition candidate: Vector.LinearMap := Composition.compose Second.value First.value;
+\definition function: Vector.Function U := \fun (x: Source.Carrier U) => Backward.apply V U (#backward{f}) (Forward.apply U V (#forward{f}) x);
+\module Coordinate(j: Fin.Fin n);
+\definition candidateLaw: Vector.HasDifferentialAt U function a candidate := \fun (j: Fin.Fin n) => Coordinate[j := j].law;
+\definition functionIdentity: function = Vector.linearFunction U Identity.linear :=
+  \axiom:funext(function, Vector.linearFunction U Identity.linear, \fun (x: Source.Carrier U) => #leftInverse{f} x);
+\definition identityLaw: Vector.HasDifferentialAt U function a Identity.linear :=
+  \idelim Vector.linearFunction U Identity.linear = function \with g: Vector.Function U => Vector.HasDifferentialAt U g a Identity.linear \by {
+    base: Vector.linearDifferential U Identity.linear a,
+    equality: sym!{{Vector.Function U}} function (Vector.linearFunction U Identity.linear) functionIdentity
+  };
+\definition inverseJacobian: candidate = Identity.linear := Vector.Differential[U := U, f := function, a := a, d := candidate].uniqueness
+  Identity.linear candidateLaw identityLaw;

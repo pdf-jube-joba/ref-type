@@ -1,0 +1,38 @@
+\import \parent.\parent.\parent.Sums[I := J] \as Target;
+\use Logic.either;
+\definition sumMap: \forall (indices: Lists.List[I])(f: I -> J)(g: J -> K) -> Target.sum (Lists.map I J f indices) g = sum indices (\fun (i: I) => g (f i)) :=
+  \induction (indices: Lists.List[I]) \return \forall (f: I -> J)(g: J -> K) -> Target.sum (Lists.map I J f indices) g = sum indices (\fun (i: I) => g (f i)) \with {
+    | nil: \fun (f: I -> J)(g: J -> K) => \refl(zero)
+    | cons: \fun (head: I)(tail: Lists.List[I])
+      (previous: \forall (f: I -> J)(g: J -> K) -> Target.sum (Lists.map I J f tail) g = sum tail (\fun (i: I) => g (f i)))
+      (f: I -> J)(g: J -> K) => congr!{K K} (add (g (f head))) (Target.sum (Lists.map I J f tail) g) (sum tail (\fun (i: I) => g (f i))) (previous f g)
+  };
+\definition memberElim: \forall (indices: Lists.List[I])(f: I -> J)(j: J)(P: \Prop) ->
+  (\forall (i: I) -> \In[I] (keys indices) i -> f i = j -> P) ->
+  \In[J] (Target.keys (Lists.map I J f indices)) j -> P :=
+  \induction (indices: Lists.List[I]) \return \forall (f: I -> J)(j: J)(P: \Prop) ->
+    (\forall (i: I) -> \In[I] (keys indices) i -> f i = j -> P) ->
+    \In[J] (Target.keys (Lists.map I J f indices)) j -> P \with {
+      | nil: \fun (f: I -> J)(j: J)(P: \Prop)(step: \forall (i: I) -> \In[I] (keys Lists.List[I]::nil) i -> f i = j -> P)(empty: Logic.False) => Logic.falseElim P empty
+      | cons: \fun (head: I)(tail: Lists.List[I])
+        (previous: \forall (f: I -> J)(j: J)(P: \Prop) -> (\forall (i: I) -> \In[I] (keys tail) i -> f i = j -> P) -> \In[J] (Target.keys (Lists.map I J f tail)) j -> P)
+        (f: I -> J)(j: J)(P: \Prop)(step: \forall (i: I) -> \In[I] (keys (Lists.List[I]::cons head tail)) i -> f i = j -> P)
+        (member: Logic.Or[j = f head, \In[J] (Target.keys (Lists.map I J f tail)) j]) =>
+          either!{{j = f head} "or" {\In[J] (Target.keys (Lists.map I J f tail)) j} "either" P
+            "lt:" {\fun (same: j = f head) => step head (Logic.Or[_, _]::left (\refl(head))) (sym!{J} j (f head) same)}
+            "rt:" {\fun (old: \In[J] (Target.keys (Lists.map I J f tail)) j) => previous f j P
+              (\fun (i: I)(member: \In[I] (keys tail) i)(same: f i = j) => step i (Logic.Or[_, _]::right member) same) old}} member
+    };
+\definition distinctMap: \forall (indices: Lists.List[I]) -> Distinct indices ->
+  \forall (f: I -> J) -> (\forall (i, j: I) -> f i = f j -> i = j) -> Target.Distinct (Lists.map I J f indices) :=
+  \fun (indices: Lists.List[I])(distinct: Distinct indices) => distinct
+    (\fun (xs: Lists.List[I]) => \forall (f: I -> J) -> (\forall (i, j: I) -> f i = f j -> i = j) -> Target.Distinct (Lists.map I J f xs))
+    (\fun (f: I -> J)(injective: \forall (i, j: I) -> f i = f j -> i = j) => Target.distinctNil)
+    (\fun (head: I)(tail: Lists.List[I])(fresh: Logic.Not (\In[I] (keys tail) head))
+      (previous: \forall (f: I -> J) -> (\forall (i, j: I) -> f i = f j -> i = j) -> Target.Distinct (Lists.map I J f tail))
+      (f: I -> J)(injective: \forall (i, j: I) -> f i = f j -> i = j) => Target.distinctCons (f head) (Lists.map I J f tail)
+        (\fun (member: \In[J] (Target.keys (Lists.map I J f tail)) (f head)) =>
+          memberElim tail f (f head) Logic.False
+            (\fun (i: I)(old: \In[I] (keys tail) i)(same: f i = f head) => fresh
+              (\idelim i = head \with j: I => \In[I] (keys tail) j \by { base: old, equality: injective i head same })) member)
+        (previous f injective));

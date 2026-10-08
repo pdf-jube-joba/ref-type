@@ -1,0 +1,20 @@
+\import manifolds.OpenSubmanifold[n := n].On[M := M].In[U := U] \as Submanifold;
+\definition manifold: Model.Manifold := Submanifold.manifold;
+\import \root.Forms[n := n].On[M := M] \as Original;
+\import \root.Forms[n := n].On[M := manifold] \as Restricted;
+\import \root.Pullback[n := n, m := n].Between[M := manifold, N := M].Of[f := Submanifold.Inclusion[].map] \as Pullback;
+\definition apply: \forall (k: Naturals.Nat^) -> Original.Form k -> Restricted.Form k :=
+  \fun (k: Naturals.Nat^)(omega: Original.Form k) => Pullback.At[k := k].apply omega;
+\module At(k: Naturals.Nat^) {
+  \definition map: linear_algebra.Field[].Space[K := real.Analysis[].Real, field := real.Analysis[].Algebra[].field].Linear[
+    V := Original.Form k, W := Restricted.Form k, source := Original.At[k := k].space, target := Restricted.At[k := k].space].Map := Pullback.At[k := k].map;
+  \definition differentialCommutes: \forall (omega: Original.Form k) ->
+    Restricted.ExteriorDerivative[k := k].apply (apply k omega) = apply (Naturals.Nat^::succ k) (Original.ExteriorDerivative[k := k].apply omega) :=
+      Pullback.Differential[k := k].law;
+  \definition cohomology: Original.DeRham[].Cohomology k -> Restricted.DeRham[].Cohomology k := Pullback.DeRham[].At[k := k].apply;
+}
+\module Product(p, q: Naturals.Nat^) {
+  \definition law: \forall (omega: Original.Form p)(eta: Original.Form q) ->
+    apply (Naturals.Basic[].Def[].add p q) (Original.Wedge[p := p, q := q].apply omega eta) =
+      Restricted.Wedge[p := p, q := q].apply (apply p omega) (apply q eta) := Pullback.Product[p := p, q := q].law;
+}

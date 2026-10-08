@@ -662,6 +662,42 @@ fn conversion(
                     return Ok(true);
                 }
             }
+            // Retain common transparent references while peeling aliases.
+            // Fully normalizing both heads can expand the shared carrier and
+            // its certificates even when one delta step already equates them.
+            fn definition_head(
+                env: &Environment,
+                mut term: Expression,
+            ) -> Option<crate::ids::DefinitionId> {
+                loop {
+                    match env.arena.get(term) {
+                        Node::Definition { id, .. } => return Some(id),
+                        Node::App { function, .. } => term = function,
+                        _ => return None,
+                    }
+                }
+            }
+            fn delta(env: &Environment, term: Expression) -> Result<Expression, String> {
+                match env.arena.get(term) {
+                    Node::Definition { .. } => {
+                        root(env, term)?.ok_or_else(|| "expected a definition redex".into())
+                    }
+                    Node::App {
+                        mode,
+                        function,
+                        argument,
+                    } => Ok(app(env, mode, delta(env, function)?, argument)),
+                    _ => Err("expected a definition head".into()),
+                }
+            }
+            match (definition_head(env, left), definition_head(env, right)) {
+                (Some(l), Some(r)) if l.index < r.index => {
+                    return compare(env, left, delta(env, right)?, erase, seen);
+                }
+                (Some(_), _) => return compare(env, delta(env, left)?, right, erase, seen),
+                (_, Some(_)) => return compare(env, left, delta(env, right)?, erase, seen),
+                _ => {}
+            }
             let left = if erase {
                 env.erased_head(left)?
             } else {

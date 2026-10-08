@@ -1,0 +1,71 @@
+\definition s: SourceChart := #left{p};
+\definition t: TargetChart := #right{p};
+\definition W: Open.OpenSet := domains p;
+\import SourceCharts.Transition[left := left, right := s] \as SourceChange;
+\import TargetCharts.Transition[left := t, right := right] \as TargetChange;
+\import Maps.Coordinates[f := f, left := left, right := t] \as TargetMembership;
+\import Maps.Coordinates[f := f, left := s, right := t] \as Small;
+\definition sourceIncluded: Open.Included W SourceChange.domain :=
+  \fun (a: calculus.Real[].Multivariable[n := n].Point)(member: \In[calculus.Real[].Multivariable[n := n].Point] (#points{W}) a) => #right{(#left{member})};
+\definition targetIncluded: Open.Included W TargetMembership.domain :=
+  \fun (a: calculus.Real[].Multivariable[n := n].Point)(member: \In[calculus.Real[].Multivariable[n := n].Point] (#points{W}) a) => #right{member};
+\definition sourcePoint(a: Open.Carrier W): Open.Carrier SourceChange.domain := Open.inclusion W SourceChange.domain sourceIncluded a;
+\definition directPoint(a: Open.Carrier W): Open.Carrier Direct.domain := Open.inclusion W Direct.domain (included p) a;
+\definition membershipPoint(a: Open.Carrier W): Open.Carrier TargetMembership.domain := Open.inclusion W TargetMembership.domain targetIncluded a;
+\definition firstPoint(a: Open.Carrier W): Open.Carrier Small.domain :=
+  \into[calculus.Real[].Multivariable[n := n].Point](SourceChange.apply (sourcePoint a), #points{Small.domain}) \by {
+    Small.intro (SourceChange.apply (sourcePoint a))
+      (\idelim SourceCharts.point left (TargetMembership.leftCoordinate (membershipPoint a)) = SourceCharts.point s (SourceChange.apply (sourcePoint a))
+        \with x: M.Point => TargetCharts.Contains t (#apply{f} x) \by {
+          base: TargetMembership.inRightDomain (membershipPoint a),
+          equality: sym!{{M.Point}} _ _ (SourceChange.returnsPoint (sourcePoint a))
+        })
+  };
+\definition firstData: Before.Data[W, Small.domain] := Before.Data[W, Small.domain] { apply := firstPoint };
+\definition first(leftMember: SourceAtlases.Member M.atlas left): Before.Map W Small.domain :=
+  \into[Before.Data[W, Small.domain]](firstData, { h: Before.Data[W, Small.domain] \where Before.Laws[W, Small.domain, h] }) \by {
+    Before.Laws[W, Small.domain, firstData] { smooth := \fun (i: Fin.Fin n) => Restriction.localSmooth W SourceChange.domain sourceIncluded
+      (\fun (a: Open.Carrier SourceChange.domain) => SourceChange.apply a i)
+      (#compatible{M.atlas} left s leftMember (sourceMember s) i) }
+  };
+\definition second(condition: InSmallAtlas): Calculus.Map Small.domain #image{t} := Small.map (condition s t);
+\definition candidate(condition: InSmallAtlas)(leftMember: SourceAtlases.Member M.atlas left): Calculus.Map W #image{t} :=
+  Before.Composition[U := W, V := Small.domain, f := first leftMember].After[l := m, W := #image{t}, g := second condition].compose;
+\definition targetPointEquality: \forall (a: Open.Carrier W) ->
+  TargetCharts.point t (Small.apply (firstPoint a)) = #apply{f} (SourceCharts.point left (Direct.leftCoordinate (directPoint a))) :=
+    \fun (a: Open.Carrier W) => trans!{{N.Point}} _ (#apply{f} (SourceCharts.point s (Small.leftCoordinate (firstPoint a)))) _
+      (Small.returnsPoint (firstPoint a))
+      (congr!{{M.Point} {N.Point}} (#apply{f}) _ _ (SourceChange.returnsPoint (sourcePoint a)));
+\definition targetPoint(a: Open.Carrier W): TargetOpen.Carrier TargetChange.domain :=
+  \into[calculus.Real[].Multivariable[n := m].Point](Small.apply (firstPoint a), #points{TargetChange.domain}) \by {
+    TargetChange.intro (Small.apply (firstPoint a))
+      (\idelim #apply{f} (SourceCharts.point left (Direct.leftCoordinate (directPoint a))) = TargetCharts.point t (Small.apply (firstPoint a))
+        \with y: N.Point => TargetCharts.Contains right y \by {
+          base: Direct.inRightDomain (directPoint a), equality: sym!{{N.Point}} _ _ (targetPointEquality a)
+        })
+  };
+\definition intermediateData: Calculus.Data[W, TargetChange.domain] := Calculus.Data[W, TargetChange.domain] { apply := targetPoint };
+\definition intermediate(condition: InSmallAtlas)(leftMember: SourceAtlases.Member M.atlas left): Calculus.Map W TargetChange.domain :=
+  \into[Calculus.Data[W, TargetChange.domain]](intermediateData,
+    { h: Calculus.Data[W, TargetChange.domain] \where Calculus.Laws[W, TargetChange.domain, h] }) \by {
+      Calculus.Laws[W, TargetChange.domain, intermediateData] { smooth := #smooth{(candidate condition leftMember)} }
+  };
+\definition last(rightMember: TargetAtlases.Member N.atlas right): After.Map TargetChange.domain #image{right} :=
+  TargetAtlases.Pair[left := t, right := right].smoothMap (#compatible{N.atlas} t right (targetMember t) rightMember);
+\definition compose(condition: InSmallAtlas)(leftMember: SourceAtlases.Member M.atlas left)(rightMember: TargetAtlases.Member N.atlas right): Calculus.Map W #image{right} :=
+  Calculus.Composition[U := W, V := TargetChange.domain, f := intermediate condition leftMember].After[l := m, W := #image{right}, g := last rightMember].compose;
+\definition pointwise: \forall (a: Open.Carrier W) -> TargetChange.apply (targetPoint a) = Direct.apply (directPoint a) :=
+  \fun (a: Open.Carrier W) => congr!{{TargetCharts.LocalPoint right} {TargetOpen.Carrier #image{right}}} (TargetCharts.coordinate right)
+    (TargetChange.overlapPoint (targetPoint a)) (Direct.point (directPoint a)) (targetPointEquality a);
+\definition regular: InSmallAtlas -> SourceAtlases.Member M.atlas left -> TargetAtlases.Member N.atlas right -> \forall (i: Fin.Fin m) ->
+  Smooth.SmoothOn W (Open.restrict W Direct.domain (included p) (\fun (a: Open.Carrier Direct.domain) => Direct.apply a i)) :=
+    \fun (condition: InSmallAtlas)(leftMember: SourceAtlases.Member M.atlas left)(rightMember: TargetAtlases.Member N.atlas right)(i: Fin.Fin m) =>
+      \idelim (\fun (a: Open.Carrier W) => Calculus.apply W #image{right} (compose condition leftMember rightMember) a i) =
+        (\fun (a: Open.Carrier W) => Direct.apply (directPoint a) i)
+        \with h: Open.ScalarFunction W => Smooth.SmoothOn W h \by {
+          base: #smooth{(compose condition leftMember rightMember)} i,
+          equality: \axiom:funext((\fun (a: Open.Carrier W) => Calculus.apply W #image{right} (compose condition leftMember rightMember) a i),
+            (\fun (a: Open.Carrier W) => Direct.apply (directPoint a) i),
+            \fun (a: Open.Carrier W) => congr!{{calculus.Real[].Multivariable[n := m].Point} {calculus.Real[].Real}}
+              (\fun (v: calculus.Real[].Multivariable[n := m].Point) => v i) _ _ (pointwise a))
+        };

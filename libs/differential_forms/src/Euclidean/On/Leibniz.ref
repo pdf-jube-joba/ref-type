@@ -1,0 +1,137 @@
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition total: N.Nat^ := N.Nat^::succ (Nat.add p q);
+\import N.Basic[].Prop[] \as Naturals;
+\import Spaces.Sign[] \as Sign;
+\import Shuffle.Laws[] \as Shuffles;
+\import Shuffle.Graded[p := p, q := one] \as Crossing;
+\import Multilinear.ListSeries[k := p] \as PSeries;
+\import Multilinear.ListSeries[k := one] \as OneSeries;
+\import \parent.Wedge[p := p, q := q] \as Product;
+\import \parent.Wedge[p := N.Nat^::succ p, q := q] \as LeftProduct;
+\import \parent.Wedge[p := p, q := N.Nat^::succ q] \as RightProduct;
+\import \parent.Regrade[k := Nat.add (N.Nat^::succ p) q, l := total] \as LeftDegree;
+\import \parent.ExteriorDerivative[k := p] \as LeftD;
+\import \parent.ExteriorDerivative[k := q] \as RightD;
+\import \parent.ExteriorDerivative[k := Nat.add p q] \as D;
+\import \parent.Partial[k := p] \as LeftPartial;
+\import \parent.Partial[k := q] \as RightPartial;
+\import \parent.Partial[k := Nat.add p q] \as ResultPartial;
+\import \parent.At[k := Nat.add p q] \as ProductForms;
+\import Exterior.Components[k := Nat.add p q] \as ProductComponents;
+\import Exterior.Components[k := total] \as Components;
+\import Exterior.Degrees[p := p, q := q] \as PointProduct;
+\import Exterior.Degrees[p := N.Nat^::succ p, q := q] \as PointLeft;
+\import Exterior.Degrees[p := p, q := N.Nat^::succ q] \as PointRight;
+\import \parent.At[k := N.Nat^::succ p] \as Left;
+\import \parent.At[k := N.Nat^::succ q] \as Right;
+\import \parent.At[k := total] \as Result;
+\definition degree: Nat.add (N.Nat^::succ p) q = total := Naturals.addSuccLeft p q;
+\definition left(omega: Form (N.Nat^::succ p))(eta: Form q): Form total := LeftDegree.cast (LeftProduct.apply omega eta) degree;
+\definition right(omega: Form p)(eta: Form (N.Nat^::succ q)): Form total := RightProduct.apply omega eta;
+\definition term: \forall (i: Fin.Fin n)(omega: Form p)(eta: Form q) ->
+  D.term i (Product.apply omega eta) = Result.plus (left (LeftD.term i omega) eta)
+    (Result.scale (Sign.value p) (right omega (RightD.term i eta))) := \block {
+  \fun (i: Fin.Fin n)(omega: Form p)(eta: Form q) \then
+  \return \axiom:funext(D.term i (Product.apply omega eta), Result.plus (left (LeftD.term i omega) eta)
+    (Result.scale (Sign.value p) (right omega (RightD.term i eta))), \fun (x: Open.Carrier U) => \block {
+    \let c: Shuffle.Function := Exterior.component one (D.coordinate i x) \then
+    \let f: Shuffle.Function := Exterior.component p (omega x) \then
+    \let g: Shuffle.Function := Exterior.component q (eta x) \then
+    \let df: Shuffle.Function := Exterior.component p (LeftPartial.apply i omega x) \then
+    \let dg: Shuffle.Function := Exterior.component q (RightPartial.apply i eta x) \then
+    \let a: Shuffle.Function := Exterior.component total (left (LeftD.term i omega) eta x) \then
+    \let b: Shuffle.Function := Exterior.component total (right omega (RightD.term i eta) x) \then
+    \let leftSeries: \forall (xs: Lists.List[Vectors.Vector]) -> a xs = Shuffle.product (Shuffle.product c df) g xs :=
+      \fun (xs: Lists.List[Vectors.Vector]) => eq_reason!{
+        {a xs} "=" {Exterior.component (Nat.add (N.Nat^::succ p) q) (LeftProduct.apply (LeftD.term i omega) eta x) xs} "by" {
+          congr!{{Shuffle.Function} {Reals.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (LeftDegree.series (LeftProduct.apply (LeftD.term i omega) eta) degree x)}
+        "=" {Shuffle.product (Exterior.component (N.Nat^::succ p) (LeftD.term i omega x)) g xs} "by" {
+          congr!{{Shuffle.Function} {Reals.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (PointLeft.componentWedge (LeftD.term i omega x) (eta x))}
+        "=" {Shuffle.product (Shuffle.product c df) g xs} "by" {
+          Shuffles.congruent (Exterior.component (N.Nat^::succ p) (LeftD.term i omega x)) (Shuffle.product c df) g g
+            (\fun (ys: Lists.List[Vectors.Vector]) => congr!{{Shuffle.Function} {Reals.Real}} (\fun (h: Shuffle.Function) => h ys) _ _ (LeftD.termSeries i omega x))
+            (\fun (ys: Lists.List[Vectors.Vector]) => \refl(g ys)) xs}
+      } \then
+    \let rightSeries: \forall (xs: Lists.List[Vectors.Vector]) -> b xs = Shuffle.product f (Shuffle.product c dg) xs :=
+      \fun (xs: Lists.List[Vectors.Vector]) => trans!{{Reals.Real}} _ _ _
+        (congr!{{Shuffle.Function} {Reals.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (PointRight.componentWedge (omega x) (RightD.term i eta x)))
+        (Shuffles.congruent f f (Exterior.component (N.Nat^::succ q) (RightD.term i eta x)) (Shuffle.product c dg)
+          (\fun (ys: Lists.List[Vectors.Vector]) => \refl(f ys))
+          (\fun (ys: Lists.List[Vectors.Vector]) => congr!{{Shuffle.Function} {Reals.Real}} (\fun (h: Shuffle.Function) => h ys) _ _ (RightD.termSeries i eta x)) xs) \then
+    \return Components.ext (D.term i (Product.apply omega eta) x)
+      (Result.plus (left (LeftD.term i omega) eta) (Result.scale (Sign.value p) (right omega (RightD.term i eta))) x)
+      (\axiom:funext(Exterior.component total (D.term i (Product.apply omega eta) x),
+        Exterior.component total (Result.plus (left (LeftD.term i omega) eta) (Result.scale (Sign.value p) (right omega (RightD.term i eta))) x),
+        \fun (xs: Lists.List[Vectors.Vector]) => eq_reason!{
+          {Exterior.component total (D.term i (Product.apply omega eta) x) xs}
+          "=" {Shuffle.product c (Exterior.component (Nat.add p q) (ResultPartial.apply i (Product.apply omega eta) x)) xs} "by" {
+            congr!{{Shuffle.Function} {Reals.Real}} (\fun (h: Shuffle.Function) => h xs) _ _ (D.termSeries i (Product.apply omega eta) x)}
+          "=" {Shuffle.product c (Shuffle.plus (Shuffle.product df g) (Shuffle.product f dg)) xs} "by" {
+            Shuffles.congruent c c (Exterior.component (Nat.add p q) (ResultPartial.apply i (Product.apply omega eta) x))
+              (Shuffle.plus (Shuffle.product df g) (Shuffle.product f dg)) (\fun (ys: Lists.List[Vectors.Vector]) => \refl(c ys))
+              (\fun (ys: Lists.List[Vectors.Vector]) => eq_reason!{
+                {Exterior.component (Nat.add p q) (ResultPartial.apply i (Product.apply omega eta) x) ys}
+                "=" {Exterior.component (Nat.add p q) (ProductForms.plus (Product.apply (LeftPartial.apply i omega) eta) (Product.apply omega (RightPartial.apply i eta)) x) ys} "by" {
+                  congr!{{Form (Nat.add p q)} {Reals.Real}} (\fun (h: Form (Nat.add p q)) => Exterior.component (Nat.add p q) (h x) ys) _ _ (Product.partial i omega eta)}
+                "=" {Spaces.add (Exterior.component (Nat.add p q) (Product.apply (LeftPartial.apply i omega) eta x) ys)
+                  (Exterior.component (Nat.add p q) (Product.apply omega (RightPartial.apply i eta) x) ys)} "by" {
+                  ProductComponents.addition (Product.apply (LeftPartial.apply i omega) eta x) (Product.apply omega (RightPartial.apply i eta) x) ys}
+                "=" {Spaces.add (Shuffle.product df g ys) (Shuffle.product f dg ys)} "by" {
+                  congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add _ _ _ _
+                    (congr!{{Shuffle.Function} {Reals.Real}} (\fun (h: Shuffle.Function) => h ys) _ _ (PointProduct.componentWedge (LeftPartial.apply i omega x) (eta x)))
+                    (congr!{{Shuffle.Function} {Reals.Real}} (\fun (h: Shuffle.Function) => h ys) _ _ (PointProduct.componentWedge (omega x) (RightPartial.apply i eta x)))}
+              }) xs}
+          "=" {Spaces.add (Shuffle.product c (Shuffle.product df g) xs) (Shuffle.product c (Shuffle.product f dg) xs)} "by" {
+            Shuffles.additiveRight c (Shuffle.product df g) (Shuffle.product f dg) xs}
+          "=" {Spaces.add (Shuffle.product (Shuffle.product c df) g xs) (Shuffle.product (Shuffle.product c f) dg xs)} "by" {
+            congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add _ _ _ _
+              (sym!{{Reals.Real}} _ _ (Shuffles.associative xs c df g)) (sym!{{Reals.Real}} _ _ (Shuffles.associative xs c f dg))}
+          "=" {Spaces.add (a xs) (Spaces.mul (Sign.value p) (Shuffle.product f (Shuffle.product c dg) xs))} "by" {
+            congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add _ _ _ _ (sym!{{Reals.Real}} _ _ (leftSeries xs))
+              (trans!{{Reals.Real}} _ _ _
+                (Shuffles.congruent (Shuffle.product c f) (Shuffle.scale (Sign.value p) (Shuffle.product f c)) dg dg
+                  (Crossing.commutative f c (PSeries.outside (omega x)) (OneSeries.outside (D.coordinate i x)))
+                  (\fun (ys: Lists.List[Vectors.Vector]) => \refl(dg ys)) xs)
+                (trans!{{Reals.Real}} _ _ _ (Shuffles.scalarLeft (Sign.value p) (Shuffle.product f c) dg xs)
+                  (congr!{{Reals.Real} {Reals.Real}} (Spaces.mul (Sign.value p)) _ _ (Shuffles.associative xs f c dg))))}
+          "=" {Spaces.add (a xs) (Spaces.mul (Sign.value p) (b xs))} "by" {
+            congr!{{Reals.Real} {Reals.Real}} (\fun (v: Reals.Real) => Spaces.add (a xs) (Spaces.mul (Sign.value p) v)) _ _ (sym!{{Reals.Real}} _ _ (rightSeries xs))}
+          "=" {Exterior.component total (Result.plus (left (LeftD.term i omega) eta) (Result.scale (Sign.value p) (right omega (RightD.term i eta))) x) xs} "by" {
+            sym!{{Reals.Real}} _ _ (trans!{{Reals.Real}} _ _ _
+              (Components.addition (left (LeftD.term i omega) eta x) (Result.scale (Sign.value p) (right omega (RightD.term i eta)) x) xs)
+              (congr!{{Reals.Real} {Reals.Real}} (Spaces.add (a xs)) _ _ (Components.scalar (Sign.value p) (right omega (RightD.term i eta) x) xs)))}
+        }))
+  })
+};
+\import Spaces.Linear[V := Form (N.Nat^::succ p), W := Form total, source := Left.space, target := Result.space] \as LeftMaps;
+\definition leftMap(eta: Form q): LeftMaps.Map := LeftMaps.Map {
+  apply := \fun (omega: Form (N.Nat^::succ p)) => left omega eta,
+  preservesAdd := \fun (omega, omega2: Form (N.Nat^::succ p)) => trans!{{Form total}} _ _ _
+    (congr!{{Form (Nat.add (N.Nat^::succ p) q)} {Form total}} (\fun (h: Form (Nat.add (N.Nat^::succ p) q)) => LeftDegree.cast h degree) _ _ (LeftProduct.additiveLeft omega omega2 eta))
+    (LeftDegree.addition (LeftProduct.apply omega eta) (LeftProduct.apply omega2 eta) degree),
+  preservesScale := \fun (a: Reals.Real)(omega: Form (N.Nat^::succ p)) => trans!{{Form total}} _ _ _
+    (congr!{{Form (Nat.add (N.Nat^::succ p) q)} {Form total}} (\fun (h: Form (Nat.add (N.Nat^::succ p) q)) => LeftDegree.cast h degree) _ _ (LeftProduct.scalarLeft a omega eta))
+    (LeftDegree.scalar a (LeftProduct.apply omega eta) degree),
+};
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Form (N.Nat^::succ p), space := Left.space].Mapping[W := Form total, target := Result.space] \as LeftSums;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Form (N.Nat^::succ q), space := Right.space].Mapping[W := Form total, target := Result.space] \as RightSums;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Form total, space := Result.space] \as Sums;
+\definition law: \forall (omega: Form p)(eta: Form q) -> D.apply (Product.apply omega eta) =
+  Result.plus (left (LeftD.apply omega) eta) (Result.scale (Sign.value p) (right omega (RightD.apply eta))) :=
+  \fun (omega: Form p)(eta: Form q) => eq_reason!{
+    {D.apply (Product.apply omega eta)}
+    "=" {Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Result.plus (left (LeftD.term i omega) eta) (Result.scale (Sign.value p) (right omega (RightD.term i eta))))} "by" {
+      Sums.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => D.term i (Product.apply omega eta))
+        (\fun (i: Fin.Fin n) => Result.plus (left (LeftD.term i omega) eta) (Result.scale (Sign.value p) (right omega (RightD.term i eta))))
+        (\fun (i: Fin.Fin n) => term i omega eta)}
+    "=" {Result.plus (Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => left (LeftD.term i omega) eta))
+      (Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Result.scale (Sign.value p) (right omega (RightD.term i eta))))} "by" {
+      Sums.addition (Fin.elements n) (\fun (i: Fin.Fin n) => left (LeftD.term i omega) eta)
+        (\fun (i: Fin.Fin n) => Result.scale (Sign.value p) (right omega (RightD.term i eta)))}
+    "=" {Result.plus (left (LeftD.apply omega) eta) (Result.scale (Sign.value p) (right omega (RightD.apply eta)))} "by" {
+      congr2!{{Form total} {Form total} {Form total}} Result.plus _ _ _ _
+        (sym!{{Form total}} _ _ (LeftSums.law (leftMap eta) (Fin.elements n) (\fun (i: Fin.Fin n) => LeftD.term i omega)))
+        (trans!{{Form total}} _ _ _ (Sums.scalar (Fin.elements n) (Sign.value p) (\fun (i: Fin.Fin n) => right omega (RightD.term i eta)))
+          (congr!{{Form total} {Form total}} (Result.scale (Sign.value p)) _ _
+            (sym!{{Form total}} _ _ (RightSums.law (RightProduct.rightLinear omega) (Fin.elements n) (\fun (i: Fin.Fin n) => RightD.term i eta)))))}
+  };

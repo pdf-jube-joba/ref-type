@@ -1,0 +1,98 @@
+\import \parent.\parent.At[k := N.Nat^::succ (Nat.add p q)] \as TargetH;
+\import Complexes.At[C := complex, k := N.Nat^::succ (Nat.add p q)] \as Boundaries;
+\import \parent.\parent.\parent.At[k := Nat.add p q] \as Previous;
+\definition rightVanishing: \forall (omega: Form p)(eta: Form q) -> Right.Closed eta ->
+  Leibniz.right omega (RightD.apply eta) = Next.zero :=
+  \fun (omega: Form p)(eta: Form q)(closed: Right.Closed eta) =>
+    trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Leibniz.right omega (RightD.apply eta))
+      (RightWedge.apply omega RightNext.zero) Next.zero
+      (congr!{{Form (N.Nat^::succ q)} {Form (N.Nat^::succ (Nat.add p q))}}
+        (RightWedge.apply omega) (RightD.apply eta) RightNext.zero closed)
+      (RightWedge.zeroRight omega);
+\definition leftVanishing: \forall (omega: Form p)(eta: Form q) -> Left.Closed omega ->
+  Leibniz.left (LeftD.apply omega) eta = Next.zero :=
+  \fun (omega: Form p)(eta: Form q)(closed: Left.Closed omega) =>
+    trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Leibniz.left (LeftD.apply omega) eta)
+      (Leibniz.left LeftNext.zero eta) Next.zero
+      (congr!{{Form (N.Nat^::succ p)} {Form (N.Nat^::succ (Nat.add p q))}}
+        (\fun (alpha: Form (N.Nat^::succ p)) => Leibniz.left alpha eta) (LeftD.apply omega) LeftNext.zero closed)
+      (trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Leibniz.left LeftNext.zero eta)
+        (Degree.cast LeftResult.zero Leibniz.degree) Next.zero
+        (congr!{{Form (Nat.add (N.Nat^::succ p) q)} {Form (N.Nat^::succ (Nat.add p q))}}
+          (\fun (alpha: Form (Nat.add (N.Nat^::succ p) q)) => Degree.cast alpha Leibniz.degree)
+          (LeftWedge.apply LeftNext.zero eta) LeftResult.zero (LeftWedge.zeroLeft eta))
+        (Degree.zero Leibniz.degree));
+\definition leftDifferential: \forall (alpha: Form p)(eta: Form q) -> Right.Closed eta ->
+  D.apply (Wedge.apply alpha eta) = Leibniz.left (LeftD.apply alpha) eta := \block {
+  \fun (alpha: Form p)(eta: Form q)(closed: Right.Closed eta) \then
+  \let value: Form (N.Nat^::succ (Nat.add p q)) := Leibniz.left (LeftD.apply alpha) eta \then
+  \return trans!{{Form (N.Nat^::succ (Nat.add p q))}} (D.apply (Wedge.apply alpha eta))
+    (Next.plus value (Next.scale (Sign.value p) (Leibniz.right alpha (RightD.apply eta)))) value
+    (Leibniz.law alpha eta)
+    (trans!{{Form (N.Nat^::succ (Nat.add p q))}}
+      (Next.plus value (Next.scale (Sign.value p) (Leibniz.right alpha (RightD.apply eta))))
+      (Next.plus value Next.zero) value
+      (congr!{{Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))}} (Next.plus value)
+        (Next.scale (Sign.value p) (Leibniz.right alpha (RightD.apply eta))) Next.zero
+        (trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Next.scale (Sign.value p) (Leibniz.right alpha (RightD.apply eta)))
+          (Next.scale (Sign.value p) Next.zero) Next.zero
+          (congr!{{Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))}} (Next.scale (Sign.value p))
+            (Leibniz.right alpha (RightD.apply eta)) Next.zero (rightVanishing alpha eta closed))
+          (NextLaws.scaleZero (Sign.value p))))
+      (NextLaws.zeroRight value))
+};
+\definition exactLeft: \forall (alpha: Form p)(eta: Form q) -> Right.Closed eta ->
+  TargetH.Exact (Leibniz.left (LeftD.apply alpha) eta) :=
+  \fun (alpha: Form p)(eta: Form q)(closed: Right.Closed eta) =>
+    \exact(\into[Form (Nat.add p q)](Wedge.apply alpha eta,
+      { primitive: Form (Nat.add p q) \where D.apply primitive = Leibniz.left (LeftD.apply alpha) eta }) \by {
+        leftDifferential alpha eta closed
+      }, \Cast[Form (Nat.add p q)]
+        ({ primitive: Form (Nat.add p q) \where D.apply primitive = Leibniz.left (LeftD.apply alpha) eta }));
+\definition rightDifferential: \forall (omega: Form p)(beta: Form q) -> Left.Closed omega ->
+  D.apply (Wedge.apply omega beta) = Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply beta)) :=
+  \fun (omega: Form p)(beta: Form q)(closed: Left.Closed omega) =>
+    trans!{{Form (N.Nat^::succ (Nat.add p q))}} (D.apply (Wedge.apply omega beta))
+      (Next.plus (Leibniz.left (LeftD.apply omega) beta) (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply beta))))
+      (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply beta))) (Leibniz.law omega beta)
+      (trans!{{Form (N.Nat^::succ (Nat.add p q))}}
+        (Next.plus (Leibniz.left (LeftD.apply omega) beta) (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply beta))))
+        (Next.plus Next.zero (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply beta))))
+        (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply beta)))
+        (congr!{{Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))}}
+          (\fun (alpha: Form (N.Nat^::succ (Nat.add p q))) => Next.plus alpha (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply beta))))
+          (Leibniz.left (LeftD.apply omega) beta) Next.zero (leftVanishing omega beta closed))
+        (NextLaws.zeroLeft (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply beta)))));
+\definition signTwice: \forall (alpha: Form (N.Nat^::succ (Nat.add p q))) ->
+  Next.scale (Sign.value p) (Next.scale (Sign.value p) alpha) = alpha :=
+  \fun (alpha: Form (N.Nat^::succ (Nat.add p q))) =>
+    trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Next.scale (Sign.value p) (Next.scale (Sign.value p) alpha))
+      (Next.scale (Spaces.mul (Sign.value p) (Sign.value p)) alpha) alpha
+      (sym!{{Form (N.Nat^::succ (Nat.add p q))}}
+        (Next.scale (Spaces.mul (Sign.value p) (Sign.value p)) alpha) (Next.scale (Sign.value p) (Next.scale (Sign.value p) alpha))
+        (#scalarAssoc{Next.space} (Sign.value p) (Sign.value p) alpha))
+      (trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Next.scale (Spaces.mul (Sign.value p) (Sign.value p)) alpha)
+        (Next.scale Spaces.one alpha) alpha
+        (congr!{{Reals.Real} {Form (N.Nat^::succ (Nat.add p q))}} (\fun (a: Reals.Real) => Next.scale a alpha)
+          (Spaces.mul (Sign.value p) (Sign.value p)) Spaces.one (Sign.square p))
+        (#scalarOne{Next.space} alpha));
+\definition signedRightDifferential: \forall (omega: Form p)(beta: Form q) -> Left.Closed omega ->
+  D.apply (Previous.scale (Sign.value p) (Wedge.apply omega beta)) = Leibniz.right omega (RightD.apply beta) :=
+  \fun (omega: Form p)(beta: Form q)(closed: Left.Closed omega) =>
+    trans!{{Form (N.Nat^::succ (Nat.add p q))}} (D.apply (Previous.scale (Sign.value p) (Wedge.apply omega beta)))
+      (Next.scale (Sign.value p) (D.apply (Wedge.apply omega beta))) (Leibniz.right omega (RightD.apply beta))
+      (D.scalar (Sign.value p) (Wedge.apply omega beta))
+      (trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Next.scale (Sign.value p) (D.apply (Wedge.apply omega beta)))
+        (Next.scale (Sign.value p) (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply beta))))
+        (Leibniz.right omega (RightD.apply beta))
+        (congr!{{Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))}} (Next.scale (Sign.value p))
+          (D.apply (Wedge.apply omega beta)) (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply beta)))
+          (rightDifferential omega beta closed)) (signTwice (Leibniz.right omega (RightD.apply beta))));
+\definition exactRight: \forall (omega: Form p)(beta: Form q) -> Left.Closed omega ->
+  TargetH.Exact (Leibniz.right omega (RightD.apply beta)) :=
+  \fun (omega: Form p)(beta: Form q)(closed: Left.Closed omega) =>
+    \exact(\into[Form (Nat.add p q)](Previous.scale (Sign.value p) (Wedge.apply omega beta),
+      { primitive: Form (Nat.add p q) \where D.apply primitive = Leibniz.right omega (RightD.apply beta) }) \by {
+        signedRightDifferential omega beta closed
+      }, \Cast[Form (Nat.add p q)]
+        ({ primitive: Form (Nat.add p q) \where D.apply primitive = Leibniz.right omega (RightD.apply beta) }));
