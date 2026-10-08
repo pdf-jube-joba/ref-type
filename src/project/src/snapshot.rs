@@ -8,11 +8,45 @@ use std::{
 
 /// An immutable set of source texts, including manifests and unsaved buffers.
 /// Queries never read the filesystem through a snapshot.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct SourceSnapshot {
     entry: PathBuf,
+    #[serde(with = "source_texts")]
     files: BTreeMap<PathBuf, Arc<SourceFile>>,
     aliases: BTreeMap<PathBuf, PathBuf>,
+}
+
+// Checkpoint SourceFile serialization intentionally omits text. Dependency
+// snapshots must retain it so transitive packages can be loaded without disk IO.
+mod source_texts {
+    use super::*;
+    use serde::{Deserialize, Serialize};
+
+    pub fn serialize<S: serde::Serializer>(
+        files: &BTreeMap<PathBuf, Arc<SourceFile>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        files
+            .iter()
+            .map(|(path, source)| (path, &source.text))
+            .collect::<BTreeMap<_, _>>()
+            .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<BTreeMap<PathBuf, Arc<SourceFile>>, D::Error> {
+        Ok(BTreeMap::<PathBuf, String>::deserialize(deserializer)?
+            .into_iter()
+            .map(|(path, text)| {
+                let source = Arc::new(SourceFile {
+                    id: SourceId(path.clone()),
+                    text,
+                });
+                (path, source)
+            })
+            .collect())
+    }
 }
 
 pub fn absolute(path: &Path) -> PathBuf {
@@ -48,6 +82,15 @@ impl SourceSnapshot {
     /// Capture source trees and path dependencies. A later edit on disk does
     /// not change this snapshot. Invalid syntax is reported by semantic queries.
     pub fn read(entry: impl AsRef<Path>) -> Result<Self, String> {
+        Self::read_with_dependency_cache(entry, |_, _| None)
+    }
+
+    /// Read each dependency's own tree before consulting a previously checked
+    /// snapshot of its transitive dependencies.
+    pub fn read_with_dependency_cache(
+        entry: impl AsRef<Path>,
+        mut cached: impl FnMut(&Self, &Path) -> Option<Self>,
+    ) -> Result<Self, String> {
         let mut snapshot = Self::new(entry);
         let mut roots = vec![snapshot.root_directory().to_path_buf()];
         let mut visited = BTreeSet::new();
@@ -59,7 +102,25 @@ impl SourceSnapshot {
             if !visited.insert(identity) {
                 continue;
             }
-            snapshot.read_tree(&root, &mut BTreeSet::new())?;
+            let mut own = Self::new(&root);
+            own.aliases.insert(root.clone(), snapshot.identity(&root));
+            own.read_tree(&root, &mut BTreeSet::new())?;
+            if root != snapshot.root_directory()
+                && let Some(saved) = cached(&own, &root)
+            {
+                // An explicitly visited package wins over a transitive snapshot.
+                for (path, source) in saved.files {
+                    snapshot.files.entry(path).or_insert(source);
+                }
+                for (path, identity) in saved.aliases {
+                    snapshot.aliases.entry(path).or_insert(identity);
+                }
+                snapshot.files.extend(own.files);
+                snapshot.aliases.extend(own.aliases);
+                continue;
+            }
+            snapshot.files.extend(own.files);
+            snapshot.aliases.extend(own.aliases);
             if let Some(source) = snapshot.source(root.join("ref.toml"))
                 && let Ok(manifest) = crate::package_loader::parse_manifest(&root, &source.text)
             {
@@ -69,6 +130,37 @@ impl SourceSnapshot {
             }
         }
         Ok(snapshot)
+    }
+
+    /// Restrict a captured snapshot to one package and its path dependencies.
+    pub fn package_snapshot(&self, root: impl AsRef<Path>) -> Self {
+        let mut result = Self::new(root);
+        let mut pending = vec![result.entry.clone()];
+        let mut visited = BTreeSet::new();
+        while let Some(root) = pending.pop() {
+            let root = self.identity(root);
+            if !visited.insert(root.clone()) {
+                continue;
+            }
+            result.files.extend(
+                self.files
+                    .iter()
+                    .filter(|(path, _)| path.starts_with(&root))
+                    .map(|(path, source)| (path.clone(), source.clone())),
+            );
+            result.aliases.extend(
+                self.aliases
+                    .iter()
+                    .filter(|(_, identity)| identity.starts_with(&root))
+                    .map(|(path, identity)| (path.clone(), identity.clone())),
+            );
+            if let Some(source) = self.source(root.join("ref.toml"))
+                && let Ok(manifest) = crate::package_loader::parse_manifest(&root, &source.text)
+            {
+                pending.extend(manifest.dependencies.into_iter().map(|(_, path)| path));
+            }
+        }
+        result
     }
 
     fn read_tree(&mut self, root: &Path, visited: &mut BTreeSet<PathBuf>) -> Result<(), String> {

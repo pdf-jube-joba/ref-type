@@ -21,6 +21,12 @@ struct Args {
     /// キャッシュを再利用せず全体を検証し、検証済みの結果を保存する
     #[arg(long, conflicts_with = "parse_only")]
     full_check: bool,
+    /// 指定ライブラリだけを再検証し、依存先は自身の変更だけを確認してキャッシュを再利用する
+    #[arg(long, conflicts_with_all = ["parse_only", "full_check", "no_cache", "trace", "stats"])]
+    full_check_local: bool,
+    /// module ごとの check / skip と所要秒数を表示しない
+    #[arg(long)]
+    no_progress: bool,
     /// キャッシュ保存先の中身を削除してから処理する
     #[arg(long)]
     clear_cache: bool,
@@ -73,18 +79,10 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
 }
 
 fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
-    let snapshot = match sema::SourceSnapshot::read(&args.path) {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            let message = format!("Module Load Error: {error}");
-            eprintln!("{message}");
-            return Ok(Some(message));
-        }
-    };
     let cache_directory = args
         .cache_dir
         .clone()
-        .unwrap_or_else(|| snapshot.default_cache_directory());
+        .unwrap_or_else(|| sema::SourceSnapshot::new(&args.path).default_cache_directory());
     if args.clear_cache {
         clear_cache_directory(&cache_directory)?;
     }
@@ -92,6 +90,14 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
         sema::Database::new()
     } else {
         sema::Database::with_cache(cache_directory)
+    };
+    let snapshot = match database.read_snapshot(&args.path, args.full_check_local) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            let message = format!("Module Load Error: {error}");
+            eprintln!("{message}");
+            return Ok(Some(message));
+        }
     };
     let messages = if args.parse_only {
         database
@@ -106,6 +112,8 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
             &snapshot,
             &sema::CheckOptions {
                 force: args.trace || args.no_cache || args.full_check,
+                force_local: args.full_check_local,
+                progress: (!args.no_progress).then_some(show_progress),
                 collect_statistics: args.stats,
                 diagnostics: match args.diagnostics {
                     Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,
@@ -138,6 +146,18 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
         }
     }
     Ok(error)
+}
+
+fn show_progress(progress: &sema::ModuleProgress) {
+    let action = match progress.action {
+        sema::ProgressAction::Check => "check",
+        sema::ProgressAction::Skip => "skip",
+    };
+    eprintln!(
+        "{action} {} ({:.3}s)",
+        progress.path.join("."),
+        progress.elapsed.as_secs_f64()
+    );
 }
 
 fn clear_cache_directory(directory: &std::path::Path) -> anyhow::Result<()> {

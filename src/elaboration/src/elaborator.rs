@@ -835,6 +835,7 @@ impl GlobalEnvironment {
             project.order.len(),
             &(0..project.order.len()).collect(),
             &mut |_, _| {},
+            &mut |_, _| {},
         )
     }
 
@@ -845,6 +846,7 @@ impl GlobalEnvironment {
         end: usize,
         selected: &std::collections::BTreeSet<usize>,
         checkpoint: &mut impl FnMut(usize, &Self),
+        progress: &mut impl FnMut(usize, std::time::Duration),
     ) -> Result<(), ElaborationError> {
         self.analysis.references = project.references.clone();
         let checked = self
@@ -856,7 +858,7 @@ impl GlobalEnvironment {
         self.analysis.declarations.extend(checked);
         self.module_manager.hir_imports = project.imports.clone();
         self.module_manager.hir_bindings = project.bindings.clone();
-        self.add_expanded_modules_to_root(project, start, end, selected, checkpoint)
+        self.add_expanded_modules_to_root(project, start, end, selected, checkpoint, progress)
     }
 
     fn add_expanded_modules_to_root(
@@ -866,6 +868,7 @@ impl GlobalEnvironment {
         end: usize,
         selected: &std::collections::BTreeSet<usize>,
         checkpoint: &mut impl FnMut(usize, &Self),
+        progress: &mut impl FnMut(usize, std::time::Duration),
     ) -> Result<(), ElaborationError> {
         self.diagnostic_location = None;
         let modules = &project.modules;
@@ -952,14 +955,15 @@ impl GlobalEnvironment {
                     .ok_or("unknown HIR module in execution order")?;
                 let module_id = self.predeclared_modules[&(module as *const Module)];
                 self.module_manager.moveto(module_id);
-                match *step {
-                    resolve::CheckStep::Parameters(_) => {
-                        self.elaborate_module_parameters(module)?
-                    }
+                let started = std::time::Instant::now();
+                let result = match *step {
+                    resolve::CheckStep::Parameters(_) => self.elaborate_module_parameters(module),
                     resolve::CheckStep::Declaration { index, .. } => {
-                        self.elaborate_module_declaration(module, index)?
+                        self.elaborate_module_declaration(module, index)
                     }
-                }
+                };
+                progress(position, started.elapsed());
+                result?;
                 checkpoint(position + 1, self);
             }
             crate::lowering::Lowerer::new(&self.crate_env, &mut self.crate_env.kernel.borrow_mut())

@@ -180,21 +180,42 @@ impl Checker {
         end: usize,
         selected: &std::collections::BTreeSet<usize>,
         checkpoints: &std::collections::BTreeSet<usize>,
+        save: impl FnMut(usize, Result<Vec<u8>, String>),
+    ) -> Result<(), Diagnostic> {
+        self.check_range_with_progress(project, start, end, selected, checkpoints, save, |_, _| {})
+    }
+
+    pub fn check_range_with_progress(
+        &mut self,
+        project: &resolve::Project,
+        start: usize,
+        end: usize,
+        selected: &std::collections::BTreeSet<usize>,
+        checkpoints: &std::collections::BTreeSet<usize>,
         mut save: impl FnMut(usize, Result<Vec<u8>, String>),
+        mut progress: impl FnMut(usize, std::time::Duration),
     ) -> Result<(), Diagnostic> {
         // Prefix keys are valid only up to the first omitted checking step.
         let first_gap = (start..end)
             .find(|position| !selected.contains(position))
             .unwrap_or(end);
         self.workspace
-            .add_project_range(project, start, end, selected, &mut |position, workspace| {
-                if position <= first_gap && checkpoints.contains(&position) {
-                    save(
-                        position,
-                        crate::checkpoint::serialize(workspace).map_err(|error| error.to_string()),
-                    );
-                }
-            })
+            .add_project_range(
+                project,
+                start,
+                end,
+                selected,
+                &mut |position, workspace| {
+                    if position <= first_gap && checkpoints.contains(&position) {
+                        save(
+                            position,
+                            crate::checkpoint::serialize(workspace)
+                                .map_err(|error| error.to_string()),
+                        );
+                    }
+                },
+                &mut progress,
+            )
             .map_err(|error| self.diagnostic(&error))
     }
 }

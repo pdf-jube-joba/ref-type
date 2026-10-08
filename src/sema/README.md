@@ -50,6 +50,11 @@ parse cache はファイル identity・内容・解析方式、semantic cache �
 破損・形式違い・読み込み失敗は再計算し、保存失敗は検証結果を変えず統計に記録する。
 サイズ上限や保存候補の選択は [environment.rs](src/environment.rs)、実装 fingerprint は [build.rs](build.rs) を参照。
 
+package 全体の検証に成功すると、package ごとに依存先のソースとファイル identity を含む snapshot を `.sources.json` に保存する。
+`Database::read_snapshot(path, true)` は依存 package 自身のソース・manifest・checker の fingerprint を照合し、一致する snapshot の推移的な依存を取り込む。
+`CheckOptions::force_local` は入口 package を再検査し、依存 package の結果と入口より前の環境 checkpoint を再利用する。
+`CheckOptions::progress` は子 module を含むソース module ごとの検査・省略と所要時間を通知する。
+
 ## CLI と検証
 
 リポジトリのルートで同じコマンドを二度実行すると、別プロセスでの再利用を確認できる。
@@ -59,9 +64,11 @@ cargo run -p cli --release --locked -- libs/std --cache-stats
 cargo run -p cli --release --locked -- libs/std --cache-stats
 cargo run -p cli --release --locked -- libs/std --no-cache
 cargo run -p cli --release --locked -- libs/std --full-check
+cargo run -p cli --release --locked -- libs/std --full-check-local
 ```
 
-`--no-cache` は永続キャッシュの読み書きを無効にし、`--full-check` は再検証後にキャッシュを更新する。
+`--no-cache` は永続キャッシュの読み書きを無効にし、`--full-check` は依存先を含む全体の再検証後にキャッシュを更新する。
+`--full-check-local` は指定した package を再検証し、依存先は自身の変更を照合してキャッシュを再利用する。
 保存先などの指定は [利用方法](../USAGE.md#検査とキャッシュ) を参照。
 `environment_hits` は復元した checkpoint 数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計サイズである。
 

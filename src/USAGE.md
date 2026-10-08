@@ -30,6 +30,8 @@ std = { path = "../std" }
 | `--parse-only` | 構文解析と外部 module・package の読み込み |
 | `--no-cache` | 永続キャッシュを読み書きせず全体を検証 |
 | `--full-check` | 全体を再検証し、検証済みの結果でキャッシュを更新 |
+| `--full-check-local` | 指定ライブラリを再検証し、依存先は自身のソースと manifest が一致するキャッシュを再利用 |
+| `--no-progress` | module ごとの進捗表示を抑制 |
 | `--cache-dir PATH` | キャッシュ保存先を変更 |
 | `--clear-cache` | 保存先の中身を削除してから処理 |
 | `--cache-stats` | 解析・検査・再利用・保存の件数を表示 |
@@ -38,6 +40,20 @@ std = { path = "../std" }
 | `--diagnostics compact` / `detailed` | 診断の詳しさを指定 |
 
 キャッシュの仕組みと API は [sema](sema/README.md) を参照。
+
+通常の検査、`--full-check`、`--full-check-local`、`--no-cache` は、子 module を含む各 module の `check` / `skip` と所要秒数を標準エラーに表示する。
+`check` の秒数はその module の検査時間、`skip` の秒数は検査結果のキャッシュ読み込み時間である。
+
+```sh
+cargo run -p cli -- libs/topology --full-check-local
+cargo run -p cli -- libs/topology --full-check-local --no-progress
+```
+
+`--full-check-local` では、C が B に、B が A に依存するとき、B 自身のソースと manifest をキャッシュに照合する。
+一致すれば、A には B の検証時に保存したソースを使い、チェック済みの依存環境を復元する。
+B の変更、キャッシュの欠損・破損がある場合は、現在の依存ソースを読み込んで再検証する。
+キャッシュは通常の検査と共有し、再検証に成功した結果で更新する。
+単独ファイルに指定すると、そのファイルから読み込む module 全体を再検証する。
 
 ## 診断と計測
 

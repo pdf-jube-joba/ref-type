@@ -600,7 +600,13 @@ fn compact_parse_errors_skip_independent_typechecking() {
     let normal = String::from_utf8_lossy(&normal.stderr);
     let compact = String::from_utf8_lossy(&compact.stderr);
     assert!(compact.contains("Broken.ref:1:"), "{compact}");
-    assert_eq!(compact, normal);
+    let diagnostic_lines = |text: &str| {
+        text.lines()
+            .filter(|line| !line.starts_with("check ") && !line.starts_with("skip "))
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(diagnostic_lines(&compact), diagnostic_lines(&normal));
 }
 
 #[test]
@@ -708,7 +714,11 @@ fn trace_is_on_stderr_and_preserves_command_output() {
     assert!(normal.status.success(), "{}", output_details(&normal));
     assert!(traced.status.success(), "{}", output_details(&traced));
     assert_eq!(normal.stdout, traced.stdout);
-    assert!(normal.stderr.is_empty());
+    assert!(
+        String::from_utf8_lossy(&normal.stderr)
+            .lines()
+            .all(|line| line.starts_with("check ") || line.starts_with("skip "))
+    );
     let stderr = String::from_utf8_lossy(&traced.stderr);
     assert!(stderr.contains("kernel_check"), "{stderr}");
     assert!(stderr.contains("evaluation finished"), "{stderr}");
@@ -840,6 +850,231 @@ fn separate_processes_restore_dependency_environments_after_an_edit() {
     assert!(clean.status.success(), "{}", output_details(&clean));
     assert_eq!(changed.stdout, clean.stdout);
     assert!(String::from_utf8_lossy(&clean.stderr).contains("environment_bytes: 0"));
+}
+
+fn dependency_chain(fixture: &FixtureDirectory) -> PathBuf {
+    fixture.write("a/ref.toml", "[package]\nname = \"a\"\n");
+    fixture.write("a/src/root.ref", r"\module Base;");
+    fixture.write(
+        "a/src/Base.ref",
+        r"\definition P: \Prop := \forall (P: \Prop) -> P -> P;",
+    );
+    fixture.write(
+        "b/ref.toml",
+        "[package]\nname = \"b\"\n[dependencies]\na = { path = \"../a\" }\n",
+    );
+    fixture.write(
+        "b/src/root.ref",
+        r"\module Bridge { \import a.Base[] \as A; \definition P: \Prop := A.P; }",
+    );
+    fixture.write(
+        "c/ref.toml",
+        "[package]\nname = \"c\"\n[dependencies]\nb = { path = \"../b\" }\n",
+    );
+    fixture.write("c/src/root.ref", r"\module Client { \import b.Bridge[] \as B; \infer B.P; } \module Independent { \module Child { \infer \Set; } }");
+    fixture.0.join("c")
+}
+
+fn progress_lines(output: &Output) -> Vec<String> {
+    String::from_utf8_lossy(&output.stderr)
+        .lines()
+        .filter(|line| line.starts_with("check ") || line.starts_with("skip "))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn module_progress_reports_checks_skips_children_and_seconds_in_every_mode() {
+    let fixture = FixtureDirectory::new();
+    let root = dependency_chain(&fixture);
+    for (args, expected) in [
+        (
+            vec![],
+            vec![
+                "check a.Base",
+                "check b.Bridge",
+                "check c.Client",
+                "check c.Independent",
+                "check c.Independent.Child",
+            ],
+        ),
+        (
+            vec![],
+            vec![
+                "skip a.Base",
+                "skip b.Bridge",
+                "skip c.Client",
+                "skip c.Independent",
+                "skip c.Independent.Child",
+            ],
+        ),
+        (
+            vec!["--full-check"],
+            vec![
+                "check a.Base",
+                "check b.Bridge",
+                "check c.Client",
+                "check c.Independent",
+                "check c.Independent.Child",
+            ],
+        ),
+        (
+            vec!["--full-check-local"],
+            vec![
+                "skip a.Base",
+                "skip b.Bridge",
+                "check c.Client",
+                "check c.Independent",
+                "check c.Independent.Child",
+            ],
+        ),
+        (
+            vec!["--no-cache"],
+            vec![
+                "check a.Base",
+                "check b.Bridge",
+                "check c.Client",
+                "check c.Independent",
+                "check c.Independent.Child",
+            ],
+        ),
+    ] {
+        let output = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+        assert!(output.status.success(), "{}", output_details(&output));
+        let lines = progress_lines(&output);
+        assert_eq!(lines.len(), expected.len(), "{lines:?}");
+        for prefix in expected {
+            assert!(
+                lines
+                    .iter()
+                    .any(|line| line.starts_with(&format!("{prefix} ("))),
+                "missing {prefix}: {lines:?}"
+            );
+        }
+        for line in &lines {
+            let seconds = line.split_once(" (").unwrap().1.strip_suffix("s)").unwrap();
+            assert!(seconds.parse::<f64>().unwrap() >= 0.0, "{line}");
+        }
+        let mut quiet_args = args.clone();
+        quiet_args.push("--no-progress");
+        let quiet = run_ref_file_with_args(&fixture.0, &root, &quiet_args).unwrap();
+        assert!(quiet.status.success(), "{}", output_details(&quiet));
+        assert_eq!(quiet.stdout, output.stdout);
+        assert!(quiet.stderr.is_empty(), "{}", output_details(&quiet));
+    }
+}
+
+#[test]
+fn full_check_local_stops_at_a_cached_dependency_and_detects_its_own_edits() {
+    let fixture = FixtureDirectory::new();
+    let root = dependency_chain(&fixture);
+    let first = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert!(first.status.success(), "{}", output_details(&first));
+    assert!(
+        progress_lines(&first)
+            .iter()
+            .any(|line| line.starts_with("check a.Base "))
+    );
+    // Invalid UTF-8 proves that the transitive source is not read at all.
+    fs::write(fixture.0.join("a/src/Base.ref"), [0xff]).unwrap();
+    let cached =
+        run_ref_file_with_args(&fixture.0, &root, &["--full-check-local", "--cache-stats"])
+            .unwrap();
+    assert!(cached.status.success(), "{}", output_details(&cached));
+    assert_eq!(first.stdout, cached.stdout);
+    let lines = progress_lines(&cached);
+    assert!(
+        lines.iter().any(|line| line.starts_with("skip a.Base ")),
+        "{lines:?}"
+    );
+    assert!(
+        lines.iter().any(|line| line.starts_with("skip b.Bridge ")),
+        "{lines:?}"
+    );
+    assert!(
+        lines.iter().any(|line| line.starts_with("check c.Client ")),
+        "{lines:?}"
+    );
+    assert!(
+        String::from_utf8_lossy(&cached.stderr).contains("environment_hits: 1"),
+        "{}",
+        output_details(&cached)
+    );
+    for args in [vec![], vec!["--full-check"], vec!["--no-cache"]] {
+        let output = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+        assert_eq!(output.status.code(), Some(1), "{}", output_details(&output));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("Base.ref"));
+    }
+    fixture.write("c/ref.toml", "[package]\nname = \"c\"\n[dependencies]\na = { path = \"../a\" }\nb = { path = \"../b\" }\n");
+    let direct = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert_eq!(direct.status.code(), Some(1), "{}", output_details(&direct));
+    assert!(String::from_utf8_lossy(&direct.stderr).contains("Base.ref"));
+    fixture.write(
+        "c/ref.toml",
+        "[package]\nname = \"c\"\n[dependencies]\nb = { path = \"../b\" }\n",
+    );
+    fixture.write(
+        "b/src/root.ref",
+        r"\module Bridge { \import a.Base[] \as A; \definition P: \Prop := A.P; \infer P; }",
+    );
+    let changed = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert_eq!(
+        changed.status.code(),
+        Some(1),
+        "{}",
+        output_details(&changed)
+    );
+    assert!(String::from_utf8_lossy(&changed.stderr).contains("Base.ref"));
+    fixture.write(
+        "a/src/Base.ref",
+        r"\definition P: \Prop := \forall (P: \Prop) -> P -> P;",
+    );
+    let changed = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert!(changed.status.success(), "{}", output_details(&changed));
+    assert!(
+        progress_lines(&changed)
+            .iter()
+            .any(|line| line.starts_with("check b.Bridge "))
+    );
+    fixture.write(
+        "c/src/root.ref",
+        r"\module Client { \definition bad: \Prop := \Set; }",
+    );
+    let invalid = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert_eq!(
+        invalid.status.code(),
+        Some(1),
+        "{}",
+        output_details(&invalid)
+    );
+    assert!(
+        progress_lines(&invalid)
+            .iter()
+            .any(|line| line.starts_with("check c.Client "))
+    );
+}
+
+#[test]
+fn damaged_dependency_source_cache_falls_back_to_current_sources() {
+    let fixture = FixtureDirectory::new();
+    let root = dependency_chain(&fixture);
+    fixture.write("c/unloaded/ref.toml", "[package]\nname = \"unloaded\"\n");
+    fixture.write("c/unloaded/src/root.ref", "invalid syntax");
+    let first = run_ref_file(&fixture.0, &root).unwrap();
+    assert!(first.status.success(), "{}", output_details(&first));
+    let mut source_records = 0;
+    for entry in fs::read_dir(root.join("refcache")).unwrap() {
+        let path = entry.unwrap().path();
+        if path.to_string_lossy().ends_with(".sources.json") {
+            source_records += 1;
+            fs::write(path, "truncated").unwrap();
+        }
+    }
+    assert_eq!(source_records, 3);
+    fixture.write("a/src/Base.ref", r"\definition P: \Prop := \Set;");
+    let output = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert_eq!(output.status.code(), Some(1), "{}", output_details(&output));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Base.ref:1:"));
 }
 
 #[test]

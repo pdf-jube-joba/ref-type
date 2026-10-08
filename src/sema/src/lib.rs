@@ -9,8 +9,10 @@ mod cache;
 mod database;
 mod graph;
 mod parsing;
+mod progress;
 pub use database::{CheckOptions, Database};
 pub use parsing::{ParseKind, ParseResult, ParsedSyntax};
+pub use progress::{ModuleProgress, ProgressAction};
 
 mod environment;
 
