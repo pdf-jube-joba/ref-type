@@ -205,19 +205,28 @@ impl Resolver {
         let location = self.location.clone();
         let span = location.as_ref().map_or(SourceSpan::default(), |l| l.span);
         let mut telescope = parameters.clone();
-        let parameter_sources = fields
+        let mut parameter_sources: HashMap<_, _> = parameters
             .iter()
-            .enumerate()
-            .map(|(index, (field, _, _))| {
+            .flat_map(|bind| &bind.vars)
+            .map(|parameter| {
                 (
-                    field.0.clone(),
+                    parameter.0.clone(),
                     ParameterSource {
-                        description: format!("Structure field '{}.{}'", name.0, field.0),
-                        span: field_spans.get(index).copied().unwrap_or(span),
+                        description: format!("Structure parameter '{}.{}'", name.0, parameter.0),
+                        span,
                     },
                 )
             })
             .collect();
+        parameter_sources.extend(fields.iter().enumerate().map(|(index, (field, _, _))| {
+            (
+                field.0.clone(),
+                ParameterSource {
+                    description: format!("Structure field '{}.{}'", name.0, field.0),
+                    span: field_spans.get(index).copied().unwrap_or(span),
+                },
+            )
+        }));
         for (field, ty, _) in &fields {
             telescope.push(RightBind {
                 vars: vec![field.clone()],

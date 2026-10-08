@@ -1252,6 +1252,59 @@ fn structure_field_type_errors_preserve_source_context() {
 }
 
 #[test]
+fn structure_parameter_type_errors_preserve_source_context() {
+    use ::syntax::syntax::{SourceFile, SourceId};
+
+    for (declaration, parameter, reason) in [
+        (
+            r"\structure Packed[F: \Set -> \SetKind] {
+    Cr: \Set,
+    data: F Cr,
+  }",
+            "Packed.F",
+            "upper sort has no classifier",
+        ),
+        (
+            r"\structure Packed[A: \Set, a: A, bad: a] {}",
+            "Packed.bad",
+            "expected a sort",
+        ),
+    ] {
+        let source = std::sync::Arc::new(SourceFile {
+            id: SourceId("structure-parameter-error.ref".into()),
+            text: format!("\\module Playground {{\n  {declaration}\n}}"),
+        });
+        let mut modules = parse::parse_modules_from_source(&source).unwrap();
+        for module in &mut modules {
+            module.source = Some(source.clone());
+            module.header_source = Some(source.clone());
+        }
+        let mut environment = GlobalEnvironment::default();
+        let error = environment.add_modules_to_root(&modules).unwrap_err();
+        let rendered =
+            crate::metavariables::format_elaboration_error(environment.crate_env(), &error);
+        assert!(
+            rendered.contains(&format!(
+                "Structure parameter '{parameter}' must have a type or proposition"
+            )),
+            "{rendered}"
+        );
+        assert!(rendered.contains(reason), "{rendered}");
+        assert!(
+            rendered.contains("structure-parameter-error.ref:2:3"),
+            "{rendered}"
+        );
+        let ElaborationError::Located { location, .. } = error else {
+            panic!("expected a structure location");
+        };
+        assert_eq!(
+            &source.text[location.span.start..location.span.end],
+            declaration
+        );
+    }
+}
+
+#[test]
 fn module_parameter_type_errors_keep_module_context() {
     let modules = parse::str_parse_modules(r"\module Invalid(A: \Set, a: A, bad: a) {}").unwrap();
     let mut environment = GlobalEnvironment::default();

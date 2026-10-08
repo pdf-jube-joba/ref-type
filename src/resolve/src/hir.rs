@@ -35,7 +35,7 @@ pub struct Module {
     pub name: Identifier,
     pub parameters: Vec<RightBind>, // given parameters for module
     pub parameter_checks: Vec<(SExp, SExp)>,
-    /// Source fields represented by parameters in a generated module.
+    /// Source declarations represented by parameters in a generated module.
     pub parameter_sources: std::collections::HashMap<String, ParameterSource>,
     pub body: ModuleBody,
     pub span: SourceSpan,
