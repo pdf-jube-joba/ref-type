@@ -1,0 +1,17 @@
+\import \parent.\parent.\parent.Space[].Linear[] \as Maps;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\definition function: ScalarFunction U := \fun (x: Carrier U) => #apply{d} x;
+\definition zeroRemainder: \forall (a, x: Carrier U) -> remainder U function a d x = zero :=
+  \fun (a, x: Carrier U) => trans!{Real} _ _ _
+    (congr!{Real Real} (sub (sub (#apply{d} x) (#apply{d} a))) _ _ (Maps.subtract d x a))
+    (Laws.subSelf (sub (#apply{d} x) (#apply{d} a)));
+\definition law: \forall (a: Carrier U) -> HasDifferentialAt U function a d :=
+  \fun (a: Carrier U)(epsilon: Real)(positive: _) => \exact(\into[Real](epsilon,
+    { delta: Real \where DifferentialControl[U, function, a, d, epsilon, delta] }) \by {
+      DifferentialControl[U, function, a, d, epsilon, epsilon] {
+        positive := positive,
+        estimate := \fun (x: Carrier U)(nonzero: _)(near: _) => R.ltReplaceLeft zero (distance (remainder U function a d x) zero) (mul epsilon (Coordinates.pointDistance x a))
+          (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (r: Real) => distance r zero) _ _ (zeroRemainder a x)) (Metric.distanceSelf zero)))
+          (Product.mulPositive epsilon (Coordinates.pointDistance x a) positive nonzero),
+      }
+    }, \Cast[Real] ({ delta: Real \where DifferentialControl[U, function, a, d, epsilon, delta] }));

@@ -1,0 +1,59 @@
+\import \parent.\parent.Regrade[k := k, l := l] \as Degree;
+\import \parent.\parent.RegradeIdentity[k := k] \as Identity;
+\definition forward: \forall (omega: Form k)(same: k = l) -> Exact k omega -> Exact l (Degree.cast omega same) :=
+  \fun (omega: Form k)(same: k = l)(exact: Exact k omega) =>
+    (\idelim k = l \with j: N.Nat^ => \forall (equality: k = j) ->
+      Exact j (\parent.\parent.Regrade[k := k, l := j].cast omega equality) \by {
+        base: \fun (equality: k = k) =>
+          \idelim omega = \parent.\parent.Regrade[k := k, l := k].cast omega equality \with eta: Form k => Exact k eta \by {
+            base: exact,
+            equality: sym!{{Form k}} (\parent.\parent.Regrade[k := k, l := k].cast omega equality) omega (Identity.law omega equality)
+          },
+        equality: same
+      }) same;
+\definition backward: \forall (omega: Form k)(same: k = l) -> Exact l (Degree.cast omega same) -> Exact k omega :=
+  \fun (omega: Form k)(same: k = l) =>
+    (\idelim k = l \with j: N.Nat^ => \forall (equality: k = j) ->
+      Exact j (\parent.\parent.Regrade[k := k, l := j].cast omega equality) -> Exact k omega \by {
+        base: \fun (equality: k = k)(exact: Exact k (\parent.\parent.Regrade[k := k, l := k].cast omega equality)) =>
+          \idelim \parent.\parent.Regrade[k := k, l := k].cast omega equality = omega \with eta: Form k => Exact k eta \by {
+            base: exact, equality: Identity.law omega equality
+          },
+        equality: same
+      }) same;
+
+\definition closed: \forall (omega: Form k)(same: k = l) -> Closed k omega -> Closed l (Degree.cast omega same) :=
+  \fun (omega: Form k)(same: k = l)(closed: Closed k omega) =>
+    (\idelim k = l \with j: N.Nat^ => \forall (equality: k = j) ->
+      Closed j (\parent.\parent.Regrade[k := k, l := j].cast omega equality) \by {
+        base: \fun (equality: k = k) =>
+          \idelim omega = \parent.\parent.Regrade[k := k, l := k].cast omega equality \with eta: Form k => Closed k eta \by {
+            base: closed,
+            equality: sym!{{Form k}} (\parent.\parent.Regrade[k := k, l := k].cast omega equality) omega (Identity.law omega equality)
+          },
+        equality: same
+      }) same;
+\import Complexes.At[C := complex, k := k] \as Source;
+\import Complexes.At[C := complex, k := l] \as Target;
+\import algebra.Module[].Over[R := Reals.Real, ring := Spaces.ring] \as Modules;
+\import Modules.Hom[V := Source.CycleCarrier, W := Target.CycleCarrier, source := Source.cycleSpace, target := Target.cycleSpace] \as CycleMaps;
+\definition cyclesMap(same: k = l): CycleMaps.Map := CycleMaps.Map {
+  apply := \fun (omega: Source.CycleCarrier) => Target.cycle (Degree.cast omega same)
+    (closed omega same (\bysub(Form k, Source.CycleCarrier, omega))),
+  addition := \fun (omega, eta: Source.CycleCarrier) => Degree.addition omega eta same,
+  scalar := \fun (a: Reals.Real)(omega: Source.CycleCarrier) => Degree.scalar a omega same,
+};
+\import Modules.Of[V := Source.CycleCarrier, space := Source.cycleSpace].Submodule[].Quotient[S := Source.boundariesInside] \as SourceQuotient;
+\import SourceQuotient.To[W := Target.Cohomology, target := Target.cohomologySpace] \as Descent;
+\import Modules.Hom[V := Target.CycleCarrier, W := Target.Cohomology, source := Target.cycleSpace, target := Target.cohomologySpace].Composition[U := Source.CycleCarrier, domain := Source.cycleSpace] \as Composition;
+\import Modules.Hom[V := Source.CycleCarrier, W := Target.Cohomology, source := Source.cycleSpace, target := Target.cohomologySpace] \as Raw;
+\definition onCycles(same: k = l): Raw.Map := Composition.compose Target.classLinear (cyclesMap same);
+\definition vanishes: \forall (same: k = l) -> Descent.Vanishes (onCycles same) :=
+  \fun (same: k = l)(omega: Source.CycleCarrier)(exact: Exact k omega) =>
+    Target.boundaryClassZero (#apply{(cyclesMap same)} omega) (forward omega same exact);
+\import Modules.Hom[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace] \as Induced;
+\definition map(same: k = l): Induced.Map := Descent.descend (onCycles same) (vanishes same);
+\definition cast(h: Source.Cohomology)(same: k = l): Target.Cohomology := #apply{(map same)} h;
+\definition onClass: \forall (omega: Source.CycleCarrier)(same: k = l) ->
+  cast (Source.classOf omega) same = Target.classOf (#apply{(cyclesMap same)} omega) :=
+    \fun (omega: Source.CycleCarrier)(same: k = l) => Descent.onClass (onCycles same) (vanishes same) omega;

@@ -1,0 +1,36 @@
+\import Modules.Of[V := C.family.Carrier z, space := C.family.space z] \as Current;
+\import Current.Submodule[] \as Submodules;
+\import Modules.Hom[V := C.family.Carrier z, W := C.family.Carrier (next z), source := C.family.space z, target := C.family.space (next z)] \as Maps;
+\definition differential: Maps.Map := Maps.Map { apply := #apply{C.differential} z, addition := #addition{C.laws} z, scalar := #scalar{C.laws} z };
+\import \parent.Prior[C := C] \as Prior;
+\import Modules.Hom[V := C.family.Carrier (previous z), W := C.family.Carrier z, source := C.family.space (previous z), target := C.family.space z] \as Before;
+\definition prior: Before.Map := Before.Map { apply := Prior.value z, addition := Prior.addition z, scalar := Prior.scalar z };
+\import Submodules.Kernel[W := C.family.Carrier (next z), target := C.family.space (next z)] \as Kernels;
+\import Submodules.Image[U := C.family.Carrier (previous z), source := C.family.space (previous z)] \as Images;
+\definition cycles: Submodules.Submodule := Kernels.kernel differential;
+\definition boundaries: Submodules.Submodule := Images.image prior;
+\definition boundaryCycle: Submodules.Included boundaries cycles :=
+  \fun (x: C.family.Carrier z)(member: Submodules.Member boundaries x) => Images.eliminate prior x (#apply{C.differential} z x = #zero{(C.family.space (next z))})
+    (\fun (y: C.family.Carrier (previous z))(equal: Prior.value z y = x) => \idelim Prior.value z y = x
+      \with v: C.family.Carrier z => #apply{C.differential} z v = #zero{(C.family.space (next z))}
+      \by { base: Prior.squareZero z y, equality: equal }) member;
+\import Submodules.Of[S := cycles] \as Cycles;
+\import Submodules.Inside[Z := cycles] \as Inside;
+\import Modules.Submodule[V := Cycles.Carrier, space := Cycles.moduleSpace] \as CycleSubmodules;
+\definition boundariesInside: CycleSubmodules.Submodule := Inside.inside boundaries boundaryCycle;
+\import Modules.Of[V := Cycles.Carrier, space := Cycles.moduleSpace].Submodule[].Quotient[S := boundariesInside] \as Quotient;
+\definition Cohomology: \Set := Quotient.Carrier;
+\definition cohomologySpace: Modules.Space Cohomology := Quotient.moduleSpace;
+\definition Closed: \Set := Cycles.Carrier;
+\definition cycleSpace: Modules.Space Closed := Cycles.moduleSpace;
+\definition cycle(x: C.family.Carrier z)(closed: #apply{C.differential} z x = #zero{(C.family.space (next z))}): Closed :=
+  \into[C.family.Carrier z](x, #carrier{cycles}) \by { closed };
+\definition classOf(x: Closed): Cohomology := Quotient.class x;
+\definition zeroClass: Cohomology := Quotient.zeroClass;
+\definition classEqual: \forall (x, y: Closed) -> Submodules.Member boundaries (#add{(C.family.space z)} x (#neg{(C.family.space z)} y)) -> classOf x = classOf y := Quotient.classRelated;
+\definition classRelated: \forall (x, y: Closed) -> classOf x = classOf y -> Submodules.Member boundaries (#add{(C.family.space z)} x (#neg{(C.family.space z)} y)) := Quotient.relatedOfClassEq;
+\definition boundaryClassZero: \forall (x: Closed) -> Submodules.Member boundaries x -> classOf x = zeroClass := Quotient.classZero;
+\definition zeroClassBoundary: \forall (x: Closed) -> classOf x = zeroClass -> Submodules.Member boundaries x := Quotient.zeroClassMember;
+\definition classInduction(P: Cohomology -> \Prop): (\forall (x: Closed) -> P (classOf x)) -> \forall (x: Cohomology) -> P x := Quotient.induction P;
+\import Modules.Hom[V := Closed, W := Cohomology, source := Cycles.moduleSpace, target := cohomologySpace] \as Classes;
+\definition classLinear: Classes.Map := Quotient.projection;

@@ -1,0 +1,36 @@
+\definition x: M.Point := Charts.point chart (Transition.leftCoordinate a);
+\import Tangent.At[x := x] \as TangentAt;
+\import \parent.\parent.\parent.Point[x := x] \as Point;
+\definition leftChart: TangentAt.Chart := Coordinates.lift (Charts.point chart (Transition.leftCoordinate a));
+\definition rightChart: TangentAt.Chart := Pointwise.Coordinates[chart := globalChart right].lift (Transition.overlapPoint a);
+\definition smallChart: Point.LocalChart := \into[TangentAt.Chart](rightChart, Point.LocalChart) \by { member right };
+\import Pointwise.At[x := x].Pair[left := leftChart, right := rightChart] \as Change;
+\import TangentAt.Pair[left := leftChart, right := rightChart] \as Geometry;
+\import Charts.Of[chart := chart] \as GeometryLeft;
+\definition pointAgreement: Geometry.point = a := GeometryLeft.coordinatePoint (Transition.leftCoordinate a);
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Maps;
+\definition jacobian: Geometry.jacobian = Pullback.jacobian a := congr!{{Open.Carrier Transition.domain} {Maps.Map}}
+  Geometry.valueAt Geometry.point a pointAgreement;
+\definition argumentAgreement: \forall (v: Vectors.Vector) -> TangentAt.transform leftChart rightChart v = #apply{(Pullback.jacobian a)} v :=
+  \fun (v: Vectors.Vector) => congr!{{Maps.Map} {Vectors.Vector}} (\fun (map: Maps.Map) => #apply{map} v)
+    Geometry.jacobian (Pullback.jacobian a) jacobian;
+\definition rightCoordinate: TangentAt.coordinate rightChart = Transition.apply a :=
+  trans!{{Open.Carrier #image{right}}} (TangentAt.coordinate rightChart) (Transition.apply Geometry.point) (Transition.apply a)
+    (sym!{{Open.Carrier #image{right}}} (Transition.apply Geometry.point) (TangentAt.coordinate rightChart) Geometry.coordinateAgreement)
+    (congr!{{Open.Carrier Transition.domain} {Open.Carrier #image{right}}} Transition.apply Geometry.point a pointAgreement);
+\definition agreement: \forall (omega: Form k)(arguments: Multilinear.Arguments k) ->
+  Coordinates.family (value omega) (Transition.leftCoordinate a) arguments = Pullback.apply k (omega right) a arguments := \block {
+  \fun (omega: Form k)(arguments: Multilinear.Arguments k) \then
+  \let changed: Multilinear.Arguments k := \fun (j: Fin.Fin k) => TangentAt.transform leftChart rightChart (arguments j) \then
+  \return trans!{{Reals.Real}} _ (Point.pointCoordinates (value omega) smallChart changed) _
+    (Change.pointCoordinatesLaw (value omega) arguments)
+    (trans!{{Reals.Real}} _ (omega right (TangentAt.coordinate rightChart) changed) _
+      (congr!{{Multilinear.Alternating[].Form k} {Reals.Real}} (\fun (form: Multilinear.Alternating[].Form k) => form changed)
+        _ _ (Point.recover omega smallChart))
+      (trans!{{Reals.Real}} _ (omega right (Transition.apply a) changed) _
+        (congr!{{Open.Carrier #image{right}} {Reals.Real}} (\fun (b: Open.Carrier #image{right}) => omega right b changed)
+          (TangentAt.coordinate rightChart) (Transition.apply a) rightCoordinate)
+        (congr!{{Multilinear.Arguments k} {Reals.Real}} (omega right (Transition.apply a)) _ _
+          (\axiom:funext(changed, (\fun (j: Fin.Fin k) => #apply{(Pullback.jacobian a)} (arguments j)),
+            \fun (j: Fin.Fin k) => argumentAgreement (arguments j))))))
+};

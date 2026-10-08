@@ -1,0 +1,57 @@
+
+\import SourceD.SeriesBoundary[] \as Source;
+\import TargetD.SeriesBoundary[] \as Target;
+\import Shuffle.Boundary[] \as Boundary;
+\import Spaces.Shuffle[I := TargetVectors.Vector] \as TargetShuffle;
+\import Spaces.Exterior[V := TargetVectors.Vector, space := TargetVectors.space] \as TargetExterior;
+\import Boundary.Mapping[J := TargetVectors.Vector, map := #apply{(jacobian x)}] \as Mapping;
+\import \parent.\parent.JacobianDifferentiation[] \as JacobianPartial;
+\import \parent.\parent.SeriesDifferentiation[k := k] \as Derivative;
+\import Boundary.Variation[J := TargetVectors.Vector, map := #apply{(jacobian x)}, hessian := JacobianPartial.hessian x] \as Variation;
+\import Variation.Linearity[target := TargetVectors.space].Sums[T := Fin.Fin n] \as VariationSums;
+\import Exterior.Pullback[W := TargetVectors.Vector, target := TargetVectors.space].Components[k := next] \as Pulled;
+\import Spaces.Sums[I := Fin.Fin n] \as SourceSums;
+\import Spaces.Sums[I := Fin.Fin m] \as TargetSums;
+\import SourceSums.Prop[] \as SourceLaws;
+\import TargetSums.Prop[] \as TargetLaws;
+\import SourceLaws.Exchange[J := Fin.Fin m] \as Exchange;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\definition targetPoint: TargetOpen.Carrier V := Maps.apply U V f x;
+\definition mapped(xs: Lists.List[Vectors.Vector]): Lists.List[TargetVectors.Vector] := Lists.map (Vectors.Vector) (TargetVectors.Vector) (#apply{(jacobian x)}) xs;
+\definition pulled(omega: TargetForms.Form k): Vectors.Vector -> Shuffle.Function := Mapping.pulled (Target.directional omega targetPoint);
+\definition varying(omega: TargetForms.Form k): Vectors.Vector -> Shuffle.Function := Variation.variation (TargetExterior.component k (omega targetPoint));
+\module Directional;
+\definition law: \forall (omega: TargetForms.Form k)(xs: Lists.List[Vectors.Vector]) ->
+  Exterior.component next (SourceD.apply (apply k omega) x) xs = Exterior.component next (apply next (TargetD.apply omega) x) xs := \block {
+  \fun (omega: TargetForms.Form k)(xs: Lists.List[Vectors.Vector]) \then
+  \let initial: Reals.Real := Exterior.component next (SourceD.apply (apply k omega) x) xs \then
+  \let directional: Reals.Real := Boundary.apply (Source.directional (apply k omega) x) xs \then
+  \let combined: Vectors.Vector -> Shuffle.Function := \fun (v: Vectors.Vector) => Shuffle.plus (pulled omega v) (varying omega v) \then
+  \let expanded: Reals.Real := Boundary.apply combined xs \then
+  \let separated: Reals.Real := Spaces.add (Boundary.apply (pulled omega) xs) (Boundary.apply (varying omega) xs) \then
+  \let targetBoundary: Reals.Real := TargetShuffle.Boundary[].apply (Target.directional omega targetPoint) (mapped xs) \then
+  \let mappedForm: Reals.Real := TargetExterior.component next (TargetD.apply omega targetPoint) (mapped xs) \then
+  \let final: Reals.Real := Exterior.component next (apply next (TargetD.apply omega) x) xs \then
+  \let first: initial = directional := Source.law (apply k omega) x xs \then
+  \let second: directional = expanded := Boundary.congruent xs (Source.directional (apply k omega) x) combined (Directional[].law omega) \then
+  \let third: expanded = separated := Boundary.addition xs (pulled omega) (varying omega) \then
+  \let fourth: separated = Spaces.add targetBoundary Spaces.zero :=
+    congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add
+      (Boundary.apply (pulled omega) xs) targetBoundary (Boundary.apply (varying omega) xs) Spaces.zero
+      (sym!{{Reals.Real}} targetBoundary (Boundary.apply (pulled omega) xs) (Mapping.law xs (Target.directional omega targetPoint)))
+      (Variation.cancellation xs (TargetExterior.component k (omega targetPoint))
+        (TargetExterior.componentAlternating k (omega targetPoint)) (JacobianPartial.symmetry x)) \then
+  \let fifth: Spaces.add targetBoundary Spaces.zero = targetBoundary := Spaces.addZeroRight targetBoundary \then
+  \let sixth: targetBoundary = mappedForm := sym!{{Reals.Real}} mappedForm targetBoundary (Target.law omega targetPoint (mapped xs)) \then
+  \let seventh: mappedForm = final := sym!{{Reals.Real}} final mappedForm
+    (congr!{{Shuffle.Function} {Reals.Real}} (\fun (H: Shuffle.Function) => H xs)
+      (Exterior.component next (apply next (TargetD.apply omega) x))
+      (Exterior.Pullback[W := TargetVectors.Vector, target := TargetVectors.space].mapped next (jacobian x) (TargetD.apply omega targetPoint))
+      (Pulled.law (jacobian x) (TargetD.apply omega targetPoint))) \then
+  \return trans!{{Reals.Real}} initial directional final first
+    (trans!{{Reals.Real}} directional expanded final second
+      (trans!{{Reals.Real}} expanded separated final third
+        (trans!{{Reals.Real}} separated (Spaces.add targetBoundary Spaces.zero) final fourth
+          (trans!{{Reals.Real}} (Spaces.add targetBoundary Spaces.zero) targetBoundary final fifth
+            (trans!{{Reals.Real}} targetBoundary mappedForm final sixth seventh)))))
+};

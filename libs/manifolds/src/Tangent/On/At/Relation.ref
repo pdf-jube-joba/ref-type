@@ -1,0 +1,16 @@
+\import std.Logic[].Relation[] \as Relations;
+\definition reflexive: \forall (v: Representative) -> Equivalent v v :=
+  \fun (v: Representative) => sym!{{Vectors.Vector}} (transform #chart{v} #chart{v} #vector{v}) #vector{v} (identity #chart{v} #vector{v});
+\definition transitive: \forall (u, v, w: Representative) -> Equivalent u v -> Equivalent v w -> Equivalent u w :=
+  \fun (u, v, w: Representative)(first: Equivalent u v)(second: Equivalent v w) => trans!{{Vectors.Vector}} #vector{w}
+    (transform #chart{v} #chart{w} #vector{v}) (transform #chart{u} #chart{w} #vector{u}) second
+    (trans!{{Vectors.Vector}} (transform #chart{v} #chart{w} #vector{v}) (transform #chart{v} #chart{w} (transform #chart{u} #chart{v} #vector{u})) (transform #chart{u} #chart{w} #vector{u})
+      (congr!{{Vectors.Vector} {Vectors.Vector}} (transform #chart{v} #chart{w}) #vector{v} (transform #chart{u} #chart{v} #vector{u}) first)
+      (sym!{{Vectors.Vector}} (transform #chart{u} #chart{w} #vector{u}) (transform #chart{v} #chart{w} (transform #chart{u} #chart{v} #vector{u})) (composition #chart{u} #chart{v} #chart{w} #vector{u})));
+\definition symmetric: \forall (u, v: Representative) -> Equivalent u v -> Equivalent v u :=
+  \fun (u, v: Representative)(equal: Equivalent u v) => eq_reason!{
+    {#vector{u}} "=" {transform #chart{u} #chart{u} #vector{u}} "by" {sym!{{Vectors.Vector}} (transform #chart{u} #chart{u} #vector{u}) #vector{u} (identity #chart{u} #vector{u})}
+    "=" {transform #chart{v} #chart{u} (transform #chart{u} #chart{v} #vector{u})} "by" {composition #chart{u} #chart{v} #chart{u} #vector{u}}
+    "=" {transform #chart{v} #chart{u} #vector{v}} "by" {congr!{{Vectors.Vector} {Vectors.Vector}} (transform #chart{v} #chart{u}) (transform #chart{u} #chart{v} #vector{u}) #vector{v} (sym!{{Vectors.Vector}} #vector{v} (transform #chart{u} #chart{v} #vector{u}) equal)}
+  };
+\definition equivalence: Relations.Equivalence[Representative, Equivalent] := Relations.Equivalence[Representative, Equivalent] { refl := reflexive, sym := symmetric, trans := transitive };

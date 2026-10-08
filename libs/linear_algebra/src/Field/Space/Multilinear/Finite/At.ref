@@ -1,0 +1,60 @@
+\import \parent.\parent.Contraction[k := k] \as Contract;
+\import Contract.Expansion[I := I, b := b] \as Expansion;
+\import \parent.\parent.\parent.Sums[I := I] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\definition expandStep(previous: ExpansionOperator k)(f: Form (N.Nat^::succ k))(arguments: Arguments (N.Nat^::succ k)): K :=
+  Sums.sum (#indices{b}) (\fun (i: I) => mul (Basis.coordinates b (arguments (Fin.zero k)) i)
+    (previous (Contract.apply f (#vectors{b} i)) (\fun (j: Fin.Fin k) => arguments (Fin.succ k j))));
+\definition expandLaw: \forall (previous: ExpansionOperator k) ->
+  (\forall (f: Form k)(arguments: Arguments k) -> previous f arguments = f arguments) ->
+  \forall (f: Form (N.Nat^::succ k))(arguments: Arguments (N.Nat^::succ k)) -> expandStep previous f arguments = f arguments := \block {
+  \fun (previous: ExpansionOperator k)(law: \forall (f: Form k)(arguments: Arguments k) -> previous f arguments = f arguments)
+    (f: Form (N.Nat^::succ k))(arguments: Arguments (N.Nat^::succ k)) \then
+  \let head: V := arguments (Fin.zero k) \then
+  \let tail: Arguments k := \fun (j: Fin.Fin k) => arguments (Fin.succ k j) \then
+  \let left: I -> K := \fun (i: I) => mul (Basis.coordinates b head i) (previous (Contract.apply f (#vectors{b} i)) tail) \then
+  \let right: I -> K := \fun (i: I) => mul (Basis.coordinates b head i) (Contract.value f (#vectors{b} i) tail) \then
+  \return trans!{K} (expandStep previous f arguments) (Sums.sum (#indices{b}) right) (f arguments)
+    (SumLaws.congruent (#indices{b}) left right (\fun (i: I) => congr!{K K} (mul (Basis.coordinates b head i))
+      (previous (Contract.apply f (#vectors{b} i)) tail) (Contract.value f (#vectors{b} i) tail)
+      (law (Contract.apply f (#vectors{b} i)) tail)))
+    (trans!{K} (Sums.sum (#indices{b}) right) (Contract.value f head tail) (f arguments)
+      (sym!{K} (Contract.value f head tail) (Sums.sum (#indices{b}) right) (Expansion.law f head tail))
+      (congr!{{Arguments (N.Nat^::succ k)} K} f (Tuples.extend k head tail) arguments (Tuples.recover k arguments)))
+};
+\definition contractedCoefficients: \forall (f, g: Form (N.Nat^::succ k)) -> EqualCoefficients (N.Nat^::succ k) f g ->
+  \forall (i: I) -> EqualCoefficients k (Contract.apply f (#vectors{b} i)) (Contract.apply g (#vectors{b} i)) :=
+  \fun (f, g: Form (N.Nat^::succ k))(same: EqualCoefficients (N.Nat^::succ k) f g)(i: I)(indices: Fin.Fin k -> I) =>
+    trans!{K} _ _ _
+      (congr!{{Arguments (N.Nat^::succ k)} K} f _ _ (sym!{{Arguments (N.Nat^::succ k)}} _ _ (Mapping.extendMap k (#vectors{b}) i indices)))
+      (trans!{K} _ _ _ (same (Indices.extend k i indices))
+        (congr!{{Arguments (N.Nat^::succ k)} K} g _ _ (Mapping.extendMap k (#vectors{b}) i indices)));
+\definition step: Extensionality k -> Extensionality (N.Nat^::succ k) := \block {
+  \fun (previous: Extensionality k)(f, g: Form (N.Nat^::succ k))(same: EqualCoefficients (N.Nat^::succ k) f g) \then
+  \return \axiom:funext(f, g, \block {
+    \fun (arguments: Arguments (N.Nat^::succ k)) \then
+    \let head: V := arguments (Fin.zero k) \then
+    \let tail: Arguments k := \fun (j: Fin.Fin k) => arguments (Fin.succ k j) \then
+    \let left: I -> K := \fun (i: I) => mul (Basis.coordinates b head i) (Contract.value f (#vectors{b} i) tail) \then
+    \let right: I -> K := \fun (i: I) => mul (Basis.coordinates b head i) (Contract.value g (#vectors{b} i) tail) \then
+    \let equal: \forall (i: I) -> left i = right i := \block {
+      \fun (i: I) \then
+      \let formEquality: Contract.apply f (#vectors{b} i) = Contract.apply g (#vectors{b} i) :=
+        previous (Contract.apply f (#vectors{b} i)) (Contract.apply g (#vectors{b} i)) (contractedCoefficients f g same i) \then
+      \return congr!{K K} (mul (Basis.coordinates b head i))
+        (Contract.value f (#vectors{b} i) tail) (Contract.value g (#vectors{b} i) tail)
+        (congr!{{Form k} K} (\fun (h: Form k) => h tail)
+          (Contract.apply f (#vectors{b} i)) (Contract.apply g (#vectors{b} i)) formEquality)
+    } \then
+    \return trans!{K} (f arguments) (Contract.value f head tail) (g arguments)
+      (congr!{{Arguments (N.Nat^::succ k)} K} f arguments (Tuples.extend k head tail)
+        (sym!{{Arguments (N.Nat^::succ k)}} (Tuples.extend k head tail) arguments (Tuples.recover k arguments)))
+      (trans!{K} (Contract.value f head tail) (Sums.sum (#indices{b}) left) (g arguments)
+        (Expansion.law f head tail)
+        (trans!{K} (Sums.sum (#indices{b}) left) (Sums.sum (#indices{b}) right) (g arguments)
+          (SumLaws.congruent (#indices{b}) left right equal)
+          (trans!{K} (Sums.sum (#indices{b}) right) (Contract.value g head tail) (g arguments)
+            (sym!{K} (Contract.value g head tail) (Sums.sum (#indices{b}) right) (Expansion.law g head tail))
+            (congr!{{Arguments (N.Nat^::succ k)} K} g (Tuples.extend k head tail) arguments (Tuples.recover k arguments)))))
+  })
+};

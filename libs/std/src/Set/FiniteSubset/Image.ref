@@ -1,0 +1,56 @@
+\import \root.Set[].FiniteSubset[A := B] \as Target;
+\use Equality.trans;
+\use Equality.congr;
+\definition Witness(f: A -> B)(X: \Pow A)(b: B): \Set :=
+  \Cast[A] ({ a: A \where Logic.And[\In[A] X a, f a = b] });
+\definition Image(f: A -> B)(X: \Pow A): \Pow B := { b: B \where \exists Witness f X b };
+\definition member: \forall (f: A -> B)(X: \Pow A)(a: A) -> \In[A] X a -> \In[B] (Image f X) (f a) :=
+  \fun (f: A -> B)(X: \Pow A)(a: A)(included: \In[A] X a) =>
+    \exact(\into[A](a, Witness f X (f a)) \by { Logic.And[\In[A] X a, f a = f a]::# included (\refl(f a)) }, Witness f X (f a));
+\definition empty: \forall (f: A -> B) -> Image f Empty = Target.Empty :=
+  \fun (f: A -> B) => \axiom:setext(Image f Empty, Target.Empty,
+    \block {
+      \fun (b: B)(included: \In[B] (Image f Empty) b) \then
+      \takefrom a: Witness f Empty b \by included \then
+      \return #left{(\bysub(A, Witness f Empty b, a))}
+    },
+    \fun (b: B)(impossible: Logic.False) => Logic.falseElim (\In[B] (Image f Empty) b) impossible);
+\definition insert: \forall (f: A -> B)(a: A)(X: \Pow A) -> Image f (Insert a X) = Target.Insert (f a) (Image f X) :=
+  \fun (f: A -> B)(a: A)(X: \Pow A) => \axiom:setext(Image f (Insert a X), Target.Insert (f a) (Image f X),
+    \block {
+      \fun (b: B)(included: \In[B] (Image f (Insert a X)) b) \then
+      \takefrom x: Witness f (Insert a X) b \by included \then
+      \let laws: Logic.And[\In[A] (Insert a X) x, f x = b] := \bysub(A, Witness f (Insert a X) b, x) \then
+      \return either!{{x = a} "or" {\In[A] X x} "either" {\In[B] (Target.Insert (f a) (Image f X)) b}
+        "lt:" {\fun (equal: x = a) => Logic.Or[b = f a, \In[B] (Image f X) b]::left
+          (trans!{B} b (f x) (f a) (sym!{B} (f x) b (#right{laws})) (congr!{A B} f x a equal))}
+        "rt:" {\fun (old: \In[A] X x) => Logic.Or[b = f a, \In[B] (Image f X) b]::right
+          (\exact(\into[A](x, Witness f X b) \by { Logic.And[\In[A] X x, f x = b]::# old (#right{laws}) }, Witness f X b))}}
+        (#left{laws})
+    },
+    \fun (b: B)(included: \In[B] (Target.Insert (f a) (Image f X)) b) =>
+      either!{{b = f a} "or" {\In[B] (Image f X) b} "either" {\In[B] (Image f (Insert a X)) b}
+        "lt:" {\fun (equal: b = f a) => \exact(\into[A](a, Witness f (Insert a X) b) \by {
+          Logic.And[\In[A] (Insert a X) a, f a = b]::# (inInsertNew a X) (sym!{B} b (f a) equal)
+        }, Witness f (Insert a X) b)}
+        "rt:" {\block {
+          \fun (old: \In[B] (Image f X) b) \then
+          \takefrom x: Witness f X b \by old \then
+          \let laws: Logic.And[\In[A] X x, f x = b] := \bysub(A, Witness f X b, x) \then
+          \return \exact(\into[A](x, Witness f (Insert a X) b) \by {
+            Logic.And[\In[A] (Insert a X) x, f x = b]::# (inInsertOld a X x (#left{laws})) (#right{laws})
+          }, Witness f (Insert a X) b)
+        }}} included);
+\definition imageFinite: \forall (f: A -> B)(X: \Pow A) -> Finite X -> Target.Finite (Image f X) :=
+  \fun (f: A -> B)(X: \Pow A)(finiteX: Finite X) => finiteX
+    ({ Y: \Pow A \where Target.Finite (Image f Y) })
+    (\idelim Target.Empty = Image f Empty \with Y: \Pow B => Target.Finite Y \by {
+      base: Target.finiteEmpty, equality: sym!{\Pow B} (Image f Empty) Target.Empty (empty f)
+    })
+    (\fun (Y: \Pow A)(previous: Target.Finite (Image f Y))(a: A) =>
+      \idelim Target.Insert (f a) (Image f Y) = Image f (Insert a Y) \with Z: \Pow B => Target.Finite Z \by {
+        base: Target.finiteInsert (f a) (Image f Y) previous,
+        equality: sym!{\Pow B} (Image f (Insert a Y)) (Target.Insert (f a) (Image f Y)) (insert f a Y)
+      });
+\definition value(f: A -> B)(X: FiniteSubset): Target.FiniteSubset :=
+  \into[\Pow B](Image f X, Target.FiniteSubsetSet) \by { imageFinite f X (finite X) };

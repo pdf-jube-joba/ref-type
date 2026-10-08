@@ -312,3 +312,62 @@ fn shared_expressions_and_many_constraints_have_bounded_diagnostics() {
     );
     assert!(detailed.to_string().len() < 512 * 1024);
 }
+
+#[test]
+fn specialized_references_keep_source_holes_in_unused_arguments() {
+    use super::*;
+    use crate::raw::environment::ModuleItem;
+    use crate::raw::ids::ModuleParamId;
+    let modules = parse::str_parse_modules(
+        r"
+        \module Shapes { \inductive Unit: \Set := | unit: Unit; }
+        \module Family(A: \Set) { \definition first(x, y: A): A := x; }
+    ",
+    )
+    .unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+    let env = environment.crate_env();
+    let children = env.module(env.root_module()).children();
+    let shapes = children[0];
+    let family = children[1];
+    let ModuleItem::Inductive { inductive, .. } = env.module(shapes).item("Unit").unwrap() else {
+        panic!()
+    };
+    let carrier = env.arena().alloc(ExpNode::IndType {
+        indspec: *inductive,
+        parameters: vec![],
+    });
+    let value = env.arena().alloc(ExpNode::IndCtor {
+        indspec: *inductive,
+        parameters: vec![],
+        idx: 0,
+    });
+    let ModuleItem::Definition { definition, .. } = env.module(family).item("first").unwrap()
+    else {
+        panic!()
+    };
+    let mut store = MetaStore::default();
+    let hole = store
+        .fresh(env, SurfaceMeta::Goal, SourceSpan::default(), &vec![], 0)
+        .unwrap();
+    let reference = crate::kernel_bridge::captured_definition(
+        env,
+        *definition,
+        &[(
+            ModuleParamId {
+                module: family,
+                position: 0,
+            },
+            carrier,
+        )],
+        &[value, hole],
+    )
+    .unwrap();
+    let nodes = env.arena().exp_len();
+    assert_eq!(metas_in_exp(env, reference), HashSet::from([MetaVarId(0)]));
+    assert_eq!(env.arena().exp_len(), nodes);
+    let span = SourceSpan { start: 10, end: 20 };
+    store.record_source(env, reference, span);
+    assert_eq!(store.entries[0].span, span);
+}

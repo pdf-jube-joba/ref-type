@@ -1,0 +1,26 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\import Open.Projection[U := U] \as Coordinates;
+\import \parent.DegreeZero[] \as DegreeZero;
+\import \parent.FunctionDifferential[] \as FunctionD;
+\import \parent.ExteriorDerivative[k := zero] \as D;
+\import \parent.ExteriorDerivative[k := one] \as NextD;
+\import \parent.At[k := N.Nat^::succ one] \as Two;
+\import Smooth.Differential[] \as Differentials;
+\import Reals.Multivariable[n := n].Differential[].Def[] \as Linear;
+\definition function: Smooth.SmoothFunction U := Coordinates.function i;
+\definition value: Form one := D.coordinate i;
+\definition differential: D.apply (DegreeZero.apply function) = value :=
+  ext one (D.apply (DegreeZero.apply function)) value
+    (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments one) =>
+      trans!{{Reals.Real}} (D.apply (DegreeZero.apply function) x arguments)
+        (#apply{(Differentials.value U function x)} (arguments (Fin.zero zero))) (value x arguments)
+        (FunctionD.law function x arguments)
+        (congr!{{Linear.LinearMap} {Reals.Real}}
+          (\fun (d: Linear.LinearMap) => #apply{d} (arguments (Fin.zero zero)))
+          (Differentials.value U function x) (Coordinates.linear i) (Coordinates.differential i x)));
+\definition closed: NextD.apply value = Two.zero :=
+  trans!{{Form (N.Nat^::succ one)}} (NextD.apply value) (NextD.apply (D.apply (DegreeZero.apply function))) Two.zero
+    (congr!{{Form one} {Form (N.Nat^::succ one)}} NextD.apply value (D.apply (DegreeZero.apply function))
+      (sym!{{Form one}} (D.apply (DegreeZero.apply function)) value differential))
+    (\parent.Square[k := zero].law (DegreeZero.apply function));

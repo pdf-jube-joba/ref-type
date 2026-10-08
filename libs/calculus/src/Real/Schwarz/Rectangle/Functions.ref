@@ -1,0 +1,72 @@
+\definition first(y: Real): Real := sub (f right y) (f left y);
+\definition firstDerivative(y: Real): Real := sub (g right y) (g left y);
+\definition law: R.Lt left right -> R.Lt bottom top ->
+  (\forall (x: X)(y: Y) -> Derivatives.HasDerivativeAt (f x) y (g x y)) ->
+  (\forall (x: X)(y: Y) -> Derivatives.HasDerivativeAt (\fun (t: Real) => g t y) x (h x y)) ->
+  \exists { x: Real \where \exists { y: Real \where Result[f, h, x, y] } } := \block {
+  \fun (horizontalOrder: R.Lt left right)(verticalOrder: R.Lt bottom top)
+    (firstPartials: \forall (x: X)(y: Y) -> Derivatives.HasDerivativeAt (f x) y (g x y))
+    (mixedPartials: \forall (x: X)(y: Y) -> Derivatives.HasDerivativeAt (\fun (t: Real) => g t y) x (h x y)) \then
+  \let a: X := \into[Real](left, Line.ClosedInterval left right) \by {
+    Logic.And[R.Le left left, R.Le left right]::# (R.leRefl left) (Order.leOfLt left right horizontalOrder)
+  } \then
+  \let b: X := \into[Real](right, Line.ClosedInterval left right) \by {
+    Logic.And[R.Le left right, R.Le right right]::# (Order.leOfLt left right horizontalOrder) (R.leRefl right)
+  } \then
+  \let derivatives: \forall (y: Y) -> Derivatives.HasDerivativeAt first y (firstDerivative y) :=
+    \fun (y: Y) => DerivativeLaws.subDerivative (f right) (f left) y (g right y) (g left y) (firstPartials b y) (firstPartials a y) \then
+  \let continuous: VerticalContinuity.ContinuousOn first := \fun (y: Y) => VerticalEstimates.continuousAt first firstDerivative y (derivatives y) \then
+  \let differentiable: Vertical.DifferentiableOn first := \fun (y: Real)(inside: Vertical.Interior y) =>
+    \exact(\into[Real](firstDerivative y, { d: Real \where Derivatives.HasDerivativeAt first y d }) \by {
+      derivatives (\into[Real](y, Line.ClosedInterval bottom top) \by {
+        Logic.And[R.Le bottom y, R.Le y top]::# (Order.leOfLt bottom y (#left{inside})) (Order.leOfLt y top (#right{inside}))
+      })
+    }, \Cast[Real] ({ d: Real \where Derivatives.HasDerivativeAt first y d })) \then
+  \takefrom y: \Cast[Real] ({ y: Real \where Vertical.MeanValueResult[first, y] }) \by Vertical.meanValue first verticalOrder continuous differentiable \then
+  \let verticalWitness: Vertical.MeanValueResult[first, y] := \bysub(Real, { y: Real \where Vertical.MeanValueResult[first, y] }, y) \then
+  \let closedY: Y := \into[Real](y, Line.ClosedInterval bottom top) \by {
+    Logic.And[R.Le bottom y, R.Le y top]::# (Order.leOfLt bottom y (#left{(#interior{verticalWitness})})) (Order.leOfLt y top (#right{(#interior{verticalWitness})}))
+  } \then
+  \let firstValue: Vertical.secant first = firstDerivative y := DerivativeLaws.unique first y (Vertical.secant first) (firstDerivative y) (#derivative{verticalWitness}) (derivatives closedY) \then
+  \let second: Real -> Real := \fun (x: Real) => g x y \then
+  \let secondDerivative: Real -> Real := \fun (x: Real) => h x y \then
+  \let continuousSecond: HorizontalContinuity.ContinuousOn second := \fun (x: X) => HorizontalEstimates.continuousAt second secondDerivative x (mixedPartials x closedY) \then
+  \let differentiableSecond: Horizontal.DifferentiableOn second := \fun (x: Real)(inside: Horizontal.Interior x) =>
+    \exact(\into[Real](h x y, { d: Real \where Derivatives.HasDerivativeAt second x d }) \by {
+      mixedPartials (\into[Real](x, Line.ClosedInterval left right) \by {
+        Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x (#left{inside})) (Order.leOfLt x right (#right{inside}))
+      }) closedY
+    }, \Cast[Real] ({ d: Real \where Derivatives.HasDerivativeAt second x d })) \then
+  \takefrom x: \Cast[Real] ({ x: Real \where Horizontal.MeanValueResult[second, x] }) \by Horizontal.meanValue second horizontalOrder continuousSecond differentiableSecond \then
+  \let horizontalWitness: Horizontal.MeanValueResult[second, x] := \bysub(Real, { x: Real \where Horizontal.MeanValueResult[second, x] }, x) \then
+  \let closedX: X := \into[Real](x, Line.ClosedInterval left right) \by {
+    Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x (#left{(#interior{horizontalWitness})})) (Order.leOfLt x right (#right{(#interior{horizontalWitness})}))
+  } \then
+  \let secondValue: Horizontal.secant second = h x y := DerivativeLaws.unique second x (Horizontal.secant second) (h x y) (#derivative{horizontalWitness}) (mixedPartials closedX closedY) \then
+  \return \exact(\into[Real](x, { x: Real \where \exists { y: Real \where Result[f, h, x, y] } }) \by {
+    \exact(\into[Real](y, { y: Real \where Result[f, h, x, y] }) \by {
+      Result[f, h, x, y] {
+        horizontal := #interior{horizontalWitness}, vertical := #interior{verticalWitness},
+        value := trans!{Real} (quotient f) (Horizontal.secant second) (h x y)
+          (congr!{Real Real} (\fun (r: Real) => mul r (inv (sub right left))) _ _ firstValue) secondValue,
+      }
+    }, \Cast[Real] ({ y: Real \where Result[f, h, x, y] }))
+  }, \Cast[Real] ({ x: Real \where \exists { y: Real \where Result[f, h, x, y] } }))
+};
+\definition estimate: \forall (c, theta: Real) -> R.Lt left right -> R.Lt bottom top ->
+  (\forall (x: X)(y: Y) -> Derivatives.HasDerivativeAt (f x) y (g x y)) ->
+  (\forall (x: X)(y: Y) -> Derivatives.HasDerivativeAt (\fun (t: Real) => g t y) x (h x y)) ->
+  (\forall (x: X)(y: Y) -> R.Le (distance (h x y) c) theta) -> R.Le (distance (quotient f) c) theta := \block {
+  \fun (c, theta: Real)(horizontalOrder: _)(verticalOrder: _)(firstPartials: _)(mixedPartials: _)(bounded: _) \then
+  \takefrom x: \Cast[Real] ({ x: Real \where \exists { y: Real \where Result[f, h, x, y] } }) \by law horizontalOrder verticalOrder firstPartials mixedPartials \then
+  \takefrom y: \Cast[Real] ({ y: Real \where Result[f, h, x, y] }) \by \bysub(Real, { x: Real \where \exists { y: Real \where Result[f, h, x, y] } }, x) \then
+  \let result: Result[f, h, x, y] := \bysub(Real, { y: Real \where Result[f, h, x, y] }, y) \then
+  \let closedX: X := \into[Real](x, Line.ClosedInterval left right) \by {
+    Logic.And[R.Le left x, R.Le x right]::# (Order.leOfLt left x (#left{(#horizontal{result})})) (Order.leOfLt x right (#right{(#horizontal{result})}))
+  } \then
+  \let closedY: Y := \into[Real](y, Line.ClosedInterval bottom top) \by {
+    Logic.And[R.Le bottom y, R.Le y top]::# (Order.leOfLt bottom y (#left{(#vertical{result})})) (Order.leOfLt y top (#right{(#vertical{result})}))
+  } \then
+  \return R.leReplaceLeft (distance (h x y) c) (distance (quotient f) c) theta
+    (sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => distance r c) _ _ (#value{result}))) (bounded closedX closedY)
+};

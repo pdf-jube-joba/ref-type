@@ -1,0 +1,35 @@
+\import \parent.Laws[V := V, space := target] \as Target;
+\import algebra.Group[].Of[Carrier := V, group := Target.additive] \as Group;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition Carrier: \Set := X -> V;
+\definition zero: Carrier := \fun (x: X) => #zero{target};
+\definition add(f, g: Carrier): Carrier := \fun (x: X) => #add{target} (f x) (g x);
+\definition neg(f: Carrier): Carrier := \fun (x: X) => #neg{target} (f x);
+\definition scale(a: R)(f: Carrier): Carrier := \fun (x: X) => #smul{target} a (f x);
+\definition ext: \forall (f, g: Carrier) -> (\forall (x: X) -> f x = g x) -> f = g :=
+  \fun (f, g: Carrier)(same: \forall (x: X) -> f x = g x) => \axiom:funext(f, g, same);
+\definition space: Space Carrier := Ring.RingModule[R, Carrier, ring] {
+  zero := zero, add := add, neg := neg, smul := scale,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# zero add neg)] {
+    group := Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# zero add neg] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# zero add] {
+        leftIdentity := \fun (f: Carrier) => ext (add zero f) f (\fun (x: X) => Group.zeroLeft (f x)),
+        rightIdentity := \fun (f: Carrier) => ext (add f zero) f (\fun (x: X) => Group.zeroRight (f x)),
+        associative := \fun (f, g, h: Carrier) => ext (add (add f g) h) (add f (add g h)) (\fun (x: X) => Group.assoc (f x) (g x) (h x)),
+      },
+      leftInverse := \fun (f: Carrier) => ext (add (neg f) f) zero (\fun (x: X) => Group.inverseLeft (f x)),
+      rightInverse := \fun (f: Carrier) => ext (add f (neg f)) zero (\fun (x: X) => Group.inverseRight (f x)),
+    },
+    commutative := \fun (f, g: Carrier) => ext (add f g) (add g f) (\fun (x: X) => Group.comm (f x) (g x)),
+  },
+  scalarOne := \fun (f: Carrier) => ext (scale (#one{ring}) f) f (\fun (x: X) => #scalarOne{target} (f x)),
+  scalarAssoc := \fun (a, b: R)(f: Carrier) => ext (scale (#mul{ring} a b) f) (scale a (scale b f)) (\fun (x: X) => #scalarAssoc{target} a b (f x)),
+  scalarAdd := \fun (a, b: R)(f: Carrier) => ext (scale (#add{ring} a b) f) (add (scale a f) (scale b f)) (\fun (x: X) => #scalarAdd{target} a b (f x)),
+  vectorAdd := \fun (a: R)(f, g: Carrier) => ext (scale a (add f g)) (add (scale a f) (scale a g)) (\fun (x: X) => #vectorAdd{target} a (f x) (g x)),
+};
+\import \parent.Hom[V := Carrier, W := V, source := space, target := target] \as Maps;
+\definition evaluation(x: X): Maps.Map := Maps.Map {
+  apply := \fun (f: Carrier) => f x,
+  addition := \fun (f, g: Carrier) => \refl(#add{target} (f x) (g x)),
+  scalar := \fun (a: R)(f: Carrier) => \refl(#smul{target} a (f x)),
+};

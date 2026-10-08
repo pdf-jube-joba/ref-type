@@ -1,0 +1,30 @@
+\import \parent.\parent.\parent.\parent.\parent.MeanValue[].Interval[a := left, b := right] \as Mean;
+\import Mean.Estimate[] \as MeanEstimate;
+\import topology.RealLine[] \as Line;
+\definition Closed: \Set := \Cast[Real] (Line.ClosedInterval left right);
+\definition Contains: \Prop := \forall (s: Closed) -> \In[Point] (#points{U}) (Coordinates.replace a i s);
+\definition coefficient(g: ScalarFunction U)(s: Real): Real := Extension.extend g zero (Coordinates.replace a i s);
+\definition point(s: Closed)(contains: Contains): Carrier U :=
+  \into[Point](Coordinates.replace a i s, #points{U}) \by { contains s };
+\definition coefficientValue: \forall (g: ScalarFunction U)(s: Closed)(contains: Contains) -> coefficient g s = g (point s contains) :=
+  \fun (g: _)(s: Closed)(contains: Contains) => Extension.inside g zero (point s contains);
+\definition derivative: \forall (g: ScalarFunction U) -> Contains -> HasPartialDerivative U f i g ->
+  \forall (s: Closed) -> Derivatives.HasDerivativeAt value s (coefficient g s) :=
+  \fun (g: ScalarFunction U)(contains: Contains)(partials: HasPartialDerivative U f i g)(s: Closed) =>
+    \idelim g (point s contains) = coefficient g s \with d: Real => Derivatives.HasDerivativeAt value s d \by {
+      base: derivativeAt s (point s contains) (g (point s contains)) (\refl(Coordinates.replace a i s)) (partials (point s contains)),
+      equality: sym!{Real} _ _ (coefficientValue g s contains)
+    };
+\definition increment: \forall (g: ScalarFunction U)(c, theta: Real) -> R.Lt left right -> Contains -> HasPartialDerivative U f i g ->
+  (\forall (s: Closed)(x: Carrier U) -> x = Coordinates.replace a i s -> R.Le (distance (g x) c) theta) ->
+  R.Le (distance (sub (sub (value right) (value left)) (mul c (sub right left))) zero) (mul theta (distance right left)) :=
+  \fun (g: ScalarFunction U)(c, theta: Real)(ordered: _)(contains: Contains)(partials: _)(bounded: _) =>
+    MeanEstimate.increment value (coefficient g) c theta ordered (derivative g contains partials)
+      (\fun (s: Real)(inside: Mean.Interior s) => \block {
+        \let closed: Closed := \into[Real](s, Line.ClosedInterval left right) \by {
+          Logic.And[R.Le left s, R.Le s right]::# (R.Order[].leOfLt left s (#left{inside})) (R.Order[].leOfLt s right (#right{inside}))
+        } \then
+        \return R.leReplaceLeft (distance (g (point closed contains)) c) (distance (coefficient g s) c) theta
+          (sym!{Real} _ _ (congr!{Real Real} (\fun (d: Real) => distance d c) _ _ (coefficientValue g closed contains)))
+          (bounded closed (point closed contains) (\refl(Coordinates.replace a i s)))
+      });

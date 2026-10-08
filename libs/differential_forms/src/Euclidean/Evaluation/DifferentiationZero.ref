@@ -1,0 +1,19 @@
+\import Fin.Empty[A := Vectors.Vector] \as Empty;
+\import Regularity.Derivative[] \as Partials;
+\import \parent.Differential[k := N.Nat^::zero] \as D;
+\definition constantEvaluation: \forall (omega: RegularFamily N.Nat^::zero)(arguments: RegularArguments N.Nat^::zero) ->
+  variableEvaluation N.Nat^::zero omega arguments = evaluate N.Nat^::zero omega Empty.function :=
+  \fun (omega: RegularFamily N.Nat^::zero)(arguments: RegularArguments N.Nat^::zero) => Functions.ext
+    (variableEvaluation N.Nat^::zero omega arguments) (evaluate N.Nat^::zero omega Empty.function)
+    (\fun (x: Source.Carrier U) => congr!{{Multilinear.Arguments N.Nat^::zero} {Reals.Real}} (omega x) (arguments x) Empty.function (Empty.unique (arguments x) Empty.function));
+\definition law: DifferentiationLaw N.Nat^::zero :=
+  \fun (omega: RegularFamily N.Nat^::zero)(arguments: RegularArguments N.Nat^::zero)(i: Fin.Fin m)(x: Source.Carrier U) =>
+    trans!{{Reals.Real}} (Partials.derivative U (variableEvaluation N.Nat^::zero omega arguments) i x)
+      (Partials.derivative U (evaluate N.Nat^::zero omega Empty.function) i x) (derivativeValue N.Nat^::zero omega arguments i x)
+      (congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => Partials.derivative U h i x)
+        (variableEvaluation N.Nat^::zero omega arguments) (evaluate N.Nat^::zero omega Empty.function) (constantEvaluation omega arguments))
+      (trans!{{Reals.Real}} (Partials.derivative U (evaluate N.Nat^::zero omega Empty.function) i x)
+        (D.apply i omega x (arguments x)) (derivativeValue N.Nat^::zero omega arguments i x)
+        (congr!{{Multilinear.Arguments N.Nat^::zero} {Reals.Real}} (D.apply i omega x) Empty.function (arguments x) (Empty.unique Empty.function (arguments x)))
+        (sym!{{Reals.Real}} (derivativeValue N.Nat^::zero omega arguments i x) (D.apply i omega x (arguments x))
+          (Spaces.addZeroRight (D.apply i omega x (arguments x)))));

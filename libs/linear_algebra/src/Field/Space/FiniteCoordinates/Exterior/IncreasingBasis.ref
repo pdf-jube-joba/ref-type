@@ -1,0 +1,65 @@
+\import Alternating.At[k := k] \as Forms;
+\import Alternating.Dimension[n := n, b := basis].Increasing[k := k] \as Increasing;
+\definition Tuple: \Set := Fin.Fin k -> Fin.Fin n;
+\definition Index: \Set := Increasing.Index;
+\definition Enumeration: \Set := Increasing.Enumeration;
+\definition existsEnumeration: \exists Enumeration := Increasing.existsEnumeration;
+\import \parent.\parent.\parent.Sums[I := Tuple] \as Scalars;
+\import Scalars.Prop[] \as ScalarLaws;
+\import Scalars.Single[] \as Single;
+\import Scalars.Vector[V := Form k, space := Forms.vectorSpace] \as VectorSums;
+\import VectorSums.Mapping[W := K, target := scalarSpace] \as Mapping;
+\import \parent.\parent.\parent.Linear[V := Form k, W := K, source := Forms.vectorSpace, target := scalarSpace] \as Maps;
+\import \parent.\parent.\parent.Coordinates[I := Tuple].Kronecker[] \as Delta;
+\definition evaluation(indices: Tuple): Maps.Map := Maps.Map {
+  apply := \fun (omega: Form k) => omega (\fun (i: Fin.Fin k) => vectors (indices i)),
+  preservesAdd := \fun (omega, eta: Form k) => \refl(add (omega (\fun (i: Fin.Fin k) => vectors (indices i))) (eta (\fun (i: Fin.Fin k) => vectors (indices i)))),
+  preservesScale := \fun (a: K)(omega: Form k) => \refl(mul a (omega (\fun (i: Fin.Fin k) => vectors (indices i)))),
+};
+\definition coefficient(omega: Form k)(indices: Tuple): K := omega (\fun (i: Fin.Fin k) => vectors (indices i));
+\definition pair: \forall (left, right: Tuple) -> Ordering.Increasing k n left -> Ordering.Increasing k n right ->
+  coefficient (word k left) right = Delta.delta right left :=
+  \fun (left, right: Tuple)(leftIncreasing: Ordering.Increasing k n left)(rightIncreasing: Ordering.Increasing k n right) =>
+    either!{{left = right} "or" {Logic.Not (left = right)} "either" {coefficient (word k left) right = Delta.delta right left}
+      "lt:" {\fun (equal: left = right) => trans!{K} (coefficient (word k left) right) one (Delta.delta right left)
+        (\idelim right = left \with indices: Tuple => coefficient (word k indices) right = one \by {
+          base: diagonal k right rightIncreasing, equality: sym!{Tuple} left right equal })
+        (sym!{K} (Delta.delta right left) one (Delta.equal right left (sym!{Tuple} left right equal)))}
+      "rt:" {\fun (different: Logic.Not (left = right)) => trans!{K} (coefficient (word k left) right) zero (Delta.delta right left)
+        (offDiagonal k left right leftIncreasing rightIncreasing different)
+        (sym!{K} (Delta.delta right left) zero (Delta.different right left (\fun (same: right = left) => different (sym!{Tuple} right left same))))}}
+      (Classical.excludedMiddle (left = right));
+\definition assemble(indices: Lists.List[Tuple])(coefficients: Tuple -> K): Form k :=
+  VectorSums.sum indices (\fun (i: Tuple) => Forms.scale (coefficients i) (word k i));
+\definition coefficientAssemble: \forall (enumeration: Increasing.Enumeration)(coefficients: Tuple -> K)(right: Increasing.Index) ->
+  coefficient (assemble enumeration coefficients) right = coefficients right := \block {
+  \fun (enumeration: Increasing.Enumeration)(coefficients: Tuple -> K)(right: Increasing.Index) \then
+  \let rightIncreasing: Ordering.Increasing k n right := \bysub(Tuple, Increasing.Index, right) \then
+  \return eq_reason!{
+    {coefficient (assemble enumeration coefficients) right}
+    "=" {Scalars.sum enumeration (\fun (left: Tuple) => mul (coefficients left) (coefficient (word k left) right))} "by" {
+      Mapping.law (evaluation right) enumeration (\fun (left: Tuple) => Forms.scale (coefficients left) (word k left))}
+    "=" {Scalars.sum enumeration (\fun (left: Tuple) => mul (Delta.delta right left) (coefficients left))} "by" {
+      ScalarLaws.congruentOnKeys enumeration
+        (\fun (left: Tuple) => mul (coefficients left) (coefficient (word k left) right))
+        (\fun (left: Tuple) => mul (Delta.delta right left) (coefficients left))
+        (\fun (left: Tuple)(member: \In[Tuple] (Scalars.keys enumeration) left) =>
+          trans!{K} (mul (coefficients left) (coefficient (word k left) right)) (mul (coefficients left) (Delta.delta right left))
+            (mul (Delta.delta right left) (coefficients left))
+            (congr!{K K} (mul (coefficients left)) _ _ (pair left right (Increasing.included enumeration left member) rightIncreasing))
+            (mulComm (coefficients left) (Delta.delta right left)))}
+    "=" {coefficients right} "by" {Single.extract enumeration (Increasing.distinct enumeration) right (Increasing.exhaustive enumeration right) coefficients}
+  }
+};
+\definition reconstruction: \forall (omega: Form k)(enumeration: Increasing.Enumeration) -> assemble enumeration (coefficient omega) = omega :=
+  \fun (omega: Form k)(enumeration: Increasing.Enumeration) => Increasing.ext (assemble enumeration (coefficient omega)) omega
+    (\fun (right: Increasing.Index) => coefficientAssemble enumeration (coefficient omega) right);
+\definition argumentsEvaluation(arguments: Multilinear.Arguments k): Maps.Map := Maps.Map {
+  apply := \fun (omega: Form k) => omega arguments,
+  preservesAdd := \fun (omega, eta: Form k) => \refl(add (omega arguments) (eta arguments)),
+  preservesScale := \fun (a: K)(omega: Form k) => \refl(mul a (omega arguments)),
+};
+\definition evaluateAssemble: \forall (indices: Lists.List[Tuple])(coefficients: Tuple -> K)(arguments: Multilinear.Arguments k) ->
+  assemble indices coefficients arguments = Scalars.sum indices (\fun (i: Tuple) => mul (coefficients i) (word k i arguments)) :=
+  \fun (indices: Lists.List[Tuple])(coefficients: Tuple -> K)(arguments: Multilinear.Arguments k) =>
+    Mapping.law (argumentsEvaluation arguments) indices (\fun (i: Tuple) => Forms.scale (coefficients i) (word k i));

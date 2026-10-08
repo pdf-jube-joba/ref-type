@@ -1,0 +1,23 @@
+\import Multilinear.ListSeries[k := N.Nat^::zero] \as Base;
+\import \parent.\parent.Sign[] \as Sign;
+\definition nonempty: \forall (f: Multilinear.Function N.Nat^::zero)(head: V)(xs: Lists.List[V]) -> component N.Nat^::zero f (Lists.List[V]::cons head xs) = zero :=
+  \fun (f: Multilinear.Function N.Nat^::zero)(head: V)(xs: Lists.List[V]) => Base.outside f (Lists.List[V]::cons head xs) (NatLaws.succNeZero (Lists.length V xs));
+\definition laws: \forall (f: Form N.Nat^::zero) -> HeadLaws[N.Nat^::zero, f] :=
+  \fun (f: Form N.Nat^::zero) => HeadLaws[N.Nat^::zero, f] {
+    swap := \fun (x, y: V)(xs: Lists.List[V]) => trans!{K} _ zero _ (nonempty f x (Lists.List[V]::cons y xs))
+      (trans!{K} zero (neg zero) _ (sym!{K} (neg zero) zero Sign.negativeZero) (congr!{K K} neg _ _ (sym!{K} _ _ (nonempty f y (Lists.List[V]::cons x xs))))),
+    repeated := \fun (x: V)(xs: Lists.List[V]) => nonempty f x (Lists.List[V]::cons x xs),
+  };
+\definition prefixedNonempty: \forall (prefix: Lists.List[V])(f: Multilinear.Function N.Nat^::zero)(head: V)(xs: Lists.List[V]) -> component N.Nat^::zero f (Lists.append V prefix (Lists.List[V]::cons head xs)) = zero :=
+  \induction (prefix: Lists.List[V]) \return \forall (f: Multilinear.Function N.Nat^::zero)(head: V)(xs: Lists.List[V]) -> component N.Nat^::zero f (Lists.append V prefix (Lists.List[V]::cons head xs)) = zero \with {
+    | nil: nonempty
+    | cons: \fun (first: V)(prefix: Lists.List[V])(unused: \forall (f: Multilinear.Function N.Nat^::zero)(head: V)(xs: Lists.List[V]) -> component N.Nat^::zero f (Lists.append V prefix (Lists.List[V]::cons head xs)) = zero)
+      (f: Multilinear.Function N.Nat^::zero)(head: V)(xs: Lists.List[V]) => nonempty f first (Lists.append V prefix (Lists.List[V]::cons head xs))
+  };
+\definition alternating: \forall (f: Form N.Nat^::zero) -> SeriesAlternation.Laws[component N.Nat^::zero f] :=
+  \fun (f: Form N.Nat^::zero) => SeriesAlternation.Laws[component N.Nat^::zero f] {
+    swap := \fun (prefix: Lists.List[V])(x, y: V)(xs: Lists.List[V]) => trans!{K} _ zero _ (prefixedNonempty prefix f x (Lists.List[V]::cons y xs))
+      (trans!{K} zero (neg zero) _ (sym!{K} (neg zero) zero Sign.negativeZero)
+        (congr!{K K} neg _ _ (sym!{K} _ _ (prefixedNonempty prefix f y (Lists.List[V]::cons x xs))))),
+    repeated := \fun (prefix: Lists.List[V])(x: V)(xs: Lists.List[V]) => prefixedNonempty prefix f x (Lists.List[V]::cons x xs),
+  };

@@ -1,0 +1,64 @@
+\import \parent.Chart[M := M, space := space] \as Charts;
+\import Open.Smooth[] \as Analysis;
+\import \parent.AtlasData[M := M, space := space] \as Structures;
+\module Pair(left, right: Charts.Chart) {
+  \import Charts.Transition[left := left, right := right] \as Transition;
+  \definition Compatible: \Prop := \forall (i: Coordinates.Coordinate) -> Analysis.SmoothOn Transition.domain
+    (\fun (x: Open.Carrier Transition.domain) => Transition.vector x i);
+  \import calculus.Maps[n := n, m := n] \as Maps;
+  \definition data: Maps.Data[Transition.domain, #image{right}] := Maps.Data[Transition.domain, #image{right}] {
+    apply := Transition.apply,
+  };
+  \definition smoothMap(compatible: Compatible): Maps.Map Transition.domain #image{right} := \into[Maps.Data[Transition.domain, #image{right}]](data,
+      { map: Maps.Data[Transition.domain, #image{right}] \where Maps.Laws[Transition.domain, #image{right}, map] }) \by {
+        Maps.Laws[Transition.domain, #image{right}, data] { smooth := compatible }
+      };
+}
+\definition Compatible(left, right: Charts.Chart): \Prop := Pair[left := left, right := right].Compatible;
+\module Self(chart: Charts.Chart);
+\module Cocycle(left, middle, right: Charts.Chart);
+\definition Data: \Set := Structures.Data;
+\definition Member(data: Data)(chart: Charts.Chart): \Prop := Structures.Member data chart;
+\definition Laws(data: Data): \Prop := Structures.Laws[data];
+\definition Atlas: \Set := Structures.Atlas;
+\module Geometry(atlas: Atlas);
+\definition dataEta: \forall (data: Data) -> Data::# (#charts{data}) = data :=
+  \induction (data: Data) \return Data::# (#charts{data}) = data \with {
+    | # : \fun (charts: \Pow Charts.Chart) => \refl(Data::# charts)
+  };
+\definition ext: \forall (left, right: Atlas) -> #charts{left} = #charts{right} -> left = right :=
+  \fun (left, right: Atlas)(same: #charts{left} = #charts{right}) => trans!{Data} left (Data::# (#charts{left})) right
+    (sym!{Data} (Data::# (#charts{left})) left (dataEta left))
+    (trans!{Data} (Data::# (#charts{left})) (Data::# (#charts{right})) right
+      (congr!{{\Pow Charts.Chart} Data} Data::# (#charts{left}) (#charts{right}) same) (dataEta right));
+\definition Compatibility(atlas: Atlas)(chart: Charts.Chart): \Prop := Structures.Compatibility[atlas, chart];
+\definition Saturation(atlas: Atlas): \Pow Charts.Chart := Structures.Saturation atlas;
+\definition includedInSaturation: \forall (atlas: Atlas)(chart: Charts.Chart) -> Member atlas chart -> \In[Charts.Chart] (Saturation atlas) chart :=
+  \fun (atlas: _)(chart: _)(member: _) => Compatibility[atlas, chart] {
+    forward := \fun (other: _)(inAtlas: _) => #compatible{atlas} chart other member inAtlas,
+    backward := \fun (other: _)(inAtlas: _) => #compatible{atlas} other chart inAtlas member,
+  };
+\definition saturationCovers: \forall (atlas: Atlas)(x: M) ->
+  \exists { chart: Charts.Chart \where Logic.And[\In[Charts.Chart] (Saturation atlas) chart, Charts.Contains chart x] } := \block {
+  \fun (atlas: _)(x: _) \then
+  \takefrom chart: \Cast[Charts.Chart] ({ chart: Charts.Chart \where Logic.And[Member atlas chart, Charts.Contains chart x] }) \by #covers{atlas} x \then
+  \let member: Logic.And[Member atlas chart, Charts.Contains chart x] := \bysub(Charts.Chart,
+    { chart: Charts.Chart \where Logic.And[Member atlas chart, Charts.Contains chart x] }, chart) \then
+  \return \exact(\into[Charts.Chart](chart,
+    { chart: Charts.Chart \where Logic.And[\In[Charts.Chart] (Saturation atlas) chart, Charts.Contains chart x] }) \by {
+      Logic.And[_, _]::# (includedInSaturation atlas chart (#left{member})) (#right{member})
+    }, \Cast[Charts.Chart] ({ chart: Charts.Chart \where Logic.And[\In[Charts.Chart] (Saturation atlas) chart, Charts.Contains chart x] }))
+};
+\module Saturate(atlas: Atlas);
+\definition IsMaximal(atlas: Atlas): \Prop := Structures.IsMaximal atlas;
+\definition MaximalAtlas: \Set := Structures.MaximalAtlas;
+\definition saturate(atlas: Atlas): MaximalAtlas := \into[Atlas](Saturate[atlas := atlas].saturated, { result: Atlas \where IsMaximal result }) \by {
+  Saturate[atlas := atlas].maximal
+};
+\definition saturationOfMaximal: \forall (atlas: Atlas) -> IsMaximal atlas -> Saturation atlas = #charts{atlas} :=
+  \fun (atlas: Atlas)(maximal: IsMaximal atlas) => \axiom:setext(Saturation atlas, #charts{atlas},
+    \fun (chart: Charts.Chart)(member: Compatibility[atlas, chart]) => maximal chart member,
+    \fun (chart: Charts.Chart)(member: Member atlas chart) => includedInSaturation atlas chart member);
+\definition saturateIdempotent: \forall (atlas: Atlas) -> saturate (saturate atlas) = saturate atlas :=
+  \fun (atlas: Atlas) => ext (saturate (saturate atlas)) (saturate atlas)
+    (saturationOfMaximal (saturate atlas) (\bysub(Atlas, { a: Atlas \where IsMaximal a }, saturate atlas)));

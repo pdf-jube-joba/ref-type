@@ -12,20 +12,30 @@
 
 この文書全体を一つの実装計画とし、以下の段階は依存関係に沿った中間検査点とする。
 
-## 実装状況（2026-10-07）
+## 実装状況（2026-10-08）
 
-`main` を `a8498cb` まで更新した後、計画末尾で指定した小さな型の受け渡しを検査した。
-点に依存する商と有限引数列を組み合わせた関数型、およびその等式判定に [G08](gaps.md#g08) の処理系障害が再現したため、同じ末尾の停止条件に従って実装を停止した。
+第1節から第8節までの数学的構成と証明を実装した。
+`tests/projects/manifolds-de-rham` 全体のキャッシュなし検査が成功し、すべての利用例を依存ライブラリの証明本体とともに検査した。
 
-[比較プロジェクト](reproductions/g08-pointwise-quotient/README.md)に、最小の失敗例、型値定義と module 分割による局所的な成功例、追加の等式判定が失敗する例を保存した。
-この結果は数学的な構成全体の不可能性を示すものではなく、再開時には回避例を実際の API に展開する検査または処理系の修正が必要になる。
-影響するのは第4節の点に依存する接空間と、第6節の点ごとの形式の解釈・等式判定である。
+| 段階 | 主な公開 API | 検査した構成と法則 |
+| --- | --- | --- |
+| 開集合上の微分法 | `calculus.Real.Limit`、`Derivative`、`MeanValue`、`Multivariable.Open`、`Maps`、`Schwarz` | 極限と微分の演算、最大値ノルムと座標位相、第二可算性、局所性、全微分・連鎖律、混合偏微分の交換 |
+| 外代数と商 | `linear_algebra.Field.Space.Exterior`、`FiniteExterior`、`Quotient`、`algebra.Module` | shuffle による任意次数の外積、有限基底の増加添字による係数復元、次元超過の零性、部分加群・商の普遍性 |
+| アトラスと多様体 | `manifolds.Dimension.Chart`、`Atlas`、`Smooth`、`SmoothMap`、`SmallAtlasSmoothMap` | Hausdorff・第二可算な多様体、飽和・最大性・冪等性、滑らかな写像・微分同相、小さいアトラスでの判定 |
+| 接空間と微分 | `manifolds.Tangent`、`Differential`、`DifferentialIdentity`、`DifferentialComposition`、`OpenSubmanifold` | 接ベクトルの商と座標同型、余接空間、標準微分の代表独立性、恒等・合成・開部分多様体・微分同相との整合性 |
+| 局所形式 | `differential_forms.Euclidean.On`、`Euclidean.Pullback` | 滑らかな係数表示と復元、外微分の係数公式、\(d^2=0\)、Leibniz 則、引き戻しの合成・自然性 |
+| 大域形式 | `differential_forms.Forms.On`、`Pullback`、`Restriction`、`Gluing`、`AtlasForms`、`Presentation` | 座標の独立性、点ごとの交代形式との双方向の対応、任意の開被覆での一意な貼り合わせ、アトラス間の線形同型 |
+| De Rham コホモロジー | `homological_algebra.Cochain.Over`、`Forms.On.DeRham`、`PullbackDiffeomorphism` | 整数次数への零拡張、核・像の商、\(H^0\) と微分が零の滑らかな関数の同型、代表によらない積と環の法則、反変性、微分同相・アトラス表示による同型 |
+| 独立した利用例 | `tests/projects/manifolds-de-rham` | 空・一点・開部分集合、\(x\,dy\)、非線形な shear、二つのチャート、小さいアトラスと飽和、表示の比較、形式とコホモロジーの反変な合成則 |
 
-`cargo build -p cli --locked` と既存の `libs/calculus` の `--no-cache --diagnostics compact` 検査は成功した。
-G08 の全5例は比較表どおりの結果になった。
-第1〜8節、新設パッケージ、`tests/projects/manifolds-de-rham` と最終検査は未完了である。
+点・次数に依存する型の具体化、record の帰納法、検査済み定義の参照と capture、namespace の共有、未解決変数の探索を処理系で修正した。
+表現の変更で回避した制約と最小例は [G09–G16](gaps.md) に記録した。
 
-## 現状と不足
+第8節の最終検査はすべて成功した。
+全11パッケージと3 project をキャッシュなしで検査し、Rust ライブラリ253件と、新 project を含む CLI 全30件のテストが成功した。
+CLI のビルド、Rust の書式検査、差分の空白検査も成功した。
+
+## 計画時の調査（2026-10-07）
 
 2026-10-07 時点のソースを調査した結果である。
 ここでの「既存」は宣言・証明本体の所在を確認したという意味で、今回の計画作成ではライブラリ全体の再検査は実行していない。
@@ -46,19 +56,19 @@ G08 の全5例は比較表どおりの結果になった。
 
 ## ライブラリの分担
 
-以下の module 名は追加先の設計名である。
+以下の表は実装した公開 API の分担を示す。
 公開する数学的構造を基準に分割し、具体化の都合による小さな補題はその構造の子 module に置く。
 
 | パッケージ | 主な追加先 | 役割 |
 | --- | --- | --- |
 | `std` | `Data.FinSet`、`Data.List` 周辺 | 有限添字の削除・挿入、置換・shuffle と符号に必要な組合せ論 |
 | `topology` | `Topology.Subspace.Properties`、`Topology.Countability` 周辺 | 第二可算性の開部分空間への継承、開集合・局所同相の補題 |
-| `topological_algebra` | `Coordinates.FiniteReal` | \(\mathbb R^n\) の位相、最大値距離との一致、Hausdorff 性・第二可算性 |
+| `topological_algebra` | `Euclidean.Dimension` | \(\mathbb R^n\) の位相、最大値距離との一致、Hausdorff 性・第二可算性 |
 | `calculus` | `Real.Limit`、`Real.MeanValue`、`Real.Multivariable.Open`、`Maps`、`Schwarz` | 開集合上の解析と滑らかな写像の微分法 |
-| `linear_algebra` | `Field.Space.Multilinear`、`Alternating`、`Exterior`、`Subspace.Image`、`Quotient` | 外代数と商ベクトル空間 |
-| `homological_algebra`（新設） | `Cochain`、`Cohomology`、`CochainMap` | 体上の余鎖複体とコホモロジーの一般構成 |
-| `manifolds`（新設） | `Chart`、`Atlas`、`Smooth`、`SmoothMap`、`Diffeomorphism`、`Tangent`、`Cotangent`、`Examples` | 位相多様体・滑らかな多様体とその写像 |
-| `differential_forms`（新設） | `Euclidean`、`Forms`、`Wedge`、`ExteriorDerivative`、`Pullback`、`DeRham` | 局所形式の貼り合わせと De Rham コホモロジー |
+| `linear_algebra` | `Field.Space.Multilinear`、`Exterior`、`FiniteExterior`、`Subspace`、`Quotient` | 外代数と商ベクトル空間 |
+| `homological_algebra`（新設） | `Cochain.Over`、`Over.At`、`Over.Map` | 体上の余鎖複体とコホモロジーの一般構成 |
+| `manifolds`（新設） | `Dimension`、`SmoothMap`、`Diffeomorphism`、`Tangent`、`Differential`、`OpenSubmanifold`、`Examples` | 位相多様体・滑らかな多様体とその写像 |
+| `differential_forms`（新設） | `Euclidean`、`Forms`、`Pullback`、`Restriction`、`Gluing`、`AtlasForms`、`Presentation` | 局所形式の貼り合わせと De Rham コホモロジー |
 
 `calculus` に `linear_algebra`・`topology`・`topological_algebra` への依存を加え、座標と線形写像の既存構造を共有する。
 `topological_algebra` の位相・距離の同値性は同パッケージで証明し、それを `calculus` が利用する向きにする。
@@ -280,5 +290,6 @@ cargo test -p cli --test ref_files --locked
 有限積のコンパクト性には [G06](gaps.md#g06) の既知の具体化問題がある。
 本計画の解析では一変数閉区間のコンパクト性と有限座標の評価を使うため、この問題の影響範囲を実装時に確認する。
 一般定理の具体化が失敗した場合は、必要な型の受け渡しだけに縮小した再現例を作る。
-言語や体系に由来する障害が判明した場合は、書きたい構成・再現例・診断・影響する段階を `gaps.md` に記録し、その理由を明記して停止する。
+言語や体系に由来する障害が判明した場合は、書きたい構成・再現例・診断・影響する段階を `gaps.md` に記録し、等価な表現または処理系の修正を検査する。
+回避を含めて構成が不可能な場合に限り、その理由を明記して停止する。
 数学的な補題の不足は上の依存順に組み込み、最後のコホモロジーと利用例まで実装を続ける。

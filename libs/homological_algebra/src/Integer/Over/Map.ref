@@ -1,0 +1,84 @@
+\structure Data: \Set {
+  apply: \forall (k: Degree) -> C.family.Carrier k -> D.family.Carrier k,
+}
+\structure Laws[data: Data]: \Prop {
+  addition: \forall (k: Degree)(x, y: C.family.Carrier k) ->
+    data.apply k (#add{(C.family.space k)} x y) = #add{(D.family.space k)} (data.apply k x) (data.apply k y),
+  scalar: \forall (k: Degree)(a: R)(x: C.family.Carrier k) ->
+    data.apply k (#smul{(C.family.space k)} a x) = #smul{(D.family.space k)} a (data.apply k x),
+  commutes: \forall (k: Degree)(x: C.family.Carrier k) ->
+    #apply{D.differential} k (data.apply k x) = data.apply (next k) (#apply{C.differential} k x),
+}
+\definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\import \parent.Prior[C := C] \as SourcePrior;
+\import \parent.Prior[C := D] \as TargetPrior;
+\definition priorCommutes: \forall (z: Degree)(f: Map)(x: C.family.Carrier (previous z)) ->
+  TargetPrior.value z (#apply{f} (previous z) x) = #apply{f} z (SourcePrior.value z x) :=
+  \induction (z: Degree) \return \forall (f: Map)(x: C.family.Carrier (previous z)) ->
+    TargetPrior.value z (#apply{f} (previous z) x) = #apply{f} z (SourcePrior.value z x) \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (f: Map)(x: C.family.Carrier (previous (Integers.Int^::ofNat n))) ->
+      TargetPrior.value (Integers.Int^::ofNat n) (#apply{f} (previous (Integers.Int^::ofNat n)) x) =
+        #apply{f} (Integers.Int^::ofNat n) (SourcePrior.value (Integers.Int^::ofNat n) x) \with {
+      | zero: \fun (f: Map) => #commutes{f} (Integers.Int^::negSucc N.Nat^::zero)
+      | succ: \fun (n: N.Nat^)(unused: _)(f: Map) => #commutes{f} (Integers.Int^::ofNat n)
+    }
+    | negSucc: \fun (n: N.Nat^)(f: Map) => #commutes{f} (Integers.Int^::negSucc (N.Nat^::succ n))
+  };
+\module At(k: Degree);
+\module Composition(B: Complex) {
+  \import \parent.\parent.Map[C := B, D := C] \as Before;
+  \import \parent.\parent.Map[C := B, D := D] \as Result;
+  \definition compose(f: Map)(g: Before.Map): Result.Map := Result.Map {
+    apply := \fun (k: Degree)(x: B.family.Carrier k) => #apply{f} k (#apply{g} k x),
+    addition := \fun (k: Degree)(x, y: B.family.Carrier k) => trans!{{D.family.Carrier k}}
+      (#apply{f} k (#apply{g} k (#add{(B.family.space k)} x y)))
+      (#apply{f} k (#add{(C.family.space k)} (#apply{g} k x) (#apply{g} k y)))
+      (#add{(D.family.space k)} (#apply{f} k (#apply{g} k x)) (#apply{f} k (#apply{g} k y)))
+      (congr!{{C.family.Carrier k} {D.family.Carrier k}} (#apply{f} k)
+        (#apply{g} k (#add{(B.family.space k)} x y)) (#add{(C.family.space k)} (#apply{g} k x) (#apply{g} k y)) (#addition{g} k x y))
+      (#addition{f} k (#apply{g} k x) (#apply{g} k y)),
+    scalar := \fun (k: Degree)(a: R)(x: B.family.Carrier k) => trans!{{D.family.Carrier k}}
+      (#apply{f} k (#apply{g} k (#smul{(B.family.space k)} a x)))
+      (#apply{f} k (#smul{(C.family.space k)} a (#apply{g} k x)))
+      (#smul{(D.family.space k)} a (#apply{f} k (#apply{g} k x)))
+      (congr!{{C.family.Carrier k} {D.family.Carrier k}} (#apply{f} k)
+        (#apply{g} k (#smul{(B.family.space k)} a x)) (#smul{(C.family.space k)} a (#apply{g} k x)) (#scalar{g} k a x))
+      (#scalar{f} k a (#apply{g} k x)),
+    commutes := \fun (k: Degree)(x: B.family.Carrier k) => trans!{{D.family.Carrier (next k)}}
+      (#apply{D.differential} k (#apply{f} k (#apply{g} k x)))
+      (#apply{f} (next k) (#apply{C.differential} k (#apply{g} k x)))
+      (#apply{f} (next k) (#apply{g} (next k) (#apply{B.differential} k x)))
+      (#commutes{f} k (#apply{g} k x))
+      (congr!{{C.family.Carrier (next k)} {D.family.Carrier (next k)}} (#apply{f} (next k))
+        (#apply{C.differential} k (#apply{g} k x)) (#apply{g} (next k) (#apply{B.differential} k x)) (#commutes{g} k x)),
+  };
+  \module At(k: Degree) {
+    \import \parent.\parent.\parent.At[C := B, z := k] \as Source;
+    \import \parent.\parent.\parent.At[C := D, z := k] \as Target;
+    \import \parent.\parent.\parent.At[C := C, z := k] \as Middle;
+    \import \parent.\parent.At[k := k] \as After;
+    \import Before.At[k := k] \as BeforeMap;
+    \import Result.At[k := k] \as ResultMap;
+    \definition compositionOnCohomology: \forall (f: Map)(g: Before.Map)(h: Source.Cohomology) ->
+      #apply{(ResultMap.induced (compose f g))} h = #apply{(After.induced f)} (#apply{(BeforeMap.induced g)} h) :=
+      \fun (f: Map)(g: Before.Map) => Source.classInduction
+        (\fun (h: Source.Cohomology) => #apply{(ResultMap.induced (compose f g))} h = #apply{(After.induced f)} (#apply{(BeforeMap.induced g)} h))
+        (\fun (x: Source.Closed) => eq_reason!{
+          {#apply{(ResultMap.induced (compose f g))} (Source.classOf x)}
+          "=" {Target.classOf (#apply{(ResultMap.cyclesMap (compose f g))} x)} "by" {ResultMap.onClass (compose f g) x}
+          "=" {Target.classOf (#apply{(After.cyclesMap f)} (#apply{(BeforeMap.cyclesMap g)} x))}
+          "by" {\refl(Target.classOf (#apply{(After.cyclesMap f)} (#apply{(BeforeMap.cyclesMap g)} x)))}
+          "=" {#apply{(After.induced f)} (Middle.classOf (#apply{(BeforeMap.cyclesMap g)} x))}
+          "by" {sym!{{Target.Cohomology}}
+            (#apply{(After.induced f)} (Middle.classOf (#apply{(BeforeMap.cyclesMap g)} x)))
+            (Target.classOf (#apply{(After.cyclesMap f)} (#apply{(BeforeMap.cyclesMap g)} x)))
+            (After.onClass f (#apply{(BeforeMap.cyclesMap g)} x))}
+          "=" {#apply{(After.induced f)} (#apply{(BeforeMap.induced g)} (Source.classOf x))}
+          "by" {congr!{{Middle.Cohomology} {Target.Cohomology}} (#apply{(After.induced f)})
+            (Middle.classOf (#apply{(BeforeMap.cyclesMap g)} x)) (#apply{(BeforeMap.induced g)} (Source.classOf x))
+            (sym!{{Middle.Cohomology}} (#apply{(BeforeMap.induced g)} (Source.classOf x))
+              (Middle.classOf (#apply{(BeforeMap.cyclesMap g)} x)) (BeforeMap.onClass g x))}
+        });
+  }
+
+}

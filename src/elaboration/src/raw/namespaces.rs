@@ -11,6 +11,36 @@ pub(crate) struct Specialization<I> {
 }
 
 impl CrateEnv {
+    fn namespace_terms_equal(&self, left: Exp, right: Exp) -> bool {
+        if left == right {
+            return true;
+        }
+        // These heads are rigid: neither a local variable nor an opaque module
+        // parameter reduces to another variable. Avoid registering an entire
+        // captured declaration graph merely to reject this comparison.
+        use super::exp::ExpNode;
+        match (self.arena().get(left), self.arena().get(right)) {
+            (ExpNode::Bound(_), ExpNode::Bound(_))
+            | (ExpNode::Bound(_), ExpNode::ModuleParam(_))
+            | (ExpNode::ModuleParam(_), ExpNode::Bound(_))
+            | (ExpNode::ModuleParam(_), ExpNode::ModuleParam(_)) => return false,
+            _ => {}
+        }
+        if let Some(&equal) = self.namespace_conversion_cache.borrow().get(&(left, right)) {
+            return equal;
+        }
+        let Some(equal) = crate::kernel_bridge::resolved_convertible(self, left, right) else {
+            return false;
+        };
+        self.namespace_conversion_cache
+            .borrow_mut()
+            .insert((left, right), equal);
+        self.namespace_conversion_cache
+            .borrow_mut()
+            .insert((right, left), equal);
+        equal
+    }
+
     pub(crate) fn namespace_arguments(
         &self,
         module: ModuleId,
@@ -135,7 +165,7 @@ impl CrateEnv {
                 lp == rp
                     && match (*l, *r) {
                         (ModuleArgument::Pts(l), ModuleArgument::Pts(r)) => {
-                            crate::kernel_bridge::convertible(self, l, r)
+                            self.namespace_terms_equal(l, r)
                         }
                         (ModuleArgument::ProgramType(l), ModuleArgument::ProgramType(r)) => {
                             crate::kernel_bridge::value_type_is_alpha_eq(self.arena(), l, r)
@@ -152,12 +182,139 @@ impl CrateEnv {
                                         ProgramTerm::ValueTerm(r),
                                     ),
                                 ) {
-                                    (Ok(l), Ok(r)) => crate::kernel_bridge::convertible(self, l, r),
+                                    (Ok(l), Ok(r)) => self.namespace_terms_equal(l, r),
                                     _ => false,
                                 }
                         }
                         _ => false,
                     }
             })
+    }
+}
+
+/// Determine identity before reserving another copy of an imported graph.
+/// Following declaration provenance is essential: an argument can refer to a
+/// definition whose own telescope contains a substituted parameter.
+pub(crate) struct NamespaceStability<'a> {
+    env: &'a CrateEnv,
+    reflected: &'a [(ModuleParamId, Exp)],
+    argument_sets: std::collections::HashMap<Vec<(ModuleParamId, ModuleArgument)>, bool>,
+    definitions: std::collections::HashMap<DefId, bool>,
+    inductives: std::collections::HashMap<InductiveId, bool>,
+    datatypes: std::collections::HashMap<ProgramInductiveId, bool>,
+}
+
+impl<'a> NamespaceStability<'a> {
+    pub(crate) fn new(env: &'a CrateEnv, reflected: &'a [(ModuleParamId, Exp)]) -> Self {
+        Self {
+            env,
+            reflected,
+            argument_sets: Default::default(),
+            definitions: Default::default(),
+            inductives: Default::default(),
+            datatypes: Default::default(),
+        }
+    }
+
+    fn definition(&mut self, id: DefId) -> bool {
+        if let Some(&stable) = self.definitions.get(&id) {
+            return stable;
+        }
+        self.definitions.insert(id, false);
+        let stable = self.arguments(&self.env.definition_specialization_arguments(id));
+        self.definitions.insert(id, stable);
+        stable
+    }
+
+    fn inductive(&mut self, id: InductiveId) -> bool {
+        if let Some(&stable) = self.inductives.get(&id) {
+            return stable;
+        }
+        self.inductives.insert(id, false);
+        let stable = self.arguments(&self.env.inductive_specialization_arguments(id));
+        self.inductives.insert(id, stable);
+        stable
+    }
+
+    fn datatype(&mut self, id: ProgramInductiveId) -> bool {
+        if let Some(&stable) = self.datatypes.get(&id) {
+            return stable;
+        }
+        self.datatypes.insert(id, false);
+        let stable = self.arguments(&self.env.datatype_specialization_arguments(id));
+        self.datatypes.insert(id, stable);
+        stable
+    }
+
+    pub(crate) fn arguments(&mut self, arguments: &[(ModuleParamId, ModuleArgument)]) -> bool {
+        use super::traversal::{Memoized, Term};
+        if let Some(&stable) = self.argument_sets.get(arguments) {
+            return stable;
+        }
+        if !self.env.namespace_arguments_shareable(arguments) {
+            return false;
+        }
+        self.argument_sets.insert(arguments.to_vec(), false);
+        let stable = arguments.iter().all(|(_, argument)| {
+            // Program imports retain the existing materialization path.
+            let ModuleArgument::Pts(expression) = *argument else {
+                return false;
+            };
+            let arena = self.env.arena();
+            let mut stable = true;
+            let mut visitor = Memoized::new(|term: Term, _: usize| {
+                if let Term::Logical(expression) = term {
+                    use super::exp::ExpNode;
+                    stable &= match arena.get(expression) {
+                        ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => self
+                            .reflected
+                            .iter()
+                            .find(|(p, _)| *p == id)
+                            .is_none_or(|(_, value)| *value == expression),
+                        ExpNode::DefinedConstant(id)
+                        | ExpNode::DefinitionInstance { definition: id, .. } => self.definition(id),
+                        ExpNode::IndType { indspec, .. }
+                        | ExpNode::IndCtor { indspec, .. }
+                        | ExpNode::IndElim { indspec, .. }
+                        | ExpNode::IndCase { indspec, .. } => self.inductive(indspec),
+                        ExpNode::ReflectedProgramCase { indspec, .. } => self.datatype(indspec),
+                        ExpNode::Meta { .. }
+                        | ExpNode::BoxType { .. }
+                        | ExpNode::BoxProgram { .. }
+                        | ExpNode::ForceBox { .. } => false,
+                        _ => true,
+                    };
+                } else {
+                    stable = false;
+                }
+                None
+            });
+            Term::Logical(expression).walk(arena, 0, &mut visitor);
+            stable
+        });
+        self.argument_sets.insert(arguments.to_vec(), stable);
+        stable
+    }
+
+    pub(crate) fn item(&mut self, item: &ModuleItem) -> bool {
+        match item {
+            ModuleItem::Definition { definition, .. } => self.definition(*definition),
+            ModuleItem::Inductive {
+                inductive,
+                associated_definitions,
+                ..
+            }
+            | ModuleItem::Record {
+                inductive,
+                associated_definitions,
+                ..
+            } => {
+                self.inductive(*inductive)
+                    && associated_definitions
+                        .iter()
+                        .all(|(_, id)| self.definition(*id))
+            }
+            ModuleItem::ProgramInductive { .. } => false,
+        }
     }
 }

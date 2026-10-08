@@ -1854,3 +1854,47 @@ fn reflection_of_a_rigid_parameter_is_a_normal_form() {
         reflected
     );
 }
+
+#[test]
+fn transparent_alias_conversion_preserves_the_common_reference() {
+    let mut env = Environment::new();
+    let a = env.arena.clone();
+    let set = sort(&a, BaseSort::Set(0));
+    let mut metas = MetaContext::new();
+    let context = vec![binding(set), binding(a.bound(0))];
+    let arguments = vec![a.bound(1), a.bound(0)];
+    let base = env
+        .register_definition(
+            &mut metas,
+            Definition {
+                context: context.clone(),
+                ty: a.bound(1),
+                body: a.bound(0),
+            },
+        )
+        .unwrap();
+    let base_reference = env.reference(base, arguments.clone()).unwrap();
+    let alias = env
+        .register_definition(
+            &mut metas,
+            Definition {
+                context: context.clone(),
+                ty: a.bound(1),
+                body: base_reference,
+            },
+        )
+        .unwrap();
+    let alias_reference = env.reference(alias, arguments).unwrap();
+    env.heads.borrow_mut().clear();
+    env.conversions.borrow_mut().clear();
+    assert!(reduction::erased_convertible(&env, alias_reference, base_reference).unwrap());
+    assert!(env.heads.borrow().get(&base_reference).is_none());
+    assert!(reduction::erased_convertible(&env, base_reference, alias_reference).unwrap());
+    assert!(!reduction::erased_convertible(&env, alias_reference, a.bound(1)).unwrap());
+    assert_eq!(
+        Checker::new(&env, &mut metas, context)
+            .infer(alias_reference)
+            .unwrap(),
+        a.bound(1)
+    );
+}

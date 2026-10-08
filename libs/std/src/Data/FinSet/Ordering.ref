@@ -1,0 +1,42 @@
+\import std.Logic[].Classical[] \as Classical;
+\definition Injective(k, n: N.Nat^)(f: Fin k -> Fin n): \Prop := \forall (i, j: Fin k) -> f i = f j -> i = j;
+\definition Increasing(k, n: N.Nat^)(f: Fin k -> Fin n): \Prop := \forall (i, j: Fin k) -> NL.Lt i j -> NL.Lt (f i) (f j);
+\definition PermutationType(k: N.Nat^): \Set := \root.Data[].FinSet[].Permutations[n := k].Permutation;
+\definition Ordered(k, n: N.Nat^)(f: Fin k -> Fin n): \Set :=
+  \Cast[PermutationType k] ({ p: PermutationType k \where Increasing k n (\fun (i: Fin k) => f (#forward{p} i)) });
+\definition Existence(n: N.Nat^): \Prop := \forall (k: N.Nat^)(f: Fin k -> Fin n) -> Injective k n f -> \exists Ordered k n f;
+\module Empty(n: N.Nat^);
+\module Reduction(k, n: N.Nat^, f: Fin k -> Fin (N.Nat^::succ n));
+\module Head(k, n: N.Nat^, f: Fin k -> Fin n);
+\module Pivot(k, n: N.Nat^, f: Fin (N.Nat^::succ k) -> Fin (N.Nat^::succ n), pivot: Fin (N.Nat^::succ k));
+\module Step(n: N.Nat^);
+\definition zeroDimension: Existence N.Nat^::zero :=
+  \induction (k: N.Nat^) \return \forall (f: Fin k -> Fin N.Nat^::zero) -> Injective k N.Nat^::zero f -> \exists Ordered k N.Nat^::zero f \with {
+    | zero: \fun (f: Fin N.Nat^::zero -> Fin N.Nat^::zero)(injection: Injective N.Nat^::zero N.Nat^::zero f) => Empty[n := N.Nat^::zero].ordered f
+    | succ: \fun (k: N.Nat^)(previous: \forall (f: Fin k -> Fin N.Nat^::zero) -> Injective k N.Nat^::zero f -> \exists Ordered k N.Nat^::zero f)
+      (f: Fin (N.Nat^::succ k) -> Fin N.Nat^::zero)(injection: Injective (N.Nat^::succ k) N.Nat^::zero f) =>
+        Logic.falseElim (\exists Ordered (N.Nat^::succ k) N.Nat^::zero f) (zeroImpossible (f (zero k)) (bound N.Nat^::zero (f (zero k))))
+  };
+\definition ordering: \forall (n: N.Nat^) -> Existence n := \induction (n: N.Nat^) \return Existence n \with {
+  | zero: zeroDimension
+  | succ: \fun (n: N.Nat^)(previous: Existence n) => Step[n := n].law previous
+};
+\import \root.Data[].FinSet[].Pigeonhole[] \as Pigeonhole;
+\definition collision: \forall (k, n: N.Nat^)(f: Fin k -> Fin n) -> Logic.Not (Injective k n f) -> \exists Pigeonhole.Collision[k, n, f] :=
+  \fun (k, n: N.Nat^)(f: Fin k -> Fin n)(notInjective: Logic.Not (Injective k n f)) =>
+    either!{{\exists Pigeonhole.Collision[k, n, f]} "or" {Logic.Not (\exists Pigeonhole.Collision[k, n, f])}
+      "either" {\exists Pigeonhole.Collision[k, n, f]}
+      "lt:" {\fun (found: \exists Pigeonhole.Collision[k, n, f]) => found}
+      "rt:" {\block {
+        \fun (none: Logic.Not (\exists Pigeonhole.Collision[k, n, f])) \then
+        \let injection: Injective k n f := \fun (i, j: Fin k)(same: f i = f j) =>
+          either!{{i = j} "or" {Logic.Not (i = j)} "either" {i = j}
+            "lt:" {\fun (equal: i = j) => equal}
+            "rt:" {\fun (different: Logic.Not (i = j)) => Logic.falseElim (i = j)
+              (none (\exact(Pigeonhole.Collision[k, n, f] {
+                first := i, second := j, different := different, same := same,
+              }, Pigeonhole.Collision[k, n, f])))}}
+              (Classical.excludedMiddle (i = j)) \then
+        \return Logic.falseElim (\exists Pigeonhole.Collision[k, n, f]) (notInjective injection)
+      }}} (Classical.excludedMiddle (\exists Pigeonhole.Collision[k, n, f]));
+\module Bounds(k, n: N.Nat^);

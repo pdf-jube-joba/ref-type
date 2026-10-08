@@ -1,0 +1,22 @@
+\import \parent.Dimension[n := N.Nat^::zero] \as CoordinateSpace;
+\import CoordinateSpace.Def[] \as Def;
+\import CoordinateSpace.Topology[] \as Euclidean;
+\import topology.Topology[Carrier := CoordinateSpace.Point] \as Topology;
+\definition Point: \Set := CoordinateSpace.Point;
+\definition origin: Point := Def.origin;
+\definition unique: \forall (x, y: Point) -> x = y := \fun (x, y: _) => \axiom:funext(x, y,
+  \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim (x i = y i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition basis: N.Nat^ -> \Pow Point := \fun (k: N.Nat^) => Topology.Whole;
+\definition basisLaws: Topology.IsCountableBasis[Euclidean.topology, basis] := Topology.IsCountableBasis[Euclidean.topology, basis] {
+  open := \fun (k: _) => #wholeOpen{(Topology.topologyLaws Euclidean.topology)},
+  refines := \fun (U: \Pow Point)(open: _)(x: Point)(member: Topology.Member U x) =>
+    \exact(\into[N.Nat^](N.Nat^::zero,
+      { k: N.Nat^ \where Logic.And[Topology.Member (basis k) x, Topology.Subset (basis k) U] }) \by {
+        Logic.And[_, _]::# (\refl(x)) (\fun (y: Point)(whole: _) => \idelim x = y \with z: Point => Topology.Member U z \by {
+          base: member, equality: unique x y
+        })
+      }, \Cast[N.Nat^] ({ k: N.Nat^ \where Logic.And[Topology.Member (basis k) x, Topology.Subset (basis k) U] })),
+};
+\definition secondCountable: Topology.IsSecondCountable Euclidean.topology := \exact(\into[N.Nat^ -> \Pow Point](basis,
+  { b: N.Nat^ -> \Pow Point \where Topology.IsCountableBasis[Euclidean.topology, b] }) \by { basisLaws },
+  \Cast[N.Nat^ -> \Pow Point] ({ b: N.Nat^ -> \Pow Point \where Topology.IsCountableBasis[Euclidean.topology, b] }));

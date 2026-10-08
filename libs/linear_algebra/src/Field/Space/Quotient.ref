@@ -1,0 +1,27 @@
+\import \parent.Subspace[V := V, space := space] \as Subspaces;
+\import algebra.Module[].Over[R := K, ring := ring] \as Modules;
+\import Modules.Of[V := V, space := space] \as Source;
+\import Source.Submodule[] \as Submodules;
+\definition asSubmodule(S: Subspaces.Subspace): Submodules.Submodule := Submodules.Submodule {
+  carrier := #carrier{S}, zero := #containsZero{S}, addition := #closedAdd{S}, scalar := #closedScale{S},
+};
+\definition quotient(S: Subspaces.Subspace): \Set := Submodules.Quotient[S := asSubmodule S].Carrier;
+\module Of(S: Subspaces.Subspace) {
+  \import Submodules.Quotient[S := asSubmodule S] \as Q;
+  \definition Carrier: \Set := Q.Carrier;
+  \definition vectorSpace: VectorSpace Carrier := Q.moduleSpace;
+  \definition class: V -> Carrier := Q.class;
+  \import \parent.\parent.Linear[V := V, W := Carrier, source := space, target := vectorSpace] \as Maps;
+  \definition projection: Maps.Map := Maps.Map {
+    apply := class,
+    preservesAdd := #addition{Q.projection},
+    preservesZero := \refl(Q.zeroClass),
+    preservesScale := #scalar{Q.projection},
+  };
+  \definition classZero: \forall (x: V) -> Subspaces.Member S x -> class x = Q.zeroClass := Q.classZero;
+  \definition zeroClassMember: \forall (x: V) -> class x = Q.zeroClass -> Subspaces.Member S x := Q.zeroClassMember;
+  \definition classEqual: \forall (x, y: V) ->
+    Subspaces.Member S (#add{space} x (#neg{space} y)) -> class x = class y := Q.classRelated;
+  \definition relatedOfClassEq: \forall (x, y: V) -> class x = class y ->
+    Subspaces.Member S (#add{space} x (#neg{space} y)) := Q.relatedOfClassEq;
+}

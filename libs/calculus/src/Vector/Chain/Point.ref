@@ -1,0 +1,78 @@
+\definition sourceRadius: Reals.Real := DomainCoordinates.pointDistance x a;
+\definition targetRadius: Reals.Real := CodomainCoordinates.pointDistance (f x) (f a);
+\definition innerRemainder: Codomain.Point := remainder U inner a d x;
+\definition outerRemainder: Reals.Real := Outer.remainder V g (f a) e (f x);
+\definition scalarRemainder: Reals.Real := Scalars.remainder U composite a differential x;
+\definition decomposition: scalarRemainder = Reals.add outerRemainder (#apply{e} innerRemainder) := sym!{Reals.Real} _ _
+  (trans!{Reals.Real} _ _ _
+    (congr!{Reals.Real Reals.Real} (Reals.add outerRemainder) _ _ (OuterLinear.subtract e (CodomainCoordinates.subPoint (f x) (f a)) (#apply{d} (DomainCoordinates.subPoint x a))))
+    (Metric.subTriangle (Reals.sub (g (f x)) (g (f a))) (#apply{e} (CodomainCoordinates.subPoint (f x) (f a))) (#apply{e} (#apply{d} (DomainCoordinates.subPoint x a)))));
+\definition outerAtZero: targetRadius = Reals.zero -> outerRemainder = Reals.zero :=
+  \fun (equal: targetRadius = Reals.zero) => \idelim f a = f x \with y: Target.Carrier V => Outer.remainder V g (f a) e y = Reals.zero \by {
+    base: OuterLaws.remainderAtSelf V g (f a) e,
+    equality: sym!{Codomain.Point} _ _ (CodomainNorm.distanceSeparated (f x) (f a) equal)
+  };
+\definition innerErrorBound: \forall (epsilon, delta: Reals.Real) -> R.Lt Reals.zero epsilon -> R.Lt Reals.zero sourceRadius ->
+  Control[U, inner, a, d, innerTolerance epsilon, delta] -> R.Lt sourceRadius delta ->
+  R.Lt (Reals.distance (#apply{e} innerRemainder) Reals.zero) (Reals.mul (half epsilon) sourceRadius) := \block {
+  \fun (epsilon, delta: Reals.Real)(positive: _)(nonzero: _)(control: Control[U, inner, a, d, innerTolerance epsilon, delta])(near: _) \then
+  \let error: Reals.Real := CodomainCoordinates.norm innerRemainder \then
+  \let smaller: R.Lt error (Reals.mul (innerTolerance epsilon) sourceRadius) := #estimate{control} x nonzero near \then
+  \let nonnegative: R.Le Reals.zero outerCoefficient := R.Order[].leOfLt Reals.zero outerCoefficient (OuterLinear.positiveCoefficientPositive e) \then
+  \return R.leLtTrans (Reals.distance (#apply{e} innerRemainder) Reals.zero) (Reals.mul outerCoefficient (Reals.mul (innerTolerance epsilon) sourceRadius)) (Reals.mul (half epsilon) sourceRadius)
+    (R.leTrans (Reals.distance (#apply{e} innerRemainder) Reals.zero) (Reals.mul outerCoefficient error) (Reals.mul outerCoefficient (Reals.mul (innerTolerance epsilon) sourceRadius))
+      (OuterLinear.positiveBound e innerRemainder)
+      (Bounds.mulMonotone outerCoefficient error (Reals.mul (innerTolerance epsilon) sourceRadius) nonnegative (R.Order[].leOfLt error (Reals.mul (innerTolerance epsilon) sourceRadius) smaller)))
+    (Product.scaledSmall outerCoefficient (innerTolerance epsilon) (half epsilon) sourceRadius
+      (Product.radiusSmall outerCoefficient (half epsilon) (OuterLinear.positiveCoefficientPositive e) (Bounds.halfOfPositive epsilon positive)) nonzero)
+};
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition outerErrorBound: \forall (epsilon, delta: Reals.Real) -> R.Lt Reals.zero epsilon -> R.Lt Reals.zero sourceRadius ->
+  Outer.DifferentialControl[V, g, f a, e, outerTolerance epsilon, delta] -> R.Lt targetRadius delta ->
+  R.Le targetRadius (Reals.mul innerCoefficient sourceRadius) ->
+  R.Lt (Reals.distance outerRemainder Reals.zero) (Reals.mul (half epsilon) sourceRadius) := \block {
+  \fun (epsilon, delta: Reals.Real)(positive: _)(nonzero: _)(control: Outer.DifferentialControl[V, g, f a, e, outerTolerance epsilon, delta])(near: _)(bounded: _) \then
+  \let halfPositive: R.Lt Reals.zero (half epsilon) := Bounds.halfOfPositive epsilon positive \then
+  \let coefficientPositive: R.Lt Reals.zero innerCoefficient := localCoefficientPositive d \then
+  \return either!{{R.Lt Reals.zero targetRadius} "or" {Logic.Not (R.Lt Reals.zero targetRadius)} "either" {R.Lt (Reals.distance outerRemainder Reals.zero) (Reals.mul (half epsilon) sourceRadius)}
+    "lt:" {\block {
+      \fun (targetNonzero: R.Lt Reals.zero targetRadius) \then
+      \let error: R.Lt (Reals.distance outerRemainder Reals.zero) (Reals.mul (outerTolerance epsilon) targetRadius) := #estimate{control} (f x) targetNonzero near \then
+      \let compared: R.Le (Reals.mul (outerTolerance epsilon) targetRadius) (Reals.mul (outerTolerance epsilon) (Reals.mul innerCoefficient sourceRadius)) :=
+        Bounds.mulMonotone (outerTolerance epsilon) targetRadius (Reals.mul innerCoefficient sourceRadius)
+          (R.Order[].leOfLt Reals.zero (outerTolerance epsilon) (Product.radiusPositive innerCoefficient (half epsilon) coefficientPositive halfPositive)) bounded \then
+      \let budget: R.Lt (Reals.mul (outerTolerance epsilon) innerCoefficient) (half epsilon) := R.ltReplaceLeft (Reals.mul innerCoefficient (outerTolerance epsilon)) (Reals.mul (outerTolerance epsilon) innerCoefficient) (half epsilon)
+        (Laws.fieldMulComm innerCoefficient (outerTolerance epsilon)) (Product.radiusSmall innerCoefficient (half epsilon) coefficientPositive halfPositive) \then
+      \return R.ltLeTrans (Reals.distance outerRemainder Reals.zero) (Reals.mul (outerTolerance epsilon) targetRadius) (Reals.mul (half epsilon) sourceRadius) error
+        (R.Order[].leOfLt (Reals.mul (outerTolerance epsilon) targetRadius) (Reals.mul (half epsilon) sourceRadius)
+          (R.leLtTrans (Reals.mul (outerTolerance epsilon) targetRadius) (Reals.mul (outerTolerance epsilon) (Reals.mul innerCoefficient sourceRadius)) (Reals.mul (half epsilon) sourceRadius) compared
+            (Product.scaledSmall (outerTolerance epsilon) innerCoefficient (half epsilon) sourceRadius budget nonzero)))
+    }}
+    "rt:" {\block {
+      \fun (targetZero: Logic.Not (R.Lt Reals.zero targetRadius)) \then
+      \let zeroRadius: targetRadius = Reals.zero := R.leAntisym targetRadius Reals.zero (R.Order[].leOfNotLtReverse targetRadius Reals.zero targetZero)
+        (CodomainNorm.nonnegative (CodomainCoordinates.subPoint (f x) (f a))) \then
+      \return R.ltReplaceLeft Reals.zero (Reals.distance outerRemainder Reals.zero) (Reals.mul (half epsilon) sourceRadius)
+        (sym!{Reals.Real} _ _ (trans!{Reals.Real} _ _ _ (congr!{Reals.Real Reals.Real} (\fun (r: Reals.Real) => Reals.distance r Reals.zero) _ _ (outerAtZero zeroRadius)) (Metric.distanceSelf Reals.zero)))
+        (Product.mulPositive (half epsilon) sourceRadius halfPositive nonzero)
+    }}} (Classical.excludedMiddle (R.Lt Reals.zero targetRadius))
+};
+\definition sumEstimate: \forall (epsilon: Reals.Real) ->
+  R.Lt (Reals.distance outerRemainder Reals.zero) (Reals.mul (half epsilon) sourceRadius) ->
+  R.Lt (Reals.distance (#apply{e} innerRemainder) Reals.zero) (Reals.mul (half epsilon) sourceRadius) ->
+  R.Lt (Reals.distance scalarRemainder Reals.zero) (Reals.mul epsilon sourceRadius) := \block {
+  \fun (epsilon: Reals.Real)(outerBound: _)(innerBound: _) \then
+  \let sum: Reals.Real := Reals.add (Reals.distance outerRemainder Reals.zero) (Reals.distance (#apply{e} innerRemainder) Reals.zero) \then
+  \let budget: Reals.Real := Reals.add (Reals.mul (half epsilon) sourceRadius) (Reals.mul (half epsilon) sourceRadius) \then
+  \let smaller: R.Lt sum budget := Bounds.addLt (Reals.distance outerRemainder Reals.zero) (Reals.distance (#apply{e} innerRemainder) Reals.zero)
+    (Reals.mul (half epsilon) sourceRadius) (Reals.mul (half epsilon) sourceRadius) outerBound innerBound \then
+  \let halves: budget = Reals.mul epsilon sourceRadius := trans!{Reals.Real} budget (Reals.mul (Reals.add (half epsilon) (half epsilon)) sourceRadius) (Reals.mul epsilon sourceRadius)
+    (sym!{Reals.Real} (Reals.mul (Reals.add (half epsilon) (half epsilon)) sourceRadius) budget (Arithmetic.Algebra[].mulAddRight (half epsilon) (half epsilon) sourceRadius))
+    (congr!{Reals.Real Reals.Real} (\fun (r: Reals.Real) => Reals.mul r sourceRadius) (Reals.add (half epsilon) (half epsilon)) epsilon (Bounds.halfTwice epsilon)) \then
+  \return R.ltReplaceRight (Reals.distance scalarRemainder Reals.zero) budget (Reals.mul epsilon sourceRadius) halves
+    (R.leLtTrans (Reals.distance scalarRemainder Reals.zero) sum budget
+      (R.leReplaceLeft (Reals.distance (Reals.add outerRemainder (#apply{e} innerRemainder)) Reals.zero) (Reals.distance scalarRemainder Reals.zero) sum
+        (sym!{Reals.Real} _ _ (congr!{Reals.Real Reals.Real} (\fun (r: Reals.Real) => Reals.distance r Reals.zero) _ _ decomposition))
+        (Bounds.distanceAddZero outerRemainder (#apply{e} innerRemainder))) smaller)
+};

@@ -1,0 +1,25 @@
+\definition law:
+  (\forall (f: Other.Function) -> Alternating.Laws[f] -> Symmetric -> apply (variation f) xs = zero) ->
+  \forall (head: I)(f: Other.Function) -> Alternating.Laws[f] -> Symmetric -> apply (variation f) (Lists.List[I]::cons head xs) = zero := \block {
+  \fun (previous: \forall (f: Other.Function) -> Alternating.Laws[f] -> Symmetric -> apply (variation f) xs = zero)
+    (head: I)(f: Other.Function)(alternating: Alternating.Laws[f])(symmetric: Symmetric) \then
+  \let shifted: Other.Function := Other.shift (map head) f \then
+  \let H: I -> Function := \fun (w: I) => shift head (variation f w) \then
+  \let diagonalTerms: I -> Function := diagonal f head \then
+  \let remaining: I -> Function := variation shifted \then
+  \return eq_reason!{
+    {apply (variation f) (Lists.List[I]::cons head xs)}
+    "=" {add (insert (hessian head) f xs) (neg (apply (\fun (w: I) => plus (diagonalTerms w) (remaining w)) xs))} "by" {
+      congr!{K K} (\fun (v: K) => add (insert (hessian head) f xs) (neg v)) _ _
+        (congruent xs H (\fun (w: I) => plus (diagonalTerms w) (remaining w)) (\fun (w: I)(ys: Lists.List[I]) => \refl(H w ys)))}
+    "=" {add (insert (hessian head) f xs) (neg (add (apply diagonalTerms xs) (apply remaining xs)))} "by" {
+      congr!{K K} (\fun (v: K) => add (insert (hessian head) f xs) (neg v)) _ _ (addition xs diagonalTerms remaining)}
+    "=" {add (insert (hessian head) f xs) (neg (add (insert (hessian head) f xs) zero))} "by" {
+      congr!{K K} (\fun (v: K) => add (insert (hessian head) f xs) (neg v)) _ _
+        (congr2!{K K K} add (apply diagonalTerms xs) (insert (hessian head) f xs) (apply remaining xs) zero
+          (diagonalLaw xs f alternating head symmetric) (previous shifted (Alternating.shifted f alternating (map head)) symmetric))}
+    "=" {add (insert (hessian head) f xs) (neg (insert (hessian head) f xs))} "by" {
+      congr!{K K} (\fun (v: K) => add (insert (hessian head) f xs) (neg v)) _ _ (addZeroRight (insert (hessian head) f xs))}
+    "=" zero "by" {addNegRight (insert (hessian head) f xs)}
+  }
+};

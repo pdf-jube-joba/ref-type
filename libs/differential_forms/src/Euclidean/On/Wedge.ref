@@ -1,0 +1,70 @@
+\import Exterior.Degrees[p := p, q := q] \as Product;
+\import Exterior.Bilinearity[p := p, q := q] \as Bilinearity;
+\import \parent.Series[k := p] \as LeftSeries;
+\import \parent.Series[k := q] \as RightSeries;
+\import \parent.FunctionSums[I := Shuffle.Split] \as Sums;
+\import Fin.FromList[A := Vectors.Vector] \as TuplesList;
+\definition term(omega: Form p)(eta: Form q)(split: Shuffle.Split): Open.ScalarFunction U :=
+  \fun (x: Open.Carrier U) => Shuffle.term (Exterior.component p (omega x)) (Exterior.component q (eta x)) split;
+\definition regularTerm: \forall (omega: Form p)(eta: Form q)(split: Shuffle.Split) -> Smooth.SmoothOn U (term omega eta split) :=
+  \fun (omega: Form p)(eta: Form q)(split: Shuffle.Split) =>
+    Operations.mulSmooth U (\fun (x: Open.Carrier U) => #weight{split})
+      (\fun (x: Open.Carrier U) => Spaces.mul (LeftSeries.value omega #left{split} x) (RightSeries.value eta #right{split} x))
+      (Operations.constantSmooth U #weight{split})
+      (Operations.mulSmooth U (LeftSeries.value omega #left{split}) (RightSeries.value eta #right{split})
+        (LeftSeries.smooth omega #left{split}) (RightSeries.smooth eta #right{split}));
+\definition family(omega: Form p)(eta: Form q): Family (Nat.add p q) :=
+  \fun (x: Open.Carrier U) => Product.wedge (omega x) (eta x);
+\definition regular: \forall (omega: Form p)(eta: Form q) -> SmoothFamily (Nat.add p q) (family omega eta) :=
+  \fun (omega: Form p)(eta: Form q)(arguments: Multilinear.Arguments (Nat.add p q)) =>
+    Sums.smooth (Shuffle.partitions (TuplesList.list (Nat.add p q) arguments)) (term omega eta) (regularTerm omega eta);
+\definition apply(omega: Form p)(eta: Form q): Form (Nat.add p q) :=
+  \into[Family (Nat.add p q)](family omega eta, { omega: Family (Nat.add p q) \where SmoothFamily (Nat.add p q) omega }) \by { regular omega eta };
+\import \parent.At[k := p] \as Left;
+\import \parent.At[k := q] \as Right;
+\import \parent.At[k := Nat.add p q] \as Result;
+\definition additiveLeft: \forall (omega, omega2: Form p)(eta: Form q) -> apply (Left.plus omega omega2) eta = Result.plus (apply omega eta) (apply omega2 eta) :=
+  \fun (omega, omega2: Form p)(eta: Form q) => \axiom:funext(apply (Left.plus omega omega2) eta, Result.plus (apply omega eta) (apply omega2 eta),
+    \fun (x: Open.Carrier U) => Bilinearity.additiveLeft (omega x) (omega2 x) (eta x));
+\definition additiveRight: \forall (omega: Form p)(eta, eta2: Form q) -> apply omega (Right.plus eta eta2) = Result.plus (apply omega eta) (apply omega eta2) :=
+  \fun (omega: Form p)(eta, eta2: Form q) => \axiom:funext(apply omega (Right.plus eta eta2), Result.plus (apply omega eta) (apply omega eta2),
+    \fun (x: Open.Carrier U) => Bilinearity.additiveRight (omega x) (eta x) (eta2 x));
+\definition scalarLeft: \forall (a: Reals.Real)(omega: Form p)(eta: Form q) -> apply (Left.scale a omega) eta = Result.scale a (apply omega eta) :=
+  \fun (a: Reals.Real)(omega: Form p)(eta: Form q) => \axiom:funext(apply (Left.scale a omega) eta, Result.scale a (apply omega eta),
+    \fun (x: Open.Carrier U) => Bilinearity.scalarLeft a (omega x) (eta x));
+\definition scalarRight: \forall (a: Reals.Real)(omega: Form p)(eta: Form q) -> apply omega (Right.scale a eta) = Result.scale a (apply omega eta) :=
+  \fun (a: Reals.Real)(omega: Form p)(eta: Form q) => \axiom:funext(apply omega (Right.scale a eta), Result.scale a (apply omega eta),
+    \fun (x: Open.Carrier U) => Bilinearity.scalarRight a (omega x) (eta x));
+\import Smooth.Algebra[U := U] \as Functions;
+\import Smooth.Derivative[] \as Derivatives;
+\import Derivatives.Linear[U := U] \as ScalarDifferentiation;
+\import \parent.Partial[k := p] \as LeftPartial;
+\import \parent.Partial[k := q] \as RightPartial;
+\import \parent.Partial[k := Nat.add p q] \as ResultPartial;
+\definition termFunction(omega: Form p)(eta: Form q)(split: Shuffle.Split): Functions.Function :=
+  \into[Open.ScalarFunction U](term omega eta split, { f: Open.ScalarFunction U \where Smooth.SmoothOn U f }) \by { regularTerm omega eta split };
+\definition evaluation: \forall (omega: Form p)(eta: Form q)(arguments: Multilinear.Arguments (Nat.add p q)) ->
+  evaluate (Nat.add p q) (apply omega eta) arguments =
+    Sums.function (Shuffle.partitions (TuplesList.list (Nat.add p q) arguments)) (termFunction omega eta) :=
+  \fun (omega: Form p)(eta: Form q)(arguments: Multilinear.Arguments (Nat.add p q)) =>
+    Functions.ext (evaluate (Nat.add p q) (apply omega eta) arguments)
+      (Sums.function (Shuffle.partitions (TuplesList.list (Nat.add p q) arguments)) (termFunction omega eta))
+      (\fun (x: Open.Carrier U) => \refl(Product.wedge (omega x) (eta x) arguments));
+\module Differentiation(i: Fin.Fin n, omega: Form p, eta: Form q);
+\definition partial: \forall (i: Fin.Fin n)(omega: Form p)(eta: Form q) ->
+  ResultPartial.apply i (apply omega eta) = Result.plus (apply (LeftPartial.apply i omega) eta) (apply omega (RightPartial.apply i eta)) :=
+  \fun (i: Fin.Fin n)(omega: Form p)(eta: Form q) => Differentiation[i := i, omega := omega, eta := eta].law;
+\import Spaces.Linear[V := Form p, W := Form (Nat.add p q), source := Left.space, target := Result.space] \as LeftMaps;
+\import Spaces.Linear[V := Form q, W := Form (Nat.add p q), source := Right.space, target := Result.space] \as RightMaps;
+\definition leftLinear(eta: Form q): LeftMaps.Map := LeftMaps.Map {
+  apply := \fun (omega: Form p) => apply omega eta,
+  preservesAdd := \fun (omega, omega2: Form p) => additiveLeft omega omega2 eta,
+  preservesScale := \fun (a: Reals.Real)(omega: Form p) => scalarLeft a omega eta,
+};
+\definition rightLinear(omega: Form p): RightMaps.Map := RightMaps.Map {
+  apply := apply omega, preservesAdd := additiveRight omega, preservesScale := \fun (a: Reals.Real)(eta: Form q) => scalarRight a omega eta,
+};
+\definition zeroLeft: \forall (eta: Form q) -> apply Left.zero eta = Result.zero :=
+  \fun (eta: Form q) => #preservesZero{(leftLinear eta)};
+\definition zeroRight: \forall (omega: Form p) -> apply omega Right.zero = Result.zero :=
+  \fun (omega: Form p) => #preservesZero{(rightLinear omega)};

@@ -1,0 +1,29 @@
+\import SourcePointwise.Coordinates[chart := chart] \as SourceCoordinates;
+\import SourceCharts.Of[chart := chart] \as Geometry;
+\import \root.Euclidean[n := n].On[U := #image{chart}] \as Local;
+\definition domains(right: TargetForms.Chart): Open.OpenSet := Maps.Coordinates[f := f, left := chart, right := right].domain;
+\definition included: \forall (right: TargetForms.Chart) -> Open.Included (domains right) #image{chart} :=
+  \fun (right: TargetForms.Chart)(a: SourceVectors.Vector)(member: \In[SourceVectors.Vector] (#points{(domains right)}) a) =>
+    Maps.Coordinates[f := f, left := chart, right := right].inLeftImage
+      (\into[SourceVectors.Vector](a, #points{(domains right)}) \by { member });
+\definition Covers: \Prop := \forall (a: Open.Carrier #image{chart}) ->
+  \exists { right: TargetForms.Chart \where \In[SourceVectors.Vector] (#points{(domains right)}) a };
+\definition covers: Covers := \block {
+  \fun (a: Open.Carrier #image{chart}) \then
+  \takefrom right: \Cast[TargetCharts.Chart] ({ c: TargetCharts.Chart \where
+    Logic.And[\In[TargetCharts.Chart] #charts{N.atlas} c, TargetCharts.Contains c (Maps.apply f (SourceCharts.point chart a))] })
+    \by #covers{N.atlas} (Maps.apply f (SourceCharts.point chart a)) \then
+  \let witness: Logic.And[\In[TargetCharts.Chart] #charts{N.atlas} right, TargetCharts.Contains right (Maps.apply f (SourceCharts.point chart a))] :=
+    \bysub(TargetCharts.Chart, { c: TargetCharts.Chart \where
+      Logic.And[\In[TargetCharts.Chart] #charts{N.atlas} c, TargetCharts.Contains c (Maps.apply f (SourceCharts.point chart a))] }, right) \then
+  \let chosen: TargetForms.Chart := \into[TargetCharts.Chart](right, #charts{N.atlas}) \by { #left{witness} } \then
+  \return \exact(\into[TargetForms.Chart](chosen, { c: TargetForms.Chart \where \In[SourceVectors.Vector] (#points{(domains c)}) a }) \by {
+    Maps.Coordinates[f := f, left := chart, right := chosen].intro a (#right{witness})
+  }, \Cast[TargetForms.Chart] ({ c: TargetForms.Chart \where \In[SourceVectors.Vector] (#points{(domains c)}) a }))
+};
+\module Patch(right: TargetForms.Chart);
+\definition regular: \forall (omega: TargetForms.Form k) -> Local.SmoothFamily k (SourceCoordinates.family (pointwise k omega)) :=
+  \fun (omega: TargetForms.Form k)(arguments: SourceMultilinear.Arguments k) =>
+    Open.SmoothCover[I := TargetForms.Chart, U := #image{chart}, domains := domains,
+      f := \fun (a: Open.Carrier #image{chart}) => SourceCoordinates.family (pointwise k omega) a arguments].smooth included covers
+      (\fun (right: TargetForms.Chart) => Patch[right := right].regular omega arguments);

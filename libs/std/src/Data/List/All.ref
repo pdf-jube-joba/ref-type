@@ -1,0 +1,34 @@
+\import std.Logic[].Proposition[] \as Logic;
+\definition Holds(P: A -> \Prop)(xs: List[A]): \Prop :=
+  (\induction (xs: List[A]) \return \Prop \with {
+    | nil: Logic.True
+    | cons: \fun (head: A)(tail: List[A])(rest: \Prop) => Logic.And[P head, rest]
+  }) xs;
+\definition all: \forall (P: A -> \Prop)(xs: List[A]) -> (\forall (x: A) -> P x) -> Holds P xs :=
+  \fun (P: _) => \induction (xs: List[A]) \return (\forall (x: A) -> P x) -> Holds P xs \with {
+    | nil: \fun (proof: _) => Logic.True::intro
+    | cons: \fun (head: A)(tail: List[A])(previous: _)(proof: _) => Logic.And[_, _]::# (proof head) (previous proof)
+  };
+\definition transform: \forall (P, Q: A -> \Prop)(xs: List[A]) -> (\forall (x: A) -> P x -> Q x) -> Holds P xs -> Holds Q xs :=
+  \fun (P, Q: _) => \induction (xs: List[A]) \return (\forall (x: A) -> P x -> Q x) -> Holds P xs -> Holds Q xs \with {
+    | nil: \fun (step: _)(proof: _) => Logic.True::intro
+    | cons: \fun (head: A)(tail: List[A])(previous: _)(step: _)(proof: Logic.And[P head, Holds P tail]) =>
+      Logic.And[_, _]::# (step head (#left{proof})) (previous step (#right{proof}))
+  };
+\definition appendAll: \forall (P: A -> \Prop)(xs, ys: List[A]) -> Holds P xs -> Holds P ys -> Holds P (append A xs ys) :=
+  \fun (P: _) => \induction (xs: List[A]) \return \forall (ys: List[A]) -> Holds P xs -> Holds P ys -> Holds P (append A xs ys) \with {
+    | nil: \fun (ys: _)(left: _)(right: _) => right
+    | cons: \fun (head: A)(tail: List[A])(previous: _)(ys: _)(left: Logic.And[P head, Holds P tail])(right: _) =>
+      Logic.And[_, _]::# (#left{left}) (previous ys (#right{left}) right)
+  };
+\module Mapping(B: \Set) {
+  \import \parent.\parent.All[A := B] \as Target;
+  \definition mapAll: \forall (P: A -> \Prop)(Q: B -> \Prop)(f: A -> B)(xs: List[A]) ->
+    (\forall (x: A) -> P x -> Q (f x)) -> Holds P xs -> Target.Holds Q (map A B f xs) :=
+    \fun (P: _)(Q: _)(f: _) => \induction (xs: List[A]) \return
+      (\forall (x: A) -> P x -> Q (f x)) -> Holds P xs -> Target.Holds Q (map A B f xs) \with {
+        | nil: \fun (step: _)(proof: _) => Logic.True::intro
+        | cons: \fun (head: A)(tail: List[A])(previous: _)(step: _)(proof: Logic.And[P head, Holds P tail]) =>
+          Logic.And[_, _]::# (step head (#left{proof})) (previous step (#right{proof}))
+      };
+}

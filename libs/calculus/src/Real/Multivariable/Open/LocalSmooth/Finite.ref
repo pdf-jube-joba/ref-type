@@ -1,0 +1,17 @@
+\import \parent.\parent.Gluing[U := U, k := k, f := f] \as Gluing;
+\definition patches: IsLocal -> Gluing.IsLocal := \block {
+  \fun (local: IsLocal)(a: Carrier U) \then
+  \takefrom patch: \Cast[Patch] (Patches a) \by local a \then
+  \let member: Contains patch a := \bysub(Patch, Patches a, patch) \then
+  \let V: OpenSet := #domain{patch} \then
+  \let g: ScalarFunction V := restrict V U (#included{patch}) f \then
+  \takefrom derivatives: \Cast[Smooth.PartialFamily V] ({ d: Smooth.PartialFamily V \where Smooth.ContDiffLaws[V, g, k, d] })
+    \by #smooth{patch} k \then
+  \let laws: Smooth.ContDiffLaws[V, g, k, derivatives] := \bysub(Smooth.PartialFamily V,
+    { d: Smooth.PartialFamily V \where Smooth.ContDiffLaws[V, g, k, d] }, derivatives) \then
+  \let result: Gluing.Patch := Gluing.Patch {
+    domain := V, included := #included{patch}, derivatives := derivatives, regular := laws,
+  } \then
+  \return \exact(\into[Gluing.Patch](result, Gluing.Patches a) \by { member }, Gluing.Value a)
+};
+\definition contDiff: IsLocal -> Smooth.ContDiffOn U k f := \fun (local: _) => Gluing.contDiff (patches local);

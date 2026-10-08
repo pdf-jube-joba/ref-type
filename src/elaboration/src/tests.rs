@@ -622,6 +622,98 @@ fn final_lowering_does_not_force_unused_instance_items() {
 }
 
 #[test]
+fn direct_definition_specialization_preserves_dependent_carriers_and_scopes() {
+    let source = r"
+        \module Family(A: \Set) {
+            \module At(x: A) {
+                \structure Pair: \Set { value: A, equality: value = x }
+                \definition Carrier: \Set := Pair;
+                \definition point: Carrier := Pair { value := x, equality := \refl(x) };
+                \definition value: A := x;
+                \definition withValue(y: A)(proof: y = x): Pair := Pair { value := y, equality := proof };
+            }
+            \definition Carrier(x: A): \Set := At[x := x].Carrier;
+            \definition point(x: A): Carrier x := At[x := x].point;
+            \definition first(x, y: A): A := At[x := x].value;
+            \definition second(x, y: A): A := At[x := y].value;
+            \definition firstLaw(x, y: A): first x y = x := \refl(x);
+            \definition secondLaw(x, y: A): second x y = y := \refl(y);
+            \definition projection(x: A): #value{(point x)} = x := \refl(x);
+            \definition explicit(x: A): Carrier x := At[x := x].withValue x (\refl(x));
+            \definition explicitProjection(x: A): #value{(explicit x)} = x := \refl(x);
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+    let raw = environment.crate_env();
+    let family = raw.module(raw.root_module()).children()[0];
+    assert!(raw.module(family).bindings().is_empty());
+    assert_eq!(raw.materialization_stats().definitions, 0);
+}
+
+#[test]
+fn direct_definition_specialization_checks_dependent_stages_and_import_captures() {
+    let source = r"
+        \module Family(A: \Set, default: A) {
+            \module At(x: A, y: A) {
+                \definition Carrier: \Set := A;
+                \definition first: A := x;
+                \module Deeper(z: A) {
+                    \definition value: A := z;
+                    \definition chosen(w: A)(proof: w = z): A := w;
+                }
+            }
+        }
+        \module Consumer(A: \Set, a: A) {
+            \import \root.Family[A := A, default := a] \as F;
+            \definition Carrier(x: A): \Set := F.At[x := x, y := a].Carrier;
+            \definition direct(x: A): A := \root.Family[A := A, default := a].At[x := a, y := x].Deeper[z := x].value;
+            \definition imported(x: A): Carrier x := F.At[x := a, y := x].Deeper[z := x].value;
+            \definition contextual(x: A): Carrier x := F.At[x := a, y := x].Deeper[z := x].chosen x (\refl(x));
+            \definition directLaw(x: A): direct x = x := \refl(x);
+            \definition importedLaw(x: A): imported x = x := \refl(x);
+            \definition contextualLaw(x: A): contextual x = x := \refl(x);
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+    let raw = environment.crate_env();
+    let consumer = raw.module(raw.root_module()).children()[1];
+    assert_eq!(raw.module(consumer).bindings().len(), 1);
+
+    let invalid = source.replace("Deeper[z := x].value", "Deeper[z := A].value");
+    let modules = parse::str_parse_modules(&invalid).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    assert!(environment.add_modules_to_root(&modules).is_err());
+}
+
+#[test]
+fn direct_definition_specialization_checks_module_arguments() {
+    for source in [
+        r"
+        \module Family(A: \Set, B: \Set) {
+            \module At(x: A) { \definition value: A := x; }
+            \definition invalid(y: B): A := At[x := y].value;
+        }
+    ",
+        r"
+        \module Family(A: \Set) {
+            \module At(x: A) {
+                \definition value(y: A)(proof: y = x): A := y;
+            }
+            \definition invalid(x, y: A): A := At[x := x].value y (\refl(y));
+        }
+    ",
+    ] {
+        let modules = parse::str_parse_modules(source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        assert!(environment.add_modules_to_root(&modules).is_err());
+    }
+}
+
+#[test]
 fn instantiated_macro_keeps_macros_used_by_its_definition_module() {
     let source = r#"
         \module Base(A: \Set(0), value: A) {
@@ -2598,4 +2690,35 @@ fn debug_printing_bounds_shared_expression_expansion() {
     let rendered = crate::raw::printing::format_exp(&env, expression);
     assert!(rendered.len() <= crate::diagnostics::EXPRESSION_BYTES);
     assert!(rendered.contains("@expr") || rendered.contains('…'));
+}
+
+#[test]
+fn inline_module_structure_results_retain_argument_checks() {
+    let source = r"
+        \module Shapes {
+            \structure Packed { A: \Set, value: A }
+        }
+        \module Factory(A: \Set, x: A) {
+            \import \root.Shapes[] \as Shapes;
+            \definition packed: Shapes.Packed := Shapes.Packed { A := A, value := x };
+        }
+        \module Client {
+            \import \root.Shapes[] \as Shapes;
+            \inductive Unit: \Set := | unit: Unit;
+            \definition make(A: \Set)(x: A): Shapes.Packed :=
+                \root.Factory[A := A, x := x].packed;
+            \definition packed: Shapes.Packed :=
+                \root.Factory[A := Unit, x := Unit::unit].packed;
+            \definition value: Unit := packed.value;
+            \definition law: value = Unit::unit := \refl(value);
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+
+    let invalid = source.replace("x := Unit::unit", "x := \\Set");
+    let modules = parse::str_parse_modules(&invalid).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    assert!(environment.add_modules_to_root(&modules).is_err());
 }

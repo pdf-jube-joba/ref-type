@@ -1,0 +1,39 @@
+\import std.Data[].List[] \as Lists;
+\import \parent.Algebra[] \as Algebra;
+\definition sum(xs: Lists.List[T])(f: T -> Real): Real := Lists.foldr T Real (\fun (x: T)(tail: Real) => add (f x) tail) zero xs;
+\definition congruent: \forall (xs: Lists.List[T])(f, g: T -> Real) -> (\forall (t: T) -> f t = g t) -> sum xs f = sum xs g :=
+  \induction (xs: Lists.List[T]) \return \forall (f, g: T -> Real) -> (\forall (t: T) -> f t = g t) -> sum xs f = sum xs g \with {
+    | nil: \fun (f, g: _)(agrees: _) => \refl(zero)
+    | cons: \fun (head: T)(tail: Lists.List[T])(previous: _)(f, g: _)(agrees: _) =>
+      congr2!{Real Real Real} add (f head) (g head) (sum tail f) (sum tail g) (agrees head) (previous f g agrees)
+  };
+\definition append: \forall (xs, ys: Lists.List[T])(f: T -> Real) -> sum (Lists.append T xs ys) f = add (sum xs f) (sum ys f) :=
+  \induction (xs: Lists.List[T]) \return \forall (ys: Lists.List[T])(f: T -> Real) -> sum (Lists.append T xs ys) f = add (sum xs f) (sum ys f) \with {
+    | nil: \fun (ys: _)(f: _) => sym!{Real} _ _ (Laws.addZeroLeft (sum ys f))
+    | cons: \fun (head: T)(tail: Lists.List[T])(previous: _)(ys: _)(f: _) => trans!{Real} _ _ _
+      (congr!{Real Real} (add (f head)) _ _ (previous ys f))
+      (sym!{Real} _ _ (Laws.addAssoc (f head) (sum tail f) (sum ys f)))
+  };
+\definition addition: \forall (xs: Lists.List[T])(f, g: T -> Real) -> sum xs (\fun (t: T) => add (f t) (g t)) = add (sum xs f) (sum xs g) :=
+  \induction (xs: Lists.List[T]) \return \forall (f, g: T -> Real) -> sum xs (\fun (t: T) => add (f t) (g t)) = add (sum xs f) (sum xs g) \with {
+    | nil: \fun (f, g: _) => sym!{Real} _ _ (Laws.addZeroLeft zero)
+    | cons: \fun (head: T)(tail: Lists.List[T])(previous: _)(f, g: _) => trans!{Real} _ _ _
+      (congr!{Real Real} (add (add (f head) (g head))) _ _ (previous f g))
+      (Algebra.addFour (f head) (g head) (sum tail f) (sum tail g))
+  };
+\definition scalar: \forall (xs: Lists.List[T])(c: Real)(f: T -> Real) -> sum xs (\fun (t: T) => mul c (f t)) = mul c (sum xs f) :=
+  \induction (xs: Lists.List[T]) \return \forall (c: Real)(f: T -> Real) -> sum xs (\fun (t: T) => mul c (f t)) = mul c (sum xs f) \with {
+    | nil: \fun (c: _)(f: _) => sym!{Real} _ _ (Laws.fieldMulZeroRight c)
+    | cons: \fun (head: T)(tail: Lists.List[T])(previous: _)(c: _)(f: _) => trans!{Real} _ _ _
+      (congr!{Real Real} (add (mul c (f head))) _ _ (previous c f))
+      (sym!{Real} _ _ (Laws.fieldMulAdd c (f head) (sum tail f)))
+  };
+\module Mapping(S: \Set) {
+  \import \parent.\parent.Sums[T := S] \as Target;
+  \definition map: \forall (xs: Lists.List[T])(h: T -> S)(f: S -> Real) -> Target.sum (Lists.map T S h xs) f = sum xs (\fun (t: T) => f (h t)) :=
+    \induction (xs: Lists.List[T]) \return \forall (h: T -> S)(f: S -> Real) -> Target.sum (Lists.map T S h xs) f = sum xs (\fun (t: T) => f (h t)) \with {
+      | nil: \fun (h: _)(f: _) => \refl(zero)
+      | cons: \fun (head: T)(tail: Lists.List[T])(previous: _)(h: _)(f: _) =>
+        congr!{Real Real} (add (f (h head))) _ _ (previous h f)
+    };
+}

@@ -1,0 +1,38 @@
+\import \parent.QuotientProduct[p := p, q := q] \as Forward;
+\import \parent.QuotientProduct[p := q, q := p] \as Reverse;
+\import \parent.\parent.GradedCommutativity[p := p, q := q] \as FormsLaw;
+\import \parent.Regrade[k := Nat.add p q, l := Nat.add q p] \as Degree;
+\import Complexes.At[C := complex, k := p] \as Left;
+\import Complexes.At[C := complex, k := q] \as Right;
+\import Complexes.At[C := complex, k := Nat.add p q] \as Source;
+\import Complexes.At[C := complex, k := Nat.add q p] \as Target;
+\import Spaces.Sign[] \as Sign;
+\definition degree: Nat.add p q = Nat.add q p := FormsLaw.degree;
+\definition sign: Reals.Real := Sign.value (Nat.mul p q);
+\definition cycleLaw: \forall (omega: Left.CycleCarrier)(eta: Right.CycleCarrier) ->
+  Reverse.cycle eta omega = #smul{Target.cycleSpace} sign (#apply{(Degree.cyclesMap degree)} (Forward.cycle omega eta)) :=
+    \fun (omega: Left.CycleCarrier)(eta: Right.CycleCarrier) => FormsLaw.law omega eta;
+\definition classLaw: \forall (omega: Left.CycleCarrier)(eta: Right.CycleCarrier) ->
+  Reverse.apply (Right.classOf eta) (Left.classOf omega) =
+    #smul{Target.cohomologySpace} sign (Degree.cast (Forward.apply (Left.classOf omega) (Right.classOf eta)) degree) :=
+  \fun (omega: Left.CycleCarrier)(eta: Right.CycleCarrier) => eq_reason!{
+    {Reverse.apply (Right.classOf eta) (Left.classOf omega)}
+    "=" {Target.classOf (Reverse.cycle eta omega)} "by" {Reverse.onClass eta omega}
+    "=" {Target.classOf (#smul{Target.cycleSpace} sign (#apply{(Degree.cyclesMap degree)} (Forward.cycle omega eta)))} "by" {
+      congr!{{Target.CycleCarrier} {Target.Cohomology}} Target.classOf _ _ (cycleLaw omega eta)}
+    "=" {#smul{Target.cohomologySpace} sign (Target.classOf (#apply{(Degree.cyclesMap degree)} (Forward.cycle omega eta)))} "by" {
+      #scalar{Target.classLinear} sign (#apply{(Degree.cyclesMap degree)} (Forward.cycle omega eta))}
+    "=" {#smul{Target.cohomologySpace} sign (Degree.cast (Source.classOf (Forward.cycle omega eta)) degree)} "by" {
+      congr!{{Target.Cohomology} {Target.Cohomology}} (#smul{Target.cohomologySpace} sign) _ _
+        (sym!{{Target.Cohomology}} _ _ (Degree.onClass (Forward.cycle omega eta) degree))}
+    "=" {#smul{Target.cohomologySpace} sign (Degree.cast (Forward.apply (Left.classOf omega) (Right.classOf eta)) degree)} "by" {
+      congr!{{Source.Cohomology} {Target.Cohomology}} (\fun (h: Source.Cohomology) => #smul{Target.cohomologySpace} sign (Degree.cast h degree)) _ _
+        (sym!{{Source.Cohomology}} _ _ (Forward.onClass omega eta))}
+  };
+\definition law: \forall (h: Left.Cohomology)(j: Right.Cohomology) ->
+  Reverse.apply j h = #smul{Target.cohomologySpace} sign (Degree.cast (Forward.apply h j) degree) :=
+    Left.classInduction (\fun (h: Left.Cohomology) => \forall (j: Right.Cohomology) ->
+      Reverse.apply j h = #smul{Target.cohomologySpace} sign (Degree.cast (Forward.apply h j) degree))
+      (\fun (omega: Left.CycleCarrier) => Right.classInduction (\fun (j: Right.Cohomology) =>
+        Reverse.apply j (Left.classOf omega) = #smul{Target.cohomologySpace} sign (Degree.cast (Forward.apply (Left.classOf omega) j) degree))
+        (\fun (eta: Right.CycleCarrier) => classLaw omega eta));

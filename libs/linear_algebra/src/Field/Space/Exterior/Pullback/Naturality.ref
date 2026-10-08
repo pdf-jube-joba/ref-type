@@ -1,0 +1,24 @@
+\import \parent.Components[k := p] \as LeftComponents;
+\import \parent.Components[k := q] \as RightComponents;
+\import \parent.Components[k := Nat.add p q] \as ResultComponents;
+\import \parent.\parent.Degrees[p := p, q := q] \as Product;
+\import \parent.\parent.Components[k := Nat.add p q] \as Ext;
+\import Other.Degrees[p := p, q := q] \as OtherProduct;
+\definition law: \forall (f: Linear.Map)(omega: Other.Form p)(eta: Other.Form q) ->
+  Precomposition.precompose (Nat.add p q) f (OtherProduct.wedge omega eta) = Product.wedge (Precomposition.precompose p f omega) (Precomposition.precompose q f eta) := \block {
+  \fun (f: Linear.Map)(omega: Other.Form p)(eta: Other.Form q) \then
+  \let a: Other.Series := Other.component p omega \then
+  \let b: Other.Series := Other.component q eta \then
+  \let left: Form (Nat.add p q) := Precomposition.precompose (Nat.add p q) f (OtherProduct.wedge omega eta) \then
+  \let right: Form (Nat.add p q) := Product.wedge (Precomposition.precompose p f omega) (Precomposition.precompose q f eta) \then
+  \return Ext.ext left right (eq_reason!{
+    {component (Nat.add p q) left} "=" {mapped (Nat.add p q) f (OtherProduct.wedge omega eta)} "by" {ResultComponents.law f (OtherProduct.wedge omega eta)}
+    "=" {ShuffleMapping.mapSeries (#apply{f}) (OtherShuffle.product a b)} "by" {congr!{{Other.Series} Series} (ShuffleMapping.mapSeries (#apply{f})) _ _ (OtherProduct.componentWedge omega eta)}
+    "=" {Shuffle.product (mapped p f omega) (mapped q f eta)} "by" {
+      \axiom:funext(ShuffleMapping.mapSeries (#apply{f}) (OtherShuffle.product a b), Shuffle.product (mapped p f omega) (mapped q f eta),
+        \fun (xs: Lists.List[V]) => sym!{K} _ _ (ShuffleMapping.productMap xs (#apply{f}) a b))}
+    "=" {Shuffle.product (component p (Precomposition.precompose p f omega)) (component q (Precomposition.precompose q f eta))} "by" {
+      congr2!{Series Series Series} Shuffle.product _ _ _ _ (sym!{Series} _ _ (LeftComponents.law f omega)) (sym!{Series} _ _ (RightComponents.law f eta))}
+    "=" {component (Nat.add p q) right} "by" {sym!{Series} _ _ (Product.componentWedge (Precomposition.precompose p f omega) (Precomposition.precompose q f eta))}
+  })
+};

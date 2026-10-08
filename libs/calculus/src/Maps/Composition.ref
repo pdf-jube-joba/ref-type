@@ -1,0 +1,54 @@
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr2;
+\import Source.Smooth[] \as SourceSmooth;
+\import Target.Smooth[] \as TargetSmooth;
+\import SourceSmooth.Derivative[] \as SourcePartials;
+\import TargetSmooth.Derivative[] \as TargetPartials;
+\import SourceSmooth.Sums[] \as Sums;
+\import Source.Analysis[].Operations[] \as Operations;
+\import SourceSmooth.Operations[] \as SmoothOperations;
+\import SourceSmooth.Properties[] \as SourceProperties;
+\import TargetSmooth.Properties[] \as TargetProperties;
+\definition scalar(h: TargetPartials.Function V): Source.ScalarFunction U := \fun (x: Source.Carrier U) => h (apply U V f x);
+\definition innerPartial(j: Fin.Fin m)(i: Fin.Fin n): SourcePartials.Function U := SourcePartials.derivative U (coordinateFunction U V f j) i;
+\definition term(h: TargetPartials.Function V)(i: Fin.Fin n)(j: Fin.Fin m): Source.ScalarFunction U :=
+  Operations.times U (scalar (TargetPartials.derivative V h j)) (innerPartial j i);
+\definition gradient(h: TargetPartials.Function V)(i: Fin.Fin n): Source.ScalarFunction U := Sums.sum U m (term h i);
+\module At(h: TargetPartials.Function V, a: Source.Carrier U);
+\import Source.Topology[].Of[U := U] \as SourceTopology;
+\import Target.Topology[].Of[U := V] \as TargetTopology;
+\import SourceTopology.Continuity[] \as SourceContinuity;
+\import TargetTopology.Continuity[] \as TargetContinuity;
+\import \parent.Topology[U := U, V := V] \as MapsTopology;
+\import topology.RealLine[] \as Line;
+\import topology.Composition[A := Source.Carrier U, B := Target.Carrier V, C := Reals.Real] \as Topology;
+\definition continuous: \forall (h: TargetPartials.Function V) -> Source.Analysis[].ContinuousOn U (scalar h) :=
+  \fun (h: TargetPartials.Function V) => SourceContinuity.analytic (scalar h)
+    (Topology.composeContinuous SourceTopology.topology TargetTopology.topology Line.topology (apply U V f) h (MapsTopology.continuous f)
+      (TargetContinuity.topological h (TargetProperties.continuous V h (\bysub(Target.ScalarFunction V, { h: Target.ScalarFunction V \where TargetSmooth.SmoothOn V h }, h)))));
+\definition partials: \forall (h: TargetPartials.Function V)(i: Fin.Fin n) -> Source.Analysis[].HasPartialDerivative U (scalar h) i (gradient h i) :=
+  \fun (h: TargetPartials.Function V)(i: Fin.Fin n)(a: Source.Carrier U) => At[h := h, a := a].partial i;
+\definition contDiff: \forall (k: N.Nat^)(h: TargetPartials.Function V) -> SourceSmooth.ContDiffOn U k (scalar h) :=
+  \induction (k: N.Nat^) \return \forall (h: TargetPartials.Function V) -> SourceSmooth.ContDiffOn U k (scalar h) \with {
+    | zero: \fun (h: TargetPartials.Function V) => SourceProperties.zeroOfContinuous U (scalar h) (continuous h)
+    | succ: \fun (k: N.Nat^)(previous: \forall (h: TargetPartials.Function V) -> SourceSmooth.ContDiffOn U k (scalar h))(h: TargetPartials.Function V) =>
+      SourceSmooth.Successor[U := U, f := scalar h, g := gradient h, k := k].contDiff (continuous h) (partials h)
+        (\fun (i: Fin.Fin n) => Sums.contDiff U k m (term h i) (\fun (j: Fin.Fin m) => SmoothOperations.mulContDiff U k
+          (scalar (TargetPartials.derivative V h j)) (innerPartial j i) (previous (TargetPartials.derivative V h j))
+          ((\bysub(Source.ScalarFunction U, { g: Source.ScalarFunction U \where SourceSmooth.SmoothOn U g }, innerPartial j i)) k)))
+  };
+\definition smooth: \forall (h: TargetPartials.Function V) -> SourceSmooth.SmoothOn U (scalar h) :=
+  \fun (h: TargetPartials.Function V)(k: N.Nat^) => contDiff k h;
+
+\import SourceSmooth.Algebra[U := U] \as Functions;
+\import Source.Analysis[].Properties[] \as PartialUniqueness;
+\definition function(h: TargetPartials.Function V): Functions.Function :=
+  \into[Source.ScalarFunction U](scalar h, { g: Source.ScalarFunction U \where SourceSmooth.SmoothOn U g }) \by { smooth h };
+\definition derivative: \forall (h: TargetPartials.Function V)(i: Fin.Fin n)(a: Source.Carrier U) ->
+  SourcePartials.derivative U (function h) i a = gradient h i a :=
+  \fun (h: TargetPartials.Function V)(i: Fin.Fin n)(a: Source.Carrier U) => PartialUniqueness.partialUnique U (function h) i a
+    (SourcePartials.derivative U (function h) i a) (gradient h i a) (SourcePartials.partialLaw U (function h) i a) (partials h i a);
+\definition AfterMap(l: N.Nat^)(W: Reals.OpenSpace l): \Set := \root.Maps[n := m, m := l].Map V W;
+\module After(l: N.Nat^, W: Reals.OpenSpace l, g: AfterMap l W);

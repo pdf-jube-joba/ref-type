@@ -1,0 +1,59 @@
+\use Equality.congr2;
+\definition difference: \forall (t: Real)(x: Carrier U) -> x = Coordinates.replace a i t ->
+  #apply{d} (Coordinates.subPoint x a) = mul (sub t (a i)) (apply i) := \block {
+  \fun (t: Real)(x: Carrier U)(replaced: _) \then
+  \let vector: Coordinates.subPoint x a = Coordinates.scale (sub t (a i)) (Coordinates.basis i) := trans!{Point} _ _ _
+    (congr!{Point Point} (\fun (p: Point) => Coordinates.subPoint p a) _ _ replaced) (SpaceLaws.replaceDifference a i t) \then
+  \return trans!{Real} _ _ _ (congr!{Point Real} (#apply{d}) _ _ vector) (#homogeneous{d} (sub t (a i)) (Coordinates.basis i))
+};
+\definition cancellation: \forall (h: Real) -> Logic.Not (h = zero) -> mul (mul h (apply i)) (inv h) = apply i :=
+  \fun (h: Real)(nonzero: _) => trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (r: Real) => mul r (inv h)) _ _ (Laws.fieldMulComm h (apply i)))
+    (trans!{Real} _ _ _ (Laws.fieldMulAssoc (apply i) h (inv h))
+      (trans!{Real} _ _ _ (congr!{Real Real} (mul (apply i)) _ _
+        (trans!{Real} _ _ _ (Laws.fieldMulComm h (inv h)) (Laws.fieldInverseNonzero h nonzero))) (Algebra.mulOneRight (apply i))));
+\definition slopeDifference: \forall (t: Real)(x: Carrier U) -> x = Coordinates.replace a i t -> Logic.Not (t = a i) ->
+  sub (mul (sub (f x) (f a)) (inv (sub t (a i)))) (apply i) = mul (remainder U f a d x) (inv (sub t (a i))) := \block {
+  \fun (t: Real)(x: Carrier U)(replaced: _)(different: _) \then
+  \let h: Real := sub t (a i) \then
+  \let nonzero: Logic.Not (h = zero) := \fun (equal: h = zero) => different (Metric.subZeroEq t (a i) equal) \then
+  \let factor: remainder U f a d x = sub (sub (f x) (f a)) (mul h (apply i)) :=
+    congr!{Real Real} (sub (sub (f x) (f a))) _ _ (difference t x replaced) \then
+  \let product: mul (remainder U f a d x) (inv h) = sub (mul (sub (f x) (f a)) (inv h)) (apply i) := trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (r: Real) => mul r (inv h)) _ _ factor)
+    (trans!{Real} _ _ _ (Algebra.subMul (sub (f x) (f a)) (mul h (apply i)) (inv h))
+      (congr!{Real Real} (sub (mul (sub (f x) (f a)) (inv h))) _ _ (cancellation h nonzero))) \then
+  \return sym!{Real} _ _ product
+};
+\definition magnitude: \forall (t: Real)(x: Carrier U) -> x = Coordinates.replace a i t -> Logic.Not (t = a i) ->
+  distance (mul (sub (f x) (f a)) (inv (sub t (a i)))) (apply i) = distance (mul (remainder U f a d x) (inv (sub t (a i)))) zero :=
+  \fun (t: Real)(x: Carrier U)(replaced: _)(different: _) => trans!{Real} _ _ _
+    (sym!{Real} _ _ (Bounds.distanceDifference (mul (sub (f x) (f a)) (inv (sub t (a i)))) (apply i)))
+    (congr!{Real Real} (\fun (r: Real) => distance r zero) _ _ (slopeDifference t x replaced different));
+\definition law: HasDifferentialAt U f a d -> HasPartialDerivativeAt U f i a (apply i) := \block {
+  \fun (differential: HasDifferentialAt U f a d)(epsilon: Real)(positive: _) \then
+  \takefrom delta: \Cast[Real] ({ r: Real \where DifferentialControl[U, f, a, d, epsilon, r] }) \by differential epsilon positive \then
+  \let control: DifferentialControl[U, f, a, d, epsilon, delta] := \bysub(Real, { r: Real \where DifferentialControl[U, f, a, d, epsilon, r] }, delta) \then
+  \return \exact(\into[Real](delta, { r: Real \where PartialControl[U, f, a, i, apply i, epsilon, r] }) \by {
+    PartialControl[U, f, a, i, apply i, epsilon, delta] {
+      positive := #positive{control},
+      estimate := \block {
+        \fun (t: Real)(x: Carrier U)(replaced: x = Coordinates.replace a i t)(different: Logic.Not (t = a i))(near: _) \then
+        \let h: Real := sub t (a i) \then
+        \let nonzero: Logic.Not (h = zero) := \fun (equal: h = zero) => different (Metric.subZeroEq t (a i) equal) \then
+        \let coordinatePositive: R.Lt zero (distance t (a i)) := Order.ltOfLeNotEq zero (distance t (a i)) (Metric.distanceNonnegative t (a i))
+          (\fun (equal: zero = distance t (a i)) => different (Metric.distanceSeparated t (a i) (sym!{Real} _ _ equal))) \then
+        \let normEqual: Coordinates.pointDistance x a = distance t (a i) := trans!{Real} _ _ _
+          (congr!{Point Real} (\fun (p: Point) => Coordinates.pointDistance p a) _ _ replaced) (SpaceLaws.replaceDistance a i t) \then
+        \let bound: R.Lt (distance (remainder U f a d x) zero) (mul epsilon (distance h zero)) := R.ltReplaceRight
+          (distance (remainder U f a d x) zero) (mul epsilon (Coordinates.pointDistance x a)) (mul epsilon (distance h zero))
+          (congr!{Real Real} (mul epsilon) _ _ (trans!{Real} _ _ _ normEqual (sym!{Real} _ _ (Bounds.distanceDifference t (a i)))))
+          (#estimate{control} x
+            (R.ltReplaceRight zero (distance t (a i)) (Coordinates.pointDistance x a) (sym!{Real} _ _ normEqual) coordinatePositive)
+            (R.ltReplaceLeft (distance t (a i)) (Coordinates.pointDistance x a) delta (sym!{Real} _ _ normEqual) near)) \then
+        \return R.ltReplaceLeft (distance (mul (remainder U f a d x) (inv h)) zero) (distance (mul (sub (f x) (f a)) (inv h)) (apply i)) epsilon
+          (sym!{Real} _ _ (magnitude t x replaced different)) (Quotient.small (remainder U f a d x) h epsilon nonzero bound)
+      },
+    }
+  }, \Cast[Real] ({ r: Real \where PartialControl[U, f, a, i, apply i, epsilon, r] }))
+};

@@ -1,0 +1,162 @@
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\import Modules.Of[V := C.family.Carrier k, space := C.family.space k] \as Current;
+\import Current.Submodule[] \as Subspaces;
+\import Modules.Hom[V := C.family.Carrier k, W := C.family.Carrier (next k),
+  source := C.family.space k, target := C.family.space (next k)] \as Maps;
+\definition differential: Maps.Map := Maps.Map {
+  apply := #apply{C.differential} k,
+  addition := #addition{C.laws} k,
+  scalar := #scalar{C.laws} k,
+};
+\import Subspaces.Kernel[W := C.family.Carrier (next k), target := C.family.space (next k)] \as Kernels;
+\definition cycles: Subspaces.Submodule := Kernels.kernel differential;
+\import Subspaces.Of[S := cycles] \as Cycles;
+
+\import algebra.Group[].Of[Carrier := C.family.Carrier k, group := Current.additive] \as Group;
+\import Modules.Laws[V := C.family.Carrier k, space := C.family.space k] \as ModuleLaws;
+\definition zeroAddition: #add{(C.family.space k)} (#zero{(C.family.space k)}) (#zero{(C.family.space k)}) = #zero{(C.family.space k)} := Group.zeroLeft (#zero{(C.family.space k)});
+\definition scaleZero: \forall (a: R) -> #smul{(C.family.space k)} a (#zero{(C.family.space k)}) = #zero{(C.family.space k)} := ModuleLaws.scaleZero;
+\definition differentialZero: #apply{C.differential} k (#zero{(C.family.space k)}) = #zero{(C.family.space (next k))} :=
+  Maps.zeroPreserved differential;
+
+\definition Boundaries: \forall (j: N.Nat^) -> \Pow (C.family.Carrier j) :=
+  \induction (j: N.Nat^) \return \Pow (C.family.Carrier j) \with {
+    | zero: { x: C.family.Carrier N.Nat^::zero \where x = #zero{(C.family.space N.Nat^::zero)} }
+    | succ: \fun (j: N.Nat^)(previous: \Pow (C.family.Carrier j)) => { x: C.family.Carrier (next j) \where
+      \exists { y: C.family.Carrier j \where #apply{C.differential} j y = x } }
+  };
+\definition boundaryCycle: \forall (j: N.Nat^)(x: C.family.Carrier j) ->
+  \In[C.family.Carrier j] (Boundaries j) x -> #apply{C.differential} j x = #zero{(C.family.space (next j))} :=
+  \induction (j: N.Nat^) \return \forall (x: C.family.Carrier j) ->
+    \In[C.family.Carrier j] (Boundaries j) x -> #apply{C.differential} j x = #zero{(C.family.space (next j))} \with {
+      | zero: \fun (x: C.family.Carrier N.Nat^::zero)(equal: x = #zero{(C.family.space N.Nat^::zero)}) =>
+        trans!{{C.family.Carrier (next N.Nat^::zero)}}
+          (#apply{C.differential} N.Nat^::zero x)
+          (#apply{C.differential} N.Nat^::zero (#zero{(C.family.space N.Nat^::zero)}))
+          (#zero{(C.family.space (next N.Nat^::zero))})
+          (congr!{{C.family.Carrier N.Nat^::zero} {C.family.Carrier (next N.Nat^::zero)}}
+            (#apply{C.differential} N.Nat^::zero) x (#zero{(C.family.space N.Nat^::zero)}) equal)
+          (\parent.At[C := C, k := N.Nat^::zero].differentialZero)
+      | succ: \block {
+        \fun (j: N.Nat^)(previous: \forall (z: C.family.Carrier j) -> \In[C.family.Carrier j] (Boundaries j) z -> #apply{C.differential} j z = #zero{(C.family.space (next j))})(x: C.family.Carrier (next j))(exists: \In[C.family.Carrier (next j)] (Boundaries (next j)) x) \then
+        \takefrom y: \Cast[C.family.Carrier j] ({ y: C.family.Carrier j \where #apply{C.differential} j y = x }) \by exists \then
+        \let equal: #apply{C.differential} j y = x := \bysub(C.family.Carrier j,
+          { y: C.family.Carrier j \where #apply{C.differential} j y = x }, y) \then
+        \let result: #apply{C.differential} (next j) x = #zero{(C.family.space (next (next j)))} :=
+          \idelim #apply{C.differential} j y = x \with z: C.family.Carrier (next j) =>
+            #apply{C.differential} (next j) z = #zero{(C.family.space (next (next j)))} \by {
+              base: #squareZero{C.laws} j y, equality: equal
+            } \then
+        \return result
+      }
+    };
+
+\definition boundaryZero: \forall (j: N.Nat^) ->
+  \In[C.family.Carrier j] (Boundaries j) (#zero{(C.family.space j)}) :=
+  \induction (j: N.Nat^) \return \In[C.family.Carrier j] (Boundaries j) (#zero{(C.family.space j)}) \with {
+    | zero: \refl(#zero{(C.family.space N.Nat^::zero)})
+    | succ: \fun (j: N.Nat^)(previous: \In[C.family.Carrier j] (Boundaries j) (#zero{(C.family.space j)})) => \exact(
+      \into[C.family.Carrier j](#zero{(C.family.space j)},
+        { y: C.family.Carrier j \where #apply{C.differential} j y = #zero{(C.family.space (next j))} }) \by {
+          \parent.At[C := C, k := j].differentialZero
+        }, \Cast[C.family.Carrier j] ({ y: C.family.Carrier j \where #apply{C.differential} j y = #zero{(C.family.space (next j))} }))
+  };
+
+\definition boundaryAdd: \forall (j: N.Nat^)(x, y: C.family.Carrier j) ->
+  \In[C.family.Carrier j] (Boundaries j) x -> \In[C.family.Carrier j] (Boundaries j) y ->
+  \In[C.family.Carrier j] (Boundaries j) (#add{(C.family.space j)} x y) :=
+  \induction (j: N.Nat^) \return \forall (x, y: C.family.Carrier j) ->
+    \In[C.family.Carrier j] (Boundaries j) x -> \In[C.family.Carrier j] (Boundaries j) y ->
+    \In[C.family.Carrier j] (Boundaries j) (#add{(C.family.space j)} x y) \with {
+      | zero: \fun (x, y: C.family.Carrier N.Nat^::zero)(left: x = #zero{(C.family.space N.Nat^::zero)})(right: y = #zero{(C.family.space N.Nat^::zero)}) =>
+        trans!{{C.family.Carrier N.Nat^::zero}}
+          (#add{(C.family.space N.Nat^::zero)} x y)
+          (#add{(C.family.space N.Nat^::zero)} #zero{(C.family.space N.Nat^::zero)} #zero{(C.family.space N.Nat^::zero)})
+          #zero{(C.family.space N.Nat^::zero)}
+          (congr2!{{C.family.Carrier N.Nat^::zero} {C.family.Carrier N.Nat^::zero} {C.family.Carrier N.Nat^::zero}}
+            (#add{(C.family.space N.Nat^::zero)}) x #zero{(C.family.space N.Nat^::zero)} y #zero{(C.family.space N.Nat^::zero)} left right)
+          (\parent.At[C := C, k := N.Nat^::zero].zeroAddition)
+      | succ: \block {
+        \fun (j: N.Nat^)(previous: \forall (u, v: C.family.Carrier j) -> \In[C.family.Carrier j] (Boundaries j) u -> \In[C.family.Carrier j] (Boundaries j) v -> \In[C.family.Carrier j] (Boundaries j) (#add{(C.family.space j)} u v))(x, y: C.family.Carrier (next j))
+          (left: \In[C.family.Carrier (next j)] (Boundaries (next j)) x)
+          (right: \In[C.family.Carrier (next j)] (Boundaries (next j)) y) \then
+        \takefrom u: \Cast[C.family.Carrier j] ({ u: C.family.Carrier j \where #apply{C.differential} j u = x }) \by left \then
+        \takefrom v: \Cast[C.family.Carrier j] ({ v: C.family.Carrier j \where #apply{C.differential} j v = y }) \by right \then
+        \let equal: #apply{C.differential} j (#add{(C.family.space j)} u v) = #add{(C.family.space (next j))} x y :=
+          trans!{{C.family.Carrier (next j)}}
+            (#apply{C.differential} j (#add{(C.family.space j)} u v))
+            (#add{(C.family.space (next j))} (#apply{C.differential} j u) (#apply{C.differential} j v))
+            (#add{(C.family.space (next j))} x y) (#addition{C.laws} j u v)
+            (congr2!{{C.family.Carrier (next j)} {C.family.Carrier (next j)} {C.family.Carrier (next j)}}
+              (#add{(C.family.space (next j))}) (#apply{C.differential} j u) x (#apply{C.differential} j v) y
+              (\bysub(C.family.Carrier j, { u: C.family.Carrier j \where #apply{C.differential} j u = x }, u))
+              (\bysub(C.family.Carrier j, { v: C.family.Carrier j \where #apply{C.differential} j v = y }, v))) \then
+        \return \exact(\into[C.family.Carrier j](#add{(C.family.space j)} u v,
+          { z: C.family.Carrier j \where #apply{C.differential} j z = #add{(C.family.space (next j))} x y }) \by { equal },
+          \Cast[C.family.Carrier j] ({ z: C.family.Carrier j \where #apply{C.differential} j z = #add{(C.family.space (next j))} x y }))
+      }
+    };
+
+\definition boundaryScale: \forall (j: N.Nat^)(a: R)(x: C.family.Carrier j) ->
+  \In[C.family.Carrier j] (Boundaries j) x ->
+  \In[C.family.Carrier j] (Boundaries j) (#smul{(C.family.space j)} a x) :=
+  \induction (j: N.Nat^) \return \forall (a: R)(x: C.family.Carrier j) ->
+    \In[C.family.Carrier j] (Boundaries j) x ->
+    \In[C.family.Carrier j] (Boundaries j) (#smul{(C.family.space j)} a x) \with {
+      | zero: \fun (a: R)(x: C.family.Carrier N.Nat^::zero)(equal: x = #zero{(C.family.space N.Nat^::zero)}) =>
+        trans!{{C.family.Carrier N.Nat^::zero}}
+          (#smul{(C.family.space N.Nat^::zero)} a x)
+          (#smul{(C.family.space N.Nat^::zero)} a #zero{(C.family.space N.Nat^::zero)}) #zero{(C.family.space N.Nat^::zero)}
+          (congr!{{C.family.Carrier N.Nat^::zero} {C.family.Carrier N.Nat^::zero}}
+            (#smul{(C.family.space N.Nat^::zero)} a) x #zero{(C.family.space N.Nat^::zero)} equal)
+          (\parent.At[C := C, k := N.Nat^::zero].scaleZero a)
+      | succ: \block {
+        \fun (j: N.Nat^)(previous: \forall (a: R)(u: C.family.Carrier j) -> \In[C.family.Carrier j] (Boundaries j) u -> \In[C.family.Carrier j] (Boundaries j) (#smul{(C.family.space j)} a u))(a: R)(x: C.family.Carrier (next j))
+          (exists: \In[C.family.Carrier (next j)] (Boundaries (next j)) x) \then
+        \takefrom y: \Cast[C.family.Carrier j] ({ y: C.family.Carrier j \where #apply{C.differential} j y = x }) \by exists \then
+        \let equal: #apply{C.differential} j (#smul{(C.family.space j)} a y) = #smul{(C.family.space (next j))} a x :=
+          trans!{{C.family.Carrier (next j)}}
+            (#apply{C.differential} j (#smul{(C.family.space j)} a y))
+            (#smul{(C.family.space (next j))} a (#apply{C.differential} j y))
+            (#smul{(C.family.space (next j))} a x) (#scalar{C.laws} j a y)
+            (congr!{{C.family.Carrier (next j)} {C.family.Carrier (next j)}} (#smul{(C.family.space (next j))} a) (#apply{C.differential} j y) x
+              (\bysub(C.family.Carrier j, { y: C.family.Carrier j \where #apply{C.differential} j y = x }, y))) \then
+        \return \exact(\into[C.family.Carrier j](#smul{(C.family.space j)} a y,
+          { z: C.family.Carrier j \where #apply{C.differential} j z = #smul{(C.family.space (next j))} a x }) \by { equal },
+          \Cast[C.family.Carrier j] ({ z: C.family.Carrier j \where #apply{C.differential} j z = #smul{(C.family.space (next j))} a x }))
+      }
+    };
+
+\definition boundaries: Subspaces.Submodule := Subspaces.Submodule {
+  carrier := Boundaries k,
+  zero := boundaryZero k,
+  addition := boundaryAdd k,
+  scalar := boundaryScale k,
+};
+\import Subspaces.Inside[Z := cycles] \as Inside;
+\import Modules.Submodule[V := Cycles.Carrier, space := Cycles.moduleSpace] \as CycleSubmodules;
+\definition boundariesInside: CycleSubmodules.Submodule := Inside.inside boundaries (boundaryCycle k);
+\import Modules.Of[V := Cycles.Carrier, space := Cycles.moduleSpace] \as CycleModule;
+\import CycleModule.Submodule[] \as CycleSubspaces;
+\import CycleSubspaces.Quotient[S := boundariesInside] \as Quotient;
+\definition CycleCarrier: \Set := Cycles.Carrier;
+\definition cycleSpace: Modules.Space CycleCarrier := Cycles.moduleSpace;
+\definition Cohomology: \Set := Quotient.Carrier;
+\definition cohomologySpace: Modules.Space Cohomology := Quotient.moduleSpace;
+\definition classOf(x: Cycles.Carrier): Cohomology := Quotient.class x;
+\definition cycle(x: C.family.Carrier k)(closed: #apply{C.differential} k x = #zero{(C.family.space (next k))}): Cycles.Carrier :=
+  \into[C.family.Carrier k](x, #carrier{cycles}) \by { closed };
+\definition boundaryClassZero: \forall (x: Cycles.Carrier) ->
+  \In[C.family.Carrier k] (Boundaries k) x -> classOf x = Quotient.zeroClass := Quotient.classZero;
+\definition zeroClassBoundary: \forall (x: Cycles.Carrier) ->
+  classOf x = Quotient.zeroClass -> \In[C.family.Carrier k] (Boundaries k) x := Quotient.zeroClassMember;
+
+\definition zeroClass: Cohomology := Quotient.zeroClass;
+\definition classEqual: \forall (x, y: CycleCarrier) ->
+  \In[C.family.Carrier k] (Boundaries k) (#add{(C.family.space k)} x (#neg{(C.family.space k)} y)) -> classOf x = classOf y := Quotient.classRelated;
+\definition classRelated: \forall (x, y: CycleCarrier) -> classOf x = classOf y ->
+  \In[C.family.Carrier k] (Boundaries k) (#add{(C.family.space k)} x (#neg{(C.family.space k)} y)) := Quotient.relatedOfClassEq;
+\definition classInduction(P: Cohomology -> \Prop):
+  (\forall (x: CycleCarrier) -> P (classOf x)) -> \forall (h: Cohomology) -> P h := Quotient.induction P;
+\import Modules.Hom[V := CycleCarrier, W := Cohomology, source := cycleSpace, target := cohomologySpace] \as Classes;
+\definition classLinear: Classes.Map := Quotient.projection;

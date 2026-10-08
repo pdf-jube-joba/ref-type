@@ -75,8 +75,19 @@ pub fn normalize(env: &CrateEnv, exp: Exp) -> Exp {
             .expect("resolved normalization"),
     )
 }
+#[allow(dead_code)] // Retained for kernel debugging and regression tests.
 pub fn convertible(env: &CrateEnv, left: Exp, right: Exp) -> bool {
-    conversion(env, left, right, false)
+    resolved_convertible(env, left, right).unwrap_or(false)
+}
+/// Only resolved kernel comparisons are stable enough to retain across imports.
+/// An expression that cannot yet be registered must be retried later.
+pub(crate) fn resolved_convertible(env: &CrateEnv, left: Exp, right: Exp) -> Option<bool> {
+    if exp_is_alpha_eq(env, left, right) {
+        return Some(true);
+    }
+    let left = crate::kernel_bridge::expression(env, Term::Logical(left), |_, e| Ok(e)).ok()?;
+    let right = crate::kernel_bridge::expression(env, Term::Logical(right), |_, e| Ok(e)).ok()?;
+    kernel::reduction::convertible(&env.kernel.borrow(), left, right).ok()
 }
 fn conversion(env: &CrateEnv, left: Exp, right: Exp, erase: bool) -> bool {
     if exp_is_alpha_eq(env, left, right) {

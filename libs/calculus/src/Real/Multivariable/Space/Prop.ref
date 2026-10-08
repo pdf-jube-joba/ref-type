@@ -1,5 +1,28 @@
 \import \parent.Def[] \as Def;
 \import Bool.ConditionalLaws[A := Real] \as Conditional;
+\definition replaceDifferent: \forall (a: Point)(i, j: Coordinate)(t: Real) -> Logic.Not (i = j) -> Def.replace a i t j = a j :=
+  \fun (a: Point)(i, j: Coordinate)(t: Real)(different: Logic.Not (i = j)) => Bool.cases
+    (\fun (test: Bool.Bool^) => NatOp.eqb (Fin.value n j) (Fin.value n i) = test -> Bool.ite Real test t (a j) = a j)
+    (\fun (equal: _) => \refl(a j))
+    (\fun (equal: _) => Logic.falseElim (t = a j) (different (sym!{Coordinate} j i (NatLaws.eqOfEqbTrue (Fin.value n i) (Fin.value n j) equal))))
+    (NatOp.eqb (Fin.value n j) (Fin.value n i)) (\refl(NatOp.eqb (Fin.value n j) (Fin.value n i)));
+\definition replaceCommutes: \forall (a: Point)(i, j: Coordinate)(s, t: Real) -> Logic.Not (i = j) ->
+  Def.replace (Def.replace a i s) j t = Def.replace (Def.replace a j t) i s :=
+  \fun (a: Point)(i, j: Coordinate)(s, t: Real)(different: Logic.Not (i = j)) =>
+    \axiom:funext(Def.replace (Def.replace a i s) j t, Def.replace (Def.replace a j t) i s,
+      \fun (k: Coordinate) => Bool.cases
+        (\fun (first: Bool.Bool^) => NatOp.eqb (Fin.value n k) (Fin.value n i) = first ->
+          Bool.ite Real (NatOp.eqb (Fin.value n k) (Fin.value n j)) t (Bool.ite Real first s (a k)) =
+          Bool.ite Real first s (Bool.ite Real (NatOp.eqb (Fin.value n k) (Fin.value n j)) t (a k)))
+        (\fun (first: _) => \refl(Bool.ite Real (NatOp.eqb (Fin.value n k) (Fin.value n j)) t (a k)))
+        (\fun (first: _) => Bool.cases
+          (\fun (second: Bool.Bool^) => NatOp.eqb (Fin.value n k) (Fin.value n j) = second -> Bool.ite Real second t s = s)
+          (\fun (second: _) => \refl(s))
+          (\fun (second: _) => Logic.falseElim (t = s) (different (trans!{Coordinate} i k j
+            (sym!{Coordinate} k i (NatLaws.eqOfEqbTrue (Fin.value n i) (Fin.value n k) first))
+            (NatLaws.eqOfEqbTrue (Fin.value n j) (Fin.value n k) second))))
+          (NatOp.eqb (Fin.value n k) (Fin.value n j)) (\refl(NatOp.eqb (Fin.value n k) (Fin.value n j))))
+        (NatOp.eqb (Fin.value n k) (Fin.value n i)) (\refl(NatOp.eqb (Fin.value n k) (Fin.value n i))));
 
 \definition replaceSame: \forall (x: Point) -> \forall (i: Coordinate) -> \forall (t: Real) ->
   Def.replace x i t i = t :=
@@ -10,6 +33,12 @@
         base: Conditional.iteTrue t (x i),
         equality: sym!{Bool.Bool^} _ _ (NatLaws.eqbRefl (Fin.value n i))
       };
+\definition replaceOriginal: \forall (x: Point)(i: Coordinate) -> Def.replace x i (x i) = x :=
+  \fun (x: _)(i: _) => \axiom:funext(Def.replace x i (x i), x, \fun (j: Coordinate) => Bool.cases
+    (\fun (b: Bool.Bool^) => NatOp.eqb (Fin.value n j) (Fin.value n i) = b -> Bool.ite Real b (x i) (x j) = x j)
+    (\fun (equal: _) => \refl(x j))
+    (\fun (equal: _) => congr!{Coordinate Real} x i j (sym!{Coordinate} j i (NatLaws.eqOfEqbTrue (Fin.value n i) (Fin.value n j) equal)))
+    (NatOp.eqb (Fin.value n j) (Fin.value n i)) (\refl(NatOp.eqb (Fin.value n j) (Fin.value n i))));
 
 \definition constantContinuous: \forall (c: Real) -> Def.Continuous (Def.constantFunction c) :=
   \block {
@@ -26,3 +55,50 @@
         } },
       \Cast[Real] ({ delta: Real \where Def.ContinuityControl[Def.constantFunction c, a, epsilon, delta] }))
   };
+\import \parent.Norm[] \as Norm;
+\definition projectionContinuous: \forall (i: Coordinate) -> Def.Continuous (Def.projection i) :=
+  \fun (i: _)(a: _)(epsilon: _)(positive: _) => \exact(\into[Real](epsilon,
+    { delta: Real \where Def.ContinuityControl[Def.projection i, a, epsilon, delta] }) \by {
+      Def.ContinuityControl[Def.projection i, a, epsilon, epsilon] {
+        positive := positive,
+        estimate := \fun (x: Point)(near: _) => R.leLtTrans (distance (x i) (a i)) (Def.pointDistance x a) epsilon
+          (Norm.coordinateDistance x a i) near,
+      }
+    }, \Cast[Real] ({ delta: Real \where Def.ContinuityControl[Def.projection i, a, epsilon, delta] }));
+\use Equality.congr2;
+\definition replaceDistanceUpper: \forall (a: Point)(i: Coordinate)(t: Real) -> R.Le (Def.pointDistance (Def.replace a i t) a) (distance t (a i)) :=
+  \fun (a: _)(i: _)(t: _) => Norm.finiteUpper n (Def.subPoint (Def.replace a i t) a) (distance t (a i)) (Metric.distanceNonnegative t (a i))
+    (\fun (j: Coordinate) => Bool.cases
+      (\fun (b: Bool.Bool^) => NatOp.eqb (Fin.value n j) (Fin.value n i) = b ->
+        R.Le (distance (sub (Bool.ite Real b t (a j)) (a j)) zero) (distance t (a i)))
+      (\fun (equal: _) => R.leReplaceLeft zero (distance (sub (a j) (a j)) zero) (distance t (a i))
+        (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => distance s zero) _ _ (Laws.subSelf (a j))) (Metric.distanceSelf zero)))
+        (Metric.distanceNonnegative t (a i)))
+      (\fun (equal: _) => R.leReplaceLeft (distance t (a i)) (distance (sub t (a j)) zero) (distance t (a i))
+        (sym!{Real} _ _ (trans!{Real} _ _ _ (Norm.distanceDifference t (a j))
+          (congr!{Real Real} (distance t) _ _ (congr!{Coordinate Real} a j i (NatLaws.eqOfEqbTrue (Fin.value n i) (Fin.value n j) equal)))))
+        (R.leRefl (distance t (a i))))
+      (NatOp.eqb (Fin.value n j) (Fin.value n i)) (\refl(NatOp.eqb (Fin.value n j) (Fin.value n i))));
+\definition replaceDistance: \forall (a: Point)(i: Coordinate)(t: Real) -> Def.pointDistance (Def.replace a i t) a = distance t (a i) :=
+  \fun (a: _)(i: _)(t: _) => R.leAntisym _ _ (replaceDistanceUpper a i t)
+    (R.leReplaceLeft (distance (Def.replace a i t i) (a i)) (distance t (a i)) (Def.pointDistance (Def.replace a i t) a)
+      (congr!{Real Real} (\fun (s: Real) => distance s (a i)) _ _ (replaceSame a i t))
+      (Norm.coordinateDistance (Def.replace a i t) a i));
+\definition replaceTwice: \forall (a: Point)(i: Coordinate)(t, s: Real) ->
+  Def.replace (Def.replace a i t) i s = Def.replace a i s :=
+  \fun (a: Point)(i: Coordinate)(t, s: Real) => \axiom:funext(Def.replace (Def.replace a i t) i s, Def.replace a i s,
+    \fun (j: Coordinate) => Bool.cases
+      (\fun (test: Bool.Bool^) => Bool.ite Real test s (Bool.ite Real test t (a j)) = Bool.ite Real test s (a j))
+      (\refl(a j)) (\refl(s)) (NatOp.eqb (Fin.value n j) (Fin.value n i)));
+\definition replaceDifference: \forall (a: Point)(i: Coordinate)(t: Real) ->
+  Def.subPoint (Def.replace a i t) a = Def.scale (sub t (a i)) (Def.basis i) :=
+  \fun (a: Point)(i: Coordinate)(t: Real) => \axiom:funext(Def.subPoint (Def.replace a i t) a, Def.scale (sub t (a i)) (Def.basis i),
+    \fun (j: Coordinate) => Bool.cases
+      (\fun (test: Bool.Bool^) => NatOp.eqb (Fin.value n j) (Fin.value n i) = test ->
+        sub (Bool.ite Real test t (a j)) (a j) = mul (sub t (a i)) (Bool.ite Real test one zero))
+      (\fun (different: NatOp.eqb (Fin.value n j) (Fin.value n i) = Bool.Bool^::false) => trans!{Real} (sub (a j) (a j)) zero (mul (sub t (a i)) zero)
+        (Laws.subSelf (a j)) (sym!{Real} (mul (sub t (a i)) zero) zero (Laws.fieldMulZeroRight (sub t (a i)))))
+      (\fun (equal: NatOp.eqb (Fin.value n j) (Fin.value n i) = Bool.Bool^::true) => trans!{Real} (sub t (a j)) (sub t (a i)) (mul (sub t (a i)) one)
+        (congr!{Real Real} (sub t) (a j) (a i) (congr!{Coordinate Real} a j i (NatLaws.eqOfEqbTrue (Fin.value n i) (Fin.value n j) equal)))
+        (sym!{Real} (mul (sub t (a i)) one) (sub t (a i)) (real.Analysis[].Algebra[].mulOneRight (sub t (a i)))))
+      (NatOp.eqb (Fin.value n j) (Fin.value n i)) (\refl(NatOp.eqb (Fin.value n j) (Fin.value n i))));

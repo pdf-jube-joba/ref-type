@@ -1,0 +1,40 @@
+\import Ambient.At[x := x] \as Target;
+\import LocalTangent.At[x := x] \as Source;
+\import \root.Differential[n := n, m := n].Between[M := manifold, N := M].At[f := map, x := x] \as Differential;
+\import Spaces.Linear[V := Source.Vector, W := Target.Vector, source := Source.space, target := Target.space] \as Forward;
+\import Spaces.Linear[V := Target.Vector, W := Source.Vector, source := Target.space, target := Source.space] \as Backward;
+\module InCharts(chart: Target.Chart);
+\structure InverseLaws[inverse: Backward.Map]: \Prop {
+  leftInverse: \forall (v: Source.Vector) -> #apply{inverse} (#apply{Differential.value} v) = v,
+  rightInverse: \forall (w: Target.Vector) -> #apply{Differential.value} (#apply{inverse} w) = w,
+}
+\definition Values: \Set := \Cast[Backward.Map] ({ inverse: Backward.Map \where InverseLaws[inverse] });
+\definition existence: \exists Values := \block {
+  \takefrom chart: Target.Chart \by Target.chartExists \then
+  \return \exact(\into[Backward.Map](InCharts[chart := chart].inverse, Values) \by {
+    InverseLaws[InCharts[chart := chart].inverse] {
+      leftInverse := InCharts[chart := chart].leftInverse, rightInverse := InCharts[chart := chart].rightInverse,
+    }
+  }, Values)
+};
+\definition uniqueness: \forall (f, g: Values) -> f = g :=
+  \fun (f, g: Values) => Backward.ext f g (\axiom:funext((#apply{f}), (#apply{g}), \fun (w: Target.Vector) =>
+    trans!{{Source.Vector}} (#apply{f} w) (#apply{f} (#apply{Differential.value} (#apply{g} w))) (#apply{g} w)
+      (congr!{{Target.Vector} {Source.Vector}} (#apply{f}) w (#apply{Differential.value} (#apply{g} w))
+        (sym!{{Target.Vector}} _ _ (#rightInverse{(\bysub(Backward.Map, Values, g))} w)))
+      (#leftInverse{(\bysub(Backward.Map, Values, f))} (#apply{g} w))));
+\definition chosen: Values := \choice Values \by { existence: existence, uniqueness: uniqueness };
+\definition inverse: Backward.Map := chosen;
+\definition inCharts: \forall (chart: Target.Chart) -> inverse = InCharts[chart := chart].inverse :=
+  \fun (chart: Target.Chart) => uniqueness chosen
+    (\into[Backward.Map](InCharts[chart := chart].inverse, Values) \by {
+      InverseLaws[InCharts[chart := chart].inverse] {
+        leftInverse := InCharts[chart := chart].leftInverse, rightInverse := InCharts[chart := chart].rightInverse,
+      }
+    });
+\import Spaces.Isomorphism[V := Source.Vector, W := Target.Vector, source := Source.space, target := Target.space] \as Isomorphism;
+\definition isomorphism: Isomorphism.Isomorphism := Isomorphism.Isomorphism {
+  forward := Differential.value, backward := inverse,
+  leftInverse := #leftInverse{(\bysub(Backward.Map, Values, chosen))},
+  rightInverse := #rightInverse{(\bysub(Backward.Map, Values, chosen))},
+};

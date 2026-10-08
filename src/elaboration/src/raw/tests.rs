@@ -154,6 +154,40 @@ fn logical_arena_interns_nodes() {
 }
 
 #[test]
+fn namespace_conversion_reuses_beta_equal_arguments_and_preserves_parameter_identity() {
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let set = arena.sort(Sort::Set(0));
+    let prop = arena.sort(Sort::Prop);
+    let identity = arena.alloc(ExpNode::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty: set,
+        body: arena.exp_bound(0),
+    });
+    let applied = arena.alloc(ExpNode::App {
+        func: identity,
+        arg: prop,
+    });
+    let parameter = ModuleParamId {
+        module: env.root_module(),
+        position: 0,
+    };
+    let argument = [(parameter, ModuleArgument::Pts(applied))];
+    let reduced = [(parameter, ModuleArgument::Pts(prop))];
+    assert!(env.namespace_arguments_equal(&argument, &reduced));
+    assert_eq!(env.namespace_conversion_cache.borrow().len(), 2);
+    assert!(env.namespace_arguments_equal(&reduced, &argument));
+    assert_eq!(env.namespace_conversion_cache.borrow().len(), 2);
+    assert!(!env.namespace_arguments_equal(&argument, &[(parameter, ModuleArgument::Pts(set))]));
+    assert_eq!(env.namespace_conversion_cache.borrow().len(), 4);
+    let other = ModuleParamId {
+        position: 1,
+        ..parameter
+    };
+    assert!(!env.namespace_arguments_equal(&argument, &[(other, ModuleArgument::Pts(prop))]));
+}
+
+#[test]
 fn raw_printer_does_not_parenthesize_atomic_application_operands() {
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -1429,6 +1463,17 @@ fn instance_context_must_be_well_formed() {
                 var: SymbolId::ANONYMOUS,
                 ty: bound,
             }]
+        )
+        .is_err()
+    );
+    assert!(
+        env.add_modules_in_scope(
+            module,
+            vec![ExpContextEntry {
+                var: SymbolId::ANONYMOUS,
+                ty: bound,
+            }],
+            3
         )
         .is_err()
     );

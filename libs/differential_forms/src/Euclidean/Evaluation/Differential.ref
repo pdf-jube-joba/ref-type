@@ -1,0 +1,56 @@
+\import Regularity.Derivative[] \as Partials;
+\import Partials.Linear[U := U] \as Linear;
+\definition function(i: Fin.Fin m)(omega: RegularFamily k)(x: Source.Carrier U): Multilinear.Function k :=
+  \fun (arguments: Multilinear.Arguments k) => Partials.derivative U (evaluate k omega arguments) i x;
+\definition evaluationAddition: \forall (omega: RegularFamily k)(arguments: Multilinear.Arguments k)(j: Fin.Fin k)(v, w: Vectors.Vector) ->
+  evaluate k omega (Multilinear.update k arguments j (Vectors.plus v w)) =
+    Functions.plus (evaluate k omega (Multilinear.update k arguments j v)) (evaluate k omega (Multilinear.update k arguments j w)) :=
+  \fun (omega: RegularFamily k)(arguments: Multilinear.Arguments k)(j: Fin.Fin k)(v, w: Vectors.Vector) => Functions.ext
+    (evaluate k omega (Multilinear.update k arguments j (Vectors.plus v w)))
+    (Functions.plus (evaluate k omega (Multilinear.update k arguments j v)) (evaluate k omega (Multilinear.update k arguments j w)))
+    (\fun (x: Source.Carrier U) => #addition{(\bysub(Multilinear.Function k, Multilinear.MultilinearForm k, omega x))} arguments j v w);
+\definition evaluationScalar: \forall (omega: RegularFamily k)(arguments: Multilinear.Arguments k)(j: Fin.Fin k)(a: Reals.Real)(v: Vectors.Vector) ->
+  evaluate k omega (Multilinear.update k arguments j (Vectors.scale a v)) = Functions.scale a (evaluate k omega (Multilinear.update k arguments j v)) :=
+  \fun (omega: RegularFamily k)(arguments: Multilinear.Arguments k)(j: Fin.Fin k)(a: Reals.Real)(v: Vectors.Vector) => Functions.ext
+    (evaluate k omega (Multilinear.update k arguments j (Vectors.scale a v))) (Functions.scale a (evaluate k omega (Multilinear.update k arguments j v)))
+    (\fun (x: Source.Carrier U) => #scalar{(\bysub(Multilinear.Function k, Multilinear.MultilinearForm k, omega x))} arguments j a v);
+\definition linear: \forall (i: Fin.Fin m)(omega: RegularFamily k)(x: Source.Carrier U) -> Multilinear.Laws[k, function i omega x] :=
+  \fun (i: Fin.Fin m)(omega: RegularFamily k)(x: Source.Carrier U) => Multilinear.Laws[k, function i omega x] {
+    addition := \fun (arguments: Multilinear.Arguments k)(j: Fin.Fin k)(v, w: Vectors.Vector) =>
+      trans!{{Reals.Real}} (function i omega x (Multilinear.update k arguments j (Vectors.plus v w)))
+        (Partials.derivative U (Functions.plus (evaluate k omega (Multilinear.update k arguments j v)) (evaluate k omega (Multilinear.update k arguments j w))) i x)
+        (Spaces.add (function i omega x (Multilinear.update k arguments j v)) (function i omega x (Multilinear.update k arguments j w)))
+        (congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => Partials.derivative U h i x)
+          (evaluate k omega (Multilinear.update k arguments j (Vectors.plus v w)))
+          (Functions.plus (evaluate k omega (Multilinear.update k arguments j v)) (evaluate k omega (Multilinear.update k arguments j w))) (evaluationAddition omega arguments j v w))
+        (congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => h x)
+          (Partials.derivative U (Functions.plus (evaluate k omega (Multilinear.update k arguments j v)) (evaluate k omega (Multilinear.update k arguments j w))) i)
+          (Functions.plus (Partials.derivative U (evaluate k omega (Multilinear.update k arguments j v)) i) (Partials.derivative U (evaluate k omega (Multilinear.update k arguments j w)) i))
+          (Linear.addition i (evaluate k omega (Multilinear.update k arguments j v)) (evaluate k omega (Multilinear.update k arguments j w)))),
+    scalar := \fun (arguments: Multilinear.Arguments k)(j: Fin.Fin k)(a: Reals.Real)(v: Vectors.Vector) =>
+      trans!{{Reals.Real}} (function i omega x (Multilinear.update k arguments j (Vectors.scale a v)))
+        (Partials.derivative U (Functions.scale a (evaluate k omega (Multilinear.update k arguments j v))) i x)
+        (Spaces.mul a (function i omega x (Multilinear.update k arguments j v)))
+        (congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => Partials.derivative U h i x)
+          (evaluate k omega (Multilinear.update k arguments j (Vectors.scale a v)))
+          (Functions.scale a (evaluate k omega (Multilinear.update k arguments j v))) (evaluationScalar omega arguments j a v))
+        (congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => h x)
+          (Partials.derivative U (Functions.scale a (evaluate k omega (Multilinear.update k arguments j v))) i)
+          (Functions.scale a (Partials.derivative U (evaluate k omega (Multilinear.update k arguments j v)) i))
+          (Linear.scalar i a (evaluate k omega (Multilinear.update k arguments j v)))),
+  };
+\definition value(i: Fin.Fin m)(omega: RegularFamily k)(x: Source.Carrier U): Multilinear.MultilinearForm k :=
+  \into[Multilinear.Function k](function i omega x, Multilinear.MultilinearForm k) \by { linear i omega x };
+\definition apply(i: Fin.Fin m)(omega: RegularFamily k): RegularFamily k :=
+  \into[Family k](value i omega, { result: Family k \where CoefficientSmooth k result }) \by {
+    \fun (indices: Fin.Fin k -> Fin.Fin n) => equalSmooth
+      (Partials.partial U (evaluate k omega (\fun (j: Fin.Fin k) => Basis.vectors (indices j))) i)
+      (\fun (x: Source.Carrier U) => value i omega x (\fun (j: Fin.Fin k) => Basis.vectors (indices j)))
+      (\fun (x: Source.Carrier U) => \refl(value i omega x (\fun (j: Fin.Fin k) => Basis.vectors (indices j))))
+      (Partials.partialSmooth U (evaluate k omega (\fun (j: Fin.Fin k) => Basis.vectors (indices j))) i)
+  };
+\definition evaluation: \forall (i: Fin.Fin m)(omega: RegularFamily k)(arguments: Multilinear.Arguments k) ->
+  evaluate k (apply i omega) arguments = Partials.derivative U (evaluate k omega arguments) i :=
+  \fun (i: Fin.Fin m)(omega: RegularFamily k)(arguments: Multilinear.Arguments k) => Functions.ext
+    (evaluate k (apply i omega) arguments) (Partials.derivative U (evaluate k omega arguments) i)
+    (\fun (x: Source.Carrier U) => \refl(function i omega x arguments));

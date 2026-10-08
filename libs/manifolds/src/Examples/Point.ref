@@ -1,0 +1,51 @@
+\import std.Data[].Nat[] \as N;
+\import std.Logic[].Proposition[] \as Logic;
+\import \root.Dimension[n := N.Nat^::zero] \as Dimension;
+\import Dimension.Topological[] \as Manifolds;
+\import topological_algebra.Euclidean[].Zero[] \as Point;
+\import topological_algebra.Euclidean[].Dimension[n := N.Nat^::zero].Topology[] \as Euclidean;
+\import calculus.Real[].Multivariable[n := N.Nat^::zero].Open[] \as Open;
+\import Dimension.Chart[M := Point.Point, space := Euclidean.topology] \as Charts;
+\import Dimension.AtlasData[M := Point.Point, space := Euclidean.topology] \as Atlases;
+\import topology.Topology[Carrier := Point.Point] \as Topology;
+\definition domain: \Pow Point.Point := Topology.Whole;
+\import topology.Homeomorphism[A := Charts.Domain domain, B := Open.Carrier Open.whole] \as Homeomorphisms;
+\import topology.Maps[A := Charts.Domain domain, B := Charts.Domain domain].Identity[] \as Identity;
+\definition standard: Charts.Chart := Charts.Chart {
+  domain := domain, image := Open.whole,
+  coordinates := Homeomorphisms.Homeomorphism[Charts.domainTopology domain, Charts.imageTopology Open.whole] {
+    forward := \fun (x: Charts.Domain domain) => x,
+    backward := \fun (x: Open.Carrier Open.whole) => x,
+    leftInverse := \fun (x: Charts.Domain domain) => \refl(x),
+    rightInverse := \fun (x: Open.Carrier Open.whole) => \refl(x),
+    forwardContinuous := Identity.continuous (Charts.domainTopology domain),
+    backwardContinuous := Identity.continuous (Charts.domainTopology domain),
+  },
+  open := #wholeOpen{(Topology.topologyLaws Euclidean.topology)},
+};
+\import std.Data[].FinSet[] \as Fin;
+\definition standardCompatible: Atlases.Compatible standard standard :=
+  \fun (i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i));
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition atlas: Atlases.Atlas := Atlases.Atlas {
+  charts := { chart: Charts.Chart \where chart = standard },
+  covers := \fun (x: Point.Point) => \exact(\into[Charts.Chart](standard,
+    { chart: Charts.Chart \where Logic.And[chart = standard, Charts.Contains chart x] }) \by {
+      Logic.And[_, _]::# (\refl(standard)) (\refl(x))
+    }, \Cast[Charts.Chart] ({ chart: Charts.Chart \where Logic.And[chart = standard, Charts.Contains chart x] })),
+  compatible := \fun (left, right: Charts.Chart)(leftSame: left = standard)(rightSame: right = standard) =>
+    \idelim standard = left \with chart: Charts.Chart => Atlases.Compatible chart right \by {
+      base: \idelim standard = right \with chart: Charts.Chart => Atlases.Compatible standard chart \by {
+        base: standardCompatible, equality: sym!{{Charts.Chart}} right standard rightSame
+      }, equality: sym!{{Charts.Chart}} left standard leftSame
+    },
+};
+\definition manifold: Manifolds.Manifold := Manifolds.Manifold {
+  Point := Point.Point, space := Euclidean.topology,
+  charts := #charts{atlas}, covers := #covers{atlas},
+  hausdorff := Euclidean.hausdorff, secondCountable := Point.secondCountable,
+};
+\import Dimension.Smooth[] \as Smooth;
+\import Smooth.From[M := Point.Point, space := Euclidean.topology, atlas := atlas] \as Construction;
+\definition smoothManifold: Smooth.Manifold := Construction.manifold Euclidean.hausdorff Point.secondCountable;

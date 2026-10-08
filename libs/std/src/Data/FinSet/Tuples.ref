@@ -1,0 +1,31 @@
+\definition evaluate(n: N.Nat^)(head: A)(tail: Fin n -> A): Option.Option[Fin n] -> A :=
+  \induction (index: Option.Option[Fin n]) \return A \with {
+    | none: head
+    | some: \fun (j: Fin n) => tail j
+  };
+\definition extend(n: N.Nat^)(head: A)(tail: Fin n -> A): Fin (N.Nat^::succ n) -> A :=
+  \fun (i: Fin (N.Nat^::succ n)) => evaluate n head tail (split n i);
+\definition atZero: \forall (n: N.Nat^)(head: A)(tail: Fin n -> A) -> extend n head tail (zero n) = head :=
+  \fun (n: _)(head: _)(tail: _) => congr!{{Option.Option[Fin n]} A} (evaluate n head tail)
+    (split n (zero n)) Option.Option[Fin n]::none (splitInflate n Option.Option[Fin n]::none);
+\definition atSuccessor: \forall (n: N.Nat^)(head: A)(tail: Fin n -> A)(i: Fin n) -> extend n head tail (succ n i) = tail i :=
+  \fun (n: _)(head: _)(tail: _)(i: _) => congr!{{Option.Option[Fin n]} A} (evaluate n head tail)
+    (split n (succ n i)) (Option.Option[Fin n]::some i) (splitInflate n (Option.Option[Fin n]::some i));
+\definition recover: \forall (n: N.Nat^)(f: Fin (N.Nat^::succ n) -> A) -> extend n (f (zero n)) (\fun (j: Fin n) => f (succ n j)) = f :=
+  \fun (n: _)(f: _) => \axiom:funext(extend n (f (zero n)) (\fun (j: Fin n) => f (succ n j)), f,
+    \fun (i: Fin (N.Nat^::succ n)) => trans!{A} _ _ _
+      ((\induction (option: Option.Option[Fin n]) \return evaluate n (f (zero n)) (\fun (j: Fin n) => f (succ n j)) option = f (inflate n option) \with {
+        | none: \refl(f (zero n))
+        | some: \fun (j: Fin n) => \refl(f (succ n j))
+      }) (split n i))
+      (congr!{{Fin (N.Nat^::succ n)} A} f (inflate n (split n i)) i (inflateSplit n i)));
+\use Equality.congr2;
+\definition extensionality: \forall (n: N.Nat^)(f, g: Fin (N.Nat^::succ n) -> A) ->
+  f (zero n) = g (zero n) -> (\forall (i: Fin n) -> f (succ n i) = g (succ n i)) -> f = g :=
+  \fun (n: _)(f, g: _)(head: _)(tail: _) => trans!{{Fin (N.Nat^::succ n) -> A}} _ _ _
+    (sym!{{Fin (N.Nat^::succ n) -> A}} _ _ (recover n f))
+    (trans!{{Fin (N.Nat^::succ n) -> A}} _ _ _
+      (congr2!{A {Fin n -> A} {Fin (N.Nat^::succ n) -> A}} (extend n) _ _ _ _ head
+        (\axiom:funext((\fun (i: Fin n) => f (succ n i)), (\fun (i: Fin n) => g (succ n i)), tail)))
+      (recover n g));
+\module Mapping(B: \Set);

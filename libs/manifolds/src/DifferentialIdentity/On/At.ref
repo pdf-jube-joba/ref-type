@@ -1,0 +1,21 @@
+\import Tangent.At[x := x] \as Vectors;
+\import \root.Differential[n := n, m := n].Between[M := M, N := M].At[f := Identity.map, x := x] \as Differential;
+\import Spaces.Linear[V := Vectors.Vector, W := Vectors.Vector, source := Vectors.space, target := Vectors.space] \as Maps;
+\definition identity: Maps.Map := Maps.Map {
+  apply := \fun (v: Vectors.Vector) => v,
+  preservesAdd := \fun (v, w: Vectors.Vector) => \refl(#add{Vectors.space} v w),
+  preservesScale := \fun (a: Reals.Real)(v: Vectors.Vector) => \refl(#smul{Vectors.space} a v),
+};
+\definition pointwise: \forall (v: Vectors.Vector) -> #apply{Differential.value} v = v := \block {
+  \fun (v: Vectors.Vector) \then
+  \takefrom chart: Vectors.Chart \by Vectors.chartExists \then
+  \return Vectors.Coordinate[chart := chart].injective (#apply{Differential.value} v) v
+    (trans!{{calculus.Real[].Multivariable[n := n].Point}}
+      (Vectors.Coordinate[chart := chart].decode (#apply{Differential.value} v))
+      (Vectors.transform chart chart (Vectors.Coordinate[chart := chart].decode v))
+      (Vectors.Coordinate[chart := chart].decode v)
+      (Differential.coordinates chart chart v)
+      (Vectors.identity chart (Vectors.Coordinate[chart := chart].decode v)))
+};
+\definition law: Differential.value = identity := Maps.ext Differential.value identity
+  (\axiom:funext((#apply{Differential.value}), (#apply{identity}), pointwise));

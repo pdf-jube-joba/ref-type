@@ -1,0 +1,24 @@
+\definition Respects(f: A -> B): \Prop := \forall (x, y: A) -> Equivalent x y -> f x = f y;
+\definition Values(f: A -> B)(C: Carrier): \Pow B := { y: B \where \forall (x: A) -> C = ClassOf x -> y = f x };
+\definition Value(f: A -> B)(C: Carrier): \Set := \Cast[B] (Values f C);
+\definition classValue: EquivalenceLaws -> \forall (f: A -> B) -> Respects f -> \forall (x: A) -> \forall (y: A) -> class x = ClassOf y -> f x = f y :=
+  \fun (laws: EquivalenceLaws)(f: A -> B)(respects: Respects f)(x, y: A)(equal: class x = ClassOf y) => respects x y (equivalentOfClassEq laws x y equal);
+\definition existsValue: EquivalenceLaws -> \forall (f: A -> B) -> Respects f -> \forall (C: Carrier) -> \exists Value f C :=
+  \fun (laws: EquivalenceLaws)(f: A -> B)(respects: Respects f) => induction (\fun (C: Carrier) => \exists Value f C)
+    (\fun (x: A) => \exact(\into[B](f x, Values f (class x)) \by { classValue laws f respects x }, Value f (class x)));
+\definition uniqueValue: \forall (f: A -> B)(C: Carrier)(y, z: Value f C) -> y = z :=
+  \fun (f: A -> B) => induction (\fun (C: Carrier) => \forall (y, z: Value f C) -> y = z)
+    (\fun (x: A)(y, z: Value f (class x)) => trans!{B} y (f x) z
+      ((\bysub(B, Values f (class x), y)) x (\refl(ClassOf x)))
+      (sym!{B} z (f x) ((\bysub(B, Values f (class x), z)) x (\refl(ClassOf x)))));
+\definition value(laws: EquivalenceLaws)(f: A -> B)(respects: Respects f)(C: Carrier): B :=
+  \choice Value f C \by { existence: existsValue laws f respects C, uniqueness: uniqueValue f C };
+\definition onClass: \forall (laws: EquivalenceLaws)(f: A -> B)(respects: Respects f)(x: A) -> value laws f respects (class x) = f x :=
+  \fun (laws: EquivalenceLaws)(f: A -> B)(respects: Respects f)(x: A) => sym!{B} (f x) (value laws f respects (class x))
+    (\choiceeq \into[B](f x, Values f (class x)) \by { classValue laws f respects x }
+      \of Value f (class x) \by { existence: existsValue laws f respects (class x), uniqueness: uniqueValue f (class x) });
+\definition uniqueness: \forall (laws: EquivalenceLaws)(f: A -> B)(respects: Respects f)(g: Carrier -> B) ->
+  (\forall (x: A) -> g (class x) = f x) -> \forall (C: Carrier) -> g C = value laws f respects C :=
+  \fun (laws: EquivalenceLaws)(f: A -> B)(respects: Respects f)(g: Carrier -> B)(equal: \forall (x: A) -> g (class x) = f x) =>
+    induction (\fun (C: Carrier) => g C = value laws f respects C)
+      (\fun (x: A) => trans!{B} (g (class x)) (f x) (value laws f respects (class x)) (equal x) (sym!{B} _ _ (onClass laws f respects x)));

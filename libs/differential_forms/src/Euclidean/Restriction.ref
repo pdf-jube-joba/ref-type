@@ -1,0 +1,102 @@
+\import \parent.On[U := U] \as Source;
+\import \parent.On[U := V] \as Target;
+\import Open.Restriction[] \as Restriction;
+\import Smooth.Derivative[] \as Partials;
+\import Open.Analysis[].Properties[] \as Uniqueness;
+\definition apply(k: N.Nat^)(included: Open.Included U V)(omega: Target.Form k): Source.Form k :=
+  \into[Source.Family k](\fun (x: Open.Carrier U) => omega (Open.inclusion U V included x),
+    { result: Source.Family k \where Source.SmoothFamily k result }) \by {
+      \fun (arguments: Multilinear.Arguments k) => Restriction.localSmooth U V included (Target.evaluate k omega arguments)
+        (\bysub(Open.ScalarFunction V, { f: Open.ScalarFunction V \where Smooth.SmoothOn V f }, Target.evaluate k omega arguments))
+    };
+\module At(k: N.Nat^) {
+  \import Source.At[k := k] \as SourceSpace;
+  \import Target.At[k := k] \as TargetSpace;
+  \import Source.Partial[k := k] \as SourcePartial;
+  \import Target.Partial[k := k] \as TargetPartial;
+  \import Spaces.Linear[V := Target.Form k, W := Source.Form k, source := TargetSpace.space, target := SourceSpace.space] \as Linear;
+  \definition map(included: Open.Included U V): Linear.Map := Linear.Map {
+    apply := apply k included,
+    preservesAdd := \fun (omega, eta: Target.Form k) => Source.ext k (apply k included (TargetSpace.plus omega eta))
+      (SourceSpace.plus (apply k included omega) (apply k included eta))
+      (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments k) => \refl(Spaces.add (omega (Open.inclusion U V included x) arguments) (eta (Open.inclusion U V included x) arguments))),
+    preservesScale := \fun (a: Reals.Real)(omega: Target.Form k) => Source.ext k (apply k included (TargetSpace.scale a omega))
+      (SourceSpace.scale a (apply k included omega))
+      (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments k) => \refl(Spaces.mul a (omega (Open.inclusion U V included x) arguments))),
+  };
+  \definition partial: \forall (included: Open.Included U V)(i: Fin.Fin n)(omega: Target.Form k) ->
+    SourcePartial.apply i (apply k included omega) = apply k included (TargetPartial.apply i omega) :=
+    \fun (included: Open.Included U V)(i: Fin.Fin n)(omega: Target.Form k) =>
+      Source.ext k (SourcePartial.apply i (apply k included omega)) (apply k included (TargetPartial.apply i omega))
+        (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments k) => Uniqueness.partialUnique U
+          (Source.evaluate k (apply k included omega) arguments) i x
+          (Partials.derivative U (Source.evaluate k (apply k included omega) arguments) i x)
+          (Partials.derivative V (Target.evaluate k omega arguments) i (Open.inclusion U V included x))
+          (Partials.partialLaw U (Source.evaluate k (apply k included omega) arguments) i x)
+          (Restriction.localPartial U V included (Target.evaluate k omega arguments) (Partials.partial V (Target.evaluate k omega arguments) i) i
+            (Partials.partialLaw V (Target.evaluate k omega arguments) i) x));
+}
+\module Product(p, q: N.Nat^) {
+  \import Source.Wedge[p := p, q := q] \as SourceProduct;
+  \import Target.Wedge[p := p, q := q] \as TargetProduct;
+  \definition law: \forall (included: Open.Included U V)(omega: Target.Form p)(eta: Target.Form q) ->
+    apply (Nat.add p q) included (TargetProduct.apply omega eta) = SourceProduct.apply (apply p included omega) (apply q included eta) :=
+    \fun (included: Open.Included U V)(omega: Target.Form p)(eta: Target.Form q) => Source.ext (Nat.add p q)
+      (apply (Nat.add p q) included (TargetProduct.apply omega eta)) (SourceProduct.apply (apply p included omega) (apply q included eta))
+      (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments (Nat.add p q)) => \refl(TargetProduct.apply omega eta (Open.inclusion U V included x) arguments));
+}
+\module Differential(k: N.Nat^) {
+  \definition next: N.Nat^ := N.Nat^::succ k;
+  \import \parent.At[k := k] \as Current;
+  \import \parent.At[k := next] \as Result;
+  \import Source.ExteriorDerivative[k := k] \as SourceD;
+  \import Target.ExteriorDerivative[k := k] \as TargetD;
+  \import Source.Partial[k := k] \as SourcePartial;
+  \import Target.Partial[k := k] \as TargetPartial;
+  \import Source.At[k := next] \as SourceSpace;
+  \import Target.At[k := next] \as TargetSpace;
+  \import Exterior.Components[k := next] \as Components;
+  \definition term: \forall (included: Open.Included U V)(i: Fin.Fin n)(omega: Target.Form k) ->
+    SourceD.term i (apply k included omega) = apply next included (TargetD.term i omega) :=
+    \fun (included: Open.Included U V)(i: Fin.Fin n)(omega: Target.Form k) => \axiom:funext(SourceD.term i (apply k included omega),
+      apply next included (TargetD.term i omega), \fun (x: Open.Carrier U) => Components.ext (SourceD.term i (apply k included omega) x)
+        (TargetD.term i omega (Open.inclusion U V included x)) (trans!{{Shuffle.Function}}
+          (Exterior.component next (SourceD.term i (apply k included omega) x))
+          (Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) (SourceD.coordinate i x)) (Exterior.component k (SourcePartial.apply i (apply k included omega) x)))
+          (Exterior.component next (TargetD.term i omega (Open.inclusion U V included x)))
+          (SourceD.termSeries i (apply k included omega) x)
+          (trans!{{Shuffle.Function}}
+            (Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) (SourceD.coordinate i x)) (Exterior.component k (SourcePartial.apply i (apply k included omega) x)))
+            (Shuffle.product (Exterior.component (N.Nat^::succ N.Nat^::zero) (TargetD.coordinate i (Open.inclusion U V included x))) (Exterior.component k (TargetPartial.apply i omega (Open.inclusion U V included x))))
+            (Exterior.component next (TargetD.term i omega (Open.inclusion U V included x)))
+            (congr!{{Source.Form k} {Shuffle.Function}} (\fun (eta: Source.Form k) => Shuffle.product
+              (Exterior.component (N.Nat^::succ N.Nat^::zero) (SourceD.coordinate i x)) (Exterior.component k (eta x))) _ _ (Current.partial included i omega))
+            (sym!{{Shuffle.Function}} _ _ (TargetD.termSeries i omega (Open.inclusion U V included x))))));
+  \import Spaces.Sums[I := Fin.Fin n].Vector[V := Target.Form next, space := TargetSpace.space].Mapping[W := Source.Form next, target := SourceSpace.space] \as Mapping;
+  \import Spaces.Sums[I := Fin.Fin n].Vector[V := Source.Form next, space := SourceSpace.space] \as Sums;
+  \definition law: \forall (included: Open.Included U V)(omega: Target.Form k) ->
+    SourceD.apply (apply k included omega) = apply next included (TargetD.apply omega) :=
+    \fun (included: Open.Included U V)(omega: Target.Form k) => trans!{{Source.Form next}} _ _ _
+      (Sums.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => SourceD.term i (apply k included omega))
+        (\fun (i: Fin.Fin n) => apply next included (TargetD.term i omega)) (\fun (i: Fin.Fin n) => term included i omega))
+      (sym!{{Source.Form next}} _ _ (Mapping.law (Result.map included) (Fin.elements n) (\fun (i: Fin.Fin n) => TargetD.term i omega)));
+}
+
+\module Regrade(k, l: N.Nat^) {
+  \import Source.Regrade[k := k, l := l] \as SourceDegree;
+  \import Target.Regrade[k := k, l := l] \as TargetDegree;
+  \import Exterior.Components[k := l] \as Components;
+  \definition law: \forall (included: Open.Included U V)(omega: Target.Form k)(same: k = l) ->
+    SourceDegree.cast (apply k included omega) same = apply l included (TargetDegree.cast omega same) :=
+    \fun (included: Open.Included U V)(omega: Target.Form k)(same: k = l) => \axiom:funext(
+      SourceDegree.cast (apply k included omega) same, apply l included (TargetDegree.cast omega same),
+      \fun (x: Open.Carrier U) => Components.ext (SourceDegree.cast (apply k included omega) same x)
+        (TargetDegree.cast omega same (Open.inclusion U V included x))
+        (trans!{{Shuffle.Function}}
+          (Exterior.component l (SourceDegree.cast (apply k included omega) same x))
+          (Exterior.component k (omega (Open.inclusion U V included x)))
+          (Exterior.component l (TargetDegree.cast omega same (Open.inclusion U V included x)))
+          (SourceDegree.series (apply k included omega) same x)
+          (sym!{{Shuffle.Function}} (Exterior.component l (TargetDegree.cast omega same (Open.inclusion U V included x)))
+            (Exterior.component k (omega (Open.inclusion U V included x))) (TargetDegree.series omega same (Open.inclusion U V included x)))));
+}

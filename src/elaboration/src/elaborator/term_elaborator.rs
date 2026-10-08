@@ -27,6 +27,14 @@ pub(crate) trait Handler {
         name: &Identifier,
         scope: &mut LocalScope,
     ) -> Result<(), ElaborationError>;
+    fn direct_module_definition(
+        &mut self,
+        path: &ModuleInstantiatePath,
+        name: &Identifier,
+        access: &LocalAccess,
+        scope: &mut LocalScope,
+        arguments: &[&SExp],
+    ) -> Result<Option<Exp>, ElaborationError>;
     fn materialize_module_term(
         &mut self,
         context: &ExpContext,
@@ -727,9 +735,11 @@ impl LocalScope {
     ) -> Result<(Exp, Exp, Exp), ElaborationError> {
         let map = self.elab_take_function(var, domain, body, handler)?;
         let map_ty = handler.infer(&mut self.typing_binds, map)?;
+        let map_ty = whnf(handler.env(), handler.zonk(map_ty));
         let ExpNode::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
             return Err("failed to infer a product type for \\take map".into());
         };
+        let codomain = whnf(handler.env(), handler.zonk(codomain));
         if exp_contains_bound(handler.arena(), codomain, 0) {
             return Err("\\take map must have a non-dependent codomain".into());
         }
@@ -779,6 +789,29 @@ impl LocalScope {
     ) -> Result<Exp, ElaborationError> {
         match exp {
             SExp::Checked { checks, body } => {
+                let mut direct_head = body.as_ref();
+                let mut direct_arguments = Vec::new();
+                while let SExp::App { func, arg } = direct_head {
+                    direct_arguments.push(arg.as_ref());
+                    direct_head = func.as_ref();
+                }
+                if let [(SExp::ModuleInstance { path, import_name }, _)] = checks.as_slice()
+                    && let SExp::AccessPath { access, parameters } = direct_head
+                {
+                    let arguments = parameters
+                        .iter()
+                        .chain(direct_arguments.into_iter().rev())
+                        .collect::<Vec<_>>();
+                    if let Some(value) = handler.direct_module_definition(
+                        path,
+                        import_name,
+                        access,
+                        self,
+                        &arguments,
+                    )? {
+                        return Ok(value);
+                    }
+                }
                 for (value, ty) in checks {
                     if let SExp::ModuleInstance { path, import_name } = value {
                         handler.instantiate_module(path, import_name, self)?;
@@ -1609,10 +1642,12 @@ impl LocalScope {
                 else {
                     return Err("Induction binder type must reduce to an inductive type".into());
                 };
-                let ItemAccessResult::Inductive(ModItemInductive { ctor_names, .. }) =
-                    Self::inductive_item(inductive, handler)?
-                else {
-                    return Err("Induction binder type must reduce to an inductive type".into());
+                let ctor_names = match Self::inductive_item(inductive, handler)? {
+                    ItemAccessResult::Inductive(ModItemInductive { ctor_names, .. }) => ctor_names,
+                    ItemAccessResult::Record(_) => vec![Identifier("#".to_owned())],
+                    _ => {
+                        return Err("Induction binder type must reduce to an inductive type".into());
+                    }
                 };
                 let cases = self.elab_inductive_cases(&ctor_names, cases, handler)?;
                 let arena = handler.arena();

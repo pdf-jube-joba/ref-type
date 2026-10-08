@@ -77,3 +77,22 @@
         congr2!{K K K} add _ _ _ _ (equal i (Logic.Or[_, _]::left (\refl(i))))
           (ih f g (\fun (j: I) (member: _) => equal j (Logic.Or[_, _]::right member)))
     };
+\module Mapping(J: \Set);
+\import Lists.All[A := I] \as All;
+\definition allCongruent: \forall (xs: Lists.List[I])(f, g: I -> K) -> All.Holds (\fun (i: I) => f i = g i) xs -> sum xs f = sum xs g :=
+  \induction (xs: Lists.List[I]) \return \forall (f, g: I -> K) -> All.Holds (\fun (i: I) => f i = g i) xs -> sum xs f = sum xs g \with {
+    | nil: \fun (f, g: I -> K)(proof: All.Holds (\fun (i: I) => f i = g i) Lists.List[I]::nil) => \refl(zero)
+    | cons: \fun (head: I)(tail: Lists.List[I])
+      (previous: \forall (f, g: I -> K) -> All.Holds (\fun (i: I) => f i = g i) tail -> sum tail f = sum tail g)
+      (f, g: I -> K)(proof: All.Holds (\fun (i: I) => f i = g i) (Lists.List[I]::cons head tail)) =>
+        congr2!{K K K} add (f head) (g head) (sum tail f) (sum tail g) #left{proof} (previous f g #right{proof})
+  };
+\definition append: \forall (xs, ys: Lists.List[I])(f: I -> K) -> sum (Lists.append I xs ys) f = add (sum xs f) (sum ys f) :=
+  \induction (xs: Lists.List[I]) \return \forall (ys: Lists.List[I])(f: I -> K) -> sum (Lists.append I xs ys) f = add (sum xs f) (sum ys f) \with {
+    | nil: \fun (ys: Lists.List[I])(f: I -> K) => sym!{K} (add zero (sum ys f)) (sum ys f) (addZeroLeft (sum ys f))
+    | cons: \fun (head: I)(tail: Lists.List[I])
+      (previous: \forall (ys: Lists.List[I])(f: I -> K) -> sum (Lists.append I tail ys) f = add (sum tail f) (sum ys f))
+      (ys: Lists.List[I])(f: I -> K) => trans!{K} (add (f head) (sum (Lists.append I tail ys) f)) (add (f head) (add (sum tail f) (sum ys f))) (add (add (f head) (sum tail f)) (sum ys f))
+        (congr!{K K} (add (f head)) (sum (Lists.append I tail ys) f) (add (sum tail f) (sum ys f)) (previous ys f))
+        (sym!{K} (add (add (f head) (sum tail f)) (sum ys f)) (add (f head) (add (sum tail f) (sum ys f))) (addAssoc (f head) (sum tail f) (sum ys f)))
+  };

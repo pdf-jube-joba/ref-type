@@ -1,0 +1,76 @@
+\import \parent.Tuples[A := A] \as Tuples;
+\import \parent.Empty[A := A] \as Empty;
+\use Equality.congr2;
+\definition tuple: \forall (xs: Lists.List[A]) -> Fin (Lists.length A xs) -> A :=
+  \induction (xs: Lists.List[A]) \return Fin (Lists.length A xs) -> A \with {
+    | nil: Empty.function
+    | cons: \fun (head: A)(tail: Lists.List[A])(previous: Fin (Lists.length A tail) -> A) => Tuples.extend (Lists.length A tail) head previous
+  };
+\definition at(n: N.Nat^)(xs: Lists.List[A])(equal: Lists.length A xs = n)(i: Fin n): A := tuple xs
+  (\into[N.Nat^](i, Fin (Lists.length A xs)) \by {
+    \idelim n = Lists.length A xs \with m: N.Nat^ => NL.Lt i m
+      \by { base: bound n i, equality: sym!{{N.Nat^}} (Lists.length A xs) n equal }
+  });
+\definition list: \forall (n: N.Nat^) -> (Fin n -> A) -> Lists.List[A] :=
+  \induction (n: N.Nat^) \return (Fin n -> A) -> Lists.List[A] \with {
+    | zero: \fun (f: Fin N.Nat^::zero -> A) => Lists.List[A]::nil
+    | succ: \fun (n: N.Nat^)(previous: (Fin n -> A) -> Lists.List[A])(f: Fin (N.Nat^::succ n) -> A) =>
+      Lists.List[A]::cons (f (zero n)) (previous (\fun (j: Fin n) => f (succ n j)))
+  };
+\definition listLength: \forall (n: N.Nat^)(f: Fin n -> A) -> Lists.length A (list n f) = n :=
+  \induction (n: N.Nat^) \return \forall (f: Fin n -> A) -> Lists.length A (list n f) = n \with {
+    | zero: \fun (f: Fin N.Nat^::zero -> A) => \refl(N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(previous: \forall (f: Fin n -> A) -> Lists.length A (list n f) = n)(f: Fin (N.Nat^::succ n) -> A) =>
+      congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ (Lists.length A (list n (\fun (j: Fin n) => f (succ n j)))) n (previous (\fun (j: Fin n) => f (succ n j)))
+  };
+\module Recover(tail: Lists.List[A]);
+\definition listTuple: \forall (xs: Lists.List[A]) -> list (Lists.length A xs) (tuple xs) = xs :=
+  \induction (xs: Lists.List[A]) \return list (Lists.length A xs) (tuple xs) = xs \with {
+    | nil: \refl(Lists.List[A]::nil)
+    | cons: \fun (head: A)(tail: Lists.List[A])(previous: list (Lists.length A tail) (tuple tail) = tail) => Recover[tail := tail].step head previous
+  };
+\definition atSelf: \forall (xs: Lists.List[A])(e: Lists.length A xs = Lists.length A xs) -> at (Lists.length A xs) xs e = tuple xs :=
+  \fun (xs: Lists.List[A])(e: Lists.length A xs = Lists.length A xs) => \axiom:funext(at (Lists.length A xs) xs e, tuple xs, \fun (i: Fin (Lists.length A xs)) => \refl(tuple xs i));
+\definition listAt: \forall (n: N.Nat^)(xs: Lists.List[A])(equal: Lists.length A xs = n) -> list n (at n xs equal) = xs :=
+  \fun (n: N.Nat^)(xs: Lists.List[A])(equal: Lists.length A xs = n) =>
+    (\idelim Lists.length A xs = n \with m: N.Nat^ => \forall (e: Lists.length A xs = m) -> list m (at m xs e) = xs
+      \by { base: \fun (e: Lists.length A xs = Lists.length A xs) => trans!{{Lists.List[A]}}
+        (list (Lists.length A xs) (at (Lists.length A xs) xs e)) (list (Lists.length A xs) (tuple xs)) xs
+          (congr!{{Fin (Lists.length A xs) -> A} {Lists.List[A]}} (list (Lists.length A xs)) (at (Lists.length A xs) xs e) (tuple xs) (atSelf xs e)) (listTuple xs), equality: equal }) equal;
+\definition atCons: \forall (xs: Lists.List[A])(m: N.Nat^)(e: Lists.length A xs = m)(h: A) ->
+    at (N.Nat^::succ m) (Lists.List[A]::cons h xs) (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ (Lists.length A xs) m e) = Tuples.extend m h (at m xs e) :=
+    \fun (xs: Lists.List[A])(m: N.Nat^)(e: Lists.length A xs = m) =>
+      (\idelim Lists.length A xs = m \with r: N.Nat^ => \forall (law: Lists.length A xs = r)(h: A) ->
+        at (N.Nat^::succ r) (Lists.List[A]::cons h xs) (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ (Lists.length A xs) r law) = Tuples.extend r h (at r xs law)
+        \by { base: \fun (law: Lists.length A xs = Lists.length A xs)(h: A) => trans!{{Fin (N.Nat^::succ (Lists.length A xs)) -> A}}
+          (at (N.Nat^::succ (Lists.length A xs)) (Lists.List[A]::cons h xs) (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ (Lists.length A xs) (Lists.length A xs) law))
+          (Tuples.extend (Lists.length A xs) h (tuple xs)) (Tuples.extend (Lists.length A xs) h (at (Lists.length A xs) xs law))
+            (atSelf (Lists.List[A]::cons h xs) (congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ (Lists.length A xs) (Lists.length A xs) law))
+            (congr!{{Fin (Lists.length A xs) -> A} {Fin (N.Nat^::succ (Lists.length A xs)) -> A}} (Tuples.extend (Lists.length A xs) h)
+              (tuple xs) (at (Lists.length A xs) xs law) (sym!{{Fin (Lists.length A xs) -> A}} (at (Lists.length A xs) xs law) (tuple xs) (atSelf xs law))), equality: e }) e;
+\module Inverse(n: N.Nat^);
+\definition atList: \forall (n: N.Nat^)(f: Fin n -> A) -> at n (list n f) (listLength n f) = f :=
+  \induction (n: N.Nat^) \return \forall (f: Fin n -> A) -> at n (list n f) (listLength n f) = f \with {
+    | zero: \fun (f: Fin N.Nat^::zero -> A) => Empty.unique (at N.Nat^::zero (list N.Nat^::zero f) (listLength N.Nat^::zero f)) f
+    | succ: \fun (n: N.Nat^)(previous: \forall (f: Fin n -> A) -> at n (list n f) (listLength n f) = f) => Inverse[n := n].step previous
+  };
+\import Lists.Membership[A := A] \as Membership;
+\module MembershipStep(n: N.Nat^);
+\definition occurs: \forall (n: N.Nat^)(f: Fin n -> A)(i: Fin n) -> Membership.Occurs (f i) (list n f) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin n -> A)(i: Fin n) -> Membership.Occurs (f i) (list n f) \with {
+    | zero: \fun (f: Fin N.Nat^::zero -> A)(i: Fin N.Nat^::zero) => zeroImpossible i (bound N.Nat^::zero i)
+    | succ: \fun (n: N.Nat^)(previous: \forall (f: Fin n -> A)(i: Fin n) -> Membership.Occurs (f i) (list n f)) => MembershipStep[n := n].law previous
+  };
+\module Mapping(B: \Set);
+\import Lists.All[A := A] \as All;
+\definition all: \forall (n: N.Nat^)(f: Fin n -> A)(P: A -> \Prop) ->
+  (\forall (i: Fin n) -> P (f i)) -> All.Holds P (list n f) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin n -> A)(P: A -> \Prop) ->
+    (\forall (i: Fin n) -> P (f i)) -> All.Holds P (list n f) \with {
+      | zero: \fun (f: Fin N.Nat^::zero -> A)(P: A -> \Prop)(proof: \forall (i: Fin N.Nat^::zero) -> P (f i)) => Logic.True::intro
+      | succ: \fun (n: N.Nat^)(previous: \forall (f: Fin n -> A)(P: A -> \Prop) ->
+          (\forall (i: Fin n) -> P (f i)) -> All.Holds P (list n f))
+          (f: Fin (N.Nat^::succ n) -> A)(P: A -> \Prop)(proof: \forall (i: Fin (N.Nat^::succ n)) -> P (f i)) =>
+        Logic.And[P (f (zero n)), All.Holds P (list n (\fun (i: Fin n) => f (succ n i)))]::#
+          (proof (zero n)) (previous (\fun (i: Fin n) => f (succ n i)) P (\fun (i: Fin n) => proof (succ n i)))
+    };

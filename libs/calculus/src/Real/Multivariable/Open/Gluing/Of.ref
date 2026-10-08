@@ -1,0 +1,33 @@
+\module At(a: Carrier U) {
+  \definition patch: Patch := select a;
+  \definition contains: Contains patch a := \bysub(Patch, Patches a, select a);
+  \definition localPoint: Carrier (#domain{patch}) := point patch a contains;
+  \import \parent.\parent.Member[select := select, patch := patch] \as Member;
+  \definition function: family select Smooth.Directions::nil a = f a :=
+    congr!{{ScalarFunction (#domain{patch})} Real} (\fun (h: ScalarFunction (#domain{patch})) => h localPoint)
+      (#derivatives{patch} Smooth.Directions::nil) (restrict (#domain{patch}) U (#included{patch}) f)
+      (#function{(#partials{(#regular{patch})})});
+  \definition continuous: \forall (directions: Smooth.Directions) -> NatLaws.Le (Smooth.order directions) k ->
+    Analysis.ContinuousAt U (family select directions) a :=
+    \fun (directions: _)(bound: _) => Local.continuous U (#domain{patch}) (#included{patch})
+      (family select directions) (#derivatives{patch} directions) localPoint
+      (\fun (z: Carrier (#domain{patch})) => Member.coincide z directions bound)
+      (#continuous{(#regular{patch})} directions bound localPoint);
+  \definition partial: \forall (directions: Smooth.Directions) -> NatLaws.Lt (Smooth.order directions) k -> \forall (i: Coordinate) ->
+    Analysis.HasPartialDerivativeAt U (family select directions) i a (family select (Smooth.Directions::cons i directions) a) := \block {
+    \fun (directions: _)(bound: _)(i: _) \then
+    \let orderBound: NatLaws.Le (Smooth.order directions) k := NatLaws.leTrans (Smooth.order directions) (N.Nat^::succ (Smooth.order directions)) k
+      (NatLaws.leSelfSucc (Smooth.order directions)) (NatLaws.succLeOfLt k (Smooth.order directions) bound) \then
+    \return Local.partial U (#domain{patch}) (#included{patch}) (family select directions) (#derivatives{patch} directions) i localPoint
+      (#derivatives{patch} (Smooth.Directions::cons i directions) localPoint)
+      (\fun (z: Carrier (#domain{patch})) => Member.coincide z directions orderBound)
+      (#derivative{(#partials{(#regular{patch})})} directions bound i localPoint)
+  };
+}
+\definition laws: Smooth.ContDiffLaws[U, f, k, family select] := Smooth.ContDiffLaws[U, f, k, family select] {
+  partials := Smooth.PartialFamilyLaws[U, f, k, family select] {
+    function := \axiom:funext(family select Smooth.Directions::nil, f, \fun (a: Carrier U) => At[a := a].function),
+    derivative := \fun (directions: Smooth.Directions)(bound: _)(i: Coordinate)(a: Carrier U) => At[a := a].partial directions bound i,
+  },
+  continuous := \fun (directions: Smooth.Directions)(bound: _)(a: Carrier U) => At[a := a].continuous directions bound,
+};

@@ -1,0 +1,42 @@
+\import homological_algebra.Cochain[].Over[R := Reals.Real, ring := Spaces.ring] \as Complexes;
+\definition space(k: N.Nat^): Spaces.VectorSpace (Form k) := \parent.At[k := k].space;
+\definition family: Complexes.Family := Complexes.Family { Carrier := Form, space := space };
+\definition differential: Complexes.DifferentialData[family] := Complexes.DifferentialData[family] {
+  apply := \fun (k: N.Nat^)(omega: Form k) => \parent.ExteriorDerivative[k := k].apply omega,
+};
+\definition laws: Complexes.DifferentialLaws[family, differential] := Complexes.DifferentialLaws[family, differential] {
+  addition := \fun (k: N.Nat^)(omega, eta: Form k) => \parent.ExteriorDerivative[k := k].addition omega eta,
+  scalar := \fun (k: N.Nat^)(a: Reals.Real)(omega: Form k) => \parent.ExteriorDerivative[k := k].scalar a omega,
+  squareZero := \fun (k: N.Nat^)(omega: Form k) => \parent.Square[k := k].law omega,
+};
+\definition complex: Complexes.Complex := Complexes.Complex { family := family, differential := differential, laws := laws };
+\module At(k: N.Nat^) {
+  \import Complexes.At[C := complex, k := k] \as Cohomology;
+  \definition Closed(omega: Form k): \Prop := #apply{differential} k omega = #zero{(space (N.Nat^::succ k))};
+  \definition Exact(omega: Form k): \Prop := \In[Form k] (Cohomology.Boundaries k) omega;
+  \definition Cycle: \Set := Cohomology.CycleCarrier;
+  \definition H: \Set := Cohomology.Cohomology;
+  \definition vectorSpace: Spaces.VectorSpace H := Cohomology.cohomologySpace;
+  \definition classOf: Cycle -> H := Cohomology.classOf;
+  \definition vanishes: \forall (omega: Cycle) -> Logic.And[classOf omega = #zero{vectorSpace} -> Exact omega, Exact omega -> classOf omega = #zero{vectorSpace}] :=
+    \fun (omega: Cycle) => Logic.And[_, _]::# (Cohomology.zeroClassBoundary omega) (Cohomology.boundaryClassZero omega);
+}
+\definition Cohomology(k: N.Nat^): \Set := At[k := k].H;
+\definition Closed(k: N.Nat^)(omega: Form k): \Prop := At[k := k].Closed omega;
+\definition Exact(k: N.Nat^)(omega: Form k): \Prop := At[k := k].Exact omega;
+
+\import Complexes.Map[C := complex, D := Global.DeRham[].complex] \as Forward;
+\import Complexes.Map[C := Global.DeRham[].complex, D := complex] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (k: N.Nat^)(omega: Form k) => \parent.At[k := k].extend omega,
+  addition := \fun (k: N.Nat^)(omega, eta: Form k) => \parent.At[k := k].Linear[].extendAddition omega eta,
+  scalar := \fun (k: N.Nat^)(a: Reals.Real)(omega: Form k) => \parent.At[k := k].Linear[].extendScalar a omega,
+  commutes := \fun (k: N.Nat^)(omega: Form k) => \parent.ExteriorDerivative[k := k].extensionLaw omega,
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (k: N.Nat^)(omega: Global.Form k) => \parent.At[k := k].restrict omega,
+  addition := \fun (k: N.Nat^)(omega, eta: Global.Form k) => \parent.At[k := k].Linear[].restrictAddition omega eta,
+  scalar := \fun (k: N.Nat^)(a: Reals.Real)(omega: Global.Form k) => \parent.At[k := k].Linear[].restrictScalar a omega,
+  commutes := \fun (k: N.Nat^)(omega: Global.Form k) => \parent.ExteriorDerivative[k := k].restrictionLaw omega,
+};
+\module Comparison(k: N.Nat^);

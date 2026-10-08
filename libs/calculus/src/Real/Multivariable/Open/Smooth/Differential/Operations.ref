@@ -1,0 +1,54 @@
+\use Equality.congr2;
+\import \parent.\parent.Algebra[U := U] \as Functions;
+\import Partials.Linear[U := U] \as Derivatives;
+\import real.Analysis[].FiniteSums[] \as Sums;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import linear_algebra.Field[].Space[K := Real, field := Algebra.field] \as Scalars;
+\definition addition: \forall (f, g: Functions.Function)(a: Carrier U)(v: Point) ->
+  #apply{(value U (Functions.plus f g) a)} v = add (#apply{(value U f a)} v) (#apply{(value U g a)} v) :=
+  \fun (f, g: Functions.Function)(a: Carrier U)(v: Point) =>
+    trans!{Real} (#apply{(value U (Functions.plus f g) a)} v)
+      (Sums.sum n (\fun (i: Coordinate) => add (mul (Partials.partial U f i a) (v i)) (mul (Partials.partial U g i a) (v i))))
+      (add (#apply{(value U f a)} v) (#apply{(value U g a)} v))
+      (Sums.congruent n (\fun (i: Coordinate) => mul (Partials.partial U (Functions.plus f g) i a) (v i))
+        (\fun (i: Coordinate) => add (mul (Partials.partial U f i a) (v i)) (mul (Partials.partial U g i a) (v i)))
+        (\fun (i: Coordinate) => trans!{Real} _ _ _
+          (congr!{{Functions.Function} Real} (\fun (h: Functions.Function) => mul (h a) (v i))
+            (Derivatives.apply i (Functions.plus f g)) (Functions.plus (Derivatives.apply i f) (Derivatives.apply i g))
+            (Derivatives.addition i f g))
+          (Scalars.addMul (Partials.partial U f i a) (Partials.partial U g i a) (v i))))
+      (Sums.addition n (\fun (i: Coordinate) => mul (Partials.partial U f i a) (v i))
+        (\fun (i: Coordinate) => mul (Partials.partial U g i a) (v i)));
+\definition productTerm: \forall (f, g: Functions.Function)(a: Carrier U)(v: Point)(i: Coordinate) ->
+  mul (Partials.partial U (Functions.product f g) i a) (v i) =
+    add (mul (g a) (mul (Partials.partial U f i a) (v i))) (mul (f a) (mul (Partials.partial U g i a) (v i))) :=
+  \fun (f, g: Functions.Function)(a: Carrier U)(v: Point)(i: Coordinate) => eq_reason!{
+    {mul (Partials.partial U (Functions.product f g) i a) (v i)}
+    "=" {mul (add (mul (Partials.partial U f i a) (g a)) (mul (f a) (Partials.partial U g i a))) (v i)} "by" {
+      congr!{{Functions.Function} Real} (\fun (h: Functions.Function) => mul (h a) (v i)) _ _ (Derivatives.product i f g)}
+    "=" {add (mul (mul (Partials.partial U f i a) (g a)) (v i)) (mul (mul (f a) (Partials.partial U g i a)) (v i))} "by" {
+      Scalars.addMul (mul (Partials.partial U f i a) (g a)) (mul (f a) (Partials.partial U g i a)) (v i)}
+    "=" {add (mul (g a) (mul (Partials.partial U f i a) (v i))) (mul (f a) (mul (Partials.partial U g i a) (v i)))} "by" {
+      congr2!{Real Real Real} add _ _ _ _
+        (trans!{Real} _ _ _
+          (congr!{Real Real} (\fun (c: Real) => mul c (v i)) _ _ (Scalars.mulComm (Partials.partial U f i a) (g a)))
+          (Scalars.mulAssoc (g a) (Partials.partial U f i a) (v i)))
+        (Scalars.mulAssoc (f a) (Partials.partial U g i a) (v i))}
+  };
+\definition product: \forall (f, g: Functions.Function)(a: Carrier U)(v: Point) ->
+  #apply{(value U (Functions.product f g) a)} v =
+    add (mul (g a) (#apply{(value U f a)} v)) (mul (f a) (#apply{(value U g a)} v)) :=
+  \fun (f, g: Functions.Function)(a: Carrier U)(v: Point) => eq_reason!{
+    {#apply{(value U (Functions.product f g) a)} v}
+    "=" {Sums.sum n (\fun (i: Coordinate) => add (mul (g a) (mul (Partials.partial U f i a) (v i)))
+      (mul (f a) (mul (Partials.partial U g i a) (v i))))} "by" {
+      Sums.congruent n _ _ (\fun (i: Coordinate) => productTerm f g a v i)}
+    "=" {add (Sums.sum n (\fun (i: Coordinate) => mul (g a) (mul (Partials.partial U f i a) (v i))))
+      (Sums.sum n (\fun (i: Coordinate) => mul (f a) (mul (Partials.partial U g i a) (v i))))} "by" {
+      Sums.addition n (\fun (i: Coordinate) => mul (g a) (mul (Partials.partial U f i a) (v i)))
+        (\fun (i: Coordinate) => mul (f a) (mul (Partials.partial U g i a) (v i)))}
+    "=" {add (mul (g a) (#apply{(value U f a)} v)) (mul (f a) (#apply{(value U g a)} v))} "by" {
+      congr2!{Real Real Real} add _ _ _ _
+        (Sums.scalar n (g a) (\fun (i: Coordinate) => mul (Partials.partial U f i a) (v i)))
+        (Sums.scalar n (f a) (\fun (i: Coordinate) => mul (Partials.partial U g i a) (v i)))}
+  };

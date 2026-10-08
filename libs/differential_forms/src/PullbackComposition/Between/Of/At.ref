@@ -1,0 +1,31 @@
+\import First.At[k := k] \as FirstMap;
+\import Second.At[k := k] \as SecondMap;
+\import Composite.At[k := k] \as CompositeMap;
+\import SourceForms.Pointwise[k := k] \as SourcePointwise;
+\import MiddleForms.Pointwise[k := k] \as MiddlePointwise;
+\import TargetForms.Pointwise[k := k] \as TargetPointwise;
+\module AtPoint(x: M.Point);
+\definition law: \forall (omega: TargetForms.Form k) -> CompositeMap.apply omega = FirstMap.apply (SecondMap.apply omega) :=
+  \fun (omega: TargetForms.Form k) => SourcePointwise.Algebra[].injective _ _
+    (\axiom:funext(SourcePointwise.value (CompositeMap.apply omega), SourcePointwise.value (FirstMap.apply (SecondMap.apply omega)),
+      \fun (x: M.Point) => \axiom:funext(SourcePointwise.value (CompositeMap.apply omega) x,
+        SourcePointwise.value (FirstMap.apply (SecondMap.apply omega)) x, AtPoint[x := x].law omega)));
+\import SourceForms.DeRham[] \as SourceDeRham;
+\import MiddleForms.DeRham[] \as MiddleDeRham;
+\import TargetForms.DeRham[] \as TargetDeRham;
+\import homological_algebra.Cochain[].Over[R := Reals.Real, ring := Spaces.ring].At[C := TargetDeRham.complex, k := k] \as Cohomology;
+\import First.DeRham[].At[k := k] \as FirstH;
+\import Second.DeRham[].At[k := k] \as SecondH;
+\import Composite.DeRham[].At[k := k] \as CompositeH;
+\definition cohomologyLaw: \forall (h: TargetDeRham.Cohomology k) -> CompositeH.apply h = FirstH.apply (SecondH.apply h) :=
+  Cohomology.classInduction (\fun (h: TargetDeRham.Cohomology k) => CompositeH.apply h = FirstH.apply (SecondH.apply h))
+    (\fun (omega: Cohomology.CycleCarrier) => trans!{{SourceDeRham.Cohomology k}} _
+      (SourceDeRham.At[k := k].classOf (CompositeH.cycle omega)) _ (CompositeH.onClass omega)
+      (trans!{{SourceDeRham.Cohomology k}} _
+        (SourceDeRham.At[k := k].classOf (FirstH.cycle (SecondH.cycle omega))) _
+        (congr!{{SourceDeRham.At[k := k].Cycle} {SourceDeRham.Cohomology k}} SourceDeRham.At[k := k].classOf
+          (CompositeH.cycle omega) (FirstH.cycle (SecondH.cycle omega)) (law omega))
+        (trans!{{SourceDeRham.Cohomology k}} _ (FirstH.apply (MiddleDeRham.At[k := k].classOf (SecondH.cycle omega))) _
+          (sym!{{SourceDeRham.Cohomology k}} _ _ (FirstH.onClass (SecondH.cycle omega)))
+          (congr!{{MiddleDeRham.Cohomology k} {SourceDeRham.Cohomology k}} FirstH.apply _ _
+            (sym!{{MiddleDeRham.Cohomology k}} _ _ (SecondH.onClass omega))))));

@@ -1,0 +1,81 @@
+\import \parent.\parent.Multilinear[V := Coordinates.Vector, space := Coordinates.space] \as Multilinear;
+\import N.Basic[].Def[] \as Nat;
+\import Multilinear.Alternating[] \as Alternating;
+\import \parent.\parent.Exterior[V := Coordinates.Vector, space := Coordinates.space] \as Product;
+\definition Form(k: N.Nat^): \Set := Alternating.Form k;
+\module Covector(i: Fin.Fin n);
+\definition coordinate(i: Fin.Fin n): Form (N.Nat^::succ N.Nat^::zero) := Covector[i := i].form;
+\definition Operator(k: N.Nat^): \Set := (Fin.Fin k -> Fin.Fin n) -> Form k;
+\module Step(k: N.Nat^);
+\definition word: \forall (k: N.Nat^) -> Operator k :=
+  \induction (k: N.Nat^) \return Operator k \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => Product.unit
+    | succ: \fun (k: N.Nat^)(previous: Operator k) => Step[k := k].value previous
+  };
+\definition zeroWord: \forall (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) -> word N.Nat^::zero indices = Product.unit :=
+  \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n) => \refl(Product.unit);
+
+\import \parent.\parent.Shuffle[I := Coordinates.Vector] \as Shuffle;
+\import Shuffle.Boundary[].OneCovector[] \as Covectors;
+\import Shuffle.Laws[] \as Products;
+\import Fin.FromList[A := Coordinates.Vector] \as VectorLists;
+\import Lists.All[A := Coordinates.Vector] \as AllVectors;
+\import Product.Unit[] \as Unit;
+\definition degreeOne: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition coordinateSeries(i: Fin.Fin n): Shuffle.Function := Product.component degreeOne (coordinate i);
+\definition coordinateValue: \forall (i: Fin.Fin n)(v: Coordinates.Vector) -> coordinateSeries i (Covectors.singleton v) = v i :=
+  \fun (i: Fin.Fin n)(v: Coordinates.Vector) => Multilinear.ListSeries[k := degreeOne].onArguments (coordinate i) (\fun (slot: Fin.Fin degreeOne) => v);
+\definition coordinateIdentity: \forall (i: Fin.Fin n) -> coordinateSeries i = Covectors.value (\fun (v: Coordinates.Vector) => v i) :=
+  \fun (i: Fin.Fin n) => trans!{{Shuffle.Function}} (coordinateSeries i)
+    (Covectors.value (\fun (v: Coordinates.Vector) => coordinateSeries i (Covectors.singleton v)))
+    (Covectors.value (\fun (v: Coordinates.Vector) => v i))
+    (Covectors.normalForm (coordinateSeries i) (Multilinear.ListSeries[k := degreeOne].outside (coordinate i)))
+    (congr!{{Coordinates.Vector -> K} {Shuffle.Function}} Covectors.value
+      (\fun (v: Coordinates.Vector) => coordinateSeries i (Covectors.singleton v)) (\fun (v: Coordinates.Vector) => v i)
+      (\axiom:funext((\fun (v: Coordinates.Vector) => coordinateSeries i (Covectors.singleton v)), (\fun (v: Coordinates.Vector) => v i), coordinateValue i)));
+\module SeriesStep(k: N.Nat^);
+\definition Annihilation(k: N.Nat^): \Prop :=
+  \forall (indices: Fin.Fin k -> Fin.Fin n)(v: Coordinates.Vector) ->
+    (\forall (i: Fin.Fin k) -> v (indices i) = zero) ->
+    \forall (xs: Lists.List[Coordinates.Vector]) -> Product.component k (word k indices) (Lists.List[Coordinates.Vector]::cons v xs) = zero;
+\module AnnihilatorStep(k: N.Nat^);
+\definition annihilation: \forall (k: N.Nat^) -> Annihilation k :=
+  \induction (k: N.Nat^) \return Annihilation k \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n)(v: Coordinates.Vector)
+        (vanishing: \forall (i: Fin.Fin N.Nat^::zero) -> v (indices i) = zero)(xs: Lists.List[Coordinates.Vector]) =>
+      trans!{K} (Product.component N.Nat^::zero (word N.Nat^::zero indices) (Lists.List[Coordinates.Vector]::cons v xs))
+        (Shuffle.unit (Lists.List[Coordinates.Vector]::cons v xs)) zero
+        (congr!{{Shuffle.Function} K} (\fun (f: Shuffle.Function) => f (Lists.List[Coordinates.Vector]::cons v xs))
+          (Product.component N.Nat^::zero Product.unit) Shuffle.unit Unit.componentUnit)
+        (Products.shiftUnit v xs)
+    | succ: \fun (k: N.Nat^)(previous: Annihilation k) => AnnihilatorStep[k := k].law previous
+  };
+\import Fin.Ordering[] \as Ordering;
+\definition Diagonal(k: N.Nat^): \Prop := \forall (indices: Fin.Fin k -> Fin.Fin n) -> Ordering.Increasing k n indices ->
+  word k indices (\fun (i: Fin.Fin k) => vectors (indices i)) = one;
+\module DiagonalStep(k: N.Nat^);
+\definition diagonal: \forall (k: N.Nat^) -> Diagonal k :=
+  \induction (k: N.Nat^) \return Diagonal k \with {
+    | zero: \fun (indices: Fin.Fin N.Nat^::zero -> Fin.Fin n)(increasing: Ordering.Increasing N.Nat^::zero n indices) => \refl(one)
+    | succ: \fun (k: N.Nat^)(previous: Diagonal k) => DiagonalStep[k := k].law previous
+  };
+\import Fin.Tuples[A := Fin.Fin n] \as IndexTuples;
+\import Fin.Empty[A := Fin.Fin n] \as EmptyIndices;
+\import N.Basic[].Prop[] \as NatLaws;
+\import N.Order[].Prop[] \as NaturalOrder;
+\import std.Logic[].Order[] \as OrderCases;
+\definition OffDiagonal(k: N.Nat^): \Prop := \forall (left, right: Fin.Fin k -> Fin.Fin n) ->
+  Ordering.Increasing k n left -> Ordering.Increasing k n right -> Logic.Not (left = right) ->
+  word k left (\fun (i: Fin.Fin k) => vectors (right i)) = zero;
+\module OffDiagonalStep(k: N.Nat^);
+\definition offDiagonal: \forall (k: N.Nat^) -> OffDiagonal k :=
+  \induction (k: N.Nat^) \return OffDiagonal k \with {
+    | zero: \fun (left, right: Fin.Fin N.Nat^::zero -> Fin.Fin n)
+        (leftIncreasing: Ordering.Increasing N.Nat^::zero n left)(rightIncreasing: Ordering.Increasing N.Nat^::zero n right)
+        (different: Logic.Not (left = right)) => Logic.falseElim (word N.Nat^::zero left (\fun (i: Fin.Fin N.Nat^::zero) => vectors (right i)) = zero)
+          (different (EmptyIndices.unique left right))
+    | succ: \fun (k: N.Nat^)(previous: OffDiagonal k) => OffDiagonalStep[k := k].law previous
+  };
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\module IncreasingBasis(k: N.Nat^);

@@ -362,6 +362,16 @@ impl Resolver {
         expression: &SExp,
         locals: &[HashMap<String, Identifier>],
     ) -> Result<Option<Value>, Diagnostic> {
+        // Inline module selection preserves argument checks around its value.
+        // A structure still denotes its fields inside that wrapper; retain all
+        // guards so declaration compilation checks the selected instance too.
+        if let SExp::Checked { checks, body } = expression {
+            let mut value = self.structure_value(body, locals)?;
+            if let Some(value) = &mut value {
+                value.checks.extend(checks.iter().cloned());
+            }
+            return Ok(value);
+        }
         let projection = match expression {
             SExp::InferredProjection { value, field, .. } => Some(((**value).clone(), field)),
             SExp::MemberAccess {

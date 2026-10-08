@@ -1,0 +1,23 @@
+\import First.Coordinates[chart := chart] \as Cover;
+\import Cover.Patch[right := right] \as Patch;
+\import Maps.Coordinates[f := f, left := chart, right := right] \as Coordinates;
+\import \root.Euclidean[n := n].On[U := Coordinates.domain] \as Forms;
+\import Forms.Wedge[p := p, q := q] \as Product;
+\import \root.Euclidean[n := n].Restriction[U := Coordinates.domain, V := #image{chart}] \as Restriction;
+\import \root.Euclidean[n := n].Pullback[m := m, U := Coordinates.domain, V := #image{right}, f := Patch.coordinateMap] \as Pullback;
+\definition law: \forall (omega: TargetForms.Form p)(eta: TargetForms.Form q) ->
+  Restriction.apply degree (Cover.included right) (Result.apply (TargetProduct.apply omega eta) chart) =
+    Restriction.apply degree (Cover.included right) (SourceProduct.apply (First.apply omega) (Second.apply eta) chart) :=
+      \fun (omega: TargetForms.Form p)(eta: TargetForms.Form q) => trans!{{Forms.Form degree}} _
+        (Pullback.apply degree (TargetProduct.apply omega eta right)) _
+        (Result.Local[chart := chart, right := right].law (TargetProduct.apply omega eta))
+        (trans!{{Forms.Form degree}} _ (Product.apply (Pullback.apply p (omega right)) (Pullback.apply q (eta right))) _
+          (Pullback.Product[p := p, q := q].law (omega right) (eta right))
+          (trans!{{Forms.Form degree}} _
+            (Product.apply (Restriction.apply p (Cover.included right) (First.apply omega chart))
+              (Restriction.apply q (Cover.included right) (Second.apply eta chart))) _
+            (congr2!{{Forms.Form p} {Forms.Form q} {Forms.Form degree}} Product.apply _ _ _ _
+              (sym!{{Forms.Form p}} _ _ (First.Local[chart := chart, right := right].law omega))
+              (sym!{{Forms.Form q}} _ _ (Second.Local[chart := chart, right := right].law eta)))
+            (sym!{{Forms.Form degree}} _ _ (Restriction.Product[p := p, q := q].law (Cover.included right)
+              (First.apply omega chart) (Second.apply eta chart)))));

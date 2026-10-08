@@ -1,0 +1,26 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\import \root.Diffeomorphism[n := n, m := l] \as Result;
+\import \root.Maps[n := m, m := l] \as Second;
+\import \root.Maps[n := l, m := m] \as SecondInverse;
+\import Forward.Composition[U := U, V := V, f := #forward{f}].After[l := l, W := W, g := #forward{g}] \as ComposeForward;
+\import SecondInverse.Composition[U := W, V := V, f := #backward{g}].After[l := n, W := U, g := #backward{f}] \as ComposeBackward;
+\definition data: Result.Data[U, W] := Result.Data[U, W] {
+  forward := ComposeForward.compose, backward := ComposeBackward.compose,
+};
+\definition compose: Result.Diffeomorphism U W := \into[Result.Data[U, W]](data,
+  { value: Result.Data[U, W] \where Result.Laws[U, W, value] }) \by {
+    Result.Laws[U, W, data] {
+      leftInverse := \fun (x: Source.Carrier U) => trans!{{Source.Carrier U}}
+        (Backward.apply V U (#backward{f}) (SecondInverse.apply W V (#backward{g}) (Second.apply V W (#forward{g}) (Forward.apply U V (#forward{f}) x))))
+        (Backward.apply V U (#backward{f}) (Forward.apply U V (#forward{f}) x)) x
+        (congr!{{Target.Carrier V} {Source.Carrier U}} (Backward.apply V U (#backward{f})) _ _ (#leftInverse{g} (Forward.apply U V (#forward{f}) x)))
+        (#leftInverse{f} x),
+      rightInverse := \fun (y: Reals.OpenCarrier l W) => trans!{{Reals.OpenCarrier l W}}
+        (Second.apply V W (#forward{g}) (Forward.apply U V (#forward{f}) (Backward.apply V U (#backward{f}) (SecondInverse.apply W V (#backward{g}) y))))
+        (Second.apply V W (#forward{g}) (SecondInverse.apply W V (#backward{g}) y)) y
+        (congr!{{Target.Carrier V} {Reals.OpenCarrier l W}} (Second.apply V W (#forward{g})) _ _ (#rightInverse{f} (SecondInverse.apply W V (#backward{g}) y)))
+        (#rightInverse{g} y),
+    }
+  };

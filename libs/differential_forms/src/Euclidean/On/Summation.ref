@@ -1,0 +1,22 @@
+\import \parent.At[k := k] \as Forms;
+\import Spaces.Linear[V := Form k, W := Reals.Real, source := Forms.space, target := Spaces.scalarSpace] \as Maps;
+\import Spaces.Sums[I := I].Vector[V := Form k, space := Forms.space] \as Sums;
+\import Spaces.Sums[I := I] \as Scalars;
+\import Sums.Mapping[W := Reals.Real, target := Spaces.scalarSpace] \as Mapping;
+\import Exterior.Components[k := k] \as Components;
+\definition evaluation(x: Open.Carrier U)(arguments: Multilinear.Arguments k): Maps.Map := Maps.Map {
+  apply := \fun (omega: Form k) => omega x arguments,
+  preservesAdd := \fun (omega, eta: Form k) => \refl(Spaces.add (omega x arguments) (eta x arguments)),
+  preservesScale := \fun (a: Reals.Real)(omega: Form k) => \refl(Spaces.mul a (omega x arguments)),
+};
+\definition component(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]): Maps.Map := Maps.Map {
+  apply := \fun (omega: Form k) => Exterior.component k (omega x) xs,
+  preservesAdd := \fun (omega, eta: Form k) => Components.addition (omega x) (eta x) xs,
+  preservesScale := \fun (a: Reals.Real)(omega: Form k) => Components.scalar a (omega x) xs,
+};
+\definition evaluateSum: \forall (indices: Lists.List[I])(forms: I -> Form k)(x: Open.Carrier U)(arguments: Multilinear.Arguments k) ->
+  Sums.sum indices forms x arguments = Scalars.sum indices (\fun (i: I) => forms i x arguments) :=
+  \fun (indices: Lists.List[I])(forms: I -> Form k)(x: Open.Carrier U)(arguments: Multilinear.Arguments k) => Mapping.law (evaluation x arguments) indices forms;
+\definition componentSum: \forall (indices: Lists.List[I])(forms: I -> Form k)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) ->
+  Exterior.component k (Sums.sum indices forms x) xs = Scalars.sum indices (\fun (i: I) => Exterior.component k (forms i x) xs) :=
+  \fun (indices: Lists.List[I])(forms: I -> Form k)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) => Mapping.law (component x xs) indices forms;

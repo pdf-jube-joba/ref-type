@@ -1,0 +1,29 @@
+\import \parent.Coordinate[chart := chart] \as Coordinate;
+\import \parent.CoordinateOperations[chart := chart] \as Preserves;
+\import \parent.Operations[] \as Operations;
+\import Spaces.Linear[V := Vector, W := Vectors.Vector, source := space, target := Vectors.space] \as Forward;
+\import Spaces.Linear[V := Vectors.Vector, W := Vector, source := Vectors.space, target := space] \as Backward;
+\import Spaces.Isomorphism[V := Vector, W := Vectors.Vector, source := space, target := Vectors.space] \as Iso;
+\definition forward: Forward.Map := Forward.Map {
+  apply := Coordinate.decode, preservesAdd := Preserves.addition, preservesScale := Preserves.scalar,
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := Coordinate.encode,
+  preservesAdd := \fun (u, v: Vectors.Vector) => Coordinate.injective (Coordinate.encode (Vectors.plus u v)) (Operations.plus (Coordinate.encode u) (Coordinate.encode v))
+    (eq_reason!{
+      {Coordinate.decode (Coordinate.encode (Vectors.plus u v))} "=" {Vectors.plus u v} "by" {Coordinate.decodeEncode (Vectors.plus u v)}
+      "=" {Vectors.plus (Coordinate.decode (Coordinate.encode u)) (Coordinate.decode (Coordinate.encode v))} "by" {congr2!{{Vectors.Vector} {Vectors.Vector} {Vectors.Vector}} Vectors.plus _ _ _ _
+        (sym!{{Vectors.Vector}} _ _ (Coordinate.decodeEncode u)) (sym!{{Vectors.Vector}} _ _ (Coordinate.decodeEncode v))}
+      "=" {Coordinate.decode (Operations.plus (Coordinate.encode u) (Coordinate.encode v))} "by" {sym!{{Vectors.Vector}} _ _ (Preserves.addition (Coordinate.encode u) (Coordinate.encode v))}
+    }),
+  preservesScale := \fun (a: Real.Real)(v: Vectors.Vector) => Coordinate.injective (Coordinate.encode (Vectors.scale a v)) (Operations.scale a (Coordinate.encode v))
+    (eq_reason!{
+      {Coordinate.decode (Coordinate.encode (Vectors.scale a v))} "=" {Vectors.scale a v} "by" {Coordinate.decodeEncode (Vectors.scale a v)}
+      "=" {Vectors.scale a (Coordinate.decode (Coordinate.encode v))} "by" {congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.scale a) _ _ (sym!{{Vectors.Vector}} _ _ (Coordinate.decodeEncode v))}
+      "=" {Coordinate.decode (Operations.scale a (Coordinate.encode v))} "by" {sym!{{Vectors.Vector}} _ _ (Preserves.scalar a (Coordinate.encode v))}
+    }),
+};
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward, leftInverse := Coordinate.encodeDecode, rightInverse := Coordinate.decodeEncode,
+};
+\module Change(other: Chart);

@@ -1,0 +1,35 @@
+\import FirstCalculus.Differential[U := domain, V := LocalSecond.domain, f := firstMap, a := a] \as FirstRestricted;
+\import FirstRestricted.Compare[W := #image{middle}, g := restrictedFirst] \as FirstCompare;
+\import FirstCalculus.Differential[U := LocalFirst.domain, V := #image{middle}, f := originalFirst, a := Patch.firstPoint a] \as FirstJacobian;
+\import SecondCalculus.Differential[U := LocalSecond.domain, V := #image{right}, f := secondMap, a := Patch.intermediate a] \as SecondJacobian;
+\import CompositeCalculus.Differential[U := domain, V := #image{right}, f := compositeMap, a := a] \as CompositeRestricted;
+\import CompositeRestricted.Compare[W := #image{right}, g := restrictedDirect] \as DirectCompare;
+\import CompositeCalculus.Differential[U := Direct.domain, V := #image{right}, f := directMap, a := Patch.directPoint a] \as DirectJacobian;
+\import FirstCalculus.Composition[U := domain, V := LocalSecond.domain, f := firstMap].After[l := l, W := #image{right}, g := secondMap].At[a := a] \as Chain;
+\import real.Analysis[].Algebra[] \as RealAlgebra;
+\import linear_algebra.Field[].Space[K := Reals.Real, field := RealAlgebra.field] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin n] \as SourceVectors;
+\import Spaces.Coordinates[I := Fin.Fin m] \as MiddleVectors;
+\import Spaces.Coordinates[I := Fin.Fin l] \as TargetVectors;
+\import Spaces.Linear[V := SourceVectors.Vector, W := MiddleVectors.Vector, source := SourceVectors.space, target := MiddleVectors.space] \as FirstMaps;
+\import Spaces.Linear[V := MiddleVectors.Vector, W := TargetVectors.Vector, source := MiddleVectors.space, target := TargetVectors.space].Composition[U := SourceVectors.Vector, domain := SourceVectors.space] \as Compose;
+\import Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space] \as ResultMaps;
+\definition firstAgreement: FirstRestricted.value = FirstJacobian.value :=
+  trans!{{FirstMaps.Map}} FirstRestricted.value
+    FirstCalculus.Differential[U := domain, V := #image{middle}, f := restrictedFirst, a := a].value FirstJacobian.value
+    (FirstCompare.equal (\axiom:funext(FirstCompare.first, FirstCompare.second,
+      \fun (x: Open.Carrier domain) => \refl(LocalFirst.apply (Patch.firstPoint x)))))
+    (FirstRestriction.differential Patch.firstIncluded originalFirst a);
+\definition directAgreement: CompositeRestricted.value = DirectJacobian.value :=
+  trans!{{ResultMaps.Map}} CompositeRestricted.value
+    CompositeCalculus.Differential[U := domain, V := #image{right}, f := restrictedDirect, a := a].value DirectJacobian.value
+    (DirectCompare.equal (\axiom:funext(DirectCompare.first, DirectCompare.second,
+      \fun (x: Open.Carrier domain) => Patch.coordinateAgreement x)))
+    (DirectRestriction.differential (Coordinates.included middle) directMap a);
+\definition law: DirectJacobian.value = Compose.compose SecondJacobian.value FirstJacobian.value :=
+  trans!{{ResultMaps.Map}} DirectJacobian.value CompositeRestricted.value (Compose.compose SecondJacobian.value FirstJacobian.value)
+    (sym!{{ResultMaps.Map}} CompositeRestricted.value DirectJacobian.value directAgreement)
+    (trans!{{ResultMaps.Map}} CompositeRestricted.value (Compose.compose SecondJacobian.value FirstRestricted.value)
+      (Compose.compose SecondJacobian.value FirstJacobian.value) Chain.jacobian
+      (congr!{{FirstMaps.Map} {ResultMaps.Map}} (Compose.compose SecondJacobian.value)
+        FirstRestricted.value FirstJacobian.value firstAgreement));

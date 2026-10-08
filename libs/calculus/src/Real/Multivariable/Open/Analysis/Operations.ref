@@ -1,0 +1,127 @@
+\import real.Analysis[] \as RealAnalysis;
+\import RealAnalysis.Estimates[] \as Bounds;
+\import Bounds.Product[] \as Product;
+\import RealAnalysis.Algebra[] \as Algebra;
+\import R.Order[] \as Order;
+\definition plus(U: OpenSet)(f, g: ScalarFunction U): ScalarFunction U := \fun (x: Carrier U) => add (f x) (g x);
+\definition times(U: OpenSet)(f, g: ScalarFunction U): ScalarFunction U := \fun (x: Carrier U) => mul (f x) (g x);
+\definition addContinuous: \forall (U: OpenSet)(f, g: ScalarFunction U) -> ContinuousOn U f -> ContinuousOn U g -> ContinuousOn U (plus U f g) := \block {
+  \fun (U: _)(f, g: _)(left: _)(right: _)(a: Carrier U)(epsilon: Real)(positive: _) \then
+  \let radius: Real := mul RealAnalysis.half epsilon \then
+  \let rp: R.Lt zero radius := Bounds.halfOfPositive epsilon positive \then
+  \takefrom dl: \Cast[Real] ({ d: Real \where ContinuityControl[U, f, a, radius, d] }) \by left a radius rp \then
+  \takefrom dr: \Cast[Real] ({ d: Real \where ContinuityControl[U, g, a, radius, d] }) \by right a radius rp \then
+  \let cl: ContinuityControl[U, f, a, radius, dl] := \bysub(Real, { d: Real \where ContinuityControl[U, f, a, radius, d] }, dl) \then
+  \let cr: ContinuityControl[U, g, a, radius, dr] := \bysub(Real, { d: Real \where ContinuityControl[U, g, a, radius, d] }, dr) \then
+  \return \exact(\into[Real](Metric.min dl dr,
+    { d: Real \where ContinuityControl[U, plus U f g, a, epsilon, d] }) \by {
+      ContinuityControl[U, plus U f g, a, epsilon, Metric.min dl dr] {
+        positive := Product.minPositive dl dr (#positive{cl}) (#positive{cr}),
+        estimate := \fun (x: Carrier U)(near: _) =>
+          R.ltReplaceRight _ _ _ (Bounds.halfTwice epsilon)
+            (R.leLtTrans _ _ _ (Bounds.distanceAdd (f x) (g x) (f a) (g a))
+              (Bounds.addLt _ _ _ _
+                (#estimate{cl} x (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr)))
+                (#estimate{cr} x (R.ltLeTrans _ _ _ near (Metric.minRight dl dr))))),
+      }
+    }, \Cast[Real] ({ d: Real \where ContinuityControl[U, plus U f g, a, epsilon, d] }))
+};
+\definition mulContinuous: \forall (U: OpenSet)(f, g: ScalarFunction U) -> ContinuousOn U f -> ContinuousOn U g -> ContinuousOn U (times U f g) := \block {
+  \fun (U: _)(f, g: _)(left: _)(right: _)(a: Carrier U)(epsilon: Real)(positive: _) \then
+  \let coefficient: Real := Product.coefficient (f a) (g a) \then
+  \let cp: R.Lt zero coefficient := Product.coefficientPositive (f a) (g a) \then
+  \let radius: Real := Product.radius coefficient epsilon \then
+  \let rp: R.Lt zero radius := Product.radiusPositive coefficient epsilon cp positive \then
+  \takefrom dl: \Cast[Real] ({ d: Real \where ContinuityControl[U, f, a, radius, d] }) \by left a radius rp \then
+  \takefrom dr: \Cast[Real] ({ d: Real \where ContinuityControl[U, g, a, radius, d] }) \by right a radius rp \then
+  \let cl: ContinuityControl[U, f, a, radius, dl] := \bysub(Real, { d: Real \where ContinuityControl[U, f, a, radius, d] }, dl) \then
+  \let cr: ContinuityControl[U, g, a, radius, dr] := \bysub(Real, { d: Real \where ContinuityControl[U, g, a, radius, d] }, dr) \then
+  \return \exact(\into[Real](Metric.min dl dr,
+    { d: Real \where ContinuityControl[U, times U f g, a, epsilon, d] }) \by {
+      ContinuityControl[U, times U f g, a, epsilon, Metric.min dl dr] {
+        positive := Product.minPositive dl dr (#positive{cl}) (#positive{cr}),
+        estimate := \fun (x: Carrier U)(near: _) =>
+          R.ltReplaceLeft (distance (mul (f a) (g a)) (mul (f x) (g x))) (distance (mul (f x) (g x)) (mul (f a) (g a))) epsilon
+            (Metric.distanceSymmetric (mul (f a) (g a)) (mul (f x) (g x)))
+            (R.leLtTrans _ _ _
+              (Product.localProductDistance (f a) (g a) (f x) (g x) radius
+                (Order.leOfLt _ _ rp) (Product.radiusBelowOne coefficient epsilon)
+                (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric (f x) (f a))
+                  (#estimate{cl} x (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr))))
+                (R.ltReplaceLeft _ _ _ (Metric.distanceSymmetric (g x) (g a))
+                  (#estimate{cr} x (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)))))
+              (Product.radiusSmall coefficient epsilon cp positive)),
+      }
+    }, \Cast[Real] ({ d: Real \where ContinuityControl[U, times U f g, a, epsilon, d] }))
+};
+\definition addSlope: \forall (U: OpenSet)(f, g: ScalarFunction U)(a, x: Carrier U)(t: Real)(i: Coordinate) ->
+  mul (sub (plus U f g x) (plus U f g a)) (inv (sub t (a i))) =
+  add (mul (sub (f x) (f a)) (inv (sub t (a i)))) (mul (sub (g x) (g a)) (inv (sub t (a i)))) :=
+  \fun (U: _)(f, g: _)(a, x: _)(t: _)(i: _) => trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (s: Real) => mul s (inv (sub t (a i)))) _ _ (Algebra.subAdd (f x) (g x) (f a) (g a)))
+    (Algebra.mulAddRight (sub (f x) (f a)) (sub (g x) (g a)) (inv (sub t (a i))));
+\definition addPartial: \forall (U: OpenSet)(f, g, df, dg: ScalarFunction U)(i: Coordinate) ->
+  HasPartialDerivative U f i df -> HasPartialDerivative U g i dg -> HasPartialDerivative U (plus U f g) i (plus U df dg) := \block {
+  \fun (U: _)(f, g, df, dg: _)(i: _)(left: _)(right: _)(a: Carrier U)(epsilon: Real)(positive: _) \then
+  \let radius: Real := mul RealAnalysis.half epsilon \then
+  \let rp: R.Lt zero radius := Bounds.halfOfPositive epsilon positive \then
+  \takefrom dl: \Cast[Real] ({ d: Real \where PartialControl[U, f, a, i, df a, radius, d] }) \by left a radius rp \then
+  \takefrom dr: \Cast[Real] ({ d: Real \where PartialControl[U, g, a, i, dg a, radius, d] }) \by right a radius rp \then
+  \let cl: PartialControl[U, f, a, i, df a, radius, dl] := \bysub(Real, { d: Real \where PartialControl[U, f, a, i, df a, radius, d] }, dl) \then
+  \let cr: PartialControl[U, g, a, i, dg a, radius, dr] := \bysub(Real, { d: Real \where PartialControl[U, g, a, i, dg a, radius, d] }, dr) \then
+  \return \exact(\into[Real](Metric.min dl dr,
+    { d: Real \where PartialControl[U, plus U f g, a, i, plus U df dg a, epsilon, d] }) \by {
+      PartialControl[U, plus U f g, a, i, plus U df dg a, epsilon, Metric.min dl dr] {
+        positive := Product.minPositive dl dr (#positive{cl}) (#positive{cr}),
+        estimate := \fun (t: Real)(x: Carrier U)(replaced: x = Coordinates.replace a i t)(different: _)(near: _) =>
+          R.ltReplaceLeft _ _ _ (sym!{Real} _ _ (congr!{Real Real} (\fun (s: Real) => distance s (add (df a) (dg a))) _ _ (addSlope U f g a x t i)))
+            (R.ltReplaceRight _ _ _ (Bounds.halfTwice epsilon)
+              (R.leLtTrans _ _ _ (Bounds.distanceAdd
+                (mul (sub (f x) (f a)) (inv (sub t (a i)))) (mul (sub (g x) (g a)) (inv (sub t (a i)))) (df a) (dg a))
+                (Bounds.addLt _ _ _ _
+                  (#estimate{cl} t x replaced different (R.ltLeTrans _ _ _ near (Metric.minLeft dl dr)))
+                  (#estimate{cr} t x replaced different (R.ltLeTrans _ _ _ near (Metric.minRight dl dr)))))),
+      }
+    }, \Cast[Real] ({ d: Real \where PartialControl[U, plus U f g, a, i, plus U df dg a, epsilon, d] }))
+};
+
+\import \parent.\parent.\parent.\parent.Derivative[].Def[] \as Derivatives;
+\import \parent.\parent.\parent.\parent.Derivative[].Product[] \as DerivativeProduct;
+\import \parent.\parent.\parent.\parent.Limit[].Def[] \as Limits;
+\use Equality.congr2;
+\definition sectionPartial: \forall (U: OpenSet)(f: ScalarFunction U)(a: Carrier U)(i: Coordinate)(section: Real -> Real)(d: Real) ->
+  section (a i) = f a -> (\forall (t: Real)(x: Carrier U) -> x = Coordinates.replace a i t -> section t = f x) ->
+  Derivatives.HasDerivativeAt section (a i) d -> HasPartialDerivativeAt U f i a d := \block {
+  \fun (U: _)(f: _)(a: _)(i: _)(section: _)(d: _)(center: _)(agrees: _)(derivative: _)(epsilon: Real)(positive: _) \then
+  \takefrom delta: \Cast[Real] ({ r: Real \where Limits.Control[Derivatives.slope section (a i), a i, d, epsilon, r] }) \by derivative epsilon positive \then
+  \let control: Limits.Control[Derivatives.slope section (a i), a i, d, epsilon, delta] := \bysub(Real,
+    { r: Real \where Limits.Control[Derivatives.slope section (a i), a i, d, epsilon, r] }, delta) \then
+  \return \exact(\into[Real](delta, { r: Real \where PartialControl[U, f, a, i, d, epsilon, r] }) \by {
+    PartialControl[U, f, a, i, d, epsilon, delta] {
+      positive := #positive{control},
+      estimate := \fun (t: Real)(x: Carrier U)(replaced: x = Coordinates.replace a i t)(different: _)(near: _) =>
+        R.ltReplaceLeft (distance (Derivatives.slope section (a i) t) d) (distance (mul (sub (f x) (f a)) (inv (sub t (a i)))) d) epsilon
+          (congr!{Real Real} (\fun (s: Real) => distance (mul s (inv (sub t (a i)))) d)
+            (sub (section t) (section (a i))) (sub (f x) (f a))
+            (congr2!{Real Real Real} sub (section t) (f x) (section (a i)) (f a) (agrees t x replaced) center))
+          (#estimate{control} t different near),
+    }
+  }, \Cast[Real] ({ r: Real \where PartialControl[U, f, a, i, d, epsilon, r] }))
+};
+\definition productDifferential(U: OpenSet)(f, g, df, dg: ScalarFunction U): ScalarFunction U :=
+  plus U (times U df g) (times U f dg);
+
+\import \parent.\parent.\parent.\parent.Derivative[].Prop[] \as BasicDerivative;
+\definition constantContinuous: \forall (U: OpenSet)(c: Real) -> ContinuousOn U (\fun (x: Carrier U) => c) :=
+  \fun (U: _)(c: _)(a: Carrier U)(epsilon: Real)(positive: _) =>
+    \exact(\into[Real](one, { r: Real \where ContinuityControl[U, \fun (x: Carrier U) => c, a, epsilon, r] }) \by {
+      ContinuityControl[U, \fun (x: Carrier U) => c, a, epsilon, one] {
+        positive := Product.onePositive,
+        estimate := \fun (x: Carrier U)(near: _) => R.ltReplaceLeft zero (distance c c) epsilon
+          (sym!{Real} (distance c c) zero (Metric.distanceSelf c)) positive,
+      }
+    }, \Cast[Real] ({ r: Real \where ContinuityControl[U, \fun (x: Carrier U) => c, a, epsilon, r] }));
+\definition constantPartial: \forall (U: OpenSet)(c: Real)(i: Coordinate) ->
+  HasPartialDerivative U (\fun (x: Carrier U) => c) i (\fun (x: Carrier U) => zero) :=
+  \fun (U: _)(c: _)(i: _)(a: Carrier U) => sectionPartial U (\fun (x: Carrier U) => c) a i (\fun (t: Real) => c) zero
+    (\refl(c)) (\fun (t: Real)(x: Carrier U)(replaced: _) => \refl(c)) (BasicDerivative.constantDerivative c (a i));

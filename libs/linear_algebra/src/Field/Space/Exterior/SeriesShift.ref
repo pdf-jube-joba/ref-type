@@ -1,0 +1,20 @@
+\import Multilinear.ListSeries[k := k] \as Current;
+\import Multilinear.ListSeries[k := N.Nat^::succ k] \as Next;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition contraction(f: Multilinear.Function (N.Nat^::succ k))(head: V): Multilinear.Function k := \fun (arguments: Multilinear.Arguments k) => f (Tuples.extend k head arguments);
+\definition atCons: \forall (f: Multilinear.Function (N.Nat^::succ k))(head: V)(xs: Lists.List[V]) ->
+  Next.component f (Lists.List[V]::cons head xs) = Current.component (contraction f head) xs :=
+  \fun (f: Multilinear.Function (N.Nat^::succ k))(head: V)(xs: Lists.List[V]) =>
+    either!{{Lists.length V xs = k} "or" {Logic.Not (Lists.length V xs = k)} "either" {Next.component f (Lists.List[V]::cons head xs) = Current.component (contraction f head) xs}
+      "lt:" {\fun (equal: Lists.length V xs = k) => eq_reason!{
+        {Next.component f (Lists.List[V]::cons head xs)}
+        "=" {f (ArgumentsList.decode (N.Nat^::succ k) (\into[Lists.List[V]](Lists.List[V]::cons head xs, ArgumentsList.Degree (N.Nat^::succ k)) \by { congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ (Lists.length V xs) k equal }))} "by" {
+          Next.inside f (\into[Lists.List[V]](Lists.List[V]::cons head xs, ArgumentsList.Degree (N.Nat^::succ k)) \by { congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ (Lists.length V xs) k equal })}
+        "=" {f (Tuples.extend k head (TuplesList.at k xs equal))} "by" {congr!{{Multilinear.Arguments (N.Nat^::succ k)} K} f _ _ (TuplesList.atCons xs k equal head)}
+        "=" {Current.component (contraction f head) xs} "by" {sym!{K} _ _ (Current.inside (contraction f head) (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))}
+      }}
+      "rt:" {\fun (wrong: Logic.Not (Lists.length V xs = k)) => trans!{K} _ zero _
+        (Next.outside f (Lists.List[V]::cons head xs) (\fun (equal: N.Nat^::succ (Lists.length V xs) = N.Nat^::succ k) => wrong (NatLaws.succInjective (Lists.length V xs) k equal)))
+        (sym!{K} _ zero (Current.outside (contraction f head) xs wrong))}
+    } (Classical.excludedMiddle (Lists.length V xs = k));

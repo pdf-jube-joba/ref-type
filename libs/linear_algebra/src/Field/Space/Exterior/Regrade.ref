@@ -1,0 +1,24 @@
+\import \parent.Restriction[k := l] \as Target;
+\import Multilinear.ListSeries[k := k] \as SourceSeries;
+\import Multilinear.ListSeries[k := l] \as TargetSeries;
+\import Alternating.At[k := k] \as Source;
+\import Alternating.At[k := l] \as Result;
+\import \parent.Components[k := k] \as Components;
+\definition convert(omega: Form k): Form l := Target.form (component k omega)
+  (SourceSeries.linear (Alternating.asMultilinear k omega)) (componentAlternating k omega);
+\definition cast(omega: Form k)(same: k = l): Form l := convert omega;
+\definition series: \forall (omega: Form k)(same: k = l) -> component l (cast omega same) = component k omega :=
+  \fun (omega: Form k)(same: k = l) => TargetSeries.supportedRecover (component k omega)
+    (\fun (xs: Lists.List[V])(wrong: Logic.Not (Lists.length V xs = l)) => SourceSeries.outside omega xs
+      (\fun (equal: Lists.length V xs = k) => wrong (trans!{{N.Nat^}} (Lists.length V xs) k l equal same)));
+\definition evaluation: \forall (omega: Form k)(same: k = l)(arguments: Multilinear.Arguments l) ->
+  cast omega same arguments = component k omega (TuplesList.list l arguments) :=
+  \fun (omega: Form k)(same: k = l)(arguments: Multilinear.Arguments l) => \refl(component k omega (TuplesList.list l arguments));
+\definition addition: \forall (omega, eta: Form k)(same: k = l) ->
+  cast (Source.plus omega eta) same = Result.plus (cast omega same) (cast eta same) :=
+  \fun (omega, eta: Form k)(same: k = l) => Result.ext (cast (Source.plus omega eta) same) (Result.plus (cast omega same) (cast eta same))
+    (\fun (arguments: Multilinear.Arguments l) => Components.addition omega eta (TuplesList.list l arguments));
+\definition scalar: \forall (a: K)(omega: Form k)(same: k = l) ->
+  cast (Source.scale a omega) same = Result.scale a (cast omega same) :=
+  \fun (a: K)(omega: Form k)(same: k = l) => Result.ext (cast (Source.scale a omega) same) (Result.scale a (cast omega same))
+    (\fun (arguments: Multilinear.Arguments l) => Components.scalar a omega (TuplesList.list l arguments));

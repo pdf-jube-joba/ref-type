@@ -1,0 +1,40 @@
+\import Source.Subspace[S := #domain{left}] \as LeftDomain;
+\import topology.Topology[Carrier := LocalPoint left] \as Local;
+\import topology.Topology[Carrier := Open.Carrier #image{left}] \as Image;
+\import topology.Topology[Carrier := Coordinates.Point] \as AmbientImage;
+\import AmbientImage.Subspace[S := #points{(#image{left})}] \as ImageSubspace;
+\import ImageSubspace.Open[] \as OpenImage;
+\import topology.Homeomorphism[A := LocalPoint left, B := Open.Carrier #image{left}] \as Homeomorphisms;
+\import topology.Continuity[A := Open.Carrier #image{left}, B := LocalPoint left] \as Inverse;
+\definition overlap: \Pow (Open.Carrier #image{left}) := Inverse.Preimage (point left) (LeftDomain.Trace #domain{right});
+\definition overlapOpen: Image.IsOpenIn (imageTopology #image{left}) overlap :=
+  #backwardContinuous{(Homeomorphisms.laws (domainTopology #domain{left}) (imageTopology #image{left}) #coordinates{left})}
+    (LeftDomain.Trace #domain{right}) (LeftDomain.traceOpen space #domain{right} #open{right});
+\definition points: \Pow Coordinates.Point := OpenImage.image overlap;
+\definition pointsOpen: AmbientImage.IsOpenIn Euclidean.topology points :=
+  OpenImage.imageOpen Euclidean.topology (OpenTopology.open #image{left}) overlap overlapOpen;
+\definition domain: Open.OpenSet := OpenTopology.ofOpen points pointsOpen;
+\definition intro: \forall (x: Open.Carrier #image{left}) -> Contains right (point left x) -> \In[Coordinates.Point] (#points{domain}) x :=
+  \fun (x: Open.Carrier #image{left})(member: Contains right (point left x)) => OpenImage.imageMember overlap x member;
+\definition commonPoint(p: LocalPoint left)(inRight: Contains right p): Open.Carrier domain :=
+  \into[Coordinates.Point](coordinate left p, #points{domain}) \by {
+    intro (coordinate left p)
+      (\idelim p = point left (coordinate left p) \with q: M => Contains right q \by {
+        base: inRight, equality: sym!{M} (point left (coordinate left p)) p (\parent.Of[chart := left].pointCoordinate p)
+      })
+  };
+\definition inLeftImage: \forall (x: Open.Carrier domain) -> \In[Coordinates.Point] (#points{(#image{left})}) x :=
+  \fun (x: _) => OpenImage.imageIncluded overlap x (\bysub(Coordinates.Point, points, x));
+\definition leftCoordinate(x: Open.Carrier domain): Open.Carrier #image{left} :=
+  \into[Coordinates.Point](x, #points{(#image{left})}) \by { inLeftImage x };
+\definition inRightDomain: \forall (x: Open.Carrier domain) -> Source.Member #domain{right} (point left (leftCoordinate x)) :=
+  \fun (x: _) => OpenImage.imageElim overlap x (Source.Member #domain{right} (point left (leftCoordinate x)))
+    (\fun (y: Open.Carrier #image{left})(member: Image.Member overlap y)(equal: y = x) =>
+      \idelim y = leftCoordinate x \with z: Open.Carrier #image{left} => Source.Member #domain{right} (point left z)
+        \by { base: member, equality: equal }) (\bysub(Coordinates.Point, points, x));
+\definition overlapPoint(x: Open.Carrier domain): LocalPoint right :=
+  \into[M](point left (leftCoordinate x), #domain{right}) \by { inRightDomain x };
+\definition apply(x: Open.Carrier domain): Open.Carrier #image{right} := coordinate right (overlapPoint x);
+\definition vector(x: Open.Carrier domain): Coordinates.Point := apply x;
+\definition returnsPoint: \forall (x: Open.Carrier domain) -> point right (apply x) = point left (leftCoordinate x) :=
+  \fun (x: _) => \parent.Of[chart := right].pointCoordinate (overlapPoint x);

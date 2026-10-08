@@ -1,0 +1,32 @@
+\definition identityData: Data := Data { forward := \fun (i: Fin n) => i, backward := \fun (i: Fin n) => i };
+\definition identity: Permutation := \into[Data](identityData, { data: Data \where Laws[data] }) \by {
+  Laws[identityData] {
+    leftInverse := \fun (i: Fin n) => \refl(i), rightInverse := \fun (i: Fin n) => \refl(i),
+  }
+};
+\definition swapData(s: Swap): Data := Data { forward := swap s, backward := swap s };
+\definition transposition(s: Swap): Permutation := \into[Data](swapData s, { data: Data \where Laws[data] }) \by {
+  Laws[swapData s] {
+    leftInverse := \parent.\parent.Transposition[n := n, a := #first{s}, b := #second{s}].involution,
+    rightInverse := \parent.\parent.Transposition[n := n, a := #first{s}, b := #second{s}].involution,
+  }
+};
+\definition composeData(p, q: Permutation): Data := Data {
+  forward := \fun (i: Fin n) => #forward{p} (#forward{q} i),
+  backward := \fun (i: Fin n) => #backward{q} (#backward{p} i),
+};
+\definition compose(p, q: Permutation): Permutation :=
+  \into[Data](composeData p q, { data: Data \where Laws[data] }) \by {
+    Laws[composeData p q] {
+      leftInverse := \fun (i: Fin n) => trans!{{Fin n}}
+        (#backward{q} (#backward{p} (#forward{p} (#forward{q} i)))) (#backward{q} (#forward{q} i)) i
+        (congr!{{Fin n} {Fin n}} #backward{q}
+          (#backward{p} (#forward{p} (#forward{q} i))) (#forward{q} i) (#leftInverse{(laws p)} (#forward{q} i)))
+        (#leftInverse{(laws q)} i),
+      rightInverse := \fun (i: Fin n) => trans!{{Fin n}}
+        (#forward{p} (#forward{q} (#backward{q} (#backward{p} i)))) (#forward{p} (#backward{p} i)) i
+        (congr!{{Fin n} {Fin n}} #forward{p}
+          (#forward{q} (#backward{q} (#backward{p} i))) (#backward{p} i) (#rightInverse{(laws q)} (#backward{p} i)))
+        (#rightInverse{(laws p)} i),
+    }
+  };

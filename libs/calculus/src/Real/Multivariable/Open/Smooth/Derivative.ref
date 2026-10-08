@@ -1,0 +1,77 @@
+\import \parent.\parent.Analysis[].Properties[] \as Partial;
+\definition Function(U: OpenSet): \Set := \Cast[ScalarFunction U] ({ f: ScalarFunction U \where SmoothOn U f });
+\definition DerivativeSet(U: OpenSet)(f: Function U)(i: Coordinate): \Pow (ScalarFunction U) :=
+  { g: ScalarFunction U \where Analysis.HasPartialDerivative U f i g };
+\definition Values(U: OpenSet)(f: Function U)(i: Coordinate): \Set := \Cast[ScalarFunction U] (DerivativeSet U f i);
+\definition existsDerivative: \forall (U: OpenSet)(f: Function U)(i: Coordinate) -> \exists Values U f i := \block {
+  \fun (U: _)(f: _)(i: _) \then
+  \let smooth: SmoothOn U f := \bysub(ScalarFunction U, { f: ScalarFunction U \where SmoothOn U f }, f) \then
+  \let one: N.Nat^ := N.Nat^::succ N.Nat^::zero \then
+  \takefrom derivatives: \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, f, one, d] }) \by smooth one \then
+  \let laws: ContDiffLaws[U, f, one, derivatives] := \bysub(PartialFamily U, { d: PartialFamily U \where ContDiffLaws[U, f, one, d] }, derivatives) \then
+  \let result: ScalarFunction U := derivatives (Directions::cons i Directions::nil) \then
+  \let differentiable: Analysis.HasPartialDerivative U f i result := \idelim derivatives Directions::nil = f
+    \with h: ScalarFunction U => Analysis.HasPartialDerivative U h i result \by {
+      base: #derivative{(#partials{laws})} Directions::nil (\refl(Bool.Bool^::true)) i,
+      equality: #function{(#partials{laws})}
+    } \then
+  \return \exact(\into[ScalarFunction U](result, DerivativeSet U f i) \by { differentiable }, Values U f i)
+};
+\definition uniqueDerivative: \forall (U: OpenSet)(f: Function U)(i: Coordinate)(left, right: Values U f i) -> left = right :=
+  \fun (U: _)(f: _)(i: _)(left, right: _) => \axiom:funext(left, right, \fun (a: Carrier U) =>
+    Partial.partialUnique U f i a (left a) (right a)
+      ((\bysub(ScalarFunction U, DerivativeSet U f i, left)) a)
+      ((\bysub(ScalarFunction U, DerivativeSet U f i, right)) a));
+\definition value(U: OpenSet)(f: Function U)(i: Coordinate): Values U f i :=
+  \choice Values U f i \by { existence: existsDerivative U f i, uniqueness: uniqueDerivative U f i };
+\definition partial(U: OpenSet)(f: Function U)(i: Coordinate): ScalarFunction U := value U f i;
+\definition partialLaw: \forall (U: OpenSet)(f: Function U)(i: Coordinate) -> Analysis.HasPartialDerivative U f i (partial U f i) :=
+  \fun (U: _)(f: _)(i: _) => \bysub(ScalarFunction U, DerivativeSet U f i, value U f i);
+\import Lists.Prop[A := Coordinate] \as ListLaws;
+\import N.Order[].Prop[] \as NatOrder;
+\definition shift(i: Coordinate)(directions: Directions): Directions := Lists.append Coordinate directions (Directions::cons i Directions::nil);
+\definition orderShift: \forall (i: Coordinate)(directions: Directions) -> order (shift i directions) = N.Nat^::succ (order directions) :=
+  \fun (i: _)(directions: _) => trans!{{N.Nat^}} _ _ _ (ListLaws.lengthAppend directions (Directions::cons i Directions::nil))
+    (NatLaws.addSuccRight (order directions) N.Nat^::zero);
+\definition shifted(U: OpenSet)(i: Coordinate)(derivatives: PartialFamily U): PartialFamily U :=
+  \fun (directions: Directions) => derivatives (shift i directions);
+\definition partialSmooth: \forall (U: OpenSet)(f: Function U)(i: Coordinate) -> SmoothOn U (partial U f i) := \block {
+  \fun (U: _)(f: _)(i: _)(k: N.Nat^) \then
+  \let smooth: SmoothOn U f := \bysub(ScalarFunction U, { f: ScalarFunction U \where SmoothOn U f }, f) \then
+  \takefrom derivatives: \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, f, N.Nat^::succ k, d] }) \by smooth (N.Nat^::succ k) \then
+  \let laws: ContDiffLaws[U, f, N.Nat^::succ k, derivatives] := \bysub(PartialFamily U,
+    { d: PartialFamily U \where ContDiffLaws[U, f, N.Nat^::succ k, d] }, derivatives) \then
+  \let firstDerivative: Analysis.HasPartialDerivative U f i (derivatives (Directions::cons i Directions::nil)) :=
+    \idelim derivatives Directions::nil = f \with h: ScalarFunction U =>
+      Analysis.HasPartialDerivative U h i (derivatives (Directions::cons i Directions::nil)) \by {
+        base: #derivative{(#partials{laws})} Directions::nil (NatOrder.zeroLtSucc k) i,
+        equality: #function{(#partials{laws})}
+      } \then
+  \let agrees: derivatives (Directions::cons i Directions::nil) = partial U f i :=
+    \axiom:funext(derivatives (Directions::cons i Directions::nil), partial U f i, \fun (a: Carrier U) =>
+      Partial.partialUnique U f i a (derivatives (Directions::cons i Directions::nil) a) (partial U f i a) (firstDerivative a) (partialLaw U f i a)) \then
+  \return \exact(\into[PartialFamily U](shifted U i derivatives,
+    { d: PartialFamily U \where ContDiffLaws[U, partial U f i, k, d] }) \by {
+      ContDiffLaws[U, partial U f i, k, shifted U i derivatives] {
+        partials := PartialFamilyLaws[U, partial U f i, k, shifted U i derivatives] {
+          function := agrees,
+          derivative := \fun (directions: Directions)(bound: NatLaws.Lt (order directions) k)(j: Coordinate) =>
+            #derivative{(#partials{laws})} (shift i directions)
+              (\idelim N.Nat^::succ (order directions) = order (shift i directions)
+                \with m: N.Nat^ => NatLaws.Lt m (N.Nat^::succ k) \by {
+                  base: NatLaws.ltSuccSucc (order directions) k bound,
+                  equality: sym!{{N.Nat^}} _ _ (orderShift i directions)
+                }) j,
+        },
+        continuous := \fun (directions: Directions)(bound: NatLaws.Le (order directions) k) => #continuous{laws} (shift i directions)
+          (\idelim N.Nat^::succ (order directions) = order (shift i directions)
+            \with m: N.Nat^ => NatLaws.Le m (N.Nat^::succ k) \by {
+              base: NatLaws.leSuccSucc (order directions) k bound,
+              equality: sym!{{N.Nat^}} _ _ (orderShift i directions)
+            }),
+      }
+    }, \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, partial U f i, k, d] }))
+};
+\definition derivative(U: OpenSet)(f: Function U)(i: Coordinate): Function U :=
+  \into[ScalarFunction U](partial U f i, { g: ScalarFunction U \where SmoothOn U g }) \by { partialSmooth U f i };
+\module Linear(U: OpenSet);

@@ -1,0 +1,88 @@
+\import \parent.Laws[] \as ProductLaws;
+\import Lists.Prop[A := I] \as ListLaws;
+\definition PrefixSwap(f: Function): \Prop := \forall (prefix: Lists.List[I])(x, y: I)(xs: Lists.List[I]) ->
+  f (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons y xs))) = neg (f (Lists.append I prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs))));
+\definition PrefixZero(f: Function): \Prop := \forall (prefix: Lists.List[I])(x: I)(xs: Lists.List[I]) ->
+  f (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons x xs))) = zero;
+\structure Laws[f: Function]: \Prop { swap: PrefixSwap f, repeated: PrefixZero f }
+\definition negative(f: Function): Function := \fun (xs: Lists.List[I]) => neg (f xs);
+\definition productNegativeLeft: \forall (f, g: Function)(xs: Lists.List[I]) -> product (negative f) g xs = neg (product f g xs) :=
+  \fun (f, g: Function)(xs: Lists.List[I]) => eq_reason!{
+    {product (negative f) g xs} "=" {product (scale (neg one) f) g xs} "by" {
+      ProductLaws.congruent (negative f) (scale (neg one) f) g g (\fun (ys: Lists.List[I]) => sym!{K} _ _ (Scalars.minusOneScale (f ys))) (\fun (ys: Lists.List[I]) => \refl(g ys)) xs}
+    "=" {mul (neg one) (product f g xs)} "by" {ProductLaws.scalarLeft (neg one) f g xs}
+    "=" {neg (product f g xs)} "by" {Scalars.minusOneScale (product f g xs)}
+  };
+\definition productNegativeRight: \forall (f, g: Function)(xs: Lists.List[I]) -> product f (negative g) xs = neg (product f g xs) :=
+  \fun (f, g: Function)(xs: Lists.List[I]) => eq_reason!{
+    {product f (negative g) xs} "=" {product f (scale (neg one) g) xs} "by" {
+      ProductLaws.congruent f f (negative g) (scale (neg one) g) (\fun (ys: Lists.List[I]) => \refl(f ys)) (\fun (ys: Lists.List[I]) => sym!{K} _ _ (Scalars.minusOneScale (g ys))) xs}
+    "=" {mul (neg one) (product f g xs)} "by" {ProductLaws.scalarRight (neg one) f g xs}
+    "=" {neg (product f g xs)} "by" {Scalars.minusOneScale (product f g xs)}
+  };
+\definition twistTwice: \forall (f: Function)(xs: Lists.List[I]) -> twist (twist f) xs = f xs :=
+  \fun (f: Function)(xs: Lists.List[I]) => eq_reason!{
+    {twist (twist f) xs} "=" {mul (mul (Sign.value (Lists.length I xs)) (Sign.value (Lists.length I xs))) (f xs)} "by" {sym!{K} _ _ (mulAssoc (Sign.value (Lists.length I xs)) (Sign.value (Lists.length I xs)) (f xs))}
+    "=" {mul one (f xs)} "by" {congr!{K K} (\fun (s: K) => mul s (f xs)) _ _ (Sign.square (Lists.length I xs))}
+    "=" {f xs} "by" {mulOneLeft (f xs)}
+  };
+\definition shiftTwist: \forall (head: I)(f: Function)(xs: Lists.List[I]) -> shift head (twist f) xs = negative (twist (shift head f)) xs :=
+  \fun (head: I)(f: Function)(xs: Lists.List[I]) => sym!{K}
+    (neg (mul (Sign.value (Lists.length I xs)) (f (Lists.List[I]::cons head xs))))
+    (mul (neg (Sign.value (Lists.length I xs))) (f (Lists.List[I]::cons head xs)))
+      (Sign.negativeProduct (Sign.value (Lists.length I xs)) (f (Lists.List[I]::cons head xs)));
+\definition shifted: \forall (f: Function) -> Laws[f] -> \forall (head: I) -> Laws[shift head f] :=
+  \fun (f: Function)(laws: Laws[f])(head: I) => Laws[shift head f] {
+    swap := \fun (prefix: Lists.List[I])(x, y: I)(xs: Lists.List[I]) => #swap{laws} (Lists.List[I]::cons head prefix) x y xs,
+    repeated := \fun (prefix: Lists.List[I])(x: I)(xs: Lists.List[I]) => #repeated{laws} (Lists.List[I]::cons head prefix) x xs,
+  };
+\definition swappedLength: \forall (prefix: Lists.List[I])(x, y: I)(xs: Lists.List[I]) ->
+  Lists.length I (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons y xs))) = Lists.length I (Lists.append I prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs))) :=
+  \fun (prefix: Lists.List[I])(x, y: I)(xs: Lists.List[I]) => trans!{{N.Nat^}} _ _ _
+    (ListLaws.lengthAppend prefix (Lists.List[I]::cons x (Lists.List[I]::cons y xs)))
+    (sym!{{N.Nat^}} _ _ (ListLaws.lengthAppend prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs))));
+\definition twistedSwap: \forall (f: Function) -> Laws[f] -> PrefixSwap (twist f) := \block {
+  \fun (f: Function)(laws: Laws[f])(prefix: Lists.List[I])(x, y: I)(xs: Lists.List[I]) \then
+  \let a: Lists.List[I] := Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons y xs)) \then
+  \let b: Lists.List[I] := Lists.append I prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs)) \then
+  \return eq_reason!{
+    {twist f a} "=" {mul (Sign.value (Lists.length I a)) (neg (f b))} "by" {congr!{K K} (mul (Sign.value (Lists.length I a))) _ _ (#swap{laws} prefix x y xs)}
+    "=" {neg (mul (Sign.value (Lists.length I a)) (f b))} "by" {sym!{K} _ _ (Sign.negativeProductRight (Sign.value (Lists.length I a)) (f b))}
+    "=" {neg (twist f b)} "by" {congr!{K K} (\fun (s: K) => neg (mul s (f b))) (Sign.value (Lists.length I a)) (Sign.value (Lists.length I b))
+      (congr!{{N.Nat^} K} Sign.value (Lists.length I a) (Lists.length I b) (swappedLength prefix x y xs))}
+  }
+};
+\definition twisted: \forall (f: Function) -> Laws[f] -> Laws[twist f] :=
+  \fun (f: Function)(laws: Laws[f]) => Laws[twist f] {
+    swap := twistedSwap f laws,
+    repeated := \fun (prefix: Lists.List[I])(x: I)(xs: Lists.List[I]) => trans!{K} _ _ _
+      (congr!{K K} (mul (Sign.value (Lists.length I (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons x xs)))))) _ _ (#repeated{laws} prefix x xs))
+      (mulZeroRight (Sign.value (Lists.length I (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons x xs)))))),
+  };
+\structure AtLaws[prefix: Lists.List[I], f: Function]: \Prop {
+  swap: \forall (x, y: I)(xs: Lists.List[I]) -> f (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons y xs))) = neg (f (Lists.append I prefix (Lists.List[I]::cons y (Lists.List[I]::cons x xs)))),
+  repeated: \forall (x: I)(xs: Lists.List[I]) -> f (Lists.append I prefix (Lists.List[I]::cons x (Lists.List[I]::cons x xs))) = zero,
+}
+\module Head(xs: Lists.List[I]);
+\module Step(prefix: Lists.List[I]);
+\definition atPrefix: \forall (prefix: Lists.List[I])(f, g: Function) -> Laws[f] -> Laws[g] -> AtLaws[prefix, product f g] :=
+  \induction (prefix: Lists.List[I]) \return \forall (f, g: Function) -> Laws[f] -> Laws[g] -> AtLaws[prefix, product f g] \with {
+    | nil: \fun (f, g: Function)(lf: Laws[f])(lg: Laws[g]) => AtLaws[Lists.List[I]::nil, product f g] {
+      swap := \fun (x, y: I)(xs: Lists.List[I]) => Head[xs := xs].swap f g lf lg x y,
+      repeated := \fun (x: I)(xs: Lists.List[I]) => Head[xs := xs].repeated f g lf lg x,
+    }
+    | cons: \fun (head: I)(prefix: Lists.List[I])(previous: \forall (f, g: Function) -> Laws[f] -> Laws[g] -> AtLaws[prefix, product f g]) => Step[prefix := prefix].law previous head
+  };
+\definition alternating: \forall (f, g: Function) -> Laws[f] -> Laws[g] -> Laws[product f g] :=
+  \fun (f, g: Function)(lf: Laws[f])(lg: Laws[g]) => Laws[product f g] {
+    swap := \fun (prefix: Lists.List[I]) => #swap{(atPrefix prefix f g lf lg)},
+    repeated := \fun (prefix: Lists.List[I]) => #repeated{(atPrefix prefix f g lf lg)},
+  };
+\import Lists.Membership[A := I] \as Membership;
+\use Logic.either;
+\module Occurrence(xs: Lists.List[I]);
+\definition headOccurrence: \forall (xs: Lists.List[I])(f: Function) -> Laws[f] -> \forall (x: I) -> Membership.Occurs x xs -> f (Lists.List[I]::cons x xs) = zero :=
+  \induction (xs: Lists.List[I]) \return \forall (f: Function) -> Laws[f] -> \forall (x: I) -> Membership.Occurs x xs -> f (Lists.List[I]::cons x xs) = zero \with {
+    | nil: \fun (f: Function)(laws: Laws[f])(x: I)(member: Logic.False) => Logic.falseElim (f (Lists.List[I]::cons x Lists.List[I]::nil) = zero) member
+    | cons: \fun (head: I)(xs: Lists.List[I])(previous: \forall (f: Function) -> Laws[f] -> \forall (x: I) -> Membership.Occurs x xs -> f (Lists.List[I]::cons x xs) = zero) => Occurrence[xs := xs].law previous head
+  };

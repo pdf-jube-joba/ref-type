@@ -1,0 +1,29 @@
+\import \parent.Examples[] \as Examples;
+\import \parent.Restriction[] \as Restriction;
+\import \parent.Smooth[].Algebra[U := U] \as Functions;
+\import \parent.Smooth[].Derivative[] \as Derivative;
+\import Derivative.Linear[U := U] \as Differentiation;
+\import \parent.Analysis[].Properties[] \as Uniqueness;
+\import \parent.\parent.Partial[].Prop[] \as Global;
+\import \parent.\parent.Space[].Def[] \as Space;
+\definition function(i: Coordinate): Functions.Function :=
+  \into[ScalarFunction U](\fun (x: Carrier U) => x i, Functions.Predicate) \by { Examples.projectionSmooth U i };
+\definition kronecker(i, j: Coordinate): Real := Global.kronecker i j;
+\definition partial: \forall (i, j: Coordinate) -> Differentiation.apply j (function i) = Functions.constant (kronecker i j) :=
+  \fun (i, j: Coordinate) => Functions.ext (Differentiation.apply j (function i)) (Functions.constant (kronecker i j))
+    (\fun (x: Carrier U) => Uniqueness.partialUnique U (function i) j x
+      (Differentiation.apply j (function i) x) (kronecker i j)
+      (Derivative.partialLaw U (function i) j x)
+      (Restriction.partial U (Space.projection i) (Space.constantFunction (kronecker i j)) j (Global.projectionPartialAny i j) x));
+\import \parent.\parent.Differential[].Def[] \as Linear;
+\import \parent.Smooth[].Differential[] \as Differential;
+\import \parent.Analysis[] \as Analysis;
+\definition linear(i: Coordinate): Linear.LinearMap := Linear.LinearMap {
+  apply := \fun (v: Point) => v i,
+  additive := \fun (v, w: Point) => \refl(add (v i) (w i)),
+  homogeneous := \fun (a: Real)(v: Point) => \refl(mul a (v i)),
+};
+\definition differential: \forall (i: Coordinate)(a: Carrier U) -> Differential.value U (function i) a = linear i :=
+  \fun (i: Coordinate)(a: Carrier U) =>
+    Analysis.Differential[U := U, f := function i, a := a, d := Differential.value U (function i) a].uniqueness
+      (linear i) (Differential.law U (function i) a) (Analysis.Linear[U := U, d := linear i].law a);

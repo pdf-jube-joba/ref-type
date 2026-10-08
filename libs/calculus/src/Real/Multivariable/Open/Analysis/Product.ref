@@ -1,0 +1,32 @@
+\import \parent.Operations[] \as Operations;
+\module At(a: Carrier U) {
+  \import \parent.\parent.Section[U := U, f := f, a := a, i := i] \as Left;
+  \import \parent.\parent.Section[U := U, f := g, a := a, i := i] \as Right;
+  \import \parent.\parent.\parent.\parent.\parent.Derivative[].Def[] \as Derivatives;
+  \import \parent.\parent.\parent.\parent.\parent.Derivative[].Product[] \as DerivativeProduct;
+  \use Equality.congr2;
+\definition partialAt: \forall (df, dg: ScalarFunction U) ->
+  HasPartialDerivative U f i df -> HasPartialDerivative U g i dg ->
+  HasPartialDerivativeAt U (Operations.times U f g) i a (Operations.productDifferential U f g df dg a) := \block {
+  \fun (df, dg: _)(left: _)(right: _) \then
+  \let section: Real -> Real := \fun (t: Real) => mul (Left.value t) (Right.value t) \then
+  \let center: section (a i) = Operations.times U f g a := congr2!{Real Real Real} mul
+    (Left.value (a i)) (f a) (Right.value (a i)) (g a) Left.center Right.center \then
+  \let derivativeValue: Real := add (mul (df a) (Right.value (a i))) (mul (Left.value (a i)) (dg a)) \then
+  \let derivative: Derivatives.HasDerivativeAt section (a i) derivativeValue :=
+    DerivativeProduct.derivative Left.value Right.value (a i) (df a) (dg a) (Left.derivative (df a) (left a)) (Right.derivative (dg a) (right a)) \then
+  \return Operations.sectionPartial U (Operations.times U f g) a i section (Operations.productDifferential U f g df dg a) center
+    (\fun (t: Real)(x: Carrier U)(replaced: _) => congr2!{Real Real Real} mul (Left.value t) (f x) (Right.value t) (g x)
+      (Left.agreement t x replaced) (Right.agreement t x replaced))
+    (\idelim derivativeValue = Operations.productDifferential U f g df dg a \with e: Real => Derivatives.HasDerivativeAt section (a i) e \by {
+      base: derivative,
+      equality: congr2!{Real Real Real} add (mul (df a) (Right.value (a i))) (mul (df a) (g a))
+        (mul (Left.value (a i)) (dg a)) (mul (f a) (dg a))
+        (congr!{Real Real} (mul (df a)) (Right.value (a i)) (g a) Right.center)
+        (congr!{Real Real} (\fun (s: Real) => mul s (dg a)) (Left.value (a i)) (f a) Left.center)
+    })
+};
+}
+\definition partial: \forall (df, dg: ScalarFunction U) -> HasPartialDerivative U f i df -> HasPartialDerivative U g i dg ->
+  HasPartialDerivative U (Operations.times U f g) i (Operations.productDifferential U f g df dg) :=
+  \fun (df, dg: _)(left: _)(right: _)(a: Carrier U) => At[a := a].partialAt df dg left right;

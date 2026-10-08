@@ -1,0 +1,64 @@
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\import Modules.Hom[V := C.family.Carrier k, W := D.family.Carrier k,
+  source := C.family.space k, target := D.family.space k] \as Linear;
+\definition linear(f: Map): Linear.Map := Linear.Map {
+  apply := #apply{f} k, addition := #addition{f} k, scalar := #scalar{f} k,
+};
+\definition zeroPreserved: \forall (f: Map) ->
+  #apply{f} k (#zero{(C.family.space k)}) = #zero{(D.family.space k)} :=
+  \fun (f: Map) => Linear.zeroPreserved (linear f);
+\import \parent.\parent.At[C := C, z := k] \as Source;
+\import \parent.\parent.At[C := D, z := k] \as Target;
+\import Modules.Hom[V := Source.Closed, W := Target.Closed,
+  source := Source.cycleSpace, target := Target.cycleSpace] \as CycleMaps;
+\definition preservesClosed: \forall (f: Map)(x: Source.Closed) ->
+  #apply{D.differential} k (#apply{f} k x) = #zero{(D.family.space (next k))} :=
+  \fun (f: Map)(x: Source.Closed) => trans!{{D.family.Carrier (next k)}}
+    (#apply{D.differential} k (#apply{f} k x)) (#apply{f} (next k) (#apply{C.differential} k x))
+    (#zero{(D.family.space (next k))}) (#commutes{f} k x)
+    (trans!{{D.family.Carrier (next k)}} (#apply{f} (next k) (#apply{C.differential} k x))
+      (#apply{f} (next k) (#zero{(C.family.space (next k))})) (#zero{(D.family.space (next k))})
+      (congr!{{C.family.Carrier (next k)} {D.family.Carrier (next k)}} (#apply{f} (next k))
+        (#apply{C.differential} k x) (#zero{(C.family.space (next k))})
+        (\bysub(C.family.Carrier k, #carrier{Source.cycles}, x)))
+      (\parent.At[k := next k].zeroPreserved f));
+\definition cyclesMap(f: Map): CycleMaps.Map := CycleMaps.Map {
+  apply := \fun (x: Source.Closed) => Target.cycle (#apply{f} k x) (preservesClosed f x),
+  addition := \fun (x, y: Source.Closed) => #addition{f} k x y,
+  scalar := \fun (a: R)(x: Source.Closed) => #scalar{f} k a x,
+};
+
+\import Modules.Of[V := C.family.Carrier k, space := C.family.space k].Submodule[] \as SourceSubmodules;
+\import SourceSubmodules.Image[U := C.family.Carrier (previous k), source := C.family.space (previous k)] \as SourceImages;
+\import Modules.Of[V := D.family.Carrier k, space := D.family.space k].Submodule[] \as TargetSubmodules;
+\import TargetSubmodules.Image[U := D.family.Carrier (previous k), source := D.family.space (previous k)] \as TargetImages;
+\definition preservesBoundaries: \forall (f: Map)(x: C.family.Carrier k) -> SourceSubmodules.Member Source.boundaries x -> TargetSubmodules.Member Target.boundaries (#apply{f} k x) :=
+  \fun (f: Map)(x: C.family.Carrier k)(boundary: SourceSubmodules.Member Source.boundaries x) =>
+    SourceImages.eliminate Source.prior x (TargetSubmodules.Member Target.boundaries (#apply{f} k x))
+      (\fun (y: C.family.Carrier (previous k))(equal: #apply{Source.prior} y = x) =>
+        \idelim #apply{Target.prior} (#apply{f} (previous k) y) = #apply{f} k x
+          \with v: D.family.Carrier k => TargetSubmodules.Member Target.boundaries v \by {
+            base: TargetImages.member Target.prior (#apply{f} (previous k) y),
+            equality: trans!{{D.family.Carrier k}} _ _ _ (priorCommutes k f y)
+              (congr!{{C.family.Carrier k} {D.family.Carrier k}} (#apply{f} k) _ _ equal)
+          }) boundary;
+
+\import Modules.Of[V := Source.Closed, space := Source.cycleSpace] \as SourceModule;
+\import SourceModule.Submodule[] \as SourceSubspaces;
+\import SourceSubspaces.Quotient[S := Source.boundariesInside] \as SourceQuotient;
+\import SourceQuotient.To[W := Target.Cohomology, target := Target.cohomologySpace] \as Descent;
+\import Modules.Hom[V := Source.Closed, W := Target.Cohomology,
+  source := Source.cycleSpace, target := Target.cohomologySpace] \as Raw;
+\import Modules.Hom[V := Target.Closed, W := Target.Cohomology,
+  source := Target.cycleSpace, target := Target.cohomologySpace] \as Projection;
+\import Projection.Composition[U := Source.Closed, domain := Source.cycleSpace] \as Compose;
+\definition onCycles(f: Map): Raw.Map := Compose.compose Target.classLinear (cyclesMap f);
+\definition vanishes: \forall (f: Map) -> Descent.Vanishes (onCycles f) :=
+  \fun (f: Map)(x: Source.Closed)(boundary: \In[Source.Closed] (#carrier{Source.boundariesInside}) x) =>
+    Target.boundaryClassZero (#apply{(cyclesMap f)} x) (preservesBoundaries f x boundary);
+\import Modules.Hom[V := Source.Cohomology, W := Target.Cohomology,
+  source := Source.cohomologySpace, target := Target.cohomologySpace] \as Induced;
+\definition induced(f: Map): Induced.Map := Descent.descend (onCycles f) (vanishes f);
+\definition onClass: \forall (f: Map)(x: Source.Closed) ->
+  #apply{(induced f)} (Source.classOf x) = Target.classOf (#apply{(cyclesMap f)} x) :=
+  \fun (f: Map) => Descent.onClass (onCycles f) (vanishes f);

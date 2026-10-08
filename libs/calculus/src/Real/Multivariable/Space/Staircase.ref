@@ -1,0 +1,70 @@
+\import \parent.Def[] \as Coordinates;
+\import \parent.Norm[] \as Norm;
+\import \parent.Prop[] \as Properties;
+\import Bool.ConditionalLaws[A := Real] \as Conditional;
+\use Equality.congr2;
+\definition point(a, x: Point)(k: N.Nat^): Point :=
+  \fun (j: Coordinate) => Bool.ite Real (NatOp.ltb (Fin.value n j) k) (x j) (a j);
+\definition initial: \forall (a, x: Point) -> point a x N.Nat^::zero = a :=
+  \fun (a, x: Point) => \axiom:funext(point a x N.Nat^::zero, a, \fun (j: Coordinate) => \refl(a j));
+\definition final: \forall (a, x: Point) -> point a x n = x :=
+  \fun (a, x: Point) => \axiom:funext(point a x n, x, \fun (j: Coordinate) =>
+    \idelim Bool.Bool^::true = NatOp.ltb (Fin.value n j) n \with test: Bool.Bool^ => Bool.ite Real test (x j) (a j) = x j \by {
+      base: \refl(x j), equality: sym!{Bool.Bool^} _ _ (Fin.bound n j)
+    });
+\definition current: \forall (a, x: Point)(i: Coordinate) -> point a x (Fin.value n i) i = a i :=
+  \fun (a, x: Point)(i: Coordinate) => \idelim Bool.Bool^::false = NatOp.ltb (Fin.value n i) (Fin.value n i)
+    \with test: Bool.Bool^ => Bool.ite Real test (x i) (a i) = a i \by {
+      base: \refl(a i), equality: sym!{Bool.Bool^} _ _ (NatLaws.ltbSelfFalse (Fin.value n i))
+    };
+\definition next: \forall (a, x: Point)(i: Coordinate) ->
+  point a x (N.Nat^::succ (Fin.value n i)) = Coordinates.replace (point a x (Fin.value n i)) i (x i) :=
+  \fun (a, x: Point)(i: Coordinate) => \axiom:funext(point a x (N.Nat^::succ (Fin.value n i)), Coordinates.replace (point a x (Fin.value n i)) i (x i),
+    \fun (j: Coordinate) => Bool.cases
+      (\fun (equal: Bool.Bool^) => NatOp.eqb (Fin.value n j) (Fin.value n i) = equal ->
+        point a x (N.Nat^::succ (Fin.value n i)) j = Bool.ite Real equal (x i) (point a x (Fin.value n i) j))
+      (\fun (different: _) => congr!{Bool.Bool^ Real} (\fun (test: Bool.Bool^) => Bool.ite Real test (x j) (a j)) _ _
+        (NatLaws.ltbSuccOfDifferent (Fin.value n i) (Fin.value n j) different))
+      (\block {
+        \fun (equal: _) \then
+        \let same: j = i := NatLaws.eqOfEqbTrue (Fin.value n i) (Fin.value n j) equal \then
+        \let below: NatLaws.Lt (Fin.value n j) (N.Nat^::succ (Fin.value n i)) :=
+          \idelim i = j \with k: Coordinate => NatLaws.Lt (Fin.value n k) (N.Nat^::succ (Fin.value n i)) \by {
+            base: NatLaws.ltOfSuccLe (N.Nat^::succ (Fin.value n i)) (Fin.value n i) (NatLaws.leRefl (N.Nat^::succ (Fin.value n i))),
+            equality: sym!{Coordinate} _ _ same
+          } \then
+        \return trans!{Real} _ _ _
+          (\idelim Bool.Bool^::true = NatOp.ltb (Fin.value n j) (N.Nat^::succ (Fin.value n i))
+            \with test: Bool.Bool^ => Bool.ite Real test (x j) (a j) = x j \by { base: \refl(x j), equality: sym!{Bool.Bool^} _ _ below })
+          (congr!{Coordinate Real} x j i same)
+      }) (NatOp.eqb (Fin.value n j) (Fin.value n i)) (\refl(NatOp.eqb (Fin.value n j) (Fin.value n i))));
+\definition bounded: \forall (a, x: Point)(k: N.Nat^) -> R.Le (Coordinates.pointDistance (point a x k) a) (Coordinates.pointDistance x a) :=
+  \fun (a, x: Point)(k: N.Nat^) => Norm.finiteUpper n (Coordinates.subPoint (point a x k) a) (Coordinates.pointDistance x a)
+    (Norm.nonnegative (Coordinates.subPoint x a))
+    (\fun (j: Coordinate) => Bool.cases
+      (\fun (test: Bool.Bool^) => R.Le (distance (sub (Bool.ite Real test (x j) (a j)) (a j)) zero) (Coordinates.pointDistance x a))
+      (R.leReplaceLeft zero (distance (sub (a j) (a j)) zero) _
+        (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => distance s zero) _ _ (Laws.subSelf (a j))) (Metric.distanceSelf zero)))
+        (Norm.nonnegative (Coordinates.subPoint x a)))
+      (Norm.coordinate (Coordinates.subPoint x a) j)
+      (NatOp.ltb (Fin.value n j) k));
+\import real.Analysis[].Estimates[] \as Bounds;
+\definition replaceBound: \forall (a, y: Point)(i: Coordinate)(t, r: Real) ->
+  R.Le (Coordinates.pointDistance y a) r -> R.Le (distance t (a i)) r -> R.Le (Coordinates.pointDistance (Coordinates.replace y i t) a) r :=
+  \fun (a, y: Point)(i: Coordinate)(t, r: Real)(oldBound: _)(coordinateBound: _) => Norm.finiteUpper n
+    (Coordinates.subPoint (Coordinates.replace y i t) a) r
+    (R.leTrans zero (Coordinates.pointDistance y a) r (Norm.nonnegative (Coordinates.subPoint y a)) oldBound)
+    (\fun (j: Coordinate) => Bool.cases
+      (\fun (test: Bool.Bool^) => NatOp.eqb (Fin.value n j) (Fin.value n i) = test ->
+        R.Le (distance (sub (Bool.ite Real test t (y j)) (a j)) zero) r)
+      (\fun (different: _) => R.leTrans _ _ _ (Norm.coordinate (Coordinates.subPoint y a) j) oldBound)
+      (\fun (equal: _) => R.leReplaceLeft (distance t (a i)) (distance (sub t (a j)) zero) r
+        (sym!{Real} _ _ (trans!{Real} _ _ _ (Norm.distanceDifference t (a j))
+          (congr!{Real Real} (distance t) _ _ (congr!{Coordinate Real} a j i (NatLaws.eqOfEqbTrue (Fin.value n i) (Fin.value n j) equal))))) coordinateBound)
+      (NatOp.eqb (Fin.value n j) (Fin.value n i)) (\refl(NatOp.eqb (Fin.value n j) (Fin.value n i))));
+\definition segmentBound: \forall (a, x: Point)(i: Coordinate)(s: Real) -> R.Le (Metric.min (a i) (x i)) s -> R.Le s (Metric.max (a i) (x i)) ->
+  R.Le (Coordinates.pointDistance (Coordinates.replace (point a x (Fin.value n i)) i s) a) (Coordinates.pointDistance x a) :=
+  \fun (a, x: Point)(i: Coordinate)(s: Real)(lower: _)(upper: _) => replaceBound a (point a x (Fin.value n i)) i s (Coordinates.pointDistance x a)
+    (bounded a x (Fin.value n i))
+    (R.leTrans (distance s (a i)) (distance (x i) (a i)) (Coordinates.pointDistance x a)
+      (Bounds.betweenDistance (a i) (x i) s lower upper) (Norm.coordinateDistance x a i));

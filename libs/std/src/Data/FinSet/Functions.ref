@@ -1,0 +1,26 @@
+\import \root.Data[].FinSet[].Tuples[A := Fin n] \as Tuples;
+\import \root.Data[].FinSet[].Empty[A := Fin n] \as EmptyFunctions;
+\import std.Set[] \as Sets;
+\definition Tuple(k: N.Nat^): \Set := Fin k -> Fin n;
+\definition Whole(k: N.Nat^): \Pow (Tuple k) := { f: Tuple k \where f = f };
+\definition Finiteness(k: N.Nat^): \Prop := Sets.FiniteSubset[A := Tuple k].Finite (Whole k);
+\import Sets.FiniteSubset[A := Tuple N.Nat^::zero] \as Zero;
+\definition zeroSet: Whole N.Nat^::zero = Zero.Singleton EmptyFunctions.function :=
+  \axiom:setext(Whole N.Nat^::zero, Zero.Singleton EmptyFunctions.function,
+    \fun (f: Tuple N.Nat^::zero)(member: f = f) => Logic.Or[f = EmptyFunctions.function, Logic.False]::left
+      (EmptyFunctions.unique f EmptyFunctions.function),
+    \fun (f: Tuple N.Nat^::zero)(member: Zero.Member (Zero.singleton EmptyFunctions.function) f) => \refl(f));
+\definition zeroFinite: Finiteness N.Nat^::zero :=
+  \idelim Zero.Singleton EmptyFunctions.function = Whole N.Nat^::zero
+    \with X: \Pow (Tuple N.Nat^::zero) => Zero.Finite X \by {
+      base: Zero.finiteInsert EmptyFunctions.function Zero.Empty Zero.finiteEmpty,
+      equality: sym!{{\Pow (Tuple N.Nat^::zero)}} (Whole N.Nat^::zero) (Zero.Singleton EmptyFunctions.function) zeroSet
+    };
+\module Step(k: N.Nat^);
+\definition finite: \forall (k: N.Nat^) -> Finiteness k :=
+  \induction (k: N.Nat^) \return Finiteness k \with {
+    | zero: zeroFinite
+    | succ: \fun (k: N.Nat^)(previous: Finiteness k) => Step[k := k].law previous
+  };
+\definition value(k: N.Nat^): Sets.FiniteSubset[A := Tuple k].FiniteSubset :=
+  \into[\Pow (Tuple k)](Whole k, Sets.FiniteSubset[A := Tuple k].FiniteSubsetSet) \by { finite k };

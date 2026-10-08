@@ -1,0 +1,61 @@
+\import homological_algebra.Cochain[].Over[R := Reals.Real, ring := Spaces.ring] \as Complexes;
+\definition family: Complexes.Family := Complexes.Family { Carrier := Form, space := space };
+\definition differential: Complexes.DifferentialData[family] := Complexes.DifferentialData[family] {
+  apply := \fun (k: N.Nat^)(omega: Form k) => \parent.ExteriorDerivative[k := k].apply omega,
+};
+\definition laws: Complexes.DifferentialLaws[family, differential] := Complexes.DifferentialLaws[family, differential] {
+  addition := \fun (k: N.Nat^)(omega, eta: Form k) => \parent.ExteriorDerivative[k := k].addition omega eta,
+  scalar := \fun (k: N.Nat^)(a: Reals.Real)(omega: Form k) => \parent.ExteriorDerivative[k := k].scalar a omega,
+  squareZero := \fun (k: N.Nat^)(omega: Form k) => \parent.Square[k := k].law omega,
+};
+\definition complex: Complexes.Complex := Complexes.Complex { family := family, differential := differential, laws := laws };
+\module At(k: N.Nat^) {
+  \import Complexes.At[C := complex, k := k] \as Cohomology;
+  \definition Closed(omega: Form k): \Prop := #apply{differential} k omega = #zero{(space (N.Nat^::succ k))};
+  \definition Exact(omega: Form k): \Prop := \In[Form k] (Cohomology.Boundaries k) omega;
+  \definition Cycle: \Set := Cohomology.CycleCarrier;
+  \definition H: \Set := Cohomology.Cohomology;
+  \definition vectorSpace: Spaces.VectorSpace H := Cohomology.cohomologySpace;
+  \definition classOf: Cycle -> H := Cohomology.classOf;
+  \definition vanishes: \forall (omega: Cycle) -> Logic.And[classOf omega = #zero{vectorSpace} -> Exact omega, Exact omega -> classOf omega = #zero{vectorSpace}] :=
+    \fun (omega: Cycle) => Logic.And[_, _]::# (Cohomology.zeroClassBoundary omega) (Cohomology.boundaryClassZero omega);
+}
+\definition Cohomology(k: N.Nat^): \Set := At[k := k].H;
+\import Complexes.ZeroExtension[C := complex] \as Integral;
+\import homological_algebra.Integer[].Over[R := Reals.Real, ring := Spaces.ring] \as IntegerComplexes;
+\definition integerFamily: IntegerComplexes.Family := IntegerComplexes.Family {
+  Carrier := Integral.Carrier, space := Integral.space,
+};
+\definition integerDifferential: IntegerComplexes.DifferentialData[integerFamily] := IntegerComplexes.DifferentialData[integerFamily] { apply := Integral.apply };
+\definition integerComplex: IntegerComplexes.Complex := IntegerComplexes.Complex {
+  family := integerFamily, differential := integerDifferential,
+  laws := IntegerComplexes.DifferentialLaws[integerFamily, integerDifferential] {
+    addition := Integral.addition, scalar := Integral.scalar, squareZero := Integral.squareZero,
+  },
+};
+\module IntegerAt(z: homological_algebra.Integer[].Degree) {
+  \import IntegerComplexes.At[C := integerComplex, z := z] \as H;
+  \definition Cohomology: \Set := H.Cohomology;
+  \definition vectorSpace: Spaces.VectorSpace Cohomology := H.cohomologySpace;
+  \definition Cycle: \Set := H.Closed;
+  \definition classOf: Cycle -> Cohomology := H.classOf;
+}
+\module Positive(k: N.Nat^) {
+  \import std.Arithmetic[].Int[] \as Signed;
+  \import \parent.IntegerAt[z := Signed.Int^::ofNat k] \as Integer;
+  \import \parent.At[k := k] \as Natural;
+  \import Spaces.Isomorphism[V := Integer.Cohomology, W := Natural.H, source := Integer.vectorSpace, target := Natural.vectorSpace] \as Iso;
+  \import Integral.PositiveCohomology[n := k] \as Comparison;
+  \import Spaces.Linear[V := Integer.Cohomology, W := Natural.H, source := Integer.vectorSpace, target := Natural.vectorSpace] \as Forward;
+  \import Spaces.Linear[V := Natural.H, W := Integer.Cohomology, source := Natural.vectorSpace, target := Integer.vectorSpace] \as Backward;
+  \definition forward: Forward.Map := Forward.Map {
+    apply := #apply{Comparison.forward}, preservesAdd := #addition{Comparison.forward}, preservesScale := #scalar{Comparison.forward},
+  };
+  \definition backward: Backward.Map := Backward.Map {
+    apply := #apply{Comparison.backward}, preservesAdd := #addition{Comparison.backward}, preservesScale := #scalar{Comparison.backward},
+  };
+  \definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+    forward := forward, backward := backward, leftInverse := Comparison.leftInverse, rightInverse := Comparison.rightInverse,
+  };
+}
+\module DegreeZero;

@@ -1,0 +1,50 @@
+\import \parent.InCharts[left := before, right := right] \as Before;
+\import \parent.InCharts[left := after, right := right] \as After;
+\import \root.SelfMap[n := n].Identity[M := M] \as Identity;
+\import \root.Composition[n := n, m := n, l := m].Between[M := M, N := M, P := N].Of[f := Identity.map, g := f] \as Composition;
+\definition sourceChart: Composition.SourceChart := \into[SourceCharts.Chart](after, #charts{M.atlas}) \by { Domain.member after };
+\definition middleChart: Composition.MiddleChart := \into[SourceCharts.Chart](before, #charts{M.atlas}) \by { Domain.member before };
+\definition targetChart: Composition.TargetChart := \into[TargetCharts.Chart](right, #charts{N.atlas}) \by { Codomain.member right };
+\import \root.CompositionDifferential[n := n, m := n, l := m].Between[M := M, N := M, P := N].Of[f := Identity.map, g := f].InCharts[left := sourceChart, middle := middleChart, right := targetChart] \as CompositionData;
+\import Composition.Coordinates[left := after, right := right].Patch[middle := middleChart] \as Patch;
+\import SourceCharts.Of[chart := after] \as SourceGeometry;
+\definition contains: SourceCharts.Contains before (SourceCharts.point after (Domain.coordinate after)) :=
+  \idelim x = SourceCharts.point after (Domain.coordinate after) \with y: M.Point => SourceCharts.Contains before y \by {
+    base: Domain.contains before,
+    equality: sym!{{M.Point}} (SourceCharts.point after (Domain.coordinate after)) x (SourceGeometry.pointCoordinate (Domain.localPoint after))
+  };
+\definition point: Open.Carrier CompositionData.domain :=
+  \into[SourceVectors.Vector](Domain.coordinate after, #points{CompositionData.domain}) \by { Patch.contains After.point contains };
+\import CompositionData.At[a := point] \as Chain;
+\import Domain.Pair[left := after, right := before] \as SourceChange;
+\definition intermediate: Open.Carrier Before.domain := Patch.intermediate point;
+\definition pointAgreement: intermediate = Before.point := SourceChange.coordinateAgreement;
+\definition secondAgreement: Calculus.Differential[U := Before.domain, V := #image{right}, f := CompositionData.secondMap, a := intermediate].value = Before.jacobian :=
+  congr!{{Open.Carrier Before.domain} {Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space].Map}}
+    Before.jacobianAt intermediate Before.point pointAgreement;
+\import Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space] \as Jacobians;
+\import Spaces.Linear[V := SourceVectors.Vector, W := SourceVectors.Vector, source := SourceVectors.space, target := SourceVectors.space] \as End;
+\import Jacobians.Composition[U := SourceVectors.Vector, domain := SourceVectors.space] \as Compose;
+\definition jacobian: After.jacobian = Compose.compose Before.jacobian (Domain.jacobian after before) :=
+  trans!{{Jacobians.Map}} After.jacobian
+    (Compose.compose (Calculus.Differential[U := Before.domain, V := #image{right}, f := CompositionData.secondMap, a := intermediate].value) (Domain.jacobian after before))
+    (Compose.compose Before.jacobian (Domain.jacobian after before)) Chain.law
+    (congr!{{Jacobians.Map} {Jacobians.Map}} (\fun (d: Jacobians.Map) => Compose.compose d (Domain.jacobian after before)) _ _ secondAgreement);
+\import Domain.ChartIsomorphism[chart := after].Change[other := before] \as Changes;
+\import Domain.Coordinate[chart := before] \as BeforeCoordinates;
+\import Domain.Coordinate[chart := after] \as AfterCoordinates;
+\import Codomain.Coordinate[chart := right] \as Coordinates;
+\definition coordinateEquality: \forall (v: Domain.Vector) -> Coordinates.decode (#apply{After.value} v) = Coordinates.decode (#apply{Before.value} v) :=
+  \fun (v: Domain.Vector) => eq_reason!{
+    {Coordinates.decode (#apply{After.value} v)} "=" {#apply{After.jacobian} (AfterCoordinates.decode v)} "by" {After.coordinateLaw v}
+    "=" {#apply{Before.jacobian} (Domain.transform after before (AfterCoordinates.decode v))} "by" {
+      congr!{{Jacobians.Map} {TargetVectors.Vector}} (\fun (d: Jacobians.Map) => #apply{d} (AfterCoordinates.decode v)) _ _ jacobian}
+    "=" {#apply{Before.jacobian} (BeforeCoordinates.decode v)} "by" {
+      congr!{{SourceVectors.Vector} {TargetVectors.Vector}} (#apply{Before.jacobian}) _ _
+        (sym!{{SourceVectors.Vector}} _ _ (Changes.coordinates v))}
+    "=" {Coordinates.decode (#apply{Before.value} v)} "by" {
+      sym!{{TargetVectors.Vector}} _ _ (Before.coordinateLaw v)}
+  };
+\definition law: After.value = Before.value := Linear.ext After.value Before.value
+  (\axiom:funext((#apply{After.value}), (#apply{Before.value}),
+    \fun (v: Domain.Vector) => Coordinates.injective (#apply{After.value} v) (#apply{Before.value} v) (coordinateEquality v)));

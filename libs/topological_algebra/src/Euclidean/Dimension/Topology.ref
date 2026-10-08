@@ -1,0 +1,71 @@
+\import \parent.Def[] \as Def;
+\import \parent.Norm[] \as Norm;
+\import topology.Topology[Carrier := Point] \as Space;
+\import topology.MetricSpace[Carrier := Point] \as Metrics;
+\import Metrics.Topology[] \as MetricTopology;
+\import MetricTopology.Hausdorff[] \as Hausdorff;
+\import topology.RealLine[] \as Line;
+\import Line.Rays[] \as Rays;
+\import topology.RealFunctions[A := Point] \as Functions;
+\import Functions.Lattice[] \as Lattice;
+\import topological_algebra.Coordinates[K := Real, I := Coordinate] \as Coordinates;
+\import Coordinates.Universal[A := Point] \as Universal;
+\import topology.Maps[A := Point, B := Real] \as ScalarMaps;
+\import real.Analysis[].Estimates[] \as Estimates;
+\definition topology: Space.Topology := MetricTopology.topology Norm.metric;
+\definition coordinateTopology: Space.Topology := Coordinates.topology Line.topology;
+\definition hausdorff: Space.IsT2 topology := Hausdorff.topologyT2 Norm.metric;
+\definition coordinateContinuous: \forall (i: Coordinate) -> Functions.Continuous topology (\fun (x: Point) => x i) :=
+  \fun (i: Coordinate) => Functions.continuousOfLocal topology (\fun (x: Point) => x i)
+    (\fun (x: Point)(r: Real)(positive: R.Lt zero r) =>
+      \exact(\into[\Pow Point](Metrics.Ball Norm.metric x r,
+        { U: \Pow Point \where Space.OpenNeighborhood[topology, x, Functions.Small (\fun (y: Point) => y i) x r, U] }) \by {
+          Space.OpenNeighborhood[topology, x, Functions.Small (\fun (y: Point) => y i) x r, Metrics.Ball Norm.metric x r] {
+            open := MetricTopology.ballOpenIn Norm.metric x r,
+            contains := Metrics.ballCenter Norm.metric x r positive,
+            within := \fun (y: Point)(near: _) => R.leLtTrans _ _ _ (Norm.coordinateDistance x y i) near,
+          }
+        }, \Cast[\Pow Point] ({ U: \Pow Point \where Space.OpenNeighborhood[topology, x, Functions.Small (\fun (y: Point) => y i) x r, U] })));
+\definition coordinateOpen: \forall (U: \Pow Point) -> Space.IsOpenIn coordinateTopology U -> Space.IsOpenIn topology U :=
+  Universal.continuous topology Line.topology (\fun (x: Point) => x) coordinateContinuous;
+\definition finiteMaxContinuous: \forall (m: N.Nat^)(f: Point -> (Fin.Fin m -> Real)) ->
+  (\forall (i: Fin.Fin m) -> Functions.Continuous coordinateTopology (\fun (x: Point) => f x i)) ->
+  Functions.Continuous coordinateTopology (\fun (x: Point) => Def.finiteMax m (f x)) :=
+  \induction (m: N.Nat^) \return \forall (f: Point -> (Fin.Fin m -> Real)) ->
+    (\forall (i: Fin.Fin m) -> Functions.Continuous coordinateTopology (\fun (x: Point) => f x i)) ->
+    Functions.Continuous coordinateTopology (\fun (x: Point) => Def.finiteMax m (f x)) \with {
+      | zero: \fun (f: _)(continuous: _) => Functions.constantContinuous coordinateTopology zero
+      | succ: \fun (m: N.Nat^)(previous: _)(f: _)(continuous: _) =>
+        Lattice.maximumContinuous coordinateTopology
+          (\fun (x: Point) => distance (f x (Fin.zero m)) zero)
+          (\fun (x: Point) => Def.finiteMax m (\fun (i: Fin.Fin m) => f x (Fin.succ m i)))
+          (\idelim (\fun (x: Point) => distance zero (f x (Fin.zero m))) = (\fun (x: Point) => distance (f x (Fin.zero m)) zero)
+            \with g: (Point -> Real) => Functions.Continuous coordinateTopology g \by {
+              base: Lattice.absoluteContinuous coordinateTopology (\fun (x: Point) => f x (Fin.zero m)) (continuous (Fin.zero m)),
+              equality: \axiom:funext((\fun (x: Point) => distance zero (f x (Fin.zero m))),
+                (\fun (x: Point) => distance (f x (Fin.zero m)) zero), \fun (x: Point) => Metric.distanceSymmetric zero (f x (Fin.zero m)))
+            })
+          (previous (\fun (x: Point)(i: Fin.Fin m) => f x (Fin.succ m i)) (\fun (i: Fin.Fin m) => continuous (Fin.succ m i)))
+    };
+\definition distanceContinuous: \forall (x: Point) -> Functions.Continuous coordinateTopology (Def.pointDistance x) :=
+  \fun (x: Point) => finiteMaxContinuous n (\fun (y: Point) => Def.subPoint x y)
+    (\fun (i: Coordinate) => Functions.subContinuous coordinateTopology (\fun (_: Point) => x i) (\fun (y: Point) => y i)
+      (Functions.constantContinuous coordinateTopology (x i)) (Coordinates.evaluationContinuous Line.topology i));
+\definition ballCoordinateOpen: \forall (x: Point)(r: Real) -> Space.IsOpenIn coordinateTopology (Metrics.Ball Norm.metric x r) :=
+  \fun (x: Point)(r: Real) => distanceContinuous x (Rays.Below r) (Rays.belowOpen r);
+\definition metricOpen: \forall (U: \Pow Point) -> Space.IsOpenIn topology U -> Space.IsOpenIn coordinateTopology U :=
+  \fun (U: \Pow Point)(open: _) => Space.openOfNeighborhoods coordinateTopology U (\block {
+    \fun (x: Point)(member: Space.Member U x) \then
+    \takefrom r: \Cast[Real] (Metrics.NeighborhoodRadius Norm.metric U x) \by open x member \then
+    \let radius: Logic.And[R.Lt zero r, Space.Subset (Metrics.Ball Norm.metric x r) U] :=
+      \bysub(Real, Metrics.NeighborhoodRadius Norm.metric U x, r) \then
+    \return \exact(\into[\Pow Point](Metrics.Ball Norm.metric x r,
+      { V: \Pow Point \where Space.OpenNeighborhood[coordinateTopology, x, U, V] }) \by {
+        Space.OpenNeighborhood[coordinateTopology, x, U, Metrics.Ball Norm.metric x r] {
+          open := ballCoordinateOpen x r, contains := Metrics.ballCenter Norm.metric x r (#left{radius}), within := #right{radius},
+        }
+      }, \Cast[\Pow Point] ({ V: \Pow Point \where Space.OpenNeighborhood[coordinateTopology, x, U, V] }))
+  });
+\definition coordinateMetricAgreement: \forall (U: \Pow Point) ->
+  Logic.PropEquiv[Space.IsOpenIn coordinateTopology U, Space.IsOpenIn topology U] :=
+  \fun (U: \Pow Point) => Logic.PropEquiv[_, _] { ltr := coordinateOpen U, rtl := metricOpen U };

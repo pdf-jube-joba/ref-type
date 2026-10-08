@@ -1,0 +1,25 @@
+\import \parent.\parent.Estimates[].Product[] \as Product;
+\import std.Data[].Option[] \as Option;
+\definition minimum: \forall (n: N.Nat^) -> (Fin.Fin n -> Real) -> Real :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> Real) -> Real \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> Real) => one
+    | succ: \fun (n: N.Nat^)(previous: (Fin.Fin n -> Real) -> Real)(f: Fin.Fin (N.Nat^::succ n) -> Real) =>
+      Metric.min (f (Fin.zero n)) (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)))
+  };
+\definition positive: \forall (n: N.Nat^)(f: Fin.Fin n -> Real) -> (\forall (i: Fin.Fin n) -> R.Lt zero (f i)) -> R.Lt zero (minimum n f) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> Real) -> (\forall (i: Fin.Fin n) -> R.Lt zero (f i)) -> R.Lt zero (minimum n f) \with {
+    | zero: \fun (f: _)(proof: _) => Product.onePositive
+    | succ: \fun (n: N.Nat^)(previous: _)(f: _)(proof: _) => Product.minPositive _ _ (proof (Fin.zero n))
+      (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)) (\fun (j: Fin.Fin n) => proof (Fin.succ n j)))
+  };
+\definition coordinate: \forall (n: N.Nat^)(f: Fin.Fin n -> Real)(i: Fin.Fin n) -> R.Le (minimum n f) (f i) :=
+  \induction (n: N.Nat^) \return \forall (f: Fin.Fin n -> Real)(i: Fin.Fin n) -> R.Le (minimum n f) (f i) \with {
+    | zero: \fun (f: _)(i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+    | succ: \fun (n: N.Nat^)(previous: \forall (f: Fin.Fin n -> Real)(i: Fin.Fin n) -> R.Le (minimum n f) (f i))(f: Fin.Fin (N.Nat^::succ n) -> Real)(i: Fin.Fin (N.Nat^::succ n)) =>
+      R.leReplaceRight (minimum (N.Nat^::succ n) f) (f (Fin.inflate n (Fin.split n i))) (f i)
+        (congr!{{Fin.Fin (N.Nat^::succ n)} Real} f _ _ (Fin.inflateSplit n i))
+      ((\induction (option: Option.Option[Fin.Fin n]) \return R.Le (minimum (N.Nat^::succ n) f) (f (Fin.inflate n option)) \with {
+        | none: Metric.minLeft _ _
+        | some: \fun (j: Fin.Fin n) => R.leTrans _ _ _ (Metric.minRight _ _) (previous (\fun (k: Fin.Fin n) => f (Fin.succ n k)) j)
+      }) (Fin.split n i))
+  };

@@ -1,0 +1,44 @@
+\structure Transposition: \Set {
+  first: Fin.Fin k,
+  second: Fin.Fin k,
+  different: Logic.Not (first = second),
+}
+\definition Word: \Set := Lists.List[Transposition];
+\definition transpose(swap: Transposition)(arguments: Arguments k): Arguments k :=
+  update k (update k arguments #first{swap} (arguments #second{swap})) #second{swap} (arguments #first{swap});
+\definition action(word: Word): Arguments k -> Arguments k :=
+  Lists.foldr Transposition (Arguments k -> Arguments k)
+    (\fun (swap: Transposition)(tail: Arguments k -> Arguments k)(arguments: Arguments k) => transpose swap (tail arguments))
+    (\fun (arguments: Arguments k) => arguments) word;
+\definition signed(word: Word): K -> K := Lists.foldr Transposition (K -> K)
+  (\fun (swap: Transposition)(tail: K -> K)(value: K) => neg (tail value)) (\fun (value: K) => value) word;
+\definition sign(word: Word): K := signed word one;
+\definition onTransposition: \forall (f: Form k)(swap: Transposition)(arguments: Arguments k) -> f (transpose swap arguments) = neg (f arguments) :=
+  \fun (f: Form k)(swap: Transposition)(arguments: Arguments k) =>
+    \parent.TwoSlots[k := k, i := #first{swap}, j := #second{swap}].onSwap f arguments #different{swap};
+\definition onWord: \forall (word: Word)(f: Form k)(arguments: Arguments k) -> f (action word arguments) = signed word (f arguments) :=
+  \induction (word: Word) \return \forall (f: Form k)(arguments: Arguments k) -> f (action word arguments) = signed word (f arguments) \with {
+    | nil: \fun (f: Form k)(arguments: Arguments k) => \refl(f arguments)
+    | cons: \fun (swap: Transposition)(tail: Word)
+      (previous: \forall (f: Form k)(arguments: Arguments k) -> f (action tail arguments) = signed tail (f arguments))
+      (f: Form k)(arguments: Arguments k) => trans!{K} (f (transpose swap (action tail arguments))) (neg (f (action tail arguments))) (neg (signed tail (f arguments)))
+        (onTransposition f swap (action tail arguments))
+        (congr!{K K} neg (f (action tail arguments)) (signed tail (f arguments)) (previous f arguments))
+  };
+\import \parent.\parent.\parent.Laws[V := K, space := scalarSpace] \as Scalars;
+\definition negMultiply: \forall (a, b: K) -> neg (mul a b) = mul (neg a) b :=
+  \fun (a, b: K) => trans!{K} (neg (mul a b)) (mul (neg one) (mul a b)) (mul (neg a) b)
+    (sym!{K} (mul (neg one) (mul a b)) (neg (mul a b)) (Scalars.minusOneScale (mul a b)))
+    (trans!{K} (mul (neg one) (mul a b)) (mul (mul (neg one) a) b) (mul (neg a) b)
+      (sym!{K} (mul (mul (neg one) a) b) (mul (neg one) (mul a b)) (mulAssoc (neg one) a b))
+      (congr!{K K} (\fun (x: K) => mul x b) (mul (neg one) a) (neg a) (Scalars.minusOneScale a)));
+\definition signValue: \forall (word: Word)(value: K) -> signed word value = mul (sign word) value :=
+  \induction (word: Word) \return \forall (value: K) -> signed word value = mul (sign word) value \with {
+    | nil: \fun (value: K) => sym!{K} (mul one value) value (mulOneLeft value)
+    | cons: \fun (swap: Transposition)(tail: Word)(previous: \forall (value: K) -> signed tail value = mul (sign tail) value)(value: K) =>
+      trans!{K} (neg (signed tail value)) (neg (mul (sign tail) value)) (mul (neg (sign tail)) value)
+        (congr!{K K} neg (signed tail value) (mul (sign tail) value) (previous value)) (negMultiply (sign tail) value)
+  };
+\definition transformation: \forall (word: Word)(f: Form k)(arguments: Arguments k) -> f (action word arguments) = mul (sign word) (f arguments) :=
+  \fun (word: Word)(f: Form k)(arguments: Arguments k) => trans!{K} (f (action word arguments)) (signed word (f arguments)) (mul (sign word) (f arguments))
+    (onWord word f arguments) (signValue word (f arguments));

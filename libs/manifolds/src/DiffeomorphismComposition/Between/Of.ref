@@ -1,0 +1,28 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+\import \root.SmoothMap[n := n, m := m].Between[M := M, N := N] \as Forward;
+\import \root.SmoothMap[n := m, m := n].Between[M := N, N := M] \as Backward;
+\import \root.Diffeomorphism[n := m, m := l].Between[M := N, N := P] \as After;
+\import \root.SmoothMap[n := m, m := l].Between[M := N, N := P] \as AfterForward;
+\import \root.SmoothMap[n := l, m := m].Between[M := P, N := N] \as AfterBackward;
+\import \root.Diffeomorphism[n := n, m := l].Between[M := M, N := P] \as Result;
+\import \root.SmoothMap[n := n, m := l].Between[M := M, N := P] \as ResultForward;
+\import \root.SmoothMap[n := l, m := n].Between[M := P, N := M] \as ResultBackward;
+\import \root.Composition[n := n, m := m, l := l].Between[M := M, N := N, P := P] \as CompositeForward;
+\import \root.Composition[n := l, m := m, l := n].Between[M := P, N := N, P := M] \as CompositeBackward;
+\definition compose: Result.Diffeomorphism := Result.Diffeomorphism {
+  forward := (CompositeForward.compose #forward{d} #forward{e}), backward := (CompositeBackward.compose #backward{e} #backward{d}),
+  leftInverse := \fun (x: M.Point) => trans!{{M.Point}}
+    (ResultBackward.apply (CompositeBackward.compose #backward{e} #backward{d}) (ResultForward.apply (CompositeForward.compose #forward{d} #forward{e}) x))
+    (Backward.apply #backward{d} (Forward.apply #forward{d} x)) x
+    (congr!{{N.Point} {M.Point}} (Backward.apply #backward{d})
+      (AfterBackward.apply #backward{e} (AfterForward.apply #forward{e} (Forward.apply #forward{d} x)))
+      (Forward.apply #forward{d} x) (#leftInverse{(After.laws e)} (Forward.apply #forward{d} x))) (#leftInverse{(First.laws d)} x),
+  rightInverse := \fun (y: P.Point) => trans!{{P.Point}}
+    (ResultForward.apply (CompositeForward.compose #forward{d} #forward{e}) (ResultBackward.apply (CompositeBackward.compose #backward{e} #backward{d}) y))
+    (AfterForward.apply #forward{e} (AfterBackward.apply #backward{e} y)) y
+    (congr!{{N.Point} {P.Point}} (AfterForward.apply #forward{e})
+      (Forward.apply #forward{d} (Backward.apply #backward{d} (AfterBackward.apply #backward{e} y)))
+      (AfterBackward.apply #backward{e} y) (#rightInverse{(First.laws d)} (AfterBackward.apply #backward{e} y))) (#rightInverse{(After.laws e)} y),
+};

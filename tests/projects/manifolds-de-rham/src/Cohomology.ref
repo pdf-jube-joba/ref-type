@@ -1,0 +1,62 @@
+\import real.Analysis[] \as R;
+\import real.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import R.Algebra[] \as Algebra;
+\import std.Alg[].Ring[] \as Rings;
+\import std.Data[].Nat[] \as N;
+\import std.Alg[].Field[] \as Fields;
+\definition ring: Rings.Ring[R.Real] := Rings.commutativeRingAsRing R.Real (Fields.fieldAsCommutativeRing R.Real Algebra.field);
+\import algebra.Module[].Over[R := R.Real, ring := ring] \as Modules;
+\import Modules.Zero[] \as Zero;
+\import homological_algebra.Cochain[].Over[R := R.Real, ring := ring] \as Cochains;
+\import Modules.Of[V := R.Real, space := Modules.scalarModule] \as Scalars;
+\import Scalars.Submodule[] \as Subspaces;
+\definition grade: \forall (k: N.Nat^) -> Subspaces.Submodule :=
+  \induction (k: N.Nat^) \return Subspaces.Submodule \with {
+    | zero: Subspaces.whole
+    | succ: \fun (k: N.Nat^)(previous: Subspaces.Submodule) => Subspaces.zeroSubmodule
+  };
+\module Degree(k: N.Nat^) {
+  \import Subspaces.Of[S := grade k] \as Sub;
+  \definition Carrier: \Set := Sub.Carrier;
+  \definition moduleSpace: Modules.Space Carrier := Sub.moduleSpace;
+  \import Modules.Laws[V := Carrier, space := moduleSpace] \as Laws;
+  \import algebra.Group[].Of[Carrier := Carrier, group := Laws.additive] \as Group;
+  \definition addZero: #add{moduleSpace} (#zero{moduleSpace}) (#zero{moduleSpace}) = #zero{moduleSpace} := Group.zeroLeft (#zero{moduleSpace});
+  \definition scaleZero: \forall (a: R.Real) -> #smul{moduleSpace} a (#zero{moduleSpace}) = #zero{moduleSpace} := Laws.scaleZero;
+}
+\definition Carrier(k: N.Nat^): \Set := Degree[k := k].Carrier;
+\definition moduleSpace: \forall (k: N.Nat^) -> Modules.Space (Carrier k) := \fun (k: N.Nat^) => Degree[k := k].moduleSpace;
+\definition family: Cochains.Family := Cochains.Family { Carrier := Carrier, space := moduleSpace, };
+\definition differential: Cochains.DifferentialData[family] := Cochains.DifferentialData[family] {
+  apply := \fun (k: N.Nat^)(x: Carrier k) => #zero{(moduleSpace (N.Nat^::succ k))},
+};
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition complex: Cochains.Complex := Cochains.Complex {
+  family := family,
+  differential := differential,
+  laws := Cochains.DifferentialLaws[family, differential] {
+    addition := \fun (k: N.Nat^)(x, y: Carrier k) =>
+      sym!{{Carrier (N.Nat^::succ k)}}
+        (#add{(moduleSpace (N.Nat^::succ k))} (#zero{(moduleSpace (N.Nat^::succ k))}) (#zero{(moduleSpace (N.Nat^::succ k))}))
+        (#zero{(moduleSpace (N.Nat^::succ k))})
+        (Degree[k := N.Nat^::succ k].addZero),
+    scalar := \fun (k: N.Nat^)(a: R.Real)(x: Carrier k) =>
+      sym!{{Carrier (N.Nat^::succ k)}}
+        (#smul{(moduleSpace (N.Nat^::succ k))} a (#zero{(moduleSpace (N.Nat^::succ k))}))
+        (#zero{(moduleSpace (N.Nat^::succ k))})
+        (Degree[k := N.Nat^::succ k].scaleZero a),
+    squareZero := \fun (k: N.Nat^)(x: Carrier k) => \refl(#zero{(moduleSpace (N.Nat^::succ (N.Nat^::succ k)))}),
+  },
+};
+\import Cochains.At[C := complex, k := N.Nat^::zero] \as H0;
+\import Cochains.At[C := complex, k := N.Nat^::succ N.Nat^::zero] \as H1;
+\definition zeroCycle: H0.CycleCarrier :=
+  H0.cycle (#zero{(moduleSpace N.Nat^::zero)}) (\refl(#zero{(moduleSpace (N.Nat^::succ N.Nat^::zero))}));
+\definition zeroClass: H0.Cohomology := H0.classOf zeroCycle;
+\definition zeroClassLaw: zeroClass = H0.zeroClass :=
+  H0.boundaryClassZero zeroCycle (\refl(#zero{(moduleSpace N.Nat^::zero)}));
+\import Cochains.End[C := complex] \as End;
+\import End.At[k := N.Nat^::zero] \as End0;
+\definition identityCohomology: \forall (h: H0.Cohomology) ->
+  End0.inducedIdentity h = h := End0.identityOnCohomology;

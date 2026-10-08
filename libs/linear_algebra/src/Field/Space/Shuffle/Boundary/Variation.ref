@@ -1,0 +1,31 @@
+\import \parent.\parent.\parent.Shuffle[I := J] \as Other;
+\import Other.Alternation[] \as Alternating;
+\definition Symmetric: \Prop := \forall (v, w: I) -> hessian v w = hessian w v;
+\definition mapped(xs: Lists.List[I]): Lists.List[J] := Lists.map I J map xs;
+\definition insertRec(change: I -> J): Lists.List[I] -> Other.Function -> K :=
+  \induction (xs: Lists.List[I]) \return Other.Function -> K \with {
+    | nil: \fun (f: Other.Function) => zero
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: Other.Function -> K)(f: Other.Function) =>
+      add (f (Lists.List[J]::cons (change head) (mapped tail))) (previous (Other.shift (map head) f))
+  };
+\definition insert(change: I -> J)(f: Other.Function): Function := \fun (xs: Lists.List[I]) => insertRec change xs f;
+\definition diagonal(f: Other.Function)(v: I): I -> Function := \fun (w: I)(xs: Lists.List[I]) => f (Lists.List[J]::cons (hessian w v) (mapped xs));
+\definition variation(f: Other.Function): I -> Function := \fun (v: I) => insert (hessian v) f;
+\module DiagonalStep(xs: Lists.List[I]);
+\definition diagonalLaw: \forall (xs: Lists.List[I])(f: Other.Function) -> Alternating.Laws[f] ->
+  \forall (v: I) -> Symmetric -> apply (diagonal f v) xs = insert (hessian v) f xs :=
+  \induction (xs: Lists.List[I]) \return \forall (f: Other.Function) -> Alternating.Laws[f] ->
+    \forall (v: I) -> Symmetric -> apply (diagonal f v) xs = insert (hessian v) f xs \with {
+      | nil: \fun (f: Other.Function)(alternating: Alternating.Laws[f])(v: I)(symmetric: Symmetric) => \refl(zero)
+      | cons: \fun (head: I)(xs: Lists.List[I])(previous: \forall (f: Other.Function) -> Alternating.Laws[f] ->
+        \forall (v: I) -> Symmetric -> apply (diagonal f v) xs = insert (hessian v) f xs) => DiagonalStep[xs := xs].law previous head
+    };
+\module CancellationStep(xs: Lists.List[I]);
+\definition cancellation: \forall (xs: Lists.List[I])(f: Other.Function) -> Alternating.Laws[f] -> Symmetric -> apply (variation f) xs = zero :=
+  \induction (xs: Lists.List[I]) \return \forall (f: Other.Function) -> Alternating.Laws[f] -> Symmetric -> apply (variation f) xs = zero \with {
+    | nil: \fun (f: Other.Function)(alternating: Alternating.Laws[f])(symmetric: Symmetric) => \refl(zero)
+    | cons: \fun (head: I)(xs: Lists.List[I])(previous: \forall (f: Other.Function) -> Alternating.Laws[f] -> Symmetric -> apply (variation f) xs = zero) => CancellationStep[xs := xs].law previous head
+  };
+\module Finite;
+
+\module Linearity(target: VectorSpace J);

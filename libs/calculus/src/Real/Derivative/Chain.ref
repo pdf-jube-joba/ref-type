@@ -1,0 +1,80 @@
+\import \parent.Def[] \as Def;
+\import \parent.Operations[] \as Operations;
+\import \parent.\parent.Limit[].Operations[] \as Limits;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+
+\module Extension(f: Real -> Real, a, d, x: Real) {
+  \import Classical.Cases[A := Real, P := x = a] \as Cases;
+  \definition value: Real := Cases.select d (Def.slope f a x);
+  \definition atCenter: x = a -> value = d := Cases.whenTrue d (Def.slope f a x);
+  \definition away: Logic.Not (x = a) -> value = Def.slope f a x := Cases.whenFalse d (Def.slope f a x);
+}
+
+\definition extended(f: Real -> Real)(a, d: Real): Real -> Real :=
+  \fun (x: Real) => Extension[f := f, a := a, d := d, x := x].value;
+
+\definition center: \forall (f: Real -> Real)(a, d: Real) -> extended f a d a = d :=
+  \fun (f: _)(a, d: _) => Extension[f := f, a := a, d := d, x := a].atCenter (\refl(a));
+
+\definition away: \forall (f: Real -> Real)(a, d, x: Real) ->
+  Logic.Not (x = a) -> extended f a d x = Def.slope f a x :=
+  \fun (f: _)(a, d, x: _) => Extension[f := f, a := a, d := d, x := x].away;
+
+\definition extensionLimit: \forall (f: Real -> Real)(a, d: Real) ->
+  Def.HasDerivativeAt f a d -> Limit.HasLimitAt (extended f a d) a d :=
+  \fun (f: _)(a, d: _) => LimitLaws.puncturedCongruentLimit (Def.slope f a) (extended f a d)
+    a d (\fun (x: _)(different: _) => sym!{Real} _ _ (away f a d x different));
+
+\definition extensionContinuous: \forall (f: Real -> Real)(a, d: Real) ->
+  Def.HasDerivativeAt f a d -> Limit.ContinuousAt (extended f a d) a :=
+  \fun (f: _)(a, d: _)(derivative: _) => \idelim d = extended f a d a \with l: Real =>
+    Limit.HasLimitAt (extended f a d) a l \by {
+      base: extensionLimit f a d derivative,
+      equality: sym!{Real} _ _ (center f a d)
+    };
+
+\definition increment: \forall (f: Real -> Real)(a, d, x: Real) ->
+  mul (extended f a d x) (sub x a) = sub (f x) (f a) :=
+  \fun (f: _)(a, d, x: _) => either!{{x = a} "or" {Logic.Not (x = a)}
+    "either" {mul (extended f a d x) (sub x a) = sub (f x) (f a)}
+    "lt:" {\fun (same: _) => \idelim a = x \with y: Real =>
+      mul (extended f a d y) (sub y a) = sub (f y) (f a) \by {
+        base: trans!{Real} _ zero _
+          (trans!{Real} _ _ _
+            (congr!{Real Real} (mul (extended f a d a)) _ _ (Laws.subSelf a))
+            (Laws.fieldMulZeroRight _)) (sym!{Real} _ _ (Laws.subSelf (f a))),
+        equality: sym!{Real} _ _ same
+      }}
+    "rt:" {\fun (different: _) => trans!{Real} _ _ _
+      (congr!{Real Real} (\fun (t: _) => mul t (sub x a)) _ _ (away f a d x different))
+      (Operations.slopeIncrement f a x different)}} (Classical.excludedMiddle (x = a));
+
+\definition slope: \forall (f, g: Real -> Real)(a, e, x: Real) ->
+  Def.slope (\fun (y: Real) => g (f y)) a x =
+  mul (extended g (f a) e (f x)) (Def.slope f a x) :=
+  \fun (f, g: _)(a, e, x: _) => eq_reason!{
+    {Def.slope (\fun (y: Real) => g (f y)) a x}
+    "=" {mul (mul (extended g (f a) e (f x)) (sub (f x) (f a))) (inv (sub x a))}
+    "by" {congr!{Real Real} (\fun (t: _) => mul t (inv (sub x a))) _ _
+      (sym!{Real} _ _ (increment g (f a) e (f x)))}
+    "=" {mul (extended g (f a) e (f x)) (Def.slope f a x)}
+    "by" {Laws.fieldMulAssoc _ _ _}
+  };
+
+\definition derivative: \forall (f, g: Real -> Real)(a, d, e: Real) ->
+  Def.HasDerivativeAt f a d -> Def.HasDerivativeAt g (f a) e ->
+  Def.HasDerivativeAt (\fun (x: Real) => g (f x)) a (mul e d) :=
+  \fun (f, g: _)(a, d, e: _)(inner: _)(outer: _) =>
+    LimitLaws.congruentLimit
+      (\fun (x: Real) => mul (extended g (f a) e (f x)) (Def.slope f a x))
+      (Def.slope (\fun (x: Real) => g (f x)) a)
+      (\fun (x: _) => sym!{Real} _ _ (slope f g a e x)) a (mul e d)
+      (Limits.mulLimit (\fun (x: Real) => extended g (f a) e (f x)) (Def.slope f a)
+        a e d
+        (\idelim extended g (f a) e (f a) = e \with l: Real =>
+          Limit.HasLimitAt (\fun (x: Real) => extended g (f a) e (f x)) a l \by {
+            base: Limits.composeLimit f (extended g (f a) e) a (f a)
+              (Operations.continuousOfDerivative f a d inner) (extensionContinuous g (f a) e outer),
+            equality: center g (f a) e
+          }) inner);

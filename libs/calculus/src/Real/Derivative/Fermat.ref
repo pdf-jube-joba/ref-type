@@ -1,0 +1,108 @@
+\import \parent.Def[] \as Def;
+\import \parent.Operations[] \as Operations;
+\import \parent.\parent.Limit[].Operations[] \as Limits;
+\import \parent.\parent.Limit[].Order[] \as LimitOrder;
+\import topology.RealLine[].Rays[] \as Rays;
+\import topology.RealLine[].CompactIntervals[] \as Intervals;
+\import real.Analysis[] \as Analysis;
+\import Analysis.Algebra[] \as Algebra;
+\import Analysis.Estimates[] \as Estimates;
+\import Estimates.Product[] \as Product;
+\import R.Order[] \as Order;
+\structure MaximumControl[f: Real -> Real, a, radius: Real]: \Prop {
+  positive: R.Lt zero radius,
+  upper: \forall (x: Real) -> R.Lt (distance x a) radius -> R.Le (f x) (f a),
+}
+\definition LocalMaximum(f: Real -> Real)(a: Real): \Prop := \exists { radius: Real \where MaximumControl[f, a, radius] };
+\structure MinimumControl[f: Real -> Real, a, radius: Real]: \Prop {
+  positive: R.Lt zero radius,
+  lower: \forall (x: Real) -> R.Lt (distance x a) radius -> R.Le (f a) (f x),
+}
+\definition LocalMinimum(f: Real -> Real)(a: Real): \Prop := \exists { radius: Real \where MinimumControl[f, a, radius] };
+\definition subNonpositive: \forall (x, y: Real) -> R.Le x y -> R.Le (sub x y) zero :=
+  \fun (x, y: _)(less: _) => R.leReplaceRight (sub x y) (sub y y) zero (Laws.subSelf y)
+    (Laws.addMonotoneRight x y (Arithmetic.neg y) less);
+\definition slopeRight: \forall (f: Real -> Real)(a, x: Real) -> R.Lt a x -> R.Le (f x) (f a) -> R.Le (Def.slope f a x) zero :=
+  \fun (f: _)(a, x: _)(less: _)(upper: _) => Order.leOfNotLtReverse (Def.slope f a x) zero
+    (\fun (positive: R.Lt zero (Def.slope f a x)) => R.ltNotLeReverse zero (sub (f x) (f a))
+      (R.ltReplaceRight zero (mul (Def.slope f a x) (sub x a)) (sub (f x) (f a))
+        (Operations.slopeIncrement f a x (\fun (equal: _) => Order.ltNotEq a x less (sym!{Real} _ _ equal)))
+        (Product.mulPositive (Def.slope f a x) (sub x a) positive (Rays.subPositive x a less)))
+      (subNonpositive (f x) (f a) upper));
+\definition slopeLeft: \forall (f: Real -> Real)(a, x: Real) -> R.Lt x a -> R.Le (f x) (f a) -> R.Le zero (Def.slope f a x) :=
+  \fun (f: _)(a, x: _)(less: _)(upper: _) => Order.leOfNotLtReverse zero (Def.slope f a x)
+    (\fun (negative: R.Lt (Def.slope f a x) zero) => R.ltNotLeReverse zero (sub (f x) (f a))
+      (R.ltReplaceRight zero (mul (Arithmetic.neg (Def.slope f a x)) (Arithmetic.neg (sub x a))) (sub (f x) (f a))
+        (trans!{Real} _ _ _ (Laws.fieldMulNegBoth (Def.slope f a x) (sub x a))
+          (Operations.slopeIncrement f a x (Order.ltNotEq x a less)))
+        (Product.mulPositive (Arithmetic.neg (Def.slope f a x)) (Arithmetic.neg (sub x a))
+          (R.ltReplaceLeft (Arithmetic.neg zero) zero _ Laws.negZero (Laws.negStrictAntitone (Def.slope f a x) zero negative))
+          (R.ltReplaceRight zero (sub a x) (Arithmetic.neg (sub x a)) (sym!{Real} _ _ (Algebra.negSub x a)) (Rays.subPositive a x less))))
+      (subNonpositive (f x) (f a) upper));
+\definition leftPoint(a, radius: Real): Real := sub a (mul Analysis.half radius);
+\definition leftLess: \forall (a, radius: Real) -> R.Lt zero radius -> R.Lt (leftPoint a radius) a :=
+  \fun (a, radius: _)(positive: _) => Intervals.subPositive a (mul Analysis.half radius) (Estimates.halfOfPositive radius positive);
+\definition leftClose: \forall (a, radius: Real) -> R.Lt zero radius -> R.Lt (distance (leftPoint a radius) a) radius :=
+  \fun (a, radius: _)(positive: _) => R.ltReplaceLeft (distance a (leftPoint a radius)) (distance (leftPoint a radius) a) radius
+    (Metric.distanceSymmetric a (leftPoint a radius))
+    (Metric.distanceLtOfInterval a (leftPoint a radius) radius
+      (Laws.ltAddLeft a (Arithmetic.neg radius) (Arithmetic.neg (mul Analysis.half radius))
+        (Laws.negStrictAntitone (mul Analysis.half radius) radius (Estimates.halfStrict radius positive)))
+      (Order.ltTrans (leftPoint a radius) a (add a radius) (leftLess a radius positive) (Intervals.addPositive a radius positive)));
+\definition maximum: \forall (f: Real -> Real)(a, derivative: Real) ->
+  LocalMaximum f a -> Def.HasDerivativeAt f a derivative -> derivative = zero := \block {
+  \fun (f: _)(a, derivative: _)(maximum: _)(differentiable: _) \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where MaximumControl[f, a, r] }) \by maximum \then
+  \let control: MaximumControl[f, a, rho] := \bysub(Real, { r: Real \where MaximumControl[f, a, r] }, rho) \then
+  \let upper: R.Le derivative zero := LimitOrder.upper (Def.slope f a) a derivative zero differentiable (\block {
+    \fun (radius: Real)(positive: _) \then
+    \let r: Real := Metric.min rho radius \then
+    \let rp: R.Lt zero r := Product.minPositive rho radius (#positive{control}) positive \then
+    \let x: Real := Limits.nearby a r \then
+    \let near: R.Lt (distance x a) r := Limits.nearbyClose a r rp \then
+    \let less: R.Lt a x := Intervals.addPositive a (mul Analysis.half r) (Estimates.halfOfPositive r rp) \then
+    \return \exact(\into[Real](x, { x: Real \where LimitOrder.UpperSample[Def.slope f a, a, zero, radius, x] }) \by {
+      LimitOrder.UpperSample[Def.slope f a, a, zero, radius, x] {
+        different := Limits.nearbyDifferent a r rp,
+        near := R.ltLeTrans _ _ _ near (Metric.minRight rho radius),
+        upper := slopeRight f a x less (#upper{control} x (R.ltLeTrans _ _ _ near (Metric.minLeft rho radius))),
+      }
+    }, \Cast[Real] ({ x: Real \where LimitOrder.UpperSample[Def.slope f a, a, zero, radius, x] }))
+  }) \then
+  \let lower: R.Le zero derivative := LimitOrder.lower (Def.slope f a) a derivative zero differentiable (\block {
+    \fun (radius: Real)(positive: _) \then
+    \let r: Real := Metric.min rho radius \then
+    \let rp: R.Lt zero r := Product.minPositive rho radius (#positive{control}) positive \then
+    \let x: Real := leftPoint a r \then
+    \let near: R.Lt (distance x a) r := leftClose a r rp \then
+    \let less: R.Lt x a := leftLess a r rp \then
+    \return \exact(\into[Real](x, { x: Real \where LimitOrder.LowerSample[Def.slope f a, a, zero, radius, x] }) \by {
+      LimitOrder.LowerSample[Def.slope f a, a, zero, radius, x] {
+        different := Order.ltNotEq x a less,
+        near := R.ltLeTrans _ _ _ near (Metric.minRight rho radius),
+        lower := slopeLeft f a x less (#upper{control} x (R.ltLeTrans _ _ _ near (Metric.minLeft rho radius))),
+      }
+    }, \Cast[Real] ({ x: Real \where LimitOrder.LowerSample[Def.slope f a, a, zero, radius, x] }))
+  }) \then
+  \return R.leAntisym derivative zero upper lower
+};
+\definition minimum: \forall (f: Real -> Real)(a, derivative: Real) ->
+  LocalMinimum f a -> Def.HasDerivativeAt f a derivative -> derivative = zero := \block {
+  \fun (f: _)(a, derivative: _)(minimum: _)(differentiable: _) \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where MinimumControl[f, a, r] }) \by minimum \then
+  \let control: MinimumControl[f, a, rho] := \bysub(Real, { r: Real \where MinimumControl[f, a, r] }, rho) \then
+  \let negative: LocalMaximum (\fun (x: Real) => Arithmetic.neg (f x)) a :=
+    \exact(\into[Real](rho, { r: Real \where MaximumControl[(\fun (x: Real) => Arithmetic.neg (f x)), a, r] }) \by {
+      MaximumControl[(\fun (x: Real) => Arithmetic.neg (f x)), a, rho] {
+        positive := #positive{control},
+        upper := \fun (x: Real)(near: _) => Laws.negAntitone (f a) (f x) (#lower{control} x near),
+      }
+    }, \Cast[Real] ({ r: Real \where MaximumControl[(\fun (x: Real) => Arithmetic.neg (f x)), a, r] })) \then
+  \let vanishes: Arithmetic.neg derivative = zero := maximum (\fun (x: Real) => Arithmetic.neg (f x)) a (Arithmetic.neg derivative)
+    negative (Operations.negDerivative f a derivative differentiable) \then
+  \return eq_reason!{
+    derivative "=" {Arithmetic.neg (Arithmetic.neg derivative)} "by" {sym!{Real} _ _ (Laws.negInvolutive derivative)}
+    "=" {Arithmetic.neg zero} "by" {congr!{Real Real} Arithmetic.neg _ _ vanishes}
+    "=" zero "by" {Laws.negZero}
+  }
+};

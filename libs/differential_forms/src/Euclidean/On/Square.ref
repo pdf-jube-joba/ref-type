@@ -1,0 +1,105 @@
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition next: N.Nat^ := N.Nat^::succ k;
+\definition twiceDegree: N.Nat^ := N.Nat^::succ next;
+\import \parent.ExteriorDerivative[k := k] \as First;
+\import \parent.ExteriorDerivative[k := next] \as Second;
+\import \parent.Partial[k := k] \as Partials;
+\import \parent.Partial[k := next] \as MiddlePartials;
+\import \parent.At[k := k] \as Source;
+\import \parent.At[k := next] \as Middle;
+\import \parent.At[k := twiceDegree] \as Target;
+\import Exterior.Components[k := twiceDegree] \as Components;
+\import Exterior.Components[k := k] \as SourceComponents;
+\import Multilinear.ListSeries[k := one] \as OneSeries;
+\import Shuffle.Laws[] \as ProductLaws;
+\import Shuffle.Alternation[] \as Alternation;
+\import Shuffle.Graded[p := one, q := one] \as Graded;
+\import Spaces.Sign[] \as Sign;
+\import Spaces.Laws[V := Reals.Real, space := Spaces.scalarSpace] \as Scalars;
+\definition coordinate(i: Fin.Fin n)(x: Open.Carrier U): Shuffle.Function := Exterior.component one (First.coordinate i x);
+\definition twice(i, j: Fin.Fin n)(omega: Form k): Form twiceDegree := Second.term i (First.term j omega);
+\definition series: \forall (i, j: Fin.Fin n)(omega: Form k)(x: Open.Carrier U) ->
+  Exterior.component twiceDegree (twice i j omega x) = Shuffle.product (coordinate i x)
+    (Shuffle.product (coordinate j x) (Exterior.component k (Partials.apply j (Partials.apply i omega) x))) :=
+  \fun (i, j: Fin.Fin n)(omega: Form k)(x: Open.Carrier U) => trans!{{Shuffle.Function}}
+    (Exterior.component twiceDegree (twice i j omega x))
+    (Shuffle.product (coordinate i x) (Exterior.component next (MiddlePartials.apply i (First.term j omega) x)))
+    (Shuffle.product (coordinate i x) (Shuffle.product (coordinate j x) (Exterior.component k (Partials.apply j (Partials.apply i omega) x))))
+    (Second.termSeries i (First.term j omega) x)
+    (trans!{{Shuffle.Function}}
+      (Shuffle.product (coordinate i x) (Exterior.component next (MiddlePartials.apply i (First.term j omega) x)))
+      (Shuffle.product (coordinate i x) (Exterior.component next (First.term j (Partials.apply i omega) x)))
+      (Shuffle.product (coordinate i x) (Shuffle.product (coordinate j x) (Exterior.component k (Partials.apply j (Partials.apply i omega) x))))
+      (congr!{{Form next} {Shuffle.Function}} (\fun (eta: Form next) => Shuffle.product (coordinate i x) (Exterior.component next (eta x))) _ _ (First.termPartial j i omega))
+      (congr!{{Shuffle.Function} {Shuffle.Function}} (Shuffle.product (coordinate i x)) _ _ (First.termSeries j (Partials.apply i omega) x)));
+\definition swapCoordinates: \forall (i, j: Fin.Fin n)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) ->
+  Shuffle.product (coordinate i x) (coordinate j x) xs = Spaces.neg (Shuffle.product (coordinate j x) (coordinate i x) xs) :=
+  \fun (i, j: Fin.Fin n)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) => trans!{{Reals.Real}} _ _ _
+    (Graded.commutative (coordinate j x) (coordinate i x) (OneSeries.outside (First.coordinate j x)) (OneSeries.outside (First.coordinate i x)) xs)
+    (Scalars.minusOneScale (Shuffle.product (coordinate j x) (coordinate i x) xs));
+\definition oppositeSeries: \forall (i, j: Fin.Fin n)(omega: Form k)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) ->
+  Exterior.component twiceDegree (twice i j omega x) xs = Spaces.neg (Exterior.component twiceDegree (twice j i omega x) xs) := \block {
+  \fun (i, j: Fin.Fin n)(omega: Form k)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) \then
+  \let f: Shuffle.Function := coordinate i x \then
+  \let g: Shuffle.Function := coordinate j x \then
+  \let h: Shuffle.Function := Exterior.component k (Partials.apply j (Partials.apply i omega) x) \then
+  \let h2: Shuffle.Function := Exterior.component k (Partials.apply i (Partials.apply j omega) x) \then
+  \return eq_reason!{
+    {Exterior.component twiceDegree (twice i j omega x) xs}
+    "=" {Shuffle.product f (Shuffle.product g h) xs} "by" {
+      congr!{{Shuffle.Function} {Reals.Real}} (\fun (f: Shuffle.Function) => f xs) _ _ (series i j omega x)}
+    "=" {Shuffle.product (Shuffle.product f g) h xs} "by" {sym!{{Reals.Real}} _ _ (ProductLaws.associative xs f g h)}
+    "=" {Shuffle.product (Alternation.negative (Shuffle.product g f)) h xs} "by" {
+      ProductLaws.congruent (Shuffle.product f g) (Alternation.negative (Shuffle.product g f)) h h (swapCoordinates i j x)
+        (\fun (ys: Lists.List[Vectors.Vector]) => \refl(h ys)) xs}
+    "=" {Spaces.neg (Shuffle.product (Shuffle.product g f) h xs)} "by" {Alternation.productNegativeLeft (Shuffle.product g f) h xs}
+    "=" {Spaces.neg (Shuffle.product (Shuffle.product g f) h2 xs)} "by" {
+      congr!{{Reals.Real} {Reals.Real}} Spaces.neg _ _ (ProductLaws.congruent (Shuffle.product g f) (Shuffle.product g f) h h2
+        (\fun (ys: Lists.List[Vectors.Vector]) => \refl(Shuffle.product g f ys))
+        (\fun (ys: Lists.List[Vectors.Vector]) => congr!{{Form k} {Reals.Real}} (\fun (eta: Form k) => Exterior.component k (eta x) ys) _ _ (Partials.commute i j omega)) xs)}
+    "=" {Spaces.neg (Shuffle.product g (Shuffle.product f h2) xs)} "by" {
+      congr!{{Reals.Real} {Reals.Real}} Spaces.neg _ _ (ProductLaws.associative xs g f h2)}
+    "=" {Spaces.neg (Exterior.component twiceDegree (twice j i omega x) xs)} "by" {
+      congr!{{Reals.Real} {Reals.Real}} Spaces.neg _ _
+        (sym!{{Reals.Real}} _ _ (congr!{{Shuffle.Function} {Reals.Real}} (\fun (f: Shuffle.Function) => f xs) _ _ (series j i omega x)))}
+  }
+};
+\definition opposite: \forall (i, j: Fin.Fin n)(omega: Form k) -> twice i j omega = #neg{Target.space} (twice j i omega) :=
+  \fun (i, j: Fin.Fin n)(omega: Form k) => \axiom:funext(twice i j omega, #neg{Target.space} (twice j i omega),
+    \fun (x: Open.Carrier U) => Components.ext (twice i j omega x) (#neg{Target.space} (twice j i omega) x)
+      (\axiom:funext(Exterior.component twiceDegree (twice i j omega x), Exterior.component twiceDegree (#neg{Target.space} (twice j i omega) x),
+        \fun (xs: Lists.List[Vectors.Vector]) => trans!{{Reals.Real}} _ _ _ (oppositeSeries i j omega x xs)
+          (sym!{{Reals.Real}} _ _ (Components.negative (twice j i omega x) xs)))));
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Form next, space := Middle.space] \as MiddleSums;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Form twiceDegree, space := Target.space] \as Sums;
+\import MiddleSums.Mapping[W := Form twiceDegree, target := Target.space] \as MappingSums;
+\definition grid(omega: Form k): Form twiceDegree := Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => twice i j omega));
+\definition expansion: \forall (omega: Form k) -> Second.apply (First.apply omega) = grid omega :=
+  \fun (omega: Form k) => Sums.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => Second.term i (First.apply omega))
+    (\fun (i: Fin.Fin n) => Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => twice i j omega))
+    (\fun (i: Fin.Fin n) => MappingSums.law (Second.termMap i) (Fin.elements n) (\fun (j: Fin.Fin n) => First.term j omega));
+\definition gridOpposite: \forall (omega: Form k) -> grid omega = #neg{Target.space} (grid omega) :=
+  \fun (omega: Form k) => eq_reason!{
+    {grid omega}
+    "=" {Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => twice j i omega))} "by" {
+      Sums.exchange (Fin.elements n) (Fin.elements n) (\fun (i, j: Fin.Fin n) => twice i j omega)}
+    "=" {Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => #neg{Target.space} (twice i j omega)))} "by" {
+      Sums.congruent (Fin.elements n)
+        (\fun (i: Fin.Fin n) => Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => twice j i omega))
+        (\fun (i: Fin.Fin n) => Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => #neg{Target.space} (twice i j omega)))
+        (\fun (i: Fin.Fin n) => Sums.congruent (Fin.elements n) (\fun (j: Fin.Fin n) => twice j i omega)
+          (\fun (j: Fin.Fin n) => #neg{Target.space} (twice i j omega)) (\fun (j: Fin.Fin n) => opposite j i omega))}
+    "=" {Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => #neg{Target.space} (Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => twice i j omega)))} "by" {
+      Sums.congruent (Fin.elements n)
+        (\fun (i: Fin.Fin n) => Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => #neg{Target.space} (twice i j omega)))
+        (\fun (i: Fin.Fin n) => #neg{Target.space} (Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => twice i j omega)))
+        (\fun (i: Fin.Fin n) => Sums.negative (Fin.elements n) (\fun (j: Fin.Fin n) => twice i j omega))}
+    "=" {#neg{Target.space} (grid omega)} "by" {
+      Sums.negative (Fin.elements n) (\fun (i: Fin.Fin n) => Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => twice i j omega))}
+  };
+\import Spaces.Laws[V := Form twiceDegree, space := Target.space] \as Laws;
+\import real.Analysis[] \as Real;
+\import Real.Estimates[] \as Bounds;
+\definition law: \forall (omega: Form k) -> Second.apply (First.apply omega) = Target.zero :=
+  \fun (omega: Form k) => trans!{{Form twiceDegree}} (Second.apply (First.apply omega)) (grid omega) Target.zero
+    (expansion omega) (Laws.oppositeSelfZero Real.half (grid omega) Bounds.halfDouble (gridOpposite omega));

@@ -1,0 +1,16 @@
+\import Multilinear.ListSeries[k := k] \as Base;
+\import OtherMultilinear.ListSeries[k := k] \as OtherBase;
+\definition support: \forall (f: Linear.Map)(omega: Other.Form k) -> Base.Supported (mapped k f omega) :=
+  \fun (f: Linear.Map)(omega: Other.Form k)(xs: Lists.List[V])(wrong: Logic.Not (Lists.length V xs = k)) =>
+    OtherBase.outside omega (Lists.map V W (#apply{f}) xs) (\fun (equal: Lists.length W (Lists.map V W (#apply{f}) xs) = k) =>
+      wrong (trans!{{N.Nat^}} (Lists.length V xs) (Lists.length W (Lists.map V W (#apply{f}) xs)) k (sym!{{N.Nat^}} _ _ (ListMapLaws.lengthMap (#apply{f}) xs)) equal));
+\definition restrictionMap: \forall (f: Linear.Map)(omega: Other.Form k) -> Base.restriction (mapped k f omega) = Precomposition.precompose k f omega :=
+  \fun (f: Linear.Map)(omega: Other.Form k) => \axiom:funext(Base.restriction (mapped k f omega), Precomposition.precompose k f omega,
+    \fun (arguments: Multilinear.Arguments k) => trans!{K} _ _ _
+      (congr!{{Lists.List[W]} K} (Other.component k omega) _ _ (sym!{{Lists.List[W]}} _ _ (TupleMapping.listMap k (#apply{f}) arguments)))
+      (OtherBase.onArguments omega (\fun (i: Fin.Fin k) => #apply{f} (arguments i))));
+\definition law: \forall (f: Linear.Map)(omega: Other.Form k) -> component k (Precomposition.precompose k f omega) = mapped k f omega :=
+  \fun (f: Linear.Map)(omega: Other.Form k) => trans!{Series} _ _ _
+    (congr!{{Multilinear.Function k} Series} (component k) (Precomposition.precompose k f omega) (Base.restriction (mapped k f omega))
+      (sym!{{Multilinear.Function k}} _ _ (restrictionMap f omega)))
+    (Base.supportedRecover (mapped k f omega) (support f omega));

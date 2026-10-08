@@ -1,0 +1,47 @@
+
+\definition x: M.Point := Charts.point left (Transition.leftCoordinate a);
+\import Tangent.At[x := x] \as Point;
+\definition leftChart: Point.Chart := \into[Charts.Chart](left, { c: Charts.Chart \where Point.ChartLaws[c] }) \by {
+  Point.ChartLaws[left] { member := member left, contains := \bysub(M.Point, #domain{left}, Charts.point left (Transition.leftCoordinate a)) }
+};
+\definition rightChart: Point.Chart := \into[Charts.Chart](right, { c: Charts.Chart \where Point.ChartLaws[c] }) \by {
+  Point.ChartLaws[right] { member := member right, contains := Transition.inRightDomain a }
+};
+\import \parent.\parent.At[x := x].Pair[left := leftChart, right := rightChart] \as Change;
+\import Euclidean.Pullback[m := n, U := Transition.domain, V := #image{right}, f := Overlap.transition] \as Pullback;
+\import Point.Pair[left := leftChart, right := rightChart] \as TangentPair;
+\import Charts.Of[chart := left] \as LeftGeometry;
+\definition pointAgreement: TangentPair.point = a := LeftGeometry.coordinatePoint (Transition.leftCoordinate a);
+\definition transformAgreement: \forall (v: Vectors.Vector) -> Point.transform leftChart rightChart v = #apply{(Pullback.jacobian a)} v :=
+  \fun (v: Vectors.Vector) => congr!{{Open.Carrier Transition.domain} {Vectors.Vector}}
+    (\fun (b: Open.Carrier Transition.domain) => #apply{(Pullback.jacobian b)} v)
+    TangentPair.point a pointAgreement;
+\definition transported(arguments: Multilinear.Arguments k): Multilinear.Arguments k :=
+  \fun (slot: Fin.Fin k) => Point.transform leftChart rightChart (arguments slot);
+\definition pulled(arguments: Multilinear.Arguments k): Multilinear.Arguments k :=
+  \fun (slot: Fin.Fin k) => #apply{(Pullback.jacobian a)} (arguments slot);
+\definition sameArguments: \forall (arguments: Multilinear.Arguments k) -> transported arguments = pulled arguments :=
+  \fun (arguments: Multilinear.Arguments k) => \axiom:funext(transported arguments, pulled arguments,
+    \fun (slot: Fin.Fin k) => transformAgreement (arguments slot));
+\definition law: \forall (phi: RegularPointFamily)(arguments: Multilinear.Arguments k) ->
+  Overlap.restrict k (coordinateFamily phi) a arguments = Overlap.transport k (coordinateFamily phi) a arguments :=
+  \fun (phi: RegularPointFamily)(arguments: Multilinear.Arguments k) => trans!{{Reals.Real}}
+    (Overlap.restrict k (coordinateFamily phi) a arguments)
+    (Left.atPoint phi (Charts.point left (Transition.leftCoordinate a)) arguments)
+    (Overlap.transport k (coordinateFamily phi) a arguments)
+    (\refl(Left.atPoint phi (Charts.point left (Transition.leftCoordinate a)) arguments))
+    (trans!{{Reals.Real}}
+      (Left.atPoint phi (Charts.point left (Transition.leftCoordinate a)) arguments)
+      (Right.atPoint phi (Transition.overlapPoint a) (\fun (slot: Fin.Fin k) => #apply{(Pullback.jacobian a)} (arguments slot)))
+      (Overlap.transport k (coordinateFamily phi) a arguments)
+      (trans!{{Reals.Real}}
+        (Left.atPoint phi (Charts.point left (Transition.leftCoordinate a)) arguments)
+        (Right.atPoint phi (Transition.overlapPoint a) (transported arguments))
+        (Right.atPoint phi (Transition.overlapPoint a) (pulled arguments))
+        (Change.pointCoordinatesLaw phi arguments)
+        (congr!{{Multilinear.Arguments k} {Reals.Real}} (Right.atPoint phi (Transition.overlapPoint a))
+          (transported arguments) (pulled arguments) (sameArguments arguments)))
+      (sym!{{Reals.Real}}
+        (Right.family phi (Transition.apply a) (\fun (slot: Fin.Fin k) => #apply{(Pullback.jacobian a)} (arguments slot)))
+        (Right.atPoint phi (Transition.overlapPoint a) (\fun (slot: Fin.Fin k) => #apply{(Pullback.jacobian a)} (arguments slot)))
+        (Right.inChart phi (Transition.overlapPoint a) (\fun (slot: Fin.Fin k) => #apply{(Pullback.jacobian a)} (arguments slot)))));

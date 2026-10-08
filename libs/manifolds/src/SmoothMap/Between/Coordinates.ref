@@ -1,0 +1,45 @@
+\import SourceTopology.Subspace[S := #domain{left}] \as LeftDomain;
+\import topology.Topology[Carrier := SourceCharts.LocalPoint left] \as Local;
+\import topology.Topology[Carrier := SourceOpen.Carrier #image{left}] \as Image;
+\import topology.Topology[Carrier := SourceCoordinates.Point] \as Ambient;
+\import Ambient.Subspace[S := #points{(#image{left})}] \as ImageSubspace;
+\import ImageSubspace.Open[] \as OpenImage;
+\import topology.Continuity[A := SourceOpen.Carrier #image{left}, B := SourceCharts.LocalPoint left] \as Inverse;
+\import topology.Homeomorphism[A := SourceCharts.LocalPoint left, B := SourceOpen.Carrier #image{left}] \as Homeomorphisms;
+\definition preimage: \Pow M.Point := Continuity.Preimage (#apply{f}) #domain{right};
+\definition preimageOpen: SourceTopology.IsOpenIn M.space preimage :=
+  (\bysub(Data, { data: Data \where Continuous data }, f)) #domain{right} #open{right};
+\definition overlap: \Pow (SourceOpen.Carrier #image{left}) := Inverse.Preimage (SourceCharts.point left) (LeftDomain.Trace preimage);
+\definition overlapOpen: Image.IsOpenIn (SourceCharts.imageTopology #image{left}) overlap :=
+  #backwardContinuous{(Homeomorphisms.laws (SourceCharts.domainTopology #domain{left}) (SourceCharts.imageTopology #image{left}) #coordinates{left})}
+    (LeftDomain.Trace preimage) (LeftDomain.traceOpen M.space preimage preimageOpen);
+\definition points: \Pow SourceCoordinates.Point := OpenImage.image overlap;
+\definition pointsOpen: Ambient.IsOpenIn Euclidean.topology points :=
+  OpenImage.imageOpen Euclidean.topology (OpenTopology.open #image{left}) overlap overlapOpen;
+\definition domain: SourceOpen.OpenSet := OpenTopology.ofOpen points pointsOpen;
+\definition intro: \forall (x: SourceOpen.Carrier #image{left}) -> TargetCharts.Contains right (#apply{f} (SourceCharts.point left x)) ->
+  \In[SourceCoordinates.Point] (#points{domain}) x :=
+  \fun (x: SourceOpen.Carrier #image{left})(member: TargetCharts.Contains right (#apply{f} (SourceCharts.point left x))) => OpenImage.imageMember overlap x member;
+\definition inLeftImage: \forall (x: SourceOpen.Carrier domain) -> \In[SourceCoordinates.Point] (#points{(#image{left})}) x :=
+  \fun (x: SourceOpen.Carrier domain) => OpenImage.imageIncluded overlap x (\bysub(SourceCoordinates.Point, points, x));
+\definition leftCoordinate(x: SourceOpen.Carrier domain): SourceOpen.Carrier #image{left} :=
+  \into[SourceCoordinates.Point](x, #points{(#image{left})}) \by { inLeftImage x };
+\definition inRightDomain: \forall (x: SourceOpen.Carrier domain) -> TargetCharts.Contains right (#apply{f} (SourceCharts.point left (leftCoordinate x))) :=
+  \fun (x: SourceOpen.Carrier domain) => OpenImage.imageElim overlap x
+    (TargetCharts.Contains right (#apply{f} (SourceCharts.point left (leftCoordinate x))))
+    (\fun (y: SourceOpen.Carrier #image{left})(member: Image.Member overlap y)(same: y = x) =>
+      \idelim y = leftCoordinate x \with z: SourceOpen.Carrier #image{left} => TargetCharts.Contains right (#apply{f} (SourceCharts.point left z)) \by {
+        base: member, equality: same
+      }) (\bysub(SourceCoordinates.Point, points, x));
+\definition point(x: SourceOpen.Carrier domain): TargetCharts.LocalPoint right :=
+  \into[N.Point](#apply{f} (SourceCharts.point left (leftCoordinate x)), #domain{right}) \by { inRightDomain x };
+\definition apply(x: SourceOpen.Carrier domain): TargetOpen.Carrier #image{right} := TargetCharts.coordinate right (point x);
+\definition returnsPoint: \forall (x: SourceOpen.Carrier domain) -> TargetCharts.point right (apply x) = #apply{f} (SourceCharts.point left (leftCoordinate x)) :=
+  \fun (x: SourceOpen.Carrier domain) => \root.Dimension[n := m].Chart[M := N.Point, space := N.space].Of[chart := right].pointCoordinate (point x);
+\definition Smooth: \Prop := \forall (i: std.Data[].FinSet[].Fin m) -> SourceSmooth.SmoothOn domain (\fun (x: SourceOpen.Carrier domain) => apply x i);
+\import calculus.Maps[n := n, m := m] \as Calculus;
+\definition data: Calculus.Data[domain, #image{right}] := Calculus.Data[domain, #image{right}] { apply := apply };
+\definition map(smooth: Smooth): Calculus.Map domain #image{right} := \into[Calculus.Data[domain, #image{right}]](data,
+  { f: Calculus.Data[domain, #image{right}] \where Calculus.Laws[domain, #image{right}, f] }) \by {
+    Calculus.Laws[domain, #image{right}, data] { smooth := smooth }
+  };

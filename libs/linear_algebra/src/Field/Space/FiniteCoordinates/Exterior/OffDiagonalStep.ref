@@ -1,0 +1,91 @@
+\import \parent.SeriesStep[k := k] \as Series;
+\import Ordering.Bounds[k := k, n := n] \as Bounds;
+\import Multilinear.ListSeries[k := N.Nat^::succ k] \as WholeSeries;
+\import Multilinear.ListSeries[k := k] \as TailSeries;
+\definition lessHeads: \forall (left, right: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) ->
+  Ordering.Increasing (N.Nat^::succ k) n right ->
+  NatLaws.Lt (left (Fin.zero k)) (right (Fin.zero k)) ->
+  word (N.Nat^::succ k) left (\fun (i: Fin.Fin (N.Nat^::succ k)) => vectors (right i)) = zero := \block {
+  \fun (left, right: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n)
+    (increasing: Ordering.Increasing (N.Nat^::succ k) n right)(less: NatLaws.Lt (left (Fin.zero k)) (right (Fin.zero k))) \then
+  \let h: Fin.Fin n := left (Fin.zero k) \then
+  \let arguments: Multilinear.Arguments (N.Nat^::succ k) := \fun (i: Fin.Fin (N.Nat^::succ k)) => vectors (right i) \then
+  \let xs: Lists.List[Coordinates.Vector] := VectorLists.list (N.Nat^::succ k) arguments \then
+  \let f: Coordinates.Vector -> K := \fun (v: Coordinates.Vector) => v h \then
+  \let g: Shuffle.Function := Product.component k (word k (Bounds.tail left)) \then
+  \let vanishing: AllVectors.Holds (\fun (v: Coordinates.Vector) => f v = zero) xs :=
+    VectorLists.all (N.Nat^::succ k) arguments (\fun (v: Coordinates.Vector) => f v = zero)
+      (\fun (i: Fin.Fin (N.Nat^::succ k)) => Kronecker.different (right i) h (\fun (same: right i = h) =>
+        Bounds.unequal h (right i) (Bounds.belowHead right increasing h less i) (sym!{{Fin.Fin n}} (right i) h same))) \then
+  \return eq_reason!{
+    {word (N.Nat^::succ k) left arguments}
+    "=" {Product.component (N.Nat^::succ k) (word (N.Nat^::succ k) left) xs} "by" {
+      sym!{K} _ _ (WholeSeries.onArguments (word (N.Nat^::succ k) left) arguments)}
+    "=" {Shuffle.product (Covectors.value f) g xs} "by" {
+      congr!{{Shuffle.Function} K} (\fun (series: Shuffle.Function) => series xs) _ _ (Series.series left)}
+    "=" zero "by" {Covectors.vanishes xs f g vanishing}
+  }
+};
+\definition greaterHeads: \forall (left, right: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) ->
+  Ordering.Increasing (N.Nat^::succ k) n left ->
+  NatLaws.Lt (right (Fin.zero k)) (left (Fin.zero k)) ->
+  word (N.Nat^::succ k) left (\fun (i: Fin.Fin (N.Nat^::succ k)) => vectors (right i)) = zero := \block {
+  \fun (left, right: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n)
+    (increasing: Ordering.Increasing (N.Nat^::succ k) n left)(less: NatLaws.Lt (right (Fin.zero k)) (left (Fin.zero k))) \then
+  \let h: Fin.Fin n := right (Fin.zero k) \then
+  \let arguments: Multilinear.Arguments (N.Nat^::succ k) := \fun (i: Fin.Fin (N.Nat^::succ k)) => vectors (right i) \then
+  \let xs: Lists.List[Coordinates.Vector] := VectorLists.list k (\fun (i: Fin.Fin k) => vectors (right (Fin.succ k i))) \then
+  \return trans!{K} (word (N.Nat^::succ k) left arguments)
+    (Product.component (N.Nat^::succ k) (word (N.Nat^::succ k) left) (Lists.List[Coordinates.Vector]::cons (vectors h) xs)) zero
+    (sym!{K} _ _ (WholeSeries.onArguments (word (N.Nat^::succ k) left) arguments))
+    (annihilation (N.Nat^::succ k) left (vectors h)
+      (\fun (i: Fin.Fin (N.Nat^::succ k)) => Kronecker.different h (left i) (Bounds.unequal h (left i) (Bounds.belowHead left increasing h less i))) xs)
+};
+\definition equalHeads: OffDiagonal k -> \forall (left, right: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n) ->
+  Ordering.Increasing (N.Nat^::succ k) n left -> Ordering.Increasing (N.Nat^::succ k) n right ->
+  Logic.Not (left = right) -> left (Fin.zero k) = right (Fin.zero k) ->
+  word (N.Nat^::succ k) left (\fun (i: Fin.Fin (N.Nat^::succ k)) => vectors (right i)) = zero := \block {
+  \fun (previous: OffDiagonal k)(left, right: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n)
+    (leftIncreasing: Ordering.Increasing (N.Nat^::succ k) n left)(rightIncreasing: Ordering.Increasing (N.Nat^::succ k) n right)
+    (different: Logic.Not (left = right))(heads: left (Fin.zero k) = right (Fin.zero k)) \then
+  \let h: Fin.Fin n := left (Fin.zero k) \then
+  \let l: Fin.Fin k -> Fin.Fin n := Bounds.tail left \then
+  \let r: Fin.Fin k -> Fin.Fin n := Bounds.tail right \then
+  \let arguments: Multilinear.Arguments (N.Nat^::succ k) := \fun (i: Fin.Fin (N.Nat^::succ k)) => vectors (right i) \then
+  \let xs: Lists.List[Coordinates.Vector] := VectorLists.list k (\fun (i: Fin.Fin k) => vectors (r i)) \then
+  \let f: Coordinates.Vector -> K := \fun (v: Coordinates.Vector) => v h \then
+  \let g: Shuffle.Function := Product.component k (word k l) \then
+  \let tails: Logic.Not (l = r) := \fun (same: l = r) => different (IndexTuples.extensionality k left right heads
+    (\fun (i: Fin.Fin k) => congr!{{Fin.Fin k -> Fin.Fin n} {Fin.Fin n}} (\fun (t: Fin.Fin k -> Fin.Fin n) => t i) l r same)) \then
+  \let vanishing: AllVectors.Holds (\fun (v: Coordinates.Vector) => f v = zero) xs :=
+    VectorLists.all k (\fun (i: Fin.Fin k) => vectors (r i)) (\fun (v: Coordinates.Vector) => f v = zero)
+      (\fun (i: Fin.Fin k) => Kronecker.different (r i) h (\fun (same: r i = h) =>
+        Bounds.unequal (right (Fin.zero k)) (r i) (Bounds.headTail right rightIncreasing i)
+          (trans!{{Fin.Fin n}} (right (Fin.zero k)) h (r i)
+            (sym!{{Fin.Fin n}} h (right (Fin.zero k)) heads) (sym!{{Fin.Fin n}} (r i) h same)))) \then
+  \return eq_reason!{
+    {word (N.Nat^::succ k) left arguments}
+    "=" {Product.component (N.Nat^::succ k) (word (N.Nat^::succ k) left) (Lists.List[Coordinates.Vector]::cons (vectors (right (Fin.zero k))) xs)} "by" {
+      sym!{K} _ _ (WholeSeries.onArguments (word (N.Nat^::succ k) left) arguments)}
+    "=" {Shuffle.product (Covectors.value f) g (Lists.List[Coordinates.Vector]::cons (vectors (right (Fin.zero k))) xs)} "by" {
+      congr!{{Shuffle.Function} K} (\fun (series: Shuffle.Function) => series (Lists.List[Coordinates.Vector]::cons (vectors (right (Fin.zero k))) xs)) _ _ (Series.series left)}
+    "=" {mul (f (vectors (right (Fin.zero k)))) (g xs)} "by" {Covectors.atHead (vectors (right (Fin.zero k))) xs f g vanishing}
+    "=" {mul (f (vectors (right (Fin.zero k)))) (word k l (\fun (i: Fin.Fin k) => vectors (r i)))} "by" {
+      congr!{K K} (mul (f (vectors (right (Fin.zero k))))) _ _ (TailSeries.onArguments (word k l) (\fun (i: Fin.Fin k) => vectors (r i)))}
+    "=" {mul (f (vectors (right (Fin.zero k)))) zero} "by" {
+      congr!{K K} (mul (f (vectors (right (Fin.zero k))))) _ _
+        (previous l r (Bounds.tailIncreasing left leftIncreasing) (Bounds.tailIncreasing right rightIncreasing) tails)}
+    "=" zero "by" {mulZeroRight (f (vectors (right (Fin.zero k))))}
+  }
+};
+\definition law: OffDiagonal k -> OffDiagonal (N.Nat^::succ k) :=
+  \fun (previous: OffDiagonal k)(left, right: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n)
+    (leftIncreasing: Ordering.Increasing (N.Nat^::succ k) n left)(rightIncreasing: Ordering.Increasing (N.Nat^::succ k) n right)
+    (different: Logic.Not (left = right)) =>
+    \match (NaturalOrder.trichotomy (left (Fin.zero k)) (right (Fin.zero k))) \in OrderCases.Trichotomy
+      \return (\fun (_: NaturalOrder.Trichotomy (left (Fin.zero k)) (right (Fin.zero k))) =>
+        word (N.Nat^::succ k) left (\fun (i: Fin.Fin (N.Nat^::succ k)) => vectors (right i)) = zero) \with {
+        | less less: lessHeads left right rightIncreasing less
+        | equal equal: equalHeads previous left right leftIncreasing rightIncreasing different equal
+        | greater greater: greaterHeads left right leftIncreasing greater
+      };

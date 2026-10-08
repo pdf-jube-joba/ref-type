@@ -1,0 +1,16 @@
+\import real.Analysis[].FiniteSums[] \as Sums;
+\import \parent.Operations[] \as Operations;
+\definition sum(U: OpenSet)(m: N.Nat^)(functions: Fin.Fin m -> ScalarFunction U): ScalarFunction U :=
+  \fun (x: Carrier U) => Sums.sum m (\fun (j: Fin.Fin m) => functions j x);
+\definition contDiff: \forall (U: OpenSet)(k, m: N.Nat^)(functions: Fin.Fin m -> ScalarFunction U) ->
+  (\forall (j: Fin.Fin m) -> ContDiffOn U k (functions j)) -> ContDiffOn U k (sum U m functions) :=
+  \fun (U: OpenSet)(k: N.Nat^) => \induction (m: N.Nat^) \return \forall (functions: Fin.Fin m -> ScalarFunction U) ->
+    (\forall (j: Fin.Fin m) -> ContDiffOn U k (functions j)) -> ContDiffOn U k (sum U m functions) \with {
+      | zero: \fun (functions: _)(regular: _) => Operations.constantContDiff U k zero
+      | succ: \fun (m: N.Nat^)(previous: _)(functions: _)(regular: _) => Operations.addContDiff U k (functions (Fin.zero m))
+        (sum U m (\fun (j: Fin.Fin m) => functions (Fin.succ m j))) (regular (Fin.zero m))
+        (previous (\fun (j: Fin.Fin m) => functions (Fin.succ m j)) (\fun (j: Fin.Fin m) => regular (Fin.succ m j)))
+    };
+\definition smooth: \forall (U: OpenSet)(m: N.Nat^)(functions: Fin.Fin m -> ScalarFunction U) ->
+  (\forall (j: Fin.Fin m) -> SmoothOn U (functions j)) -> SmoothOn U (sum U m functions) :=
+  \fun (U: OpenSet)(m: N.Nat^)(functions: _)(regular: _)(k: N.Nat^) => contDiff U k m functions (\fun (j: Fin.Fin m) => regular j k);

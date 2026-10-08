@@ -189,3 +189,36 @@
         (R.leReplaceRight _ (add (distance p x) (distance x y)) (add (distance x y) (distance p x))
           (Laws.addComm (distance p x) (distance x y)) (Metric.distanceTriangle p x y))));
 \module Product;
+\definition distanceDifference: \forall (x, y: Real) -> distance (sub x y) zero = distance x y :=
+  \fun (x, y: Real) => congr2!{Real Real Real} Metric.max _ _ _ _
+    (Laws.subZeroRight (sub x y))
+    (trans!{Real} _ _ _ (Laws.addZeroLeft (neg (sub x y))) (Algebra.negSub x y));
+\definition betweenDistance: \forall (a, b, s: Real) -> R.Le (Metric.min a b) s -> R.Le s (Metric.max a b) -> R.Le (distance s a) (distance b a) := \block {
+  \fun (a, b, s: Real)(lower: _)(upper: _) \then
+  \let r: Real := distance b a \then
+  \let selfNear: R.Le (distance a a) r := R.leReplaceLeft zero (distance a a) r (sym!{Real} _ _ (Metric.distanceSelf a)) (Metric.distanceNonnegative b a) \then
+  \let endpointNear: R.Le (distance a b) r := R.leReplaceLeft r (distance a b) r (Metric.distanceSymmetric b a) (R.leRefl r) \then
+  \let bottom: R.Le (sub a r) (Metric.min a b) := Metric.minGreatest a b (sub a r)
+    (distanceLeLower a a r selfNear) (distanceLeLower a b r endpointNear) \then
+  \let top: R.Le (Metric.max a b) (add a r) := Metric.maxLeast a b (add a r)
+    (distanceLeUpper a a r selfNear) (distanceLeUpper a b r endpointNear) \then
+  \return R.leReplaceLeft (distance a s) (distance s a) r (Metric.distanceSymmetric a s)
+    (distanceLeOfInterval a s r (R.leTrans (sub a r) (Metric.min a b) s bottom lower) (R.leTrans s (Metric.max a b) (add a r) upper top))
+};
+\definition incrementReversal: \forall (u, v, a, b, c: Real) ->
+  sub (sub u v) (mul c (sub a b)) = neg (sub (sub v u) (mul c (sub b a))) :=
+  \fun (u, v, a, b, c: Real) => eq_reason!{
+    {sub (sub u v) (mul c (sub a b))}
+    "=" {sub (neg (sub v u)) (neg (mul c (sub b a)))} "by" {
+      congr2!{Real Real Real} sub _ _ _ _ (sym!{Real} _ _ (Algebra.negSub v u))
+        (trans!{Real} _ _ _ (congr!{Real Real} (mul c) _ _ (sym!{Real} _ _ (Algebra.negSub b a))) (Laws.fieldMulNegRight c (sub b a))) }
+    "=" {add (neg (sub v u)) (mul c (sub b a))} "by" {Algebra.subNeg (neg (sub v u)) (mul c (sub b a))}
+    "=" {sub (mul c (sub b a)) (sub v u)} "by" {Laws.addComm (neg (sub v u)) (mul c (sub b a))}
+    "=" {neg (sub (sub v u) (mul c (sub b a)))} "by" {sym!{Real} _ _ (Algebra.negSub (sub v u) (mul c (sub b a)))}
+  };
+\definition distanceNegZero: \forall (x: Real) -> distance (neg x) zero = distance x zero :=
+  \fun (x: Real) => trans!{Real} (distance (neg x) zero) (distance zero (neg x)) (distance x zero) (Metric.distanceSymmetric (neg x) zero)
+    (trans!{Real} (distance zero (neg x)) (distance zero x) (distance x zero) (Product[].absNeg x) (Metric.distanceSymmetric zero x));
+\definition distanceAddZero: \forall (a, b: Real) -> R.Le (distance (add a b) zero) (add (distance a zero) (distance b zero)) :=
+  \fun (a, b: Real) => R.leReplaceLeft (distance (add a b) (add zero zero)) (distance (add a b) zero) (add (distance a zero) (distance b zero))
+    (congr!{Real Real} (distance (add a b)) (add zero zero) zero (Laws.addZeroLeft zero)) (distanceAdd a b zero zero);

@@ -1,0 +1,98 @@
+\import \parent.ListArguments[] \as ArgumentsList;
+\import Fin.FromList[A := V] \as TuplesList;
+\import std.Set[] \as Sets;
+\import Sets.Extension[A := Lists.List[V], B := K, domain := ArgumentsList.Degree k] \as Extension;
+\import std.Logic[].Classical[] \as Classical;
+\import \parent.\parent.Sign[] \as Sign;
+\use Logic.either;
+\definition evaluate(f: Function k)(xs: ArgumentsList.OfDegree k): K := f (ArgumentsList.decode k xs);
+\definition component(f: Function k): Series := \fun (xs: Lists.List[V]) => Extension.extend (evaluate f) zero xs;
+\definition inside: \forall (f: Function k)(xs: ArgumentsList.OfDegree k) -> component f xs = f (ArgumentsList.decode k xs) :=
+  \fun (f: Function k)(xs: ArgumentsList.OfDegree k) => Extension.inside (evaluate f) zero xs;
+\definition outside: \forall (f: Function k)(xs: Lists.List[V]) -> Logic.Not (Lists.length V xs = k) -> component f xs = zero :=
+  \fun (f: Function k)(xs: Lists.List[V])(wrong: Logic.Not (Lists.length V xs = k)) => Extension.outside (evaluate f) zero xs wrong;
+\definition congruent: \forall (f, g: Function k) -> (\forall (arguments: Arguments k) -> f arguments = g arguments) -> \forall (xs: Lists.List[V]) -> component f xs = component g xs :=
+  \fun (f, g: Function k)(equal: \forall (arguments: Arguments k) -> f arguments = g arguments)(xs: Lists.List[V]) =>
+    congr!{{Function k} K} (\fun (h: Function k) => component h xs) f g (\axiom:funext(f, g, equal));
+\definition negative: \forall (f: Function k)(xs: Lists.List[V]) -> component (\fun (arguments: Arguments k) => neg (f arguments)) xs = neg (component f xs) :=
+  \fun (f: Function k)(xs: Lists.List[V]) => either!{{Lists.length V xs = k} "or" {Logic.Not (Lists.length V xs = k)} "either" {
+    component (\fun (arguments: Arguments k) => neg (f arguments)) xs = neg (component f xs)}
+    "lt:" {\fun (equal: Lists.length V xs = k) => trans!{K} _ _ _
+      (inside (\fun (arguments: Arguments k) => neg (f arguments)) (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))
+      (congr!{K K} neg _ _ (sym!{K} _ _ (inside f (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))))}
+    "rt:" {\fun (wrong: Logic.Not (Lists.length V xs = k)) => trans!{K} _ zero _
+      (outside (\fun (arguments: Arguments k) => neg (f arguments)) xs wrong)
+      (trans!{K} zero (neg zero) (neg (component f xs)) (sym!{K} (neg zero) zero Sign.negativeZero)
+        (congr!{K K} neg zero (component f xs) (sym!{K} (component f xs) zero (outside f xs wrong))))}
+  } (Classical.excludedMiddle (Lists.length V xs = k));
+\definition zeroComponent: \forall (xs: Lists.List[V]) -> component (\fun (arguments: Arguments k) => zero) xs = zero :=
+  \fun (xs: Lists.List[V]) => either!{{Lists.length V xs = k} "or" {Logic.Not (Lists.length V xs = k)} "either" {
+    component (\fun (arguments: Arguments k) => zero) xs = zero}
+    "lt:" {\fun (equal: Lists.length V xs = k) => inside (\fun (arguments: Arguments k) => zero) (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal })}
+    "rt:" {\fun (wrong: Logic.Not (Lists.length V xs = k)) => outside (\fun (arguments: Arguments k) => zero) xs wrong}
+  } (Classical.excludedMiddle (Lists.length V xs = k));
+\definition addition: \forall (f, g: Function k)(xs: Lists.List[V]) -> component (\fun (arguments: Arguments k) => add (f arguments) (g arguments)) xs = add (component f xs) (component g xs) :=
+  \fun (f, g: Function k)(xs: Lists.List[V]) => either!{{Lists.length V xs = k} "or" {Logic.Not (Lists.length V xs = k)} "either" {
+    component (\fun (arguments: Arguments k) => add (f arguments) (g arguments)) xs = add (component f xs) (component g xs)}
+    "lt:" {\fun (equal: Lists.length V xs = k) => trans!{K} _ _ _
+      (inside (\fun (arguments: Arguments k) => add (f arguments) (g arguments)) (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))
+      (congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (inside f (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))) (sym!{K} _ _ (inside g (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))))}
+    "rt:" {\fun (wrong: Logic.Not (Lists.length V xs = k)) => trans!{K} _ zero _
+      (outside (\fun (arguments: Arguments k) => add (f arguments) (g arguments)) xs wrong)
+      (trans!{K} zero (add zero zero) _ (sym!{K} (add zero zero) zero (addZeroLeft zero))
+        (congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (outside f xs wrong)) (sym!{K} _ _ (outside g xs wrong))))}
+  } (Classical.excludedMiddle (Lists.length V xs = k));
+\definition scalar: \forall (a: K)(f: Function k)(xs: Lists.List[V]) -> component (\fun (arguments: Arguments k) => mul a (f arguments)) xs = mul a (component f xs) :=
+  \fun (a: K)(f: Function k)(xs: Lists.List[V]) => either!{{Lists.length V xs = k} "or" {Logic.Not (Lists.length V xs = k)} "either" {
+    component (\fun (arguments: Arguments k) => mul a (f arguments)) xs = mul a (component f xs)}
+    "lt:" {\fun (equal: Lists.length V xs = k) => trans!{K} _ _ _
+      (inside (\fun (arguments: Arguments k) => mul a (f arguments)) (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))
+      (congr!{K K} (mul a) _ _ (sym!{K} _ _ (inside f (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))))}
+    "rt:" {\fun (wrong: Logic.Not (Lists.length V xs = k)) => trans!{K} _ zero _
+      (outside (\fun (arguments: Arguments k) => mul a (f arguments)) xs wrong)
+      (trans!{K} zero (mul a zero) _ (sym!{K} (mul a zero) zero (mulZeroRight a)) (congr!{K K} (mul a) _ _ (sym!{K} _ _ (outside f xs wrong))))}
+  } (Classical.excludedMiddle (Lists.length V xs = k));
+\definition onArguments: \forall (f: Function k)(arguments: Arguments k) -> component f (TuplesList.list k arguments) = f arguments :=
+  \fun (f: Function k)(arguments: Arguments k) => trans!{K} (component f (TuplesList.list k arguments))
+    (f (ArgumentsList.decode k (ArgumentsList.encode k arguments))) (f arguments)
+      (inside f (ArgumentsList.encode k arguments))
+      (congr!{{Arguments k} K} f (ArgumentsList.decode k (ArgumentsList.encode k arguments)) arguments (ArgumentsList.decodeEncode k arguments));
+\definition restriction(f: Series): Function k := \fun (arguments: Arguments k) => f (TuplesList.list k arguments);
+\definition Supported(f: Series): \Prop := \forall (xs: Lists.List[V]) -> Logic.Not (Lists.length V xs = k) -> f xs = zero;
+\definition recover: \forall (f: Function k) -> restriction (component f) = f :=
+  \fun (f: Function k) => \axiom:funext(restriction (component f), f, onArguments f);
+\definition supportedRecover: \forall (f: Series) -> Supported f -> component (restriction f) = f :=
+  \fun (f: Series)(support: Supported f) => \axiom:funext(component (restriction f), f, \fun (xs: Lists.List[V]) =>
+    either!{{Lists.length V xs = k} "or" {Logic.Not (Lists.length V xs = k)} "either" {component (restriction f) xs = f xs}
+      "lt:" {\fun (equal: Lists.length V xs = k) => trans!{K} _ _ _
+        (inside (restriction f) (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }))
+        (congr!{{Lists.List[V]} K} f _ xs (ArgumentsList.encodeDecode k (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal })))}
+      "rt:" {\fun (wrong: Logic.Not (Lists.length V xs = k)) => trans!{K} _ _ _ (outside (restriction f) xs wrong) (sym!{K} _ _ (support xs wrong))}
+    } (Classical.excludedMiddle (Lists.length V xs = k)));
+\definition updated(xs: ArgumentsList.OfDegree k)(i: Fin.Fin k)(value: V): ArgumentsList.OfDegree k :=
+  \into[Lists.List[V]](Replacement.apply xs i value, ArgumentsList.Degree k) \by {
+    trans!{{N.Nat^}} (Lists.length V (Replacement.apply xs i value)) (Lists.length V xs) k
+      (Replacement.lengthLaw xs i value) (\bysub(Lists.List[V], ArgumentsList.Degree k, xs))
+  };
+\definition decodeUpdated: \forall (xs: ArgumentsList.OfDegree k)(i: Fin.Fin k)(value: V) ->
+  ArgumentsList.decode k (updated xs i value) = update k (ArgumentsList.decode k xs) i value := \block {
+  \fun (xs: ArgumentsList.OfDegree k)(i: Fin.Fin k)(value: V) \then
+  \let arguments: Arguments k := ArgumentsList.decode k xs \then
+  \return ArgumentsList.listInjective k (ArgumentsList.decode k (updated xs i value)) (update k arguments i value)
+    (eq_reason!{
+      {TuplesList.list k (ArgumentsList.decode k (updated xs i value))} "=" {Replacement.apply xs i value} "by" {ArgumentsList.encodeDecode k (updated xs i value)}
+      "=" {Replacement.apply (TuplesList.list k arguments) i value} "by" {
+        congr!{{Lists.List[V]} {Lists.List[V]}} (\fun (ys: Lists.List[V]) => Replacement.apply ys i value) xs (TuplesList.list k arguments)
+          (sym!{{Lists.List[V]}} (TuplesList.list k arguments) xs (ArgumentsList.encodeDecode k xs))}
+      "=" {TuplesList.list k (update k arguments i value)} "by" {sym!{{Lists.List[V]}} _ _ (ArgumentsList.updateList k arguments i value)}
+    })
+};
+\definition onReplacement: \forall (f: Function k)(xs: ArgumentsList.OfDegree k)(i: Fin.Fin k)(value: V) ->
+  component f (Replacement.apply xs i value) = f (update k (ArgumentsList.decode k xs) i value) :=
+  \fun (f: Function k)(xs: ArgumentsList.OfDegree k)(i: Fin.Fin k)(value: V) => trans!{K}
+    (component f (Replacement.apply xs i value)) (f (ArgumentsList.decode k (updated xs i value))) (f (update k (ArgumentsList.decode k xs) i value))
+      (inside f (updated xs i value))
+      (congr!{{Arguments k} K} f (ArgumentsList.decode k (updated xs i value)) (update k (ArgumentsList.decode k xs) i value) (decodeUpdated xs i value));
+\module Linearity(f: Form k);
+\definition linear: \forall (f: Form k) -> SeriesLaws[component f] :=
+  \fun (f: Form k) => SeriesLaws[component f] { addition := Linearity[f := f].addition, scalar := Linearity[f := f].scalar };

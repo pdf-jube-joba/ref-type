@@ -1,0 +1,113 @@
+\import Analysis.Section[U := U, f := f, a := z, i := i] \as Section;
+\import Section.Interval[left := a i, right := x i] \as Forward;
+\import Section.Interval[left := x i, right := a i] \as Backward;
+\import \parent.\parent.\parent.\parent.Space[].Prop[] \as SpaceLaws;
+\import topology.RealLine[] \as Line;
+\import R.Order[] \as Order;
+\use Equality.congr2;
+\definition Bounded(c, theta: Real): \Prop := \forall (p: Carrier U) ->
+  R.Le (Coordinates.pointDistance p a) radius -> R.Le (distance (g p) c) theta;
+\definition curveBound: \forall (s: Real) -> z = current -> Lower s -> Upper s ->
+  R.Le (Coordinates.pointDistance (Coordinates.replace z i s) a) radius :=
+  \fun (s: Real)(anchor: z = current)(lower: _)(upper: _) => R.leReplaceLeft
+    (Coordinates.pointDistance (Coordinates.replace current i s) a) (Coordinates.pointDistance (Coordinates.replace z i s) a) radius
+    (sym!{Real} _ _ (congr!{Point Real} (\fun (p: Point) => Coordinates.pointDistance (Coordinates.replace p i s) a) _ _ anchor))
+    (Staircase.segmentBound a x i s lower upper);
+\definition containsForward: \forall (rho: Real) -> z = current -> BallInside[#points{U}, a, rho] -> R.Lt radius rho -> Forward.Contains :=
+  \fun (rho: Real)(anchor: _)(ball: BallInside[#points{U}, a, rho])(near: _)(s: Forward.Closed) =>
+    #included{ball} (Coordinates.replace z i s)
+      (R.leLtTrans _ radius rho (curveBound s anchor
+        (R.leTrans _ (a i) s (Metric.minLeft (a i) (x i)) (#left{(\bysub(Real, Line.ClosedInterval (a i) (x i), s))}))
+        (R.leTrans s (x i) _ (#right{(\bysub(Real, Line.ClosedInterval (a i) (x i), s))}) (Metric.maxRight (a i) (x i)))) near);
+\definition containsBackward: \forall (rho: Real) -> z = current -> BallInside[#points{U}, a, rho] -> R.Lt radius rho -> Backward.Contains :=
+  \fun (rho: Real)(anchor: _)(ball: BallInside[#points{U}, a, rho])(near: _)(s: Backward.Closed) =>
+    #included{ball} (Coordinates.replace z i s)
+      (R.leLtTrans _ radius rho (curveBound s anchor
+        (R.leTrans _ (x i) s (Metric.minRight (a i) (x i)) (#left{(\bysub(Real, Line.ClosedInterval (x i) (a i), s))}))
+        (R.leTrans s (a i) _ (#right{(\bysub(Real, Line.ClosedInterval (x i) (a i), s))}) (Metric.maxLeft (a i) (x i)))) near);
+\definition curveBoundsForward: \forall (c, theta: Real) -> z = current -> Bounded c theta ->
+  \forall (s: Forward.Closed)(p: Carrier U) -> p = Coordinates.replace z i s -> R.Le (distance (g p) c) theta :=
+  \fun (c, theta: Real)(anchor: _)(bounded: Bounded c theta)(s: Forward.Closed)(p: Carrier U)(replaced: _) => bounded p
+    (R.leReplaceLeft (Coordinates.pointDistance (Coordinates.replace z i s) a) (Coordinates.pointDistance p a) radius
+      (sym!{Real} _ _ (congr!{Point Real} (\fun (q: Point) => Coordinates.pointDistance q a) _ _ replaced))
+      (curveBound s anchor
+        (R.leTrans _ (a i) s (Metric.minLeft (a i) (x i)) (#left{(\bysub(Real, Line.ClosedInterval (a i) (x i), s))}))
+        (R.leTrans s (x i) _ (#right{(\bysub(Real, Line.ClosedInterval (a i) (x i), s))}) (Metric.maxRight (a i) (x i)))));
+\definition curveBoundsBackward: \forall (c, theta: Real) -> z = current -> Bounded c theta ->
+  \forall (s: Backward.Closed)(p: Carrier U) -> p = Coordinates.replace z i s -> R.Le (distance (g p) c) theta :=
+  \fun (c, theta: Real)(anchor: _)(bounded: Bounded c theta)(s: Backward.Closed)(p: Carrier U)(replaced: _) => bounded p
+    (R.leReplaceLeft (Coordinates.pointDistance (Coordinates.replace z i s) a) (Coordinates.pointDistance p a) radius
+      (sym!{Real} _ _ (congr!{Point Real} (\fun (q: Point) => Coordinates.pointDistance q a) _ _ replaced))
+      (curveBound s anchor
+        (R.leTrans _ (x i) s (Metric.minRight (a i) (x i)) (#left{(\bysub(Real, Line.ClosedInterval (x i) (a i), s))}))
+        (R.leTrans s (a i) _ (#right{(\bysub(Real, Line.ClosedInterval (x i) (a i), s))}) (Metric.maxLeft (a i) (x i)))));
+\definition coordinate: z = current -> z i = a i :=
+  \fun (anchor: _) => trans!{Real} _ _ _ (congr!{Point Real} (\fun (p: Point) => p i) _ _ anchor) (Staircase.current a x i);
+\definition leftValue: z = current -> Section.value (a i) = extended current := \block {
+  \fun (anchor: z = current) \then
+  \let equal: z = Coordinates.replace z i (a i) := sym!{Point} _ _
+    (trans!{Point} _ _ _ (congr!{Real Point} (Coordinates.replace z i) _ _ (sym!{Real} _ _ (coordinate anchor))) (SpaceLaws.replaceOriginal z i)) \then
+  \return trans!{Real} _ _ _ (Section.agreement (a i) z equal)
+    (trans!{Real} _ _ _ (sym!{Real} _ _ (Extension.inside f zero z)) (congr!{Point Real} extended _ _ anchor))
+};
+\definition rightValue: \forall (rho: Real) -> z = current -> BallInside[#points{U}, a, rho] -> R.Lt radius rho -> Section.value (x i) = extended next := \block {
+  \fun (rho: Real)(anchor: z = current)(ball: BallInside[#points{U}, a, rho])(near: _) \then
+  \let b: Carrier U := \into[Point](next, #points{U}) \by {
+    #included{ball} next (R.leLtTrans _ radius rho (Staircase.bounded a x (N.Nat^::succ (Fin.value n i))) near)
+  } \then
+  \let replaced: b = Coordinates.replace z i (x i) := trans!{Point} _ _ _ (Staircase.next a x i)
+    (sym!{Point} _ _ (congr!{Point Point} (\fun (p: Point) => Coordinates.replace p i (x i)) _ _ anchor)) \then
+  \return trans!{Real} _ _ _ (Section.agreement (x i) b replaced) (sym!{Real} _ _ (Extension.inside f zero b))
+};
+\definition errorValue: \forall (rho, c: Real) -> z = current -> BallInside[#points{U}, a, rho] -> R.Lt radius rho ->
+  Error c = sub (sub (Section.value (x i)) (Section.value (a i))) (mul c (sub (x i) (a i))) :=
+  \fun (rho, c: Real)(anchor: _)(ball: _)(near: _) => congr!{Real Real} (\fun (r: Real) => sub r (mul c (sub (x i) (a i)))) _ _
+    (congr2!{Real Real Real} sub _ _ _ _ (sym!{Real} _ _ (rightValue rho anchor ball near)) (sym!{Real} _ _ (leftValue anchor)));
+\use Logic.either;
+\definition zeroError: \forall (rho, c: Real) -> z = current -> BallInside[#points{U}, a, rho] -> R.Lt radius rho -> a i = x i -> Error c = zero := \block {
+  \fun (rho, c: Real)(anchor: _)(ball: _)(near: _)(same: a i = x i) \then
+  \let argument: x i = a i := sym!{Real} _ _ same \then
+  \let valueDifference: sub (Section.value (x i)) (Section.value (a i)) = zero := trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (r: Real) => sub (Section.value r) (Section.value (a i))) _ _ argument) (Laws.subSelf (Section.value (a i))) \then
+  \let term: mul c (sub (x i) (a i)) = zero := trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (r: Real) => mul c (sub r (a i))) _ _ argument)
+    (trans!{Real} _ _ _ (congr!{Real Real} (mul c) _ _ (Laws.subSelf (a i))) (Laws.fieldMulZeroRight c)) \then
+  \return trans!{Real} _ _ _ (errorValue rho c anchor ball near)
+    (trans!{Real} _ _ _ (congr2!{Real Real Real} sub _ _ _ _ valueDifference term) (Laws.subSelf zero))
+};
+\definition forwardEstimate: \forall (rho, c, theta: Real) -> z = current -> BallInside[#points{U}, a, rho] -> R.Lt radius rho ->
+  Analysis.HasPartialDerivative U f i g -> Bounded c theta -> R.Lt (a i) (x i) ->
+  R.Le (distance (Error c) zero) (mul theta (distance (x i) (a i))) :=
+  \fun (rho, c, theta: Real)(anchor: _)(ball: _)(near: _)(partials: _)(bounded: _)(ordered: _) => R.leReplaceLeft
+    (distance (sub (sub (Section.value (x i)) (Section.value (a i))) (mul c (sub (x i) (a i)))) zero) (distance (Error c) zero)
+    (mul theta (distance (x i) (a i)))
+    (sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => distance r zero) _ _ (errorValue rho c anchor ball near)))
+    (Forward.increment g c theta ordered (containsForward rho anchor ball near) partials (curveBoundsForward c theta anchor bounded));
+\definition backwardEstimate: \forall (rho, c, theta: Real) -> z = current -> BallInside[#points{U}, a, rho] -> R.Lt radius rho ->
+  Analysis.HasPartialDerivative U f i g -> Bounded c theta -> R.Lt (x i) (a i) ->
+  R.Le (distance (Error c) zero) (mul theta (distance (x i) (a i))) := \block {
+  \fun (rho, c, theta: Real)(anchor: _)(ball: _)(near: _)(partials: _)(bounded: _)(ordered: _) \then
+  \let reverse: Real := sub (sub (Section.value (a i)) (Section.value (x i))) (mul c (sub (a i) (x i))) \then
+  \let reversed: Error c = Arithmetic.neg reverse := trans!{Real} _ _ _ (errorValue rho c anchor ball near)
+    (Bounds.incrementReversal (Section.value (x i)) (Section.value (a i)) (x i) (a i) c) \then
+  \let magnitudes: distance (Error c) zero = distance reverse zero := trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (r: Real) => distance r zero) _ _ reversed) (Bounds.distanceNegZero reverse) \then
+  \return R.leReplace (distance reverse zero) (distance (Error c) zero) (mul theta (distance (a i) (x i))) (mul theta (distance (x i) (a i)))
+    (sym!{Real} _ _ magnitudes) (congr!{Real Real} (mul theta) _ _ (Metric.distanceSymmetric (a i) (x i)))
+    (Backward.increment g c theta ordered (containsBackward rho anchor ball near) partials (curveBoundsBackward c theta anchor bounded))
+};
+\definition estimate: \forall (rho, c, theta: Real) -> z = current -> BallInside[#points{U}, a, rho] -> R.Lt radius rho ->
+  R.Le zero theta -> Analysis.HasPartialDerivative U f i g -> Bounded c theta -> R.Le (distance (Error c) zero) (mul theta radius) := \block {
+  \fun (rho, c, theta: Real)(anchor: _)(ball: _)(near: _)(positive: _)(partials: _)(bounded: _) \then
+  \let component: R.Le (distance (Error c) zero) (mul theta (distance (x i) (a i))) :=
+    either!{{R.Lt (a i) (x i)} "or" {Logic.Or[a i = x i, R.Lt (x i) (a i)]} "either" {R.Le (distance (Error c) zero) (mul theta (distance (x i) (a i)))}
+      "lt:" {forwardEstimate rho c theta anchor ball near partials bounded}
+      "rt:" {\fun (other: _) => either!{{a i = x i} "or" {R.Lt (x i) (a i)} "either" {R.Le (distance (Error c) zero) (mul theta (distance (x i) (a i)))}
+        "lt:" {\fun (same: _) => R.leReplaceLeft zero (distance (Error c) zero) (mul theta (distance (x i) (a i)))
+          (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (r: Real) => distance r zero) _ _ (zeroError rho c anchor ball near same)) (Metric.distanceSelf zero)))
+          (Laws.fieldMulNonnegative theta (distance (x i) (a i)) positive (Metric.distanceNonnegative (x i) (a i)))}
+        "rt:" {backwardEstimate rho c theta anchor ball near partials bounded}} other}}
+      (Order.ltTrichotomy (a i) (x i)) \then
+  \return R.leTrans (distance (Error c) zero) (mul theta (distance (x i) (a i))) (mul theta radius) component
+    (Bounds.mulMonotone theta (distance (x i) (a i)) radius positive (Norm.coordinateDistance x a i))
+};

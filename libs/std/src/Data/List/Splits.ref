@@ -1,0 +1,34 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Data[].Nat[].Basic[].Prop[] \as NatLaws;
+\structure Split: \Set {
+  left: List[A],
+  right: List[A],
+}
+\definition empty: Split := Split { left := List[A]::nil, right := List[A]::nil };
+\definition insertLeft(a: A)(split: Split): Split := Split { left := List[A]::cons a (#left{split}), right := #right{split} };
+\definition insertRight(a: A)(split: Split): Split := Split { left := #left{split}, right := List[A]::cons a (#right{split}) };
+\definition partitions: List[A] -> List[Split] :=
+  \induction (xs: List[A]) \return List[Split] \with {
+    | nil: List[Split]::cons empty List[Split]::nil
+    | cons: \fun (head: A)(tail: List[A])(rest: List[Split]) =>
+      append Split (map Split Split (insertLeft head) rest) (map Split Split (insertRight head) rest)
+  };
+\import \parent.All[A := Split] \as All;
+\import All.Mapping[B := Split] \as AllMap;
+\definition Bounded(k: N.Nat^)(split: Split): \Prop := Logic.And[NatLaws.Le (length A (#left{split})) k, NatLaws.Le (length A (#right{split})) k];
+\definition leftBound: \forall (a: A)(k: N.Nat^)(split: Split) -> Bounded k split -> Bounded (N.Nat^::succ k) (insertLeft a split) :=
+  \fun (a: _)(k: _)(split: _)(bound: Bounded k split) => Logic.And[_, _]::#
+    (NatLaws.leSuccSucc (length A (#left{split})) k (#left{bound}))
+    (NatLaws.leTrans (length A (#right{split})) k (N.Nat^::succ k) (#right{bound}) (NatLaws.leSelfSucc k));
+\definition rightBound: \forall (a: A)(k: N.Nat^)(split: Split) -> Bounded k split -> Bounded (N.Nat^::succ k) (insertRight a split) :=
+  \fun (a: _)(k: _)(split: _)(bound: Bounded k split) => Logic.And[_, _]::#
+    (NatLaws.leTrans (length A (#left{split})) k (N.Nat^::succ k) (#left{bound}) (NatLaws.leSelfSucc k))
+    (NatLaws.leSuccSucc (length A (#right{split})) k (#right{bound}));
+\definition bounds: \forall (xs: List[A]) -> All.Holds (Bounded (length A xs)) (partitions xs) :=
+  \induction (xs: List[A]) \return All.Holds (Bounded (length A xs)) (partitions xs) \with {
+    | nil: Logic.And[Bounded N.Nat^::zero empty, Logic.True]::# (Logic.And[NatLaws.Le N.Nat^::zero N.Nat^::zero, NatLaws.Le N.Nat^::zero N.Nat^::zero]::# (NatLaws.leRefl N.Nat^::zero) (NatLaws.leRefl N.Nat^::zero)) Logic.True::intro
+    | cons: \fun (head: A)(tail: List[A])(previous: All.Holds (Bounded (length A tail)) (partitions tail)) => All.appendAll (Bounded (N.Nat^::succ (length A tail)))
+      (map Split Split (insertLeft head) (partitions tail)) (map Split Split (insertRight head) (partitions tail))
+      (AllMap.mapAll (Bounded (length A tail)) (Bounded (N.Nat^::succ (length A tail))) (insertLeft head) (partitions tail) (leftBound head (length A tail)) previous)
+      (AllMap.mapAll (Bounded (length A tail)) (Bounded (N.Nat^::succ (length A tail))) (insertRight head) (partitions tail) (rightBound head (length A tail)) previous)
+  };

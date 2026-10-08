@@ -1,0 +1,68 @@
+\definition expanded: \forall (f, g: Function)(x, y: I) -> product f g (Lists.List[I]::cons x (Lists.List[I]::cons y xs)) =
+  add (add (product (shift y (shift x f)) g xs) (product (twist (shift x f)) (shift y g) xs))
+    (add (neg (product (twist (shift y f)) (shift x g) xs)) (product f (shift y (shift x g)) xs)) := \block {
+  \fun (f, g: Function)(x, y: I) \then
+  \let cross: product (shift y (twist f)) (shift x g) xs = neg (product (twist (shift y f)) (shift x g) xs) := trans!{K} _ _ _
+    (ProductLaws.congruent (shift y (twist f)) (negative (twist (shift y f))) (shift x g) (shift x g)
+      (shiftTwist y f) (\fun (ys: Lists.List[I]) => \refl(shift x g ys)) xs)
+    (productNegativeLeft (twist (shift y f)) (shift x g) xs) \then
+  \let last: product (twist (twist f)) (shift y (shift x g)) xs = product f (shift y (shift x g)) xs :=
+    ProductLaws.congruent (twist (twist f)) f (shift y (shift x g)) (shift y (shift x g)) (twistTwice f)
+      (\fun (ys: Lists.List[I]) => \refl(shift y (shift x g) ys)) xs \then
+  \return eq_reason!{
+    {product f g (Lists.List[I]::cons x (Lists.List[I]::cons y xs))}
+    "=" {add (product (shift x f) g (Lists.List[I]::cons y xs)) (product (twist f) (shift x g) (Lists.List[I]::cons y xs))} "by" {atCons x (Lists.List[I]::cons y xs) f g}
+    "=" {add (add (product (shift y (shift x f)) g xs) (product (twist (shift x f)) (shift y g) xs)) (add (product (shift y (twist f)) (shift x g) xs) (product (twist (twist f)) (shift y (shift x g)) xs))} "by" {
+      congr2!{K K K} add _ _ _ _ (atCons y xs (shift x f) g) (atCons y xs (twist f) (shift x g))}
+    "=" {add (add (product (shift y (shift x f)) g xs) (product (twist (shift x f)) (shift y g) xs)) (add (neg (product (twist (shift y f)) (shift x g) xs)) (product f (shift y (shift x g)) xs))} "by" {
+      congr!{K K} (add (add (product (shift y (shift x f)) g xs) (product (twist (shift x f)) (shift y g) xs))) _ _
+        (congr2!{K K K} add _ _ _ _ cross last)}
+  }
+};
+\definition swap: \forall (f, g: Function) -> Laws[f] -> Laws[g] -> \forall (x, y: I) ->
+  product f g (Lists.List[I]::cons x (Lists.List[I]::cons y xs)) = neg (product f g (Lists.List[I]::cons y (Lists.List[I]::cons x xs))) := \block {
+  \fun (f, g: Function)(lf: Laws[f])(lg: Laws[g])(x, y: I) \then
+  \let a: K := product (shift x (shift y f)) g xs \then
+  \let b: K := product (twist (shift x f)) (shift y g) xs \then
+  \let c: K := product (twist (shift y f)) (shift x g) xs \then
+  \let d: K := product f (shift x (shift y g)) xs \then
+  \let first: product (shift y (shift x f)) g xs = neg a := trans!{K} _ _ _
+    (ProductLaws.congruent (shift y (shift x f)) (negative (shift x (shift y f))) g g
+      (\fun (ys: Lists.List[I]) => #swap{lf} Lists.List[I]::nil x y ys) (\fun (ys: Lists.List[I]) => \refl(g ys)) xs)
+    (productNegativeLeft (shift x (shift y f)) g xs) \then
+  \let last: product f (shift y (shift x g)) xs = neg d := trans!{K} _ _ _
+    (ProductLaws.congruent f f (shift y (shift x g)) (negative (shift x (shift y g)))
+      (\fun (ys: Lists.List[I]) => \refl(f ys)) (\fun (ys: Lists.List[I]) => #swap{lg} Lists.List[I]::nil x y ys) xs)
+    (productNegativeRight f (shift x (shift y g)) xs) \then
+  \return eq_reason!{
+    {product f g (Lists.List[I]::cons x (Lists.List[I]::cons y xs))}
+    "=" {add (add (product (shift y (shift x f)) g xs) b) (add (neg c) (product f (shift y (shift x g)) xs))} "by" {expanded f g x y}
+    "=" {add (add (neg a) b) (add (neg c) (neg d))} "by" {congr2!{K K K} add _ _ _ _
+      (congr!{K K} (\fun (z: K) => add z b) _ _ first) (congr!{K K} (add (neg c)) _ _ last)}
+    "=" {add (add (neg a) (neg c)) (add b (neg d))} "by" {Scalars.shuffle (neg a) b (neg c) (neg d)}
+    "=" {add (neg (add a c)) (neg (add (neg b) d))} "by" {congr2!{K K K} add _ _ _ _
+      (sym!{K} _ _ (Sign.negativeAddition a c))
+      (trans!{K} (add b (neg d)) (add (neg (neg b)) (neg d)) (neg (add (neg b) d))
+        (congr!{K K} (\fun (z: K) => add z (neg d)) b (neg (neg b)) (sym!{K} _ _ (Sign.doubleNegative b))) (sym!{K} _ _ (Sign.negativeAddition (neg b) d)))}
+    "=" {neg (add (add a c) (add (neg b) d))} "by" {sym!{K} _ _ (Sign.negativeAddition (add a c) (add (neg b) d))}
+    "=" {neg (product f g (Lists.List[I]::cons y (Lists.List[I]::cons x xs)))} "by" {congr!{K K} neg _ _ (sym!{K} _ _ (expanded f g y x))}
+  }
+};
+\definition repeated: \forall (f, g: Function) -> Laws[f] -> Laws[g] -> \forall (x: I) -> product f g (Lists.List[I]::cons x (Lists.List[I]::cons x xs)) = zero := \block {
+  \fun (f, g: Function)(lf: Laws[f])(lg: Laws[g])(x: I) \then
+  \let b: K := product (twist (shift x f)) (shift x g) xs \then
+  \let first: product (shift x (shift x f)) g xs = zero := trans!{K} _ _ _
+    (ProductLaws.congruent (shift x (shift x f)) origin g g (\fun (ys: Lists.List[I]) => #repeated{lf} Lists.List[I]::nil x ys) (\fun (ys: Lists.List[I]) => \refl(g ys)) xs)
+    (ProductLaws.zeroLeft g xs) \then
+  \let last: product f (shift x (shift x g)) xs = zero := trans!{K} _ _ _
+    (ProductLaws.congruent f f (shift x (shift x g)) origin (\fun (ys: Lists.List[I]) => \refl(f ys)) (\fun (ys: Lists.List[I]) => #repeated{lg} Lists.List[I]::nil x ys) xs)
+    (ProductLaws.zeroRight f xs) \then
+  \return eq_reason!{
+    {product f g (Lists.List[I]::cons x (Lists.List[I]::cons x xs))}
+    "=" {add (add (product (shift x (shift x f)) g xs) b) (add (neg b) (product f (shift x (shift x g)) xs))} "by" {expanded f g x x}
+    "=" {add (add zero b) (add (neg b) zero)} "by" {congr2!{K K K} add _ _ _ _
+      (congr!{K K} (\fun (z: K) => add z b) _ _ first) (congr!{K K} (add (neg b)) _ _ last)}
+    "=" {add b (neg b)} "by" {congr2!{K K K} add _ _ _ _ (addZeroLeft b) (addZeroRight (neg b))}
+    "=" zero "by" {addNegRight b}
+  }
+};

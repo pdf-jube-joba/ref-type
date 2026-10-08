@@ -1,0 +1,36 @@
+\definition degree: Naturals.Nat^ := Naturals.Basic[].Def[].add p q;
+\import \parent.At[k := p] \as First;
+\import \parent.At[k := q] \as Second;
+\import \parent.At[k := degree] \as Result;
+\import Source.QuotientProduct[p := p, q := q] \as SourceProduct;
+\import Target.QuotientProduct[p := p, q := q] \as TargetProduct;
+\import \parent.\parent.Product[p := p, q := q] \as FormsProduct;
+\import Complexes.At[C := Target.complex, k := p] \as Left;
+\import Complexes.At[C := Target.complex, k := q] \as Right;
+\import Complexes.At[C := Source.complex, k := degree] \as Total;
+\definition cycleLaw: \forall (omega: Left.CycleCarrier)(eta: Right.CycleCarrier) ->
+  Result.cycle (TargetProduct.cycle omega eta) = SourceProduct.cycle (First.cycle omega) (Second.cycle eta) :=
+    \fun (omega: Left.CycleCarrier)(eta: Right.CycleCarrier) => FormsProduct.law omega eta;
+\definition classLaw: \forall (omega: Left.CycleCarrier)(eta: Right.CycleCarrier) ->
+  Result.apply (TargetProduct.apply (Left.classOf omega) (Right.classOf eta)) =
+    SourceProduct.apply (First.apply (Left.classOf omega)) (Second.apply (Right.classOf eta)) :=
+      \fun (omega: Left.CycleCarrier)(eta: Right.CycleCarrier) => trans!{{Total.Cohomology}} _
+        (Result.apply (Target.At[k := degree].classOf (TargetProduct.cycle omega eta))) _
+        (congr!{{Target.Cohomology degree} {Total.Cohomology}} Result.apply _ _ (TargetProduct.onClass omega eta))
+        (trans!{{Total.Cohomology}} _ (Total.classOf (Result.cycle (TargetProduct.cycle omega eta))) _
+          (Result.onClass (TargetProduct.cycle omega eta))
+          (trans!{{Total.Cohomology}} _ (Total.classOf (SourceProduct.cycle (First.cycle omega) (Second.cycle eta))) _
+            (congr!{{Total.CycleCarrier} {Total.Cohomology}} Total.classOf _ _ (cycleLaw omega eta))
+            (trans!{{Total.Cohomology}} _ (SourceProduct.apply (Source.At[k := p].classOf (First.cycle omega))
+              (Source.At[k := q].classOf (Second.cycle eta))) _
+              (sym!{{Total.Cohomology}} _ _ (SourceProduct.onClass (First.cycle omega) (Second.cycle eta)))
+              (congr2!{{Source.Cohomology p} {Source.Cohomology q} {Total.Cohomology}} SourceProduct.apply _ _ _ _
+                (sym!{{Source.Cohomology p}} _ _ (First.onClass omega))
+                (sym!{{Source.Cohomology q}} _ _ (Second.onClass eta))))));
+\definition law: \forall (a: Left.Cohomology)(b: Right.Cohomology) ->
+  Result.apply (TargetProduct.apply a b) = SourceProduct.apply (First.apply a) (Second.apply b) :=
+    Left.classInduction (\fun (a: Left.Cohomology) => \forall (b: Right.Cohomology) ->
+      Result.apply (TargetProduct.apply a b) = SourceProduct.apply (First.apply a) (Second.apply b))
+      (\fun (omega: Left.CycleCarrier) => Right.classInduction (\fun (b: Right.Cohomology) =>
+        Result.apply (TargetProduct.apply (Left.classOf omega) b) = SourceProduct.apply (First.apply (Left.classOf omega)) (Second.apply b))
+        (classLaw omega));

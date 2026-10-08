@@ -1,0 +1,29 @@
+\import \parent.Representatives[] \as Representatives;
+\definition ZeroValues: \Pow Vector := { v: Vector \where \forall (chart: Chart) -> v = Quotient.class (Representatives.zero chart) };
+\definition ZeroValue: \Set := \Cast[Vector] ZeroValues;
+\definition existsZero: \exists ZeroValue := \block {
+  \takefrom chart: Chart \by chartExists \then
+  \return \exact(\into[Vector](Quotient.class (Representatives.zero chart), ZeroValues) \by {
+    \fun (other: Chart) => Quotient.classOfEq Equivalence.equivalence (Representatives.zero chart) (Representatives.zero other) (Representatives.zeroRelated chart other)
+  }, ZeroValue)
+};
+\definition uniqueZero: \forall (u, v: ZeroValue) -> u = v := \block {
+  \fun (u, v: ZeroValue) \then
+  \takefrom chart: Chart \by chartExists \then
+  \return trans!{Vector} u (Quotient.class (Representatives.zero chart)) v
+    ((\bysub(Vector, ZeroValues, u)) chart) (sym!{Vector} _ _ ((\bysub(Vector, ZeroValues, v)) chart))
+};
+\definition origin: Vector := \choice ZeroValue \by { existence: existsZero, uniqueness: uniqueZero };
+\definition zeroClass: \forall (chart: Chart) -> origin = Quotient.class (Representatives.zero chart) :=
+  \fun (chart: Chart) => (\bysub(Vector, ZeroValues, (\choice ZeroValue \by { existence: existsZero, uniqueness: uniqueZero }))) chart;
+\definition plus(u, v: Vector): Vector := \into[\Pow Representative](Quotient.BinaryImage Representatives.add u v, Quotient.ClassSet) \by {
+  Quotient.binaryImageClosed Equivalence.equivalence Representatives.add Representatives.addRespects u v
+};
+\definition scale(c: Real.Real)(v: Vector): Vector := \into[\Pow Representative](Quotient.UnaryImage (Representatives.scale c) v, Quotient.ClassSet) \by {
+  Quotient.unaryImageClosed Equivalence.equivalence (Representatives.scale c) (Representatives.scaleRespects c) v
+};
+\definition negative(v: Vector): Vector := scale (Real.neg Real.one) v;
+\definition plusClass: \forall (u, v: Representative) -> plus (Quotient.class u) (Quotient.class v) = Quotient.class (Representatives.add u v) :=
+  \fun (u, v: Representative) => Quotient.binaryImageClass Equivalence.equivalence Representatives.add Representatives.addRespects (Quotient.class u) (Quotient.class v) u v (\refl(Quotient.ClassOf u)) (\refl(Quotient.ClassOf v));
+\definition scaleClass: \forall (c: Real.Real)(v: Representative) -> scale c (Quotient.class v) = Quotient.class (Representatives.scale c v) :=
+  \fun (c: Real.Real)(v: Representative) => Quotient.unaryImageClass Equivalence.equivalence (Representatives.scale c) (Representatives.scaleRespects c) (Quotient.class v) v (\refl(Quotient.ClassOf v));

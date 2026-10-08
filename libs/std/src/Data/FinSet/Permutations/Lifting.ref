@@ -1,0 +1,43 @@
+\import \root.Data[].FinSet[].Permutations[n := N.Nat^::succ n] \as Large;
+\import \root.Data[].FinSet[].Tuples[A := Fin (N.Nat^::succ n)] \as Tuples;
+\definition forward(p: Permutation): Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n) :=
+  Tuples.extend n (zero n) (\fun (i: Fin n) => succ n (#forward{p} i));
+\definition backward(p: Permutation): Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n) :=
+  Tuples.extend n (zero n) (\fun (i: Fin n) => succ n (#backward{p} i));
+\definition forwardZero: \forall (p: Permutation) -> forward p (zero n) = zero n :=
+  \fun (p: Permutation) => Tuples.atZero n (zero n) (\fun (i: Fin n) => succ n (#forward{p} i));
+\definition forwardSuccessor: \forall (p: Permutation)(i: Fin n) -> forward p (succ n i) = succ n (#forward{p} i) :=
+  \fun (p: Permutation)(i: Fin n) => Tuples.atSuccessor n (zero n) (\fun (i: Fin n) => succ n (#forward{p} i)) i;
+\definition backwardZero: \forall (p: Permutation) -> backward p (zero n) = zero n :=
+  \fun (p: Permutation) => Tuples.atZero n (zero n) (\fun (i: Fin n) => succ n (#backward{p} i));
+\definition backwardSuccessor: \forall (p: Permutation)(i: Fin n) -> backward p (succ n i) = succ n (#backward{p} i) :=
+  \fun (p: Permutation)(i: Fin n) => Tuples.atSuccessor n (zero n) (\fun (i: Fin n) => succ n (#backward{p} i)) i;
+\definition data(p: Permutation): Large.Data := Large.Data { forward := forward p, backward := backward p };
+\definition leftFunction: \forall (p: Permutation) -> (\fun (i: Fin (N.Nat^::succ n)) => backward p (forward p i)) = (\fun (i: Fin (N.Nat^::succ n)) => i) :=
+  \fun (p: Permutation) => Tuples.extensionality n (\fun (i: Fin (N.Nat^::succ n)) => backward p (forward p i)) (\fun (i: Fin (N.Nat^::succ n)) => i)
+    (trans!{{Fin (N.Nat^::succ n)}} (backward p (forward p (zero n))) (backward p (zero n)) (zero n)
+      (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (backward p) (forward p (zero n)) (zero n) (forwardZero p)) (backwardZero p))
+    (\fun (i: Fin n) => trans!{{Fin (N.Nat^::succ n)}} (backward p (forward p (succ n i))) (backward p (succ n (#forward{p} i))) (succ n i)
+      (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (backward p) (forward p (succ n i)) (succ n (#forward{p} i)) (forwardSuccessor p i))
+      (trans!{{Fin (N.Nat^::succ n)}} (backward p (succ n (#forward{p} i))) (succ n (#backward{p} (#forward{p} i))) (succ n i)
+        (backwardSuccessor p (#forward{p} i))
+        (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (#backward{p} (#forward{p} i)) i (#leftInverse{(laws p)} i))));
+\definition rightFunction: \forall (p: Permutation) -> (\fun (i: Fin (N.Nat^::succ n)) => forward p (backward p i)) = (\fun (i: Fin (N.Nat^::succ n)) => i) :=
+  \fun (p: Permutation) => Tuples.extensionality n (\fun (i: Fin (N.Nat^::succ n)) => forward p (backward p i)) (\fun (i: Fin (N.Nat^::succ n)) => i)
+    (trans!{{Fin (N.Nat^::succ n)}} (forward p (backward p (zero n))) (forward p (zero n)) (zero n)
+      (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (forward p) (backward p (zero n)) (zero n) (backwardZero p)) (forwardZero p))
+    (\fun (i: Fin n) => trans!{{Fin (N.Nat^::succ n)}} (forward p (backward p (succ n i))) (forward p (succ n (#backward{p} i))) (succ n i)
+      (congr!{{Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}} (forward p) (backward p (succ n i)) (succ n (#backward{p} i)) (backwardSuccessor p i))
+      (trans!{{Fin (N.Nat^::succ n)}} (forward p (succ n (#backward{p} i))) (succ n (#forward{p} (#backward{p} i))) (succ n i)
+        (forwardSuccessor p (#backward{p} i))
+        (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (#forward{p} (#backward{p} i)) i (#rightInverse{(laws p)} i))));
+\definition lift(p: Permutation): Large.Permutation := \into[Large.Data](data p, { d: Large.Data \where Large.Laws[d] }) \by {
+  Large.Laws[data p] {
+    leftInverse := \fun (i: Fin (N.Nat^::succ n)) => congr!{{Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}}
+      (\fun (f: Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n)) => f i)
+      (\fun (i: Fin (N.Nat^::succ n)) => backward p (forward p i)) (\fun (i: Fin (N.Nat^::succ n)) => i) (leftFunction p),
+    rightInverse := \fun (i: Fin (N.Nat^::succ n)) => congr!{{Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n)} {Fin (N.Nat^::succ n)}}
+      (\fun (f: Fin (N.Nat^::succ n) -> Fin (N.Nat^::succ n)) => f i)
+      (\fun (i: Fin (N.Nat^::succ n)) => forward p (backward p i)) (\fun (i: Fin (N.Nat^::succ n)) => i) (rightFunction p),
+  }
+};

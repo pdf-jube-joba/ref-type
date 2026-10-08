@@ -550,7 +550,12 @@ impl<'a> TermParser<'a> {
             let return_type = self.parse_sexp()?;
             self.expect_keyword("\\with")?;
             let cases = self.parse_branches(|parser| {
-                let case_name = parser.expect_ident()?;
+                let case_name = if parser.peek() == Some(&Token::Macro("#")) {
+                    parser.next();
+                    Identifier("#".to_owned())
+                } else {
+                    parser.expect_ident()?
+                };
                 parser.expect_token(Token::Colon)?;
                 let case = parser.parse_sexp()?;
                 Ok((case_name, case))

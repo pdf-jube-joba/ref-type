@@ -1,0 +1,109 @@
+
+\import N.Basic[].Prop[] \as Naturals;
+\import \parent.\parent.Laws[] \as ProductLaws;
+\import Lists.All[A := I] \as All;
+\definition empty: Lists.List[I] := Lists.List[I]::nil;
+\definition singleton(v: I): Lists.List[I] := Lists.List[I]::cons v empty;
+\definition zeroBoundary: \forall (xs: Lists.List[I])(f: I -> K)(g: Function) ->
+  All.Holds (\fun (v: I) => f v = zero) xs -> apply (\fun (v: I) => scale (f v) g) xs = zero :=
+  \induction (xs: Lists.List[I]) \return \forall (f: I -> K)(g: Function) ->
+    All.Holds (\fun (v: I) => f v = zero) xs -> apply (\fun (v: I) => scale (f v) g) xs = zero \with {
+      | nil: \fun (f: I -> K)(g: Function)(vanishing: All.Holds (\fun (v: I) => f v = zero) empty) => \refl(zero)
+      | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (f: I -> K)(g: Function) ->
+          All.Holds (\fun (v: I) => f v = zero) tail -> apply (\fun (v: I) => scale (f v) g) tail = zero)
+          (f: I -> K)(g: Function)(vanishing: All.Holds (\fun (v: I) => f v = zero) (Lists.List[I]::cons head tail)) => eq_reason!{
+        {apply (\fun (v: I) => scale (f v) g) (Lists.List[I]::cons head tail)}
+        "=" {add zero (neg zero)} "by" {
+          congr2!{K K K} add (mul (f head) (g tail)) zero
+            (neg (apply (\fun (v: I) => scale (f v) (shift head g)) tail)) (neg zero)
+            (trans!{K} (mul (f head) (g tail)) (mul zero (g tail)) zero
+              (congr!{K K} (\fun (a: K) => mul a (g tail)) (f head) zero (#left{vanishing})) (mulZeroLeft (g tail)))
+            (congr!{K K} neg (apply (\fun (v: I) => scale (f v) (shift head g)) tail) zero
+              (previous f (shift head g) (#right{vanishing})))}
+        "=" zero "by" {trans!{K} (add zero (neg zero)) (neg zero) zero (addZeroLeft (neg zero)) Sign.negativeZero}
+      }
+    };
+\definition value(f: I -> K): Function := \induction (xs: Lists.List[I]) \return K \with {
+  | nil: zero
+  | cons: \fun (head: I)(tail: Lists.List[I])(previous: K) =>
+    (\induction (tail: Lists.List[I]) \return K \with {
+      | nil: f head
+      | cons: \fun (next: I)(rest: Lists.List[I])(previous: K) => zero
+    }) tail
+};
+\definition homogeneous: \forall (f: I -> K) -> Homogeneous (N.Nat^::succ N.Nat^::zero) (value f) :=
+  \fun (f: I -> K) => \induction (xs: Lists.List[I]) \return Logic.Not (Lists.length I xs = N.Nat^::succ N.Nat^::zero) -> value f xs = zero \with {
+    | nil: \fun (wrong: _) => \refl(zero)
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: _) =>
+      (\induction (tail: Lists.List[I]) \return Logic.Not (Lists.length I (Lists.List[I]::cons head tail) = N.Nat^::succ N.Nat^::zero) -> value f (Lists.List[I]::cons head tail) = zero \with {
+        | nil: \fun (wrong: _) => Logic.falseElim (f head = zero) (wrong (\refl(N.Nat^::succ N.Nat^::zero)))
+        | cons: \fun (next: I)(rest: Lists.List[I])(previous: _) (wrong: _) => \refl(zero)
+      }) tail
+  };
+\definition normalForm: \forall (a: Function) -> Homogeneous (N.Nat^::succ N.Nat^::zero) a -> a = value (\fun (v: I) => a (singleton v)) :=
+  \fun (a: Function)(supported: Homogeneous (N.Nat^::succ N.Nat^::zero) a) => \axiom:funext(a, value (\fun (v: I) => a (singleton v)),
+    \induction (xs: Lists.List[I]) \return a xs = value (\fun (v: I) => a (singleton v)) xs \with {
+      | nil: supported empty (Naturals.zeroNeSucc N.Nat^::zero)
+      | cons: \fun (head: I)(tail: Lists.List[I])(previous: _) =>
+        (\induction (tail: Lists.List[I]) \return a (Lists.List[I]::cons head tail) = value (\fun (v: I) => a (singleton v)) (Lists.List[I]::cons head tail) \with {
+          | nil: \refl(a (singleton head))
+          | cons: \fun (next: I)(rest: Lists.List[I])(previous: _) => supported (Lists.List[I]::cons head (Lists.List[I]::cons next rest))
+            (\fun (same: N.Nat^::succ (N.Nat^::succ (Lists.length I rest)) = N.Nat^::succ N.Nat^::zero) =>
+              Naturals.succNeZero (Lists.length I rest) (Naturals.succInjective (N.Nat^::succ (Lists.length I rest)) N.Nat^::zero same))
+        }) tail
+    });
+\definition shifted: \forall (f: I -> K)(v: I) -> shift v (value f) = scale (f v) unit :=
+  \fun (f: I -> K)(v: I) => \axiom:funext(shift v (value f), scale (f v) unit,
+    \induction (xs: Lists.List[I]) \return shift v (value f) xs = scale (f v) unit xs \with {
+      | nil: sym!{K} (mul (f v) one) (f v) (mulOneRight (f v))
+      | cons: \fun (head: I)(tail: Lists.List[I])(previous: _) => sym!{K} (mul (f v) zero) zero (mulZeroRight (f v))
+    });
+\definition twisted: \forall (f: I -> K) -> twist (value f) = Alternation.negative (value f) :=
+  \fun (f: I -> K) => \axiom:funext(twist (value f), Alternation.negative (value f),
+    \induction (xs: Lists.List[I]) \return twist (value f) xs = Alternation.negative (value f) xs \with {
+      | nil: trans!{K} (mul one zero) zero (neg zero) (mulZeroRight one) (sym!{K} (neg zero) zero Sign.negativeZero)
+      | cons: \fun (head: I)(tail: Lists.List[I])(previous: _) =>
+        (\induction (tail: Lists.List[I]) \return twist (value f) (Lists.List[I]::cons head tail) = Alternation.negative (value f) (Lists.List[I]::cons head tail) \with {
+          | nil: Scalars.minusOneScale (f head)
+          | cons: \fun (next: I)(rest: Lists.List[I])(previous: _) => trans!{K} (mul (Sign.value (N.Nat^::succ (N.Nat^::succ (Lists.length I rest)))) zero) zero (neg zero)
+            (mulZeroRight (Sign.value (N.Nat^::succ (N.Nat^::succ (Lists.length I rest))))) (sym!{K} (neg zero) zero Sign.negativeZero)
+        }) tail
+    });
+\definition leftProduct: \forall (f: I -> K)(g: Function)(v: I)(xs: Lists.List[I]) -> product (shift v (value f)) g xs = mul (f v) (g xs) :=
+  \fun (f: I -> K)(g: Function)(v: I)(xs: Lists.List[I]) => eq_reason!{
+    {product (shift v (value f)) g xs}
+    "=" {product (scale (f v) unit) g xs} "by" {congr!{{Function} K} (\fun (a: Function) => product a g xs) _ _ (shifted f v)}
+    "=" {mul (f v) (product unit g xs)} "by" {ProductLaws.scalarLeft (f v) unit g xs}
+    "=" {mul (f v) (g xs)} "by" {congr!{K K} (mul (f v)) _ _ (ProductLaws.leftUnit xs g)}
+  };
+\definition law: \forall (xs: Lists.List[I])(f: I -> K)(g: Function) -> product (value f) g xs = apply (\fun (v: I) => scale (f v) g) xs :=
+  \induction (xs: Lists.List[I]) \return \forall (f: I -> K)(g: Function) -> product (value f) g xs = apply (\fun (v: I) => scale (f v) g) xs \with {
+    | nil: \fun (f: I -> K)(g: Function) => trans!{K} (product (value f) g empty) (mul zero (g empty)) zero (atEmpty (value f) g) (mulZeroLeft (g empty))
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: _) (f: I -> K)(g: Function) => eq_reason!{
+      {product (value f) g (Lists.List[I]::cons head tail)}
+      "=" {add (product (shift head (value f)) g tail) (product (twist (value f)) (shift head g) tail)} "by" {atCons head tail (value f) g}
+      "=" {add (mul (f head) (g tail)) (neg (product (value f) (shift head g) tail))} "by" {
+        congr2!{K K K} add _ _ _ _ (leftProduct f g head tail)
+          (trans!{K} (product (twist (value f)) (shift head g) tail) (product (Alternation.negative (value f)) (shift head g) tail) (neg (product (value f) (shift head g) tail))
+            (congr!{{Function} K} (\fun (a: Function) => product a (shift head g) tail) _ _ (twisted f)) (Alternation.productNegativeLeft (value f) (shift head g) tail))}
+      "=" {apply (\fun (v: I) => scale (f v) g) (Lists.List[I]::cons head tail)} "by" {
+        congr!{K K} (\fun (a: K) => add (mul (f head) (g tail)) (neg a)) _ _ (previous f (shift head g))}
+    }
+  };
+\definition vanishes: \forall (xs: Lists.List[I])(f: I -> K)(g: Function) ->
+  All.Holds (\fun (v: I) => f v = zero) xs -> product (value f) g xs = zero :=
+  \fun (xs: Lists.List[I])(f: I -> K)(g: Function)(vanishing: All.Holds (\fun (v: I) => f v = zero) xs) =>
+    trans!{K} (product (value f) g xs) (apply (\fun (v: I) => scale (f v) g) xs) zero
+      (law xs f g) (zeroBoundary xs f g vanishing);
+\definition atHead: \forall (head: I)(tail: Lists.List[I])(f: I -> K)(g: Function) ->
+  All.Holds (\fun (v: I) => f v = zero) tail ->
+  product (value f) g (Lists.List[I]::cons head tail) = mul (f head) (g tail) :=
+  \fun (head: I)(tail: Lists.List[I])(f: I -> K)(g: Function)(vanishing: All.Holds (\fun (v: I) => f v = zero) tail) => eq_reason!{
+    {product (value f) g (Lists.List[I]::cons head tail)}
+    "=" {apply (\fun (v: I) => scale (f v) g) (Lists.List[I]::cons head tail)} "by" {law (Lists.List[I]::cons head tail) f g}
+    "=" {add (mul (f head) (g tail)) (neg zero)} "by" {
+      congr!{K K} (\fun (a: K) => add (mul (f head) (g tail)) (neg a))
+        (apply (\fun (v: I) => scale (f v) (shift head g)) tail) zero (zeroBoundary tail f (shift head g) vanishing)}
+    "=" {add (mul (f head) (g tail)) zero} "by" {congr!{K K} (add (mul (f head) (g tail))) (neg zero) zero Sign.negativeZero}
+    "=" {mul (f head) (g tail)} "by" {addZeroRight (mul (f head) (g tail))}
+  };

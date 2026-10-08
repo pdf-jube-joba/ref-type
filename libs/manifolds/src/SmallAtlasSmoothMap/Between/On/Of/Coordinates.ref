@@ -1,0 +1,46 @@
+\import Maps.Coordinates[f := f, left := left, right := right] \as Direct;
+\definition domains(p: Patch): Open.OpenSet := Open.intersection
+  (Open.intersection Direct.domain SourceCharts.Transition[left := left, right := #left{p}].domain)
+  Maps.Coordinates[f := f, left := left, right := #right{p}].domain;
+\definition included(p: Patch): Open.Included (domains p) Direct.domain :=
+  \fun (a: calculus.Real[].Multivariable[n := n].Point)(member: \In[calculus.Real[].Multivariable[n := n].Point] (#points{(domains p)}) a) => #left{(#left{member})};
+\module InPatch(p: Patch);
+\definition Covers: \Prop := \forall (a: Open.Carrier Direct.domain) ->
+  \exists { p: Patch \where \In[calculus.Real[].Multivariable[n := n].Point] (#points{(domains p)}) a };
+\definition covers: Covers := \block {
+  \fun (a: Open.Carrier Direct.domain) \then
+  \let x: M.Point := SourceCharts.point left (Direct.leftCoordinate a) \then
+  \takefrom s: \Cast[SourceCharts.Chart] ({ c: SourceCharts.Chart \where Logic.And[SourceAtlases.Member source c, SourceCharts.Contains c x] }) \by #covers{source} x \then
+  \takefrom t: \Cast[TargetCharts.Chart] ({ c: TargetCharts.Chart \where Logic.And[TargetAtlases.Member target c, TargetCharts.Contains c (#apply{f} x)] }) \by #covers{target} (#apply{f} x) \then
+  \let slaw: Logic.And[SourceAtlases.Member source s, SourceCharts.Contains s x] := \bysub(SourceCharts.Chart,
+    { c: SourceCharts.Chart \where Logic.And[SourceAtlases.Member source c, SourceCharts.Contains c x] }, s) \then
+  \let tlaw: Logic.And[TargetAtlases.Member target t, TargetCharts.Contains t (#apply{f} x)] := \bysub(TargetCharts.Chart,
+    { c: TargetCharts.Chart \where Logic.And[TargetAtlases.Member target c, TargetCharts.Contains c (#apply{f} x)] }, t) \then
+  \let p: Patch := Patch { left := \into[SourceCharts.Chart](s, #charts{source}) \by { #left{slaw} },
+    right := \into[TargetCharts.Chart](t, #charts{target}) \by { #left{tlaw} } } \then
+  \let directMember: \In[calculus.Real[].Multivariable[n := n].Point] (#points{Direct.domain}) a :=
+    \bysub(calculus.Real[].Multivariable[n := n].Point, #points{Direct.domain}, a) \then
+  \let sourceMember: \In[calculus.Real[].Multivariable[n := n].Point] (#points{SourceCharts.Transition[left := left, right := #left{p}].domain}) a :=
+    SourceCharts.Transition[left := left, right := #left{p}].intro (Direct.leftCoordinate a) (#right{slaw}) \then
+  \let targetMember: \In[calculus.Real[].Multivariable[n := n].Point] (#points{Maps.Coordinates[f := f, left := left, right := #right{p}].domain}) a :=
+    Maps.Coordinates[f := f, left := left, right := #right{p}].intro (Direct.leftCoordinate a) (#right{tlaw}) \then
+  \return \exact(\into[Patch](p, { p: Patch \where \In[calculus.Real[].Multivariable[n := n].Point] (#points{(domains p)}) a }) \by {
+    Logic.And[
+      Logic.And[\In[calculus.Real[].Multivariable[n := n].Point] (#points{Direct.domain}) a,
+        \In[calculus.Real[].Multivariable[n := n].Point] (#points{SourceCharts.Transition[left := left, right := #left{p}].domain}) a],
+      \In[calculus.Real[].Multivariable[n := n].Point] (#points{Maps.Coordinates[f := f, left := left, right := #right{p}].domain}) a]::#
+      (Logic.And[\In[calculus.Real[].Multivariable[n := n].Point] (#points{Direct.domain}) a,
+        \In[calculus.Real[].Multivariable[n := n].Point] (#points{SourceCharts.Transition[left := left, right := #left{p}].domain}) a]::# directMember sourceMember)
+      targetMember
+  }, \Cast[Patch] ({ p: Patch \where \In[calculus.Real[].Multivariable[n := n].Point] (#points{(domains p)}) a }))
+};
+\module Component(i: Fin.Fin m) {
+  \import Open.SmoothCover[I := Patch, U := Direct.domain, domains := domains, f := \fun (a: Open.Carrier Direct.domain) => Direct.apply a i] \as Cover;
+  \definition regular: InSmallAtlas -> SourceAtlases.Member M.atlas left -> TargetAtlases.Member N.atlas right ->
+    Smooth.SmoothOn Direct.domain (\fun (a: Open.Carrier Direct.domain) => Direct.apply a i) :=
+      \fun (condition: InSmallAtlas)(leftMember: SourceAtlases.Member M.atlas left)(rightMember: TargetAtlases.Member N.atlas right) =>
+        Cover.smooth included covers (\fun (p: Patch) => \parent.InPatch[p := p].regular condition leftMember rightMember i);
+}
+\definition regular: InSmallAtlas -> SourceAtlases.Member M.atlas left -> TargetAtlases.Member N.atlas right -> Direct.Smooth :=
+  \fun (condition: InSmallAtlas)(leftMember: SourceAtlases.Member M.atlas left)(rightMember: TargetAtlases.Member N.atlas right)(i: Fin.Fin m) =>
+    Component[i := i].regular condition leftMember rightMember;

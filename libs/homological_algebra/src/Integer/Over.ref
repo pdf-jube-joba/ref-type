@@ -1,0 +1,38 @@
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\structure Family {
+  Carrier: Degree -> \Set,
+  space: \forall (z: Degree) -> Modules.Space (Carrier z),
+}
+\structure DifferentialData[F: Family]: \Set { apply: \forall (z: Degree) -> F.Carrier z -> F.Carrier (next z) }
+\structure DifferentialLaws[F: Family, d: DifferentialData[F]]: \Prop {
+  addition: \forall (z: Degree)(x, y: F.Carrier z) -> d.apply z (#add{(F.space z)} x y) = #add{(F.space (next z))} (d.apply z x) (d.apply z y),
+  scalar: \forall (z: Degree)(a: R)(x: F.Carrier z) -> d.apply z (#smul{(F.space z)} a x) = #smul{(F.space (next z))} a (d.apply z x),
+  squareZero: \forall (z: Degree)(x: F.Carrier z) -> d.apply (next z) (d.apply z x) = #zero{(F.space (next (next z)))},
+}
+\structure Complex {
+  family: Family,
+  differential: DifferentialData[family],
+  laws: DifferentialLaws[family, differential],
+}
+\module Prior(C: Complex);
+\module At(C: Complex, z: Degree);
+\definition cohomology(C: Complex)(z: Degree): \Set := At[C := C, z := z].Cohomology;
+
+\module Map(C, D: Complex);
+\module End(C: Complex) {
+  \import \parent.Map[C := C, D := C] \as Maps;
+  \definition identity: Maps.Map := Maps.Map {
+    apply := \fun (k: Degree)(x: C.family.Carrier k) => x,
+    addition := \fun (k: Degree)(x, y: C.family.Carrier k) => \refl(#add{(C.family.space k)} x y),
+    scalar := \fun (k: Degree)(a: R)(x: C.family.Carrier k) => \refl(#smul{(C.family.space k)} a x),
+    commutes := \fun (k: Degree)(x: C.family.Carrier k) => \refl(#apply{C.differential} k x),
+  };
+  \module At(k: Degree) {
+    \import \parent.\parent.At[C := C, z := k] \as Cohomology;
+    \import Maps.At[k := k] \as Map;
+    \definition inducedIdentity(h: Cohomology.Cohomology): Cohomology.Cohomology := #apply{(Map.induced identity)} h;
+    \definition identityOnCohomology: \forall (h: Cohomology.Cohomology) -> #apply{(Map.induced identity)} h = h :=
+      Cohomology.classInduction (\fun (h: Cohomology.Cohomology) => #apply{(Map.induced identity)} h = h)
+        (\fun (x: Cohomology.Closed) => Map.onClass identity x);
+  }
+}

@@ -1,0 +1,32 @@
+\import Fin.FromList[A := V] \as TuplesList;
+\import Fin.Tuples[A := V] \as Tuples;
+\import Fin.Empty[A := V] \as Empty;
+\import Lists.Replace[A := V] \as Replace;
+\import \parent.Properties[] \as Properties;
+\import N.Basic[].Prop[] \as NatLaws;
+\use Logic.either;
+\definition Degree(k: N.Nat^): \Pow Lists.List[V] := { xs: Lists.List[V] \where Lists.length V xs = k };
+\definition OfDegree(k: N.Nat^): \Set := \Cast[Lists.List[V]] (Degree k);
+\definition decode(k: N.Nat^)(xs: OfDegree k): Arguments k := TuplesList.at k xs (\bysub(Lists.List[V], Degree k, xs));
+\definition encode(k: N.Nat^)(arguments: Arguments k): OfDegree k :=
+  \into[Lists.List[V]](TuplesList.list k arguments, Degree k) \by { TuplesList.listLength k arguments };
+\definition decodeEncode: \forall (k: N.Nat^)(arguments: Arguments k) -> decode k (encode k arguments) = arguments := TuplesList.atList;
+\definition encodeDecode: \forall (k: N.Nat^)(xs: OfDegree k) -> encode k (decode k xs) = xs :=
+  \fun (k: N.Nat^)(xs: OfDegree k) => TuplesList.listAt k xs (\bysub(Lists.List[V], Degree k, xs));
+\definition listInjective: \forall (k: N.Nat^)(f, g: Arguments k) -> TuplesList.list k f = TuplesList.list k g -> f = g :=
+  \fun (k: N.Nat^)(f, g: Arguments k)(equal: TuplesList.list k f = TuplesList.list k g) => eq_reason!{
+    f "=" {decode k (encode k f)} "by" {sym!{{Arguments k}} _ _ (decodeEncode k f)}
+    "=" {decode k (encode k g)} "by" {congr!{{OfDegree k} {Arguments k}} (decode k) (encode k f) (encode k g) equal}
+    "=" g "by" {decodeEncode k g}
+  };
+\module Step(k: N.Nat^);
+\definition updateList: \forall (k: N.Nat^)(arguments: Arguments k)(i: Fin.Fin k)(value: V) ->
+  TuplesList.list k (update k arguments i value) = Replace.apply (TuplesList.list k arguments) i value :=
+  \induction (k: N.Nat^) \return \forall (arguments: Arguments k)(i: Fin.Fin k)(value: V) ->
+    TuplesList.list k (update k arguments i value) = Replace.apply (TuplesList.list k arguments) i value \with {
+      | zero: \fun (arguments: Arguments N.Nat^::zero)(i: Fin.Fin N.Nat^::zero)(value: V) =>
+        Logic.falseElim (TuplesList.list N.Nat^::zero (update N.Nat^::zero arguments i value) = Replace.apply (TuplesList.list N.Nat^::zero arguments) i value)
+          (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | succ: \fun (k: N.Nat^)(previous: \forall (arguments: Arguments k)(i: Fin.Fin k)(value: V) ->
+        TuplesList.list k (update k arguments i value) = Replace.apply (TuplesList.list k arguments) i value) => Step[k := k].law previous
+    };

@@ -1,0 +1,54 @@
+\import \parent.\parent.\parent.Pair[left := globalChart left, right := globalChart right] \as Overlap;
+\import Tangent.Pair[left := left, right := right] \as Geometry;
+\import Tangent.ChartIsomorphism[chart := left].Change[other := right] \as Change;
+\import Tangent.Coordinate[chart := left] \as LeftCoordinates;
+\import Tangent.Coordinate[chart := right] \as RightCoordinates;
+\import Euclidean.Pullback[m := n, U := Charts.Transition[left := left, right := right].domain, V := #image{right}, f := Overlap.transition] \as Pullback;
+\definition coordinateAgreement: \forall (omega: Form k)(arguments: Multilinear.Arguments k) ->
+  omega (globalChart left) (Tangent.coordinate left) arguments = omega (globalChart right) (Tangent.coordinate right)
+    (\fun (slot: Fin.Fin k) => Tangent.transform left right (arguments slot)) := \block {
+  \fun (omega: Form k)(arguments: Multilinear.Arguments k) \then
+  \let agreement: Overlap.restrict k omega = Overlap.transport k omega :=
+    (\bysub(Family k, { omega: Family k \where Compatible k omega }, omega)) (globalChart left) (globalChart right) \then
+  \let targetArguments: Multilinear.Arguments k := \fun (slot: Fin.Fin k) => Tangent.transform left right (arguments slot) \then
+  \return trans!{{Reals.Real}} (omega (globalChart left) (Tangent.coordinate left) arguments)
+    (Overlap.transport k omega Geometry.point arguments) (omega (globalChart right) (Tangent.coordinate right) targetArguments)
+    (congr!{{Euclidean.LocalForm Charts.Transition[left := left, right := right].domain k} {Reals.Real}}
+      (\fun (local: Euclidean.LocalForm Charts.Transition[left := left, right := right].domain k) => local Geometry.point arguments)
+      (Overlap.restrict k omega) (Overlap.transport k omega) agreement)
+    (congr!{{Open.Carrier #image{right}} {Reals.Real}}
+      (\fun (point: Open.Carrier #image{right}) => omega (globalChart right) point targetArguments)
+      (Charts.Transition[left := left, right := right].apply Geometry.point) (Tangent.coordinate right) Geometry.coordinateAgreement)
+};
+\definition law: \forall (omega: Form k) -> ofChart omega left = ofChart omega right :=
+  \fun (omega: Form k) => \axiom:funext(ofChart omega left, ofChart omega right, \fun (arguments: TangentMultilinear.Arguments k) =>
+    trans!{{Reals.Real}} (ofChart omega left arguments)
+      (omega (globalChart right) (Tangent.coordinate right) (\fun (slot: Fin.Fin k) => Tangent.transform left right (LeftCoordinates.decode (arguments slot))))
+      (ofChart omega right arguments)
+      (coordinateAgreement omega (\fun (slot: Fin.Fin k) => LeftCoordinates.decode (arguments slot)))
+      (congr!{{Multilinear.Arguments k} {Reals.Real}} (omega (globalChart right) (Tangent.coordinate right))
+        (\fun (slot: Fin.Fin k) => Tangent.transform left right (LeftCoordinates.decode (arguments slot))) (\fun (slot: Fin.Fin k) => RightCoordinates.decode (arguments slot))
+        (\axiom:funext((\fun (slot: Fin.Fin k) => Tangent.transform left right (LeftCoordinates.decode (arguments slot))),
+          (\fun (slot: Fin.Fin k) => RightCoordinates.decode (arguments slot)), \fun (slot: Fin.Fin k) =>
+            sym!{{Vectors.Vector}} (RightCoordinates.decode (arguments slot)) (Tangent.transform left right (LeftCoordinates.decode (arguments slot))) (Change.coordinates (arguments slot))))));
+
+\definition encodes: \forall (v: Vectors.Vector) -> RightCoordinates.encode (Tangent.transform left right v) = LeftCoordinates.encode v :=
+  \fun (v: Vectors.Vector) => RightCoordinates.injective (RightCoordinates.encode (Tangent.transform left right v)) (LeftCoordinates.encode v)
+    (eq_reason!{
+      {RightCoordinates.decode (RightCoordinates.encode (Tangent.transform left right v))}
+      "=" {Tangent.transform left right v} "by" {RightCoordinates.decodeEncode (Tangent.transform left right v)}
+      "=" {Tangent.transform left right (LeftCoordinates.decode (LeftCoordinates.encode v))} "by" {
+        congr!{{Vectors.Vector} {Vectors.Vector}} (Tangent.transform left right) v (LeftCoordinates.decode (LeftCoordinates.encode v))
+          (sym!{{Vectors.Vector}} (LeftCoordinates.decode (LeftCoordinates.encode v)) v (LeftCoordinates.decodeEncode v))}
+      "=" {RightCoordinates.decode (LeftCoordinates.encode v)} "by" {
+        sym!{{Vectors.Vector}} (RightCoordinates.decode (LeftCoordinates.encode v))
+          (Tangent.transform left right (LeftCoordinates.decode (LeftCoordinates.encode v))) (Change.coordinates (LeftCoordinates.encode v))}
+    });
+\definition pointCoordinatesLaw: \forall (phi: PointFamily k)(arguments: Multilinear.Arguments k) ->
+  pointCoordinates phi left arguments = pointCoordinates phi right (\fun (slot: Fin.Fin k) => Tangent.transform left right (arguments slot)) :=
+  \fun (phi: PointFamily k)(arguments: Multilinear.Arguments k) => congr!{{TangentMultilinear.Arguments k} {Reals.Real}} (phi x)
+    (\fun (slot: Fin.Fin k) => LeftCoordinates.encode (arguments slot))
+    (\fun (slot: Fin.Fin k) => RightCoordinates.encode (Tangent.transform left right (arguments slot)))
+    (\axiom:funext((\fun (slot: Fin.Fin k) => LeftCoordinates.encode (arguments slot)),
+      (\fun (slot: Fin.Fin k) => RightCoordinates.encode (Tangent.transform left right (arguments slot))),
+      \fun (slot: Fin.Fin k) => sym!{{Tangent.Vector}} (RightCoordinates.encode (Tangent.transform left right (arguments slot))) (LeftCoordinates.encode (arguments slot)) (encodes (arguments slot))));

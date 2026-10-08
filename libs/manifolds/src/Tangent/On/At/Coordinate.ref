@@ -1,0 +1,21 @@
+\import Quotient.Maps[B := Vectors.Vector] \as Descend;
+\definition ofRepresentative(v: Representative): Vectors.Vector := transform #chart{v} chart #vector{v};
+\definition respects: Descend.Respects ofRepresentative :=
+  \fun (u, v: Representative)(equal: Equivalent u v) => trans!{{Vectors.Vector}} (transform #chart{u} chart #vector{u})
+    (transform #chart{v} chart (transform #chart{u} #chart{v} #vector{u})) (transform #chart{v} chart #vector{v})
+      (composition #chart{u} #chart{v} chart #vector{u})
+      (congr!{{Vectors.Vector} {Vectors.Vector}} (transform #chart{v} chart) (transform #chart{u} #chart{v} #vector{u}) #vector{v} (sym!{{Vectors.Vector}} #vector{v} (transform #chart{u} #chart{v} #vector{u}) equal));
+\definition decode(v: Vector): Vectors.Vector := Descend.value Equivalence.equivalence ofRepresentative respects v;
+\definition encode(v: Vectors.Vector): Vector := classOf chart v;
+\definition decodeClass: \forall (v: Representative) -> decode (Quotient.class v) = ofRepresentative v := Descend.onClass Equivalence.equivalence ofRepresentative respects;
+\definition decodeEncode: \forall (v: Vectors.Vector) -> decode (encode v) = v :=
+  \fun (v: Vectors.Vector) => trans!{{Vectors.Vector}} (decode (encode v)) (transform chart chart v) v
+    (decodeClass (Representative { chart := chart, vector := v })) (identity chart v);
+\definition encodeDecode: \forall (v: Vector) -> encode (decode v) = v := Quotient.induction (\fun (v: Vector) => encode (decode v) = v)
+  (\fun (v: Representative) => trans!{Vector} (encode (decode (Quotient.class v))) (classOf chart (ofRepresentative v)) (Quotient.class v)
+    (congr!{{Vectors.Vector} Vector} encode (decode (Quotient.class v)) (ofRepresentative v) (decodeClass v))
+    (sym!{Vector} (Quotient.class v) (classOf chart (ofRepresentative v))
+      (Quotient.classOfEq Equivalence.equivalence v (Representative { chart := chart, vector := ofRepresentative v }) (\refl(ofRepresentative v)))));
+\definition injective: \forall (u, v: Vector) -> decode u = decode v -> u = v :=
+  \fun (u, v: Vector)(equal: decode u = decode v) => trans!{Vector} u (encode (decode u)) v
+    (sym!{Vector} (encode (decode u)) u (encodeDecode u)) (trans!{Vector} (encode (decode u)) (encode (decode v)) v (congr!{{Vectors.Vector} Vector} encode (decode u) (decode v) equal) (encodeDecode v));
