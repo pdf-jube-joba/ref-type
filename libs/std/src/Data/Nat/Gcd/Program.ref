@@ -1,0 +1,24 @@
+\import std.Data[].Pair[] \as P;
+\import std.Data[].Nat[].Pair[].Program[] \as NatPairProgram;
+\import std.Data[].Nat[].Division[].Program[] \as NatDivisionProgram;
+
+\definition gcdNext: \U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]) :=
+  \fun (p: P.Times[Nat, Nat]) =>
+      \match p \in P.Times \with {
+        | pair a b: \match b \in Nat \with {
+          | zero: \return P.Times[Nat, Nat]::pair a Nat::zero
+          | succ d: \program {
+              \bind partial: \U(Nat -> Nat) <- (\force NatDivisionProgram.mod) a \then
+              \bind r: Nat <- (\force partial) (Nat::succ d) \then
+              \return P.Times[Nat, Nat]::pair (Nat::succ d) r
+            }
+        }
+      };
+
+\definition gcd: \U(Nat -> Nat -> Nat) :=
+  \thunk (\fun (a, b: Nat) => \program {
+      \bind result: P.Times[Nat, Nat] <- (\force NatPairProgram.PairIterLoop.run)
+        (NatPairProgram.PairIterState::running gcdNext (P.Times[Nat, Nat]::pair a b) b) \then
+      \bind divisor: Nat <- (P.Times[Nat, Nat]::first result) \then
+      \return divisor
+    });

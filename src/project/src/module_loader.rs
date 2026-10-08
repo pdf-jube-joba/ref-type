@@ -51,6 +51,14 @@ pub fn load_modules(
     root_file: &Path,
     provider: &mut dyn SourceProvider,
 ) -> Result<Vec<Module>, String> {
+    load_modules_in_scope(root_file, provider, &[])
+}
+
+pub(crate) fn load_modules_in_scope(
+    root_file: &Path,
+    provider: &mut dyn SourceProvider,
+    scope: &[String],
+) -> Result<Vec<Module>, String> {
     if root_file.extension().and_then(|ext| ext.to_str()) != Some(SOURCE_EXTENSION) {
         return Err(format!(
             "root source file must have the .{} extension: {}",
@@ -69,10 +77,11 @@ pub fn load_modules(
         source_root,
         provider,
         loaded_files: HashMap::new(),
+        occurrences: HashMap::new(),
     };
 
     for module in &mut modules {
-        loader.resolve_module(module, &[])?;
+        loader.resolve_module(module, &[], scope)?;
     }
     Ok(modules)
 }
@@ -81,6 +90,7 @@ struct ModuleLoader<'a> {
     source_root: &'a Path,
     provider: &'a mut dyn SourceProvider,
     loaded_files: HashMap<PathBuf, String>,
+    occurrences: HashMap<Vec<String>, usize>,
 }
 
 impl ModuleLoader<'_> {
@@ -88,9 +98,18 @@ impl ModuleLoader<'_> {
         &mut self,
         module: &mut Module,
         parent_module_path: &[String],
+        parent_timing_path: &[String],
     ) -> Result<(), String> {
         let mut module_path = parent_module_path.to_vec();
         module_path.push(module.name.0.clone());
+        let mut timing_path = parent_timing_path.to_vec();
+        timing_path.push(module.name.0.clone());
+        let occurrence = self.occurrences.entry(timing_path.clone()).or_default();
+        *occurrence += 1;
+        if *occurrence > 1 {
+            *timing_path.last_mut().unwrap() = format!("{}#{occurrence}", module.name.0);
+        }
+        let _time = timing::Scope::module(|| timing_path.clone());
         let display_module_path = format!("root.{}", module_path.join("."));
 
         if matches!(module.body, ModuleBody::External) {
@@ -121,7 +140,7 @@ impl ModuleLoader<'_> {
         };
         for declaration in declarations {
             if let ModuleItem::ChildModule { module: child } = declaration {
-                self.resolve_module(child, &module_path)?;
+                self.resolve_module(child, &module_path, &timing_path)?;
             }
         }
 

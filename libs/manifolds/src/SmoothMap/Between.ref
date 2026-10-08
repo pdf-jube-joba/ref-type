@@ -1,0 +1,37 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import calculus.Real[] \as Reals;
+\import Reals.Multivariable[n := n].Open[] \as SourceOpen;
+\import Reals.Multivariable[n := m].Open[] \as TargetOpen;
+\import SourceOpen.Smooth[] \as SourceSmooth;
+\import topological_algebra.Euclidean[].Dimension[n := n] \as SourceCoordinates;
+\import SourceCoordinates.Topology[] \as Euclidean;
+\import SourceOpen.Topology[] \as OpenTopology;
+\import topology.Topology[Carrier := M.Point] \as SourceTopology;
+\import topology.Topology[Carrier := N.Point] \as TargetTopology;
+\import topology.Continuity[A := M.Point, B := N.Point] \as Continuity;
+\import \root.Dimension[n := n].Chart[M := M.Point, space := M.space] \as SourceCharts;
+\import \root.Dimension[n := m].Chart[M := N.Point, space := N.space] \as TargetCharts;
+\structure Data: \Set {
+  apply: M.Point -> N.Point,
+}
+\definition Continuous(data: Data): \Prop := Continuity.Continuous M.space N.space #apply{data};
+\definition ContinuousMap: \Set := \Cast[Data] ({ data: Data \where Continuous data });
+\module Coordinates(f: ContinuousMap, left: SourceCharts.Chart, right: TargetCharts.Chart);
+\definition Chartwise(f: ContinuousMap): \Prop := \forall (left: SourceCharts.Chart)(right: TargetCharts.Chart) ->
+  \In[SourceCharts.Chart] #charts{M.atlas} left -> \In[TargetCharts.Chart] #charts{N.atlas} right ->
+  Coordinates[f := f, left := left, right := right].Smooth;
+\definition Map: \Set := \Cast[ContinuousMap] ({ f: ContinuousMap \where Chartwise f });
+\definition apply(f: Map): M.Point -> N.Point := #apply{f};
+\definition dataEta: \forall (data: Data) -> Data::# (#apply{data}) = data :=
+  \induction (data: Data) \return Data::# (#apply{data}) = data \with {
+    | # : \fun (function: M.Point -> N.Point) => \refl(Data::# function)
+  };
+\definition ext: \forall (f, g: Map) -> apply f = apply g -> f = g :=
+  \fun (f, g: Map)(same: apply f = apply g) => trans!{Data} f (Data::# (apply f)) g
+    (sym!{Data} (Data::# (apply f)) f (dataEta f))
+    (trans!{Data} (Data::# (apply f)) (Data::# (apply g)) g
+      (congr!{{M.Point -> N.Point} Data} Data::# (apply f) (apply g) same) (dataEta g));

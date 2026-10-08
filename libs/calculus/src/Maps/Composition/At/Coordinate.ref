@@ -1,0 +1,15 @@
+\definition rowPartial: \forall (j: Fin.Fin m) -> #apply{(Jacobian.row j)} (Coordinates.basis i) = innerPartial j i a :=
+  \fun (j: Fin.Fin m) => AnalysisLaws.partialUnique U (Jacobian.component j) i a
+    (#apply{(Jacobian.row j)} (Coordinates.basis i)) (innerPartial j i a)
+    (Analysis.Differential[U := U, f := Jacobian.component j, a := a, d := Jacobian.row j].Partial[i := i].law (Jacobian.componentLaw j))
+    (SourcePartials.partialLaw U (Jacobian.component j) i a);
+\definition formula: #apply{(Chain.differential)} (Coordinates.basis i) = gradient h i a :=
+  FiniteSums.congruent m
+    (\fun (j: Fin.Fin m) => Reals.mul (TargetPartials.partial V h j (apply U V f a)) (#apply{(Jacobian.row j)} (Coordinates.basis i)))
+    (\fun (j: Fin.Fin m) => Reals.mul (TargetPartials.partial V h j (apply U V f a)) (innerPartial j i a))
+    (\fun (j: Fin.Fin m) => congr!{Reals.Real Reals.Real} (Reals.mul (TargetPartials.partial V h j (apply U V f a))) _ _ (rowPartial j));
+\definition law: Analysis.HasPartialDerivativeAt U (scalar h) i a (gradient h i a) :=
+  \idelim #apply{(Chain.differential)} (Coordinates.basis i) = gradient h i a \with d: Reals.Real => Analysis.HasPartialDerivativeAt U (scalar h) i a d \by {
+    base: Analysis.Differential[U := U, f := scalar h, a := a, d := Chain.differential].Partial[i := i].law (Chain.law Jacobian.vectorLaw (Outer.law V h (apply U V f a))),
+    equality: formula
+  };

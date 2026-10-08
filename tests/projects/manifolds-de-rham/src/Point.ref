@@ -1,0 +1,68 @@
+\import std.Data[].Nat[] \as N;
+\import N.Order[].Prop[] \as Naturals;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\import manifolds.Examples[].Point[] \as Point;
+\import topological_algebra.Euclidean[].Zero[] \as Points;
+\import differential_forms.Forms[n := zero].On[M := Point.smoothManifold] \as Forms;
+\import Forms.DeRham[] \as DeRham;
+\module Positive(k: N.Nat^) {
+  \import DeRham.At[k := N.Nat^::succ k] \as H;
+  \definition zero: \forall (h: H.H) -> h = #zero{H.vectorSpace} := DeRham.Above[k := N.Nat^::succ k].zero (Naturals.zeroLtSucc k);
+}
+\import real.Analysis[] \as Reals;
+\import Reals.Algebra[] \as Algebra;
+\import linear_algebra.Field[].Space[K := Reals.Real, field := Algebra.field] \as Spaces;
+\import Forms.DegreeZero[] \as Functions;
+\import Forms.ExteriorDerivative[k := zero] \as Differential;
+\import Forms.Above[k := one] \as OneForms;
+\import DeRham.DegreeZero[] \as Flat;
+\import DeRham.At[k := zero] \as H;
+\import calculus.Real[].Multivariable[n := zero].Open[] \as Open;
+\import manifolds.Dimension[n := zero].Chart[M := Point.smoothManifold.Point, space := Point.smoothManifold.space] \as Charts;
+\definition smoothConstant(a: Reals.Real): Functions.Function :=
+  \into[Point.smoothManifold.Point -> Reals.Real](\fun (x: Point.smoothManifold.Point) => a,
+    { f: Point.smoothManifold.Point -> Reals.Real \where Functions.Smooth f }) \by {
+      \fun (chart: Forms.Chart) => Open.Smooth[].Operations[].constantSmooth #image{chart} a
+    };
+\definition constant(a: Reals.Real): Flat.Function := \into[Functions.Function](smoothConstant a, #carrier{Flat.kernel}) \by {
+  OneForms.zero (Naturals.zeroLtSucc zero) (Differential.apply (Functions.apply (smoothConstant a)))
+};
+\definition evaluate(f: Flat.Function): Reals.Real := f Points.origin;
+\import Spaces.Linear[V := Reals.Real, W := Flat.Function, source := Spaces.scalarSpace, target := Flat.vectorSpace] \as Constants;
+\definition constants: Constants.Map := Constants.Map {
+  apply := constant,
+  preservesAdd := \fun (a, b: Reals.Real) => \axiom:funext(constant (Spaces.add a b), #add{Flat.vectorSpace} (constant a) (constant b),
+    \fun (x: Point.smoothManifold.Point) => \refl(Spaces.add a b)),
+  preservesScale := \fun (a, b: Reals.Real) => \axiom:funext(constant (Spaces.mul a b), #smul{Flat.vectorSpace} a (constant b),
+    \fun (x: Point.smoothManifold.Point) => \refl(Spaces.mul a b)),
+};
+\import Spaces.Linear[V := Flat.Function, W := Reals.Real, source := Flat.vectorSpace, target := Spaces.scalarSpace] \as Evaluations;
+\definition evaluation: Evaluations.Map := Evaluations.Map {
+  apply := evaluate,
+  preservesAdd := \fun (f, g: Flat.Function) => \refl(Spaces.add (f Points.origin) (g Points.origin)),
+  preservesScale := \fun (a: Reals.Real)(f: Flat.Function) => \refl(Spaces.mul a (f Points.origin)),
+};
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition constantEvaluate: \forall (f: Flat.Function) -> constant (evaluate f) = f :=
+  \fun (f: Flat.Function) => \axiom:funext(constant (evaluate f), f,
+    \fun (x: Point.smoothManifold.Point) => congr!{{Points.Point} {Reals.Real}} f Points.origin x (Points.unique Points.origin x));
+\import Spaces.Linear[V := Flat.Function, W := H.H, source := Flat.vectorSpace, target := H.vectorSpace].Composition[U := Reals.Real, domain := Spaces.scalarSpace] \as Forward;
+\import Evaluations.Composition[U := H.H, domain := H.vectorSpace] \as Backward;
+\import Spaces.Linear[V := Reals.Real, W := H.H, source := Spaces.scalarSpace, target := H.vectorSpace] \as IntoH;
+\import Spaces.Linear[V := H.H, W := Reals.Real, source := H.vectorSpace, target := Spaces.scalarSpace] \as FromH;
+\definition forward: IntoH.Map := Forward.compose Flat.forward constants;
+\definition backward: FromH.Map := Backward.compose evaluation Flat.backward;
+\import Spaces.Isomorphism[V := Reals.Real, W := H.H, source := Spaces.scalarSpace, target := H.vectorSpace] \as Iso;
+\definition scalarIsomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (a: Reals.Real) => congr!{{Flat.Function} {Reals.Real}} evaluate
+    (#apply{Flat.backward} (#apply{Flat.forward} (constant a))) (constant a) (#leftInverse{Flat.isomorphism} (constant a)),
+  rightInverse := \fun (h: H.H) => trans!{{H.H}} (#apply{forward} (#apply{backward} h))
+    (#apply{Flat.forward} (#apply{Flat.backward} h)) h
+    (congr!{{Flat.Function} {H.H}} (#apply{Flat.forward}) _ _ (constantEvaluate (#apply{Flat.backward} h)))
+    (#rightInverse{Flat.isomorphism} h),
+};

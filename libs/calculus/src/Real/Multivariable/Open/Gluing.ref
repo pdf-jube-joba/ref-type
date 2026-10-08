@@ -1,0 +1,35 @@
+\import \parent.Smooth[] \as Smooth;
+\import \parent.Restriction[] \as Restriction;
+\import \parent.Analysis[] \as Analysis;
+\import Analysis.Local[] \as Local;
+\import Smooth.Properties[] \as Properties;
+\structure Patch: \Set {
+  domain: OpenSet,
+  included: Included domain U,
+  derivatives: Smooth.PartialFamily domain,
+  regular: Smooth.ContDiffLaws[domain, restrict domain U included f, k, derivatives],
+}
+\definition Contains(patch: Patch)(a: Carrier U): \Prop := \In[Point] (#points{(#domain{patch})}) a;
+\definition Patches(a: Carrier U): \Pow Patch := { patch: Patch \where Contains patch a };
+\definition Value(a: Carrier U): \Set := \Cast[Patch] (Patches a);
+\definition IsLocal: \Prop := \forall (a: Carrier U) -> \exists Value a;
+\definition Selector: \Set := \forall (a: Carrier U) -> Value a;
+\definition selectorExists: IsLocal -> \exists Selector :=
+  \fun (local: IsLocal) => \axiom:classicalIndefiniteChoice(Carrier U, Value, local);
+\definition point(patch: Patch)(a: Carrier U)(member: Contains patch a): Carrier (#domain{patch}) :=
+  \into[Point](a, #points{(#domain{patch})}) \by { member };
+\definition jet(patch: Patch)(a: Carrier U)(member: Contains patch a)(directions: Smooth.Directions): Real :=
+  #derivatives{patch} directions (point patch a member);
+\definition family(select: Selector): Smooth.PartialFamily U := \fun (directions: Smooth.Directions)(a: Carrier U) =>
+  jet (select a) a (\bysub(Patch, Patches a, select a)) directions;
+\module Pair(left, right: Patch);
+\module Member(select: Selector, patch: Patch);
+\module Of(select: Selector);
+\definition contDiff: IsLocal -> Smooth.ContDiffOn U k f := \block {
+  \fun (local: IsLocal) \then
+  \takefrom select: Selector \by selectorExists local \then
+  \return \exact(\into[Smooth.PartialFamily U](family select,
+    { derivatives: Smooth.PartialFamily U \where Smooth.ContDiffLaws[U, f, k, derivatives] }) \by {
+      Of[select := select].laws
+    }, \Cast[Smooth.PartialFamily U] ({ derivatives: Smooth.PartialFamily U \where Smooth.ContDiffLaws[U, f, k, derivatives] }))
+};

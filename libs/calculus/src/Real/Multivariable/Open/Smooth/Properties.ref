@@ -1,0 +1,50 @@
+\import \parent.\parent.Analysis[].Properties[] \as Differentiation;
+\definition partialFamilyUnique: \forall (U: OpenSet)(f: ScalarFunction U)(k: N.Nat^)(left, right: PartialFamily U) ->
+  PartialFamilyLaws[U, f, k, left] -> PartialFamilyLaws[U, f, k, right] ->
+  \forall (directions: Directions) -> NatLaws.Le (order directions) k -> \forall (a: Carrier U) -> left directions a = right directions a :=
+  \fun (U: _)(f: _)(k: _)(left, right: _)(leftLaws: _)(rightLaws: _) =>
+    \induction (directions: Directions) \return NatLaws.Le (order directions) k -> \forall (a: Carrier U) -> left directions a = right directions a \with {
+      | nil: \fun (bound: _)(a: Carrier U) => congr!{{ScalarFunction U} Real} (\fun (h: ScalarFunction U) => h a)
+        (left Directions::nil) (right Directions::nil)
+        (trans!{{ScalarFunction U}} (left Directions::nil) f (right Directions::nil) (#function{leftLaws})
+          (sym!{{ScalarFunction U}} (right Directions::nil) f (#function{rightLaws})))
+      | cons: \block {
+        \fun (i: Coordinate)(tail: Directions)
+          (previous: NatLaws.Le (order tail) k -> \forall (a: Carrier U) -> left tail a = right tail a)
+          (bound: NatLaws.Le (order (Directions::cons i tail)) k)(a: Carrier U) \then
+        \let tailBound: NatLaws.Le (order tail) k := NatLaws.leTrans (order tail) (N.Nat^::succ (order tail)) k (NatLaws.leSelfSucc (order tail)) bound \then
+        \let derivativeBound: NatLaws.Lt (order tail) k := NatLaws.ltOfSuccLe k (order tail) bound \then
+        \let equal: left tail = right tail := \axiom:funext(left tail, right tail, previous tailBound) \then
+        \let leftDerivative: Analysis.HasPartialDerivativeAt U (left tail) i a (left (Directions::cons i tail) a) := #derivative{leftLaws} tail derivativeBound i a \then
+        \let rightDerivative: Analysis.HasPartialDerivativeAt U (left tail) i a (right (Directions::cons i tail) a) :=
+          \idelim right tail = left tail \with h: ScalarFunction U => Analysis.HasPartialDerivativeAt U h i a (right (Directions::cons i tail) a) \by {
+            base: #derivative{rightLaws} tail derivativeBound i a,
+            equality: sym!{{ScalarFunction U}} (left tail) (right tail) equal
+          } \then
+        \return Differentiation.partialUnique U (left tail) i a (left (Directions::cons i tail) a) (right (Directions::cons i tail) a) leftDerivative rightDerivative
+      }
+    };
+
+\definition continuous: \forall (U: OpenSet)(f: ScalarFunction U) -> SmoothOn U f -> Analysis.ContinuousOn U f := \block {
+  \fun (U: _)(f: _)(smooth: _) \then
+  \takefrom derivatives: \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, f, N.Nat^::zero, d] }) \by smooth N.Nat^::zero \then
+  \let laws: ContDiffLaws[U, f, N.Nat^::zero, derivatives] := \bysub(PartialFamily U,
+    { d: PartialFamily U \where ContDiffLaws[U, f, N.Nat^::zero, d] }, derivatives) \then
+  \return \idelim derivatives Directions::nil = f \with h: ScalarFunction U => Analysis.ContinuousOn U h \by {
+    base: #continuous{laws} Directions::nil (NatLaws.leRefl N.Nat^::zero), equality: #function{(#partials{laws})}
+  }
+};
+\definition zeroOfContinuous: \forall (U: OpenSet)(f: ScalarFunction U) -> Analysis.ContinuousOn U f -> ContDiffOn U N.Nat^::zero f := \block {
+  \fun (U: OpenSet)(f: ScalarFunction U)(continuous: Analysis.ContinuousOn U f) \then
+  \let family: PartialFamily U := \fun (directions: Directions) => f \then
+  \return \exact(\into[PartialFamily U](family, { jet: PartialFamily U \where ContDiffLaws[U, f, N.Nat^::zero, jet] }) \by {
+    ContDiffLaws[U, f, N.Nat^::zero, family] {
+      partials := PartialFamilyLaws[U, f, N.Nat^::zero, family] {
+        function := \refl(f),
+        derivative := \fun (directions: Directions)(bound: NatLaws.Lt (order directions) N.Nat^::zero)(i: Coordinate) =>
+          Logic.falseElim (Analysis.HasPartialDerivative U f i f) (Fin.zeroImpossible (order directions) bound),
+      },
+      continuous := \fun (directions: Directions)(bound: _) => continuous,
+    }
+  }, \Cast[PartialFamily U] ({ jet: PartialFamily U \where ContDiffLaws[U, f, N.Nat^::zero, jet] }))
+};

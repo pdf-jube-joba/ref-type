@@ -1,18 +1,16 @@
 \definition sum(indices: Lists.List[I]) (f: I -> K): K :=
   Lists.foldr I K (\fun (i: _) (tail: _) => add (f i) tail) zero indices;
-\module Prop;
 
-\definition keys(indices: Lists.List[I]): \Pow I :=
-  Lists.foldr I (\Pow I)
-    (\fun (i: _) (tail: _) => { j: I \where Logic.Or[j = i, \In[I] tail j] })
-    ({ i: I \where Logic.False }) indices;
+\import Lists.Distinct[A := I] \as Enumeration;
+\definition keys: Lists.List[I] -> \Pow I := Enumeration.keys;
 \definition Distinct(indices: Lists.List[I]): \Prop :=
-  \forall (P: Lists.List[I] -> \Prop) -> P Lists.List[I]::nil ->
-    (\forall (i: I) -> \forall (tail: Lists.List[I]) -> Logic.Not (\In[I] (keys tail) i) ->
-      P tail -> P (Lists.List[I]::cons i tail)) -> P indices;
+  Enumeration.Distinct indices;
 \definition distinctNil: Distinct Lists.List[I]::nil :=
   \fun (P: _) (base: _) (step: _) => base;
 \definition distinctCons: \forall (i: I) -> \forall (tail: Lists.List[I]) ->
   Logic.Not (\In[I] (keys tail) i) -> Distinct tail -> Distinct (Lists.List[I]::cons i tail) :=
   \fun (i: _) (tail: _) (fresh: _) (distinct: Distinct tail) (P: _) (base: _) (step: _) =>
     step i tail fresh (distinct P base step);
+\module Prop;
+\module Single;
+\module Vector(V: \Set, space: VectorSpace V);

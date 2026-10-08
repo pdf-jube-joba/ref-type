@@ -1,0 +1,40 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import topology.Topology[Carrier := A] \as Space;
+\import topology.Product[A := Interval.Carrier, B := A] \as Product;
+\import Product.Maps[] \as Projections;
+\import Product.Universal[X := A] \as Inclusion;
+\import Product.Universal[X := Product.CarrierSet] \as Self;
+\import std.Data[].Pair[] \as Pair;
+\import topology.Topology[Carrier := Product.CarrierSet] \as CylinderSpace;
+\import topology.Maps[A := A, B := A].Identity[] \as Identity;
+\import topology.Maps[A := A, B := Interval.Carrier] \as Constants;
+\import topology.Continuity[A := Product.CarrierSet, B := Product.CarrierSet] \as Maps;
+\import topology.Composition[A := Product.CarrierSet, B := Interval.Carrier, C := Interval.Carrier] \as Compose;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+
+\definition Carrier: \Set := Product.CarrierSet;
+\definition topology(space: Space.Topology): CylinderSpace.Topology := Product.topology Interval.topology space;
+\definition at(t: Interval.Carrier) (x: A): Carrier := Pair.pair Interval.Carrier A t x;
+\definition time: Carrier -> Interval.Carrier := Pair.first Interval.Carrier A;
+\definition point: Carrier -> A := Pair.second Interval.Carrier A;
+\definition reverse(p: Carrier): Carrier := at (Interval.reverse (time p)) (point p);
+\definition atContinuous: \forall (space: Space.Topology) (t: Interval.Carrier) ->
+  Inclusion.PairContinuous space Interval.topology space (\fun (_: A) => t) (\fun (x: A) => x) :=
+  \fun (space: _) (t: _) => Inclusion.pairContinuous space Interval.topology space
+    (\fun (_: A) => t) (\fun (x: A) => x)
+    (Constants.constantContinuous space Interval.topology t)
+    (Identity.continuous space);
+\import topology.Continuity[A := Carrier, B := A] \as PointMaps;
+\import topology.Continuity[A := Carrier, B := Interval.Carrier] \as TimeMaps;
+\definition timeContinuous: \forall (space: Space.Topology) -> TimeMaps.Continuous (topology space) Interval.topology time :=
+  \fun (space: _) => Projections.firstContinuous Interval.topology space;
+\definition pointContinuous: \forall (space: Space.Topology) ->
+  PointMaps.Continuous (topology space) space point :=
+  \fun (space: _) => Projections.secondContinuous Interval.topology space;
+\definition reverseContinuous: \forall (space: Space.Topology) -> Maps.Continuous (topology space) (topology space) reverse :=
+  \fun (space: _) => Self.pairContinuous (topology space) Interval.topology space
+    (\fun (p: Carrier) => Interval.reverse (time p)) point
+    (Compose.composeContinuous (topology space) Interval.topology Interval.topology time Interval.reverse
+      (Projections.firstContinuous Interval.topology space) Interval.reverseContinuous)
+    (Projections.secondContinuous Interval.topology space);

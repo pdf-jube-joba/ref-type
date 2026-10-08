@@ -1,0 +1,58 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import calculus.Real[] \as Reals;
+\import Reals.Multivariable[n := n].Open[] \as Open;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import linear_algebra.Field[].Space[K := Reals.Real, field := Algebra.field] \as Spaces;
+\import manifolds.Dimension[n := n].Chart[M := M.Point, space := M.space] \as Charts;
+\import manifolds.Dimension[n := n].Atlas[M := M.Point, space := M.space] \as Atlas;
+\definition Chart: \Set := \Cast[Charts.Chart] #charts{M.atlas};
+\definition member(chart: Chart): \In[Charts.Chart] #charts{M.atlas} chart := \bysub(Charts.Chart, #charts{M.atlas}, chart);
+\definition Family(k: N.Nat^): \Set := \forall (chart: Chart) -> Euclidean.LocalForm #image{chart} k;
+\module Pair(left, right: Chart);
+\definition Compatible(k: N.Nat^)(omega: Family k): \Prop := \forall (left, right: Chart) -> Pair[left := left, right := right].Agreement k omega;
+\definition Form(k: N.Nat^): \Set := \Cast[Family k] ({ omega: Family k \where Compatible k omega });
+\definition ext: \forall (k: N.Nat^)(omega, eta: Form k) -> (\forall (chart: Chart) -> omega chart = eta chart) -> omega = eta :=
+  \fun (k: N.Nat^)(omega, eta: Form k)(same: \forall (chart: Chart) -> omega chart = eta chart) => \axiom:funext(omega, eta, same);
+\module Local(chart: Chart, k: N.Nat^) {
+  \import Euclidean.On[U := #image{chart}].At[k := k] \as Forms;
+  \import Spaces.Laws[V := Euclidean.LocalForm #image{chart} k, space := Forms.space] \as Laws;
+  \definition zero: Euclidean.LocalForm #image{chart} k := Forms.zero;
+  \definition plus: Euclidean.LocalForm #image{chart} k -> Euclidean.LocalForm #image{chart} k -> Euclidean.LocalForm #image{chart} k := Forms.plus;
+  \definition scale: Reals.Real -> Euclidean.LocalForm #image{chart} k -> Euclidean.LocalForm #image{chart} k := Forms.scale;
+  \definition negative: Euclidean.LocalForm #image{chart} k -> Euclidean.LocalForm #image{chart} k := #neg{Forms.space};
+}
+\module FamilySpace(k: N.Nat^);
+\module At(k: N.Nat^);
+\module Above(k: N.Nat^);
+\module Wedge(p, q: N.Nat^);
+
+\module Regrade(k, l: N.Nat^);
+\module RegradeIdentity(k: N.Nat^);
+\module Associativity(p, q, r: N.Nat^);
+\module GradedCommutativity(p, q: N.Nat^);
+\definition unitFamily: Family N.Nat^::zero := \fun (chart: Chart) => Euclidean.On[U := #image{chart}].unit;
+\definition unitCompatible: Compatible N.Nat^::zero unitFamily := \fun (left, right: Chart) => \axiom:funext(
+  Pair[left := left, right := right].restrict N.Nat^::zero unitFamily, Pair[left := left, right := right].transport N.Nat^::zero unitFamily,
+  \fun (x: Open.Carrier Charts.Transition[left := left, right := right].domain) => \axiom:funext(
+    Pair[left := left, right := right].restrict N.Nat^::zero unitFamily x, Pair[left := left, right := right].transport N.Nat^::zero unitFamily x,
+    \fun (arguments: std.Data[].FinSet[].Fin N.Nat^::zero -> Reals.Multivariable[n := n].Point) => \refl(Spaces.one)));
+\definition unit: Form N.Nat^::zero := \into[Family N.Nat^::zero](unitFamily, { omega: Family N.Nat^::zero \where Compatible N.Nat^::zero omega }) \by { unitCompatible };
+\module UnitLaws(k: N.Nat^);
+\import manifolds.Tangent[n := n].On[M := M] \as Tangent;
+\definition PointForm(k: N.Nat^)(x: M.Point): \Set := Spaces.Multilinear[V := Tangent.Vector x, space := Tangent.space x].Alternating[].Form k;
+\definition PointFamily(k: N.Nat^): \Set := \forall (x: M.Point) -> PointForm k x;
+\module Pointwise(k: N.Nat^);
+
+\module ExteriorDerivative(k: N.Nat^);
+\module Square(k: N.Nat^);
+\module Leibniz(p, q: N.Nat^);
+\module DegreeZero;
+\module DeRham;

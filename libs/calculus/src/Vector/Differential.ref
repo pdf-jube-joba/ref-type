@@ -1,0 +1,63 @@
+\definition Radii(epsilon: Reals.Real): \Set := \forall (j: Fin.Fin m) -> \Cast[Reals.Real]
+  ({ delta: Reals.Real \where Scalars.DifferentialControl[U, component U f j, a, row d j, epsilon, delta] });
+\definition choose: \forall (epsilon: Reals.Real) -> R.Lt Reals.zero epsilon -> HasDifferentialAt U f a d -> \exists Radii epsilon :=
+  \fun (epsilon: Reals.Real)(positive: _)(differential: _) => \axiom:classicalIndefiniteChoice(Fin.Fin m,
+    (\fun (j: Fin.Fin m) => \Cast[Reals.Real] ({ delta: Reals.Real \where Scalars.DifferentialControl[U, component U f j, a, row d j, epsilon, delta] })),
+    \fun (j: Fin.Fin m) => differential j epsilon positive);
+\definition uniform: HasDifferentialAt U f a d -> \forall (epsilon: Reals.Real) -> R.Lt Reals.zero epsilon ->
+  \exists { delta: Reals.Real \where Control[U, f, a, d, epsilon, delta] } := \block {
+  \fun (differential: HasDifferentialAt U f a d)(epsilon: Reals.Real)(positive: _) \then
+  \takefrom radii: Radii epsilon \by choose epsilon positive differential \then
+  \let minimum: Reals.Real := Arithmetic.FiniteSums[].Bounds[].minimum m (\fun (j: Fin.Fin m) => radii j) \then
+  \let minimumPositive: R.Lt Reals.zero minimum := Arithmetic.FiniteSums[].Bounds[].positive m (\fun (j: Fin.Fin m) => radii j)
+    (\fun (j: Fin.Fin m) => #positive{(\bysub(Reals.Real, { delta: Reals.Real \where Scalars.DifferentialControl[U, component U f j, a, row d j, epsilon, delta] }, radii j))}) \then
+  \return \exact(\into[Reals.Real](minimum, { delta: Reals.Real \where Control[U, f, a, d, epsilon, delta] }) \by {
+    Control[U, f, a, d, epsilon, minimum] {
+      positive := minimumPositive,
+      estimate := \fun (x: Source.Carrier U)(nonzero: R.Lt Reals.zero (DomainCoordinates.pointDistance x a))(near: _) =>
+        CodomainNorm.finiteStrictUpper m (remainder U f a d x) (Reals.mul epsilon (DomainCoordinates.pointDistance x a))
+          (Product.mulPositive epsilon (DomainCoordinates.pointDistance x a) positive nonzero)
+          (\fun (j: Fin.Fin m) => #estimate{(\bysub(Reals.Real,
+            { delta: Reals.Real \where Scalars.DifferentialControl[U, component U f j, a, row d j, epsilon, delta] }, radii j))} x nonzero
+            (R.ltLeTrans (DomainCoordinates.pointDistance x a) minimum (radii j) near
+              (Arithmetic.FiniteSums[].Bounds[].coordinate m (\fun (j: Fin.Fin m) => radii j) j))),
+    }
+  }, \Cast[Reals.Real] ({ delta: Reals.Real \where Control[U, f, a, d, epsilon, delta] }))
+};
+\definition localBound: HasDifferentialAt U f a d -> \exists { delta: Reals.Real \where LocalBound[U, f, a, d, delta] } := \block {
+  \fun (differential: HasDifferentialAt U f a d) \then
+  \takefrom delta: \Cast[Reals.Real] ({ r: Reals.Real \where Control[U, f, a, d, Reals.one, r] }) \by uniform differential Reals.one Product.onePositive \then
+  \let control: Control[U, f, a, d, Reals.one, delta] := \bysub(Reals.Real, { r: Reals.Real \where Control[U, f, a, d, Reals.one, r] }, delta) \then
+  \return \exact(\into[Reals.Real](delta, { r: Reals.Real \where LocalBound[U, f, a, d, r] }) \by {
+    LocalBound[U, f, a, d, delta] {
+      positive := #positive{control},
+      estimate := \block {
+        \fun (x: Source.Carrier U)(nonzero: _)(near: _) \then
+        \let h: Domain.Point := DomainCoordinates.subPoint x a \then
+        \let r: Reals.Real := DomainCoordinates.norm h \then
+        \let k: Codomain.Point := CodomainCoordinates.subPoint (f x) (f a) \then
+        \let e: Codomain.Point := remainder U f a d x \then
+        \let image: Codomain.Point := #apply{d} h \then
+        \let expansion: CodomainCoordinates.addPoint e image = k := \axiom:funext(CodomainCoordinates.addPoint e image, k,
+          \fun (j: Fin.Fin m) => Metric.subAddCancel (k j) (image j)) \then
+        \let error: R.Le (CodomainCoordinates.norm e) r := R.Order[].leOfLt (CodomainCoordinates.norm e) r
+          (R.ltReplaceRight (CodomainCoordinates.norm e) (Reals.mul Reals.one r) r (Laws.fieldMulOneLeft r) (#estimate{control} x nonzero near)) \then
+        \let factorization: Reals.add r (Reals.mul (coefficient d) r) = Reals.mul (localCoefficient d) r :=
+          trans!{Reals.Real} (Reals.add r (Reals.mul (coefficient d) r)) (Reals.add (Reals.mul Reals.one r) (Reals.mul (coefficient d) r)) (Reals.mul (localCoefficient d) r)
+            (congr!{Reals.Real Reals.Real} (\fun (s: Reals.Real) => Reals.add s (Reals.mul (coefficient d) r)) r (Reals.mul Reals.one r)
+              (sym!{Reals.Real} (Reals.mul Reals.one r) r (Laws.fieldMulOneLeft r)))
+            (trans!{Reals.Real} (Reals.add (Reals.mul Reals.one r) (Reals.mul (coefficient d) r)) (Reals.mul (Reals.add Reals.one (coefficient d)) r) (Reals.mul (localCoefficient d) r)
+              (sym!{Reals.Real} (Reals.mul (Reals.add Reals.one (coefficient d)) r) (Reals.add (Reals.mul Reals.one r) (Reals.mul (coefficient d) r)) (Arithmetic.Algebra[].mulAddRight Reals.one (coefficient d) r))
+              (congr!{Reals.Real Reals.Real} (\fun (s: Reals.Real) => Reals.mul s r) (Reals.add Reals.one (coefficient d)) (localCoefficient d) (Laws.addComm Reals.one (coefficient d)))) \then
+        \return R.leReplaceRight (CodomainCoordinates.norm k) (Reals.add r (Reals.mul (coefficient d) r)) (Reals.mul (localCoefficient d) r) factorization
+          (R.leTrans (CodomainCoordinates.norm k) (Reals.add (CodomainCoordinates.norm e) (CodomainCoordinates.norm image)) (Reals.add r (Reals.mul (coefficient d) r))
+            (R.leReplaceLeft (CodomainCoordinates.norm (CodomainCoordinates.addPoint e image)) (CodomainCoordinates.norm k) (Reals.add (CodomainCoordinates.norm e) (CodomainCoordinates.norm image))
+              (congr!{Codomain.Point Reals.Real} CodomainCoordinates.norm _ _ expansion) (CodomainNorm.triangle e image))
+            (Bounds.addLe (CodomainCoordinates.norm e) (CodomainCoordinates.norm image) r (Reals.mul (coefficient d) r) error (normBound d h)))
+      },
+    }
+  }, \Cast[Reals.Real] ({ r: Reals.Real \where LocalBound[U, f, a, d, r] }))
+};
+\module Compare(e: LinearMap);
+\definition uniqueness: \forall (e: LinearMap) -> HasDifferentialAt U f a d -> HasDifferentialAt U f a e -> d = e :=
+  \fun (e: LinearMap)(left: _)(right: _) => Compare[e := e].law left right;

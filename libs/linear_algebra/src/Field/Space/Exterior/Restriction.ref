@@ -1,0 +1,26 @@
+\definition linear: \forall (f: Series) -> SeriesLinear.Linear f -> Multilinear.Laws[k, restriction k f] :=
+  \fun (f: Series)(laws: SeriesLinear.Linear f) => Multilinear.Laws[k, restriction k f] {
+    addition := \fun (arguments: Multilinear.Arguments k)(i: Fin.Fin k)(x, y: V) => eq_reason!{
+      {restriction k f (Multilinear.update k arguments i (#add{space} x y))}
+      "=" {f (Replacement.apply (TuplesList.list k arguments) i (#add{space} x y))} "by" {congr!{{Lists.List[V]} K} f _ _ (ArgumentsList.updateList k arguments i (#add{space} x y))}
+      "=" {add (f (Replacement.apply (TuplesList.list k arguments) i x)) (f (Replacement.apply (TuplesList.list k arguments) i y))} "by" {
+        #addition{laws} (TuplesList.list k arguments) i (\idelim k = Lists.length V (TuplesList.list k arguments) \with n: N.Nat^ => NatLaws.Lt i n
+          \by { base: Fin.bound k i, equality: sym!{{N.Nat^}} _ _ (TuplesList.listLength k arguments) }) x y}
+      "=" {add (restriction k f (Multilinear.update k arguments i x)) (restriction k f (Multilinear.update k arguments i y))} "by" {congr2!{K K K} add _ _ _ _
+        (sym!{K} _ _ (congr!{{Lists.List[V]} K} f _ _ (ArgumentsList.updateList k arguments i x)))
+        (sym!{K} _ _ (congr!{{Lists.List[V]} K} f _ _ (ArgumentsList.updateList k arguments i y)))}
+    },
+    scalar := \fun (arguments: Multilinear.Arguments k)(i: Fin.Fin k)(a: K)(x: V) => eq_reason!{
+      {restriction k f (Multilinear.update k arguments i (#smul{space} a x))}
+      "=" {f (Replacement.apply (TuplesList.list k arguments) i (#smul{space} a x))} "by" {congr!{{Lists.List[V]} K} f _ _ (ArgumentsList.updateList k arguments i (#smul{space} a x))}
+      "=" {mul a (f (Replacement.apply (TuplesList.list k arguments) i x))} "by" {
+        #scalar{laws} (TuplesList.list k arguments) i (\idelim k = Lists.length V (TuplesList.list k arguments) \with n: N.Nat^ => NatLaws.Lt i n
+          \by { base: Fin.bound k i, equality: sym!{{N.Nat^}} _ _ (TuplesList.listLength k arguments) }) a x}
+      "=" {mul a (restriction k f (Multilinear.update k arguments i x))} "by" {congr!{K K} (mul a) _ _
+        (sym!{K} _ _ (congr!{{Lists.List[V]} K} f _ _ (ArgumentsList.updateList k arguments i x)))}
+    },
+  };
+\definition form(f: Series)(multilinear: SeriesLinear.Linear f)(alternating: SeriesAlternation.Laws[f]): Form k :=
+  \into[Multilinear.Function k](restriction k f, Form k) \by {
+    Alternating.AlternatingLaws[k, restriction k f] { linear := linear f multilinear, alternating := restrictionAlternating k f alternating }
+  };

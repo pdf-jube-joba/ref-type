@@ -1,0 +1,39 @@
+\import \parent.\parent.Laws[V := V, space := space] \as Laws;
+\definition Carrier: \Set := \Cast[V] (#carrier{subspace});
+\definition origin: Carrier := \into[V](#zero{space}, #carrier{subspace}) \by { #containsZero{subspace} };
+\definition plus(x, y: Carrier): Carrier := \into[V](#add{space} x y, #carrier{subspace}) \by {
+  #closedAdd{subspace} x y (\bysub(V, #carrier{subspace}, x)) (\bysub(V, #carrier{subspace}, y))
+};
+\definition scale(a: K) (x: Carrier): Carrier := \into[V](#smul{space} a x, #carrier{subspace}) \by {
+  #closedScale{subspace} a x (\bysub(V, #carrier{subspace}, x))
+};
+\definition negative(x: Carrier): Carrier := \into[V](#neg{space} x, #carrier{subspace}) \by {
+  \idelim #smul{space} (neg one) x = #neg{space} x
+    \with y: V => Member subspace y
+    \by { base: #closedScale{subspace} (neg one) x (\bysub(V, #carrier{subspace}, x)), equality: Laws.minusOneScale x }
+};
+\definition induced: VectorSpace Carrier := Ring.RingModule[K, Carrier, ring] {
+  zero := origin, add := plus, neg := negative, smul := scale,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# origin plus negative)] {
+    group := Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# origin plus negative] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# origin plus] {
+        leftIdentity := \fun (x: Carrier) => Laws.zeroLeft x,
+        rightIdentity := \fun (x: Carrier) => Laws.zeroRight x,
+        associative := \fun (x, y, z: Carrier) => Laws.assoc x y z,
+      },
+      leftInverse := \fun (x: Carrier) => Laws.inverseLeft x,
+      rightInverse := \fun (x: Carrier) => trans!{V} _ _ _ (Laws.comm x (#neg{space} x)) (Laws.inverseLeft x),
+    },
+    commutative := \fun (x, y: Carrier) => Laws.comm x y,
+  },
+  scalarOne := \fun (x: Carrier) => #scalarOne{space} x,
+  scalarAssoc := \fun (a, b: K) (x: Carrier) => #scalarAssoc{space} a b x,
+  scalarAdd := \fun (a, b: K) (x: Carrier) => #scalarAdd{space} a b x,
+  vectorAdd := \fun (a: K) (x, y: Carrier) => #vectorAdd{space} a x y,
+};
+\import \parent.\parent.Linear[V := Carrier, W := V, source := induced, target := space] \as Into;
+\definition inclusion: Into.Map := Into.Map {
+  apply := \fun (x: Carrier) => x,
+  preservesAdd := \fun (x, y: Carrier) => \refl(#add{space} x y),
+  preservesScale := \fun (a: K) (x: Carrier) => \refl(#smul{space} a x),
+};

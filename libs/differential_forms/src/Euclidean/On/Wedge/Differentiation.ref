@@ -1,0 +1,64 @@
+\definition termEquality: \forall (split: Shuffle.Split) -> termFunction omega eta split = Functions.scale #weight{split}
+  (Functions.product (LeftSeries.function omega #left{split}) (RightSeries.function eta #right{split})) :=
+  \fun (split: Shuffle.Split) => Functions.ext (termFunction omega eta split)
+    (Functions.scale #weight{split} (Functions.product (LeftSeries.function omega #left{split}) (RightSeries.function eta #right{split})))
+    (\fun (x: Open.Carrier U) => \refl(term omega eta split x));
+\definition termDerivative: \forall (split: Shuffle.Split) -> Derivatives.derivative U (termFunction omega eta split) i =
+  Functions.plus (termFunction (LeftPartial.apply i omega) eta split) (termFunction omega (RightPartial.apply i eta) split) := \block {
+  \fun (split: Shuffle.Split) \then
+  \let f: Functions.Function := LeftSeries.function omega #left{split} \then
+  \let g: Functions.Function := RightSeries.function eta #right{split} \then
+  \let df: Functions.Function := Derivatives.derivative U f i \then
+  \let dg: Functions.Function := Derivatives.derivative U g i \then
+  \let a: Reals.Real := #weight{split} \then
+  \return eq_reason!{
+    {Derivatives.derivative U (termFunction omega eta split) i}
+    "=" {Derivatives.derivative U (Functions.scale a (Functions.product f g)) i} "by" {
+      congr!{{Functions.Function} {Functions.Function}} (\fun (h: Functions.Function) => Derivatives.derivative U h i) _ _ (termEquality split)}
+    "=" {Functions.scale a (Derivatives.derivative U (Functions.product f g) i)} "by" {ScalarDifferentiation.scalar i a (Functions.product f g)}
+    "=" {Functions.scale a (Functions.plus (Functions.product df g) (Functions.product f dg))} "by" {
+      congr!{{Functions.Function} {Functions.Function}} (Functions.scale a) _ _ (ScalarDifferentiation.product i f g)}
+    "=" {Functions.plus (termFunction (LeftPartial.apply i omega) eta split) (termFunction omega (RightPartial.apply i eta) split)} "by" {
+      Functions.ext (Functions.scale a (Functions.plus (Functions.product df g) (Functions.product f dg)))
+        (Functions.plus (termFunction (LeftPartial.apply i omega) eta split) (termFunction omega (RightPartial.apply i eta) split))
+        (\fun (x: Open.Carrier U) => trans!{{Reals.Real}} _ _ _
+          (congr!{{Reals.Real} {Reals.Real}} (Spaces.mul a) _ _
+            (congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add _ _ _ _
+              (congr!{{Reals.Real} {Reals.Real}} (\fun (v: Reals.Real) => Spaces.mul v (g x)) _ _
+                (congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => h x) _ _ (sym!{{Functions.Function}} _ _ (LeftSeries.derivative i omega #left{split}))))
+              (congr!{{Reals.Real} {Reals.Real}} (Spaces.mul (f x)) _ _
+                (congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => h x) _ _ (sym!{{Functions.Function}} _ _ (RightSeries.derivative i eta #right{split}))))))
+          (Spaces.mulAdd a (Spaces.mul (LeftSeries.value (LeftPartial.apply i omega) #left{split} x) (g x))
+            (Spaces.mul (f x) (RightSeries.value (RightPartial.apply i eta) #right{split} x))))
+    }
+  }
+};
+\definition evaluationDerivative: \forall (arguments: Multilinear.Arguments (Nat.add p q)) ->
+  evaluate (Nat.add p q) (ResultPartial.apply i (apply omega eta)) arguments =
+    Functions.plus (evaluate (Nat.add p q) (apply (LeftPartial.apply i omega) eta) arguments)
+      (evaluate (Nat.add p q) (apply omega (RightPartial.apply i eta)) arguments) := \block {
+  \fun (arguments: Multilinear.Arguments (Nat.add p q)) \then
+  \let splits: Lists.List[Shuffle.Split] := Shuffle.partitions (TuplesList.list (Nat.add p q) arguments) \then
+  \let f: Shuffle.Split -> Functions.Function := termFunction (LeftPartial.apply i omega) eta \then
+  \let g: Shuffle.Split -> Functions.Function := termFunction omega (RightPartial.apply i eta) \then
+  \return eq_reason!{
+    {evaluate (Nat.add p q) (ResultPartial.apply i (apply omega eta)) arguments}
+    "=" {Derivatives.derivative U (evaluate (Nat.add p q) (apply omega eta) arguments) i} "by" {ResultPartial.evaluation i (apply omega eta) arguments}
+    "=" {Derivatives.derivative U (Sums.function splits (termFunction omega eta)) i} "by" {
+      congr!{{Functions.Function} {Functions.Function}} (\fun (h: Functions.Function) => Derivatives.derivative U h i) _ _ (evaluation omega eta arguments)}
+    "=" {Sums.function splits (\fun (split: Shuffle.Split) => Derivatives.derivative U (termFunction omega eta split) i)} "by" {Sums.derivative i splits (termFunction omega eta)}
+    "=" {Sums.function splits (\fun (split: Shuffle.Split) => Functions.plus (f split) (g split))} "by" {
+      Sums.congruent splits (\fun (split: Shuffle.Split) => Derivatives.derivative U (termFunction omega eta split) i)
+        (\fun (split: Shuffle.Split) => Functions.plus (f split) (g split)) termDerivative}
+    "=" {Functions.plus (Sums.function splits f) (Sums.function splits g)} "by" {Sums.addition splits f g}
+    "=" {Functions.plus (evaluate (Nat.add p q) (apply (LeftPartial.apply i omega) eta) arguments)
+      (evaluate (Nat.add p q) (apply omega (RightPartial.apply i eta)) arguments)} "by" {
+      congr2!{{Functions.Function} {Functions.Function} {Functions.Function}} Functions.plus _ _ _ _
+        (sym!{{Functions.Function}} _ _ (evaluation (LeftPartial.apply i omega) eta arguments))
+        (sym!{{Functions.Function}} _ _ (evaluation omega (RightPartial.apply i eta) arguments))}
+  }
+};
+\definition law: ResultPartial.apply i (apply omega eta) = Result.plus (apply (LeftPartial.apply i omega) eta) (apply omega (RightPartial.apply i eta)) :=
+  ext (Nat.add p q) (ResultPartial.apply i (apply omega eta)) (Result.plus (apply (LeftPartial.apply i omega) eta) (apply omega (RightPartial.apply i eta)))
+    (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments (Nat.add p q)) =>
+      congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => h x) _ _ (evaluationDerivative arguments));

@@ -1,0 +1,43 @@
+\definition cochainForward: Forward.Map := forward;
+\definition cochainBackward: Backward.Map := backward;
+\import Complexes.At[C := complex, k := k] \as Source;
+\import Complexes.At[C := Global.DeRham[].complex, k := k] \as Target;
+\import Forward.At[k := k] \as ForwardH;
+\import Backward.At[k := k] \as BackwardH;
+\import \parent.\parent.At[k := k] \as Forms;
+\import Spaces.Linear[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace] \as ForwardMaps;
+\import Spaces.Linear[V := Target.Cohomology, W := Source.Cohomology, source := Target.cohomologySpace, target := Source.cohomologySpace] \as BackwardMaps;
+\definition forward: ForwardMaps.Map := ForwardMaps.Map {
+  apply := #apply{(ForwardH.induced cochainForward)},
+  preservesAdd := #addition{(ForwardH.induced cochainForward)},
+  preservesScale := #scalar{(ForwardH.induced cochainForward)},
+};
+\definition backward: BackwardMaps.Map := BackwardMaps.Map {
+  apply := #apply{(BackwardH.induced cochainBackward)},
+  preservesAdd := #addition{(BackwardH.induced cochainBackward)},
+  preservesScale := #scalar{(BackwardH.induced cochainBackward)},
+};
+\definition leftInverse: \forall (h: Source.Cohomology) -> #apply{backward} (#apply{forward} h) = h :=
+  Source.classInduction (\fun (h: Source.Cohomology) => #apply{backward} (#apply{forward} h) = h)
+    (\fun (omega: Source.CycleCarrier) => trans!{{Source.Cohomology}} _
+      (#apply{backward} (Target.classOf (#apply{(ForwardH.cyclesMap cochainForward)} omega))) _
+      (congr!{{Target.Cohomology} {Source.Cohomology}} (#apply{backward}) _ _ (ForwardH.onClass cochainForward omega))
+      (trans!{{Source.Cohomology}} _ (Source.classOf (#apply{(BackwardH.cyclesMap cochainBackward)} (#apply{(ForwardH.cyclesMap cochainForward)} omega))) _
+        (BackwardH.onClass cochainBackward (#apply{(ForwardH.cyclesMap cochainForward)} omega))
+        (congr!{{Source.CycleCarrier} {Source.Cohomology}} Source.classOf
+          (#apply{(BackwardH.cyclesMap cochainBackward)} (#apply{(ForwardH.cyclesMap cochainForward)} omega))
+          omega (Forms.leftInverse omega))));
+\definition rightInverse: \forall (h: Target.Cohomology) -> #apply{forward} (#apply{backward} h) = h :=
+  Target.classInduction (\fun (h: Target.Cohomology) => #apply{forward} (#apply{backward} h) = h)
+    (\fun (omega: Target.CycleCarrier) => trans!{{Target.Cohomology}} _
+      (#apply{forward} (Source.classOf (#apply{(BackwardH.cyclesMap cochainBackward)} omega))) _
+      (congr!{{Source.Cohomology} {Target.Cohomology}} (#apply{forward}) _ _ (BackwardH.onClass cochainBackward omega))
+      (trans!{{Target.Cohomology}} _ (Target.classOf (#apply{(ForwardH.cyclesMap cochainForward)} (#apply{(BackwardH.cyclesMap cochainBackward)} omega))) _
+        (ForwardH.onClass cochainForward (#apply{(BackwardH.cyclesMap cochainBackward)} omega))
+        (congr!{{Target.CycleCarrier} {Target.Cohomology}} Target.classOf
+          (#apply{(ForwardH.cyclesMap cochainForward)} (#apply{(BackwardH.cyclesMap cochainBackward)} omega))
+          omega (Forms.rightInverse omega))));
+\import Spaces.Isomorphism[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace] \as Isomorphism;
+\definition isomorphism: Isomorphism.Isomorphism := Isomorphism.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};

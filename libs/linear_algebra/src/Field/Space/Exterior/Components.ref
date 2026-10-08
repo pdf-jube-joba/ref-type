@@ -1,0 +1,20 @@
+\import Multilinear.ListSeries[k := k] \as Base;
+\import Alternating.At[k := k] \as Forms;
+\definition addition: \forall (f, g: Form k)(xs: Lists.List[V]) -> component k (Forms.plus f g) xs = add (component k f xs) (component k g xs) :=
+  \fun (f, g: Form k)(xs: Lists.List[V]) => trans!{K} _ _ _
+    (Base.congruent (Forms.plus f g) (\fun (arguments: Multilinear.Arguments k) => add (f arguments) (g arguments)) (\fun (arguments: Multilinear.Arguments k) => \refl(add (f arguments) (g arguments))) xs)
+    (Base.addition f g xs);
+\definition scalar: \forall (a: K)(f: Form k)(xs: Lists.List[V]) -> component k (Forms.scale a f) xs = mul a (component k f xs) :=
+  \fun (a: K)(f: Form k)(xs: Lists.List[V]) => trans!{K} _ _ _
+    (Base.congruent (Forms.scale a f) (\fun (arguments: Multilinear.Arguments k) => mul a (f arguments)) (\fun (arguments: Multilinear.Arguments k) => \refl(mul a (f arguments))) xs)
+    (Base.scalar a f xs);
+\definition ext: \forall (f, g: Form k) -> component k f = component k g -> f = g :=
+  \fun (f, g: Form k)(equal: component k f = component k g) => Forms.ext f g (\fun (arguments: Multilinear.Arguments k) => trans!{K} _ _ _
+    (sym!{K} _ _ (Base.onArguments f arguments))
+    (trans!{K} _ _ _ (congr!{Series K} (\fun (h: Series) => h (TuplesList.list k arguments)) _ _ equal) (Base.onArguments g arguments)));
+\import \parent.\parent.Laws[V := Form k, space := Forms.vectorSpace] \as Laws;
+\import \parent.\parent.Laws[V := K, space := scalarSpace] \as Scalars;
+\definition negative: \forall (f: Form k)(xs: Lists.List[V]) -> component k (#neg{Forms.vectorSpace} f) xs = neg (component k f xs) :=
+  \fun (f: Form k)(xs: Lists.List[V]) => trans!{K} _ _ _
+    (congr!{{Form k} K} (\fun (g: Form k) => component k g xs) _ _ (sym!{{Form k}} _ _ (Laws.minusOneScale f)))
+    (trans!{K} _ _ _ (scalar (neg one) f xs) (Scalars.minusOneScale (component k f xs)));

@@ -1,0 +1,65 @@
+\import \parent.Def[] \as Def;
+
+\definition NatPair: \Set := Def.NatPair;
+
+\import std.Program[] \as ProgramBundles;
+\import std.Data[].Bool[] \as B;
+\import std.Data[].Pair[] \as P;
+
+\inductive PairIterState: \VType :=
+| running: \U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]) -> P.Times[Nat, Nat] -> Nat -> PairIterState
+;
+
+\module PairIterLoopImplementation {
+  \definition State: \VType := PairIterState;
+
+  \definition Output: \VType := P.Times[Nat, Nat];
+
+  \definition step: \U(State ~> \F(\RunStep[State, Output])) := \thunk(\cfun (state: PairIterState) => \match state \in PairIterState \with {
+      | running f value count : \match count \in Nat \with {
+        | zero : \return(\finish[PairIterState, P.Times[Nat, Nat]](value))
+        | succ k : \program {
+          \bind next: P.Times[Nat, Nat] <- (\force f) value \then
+          \return \continue[PairIterState, P.Times[Nat, Nat]](PairIterState::running f next k)
+        }
+      }
+    });
+
+  \import std.Logic[].Termination[State := PairIterState^, Output := NatPair,
+      step := step^] \as Termination;
+
+  \definition terminates: \forall (count: Nat^) (f: NatPair -> NatPair) (value: NatPair) ->
+      Termination.Holds (PairIterState^::running f value count) :=
+      \induction (count: Nat^) \return \forall (f: NatPair -> NatPair) (value: NatPair) ->
+        Termination.Holds (PairIterState^::running f value count) \with {
+        | zero: \fun (f: NatPair -> NatPair) (value: NatPair) =>
+          Termination.intro (PairIterState^::running f value Nat^::zero) Termination.trivial
+        | succ: \fun (k: Nat^) (ih: _) (f: NatPair -> NatPair) (value: NatPair) =>
+          Termination.intro (PairIterState^::running f value (Nat^::succ k)) (ih f (f value))
+      };
+
+  \definition certificate: \forall (s: State^) -> ProgramBundles.Terminates State^ Output^ step^ s := \induction (s: PairIterState^) \return
+      Termination.Holds s \with {
+        | running: \fun (f: NatPair -> NatPair) (value: NatPair) (count: Nat^) => terminates count f value
+      };
+}
+
+\import .PairIterLoopImplementation[] \as PairIterLoopParts;
+
+\definition PairIterLoop: ProgramBundles.Machine := ProgramBundles.Machine {
+  State := PairIterLoopParts.State,
+  Output := PairIterLoopParts.Output,
+  step := PairIterLoopParts.step,
+  terminates := PairIterLoopParts.certificate,
+};
+
+\definition pairIter: \U(\U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]) -> P.Times[Nat, Nat] -> Nat -> P.Times[Nat, Nat]) :=
+  \fun (f: \U(P.Times[Nat, Nat] -> P.Times[Nat, Nat])) =>
+      \fun (value: P.Times[Nat, Nat]) =>
+        \fun (count: Nat) =>
+          (\force PairIterLoop.run) (PairIterState::running f value count);
+
+\definition pairChoose: \U(B.Bool -> P.Times[Nat, Nat] -> P.Times[Nat, Nat] -> P.Times[Nat, Nat]) :=
+  \thunk (\fun (test: B.Bool) =>
+      \fun (yes, no: P.Times[Nat, Nat]) =>
+        \match test \in B.Bool \with { | false : \return no | true : \return yes });

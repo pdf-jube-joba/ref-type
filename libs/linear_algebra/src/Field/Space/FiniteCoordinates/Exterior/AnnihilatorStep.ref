@@ -1,0 +1,33 @@
+\import \parent.SeriesStep[k := k] \as Series;
+\definition law: Annihilation k -> Annihilation (N.Nat^::succ k) := \block {
+  \fun (previous: Annihilation k)(indices: Fin.Fin (N.Nat^::succ k) -> Fin.Fin n)(v: Coordinates.Vector)
+    (vanishing: \forall (i: Fin.Fin (N.Nat^::succ k)) -> v (indices i) = zero)(xs: Lists.List[Coordinates.Vector]) \then
+  \let f: Coordinates.Vector -> K := \fun (w: Coordinates.Vector) => w (indices (Fin.zero k)) \then
+  \let tail: Fin.Fin k -> Fin.Fin n := \fun (i: Fin.Fin k) => indices (Fin.succ k i) \then
+  \let g: Shuffle.Function := Product.component k (word k tail) \then
+  \let shifted: Shuffle.shift v g = Shuffle.origin := \axiom:funext(Shuffle.shift v g, Shuffle.origin,
+    previous tail v (\fun (i: Fin.Fin k) => vanishing (Fin.succ k i))) \then
+  \return eq_reason!{
+    {Product.component (N.Nat^::succ k) (word (N.Nat^::succ k) indices) (Lists.List[Coordinates.Vector]::cons v xs)}
+    "=" {Shuffle.product (Covectors.value f) g (Lists.List[Coordinates.Vector]::cons v xs)} "by" {
+      congr!{{Shuffle.Function} K} (\fun (series: Shuffle.Function) => series (Lists.List[Coordinates.Vector]::cons v xs))
+        (Product.component (N.Nat^::succ k) (word (N.Nat^::succ k) indices)) (Shuffle.product (Covectors.value f) g) (Series.series indices)}
+    "=" {add (Shuffle.product (Shuffle.shift v (Covectors.value f)) g xs) (Shuffle.product (Shuffle.twist (Covectors.value f)) (Shuffle.shift v g) xs)} "by" {
+      Shuffle.atCons v xs (Covectors.value f) g}
+    "=" {add (mul (f v) (g xs)) zero} "by" {
+      congr2!{K K K} add
+        (Shuffle.product (Shuffle.shift v (Covectors.value f)) g xs) (mul (f v) (g xs))
+        (Shuffle.product (Shuffle.twist (Covectors.value f)) (Shuffle.shift v g) xs) zero
+        (Covectors.leftProduct f g v xs)
+        (trans!{K} (Shuffle.product (Shuffle.twist (Covectors.value f)) (Shuffle.shift v g) xs)
+          (Shuffle.product (Shuffle.twist (Covectors.value f)) Shuffle.origin xs) zero
+          (congr!{{Shuffle.Function} K} (\fun (h: Shuffle.Function) => Shuffle.product (Shuffle.twist (Covectors.value f)) h xs)
+            (Shuffle.shift v g) Shuffle.origin shifted)
+          (Products.zeroRight (Shuffle.twist (Covectors.value f)) xs))}
+    "=" {add zero zero} "by" {
+      congr!{K K} (\fun (a: K) => add a zero) (mul (f v) (g xs)) zero
+        (trans!{K} (mul (f v) (g xs)) (mul zero (g xs)) zero
+          (congr!{K K} (\fun (a: K) => mul a (g xs)) (f v) zero (vanishing (Fin.zero k))) (mulZeroLeft (g xs)))}
+    "=" zero "by" {addZeroLeft zero}
+  }
+};

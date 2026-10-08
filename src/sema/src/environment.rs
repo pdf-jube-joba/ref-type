@@ -63,6 +63,7 @@ impl EnvironmentPlan {
                 .find_map(|length| graph.indices.get(&path[..length]))
                 .copied()
                 .expect("resolved module has a source scope");
+            let _time = timing::Scope::module(|| graph.units[index].path.clone());
             units.insert(module.id, index);
             let mut bytes = graph.units[index].local_key.to_vec();
             bytes

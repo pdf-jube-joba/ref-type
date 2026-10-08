@@ -1,0 +1,45 @@
+\import \parent.\parent.Multilinear[V := I, space := space] \as Multilinear;
+\import Lists.Replace[A := I] \as Replace;
+\import N.Basic[].Prop[] \as NatLaws;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import \parent.Laws[] \as ProductLaws;
+\definition Linear(f: Function): \Prop := Multilinear.SeriesLaws[f];
+\structure AtLaws[xs: Lists.List[I], f: Function]: \Prop {
+  addition: \forall (i: N.Nat^) -> NatLaws.Lt i (Lists.length I xs) -> \forall (x, y: I) ->
+    f (Replace.apply xs i (#add{space} x y)) = add (f (Replace.apply xs i x)) (f (Replace.apply xs i y)),
+  scalar: \forall (i: N.Nat^) -> NatLaws.Lt i (Lists.length I xs) -> \forall (a: K)(x: I) ->
+    f (Replace.apply xs i (#smul{space} a x)) = mul a (f (Replace.apply xs i x)),
+}
+\definition shiftedLinear: \forall (f: Function) -> Linear f -> \forall (head: I) -> Linear (shift head f) :=
+  \fun (f: Function)(linear: Linear f)(head: I) => Multilinear.SeriesLaws[shift head f] {
+    addition := \fun (xs: Lists.List[I])(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length I xs))(x, y: I) =>
+      #addition{linear} (Lists.List[I]::cons head xs) (N.Nat^::succ i) (NatLaws.ltSuccSucc i (Lists.length I xs) bound) x y,
+    scalar := \fun (xs: Lists.List[I])(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length I xs))(a: K)(x: I) =>
+      #scalar{linear} (Lists.List[I]::cons head xs) (N.Nat^::succ i) (NatLaws.ltSuccSucc i (Lists.length I xs) bound) a x,
+  };
+\definition twistReplacement: \forall (f: Function)(xs: Lists.List[I])(i: N.Nat^)(value: I) ->
+  twist f (Replace.apply xs i value) = mul (Sign.value (Lists.length I xs)) (f (Replace.apply xs i value)) :=
+  \fun (f: Function)(xs: Lists.List[I])(i: N.Nat^)(value: I) => congr!{K K}
+    (\fun (s: K) => mul s (f (Replace.apply xs i value))) (Sign.value (Lists.length I (Replace.apply xs i value))) (Sign.value (Lists.length I xs))
+      (congr!{{N.Nat^} K} Sign.value (Lists.length I (Replace.apply xs i value)) (Lists.length I xs) (Replace.lengthLaw xs i value));
+\module Twisted(f: Function);
+\definition twistedLinear: \forall (f: Function) -> Linear f -> Linear (twist f) :=
+  \fun (f: Function)(linear: Linear f) => Multilinear.SeriesLaws[twist f] { addition := Twisted[f := f].addition linear, scalar := Twisted[f := f].scalar linear };
+\module Head(xs: Lists.List[I]);
+\module Step(xs: Lists.List[I]);
+\definition linearEmpty: \forall (f, g: Function) -> Linear f -> Linear g -> AtLaws[Lists.List[I]::nil, product f g] :=
+  \fun (f, g: Function)(lf: Linear f)(lg: Linear g) => AtLaws[Lists.List[I]::nil, product f g] {
+    addition := \fun (i: N.Nat^)(bound: NatLaws.Lt i N.Nat^::zero)(x, y: I) => Logic.falseElim _ (Fin.zeroImpossible i bound),
+    scalar := \fun (i: N.Nat^)(bound: NatLaws.Lt i N.Nat^::zero)(a: K)(x: I) => Logic.falseElim _ (Fin.zeroImpossible i bound),
+  };
+\definition linearAt: \forall (xs: Lists.List[I])(f, g: Function) -> Linear f -> Linear g -> AtLaws[xs, product f g] :=
+  \induction (xs: Lists.List[I]) \return \forall (f, g: Function) -> Linear f -> Linear g -> AtLaws[xs, product f g] \with {
+    | nil: linearEmpty
+    | cons: \fun (head: I)(xs: Lists.List[I])(previous: \forall (f, g: Function) -> Linear f -> Linear g -> AtLaws[xs, product f g]) => Step[xs := xs].law previous head
+  };
+\definition linear: \forall (f, g: Function) -> Linear f -> Linear g -> Linear (product f g) :=
+  \fun (f, g: Function)(lf: Linear f)(lg: Linear g) => Multilinear.SeriesLaws[product f g] {
+    addition := \fun (xs: Lists.List[I]) => #addition{(linearAt xs f g lf lg)},
+    scalar := \fun (xs: Lists.List[I]) => #scalar{(linearAt xs f g lf lg)},
+  };

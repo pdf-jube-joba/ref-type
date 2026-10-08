@@ -1,0 +1,144 @@
+\import std.Logic[].Relation[] \as Relation;
+\structure BilinearLaws[U: \Set, target: VectorSpace U, f: V -> W -> U]: \Prop {
+  addLeft: \forall (x, y: V) (z: W) -> f (#add{left} x y) z = #add{target} (f x z) (f y z),
+  addRight: \forall (x: V) (y, z: W) -> f x (#add{right} y z) = #add{target} (f x y) (f x z),
+  scaleLeft: \forall (a: K) (x: V) (y: W) -> f (#smul{left} a x) y = #smul{target} a (f x y),
+  scaleRight: \forall (a: K) (x: V) (y: W) -> f x (#smul{right} a y) = #smul{target} a (f x y),
+}
+\inductive Expression: \Set :=
+| zero: Expression
+| tensor: V -> W -> Expression
+| sum: Expression -> Expression -> Expression
+| negative: Expression -> Expression
+| scale: K -> Expression -> Expression
+;
+\definition evaluate(U: \Set) (target: VectorSpace U) (f: V -> W -> U): Expression -> U :=
+  \induction (expression: Expression) \return U \with {
+    | zero: #zero{target}
+    | tensor: \fun (x: V) (y: W) => f x y
+    | sum: \fun (x: Expression) (vx: U) (y: Expression) (vy: U) => #add{target} vx vy
+    | negative: \fun (x: Expression) (vx: U) => #neg{target} vx
+    | scale: \fun (a: K) (x: Expression) (vx: U) => #smul{target} a vx
+  };
+\definition Related(x, y: Expression): \Prop :=
+  \forall (U: \Set) (target: VectorSpace U) (f: V -> W -> U) -> BilinearLaws[U, target, f] ->
+    evaluate U target f x = evaluate U target f y;
+\definition equivalence: Relation.Equivalence[Expression, Related] := Relation.Equivalence[Expression, Related] {
+  refl := \fun (x: Expression) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (_: BilinearLaws[U, target, f]) => \refl(evaluate U target f x),
+  sym := \fun (x, y: Expression) (xy: Related x y) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (laws: _) => sym!{U} _ _ (xy U target f laws),
+  trans := \fun (x, y, z: Expression) (xy: Related x y) (yz: Related y z) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (laws: _) => trans!{U} _ _ _ (xy U target f laws) (yz U target f laws),
+};
+\definition sumRespects: \forall (x, y, u, v: Expression) -> Related x y -> Related u v -> Related (Expression::sum x u) (Expression::sum y v) :=
+  \fun (x, y, u, v: Expression) (xy: _) (uv: _) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (laws: _) =>
+    congr2!{U U U} (#add{target}) _ _ _ _ (xy U target f laws) (uv U target f laws);
+\definition negativeRespects: \forall (x, y: Expression) -> Related x y -> Related (Expression::negative x) (Expression::negative y) :=
+  \fun (x, y: Expression) (xy: _) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (laws: _) =>
+    congr!{U U} (#neg{target}) _ _ (xy U target f laws);
+\definition scaleRespects(a: K): \forall (x, y: Expression) -> Related x y -> Related (Expression::scale a x) (Expression::scale a y) :=
+  \fun (x, y: Expression) (xy: _) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (laws: _) =>
+    congr!{U U} (#smul{target} a) _ _ (xy U target f laws);
+\definition zeroRule: \forall (x: Expression) -> Related (Expression::sum Expression::zero x) x :=
+  \fun (x: Expression) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (_: _) =>
+    #leftIdentity{(#monoid{(#group{(#additive{target})})})} (evaluate U target f x);
+\definition associativeRule: \forall (x, y, z: Expression) -> Related (Expression::sum (Expression::sum x y) z) (Expression::sum x (Expression::sum y z)) :=
+  \fun (x, y, z: Expression) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (_: _) =>
+    #associative{(#monoid{(#group{(#additive{target})})})} (evaluate U target f x) (evaluate U target f y) (evaluate U target f z);
+\definition commutativeRule: \forall (x, y: Expression) -> Related (Expression::sum x y) (Expression::sum y x) :=
+  \fun (x, y: Expression) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (_: _) =>
+    #commutative{(#additive{target})} (evaluate U target f x) (evaluate U target f y);
+\definition inverseRule: \forall (x: Expression) -> Related (Expression::sum (Expression::negative x) x) Expression::zero :=
+  \fun (x: Expression) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (_: _) =>
+    #leftInverse{(#group{(#additive{target})})} (evaluate U target f x);
+\definition oneRule: \forall (x: Expression) -> Related (Expression::scale one x) x :=
+  \fun (x: Expression) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (_: _) => #scalarOne{target} (evaluate U target f x);
+\definition scalarAssocRule: \forall (a, b: K) (x: Expression) -> Related (Expression::scale (mul a b) x) (Expression::scale a (Expression::scale b x)) :=
+  \fun (a, b: K) (x: Expression) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (_: _) => #scalarAssoc{target} a b (evaluate U target f x);
+\definition scalarAddRule: \forall (a, b: K) (x: Expression) -> Related (Expression::scale (add a b) x) (Expression::sum (Expression::scale a x) (Expression::scale b x)) :=
+  \fun (a, b: K) (x: Expression) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (_: _) => #scalarAdd{target} a b (evaluate U target f x);
+\definition vectorAddRule: \forall (a: K) (x, y: Expression) -> Related (Expression::scale a (Expression::sum x y)) (Expression::sum (Expression::scale a x) (Expression::scale a y)) :=
+  \fun (a: K) (x, y: Expression) (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (_: _) => #vectorAdd{target} a (evaluate U target f x) (evaluate U target f y);
+\import std.Set[].Quotient[A := Expression, Equivalent := Related] \as Q;
+\import algebra.Quotient[A := Expression, relation := Related] \as Quotient;
+\import Quotient.Operations[] \as Operations;
+\definition Carrier: \Set := Q.Carrier;
+\definition class: Expression -> Carrier := Q.class;
+\definition origin: Carrier := class Expression::zero;
+\definition plus: Carrier -> Carrier -> Carrier := Operations.binary equivalence Expression::sum sumRespects;
+\definition negative: Carrier -> Carrier := Operations.unary equivalence Expression::negative negativeRespects;
+\definition scale(a: K): Carrier -> Carrier := Operations.unary equivalence (Expression::scale a) (scaleRespects a);
+\definition tensor(x: V) (y: W): Carrier := class (Expression::tensor x y);
+\definition plusClass: \forall (x, y: Expression) -> plus (class x) (class y) = class (Expression::sum x y) :=
+  Operations.binaryClass equivalence Expression::sum sumRespects;
+\definition negativeClass: \forall (x: Expression) -> negative (class x) = class (Expression::negative x) :=
+  Operations.unaryClass equivalence Expression::negative negativeRespects;
+\definition scaleClass: \forall (a: K) (x: Expression) -> scale a (class x) = class (Expression::scale a x) :=
+  \fun (a: K) => Operations.unaryClass equivalence (Expression::scale a) (scaleRespects a);
+\definition zeroLeft: \forall (x: Carrier) -> plus origin x = x := Operations.leftIdentity equivalence Expression::sum sumRespects Expression::zero zeroRule;
+\definition plusComm: \forall (x, y: Carrier) -> plus x y = plus y x := Operations.commutative equivalence Expression::sum sumRespects commutativeRule;
+\definition plusAssoc: \forall (x, y, z: Carrier) -> plus (plus x y) z = plus x (plus y z) := Operations.associative equivalence Expression::sum sumRespects associativeRule;
+\definition inverseLeft: \forall (x: Carrier) -> plus (negative x) x = origin := Operations.inverseLeft equivalence Expression::sum sumRespects Expression::negative negativeRespects Expression::zero inverseRule;
+\definition scaleOne: \forall (x: Carrier) -> scale one x = x :=
+  Q.induction (\fun (x: Carrier) => scale one x = x) (\fun (x: Expression) => trans!{Carrier} _ _ _
+    (scaleClass one x) (Quotient.classRelated equivalence _ _ (oneRule x)));
+\definition scaleAssoc: \forall (a, b: K) (x: Carrier) -> scale (mul a b) x = scale a (scale b x) :=
+  \fun (a, b: K) => Q.induction (\fun (x: Carrier) => scale (mul a b) x = scale a (scale b x))
+    (\fun (x: Expression) => eq_reason!{
+      {scale (mul a b) (class x)} "=" {class (Expression::scale (mul a b) x)} "by" {scaleClass (mul a b) x}
+      "=" {class (Expression::scale a (Expression::scale b x))} "by" {Quotient.classRelated equivalence _ _ (scalarAssocRule a b x)}
+      "=" {scale a (class (Expression::scale b x))} "by" {sym!{Carrier} _ _ (scaleClass a (Expression::scale b x))}
+      "=" {scale a (scale b (class x))} "by" {congr!{Carrier Carrier} (scale a) _ _ (sym!{Carrier} _ _ (scaleClass b x))}
+    });
+\definition scaleAdd: \forall (a, b: K) (x: Carrier) -> scale (add a b) x = plus (scale a x) (scale b x) :=
+  \fun (a, b: K) => Q.induction (\fun (x: Carrier) => scale (add a b) x = plus (scale a x) (scale b x))
+    (\fun (x: Expression) => eq_reason!{
+      {scale (add a b) (class x)} "=" {class (Expression::scale (add a b) x)} "by" {scaleClass (add a b) x}
+      "=" {class (Expression::sum (Expression::scale a x) (Expression::scale b x))} "by" {Quotient.classRelated equivalence _ _ (scalarAddRule a b x)}
+      "=" {plus (class (Expression::scale a x)) (class (Expression::scale b x))} "by" {sym!{Carrier} _ _ (plusClass _ _)}
+      "=" {plus (scale a (class x)) (scale b (class x))} "by" {congr2!{Carrier Carrier Carrier} plus _ _ _ _
+        (sym!{Carrier} _ _ (scaleClass a x)) (sym!{Carrier} _ _ (scaleClass b x))}
+    });
+\definition scalePlus: \forall (a: K) (x, y: Carrier) -> scale a (plus x y) = plus (scale a x) (scale a y) :=
+  \fun (a: K) => Q.induction (\fun (x: Carrier) => \forall (y: Carrier) -> scale a (plus x y) = plus (scale a x) (scale a y))
+    (\fun (x: Expression) => Q.induction (\fun (y: Carrier) => scale a (plus (class x) y) = plus (scale a (class x)) (scale a y))
+      (\fun (y: Expression) => eq_reason!{
+        {scale a (plus (class x) (class y))} "=" {scale a (class (Expression::sum x y))} "by" {congr!{Carrier Carrier} (scale a) _ _ (plusClass x y)}
+        "=" {class (Expression::scale a (Expression::sum x y))} "by" {scaleClass a (Expression::sum x y)}
+        "=" {class (Expression::sum (Expression::scale a x) (Expression::scale a y))} "by" {Quotient.classRelated equivalence _ _ (vectorAddRule a x y)}
+        "=" {plus (class (Expression::scale a x)) (class (Expression::scale a y))} "by" {sym!{Carrier} _ _ (plusClass _ _)}
+        "=" {plus (scale a (class x)) (scale a (class y))} "by" {congr2!{Carrier Carrier Carrier} plus _ _ _ _
+          (sym!{Carrier} _ _ (scaleClass a x)) (sym!{Carrier} _ _ (scaleClass a y))}
+      }));
+\definition space: VectorSpace Carrier := Ring.RingModule[K, Carrier, ring] {
+  zero := origin, add := plus, neg := negative, smul := scale,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# origin plus negative)] {
+    group := Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# origin plus negative] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# origin plus] {
+        leftIdentity := zeroLeft, rightIdentity := \fun (x: Carrier) => trans!{Carrier} _ _ _ (plusComm x origin) (zeroLeft x), associative := plusAssoc,
+      },
+      leftInverse := inverseLeft, rightInverse := \fun (x: Carrier) => trans!{Carrier} _ _ _ (plusComm x (negative x)) (inverseLeft x),
+    },
+    commutative := plusComm,
+  },
+  scalarOne := scaleOne, scalarAssoc := scaleAssoc, scalarAdd := scaleAdd, vectorAdd := scalePlus,
+};
+\definition bilinear: BilinearLaws[Carrier, space, tensor] := BilinearLaws[Carrier, space, tensor] {
+  addLeft := \fun (x, y: V) (z: W) => trans!{Carrier} _ _ _
+    (Quotient.classRelated equivalence (Expression::tensor (#add{left} x y) z)
+      (Expression::sum (Expression::tensor x z) (Expression::tensor y z))
+      (\fun (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) => #addLeft{laws} x y z))
+    (sym!{Carrier} _ _ (plusClass (Expression::tensor x z) (Expression::tensor y z))),
+  addRight := \fun (x: V) (y, z: W) => trans!{Carrier} _ _ _
+    (Quotient.classRelated equivalence (Expression::tensor x (#add{right} y z))
+      (Expression::sum (Expression::tensor x y) (Expression::tensor x z))
+      (\fun (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) => #addRight{laws} x y z))
+    (sym!{Carrier} _ _ (plusClass (Expression::tensor x y) (Expression::tensor x z))),
+  scaleLeft := \fun (a: K) (x: V) (y: W) => trans!{Carrier} _ _ _
+    (Quotient.classRelated equivalence (Expression::tensor (#smul{left} a x) y) (Expression::scale a (Expression::tensor x y))
+      (\fun (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) => #scaleLeft{laws} a x y))
+    (sym!{Carrier} _ _ (scaleClass a (Expression::tensor x y))),
+  scaleRight := \fun (a: K) (x: V) (y: W) => trans!{Carrier} _ _ _
+    (Quotient.classRelated equivalence (Expression::tensor x (#smul{right} a y)) (Expression::scale a (Expression::tensor x y))
+      (\fun (U: \Set) (target: VectorSpace U) (f: V -> W -> U) (laws: BilinearLaws[U, target, f]) => #scaleRight{laws} a x y))
+    (sym!{Carrier} _ _ (scaleClass a (Expression::tensor x y))),
+};
+\module Universal(U: \Set, target: VectorSpace U);

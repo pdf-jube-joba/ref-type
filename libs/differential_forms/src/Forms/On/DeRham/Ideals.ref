@@ -1,0 +1,18 @@
+\module Zero(p, q: N.Nat^);
+\module Step(p, q: N.Nat^);
+\definition LeftProperty(p: N.Nat^): \Prop := \forall (q: N.Nat^)(omega: Form p)(eta: Form q) ->
+  Exact p omega -> Closed q eta -> Exact (Nat.add p q) (\parent.\parent.Wedge[p := p, q := q].apply omega eta);
+\definition RightProperty(q: N.Nat^): \Prop := \forall (p: N.Nat^)(omega: Form p)(eta: Form q) ->
+  Closed p omega -> Exact q eta -> Exact (Nat.add p q) (\parent.\parent.Wedge[p := p, q := q].apply omega eta);
+\definition left: \forall (p: N.Nat^) -> LeftProperty p := \induction (p: N.Nat^) \return LeftProperty p \with {
+  | zero: \fun (q: N.Nat^)(omega: Form N.Nat^::zero)(eta: Form q)(exact: Exact N.Nat^::zero omega)(closed: Closed q eta) =>
+    Zero[p := N.Nat^::zero, q := q].left omega eta exact
+  | succ: \fun (p: N.Nat^)(unused: LeftProperty p)(q: N.Nat^)(omega: Form (N.Nat^::succ p))(eta: Form q)
+    (exact: Exact (N.Nat^::succ p) omega)(closed: Closed q eta) => Step[p := p, q := q].left omega eta exact closed
+};
+\definition right: \forall (q: N.Nat^) -> RightProperty q := \induction (q: N.Nat^) \return RightProperty q \with {
+  | zero: \fun (p: N.Nat^)(omega: Form p)(eta: Form N.Nat^::zero)(closed: Closed p omega)(exact: Exact N.Nat^::zero eta) =>
+    Zero[p := p, q := N.Nat^::zero].right omega eta exact
+  | succ: \fun (q: N.Nat^)(unused: RightProperty q)(p: N.Nat^)(omega: Form p)(eta: Form (N.Nat^::succ q))
+    (closed: Closed p omega)(exact: Exact (N.Nat^::succ q) eta) => Step[p := p, q := q].right omega eta closed exact
+};

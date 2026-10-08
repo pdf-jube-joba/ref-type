@@ -1,0 +1,25 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Set[] \as Sets;
+
+\structure Space { Point: \Set, Vector: \Set, }
+\structure Representative[M: Space, x: M.Point]: \Set {
+  point: \Cast[M.Point] ({ y: M.Point \where y = x }),
+  vector: M.Vector,
+}
+\module Fiber(M: Space, x: M.Point) {
+  \definition Equivalent(a, b: Representative[M, x]): \Prop := #vector{a} = #vector{b};
+  \import Sets.Quotient[A := Representative[M, x], Equivalent := Equivalent] \as Q;
+  \definition Carrier: \Set := Q.Carrier;
+}
+\definition fiber(M: Space)(x: M.Point): \Set := Fiber[M := M, x := x].Carrier;
+
+\module At(M: Space, k: N.Nat^, x: M.Point) {
+  \definition Arguments: \Set := Fin.Fin k -> fiber M x;
+  \definition Form: \Set := Arguments -> M.Vector;
+}
+\definition sections(M: Space)(k: N.Nat^): \Set :=
+  \forall (x: M.Point) -> At[M := M, k := k, x := x].Form;
+
+\definition copy(M: Space)(k: N.Nat^)(f: sections M k): sections M k :=
+  \fun (x: M.Point)(v: Fin.Fin k -> fiber M x) => f x v;

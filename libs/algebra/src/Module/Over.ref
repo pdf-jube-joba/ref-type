@@ -1,0 +1,36 @@
+\definition Space(V: \Set): \Set := Ring.RingModule[R, V, ring];
+\definition scalarGroup: Alg.CommutativeGroup[R] := Alg.CommutativeGroup[R] {
+  base := Alg.GroupData[R]::# (#zero{ring}) (#add{ring}) (#neg{ring}),
+  group := Alg.GroupLaws[R, Alg.GroupData[R]::# (#zero{ring}) (#add{ring}) (#neg{ring})] {
+    monoid := #monoid{(#additive{(#semiring{ring})})},
+    leftInverse := #additiveInverse{ring},
+    rightInverse := \fun (a: R) => trans!{R} _ _ _ (#commutative{(#additive{(#semiring{ring})})} a (#neg{ring} a)) (#additiveInverse{ring} a),
+  },
+  commutative := #commutative{(#additive{(#semiring{ring})})},
+};
+\import algebra.Group[].Of[Carrier := R, group := scalarGroup] \as Scalars;
+\module Laws(V: \Set, space: Space V);
+\module Submodule(V: \Set, space: Space V);
+\module Of(V: \Set, space: Space V);
+\module Hom(V, W: \Set, source: Space V, target: Space W);
+\module End(V: \Set, space: Space V) {
+  \import \parent.Hom[V := V, W := V, source := space, target := space] \as Maps;
+  \definition identity: Maps.Map := Maps.Map {
+    apply := \fun (x: V) => x,
+    addition := \fun (x, y: V) => \refl(#add{space} x y),
+    scalar := \fun (a: R)(x: V) => \refl(#smul{space} a x),
+  };
+}
+\module Zero;
+\definition scalarModule: Space R := Ring.RingModule[R, R, ring] {
+  zero := #zero{ring}, add := #add{ring}, neg := #neg{ring}, smul := #mul{ring},
+  additive := Alg.CommutativeGroupLaws[R, Alg.CommutativeGroupData[R]::# (Alg.GroupData[R]::# (#zero{ring}) (#add{ring}) (#neg{ring}))] {
+    group := #group{scalarGroup}, commutative := #commutative{scalarGroup},
+  },
+  scalarOne := #leftIdentity{(#multiplicative{(#semiring{ring})})},
+  scalarAssoc := #associative{(#multiplicative{(#semiring{ring})})},
+  scalarAdd := #rightDistributive{(#semiring{ring})},
+  vectorAdd := #leftDistributive{(#semiring{ring})},
+};
+\module Isomorphism(V, W: \Set, source: Space V, target: Space W);
+\module Functions(X, V: \Set, target: Space V);

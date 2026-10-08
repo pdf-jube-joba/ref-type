@@ -1,68 +1,9 @@
-\import std.Program[] \as ProgramBundles;
 \import \parent.\parent.Basic[].Def[] \as Op;
 \import std.Data[].Nat[].Division[].Def[] \as NatDivisionDef;
 \import std.Data[].Bool[] \as B;
-\import std.Logic[].Equality[] \as Equality;
-\use Equality.trans;
-\use Equality.congr;
 
-\definition two: Nat := Nat::succ (Nat::succ Nat::zero);
+\definition two: Nat^ := Nat^::succ (Nat^::succ Nat^::zero);
 
-\module EvenImplementation {
-  \definition T: \VType := \U(Nat -> B.Bool);
+\definition even: Nat^ -> B.Bool^ := \fun (n: Nat^) => Op.isZero (NatDivisionDef.mod n two);
 
-  \definition program: Nat -> B.Bool := \fun (n: Nat) => \program {
-      \bind partial: \U(Nat -> Nat) <- (\force NatDivisionDef.Mod.program) n \then
-      \bind remainder: Nat <- (\force partial) two \then
-      \bind result: B.Bool <- (\force Op.IsZero.program) remainder \then
-      \return result
-    };
-
-  \definition specification: T^ := \fun (n: Nat^) => Op.IsZero.specification (NatDivisionDef.Mod.specification n two^);
-
-  \definition matches (n: Nat^): program^ n = specification n :=
-      trans!{B.Bool^} _ _ _
-        (congr!{Op.IsZero.T^ B.Bool^}
-          (\fun (test: _) => test (NatDivisionDef.Mod.program^ n two^)) _ _ Op.IsZero.coherence)
-        (congr!{NatDivisionDef.Mod.T^ B.Bool^}
-          (\fun (mod: _) => Op.IsZero.specification (mod n two^)) _ _ NatDivisionDef.Mod.coherence);
-
-  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
-}
-\import .EvenImplementation[] \as EvenParts;
-\definition Even: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
-  T := EvenParts.T,
-  program := \thunk (EvenParts.program),
-  specification := EvenParts.specification,
-  coherence := EvenParts.coherence,
-};
-
-\module OddImplementation {
-  \definition T: \VType := \U(Nat -> B.Bool);
-
-  \definition program: Nat -> B.Bool := \fun (n: Nat) => \program {
-      \bind partial: \U(Nat -> Nat) <- (\force NatDivisionDef.Mod.program) n \then
-      \bind remainder: Nat <- (\force partial) two \then
-      \bind test: \U(Nat -> B.Bool) <- (\force Op.Eqb.program) remainder \then
-      \bind result: B.Bool <- (\force test) Op.one \then
-      \return result
-    };
-
-  \definition specification: T^ := \fun (n: Nat^) => Op.Eqb.specification (NatDivisionDef.Mod.specification n two^) Op.one^;
-
-  \definition matches (n: Nat^): program^ n = specification n :=
-      trans!{B.Bool^} _ _ _
-        (congr!{Op.Eqb.T^ B.Bool^}
-          (\fun (test: _) => test (NatDivisionDef.Mod.program^ n two^) Op.one^) _ _ Op.Eqb.coherence)
-        (congr!{NatDivisionDef.Mod.T^ B.Bool^}
-          (\fun (mod: _) => Op.Eqb.specification (mod n two^) Op.one^) _ _ NatDivisionDef.Mod.coherence);
-
-  \definition coherence: program^ = specification := \axiom:funext(program^, specification, matches);
-}
-\import .OddImplementation[] \as OddParts;
-\definition Odd: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
-  T := OddParts.T,
-  program := \thunk (OddParts.program),
-  specification := OddParts.specification,
-  coherence := OddParts.coherence,
-};
+\definition odd: Nat^ -> B.Bool^ := \fun (n: Nat^) => Op.eqb (NatDivisionDef.mod n two) Op.one;

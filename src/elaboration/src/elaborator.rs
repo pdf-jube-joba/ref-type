@@ -1,25 +1,23 @@
-use crate::raw::ids::ModuleId;
-use crate::raw::{
-    calculus::{
-        exp_contains_inductive, exp_subst_map, instantiate_telescope, remap_all_global_ids,
-        shift_bound_indices, whnf,
-    },
-    derivation::CheckSession,
-    environment::{
-        CrateEnv, DefinedConstant, ModuleArgument, ModuleParameter, ModuleParameterKind,
-    },
-    exp::*,
-    ids::*,
-    inductive::{CtorBinder, InductiveTypeSpecs},
-    program_derivation::ProgramCheckSession,
-    program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
-    sort::Sort,
-};
 use crate::{
     elaborator::{module_manager::ItemAccessResult, term_elaborator::LocalScope},
     hir::*,
+    kernel_bridge::{instantiate_telescope, shift_bound_indices, whnf},
     metavariables::{ElaborationError, MetaStore},
     output::Output,
+    raw::{
+        derivation::CheckSession,
+        environment::{
+            CrateEnv, DefinedConstant, ModuleArgument, ModuleParameter, ModuleParameterKind,
+        },
+        exp::*,
+        ids::{ModuleId, *},
+        inductive::{CtorBinder, InductiveTypeSpecs},
+        program_derivation::ProgramCheckSession,
+        program_inductive::{ProgramConstructorSpec, ProgramInductiveTypeSpecs},
+        remapping::{exp_subst_map, remap_all_global_ids},
+        sort::Sort,
+        traversal::exp_contains_inductive,
+    },
 };
 use std::collections::HashMap;
 
@@ -238,6 +236,270 @@ impl term_elaborator::Handler for GlobalEnvironment {
         self.crate_env.intern_name(name)
     }
 
+    fn instantiate_module(
+        &mut self,
+        path: &ModuleInstantiatePath,
+        name: &Identifier,
+        scope: &mut LocalScope,
+    ) -> Result<(), ElaborationError> {
+        let mut program_scope = program_term_elaborator::ProgramScope::new();
+        let binding = self.instantiate_module_expression(path, scope, &mut program_scope)?;
+        self.module_manager
+            .register_hir_import(&self.crate_env, name, binding);
+        Ok(())
+    }
+
+    fn direct_module_definition(
+        &mut self,
+        path: &ModuleInstantiatePath,
+        name: &Identifier,
+        access: &LocalAccess,
+        scope: &mut LocalScope,
+        arguments: &[&SExp],
+    ) -> Result<Option<Exp>, ElaborationError> {
+        let _profile =
+            profiling::ProfileTimer::start("REF_TYPE_PROFILE_DIRECT_DEFINITIONS", || {
+                format!("direct definition path={path:?} import={name:?} access={access:?}")
+            });
+        // Selecting a logical definition specializes its explicit kernel
+        // captures. Constructors, Program declarations, and ambient local
+        // namespaces still use ordinary graph instantiation.
+        let Some(member) = self.module_manager.direct_import_member(name, access) else {
+            if _profile.is_some() {
+                eprintln!("direct definition fallback: member access is not the guarded import");
+            }
+            return Ok(None);
+        };
+        let (mut source, calls, inherited) = match path {
+            ModuleInstantiatePath::FromModule { module, calls } => {
+                let Some(source) = self.module_manager.hir_module(*module) else {
+                    if _profile.is_some() {
+                        eprintln!("direct definition fallback: unresolved source {module:?}");
+                    }
+                    return Ok(None);
+                };
+                (source, calls, Vec::new())
+            }
+            ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
+                let mut source = self.module_manager.current();
+                for _ in 0..*back_parent {
+                    let Some(parent) = self.crate_env.module(source).parent() else {
+                        return Ok(None);
+                    };
+                    source = parent;
+                }
+                (source, calls, Vec::new())
+            }
+            ModuleInstantiatePath::FromRoot { calls } => {
+                (self.crate_env.root_module(), calls, Vec::new())
+            }
+            ModuleInstantiatePath::FromImport { import_name, calls } => {
+                let Some(binding) = self.module_manager.hir_import(&self.crate_env, import_name)
+                else {
+                    return Ok(None);
+                };
+                let binding = self.crate_env.binding(binding);
+                (binding.source, calls, binding.arguments.clone())
+            }
+        };
+        if calls.is_empty() || self.crate_env.namespace_binding_id(source).is_some() {
+            if _profile.is_some() {
+                eprintln!(
+                    "direct definition fallback: source={source:?} is already a namespace instance or has no calls"
+                );
+            }
+            return Ok(None);
+        }
+        let mut substitutions = Vec::with_capacity(inherited.len());
+        for (id, argument) in inherited {
+            let ModuleArgument::Pts(value) = argument else {
+                return Ok(None);
+            };
+            substitutions.push((id, value));
+        }
+        let mut pending = Vec::new();
+        for (child_name, supplied) in calls {
+            let Some(child) = self
+                .module_manager
+                .hir_child(&self.crate_env, source, child_name)
+            else {
+                if _profile.is_some() {
+                    eprintln!(
+                        "direct definition fallback: unresolved child {child_name:?} of {source:?}"
+                    );
+                }
+                return Ok(None);
+            };
+            if self.crate_env.namespace_binding_id(child).is_some() {
+                if _profile.is_some() {
+                    eprintln!(
+                        "direct definition fallback: child={child:?} is already a namespace instance"
+                    );
+                }
+                return Ok(None);
+            }
+            let parameters = self.crate_env.module(child).parameters();
+            if parameters.len() != supplied.len() {
+                if _profile.is_some() {
+                    eprintln!(
+                        "direct definition fallback: module {child:?} requires {} arguments but received {}",
+                        parameters.len(),
+                        supplied.len()
+                    );
+                }
+                return Ok(None);
+            }
+            for (position, (parameter, (argument_name, expression))) in
+                parameters.iter().zip(supplied).enumerate()
+            {
+                let ModuleParameterKind::Pts { ty } = parameter.kind else {
+                    return Ok(None);
+                };
+                if argument_name.as_str() != self.crate_env.symbol(parameter.name) {
+                    return Ok(None);
+                }
+                pending.push((
+                    ModuleParamId {
+                        module: child,
+                        position: position as u32,
+                    },
+                    ty,
+                    expression,
+                ));
+            }
+            source = child;
+        }
+        let Some(crate::raw::environment::ModuleItem::Definition { definition, .. }) =
+            self.crate_env.module(source).item(member.as_str())
+        else {
+            if _profile.is_some() {
+                eprintln!(
+                    "direct definition fallback: source {source:?} has no logical definition {}",
+                    member.as_str()
+                );
+            }
+            return Ok(None);
+        };
+        let definition = *definition;
+        let (definition_ty, body, explicit) = match self.crate_env.definition(definition) {
+            DefinedConstant::Pts { ty, body } => (*ty, *body, 0),
+            DefinedConstant::Contextual {
+                parameters,
+                ty,
+                body,
+            } => (*ty, *body, parameters.len()),
+            _ => return Ok(None),
+        };
+        if arguments.len() < explicit {
+            if _profile.is_some() {
+                eprintln!(
+                    "direct definition fallback: member={} requires {explicit} own arguments but received {}",
+                    member.as_str(),
+                    arguments.len()
+                );
+            }
+            return Ok(None);
+        }
+        if [definition_ty, body].into_iter().any(|term| {
+            self.crate_env
+                .arena()
+                .max_loose_bound(crate::raw::traversal::Term::Logical(term))
+                .is_some_and(|i| i >= explicit)
+        }) {
+            if _profile.is_some() {
+                eprintln!(
+                    "direct definition fallback: member={} retains an ambient local variable",
+                    member.as_str()
+                );
+            }
+            return Ok(None);
+        }
+        for (id, ty, expression) in pending {
+            let expected =
+                crate::kernel_bridge::captured_expression(&self.crate_env, ty, &substitutions)?;
+            let argument = scope.elab_exp(expression, self)?;
+            self.check(&mut scope.context().clone(), argument, expected)?;
+            substitutions.push((id, self.metavariables.zonk(&self.crate_env, argument)));
+        }
+        let mut actual = Vec::with_capacity(explicit);
+        if let DefinedConstant::Contextual { parameters, .. } =
+            self.crate_env.definition(definition).clone()
+        {
+            for (index, ((_, ty), expression)) in parameters.iter().zip(arguments).enumerate() {
+                let expected = crate::kernel_bridge::captured_expression(
+                    &self.crate_env,
+                    *ty,
+                    &substitutions
+                        .iter()
+                        .map(|(id, value)| {
+                            (
+                                *id,
+                                shift_bound_indices(self.crate_env.arena(), *value, index, 0),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                )?;
+                let expected = instantiate_telescope(self.crate_env.arena(), expected, &actual);
+                let value = scope.elab_exp(expression, self)?;
+                self.check(&mut scope.context().clone(), value, expected)?;
+                actual.push(self.metavariables.zonk(&self.crate_env, value));
+            }
+        }
+        let mut value = crate::kernel_bridge::captured_definition(
+            &self.crate_env,
+            definition,
+            &substitutions,
+            &actual,
+        )?;
+        for expression in &arguments[explicit..] {
+            let argument = scope.elab_exp(expression, self)?;
+            let ty = self.infer(&mut scope.context().clone(), value)?;
+            let ty = whnf(
+                &self.crate_env,
+                self.metavariables.zonk(&self.crate_env, ty),
+            );
+            if let ExpNode::Prod { ty: domain, .. } = self.crate_env.arena().get(ty) {
+                self.check(&mut scope.context().clone(), argument, domain)?;
+            }
+            value = self.crate_env.arena().alloc(ExpNode::App {
+                func: value,
+                arg: argument,
+            });
+        }
+        self.materialize_module_term(scope.context(), value)
+            .map(Some)
+    }
+
+    fn materialize_module_term(
+        &mut self,
+        context: &ExpContext,
+        term: Exp,
+    ) -> Result<Exp, ElaborationError> {
+        use crate::raw::traversal::{Memoized, Rewrite, Term};
+        struct Reify;
+        impl Rewrite for Reify {
+            fn rewrite(&mut self, _: Term, _: usize) -> Option<Term> {
+                None
+            }
+            fn finish(&mut self, arena: &Arena, _: Term, _: usize, result: Term) -> Term {
+                match result {
+                    Term::Logical(e) => Term::Logical(arena.alloc(arena.get(e))),
+                    _ => result,
+                }
+            }
+        }
+        let term =
+            crate::kernel_bridge::logical(&self.crate_env, context, &[term], |_, _, terms| {
+                Ok(Exp(terms[0]))
+            })?;
+        let Term::Logical(term) =
+            Term::Logical(term).walk(self.crate_env.arena(), 0, &mut Memoized::new(Reify))
+        else {
+            unreachable!()
+        };
+        Ok(term)
+    }
+
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
@@ -262,6 +524,18 @@ impl term_elaborator::Handler for GlobalEnvironment {
         let infer_type_e = self.infer(local_ctx, e).map_err(|error| {
             format!("Failed to infer type of expression for field projection: {error}")
         })?;
+        if let ExpNode::IndType { indspec, .. } =
+            self.crate_env.arena().get(whnf(&self.crate_env, e))
+            && let Some(record) = self
+                .module_manager
+                .get_moditem_record(&self.crate_env, indspec)
+        {
+            let name = record.type_name.as_str();
+            return Err(format!(
+                "Cannot project field '{}' from structure type '{name}'; use a structure value (e.g. data.{}) or {name}::{} for the projection function",
+                field_name.as_str(), field_name.as_str(), field_name.as_str()
+            ).into());
+        }
         let mut candidates = vec![(e, infer_type_e)];
         let mut found_inductive = false;
         let mut found_record = false;
@@ -291,9 +565,12 @@ impl term_elaborator::Handler for GlobalEnvironment {
                         .get_moditem_record(&self.crate_env, indspec)
                     {
                         found_record = true;
-                        if let Some(projection) =
-                            record.field_projection(&self.crate_env, value, field_name, &parameters)
-                        {
+                        if let Some(projection) = record.field_projection(
+                            &self.crate_env,
+                            value,
+                            field_name,
+                            &parameters,
+                        )? {
                             return Ok(projection);
                         }
                     }
@@ -419,7 +696,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         let ty = ComputationTypeExp::try_from(ty.clone())?;
         let computation = ComputationTermExp::try_from(computation.clone())?;
         let ty = scope.elaborate_computation_type(&ty, self)?;
-        let computation = scope.elaborate_computation(&computation, self)?;
+        let computation = scope.elaborate_computation_expected(&computation, ty, self)?;
         let (computation, ty) = scope.check_computation_term_with_metas(self, computation, ty)?;
         Ok((ty, computation))
     }
@@ -513,6 +790,7 @@ impl GlobalEnvironment {
         let child = self
             .crate_env
             .reserve_child_module(parent, module.name.0.clone());
+        let _time = timing::Scope::module(|| analysis::module_path(&self.crate_env, child));
         self.crate_env.publish_child_module(child)?;
         self.predeclared_modules.insert(module, child);
         self.module_manager.hir_modules.insert(module.id, child);
@@ -570,6 +848,7 @@ impl GlobalEnvironment {
             project.order.len(),
             &(0..project.order.len()).collect(),
             &mut |_, _| {},
+            &mut |_, _| {},
         )
     }
 
@@ -580,6 +859,7 @@ impl GlobalEnvironment {
         end: usize,
         selected: &std::collections::BTreeSet<usize>,
         checkpoint: &mut impl FnMut(usize, &Self),
+        progress: &mut impl FnMut(usize, std::time::Duration),
     ) -> Result<(), ElaborationError> {
         self.analysis.references = project.references.clone();
         let checked = self
@@ -591,7 +871,7 @@ impl GlobalEnvironment {
         self.analysis.declarations.extend(checked);
         self.module_manager.hir_imports = project.imports.clone();
         self.module_manager.hir_bindings = project.bindings.clone();
-        self.add_expanded_modules_to_root(project, start, end, selected, checkpoint)
+        self.add_expanded_modules_to_root(project, start, end, selected, checkpoint, progress)
     }
 
     fn add_expanded_modules_to_root(
@@ -601,6 +881,7 @@ impl GlobalEnvironment {
         end: usize,
         selected: &std::collections::BTreeSet<usize>,
         checkpoint: &mut impl FnMut(usize, &Self),
+        progress: &mut impl FnMut(usize, std::time::Duration),
     ) -> Result<(), ElaborationError> {
         self.diagnostic_location = None;
         let modules = &project.modules;
@@ -686,15 +967,18 @@ impl GlobalEnvironment {
                     .get(id)
                     .ok_or("unknown HIR module in execution order")?;
                 let module_id = self.predeclared_modules[&(module as *const Module)];
+                let _time =
+                    timing::Scope::module(|| analysis::module_path(&self.crate_env, module_id));
                 self.module_manager.moveto(module_id);
-                match *step {
-                    resolve::CheckStep::Parameters(_) => {
-                        self.elaborate_module_parameters(module)?
-                    }
+                let started = std::time::Instant::now();
+                let result = match *step {
+                    resolve::CheckStep::Parameters(_) => self.elaborate_module_parameters(module),
                     resolve::CheckStep::Declaration { index, .. } => {
-                        self.elaborate_module_declaration(module, index)?
+                        self.elaborate_module_declaration(module, index)
                     }
-                }
+                };
+                progress(position, started.elapsed());
+                result?;
                 checkpoint(position + 1, self);
             }
             crate::lowering::Lowerer::new(&self.crate_env, &mut self.crate_env.kernel.borrow_mut())

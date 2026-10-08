@@ -1,0 +1,21 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].List[] \as Lists;
+\import real.Analysis[] \as Real;
+\import real.DedekindReal[] \as R;
+\import topology.RealLine[] \as Line;
+\definition coordinateCarrier(n: N.Nat^): \Set := Fin.Fin n -> Real.Real;
+\definition normSquaredAt(n: N.Nat^) (x: coordinateCarrier n): Real.Real :=
+  Lists.foldr (Fin.Fin n) Real.Real (\fun (i: Fin.Fin n) (total: Real.Real) => Real.add (Real.mul (x i) (x i)) total) Real.zero (Fin.elements n);
+\definition closedBallAt(n: N.Nat^): \Pow (coordinateCarrier n) := { x: coordinateCarrier n \where R.Le (normSquaredAt n x) Real.one };
+\definition boundaryAt(n: N.Nat^): \Pow (coordinateCarrier n) := { x: coordinateCarrier n \where normSquaredAt n x = Real.one };
+\definition interiorAt(n: N.Nat^): \Pow (coordinateCarrier n) := { x: coordinateCarrier n \where R.Lt (normSquaredAt n x) Real.one };
+\definition Disk(n: N.Nat^): \Set := \Cast[coordinateCarrier n] (closedBallAt n);
+\import std.Logic[].Proposition[] \as Logic;
+\definition Near(n: N.Nat^) (x, y: coordinateCarrier n) (radius: Real.Real): \Prop :=
+  \forall (i: Fin.Fin n) -> R.Lt (Real.distance (x i) (y i)) radius;
+\definition OpenInDisk(n: N.Nat^) (U: \Pow (Disk n)): \Prop :=
+  \forall (x: Disk n) -> \In[Disk n] U x ->
+    \exists { radius: Real.Real \where Logic.And[R.Lt Real.zero radius,
+      \forall (y: Disk n) -> Near n x y radius -> \In[Disk n] U y] };
+\module Dimension(n: N.Nat^);

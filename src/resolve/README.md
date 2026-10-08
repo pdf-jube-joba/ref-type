@@ -16,7 +16,7 @@
 
 ID の有効範囲は一つの `Project` とする。
 elaboration は HIR の ID を自身の workspace 内の ID に対応付ける。
-`CheckStep::Parameters` で module parameter を検査し、`CheckStep::Declaration` で展開済みの各宣言を検査する。
+`CheckStep::Parameters` は module parameter の検査、`CheckStep::Declaration` は展開済みの各宣言の検査を表す。
 実行順は名前解決時に記録し、import 先の宣言の検査を利用箇所より先に置く。
 ローカル変数の shadowing と macro の衛生性も束縛 ID に反映する。
 macro の定義環境を保持して展開し、module parameter の捕捉は HIR の式として具体化する。

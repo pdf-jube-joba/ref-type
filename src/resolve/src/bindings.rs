@@ -1,5 +1,5 @@
 use crate::hir::*;
-use std::collections::HashMap;
+pub(crate) type LocalScope = rustc_hash::FxHashMap<String, Identifier>;
 #[derive(Clone, Copy)]
 pub(crate) enum Mode {
     Hygienic(u64),
@@ -25,7 +25,8 @@ fn fresh_binder(
             identifier.1 = None;
         }
         Mode::Resolved(order) => {
-            identifier.0 = spelling(&identifier.0).to_owned();
+            // Retain hygienic spellings across repeated lexical passes.
+            // Stripping them here can capture an inserted caller argument.
             identifier.1 = Some(BindingId((1u64 << 63) | (order << 32) | *counter as u64));
         }
     }
@@ -33,7 +34,17 @@ fn fresh_binder(
     (original, identifier.clone())
 }
 
-fn rename_access(access: &mut LocalAccess, scopes: &[HashMap<String, Identifier>]) {
+fn rename_access(access: &mut LocalAccess, scopes: &[LocalScope]) {
+    if let LocalAccess::Named { access, .. } = access {
+        if let Some(fresh) = scopes
+            .iter()
+            .rev()
+            .find_map(|scope| scope.get(access.as_str()))
+        {
+            *access = fresh.clone();
+        }
+        return;
+    }
     let LocalAccess::Current { access, .. } = access else {
         return;
     };
@@ -54,7 +65,7 @@ fn alpha_macro_exps(
     tokens: &mut [MacroExp],
     order: Mode,
     counter: &mut usize,
-    scopes: &mut Vec<HashMap<String, Identifier>>,
+    scopes: &mut Vec<LocalScope>,
 ) {
     for token in tokens {
         match token {
@@ -73,8 +84,8 @@ pub(crate) fn alpha_bind_type(
     bind: &mut Bind,
     order: Mode,
     counter: &mut usize,
-    scopes: &mut Vec<HashMap<String, Identifier>>,
-) -> HashMap<String, Identifier> {
+    scopes: &mut Vec<LocalScope>,
+) -> LocalScope {
     match bind {
         Bind::Named(bind) => {
             alpha_rename(&mut bind.ty, order, counter, scopes);
@@ -86,7 +97,7 @@ pub(crate) fn alpha_bind_type(
         Bind::Subset { var, ty, predicate } => {
             alpha_rename(ty, order, counter, scopes);
             let binding = fresh_binder(var, order, counter);
-            let scope = HashMap::from([binding]);
+            let scope = LocalScope::from_iter([binding]);
             scopes.push(scope.clone());
             alpha_rename(predicate, order, counter, scopes);
             scopes.pop();
@@ -100,12 +111,12 @@ pub(crate) fn alpha_bind_type(
         } => {
             alpha_rename(ty, order, counter, scopes);
             let value = fresh_binder(var, order, counter);
-            let value_scope = HashMap::from([value.clone()]);
+            let value_scope = LocalScope::from_iter([value.clone()]);
             scopes.push(value_scope);
             alpha_rename(predicate, order, counter, scopes);
             scopes.pop();
             let proof = fresh_binder(proof_var, order, counter);
-            HashMap::from([value, proof])
+            LocalScope::from_iter([value, proof])
         }
     }
 }
@@ -114,7 +125,7 @@ fn alpha_many<const N: usize>(
     exps: [&mut Box<SExp>; N],
     order: Mode,
     counter: &mut usize,
-    scopes: &mut Vec<HashMap<String, Identifier>>,
+    scopes: &mut Vec<LocalScope>,
 ) {
     for exp in exps {
         alpha_rename(exp, order, counter, scopes);
@@ -125,9 +136,43 @@ pub(crate) fn alpha_rename(
     exp: &mut SExp,
     order: Mode,
     counter: &mut usize,
-    scopes: &mut Vec<HashMap<String, Identifier>>,
+    scopes: &mut Vec<LocalScope>,
 ) {
+    let access = match exp {
+        SExp::AccessPath { access, .. }
+        | SExp::RecordTypeCtor { access, .. }
+        | SExp::ProgramValueReference { access }
+        | SExp::IndCase { path: access, .. }
+        | SExp::ProgramCase { path: access, .. } => Some(access),
+        _ => None,
+    };
+    if let Some(LocalAccess::Instantiated { path, .. }) = access {
+        let calls = match path.as_mut() {
+            ModuleInstantiatePath::FromModule { calls, .. }
+            | ModuleInstantiatePath::FromCurrent { calls, .. }
+            | ModuleInstantiatePath::FromRoot { calls }
+            | ModuleInstantiatePath::FromImport { calls, .. } => calls,
+        };
+        for (_, arguments) in calls {
+            for (_, argument) in arguments {
+                alpha_rename(argument, order, counter, scopes);
+            }
+        }
+    }
     match exp {
+        SExp::ModuleInstance { path, .. } => {
+            let calls = match path.as_mut() {
+                ModuleInstantiatePath::FromModule { calls, .. }
+                | ModuleInstantiatePath::FromCurrent { calls, .. }
+                | ModuleInstantiatePath::FromRoot { calls }
+                | ModuleInstantiatePath::FromImport { calls, .. } => calls,
+            };
+            for (_, arguments) in calls {
+                for (_, argument) in arguments {
+                    alpha_rename(argument, order, counter, scopes);
+                }
+            }
+        }
         SExp::MemberAccess {
             base, parameters, ..
         } => {
@@ -181,7 +226,7 @@ pub(crate) fn alpha_rename(
             for (name, ty, body) in clauses {
                 alpha_rename(ty, order, counter, scopes);
                 alpha_rename(body, order, counter, scopes);
-                scopes.push(HashMap::from([fresh_binder(name, order, counter)]));
+                scopes.push(LocalScope::from_iter([fresh_binder(name, order, counter)]));
             }
             alpha_rename(exp, order, counter, scopes);
             scopes.truncate(depth);
@@ -281,7 +326,7 @@ pub(crate) fn alpha_rename(
             body,
         } => {
             alpha_rename(value_ty, order, counter, scopes);
-            let local = HashMap::from([fresh_binder(var, order, counter)]);
+            let local = LocalScope::from_iter([fresh_binder(var, order, counter)]);
             scopes.push(local);
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
@@ -294,7 +339,7 @@ pub(crate) fn alpha_rename(
         } => {
             alpha_rename(computation, order, counter, scopes);
             alpha_rename(value_ty, order, counter, scopes);
-            let local = HashMap::from([fresh_binder(var, order, counter)]);
+            let local = LocalScope::from_iter([fresh_binder(var, order, counter)]);
             scopes.push(local);
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
@@ -307,7 +352,7 @@ pub(crate) fn alpha_rename(
         } => {
             alpha_rename(value_ty, order, counter, scopes);
             alpha_rename(value, order, counter, scopes);
-            let local = HashMap::from([fresh_binder(var, order, counter)]);
+            let local = LocalScope::from_iter([fresh_binder(var, order, counter)]);
             scopes.push(local);
             alpha_rename(body, order, counter, scopes);
             scopes.pop();
@@ -335,7 +380,7 @@ pub(crate) fn alpha_rename(
             predicate,
         } => {
             alpha_rename(set, order, counter, scopes);
-            let local = HashMap::from([fresh_binder(var, order, counter)]);
+            let local = LocalScope::from_iter([fresh_binder(var, order, counter)]);
             scopes.push(local);
             alpha_rename(predicate, order, counter, scopes);
             scopes.pop();
@@ -371,7 +416,7 @@ pub(crate) fn alpha_rename(
             alpha_rename(left, order, counter, scopes);
             alpha_rename(right, order, counter, scopes);
             alpha_rename(ty, order, counter, scopes);
-            let local = HashMap::from([fresh_binder(var, order, counter)]);
+            let local = LocalScope::from_iter([fresh_binder(var, order, counter)]);
             scopes.push(local);
             alpha_rename(predicate, order, counter, scopes);
             scopes.pop();
@@ -410,7 +455,7 @@ pub(crate) fn alpha_rename(
                     Statement::Let { var, ty, body, .. } => {
                         alpha_rename(ty, order, counter, scopes);
                         alpha_rename(body, order, counter, scopes);
-                        scopes.push(HashMap::from([fresh_binder(var, order, counter)]));
+                        scopes.push(LocalScope::from_iter([fresh_binder(var, order, counter)]));
                         pushed += 1;
                     }
                     Statement::Bind {
@@ -420,7 +465,7 @@ pub(crate) fn alpha_rename(
                     } => {
                         alpha_rename(ty, order, counter, scopes);
                         alpha_rename(computation, order, counter, scopes);
-                        scopes.push(HashMap::from([fresh_binder(var, order, counter)]));
+                        scopes.push(LocalScope::from_iter([fresh_binder(var, order, counter)]));
                         pushed += 1;
                     }
                     Statement::Sufficient { map, map_ty } => {
@@ -430,7 +475,7 @@ pub(crate) fn alpha_rename(
                     Statement::TakeFrom { var, ty, existence } => {
                         alpha_rename(ty, order, counter, scopes);
                         alpha_rename(existence, order, counter, scopes);
-                        scopes.push(HashMap::from([fresh_binder(var, order, counter)]));
+                        scopes.push(LocalScope::from_iter([fresh_binder(var, order, counter)]));
                         pushed += 1;
                     }
                 }

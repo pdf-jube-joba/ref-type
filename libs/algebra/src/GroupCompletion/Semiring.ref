@@ -1,0 +1,196 @@
+\import std.Alg[].Monoid[] \as Monoid;
+\import std.Alg[].Ring[] \as Ring;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\definition additive: Monoid.CommutativeMonoid[M] := Monoid.CommutativeMonoid[M] {
+  base := Monoid.MonoidData[M]::# (#zero{semiring}) (#add{semiring}),
+  monoid := #monoid{(#additive{semiring})}, commutative := #commutative{(#additive{semiring})},
+};
+\import \parent.Of[M := M, monoid := additive] \as C;
+\import algebra.Group[].Of[Carrier := C.Carrier, group := C.group] \as G;
+\import C.Universal[K := C.Carrier, target := C.group] \as Universal;
+\import algebra.Hom[A := M, B := C.Carrier] \as Input;
+\definition Carrier: \Set := C.Carrier;
+\definition include: M -> Carrier := C.include;
+\definition zero: Carrier := C.unit;
+\definition one: Carrier := include (#one{semiring});
+\definition add: Carrier -> Carrier -> Carrier := C.plus;
+\definition neg: Carrier -> Carrier := C.inverse;
+\definition scalarInput(a: M): Universal.Map :=
+  \into[M -> Carrier](\fun (b: _) => include (#mul{semiring} a b), Universal.Map) \by {
+    Input.MonoidLaws[Universal.domain, Universal.codomain, (\fun (b: _) => include (#mul{semiring} a b))] {
+      unit := congr!{M Carrier} include _ _ (#zeroAbsorbsRight{semiring} a),
+      operation := \fun (b, c: _) => trans!{Carrier} _ _ _
+        (congr!{M Carrier} include _ _ (#leftDistributive{semiring} a b c)) (C.includeAdd (#mul{semiring} a b) (#mul{semiring} a c)),
+    }
+  };
+\definition scale(a: M): Carrier -> Carrier := Universal.extend (scalarInput a);
+\definition scaleIncludes: \forall (a, b: M) -> scale a (include b) = include (#mul{semiring} a b) :=
+  \fun (a: _) => Universal.extendIncludes (scalarInput a);
+\definition scaleClass: \forall (a: M) (x: C.Difference) -> scale a (C.class x) =
+  add (include (#mul{semiring} a (C.positive x))) (neg (include (#mul{semiring} a (C.negative x)))) :=
+  \fun (a: _) => Universal.extendClass (scalarInput a);
+\definition scaleAdd: \forall (a: M) (x, y: Carrier) -> scale a (add x y) = add (scale a x) (scale a y) :=
+  \fun (a: _) => Universal.extendAdd (scalarInput a);
+\definition scaleZero: \forall (a: M) -> scale a zero = zero :=
+  \fun (a: _) => trans!{Carrier} _ _ _ (scaleIncludes a (#zero{semiring}))
+    (congr!{M Carrier} include _ _ (#zeroAbsorbsRight{semiring} a));
+\definition scaleNeg: \forall (a: M) (x: Carrier) -> scale a (neg x) = neg (scale a x) :=
+  \fun (a: _) => Universal.homInverse (Universal.extension (scalarInput a));
+\import std.Set[].Quotient[A := C.Difference, Equivalent := C.Equivalent] \as Q;
+\definition scalarZero: \forall (x: Carrier) -> scale (#zero{semiring}) x = zero :=
+  Q.induction (\fun (x: _) => scale (#zero{semiring}) x = zero)
+    (\fun (x: C.Difference) => eq_reason!{{scale (#zero{semiring}) (C.class x)}
+      "=" {add (include (#mul{semiring} (#zero{semiring}) (C.positive x))) (neg (include (#mul{semiring} (#zero{semiring}) (C.negative x))))}
+      "by" {scaleClass (#zero{semiring}) x}
+      "=" {add zero (neg zero)} "by" {congr2!{Carrier Carrier Carrier} G.difference _ _ _ _
+        (congr!{M Carrier} include _ _ (#zeroAbsorbsLeft{semiring} (C.positive x)))
+        (congr!{M Carrier} include _ _ (#zeroAbsorbsLeft{semiring} (C.negative x)))}
+      "=" zero "by" {trans!{Carrier} _ _ _ (G.zeroLeft (neg zero)) G.negZero}});
+\definition scalarAdd: \forall (a, b: M) (x: Carrier) ->
+  scale (#add{semiring} a b) x = add (scale a x) (scale b x) :=
+  \fun (a, b: _) => Q.induction (\fun (x: _) => scale (#add{semiring} a b) x = add (scale a x) (scale b x))
+    (\fun (x: C.Difference) => eq_reason!{{scale (#add{semiring} a b) (C.class x)}
+      "=" {G.difference (include (#mul{semiring} (#add{semiring} a b) (C.positive x))) (include (#mul{semiring} (#add{semiring} a b) (C.negative x)))}
+      "by" {scaleClass (#add{semiring} a b) x}
+      "=" {G.difference (add (include (#mul{semiring} a (C.positive x))) (include (#mul{semiring} b (C.positive x))))
+        (add (include (#mul{semiring} a (C.negative x))) (include (#mul{semiring} b (C.negative x))))}
+      "by" {congr2!{Carrier Carrier Carrier} G.difference _ _ _ _
+        (trans!{Carrier} _ _ _ (congr!{M Carrier} include _ _ (#rightDistributive{semiring} a b (C.positive x)))
+          (C.includeAdd (#mul{semiring} a (C.positive x)) (#mul{semiring} b (C.positive x))))
+        (trans!{Carrier} _ _ _ (congr!{M Carrier} include _ _ (#rightDistributive{semiring} a b (C.negative x)))
+          (C.includeAdd (#mul{semiring} a (C.negative x)) (#mul{semiring} b (C.negative x))))}
+      "=" {add (G.difference (include (#mul{semiring} a (C.positive x))) (include (#mul{semiring} a (C.negative x))))
+        (G.difference (include (#mul{semiring} b (C.positive x))) (include (#mul{semiring} b (C.negative x))))}
+      "by" {trans!{Carrier} _ _ _
+        (congr!{Carrier Carrier} (add (add (include (#mul{semiring} a (C.positive x))) (include (#mul{semiring} b (C.positive x))))) _ _
+          (G.negAdd (include (#mul{semiring} a (C.negative x))) (include (#mul{semiring} b (C.negative x)))))
+        (G.four (include (#mul{semiring} a (C.positive x))) (include (#mul{semiring} b (C.positive x)))
+          (neg (include (#mul{semiring} a (C.negative x)))) (neg (include (#mul{semiring} b (C.negative x)))))}
+      "=" {add (scale a (C.class x)) (scale b (C.class x))}
+      "by" {congr2!{Carrier Carrier Carrier} add _ _ _ _ (sym!{Carrier} _ _ (scaleClass a x)) (sym!{Carrier} _ _ (scaleClass b x))}});
+\definition multiplicationInput(y: Carrier): Universal.Map :=
+  \into[M -> Carrier](\fun (a: _) => scale a y, Universal.Map) \by {
+    Input.MonoidLaws[Universal.domain, Universal.codomain, (\fun (a: _) => scale a y)] {
+      unit := scalarZero y, operation := \fun (a, b: _) => scalarAdd a b y,
+    }
+  };
+\definition mul(x, y: Carrier): Carrier := Universal.extend (multiplicationInput y) x;
+\definition mulIncludes: \forall (a: M) (y: Carrier) -> mul (include a) y = scale a y :=
+  \fun (a: _) (y: _) => Universal.extendIncludes (multiplicationInput y) a;
+\definition mulClass: \forall (x: C.Difference) (y: Carrier) -> mul (C.class x) y =
+  G.difference (scale (C.positive x) y) (scale (C.negative x) y) :=
+  \fun (x: _) (y: _) => Universal.extendClass (multiplicationInput y) x;
+\definition mulAddLeft: \forall (x, y, z: Carrier) -> mul (add x y) z = add (mul x z) (mul y z) :=
+  \fun (x, y, z: _) => Universal.extendAdd (multiplicationInput z) x y;
+\definition mulZeroLeft: \forall (y: Carrier) -> mul zero y = zero :=
+  \fun (y: _) => trans!{Carrier} _ _ _ (mulIncludes (#zero{semiring}) y) (scalarZero y);
+\definition mulNegLeft: \forall (x, y: Carrier) -> mul (neg x) y = neg (mul x y) :=
+  \fun (x, y: _) => Universal.homInverse (Universal.extension (multiplicationInput y)) x;
+\definition mulAddRight: \forall (x, y, z: Carrier) -> mul x (add y z) = add (mul x y) (mul x z) :=
+  Q.induction (\fun (x: _) => \forall (y, z: Carrier) -> mul x (add y z) = add (mul x y) (mul x z))
+    (\fun (x: C.Difference) (y, z: Carrier) => eq_reason!{{mul (C.class x) (add y z)}
+      "=" {G.difference (scale (C.positive x) (add y z)) (scale (C.negative x) (add y z))} "by" {mulClass x (add y z)}
+      "=" {G.difference (add (scale (C.positive x) y) (scale (C.positive x) z)) (add (scale (C.negative x) y) (scale (C.negative x) z))}
+      "by" {congr2!{Carrier Carrier Carrier} G.difference _ _ _ _ (scaleAdd (C.positive x) y z) (scaleAdd (C.negative x) y z)}
+      "=" {add (G.difference (scale (C.positive x) y) (scale (C.negative x) y)) (G.difference (scale (C.positive x) z) (scale (C.negative x) z))}
+      "by" {G.differenceAdd (scale (C.positive x) y) (scale (C.positive x) z) (scale (C.negative x) y) (scale (C.negative x) z)}
+      "=" {add (mul (C.class x) y) (mul (C.class x) z)} "by" {congr2!{Carrier Carrier Carrier} add _ _ _ _
+        (sym!{Carrier} _ _ (mulClass x y)) (sym!{Carrier} _ _ (mulClass x z))}});
+\definition mulZeroRight: \forall (x: Carrier) -> mul x zero = zero :=
+  Q.induction (\fun (x: _) => mul x zero = zero)
+    (\fun (x: C.Difference) => eq_reason!{{mul (C.class x) zero}
+      "=" {G.difference (scale (C.positive x) zero) (scale (C.negative x) zero)} "by" {mulClass x zero}
+      "=" {G.difference zero zero} "by" {congr2!{Carrier Carrier Carrier} G.difference _ _ _ _ (scaleZero (C.positive x)) (scaleZero (C.negative x))}
+      "=" zero "by" {G.inverseRight zero}});
+\import algebra.Hom[A := Carrier, B := Carrier] \as Output;
+\definition Endomorphism: \Set := Output.MonoidMap C.asMonoid Universal.codomain;
+\definition endomorphism(f: Carrier -> Carrier)
+  (zeroLaw: f zero = zero)
+  (addLaw: \forall (x, y: Carrier) -> f (add x y) = add (f x) (f y)): Endomorphism :=
+  \into[Carrier -> Carrier](f, Endomorphism) \by {
+    Output.MonoidLaws[C.asMonoid, Universal.codomain, f] { unit := zeroLaw, operation := addLaw }
+  };
+\definition scaleMap(a: M): Endomorphism := Universal.extension (scalarInput a);
+\definition leftMultiply(z: Carrier): Endomorphism := Universal.extension (multiplicationInput z);
+\definition rightMultiply(x: Carrier): Endomorphism := endomorphism (mul x) (mulZeroRight x) (mulAddRight x);
+\definition identity: Endomorphism := endomorphism (\fun (x: _) => x) (\refl(zero)) (\fun (x, y: _) => \refl(add x y));
+\definition compose(f, g: Endomorphism): Endomorphism := endomorphism (\fun (x: _) => f (g x))
+  (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} f _ _ (#unit{(Output.monoidLaws C.asMonoid Universal.codomain g)}))
+    (#unit{(Output.monoidLaws C.asMonoid Universal.codomain f)}))
+  (\fun (x, y: _) => trans!{Carrier} _ _ _ (congr!{Carrier Carrier} f _ _ (#operation{(Output.monoidLaws C.asMonoid Universal.codomain g)} x y))
+    (#operation{(Output.monoidLaws C.asMonoid Universal.codomain f)} (g x) (g y)));
+\definition scalarAssoc: \forall (a, b: M) (x: Carrier) -> scale (#mul{semiring} a b) x = scale a (scale b x) :=
+  \fun (a, b: _) (x: _) => congr!{{Carrier -> Carrier} Carrier} (\fun (f: _) => f x) _ _
+    (Universal.ext (scaleMap (#mul{semiring} a b)) (compose (scaleMap a) (scaleMap b))
+      (\fun (c: _) => eq_reason!{{scale (#mul{semiring} a b) (include c)}
+        "=" {include (#mul{semiring} (#mul{semiring} a b) c)} "by" {scaleIncludes (#mul{semiring} a b) c}
+        "=" {include (#mul{semiring} a (#mul{semiring} b c))} "by" {congr!{M Carrier} include _ _ (#associative{(#multiplicative{semiring})} a b c)}
+        "=" {scale a (include (#mul{semiring} b c))} "by" {sym!{Carrier} _ _ (scaleIncludes a (#mul{semiring} b c))}
+        "=" {scale a (scale b (include c))} "by" {congr!{Carrier Carrier} (scale a) _ _ (sym!{Carrier} _ _ (scaleIncludes b c))}}));
+\definition scaleMul: \forall (a: M) (y, z: Carrier) -> mul (scale a y) z = scale a (mul y z) :=
+  \fun (a: _) (y, z: _) => congr!{{Carrier -> Carrier} Carrier} (\fun (f: _) => f y) _ _
+    (Universal.ext (compose (leftMultiply z) (scaleMap a)) (compose (scaleMap a) (leftMultiply z))
+      (\fun (b: _) => eq_reason!{{mul (scale a (include b)) z}
+        "=" {mul (include (#mul{semiring} a b)) z} "by" {congr!{Carrier Carrier} (\fun (x: _) => mul x z) _ _ (scaleIncludes a b)}
+        "=" {scale (#mul{semiring} a b) z} "by" {mulIncludes (#mul{semiring} a b) z}
+        "=" {scale a (scale b z)} "by" {scalarAssoc a b z}
+        "=" {scale a (mul (include b) z)} "by" {congr!{Carrier Carrier} (scale a) _ _ (sym!{Carrier} _ _ (mulIncludes b z))}}));
+\definition mulAssoc: \forall (x, y, z: Carrier) -> mul (mul x y) z = mul x (mul y z) :=
+  \fun (x, y, z: _) => congr!{{Carrier -> Carrier} Carrier} (\fun (f: _) => f x) _ _
+    (Universal.ext (compose (leftMultiply z) (leftMultiply y)) (leftMultiply (mul y z))
+      (\fun (a: _) => eq_reason!{{mul (mul (include a) y) z}
+        "=" {mul (scale a y) z} "by" {congr!{Carrier Carrier} (\fun (x: _) => mul x z) _ _ (mulIncludes a y)}
+        "=" {scale a (mul y z)} "by" {scaleMul a y z}
+        "=" {mul (include a) (mul y z)} "by" {sym!{Carrier} _ _ (mulIncludes a (mul y z))}}));
+\definition oneLeft: \forall (x: Carrier) -> mul one x = x :=
+  \fun (x: _) => trans!{Carrier} _ _ _ (mulIncludes (#one{semiring}) x)
+    (congr!{{Carrier -> Carrier} Carrier} (\fun (f: _) => f x) _ _
+      (Universal.ext (scaleMap (#one{semiring})) identity
+        (\fun (a: _) => trans!{Carrier} _ _ _ (scaleIncludes (#one{semiring}) a)
+          (congr!{M Carrier} include _ _ (#leftIdentity{(#multiplicative{semiring})} a)))));
+\definition oneRight: \forall (x: Carrier) -> mul x one = x :=
+  \fun (x: _) => congr!{{Carrier -> Carrier} Carrier} (\fun (f: _) => f x) _ _
+    (Universal.ext (leftMultiply one) identity
+      (\fun (a: _) => trans!{Carrier} _ _ _ (mulIncludes a one)
+        (trans!{Carrier} _ _ _ (scaleIncludes a (#one{semiring}))
+          (congr!{M Carrier} include _ _ (#rightIdentity{(#multiplicative{semiring})} a)))));
+\definition ring: Ring.Ring[Carrier] := Ring.Ring[Carrier] {
+  zero := zero, one := one, add := add, neg := neg, mul := mul,
+  semiring := Alg.SemiringLaws[Carrier, (Alg.SemiringData[Carrier]::# zero one add mul)] {
+    additive := Monoid.CommutativeMonoidLaws[Carrier, (Monoid.CommutativeMonoidData[Carrier]::# (Monoid.MonoidData[Carrier]::# zero add))] {
+      monoid := #monoid{(#group{C.group})}, commutative := C.plusComm,
+    },
+    multiplicative := Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# one mul)] {
+      leftIdentity := oneLeft, rightIdentity := oneRight, associative := mulAssoc,
+    },
+    leftDistributive := mulAddRight, rightDistributive := mulAddLeft,
+    zeroAbsorbsLeft := mulZeroLeft, zeroAbsorbsRight := mulZeroRight,
+  },
+  additiveInverse := C.inverseLeft,
+};
+\module UniversalRing(K: \Set, target: Ring.Ring[K]);
+\definition scalarComm: (\forall (a, b: M) -> #mul{semiring} a b = #mul{semiring} b a) ->
+  \forall (a: M) (x: Carrier) -> scale a x = mul x (include a) :=
+  \fun (comm: _) (a: _) (x: _) => congr!{{Carrier -> Carrier} Carrier} (\fun (f: _) => f x) _ _
+    (Universal.ext (scaleMap a) (leftMultiply (include a))
+      (\fun (b: _) => eq_reason!{{scale a (include b)}
+        "=" {include (#mul{semiring} a b)} "by" {scaleIncludes a b}
+        "=" {include (#mul{semiring} b a)} "by" {congr!{M Carrier} include _ _ (comm a b)}
+        "=" {scale b (include a)} "by" {sym!{Carrier} _ _ (scaleIncludes b a)}
+        "=" {mul (include b) (include a)} "by" {sym!{Carrier} _ _ (mulIncludes b (include a))}}));
+\definition mulComm: (\forall (a, b: M) -> #mul{semiring} a b = #mul{semiring} b a) ->
+  \forall (x, y: Carrier) -> mul x y = mul y x :=
+  \fun (comm: _) (x, y: _) => congr!{{Carrier -> Carrier} Carrier} (\fun (f: _) => f x) _ _
+    (Universal.ext (leftMultiply y) (rightMultiply y)
+      (\fun (a: _) => trans!{Carrier} _ _ _ (mulIncludes a y) (scalarComm comm a y)));
+\definition commutativeRing(comm: \forall (a, b: M) -> #mul{semiring} a b = #mul{semiring} b a):
+  Ring.CommutativeRing[Carrier] := Ring.CommutativeRing[Carrier] {
+    base := ring,
+    ring := \bysub(Ring.RingData[Carrier], Ring.Ring[Carrier], ring),
+    mulCommutative := mulComm comm,
+  };

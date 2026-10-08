@@ -163,6 +163,7 @@ pub enum ModuleItem {
         kind: Option<InductiveKind>,
         parameters: Vec<RightBind>,
         fields: Vec<(Identifier, SExp, Option<SExp>)>,
+        field_spans: Vec<SourceSpan>,
     },
     Record {
         type_name: Identifier,
@@ -197,28 +198,8 @@ pub enum ModuleItem {
     Normalize {
         exp: SExp,
     },
-    ComputationEval {
-        exp: ComputationTermExp,
-    },
-    ComputationNormalize {
-        exp: ComputationTermExp,
-    },
     ValueTypeCheck {
         ty: ValueTypeExp,
-    },
-    ValueCheck {
-        exp: ValueTermExp,
-        ty: ValueTypeExp,
-    },
-    ComputationCheck {
-        exp: ComputationTermExp,
-        ty: ComputationTypeExp,
-    },
-    ValueInfer {
-        exp: ValueTermExp,
-    },
-    ComputationInfer {
-        exp: ComputationTermExp,
     },
     Check {
         exp: SExp,
@@ -277,9 +258,8 @@ pub struct RightBind {
     pub ty: Box<SExp>,
 }
 
-/// Surface Program syntax is split into the same four categories as the
-/// kernel.  Parsing a category-specific declaration performs this
-/// classification before elaboration.
+/// Program expression views mirror the kernel's four syntactic categories.
+/// Shared queries retain `SExp` until elaboration selects a judgement.
 #[derive(Debug, Clone)]
 pub enum ValueTypeExp {
     Deferred {
@@ -463,6 +443,11 @@ pub enum Bind {
 #[derive(Debug, Clone)]
 // some access path to access defined constant or inductive type
 pub enum LocalAccess {
+    Instantiated {
+        span: SourceSpan,
+        path: Box<ModuleInstantiatePath>,
+        child: Identifier,
+    },
     // accessing inductive type or defined constant
     Current {
         span: SourceSpan,
@@ -478,6 +463,7 @@ pub enum LocalAccess {
 impl std::fmt::Display for LocalAccess {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Instantiated { child, .. } => write!(formatter, "<module>.{}", child.as_str()),
             Self::Current { access, .. } => formatter.write_str(access.as_str()),
             Self::Named { access, child, .. } => {
                 write!(formatter, "{}.{}", access.as_str(), child.as_str())
@@ -1242,7 +1228,9 @@ pub enum Statement {
 impl LocalAccess {
     pub fn span(&self) -> SourceSpan {
         match self {
-            Self::Current { span, .. } | Self::Named { span, .. } => *span,
+            Self::Instantiated { span, .. }
+            | Self::Current { span, .. }
+            | Self::Named { span, .. } => *span,
         }
     }
 }

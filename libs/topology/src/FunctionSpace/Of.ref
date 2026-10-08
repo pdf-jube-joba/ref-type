@@ -1,0 +1,25 @@
+\import topology.Continuity[A := A, B := B] \as Maps;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition Carrier: \Set := \Cast[A -> B] ({ f: A -> B \where Maps.Continuous source target f });
+\definition continuous(f: Carrier): Maps.Continuous source target f := \bysub(A -> B, Carrier, f);
+\definition Subbasic(K: \Pow A) (U: \Pow B): \Pow Carrier :=
+  { f: Carrier \where \forall (x: A) -> Source.Member K x -> Target.Member U (f x) };
+\structure SubbasicWitness[W: \Pow Carrier]: \Set {
+  compactSet: \Pow A,
+  openSet: \Pow B,
+  compact: Source.IsCompactIn source compactSet,
+  open: Target.IsOpenIn target openSet,
+  same: W = Subbasic compactSet openSet,
+}
+\definition Basis: \Pow (\Pow Carrier) := { W: \Pow Carrier \where \exists SubbasicWitness[W] };
+\import topology.Topology[Carrier := Carrier] \as Space;
+\definition topology: Space.Topology := Space.generated Basis;
+\definition subbasicOpen: \forall (K: \Pow A) (U: \Pow B) -> Source.IsCompactIn source K ->
+  Target.IsOpenIn target U -> Space.IsOpenIn topology (Subbasic K U) :=
+  \fun (K: _) (U: _) (compact: _) (open: _) => Space.generatedBasisOpen Basis (Subbasic K U)
+    (\exact(SubbasicWitness[Subbasic K U] {
+      compactSet := K, openSet := U, compact := compact, open := open, same := \refl(Subbasic K U),
+    }, SubbasicWitness[Subbasic K U]));
+\module Precomposition(X: \Set);

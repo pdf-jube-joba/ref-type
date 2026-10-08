@@ -1,0 +1,85 @@
+\import \parent.Partitions[] \as Partitions;
+\import Lists.All[A := Split] \as All;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition leftZero: \forall (f, g: Function)(split: Split) -> f #left{split} = zero -> term f g split = zero :=
+  \fun (f, g: Function)(split: Split)(equal: f #left{split} = zero) => eq_reason!{
+    {term f g split} "=" {mul #weight{split} (mul zero (g #right{split}))} "by" {
+      congr!{K K} (\fun (x: K) => mul #weight{split} (mul x (g #right{split}))) (f #left{split}) zero equal}
+    "=" {mul #weight{split} zero} "by" {congr!{K K} (mul #weight{split}) _ _ (mulZeroLeft (g #right{split}))}
+    "=" zero "by" {mulZeroRight #weight{split}}
+  };
+\definition rightZero: \forall (f, g: Function)(split: Split) -> g #right{split} = zero -> term f g split = zero :=
+  \fun (f, g: Function)(split: Split)(equal: g #right{split} = zero) => eq_reason!{
+    {term f g split} "=" {mul #weight{split} (mul (f #left{split}) zero)} "by" {
+      congr!{K K} (\fun (x: K) => mul #weight{split} (mul (f #left{split}) x)) (g #right{split}) zero equal}
+    "=" {mul #weight{split} zero} "by" {congr!{K K} (mul #weight{split}) _ _ (mulZeroRight (f #left{split}))}
+    "=" zero "by" {mulZeroRight #weight{split}}
+  };
+\definition termZero: \forall (f, g: Function) -> Homogeneous p f -> Homogeneous q g ->
+  \forall (k: N.Nat^)(split: Split) -> Partitions.Length k split -> Logic.Not (k = Nat.add p q) -> term f g split = zero :=
+  \fun (f, g: Function)(hf: Homogeneous p f)(hg: Homogeneous q g)(k: N.Nat^)(split: Split)(length: Partitions.Length k split)(wrong: Logic.Not (k = Nat.add p q)) =>
+    either!{{Lists.length I #left{split} = p} "or" {Logic.Not (Lists.length I #left{split} = p)} "either" {term f g split = zero}
+      "lt:" {\fun (left: Lists.length I #left{split} = p) => rightZero f g split (hg #right{split}
+        (\fun (right: Lists.length I #right{split} = q) => wrong (trans!{{N.Nat^}} k
+          (Nat.add (Lists.length I #left{split}) (Lists.length I #right{split})) (Nat.add p q)
+          (sym!{{N.Nat^}} _ _ length)
+          (congr2!{{N.Nat^} {N.Nat^} {N.Nat^}} Nat.add (Lists.length I #left{split}) p (Lists.length I #right{split}) q left right))))}
+      "rt:" {\fun (left: Logic.Not (Lists.length I #left{split} = p)) => leftZero f g split (hf #left{split} left)}
+    } (Classical.excludedMiddle (Lists.length I #left{split} = p));
+\definition homogeneous: \forall (f, g: Function) -> Homogeneous p f -> Homogeneous q g -> Homogeneous (Nat.add p q) (product f g) :=
+  \fun (f, g: Function)(hf: Homogeneous p f)(hg: Homogeneous q g)(xs: Lists.List[I])(wrong: Logic.Not (Lists.length I xs = Nat.add p q)) =>
+    trans!{K} (product f g xs) (Sums.sum (partitions xs) (\fun (split: Split) => zero)) zero
+      (SumLaws.allCongruent (partitions xs) (term f g) (\fun (split: Split) => zero)
+        (All.transform (Partitions.Length (Lists.length I xs)) (\fun (split: Split) => term f g split = zero)
+          (partitions xs) (\fun (split: Split)(length: Partitions.Length (Lists.length I xs) split) => termZero f g hf hg (Lists.length I xs) split length wrong) (Partitions.lengths xs)))
+      (SumLaws.zeroSum (partitions xs));
+\definition swappedTerm: \forall (f, g: Function)(split: Split) ->
+  term g f (swap split) = mul (Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split}))) (term f g split) := \block {
+  \fun (f, g: Function)(split: Split) \then
+  \let s: K := Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split})) \then
+  \let w: K := #weight{split} \then
+  \let x: K := f #left{split} \then
+  \let y: K := g #right{split} \then
+  \return trans!{K} (mul (mul s w) (mul y x)) (mul s (mul w (mul y x))) (mul s (mul w (mul x y)))
+    (mulAssoc s w (mul y x))
+    (congr!{K K} (\fun (z: K) => mul s (mul w z)) (mul y x) (mul x y) (mulComm y x))
+};
+\definition zeroCoefficient: \forall (a, b, x: K) -> x = zero -> mul a x = mul b x :=
+  \fun (a, b, x: K)(equal: x = zero) => eq_reason!{
+    {mul a x} "=" {mul a zero} "by" {congr!{K K} (mul a) x zero equal}
+    "=" zero "by" {mulZeroRight a}
+    "=" {mul b zero} "by" {sym!{K} (mul b zero) zero (mulZeroRight b)}
+    "=" {mul b x} "by" {congr!{K K} (mul b) zero x (sym!{K} x zero equal)}
+  };
+\definition termCoefficient: \forall (f, g: Function) -> Homogeneous p f -> Homogeneous q g -> \forall (split: Split) ->
+  mul (Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split}))) (term f g split) = mul (Sign.value (Nat.mul p q)) (term f g split) := \block {
+  \fun (f, g: Function)(hf: Homogeneous p f)(hg: Homogeneous q g)(split: Split) \then
+  \let a: K := Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split})) \then
+  \let b: K := Sign.value (Nat.mul p q) \then
+  \let t: K := term f g split \then
+  \return either!{{Lists.length I #left{split} = p} "or" {Logic.Not (Lists.length I #left{split} = p)} "either" {mul a t = mul b t}
+    "lt:" {\fun (left: Lists.length I #left{split} = p) =>
+      either!{{Lists.length I #right{split} = q} "or" {Logic.Not (Lists.length I #right{split} = q)} "either" {mul a t = mul b t}
+        "lt:" {\fun (right: Lists.length I #right{split} = q) =>
+          congr!{K K} (\fun (s: K) => mul s t) a b
+            (congr!{{N.Nat^} K} Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split})) (Nat.mul p q)
+              (congr2!{{N.Nat^} {N.Nat^} {N.Nat^}} Nat.mul (Lists.length I #left{split}) p (Lists.length I #right{split}) q left right))}
+        "rt:" {\fun (right: Logic.Not (Lists.length I #right{split} = q)) => zeroCoefficient a b t (rightZero f g split (hg #right{split} right))}
+      } (Classical.excludedMiddle (Lists.length I #right{split} = q))}
+    "rt:" {\fun (left: Logic.Not (Lists.length I #left{split} = p)) => zeroCoefficient a b t (leftZero f g split (hf #left{split} left))}
+  } (Classical.excludedMiddle (Lists.length I #left{split} = p))
+};
+\definition commutative: \forall (f, g: Function) -> Homogeneous p f -> Homogeneous q g ->
+  \forall (xs: Lists.List[I]) -> product g f xs = mul (Sign.value (Nat.mul p q)) (product f g xs) := \block {
+  \fun (f, g: Function)(hf: Homogeneous p f)(hg: Homogeneous q g)(xs: Lists.List[I]) \then
+  \let a: Split -> K := \fun (split: Split) => term g f (swap split) \then
+  \let b: Split -> K := \fun (split: Split) => mul (Sign.value (Nat.mul p q)) (term f g split) \then
+  \return trans!{K} (product g f xs) (Sums.sum (partitions xs) a) (mul (Sign.value (Nat.mul p q)) (product f g xs))
+    (sym!{K} (Sums.sum (partitions xs) a) (product g f xs) (Partitions.swapping xs (term g f)))
+    (trans!{K} (Sums.sum (partitions xs) a) (Sums.sum (partitions xs) b) (mul (Sign.value (Nat.mul p q)) (product f g xs))
+      (SumLaws.congruent (partitions xs) a b (\fun (split: Split) => trans!{K} (a split)
+        (mul (Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split}))) (term f g split)) (b split)
+          (swappedTerm f g split) (termCoefficient f g hf hg split)))
+      (SumLaws.multiplyLeft (partitions xs) (Sign.value (Nat.mul p q)) (term f g)))
+};

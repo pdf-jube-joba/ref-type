@@ -1,0 +1,22 @@
+\import Source.Topology[].Of[U := U] \as SourceTopology;
+\import SourceTopology.Continuity[] \as Scalars;
+\import Target.Topology[].Of[U := V] \as TargetTopology;
+\import topological_algebra.Euclidean[].Dimension[n := m].Topology[] \as Euclidean;
+\import topology.RealLine[] \as RealLine;
+\import topological_algebra.Coordinates[K := Reals.Real, I := std.Data[].FinSet[].Fin m] \as Coordinates;
+\import Coordinates.Universal[A := Source.Carrier U] \as Components;
+\import topology.Continuity[A := Source.Carrier U, B := std.Data[].FinSet[].Fin m -> Reals.Real] \as Ambient;
+\import Ambient.Corestriction[S := #points{V}] \as RestrictRange;
+\import topology.Continuity[A := Source.Carrier U, B := Target.Carrier V] \as Continuity;
+\import Source.Smooth[].Properties[] \as SmoothLaws;
+\definition continuous: \forall (f: Map U V) -> Continuity.Continuous SourceTopology.topology TargetTopology.topology (apply U V f) := \block {
+  \fun (f: Map U V) \then
+  \let componentLaws: Laws[U, V, f] := \bysub(Data[U, V], { data: Data[U, V] \where Laws[U, V, data] }, f) \then
+  \let coordinates: Ambient.Continuous SourceTopology.topology Euclidean.coordinateTopology (\fun (x: Source.Carrier U) => apply U V f x) :=
+    Components.continuous SourceTopology.topology RealLine.topology (\fun (x: Source.Carrier U) => apply U V f x)
+      (\fun (i: std.Data[].FinSet[].Fin m) => Scalars.topological (\fun (x: Source.Carrier U) => apply U V f x i)
+        (SmoothLaws.continuous U (\fun (x: Source.Carrier U) => apply U V f x i) (#smooth{componentLaws} i))) \then
+  \let ambient: Ambient.Continuous SourceTopology.topology Euclidean.topology (\fun (x: Source.Carrier U) => apply U V f x) :=
+    \fun (W: \Pow (std.Data[].FinSet[].Fin m -> Reals.Real))(open: _) => coordinates W (Euclidean.metricOpen W open) \then
+  \return RestrictRange.corestrictContinuous SourceTopology.topology Euclidean.topology (apply U V f) ambient
+};

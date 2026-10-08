@@ -1,0 +1,82 @@
+\use Equality.congr2;
+\import \parent.\parent.Analysis[].Operations[] \as Operations;
+\definition plusFamily(U: OpenSet)(left, right: PartialFamily U): PartialFamily U :=
+  \fun (directions: Directions) => Operations.plus U (left directions) (right directions);
+\definition addContDiff: \forall (U: OpenSet)(k: N.Nat^)(f, g: ScalarFunction U) -> ContDiffOn U k f -> ContDiffOn U k g ->
+  ContDiffOn U k (Operations.plus U f g) := \block {
+  \fun (U: _)(k: _)(f, g: _)(left: _)(right: _) \then
+  \takefrom df: \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, f, k, d] }) \by left \then
+  \takefrom dg: \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, g, k, d] }) \by right \then
+  \let lf: ContDiffLaws[U, f, k, df] := \bysub(PartialFamily U, { d: PartialFamily U \where ContDiffLaws[U, f, k, d] }, df) \then
+  \let lg: ContDiffLaws[U, g, k, dg] := \bysub(PartialFamily U, { d: PartialFamily U \where ContDiffLaws[U, g, k, d] }, dg) \then
+  \return \exact(\into[PartialFamily U](plusFamily U df dg,
+    { d: PartialFamily U \where ContDiffLaws[U, Operations.plus U f g, k, d] }) \by {
+      ContDiffLaws[U, Operations.plus U f g, k, plusFamily U df dg] {
+        partials := PartialFamilyLaws[U, Operations.plus U f g, k, plusFamily U df dg] {
+          function := congr2!{{ScalarFunction U} {ScalarFunction U} {ScalarFunction U}} (Operations.plus U)
+            (df Directions::nil) f (dg Directions::nil) g (#function{(#partials{lf})}) (#function{(#partials{lg})}),
+          derivative := \fun (directions: Directions)(bound: _)(i: Coordinate) =>
+            Operations.addPartial U (df directions) (dg directions) (df (Directions::cons i directions)) (dg (Directions::cons i directions)) i
+              (#derivative{(#partials{lf})} directions bound i) (#derivative{(#partials{lg})} directions bound i),
+        },
+        continuous := \fun (directions: Directions)(bound: _) => Operations.addContinuous U (df directions) (dg directions)
+          (#continuous{lf} directions bound) (#continuous{lg} directions bound),
+      }
+    }, \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, Operations.plus U f g, k, d] }))
+};
+\definition addSmooth: \forall (U: OpenSet)(f, g: ScalarFunction U) -> SmoothOn U f -> SmoothOn U g -> SmoothOn U (Operations.plus U f g) :=
+  \fun (U: _)(f, g: _)(left: _)(right: _)(k: _) => addContDiff U k f g (left k) (right k);
+
+\definition mulContDiff: \forall (U: OpenSet)(k: N.Nat^)(f, g: ScalarFunction U) -> ContDiffOn U k f -> ContDiffOn U k g ->
+  ContDiffOn U k (Operations.times U f g) := \block {
+  \fun (U: _)(k: _)(f, g: _)(left: _)(right: _) \then
+  \takefrom df: \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, f, k, d] }) \by left \then
+  \takefrom dg: \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, g, k, d] }) \by right \then
+  \let lf: ContDiffLaws[U, f, k, df] := \bysub(PartialFamily U, { d: PartialFamily U \where ContDiffLaws[U, f, k, d] }, df) \then
+  \let lg: ContDiffLaws[U, g, k, dg] := \bysub(PartialFamily U, { d: PartialFamily U \where ContDiffLaws[U, g, k, d] }, dg) \then
+  \return \exact(\into[PartialFamily U](\parent.Product[U := U, left := df, right := dg].family,
+    { d: PartialFamily U \where ContDiffLaws[U, Operations.times U f g, k, d] }) \by {
+      \parent.Product[U := U, left := df, right := dg].laws f g k lf lg
+    }, \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, Operations.times U f g, k, d] }))
+};
+\definition mulSmooth: \forall (U: OpenSet)(f, g: ScalarFunction U) -> SmoothOn U f -> SmoothOn U g -> SmoothOn U (Operations.times U f g) :=
+  \fun (U: _)(f, g: _)(left: _)(right: _)(k: _) => mulContDiff U k f g (left k) (right k);
+
+\definition constantFamily(U: OpenSet)(c: Real): PartialFamily U :=
+  \induction (directions: Directions) \return ScalarFunction U \with {
+    | nil: \fun (x: Carrier U) => c
+    | cons: \fun (i: Coordinate)(tail: Directions)(rest: ScalarFunction U) => \fun (x: Carrier U) => zero
+  };
+\definition constantContDiff: \forall (U: OpenSet)(k: N.Nat^)(c: Real) -> ContDiffOn U k (\fun (x: Carrier U) => c) :=
+  \fun (U: _)(k: _)(c: _) => \exact(\into[PartialFamily U](constantFamily U c,
+    { d: PartialFamily U \where ContDiffLaws[U, \fun (x: Carrier U) => c, k, d] }) \by {
+      ContDiffLaws[U, \fun (x: Carrier U) => c, k, constantFamily U c] {
+        partials := PartialFamilyLaws[U, \fun (x: Carrier U) => c, k, constantFamily U c] {
+          function := \refl(\fun (x: Carrier U) => c),
+          derivative := \induction (directions: Directions) \return NatLaws.Lt (order directions) k -> \forall (i: Coordinate) ->
+            Analysis.HasPartialDerivative U (constantFamily U c directions) i (constantFamily U c (Directions::cons i directions)) \with {
+              | nil: \fun (bound: _)(i: _) => Operations.constantPartial U c i
+              | cons: \fun (j: Coordinate)(tail: Directions)(previous: _)(bound: _)(i: _) => Operations.constantPartial U zero i
+            },
+        },
+        continuous := \induction (directions: Directions) \return NatLaws.Le (order directions) k -> Analysis.ContinuousOn U (constantFamily U c directions) \with {
+          | nil: \fun (bound: _) => Operations.constantContinuous U c
+          | cons: \fun (i: Coordinate)(tail: Directions)(previous: _)(bound: _) => Operations.constantContinuous U zero
+        },
+      }
+    }, \Cast[PartialFamily U] ({ d: PartialFamily U \where ContDiffLaws[U, \fun (x: Carrier U) => c, k, d] }));
+\definition constantSmooth: \forall (U: OpenSet)(c: Real) -> SmoothOn U (\fun (x: Carrier U) => c) :=
+  \fun (U: _)(c: _)(k: _) => constantContDiff U k c;
+
+\definition scaleSmooth: \forall (U: OpenSet)(c: Real)(f: ScalarFunction U) -> SmoothOn U f -> SmoothOn U (\fun (x: Carrier U) => mul c (f x)) :=
+  \fun (U: _)(c: _)(f: _)(smooth: _) => mulSmooth U (\fun (x: Carrier U) => c) f (constantSmooth U c) smooth;
+\import \parent.\parent.\parent.\parent.Derivative[].Operations[] \as Derivatives;
+\definition negSmooth: \forall (U: OpenSet)(f: ScalarFunction U) -> SmoothOn U f -> SmoothOn U (\fun (x: Carrier U) => Arithmetic.neg (f x)) :=
+  \fun (U: _)(f: _)(smooth: _) => \idelim (\fun (x: Carrier U) => mul (Arithmetic.neg one) (f x)) = (\fun (x: Carrier U) => Arithmetic.neg (f x))
+    \with h: ScalarFunction U => SmoothOn U h \by {
+      base: scaleSmooth U (Arithmetic.neg one) f smooth,
+      equality: \axiom:funext((\fun (x: Carrier U) => mul (Arithmetic.neg one) (f x)), (\fun (x: Carrier U) => Arithmetic.neg (f x)),
+        \fun (x: Carrier U) => Derivatives.negativeScale (f x))
+    };
+\definition subSmooth: \forall (U: OpenSet)(f, g: ScalarFunction U) -> SmoothOn U f -> SmoothOn U g -> SmoothOn U (\fun (x: Carrier U) => sub (f x) (g x)) :=
+  \fun (U: _)(f, g: _)(left: _)(right: _) => addSmooth U f (\fun (x: Carrier U) => Arithmetic.neg (g x)) left (negSmooth U g right);

@@ -442,7 +442,8 @@ impl<'a> Parser<'a> {
             self.bump_if_token(Token::Assign);
             Some(kind)
         };
-        let fields = self.parse_structure_fields()?;
+        let mut field_spans = Vec::new();
+        let fields = self.parse_structure_fields(&mut field_spans)?;
         let mut names = std::collections::HashSet::new();
         for (field, _, _) in &fields {
             if !names.insert(field.as_str()) {
@@ -459,15 +460,18 @@ impl<'a> Parser<'a> {
             parameters,
             kind,
             fields,
+            field_spans,
         })
     }
 
     fn parse_structure_fields(
         &mut self,
+        spans: &mut Vec<SourceSpan>,
     ) -> Result<Vec<(Identifier, SExp, Option<SExp>)>, ParseError> {
         self.expect_token(Token::LBrace)?;
         let mut fields = Vec::new();
         while !self.bump_if_token(Token::RBrace) {
+            let start = self.span_at(self.pos).start;
             let name = self.expect_ident()?;
             self.expect_token(Token::Colon)?;
             let ty = self.parse_sexp()?;
@@ -477,6 +481,10 @@ impl<'a> Parser<'a> {
                 None
             };
             fields.push((name, ty, default));
+            spans.push(SourceSpan {
+                start,
+                end: self.span_at(self.pos - 1).end,
+            });
             if self.bump_if_token(Token::RBrace) {
                 break;
             }
@@ -727,7 +735,6 @@ impl<'a> Parser<'a> {
     }
 
     fn try_parse_module_item(&mut self) -> Result<Option<ModuleItem>, ParseError> {
-        let start_pos = self.pos;
         if self.bump_if_keyword("\\structure") {
             return self.parse_structure().map(Some);
         }
@@ -767,86 +774,6 @@ impl<'a> Parser<'a> {
             let exp = self.parse_sexp()?;
             self.expect_token(Token::Semicolon)?;
             return Ok(Some(ModuleItem::Normalize { exp }));
-        }
-        if self.bump_if_keyword("\\ceval") {
-            let exp = self.parse_sexp()?;
-            self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::ComputationEval {
-                exp: exp.try_into().map_err(|msg| ParseError {
-                    msg,
-                    start: self.span_at(start_pos).start,
-                    end: self.span_at(self.pos).end,
-                })?,
-            }));
-        }
-        if self.bump_if_keyword("\\cnormalize") {
-            let exp = self.parse_sexp()?;
-            self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::ComputationNormalize {
-                exp: exp.try_into().map_err(|msg| ParseError {
-                    msg,
-                    start: self.span_at(start_pos).start,
-                    end: self.span_at(self.pos).end,
-                })?,
-            }));
-        }
-        if self.bump_if_keyword("\\vcheck") {
-            let exp = self.parse_sexp()?;
-            self.expect_token(Token::Colon)?;
-            let ty = self.parse_sexp()?;
-            self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::ValueCheck {
-                exp: exp.try_into().map_err(|msg| ParseError {
-                    msg,
-                    start: self.span_at(start_pos).start,
-                    end: self.span_at(self.pos).end,
-                })?,
-                ty: ty.try_into().map_err(|msg| ParseError {
-                    msg,
-                    start: self.span_at(start_pos).start,
-                    end: self.span_at(self.pos).end,
-                })?,
-            }));
-        }
-        if self.bump_if_keyword("\\ccheck") {
-            let exp = self.parse_sexp()?;
-            self.expect_token(Token::Colon)?;
-            let ty = self.parse_sexp()?;
-            self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::ComputationCheck {
-                exp: exp.try_into().map_err(|msg| ParseError {
-                    msg,
-                    start: self.span_at(start_pos).start,
-                    end: self.span_at(self.pos).end,
-                })?,
-                ty: ty.try_into().map_err(|msg| ParseError {
-                    msg,
-                    start: self.span_at(start_pos).start,
-                    end: self.span_at(self.pos).end,
-                })?,
-            }));
-        }
-        if self.bump_if_keyword("\\vinfer") {
-            let exp = self.parse_sexp()?;
-            self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::ValueInfer {
-                exp: exp.try_into().map_err(|msg| ParseError {
-                    msg,
-                    start: self.span_at(start_pos).start,
-                    end: self.span_at(self.pos).end,
-                })?,
-            }));
-        }
-        if self.bump_if_keyword("\\cinfer") {
-            let exp = self.parse_sexp()?;
-            self.expect_token(Token::Semicolon)?;
-            return Ok(Some(ModuleItem::ComputationInfer {
-                exp: exp.try_into().map_err(|msg| ParseError {
-                    msg,
-                    start: self.span_at(start_pos).start,
-                    end: self.span_at(self.pos).end,
-                })?,
-            }));
         }
         if self.bump_if_keyword("\\check") {
             let exp = self.parse_sexp()?;

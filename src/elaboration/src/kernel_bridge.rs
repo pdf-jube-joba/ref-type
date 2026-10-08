@@ -14,17 +14,31 @@ use rustc_hash::FxHashSet;
 /// Registered declarations are immutable and their dependencies are already
 /// materialized. Each reference's actual arguments are still visited below.
 fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
+    let _cost = timing::costs::Scope::enter("bridge.prepare");
     let mut seen = FxHashSet::default();
     let mut definitions = FxHashSet::default();
     let mut inductives = FxHashSet::default();
     let mut datatypes = FxHashSet::default();
     let mut parameters = FxHashSet::default();
     while let Some(term) = pending.pop() {
+        if let Term::Logical(e) = term
+            && env.arena().lowered_definitions.borrow().contains(&e.0)
+        {
+            continue;
+        }
         if !seen.insert(term) {
             continue;
         }
         term.visit_children(env.arena(), |child, _| pending.push(child));
         let (definition, inductive, datatype, parameter) = match term {
+            Term::Logical(e)
+                if matches!(
+                    env.arena().core.get(e.0),
+                    kernel::syntax::Node::Definition { .. }
+                ) =>
+            {
+                (None, None, None, None)
+            }
             Term::Logical(e) => match env.arena().get(e) {
                 ExpNode::DefinedConstant(id)
                 | ExpNode::DefinitionInstance { definition: id, .. } => {
@@ -108,6 +122,22 @@ fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
             && inductives.insert(id)
             && env.kernel.borrow().inductive(id.into()).is_none()
         {
+            if !env.is_program_mirror(id) {
+                let arguments = if let Some(origin) = env.inductive_specialization(id) {
+                    pending.push(Term::Logical(env.arena().alloc(ExpNode::IndType {
+                        indspec: origin.source,
+                        parameters: vec![],
+                    })));
+                    origin.arguments.clone()
+                } else {
+                    env.namespace_arguments(id.module)
+                };
+                pending.extend(arguments.into_iter().map(|(_, argument)| match argument {
+                    crate::raw::environment::ModuleArgument::Pts(e) => Term::Logical(e),
+                    crate::raw::environment::ModuleArgument::ProgramType(t) => Term::ValueType(t),
+                    crate::raw::environment::ModuleArgument::ProgramValue(v) => Term::Value(v),
+                }));
+            }
             let spec = env.inductive(id);
             pending.extend(spec.parameters().iter().map(|(_, e)| Term::Logical(*e)));
             pending.push(Term::Logical(spec.arity(env.arena())));
@@ -167,9 +197,20 @@ pub(crate) fn logical_in_scope<T>(
         Vec<kernel::syntax::Expression>,
     ) -> Result<T, kernel::metavariables::Error>,
 ) -> Result<T, String> {
+    let _cost = timing::costs::Scope::enter("bridge.logical_in_scope");
+    let profile = std::env::var_os("REF_TYPE_PROFILE_BRIDGE").is_some();
+    if profile {
+        eprintln!(
+            "bridge prepare roots={roots:?} context={} base={base}",
+            context.len()
+        );
+    }
     let mut pending = roots.iter().copied().map(Term::Logical).collect::<Vec<_>>();
     pending.extend(context.iter().map(|b| Term::Logical(b.ty)));
     prepare(env, pending)?;
+    if profile {
+        eprintln!("bridge lower roots={roots:?}");
+    }
     let mut kernel = env.kernel.borrow_mut();
     let mut lower = Lowerer::new(env, &mut kernel);
     lower.nominal(base);
@@ -180,7 +221,15 @@ pub(crate) fn logical_in_scope<T>(
         .map(|&e| lower.set(e, &mut local, module))
         .collect::<Result<Vec<_>, _>>()?;
     let context = lower.nominal_context(context, base, module)?;
-    f(&kernel, context, terms).map_err(|error| crate::lowering::format_kernel_error(env, &error))
+    if profile {
+        eprintln!("bridge kernel roots={terms:?}");
+    }
+    let result = f(&kernel, context, terms)
+        .map_err(|error| crate::lowering::format_kernel_error(env, &error));
+    if profile {
+        eprintln!("bridge finished roots={roots:?}");
+    }
+    result
 }
 
 pub(crate) fn program<T>(
@@ -193,6 +242,7 @@ pub(crate) fn program<T>(
         Vec<kernel::syntax::Expression>,
     ) -> Result<T, kernel::metavariables::Error>,
 ) -> Result<T, String> {
+    let _cost = timing::costs::Scope::enter("bridge.program");
     use crate::raw::program::ProgramContextEntry;
     let mut pending = roots.to_vec();
     pending.extend(context.iter().filter_map(|b| match b {
@@ -218,6 +268,7 @@ pub(crate) fn expression<T>(
     term: Term,
     f: impl FnOnce(&kernel::environment::Environment, kernel::syntax::Expression) -> Result<T, String>,
 ) -> Result<T, String> {
+    let _cost = timing::costs::Scope::enter("bridge.expression");
     prepare(env, vec![term])?;
     let mut depth = env
         .arena()
@@ -256,4 +307,60 @@ pub(crate) fn expression<T>(
         term => lower.source_term(term, &mut vec![])?,
     };
     f(&kernel, e)
+}
+
+pub(crate) fn captured_definition(
+    env: &CrateEnv,
+    definition: crate::raw::ids::DefId,
+    substitutions: &[(crate::raw::ids::ModuleParamId, Exp)],
+    parameters: &[Exp],
+) -> Result<Exp, String> {
+    let actual = substitutions
+        .iter()
+        .map(|(id, value)| expression(env, Term::Logical(*value), |_, term| Ok((*id, term))))
+        .collect::<Result<Vec<_>, _>>()?;
+    let reference = if matches!(
+        env.definition(definition),
+        DefinedConstant::Contextual { .. }
+    ) {
+        env.arena().alloc(ExpNode::DefinitionInstance {
+            definition,
+            arguments: parameters.to_vec(),
+        })
+    } else {
+        env.arena().alloc(ExpNode::DefinedConstant(definition))
+    };
+    expression(env, Term::Logical(reference), |kernel, reference| {
+        let kernel::syntax::Node::Definition { id, mut arguments } = kernel.arena().get(reference)
+        else {
+            return Err("expected a definition reference".into());
+        };
+        let captures = env
+            .arena()
+            .definition_captures(id)
+            .ok_or("missing definition captures")?;
+        for (parameter, argument) in captures.iter().zip(&mut arguments) {
+            if let Some((_, value)) = actual.iter().find(|(id, _)| id == parameter) {
+                *argument = *value;
+            }
+        }
+        kernel.reference(id, arguments).map(Exp)
+    })
+}
+
+mod terms;
+pub(crate) use terms::*;
+
+/// Specialize a logical expression after its dependencies have explicit captures.
+pub(crate) fn captured_expression(
+    env: &CrateEnv,
+    value: Exp,
+    substitutions: &[(crate::raw::ids::ModuleParamId, Exp)],
+) -> Result<Exp, String> {
+    let value = expression(env, Term::Logical(value), |_, value| Ok(Exp(value)))?;
+    Ok(crate::raw::remapping::exp_subst_map(
+        env.arena(),
+        value,
+        substitutions,
+    ))
 }

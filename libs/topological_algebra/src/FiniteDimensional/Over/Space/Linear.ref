@@ -1,0 +1,36 @@
+\import Algebra.Finite[V := W, I := J, space := target] \as Range;
+\import Algebra.Linear[V := V, W := W, source := space, target := target] \as Maps;
+\import topological_algebra.Coordinates[K := K, I := J] \as RangeCoordinates;
+\import RangeCoordinates.Universal[A := V] \as IntoCoordinates;
+\import topology.Topology[Carrier := W] \as RangeSpace;
+\import topology.Quotient[A := RangeCoordinates.Carrier, B := W] \as RangeTransport;
+\definition rangeTopology(scalar: Scalars.Topology) (basis: Range.Basis): RangeSpace.Topology :=
+  RangeTransport.topology (RangeCoordinates.topology scalar) (Range.synthesize basis);
+\import \parent.Functional[] \as Functionals;
+\import topological_algebra.Topology[K := K] \as Structures;
+\import topology.Continuity[A := V, B := RangeCoordinates.Carrier] \as CoordinateMaps;
+\import Algebra.Linear[V := W, W := K, source := target, target := Algebra.scalarSpace] \as RangeDual;
+\import RangeDual.Composition[U := V, domain := space] \as ComposeFunctional;
+\import topology.Continuity[A := V, B := W] \as Continuous;
+\import topology.Composition[A := V, B := RangeCoordinates.Carrier, C := W] \as Compose;
+\import std.Logic[].Equality[] \as Equality;
+\import Equality.Prop[A := V -> W] \as FunctionEquality;
+\definition continuous: \forall (scalar: Scalars.Topology) ->
+  Structures.RingLaws[scalar, Functionals.scalarRing] ->
+  \forall (basis: Finite.Basis) (rangeBasis: Range.Basis) (f: Maps.Map) ->
+  Continuous.Continuous (topology scalar basis) (rangeTopology scalar rangeBasis) (#apply{f}) :=
+  \fun (scalar: _) (laws: _) (basis: _) (rangeBasis: _) (f: Maps.Map) => \block {
+    \let coordinates: V -> RangeCoordinates.Carrier := \fun (x: V) => Range.coordinates rangeBasis (#apply{f} x) \then
+    \let coordinateContinuous: CoordinateMaps.Continuous (topology scalar basis) (RangeCoordinates.topology scalar) coordinates :=
+      IntoCoordinates.continuous (topology scalar basis) scalar coordinates
+        (\fun (j: J) => Functionals.continuous scalar laws basis
+          (ComposeFunctional.compose (Range.coordinate rangeBasis j) f)) \then
+    \let composite: V -> W := \fun (x: V) => Range.synthesize rangeBasis (coordinates x) \then
+    \let equal: composite = (#apply{f}) := \axiom:funext(composite, (#apply{f}),
+      (\fun (x: V) => #reconstruction{rangeBasis} (#apply{f} x))) \then
+    \return \idelim composite = (#apply{f}) \with g: (V -> W) =>
+      Continuous.Continuous (topology scalar basis) (rangeTopology scalar rangeBasis) g
+      \by { base: Compose.composeContinuous (topology scalar basis) (RangeCoordinates.topology scalar)
+        (rangeTopology scalar rangeBasis) coordinates (Range.synthesize rangeBasis) coordinateContinuous
+        (RangeTransport.projectionContinuous (RangeCoordinates.topology scalar) (Range.synthesize rangeBasis)), equality: equal }
+  };

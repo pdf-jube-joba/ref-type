@@ -1,0 +1,18 @@
+\import \parent.Wedge[p := p, q := q] \as PQ;
+\import \parent.Wedge[p := q, q := r] \as QR;
+\import \parent.Wedge[p := Nat.add p q, q := r] \as Left;
+\import \parent.Wedge[p := p, q := Nat.add q r] \as Right;
+\import \parent.Regrade[k := Nat.add (Nat.add p q) r, l := Nat.add p (Nat.add q r)] \as Degree;
+\import Exterior.Associativity[p := p, q := q, r := r] \as Point;
+\import Exterior.Components[k := Nat.add p (Nat.add q r)] \as Components;
+\import N.Basic[].Prop[] \as Naturals;
+\definition degree: Nat.add (Nat.add p q) r = Nat.add p (Nat.add q r) := Naturals.addAssoc p q r;
+\definition left(omega: Form p)(eta: Form q)(theta: Form r): Form (Nat.add p (Nat.add q r)) := Degree.cast (Left.apply (PQ.apply omega eta) theta) degree;
+\definition right(omega: Form p)(eta: Form q)(theta: Form r): Form (Nat.add p (Nat.add q r)) := Right.apply omega (QR.apply eta theta);
+\definition law: \forall (omega: Form p)(eta: Form q)(theta: Form r) -> left omega eta theta = right omega eta theta :=
+  \fun (omega: Form p)(eta: Form q)(theta: Form r) => \axiom:funext(left omega eta theta, right omega eta theta,
+    \fun (x: Open.Carrier U) => Components.ext (left omega eta theta x) (right omega eta theta x)
+      (trans!{{Shuffle.Function}} (Exterior.component (Nat.add p (Nat.add q r)) (left omega eta theta x))
+        (Exterior.component (Nat.add (Nat.add p q) r) (Left.apply (PQ.apply omega eta) theta x))
+        (Exterior.component (Nat.add p (Nat.add q r)) (right omega eta theta x))
+        (Degree.series (Left.apply (PQ.apply omega eta) theta) degree x) (Point.law (omega x) (eta x) (theta x))));

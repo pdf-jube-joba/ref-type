@@ -1,0 +1,31 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\import \parent.Unit[] \as Unit;
+\import \parent.QuotientProduct[p := zero, q := k] \as Left;
+\import \parent.QuotientProduct[p := k, q := zero] \as Right;
+\import \parent.\parent.UnitLaws[k := k] \as FormsLaw;
+\import \parent.Regrade[k := Nat.add zero k, l := k] \as Degree;
+\import Complexes.At[C := complex, k := k] \as H;
+\import Complexes.At[C := complex, k := Nat.add zero k] \as Sum;
+\definition leftCycle: \forall (omega: H.CycleCarrier) ->
+  #apply{(Degree.cyclesMap FormsLaw.degree)} (Left.cycle Unit.cycle omega) = omega :=
+    \fun (omega: H.CycleCarrier) => FormsLaw.left omega;
+\definition rightCycle: \forall (omega: H.CycleCarrier) -> Right.cycle omega Unit.cycle = omega :=
+  \fun (omega: H.CycleCarrier) => FormsLaw.right omega;
+\definition classLeft: \forall (omega: H.CycleCarrier) ->
+  Degree.cast (Left.apply Unit.class (H.classOf omega)) FormsLaw.degree = H.classOf omega :=
+    \fun (omega: H.CycleCarrier) => eq_reason!{
+      {Degree.cast (Left.apply Unit.class (H.classOf omega)) FormsLaw.degree}
+      "=" {Degree.cast (Sum.classOf (Left.cycle Unit.cycle omega)) FormsLaw.degree} "by" {
+        congr!{{Sum.Cohomology} {H.Cohomology}} (\fun (h: Sum.Cohomology) => Degree.cast h FormsLaw.degree) _ _ (Left.onClass Unit.cycle omega)}
+      "=" {H.classOf (#apply{(Degree.cyclesMap FormsLaw.degree)} (Left.cycle Unit.cycle omega))} "by" {
+        Degree.onClass (Left.cycle Unit.cycle omega) FormsLaw.degree}
+      "=" {H.classOf omega} "by" {congr!{{H.CycleCarrier} {H.Cohomology}} H.classOf _ _ (leftCycle omega)}
+    };
+\definition classRight: \forall (omega: H.CycleCarrier) -> Right.apply (H.classOf omega) Unit.class = H.classOf omega :=
+  \fun (omega: H.CycleCarrier) => trans!{{H.Cohomology}} (Right.apply (H.classOf omega) Unit.class)
+    (H.classOf (Right.cycle omega Unit.cycle)) (H.classOf omega) (Right.onClass omega Unit.cycle)
+    (congr!{{H.CycleCarrier} {H.Cohomology}} H.classOf (Right.cycle omega Unit.cycle) omega (rightCycle omega));
+\definition left: \forall (h: H.Cohomology) -> Degree.cast (Left.apply Unit.class h) FormsLaw.degree = h :=
+  H.classInduction (\fun (h: H.Cohomology) => Degree.cast (Left.apply Unit.class h) FormsLaw.degree = h) classLeft;
+\definition right: \forall (h: H.Cohomology) -> Right.apply h Unit.class = h :=
+  H.classInduction (\fun (h: H.Cohomology) => Right.apply h Unit.class = h) classRight;

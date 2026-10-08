@@ -1,14 +1,16 @@
 #[path = "scoped.rs"]
 mod scoped;
 use crate::{
-    bindings,
+    bindings::{self, LocalScope},
     hir::*,
     lower,
     macros::{self, MacroDefinition, MacroKind},
 };
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::{
     cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
+    sync::Arc,
 };
 
 #[derive(Debug, Clone)]
@@ -60,7 +62,7 @@ pub struct Import {
     pub owner: ModuleId,
     pub name: String,
     pub target: ModuleId,
-    pub remapping: HashMap<ModuleId, ModuleId>,
+    pub remapping: Arc<HashMap<ModuleId, ModuleId>>,
 }
 
 /// Type-checking steps in lexical and import dependency order.
@@ -83,14 +85,14 @@ pub struct Project {
 #[derive(Clone, Default)]
 struct Scope {
     parent: Option<ModuleId>,
-    children: HashMap<String, ModuleId>,
-    names: HashMap<String, BindingId>,
-    imports: HashMap<String, ModuleId>,
-    import_ids: HashMap<String, BindingId>,
+    children: FxHashMap<String, ModuleId>,
+    names: Arc<FxHashMap<String, BindingId>>,
+    imports: FxHashMap<String, ModuleId>,
+    import_ids: FxHashMap<String, BindingId>,
     macros: Vec<MacroDefinition>,
     used: Vec<MacroDefinition>,
-    remapping: HashMap<ModuleId, ModuleId>,
-    substitutions: HashMap<BindingId, SExp>,
+    remapping: Arc<HashMap<ModuleId, ModuleId>>,
+    substitutions: Arc<HashMap<BindingId, SExp>>,
 }
 
 #[path = "structures.rs"]
@@ -99,21 +101,22 @@ mod structures;
 #[derive(Default)]
 struct Resolver {
     declarations: Vec<Declaration>,
-    structures: HashMap<BindingId, structures::Structure>,
+    structures: FxHashMap<BindingId, structures::Structure>,
+    parameter_signatures: FxHashMap<BindingId, structures::ParameterSignature>,
     computation_bindings: HashSet<BindingId>,
-    front_definitions: HashMap<BindingId, structures::Definition>,
-    structure_values: HashMap<BindingId, structures::Value>,
+    front_definitions: FxHashMap<BindingId, structures::Definition>,
+    structure_values: FxHashMap<BindingId, structures::Value>,
     last_inputs: Vec<structures::Input>,
     last_parameter_checks: Vec<(SExp, SExp)>,
-    module_inputs: HashMap<ModuleId, Vec<structures::Input>>,
-    module_parameters: HashMap<ModuleId, Vec<RightBind>>,
+    module_inputs: FxHashMap<ModuleId, Vec<structures::Input>>,
+    module_parameters: FxHashMap<ModuleId, Vec<RightBind>>,
     scopes: Vec<Scope>,
-    input: HashMap<ModuleId, Module>,
-    output: HashMap<ModuleId, Module>,
-    origins: HashMap<ModuleId, ModuleId>,
-    paths: HashMap<ModuleId, Vec<String>>,
-    occurrences: HashMap<(ModuleId, String), usize>,
-    states: HashMap<ModuleId, u8>,
+    input: FxHashMap<ModuleId, Module>,
+    output: FxHashMap<ModuleId, Module>,
+    origins: FxHashMap<ModuleId, ModuleId>,
+    paths: FxHashMap<ModuleId, Vec<String>>,
+    occurrences: FxHashMap<(ModuleId, String), usize>,
+    states: FxHashMap<ModuleId, u8>,
     imports: HashMap<BindingId, Import>,
     next_binding: u64,
     next_expression: u64,
@@ -122,6 +125,10 @@ struct Resolver {
     location: Option<SourceLocation>,
     current: ModuleId,
     references: RefCell<Vec<Reference>>,
+    // Source files stay alive throughout resolution; their Arc addresses identify
+    // repeated probes of the same occurrence without copying paths or names.
+    reference_occurrences: RefCell<FxHashSet<(usize, ModuleId, usize, usize, BindingId)>>,
+    reference_probes: Cell<u64>,
     global_bindings: HashMap<BindingId, Binding>,
     order: Vec<CheckStep>,
     declaration_scope: Option<u64>,
@@ -130,9 +137,13 @@ struct Resolver {
 }
 
 pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic> {
+    let _cost = timing::costs::Scope::enter("resolve.total");
     let mut resolver = Resolver::default();
     resolver.scopes.push(Scope::default());
-    let mut roots: Vec<_> = modules.iter().cloned().map(lower::module).collect();
+    let mut roots: Vec<_> = {
+        let _cost = timing::costs::Scope::enter("resolve.lower-syntax");
+        modules.iter().cloned().map(lower::module).collect()
+    };
     for module in &mut roots {
         resolver.reserve(ModuleId(0), module);
     }
@@ -141,7 +152,8 @@ pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic
     for id in ids {
         resolver.module(id)?;
     }
-    fn assemble(module: &mut Module, outputs: &mut HashMap<ModuleId, Module>) {
+    fn assemble(module: &mut Module, outputs: &mut FxHashMap<ModuleId, Module>) {
+        let _cost = timing::costs::Scope::enter("resolve.assemble");
         *module = outputs.remove(&module.id).expect("resolved module");
         if let ModuleBody::Inline(items) = &mut module.body {
             for item in items {
@@ -154,6 +166,16 @@ pub fn resolve(modules: &[syntax::syntax::Module]) -> Result<Project, Diagnostic
     for module in &mut roots {
         assemble(module, &mut resolver.output);
     }
+    timing::costs::count("resolve.reference-probes", || {
+        resolver.reference_probes.get()
+    });
+    timing::costs::count("resolve.references", || {
+        resolver.references.borrow().len() as u64
+    });
+    timing::costs::count("resolve.declarations", || {
+        resolver.declarations.len() as u64
+    });
+    timing::costs::count("resolve.scopes", || resolver.scopes.len() as u64);
     Ok(Project {
         declarations: resolver.declarations,
         order: resolver.order,
@@ -178,6 +200,7 @@ impl Resolver {
         id
     }
     fn reserve(&mut self, parent: ModuleId, module: &mut Module) {
+        let _cost = timing::costs::Scope::enter("resolve.reserve");
         module.id = ModuleId(self.scopes.len() as u32);
         self.binding(&mut module.name);
         let occurrence = self
@@ -193,6 +216,7 @@ impl Resolver {
         let mut path = self.paths.get(&parent).cloned().unwrap_or_default();
         path.push(component);
         self.paths.insert(module.id, path);
+        let _time = timing::Scope::module(|| self.path(module.id));
         self.scopes.push(Scope {
             parent: Some(parent),
             ..Scope::default()
@@ -239,7 +263,8 @@ impl Resolver {
         }
         diagnostic
     }
-    fn lexical(&mut self, exp: &mut SExp, scopes: &mut Vec<HashMap<String, Identifier>>) {
+    fn lexical(&mut self, exp: &mut SExp, scopes: &mut Vec<LocalScope>) {
+        let _cost = timing::costs::Scope::enter("resolve.lexical");
         let order = self.next_expression;
         self.next_expression += 1;
         bindings::alpha_rename(exp, bindings::Mode::Resolved(order), &mut 0, scopes);
@@ -247,14 +272,65 @@ impl Resolver {
     fn expression(
         &mut self,
         exp: &mut SExp,
-        scopes: &mut Vec<HashMap<String, Identifier>>,
+        scopes: &mut Vec<LocalScope>,
     ) -> Result<(), Diagnostic> {
         self.expand(exp)?;
+        self.expanded_expression(exp, scopes)
+    }
+    fn prepare_module_argument_bindings(&mut self, exp: &mut SExp, scopes: &mut Vec<LocalScope>) {
+        let _cost = timing::costs::Scope::enter("resolve.module-argument-bindings");
+        fn path(node: &mut SExp) -> Option<&mut Box<ModuleInstantiatePath>> {
+            match node {
+                SExp::ModuleInstance { path, .. } => Some(path),
+                SExp::AccessPath { access, .. }
+                | SExp::RecordTypeCtor { access, .. }
+                | SExp::ProgramValueReference { access }
+                | SExp::IndCase { path: access, .. }
+                | SExp::ProgramCase { path: access, .. } => {
+                    if let LocalAccess::Instantiated { path, .. } = access {
+                        Some(path)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            }
+        }
+        let mut found = false;
+        macros::walk_sexp_mut(exp, &mut |node| found |= path(node).is_some());
+        if !found {
+            return;
+        }
+        // Bind module arguments in their lexical scopes before normalization.
+        // Other expressions retain their source form for structure expansion.
+        let mut bound = exp.clone();
+        self.lexical(&mut bound, scopes);
+        let mut paths = Vec::new();
+        macros::walk_sexp_mut(&mut bound, &mut |node| {
+            if let Some(path) = path(node) {
+                paths.push(path.clone());
+            }
+        });
+        let mut paths = paths.into_iter();
+        macros::walk_sexp_mut(exp, &mut |node| {
+            if let Some(path) = path(node) {
+                *path = paths.next().expect("matching expression traversal");
+            }
+        });
+    }
+
+    fn expanded_expression(
+        &mut self,
+        exp: &mut SExp,
+        scopes: &mut Vec<LocalScope>,
+    ) -> Result<(), Diagnostic> {
+        self.prepare_module_argument_bindings(exp, scopes);
         self.normalize_structures(exp, scopes)?;
         self.lexical(exp, scopes);
         self.resolve_expressions(exp)
     }
     fn resolve_expressions(&self, exp: &mut SExp) -> Result<(), Diagnostic> {
+        let _cost = timing::costs::Scope::enter("resolve.expressions");
         let mut result = Ok(());
         macros::walk_sexp_mut(exp, &mut |node| {
             if result.is_err() {
@@ -276,14 +352,62 @@ impl Resolver {
         });
         result
     }
+    fn find_name(
+        &self,
+        mut module: ModuleId,
+        name: &str,
+        inherit: bool,
+    ) -> Option<(ModuleId, BindingId)> {
+        let spelling = name.trim_end_matches('^');
+        loop {
+            let scope = &self.scopes[module.0 as usize];
+            if let Some(&id) = scope.names.get(spelling) {
+                return Some((module, id));
+            }
+            if !inherit {
+                return None;
+            }
+            module = scope.parent?;
+        }
+    }
+
+    fn record_reference(&self, module: ModuleId, id: BindingId, name: &str, span: SourceSpan) {
+        let Some(location) = &self.location else {
+            return;
+        };
+        if span.end <= span.start {
+            return;
+        }
+        self.reference_probes.set(self.reference_probes.get() + 1);
+        let key = (
+            Arc::as_ptr(&location.source) as usize,
+            self.current,
+            span.start,
+            span.end,
+            id,
+        );
+        if !self.reference_occurrences.borrow_mut().insert(key) {
+            return;
+        }
+        self.references.borrow_mut().push(Reference {
+            module: self.path(self.current),
+            location: SourceLocation {
+                source: location.source.clone(),
+                span,
+            },
+            target_module: self.path(module),
+            target_name: name.trim_end_matches('^').to_owned(),
+        });
+    }
+
     fn access(&self, from: ModuleId, access: &mut LocalAccess) -> Result<(), Diagnostic> {
-        let display = access.to_string();
-        let (mut module, name, inherit, span) = match access {
+        let _cost = timing::costs::Scope::enter("resolve.access");
+        let (module, name, inherit, span) = match access {
             LocalAccess::Current { access, span } => {
                 if access.1.is_some() {
                     return Ok(());
                 }
-                (from, access.clone(), true, *span)
+                (from, &*access, true, *span)
             }
             LocalAccess::Named {
                 access,
@@ -299,43 +423,26 @@ impl Resolver {
                         },
                     )
                 })?,
-                child.clone(),
+                &*child,
                 false,
                 *span,
             ),
             LocalAccess::Resolved { .. } => return Ok(()),
+            LocalAccess::Instantiated { .. } => {
+                return Err(self.error("unresolved module expression"));
+            }
         };
-        let spelling = name.as_str().trim_end_matches('^');
-        loop {
-            if let Some(id) = self.scopes[module.0 as usize].names.get(spelling) {
-                if let Some(location) = &self.location
-                    && span.end > span.start
-                {
-                    self.references.borrow_mut().push(Reference {
-                        module: self.path(self.current),
-                        location: SourceLocation {
-                            source: location.source.clone(),
-                            span,
-                        },
-                        target_module: self.path(module),
-                        target_name: spelling.to_owned(),
-                    });
-                }
-                *access = LocalAccess::Resolved {
-                    module,
-                    span,
-                    access: Name(name.0, Some(*id)),
-                    display,
-                };
-                return Ok(());
-            }
-            if !inherit {
-                break;
-            }
-            let Some(parent) = self.scopes[module.0 as usize].parent else {
-                break;
+        if let Some((module, id)) = self.find_name(module, name.as_str(), inherit) {
+            self.record_reference(module, id, name.as_str(), span);
+            let name = Name(name.0.clone(), Some(id));
+            let display = access.to_string();
+            *access = LocalAccess::Resolved {
+                module,
+                span,
+                access: name,
+                display,
             };
-            module = parent;
+            return Ok(());
         }
         let name_span = SourceSpan {
             start: span.end.saturating_sub(name.as_str().len()),
@@ -358,9 +465,7 @@ impl Resolver {
     fn publish(&mut self, name: &mut Identifier) {
         let spelling = name.0.clone();
         let id = self.binding(name);
-        self.scopes[self.current.0 as usize]
-            .names
-            .insert(spelling.clone(), id);
+        Arc::make_mut(&mut self.scopes[self.current.0 as usize].names).insert(spelling.clone(), id);
         if let Some(scope) = self.declaration_scope
             && !self.public_declarations.contains(&spelling)
         {
@@ -378,13 +483,15 @@ impl Resolver {
     fn parameters(
         &mut self,
         parameters: &mut Vec<RightBind>,
-        locals: &mut Vec<HashMap<String, Identifier>>,
+        locals: &mut Vec<LocalScope>,
         module: bool,
     ) -> Result<(), Diagnostic> {
         self.expand_structure_parameters(parameters, locals, module)?;
         Ok(())
     }
     fn module(&mut self, id: ModuleId) -> Result<(), Diagnostic> {
+        let _cost = timing::costs::Scope::enter("resolve.module");
+        let _time = timing::Scope::module(|| self.path(id));
         match self.states.get(&id) {
             Some(2) => return Ok(()),
             Some(1) => return Err(self.error("cyclic module import dependency")),
@@ -490,10 +597,11 @@ impl Resolver {
             } => {
                 self.parameters(parameters, &mut locals, false)?;
                 self.publish(name);
+                self.register_parameter_signature(name, parameters);
                 for (name, ty) in fields {
                     self.expression(ty, &mut locals)?;
                     self.binding(name);
-                    locals.push(HashMap::from([(name.0.clone(), name.clone())]));
+                    locals.push(LocalScope::from_iter([(name.0.clone(), name.clone())]));
                 }
             }
             ModuleItem::Structure { .. } => {
@@ -539,8 +647,13 @@ impl Resolver {
                 ..
             } => {
                 self.parameters(parameters, &mut locals, false)?;
+                let inputs = self.last_inputs.clone();
+                let checks = self.last_parameter_checks.clone();
                 self.parameters(indices, &mut locals.clone(), false)?;
                 self.publish(type_name);
+                self.last_inputs = inputs;
+                self.last_parameter_checks = checks;
+                self.register_parameter_signature(type_name, parameters);
                 for (name, binders, ty) in constructors {
                     self.binding(name);
                     let mut scope = locals.clone();
@@ -556,10 +669,11 @@ impl Resolver {
             } => {
                 self.parameters(parameters, &mut locals, false)?;
                 self.publish(type_name);
+                self.register_parameter_signature(type_name, parameters);
                 for (name, ty) in fields {
                     self.expression(ty, &mut locals)?;
                     self.binding(name);
-                    locals.push(HashMap::from([(name.0.clone(), name.clone())]));
+                    locals.push(LocalScope::from_iter([(name.0.clone(), name.clone())]));
                 }
             }
             ModuleItem::ChildModule { module } => self.module(module.id)?,
@@ -621,23 +735,11 @@ impl Resolver {
                 self.expression(exp, &mut locals)?;
                 self.expression(ty, &mut locals)?;
             }
-            ModuleItem::ComputationEval { exp }
-            | ModuleItem::ComputationNormalize { exp }
-            | ModuleItem::ComputationInfer { exp } => self.computation(exp, &mut locals)?,
-            ModuleItem::ValueInfer { exp } => self.value(exp, &mut locals)?,
             ModuleItem::MemberCheck { value, ty } => {
                 self.expression(value, &mut locals)?;
                 self.expression(ty, &mut locals)?;
             }
             ModuleItem::ValueTypeCheck { ty } => self.value_type(ty, &mut locals)?,
-            ModuleItem::ValueCheck { exp, ty } => {
-                self.value(exp, &mut locals)?;
-                self.value_type(ty, &mut locals)?;
-            }
-            ModuleItem::ComputationCheck { exp, ty } => {
-                self.computation(exp, &mut locals)?;
-                self.computation_type(ty, &mut locals)?;
-            }
         }
         Ok(())
     }
@@ -706,6 +808,7 @@ impl Resolver {
         macros::rename_template_binders(template, self.fresh_hygiene());
         let order = self.next_macro;
         self.next_macro += 1;
+        self.prepare_module_argument_bindings(template, &mut Vec::new());
         self.normalize_structures(template, &[])?;
         let mut result = Ok(());
         macros::walk_sexp_mut(template, &mut |node| {
@@ -726,11 +829,10 @@ impl Resolver {
                 | SExp::AccessPath { access, .. }
                 | SExp::RecordTypeCtor { access, .. }
                 | SExp::IndCase { path: access, .. }
-                | SExp::ProgramCase { path: access, .. } => {
-                    if !matches!(access, LocalAccess::Current { access, .. } if access.as_str().starts_with("<macro:"))
-                    {
-                        result = self.access(self.current, access);
-                    }
+                | SExp::ProgramCase { path: access, .. }
+                    if !matches!(&*access, LocalAccess::Current { access, .. } if access.as_str().starts_with("<macro:")) =>
+                {
+                    result = self.access(self.current, access);
                 }
                 _ => {}
             }
@@ -767,6 +869,7 @@ impl Resolver {
         Ok(())
     }
     fn expand(&self, exp: &mut SExp) -> Result<(), Diagnostic> {
+        let _cost = timing::costs::Scope::enter("resolve.macro-expansion");
         let mut result = Ok(());
         macros::walk_sexp_control(exp, &mut |node| {
             if result.is_err() {
@@ -900,7 +1003,19 @@ impl Resolver {
         name: &mut Identifier,
         checks: &mut Vec<(SExp, SExp)>,
     ) -> Result<(), Diagnostic> {
+        self.resolve_import_in_scope(path, name, checks, &[])
+    }
+
+    fn resolve_import_in_scope(
+        &mut self,
+        path: &mut ModuleInstantiatePath,
+        name: &mut Identifier,
+        checks: &mut Vec<(SExp, SExp)>,
+        locals: &[LocalScope],
+    ) -> Result<(), Diagnostic> {
+        let _cost = timing::costs::Scope::enter("resolve.import");
         let (mut target, calls) = match path {
+            ModuleInstantiatePath::FromModule { module, calls } => (*module, calls),
             ModuleInstantiatePath::FromRoot { calls } => (ModuleId(0), calls),
             ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
                 let mut base = self.current;
@@ -938,12 +1053,35 @@ impl Resolver {
                 )
             }
         };
-        let mut remapping = self.scopes[target.0 as usize].remapping.clone();
-        let mut substitutions = self.scopes[target.0 as usize].substitutions.clone();
+        let mut remapping = (*self.scopes[target.0 as usize].remapping).clone();
+        let mut substitutions = (*self.scopes[target.0 as usize].substitutions).clone();
         let mut route = Vec::new();
         for (child, arguments) in calls {
             for (_, argument) in arguments.iter_mut() {
-                self.expression(argument, &mut Vec::new())?;
+                self.expand(argument)?;
+                // Check the supplied expression before expanding definitions:
+                // their internal inference holes belong to their own bodies.
+                let mut has_meta = false;
+                macros::walk_sexp_control(argument, &mut |node| {
+                    if matches!(node, SExp::Meta { .. }) {
+                        has_meta = true;
+                        false
+                    } else {
+                        true
+                    }
+                });
+                if has_meta {
+                    return Err(
+                        self.error("module arguments do not allow inference holes (`_` or `?`)")
+                    );
+                }
+                let mut template = false;
+                macros::walk_sexp_mut(argument, &mut |node| {
+                    template |= matches!(node, SExp::MacroParameter(_));
+                });
+                if !template {
+                    self.expanded_expression(argument, &mut locals.to_vec())?;
+                }
             }
             target = *self.scopes[target.0 as usize]
                 .children
@@ -984,7 +1122,8 @@ impl Resolver {
                         for bind in &mut input.callback_parameters {
                             *bind.ty = structures::substitute(&bind.ty, &argument_substitutions);
                         }
-                        let (fields, guards) = self.callback_arguments(&input, &argument, &[])?;
+                        let (fields, guards) =
+                            self.callback_arguments(&input, &argument, locals)?;
                         checks.extend(guards);
                         for (path, expression) in input.fields.iter().zip(fields) {
                             expanded.push((Identifier(format!("{}.{}", name.0, path)), expression));
@@ -1032,7 +1171,7 @@ impl Resolver {
                 owner: self.current,
                 name: name.0.clone(),
                 target,
-                remapping,
+                remapping: Arc::new(remapping),
             },
         );
         Ok(())
@@ -1043,18 +1182,21 @@ impl Resolver {
         remapping: &mut HashMap<ModuleId, ModuleId>,
         substitutions: &HashMap<BindingId, SExp>,
     ) -> ModuleId {
+        let _cost = timing::costs::Scope::enter("resolve.instantiate");
         fn allocate(
             resolver: &mut Resolver,
             source: ModuleId,
             map: &mut HashMap<ModuleId, ModuleId>,
             pairs: &mut Vec<(ModuleId, ModuleId)>,
+            allocated: &mut FxHashMap<ModuleId, ModuleId>,
         ) -> ModuleId {
-            if let Some((_, id)) = pairs.iter().find(|(existing, _)| *existing == source) {
+            if let Some(id) = allocated.get(&source) {
                 return *id;
             }
             let id = ModuleId(resolver.scopes.len() as u32);
             resolver.scopes.push(Scope::default());
             map.insert(source, id);
+            allocated.insert(source, id);
             pairs.push((source, id));
             resolver
                 .origins
@@ -1066,11 +1208,12 @@ impl Resolver {
                 .collect();
             children.sort_by_key(|id| id.0);
             for child in children {
-                allocate(resolver, child, map, pairs);
+                allocate(resolver, child, map, pairs, allocated);
             }
             id
         }
         let mut pairs = Vec::new();
+        let mut allocated = FxHashMap::default();
         let mut imports: Vec<_> = self.scopes[source.0 as usize]
             .imports
             .values()
@@ -1078,9 +1221,14 @@ impl Resolver {
             .collect();
         imports.sort_by_key(|id| id.0);
         for import in imports {
-            allocate(self, import, remapping, &mut pairs);
+            allocate(self, import, remapping, &mut pairs, &mut allocated);
         }
-        let result = allocate(self, source, remapping, &mut pairs);
+        let result = allocate(self, source, remapping, &mut pairs, &mut allocated);
+        // Every scope in this graph has the same completed correspondence.
+        // Sharing immutable maps avoids copying the whole graph per scope.
+        let shared_remapping = Arc::new(remapping.clone());
+        let mut merged_substitutions: HashMap<usize, Arc<HashMap<BindingId, SExp>>> =
+            HashMap::new();
         for (source, id) in pairs {
             let mut scope = self.scopes[source.0 as usize].clone();
             scope.parent = scope
@@ -1114,6 +1262,25 @@ impl Resolver {
                     true
                 });
                 macros::walk_sexp_mut(&mut definition.template, &mut |node| match node {
+                    SExp::ModuleInstance { path, import_name } => {
+                        if let ModuleInstantiatePath::FromModule { module, .. } = path.as_mut() {
+                            *module = remapping.get(module).copied().unwrap_or(*module);
+                        }
+                        if let Some(mut import) =
+                            import_name.1.and_then(|id| self.imports.get(&id)).cloned()
+                        {
+                            import.target = remapping
+                                .get(&import.target)
+                                .copied()
+                                .unwrap_or(import.target);
+                            for target in Arc::make_mut(&mut import.remapping).values_mut() {
+                                *target = remapping.get(target).copied().unwrap_or(*target);
+                            }
+                            import_name.1 = None;
+                            let binding = self.binding(import_name);
+                            self.imports.insert(binding, import);
+                        }
+                    }
                     SExp::AccessPath {
                         access: LocalAccess::Resolved { module, .. },
                         ..
@@ -1141,8 +1308,18 @@ impl Resolver {
                     _ => {}
                 });
             }
-            scope.remapping = remapping.clone();
-            scope.substitutions.extend(substitutions.clone());
+            scope.remapping = shared_remapping.clone();
+            let key = if scope.substitutions.is_empty() {
+                0
+            } else {
+                Arc::as_ptr(&scope.substitutions) as usize
+            };
+            let merged = merged_substitutions.entry(key).or_insert_with(|| {
+                let mut merged = (*scope.substitutions).clone();
+                merged.extend(substitutions.clone());
+                Arc::new(merged)
+            });
+            scope.substitutions = merged.clone();
             self.scopes[id.0 as usize] = scope;
         }
         result
@@ -1150,40 +1327,10 @@ impl Resolver {
 }
 
 impl Resolver {
-    fn value(
-        &mut self,
-        value: &mut ValueTermExp,
-        locals: &mut Vec<HashMap<String, Identifier>>,
-    ) -> Result<(), Diagnostic> {
-        let mut expression: SExp = value.clone().into();
-        self.expression(&mut expression, locals)?;
-        *value = expression.try_into().map_err(|e| self.error(e))?;
-        Ok(())
-    }
-    fn computation(
-        &mut self,
-        value: &mut ComputationTermExp,
-        locals: &mut Vec<HashMap<String, Identifier>>,
-    ) -> Result<(), Diagnostic> {
-        let mut expression: SExp = value.clone().into();
-        self.expression(&mut expression, locals)?;
-        *value = expression.try_into().map_err(|e| self.error(e))?;
-        Ok(())
-    }
     fn value_type(
         &mut self,
         value: &mut ValueTypeExp,
-        locals: &mut Vec<HashMap<String, Identifier>>,
-    ) -> Result<(), Diagnostic> {
-        let mut expression: SExp = value.clone().into();
-        self.expression(&mut expression, locals)?;
-        *value = expression.try_into().map_err(|e| self.error(e))?;
-        Ok(())
-    }
-    fn computation_type(
-        &mut self,
-        value: &mut ComputationTypeExp,
-        locals: &mut Vec<HashMap<String, Identifier>>,
+        locals: &mut Vec<LocalScope>,
     ) -> Result<(), Diagnostic> {
         let mut expression: SExp = value.clone().into();
         self.expression(&mut expression, locals)?;

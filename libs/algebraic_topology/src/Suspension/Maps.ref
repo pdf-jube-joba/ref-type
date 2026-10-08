@@ -1,0 +1,53 @@
+\import algebraic_topology.Suspension[A := B] \as Target;
+\import algebraic_topology.Cylinder[A := B] \as TargetCylinder;
+\import topology.Topology[Carrier := B] \as Range;
+\import topology.Topology[Carrier := Target.Carrier] \as TargetSpace;
+\import Quotient.Descent[C := Target.Carrier] \as Descend;
+\import topology.Continuity[A := A, B := B] \as Maps;
+\import topology.Continuity[A := Carrier, B := Target.Carrier] \as Continuous;
+\import topology.Composition[A := Cylinder.Carrier, B := A, C := B] \as Inner;
+\import topology.Composition[A := Cylinder.Carrier, B := TargetCylinder.Carrier, C := Target.Carrier] \as Outer;
+\import topology.Product[A := Interval.Carrier, B := B].Universal[X := Cylinder.Carrier] \as Pairs;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\definition cylinder(f: A -> B) (p: Cylinder.Carrier): TargetCylinder.Carrier :=
+  TargetCylinder.at (Cylinder.time p) (f (Cylinder.point p));
+\definition raw(f: A -> B) (p: Cylinder.Carrier): Target.Carrier := Target.class (cylinder f p);
+\definition atSouth: \forall (f: A -> B) (p: Cylinder.Carrier) -> AtStart p -> raw f p = Target.south (f (Cylinder.point p)) :=
+  \fun (f: _) (p: _) (equal: _) => congr!{Interval.Carrier Target.Carrier}
+    (\fun (t: Interval.Carrier) => Target.class (TargetCylinder.at t (f (Cylinder.point p)))) _ _ equal;
+\definition atNorth: \forall (f: A -> B) (p: Cylinder.Carrier) -> AtEnd p -> raw f p = Target.north (f (Cylinder.point p)) :=
+  \fun (f: _) (p: _) (equal: _) => congr!{Interval.Carrier Target.Carrier}
+    (\fun (t: Interval.Carrier) => Target.class (TargetCylinder.at t (f (Cylinder.point p)))) _ _ equal;
+\definition edgeRespected: \forall (f: A -> B) (p, q: Cylinder.Carrier) -> Edge p q -> raw f p = raw f q :=
+  \fun (f: _) (p, q: _) (edge: _) =>
+    either!{{p = q} "or" {Logic.Or[Logic.And[AtStart p, AtStart q], Logic.And[AtEnd p, AtEnd q]]}
+      "either" {raw f p = raw f q}
+      "lt:" {\fun (equal: _) => congr!{Cylinder.Carrier Target.Carrier} (raw f) _ _ equal}
+      "rt:" {\fun (ends: _) => either!{{Logic.And[AtStart p, AtStart q]} "or" {Logic.And[AtEnd p, AtEnd q]}
+        "either" {raw f p = raw f q}
+        "lt:" {\fun (both: Logic.And[AtStart p, AtStart q]) => trans!{Target.Carrier} _ _ _ (atSouth f p #left{both})
+          (trans!{Target.Carrier} _ _ _ (Target.southIndependent (f (Cylinder.point p)) (f (Cylinder.point q)))
+            (sym!{Target.Carrier} _ _ (atSouth f q #right{both})))}
+        "rt:" {\fun (both: Logic.And[AtEnd p, AtEnd q]) => trans!{Target.Carrier} _ _ _ (atNorth f p #left{both})
+          (trans!{Target.Carrier} _ _ _ (Target.northIndependent (f (Cylinder.point p)) (f (Cylinder.point q)))
+            (sym!{Target.Carrier} _ _ (atNorth f q #right{both})))}} ends}} edge;
+\definition respects: \forall (f: A -> B) -> Descend.Respects (raw f) :=
+  \fun (f: _) (p, q: _) (related: Related p q) => related
+    (\fun (p, q: Cylinder.Carrier) => raw f p = raw f q) (edgeRespected f)
+    (\fun (p: _) => \refl(raw f p))
+    (\fun (p, q: _) (equal: _) => sym!{Target.Carrier} _ _ equal)
+    (\fun (p, q, r: _) (pq: _) (qr: _) => trans!{Target.Carrier} _ _ _ pq qr);
+\definition map(f: A -> B): Carrier -> Target.Carrier := Descend.apply equivalence (raw f) (respects f);
+\definition onClass: \forall (f: A -> B) (p: Cylinder.Carrier) -> map f (class p) = raw f p :=
+  \fun (f: _) (p: _) => Descend.onClass equivalence (raw f) (respects f) p;
+\definition continuous: \forall (source: Source.Topology) (target: Range.Topology) (f: A -> B) ->
+  Maps.Continuous source target f -> Continuous.Continuous (topology source) (Target.topology target) (map f) :=
+  \fun (source: _) (target: _) (f: _) (fc: _) => Descend.continuous (Cylinder.topology source) (Target.topology target)
+    equivalence (raw f) (respects f)
+    (Outer.composeContinuous (Cylinder.topology source) (TargetCylinder.topology target) (Target.topology target)
+      (cylinder f) Target.class
+      (Pairs.pairContinuous (Cylinder.topology source) Interval.topology target Cylinder.time
+        (\fun (p: Cylinder.Carrier) => f (Cylinder.point p)) (Cylinder.timeContinuous source)
+        (Inner.composeContinuous (Cylinder.topology source) source target Cylinder.point f (Cylinder.pointContinuous source) fc))
+      (Target.projectionContinuous target));

@@ -1,0 +1,45 @@
+\import std.Set[].FiniteSubset[A := FiniteSubset] \as Families;
+\definition UnionMember(family: \Pow FiniteSubset) (a: A): \Prop :=
+  \exists { X: FiniteSubset \where Logic.And[\In[FiniteSubset] family X, Member X a] };
+\definition Flatten(family: \Pow FiniteSubset): \Pow A := { a: A \where UnionMember family a };
+\definition memberOf(family: \Pow FiniteSubset) (X: FiniteSubset) (a: A):
+  \In[FiniteSubset] family X -> Member X a -> \In[A] (Flatten family) a :=
+  \fun (inFamily: _) (inX: _) => \exact(\into[FiniteSubset](X,
+    { X: FiniteSubset \where Logic.And[\In[FiniteSubset] family X, Member X a] }) \by { Logic.And[_, _]::# inFamily inX },
+    \Cast[FiniteSubset] ({ X: FiniteSubset \where Logic.And[\In[FiniteSubset] family X, Member X a] }));
+\definition memberElim(family: \Pow FiniteSubset) (a: A) (P: \Prop):
+  (\forall (X: FiniteSubset) -> \In[FiniteSubset] family X -> Member X a -> P) -> \In[A] (Flatten family) a -> P := \block {
+  \fun (step: \forall (X: FiniteSubset) -> \In[FiniteSubset] family X -> Member X a -> P) (member: \In[A] (Flatten family) a) \then
+  \takefrom X: \Cast[FiniteSubset] ({ X: FiniteSubset \where Logic.And[\In[FiniteSubset] family X, Member X a] }) \by member \then
+  \let data: Logic.And[\In[FiniteSubset] family X, Member X a] :=
+    \bysub(FiniteSubset, { X: FiniteSubset \where Logic.And[\In[FiniteSubset] family X, Member X a] }, X) \then
+  \return step X (#left{data}) (#right{data})
+};
+\definition emptyFlatten: Flatten Families.Empty = Empty :=
+  \axiom:setext(Flatten Families.Empty, Empty,
+    \fun (a: A) (h: \In[A] (Flatten Families.Empty) a) => memberElim Families.Empty a Logic.False (\fun (X: _) (empty: _) (_: _) => empty) h,
+    \fun (a: A) (h: Logic.False) => Logic.falseElim (\In[A] (Flatten Families.Empty) a) h);
+\definition insertFlatten(X: FiniteSubset) (family: \Pow FiniteSubset):
+  Flatten (Families.Insert X family) = Union X (Flatten family) :=
+  \axiom:setext(Flatten (Families.Insert X family), Union X (Flatten family),
+    \fun (a: A) (member: \In[A] (Flatten (Families.Insert X family)) a) => memberElim (Families.Insert X family) a
+      (\In[A] (Union X (Flatten family)) a)
+      (\fun (Y: FiniteSubset) (inFamily: \In[FiniteSubset] (Families.Insert X family) Y) (inY: Member Y a) =>
+        either!{{Y = X} "or" {\In[FiniteSubset] family Y} "either" {\In[A] (Union X (Flatten family)) a}
+          "lt:" {\fun (equal: _) => Logic.Or[_, _]::left
+            (\idelim Y = X \with Z: FiniteSubset => Member Z a \by { base: inY, equality: equal })}
+          "rt:" {\fun (old: _) => Logic.Or[_, _]::right (memberOf family Y a old inY)}} inFamily) member,
+    \fun (a: A) (member: \In[A] (Union X (Flatten family)) a) =>
+      either!{{Member X a} "or" {\In[A] (Flatten family) a} "either" {\In[A] (Flatten (Families.Insert X family)) a}
+        "lt:" {memberOf (Families.Insert X family) X a (Families.inInsertNew X family)}
+        "rt:" {\fun (old: _) => memberElim family a (\In[A] (Flatten (Families.Insert X family)) a)
+          (\fun (Y: _) (inFamily: _) (inY: _) => memberOf (Families.Insert X family) Y a (Families.inInsertOld X family Y inFamily) inY) old}} member);
+\definition finiteFlatten: \forall (family: Families.FiniteSubset) -> Finite (Flatten family) :=
+  Families.induction ({ family: \Pow FiniteSubset \where Finite (Flatten family) })
+    (\idelim Empty = Flatten Families.Empty \with X: \Pow A => Finite X
+      \by { base: finiteEmpty, equality: sym!{\Pow A} _ _ emptyFlatten })
+    (\fun (family: \Pow FiniteSubset) (ih: Finite (Flatten family)) (X: FiniteSubset) =>
+      \idelim Union X (Flatten family) = Flatten (Families.Insert X family) \with Y: \Pow A => Finite Y
+        \by { base: finiteUnion X (Flatten family) (finite X) ih, equality: sym!{\Pow A} _ _ (insertFlatten X family) });
+\definition unions(family: Families.FiniteSubset): FiniteSubset :=
+  \into[\Pow A](Flatten family, FiniteSubsetSet) \by { finiteFlatten family };

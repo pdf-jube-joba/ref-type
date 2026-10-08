@@ -270,7 +270,10 @@ impl<'a, R: Resolver> Reflection<'a, R> {
         if matches!(self.resolver.arena().get(term), Node::Bound(_)) {
             return Ok(None);
         }
-        self.reflect_under(term, 0).map(Some)
+        let reflected = self.reflect_under(term, 0)?;
+        // A rigid parameter can remain reflected. Returning the same node as a
+        // reduction step would keep normalization running until its fuel ends.
+        Ok((self.resolver.arena().get(reflected) != Node::Reflect { term }).then_some(reflected))
     }
     fn reflect_under(&self, term: Expression, depth: usize) -> Result<Expression, String> {
         if let Some(replacement) = self.resolver.replacement(term)? {

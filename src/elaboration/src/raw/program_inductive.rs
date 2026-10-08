@@ -1,15 +1,15 @@
 //! CBPV value datatypes and their generated Set reflections.
-
-use crate::raw::{
-    derivation::JudgementError,
-    environment::ModuleArgument,
-    exp::Arena,
-    ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId, SymbolId},
-    program::{ValueType, ValueTypeNode},
-    program_calculus::{
-        instantiate_type_telescope, remap_value_type_global_ids, subst_value_type_module_params,
+use crate::{
+    kernel_bridge::instantiate_type_telescope,
+    raw::{
+        derivation::JudgementError,
+        environment::ModuleArgument,
+        exp::Arena,
+        ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId, SymbolId},
+        program::{ValueType, ValueTypeNode},
+        program_derivation::ProgramCheckSession,
+        remapping::{remap_value_type_global_ids, subst_value_type_module_params},
     },
-    program_derivation::ProgramCheckSession,
 };
 use std::collections::HashMap;
 
@@ -98,14 +98,14 @@ impl ProgramInductiveTypeSpecs {
             .iter()
             .map(|(p, a)| {
                 let a = match *a {
-                    ModuleArgument::ProgramType(t) => ModuleArgument::ProgramType(
-                        super::program_calculus::shift_value_type_indices(
+                    ModuleArgument::ProgramType(t) => {
+                        ModuleArgument::ProgramType(crate::kernel_bridge::shift_value_type_indices(
                             arena,
                             t,
                             self.parameters.len(),
                             0,
-                        ),
-                    ),
+                        ))
+                    }
                     other => other,
                 };
                 (*p, a)

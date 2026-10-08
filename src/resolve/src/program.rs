@@ -1,4 +1,4 @@
-//! Recover the common expression shape for resolution of Program queries.
+//! Recover the common expression shape for resolution of Program expression views.
 use crate::hir::*;
 fn boxed<T: Into<SExp>>(value: T) -> Box<SExp> {
     Box::new(value.into())

@@ -1,0 +1,150 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\use Equality.trans;
+\use Equality.congr;
+
+\definition doubleNegElim(P: \Prop): Logic.Not (Logic.Not P) -> P :=
+  \fun (nn: _) => either!{P "or" {Logic.Not P} "either" P
+    "lt:" {\fun (h: _) => h}
+    "rt:" {\fun (h: _) => Logic.falseElim P (nn h)}} (Classical.excludedMiddle P);
+\definition doubleComplement(S: \Pow Carrier): Complement (Complement S) = S :=
+  \axiom:setext(Complement (Complement S), S,
+    \fun (x: _) (h: _) => doubleNegElim (Member S x) h,
+    \fun (x: _) (h: _) (outside: _) => outside h);
+\definition openComplementClosed: \forall (topology: Topology) (U: \Pow Carrier) ->
+  IsOpenIn topology U -> IsClosedIn topology (Complement U) :=
+  \fun (topology: _) (U: _) (open: _) => \idelim U = Complement (Complement U)
+    \with V: \Pow Carrier => IsOpenIn topology V
+    \by { base: open, equality: sym!{\Pow Carrier} _ _ (doubleComplement U) };
+\definition Join(U, V: \Pow Carrier): \Pow Carrier :=
+  { x: Carrier \where Logic.Or[Member U x, Member V x] };
+\definition joinOpen: \forall (topology: Topology) (U, V: \Pow Carrier) ->
+  IsOpenIn topology U -> IsOpenIn topology V -> IsOpenIn topology (Join U V) := \block {
+  \fun (topology: _) (U, V: _) (uo: _) (vo: _) \then
+  \let family: \Pow (\Pow Carrier) := FiniteFamilies.UnorderedPair U V \then
+  \let open: IsOpenIn topology (Union family) := #unionOpen{(topologyLaws topology)} family
+    (\fun (W: _) (member: _) => either!{{W = U} "or" {Logic.Or[W = V, Logic.False]} "either" {IsOpenIn topology W}
+      "lt:" {\fun (equal: _) => \idelim U = W \with S: \Pow Carrier => IsOpenIn topology S
+        \by { base: uo, equality: sym!{\Pow Carrier} _ _ equal }}
+      "rt:" {\fun (tail: _) => either!{{W = V} "or" {Logic.False} "either" {IsOpenIn topology W}
+        "lt:" {\fun (equal: _) => \idelim V = W \with S: \Pow Carrier => IsOpenIn topology S
+          \by { base: vo, equality: sym!{\Pow Carrier} _ _ equal }}
+        "rt:" {Logic.falseElim (IsOpenIn topology W)}} tail}} member) \then
+  \let same: Union family = Join U V := \axiom:setext(Union family, Join U V,
+    \fun (x: _) (member: _) => unionMemberElim family x (Member (Join U V) x)
+      (\fun (W: _) (w: _) (inW: _) => either!{{W = U} "or" {Logic.Or[W = V, Logic.False]} "either" {Member (Join U V) x}
+        "lt:" {\fun (equal: _) => Logic.Or[_, _]::left
+          (\idelim W = U \with S: \Pow Carrier => Member S x \by { base: inW, equality: equal })}
+        "rt:" {\fun (tail: _) => either!{{W = V} "or" {Logic.False} "either" {Member (Join U V) x}
+          "lt:" {\fun (equal: _) => Logic.Or[_, _]::right
+            (\idelim W = V \with S: \Pow Carrier => Member S x \by { base: inW, equality: equal })}
+          "rt:" {Logic.falseElim (Member (Join U V) x)}} tail}} w) member,
+    \fun (x: _) (member: _) => either!{{Member U x} "or" {Member V x} "either" {Member (Union family) x}
+      "lt:" {unionMemberOf family U x (FiniteFamilies.inUnorderedPairLeft U V)}
+      "rt:" {unionMemberOf family V x (FiniteFamilies.inUnorderedPairRight U V)}} member) \then
+  \return \idelim Union family = Join U V \with S: \Pow Carrier => IsOpenIn topology S
+    \by { base: open, equality: same }
+};
+\definition Meet(family: \Pow (\Pow Carrier)): \Pow Carrier :=
+  { x: Carrier \where \forall (U: \Pow Carrier) -> FamilyMember family U -> Member U x };
+\definition meetEmpty: Meet FiniteFamilies.Empty = Whole :=
+  \axiom:setext(Meet FiniteFamilies.Empty, Whole,
+    \fun (x: _) (_: _) => \refl(x),
+    \fun (x: _) (_: _) (U: _) (impossible: _) => Logic.falseElim (Member U x) impossible);
+\definition meetInsert(U: \Pow Carrier) (family: \Pow (\Pow Carrier)):
+  Meet (FiniteFamilies.Insert U family) = Intersection U (Meet family) :=
+  \axiom:setext(Meet (FiniteFamilies.Insert U family), Intersection U (Meet family),
+    \fun (x: Carrier) (h: Member (Meet (FiniteFamilies.Insert U family)) x) => Logic.And[_, _]::# (h U (FiniteFamilies.inInsertNew U family))
+      (\fun (V: _) (member: _) => h V (FiniteFamilies.inInsertOld U family V member)),
+    \fun (x: Carrier) (h: Member (Intersection U (Meet family)) x) (V: _) (member: _) => either!{{V = U} "or" {FamilyMember family V} "either" {Member V x}
+      "lt:" {\fun (equal: _) => \idelim U = V \with S: \Pow Carrier => Member S x
+        \by { base: #left{h}, equality: sym!{\Pow Carrier} _ _ equal }}
+      "rt:" {#right{h} V}} member);
+\definition meetOpen: \forall (topology: Topology) (family: FiniteFamilies.FiniteSubset) ->
+  (\forall (U: \Pow Carrier) -> FiniteFamilies.Member family U -> IsOpenIn topology U) ->
+  IsOpenIn topology (Meet family) :=
+  \fun (topology: _) => FiniteFamilies.induction
+    ({ family: \Pow (\Pow Carrier) \where
+      (\forall (U: \Pow Carrier) -> FamilyMember family U -> IsOpenIn topology U) -> IsOpenIn topology (Meet family) })
+    (\fun (_: _) => \idelim Whole = Meet FiniteFamilies.Empty \with S: \Pow Carrier => IsOpenIn topology S
+      \by { base: #wholeOpen{(topologyLaws topology)}, equality: sym!{\Pow Carrier} _ _ meetEmpty })
+    (\fun (family: _) (ih: _) (U: _) (open: _) =>
+      \idelim Intersection U (Meet family) = Meet (FiniteFamilies.Insert U family)
+        \with S: \Pow Carrier => IsOpenIn topology S
+        \by { base: #intersectionOpen{(topologyLaws topology)} U (Meet family)
+          (open U (FiniteFamilies.inInsertNew U family))
+          (ih (\fun (V: _) (member: _) => open V (FiniteFamilies.inInsertOld U family V member))),
+          equality: sym!{\Pow Carrier} _ _ (meetInsert U family) });
+\definition joinClosed: \forall (topology: Topology) (S, T: \Pow Carrier) ->
+  IsClosedIn topology S -> IsClosedIn topology T -> IsClosedIn topology (Join S T) :=
+  \fun (topology: _) (S, T: _) (sc: _) (tc: _) => \idelim Intersection (Complement S) (Complement T) = Complement (Join S T)
+    \with U: \Pow Carrier => IsOpenIn topology U \by {
+      base: #intersectionOpen{(topologyLaws topology)} (Complement S) (Complement T) sc tc,
+      equality: \axiom:setext(Intersection (Complement S) (Complement T), Complement (Join S T),
+        \fun (x: Carrier) (h: Member (Intersection (Complement S) (Complement T)) x) (member: Member (Join S T) x) =>
+          either!{{Member S x} "or" {Member T x} "either" {Logic.False} "lt:" {#left{h}} "rt:" {#right{h}}} member,
+        \fun (x: Carrier) (h: Member (Complement (Join S T)) x) => Logic.And[_, _]::#
+          (\fun (inS: Member S x) => h (Logic.Or[_, _]::left inS))
+          (\fun (inT: Member T x) => h (Logic.Or[_, _]::right inT)))
+    };
+\definition intersectionClosed: \forall (topology: Topology) (S, T: \Pow Carrier) ->
+  IsClosedIn topology S -> IsClosedIn topology T -> IsClosedIn topology (Intersection S T) :=
+  \fun (topology: _) (S, T: _) (sc: _) (tc: _) => \idelim Join (Complement S) (Complement T) = Complement (Intersection S T)
+    \with U: \Pow Carrier => IsOpenIn topology U \by {
+      base: joinOpen topology (Complement S) (Complement T) sc tc,
+      equality: \axiom:setext(Join (Complement S) (Complement T), Complement (Intersection S T),
+        \fun (x: Carrier) (outside: Member (Join (Complement S) (Complement T)) x) (member: Member (Intersection S T) x) =>
+          either!{{Member (Complement S) x} "or" {Member (Complement T) x} "either" {Logic.False}
+            "lt:" {\fun (out: _) => out (#left{member})} "rt:" {\fun (out: _) => out (#right{member})}} outside,
+        \fun (x: Carrier) (outside: Member (Complement (Intersection S T)) x) =>
+          either!{{Member S x} "or" {Logic.Not (Member S x)} "either" {Member (Join (Complement S) (Complement T)) x}
+            "lt:" {\fun (inS: _) => Logic.Or[_, _]::right (\fun (inT: _) => outside (Logic.And[_, _]::# inS inT))}
+            "rt:" {Logic.Or[_, _]::left}} (Classical.excludedMiddle (Member S x)))
+    };
+\definition unionEmpty: Union FiniteFamilies.Empty = Empty :=
+  \axiom:setext(Union FiniteFamilies.Empty, Empty,
+    \fun (x: Carrier) (h: Member (Union FiniteFamilies.Empty) x) =>
+      unionMemberElim FiniteFamilies.Empty x Logic.False (\fun (U: _) (empty: Logic.False) (_: _) => empty) h,
+    \fun (x: Carrier) (empty: Logic.False) => Logic.falseElim (Member (Union FiniteFamilies.Empty) x) empty);
+\definition intersectUnionInsert(U, P: \Pow Carrier) (family: \Pow (\Pow Carrier)):
+  Intersection (Union (FiniteFamilies.Insert U family)) P = Join (Intersection U P) (Intersection (Union family) P) :=
+  \axiom:setext(Intersection (Union (FiniteFamilies.Insert U family)) P, Join (Intersection U P) (Intersection (Union family) P),
+    \fun (x: Carrier) (member: Member (Intersection (Union (FiniteFamilies.Insert U family)) P) x) =>
+      unionMemberElim (FiniteFamilies.Insert U family) x (Member (Join (Intersection U P) (Intersection (Union family) P)) x)
+        (\fun (V: _) (inFamily: _) (inV: _) => either!{{V = U} "or" {FamilyMember family V}
+          "either" {Member (Join (Intersection U P) (Intersection (Union family) P)) x}
+          "lt:" {\fun (equal: _) => Logic.Or[_, _]::left (Logic.And[_, _]::#
+            (\idelim V = U \with W: \Pow Carrier => Member W x \by { base: inV, equality: equal }) (#right{member}))}
+          "rt:" {\fun (old: _) => Logic.Or[_, _]::right (Logic.And[_, _]::# (unionMemberOf family V x old inV) (#right{member}))}} inFamily) (#left{member}),
+    \fun (x: Carrier) (member: Member (Join (Intersection U P) (Intersection (Union family) P)) x) =>
+      either!{{Member (Intersection U P) x} "or" {Member (Intersection (Union family) P) x}
+        "either" {Member (Intersection (Union (FiniteFamilies.Insert U family)) P) x}
+        "lt:" {\fun (h: Member (Intersection U P) x) => Logic.And[_, _]::#
+          (unionMemberOf (FiniteFamilies.Insert U family) U x (FiniteFamilies.inInsertNew U family) (#left{h})) (#right{h})}
+        "rt:" {\fun (h: Member (Intersection (Union family) P) x) => Logic.And[_, _]::#
+          (unionMemberElim family x (Member (Union (FiniteFamilies.Insert U family)) x)
+            (\fun (V: _) (inFamily: _) (inV: _) => unionMemberOf (FiniteFamilies.Insert U family) V x
+              (FiniteFamilies.inInsertOld U family V inFamily) inV) (#left{h})) (#right{h})}} member);
+\definition finiteClosedPieces: \forall (topology: Topology) (P: \Pow Carrier) (family: FiniteFamilies.FiniteSubset) ->
+  (\forall (U: \Pow Carrier) -> FiniteFamilies.Member family U -> IsClosedIn topology (Intersection U P)) ->
+  IsClosedIn topology (Intersection (Union family) P) :=
+  \fun (topology: _) (P: _) => FiniteFamilies.induction
+    ({ family: \Pow (\Pow Carrier) \where
+      (\forall (U: \Pow Carrier) -> FamilyMember family U -> IsClosedIn topology (Intersection U P)) ->
+        IsClosedIn topology (Intersection (Union family) P) })
+    (\fun (_: _) => \idelim Whole = Complement (Intersection (Union FiniteFamilies.Empty) P)
+      \with V: \Pow Carrier => IsOpenIn topology V \by {
+        base: #wholeOpen{(topologyLaws topology)},
+        equality: \axiom:setext(Whole, Complement (Intersection (Union FiniteFamilies.Empty) P),
+          \fun (x: Carrier) (_: Member Whole x) (member: Member (Intersection (Union FiniteFamilies.Empty) P) x) =>
+            unionMemberElim FiniteFamilies.Empty x Logic.False (\fun (U: _) (empty: Logic.False) (_: _) => empty) (#left{member}),
+          \fun (x: Carrier) (_: Member (Complement (Intersection (Union FiniteFamilies.Empty) P)) x) => \refl(x))
+      })
+    (\fun (family: _) (ih: _) (U: _) (closed: _) =>
+      \idelim Join (Intersection U P) (Intersection (Union family) P) = Intersection (Union (FiniteFamilies.Insert U family)) P
+        \with V: \Pow Carrier => IsClosedIn topology V \by {
+          base: joinClosed topology (Intersection U P) (Intersection (Union family) P)
+            (closed U (FiniteFamilies.inInsertNew U family))
+            (ih (\fun (V: _) (member: _) => closed V (FiniteFamilies.inInsertOld U family V member))),
+          equality: sym!{\Pow Carrier} _ _ (intersectUnionInsert U P family)
+        });

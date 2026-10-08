@@ -1,0 +1,43 @@
+\definition shiftAddition: \forall (f: Function) -> Linear f -> \forall (x, y: I) -> shift (#add{space} x y) f = plus (shift x f) (shift y f) :=
+  \fun (f: Function)(linear: Linear f)(x, y: I) => \axiom:funext(shift (#add{space} x y) f, plus (shift x f) (shift y f),
+    \fun (ys: Lists.List[I]) => #addition{linear} (Lists.List[I]::cons x ys) N.Nat^::zero (\refl(Bool.Bool^::true)) x y);
+\definition shiftScalar: \forall (f: Function) -> Linear f -> \forall (a: K)(x: I) -> shift (#smul{space} a x) f = scale a (shift x f) :=
+  \fun (f: Function)(linear: Linear f)(a: K)(x: I) => \axiom:funext(shift (#smul{space} a x) f, scale a (shift x f),
+    \fun (ys: Lists.List[I]) => #scalar{linear} (Lists.List[I]::cons x ys) N.Nat^::zero (\refl(Bool.Bool^::true)) a x);
+\definition addition: \forall (f, g: Function) -> Linear f -> Linear g -> \forall (x, y: I) ->
+  product f g (Lists.List[I]::cons (#add{space} x y) xs) = add (product f g (Lists.List[I]::cons x xs)) (product f g (Lists.List[I]::cons y xs)) := \block {
+  \fun (f, g: Function)(lf: Linear f)(lg: Linear g)(x, y: I) \then
+  \let ax: K := product (shift x f) g xs \then
+  \let ay: K := product (shift y f) g xs \then
+  \let bx: K := product (twist f) (shift x g) xs \then
+  \let by: K := product (twist f) (shift y g) xs \then
+  \let left: product (shift (#add{space} x y) f) g xs = add ax ay := trans!{K} _ _ _
+    (congr!{Function K} (\fun (h: Function) => product h g xs) (shift (#add{space} x y) f) (plus (shift x f) (shift y f)) (shiftAddition f lf x y))
+    (ProductLaws.additiveLeft (shift x f) (shift y f) g xs) \then
+  \let right: product (twist f) (shift (#add{space} x y) g) xs = add bx by := trans!{K} _ _ _
+    (congr!{Function K} (\fun (h: Function) => product (twist f) h xs) (shift (#add{space} x y) g) (plus (shift x g) (shift y g)) (shiftAddition g lg x y))
+    (ProductLaws.additiveRight (twist f) (shift x g) (shift y g) xs) \then
+  \return eq_reason!{
+    {product f g (Lists.List[I]::cons (#add{space} x y) xs)} "=" {add (product (shift (#add{space} x y) f) g xs) (product (twist f) (shift (#add{space} x y) g) xs)} "by" {atCons (#add{space} x y) xs f g}
+    "=" {add (add ax ay) (add bx by)} "by" {congr2!{K K K} add _ _ _ _ left right}
+    "=" {add (add ax bx) (add ay by)} "by" {Scalars.shuffle ax ay bx by}
+    "=" {add (product f g (Lists.List[I]::cons x xs)) (product f g (Lists.List[I]::cons y xs))} "by" {congr2!{K K K} add _ _ _ _
+      (sym!{K} _ _ (atCons x xs f g)) (sym!{K} _ _ (atCons y xs f g))}
+  }
+};
+\definition scalar: \forall (f, g: Function) -> Linear f -> Linear g -> \forall (a: K)(x: I) ->
+  product f g (Lists.List[I]::cons (#smul{space} a x) xs) = mul a (product f g (Lists.List[I]::cons x xs)) := \block {
+  \fun (f, g: Function)(lf: Linear f)(lg: Linear g)(a: K)(x: I) \then
+  \let left: K := product (shift x f) g xs \then
+  \let right: K := product (twist f) (shift x g) xs \then
+  \let l: product (shift (#smul{space} a x) f) g xs = mul a left := trans!{K} _ _ _
+    (congr!{Function K} (\fun (h: Function) => product h g xs) (shift (#smul{space} a x) f) (scale a (shift x f)) (shiftScalar f lf a x)) (ProductLaws.scalarLeft a (shift x f) g xs) \then
+  \let r: product (twist f) (shift (#smul{space} a x) g) xs = mul a right := trans!{K} _ _ _
+    (congr!{Function K} (\fun (h: Function) => product (twist f) h xs) (shift (#smul{space} a x) g) (scale a (shift x g)) (shiftScalar g lg a x)) (ProductLaws.scalarRight a (twist f) (shift x g) xs) \then
+  \return eq_reason!{
+    {product f g (Lists.List[I]::cons (#smul{space} a x) xs)} "=" {add (product (shift (#smul{space} a x) f) g xs) (product (twist f) (shift (#smul{space} a x) g) xs)} "by" {atCons (#smul{space} a x) xs f g}
+    "=" {add (mul a left) (mul a right)} "by" {congr2!{K K K} add _ _ _ _ l r}
+    "=" {mul a (add left right)} "by" {sym!{K} _ _ (mulAdd a left right)}
+    "=" {mul a (product f g (Lists.List[I]::cons x xs))} "by" {congr!{K K} (mul a) _ _ (sym!{K} _ _ (atCons x xs f g))}
+  }
+};

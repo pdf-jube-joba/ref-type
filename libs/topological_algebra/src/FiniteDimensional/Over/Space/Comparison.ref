@@ -1,0 +1,29 @@
+\import \parent.Linear[W := V, J := J, target := space] \as Change;
+\import Algebra.Finite[V := V, I := J, space := space] \as Other;
+\import Algebra.Linear[V := V, W := V, source := space, target := space] \as End;
+\import topological_algebra.FiniteDimensional[K := K].Over[field := field].Space[V := V, I := J, space := space].Linear[W := V, J := I, target := space] \as Back;
+\import topological_algebra.Topology[K := K] \as Structures;
+\import std.Alg[].Field[] \as Fields;
+\import topology.Homeomorphism[A := V, B := V] \as Homeo;
+\import std.Logic[].Proposition[] \as Logic;
+\definition scalarRing: _ := Fields.fieldAsCommutativeRing K field;
+\definition identity: End.Map := End.Map {
+  apply := \fun (x: V) => x,
+  preservesAdd := \fun (x, y: V) => \refl(#add{space} x y),
+  preservesScale := \fun (a: K) (x: V) => \refl(#smul{space} a x),
+};
+\definition homeomorphism(scalar: Scalars.Topology) (laws: Structures.RingLaws[scalar, scalarRing])
+  (basis: Finite.Basis) (other: Other.Basis): Homeo.Homeomorphism[topology scalar basis, Change.rangeTopology scalar other] :=
+  Homeo.Homeomorphism[_, _] {
+    forward := \fun (x: V) => x, backward := \fun (x: V) => x,
+    leftInverse := \fun (x: V) => \refl(x), rightInverse := \fun (x: V) => \refl(x),
+    forwardContinuous := Change.continuous scalar laws basis other identity,
+    backwardContinuous := Back.continuous scalar laws other basis identity,
+  };
+\definition sameOpenSets: \forall (scalar: Scalars.Topology) -> Structures.RingLaws[scalar, scalarRing] ->
+  \forall (basis: Finite.Basis) (other: Other.Basis) (U: \Pow V) ->
+  Logic.PropEquiv[Space.IsOpenIn (topology scalar basis) U, Space.IsOpenIn (Change.rangeTopology scalar other) U] :=
+  \fun (scalar: _) (laws: _) (basis: _) (other: _) (U: _) => Logic.PropEquiv[_, _] {
+    ltr := Back.continuous scalar laws other basis identity U,
+    rtl := Change.continuous scalar laws basis other identity U,
+  };

@@ -1,6 +1,7 @@
 //! Resolution dependencies, including scopes, imports and macro environments.
 use crate::cache::{Fingerprint, fingerprint};
 use ::syntax::syntax::{Module, ModuleBody, ModuleInstantiatePath, ModuleItem};
+use ::syntax::visit::ModulePaths;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) struct Unit<'a> {
@@ -33,6 +34,7 @@ impl<'a> ModuleGraph<'a> {
             fingerprint(format!("{:?}", graph.indices.keys().collect::<Vec<_>>()).as_bytes());
         let mut aliases: BTreeMap<Vec<String>, BTreeMap<String, Vec<String>>> = BTreeMap::new();
         for index in 0..graph.units.len() {
+            let _time = timing::Scope::module(|| graph.units[index].path.clone());
             let path = graph.units[index].path.clone();
             let parent = &path[..path.len() - 1];
             let mut visible = aliases.get(parent).cloned().unwrap_or_default();
@@ -57,6 +59,9 @@ impl<'a> ModuleGraph<'a> {
             if !module.parameters.is_empty() {
                 local.push_str(&format!("{:?}", module.span));
             }
+            module.parameters.clone().visit_module_paths(&mut |import| {
+                graph.include_module_path(import, &path, &visible, &mut dependencies);
+            });
             if let ModuleBody::Inline(items) = &module.body {
                 for (item_index, item) in items.iter().enumerate() {
                     if let ModuleItem::ChildModule { module } = item {
@@ -89,46 +94,64 @@ impl<'a> ModuleGraph<'a> {
         visible: &mut BTreeMap<String, Vec<String>>,
         dependencies: &mut BTreeSet<usize>,
     ) {
-        match item {
-            ModuleItem::Scoped { items, .. } => {
-                let mut scoped = visible.clone();
-                for item in items {
-                    self.include_imports(item, path, &mut scoped, dependencies);
-                }
+        if let ModuleItem::Scoped { items, .. } = item {
+            let mut scoped = visible.clone();
+            for item in items {
+                self.include_imports(item, path, &mut scoped, dependencies);
             }
-            ModuleItem::Import {
-                path: import,
-                import_name,
-            } => {
-                let target = match import {
-                    ModuleInstantiatePath::FromRoot { calls } => {
-                        Some(calls.iter().map(|(name, _)| name.0.clone()).collect())
-                    }
-                    ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
-                        path.len().checked_sub(*back_parent).map(|length| {
-                            let mut target = path[..length].to_vec();
-                            target.extend(calls.iter().map(|(name, _)| name.0.clone()));
-                            target
-                        })
-                    }
-                    ModuleInstantiatePath::FromImport { import_name, calls } => {
-                        visible.get(import_name.as_str()).map(|base| {
-                            let mut target = base.clone();
-                            target.extend(calls.iter().map(|(name, _)| name.0.clone()));
-                            target
-                        })
-                    }
-                };
-                if let Some(target) = target {
-                    // Instantiation exposes descendants as well as the direct scope.
-                    self.include_subtree(&target, dependencies);
-                    visible.insert(import_name.0.clone(), target);
-                } else {
-                    // A failed or inherited alias lookup is itself a dependency.
-                    dependencies.extend(0..self.units.len());
-                }
+            return;
+        }
+        item.clone().visit_module_paths(&mut |import| {
+            self.include_module_path(import, path, visible, dependencies);
+        });
+        if let ModuleItem::Import {
+            path: import,
+            import_name,
+        } = item
+            && let Some(target) = Self::module_target(import, path, visible)
+        {
+            visible.insert(import_name.0.clone(), target);
+        }
+    }
+
+    fn include_module_path(
+        &self,
+        import: &ModuleInstantiatePath,
+        path: &[String],
+        visible: &BTreeMap<String, Vec<String>>,
+        dependencies: &mut BTreeSet<usize>,
+    ) {
+        if let Some(target) = Self::module_target(import, path, visible) {
+            self.include_subtree(&target, dependencies);
+        } else {
+            // A failed or inherited alias lookup is itself a dependency.
+            dependencies.extend(0..self.units.len());
+        }
+    }
+
+    fn module_target(
+        import: &ModuleInstantiatePath,
+        path: &[String],
+        visible: &BTreeMap<String, Vec<String>>,
+    ) -> Option<Vec<String>> {
+        match import {
+            ModuleInstantiatePath::FromRoot { calls } => {
+                Some(calls.iter().map(|(name, _)| name.0.clone()).collect())
             }
-            _ => {}
+            ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
+                path.len().checked_sub(*back_parent).map(|length| {
+                    let mut target = path[..length].to_vec();
+                    target.extend(calls.iter().map(|(name, _)| name.0.clone()));
+                    target
+                })
+            }
+            ModuleInstantiatePath::FromImport { import_name, calls } => {
+                visible.get(import_name.as_str()).map(|base| {
+                    let mut target = base.clone();
+                    target.extend(calls.iter().map(|(name, _)| name.0.clone()));
+                    target
+                })
+            }
         }
     }
 
@@ -181,6 +204,7 @@ impl<'a> ModuleGraph<'a> {
     }
 
     pub fn key(&self, index: usize, settings: &Fingerprint) -> Fingerprint {
+        let _time = timing::Scope::module(|| self.units[index].path.clone());
         let mut bytes = settings.to_vec();
         bytes.extend(self.topology);
         for dependency in self.closure([index]) {
@@ -200,6 +224,7 @@ impl<'a> ModuleGraph<'a> {
                 .units
                 .iter()
                 .position(|unit| std::ptr::eq(unit.module, module))?;
+            let _time = timing::Scope::module(|| graph.units[index].path.clone());
             if !selected.contains(&index) {
                 return None;
             }

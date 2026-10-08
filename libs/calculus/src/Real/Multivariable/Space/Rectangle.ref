@@ -1,0 +1,24 @@
+\import \parent.Def[] \as Coordinates;
+\import \parent.Prop[] \as Properties;
+\import topological_algebra.Euclidean[].Dimension[n := n].Norm[] \as Norm;
+\import real.Analysis[].Estimates[] \as Estimates;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\use Equality.congr2;
+\definition point(s, t: Real): Point := Coordinates.replace (Coordinates.replace a i s) j t;
+\definition base: Logic.Not (i = j) -> \forall (s: Real) -> point s (a j) = Coordinates.replace a i s :=
+  \fun (different: Logic.Not (i = j))(s: Real) => trans!{Point} _ _ _
+    (congr!{Real Point} (Coordinates.replace (Coordinates.replace a i s) j) _ _
+      (sym!{Real} _ _ (Properties.replaceDifferent a i j s different)))
+    (Properties.replaceOriginal (Coordinates.replace a i s) j);
+\definition swapped: Logic.Not (i = j) -> \forall (s, t: Real) -> point s t = Coordinates.replace (Coordinates.replace a j t) i s :=
+  \fun (different: Logic.Not (i = j))(s, t: Real) => Properties.replaceCommutes a i j s t different;
+\definition distanceBound: Logic.Not (i = j) -> \forall (s, t: Real) ->
+  R.Le (Coordinates.pointDistance (point s t) a) (add (distance t (a j)) (distance s (a i))) :=
+  \fun (different: Logic.Not (i = j))(s, t: Real) => R.leReplaceRight (Coordinates.pointDistance (point s t) a)
+    (add (Coordinates.pointDistance (point s t) (Coordinates.replace a i s)) (Coordinates.pointDistance (Coordinates.replace a i s) a))
+    (add (distance t (a j)) (distance s (a i)))
+    (congr2!{Real Real Real} add _ _ _ _
+      (trans!{Real} _ _ _ (Properties.replaceDistance (Coordinates.replace a i s) j t)
+        (congr!{Real Real} (distance t) _ _ (Properties.replaceDifferent a i j s different)))
+      (Properties.replaceDistance a i s))
+    (Norm.distanceTriangle (point s t) (Coordinates.replace a i s) a);

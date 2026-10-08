@@ -1,27 +1,33 @@
-use crate::raw::{
-    calculus::{exp_is_alpha_eq, exp_reduce_if_top, instantiate, normalize},
-    derivation::CheckSession,
-    environment::{CrateEnv, ModuleArgument},
-    exp::{ExpContextEntry, ExpNode},
-    ids::{DefId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
-    program::{
-        ComputationTermNode, ComputationTypeNode, ProgramContextEntry, ValueTermNode, ValueTypeNode,
+use crate::{
+    kernel_bridge::{
+        Evaluation, evaluate_computation, exp_is_alpha_eq, exp_reduce_if_top, instantiate,
+        instantiate_value_type, normalize, shift_computation_indices, shift_value_type_indices,
+        strengthen_value_type,
     },
-    program_calculus::{
-        Evaluation, evaluate_computation, instantiate_value_type, remap_computation_global_ids,
-        remap_value_type_global_ids, shift_computation_indices, shift_value_type_indices,
-        strengthen_value_type, subst_computation_module_params, subst_value_type_module_params,
+    raw::{
+        derivation::CheckSession,
+        environment::{CrateEnv, ModuleArgument},
+        exp::{ExpContextEntry, ExpNode},
+        ids::{DefId, MetaVarId, ModuleParamId, ProgramInductiveId, SymbolId},
+        program::{
+            ComputationTermNode, ComputationTypeNode, ProgramContextEntry, ValueTermNode,
+            ValueTypeNode,
+        },
+        program_derivation::ProgramCheckSession,
+        remapping::{
+            remap_computation_global_ids, remap_value_type_global_ids,
+            subst_computation_module_params, subst_value_type_module_params,
+        },
+        sort::Sort,
     },
-    program_derivation::ProgramCheckSession,
-    sort::Sort,
 };
 
 #[test]
 fn shared_transformations_track_depth_and_skip_closed_subtrees() {
-    use crate::raw::calculus::{
-        exp_contains_bound, exp_contains_inductive, instantiate_telescope, shift_bound_indices,
+    use crate::{
+        kernel_bridge::{instantiate_telescope, shift_bound_indices},
+        raw::traversal::{Term, exp_contains_bound, exp_contains_inductive},
     };
-    use crate::raw::traversal::Term;
     let env = CrateEnv::new();
     let a = env.arena();
     let product = |ty, body| {
@@ -148,6 +154,40 @@ fn logical_arena_interns_nodes() {
 }
 
 #[test]
+fn namespace_conversion_reuses_beta_equal_arguments_and_preserves_parameter_identity() {
+    let env = CrateEnv::new();
+    let arena = env.arena();
+    let set = arena.sort(Sort::Set(0));
+    let prop = arena.sort(Sort::Prop);
+    let identity = arena.alloc(ExpNode::Lam {
+        var: SymbolId::ANONYMOUS,
+        ty: set,
+        body: arena.exp_bound(0),
+    });
+    let applied = arena.alloc(ExpNode::App {
+        func: identity,
+        arg: prop,
+    });
+    let parameter = ModuleParamId {
+        module: env.root_module(),
+        position: 0,
+    };
+    let argument = [(parameter, ModuleArgument::Pts(applied))];
+    let reduced = [(parameter, ModuleArgument::Pts(prop))];
+    assert!(env.namespace_arguments_equal(&argument, &reduced));
+    assert_eq!(env.namespace_conversion_cache.borrow().len(), 2);
+    assert!(env.namespace_arguments_equal(&reduced, &argument));
+    assert_eq!(env.namespace_conversion_cache.borrow().len(), 2);
+    assert!(!env.namespace_arguments_equal(&argument, &[(parameter, ModuleArgument::Pts(set))]));
+    assert_eq!(env.namespace_conversion_cache.borrow().len(), 4);
+    let other = ModuleParamId {
+        position: 1,
+        ..parameter
+    };
+    assert!(!env.namespace_arguments_equal(&argument, &[(other, ModuleArgument::Pts(prop))]));
+}
+
+#[test]
 fn raw_printer_does_not_parenthesize_atomic_application_operands() {
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -161,7 +201,7 @@ fn raw_printer_does_not_parenthesize_atomic_application_operands() {
 
 #[test]
 fn namespace_substitution_is_simultaneous_and_capture_avoiding() {
-    use crate::raw::calculus::exp_subst_map;
+    use crate::raw::remapping::exp_subst_map;
     let env = CrateEnv::new();
     let a = env.arena();
     let p = ModuleParamId {
@@ -211,6 +251,145 @@ fn namespace_substitution_is_simultaneous_and_capture_avoiding() {
 }
 
 #[test]
+fn source_substitution_uses_kernel_depths_in_program_products_and_branches() {
+    use crate::raw::{
+        program::{ProgramArgument, ProgramCaseBranch},
+        remapping::subst_computation_type_module_params,
+        traversal::{Memoized, Term},
+    };
+    let env = CrateEnv::new();
+    let a = env.arena();
+    let p = ModuleParamId {
+        module: env.root_module(),
+        position: 0,
+    };
+    let q = ModuleParamId {
+        module: env.root_module(),
+        position: 1,
+    };
+    let p_type = a.value_type_module_param(p);
+    let q_value = a.alloc(ValueTermNode::ModuleParam(q));
+    let substitutions = [
+        (p, ModuleArgument::ProgramType(a.value_type_bound(3))),
+        (q, ModuleArgument::ProgramValue(a.value_bound(4))),
+    ];
+    let function = a.alloc(ComputationTypeNode::Function {
+        domain: p_type,
+        codomain: a.alloc(ComputationTypeNode::Meta {
+            metavariable: MetaVarId(0),
+            spine: vec![
+                ProgramArgument::ValueType(p_type),
+                ProgramArgument::ValueTerm(q_value),
+            ],
+        }),
+    });
+    let term = Term::ComputationType(function);
+    assert_eq!(term.walk(a, 0, &mut Memoized::new(|_, _| None)), term);
+    let substituted = subst_computation_type_module_params(a, function, &substitutions);
+    let ComputationTypeNode::Function { domain, codomain } = a.get(substituted) else {
+        panic!("function")
+    };
+    assert_eq!(domain, a.value_type_bound(3));
+    let ComputationTypeNode::Meta { spine, .. } = a.get(codomain) else {
+        panic!("meta")
+    };
+    assert_eq!(
+        spine,
+        vec![
+            ProgramArgument::ValueType(a.value_type_bound(3)),
+            ProgramArgument::ValueTerm(a.value_bound(4))
+        ]
+    );
+
+    let case = a.alloc(ComputationTermNode::Case {
+        indspec: ProgramInductiveId {
+            module: env.root_module(),
+            index: 0,
+        },
+        scrutinee: q_value,
+        branches: vec![ProgramCaseBranch {
+            binders: vec![SymbolId::ANONYMOUS; 2],
+            body: a.alloc(ComputationTermNode::ValueLet {
+                var: SymbolId::ANONYMOUS,
+                value_ty: p_type,
+                value: q_value,
+                body: a.alloc(ComputationTermNode::Return { value: q_value }),
+            }),
+        }],
+    });
+    let term = Term::Computation(case);
+    assert_eq!(term.walk(a, 0, &mut Memoized::new(|_, _| None)), term);
+    let substituted = subst_computation_module_params(a, case, &substitutions, &[]);
+    let ComputationTermNode::Case {
+        scrutinee,
+        branches,
+        ..
+    } = a.get(substituted)
+    else {
+        panic!("case")
+    };
+    assert_eq!(scrutinee, a.value_bound(4));
+    let ComputationTermNode::ValueLet {
+        value_ty,
+        value,
+        body,
+        ..
+    } = a.get(branches[0].body)
+    else {
+        panic!("let")
+    };
+    assert_eq!(value_ty, a.value_type_bound(5));
+    assert_eq!(value, a.value_bound(6));
+    assert_eq!(
+        a.get(body),
+        ComputationTermNode::Return {
+            value: a.value_bound(7)
+        }
+    );
+}
+
+#[test]
+fn source_substitution_visits_program_annotations_in_logical_boxes() {
+    use crate::raw::{remapping::exp_subst_map, traversal::Term};
+    let env = CrateEnv::new();
+    let a = env.arena();
+    let p = ModuleParamId {
+        module: env.root_module(),
+        position: 0,
+    };
+    let program_ty = a.alloc(ComputationTypeNode::Return {
+        value_ty: a.value_type_module_param(p),
+    });
+    let force = a.alloc(ExpNode::ForceBox {
+        program_ty,
+        boxed: a.exp_module_param(p),
+    });
+    let Term::Logical(substituted) = Term::Logical(force).substitute(
+        a,
+        &[(p, ModuleArgument::ProgramType(a.value_type_bound(0)))],
+        &[(p, a.exp_bound(0))],
+    ) else {
+        panic!("logical")
+    };
+    let ExpNode::ForceBox { program_ty, boxed } = a.get(substituted) else {
+        panic!("force")
+    };
+    assert_eq!(boxed, a.exp_bound(0));
+    assert_eq!(
+        a.get(program_ty),
+        ComputationTypeNode::Return {
+            value_ty: a.value_type_bound(0)
+        }
+    );
+
+    let reflected = a.alloc(ExpNode::ReflectedProgramParam(p));
+    assert_eq!(
+        exp_subst_map(a, reflected, &[(p, a.exp_bound(2))]),
+        a.exp_bound(2)
+    );
+}
+
+#[test]
 fn namespace_substitution_respects_nominal_declaration_telescopes() {
     use crate::raw::inductive::{CtorBinder, CtorType, InductiveTypeSpecs};
     let env = CrateEnv::new();
@@ -246,7 +425,7 @@ fn namespace_substitution_respects_nominal_declaration_telescopes() {
 
 #[test]
 fn conversion_does_not_reduce_alpha_equal_applications() {
-    use crate::raw::calculus::{convertible, erased_convertible};
+    use crate::kernel_bridge::{convertible, erased_convertible};
 
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -378,7 +557,7 @@ fn beta_reduction_remains_set_only() {
 
 #[test]
 fn weak_head_reduction_batches_arguments_without_intermediate_nodes() {
-    use crate::raw::calculus::whnf;
+    use crate::kernel_bridge::whnf;
     let env = CrateEnv::new();
     let a = env.arena();
     let ty = a.sort(Sort::Set(0));
@@ -408,7 +587,7 @@ fn weak_head_reduction_batches_arguments_without_intermediate_nodes() {
 
 #[test]
 fn repeated_weak_head_reduction_reuses_the_result() {
-    use crate::raw::calculus::whnf;
+    use crate::kernel_bridge::whnf;
 
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -451,8 +630,10 @@ fn repeated_weak_head_reduction_reuses_the_result() {
 
 #[test]
 fn weak_head_cache_keeps_erasure_separate_from_strict_reduction() {
-    use crate::raw::calculus::{convertible, erased_convertible, whnf};
-    use crate::raw::exp::Prove;
+    use crate::{
+        kernel_bridge::{convertible, erased_convertible, whnf},
+        raw::exp::Prove,
+    };
 
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -480,7 +661,7 @@ fn weak_head_cache_keeps_erasure_separate_from_strict_reduction() {
 
 #[test]
 fn substitution_preserves_free_variables_under_binders() {
-    use crate::raw::calculus::shift_bound_indices;
+    use crate::kernel_bridge::shift_bound_indices;
 
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -553,8 +734,10 @@ fn program_typing_and_evaluation_use_program_handles() {
 
 #[test]
 fn program_case_preserves_field_order_and_fuel_boundary() {
-    use crate::raw::program::ProgramCaseBranch;
-    use crate::raw::program_calculus::{evaluate_computation_with_fuel, value_is_alpha_eq};
+    use crate::{
+        kernel_bridge::{evaluate_computation_with_fuel, value_is_alpha_eq},
+        raw::program::ProgramCaseBranch,
+    };
 
     let env = CrateEnv::new();
     let arena = env.arena();
@@ -639,9 +822,7 @@ fn program_run_stores_accessibility_proof() {
 
 #[test]
 fn run_case_proofs_follow_type_and_value_substitution() {
-    use crate::raw::{
-        exp::Prove, program_calculus::instantiate_value_in_computation, program_definitions,
-    };
+    use crate::{kernel_bridge::instantiate_value_in_computation, raw::exp::Prove};
     let env = CrateEnv::new();
     let arena = env.arena();
     // The body is under A, x. Its proof mentions both binders.
@@ -663,8 +844,12 @@ fn run_case_proofs_follow_type_and_value_substitution() {
         accessibility: proof,
         transition_equality: proof,
     });
-    let instantiated =
-        program_definitions::instantiate_computation(&env, body, &[arena.value_type_bound(2)], 1);
+    let instantiated = crate::kernel_bridge::instantiate_computation_parameters(
+        &env,
+        body,
+        &[arena.value_type_bound(2)],
+        1,
+    );
     let ComputationTermNode::RunCase {
         accessibility,
         transition_equality,
@@ -896,7 +1081,7 @@ fn value_let_checks_its_annotation_and_reflects_open_terms() {
 
 #[test]
 fn value_let_annotations_follow_binder_shifts_and_substitution() {
-    use crate::raw::program_calculus::{computation_is_alpha_eq, instantiate_value_in_computation};
+    use crate::kernel_bridge::{computation_is_alpha_eq, instantiate_value_in_computation};
     let env = CrateEnv::new();
     let arena = env.arena();
     // In A: VType, a: A, bind x = a and then y = x.
@@ -1278,6 +1463,17 @@ fn instance_context_must_be_well_formed() {
                 var: SymbolId::ANONYMOUS,
                 ty: bound,
             }]
+        )
+        .is_err()
+    );
+    assert!(
+        env.add_modules_in_scope(
+            module,
+            vec![ExpContextEntry {
+                var: SymbolId::ANONYMOUS,
+                ty: bound,
+            }],
+            3
         )
         .is_err()
     );

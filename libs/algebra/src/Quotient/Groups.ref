@@ -1,0 +1,36 @@
+\import \parent.Operations[] \as Operations;
+\structure Congruence[group: Alg.CommutativeGroup[A]]: \Prop {
+  equivalence: Q.EquivalenceLaws,
+  addition: Q.BinaryRespects (#op{(#base{group})}),
+  inverse: Q.UnaryRespects (#inv{(#base{group})}),
+}
+\definition add(group: Alg.CommutativeGroup[A]) (congruence: Congruence[group]): Carrier -> Carrier -> Carrier :=
+  Operations.binary (#equivalence{congruence}) (#op{(#base{group})}) (#addition{congruence});
+\definition neg(group: Alg.CommutativeGroup[A]) (congruence: Congruence[group]): Carrier -> Carrier :=
+  Operations.unary (#equivalence{congruence}) (#inv{(#base{group})}) (#inverse{congruence});
+\definition related(laws: Q.EquivalenceLaws) (x, y: A): x = y -> relation x y :=
+  \fun (equal: _) => \idelim x = y \with z: A => relation x z \by { base: #refl{laws} x, equality: equal };
+\definition commutative: \forall (group: Alg.CommutativeGroup[A]) (congruence: Congruence[group]) (x, y: Carrier) ->
+  add group congruence x y = add group congruence y x :=
+  \fun (group: _) (congruence: _) => Operations.commutative (#equivalence{congruence}) (#op{(#base{group})}) (#addition{congruence})
+    (\fun (x, y: A) => related (#equivalence{congruence}) _ _ (#commutative{group} x y));
+\definition quotient(group: Alg.CommutativeGroup[A]) (congruence: Congruence[group]): Alg.CommutativeGroup[Carrier] :=
+  Alg.CommutativeGroup[Carrier] {
+    base := Alg.GroupData[Carrier]::# (class (#unit{(#base{group})})) (add group congruence) (neg group congruence),
+    group := Alg.GroupLaws[Carrier, (Alg.GroupData[Carrier]::# (class (#unit{(#base{group})})) (add group congruence) (neg group congruence))] {
+      monoid := Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# (class (#unit{(#base{group})})) (add group congruence))] {
+        leftIdentity := Operations.leftIdentity (#equivalence{congruence}) (#op{(#base{group})}) (#addition{congruence}) (#unit{(#base{group})})
+          (\fun (x: A) => related (#equivalence{congruence}) _ _ (#leftIdentity{(#monoid{(#group{group})})} x)),
+        rightIdentity := Operations.rightIdentity (#equivalence{congruence}) (#op{(#base{group})}) (#addition{congruence}) (#unit{(#base{group})})
+          (\fun (x: A) => related (#equivalence{congruence}) _ _ (#rightIdentity{(#monoid{(#group{group})})} x)),
+        associative := Operations.associative (#equivalence{congruence}) (#op{(#base{group})}) (#addition{congruence})
+          (\fun (x, y, z: A) => related (#equivalence{congruence}) _ _ (#associative{(#monoid{(#group{group})})} x y z)),
+      },
+      leftInverse := Operations.inverseLeft (#equivalence{congruence}) (#op{(#base{group})}) (#addition{congruence}) (#inv{(#base{group})}) (#inverse{congruence}) (#unit{(#base{group})})
+        (\fun (x: A) => related (#equivalence{congruence}) _ _ (#leftInverse{(#group{group})} x)),
+      rightInverse := \fun (x: Carrier) => trans!{Carrier} _ _ _ (commutative group congruence x (neg group congruence x))
+        (Operations.inverseLeft (#equivalence{congruence}) (#op{(#base{group})}) (#addition{congruence}) (#inv{(#base{group})}) (#inverse{congruence}) (#unit{(#base{group})})
+          (\fun (x: A) => related (#equivalence{congruence}) _ _ (#leftInverse{(#group{group})} x)) x),
+    },
+    commutative := commutative group congruence,
+  };

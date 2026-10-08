@@ -1,0 +1,51 @@
+\import \parent.Coordinates[I := V] \as Functions;
+\import \parent.Linear[V := V, W := K, source := source, target := scalarSpace] \as Maps;
+\import \parent.Laws[V := K, space := scalarSpace] \as ScalarLaws;
+\import \parent.Subspace[V := Functions.Vector, space := Functions.space] \as FunctionSubspaces;
+\definition Linear(f: Functions.Vector): \Prop := Maps.MapLaws[Maps.MapData { apply := f }];
+\definition subspace: FunctionSubspaces.Subspace := FunctionSubspaces.Subspace {
+  carrier := { f: Functions.Vector \where Linear f },
+  containsZero := Maps.MapLaws[Maps.MapData { apply := Functions.origin }] {
+    preservesAdd := \fun (x, y: V) => sym!{K} _ _ (addZeroLeft zero),
+    preservesScale := \fun (a: K) (x: V) => sym!{K} _ _ (mulZeroRight a),
+  },
+  closedAdd := \fun (f, g: Functions.Vector) (fl: Linear f) (gl: Linear g) =>
+    Maps.MapLaws[Maps.MapData { apply := Functions.plus f g }] {
+      preservesAdd := \fun (x, y: V) => trans!{K} _ _ _
+        (congr2!{K K K} add _ _ _ _ (#preservesAdd{fl} x y) (#preservesAdd{gl} x y))
+        (ScalarLaws.shuffle (f x) (f y) (g x) (g y)),
+      preservesScale := \fun (a: K) (x: V) => trans!{K} _ _ _
+        (congr2!{K K K} add _ _ _ _ (#preservesScale{fl} a x) (#preservesScale{gl} a x))
+        (sym!{K} _ _ (mulAdd a (f x) (g x))),
+    },
+  closedScale := \fun (a: K) (f: Functions.Vector) (fl: Linear f) =>
+    Maps.MapLaws[Maps.MapData { apply := Functions.scale a f }] {
+      preservesAdd := \fun (x, y: V) => trans!{K} _ _ _
+        (congr!{K K} (mul a) _ _ (#preservesAdd{fl} x y)) (mulAdd a (f x) (f y)),
+      preservesScale := \fun (b: K) (x: V) => trans!{K} _ _ _
+        (congr!{K K} (mul a) _ _ (#preservesScale{fl} b x)) (ScalarLaws.scaleComm a b (f x)),
+    },
+};
+\import FunctionSubspaces.Of[subspace := subspace] \as Induced;
+\definition Carrier: \Set := Induced.Carrier;
+\definition space: VectorSpace Carrier := Induced.induced;
+\definition laws(f: Carrier): Linear f := \bysub(Functions.Vector, #carrier{subspace}, f);
+\definition toMap(f: Carrier): Maps.Map := Maps.Map {
+  apply := f,
+  preservesAdd := #preservesAdd{(laws f)},
+  preservesScale := #preservesScale{(laws f)},
+};
+\definition fromMap(f: Maps.Map): Carrier := \into[Functions.Vector](#apply{f}, #carrier{subspace}) \by {
+  Maps.MapLaws[Maps.MapData { apply := #apply{f} }] {
+    preservesAdd := #preservesAdd{f}, preservesScale := #preservesScale{f},
+  }
+};
+\definition ext: \forall (f, g: Carrier) -> (\forall (x: V) -> f x = g x) -> f = g :=
+  \fun (f, g: _) (equal: _) => \axiom:funext(f, g, equal);
+\import \parent.Linear[V := Carrier, W := K, source := space, target := scalarSpace] \as Evaluation;
+\definition evaluate(x: V): Evaluation.Map := Evaluation.Map {
+  apply := \fun (f: Carrier) => f x,
+  preservesAdd := \fun (f, g: Carrier) => \refl(add (f x) (g x)),
+  preservesScale := \fun (a: K) (f: Carrier) => \refl(mul a (f x)),
+};
+\module Precomposition(W: \Set, target: VectorSpace W);

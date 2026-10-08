@@ -1,0 +1,83 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\import calculus.Real[] \as Reals;
+\import Reals.Multivariable[n := two].Open[] \as Open;
+\import real.Analysis[].Algebra[] \as Algebra;
+\import linear_algebra.Field[].Space[K := Reals.Real, field := Algebra.field] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin two] \as Vectors;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\import Multilinear.Alternating[] \as Alternating;
+\import Spaces.Exterior[V := Vectors.Vector, space := Vectors.space] \as Exterior;
+\import differential_forms.Euclidean[n := two].On[U := Open.whole] \as Forms;
+\import Forms.At[k := one] \as OneForms;
+\import Forms.At[k := two] \as TwoForms;
+\import Forms.At[k := N.Nat^::succ two] \as ThreeForms;
+\import Spaces.Laws[V := Forms.Form two, space := TwoForms.space] \as TwoLaws;
+\import Forms.DegreeZero[] \as FunctionsToForms;
+\import Forms.ExteriorDerivative[k := zero] \as D0;
+\import Forms.ExteriorDerivative[k := one] \as D1;
+\import Forms.ExteriorDerivative[k := two] \as D2;
+\definition first: Fin.Fin two := Fin.zero one;
+\definition second: Fin.Fin two := Fin.succ one (Fin.zero zero);
+\import Forms.Projection[i := first] \as X;
+\import Forms.Projection[i := second] \as Y;
+\definition dx: Forms.Form one := X.value;
+\definition dy: Forms.Form one := Y.value;
+\import Forms.Wedge[p := zero, q := one] \as ScalarWedge;
+\import Forms.Wedge[p := one, q := one] \as Wedge;
+\definition xdy: Forms.Form one := ScalarWedge.apply (FunctionsToForms.apply X.function) dy;
+\definition dxWedgeDy: Forms.Form two := Wedge.apply dx dy;
+\import Forms.Leibniz[p := zero, q := one] \as Leibniz;
+\import Forms.RegradeIdentity[k := two] \as Degree;
+\definition leftTerm: Leibniz.left (D0.apply (FunctionsToForms.apply X.function)) dy = dxWedgeDy :=
+  trans!{{Forms.Form two}} (Leibniz.left (D0.apply (FunctionsToForms.apply X.function)) dy)
+    (Leibniz.left dx dy) dxWedgeDy
+    (congr!{{Forms.Form one} {Forms.Form two}} (\fun (omega: Forms.Form one) => Leibniz.left omega dy)
+      (D0.apply (FunctionsToForms.apply X.function)) dx X.differential)
+    (Degree.law dxWedgeDy Leibniz.degree);
+\definition rightTerm: Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy) = TwoForms.zero :=
+  trans!{{Forms.Form two}} (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy))
+    (Forms.Wedge[p := zero, q := two].apply (FunctionsToForms.apply X.function) TwoForms.zero) TwoForms.zero
+    (congr!{{Forms.Form two} {Forms.Form two}}
+      (Forms.Wedge[p := zero, q := two].apply (FunctionsToForms.apply X.function))
+      (D1.apply dy) TwoForms.zero Y.closed)
+    (Forms.Wedge[p := zero, q := two].zeroRight (FunctionsToForms.apply X.function));
+\import Spaces.Sign[] \as Sign;
+\definition derivative: D1.apply xdy = dxWedgeDy :=
+  trans!{{Forms.Form two}} (D1.apply xdy)
+    (TwoForms.plus (Leibniz.left (D0.apply (FunctionsToForms.apply X.function)) dy)
+      (TwoForms.scale (Sign.value zero) (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy)))) dxWedgeDy
+    (Leibniz.law (FunctionsToForms.apply X.function) dy)
+    (trans!{{Forms.Form two}}
+      (TwoForms.plus (Leibniz.left (D0.apply (FunctionsToForms.apply X.function)) dy)
+        (TwoForms.scale (Sign.value zero) (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy))))
+      (TwoForms.plus dxWedgeDy TwoForms.zero) dxWedgeDy
+      (congr2!{{Forms.Form two} {Forms.Form two} {Forms.Form two}} TwoForms.plus
+        (Leibniz.left (D0.apply (FunctionsToForms.apply X.function)) dy) dxWedgeDy
+        (TwoForms.scale (Sign.value zero) (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy))) TwoForms.zero leftTerm
+        (trans!{{Forms.Form two}} (TwoForms.scale (Sign.value zero) (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy)))
+          (TwoForms.scale (Sign.value zero) TwoForms.zero) TwoForms.zero
+          (congr!{{Forms.Form two} {Forms.Form two}} (TwoForms.scale (Sign.value zero))
+            (Leibniz.right (FunctionsToForms.apply X.function) (D1.apply dy)) TwoForms.zero rightTerm)
+          (TwoLaws.scaleZero (Sign.value zero)))) (TwoLaws.zeroRight dxWedgeDy));
+\definition squareZero: D2.apply (D1.apply xdy) = ThreeForms.zero := Forms.Square[k := one].law xdy;
+\definition closed: D2.apply dxWedgeDy = ThreeForms.zero :=
+  trans!{{Forms.Form (N.Nat^::succ two)}} (D2.apply dxWedgeDy) (D2.apply (D1.apply xdy)) ThreeForms.zero
+    (congr!{{Forms.Form two} {Forms.Form (N.Nat^::succ two)}} D2.apply dxWedgeDy (D1.apply xdy)
+      (sym!{{Forms.Form two}} (D1.apply xdy) dxWedgeDy derivative)) squareZero;
+\import Forms.DeRham[].At[k := two] \as Cohomology;
+\definition cycle: Cohomology.Cycle := \into[Forms.Form two](dxWedgeDy, Cohomology.Cycle) \by { closed };
+\definition exact: Cohomology.Exact dxWedgeDy :=
+  \exact(\into[Forms.Form one](xdy, { primitive: Forms.Form one \where D1.apply primitive = dxWedgeDy }) \by { derivative },
+    \Cast[Forms.Form one] ({ primitive: Forms.Form one \where D1.apply primitive = dxWedgeDy }));
+\definition classZero: Cohomology.classOf cycle = #zero{Cohomology.vectorSpace} := #right{(Cohomology.vanishes cycle)} exact;
+
+\module Evaluation(a: Open.Carrier Open.whole);

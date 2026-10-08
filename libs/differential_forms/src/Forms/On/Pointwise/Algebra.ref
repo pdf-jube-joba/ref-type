@@ -1,0 +1,38 @@
+\import \parent.\parent.At[k := k] \as Forms;
+\definition addition: \forall (omega, eta: Form k)(x: M.Point)(arguments: Fin.Fin k -> Tangent.Vector x) ->
+  value (Forms.plus omega eta) x arguments = Spaces.add (value omega x arguments) (value eta x arguments) := \block {
+  \fun (omega, eta: Form k)(x: M.Point)(arguments: Fin.Fin k -> Tangent.Vector x) \then
+  \takefrom chart: Tangent.At[x := x].Chart \by Tangent.At[x := x].chartExists \then
+  \return trans!{{Reals.Real}} (value (Forms.plus omega eta) x arguments)
+    (Spaces.add (\parent.At[x := x].ofChart omega chart arguments) (\parent.At[x := x].ofChart eta chart arguments))
+    (Spaces.add (value omega x arguments) (value eta x arguments))
+    (congr!{{PointForm k x} {Reals.Real}} (\fun (form: PointForm k x) => form arguments)
+      (value (Forms.plus omega eta) x) (\parent.At[x := x].ofChart (Forms.plus omega eta) chart)
+      (\parent.At[x := x].inChart (Forms.plus omega eta) chart))
+    (congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add
+      (\parent.At[x := x].ofChart omega chart arguments) (value omega x arguments)
+      (\parent.At[x := x].ofChart eta chart arguments) (value eta x arguments)
+      (sym!{{Reals.Real}} _ _ (congr!{{PointForm k x} {Reals.Real}} (\fun (form: PointForm k x) => form arguments)
+        (value omega x) (\parent.At[x := x].ofChart omega chart) (\parent.At[x := x].inChart omega chart)))
+      (sym!{{Reals.Real}} _ _ (congr!{{PointForm k x} {Reals.Real}} (\fun (form: PointForm k x) => form arguments)
+        (value eta x) (\parent.At[x := x].ofChart eta chart) (\parent.At[x := x].inChart eta chart))))
+};
+\definition scalar: \forall (a: Reals.Real)(omega: Form k)(x: M.Point)(arguments: Fin.Fin k -> Tangent.Vector x) ->
+  value (Forms.scale a omega) x arguments = Spaces.mul a (value omega x arguments) := \block {
+  \fun (a: Reals.Real)(omega: Form k)(x: M.Point)(arguments: Fin.Fin k -> Tangent.Vector x) \then
+  \takefrom chart: Tangent.At[x := x].Chart \by Tangent.At[x := x].chartExists \then
+  \return trans!{{Reals.Real}} (value (Forms.scale a omega) x arguments)
+    (Spaces.mul a (\parent.At[x := x].ofChart omega chart arguments)) (Spaces.mul a (value omega x arguments))
+    (congr!{{PointForm k x} {Reals.Real}} (\fun (form: PointForm k x) => form arguments)
+      (value (Forms.scale a omega) x) (\parent.At[x := x].ofChart (Forms.scale a omega) chart)
+      (\parent.At[x := x].inChart (Forms.scale a omega) chart))
+    (congr!{{Reals.Real} {Reals.Real}} (Spaces.mul a) _ _
+      (sym!{{Reals.Real}} _ _ (congr!{{PointForm k x} {Reals.Real}} (\fun (form: PointForm k x) => form arguments)
+        (value omega x) (\parent.At[x := x].ofChart omega chart) (\parent.At[x := x].inChart omega chart))))
+};
+\definition injective: \forall (omega, eta: Form k) -> value omega = value eta -> omega = eta :=
+  \fun (omega, eta: Form k)(same: value omega = value eta) => trans!{{Form k}} omega (fromPointwise (asPointwise omega)) eta
+    (sym!{{Form k}} _ _ (leftInverse omega))
+    (trans!{{Form k}} (fromPointwise (asPointwise omega)) (fromPointwise (asPointwise eta)) eta
+      (congr!{{RegularPointFamily} {Form k}} fromPointwise (asPointwise omega) (asPointwise eta) same)
+      (leftInverse eta));

@@ -1,0 +1,14 @@
+\import \parent.\parent.\parent.Increment[U := U, f := f, g := g i, a := a, x := x, i := i] \as Increment;
+\definition estimate: \forall (rho, theta: Real)(controls: Controls theta) -> BallInside[#points{U}, a, rho] ->
+  R.Lt (Coordinates.pointDistance x a) rho -> R.Le zero theta -> Analysis.HasPartialDerivative U f i (g i) ->
+  R.Lt (Coordinates.pointDistance x a) (Sums.Bounds[].minimum n (\fun (j: Coordinate) => controls j)) ->
+  R.Le (distance (errors i) zero) (mul theta (Coordinates.pointDistance x a)) := \block {
+  \fun (rho, theta: Real)(controls: Controls theta)(ball: _)(nearBall: _)(positive: _)(partial: _)(near: _) \then
+  \let control: Analysis.ContinuityControl[U, g i, a, theta, controls i] :=
+    \bysub(Real, { delta: Real \where Analysis.ContinuityControl[U, g i, a, theta, delta] }, controls i) \then
+  \return Increment.estimate rho (g i a) theta ball nearBall positive partial (\fun (p: Carrier U)(bound: R.Le (Coordinates.pointDistance p a) (Coordinates.pointDistance x a)) =>
+    R.Order[].leOfLt (distance (g i p) (g i a)) theta (#estimate{control} p
+      (R.leLtTrans (Coordinates.pointDistance p a) (Coordinates.pointDistance x a) (controls i) bound
+        (R.ltLeTrans (Coordinates.pointDistance x a) (Sums.Bounds[].minimum n (\fun (j: Coordinate) => controls j)) (controls i) near
+          (Sums.Bounds[].coordinate n (\fun (j: Coordinate) => controls j) i)))))
+};

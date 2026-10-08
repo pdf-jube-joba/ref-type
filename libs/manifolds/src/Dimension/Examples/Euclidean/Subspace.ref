@@ -1,0 +1,53 @@
+\definition Point: \Set := Open.Carrier U;
+\import Open.Topology[].Of[U := U] \as Local;
+\import topology.Topology[Carrier := Point] \as Topology;
+\import Topology.Subspace[S := Topology.Whole] \as Whole;
+\import \parent.\parent.\parent.Chart[M := Point, space := Local.topology] \as Charts;
+\import \parent.\parent.\parent.Atlas[M := Point, space := Local.topology] \as Atlases;
+\import \parent.\parent.\parent.Topological[] \as Manifolds;
+\import topology.Homeomorphism[A := Charts.Domain Topology.Whole, B := Point] \as Homeomorphisms;
+\import topology.Continuity[A := Point, B := Point] \as Continuous;
+\import Continuous.Corestriction[S := Topology.Whole] \as IntoWhole;
+\import topology.Maps[A := Point, B := Point].Identity[] \as Identity;
+\definition identity(x: Point): Charts.Domain Topology.Whole := \into[Point](x, Topology.Whole) \by { \refl(x) };
+\definition standard: Charts.Chart := Charts.Chart {
+  domain := Topology.Whole,
+  image := U,
+  coordinates := Homeomorphisms.Homeomorphism[Charts.domainTopology Topology.Whole, Charts.imageTopology U] {
+    forward := \fun (x: Charts.Domain Topology.Whole) => x,
+    backward := identity,
+    leftInverse := \fun (x: Charts.Domain Topology.Whole) => \refl(x),
+    rightInverse := \fun (x: Point) => \refl(x),
+    forwardContinuous := \fun (W: \Pow Point)(open: _) => Whole.traceOpen Local.topology W open,
+    backwardContinuous := IntoWhole.corestrictContinuous Local.topology Local.topology identity (Identity.continuous Local.topology),
+  },
+  open := #wholeOpen{(Topology.topologyLaws Local.topology)},
+};
+\import Charts.Transition[left := standard, right := standard] \as Transition;
+\definition standardCompatible: Atlases.Compatible standard standard :=
+  \fun (i: Coordinates.Coordinate) => Functions.projectionSmooth Transition.domain i;
+\definition atlas: Atlases.Atlas := Atlases.Atlas {
+  charts := { chart: Charts.Chart \where chart = standard },
+  covers := \fun (x: Point) => \exact(\into[Charts.Chart](standard,
+    { chart: Charts.Chart \where Logic.And[chart = standard, Charts.Contains chart x] }) \by {
+      Logic.And[_, _]::# (\refl(standard)) (\refl(x))
+    }, \Cast[Charts.Chart] ({ chart: Charts.Chart \where Logic.And[chart = standard, Charts.Contains chart x] })),
+  compatible := \fun (left, right: Charts.Chart)(leftSame: left = standard)(rightSame: right = standard) =>
+    \idelim standard = left \with chart: Charts.Chart => Atlases.Compatible chart right \by {
+      base: \idelim standard = right \with chart: Charts.Chart => Atlases.Compatible standard chart \by {
+        base: standardCompatible, equality: sym!{{Charts.Chart}} right standard rightSame
+      },
+      equality: sym!{{Charts.Chart}} left standard leftSame
+    },
+};
+\import topology.Topology[Carrier := Coordinates.Point].Subspace[S := #points{U}].Properties[] \as Properties;
+\definition manifold: Manifolds.Manifold := Manifolds.Manifold {
+  Point := Point, space := Local.topology, charts := #charts{atlas}, covers := #covers{atlas},
+  hausdorff := Properties.hausdorff Euclidean.topology Euclidean.hausdorff,
+  secondCountable := Properties.secondCountable Euclidean.topology Countability.secondCountable,
+};
+\import \parent.\parent.\parent.Smooth[] \as Smooth;
+\import Smooth.From[M := Point, space := Local.topology, atlas := atlas] \as SmoothConstruction;
+\definition smoothManifold: Smooth.Manifold := SmoothConstruction.manifold
+  (Properties.hausdorff Euclidean.topology Euclidean.hausdorff)
+  (Properties.secondCountable Euclidean.topology Countability.secondCountable);

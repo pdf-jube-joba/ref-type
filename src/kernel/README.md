@@ -1,6 +1,6 @@
 # PTS kernel
 
-sort・型・項・証明を共通の `syntax::Expression` と `Node` で表す。
+sort・型・項・証明を共通の `kernel::syntax` の `Expression` と `Node` で表す。
 `Expression` は `Arena` 内の intern 済み handle であり、子の項と binder の型も同じ arena を使う。
 
 | モジュール | 担当 |

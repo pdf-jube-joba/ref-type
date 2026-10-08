@@ -345,7 +345,7 @@ impl ProgramScope {
         self.sync(environment);
         result
     }
-    fn solve_value(
+    pub(super) fn solve_value(
         &mut self,
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
@@ -359,7 +359,7 @@ impl ProgramScope {
             Term::ValueType(expected),
         )
     }
-    fn solve_computation(
+    pub(super) fn solve_computation(
         &mut self,
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
@@ -776,7 +776,11 @@ impl ProgramScope {
             )),
         }
     }
-    fn solver_error(&self, environment: &GlobalEnvironment, message: String) -> ElaborationError {
+    pub(super) fn solver_error(
+        &self,
+        environment: &GlobalEnvironment,
+        message: String,
+    ) -> ElaborationError {
         if crate::diagnostics::compact() {
             return ElaborationError::Message(message);
         }

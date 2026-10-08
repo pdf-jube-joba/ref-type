@@ -1,0 +1,41 @@
+\import algebra.Group[].Of[Carrier := A, group := source] \as G;
+\import algebra.Group[].Of[Carrier := B, group := target] \as H;
+\import G.Subgroups[] \as SourceSubgroups;
+\import H.Subgroups[] \as TargetSubgroups;
+\import std.Alg[].Monoid[] \as Monoid;
+\import algebra.Hom[A := A, B := B] \as Hom;
+\use Equality.congr2;
+\definition domain: Monoid.Monoid[A] := Monoid.asMonoid A G.additive;
+\definition codomain: Monoid.Monoid[B] := Monoid.asMonoid B H.additive;
+\definition Map: \Set := Hom.MonoidMap domain codomain;
+\definition preservesNeg: \forall (f: Map) (x: A) -> f (G.neg x) = H.neg (f x) :=
+  \fun (f: Map) (x: A) => H.inverseUnique (f x) (f (G.neg x))
+    (trans!{B} _ _ _ (sym!{B} _ _ (#operation{(Hom.monoidLaws domain codomain f)} (G.neg x) x))
+      (trans!{B} _ _ _ (congr!{A B} f _ _ (G.inverseLeft x)) (#unit{(Hom.monoidLaws domain codomain f)})));
+\definition kernelClosed: \forall (f: Map) -> SourceSubgroups.Closed[(Kernel f H.zero)] :=
+  \fun (f: Map) => SourceSubgroups.Closed[(Kernel f H.zero)] {
+    zero := #unit{(Hom.monoidLaws domain codomain f)},
+    add := \fun (x, y: A) (fx: f x = H.zero) (fy: f y = H.zero) => trans!{B} _ _ _
+      (#operation{(Hom.monoidLaws domain codomain f)} x y)
+      (trans!{B} _ _ _ (congr2!{B B B} H.add _ _ _ _ fx fy) (H.zeroLeft H.zero)),
+    neg := \fun (x: A) (fx: f x = H.zero) => trans!{B} _ _ _ (preservesNeg f x)
+      (trans!{B} _ _ _ (congr!{B B} H.neg _ _ fx) H.negZero),
+  };
+\definition imageClosed: \forall (f: Map) -> TargetSubgroups.Closed[(Image f)] :=
+  \fun (f: Map) => TargetSubgroups.Closed[(Image f)] {
+    zero := \idelim f G.zero = H.zero \with y: B => \In[B] (Image f) y
+      \by { base: imageMember f G.zero, equality: #unit{(Hom.monoidLaws domain codomain f)} },
+    add := \fun (y, z: B) (inY: \In[B] (Image f) y) (inZ: \In[B] (Image f) z) => imageElim f y (\In[B] (Image f) (H.add y z))
+      (\fun (a: A) (fa: f a = y) => imageElim f z (\In[B] (Image f) (H.add y z))
+        (\fun (b: A) (fb: f b = z) => \idelim f (G.add a b) = H.add y z
+          \with c: B => \In[B] (Image f) c \by {
+            base: imageMember f (G.add a b),
+            equality: trans!{B} _ _ _ (#operation{(Hom.monoidLaws domain codomain f)} a b)
+              (congr2!{B B B} H.add _ _ _ _ fa fb)
+          }) inZ) inY,
+    neg := \fun (y: B) (member: \In[B] (Image f) y) => imageElim f y (\In[B] (Image f) (H.neg y))
+      (\fun (a: A) (fa: f a = y) => \idelim f (G.neg a) = H.neg y \with b: B => \In[B] (Image f) b
+        \by { base: imageMember f (G.neg a), equality: trans!{B} _ _ _ (preservesNeg f a) (congr!{B B} H.neg _ _ fa) }) member,
+  };
+\definition kernel(f: Map): Alg.CommutativeGroup[\Cast[A] (Kernel f H.zero)] := SourceSubgroups.subgroup (Kernel f H.zero) (kernelClosed f);
+\definition image(f: Map): Alg.CommutativeGroup[\Cast[B] (Image f)] := TargetSubgroups.subgroup (Image f) (imageClosed f);

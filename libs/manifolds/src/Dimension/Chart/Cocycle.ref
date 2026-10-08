@@ -1,0 +1,24 @@
+\import \parent.Transition[left := left, right := middle] \as First;
+\import \parent.Transition[left := middle, right := right] \as Second;
+\import \parent.Transition[left := left, right := right] \as Direct;
+\import \parent.Of[chart := middle] \as Middle;
+\definition domain: Open.OpenSet := Open.intersection First.domain Direct.domain;
+\definition firstIncluded: Open.Included domain First.domain := Open.intersectionLeft First.domain Direct.domain;
+\definition directIncluded: Open.Included domain Direct.domain := Open.intersectionRight First.domain Direct.domain;
+\definition firstPoint(x: Open.Carrier domain): Open.Carrier First.domain := Open.inclusion domain First.domain firstIncluded x;
+\definition directPoint(x: Open.Carrier domain): Open.Carrier Direct.domain := Open.inclusion domain Direct.domain directIncluded x;
+\definition inRight: \forall (x: Open.Carrier domain) -> Contains right (point middle (First.apply (firstPoint x))) :=
+  \fun (x: Open.Carrier domain) => \idelim point left (First.leftCoordinate (firstPoint x)) = point middle (First.apply (firstPoint x))
+    \with p: M => Contains right p \by {
+      base: Direct.inRightDomain (directPoint x), equality: sym!{M} _ _ (First.returnsPoint (firstPoint x))
+    };
+\definition intermediate(x: Open.Carrier domain): Open.Carrier Second.domain :=
+  \into[Coordinates.Point](First.apply (firstPoint x), #points{Second.domain}) \by {
+    Second.intro (First.apply (firstPoint x)) (inRight x)
+  };
+\definition pointAgreement: \forall (x: Open.Carrier domain) ->
+  point middle (Second.leftCoordinate (intermediate x)) = point left (Direct.leftCoordinate (directPoint x)) :=
+  \fun (x: Open.Carrier domain) => First.returnsPoint (firstPoint x);
+\definition coordinateAgreement: \forall (x: Open.Carrier domain) -> Second.vector (intermediate x) = Direct.vector (directPoint x) :=
+  \fun (x: Open.Carrier domain) => congr!{{LocalPoint right} {Open.Carrier #image{right}}} (coordinate right)
+    (Second.overlapPoint (intermediate x)) (Direct.overlapPoint (directPoint x)) (pointAgreement x);

@@ -1,0 +1,19 @@
+\import std.Set[].Extension[A := Point, B := Real, domain := #points{U}] \as Extension;
+\definition extended(p: Point): Real := Extension.extend f zero p;
+\definition current: Point := Staircase.point a x (Fin.value n i);
+\definition next: Point := Staircase.point a x (N.Nat^::succ (Fin.value n i));
+\definition radius: Real := Coordinates.pointDistance x a;
+\definition Lower(s: Real): \Prop := R.Le (Metric.min (a i) (x i)) s;
+\definition Upper(s: Real): \Prop := R.Le s (Metric.max (a i) (x i));
+\definition Error(c: Real): Real := sub (sub (extended next) (extended current)) (mul c (sub (x i) (a i)));
+\module At(z: Carrier U);
+\definition estimate: \forall (rho, c, theta: Real) -> BallInside[#points{U}, a, rho] -> R.Lt radius rho -> R.Le zero theta ->
+  Analysis.HasPartialDerivative U f i g ->
+  (\forall (p: Carrier U) -> R.Le (Coordinates.pointDistance p a) radius -> R.Le (distance (g p) c) theta) ->
+  R.Le (distance (Error c) zero) (mul theta radius) := \block {
+  \fun (rho, c, theta: Real)(ball: BallInside[#points{U}, a, rho])(near: _)(positive: _)(partials: _)(bounded: _) \then
+  \let z: Carrier U := \into[Point](current, #points{U}) \by {
+    #included{ball} current (R.leLtTrans _ radius rho (Staircase.bounded a x (Fin.value n i)) near)
+  } \then
+  \return At[z := z].estimate rho c theta (\refl(current)) ball near positive partials bounded
+};

@@ -1,0 +1,64 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Option[] \as Option;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as NatLaws;
+\import \parent.Multilinear[V := V, space := space] \as Multilinear;
+\import Multilinear.Alternating[] \as Alternating;
+\import Multilinear.ListArguments[] \as ArgumentsList;
+\import Fin.FromList[A := V] \as TuplesList;
+\import Fin.Tuples[A := V] \as Tuples;
+\import Lists.Membership[A := V] \as Membership;
+\import Lists.Replace[A := V] \as Replacement;
+\import \parent.Shuffle[I := V] \as Shuffle;
+\import Shuffle.Alternation[] \as SeriesAlternation;
+\import Shuffle.Vector[space := space] \as SeriesLinear;
+\definition Form(k: N.Nat^): \Set := Alternating.Form k;
+\definition Series: \Set := Shuffle.Function;
+\definition restriction(k: N.Nat^)(f: Series): Multilinear.Function k := \fun (arguments: Multilinear.Arguments k) => f (TuplesList.list k arguments);
+\module RestrictionStep(k: N.Nat^);
+\definition restrictionAlternating: \forall (k: N.Nat^)(f: Series) -> SeriesAlternation.Laws[f] ->
+  \forall (arguments: Multilinear.Arguments k)(i, j: Fin.Fin k) -> Logic.Not (i = j) -> arguments i = arguments j -> restriction k f arguments = zero :=
+  \induction (k: N.Nat^) \return \forall (f: Series) -> SeriesAlternation.Laws[f] ->
+    \forall (arguments: Multilinear.Arguments k)(i, j: Fin.Fin k) -> Logic.Not (i = j) -> arguments i = arguments j -> restriction k f arguments = zero \with {
+      | zero: \fun (f: Series)(laws: SeriesAlternation.Laws[f])(arguments: Multilinear.Arguments N.Nat^::zero)(i, j: Fin.Fin N.Nat^::zero)(different: Logic.Not (i = j))(same: arguments i = arguments j) =>
+        Logic.falseElim (restriction N.Nat^::zero f arguments = zero) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | succ: \fun (k: N.Nat^)(previous: \forall (f: Series) -> SeriesAlternation.Laws[f] ->
+        \forall (arguments: Multilinear.Arguments k)(i, j: Fin.Fin k) -> Logic.Not (i = j) -> arguments i = arguments j -> restriction k f arguments = zero) => RestrictionStep[k := k].law previous
+    };
+\module Restriction(k: N.Nat^);
+\module SeriesShift(k: N.Nat^);
+\definition component(k: N.Nat^)(f: Multilinear.Function k): Series := Multilinear.ListSeries[k := k].component f;
+\structure HeadLaws[k: N.Nat^, f: Form k]: \Prop {
+  swap: \forall (x, y: V)(xs: Lists.List[V]) -> component k f (Lists.List[V]::cons x (Lists.List[V]::cons y xs)) = neg (component k f (Lists.List[V]::cons y (Lists.List[V]::cons x xs))),
+  repeated: \forall (x: V)(xs: Lists.List[V]) -> component k f (Lists.List[V]::cons x (Lists.List[V]::cons x xs)) = zero,
+}
+\module ZeroHeads;
+\module OneHeads;
+\module DoubleHeads(k: N.Nat^);
+\definition headLaws: \forall (k: N.Nat^)(f: Form k) -> HeadLaws[k, f] :=
+  \induction (k: N.Nat^) \return \forall (f: Form k) -> HeadLaws[k, f] \with {
+    | zero: ZeroHeads[].laws
+    | succ: \fun (k: N.Nat^)(unused: \forall (f: Form k) -> HeadLaws[k, f]) =>
+      (\induction (k: N.Nat^) \return \forall (f: Form (N.Nat^::succ k)) -> HeadLaws[N.Nat^::succ k, f] \with {
+        | zero: OneHeads[].laws
+        | succ: \fun (k: N.Nat^)(unused: \forall (f: Form (N.Nat^::succ k)) -> HeadLaws[N.Nat^::succ k, f]) => DoubleHeads[k := k].laws
+      }) k
+  };
+\module ComponentStep(k: N.Nat^);
+\definition componentAlternating: \forall (k: N.Nat^)(f: Form k) -> SeriesAlternation.Laws[component k f] :=
+  \induction (k: N.Nat^) \return \forall (f: Form k) -> SeriesAlternation.Laws[component k f] \with {
+    | zero: ZeroHeads[].alternating
+    | succ: \fun (k: N.Nat^)(previous: \forall (f: Form k) -> SeriesAlternation.Laws[component k f]) => ComponentStep[k := k].law previous
+  };
+\module Degrees(p, q: N.Nat^);
+\module Components(k: N.Nat^);
+\module Bilinearity(p, q: N.Nat^);
+\module GradedCommutativity(p, q: N.Nat^);
+\module Associativity(p, q, r: N.Nat^);
+\import Alternating.DegreeZero[] \as ZeroForms;
+\definition unit: Form N.Nat^::zero := ZeroForms.constant one;
+\module Unit;
+\module UnitLaws(k: N.Nat^);
+\module Pullback(W: \Set, target: VectorSpace W);
+\module Regrade(k, l: N.Nat^);

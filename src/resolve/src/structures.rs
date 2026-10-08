@@ -15,7 +15,16 @@ mod parameters;
 pub(super) struct Structure {
     pub ambient: HashMap<BindingId, SExp>,
     pub parameters: Vec<RightBind>,
+    pub inputs: Vec<Input>,
+    pub checks: Vec<(SExp, SExp)>,
     pub fields: Vec<(Identifier, SExp, Option<SExp>)>,
+}
+
+#[derive(Clone)]
+pub(super) struct ParameterSignature {
+    pub parameters: Vec<RightBind>,
+    pub inputs: Vec<Input>,
+    pub checks: Vec<(SExp, SExp)>,
 }
 
 #[derive(Clone)]
@@ -48,6 +57,23 @@ pub(super) struct Input {
     pub thunks: HashSet<String>,
 }
 
+fn application_head(mut expression: &SExp) -> &SExp {
+    while let SExp::App { func, .. } = expression {
+        expression = func;
+    }
+    expression
+}
+
+fn application_arguments(mut expression: &SExp) -> Vec<&SExp> {
+    let mut arguments = Vec::new();
+    while let SExp::App { func, arg } = expression {
+        arguments.push(arg.as_ref());
+        expression = func;
+    }
+    arguments.reverse();
+    arguments
+}
+
 pub(super) fn variable(name: Identifier) -> SExp {
     SExp::AccessPath {
         access: LocalAccess::Current {
@@ -72,7 +98,29 @@ pub(in crate::resolver) fn substitute(
     values: &HashMap<BindingId, SExp>,
 ) -> SExp {
     let mut expression = expression.clone();
+    if values.is_empty() {
+        return expression;
+    }
     macros::walk_sexp_control(&mut expression, &mut |node| {
+        if let SExp::AccessPath {
+            access:
+                LocalAccess::Named {
+                    access,
+                    child,
+                    span,
+                },
+            parameters,
+        } = node
+            && let Some(value) = access.1.and_then(|id| values.get(&id))
+        {
+            *node = SExp::MemberAccess {
+                base: Box::new(value.clone()),
+                field: child.clone(),
+                parameters: parameters.clone(),
+                span: *span,
+            };
+            return false;
+        }
         if let SExp::ProgramValueReference {
             access: LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
         } = node
@@ -114,6 +162,9 @@ fn abstract_parameters(parameters: &[RightBind], mut expression: SExp) -> SExp {
         .flat_map(|bind| bind.vars.iter())
         .filter_map(|name| name.1)
         .collect();
+    if local_ids.is_empty() {
+        return expression;
+    }
     macros::walk_sexp_mut(&mut expression, &mut |node| {
         if let SExp::AccessPath { access, .. } | SExp::ProgramValueReference { access } = node
             && let LocalAccess::Resolved {
@@ -156,8 +207,9 @@ impl Resolver {
     pub(super) fn front_binding(
         &self,
         access: &LocalAccess,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Option<BindingId> {
+        let _cost = timing::costs::Scope::enter("resolve.front-binding");
         if let LocalAccess::Current { access: name, .. }
         | LocalAccess::Resolved { access: name, .. } = access
             && name.1.is_some()
@@ -169,12 +221,23 @@ impl Resolver {
         {
             return name.1;
         }
-        let mut access = access.clone();
-        self.access(self.current, &mut access).ok()?;
-        match access {
-            LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. } => access.1,
-            LocalAccess::Named { .. } => None,
-        }
+        let (module, name, inherit, span) = match access {
+            LocalAccess::Current { access, span } => (self.current, access, true, *span),
+            LocalAccess::Named {
+                access,
+                child,
+                span,
+            } => (
+                self.import(self.current, access.as_str())?,
+                child,
+                false,
+                *span,
+            ),
+            LocalAccess::Resolved { .. } | LocalAccess::Instantiated { .. } => return None,
+        };
+        let (module, id) = self.find_name(module, name.as_str(), inherit)?;
+        self.record_reference(module, id, name.as_str(), span);
+        Some(id)
     }
 
     fn instantiate_front_expression(&self, expression: &SExp, access: &LocalAccess) -> SExp {
@@ -188,6 +251,9 @@ impl Resolver {
         };
         let scope = &self.scopes[module.0 as usize];
         let mut expression = substitute(expression, &scope.substitutions);
+        if scope.remapping.is_empty() {
+            return expression;
+        }
         macros::walk_sexp_mut(&mut expression, &mut |node| {
             let module = match node {
                 SExp::ProgramValueReference {
@@ -230,12 +296,19 @@ impl Resolver {
     fn structure_type(
         &self,
         expression: &SExp,
-    ) -> Option<(BindingId, Structure, HashMap<BindingId, SExp>)> {
+        locals: &[LocalScope],
+    ) -> Result<Option<(BindingId, Structure, HashMap<BindingId, SExp>)>, Diagnostic> {
         let SExp::AccessPath { access, parameters } = expression else {
-            return None;
+            return Ok(None);
         };
-        let id = self.front_binding(access, &[])?;
-        let mut signature = self.structures.get(&id)?.clone();
+        let Some(mut signature) = self
+            .front_binding(access, locals)
+            .and_then(|id| self.structures.get(&id))
+            .cloned()
+        else {
+            return Ok(None);
+        };
+        let id = self.front_binding(access, locals).unwrap();
         for bind in &mut signature.parameters {
             *bind.ty = self.instantiate_front_expression(&bind.ty, access);
         }
@@ -245,23 +318,32 @@ impl Resolver {
                 *body = self.instantiate_front_expression(body, access);
             }
         }
+        for (value, ty) in &mut signature.checks {
+            *value = self.instantiate_front_expression(value, access);
+            *ty = self.instantiate_front_expression(ty, access);
+        }
+        let (parameters, checks) = self.expand_type_arguments(
+            &signature.parameters,
+            &signature.inputs,
+            parameters,
+            access,
+            locals,
+        )?;
+        signature.checks.extend(checks);
         let names = signature
             .parameters
             .iter()
             .flat_map(|b| &b.vars)
             .collect::<Vec<_>>();
-        if names.len() != parameters.len() {
-            return None;
-        }
         let mut substitutions: HashMap<_, _> = names
             .into_iter()
             .zip(parameters)
-            .map(|(n, v)| (n.1.unwrap(), v.clone()))
+            .map(|(n, v)| (n.1.unwrap(), v))
             .collect();
         for (id, expression) in &signature.ambient {
             substitutions.insert(*id, self.instantiate_front_expression(expression, access));
         }
-        Some((id, signature, substitutions))
+        Ok(Some((id, signature, substitutions)))
     }
 
     fn bind_structure_field(
@@ -323,14 +405,30 @@ impl Resolver {
                     )
                 })
             })
+            .chain(
+                shape
+                    .checks
+                    .iter()
+                    .map(|(value, ty)| (substitute(value, arguments), substitute(ty, arguments))),
+            )
             .collect()
     }
 
     fn structure_value(
         &self,
         expression: &SExp,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Result<Option<Value>, Diagnostic> {
+        // Inline module selection preserves argument checks around its value.
+        // A structure still denotes its fields inside that wrapper; retain all
+        // guards so declaration compilation checks the selected instance too.
+        if let SExp::Checked { checks, body } = expression {
+            let mut value = self.structure_value(body, locals)?;
+            if let Some(value) = &mut value {
+                value.checks.extend(checks.iter().cloned());
+            }
+            return Ok(value);
+        }
         let projection = match expression {
             SExp::InferredProjection { value, field, .. } => Some(((**value).clone(), field)),
             SExp::MemberAccess {
@@ -358,13 +456,7 @@ impl Resolver {
             }
             return Ok(result);
         }
-        let mut head = expression;
-        let mut arguments = Vec::new();
-        while let SExp::App { func, arg } = head {
-            arguments.push((**arg).clone());
-            head = func;
-        }
-        arguments.reverse();
+        let head = application_head(expression);
         if let SExp::AccessPath { access, parameters } = head
             && let Some(id) = self.front_binding(access, locals)
             && let Some(template) = self.structure_values.get(&id)
@@ -387,7 +479,7 @@ impl Resolver {
                 *ty = self.instantiate_front_expression(ty, access);
             }
             let mut supplied = parameters.clone();
-            supplied.extend(arguments);
+            supplied.extend(application_arguments(expression).into_iter().cloned());
             if supplied.len() > template.inputs.len() {
                 return Err(self.error("structure declaration argument count mismatch"));
             }
@@ -464,7 +556,9 @@ impl Resolver {
                     access: access.clone(),
                     parameters: parameters.clone(),
                 };
-                let Some((signature, shape, mut substitutions)) = self.structure_type(&ty) else {
+                let Some((signature, shape, mut substitutions)) =
+                    self.structure_type(&ty, locals)?
+                else {
                     return Ok(None);
                 };
                 let mut supplied = HashMap::new();
@@ -483,7 +577,7 @@ impl Resolver {
                             self.error(format!("missing structure field: {}", name.0))
                         })?;
                     let expected = substitute(ty, &substitutions);
-                    if let Some((signature, _, _)) = self.structure_type(&expected) {
+                    if let Some((signature, _, _)) = self.structure_type(&expected, locals)? {
                         let nested = self
                             .structure_value(&value, locals)?
                             .filter(|value| value.signature == signature)
@@ -492,7 +586,7 @@ impl Resolver {
                             })?;
                         checks.extend(nested.checks);
                         for (id, expected) in
-                            ordered_arguments(&self.structure_type(&expected).unwrap().2)
+                            ordered_arguments(&self.structure_type(&expected, locals)?.unwrap().2)
                         {
                             if let Some(actual) = nested.arguments.get(&id) {
                                 checks.push((
@@ -510,7 +604,7 @@ impl Resolver {
                         checks.push((value.clone(), expected));
                     }
                     let value = if self
-                        .structure_type(&substitute(ty, &substitutions))
+                        .structure_type(&substitute(ty, &substitutions), locals)?
                         .is_some()
                         || matches!(ty, SExp::ValueType)
                     {
@@ -529,7 +623,7 @@ impl Resolver {
                     return Err(self.error("unknown structure field"));
                 }
                 Ok(Some(Value {
-                    arguments: self.structure_type(&ty).unwrap().2,
+                    arguments: self.structure_type(&ty, locals)?.unwrap().2,
                     signature,
                     parameters: Vec::new(),
                     fields: result,

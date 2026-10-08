@@ -1,0 +1,68 @@
+\import \parent.Alternation[] \as Alternation;
+
+\definition recurse: Lists.List[I] -> (I -> Function) -> K :=
+  \induction (xs: Lists.List[I]) \return \forall (H: I -> Function) -> K \with {
+    | nil: \fun (H: I -> Function) => zero
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (H: I -> Function) -> K)(H: I -> Function) =>
+      add (H head tail) (neg (previous (\fun (i: I)(xs: Lists.List[I]) => H i (Lists.List[I]::cons head xs))))
+  };
+\definition apply(H: I -> Function): Function := \fun (xs: Lists.List[I]) => recurse xs H;
+\definition addition: \forall (xs: Lists.List[I])(H, G: I -> Function) ->
+  apply (\fun (i: I) => plus (H i) (G i)) xs = add (apply H xs) (apply G xs) :=
+  \induction (xs: Lists.List[I]) \return \forall (H, G: I -> Function) ->
+    apply (\fun (i: I) => plus (H i) (G i)) xs = add (apply H xs) (apply G xs) \with {
+    | nil: \fun (H, G: I -> Function) => sym!{K} (add zero zero) zero (addZeroLeft zero)
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: _) (H, G: I -> Function) => eq_reason!{
+      {apply (\fun (i: I) => plus (H i) (G i)) (Lists.List[I]::cons head tail)}
+      "=" {add (add (H head tail) (G head tail)) (neg (add (apply (\fun (i: I) => shift head (H i)) tail) (apply (\fun (i: I) => shift head (G i)) tail)))} "by" {
+        congr!{K K} (\fun (v: K) => add (add (H head tail) (G head tail)) (neg v)) _ _
+          (previous (\fun (i: I) => shift head (H i)) (\fun (i: I) => shift head (G i)))}
+      "=" {add (add (H head tail) (G head tail)) (add (neg (apply (\fun (i: I) => shift head (H i)) tail)) (neg (apply (\fun (i: I) => shift head (G i)) tail)))} "by" {
+        congr!{K K} (add (add (H head tail) (G head tail))) _ _
+          (Sign.negativeAddition (apply (\fun (i: I) => shift head (H i)) tail) (apply (\fun (i: I) => shift head (G i)) tail))}
+      "=" {add (apply H (Lists.List[I]::cons head tail)) (apply G (Lists.List[I]::cons head tail))} "by" {
+        Scalars.shuffle (H head tail) (G head tail) (neg (apply (\fun (i: I) => shift head (H i)) tail)) (neg (apply (\fun (i: I) => shift head (G i)) tail))}
+    }
+  };
+\definition congruent: \forall (xs: Lists.List[I])(H, G: I -> Function) -> (\forall (i: I)(ys: Lists.List[I]) -> H i ys = G i ys) -> apply H xs = apply G xs :=
+  \fun (xs: Lists.List[I])(H, G: I -> Function)(same: \forall (i: I)(ys: Lists.List[I]) -> H i ys = G i ys) =>
+    congr!{{I -> Function} K} (\fun (F: I -> Function) => apply F xs) H G
+      (\axiom:funext(H, G, \fun (i: I) => \axiom:funext(H i, G i, same i)));
+\definition negative: \forall (xs: Lists.List[I])(H: I -> Function) -> apply (\fun (i: I) => Alternation.negative (H i)) xs = neg (apply H xs) :=
+  \induction (xs: Lists.List[I]) \return \forall (H: I -> Function) -> apply (\fun (i: I) => Alternation.negative (H i)) xs = neg (apply H xs) \with {
+    | nil: \fun (H: I -> Function) => sym!{K} (neg zero) zero Sign.negativeZero
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: _) (H: I -> Function) => eq_reason!{
+      {apply (\fun (i: I) => Alternation.negative (H i)) (Lists.List[I]::cons head tail)}
+      "=" {add (neg (H head tail)) (neg (neg (apply (\fun (i: I) => shift head (H i)) tail)))} "by" {
+        congr!{K K} (\fun (v: K) => add (neg (H head tail)) (neg v)) _ _ (previous (\fun (i: I) => shift head (H i)))}
+      "=" {neg (apply H (Lists.List[I]::cons head tail))} "by" {
+        sym!{K} _ _ (Sign.negativeAddition (H head tail) (neg (apply (\fun (i: I) => shift head (H i)) tail)))}
+    }
+  };
+\definition zeroValue: \forall (xs: Lists.List[I]) -> apply (\fun (i: I) => origin) xs = zero :=
+  \induction (xs: Lists.List[I]) \return apply (\fun (i: I) => origin) xs = zero \with {
+    | nil: \refl(zero)
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: apply (\fun (i: I) => origin) tail = zero) =>
+      trans!{K} (add zero (neg (apply (\fun (i: I) => origin) tail))) (neg zero) zero
+        (trans!{K} (add zero (neg (apply (\fun (i: I) => origin) tail))) (neg (apply (\fun (i: I) => origin) tail)) (neg zero)
+          (addZeroLeft (neg (apply (\fun (i: I) => origin) tail)))
+          (congr!{K K} neg (apply (\fun (i: I) => origin) tail) zero previous)) Sign.negativeZero
+  };
+\module Variation(J: \Set, map: I -> J, hessian: I -> I -> J);
+
+\definition scalar: \forall (xs: Lists.List[I])(a: K)(H: I -> Function) -> apply (\fun (i: I) => scale a (H i)) xs = mul a (apply H xs) :=
+  \induction (xs: Lists.List[I]) \return \forall (a: K)(H: I -> Function) -> apply (\fun (i: I) => scale a (H i)) xs = mul a (apply H xs) \with {
+    | nil: \fun (a: K)(H: I -> Function) => sym!{K} (mul a zero) zero (mulZeroRight a)
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: _) (a: K)(H: I -> Function) => eq_reason!{
+      {apply (\fun (i: I) => scale a (H i)) (Lists.List[I]::cons head tail)}
+      "=" {add (mul a (H head tail)) (neg (mul a (apply (\fun (i: I) => shift head (H i)) tail)))} "by" {
+        congr!{K K} (\fun (v: K) => add (mul a (H head tail)) (neg v)) _ _ (previous a (\fun (i: I) => shift head (H i)))}
+      "=" {add (mul a (H head tail)) (mul a (neg (apply (\fun (i: I) => shift head (H i)) tail)))} "by" {
+        congr!{K K} (add (mul a (H head tail))) _ _ (Sign.negativeProductRight a (apply (\fun (i: I) => shift head (H i)) tail))}
+      "=" {mul a (apply H (Lists.List[I]::cons head tail))} "by" {
+        sym!{K} _ _ (mulAdd a (H head tail) (neg (apply (\fun (i: I) => shift head (H i)) tail)))}
+    }
+  };
+\module Sums(J: \Set);
+\module OneCovector;
+\module Mapping(J: \Set, map: I -> J);

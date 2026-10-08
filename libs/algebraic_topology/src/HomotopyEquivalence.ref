@@ -1,0 +1,59 @@
+\import std.Logic[].Equality[] \as Equality;
+\import Equality.Prop[A := A -> A] \as FunctionA;
+\import Equality.Prop[A := B -> B] \as FunctionB;
+\import topology.Maps[A := A, B := A].Identity[] \as IdA;
+\import topology.Maps[A := B, B := B].Identity[] \as IdB;
+\import topology.Topology[Carrier := A] \as Source;
+\import topology.Topology[Carrier := B] \as Target;
+\import topology.Continuity[A := A, B := B] \as Forward;
+\import topology.Continuity[A := B, B := A] \as Backward;
+\import algebraic_topology.Homotopy[A := A, B := A] \as Left;
+\import algebraic_topology.Homotopy[A := B, B := B] \as Right;
+\structure Data: \Set {
+  forward: A -> B,
+  backward: B -> A,
+}
+\structure Laws[source: Source.Topology, target: Target.Topology, data: Data]: \Prop {
+  forwardContinuous: Forward.Continuous source target data.forward,
+  backwardContinuous: Backward.Continuous target source data.backward,
+  leftInverse: Left.Homotopic source source (\fun (x: A) => data.backward (data.forward x)) (\fun (x: A) => x),
+  rightInverse: Right.Homotopic target target (\fun (y: B) => data.forward (data.backward y)) (\fun (y: B) => y),
+}
+\definition Equivalence[source: Source.Topology, target: Target.Topology]: \Set :=
+  \Cast[Data] ({ data: Data \where Laws[source, target, data] });
+\definition laws(source: Source.Topology) (target: Target.Topology) (e: Equivalence[source, target]): Laws[source, target, e] :=
+  \bysub(Data, Equivalence[source, target], e);
+
+\import topology.Homeomorphism[A := A, B := B] \as Homeo;
+\module Composition(C: \Set);
+\definition fromHomeomorphism(source: Source.Topology) (target: Target.Topology)
+  (h: Homeo.Homeomorphism[source, target]): Equivalence[source, target] := \block {
+  \let hl: Homeo.Laws[source, target, h] := Homeo.laws source target h \then
+  \let leftEqual: (\fun (x: A) => #backward{h} (#forward{h} x)) = (\fun (x: A) => x) :=
+    \axiom:funext((\fun (x: A) => #backward{h} (#forward{h} x)), (\fun (x: A) => x), #leftInverse{hl}) \then
+  \let rightEqual: (\fun (y: B) => #forward{h} (#backward{h} y)) = (\fun (y: B) => y) :=
+    \axiom:funext((\fun (y: B) => #forward{h} (#backward{h} y)), (\fun (y: B) => y), #rightInverse{hl}) \then
+  \return Equivalence[source, target] {
+    forward := #forward{h}, backward := #backward{h},
+    forwardContinuous := #forwardContinuous{hl}, backwardContinuous := #backwardContinuous{hl},
+    leftInverse := \idelim (\fun (x: A) => x) = (\fun (x: A) => #backward{h} (#forward{h} x))
+      \with f: (A -> A) => Left.Homotopic source source f (\fun (x: A) => x)
+      \by { base: Left.reflexive source source (\fun (x: A) => x) (IdA.continuous source),
+        equality: FunctionA.sym _ _ leftEqual },
+    rightInverse := \idelim (\fun (y: B) => y) = (\fun (y: B) => #forward{h} (#backward{h} y))
+      \with f: (B -> B) => Right.Homotopic target target f (\fun (y: B) => y)
+      \by { base: Right.reflexive target target (\fun (y: B) => y) (IdB.continuous target),
+        equality: FunctionB.sym _ _ rightEqual },
+  }
+};
+\module Inverse {
+  \import algebraic_topology.HomotopyEquivalence[A := B, B := A] \as Reverse;
+  \definition inverse(source: Source.Topology) (target: Target.Topology)
+    (e: Equivalence[source, target]): Reverse.Equivalence[target, source] := Reverse.Equivalence[target, source] {
+      forward := e.backward, backward := e.forward,
+      forwardContinuous := #backwardContinuous{(laws source target e)},
+      backwardContinuous := #forwardContinuous{(laws source target e)},
+      leftInverse := #rightInverse{(laws source target e)},
+      rightInverse := #leftInverse{(laws source target e)},
+    };
+}

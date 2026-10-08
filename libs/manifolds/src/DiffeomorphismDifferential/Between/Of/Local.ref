@@ -1,0 +1,60 @@
+\import Forward.Coordinates[f := f, left := left, right := right] \as First;
+\import Backward.Coordinates[f := g, left := right, right := left] \as Second;
+\import SourceCharts.Of[chart := left] \as SourceGeometry;
+\import TargetCharts.Of[chart := right] \as TargetGeometry;
+\definition U: SourceOpen.OpenSet := First.domain;
+\definition V: TargetOpen.OpenSet := Second.domain;
+\definition forwardSource(a: SourceOpen.Carrier U): SourceCharts.LocalPoint left := SourceCharts.point left (First.leftCoordinate a);
+\definition backwardSource(b: TargetOpen.Carrier V): TargetCharts.LocalPoint right := TargetCharts.point right (Second.leftCoordinate b);
+\definition forwardPointEquality: \forall (a: SourceOpen.Carrier U) -> Backward.apply g (TargetCharts.point right (First.apply a)) = forwardSource a :=
+  \fun (a: SourceOpen.Carrier U) => trans!{{M.Point}} _ (Backward.apply g (Forward.apply f (forwardSource a))) (forwardSource a)
+    (congr!{{N.Point} {M.Point}} (Backward.apply g) _ _ (First.returnsPoint a)) (#leftInverse{(Diffeomorphisms.laws d)} (forwardSource a));
+\definition backwardPointEquality: \forall (b: TargetOpen.Carrier V) -> Forward.apply f (SourceCharts.point left (Second.apply b)) = backwardSource b :=
+  \fun (b: TargetOpen.Carrier V) => trans!{{N.Point}} _ (Forward.apply f (Backward.apply g (backwardSource b))) (backwardSource b)
+    (congr!{{M.Point} {N.Point}} (Forward.apply f) _ _ (Second.returnsPoint b)) (#rightInverse{(Diffeomorphisms.laws d)} (backwardSource b));
+\definition forwardPoint(a: SourceOpen.Carrier U): TargetOpen.Carrier V :=
+  \into[calculus.Real[].Multivariable[n := m].Point](First.apply a, #points{V}) \by {
+    Second.intro (First.apply a)
+      (\idelim forwardSource a = Backward.apply g (TargetCharts.point right (First.apply a)) \with x: M.Point => SourceCharts.Contains left x \by {
+        base: \bysub(M.Point, #domain{left}, forwardSource a),
+        equality: sym!{{M.Point}} _ _ (forwardPointEquality a)
+      })
+  };
+\definition backwardPoint(b: TargetOpen.Carrier V): SourceOpen.Carrier U :=
+  \into[calculus.Real[].Multivariable[n := n].Point](Second.apply b, #points{U}) \by {
+    First.intro (Second.apply b)
+      (\idelim backwardSource b = Forward.apply f (SourceCharts.point left (Second.apply b)) \with y: N.Point => TargetCharts.Contains right y \by {
+        base: \bysub(N.Point, #domain{right}, backwardSource b),
+        equality: sym!{{N.Point}} _ _ (backwardPointEquality b)
+      })
+  };
+\definition forwardData: LocalForward.Data[U, V] := LocalForward.Data[U, V] { apply := forwardPoint };
+\definition backwardData: LocalBackward.Data[V, U] := LocalBackward.Data[V, U] { apply := backwardPoint };
+\definition forward: LocalForward.Map U V := \into[LocalForward.Data[U, V]](forwardData, { map: LocalForward.Data[U, V] \where LocalForward.Laws[U, V, map] }) \by {
+  LocalForward.Laws[U, V, forwardData] { smooth :=
+    (\bysub(Forward.ContinuousMap, { map: Forward.ContinuousMap \where Forward.Chartwise map }, f)) left right
+      (\bysub(SourceCharts.Chart, #charts{M.atlas}, left)) (\bysub(TargetCharts.Chart, #charts{N.atlas}, right)) }
+};
+\definition backward: LocalBackward.Map V U := \into[LocalBackward.Data[V, U]](backwardData, { map: LocalBackward.Data[V, U] \where LocalBackward.Laws[V, U, map] }) \by {
+  LocalBackward.Laws[V, U, backwardData] { smooth :=
+    (\bysub(Backward.ContinuousMap, { map: Backward.ContinuousMap \where Backward.Chartwise map }, g)) right left
+      (\bysub(TargetCharts.Chart, #charts{N.atlas}, right)) (\bysub(SourceCharts.Chart, #charts{M.atlas}, left)) }
+};
+\definition leftInverse: \forall (a: SourceOpen.Carrier U) -> backwardPoint (forwardPoint a) = a :=
+  \fun (a: SourceOpen.Carrier U) => trans!{{SourceOpen.Carrier #image{left}}}
+    (Second.apply (forwardPoint a)) (SourceCharts.coordinate left (forwardSource a)) (First.leftCoordinate a)
+    (congr!{{SourceCharts.LocalPoint left} {SourceOpen.Carrier #image{left}}} (SourceCharts.coordinate left)
+      (Second.point (forwardPoint a)) (forwardSource a) (forwardPointEquality a))
+    (SourceGeometry.coordinatePoint (First.leftCoordinate a));
+\definition rightInverse: \forall (b: TargetOpen.Carrier V) -> forwardPoint (backwardPoint b) = b :=
+  \fun (b: TargetOpen.Carrier V) => trans!{{TargetOpen.Carrier #image{right}}}
+    (First.apply (backwardPoint b)) (TargetCharts.coordinate right (backwardSource b)) (Second.leftCoordinate b)
+    (congr!{{TargetCharts.LocalPoint right} {TargetOpen.Carrier #image{right}}} (TargetCharts.coordinate right)
+      (First.point (backwardPoint b)) (backwardSource b) (backwardPointEquality b))
+    (TargetGeometry.coordinatePoint (Second.leftCoordinate b));
+\definition data: LocalDiffeomorphisms.Data[U, V] := LocalDiffeomorphisms.Data[U, V] { forward := forward, backward := backward };
+\definition value: LocalDiffeomorphisms.Diffeomorphism U V := \into[LocalDiffeomorphisms.Data[U, V]](data,
+  { value: LocalDiffeomorphisms.Data[U, V] \where LocalDiffeomorphisms.Laws[U, V, value] }) \by {
+    LocalDiffeomorphisms.Laws[U, V, data] { leftInverse := leftInverse, rightInverse := rightInverse }
+  };
+\module At(a: SourceOpen.Carrier U);

@@ -1,0 +1,30 @@
+\import Submanifold.Inclusion[].Differential[].At[x := x] \as Inclusion;
+\definition index: Indices x := \into[I](i, { j: I \where \In[M.Point] (domains j) x }) \by { \bysub(M.Point, domains i, x) };
+\definition agreement: \forall (covers: Covers)(compatible: Compatible)(arguments: Fin.Fin k -> LocalTangent.Vector x) ->
+  LocalPointwise.value (Pullback.apply (apply covers compatible)) x arguments = LocalPointwise.value (forms i) x arguments := \block {
+  \fun (covers: Covers)(compatible: Compatible)(arguments: Fin.Fin k -> LocalTangent.Vector x) \then
+  \let mapped: Fin.Fin k -> Tangent.Vector x := \fun (j: Fin.Fin k) => #apply{(#forward{Inclusion.isomorphism})} (arguments j) \then
+  \return trans!{{Reals.Real}} _ (Pointwise.value (apply covers compatible) x mapped) _ (Pullback.formula (apply covers compatible) x arguments)
+    (trans!{{Reals.Real}} _ (family covers compatible x mapped) _
+      (congr!{{Global.PointFamily k} {Reals.Real}} (\fun (phi: Global.PointFamily k) => phi x mapped)
+        _ _ (evaluation covers compatible))
+      (trans!{{Reals.Real}} _ (localValue x index mapped) _
+        (congr!{{Global.PointForm k x} {Reals.Real}} (\fun (phi: Global.PointForm k x) => phi mapped)
+          _ _ (agrees covers compatible x index))
+        (congr!{{Fin.Fin k -> LocalTangent.Vector x} {Reals.Real}} (LocalPointwise.value (forms i) x) _ _
+          (\axiom:funext((\fun (j: Fin.Fin k) => #apply{Inclusion.inverse} (mapped j)), arguments,
+            \fun (j: Fin.Fin k) => #leftInverse{Inclusion.isomorphism} (arguments j))))))
+};
+\definition ambientAgreement: \forall (omega: Global.Form k) -> Pullback.apply omega = forms i ->
+  \forall (arguments: Fin.Fin k -> Tangent.Vector x) -> Pointwise.value omega x arguments = localValue x index arguments := \block {
+  \fun (omega: Global.Form k)(same: Pullback.apply omega = forms i)(arguments: Fin.Fin k -> Tangent.Vector x) \then
+  \let localArguments: Fin.Fin k -> LocalTangent.Vector x := \fun (j: Fin.Fin k) => #apply{Inclusion.inverse} (arguments j) \then
+  \let mapped: Fin.Fin k -> Tangent.Vector x := \fun (j: Fin.Fin k) => #apply{(#forward{Inclusion.isomorphism})} (localArguments j) \then
+  \return trans!{{Reals.Real}} _ (Pointwise.value omega x mapped) _
+    (sym!{{Reals.Real}} _ _ (congr!{{Fin.Fin k -> Tangent.Vector x} {Reals.Real}} (Pointwise.value omega x) mapped arguments
+      (\axiom:funext(mapped, arguments, \fun (j: Fin.Fin k) => #rightInverse{Inclusion.isomorphism} (arguments j)))))
+    (trans!{{Reals.Real}} _ (LocalPointwise.value (Pullback.apply omega) x localArguments) _
+      (sym!{{Reals.Real}} _ _ (Pullback.formula omega x localArguments))
+      (congr!{{Local.Form k} {Reals.Real}} (\fun (eta: Local.Form k) => LocalPointwise.value eta x localArguments)
+        (Pullback.apply omega) (forms i) same))
+};

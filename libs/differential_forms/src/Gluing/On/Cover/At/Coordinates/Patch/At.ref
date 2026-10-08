@@ -1,0 +1,38 @@
+\definition ambientPoint: Charts.LocalPoint chart := Charts.point chart (Restricted.oldCoordinate a);
+\definition localPoint: Point i := Restricted.backward a;
+\definition index: Indices ambientPoint := \into[I](i, { j: I \where \In[M.Point] (domains j) ambientPoint }) \by { Restricted.backwardMember a };
+\definition ambientChart: Tangent.At[x := ambientPoint].Chart := Coordinates.lift ambientPoint;
+\import Tangent.At[x := ambientPoint].Coordinate[chart := ambientChart] \as AmbientCoordinates;
+\import Submanifold.Inclusion[].Differential[].At[x := localPoint] \as Inclusion;
+\import Inclusion.InCharts[chart := ambientChart] \as InclusionCoordinates;
+\import LocalTangent.At[x := localPoint] \as LocalTangentAt;
+\import LocalTangentAt.Coordinate[chart := InclusionCoordinates.sourceChart] \as LocalCoordinates;
+\import Spaces.Linear[V := Tangent.Vector ambientPoint, W := LocalTangentAt.Vector,
+  source := Tangent.space ambientPoint, target := LocalTangentAt.space] \as InverseMaps;
+\definition inverse: \forall (v: Vectors.Vector) -> #apply{Inclusion.inverse} (AmbientCoordinates.encode v) = LocalCoordinates.encode v :=
+  \fun (v: Vectors.Vector) => trans!{{LocalTangentAt.Vector}} _
+    (#apply{InclusionCoordinates.inverse} (AmbientCoordinates.encode v)) _
+    (congr!{{InverseMaps.Map}
+      {LocalTangentAt.Vector}}
+      (\fun (map: InverseMaps.Map) => #apply{map} (AmbientCoordinates.encode v))
+      Inclusion.inverse InclusionCoordinates.inverse (Inclusion.inCharts ambientChart))
+    (congr!{{Vectors.Vector} {LocalTangentAt.Vector}} LocalCoordinates.encode _ _
+      (AmbientCoordinates.decodeEncode v));
+\definition agreement: \forall (covers: Covers)(compatible: Compatible)(arguments: Multilinear.Arguments k) ->
+  Coordinates.family (family covers compatible) (Open.inclusion image #image{chart} included a) arguments = forms i localChart a arguments := \block {
+  \fun (covers: Covers)(compatible: Compatible)(arguments: Multilinear.Arguments k) \then
+  \let tangentArguments: Fin.Fin k -> Tangent.Vector ambientPoint := \fun (j: Fin.Fin k) => AmbientCoordinates.encode (arguments j) \then
+  \let localArguments: Fin.Fin k -> LocalTangentAt.Vector :=
+    \fun (j: Fin.Fin k) => LocalCoordinates.encode (arguments j) \then
+  \return trans!{{Reals.Real}} _ (localValue ambientPoint index tangentArguments) _
+    (congr!{{Global.PointForm k ambientPoint} {Reals.Real}} (\fun (form: Global.PointForm k ambientPoint) => form tangentArguments)
+      (family covers compatible ambientPoint) (localValue ambientPoint index) (agrees covers compatible ambientPoint index))
+    (trans!{{Reals.Real}} _ (LocalPointwise.value (forms i) localPoint localArguments) _
+      (congr!{{Fin.Fin k -> LocalTangentAt.Vector} {Reals.Real}}
+        (LocalPointwise.value (forms i) localPoint) _ _
+        (\axiom:funext((\fun (j: Fin.Fin k) => #apply{Inclusion.inverse} (tangentArguments j)), localArguments,
+          \fun (j: Fin.Fin k) => inverse (arguments j))))
+      (congr!{{ImageForms.Family k} {Reals.Real}}
+        (\fun (omega: ImageForms.Family k) => omega a arguments)
+        _ _ (LocalPointwise.Coordinates[chart := localChart].recover (forms i))))
+};

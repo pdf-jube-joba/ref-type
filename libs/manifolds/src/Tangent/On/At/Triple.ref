@@ -1,0 +1,28 @@
+\import \parent.Pair[left := left, right := middle] \as First;
+\import \parent.Pair[left := middle, right := right] \as Second;
+\import \parent.Pair[left := left, right := right] \as Direct;
+\import Charts.Transition[left := left, right := middle] \as FirstDomain;
+\import Charts.Transition[left := middle, right := right] \as SecondDomain;
+\import Charts.Transition[left := left, right := right] \as DirectDomain;
+\import Charts.Cocycle[left := left, middle := middle, right := right] \as Geometry;
+\import \root.Dimension[n := n].Atlas[M := M.Point, space := M.space] \as SmoothAtlas;
+\import SmoothAtlas.Geometry[atlas := M.atlas] \as AtlasGeometry;
+\definition atlasChart(chart: Chart): AtlasGeometry.Chart := \into[Charts.Chart](chart, AtlasGeometry.Chart) \by { member chart };
+\import AtlasGeometry.Triple[left := atlasChart left, middle := atlasChart middle, right := atlasChart right] \as Triple;
+\definition point: Open.Carrier Geometry.domain := \into[Coordinates.Point](coordinate left, #points{Geometry.domain}) \by {
+  Logic.And[\In[Coordinates.Point] (#points{FirstDomain.domain}) (coordinate left), \In[Coordinates.Point] (#points{DirectDomain.domain}) (coordinate left)]::#
+    (\bysub(Coordinates.Point, #points{FirstDomain.domain}, First.point))
+    (\bysub(Coordinates.Point, #points{DirectDomain.domain}, Direct.point))
+};
+\import Triple.At[a := point] \as Jacobians;
+\definition intermediate: Maps.apply Geometry.domain SecondDomain.domain Triple.first point = Second.point := First.coordinateAgreement;
+\definition localSecond: Linear.Map := Maps.Differential[U := SecondDomain.domain, V := #image{right}, f := Triple.second, a := Maps.apply Geometry.domain SecondDomain.domain Triple.first point].value;
+\definition secondAgreement: localSecond = jacobian middle right :=
+  congr!{{Open.Carrier SecondDomain.domain} {Linear.Map}} Second.valueAt (Maps.apply Geometry.domain SecondDomain.domain Triple.first point) Second.point intermediate;
+\definition cocycle: jacobian left right = Composition.compose (jacobian middle right) (jacobian left middle) :=
+  trans!{{Linear.Map}} (jacobian left right) (Composition.compose localSecond (jacobian left middle)) (Composition.compose (jacobian middle right) (jacobian left middle))
+    Jacobians.cocycle
+    (congr!{{Linear.Map} {Linear.Map}} (\fun (d: Linear.Map) => Composition.compose d (jacobian left middle)) localSecond (jacobian middle right) secondAgreement);
+\definition apply: \forall (v: Vectors.Vector) -> transform left right v = transform middle right (transform left middle v) :=
+  \fun (v: Vectors.Vector) => congr!{{Linear.Map} {Vectors.Vector}} (\fun (d: Linear.Map) => #apply{d} v) (jacobian left right)
+    (Composition.compose (jacobian middle right) (jacobian left middle)) cocycle;

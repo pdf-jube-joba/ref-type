@@ -1,0 +1,33 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import topology.Composition[A := M.Point, B := N.Point, C := P.Point] \as Topology;
+\import \root.Dimension[n := n].Chart[M := M.Point, space := M.space] \as SourceCharts;
+\import \root.Dimension[n := m].Chart[M := N.Point, space := N.space] \as MiddleCharts;
+\import \root.Dimension[n := l].Chart[M := P.Point, space := P.space] \as TargetCharts;
+\import calculus.Real[] \as Reals;
+\import Reals.Multivariable[n := n].Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Open.Restriction[] \as Restriction;
+\import std.Data[].FinSet[] \as Fin;
+\import calculus.Maps[n := n, m := m] \as FirstCalculus;
+\import calculus.Maps[n := m, m := l] \as SecondCalculus;
+\import calculus.Maps[n := n, m := l] \as CompositeCalculus;
+\definition data: Composite.Data := Composite.Data { apply := \fun (x: M.Point) => Second.apply g (First.apply f x) };
+\definition continuous: Composite.ContinuousMap := \into[Composite.Data](data, { h: Composite.Data \where Composite.Continuous h }) \by {
+  Topology.composeContinuous M.space N.space P.space (First.apply f) (Second.apply g)
+    (\bysub(First.Data, { h: First.Data \where First.Continuous h }, f))
+    (\bysub(Second.Data, { h: Second.Data \where Second.Continuous h }, g))
+};
+\definition MiddleChart: \Set := \Cast[MiddleCharts.Chart] #charts{N.atlas};
+\module Coordinates(left: SourceCharts.Chart, right: TargetCharts.Chart);
+\definition regular: Composite.Chartwise continuous :=
+  \fun (left: SourceCharts.Chart)(right: TargetCharts.Chart) => Coordinates[left := left, right := right].regular;
+\definition map: Composite.Map := \into[Composite.ContinuousMap](continuous, { h: Composite.ContinuousMap \where Composite.Chartwise h }) \by { regular };
+\definition pointwise: \forall (x: M.Point) -> Composite.apply map x = Second.apply g (First.apply f x) :=
+  \fun (x: M.Point) => \refl(Second.apply g (First.apply f x));
+
+\definition SourceChart: \Set := \Cast[SourceCharts.Chart] #charts{M.atlas};
+\definition TargetChart: \Set := \Cast[TargetCharts.Chart] #charts{P.atlas};

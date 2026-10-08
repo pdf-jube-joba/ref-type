@@ -159,6 +159,36 @@ fn indirect_occurs_check_and_orphan_obligations() {
 }
 
 #[test]
+fn inferred_function_type_uses_its_own_context_and_dependent_codomain() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let mut metas = MetaContext::new();
+    let mut declaration = context(&env);
+    let prop = a.sort(Sort::Base(BaseSort::Prop));
+    // A : Set, P : A -> Prop; the function type is unknown here.
+    declaration.push(binding(product(a, a.bound(0), prop)));
+    let hole = metas.fresh(a, declaration.clone(), None);
+    let mut occurrence = declaration.clone();
+    occurrence.push(binding(hole));
+    occurrence.push(binding(a.bound(2)));
+    // In A, P, f : ?T[A, P], x : A, infer f x : P x.
+    let term = apply(a, Mode::Pure, a.bound(1), a.bound(0));
+    let expected = apply(a, Mode::Pure, a.bound(2), a.bound(0));
+    metas
+        .check(&env, occurrence.clone(), term, expected)
+        .unwrap();
+    metas.finish(&env).unwrap();
+    let function_type = product(a, a.bound(1), apply(a, Mode::Pure, a.bound(1), a.bound(0)));
+    assert!(
+        crate::reduction::erased_convertible(&env, metas.zonk(a, hole).unwrap(), function_type,)
+            .unwrap()
+    );
+    Checker::new(&env, &mut metas, occurrence)
+        .check(term, expected)
+        .unwrap();
+}
+
+#[test]
 fn instantiation_visits_proof_operands_and_every_branch() {
     let env = Environment::new();
     let mut metas = MetaContext::new();
@@ -1176,6 +1206,30 @@ fn product_signature_and_overflow_cover_all_program_relations() {
 }
 
 #[test]
+fn product_rule_errors_identify_both_sorts_and_their_levels() {
+    use crate::sort::ProductRule;
+    use BaseSort::*;
+    use Sort::{Base as B, Upper as U};
+    assert_eq!(
+        ProductRule::new(U(Value(2)), B(Value(4))).unwrap_err(),
+        "no product rule for domain \\VKind(2) and body \\VType(4)"
+    );
+    let env = Environment::new();
+    let a = &env.arena;
+    let proposition = sort(a, Prop);
+    let context = vec![binding(proposition)];
+    let ty = product(a, a.bound(0), proposition);
+    let error = Checker::new(&env, &mut MetaContext::new(), context)
+        .infer(ty)
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("no product rule for domain \\Prop and body \\PropKind")
+    );
+}
+
+#[test]
 fn set_and_prop_product_universes_are_non_cumulative() {
     use BaseSort::*;
     use Sort::{Base as B, Upper as U};
@@ -1805,4 +1859,66 @@ fn motive_unification_extends_context_through_dependent_telescope() {
     metas.finish(&env).unwrap();
     assert_eq!(metas.zonk(a, domain).unwrap(), a.bound(0));
     assert_eq!(metas.zonk(a, body).unwrap(), a.bound(3));
+}
+
+#[test]
+fn reflection_of_a_rigid_parameter_is_a_normal_form() {
+    let mut env = Environment::new();
+    let id = crate::ids::ParameterId(0);
+    let ty = env.arena.sort(Sort::Base(BaseSort::Value(0)));
+    env.register_parameter(id, ty).unwrap();
+    let parameter = env.arena.alloc(Node::Parameter(id));
+    let reflected = env.arena.alloc(Node::Reflect { term: parameter });
+    assert_eq!(
+        crate::reduction::reduce_once(&env, reflected).unwrap(),
+        None
+    );
+    assert_eq!(
+        crate::reduction::normalize(&env, reflected).unwrap(),
+        reflected
+    );
+}
+
+#[test]
+fn transparent_alias_conversion_preserves_the_common_reference() {
+    let mut env = Environment::new();
+    let a = env.arena.clone();
+    let set = sort(&a, BaseSort::Set(0));
+    let mut metas = MetaContext::new();
+    let context = vec![binding(set), binding(a.bound(0))];
+    let arguments = vec![a.bound(1), a.bound(0)];
+    let base = env
+        .register_definition(
+            &mut metas,
+            Definition {
+                context: context.clone(),
+                ty: a.bound(1),
+                body: a.bound(0),
+            },
+        )
+        .unwrap();
+    let base_reference = env.reference(base, arguments.clone()).unwrap();
+    let alias = env
+        .register_definition(
+            &mut metas,
+            Definition {
+                context: context.clone(),
+                ty: a.bound(1),
+                body: base_reference,
+            },
+        )
+        .unwrap();
+    let alias_reference = env.reference(alias, arguments).unwrap();
+    env.heads.borrow_mut().clear();
+    env.conversions.borrow_mut().clear();
+    assert!(reduction::erased_convertible(&env, alias_reference, base_reference).unwrap());
+    assert!(env.heads.borrow().get(&base_reference).is_none());
+    assert!(reduction::erased_convertible(&env, base_reference, alias_reference).unwrap());
+    assert!(!reduction::erased_convertible(&env, alias_reference, a.bound(1)).unwrap());
+    assert_eq!(
+        Checker::new(&env, &mut metas, context)
+            .infer(alias_reference)
+            .unwrap(),
+        a.bound(1)
+    );
 }

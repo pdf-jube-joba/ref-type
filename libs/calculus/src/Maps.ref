@@ -1,0 +1,39 @@
+\import \root.Real[] \as Reals;
+\import Reals.Multivariable[n := n].Open[] \as Source;
+\import Reals.Multivariable[n := m].Open[] \as Target;
+\import Source.Smooth[] \as Smooth;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition SourceOpen: \Set := Source.OpenSet;
+\definition TargetOpen: \Set := Target.OpenSet;
+\structure Data[U: SourceOpen, V: TargetOpen]: \Set {
+  apply: Source.Carrier U -> Target.Carrier V,
+}
+\structure Laws[U: SourceOpen, V: TargetOpen, data: Data[U, V]]: \Prop {
+  smooth: \forall (i: std.Data[].FinSet[].Fin m) -> Smooth.SmoothOn U (\fun (x: Source.Carrier U) => data.apply x i),
+}
+\definition Map(U: SourceOpen)(V: TargetOpen): \Set := \Cast[Data[U, V]] ({ data: Data[U, V] \where Laws[U, V, data] });
+\definition apply(U: SourceOpen)(V: TargetOpen)(f: Map U V): Source.Carrier U -> Target.Carrier V := #apply{f};
+\definition dataEta: \forall (U: SourceOpen)(V: TargetOpen)(f: Data[U, V]) -> Data[U, V]::# (#apply{f}) = f :=
+  \fun (U: SourceOpen)(V: TargetOpen) => \induction (f: Data[U, V]) \return Data[U, V]::# (#apply{f}) = f \with {
+    | # : \fun (function: Source.Carrier U -> Target.Carrier V) => \refl(Data[U, V]::# function)
+  };
+\definition ext: \forall (U: SourceOpen)(V: TargetOpen)(f, g: Map U V) -> apply U V f = apply U V g -> f = g :=
+  \fun (U: SourceOpen)(V: TargetOpen)(f, g: Map U V)(same: apply U V f = apply U V g) =>
+    trans!{{Data[U, V]}} f (Data[U, V]::# (apply U V f)) g
+      (sym!{{Data[U, V]}} (Data[U, V]::# (apply U V f)) f (dataEta U V f))
+      (trans!{{Data[U, V]}} (Data[U, V]::# (apply U V f)) (Data[U, V]::# (apply U V g)) g
+        (congr!{{Source.Carrier U -> Target.Carrier V} {Data[U, V]}} Data[U, V]::# _ _ same) (dataEta U V g));
+\import Smooth.Derivative[] \as Partials;
+\definition coordinateFunction(U: SourceOpen)(V: TargetOpen)(f: Map U V)(j: std.Data[].FinSet[].Fin m): Partials.Function U :=
+  \into[Source.ScalarFunction U]((\fun (x: Source.Carrier U) => apply U V f x j),
+    { h: Source.ScalarFunction U \where Smooth.SmoothOn U h }) \by {
+      #smooth{(\bysub(Data[U, V], { data: Data[U, V] \where Laws[U, V, data] }, f))} j
+    };
+\module Topology(U: SourceOpen, V: TargetOpen);
+\module Restriction(U, V: SourceOpen, W: TargetOpen);
+\module Differential(U: SourceOpen, V: TargetOpen, f: Map U V, a: Source.Carrier U);
+\module Composition(U: SourceOpen, V: TargetOpen, f: Map U V);

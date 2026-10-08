@@ -1,0 +1,51 @@
+\import \parent.On[U := U] \as Global;
+\definition Included: \Prop := \forall (i: I) -> Open.Included (domains i) U;
+\definition Indices(x: Open.Carrier U): \Pow I := { i: I \where \In[Vectors.Vector] (#points{(domains i)}) x };
+\definition Covers: \Prop := \forall (x: Open.Carrier U) -> \exists \Cast[I] (Indices x);
+\definition Compatible: \Prop := \forall (i, j: I)(x: Open.Carrier (domains i))(y: Open.Carrier (domains j)) -> x = y -> forms i x = forms j y;
+\definition Values(x: Open.Carrier U): \Pow (Alternating.Form k) := { value: Alternating.Form k \where
+  \forall (i: I)(y: Open.Carrier (domains i)) -> y = x -> value = forms i y };
+\definition Value(x: Open.Carrier U): \Set := \Cast[Alternating.Form k] (Values x);
+\definition existsValue: Covers -> Compatible -> \forall (x: Open.Carrier U) -> \exists Value x := \block {
+  \fun (covers: Covers)(compatible: Compatible)(x: Open.Carrier U) \then
+  \takefrom i: \Cast[I] (Indices x) \by covers x \then
+  \let point: Open.Carrier (domains i) := \into[Vectors.Vector](x, #points{(domains i)}) \by { \bysub(I, Indices x, i) } \then
+  \return \exact(\into[Alternating.Form k](forms i point, Values x) \by {
+    \fun (j: I)(y: Open.Carrier (domains j))(same: y = x) => compatible i j point y (sym!{{Vectors.Vector}} y x same)
+  }, Value x)
+};
+\definition uniqueValue: Covers -> \forall (x: Open.Carrier U)(left, right: Value x) -> left = right := \block {
+  \fun (covers: Covers)(x: Open.Carrier U)(left, right: Value x) \then
+  \takefrom i: \Cast[I] (Indices x) \by covers x \then
+  \let point: Open.Carrier (domains i) := \into[Vectors.Vector](x, #points{(domains i)}) \by { \bysub(I, Indices x, i) } \then
+  \return trans!{{Alternating.Form k}} left (forms i point) right ((\bysub(Alternating.Form k, Values x, left)) i point (\refl(x)))
+    (sym!{{Alternating.Form k}} right (forms i point) ((\bysub(Alternating.Form k, Values x, right)) i point (\refl(x))))
+};
+\definition point(covers: Covers)(compatible: Compatible)(x: Open.Carrier U): Value x :=
+  \choice Value x \by { existence: existsValue covers compatible x, uniqueness: uniqueValue covers x };
+\definition agrees: \forall (included: Included)(covers: Covers)(compatible: Compatible)(i: I)(x: Open.Carrier (domains i)) ->
+  point covers compatible (Open.inclusion (domains i) U (included i) x) = forms i x :=
+  \fun (included: Included)(covers: Covers)(compatible: Compatible)(i: I)(x: Open.Carrier (domains i)) =>
+    (\bysub(Alternating.Form k, Values (Open.inclusion (domains i) U (included i) x), point covers compatible (Open.inclusion (domains i) U (included i) x))) i x (\refl(x));
+\definition regular: \forall (included: Included)(covers: Covers)(compatible: Compatible) -> Global.SmoothFamily k (point covers compatible) :=
+  \fun (included: Included)(covers: Covers)(compatible: Compatible)(arguments: Multilinear.Arguments k) =>
+    Open.SmoothCover[I := I, U := U, domains := domains, f := \fun (x: Open.Carrier U) => point covers compatible x arguments].smooth included covers
+      (\fun (i: I) => \parent.On[U := domains i].smoothOfEqual (\fun (x: Open.Carrier (domains i)) => forms i x arguments)
+        (\fun (x: Open.Carrier (domains i)) => point covers compatible (Open.inclusion (domains i) U (included i) x) arguments)
+        (\fun (x: Open.Carrier (domains i)) => sym!{{Reals.Real}} _ _
+          (congr!{{Alternating.Form k} {Reals.Real}} (\fun (omega: Alternating.Form k) => omega arguments) _ _ (agrees included covers compatible i x)))
+        ((\bysub(Open.Carrier (domains i) -> Alternating.Form k,
+          { omega: Open.Carrier (domains i) -> Alternating.Form k \where \forall (args: Multilinear.Arguments k) -> Smooth.SmoothOn (domains i) (\fun (x: Open.Carrier (domains i)) => omega x args) }, forms i)) arguments));
+\definition apply(included: Included)(covers: Covers)(compatible: Compatible): Global.Form k :=
+  \into[Global.Family k](point covers compatible, { omega: Global.Family k \where Global.SmoothFamily k omega }) \by { regular included covers compatible };
+\definition unique: \forall (included: Included)(covers: Covers)(compatible: Compatible)(omega: Global.Form k) ->
+  (\forall (i: I)(x: Open.Carrier (domains i)) -> omega (Open.inclusion (domains i) U (included i) x) = forms i x) -> omega = apply included covers compatible := \block {
+  \fun (included: Included)(covers: Covers)(compatible: Compatible)(omega: Global.Form k)
+    (agreement: \forall (i: I)(x: Open.Carrier (domains i)) -> omega (Open.inclusion (domains i) U (included i) x) = forms i x) \then
+  \return \axiom:funext(omega, apply included covers compatible, \fun (x: Open.Carrier U) => \block {
+    \takefrom i: \Cast[I] (Indices x) \by covers x \then
+    \let local: Open.Carrier (domains i) := \into[Vectors.Vector](x, #points{(domains i)}) \by { \bysub(I, Indices x, i) } \then
+    \return trans!{{Alternating.Form k}} (omega x) (forms i local) (apply included covers compatible x)
+      (agreement i local) (sym!{{Alternating.Form k}} _ _ (agrees included covers compatible i local))
+  })
+};

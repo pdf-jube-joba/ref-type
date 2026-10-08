@@ -1,0 +1,103 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import \parent.Sign[] \as Sign;
+\import \parent.Laws[V := K, space := scalarSpace] \as Scalars;
+\definition Function: \Set := Lists.List[I] -> K;
+\definition origin: Function := \fun (xs: Lists.List[I]) => zero;
+\definition plus(f, g: Function): Function := \fun (xs: Lists.List[I]) => add (f xs) (g xs);
+\definition scale(a: K)(f: Function): Function := \fun (xs: Lists.List[I]) => mul a (f xs);
+\definition shift(i: I)(f: Function): Function := \fun (xs: Lists.List[I]) => f (Lists.List[I]::cons i xs);
+\definition twist(f: Function): Function := \fun (xs: Lists.List[I]) => mul (Sign.value (Lists.length I xs)) (f xs);
+\structure Split: \Set {
+  left: Lists.List[I],
+  right: Lists.List[I],
+  weight: K,
+}
+\definition empty: Split := Split { left := Lists.List[I]::nil, right := Lists.List[I]::nil, weight := one };
+\definition insertLeft(i: I)(split: Split): Split := Split {
+  left := Lists.List[I]::cons i #left{split}, right := #right{split}, weight := #weight{split},
+};
+\definition insertRight(i: I)(split: Split): Split := Split {
+  left := #left{split}, right := Lists.List[I]::cons i #right{split},
+  weight := mul (Sign.value (Lists.length I #left{split})) #weight{split},
+};
+\definition swap(split: Split): Split := Split {
+  left := #right{split}, right := #left{split},
+  weight := mul (Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split}))) #weight{split},
+};
+\definition swapEmpty: swap empty = empty :=
+  congr!{K Split} (\fun (w: K) => Split { left := Lists.List[I]::nil, right := Lists.List[I]::nil, weight := w }) (mul one one) one (mulOneLeft one);
+\definition swapLeft: \forall (i: I)(split: Split) -> swap (insertLeft i split) = insertRight i (swap split) := \block {
+  \fun (i: I)(split: Split) \then
+  \let l: N.Nat^ := Lists.length I #left{split} \then
+  \let r: N.Nat^ := Lists.length I #right{split} \then
+  \let w: K := #weight{split} \then
+  \return congr!{K Split} (\fun (weight: K) => Split { left := #right{split}, right := Lists.List[I]::cons i #left{split}, weight := weight })
+    (mul (Sign.value (Nat.mul (N.Nat^::succ l) r)) w) (mul (Sign.value r) (mul (Sign.value (Nat.mul l r)) w))
+    (trans!{K} (mul (Sign.value (Nat.mul (N.Nat^::succ l) r)) w) (mul (mul (Sign.value r) (Sign.value (Nat.mul l r))) w)
+      (mul (Sign.value r) (mul (Sign.value (Nat.mul l r)) w))
+      (congr!{K K} (\fun (s: K) => mul s w) (Sign.value (Nat.mul (N.Nat^::succ l) r)) (mul (Sign.value r) (Sign.value (Nat.mul l r))) (Sign.leftSuccessor l r))
+      (mulAssoc (Sign.value r) (Sign.value (Nat.mul l r)) w))
+};
+\definition swapRight: \forall (i: I)(split: Split) -> swap (insertRight i split) = insertLeft i (swap split) :=
+  \fun (i: I)(split: Split) => congr!{K Split}
+    (\fun (weight: K) => Split { left := Lists.List[I]::cons i #right{split}, right := #left{split}, weight := weight })
+    (mul (Sign.value (Nat.mul (Lists.length I #left{split}) (N.Nat^::succ (Lists.length I #right{split})))) (mul (Sign.value (Lists.length I #left{split})) #weight{split}))
+    (mul (Sign.value (Nat.mul (Lists.length I #left{split}) (Lists.length I #right{split}))) #weight{split})
+    (Sign.rightCancellation (Lists.length I #left{split}) (Lists.length I #right{split}) #weight{split});
+\definition partitions: Lists.List[I] -> Lists.List[Split] :=
+  \induction (xs: Lists.List[I]) \return Lists.List[Split] \with {
+    | nil: Lists.List[Split]::cons empty Lists.List[Split]::nil
+    | cons: \fun (i: I)(xs: Lists.List[I])(previous: Lists.List[Split]) =>
+      Lists.append Split (Lists.map Split Split (insertLeft i) previous) (Lists.map Split Split (insertRight i) previous)
+  };
+\import \parent.Sums[I := Split] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import SumLaws.Mapping[J := Split] \as Mapping;
+\definition term(f, g: Function)(split: Split): K := mul #weight{split} (mul (f #left{split}) (g #right{split}));
+\definition product(f, g: Function): Function := \fun (xs: Lists.List[I]) => Sums.sum (partitions xs) (term f g);
+\definition Homogeneous(p: N.Nat^)(f: Function): \Prop := \forall (xs: Lists.List[I]) -> Logic.Not (Lists.length I xs = p) -> f xs = zero;
+\definition unit: Function := \induction (xs: Lists.List[I]) \return K \with {
+  | nil: one
+  | cons: \fun (head: I)(tail: Lists.List[I])(previous: K) => zero
+};
+\definition rightTerm: \forall (i: I)(f, g: Function)(split: Split) -> term f g (insertRight i split) = term (twist f) (shift i g) split := \block {
+  \fun (i: I)(f, g: Function)(split: Split) \then
+  \let sign: K := Sign.value (Lists.length I #left{split}) \then
+  \let weight: K := #weight{split} \then
+  \let left: K := f #left{split} \then
+  \let right: K := g (Lists.List[I]::cons i #right{split}) \then
+  \return trans!{K} (mul (mul sign weight) (mul left right)) (mul sign (mul weight (mul left right))) (mul weight (mul (mul sign left) right))
+    (mulAssoc sign weight (mul left right))
+    (trans!{K} (mul sign (mul weight (mul left right))) (mul weight (mul sign (mul left right))) (mul weight (mul (mul sign left) right))
+      (Scalars.scaleComm sign weight (mul left right))
+      (congr!{K K} (mul weight) (mul sign (mul left right)) (mul (mul sign left) right)
+        (sym!{K} (mul (mul sign left) right) (mul sign (mul left right)) (mulAssoc sign left right))))
+};
+\definition atEmpty: \forall (f, g: Function) -> product f g Lists.List[I]::nil = mul (f Lists.List[I]::nil) (g Lists.List[I]::nil) :=
+  \fun (f, g: Function) => trans!{K} (add (mul one (mul (f Lists.List[I]::nil) (g Lists.List[I]::nil))) zero)
+    (mul one (mul (f Lists.List[I]::nil) (g Lists.List[I]::nil))) (mul (f Lists.List[I]::nil) (g Lists.List[I]::nil))
+      (addZeroRight (mul one (mul (f Lists.List[I]::nil) (g Lists.List[I]::nil)))) (mulOneLeft (mul (f Lists.List[I]::nil) (g Lists.List[I]::nil)));
+\definition atCons: \forall (i: I)(xs: Lists.List[I])(f, g: Function) ->
+  product f g (Lists.List[I]::cons i xs) = add (product (shift i f) g xs) (product (twist f) (shift i g) xs) := \block {
+  \fun (i: I)(xs: Lists.List[I])(f, g: Function) \then
+  \let left: Lists.List[Split] := Lists.map Split Split (insertLeft i) (partitions xs) \then
+  \let right: Lists.List[Split] := Lists.map Split Split (insertRight i) (partitions xs) \then
+  \let leftSum: Sums.sum left (term f g) = product (shift i f) g xs := Mapping.sumMap (partitions xs) (insertLeft i) (term f g) \then
+  \let rightSum: Sums.sum right (term f g) = product (twist f) (shift i g) xs := trans!{K}
+    (Sums.sum right (term f g)) (Sums.sum (partitions xs) (\fun (split: Split) => term f g (insertRight i split))) (product (twist f) (shift i g) xs)
+      (Mapping.sumMap (partitions xs) (insertRight i) (term f g))
+      (SumLaws.congruent (partitions xs) (\fun (split: Split) => term f g (insertRight i split)) (term (twist f) (shift i g)) (rightTerm i f g)) \then
+  \return trans!{K} (product f g (Lists.List[I]::cons i xs)) (add (Sums.sum left (term f g)) (Sums.sum right (term f g)))
+    (add (product (shift i f) g xs) (product (twist f) (shift i g) xs))
+      (SumLaws.append left right (term f g))
+      (congr2!{K K K} add (Sums.sum left (term f g)) (product (shift i f) g xs) (Sums.sum right (term f g)) (product (twist f) (shift i g) xs) leftSum rightSum)
+};
+\module Partitions;
+\module Laws;
+\module Graded(p, q: N.Nat^);
+\module Vector(space: VectorSpace I);
+\module Alternation;
+\module Naturality(J: \Set);
+
+\module Boundary;

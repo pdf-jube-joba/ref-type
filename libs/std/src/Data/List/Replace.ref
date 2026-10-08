@@ -1,0 +1,21 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\definition apply: List[A] -> N.Nat^ -> A -> List[A] :=
+  \induction (xs: List[A]) \return N.Nat^ -> A -> List[A] \with {
+    | nil: \fun (i: N.Nat^)(value: A) => List[A]::nil
+    | cons: \fun (head: A)(tail: List[A])(previous: N.Nat^ -> A -> List[A]) =>
+      \induction (i: N.Nat^) \return A -> List[A] \with {
+        | zero: \fun (value: A) => List[A]::cons value tail
+        | succ: \fun (i: N.Nat^)(unused: A -> List[A])(value: A) => List[A]::cons head (previous i value)
+      }
+  };
+\definition lengthLaw: \forall (xs: List[A])(i: N.Nat^)(value: A) -> length A (apply xs i value) = length A xs :=
+  \induction (xs: List[A]) \return \forall (i: N.Nat^)(value: A) -> length A (apply xs i value) = length A xs \with {
+    | nil: \fun (i: N.Nat^)(value: A) => \refl(N.Nat^::zero)
+    | cons: \fun (head: A)(tail: List[A])(previous: \forall (i: N.Nat^)(value: A) -> length A (apply tail i value) = length A tail) =>
+      \induction (i: N.Nat^) \return \forall (value: A) -> length A (apply (List[A]::cons head tail) i value) = N.Nat^::succ (length A tail) \with {
+        | zero: \fun (value: A) => \refl(N.Nat^::succ (length A tail))
+        | succ: \fun (i: N.Nat^)(unused: \forall (value: A) -> length A (apply (List[A]::cons head tail) i value) = N.Nat^::succ (length A tail))(value: A) =>
+          congr!{{N.Nat^} {N.Nat^}} N.Nat^::succ (length A (apply tail i value)) (length A tail) (previous i value)
+      }
+  };

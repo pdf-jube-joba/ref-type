@@ -1,0 +1,23 @@
+\import P.Universal[K := K, target := target] \as Evaluation;
+\definition CoefficientMap: \Set := Evaluation.CoefficientMap;
+\definition accepts: \forall (f: CoefficientMap) (value: K) -> Evaluation.RespectsRelations f (\fun (_: Variable) => value) :=
+  \fun (f: _) (value: _) (x, y: Free.Expression) (impossible: Logic.False) =>
+    Logic.falseElim (Evaluation.EvaluationRelation f (\fun (_: Variable) => value) x y) impossible;
+\definition evaluate(f: CoefficientMap) (value: K): Carrier -> K :=
+  Evaluation.apply f (\fun (_: Variable) => value) (accepts f value);
+\definition constants: \forall (f: CoefficientMap) (value: K) (a: R) -> evaluate f value (constant a) = f a :=
+  \fun (f: _) (value: _) (a: _) => Evaluation.onClass f (\fun (_: Variable) => value) (accepts f value) (Free.Expression::constant a);
+\definition variable: \forall (f: CoefficientMap) (value: K) -> evaluate f value X = value :=
+  \fun (f: _) (value: _) => Evaluation.onClass f (\fun (_: Variable) => value) (accepts f value) (Free.Expression::variable Variable::x);
+
+\import algebra.Hom[A := Carrier, B := K] \as Output;
+\definition extension(f: CoefficientMap) (value: K):
+  Output.RingMap (Ring.commutativeRingAsRing Carrier ring) (Ring.commutativeRingAsRing K target) :=
+  Evaluation.extension f (\fun (_: Variable) => value) (accepts f value);
+
+\definition unique: \forall (f: CoefficientMap) (value: K)
+  (h: Output.RingMap (Ring.commutativeRingAsRing Carrier ring) (Ring.commutativeRingAsRing K target)) ->
+  (\forall (a: R) -> h (constant a) = f a) -> h X = value -> h = evaluate f value :=
+  \fun (f: _) (value: _) (h: _) (constants: _) (atX: _) =>
+    Evaluation.unique f (\fun (_: Variable) => value) (accepts f value) h constants
+      (\induction (v: Variable) \return h (P.variable v) = value \with { | x: atX });

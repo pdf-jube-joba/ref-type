@@ -1,0 +1,68 @@
+\import \parent.Analysis[] \as Local;
+\import \parent.Smooth[] \as Smooth;
+\import \parent.Restriction[] \as Restriction;
+\import \parent.\parent.Space[].Def[] \as Space;
+\import \parent.\parent.Space[].Prop[] \as SpaceLaws;
+\import \parent.\parent.Partial[].Def[] \as Partial;
+\import \parent.\parent.Smooth[].Def[] \as Global;
+\definition point(x: Point): Carrier whole := \into[Point](x, #points{whole}) \by { \refl(x) };
+\definition function(f: ScalarFunction whole): Function := \fun (x: Point) => f (point x);
+\definition continuous: \forall (f: ScalarFunction whole) -> Local.ContinuousOn whole f -> Space.Continuous (function f) := \block {
+  \fun (f: _)(regular: _)(a: Point)(epsilon: Real)(positive: _) \then
+  \takefrom delta: \Cast[Real] ({ d: Real \where Local.ContinuityControl[whole, f, point a, epsilon, d] }) \by regular (point a) epsilon positive \then
+  \let control: Local.ContinuityControl[whole, f, point a, epsilon, delta] := \bysub(Real,
+    { d: Real \where Local.ContinuityControl[whole, f, point a, epsilon, d] }, delta) \then
+  \return \exact(\into[Real](delta, { d: Real \where Space.ContinuityControl[function f, a, epsilon, d] }) \by {
+    Space.ContinuityControl[function f, a, epsilon, delta] {
+      positive := #positive{control}, estimate := \fun (x: Point)(near: _) => #estimate{control} (point x) near,
+    }
+  }, \Cast[Real] ({ d: Real \where Space.ContinuityControl[function f, a, epsilon, d] }))
+};
+\definition partial: \forall (f, df: ScalarFunction whole)(i: Coordinate) -> Local.HasPartialDerivative whole f i df ->
+  Partial.HasPartialDerivative (function f) i (function df) := \block {
+  \fun (f, df: _)(i: _)(regular: _)(a: Point)(epsilon: Real)(positive: _) \then
+  \let section: Real -> Real := Partial.section (function f) a i \then
+  \takefrom delta: \Cast[Real] ({ d: Real \where Local.PartialControl[whole, f, point a, i, df (point a), epsilon, d] })
+    \by regular (point a) epsilon positive \then
+  \let control: Local.PartialControl[whole, f, point a, i, df (point a), epsilon, delta] := \bysub(Real,
+    { d: Real \where Local.PartialControl[whole, f, point a, i, df (point a), epsilon, d] }, delta) \then
+  \return \exact(\into[Real](delta,
+    { d: Real \where \parent.\parent.\parent.Limit[].Def[].Control[Derivative.slope section (a i), a i, function df a, epsilon, d] }) \by {
+      \parent.\parent.\parent.Limit[].Def[].Control[Derivative.slope section (a i), a i, function df a, epsilon, delta] {
+        positive := #positive{control},
+        estimate := \fun (t: Real)(different: _)(near: _) =>
+          R.ltReplaceLeft (distance (mul (sub (f (point (Coordinates.replace a i t))) (f (point a))) (inv (sub t (a i)))) (df (point a)))
+            (distance (Derivative.slope section (a i) t) (function df a)) epsilon
+            (congr!{Real Real} (\fun (s: Real) => distance (mul (sub (f (point (Coordinates.replace a i t))) s) (inv (sub t (a i)))) (df (point a)))
+              (f (point a)) (f (point (Coordinates.replace a i (a i))))
+              (sym!{Real} (f (point (Coordinates.replace a i (a i)))) (f (point a)) (congr!{Point Real} (function f) (Coordinates.replace a i (a i)) a (SpaceLaws.replaceOriginal a i))))
+            (#estimate{control} t (point (Coordinates.replace a i t)) (\refl(Coordinates.replace a i t)) different near),
+      }
+    }, \Cast[Real] ({ d: Real \where \parent.\parent.\parent.Limit[].Def[].Control[Derivative.slope section (a i), a i, function df a, epsilon, d] }))
+};
+\definition family(derivatives: Smooth.PartialFamily whole): Global.PartialFamily :=
+  \fun (directions: Smooth.Directions) => function (derivatives directions);
+\definition contDiff: \forall (k: N.Nat^)(f: ScalarFunction whole) -> Smooth.ContDiffOn whole k f -> Global.ContDiff k (function f) := \block {
+  \fun (k: _)(f: _)(regular: _) \then
+  \takefrom derivatives: \Cast[Smooth.PartialFamily whole] ({ d: Smooth.PartialFamily whole \where Smooth.ContDiffLaws[whole, f, k, d] }) \by regular \then
+  \let laws: Smooth.ContDiffLaws[whole, f, k, derivatives] := \bysub(Smooth.PartialFamily whole,
+    { d: Smooth.PartialFamily whole \where Smooth.ContDiffLaws[whole, f, k, d] }, derivatives) \then
+  \return \exact(\into[Global.PartialFamily](family derivatives,
+    { d: Global.PartialFamily \where Global.ContDiffLaws[function f, k, d] }) \by {
+      Global.ContDiffLaws[function f, k, family derivatives] {
+        partials := Global.PartialFamilyLaws[function f, k, family derivatives] {
+          function := congr!{{ScalarFunction whole} Function} function _ _ (#function{(#partials{laws})}),
+          derivative := \fun (directions: Smooth.Directions)(bound: _)(i: Coordinate) => partial
+            (derivatives directions) (derivatives (Smooth.Directions::cons i directions)) i (#derivative{(#partials{laws})} directions bound i),
+        },
+        continuous := \fun (directions: Smooth.Directions)(bound: _) => continuous (derivatives directions) (#continuous{laws} directions bound),
+      }
+    }, \Cast[Global.PartialFamily] ({ d: Global.PartialFamily \where Global.ContDiffLaws[function f, k, d] }))
+};
+\definition smooth: \forall (f: ScalarFunction whole) -> Smooth.SmoothOn whole f -> Global.Smooth (function f) :=
+  \fun (f: _)(regular: _)(k: _) => contDiff k f (regular k);
+\definition smoothEquivalence: \forall (f: Function) -> Logic.PropEquiv[Global.Smooth f, Smooth.SmoothOn whole (Restriction.function whole f)] :=
+  \fun (f: _) => Logic.PropEquiv[_, _] { ltr := Restriction.smooth whole f, rtl := \fun (regular: _) => \idelim function (Restriction.function whole f) = f \with h: Function => Global.Smooth h \by {
+    base: smooth (Restriction.function whole f) regular,
+    equality: \axiom:funext(function (Restriction.function whole f), f, \fun (x: Point) => \refl(f x))
+  } };

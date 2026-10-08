@@ -151,3 +151,74 @@
       (sym!{Real} _ _ (congr!{Real Real} (add (mul half (mul half epsilon))) _ _ (halfTwice (mul half epsilon))))
       (Laws.addMonotoneRight (mul half (mul half epsilon)) (mul half epsilon) (mul half epsilon)
         (halfBelow (mul half epsilon) (Laws.fieldMulNonnegative half epsilon halfNonnegative positive))));
+
+\definition distanceLeUpper: \forall (x, y, r: Real) -> R.Le (distance x y) r -> R.Le y (add x r) :=
+  \fun (x, y, r: _) (near: _) => R.leReplaceLeft (add (sub y x) x) y (add x r) (Metric.subAddCancel y x)
+    (R.leReplaceRight _ (add r x) (add x r) (Laws.addComm r x)
+      (Laws.addMonotoneRight (sub y x) r x (R.leTrans _ _ _ (Metric.maxRight (sub x y) (sub y x)) near)));
+\definition distanceLeLower: \forall (x, y, r: Real) -> R.Le (distance x y) r -> R.Le (sub x r) y :=
+  \fun (x, y, r: _) (near: _) => Laws.leAddCancelRight (sub x r) y r
+    (R.leReplaceLeft x (add (sub x r) r) (add y r) (sym!{Real} _ _ (Metric.subAddCancel x r))
+      (distanceLeUpper y x r (R.leReplaceLeft (distance x y) (distance y x) r (Metric.distanceSymmetric x y) near)));
+\definition maxUpper: \forall (a, b, c, d, r: Real) -> R.Le (distance a c) r -> R.Le (distance b d) r ->
+  R.Le (Metric.max c d) (add (Metric.max a b) r) :=
+  \fun (a, b, c, d, r: _) (ac: _) (bd: _) => Metric.maxLeast c d _
+    (R.leTrans _ _ _ (distanceLeUpper a c r ac) (Laws.addMonotoneRight a (Metric.max a b) r (Metric.maxLeft a b)))
+    (R.leTrans _ _ _ (distanceLeUpper b d r bd) (Laws.addMonotoneRight b (Metric.max a b) r (Metric.maxRight a b)));
+\definition maxDistance: \forall (a, b, c, d, r: Real) -> R.Le (distance a c) r -> R.Le (distance b d) r ->
+  R.Le (distance (Metric.max a b) (Metric.max c d)) r :=
+  \fun (a, b, c, d, r: _) (ac: _) (bd: _) => distanceLeOfInterval (Metric.max a b) (Metric.max c d) r
+    (Laws.leAddCancelRight (sub (Metric.max a b) r) (Metric.max c d) r
+      (R.leReplaceLeft (Metric.max a b) (add (sub (Metric.max a b) r) r) (add (Metric.max c d) r)
+        (sym!{Real} _ _ (Metric.subAddCancel (Metric.max a b) r))
+        (maxUpper c d a b r
+          (R.leReplaceLeft (distance a c) (distance c a) r (Metric.distanceSymmetric a c) ac)
+          (R.leReplaceLeft (distance b d) (distance d b) r (Metric.distanceSymmetric b d) bd))))
+    (maxUpper a b c d r ac bd);
+\definition distanceFromPoint: \forall (p, x, y: Real) -> R.Le (distance (distance p x) (distance p y)) (distance x y) :=
+  \fun (p, x, y: _) => Metric.maxLeast _ _ (distance x y)
+    (Laws.leAddCancelRight _ _ (distance p y)
+      (R.leReplaceLeft (distance p x) (add (sub (distance p x) (distance p y)) (distance p y))
+        (add (distance x y) (distance p y)) (sym!{Real} _ _ (Metric.subAddCancel (distance p x) (distance p y)))
+        (R.leReplaceRight _ (add (distance p y) (distance y x)) (add (distance x y) (distance p y))
+          (trans!{Real} _ _ _ (congr!{Real Real} (add (distance p y)) _ _ (Metric.distanceSymmetric y x)) (Laws.addComm (distance p y) (distance x y)))
+          (Metric.distanceTriangle p y x))))
+    (Laws.leAddCancelRight _ _ (distance p x)
+      (R.leReplaceLeft (distance p y) (add (sub (distance p y) (distance p x)) (distance p x))
+        (add (distance x y) (distance p x)) (sym!{Real} _ _ (Metric.subAddCancel (distance p y) (distance p x)))
+        (R.leReplaceRight _ (add (distance p x) (distance x y)) (add (distance x y) (distance p x))
+          (Laws.addComm (distance p x) (distance x y)) (Metric.distanceTriangle p x y))));
+\module Product;
+\definition distanceDifference: \forall (x, y: Real) -> distance (sub x y) zero = distance x y :=
+  \fun (x, y: Real) => congr2!{Real Real Real} Metric.max _ _ _ _
+    (Laws.subZeroRight (sub x y))
+    (trans!{Real} _ _ _ (Laws.addZeroLeft (neg (sub x y))) (Algebra.negSub x y));
+\definition betweenDistance: \forall (a, b, s: Real) -> R.Le (Metric.min a b) s -> R.Le s (Metric.max a b) -> R.Le (distance s a) (distance b a) := \block {
+  \fun (a, b, s: Real)(lower: _)(upper: _) \then
+  \let r: Real := distance b a \then
+  \let selfNear: R.Le (distance a a) r := R.leReplaceLeft zero (distance a a) r (sym!{Real} _ _ (Metric.distanceSelf a)) (Metric.distanceNonnegative b a) \then
+  \let endpointNear: R.Le (distance a b) r := R.leReplaceLeft r (distance a b) r (Metric.distanceSymmetric b a) (R.leRefl r) \then
+  \let bottom: R.Le (sub a r) (Metric.min a b) := Metric.minGreatest a b (sub a r)
+    (distanceLeLower a a r selfNear) (distanceLeLower a b r endpointNear) \then
+  \let top: R.Le (Metric.max a b) (add a r) := Metric.maxLeast a b (add a r)
+    (distanceLeUpper a a r selfNear) (distanceLeUpper a b r endpointNear) \then
+  \return R.leReplaceLeft (distance a s) (distance s a) r (Metric.distanceSymmetric a s)
+    (distanceLeOfInterval a s r (R.leTrans (sub a r) (Metric.min a b) s bottom lower) (R.leTrans s (Metric.max a b) (add a r) upper top))
+};
+\definition incrementReversal: \forall (u, v, a, b, c: Real) ->
+  sub (sub u v) (mul c (sub a b)) = neg (sub (sub v u) (mul c (sub b a))) :=
+  \fun (u, v, a, b, c: Real) => eq_reason!{
+    {sub (sub u v) (mul c (sub a b))}
+    "=" {sub (neg (sub v u)) (neg (mul c (sub b a)))} "by" {
+      congr2!{Real Real Real} sub _ _ _ _ (sym!{Real} _ _ (Algebra.negSub v u))
+        (trans!{Real} _ _ _ (congr!{Real Real} (mul c) _ _ (sym!{Real} _ _ (Algebra.negSub b a))) (Laws.fieldMulNegRight c (sub b a))) }
+    "=" {add (neg (sub v u)) (mul c (sub b a))} "by" {Algebra.subNeg (neg (sub v u)) (mul c (sub b a))}
+    "=" {sub (mul c (sub b a)) (sub v u)} "by" {Laws.addComm (neg (sub v u)) (mul c (sub b a))}
+    "=" {neg (sub (sub v u) (mul c (sub b a)))} "by" {sym!{Real} _ _ (Algebra.negSub (sub v u) (mul c (sub b a)))}
+  };
+\definition distanceNegZero: \forall (x: Real) -> distance (neg x) zero = distance x zero :=
+  \fun (x: Real) => trans!{Real} (distance (neg x) zero) (distance zero (neg x)) (distance x zero) (Metric.distanceSymmetric (neg x) zero)
+    (trans!{Real} (distance zero (neg x)) (distance zero x) (distance x zero) (Product[].absNeg x) (Metric.distanceSymmetric zero x));
+\definition distanceAddZero: \forall (a, b: Real) -> R.Le (distance (add a b) zero) (add (distance a zero) (distance b zero)) :=
+  \fun (a, b: Real) => R.leReplaceLeft (distance (add a b) (add zero zero)) (distance (add a b) zero) (add (distance a zero) (distance b zero))
+    (congr!{Real Real} (distance (add a b)) (add zero zero) zero (Laws.addZeroLeft zero)) (distanceAdd a b zero zero);

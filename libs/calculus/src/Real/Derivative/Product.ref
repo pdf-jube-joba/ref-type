@@ -1,0 +1,48 @@
+\import \parent.Def[] \as Def;
+\import \parent.Operations[] \as Operations;
+\import \parent.\parent.Limit[].Operations[] \as Limits;
+\import real.Analysis[] \as Analysis;
+\import Analysis.Algebra[] \as Algebra;
+\use Equality.congr2;
+
+\definition difference: \forall (a, b, c, d: Real) ->
+  sub (mul a b) (mul c d) = add (mul (sub a c) b) (mul c (sub b d)) :=
+  \fun (a, b, c, d: _) => sym!{Real} _ _ (eq_reason!{
+    {add (mul (sub a c) b) (mul c (sub b d))}
+    "=" {add (sub (mul a b) (mul c b)) (sub (mul c b) (mul c d))}
+    "by" {congr2!{Real Real Real} add _ _ _ _ (Algebra.subMul a c b) (Algebra.mulSub c b d)}
+    "=" {sub (mul a b) (mul c d)} "by" {Metric.subTriangle (mul a b) (mul c b) (mul c d)}
+  });
+
+\definition slope: \forall (f, g: Real -> Real)(a, x: Real) ->
+  Def.slope (\fun (y: Real) => mul (f y) (g y)) a x =
+    add (mul (Def.slope f a x) (g x)) (mul (f a) (Def.slope g a x)) :=
+  \fun (f, g: _)(a, x: _) => eq_reason!{
+    {Def.slope (\fun (y: Real) => mul (f y) (g y)) a x}
+    "=" {mul (add (mul (sub (f x) (f a)) (g x)) (mul (f a) (sub (g x) (g a)))) (inv (sub x a))}
+    "by" {congr!{Real Real} (\fun (t: _) => mul t (inv (sub x a))) _ _ (difference (f x) (g x) (f a) (g a))}
+    "=" {add (mul (mul (sub (f x) (f a)) (g x)) (inv (sub x a)))
+      (mul (mul (f a) (sub (g x) (g a))) (inv (sub x a)))}
+    "by" {Algebra.mulAddRight _ _ _}
+    "=" {add (mul (Def.slope f a x) (g x)) (mul (f a) (Def.slope g a x))}
+    "by" {congr2!{Real Real Real} add _ _ _ _
+      (trans!{Real} _ _ _ (Laws.fieldMulAssoc _ _ _)
+        (trans!{Real} _ _ _ (congr!{Real Real} (mul (sub (f x) (f a))) _ _ (Laws.fieldMulComm (g x) (inv (sub x a))))
+          (sym!{Real} _ _ (Laws.fieldMulAssoc _ _ _))))
+      (Laws.fieldMulAssoc _ _ _)}
+  };
+
+\definition derivative: \forall (f, g: Real -> Real)(a, d, e: Real) ->
+  Def.HasDerivativeAt f a d -> Def.HasDerivativeAt g a e ->
+  Def.HasDerivativeAt (\fun (x: Real) => mul (f x) (g x)) a
+    (add (mul d (g a)) (mul (f a) e)) :=
+  \fun (f, g: _)(a, d, e: _)(left: _)(right: _) =>
+    LimitLaws.congruentLimit
+      (\fun (x: Real) => add (mul (Def.slope f a x) (g x)) (mul (f a) (Def.slope g a x)))
+      (Def.slope (\fun (x: Real) => mul (f x) (g x)) a)
+      (\fun (x: _) => sym!{Real} _ _ (slope f g a x)) a (add (mul d (g a)) (mul (f a) e))
+      (Limits.addLimit
+        (\fun (x: Real) => mul (Def.slope f a x) (g x))
+        (\fun (x: Real) => mul (f a) (Def.slope g a x)) a (mul d (g a)) (mul (f a) e)
+        (Limits.mulLimit (Def.slope f a) g a d (g a) left (Operations.continuousOfDerivative g a e right))
+        (Limits.mulLimit (constant (f a)) (Def.slope g a) a (f a) e (LimitLaws.constantLimit (f a) a) right));

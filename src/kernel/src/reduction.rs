@@ -559,6 +559,7 @@ pub enum Evaluation {
 }
 #[tracing::instrument(target = "ref_type::reduction", level = "debug", skip(env), fields(?e, fuel))]
 pub fn evaluate(env: &Environment, mut e: Expression, fuel: usize) -> Result<Evaluation, String> {
+    let _cost = timing::costs::Scope::enter("kernel.evaluate");
     for _ in 0..fuel {
         match reduce_once(env, e)? {
             Some(next) => e = next,
@@ -575,6 +576,7 @@ pub fn evaluate(env: &Environment, mut e: Expression, fuel: usize) -> Result<Eva
     })
 }
 pub fn normalize(env: &Environment, e: Expression) -> Result<Expression, String> {
+    let _cost = timing::costs::Scope::enter("kernel.normalize");
     match evaluate(env, e, 100_000)? {
         Evaluation::Normal(e) => Ok(e),
         Evaluation::OutOfFuel(_) => Err("normalization fuel exhausted".into()),
@@ -607,6 +609,7 @@ fn beta_head(env: &Environment, e: Expression, erase: bool) -> Result<Expression
     }
 }
 pub fn convertible(env: &Environment, left: Expression, right: Expression) -> Result<bool, String> {
+    let _cost = timing::costs::Scope::enter("kernel.convertible");
     conversion(env, left, right, false)
 }
 pub fn erased_convertible(
@@ -614,6 +617,7 @@ pub fn erased_convertible(
     left: Expression,
     right: Expression,
 ) -> Result<bool, String> {
+    let _cost = timing::costs::Scope::enter("kernel.erased_convertible");
     conversion(env, left, right, true)
 }
 fn conversion(
@@ -661,6 +665,42 @@ fn conversion(
                 if congruent {
                     return Ok(true);
                 }
+            }
+            // Retain common transparent references while peeling aliases.
+            // Fully normalizing both heads can expand the shared carrier and
+            // its certificates even when one delta step already equates them.
+            fn definition_head(
+                env: &Environment,
+                mut term: Expression,
+            ) -> Option<crate::ids::DefinitionId> {
+                loop {
+                    match env.arena.get(term) {
+                        Node::Definition { id, .. } => return Some(id),
+                        Node::App { function, .. } => term = function,
+                        _ => return None,
+                    }
+                }
+            }
+            fn delta(env: &Environment, term: Expression) -> Result<Expression, String> {
+                match env.arena.get(term) {
+                    Node::Definition { .. } => {
+                        root(env, term)?.ok_or_else(|| "expected a definition redex".into())
+                    }
+                    Node::App {
+                        mode,
+                        function,
+                        argument,
+                    } => Ok(app(env, mode, delta(env, function)?, argument)),
+                    _ => Err("expected a definition head".into()),
+                }
+            }
+            match (definition_head(env, left), definition_head(env, right)) {
+                (Some(l), Some(r)) if l.index < r.index => {
+                    return compare(env, left, delta(env, right)?, erase, seen);
+                }
+                (Some(_), _) => return compare(env, delta(env, left)?, right, erase, seen),
+                (_, Some(_)) => return compare(env, left, delta(env, right)?, erase, seen),
+                _ => {}
             }
             let left = if erase {
                 env.erased_head(left)?

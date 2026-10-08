@@ -1,0 +1,30 @@
+\import SourceForms.DeRham[] \as Source;
+\import TargetForms.DeRham[] \as Target;
+\import homological_algebra.Cochain[].Over[R := Reals.Real, ring := Spaces.ring] \as Complexes;
+\import Complexes.Map[C := Target.complex, D := Source.complex] \as CochainMaps;
+\definition cochainMap: CochainMaps.Map := CochainMaps.Map {
+  apply := \fun (k: Naturals.Nat^)(omega: TargetForms.Form k) => \parent.At[k := k].apply omega,
+  addition := \fun (k: Naturals.Nat^)(omega, eta: TargetForms.Form k) => \parent.At[k := k].addition omega eta,
+  scalar := \fun (k: Naturals.Nat^)(a: Reals.Real)(omega: TargetForms.Form k) => \parent.At[k := k].scalar a omega,
+  commutes := \fun (k: Naturals.Nat^)(omega: TargetForms.Form k) => \parent.Differential[k := k].law omega,
+};
+\module At(k: Naturals.Nat^) {
+  \import CochainMaps.At[k := k] \as Induced;
+  \import Target.At[k := k] \as Domain;
+  \import Source.At[k := k] \as Codomain;
+  \import Spaces.Linear[V := Domain.H, W := Codomain.H, source := Domain.vectorSpace, target := Codomain.vectorSpace] \as Linear;
+  \definition map: Linear.Map := Linear.Map {
+    apply := #apply{(Induced.induced cochainMap)},
+    preservesAdd := #addition{(Induced.induced cochainMap)},
+    preservesScale := #scalar{(Induced.induced cochainMap)},
+  };
+  \definition apply: Domain.H -> Codomain.H := #apply{map};
+  \definition cycle(omega: Domain.Cycle): Codomain.Cycle := #apply{(Induced.cyclesMap cochainMap)} omega;
+  \definition onClass: \forall (omega: Domain.Cycle) -> apply (Domain.classOf omega) = Codomain.classOf (cycle omega) :=
+    Induced.onClass cochainMap;
+  \definition preservesClosed: \forall (omega: Domain.Cycle) -> Source.Closed k (\parent.\parent.At[k := k].apply omega) :=
+    Induced.preservesClosed cochainMap;
+  \definition preservesExact: \forall (omega: TargetForms.Form k) -> Target.Exact k omega -> Source.Exact k (\parent.\parent.At[k := k].apply omega) :=
+    Induced.preservesBoundaries cochainMap k;
+}
+\module Product(p, q: Naturals.Nat^);

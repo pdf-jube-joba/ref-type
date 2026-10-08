@@ -49,6 +49,8 @@ impl Lowerer<'_> {
         {
             return Ok(());
         }
+        let _time =
+            timing::Scope::module(|| crate::elaborator::analysis::module_path(self.raw, id.module));
         tracing::debug!(target:"ref_type::lowering",?id,"lower definition");
         let _phase = std::env::var_os("REF_TYPE_PROFILE_PHASES").map(|_| {
             crate::profiling::Phase::start(format!(
@@ -66,16 +68,20 @@ impl Lowerer<'_> {
     }
 
     fn lower_definition(&mut self, id: DefId) -> Result<(), String> {
+        let _cost = timing::costs::Scope::enter("lower.lower_definition");
         let mut timer =
             crate::elaborator::profiling::ProfileTimer::start("REF_TYPE_PROFILE_LOWERING", || {
                 raw::printing::definition_name(self.raw, id)
             });
         let raw = self.raw.definition(id).clone();
         let parameters = self.raw.definition_parameters(id).to_vec();
-        let mut program_context = parameters
-            .iter()
-            .map(|var| raw::program::ProgramContextEntry::ValueType { var: *var })
-            .collect::<Vec<_>>();
+        let mut program_context = self.raw.program_definition_context(id.module);
+        program_context.extend(
+            parameters
+                .iter()
+                .map(|var| raw::program::ProgramContextEntry::ValueType { var: *var }),
+        );
+        self.scope.program_depth = program_context.len();
         let (body, classifier, context) = match raw {
             raw::environment::DefinedConstant::Contextual {
                 parameters,
@@ -138,9 +144,12 @@ impl Lowerer<'_> {
         if let Some(timer) = &mut timer {
             timer.checkpoint("kernel registration");
         }
+        // An open specialization captures local binders. Reify its body rather
+        // than a bare frontend name so later substitutions can see those binders.
+        let source = (self.definition_ambient(id)? == 0).then_some(id);
         self.raw.arena().bind_definition(
             kernel_id,
-            Some(id),
+            source,
             matches!(
                 self.raw.definition(id),
                 raw::environment::DefinedConstant::Contextual { .. }
@@ -171,6 +180,12 @@ impl Lowerer<'_> {
     }
 
     pub(super) fn inductive(&mut self, id: InductiveId) -> Result<(), String> {
+        if let Some(origin) = self.raw.inductive_specialization(id)
+            && !self.raw.is_program_mirror(id)
+        {
+            return self.inductive(origin.source);
+        }
+
         if self.kernel.inductive(id.into()).is_some() || !self.active.insert(id) {
             return Ok(());
         }
@@ -184,6 +199,9 @@ impl Lowerer<'_> {
     }
 
     fn lower_inductive(&mut self, id: InductiveId, mut ctx: ExpContext) -> Result<(), String> {
+        let _cost = timing::costs::Scope::enter("lower.lower_inductive");
+        let _time =
+            timing::Scope::module(|| crate::elaborator::analysis::module_path(self.raw, id.module));
         let m = id.module;
         let raw = self.raw.inductive(id).clone();
         let parameters = raw
@@ -244,7 +262,7 @@ impl Lowerer<'_> {
             .arena()
             .inductive_captures
             .borrow_mut()
-            .insert(id.into(), (self.scope.captures.len(), parameters.len()));
+            .insert(id.into(), (self.scope.captures.clone(), parameters.len()));
         Ok(())
     }
 
@@ -267,6 +285,9 @@ impl Lowerer<'_> {
     }
 
     fn lower_datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
+        let _cost = timing::costs::Scope::enter("lower.lower_datatype");
+        let _time =
+            timing::Scope::module(|| crate::elaborator::analysis::module_path(self.raw, id.module));
         let raw = self.raw.program_inductive(id).clone();
         let mut parameters = self.capture_context(true)?;
         for &var in raw.parameters() {
@@ -314,6 +335,9 @@ impl Lowerer<'_> {
         let _phase = crate::profiling::Phase::start("lowering.all");
         let parameters = crate::profiling::Phase::start("lowering.parameters");
         for id in self.raw.parameter_ids() {
+            let _time = timing::Scope::module(|| {
+                crate::elaborator::analysis::module_path(self.raw, id.module)
+            });
             let captures = self.captures(Declaration::Parameter(id));
             self.in_scope(captures, 0, 0, |this| {
                 let context = this.capture_context(true)?;

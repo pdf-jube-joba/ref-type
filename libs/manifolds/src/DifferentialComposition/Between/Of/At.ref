@@ -1,0 +1,19 @@
+\import \root.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x] \as FirstD;
+\import \root.Differential[n := m, m := l].Between[M := N, N := P].At[f := g, x := First.apply f x] \as SecondD;
+\import \root.Differential[n := n, m := l].Between[M := M, N := P].At[f := Composition.map, x := x] \as CompositeD;
+\import \root.Tangent[n := n].On[M := M].At[x := x] \as A;
+\import \root.Tangent[n := m].On[M := N].At[x := First.apply f x] \as B;
+\import \root.Tangent[n := l].On[M := P].At[x := Second.apply g (First.apply f x)] \as C;
+\import Spaces.Linear[V := B.Vector, W := C.Vector, source := B.space, target := C.space].Composition[U := A.Vector, domain := A.space] \as Compose;
+\import Spaces.Linear[V := A.Vector, W := C.Vector, source := A.space, target := C.space] \as Maps;
+\definition composite: Maps.Map := Compose.compose SecondD.value FirstD.value;
+\module InCharts(left: A.Chart, middle: B.Chart, right: C.Chart);
+\definition pointwise: \forall (v: A.Vector) -> #apply{CompositeD.value} v = #apply{composite} v := \block {
+  \fun (v: A.Vector) \then
+  \takefrom left: A.Chart \by A.chartExists \then
+  \takefrom middle: B.Chart \by B.chartExists \then
+  \takefrom right: C.Chart \by C.chartExists \then
+  \return InCharts[left := left, middle := middle, right := right].pointwise v
+};
+\definition law: CompositeD.value = composite := Maps.ext CompositeD.value composite
+  (\axiom:funext((#apply{CompositeD.value}), (#apply{composite}), pointwise));

@@ -1,0 +1,18 @@
+\import \parent.\parent.Shuffle[I := J] \as Other;
+\import \parent.Laws[] \as Laws;
+\import Lists.Mapping[A := I, B := J] \as ListMap;
+\import ListMap.Prop[] \as MappingLaws;
+\definition mapSeries(f: I -> J)(h: Other.Function): Function := \fun (xs: Lists.List[I]) => h (Lists.map I J f xs);
+\definition twistMap: \forall (f: I -> J)(h: Other.Function)(xs: Lists.List[I]) -> twist (mapSeries f h) xs = mapSeries f (Other.twist h) xs :=
+  \fun (f: I -> J)(h: Other.Function)(xs: Lists.List[I]) => congr!{K K}
+    (\fun (s: K) => mul s (h (Lists.map I J f xs))) (Sign.value (Lists.length I xs)) (Sign.value (Lists.length J (Lists.map I J f xs)))
+      (congr!{{N.Nat^} K} Sign.value (Lists.length I xs) (Lists.length J (Lists.map I J f xs)) (sym!{{N.Nat^}} _ _ (MappingLaws.lengthMap f xs)));
+\module Step(xs: Lists.List[I]);
+\definition empty: \forall (f: I -> J)(h, g: Other.Function) -> product (mapSeries f h) (mapSeries f g) Lists.List[I]::nil = Other.product h g Lists.List[J]::nil :=
+  \fun (f: I -> J)(h, g: Other.Function) => trans!{K} _ (mul (h Lists.List[J]::nil) (g Lists.List[J]::nil)) _
+    (atEmpty (mapSeries f h) (mapSeries f g)) (sym!{K} _ _ (Other.atEmpty h g));
+\definition productMap: \forall (xs: Lists.List[I])(f: I -> J)(h, g: Other.Function) -> product (mapSeries f h) (mapSeries f g) xs = Other.product h g (Lists.map I J f xs) :=
+  \induction (xs: Lists.List[I]) \return \forall (f: I -> J)(h, g: Other.Function) -> product (mapSeries f h) (mapSeries f g) xs = Other.product h g (Lists.map I J f xs) \with {
+    | nil: empty
+    | cons: \fun (head: I)(xs: Lists.List[I])(previous: \forall (f: I -> J)(h, g: Other.Function) -> product (mapSeries f h) (mapSeries f g) xs = Other.product h g (Lists.map I J f xs)) => Step[xs := xs].law previous head
+  };

@@ -1,0 +1,37 @@
+\import \parent.\parent.\parent.Multilinear[V := W, space := target] \as Target;
+\import Target.Alternating[] \as AlternatingTarget;
+\import \parent.\parent.\parent.Linear[V := V, W := W, source := space, target := target] \as Linear;
+\definition arguments(k: N.Nat^)(f: Linear.Map)(v: Arguments k): Target.Arguments k :=
+  \fun (i: Fin.Fin k) => #apply{f} (v i);
+\definition updateNatural: \forall (k: N.Nat^)(f: Linear.Map)(v: Arguments k)(i: Fin.Fin k)(x: V) ->
+  arguments k f (update k v i x) = Target.update k (arguments k f v) i (#apply{f} x) :=
+  \fun (k: _)(f: _)(v: _)(i: _)(x: _) => \axiom:funext(arguments k f (update k v i x),
+    Target.update k (arguments k f v) i (#apply{f} x), \fun (j: Fin.Fin k) => Bool.cases
+      (\fun (b: Bool.Bool^) => #apply{f} (Bool.ite V b x (v j)) = Bool.ite W b (#apply{f} x) (#apply{f} (v j)))
+      (\refl(#apply{f} (v j))) (\refl(#apply{f} x)) (Nat.eqb (Fin.value k j) (Fin.value k i)));
+\definition precompose(k: N.Nat^)(f: Linear.Map)(omega: AlternatingTarget.Form k): Form k :=
+  \into[Function k](\fun (v: Arguments k) => omega (arguments k f v),
+    { result: Function k \where AlternatingLaws[k, result] }) \by {
+      AlternatingLaws[k, (\fun (v: Arguments k) => omega (arguments k f v))] {
+        linear := Laws[k, (\fun (v: Arguments k) => omega (arguments k f v))] {
+          addition := \fun (v: Arguments k)(i: Fin.Fin k)(x, y: V) =>
+            trans!{K} _ _ _ (congr!{{Target.Arguments k} K} omega _ _ (updateNatural k f v i (#add{space} x y)))
+              (trans!{K} _ _ _
+                (congr!{W K} (\fun (z: W) => omega (Target.update k (arguments k f v) i z)) _ _ (#preservesAdd{f} x y))
+                (trans!{K} _ _ _ (#addition{(#linear{(\bysub(Target.Function k, AlternatingTarget.Form k, omega))})} (arguments k f v) i (#apply{f} x) (#apply{f} y))
+                  (congr2!{K K K} add _ _ _ _
+                    (sym!{K} _ _ (congr!{{Target.Arguments k} K} omega _ _ (updateNatural k f v i x)))
+                    (sym!{K} _ _ (congr!{{Target.Arguments k} K} omega _ _ (updateNatural k f v i y)))))),
+          scalar := \fun (v: Arguments k)(i: Fin.Fin k)(a: K)(x: V) =>
+            trans!{K} _ _ _ (congr!{{Target.Arguments k} K} omega _ _ (updateNatural k f v i (#smul{space} a x)))
+              (trans!{K} _ _ _
+                (congr!{W K} (\fun (z: W) => omega (Target.update k (arguments k f v) i z)) _ _ (#preservesScale{f} a x))
+                (trans!{K} _ _ _ (#scalar{(#linear{(\bysub(Target.Function k, AlternatingTarget.Form k, omega))})} (arguments k f v) i a (#apply{f} x))
+                  (congr!{K K} (mul a) _ _ (sym!{K} _ _ (congr!{{Target.Arguments k} K} omega _ _ (updateNatural k f v i x)))))),
+        },
+        alternating := \fun (v: Arguments k)(i, j: Fin.Fin k)(different: _)(same: _) =>
+          #alternating{(\bysub(Target.Function k, AlternatingTarget.Form k, omega))} (arguments k f v) i j different
+            (congr!{V W} (#apply{f}) _ _ same),
+      }
+    };
+\module At(k: N.Nat^);

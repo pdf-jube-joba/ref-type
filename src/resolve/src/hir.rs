@@ -35,11 +35,19 @@ pub struct Module {
     pub name: Identifier,
     pub parameters: Vec<RightBind>, // given parameters for module
     pub parameter_checks: Vec<(SExp, SExp)>,
+    /// Source fields represented by parameters in a generated module.
+    pub parameter_sources: std::collections::HashMap<String, ParameterSource>,
     pub body: ModuleBody,
     pub span: SourceSpan,
     pub declaration_spans: Vec<SourceSpan>,
     pub source: Option<std::sync::Arc<SourceFile>>,
     pub header_source: Option<std::sync::Arc<SourceFile>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ParameterSource {
+    pub description: String,
+    pub span: SourceSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -90,6 +98,7 @@ pub enum ModuleItem {
         kind: Option<InductiveKind>,
         parameters: Vec<RightBind>,
         fields: Vec<(Identifier, SExp, Option<SExp>)>,
+        field_spans: Vec<SourceSpan>,
     },
     Record {
         type_name: Identifier,
@@ -131,32 +140,12 @@ pub enum ModuleItem {
     Normalize {
         exp: SExp,
     },
-    ComputationEval {
-        exp: ComputationTermExp,
-    },
-    ComputationNormalize {
-        exp: ComputationTermExp,
-    },
     MemberCheck {
         value: SExp,
         ty: SExp,
     },
     ValueTypeCheck {
         ty: ValueTypeExp,
-    },
-    ValueCheck {
-        exp: ValueTermExp,
-        ty: ValueTypeExp,
-    },
-    ComputationCheck {
-        exp: ComputationTermExp,
-        ty: ComputationTypeExp,
-    },
-    ValueInfer {
-        exp: ValueTermExp,
-    },
-    ComputationInfer {
-        exp: ComputationTermExp,
     },
     Check {
         exp: SExp,
@@ -183,6 +172,10 @@ pub type ModuleCall = (Identifier, Vec<(Identifier, SExp)>);
 
 #[derive(Debug, Clone)]
 pub enum ModuleInstantiatePath {
+    FromModule {
+        module: ModuleId,
+        calls: Vec<ModuleCall>,
+    },
     FromCurrent {
         back_parent: usize,
         calls: Vec<ModuleCall>,
@@ -215,9 +208,8 @@ pub struct RightBind {
     pub ty: Box<SExp>,
 }
 
-/// Surface Program syntax is split into the same four categories as the
-/// kernel.  Parsing a category-specific declaration performs this
-/// classification before elaboration.
+/// Program expression views mirror the kernel's four syntactic categories.
+/// Shared queries retain `SExp` until elaboration selects a judgement.
 #[derive(Debug, Clone)]
 pub enum ValueTypeExp {
     Deferred {
@@ -428,6 +420,11 @@ pub enum Bind {
 #[derive(Debug, Clone)]
 // some access path to access defined constant or inductive type
 pub enum LocalAccess {
+    Instantiated {
+        span: SourceSpan,
+        path: Box<ModuleInstantiatePath>,
+        child: Identifier,
+    },
     // accessing inductive type or defined constant
     Current {
         span: SourceSpan,
@@ -450,6 +447,7 @@ pub enum LocalAccess {
 impl std::fmt::Display for LocalAccess {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Instantiated { child, .. } => write!(formatter, "<module>.{}", child.as_str()),
             Self::Resolved { display, .. } => formatter.write_str(display),
             Self::Current { access, .. } => formatter.write_str(access.as_str()),
             Self::Named { access, child, .. } => {
@@ -462,6 +460,10 @@ impl std::fmt::Display for LocalAccess {
 // this is internal representation
 #[derive(Debug, Clone)]
 pub enum SExp {
+    ModuleInstance {
+        path: Box<ModuleInstantiatePath>,
+        import_name: Identifier,
+    },
     ConversionTarget {
         expression: Box<SExp>,
     },
@@ -1323,9 +1325,10 @@ pub enum Statement {
 impl LocalAccess {
     pub fn span(&self) -> SourceSpan {
         match self {
-            Self::Current { span, .. } | Self::Named { span, .. } | Self::Resolved { span, .. } => {
-                *span
-            }
+            Self::Instantiated { span, .. }
+            | Self::Current { span, .. }
+            | Self::Named { span, .. }
+            | Self::Resolved { span, .. } => *span,
         }
     }
 }

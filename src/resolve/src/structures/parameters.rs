@@ -1,6 +1,78 @@
 use super::*;
 
 impl Resolver {
+    pub(in crate::resolver) fn register_parameter_signature(
+        &mut self,
+        name: &Identifier,
+        parameters: &[RightBind],
+    ) {
+        if self
+            .last_inputs
+            .iter()
+            .any(|input| input.signature.is_some())
+        {
+            self.parameter_signatures.insert(
+                name.1.unwrap(),
+                ParameterSignature {
+                    parameters: parameters.to_vec(),
+                    inputs: self.last_inputs.clone(),
+                    checks: self.last_parameter_checks.clone(),
+                },
+            );
+        }
+    }
+
+    pub(in crate::resolver) fn expand_type_arguments(
+        &self,
+        parameters: &[RightBind],
+        inputs: &[Input],
+        supplied: &[SExp],
+        access: &LocalAccess,
+        locals: &[LocalScope],
+    ) -> Result<(Vec<SExp>, Vec<(SExp, SExp)>), Diagnostic> {
+        // Explicit field arguments remain useful when constructing a telescope.
+        let flattened = supplied.len() == parameters.len();
+        if supplied.len() != inputs.len() {
+            if flattened {
+                return Ok((supplied.to_vec(), Vec::new()));
+            }
+            return Err(self.error(format!(
+                "structure argument count mismatch: expected {}, got {}",
+                inputs.len(),
+                supplied.len()
+            )));
+        }
+        let mut actual = Vec::new();
+        let mut checks = Vec::new();
+        let mut substitutions = HashMap::new();
+        for (input, argument) in inputs.iter().zip(supplied) {
+            let mut input = input.clone();
+            self.instantiate_input(&mut input, access);
+            for value in input.arguments.values_mut() {
+                *value = substitute(value, &substitutions);
+            }
+            let fields = if input.signature.is_some()
+                && !(flattened && self.structure_value(argument, locals)?.is_none())
+            {
+                let (fields, guards) = self.callback_arguments(&input, argument, locals)?;
+                checks.extend(guards);
+                fields
+            } else {
+                vec![if input.computation {
+                    thunk(argument.clone())
+                } else {
+                    argument.clone()
+                }]
+            };
+            for field in fields {
+                let parameter = &parameters[actual.len()];
+                substitutions.insert(parameter.vars[0].1.unwrap(), field.clone());
+                actual.push(field);
+            }
+        }
+        Ok((actual, checks))
+    }
+
     pub(in crate::resolver) fn declaration_signature(
         &self,
         ty: &SExp,
@@ -12,23 +84,31 @@ impl Resolver {
             body,
         } = result
         {
-            let mut bind = bind.clone();
-            if bind.vars.is_empty() {
-                bind.vars
-                    .push(Identifier(format!("<argument:{}>", parameters.len())));
-            }
             parameters.push(bind);
             result = body;
         }
-        (!parameters.is_empty() && self.is_structure_type(result))
-            .then(|| (parameters, result.clone()))
+        if parameters.is_empty() || !self.is_structure_type(result) {
+            return None;
+        }
+        let parameters = parameters
+            .into_iter()
+            .enumerate()
+            .map(|(index, bind)| {
+                let mut bind = bind.clone();
+                if bind.vars.is_empty() {
+                    bind.vars.push(Identifier(format!("<argument:{index}>")));
+                }
+                bind
+            })
+            .collect();
+        Some((parameters, result.clone()))
     }
 
     pub(in crate::resolver) fn callback_arguments(
         &self,
         input: &Input,
         argument: &SExp,
-        locals: &[HashMap<String, Identifier>],
+        locals: &[LocalScope],
     ) -> Result<(Vec<SExp>, Vec<(SExp, SExp)>), Diagnostic> {
         let value = self
             .structure_value(argument, locals)?
@@ -103,14 +183,16 @@ impl Resolver {
     pub(in crate::resolver) fn expand_structure_parameters(
         &mut self,
         parameters: &mut Vec<RightBind>,
-        locals: &mut Vec<HashMap<String, Identifier>>,
+        locals: &mut Vec<LocalScope>,
         module: bool,
     ) -> Result<(), Diagnostic> {
+        let _cost = timing::costs::Scope::enter("resolve.structure-parameters");
         let mut flattened = Vec::new();
         let mut inputs = Vec::new();
         let mut parameter_checks = Vec::new();
         let mut position = 0;
         for mut bind in std::mem::take(parameters) {
+            self.normalize_structures(&mut bind.ty, locals)?;
             if let Some((domain, result)) = self.declaration_signature(&bind.ty) {
                 for mut name in bind.vars {
                     let mut domain = domain.clone();
@@ -177,7 +259,7 @@ impl Resolver {
                     } else {
                         self.binding(&mut name);
                     }
-                    locals.push(HashMap::from([(name.0.clone(), name.clone())]));
+                    locals.push(LocalScope::from_iter([(name.0.clone(), name.clone())]));
                     let signature = value.signature;
                     self.structure_values.insert(name.1.unwrap(), value);
                     inputs.push(Input {
@@ -191,7 +273,9 @@ impl Resolver {
                         thunks: result_input.thunks,
                     });
                 }
-            } else if let Some((signature, shape, mut arguments)) = self.structure_type(&bind.ty) {
+            } else if let Some((signature, shape, mut arguments)) =
+                self.structure_type(&bind.ty, locals)?
+            {
                 for (id, mut argument) in ordered_arguments(&arguments) {
                     self.expression(&mut argument, locals)?;
                     arguments.insert(id, argument);
@@ -208,14 +292,14 @@ impl Resolver {
                     } else {
                         self.binding(&mut name);
                     }
-                    locals.push(HashMap::from([(name.0.clone(), name.clone())]));
+                    locals.push(LocalScope::from_iter([(name.0.clone(), name.clone())]));
                     let mut values = arguments.clone();
                     let mut fields = Vec::new();
                     let mut paths = Vec::new();
                     let mut thunks = HashSet::new();
                     for (field, ty, _) in &shape.fields {
                         let mut ty = substitute(ty, &values);
-                        if self.structure_type(&ty).is_some() {
+                        if self.structure_type(&ty, locals)?.is_some() {
                             let child_name = format!("{}.{}", name.0, field.0);
                             let mut nested = vec![RightBind {
                                 vars: vec![Identifier(child_name.clone())],
@@ -290,7 +374,7 @@ impl Resolver {
                         } else {
                             self.binding(&mut scalar);
                         }
-                        locals.push(HashMap::from([(scalar.0.clone(), scalar.clone())]));
+                        locals.push(LocalScope::from_iter([(scalar.0.clone(), scalar.clone())]));
                         let value = if computation {
                             force_reference(scalar.clone())
                         } else {
@@ -334,7 +418,7 @@ impl Resolver {
                     });
                 }
                 self.expression(&mut bind.ty, locals)?;
-                let mut scope = HashMap::new();
+                let mut scope = LocalScope::default();
                 for name in &mut bind.vars {
                     if module {
                         self.publish(name);

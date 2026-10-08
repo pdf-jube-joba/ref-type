@@ -1,6 +1,8 @@
 ## 計測や分析
-ローカル環境の場合には perf は `/usr/lib/linux-tools/7.0.0-38-generic` にあります。
-クラウドで AI が動いている場合は perf、hyperfine、GNU time、valgrind、heaptrack がそのまま使えます。
+perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
+（多分）
+ベンチマーク関係のものは、 `benchmarks/` においてください。
+あまり大きなファイルを置かないようにしてください。
 
 ## 実装のやりかた
 重要な点: `_plans/` に書かれている1つのプランの実装時は、最後までやってから停止する。
@@ -35,14 +37,15 @@
 
 ## rust
 - コードのデバッグ用に kernel に作って便利だった機能は残す。
+- `ref-type` 言語を書いていて処理系が重いと感じた場合は、 rust のコードを積極的に改善してよい。
 
 ## ref-type(このリポジトリの言語)
 思ってた書き方ができなかった場合、「こう書きたい」の要望を `gaps.md` に書く。
 
 ### 基本方針
-- `\definition` を使えるところは使い、できないときだけ `\alias` を使う。
-- `\structure`, `\machine`, `\correspondence` を使う。
-  - `Logic.And[P, Logic.And[Q, ]` みたいに入れ子が現れたら record を使えないか考える。言語の制約上 record を使えないことがわかった場合は使ってよい。
+- `\definition` を使えるところは使う。
+- `\structure` を使う。
+  - `Logic.And[P, Logic.And[Q, ...]` みたいに入れ子が現れたら `\structure` を使えないか考える。
 - あまりに重複する別 module の参照は definition で名前を付ける。
 - ちゃんとライブラリを分ける。
 - "定理"と呼ばれるものは仮定なしで示す。 定義の引数や module parameter で仮定を渡さない。
@@ -50,29 +53,6 @@
 ### 細かい方針
 
 #### `()` でくくらなくていいならくくらない。
-
-#### 複雑な式を避ける
-
-例: こういう定義は `byCases` がそのままゴールなので無駄っぽい。
-  ```
-  \definition eqOfEqbTrue: \forall (a, b: Bool^) -> IsTrue (eqbSet a b) -> a = b :=
-  \block {
-    \fix (a, b: Bool^);
-    \fix (e: IsTrue (eqbSet a b));
-    \let byCases: \forall (a, b: Bool^) -> IsTrue (eqbSet a b) -> a = b :=
-      \induction (a: Bool^) \return \forall (b: Bool^) -> IsTrue (eqbSet a b) -> a = b \with {
-        | false => (\induction (b: Bool^) \return IsTrue (eqbSet Bool^::false b) -> Bool^::false = b \with {
-          | false => (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::false))
-          | true => (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::false = Bool^::true) e)
-          })
-        | true => (\induction (b: Bool^) \return IsTrue (eqbSet Bool^::true b) -> Bool^::true = b \with {
-          | false => (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::true = Bool^::false) e)
-          | true => (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::true))
-          })
-        };
-    \return byCases a b e;
-  };
-  ```
 
 #### インデントが深くなるものはブロック構文を使う
 
@@ -92,6 +72,7 @@
 以下の場合を除き最後までやる。
 - 体系の制限により書くことができない場合
 - 言語処理系の制限により書くことができない場合
+  - "できない" とは、それを避けて書くこともできないような、致命的な場合のみを指します。
 
 `まだ未証明です。` と書くことになった場合は上記のいずれかの理由を書く。
 それ以外の場合は続ける。

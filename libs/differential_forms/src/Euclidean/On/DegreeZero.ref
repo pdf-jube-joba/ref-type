@@ -1,0 +1,30 @@
+\import Alternating.DegreeZero[] \as Scalars;
+\import Smooth.Algebra[U := U] \as Functions;
+\import \parent.At[k := N.Nat^::zero] \as Forms;
+\definition apply(f: Functions.Function): Form N.Nat^::zero :=
+  \into[Family N.Nat^::zero](\fun (x: Open.Carrier U) => Scalars.constant (f x),
+    { omega: Family N.Nat^::zero \where SmoothFamily N.Nat^::zero omega }) \by {
+      \fun (arguments: Multilinear.Arguments N.Nat^::zero) => smoothOfEqual f
+        (\fun (x: Open.Carrier U) => Scalars.constant (f x) arguments) (\fun (x: Open.Carrier U) => \refl(f x))
+        (\bysub(Open.ScalarFunction U, { f: Open.ScalarFunction U \where Smooth.SmoothOn U f }, f))
+    };
+\definition function(omega: Form N.Nat^::zero): Functions.Function := evaluate N.Nat^::zero omega Scalars.emptyArguments;
+\import Spaces.Linear[V := Functions.Function, W := Form N.Nat^::zero, source := Functions.vectorSpace, target := Forms.space] \as Forward;
+\import Spaces.Linear[V := Form N.Nat^::zero, W := Functions.Function, source := Forms.space, target := Functions.vectorSpace] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := apply,
+  preservesAdd := \fun (f, g: Functions.Function) => ext N.Nat^::zero (apply (Functions.plus f g)) (Forms.plus (apply f) (apply g)) (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments N.Nat^::zero) => \refl(Spaces.add (f x) (g x))),
+  preservesScale := \fun (a: Reals.Real)(f: Functions.Function) => ext N.Nat^::zero (apply (Functions.scale a f)) (Forms.scale a (apply f)) (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments N.Nat^::zero) => \refl(Spaces.mul a (f x))),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := function,
+  preservesAdd := \fun (omega, eta: Form N.Nat^::zero) => Functions.ext (function (Forms.plus omega eta)) (Functions.plus (function omega) (function eta)) (\fun (x: Open.Carrier U) => \refl(Spaces.add (omega x Scalars.emptyArguments) (eta x Scalars.emptyArguments))),
+  preservesScale := \fun (a: Reals.Real)(omega: Form N.Nat^::zero) => Functions.ext (function (Forms.scale a omega)) (Functions.scale a (function omega)) (\fun (x: Open.Carrier U) => \refl(Spaces.mul a (omega x Scalars.emptyArguments))),
+};
+\import Spaces.Isomorphism[V := Functions.Function, W := Form N.Nat^::zero, source := Functions.vectorSpace, target := Forms.space] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (f: Functions.Function) => Functions.ext (function (apply f)) f (\fun (x: Open.Carrier U) => \refl(f x)),
+  rightInverse := \fun (omega: Form N.Nat^::zero) => ext N.Nat^::zero (apply (function omega)) omega (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments N.Nat^::zero) =>
+    sym!{{Reals.Real}} _ _ (congr!{{Multilinear.Arguments N.Nat^::zero} {Reals.Real}} (omega x) _ _ (Scalars.argumentsUnique arguments))),
+};

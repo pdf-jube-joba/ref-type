@@ -1,0 +1,83 @@
+\import Fin.Permutations[n := k] \as Permutations;
+\import \parent.Permutations[k := k] \as Distinct;
+\import N.Basic[].Prop[] \as NatLaws;
+\import Bool.Prop[] \as BoolLaws;
+\definition reindex(word: Permutations.Word)(arguments: Arguments k): Arguments k := \fun (i: Fin.Fin k) => arguments (Permutations.action word i);
+\definition transpose(s: Permutations.Swap)(arguments: Arguments k): Arguments k := \fun (i: Fin.Fin k) => arguments (Permutations.swap s i);
+\definition multiplier(s: Permutations.Swap)(value: K): K := Bool.ite K (Nat.eqb #first{s} #second{s}) value (neg value);
+\definition signed(word: Permutations.Word): K -> K := Lists.foldr Permutations.Swap (K -> K)
+  (\fun (s: Permutations.Swap)(tail: K -> K)(value: K) => multiplier s (tail value)) (\fun (value: K) => value) word;
+\definition sign(word: Permutations.Word): K := signed word one;
+\module Transposition(s: Permutations.Swap);
+\definition onWord: \forall (word: Permutations.Word)(f: Form k)(arguments: Arguments k) -> f (reindex word arguments) = signed word (f arguments) :=
+  \induction (word: Permutations.Word) \return \forall (f: Form k)(arguments: Arguments k) -> f (reindex word arguments) = signed word (f arguments) \with {
+    | nil: \fun (f: Form k)(arguments: Arguments k) => congr!{{Arguments k} K} f
+      (\fun (i: Fin.Fin k) => arguments i) arguments (\axiom:funext((\fun (i: Fin.Fin k) => arguments i), arguments, \fun (i: Fin.Fin k) => \refl(arguments i)))
+    | cons: \fun (s: Permutations.Swap)(tail: Permutations.Word)
+      (previous: \forall (f: Form k)(arguments: Arguments k) -> f (reindex tail arguments) = signed tail (f arguments))
+      (f: Form k)(arguments: Arguments k) => trans!{K} (f (reindex (Lists.List[Permutations.Swap]::cons s tail) arguments))
+        (multiplier s (f (reindex tail arguments))) (multiplier s (signed tail (f arguments)))
+        (Transposition[s := s].law f (reindex tail arguments))
+        (congr!{K K} (multiplier s) (f (reindex tail arguments)) (signed tail (f arguments)) (previous f arguments))
+  };
+\definition multiplierProduct: \forall (s: Permutations.Swap)(a, b: K) -> multiplier s (mul a b) = mul (multiplier s a) b :=
+  \fun (s: Permutations.Swap)(a, b: K) => Bool.cases
+    (\fun (test: Bool.Bool^) => Bool.ite K test (mul a b) (neg (mul a b)) = mul (Bool.ite K test a (neg a)) b)
+    (Distinct.negMultiply a b) (\refl(mul a b)) (Nat.eqb #first{s} #second{s});
+\definition signValue: \forall (word: Permutations.Word)(value: K) -> signed word value = mul (sign word) value :=
+  \induction (word: Permutations.Word) \return \forall (value: K) -> signed word value = mul (sign word) value \with {
+    | nil: \fun (value: K) => sym!{K} (mul one value) value (mulOneLeft value)
+    | cons: \fun (s: Permutations.Swap)(tail: Permutations.Word)(previous: \forall (value: K) -> signed tail value = mul (sign tail) value)(value: K) =>
+      trans!{K} (multiplier s (signed tail value)) (multiplier s (mul (sign tail) value)) (mul (multiplier s (sign tail)) value)
+        (congr!{K K} (multiplier s) (signed tail value) (mul (sign tail) value) (previous value)) (multiplierProduct s (sign tail) value)
+  };
+\definition decomposition: \forall (p: Permutations.Permutation) -> \exists { word: Permutations.Word \where Permutations.Represents p word } :=
+  Fin.PermutationDecomposition[].decomposition k;
+\definition transformation: \forall (p: Permutations.Permutation)(word: Permutations.Word)(f: Form k)(arguments: Arguments k) -> Permutations.Represents p word ->
+  f (\fun (i: Fin.Fin k) => arguments (#forward{p} i)) = mul (sign word) (f arguments) :=
+  \fun (p: Permutations.Permutation)(word: Permutations.Word)(f: Form k)(arguments: Arguments k)(represents: Permutations.Represents p word) =>
+    trans!{K} (f (\fun (i: Fin.Fin k) => arguments (#forward{p} i))) (f (reindex word arguments)) (mul (sign word) (f arguments))
+      (congr!{{Fin.Fin k -> Fin.Fin k} K} (\fun (sigma: Fin.Fin k -> Fin.Fin k) => f (\fun (i: Fin.Fin k) => arguments (sigma i)))
+        #forward{p} (Permutations.action word) (sym!{{Fin.Fin k -> Fin.Fin k}} (Permutations.action word) #forward{p} represents))
+      (trans!{K} (f (reindex word arguments)) (signed word (f arguments)) (mul (sign word) (f arguments)) (onWord word f arguments) (signValue word (f arguments)));
+\import \parent.\parent.\parent.Sign[] \as Signs;
+\definition multiplierInjective: \forall (s: Permutations.Swap)(a, b: K) -> multiplier s a = multiplier s b -> a = b :=
+  \fun (s: Permutations.Swap)(a, b: K) => Bool.cases
+    (\fun (test: Bool.Bool^) => Bool.ite K test a (neg a) = Bool.ite K test b (neg b) -> a = b)
+    (\fun (same: neg a = neg b) => trans!{K} a (neg (neg a)) b
+      (sym!{K} (neg (neg a)) a (Signs.doubleNegative a))
+      (trans!{K} (neg (neg a)) (neg (neg b)) b (congr!{K K} neg (neg a) (neg b) same) (Signs.doubleNegative b)))
+    (\fun (same: a = b) => same) (Nat.eqb #first{s} #second{s});
+\definition signedInjective: \forall (word: Permutations.Word)(a, b: K) -> signed word a = signed word b -> a = b :=
+  \induction (word: Permutations.Word) \return \forall (a, b: K) -> signed word a = signed word b -> a = b \with {
+    | nil: \fun (a, b: K)(same: a = b) => same
+    | cons: \fun (s: Permutations.Swap)(tail: Permutations.Word)(previous: \forall (a, b: K) -> signed tail a = signed tail b -> a = b)
+      (a, b: K)(same: multiplier s (signed tail a) = multiplier s (signed tail b)) =>
+        previous a b (multiplierInjective s (signed tail a) (signed tail b) same)
+  };
+\definition negativeSquare: \forall (a: K) -> mul (neg a) (neg a) = mul a a :=
+  \fun (a: K) => trans!{K} (mul (neg a) (neg a)) (neg (mul a (neg a))) (mul a a)
+    (sym!{K} (neg (mul a (neg a))) (mul (neg a) (neg a)) (Signs.negativeProduct a (neg a)))
+    (trans!{K} (neg (mul a (neg a))) (neg (neg (mul a a))) (mul a a)
+      (congr!{K K} neg (mul a (neg a)) (neg (mul a a))
+        (sym!{K} (neg (mul a a)) (mul a (neg a)) (Signs.negativeProductRight a a)))
+      (Signs.doubleNegative (mul a a)));
+\definition multiplierSquare: \forall (s: Permutations.Swap)(a: K) -> mul (multiplier s a) (multiplier s a) = mul a a :=
+  \fun (s: Permutations.Swap)(a: K) => Bool.cases
+    (\fun (test: Bool.Bool^) => mul (Bool.ite K test a (neg a)) (Bool.ite K test a (neg a)) = mul a a)
+    (negativeSquare a) (\refl(mul a a)) (Nat.eqb #first{s} #second{s});
+\definition signSquare: \forall (word: Permutations.Word) -> mul (sign word) (sign word) = one :=
+  \induction (word: Permutations.Word) \return mul (sign word) (sign word) = one \with {
+    | nil: mulOneLeft one
+    | cons: \fun (s: Permutations.Swap)(tail: Permutations.Word)(previous: mul (sign tail) (sign tail) = one) =>
+      trans!{K} (mul (multiplier s (sign tail)) (multiplier s (sign tail))) (mul (sign tail) (sign tail)) one
+        (multiplierSquare s (sign tail)) previous
+  };
+\definition unsign: \forall (word: Permutations.Word)(value: K) -> mul (sign word) (signed word value) = value :=
+  \fun (word: Permutations.Word)(value: K) => trans!{K} (mul (sign word) (signed word value))
+    (mul (sign word) (mul (sign word) value)) value
+    (congr!{K K} (mul (sign word)) (signed word value) (mul (sign word) value) (signValue word value))
+    (trans!{K} (mul (sign word) (mul (sign word) value)) (mul (mul (sign word) (sign word)) value) value
+      (sym!{K} (mul (mul (sign word) (sign word)) value) (mul (sign word) (mul (sign word) value)) (mulAssoc (sign word) (sign word) value))
+      (trans!{K} (mul (mul (sign word) (sign word)) value) (mul one value) value
+        (congr!{K K} (\fun (a: K) => mul a value) (mul (sign word) (sign word)) one (signSquare word)) (mulOneLeft value)));

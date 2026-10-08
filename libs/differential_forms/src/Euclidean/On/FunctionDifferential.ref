@@ -1,0 +1,62 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\import N.Basic[].Prop[] \as Naturals;
+\import \parent.DegreeZero[] \as DegreeZero;
+\import \parent.ExteriorDerivative[k := zero] \as D;
+\import \parent.Partial[k := zero] \as Partials;
+\import \parent.Summation[k := one, I := Fin.Fin n] \as Sums;
+\import Spaces.Sums[I := Fin.Fin n].Prop[] \as SumLaws;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\import Multilinear.ListSeries[k := one] \as OneSeries;
+\import Multilinear.ListSeries[k := zero] \as ZeroSeries;
+\import Alternating.DegreeZero[] \as Scalars;
+\import Fin.FromList[A := Vectors.Vector] \as Tuples;
+\import Smooth.Algebra[U := U] \as Functions;
+\import Smooth.Derivative[] \as Derivatives;
+\import Smooth.Differential[] \as Differentials;
+\definition term: \forall (i: Fin.Fin n)(f: Functions.Function)(x: Open.Carrier U)(arguments: Multilinear.Arguments one) ->
+  D.term i (DegreeZero.apply f) x arguments = Spaces.mul (Derivatives.derivative U f i x) (arguments (Fin.zero zero) i) := \block {
+  \fun (i: Fin.Fin n)(f: Functions.Function)(x: Open.Carrier U)(arguments: Multilinear.Arguments one) \then
+  \let v: Vectors.Vector := arguments (Fin.zero zero) \then
+  \let c: Shuffle.Function := Exterior.component one (D.coordinate i x) \then
+  \let h: Shuffle.Function := Exterior.component zero (Partials.apply i (DegreeZero.apply f) x) \then
+  \let coefficient: h Lists.List[Vectors.Vector]::nil = Derivatives.derivative U f i x := trans!{{Reals.Real}} _ _ _
+    (ZeroSeries.onArguments (Partials.apply i (DegreeZero.apply f) x) Scalars.emptyArguments)
+    (congr!{{Functions.Function} {Reals.Real}} (\fun (g: Functions.Function) => Derivatives.derivative U g i x)
+      (evaluate zero (DegreeZero.apply f) Scalars.emptyArguments) f
+      (Functions.ext (evaluate zero (DegreeZero.apply f) Scalars.emptyArguments) f (\fun (y: Open.Carrier U) => \refl(f y)))) \then
+  \let covector: c (Lists.List[Vectors.Vector]::cons v Lists.List[Vectors.Vector]::nil) = v i :=
+    OneSeries.onArguments (D.coordinate i x) (\fun (j: Fin.Fin one) => v) \then
+  \let wrong: h (Lists.List[Vectors.Vector]::cons v Lists.List[Vectors.Vector]::nil) = Spaces.zero :=
+    ZeroSeries.outside (Partials.apply i (DegreeZero.apply f) x) (Lists.List[Vectors.Vector]::cons v Lists.List[Vectors.Vector]::nil) (Naturals.succNeZero zero) \then
+  \return eq_reason!{
+    {D.term i (DegreeZero.apply f) x arguments}
+    "=" {Exterior.component one (D.term i (DegreeZero.apply f) x) (Tuples.list one arguments)} "by" {
+      sym!{{Reals.Real}} _ _ (OneSeries.onArguments (D.term i (DegreeZero.apply f) x) arguments)}
+    "=" {Shuffle.product c h (Lists.List[Vectors.Vector]::cons v Lists.List[Vectors.Vector]::nil)} "by" {
+      congr!{{Shuffle.Function} {Reals.Real}} (\fun (g: Shuffle.Function) => g (Tuples.list one arguments)) _ _ (D.termSeries i (DegreeZero.apply f) x)}
+    "=" {Spaces.add (Shuffle.product (Shuffle.shift v c) h Lists.List[Vectors.Vector]::nil)
+      (Shuffle.product (Shuffle.twist c) (Shuffle.shift v h) Lists.List[Vectors.Vector]::nil)} "by" {
+      Shuffle.atCons v Lists.List[Vectors.Vector]::nil c h}
+    "=" {Spaces.add (Spaces.mul (c (Lists.List[Vectors.Vector]::cons v Lists.List[Vectors.Vector]::nil)) (h Lists.List[Vectors.Vector]::nil))
+      (Spaces.mul (Shuffle.twist c Lists.List[Vectors.Vector]::nil) (h (Lists.List[Vectors.Vector]::cons v Lists.List[Vectors.Vector]::nil)))} "by" {
+      congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add _ _ _ _
+        (Shuffle.atEmpty (Shuffle.shift v c) h) (Shuffle.atEmpty (Shuffle.twist c) (Shuffle.shift v h))}
+    "=" {Spaces.add (Spaces.mul (v i) (Derivatives.derivative U f i x)) Spaces.zero} "by" {
+      congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add _ _ _ _
+        (congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.mul _ _ _ _ covector coefficient)
+        (trans!{{Reals.Real}} _ _ _ (congr!{{Reals.Real} {Reals.Real}} (Spaces.mul (Shuffle.twist c Lists.List[Vectors.Vector]::nil)) _ _ wrong)
+          (Spaces.mulZeroRight (Shuffle.twist c Lists.List[Vectors.Vector]::nil)))}
+    "=" {Spaces.mul (Derivatives.derivative U f i x) (v i)} "by" {
+      trans!{{Reals.Real}} _ _ _ (Spaces.addZeroRight (Spaces.mul (v i) (Derivatives.derivative U f i x))) (Spaces.mulComm (v i) (Derivatives.derivative U f i x))}
+  }
+};
+\definition law: \forall (f: Functions.Function)(x: Open.Carrier U)(arguments: Multilinear.Arguments one) ->
+  D.apply (DegreeZero.apply f) x arguments = #apply{(Differentials.value U f x)} (arguments (Fin.zero zero)) :=
+  \fun (f: Functions.Function)(x: Open.Carrier U)(arguments: Multilinear.Arguments one) => trans!{{Reals.Real}} _ _ _
+    (Sums.evaluateSum (Fin.elements n) (\fun (i: Fin.Fin n) => D.term i (DegreeZero.apply f)) x arguments)
+    (trans!{{Reals.Real}} _ _ _
+      (SumLaws.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => D.term i (DegreeZero.apply f) x arguments)
+        (\fun (i: Fin.Fin n) => Spaces.mul (Derivatives.derivative U f i x) (arguments (Fin.zero zero) i))
+        (\fun (i: Fin.Fin n) => term i f x arguments))
+      (Enumeration.sumLaw n (\fun (i: Fin.Fin n) => Spaces.mul (Derivatives.derivative U f i x) (arguments (Fin.zero zero) i))));

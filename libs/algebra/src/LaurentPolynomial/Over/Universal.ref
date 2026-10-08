@@ -1,0 +1,33 @@
+\import P.Universal[K := K, target := target] \as Evaluation;
+\import algebra.Hom[A := Carrier, B := K] \as Output;
+\use Equality.congr;
+\definition CoefficientMap: \Set := Evaluation.CoefficientMap;
+\definition Values(value, inverseValue: K): B.Bool^ -> K :=
+  \induction (v: B.Bool^) \return K \with { | true: value | false: inverseValue };
+\definition accepts: \forall (f: CoefficientMap) (value, inverseValue: K) ->
+  #mul{(#base{target})} value inverseValue = #one{(#base{target})} ->
+  Evaluation.RespectsRelations f (Values value inverseValue) :=
+  \fun (f: _) (value, inverseValue: _) (inverse: _) (x, y: _) (relation: Relation x y) =>
+    eq_reason!{{Evaluation.evaluate f (Values value inverseValue) x}
+      "=" {#mul{(#base{target})} value inverseValue}
+      "by" {congr!{Free.Expression K} (Evaluation.evaluate f (Values value inverseValue)) _ _ (#left{relation})}
+      "=" {#one{(#base{target})}} "by" inverse
+      "=" {Evaluation.evaluate f (Values value inverseValue) Free.oneExpr}
+      "by" {sym!{K} _ _ (#one{(Evaluation.coefficientLaws f)})}
+      "=" {Evaluation.evaluate f (Values value inverseValue) y}
+      "by" {congr!{Free.Expression K} (Evaluation.evaluate f (Values value inverseValue)) _ _ (sym!{Free.Expression} _ _ (#right{relation}))}};
+\definition evaluate(f: CoefficientMap) (value, inverseValue: K)
+  (inverse: #mul{(#base{target})} value inverseValue = #one{(#base{target})}): Carrier -> K :=
+  Evaluation.apply f (Values value inverseValue) (accepts f value inverseValue inverse);
+\definition extension(f: CoefficientMap) (value, inverseValue: K)
+  (inverse: #mul{(#base{target})} value inverseValue = #one{(#base{target})}):
+  Output.RingMap (Ring.commutativeRingAsRing Carrier ring) (Ring.commutativeRingAsRing K target) :=
+  Evaluation.extension f (Values value inverseValue) (accepts f value inverseValue inverse);
+\definition unique: \forall (f: CoefficientMap) (value, inverseValue: K)
+  (inverse: #mul{(#base{target})} value inverseValue = #one{(#base{target})})
+  (h: Output.RingMap (Ring.commutativeRingAsRing Carrier ring) (Ring.commutativeRingAsRing K target)) ->
+  (\forall (a: R) -> h (constant a) = f a) -> h X = value -> h inverseX = inverseValue -> h = evaluate f value inverseValue inverse :=
+  \fun (f: _) (value, inverseValue: _) (inverse: _) (h: _) (constants: _) (atX: _) (atInverseX: _) =>
+    Evaluation.unique f (Values value inverseValue) (accepts f value inverseValue inverse) h constants
+      (\induction (v: B.Bool^) \return h (P.variable v) = Values value inverseValue v
+        \with { | true: atX | false: atInverseX });

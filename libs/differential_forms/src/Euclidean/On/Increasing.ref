@@ -1,0 +1,51 @@
+\import Fin.Ordering[] \as Ordering;
+\import Fin.Permutations[n := k] \as Permutations;
+\import Alternating.Dimension[n := n, b := Basis.basis].Increasing[k := k] \as Coefficients;
+\import Alternating.PermutationRule[k := k] \as Signed;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition Index: \Set := Coefficients.Index;
+\definition BasisSmooth(omega: Family k): \Prop := \forall (indices: Index) ->
+  Smooth.SmoothOn U (\fun (x: Open.Carrier U) => Coefficients.coefficient (omega x) indices);
+\definition coefficient(omega: Form k)(indices: Index): Smooth.SmoothFunction U :=
+  evaluate k omega (\fun (i: Fin.Fin k) => Basis.vectors (indices i));
+\definition ext: \forall (omega, eta: Form k) -> (\forall (indices: Index) -> coefficient omega indices = coefficient eta indices) -> omega = eta :=
+  \fun (omega, eta: Form k)(same: \forall (indices: Index) -> coefficient omega indices = coefficient eta indices) =>
+    \axiom:funext(omega, eta, \fun (x: Open.Carrier U) => Coefficients.ext (omega x) (eta x)
+      (\fun (indices: Index) => congr!{{Smooth.SmoothFunction U} {Reals.Real}} (\fun (f: Smooth.SmoothFunction U) => f x)
+        (coefficient omega indices) (coefficient eta indices) (same indices)));
+\definition regularCoefficient: \forall (omega: Family k) -> BasisSmooth omega -> \forall (indices: Fin.Fin k -> Fin.Fin n) ->
+  Smooth.SmoothOn U (\fun (x: Open.Carrier U) => omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i))) :=
+  \fun (omega: Family k)(regular: BasisSmooth omega)(indices: Fin.Fin k -> Fin.Fin n) =>
+    either!{{Ordering.Injective k n indices} "or" {Logic.Not (Ordering.Injective k n indices)}
+      "either" {Smooth.SmoothOn U (\fun (x: Open.Carrier U) => omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i)))}
+      "lt:" {\block {
+        \fun (injection: Ordering.Injective k n indices) \then
+        \takefrom p: Ordering.Ordered k n indices \by Ordering.ordering n k indices injection \then
+        \takefrom word: \Cast[Permutations.Word] ({ word: Permutations.Word \where Permutations.Represents p word }) \by Signed.decomposition p \then
+        \let represents: Permutations.Represents p word := \bysub(Permutations.Word, { word: Permutations.Word \where Permutations.Represents p word }, word) \then
+        \let ordered: Index := \into[Fin.Fin k -> Fin.Fin n](\fun (i: Fin.Fin k) => indices (#forward{p} i), Index) \by {
+          \bysub(Ordering.PermutationType k, Ordering.Ordered k n indices, p)
+        } \then
+        \let product: Open.ScalarFunction U := \fun (x: Open.Carrier U) => Spaces.mul (Signed.sign word) (Coefficients.coefficient (omega x) ordered) \then
+        \let smoothProduct: Smooth.SmoothOn U product := Operations.mulSmooth U
+          (\fun (x: Open.Carrier U) => Signed.sign word) (\fun (x: Open.Carrier U) => Coefficients.coefficient (omega x) ordered)
+          (Operations.constantSmooth U (Signed.sign word)) (regular ordered) \then
+        \return smoothOfEqual product (\fun (x: Open.Carrier U) => omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i)))
+          (\fun (x: Open.Carrier U) => trans!{{Reals.Real}} (product x)
+            (Spaces.mul (Signed.sign word) (Signed.signed word (omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i)))))
+            (omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i)))
+            (congr!{{Reals.Real} {Reals.Real}} (Spaces.mul (Signed.sign word)) (Coefficients.coefficient (omega x) ordered)
+              (Signed.signed word (omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i))))
+              (Coefficients.onPermutation p word (omega x) indices represents))
+            (Signed.unsign word (omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i))))) smoothProduct
+      }}
+      "rt:" {\fun (notInjective: Logic.Not (Ordering.Injective k n indices)) =>
+        smoothOfEqual (\fun (x: Open.Carrier U) => Spaces.zero) (\fun (x: Open.Carrier U) => omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i)))
+          (\fun (x: Open.Carrier U) => sym!{{Reals.Real}} (omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i))) Spaces.zero
+            (Coefficients.collisionZero (omega x) indices notInjective)) (Operations.constantSmooth U Spaces.zero)}}
+      (Classical.excludedMiddle (Ordering.Injective k n indices));
+\definition regular: \forall (omega: Family k) -> BasisSmooth omega -> SmoothFamily k omega :=
+  \fun (omega: Family k)(basisSmooth: BasisSmooth omega) => \parent.CoefficientSmooth[].family k omega (regularCoefficient omega basisSmooth);
+\definition coefficientsRegular: \forall (omega: Family k) -> SmoothFamily k omega -> BasisSmooth omega :=
+  \fun (omega: Family k)(regular: SmoothFamily k omega)(indices: Index) => regular (\fun (i: Fin.Fin k) => Basis.vectors (indices i));

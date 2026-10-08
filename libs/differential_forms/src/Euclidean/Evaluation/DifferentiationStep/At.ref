@@ -1,0 +1,144 @@
+
+\import Spaces.Sums[I := Fin.Fin n] \as CoordinateSums;
+\import CoordinateSums.Prop[] \as CoordinateLaws;
+\import Spaces.Sums[I := Fin.Fin k] \as SlotSums;
+\import SlotSums.Prop[] \as SlotLaws;
+\import Spaces.Sums[I := Fin.Fin (N.Nat^::succ k)] \as NextSlots;
+\import SlotLaws.Mapping[J := Fin.Fin (N.Nat^::succ k)] \as SlotMapping;
+\import CoordinateLaws.Exchange[J := Fin.Fin k] \as Exchange;
+\import Spaces.Laws[V := Reals.Real, space := Spaces.scalarSpace] \as Scalars;
+\definition coefficientTerm(j: Fin.Fin n): Reals.Real := Spaces.mul (head arguments j x) (D.apply i (contracted j) x (Contract.tail arguments x));
+\definition headTerm(j: Fin.Fin n): Reals.Real := Spaces.mul (Partials.derivative U (head arguments j) i x) (coefficient arguments j x);
+\definition tailTerm(j: Fin.Fin n)(slot: Fin.Fin k): Reals.Real := Spaces.mul (head arguments j x)
+  (contracted j x (Multilinear.update k (Contract.tail arguments x) slot (TailD.apply i (Contract.tail arguments) x slot)));
+\definition coefficientSum: Reals.Real := CoordinateSums.sum (Fin.elements n) coefficientTerm;
+\definition headSum: Reals.Real := CoordinateSums.sum (Fin.elements n) headTerm;
+\definition tailSum: Reals.Real := SlotSums.sum (Fin.elements k) (\fun (slot: Fin.Fin k) => CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => tailTerm j slot));
+\definition coefficientIdentity: NextD.apply i omega x (arguments x) = coefficientSum :=
+  trans!{{Reals.Real}} (NextD.apply i omega x (arguments x))
+    (NextD.apply i omega x (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x))) coefficientSum
+    (congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Reals.Real}} (NextD.apply i omega x)
+      (arguments x) (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x))
+      (sym!{{Multilinear.Arguments (N.Nat^::succ k)}} (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x)) (arguments x) (Arguments.recover k (arguments x))))
+    (trans!{{Reals.Real}}
+      (NextD.apply i omega x (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x)))
+      (CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => Spaces.mul (head arguments j x) (Contract.apply (NextD.apply i omega) (Basis.vectors j) x (Contract.tail arguments x)))) coefficientSum
+      (Expansion.law (NextD.apply i omega x) (arguments x (Fin.zero k)) (Contract.tail arguments x))
+      (CoordinateLaws.congruent (Fin.elements n)
+        (\fun (j: Fin.Fin n) => Spaces.mul (head arguments j x) (Contract.apply (NextD.apply i omega) (Basis.vectors j) x (Contract.tail arguments x))) coefficientTerm
+        (\fun (j: Fin.Fin n) => congr!{{Reals.Real} {Reals.Real}} (Spaces.mul (head arguments j x))
+          (Contract.apply (NextD.apply i omega) (Basis.vectors j) x (Contract.tail arguments x)) (D.apply i (contracted j) x (Contract.tail arguments x))
+          (congr!{{RegularFamily k} {Reals.Real}} (\fun (family: RegularFamily k) => family x (Contract.tail arguments x))
+            (Contract.apply (NextD.apply i omega) (Basis.vectors j)) (D.apply i (contracted j))
+            (sym!{{RegularFamily k}} (D.apply i (contracted j)) (Contract.apply (NextD.apply i omega) (Basis.vectors j)) (Contract.derivative i omega (Basis.vectors j)))))));
+\definition headUpdate: Multilinear.update (N.Nat^::succ k) (arguments x) (Fin.zero k) (ArgumentD.apply i arguments x (Fin.zero k)) =
+  Arguments.extend k (ArgumentD.apply i arguments x (Fin.zero k)) (Contract.tail arguments x) :=
+  trans!{{Multilinear.Arguments (N.Nat^::succ k)}}
+    (Multilinear.update (N.Nat^::succ k) (arguments x) (Fin.zero k) (ArgumentD.apply i arguments x (Fin.zero k)))
+    (Multilinear.update (N.Nat^::succ k) (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x)) (Fin.zero k) (ArgumentD.apply i arguments x (Fin.zero k)))
+    (Arguments.extend k (ArgumentD.apply i arguments x (Fin.zero k)) (Contract.tail arguments x))
+    (congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Multilinear.Arguments (N.Nat^::succ k)}}
+      (\fun (values: Multilinear.Arguments (N.Nat^::succ k)) => Multilinear.update (N.Nat^::succ k) values (Fin.zero k) (ArgumentD.apply i arguments x (Fin.zero k)))
+      (arguments x) (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x))
+      (sym!{{Multilinear.Arguments (N.Nat^::succ k)}} (Arguments.extend k (arguments x (Fin.zero k)) (Contract.tail arguments x)) (arguments x) (Arguments.recover k (arguments x))))
+    (Updates.extendHead k (arguments x (Fin.zero k)) (Contract.tail arguments x) (ArgumentD.apply i arguments x (Fin.zero k)));
+\definition headIdentity: slotTerm (N.Nat^::succ k) omega arguments i x (Fin.zero k) = headSum :=
+  trans!{{Reals.Real}} (slotTerm (N.Nat^::succ k) omega arguments i x (Fin.zero k))
+    (omega x (Arguments.extend k (ArgumentD.apply i arguments x (Fin.zero k)) (Contract.tail arguments x))) headSum
+    (congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Reals.Real}} (omega x)
+      (Multilinear.update (N.Nat^::succ k) (arguments x) (Fin.zero k) (ArgumentD.apply i arguments x (Fin.zero k)))
+      (Arguments.extend k (ArgumentD.apply i arguments x (Fin.zero k)) (Contract.tail arguments x)) headUpdate)
+    (Expansion.law (omega x) (ArgumentD.apply i arguments x (Fin.zero k)) (Contract.tail arguments x));
+\definition tailIdentity: \forall (slot: Fin.Fin k) -> slotTerm (N.Nat^::succ k) omega arguments i x (Fin.succ k slot) =
+  CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => tailTerm j slot) :=
+  \fun (slot: Fin.Fin k) => trans!{{Reals.Real}} (slotTerm (N.Nat^::succ k) omega arguments i x (Fin.succ k slot))
+    (omega x (Arguments.extend k (arguments x (Fin.zero k)) (Multilinear.update k (Contract.tail arguments x) slot (TailD.apply i (Contract.tail arguments) x slot))))
+    (CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => tailTerm j slot))
+    (congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Reals.Real}} (omega x)
+      (Multilinear.update (N.Nat^::succ k) (arguments x) (Fin.succ k slot) (ArgumentD.apply i arguments x (Fin.succ k slot)))
+      (Arguments.extend k (arguments x (Fin.zero k)) (Multilinear.update k (Contract.tail arguments x) slot (TailD.apply i (Contract.tail arguments) x slot)))
+      (trans!{{Multilinear.Arguments (N.Nat^::succ k)}}
+        (Multilinear.update (N.Nat^::succ k) (arguments x) (Fin.succ k slot) (ArgumentD.apply i arguments x (Fin.succ k slot)))
+        (Multilinear.update (N.Nat^::succ k) (arguments x) (Fin.succ k slot) (TailD.apply i (Contract.tail arguments) x slot))
+        (Arguments.extend k (arguments x (Fin.zero k)) (Multilinear.update k (Contract.tail arguments x) slot (TailD.apply i (Contract.tail arguments) x slot)))
+        (congr!{{Vectors.Vector} {Multilinear.Arguments (N.Nat^::succ k)}}
+          (\fun (v: Vectors.Vector) => Multilinear.update (N.Nat^::succ k) (arguments x) (Fin.succ k slot) v)
+          (ArgumentD.apply i arguments x (Fin.succ k slot)) (TailD.apply i (Contract.tail arguments) x slot)
+          (sym!{{Vectors.Vector}} (TailD.apply i (Contract.tail arguments) x slot) (ArgumentD.apply i arguments x (Fin.succ k slot)) (tailDerivative i arguments x slot)))
+        (sym!{{Multilinear.Arguments (N.Nat^::succ k)}}
+          (Arguments.extend k (arguments x (Fin.zero k)) (Multilinear.update k (Contract.tail arguments x) slot (TailD.apply i (Contract.tail arguments) x slot)))
+          (Multilinear.update (N.Nat^::succ k) (arguments x) (Fin.succ k slot) (TailD.apply i (Contract.tail arguments) x slot))
+          (tailUpdate arguments x slot (TailD.apply i (Contract.tail arguments) x slot)))))
+    (Expansion.law (omega x) (arguments x (Fin.zero k)) (Multilinear.update k (Contract.tail arguments x) slot (TailD.apply i (Contract.tail arguments) x slot)));
+\definition slotsIdentity: NextSlots.sum (Fin.elements (N.Nat^::succ k)) (slotTerm (N.Nat^::succ k) omega arguments i x) = Spaces.add headSum tailSum :=
+  congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add
+    (slotTerm (N.Nat^::succ k) omega arguments i x (Fin.zero k)) headSum
+    (NextSlots.sum (Lists.map (Fin.Fin k) (Fin.Fin (N.Nat^::succ k)) (Fin.succ k) (Fin.elements k)) (slotTerm (N.Nat^::succ k) omega arguments i x)) tailSum
+    headIdentity
+    (trans!{{Reals.Real}}
+      (NextSlots.sum (Lists.map (Fin.Fin k) (Fin.Fin (N.Nat^::succ k)) (Fin.succ k) (Fin.elements k)) (slotTerm (N.Nat^::succ k) omega arguments i x))
+      (SlotSums.sum (Fin.elements k) (\fun (slot: Fin.Fin k) => slotTerm (N.Nat^::succ k) omega arguments i x (Fin.succ k slot))) tailSum
+      (SlotMapping.sumMap (Fin.elements k) (Fin.succ k) (slotTerm (N.Nat^::succ k) omega arguments i x))
+      (SlotLaws.congruent (Fin.elements k) (\fun (slot: Fin.Fin k) => slotTerm (N.Nat^::succ k) omega arguments i x (Fin.succ k slot))
+        (\fun (slot: Fin.Fin k) => CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => tailTerm j slot)) tailIdentity));
+\definition termDerivative: DifferentiationLaw k -> \forall (j: Fin.Fin n) -> derivativeTerm i arguments j x =
+  Spaces.add (headTerm j) (Spaces.add (coefficientTerm j) (SlotSums.sum (Fin.elements k) (tailTerm j))) :=
+  \fun (previous: DifferentiationLaw k)(j: Fin.Fin n) => congr!{{Reals.Real} {Reals.Real}} (Spaces.add (headTerm j))
+    (Spaces.mul (head arguments j x) (Partials.derivative U (coefficient arguments j) i x))
+    (Spaces.add (coefficientTerm j) (SlotSums.sum (Fin.elements k) (tailTerm j)))
+    (trans!{{Reals.Real}}
+      (Spaces.mul (head arguments j x) (Partials.derivative U (coefficient arguments j) i x))
+      (Spaces.mul (head arguments j x) (derivativeValue k (contracted j) (Contract.tail arguments) i x))
+      (Spaces.add (coefficientTerm j) (SlotSums.sum (Fin.elements k) (tailTerm j)))
+      (congr!{{Reals.Real} {Reals.Real}} (Spaces.mul (head arguments j x))
+        (Partials.derivative U (coefficient arguments j) i x) (derivativeValue k (contracted j) (Contract.tail arguments) i x)
+        (previous (contracted j) (Contract.tail arguments) i x))
+      (trans!{{Reals.Real}}
+        (Spaces.mul (head arguments j x) (derivativeValue k (contracted j) (Contract.tail arguments) i x))
+        (Spaces.add (coefficientTerm j) (Spaces.mul (head arguments j x) (SlotSums.sum (Fin.elements k) (slotTerm k (contracted j) (Contract.tail arguments) i x))))
+        (Spaces.add (coefficientTerm j) (SlotSums.sum (Fin.elements k) (tailTerm j)))
+        (Spaces.mulAdd (head arguments j x) (D.apply i (contracted j) x (Contract.tail arguments x)) (SlotSums.sum (Fin.elements k) (slotTerm k (contracted j) (Contract.tail arguments) i x)))
+        (congr!{{Reals.Real} {Reals.Real}} (Spaces.add (coefficientTerm j))
+          (Spaces.mul (head arguments j x) (SlotSums.sum (Fin.elements k) (slotTerm k (contracted j) (Contract.tail arguments) i x)))
+          (SlotSums.sum (Fin.elements k) (tailTerm j))
+          (sym!{{Reals.Real}} (SlotSums.sum (Fin.elements k) (tailTerm j))
+            (Spaces.mul (head arguments j x) (SlotSums.sum (Fin.elements k) (slotTerm k (contracted j) (Contract.tail arguments) i x)))
+            (SlotLaws.multiplyLeft (Fin.elements k) (head arguments j x) (slotTerm k (contracted j) (Contract.tail arguments) i x))))));
+\definition sumDerivative: DifferentiationLaw k -> CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => derivativeTerm i arguments j x) =
+  Spaces.add headSum (Spaces.add coefficientSum tailSum) := \block {
+  \fun (previous: DifferentiationLaw k) \then
+  \let nested: Fin.Fin n -> Reals.Real := \fun (j: Fin.Fin n) => SlotSums.sum (Fin.elements k) (tailTerm j) \then
+  \return eq_reason!{
+    {CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => derivativeTerm i arguments j x)}
+    "=" {CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => Spaces.add (headTerm j) (Spaces.add (coefficientTerm j) (nested j)))} "by" {
+      CoordinateLaws.congruent (Fin.elements n) (\fun (j: Fin.Fin n) => derivativeTerm i arguments j x)
+        (\fun (j: Fin.Fin n) => Spaces.add (headTerm j) (Spaces.add (coefficientTerm j) (nested j))) (termDerivative previous)}
+    "=" {Spaces.add headSum (CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => Spaces.add (coefficientTerm j) (nested j)))} "by" {
+      CoordinateLaws.additive (Fin.elements n) headTerm (\fun (j: Fin.Fin n) => Spaces.add (coefficientTerm j) (nested j))}
+    "=" {Spaces.add headSum (Spaces.add coefficientSum (CoordinateSums.sum (Fin.elements n) nested))} "by" {
+      congr!{{Reals.Real} {Reals.Real}} (Spaces.add headSum) _ _ (CoordinateLaws.additive (Fin.elements n) coefficientTerm nested)}
+    "=" {Spaces.add headSum (Spaces.add coefficientSum tailSum)} "by" {
+      congr!{{Reals.Real} {Reals.Real}} (\fun (v: Reals.Real) => Spaces.add headSum (Spaces.add coefficientSum v)) _ _
+        (Exchange.exchange (Fin.elements n) (Fin.elements k) tailTerm)}
+  }
+};
+\definition law: DifferentiationLaw k -> Partials.derivative U (variableEvaluation (N.Nat^::succ k) omega arguments) i x =
+  derivativeValue (N.Nat^::succ k) omega arguments i x := \block {
+  \fun (previous: DifferentiationLaw k) \then
+  \return eq_reason!{
+    {Partials.derivative U (variableEvaluation (N.Nat^::succ k) omega arguments) i x}
+    "=" {CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => derivativeTerm i arguments j x)} "by" {
+      congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x)
+        (Partials.derivative U (variableEvaluation (N.Nat^::succ k) omega arguments) i) (Sums.function (Fin.elements n) (derivativeTerm i arguments)) (derivative i arguments)}
+    "=" {Spaces.add headSum (Spaces.add coefficientSum tailSum)} "by" {sumDerivative previous}
+    "=" {Spaces.add (Spaces.add headSum coefficientSum) tailSum} "by" {sym!{{Reals.Real}} _ _ (Scalars.assoc headSum coefficientSum tailSum)}
+    "=" {Spaces.add (Spaces.add coefficientSum headSum) tailSum} "by" {congr!{{Reals.Real} {Reals.Real}} (\fun (v: Reals.Real) => Spaces.add v tailSum) _ _ (Scalars.comm headSum coefficientSum)}
+    "=" {Spaces.add coefficientSum (Spaces.add headSum tailSum)} "by" {Scalars.assoc coefficientSum headSum tailSum}
+    "=" {derivativeValue (N.Nat^::succ k) omega arguments i x} "by" {
+      sym!{{Reals.Real}} (derivativeValue (N.Nat^::succ k) omega arguments i x) (Spaces.add coefficientSum (Spaces.add headSum tailSum))
+        (congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add
+          (NextD.apply i omega x (arguments x)) coefficientSum
+          (NextSlots.sum (Fin.elements (N.Nat^::succ k)) (slotTerm (N.Nat^::succ k) omega arguments i x)) (Spaces.add headSum tailSum)
+          coefficientIdentity slotsIdentity)}
+  }
+};

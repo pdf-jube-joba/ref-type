@@ -1,0 +1,33 @@
+\import Charts.Transition[left := left, right := right] \as Transition;
+\import Atlas.Pair[left := left, right := right] \as AtlasPair;
+\definition transition: calculus.Maps[n := n, m := n].Map Transition.domain #image{right} :=
+  AtlasPair.smoothMap (#compatible{M.atlas} left right (member left) (member right));
+\definition included: Open.Included Transition.domain #image{left} :=
+  \fun (x: Reals.Multivariable[n := n].Point)(inDomain: \In[Reals.Multivariable[n := n].Point] (#points{Transition.domain}) x) =>
+    Transition.inLeftImage (\into[Reals.Multivariable[n := n].Point](x, #points{Transition.domain}) \by { inDomain });
+\import Euclidean.Restriction[U := Transition.domain, V := #image{left}] \as Restriction;
+\import Euclidean.Pullback[m := n, U := Transition.domain, V := #image{right}, f := transition] \as Pullback;
+\definition restrict(k: N.Nat^)(omega: Family k): Euclidean.LocalForm Transition.domain k := Restriction.apply k included (omega left);
+\definition transport(k: N.Nat^)(omega: Family k): Euclidean.LocalForm Transition.domain k := Pullback.apply k (omega right);
+\definition Agreement(k: N.Nat^)(omega: Family k): \Prop := restrict k omega = transport k omega;
+\module At(k: N.Nat^);
+\module Product(p, q: N.Nat^);
+
+\module Regrade(k, l: N.Nat^) {
+  \import Euclidean.On[U := Transition.domain].Regrade[k := k, l := l] \as OverlapDegree;
+  \import Restriction.Regrade[k := k, l := l] \as RestrictedDegree;
+  \import Pullback.Regrade[k := k, l := l] \as PulledDegree;
+  \definition family(omega: Family k)(same: k = l): Family l :=
+    \fun (chart: Chart) => Euclidean.On[U := #image{chart}].Regrade[k := k, l := l].cast (omega chart) same;
+  \definition law: \forall (omega: Family k)(same: k = l) -> Agreement k omega -> Agreement l (family omega same) :=
+    \fun (omega: Family k)(same: k = l)(agreement: Agreement k omega) => trans!{{Euclidean.LocalForm Transition.domain l}}
+      (restrict l (family omega same)) (OverlapDegree.cast (restrict k omega) same) (transport l (family omega same))
+      (sym!{{Euclidean.LocalForm Transition.domain l}} (OverlapDegree.cast (restrict k omega) same) (restrict l (family omega same)) (RestrictedDegree.law included (omega left) same))
+      (trans!{{Euclidean.LocalForm Transition.domain l}} (OverlapDegree.cast (restrict k omega) same)
+        (OverlapDegree.cast (transport k omega) same) (transport l (family omega same))
+        (congr!{{Euclidean.LocalForm Transition.domain k} {Euclidean.LocalForm Transition.domain l}}
+          (\fun (eta: Euclidean.LocalForm Transition.domain k) => OverlapDegree.cast eta same) (restrict k omega) (transport k omega) agreement)
+        (PulledDegree.law (omega right) same));
+}
+
+\module Differential(k: N.Nat^);

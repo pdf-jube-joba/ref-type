@@ -1,0 +1,146 @@
+\definition Covered(family: \Pow (\Pow Real.Real)) (a, b: Real.Real): \Prop :=
+  \exists { F: Finite.FiniteSubset \where Space.FiniteSubcover[family, ClosedInterval a b, F] };
+\structure Prefix[family: \Pow (\Pow Real.Real), a, b, x: Real.Real]: \Prop {
+  lower: R.Le a x,
+  upper: R.Le x b,
+  covered: Covered family a x,
+}
+\definition Prefixes(family: \Pow (\Pow Real.Real)) (a, b: Real.Real): \Pow Real.Real :=
+  { x: Real.Real \where Prefix[family, a, b, x] };
+\definition firstPrefix(family: \Pow (\Pow Real.Real)) (a, b: Real.Real):
+  R.Le a b -> Space.IsOpenCover[topology, family, ClosedInterval a b] -> Prefix[family, a, b, a] :=
+  \fun (ab: _) (cover: _) => Prefix[family, a, b, a] {
+    lower := R.leRefl a, upper := ab,
+    covered := Space.unionMemberElim family a (Covered family a a)
+      (\fun (U: \Pow Real.Real) (inFamily: Space.FamilyMember family U) (inU: Space.Member U a) =>
+        Compactness.subcoverExists family (ClosedInterval a a) (Finite.singleton U)
+          (Space.FiniteSubcover[family, ClosedInterval a a, Finite.singleton U] {
+            included := \fun (V: _) (member: Finite.Member (Finite.singleton U) V) =>
+              either!{{V = U} "or" {Logic.False} "either" {Space.FamilyMember family V}
+                "lt:" {\fun (equal: _) => \idelim U = V
+                  \with W: \Pow Real.Real => Space.FamilyMember family W \by { base: inFamily, equality: sym!{\Pow Real.Real} _ _ equal }}
+                "rt:" {Logic.falseElim (Space.FamilyMember family V)}} member,
+            covers := \fun (x: _) (member: Logic.And[R.Le a x, R.Le x a]) =>
+              Space.unionMemberOf (Finite.singleton U) U x (Finite.inSingleton U)
+                (\idelim a = x \with y: Real.Real => Space.Member U y
+                  \by { base: inU, equality: R.leAntisym a x (#left{member}) (#right{member}) }),
+          })) (#covers{cover} a (Logic.And[_, _]::# (R.leRefl a) ab)),
+  };
+\definition belowSupremum(S: Complete.Family) (lower: Real.Real):
+  R.Lt lower (Complete.supremum S) ->
+  \exists { x: Real.Real \where Logic.And[Complete.Member S x, R.Lt lower x] } :=
+  \fun (below: _) => Order.byContradiction
+    (\exists { x: Real.Real \where Logic.And[Complete.Member S x, R.Lt lower x] })
+    (\fun (none: Logic.Not (\exists { x: Real.Real \where Logic.And[Complete.Member S x, R.Lt lower x] })) =>
+      R.ltNotLeReverse lower (Complete.supremum S) below (Complete.supremumLeast S lower
+        (\fun (x: Real.Real) (member: Complete.Member S x) => Order.leOfNotLtReverse x lower
+          (\fun (lt: R.Lt lower x) => none (\exact(\into[Real.Real](x,
+            { x: Real.Real \where Logic.And[Complete.Member S x, R.Lt lower x] }) \by { Logic.And[_, _]::# member lt },
+            \Cast[Real.Real] ({ x: Real.Real \where Logic.And[Complete.Member S x, R.Lt lower x] })))))));
+\definition addPositive(x, h: Real.Real): R.Lt Real.zero h -> R.Lt x (Real.add x h) :=
+  \fun (positive: _) => R.ltReplaceLeft (Real.add x Real.zero) x (Real.add x h)
+    (Laws.addZeroRight x) (Laws.ltAddLeft x Real.zero h positive);
+\definition subPositive(x, h: Real.Real): R.Lt Real.zero h -> R.Lt (Real.sub x h) x :=
+  \fun (positive: _) => Laws.ltAddCancelRight (Real.sub x h) x h
+    (R.ltReplaceLeft x (Real.add (Real.sub x h) h) (Real.add x h)
+      (sym!{Real.Real} _ _ (Distance.subAddCancel x h)) (addPositive x h positive));
+\definition extendPrefix(family: \Pow (\Pow Real.Real)) (a, b, c, t, r: Real.Real) (U: \Pow Real.Real):
+  Prefix[family, a, b, t] -> Space.FamilyMember family U -> R.Lt Real.zero r ->
+  Space.Subset (MetricSpace.Ball Metric.metric c r) U ->
+  R.Lt (Real.sub c (Real.mul Real.half r)) t ->
+  R.Le t (Distance.min b (Real.add c (Real.mul Real.half r))) ->
+  Covered family a (Distance.min b (Real.add c (Real.mul Real.half r))) := \block {
+  \fun (prefix: Prefix[family, a, b, t]) (inFamily: Space.FamilyMember family U) (positive: R.Lt Real.zero r)
+    (within: Space.Subset (MetricSpace.Ball Metric.metric c r) U)
+    (near: R.Lt (Real.sub c (Real.mul Real.half r)) t)
+    (tw: R.Le t (Distance.min b (Real.add c (Real.mul Real.half r)))) \then
+  \takefrom F: \Cast[Finite.FiniteSubset] ({ F: Finite.FiniteSubset \where Space.FiniteSubcover[family, ClosedInterval a t, F] })
+    \by #covered{prefix} \then
+  \let data: Space.FiniteSubcover[family, ClosedInterval a t, F] := \bysub(Finite.FiniteSubset,
+    { F: Finite.FiniteSubset \where Space.FiniteSubcover[family, ClosedInterval a t, F] }, F) \then
+  \let w: Real.Real := Distance.min b (Real.add c (Real.mul Real.half r)) \then
+  \return Compactness.subcoverExists family (ClosedInterval a w) (Finite.insert U F)
+    (Space.FiniteSubcover[family, ClosedInterval a w, Finite.insert U F] {
+      included := \fun (V: _) (member: Finite.Member (Finite.insert U F) V) =>
+        either!{{V = U} "or" {Finite.Member F V} "either" {Space.FamilyMember family V}
+          "lt:" {\fun (equal: _) => \idelim U = V \with W: \Pow Real.Real => Space.FamilyMember family W
+            \by { base: inFamily, equality: sym!{\Pow Real.Real} _ _ equal }}
+          "rt:" {#included{data} V}} member,
+      covers := \fun (x: Real.Real) (member: Space.Member (ClosedInterval a w) x) =>
+        either!{{R.Le x t} "or" {R.Le t x} "either" {Space.Member (Space.Union (Finite.insert U F)) x}
+          "lt:" {\fun (xt: _) => Space.unionMemberElim F x (Space.Member (Space.Union (Finite.insert U F)) x)
+            (\fun (V: _) (inF: _) (inV: _) => Space.unionMemberOf (Finite.insert U F) V x (Finite.inInsertOld U F V inF) inV)
+            (#covers{data} x (Logic.And[_, _]::# (#left{member}) xt))}
+          "rt:" {\fun (tx: _) => Space.unionMemberOf (Finite.insert U F) U x (Finite.inInsertNew U F)
+            (within x (R.leLtTrans (Real.distance c x) (Real.mul Real.half r) r
+              (Estimates.distanceLeOfInterval c x (Real.mul Real.half r)
+                (R.leTrans _ _ _ (Order.leOfLt _ _ near) tx)
+                (R.leTrans _ _ _ (#right{member}) (Distance.minRight b (Real.add c (Real.mul Real.half r)))))
+              (Estimates.halfStrict r positive)))} } (Order.leTotal x t),
+    })
+};
+\definition minStrict(c, b, u: Real.Real): R.Lt c b -> R.Lt c u -> R.Lt c (Distance.min b u) :=
+  \fun (cb: _) (cu: _) => either!{{R.Le b u} "or" {R.Le u b} "either" {R.Lt c (Distance.min b u)}
+    "lt:" {\fun (bu: _) => R.ltReplaceRight c b (Distance.min b u) (sym!{Real.Real} _ _ (Distance.minOfLe b u bu)) cb}
+    "rt:" {\fun (ub: _) => R.ltReplaceRight c u (Distance.min b u) (sym!{Real.Real} _ _ (Distance.minOfGe b u ub)) cu}}
+    (Order.leTotal b u);
+\definition intervalCompactOrdered: \forall (a, b: Real.Real) -> R.Le a b -> Space.IsCompactIn topology (ClosedInterval a b) := \block {
+  \fun (a, b: Real.Real) (ab: R.Le a b) (family: \Pow (\Pow Real.Real))
+    (cover: Space.IsOpenCover[topology, family, ClosedInterval a b]) \then
+  \let first: Prefix[family, a, b, a] := firstPrefix family a b ab cover \then
+  \let S: Complete.Family := \into[\Pow Real.Real](Prefixes family a b, Complete.FamilySet) \by {
+    Logic.And[_, _]::#
+      (\exact(\into[Real.Real](a, Prefixes family a b) \by { first }, \Cast[Real.Real] (Prefixes family a b)))
+      (\exact(\into[Real.Real](b, { u: Real.Real \where Complete.UpperBound (Prefixes family a b) u }) \by {
+        \fun (x: Real.Real) (prefix: Prefix[family, a, b, x]) => #upper{prefix}
+      }, \Cast[Real.Real] ({ u: Real.Real \where Complete.UpperBound (Prefixes family a b) u })))
+  } \then
+  \let c: Real.Real := Complete.supremum S \then
+  \let ac: R.Le a c := Complete.supremumUpper S a first \then
+  \let cb: R.Le c b := Complete.supremumLeast S b (\fun (x: Real.Real) (prefix: Prefix[family, a, b, x]) => #upper{prefix}) \then
+  \return Space.unionMemberElim family c (Covered family a b)
+    (\block {
+      \fun (U: \Pow Real.Real) (inFamily: Space.FamilyMember family U) (inU: Space.Member U c) \then
+      \takefrom r: \Cast[Real.Real] (MetricSpace.NeighborhoodRadius Metric.metric U c)
+        \by #ltr{(MetricTopology.openIff Metric.metric U)} (#open{cover} U inFamily) c inU \then
+      \let radius: Logic.And[R.Lt Real.zero r, Space.Subset (MetricSpace.Ball Metric.metric c r) U] :=
+        \bysub(Real.Real, MetricSpace.NeighborhoodRadius Metric.metric U c, r) \then
+      \let h: Real.Real := Real.mul Real.half r \then
+      \let positive: R.Lt Real.zero h := Estimates.halfOfPositive r (#left{radius}) \then
+      \takefrom t: \Cast[Real.Real] ({ t: Real.Real \where Logic.And[Complete.Member S t, R.Lt (Real.sub c h) t] })
+        \by belowSupremum S (Real.sub c h) (subPositive c h positive) \then
+      \let td: Logic.And[Complete.Member S t, R.Lt (Real.sub c h) t] :=
+        \bysub(Real.Real, { t: Real.Real \where Logic.And[Complete.Member S t, R.Lt (Real.sub c h) t] }, t) \then
+      \let prefix: Prefix[family, a, b, t] := #left{td} \then
+      \let w: Real.Real := Distance.min b (Real.add c h) \then
+      \let cw: R.Le c w := Distance.minGreatest b (Real.add c h) c cb (Order.leOfLt c (Real.add c h) (addPositive c h positive)) \then
+      \let covered: Covered family a w := extendPrefix family a b c t r U prefix inFamily (#left{radius}) (#right{radius}) (#right{td})
+        (R.leTrans t c w (Complete.supremumUpper S t (#left{td})) cw) \then
+      \let wp: Prefix[family, a, b, w] := Prefix[family, a, b, w] {
+        lower := R.leTrans a c w ac cw, upper := Distance.minLeft b (Real.add c h), covered := covered,
+      } \then
+      \let equal: c = b := R.leAntisym c b cb (Order.leOfNotLtReverse b c
+        (\fun (lt: R.Lt c b) => R.ltNotLeReverse c w (minStrict c b (Real.add c h) lt (addPositive c h positive))
+          (Complete.supremumUpper S w wp))) \then
+      \let wb: w = b := Distance.minOfLe b (Real.add c h)
+        (R.leReplaceLeft c b (Real.add c h) equal (Order.leOfLt c (Real.add c h) (addPositive c h positive))) \then
+      \return \idelim w = b \with x: Real.Real => Covered family a x \by { base: covered, equality: wb }
+    }) (#covers{cover} c (Logic.And[_, _]::# ac cb))
+};
+\definition intervalCompact: \forall (a, b: Real.Real) -> Space.IsCompactIn topology (ClosedInterval a b) :=
+  \fun (a, b: Real.Real) => either!{{R.Le a b} "or" {R.Le b a} "either" {Space.IsCompactIn topology (ClosedInterval a b)}
+    "lt:" {intervalCompactOrdered a b}
+    "rt:" {\fun (ba: R.Le b a) => Order.byContradiction (Space.IsCompactIn topology (ClosedInterval a b))
+      (\fun (none: Logic.Not (Space.IsCompactIn topology (ClosedInterval a b))) =>
+        none (\fun (family: \Pow (\Pow Real.Real)) (cover: Space.IsOpenCover[topology, family, ClosedInterval a b]) =>
+          either!{{a = b} "or" {Logic.Not (a = b)} "either" {Covered family a b}
+            "lt:" {\fun (equal: _) => intervalCompactOrdered a b
+              (R.leReplaceRight a a b equal (R.leRefl a)) family cover}
+            "rt:" {\fun (different: _) => Compactness.subcoverExists family (ClosedInterval a b) Finite.empty
+              (Space.FiniteSubcover[family, ClosedInterval a b, Finite.empty] {
+                included := \fun (U: _) (empty: Logic.False) => Logic.falseElim (Space.FamilyMember family U) empty,
+                covers := \fun (x: _) (member: Logic.And[R.Le a x, R.Le x b]) =>
+                  Logic.falseElim (Space.Member (Space.Union Finite.empty) x)
+                    (different (R.leAntisym a b (R.leTrans a x b (#left{member}) (#right{member})) ba)),
+              })}} (Classical.excludedMiddle (a = b))))}}
+    (Order.leTotal a b);

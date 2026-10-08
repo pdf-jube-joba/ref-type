@@ -79,6 +79,7 @@ impl Resolver {
             kind,
             parameters,
             fields,
+            field_spans,
         } = item
         {
             if let Some(kind) = kind {
@@ -146,7 +147,7 @@ impl Resolver {
                     output,
                 );
             }
-            return self.compile_structure(name, parameters, fields, output);
+            return self.compile_structure(name, parameters, fields, field_spans, output);
         }
         let ModuleItem::Scoped { exports, items } = item else {
             self.item(&mut item)?;
@@ -184,7 +185,10 @@ impl Resolver {
         let scope = &mut self.scopes[self.current.0 as usize];
         for name in exports {
             if let Some(id) = local.names.get(name.as_str()) {
-                if scope.names.insert(name.0.clone(), *id).is_some() {
+                if Arc::make_mut(&mut scope.names)
+                    .insert(name.0.clone(), *id)
+                    .is_some()
+                {
                     return Err(self.error(format!("duplicate declaration: {}", name.0)));
                 }
             } else if let Some(template) = local
@@ -219,7 +223,7 @@ impl Resolver {
             LocalAccess::Named { access, child, .. } => {
                 (self.import(self.current, access.as_str())?, child)
             }
-            LocalAccess::Resolved { .. } => return None,
+            LocalAccess::Resolved { .. } | LocalAccess::Instantiated { .. } => return None,
         };
         let spelling = name.as_str().trim_end_matches('^');
         if !spelling.contains("::[")
@@ -261,6 +265,7 @@ impl Resolver {
                         access
                     }
                     LocalAccess::Named { child, .. } => child,
+                    LocalAccess::Instantiated { child, .. } => child,
                 };
                 name.0.push('^');
                 SExp::AccessPath {

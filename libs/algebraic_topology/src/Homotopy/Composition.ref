@@ -1,0 +1,40 @@
+\import topology.Topology[Carrier := C] \as Range;
+\import topology.Continuity[A := B, B := C] \as After;
+\import topology.Composition[A := Cylinder.Carrier, B := B, C := C] \as Compose;
+\import algebraic_topology.Homotopy[A := A, B := C] \as Result;
+\definition postcompose(source: Source.Topology) (middle: Target.Topology) (target: Range.Topology)
+  (f, g: A -> B) (h: Homotopy[source, middle, f, g]) (k: B -> C)
+  (continuous: After.Continuous middle target k):
+  Result.Homotopy[source, target, (\fun (x: A) => k (f x)), (\fun (x: A) => k (g x))] :=
+  \into[Result.Family](\fun (p: Cylinder.Carrier) => k (h p),
+    Result.Homotopy[source, target, (\fun (x: A) => k (f x)), (\fun (x: A) => k (g x))]) \by {
+      Result.Laws[source, target, (\fun (x: A) => k (f x)), (\fun (x: A) => k (g x)), (\fun (p: Cylinder.Carrier) => k (h p))] {
+        continuous := Compose.composeContinuous (Cylinder.topology source) middle target h k
+          (#continuous{(laws source middle f g h)}) continuous,
+        start := \fun (x: A) => congr!{B C} k _ _ (#start{(laws source middle f g h)} x),
+        end := \fun (x: A) => congr!{B C} k _ _ (#end{(laws source middle f g h)} x),
+      }
+    };
+
+\import algebraic_topology.Cylinder[A := C] \as DomainCylinder;
+\import topology.Product[A := Interval.Carrier, B := A].Universal[X := DomainCylinder.Carrier] \as Pair;
+\import topology.Continuity[A := C, B := A] \as Before;
+\import algebraic_topology.Homotopy[A := C, B := B] \as PreResult;
+\definition precompose(domain: Range.Topology) (source: Source.Topology) (target: Target.Topology)
+  (f, g: A -> B) (h: Homotopy[source, target, f, g]) (k: C -> A)
+  (continuous: Before.Continuous domain source k):
+  PreResult.Homotopy[domain, target, (\fun (x: C) => f (k x)), (\fun (x: C) => g (k x))] :=
+  \into[PreResult.Family](\fun (p: DomainCylinder.Carrier) => h (Cylinder.at (DomainCylinder.time p) (k (DomainCylinder.point p))),
+    PreResult.Homotopy[domain, target, (\fun (x: C) => f (k x)), (\fun (x: C) => g (k x))]) \by {
+      PreResult.Laws[domain, target, (\fun (x: C) => f (k x)), (\fun (x: C) => g (k x)),
+        (\fun (p: DomainCylinder.Carrier) => h (Cylinder.at (DomainCylinder.time p) (k (DomainCylinder.point p))))] {
+        continuous := \fun (U: \Pow B) (open: Target.IsOpenIn target U) =>
+          Pair.pairContinuous (DomainCylinder.topology domain) Interval.topology source DomainCylinder.time
+            (\fun (p: DomainCylinder.Carrier) => k (DomainCylinder.point p)) (DomainCylinder.timeContinuous domain)
+            (\fun (V: \Pow A) (openV: Source.IsOpenIn source V) => DomainCylinder.pointContinuous domain
+              (Before.Preimage k V) (continuous V openV))
+            (CylinderMaps.Preimage h U) (#continuous{(laws source target f g h)} U open),
+        start := \fun (x: C) => #start{(laws source target f g h)} (k x),
+        end := \fun (x: C) => #end{(laws source target f g h)} (k x),
+      }
+    };

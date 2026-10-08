@@ -1,0 +1,38 @@
+\definition family(omega: Form p)(eta: Form q): Family (Nat.add p q) :=
+  \fun (chart: Chart) => Euclidean.On[U := #image{chart}].Wedge[p := p, q := q].apply (omega chart) (eta chart);
+\definition compatible: \forall (omega: Form p)(eta: Form q) -> Compatible (Nat.add p q) (family omega eta) :=
+  \fun (omega: Form p)(eta: Form q)(left, right: Chart) => \parent.Pair[left := left, right := right].Product[p := p, q := q].law omega eta
+    ((\bysub(Family p, { omega: Family p \where Compatible p omega }, omega)) left right)
+    ((\bysub(Family q, { eta: Family q \where Compatible q eta }, eta)) left right);
+\definition apply(omega: Form p)(eta: Form q): Form (Nat.add p q) :=
+  \into[Family (Nat.add p q)](family omega eta, { result: Family (Nat.add p q) \where Compatible (Nat.add p q) result }) \by { compatible omega eta };
+\import \parent.At[k := p] \as Left;
+\import \parent.At[k := q] \as Right;
+\import \parent.At[k := Nat.add p q] \as Result;
+\definition additiveLeft: \forall (omega, omega2: Form p)(eta: Form q) -> apply (Left.plus omega omega2) eta = Result.plus (apply omega eta) (apply omega2 eta) :=
+  \fun (omega, omega2: Form p)(eta: Form q) => ext (Nat.add p q) (apply (Left.plus omega omega2) eta) (Result.plus (apply omega eta) (apply omega2 eta))
+    (\fun (chart: Chart) => Euclidean.On[U := #image{chart}].Wedge[p := p, q := q].additiveLeft (omega chart) (omega2 chart) (eta chart));
+\definition additiveRight: \forall (omega: Form p)(eta, eta2: Form q) -> apply omega (Right.plus eta eta2) = Result.plus (apply omega eta) (apply omega eta2) :=
+  \fun (omega: Form p)(eta, eta2: Form q) => ext (Nat.add p q) (apply omega (Right.plus eta eta2)) (Result.plus (apply omega eta) (apply omega eta2))
+    (\fun (chart: Chart) => Euclidean.On[U := #image{chart}].Wedge[p := p, q := q].additiveRight (omega chart) (eta chart) (eta2 chart));
+\definition scalarLeft: \forall (a: Reals.Real)(omega: Form p)(eta: Form q) -> apply (Left.scale a omega) eta = Result.scale a (apply omega eta) :=
+  \fun (a: Reals.Real)(omega: Form p)(eta: Form q) => ext (Nat.add p q) (apply (Left.scale a omega) eta) (Result.scale a (apply omega eta))
+    (\fun (chart: Chart) => Euclidean.On[U := #image{chart}].Wedge[p := p, q := q].scalarLeft a (omega chart) (eta chart));
+\definition scalarRight: \forall (a: Reals.Real)(omega: Form p)(eta: Form q) -> apply omega (Right.scale a eta) = Result.scale a (apply omega eta) :=
+  \fun (a: Reals.Real)(omega: Form p)(eta: Form q) => ext (Nat.add p q) (apply omega (Right.scale a eta)) (Result.scale a (apply omega eta))
+    (\fun (chart: Chart) => Euclidean.On[U := #image{chart}].Wedge[p := p, q := q].scalarRight a (omega chart) (eta chart));
+\import Spaces.Linear[V := Form p, W := Form (Nat.add p q), source := Left.space, target := Result.space] \as LeftMaps;
+\import Spaces.Linear[V := Form q, W := Form (Nat.add p q), source := Right.space, target := Result.space] \as RightMaps;
+\definition leftLinear(eta: Form q): LeftMaps.Map := LeftMaps.Map {
+  apply := \fun (omega: Form p) => apply omega eta,
+  preservesAdd := \fun (omega, omega2: Form p) => additiveLeft omega omega2 eta,
+  preservesScale := \fun (a: Reals.Real)(omega: Form p) => scalarLeft a omega eta,
+};
+\definition rightLinear(omega: Form p): RightMaps.Map := RightMaps.Map {
+  apply := apply omega, preservesAdd := additiveRight omega,
+  preservesScale := \fun (a: Reals.Real)(eta: Form q) => scalarRight a omega eta,
+};
+\definition zeroLeft: \forall (eta: Form q) -> apply Left.zero eta = Result.zero :=
+  \fun (eta: Form q) => #preservesZero{(leftLinear eta)};
+\definition zeroRight: \forall (omega: Form p) -> apply omega Right.zero = Result.zero :=
+  \fun (omega: Form p) => #preservesZero{(rightLinear omega)};

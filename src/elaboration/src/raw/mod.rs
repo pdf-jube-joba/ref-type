@@ -1,5 +1,4 @@
-//! Unclassified elaboration syntax and raw evaluation. Never a kernel certificate.
-pub mod calculus;
+//! Source views, module environments, and declaration provenance over kernel terms.
 pub mod derivation;
 pub mod environment;
 pub mod exp;
@@ -8,8 +7,6 @@ pub mod inductive;
 pub(crate) mod namespaces;
 pub mod printing;
 pub mod program;
-pub mod program_calculus;
-pub mod program_definitions;
 pub mod program_derivation;
 pub mod program_inductive;
 pub mod reflection;

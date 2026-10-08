@@ -1,0 +1,27 @@
+\definition add(u, v: Representative): Representative := Representative {
+  chart := #chart{u}, vector := Vectors.plus #vector{u} (transform #chart{v} #chart{u} #vector{v}),
+};
+\definition scale(c: Real.Real)(v: Representative): Representative := Representative { chart := #chart{v}, vector := Vectors.scale c #vector{v} };
+\definition zero(chart: Chart): Representative := Representative { chart := chart, vector := Vectors.origin };
+\definition addRespects: Quotient.BinaryRespects add :=
+  \fun (x, y, u, v: Representative)(first: Equivalent x y)(second: Equivalent u v) => eq_reason!{
+    {Vectors.plus #vector{y} (transform #chart{v} #chart{y} #vector{v})}
+    "=" {Vectors.plus (transform #chart{x} #chart{y} #vector{x}) (transform #chart{v} #chart{y} (transform #chart{u} #chart{v} #vector{u}))} "by" {
+      congr2!{{Vectors.Vector} {Vectors.Vector} {Vectors.Vector}} Vectors.plus _ _ _ _ first
+        (congr!{{Vectors.Vector} {Vectors.Vector}} (transform #chart{v} #chart{y}) _ _ second)}
+    "=" {Vectors.plus (transform #chart{x} #chart{y} #vector{x}) (transform #chart{u} #chart{y} #vector{u})} "by" {
+      congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.plus (transform #chart{x} #chart{y} #vector{x})) _ _
+        (sym!{{Vectors.Vector}} _ _ (composition #chart{u} #chart{v} #chart{y} #vector{u}))}
+    "=" {Vectors.plus (transform #chart{x} #chart{y} #vector{x}) (transform #chart{x} #chart{y} (transform #chart{u} #chart{x} #vector{u}))} "by" {
+      congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.plus (transform #chart{x} #chart{y} #vector{x})) _ _
+        (composition #chart{u} #chart{x} #chart{y} #vector{u})}
+    "=" {transform #chart{x} #chart{y} (Vectors.plus #vector{x} (transform #chart{u} #chart{x} #vector{u}))} "by" {
+      sym!{{Vectors.Vector}} _ _ (#preservesAdd{(jacobian #chart{x} #chart{y})} #vector{x} (transform #chart{u} #chart{x} #vector{u}))}
+  };
+\definition scaleRespects: \forall (c: Real.Real) -> Quotient.UnaryRespects (scale c) :=
+  \fun (c: Real.Real)(u, v: Representative)(equal: Equivalent u v) => trans!{{Vectors.Vector}} (Vectors.scale c #vector{v})
+    (Vectors.scale c (transform #chart{u} #chart{v} #vector{u})) (transform #chart{u} #chart{v} (Vectors.scale c #vector{u}))
+      (congr!{{Vectors.Vector} {Vectors.Vector}} (Vectors.scale c) _ _ equal)
+      (sym!{{Vectors.Vector}} _ _ (#preservesScale{(jacobian #chart{u} #chart{v})} c #vector{u}));
+\definition zeroRelated: \forall (left, right: Chart) -> Equivalent (zero left) (zero right) :=
+  \fun (left, right: Chart) => sym!{{Vectors.Vector}} _ _ #preservesZero{(jacobian left right)};

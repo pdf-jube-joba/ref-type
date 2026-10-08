@@ -1,19 +1,23 @@
-use crate::hir::{Identifier, LocalAccess};
-use crate::items::{ModItemDefinition, ModItemInductive, ModItemProgramInductive, ModItemRecord};
-use crate::raw::calculus::{exp_subst_map, remap_all_global_ids};
-use crate::raw::derivation::CheckSession;
-#[cfg(test)]
-use crate::raw::environment::ModuleParameter;
-use crate::raw::environment::{
-    CrateEnv, DeclarationRemapping, DefinedConstant, ModuleArgument, ModuleItem,
-    ModuleParameterKind,
-};
-use crate::raw::exp::{Exp, ExpContext, ExpContextEntry};
-use crate::raw::ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId};
-#[cfg(test)]
-use crate::raw::inductive::InductiveTypeSpecs;
 use crate::raw::program::{ProgramContext, ProgramContextEntry};
-use std::{cell::RefCell, collections::HashMap};
+#[cfg(test)]
+use crate::raw::{environment::ModuleParameter, inductive::InductiveTypeSpecs};
+use crate::raw::{
+    environment::{
+        ClosedNamespaceKey, CrateEnv, DeclarationRemapping, DefinedConstant, ModuleArgument,
+        ModuleItem, ModuleParameterKind,
+    },
+    exp::{Exp, ExpContext, ExpContextEntry},
+    ids::{DefId, InductiveId, ModuleId, ModuleParamId, ProgramInductiveId},
+};
+use crate::{
+    hir::{Identifier, LocalAccess},
+    items::{ModItemDefinition, ModItemInductive, ModItemProgramInductive, ModItemRecord},
+    raw::{
+        derivation::CheckSession,
+        remapping::{exp_subst_map, remap_all_global_ids},
+    },
+};
+use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub(crate) enum ItemAccessResult {
@@ -328,6 +332,7 @@ impl ModuleManager {
         Some(record)
     }
 
+    #[cfg(test)]
     fn resolve_start(
         &self,
         env: &CrateEnv,
@@ -346,6 +351,7 @@ impl ModuleManager {
         Ok(module)
     }
 
+    #[cfg(test)]
     pub(crate) fn bind_namespace(
         &mut self,
         env: &mut CrateEnv,
@@ -357,25 +363,58 @@ impl ModuleManager {
         self.bind_namespace_from(env, context, source, None, calls)
     }
 
-    pub(crate) fn bind_namespace_from_alias(
+    #[cfg(test)]
+    pub(crate) fn bind_namespace_from(
         &mut self,
         env: &mut CrateEnv,
         context: &mut ExpContext,
-        base: ModuleId,
+        source: ModuleId,
+        base: Option<ModuleId>,
         calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
     ) -> Result<ModuleId, String> {
-        let source = env.binding(base).source;
-        self.bind_namespace_from(env, context, source, Some(base), calls)
+        self.bind_namespace_in_context(env, context, &Vec::new(), source, base, calls)
     }
 
-    fn bind_namespace_from(
+    pub(crate) fn bind_namespace_in_context(
         &mut self,
         env: &mut CrateEnv,
         context: &mut ExpContext,
+        program_context: &crate::raw::program::ProgramContext,
         mut source: ModuleId,
         base: Option<ModuleId>,
         calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
     ) -> Result<ModuleId, String> {
+        let _cost = timing::costs::Scope::enter("namespace.bind");
+        // A child's argument type can refer to declarations imported by its
+        // parameterized parent. Substituting parameters in the type expression
+        // alone does not specialize those declarations. Publish the parent
+        // namespace first so the child is checked with its declaration map.
+        let mut has_arguments = false;
+        let split = calls.iter().position(|(_, arguments)| {
+            let dependent_stage = has_arguments && !arguments.is_empty();
+            has_arguments |= !arguments.is_empty();
+            dependent_stage
+        });
+        if let Some(split) = split {
+            let mut prefix = calls;
+            let suffix = prefix.split_off(split);
+            let parent = self.bind_namespace_in_context(
+                env,
+                context,
+                program_context,
+                source,
+                base,
+                prefix,
+            )?;
+            return self.bind_namespace_in_context(
+                env,
+                context,
+                program_context,
+                env.binding(parent).source,
+                Some(parent),
+                suffix,
+            );
+        }
         let mut profile = super::profiling::ProfileTimer::start("REF_TYPE_PROFILE_MODULES", || {
             format!(
                 "modules phase=reference from={:?} source={source:?} base={base:?} context={:?} arguments={calls:?} environment={:?} location={:?}",
@@ -472,7 +511,7 @@ impl ModuleManager {
                     (ModuleParameterKind::ProgramType, ModuleArgument::ProgramType(ty)) => {
                         crate::raw::program_derivation::ProgramCheckSession::new(
                             env,
-                            &mut Vec::new(),
+                            &mut program_context.clone(),
                         )
                         .check_value_type(*ty)
                         .map_err(|error| {
@@ -483,20 +522,20 @@ impl ModuleManager {
                         ModuleParameterKind::ProgramValue { ty },
                         ModuleArgument::ProgramValue(value),
                     ) => {
-                        let expected = crate::raw::program_calculus::remap_value_type_global_ids(
+                        let expected = crate::raw::remapping::remap_value_type_global_ids(
                             env.arena(),
                             ty,
                             &remapping.definition_ids,
                             &remapping.program_inductive_ids,
                         );
-                        let expected = crate::raw::program_calculus::subst_value_type_module_params(
+                        let expected = crate::raw::remapping::subst_value_type_module_params(
                             env.arena(),
                             expected,
                             &substitutions,
                         );
                         crate::raw::program_derivation::ProgramCheckSession::new(
                             env,
-                            &mut Vec::new(),
+                            &mut program_context.clone(),
                         )
                         .check_value_term(*value, expected)
                         .map_err(|error| {
@@ -541,6 +580,59 @@ impl ModuleManager {
             return Err("Module instantiation path must contain at least one module".into());
         }
 
+        // Repeated closed instantiations can share the entire immutable graph,
+        // including its namespaces, rather than allocating provisional IDs for
+        // declarations that the specialization cache will immediately reuse.
+        // Arguments containing local variables stay on the uncached path.
+        // A closed instantiation is independent of unused caller bindings.
+        // Source namespaces grow
+        // only by appending items/bindings, so their lengths invalidate entries
+        // recorded before a source module has finished elaborating.
+        let namespace_key = (program_context.is_empty()
+            && env.namespace_arguments_shareable(&substitutions))
+        .then(|| ClosedNamespaceKey {
+            base,
+            route: route
+                .iter()
+                .map(|&id| {
+                    (
+                        id,
+                        env.module(id).items().len(),
+                        env.module(id).bindings().len(),
+                    )
+                })
+                .collect(),
+            arguments: substitutions.clone(),
+        });
+        if let Some(key) = &namespace_key
+            && let Some((binding, dependencies)) = env.closed_namespaces.get(key).cloned()
+        {
+            for dependency in dependencies {
+                env.attach_namespace_binding(self.current, dependency);
+            }
+            return Ok(binding);
+        }
+        // Conversion-equivalent closed arguments give the same nominal graph,
+        // just as in the declaration specialization cache. Reuse that graph
+        // before reserving thousands of already canonical declarations.
+        if let Some(key) = &namespace_key {
+            let reused = env.closed_namespaces.iter().find_map(|(candidate, value)| {
+                (candidate.base == key.base
+                    && candidate.route == key.route
+                    && env.namespace_arguments_equal(&candidate.arguments, &key.arguments))
+                .then(|| value.clone())
+            });
+            if let Some((binding, dependencies)) = reused {
+                for &dependency in &dependencies {
+                    env.attach_namespace_binding(self.current, dependency);
+                }
+                env.closed_namespaces
+                    .insert(key.clone(), (binding, dependencies));
+                return Ok(binding);
+            }
+        }
+        let mut result_bindings = Vec::new();
+
         if let Some(timer) = &mut profile {
             timer.checkpoint("modules phase=arguments");
         }
@@ -548,54 +640,140 @@ impl ModuleManager {
         let cache_misses = std::cell::Cell::new(0usize);
         // Reserve stable IDs and publish only metadata. Declaration bodies are
         // transformed by CrateEnv when one of these IDs is first requested.
-        let mut materialization_sources = Vec::new();
-        for source_module in route {
+        // Imported specialization arguments may refer to any declaration in the
+        // enclosing route. Finalize those IDs before consulting the import cache.
+        let mut materialization_sources: Vec<_> =
+            route.iter().map(|&module| (module, module, true)).collect();
+        for &source_module in &route {
             materialization_sources.extend(env.module(source_module).bindings().iter().map(|id| {
                 let binding = env.binding(*id);
                 (binding.source, binding.materialized, false)
             }));
-            materialization_sources.push((source_module, source_module, true));
         }
+
+        // Repeated imports retain separate namespace metadata, even when their
+        // declarations already share canonical IDs. Materializing all copies
+        // makes an import chain grow exponentially. Coalesce only namespaces
+        // with the same source, declaration identities, and argument environment;
+        // distinct specializations and path components remain separate.
+        let mut seen = HashMap::new();
+        let mut unique_sources = Vec::new();
+        let mut aliases = Vec::new();
+        for (source_module, item_source, path_component) in materialization_sources {
+            let arguments = env
+                .namespace_binding_id(item_source)
+                .map(|id| env.binding(id).arguments.clone());
+            let key = (
+                source_module,
+                env.module(item_source).items().to_vec(),
+                arguments,
+            );
+            if !path_component && let Some(&index) = seen.get(&key) {
+                aliases.push((item_source, index));
+                continue;
+            }
+            let index = unique_sources.len();
+            seen.insert(key, index);
+            unique_sources.push((source_module, item_source, path_component));
+        }
+        let materialization_sources = unique_sources;
 
         struct ReservedGroup {
             source: ModuleId,
+            item_source: ModuleId,
             path_component: bool,
             namespace: ModuleId,
             items: Vec<ModuleItem>,
             origins: HashMap<DefId, DefId>,
+            arguments: Vec<(ModuleParamId, ModuleArgument)>,
         }
         let mut groups = Vec::with_capacity(materialization_sources.len());
         let mut lazy_definitions = Vec::new();
         let mut lazy_inductives = Vec::new();
         let mut lazy_datatypes = Vec::new();
-        for (source_module, item_source, path_component) in materialization_sources {
-            let materialized = env.add_module_in_scope(self.current, context.clone())?;
-            remapping.module_ids.insert(item_source, materialized);
-            env.copy_hir_names(item_source, materialized);
-            let mut origins = HashMap::new();
+        let mut namespaces = Vec::with_capacity(materialization_sources.len());
+        let unchanged_imports = {
+            let mut stability =
+                crate::raw::namespaces::NamespaceStability::new(env, &reflected_substitutions);
+            materialization_sources
+                .iter()
+                .map(|(_, item_source, path_component)| {
+                    !path_component
+                        && stability.arguments(&env.binding(*item_source).arguments)
+                        && env
+                            .module(*item_source)
+                            .items()
+                            .iter()
+                            .all(|item| stability.item(item))
+                })
+                .collect::<Vec<_>>()
+        };
+        let reusable = materialization_sources
+            .iter()
+            .zip(unchanged_imports)
+            .map(
+                |((source_module, item_source, path_component), unchanged)| {
+                    unchanged
+                        || (!path_component
+                            && env.binding(*item_source).arguments.is_empty()
+                            && env.namespace_arguments(*source_module).is_empty())
+                },
+            )
+            .collect::<Vec<_>>();
+        let mut allocated = env
+            .add_modules_in_scope(
+                self.current,
+                context.clone(),
+                reusable.iter().filter(|reuse| !**reuse).count(),
+            )?
+            .into_iter();
+        for ((_, item_source, _), reuse) in materialization_sources.iter().zip(reusable) {
+            // Imports whose complete declaration provenance is unchanged retain
+            // their namespace. Path components and changing specializations
+            // continue through reservation and ordinary conversion below.
+            if reuse {
+                remapping.module_ids.insert(*item_source, *item_source);
+                env.attach_namespace_binding(self.current, *item_source);
+                result_bindings.push(*item_source);
+                namespaces.push(*item_source);
+                continue;
+            }
+            let materialized = allocated.next().expect("allocated import namespace");
+            env.set_program_context(materialized, program_context.clone());
+            remapping.module_ids.insert(*item_source, materialized);
+            namespaces.push(materialized);
+        }
+        for (item_source, index) in aliases {
+            remapping.module_ids.insert(item_source, namespaces[index]);
+        }
+        // All lazy declarations in this instantiation use the same immutable
+        // argument environment; retain it once rather than copying every tuple.
+        let shared_substitutions: Arc<[_]> = substitutions.clone().into();
+        let shared_reflected_substitutions: Arc<[_]> = reflected_substitutions.clone().into();
+        for ((source_module, item_source, path_component), materialized) in
+            materialization_sources.into_iter().zip(namespaces)
+        {
+            if materialized == item_source {
+                continue;
+            }
+            // Imported namespaces keep their own parameter telescope. Applying
+            // the enclosing substitution must not replace its parameter IDs
+            // with the caller's IDs, or subsequent child instantiation and
+            // parameter access lose the imported arguments.
+            let arguments = env.namespace_binding_id(item_source).map_or_else(
+                || env.namespace_arguments(source_module),
+                |binding| env.binding(binding).arguments.clone(),
+            );
             let mut reserve_definition =
                 |env: &mut CrateEnv, remapping: &mut DeclarationRemapping, source_id: DefId| {
-                    let (id, fresh) = env.reserve_lazy_definition(
+                    let id = env.reserve_lazy_definition(
                         materialized,
                         source_id,
-                        substitutions.clone(),
-                        reflected_substitutions.clone(),
-                        remapping,
+                        shared_substitutions.clone(),
+                        shared_reflected_substitutions.clone(),
                     );
                     remapping.definition_ids.insert(source_id, id);
-                    origins.insert(
-                        id,
-                        env.definition_origin(source_id)
-                            .map_or(source_id, |origin| origin.source),
-                    );
-                    if fresh {
-                        cache_misses.set(cache_misses.get() + 1);
-                    } else {
-                        cache_hits.set(cache_hits.get() + 1);
-                    }
-                    if fresh {
-                        lazy_definitions.push(id);
-                    }
+                    lazy_definitions.push(id);
                     id
                 };
             let mut items = Vec::new();
@@ -611,22 +789,13 @@ impl ModuleManager {
                         associated_definitions,
                         inductive,
                     } => {
-                        let (id, fresh) = env.reserve_lazy_inductive(
+                        let id = env.reserve_lazy_inductive(
                             materialized,
                             inductive,
-                            substitutions.clone(),
-                            reflected_substitutions.clone(),
-                            &remapping,
+                            shared_reflected_substitutions.clone(),
                         );
                         remapping.inductive_ids.insert(inductive, id);
-                        if fresh {
-                            cache_misses.set(cache_misses.get() + 1);
-                        } else {
-                            cache_hits.set(cache_hits.get() + 1);
-                        }
-                        if fresh {
-                            lazy_inductives.push(id);
-                        }
+                        lazy_inductives.push(id);
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
@@ -643,22 +812,13 @@ impl ModuleManager {
                         associated_definitions,
                         inductive,
                     } => {
-                        let (id, fresh) = env.reserve_lazy_inductive(
+                        let id = env.reserve_lazy_inductive(
                             materialized,
                             inductive,
-                            substitutions.clone(),
-                            reflected_substitutions.clone(),
-                            &remapping,
+                            shared_reflected_substitutions.clone(),
                         );
                         remapping.inductive_ids.insert(inductive, id);
-                        if fresh {
-                            cache_misses.set(cache_misses.get() + 1);
-                        } else {
-                            cache_hits.set(cache_hits.get() + 1);
-                        }
-                        if fresh {
-                            lazy_inductives.push(id);
-                        }
+                        lazy_inductives.push(id);
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
@@ -677,38 +837,20 @@ impl ModuleManager {
                         inductive,
                         reflected,
                     } => {
-                        let (reflected_id, fresh) = env.reserve_lazy_inductive(
+                        let reflected_id = env.reserve_lazy_inductive(
                             materialized,
                             reflected,
-                            substitutions.clone(),
-                            reflected_substitutions.clone(),
-                            &remapping,
+                            shared_reflected_substitutions.clone(),
                         );
                         remapping.inductive_ids.insert(reflected, reflected_id);
-                        if fresh {
-                            cache_misses.set(cache_misses.get() + 1);
-                        } else {
-                            cache_hits.set(cache_hits.get() + 1);
-                        }
-                        if fresh {
-                            lazy_inductives.push(reflected_id);
-                        }
-                        let (id, fresh) = env.reserve_lazy_program_inductive(
+                        lazy_inductives.push(reflected_id);
+                        let id = env.reserve_lazy_program_inductive(
                             materialized,
                             inductive,
-                            substitutions.clone(),
-                            reflected_substitutions.clone(),
-                            &remapping,
+                            shared_substitutions.clone(),
                         );
                         remapping.program_inductive_ids.insert(inductive, id);
-                        if fresh {
-                            cache_misses.set(cache_misses.get() + 1);
-                        } else {
-                            cache_hits.set(cache_hits.get() + 1);
-                        }
-                        if fresh {
-                            lazy_datatypes.push(id);
-                        }
+                        lazy_datatypes.push(id);
                         let associated_definitions = associated_definitions
                             .into_iter()
                             .map(|(name, id)| (name, reserve_definition(env, &mut remapping, id)))
@@ -727,13 +869,114 @@ impl ModuleManager {
             }
             groups.push(ReservedGroup {
                 source: source_module,
+                item_source,
                 path_component,
                 namespace: materialized,
                 items,
-                origins,
+                origins: HashMap::new(),
+                arguments,
             });
         }
 
+        // Every declaration is resolvable before conversion in the reuse cache.
+        let shared_remapping = env.store_remapping(remapping.clone());
+        for &id in &lazy_definitions {
+            env.set_lazy_definition_remapping(id, shared_remapping);
+        }
+        for &id in &lazy_inductives {
+            env.set_lazy_inductive_remapping(id, shared_remapping);
+        }
+        for &id in &lazy_datatypes {
+            env.set_lazy_program_inductive_remapping(id, shared_remapping);
+        }
+
+        // Parameter-free namespaces always reuse their original declarations.
+        // Finalize them before conversion can materialize a dependent definition:
+        // otherwise that definition permanently retains a provisional nominal ID.
+        groups.sort_by_key(|group| !env.namespace_arguments(group.source).is_empty());
+
+        // Enclosing declarations precede imports; imports retain their dependency order.
+        // Replace reserved IDs with canonical IDs as each specialization is resolved.
+        macro_rules! reuse {
+            ($id:expr, $method:ident, $table:ident) => {{
+                let reserved = *$id;
+                let (source, canonical, fresh) = env.$method(
+                    reserved,
+                    &substitutions,
+                    &reflected_substitutions,
+                    &remapping,
+                );
+                if fresh {
+                    cache_misses.set(cache_misses.get() + 1);
+                } else {
+                    cache_hits.set(cache_hits.get() + 1);
+                }
+                remapping.$table.insert(source, canonical);
+                remapping.$table.insert(reserved, canonical);
+                let shared = env.reserved_remapping_mut(shared_remapping);
+                shared.$table.insert(source, canonical);
+                shared.$table.insert(reserved, canonical);
+                *$id = canonical;
+                source
+            }};
+        }
+        for group in &mut groups {
+            let mut origins = HashMap::new();
+            for item in &mut group.items {
+                match item {
+                    ModuleItem::Definition { definition, .. } => {
+                        let source = reuse!(definition, reuse_lazy_definition, definition_ids);
+                        origins.insert(
+                            *definition,
+                            env.definition_origin(source)
+                                .map_or(source, |origin| origin.source),
+                        );
+                    }
+                    ModuleItem::Inductive {
+                        inductive,
+                        associated_definitions,
+                        ..
+                    }
+                    | ModuleItem::Record {
+                        inductive,
+                        associated_definitions,
+                        ..
+                    } => {
+                        reuse!(inductive, reuse_lazy_inductive, inductive_ids);
+                        for (_, definition) in associated_definitions {
+                            let source = reuse!(definition, reuse_lazy_definition, definition_ids);
+                            origins.insert(
+                                *definition,
+                                env.definition_origin(source)
+                                    .map_or(source, |origin| origin.source),
+                            );
+                        }
+                    }
+                    ModuleItem::ProgramInductive {
+                        inductive,
+                        reflected,
+                        associated_definitions,
+                        ..
+                    } => {
+                        reuse!(reflected, reuse_lazy_inductive, inductive_ids);
+                        reuse!(
+                            inductive,
+                            reuse_lazy_program_inductive,
+                            program_inductive_ids
+                        );
+                        for (_, definition) in associated_definitions {
+                            let source = reuse!(definition, reuse_lazy_definition, definition_ids);
+                            origins.insert(
+                                *definition,
+                                env.definition_origin(source)
+                                    .map_or(source, |origin| origin.source),
+                            );
+                        }
+                    }
+                }
+            }
+            group.origins = origins;
+        }
         if let Some(timer) = &mut profile {
             timer.checkpoint("modules phase=materialize");
             eprintln!(
@@ -756,20 +999,39 @@ impl ModuleManager {
                 remapping.program_inductive_ids.len(),
             );
         }
-        // All declarations and bindings from this import use the same frozen map.
-        let remapping = env.store_remapping(remapping);
-        for id in lazy_definitions {
-            env.set_lazy_definition_remapping(id, remapping);
-        }
-        for id in lazy_inductives {
-            env.set_lazy_inductive_remapping(id, remapping);
-        }
-        for id in lazy_datatypes {
-            env.set_lazy_program_inductive_remapping(id, remapping);
-        }
+        let remapping = shared_remapping;
 
         let mut last_binding = None;
         for group in groups {
+            let arguments = env.substitute_namespace_arguments(
+                &group.arguments,
+                &substitutions,
+                &reflected_substitutions,
+                env.remapping(remapping),
+            );
+            // Unchanged imports need no new namespace metadata. Require exact
+            // canonical declaration identities as well as identical, closed
+            // arguments: neither conversion alone nor an unchanged telescope
+            // is enough to establish that the whole imported graph is shared.
+            if !group.path_component
+                && env.namespace_arguments_shareable(&arguments)
+                && group.items == env.module(group.item_source).items()
+                && arguments == env.binding(group.item_source).arguments
+            {
+                for target in env
+                    .reserved_remapping_mut(remapping)
+                    .module_ids
+                    .values_mut()
+                {
+                    if *target == group.namespace {
+                        *target = group.item_source;
+                    }
+                }
+                env.attach_namespace_binding(self.current, group.item_source);
+                result_bindings.push(group.item_source);
+                continue;
+            }
+            env.copy_hir_names(group.item_source, group.namespace);
             for item in group.items {
                 env.publish_item(group.namespace, item)?;
             }
@@ -777,16 +1039,23 @@ impl ModuleManager {
                 self.current,
                 group.source,
                 group.namespace,
-                substitutions.clone(),
+                arguments,
                 group.origins,
                 remapping,
             );
+            result_bindings.push(binding);
             if group.path_component {
                 last_binding = Some(binding);
             }
         }
 
-        Ok(last_binding.expect("non-empty route was checked above"))
+        env.compact_remapping(remapping);
+        let binding = last_binding.expect("non-empty route was checked above");
+        if let Some(key) = namespace_key {
+            env.closed_namespaces
+                .insert(key, (binding, result_bindings));
+        }
+        Ok(binding)
     }
 
     pub(crate) fn record_associated_reference(
@@ -885,11 +1154,34 @@ impl ModuleManager {
         }
     }
 
+    pub(crate) fn hir_module(&self, module: crate::hir::ModuleId) -> Option<ModuleId> {
+        self.hir_modules.get(&module).copied()
+    }
+
     pub(crate) fn hir_import(&self, env: &CrateEnv, name: &Identifier) -> Option<ModuleId> {
         if let Some(id) = name.1 {
             self.hir_aliases.get(&id).copied()
         } else {
             env.resolve_import(self.current, name.as_str())
+        }
+    }
+
+    pub(crate) fn direct_import_member<'a>(
+        &self,
+        name: &Identifier,
+        access: &'a LocalAccess,
+    ) -> Option<&'a Identifier> {
+        match access {
+            LocalAccess::Resolved { module, access, .. }
+                if name
+                    .1
+                    .and_then(|id| self.hir_imports.get(&id))
+                    .is_some_and(|import| import.target == *module) =>
+            {
+                Some(access)
+            }
+            LocalAccess::Named { access, child, .. } if access == name => Some(child),
+            _ => None,
         }
     }
 
@@ -906,7 +1198,7 @@ impl ModuleManager {
             self.hir_aliases.insert(id, binding);
         }
         let typed = env.binding(binding);
-        for (source, instance) in &import.remapping {
+        for (source, instance) in import.remapping.iter() {
             if let Some(source) = self.hir_modules.get(source).copied() {
                 let target = env
                     .remapping(typed.remapping)
@@ -981,6 +1273,7 @@ impl ModuleManager {
         env: &CrateEnv,
         access: &LocalAccess,
     ) -> Option<ItemAccessResult> {
+        let _cost = timing::costs::Scope::enter("names.get-item");
         let (target, item) = self.resolve_hir_access(env, access)?;
         // Template references are recorded at their definition, before expansion.
         if !matches!(access, LocalAccess::Resolved { .. }) {
@@ -995,13 +1288,14 @@ pub(crate) fn resolve_access(
     from: ModuleId,
     access: &LocalAccess,
 ) -> Option<(ModuleId, ItemAccessResult)> {
+    let _cost = timing::costs::Scope::enter("names.resolve-access");
     let (mut module, reference, inherit) = match access {
         LocalAccess::Current { access, .. } => (from, access.as_str(), true),
         LocalAccess::Named { access, child, .. } => {
             let binding = env.resolve_import(from, access.as_str())?;
             (env.binding(binding).materialized, child.as_str(), false)
         }
-        LocalAccess::Resolved { .. } => return None,
+        LocalAccess::Resolved { .. } | LocalAccess::Instantiated { .. } => return None,
     };
     let (name, _reflected) = reference
         .strip_suffix('^')
@@ -1170,9 +1464,11 @@ fn convert_item(item: &ModuleItem) -> ItemAccessResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::raw::exp::ExpNode;
-    use crate::raw::inductive::{CtorType, InductiveTypeSpecs};
-    use crate::raw::sort::Sort;
+    use crate::raw::{
+        exp::ExpNode,
+        inductive::{CtorType, InductiveTypeSpecs},
+        sort::Sort,
+    };
 
     fn pts_body(definition: &DefinedConstant) -> Exp {
         match definition {
@@ -1310,7 +1606,7 @@ mod tests {
         };
         let first = instantiate(&mut manager, &mut env);
         let second = instantiate(&mut manager, &mut env);
-        assert_ne!(first, second);
+        assert_eq!(first, second);
 
         let ids = |env: &CrateEnv, binding| {
             env.module(env.binding(binding).materialized)
@@ -1336,6 +1632,81 @@ mod tests {
             env.arena().get(pts_body(env.definition(second_ids[1]))),
             ExpNode::DefinedConstant(id) if id == second_ids[0]
         ));
+    }
+
+    #[test]
+    fn closed_namespace_reuse_attaches_dependencies_and_tracks_source_growth() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        let proposition = env.arena().sort(Sort::Prop);
+        let proposition_kind = env.arena().sort(Sort::PropKind);
+        manager
+            .add_child_and_moveto(&mut env, "Source".into(), vec![])
+            .unwrap();
+        let source = manager.current();
+        manager
+            .add_def(
+                &mut env,
+                Identifier("early".into()),
+                DefinedConstant::Pts {
+                    ty: proposition_kind,
+                    body: proposition,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        let instantiate = |manager: &mut ModuleManager, env: &mut CrateEnv| {
+            manager
+                .bind_namespace(
+                    env,
+                    &mut vec![],
+                    None,
+                    vec![(Identifier("Source".into()), vec![])],
+                )
+                .unwrap()
+        };
+        let first = instantiate(&mut manager, &mut env);
+        manager
+            .add_child_and_moveto(&mut env, "OtherOwner".into(), vec![])
+            .unwrap();
+        let reused = instantiate(&mut manager, &mut env);
+        assert_eq!(first, reused);
+        assert!(env.module(manager.current()).bindings().contains(&reused));
+        assert!(env.module(reused).item("early").is_some());
+
+        let local_name = env.intern("unused_local");
+        let local_context = &mut vec![ExpContextEntry {
+            var: local_name,
+            ty: proposition,
+        }];
+        let in_local_context = manager
+            .bind_namespace(
+                &mut env,
+                local_context,
+                Some(1),
+                vec![(Identifier("Source".into()), vec![])],
+            )
+            .unwrap();
+        assert_eq!(in_local_context, first);
+
+        manager.moveto(source);
+        manager
+            .add_def(
+                &mut env,
+                Identifier("late".into()),
+                DefinedConstant::Pts {
+                    ty: proposition_kind,
+                    body: proposition,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        let grown = instantiate(&mut manager, &mut env);
+        assert_ne!(first, grown);
+        assert!(env.module(grown).item("late").is_some());
+        assert!(env.module(first).item("late").is_none());
     }
 
     #[test]
@@ -1566,18 +1937,12 @@ mod tests {
         else {
             unreachable!()
         };
-        let ExpNode::DefinedConstant(remapped_parent) =
-            env.arena().get(pts_body(env.definition(*child_definition)))
-        else {
-            panic!("child definition should refer to the materialized parent definition")
-        };
-        assert_ne!(remapped_parent, parent_definition);
         let child = env
             .arena()
             .alloc(ExpNode::DefinedConstant(*child_definition));
-        assert!(crate::raw::calculus::exp_is_alpha_eq(
+        assert!(crate::kernel_bridge::exp_is_alpha_eq(
             &env,
-            crate::raw::calculus::whnf(&env, child),
+            crate::kernel_bridge::whnf(&env, child),
             argument,
         ));
     }
@@ -1694,15 +2059,289 @@ mod tests {
                 )],
             )
             .unwrap();
+        let ExpNode::ModuleParam(outer_id) = env.arena().get(outer_argument) else {
+            unreachable!()
+        };
+        let ExpNode::ModuleParam(source_id) = env.arena().get(parameter_exp) else {
+            unreachable!()
+        };
+        let replacements = [(outer_id, argument)];
+        let mut stability = crate::raw::namespaces::NamespaceStability::new(&env, &replacements);
+        assert!(!stability.arguments(&[(source_id, ModuleArgument::Pts(imported_value))]));
+        let specialized_dependency =
+            env.remapping(env.binding(binding).remapping).module_ids[&dependency];
+        let ExpNode::ModuleParam(source_parameter) = env.arena().get(parameter_exp) else {
+            unreachable!()
+        };
+        assert_eq!(
+            env.binding(specialized_dependency).arguments,
+            vec![(source_parameter, ModuleArgument::Pts(argument))],
+        );
         let module = env.module(env.binding(binding).materialized);
         let ModuleItem::Definition { definition, .. } = module.item("result").unwrap() else {
             unreachable!()
         };
         let result = env.arena().alloc(ExpNode::DefinedConstant(*definition));
-        assert!(crate::raw::calculus::exp_is_alpha_eq(
+        assert!(crate::kernel_bridge::exp_is_alpha_eq(
             &env,
-            crate::raw::calculus::whnf(&env, result),
+            crate::kernel_bridge::whnf(&env, result),
             argument,
+        ));
+    }
+    #[test]
+    fn closed_import_metadata_is_shared_under_an_outer_substitution() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        let set = env.arena().sort(Sort::Set(0));
+        let proposition = env.arena().sort(Sort::Prop);
+        let proposition_kind = env.arena().sort(Sort::PropKind);
+        manager
+            .add_child_and_moveto(&mut env, "Types".into(), vec![])
+            .unwrap();
+        manager
+            .add_inductive(
+                &mut env,
+                Identifier("Token".into()),
+                vec![],
+                InductiveTypeSpecs::unchecked(vec![], vec![], Sort::Set(0), vec![]),
+            )
+            .unwrap();
+        let ModuleItem::Inductive { inductive, .. } =
+            env.module(manager.current()).item("Token").unwrap()
+        else {
+            unreachable!()
+        };
+        let token = env.arena().alloc(ExpNode::IndType {
+            indspec: *inductive,
+            parameters: vec![],
+        });
+        manager
+            .add_def(
+                &mut env,
+                Identifier("Alias".into()),
+                DefinedConstant::Pts {
+                    ty: set,
+                    body: token,
+                },
+            )
+            .unwrap();
+        let ModuleItem::Definition {
+            definition: alias_id,
+            ..
+        } = env.module(manager.current()).item("Alias").unwrap()
+        else {
+            unreachable!()
+        };
+        let token_alias = env.arena().alloc(ExpNode::DefinedConstant(*alias_id));
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        let closed_parameter = parameter(&mut env, "Universe", set);
+        manager
+            .add_child_and_moveto(&mut env, "Closed".into(), vec![closed_parameter])
+            .unwrap();
+        manager
+            .add_def(
+                &mut env,
+                Identifier("value".into()),
+                DefinedConstant::Pts {
+                    ty: proposition_kind,
+                    body: proposition,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+
+        let parameter = env.intern("A");
+        manager
+            .add_child_and_moveto(
+                &mut env,
+                "Outer".into(),
+                vec![ModuleParameter {
+                    name: parameter,
+                    kind: ModuleParameterKind::Pts { ty: set },
+                }],
+            )
+            .unwrap();
+        let closed = manager
+            .bind_namespace(
+                &mut env,
+                &mut vec![],
+                None,
+                vec![(
+                    Identifier("Closed".into()),
+                    vec![(Identifier("Universe".into()), token.into())],
+                )],
+            )
+            .unwrap();
+        let same_closed = manager
+            .bind_namespace(
+                &mut env,
+                &mut vec![],
+                None,
+                vec![(
+                    Identifier("Closed".into()),
+                    vec![(Identifier("Universe".into()), token_alias.into())],
+                )],
+            )
+            .unwrap();
+        assert_eq!(closed, same_closed);
+        manager
+            .add_import(&mut env, Identifier("P".into()), closed)
+            .unwrap();
+        let ModuleItem::Definition { definition, .. } = env.module(closed).item("value").unwrap()
+        else {
+            unreachable!()
+        };
+        let value = env.arena().alloc(ExpNode::DefinedConstant(*definition));
+        manager
+            .add_def(
+                &mut env,
+                Identifier("result".into()),
+                DefinedConstant::Pts {
+                    ty: proposition_kind,
+                    body: value,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+
+        let carrier = env.intern("Carrier");
+        let argument = env.arena().exp_bound(0);
+        let binding = manager
+            .bind_namespace(
+                &mut env,
+                &mut vec![ExpContextEntry {
+                    var: carrier,
+                    ty: set,
+                }],
+                None,
+                vec![(
+                    Identifier("Outer".into()),
+                    vec![(Identifier("A".into()), argument.into())],
+                )],
+            )
+            .unwrap();
+        assert_eq!(
+            env.remapping(env.binding(binding).remapping).module_ids[&closed],
+            closed
+        );
+        let ModuleItem::Definition { definition, .. } = env.module(binding).item("result").unwrap()
+        else {
+            unreachable!()
+        };
+        let result = env.arena().alloc(ExpNode::DefinedConstant(*definition));
+        assert!(crate::kernel_bridge::exp_is_alpha_eq(
+            &env,
+            crate::kernel_bridge::whnf(&env, result),
+            proposition
+        ));
+    }
+    #[test]
+    fn unchanged_parameterized_import_keeps_its_namespace_identity() {
+        let mut manager = ModuleManager::new();
+        let mut env = CrateEnv::new();
+        let set = env.arena().sort(Sort::Set(0));
+        let parameter = env.intern("A");
+        let parameters = || {
+            vec![ModuleParameter {
+                name: parameter,
+                kind: ModuleParameterKind::Pts { ty: set },
+            }]
+        };
+        manager
+            .add_child_and_moveto(&mut env, "External".into(), parameters())
+            .unwrap();
+        let external = env.arena().exp_module_param(ModuleParamId {
+            module: manager.current(),
+            position: 0,
+        });
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        manager
+            .add_child_and_moveto(&mut env, "Param".into(), parameters())
+            .unwrap();
+        let value = env.arena().exp_module_param(ModuleParamId {
+            module: manager.current(),
+            position: 0,
+        });
+        manager
+            .add_def(
+                &mut env,
+                Identifier("value".into()),
+                DefinedConstant::Pts {
+                    ty: set,
+                    body: value,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        manager
+            .add_child_and_moveto(&mut env, "Outer".into(), parameters())
+            .unwrap();
+        let dependency = manager
+            .bind_namespace(
+                &mut env,
+                &mut vec![],
+                None,
+                vec![(
+                    Identifier("Param".into()),
+                    vec![(Identifier("A".into()), external.into())],
+                )],
+            )
+            .unwrap();
+        manager
+            .add_import(&mut env, Identifier("P".into()), dependency)
+            .unwrap();
+        let ModuleItem::Definition { definition, .. } =
+            env.module(dependency).item("value").unwrap()
+        else {
+            unreachable!()
+        };
+        let value = env.arena().alloc(ExpNode::DefinedConstant(*definition));
+        manager
+            .add_def(
+                &mut env,
+                Identifier("result".into()),
+                DefinedConstant::Pts {
+                    ty: set,
+                    body: value,
+                },
+            )
+            .unwrap();
+        manager.publish_current_module(&mut env).unwrap();
+        manager.moveto_parent(&env);
+        let carrier = env.intern("Carrier");
+        let argument = env.arena().exp_bound(0);
+        let binding = manager
+            .bind_namespace(
+                &mut env,
+                &mut vec![ExpContextEntry {
+                    var: carrier,
+                    ty: set,
+                }],
+                None,
+                vec![(
+                    Identifier("Outer".into()),
+                    vec![(Identifier("A".into()), argument.into())],
+                )],
+            )
+            .unwrap();
+        assert_eq!(
+            env.remapping(env.binding(binding).remapping).module_ids[&dependency],
+            dependency
+        );
+        let ModuleItem::Definition { definition, .. } = env.module(binding).item("result").unwrap()
+        else {
+            unreachable!()
+        };
+        let result = env.arena().alloc(ExpNode::DefinedConstant(*definition));
+        assert!(crate::kernel_bridge::exp_is_alpha_eq(
+            &env,
+            crate::kernel_bridge::whnf(&env, result),
+            external
         ));
     }
 }

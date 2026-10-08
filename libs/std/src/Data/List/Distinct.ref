@@ -1,0 +1,14 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import \parent.Membership[A := A] \as Membership;
+\definition keys(xs: List[A]): \Pow A := { x: A \where Membership.Occurs x xs };
+\definition Distinct(xs: List[A]): \Prop :=
+  \forall (P: List[A] -> \Prop) -> P List[A]::nil ->
+    (\forall (head: A)(tail: List[A]) -> Logic.Not (Membership.Occurs head tail) -> P tail -> P (List[A]::cons head tail)) -> P xs;
+\definition nil: Distinct List[A]::nil :=
+  \fun (P: List[A] -> \Prop)(base: P List[A]::nil)(step: \forall (head: A)(tail: List[A]) ->
+    Logic.Not (Membership.Occurs head tail) -> P tail -> P (List[A]::cons head tail)) => base;
+\definition cons: \forall (head: A)(tail: List[A]) -> Logic.Not (Membership.Occurs head tail) -> Distinct tail -> Distinct (List[A]::cons head tail) :=
+  \fun (head: A)(tail: List[A])(fresh: Logic.Not (Membership.Occurs head tail))(previous: Distinct tail)
+    (P: List[A] -> \Prop)(base: P List[A]::nil)(step: \forall (head: A)(tail: List[A]) ->
+      Logic.Not (Membership.Occurs head tail) -> P tail -> P (List[A]::cons head tail)) =>
+      step head tail fresh (previous P base step);

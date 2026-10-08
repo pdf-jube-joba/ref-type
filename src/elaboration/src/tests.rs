@@ -1,8 +1,11 @@
-use crate::raw::{
-    environment::{DefinedConstant, ModuleItem},
-    exp::ExpNode,
+use crate::{
+    elaborator::GlobalEnvironment,
+    metavariables::ElaborationError,
+    raw::{
+        environment::{DefinedConstant, ModuleItem},
+        exp::ExpNode,
+    },
 };
-use crate::{elaborator::GlobalEnvironment, metavariables::ElaborationError};
 use ::syntax::{
     parse,
     syntax::{SExp, SurfaceMeta},
@@ -394,8 +397,8 @@ fn child_bindings_share_types_and_inherit_parent_substitutions() {
             \import C1.Grandchild[] \as G;
             \definition inherited1: P.Token := C1.inherited;
             \definition inherited2: P.Token := C2.inherited;
-            \vcheck C1.program_inherited: P.PToken;
-            \vcheck C1.inherited_x: Unit;
+            \check C1.program_inherited: P.PToken;
+            \check C1.inherited_x: Unit;
             \definition grandparent_value: P.Token := G.parent_value;
             \definition parent_value: C1.Local := G.child_value;
         }
@@ -488,10 +491,63 @@ fn nested_namespaces_follow_module_dependency_order() {
         \module Consumer {
             \import \root.Parent[] \as P;
             \import P.Operation[].Derived[] \as D;
-            \vcheck D.zero: P.Nat;
+            \check D.zero: P.Nat;
             \definition zeroMatches: D.zero^ = P.Nat^::zero := \refl(P.Nat^::zero);
         }
     "#;
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
+fn diamond_import_chains_keep_namespace_growth_linear() {
+    let mut source = String::from(
+        r"\module Base { \inductive Unit: \Set := | unit: Unit; }
+          \module Layer0 { \import \root.Base[] \as B;
+            \definition value: B.Unit := B.Unit::unit; }",
+    );
+    for level in 1..10 {
+        let previous = level - 1;
+        source.push_str(&format!(
+            r"\module Layer{level} {{
+                \import \root.Layer{previous}[] \as Left;
+                \import \root.Layer{previous}[] \as Right;
+                \definition agree: Left.value = Right.value := \refl(Left.value);
+                \import \root.Base[] \as B;
+                \definition value: B.Unit := Left.value;
+            }}"
+        ));
+    }
+    let modules = parse::str_parse_modules(&source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+    let env = environment.crate_env();
+    let layers = &env.module(env.root_module()).children()[1..];
+    for (level, &layer) in layers.iter().enumerate() {
+        assert!(
+            env.module(layer).bindings().len() <= 2 * (level + 1) + 1,
+            "Layer{level} duplicated its inherited namespaces"
+        );
+    }
+}
+
+#[test]
+fn nested_module_arguments_specialize_parent_imported_types() {
+    let source = r"
+        \module Top(A: \Set) { \structure T: \Set { x: A } }
+        \module Parent(A: \Set) {
+            \import \root.Top[A := A] \as Base;
+            \module Child(value: Base.T) { \definition get: A := #x{value}; }
+        }
+        \module Test {
+            \inductive Point: \Set := | point: Point;
+            \import \root.Top[A := Point] \as Top;
+            \definition x: Top.T := Top.T { x := Point::point };
+            \import \root.Parent[A := Point].Child[value := x] \as C;
+            \definition result: C.get = Point::point := \refl(Point::point);
+        }
+    ";
     let modules = parse::str_parse_modules(source).unwrap();
     let mut environment = GlobalEnvironment::default();
     environment.add_modules_to_root(&modules).unwrap();
@@ -563,6 +619,98 @@ fn final_lowering_does_not_force_unused_instance_items() {
         environment.crate_env().materialization_stats().definitions,
         0
     );
+}
+
+#[test]
+fn direct_definition_specialization_preserves_dependent_carriers_and_scopes() {
+    let source = r"
+        \module Family(A: \Set) {
+            \module At(x: A) {
+                \structure Pair: \Set { value: A, equality: value = x }
+                \definition Carrier: \Set := Pair;
+                \definition point: Carrier := Pair { value := x, equality := \refl(x) };
+                \definition value: A := x;
+                \definition withValue(y: A)(proof: y = x): Pair := Pair { value := y, equality := proof };
+            }
+            \definition Carrier(x: A): \Set := At[x := x].Carrier;
+            \definition point(x: A): Carrier x := At[x := x].point;
+            \definition first(x, y: A): A := At[x := x].value;
+            \definition second(x, y: A): A := At[x := y].value;
+            \definition firstLaw(x, y: A): first x y = x := \refl(x);
+            \definition secondLaw(x, y: A): second x y = y := \refl(y);
+            \definition projection(x: A): #value{(point x)} = x := \refl(x);
+            \definition explicit(x: A): Carrier x := At[x := x].withValue x (\refl(x));
+            \definition explicitProjection(x: A): #value{(explicit x)} = x := \refl(x);
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+    let raw = environment.crate_env();
+    let family = raw.module(raw.root_module()).children()[0];
+    assert!(raw.module(family).bindings().is_empty());
+    assert_eq!(raw.materialization_stats().definitions, 0);
+}
+
+#[test]
+fn direct_definition_specialization_checks_dependent_stages_and_import_captures() {
+    let source = r"
+        \module Family(A: \Set, default: A) {
+            \module At(x: A, y: A) {
+                \definition Carrier: \Set := A;
+                \definition first: A := x;
+                \module Deeper(z: A) {
+                    \definition value: A := z;
+                    \definition chosen(w: A)(proof: w = z): A := w;
+                }
+            }
+        }
+        \module Consumer(A: \Set, a: A) {
+            \import \root.Family[A := A, default := a] \as F;
+            \definition Carrier(x: A): \Set := F.At[x := x, y := a].Carrier;
+            \definition direct(x: A): A := \root.Family[A := A, default := a].At[x := a, y := x].Deeper[z := x].value;
+            \definition imported(x: A): Carrier x := F.At[x := a, y := x].Deeper[z := x].value;
+            \definition contextual(x: A): Carrier x := F.At[x := a, y := x].Deeper[z := x].chosen x (\refl(x));
+            \definition directLaw(x: A): direct x = x := \refl(x);
+            \definition importedLaw(x: A): imported x = x := \refl(x);
+            \definition contextualLaw(x: A): contextual x = x := \refl(x);
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+    let raw = environment.crate_env();
+    let consumer = raw.module(raw.root_module()).children()[1];
+    assert_eq!(raw.module(consumer).bindings().len(), 1);
+
+    let invalid = source.replace("Deeper[z := x].value", "Deeper[z := A].value");
+    let modules = parse::str_parse_modules(&invalid).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    assert!(environment.add_modules_to_root(&modules).is_err());
+}
+
+#[test]
+fn direct_definition_specialization_checks_module_arguments() {
+    for source in [
+        r"
+        \module Family(A: \Set, B: \Set) {
+            \module At(x: A) { \definition value: A := x; }
+            \definition invalid(y: B): A := At[x := y].value;
+        }
+    ",
+        r"
+        \module Family(A: \Set) {
+            \module At(x: A) {
+                \definition value(y: A)(proof: y = x): A := y;
+            }
+            \definition invalid(x, y: A): A := At[x := x].value y (\refl(y));
+        }
+    ",
+    ] {
+        let modules = parse::str_parse_modules(source).unwrap();
+        let mut environment = GlobalEnvironment::default();
+        assert!(environment.add_modules_to_root(&modules).is_err());
+    }
 }
 
 #[test]
@@ -993,24 +1141,6 @@ fn squash_and_box_infer_implicit_program_types() {
 }
 
 #[test]
-fn program_value_and_computation_commands_are_separate() {
-    let source = r#"
-            \module ProgramTypeMeta(A: \VType, x: A) {
-                \definition value: A := x;
-                \definition computation: \F(A) := \return(x);
-                \ceval computation;
-            \vinfer value;
-            \cinfer computation;
-            \vcheck value: A;
-            \ccheck computation: \F(A);
-        }
-    "#;
-    let modules = parse::str_parse_modules(source).unwrap();
-    let mut environment = GlobalEnvironment::default();
-    environment.add_new_module_to_root(&modules[0]).unwrap();
-}
-
-#[test]
 fn module_parameter_hole_uses_the_same_structured_ambiguity() {
     let modules = parse::str_parse_modules(r#"\module Pending(A: _) {}"#).unwrap();
     let mut environment = GlobalEnvironment::default();
@@ -1049,6 +1179,89 @@ fn rich_goal_format_contains_context_and_constraints() {
     assert!(rendered.contains("_2"));
     assert!(rendered.contains("context:"));
     assert!(rendered.contains("constraints:"));
+}
+
+#[test]
+fn structure_field_type_errors_preserve_source_context() {
+    use ::syntax::syntax::{SourceFile, SourceId};
+
+    let category = r"\module Playground {
+  \structure Cat {
+    Ob: \Set,
+    Hom: Ob -> Ob -> \Set,
+    id: \forall (x: Ob) -> Hom x x,
+    cp: \forall (x, y, z: Ob) -> Hom y z -> Hom x y -> Hom y z,
+    l_id: \forall (x, y: Ob) (f: Hom x y) -> cp x y y (id y) f,
+  }
+}";
+    let callback = r"\module Playground {
+  \structure Relation { A: \Set, R: A -> A -> \Prop }
+  \structure Factory {
+    make: \forall(P: \Prop)(h: P) -> Relation,
+  }
+}";
+    for (text, field, line, reason) in [
+        (category, "Cat.l_id", 7, "expected a sort"),
+        (callback, "Factory.make", 4, "no product rule"),
+    ] {
+        let source = std::sync::Arc::new(SourceFile {
+            id: SourceId("structure-error.ref".into()),
+            text: text.into(),
+        });
+        let mut modules = parse::parse_modules_from_source(&source).unwrap();
+        for module in &mut modules {
+            module.source = Some(source.clone());
+            module.header_source = Some(source.clone());
+        }
+        let mut environment = GlobalEnvironment::default();
+        let error = environment.add_modules_to_root(&modules).unwrap_err();
+        let rendered =
+            crate::metavariables::format_elaboration_error(environment.crate_env(), &error);
+        assert!(
+            rendered.contains(&format!(
+                "Structure field '{field}' must have a type or proposition"
+            )),
+            "{rendered}"
+        );
+        assert!(rendered.contains(reason), "{rendered}");
+        assert!(
+            rendered.contains(&format!("structure-error.ref:{line}:5")),
+            "{rendered}"
+        );
+        let ElaborationError::Located { location, .. } = error else {
+            panic!("expected a field location");
+        };
+        let snippet = &source.text[location.span.start..location.span.end];
+        assert_eq!(
+            snippet,
+            text.lines()
+                .nth(line - 1)
+                .unwrap()
+                .trim()
+                .trim_end_matches(',')
+        );
+    }
+
+    let corrected = category
+        .replace("-> Hom y z,", "-> Hom x z,")
+        .replace("-> cp x y y (id y) f,", "-> cp x y y (id y) f = f,");
+    let modules = parse::str_parse_modules(&corrected).unwrap();
+    GlobalEnvironment::default()
+        .add_modules_to_root(&modules)
+        .unwrap();
+}
+
+#[test]
+fn module_parameter_type_errors_keep_module_context() {
+    let modules = parse::str_parse_modules(r"\module Invalid(A: \Set, a: A, bad: a) {}").unwrap();
+    let mut environment = GlobalEnvironment::default();
+    let error = environment.add_modules_to_root(&modules).unwrap_err();
+    let rendered = crate::metavariables::format_elaboration_error(environment.crate_env(), &error);
+    assert!(
+        rendered.contains("Module parameter must have a type or proposition"),
+        "{rendered}"
+    );
+    assert!(rendered.contains("expected a sort"), "{rendered}");
 }
 
 #[test]
@@ -1200,7 +1413,7 @@ fn general_recursion_surface_typechecks_and_normalizes() {
                 }) (f^ s) -> P s) -> P a^)
         ) {
             \definition result: \F(B) := \run[A, B](f, a) \by { termination };
-            \cnormalize \run[A, B](f, a) \by { termination };
+            \normalize \run[A, B](f, a) \by { termination };
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1224,7 +1437,7 @@ fn program_value_let_solves_and_zonks_type_annotations() {
         \module AnnotatedLet(A: \VType, a: A) {
             \definition identity: \F(A) := (\let x: _ := a \in \return(x));
             \definition nested: \F(A) := (\let x: A := a \in (\let y: _ := x \in \return(y)));
-            \cinfer (\let x: _ := a \in \return(x));
+            \infer (\let x: _ := a \in \return(x));
         }
     "#,
     )
@@ -1399,8 +1612,10 @@ fn step_match_distinguishes_branch_and_result_sorts() {
 
 #[test]
 fn run_step_inference_with_metavariables_preserves_the_universe() {
-    use crate::metavariables::MetaStore;
-    use crate::raw::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort};
+    use crate::{
+        metavariables::MetaStore,
+        raw::{environment::CrateEnv, exp::ExpContextEntry, ids::SymbolId, sort::Sort},
+    };
     use ::syntax::syntax::SourceSpan;
 
     for level in [0, 2] {
@@ -1515,10 +1730,12 @@ fn indexed_box_steps_preserve_accessibility_certificates() {
 
 #[test]
 fn program_run_proofs_remain_valid_after_every_reduction() {
-    use crate::raw::{
-        environment::{DefinedConstant, ModuleItem},
-        program_calculus::reduce_computation_once,
-        program_derivation::ProgramCheckSession,
+    use crate::{
+        kernel_bridge::reduce_computation_once,
+        raw::{
+            environment::{DefinedConstant, ModuleItem},
+            program_derivation::ProgramCheckSession,
+        },
     };
     for source in [
         include_str!("../../../tests/ok/general-recursion/finish.ref"),
@@ -1593,7 +1810,7 @@ fn program_proofs_follow_local_binders_and_module_instantiation() {
               }) (f^ s) -> P s) -> P s), a: A) {
           \import \root.Generic[A := A, step := f, total := p] \as G;
           \definition result: \F(A) := G.runCase a;
-          \cnormalize result;
+          \normalize result;
         }
     "#;
     let modules = parse::str_parse_modules(source).unwrap();
@@ -1605,9 +1822,9 @@ fn program_proofs_follow_local_binders_and_module_instantiation() {
 
 #[test]
 fn program_bindings_preserve_shadowing_and_evaluate_the_selected_branch() {
-    use crate::raw::{
-        program::{ComputationTermNode, ValueTermNode},
-        program_calculus::{Evaluation, evaluate_computation},
+    use crate::{
+        kernel_bridge::{Evaluation, evaluate_computation},
+        raw::program::{ComputationTermNode, ValueTermNode},
     };
     let modules = parse::str_parse_modules(include_str!(
         "../../../tests/ok/general-recursion/block-syntax.ref"
@@ -1688,9 +1905,9 @@ fn program_application_classification_preserves_cbpv_boundaries() {
 
 #[test]
 fn program_cbv_arrows_and_lambdas_elaborate_to_alpha_equivalent_cbpv() {
-    use crate::raw::{
-        environment::{DefinedConstant, ModuleItem},
-        program_calculus::{computation_is_alpha_eq, computation_type_is_alpha_eq},
+    use crate::{
+        kernel_bridge::{computation_is_alpha_eq, computation_type_is_alpha_eq},
+        raw::environment::{DefinedConstant, ModuleItem},
     };
 
     let modules = parse::str_parse_modules(include_str!(
@@ -1769,12 +1986,12 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
     };
     let (ty, body) = checked_definition("f");
     let (explicit_ty, explicit_body) = checked_definition("explicit");
-    assert!(crate::raw::program_calculus::computation_type_is_alpha_eq(
+    assert!(crate::kernel_bridge::computation_type_is_alpha_eq(
         env.arena(),
         ty,
         explicit_ty
     ));
-    assert!(crate::raw::program_calculus::computation_is_alpha_eq(
+    assert!(crate::kernel_bridge::computation_is_alpha_eq(
         env.arena(),
         body,
         explicit_body
@@ -1782,7 +1999,7 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
     let reflection = crate::raw::reflection::reflect_computation(env, body).unwrap();
     let explicit_reflection =
         crate::raw::reflection::reflect_computation(env, explicit_body).unwrap();
-    assert!(crate::raw::calculus::exp_is_alpha_eq(
+    assert!(crate::kernel_bridge::exp_is_alpha_eq(
         env,
         reflection,
         explicit_reflection
@@ -1797,9 +2014,9 @@ fn computation_definition_headers_expand_to_explicit_lambdas() {
 
 #[test]
 fn program_records_generate_checked_projections_and_swap_fields() {
-    use crate::raw::{
-        program::{ComputationTermNode as C, ValueTermNode as V},
-        program_calculus::{Evaluation, evaluate_computation},
+    use crate::{
+        kernel_bridge::{Evaluation, evaluate_computation},
+        raw::program::{ComputationTermNode as C, ValueTermNode as V},
     };
     let modules =
         parse::str_parse_modules(include_str!("../../../tests/ok/program-items/records.ref"))
@@ -1900,9 +2117,9 @@ fn program_associated_imports_remap_later_declarations() {
 
 #[test]
 fn program_definition_parameters_are_substituted_simultaneously_under_binders() {
-    use crate::raw::{
-        program::{ComputationTermNode as C, ValueTypeNode as T},
-        program_definitions::instantiate_computation,
+    use crate::{
+        kernel_bridge::instantiate_computation_parameters,
+        raw::program::{ComputationTermNode as C, ValueTypeNode as T},
     };
     let env = crate::raw::environment::CrateEnv::new();
     let arena = env.arena();
@@ -1918,7 +2135,7 @@ fn program_definition_parameters_are_substituted_simultaneously_under_binders() 
             }),
         }),
     });
-    let instantiated = instantiate_computation(
+    let instantiated = instantiate_computation_parameters(
         &env,
         body,
         &[arena.value_type_bound(0), arena.value_type_bound(1)],
@@ -2153,7 +2370,7 @@ fn kernel_declarations_capture_parameters_and_preserve_reference_labels() {
     };
     assert_eq!(
         env.inductive((*inductive).into()).unwrap().parameters.len(),
-        1
+        3
     );
 }
 
@@ -2341,8 +2558,8 @@ fn ascription_supports_program_values_computations_and_reflection() {
             \definition thunk: \U(A ~> \F A) := \thunk identity;
             \definition forced: \F A := \force (thunk \of \U(A ~> \F A)) a;
             \definition reflected: value^ = a^ := \refl(a^);
-            \ccheck computation: \F A;
-            \vcheck a \of A: A;
+            \check computation: \F A;
+            \check a \of A: A;
         }
         \module ProgramUse {
             \inductive Bool: \VType := | yes: Bool;
@@ -2421,4 +2638,87 @@ fn definition_parameters_form_contexts_and_calls_share_the_checked_body() {
         env.referenced_definition(env.definition(selected).unwrap().body),
         Some(choose)
     );
+}
+
+#[test]
+fn carrier_aliases_keep_their_identity_across_nested_specializations() {
+    let source = r"
+        \module Types(A: \Set) { \structure T: \Set { x: A } }
+        \module Pair(A, B: \Set) { \structure P: \Set { first: A, second: B } }
+        \module Product(A, B: \Set) {
+          \import \root.Pair[A := A, B := B] \as P;
+          \definition Carrier: \Set := P.P;
+          \import \root.Types[A := Carrier] \as Top;
+          \module Universal(X: \Set) {
+            \import \root.Types[A := X] \as Source;
+            \definition Source: \Set := Source.T;
+            \definition Target: \Set := Top.T;
+            \definition identity(source: Source) (target: Target): X -> Carrier -> \Prop := \fun (x: X) (y: Carrier) => #x{source} = x;
+          }
+        }
+        \module Complex {
+          \inductive Real: \Set := | zero: Real;
+          \import \root.Product[A := Real, B := Real] \as Product;
+          \definition Carrier: \Set := Product.Carrier;
+          \module Functions(A: \Set) {
+            \import Product.Universal[X := A] \as Into;
+            \definition Source: \Set := Into.Source;
+            \definition Target: \Set := Into.Target;
+            \definition apply(source: Source) (target: Target): A -> Carrier -> \Prop := Into.identity source target;
+          }
+        }
+        \module Consumer {
+          \import \root.Complex[] \as Complex;
+          \import Complex.Functions[A := Complex.Carrier] \as Functions;
+          \definition same(x: Functions.Source): Functions.Target := x;
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+#[test]
+fn debug_printing_bounds_shared_expression_expansion() {
+    let env = crate::raw::environment::CrateEnv::new();
+    let mut expression = env.arena().sort(crate::raw::sort::Sort::Set(0));
+    for _ in 0..30 {
+        expression = env.arena().alloc(crate::raw::exp::ExpNode::App {
+            func: expression,
+            arg: expression,
+        });
+    }
+    let rendered = crate::raw::printing::format_exp(&env, expression);
+    assert!(rendered.len() <= crate::diagnostics::EXPRESSION_BYTES);
+    assert!(rendered.contains("@expr") || rendered.contains('…'));
+}
+
+#[test]
+fn inline_module_structure_results_retain_argument_checks() {
+    let source = r"
+        \module Shapes {
+            \structure Packed { A: \Set, value: A }
+        }
+        \module Factory(A: \Set, x: A) {
+            \import \root.Shapes[] \as Shapes;
+            \definition packed: Shapes.Packed := Shapes.Packed { A := A, value := x };
+        }
+        \module Client {
+            \import \root.Shapes[] \as Shapes;
+            \inductive Unit: \Set := | unit: Unit;
+            \definition make(A: \Set)(x: A): Shapes.Packed :=
+                \root.Factory[A := A, x := x].packed;
+            \definition packed: Shapes.Packed :=
+                \root.Factory[A := Unit, x := Unit::unit].packed;
+            \definition value: Unit := packed.value;
+            \definition law: value = Unit::unit := \refl(value);
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+
+    let invalid = source.replace("x := Unit::unit", "x := \\Set");
+    let modules = parse::str_parse_modules(&invalid).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    assert!(environment.add_modules_to_root(&modules).is_err());
 }

@@ -1,0 +1,26 @@
+\import Charts.Transition[left := left, right := right] \as Direct;
+\definition domains(chart: ChartsIn): Open.OpenSet := Charts.Cocycle[left := left, middle := chart, right := right].domain;
+\definition included: \forall (chart: ChartsIn) -> Open.Included (domains chart) Direct.domain :=
+  \fun (chart: ChartsIn) => Open.intersectionRight (Charts.Transition[left := left, right := chart].domain) Direct.domain;
+\definition Covers: \Prop := \forall (x: Open.Carrier Direct.domain) -> \exists { chart: ChartsIn \where \In[Coordinates.Point] (#points{(domains chart)}) x };
+\module Patch(chart: ChartsIn);
+\definition covers: Covers := \block {
+  \fun (x: Open.Carrier Direct.domain) \then
+  \takefrom chart: \Cast[Charts.Chart] ({ chart: Charts.Chart \where Logic.And[Member atlas chart, Charts.Contains chart (Direct.overlapPoint x)] })
+    \by #covers{atlas} (Direct.overlapPoint x) \then
+  \let witness: Logic.And[Member atlas chart, Charts.Contains chart (Direct.overlapPoint x)] := \bysub(Charts.Chart,
+    { chart: Charts.Chart \where Logic.And[Member atlas chart, Charts.Contains chart (Direct.overlapPoint x)] }, chart) \then
+  \let chosen: ChartsIn := \into[Charts.Chart](chart, #charts{atlas}) \by { #left{witness} } \then
+  \return \exact(\into[ChartsIn](chosen, { chart: ChartsIn \where \In[Coordinates.Point] (#points{(domains chart)}) x }) \by {
+    Patch[chart := chosen].contains x (#right{witness})
+  }, \Cast[ChartsIn] ({ chart: ChartsIn \where \In[Coordinates.Point] (#points{(domains chart)}) x }))
+};
+\definition regular: Compatibility[atlas, left] -> Compatibility[atlas, right] -> \forall (chart: ChartsIn)(i: Coordinates.Coordinate) ->
+  Analysis.SmoothOn (domains chart) (Open.restrict (domains chart) Direct.domain (included chart) (\fun (x: Open.Carrier Direct.domain) => Direct.vector x i)) :=
+  \fun (leftCompatible: Compatibility[atlas, left])(rightCompatible: Compatibility[atlas, right])(chart: ChartsIn)(i: Coordinates.Coordinate) =>
+    Patch[chart := chart].regular (#forward{leftCompatible} chart (\bysub(Charts.Chart, #charts{atlas}, chart)))
+      (#backward{rightCompatible} chart (\bysub(Charts.Chart, #charts{atlas}, chart))) i;
+\module Component(i: Coordinates.Coordinate);
+\definition compatible: Compatibility[atlas, left] -> Compatibility[atlas, right] -> Compatible left right :=
+  \fun (leftCompatible: Compatibility[atlas, left])(rightCompatible: Compatibility[atlas, right])(i: Coordinates.Coordinate) =>
+    Component[i := i].smooth leftCompatible rightCompatible;

@@ -1,0 +1,37 @@
+\import topology.Topology[Carrier := A] \as Topology;
+\structure Space: \Set {
+  topology: Topology.Topology,
+  basepoint: A,
+}
+\module Maps(B: \Set) {
+  \import algebraic_topology.Pointed[A := B] \as Target;
+  \import topology.Continuity[A := A, B := B] \as Continuous;
+  \structure Laws[source: Space, target: Target.Space, f: A -> B]: \Prop {
+    continuous: Continuous.Continuous source.topology target.topology f,
+    pointed: f source.basepoint = target.basepoint,
+  }
+  \definition Map[source: Space, target: Target.Space]: \Set :=
+    \Cast[A -> B] ({ f: A -> B \where Laws[source, target, f] });
+  \definition laws(source: Space) (target: Target.Space) (f: Map[source, target]): Laws[source, target, f] :=
+    \bysub(A -> B, Map[source, target], f);
+
+  \module Composition(C: \Set) {
+    \import algebraic_topology.Pointed[A := C] \as Range;
+    \import algebraic_topology.Pointed[A := B].Maps[B := C] \as After;
+    \import algebraic_topology.Pointed[A := A].Maps[B := C] \as Result;
+    \import topology.Continuity[A := B, B := C] \as Next;
+    \import std.Logic[].Equality[] \as Equality;
+    \use Equality.trans;
+    \use Equality.congr;
+    \definition compose(source: Space) (middle: Target.Space) (target: Range.Space)
+      (f: Map[source, middle]) (g: After.Map[middle, target]): Result.Map[source, target] :=
+      \into[A -> C](\fun (x: A) => g (f x), Result.Map[source, target]) \by {
+        Result.Laws[source, target, (\fun (x: A) => g (f x))] {
+          continuous := \fun (U: \Pow C) (open: _) => #continuous{(laws source middle f)}
+            (Next.Preimage g U) (#continuous{(After.laws middle target g)} U open),
+          pointed := trans!{C} _ _ _ (congr!{B C} g _ _ (#pointed{(laws source middle f)}))
+            (#pointed{(After.laws middle target g)}),
+        }
+      };
+  }
+}

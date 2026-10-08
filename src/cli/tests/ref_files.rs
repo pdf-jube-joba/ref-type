@@ -11,6 +11,11 @@ const PROCESS_TIMEOUT: Duration = Duration::from_secs(20);
 // This project elaborates and checks the entire library. Allow enough time for
 // the debug-build process when it runs concurrently with the other test cases.
 const LIBRARY_TIMEOUT: Duration = Duration::from_secs(180);
+// The uncached topology project also checks finite-dimensional algebra and
+// quotient homotopies; its expanded dependency graph exceeds three minutes.
+const TOPOLOGICAL_K_THEORY_TIMEOUT: Duration = Duration::from_secs(600);
+// Smooth atlas saturation checks the uncached analysis and chart libraries too.
+const MANIFOLDS_DE_RHAM_TIMEOUT: Duration = Duration::from_secs(3600);
 static LIBRARY_CHECK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn workspace_root() -> PathBuf {
@@ -221,12 +226,114 @@ fn library_examples_succeed() {
 }
 
 #[test]
+fn topological_k_theory_foundations_examples_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    let path = workspace.join("tests/projects/topological-k-theory");
+    let output = run_ref_file_with_timeout(
+        &workspace,
+        &path,
+        &["--no-cache"],
+        TOPOLOGICAL_K_THEORY_TIMEOUT,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
+fn manifolds_de_rham_examples_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    let path = workspace.join("tests/projects/manifolds-de-rham");
+    let output = run_ref_file_with_timeout(
+        &workspace,
+        &path,
+        &["--no-cache"],
+        MANIFOLDS_DE_RHAM_TIMEOUT,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
+fn pointwise_quotient_representations_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    for representation in [
+        "01-direct-type",
+        "02-function-alias",
+        "03-explicit-lambda",
+        "04-scoped-lambda",
+        "05-alias-equality",
+    ] {
+        let path = workspace
+            .join("tests/projects/pointwise-quotient")
+            .join(representation);
+        let output = run_ref_file_with_timeout(&workspace, &path, &["--no-cache"], LIBRARY_TIMEOUT)
+            .unwrap_or_else(|error| panic!("{error}"));
+        assert!(output.status.success(), "{}", output_details(&output));
+    }
+}
+
+#[test]
+fn product_compactness_specialization_succeeds() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    let path = workspace.join("tests/projects/product-compactness");
+    let output = run_ref_file_with_timeout(&workspace, &path, &["--no-cache"], LIBRARY_TIMEOUT)
+        .unwrap_or_else(|error| panic!("{error}"));
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
 fn category_examples_succeed() {
     let _check = LIBRARY_CHECK.lock().unwrap();
     let workspace = workspace_root();
     let path = workspace.join("tests/projects/category");
     let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
         .unwrap_or_else(|error| panic!("{error}"));
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
+fn module_expression_library_examples_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    let path = workspace.join("tests/projects/module-expressions");
+    let output = run_ref_file_with_timeout(
+        &workspace,
+        &path,
+        &["--no-cache"],
+        TOPOLOGICAL_K_THEORY_TIMEOUT,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
+fn packages_resolve_temporary_module_expressions() {
+    let fixture = FixtureDirectory::new();
+    fixture.write("shared/ref.toml", "[package]\nname = \"shared\"\n");
+    fixture.write(
+        "shared/src/root.ref",
+        r"\module Family(A: \Set) { \definition Carrier: \Set := A; }",
+    );
+    fixture.write(
+        "main/ref.toml",
+        "[package]\nname = \"main\"\n[dependencies]\nshared = { path = \"../shared\" }\n",
+    );
+    fixture.write(
+        "main/src/root.ref",
+        r"\module Local(A: \Set) { \definition Carrier: \Set := A; }
+        \module Consumer {
+            \definition dependency(A: \Set): \Set := shared.Family[A := A].Carrier;
+            \definition rooted(A: \Set): \Set := \root.Local[A := A].Carrier;
+            \definition same(A: \Set)(x: dependency A): rooted A := x;
+        }",
+    );
+    let output =
+        run_ref_file_with_args(&workspace_root(), &fixture.0.join("main"), &["--no-cache"])
+            .unwrap_or_else(|error| panic!("{error}"));
     assert!(output.status.success(), "{}", output_details(&output));
 }
 
@@ -493,7 +600,18 @@ fn compact_parse_errors_skip_independent_typechecking() {
     let normal = String::from_utf8_lossy(&normal.stderr);
     let compact = String::from_utf8_lossy(&compact.stderr);
     assert!(compact.contains("Broken.ref:1:"), "{compact}");
-    assert_eq!(compact, normal);
+    let diagnostic_lines = |text: &str| {
+        text.lines()
+            .filter(|line| {
+                !line.starts_with("check ")
+                    && !line.starts_with("skip ")
+                    && !line.starts_with("shared (")
+                    && !line.starts_with("total (")
+            })
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(diagnostic_lines(&compact), diagnostic_lines(&normal));
 }
 
 #[test]
@@ -540,9 +658,9 @@ fn external_program_module_parameters_are_instantiated_in_nested_modules() {
   \inductive Unit: \VType := | unit: Unit;
   \import \root.Source[X := Unit, x := Unit::unit] \as S;
   \import \root.Source[X := Unit, x := Unit::unit].Child[] \as C;
-  \vcheck S.value: Unit;
-  \ccheck S.result: \F(Unit);
-  \vcheck C.value: Unit;
+  \check S.value: Unit;
+  \check S.result: \F(Unit);
+  \check C.value: Unit;
   \definition package: \Box[\F(Unit)] := \box[\F(Unit)](\return(C.value));
   \normalize \squash[\F(Unit)](package);
 }
@@ -601,7 +719,14 @@ fn trace_is_on_stderr_and_preserves_command_output() {
     assert!(normal.status.success(), "{}", output_details(&normal));
     assert!(traced.status.success(), "{}", output_details(&traced));
     assert_eq!(normal.stdout, traced.stdout);
-    assert!(normal.stderr.is_empty());
+    assert!(
+        String::from_utf8_lossy(&normal.stderr)
+            .lines()
+            .all(|line| line.starts_with("check ")
+                || line.starts_with("skip ")
+                || line.starts_with("shared (")
+                || line.starts_with("total ("))
+    );
     let stderr = String::from_utf8_lossy(&traced.stderr);
     assert!(stderr.contains("kernel_check"), "{stderr}");
     assert!(stderr.contains("evaluation finished"), "{stderr}");
@@ -735,6 +860,259 @@ fn separate_processes_restore_dependency_environments_after_an_edit() {
     assert!(String::from_utf8_lossy(&clean.stderr).contains("environment_bytes: 0"));
 }
 
+fn dependency_chain(fixture: &FixtureDirectory) -> PathBuf {
+    fixture.write("a/ref.toml", "[package]\nname = \"a\"\n");
+    fixture.write("a/src/root.ref", r"\module Base;");
+    fixture.write(
+        "a/src/Base.ref",
+        r"\definition P: \Prop := \forall (P: \Prop) -> P -> P;",
+    );
+    fixture.write(
+        "b/ref.toml",
+        "[package]\nname = \"b\"\n[dependencies]\na = { path = \"../a\" }\n",
+    );
+    fixture.write(
+        "b/src/root.ref",
+        r"\module Bridge { \import a.Base[] \as A; \definition P: \Prop := A.P; }",
+    );
+    fixture.write(
+        "c/ref.toml",
+        "[package]\nname = \"c\"\n[dependencies]\nb = { path = \"../b\" }\n",
+    );
+    fixture.write("c/src/root.ref", r"\module Client { \import b.Bridge[] \as B; \infer B.P; } \module Independent { \module Child { \infer \Set; } }");
+    fixture.0.join("c")
+}
+
+fn progress_lines(output: &Output) -> Vec<String> {
+    String::from_utf8_lossy(&output.stderr)
+        .lines()
+        .filter(|line| line.starts_with("check ") || line.starts_with("skip "))
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn module_progress_reports_checks_skips_children_and_seconds_in_every_mode() {
+    let fixture = FixtureDirectory::new();
+    let root = dependency_chain(&fixture);
+    for (args, expected) in [
+        (
+            vec![],
+            vec![
+                "check a.Base",
+                "check b.Bridge",
+                "check c.Client",
+                "check c.Independent",
+                "check c.Independent.Child",
+            ],
+        ),
+        (
+            vec![],
+            vec![
+                "skip a.Base",
+                "skip b.Bridge",
+                "skip c.Client",
+                "skip c.Independent",
+                "skip c.Independent.Child",
+            ],
+        ),
+        (
+            vec!["--full-check"],
+            vec![
+                "check a.Base",
+                "check b.Bridge",
+                "check c.Client",
+                "check c.Independent",
+                "check c.Independent.Child",
+            ],
+        ),
+        (
+            vec!["--full-check-local"],
+            vec![
+                "skip a.Base",
+                "skip b.Bridge",
+                "check c.Client",
+                "check c.Independent",
+                "check c.Independent.Child",
+            ],
+        ),
+        (
+            vec!["--no-cache"],
+            vec![
+                "check a.Base",
+                "check b.Bridge",
+                "check c.Client",
+                "check c.Independent",
+                "check c.Independent.Child",
+            ],
+        ),
+    ] {
+        let output = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+        assert!(output.status.success(), "{}", output_details(&output));
+        let lines = progress_lines(&output);
+        assert_eq!(lines.len(), expected.len(), "{lines:?}");
+        for prefix in expected {
+            assert!(
+                lines
+                    .iter()
+                    .any(|line| line.starts_with(&format!("{prefix} ("))),
+                "missing {prefix}: {lines:?}"
+            );
+        }
+        for line in &lines {
+            let seconds = line.split_once(" (").unwrap().1.strip_suffix("s)").unwrap();
+            assert!(seconds.parse::<f64>().unwrap() >= 0.0, "{line}");
+        }
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let seconds = |line: &str| {
+            line.split_once(" (")
+                .unwrap()
+                .1
+                .strip_suffix("s)")
+                .unwrap()
+                .parse::<f64>()
+                .unwrap()
+        };
+        let shared = seconds(
+            stderr
+                .lines()
+                .find(|line| line.starts_with("shared ("))
+                .unwrap(),
+        );
+        let total = seconds(
+            stderr
+                .lines()
+                .find(|line| line.starts_with("total ("))
+                .unwrap(),
+        );
+        let sum = lines.iter().map(|line| seconds(line)).sum::<f64>() + shared;
+        assert!(total > 0.0);
+        assert!(
+            (sum - total).abs() <= total * 0.01,
+            "sum={sum}, total={total}: {stderr}"
+        );
+        let mut quiet_args = args.clone();
+        quiet_args.push("--no-progress");
+        let quiet = run_ref_file_with_args(&fixture.0, &root, &quiet_args).unwrap();
+        assert!(quiet.status.success(), "{}", output_details(&quiet));
+        assert_eq!(quiet.stdout, output.stdout);
+        assert!(quiet.stderr.is_empty(), "{}", output_details(&quiet));
+    }
+}
+
+#[test]
+fn full_check_local_stops_at_a_cached_dependency_and_detects_its_own_edits() {
+    let fixture = FixtureDirectory::new();
+    let root = dependency_chain(&fixture);
+    let first = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert!(first.status.success(), "{}", output_details(&first));
+    assert!(
+        progress_lines(&first)
+            .iter()
+            .any(|line| line.starts_with("check a.Base "))
+    );
+    // Invalid UTF-8 proves that the transitive source is not read at all.
+    fs::write(fixture.0.join("a/src/Base.ref"), [0xff]).unwrap();
+    let cached =
+        run_ref_file_with_args(&fixture.0, &root, &["--full-check-local", "--cache-stats"])
+            .unwrap();
+    assert!(cached.status.success(), "{}", output_details(&cached));
+    assert_eq!(first.stdout, cached.stdout);
+    let lines = progress_lines(&cached);
+    assert!(
+        lines.iter().any(|line| line.starts_with("skip a.Base ")),
+        "{lines:?}"
+    );
+    assert!(
+        lines.iter().any(|line| line.starts_with("skip b.Bridge ")),
+        "{lines:?}"
+    );
+    assert!(
+        lines.iter().any(|line| line.starts_with("check c.Client ")),
+        "{lines:?}"
+    );
+    assert!(
+        String::from_utf8_lossy(&cached.stderr).contains("environment_hits: 1"),
+        "{}",
+        output_details(&cached)
+    );
+    for args in [vec![], vec!["--full-check"], vec!["--no-cache"]] {
+        let output = run_ref_file_with_args(&fixture.0, &root, &args).unwrap();
+        assert_eq!(output.status.code(), Some(1), "{}", output_details(&output));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("Base.ref"));
+    }
+    fixture.write("c/ref.toml", "[package]\nname = \"c\"\n[dependencies]\na = { path = \"../a\" }\nb = { path = \"../b\" }\n");
+    let direct = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert_eq!(direct.status.code(), Some(1), "{}", output_details(&direct));
+    assert!(String::from_utf8_lossy(&direct.stderr).contains("Base.ref"));
+    fixture.write(
+        "c/ref.toml",
+        "[package]\nname = \"c\"\n[dependencies]\nb = { path = \"../b\" }\n",
+    );
+    fixture.write(
+        "b/src/root.ref",
+        r"\module Bridge { \import a.Base[] \as A; \definition P: \Prop := A.P; \infer P; }",
+    );
+    let changed = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert_eq!(
+        changed.status.code(),
+        Some(1),
+        "{}",
+        output_details(&changed)
+    );
+    assert!(String::from_utf8_lossy(&changed.stderr).contains("Base.ref"));
+    fixture.write(
+        "a/src/Base.ref",
+        r"\definition P: \Prop := \forall (P: \Prop) -> P -> P;",
+    );
+    let changed = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert!(changed.status.success(), "{}", output_details(&changed));
+    assert!(
+        progress_lines(&changed)
+            .iter()
+            .any(|line| line.starts_with("check b.Bridge "))
+    );
+    fixture.write(
+        "c/src/root.ref",
+        r"\module Client { \definition bad: \Prop := \Set; }",
+    );
+    let invalid = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert_eq!(
+        invalid.status.code(),
+        Some(1),
+        "{}",
+        output_details(&invalid)
+    );
+    assert!(
+        progress_lines(&invalid)
+            .iter()
+            .any(|line| line.starts_with("check c.Client "))
+    );
+}
+
+#[test]
+fn damaged_dependency_source_cache_falls_back_to_current_sources() {
+    let fixture = FixtureDirectory::new();
+    let root = dependency_chain(&fixture);
+    fixture.write("c/unloaded/ref.toml", "[package]\nname = \"unloaded\"\n");
+    fixture.write("c/unloaded/src/root.ref", "invalid syntax");
+    let first = run_ref_file(&fixture.0, &root).unwrap();
+    assert!(first.status.success(), "{}", output_details(&first));
+    let mut source_records = 0;
+    for entry in fs::read_dir(root.join("refcache")).unwrap() {
+        let path = entry.unwrap().path();
+        if path.to_string_lossy().ends_with(".sources.json") {
+            source_records += 1;
+            fs::write(path, "truncated").unwrap();
+        }
+    }
+    assert_eq!(source_records, 3);
+    fixture.write("a/src/Base.ref", r"\definition P: \Prop := \Set;");
+    let output = run_ref_file_with_args(&fixture.0, &root, &["--full-check-local"]).unwrap();
+    assert_eq!(output.status.code(), Some(1), "{}", output_details(&output));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Base.ref:1:"));
+}
+
 #[test]
 fn diagnostic_cli_options_override_the_environment() {
     let workspace = workspace_root();
@@ -806,4 +1184,149 @@ fn parent_and_external_references_share_checked_child_declarations() {
     let output = String::from_utf8_lossy(&result.stdout);
     let lines: Vec<_> = output.lines().collect();
     assert_eq!(lines.len(), 2, "{output}");
+}
+
+#[test]
+fn structure_result_arrows_check_lambdas_and_their_applications() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r"\module Playground(Carrier: \Set, x: Carrier) {
+  \structure A[Carrier: \Set] { a: Carrier }
+  \structure B[Carrier: \Set] { b: Carrier }
+  \definition AtoB[Carrier: \Set]: A[Carrier] -> B[Carrier] :=
+    \fun (data: A[Carrier]) => B[Carrier] { b := data.a };
+  \definition choose[Carrier: \Set]: A[Carrier] -> A[Carrier] -> B[Carrier] :=
+    \fun (left, right: A[Carrier]) => B[Carrier] { b := right.a };
+  \definition make[Carrier: \Set]: Carrier -> B[Carrier] :=
+    \fun (value: Carrier) => B[Carrier] { b := value };
+  \definition dependent: \forall (Carrier: \Set) -> A[Carrier] -> B[Carrier] :=
+    \fun (Carrier: \Set) => \fun (data: A[Carrier]) => B[Carrier] { b := data.a };
+  \definition captured: \forall (value: Carrier) -> B[Carrier] :=
+    \fun (value: Carrier) => B[Carrier] { b := (\fun (x: Carrier) => value) x };
+  \definition input: A[Carrier] := A[Carrier] { a := x };
+  \definition output: B[Carrier] := AtoB[Carrier] input;
+  \definition chosen: B[Carrier] := choose[Carrier] input input;
+  \definition made: B[Carrier] := make[Carrier] x;
+  \definition dep: B[Carrier] := dependent Carrier input;
+  \definition cap: B[Carrier] := captured x;
+  \definition sameDependent: dep.b = x := \refl(x);
+  \definition sameCaptured: cap.b = x := \refl(x);
+  \definition same: output.b = x := \refl(x);
+  \definition sameChosen: chosen.b = x := \refl(x);
+  \definition sameMade: made.b = x := \refl(x);
+}
+",
+    );
+    let result = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert!(result.status.success(), "{}", output_details(&result));
+}
+
+#[test]
+fn structure_type_projection_diagnostics_explain_value_access_and_keep_the_location() {
+    let fixture = FixtureDirectory::new();
+    let source = r"\module Playground {
+  \structure A: \SetKind {
+    Carrier: \Set,
+    a: Carrier,
+  }
+
+  \structure ALaw {
+    data: A,
+    some: A.a = A.a,
+  }
+}";
+    let root = fixture.write("root.ref", source);
+    let result = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert_eq!(result.status.code(), Some(1), "{}", output_details(&result));
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    for expected in ["structure type 'A'", "data.a", "A::a", "root.ref:9:", "^^^"] {
+        assert!(stderr.contains(expected), "missing {expected}: {stderr}");
+    }
+    fixture.write("root.ref", &source.replace("A.a = A.a", "data.a = data.a"));
+    let valid = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert!(valid.status.success(), "{}", output_details(&valid));
+}
+
+#[test]
+fn generated_projection_diagnostics_show_the_rejected_product_sorts() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r"\module M { \structure Bad: \Prop { b: \Prop } }",
+    );
+    for mode in ["compact", "detailed"] {
+        let result =
+            run_ref_file_with_args(&fixture.0, &root, &["--no-cache", "--diagnostics", mode])
+                .unwrap();
+        assert_eq!(result.status.code(), Some(1), "{}", output_details(&result));
+        let stderr = String::from_utf8_lossy(&result.stderr);
+        for expected in [
+            "Generated projection b",
+            r"domain \Prop and body \PropKind",
+            "root.ref:1:",
+        ] {
+            assert!(stderr.contains(expected), "missing {expected}: {stderr}");
+        }
+    }
+}
+
+#[test]
+fn structure_result_lambdas_check_their_parameter_annotations() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r"\module M(A: \Set, B: \Set) {
+  \structure Box[Carrier: \Set] { value: Carrier }
+  \definition bad: A -> Box[B] := \fun (value: B) => Box[B] { value := value };
+}",
+    );
+    let result = run_ref_file_with_args(&fixture.0, &root, &["--no-cache"]).unwrap();
+    assert_eq!(result.status.code(), Some(1), "{}", output_details(&result));
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(stderr.contains("not convertible"), "{stderr}");
+}
+
+#[test]
+fn cost_profiles_finish_on_success_and_type_errors_without_progress_logs() {
+    let fixture = FixtureDirectory::new();
+    for (source, success) in [
+        (
+            r"\module Root { \definition identity(P: \Prop)(p: P): P := p; }",
+            true,
+        ),
+        (
+            r"\module Root { \definition invalid: \Prop := \Set; }",
+            false,
+        ),
+    ] {
+        let path = fixture.write("root.ref", source);
+        let output = run_ref_file_with_environment(
+            &fixture.0,
+            &path,
+            &["--no-cache", "--no-progress", "--diagnostics", "compact"],
+            PROCESS_TIMEOUT,
+            &[("REF_TYPE_PROFILE_COSTS", "resolve.total,kernel.")],
+        )
+        .unwrap();
+        assert_eq!(
+            output.status.success(),
+            success,
+            "{}",
+            output_details(&output)
+        );
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("cost=resolve.total calls=1"), "{stderr}");
+        assert!(
+            stderr.contains("cost_group=kernel exclusive_us="),
+            "{stderr}"
+        );
+        assert_eq!(
+            stderr.matches("cost_total elapsed_us=").count(),
+            1,
+            "{stderr}"
+        );
+        assert!(!stderr.contains("cost=resolve.front-binding"), "{stderr}");
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("cost="));
+    }
 }

@@ -1,0 +1,44 @@
+\inductive Point: \Set := | point: Point;
+\import topology.Topology[Carrier := Point] \as Source;
+\import algebraic_topology.Interval[] \as Interval;
+\import algebraic_topology.Cylinder[A := Point] \as Cylinder;
+\import algebraic_topology.Homotopy[A := Point, B := Interval.Carrier] \as Paths;
+\definition path: Paths.Homotopy[Source.Discrete, Interval.topology,
+  (\fun (_: Point) => Interval.start), (\fun (_: Point) => Interval.end)] :=
+  \into[Paths.Family](Cylinder.time, Paths.Homotopy[Source.Discrete, Interval.topology,
+    (\fun (_: Point) => Interval.start), (\fun (_: Point) => Interval.end)]) \by {
+      Paths.Laws[Source.Discrete, Interval.topology, (\fun (_: Point) => Interval.start), (\fun (_: Point) => Interval.end), Cylinder.time] {
+        continuous := Cylinder.timeContinuous Source.Discrete,
+        start := \fun (_: Point) => \refl(Interval.start),
+        end := \fun (_: Point) => \refl(Interval.end),
+      }
+    };
+\definition backwards: _ := Paths.reverse Source.Discrete Interval.topology
+  (\fun (_: Point) => Interval.start) (\fun (_: Point) => Interval.end) path;
+\definition backwardsStart: backwards (Cylinder.at Interval.start Point::point) = Interval.end :=
+  #start{(Paths.laws Source.Discrete Interval.topology (\fun (_: Point) => Interval.end) (\fun (_: Point) => Interval.start) backwards)} Point::point;
+\import Paths.Composition[C := Point] \as Composition;
+\import topology.Maps[A := Point, B := Point].Identity[] \as Identity;
+\definition precomposed: _ := Composition.precompose Source.Discrete Source.Discrete Interval.topology
+  (\fun (_: Point) => Interval.start) (\fun (_: Point) => Interval.end) path (\fun (x: Point) => x) (Identity.continuous Source.Discrete);
+\import topology.Homeomorphism[A := Interval.Carrier, B := Interval.Carrier] \as Homeo;
+\import algebraic_topology.HomotopyEquivalence[A := Interval.Carrier, B := Interval.Carrier] \as Equivalence;
+\definition reflected: Homeo.Homeomorphism[Interval.topology, Interval.topology] := Homeo.Homeomorphism[Interval.topology, Interval.topology] {
+  forward := Interval.reverse, backward := Interval.reverse,
+  leftInverse := Interval.reverseInvolutive, rightInverse := Interval.reverseInvolutive,
+  forwardContinuous := Interval.reverseContinuous, backwardContinuous := Interval.reverseContinuous,
+};
+\definition reflectedEquivalence: Equivalence.Equivalence[Interval.topology, Interval.topology] := Equivalence.fromHomeomorphism Interval.topology Interval.topology reflected;
+\import Paths.Concatenation[] \as Concatenation;
+\definition roundTrip: Paths.Homotopy[Source.Discrete, Interval.topology,
+  (\fun (_: Point) => Interval.start), (\fun (_: Point) => Interval.start)] :=
+  Concatenation.concatenate Source.Discrete Interval.topology
+    (\fun (_: Point) => Interval.start) (\fun (_: Point) => Interval.end) (\fun (_: Point) => Interval.start) path backwards;
+\definition roundTripEnds: roundTrip (Cylinder.at Interval.end Point::point) = Interval.start :=
+  #end{(Paths.laws Source.Discrete Interval.topology
+    (\fun (_: Point) => Interval.start) (\fun (_: Point) => Interval.start) roundTrip)} Point::point;
+\definition initialContinuous: _ := Paths.startContinuous Source.Discrete Interval.topology
+  (\fun (_: Point) => Interval.start) (\fun (_: Point) => Interval.end) path;
+\import Equivalence.Composition[C := Interval.Carrier] \as Equivalences;
+\definition reflectedTwice: Equivalence.Equivalence[Interval.topology, Interval.topology] :=
+  Equivalences.compose Interval.topology Interval.topology Interval.topology reflectedEquivalence reflectedEquivalence;

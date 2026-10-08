@@ -1,16 +1,15 @@
-use std::collections::HashMap;
-
-use crate::raw::{
-    calculus::{
-        exp_subst_map, instantiate_outer_telescope, remap_ambient_indices, shift_bound_indices,
-    },
-    derivation::{CheckSession, JudgementError},
-    ids::{DefId, InductiveId, ModuleParamId, SymbolId},
-    sort::Sort,
-    utils,
-};
-
 use super::exp::*;
+use crate::{
+    kernel_bridge::{instantiate_outer_telescope, remap_ambient_indices, shift_bound_indices},
+    raw::{
+        derivation::{CheckSession, JudgementError},
+        ids::{DefId, InductiveId, ModuleParamId, SymbolId},
+        remapping::exp_subst_map,
+        sort::Sort,
+        utils,
+    },
+};
+use std::collections::HashMap;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct InductiveTypeSpecs {
@@ -28,7 +27,7 @@ impl InductiveTypeSpecs {
         inductives: &HashMap<InductiveId, InductiveId>,
     ) -> Self {
         let remap =
-            |exp| crate::raw::calculus::remap_global_ids(arena, exp, definitions, inductives);
+            |exp| crate::raw::remapping::remap_global_ids(arena, exp, definitions, inductives);
         Self {
             parameters: self
                 .parameters
@@ -154,7 +153,7 @@ impl CtorType {
         inductives: &HashMap<InductiveId, InductiveId>,
     ) -> Self {
         let remap =
-            |exp| crate::raw::calculus::remap_global_ids(arena, exp, definitions, inductives);
+            |exp| crate::raw::remapping::remap_global_ids(arena, exp, definitions, inductives);
         Self {
             telescope: self
                 .telescope
@@ -376,7 +375,7 @@ pub fn case_type(
     let motive = utils::assoc_apply(arena, shifted_q, indices);
     let result = match arena.get(motive) {
         ExpNode::Lam { body, .. } => {
-            crate::raw::calculus::instantiate(arena, body, applied_constructor)
+            crate::kernel_bridge::instantiate(arena, body, applied_constructor)
         }
         _ => arena.alloc(ExpNode::App {
             func: motive,

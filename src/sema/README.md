@@ -2,7 +2,9 @@
 
 `sema::Database` は immutable な `SourceSnapshot` から検査結果を計算する。
 CLI と LSP が同じ API を利用する。
+`sema` は [project](../project/README.md#source-snapshot) の `SourceSnapshot` を再公開する。
 crate ごとの役割は [言語処理系](../../doc/book/src/language/implementation.md) を参照。
+CLI の操作は [利用方法](../USAGE.md) を参照。
 
 ## API
 
@@ -18,10 +20,6 @@ let path = "libs/std/src/Data/Nat.ref";
 let edited = source.with_file(path, std::fs::read_to_string(path)?);
 let parsed = db.parse(&edited, path, ParseKind::Module);
 ```
-
-snapshot は source tree と path dependencies の内容・ファイル identity を読み込み時に固定する。
-`with_file` / `without_file` は元の snapshot を保持して編集後の snapshot を作る。
-メモリ上だけの source は `SourceSnapshot::new` と `insert` で構築できる。
 
 | 問い合わせ | 結果 |
 | --- | --- |
@@ -50,20 +48,12 @@ parse cache はファイル identity・内容・解析方式、semantic cache �
 破損・形式違い・読み込み失敗は再計算し、保存失敗は検証結果を変えず統計に記録する。
 サイズ上限や保存候補の選択は [environment.rs](src/environment.rs)、実装 fingerprint は [build.rs](build.rs) を参照。
 
-## CLI と検証
+package 全体の検証に成功すると、package ごとに依存先のソースとファイル identity を含む snapshot を `.sources.json` に保存する。
+`Database::read_snapshot(path, true)` は依存 package 自身のソース・manifest・checker の fingerprint を照合し、一致する snapshot の推移的な依存を取り込む。
+`CheckOptions::force_local` は入口 package を再検査し、依存 package の結果と入口より前の環境 checkpoint を再利用する。
+`CheckOptions::progress` は子 module を含むソース module ごとの検査・省略と所要時間を通知する。
 
-リポジトリのルートで同じコマンドを二度実行すると、別プロセスでの再利用を確認できる。
-
-```sh
-cargo run -p cli --release --locked -- libs/std --cache-stats
-cargo run -p cli --release --locked -- libs/std --cache-stats
-cargo run -p cli --release --locked -- libs/std --no-cache
-cargo run -p cli --release --locked -- libs/std --full-check
-```
-
-`--no-cache` は永続キャッシュの読み書きを無効にし、`--full-check` は再検証後にキャッシュを更新する。
-保存先などの指定は [利用方法](../USAGE.md#検査とキャッシュ) を参照。
-`environment_hits` は復元した checkpoint 数、`restored_modules` は復元で検査を省略した module 数、`environment_bytes` は保持中の圧縮 checkpoint の合計サイズである。
+## 検証
 
 [semantic API のテスト](tests/semantic.rs) は編集、依存変更、位置情報、永続化と破損時の再構築を確認する。
 [incremental example](examples/incremental.rs) は buffer 編集後の結果と全再構築の一致も検査する。

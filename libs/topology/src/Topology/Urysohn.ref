@@ -1893,6 +1893,23 @@
     \exists { r : Q.Fraction \where
       Logic.And[Q.lt r q, Logic.Not (R.mem (f x) r)] } };
 
+\definition scaleNonnegative(Index: \Set) (topology: Topology) (scale: OrderedScale[Index, topology]) (x: Carrier):
+  R.Le Real.zero (scaleValue Index topology scale x) :=
+  \fun (q: Q.Fraction) (member: R.mem Real.zero q) =>
+    valueBelowZero Index topology scale x q (RealLaws.ofRatMemLt Q.zero q member);
+\definition scaleBounded(Index: \Set) (topology: Topology) (scale: OrderedScale[Index, topology]) (x: Carrier):
+  R.Le (scaleValue Index topology scale x) Real.one :=
+  \fun (q: Q.Fraction) (member: R.mem (scaleValue Index topology scale x) q) =>
+    either!{{Q.lt q Q.zero} "or" {\exists { i: Index \where
+      Logic.And[Q.lt q (#label{scale} i), Logic.Not (Member (#envelope{scale} i) x)] }} "either" {R.mem Real.one q}
+      "lt:" {\fun (negative: _) => RealLaws.ofRatMem Q.one q (QOrder.ltTrans q Q.zero Q.one negative QOrder.zeroLtOne)}
+      "rt:" {\block {
+        \fun (witness: \exists { i: Index \where Logic.And[Q.lt q (#label{scale} i), Logic.Not (Member (#envelope{scale} i) x)] }) \then
+        \takefrom i: \Cast[Index] ({ i: Index \where Logic.And[Q.lt q (#label{scale} i), Logic.Not (Member (#envelope{scale} i) x)] }) \by witness \then
+        \let data: Logic.And[Q.lt q (#label{scale} i), Logic.Not (Member (#envelope{scale} i) x)] :=
+          \bysub(Index, { i: Index \where Logic.And[Q.lt q (#label{scale} i), Logic.Not (Member (#envelope{scale} i) x)] }, i) \then
+        \return RealLaws.ofRatMem Q.one q (QOrder.ltTrans q (#label{scale} i) Q.one (#left{data}) (#labelBelowOne{scale} i))
+      }}} (valueCutMember Index topology scale x q member);
 \structure UrysohnFunction[topology: Topology, F, G: \Pow Carrier]: \Set {
   value: Carrier -> R.Real,
   lowerOpen: \forall (q: Q.Fraction) ->
@@ -1901,6 +1918,8 @@
     IsOpenIn topology (FunctionUpperCut value q),
   zeroOn: \forall (x: Carrier) -> Member F x -> value x = Real.zero,
   oneOn: \forall (x: Carrier) -> Member G x -> value x = Real.one,
+  nonnegative: \forall (x: Carrier) -> R.Le Real.zero (value x),
+  bounded: \forall (x: Carrier) -> R.Le (value x) Real.one,
 }
 
 \definition normalUrysohn(topology: Topology):
@@ -1951,6 +1970,8 @@
 
         lowerOpen := lowerRayOpen L.List[B.Bool^] topology scale,
         upperOpen := upperCutOpen L.List[B.Bool^] topology scale,
+        nonnegative := scaleNonnegative L.List[B.Bool^] topology scale,
+        bounded := scaleBounded L.List[B.Bool^] topology scale,
         zeroOn := scaleValueZero L.List[B.Bool^] topology scale F
           (\fun (word: L.List[B.Bool^]) =>
             closedWithinDescendantOpen topology select root word),

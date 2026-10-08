@@ -1,0 +1,70 @@
+\definition evaluate(v: Last.View): ScalarFunction U :=
+  \induction (v: Last.View) \return ScalarFunction U \with {
+    | empty: f
+    | snoc: \fun (prefix: Directions)(i: Coordinate) => jets i prefix
+  } v;
+\definition family(directions: Directions): ScalarFunction U := evaluate (Last.view directions);
+\definition recover: \forall (v: Last.View) -> family (Last.restore v) = evaluate v :=
+  \fun (v: Last.View) => congr!{Last.View {ScalarFunction U}} evaluate _ _ (Last.viewRestore v);
+\definition prepend: \forall (j: Coordinate)(v: Last.View) -> family (Directions::cons j (Last.restore v)) = evaluate (Last.prepend j v) :=
+  \fun (j: Coordinate)(v: Last.View) => congr!{Last.View {ScalarFunction U}} (\fun (w: Last.View) => evaluate (Last.prepend j w)) _ _ (Last.viewRestore v);
+\definition viewPartial: (\forall (i: Coordinate) -> Analysis.HasPartialDerivative U f i (g i)) ->
+  (\forall (i: Coordinate) -> ContDiffLaws[U, g i, k, jets i]) -> \forall (v: Last.View) -> NatLaws.Lt (order (Last.restore v)) (N.Nat^::succ k) ->
+  \forall (j: Coordinate) -> Analysis.HasPartialDerivative U (family (Last.restore v)) j (family (Directions::cons j (Last.restore v))) :=
+  \fun (firstPartials: \forall (i: Coordinate) -> Analysis.HasPartialDerivative U f i (g i))(jetLaws: \forall (i: Coordinate) -> ContDiffLaws[U, g i, k, jets i]) => \induction (v: Last.View) \return NatLaws.Lt (order (Last.restore v)) (N.Nat^::succ k) ->
+    \forall (j: Coordinate) -> Analysis.HasPartialDerivative U (family (Last.restore v)) j (family (Directions::cons j (Last.restore v))) \with {
+      | empty: \fun (bound: _)(j: Coordinate) => \idelim g j = jets j Directions::nil
+        \with h: ScalarFunction U => Analysis.HasPartialDerivative U f j h \by {
+          base: firstPartials j, equality: sym!{{ScalarFunction U}} _ _ (#function{(#partials{(jetLaws j)})})
+        }
+      | snoc: \block {
+        \fun (prefix: Directions)(i: Coordinate)(bound: _)(j: Coordinate) \then
+        \let orderBound: NatLaws.Lt (order prefix) k := \idelim order (Last.restore (Last.View::snoc prefix i)) = N.Nat^::succ (order prefix)
+          \with m: N.Nat^ => NatLaws.Lt m (N.Nat^::succ k) \by { base: bound, equality: Last.orderSnoc prefix i } \then
+        \let derivative: Analysis.HasPartialDerivative U (jets i prefix) j (jets i (Directions::cons j prefix)) := #derivative{(#partials{(jetLaws i)})} prefix orderBound j \then
+        \let source: Analysis.HasPartialDerivative U (family (Last.restore (Last.View::snoc prefix i))) j (jets i (Directions::cons j prefix)) :=
+          \idelim jets i prefix = family (Last.restore (Last.View::snoc prefix i)) \with h: ScalarFunction U => Analysis.HasPartialDerivative U h j (jets i (Directions::cons j prefix)) \by {
+            base: derivative, equality: sym!{{ScalarFunction U}} _ _ (recover (Last.View::snoc prefix i))
+          } \then
+        \return \idelim jets i (Directions::cons j prefix) = family (Directions::cons j (Last.restore (Last.View::snoc prefix i)))
+          \with h: ScalarFunction U => Analysis.HasPartialDerivative U (family (Last.restore (Last.View::snoc prefix i))) j h \by {
+            base: source, equality: sym!{{ScalarFunction U}} _ _ (prepend j (Last.View::snoc prefix i))
+          }
+      }
+    };
+\definition viewContinuous: Analysis.ContinuousOn U f -> (\forall (i: Coordinate) -> ContDiffLaws[U, g i, k, jets i]) ->
+  \forall (v: Last.View) -> NatLaws.Le (order (Last.restore v)) (N.Nat^::succ k) -> Analysis.ContinuousOn U (family (Last.restore v)) :=
+  \fun (functionContinuous: Analysis.ContinuousOn U f)(jetLaws: \forall (i: Coordinate) -> ContDiffLaws[U, g i, k, jets i]) => \induction (v: Last.View) \return NatLaws.Le (order (Last.restore v)) (N.Nat^::succ k) -> Analysis.ContinuousOn U (family (Last.restore v)) \with {
+    | empty: \fun (bound: _) => functionContinuous
+    | snoc: \block {
+      \fun (prefix: Directions)(i: Coordinate)(bound: _) \then
+      \let orderBound: NatLaws.Le (order prefix) k := \idelim order (Last.restore (Last.View::snoc prefix i)) = N.Nat^::succ (order prefix)
+        \with m: N.Nat^ => NatLaws.Le m (N.Nat^::succ k) \by { base: bound, equality: Last.orderSnoc prefix i } \then
+      \return \idelim jets i prefix = family (Last.restore (Last.View::snoc prefix i)) \with h: ScalarFunction U => Analysis.ContinuousOn U h \by {
+        base: #continuous{(jetLaws i)} prefix orderBound, equality: sym!{{ScalarFunction U}} _ _ (recover (Last.View::snoc prefix i))
+      }
+    }
+  };
+\definition laws: Analysis.ContinuousOn U f -> (\forall (i: Coordinate) -> Analysis.HasPartialDerivative U f i (g i)) ->
+  (\forall (i: Coordinate) -> ContDiffLaws[U, g i, k, jets i]) -> ContDiffLaws[U, f, N.Nat^::succ k, family] :=
+  \fun (functionContinuous: Analysis.ContinuousOn U f)(firstPartials: \forall (i: Coordinate) -> Analysis.HasPartialDerivative U f i (g i))(jetLaws: \forall (i: Coordinate) -> ContDiffLaws[U, g i, k, jets i]) => ContDiffLaws[U, f, N.Nat^::succ k, family] {
+    partials := PartialFamilyLaws[U, f, N.Nat^::succ k, family] {
+      function := \refl(f),
+      derivative := \fun (directions: Directions)(bound: _)(j: Coordinate) => \idelim Last.restore (Last.view directions) = directions
+        \with ds: Directions => Analysis.HasPartialDerivative U (family ds) j (family (Directions::cons j ds)) \by {
+          base: viewPartial firstPartials jetLaws (Last.view directions)
+            (\idelim directions = Last.restore (Last.view directions) \with ds: Directions => NatLaws.Lt (order ds) (N.Nat^::succ k) \by {
+              base: bound, equality: sym!{Directions} _ _ (Last.restoreView directions)
+            }) j,
+          equality: Last.restoreView directions
+        },
+    },
+    continuous := \fun (directions: Directions)(bound: _) => \idelim Last.restore (Last.view directions) = directions
+      \with ds: Directions => Analysis.ContinuousOn U (family ds) \by {
+        base: viewContinuous functionContinuous jetLaws (Last.view directions)
+          (\idelim directions = Last.restore (Last.view directions) \with ds: Directions => NatLaws.Le (order ds) (N.Nat^::succ k) \by {
+            base: bound, equality: sym!{Directions} _ _ (Last.restoreView directions)
+          }),
+        equality: Last.restoreView directions
+      },
+  };

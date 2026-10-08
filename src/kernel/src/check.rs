@@ -4,7 +4,7 @@ use crate::{
     environment::Environment,
     ids::{InductiveId, ProgramInductiveId, SymbolId},
     metavariables::{Error, MetaContext},
-    sort::{BaseSort, Sort},
+    sort::{BaseSort, ProductRule, Sort},
     syntax::*,
 };
 
@@ -70,6 +70,7 @@ impl<'a> Checker<'a> {
         result
     }
     pub fn check_context(&mut self) -> Result<(), Error> {
+        let _cost = timing::costs::Scope::enter("kernel.check_context");
         if !self.solving {
             self.metas
                 .require_solved(self.arena(), self.context.iter().map(|b| b.ty))?;
@@ -89,6 +90,7 @@ impl<'a> Checker<'a> {
     }
     #[tracing::instrument(target = "ref_type::typing", level = "debug", name = "kernel_infer", skip_all, fields(?term))]
     pub fn infer(&mut self, term: Expression) -> Result<Expression, Error> {
+        let _cost = timing::costs::Scope::enter("kernel.infer");
         self.metas.require_solved(
             self.arena(),
             std::iter::once(term).chain(self.context.iter().map(|b| b.ty)),
@@ -100,6 +102,7 @@ impl<'a> Checker<'a> {
     }
     #[tracing::instrument(target = "ref_type::typing", level = "debug", name = "kernel_check", skip_all, fields(?term, ?expected))]
     pub fn check(&mut self, term: Expression, expected: Expression) -> Result<(), Error> {
+        let _cost = timing::costs::Scope::enter("kernel.check");
         self.metas.require_solved(
             self.arena(),
             [term, expected]
@@ -110,6 +113,7 @@ impl<'a> Checker<'a> {
         self.check_open(term, expected)
     }
     pub(crate) fn validate(&mut self, term: Expression) -> Result<(), Error> {
+        let _cost = timing::costs::Scope::enter("kernel.validate");
         self.metas.require_solved(
             self.arena(),
             std::iter::once(term).chain(self.context.iter().map(|b| b.ty)),
@@ -124,6 +128,7 @@ impl<'a> Checker<'a> {
         self.infer_open(term).map(|_| ())
     }
     pub fn motive_type(&mut self, motive: Expression) -> Result<Expression, Error> {
+        let _cost = timing::costs::Scope::enter("kernel.motive_type");
         self.check_context()?;
         self.metas.require_solved(
             self.arena(),
@@ -389,7 +394,16 @@ impl<'a> Checker<'a> {
             self.check_open(
                 arguments[i],
                 self.env.instantiate(binding.ty, &arguments[..i])?,
-            )?;
+            )
+            .inspect_err(|_| {
+                if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some() {
+                    eprintln!(
+                        "argument {i}: {:?}; classifier {:?}",
+                        self.arena().get(arguments[i]),
+                        self.arena().get(binding.ty)
+                    );
+                }
+            })?;
         }
         Ok(())
     }
@@ -582,7 +596,7 @@ impl<'a> Checker<'a> {
             Node::Product { var, domain, body } => {
                 let a = self.formation(domain)?;
                 let b = self.under(var, domain, |c| c.formation(body))?;
-                let result = a.product(b).ok_or("no product rule for these sorts")?;
+                let result = ProductRule::new(a, b)?.result;
                 if result.base().is_program() {
                     self.type_dependencies(term)?;
                 }
@@ -625,10 +639,33 @@ impl<'a> Checker<'a> {
                         if self.solving
                             && !self.metas.unresolved(self.arena(), [ty])?.is_empty() =>
                     {
-                        let domain = self
-                            .metas
-                            .fresh(&self.env.arena, self.context.clone(), None);
-                        let mut context = self.context.clone();
+                        // Refine a type hole in its declaration context. The
+                        // application context can contain a function whose type
+                        // is this very hole, making fresh children cyclic.
+                        let (mut context, arguments, target) =
+                            match self.arena().get(self.head(ty)?) {
+                                Node::Meta { id, arguments } => {
+                                    let context = self.metas.entry(id)?.context.clone();
+                                    let target = self.alloc(Node::Meta {
+                                        id,
+                                        arguments: (0..context.len())
+                                            .rev()
+                                            .map(|i| self.arena().bound(i))
+                                            .collect(),
+                                    });
+                                    (context, arguments, target)
+                                }
+                                _ => (
+                                    self.context.clone(),
+                                    (0..self.context.len())
+                                        .rev()
+                                        .map(|i| self.arena().bound(i))
+                                        .collect(),
+                                    ty,
+                                ),
+                            };
+                        let declaration = context.clone();
+                        let domain = self.metas.fresh(&self.env.arena, context.clone(), None);
                         context.push(Binding {
                             var: SymbolId::ANONYMOUS,
                             ty: domain,
@@ -639,8 +676,11 @@ impl<'a> Checker<'a> {
                             domain,
                             body,
                         });
-                        self.metas.unify(self.env, &self.context, ty, product)?;
-                        (domain, body)
+                        // Solve the declaration before instantiating it: an
+                        // occurrence such as ?T[x, x] is not a pattern spine.
+                        self.metas.unify(self.env, &declaration, target, product)?;
+                        let product = self.env.instantiate(product, &arguments)?;
+                        self.product(product)?
                     }
                     Err(error) => return Err(error),
                 };
@@ -744,6 +784,16 @@ impl<'a> Checker<'a> {
                 if self.solving {
                     self.metas.unify(self.env, &self.context, a, b)?;
                 } else if !self.equal(a, b)? {
+                    if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some()
+                        && let Ok(Some((path, left, right))) =
+                            crate::reduction::first_difference(self.env, a, b)
+                    {
+                        eprintln!(
+                            "equality carrier difference {path:?}: {:?} != {:?}",
+                            self.arena().get(left),
+                            self.arena().get(right)
+                        );
+                    }
                     return Err("different equality carriers".into());
                 }
                 self.base(BaseSort::Prop)

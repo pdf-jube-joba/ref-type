@@ -1,0 +1,46 @@
+\import \parent.QuotientProduct[p := p, q := q] \as PQ;
+\import \parent.QuotientProduct[p := q, q := r] \as QR;
+\import \parent.QuotientProduct[p := Nat.add p q, q := r] \as Left;
+\import \parent.QuotientProduct[p := p, q := Nat.add q r] \as Right;
+\import \parent.\parent.Associativity[p := p, q := q, r := r] \as FormsLaw;
+\import \parent.Regrade[k := Nat.add (Nat.add p q) r, l := Nat.add p (Nat.add q r)] \as Degree;
+\import Complexes.At[C := complex, k := p] \as P;
+\import Complexes.At[C := complex, k := q] \as Q;
+\import Complexes.At[C := complex, k := r] \as R;
+\import Complexes.At[C := complex, k := Nat.add p q] \as PQH;
+\import Complexes.At[C := complex, k := Nat.add q r] \as QRH;
+\import Complexes.At[C := complex, k := Nat.add (Nat.add p q) r] \as Source;
+\import Complexes.At[C := complex, k := Nat.add p (Nat.add q r)] \as Target;
+\definition left(h: P.Cohomology)(j: Q.Cohomology)(v: R.Cohomology): Target.Cohomology :=
+  Degree.cast (Left.apply (PQ.apply h j) v) FormsLaw.degree;
+\definition right(h: P.Cohomology)(j: Q.Cohomology)(v: R.Cohomology): Target.Cohomology := Right.apply h (QR.apply j v);
+\definition cycleLaw: \forall (omega: P.CycleCarrier)(eta: Q.CycleCarrier)(theta: R.CycleCarrier) ->
+  #apply{(Degree.cyclesMap FormsLaw.degree)} (Left.cycle (PQ.cycle omega eta) theta) = Right.cycle omega (QR.cycle eta theta) :=
+    \fun (omega: P.CycleCarrier)(eta: Q.CycleCarrier)(theta: R.CycleCarrier) => FormsLaw.law omega eta theta;
+\definition classLaw: \forall (omega: P.CycleCarrier)(eta: Q.CycleCarrier)(theta: R.CycleCarrier) ->
+  left (P.classOf omega) (Q.classOf eta) (R.classOf theta) = right (P.classOf omega) (Q.classOf eta) (R.classOf theta) :=
+    \fun (omega: P.CycleCarrier)(eta: Q.CycleCarrier)(theta: R.CycleCarrier) => eq_reason!{
+      {left (P.classOf omega) (Q.classOf eta) (R.classOf theta)}
+      "=" {Degree.cast (Left.apply (PQH.classOf (PQ.cycle omega eta)) (R.classOf theta)) FormsLaw.degree} "by" {
+        congr!{{PQH.Cohomology} {Target.Cohomology}}
+          (\fun (h: PQH.Cohomology) => Degree.cast (Left.apply h (R.classOf theta)) FormsLaw.degree) _ _ (PQ.onClass omega eta)}
+      "=" {Degree.cast (Source.classOf (Left.cycle (PQ.cycle omega eta) theta)) FormsLaw.degree} "by" {
+        congr!{{Source.Cohomology} {Target.Cohomology}} (\fun (h: Source.Cohomology) => Degree.cast h FormsLaw.degree) _ _
+          (Left.onClass (PQ.cycle omega eta) theta)}
+      "=" {Target.classOf (#apply{(Degree.cyclesMap FormsLaw.degree)} (Left.cycle (PQ.cycle omega eta) theta))} "by" {
+        Degree.onClass (Left.cycle (PQ.cycle omega eta) theta) FormsLaw.degree}
+      "=" {Target.classOf (Right.cycle omega (QR.cycle eta theta))} "by" {
+        congr!{{Target.CycleCarrier} {Target.Cohomology}} Target.classOf _ _ (cycleLaw omega eta theta)}
+      "=" {Right.apply (P.classOf omega) (QRH.classOf (QR.cycle eta theta))} "by" {
+        sym!{{Target.Cohomology}} _ _ (Right.onClass omega (QR.cycle eta theta))}
+      "=" {right (P.classOf omega) (Q.classOf eta) (R.classOf theta)} "by" {
+        congr!{{QRH.Cohomology} {Target.Cohomology}} (Right.apply (P.classOf omega)) _ _
+          (sym!{{QRH.Cohomology}} _ _ (QR.onClass eta theta))}
+    };
+\definition law: \forall (h: P.Cohomology)(j: Q.Cohomology)(v: R.Cohomology) -> left h j v = right h j v :=
+  P.classInduction (\fun (h: P.Cohomology) => \forall (j: Q.Cohomology)(v: R.Cohomology) -> left h j v = right h j v)
+    (\fun (omega: P.CycleCarrier) => Q.classInduction
+      (\fun (j: Q.Cohomology) => \forall (v: R.Cohomology) -> left (P.classOf omega) j v = right (P.classOf omega) j v)
+      (\fun (eta: Q.CycleCarrier) => R.classInduction
+        (\fun (v: R.Cohomology) => left (P.classOf omega) (Q.classOf eta) v = right (P.classOf omega) (Q.classOf eta) v)
+        (\fun (theta: R.CycleCarrier) => classLaw omega eta theta)));

@@ -1,0 +1,30 @@
+\import std.Logic[].Relation[] \as Relation;
+\definition coefficientRing: Ring.Ring[R] := Ring.commutativeRingAsRing R coefficients;
+\inductive Expression: \Set :=
+| constant: R -> Expression
+| variable: Variables -> Expression
+| sum: Expression -> Expression -> Expression
+| negative: Expression -> Expression
+| product: Expression -> Expression -> Expression
+;
+\definition zeroExpr: Expression := Expression::constant (#zero{coefficientRing});
+\definition oneExpr: Expression := Expression::constant (#one{coefficientRing});
+\structure Rules[candidate: Expression -> Expression -> \Prop]: \Prop {
+  equivalence: Relation.Equivalence[Expression, candidate],
+  addCong: \forall (x, y, u, v: Expression) -> candidate x y -> candidate u v -> candidate (Expression::sum x u) (Expression::sum y v),
+  negCong: \forall (x, y: Expression) -> candidate x y -> candidate (Expression::negative x) (Expression::negative y),
+  mulCong: \forall (x, y, u, v: Expression) -> candidate x y -> candidate u v -> candidate (Expression::product x u) (Expression::product y v),
+  zeroLeft: \forall (x: Expression) -> candidate (Expression::sum zeroExpr x) x,
+  addAssoc: \forall (x, y, z: Expression) -> candidate (Expression::sum (Expression::sum x y) z) (Expression::sum x (Expression::sum y z)),
+  addComm: \forall (x, y: Expression) -> candidate (Expression::sum x y) (Expression::sum y x),
+  inverse: \forall (x: Expression) -> candidate (Expression::sum (Expression::negative x) x) zeroExpr,
+  oneLeft: \forall (x: Expression) -> candidate (Expression::product oneExpr x) x,
+  mulAssoc: \forall (x, y, z: Expression) -> candidate (Expression::product (Expression::product x y) z) (Expression::product x (Expression::product y z)),
+  mulComm: \forall (x, y: Expression) -> candidate (Expression::product x y) (Expression::product y x),
+  distributive: \forall (x, y, z: Expression) -> candidate (Expression::product x (Expression::sum y z)) (Expression::sum (Expression::product x y) (Expression::product x z)),
+  absorbs: \forall (x: Expression) -> candidate (Expression::product zeroExpr x) zeroExpr,
+  constantAdd: \forall (a, b: R) -> candidate (Expression::constant (#add{coefficientRing} a b)) (Expression::sum (Expression::constant a) (Expression::constant b)),
+  constantMul: \forall (a, b: R) -> candidate (Expression::constant (#mul{coefficientRing} a b)) (Expression::product (Expression::constant a) (Expression::constant b)),
+  constantNeg: \forall (a: R) -> candidate (Expression::constant (#neg{coefficientRing} a)) (Expression::negative (Expression::constant a)),
+}
+\module Presentation(relations: Expression -> Expression -> \Prop);

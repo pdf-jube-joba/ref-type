@@ -1,0 +1,38 @@
+\definition step: (\forall (f, g, h: Function) -> product (product f g) h xs = product f (product g h) xs) ->
+  \forall (i: I)(f, g, h: Function) -> product (product f g) h (Lists.List[I]::cons i xs) = product f (product g h) (Lists.List[I]::cons i xs) := \block {
+  \fun (previous: \forall (f, g, h: Function) -> product (product f g) h xs = product f (product g h) xs)(i: I)(f, g, h: Function) \then
+  \let a: K := product (shift i f) (product g h) xs \then
+  \let b: K := product (twist f) (product (shift i g) h) xs \then
+  \let c: K := product (twist f) (product (twist g) (shift i h)) xs \then
+  \let leftExpansion: product (shift i (product f g)) h xs =
+    add (product (product (shift i f) g) h xs) (product (product (twist f) (shift i g)) h xs) :=
+    trans!{K} (product (shift i (product f g)) h xs)
+      (product (plus (product (shift i f) g) (product (twist f) (shift i g))) h xs)
+      (add (product (product (shift i f) g) h xs) (product (product (twist f) (shift i g)) h xs))
+        (congr!{Function K} (\fun (p: Function) => product p h xs) (shift i (product f g))
+          (plus (product (shift i f) g) (product (twist f) (shift i g))) (shiftedProduct i f g))
+        (additiveLeft (product (shift i f) g) (product (twist f) (shift i g)) h xs) \then
+  \let rightTwist: product (twist (product f g)) (shift i h) xs = product (product (twist f) (twist g)) (shift i h) xs :=
+    congr!{Function K} (\fun (p: Function) => product p (shift i h) xs) (twist (product f g)) (product (twist f) (twist g)) (twistedProduct f g) \then
+  \let rightExpansion: product (twist f) (shift i (product g h)) xs = add b c :=
+    trans!{K} (product (twist f) (shift i (product g h)) xs)
+      (product (twist f) (plus (product (shift i g) h) (product (twist g) (shift i h))) xs) (add b c)
+        (congr!{Function K} (\fun (p: Function) => product (twist f) p xs) (shift i (product g h))
+          (plus (product (shift i g) h) (product (twist g) (shift i h))) (shiftedProduct i g h))
+        (additiveRight (twist f) (product (shift i g) h) (product (twist g) (shift i h)) xs) \then
+  \return eq_reason!{
+    {product (product f g) h (Lists.List[I]::cons i xs)}
+    "=" {add (product (shift i (product f g)) h xs) (product (twist (product f g)) (shift i h) xs)} "by" {atCons i xs (product f g) h}
+    "=" {add (add (product (product (shift i f) g) h xs) (product (product (twist f) (shift i g)) h xs)) (product (product (twist f) (twist g)) (shift i h) xs)} "by" {
+      congr2!{K K K} add _ _ _ _ leftExpansion rightTwist}
+    "=" {add (add a b) c} "by" {
+      congr2!{K K K} add _ _ _ _
+        (congr2!{K K K} add _ _ _ _ (previous (shift i f) g h) (previous (twist f) (shift i g) h))
+        (previous (twist f) (twist g) (shift i h))}
+    "=" {add a (add b c)} "by" {addAssoc a b c}
+    "=" {add a (product (twist f) (shift i (product g h)) xs)} "by" {
+      congr!{K K} (add a) (add b c) (product (twist f) (shift i (product g h)) xs)
+        (sym!{K} (product (twist f) (shift i (product g h)) xs) (add b c) rightExpansion)}
+    "=" {product f (product g h) (Lists.List[I]::cons i xs)} "by" {sym!{K} _ _ (atCons i xs f (product g h))}
+  }
+};

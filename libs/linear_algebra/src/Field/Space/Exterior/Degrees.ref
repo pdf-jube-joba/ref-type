@@ -1,0 +1,19 @@
+\import Multilinear.ListSeries[k := p] \as LeftSeries;
+\import Multilinear.ListSeries[k := q] \as RightSeries;
+\import Multilinear.ListSeries[k := Nat.add p q] \as ResultSeries;
+\import \parent.Restriction[k := Nat.add p q] \as Result;
+\import Alternating.At[k := Nat.add p q] \as ResultForms;
+\import Shuffle.Graded[p := p, q := q] \as Graded;
+\definition series(f: Form p)(g: Form q): Series := Shuffle.product (component p f) (component q g);
+\definition multilinear: \forall (f: Form p)(g: Form q) -> SeriesLinear.Linear (series f g) :=
+  \fun (f: Form p)(g: Form q) => SeriesLinear.linear (component p f) (component q g)
+    (LeftSeries.linear (Alternating.asMultilinear p f)) (RightSeries.linear (Alternating.asMultilinear q g));
+\definition alternating: \forall (f: Form p)(g: Form q) -> SeriesAlternation.Laws[series f g] :=
+  \fun (f: Form p)(g: Form q) => SeriesAlternation.alternating (component p f) (component q g) (componentAlternating p f) (componentAlternating q g);
+\definition wedge(f: Form p)(g: Form q): Form (Nat.add p q) := Result.form (series f g) (multilinear f g) (alternating f g);
+\definition support: \forall (f: Form p)(g: Form q) -> ResultSeries.Supported (series f g) :=
+  \fun (f: Form p)(g: Form q) => Graded.homogeneous (component p f) (component q g) (LeftSeries.outside f) (RightSeries.outside g);
+\definition componentWedge: \forall (f: Form p)(g: Form q) -> component (Nat.add p q) (wedge f g) = series f g :=
+  \fun (f: Form p)(g: Form q) => ResultSeries.supportedRecover (series f g) (support f g);
+\definition atArguments: \forall (f: Form p)(g: Form q)(arguments: Multilinear.Arguments (Nat.add p q)) -> wedge f g arguments = series f g (TuplesList.list (Nat.add p q) arguments) :=
+  \fun (f: Form p)(g: Form q)(arguments: Multilinear.Arguments (Nat.add p q)) => \refl(series f g (TuplesList.list (Nat.add p q) arguments));

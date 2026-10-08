@@ -1,0 +1,97 @@
+\import N.Basic[].Prop[] \as Naturals;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition next: N.Nat^ := N.Nat^::succ k;
+\import \parent.At[k := one] \as Covectors;
+\import \parent.At[k := k] \as Source;
+\import \parent.At[k := next] \as Target;
+\import \parent.Partial[k := k] \as Partials;
+\import \parent.Wedge[p := one, q := k] \as Product;
+\import \parent.Regrade[k := Nat.add one k, l := next] \as Degree;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Form next, space := Target.space] \as Sums;
+\definition degree: Nat.add one k = next := trans!{{N.Nat^}} _ _ _ (Naturals.addSuccLeft N.Nat^::zero k)
+  (congr!{{N.Nat^} {N.Nat^}} (\fun (m: N.Nat^) => N.Nat^::succ m) _ _ (Naturals.addZeroLeft k));
+\definition coordinate(i: Fin.Fin n): Form one := Covectors.constant (\root.Euclidean[n := n].Covector[i := i].form);
+\definition term(i: Fin.Fin n)(omega: Form k): Form next := Degree.cast (Product.apply (coordinate i) (Partials.apply i omega)) degree;
+\definition apply(omega: Form k): Form next := Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => term i omega);
+\definition termAddition: \forall (i: Fin.Fin n)(omega, eta: Form k) -> term i (Source.plus omega eta) = Target.plus (term i omega) (term i eta) :=
+  \fun (i: Fin.Fin n)(omega, eta: Form k) => trans!{{Form next}} _ _ _
+    (congr!{{Form k} {Form next}} (\fun (value: Form k) => Degree.cast (Product.apply (coordinate i) value) degree) _ _ (Partials.addition i omega eta))
+    (trans!{{Form next}} _ _ _
+      (congr!{{Form (Nat.add one k)} {Form next}} (\fun (value: Form (Nat.add one k)) => Degree.cast value degree) _ _
+        (Product.additiveRight (coordinate i) (Partials.apply i omega) (Partials.apply i eta)))
+      (Degree.addition (Product.apply (coordinate i) (Partials.apply i omega)) (Product.apply (coordinate i) (Partials.apply i eta)) degree));
+\definition termScalar: \forall (i: Fin.Fin n)(a: Reals.Real)(omega: Form k) -> term i (Source.scale a omega) = Target.scale a (term i omega) :=
+  \fun (i: Fin.Fin n)(a: Reals.Real)(omega: Form k) => trans!{{Form next}} _ _ _
+    (congr!{{Form k} {Form next}} (\fun (value: Form k) => Degree.cast (Product.apply (coordinate i) value) degree) _ _ (Partials.scalar i a omega))
+    (trans!{{Form next}} _ _ _
+      (congr!{{Form (Nat.add one k)} {Form next}} (\fun (value: Form (Nat.add one k)) => Degree.cast value degree) _ _
+        (Product.scalarRight a (coordinate i) (Partials.apply i omega)))
+      (Degree.scalar a (Product.apply (coordinate i) (Partials.apply i omega)) degree));
+\definition addition: \forall (omega, eta: Form k) -> apply (Source.plus omega eta) = Target.plus (apply omega) (apply eta) :=
+  \fun (omega, eta: Form k) => trans!{{Form next}} _ _ _
+    (Sums.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => term i (Source.plus omega eta)) (\fun (i: Fin.Fin n) => Target.plus (term i omega) (term i eta))
+      (\fun (i: Fin.Fin n) => termAddition i omega eta))
+    (Sums.addition (Fin.elements n) (\fun (i: Fin.Fin n) => term i omega) (\fun (i: Fin.Fin n) => term i eta));
+\definition scalar: \forall (a: Reals.Real)(omega: Form k) -> apply (Source.scale a omega) = Target.scale a (apply omega) :=
+  \fun (a: Reals.Real)(omega: Form k) => trans!{{Form next}} _ _ _
+    (Sums.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => term i (Source.scale a omega)) (\fun (i: Fin.Fin n) => Target.scale a (term i omega))
+      (\fun (i: Fin.Fin n) => termScalar i a omega))
+    (Sums.scalar (Fin.elements n) a (\fun (i: Fin.Fin n) => term i omega));
+\import Spaces.Linear[V := Form k, W := Form next, source := Source.space, target := Target.space] \as Maps;
+\definition map: Maps.Map := Maps.Map { apply := apply, preservesAdd := addition, preservesScale := scalar };
+\import \parent.Partial[k := one] \as CoordinatePartials;
+\import \parent.Partial[k := next] \as TargetPartials;
+\import \parent.Partial[k := Nat.add one k] \as ProductPartials;
+\import \parent.At[k := Nat.add one k] \as ProductForms;
+\import Spaces.Laws[V := Form (Nat.add one k), space := ProductForms.space] \as ProductLaws;
+\definition coordinatePartial: \forall (i, j: Fin.Fin n) -> CoordinatePartials.apply j (coordinate i) = Covectors.zero :=
+  \fun (i, j: Fin.Fin n) => CoordinatePartials.constant j (\root.Euclidean[n := n].Covector[i := i].form);
+\definition termPartial: \forall (i, j: Fin.Fin n)(omega: Form k) -> TargetPartials.apply j (term i omega) = term i (Partials.apply j omega) :=
+  \fun (i, j: Fin.Fin n)(omega: Form k) => eq_reason!{
+    {TargetPartials.apply j (term i omega)}
+    "=" {Degree.cast (ProductPartials.apply j (Product.apply (coordinate i) (Partials.apply i omega))) degree} "by" {
+      Degree.partial j (Product.apply (coordinate i) (Partials.apply i omega)) degree}
+    "=" {Degree.cast (ProductForms.plus (Product.apply (CoordinatePartials.apply j (coordinate i)) (Partials.apply i omega))
+      (Product.apply (coordinate i) (Partials.apply j (Partials.apply i omega)))) degree} "by" {
+      congr!{{Form (Nat.add one k)} {Form next}} (\fun (value: Form (Nat.add one k)) => Degree.cast value degree) _ _
+        (Product.partial j (coordinate i) (Partials.apply i omega))}
+    "=" {Degree.cast (ProductForms.plus ProductForms.zero (Product.apply (coordinate i) (Partials.apply j (Partials.apply i omega)))) degree} "by" {
+      congr!{{Form (Nat.add one k)} {Form next}} (\fun (value: Form (Nat.add one k)) => Degree.cast
+        (ProductForms.plus value (Product.apply (coordinate i) (Partials.apply j (Partials.apply i omega)))) degree) _ _
+        (trans!{{Form (Nat.add one k)}} _ _ _
+          (congr!{{Form one} {Form (Nat.add one k)}} (\fun (value: Form one) => Product.apply value (Partials.apply i omega)) _ _ (coordinatePartial i j))
+          (Product.zeroLeft (Partials.apply i omega)))}
+    "=" {Degree.cast (Product.apply (coordinate i) (Partials.apply j (Partials.apply i omega))) degree} "by" {
+      congr!{{Form (Nat.add one k)} {Form next}} (\fun (value: Form (Nat.add one k)) => Degree.cast value degree) _ _
+        (ProductLaws.zeroLeft (Product.apply (coordinate i) (Partials.apply j (Partials.apply i omega))))}
+    "=" {term i (Partials.apply j omega)} "by" {
+      congr!{{Form k} {Form next}} (\fun (value: Form k) => Degree.cast (Product.apply (coordinate i) value) degree) _ _ (Partials.commute i j omega)}
+  };
+\definition termMap(i: Fin.Fin n): Maps.Map := Maps.Map {
+  apply := term i, preservesAdd := termAddition i, preservesScale := termScalar i,
+};
+\definition termSeries: \forall (i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U) -> Exterior.component next (term i omega x) =
+  Shuffle.product (Exterior.component one (coordinate i x)) (Exterior.component k (Partials.apply i omega x)) :=
+  \fun (i: Fin.Fin n)(omega: Form k)(x: Open.Carrier U) => trans!{{Shuffle.Function}}
+    (Exterior.component next (term i omega x))
+    (Exterior.component (Nat.add one k) (Product.apply (coordinate i) (Partials.apply i omega) x))
+    (Shuffle.product (Exterior.component one (coordinate i x)) (Exterior.component k (Partials.apply i omega x)))
+    (Degree.series (Product.apply (coordinate i) (Partials.apply i omega)) degree x)
+    (Exterior.Degrees[p := one, q := k].componentWedge (coordinate i x) (Partials.apply i omega x));
+\module SeriesBoundary;
+
+\definition constantTerm: \forall (i: Fin.Fin n)(omega: Alternating.Form k) -> term i (Source.constant omega) = Target.zero :=
+  \fun (i: Fin.Fin n)(omega: Alternating.Form k) =>
+    trans!{{Form next}} (term i (Source.constant omega)) (Degree.cast (Product.apply (coordinate i) Source.zero) degree) Target.zero
+      (congr!{{Form k} {Form next}} (\fun (phi: Form k) => Degree.cast (Product.apply (coordinate i) phi) degree)
+        (Partials.apply i (Source.constant omega)) Source.zero (Partials.constant i omega))
+      (trans!{{Form next}} (Degree.cast (Product.apply (coordinate i) Source.zero) degree) (Degree.cast ProductForms.zero degree) Target.zero
+        (congr!{{Form (Nat.add one k)} {Form next}} (\fun (phi: Form (Nat.add one k)) => Degree.cast phi degree)
+          (Product.apply (coordinate i) Source.zero) ProductForms.zero (Product.zeroRight (coordinate i)))
+        (Degree.zero degree));
+\definition constant: \forall (omega: Alternating.Form k) -> apply (Source.constant omega) = Target.zero :=
+  \fun (omega: Alternating.Form k) =>
+    trans!{{Form next}} (apply (Source.constant omega)) (Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Target.zero)) Target.zero
+      (Sums.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => term i (Source.constant omega))
+        (\fun (i: Fin.Fin n) => Target.zero) (\fun (i: Fin.Fin n) => constantTerm i omega))
+      (Sums.zero (Fin.elements n));

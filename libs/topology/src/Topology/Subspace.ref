@@ -17,3 +17,88 @@
 
 \definition openSets(ambient: Topology): \Pow (\Pow CarrierSet) :=
   #openSets{(Sub.topologyData (topology ambient))};
+
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Logic.either;
+\definition OpenTrace(ambient: Topology) (W: \Pow CarrierSet): \Prop :=
+  \exists { U: \Pow Carrier \where Logic.And[IsOpenIn ambient U, W = Trace U] };
+\definition openTraceExists(ambient: Topology) (W: \Pow CarrierSet) (U: \Pow Carrier):
+  IsOpenIn ambient U -> W = Trace U -> OpenTrace ambient W :=
+  \fun (open: _) (same: _) => \exact(\into[\Pow Carrier](U,
+    { U: \Pow Carrier \where Logic.And[IsOpenIn ambient U, W = Trace U] }) \by { Logic.And[_, _]::# open same },
+    \Cast[\Pow Carrier] ({ U: \Pow Carrier \where Logic.And[IsOpenIn ambient U, W = Trace U] }));
+\definition openTraceElim(ambient: Topology) (W: \Pow CarrierSet) (P: \Prop):
+  (\forall (U: \Pow Carrier) -> IsOpenIn ambient U -> W = Trace U -> P) -> OpenTrace ambient W -> P := \block {
+  \fun (step: \forall (U: \Pow Carrier) -> IsOpenIn ambient U -> W = Trace U -> P)
+    (exists: OpenTrace ambient W) \then
+  \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where Logic.And[IsOpenIn ambient U, W = Trace U] }) \by exists \then
+  \let data: Logic.And[IsOpenIn ambient U, W = Trace U] :=
+    \bysub(\Pow Carrier, { U: \Pow Carrier \where Logic.And[IsOpenIn ambient U, W = Trace U] }, U) \then
+  \return step U (#left{data}) (#right{data})
+};
+\definition LiftedFamily(ambient: Topology) (family: \Pow (\Pow CarrierSet)): \Pow (\Pow Carrier) :=
+  { U: \Pow Carrier \where Logic.And[IsOpenIn ambient U,
+    \exists { W: \Pow CarrierSet \where Logic.And[Sub.FamilyMember family W, W = Trace U] }] };
+\definition liftedMember(ambient: Topology) (family: \Pow (\Pow CarrierSet)) (U: \Pow Carrier) (W: \Pow CarrierSet):
+  IsOpenIn ambient U -> Sub.FamilyMember family W -> W = Trace U -> FamilyMember (LiftedFamily ambient family) U :=
+  \fun (open: _) (member: _) (same: _) => Logic.And[_, _]::# open
+    (\exact(\into[\Pow CarrierSet](W,
+      { W: \Pow CarrierSet \where Logic.And[Sub.FamilyMember family W, W = Trace U] }) \by { Logic.And[_, _]::# member same },
+      \Cast[\Pow CarrierSet] ({ W: \Pow CarrierSet \where Logic.And[Sub.FamilyMember family W, W = Trace U] })));
+\definition liftedElim(ambient: Topology) (family: \Pow (\Pow CarrierSet)) (U: \Pow Carrier) (P: \Prop):
+  (\forall (W: \Pow CarrierSet) -> Sub.FamilyMember family W -> W = Trace U -> P) ->
+  FamilyMember (LiftedFamily ambient family) U -> P := \block {
+  \fun (step: \forall (W: \Pow CarrierSet) -> Sub.FamilyMember family W -> W = Trace U -> P)
+    (member: FamilyMember (LiftedFamily ambient family) U) \then
+  \takefrom W: \Cast[\Pow CarrierSet] ({ W: \Pow CarrierSet \where Logic.And[Sub.FamilyMember family W, W = Trace U] }) \by #right{member} \then
+  \let data: Logic.And[Sub.FamilyMember family W, W = Trace U] :=
+    \bysub(\Pow CarrierSet, { W: \Pow CarrierSet \where Logic.And[Sub.FamilyMember family W, W = Trace U] }, W) \then
+  \return step W (#left{data}) (#right{data})
+};
+\definition traceUnion: \forall (ambient: Topology) (family: \Pow (\Pow CarrierSet)) ->
+  (\forall (W: \Pow CarrierSet) -> Sub.FamilyMember family W -> OpenTrace ambient W) ->
+  Sub.Union family = Trace (Union (LiftedFamily ambient family)) :=
+  \fun (ambient: _) (family: _) (open: _) => \axiom:setext(Sub.Union family, Trace (Union (LiftedFamily ambient family)),
+    \fun (x: CarrierSet) (member: Sub.Member (Sub.Union family) x) => Sub.unionMemberElim family x
+      (Member (Union (LiftedFamily ambient family)) x)
+      (\fun (W: _) (inFamily: _) (inW: _) => openTraceElim ambient W (Member (Union (LiftedFamily ambient family)) x)
+        (\fun (U: _) (uo: _) (same: _) => unionMemberOf (LiftedFamily ambient family) U x (liftedMember ambient family U W uo inFamily same)
+          (\idelim W = Trace U \with V: \Pow CarrierSet => Sub.Member V x \by { base: inW, equality: same }))
+        (open W inFamily)) member,
+    \fun (x: CarrierSet) (member: Member (Union (LiftedFamily ambient family)) x) => unionMemberElim (LiftedFamily ambient family) x
+      (Sub.Member (Sub.Union family) x)
+      (\fun (U: _) (inFamily: _) (inU: _) => liftedElim ambient family U (Sub.Member (Sub.Union family) x)
+        (\fun (W: _) (inFamily: _) (same: _) => Sub.unionMemberOf family W x inFamily
+          (\idelim Trace U = W \with V: \Pow CarrierSet => Sub.Member V x \by { base: inU, equality: sym!{\Pow CarrierSet} _ _ same })) inFamily) member);
+\definition TraceRaw(ambient: Topology): Sub.TopologyData := Sub.TopologyData {
+  openSets := { W: \Pow CarrierSet \where OpenTrace ambient W },
+};
+\definition traceLaws(ambient: Topology): Sub.TopologyLaws[TraceRaw ambient] := Sub.TopologyLaws[TraceRaw ambient] {
+  emptyOpen := openTraceExists ambient Sub.Empty Empty (#emptyOpen{(topologyLaws ambient)})
+    (\axiom:setext(Sub.Empty, Trace Empty, \fun (x: CarrierSet) (h: Logic.False) => h, \fun (x: CarrierSet) (h: Logic.False) => h)),
+  wholeOpen := openTraceExists ambient Sub.Whole Whole (#wholeOpen{(topologyLaws ambient)})
+    (\axiom:setext(Sub.Whole, Trace Whole, \fun (x: CarrierSet) (_: _) => \refl(x), \fun (x: CarrierSet) (_: _) => \refl(x))),
+  unionOpen := \fun (family: _) (open: _) => openTraceExists ambient (Sub.Union family) (Union (LiftedFamily ambient family))
+    (#unionOpen{(topologyLaws ambient)} (LiftedFamily ambient family) (\fun (U: \Pow Carrier) (member: FamilyMember (LiftedFamily ambient family) U) => #left{member})) (traceUnion ambient family open),
+  intersectionOpen := \fun (W, Z: _) (wo: _) (zo: _) => openTraceElim ambient W (OpenTrace ambient (Sub.Intersection W Z))
+    (\fun (U: _) (uo: _) (wu: _) => openTraceElim ambient Z (OpenTrace ambient (Sub.Intersection W Z))
+      (\fun (V: _) (vo: _) (zv: _) => openTraceExists ambient (Sub.Intersection W Z) (Intersection U V)
+        (#intersectionOpen{(topologyLaws ambient)} U V uo vo)
+        (\axiom:setext(Sub.Intersection W Z, Trace (Intersection U V),
+          \fun (x: CarrierSet) (h: Sub.Member (Sub.Intersection W Z) x) => Logic.And[_, _]::#
+            (\idelim W = Trace U \with T: \Pow CarrierSet => Sub.Member T x \by { base: #left{h}, equality: wu })
+            (\idelim Z = Trace V \with T: \Pow CarrierSet => Sub.Member T x \by { base: #right{h}, equality: zv }),
+          \fun (x: CarrierSet) (h: Member (Intersection U V) x) => Logic.And[_, _]::#
+            (\idelim Trace U = W \with T: \Pow CarrierSet => Sub.Member T x \by { base: #left{h}, equality: sym!{\Pow CarrierSet} _ _ wu })
+            (\idelim Trace V = Z \with T: \Pow CarrierSet => Sub.Member T x \by { base: #right{h}, equality: sym!{\Pow CarrierSet} _ _ zv })))) zo) wo,
+};
+\definition openRepresentation: \forall (ambient: Topology) (W: \Pow CarrierSet) -> Sub.IsOpenIn (topology ambient) W -> OpenTrace ambient W :=
+  \fun (ambient: _) (W: _) (open: _) => Sub.generatedLeast (Basis ambient)
+    (\into[Sub.TopologyData](TraceRaw ambient, Sub.Topology) \by { traceLaws ambient })
+    (\fun (V: _) (member: _) => member) W open;
+\definition traceOpen: \forall (ambient: Topology) (U: \Pow Carrier) -> IsOpenIn ambient U -> Sub.IsOpenIn (topology ambient) (Trace U) :=
+  \fun (ambient: _) (U: _) (open: _) => Sub.generatedBasisOpen (Basis ambient) (Trace U)
+    (openTraceExists ambient (Trace U) U open (\refl(Trace U)));
+\module Properties;
+\module Open;

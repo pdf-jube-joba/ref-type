@@ -1,0 +1,86 @@
+\import std.Data[].List[] \as L;
+\import Real.Distance[] \as Distance;
+\import Real.Estimates[] \as Estimates;
+\import std.Set[].FiniteSubset[A := Bump[source, family]] \as FiniteBumps;
+\import FiniteBumps.Enumeration[] \as Enumeration;
+\structure Entry: \Set {
+  openSet: \Pow A,
+  value: Bounded.Function[source],
+  inCover: Space.FamilyMember family openSet,
+  supportWithin: Space.Subset (support source value) openSet,
+}
+\definition sum(parts: L.List[Entry]) (x: A): Real.Real :=
+  L.foldr Entry Real.Real (\fun (part: Entry) (rest: Real.Real) => Real.add (#value{part} x) rest) Real.zero parts;
+\structure Partition: \Set {
+  parts: L.List[Entry],
+  total: \forall (x: A) -> sum parts x = Real.one,
+}
+\definition residue(bumps: L.List[Bump[source, family]]): Bounded.Function[source] :=
+  \induction (bumps: L.List[Bump[source, family]]) \return Bounded.Function[source] \with {
+    | nil: Bounded.constant source Real.one Laws.oneNonnegative (R.leRefl Real.one)
+    | cons: \fun (head: Bump[source, family]) (tail: L.List[Bump[source, family]]) (rest: Bounded.Function[source]) =>
+        Bounded.product source (Bounded.complement source (#value{head})) rest
+  } bumps;
+\definition multiplyEntry(bump: Bump[source, family]) (rest: Bounded.Function[source]): Entry := \block {
+  \let value: Bounded.Function[source] := Bounded.product source (#value{bump}) rest \then
+  \let within: Space.Subset (Nonzero value) (Nonzero (#value{bump})) :=
+    \fun (x: A) (nonzero: Space.Member (Nonzero value) x) (zero: #value{bump} x = Real.zero) => nonzero
+      (trans!{Real.Real} _ _ _ (congr!{Real.Real Real.Real} (\fun (a: Real.Real) => Real.mul a (rest x)) _ _ zero)
+        (Laws.fieldMulZeroLeft (rest x))) \then
+  \return Entry {
+    openSet := #openSet{bump}, value := value, inCover := #inCover{bump},
+    supportWithin := Space.subsetTrans (support source value) (support source (#value{bump})) (#openSet{bump})
+      (Closure.monotone source (Nonzero value) (Nonzero (#value{bump})) within) (#supportWithin{bump}),
+  }
+};
+\definition normalize(bumps: L.List[Bump[source, family]]): L.List[Entry] :=
+  \induction (bumps: L.List[Bump[source, family]]) \return L.List[Entry] \with {
+    | nil: L.List[Entry]::nil
+    | cons: \fun (head: Bump[source, family]) (tail: L.List[Bump[source, family]]) (rest: L.List[Entry]) =>
+        L.List[Entry]::cons (multiplyEntry head (residue tail)) rest
+  } bumps;
+\definition balance(a, r, s: Real.Real): Real.add s r = Real.one ->
+  Real.add (Real.add (Real.mul a r) s) (Real.mul (Real.sub Real.one a) r) = Real.one :=
+  \fun (total: _) => eq_reason!{{Real.add (Real.add (Real.mul a r) s) (Real.mul (Real.sub Real.one a) r)}
+    "=" {Real.add (Real.mul a r) (Real.add s (Real.mul (Real.sub Real.one a) r))}
+    "by" {Laws.addAssoc (Real.mul a r) s (Real.mul (Real.sub Real.one a) r)}
+    "=" {Real.add (Real.mul a r) (Real.add (Real.mul (Real.sub Real.one a) r) s)}
+    "by" {congr!{Real.Real Real.Real} (Real.add (Real.mul a r)) _ _ (Laws.addComm s (Real.mul (Real.sub Real.one a) r))}
+    "=" {Real.add (Real.add (Real.mul a r) (Real.mul (Real.sub Real.one a) r)) s}
+    "by" {sym!{Real.Real} _ _ (Laws.addAssoc (Real.mul a r) (Real.mul (Real.sub Real.one a) r) s)}
+    "=" {Real.add (Real.mul (Real.add a (Real.sub Real.one a)) r) s}
+    "by" {congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v s) _ _ (sym!{Real.Real} _ _ (Algebra.mulAddRight a (Real.sub Real.one a) r))}
+    "=" {Real.add (Real.mul Real.one r) s}
+    "by" {congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add (Real.mul v r) s) _ _ (Estimates.addSubCancel Real.one a)}
+    "=" {Real.add r s} "by" {congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.add v s) _ _ (Laws.fieldMulOneLeft r)}
+    "=" {Real.add s r} "by" {Laws.addComm r s}
+    "=" Real.one "by" total};
+\definition normalizationLaw: \forall (bumps: L.List[Bump[source, family]]) (x: A) ->
+  Real.add (sum (normalize bumps) x) (residue bumps x) = Real.one :=
+  \induction (bumps: L.List[Bump[source, family]]) \return \forall (x: A) ->
+    Real.add (sum (normalize bumps) x) (residue bumps x) = Real.one \with {
+      | nil: \fun (x: A) => Laws.addZeroLeft Real.one
+      | cons: \fun (head: Bump[source, family]) (tail: L.List[Bump[source, family]])
+        (ih: \forall (x: A) -> Real.add (sum (normalize tail) x) (residue tail x) = Real.one) (x: A) =>
+          balance (#value{head} x) (residue tail x) (sum (normalize tail) x) (ih x)
+    };
+\definition residueZero: \forall (bumps: L.List[Bump[source, family]]) (f: Bump[source, family]) ->
+  Enumeration.Occurs f bumps -> \forall (x: A) -> #value{f} x = Real.one -> residue bumps x = Real.zero :=
+  \induction (bumps: L.List[Bump[source, family]]) \return \forall (f: Bump[source, family]) ->
+    Enumeration.Occurs f bumps -> \forall (x: A) -> #value{f} x = Real.one -> residue bumps x = Real.zero \with {
+      | nil: \fun (f: Bump[source, family]) (empty: Logic.False) (x: A) (_: _) => Logic.falseElim _ empty
+      | cons: \fun (head: Bump[source, family]) (tail: L.List[Bump[source, family]])
+        (ih: \forall (f: Bump[source, family]) -> Enumeration.Occurs f tail -> \forall (x: A) -> #value{f} x = Real.one -> residue tail x = Real.zero)
+        (f: Bump[source, family]) (member: Enumeration.Occurs f (L.List[Bump[source, family]]::cons head tail)) (x: A) (one: #value{f} x = Real.one) =>
+          either!{{f = head} "or" {Enumeration.Occurs f tail} "either" {residue (L.List[Bump[source, family]]::cons head tail) x = Real.zero}
+            "lt:" {\fun (equal: _) => eq_reason!{{residue (L.List[Bump[source, family]]::cons head tail) x}
+              "=" {Real.mul (Real.sub Real.one Real.one) (residue tail x)}
+              "by" {congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul (Real.sub Real.one v) (residue tail x)) _ _
+                (\idelim f = head \with b: Bump[source, family] => #value{b} x = Real.one \by { base: one, equality: equal })}
+              "=" {Real.mul Real.zero (residue tail x)} "by" {congr!{Real.Real Real.Real} (\fun (v: Real.Real) => Real.mul v (residue tail x)) _ _ (Laws.subSelf Real.one)}
+              "=" Real.zero "by" {Laws.fieldMulZeroLeft (residue tail x)}}}
+            "rt:" {\fun (old: _) => trans!{Real.Real} _ _ _
+              (congr!{Real.Real Real.Real} (Real.mul (Real.sub Real.one (#value{head} x))) _ _ (ih f old x one))
+              (Laws.fieldMulZeroRight (Real.sub Real.one (#value{head} x)))}} member
+    };
+\module Construction;

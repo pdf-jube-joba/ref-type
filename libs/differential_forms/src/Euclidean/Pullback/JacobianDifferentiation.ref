@@ -1,0 +1,79 @@
+
+\import Smooth.Algebra[U := U] \as Functions;
+\import Partials.Linear[U := U] \as Differentiation;
+\import SourceForms.FunctionSums[I := Fin.Fin n] \as FunctionSums;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\import Spaces.Sums[I := Fin.Fin n] \as ScalarSums;
+\import ScalarSums.Prop[] \as SumLaws;
+\import SumLaws.Exchange[J := Fin.Fin n] \as Exchange;
+\import Smooth.Mixed[] \as Mixed;
+\definition entry(v: Vectors.Vector)(j: Fin.Fin m)(h: Fin.Fin n): Functions.Function := Functions.scale (v h) (matrix j h);
+\definition function(v: Vectors.Vector)(j: Fin.Fin m): Functions.Function :=
+  \into[Open.ScalarFunction U]((\fun (x: Open.Carrier U) => #apply{(jacobian x)} v j),
+    { h: Open.ScalarFunction U \where Smooth.SmoothOn U h }) \by { vectorSmooth v j };
+\definition expansion: \forall (v: Vectors.Vector)(j: Fin.Fin m) -> function v j = FunctionSums.function (Fin.elements n) (entry v j) :=
+  \fun (v: Vectors.Vector)(j: Fin.Fin m) => Functions.ext (function v j) (FunctionSums.function (Fin.elements n) (entry v j))
+    (\fun (x: Open.Carrier U) => trans!{{Reals.Real}} (#apply{(jacobian x)} v j)
+      (ScalarSums.sum (Fin.elements n) (\fun (h: Fin.Fin n) => Spaces.mul (matrix j h x) (v h)))
+      (ScalarSums.sum (Fin.elements n) (\fun (h: Fin.Fin n) => Spaces.mul (v h) (matrix j h x)))
+      (sym!{{Reals.Real}} (ScalarSums.sum (Fin.elements n) (\fun (h: Fin.Fin n) => Spaces.mul (matrix j h x) (v h)))
+        (#apply{(jacobian x)} v j) (Enumeration.sumLaw n (\fun (h: Fin.Fin n) => Spaces.mul (matrix j h x) (v h))))
+      (SumLaws.congruent (Fin.elements n) (\fun (h: Fin.Fin n) => Spaces.mul (matrix j h x) (v h))
+        (\fun (h: Fin.Fin n) => Spaces.mul (v h) (matrix j h x)) (\fun (h: Fin.Fin n) => Spaces.mulComm (matrix j h x) (v h))));
+\definition second(j: Fin.Fin m)(i, h: Fin.Fin n)(x: Open.Carrier U): Reals.Real := Partials.derivative U (matrix j h) i x;
+\definition partial(i: Fin.Fin n)(v: Vectors.Vector)(x: Open.Carrier U): TargetVectors.Vector :=
+  \fun (j: Fin.Fin m) => ScalarSums.sum (Fin.elements n) (\fun (h: Fin.Fin n) => Spaces.mul (v h) (second j i h x));
+\definition derivative: \forall (v: Vectors.Vector)(j: Fin.Fin m)(i: Fin.Fin n)(x: Open.Carrier U) ->
+  Partials.derivative U (function v j) i x = partial i v x j :=
+  \fun (v: Vectors.Vector)(j: Fin.Fin m)(i: Fin.Fin n)(x: Open.Carrier U) => eq_reason!{
+    {Partials.derivative U (function v j) i x}
+    "=" {Partials.derivative U (FunctionSums.function (Fin.elements n) (entry v j)) i x} "by" {
+      congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => Partials.derivative U h i x)
+        (function v j) (FunctionSums.function (Fin.elements n) (entry v j)) (expansion v j)}
+    "=" {FunctionSums.function (Fin.elements n) (\fun (h: Fin.Fin n) => Partials.derivative U (entry v j h) i) x} "by" {
+      congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => h x)
+        (Partials.derivative U (FunctionSums.function (Fin.elements n) (entry v j)) i)
+        (FunctionSums.function (Fin.elements n) (\fun (h: Fin.Fin n) => Partials.derivative U (entry v j h) i))
+        (FunctionSums.derivative i (Fin.elements n) (entry v j))}
+    "=" {partial i v x j} "by" {SumLaws.congruent (Fin.elements n)
+      (\fun (h: Fin.Fin n) => Partials.derivative U (entry v j h) i x)
+      (\fun (h: Fin.Fin n) => Spaces.mul (v h) (second j i h x))
+      (\fun (h: Fin.Fin n) => congr!{{Functions.Function} {Reals.Real}} (\fun (g: Functions.Function) => g x)
+        (Partials.derivative U (entry v j h) i) (Functions.scale (v h) (Partials.derivative U (matrix j h) i)) (Differentiation.scalar i (v h) (matrix j h)))}
+  };
+\definition mixed: \forall (j: Fin.Fin m)(i, h: Fin.Fin n)(x: Open.Carrier U) -> second j i h x = second j h i x :=
+  \fun (j: Fin.Fin m)(i, h: Fin.Fin n)(x: Open.Carrier U) => congr!{{Functions.Function} {Reals.Real}} (\fun (g: Functions.Function) => g x)
+    (Partials.derivative U (matrix j h) i) (Partials.derivative U (matrix j i) h) (Mixed.commute U (coordinate j) h i);
+\definition hessian(x: Open.Carrier U)(v, w: Vectors.Vector): TargetVectors.Vector :=
+  \fun (j: Fin.Fin m) => ScalarSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (partial i w x j));
+\definition termSymmetry: \forall (v, w: Vectors.Vector)(j: Fin.Fin m)(i, h: Fin.Fin n)(x: Open.Carrier U) ->
+  Spaces.mul (v i) (Spaces.mul (w h) (second j i h x)) = Spaces.mul (w h) (Spaces.mul (v i) (second j h i x)) :=
+  \fun (v, w: Vectors.Vector)(j: Fin.Fin m)(i, h: Fin.Fin n)(x: Open.Carrier U) =>
+    trans!{{Reals.Real}} (Spaces.mul (v i) (Spaces.mul (w h) (second j i h x)))
+      (Spaces.mul (w h) (Spaces.mul (v i) (second j i h x))) (Spaces.mul (w h) (Spaces.mul (v i) (second j h i x)))
+      (Algebra.mulSwap (v i) (w h) (second j i h x))
+      (congr!{{Reals.Real} {Reals.Real}} (\fun (a: Reals.Real) => Spaces.mul (w h) (Spaces.mul (v i) a)) (second j i h x) (second j h i x) (mixed j i h x));
+\definition symmetry: \forall (x: Open.Carrier U)(v, w: Vectors.Vector) -> hessian x v w = hessian x w v :=
+  \fun (x: Open.Carrier U)(v, w: Vectors.Vector) => \axiom:funext(hessian x v w, hessian x w v, \fun (j: Fin.Fin m) => eq_reason!{
+    {hessian x v w j}
+    "=" {ScalarSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => ScalarSums.sum (Fin.elements n) (\fun (h: Fin.Fin n) => Spaces.mul (v i) (Spaces.mul (w h) (second j i h x))))} "by" {
+      SumLaws.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (partial i w x j))
+        (\fun (i: Fin.Fin n) => ScalarSums.sum (Fin.elements n) (\fun (h: Fin.Fin n) => Spaces.mul (v i) (Spaces.mul (w h) (second j i h x))))
+        (\fun (i: Fin.Fin n) => sym!{{Reals.Real}}
+          (ScalarSums.sum (Fin.elements n) (\fun (h: Fin.Fin n) => Spaces.mul (v i) (Spaces.mul (w h) (second j i h x))))
+          (Spaces.mul (v i) (partial i w x j)) (SumLaws.multiplyLeft (Fin.elements n) (v i) (\fun (h: Fin.Fin n) => Spaces.mul (w h) (second j i h x))))}
+    "=" {ScalarSums.sum (Fin.elements n) (\fun (h: Fin.Fin n) => ScalarSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Spaces.mul (w h) (second j i h x))))} "by" {
+      Exchange.exchange (Fin.elements n) (Fin.elements n) (\fun (i, h: Fin.Fin n) => Spaces.mul (v i) (Spaces.mul (w h) (second j i h x)))}
+    "=" {ScalarSums.sum (Fin.elements n) (\fun (h: Fin.Fin n) => ScalarSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (w h) (Spaces.mul (v i) (second j h i x))))} "by" {
+      SumLaws.congruent (Fin.elements n)
+        (\fun (h: Fin.Fin n) => ScalarSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Spaces.mul (w h) (second j i h x))))
+        (\fun (h: Fin.Fin n) => ScalarSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (w h) (Spaces.mul (v i) (second j h i x))))
+        (\fun (h: Fin.Fin n) => SumLaws.congruent (Fin.elements n)
+          (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Spaces.mul (w h) (second j i h x)))
+          (\fun (i: Fin.Fin n) => Spaces.mul (w h) (Spaces.mul (v i) (second j h i x)))
+          (\fun (i: Fin.Fin n) => termSymmetry v w j i h x))}
+    "=" {hessian x w v j} "by" {SumLaws.congruent (Fin.elements n)
+      (\fun (h: Fin.Fin n) => ScalarSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (w h) (Spaces.mul (v i) (second j h i x))))
+      (\fun (h: Fin.Fin n) => Spaces.mul (w h) (partial h v x j))
+      (\fun (h: Fin.Fin n) => SumLaws.multiplyLeft (Fin.elements n) (w h) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (second j h i x)))}
+  });

@@ -1,0 +1,33 @@
+\definition AvoidsZero: \Prop := \forall (i: Fin k) -> Logic.Not (f i = zero n);
+\definition positive(nonzero: AvoidsZero)(i: Fin k): Nonzero n :=
+  \into[Fin (N.Nat^::succ n)](f i, Nonzero n) \by { nonzero i };
+\definition lower(nonzero: AvoidsZero)(i: Fin k): Fin n := predecessor n (positive nonzero i);
+\definition successor: \forall (nonzero: AvoidsZero)(i: Fin k) -> succ n (lower nonzero i) = f i :=
+  \fun (nonzero: AvoidsZero)(i: Fin k) => successorPredecessor n (positive nonzero i);
+\definition injective: \forall (nonzero: AvoidsZero) -> Injective k (N.Nat^::succ n) f -> Injective k n (lower nonzero) :=
+  \fun (nonzero: AvoidsZero)(injection: Injective k (N.Nat^::succ n) f)(i, j: Fin k)(same: lower nonzero i = lower nonzero j) =>
+    injection i j (trans!{{Fin (N.Nat^::succ n)}} (f i) (succ n (lower nonzero i)) (f j)
+      (sym!{{Fin (N.Nat^::succ n)}} (succ n (lower nonzero i)) (f i) (successor nonzero i))
+      (trans!{{Fin (N.Nat^::succ n)}} (succ n (lower nonzero i)) (succ n (lower nonzero j)) (f j)
+        (congr!{{Fin n} {Fin (N.Nat^::succ n)}} (succ n) (lower nonzero i) (lower nonzero j) same) (successor nonzero j)));
+\definition increasing: \forall (nonzero: AvoidsZero)(p: PermutationType k) ->
+  Increasing k n (\fun (i: Fin k) => lower nonzero (#forward{p} i)) ->
+  Increasing k (N.Nat^::succ n) (\fun (i: Fin k) => f (#forward{p} i)) :=
+  \fun (nonzero: AvoidsZero)(p: PermutationType k)(ordered: Increasing k n (\fun (i: Fin k) => lower nonzero (#forward{p} i)))
+    (i, j: Fin k)(less: NL.Lt i j) =>
+      \idelim succ n (lower nonzero (#forward{p} i)) = f (#forward{p} i) \with a: Fin (N.Nat^::succ n) =>
+        NL.Lt a (f (#forward{p} j)) \by {
+          base: \idelim succ n (lower nonzero (#forward{p} j)) = f (#forward{p} j) \with b: Fin (N.Nat^::succ n) =>
+            NL.Lt (succ n (lower nonzero (#forward{p} i))) b \by {
+              base: NL.ltSuccSucc (lower nonzero (#forward{p} i)) (lower nonzero (#forward{p} j)) (ordered i j less),
+              equality: successor nonzero (#forward{p} j)
+            },
+          equality: successor nonzero (#forward{p} i)
+        };
+\definition ordered: Existence n -> \forall (nonzero: AvoidsZero) -> Injective k (N.Nat^::succ n) f -> \exists Ordered k (N.Nat^::succ n) f := \block {
+  \fun (previous: Existence n)(nonzero: AvoidsZero)(injection: Injective k (N.Nat^::succ n) f) \then
+  \takefrom p: Ordered k n (lower nonzero) \by previous k (lower nonzero) (injective nonzero injection) \then
+  \return \exact(\into[PermutationType k](p, Ordered k (N.Nat^::succ n) f) \by {
+    increasing nonzero p (\bysub(PermutationType k, Ordered k n (lower nonzero), p))
+  }, Ordered k (N.Nat^::succ n) f)
+};

@@ -28,6 +28,19 @@
   \fun (a, b: _) (x: _) => trans!{V} _ _ _ (sym!{V} _ _ (#scalarAssoc{space} a b x))
     (trans!{V} _ _ _ (congr!{K V} (\fun (c: _) => scale c x) _ _ (mulComm a b)) (#scalarAssoc{space} b a x));
 \definition comm: \forall (x, y: V) -> plus x y = plus y x := #commutative{(#additive{space})};
+\definition minusOneScale: \forall (x: V) -> scale (neg one) x = negative x := \block {
+  \fun (x: V) \then
+  \let vanishes: plus (scale (neg one) x) x = origin := eq_reason!{
+    {plus (scale (neg one) x) x}
+    "=" {plus (scale (neg one) x) (scale one x)} "by" {congr!{V V} (plus (scale (neg one) x)) _ _ (sym!{V} _ _ (#scalarOne{space} x))}
+    "=" {scale (add (neg one) one) x} "by" {sym!{V} _ _ (#scalarAdd{space} (neg one) one x)}
+    "=" {scale zero x} "by" {congr!{K V} (\fun (a: K) => scale a x) _ _ (addNegLeft one)}
+    "=" origin "by" {zeroScale x}
+  } \then
+  \return cancelLeft x (scale (neg one) x) (negative x)
+    (trans!{V} _ _ _ (trans!{V} _ _ _ (comm x (scale (neg one) x)) vanishes)
+      (sym!{V} _ _ (trans!{V} _ _ _ (comm x (negative x)) (inverseLeft x))))
+};
 \definition shuffle: \forall (a, b, c, d: V) -> plus (plus a b) (plus c d) = plus (plus a c) (plus b d) :=
   \fun (a, b, c, d: _) => eq_reason!{
     {plus (plus a b) (plus c d)}
@@ -36,4 +49,18 @@
     "=" {plus a (plus (plus c b) d)} "by" {congr!{V V} (\fun (x: _) => plus a (plus x d)) _ _ (comm b c)}
     "=" {plus a (plus c (plus b d))} "by" {congr!{V V} (plus a) _ _ (assoc c b d)}
     "=" {plus (plus a c) (plus b d)} "by" {sym!{V} _ _ (assoc a c (plus b d))}
+  };
+\definition scaleNegative: \forall (a: K)(x: V) -> scale a (negative x) = negative (scale a x) :=
+  \fun (a: K)(x: V) => trans!{V} _ _ _
+    (congr!{V V} (scale a) _ _ (sym!{V} _ _ (minusOneScale x)))
+    (trans!{V} _ _ _ (scaleComm a (neg one) x) (minusOneScale (scale a x)));
+\definition oppositeSelfZero: \forall (a: K)(x: V) -> add a a = one -> x = negative x -> x = origin :=
+  \fun (a: K)(x: V)(half: add a a = one)(opposite: x = negative x) => eq_reason!{
+    x "=" {scale one x} "by" {sym!{V} _ _ (#scalarOne{space} x)}
+    "=" {scale (add a a) x} "by" {congr!{K V} (\fun (c: K) => scale c x) _ _ (sym!{K} _ _ half)}
+    "=" {plus (scale a x) (scale a x)} "by" {#scalarAdd{space} a a x}
+    "=" {plus (negative (scale a x)) (scale a x)} "by" {
+      congr!{V V} (\fun (v: V) => plus v (scale a x)) _ _
+        (trans!{V} _ _ _ (congr!{V V} (scale a) _ _ opposite) (scaleNegative a x))}
+    "=" origin "by" {inverseLeft (scale a x)}
   };

@@ -1,0 +1,45 @@
+\import SourceTangent.At[x := x] \as Domain;
+\import TargetTangent.At[x := Maps.apply f x] \as Codomain;
+\import Spaces.Linear[V := Domain.Vector, W := Codomain.Vector, source := Domain.space, target := Codomain.space] \as Linear;
+\module InCharts(left: Domain.Chart, right: Codomain.Chart);
+\module ChangeTarget(left: Domain.Chart, before, after: Codomain.Chart);
+\module ChangeSource(before, after: Domain.Chart, right: Codomain.Chart);
+\definition chartEquality: \forall (left, otherLeft: Domain.Chart)(right, otherRight: Codomain.Chart) ->
+  InCharts[left := left, right := right].value = InCharts[left := otherLeft, right := otherRight].value :=
+    \fun (left, otherLeft: Domain.Chart)(right, otherRight: Codomain.Chart) =>
+      trans!{{Linear.Map}} InCharts[left := left, right := right].value InCharts[left := otherLeft, right := right].value
+        InCharts[left := otherLeft, right := otherRight].value
+        (sym!{{Linear.Map}} _ _ (ChangeSource[before := left, after := otherLeft, right := right].law))
+        (sym!{{Linear.Map}} _ _ (ChangeTarget[left := otherLeft, before := right, after := otherRight].law));
+\definition Values: \Set := \Cast[Linear.Map] ({ d: Linear.Map \where
+  \forall (left: Domain.Chart)(right: Codomain.Chart) -> InCharts[left := left, right := right].value = d });
+\definition existence: \exists Values := \block {
+  \takefrom left: Domain.Chart \by Domain.chartExists \then
+  \takefrom right: Codomain.Chart \by Codomain.chartExists \then
+  \return \exact(\into[Linear.Map](InCharts[left := left, right := right].value, Values) \by {
+    \fun (otherLeft: Domain.Chart)(otherRight: Codomain.Chart) => chartEquality otherLeft left otherRight right
+  }, Values)
+};
+\definition uniqueness: \forall (d, e: Values) -> d = e := \block {
+  \fun (d, e: Values) \then
+  \takefrom left: Domain.Chart \by Domain.chartExists \then
+  \takefrom right: Codomain.Chart \by Codomain.chartExists \then
+  \let first: \forall (left: Domain.Chart)(right: Codomain.Chart) -> InCharts[left := left, right := right].value = d := \bysub(Linear.Map, Values, d) \then
+  \let second: \forall (left: Domain.Chart)(right: Codomain.Chart) -> InCharts[left := left, right := right].value = e := \bysub(Linear.Map, Values, e) \then
+  \return trans!{{Linear.Map}} d InCharts[left := left, right := right].value e
+    (sym!{{Linear.Map}} _ _ (first left right)) (second left right)
+};
+\definition chosen: Values := \choice Values \by { existence: existence, uniqueness: uniqueness };
+\definition value: Linear.Map := chosen;
+\definition inCharts: \forall (left: Domain.Chart)(right: Codomain.Chart) -> InCharts[left := left, right := right].value = value :=
+  \bysub(Linear.Map, Values, chosen);
+\definition coordinates: \forall (left: Domain.Chart)(right: Codomain.Chart)(v: Domain.Vector) ->
+  Codomain.Coordinate[chart := right].decode (#apply{value} v) =
+    #apply{(InCharts[left := left, right := right].jacobian)} (Domain.Coordinate[chart := left].decode v) :=
+      \fun (left: Domain.Chart)(right: Codomain.Chart)(v: Domain.Vector) =>
+        trans!{{TargetVectors.Vector}} (Codomain.Coordinate[chart := right].decode (#apply{value} v))
+          (Codomain.Coordinate[chart := right].decode (#apply{(InCharts[left := left, right := right].value)} v))
+          (#apply{(InCharts[left := left, right := right].jacobian)} (Domain.Coordinate[chart := left].decode v))
+          (congr!{{Linear.Map} {TargetVectors.Vector}} (\fun (d: Linear.Map) => Codomain.Coordinate[chart := right].decode (#apply{d} v))
+            value InCharts[left := left, right := right].value (sym!{{Linear.Map}} _ _ (inCharts left right)))
+          (InCharts[left := left, right := right].coordinateLaw v);

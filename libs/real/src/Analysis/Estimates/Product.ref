@@ -1,0 +1,171 @@
+\use Logic.either;
+\definition abs(x: Real): Real := distance zero x;
+\definition absNonnegative: \forall (x: Real) -> R.Le zero (abs x) := \fun (x: _) => Metric.distanceNonnegative zero x;
+\definition negNonnegative: \forall (x: Real) -> R.Le zero x -> R.Le (neg x) zero :=
+  \fun (x: _) (nonnegative: _) => R.leReplaceRight (neg x) (neg zero) zero Laws.negZero (Laws.negAntitone zero x nonnegative);
+\definition absOfNonnegative: \forall (x: Real) -> R.Le zero x -> abs x = x :=
+  \fun (x: _) (nonnegative: _) => trans!{Real} _ _ _
+    (congr2!{Real Real Real} Metric.max _ _ _ _ (Laws.addZeroLeft (neg x)) (Laws.subZeroRight x))
+    (Metric.maxOfLe (neg x) x (R.leTrans _ _ _ (negNonnegative x nonnegative) nonnegative));
+\definition absOfNegative: \forall (x: Real) -> R.Lt x zero -> abs x = neg x :=
+  \fun (x: _) (negative: _) => trans!{Real} _ _ _
+    (congr2!{Real Real Real} Metric.max _ _ _ _ (Laws.addZeroLeft (neg x)) (Laws.subZeroRight x))
+    (Metric.maxOfGe (neg x) x (R.leTrans _ _ _ (Order.leOfLt x zero negative) (Laws.nonnegativeNegOfNegative x negative)));
+\definition subNegBoth: \forall (x, y: Real) -> sub (neg x) (neg y) = sub y x :=
+  \fun (x, y: _) => trans!{Real} _ _ _ (congr!{Real Real} (add (neg x)) _ _ (Laws.negInvolutive y)) (Laws.addComm (neg x) y);
+\definition distanceNeg: \forall (x, y: Real) -> distance (neg x) (neg y) = distance x y :=
+  \fun (x, y: _) => trans!{Real} _ _ _
+    (congr2!{Real Real Real} Metric.max _ _ _ _ (subNegBoth x y) (subNegBoth y x))
+    (Metric.maxComm (sub y x) (sub x y));
+\definition scalarDistance: \forall (w, x, y: Real) ->
+  R.Le (distance (mul w x) (mul w y)) (mul (abs w) (distance x y)) :=
+  \fun (w, x, y: _) => either!{{R.Le zero w} "or" {R.Lt w zero}
+    "either" {R.Le (distance (mul w x) (mul w y)) (mul (abs w) (distance x y))}
+    "lt:" {\fun (nonnegative: _) => R.leReplaceRight _ _ _
+      (congr!{Real Real} (\fun (t: Real) => mul t (distance x y)) _ _ (sym!{Real} _ _ (absOfNonnegative w nonnegative)))
+      (distanceMul w x y nonnegative)}
+    "rt:" {\fun (negative: _) => R.leReplace
+      (distance (mul (neg w) x) (mul (neg w) y)) (distance (mul w x) (mul w y))
+      (mul (neg w) (distance x y)) (mul (abs w) (distance x y))
+      (trans!{Real} _ _ _ (congr2!{Real Real Real} distance _ _ _ _ (Laws.fieldMulNegLeft w x) (Laws.fieldMulNegLeft w y))
+        (distanceNeg (mul w x) (mul w y)))
+      (congr!{Real Real} (\fun (t: Real) => mul t (distance x y)) _ _ (sym!{Real} _ _ (absOfNegative w negative)))
+      (distanceMul (neg w) x y (Laws.nonnegativeNegOfNegative w negative))}}
+    (Laws.nonnegativeOrNegativeReal w);
+\definition productDistance: \forall (a, b, c, d: Real) ->
+  R.Le (distance (mul a b) (mul c d)) (add (mul (abs a) (distance b d)) (mul (abs d) (distance a c))) :=
+  \fun (a, b, c, d: _) => R.leTrans _ _ _ (Metric.distanceTriangle (mul a b) (mul a d) (mul c d))
+    (addLe _ _ _ _ (scalarDistance a b d)
+      (R.leReplaceLeft (distance (mul d a) (mul d c)) (distance (mul a d) (mul c d)) _
+        (congr2!{Real Real Real} distance _ _ _ _ (Laws.fieldMulComm d a) (Laws.fieldMulComm d c))
+        (scalarDistance d a c)));
+\definition mulPositive: \forall (a, b: Real) -> R.Lt zero a -> R.Lt zero b -> R.Lt zero (mul a b) :=
+  \fun (a, b: _) (ap: _) (bp: _) => Order.ltOfLeNotEq zero (mul a b)
+    (Laws.fieldMulNonnegative a b (Order.leOfLt _ _ ap) (Order.leOfLt _ _ bp))
+    (\fun (equal: zero = mul a b) => Order.ltNotEq zero b bp (sym!{Real} _ _ (eq_reason!{
+      b "=" {mul one b} "by" {sym!{Real} _ _ (Laws.fieldMulOneLeft b)}
+      "=" {mul (mul (Laws.fieldInv a) a) b} "by" {
+        congr!{Real Real} (\fun (t: Real) => mul t b) _ _ (sym!{Real} _ _
+          (Laws.fieldInverseNonzero a (\fun (az: a = zero) => Order.ltNotEq zero a ap (sym!{Real} _ _ az))))}
+      "=" {mul (Laws.fieldInv a) (mul a b)} "by" {Laws.fieldMulAssoc (Laws.fieldInv a) a b}
+      "=" {mul (Laws.fieldInv a) zero} "by" {congr!{Real Real} (mul (Laws.fieldInv a)) _ _ (sym!{Real} _ _ equal)}
+      "=" zero "by" {Laws.fieldMulZeroRight (Laws.fieldInv a)}
+    })));
+\definition invPositive: \forall (a: Real) -> R.Lt zero a -> R.Lt zero (Laws.fieldInv a) :=
+  \fun (a: _) (positive: _) => Order.ltOfLeNotEq zero (Laws.fieldInv a)
+    (R.leReplaceRight zero (Op.inv a) (Laws.fieldInv a) (sym!{Real} _ _ (Laws.fieldInvNonnegative a (Order.leOfLt _ _ positive)))
+      (Laws.invNonnegativeOfPositive a positive))
+    (\fun (equal: zero = Laws.fieldInv a) => Laws.zeroNeOne (eq_reason!{
+      zero "=" {mul zero a} "by" {sym!{Real} _ _ (Laws.fieldMulZeroLeft a)}
+      "=" {mul (Laws.fieldInv a) a} "by" {congr!{Real Real} (\fun (t: Real) => mul t a) _ _ equal}
+      "=" one "by" {Laws.fieldInverseNonzero a (\fun (az: a = zero) => Order.ltNotEq zero a positive (sym!{Real} _ _ az))}
+    }));
+\definition minPositive: \forall (a, b: Real) -> R.Lt zero a -> R.Lt zero b -> R.Lt zero (Metric.min a b) :=
+  \fun (a, b: _) (ap: _) (bp: _) => either!{{R.Le a b} "or" {R.Le b a} "either" {R.Lt zero (Metric.min a b)}
+    "lt:" {\fun (ab: _) => R.ltReplaceRight zero a (Metric.min a b) (sym!{Real} _ _ (Metric.minOfLe a b ab)) ap}
+    "rt:" {\fun (ba: _) => R.ltReplaceRight zero b (Metric.min a b) (sym!{Real} _ _ (Metric.minOfGe a b ba)) bp}} (Order.leTotal a b);
+\definition onePositive: R.Lt zero one := Order.ltOfLeNotEq zero one Laws.oneNonnegative Laws.zeroNeOne;
+\definition radius(c, r: Real): Real := Metric.min one (mul (mul half r) (Laws.fieldInv c));
+\definition radiusPositive: \forall (c, r: Real) -> R.Lt zero c -> R.Lt zero r -> R.Lt zero (radius c r) :=
+  \fun (c, r: _) (cp: _) (rp: _) => minPositive one (mul (mul half r) (Laws.fieldInv c)) onePositive
+    (mulPositive (mul half r) (Laws.fieldInv c) (halfOfPositive r rp) (invPositive c cp));
+\definition radiusBelowOne: \forall (c, r: Real) -> R.Le (radius c r) one := \fun (c, r: _) => Metric.minLeft one _;
+\definition radiusSmall: \forall (c, r: Real) -> R.Lt zero c -> R.Lt zero r -> R.Lt (mul c (radius c r)) r := \block {
+  \fun (c, r: _) (cp: _) (rp: _) \then
+  \let cancel: mul c (mul (mul half r) (Laws.fieldInv c)) = mul half r := eq_reason!{
+    {mul c (mul (mul half r) (Laws.fieldInv c))}
+    "=" {mul (mul (mul half r) (Laws.fieldInv c)) c} "by" {Laws.fieldMulComm c _}
+    "=" {mul (mul half r) (mul (Laws.fieldInv c) c)} "by" {Laws.fieldMulAssoc _ _ c}
+    "=" {mul (mul half r) one} "by" {congr!{Real Real} (mul (mul half r)) _ _
+      (Laws.fieldInverseNonzero c (\fun (cz: c = zero) => Order.ltNotEq zero c cp (sym!{Real} _ _ cz)))}
+    "=" {mul half r} "by" {Algebra.mulOneRight (mul half r)}
+  } \then
+  \return R.leLtTrans _ (mul half r) r
+    (R.leReplaceRight _ _ _ cancel (mulMonotone c (radius c r) (mul (mul half r) (Laws.fieldInv c))
+      (Order.leOfLt _ _ cp) (Metric.minRight one _))) (halfStrict r rp)
+};
+\definition coefficient(a, b: Real): Real := add (abs a) (add (abs b) one);
+\definition coefficientPositive: \forall (a, b: Real) -> R.Lt zero (coefficient a b) :=
+  \fun (a, b: _) => R.ltLeTrans zero one (coefficient a b) onePositive
+    (R.leReplaceLeft (add zero (add zero one)) one (coefficient a b)
+      (trans!{Real} _ _ _ (Laws.addZeroLeft (add zero one)) (Laws.addZeroLeft one))
+      (addLe _ _ _ _ (absNonnegative a) (addLe _ _ _ _ (absNonnegative b) (R.leRefl one))));
+\definition localProductDistance: \forall (a, b, c, d, delta: Real) -> R.Le zero delta -> R.Le delta one ->
+  R.Lt (distance a c) delta -> R.Lt (distance b d) delta ->
+  R.Le (distance (mul a b) (mul c d)) (mul (coefficient a b) delta) := \block {
+  \fun (a, b, c, d, delta: _) (dp: _) (db: _) (ac: _) (bd: _) \then
+  \let dBound: R.Le (abs d) (add (abs b) one) := R.leTrans _ _ _ (Metric.distanceTriangle zero b d)
+    (Laws.addMonotoneLeft _ _ (abs b) (R.leTrans _ _ _ (Order.leOfLt _ _ bd) db)) \then
+  \let sumBound: R.Le (add (abs a) (abs d)) (coefficient a b) := Laws.addMonotoneLeft _ _ (abs a) dBound \then
+  \return R.leTrans _ _ _ (productDistance a b c d)
+    (R.leTrans _ (add (mul (abs a) delta) (mul (abs d) delta)) _
+      (addLe _ _ _ _ (mulMonotone (abs a) _ delta (absNonnegative a) (Order.leOfLt _ _ bd))
+        (mulMonotone (abs d) _ delta (absNonnegative d) (Order.leOfLt _ _ ac)))
+      (R.leReplace
+        (mul delta (add (abs a) (abs d))) (add (mul (abs a) delta) (mul (abs d) delta))
+        (mul delta (coefficient a b)) (mul (coefficient a b) delta)
+        (trans!{Real} _ _ _ (Laws.fieldMulComm delta _) (Algebra.mulAddRight _ _ delta))
+        (Laws.fieldMulComm delta (coefficient a b)) (mulMonotone delta _ _ dp sumBound)))
+};
+
+\definition mulMax: \forall (w, x, y: Real) -> R.Le zero w ->
+  mul w (Metric.max x y) = Metric.max (mul w x) (mul w y) :=
+  \fun (w, x, y: Real)(nonnegative: R.Le zero w) => either!{{R.Le x y} "or" {R.Le y x}
+    "either" {mul w (Metric.max x y) = Metric.max (mul w x) (mul w y)}
+    "lt:" {\fun (ordered: R.Le x y) => trans!{Real} _ _ _
+      (congr!{Real Real} (mul w) _ _ (Metric.maxOfLe x y ordered))
+      (sym!{Real} _ _ (Metric.maxOfLe (mul w x) (mul w y) (mulMonotone w x y nonnegative ordered)))}
+    "rt:" {\fun (ordered: R.Le y x) => trans!{Real} _ _ _
+      (congr!{Real Real} (mul w) _ _ (Metric.maxOfGe x y ordered))
+      (sym!{Real} _ _ (Metric.maxOfGe (mul w x) (mul w y) (mulMonotone w y x nonnegative ordered)))}}
+    (Order.leTotal x y);
+\definition absExpression: \forall (x: Real) -> abs x = Metric.max (neg x) x :=
+  \fun (x: Real) => congr2!{Real Real Real} Metric.max _ _ _ _ (Laws.addZeroLeft (neg x)) (Laws.subZeroRight x);
+\definition positiveAbsProduct: \forall (w, x: Real) -> R.Le zero w -> abs (mul w x) = mul w (abs x) :=
+  \fun (w, x: Real)(nonnegative: R.Le zero w) => eq_reason!{
+    {abs (mul w x)} "=" {Metric.max (neg (mul w x)) (mul w x)} "by" {absExpression (mul w x)}
+    "=" {Metric.max (mul w (neg x)) (mul w x)}
+    "by" {congr!{Real Real} (\fun (t: Real) => Metric.max t (mul w x)) _ _ (sym!{Real} _ _ (Laws.fieldMulNegRight w x))}
+    "=" {mul w (Metric.max (neg x) x)} "by" {sym!{Real} _ _ (mulMax w (neg x) x nonnegative)}
+    "=" {mul w (abs x)} "by" {congr!{Real Real} (mul w) _ _ (sym!{Real} _ _ (absExpression x))}
+  };
+\definition absNeg: \forall (x: Real) -> abs (neg x) = abs x :=
+  \fun (x: Real) => trans!{Real} _ _ _
+    (sym!{Real} _ _ (congr!{Real Real} (\fun (t: Real) => distance t (neg x)) _ _ Laws.negZero))
+    (distanceNeg zero x);
+\definition absProduct: \forall (w, x: Real) -> abs (mul w x) = mul (abs w) (abs x) :=
+  \fun (w, x: Real) => either!{{R.Le zero w} "or" {R.Lt w zero}
+    "either" {abs (mul w x) = mul (abs w) (abs x)}
+    "lt:" {\fun (nonnegative: R.Le zero w) => trans!{Real} _ _ _ (positiveAbsProduct w x nonnegative)
+      (congr!{Real Real} (\fun (t: Real) => mul t (abs x)) _ _ (sym!{Real} _ _ (absOfNonnegative w nonnegative)))}
+    "rt:" {\fun (negative: R.Lt w zero) => eq_reason!{
+      {abs (mul w x)} "=" {abs (neg (mul w x))} "by" {sym!{Real} _ _ (absNeg (mul w x))}
+      "=" {abs (mul (neg w) x)} "by" {congr!{Real Real} abs _ _ (sym!{Real} _ _ (Laws.fieldMulNegLeft w x))}
+      "=" {mul (neg w) (abs x)} "by" {positiveAbsProduct (neg w) x (Laws.nonnegativeNegOfNegative w negative)}
+      "=" {mul (abs w) (abs x)} "by" {congr!{Real Real} (\fun (t: Real) => mul t (abs x)) _ _ (sym!{Real} _ _ (absOfNegative w negative))}
+    }}} (Laws.nonnegativeOrNegativeReal w);
+\definition inverseAbsCancellation: \forall (h: Real) -> Logic.Not (h = zero) -> mul (abs (Laws.fieldInv h)) (abs h) = one :=
+  \fun (h: Real)(nonzero: _) => trans!{Real} _ _ _ (sym!{Real} _ _ (absProduct (Laws.fieldInv h) h))
+    (trans!{Real} _ _ _ (congr!{Real Real} abs _ _ (Laws.fieldInverseNonzero h nonzero)) (absOfNonnegative one Laws.oneNonnegative));
+\definition inverseAbsPositive: \forall (h: Real) -> Logic.Not (h = zero) -> R.Lt zero (abs (Laws.fieldInv h)) :=
+  \fun (h: Real)(nonzero: _) => Order.ltOfLeNotEq zero (abs (Laws.fieldInv h)) (absNonnegative (Laws.fieldInv h))
+    (\fun (equal: zero = abs (Laws.fieldInv h)) => Laws.zeroNeOne (trans!{Real} _ _ _
+      (sym!{Real} _ _ (Laws.fieldMulZeroLeft (abs h)))
+      (trans!{Real} _ _ _ (congr!{Real Real} (\fun (r: Real) => mul r (abs h)) _ _ equal) (inverseAbsCancellation h nonzero))));
+\definition subPositive: \forall (a, b: Real) -> R.Lt b a -> R.Lt zero (sub a b) :=
+  \fun (a, b: _)(less: _) => R.ltReplaceLeft (sub b b) zero (sub a b) (Laws.subSelf b) (Laws.ltAddRight b a (neg b) less);
+\definition mulStrict: \forall (w, x, y: Real) -> R.Lt zero w -> R.Lt x y -> R.Lt (mul w x) (mul w y) :=
+  \fun (w, x, y: _)(wp: _)(xy: _) => Laws.ltAddCancelRight (mul w x) (mul w y) (neg (mul w x))
+    (R.ltReplaceLeft zero (sub (mul w x) (mul w x)) (sub (mul w y) (mul w x))
+      (sym!{Real} _ _ (Laws.subSelf (mul w x)))
+      (R.ltReplaceRight zero (mul w (sub y x)) (sub (mul w y) (mul w x)) (Algebra.mulSub w y x)
+        (mulPositive w (sub y x) wp (subPositive y x xy))));
+\module Quotient;
+\definition coefficientFirst: \forall (a, b: Real) -> R.Le (abs a) (coefficient a b) :=
+  \fun (a, b: Real) => Metric.leAddOfNonnegative (abs a) (add (abs b) one)
+    (Laws.addNonnegative (abs b) one (absNonnegative b) Laws.oneNonnegative);
+\definition scaledSmall: \forall (a, b, c, r: Real) -> R.Lt (mul a b) c -> R.Lt zero r -> R.Lt (mul a (mul b r)) (mul c r) :=
+  \fun (a, b, c, r: Real)(small: _)(positive: _) => R.ltReplaceRight (mul a (mul b r)) (mul r c) (mul c r) (Laws.fieldMulComm r c)
+    (R.ltReplaceLeft (mul r (mul a b)) (mul a (mul b r)) (mul r c)
+      (trans!{Real} (mul r (mul a b)) (mul (mul a b) r) (mul a (mul b r)) (Laws.fieldMulComm r (mul a b)) (Laws.fieldMulAssoc a b r))
+      (mulStrict r (mul a b) c positive small));

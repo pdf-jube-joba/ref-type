@@ -1,0 +1,23 @@
+\import N.Order[].Prop[] \as Order;
+\definition tail(f: Fin (N.Nat^::succ k) -> Fin n): Fin k -> Fin n := \fun (i: Fin k) => f (succ k i);
+\definition tailIncreasing: \forall (f: Fin (N.Nat^::succ k) -> Fin n) -> Increasing (N.Nat^::succ k) n f -> Increasing k n (tail f) :=
+  \fun (f: Fin (N.Nat^::succ k) -> Fin n)(increasing: Increasing (N.Nat^::succ k) n f)(i, j: Fin k)(less: NL.Lt i j) =>
+    increasing (succ k i) (succ k j) (NL.ltSuccSucc i j less);
+\definition headTail: \forall (f: Fin (N.Nat^::succ k) -> Fin n) -> Increasing (N.Nat^::succ k) n f ->
+  \forall (i: Fin k) -> NL.Lt (f (zero k)) (tail f i) :=
+  \fun (f: Fin (N.Nat^::succ k) -> Fin n)(increasing: Increasing (N.Nat^::succ k) n f)(i: Fin k) =>
+    increasing (zero k) (succ k i) (\refl(B.Bool^::true));
+\definition belowHead: \forall (f: Fin (N.Nat^::succ k) -> Fin n) -> Increasing (N.Nat^::succ k) n f ->
+  \forall (low: Fin n) -> NL.Lt low (f (zero k)) -> \forall (i: Fin (N.Nat^::succ k)) -> NL.Lt low (f i) :=
+  \fun (f: Fin (N.Nat^::succ k) -> Fin n)(increasing: Increasing (N.Nat^::succ k) n f)
+    (low: Fin n)(less: NL.Lt low (f (zero k)))(i: Fin (N.Nat^::succ k)) =>
+    \idelim inflate k (split k i) = i \with j: Fin (N.Nat^::succ k) => NL.Lt low (f j) \by {
+      base: (\induction (option: Option.Option[Fin k]) \return NL.Lt low (f (inflate k option)) \with {
+        | none: less
+        | some: \fun (j: Fin k) => Order.ltTrans low (f (zero k)) (tail f j) less (headTail f increasing j)
+      }) (split k i),
+      equality: inflateSplit k i
+    };
+\definition unequal: \forall (i, j: Fin n) -> NL.Lt i j -> Logic.Not (i = j) :=
+  \fun (i, j: Fin n)(less: NL.Lt i j)(same: i = j) => NL.ltIrrefl i
+    (\idelim j = i \with r: Fin n => NL.Lt i r \by { base: less, equality: sym!{{Fin n}} i j same });

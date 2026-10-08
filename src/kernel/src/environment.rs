@@ -178,6 +178,7 @@ impl Environment {
         id: ParameterId,
         ty: Expression,
     ) -> Result<(), crate::metavariables::Error> {
+        let _cost = timing::costs::Scope::enter("kernel.register_parameter");
         if let Some(previous) = self.parameter(id) {
             if previous != ty {
                 return Err("parameter identity already registered".into());
@@ -389,6 +390,7 @@ impl Environment {
         id: InductiveId,
         spec: InductiveSpec,
     ) -> Result<(), crate::metavariables::Error> {
+        let _cost = timing::costs::Scope::enter("kernel.register_inductive");
         use crate::{check::Checker, metavariables::MetaContext};
         if self.inductives.contains_key(&id) {
             return Err("duplicate inductive".into());
@@ -452,6 +454,7 @@ impl Environment {
         metas: &mut crate::metavariables::MetaContext,
         definition: Definition,
     ) -> Result<DefinitionId, crate::metavariables::Error> {
+        let _cost = timing::costs::Scope::enter("kernel.register_definition");
         let mark = self.arena.scratch_mark();
         let definitions = self.definitions.len();
         let contexts = self.contexts.borrow().len();
@@ -584,6 +587,7 @@ impl Environment {
         id: ProgramInductiveId,
         spec: Datatype,
     ) -> Result<(), crate::metavariables::Error> {
+        let _cost = timing::costs::Scope::enter("kernel.register_datatype");
         use crate::{check::Checker, ids::SymbolId, metavariables::MetaContext};
         if self.datatypes.contains_key(&id) {
             return Err("duplicate Program datatype".into());

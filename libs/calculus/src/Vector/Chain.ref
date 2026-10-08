@@ -1,0 +1,61 @@
+\import Reals.Multivariable[n := m].Open[] \as Target;
+\import Target.Analysis[] \as Outer;
+\import Outer.Properties[] \as OuterLaws;
+\import Reals.Multivariable[n := m].Space[].Linear[] \as OuterLinear;
+\definition inner: Function U := \fun (x: Source.Carrier U) => f x;
+\definition composite: Source.ScalarFunction U := \fun (x: Source.Carrier U) => g (f x);
+\definition differential: ScalarMaps.LinearMap := ScalarMaps.LinearMap {
+  apply := \fun (v: Domain.Point) => #apply{e} (#apply{d} v),
+  additive := \fun (v, w: Domain.Point) => trans!{Reals.Real} _ _ _
+    (congr!{Codomain.Point Reals.Real} (#apply{e}) _ _ (#preservesAdd{d} v w)) (#additive{e} (#apply{d} v) (#apply{d} w)),
+  homogeneous := \fun (c: Reals.Real)(v: Domain.Point) => trans!{Reals.Real} _ _ _
+    (congr!{Codomain.Point Reals.Real} (#apply{e}) _ _ (#preservesScale{d} c v)) (#homogeneous{e} c (#apply{d} v)),
+};
+\definition innerCoefficient: Reals.Real := localCoefficient d;
+\definition outerCoefficient: Reals.Real := OuterLinear.positiveCoefficient e;
+\definition half(epsilon: Reals.Real): Reals.Real := Reals.mul Arithmetic.half epsilon;
+\definition innerTolerance(epsilon: Reals.Real): Reals.Real := Product.radius outerCoefficient (half epsilon);
+\definition outerTolerance(epsilon: Reals.Real): Reals.Real := Product.radius innerCoefficient (half epsilon);
+\module Point(x: Source.Carrier U);
+\import \parent.Differential[U := U, f := inner, a := a, d := d] \as Inner;
+\definition law: HasDifferentialAt U inner a d -> Outer.HasDifferentialAt V g (f a) e -> Scalars.HasDifferentialAt U composite a differential := \block {
+  \fun (innerLaw: HasDifferentialAt U inner a d)(outerLaw: Outer.HasDifferentialAt V g (f a) e)(epsilon: Reals.Real)(positive: R.Lt Reals.zero epsilon) \then
+  \let halfPositive: R.Lt Reals.zero (half epsilon) := Bounds.halfOfPositive epsilon positive \then
+  \let innerPositive: R.Lt Reals.zero innerCoefficient := localCoefficientPositive d \then
+  \let outerPositive: R.Lt Reals.zero outerCoefficient := OuterLinear.positiveCoefficientPositive e \then
+  \let thetaPositive: R.Lt Reals.zero (innerTolerance epsilon) := Product.radiusPositive outerCoefficient (half epsilon) outerPositive halfPositive \then
+  \let etaPositive: R.Lt Reals.zero (outerTolerance epsilon) := Product.radiusPositive innerCoefficient (half epsilon) innerPositive halfPositive \then
+  \takefrom di: \Cast[Reals.Real] ({ r: Reals.Real \where Control[U, inner, a, d, innerTolerance epsilon, r] }) \by Inner.uniform innerLaw (innerTolerance epsilon) thetaPositive \then
+  \takefrom db: \Cast[Reals.Real] ({ r: Reals.Real \where LocalBound[U, inner, a, d, r] }) \by Inner.localBound innerLaw \then
+  \takefrom dg: \Cast[Reals.Real] ({ r: Reals.Real \where Outer.DifferentialControl[V, g, f a, e, outerTolerance epsilon, r] }) \by outerLaw (outerTolerance epsilon) etaPositive \then
+  \let ci: Control[U, inner, a, d, innerTolerance epsilon, di] := \bysub(Reals.Real, { r: Reals.Real \where Control[U, inner, a, d, innerTolerance epsilon, r] }, di) \then
+  \let cb: LocalBound[U, inner, a, d, db] := \bysub(Reals.Real, { r: Reals.Real \where LocalBound[U, inner, a, d, r] }, db) \then
+  \let cg: Outer.DifferentialControl[V, g, f a, e, outerTolerance epsilon, dg] := \bysub(Reals.Real, { r: Reals.Real \where Outer.DifferentialControl[V, g, f a, e, outerTolerance epsilon, r] }, dg) \then
+  \let radius: Reals.Real := Product.radius innerCoefficient dg \then
+  \let delta: Reals.Real := Metric.min di (Metric.min db radius) \then
+  \return \exact(\into[Reals.Real](delta,
+    { r: Reals.Real \where Scalars.DifferentialControl[U, composite, a, differential, epsilon, r] }) \by {
+      Scalars.DifferentialControl[U, composite, a, differential, epsilon, delta] {
+        positive := Product.minPositive di (Metric.min db radius) (#positive{ci})
+          (Product.minPositive db radius (#positive{cb}) (Product.radiusPositive innerCoefficient dg innerPositive (#positive{cg}))),
+        estimate := \block {
+          \fun (x: Source.Carrier U)(nonzero: R.Lt Reals.zero (DomainCoordinates.pointDistance x a))(near: R.Lt (DomainCoordinates.pointDistance x a) delta) \then
+          \let sourceRadius: Reals.Real := DomainCoordinates.pointDistance x a \then
+          \let targetRadius: Reals.Real := CodomainCoordinates.pointDistance (f x) (f a) \then
+          \let nearInner: R.Lt sourceRadius di := R.ltLeTrans sourceRadius delta di near (Metric.minLeft di (Metric.min db radius)) \then
+          \let nearBound: R.Lt sourceRadius db := R.ltLeTrans sourceRadius delta db near
+            (R.leTrans delta (Metric.min db radius) db (Metric.minRight di (Metric.min db radius)) (Metric.minLeft db radius)) \then
+          \let nearRadius: R.Lt sourceRadius radius := R.ltLeTrans sourceRadius delta radius near
+            (R.leTrans delta (Metric.min db radius) radius (Metric.minRight di (Metric.min db radius)) (Metric.minRight db radius)) \then
+          \let bounded: R.Le targetRadius (Reals.mul innerCoefficient sourceRadius) := #estimate{cb} x nonzero nearBound \then
+          \let nearTarget: R.Lt targetRadius dg := R.leLtTrans targetRadius (Reals.mul innerCoefficient sourceRadius) dg bounded
+            (R.leLtTrans (Reals.mul innerCoefficient sourceRadius) (Reals.mul innerCoefficient radius) dg
+              (Bounds.mulMonotone innerCoefficient sourceRadius radius (R.Order[].leOfLt Reals.zero innerCoefficient innerPositive) (R.Order[].leOfLt sourceRadius radius nearRadius))
+              (Product.radiusSmall innerCoefficient dg innerPositive (#positive{cg}))) \then
+          \return Point[x := x].sumEstimate epsilon
+            (Point[x := x].outerErrorBound epsilon dg positive nonzero cg nearTarget bounded)
+            (Point[x := x].innerErrorBound epsilon di positive nonzero ci nearInner)
+        },
+      }
+    }, \Cast[Reals.Real] ({ r: Reals.Real \where Scalars.DifferentialControl[U, composite, a, differential, epsilon, r] }))
+};

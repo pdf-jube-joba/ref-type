@@ -2,6 +2,97 @@
 use super::*;
 
 impl Lowerer<'_> {
+    fn inductive_reference(
+        &mut self,
+        id: InductiveId,
+        ctx: &mut ExpContext,
+        module: ModuleId,
+    ) -> Result<(kernel::ids::InductiveId, Vec<s::Expression>), String> {
+        self.inductive(id)?;
+        let origin = if self.raw.is_program_mirror(id) {
+            None
+        } else {
+            self.raw.inductive_specialization(id).cloned()
+        };
+        let Some(origin) = origin else {
+            let captures = self.captures(Declaration::Inductive(id));
+            return Ok((
+                id.into(),
+                self.capture_arguments(&captures, ctx.len() - self.scope.logical_base, false)?,
+            ));
+        };
+        let captures = self.captures(Declaration::Inductive(origin.source));
+        let mut arguments = Vec::new();
+        for parameter in captures {
+            let Some((_, argument)) = origin.arguments.iter().find(|(id, _)| *id == parameter)
+            else {
+                arguments.extend(self.capture_arguments(
+                    &[parameter],
+                    ctx.len() - self.scope.logical_base,
+                    false,
+                )?);
+                continue;
+            };
+            let term = match *argument {
+                raw::environment::ModuleArgument::Pts(e) => e,
+                raw::environment::ModuleArgument::ProgramType(t) => {
+                    raw::reflection::reflect_value_type(self.raw, t).map_err(|e| e.to_string())?
+                }
+                raw::environment::ModuleArgument::ProgramValue(v) => {
+                    raw::reflection::reflect_program(
+                        self.raw,
+                        raw::program::ProgramTerm::ValueTerm(v),
+                    )
+                    .map_err(|e| e.to_string())?
+                }
+            };
+            let shift = ctx
+                .len()
+                .saturating_sub(self.raw.definition_context(id.module).len());
+            let term = crate::kernel_bridge::shift_bound_indices(self.raw.arena(), term, shift, 0);
+            arguments.push(self.set(term, ctx, module)?);
+        }
+        Ok((origin.source.into(), arguments))
+    }
+
+    fn inductive_application(
+        &mut self,
+        id: InductiveId,
+        parameters: Vec<Exp>,
+        ctx: &mut ExpContext,
+        module: ModuleId,
+    ) -> Result<(kernel::ids::InductiveId, Vec<s::Expression>), String> {
+        self.inductive(id)?;
+        let source = if self.raw.is_program_mirror(id) {
+            id
+        } else {
+            self.raw
+                .inductive_specialization(id)
+                .map_or(id, |origin| origin.source)
+        };
+        let explicit_capture_arguments = self
+            .raw
+            .arena()
+            .inductive_captures
+            .borrow()
+            .get(&source.into())
+            .is_some_and(|(captures, explicit)| {
+                !captures.is_empty() && parameters.len() == captures.len() + explicit
+            });
+        let (inductive, mut arguments) = if explicit_capture_arguments {
+            (source.into(), Vec::new())
+        } else {
+            self.inductive_reference(id, ctx, module)?
+        };
+        arguments.extend(
+            parameters
+                .into_iter()
+                .map(|x| self.set(x, ctx, module))
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+        Ok((inductive, arguments))
+    }
+
     fn induction_motive(
         &mut self,
         bindings: &[(SymbolId, Exp)],
@@ -44,8 +135,46 @@ impl Lowerer<'_> {
         ctx: &mut ExpContext,
         m: ModuleId,
     ) -> Result<s::Expression, String> {
-        if self.native_reference(e.0) {
+        let nominal = !self.structural
+            && self.scope.nominal
+            && self.scope.proof_base.is_none()
+            && !self.scope.program_context
+            && self.scope.program_depth == 0;
+        if nominal && self.raw.arena().lowered_definitions.borrow().contains(&e.0) {
             return Ok(e.0);
+        }
+        let result = self.set_unresolved(e, ctx, m)?;
+        if nominal && matches!(self.kernel.arena().get(result), s::Node::Definition { .. }) {
+            self.raw
+                .arena()
+                .lowered_definitions
+                .borrow_mut()
+                .insert(result);
+        }
+        Ok(result)
+    }
+
+    fn set_unresolved(
+        &mut self,
+        e: Exp,
+        ctx: &mut ExpContext,
+        m: ModuleId,
+    ) -> Result<s::Expression, String> {
+        if let s::Node::Definition { id, arguments } = self.kernel.arena().get(e.0) {
+            let key = self.logical_key(e, ctx.len(), m);
+            if let Some(&result) = self.cache.get(&key) {
+                return Ok(result);
+            }
+            let arguments = arguments
+                .into_iter()
+                .map(|argument| self.set(Exp(argument), ctx, m))
+                .collect::<Result<Vec<_>, _>>()?;
+            let result = self
+                .kernel
+                .arena()
+                .alloc(s::Node::Definition { id, arguments });
+            self.cache.insert(key, result);
+            return Ok(result);
         }
         let ExpNode::App { func, arg } = self.raw.arena().get(e) else {
             return self.set_non_application(e, ctx, m);
@@ -339,18 +468,8 @@ impl Lowerer<'_> {
                 indspec,
                 parameters,
             } => {
-                self.inductive(indspec)?;
-                let inductive = indspec.into();
-                let captures = self.captures(Declaration::Inductive(indspec));
-                let mut arguments =
-                    self.capture_arguments(&captures, ctx.len() - self.scope.logical_base, false)?;
-                arguments.extend(
-                    parameters
-                        .into_iter()
-                        .map(|x| self.set(x, ctx, m))
-                        .collect::<Result<Vec<_>, _>>()?,
-                );
-                let parameters = arguments;
+                let (inductive, parameters) =
+                    self.inductive_application(indspec, parameters, ctx, m)?;
                 self.kernel.arena().alloc(s::Node::IndType {
                     inductive,
                     parameters,
@@ -361,19 +480,9 @@ impl Lowerer<'_> {
                 idx,
                 parameters,
             } => {
-                self.inductive(indspec)?;
-                let inductive = indspec.into();
+                let (inductive, parameters) =
+                    self.inductive_application(indspec, parameters, ctx, m)?;
                 let constructor = idx;
-                let captures = self.captures(Declaration::Inductive(indspec));
-                let mut arguments =
-                    self.capture_arguments(&captures, ctx.len() - self.scope.logical_base, false)?;
-                arguments.extend(
-                    parameters
-                        .into_iter()
-                        .map(|x| self.set(x, ctx, m))
-                        .collect::<Result<Vec<_>, _>>()?,
-                );
-                let parameters = arguments;
                 self.kernel.arena().alloc(s::Node::IndCtor {
                     inductive,
                     constructor,
@@ -388,6 +497,14 @@ impl Lowerer<'_> {
                 cases,
             } => {
                 self.inductive(indspec)?;
+                let inductive = if self.raw.is_program_mirror(indspec) {
+                    indspec
+                } else {
+                    self.raw
+                        .inductive_specialization(indspec)
+                        .map_or(indspec, |origin| origin.source)
+                }
+                .into();
                 let scrutinee = self.set(elim, ctx, m)?;
                 let (motive_bindings, motive) =
                     self.induction_motive(&motive_bindings, return_type, ctx, m)?;
@@ -397,7 +514,7 @@ impl Lowerer<'_> {
                     .collect::<Result<_, _>>()?;
                 self.kernel.arena().alloc(s::Node::IndElim {
                     motive_bindings,
-                    inductive: indspec.into(),
+                    inductive,
                     scrutinee,
                     motive,
                     cases,
@@ -410,6 +527,14 @@ impl Lowerer<'_> {
                 branches,
             } => {
                 self.inductive(indspec)?;
+                let inductive = if self.raw.is_program_mirror(indspec) {
+                    indspec
+                } else {
+                    self.raw
+                        .inductive_specialization(indspec)
+                        .map_or(indspec, |origin| origin.source)
+                }
+                .into();
                 let scrutinee = self.set(scrutinee, ctx, m)?;
                 let motive = self.set(return_type, ctx, m)?;
                 let branches = branches
@@ -417,7 +542,7 @@ impl Lowerer<'_> {
                     .map(|e| self.set(e, ctx, m))
                     .collect::<Result<_, _>>()?;
                 self.kernel.arena().alloc(s::Node::Case {
-                    inductive: indspec.into(),
+                    inductive,
                     scrutinee,
                     motive,
                     branches,

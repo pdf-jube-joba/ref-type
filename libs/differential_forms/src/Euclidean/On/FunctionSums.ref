@@ -1,0 +1,39 @@
+\import Spaces.Sums[I := I] \as Sums;
+\definition sum(xs: Lists.List[I])(f: I -> Open.ScalarFunction U): Open.ScalarFunction U :=
+  \fun (x: Open.Carrier U) => Sums.sum xs (\fun (i: I) => f i x);
+\definition smooth: \forall (xs: Lists.List[I])(f: I -> Open.ScalarFunction U) ->
+  (\forall (i: I) -> Smooth.SmoothOn U (f i)) -> Smooth.SmoothOn U (sum xs f) :=
+  \induction (xs: Lists.List[I]) \return \forall (f: I -> Open.ScalarFunction U) ->
+    (\forall (i: I) -> Smooth.SmoothOn U (f i)) -> Smooth.SmoothOn U (sum xs f) \with {
+      | nil: \fun (f: I -> Open.ScalarFunction U)(regular: \forall (i: I) -> Smooth.SmoothOn U (f i)) => Operations.constantSmooth U Spaces.zero
+      | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (f: I -> Open.ScalarFunction U) -> (\forall (i: I) -> Smooth.SmoothOn U (f i)) -> Smooth.SmoothOn U (sum tail f))
+        (f: I -> Open.ScalarFunction U)(regular: \forall (i: I) -> Smooth.SmoothOn U (f i)) => Operations.addSmooth U (f head) (sum tail f) (regular head) (previous f regular)
+    };
+\import Smooth.Algebra[U := U] \as Functions;
+\import Smooth.Derivative[] \as Derivatives;
+\import Open.Analysis[].Properties[] \as Uniqueness;
+\import Open.Analysis[].Sums[T := I] \as Analysis;
+\import Lists.All[A := I] \as All;
+\definition function(xs: Lists.List[I])(f: I -> Functions.Function): Functions.Function :=
+  \into[Open.ScalarFunction U](sum xs (\fun (i: I) => f i), { f: Open.ScalarFunction U \where Smooth.SmoothOn U f }) \by {
+    smooth xs (\fun (i: I) => f i) (\fun (i: I) => \bysub(Open.ScalarFunction U, { f: Open.ScalarFunction U \where Smooth.SmoothOn U f }, f i))
+  };
+\definition derivative: \forall (i: Fin.Fin n)(xs: Lists.List[I])(f: I -> Functions.Function) ->
+  Derivatives.derivative U (function xs f) i = function xs (\fun (j: I) => Derivatives.derivative U (f j) i) :=
+  \fun (i: Fin.Fin n)(xs: Lists.List[I])(f: I -> Functions.Function) =>
+    Functions.ext (Derivatives.derivative U (function xs f) i) (function xs (\fun (j: I) => Derivatives.derivative U (f j) i))
+      (\fun (x: Open.Carrier U) => Uniqueness.partialUnique U (function xs f) i x
+        (Derivatives.derivative U (function xs f) i x) (function xs (\fun (j: I) => Derivatives.derivative U (f j) i) x)
+        (Derivatives.partialLaw U (function xs f) i x)
+        (Analysis.partial U xs (\fun (j: I) => f j) (\fun (j: I) => Derivatives.derivative U (f j) i) i
+          (All.all (\fun (j: I) => Open.Analysis[].HasPartialDerivative U (f j) i (Derivatives.derivative U (f j) i)) xs
+            (\fun (j: I) => Derivatives.partialLaw U (f j) i)) x));
+\import Sums.Prop[] \as SumLaws;
+\definition congruent: \forall (xs: Lists.List[I])(f, g: I -> Functions.Function) -> (\forall (i: I) -> f i = g i) -> function xs f = function xs g :=
+  \fun (xs: Lists.List[I])(f, g: I -> Functions.Function)(same: \forall (i: I) -> f i = g i) => Functions.ext (function xs f) (function xs g)
+    (\fun (x: Open.Carrier U) => SumLaws.congruent xs (\fun (i: I) => f i x) (\fun (i: I) => g i x)
+      (\fun (i: I) => congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) (f i) (g i) (same i)));
+\definition addition: \forall (xs: Lists.List[I])(f, g: I -> Functions.Function) ->
+  function xs (\fun (i: I) => Functions.plus (f i) (g i)) = Functions.plus (function xs f) (function xs g) :=
+  \fun (xs: Lists.List[I])(f, g: I -> Functions.Function) => Functions.ext (function xs (\fun (i: I) => Functions.plus (f i) (g i))) (Functions.plus (function xs f) (function xs g))
+    (\fun (x: Open.Carrier U) => SumLaws.additive xs (\fun (i: I) => f i x) (\fun (i: I) => g i x));

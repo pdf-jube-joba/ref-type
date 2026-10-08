@@ -1,0 +1,46 @@
+\import Real.Algebra[] \as Algebra;
+\definition Below(b: Real.Real): \Pow Real.Real := { x: Real.Real \where R.Lt x b };
+\definition Above(b: Real.Real): \Pow Real.Real := { x: Real.Real \where R.Lt b x };
+\definition AtMost(b: Real.Real): \Pow Real.Real := { x: Real.Real \where R.Le x b };
+\definition AtLeast(b: Real.Real): \Pow Real.Real := { x: Real.Real \where R.Le b x };
+\definition subPositive(a, b: Real.Real): R.Lt b a -> R.Lt Real.zero (Real.sub a b) :=
+  \fun (less: _) => R.ltReplaceLeft (Real.sub b b) Real.zero (Real.sub a b) (Laws.subSelf b)
+    (Laws.ltAddRight b a (Real.neg b) less);
+\definition subSub(a, b: Real.Real): Real.sub a (Real.sub a b) = b := \block {
+  \let expanded: Real.neg (Real.sub a b) = Real.sub b a := Algebra.negSub a b \then
+  \return trans!{Real.Real} _ _ _
+    (congr!{Real.Real Real.Real} (Real.add a) _ _ expanded)
+    (Estimates.addSubCancel b a)
+};
+\definition belowOpen: \forall (b: Real.Real) -> Space.IsOpenIn topology (Below b) :=
+  \fun (b: Real.Real) => #rtl{(MetricTopology.openIff Metric.metric (Below b))}
+    (\fun (x: Real.Real) (less: R.Lt x b) => MetricTopology.openOfRadius Metric.metric (Below b) x (Real.sub b x)
+      (subPositive b x less)
+      (\fun (y: Real.Real) (near: Space.Member (MetricSpace.Ball Metric.metric x (Real.sub b x)) y) =>
+        R.ltReplaceRight y (Real.add x (Real.sub b x)) b (Estimates.addSubCancel b x)
+          (Distance.distanceLtUpper x y (Real.sub b x) near)));
+\definition aboveOpen: \forall (b: Real.Real) -> Space.IsOpenIn topology (Above b) :=
+  \fun (b: Real.Real) => #rtl{(MetricTopology.openIff Metric.metric (Above b))}
+    (\fun (x: Real.Real) (less: R.Lt b x) => MetricTopology.openOfRadius Metric.metric (Above b) x (Real.sub x b)
+      (subPositive x b less)
+      (\fun (y: Real.Real) (near: Space.Member (MetricSpace.Ball Metric.metric x (Real.sub x b)) y) =>
+        R.ltReplaceLeft (Real.sub x (Real.sub x b)) b y (subSub x b)
+          (Distance.distanceLtLower x y (Real.sub x b) near)));
+\definition atMostClosed: \forall (b: Real.Real) -> Space.IsClosedIn topology (AtMost b) :=
+  \fun (b: Real.Real) => \idelim Above b = Space.Complement (AtMost b)
+    \with U: \Pow Real.Real => Space.IsOpenIn topology U \by {
+      base: aboveOpen b,
+      equality: \axiom:setext(Above b, Space.Complement (AtMost b),
+        \fun (x: Real.Real) (less: R.Lt b x) (le: R.Le x b) => R.ltNotLeReverse b x less le,
+        \fun (x: Real.Real) (outside: Logic.Not (R.Le x b)) => Order.byContradiction (R.Lt b x)
+          (\fun (notLess: Logic.Not (R.Lt b x)) => outside (Order.leOfNotLtReverse x b notLess)))
+    };
+\definition atLeastClosed: \forall (b: Real.Real) -> Space.IsClosedIn topology (AtLeast b) :=
+  \fun (b: Real.Real) => \idelim Below b = Space.Complement (AtLeast b)
+    \with U: \Pow Real.Real => Space.IsOpenIn topology U \by {
+      base: belowOpen b,
+      equality: \axiom:setext(Below b, Space.Complement (AtLeast b),
+        \fun (x: Real.Real) (less: R.Lt x b) (le: R.Le b x) => R.ltNotLeReverse x b less le,
+        \fun (x: Real.Real) (outside: Logic.Not (R.Le b x)) => Order.byContradiction (R.Lt x b)
+          (\fun (notLess: Logic.Not (R.Lt x b)) => outside (Order.leOfNotLtReverse b x notLess)))
+    };

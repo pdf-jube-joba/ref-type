@@ -18,8 +18,18 @@ pub struct CheckOptions {
     pub configuration: String,
     /// Run verification even when a checked result exists (e.g. tracing).
     pub force: bool,
+    /// Recheck the entry package while reusing dependency results and environments.
+    pub force_local: bool,
+    /// Receive source module timings after analysis and result storage finish.
+    pub progress: Option<fn(&ModuleProgress)>,
     pub collect_statistics: bool,
     pub diagnostics: elaboration::DiagnosticMode,
+}
+
+struct LoadedProject {
+    modules: Vec<syntax::Module>,
+    diagnostics: Vec<Diagnostic>,
+    packages: Vec<PathBuf>,
 }
 
 /// Mutable query storage. Results and snapshots can outlive the database.
@@ -44,6 +54,16 @@ impl Database {
             disk: Some(DiskCache::new(directory.into())),
             ..Self::default()
         }
+    }
+    pub fn read_snapshot(
+        &self,
+        entry: impl AsRef<Path>,
+        reuse_dependency_sources: bool,
+    ) -> Result<SourceSnapshot, String> {
+        let _cost = timing::costs::Scope::enter("source.snapshot");
+        SourceSnapshot::read_with_dependency_cache(entry, |own, root| {
+            reuse_dependency_sources.then(|| self.disk.as_ref()?.read_sources(own, root))?
+        })
     }
     pub fn stats(&self) -> &QueryStats {
         &self.stats
@@ -77,7 +97,11 @@ impl Database {
             environment_bytes: self.environments.bytes(),
             ..QueryStats::default()
         };
-        let (modules, diagnostics) = self.load(snapshot)?;
+        let LoadedProject {
+            modules,
+            diagnostics,
+            ..
+        } = self.load(snapshot)?;
         if diagnostics.is_empty() {
             Ok(modules)
         } else {
@@ -85,10 +109,8 @@ impl Database {
         }
     }
 
-    fn load(
-        &mut self,
-        snapshot: &SourceSnapshot,
-    ) -> Result<(Vec<syntax::Module>, Vec<Diagnostic>), Vec<Diagnostic>> {
+    fn load(&mut self, snapshot: &SourceSnapshot) -> Result<LoadedProject, Vec<Diagnostic>> {
+        let _cost = timing::costs::Scope::enter("source.load");
         let started = std::time::Instant::now();
         let mut loader = SnapshotLoader {
             snapshot,
@@ -98,9 +120,20 @@ impl Database {
         };
         let result = if snapshot.entry().extension().is_some_and(|ext| ext == "ref") {
             ::project::module_loader::load_modules(snapshot.entry(), &mut loader)
+                .map(|modules| (modules, Vec::new()))
         } else {
-            ::project::package_loader::load_package_with(snapshot.entry(), &mut loader)
-                .map(|graph| graph.modules)
+            ::project::package_loader::load_package_with(snapshot.entry(), &mut loader).map(
+                |graph| {
+                    (
+                        graph.modules,
+                        graph
+                            .packages
+                            .into_iter()
+                            .map(|package| package.directory)
+                            .collect(),
+                    )
+                },
+            )
         };
         if std::env::var_os("REF_TYPE_PROFILE_MODULES").is_some() {
             eprintln!(
@@ -111,7 +144,11 @@ impl Database {
             );
         }
         match result {
-            Ok(modules) => Ok((modules, loader.diagnostics)),
+            Ok((modules, packages)) => Ok(LoadedProject {
+                modules,
+                diagnostics: loader.diagnostics,
+                packages,
+            }),
             Err(message) if loader.diagnostics.is_empty() => Err(vec![Diagnostic {
                 message: format!("Module Load Error: {message}"),
                 location: None,
@@ -165,6 +202,9 @@ impl Database {
         options: &CheckOptions,
         select: impl Fn(&crate::graph::Unit<'_>) -> bool,
     ) -> Arc<SemanticResult> {
+        let _cost_session = timing::costs::Session::start();
+        let _cost = timing::costs::Scope::enter("query.total");
+        let _timing = timing::Session::start(options.progress.is_some());
         self.stats = QueryStats {
             environment_bytes: self.environments.bytes(),
             ..QueryStats::default()
@@ -172,7 +212,11 @@ impl Database {
         let _phase = elaboration::profiling::Phase::start("query.total");
         self.verification_statistics.clear();
         let compact = options.diagnostics == elaboration::DiagnosticMode::Compact;
-        let (modules, parse_diagnostics) = match self.load(snapshot) {
+        let LoadedProject {
+            modules,
+            diagnostics: parse_diagnostics,
+            packages,
+        } = match self.load(snapshot) {
             Ok(modules) => modules,
             Err(mut diagnostics) => {
                 if compact {
@@ -186,7 +230,16 @@ impl Database {
         };
         let graph = {
             let _phase = elaboration::profiling::Phase::start("query.graph");
+            let _cost = timing::costs::Scope::enter("query.graph");
             ModuleGraph::new(&modules)
+        };
+        let package_input = !snapshot.entry().extension().is_some_and(|ext| ext == "ref");
+        let local_package = package_input.then(|| &modules.last().expect("entry package").name.0);
+        let forced = |index: usize| {
+            options.force
+                || options.collect_statistics
+                || (options.force_local
+                    && local_package.is_none_or(|name| &graph.units[index].path[0] == name))
         };
         let requested = graph.closure(
             graph
@@ -254,6 +307,8 @@ impl Database {
             settings.extend(fingerprint(source.text.as_bytes()));
         }
         let settings = fingerprint(&settings);
+        let mut progress =
+            crate::progress::Reporter::new(&graph, &requested, package_input, options.progress);
         let keys: Vec<_> = (0..graph.units.len())
             .map(|index| graph.key(index, &settings))
             .collect();
@@ -265,20 +320,24 @@ impl Database {
         query_bytes.extend(serde_json::to_vec(&diagnostics).expect("diagnostics serialize"));
         let query_key = fingerprint(&query_bytes);
         if !options.force
+            && !options.force_local
             && !options.collect_statistics
             && let Some(result) = self.queries.get(&query_key)
         {
             self.stats.reused_modules = result.modules.len();
             self.stats.environment_bytes = self.environments.bytes();
+            progress.skip_all();
             return result.clone();
         }
         let mut results = BTreeMap::new();
         let mut misses = BTreeSet::new();
         for &index in &requested {
+            let _time = timing::Scope::module(|| graph.units[index].path.clone());
             if blocked.contains(&index) {
                 continue;
             }
-            let cached = if options.force || options.collect_statistics {
+            let started = std::time::Instant::now();
+            let cached = if forced(index) {
                 None
             } else {
                 self.checked.get(&keys[index]).cloned().or_else(|| {
@@ -293,6 +352,7 @@ impl Database {
                 })
             };
             if let Some(result) = cached {
+                progress.reused(index, started.elapsed());
                 self.stats.reused_modules += 1;
                 results.insert(index, result);
             } else {
@@ -318,6 +378,7 @@ impl Database {
             }
             let full = full_resolution.get_or_insert_with(|| {
                 let _phase = elaboration::profiling::Phase::start("query.resolve");
+                let _cost = timing::costs::Scope::enter("query.resolve");
                 resolve::resolve(&graph.selected(&available))
             });
             let fallback;
@@ -325,12 +386,14 @@ impl Database {
                 Ok(project) => Ok(project),
                 Err(_) => {
                     let _phase = elaboration::profiling::Phase::start("query.resolve-recovery");
+                    let _cost = timing::costs::Scope::enter("query.resolve-recovery");
                     fallback = resolve::resolve(&graph.selected(&selected));
                     fallback.as_ref()
                 }
             };
             let mut saved = EnvironmentCache::default();
             let check_phase = elaboration::profiling::Phase::start("query.check-batch");
+            let check_cost = timing::costs::Scope::enter("query.check-batch");
             let checked = match &resolved {
                 Ok(project) => {
                     let fallback_plan;
@@ -342,6 +405,11 @@ impl Database {
                         &fallback_plan
                     };
                     let end = plan.end(&selected);
+                    let first_forced = plan
+                        .steps
+                        .iter()
+                        .position(|&index| forced(index))
+                        .unwrap_or(end);
                     let mut start = 0;
                     if recovering || (!options.force && !options.collect_statistics) {
                         for &(position, key) in plan
@@ -353,13 +421,19 @@ impl Database {
                             let bytes = recovery_environments
                                 .get(&key)
                                 .or_else(|| {
-                                    if options.force || options.collect_statistics {
+                                    if options.force
+                                        || options.collect_statistics
+                                        || position > first_forced
+                                    {
                                         return None;
                                     }
                                     self.environments.get(&key)
                                 })
                                 .or_else(|| {
-                                    if options.force || options.collect_statistics {
+                                    if options.force
+                                        || options.collect_statistics
+                                        || position > first_forced
+                                    {
                                         return None;
                                     }
                                     let bytes: Arc<[u8]> =
@@ -414,7 +488,8 @@ impl Database {
                     } else {
                         plan.save_points()
                     };
-                    workspace.check_range(
+                    progress.begin_batch(&plan.steps, start, end, &selected_steps);
+                    let checked = workspace.check_range_with_progress(
                         project,
                         start,
                         end,
@@ -438,7 +513,10 @@ impl Database {
                             }
                             Err(_) => self.stats.environment_skips += 1,
                         },
-                    )
+                        |position, elapsed| progress.step(position, elapsed),
+                    );
+                    progress.finish_batch();
+                    checked
                 }
                 Err(error) => {
                     self.stats.checked_modules += selected.len();
@@ -449,6 +527,7 @@ impl Database {
                     })
                 }
             };
+            drop(check_cost);
             drop(check_phase);
             recovering = true;
             for (key, bytes) in saved.into_entries() {
@@ -492,6 +571,7 @@ impl Database {
                 .collect();
             {
                 let _phase = elaboration::profiling::Phase::start("query.collect-analysis");
+                let _cost = timing::costs::Scope::enter("query.collect-analysis");
                 collect_analysis(&workspace, &graph, &mut fresh);
             }
             if let Err(error) = &checked {
@@ -511,6 +591,7 @@ impl Database {
                 }
             }
             for (index, result) in fresh {
+                let _time = timing::Scope::module(|| graph.units[index].path.clone());
                 let result = Arc::new(result);
                 // Only batches accepted by the kernel produce persistent records.
                 if checked.is_ok() {
@@ -527,16 +608,28 @@ impl Database {
                 }
             }
             let _phase = elaboration::profiling::Phase::start("query.drop-workspace");
+            let _cost = timing::costs::Scope::enter("query.drop-workspace");
             drop(workspace);
         }
         let result = Arc::new(SemanticResult {
             modules: results
                 .into_values()
-                .map(|result| result.as_ref().clone())
+                .map(|result| {
+                    let _time = timing::Scope::module(|| result.path.clone());
+                    result.as_ref().clone()
+                })
                 .collect(),
             diagnostics,
         });
         self.stats.environment_bytes = self.environments.bytes();
+        progress.skip_cached();
+        if result.is_success()
+            && requested.len() == graph.units.len()
+            && let Some(disk) = &self.disk
+            && disk.write_sources(snapshot, &packages).is_err()
+        {
+            self.stats.cache_write_failures += 1;
+        }
         self.queries.insert(query_key, result.clone());
         result
     }
@@ -548,6 +641,7 @@ fn collect_analysis(
     results: &mut BTreeMap<usize, ModuleResult>,
 ) {
     for declaration in &workspace.analysis().declarations {
+        let _time = timing::Scope::module(|| declaration.module.clone());
         if let Some(result) = graph
             .indices
             .get(&declaration.module)
@@ -565,6 +659,7 @@ fn collect_analysis(
         }
     }
     for reference in &workspace.analysis().references {
+        let _time = timing::Scope::module(|| reference.module.clone());
         if let Some(result) = graph
             .indices
             .get(&reference.module)
@@ -581,12 +676,14 @@ fn collect_analysis(
         }
     }
     for result in results.values_mut() {
+        let _time = timing::Scope::module(|| result.path.clone());
         let mut seen = HashSet::new();
         result
             .references
             .retain(|reference| seen.insert(reference.clone()));
     }
     for output in &workspace.analysis().outputs {
+        let _time = timing::Scope::module(|| output.module.clone());
         if let Some(result) = graph
             .indices
             .get(&output.module)

@@ -128,6 +128,21 @@ parameter の個数・名前・順序を宣言と一致させる。
 先頭の `.` は現在の module、パッケージ名はそのルート、`\parent.` は一つ上の module から探索する。
 module argument では metavariable の推論を行わない。
 
+### 式中の具体化
+
+```text
+\definition carrier(A: \Set): \Set := Family[A := A].Carrier;
+\definition disk(n: Nat^): \Set := Euclidean.Dimension[n := n].Disk;
+\structure Cell: \Set {
+  dimension: Nat^,
+  point: Euclidean.Dimension[n := dimension].Disk,
+}
+```
+
+参照の位置で module 引数を検査し、具体化した module の item を取り出す。
+関数の引数や record の先行 field を参照できる。
+帰納型の具体化と Program の局所値を渡す例は、[module 具体化のテスト](../../../../src/elaboration/tests/module_expressions.rs) を参照。
+
 ## 3. 宣言
 
 ### definition
@@ -212,24 +227,21 @@ runBox!{machine}
 
 ### check と評価
 
-Set/Prop:
+Set/Prop と Program に共通の文を使う。
+`\check` は指定された型、`\infer`・`\eval`・`\normalize` は式と参照先に応じて処理する。
 
 ```text
 \check expression: type;
 \infer expression;
 \eval expression;
 \normalize expression;
-```
 
-Program:
-
-```text
-\vcheck value: value-type;
-\vinfer value;
-\ccheck computation: computation-type;
-\cinfer computation;
-\ceval computation;
-\cnormalize computation;
+\check value: value-type;
+\infer value;
+\check computation: computation-type;
+\infer computation;
+\eval computation;
+\normalize computation;
 ```
 
 ## 4. 式の共通構文

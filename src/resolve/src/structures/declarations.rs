@@ -18,7 +18,8 @@ impl Resolver {
     }
 
     pub(in crate::resolver) fn is_structure_type(&self, ty: &SExp) -> bool {
-        self.structure_type(ty).is_some()
+        matches!(ty, SExp::AccessPath { access, .. }
+            if self.front_binding(access, &[]).is_some_and(|id| self.structures.contains_key(&id)))
     }
 
     pub(in crate::resolver) fn compile_structure_definition(
@@ -30,6 +31,12 @@ impl Resolver {
         output: &mut Vec<ModuleItem>,
     ) -> Result<(), Diagnostic> {
         let mut binders = binders;
+        // Generated declaration modules must retain the source module's paths.
+        for binder in &mut binders {
+            self.anchor_module_expressions(&mut binder.ty)?;
+        }
+        self.anchor_module_expressions(&mut ty)?;
+        self.anchor_module_expressions(&mut body)?;
         if let Some((domain, result)) = self.declaration_signature(&ty) {
             for bind in &domain {
                 for name in &bind.vars {
@@ -50,6 +57,7 @@ impl Resolver {
             name: Identifier(format!("<definition:{}>", name.0)),
             parameters: binders,
             parameter_checks: Vec::new(),
+            parameter_sources: HashMap::new(),
             declaration_spans: Vec::new(),
             body: ModuleBody::Inline(Vec::new()),
             span,
@@ -97,7 +105,7 @@ impl Resolver {
             return Ok(());
         }
         let (signature, shape, mut substitutions) = self
-            .structure_type(&ty)
+            .structure_type(&ty, &[])?
             .ok_or_else(|| self.error("expected a structure result signature"))?;
         let mut value = self
             .structure_value(&body, &[])?
@@ -141,7 +149,7 @@ impl Resolver {
                 .1
                 .clone();
             let expected = substitute(expected, &substitutions);
-            if self.structure_type(&expected).is_some() {
+            if self.structure_type(&expected, &[])?.is_some() {
                 let nested = self
                     .structure_value(&expression, &[])?
                     .ok_or_else(|| self.error("expected nested structure"))?;
@@ -191,11 +199,25 @@ impl Resolver {
         mut name: Identifier,
         parameters: Vec<RightBind>,
         fields: Vec<(Identifier, SExp, Option<SExp>)>,
+        field_spans: Vec<SourceSpan>,
         output: &mut Vec<ModuleItem>,
     ) -> Result<(), Diagnostic> {
         let location = self.location.clone();
         let span = location.as_ref().map_or(SourceSpan::default(), |l| l.span);
         let mut telescope = parameters.clone();
+        let parameter_sources = fields
+            .iter()
+            .enumerate()
+            .map(|(index, (field, _, _))| {
+                (
+                    field.0.clone(),
+                    ParameterSource {
+                        description: format!("Structure field '{}.{}'", name.0, field.0),
+                        span: field_spans.get(index).copied().unwrap_or(span),
+                    },
+                )
+            })
+            .collect();
         for (field, ty, _) in &fields {
             telescope.push(RightBind {
                 vars: vec![field.clone()],
@@ -207,6 +229,7 @@ impl Resolver {
             name: Identifier(format!("<structure:{}>", name.as_str())),
             parameters: telescope,
             parameter_checks: Vec::new(),
+            parameter_sources,
             declaration_spans: Vec::new(),
             body: ModuleBody::Inline(Vec::new()),
             span,
@@ -220,6 +243,8 @@ impl Resolver {
         let mut checked_fields = fields;
         let mut checked_parameters = parameters;
         self.parameters(&mut checked_parameters, &mut field_scope, false)?;
+        let inputs = self.last_inputs.clone();
+        let checks = self.last_parameter_checks.clone();
         for (field, ty, default) in &mut checked_fields {
             self.expression(ty, &mut field_scope)?;
             if let Some(body) = default {
@@ -294,6 +319,7 @@ impl Resolver {
                     name: Identifier(format!("<default:{}.{}>", name.0, field.0)),
                     parameters: required.clone(),
                     parameter_checks: Vec::new(),
+                    parameter_sources: module.parameter_sources.clone(),
                     declaration_spans: vec![span],
                     body: ModuleBody::Inline(vec![item]),
                     span,
@@ -354,6 +380,8 @@ impl Resolver {
             Structure {
                 ambient,
                 parameters: checked_parameters,
+                inputs,
+                checks,
                 fields: checked_fields,
             },
         );

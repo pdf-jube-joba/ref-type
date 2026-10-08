@@ -1,0 +1,24 @@
+\import \parent.Finite[] \as Finite;
+\definition Avoiding(topology: Topology) (S: \Pow Carrier): \Pow (\Pow Carrier) :=
+  { U: \Pow Carrier \where Logic.And[IsOpenIn topology U, Disjoint U S] };
+\definition closure(topology: Topology) (S: \Pow Carrier): \Pow Carrier := Complement (Union (Avoiding topology S));
+\definition closed: \forall (topology: Topology) (S: \Pow Carrier) -> IsClosedIn topology (closure topology S) :=
+  \fun (topology: _) (S: _) => Finite.openComplementClosed topology (Union (Avoiding topology S))
+    (#unionOpen{(topologyLaws topology)} (Avoiding topology S)
+      (\fun (U: \Pow Carrier) (member: FamilyMember (Avoiding topology S) U) => #left{member}));
+\definition contains: \forall (topology: Topology) (S: \Pow Carrier) -> Subset S (closure topology S) :=
+  \fun (topology: _) (S: _) (x: _) (inS: _) (near: Member (Union (Avoiding topology S)) x) =>
+    unionMemberElim (Avoiding topology S) x Logic.False
+      (\fun (U: \Pow Carrier) (member: FamilyMember (Avoiding topology S) U) (inU: Member U x) => #right{member} x inU inS) near;
+\definition least: \forall (topology: Topology) (S, F: \Pow Carrier) -> IsClosedIn topology F -> Subset S F ->
+  Subset (closure topology S) F :=
+  \fun (topology: _) (S, F: _) (closed: _) (included: _) (x: _) (inClosure: _) =>
+    Finite.doubleNegElim (Member F x) (\fun (outside: Logic.Not (Member F x)) =>
+      inClosure (unionMemberOf (Avoiding topology S) (Complement F) x
+        (Logic.And[_, _]::# closed (\fun (y: Carrier) (out: Member (Complement F) y) (inS: Member S y) => out (included y inS))) outside));
+\definition monotone: \forall (topology: Topology) (S, T: \Pow Carrier) -> Subset S T -> Subset (closure topology S) (closure topology T) :=
+  \fun (topology: _) (S, T: _) (included: _) => least topology S (closure topology T) (closed topology T)
+    (subsetTrans S T (closure topology T) included (contains topology T));
+\definition closedFixed: \forall (topology: Topology) (F: \Pow Carrier) -> IsClosedIn topology F -> closure topology F = F :=
+  \fun (topology: _) (F: _) (isClosed: _) => \axiom:setext(closure topology F, F,
+    least topology F F isClosed (\fun (x: Carrier) (member: Member F x) => member), contains topology F);

@@ -1,5 +1,9 @@
 use clap::Parser;
-use std::{io::IsTerminal, path::PathBuf};
+use std::{cell::RefCell, io::IsTerminal, path::PathBuf, time::Duration};
+
+thread_local! {
+    static PROGRESS: RefCell<Vec<sema::ModuleProgress>> = const { RefCell::new(Vec::new()) };
+}
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -21,6 +25,12 @@ struct Args {
     /// キャッシュを再利用せず全体を検証し、検証済みの結果を保存する
     #[arg(long, conflicts_with = "parse_only")]
     full_check: bool,
+    /// 指定ライブラリだけを再検証し、依存先は自身の変更だけを確認してキャッシュを再利用する
+    #[arg(long, conflicts_with_all = ["parse_only", "full_check", "no_cache", "trace", "stats"])]
+    full_check_local: bool,
+    /// module ごとの check / skip と所要秒数を表示しない
+    #[arg(long)]
+    no_progress: bool,
     /// キャッシュ保存先の中身を削除してから処理する
     #[arg(long)]
     clear_cache: bool,
@@ -42,9 +52,47 @@ enum DiagnosticMode {
 }
 
 fn main() -> anyhow::Result<()> {
+    let timing = sema::timing::Session::start(true);
     let args = Args::parse();
+    let timing = if args.no_progress || args.parse_only {
+        drop(timing);
+        sema::timing::Session::start(false)
+    } else {
+        timing
+    };
+    let cost_session = sema::timing::costs::Session::start();
     init_tracing(args.trace)?;
-    let err = run_path(&args)?;
+    let result = run_path(&args);
+    if let Some(measurements) = timing.measurements() {
+        let mut modules = Duration::ZERO;
+        PROGRESS.with_borrow_mut(|events| {
+            for progress in events.drain(..) {
+                let elapsed = measurements
+                    .modules
+                    .get(&progress.path)
+                    .copied()
+                    .unwrap_or(progress.elapsed);
+                modules += elapsed;
+                let action = match progress.action {
+                    sema::ProgressAction::Check => "check",
+                    sema::ProgressAction::Skip => "skip",
+                };
+                eprintln!(
+                    "{action} {} ({:.9}s)",
+                    progress.path.join("."),
+                    elapsed.as_secs_f64()
+                );
+            }
+        });
+        let measurements = timing.finish().expect("CLI owns the timing session");
+        eprintln!(
+            "shared ({:.9}s)",
+            (measurements.total - modules).as_secs_f64()
+        );
+        eprintln!("total ({:.9}s)", measurements.total.as_secs_f64());
+    }
+    drop(cost_session);
+    let err = result?;
     if err.is_some() {
         std::process::exit(1);
     }
@@ -73,18 +121,10 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
 }
 
 fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
-    let snapshot = match sema::SourceSnapshot::read(&args.path) {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            let message = format!("Module Load Error: {error}");
-            eprintln!("{message}");
-            return Ok(Some(message));
-        }
-    };
     let cache_directory = args
         .cache_dir
         .clone()
-        .unwrap_or_else(|| snapshot.default_cache_directory());
+        .unwrap_or_else(|| sema::SourceSnapshot::new(&args.path).default_cache_directory());
     if args.clear_cache {
         clear_cache_directory(&cache_directory)?;
     }
@@ -92,6 +132,14 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
         sema::Database::new()
     } else {
         sema::Database::with_cache(cache_directory)
+    };
+    let snapshot = match database.read_snapshot(&args.path, args.full_check_local) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            let message = format!("Module Load Error: {error}");
+            eprintln!("{message}");
+            return Ok(Some(message));
+        }
     };
     let messages = if args.parse_only {
         database
@@ -106,6 +154,8 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
             &snapshot,
             &sema::CheckOptions {
                 force: args.trace || args.no_cache || args.full_check,
+                force_local: args.full_check_local,
+                progress: (!args.no_progress).then_some(show_progress),
                 collect_statistics: args.stats,
                 diagnostics: match args.diagnostics {
                     Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,
@@ -138,6 +188,10 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
         }
     }
     Ok(error)
+}
+
+fn show_progress(progress: &sema::ModuleProgress) {
+    PROGRESS.with_borrow_mut(|events| events.push(progress.clone()));
 }
 
 fn clear_cache_directory(directory: &std::path::Path) -> anyhow::Result<()> {

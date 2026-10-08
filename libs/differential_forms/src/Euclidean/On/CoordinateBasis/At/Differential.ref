@@ -1,0 +1,37 @@
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition next: N.Nat^ := N.Nat^::succ k;
+\import \parent.\parent.\parent.ExteriorDerivative[k := k] \as D;
+\import \parent.\parent.\parent.At[k := next] \as Target;
+\import \parent.\parent.\parent.Wedge[p := one, q := k] \as Wedge;
+\import \parent.\parent.\parent.Regrade[k := Nat.add one k, l := next] \as Degree;
+\import Spaces.Linear[V := Form k, W := Form next, source := Forms.space, target := Target.space] \as Maps;
+\import Sums.Mapping[W := Form next, target := Target.space] \as Mapping;
+\import Spaces.Sums[I := Tuple].Vector[V := Form next, space := Target.space] \as Terms;
+\import Spaces.Sums[I := Fin.Fin n].Vector[V := Form next, space := Target.space] \as CoordinateSums;
+\definition coordinateWedge(j: Fin.Fin n): Maps.Map := Maps.Map {
+  apply := \fun (omega: Form k) => Degree.cast (Wedge.apply (D.coordinate j) omega) D.degree,
+  preservesAdd := \fun (omega, eta: Form k) => trans!{{Form next}} _ _ _
+    (congr!{{Form (Nat.add one k)} {Form next}} (\fun (phi: Form (Nat.add one k)) => Degree.cast phi D.degree) _ _
+      (Wedge.additiveRight (D.coordinate j) omega eta))
+    (Degree.addition (Wedge.apply (D.coordinate j) omega) (Wedge.apply (D.coordinate j) eta) D.degree),
+  preservesScale := \fun (a: Reals.Real)(omega: Form k) => trans!{{Form next}} _ _ _
+    (congr!{{Form (Nat.add one k)} {Form next}} (\fun (phi: Form (Nat.add one k)) => Degree.cast phi D.degree) _ _
+      (Wedge.scalarRight a (D.coordinate j) omega))
+    (Degree.scalar a (Wedge.apply (D.coordinate j) omega) D.degree),
+};
+\definition contribution(j: Fin.Fin n)(omega: Form k)(i: Tuple): Form next :=
+  #apply{(coordinateWedge j)} (Forms.multiply (Derivatives.derivative U (coefficient k omega i) j) (word k i));
+\definition coordinateExpansion: \forall (j: Fin.Fin n)(omega: Form k)(enumeration: Enumeration) ->
+  D.term j omega = Terms.sum enumeration (contribution j omega) :=
+  \fun (j: Fin.Fin n)(omega: Form k)(enumeration: Enumeration) => trans!{{Form next}}
+    (D.term j omega) (#apply{(coordinateWedge j)} (assemble enumeration (\fun (i: Tuple) => Derivatives.derivative U (coefficient k omega i) j)))
+    (Terms.sum enumeration (contribution j omega))
+    (congr!{{Form k} {Form next}} #apply{(coordinateWedge j)} (Partials.apply j omega)
+      (assemble enumeration (\fun (i: Tuple) => Derivatives.derivative U (coefficient k omega i) j)) (partialCoefficients j omega enumeration))
+    (Mapping.law (coordinateWedge j) enumeration
+      (\fun (i: Tuple) => Forms.multiply (Derivatives.derivative U (coefficient k omega i) j) (word k i)));
+\definition formula: \forall (omega: Form k)(enumeration: Enumeration) ->
+  D.apply omega = CoordinateSums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => Terms.sum enumeration (contribution j omega)) :=
+  \fun (omega: Form k)(enumeration: Enumeration) => CoordinateSums.congruent (Fin.elements n)
+    (\fun (j: Fin.Fin n) => D.term j omega) (\fun (j: Fin.Fin n) => Terms.sum enumeration (contribution j omega))
+    (\fun (j: Fin.Fin n) => coordinateExpansion j omega enumeration);

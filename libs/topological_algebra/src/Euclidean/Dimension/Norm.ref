@@ -1,0 +1,162 @@
+\import \parent.Def[] \as Def;
+\import real.Analysis[] \as Analysis;
+\import Analysis.Estimates[] \as Estimates;
+\use Logic.either;
+
+\definition finiteNonnegative: \forall (m: N.Nat^)(x: Fin.Fin m -> Real) -> R.Le zero (Def.finiteMax m x) :=
+  \induction (m: N.Nat^) \return \forall (x: Fin.Fin m -> Real) -> R.Le zero (Def.finiteMax m x) \with {
+    | zero: \fun (x: _) => R.leRefl zero
+    | succ: \fun (m: N.Nat^)(previous: _)(x: _) =>
+      R.leTrans _ _ _ (Metric.distanceNonnegative (x (Fin.zero m)) zero)
+        (Metric.maxLeft _ _)
+  };
+
+\definition finiteUpper: \forall (m: N.Nat^)(x: Fin.Fin m -> Real)(r: Real) ->
+  R.Le zero r -> (\forall (i: Fin.Fin m) -> R.Le (distance (x i) zero) r) ->
+  R.Le (Def.finiteMax m x) r :=
+  \induction (m: N.Nat^) \return \forall (x: Fin.Fin m -> Real)(r: Real) ->
+    R.Le zero r -> (\forall (i: Fin.Fin m) -> R.Le (distance (x i) zero) r) ->
+    R.Le (Def.finiteMax m x) r \with {
+      | zero: \fun (x: _)(r: _)(nonnegative: _)(bounds: _) => nonnegative
+      | succ: \fun (m: N.Nat^)(previous: _)(x: _)(r: _)(nonnegative: _)(bounds: _) =>
+        Metric.maxLeast _ _ r (bounds (Fin.zero m))
+          (previous (\fun (i: Fin.Fin m) => x (Fin.succ m i)) r nonnegative
+            (\fun (i: Fin.Fin m) => bounds (Fin.succ m i)))
+    };
+
+\definition finiteCoordinate: \forall (m: N.Nat^)(x: Fin.Fin m -> Real)(i: Fin.Fin m) ->
+  R.Le (distance (x i) zero) (Def.finiteMax m x) :=
+  \induction (m: N.Nat^) \return \forall (x: Fin.Fin m -> Real)(i: Fin.Fin m) ->
+    R.Le (distance (x i) zero) (Def.finiteMax m x) \with {
+      | zero: \fun (x: _)(i: Fin.Fin N.Nat^::zero) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i))
+      | succ: \fun (m: N.Nat^)(previous: \forall (y: Fin.Fin m -> Real)(j: Fin.Fin m) -> R.Le (distance (y j) zero) (Def.finiteMax m y))(x: Fin.Fin (N.Nat^::succ m) -> Real)(i: Fin.Fin (N.Nat^::succ m)) =>
+        either!{{i = N.Nat^::zero} "or" {\exists { j: Fin.Fin m \where i = N.Nat^::succ (Fin.value m j) }}
+          "either" {R.Le (distance (x i) zero) (Def.finiteMax (N.Nat^::succ m) x)}
+          "lt:" {\fun (equal: i = N.Nat^::zero) => \idelim Fin.zero m = i \with j: Fin.Fin (N.Nat^::succ m) =>
+            R.Le (distance (x j) zero) (Def.finiteMax (N.Nat^::succ m) x) \by {
+              base: Metric.maxLeft _ _, equality: sym!{{Fin.Fin (N.Nat^::succ m)}} i (Fin.zero m) equal
+            }}
+          "rt:" {\block {
+            \fun (exists: \exists { j: Fin.Fin m \where i = N.Nat^::succ (Fin.value m j) }) \then
+            \takefrom j: \Cast[Fin.Fin m] ({ j: Fin.Fin m \where i = N.Nat^::succ (Fin.value m j) }) \by exists \then
+            \let equal: i = Fin.succ m j := \bysub(Fin.Fin m, { j: Fin.Fin m \where i = N.Nat^::succ (Fin.value m j) }, j) \then
+            \let result: R.Le (distance (x i) zero) (Def.finiteMax (N.Nat^::succ m) x) :=
+              \idelim Fin.succ m j = i \with k: Fin.Fin (N.Nat^::succ m) =>
+                R.Le (distance (x k) zero) (Def.finiteMax (N.Nat^::succ m) x) \by {
+                  base: R.leTrans (distance (x (Fin.succ m j)) zero)
+                    (Def.finiteMax m (\fun (k: Fin.Fin m) => x (Fin.succ m k)))
+                    (Def.finiteMax (N.Nat^::succ m) x)
+                    (previous (\fun (k: Fin.Fin m) => x (Fin.succ m k)) j)
+                    (Metric.maxRight (distance (x (Fin.zero m)) zero) (Def.finiteMax m (\fun (k: Fin.Fin m) => x (Fin.succ m k)))),
+                  equality: sym!{{Fin.Fin (N.Nat^::succ m)}} i (Fin.succ m j) equal
+                } \then
+            \return result
+          }}} (Fin.successorCases m i (Fin.bound (N.Nat^::succ m) i))
+    };
+
+\definition nonnegative: \forall (x: Point) -> R.Le zero (Def.norm x) := finiteNonnegative n;
+\definition coordinate: \forall (x: Point)(i: Coordinate) -> R.Le (distance (x i) zero) (Def.norm x) := finiteCoordinate n;
+
+\definition normZero: Def.norm Def.origin = zero :=
+  R.leAntisym _ _
+    (finiteUpper n Def.origin zero (R.leRefl zero)
+      (\fun (i: _) => R.leReplaceLeft zero (distance zero zero) zero
+        (sym!{Real} _ _ (Metric.distanceSelf zero)) (R.leRefl zero)))
+    (nonnegative Def.origin);
+
+\definition separated: \forall (x: Point) -> Def.norm x = zero -> x = Def.origin :=
+  \fun (x: _)(equal: _) => \axiom:funext(x, Def.origin, \fun (i: Coordinate) =>
+    Metric.distanceSeparated (x i) zero
+      (R.leAntisym _ _ (R.leReplaceRight _ _ _ equal (coordinate x i)) (Metric.distanceNonnegative (x i) zero)));
+
+\definition triangle: \forall (x, y: Point) ->
+  R.Le (Def.norm (Def.addPoint x y)) (add (Def.norm x) (Def.norm y)) :=
+  \fun (x, y: _) => finiteUpper n (Def.addPoint x y) (add (Def.norm x) (Def.norm y))
+    (R.leReplaceLeft (add zero zero) zero _ (Laws.addZeroLeft zero)
+      (Estimates.addLe _ _ _ _ (nonnegative x) (nonnegative y)))
+    (\fun (i: Coordinate) => R.leTrans _ _ _
+      (R.leReplaceLeft (distance (add (x i) (y i)) (add zero zero)) (distance (add (x i) (y i)) zero) _
+        (congr!{Real Real} (distance (add (x i) (y i))) _ _ (Laws.addZeroLeft zero))
+        (Estimates.distanceAdd (x i) (y i) zero zero))
+      (Estimates.addLe _ _ _ _ (coordinate x i) (coordinate y i)));
+
+\import Estimates.Product[] \as Product;
+\use Equality.congr2;
+\definition scalarCoordinate: \forall (c, x: Real) ->
+  distance (mul c x) zero = mul (Product.abs c) (distance x zero) :=
+  \fun (c, x: Real) => eq_reason!{
+    {distance (mul c x) zero} "=" {Product.abs (mul c x)} "by" {Metric.distanceSymmetric (mul c x) zero}
+    "=" {mul (Product.abs c) (Product.abs x)} "by" {Product.absProduct c x}
+    "=" {mul (Product.abs c) (distance x zero)}
+    "by" {congr!{Real Real} (mul (Product.abs c)) _ _ (Metric.distanceSymmetric zero x)}
+  };
+\definition finiteScale: \forall (m: N.Nat^)(c: Real)(x: Fin.Fin m -> Real) ->
+  Def.finiteMax m (\fun (i: Fin.Fin m) => mul c (x i)) = mul (Product.abs c) (Def.finiteMax m x) :=
+  \induction (m: N.Nat^) \return \forall (c: Real)(x: Fin.Fin m -> Real) ->
+    Def.finiteMax m (\fun (i: Fin.Fin m) => mul c (x i)) = mul (Product.abs c) (Def.finiteMax m x) \with {
+      | zero: \fun (c: Real)(x: Fin.Fin N.Nat^::zero -> Real) => sym!{Real} _ _ (Laws.fieldMulZeroRight (Product.abs c))
+      | succ: \fun (m: N.Nat^)(previous: _)(c: Real)(x: Fin.Fin (N.Nat^::succ m) -> Real) =>
+        trans!{Real} _ _ _
+          (congr2!{Real Real Real} Metric.max _ _ _ _
+            (scalarCoordinate c (x (Fin.zero m)))
+            (previous c (\fun (i: Fin.Fin m) => x (Fin.succ m i))))
+          (sym!{Real} _ _ (Product.mulMax (Product.abs c) (distance (x (Fin.zero m)) zero)
+            (Def.finiteMax m (\fun (i: Fin.Fin m) => x (Fin.succ m i))) (Product.absNonnegative c)))
+    };
+\definition homogeneous: \forall (c: Real)(x: Point) -> Def.norm (Def.scale c x) = mul (Product.abs c) (Def.norm x) :=
+  finiteScale n;
+
+\import Analysis.Algebra[] \as Algebra;
+\definition distanceDifference: \forall (x, y: Real) -> distance (sub x y) zero = distance x y :=
+  \fun (x, y: Real) => congr2!{Real Real Real} Metric.max _ _ _ _
+    (Laws.subZeroRight (sub x y))
+    (trans!{Real} _ _ _ (Laws.addZeroLeft (Arithmetic.neg (sub x y))) (Algebra.negSub x y));
+\definition finiteSymmetric: \forall (m: N.Nat^)(x, y: Fin.Fin m -> Real) ->
+  Def.finiteMax m (\fun (i: Fin.Fin m) => sub (x i) (y i)) = Def.finiteMax m (\fun (i: Fin.Fin m) => sub (y i) (x i)) :=
+  \induction (m: N.Nat^) \return \forall (x, y: Fin.Fin m -> Real) ->
+    Def.finiteMax m (\fun (i: Fin.Fin m) => sub (x i) (y i)) = Def.finiteMax m (\fun (i: Fin.Fin m) => sub (y i) (x i)) \with {
+      | zero: \fun (x, y: Fin.Fin N.Nat^::zero -> Real) => \refl(zero)
+      | succ: \fun (m: N.Nat^)(previous: _)(x, y: Fin.Fin (N.Nat^::succ m) -> Real) =>
+        congr2!{Real Real Real} Metric.max _ _ _ _
+          (trans!{Real} _ _ _ (distanceDifference (x (Fin.zero m)) (y (Fin.zero m)))
+            (trans!{Real} _ _ _ (Metric.distanceSymmetric (x (Fin.zero m)) (y (Fin.zero m)))
+              (sym!{Real} _ _ (distanceDifference (y (Fin.zero m)) (x (Fin.zero m))))))
+          (previous (\fun (i: Fin.Fin m) => x (Fin.succ m i)) (\fun (i: Fin.Fin m) => y (Fin.succ m i)))
+    };
+\definition distanceSymmetric: \forall (x, y: Point) -> Def.pointDistance x y = Def.pointDistance y x := finiteSymmetric n;
+\definition distanceSelf: \forall (x: Point) -> Def.pointDistance x x = zero :=
+  \fun (x: Point) => trans!{Real} _ _ _ (congr!{Point Real} Def.norm _ _
+    (\axiom:funext(Def.subPoint x x, Def.origin, \fun (i: Coordinate) => Laws.subSelf (x i)))) normZero;
+\definition distanceSeparated: \forall (x, y: Point) -> Def.pointDistance x y = zero -> x = y :=
+  \fun (x, y: Point)(equal: _) => \axiom:funext(x, y, \fun (i: Coordinate) =>
+    Metric.subZeroEq (x i) (y i)
+      (congr!{Point Real} (\fun (v: Point) => v i) _ _ (separated (Def.subPoint x y) equal)));
+\definition distanceTriangle: \forall (x, y, z: Point) ->
+  R.Le (Def.pointDistance x z) (add (Def.pointDistance x y) (Def.pointDistance y z)) :=
+  \fun (x, y, z: Point) => R.leReplaceLeft (Def.norm (Def.addPoint (Def.subPoint x y) (Def.subPoint y z)))
+    (Def.pointDistance x z) (add (Def.pointDistance x y) (Def.pointDistance y z))
+    (congr!{Point Real} Def.norm _ _
+      (\axiom:funext(Def.addPoint (Def.subPoint x y) (Def.subPoint y z), Def.subPoint x z,
+        \fun (i: Coordinate) => Metric.subTriangle (x i) (y i) (z i))))
+    (triangle (Def.subPoint x y) (Def.subPoint y z));
+\definition coordinateDistance: \forall (x, y: Point)(i: Coordinate) ->
+  R.Le (distance (x i) (y i)) (Def.pointDistance x y) :=
+  \fun (x, y: Point)(i: Coordinate) => R.leReplaceLeft _ _ _ (distanceDifference (x i) (y i)) (coordinate (Def.subPoint x y) i);
+\import topology.MetricSpace[Carrier := Point] \as Metrics;
+\definition metric: Metrics.Metric := Metrics.Metric {
+  distance := Def.pointDistance,
+  nonnegative := \fun (x, y: Point) => nonnegative (Def.subPoint x y),
+  self := distanceSelf, separated := distanceSeparated, symmetric := distanceSymmetric, triangle := distanceTriangle,
+};
+\definition maxStrict: \forall (a, b, r: Real) -> R.Lt a r -> R.Lt b r -> R.Lt (Metric.max a b) r :=
+  \fun (a, b, r: Real)(ar: _)(br: _) => either!{{R.Le a b} "or" {R.Le b a} "either" {R.Lt (Metric.max a b) r}
+    "lt:" {\fun (ab: R.Le a b) => R.ltReplaceLeft b (Metric.max a b) r (sym!{Real} (Metric.max a b) b (Metric.maxOfLe a b ab)) br}
+    "rt:" {\fun (ba: R.Le b a) => R.ltReplaceLeft a (Metric.max a b) r (sym!{Real} (Metric.max a b) a (Metric.maxOfGe a b ba)) ar}} (R.Order[].leTotal a b);
+\definition finiteStrictUpper: \forall (m: N.Nat^)(x: Fin.Fin m -> Real)(r: Real) -> R.Lt zero r ->
+  (\forall (i: Fin.Fin m) -> R.Lt (distance (x i) zero) r) -> R.Lt (Def.finiteMax m x) r :=
+  \induction (m: N.Nat^) \return \forall (x: Fin.Fin m -> Real)(r: Real) -> R.Lt zero r ->
+    (\forall (i: Fin.Fin m) -> R.Lt (distance (x i) zero) r) -> R.Lt (Def.finiteMax m x) r \with {
+      | zero: \fun (x: _)(r: Real)(positive: _)(bounds: _) => positive
+      | succ: \fun (m: N.Nat^)(previous: _)(x: _)(r: Real)(positive: _)(bounds: _) => maxStrict _ _ r (bounds (Fin.zero m))
+        (previous (\fun (i: Fin.Fin m) => x (Fin.succ m i)) r positive (\fun (i: Fin.Fin m) => bounds (Fin.succ m i)))
+    };

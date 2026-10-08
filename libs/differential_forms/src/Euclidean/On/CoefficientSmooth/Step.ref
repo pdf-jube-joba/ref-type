@@ -1,0 +1,25 @@
+\import Multilinear.Contraction[k := k] \as Contract;
+\import Contract.Expansion[I := Fin.Fin n, b := Basis.basis] \as Expansion;
+\import Spaces.Finite[V := Vectors.Vector, I := Fin.Fin n, space := Vectors.space] \as Coordinates;
+\import \parent.\parent.FunctionSums[I := Fin.Fin n] \as Sums;
+\definition contracted(i: Fin.Fin n): MultilinearFamily k := \fun (x: Open.Carrier U) => Contract.apply (omega x) (Basis.vectors i);
+\definition coefficients: BasisSmooth (N.Nat^::succ k) omega -> \forall (i: Fin.Fin n) -> BasisSmooth k (contracted i) :=
+  \fun (regular: BasisSmooth (N.Nat^::succ k) omega)(i: Fin.Fin n)(indices: Fin.Fin k -> Fin.Fin n) =>
+    smoothOfEqual (\fun (x: Open.Carrier U) => omega x (\fun (j: Fin.Fin (N.Nat^::succ k)) => Basis.vectors (Indices.extend k i indices j)))
+      (\fun (x: Open.Carrier U) => contracted i x (\fun (j: Fin.Fin k) => Basis.vectors (indices j)))
+      (\fun (x: Open.Carrier U) => congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Reals.Real}} (omega x) _ _ (Mapping.extendMap k Basis.vectors i indices))
+      (regular (Indices.extend k i indices));
+\definition law: Regular k -> BasisSmooth (N.Nat^::succ k) omega ->
+  \forall (arguments: Multilinear.Arguments (N.Nat^::succ k)) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => omega x arguments) := \block {
+  \fun (previous: Regular k)(regular: BasisSmooth (N.Nat^::succ k) omega)(arguments: Multilinear.Arguments (N.Nat^::succ k)) \then
+  \let head: Vectors.Vector := arguments (Fin.zero k) \then
+  \let tail: Multilinear.Arguments k := \fun (j: Fin.Fin k) => arguments (Fin.succ k j) \then
+  \let term: Fin.Fin n -> Open.ScalarFunction U := \fun (i: Fin.Fin n)(x: Open.Carrier U) =>
+    Spaces.mul (Coordinates.coordinates Basis.basis head i) (contracted i x tail) \then
+  \return smoothOfEqual (Sums.sum (Fin.elements n) term) (\fun (x: Open.Carrier U) => omega x arguments)
+    (\fun (x: Open.Carrier U) => trans!{{Reals.Real}} _ _ _ (sym!{{Reals.Real}} _ _ (Expansion.law (omega x) head tail))
+      (congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Reals.Real}} (omega x) (Arguments.extend k head tail) arguments (Arguments.recover k arguments)))
+    (Sums.smooth (Fin.elements n) term (\fun (i: Fin.Fin n) => Operations.mulSmooth U
+      (\fun (x: Open.Carrier U) => Coordinates.coordinates Basis.basis head i) (\fun (x: Open.Carrier U) => contracted i x tail)
+      (Operations.constantSmooth U (Coordinates.coordinates Basis.basis head i)) (previous (contracted i) (coefficients regular i) tail)))
+};

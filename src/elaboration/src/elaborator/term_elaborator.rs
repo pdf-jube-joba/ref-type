@@ -1,16 +1,19 @@
-use crate::elaborator::ItemAccessResult;
-use crate::elaborator::profiling::ProfileTimer;
-use crate::hir::*;
-use crate::items::{ModItemDefinition, ModItemInductive, ModItemRecord};
-use crate::metavariables::ElaborationError;
-use crate::raw::calculus::{
-    exp_contains_bound, instantiate, instantiate_telescope, shift_bound_indices, type_head_normal,
-    whnf,
+use crate::{
+    elaborator::{ItemAccessResult, profiling::ProfileTimer},
+    hir::*,
+    items::{ModItemDefinition, ModItemInductive, ModItemRecord},
+    kernel_bridge::{
+        instantiate, instantiate_telescope, shift_bound_indices, type_head_normal, whnf,
+    },
+    metavariables::ElaborationError,
+    raw::{
+        environment::{CrateEnv, DefinedConstant, ModuleItem},
+        exp::*,
+        ids::*,
+        program::{ComputationTerm, ComputationType, ValueType},
+        traversal::exp_contains_bound,
+    },
 };
-use crate::raw::environment::{CrateEnv, DefinedConstant, ModuleItem};
-use crate::raw::exp::*;
-use crate::raw::ids::*;
-use crate::raw::program::{ComputationTerm, ComputationType, ValueType};
 
 pub(crate) trait Handler {
     fn reflect_front_expression(&mut self, expression: &SExp) -> Result<Exp, ElaborationError>;
@@ -18,6 +21,25 @@ pub(crate) trait Handler {
     fn locate_error(&mut self, span: SourceSpan);
     fn env(&self) -> &CrateEnv;
     fn arena(&self) -> &Arena;
+    fn instantiate_module(
+        &mut self,
+        path: &ModuleInstantiatePath,
+        name: &Identifier,
+        scope: &mut LocalScope,
+    ) -> Result<(), ElaborationError>;
+    fn direct_module_definition(
+        &mut self,
+        path: &ModuleInstantiatePath,
+        name: &Identifier,
+        access: &LocalAccess,
+        scope: &mut LocalScope,
+        arguments: &[&SExp],
+    ) -> Result<Option<Exp>, ElaborationError>;
+    fn materialize_module_term(
+        &mut self,
+        context: &ExpContext,
+        term: Exp,
+    ) -> Result<Exp, ElaborationError>;
     fn get_item_from_access_path(
         &mut self,
         access_path: &LocalAccess,
@@ -260,8 +282,16 @@ impl LocalScope {
         if handler.env().record_for_inductive(indspec).is_none() {
             return Err("expected a structure type in a structure literal".into());
         }
-        let constructor_spec = handler.env().inductive(indspec).constructors()[0]
-            .instantiate_parameters(handler.arena(), &parameters);
+        let (substitutions, explicit) = handler
+            .arena()
+            .split_inductive_arguments(indspec, &parameters);
+        let constructor_spec = handler.env().inductive(indspec).constructors()[0].clone();
+        let constructor = handler.arena().alloc(ExpNode::IndCtor {
+            indspec,
+            parameters: parameters.clone(),
+            idx: 0,
+        });
+        let mut constructor_ty = handler.infer(&mut self.typing_binds, constructor)?;
         let mut supplied = std::collections::HashMap::new();
         for (name, value) in fields {
             if supplied.insert(name.as_str(), value).is_some() {
@@ -274,11 +304,18 @@ impl LocalScope {
         }
         let mut ordered = Vec::with_capacity(constructor_spec.telescope.len());
         for binder in &constructor_spec.telescope {
-            let crate::raw::inductive::CtorBinder::Simple((name, field_ty)) = binder else {
+            let crate::raw::inductive::CtorBinder::Simple((name, _)) = binder else {
                 unreachable!("structure fields are simple constructor binders")
             };
             let name = handler.symbol(*name).to_owned();
-            let expected = instantiate_telescope(handler.arena(), *field_ty, &ordered);
+            let ExpNode::Prod {
+                ty: expected,
+                body: remaining,
+                ..
+            } = handler.arena().get(whnf(handler.env(), constructor_ty))
+            else {
+                return Err("record constructor has too few fields".into());
+            };
             let value = if let Some(value) = supplied.remove(name.as_str()) {
                 self.elab_with_expected(value, expected, handler)?
             } else {
@@ -295,25 +332,30 @@ impl LocalScope {
                     .find(|(name, _)| name == &default_name)
                     .map(|(_, definition)| *definition)
                     .ok_or_else(|| format!("Missing structure field {name}"))?;
-                let arguments = parameters
+                let arguments = explicit
                     .iter()
                     .copied()
                     .chain(ordered.iter().copied())
-                    .collect();
-                let value = self.definition_reference(definition, arguments, handler)?;
+                    .collect::<Vec<_>>();
+                let value = if substitutions.is_empty() {
+                    self.definition_reference(definition, arguments, handler)?
+                } else {
+                    crate::kernel_bridge::captured_definition(
+                        handler.env(),
+                        definition,
+                        &substitutions,
+                        &arguments,
+                    )?
+                };
                 handler.check(&mut self.typing_binds, value, expected)?;
                 value
             };
+            constructor_ty = instantiate(handler.arena(), remaining, value);
             ordered.push(value);
         }
         if let Some(name) = supplied.keys().next() {
             return Err(format!("Unknown structure field {name}").into());
         }
-        let constructor = handler.arena().alloc(ExpNode::IndCtor {
-            indspec,
-            parameters,
-            idx: 0,
-        });
         Ok(crate::raw::utils::assoc_apply(
             handler.arena(),
             constructor,
@@ -389,6 +431,10 @@ impl LocalScope {
             _ => self.elab_exp_rec(exp, handler),
         }
     }
+    pub(crate) fn context(&self) -> &ExpContext {
+        &self.typing_binds
+    }
+
     pub(crate) fn new() -> Self {
         LocalScope {
             bindings: vec![],
@@ -689,9 +735,11 @@ impl LocalScope {
     ) -> Result<(Exp, Exp, Exp), ElaborationError> {
         let map = self.elab_take_function(var, domain, body, handler)?;
         let map_ty = handler.infer(&mut self.typing_binds, map)?;
+        let map_ty = whnf(handler.env(), handler.zonk(map_ty));
         let ExpNode::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
             return Err("failed to infer a product type for \\take map".into());
         };
+        let codomain = whnf(handler.env(), handler.zonk(codomain));
         if exp_contains_bound(handler.arena(), codomain, 0) {
             return Err("\\take map must have a non-dependent codomain".into());
         }
@@ -741,8 +789,33 @@ impl LocalScope {
     ) -> Result<Exp, ElaborationError> {
         match exp {
             SExp::Checked { checks, body } => {
+                let mut direct_head = body.as_ref();
+                let mut direct_arguments = Vec::new();
+                while let SExp::App { func, arg } = direct_head {
+                    direct_arguments.push(arg.as_ref());
+                    direct_head = func.as_ref();
+                }
+                if let [(SExp::ModuleInstance { path, import_name }, _)] = checks.as_slice()
+                    && let SExp::AccessPath { access, parameters } = direct_head
+                {
+                    let arguments = parameters
+                        .iter()
+                        .chain(direct_arguments.into_iter().rev())
+                        .collect::<Vec<_>>();
+                    if let Some(value) = handler.direct_module_definition(
+                        path,
+                        import_name,
+                        access,
+                        self,
+                        &arguments,
+                    )? {
+                        return Ok(value);
+                    }
+                }
                 for (value, ty) in checks {
-                    if let SExp::ConversionTarget { expression } = ty {
+                    if let SExp::ModuleInstance { path, import_name } = value {
+                        handler.instantiate_module(path, import_name, self)?;
+                    } else if let SExp::ConversionTarget { expression } = ty {
                         if let (Ok(left), Ok(right)) = (
                             self.elab_exp_rec(value, handler),
                             self.elab_exp_rec(expression, handler),
@@ -762,14 +835,22 @@ impl LocalScope {
                         handler.check_program_member(value, ty)?;
                     }
                 }
-                match expected {
+                let value = match expected {
                     Some(expected) => self.elab_with_expected(body, expected, handler),
                     None => self.elab_exp_rec(body, handler),
+                }?;
+                if checks
+                    .iter()
+                    .any(|(value, _)| matches!(value, SExp::ModuleInstance { .. }))
+                {
+                    handler.materialize_module_term(&self.typing_binds, value)
+                } else {
+                    Ok(value)
                 }
             }
-            SExp::ConversionTarget { .. } | SExp::ProgramValueReference { .. } => {
-                Err("Program value requires reflection".into())
-            }
+            SExp::ModuleInstance { .. }
+            | SExp::ConversionTarget { .. }
+            | SExp::ProgramValueReference { .. } => Err("Program value requires reflection".into()),
             SExp::MemberAccess { .. } | SExp::MemberLiteral { .. } => {
                 Err("unresolved structure member".into())
             }
@@ -956,7 +1037,7 @@ impl LocalScope {
                             }
                         };
                         let reflected = reflected.map_err(|error| error.to_string())?;
-                        return Ok(crate::raw::calculus::instantiate_telescope(
+                        return Ok(crate::kernel_bridge::instantiate_telescope(
                             handler.arena(),
                             reflected,
                             &reflected_parameters,
@@ -1043,7 +1124,7 @@ impl LocalScope {
                             let shifted_parameters = parameters
                                 .iter()
                                 .map(|parameter| {
-                                    crate::raw::calculus::shift_bound_indices(
+                                    crate::kernel_bridge::shift_bound_indices(
                                         handler.arena(),
                                         *parameter,
                                         1,
@@ -1057,7 +1138,7 @@ impl LocalScope {
                                 value,
                                 field,
                                 &shifted_parameters,
-                            ) else {
+                            )? else {
                                 return Err(format!(
                                     "Associated item {} not found in structure {}",
                                     field.as_str(),
@@ -1374,7 +1455,7 @@ impl LocalScope {
                                 && indspec == record.inductive
                             {
                                 return Ok(record
-                                    .field_projection(handler.env(), value, field, &parameters)
+                                    .field_projection(handler.env(), value, field, &parameters)?
                                     .ok_or_else(|| {
                                         format!(
                                             "Associated item {} not found in structure {}",
@@ -1561,10 +1642,12 @@ impl LocalScope {
                 else {
                     return Err("Induction binder type must reduce to an inductive type".into());
                 };
-                let ItemAccessResult::Inductive(ModItemInductive { ctor_names, .. }) =
-                    Self::inductive_item(inductive, handler)?
-                else {
-                    return Err("Induction binder type must reduce to an inductive type".into());
+                let ctor_names = match Self::inductive_item(inductive, handler)? {
+                    ItemAccessResult::Inductive(ModItemInductive { ctor_names, .. }) => ctor_names,
+                    ItemAccessResult::Record(_) => vec![Identifier("#".to_owned())],
+                    _ => {
+                        return Err("Induction binder type must reduce to an inductive type".into());
+                    }
                 };
                 let cases = self.elab_inductive_cases(&ctor_names, cases, handler)?;
                 let arena = handler.arena();

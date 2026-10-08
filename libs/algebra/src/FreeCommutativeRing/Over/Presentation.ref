@@ -1,0 +1,99 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition Equivalent(x, y: Expression): \Prop :=
+  \forall (candidate: Expression -> Expression -> \Prop) -> Rules[candidate] ->
+  (\forall (x, y: Expression) -> relations x y -> candidate x y) -> candidate x y;
+\definition equivalence: Relation.Equivalence[Expression, Equivalent] := Relation.Equivalence[Expression, Equivalent] {
+  refl := \fun (x: _) (candidate: _) (rules: Rules[candidate]) (_: _) => #refl{(#equivalence{rules})} x,
+  sym := \fun (x, y: _) (xy: _) (candidate: _) (rules: Rules[candidate]) (accepts: _) =>
+    #sym{(#equivalence{rules})} x y (xy candidate rules accepts),
+  trans := \fun (x, y, z: _) (xy: _) (yz: _) (candidate: _) (rules: Rules[candidate]) (accepts: _) =>
+    #trans{(#equivalence{rules})} x y z (xy candidate rules accepts) (yz candidate rules accepts),
+};
+\definition rules: Rules[Equivalent] := Rules[Equivalent] {
+  equivalence := equivalence,
+  addCong := \fun (x, y, u, v: Expression) (xy: Equivalent x y) (uv: Equivalent u v) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #addCong{laws} x y u v (xy candidate laws accepts) (uv candidate laws accepts),
+  negCong := \fun (x, y: Expression) (xy: Equivalent x y) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #negCong{laws} x y (xy candidate laws accepts),
+  mulCong := \fun (x, y, u, v: Expression) (xy: Equivalent x y) (uv: Equivalent u v) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #mulCong{laws} x y u v (xy candidate laws accepts) (uv candidate laws accepts),
+  zeroLeft := \fun (x: Expression) (candidate: _) (laws: Rules[candidate]) (_: _) => #zeroLeft{laws} x,
+  addAssoc := \fun (x, y, z: Expression) (candidate: _) (laws: Rules[candidate]) (_: _) => #addAssoc{laws} x y z,
+  addComm := \fun (x, y: Expression) (candidate: _) (laws: Rules[candidate]) (_: _) => #addComm{laws} x y,
+  inverse := \fun (x: Expression) (candidate: _) (laws: Rules[candidate]) (_: _) => #inverse{laws} x,
+  oneLeft := \fun (x: Expression) (candidate: _) (laws: Rules[candidate]) (_: _) => #oneLeft{laws} x,
+  mulAssoc := \fun (x, y, z: Expression) (candidate: _) (laws: Rules[candidate]) (_: _) => #mulAssoc{laws} x y z,
+  mulComm := \fun (x, y: Expression) (candidate: _) (laws: Rules[candidate]) (_: _) => #mulComm{laws} x y,
+  distributive := \fun (x, y, z: Expression) (candidate: _) (laws: Rules[candidate]) (_: _) => #distributive{laws} x y z,
+  absorbs := \fun (x: Expression) (candidate: _) (laws: Rules[candidate]) (_: _) => #absorbs{laws} x,
+  constantAdd := \fun (a, b: R) (candidate: _) (laws: Rules[candidate]) (_: _) => #constantAdd{laws} a b,
+  constantMul := \fun (a, b: R) (candidate: _) (laws: Rules[candidate]) (_: _) => #constantMul{laws} a b,
+  constantNeg := \fun (a: R) (candidate: _) (laws: Rules[candidate]) (_: _) => #constantNeg{laws} a,
+};
+\definition relationIncluded: \forall (x, y: Expression) -> relations x y -> Equivalent x y :=
+  \fun (x, y: _) (related: _) (candidate: _) (_: Rules[candidate]) (accepts: _) => accepts x y related;
+\import std.Set[].Quotient[A := Expression, Equivalent := Equivalent] \as Q;
+\import algebra.Quotient[A := Expression, relation := Equivalent] \as Quotient;
+\import Quotient.Operations[] \as Operations;
+\definition Carrier: \Set := Q.Carrier;
+\definition class: Expression -> Carrier := Q.class;
+\definition zero: Carrier := class zeroExpr;
+\definition one: Carrier := class oneExpr;
+\definition add: Carrier -> Carrier -> Carrier := Operations.binary equivalence Expression::sum (#addCong{rules});
+\definition neg: Carrier -> Carrier := Operations.unary equivalence Expression::negative (#negCong{rules});
+\definition mul: Carrier -> Carrier -> Carrier := Operations.binary equivalence Expression::product (#mulCong{rules});
+\definition constant(a: R): Carrier := class (Expression::constant a);
+\definition variable(a: Variables): Carrier := class (Expression::variable a);
+\definition addClass: \forall (x, y: Expression) -> add (class x) (class y) = class (Expression::sum x y) := Operations.binaryClass equivalence Expression::sum (#addCong{rules});
+\definition negClass: \forall (x: Expression) -> neg (class x) = class (Expression::negative x) := Operations.unaryClass equivalence Expression::negative (#negCong{rules});
+\definition mulClass: \forall (x, y: Expression) -> mul (class x) (class y) = class (Expression::product x y) := Operations.binaryClass equivalence Expression::product (#mulCong{rules});
+\definition zeroLeft: \forall (x: Carrier) -> add zero x = x := Operations.leftIdentity equivalence Expression::sum (#addCong{rules}) zeroExpr (#zeroLeft{rules});
+\definition addComm: \forall (x, y: Carrier) -> add x y = add y x := Operations.commutative equivalence Expression::sum (#addCong{rules}) (#addComm{rules});
+\definition addAssoc: \forall (x, y, z: Carrier) -> add (add x y) z = add x (add y z) := Operations.associative equivalence Expression::sum (#addCong{rules}) (#addAssoc{rules});
+\definition inverseLeft: \forall (x: Carrier) -> add (neg x) x = zero := Operations.inverseLeft equivalence Expression::sum (#addCong{rules}) Expression::negative (#negCong{rules}) zeroExpr (#inverse{rules});
+\definition oneLeft: \forall (x: Carrier) -> mul one x = x := Operations.leftIdentity equivalence Expression::product (#mulCong{rules}) oneExpr (#oneLeft{rules});
+\definition mulComm: \forall (x, y: Carrier) -> mul x y = mul y x := Operations.commutative equivalence Expression::product (#mulCong{rules}) (#mulComm{rules});
+\definition mulAssoc: \forall (x, y, z: Carrier) -> mul (mul x y) z = mul x (mul y z) := Operations.associative equivalence Expression::product (#mulCong{rules}) (#mulAssoc{rules});
+\definition mulAdd: \forall (x, y, z: Carrier) -> mul x (add y z) = add (mul x y) (mul x z) := Operations.distributiveLeft equivalence Expression::product Expression::sum (#mulCong{rules}) (#addCong{rules}) (#distributive{rules});
+\definition absorbsLeft: \forall (x: Carrier) -> mul zero x = zero := Operations.absorbsLeft equivalence Expression::product (#mulCong{rules}) zeroExpr (#absorbs{rules});
+\definition ring: Ring.CommutativeRing[Carrier] := Ring.CommutativeRing[Carrier] {
+  base := Ring.RingData[Carrier]::# zero one add neg mul,
+  ring := Ring.RingLaws[Carrier, (Ring.RingData[Carrier]::# zero one add neg mul)] {
+    semiring := Alg.SemiringLaws[Carrier, (Alg.SemiringData[Carrier]::# zero one add mul)] {
+      additive := Monoid.CommutativeMonoidLaws[Carrier, (Monoid.CommutativeMonoidData[Carrier]::# (Monoid.MonoidData[Carrier]::# zero add))] {
+        monoid := Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# zero add)] {
+          leftIdentity := zeroLeft, rightIdentity := \fun (x: _) => trans!{Carrier} _ _ _ (addComm x zero) (zeroLeft x), associative := addAssoc,
+        }, commutative := addComm,
+      },
+      multiplicative := Monoid.MonoidLaws[Carrier, (Monoid.MonoidData[Carrier]::# one mul)] {
+        leftIdentity := oneLeft, rightIdentity := \fun (x: _) => trans!{Carrier} _ _ _ (mulComm x one) (oneLeft x), associative := mulAssoc,
+      },
+      leftDistributive := mulAdd,
+      rightDistributive := \fun (x, y, z: _) => eq_reason!{{mul (add x y) z}
+        "=" {mul z (add x y)} "by" {mulComm (add x y) z}
+        "=" {add (mul z x) (mul z y)} "by" {mulAdd z x y}
+        "=" {add (mul x z) (mul y z)} "by" {congr2!{Carrier Carrier Carrier} add _ _ _ _ (mulComm z x) (mulComm z y)}},
+      zeroAbsorbsLeft := absorbsLeft, zeroAbsorbsRight := \fun (x: _) => trans!{Carrier} _ _ _ (mulComm x zero) (absorbsLeft x),
+    }, additiveInverse := inverseLeft,
+  }, mulCommutative := mulComm,
+};
+\module Universal(K: \Set, target: Ring.CommutativeRing[K]);
+\import algebra.Hom[A := R, B := Carrier] \as Coefficients;
+\definition coefficientMap: Coefficients.RingMap coefficientRing (Ring.commutativeRingAsRing Carrier ring) :=
+  \into[R -> Carrier](constant, Coefficients.RingMap coefficientRing (Ring.commutativeRingAsRing Carrier ring)) \by {
+    Coefficients.SemiringLaws[Ring.ringAsSemiring R coefficientRing, Ring.ringAsSemiring Carrier (Ring.commutativeRingAsRing Carrier ring), constant] {
+      zero := \refl(zero), one := \refl(one),
+      add := \fun (a, b: _) => trans!{Carrier} _ _ _
+        (Quotient.classRelated equivalence (Expression::constant (#add{coefficientRing} a b))
+          (Expression::sum (Expression::constant a) (Expression::constant b)) (#constantAdd{rules} a b))
+        (sym!{Carrier} _ _ (addClass (Expression::constant a) (Expression::constant b))),
+      mul := \fun (a, b: _) => trans!{Carrier} _ _ _
+        (Quotient.classRelated equivalence (Expression::constant (#mul{coefficientRing} a b))
+          (Expression::product (Expression::constant a) (Expression::constant b)) (#constantMul{rules} a b))
+        (sym!{Carrier} _ _ (mulClass (Expression::constant a) (Expression::constant b))),
+    }
+  };

@@ -1,0 +1,28 @@
+\import Source.Restriction[] \as Restriction;
+\definition input(included: Source.Included U V)(f: Map V W): Map U W := \block {
+  \let data: Data[U, W] := Data[U, W] {
+    apply := \fun (x: Source.Carrier U) => apply V W f (Source.inclusion U V included x),
+  } \then
+  \return \into[Data[U, W]](data, { data: Data[U, W] \where Laws[U, W, data] }) \by {
+    Laws[U, W, data] {
+      smooth := \fun (i: std.Data[].FinSet[].Fin m) => Restriction.localSmooth U V included
+        (\fun (x: Source.Carrier V) => apply V W f x i) (#smooth{f} i),
+    }
+  }
+};
+\definition atPoint: \forall (included: Source.Included U V)(f: Map V W)(x: Source.Carrier U) ->
+  apply U W (input included f) x = apply V W f (Source.inclusion U V included x) :=
+  \fun (included: _)(f: _)(x: _) => \refl(apply V W f (Source.inclusion U V included x));
+\import \parent.\parent.Vector[n := n, m := m] \as Vector;
+\definition differential: \forall (included: Source.Included U V)(f: Map V W)(a: Source.Carrier U) ->
+  \parent.Differential[U := U, V := W, f := input included f, a := a].value =
+  \parent.Differential[U := V, V := W, f := f, a := Source.inclusion U V included a].value :=
+  \fun (included: Source.Included U V)(f: Map V W)(a: Source.Carrier U) =>
+    Vector.Differential[U := U, f := \fun (x: Source.Carrier U) => apply U W (input included f) x, a := a,
+      d := \parent.Differential[U := U, V := W, f := input included f, a := a].value].uniqueness
+      (\parent.Differential[U := V, V := W, f := f, a := Source.inclusion U V included a].value)
+      (\parent.Differential[U := U, V := W, f := input included f, a := a].vectorLaw)
+      (\fun (j: std.Data[].FinSet[].Fin m) => Source.Analysis[].restrictDifferential U V included
+        (\fun (x: Source.Carrier V) => apply V W f x j) a
+        (Vector.row (\parent.Differential[U := V, V := W, f := f, a := Source.inclusion U V included a].value) j)
+        (\parent.Differential[U := V, V := W, f := f, a := Source.inclusion U V included a].vectorLaw j));

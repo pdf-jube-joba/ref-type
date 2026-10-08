@@ -1,0 +1,32 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\definition N: Model.Manifold := replace atlas;
+\import \root.SmoothMap[n := n, m := n].Between[M := M, N := N] \as Forward;
+\import \root.SmoothMap[n := n, m := n].Between[M := N, N := M] \as Backward;
+\import topology.Maps[A := M.Point, B := M.Point].Identity[] \as Topology;
+\import \root.Diffeomorphism[n := n, m := n].Between[M := M, N := N] \as Diffeomorphisms;
+\definition SameCharts: \Prop := #charts{M.atlas} = #charts{atlas};
+\definition forwardData: Forward.Data := Forward.Data { apply := \fun (x: M.Point) => x };
+\definition backwardData: Backward.Data := Backward.Data { apply := \fun (x: M.Point) => x };
+\definition forwardContinuous: Forward.ContinuousMap := \into[Forward.Data](forwardData, { f: Forward.Data \where Forward.Continuous f }) \by { Topology.continuous M.space };
+\definition backwardContinuous: Backward.ContinuousMap := \into[Backward.Data](backwardData, { f: Backward.Data \where Backward.Continuous f }) \by { Topology.continuous M.space };
+\definition toOriginal: \forall (same: SameCharts)(chart: Charts.Chart) -> \In[Charts.Chart] #charts{atlas} chart -> \In[Charts.Chart] #charts{M.atlas} chart :=
+  \fun (same: SameCharts)(chart: Charts.Chart)(member: \In[Charts.Chart] #charts{atlas} chart) =>
+    \idelim #charts{atlas} = #charts{M.atlas} \with charts: \Pow Charts.Chart => \In[Charts.Chart] charts chart \by {
+      base: member, equality: sym!{{\Pow Charts.Chart}} #charts{M.atlas} #charts{atlas} same
+    };
+\definition toReplacement: \forall (same: SameCharts)(chart: Charts.Chart) -> \In[Charts.Chart] #charts{M.atlas} chart -> \In[Charts.Chart] #charts{atlas} chart :=
+  \fun (same: SameCharts)(chart: Charts.Chart)(member: \In[Charts.Chart] #charts{M.atlas} chart) =>
+    \idelim #charts{M.atlas} = #charts{atlas} \with charts: \Pow Charts.Chart => \In[Charts.Chart] charts chart \by { base: member, equality: same };
+\definition forwardRegular: SameCharts -> Forward.Chartwise forwardContinuous :=
+  \fun (same: SameCharts)(left, right: Charts.Chart)(leftMember: \In[Charts.Chart] #charts{M.atlas} left)(rightMember: \In[Charts.Chart] #charts{atlas} right) =>
+    #compatible{M.atlas} left right leftMember (toOriginal same right rightMember);
+\definition backwardRegular: SameCharts -> Backward.Chartwise backwardContinuous :=
+  \fun (same: SameCharts)(left, right: Charts.Chart)(leftMember: \In[Charts.Chart] #charts{atlas} left)(rightMember: \In[Charts.Chart] #charts{M.atlas} right) =>
+    #compatible{atlas} left right leftMember (toReplacement same right rightMember);
+\definition forward(same: SameCharts): Forward.Map := \into[Forward.ContinuousMap](forwardContinuous, { f: Forward.ContinuousMap \where Forward.Chartwise f }) \by { forwardRegular same };
+\definition backward(same: SameCharts): Backward.Map := \into[Backward.ContinuousMap](backwardContinuous, { f: Backward.ContinuousMap \where Backward.Chartwise f }) \by { backwardRegular same };
+\definition diffeomorphism(same: SameCharts): Diffeomorphisms.Diffeomorphism := Diffeomorphisms.Diffeomorphism {
+  forward := forward same, backward := backward same, leftInverse := \fun (x: M.Point) => \refl(x), rightInverse := \fun (x: N.Point) => \refl(x),
+};
+\definition pointwise: \forall (same: SameCharts)(x: M.Point) -> Forward.apply (forward same) x = x := \fun (same: SameCharts)(x: M.Point) => \refl(x);

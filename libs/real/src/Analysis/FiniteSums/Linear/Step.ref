@@ -1,0 +1,55 @@
+\definition embed(x: Vector n): Vector (N.Nat^::succ n) := Tuples.extend n zero x;
+\definition unit: Vector (N.Nat^::succ n) := Tuples.extend n one (origin n);
+\definition headBasis: basis (N.Nat^::succ n) (Fin.zero n) = unit :=
+  Tuples.extensionality n _ _ (sym!{Real} _ _ (Tuples.atZero n one (origin n)))
+    (\fun (j: Fin.Fin n) => sym!{Real} _ _ (Tuples.atSuccessor n one (origin n) j));
+\definition tailBasis: \forall (i: Fin.Fin n) -> basis (N.Nat^::succ n) (Fin.succ n i) = embed (basis n i) :=
+  \fun (i: _) => Tuples.extensionality n _ _ (sym!{Real} _ _ (Tuples.atZero n zero (basis n i)))
+    (\fun (j: Fin.Fin n) => sym!{Real} _ _ (Tuples.atSuccessor n zero (basis n i) j));
+\definition embedAdd: \forall (x, y: Vector n) -> embed (plus n x y) = plus (N.Nat^::succ n) (embed x) (embed y) :=
+  \fun (x, y: _) => Tuples.extensionality n _ _
+    (trans!{Real} _ _ _ (Tuples.atZero n zero (plus n x y))
+      (sym!{Real} _ _ (trans!{Real} _ _ _
+        (congr2!{Real Real Real} add _ _ _ _ (Tuples.atZero n zero x) (Tuples.atZero n zero y)) (Laws.addZeroLeft zero))))
+    (\fun (j: Fin.Fin n) => trans!{Real} _ _ _ (Tuples.atSuccessor n zero (plus n x y) j)
+      (sym!{Real} _ _ (congr2!{Real Real Real} add _ _ _ _ (Tuples.atSuccessor n zero x j) (Tuples.atSuccessor n zero y j))));
+\definition embedScale: \forall (c: Real)(x: Vector n) -> embed (scale n c x) = scale (N.Nat^::succ n) c (embed x) :=
+  \fun (c: _)(x: _) => Tuples.extensionality n _ _
+    (trans!{Real} _ _ _ (Tuples.atZero n zero (scale n c x))
+      (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (mul c) _ _ (Tuples.atZero n zero x)) (Laws.fieldMulZeroRight c))))
+    (\fun (j: Fin.Fin n) => trans!{Real} _ _ _ (Tuples.atSuccessor n zero (scale n c x) j)
+      (sym!{Real} _ _ (congr!{Real Real} (mul c) _ _ (Tuples.atSuccessor n zero x j))));
+\definition restriction(f: Map (N.Nat^::succ n)): Map n := Data[n] {
+  apply := \fun (x: Vector n) => #apply{f} (embed x),
+  additive := \fun (x, y: _) => trans!{Real} _ _ _
+    (congr!{{Vector (N.Nat^::succ n)} Real} (#apply{f}) _ _ (embedAdd x y)) (#additive{f} (embed x) (embed y)),
+  homogeneous := \fun (c: _)(x: _) => trans!{Real} _ _ _
+    (congr!{{Vector (N.Nat^::succ n)} Real} (#apply{f}) _ _ (embedScale c x)) (#homogeneous{f} c (embed x)),
+};
+\definition decomposition: \forall (x: Vector (N.Nat^::succ n)) ->
+  x = plus (N.Nat^::succ n) (scale (N.Nat^::succ n) (x (Fin.zero n)) unit) (embed (\fun (j: Fin.Fin n) => x (Fin.succ n j))) :=
+  \fun (x: _) => Tuples.extensionality n _ _
+    (sym!{Real} _ _ (trans!{Real} _ _ _
+      (congr2!{Real Real Real} add _ _ _ _
+        (trans!{Real} _ _ _ (congr!{Real Real} (mul (x (Fin.zero n))) _ _ (Tuples.atZero n one (origin n))) (Algebra.mulOneRight (x (Fin.zero n))))
+        (Tuples.atZero n zero (\fun (j: Fin.Fin n) => x (Fin.succ n j)))) (Laws.addZeroRight (x (Fin.zero n)))))
+    (\fun (j: Fin.Fin n) => sym!{Real} _ _ (trans!{Real} _ _ _
+      (congr2!{Real Real Real} add _ _ _ _
+        (trans!{Real} _ _ _ (congr!{Real Real} (mul (x (Fin.zero n))) _ _ (Tuples.atSuccessor n one (origin n) j)) (Laws.fieldMulZeroRight (x (Fin.zero n))))
+        (Tuples.atSuccessor n zero (\fun (j: Fin.Fin n) => x (Fin.succ n j)) j)) (Laws.addZeroLeft (x (Fin.succ n j)))));
+\definition expansion: (\forall (f: Map n)(x: Vector n) -> #apply{f} x = sum n (\fun (i: Fin.Fin n) => mul (x i) (#apply{f} (basis n i)))) ->
+  \forall (f: Map (N.Nat^::succ n))(x: Vector (N.Nat^::succ n)) -> #apply{f} x =
+    sum (N.Nat^::succ n) (\fun (i: Fin.Fin (N.Nat^::succ n)) => mul (x i) (#apply{f} (basis (N.Nat^::succ n) i))) := \block {
+  \fun (previous: \forall (f: Map n)(x: Vector n) -> #apply{f} x = sum n (\fun (i: Fin.Fin n) => mul (x i) (#apply{f} (basis n i))))(f: Map (N.Nat^::succ n))(x: Vector (N.Nat^::succ n)) \then
+  \let tail: Vector n := \fun (j: Fin.Fin n) => x (Fin.succ n j) \then
+  \let headTerm: mul (x (Fin.zero n)) (#apply{f} unit) = mul (x (Fin.zero n)) (#apply{f} (basis (N.Nat^::succ n) (Fin.zero n))) :=
+    congr!{Real Real} (mul (x (Fin.zero n))) _ _ (sym!{Real} _ _ (congr!{{Vector (N.Nat^::succ n)} Real} (#apply{f}) _ _ headBasis)) \then
+  \let tailTerms: #apply{f} (embed tail) = sum n (\fun (j: Fin.Fin n) => mul (x (Fin.succ n j)) (#apply{f} (basis (N.Nat^::succ n) (Fin.succ n j)))) :=
+    trans!{Real} _ _ _ (previous (restriction f) tail)
+      (congruent n _ _ (\fun (j: Fin.Fin n) => congr!{Real Real} (mul (x (Fin.succ n j))) _ _
+        (sym!{Real} _ _ (congr!{{Vector (N.Nat^::succ n)} Real} (#apply{f}) _ _ (tailBasis j))))) \then
+  \return trans!{Real} _ _ _ (congr!{{Vector (N.Nat^::succ n)} Real} (#apply{f}) _ _ (decomposition x))
+    (trans!{Real} _ _ _ (#additive{f} (scale (N.Nat^::succ n) (x (Fin.zero n)) unit) (embed tail))
+      (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => add s (#apply{f} (embed tail))) _ _ (#homogeneous{f} (x (Fin.zero n)) unit))
+        (congr2!{Real Real Real} add _ _ _ _ headTerm tailTerms)))
+};

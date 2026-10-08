@@ -57,6 +57,13 @@ impl<'env, 'context> CheckSession<'env, 'context> {
         self.context_id = self.env.contexts.borrow().parent(self.context_id);
     }
     pub fn check_pts(&mut self, term: Exp, ty: Exp) -> Result<(), Box<JudgementError>> {
+        self.check_pts_resolved(term, ty).map(|_| ())
+    }
+    pub(crate) fn check_pts_resolved(
+        &mut self,
+        term: Exp,
+        ty: Exp,
+    ) -> Result<(Exp, Exp), Box<JudgementError>> {
         crate::kernel_bridge::logical(
             self.env,
             self.context,
@@ -67,7 +74,8 @@ impl<'env, 'context> CheckSession<'env, 'context> {
                     &mut kernel::metavariables::MetaContext::new(),
                     context,
                 )
-                .check(terms[0], terms[1])
+                .check(terms[0], terms[1])?;
+                Ok((Exp(terms[0]), Exp(terms[1])))
             },
         )
         .map_err(|e| Box::new(JudgementError::caused(e)))

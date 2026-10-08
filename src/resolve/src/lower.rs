@@ -110,6 +110,7 @@ impl Extend for Module {
             name: extend(self.name),
             parameters: extend(self.parameters),
             parameter_checks: Vec::new(),
+            parameter_sources: Default::default(),
             body: extend(self.body),
             span: self.span,
             declaration_spans: self.declaration_spans,
@@ -140,7 +141,7 @@ extend_enum!(ModuleItem {
     Scoped { exports, items },
     Definition { owner, name, binders, ty, body },
     Inductive { type_name, parameters, indices, kind, constructors },
-    Structure { name, kind, parameters, fields },
+    Structure { name, kind, parameters, fields, field_spans },
     Record { type_name, parameters, kind, fields },
     ChildModule { module },
     MathMacro { name, before, after },
@@ -148,13 +149,7 @@ extend_enum!(ModuleItem {
     UseMacro { import_name, macro_name },
     Eval { exp },
     Normalize { exp },
-    ComputationEval { exp },
-    ComputationNormalize { exp },
     ValueTypeCheck { ty },
-    ValueCheck { exp, ty },
-    ComputationCheck { exp, ty },
-    ValueInfer { exp },
-    ComputationInfer { exp },
     Check { exp, ty },
     Infer { exp },
 } special {
@@ -247,6 +242,7 @@ extend_enum!(Bind {
 extend_enum!(LocalAccess {
     Current { span, access },
     Named { span, access, child },
+    Instantiated { span, path, child },
 });
 
 extend_enum!(SExp {

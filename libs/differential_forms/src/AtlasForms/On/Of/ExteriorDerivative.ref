@@ -1,0 +1,31 @@
+
+\definition next: N.Nat^ := N.Nat^::succ k;
+\import \parent.At[k := k] \as Source;
+\import \parent.At[k := next] \as Target;
+\definition family(omega: Form k): Family next :=
+  \fun (chart: Chart) => Euclidean.On[U := #image{chart}].ExteriorDerivative[k := k].apply (omega chart);
+\definition compatible: \forall (omega: Form k) -> Compatible next (family omega) :=
+  \fun (omega: Form k)(left, right: Chart) => \parent.Pair[left := left, right := right].Differential[k := k].law omega
+    ((\bysub(Family k, { omega: Family k \where Compatible k omega }, omega)) left right);
+\definition apply(omega: Form k): Form next :=
+  \into[Family next](family omega, { eta: Family next \where Compatible next eta }) \by { compatible omega };
+\definition addition: \forall (omega, eta: Form k) -> apply (Source.plus omega eta) = Target.plus (apply omega) (apply eta) :=
+  \fun (omega, eta: Form k) => ext next (apply (Source.plus omega eta)) (Target.plus (apply omega) (apply eta))
+    (\fun (chart: Chart) => Euclidean.On[U := #image{chart}].ExteriorDerivative[k := k].addition (omega chart) (eta chart));
+\definition scalar: \forall (a: Reals.Real)(omega: Form k) -> apply (Source.scale a omega) = Target.scale a (apply omega) :=
+  \fun (a: Reals.Real)(omega: Form k) => ext next (apply (Source.scale a omega)) (Target.scale a (apply omega))
+    (\fun (chart: Chart) => Euclidean.On[U := #image{chart}].ExteriorDerivative[k := k].scalar a (omega chart));
+\import Spaces.Linear[V := Form k, W := Form next, source := Source.space, target := Target.space] \as Maps;
+\definition map: Maps.Map := Maps.Map { apply := apply, preservesAdd := addition, preservesScale := scalar };
+
+\import Global.ExteriorDerivative[k := k] \as GlobalD;
+\definition restrictionLaw: \forall (omega: Global.Form k) -> apply (Source.restrict omega) = Target.restrict (GlobalD.apply omega) :=
+  \fun (omega: Global.Form k) => ext next (apply (Source.restrict omega)) (Target.restrict (GlobalD.apply omega))
+    (\fun (chart: Chart) => \refl(apply (Source.restrict omega) chart));
+\definition extensionLaw: \forall (omega: Form k) -> GlobalD.apply (Source.extend omega) = Target.extend (apply omega) :=
+  \fun (omega: Form k) => Target.injective (GlobalD.apply (Source.extend omega)) (Target.extend (apply omega))
+    (trans!{{Form next}} _ (apply (Source.restrict (Source.extend omega))) _
+      (sym!{{Form next}} _ _ (restrictionLaw (Source.extend omega)))
+      (trans!{{Form next}} _ (apply omega) _
+        (congr!{{Form k} {Form next}} apply _ _ (Source.leftInverse omega))
+        (sym!{{Form next}} _ _ (Target.leftInverse (apply omega)))));

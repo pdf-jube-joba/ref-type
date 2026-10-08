@@ -1,5 +1,5 @@
-//! Capture-aware traversal across the logical and Program syntax families.
-use super::{environment::ModuleArgument, exp::*, program::*};
+//! Source view classification over the kernel's capture-aware child traversal.
+use super::{environment::ModuleArgument, exp::*, ids::InductiveId, program::*};
 use rustc_hash::FxHashMap;
 
 pub(crate) trait Rewrite {
@@ -59,514 +59,148 @@ pub(crate) enum Term {
     Computation(ComputationTerm),
 }
 
-pub(crate) fn logical(arena: &Arena, e: Exp, depth: usize, rewrite: &mut impl Rewrite) -> Exp {
-    if let Some(Term::Logical(result)) = rewrite.rewrite(Term::Logical(e), depth) {
-        return result;
-    }
-    let result = match arena.get(e) {
-        ExpNode::DefinitionInstance {
-            definition,
-            arguments,
-        } => ExpNode::DefinitionInstance {
-            definition,
-            arguments: arguments
-                .into_iter()
-                .map(|e| logical(arena, e, depth, rewrite))
-                .collect(),
-        },
-        ExpNode::Prod { var, ty, body } => ExpNode::Prod {
-            var,
-            ty: logical(arena, ty, depth, rewrite),
-            body: logical(arena, body, depth + 1, rewrite),
-        },
-        ExpNode::Lam { var, ty, body } => ExpNode::Lam {
-            var,
-            ty: logical(arena, ty, depth, rewrite),
-            body: logical(arena, body, depth + 1, rewrite),
-        },
-        ExpNode::IndElim {
-            indspec,
-            elim,
-            motive_bindings,
-            return_type,
-            cases,
-        } => {
-            let inner = depth + motive_bindings.len();
-            ExpNode::IndElim {
-                indspec,
-                elim: logical(arena, elim, depth, rewrite),
-                motive_bindings: motive_bindings
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, (var, ty))| (var, logical(arena, ty, depth + i, rewrite)))
-                    .collect(),
-                return_type: logical(arena, return_type, inner, rewrite),
-                cases: cases
-                    .into_iter()
-                    .map(|case| logical(arena, case, depth, rewrite))
-                    .collect(),
-            }
-        }
-        ExpNode::SubSet {
-            var,
-            set,
-            predicate,
-        } => ExpNode::SubSet {
-            var,
-            set: logical(arena, set, depth, rewrite),
-            predicate: logical(arena, predicate, depth + 1, rewrite),
-        },
-        ExpNode::Prove(Prove::IdElim {
-            left,
-            right,
-            ty,
-            var,
-            predicate,
-            base,
-            equality,
-        }) => ExpNode::Prove(Prove::IdElim {
-            left: logical(arena, left, depth, rewrite),
-            right: logical(arena, right, depth, rewrite),
-            ty: logical(arena, ty, depth, rewrite),
-            var,
-            predicate: logical(arena, predicate, depth + 1, rewrite),
-            base: logical(arena, base, depth, rewrite),
-            equality: logical(arena, equality, depth, rewrite),
-        }),
-        ExpNode::ReflectedProgramCase {
-            indspec,
-            scrutinee,
-            branches,
-        } => ExpNode::ReflectedProgramCase {
-            indspec,
-            scrutinee: logical(arena, scrutinee, depth, rewrite),
-            branches: branches
-                .into_iter()
-                .map(|b| ReflectedProgramCaseBranch {
-                    body: logical(arena, b.body, depth + b.binders.len(), rewrite),
-                    binders: b.binders,
-                })
-                .collect(),
-        },
-        ExpNode::BoxType { program_ty } => ExpNode::BoxType {
-            program_ty: computation_type(arena, program_ty, depth, rewrite),
-        },
-        ExpNode::BoxProgram {
-            program_ty,
-            program,
-        } => ExpNode::BoxProgram {
-            program_ty: computation_type(arena, program_ty, depth, rewrite),
-            program: computation(arena, program, depth, rewrite),
-        },
-        ExpNode::ForceBox { program_ty, boxed } => ExpNode::ForceBox {
-            program_ty: computation_type(arena, program_ty, depth, rewrite),
-            boxed: logical(arena, boxed, depth, rewrite),
-        },
-        other => super::calculus::map_children(other, |e| logical(arena, e, depth, rewrite)),
-    };
-    let result = arena.reuse_exp(e, result);
-    match rewrite.finish(arena, Term::Logical(e), depth, Term::Logical(result)) {
-        Term::Logical(result) => result,
-        _ => unreachable!("rewrite preserves the term family"),
-    }
-}
-
-fn program_argument(
-    arena: &Arena,
-    a: ProgramArgument,
-    depth: usize,
-    rewrite: &mut impl Rewrite,
-) -> ProgramArgument {
-    match a {
-        ProgramArgument::ValueType(t) => {
-            ProgramArgument::ValueType(value_type(arena, t, depth, rewrite))
-        }
-        ProgramArgument::ValueTerm(v) => {
-            ProgramArgument::ValueTerm(value(arena, v, depth, rewrite))
-        }
-    }
-}
-
-pub(crate) fn value_type(
-    arena: &Arena,
-    t: ValueType,
-    depth: usize,
-    rewrite: &mut impl Rewrite,
-) -> ValueType {
-    if let Some(Term::ValueType(result)) = rewrite.rewrite(Term::ValueType(t), depth) {
-        return result;
-    }
-    let result = match arena.get(t) {
-        ValueTypeNode::Meta {
-            metavariable,
-            spine,
-        } => ValueTypeNode::Meta {
-            metavariable,
-            spine: spine
-                .into_iter()
-                .map(|a| program_argument(arena, a, depth, rewrite))
-                .collect(),
-        },
-        ValueTypeNode::Thunk { computation_ty } => ValueTypeNode::Thunk {
-            computation_ty: computation_type(arena, computation_ty, depth, rewrite),
-        },
-        ValueTypeNode::RunStep {
-            state_ty,
-            result_ty,
-        } => ValueTypeNode::RunStep {
-            state_ty: value_type(arena, state_ty, depth, rewrite),
-            result_ty: value_type(arena, result_ty, depth, rewrite),
-        },
-        ValueTypeNode::Inductive {
-            indspec,
-            parameters,
-        } => ValueTypeNode::Inductive {
-            indspec,
-            parameters: parameters
-                .into_iter()
-                .map(|t| value_type(arena, t, depth, rewrite))
-                .collect(),
-        },
-        other => other,
-    };
-    let result = arena.reuse_value_type(t, result);
-    match rewrite.finish(arena, Term::ValueType(t), depth, Term::ValueType(result)) {
-        Term::ValueType(result) => result,
-        _ => unreachable!("rewrite preserves the term family"),
-    }
-}
-
-pub(crate) fn computation_type(
-    arena: &Arena,
-    t: ComputationType,
-    depth: usize,
-    rewrite: &mut impl Rewrite,
-) -> ComputationType {
-    if let Some(Term::ComputationType(result)) = rewrite.rewrite(Term::ComputationType(t), depth) {
-        return result;
-    }
-    let result = match arena.get(t) {
-        ComputationTypeNode::Meta {
-            metavariable,
-            spine,
-        } => ComputationTypeNode::Meta {
-            metavariable,
-            spine: spine
-                .into_iter()
-                .map(|a| program_argument(arena, a, depth, rewrite))
-                .collect(),
-        },
-        ComputationTypeNode::Return { value_ty } => ComputationTypeNode::Return {
-            value_ty: value_type(arena, value_ty, depth, rewrite),
-        },
-        ComputationTypeNode::Function { domain, codomain } => ComputationTypeNode::Function {
-            domain: value_type(arena, domain, depth, rewrite),
-            codomain: computation_type(arena, codomain, depth, rewrite),
-        },
-    };
-    let result = arena.reuse_computation_type(t, result);
-    match rewrite.finish(
-        arena,
-        Term::ComputationType(t),
-        depth,
-        Term::ComputationType(result),
-    ) {
-        Term::ComputationType(result) => result,
-        _ => unreachable!("rewrite preserves the term family"),
-    }
-}
-
-pub(crate) fn value(
-    arena: &Arena,
-    v: ValueTerm,
-    depth: usize,
-    rewrite: &mut impl Rewrite,
-) -> ValueTerm {
-    if let Some(Term::Value(result)) = rewrite.rewrite(Term::Value(v), depth) {
-        return result;
-    }
-    let result = match arena.get(v) {
-        ValueTermNode::Ascribe { term, ty } => ValueTermNode::Ascribe {
-            term: value(arena, term, depth, rewrite),
-            ty: value_type(arena, ty, depth, rewrite),
-        },
-        ValueTermNode::Meta {
-            metavariable,
-            spine,
-        } => ValueTermNode::Meta {
-            metavariable,
-            spine: spine
-                .into_iter()
-                .map(|a| program_argument(arena, a, depth, rewrite))
-                .collect(),
-        },
-        ValueTermNode::DefinitionInstance {
-            definition,
-            parameters,
-        } => ValueTermNode::DefinitionInstance {
-            definition,
-            parameters: parameters
-                .into_iter()
-                .map(|t| value_type(arena, t, depth, rewrite))
-                .collect(),
-        },
-        ValueTermNode::Thunk { computation: c } => ValueTermNode::Thunk {
-            computation: computation(arena, c, depth, rewrite),
-        },
-        ValueTermNode::Continue {
-            state_ty,
-            result_ty,
-            next,
-        } => ValueTermNode::Continue {
-            state_ty: value_type(arena, state_ty, depth, rewrite),
-            result_ty: value_type(arena, result_ty, depth, rewrite),
-            next: value(arena, next, depth, rewrite),
-        },
-        ValueTermNode::Finish {
-            state_ty,
-            result_ty,
-            output,
-        } => ValueTermNode::Finish {
-            state_ty: value_type(arena, state_ty, depth, rewrite),
-            result_ty: value_type(arena, result_ty, depth, rewrite),
-            output: value(arena, output, depth, rewrite),
-        },
-        ValueTermNode::InductiveConstructor {
-            indspec,
-            parameters,
-            idx,
-            fields,
-        } => ValueTermNode::InductiveConstructor {
-            indspec,
-            parameters: parameters
-                .into_iter()
-                .map(|t| value_type(arena, t, depth, rewrite))
-                .collect(),
-            idx,
-            fields: fields
-                .into_iter()
-                .map(|v| value(arena, v, depth, rewrite))
-                .collect(),
-        },
-        other => other,
-    };
-    let result = arena.reuse_value(v, result);
-    match rewrite.finish(arena, Term::Value(v), depth, Term::Value(result)) {
-        Term::Value(result) => result,
-        _ => unreachable!("rewrite preserves the term family"),
-    }
-}
-
-pub(crate) fn computation(
-    arena: &Arena,
-    c: ComputationTerm,
-    depth: usize,
-    rewrite: &mut impl Rewrite,
-) -> ComputationTerm {
-    if let Some(Term::Computation(result)) = rewrite.rewrite(Term::Computation(c), depth) {
-        return result;
-    }
-    let result = match arena.get(c) {
-        ComputationTermNode::Ascribe { term, ty } => ComputationTermNode::Ascribe {
-            term: computation(arena, term, depth, rewrite),
-            ty: computation_type(arena, ty, depth, rewrite),
-        },
-        ComputationTermNode::Meta {
-            metavariable,
-            spine,
-        } => ComputationTermNode::Meta {
-            metavariable,
-            spine: spine
-                .into_iter()
-                .map(|a| program_argument(arena, a, depth, rewrite))
-                .collect(),
-        },
-        ComputationTermNode::DefinitionInstance {
-            definition,
-            parameters,
-        } => ComputationTermNode::DefinitionInstance {
-            definition,
-            parameters: parameters
-                .into_iter()
-                .map(|t| value_type(arena, t, depth, rewrite))
-                .collect(),
-        },
-        ComputationTermNode::Return { value: v } => ComputationTermNode::Return {
-            value: value(arena, v, depth, rewrite),
-        },
-        ComputationTermNode::Force { value: v } => ComputationTermNode::Force {
-            value: value(arena, v, depth, rewrite),
-        },
-        ComputationTermNode::Lambda {
-            var,
-            value_ty,
-            body,
-        } => ComputationTermNode::Lambda {
-            var,
-            value_ty: value_type(arena, value_ty, depth, rewrite),
-            body: computation(arena, body, depth + 1, rewrite),
-        },
-        ComputationTermNode::Application {
-            computation: f,
-            value: v,
-        } => ComputationTermNode::Application {
-            computation: computation(arena, f, depth, rewrite),
-            value: value(arena, v, depth, rewrite),
-        },
-        ComputationTermNode::Sequence {
-            computation: first,
-            var,
-            value_ty,
-            body,
-        } => ComputationTermNode::Sequence {
-            computation: computation(arena, first, depth, rewrite),
-            var,
-            value_ty: value_type(arena, value_ty, depth, rewrite),
-            body: computation(arena, body, depth + 1, rewrite),
-        },
-        ComputationTermNode::ValueLet {
-            var,
-            value_ty,
-            value: v,
-            body,
-        } => ComputationTermNode::ValueLet {
-            var,
-            value_ty: value_type(arena, value_ty, depth, rewrite),
-            value: value(arena, v, depth, rewrite),
-            body: computation(arena, body, depth + 1, rewrite),
-        },
-        ComputationTermNode::Case {
-            indspec,
-            scrutinee,
-            branches,
-        } => ComputationTermNode::Case {
-            indspec,
-            scrutinee: value(arena, scrutinee, depth, rewrite),
-            branches: branches
-                .into_iter()
-                .map(|b| ProgramCaseBranch {
-                    body: computation(arena, b.body, depth + b.binders.len(), rewrite),
-                    binders: b.binders,
-                })
-                .collect(),
-        },
-        ComputationTermNode::StepMatch {
-            state_ty,
-            result_ty,
-            computation_ty,
-            on_continue,
-            on_finish,
-            scrutinee,
-        } => ComputationTermNode::StepMatch {
-            state_ty: value_type(arena, state_ty, depth, rewrite),
-            result_ty: value_type(arena, result_ty, depth, rewrite),
-            computation_ty: computation_type(arena, computation_ty, depth, rewrite),
-            on_continue: computation(arena, on_continue, depth, rewrite),
-            on_finish: computation(arena, on_finish, depth, rewrite),
-            scrutinee: value(arena, scrutinee, depth, rewrite),
-        },
-        ComputationTermNode::Run {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            accessibility,
-        } => ComputationTermNode::Run {
-            state_ty: value_type(arena, state_ty, depth, rewrite),
-            result_ty: value_type(arena, result_ty, depth, rewrite),
-            step: value(arena, step, depth, rewrite),
-            initial: value(arena, initial, depth, rewrite),
-            accessibility: logical(arena, accessibility, depth, rewrite),
-        },
-        ComputationTermNode::RunCase {
-            state_ty,
-            result_ty,
-            step,
-            initial,
-            transition,
-            accessibility,
-            transition_equality,
-        } => ComputationTermNode::RunCase {
-            state_ty: value_type(arena, state_ty, depth, rewrite),
-            result_ty: value_type(arena, result_ty, depth, rewrite),
-            step: value(arena, step, depth, rewrite),
-            initial: value(arena, initial, depth, rewrite),
-            transition: computation(arena, transition, depth, rewrite),
-            accessibility: logical(arena, accessibility, depth, rewrite),
-            transition_equality: logical(arena, transition_equality, depth, rewrite),
-        },
-        other => other,
-    };
-    let result = arena.reuse_computation(c, result);
-    match rewrite.finish(
-        arena,
-        Term::Computation(c),
-        depth,
-        Term::Computation(result),
-    ) {
-        Term::Computation(result) => result,
-        _ => unreachable!("rewrite preserves the term family"),
-    }
-}
-
 impl Term {
     /// Visit immediate children with their local binder depths.
     pub(crate) fn visit_children(self, arena: &Arena, mut visit: impl FnMut(Term, usize)) {
-        let mut root = true;
-        self.walk(arena, 0, &mut |term, depth| {
-            if std::mem::take(&mut root) {
-                return None;
-            }
+        self.map_children(arena, |term, depth| {
             visit(term, depth);
-            Some(term)
+            term
         });
     }
 
-    pub(crate) fn bound_index(self, arena: &Arena) -> Option<usize> {
+    pub(crate) fn expression(self) -> kernel::syntax::Expression {
         match self {
-            Term::Logical(e) => match *arena.borrow_exp(e) {
-                ExpNode::Bound(index) => Some(index),
-                _ => None,
-            },
-            Term::ValueType(t) => match *arena.borrow_value_type(t) {
-                ValueTypeNode::Bound(index) => Some(index),
-                _ => None,
-            },
-            Term::Value(v) => match *arena.borrow_value(v) {
-                ValueTermNode::Bound(index) => Some(index),
-                _ => None,
-            },
-            _ => None,
+            Self::Logical(e) => e.0,
+            Self::ValueType(e) => e.0,
+            Self::ComputationType(e) => e.0,
+            Self::Value(e) => e.0,
+            Self::Computation(e) => e.0,
         }
     }
 
-    pub(crate) fn walk(self, arena: &Arena, depth: usize, rewrite: &mut impl Rewrite) -> Term {
+    fn with_expression(self, e: kernel::syntax::Expression) -> Self {
         match self {
-            Term::Logical(e) => Term::Logical(logical(arena, e, depth, rewrite)),
-            Term::ValueType(t) => Term::ValueType(value_type(arena, t, depth, rewrite)),
-            Term::ComputationType(t) => {
-                Term::ComputationType(computation_type(arena, t, depth, rewrite))
-            }
-            Term::Value(v) => Term::Value(value(arena, v, depth, rewrite)),
-            Term::Computation(c) => Term::Computation(computation(arena, c, depth, rewrite)),
+            Self::Logical(_) => Self::Logical(Exp(e)),
+            Self::ValueType(_) => Self::ValueType(ValueType(e)),
+            Self::ComputationType(_) => Self::ComputationType(ComputationType(e)),
+            Self::Value(_) => Self::Value(ValueTerm(e)),
+            Self::Computation(_) => Self::Computation(ComputationTerm(e)),
         }
     }
-    pub(crate) fn shift(self, arena: &Arena, amount: usize, cutoff: usize) -> Term {
-        let e = match self {
-            Term::Logical(e) => e.0,
-            Term::ValueType(e) => e.0,
-            Term::ComputationType(e) => e.0,
-            Term::Value(e) => e.0,
-            Term::Computation(e) => e.0,
-        };
-        let e = kernel::calculus::shift(&arena.core, e, amount, cutoff).expect("valid shift");
-        match self {
-            Term::Logical(_) => Term::Logical(Exp(e)),
-            Term::ValueType(_) => Term::ValueType(ValueType(e)),
-            Term::ComputationType(_) => Term::ComputationType(ComputationType(e)),
-            Term::Value(_) => Term::Value(ValueTerm(e)),
-            Term::Computation(_) => Term::Computation(ComputationTerm(e)),
+
+    /// Only source view families are classified here. Child order and binder
+    /// depths come from the kernel, including the binder in Program products.
+    fn map_children(self, arena: &Arena, mut visit: impl FnMut(Term, usize) -> Term) -> Term {
+        use kernel::syntax::Node as N;
+        let mut expression = self.expression();
+        if let N::Definition { id, arguments } = arena.core.get(expression)
+            && !matches!(self, Self::Logical(_))
+        {
+            // Program views may expose a source template or an instantiated body.
+            expression = arena.reference_view(id, arguments, true);
         }
+        let node = arena.core.read(expression);
+        // A reflected module parameter is one source identity.
+        if matches!(&*node, N::Reflect { .. }) {
+            return self.with_expression(expression);
+        }
+        let kinds = match (&*node, self) {
+            (N::Meta { .. }, Self::Logical(_)) => None,
+            (N::Meta { id, .. }, _) => match arena.atom_key(*id) {
+                Atom::Meta(_, _, kinds) => Some(kinds),
+                _ => None,
+            },
+            _ => None,
+        };
+        let logical = |e| Self::Logical(Exp(e));
+        let value_type = |e| Self::ValueType(ValueType(e));
+        let computation_type = |e| Self::ComputationType(ComputationType(e));
+        let value = |e| Self::Value(ValueTerm(e));
+        let computation = |e| Self::Computation(ComputationTerm(e));
+        let mut index = 0;
+        let result = arena
+            .core
+            .map_children(expression, |child, depth| {
+                let i = index;
+                index += 1;
+                let family = match (&*node, self, i) {
+                    (N::Meta { .. }, Self::Logical(_), _) => logical,
+                    (N::Meta { .. }, _, _) => {
+                        if kinds.as_ref().is_none_or(|k| k[i]) {
+                            value_type
+                        } else {
+                            value
+                        }
+                    }
+                    (N::BoxType { .. }, _, _)
+                    | (N::BoxProgram { .. } | N::ForceBox { .. }, _, 0) => computation_type,
+                    (N::BoxProgram { .. }, _, _) => computation,
+                    (N::ForceBox { .. }, _, _) | (_, Self::Logical(_), _) => logical,
+                    (N::Ascribe { .. }, Self::Value(_), 0) => value,
+                    (N::Ascribe { .. }, Self::Value(_), _) => value_type,
+                    (N::Ascribe { .. }, Self::Computation(_), 0) => computation,
+                    (N::Ascribe { .. }, Self::Computation(_), _) => computation_type,
+                    (N::Thunk { .. }, _, _) => computation_type,
+                    (N::ThunkValue { .. }, _, _) => computation,
+                    (
+                        N::Product { .. }
+                        | N::Lambda { .. }
+                        | N::Sequence { .. }
+                        | N::ValueLet { .. },
+                        _,
+                        0,
+                    ) => value_type,
+                    (N::Product { .. }, _, _) => computation_type,
+                    (N::Lambda { .. } | N::Sequence { .. }, _, _) => computation,
+                    (N::App { .. }, _, 0) => computation,
+                    (N::App { .. } | N::Return { .. } | N::Force { .. }, _, _) => value,
+                    (N::ReturnType { .. }, _, _) => value_type,
+                    (N::ValueLet { .. }, _, 1) => value,
+                    (N::ValueLet { .. }, _, _) => computation,
+                    (N::ProgramContinue { .. } | N::ProgramFinish { .. }, _, 0 | 1) => value_type,
+                    (N::ProgramContinue { .. } | N::ProgramFinish { .. }, _, _) => value,
+                    (N::ProgramRunStep { .. } | N::Inductive { .. }, _, _) => value_type,
+                    (N::InductiveConstructor { parameters, .. }, _, _) => {
+                        if i < parameters.len() {
+                            value_type
+                        } else {
+                            value
+                        }
+                    }
+                    (N::ProgramCase { .. }, _, 0) => value,
+                    (N::ProgramCase { .. }, _, _) => computation,
+                    (N::ProgramStepMatch { .. } | N::Run { .. } | N::RunCase { .. }, _, 0 | 1) => {
+                        value_type
+                    }
+                    (N::ProgramStepMatch { .. }, _, 2) => computation_type,
+                    (N::ProgramStepMatch { .. }, _, 5) => value,
+                    (N::ProgramStepMatch { .. }, _, _) => computation,
+                    (N::Run { .. } | N::RunCase { .. }, _, 2 | 3) => value,
+                    (N::RunCase { .. }, _, 4) => computation,
+                    (N::Run { .. } | N::RunCase { .. }, _, _) => logical,
+                    _ => unreachable!("source child family: {node:?}"),
+                };
+                Ok::<_, std::convert::Infallible>(visit(family(child), depth).expression())
+            })
+            .unwrap();
+        self.with_expression(result)
+    }
+
+    pub(crate) fn walk(self, arena: &Arena, depth: usize, rewrite: &mut impl Rewrite) -> Term {
+        if let Some(result) = rewrite.rewrite(self, depth) {
+            return result;
+        }
+        let result = self.map_children(arena, |term, local_depth| {
+            term.walk(arena, depth + local_depth, rewrite)
+        });
+        rewrite.finish(arena, self, depth, result)
+    }
+
+    pub(crate) fn shift(self, arena: &Arena, amount: usize, cutoff: usize) -> Term {
+        self.with_expression(
+            kernel::calculus::shift(&arena.core, self.expression(), amount, cutoff)
+                .expect("valid shift"),
+        )
     }
     pub(crate) fn substitute(
         self,
@@ -582,6 +216,14 @@ impl Term {
             0,
             &mut Memoized::new(|term: Term, depth| {
                 let replacement = match term {
+                    Term::Logical(e)
+                        if matches!(
+                            arena.core.get(e.0),
+                            kernel::syntax::Node::Definition { .. }
+                        ) =>
+                    {
+                        None
+                    }
                     Term::Logical(e) => match arena.get(e) {
                         ExpNode::ModuleParam(id) | ExpNode::ReflectedProgramParam(id) => reflected
                             .iter()
@@ -616,4 +258,58 @@ impl Term {
             }),
         )
     }
+}
+
+pub fn exp_contains_bound(arena: &Arena, exp: Exp, target: usize) -> bool {
+    fn go(
+        arena: &Arena,
+        exp: Exp,
+        target: usize,
+        seen: &mut rustc_hash::FxHashSet<(Exp, usize)>,
+    ) -> bool {
+        let term = Term::Logical(exp);
+        if arena.max_loose_bound(term).is_none_or(|max| max < target) || !seen.insert((exp, target))
+        {
+            return false;
+        }
+        if let kernel::syntax::Node::Bound(index) = arena.core.get(exp.0) {
+            return index == target;
+        }
+        let mut found = false;
+        term.visit_children(arena, |child, depth| {
+            if !found && let Term::Logical(child) = child {
+                found = target
+                    .checked_add(depth)
+                    .is_some_and(|target| go(arena, child, target, seen));
+            }
+        });
+        found
+    }
+    go(arena, exp, target, &mut rustc_hash::FxHashSet::default())
+}
+
+pub fn exp_contains_inductive(arena: &Arena, exp: Exp, inductive: InductiveId) -> bool {
+    let mut pending = vec![exp];
+    let mut seen = rustc_hash::FxHashSet::default();
+    while let Some(e) = pending.pop() {
+        if !seen.insert(e) {
+            continue;
+        }
+        let matches = match *arena.borrow_exp(e) {
+            ExpNode::IndType { indspec, .. }
+            | ExpNode::IndCtor { indspec, .. }
+            | ExpNode::IndElim { indspec, .. }
+            | ExpNode::IndCase { indspec, .. } => indspec == inductive,
+            _ => false,
+        };
+        if matches {
+            return true;
+        }
+        Term::Logical(e).visit_children(arena, |child, _| {
+            if let Term::Logical(e) = child {
+                pending.push(e);
+            }
+        });
+    }
+    false
 }

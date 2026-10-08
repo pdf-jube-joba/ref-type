@@ -27,9 +27,9 @@ fn project() -> SourceSnapshot {
 }
 
 #[test]
-fn editing_std_nat_basic_preserves_termination_imports() {
+fn editing_std_nat_basic_program_preserves_termination_imports() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../libs/std");
-    let file = root.join("src/Data/Nat/Basic/Def.ref");
+    let file = root.join("src/Data/Nat/Basic/Program.ref");
     let snapshot = SourceSnapshot::read(&root).unwrap();
     let mut database = Database::new();
     let first = database.file(&snapshot, &file);
@@ -129,6 +129,61 @@ fn dependency_edits_invalidate_users_and_match_a_clean_check() {
     let clean = Database::new().check(&edited);
     assert_eq!(changed, clean);
     assert!(database.check(&original).is_success());
+}
+
+#[test]
+fn temporary_module_dependencies_invalidate_cached_users() {
+    let original = project().with_file(
+        "/virtual/Left.ref",
+        r"\definition p: \Prop := \root.Base[].P;",
+    );
+    let mut database = Database::new();
+    let initial = database.check(&original);
+    assert!(initial.is_success(), "{initial:?}");
+    assert_eq!(database.check(&original), initial);
+    assert_eq!(database.stats().checked_modules, 0);
+    let edited = original.with_file("/virtual/Base.ref", r"\definition P: \Set := \Prop;");
+    let changed = database.check(&edited);
+    assert!(!changed.is_success(), "{changed:?}");
+    assert_eq!(changed, Database::new().check(&edited));
+    assert!(database.check(&original).is_success());
+}
+
+#[test]
+fn cached_temporary_modules_preserve_local_contexts() {
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert("/virtual/root.ref", r"\module Library; \module Use;");
+    snapshot.insert(
+        "/virtual/Library.ref",
+        r"
+        \module Family(A: \Set) { \structure Box: \Set { value: A, } }
+        \definition get(A: \Set)(x: Family[A := A].Box): A := x.value;
+        \inductive Unit: \VType := | unit: Unit;
+        \module Value(x: Unit) { \definition value: Unit := x; }
+        \definition identity(x: Unit): \F(Unit) := \return Value[x := x].value;
+    ",
+    );
+    let user = r"\import \root.Library[] \as L;
+        \definition beta(x: L.Unit^): L.identity^ x = x := \refl(x);
+        \definition get(A: \Set)(x: L.Family[A := A].Box): A := L.get A x;
+    ";
+    snapshot.insert("/virtual/Use.ref", user);
+    let cache = Cache::new();
+    let initial = Database::with_cache(&cache.0).check(&snapshot);
+    assert!(initial.is_success(), "{initial:?}");
+    let edited = snapshot.with_file(
+        "/virtual/Use.ref",
+        format!("{user}\n\\definition p: \\Prop := \\forall (P: \\Prop) -> P -> P;"),
+    );
+    let mut restored = Database::with_cache(&cache.0);
+    let result = restored.check(&edited);
+    assert!(result.is_success(), "{result:?}");
+    assert!(
+        restored.stats().environment_hits > 0,
+        "{:?}",
+        restored.stats()
+    );
+    assert_eq!(result, Database::new().check(&edited));
 }
 
 #[test]
@@ -926,4 +981,46 @@ fn recovery_reuses_verified_dependencies_without_retrying_failed_modules() {
         compact.diagnostics[0].message.lines().next(),
         detailed.diagnostics[0].message.lines().next()
     );
+}
+
+#[test]
+fn module_timings_include_preparation_and_keep_generated_scopes_with_the_source() {
+    use std::{cell::RefCell, time::Duration};
+    thread_local! {
+        static EVENTS: RefCell<Vec<sema::ModuleProgress>> = const { RefCell::new(Vec::new()) };
+    }
+    fn receive(event: &sema::ModuleProgress) {
+        EVENTS.with_borrow_mut(|events| events.push(event.clone()));
+    }
+    let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+    snapshot.insert(
+        "/virtual/root.ref",
+        r"\module Parent(C: \Set, x: C) {
+        \structure Box[Carrier: \Set] { value: Carrier }
+        \definition make[Carrier: \Set]: Carrier -> Box[Carrier] :=
+            \fun (value: Carrier) => Box[Carrier] { value := value };
+        \definition box: Box[C] := make[C] x;
+        \module Child { \definition value: C := x; }
+    }",
+    );
+    let session = sema::timing::Session::start(true);
+    let result = Database::new().check_with_options(
+        &snapshot,
+        &sema::CheckOptions {
+            force: true,
+            progress: Some(receive),
+            ..Default::default()
+        },
+    );
+    assert!(result.is_success(), "{:?}", result.diagnostics);
+    let measurements = session.finish().unwrap();
+    EVENTS.with_borrow_mut(|events| {
+        assert_eq!(events.len(), 2);
+        assert_eq!(measurements.modules.len(), 2);
+        for event in events.drain(..) {
+            assert!(event.elapsed > Duration::ZERO);
+            assert_eq!(event.elapsed, measurements.modules[&event.path]);
+        }
+    });
+    assert!(measurements.modules.values().sum::<Duration>() <= measurements.total);
 }

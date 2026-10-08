@@ -1,0 +1,39 @@
+\definition Values(left, right: A): \Pow A :=
+  { y: A \where Logic.Or[Logic.And[P, y = left], Logic.And[Logic.Not P, y = right]] };
+\definition Value(left, right: A): \Set := \Cast[A] (Values left right);
+
+\definition existsValue: \forall (left, right: A) -> \exists Value left right :=
+  \fun (left, right: _) => either!{P "or" {Logic.Not P} "either" {\exists Value left right}
+    "lt:" {\fun (proof: _) => \exact(\into[A](left, Values left right) \by {
+      Logic.Or[_, _]::left (Logic.And[_, _]::# proof (\refl(left))) }, Value left right)}
+    "rt:" {\fun (proof: _) => \exact(\into[A](right, Values left right) \by {
+      Logic.Or[_, _]::right (Logic.And[_, _]::# proof (\refl(right))) }, Value left right)}}
+    (excludedMiddle P);
+
+\definition uniqueValue: \forall (left, right: A)(x, y: Value left right) -> x = y :=
+  \fun (left, right: _)(x, y: _) =>
+    either!{{Logic.And[P, x = left]} "or" {Logic.And[Logic.Not P, x = right]} "either" {x = y}
+      "lt:" {\fun (xp: Logic.And[P, x = left]) => either!{{Logic.And[P, y = left]} "or" {Logic.And[Logic.Not P, y = right]} "either" {x = y}
+        "lt:" {\fun (yp: Logic.And[P, y = left]) => trans!{A} _ _ _ (#right{xp}) (sym!{A} _ _ (#right{yp}))}
+        "rt:" {\fun (yn: Logic.And[Logic.Not P, y = right]) => Logic.falseElim (x = y) (#left{yn} (#left{xp}))}}
+        (\bysub(A, Values left right, y))}
+      "rt:" {\fun (xn: Logic.And[Logic.Not P, x = right]) => either!{{Logic.And[P, y = left]} "or" {Logic.And[Logic.Not P, y = right]} "either" {x = y}
+        "lt:" {\fun (yp: Logic.And[P, y = left]) => Logic.falseElim (x = y) (#left{xn} (#left{yp}))}
+        "rt:" {\fun (yn: Logic.And[Logic.Not P, y = right]) => trans!{A} _ _ _ (#right{xn}) (sym!{A} _ _ (#right{yn}))}}
+        (\bysub(A, Values left right, y))}
+      } (\bysub(A, Values left right, x));
+
+\definition select(left, right: A): A :=
+  \choice Value left right \by { existence: existsValue left right, uniqueness: uniqueValue left right };
+
+\definition whenTrue: \forall (left, right: A) -> P -> select left right = left :=
+  \fun (left, right: _)(proof: _) => sym!{A} _ _
+    (\choiceeq \into[A](left, Values left right) \by {
+      Logic.Or[_, _]::left (Logic.And[_, _]::# proof (\refl(left))) }
+      \of Value left right \by { existence: existsValue left right, uniqueness: uniqueValue left right });
+
+\definition whenFalse: \forall (left, right: A) -> Logic.Not P -> select left right = right :=
+  \fun (left, right: _)(proof: _) => sym!{A} _ _
+    (\choiceeq \into[A](right, Values left right) \by {
+      Logic.Or[_, _]::right (Logic.And[_, _]::# proof (\refl(right))) }
+      \of Value left right \by { existence: existsValue left right, uniqueness: uniqueValue left right });

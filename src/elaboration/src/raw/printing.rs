@@ -33,7 +33,6 @@ struct RenderState {
 pub struct Printer<'a> {
     env: &'a CrateEnv,
     rendering: std::cell::RefCell<RenderState>,
-    bounded: bool,
     meta_name: Option<&'a dyn Fn(crate::raw::ids::MetaVarId) -> String>,
 }
 impl<'a> Printer<'a> {
@@ -45,7 +44,6 @@ impl<'a> Printer<'a> {
             env,
             rendering: Default::default(),
             meta_name: Some(meta_name),
-            bounded: true,
         }
     }
     fn debug(env: &'a CrateEnv) -> Self {
@@ -53,7 +51,6 @@ impl<'a> Printer<'a> {
             env,
             rendering: Default::default(),
             meta_name: None,
-            bounded: false,
         }
     }
     fn bounded_expression(
@@ -61,9 +58,13 @@ impl<'a> Printer<'a> {
         expression: kernel::syntax::Expression,
         render: impl FnOnce() -> String,
     ) -> String {
-        if !self.bounded {
-            return render();
-        }
+        self.bounded_render(Some(expression), render)
+    }
+    fn bounded_render(
+        &self,
+        expression: Option<kernel::syntax::Expression>,
+        render: impl FnOnce() -> String,
+    ) -> String {
         let mut state = self.rendering.borrow_mut();
         let root = state.depth == 0;
         if root {
@@ -73,7 +74,9 @@ impl<'a> Printer<'a> {
             state.omitted += 1;
             return "…".into();
         }
-        if let Some(id) = state.shared.get(&expression) {
+        if let Some(expression) = expression
+            && let Some(id) = state.shared.get(&expression)
+        {
             return format!("@expr{id}");
         }
         state.depth += 1;
@@ -82,7 +85,10 @@ impl<'a> Printer<'a> {
         let mut text = crate::diagnostics::bounded(render(), crate::diagnostics::EXPRESSION_BYTES);
         let mut state = self.rendering.borrow_mut();
         state.depth -= 1;
-        if text.len() > 256 && !root {
+        if text.len() > 256
+            && !root
+            && let Some(expression) = expression
+        {
             let id = state.shared.len();
             state.shared.insert(expression, id);
             text = format!("(@expr{id} := {text})");
@@ -180,13 +186,13 @@ impl<'a> Printer<'a> {
                     self.format_app_operand(arg)
                 )
             }
-            ExpNode::DefinedConstant(definition) => definition_name(env, definition),
+            ExpNode::DefinedConstant(definition) => self.definition_name(definition),
             ExpNode::DefinitionInstance {
                 definition,
                 arguments,
             } => format!(
                 "{}[{}]",
-                definition_name(env, definition),
+                self.definition_name(definition),
                 arguments
                     .into_iter()
                     .map(|e| self.format_exp(e))
@@ -197,7 +203,7 @@ impl<'a> Printer<'a> {
                 indspec,
                 parameters,
             } => with_parameters(
-                inductive_name(env, indspec, None),
+                self.inductive_name(indspec, None),
                 parameters.into_iter().map(child).collect(),
             ),
             ExpNode::IndCtor {
@@ -205,8 +211,8 @@ impl<'a> Printer<'a> {
                 parameters,
                 idx,
             } => with_constructor_parameters(
-                inductive_name(env, indspec, None),
-                inductive_name(env, indspec, Some(idx)),
+                self.inductive_name(indspec, None),
+                self.inductive_name(indspec, Some(idx)),
                 parameters.into_iter().map(child).collect(),
             ),
             ExpNode::IndElim {
@@ -524,7 +530,7 @@ impl<'a> Printer<'a> {
                 indspec,
                 parameters,
             } => with_parameters(
-                datatype_name(env, indspec, None),
+                self.datatype_name(indspec, None),
                 parameters
                     .into_iter()
                     .map(|ty| self.format_value_type(ty))
@@ -579,13 +585,13 @@ impl<'a> Printer<'a> {
                 definition,
                 parameters,
             } => with_parameters(
-                definition_name(env, definition),
+                self.definition_name(definition),
                 parameters
                     .into_iter()
                     .map(|ty| self.format_value_type(ty))
                     .collect(),
             ),
-            ValueTermNode::DefinedConstant(id) => definition_name(env, id),
+            ValueTermNode::DefinedConstant(id) => self.definition_name(id),
             ValueTermNode::Thunk { computation } => {
                 format!("\\thunk({})", self.format_computation(computation))
             }
@@ -616,8 +622,8 @@ impl<'a> Printer<'a> {
                 parameters,
             } => {
                 let name = with_constructor_parameters(
-                    datatype_name(env, indspec, None),
-                    datatype_name(env, indspec, Some(idx)),
+                    self.datatype_name(indspec, None),
+                    self.datatype_name(indspec, Some(idx)),
                     parameters
                         .into_iter()
                         .map(|ty| self.format_value_type(ty))
@@ -656,13 +662,13 @@ impl<'a> Printer<'a> {
                 definition,
                 parameters,
             } => with_parameters(
-                definition_name(env, definition),
+                self.definition_name(definition),
                 parameters
                     .into_iter()
                     .map(|ty| self.format_value_type(ty))
                     .collect(),
             ),
-            ComputationTermNode::DefinedConstant(id) => definition_name(env, id),
+            ComputationTermNode::DefinedConstant(id) => self.definition_name(id),
             ComputationTermNode::Return { value } => {
                 format!("\\return({})", self.format_value(value))
             }
@@ -767,6 +773,9 @@ impl<'a> Printer<'a> {
     /// Names in semantic output remain stable when unrelated modules are omitted
     /// from an incremental checking batch.
     pub fn format_module(&self, module: crate::raw::ids::ModuleId) -> String {
+        self.bounded_render(None, || self.format_module_inner(module))
+    }
+    fn format_module_inner(&self, module: crate::raw::ids::ModuleId) -> String {
         let env = self.env;
         if env.namespace_binding_id(module).is_some() {
             let binding = env.binding(module);
@@ -828,99 +837,74 @@ pub(crate) fn module_component(env: &CrateEnv, module: crate::raw::ids::ModuleId
     }
 }
 
-pub(crate) fn definition_name(env: &CrateEnv, id: crate::raw::ids::DefId) -> String {
-    use crate::raw::environment::ModuleItem;
-    for item in env.module(id.module).items() {
-        let associated = match item {
-            ModuleItem::Definition { name, definition } => {
-                if *definition == id {
-                    return format!("\\{}.{}", format_module(env, id.module), name);
+impl Printer<'_> {
+    fn definition_name(&self, id: crate::raw::ids::DefId) -> String {
+        let env = self.env;
+        use crate::raw::environment::ModuleItem;
+        for item in env.module(id.module).items() {
+            let associated = match item {
+                ModuleItem::Definition { name, definition } => {
+                    if *definition == id {
+                        return format!("\\{}.{}", self.format_module(id.module), name);
+                    }
+                    continue;
                 }
-                continue;
-            }
-            ModuleItem::Inductive {
-                associated_definitions,
-                ..
-            }
-            | ModuleItem::Record {
-                associated_definitions,
-                ..
-            }
-            | ModuleItem::ProgramInductive {
-                associated_definitions,
-                ..
-            } => associated_definitions,
-        };
-        for (name, definition) in associated {
-            if *definition == id {
-                return format!(
-                    "\\{}.{}::{name}",
-                    format_module(env, id.module),
-                    item.name()
-                );
+                ModuleItem::Inductive {
+                    associated_definitions,
+                    ..
+                }
+                | ModuleItem::Record {
+                    associated_definitions,
+                    ..
+                }
+                | ModuleItem::ProgramInductive {
+                    associated_definitions,
+                    ..
+                } => associated_definitions,
+            };
+            for (name, definition) in associated {
+                if *definition == id {
+                    return format!(
+                        "\\{}.{}::{name}",
+                        self.format_module(id.module),
+                        item.name()
+                    );
+                }
             }
         }
+        format!("def({}:{})", self.format_module(id.module), id.index)
     }
-    format!("def({}:{})", format_module(env, id.module), id.index)
-}
 
-pub(crate) fn inductive_name(
-    env: &CrateEnv,
-    id: crate::raw::ids::InductiveId,
-    constructor: Option<usize>,
-) -> String {
-    use crate::raw::environment::ModuleItem;
-    for item in env.module(id.module).items() {
-        let (constructors, reflected) = match item {
-            ModuleItem::Inductive {
-                inductive,
-                constructor_names,
-                ..
-            } if *inductive == id => (constructor_names.as_slice(), false),
-            ModuleItem::Record { inductive, .. } if *inductive == id => (&[][..], false),
-            ModuleItem::ProgramInductive {
-                reflected,
-                constructor_names,
-                ..
-            } if *reflected == id => (constructor_names.as_slice(), true),
-            _ => continue,
-        };
-        let reflection = if reflected { "^" } else { "" };
-        let mut name = format!(
-            "\\{}.{}{reflection}",
-            format_module(env, id.module),
-            item.name()
-        );
-        if let Some(index) = constructor {
-            let ctor = constructors
-                .get(index)
-                .cloned()
-                .unwrap_or_else(|| format!("constructor#{index}"));
-            name.push_str(&format!("::{ctor}"));
-        }
-        return name;
-    }
-    let name = format!("ind({}:{})", format_module(env, id.module), id.index);
-    constructor.map_or(name.clone(), |i| format!("{name}.{i}"))
-}
-
-pub(crate) fn datatype_name(
-    env: &CrateEnv,
-    id: crate::raw::ids::ProgramInductiveId,
-    constructor: Option<usize>,
-) -> String {
-    use crate::raw::environment::ModuleItem;
-    for item in env.module(id.module).items() {
-        if let ModuleItem::ProgramInductive {
-            inductive,
-            constructor_names,
-            ..
-        } = item
-            && *inductive == id
-        {
-            let mut name = format!("\\{}.{}", format_module(env, id.module), item.name());
+    fn inductive_name(
+        &self,
+        id: crate::raw::ids::InductiveId,
+        constructor: Option<usize>,
+    ) -> String {
+        let env = self.env;
+        use crate::raw::environment::ModuleItem;
+        for item in env.module(id.module).items() {
+            let (constructors, reflected) = match item {
+                ModuleItem::Inductive {
+                    inductive,
+                    constructor_names,
+                    ..
+                } if *inductive == id => (constructor_names.as_slice(), false),
+                ModuleItem::Record { inductive, .. } if *inductive == id => (&[][..], false),
+                ModuleItem::ProgramInductive {
+                    reflected,
+                    constructor_names,
+                    ..
+                } if *reflected == id => (constructor_names.as_slice(), true),
+                _ => continue,
+            };
+            let reflection = if reflected { "^" } else { "" };
+            let mut name = format!(
+                "\\{}.{}{reflection}",
+                self.format_module(id.module),
+                item.name()
+            );
             if let Some(index) = constructor {
-                let ctor = constructor_names
+                let ctor = constructors
                     .get(index)
                     .cloned()
                     .unwrap_or_else(|| format!("constructor#{index}"));
@@ -928,9 +912,49 @@ pub(crate) fn datatype_name(
             }
             return name;
         }
+        let name = format!("ind({}:{})", self.format_module(id.module), id.index);
+        constructor.map_or(name.clone(), |i| format!("{name}.{i}"))
     }
-    let name = format!("vind({}:{})", format_module(env, id.module), id.index);
-    constructor.map_or(name.clone(), |i| format!("{name}.{i}"))
+
+    fn datatype_name(
+        &self,
+        id: crate::raw::ids::ProgramInductiveId,
+        constructor: Option<usize>,
+    ) -> String {
+        let env = self.env;
+        use crate::raw::environment::ModuleItem;
+        for item in env.module(id.module).items() {
+            if let ModuleItem::ProgramInductive {
+                inductive,
+                constructor_names,
+                ..
+            } = item
+                && *inductive == id
+            {
+                let mut name = format!("\\{}.{}", self.format_module(id.module), item.name());
+                if let Some(index) = constructor {
+                    let ctor = constructor_names
+                        .get(index)
+                        .cloned()
+                        .unwrap_or_else(|| format!("constructor#{index}"));
+                    name.push_str(&format!("::{ctor}"));
+                }
+                return name;
+            }
+        }
+        let name = format!("vind({}:{})", self.format_module(id.module), id.index);
+        constructor.map_or(name.clone(), |i| format!("{name}.{i}"))
+    }
+}
+pub(crate) fn definition_name(env: &CrateEnv, id: crate::raw::ids::DefId) -> String {
+    Printer::debug(env).definition_name(id)
+}
+pub(crate) fn inductive_name(
+    env: &CrateEnv,
+    id: crate::raw::ids::InductiveId,
+    constructor: Option<usize>,
+) -> String {
+    Printer::debug(env).inductive_name(id, constructor)
 }
 
 fn with_parameters(name: String, parameters: Vec<String>) -> String {
@@ -946,7 +970,7 @@ fn with_constructor_parameters(
     constructor: String,
     parameters: Vec<String>,
 ) -> String {
-    let suffix = &constructor[owner.len()..];
+    let suffix = constructor.strip_prefix(&owner).unwrap_or("::…");
     format!("{}{suffix}", with_parameters(owner, parameters))
 }
 

@@ -1,0 +1,68 @@
+\import \parent.Def[] \as Def;
+\import \parent.Program[] \as Programs;
+\import std.Program[] \as ProgramBundles;
+\import std.Data[].Bool[] \as B;
+\import std.Data[].Pair[] \as P;
+\import std.Data[].Nat[].Iteration[].Def[A := Def.NatPair] \as PairIteration;
+
+\module PairIterProof {
+  \definition T: \VType := \U(\U(P.Times[Nat, Nat] -> P.Times[Nat, Nat]) -> P.Times[Nat, Nat] -> Nat -> P.Times[Nat, Nat]);
+
+  \definition program: T := Programs.pairIter;
+
+  \definition specification: T^ := Def.pairIter;
+
+  \definition matches (f: Def.NatPair -> Def.NatPair): \forall (count: Nat^) -> \forall (value: Def.NatPair) ->
+      program^ f value count = specification f value count :=
+      \induction (count: Nat^) \return \forall (value: Def.NatPair) -> program^ f value count = specification f value count \with {
+        | zero : (\fun (value: Def.NatPair) => \refl(value))
+        | succ : (\fun (k: Nat^) => \fun (ih: _) =>
+          \fun (value: Def.NatPair) =>
+            \idelim specification f (f value) k = f (specification f value k)
+              \with x: Def.NatPair => program^ f value (Nat^::succ k) = x
+            \by { base: ih (f value), equality: (PairIteration.specification #advance) f k value })
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (f: Def.NatPair -> Def.NatPair) => \axiom:funext(program^ f, specification f,
+        \fun (value: Def.NatPair) => \axiom:funext(program^ f value, specification f value,
+          \fun (count: Nat^) => matches f count value)));
+}
+
+\import .PairIterProof[] \as PairIterParts;
+
+\definition PairIter: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := PairIterParts.T,
+  program := PairIterParts.program,
+  specification := PairIterParts.specification,
+  coherence := PairIterParts.coherence,
+};
+
+\module PairChooseProof {
+  \definition T: \VType := \U(B.Bool -> P.Times[Nat, Nat] -> P.Times[Nat, Nat] -> P.Times[Nat, Nat]);
+
+  \definition program: T := Programs.pairChoose;
+
+  \definition specification: T^ := Def.pairChoose;
+
+  \definition matches: \forall (test: B.Bool^) -> \forall (yes, no: Def.NatPair) ->
+      program^ test yes no = specification test yes no :=
+      \induction (test: B.Bool^) \return \forall (yes, no: Def.NatPair) -> program^ test yes no = specification test yes no \with {
+        | false : (\fun (yes, no: Def.NatPair) => \refl(no))
+        | true : (\fun (yes, no: Def.NatPair) => \refl(yes))
+      };
+
+  \definition coherence: program^ = specification := \axiom:funext(program^, specification,
+      \fun (test: B.Bool^) => \axiom:funext(program^ test, specification test,
+        \fun (yes: Def.NatPair) => \axiom:funext(program^ test yes, specification test yes,
+          \fun (no: Def.NatPair) => matches test yes no)));
+}
+
+\import .PairChooseProof[] \as PairChooseParts;
+
+\definition PairChoose: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := PairChooseParts.T,
+  program := PairChooseParts.program,
+  specification := PairChooseParts.specification,
+  coherence := PairChooseParts.coherence,
+};

@@ -1,8 +1,9 @@
 //! Global name remapping over the shared logical and Program traversal.
+use super::environment::ModuleArgument;
 use super::{
-    exp::{Arena, ExpNode},
-    ids::{DefId, InductiveId, ProgramInductiveId},
-    program::{ComputationTermNode, ValueTermNode, ValueTypeNode},
+    exp::{Arena, Exp, ExpNode},
+    ids::{DefId, InductiveId, ModuleParamId, ProgramInductiveId},
+    program::*,
     traversal::{Memoized, Rewrite, Term},
 };
 use std::collections::HashMap;
@@ -21,6 +22,9 @@ impl Rewrite for Remapping<'_> {
     fn finish(&mut self, arena: &Arena, _term: Term, _depth: usize, result: Term) -> Term {
         match result {
             Term::Logical(e) => {
+                if matches!(arena.core.get(e.0), kernel::syntax::Node::Definition { .. }) {
+                    return result;
+                }
                 let mut node = arena.get(e);
                 match &mut node {
                     ExpNode::DefinedConstant(id)
@@ -126,4 +130,165 @@ pub(crate) fn remap(
             program_inductives,
         }),
     )
+}
+
+pub fn exp_subst_map(arena: &Arena, exp: Exp, substitutions: &[(ModuleParamId, Exp)]) -> Exp {
+    let Term::Logical(e) = Term::Logical(exp).substitute(arena, &[], substitutions) else {
+        unreachable!()
+    };
+    e
+}
+
+pub fn remap_global_ids(
+    arena: &Arena,
+    exp: Exp,
+    definitions: &HashMap<DefId, DefId>,
+    inductives: &HashMap<InductiveId, InductiveId>,
+) -> Exp {
+    remap_all_global_ids(arena, exp, definitions, inductives, &HashMap::new())
+}
+
+pub fn remap_all_global_ids(
+    arena: &Arena,
+    exp: Exp,
+    definitions: &HashMap<DefId, DefId>,
+    inductives: &HashMap<InductiveId, InductiveId>,
+    program_inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+) -> Exp {
+    let Term::Logical(result) = remap(
+        arena,
+        Term::Logical(exp),
+        definitions,
+        inductives,
+        program_inductives,
+    ) else {
+        unreachable!()
+    };
+    result
+}
+
+pub fn remap_value_type_global_ids(
+    arena: &Arena,
+    term: ValueType,
+    definitions: &HashMap<DefId, DefId>,
+    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+) -> ValueType {
+    let Term::ValueType(result) = remap(
+        arena,
+        Term::ValueType(term),
+        definitions,
+        &HashMap::new(),
+        inductives,
+    ) else {
+        unreachable!()
+    };
+    result
+}
+
+pub fn remap_computation_type_global_ids(
+    arena: &Arena,
+    term: ComputationType,
+    definitions: &HashMap<DefId, DefId>,
+    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+) -> ComputationType {
+    let Term::ComputationType(result) = remap(
+        arena,
+        Term::ComputationType(term),
+        definitions,
+        &HashMap::new(),
+        inductives,
+    ) else {
+        unreachable!()
+    };
+    result
+}
+
+pub fn remap_value_global_ids(
+    arena: &Arena,
+    term: ValueTerm,
+    definitions: &HashMap<DefId, DefId>,
+    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+    logical_inductives: &HashMap<crate::raw::ids::InductiveId, crate::raw::ids::InductiveId>,
+) -> ValueTerm {
+    let Term::Value(result) = remap(
+        arena,
+        Term::Value(term),
+        definitions,
+        logical_inductives,
+        inductives,
+    ) else {
+        unreachable!()
+    };
+    result
+}
+
+pub fn remap_computation_global_ids(
+    arena: &Arena,
+    term: ComputationTerm,
+    definitions: &HashMap<DefId, DefId>,
+    inductives: &HashMap<ProgramInductiveId, ProgramInductiveId>,
+    logical_inductives: &HashMap<crate::raw::ids::InductiveId, crate::raw::ids::InductiveId>,
+) -> ComputationTerm {
+    let Term::Computation(result) = remap(
+        arena,
+        Term::Computation(term),
+        definitions,
+        logical_inductives,
+        inductives,
+    ) else {
+        unreachable!()
+    };
+    result
+}
+
+pub fn subst_value_type_module_params(
+    arena: &Arena,
+    ty: ValueType,
+    substitutions: &[(ModuleParamId, ModuleArgument)],
+) -> ValueType {
+    let Term::ValueType(result) = Term::ValueType(ty).substitute(arena, substitutions, &[]) else {
+        unreachable!()
+    };
+    result
+}
+
+pub fn subst_computation_type_module_params(
+    arena: &Arena,
+    ty: ComputationType,
+    substitutions: &[(ModuleParamId, ModuleArgument)],
+) -> ComputationType {
+    let Term::ComputationType(result) =
+        Term::ComputationType(ty).substitute(arena, substitutions, &[])
+    else {
+        unreachable!()
+    };
+    result
+}
+
+pub fn subst_value_module_params(
+    arena: &Arena,
+    value: ValueTerm,
+    substitutions: &[(ModuleParamId, ModuleArgument)],
+    reflected_substitutions: &[(ModuleParamId, crate::raw::exp::Exp)],
+) -> ValueTerm {
+    let Term::Value(result) =
+        Term::Value(value).substitute(arena, substitutions, reflected_substitutions)
+    else {
+        unreachable!()
+    };
+    result
+}
+
+pub fn subst_computation_module_params(
+    arena: &Arena,
+    term: ComputationTerm,
+    substitutions: &[(ModuleParamId, ModuleArgument)],
+    reflected_substitutions: &[(ModuleParamId, crate::raw::exp::Exp)],
+) -> ComputationTerm {
+    let Term::Computation(result) =
+        Term::Computation(term).substitute(arena, substitutions, reflected_substitutions)
+    else {
+        unreachable!()
+    };
+    result
 }

@@ -1,0 +1,29 @@
+\import Target.Subspace[S := S] \as Subspace;
+\import topology.Topology[Carrier := Subspace.CarrierSet] \as Sub;
+\import topology.Continuity[A := A, B := Subspace.CarrierSet] \as Into;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+
+\definition inclusionContinuous: \forall (target: Target.Topology) ->
+  \forall (V: \Pow B) -> Target.IsOpenIn target V ->
+  Sub.IsOpenIn (Subspace.topology target) (Subspace.Trace V) := Subspace.traceOpen;
+\definition corestrictContinuous: \forall (source: Source.Topology) (target: Target.Topology)
+  (f: A -> Subspace.CarrierSet) ->
+  Continuous source target (\fun (x: A) => f x) ->
+  Into.Continuous source (Subspace.topology target) f :=
+  \fun (source: _) (target: _) (f: _) (continuous: _) (W: _) (open: _) =>
+    Subspace.openTraceElim target W (Source.IsOpenIn source (Into.Preimage f W))
+      (\fun (U: _) (uo: _) (same: _) =>
+        \idelim Preimage (\fun (x: A) => f x) U = Into.Preimage f W
+          \with V: \Pow A => Source.IsOpenIn source V
+          \by {
+            base: continuous U uo,
+            equality: \axiom:setext(Preimage (\fun (x: A) => f x) U, Into.Preimage f W,
+              \fun (x: A) (h: _) => \idelim Subspace.Trace U = W
+                \with V: \Pow Subspace.CarrierSet => Sub.Member V (f x)
+                \by { base: h, equality: sym!{\Pow Subspace.CarrierSet} _ _ same },
+              \fun (x: A) (h: _) => \idelim W = Subspace.Trace U
+                \with V: \Pow Subspace.CarrierSet => Sub.Member V (f x)
+                \by { base: h, equality: same })
+          })
+      (Subspace.openRepresentation target W open);

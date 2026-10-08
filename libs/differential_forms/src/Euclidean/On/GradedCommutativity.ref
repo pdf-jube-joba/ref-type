@@ -1,0 +1,34 @@
+\import \parent.Wedge[p := p, q := q] \as Forward;
+\import \parent.Wedge[p := q, q := p] \as Reverse;
+\import \parent.Regrade[k := Nat.add p q, l := Nat.add q p] \as Degree;
+\import \parent.At[k := Nat.add q p] \as Result;
+\import Exterior.GradedCommutativity[p := p, q := q] \as Point;
+\import Exterior.Components[k := Nat.add q p] \as Components;
+\import Spaces.Sign[] \as Sign;
+\import N.Basic[].Prop[] \as Naturals;
+\definition degree: Nat.add p q = Nat.add q p := Naturals.addComm p q;
+\definition law: \forall (omega: Form p)(eta: Form q) -> Reverse.apply eta omega =
+  Result.scale (Sign.value (Nat.mul p q)) (Degree.cast (Forward.apply omega eta) degree) :=
+  \fun (omega: Form p)(eta: Form q) => \axiom:funext(Reverse.apply eta omega,
+    Result.scale (Sign.value (Nat.mul p q)) (Degree.cast (Forward.apply omega eta) degree),
+    \fun (x: Open.Carrier U) => Components.ext (Reverse.apply eta omega x)
+      (Result.scale (Sign.value (Nat.mul p q)) (Degree.cast (Forward.apply omega eta) degree) x)
+      (\axiom:funext(Exterior.component (Nat.add q p) (Reverse.apply eta omega x),
+        Exterior.component (Nat.add q p) (Result.scale (Sign.value (Nat.mul p q)) (Degree.cast (Forward.apply omega eta) degree) x),
+        \fun (xs: Lists.List[Vectors.Vector]) => trans!{{Reals.Real}} (Exterior.component (Nat.add q p) (Reverse.apply eta omega x) xs)
+          (Spaces.mul (Sign.value (Nat.mul p q)) (Exterior.component (Nat.add p q) (Forward.apply omega eta x) xs))
+          (Exterior.component (Nat.add q p) (Result.scale (Sign.value (Nat.mul p q)) (Degree.cast (Forward.apply omega eta) degree) x) xs)
+          (congr!{{Shuffle.Function} {Reals.Real}} (\fun (h: Shuffle.Function) => h xs)
+            (Exterior.component (Nat.add q p) (Reverse.apply eta omega x))
+            (Shuffle.scale (Sign.value (Nat.mul p q)) (Exterior.component (Nat.add p q) (Forward.apply omega eta x))) (Point.law (omega x) (eta x)))
+          (trans!{{Reals.Real}} (Spaces.mul (Sign.value (Nat.mul p q)) (Exterior.component (Nat.add p q) (Forward.apply omega eta x) xs))
+            (Spaces.mul (Sign.value (Nat.mul p q)) (Exterior.component (Nat.add q p) (Degree.cast (Forward.apply omega eta) degree x) xs))
+            (Exterior.component (Nat.add q p) (Result.scale (Sign.value (Nat.mul p q)) (Degree.cast (Forward.apply omega eta) degree) x) xs)
+            (congr!{{Shuffle.Function} {Reals.Real}} (\fun (h: Shuffle.Function) => Spaces.mul (Sign.value (Nat.mul p q)) (h xs))
+              (Exterior.component (Nat.add p q) (Forward.apply omega eta x))
+              (Exterior.component (Nat.add q p) (Degree.cast (Forward.apply omega eta) degree x))
+              (sym!{{Shuffle.Function}} (Exterior.component (Nat.add q p) (Degree.cast (Forward.apply omega eta) degree x))
+                (Exterior.component (Nat.add p q) (Forward.apply omega eta x)) (Degree.series (Forward.apply omega eta) degree x)))
+            (sym!{{Reals.Real}} (Exterior.component (Nat.add q p) (Result.scale (Sign.value (Nat.mul p q)) (Degree.cast (Forward.apply omega eta) degree) x) xs)
+              (Spaces.mul (Sign.value (Nat.mul p q)) (Exterior.component (Nat.add q p) (Degree.cast (Forward.apply omega eta) degree x) xs))
+              (Components.scalar (Sign.value (Nat.mul p q)) (Degree.cast (Forward.apply omega eta) degree x) xs))))));

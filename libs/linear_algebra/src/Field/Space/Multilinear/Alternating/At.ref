@@ -1,0 +1,46 @@
+\import \parent.\parent.\parent.Coordinates[I := Arguments k] \as Functions;
+\import \parent.\parent.\parent.Subspace[V := Functions.Vector, space := Functions.space] \as Subspaces;
+\import \parent.\parent.\parent.Laws[V := K, space := scalarSpace] \as Scalars;
+\definition Predicate: \Pow (Function k) := { f: Function k \where AlternatingLaws[k, f] };
+\definition subspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := Predicate,
+  containsZero := AlternatingLaws[k, Functions.origin] {
+    linear := Laws[k, Functions.origin] {
+      addition := \fun (arguments: Arguments k)(i: Fin.Fin k)(x, y: V) => sym!{K} _ _ (addZeroLeft zero),
+      scalar := \fun (arguments: Arguments k)(i: Fin.Fin k)(a: K)(x: V) => sym!{K} _ _ (mulZeroRight a),
+    },
+    alternating := \fun (arguments: Arguments k)(i, j: Fin.Fin k)(different: _)(same: _) => \refl(zero),
+  },
+  closedAdd := \fun (f, g: Function k)(left: AlternatingLaws[k, f])(right: AlternatingLaws[k, g]) =>
+    AlternatingLaws[k, Functions.plus f g] {
+      linear := Laws[k, Functions.plus f g] {
+        addition := \fun (arguments: Arguments k)(i: Fin.Fin k)(x, y: V) => trans!{K} _ _ _
+          (congr2!{K K K} add _ _ _ _ (#addition{(#linear{left})} arguments i x y) (#addition{(#linear{right})} arguments i x y))
+          (Scalars.shuffle (f (update k arguments i x)) (f (update k arguments i y)) (g (update k arguments i x)) (g (update k arguments i y))),
+        scalar := \fun (arguments: Arguments k)(i: Fin.Fin k)(a: K)(x: V) => trans!{K} _ _ _
+          (congr2!{K K K} add _ _ _ _ (#scalar{(#linear{left})} arguments i a x) (#scalar{(#linear{right})} arguments i a x))
+          (sym!{K} _ _ (mulAdd a (f (update k arguments i x)) (g (update k arguments i x)))),
+      },
+      alternating := \fun (arguments: Arguments k)(i, j: Fin.Fin k)(different: Logic.Not (i = j))(same: arguments i = arguments j) =>
+        trans!{K} _ _ _ (congr2!{K K K} add _ _ _ _ (#alternating{left} arguments i j different same) (#alternating{right} arguments i j different same)) (addZeroLeft zero),
+    },
+  closedScale := \fun (c: K)(f: Function k)(linear: AlternatingLaws[k, f]) => AlternatingLaws[k, Functions.scale c f] {
+    linear := Laws[k, Functions.scale c f] {
+      addition := \fun (arguments: Arguments k)(i: Fin.Fin k)(x, y: V) => trans!{K} _ _ _
+        (congr!{K K} (mul c) _ _ (#addition{(#linear{linear})} arguments i x y))
+        (mulAdd c (f (update k arguments i x)) (f (update k arguments i y))),
+      scalar := \fun (arguments: Arguments k)(i: Fin.Fin k)(a: K)(x: V) => trans!{K} _ _ _
+        (congr!{K K} (mul c) _ _ (#scalar{(#linear{linear})} arguments i a x))
+        (Scalars.scaleComm c a (f (update k arguments i x))),
+    },
+    alternating := \fun (arguments: Arguments k)(i, j: Fin.Fin k)(different: Logic.Not (i = j))(same: arguments i = arguments j) =>
+      trans!{K} _ _ _ (congr!{K K} (mul c) _ _ (#alternating{linear} arguments i j different same)) (mulZeroRight c),
+  },
+};
+\import Subspaces.Of[subspace := subspace] \as Sub;
+\definition vectorSpace: VectorSpace (Form k) := Sub.induced;
+\definition origin: Form k := #zero{vectorSpace};
+\definition plus: Form k -> Form k -> Form k := #add{vectorSpace};
+\definition scale: K -> Form k -> Form k := #smul{vectorSpace};
+\definition ext: \forall (f, g: Form k) -> (\forall (v: Arguments k) -> f v = g v) -> f = g :=
+  \fun (f, g: Form k)(same: \forall (v: Arguments k) -> f v = g v) => \axiom:funext(f, g, same);

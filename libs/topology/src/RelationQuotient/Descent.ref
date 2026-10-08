@@ -1,0 +1,64 @@
+\definition Respects(f: A -> C): \Prop :=
+  \forall (x, y: A) -> relation x y -> f x = f y;
+\definition Values(f: A -> C) (q: Carrier): \Pow C :=
+  { y: C \where \exists { x: Classes.Representative q \where f x = y } };
+\definition Value(f: A -> C) (q: Carrier): \Set := \Cast[C] (Values f q);
+\definition witness(f: A -> C) (q: Carrier) (x: Classes.Representative q): Value f q :=
+  \into[C](f x, Values f q) \by {
+    \exact(\into[Classes.Representative q](x, { z: Classes.Representative q \where f z = f x }) \by { \refl(f x) },
+      \Cast[Classes.Representative q] ({ z: Classes.Representative q \where f z = f x }))
+  };
+\definition existsValue(f: A -> C): \forall (q: Carrier) -> \exists Value f q := \block {
+  \fun (q: _) \then
+  \takefrom x: Classes.Representative q \by Classes.classProperty q \then
+  \return \exact(witness f q x, Value f q)
+};
+\definition uniqueValue:
+  Classes.EquivalenceLaws -> \forall (f: A -> C) -> Respects f ->
+  \forall (q: Carrier) (u, v: Value f q) -> u = v := \block {
+  \fun (laws: _) (f: _) (respects: _) (q: _) (u, v: _) \then
+  \takefrom x: \Cast[Classes.Representative q] ({ x: Classes.Representative q \where f x = u })
+    \by \bysub(C, Values f q, u) \then
+  \takefrom y: \Cast[Classes.Representative q] ({ y: Classes.Representative q \where f y = v })
+    \by \bysub(C, Values f q, v) \then
+  \return trans!{C} u (f x) v
+    (sym!{C} _ _ (\bysub(Classes.Representative q, { x: Classes.Representative q \where f x = u }, x)))
+    (trans!{C} _ _ _
+      (respects x y (Classes.sameClassRelated laws q x y (Classes.represents q x) (Classes.represents q y)))
+      (\bysub(Classes.Representative q, { y: Classes.Representative q \where f y = v }, y)))
+};
+\definition apply(laws: Classes.EquivalenceLaws) (f: A -> C) (respects: Respects f) (q: Carrier): C :=
+  \choice Value f q \by { existence: existsValue f q, uniqueness: uniqueValue laws f respects q };
+\definition onRepresentative:
+  \forall (laws: Classes.EquivalenceLaws) (f: A -> C) (respects: Respects f)
+    (q: Carrier) (x: Classes.Representative q) -> apply laws f respects q = f x :=
+  \fun (laws: _) (f: _) (respects: _) (q: _) (x: _) =>
+    sym!{C} _ _ (\choiceeq witness f q x \of Value f q
+      \by { existence: existsValue f q, uniqueness: uniqueValue laws f respects q });
+\definition onClass:
+  \forall (laws: Classes.EquivalenceLaws) (f: A -> C) (respects: Respects f)
+    (x: A) -> apply laws f respects (class x) = f x :=
+  \fun (laws: _) (f: _) (respects: _) (x: _) => onRepresentative laws f respects (class x)
+    (\into[A](x, Classes.Representative (class x)) \by { \refl(Classes.ClassOf x) });
+\definition unique:
+  \forall (laws: Classes.EquivalenceLaws) (f: A -> C) (respects: Respects f) (g: Carrier -> C) ->
+  (\forall (x: A) -> g (class x) = f x) -> g = apply laws f respects :=
+  \fun (laws: _) (f: _) (respects: _) (g: _) (agrees: _) =>
+    \axiom:funext(g, apply laws f respects,
+      Classes.induction (\fun (q: _) => g q = apply laws f respects q)
+        (\fun (x: _) => trans!{C} _ _ _ (agrees x) (sym!{C} _ _ (onClass laws f respects x))));
+\import topology.Topology[Carrier := C] \as Range;
+\import topology.Continuity[A := A, B := C] \as Original;
+\import topology.Continuity[A := Carrier, B := C] \as Descended;
+\import Final.Universal[C := C] \as Universal;
+\definition continuous: \forall (source: Source.Topology) (target: Range.Topology)
+  (laws: Laws) (f: A -> C) (respects: Respects f) ->
+  Original.Continuous source target f ->
+  Descended.Continuous (topology source) target (apply laws f respects) :=
+  \fun (source: _) (target: _) (laws: _) (f: _) (respects: _) (continuous: _) =>
+    #rtl{(Universal.continuous source class target (apply laws f respects))}
+      (\idelim f = (\fun (x: A) => apply laws f respects (class x))
+        \with g: (A -> C) => Original.Continuous source target g
+        \by { base: continuous,
+          equality: \axiom:funext(f, (\fun (x: A) => apply laws f respects (class x)),
+            \fun (x: A) => sym!{C} _ _ (onClass laws f respects x)) });

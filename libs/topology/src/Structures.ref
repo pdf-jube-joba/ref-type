@@ -1,0 +1,22 @@
+\import std.Logic[].Proposition[] \as Logic;
+\definition empty(Carrier: \Set): \Pow Carrier := { x: Carrier \where Logic.False };
+\definition whole(Carrier: \Set): \Pow Carrier := { x: Carrier \where x = x };
+\definition union(Carrier: \Set) (family: \Pow (\Pow Carrier)): \Pow Carrier :=
+  { x: Carrier \where \exists { U: \Pow Carrier \where Logic.And[\In[\Pow Carrier] family U, \In[Carrier] U x] } };
+\definition intersection(Carrier: \Set) (S, T: \Pow Carrier): \Pow Carrier :=
+  { x: Carrier \where Logic.And[\In[Carrier] S x, \In[Carrier] T x] };
+\structure TopologyData[Carrier: \Set]: \Set {
+  openSets: \Pow (\Pow Carrier),
+}
+\structure TopologyLaws[Carrier: \Set, data: TopologyData[Carrier]]: \Prop {
+  emptyOpen: \In[\Pow Carrier] data.openSets (empty Carrier),
+  wholeOpen: \In[\Pow Carrier] data.openSets (whole Carrier),
+  unionOpen: \forall (family: \Pow (\Pow Carrier)) ->
+    (\forall (S: \Pow Carrier) -> \In[\Pow Carrier] family S -> \In[\Pow Carrier] data.openSets S) ->
+    \In[\Pow Carrier] data.openSets (union Carrier family),
+  intersectionOpen: \forall (S, T: \Pow Carrier) ->
+    \In[\Pow Carrier] data.openSets S -> \In[\Pow Carrier] data.openSets T ->
+    \In[\Pow Carrier] data.openSets (intersection Carrier S T),
+}
+\definition Topology[Carrier: \Set]: \Set :=
+  \Cast[TopologyData[Carrier]] ({ data: TopologyData[Carrier] \where TopologyLaws[Carrier, data] });

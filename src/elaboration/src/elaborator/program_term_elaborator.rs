@@ -1,19 +1,4 @@
 //! Elaboration for the four disjoint Program syntactic categories.
-
-use crate::metavariables::{
-    ConstraintDiagnostic, ConstraintStatus, ElaborationError, MetaFlavor, MetaGoal, MetaState,
-};
-use crate::raw::{
-    environment::DefinedConstant,
-    ids::{MetaVarId, SymbolId},
-    program::{
-        ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode,
-        ProgramArgument, ProgramContext, ProgramContextEntry, ValueTerm, ValueTermNode, ValueType,
-        ValueTypeNode,
-    },
-    program_derivation::ProgramCheckSession,
-};
-use crate::raw::{exp::Arena, printing::Printer, traversal::Term};
 use crate::{
     elaborator::{
         GlobalEnvironment, module_manager::ItemAccessResult, term_elaborator::LocalScope,
@@ -21,6 +6,22 @@ use crate::{
     hir::{
         ComputationTermExp, ComputationTypeExp, LocalAccess, ProgramFunctionExp, SExp, SourceSpan,
         SurfaceMeta, ValueTermExp, ValueTypeExp,
+    },
+    metavariables::{
+        ConstraintDiagnostic, ConstraintStatus, ElaborationError, MetaFlavor, MetaGoal, MetaState,
+    },
+    raw::{
+        environment::DefinedConstant,
+        exp::Arena,
+        ids::{MetaVarId, SymbolId},
+        printing::Printer,
+        program::{
+            ComputationTerm, ComputationTermNode, ComputationType, ComputationTypeNode,
+            ProgramArgument, ProgramContext, ProgramContextEntry, ValueTerm, ValueTermNode,
+            ValueType, ValueTypeNode,
+        },
+        program_derivation::ProgramCheckSession,
+        traversal::Term,
     },
 };
 use std::collections::{HashMap, HashSet};
@@ -249,6 +250,19 @@ impl ProgramScope {
         ty: &SExp,
         environment: &mut GlobalEnvironment,
     ) -> Result<(), ElaborationError> {
+        if let SExp::ModuleInstance { path, import_name } = value {
+            let context =
+                crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
+                    .map_err(|error| error.to_string())?;
+            let mut scope = LocalScope::from_typing_context(context);
+            let binding = environment.instantiate_module_expression(path, &mut scope, self)?;
+            environment.module_manager.register_hir_import(
+                &environment.crate_env,
+                import_name,
+                binding,
+            );
+            return Ok(());
+        }
         if let SExp::ConversionTarget { expression } = ty {
             if let (Ok(left), Ok(right)) = (
                 ValueTypeExp::try_from(value.clone()),
@@ -285,7 +299,7 @@ impl ProgramScope {
             && let Ok(expected) = self.elaborate_computation_type(&syntax, environment)
         {
             let syntax: ComputationTermExp = value.clone().try_into()?;
-            let value = self.elaborate_computation(&syntax, environment)?;
+            let value = self.elaborate_computation_expected(&syntax, expected, environment)?;
             self.check_computation_term_with_metas(environment, value, expected)?;
         } else {
             let context =
@@ -750,6 +764,58 @@ impl ProgramScope {
         }
     }
 
+    pub(crate) fn elaborate_computation_expected(
+        &mut self,
+        expression: &ComputationTermExp,
+        expected: ComputationType,
+        environment: &mut GlobalEnvironment,
+    ) -> Result<ComputationTerm, ElaborationError> {
+        if let ComputationTermExp::Checked { checks, body } = expression {
+            for (value, ty) in checks {
+                self.check_member(value, ty, environment)?;
+            }
+            return self.elaborate_computation_expected(body, expected, environment);
+        }
+        let expected = self.resolve_computation_type_head(environment, expected);
+        if let ComputationTermExp::Lambda {
+            var,
+            value_ty,
+            body,
+        } = expression
+            && let ComputationTypeNode::Function { domain, codomain } =
+                environment.crate_env.arena().get(expected)
+        {
+            let annotation = self.elaborate_value_type(value_ty, environment)?;
+            self.unify_terms(
+                environment,
+                Term::ValueType(annotation),
+                Term::ValueType(domain),
+            )?;
+            let value_ty = self.zonk_value_type(environment, domain);
+            let var = environment.crate_env.intern_name(var);
+            self.names.push(var);
+            self.context
+                .push(ProgramContextEntry::ValueTerm { var, ty: value_ty });
+            let Term::ComputationType(codomain) =
+                Term::ComputationType(codomain).shift(environment.crate_env.arena(), 1, 0)
+            else {
+                unreachable!()
+            };
+            let body = self.elaborate_computation_expected(body, codomain, environment);
+            self.names.pop();
+            self.context.pop();
+            return Ok(environment
+                .crate_env
+                .arena()
+                .alloc(ComputationTermNode::Lambda {
+                    var,
+                    value_ty,
+                    body: body?,
+                }));
+        }
+        self.elaborate_computation(expression, environment)
+    }
+
     pub(crate) fn elaborate_computation(
         &mut self,
         expression: &ComputationTermExp,
@@ -783,7 +849,7 @@ impl ProgramScope {
             }
             ComputationTermExp::Ascribe { term, ty } => {
                 let ty = self.elaborate_computation_type(ty, environment)?;
-                let term = self.elaborate_computation(term, environment)?;
+                let term = self.elaborate_computation_expected(term, ty, environment)?;
                 Ok(environment
                     .crate_env
                     .arena()
@@ -954,6 +1020,18 @@ impl ProgramScope {
             } => {
                 let computation = self.elaborate_computation(computation, environment)?;
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
+                let expected = environment
+                    .crate_env
+                    .arena()
+                    .alloc(ComputationTypeNode::Return { value_ty });
+                self.solve_computation(
+                    environment,
+                    &mut self.context.clone(),
+                    computation,
+                    expected,
+                )
+                .map_err(|message| self.solver_error(environment, message))?;
+                let value_ty = self.zonk_value_type(environment, value_ty);
                 let var = environment.crate_env.intern_name(var);
                 self.names.push(var);
                 self.context
@@ -979,6 +1057,9 @@ impl ProgramScope {
             } => {
                 let value_ty = self.elaborate_value_type(value_ty, environment)?;
                 let value = self.elaborate_value(value, environment)?;
+                self.solve_value(environment, &mut self.context.clone(), value, value_ty)
+                    .map_err(|message| self.solver_error(environment, message))?;
+                let value_ty = self.zonk_value_type(environment, value_ty);
                 let var = environment.crate_env.intern_name(var);
                 self.names.push(var);
                 self.context
@@ -1049,7 +1130,7 @@ impl ProgramScope {
                         binders.iter().zip(field_types).enumerate()
                     {
                         let binder = environment.crate_env.intern_name(binder);
-                        let ty = crate::raw::program_calculus::shift_value_type_indices(
+                        let ty = crate::kernel_bridge::shift_value_type_indices(
                             environment.crate_env.arena(),
                             ty,
                             field_index,
@@ -1289,7 +1370,7 @@ impl ProgramScope {
                         else {
                             unreachable!()
                         };
-                        let ty = crate::raw::program_definitions::instantiate_value_type(
+                        let ty = crate::kernel_bridge::instantiate_value_type_parameters(
                             environment.crate_env.arena(),
                             ty,
                             &parameters,
@@ -1312,7 +1393,7 @@ impl ProgramScope {
                         else {
                             unreachable!()
                         };
-                        let ty = crate::raw::program_definitions::instantiate_computation_type(
+                        let ty = crate::kernel_bridge::instantiate_computation_type_parameters(
                             environment.crate_env.arena(),
                             ty,
                             &parameters,

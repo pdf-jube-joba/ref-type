@@ -1,0 +1,33 @@
+\import algebraic_topology.Interval[] \as Interval;
+\import topology.Topology[Carrier := Interval.Carrier] \as Space;
+\import algebraic_topology.Collapse[A := Interval.Carrier, subset := Space.Whole] \as Collapsed;
+\definition collapsedEndpoints: Collapsed.class Interval.start = Collapsed.class Interval.end :=
+  Collapsed.collapsed Interval.start Interval.end (\refl(Interval.start)) (\refl(Interval.end));
+\import algebraic_topology.Pointed[A := Interval.Carrier] \as Pointed;
+\definition pointedInterval: Pointed.Space := Pointed.Space { topology := Interval.topology, basepoint := Interval.start };
+\import algebraic_topology.Smash[A := Interval.Carrier, B := Interval.Carrier].Of[left := pointedInterval, right := pointedInterval] \as Smash;
+\import std.Data[].Pair[] \as Pair;
+\definition leftBasepointCollapsed: \forall (x: Interval.Carrier) -> Smash.class (Pair.pair Interval.Carrier Interval.Carrier Interval.start x) = Smash.basepoint := Smash.leftCollapsed;
+\import algebraic_topology.Suspension[A := Interval.Carrier] \as Suspension;
+\definition southPole: Suspension.south Interval.start = Suspension.south Interval.end := Suspension.southIndependent Interval.start Interval.end;
+\definition northPole: Suspension.north Interval.start = Suspension.north Interval.end := Suspension.northIndependent Interval.start Interval.end;
+\import algebraic_topology.Cofiber[A := Interval.Carrier, B := Interval.Carrier].Of[f := (\fun (x: Interval.Carrier) => x)] \as Cone;
+\import algebraic_topology.Cone[A := Interval.Carrier] \as ConeModel;
+\definition mappingConeSeam: \forall (x: Interval.Carrier) -> Cone.inclusion x = Cone.cone (ConeModel.base x) := Cone.attached;
+\import algebraic_topology.Cofibration[A := Interval.Carrier, subset := Space.Whole] \as Cofibration;
+\import Cofibration.ForTarget[B := Interval.Carrier] \as Extension;
+\definition extends: Cofibration.IsCofibration Interval.topology -> Extension.HomotopyExtensionProperty Interval.topology Interval.topology :=
+  Extension.homotopyExtension Interval.topology Interval.topology;
+\import Pointed.Maps[B := Interval.Carrier] \as PointedMaps;
+\import PointedMaps.Composition[C := Interval.Carrier] \as PointedComposition;
+\import topology.Maps[A := Interval.Carrier, B := Interval.Carrier].Identity[] \as Identity;
+\definition pointedIdentity: PointedMaps.Map[pointedInterval, pointedInterval] :=
+  \into[Interval.Carrier -> Interval.Carrier](\fun (x: Interval.Carrier) => x, PointedMaps.Map[pointedInterval, pointedInterval]) \by {
+    PointedMaps.Laws[pointedInterval, pointedInterval, (\fun (x: Interval.Carrier) => x)] {
+      continuous := Identity.continuous Interval.topology,
+      pointed := \refl(Interval.start),
+    }
+  };
+\definition composedPointed: PointedMaps.Map[pointedInterval, pointedInterval] :=
+  PointedComposition.compose pointedInterval pointedInterval pointedInterval pointedIdentity pointedIdentity;
+\definition composedBasepoint: composedPointed Interval.start = Interval.start := #pointed{(PointedMaps.laws pointedInterval pointedInterval composedPointed)};

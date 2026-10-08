@@ -1,0 +1,121 @@
+\import \parent.Def[] \as Def;
+\import \parent.Prop[] \as Basic;
+\import \parent.\parent.Limit[].Operations[] \as Limits;
+\import real.Analysis[] \as Analysis;
+\import Analysis.Algebra[] \as Algebra;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+
+\definition unique: \forall (f: Real -> Real)(a, d, e: Real) ->
+  Def.HasDerivativeAt f a d -> Def.HasDerivativeAt f a e -> d = e :=
+  \fun (f: _)(a, d, e: _) => Limits.unique (Def.slope f a) a d e;
+
+\definition slopeIncrement: \forall (f: Real -> Real)(a, x: Real) ->
+  Logic.Not (x = a) -> mul (Def.slope f a x) (sub x a) = sub (f x) (f a) :=
+  \fun (f: _)(a, x: _)(different: _) => eq_reason!{
+    {mul (Def.slope f a x) (sub x a)}
+    "=" {mul (sub (f x) (f a)) (mul (inv (sub x a)) (sub x a))}
+    "by" {Laws.fieldMulAssoc _ _ _}
+    "=" {mul (sub (f x) (f a)) one}
+    "by" {congr!{Real Real} (mul (sub (f x) (f a))) _ _
+      (Laws.fieldInverseNonzero (sub x a) (\fun (equal: _) => different (Metric.subZeroEq x a equal)))}
+    "=" {sub (f x) (f a)} "by" {Algebra.mulOneRight _}
+  };
+
+\definition expansion: \forall (f: Real -> Real)(a, x: Real) ->
+  f x = add (f a) (mul (Def.slope f a x) (sub x a)) :=
+  \fun (f: _)(a, x: _) => either!{{x = a} "or" {Logic.Not (x = a)}
+    "either" {f x = add (f a) (mul (Def.slope f a x) (sub x a))}
+    "lt:" {\fun (same: _) => \idelim a = x \with y: Real =>
+      f y = add (f a) (mul (Def.slope f a y) (sub y a)) \by {
+        base: sym!{Real} _ _ (eq_reason!{
+          {add (f a) (mul (Def.slope f a a) (sub a a))}
+          "=" {add (f a) (mul (Def.slope f a a) zero)}
+          "by" {congr!{Real Real} (\fun (t: _) => add (f a) (mul (Def.slope f a a) t)) _ _ (Laws.subSelf a)}
+          "=" {add (f a) zero}
+          "by" {congr!{Real Real} (add (f a)) _ _ (Laws.fieldMulZeroRight _)}
+          "=" {f a} "by" {Laws.addZeroRight (f a)}
+        }),
+        equality: sym!{Real} _ _ same
+      }}
+    "rt:" {\fun (different: _) => sym!{Real} _ _ (eq_reason!{
+      {add (f a) (mul (Def.slope f a x) (sub x a))}
+      "=" {add (f a) (sub (f x) (f a))}
+      "by" {congr!{Real Real} (add (f a)) _ _ (slopeIncrement f a x different)}
+      "=" {add (sub (f x) (f a)) (f a)} "by" {Laws.addComm _ _}
+      "=" {f x} "by" {Metric.subAddCancel (f x) (f a)}
+    })}} (Classical.excludedMiddle (x = a));
+
+\definition continuousOfDerivative: \forall (f: Real -> Real)(a, d: Real) ->
+  Def.HasDerivativeAt f a d -> Limit.ContinuousAt f a :=
+  \fun (f: _)(a, d: _)(derivative: _) =>
+    LimitLaws.congruentLimit
+      (\fun (x: Real) => add (f a) (mul (Def.slope f a x) (sub x a))) f
+      (\fun (x: _) => sym!{Real} _ _ (expansion f a x)) a (f a)
+      (\idelim add (f a) (mul d zero) = f a \with l: Real =>
+        Limit.HasLimitAt (\fun (x: Real) => add (f a) (mul (Def.slope f a x) (sub x a))) a l \by {
+          base: Limits.addLimit (constant (f a))
+            (\fun (x: Real) => mul (Def.slope f a x) (sub x a)) a (f a) (mul d zero)
+            (LimitLaws.constantLimit (f a) a)
+            (Limits.mulLimit (Def.slope f a) (\fun (x: Real) => sub x a) a d zero
+              derivative (Limits.subIdentityLimit a)),
+          equality: trans!{Real} _ _ _
+            (congr!{Real Real} (add (f a)) _ _ (Laws.fieldMulZeroRight d)) (Laws.addZeroRight (f a))
+        });
+
+\definition differentiableContinuous: \forall (f: Real -> Real)(a: Real) ->
+  Def.DifferentiableAt f a -> Limit.ContinuousAt f a := \block {
+  \fun (f: _)(a: _)(differentiable: _) \then
+  \takefrom d: \Cast[Real] ({ d: Real \where Def.HasDerivativeAt f a d }) \by differentiable \then
+  \let continuous: Limit.ContinuousAt f a := continuousOfDerivative f a d
+    (\bysub(Real, { d: Real \where Def.HasDerivativeAt f a d }, d)) \then
+  \return continuous
+};
+
+\definition addSlope: \forall (f, g: Real -> Real)(a, x: Real) ->
+  Def.slope (\fun (y: Real) => add (f y) (g y)) a x = add (Def.slope f a x) (Def.slope g a x) :=
+  \fun (f, g: _)(a, x: _) => trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (t: _) => mul t (inv (sub x a))) _ _
+      (Algebra.subAdd (f x) (g x) (f a) (g a)))
+    (Algebra.mulAddRight (sub (f x) (f a)) (sub (g x) (g a)) (inv (sub x a)));
+
+\definition addDerivative: \forall (f, g: Real -> Real)(a, d, e: Real) ->
+  Def.HasDerivativeAt f a d -> Def.HasDerivativeAt g a e ->
+  Def.HasDerivativeAt (\fun (x: Real) => add (f x) (g x)) a (add d e) :=
+  \fun (f, g: _)(a, d, e: _)(left: _)(right: _) =>
+    LimitLaws.congruentLimit (\fun (x: Real) => add (Def.slope f a x) (Def.slope g a x))
+      (Def.slope (\fun (x: Real) => add (f x) (g x)) a)
+      (\fun (x: _) => sym!{Real} _ _ (addSlope f g a x)) a (add d e)
+      (Limits.addLimit (Def.slope f a) (Def.slope g a) a d e left right);
+
+\definition scaleDerivative: \forall (c: Real)(f: Real -> Real)(a, d: Real) -> Def.HasDerivativeAt f a d ->
+  Def.HasDerivativeAt (\fun (x: Real) => mul c (f x)) a (mul c d) :=
+  \fun (c: _)(f: _)(a, d: _)(derivative: _) => LimitLaws.congruentLimit
+    (\fun (x: Real) => mul c (Def.slope f a x)) (Def.slope (\fun (x: Real) => mul c (f x)) a)
+    (\fun (x: Real) => sym!{Real} _ _ (trans!{Real} _ _ _
+      (congr!{Real Real} (\fun (s: Real) => mul s (inv (sub x a))) _ _ (Basic.scaledDifference c (f x) (f a)))
+      (Laws.fieldMulAssoc c (sub (f x) (f a)) (inv (sub x a)))))
+    a (mul c d) (Limits.mulLimit (constant c) (Def.slope f a) a c d (LimitLaws.constantLimit c a) derivative);
+\definition negativeScale: \forall (x: Real) -> mul (Arithmetic.neg one) x = Arithmetic.neg x :=
+  \fun (x: Real) => trans!{Real} _ _ _ (Laws.fieldMulNegLeft one x)
+    (congr!{Real Real} Arithmetic.neg _ _ (Laws.fieldMulOneLeft x));
+\definition negDerivative: \forall (f: Real -> Real)(a, d: Real) -> Def.HasDerivativeAt f a d ->
+  Def.HasDerivativeAt (\fun (x: Real) => Arithmetic.neg (f x)) a (Arithmetic.neg d) :=
+  \fun (f: _)(a, d: _)(derivative: _) => \idelim (\fun (x: Real) => mul (Arithmetic.neg one) (f x)) = (\fun (x: Real) => Arithmetic.neg (f x))
+    \with g: (Real -> Real) => Def.HasDerivativeAt g a (Arithmetic.neg d) \by {
+      base: \idelim mul (Arithmetic.neg one) d = Arithmetic.neg d \with e: Real =>
+        Def.HasDerivativeAt (\fun (x: Real) => mul (Arithmetic.neg one) (f x)) a e \by {
+          base: scaleDerivative (Arithmetic.neg one) f a d derivative, equality: negativeScale d
+        },
+      equality: \axiom:funext((\fun (x: Real) => mul (Arithmetic.neg one) (f x)), (\fun (x: Real) => Arithmetic.neg (f x)),
+        \fun (x: Real) => negativeScale (f x))
+    };
+\definition subDerivative: \forall (f, g: Real -> Real)(a, d, e: Real) -> Def.HasDerivativeAt f a d -> Def.HasDerivativeAt g a e ->
+  Def.HasDerivativeAt (\fun (x: Real) => sub (f x) (g x)) a (sub d e) :=
+  \fun (f, g: _)(a, d, e: _)(left: _)(right: _) => addDerivative f (\fun (x: Real) => Arithmetic.neg (g x)) a d (Arithmetic.neg e)
+    left (negDerivative g a e right);
+\definition translatedIdentity: \forall (b, a: Real) -> Def.HasDerivativeAt (\fun (x: Real) => sub x b) a one :=
+  \fun (b, a: _) => \idelim sub one zero = one \with d: Real => Def.HasDerivativeAt (\fun (x: Real) => sub x b) a d \by {
+    base: subDerivative identity (constant b) a one zero (Basic.identityDerivative a) (Basic.constantDerivative b a),
+    equality: Laws.subZeroRight one
+  };

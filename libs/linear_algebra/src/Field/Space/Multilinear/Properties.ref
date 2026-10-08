@@ -1,0 +1,81 @@
+\import N.Basic[].Prop[] \as NatLaws;
+\import Bool.ConditionalLaws[A := V] \as Conditional;
+\import \parent.\parent.Laws[V := V, space := space] \as Vectors;
+\import \parent.\parent.Laws[V := K, space := scalarSpace] \as Scalars;
+\import Fin.Tuples[A := V] \as Tuples;
+\definition updateSelf: \forall (k: N.Nat^)(arguments: Arguments k)(i: Fin.Fin k)(value: V) ->
+  update k arguments i value i = value :=
+  \fun (k: _)(arguments: _)(i: _)(value: _) =>
+    \idelim Bool.Bool^::true = Nat.eqb (Fin.value k i) (Fin.value k i)
+      \with b: Bool.Bool^ => Bool.ite V b value (arguments i) = value \by {
+        base: \refl(value), equality: sym!{{Bool.Bool^}} _ _ (NatLaws.eqbRefl (Fin.value k i))
+      };
+\definition updateSame: \forall (k: N.Nat^)(arguments: Arguments k)(i: Fin.Fin k) -> update k arguments i (arguments i) = arguments :=
+  \fun (k: _)(arguments: _)(i: _) => \axiom:funext(update k arguments i (arguments i), arguments,
+    \fun (j: Fin.Fin k) => Bool.cases
+      (\fun (b: Bool.Bool^) => Nat.eqb (Fin.value k j) (Fin.value k i) = b ->
+        Bool.ite V b (arguments i) (arguments j) = arguments j)
+      (\fun (equal: _) => \refl(arguments j))
+      (\fun (equal: _) => congr!{{Fin.Fin k} V} arguments i j
+        (sym!{{Fin.Fin k}} j i (NatLaws.eqOfEqbTrue (Fin.value k i) (Fin.value k j) equal)))
+      (Nat.eqb (Fin.value k j) (Fin.value k i)) (\refl(Nat.eqb (Fin.value k j) (Fin.value k i))));
+\definition updateOther: \forall (k: N.Nat^)(arguments: Arguments k)(i, j: Fin.Fin k)(value: V) -> Logic.Not (i = j) ->
+  update k arguments i value j = arguments j :=
+  \fun (k: _)(arguments: _)(i, j: _)(value: _)(different: _) => Bool.cases
+    (\fun (b: Bool.Bool^) => Nat.eqb (Fin.value k j) (Fin.value k i) = b -> Bool.ite V b value (arguments j) = arguments j)
+    (\fun (equal: _) => \refl(arguments j))
+    (\fun (equal: _) => Logic.falseElim (value = arguments j)
+      (different (sym!{{Fin.Fin k}} j i (NatLaws.eqOfEqbTrue (Fin.value k i) (Fin.value k j) equal))))
+    (Nat.eqb (Fin.value k j) (Fin.value k i)) (\refl(Nat.eqb (Fin.value k j) (Fin.value k i)));
+\definition updateOverwrite: \forall (k: N.Nat^)(arguments: Arguments k)(i: Fin.Fin k)(x, y: V) ->
+  update k (update k arguments i x) i y = update k arguments i y :=
+  \fun (k: _)(arguments: _)(i: _)(x, y: _) => \axiom:funext(update k (update k arguments i x) i y, update k arguments i y,
+    \fun (j: Fin.Fin k) => Bool.cases
+      (\fun (b: Bool.Bool^) => Bool.ite V b y (Bool.ite V b x (arguments j)) = Bool.ite V b y (arguments j))
+      (\refl(arguments j)) (\refl(y)) (Nat.eqb (Fin.value k j) (Fin.value k i)));
+\definition updateCommute: \forall (k: N.Nat^)(arguments: Arguments k)(i, j: Fin.Fin k)(x, y: V) -> Logic.Not (i = j) ->
+  update k (update k arguments i x) j y = update k (update k arguments j y) i x :=
+  \fun (k: _)(arguments: _)(i, j: _)(x, y: _)(different: _) =>
+    \axiom:funext(update k (update k arguments i x) j y, update k (update k arguments j y) i x,
+      \fun (t: Fin.Fin k) => Bool.cases2
+        (\fun (p, q: Bool.Bool^) => Nat.eqb (Fin.value k t) (Fin.value k i) = p -> Nat.eqb (Fin.value k t) (Fin.value k j) = q ->
+          Bool.ite V q y (Bool.ite V p x (arguments t)) = Bool.ite V p x (Bool.ite V q y (arguments t)))
+        (\fun (first: _)(second: _) => \refl(arguments t))
+        (\fun (first: _)(second: _) => \refl(y))
+        (\fun (first: _)(second: _) => \refl(x))
+        (\fun (first: _)(second: _) => Logic.falseElim (y = x)
+          (different (trans!{{Fin.Fin k}} i t j
+            (sym!{{Fin.Fin k}} t i (NatLaws.eqOfEqbTrue (Fin.value k i) (Fin.value k t) first))
+            (NatLaws.eqOfEqbTrue (Fin.value k j) (Fin.value k t) second))))
+        (Nat.eqb (Fin.value k t) (Fin.value k i)) (Nat.eqb (Fin.value k t) (Fin.value k j))
+        (\refl(Nat.eqb (Fin.value k t) (Fin.value k i))) (\refl(Nat.eqb (Fin.value k t) (Fin.value k j))));
+\definition zeroArgument: \forall (k: N.Nat^)(f: Form k)(arguments: Arguments k)(i: Fin.Fin k) ->
+  f (update k arguments i (#zero{space})) = zero :=
+  \fun (k: _)(f: _)(arguments: _)(i: _) => Scalars.idempotentZero _
+    (trans!{K} _ _ _
+      (sym!{K} _ _ (#addition{(\bysub(Function k, Form k, f))} arguments i (#zero{space}) (#zero{space})))
+      (congr!{V K} (\fun (v: V) => f (update k arguments i v)) _ _ (Vectors.zeroLeft (#zero{space}))));
+\definition extendUpdate: \forall (k: N.Nat^)(head: V)(tail: Arguments k)(i: Fin.Fin k)(value: V) ->
+  update (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.succ k i) value = Tuples.extend k head (update k tail i value) :=
+  \fun (k: N.Nat^)(head: V)(tail: Arguments k)(i: Fin.Fin k)(value: V) =>
+    Tuples.extensionality k (update (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.succ k i) value) (Tuples.extend k head (update k tail i value))
+      (trans!{V} _ _ _
+        (trans!{V} _ _ _
+          (updateOther (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.succ k i) (Fin.zero k) value
+            (\fun (same: Fin.succ k i = Fin.zero k) => NatLaws.succNeZero (Fin.value k i) same))
+          (Tuples.atZero k head tail))
+        (sym!{V} _ _ (Tuples.atZero k head (update k tail i value))))
+      (\fun (j: Fin.Fin k) => trans!{V} _ _ _
+        (Bool.cases (\fun (test: Bool.Bool^) => Bool.ite V test value (Tuples.extend k head tail (Fin.succ k j)) = Bool.ite V test value (tail j))
+          (Tuples.atSuccessor k head tail j) (\refl(value)) (Nat.eqb (Fin.value k j) (Fin.value k i)))
+        (sym!{V} _ _ (Tuples.atSuccessor k head (update k tail i value) j)));
+\definition extendHead: \forall (k: N.Nat^)(head: V)(tail: Arguments k)(value: V) ->
+  update (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.zero k) value = Tuples.extend k value tail :=
+  \fun (k: N.Nat^)(head: V)(tail: Arguments k)(value: V) =>
+    Tuples.extensionality k (update (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.zero k) value) (Tuples.extend k value tail)
+      (trans!{V} _ _ _ (updateSelf (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.zero k) value)
+        (sym!{V} _ _ (Tuples.atZero k value tail)))
+      (\fun (i: Fin.Fin k) => trans!{V} _ _ _
+        (updateOther (N.Nat^::succ k) (Tuples.extend k head tail) (Fin.zero k) (Fin.succ k i) value
+          (\fun (same: Fin.zero k = Fin.succ k i) => NatLaws.zeroNeSucc (Fin.value k i) same))
+        (trans!{V} _ _ _ (Tuples.atSuccessor k head tail i) (sym!{V} _ _ (Tuples.atSuccessor k value tail i))));

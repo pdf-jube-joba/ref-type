@@ -125,7 +125,7 @@ impl GlobalEnvironment {
                     }
                 }
                 let ty = scope.elaborate_computation_type(&ty, self)?;
-                let body = scope.elaborate_computation(&body, self)?;
+                let body = scope.elaborate_computation_expected(&body, ty, self)?;
                 let (body, ty) = scope.check_computation_term_with_metas(self, body, ty)?;
                 let mut context = scope.context().clone();
                 for entry in &mut context {
@@ -636,7 +636,7 @@ impl GlobalEnvironment {
             let telescope = constructor.fields().iter().enumerate().map(|(field_index, (name, ty))| {
                 let ty = crate::raw::reflection::reflect_value_type(&self.crate_env, *ty)
                     .map_err(|error| format!("cannot reflect Program constructor field: {error}"))?;
-                let ty = crate::raw::calculus::shift_bound_indices(
+                let ty = crate::kernel_bridge::shift_bound_indices(
                     self.crate_env.arena(),
                     ty,
                     field_index,

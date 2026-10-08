@@ -1,0 +1,47 @@
+\import std.Set[].Extension[A := Point, B := Real, domain := #points{U}] \as Extension;
+\import \parent.\parent.\parent.\parent.Derivative[].Def[] \as Derivatives;
+\import \parent.\parent.\parent.\parent.Limit[].Def[] \as Limits;
+\import \parent.\parent.\parent.Space[].Prop[] \as SpaceLaws;
+\import real.Analysis[].Estimates[].Product[] \as Product;
+\use Equality.congr2;
+\definition value(t: Real): Real := Extension.extend f default (Coordinates.replace a i t);
+\definition agreement: \forall (t: Real)(x: Carrier U) -> x = Coordinates.replace a i t -> value t = f x :=
+  \fun (t: Real)(x: Carrier U)(replaced: _) => trans!{Real} _ _ _
+    (congr!{Point Real} (Extension.extend f default) _ _ (sym!{Point} _ _ replaced)) (Extension.inside f default x);
+\definition derivativeAt: \forall (t: Real)(x: Carrier U)(d: Real) -> x = Coordinates.replace a i t ->
+  HasPartialDerivativeAt U f i x d -> Derivatives.HasDerivativeAt value t d := \block {
+  \fun (t: Real)(x: Carrier U)(d: Real)(replaced: x = Coordinates.replace a i t)(partial: _)(epsilon: Real)(positive: _) \then
+  \let coordinate: x i = t := trans!{Real} _ _ _ (congr!{Point Real} (\fun (p: Point) => p i) _ _ replaced) (SpaceLaws.replaceSame a i t) \then
+  \takefrom rho: \Cast[Real] ({ r: Real \where BallInside[#points{U}, x, r] }) \by #open{U} x (\bysub(Point, #points{U}, x)) \then
+  \let ball: BallInside[#points{U}, x, rho] := \bysub(Real, { r: Real \where BallInside[#points{U}, x, r] }, rho) \then
+  \takefrom delta: \Cast[Real] ({ r: Real \where PartialControl[U, f, x, i, d, epsilon, r] }) \by partial epsilon positive \then
+  \let control: PartialControl[U, f, x, i, d, epsilon, delta] := \bysub(Real, { r: Real \where PartialControl[U, f, x, i, d, epsilon, r] }, delta) \then
+  \return \exact(\into[Real](Metric.min rho delta,
+    { r: Real \where Limits.Control[Derivatives.slope value t, t, d, epsilon, r] }) \by {
+      Limits.Control[Derivatives.slope value t, t, d, epsilon, Metric.min rho delta] {
+        positive := Product.minPositive rho delta (#positive{ball}) (#positive{control}),
+        estimate := \block {
+          \fun (s: Real)(different: _)(near: _) \then
+          \let coordinateNear: R.Lt (distance s (x i)) (Metric.min rho delta) :=
+            R.ltReplaceLeft (distance s t) (distance s (x i)) _ (sym!{Real} _ _ (congr!{Real Real} (distance s) _ _ coordinate)) near \then
+          \let y: Carrier U := \into[Point](Coordinates.replace x i s, #points{U}) \by {
+            #included{ball} (Coordinates.replace x i s)
+              (R.ltReplaceLeft (distance s (x i)) (Coordinates.pointDistance (Coordinates.replace x i s) x) rho
+                (sym!{Real} _ _ (SpaceLaws.replaceDistance x i s))
+                (R.ltLeTrans _ _ _ coordinateNear (Metric.minLeft rho delta)))
+          } \then
+          \let onCurve: y = Coordinates.replace a i s := trans!{Point} _ _ _
+            (congr!{Point Point} (\fun (p: Point) => Coordinates.replace p i s) _ _ replaced) (SpaceLaws.replaceTwice a i t s) \then
+          \let sameSlope: Derivatives.slope value t s = mul (sub (f y) (f x)) (inv (sub s (x i))) :=
+            congr2!{Real Real Real} mul _ _ _ _
+              (congr2!{Real Real Real} sub _ _ _ _ (agreement s y onCurve) (agreement t x replaced))
+              (congr!{Real Real} (\fun (r: Real) => inv (sub s r)) _ _ (sym!{Real} _ _ coordinate)) \then
+          \return R.ltReplaceLeft (distance (mul (sub (f y) (f x)) (inv (sub s (x i)))) d) (distance (Derivatives.slope value t s) d) epsilon
+            (sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => distance r d) _ _ sameSlope))
+            (#estimate{control} s y (\refl(Coordinates.replace x i s))
+              (\fun (equal: s = x i) => different (trans!{Real} _ _ _ equal coordinate))
+              (R.ltLeTrans _ _ _ coordinateNear (Metric.minRight rho delta)))
+        },
+      }
+    }, \Cast[Real] ({ r: Real \where Limits.Control[Derivatives.slope value t, t, d, epsilon, r] }))
+};
