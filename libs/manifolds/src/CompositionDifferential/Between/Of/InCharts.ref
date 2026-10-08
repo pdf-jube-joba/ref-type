@@ -1,0 +1,23 @@
+\import Composition.Coordinates[left := left, right := right] \as Coordinates;
+\import Coordinates.Patch[middle := middle] \as Patch;
+\import First.Coordinates[f := f, left := left, right := middle] \as LocalFirst;
+\import Second.Coordinates[f := g, left := middle, right := right] \as LocalSecond;
+\import Composite.Coordinates[f := map, left := left, right := right] \as Direct;
+\definition leftMember: \In[SourceCharts.Chart] #charts{M.atlas} left := \bysub(SourceCharts.Chart, #charts{M.atlas}, left);
+\definition rightMember: \In[TargetCharts.Chart] #charts{P.atlas} right := \bysub(TargetCharts.Chart, #charts{P.atlas}, right);
+\definition middleMember: \In[MiddleCharts.Chart] #charts{N.atlas} middle := \bysub(MiddleCharts.Chart, #charts{N.atlas}, middle);
+\definition domain: Open.OpenSet := Coordinates.domains middle;
+\definition firstMap: FirstCalculus.Map domain LocalSecond.domain := Patch.firstMap leftMember;
+\definition secondMap: SecondCalculus.Map LocalSecond.domain #image{right} := Patch.secondMap rightMember;
+\definition compositeMap: CompositeCalculus.Map domain #image{right} := Patch.compose leftMember rightMember;
+\definition directMap: CompositeCalculus.Map Direct.domain #image{right} :=
+  Direct.map ((\bysub(Composite.ContinuousMap, { h: Composite.ContinuousMap \where Composite.Chartwise h }, map))
+    left right leftMember rightMember);
+\definition originalFirst: FirstCalculus.Map LocalFirst.domain #image{middle} :=
+  LocalFirst.map ((\bysub(First.ContinuousMap, { h: First.ContinuousMap \where First.Chartwise h }, f))
+    left middle leftMember middleMember);
+\import CompositeCalculus.Restriction[U := domain, V := Direct.domain, W := #image{right}] \as DirectRestriction;
+\definition restrictedDirect: CompositeCalculus.Map domain #image{right} := DirectRestriction.input (Coordinates.included middle) directMap;
+\import FirstCalculus.Restriction[U := domain, V := LocalFirst.domain, W := #image{middle}] \as FirstRestriction;
+\definition restrictedFirst: FirstCalculus.Map domain #image{middle} := FirstRestriction.input Patch.firstIncluded originalFirst;
+\module At(a: Open.Carrier domain);

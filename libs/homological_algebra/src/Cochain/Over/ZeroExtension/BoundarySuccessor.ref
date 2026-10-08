@@ -1,0 +1,20 @@
+\definition index: Signed.Int^ := Signed.Int^::ofNat (N.Nat^::succ n);
+\import Internal.At[C := complex, z := index] \as H;
+\import \parent.\parent.At[C := C, k := N.Nat^::succ n] \as Natural;
+\import Modules.Of[V := Carrier index, space := space index].Submodule[] \as Submodules;
+\import Submodules.Image[U := Carrier (Signed.Int^::ofNat n), source := space (Signed.Int^::ofNat n)] \as Images;
+\import \parent.Positive[n := n] \as Previous;
+\definition forward: \forall (x: Carrier index) -> Submodules.Member H.boundaries x -> \In[C.family.Carrier (N.Nat^::succ n)] (Natural.Boundaries (N.Nat^::succ n)) x :=
+  \fun (x: Carrier index)(boundary: Submodules.Member H.boundaries x) => Images.eliminate H.prior x
+    (\In[C.family.Carrier (N.Nat^::succ n)] (Natural.Boundaries (N.Nat^::succ n)) x)
+    (\fun (y: Carrier (Signed.Int^::ofNat n))(equal: #apply{H.prior} y = x) =>
+      \exact(\into[C.family.Carrier n](y, { y: C.family.Carrier n \where #apply{C.differential} n y = x }) \by { equal },
+        \Cast[C.family.Carrier n] ({ y: C.family.Carrier n \where #apply{C.differential} n y = x }))) boundary;
+\definition backward: \forall (x: Carrier index) -> \In[C.family.Carrier (N.Nat^::succ n)] (Natural.Boundaries (N.Nat^::succ n)) x -> Submodules.Member H.boundaries x := \block {
+  \fun (x: Carrier index)(boundary: \In[C.family.Carrier (N.Nat^::succ n)] (Natural.Boundaries (N.Nat^::succ n)) x) \then
+  \takefrom y: \Cast[C.family.Carrier n] ({ y: C.family.Carrier n \where #apply{C.differential} n y = x }) \by boundary \then
+  \let equal: #apply{C.differential} n y = x := \bysub(C.family.Carrier n, { y: C.family.Carrier n \where #apply{C.differential} n y = x }, y) \then
+  \return \idelim #apply{H.prior} (Previous.intro y) = x \with z: Carrier index => Submodules.Member H.boundaries z \by {
+    base: Images.member H.prior (Previous.intro y), equality: equal
+  }
+};

@@ -1,0 +1,53 @@
+\import topology.Topology[Carrier := Coordinates.Point] \as Topology;
+\import \parent.\parent.Chart[M := Coordinates.Point, space := Euclidean.topology] \as Charts;
+\import \parent.\parent.Atlas[M := Coordinates.Point, space := Euclidean.topology] \as Atlases;
+\import Open.Examples[] \as Functions;
+\definition domain: \Pow Coordinates.Point := Topology.Whole;
+\import topology.Homeomorphism[A := Charts.Domain domain, B := Open.Carrier Open.whole] \as Homeomorphisms;
+\import topology.Maps[A := Charts.Domain domain, B := Charts.Domain domain].Identity[] \as Identity;
+\definition standard: Charts.Chart := Charts.Chart {
+  domain := domain,
+  image := Open.whole,
+  coordinates := Homeomorphisms.Homeomorphism[Charts.domainTopology domain, Charts.imageTopology Open.whole] {
+    forward := \fun (x: Charts.Domain domain) => x,
+    backward := \fun (x: Open.Carrier Open.whole) => x,
+    leftInverse := \fun (x: Charts.Domain domain) => \refl(x),
+    rightInverse := \fun (x: Open.Carrier Open.whole) => \refl(x),
+    forwardContinuous := Identity.continuous (Charts.domainTopology domain),
+    backwardContinuous := Identity.continuous (Charts.domainTopology domain),
+  },
+  open := #wholeOpen{(Topology.topologyLaws Euclidean.topology)},
+};
+\import Charts.Transition[left := standard, right := standard] \as Transition;
+\definition standardCompatible: Atlases.Compatible standard standard :=
+  \fun (i: Coordinates.Coordinate) => Functions.projectionSmooth Transition.domain i;
+\definition atlas: Atlases.Atlas := Atlases.Atlas {
+  charts := { chart: Charts.Chart \where chart = standard },
+  covers := \fun (x: Coordinates.Point) => \exact(\into[Charts.Chart](standard,
+    { chart: Charts.Chart \where Logic.And[chart = standard, Charts.Contains chart x] }) \by {
+      Logic.And[_, _]::# (\refl(standard)) (\refl(x))
+    }, \Cast[Charts.Chart] ({ chart: Charts.Chart \where Logic.And[chart = standard, Charts.Contains chart x] })),
+  compatible := \fun (left, right: Charts.Chart)(leftSame: left = standard)(rightSame: right = standard) =>
+    \idelim standard = left \with chart: Charts.Chart => Atlases.Compatible chart right \by {
+      base: \idelim standard = right \with chart: Charts.Chart => Atlases.Compatible standard chart \by {
+        base: standardCompatible, equality: sym!{{Charts.Chart}} right standard rightSame
+      },
+      equality: sym!{{Charts.Chart}} left standard leftSame
+    },
+};
+\import \parent.\parent.Topological[] \as Manifolds;
+\import topological_algebra.Euclidean[].Dimension[n := n].Countability[] \as Countability;
+\definition manifold: Manifolds.Manifold := Manifolds.Manifold {
+  Point := Coordinates.Point,
+  space := Euclidean.topology,
+  charts := #charts{atlas},
+  covers := #covers{atlas},
+  hausdorff := Euclidean.hausdorff,
+  secondCountable := Countability.secondCountable,
+};
+\module Subspace(U: Open.OpenSet);
+\import \parent.\parent.Smooth[] \as Smooth;
+\definition smoothManifold: Smooth.Manifold := Smooth.Manifold {
+  Point := Coordinates.Point, space := Euclidean.topology, atlas := Atlases.saturate atlas,
+  hausdorff := Euclidean.hausdorff, secondCountable := Countability.secondCountable,
+};

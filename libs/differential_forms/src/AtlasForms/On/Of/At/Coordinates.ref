@@ -1,0 +1,23 @@
+\import Pointwise.Coordinates[chart := chart] \as Coordinates;
+\import Charts.Of[chart := chart] \as Geometry;
+\import Euclidean.On[U := #image{chart}] \as Forms;
+\definition domains(right: Chart): Open.OpenSet := Charts.Transition[left := chart, right := right].domain;
+\definition included: \forall (right: Chart) -> Open.Included (domains right) #image{chart} :=
+  \fun (right: Chart) => Global.Pair[left := chart, right := globalChart right].included;
+\definition covers: \forall (a: Open.Carrier #image{chart}) -> \exists { right: Chart \where \In[Vectors.Vector] (#points{(domains right)}) a } := \block {
+  \fun (a: Open.Carrier #image{chart}) \then
+  \takefrom right: \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[Atlases.Member atlas c, Charts.Contains c (Charts.point chart a)] })
+    \by #covers{atlas} (Charts.point chart a) \then
+  \let witness: Logic.And[Atlases.Member atlas right, Charts.Contains right (Charts.point chart a)] :=
+    \bysub(Charts.Chart, { c: Charts.Chart \where Logic.And[Atlases.Member atlas c, Charts.Contains c (Charts.point chart a)] }, right) \then
+  \let chosen: Chart := \into[Charts.Chart](right, #charts{atlas}) \by { #left{witness} } \then
+  \return \exact(\into[Chart](chosen, { c: Chart \where \In[Vectors.Vector] (#points{(domains c)}) a }) \by {
+    Charts.Transition[left := chart, right := chosen].intro a (#right{witness})
+  }, \Cast[Chart] ({ c: Chart \where \In[Vectors.Vector] (#points{(domains c)}) a }))
+};
+\module Patch(right: Chart);
+\definition regular: \forall (omega: Form k) -> Forms.SmoothFamily k (Coordinates.family (value omega)) :=
+  \fun (omega: Form k)(arguments: Multilinear.Arguments k) =>
+    Open.SmoothCover[I := Chart, U := #image{chart}, domains := domains,
+      f := \fun (a: Open.Carrier #image{chart}) => Coordinates.family (value omega) a arguments].smooth included covers
+      (\fun (right: Chart) => Patch[right := right].regular omega arguments);

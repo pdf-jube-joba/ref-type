@@ -1,0 +1,70 @@
+\import \parent.Def[] \as Pair;
+\import std.Data[].Nat[].Basic[].Def[] \as Operations;
+\import std.Data[].Nat[].Basic[].Prop[] \as Laws;
+\import std.Data[].Nat[].Iteration[].Def[A := Pair.NatPair] \as Iterate;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition step(p: Pair.NatPair): Pair.NatPair :=
+  (\induction (b: Nat^) \return Pair.NatPair \with {
+    | zero: Pair.natPair Nat^::zero (Nat^::succ (Pair.natPairFirst p))
+    | succ: \fun (b: Nat^)(previous: Pair.NatPair) => Pair.natPair (Nat^::succ (Pair.natPairFirst p)) b
+  }) (Pair.natPairSecond p);
+\definition enumerate(k: Nat^): Pair.NatPair := Iterate.apply step (Pair.natPair Nat^::zero Nat^::zero) k;
+\definition iterateAdd: \forall (p: Pair.NatPair)(a, b: Nat^) ->
+  Iterate.apply step p (Operations.add a b) = Iterate.apply step (Iterate.apply step p a) b :=
+  \fun (p: _)(a: _) => \induction (b: Nat^) \return
+    Iterate.apply step p (Operations.add a b) = Iterate.apply step (Iterate.apply step p a) b \with {
+      | zero: \refl(Iterate.apply step p a)
+      | succ: \fun (b: Nat^)(previous: _) => trans!{Pair.NatPair} _ _ _
+        (congr!{Nat^ Pair.NatPair} (Iterate.apply step p) (Operations.add a (Nat^::succ b)) (Nat^::succ (Operations.add a b)) (Laws.addSuccRight a b))
+        (congr!{Pair.NatPair Pair.NatPair} step _ _ previous)
+    };
+\definition walk: \forall (b, a: Nat^) -> Iterate.apply step (Pair.natPair a b) b = Pair.natPair (Operations.add a b) Nat^::zero :=
+  \induction (b: Nat^) \return \forall (a: Nat^) -> Iterate.apply step (Pair.natPair a b) b = Pair.natPair (Operations.add a b) Nat^::zero \with {
+    | zero: \fun (a: _) => \refl(Pair.natPair a Nat^::zero)
+    | succ: \fun (b: Nat^)(previous: \forall (a: Nat^) -> Iterate.apply step (Pair.natPair a b) b = Pair.natPair (Operations.add a b) Nat^::zero)(a: Nat^) =>
+      trans!{Pair.NatPair} _ _ _
+        (sym!{Pair.NatPair} _ _ (Iterate.advance step b (Pair.natPair a (Nat^::succ b))))
+        (trans!{Pair.NatPair} _ _ _ (previous (Nat^::succ a))
+          (congr!{Nat^ Pair.NatPair} (\fun (k: Nat^) => Pair.natPair k Nat^::zero)
+            (Operations.add (Nat^::succ a) b) (Operations.add a (Nat^::succ b))
+            (trans!{Nat^} _ _ _ (Laws.addSuccLeft a b) (sym!{Nat^} _ _ (Laws.addSuccRight a b)))))
+  };
+\definition nextDiagonal: \forall (b: Nat^) -> Iterate.apply step (Pair.natPair Nat^::zero b) (Nat^::succ b) = Pair.natPair Nat^::zero (Nat^::succ b) :=
+  \fun (b: _) => trans!{Pair.NatPair} _ _ _
+    (congr!{Pair.NatPair Pair.NatPair} step _ _ (walk b Nat^::zero))
+    (congr!{Nat^ Pair.NatPair} (\fun (k: Nat^) => Pair.natPair Nat^::zero (Nat^::succ k)) _ _ (Laws.addZeroLeft b));
+\definition Occurs(p: Pair.NatPair): \Prop := \exists { k: Nat^ \where enumerate k = p };
+\definition diagonal: \forall (b: Nat^) -> Occurs (Pair.natPair Nat^::zero b) :=
+  \induction (b: Nat^) \return Occurs (Pair.natPair Nat^::zero b) \with {
+    | zero: \exact(\into[Nat^](Nat^::zero, { k: Nat^ \where enumerate k = Pair.natPair Nat^::zero Nat^::zero }) \by {
+      \refl(Pair.natPair Nat^::zero Nat^::zero)
+    }, \Cast[Nat^] ({ k: Nat^ \where enumerate k = Pair.natPair Nat^::zero Nat^::zero }))
+    | succ: \block {
+      \fun (b: Nat^)(previous: Occurs (Pair.natPair Nat^::zero b)) \then
+      \takefrom k: \Cast[Nat^] ({ k: Nat^ \where enumerate k = Pair.natPair Nat^::zero b }) \by previous \then
+      \let found: enumerate k = Pair.natPair Nat^::zero b := \bysub(Nat^, { k: Nat^ \where enumerate k = Pair.natPair Nat^::zero b }, k) \then
+      \return \exact(\into[Nat^](Operations.add k (Nat^::succ b),
+        { l: Nat^ \where enumerate l = Pair.natPair Nat^::zero (Nat^::succ b) }) \by {
+          trans!{Pair.NatPair} _ _ _ (iterateAdd (Pair.natPair Nat^::zero Nat^::zero) k (Nat^::succ b))
+            (trans!{Pair.NatPair} _ _ _
+              (congr!{Pair.NatPair Pair.NatPair} (\fun (p: Pair.NatPair) => Iterate.apply step p (Nat^::succ b)) _ _ found)
+              (nextDiagonal b))
+        }, \Cast[Nat^] ({ l: Nat^ \where enumerate l = Pair.natPair Nat^::zero (Nat^::succ b) }))
+    }
+  };
+\definition exhaustive: \forall (a, b: Nat^) -> Occurs (Pair.natPair a b) :=
+  \induction (a: Nat^) \return \forall (b: Nat^) -> Occurs (Pair.natPair a b) \with {
+    | zero: diagonal
+    | succ: \block {
+      \fun (a: Nat^)(previous: \forall (b: Nat^) -> Occurs (Pair.natPair a b))(b: Nat^) \then
+      \takefrom k: \Cast[Nat^] ({ k: Nat^ \where enumerate k = Pair.natPair a (Nat^::succ b) }) \by previous (Nat^::succ b) \then
+      \let found: enumerate k = Pair.natPair a (Nat^::succ b) := \bysub(Nat^, { k: Nat^ \where enumerate k = Pair.natPair a (Nat^::succ b) }, k) \then
+      \return \exact(\into[Nat^](Nat^::succ k, { l: Nat^ \where enumerate l = Pair.natPair (Nat^::succ a) b }) \by {
+        congr!{Pair.NatPair Pair.NatPair} step _ _ found
+      }, \Cast[Nat^] ({ l: Nat^ \where enumerate l = Pair.natPair (Nat^::succ a) b }))
+    }
+  };

@@ -1,0 +1,26 @@
+\import \parent.SeriesShift[k := k] \as Shift;
+\import Alternating.Contraction[k := k] \as Contract;
+\definition law: (\forall (f: Form k) -> SeriesAlternation.Laws[component k f]) ->
+  \forall (f: Form (N.Nat^::succ k)) -> SeriesAlternation.Laws[component (N.Nat^::succ k) f] := \block {
+  \fun (previous: \forall (f: Form k) -> SeriesAlternation.Laws[component k f])(f: Form (N.Nat^::succ k)) \then
+  \let heads: HeadLaws[N.Nat^::succ k, f] := headLaws (N.Nat^::succ k) f \then
+  \return SeriesAlternation.Laws[component (N.Nat^::succ k) f] {
+    swap := \induction (prefix: Lists.List[V]) \return \forall (x, y: V)(xs: Lists.List[V]) ->
+      component (N.Nat^::succ k) f (Lists.append V prefix (Lists.List[V]::cons x (Lists.List[V]::cons y xs))) = neg (component (N.Nat^::succ k) f (Lists.append V prefix (Lists.List[V]::cons y (Lists.List[V]::cons x xs)))) \with {
+        | nil: #swap{heads}
+        | cons: \fun (head: V)(prefix: Lists.List[V])(unused: _)(x, y: V)(xs: Lists.List[V]) => eq_reason!{
+          {component (N.Nat^::succ k) f (Lists.List[V]::cons head (Lists.append V prefix (Lists.List[V]::cons x (Lists.List[V]::cons y xs))))}
+          "=" {component k (Contract.apply f head) (Lists.append V prefix (Lists.List[V]::cons x (Lists.List[V]::cons y xs)))} "by" {Shift.atCons f head (Lists.append V prefix (Lists.List[V]::cons x (Lists.List[V]::cons y xs)))}
+          "=" {neg (component k (Contract.apply f head) (Lists.append V prefix (Lists.List[V]::cons y (Lists.List[V]::cons x xs))))} "by" {#swap{(previous (Contract.apply f head))} prefix x y xs}
+          "=" {neg (component (N.Nat^::succ k) f (Lists.List[V]::cons head (Lists.append V prefix (Lists.List[V]::cons y (Lists.List[V]::cons x xs)))))} "by" {
+            congr!{K K} neg _ _ (sym!{K} _ _ (Shift.atCons f head (Lists.append V prefix (Lists.List[V]::cons y (Lists.List[V]::cons x xs)))))}
+        }
+      },
+    repeated := \induction (prefix: Lists.List[V]) \return \forall (x: V)(xs: Lists.List[V]) -> component (N.Nat^::succ k) f (Lists.append V prefix (Lists.List[V]::cons x (Lists.List[V]::cons x xs))) = zero \with {
+      | nil: #repeated{heads}
+      | cons: \fun (head: V)(prefix: Lists.List[V])(unused: _)(x: V)(xs: Lists.List[V]) => trans!{K} _ _ zero
+        (Shift.atCons f head (Lists.append V prefix (Lists.List[V]::cons x (Lists.List[V]::cons x xs))))
+        (#repeated{(previous (Contract.apply f head))} prefix x xs)
+    },
+  }
+};

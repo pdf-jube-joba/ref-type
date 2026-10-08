@@ -1,0 +1,40 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import real.Analysis[] \as Arithmetic;
+\definition differentLaw: Logic.Not (i = j) -> second a = otherSecond a := \block {
+  \fun (different: Logic.Not (i = j)) \then
+  \let continuous: Analytic.ContinuousOn U second := Properties.continuous U second
+    (\bysub(ScalarFunction U, { g: ScalarFunction U \where SmoothOn U g }, second)) \then
+  \let otherContinuous: Analytic.ContinuousOn U otherSecond := Properties.continuous U otherSecond
+    (\bysub(ScalarFunction U, { g: ScalarFunction U \where SmoothOn U g }, otherSecond)) \then
+  \return Estimates.separatedBySmall (second a) (otherSecond a) (\block {
+    \fun (epsilon: Real)(positive: R.Lt zero epsilon) \then
+    \let theta: Real := mul Arithmetic.half epsilon \then
+    \let thetaPositive: R.Lt zero theta := Estimates.halfOfPositive epsilon positive \then
+    \takefrom rho: \Cast[Real] ({ r: Real \where BallInside[#points{U}, a, r] }) \by #open{U} a (\bysub(Point, #points{U}, a)) \then
+    \let ball: BallInside[#points{U}, a, rho] := \bysub(Real, { r: Real \where BallInside[#points{U}, a, r] }, rho) \then
+    \takefrom delta: \Cast[Real] ({ r: Real \where Analytic.ContinuityControl[U, second, a, theta, r] }) \by continuous a theta thetaPositive \then
+    \let control: Analytic.ContinuityControl[U, second, a, theta, delta] := \bysub(Real, { r: Real \where Analytic.ContinuityControl[U, second, a, theta, r] }, delta) \then
+    \takefrom otherDelta: \Cast[Real] ({ r: Real \where Analytic.ContinuityControl[U, otherSecond, a, theta, r] }) \by otherContinuous a theta thetaPositive \then
+    \let otherControl: Analytic.ContinuityControl[U, otherSecond, a, theta, otherDelta] := \bysub(Real, { r: Real \where Analytic.ContinuityControl[U, otherSecond, a, theta, r] }, otherDelta) \then
+    \let r: Real := Metric.min rho (Metric.min delta otherDelta) \then
+    \let radiusPositive: R.Lt zero r := Product.minPositive rho (Metric.min delta otherDelta) (#positive{ball})
+      (Product.minPositive delta otherDelta (#positive{control}) (#positive{otherControl})) \then
+    \let halfRadius: Real := mul Arithmetic.half r \then
+    \let h: Real := mul Arithmetic.half halfRadius \then
+    \let hPositive: R.Lt zero h := Estimates.halfOfPositive halfRadius (Estimates.halfOfPositive r radiusPositive) \then
+    \let near: R.Lt (add h h) r := R.ltReplaceLeft halfRadius (add h h) r (sym!{Real} _ _ (Estimates.halfTwice halfRadius)) (Estimates.halfStrict r radiusPositive) \then
+    \let nearBall: R.Lt (add h h) rho := R.ltLeTrans _ _ _ near (Metric.minLeft rho (Metric.min delta otherDelta)) \then
+    \let nearFirst: R.Lt (add h h) delta := R.ltLeTrans _ _ _ near (R.leTrans r (Metric.min delta otherDelta) delta (Metric.minRight rho (Metric.min delta otherDelta)) (Metric.minLeft delta otherDelta)) \then
+    \let nearSecond: R.Lt (add h h) otherDelta := R.ltLeTrans _ _ _ near (R.leTrans r (Metric.min delta otherDelta) otherDelta (Metric.minRight rho (Metric.min delta otherDelta)) (Metric.minRight delta otherDelta)) \then
+    \return R.leReplaceRight (distance (second a) (otherSecond a)) (add theta theta) epsilon (Estimates.halfTwice epsilon)
+      (\parent.Box[h := h].Compare[].estimate theta delta otherDelta different hPositive
+        (\parent.Box[h := h].contains rho different hPositive ball nearBall) control otherControl nearFirst nearSecond)
+  })
+};
+\definition law: second a = otherSecond a := either!{{i = j} "or" {Logic.Not (i = j)} "either" {second a = otherSecond a}
+  "lt:" {\fun (same: i = j) => \idelim j = i \with k: Coordinate =>
+    Partials.derivative U (Partials.derivative U f j) k a = Partials.derivative U (Partials.derivative U f k) j a \by {
+      base: \refl(Partials.derivative U (Partials.derivative U f j) j a), equality: sym!{Coordinate} i j same
+    }}
+  "rt:" {differentLaw}} (Classical.excludedMiddle (i = j));

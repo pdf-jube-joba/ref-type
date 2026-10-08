@@ -1,0 +1,63 @@
+\import \root.Integer[] \as Integers;
+\import Integers.Over[R := R, ring := ring] \as Internal;
+\import std.Arithmetic[].Int[] \as Signed;
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\use Logic.either;
+\definition degree: Signed.Int^ -> N.Nat^ := \induction (z: Signed.Int^) \return N.Nat^ \with {
+  | ofNat: \fun (n: N.Nat^) => n
+  | negSucc: \fun (n: N.Nat^) => N.Nat^::succ n
+};
+\definition Nonnegative(z: Signed.Int^): \Prop := (\induction (z: Signed.Int^) \return \Prop \with {
+  | ofNat: \fun (n: N.Nat^) => Logic.True
+  | negSucc: \fun (n: N.Nat^) => Logic.False
+}) z;
+\module Index(z: Signed.Int^);
+\definition Carrier(z: Signed.Int^): \Set := Index[z := z].Carrier;
+\definition space(z: Signed.Int^): Modules.Space (Carrier z) := Index[z := z].space;
+\definition family: Internal.Family := Internal.Family { Carrier := Carrier, space := space };
+\module Positive(n: N.Nat^);
+\module Negative(n: N.Nat^);
+\definition apply: \forall (z: Signed.Int^) -> Carrier z -> Carrier (Integers.next z) :=
+  \induction (z: Signed.Int^) \return Carrier z -> Carrier (Integers.next z) \with {
+    | ofNat: \fun (n: N.Nat^)(x: Carrier (Signed.Int^::ofNat n)) =>
+      \into[C.family.Carrier (N.Nat^::succ n)](#apply{C.differential} n x,
+        #carrier{(Index[z := Signed.Int^::ofNat (N.Nat^::succ n)].submodule)}) \by { Logic.Or[_, _]::left Logic.True::intro }
+    | negSucc: \fun (n: N.Nat^)(x: Carrier (Signed.Int^::negSucc n)) => #zero{(space (Integers.next (Signed.Int^::negSucc n)))}
+  };
+\definition addition: \forall (z: Signed.Int^)(x, y: Carrier z) -> apply z (#add{(space z)} x y) = #add{(space (Integers.next z))} (apply z x) (apply z y) :=
+  \induction (z: Signed.Int^) \return \forall (x, y: Carrier z) -> apply z (#add{(space z)} x y) = #add{(space (Integers.next z))} (apply z x) (apply z y) \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].addition
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].addition
+  };
+\definition scalar: \forall (z: Signed.Int^)(a: R)(x: Carrier z) -> apply z (#smul{(space z)} a x) = #smul{(space (Integers.next z))} a (apply z x) :=
+  \induction (z: Signed.Int^) \return \forall (a: R)(x: Carrier z) -> apply z (#smul{(space z)} a x) = #smul{(space (Integers.next z))} a (apply z x) \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].scalar
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].scalar
+  };
+\module NegativeSquare;
+\definition squareZero: \forall (z: Signed.Int^)(x: Carrier z) -> apply (Integers.next z) (apply z x) = #zero{(space (Integers.next (Integers.next z)))} :=
+  \induction (z: Signed.Int^) \return \forall (x: Carrier z) -> apply (Integers.next z) (apply z x) = #zero{(space (Integers.next (Integers.next z)))} \with {
+    | ofNat: \fun (n: N.Nat^)(x: Carrier (Signed.Int^::ofNat n)) => #squareZero{C.laws} n x
+    | negSucc: NegativeSquare[].law
+  };
+\definition differential: Internal.DifferentialData[family] := Internal.DifferentialData[family] { apply := apply };
+\definition complex: Internal.Complex := Internal.Complex {
+  family := family, differential := differential,
+  laws := Internal.DifferentialLaws[family, differential] { addition := addition, scalar := scalar, squareZero := squareZero },
+};
+\module Recovery;
+\module BoundaryZero;
+\module BoundarySuccessor(n: N.Nat^);
+\module NegativeCohomology(n: N.Nat^);
+\module Boundary(n: N.Nat^);
+\definition boundaryForward: \forall (n: N.Nat^) -> Boundary[n := n].Forward :=
+  \induction (n: N.Nat^) \return Boundary[n := n].Forward \with {
+    | zero: BoundaryZero[].onlyZero
+    | succ: \fun (n: N.Nat^)(unused: Boundary[n := n].Forward) => BoundarySuccessor[n := n].forward
+  };
+\definition boundaryBackward: \forall (n: N.Nat^) -> Boundary[n := n].Backward :=
+  \induction (n: N.Nat^) \return Boundary[n := n].Backward \with {
+    | zero: BoundaryZero[].zeroBoundary
+    | succ: \fun (n: N.Nat^)(unused: Boundary[n := n].Backward) => BoundarySuccessor[n := n].backward
+  };
+\module PositiveCohomology(n: N.Nat^);

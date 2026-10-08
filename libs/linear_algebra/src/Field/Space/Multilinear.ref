@@ -1,0 +1,32 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Bool[] \as Bool;
+\import N.Basic[].Def[] \as Nat;
+\definition Arguments(k: N.Nat^): \Set := Fin.Fin k -> V;
+\definition Function(k: N.Nat^): \Set := Arguments k -> K;
+\definition update(k: N.Nat^)(arguments: Arguments k)(i: Fin.Fin k)(value: V): Arguments k :=
+  \fun (j: Fin.Fin k) => Bool.ite V (Nat.eqb (Fin.value k j) (Fin.value k i)) value (arguments j);
+\structure Laws[k: N.Nat^, f: Function k]: \Prop {
+  addition: \forall (arguments: Arguments k)(i: Fin.Fin k)(x, y: V) ->
+    f (update k arguments i (#add{space} x y)) = add (f (update k arguments i x)) (f (update k arguments i y)),
+  scalar: \forall (arguments: Arguments k)(i: Fin.Fin k)(a: K)(x: V) ->
+    f (update k arguments i (#smul{space} a x)) = mul a (f (update k arguments i x)),
+}
+\definition Form(k: N.Nat^): \Set := \Cast[Function k] ({ f: Function k \where Laws[k, f] });
+\definition MultilinearForm(k: N.Nat^): \Set := Form k;
+\module Properties;
+\module ListArguments;
+\definition Series: \Set := Lists.List[V] -> K;
+\import Lists.Replace[A := V] \as Replacement;
+\import N.Basic[].Prop[] \as NatLaws;
+\structure SeriesLaws[f: Series]: \Prop {
+  addition: \forall (xs: Lists.List[V])(i: N.Nat^) -> NatLaws.Lt i (Lists.length V xs) -> \forall (x, y: V) ->
+    f (Replacement.apply xs i (#add{space} x y)) = add (f (Replacement.apply xs i x)) (f (Replacement.apply xs i y)),
+  scalar: \forall (xs: Lists.List[V])(i: N.Nat^) -> NatLaws.Lt i (Lists.length V xs) -> \forall (a: K)(x: V) ->
+    f (Replacement.apply xs i (#smul{space} a x)) = mul a (f (Replacement.apply xs i x)),
+}
+\module ListSeries(k: N.Nat^);
+\definition FiniteBasis(I: \Set): \Set := \parent.Finite[V := V, I := I, space := space].Basis;
+\module Contraction(k: N.Nat^);
+\module Finite(I: \Set, b: FiniteBasis I);
+\module Alternating;

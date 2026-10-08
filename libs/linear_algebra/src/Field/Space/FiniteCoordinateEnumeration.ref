@@ -1,0 +1,22 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\definition Distinct(n: N.Nat^): \Prop := \parent.Sums[I := Fin.Fin n].Distinct (Fin.elements n);
+\module At(n: N.Nat^);
+\definition sum(n: N.Nat^)(f: Fin.Fin n -> K): K := \parent.Sums[I := Fin.Fin n].sum (Fin.elements n) f;
+\definition recursiveSum: \forall (n: N.Nat^) -> (Fin.Fin n -> K) -> K :=
+  \induction (n: N.Nat^) \return (Fin.Fin n -> K) -> K \with {
+    | zero: \fun (f: Fin.Fin N.Nat^::zero -> K) => zero
+    | succ: \fun (n: N.Nat^)(previous: (Fin.Fin n -> K) -> K)(f: Fin.Fin (N.Nat^::succ n) -> K) =>
+      add (f (Fin.zero n)) (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j)))
+  };
+\definition SumLaw(n: N.Nat^): \Prop := \forall (f: Fin.Fin n -> K) -> sum n f = recursiveSum n f;
+\module Step(n: N.Nat^);
+\definition distinct: \forall (n: N.Nat^) -> Distinct n :=
+  \induction (n: N.Nat^) \return Distinct n \with {
+    | zero: \parent.Sums[I := Fin.Fin N.Nat^::zero].distinctNil
+    | succ: \fun (n: N.Nat^)(previous: Distinct n) => Step[n := n].distinct previous
+  };
+\definition sumLaw: \forall (n: N.Nat^) -> SumLaw n := \induction (n: N.Nat^) \return SumLaw n \with {
+  | zero: \fun (f: Fin.Fin N.Nat^::zero -> K) => \refl(zero)
+  | succ: \fun (n: N.Nat^)(previous: SumLaw n) => Step[n := n].sumLaw previous
+};

@@ -1,0 +1,59 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Logic[].Equality[] \as Equality;
+\use Logic.either;
+\use Equality.sym;
+\use Equality.trans;
+\definition Carrier: \Set := \Cast[A] domain;
+\definition Member(x: A): \Prop := \In[A] domain x;
+\definition Values(f: Carrier -> B)(default: B)(x: A): \Pow B :=
+  { y: B \where Logic.Or[
+    Logic.And[Member x, \forall (z: Carrier) -> z = x -> y = f z],
+    Logic.And[Logic.Not (Member x), y = default]] };
+\definition Value(f: Carrier -> B)(default: B)(x: A): \Set := \Cast[B] (Values f default x);
+\definition existsValue: \forall (f: Carrier -> B)(default: B)(x: A) -> \exists Value f default x :=
+  \fun (f: _)(default: _)(x: _) => either!{{Member x} "or" {Logic.Not (Member x)} "either" {\exists Value f default x}
+    "lt:" {\fun (member: Member x) => \exact(\into[B](f (\into[A](x, domain) \by { member }), Values f default x) \by {
+      Logic.Or[_, _]::left (Logic.And[_, _]::# member
+        (\fun (z: Carrier)(equal: z = x) => \idelim (\into[A](x, domain) \by { member }) = z
+          \with w: Carrier => f (\into[A](x, domain) \by { member }) = f w \by {
+            base: \refl(f (\into[A](x, domain) \by { member })), equality: sym!{A} z x equal
+          }))
+    }, Value f default x)}
+    "rt:" {\fun (outside: _) => \exact(\into[B](default, Values f default x) \by {
+      Logic.Or[_, _]::right (Logic.And[_, _]::# outside (\refl(default)))
+    }, Value f default x)}} (Classical.excludedMiddle (Member x));
+\definition uniqueValue: \forall (f: Carrier -> B)(default: B)(x: A)(left, right: Value f default x) -> left = right :=
+  \fun (f: _)(default: _)(x: _)(left, right: _) => either!{
+    {Logic.And[Member x, \forall (z: Carrier) -> z = x -> left = f z]}
+    "or" {Logic.And[Logic.Not (Member x), left = default]} "either" {left = right}
+    "lt:" {\fun (lp: Logic.And[Member x, \forall (z: Carrier) -> z = x -> left = f z]) => either!{
+      {Logic.And[Member x, \forall (z: Carrier) -> z = x -> right = f z]}
+      "or" {Logic.And[Logic.Not (Member x), right = default]} "either" {left = right}
+      "lt:" {\fun (rp: Logic.And[Member x, \forall (z: Carrier) -> z = x -> right = f z]) => trans!{B} left (f (\into[A](x, domain) \by { #left{lp} })) right
+        (#right{lp} (\into[A](x, domain) \by { #left{lp} }) (\refl(x)))
+        (sym!{B} right (f (\into[A](x, domain) \by { #left{lp} })) (#right{rp} (\into[A](x, domain) \by { #left{lp} }) (\refl(x))))}
+      "rt:" {\fun (rn: Logic.And[Logic.Not (Member x), right = default]) => Logic.falseElim (left = right) (#left{rn} (#left{lp}))}}
+      (\bysub(B, Values f default x, right))}
+    "rt:" {\fun (ln: Logic.And[Logic.Not (Member x), left = default]) => either!{
+      {Logic.And[Member x, \forall (z: Carrier) -> z = x -> right = f z]}
+      "or" {Logic.And[Logic.Not (Member x), right = default]} "either" {left = right}
+      "lt:" {\fun (rp: Logic.And[Member x, \forall (z: Carrier) -> z = x -> right = f z]) => Logic.falseElim (left = right) (#left{ln} (#left{rp}))}
+      "rt:" {\fun (rn: Logic.And[Logic.Not (Member x), right = default]) => trans!{B} left default right (#right{ln}) (sym!{B} right default (#right{rn}))}}
+      (\bysub(B, Values f default x, right))}}
+    (\bysub(B, Values f default x, left));
+\definition extend(f: Carrier -> B)(default: B)(x: A): B :=
+  \choice Value f default x \by { existence: existsValue f default x, uniqueness: uniqueValue f default x };
+\definition inside: \forall (f: Carrier -> B)(default: B)(x: Carrier) -> extend f default x = f x :=
+  \fun (f: _)(default: _)(x: _) => sym!{B} (f x) (extend f default x)
+    (\choiceeq \into[B](f x, Values f default x) \by {
+      Logic.Or[_, _]::left (Logic.And[_, _]::# (\bysub(A, domain, x))
+        (\fun (z: Carrier)(equal: z = x) => \idelim x = z \with w: Carrier => f x = f w \by {
+          base: \refl(f x), equality: sym!{A} z x equal
+        }))
+    } \of Value f default x \by { existence: existsValue f default x, uniqueness: uniqueValue f default x });
+\definition outside: \forall (f: Carrier -> B)(default: B)(x: A) -> Logic.Not (Member x) -> extend f default x = default :=
+  \fun (f: _)(default: _)(x: _)(notMember: _) => sym!{B} default (extend f default x)
+    (\choiceeq \into[B](default, Values f default x) \by {
+      Logic.Or[_, _]::right (Logic.And[_, _]::# notMember (\refl(default)))
+    } \of Value f default x \by { existence: existsValue f default x, uniqueness: uniqueValue f default x });

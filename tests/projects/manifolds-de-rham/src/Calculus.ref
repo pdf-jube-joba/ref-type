@@ -1,0 +1,33 @@
+\import calculus.Real[] \as C;
+\import C.Derivative[].Def[] \as D;
+\import C.Derivative[].Prop[] \as Basic;
+\import C.Derivative[].Operations[] \as Operations;
+\import C.Derivative[].Product[] \as Product;
+\import C.Derivative[].Chain[] \as Chain;
+\import C.Limit[].Def[] \as Limit;
+\import real.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.congr;
+
+\definition square(x: C.Real): C.Real := C.mul x x;
+\definition squareDerivative: \forall (a: C.Real) ->
+  D.HasDerivativeAt square a (C.add a a) :=
+  \fun (a: _) => \idelim C.add (C.mul C.one a) (C.mul a C.one) = C.add a a
+    \with d: C.Real => D.HasDerivativeAt square a d \by {
+      base: Product.derivative C.identity C.identity a C.one C.one
+        (Basic.identityDerivative a) (Basic.identityDerivative a),
+      equality: trans!{C.Real} _ _ _
+        (congr!{C.Real C.Real} (\fun (t: _) => C.add t (C.mul a C.one)) _ _ (Laws.fieldMulOneLeft a))
+        (congr!{C.Real C.Real} (C.add a) _ _
+          (trans!{C.Real} _ _ _ (Laws.fieldMulComm a C.one) (Laws.fieldMulOneLeft a)))
+    };
+
+\definition constantComposition: \forall (c, a: C.Real) ->
+  D.HasDerivativeAt (\fun (x: C.Real) => square (C.constant c x)) a
+    (C.mul (C.add c c) C.zero) :=
+  \fun (c, a: _) => Chain.derivative (C.constant c) square a C.zero (C.add c c)
+    (Basic.constantDerivative c a) (squareDerivative c);
+
+\definition squareContinuous: \forall (a: C.Real) -> Limit.ContinuousAt square a :=
+  \fun (a: _) => Operations.continuousOfDerivative square a (C.add a a) (squareDerivative a);

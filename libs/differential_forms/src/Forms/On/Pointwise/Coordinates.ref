@@ -1,0 +1,22 @@
+
+\import Charts.Of[chart := chart] \as Geometry;
+\definition lift(p: Charts.LocalPoint chart): Tangent.At[x := p].Chart :=
+  \into[Charts.Chart](chart, { c: Charts.Chart \where Tangent.At[x := p].ChartLaws[c] }) \by {
+    Tangent.At[x := p].ChartLaws[chart] { member := member chart, contains := \bysub(M.Point, #domain{chart}, p) }
+  };
+\definition atPoint(phi: PointFamily k)(p: Charts.LocalPoint chart): Multilinear.Alternating[].Form k :=
+  \parent.At[x := p].pointCoordinates phi (lift p);
+\definition family(phi: PointFamily k): Euclidean.On[U := #image{chart}].Family k :=
+  \fun (a: Open.Carrier #image{chart}) => atPoint phi (Charts.point chart a);
+\definition inChart: \forall (phi: PointFamily k)(p: Charts.LocalPoint chart)(arguments: Multilinear.Arguments k) ->
+  family phi (Charts.coordinate chart p) arguments = atPoint phi p arguments :=
+  \fun (phi: PointFamily k)(p: Charts.LocalPoint chart)(arguments: Multilinear.Arguments k) =>
+    congr!{{Charts.LocalPoint chart} {Reals.Real}} (\fun (q: Charts.LocalPoint chart) => atPoint phi q arguments)
+      (Charts.point chart (Charts.coordinate chart p)) p (Geometry.pointCoordinate p);
+\definition recover: \forall (omega: Form k) -> family (value omega) = omega chart :=
+  \fun (omega: Form k) => \axiom:funext(family (value omega), omega chart,
+    \fun (a: Open.Carrier #image{chart}) => trans!{{Multilinear.Alternating[].Form k}}
+      (family (value omega) a) (omega chart (Charts.coordinate chart (Charts.point chart a))) (omega chart a)
+      (\parent.CoordinateRecovery[x := Charts.point chart a].recover omega (lift (Charts.point chart a)))
+      (congr!{{Open.Carrier #image{chart}} {Multilinear.Alternating[].Form k}} (omega chart)
+        (Charts.coordinate chart (Charts.point chart a)) a (Geometry.coordinatePoint a)));

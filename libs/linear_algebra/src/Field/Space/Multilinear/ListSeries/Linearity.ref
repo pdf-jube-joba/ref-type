@@ -1,0 +1,55 @@
+\definition additionInside: \forall (xs: ArgumentsList.OfDegree k)(i: Fin.Fin k)(x, y: V) ->
+  component f (Replacement.apply xs i (#add{space} x y)) = add (component f (Replacement.apply xs i x)) (component f (Replacement.apply xs i y)) := \block {
+  \fun (xs: ArgumentsList.OfDegree k)(i: Fin.Fin k)(x, y: V) \then
+  \let arguments: Arguments k := ArgumentsList.decode k xs \then
+  \return eq_reason!{
+    {component f (Replacement.apply xs i (#add{space} x y))} "=" {f (update k arguments i (#add{space} x y))} "by" {onReplacement f xs i (#add{space} x y)}
+    "=" {add (f (update k arguments i x)) (f (update k arguments i y))} "by" {#addition{(\bysub(Function k, Form k, f))} arguments i x y}
+    "=" {add (component f (Replacement.apply xs i x)) (component f (Replacement.apply xs i y))} "by" {
+      congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (onReplacement f xs i x)) (sym!{K} _ _ (onReplacement f xs i y))}
+  }
+};
+\definition scalarInside: \forall (xs: ArgumentsList.OfDegree k)(i: Fin.Fin k)(a: K)(x: V) ->
+  component f (Replacement.apply xs i (#smul{space} a x)) = mul a (component f (Replacement.apply xs i x)) := \block {
+  \fun (xs: ArgumentsList.OfDegree k)(i: Fin.Fin k)(a: K)(x: V) \then
+  \let arguments: Arguments k := ArgumentsList.decode k xs \then
+  \return eq_reason!{
+    {component f (Replacement.apply xs i (#smul{space} a x))} "=" {f (update k arguments i (#smul{space} a x))} "by" {onReplacement f xs i (#smul{space} a x)}
+    "=" {mul a (f (update k arguments i x))} "by" {#scalar{(\bysub(Function k, Form k, f))} arguments i a x}
+    "=" {mul a (component f (Replacement.apply xs i x))} "by" {congr!{K K} (mul a) _ _ (sym!{K} _ _ (onReplacement f xs i x))}
+  }
+};
+\definition replacementOutside: \forall (xs: Lists.List[V])(i: N.Nat^)(value: V) -> Logic.Not (Lists.length V xs = k) -> component f (Replacement.apply xs i value) = zero :=
+  \fun (xs: Lists.List[V])(i: N.Nat^)(value: V)(wrong: Logic.Not (Lists.length V xs = k)) => outside f (Replacement.apply xs i value)
+    (\fun (equal: Lists.length V (Replacement.apply xs i value) = k) => wrong (trans!{{N.Nat^}} (Lists.length V xs) (Lists.length V (Replacement.apply xs i value)) k
+      (sym!{{N.Nat^}} _ _ (Replacement.lengthLaw xs i value)) equal));
+\definition index(xs: ArgumentsList.OfDegree k)(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length V xs)): Fin.Fin k :=
+  \into[N.Nat^](i, Fin.Fin k) \by {
+    \idelim Lists.length V xs = k \with n: N.Nat^ => NatLaws.Lt i n
+      \by { base: bound, equality: \bysub(Lists.List[V], ArgumentsList.Degree k, xs) }
+  };
+\definition addition: \forall (xs: Lists.List[V])(i: N.Nat^) -> NatLaws.Lt i (Lists.length V xs) -> \forall (x, y: V) ->
+  component f (Replacement.apply xs i (#add{space} x y)) = add (component f (Replacement.apply xs i x)) (component f (Replacement.apply xs i y)) :=
+  \fun (xs: Lists.List[V])(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length V xs))(x, y: V) =>
+    either!{{Lists.length V xs = k} "or" {Logic.Not (Lists.length V xs = k)} "either" {
+      component f (Replacement.apply xs i (#add{space} x y)) = add (component f (Replacement.apply xs i x)) (component f (Replacement.apply xs i y))}
+      "lt:" {\fun (equal: Lists.length V xs = k) => additionInside (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal })
+        (index (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }) i bound) x y}
+      "rt:" {\fun (wrong: Logic.Not (Lists.length V xs = k)) => eq_reason!{
+        {component f (Replacement.apply xs i (#add{space} x y))} "=" zero "by" {replacementOutside xs i (#add{space} x y) wrong}
+        "=" {add zero zero} "by" {sym!{K} (add zero zero) zero (addZeroLeft zero)}
+        "=" {add (component f (Replacement.apply xs i x)) (component f (Replacement.apply xs i y))} "by" {
+          congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (replacementOutside xs i x wrong)) (sym!{K} _ _ (replacementOutside xs i y wrong))}
+      }}} (Classical.excludedMiddle (Lists.length V xs = k));
+\definition scalar: \forall (xs: Lists.List[V])(i: N.Nat^) -> NatLaws.Lt i (Lists.length V xs) -> \forall (a: K)(x: V) ->
+  component f (Replacement.apply xs i (#smul{space} a x)) = mul a (component f (Replacement.apply xs i x)) :=
+  \fun (xs: Lists.List[V])(i: N.Nat^)(bound: NatLaws.Lt i (Lists.length V xs))(a: K)(x: V) =>
+    either!{{Lists.length V xs = k} "or" {Logic.Not (Lists.length V xs = k)} "either" {
+      component f (Replacement.apply xs i (#smul{space} a x)) = mul a (component f (Replacement.apply xs i x))}
+      "lt:" {\fun (equal: Lists.length V xs = k) => scalarInside (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal })
+        (index (\into[Lists.List[V]](xs, ArgumentsList.Degree k) \by { equal }) i bound) a x}
+      "rt:" {\fun (wrong: Logic.Not (Lists.length V xs = k)) => eq_reason!{
+        {component f (Replacement.apply xs i (#smul{space} a x))} "=" zero "by" {replacementOutside xs i (#smul{space} a x) wrong}
+        "=" {mul a zero} "by" {sym!{K} (mul a zero) zero (mulZeroRight a)}
+        "=" {mul a (component f (Replacement.apply xs i x))} "by" {congr!{K K} (mul a) zero (component f (Replacement.apply xs i x)) (sym!{K} _ _ (replacementOutside xs i x wrong))}
+      }}} (Classical.excludedMiddle (Lists.length V xs = k));

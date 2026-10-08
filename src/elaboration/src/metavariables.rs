@@ -524,7 +524,9 @@ impl MetaStore {
         });
     }
     fn set_principal_for_meta(&mut self, env: &CrateEnv, term: Exp, constraint: &GoalConstraint) {
-        if let ExpNode::Meta { metavariable, .. } = env.arena().get(self.zonk(env, term))
+        let term = self.zonk(env, term);
+        if matches!(env.arena().core.get(term.0), Node::Meta { .. })
+            && let ExpNode::Meta { metavariable, .. } = env.arena().get(term)
             && self.entries[metavariable.index()].principal.is_none()
         {
             self.entries[metavariable.index()].principal = Some(constraint.clone());
@@ -845,16 +847,22 @@ fn metas_in_exp(env: &CrateEnv, exp: Exp) -> HashSet<MetaVarId> {
         if !seen.insert(exp) {
             continue;
         }
-        match env.arena().get(exp) {
-            ExpNode::Meta {
-                metavariable,
-                spine,
-            } => {
-                result.insert(metavariable);
-                pending.extend(spine);
-            }
-            node => pending.extend(node_children(node)),
+        // Checked definitions are closed over their explicit arguments.
+        // A frontend view of a specialized reference unfolds its body, which
+        // would expand unrelated proofs merely to attach a source location.
+        // Holes can only occur in the reference's actual arguments.
+        if matches!(env.arena().core.get(exp.0), Node::Meta { .. })
+            && let ExpNode::Meta { metavariable, .. } = env.arena().get(exp)
+        {
+            result.insert(metavariable);
         }
+        pending.extend(
+            env.arena()
+                .core
+                .children(exp.0)
+                .into_iter()
+                .map(|(child, _)| Exp(child)),
+        );
     }
     result
 }

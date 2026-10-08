@@ -1,0 +1,32 @@
+\definition total: N.Nat^ := N.Nat^::succ (Nat.add p q);
+\import \parent.\parent.Product[p := p, q := q].Primitives[] \as Primitives;
+\import \parent.\parent.\parent.Leibniz[p := p, q := q] \as Leibniz;
+\import \parent.\parent.\parent.ExteriorDerivative[k := p] \as LeftD;
+\import \parent.\parent.\parent.ExteriorDerivative[k := q] \as RightD;
+\import \parent.\parent.\parent.Wedge[p := N.Nat^::succ p, q := q] \as LeftProduct;
+\import \parent.\parent.\parent.Wedge[p := p, q := N.Nat^::succ q] \as RightProduct;
+\import \parent.\parent.Regrade[k := Nat.add (N.Nat^::succ p) q, l := total] \as Degree;
+\definition left: \forall (omega: Form (N.Nat^::succ p))(eta: Form q) ->
+  Exact (N.Nat^::succ p) omega -> Closed q eta -> Exact (Nat.add (N.Nat^::succ p) q) (LeftProduct.apply omega eta) := \block {
+  \fun (omega: Form (N.Nat^::succ p))(eta: Form q)(exact: Exact (N.Nat^::succ p) omega)(closed: Closed q eta) \then
+  \takefrom alpha: \Cast[Form p] ({ alpha: Form p \where LeftD.apply alpha = omega }) \by exact \then
+  \let same: LeftD.apply alpha = omega := \bysub(Form p, { alpha: Form p \where LeftD.apply alpha = omega }, alpha) \then
+  \let exactProduct: Exact total (Leibniz.left (LeftD.apply alpha) eta) := Primitives.exactLeft alpha eta closed \then
+  \let desired: Exact total (Leibniz.left omega eta) :=
+    \idelim Leibniz.left (LeftD.apply alpha) eta = Leibniz.left omega eta \with phi: Form total => Exact total phi \by {
+      base: exactProduct,
+      equality: congr!{{Form (N.Nat^::succ p)} {Form total}} (\fun (beta: Form (N.Nat^::succ p)) => Leibniz.left beta eta)
+        (LeftD.apply alpha) omega same
+    } \then
+  \return Degree.backward (LeftProduct.apply omega eta) Leibniz.degree desired
+};
+\definition right: \forall (omega: Form p)(eta: Form (N.Nat^::succ q)) ->
+  Closed p omega -> Exact (N.Nat^::succ q) eta -> Exact total (RightProduct.apply omega eta) := \block {
+  \fun (omega: Form p)(eta: Form (N.Nat^::succ q))(closed: Closed p omega)(exact: Exact (N.Nat^::succ q) eta) \then
+  \takefrom beta: \Cast[Form q] ({ beta: Form q \where RightD.apply beta = eta }) \by exact \then
+  \let same: RightD.apply beta = eta := \bysub(Form q, { beta: Form q \where RightD.apply beta = eta }, beta) \then
+  \return \idelim Leibniz.right omega (RightD.apply beta) = RightProduct.apply omega eta \with phi: Form total => Exact total phi \by {
+    base: Primitives.exactRight omega beta closed,
+    equality: congr!{{Form (N.Nat^::succ q)} {Form total}} (RightProduct.apply omega) (RightD.apply beta) eta same
+  }
+};

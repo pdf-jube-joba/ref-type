@@ -1,0 +1,48 @@
+\import FirstD.InCharts[left := left, right := middle] \as FirstLocal;
+\import SecondD.InCharts[left := middle, right := right] \as SecondLocal;
+\import CompositeD.InCharts[left := left, right := right] \as CompositeLocal;
+\import \root.Dimension[n := n].Chart[M := M.Point, space := M.space] \as SourceCharts;
+\import \root.Dimension[n := m].Chart[M := N.Point, space := N.space] \as MiddleCharts;
+\import \root.Dimension[n := l].Chart[M := P.Point, space := P.space] \as TargetCharts;
+\definition sourceChart: Composition.SourceChart := \into[SourceCharts.Chart](left, #charts{M.atlas}) \by { A.member left };
+\definition middleChart: Composition.MiddleChart := \into[MiddleCharts.Chart](middle, #charts{N.atlas}) \by { B.member middle };
+\definition targetChart: Composition.TargetChart := \into[TargetCharts.Chart](right, #charts{P.atlas}) \by { C.member right };
+\import \root.CompositionDifferential[n := n, m := m, l := l].Between[M := M, N := N, P := P].Of[f := f, g := g].InCharts[left := sourceChart, middle := middleChart, right := targetChart] \as Data;
+\import Composition.Coordinates[left := left, right := right].Patch[middle := middleChart] \as Patch;
+\import calculus.Real[].Multivariable[n := n].Open[] \as Open;
+\definition point: Open.Carrier Data.domain := \into[calculus.Real[].Multivariable[n := n].Point](A.coordinate left, #points{Data.domain}) \by {
+  Patch.contains CompositeLocal.point FirstLocal.containsImage
+};
+\import Data.At[a := point] \as Chain;
+\import calculus.Maps[n := m, m := l] \as Calculus;
+\import calculus.Real[].Multivariable[n := m].Open[] \as MiddleOpen;
+\definition intermediate: MiddleOpen.Carrier SecondLocal.domain := Patch.intermediate point;
+\definition pointAgreement: intermediate = SecondLocal.point := FirstLocal.coordinateAgreement;
+\import std.Data[].FinSet[] \as Fin;
+\import Spaces.Coordinates[I := Fin.Fin n] \as AV;
+\import Spaces.Coordinates[I := Fin.Fin m] \as BV;
+\import Spaces.Coordinates[I := Fin.Fin l] \as CV;
+\import Spaces.Linear[V := BV.Vector, W := CV.Vector, source := BV.space, target := CV.space] \as SecondMaps;
+\import SecondMaps.Composition[U := AV.Vector, domain := AV.space] \as LocalCompose;
+\import Spaces.Linear[V := AV.Vector, W := CV.Vector, source := AV.space, target := CV.space] \as ResultMaps;
+\definition secondAgreement: Calculus.Differential[U := SecondLocal.domain, V := #image{right}, f := Data.secondMap, a := intermediate].value = SecondLocal.jacobian :=
+  congr!{{MiddleOpen.Carrier SecondLocal.domain} {SecondMaps.Map}} SecondLocal.jacobianAt intermediate SecondLocal.point pointAgreement;
+\definition jacobian: CompositeLocal.jacobian = LocalCompose.compose SecondLocal.jacobian FirstLocal.jacobian :=
+  trans!{{ResultMaps.Map}} CompositeLocal.jacobian
+    (LocalCompose.compose (Calculus.Differential[U := SecondLocal.domain, V := #image{right}, f := Data.secondMap, a := intermediate].value) FirstLocal.jacobian)
+    (LocalCompose.compose SecondLocal.jacobian FirstLocal.jacobian) Chain.law
+    (congr!{{SecondMaps.Map} {ResultMaps.Map}} (\fun (d: SecondMaps.Map) => LocalCompose.compose d FirstLocal.jacobian) _ _ secondAgreement);
+\import A.Coordinate[chart := left] \as AC;
+\import B.Coordinate[chart := middle] \as BC;
+\import C.Coordinate[chart := right] \as CC;
+\definition pointwise: \forall (v: A.Vector) -> #apply{CompositeD.value} v = #apply{composite} v :=
+  \fun (v: A.Vector) => CC.injective (#apply{CompositeD.value} v) (#apply{composite} v)
+    (trans!{{CV.Vector}} (CC.decode (#apply{CompositeD.value} v))
+      (#apply{SecondLocal.jacobian} (#apply{FirstLocal.jacobian} (AC.decode v))) (CC.decode (#apply{composite} v))
+      (trans!{{CV.Vector}} (CC.decode (#apply{CompositeD.value} v)) (#apply{CompositeLocal.jacobian} (AC.decode v))
+        (#apply{SecondLocal.jacobian} (#apply{FirstLocal.jacobian} (AC.decode v))) (CompositeD.coordinates left right v)
+        (congr!{{ResultMaps.Map} {CV.Vector}} (\fun (d: ResultMaps.Map) => #apply{d} (AC.decode v)) _ _ jacobian))
+      (trans!{{CV.Vector}} (#apply{SecondLocal.jacobian} (#apply{FirstLocal.jacobian} (AC.decode v)))
+        (#apply{SecondLocal.jacobian} (BC.decode (#apply{FirstD.value} v))) (CC.decode (#apply{composite} v))
+        (congr!{{BV.Vector} {CV.Vector}} (#apply{SecondLocal.jacobian}) _ _ (sym!{{BV.Vector}} _ _ (FirstD.coordinates left middle v)))
+        (sym!{{CV.Vector}} _ _ (SecondD.coordinates middle right (#apply{FirstD.value} v)))));

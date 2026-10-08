@@ -1,0 +1,127 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Data[].Option[] \as Option;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\definition one: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\import calculus.Real[] \as R;
+\import R.Multivariable[n := two] \as Plane;
+\import Plane.Open[] \as Open;
+\import Open.Smooth[] \as Smooth;
+\import Smooth.Operations[] \as Operations;
+\import Open.Examples[] \as Examples;
+\import Fin.Tuples[A := R.Real] \as Tuples;
+\definition first: Plane.Coordinate := Fin.zero one;
+\definition square(x: Plane.Point): R.Real := R.mul (x first) (x first);
+\definition forward(x: Plane.Point): Plane.Point := Tuples.extend one (x first)
+  (\fun (j: Fin.Fin one) => R.add (x (Fin.succ one j)) (square x));
+\definition backward(x: Plane.Point): Plane.Point := Tuples.extend one (x first)
+  (\fun (j: Fin.Fin one) => R.sub (x (Fin.succ one j)) (square x));
+\definition squareSmooth: Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => square x) :=
+  Operations.mulSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => x first) (\fun (x: Open.Carrier Open.whole) => x first)
+    (Examples.projectionSmooth Open.whole first) (Examples.projectionSmooth Open.whole first);
+\definition forwardSmooth: \forall (i: Plane.Coordinate) -> Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => forward x i) :=
+  \fun (i: _) => (\induction (j: Option.Option[Fin.Fin one]) \return
+    Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => Tuples.evaluate one (x first) (\fun (k: Fin.Fin one) => R.add (x (Fin.succ one k)) (square x)) j) \with {
+      | none: Examples.projectionSmooth Open.whole first
+      | some: \fun (j: Fin.Fin one) => Operations.addSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => x (Fin.succ one j)) (\fun (x: Open.Carrier Open.whole) => square x)
+        (Examples.projectionSmooth Open.whole (Fin.succ one j)) squareSmooth
+    }) (Fin.split one i);
+\definition backwardSmooth: \forall (i: Plane.Coordinate) -> Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => backward x i) :=
+  \fun (i: _) => (\induction (j: Option.Option[Fin.Fin one]) \return
+    Smooth.SmoothOn Open.whole (\fun (x: Open.Carrier Open.whole) => Tuples.evaluate one (x first) (\fun (k: Fin.Fin one) => R.sub (x (Fin.succ one k)) (square x)) j) \with {
+      | none: Examples.projectionSmooth Open.whole first
+      | some: \fun (j: Fin.Fin one) => Operations.subSmooth Open.whole (\fun (x: Open.Carrier Open.whole) => x (Fin.succ one j)) (\fun (x: Open.Carrier Open.whole) => square x)
+        (Examples.projectionSmooth Open.whole (Fin.succ one j)) squareSmooth
+    }) (Fin.split one i);
+\import calculus.Maps[n := two, m := two] \as Maps;
+\definition forwardData: Maps.Data[Open.whole, Open.whole] := Maps.Data[Open.whole, Open.whole] {
+  apply := \fun (x: Open.Carrier Open.whole) => \into[Plane.Point](forward x, #points{Open.whole}) \by { \refl(forward x) },
+};
+\definition backwardData: Maps.Data[Open.whole, Open.whole] := Maps.Data[Open.whole, Open.whole] {
+  apply := \fun (x: Open.Carrier Open.whole) => \into[Plane.Point](backward x, #points{Open.whole}) \by { \refl(backward x) },
+};
+\definition forwardMap: Maps.Map Open.whole Open.whole := \into[Maps.Data[Open.whole, Open.whole]](forwardData,
+  { data: Maps.Data[Open.whole, Open.whole] \where Maps.Laws[Open.whole, Open.whole, data] }) \by { Maps.Laws[Open.whole, Open.whole, forwardData] { smooth := forwardSmooth } };
+\definition backwardMap: Maps.Map Open.whole Open.whole := \into[Maps.Data[Open.whole, Open.whole]](backwardData,
+  { data: Maps.Data[Open.whole, Open.whole] \where Maps.Laws[Open.whole, Open.whole, data] }) \by { Maps.Laws[Open.whole, Open.whole, backwardData] { smooth := backwardSmooth } };
+\import real.Analysis[].Distance[] \as Metric;
+\import real.DedekindReal[].Arithmetic[].Prop[] \as Laws;
+\definition forwardFirst: \forall (x: Plane.Point) -> forward x first = x first :=
+  \fun (x: _) => Tuples.atZero one (x first) (\fun (j: Fin.Fin one) => R.add (x (Fin.succ one j)) (square x));
+\definition backwardFirst: \forall (x: Plane.Point) -> backward x first = x first :=
+  \fun (x: _) => Tuples.atZero one (x first) (\fun (j: Fin.Fin one) => R.sub (x (Fin.succ one j)) (square x));
+\definition squareForward: \forall (x: Plane.Point) -> square (forward x) = square x :=
+  \fun (x: _) => congr2!{R.Real R.Real R.Real} R.mul (forward x first) (x first) (forward x first) (x first) (forwardFirst x) (forwardFirst x);
+\definition squareBackward: \forall (x: Plane.Point) -> square (backward x) = square x :=
+  \fun (x: _) => congr2!{R.Real R.Real R.Real} R.mul (backward x first) (x first) (backward x first) (x first) (backwardFirst x) (backwardFirst x);
+\definition cancelAddition: \forall (a, b: R.Real) -> R.sub (R.add a b) b = a :=
+  \fun (a, b: _) => trans!{R.Real} (R.sub (R.add a b) b) (R.add a (R.add b (real.Analysis[].neg b))) a
+    (Laws.addAssoc a b (real.Analysis[].neg b))
+    (trans!{R.Real} (R.add a (R.add b (real.Analysis[].neg b))) (R.add a R.zero) a
+      (congr!{R.Real R.Real} (R.add a) (R.add b (real.Analysis[].neg b)) R.zero (Laws.addNegRight b)) (Laws.addZeroRight a));
+\definition leftInverse: \forall (x: Plane.Point) -> backward (forward x) = x :=
+  \fun (x: _) => trans!{Plane.Point} _ _ _
+    (congr2!{R.Real {Fin.Fin one -> R.Real} Plane.Point} (Tuples.extend one)
+      (forward x first) (x first)
+      (\fun (j: Fin.Fin one) => R.sub (forward x (Fin.succ one j)) (square (forward x)))
+      (\fun (j: Fin.Fin one) => x (Fin.succ one j))
+      (forwardFirst x)
+      (\axiom:funext((\fun (j: Fin.Fin one) => R.sub (forward x (Fin.succ one j)) (square (forward x))),
+        (\fun (j: Fin.Fin one) => x (Fin.succ one j)), \fun (j: Fin.Fin one) => trans!{R.Real} _ _ _
+          (congr2!{R.Real R.Real R.Real} R.sub
+            (forward x (Fin.succ one j)) (R.add (x (Fin.succ one j)) (square x)) (square (forward x)) (square x)
+            (Tuples.atSuccessor one (x first) (\fun (k: Fin.Fin one) => R.add (x (Fin.succ one k)) (square x)) j) (squareForward x))
+          (cancelAddition (x (Fin.succ one j)) (square x)))))
+    (Tuples.recover one x);
+\definition rightInverse: \forall (x: Plane.Point) -> forward (backward x) = x :=
+  \fun (x: _) => trans!{Plane.Point} _ _ _
+    (congr2!{R.Real {Fin.Fin one -> R.Real} Plane.Point} (Tuples.extend one)
+      (backward x first) (x first)
+      (\fun (j: Fin.Fin one) => R.add (backward x (Fin.succ one j)) (square (backward x)))
+      (\fun (j: Fin.Fin one) => x (Fin.succ one j))
+      (backwardFirst x)
+      (\axiom:funext((\fun (j: Fin.Fin one) => R.add (backward x (Fin.succ one j)) (square (backward x))),
+        (\fun (j: Fin.Fin one) => x (Fin.succ one j)), \fun (j: Fin.Fin one) => trans!{R.Real} _ _ _
+          (congr2!{R.Real R.Real R.Real} R.add
+            (backward x (Fin.succ one j)) (R.sub (x (Fin.succ one j)) (square x)) (square (backward x)) (square x)
+            (Tuples.atSuccessor one (x first) (\fun (k: Fin.Fin one) => R.sub (x (Fin.succ one k)) (square x)) j) (squareBackward x))
+          (Metric.subAddCancel (x (Fin.succ one j)) (square x)))))
+    (Tuples.recover one x);
+\import Maps.Topology[U := Open.whole, V := Open.whole] \as Continuity;
+\import Open.Topology[].Of[U := Open.whole] \as Space;
+\import topology.Homeomorphism[A := Open.Carrier Open.whole, B := Open.Carrier Open.whole] \as Homeomorphisms;
+\definition homeomorphism: Homeomorphisms.Homeomorphism[Space.topology, Space.topology] := Homeomorphisms.Homeomorphism[Space.topology, Space.topology] {
+  forward := Maps.apply Open.whole Open.whole forwardMap,
+  backward := Maps.apply Open.whole Open.whole backwardMap,
+  leftInverse := \fun (x: Open.Carrier Open.whole) => leftInverse x,
+  rightInverse := \fun (x: Open.Carrier Open.whole) => rightInverse x,
+  forwardContinuous := Continuity.continuous forwardMap,
+  backwardContinuous := Continuity.continuous backwardMap,
+};
+
+\import calculus.Diffeomorphism[n := two, m := two] \as Diffeomorphisms;
+\definition diffeomorphismData: Diffeomorphisms.Data[Open.whole, Open.whole] := Diffeomorphisms.Data[Open.whole, Open.whole] {
+  forward := forwardMap, backward := backwardMap,
+};
+\definition diffeomorphism: Diffeomorphisms.Diffeomorphism Open.whole Open.whole :=
+  \into[Diffeomorphisms.Data[Open.whole, Open.whole]](diffeomorphismData,
+    { data: Diffeomorphisms.Data[Open.whole, Open.whole] \where Diffeomorphisms.Laws[Open.whole, Open.whole, data] }) \by {
+      Diffeomorphisms.Laws[Open.whole, Open.whole, diffeomorphismData] { leftInverse := \fun (x: Open.Carrier Open.whole) => leftInverse x, rightInverse := \fun (x: Open.Carrier Open.whole) => rightInverse x }
+    };
+\import Diffeomorphisms.At[U := Open.whole, V := Open.whole] \as DiffeomorphismTopology;
+\definition inducedHomeomorphism: Homeomorphisms.Homeomorphism[Space.topology, Space.topology] := DiffeomorphismTopology.homeomorphism diffeomorphism;
+\import Maps.Composition[U := Open.whole, V := Open.whole, f := forwardMap].After[l := two, W := Open.whole, g := forwardMap] \as DoubleShear;
+\definition twice: Maps.Map Open.whole Open.whole := DoubleShear.compose;
+\module ChainAt(a: Open.Carrier Open.whole);
+\import calculus.Identity[n := two] \as Identity;
+\definition identityMap: Maps.Map Open.whole Open.whole := Identity.map Open.whole;
+\import Diffeomorphisms.Inverse[U := Open.whole, V := Open.whole, f := diffeomorphism] \as Inverse;
+\definition reversed: Diffeomorphisms.Diffeomorphism Open.whole Open.whole := Inverse.inverse;
+\import Diffeomorphisms.Composition[U := Open.whole, V := Open.whole, f := diffeomorphism].After[l := two, W := Open.whole, g := diffeomorphism] \as DoubleDiffeomorphism;
+\definition twiceDiffeomorphism: Diffeomorphisms.Diffeomorphism Open.whole Open.whole := DoubleDiffeomorphism.compose;
+\module Forms;

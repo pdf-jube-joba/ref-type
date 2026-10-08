@@ -1,0 +1,52 @@
+\import \parent.At[k := p] \as Left;
+\import \parent.At[k := q] \as Right;
+\import \parent.At[k := Nat.add p q] \as Result;
+\import \parent.\parent.Wedge[p := p, q := q] \as Wedge;
+\import \parent.\parent.Leibniz[p := p, q := q] \as Leibniz;
+\import \parent.\parent.ExteriorDerivative[k := p] \as LeftD;
+\import \parent.\parent.ExteriorDerivative[k := q] \as RightD;
+\import \parent.\parent.ExteriorDerivative[k := Nat.add p q] \as D;
+\import \parent.\parent.At[k := N.Nat^::succ (Nat.add p q)] \as Next;
+\import Spaces.Laws[V := Form (N.Nat^::succ (Nat.add p q)), space := Next.space] \as NextLaws;
+\import \parent.\parent.At[k := N.Nat^::succ p] \as LeftNext;
+\import \parent.\parent.At[k := N.Nat^::succ q] \as RightNext;
+\import \parent.\parent.Wedge[p := N.Nat^::succ p, q := q] \as LeftWedge;
+\import \parent.\parent.Wedge[p := p, q := N.Nat^::succ q] \as RightWedge;
+\import \parent.\parent.Regrade[k := Nat.add (N.Nat^::succ p) q, l := N.Nat^::succ (Nat.add p q)] \as Degree;
+\import \parent.\parent.At[k := Nat.add (N.Nat^::succ p) q] \as LeftResult;
+\import Spaces.Sign[] \as Sign;
+\definition closed: \forall (omega: Form p)(eta: Form q) -> Left.Closed omega -> Right.Closed eta -> Result.Closed (Wedge.apply omega eta) := \block {
+  \fun (omega: Form p)(eta: Form q)(leftClosed: Left.Closed omega)(rightClosed: Right.Closed eta) \then
+  \let leftZero: Leibniz.left (LeftD.apply omega) eta = Next.zero :=
+    trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Leibniz.left (LeftD.apply omega) eta)
+      (Leibniz.left LeftNext.zero eta) Next.zero
+      (congr!{{Form (N.Nat^::succ p)} {Form (N.Nat^::succ (Nat.add p q))}}
+        (\fun (alpha: Form (N.Nat^::succ p)) => Leibniz.left alpha eta) (LeftD.apply omega) LeftNext.zero leftClosed)
+      (trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Leibniz.left LeftNext.zero eta)
+        (Degree.cast LeftResult.zero Leibniz.degree) Next.zero
+        (congr!{{Form (Nat.add (N.Nat^::succ p) q)} {Form (N.Nat^::succ (Nat.add p q))}}
+          (\fun (alpha: Form (Nat.add (N.Nat^::succ p) q)) => Degree.cast alpha Leibniz.degree)
+          (LeftWedge.apply LeftNext.zero eta) LeftResult.zero (LeftWedge.zeroLeft eta))
+        (Degree.zero Leibniz.degree)) \then
+  \let rightZero: Leibniz.right omega (RightD.apply eta) = Next.zero :=
+    trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Leibniz.right omega (RightD.apply eta))
+      (RightWedge.apply omega RightNext.zero) Next.zero
+      (congr!{{Form (N.Nat^::succ q)} {Form (N.Nat^::succ (Nat.add p q))}}
+        (RightWedge.apply omega) (RightD.apply eta) RightNext.zero rightClosed)
+      (RightWedge.zeroRight omega) \then
+  \return trans!{{Form (N.Nat^::succ (Nat.add p q))}} (D.apply (Wedge.apply omega eta))
+    (Next.plus (Leibniz.left (LeftD.apply omega) eta) (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply eta)))) Next.zero
+    (Leibniz.law omega eta)
+    (trans!{{Form (N.Nat^::succ (Nat.add p q))}}
+      (Next.plus (Leibniz.left (LeftD.apply omega) eta) (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply eta))))
+      (Next.plus Next.zero Next.zero) Next.zero
+      (congr2!{{Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))}}
+        Next.plus (Leibniz.left (LeftD.apply omega) eta) Next.zero
+        (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply eta))) Next.zero leftZero
+        (trans!{{Form (N.Nat^::succ (Nat.add p q))}} (Next.scale (Sign.value p) (Leibniz.right omega (RightD.apply eta)))
+          (Next.scale (Sign.value p) Next.zero) Next.zero
+          (congr!{{Form (N.Nat^::succ (Nat.add p q))} {Form (N.Nat^::succ (Nat.add p q))}} (Next.scale (Sign.value p))
+            (Leibniz.right omega (RightD.apply eta)) Next.zero rightZero) (NextLaws.scaleZero (Sign.value p))))
+      (NextLaws.zeroLeft Next.zero))
+};
+\module Primitives;

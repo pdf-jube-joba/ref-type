@@ -1,0 +1,44 @@
+\import \parent.Def[] \as Def;
+\import R.Order[] \as Order;
+\import topology.RealLine[].Rays[] \as Rays;
+\import real.Analysis[].Estimates[] \as Estimates;
+\structure UpperSample[f: Real -> Real, a, bound, radius, x: Real]: \Prop {
+  different: Logic.Not (x = a),
+  near: R.Lt (distance x a) radius,
+  upper: R.Le (f x) bound,
+}
+\structure LowerSample[f: Real -> Real, a, bound, radius, x: Real]: \Prop {
+  different: Logic.Not (x = a),
+  near: R.Lt (distance x a) radius,
+  lower: R.Le bound (f x),
+}
+\definition upper: \forall (f: Real -> Real)(a, limit, bound: Real) -> Def.HasLimitAt f a limit ->
+  (\forall (radius: Real) -> R.Lt zero radius -> \exists { x: Real \where UpperSample[f, a, bound, radius, x] }) -> R.Le limit bound :=
+  \fun (f: _)(a, limit, bound: _)(converges: _)(samples: _) => Order.leOfNotLtReverse limit bound (\block {
+    \fun (less: R.Lt bound limit) \then
+    \let epsilon: Real := sub limit bound \then
+    \takefrom delta: \Cast[Real] ({ d: Real \where Def.Control[f, a, limit, epsilon, d] }) \by converges epsilon (Rays.subPositive limit bound less) \then
+    \let control: Def.Control[f, a, limit, epsilon, delta] := \bysub(Real, { d: Real \where Def.Control[f, a, limit, epsilon, d] }, delta) \then
+    \takefrom x: \Cast[Real] ({ x: Real \where UpperSample[f, a, bound, delta, x] }) \by samples delta (#positive{control}) \then
+    \let sample: UpperSample[f, a, bound, delta, x] := \bysub(Real, { x: Real \where UpperSample[f, a, bound, delta, x] }, x) \then
+    \let lower: R.Lt bound (f x) := R.ltReplaceLeft (sub limit epsilon) bound (f x) (Rays.subSub limit bound)
+      (Metric.distanceLtLower limit (f x) epsilon
+        (R.ltReplaceLeft (distance (f x) limit) (distance limit (f x)) epsilon (Metric.distanceSymmetric (f x) limit)
+          (#estimate{control} x (#different{sample}) (#near{sample})))) \then
+    \return R.ltNotLeReverse bound (f x) lower (#upper{sample})
+  });
+\definition lower: \forall (f: Real -> Real)(a, limit, bound: Real) -> Def.HasLimitAt f a limit ->
+  (\forall (radius: Real) -> R.Lt zero radius -> \exists { x: Real \where LowerSample[f, a, bound, radius, x] }) -> R.Le bound limit :=
+  \fun (f: _)(a, limit, bound: _)(converges: _)(samples: _) => Order.leOfNotLtReverse bound limit (\block {
+    \fun (less: R.Lt limit bound) \then
+    \let epsilon: Real := sub bound limit \then
+    \takefrom delta: \Cast[Real] ({ d: Real \where Def.Control[f, a, limit, epsilon, d] }) \by converges epsilon (Rays.subPositive bound limit less) \then
+    \let control: Def.Control[f, a, limit, epsilon, delta] := \bysub(Real, { d: Real \where Def.Control[f, a, limit, epsilon, d] }, delta) \then
+    \takefrom x: \Cast[Real] ({ x: Real \where LowerSample[f, a, bound, delta, x] }) \by samples delta (#positive{control}) \then
+    \let sample: LowerSample[f, a, bound, delta, x] := \bysub(Real, { x: Real \where LowerSample[f, a, bound, delta, x] }, x) \then
+    \let upper: R.Lt (f x) bound := R.ltReplaceRight (f x) (add limit epsilon) bound (Estimates.addSubCancel bound limit)
+      (Metric.distanceLtUpper limit (f x) epsilon
+        (R.ltReplaceLeft (distance (f x) limit) (distance limit (f x)) epsilon (Metric.distanceSymmetric (f x) limit)
+          (#estimate{control} x (#different{sample}) (#near{sample})))) \then
+    \return R.ltNotLeReverse (f x) bound upper (#lower{sample})
+  });

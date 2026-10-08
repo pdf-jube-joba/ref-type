@@ -129,3 +129,36 @@
 \definition splitInflate: \forall (n: N.Nat^) (u: Option.Option[Fin n]) -> split n (inflate n u) = u :=
   \fun (n: N.Nat^) (u: Option.Option[Fin n]) => inflateInjective n (split n (inflate n u)) u (inflateSplit n (inflate n u));
 \module Scope(n: N.Nat^);
+\module Tuples(A: \Set);
+\module Empty(A: \Set);
+\module FromList(A: \Set);
+\module Transposition(n: N.Nat^, a, b: Fin n);
+\definition Nonzero(n: N.Nat^): \Set := \Cast[Fin (N.Nat^::succ n)]
+  ({ i: Fin (N.Nat^::succ n) \where Logic.Not (i = zero n) });
+\definition Predecessor(n: N.Nat^)(i: Nonzero n): \Set := \Cast[Fin n]
+  ({ j: Fin n \where succ n j = i });
+\definition predecessorExists: \forall (n: N.Nat^)(i: Nonzero n) -> \exists Predecessor n i :=
+  \fun (n: N.Nat^)(i: Nonzero n) => either!{{i = N.Nat^::zero} "or" {\exists { j: Fin n \where i = N.Nat^::succ (value n j) }} "either" {\exists Predecessor n i}
+    "lt:" {\fun (same: i = N.Nat^::zero) => Logic.falseElim (\exists Predecessor n i)
+      ((\bysub(Fin (N.Nat^::succ n), Nonzero n, i)) same)}
+    "rt:" {\block {
+      \fun (exists: \exists { j: Fin n \where i = N.Nat^::succ (value n j) }) \then
+      \takefrom j: \Cast[Fin n] ({ j: Fin n \where i = N.Nat^::succ (value n j) }) \by exists \then
+      \return \exact(\into[Fin n](j, Predecessor n i) \by {
+        sym!{{Fin (N.Nat^::succ n)}} i (succ n j) (\bysub(Fin n, { j: Fin n \where i = N.Nat^::succ (value n j) }, j))
+      }, Predecessor n i)
+    }}} (successorCases n i (bound (N.Nat^::succ n) i));
+\definition predecessorUnique: \forall (n: N.Nat^)(i: Nonzero n)(j, k: Predecessor n i) -> j = k :=
+  \fun (n: N.Nat^)(i: Nonzero n)(j, k: Predecessor n i) => NL.succInjective j k
+    (trans!{{Fin (N.Nat^::succ n)}} (succ n j) i (succ n k)
+      (\bysub(Fin n, Predecessor n i, j)) (sym!{{Fin (N.Nat^::succ n)}} (succ n k) i (\bysub(Fin n, Predecessor n i, k))));
+\definition predecessor(n: N.Nat^)(i: Nonzero n): Predecessor n i :=
+  \choice Predecessor n i \by { existence: predecessorExists n i, uniqueness: predecessorUnique n i };
+\definition successorPredecessor: \forall (n: N.Nat^)(i: Nonzero n) -> succ n (predecessor n i) = i :=
+  \fun (n: N.Nat^)(i: Nonzero n) => \bysub(Fin n, Predecessor n i, predecessor n i);
+\module Pigeonhole;
+\definition PermutationType(n: N.Nat^): \Set := \root.Data[].FinSet[].Permutations[n := n].Permutation;
+\module Permutations(n: N.Nat^);
+\module PermutationDecomposition;
+\module Ordering;
+\module Functions(n: N.Nat^);

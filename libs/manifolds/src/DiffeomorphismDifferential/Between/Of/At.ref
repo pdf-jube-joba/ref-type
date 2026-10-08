@@ -1,0 +1,35 @@
+\import SourceTangent.At[x := x] \as Source;
+\import TargetTangent.At[x := Forward.apply f x] \as Target;
+\import \root.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x] \as Differential;
+\import Spaces.Linear[V := Source.Vector, W := Target.Vector, source := Source.space, target := Target.space] \as ForwardMaps;
+\import Spaces.Linear[V := Target.Vector, W := Source.Vector, source := Target.space, target := Source.space] \as BackwardMaps;
+\module InCharts(left: Source.Chart, right: Target.Chart);
+\structure InverseLaws[inverse: BackwardMaps.Map]: \Prop {
+  leftInverse: \forall (v: Source.Vector) -> #apply{inverse} (#apply{Differential.value} v) = v,
+  rightInverse: \forall (w: Target.Vector) -> #apply{Differential.value} (#apply{inverse} w) = w,
+}
+\definition Values: \Set := \Cast[BackwardMaps.Map] ({ inverse: BackwardMaps.Map \where InverseLaws[inverse] });
+\definition existence: \exists Values := \block {
+  \takefrom left: Source.Chart \by Source.chartExists \then
+  \takefrom right: Target.Chart \by Target.chartExists \then
+  \return \exact(\into[BackwardMaps.Map](InCharts[left := left, right := right].inverse, Values) \by {
+    InverseLaws[InCharts[left := left, right := right].inverse] {
+      leftInverse := InCharts[left := left, right := right].leftInverse,
+      rightInverse := InCharts[left := left, right := right].rightInverse,
+    }
+  }, Values)
+};
+\definition uniqueness: \forall (f, g: Values) -> f = g :=
+  \fun (f, g: Values) => BackwardMaps.ext f g (\axiom:funext((#apply{f}), (#apply{g}), \fun (w: Target.Vector) =>
+    trans!{{Source.Vector}} (#apply{f} w) (#apply{f} (#apply{Differential.value} (#apply{g} w))) (#apply{g} w)
+      (congr!{{Target.Vector} {Source.Vector}} (#apply{f}) w (#apply{Differential.value} (#apply{g} w))
+        (sym!{{Target.Vector}} _ _ (#rightInverse{(\bysub(BackwardMaps.Map, Values, g))} w)))
+      (#leftInverse{(\bysub(BackwardMaps.Map, Values, f))} (#apply{g} w))));
+\definition chosen: Values := \choice Values \by { existence: existence, uniqueness: uniqueness };
+\definition inverse: BackwardMaps.Map := chosen;
+\import Spaces.Isomorphism[V := Source.Vector, W := Target.Vector, source := Source.space, target := Target.space] \as Isomorphisms;
+\definition isomorphism: Isomorphisms.Isomorphism := Isomorphisms.Isomorphism {
+  forward := Differential.value, backward := inverse,
+  leftInverse := #leftInverse{(\bysub(BackwardMaps.Map, Values, chosen))},
+  rightInverse := #rightInverse{(\bysub(BackwardMaps.Map, Values, chosen))},
+};

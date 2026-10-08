@@ -1,0 +1,46 @@
+\import \parent.Def[] \as Def;
+\import \parent.Operations[] \as Operations;
+\import topology.RealLine[] \as Line;
+\import topology.RealFunctions[A := Real] \as Functions;
+\import topology.Topology[Carrier := Real] \as Space;
+\import topology.MetricSpace[Carrier := Real] \as Metrics;
+\import Metrics.Topology[] \as MetricTopology;
+\import topology.RealMetric[] \as RealMetric;
+\definition topologicalOfContinuous: \forall (f: Real -> Real) -> Def.Continuous f -> Functions.Continuous Line.topology f :=
+  \fun (f: _)(continuous: _) => Functions.continuousOfLocal Line.topology f (\block {
+    \fun (a: Real)(epsilon: Real)(positive: _) \then
+    \takefrom delta: \Cast[Real] ({ d: Real \where Def.Control[f, a, f a, epsilon, d] }) \by continuous a epsilon positive \then
+    \let control: Def.Control[f, a, f a, epsilon, delta] := \bysub(Real, { d: Real \where Def.Control[f, a, f a, epsilon, d] }, delta) \then
+    \return \exact(\into[\Pow Real](Metrics.Ball RealMetric.metric a delta,
+      { U: \Pow Real \where Space.OpenNeighborhood[Line.topology, a, Functions.Small f a epsilon, U] }) \by {
+        Space.OpenNeighborhood[Line.topology, a, Functions.Small f a epsilon, Metrics.Ball RealMetric.metric a delta] {
+          open := MetricTopology.ballOpenIn RealMetric.metric a delta,
+          contains := Metrics.ballCenter RealMetric.metric a delta (#positive{control}),
+          within := \fun (x: Real)(near: _) => R.ltReplaceLeft (distance (f x) (f a)) (distance (f a) (f x)) epsilon
+            (Metric.distanceSymmetric (f x) (f a))
+            (Operations.continuityEstimate f a epsilon delta positive control x
+              (R.ltReplaceLeft (distance a x) (distance x a) delta (Metric.distanceSymmetric a x) near)),
+        }
+      }, \Cast[\Pow Real] ({ U: \Pow Real \where Space.OpenNeighborhood[Line.topology, a, Functions.Small f a epsilon, U] }))
+  });
+\definition continuousOfTopological: \forall (f: Real -> Real) -> Functions.Continuous Line.topology f -> Def.Continuous f := \block {
+  \fun (f: _)(continuous: _)(a: Real)(epsilon: Real)(positive: _) \then
+  \takefrom U: \Cast[\Pow Real] ({ U: \Pow Real \where Space.OpenNeighborhood[Line.topology, a, Functions.Small f a epsilon, U] })
+    \by Functions.localOfContinuous Line.topology f continuous a epsilon positive \then
+  \let neighborhood: Space.OpenNeighborhood[Line.topology, a, Functions.Small f a epsilon, U] := \bysub(\Pow Real,
+    { U: \Pow Real \where Space.OpenNeighborhood[Line.topology, a, Functions.Small f a epsilon, U] }, U) \then
+  \takefrom delta: \Cast[Real] (Metrics.NeighborhoodRadius RealMetric.metric U a) \by #open{neighborhood} a (#contains{neighborhood}) \then
+  \let radius: Logic.And[R.Lt zero delta, Space.Subset (Metrics.Ball RealMetric.metric a delta) U] :=
+    \bysub(Real, Metrics.NeighborhoodRadius RealMetric.metric U a, delta) \then
+  \return \exact(\into[Real](delta, { d: Real \where Def.Control[f, a, f a, epsilon, d] }) \by {
+    Def.Control[f, a, f a, epsilon, delta] {
+      positive := #left{radius},
+      estimate := \fun (x: Real)(different: _)(near: _) =>
+        R.ltReplaceLeft (distance (f a) (f x)) (distance (f x) (f a)) epsilon (Metric.distanceSymmetric (f a) (f x))
+          (#within{neighborhood} x (#right{radius} x (R.ltReplaceLeft (distance x a) (distance a x) delta (Metric.distanceSymmetric x a) near))),
+    }
+  }, \Cast[Real] ({ d: Real \where Def.Control[f, a, f a, epsilon, d] }))
+};
+\definition continuityAgreement: \forall (f: Real -> Real) -> Logic.PropEquiv[Def.Continuous f, Functions.Continuous Line.topology f] :=
+  \fun (f: _) => Logic.PropEquiv[_, _] { ltr := topologicalOfContinuous f, rtl := continuousOfTopological f };
+\module Subset(S: \Pow Real);

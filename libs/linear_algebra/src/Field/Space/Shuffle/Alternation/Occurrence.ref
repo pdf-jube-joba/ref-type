@@ -1,0 +1,11 @@
+\definition law: (\forall (f: Function) -> Laws[f] -> \forall (x: I) -> Membership.Occurs x xs -> f (Lists.List[I]::cons x xs) = zero) ->
+  \forall (head: I)(f: Function) -> Laws[f] -> \forall (x: I) -> Membership.Occurs x (Lists.List[I]::cons head xs) -> f (Lists.List[I]::cons x (Lists.List[I]::cons head xs)) = zero :=
+  \fun (previous: \forall (f: Function) -> Laws[f] -> \forall (x: I) -> Membership.Occurs x xs -> f (Lists.List[I]::cons x xs) = zero)(head: I)(f: Function)(laws: Laws[f])(x: I)(member: Membership.Occurs x (Lists.List[I]::cons head xs)) =>
+    either!{{x = head} "or" {Membership.Occurs x xs} "either" {f (Lists.List[I]::cons x (Lists.List[I]::cons head xs)) = zero}
+      "lt:" {\fun (equal: x = head) => \idelim head = x \with y: I => f (Lists.List[I]::cons y (Lists.List[I]::cons head xs)) = zero
+        \by { base: #repeated{laws} Lists.List[I]::nil head xs, equality: sym!{I} x head equal }}
+      "rt:" {\fun (member: Membership.Occurs x xs) => trans!{K} (f (Lists.List[I]::cons x (Lists.List[I]::cons head xs))) (neg (f (Lists.List[I]::cons head (Lists.List[I]::cons x xs)))) zero
+        (#swap{laws} Lists.List[I]::nil x head xs)
+        (trans!{K} (neg (f (Lists.List[I]::cons head (Lists.List[I]::cons x xs)))) (neg zero) zero
+          (congr!{K K} neg _ _ (previous (shift head f) (shifted f laws head) x member)) Sign.negativeZero)}
+    } member;

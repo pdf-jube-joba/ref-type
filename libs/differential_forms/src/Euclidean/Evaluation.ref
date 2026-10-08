@@ -1,0 +1,63 @@
+\import Reals.Multivariable[n := m].Open[] \as Source;
+\import Source.Smooth[] \as Regularity;
+\import Regularity.Operations[] \as Operations;
+\import \root.Euclidean[n := m].On[U := U].FunctionSums[I := Fin.Fin n] \as Sums;
+\import Fin.Tuples[A := Vectors.Vector] \as Arguments;
+\import Fin.Tuples[A := Fin.Fin n] \as Indices;
+\import Indices.Mapping[B := Vectors.Vector] \as Mapping;
+\import Fin.Empty[A := Fin.Fin n] \as Empty;
+\import Alternating.DegreeZero[] \as Scalars;
+\definition Family(k: N.Nat^): \Set := Source.Carrier U -> Multilinear.MultilinearForm k;
+\definition CoefficientSmooth(k: N.Nat^)(omega: Family k): \Prop :=
+  \forall (indices: Fin.Fin k -> Fin.Fin n) -> Regularity.SmoothOn U (\fun (x: Source.Carrier U) => omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i)));
+\definition VariableArguments(k: N.Nat^): \Set := Source.Carrier U -> Multilinear.Arguments k;
+\definition ArgumentSmooth(k: N.Nat^)(arguments: VariableArguments k): \Prop :=
+  \forall (i: Fin.Fin k)(j: Fin.Fin n) -> Regularity.SmoothOn U (\fun (x: Source.Carrier U) => arguments x i j);
+\definition Law(k: N.Nat^): \Prop := \forall (omega: Family k)(arguments: VariableArguments k) ->
+  CoefficientSmooth k omega -> ArgumentSmooth k arguments -> Regularity.SmoothOn U (\fun (x: Source.Carrier U) => omega x (arguments x));
+\definition equalSmooth: \forall (f, g: Source.ScalarFunction U) -> (\forall (x: Source.Carrier U) -> f x = g x) -> Regularity.SmoothOn U f -> Regularity.SmoothOn U g :=
+  \fun (f, g: Source.ScalarFunction U)(same: \forall (x: Source.Carrier U) -> f x = g x)(smooth: Regularity.SmoothOn U f) =>
+    \idelim f = g \with h: Source.ScalarFunction U => Regularity.SmoothOn U h \by { base: smooth, equality: \axiom:funext(f, g, same) };
+\definition zero: Law N.Nat^::zero :=
+  \fun (omega: Family N.Nat^::zero)(arguments: VariableArguments N.Nat^::zero)(coefficients: CoefficientSmooth N.Nat^::zero omega)(regular: ArgumentSmooth N.Nat^::zero arguments) =>
+    equalSmooth (\fun (x: Source.Carrier U) => omega x (\fun (i: Fin.Fin N.Nat^::zero) => Basis.vectors (Empty.function i)))
+      (\fun (x: Source.Carrier U) => omega x (arguments x))
+      (\fun (x: Source.Carrier U) => congr!{{Multilinear.Arguments N.Nat^::zero} {Reals.Real}} (omega x) _ _
+        (trans!{{Multilinear.Arguments N.Nat^::zero}} _ _ _ (Scalars.argumentsUnique (\fun (i: Fin.Fin N.Nat^::zero) => Basis.vectors (Empty.function i)))
+          (sym!{{Multilinear.Arguments N.Nat^::zero}} _ _ (Scalars.argumentsUnique (arguments x))))) (coefficients Empty.function);
+\module Step(k: N.Nat^, omega: Family (N.Nat^::succ k));
+\definition law: \forall (k: N.Nat^) -> Law k := \induction (k: N.Nat^) \return Law k \with {
+  | zero: zero
+  | succ: \fun (k: N.Nat^)(previous: Law k)(omega: Family (N.Nat^::succ k)) => Step[k := k, omega := omega].law previous
+};
+\definition RegularFamily(k: N.Nat^): \Set := \Cast[Family k] ({ omega: Family k \where CoefficientSmooth k omega });
+\definition RegularArguments(k: N.Nat^): \Set := \Cast[VariableArguments k] ({ arguments: VariableArguments k \where ArgumentSmooth k arguments });
+\import Regularity.Algebra[U := U] \as Functions;
+\definition evaluate(k: N.Nat^)(omega: RegularFamily k)(arguments: Multilinear.Arguments k): Functions.Function :=
+  \into[Source.ScalarFunction U]((\fun (x: Source.Carrier U) => omega x arguments), { h: Source.ScalarFunction U \where Regularity.SmoothOn U h }) \by {
+    law k omega (\fun (x: Source.Carrier U) => arguments) (\bysub(Family k, { omega: Family k \where CoefficientSmooth k omega }, omega))
+      (\fun (i: Fin.Fin k)(j: Fin.Fin n) => Operations.constantSmooth U (arguments i j))
+  };
+\definition variableEvaluation(k: N.Nat^)(omega: RegularFamily k)(arguments: RegularArguments k): Functions.Function :=
+  \into[Source.ScalarFunction U]((\fun (x: Source.Carrier U) => omega x (arguments x)), { h: Source.ScalarFunction U \where Regularity.SmoothOn U h }) \by {
+    law k omega arguments (\bysub(Family k, { omega: Family k \where CoefficientSmooth k omega }, omega))
+      (\bysub(VariableArguments k, { arguments: VariableArguments k \where ArgumentSmooth k arguments }, arguments))
+  };
+\module Differential(k: N.Nat^);
+\module ArgumentDifferential(k: N.Nat^);
+\definition slotTerm(k: N.Nat^)(omega: RegularFamily k)(arguments: RegularArguments k)(i: Fin.Fin m)(x: Source.Carrier U)(slot: Fin.Fin k): Reals.Real :=
+  omega x (Multilinear.update k (arguments x) slot (ArgumentDifferential[k := k].apply i arguments x slot));
+\definition derivativeValue(k: N.Nat^)(omega: RegularFamily k)(arguments: RegularArguments k)(i: Fin.Fin m)(x: Source.Carrier U): Reals.Real :=
+  Spaces.add (Differential[k := k].apply i omega x (arguments x))
+    (Spaces.Sums[I := Fin.Fin k].sum (Fin.elements k) (slotTerm k omega arguments i x));
+\definition DifferentiationLaw(k: N.Nat^): \Prop := \forall (omega: RegularFamily k)(arguments: RegularArguments k)(i: Fin.Fin m)(x: Source.Carrier U) ->
+  Regularity.Derivative[].derivative U (variableEvaluation k omega arguments) i x = derivativeValue k omega arguments i x;
+\module DifferentiationZero;
+\module Contract(k: N.Nat^);
+\module DifferentiationStep(k: N.Nat^, omega: RegularFamily (N.Nat^::succ k));
+
+\definition differentiation: \forall (k: N.Nat^) -> DifferentiationLaw k :=
+  \induction (k: N.Nat^) \return DifferentiationLaw k \with {
+    | zero: DifferentiationZero[].law
+    | succ: \fun (k: N.Nat^)(previous: DifferentiationLaw k)(omega: RegularFamily (N.Nat^::succ k)) => DifferentiationStep[k := k, omega := omega].law previous
+  };

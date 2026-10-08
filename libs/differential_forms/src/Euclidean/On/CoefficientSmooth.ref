@@ -1,0 +1,28 @@
+\import Fin.Tuples[A := Vectors.Vector] \as Arguments;
+\import Fin.Tuples[A := Fin.Fin n] \as Indices;
+\import Indices.Mapping[B := Vectors.Vector] \as Mapping;
+\import Fin.Empty[A := Fin.Fin n] \as Empty;
+\import Alternating.DegreeZero[] \as Scalars;
+\definition MultilinearFamily(k: N.Nat^): \Set := Open.Carrier U -> Multilinear.MultilinearForm k;
+\definition BasisSmooth(k: N.Nat^)(omega: MultilinearFamily k): \Prop :=
+  \forall (indices: Fin.Fin k -> Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => omega x (\fun (i: Fin.Fin k) => Basis.vectors (indices i)));
+\definition Regular(k: N.Nat^): \Prop := \forall (omega: MultilinearFamily k) -> BasisSmooth k omega ->
+  \forall (arguments: Multilinear.Arguments k) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => omega x arguments);
+\definition zero: Regular N.Nat^::zero := \block {
+  \fun (omega: MultilinearFamily N.Nat^::zero)(coefficients: BasisSmooth N.Nat^::zero omega)(arguments: Multilinear.Arguments N.Nat^::zero) \then
+  \let basisArguments: Multilinear.Arguments N.Nat^::zero := \fun (i: Fin.Fin N.Nat^::zero) => Basis.vectors (Empty.function i) \then
+  \let same: basisArguments = arguments := trans!{{Multilinear.Arguments N.Nat^::zero}} basisArguments Scalars.emptyArguments arguments
+    (Scalars.argumentsUnique basisArguments) (sym!{{Multilinear.Arguments N.Nat^::zero}} arguments Scalars.emptyArguments (Scalars.argumentsUnique arguments)) \then
+  \return smoothOfEqual (\fun (x: Open.Carrier U) => omega x basisArguments) (\fun (x: Open.Carrier U) => omega x arguments)
+    (\fun (x: Open.Carrier U) => congr!{{Multilinear.Arguments N.Nat^::zero} {Reals.Real}} (omega x) basisArguments arguments same) (coefficients Empty.function)
+};
+\module Step(k: N.Nat^, omega: MultilinearFamily (N.Nat^::succ k));
+\definition regular: \forall (k: N.Nat^) -> Regular k :=
+  \induction (k: N.Nat^) \return Regular k \with {
+    | zero: zero
+    | succ: \fun (k: N.Nat^)(previous: Regular k)(omega: MultilinearFamily (N.Nat^::succ k)) => Step[k := k, omega := omega].law previous
+  };
+\definition family: \forall (k: N.Nat^)(omega: Family k) ->
+  (\forall (indices: Fin.Fin k -> Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => Coefficients.coefficients k (omega x) indices)) -> SmoothFamily k omega :=
+  \fun (k: N.Nat^)(omega: Family k)(coefficients: \forall (indices: Fin.Fin k -> Fin.Fin n) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => Coefficients.coefficients k (omega x) indices)) =>
+    regular k (\fun (x: Open.Carrier U) => Alternating.asMultilinear k (omega x)) coefficients;

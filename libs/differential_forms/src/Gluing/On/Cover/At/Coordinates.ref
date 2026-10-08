@@ -1,0 +1,19 @@
+\import Pointwise.Coordinates[chart := chart] \as Coordinates;
+\import \root.Euclidean[n := n].On[U := #image{chart}] \as Forms;
+\module Patch(i: I);
+\definition patches(i: I): Open.OpenSet := Patch[i := i].image;
+\definition included: \forall (i: I) -> Open.Included (patches i) #image{chart} :=
+  \fun (i: I)(a: Vectors.Vector)(member: \In[Vectors.Vector] (#points{(patches i)}) a) =>
+    Patch[i := i].included a member;
+\definition covered: Covers -> \forall (a: Open.Carrier #image{chart}) -> \exists { i: I \where \In[Vectors.Vector] (#points{(patches i)}) a } := \block {
+  \fun (covers: Covers)(a: Open.Carrier #image{chart}) \then
+  \takefrom i: Indices (Charts.point chart a) \by covers (Charts.point chart a) \then
+  \return \exact(\into[I](i, { j: I \where \In[Vectors.Vector] (#points{(patches j)}) a }) \by {
+    Patch[i := i].contains a (\bysub(I, { j: I \where \In[M.Point] (domains j) (Charts.point chart a) }, i))
+  }, \Cast[I] ({ j: I \where \In[Vectors.Vector] (#points{(patches j)}) a }))
+};
+\definition regular: \forall (covers: Covers)(compatible: Compatible) -> Forms.SmoothFamily k (Coordinates.family (family covers compatible)) :=
+  \fun (covers: Covers)(compatible: Compatible)(arguments: Multilinear.Arguments k) =>
+    Open.SmoothCover[I := I, U := #image{chart}, domains := patches,
+      f := \fun (a: Open.Carrier #image{chart}) => Coordinates.family (family covers compatible) a arguments].smooth included
+      (covered covers) (\fun (i: I) => Patch[i := i].regular covers compatible arguments);

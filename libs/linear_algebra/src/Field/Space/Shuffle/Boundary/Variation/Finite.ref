@@ -1,0 +1,22 @@
+\import std.Data[].FinSet[] \as Fin;
+\import Fin.FromList[A := I] \as SourceList;
+\import Fin.Tuples[A := I] \as Tuples;
+\import Lists.Replace[A := J] \as Replacement;
+\definition positional(change: I -> J)(f: Other.Function)(xs: Lists.List[I]): K :=
+  \parent.\parent.\parent.\parent.Sums[I := Fin.Fin (Lists.length I xs)].sum (Fin.elements (Lists.length I xs))
+    (\fun (slot: Fin.Fin (Lists.length I xs)) => f (Replacement.apply (mapped xs) slot (change (SourceList.tuple xs slot))));
+\module At(xs: Lists.List[I]);
+\definition law: \forall (xs: Lists.List[I])(change: I -> J)(f: Other.Function) -> insert change f xs = positional change f xs :=
+  \induction (xs: Lists.List[I]) \return \forall (change: I -> J)(f: Other.Function) -> insert change f xs = positional change f xs \with {
+    | nil: \fun (change: I -> J)(f: Other.Function) => \refl(zero)
+    | cons: \fun (head: I)(xs: Lists.List[I])
+      (previous: \forall (change: I -> J)(f: Other.Function) -> insert change f xs = positional change f xs)(change: I -> J)(f: Other.Function) =>
+      trans!{K} (insert change f (Lists.List[I]::cons head xs))
+        (add (f (Lists.List[J]::cons (change head) (mapped xs))) (positional change (Other.shift (map head) f) xs))
+        (positional change f (Lists.List[I]::cons head xs))
+        (congr!{K K} (add (f (Lists.List[J]::cons (change head) (mapped xs))))
+          (insert change (Other.shift (map head) f) xs) (positional change (Other.shift (map head) f) xs) (previous change (Other.shift (map head) f)))
+        (sym!{K} (positional change f (Lists.List[I]::cons head xs))
+          (add (f (Lists.List[J]::cons (change head) (mapped xs))) (positional change (Other.shift (map head) f) xs))
+          (At[xs := xs].successor head change f))
+  };

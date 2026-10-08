@@ -1,0 +1,49 @@
+\import \parent.\parent.\parent.Derivative[].Prop[] \as DerivativeLaws;
+\import \parent.\parent.\parent.Limit[].Def[] \as Limits;
+\import \parent.\parent.\parent.Limit[].Operations[] \as LimitLaws;
+\import Analysis.Algebra[] \as Algebra;
+\use Equality.congr2;
+\definition continuousAt: \forall (f, d: Real -> Real)(x: Local.Carrier) -> Derivative.HasDerivativeAt f x (d x) -> Local.ContinuousAt f x := \block {
+  \fun (f, d: _)(x: Local.Carrier)(derivative: _)(epsilon: Real)(positive: _) \then
+  \let continuous: Limits.ContinuousAt f x := Derivatives.continuousOfDerivative f x (d x) derivative \then
+  \takefrom delta: \Cast[Real] ({ r: Real \where Limits.Control[f, x, f x, epsilon, r] }) \by continuous epsilon positive \then
+  \let control: Limits.Control[f, x, f x, epsilon, delta] := \bysub(Real, { r: Real \where Limits.Control[f, x, f x, epsilon, r] }, delta) \then
+  \return \exact(\into[Real](delta, { r: Real \where Local.Control[f, x, epsilon, r] }) \by {
+    Local.Control[f, x, epsilon, delta] {
+      positive := #positive{control},
+      estimate := \fun (y: Local.Carrier)(near: _) => LimitLaws.continuityEstimate f x epsilon delta positive control y near,
+    }
+  }, \Cast[Real] ({ r: Real \where Local.Control[f, x, epsilon, r] }))
+};
+\definition increment: \forall (f, d: Real -> Real)(c, theta: Real) -> R.Lt a b ->
+  (\forall (x: Local.Carrier) -> Derivative.HasDerivativeAt f x (d x)) ->
+  (\forall (x: Real) -> Interior x -> R.Le (distance (d x) c) theta) ->
+  R.Le (distance (sub (sub (f b) (f a)) (mul c (sub b a))) zero) (mul theta (distance b a)) := \block {
+  \fun (f, d: Real -> Real)(c, theta: Real)(ab: _)(derivatives: _)(bounded: _) \then
+  \let continuous: Local.ContinuousOn f := \fun (x: Local.Carrier) => continuousAt f d x (derivatives x) \then
+  \let differentiable: DifferentiableOn f := \fun (x: Real)(inside: Interior x) => \exact(\into[Real](d x,
+    { e: Real \where Derivative.HasDerivativeAt f x e }) \by {
+      derivatives (\into[Real](x, Line.ClosedInterval a b) \by { Logic.And[_, _]::# (Order.leOfLt a x (#left{inside})) (Order.leOfLt x b (#right{inside})) })
+    }, \Cast[Real] ({ e: Real \where Derivative.HasDerivativeAt f x e })) \then
+  \takefrom x: \Cast[Real] ({ x: Real \where MeanValueResult[f, x] }) \by meanValue f ab continuous differentiable \then
+  \let witness: MeanValueResult[f, x] := \bysub(Real, { x: Real \where MeanValueResult[f, x] }, x) \then
+  \let closed: Local.Carrier := \into[Real](x, Line.ClosedInterval a b) \by {
+    Logic.And[_, _]::# (Order.leOfLt a x (#left{(#interior{witness})})) (Order.leOfLt x b (#right{(#interior{witness})}))
+  } \then
+  \let slope: secant f = d x := Derivatives.unique f x (secant f) (d x) (#derivative{witness}) (derivatives closed) \then
+  \let increment: sub (f b) (f a) = mul (d x) (sub b a) := trans!{Real} _ _ _
+    (sym!{Real} _ _ (Derivatives.slopeIncrement f a b (\fun (equal: b = a) => Order.ltNotEq a b ab (sym!{Real} _ _ equal))))
+    (congr!{Real Real} (\fun (s: Real) => mul s (sub b a)) _ _ slope) \then
+  \let remainder: sub (sub (f b) (f a)) (mul c (sub b a)) = mul (sub (d x) c) (sub b a) := trans!{Real} _ _ _
+    (congr!{Real Real} (\fun (s: Real) => sub s (mul c (sub b a))) _ _ increment) (sym!{Real} _ _ (Algebra.subMul (d x) c (sub b a))) \then
+  \let magnitude: distance (mul (sub (d x) c) (sub b a)) zero = mul (distance (d x) c) (distance b a) :=
+    trans!{Real} _ _ _ (Metric.distanceSymmetric (mul (sub (d x) c) (sub b a)) zero)
+      (trans!{Real} _ _ _ (Product.absProduct (sub (d x) c) (sub b a))
+        (congr2!{Real Real Real} mul _ _ _ _
+          (trans!{Real} _ _ _ (Metric.distanceSymmetric zero (sub (d x) c)) (Estimates.distanceDifference (d x) c))
+          (trans!{Real} _ _ _ (Metric.distanceSymmetric zero (sub b a)) (Estimates.distanceDifference b a)))) \then
+  \return R.leReplaceLeft (mul (distance (d x) c) (distance b a)) (distance (sub (sub (f b) (f a)) (mul c (sub b a))) zero) (mul theta (distance b a))
+    (sym!{Real} _ _ (trans!{Real} _ _ _ (congr!{Real Real} (\fun (s: Real) => distance s zero) _ _ remainder) magnitude))
+    (R.leReplace _ _ _ _ (Laws.fieldMulComm (distance b a) (distance (d x) c)) (Laws.fieldMulComm (distance b a) theta)
+      (Estimates.mulMonotone (distance b a) _ _ (Metric.distanceNonnegative b a) (bounded x (#interior{witness}))))
+};

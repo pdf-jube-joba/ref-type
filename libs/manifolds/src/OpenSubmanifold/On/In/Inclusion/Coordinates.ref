@@ -1,0 +1,18 @@
+\import Maps.Coordinates[f := continuous, left := left, right := right] \as Coordinates;
+\definition restrictedRight: Charts.Chart := Restricted.Of[chart := right].value;
+\import Charts.Transition[left := left, right := restrictedRight] \as Transition;
+\definition included: Open.Included Coordinates.domain Transition.domain :=
+  \fun (x: calculus.Real[].Multivariable[n := n].Point)(member: \In[calculus.Real[].Multivariable[n := n].Point] (#points{Coordinates.domain}) x) => \block {
+    \let a: Open.Carrier Coordinates.domain := \into[calculus.Real[].Multivariable[n := n].Point](x, #points{Coordinates.domain}) \by { member } \then
+    \return Transition.intro (Coordinates.leftCoordinate a) (Coordinates.inRightDomain a)
+  };
+\definition inAtlas: OriginalAtlas.Member M.atlas right -> Member restrictedRight :=
+  \fun (member: OriginalAtlas.Member M.atlas right) =>
+    \exact(\into[OriginalChart](\into[Original.Chart](right, #charts{M.atlas}) \by { member },
+      { original: OriginalChart \where restricted original = restrictedRight }) \by { \refl(restrictedRight) },
+      \Cast[OriginalChart] ({ original: OriginalChart \where restricted original = restrictedRight }));
+\definition regular: Atlases.Member manifold.atlas left -> OriginalAtlas.Member M.atlas right -> Coordinates.Smooth :=
+  \fun (leftMember: Atlases.Member manifold.atlas left)(rightMember: OriginalAtlas.Member M.atlas right)(i: std.Data[].FinSet[].Fin n) =>
+    Restriction.localSmooth Coordinates.domain Transition.domain included
+      (\fun (a: Open.Carrier Transition.domain) => Transition.vector a i)
+      (#forward{leftMember} restrictedRight (inAtlas rightMember) i);

@@ -3,6 +3,38 @@
 \import AmbientFinite.Selection[B := \Pow CarrierSet] \as Selection;
 \import Sub.Compactness[] \as SubCompact;
 \import std.Logic[].Equality[] \as Equality;
+\definition secondCountable: \forall (ambient: Topology) -> IsSecondCountable ambient -> Sub.IsSecondCountable (topology ambient) := \block {
+  \fun (ambient: _)(countable: _) \then
+  \takefrom basis: \Cast[N.Nat^ -> \Pow Carrier] ({ basis: N.Nat^ -> \Pow Carrier \where IsCountableBasis[ambient, basis] }) \by countable \then
+  \let laws: IsCountableBasis[ambient, basis] := \bysub(N.Nat^ -> \Pow Carrier,
+    { basis: N.Nat^ -> \Pow Carrier \where IsCountableBasis[ambient, basis] }, basis) \then
+  \let traces: N.Nat^ -> \Pow CarrierSet := \fun (n: N.Nat^) => Trace (basis n) \then
+  \return \exact(\into[N.Nat^ -> \Pow CarrierSet](traces,
+    { basis: N.Nat^ -> \Pow CarrierSet \where Sub.IsCountableBasis[topology ambient, basis] }) \by {
+      Sub.IsCountableBasis[topology ambient, traces] {
+        open := \fun (n: N.Nat^) => traceOpen ambient (basis n) (#open{laws} n),
+        refines := \fun (W: \Pow CarrierSet)(open: Sub.IsOpenIn (topology ambient) W)(x: CarrierSet)(inside: Sub.Member W x) =>
+          openTraceElim ambient W
+            (\exists { n: N.Nat^ \where Logic.And[Sub.Member (traces n) x, Sub.Subset (traces n) W] })
+            (\block {
+              \fun (U: \Pow Carrier)(open: IsOpenIn ambient U)(same: W = Trace U) \then
+              \let inU: Member U x := \idelim W = Trace U \with V: \Pow CarrierSet => Sub.Member V x \by { base: inside, equality: same } \then
+              \takefrom n: \Cast[N.Nat^] ({ n: N.Nat^ \where Logic.And[Member (basis n) x, Subset (basis n) U] })
+                \by #refines{laws} U open x inU \then
+              \let refinement: Logic.And[Member (basis n) x, Subset (basis n) U] := \bysub(N.Nat^,
+                { n: N.Nat^ \where Logic.And[Member (basis n) x, Subset (basis n) U] }, n) \then
+              \return \exact(\into[N.Nat^](n,
+                { n: N.Nat^ \where Logic.And[Sub.Member (traces n) x, Sub.Subset (traces n) W] }) \by {
+                  Logic.And[_, _]::# (#left{refinement})
+                    (\fun (y: CarrierSet)(member: Sub.Member (traces n) y) => \idelim Trace U = W
+                      \with V: \Pow CarrierSet => Sub.Member V y \by {
+                        base: #right{refinement} y member, equality: sym!{\Pow CarrierSet} _ _ same
+                      })
+                }, \Cast[N.Nat^] ({ n: N.Nat^ \where Logic.And[Sub.Member (traces n) x, Sub.Subset (traces n) W] }))
+            }) (openRepresentation ambient W open),
+      }
+    }, \Cast[N.Nat^ -> \Pow CarrierSet] ({ basis: N.Nat^ -> \Pow CarrierSet \where Sub.IsCountableBasis[topology ambient, basis] }))
+};
 \definition hausdorff: \forall (ambient: Topology) -> IsT2 ambient -> Sub.IsT2 (topology ambient) := \block {
   \fun (ambient: _) (separated: _) (x, y: CarrierSet) (different: _) \then
   \takefrom U: \Cast[\Pow Carrier] ({ U: \Pow Carrier \where RegularChoice[ambient, Singleton y, x, U] }) \by separated x y different \then

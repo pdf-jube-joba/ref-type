@@ -1,0 +1,29 @@
+\import N.Basic[].Prop[] \as Naturals;
+\import Multilinear.Properties[] \as Arguments;
+\definition degree: N.Nat^ := N.Nat^::succ N.Nat^::zero;
+\definition head: Fin.Fin degree := Fin.zero N.Nat^::zero;
+\definition uniqueIndex: \forall (j: Fin.Fin degree) -> j = head :=
+  \fun (j: Fin.Fin degree) => Naturals.leZeroEq j (Naturals.succLeOfLt degree j (Fin.bound degree j));
+\definition updateHead: \forall (arguments: Multilinear.Arguments degree)(j: Fin.Fin degree)(v: Vectors.Vector) -> Multilinear.update degree arguments j v head = v :=
+  \fun (arguments: Multilinear.Arguments degree)(j: Fin.Fin degree)(v: Vectors.Vector) => trans!{{Vectors.Vector}} _ _ _
+    (congr!{{Fin.Fin degree} {Vectors.Vector}} (Multilinear.update degree arguments j v) head j (sym!{{Fin.Fin degree}} j head (uniqueIndex j)))
+    (Arguments.updateSelf degree arguments j v);
+\definition function: Multilinear.Function degree := \fun (arguments: Multilinear.Arguments degree) => arguments head i;
+\definition linear: Multilinear.Laws[degree, function] := Multilinear.Laws[degree, function] {
+  addition := \fun (arguments: Multilinear.Arguments degree)(j: Fin.Fin degree)(v, w: Vectors.Vector) => trans!{{Reals.Real}} _ _ _
+    (congr!{{Vectors.Vector} {Reals.Real}} (\fun (value: Vectors.Vector) => value i) _ _ (updateHead arguments j (Vectors.plus v w)))
+    (sym!{{Reals.Real}} _ _ (congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add _ _ _ _
+      (congr!{{Vectors.Vector} {Reals.Real}} (\fun (value: Vectors.Vector) => value i) _ _ (updateHead arguments j v))
+      (congr!{{Vectors.Vector} {Reals.Real}} (\fun (value: Vectors.Vector) => value i) _ _ (updateHead arguments j w)))),
+  scalar := \fun (arguments: Multilinear.Arguments degree)(j: Fin.Fin degree)(a: Reals.Real)(v: Vectors.Vector) => trans!{{Reals.Real}} _ _ _
+    (congr!{{Vectors.Vector} {Reals.Real}} (\fun (value: Vectors.Vector) => value i) _ _ (updateHead arguments j (Vectors.scale a v)))
+    (sym!{{Reals.Real}} _ _ (congr!{{Reals.Real} {Reals.Real}} (Spaces.mul a) _ _
+      (congr!{{Vectors.Vector} {Reals.Real}} (\fun (value: Vectors.Vector) => value i) _ _ (updateHead arguments j v)))),
+};
+\definition form: Alternating.Form degree := \into[Multilinear.Function degree](function, Alternating.Form degree) \by {
+  Alternating.AlternatingLaws[degree, function] {
+    linear := linear,
+    alternating := \fun (arguments: Multilinear.Arguments degree)(j, k: Fin.Fin degree)(different: Logic.Not (j = k))(equal: arguments j = arguments k) =>
+      Logic.falseElim (function arguments = Spaces.zero) (different (trans!{{Fin.Fin degree}} j head k (uniqueIndex j) (sym!{{Fin.Fin degree}} k head (uniqueIndex k)))),
+  }
+};

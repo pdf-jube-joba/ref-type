@@ -1,0 +1,29 @@
+\import std.Logic[].Classical[] \as Classical;
+\structure Data: \Set {
+  forward: Fin n -> Fin n,
+  backward: Fin n -> Fin n,
+}
+\structure Laws[data: Data]: \Prop {
+  leftInverse: \forall (i: Fin n) -> #backward{data} (#forward{data} i) = i,
+  rightInverse: \forall (i: Fin n) -> #forward{data} (#backward{data} i) = i,
+}
+\definition Permutation: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition laws(p: Permutation): Laws[p] := \bysub(Data, { data: Data \where Laws[data] }, p);
+\definition injective: \forall (p: Permutation)(i, j: Fin n) -> #forward{p} i = #forward{p} j -> i = j :=
+  \fun (p: Permutation)(i, j: Fin n)(same: #forward{p} i = #forward{p} j) => trans!{{Fin n}} i (#backward{p} (#forward{p} i)) j
+    (sym!{{Fin n}} (#backward{p} (#forward{p} i)) i (#leftInverse{(laws p)} i))
+    (trans!{{Fin n}} (#backward{p} (#forward{p} i)) (#backward{p} (#forward{p} j)) j
+      (congr!{{Fin n} {Fin n}} #backward{p} (#forward{p} i) (#forward{p} j) same) (#leftInverse{(laws p)} j));
+\structure Swap: \Set {
+  first: Fin n,
+  second: Fin n,
+}
+\definition swap(s: Swap)(i: Fin n): Fin n := \parent.Transposition[n := n, a := #first{s}, b := #second{s}].apply i;
+\definition Word: \Set := Lists.List[Swap];
+\definition action(word: Word): Fin n -> Fin n := Lists.foldr Swap (Fin n -> Fin n)
+  (\fun (s: Swap)(tail: Fin n -> Fin n)(i: Fin n) => tail (swap s i)) (\fun (i: Fin n) => i) word;
+\definition Represents(p: Permutation)(word: Word): \Prop := action word = #forward{p};
+\definition PermutationType(k: N.Nat^): \Set := \root.Data[].FinSet[].Permutations[n := k].Permutation;
+\module Step(p: PermutationType (N.Nat^::succ n));
+\module Operations;
+\module Lifting;

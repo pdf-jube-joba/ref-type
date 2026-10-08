@@ -1,0 +1,18 @@
+\definition domain: OpenSet := intersection (#domain{left}) (#domain{right});
+\definition intoLeft: Included domain (#domain{left}) := intersectionLeft (#domain{left}) (#domain{right});
+\definition intoRight: Included domain (#domain{right}) := intersectionRight (#domain{left}) (#domain{right});
+\definition included: Included domain U := \fun (x: Point)(member: \In[Point] (#points{domain}) x) =>
+  #included{left} x (intoLeft x member);
+\definition leftFamily: Smooth.PartialFamily domain := Restriction.localFamily domain (#domain{left}) intoLeft (#derivatives{left});
+\definition rightFamily: Smooth.PartialFamily domain := Restriction.localFamily domain (#domain{right}) intoRight (#derivatives{right});
+\definition leftLaws: Smooth.ContDiffLaws[domain, restrict domain U included f, k, leftFamily] :=
+  Restriction.localLaws domain (#domain{left}) intoLeft k (restrict (#domain{left}) U (#included{left}) f) (#derivatives{left}) (#regular{left});
+\definition rightLaws: Smooth.ContDiffLaws[domain, restrict domain U included f, k, rightFamily] :=
+  Restriction.localLaws domain (#domain{right}) intoRight k (restrict (#domain{right}) U (#included{right}) f) (#derivatives{right}) (#regular{right});
+\definition compatible: \forall (a: Carrier U)(leftMember: Contains left a)(rightMember: Contains right a)(directions: Smooth.Directions) ->
+  NatLaws.Le (Smooth.order directions) k -> jet left a leftMember directions = jet right a rightMember directions := \block {
+  \fun (a: _)(leftMember: _)(rightMember: _)(directions: _)(bound: _) \then
+  \let localPoint: Carrier domain := \into[Point](a, #points{domain}) \by { Logic.And[_, _]::# leftMember rightMember } \then
+  \return Properties.partialFamilyUnique domain (restrict domain U included f) k leftFamily rightFamily
+    (#partials{leftLaws}) (#partials{rightLaws}) directions bound localPoint
+};

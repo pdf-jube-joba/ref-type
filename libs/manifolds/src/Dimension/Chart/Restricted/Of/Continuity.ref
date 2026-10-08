@@ -1,0 +1,62 @@
+\definition domainTopology: topology.Structures[].Topology[Domain] := Charts.domainTopology domains;
+\definition newImageTopology: topology.Structures[].Topology[Open.Carrier image] := Charts.imageTopology image;
+\import topology.Continuity[A := Domain, B := Point].Corestriction[S := domains] \as DomainInclusion;
+\import topology.Continuity[A := Point, B := M].Corestriction[S := U] \as SubsetInclusion;
+\import topology.Continuity[A := Domain, B := M] \as ToAmbient;
+\import topology.Composition[A := Domain, B := Point, C := M] \as AmbientComposition;
+\definition ambientContinuous: ToAmbient.Continuous domainTopology space (\fun (x: Domain) => x) :=
+  AmbientComposition.composeContinuous domainTopology restrictedTopology space
+    (\fun (x: Domain) => x) (\fun (x: Point) => x)
+    (DomainInclusion.inclusionContinuous restrictedTopology) (SubsetInclusion.inclusionContinuous space);
+\import ToAmbient.Corestriction[S := #domain{chart}] \as IntoOldDomain;
+\import topology.Continuity[A := Domain, B := LocalPoint chart] \as ToOldDomain;
+\definition oldPointContinuous: ToOldDomain.Continuous domainTopology (oldDomainTopology) oldPoint :=
+  IntoOldDomain.corestrictContinuous domainTopology space oldPoint ambientContinuous;
+\import topology.Composition[A := Domain, B := LocalPoint chart, C := Open.Carrier #image{chart}] \as CoordinateComposition;
+\import topology.Continuity[A := Domain, B := Open.Carrier #image{chart}] \as ToOldImage;
+\definition coordinateContinuous: ToOldImage.Continuous domainTopology (imageTopology #image{chart})
+  (\fun (x: Domain) => coordinate chart (oldPoint x)) :=
+    CoordinateComposition.composeContinuous domainTopology (oldDomainTopology) (imageTopology #image{chart})
+      oldPoint (coordinate chart) oldPointContinuous
+      (#forwardContinuous{(Homeomorphisms.laws (oldDomainTopology) (imageTopology #image{chart}) #coordinates{chart})});
+\import topology.Continuity[A := Open.Carrier #image{chart}, B := Coordinates.Point].Corestriction[S := #points{(#image{chart})}] \as OldImageInclusion;
+\import topology.Composition[A := Domain, B := Open.Carrier #image{chart}, C := Coordinates.Point] \as CoordinateAmbientComposition;
+\import topology.Continuity[A := Domain, B := Coordinates.Point] \as CoordinateAmbient;
+\definition coordinateAmbientContinuous: CoordinateAmbient.Continuous domainTopology Euclidean.topology
+  (\fun (x: Domain) => coordinate chart (oldPoint x)) :=
+    CoordinateAmbientComposition.composeContinuous domainTopology (imageTopology #image{chart}) Euclidean.topology
+      (\fun (x: Domain) => coordinate chart (oldPoint x)) (\fun (x: Open.Carrier #image{chart}) => x)
+      coordinateContinuous (OldImageInclusion.inclusionContinuous Euclidean.topology);
+\import CoordinateAmbient.Corestriction[S := points] \as IntoNewImage;
+\import topology.Continuity[A := Domain, B := Open.Carrier image] \as Forward;
+\definition forwardContinuous: Forward.Continuous domainTopology newImageTopology forward :=
+  IntoNewImage.corestrictContinuous domainTopology Euclidean.topology forward coordinateAmbientContinuous;
+\import topology.Continuity[A := Open.Carrier image, B := Coordinates.Point] \as ImageAmbient;
+\import ImageAmbient.Corestriction[S := points] \as NewImageInclusion;
+\import ImageAmbient.Corestriction[S := #points{(#image{chart})}] \as IntoOldImage;
+\import topology.Continuity[A := Open.Carrier image, B := Open.Carrier #image{chart}] \as ToOldImageBack;
+\definition oldCoordinateContinuous: ToOldImageBack.Continuous newImageTopology (imageTopology #image{chart}) oldCoordinate :=
+  IntoOldImage.corestrictContinuous newImageTopology Euclidean.topology oldCoordinate (NewImageInclusion.inclusionContinuous Euclidean.topology);
+\import topology.Composition[A := Open.Carrier image, B := Open.Carrier #image{chart}, C := LocalPoint chart] \as PointComposition;
+\import topology.Continuity[A := Open.Carrier image, B := LocalPoint chart] \as ToOldPoint;
+\definition oldInverseContinuous: ToOldPoint.Continuous newImageTopology (oldDomainTopology)
+  (\fun (x: Open.Carrier image) => point chart (oldCoordinate x)) :=
+    PointComposition.composeContinuous newImageTopology (imageTopology #image{chart}) (oldDomainTopology)
+      oldCoordinate (point chart) oldCoordinateContinuous
+      (#backwardContinuous{(Homeomorphisms.laws (oldDomainTopology) (imageTopology #image{chart}) #coordinates{chart})});
+\import topology.Continuity[A := LocalPoint chart, B := M].Corestriction[S := #domain{chart}] \as OldDomainInclusion;
+\import topology.Composition[A := Open.Carrier image, B := LocalPoint chart, C := M] \as PointAmbientComposition;
+\import topology.Continuity[A := Open.Carrier image, B := M] \as PointAmbient;
+\definition inverseAmbientContinuous: PointAmbient.Continuous newImageTopology space (\fun (x: Open.Carrier image) => point chart (oldCoordinate x)) :=
+  PointAmbientComposition.composeContinuous newImageTopology (oldDomainTopology) space
+    (\fun (x: Open.Carrier image) => point chart (oldCoordinate x)) (\fun (x: LocalPoint chart) => x)
+    oldInverseContinuous (OldDomainInclusion.inclusionContinuous space);
+\import PointAmbient.Corestriction[S := U] \as IntoSubset;
+\import topology.Continuity[A := Open.Carrier image, B := Point] \as ToSubset;
+\definition restrictedBackward(x: Open.Carrier image): Point := backward x;
+\definition inverseSubsetContinuous: ToSubset.Continuous newImageTopology restrictedTopology restrictedBackward :=
+  IntoSubset.corestrictContinuous newImageTopology space restrictedBackward inverseAmbientContinuous;
+\import ToSubset.Corestriction[S := domains] \as IntoDomain;
+\import topology.Continuity[A := Open.Carrier image, B := Domain] \as Backward;
+\definition backwardContinuous: Backward.Continuous newImageTopology domainTopology backward :=
+  IntoDomain.corestrictContinuous newImageTopology restrictedTopology backward inverseSubsetContinuous;

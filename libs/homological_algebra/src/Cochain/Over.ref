@@ -1,0 +1,61 @@
+\definition next(k: N.Nat^): N.Nat^ := N.Nat^::succ k;
+\structure Family {
+  Carrier: N.Nat^ -> \Set,
+  space: \forall (k: N.Nat^) -> Ring.RingModule[R, Carrier k, ring],
+}
+\structure DifferentialData[F: Family]: \Set {
+  apply: \forall (k: N.Nat^) -> F.Carrier k -> F.Carrier (next k),
+}
+\structure DifferentialLaws[F: Family, d: DifferentialData[F]]: \Prop {
+  addition: \forall (k: N.Nat^)(x, y: F.Carrier k) ->
+    d.apply k (#add{(F.space k)} x y) = #add{(F.space (next k))} (d.apply k x) (d.apply k y),
+  scalar: \forall (k: N.Nat^)(a: R)(x: F.Carrier k) ->
+    d.apply k (#smul{(F.space k)} a x) = #smul{(F.space (next k))} a (d.apply k x),
+  squareZero: \forall (k: N.Nat^)(x: F.Carrier k) ->
+    d.apply (next k) (d.apply k x) = #zero{(F.space (next (next k)))},
+}
+\structure Complex {
+  family: Family,
+  differential: DifferentialData[family],
+  laws: DifferentialLaws[family, differential],
+}
+\module At(C: Complex, k: N.Nat^);
+\definition cohomology(C: Complex)(k: N.Nat^): \Set := At[C := C, k := k].Cohomology;
+\module Map(C, D: Complex);
+\module End(C: Complex) {
+  \import \parent.Map[C := C, D := C] \as Maps;
+  \definition identity: Maps.Map := Maps.Map {
+    apply := \fun (k: N.Nat^)(x: C.family.Carrier k) => x,
+    addition := \fun (k: N.Nat^)(x, y: C.family.Carrier k) => \refl(#add{(C.family.space k)} x y),
+    scalar := \fun (k: N.Nat^)(a: R)(x: C.family.Carrier k) => \refl(#smul{(C.family.space k)} a x),
+    commutes := \fun (k: N.Nat^)(x: C.family.Carrier k) => \refl(#apply{C.differential} k x),
+  };
+  \module At(k: N.Nat^) {
+    \import \parent.\parent.At[C := C, k := k] \as Cohomology;
+    \import Maps.At[k := k] \as Map;
+    \definition inducedIdentity(h: Cohomology.Cohomology): Cohomology.Cohomology := #apply{(Map.induced identity)} h;
+    \definition identityOnCohomology: \forall (h: Cohomology.Cohomology) -> #apply{(Map.induced identity)} h = h :=
+      Cohomology.classInduction (\fun (h: Cohomology.Cohomology) => #apply{(Map.induced identity)} h = h)
+        (\fun (x: Cohomology.CycleCarrier) => Map.onClass identity x);
+  }
+}
+\module DegreeZero(C: Complex) {
+  \import \parent.At[C := C, k := N.Nat^::zero] \as H;
+  \import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+  \import Modules.Of[V := H.CycleCarrier, space := H.cycleSpace] \as Cycles;
+  \import Cycles.Submodule[] \as Subspaces;
+  \import Subspaces.Quotient[S := H.boundariesInside] \as Quotient;
+  \import Quotient.ZeroQuotient[] \as Zero;
+  \definition isZero: Zero.IsZero := \fun (x: H.CycleCarrier)(zero: \In[H.CycleCarrier] (#carrier{H.boundariesInside}) x) => zero;
+  \import Modules.Isomorphism[V := H.CycleCarrier, W := H.Cohomology, source := H.cycleSpace, target := H.cohomologySpace] \as Iso;
+  \definition kernelIso: Iso.Isomorphism := Iso.Isomorphism {
+    forward := H.classLinear, backward := Zero.inverse isZero,
+    leftInverse := Zero.inverseClass isZero,
+    rightInverse := Zero.classInverse isZero,
+  };
+}
+\import \root.Integer[] \as Integers;
+\import Integers.Over[R := R, ring := ring] \as Internal;
+\import std.Arithmetic[].Int[] \as Signed;
+\module InternalRestriction(C: Internal.Complex);
+\module ZeroExtension(C: Complex);

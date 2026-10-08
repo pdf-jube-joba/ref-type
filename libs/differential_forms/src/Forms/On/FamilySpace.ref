@@ -1,0 +1,41 @@
+\import std.Alg[].Ring[] \as Ring;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition zero: Family k := \fun (chart: Chart) => \parent.Local[chart := chart, k := k].zero;
+\definition plus(omega, eta: Family k): Family k := \fun (chart: Chart) => \parent.Local[chart := chart, k := k].plus (omega chart) (eta chart);
+\definition scale(a: Reals.Real)(omega: Family k): Family k := \fun (chart: Chart) => \parent.Local[chart := chart, k := k].scale a (omega chart);
+\definition negative(omega: Family k): Family k := \fun (chart: Chart) => \parent.Local[chart := chart, k := k].negative (omega chart);
+\definition zeroLeft: \forall (omega: Family k) -> plus zero omega = omega :=
+  \fun (omega: Family k) => \axiom:funext(plus zero omega, omega, \fun (chart: Chart) => Spaces.Laws[V := Euclidean.LocalForm #image{chart} k, space := Euclidean.On[U := #image{chart}].At[k := k].space].zeroLeft (omega chart));
+\definition zeroRight: \forall (omega: Family k) -> plus omega zero = omega :=
+  \fun (omega: Family k) => \axiom:funext(plus omega zero, omega, \fun (chart: Chart) => Spaces.Laws[V := Euclidean.LocalForm #image{chart} k, space := Euclidean.On[U := #image{chart}].At[k := k].space].zeroRight (omega chart));
+\definition associative: \forall (omega, eta, theta: Family k) -> plus (plus omega eta) theta = plus omega (plus eta theta) :=
+  \fun (omega, eta, theta: Family k) => \axiom:funext(plus (plus omega eta) theta, plus omega (plus eta theta), \fun (chart: Chart) => Spaces.Laws[V := Euclidean.LocalForm #image{chart} k, space := Euclidean.On[U := #image{chart}].At[k := k].space].assoc (omega chart) (eta chart) (theta chart));
+\definition commutative: \forall (omega, eta: Family k) -> plus omega eta = plus eta omega :=
+  \fun (omega, eta: Family k) => \axiom:funext(plus omega eta, plus eta omega, \fun (chart: Chart) => Spaces.Laws[V := Euclidean.LocalForm #image{chart} k, space := Euclidean.On[U := #image{chart}].At[k := k].space].comm (omega chart) (eta chart));
+\definition inverseLeft: \forall (omega: Family k) -> plus (negative omega) omega = zero :=
+  \fun (omega: Family k) => \axiom:funext(plus (negative omega) omega, zero, \fun (chart: Chart) => Spaces.Laws[V := Euclidean.LocalForm #image{chart} k, space := Euclidean.On[U := #image{chart}].At[k := k].space].inverseLeft (omega chart));
+\definition inverseRight: \forall (omega: Family k) -> plus omega (negative omega) = zero :=
+  \fun (omega: Family k) => trans!{{Family k}} (plus omega (negative omega)) (plus (negative omega) omega) zero
+    (commutative omega (negative omega)) (inverseLeft omega);
+\definition scalarOne: \forall (omega: Family k) -> scale Spaces.one omega = omega :=
+  \fun (omega: Family k) => \axiom:funext(scale Spaces.one omega, omega, \fun (chart: Chart) => #scalarOne{Euclidean.On[U := #image{chart}].At[k := k].space} (omega chart));
+\definition scalarAssoc: \forall (a, b: Reals.Real)(omega: Family k) -> scale (Spaces.mul a b) omega = scale a (scale b omega) :=
+  \fun (a, b: Reals.Real)(omega: Family k) => \axiom:funext(scale (Spaces.mul a b) omega, scale a (scale b omega), \fun (chart: Chart) => #scalarAssoc{Euclidean.On[U := #image{chart}].At[k := k].space} a b (omega chart));
+\definition scalarAdd: \forall (a, b: Reals.Real)(omega: Family k) -> scale (Spaces.add a b) omega = plus (scale a omega) (scale b omega) :=
+  \fun (a, b: Reals.Real)(omega: Family k) => \axiom:funext(scale (Spaces.add a b) omega, plus (scale a omega) (scale b omega), \fun (chart: Chart) => #scalarAdd{Euclidean.On[U := #image{chart}].At[k := k].space} a b (omega chart));
+\definition vectorAdd: \forall (a: Reals.Real)(omega, eta: Family k) -> scale a (plus omega eta) = plus (scale a omega) (scale a eta) :=
+  \fun (a: Reals.Real)(omega, eta: Family k) => \axiom:funext(scale a (plus omega eta), plus (scale a omega) (scale a eta), \fun (chart: Chart) => #vectorAdd{Euclidean.On[U := #image{chart}].At[k := k].space} a (omega chart) (eta chart));
+\definition space: Spaces.VectorSpace (Family k) := Ring.RingModule[Reals.Real, Family k, Spaces.ring] {
+  zero := zero, add := plus, neg := negative, smul := scale,
+  additive := Alg.CommutativeGroupLaws[Family k, Alg.CommutativeGroupData[Family k]::# (Alg.GroupData[Family k]::# zero plus negative)] {
+    group := Alg.GroupLaws[Family k, Alg.GroupData[Family k]::# zero plus negative] {
+      monoid := Monoid.MonoidLaws[Family k, Monoid.MonoidData[Family k]::# zero plus] {
+        leftIdentity := zeroLeft, rightIdentity := zeroRight, associative := associative,
+      },
+      leftInverse := inverseLeft, rightInverse := inverseRight,
+    },
+    commutative := commutative,
+  },
+  scalarOne := scalarOne, scalarAssoc := scalarAssoc, scalarAdd := scalarAdd, vectorAdd := vectorAdd,
+};

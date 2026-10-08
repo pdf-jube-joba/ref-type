@@ -1,0 +1,70 @@
+\import Fin.Ordering[] \as Ordering;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import \parent.\parent.PermutationRule[k := k] \as Signed;
+\import Fin.Permutations[n := k] \as Permutations;
+\definition Index: \Set := \Cast[Fin.Fin k -> Fin.Fin n]
+  ({ indices: Fin.Fin k -> Fin.Fin n \where Ordering.Increasing k n indices });
+\definition coefficient(f: Form k)(indices: Index): K := Coefficients.coefficients k f indices;
+\definition collisionZero: \forall (f: Form k)(indices: Fin.Fin k -> Fin.Fin n) ->
+  Logic.Not (Ordering.Injective k n indices) -> Coefficients.coefficients k f indices = zero := \block {
+  \fun (f: Form k)(indices: Fin.Fin k -> Fin.Fin n)(notInjective: Logic.Not (Ordering.Injective k n indices)) \then
+  \takefrom collision: Pigeonhole.Collision[k, n, indices] \by Ordering.collision k n indices notInjective \then
+  \return #alternating{(\bysub(Function k, Form k, f))}
+    (\fun (j: Fin.Fin k) => #vectors{b} (indices j)) #first{collision} #second{collision} #different{collision}
+    (congr!{{Fin.Fin n} V} #vectors{b} (indices #first{collision}) (indices #second{collision}) #same{collision})
+};
+\definition onPermutation: \forall (p: Permutations.Permutation)(word: Permutations.Word)(f: Form k)(indices: Fin.Fin k -> Fin.Fin n) ->
+  Permutations.Represents p word ->
+  Coefficients.coefficients k f (\fun (i: Fin.Fin k) => indices (#forward{p} i)) = Signed.signed word (Coefficients.coefficients k f indices) :=
+  \fun (p: Permutations.Permutation)(word: Permutations.Word)(f: Form k)(indices: Fin.Fin k -> Fin.Fin n)(represents: Permutations.Represents p word) =>
+    trans!{K} (Coefficients.coefficients k f (\fun (i: Fin.Fin k) => indices (#forward{p} i)))
+      (mul (Signed.sign word) (Coefficients.coefficients k f indices)) (Signed.signed word (Coefficients.coefficients k f indices))
+      (Signed.transformation p word f (\fun (i: Fin.Fin k) => #vectors{b} (indices i)) represents)
+      (sym!{K} (Signed.signed word (Coefficients.coefficients k f indices)) (mul (Signed.sign word) (Coefficients.coefficients k f indices))
+        (Signed.signValue word (Coefficients.coefficients k f indices)));
+\definition coefficientExt: \forall (f, g: Form k) -> (\forall (indices: Index) -> coefficient f indices = coefficient g indices) ->
+  \forall (indices: Fin.Fin k -> Fin.Fin n) -> Coefficients.coefficients k f indices = Coefficients.coefficients k g indices :=
+  \fun (f, g: Form k)(same: \forall (indices: Index) -> coefficient f indices = coefficient g indices)(indices: Fin.Fin k -> Fin.Fin n) =>
+    either!{{Ordering.Injective k n indices} "or" {Logic.Not (Ordering.Injective k n indices)}
+      "either" {Coefficients.coefficients k f indices = Coefficients.coefficients k g indices}
+      "lt:" {\block {
+        \fun (injection: Ordering.Injective k n indices) \then
+        \takefrom p: Ordering.Ordered k n indices \by Ordering.ordering n k indices injection \then
+        \takefrom word: \Cast[Permutations.Word] ({ word: Permutations.Word \where Permutations.Represents p word }) \by Signed.decomposition p \then
+        \let represents: Permutations.Represents p word := \bysub(Permutations.Word, { word: Permutations.Word \where Permutations.Represents p word }, word) \then
+        \let ordered: Index := \into[Fin.Fin k -> Fin.Fin n](\fun (i: Fin.Fin k) => indices (#forward{p} i), Index) \by {
+          \bysub(Ordering.PermutationType k, Ordering.Ordered k n indices, p)
+        } \then
+        \return Signed.signedInjective word (Coefficients.coefficients k f indices) (Coefficients.coefficients k g indices)
+          (trans!{K} (Signed.signed word (Coefficients.coefficients k f indices)) (coefficient f ordered)
+            (Signed.signed word (Coefficients.coefficients k g indices))
+            (sym!{K} (coefficient f ordered) (Signed.signed word (Coefficients.coefficients k f indices)) (onPermutation p word f indices represents))
+            (trans!{K} (coefficient f ordered) (coefficient g ordered) (Signed.signed word (Coefficients.coefficients k g indices))
+              (same ordered) (onPermutation p word g indices represents)))
+      }}
+      "rt:" {\fun (notInjective: Logic.Not (Ordering.Injective k n indices)) => trans!{K}
+        (Coefficients.coefficients k f indices) zero (Coefficients.coefficients k g indices)
+        (collisionZero f indices notInjective) (sym!{K} (Coefficients.coefficients k g indices) zero (collisionZero g indices notInjective))}}
+      (Classical.excludedMiddle (Ordering.Injective k n indices));
+\definition ext: \forall (f, g: Form k) -> (\forall (indices: Index) -> coefficient f indices = coefficient g indices) -> f = g :=
+  \fun (f, g: Form k)(same: \forall (indices: Index) -> coefficient f indices = coefficient g indices) => Coefficients.basisExt k f g (coefficientExt f g same);
+\import Fin.Functions[n := n] \as Functions;
+\import std.Set[].FiniteSubset[A := Fin.Fin k -> Fin.Fin n] \as Tuples;
+\import Tuples.Enumeration[] \as Enumerations;
+\import Lists.Distinct[A := Fin.Fin k -> Fin.Fin n] \as Distinct;
+\definition indexSet: Tuples.FiniteSubset := Tuples.filter (Functions.value k)
+  ({ indices: Fin.Fin k -> Fin.Fin n \where Ordering.Increasing k n indices });
+\definition Enumeration: \Set := Enumerations.DistinctEnumeration[indexSet];
+\definition existsEnumeration: \exists Enumeration := Enumerations.existsDistinctEnumeration indexSet;
+\definition occurs(indices: Fin.Fin k -> Fin.Fin n)(enumeration: Enumeration): \Prop := Enumerations.Occurs indices enumeration;
+\definition included: \forall (enumeration: Enumeration)(indices: Fin.Fin k -> Fin.Fin n) -> occurs indices enumeration -> Ordering.Increasing k n indices :=
+  \fun (enumeration: Enumeration)(indices: Fin.Fin k -> Fin.Fin n)(occurs: occurs indices enumeration) =>
+    #right{(#included{(#enumerates{(\bysub(Lists.List[Fin.Fin k -> Fin.Fin n], Enumeration, enumeration))})} indices occurs)};
+\definition exhaustive: \forall (enumeration: Enumeration)(indices: Index) -> occurs indices enumeration :=
+  \fun (enumeration: Enumeration)(indices: Index) =>
+    #exhaustive{(#enumerates{(\bysub(Lists.List[Fin.Fin k -> Fin.Fin n], Enumeration, enumeration))})} indices
+      (Logic.And[indices = indices, Ordering.Increasing k n indices]::# (\refl(indices))
+        (\bysub(Fin.Fin k -> Fin.Fin n, Index, indices)));
+\definition distinct: \forall (enumeration: Enumeration) -> Distinct.Distinct enumeration :=
+  \fun (enumeration: Enumeration) => #distinct{(\bysub(Lists.List[Fin.Fin k -> Fin.Fin n], Enumeration, enumeration))};

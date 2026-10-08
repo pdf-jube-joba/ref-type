@@ -1,0 +1,27 @@
+\definition left: (\forall (f: Function) -> product unit f xs = f xs) ->
+  \forall (i: I)(f: Function) -> product unit f (Lists.List[I]::cons i xs) = f (Lists.List[I]::cons i xs) := \block {
+  \fun (previous: \forall (f: Function) -> product unit f xs = f xs)(i: I)(f: Function) \then
+  \let zeroPart: product (shift i unit) f xs = zero := trans!{K} (product (shift i unit) f xs) (product origin f xs) zero
+    (congruent (shift i unit) origin f f (shiftUnit i) (\fun (ys: Lists.List[I]) => \refl(f ys)) xs) (zeroLeft f xs) \then
+  \let valuePart: product (twist unit) (shift i f) xs = f (Lists.List[I]::cons i xs) := trans!{K}
+    (product (twist unit) (shift i f) xs) (product unit (shift i f) xs) (f (Lists.List[I]::cons i xs))
+      (congruent (twist unit) unit (shift i f) (shift i f) twistUnit (\fun (ys: Lists.List[I]) => \refl(shift i f ys)) xs)
+      (previous (shift i f)) \then
+  \return trans!{K} (product unit f (Lists.List[I]::cons i xs)) (add (product (shift i unit) f xs) (product (twist unit) (shift i f) xs)) (f (Lists.List[I]::cons i xs))
+    (atCons i xs unit f)
+    (trans!{K} (add (product (shift i unit) f xs) (product (twist unit) (shift i f) xs)) (add zero (f (Lists.List[I]::cons i xs))) (f (Lists.List[I]::cons i xs))
+      (congr2!{K K K} add (product (shift i unit) f xs) zero (product (twist unit) (shift i f) xs) (f (Lists.List[I]::cons i xs)) zeroPart valuePart)
+      (addZeroLeft (f (Lists.List[I]::cons i xs))))
+};
+\definition right: (\forall (f: Function) -> product f unit xs = f xs) ->
+  \forall (i: I)(f: Function) -> product f unit (Lists.List[I]::cons i xs) = f (Lists.List[I]::cons i xs) := \block {
+  \fun (previous: \forall (f: Function) -> product f unit xs = f xs)(i: I)(f: Function) \then
+  \let valuePart: product (shift i f) unit xs = f (Lists.List[I]::cons i xs) := previous (shift i f) \then
+  \let zeroPart: product (twist f) (shift i unit) xs = zero := trans!{K} (product (twist f) (shift i unit) xs) (product (twist f) origin xs) zero
+    (congruent (twist f) (twist f) (shift i unit) origin (\fun (ys: Lists.List[I]) => \refl(twist f ys)) (shiftUnit i) xs) (zeroRight (twist f) xs) \then
+  \return trans!{K} (product f unit (Lists.List[I]::cons i xs)) (add (product (shift i f) unit xs) (product (twist f) (shift i unit) xs)) (f (Lists.List[I]::cons i xs))
+    (atCons i xs f unit)
+    (trans!{K} (add (product (shift i f) unit xs) (product (twist f) (shift i unit) xs)) (add (f (Lists.List[I]::cons i xs)) zero) (f (Lists.List[I]::cons i xs))
+      (congr2!{K K K} add (product (shift i f) unit xs) (f (Lists.List[I]::cons i xs)) (product (twist f) (shift i unit) xs) zero valuePart zeroPart)
+      (addZeroRight (f (Lists.List[I]::cons i xs))))
+};

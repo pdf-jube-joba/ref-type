@@ -1,0 +1,47 @@
+\import \parent.\parent.Properties[] \as Updates;
+\import \parent.\parent.\parent.Laws[V := K, space := scalarSpace] \as Scalars;
+\definition fill(arguments: Arguments k)(x, y: V): Arguments k := update k (update k arguments i x) j y;
+\definition firstAddition: \forall (f: Form k)(arguments: Arguments k)(x, y, z: V) -> Logic.Not (i = j) ->
+  f (fill arguments (#add{space} x y) z) = add (f (fill arguments x z)) (f (fill arguments y z)) :=
+  \fun (f: _)(arguments: _)(x, y, z: _)(different: _) => trans!{K} _ _ _
+    (congr!{{Arguments k} K} f _ _ (Updates.updateCommute k arguments i j (#add{space} x y) z different))
+    (trans!{K} _ _ _ (#addition{(#linear{(\bysub(Function k, Form k, f))})} (update k arguments j z) i x y)
+      (congr2!{K K K} add _ _ _ _
+        (congr!{{Arguments k} K} f _ _ (sym!{{Arguments k}} _ _ (Updates.updateCommute k arguments i j x z different)))
+        (congr!{{Arguments k} K} f _ _ (sym!{{Arguments k}} _ _ (Updates.updateCommute k arguments i j y z different)))));
+\definition secondAddition: \forall (f: Form k)(arguments: Arguments k)(x, y, z: V) ->
+  f (fill arguments x (#add{space} y z)) = add (f (fill arguments x y)) (f (fill arguments x z)) :=
+  \fun (f: _)(arguments: _)(x, y, z: _) => #addition{(#linear{(\bysub(Function k, Form k, f))})} (update k arguments i x) j y z;
+\definition repeated: \forall (f: Form k)(arguments: Arguments k)(x: V) -> Logic.Not (i = j) -> f (fill arguments x x) = zero :=
+  \fun (f: _)(arguments: _)(x: _)(different: _) => #alternating{(\bysub(Function k, Form k, f))} (fill arguments x x) i j different
+    (trans!{V} _ _ _
+      (trans!{V} _ _ _ (Updates.updateOther k (update k arguments i x) j i x (\fun (same: j = i) => different (sym!{{Fin.Fin k}} _ _ same)))
+        (Updates.updateSelf k arguments i x))
+      (sym!{V} _ _ (Updates.updateSelf k (update k arguments i x) j x)));
+\definition antisymmetric: \forall (f: Form k)(arguments: Arguments k)(x, y: V) -> Logic.Not (i = j) ->
+  f (fill arguments y x) = neg (f (fill arguments x y)) := \block {
+  \fun (f: _)(arguments: _)(x, y: _)(different: _) \then
+  \let sum: add (f (fill arguments x y)) (f (fill arguments y x)) = zero := eq_reason!{
+    {add (f (fill arguments x y)) (f (fill arguments y x))}
+    "=" {add (add zero (f (fill arguments x y))) (add (f (fill arguments y x)) zero)} "by" {
+      congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (addZeroLeft (f (fill arguments x y)))) (sym!{K} _ _ (addZeroRight (f (fill arguments y x))))}
+    "=" {add (add (f (fill arguments x x)) (f (fill arguments x y))) (add (f (fill arguments y x)) (f (fill arguments y y)))} "by" {
+      congr2!{K K K} add _ _ _ _
+        (congr!{K K} (\fun (a: K) => add a (f (fill arguments x y))) _ _ (sym!{K} _ _ (repeated f arguments x different)))
+        (congr!{K K} (add (f (fill arguments y x))) _ _ (sym!{K} _ _ (repeated f arguments y different)))}
+    "=" {add (f (fill arguments x (#add{space} x y))) (f (fill arguments y (#add{space} x y)))} "by" {
+      congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (secondAddition f arguments x x y)) (sym!{K} _ _ (secondAddition f arguments y x y))}
+    "=" {f (fill arguments (#add{space} x y) (#add{space} x y))} "by" {sym!{K} _ _ (firstAddition f arguments x y (#add{space} x y) different)}
+    "=" zero "by" {repeated f arguments (#add{space} x y) different}
+  } \then
+  \return Scalars.cancelLeft (f (fill arguments x y)) (f (fill arguments y x)) (neg (f (fill arguments x y)))
+    (trans!{K} _ _ _ sum (sym!{K} _ _ (addNegRight (f (fill arguments x y)))))
+};
+\definition fillOriginal: \forall (arguments: Arguments k) -> fill arguments (arguments i) (arguments j) = arguments :=
+  \fun (arguments: _) => trans!{{Arguments k}} _ _ _
+    (congr!{{Arguments k} {Arguments k}} (\fun (v: Arguments k) => update k v j (arguments j)) _ _ (Updates.updateSame k arguments i))
+    (Updates.updateSame k arguments j);
+\definition swap(arguments: Arguments k): Arguments k := fill arguments (arguments j) (arguments i);
+\definition onSwap: \forall (f: Form k)(arguments: Arguments k) -> Logic.Not (i = j) -> f (swap arguments) = neg (f arguments) :=
+  \fun (f: _)(arguments: _)(different: _) => trans!{K} _ _ _ (antisymmetric f arguments (arguments i) (arguments j) different)
+    (congr!{K K} neg _ _ (congr!{{Arguments k} K} f _ _ (fillOriginal arguments)));

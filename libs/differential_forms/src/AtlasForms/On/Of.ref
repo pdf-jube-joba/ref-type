@@ -1,0 +1,39 @@
+\definition Chart: \Set := \Cast[Charts.Chart] #charts{atlas};
+\definition member(chart: Chart): Atlases.Member atlas chart := \bysub(Charts.Chart, #charts{atlas}, chart);
+\definition included: \forall (chart: Charts.Chart) -> Atlases.Member atlas chart -> Atlases.Member M.atlas chart :=
+  \bysub(Atlases.Atlas, EmbeddedAtlas, atlas);
+\definition globalChart(chart: Chart): Global.Chart := \into[Charts.Chart](chart, #charts{M.atlas}) \by { included chart (member chart) };
+\definition globalInSaturation: \forall (chart: Charts.Chart) -> Atlases.Member M.atlas chart -> Atlases.Compatibility[atlas, chart] :=
+  \fun (chart: Charts.Chart)(inGlobal: Atlases.Member M.atlas chart) => Atlases.Compatibility[atlas, chart] {
+    forward := \fun (other: Charts.Chart)(inSmall: Atlases.Member atlas other) => #compatible{M.atlas} chart other inGlobal (included other inSmall),
+    backward := \fun (other: Charts.Chart)(inSmall: Atlases.Member atlas other) => #compatible{M.atlas} other chart (included other inSmall) inGlobal,
+  };
+\definition saturationInGlobal: \forall (chart: Charts.Chart) -> Atlases.Compatibility[atlas, chart] -> Atlases.Member M.atlas chart :=
+  \fun (chart: Charts.Chart)(compatible: Atlases.Compatibility[atlas, chart]) =>
+    (\bysub(Atlases.Atlas, { a: Atlases.Atlas \where Atlases.IsMaximal a }, M.atlas)) chart (Atlases.Compatibility[M.atlas, chart] {
+      forward := \fun (other: Charts.Chart)(inGlobal: Atlases.Member M.atlas other) =>
+        #compatible{(Atlases.saturate atlas)} chart other compatible (globalInSaturation other inGlobal),
+      backward := \fun (other: Charts.Chart)(inGlobal: Atlases.Member M.atlas other) =>
+        #compatible{(Atlases.saturate atlas)} other chart (globalInSaturation other inGlobal) compatible,
+    });
+\definition saturation: Atlases.Saturation atlas = #charts{M.atlas} :=
+  \axiom:setext(Atlases.Saturation atlas, #charts{M.atlas}, saturationInGlobal, globalInSaturation);
+\definition maximalAtlas: Atlases.saturate atlas = M.atlas := Atlases.ext (Atlases.saturate atlas) M.atlas saturation;
+\definition Family(k: N.Nat^): \Set := \forall (chart: Chart) -> Euclidean.LocalForm #image{chart} k;
+\module Pair(left, right: Chart);
+\definition Compatible(k: N.Nat^)(omega: Family k): \Prop := \forall (left, right: Chart) -> Pair[left := left, right := right].Agreement k omega;
+\definition Form(k: N.Nat^): \Set := \Cast[Family k] ({ omega: Family k \where Compatible k omega });
+\definition ext: \forall (k: N.Nat^)(omega, eta: Form k) -> (\forall (chart: Chart) -> omega chart = eta chart) -> omega = eta :=
+  \fun (k: N.Nat^)(omega, eta: Form k)(same: _) => \axiom:funext(omega, eta, same);
+\module Local(chart: Chart, k: N.Nat^) {
+  \import Euclidean.On[U := #image{chart}].At[k := k] \as Forms;
+  \definition zero: Euclidean.LocalForm #image{chart} k := Forms.zero;
+  \definition plus: Euclidean.LocalForm #image{chart} k -> Euclidean.LocalForm #image{chart} k -> Euclidean.LocalForm #image{chart} k := Forms.plus;
+  \definition scale: Reals.Real -> Euclidean.LocalForm #image{chart} k -> Euclidean.LocalForm #image{chart} k := Forms.scale;
+  \definition negative: Euclidean.LocalForm #image{chart} k -> Euclidean.LocalForm #image{chart} k := #neg{Forms.space};
+}
+\module FamilySpace(k: N.Nat^);
+\module At(k: N.Nat^);
+\module ExteriorDerivative(k: N.Nat^);
+\module Square(k: N.Nat^);
+\module DeRham;

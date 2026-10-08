@@ -1,0 +1,27 @@
+\import Global.At[k := k] \as Target;
+\definition restrictAddition: \forall (omega, eta: Global.Form k) -> restrict (Target.plus omega eta) = plus (restrict omega) (restrict eta) :=
+  \fun (omega, eta: Global.Form k) => ext k (restrict (Target.plus omega eta)) (plus (restrict omega) (restrict eta))
+    (\fun (chart: Chart) => \refl(plus (restrict omega) (restrict eta) chart));
+\definition restrictScalar: \forall (a: Reals.Real)(omega: Global.Form k) -> restrict (Target.scale a omega) = scale a (restrict omega) :=
+  \fun (a: Reals.Real)(omega: Global.Form k) => ext k (restrict (Target.scale a omega)) (scale a (restrict omega))
+    (\fun (chart: Chart) => \refl(scale a (restrict omega) chart));
+\definition extendAddition: \forall (omega, eta: Form k) -> extend (plus omega eta) = Target.plus (extend omega) (extend eta) :=
+  \fun (omega, eta: Form k) => injective (extend (plus omega eta)) (Target.plus (extend omega) (extend eta))
+    (trans!{{Form k}} _ (plus omega eta) _ (leftInverse (plus omega eta))
+      (trans!{{Form k}} _ (plus (restrict (extend omega)) (restrict (extend eta))) _
+        (congr2!{{Form k} {Form k} {Form k}} plus _ _ _ _ (sym!{{Form k}} _ _ (leftInverse omega)) (sym!{{Form k}} _ _ (leftInverse eta)))
+        (sym!{{Form k}} _ _ (restrictAddition (extend omega) (extend eta)))));
+\definition extendScalar: \forall (a: Reals.Real)(omega: Form k) -> extend (scale a omega) = Target.scale a (extend omega) :=
+  \fun (a: Reals.Real)(omega: Form k) => injective (extend (scale a omega)) (Target.scale a (extend omega))
+    (trans!{{Form k}} _ (scale a omega) _ (leftInverse (scale a omega))
+      (trans!{{Form k}} _ (scale a (restrict (extend omega))) _
+        (congr!{{Form k} {Form k}} (scale a) _ _ (sym!{{Form k}} _ _ (leftInverse omega)))
+        (sym!{{Form k}} _ _ (restrictScalar a (extend omega)))));
+\import Spaces.Linear[V := Form k, W := Global.Form k, source := space, target := Target.space] \as Forward;
+\import Spaces.Linear[V := Global.Form k, W := Form k, source := Target.space, target := space] \as Backward;
+\definition forward: Forward.Map := Forward.Map { apply := extend, preservesAdd := extendAddition, preservesScale := extendScalar };
+\definition backward: Backward.Map := Backward.Map { apply := restrict, preservesAdd := restrictAddition, preservesScale := restrictScalar };
+\import Spaces.Isomorphism[V := Form k, W := Global.Form k, source := space, target := Target.space] \as Isomorphism;
+\definition isomorphism: Isomorphism.Isomorphism := Isomorphism.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};

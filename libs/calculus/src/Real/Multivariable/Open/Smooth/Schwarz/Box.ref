@@ -1,0 +1,35 @@
+\definition right: Real := add (a i) h;
+\definition top: Real := add (a j) h;
+\import \parent.\parent.\parent.\parent.\parent.Schwarz[].Rectangle[left := a i, right := right, bottom := a j, top := top] \as Rectangle;
+\import Rectangle.Functions[f := extended, g := extendedFirst, h := extendedSecond] \as Mean;
+\definition S: \Set := \Cast[Real] (Line.ClosedInterval (a i) right);
+\definition T: \Set := \Cast[Real] (Line.ClosedInterval (a j) top);
+\definition Contains: \Prop := \forall (s: S)(t: T) -> \In[Point] (#points{U}) (Grid.point s t);
+\definition point(s: S)(t: T)(contains: Contains): Carrier U := \into[Point](Grid.point s t, #points{U}) \by { contains s t };
+\definition secondValue: \forall (s: S)(t: T)(contains: Contains) -> extendedSecond s t = second (point s t contains) :=
+  \fun (s: S)(t: T)(contains: Contains) => Extension.inside second zero (point s t contains);
+\definition oneSidedDistance: \forall (b, s: Real) -> R.Lt zero h -> R.Le b s -> R.Le s (add b h) -> R.Le (distance s b) h :=
+  \fun (b, s: Real)(positive: _)(lower: _)(upper: _) => R.leReplaceLeft (distance b s) (distance s b) h (Metric.distanceSymmetric b s)
+    (Estimates.distanceLeOfInterval b s h
+      (R.leTrans (sub b h) b s (Order.leOfLt (sub b h) b (Line.CompactIntervals[].subPositive b h positive)) lower) upper);
+\definition distanceBound: Logic.Not (i = j) -> R.Lt zero h -> \forall (s: S)(t: T) -> R.Le (Coordinates.pointDistance (Grid.point s t) a) (add h h) :=
+  \fun (different: Logic.Not (i = j))(positive: _)(s: S)(t: T) => R.leTrans _ _ _ (Grid.distanceBound different s t)
+    (Estimates.addLe _ _ h h
+      (oneSidedDistance (a j) t positive (#left{(\bysub(Real, Line.ClosedInterval (a j) top, t))}) (#right{(\bysub(Real, Line.ClosedInterval (a j) top, t))}))
+      (oneSidedDistance (a i) s positive (#left{(\bysub(Real, Line.ClosedInterval (a i) right, s))}) (#right{(\bysub(Real, Line.ClosedInterval (a i) right, s))})));
+\definition contains: \forall (rho: Real) -> Logic.Not (i = j) -> R.Lt zero h -> BallInside[#points{U}, a, rho] -> R.Lt (add h h) rho -> Contains :=
+  \fun (rho: Real)(different: Logic.Not (i = j))(positive: _)(ball: _)(small: _)(s: S)(t: T) =>
+    #included{ball} (Grid.point s t) (R.leLtTrans _ (add h h) rho (distanceBound different positive s t) small);
+\module Vertical(s: S);
+\module Horizontal(t: T);
+\definition meanEstimate: \forall (c, theta: Real) -> Logic.Not (i = j) -> R.Lt zero h -> Contains ->
+  (\forall (s: S)(t: T)(x: Carrier U) -> x = Grid.point s t -> R.Le (distance (second x) c) theta) ->
+  R.Le (distance (Rectangle.quotient extended) c) theta :=
+  \fun (c, theta: Real)(different: Logic.Not (i = j))(positive: R.Lt zero h)(contains: Contains)(bounded: _) =>
+    Mean.estimate c theta (Line.CompactIntervals[].addPositive (a i) h positive) (Line.CompactIntervals[].addPositive (a j) h positive)
+      (\fun (s: S)(t: T) => Vertical[s := s].derivative t contains)
+      (\fun (s: S)(t: T) => Horizontal[t := t].derivative s different contains)
+      (\fun (s: S)(t: T) => R.leReplaceLeft (distance (second (point s t contains)) c) (distance (extendedSecond s t) c) theta
+        (sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => distance r c) _ _ (secondValue s t contains)))
+        (bounded s t (point s t contains) (\refl(Grid.point s t))));
+\module Compare;

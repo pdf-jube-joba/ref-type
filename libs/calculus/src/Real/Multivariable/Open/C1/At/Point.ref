@@ -1,0 +1,42 @@
+\import std.Set[].Extension[A := Point, B := Real, domain := #points{U}] \as Extension;
+\use Equality.congr2;
+\definition extended(p: Point): Real := Extension.extend f zero p;
+\definition path(k: N.Nat^): Real := extended (Staircase.point a x k);
+\definition increments(i: Coordinate): Real := sub (path (N.Nat^::succ (Fin.value n i))) (path (Fin.value n i));
+\definition terms(i: Coordinate): Real := mul (g i a) (sub (x i) (a i));
+\definition errors(i: Coordinate): Real := sub (increments i) (terms i);
+\definition sumIncrements: Sums.sum n increments = sub (f x) (f a) := trans!{Real} _ _ _ (Sums.telescoping n path)
+  (congr2!{Real Real Real} sub _ _ _ _
+    (trans!{Real} _ _ _ (congr!{Point Real} extended _ _ (Staircase.final a x)) (Extension.inside f zero x))
+    (trans!{Real} _ _ _ (congr!{Point Real} extended _ _ (Staircase.initial a x)) (Extension.inside f zero a)));
+\definition remainderSum: Sums.sum n errors = Analysis.remainder U f a differential x := trans!{Real} _ _ _
+  (Sums.difference n increments terms)
+  (congr!{Real Real} (\fun (s: Real) => sub s (Sums.sum n terms)) _ _ sumIncrements);
+\module Coordinate(i: Coordinate);
+\definition bound: \forall (rho, theta: Real)(controls: Controls theta) -> BallInside[#points{U}, a, rho] ->
+  R.Lt (Coordinates.pointDistance x a) rho -> R.Le zero theta -> (\forall (i: Coordinate) -> Analysis.HasPartialDerivative U f i (g i)) ->
+  R.Lt (Coordinates.pointDistance x a) (Sums.Bounds[].minimum n (\fun (j: Coordinate) => controls j)) ->
+  R.Le (distance (Analysis.remainder U f a differential x) zero) (mul (mul count theta) (Coordinates.pointDistance x a)) := \block {
+  \fun (rho, theta: Real)(controls: Controls theta)(ball: _)(nearBall: _)(positive: _)(partials: _)(near: _) \then
+  \let r: Real := Coordinates.pointDistance x a \then
+  \let constant: Real := mul theta r \then
+  \let individual: \forall (i: Coordinate) -> R.Le (distance (errors i) zero) constant :=
+    \fun (i: Coordinate) => Coordinate[i := i].estimate rho theta controls ball nearBall positive (partials i) near \then
+  \let absolute: R.Le (distance (Analysis.remainder U f a differential x) zero) (Sums.sum n (\fun (i: Coordinate) => distance (errors i) zero)) :=
+    R.leReplaceLeft (distance (Sums.sum n errors) zero) (distance (Analysis.remainder U f a differential x) zero)
+      (Sums.sum n (\fun (i: Coordinate) => distance (errors i) zero))
+      (congr!{Real Real} (\fun (s: Real) => distance s zero) (Sums.sum n errors) (Analysis.remainder U f a differential x) remainderSum)
+      (Sums.absolute n errors) \then
+  \let comparison: R.Le (Sums.sum n (\fun (i: Coordinate) => distance (errors i) zero)) (Sums.sum n (\fun (i: Coordinate) => constant)) :=
+    Sums.comparison n (\fun (i: Coordinate) => distance (errors i) zero) (\fun (i: Coordinate) => constant) individual \then
+  \let factors: Sums.sum n (\fun (i: Coordinate) => constant) = mul (mul count theta) r :=
+    trans!{Real} (Sums.sum n (\fun (i: Coordinate) => constant)) (Sums.sum n (\fun (i: Coordinate) => mul constant one)) (mul (mul count theta) r)
+      (Sums.congruent n (\fun (i: Coordinate) => constant) (\fun (i: Coordinate) => mul constant one)
+        (\fun (i: Coordinate) => sym!{Real} (mul constant one) constant (real.Analysis[].Algebra[].mulOneRight constant)))
+      (trans!{Real} (Sums.sum n (\fun (i: Coordinate) => mul constant one)) (mul constant count) (mul (mul count theta) r)
+        (Sums.scalar n constant (\fun (i: Coordinate) => one))
+        (trans!{Real} (mul constant count) (mul count constant) (mul (mul count theta) r)
+          (Laws.fieldMulComm constant count) (sym!{Real} (mul (mul count theta) r) (mul count constant) (Laws.fieldMulAssoc count theta r)))) \then
+  \return R.leReplaceRight (distance (Analysis.remainder U f a differential x) zero) (Sums.sum n (\fun (i: Coordinate) => constant)) (mul (mul count theta) r) factors
+    (R.leTrans (distance (Analysis.remainder U f a differential x) zero) (Sums.sum n (\fun (i: Coordinate) => distance (errors i) zero)) (Sums.sum n (\fun (i: Coordinate) => constant)) absolute comparison)
+};

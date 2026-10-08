@@ -1,0 +1,54 @@
+\import First.Coordinates[f := f, left := left, right := middle] \as LocalFirst;
+\import Second.Coordinates[f := g, left := middle, right := right] \as LocalSecond;
+\definition firstIncluded: Open.Included (domains middle) LocalFirst.domain := Open.intersectionLeft LocalFirst.domain Direct.domain;
+\definition firstPoint(x: Open.Carrier (domains middle)): Open.Carrier LocalFirst.domain := Open.inclusion (domains middle) LocalFirst.domain firstIncluded x;
+\definition directPoint(x: Open.Carrier (domains middle)): Open.Carrier Direct.domain := Open.inclusion (domains middle) Direct.domain (included middle) x;
+\definition contains: \forall (x: Open.Carrier Direct.domain) -> MiddleCharts.Contains middle (First.apply f (SourceCharts.point left (Direct.leftCoordinate x))) ->
+  \In[Reals.Multivariable[n := n].Point] (#points{(domains middle)}) x :=
+  \fun (x: Open.Carrier Direct.domain)(member: MiddleCharts.Contains middle (First.apply f (SourceCharts.point left (Direct.leftCoordinate x)))) =>
+    Logic.And[\In[Reals.Multivariable[n := n].Point] (#points{LocalFirst.domain}) x, \In[Reals.Multivariable[n := n].Point] (#points{Direct.domain}) x]::#
+      (LocalFirst.intro (Direct.leftCoordinate x) member) (\bysub(Reals.Multivariable[n := n].Point, #points{Direct.domain}, x));
+\definition inRight: \forall (x: Open.Carrier (domains middle)) -> TargetCharts.Contains right (Second.apply g (MiddleCharts.point middle (LocalFirst.apply (firstPoint x)))) :=
+  \fun (x: Open.Carrier (domains middle)) => \idelim First.apply f (SourceCharts.point left (LocalFirst.leftCoordinate (firstPoint x))) =
+    MiddleCharts.point middle (LocalFirst.apply (firstPoint x)) \with y: N.Point => TargetCharts.Contains right (Second.apply g y) \by {
+      base: Direct.inRightDomain (directPoint x),
+      equality: sym!{{N.Point}} (MiddleCharts.point middle (LocalFirst.apply (firstPoint x)))
+        (First.apply f (SourceCharts.point left (LocalFirst.leftCoordinate (firstPoint x)))) (LocalFirst.returnsPoint (firstPoint x))
+    };
+\definition intermediate(x: Open.Carrier (domains middle)): Reals.Multivariable[n := m].Open[].Carrier LocalSecond.domain :=
+  \into[Reals.Multivariable[n := m].Point](LocalFirst.apply (firstPoint x), #points{LocalSecond.domain}) \by {
+    LocalSecond.intro (LocalFirst.apply (firstPoint x)) (inRight x)
+  };
+\definition firstData: FirstCalculus.Data[domains middle, LocalSecond.domain] := FirstCalculus.Data[domains middle, LocalSecond.domain] { apply := intermediate };
+\definition firstMap(leftMember: \In[SourceCharts.Chart] #charts{M.atlas} left): FirstCalculus.Map (domains middle) LocalSecond.domain :=
+  \into[FirstCalculus.Data[domains middle, LocalSecond.domain]](firstData,
+    { h: FirstCalculus.Data[domains middle, LocalSecond.domain] \where FirstCalculus.Laws[domains middle, LocalSecond.domain, h] }) \by {
+      FirstCalculus.Laws[domains middle, LocalSecond.domain, firstData] {
+        smooth := \fun (i: Fin.Fin m) => Restriction.localSmooth (domains middle) LocalFirst.domain firstIncluded
+          (\fun (x: Open.Carrier LocalFirst.domain) => LocalFirst.apply x i)
+          ((\bysub(First.ContinuousMap, { h: First.ContinuousMap \where First.Chartwise h }, f)) left middle leftMember
+            (\bysub(MiddleCharts.Chart, #charts{N.atlas}, middle)) i),
+      }
+    };
+\definition secondMap(rightMember: \In[TargetCharts.Chart] #charts{P.atlas} right): SecondCalculus.Map LocalSecond.domain #image{right} :=
+  LocalSecond.map ((\bysub(Second.ContinuousMap, { h: Second.ContinuousMap \where Second.Chartwise h }, g)) middle right
+    (\bysub(MiddleCharts.Chart, #charts{N.atlas}, middle)) rightMember);
+\definition compose(leftMember: \In[SourceCharts.Chart] #charts{M.atlas} left)(rightMember: \In[TargetCharts.Chart] #charts{P.atlas} right): CompositeCalculus.Map (domains middle) #image{right} :=
+  FirstCalculus.Composition[U := domains middle, V := LocalSecond.domain, f := firstMap leftMember].After[l := l, W := #image{right}, g := secondMap rightMember].compose;
+\definition coordinateAgreement: \forall (x: Open.Carrier (domains middle)) -> LocalSecond.apply (intermediate x) = Direct.apply (directPoint x) :=
+  \fun (x: Open.Carrier (domains middle)) => congr!{{TargetCharts.LocalPoint right} {Reals.Multivariable[n := l].Open[].Carrier #image{right}}} (TargetCharts.coordinate right)
+    (LocalSecond.point (intermediate x)) (Direct.point (directPoint x))
+    (congr!{{N.Point} {P.Point}} (Second.apply g) (MiddleCharts.point middle (LocalFirst.apply (firstPoint x)))
+      (First.apply f (SourceCharts.point left (Direct.leftCoordinate (directPoint x)))) (LocalFirst.returnsPoint (firstPoint x)));
+\definition regular: \In[SourceCharts.Chart] #charts{M.atlas} left -> \In[TargetCharts.Chart] #charts{P.atlas} right -> \forall (i: Fin.Fin l) ->
+  Smooth.SmoothOn (domains middle) (Open.restrict (domains middle) Direct.domain (included middle) (\fun (x: Open.Carrier Direct.domain) => Direct.apply x i)) :=
+  \fun (leftMember: \In[SourceCharts.Chart] #charts{M.atlas} left)(rightMember: \In[TargetCharts.Chart] #charts{P.atlas} right)(i: Fin.Fin l) =>
+    \idelim (\fun (x: Open.Carrier (domains middle)) => CompositeCalculus.apply (domains middle) #image{right} (compose leftMember rightMember) x i) =
+      (\fun (x: Open.Carrier (domains middle)) => Direct.apply (directPoint x) i)
+      \with h: Open.ScalarFunction (domains middle) => Smooth.SmoothOn (domains middle) h \by {
+        base: #smooth{(compose leftMember rightMember)} i,
+        equality: \axiom:funext((\fun (x: Open.Carrier (domains middle)) => CompositeCalculus.apply (domains middle) #image{right} (compose leftMember rightMember) x i),
+          (\fun (x: Open.Carrier (domains middle)) => Direct.apply (directPoint x) i),
+          \fun (x: Open.Carrier (domains middle)) => congr!{{Reals.Multivariable[n := l].Point} {Reals.Real}} (\fun (v: Reals.Multivariable[n := l].Point) => v i)
+            (LocalSecond.apply (intermediate x)) (Direct.apply (directPoint x)) (coordinateAgreement x))
+      };

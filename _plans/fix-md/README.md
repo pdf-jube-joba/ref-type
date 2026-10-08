@@ -26,6 +26,7 @@ target/debug/cli _plans/fix-md/cases/01-01-record-eta.ref --no-cache --diagnosti
 | [G05](#g05) | 式中の module 具体化と台集合を返す関数 | 式中の具体化・関数とも成功。 |
 | [G06](#g06) | 積の定理の定義元と parameter を持つ利用側 | 修正済み。両方成功。 |
 | [G11](#g11) | Machine の引数と具体値 | 引数で失敗、具体値で成功。 |
+| [G16](#g16) | 構造を返す関数と名前付きの添字付き module | 関数のフィールドで添字が残り失敗、module の具体化で成功。 |
 
 <a id="g01"></a>
 
@@ -110,3 +111,15 @@ Machine の型、実行、Box の型と本体は共通で、Box の型は両側�
 [再現プロジェクト](../reproductions/g06-product-compactness/ref.toml) は、`topology` に依存し、同じ命題を持つ定理に `Product.Compactness.productCompact` と `productCompactIn` を適用する。
 [診断と実行方法](../gaps.md#g06) に、修正前の診断と、修正後に両方成功する定義元・利用側の検査を記載する。
 単独ファイルへ貼り付ける形式ではない。
+
+<a id="g16"></a>
+
+## G16: 構造の依存するフィールド
+
+| サンプル | 条件 | 結果 |
+| --- | --- | --- |
+| [function-result.ref](../reproductions/g16-structure-family/function-result.ref) | `bundle(i)` から型族のフィールドを返し、`bundle j` で参照する。 | 失敗：期待型に宣言元の `i` が残る。 |
+| [named-piece.ref](../reproductions/g16-structure-family/named-piece.ref) | `At[i := j]` を名前付き import で固定し、フィールドを参照する。 | 成功。 |
+
+型族と返す構造は共通で、別の添字での参照方法を比較する。
+[診断と実装上の回避](../gaps.md#g16) に、貼り合わせでの利用を記載する。

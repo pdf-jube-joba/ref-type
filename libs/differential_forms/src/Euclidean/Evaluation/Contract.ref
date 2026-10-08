@@ -1,0 +1,25 @@
+\import Multilinear.Contraction[k := k] \as Contraction;
+\import \parent.Differential[k := k] \as D;
+\import \parent.Differential[k := N.Nat^::succ k] \as NextD;
+\import Regularity.Derivative[] \as Partials;
+\definition apply(omega: RegularFamily (N.Nat^::succ k))(v: Vectors.Vector): RegularFamily k :=
+  \into[Family k]((\fun (x: Source.Carrier U) => Contraction.apply (omega x) v), { result: Family k \where CoefficientSmooth k result }) \by {
+    \fun (indices: Fin.Fin k -> Fin.Fin n) => \bysub(Source.ScalarFunction U, { h: Source.ScalarFunction U \where Regularity.SmoothOn U h },
+      evaluate (N.Nat^::succ k) omega (Arguments.extend k v (\fun (j: Fin.Fin k) => Basis.vectors (indices j))))
+  };
+\definition evaluation: \forall (omega: RegularFamily (N.Nat^::succ k))(v: Vectors.Vector)(arguments: Multilinear.Arguments k) ->
+  evaluate k (apply omega v) arguments = evaluate (N.Nat^::succ k) omega (Arguments.extend k v arguments) :=
+  \fun (omega: RegularFamily (N.Nat^::succ k))(v: Vectors.Vector)(arguments: Multilinear.Arguments k) => Functions.ext
+    (evaluate k (apply omega v) arguments) (evaluate (N.Nat^::succ k) omega (Arguments.extend k v arguments))
+    (\fun (x: Source.Carrier U) => \refl(omega x (Arguments.extend k v arguments)));
+\definition derivative: \forall (i: Fin.Fin m)(omega: RegularFamily (N.Nat^::succ k))(v: Vectors.Vector) ->
+  D.apply i (apply omega v) = apply (NextD.apply i omega) v :=
+  \fun (i: Fin.Fin m)(omega: RegularFamily (N.Nat^::succ k))(v: Vectors.Vector) => \axiom:funext(D.apply i (apply omega v), apply (NextD.apply i omega) v,
+    \fun (x: Source.Carrier U) => \axiom:funext(D.apply i (apply omega v) x, apply (NextD.apply i omega) v x,
+      \fun (arguments: Multilinear.Arguments k) => congr!{{Functions.Function} {Reals.Real}} (\fun (h: Functions.Function) => Partials.derivative U h i x)
+        (evaluate k (apply omega v) arguments) (evaluate (N.Nat^::succ k) omega (Arguments.extend k v arguments)) (evaluation omega v arguments)));
+\definition tail(arguments: RegularArguments (N.Nat^::succ k)): RegularArguments k :=
+  \into[VariableArguments k]((\fun (x: Source.Carrier U)(j: Fin.Fin k) => arguments x (Fin.succ k j)), { result: VariableArguments k \where ArgumentSmooth k result }) \by {
+    \fun (j: Fin.Fin k)(coordinate: Fin.Fin n) =>
+      (\bysub(VariableArguments (N.Nat^::succ k), { arguments: VariableArguments (N.Nat^::succ k) \where ArgumentSmooth (N.Nat^::succ k) arguments }, arguments)) (Fin.succ k j) coordinate
+  };

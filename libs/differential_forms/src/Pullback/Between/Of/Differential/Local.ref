@@ -1,0 +1,19 @@
+\import Maps.Coordinates[f := f, left := chart, right := right] \as Coordinates;
+\import Current.Coordinates[chart := chart] \as Cover;
+\import Current.Coordinates[chart := chart].Patch[right := right] \as Patch;
+\import \root.Euclidean[n := n].On[U := Coordinates.domain] \as Forms;
+\import Forms.ExteriorDerivative[k := k] \as D;
+\import \root.Euclidean[n := n].Restriction[U := Coordinates.domain, V := #image{chart}] \as Restriction;
+\import Restriction.Differential[k := k] \as RestrictedD;
+\import \root.Euclidean[n := n].Pullback[m := m, U := Coordinates.domain, V := #image{right}, f := Patch.coordinateMap] \as Pullback;
+\definition law: \forall (omega: TargetForms.Form k) ->
+  Restriction.apply next (Cover.included right) (SourceD.apply (Current.apply omega) chart) =
+    Restriction.apply next (Cover.included right) (Next.apply (TargetD.apply omega) chart) :=
+      \fun (omega: TargetForms.Form k) => trans!{{Forms.Form next}} _
+        (D.apply (Restriction.apply k (Cover.included right) (Current.apply omega chart))) _
+        (sym!{{Forms.Form next}} _ _ (RestrictedD.law (Cover.included right) (Current.apply omega chart)))
+        (trans!{{Forms.Form next}} _ (D.apply (Pullback.apply k (omega right))) _
+          (congr!{{Forms.Form k} {Forms.Form next}} D.apply _ _ (Current.Local[chart := chart, right := right].law omega))
+          (trans!{{Forms.Form next}} _ (Pullback.apply next (TargetD.apply omega right)) _
+            (Pullback.Naturality[k := k].law (omega right))
+            (sym!{{Forms.Form next}} _ _ (Next.Local[chart := chart, right := right].law (TargetD.apply omega)))));

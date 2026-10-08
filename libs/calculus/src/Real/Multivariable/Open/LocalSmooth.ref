@@ -1,0 +1,26 @@
+\import \parent.Smooth[] \as Smooth;
+\structure Patch: \Set {
+  domain: OpenSet,
+  included: Included domain U,
+  smooth: Smooth.SmoothOn domain (restrict domain U included f),
+}
+\definition Contains(patch: Patch)(a: Carrier U): \Prop := \In[Point] (#points{(#domain{patch})}) a;
+\definition Patches(a: Carrier U): \Pow Patch := { patch: Patch \where Contains patch a };
+\definition IsLocal: \Prop := \forall (a: Carrier U) -> \exists \Cast[Patch] (Patches a);
+\module Finite(k: N.Nat^);
+\definition smooth: IsLocal -> Smooth.SmoothOn U f :=
+  \fun (local: IsLocal)(k: N.Nat^) => Finite[k := k].contDiff local;
+\definition included: Included U U := \fun (x: Point)(member: \In[Point] (#points{U}) x) => member;
+\definition restrictIdentity: restrict U U included f = f :=
+  \axiom:funext(restrict U U included f, f, \fun (a: Carrier U) => \refl(f a));
+\definition localOfSmooth: Smooth.SmoothOn U f -> IsLocal := \block {
+  \fun (smooth: Smooth.SmoothOn U f)(a: Carrier U) \then
+  \let patch: Patch := Patch {
+    domain := U, included := included,
+    smooth := \idelim f = restrict U U included f \with g: ScalarFunction U => Smooth.SmoothOn U g \by {
+      base: smooth, equality: sym!{{ScalarFunction U}} (restrict U U included f) f restrictIdentity
+    },
+  } \then
+  \return \exact(\into[Patch](patch, Patches a) \by { \bysub(Point, #points{U}, a) }, \Cast[Patch] (Patches a))
+};
+\definition agreement: Logic.PropEquiv[IsLocal, Smooth.SmoothOn U f] := Logic.PropEquiv[_, _] { ltr := smooth, rtl := localOfSmooth };

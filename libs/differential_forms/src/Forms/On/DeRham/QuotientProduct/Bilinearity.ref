@@ -1,0 +1,81 @@
+\definition cycleAddLeft: \forall (omega, omega2: Left.CycleCarrier)(eta: Right.CycleCarrier) -> cycle (#add{Left.cycleSpace} omega omega2) eta = #add{Result.cycleSpace} (cycle omega eta) (cycle omega2 eta) :=
+  \fun (omega, omega2: Left.CycleCarrier)(eta: Right.CycleCarrier) => Wedge.additiveLeft omega omega2 eta;
+
+\definition cycleScaleLeft: \forall (a: Reals.Real)(omega: Left.CycleCarrier)(eta: Right.CycleCarrier) -> cycle (#smul{Left.cycleSpace} a omega) eta = #smul{Result.cycleSpace} a (cycle omega eta) :=
+  \fun (a: Reals.Real)(omega: Left.CycleCarrier)(eta: Right.CycleCarrier) => Wedge.scalarLeft a omega eta;
+
+\definition cycleAddRight: \forall (omega: Left.CycleCarrier)(eta, eta2: Right.CycleCarrier) -> cycle omega (#add{Right.cycleSpace} eta eta2) = #add{Result.cycleSpace} (cycle omega eta) (cycle omega eta2) :=
+  \fun (omega: Left.CycleCarrier)(eta, eta2: Right.CycleCarrier) => Wedge.additiveRight omega eta eta2;
+
+\definition cycleScaleRight: \forall (a: Reals.Real)(omega: Left.CycleCarrier)(eta: Right.CycleCarrier) -> cycle omega (#smul{Right.cycleSpace} a eta) = #smul{Result.cycleSpace} a (cycle omega eta) :=
+  \fun (a: Reals.Real)(omega: Left.CycleCarrier)(eta: Right.CycleCarrier) => Wedge.scalarRight a omega eta;
+
+\definition classAddLeft: \forall (omega, omega2: Left.CycleCarrier)(eta: Right.CycleCarrier) -> apply (#add{Left.cohomologySpace} (Left.classOf omega) (Left.classOf omega2)) (Right.classOf eta) = #add{Result.cohomologySpace} (apply (Left.classOf omega) (Right.classOf eta)) (apply (Left.classOf omega2) (Right.classOf eta)) :=
+  \fun (omega, omega2: Left.CycleCarrier)(eta: Right.CycleCarrier) => eq_reason!{
+    {apply (#add{Left.cohomologySpace} (Left.classOf omega) (Left.classOf omega2)) (Right.classOf eta)}
+    "=" {apply (Left.classOf (#add{Left.cycleSpace} omega omega2)) (Right.classOf eta)} "by" {congr!{{Left.Cohomology} {Result.Cohomology}} (\fun (h: Left.Cohomology) => apply h (Right.classOf eta)) (#add{Left.cohomologySpace} (Left.classOf omega) (Left.classOf omega2)) (Left.classOf (#add{Left.cycleSpace} omega omega2)) (sym!{{Left.Cohomology}} (Left.classOf (#add{Left.cycleSpace} omega omega2)) (#add{Left.cohomologySpace} (Left.classOf omega) (Left.classOf omega2)) (#addition{Left.classLinear} omega omega2))}
+    "=" {Result.classOf (cycle (#add{Left.cycleSpace} omega omega2) eta)} "by" {onClass (#add{Left.cycleSpace} omega omega2) eta}
+    "=" {Result.classOf (#add{Result.cycleSpace} (cycle omega eta) (cycle omega2 eta))} "by" {congr!{{Result.CycleCarrier} {Result.Cohomology}} Result.classOf _ _ (cycleAddLeft omega omega2 eta)}
+    "=" {#add{Result.cohomologySpace} (Result.classOf (cycle omega eta)) (Result.classOf (cycle omega2 eta))} "by" {#addition{Result.classLinear} (cycle omega eta) (cycle omega2 eta)}
+    "=" {#add{Result.cohomologySpace} (apply (Left.classOf omega) (Right.classOf eta)) (apply (Left.classOf omega2) (Right.classOf eta))} "by" {congr2!{{Result.Cohomology} {Result.Cohomology} {Result.Cohomology}} (#add{Result.cohomologySpace}) _ _ _ _ (sym!{{Result.Cohomology}} _ _ (onClass omega eta)) (sym!{{Result.Cohomology}} _ _ (onClass omega2 eta))}
+  };
+
+\definition additiveLeft: \forall (h, h2: Left.Cohomology)(g: Right.Cohomology) -> apply (#add{Left.cohomologySpace} h h2) g = #add{Result.cohomologySpace} (apply h g) (apply h2 g) :=
+  Left.classInduction (\fun (h: Left.Cohomology) => \forall (h2: Left.Cohomology)(g: Right.Cohomology) -> apply (#add{Left.cohomologySpace} h h2) g = #add{Result.cohomologySpace} (apply h g) (apply h2 g))
+  (\fun (omega: Left.CycleCarrier) => Left.classInduction
+    (\fun (h2: Left.Cohomology) => \forall (g: Right.Cohomology) -> apply (#add{Left.cohomologySpace} (Left.classOf omega) h2) g = #add{Result.cohomologySpace} (apply (Left.classOf omega) g) (apply h2 g))
+    (\fun (omega2: Left.CycleCarrier) => Right.classInduction
+      (\fun (g: Right.Cohomology) => apply (#add{Left.cohomologySpace} (Left.classOf omega) (Left.classOf omega2)) g = #add{Result.cohomologySpace} (apply (Left.classOf omega) g) (apply (Left.classOf omega2) g))
+      (\fun (eta: Right.CycleCarrier) => classAddLeft omega omega2 eta)));
+
+\definition classScaleLeft: \forall (a: Reals.Real)(omega: Left.CycleCarrier)(eta: Right.CycleCarrier) -> apply (#smul{Left.cohomologySpace} a (Left.classOf omega)) (Right.classOf eta) = #smul{Result.cohomologySpace} a (apply (Left.classOf omega) (Right.classOf eta)) :=
+  \fun (a: Reals.Real)(omega: Left.CycleCarrier)(eta: Right.CycleCarrier) => eq_reason!{
+    {apply (#smul{Left.cohomologySpace} a (Left.classOf omega)) (Right.classOf eta)}
+    "=" {apply (Left.classOf (#smul{Left.cycleSpace} a omega)) (Right.classOf eta)} "by" {congr!{{Left.Cohomology} {Result.Cohomology}} (\fun (h: Left.Cohomology) => apply h (Right.classOf eta)) _ _ (sym!{{Left.Cohomology}} _ _ (#scalar{Left.classLinear} a omega))}
+    "=" {Result.classOf (cycle (#smul{Left.cycleSpace} a omega) eta)} "by" {onClass (#smul{Left.cycleSpace} a omega) eta}
+    "=" {Result.classOf (#smul{Result.cycleSpace} a (cycle omega eta))} "by" {congr!{{Result.CycleCarrier} {Result.Cohomology}} Result.classOf _ _ (cycleScaleLeft a omega eta)}
+    "=" {#smul{Result.cohomologySpace} a (Result.classOf (cycle omega eta))} "by" {#scalar{Result.classLinear} a (cycle omega eta)}
+    "=" {#smul{Result.cohomologySpace} a (apply (Left.classOf omega) (Right.classOf eta))} "by" {congr!{{Result.Cohomology} {Result.Cohomology}} (#smul{Result.cohomologySpace} a) _ _ (sym!{{Result.Cohomology}} _ _ (onClass omega eta))}
+  };
+
+\definition scalarLeft: \forall (a: Reals.Real)(h: Left.Cohomology)(g: Right.Cohomology) -> apply (#smul{Left.cohomologySpace} a h) g = #smul{Result.cohomologySpace} a (apply h g) :=
+  \fun (a: Reals.Real) => Left.classInduction
+    (\fun (h: Left.Cohomology) => \forall (g: Right.Cohomology) -> apply (#smul{Left.cohomologySpace} a h) g = #smul{Result.cohomologySpace} a (apply h g))
+    (\fun (omega: Left.CycleCarrier) => Right.classInduction
+      (\fun (g: Right.Cohomology) => apply (#smul{Left.cohomologySpace} a (Left.classOf omega)) g = #smul{Result.cohomologySpace} a (apply (Left.classOf omega) g))
+      (\fun (eta: Right.CycleCarrier) => classScaleLeft a omega eta));
+
+\definition classAddRight: \forall (eta, eta2: Right.CycleCarrier)(omega: Left.CycleCarrier) -> apply (Left.classOf omega) (#add{Right.cohomologySpace} (Right.classOf eta) (Right.classOf eta2)) = #add{Result.cohomologySpace} (apply (Left.classOf omega) (Right.classOf eta)) (apply (Left.classOf omega) (Right.classOf eta2)) :=
+  \fun (eta, eta2: Right.CycleCarrier)(omega: Left.CycleCarrier) => eq_reason!{
+    {apply (Left.classOf omega) (#add{Right.cohomologySpace} (Right.classOf eta) (Right.classOf eta2))}
+    "=" {apply (Left.classOf omega) (Right.classOf (#add{Right.cycleSpace} eta eta2))} "by" {congr!{{Right.Cohomology} {Result.Cohomology}} (\fun (h: Right.Cohomology) => apply (Left.classOf omega) h) (#add{Right.cohomologySpace} (Right.classOf eta) (Right.classOf eta2)) (Right.classOf (#add{Right.cycleSpace} eta eta2)) (sym!{{Right.Cohomology}} (Right.classOf (#add{Right.cycleSpace} eta eta2)) (#add{Right.cohomologySpace} (Right.classOf eta) (Right.classOf eta2)) (#addition{Right.classLinear} eta eta2))}
+    "=" {Result.classOf (cycle omega (#add{Right.cycleSpace} eta eta2))} "by" {onClass omega (#add{Right.cycleSpace} eta eta2)}
+    "=" {Result.classOf (#add{Result.cycleSpace} (cycle omega eta) (cycle omega eta2))} "by" {congr!{{Result.CycleCarrier} {Result.Cohomology}} Result.classOf _ _ (cycleAddRight omega eta eta2)}
+    "=" {#add{Result.cohomologySpace} (Result.classOf (cycle omega eta)) (Result.classOf (cycle omega eta2))} "by" {#addition{Result.classLinear} (cycle omega eta) (cycle omega eta2)}
+    "=" {#add{Result.cohomologySpace} (apply (Left.classOf omega) (Right.classOf eta)) (apply (Left.classOf omega) (Right.classOf eta2))} "by" {congr2!{{Result.Cohomology} {Result.Cohomology} {Result.Cohomology}} (#add{Result.cohomologySpace}) _ _ _ _ (sym!{{Result.Cohomology}} _ _ (onClass omega eta)) (sym!{{Result.Cohomology}} _ _ (onClass omega eta2))}
+  };
+
+\definition additiveRight: \forall (h, h2: Right.Cohomology)(g: Left.Cohomology) -> apply g (#add{Right.cohomologySpace} h h2) = #add{Result.cohomologySpace} (apply g h) (apply g h2) :=
+  Right.classInduction (\fun (h: Right.Cohomology) => \forall (h2: Right.Cohomology)(g: Left.Cohomology) -> apply g (#add{Right.cohomologySpace} h h2) = #add{Result.cohomologySpace} (apply g h) (apply g h2))
+  (\fun (eta: Right.CycleCarrier) => Right.classInduction
+    (\fun (h2: Right.Cohomology) => \forall (g: Left.Cohomology) -> apply g (#add{Right.cohomologySpace} (Right.classOf eta) h2) = #add{Result.cohomologySpace} (apply g (Right.classOf eta)) (apply g h2))
+    (\fun (eta2: Right.CycleCarrier) => Left.classInduction
+      (\fun (g: Left.Cohomology) => apply g (#add{Right.cohomologySpace} (Right.classOf eta) (Right.classOf eta2)) = #add{Result.cohomologySpace} (apply g (Right.classOf eta)) (apply g (Right.classOf eta2)))
+      (\fun (omega: Left.CycleCarrier) => classAddRight eta eta2 omega)));
+
+\definition classScaleRight: \forall (a: Reals.Real)(eta: Right.CycleCarrier)(omega: Left.CycleCarrier) -> apply (Left.classOf omega) (#smul{Right.cohomologySpace} a (Right.classOf eta)) = #smul{Result.cohomologySpace} a (apply (Left.classOf omega) (Right.classOf eta)) :=
+  \fun (a: Reals.Real)(eta: Right.CycleCarrier)(omega: Left.CycleCarrier) => eq_reason!{
+    {apply (Left.classOf omega) (#smul{Right.cohomologySpace} a (Right.classOf eta))}
+    "=" {apply (Left.classOf omega) (Right.classOf (#smul{Right.cycleSpace} a eta))} "by" {congr!{{Right.Cohomology} {Result.Cohomology}} (\fun (h: Right.Cohomology) => apply (Left.classOf omega) h) _ _ (sym!{{Right.Cohomology}} _ _ (#scalar{Right.classLinear} a eta))}
+    "=" {Result.classOf (cycle omega (#smul{Right.cycleSpace} a eta))} "by" {onClass omega (#smul{Right.cycleSpace} a eta)}
+    "=" {Result.classOf (#smul{Result.cycleSpace} a (cycle omega eta))} "by" {congr!{{Result.CycleCarrier} {Result.Cohomology}} Result.classOf _ _ (cycleScaleRight a omega eta)}
+    "=" {#smul{Result.cohomologySpace} a (Result.classOf (cycle omega eta))} "by" {#scalar{Result.classLinear} a (cycle omega eta)}
+    "=" {#smul{Result.cohomologySpace} a (apply (Left.classOf omega) (Right.classOf eta))} "by" {congr!{{Result.Cohomology} {Result.Cohomology}} (#smul{Result.cohomologySpace} a) _ _ (sym!{{Result.Cohomology}} _ _ (onClass omega eta))}
+  };
+
+\definition scalarRight: \forall (a: Reals.Real)(h: Right.Cohomology)(g: Left.Cohomology) -> apply g (#smul{Right.cohomologySpace} a h) = #smul{Result.cohomologySpace} a (apply g h) :=
+  \fun (a: Reals.Real) => Right.classInduction
+    (\fun (h: Right.Cohomology) => \forall (g: Left.Cohomology) -> apply g (#smul{Right.cohomologySpace} a h) = #smul{Result.cohomologySpace} a (apply g h))
+    (\fun (eta: Right.CycleCarrier) => Left.classInduction
+      (\fun (g: Left.Cohomology) => apply g (#smul{Right.cohomologySpace} a (Right.classOf eta)) = #smul{Result.cohomologySpace} a (apply g (Right.classOf eta)))
+      (\fun (omega: Left.CycleCarrier) => classScaleRight a eta omega));

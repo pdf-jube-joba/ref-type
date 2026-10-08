@@ -1,0 +1,31 @@
+\import Charts.Cocycle[left := left, middle := middle, right := right] \as Geometry;
+\import Charts.Transition[left := left, right := middle] \as First;
+\import Charts.Transition[left := middle, right := right] \as Second;
+\import Charts.Transition[left := left, right := right] \as Direct;
+\import \parent.Pair[left := left, right := middle] \as FirstPair;
+\import \parent.Pair[left := middle, right := right] \as SecondPair;
+\import calculus.Maps[n := n, m := n] \as Maps;
+\import Open.Restriction[] \as Restriction;
+\definition firstData: Maps.Data[Geometry.domain, Second.domain] := Maps.Data[Geometry.domain, Second.domain] {
+  apply := Geometry.intermediate,
+};
+\definition firstMap(compatible: Compatible left middle): Maps.Map Geometry.domain Second.domain := \into[Maps.Data[Geometry.domain, Second.domain]](firstData,
+    { map: Maps.Data[Geometry.domain, Second.domain] \where Maps.Laws[Geometry.domain, Second.domain, map] }) \by {
+      Maps.Laws[Geometry.domain, Second.domain, firstData] {
+        smooth := \fun (i: Coordinates.Coordinate) => Restriction.localSmooth Geometry.domain First.domain Geometry.firstIncluded
+          (\fun (x: Open.Carrier First.domain) => First.vector x i) (compatible i),
+      }
+    };
+\definition compose(compatibleFirst: Compatible left middle)(compatibleSecond: Compatible middle right): Maps.Map Geometry.domain #image{right} :=
+  Maps.Composition[U := Geometry.domain, V := Second.domain, f := firstMap compatibleFirst].After[l := n, W := #image{right}, g := SecondPair.smoothMap compatibleSecond].compose;
+\definition regular: Compatible left middle -> Compatible middle right -> \forall (i: Coordinates.Coordinate) ->
+  Analysis.SmoothOn Geometry.domain (\fun (x: Open.Carrier Geometry.domain) => Direct.vector (Geometry.directPoint x) i) :=
+  \fun (compatibleFirst: Compatible left middle)(compatibleSecond: Compatible middle right)(i: Coordinates.Coordinate) =>
+    \idelim (\fun (x: Open.Carrier Geometry.domain) => Maps.apply Geometry.domain #image{right} (compose compatibleFirst compatibleSecond) x i) =
+      (\fun (x: Open.Carrier Geometry.domain) => Direct.vector (Geometry.directPoint x) i)
+      \with f: Open.ScalarFunction Geometry.domain => Analysis.SmoothOn Geometry.domain f \by {
+        base: #smooth{(compose compatibleFirst compatibleSecond)} i,
+        equality: \axiom:funext((\fun (x: Open.Carrier Geometry.domain) => Maps.apply Geometry.domain #image{right} (compose compatibleFirst compatibleSecond) x i),
+          (\fun (x: Open.Carrier Geometry.domain) => Direct.vector (Geometry.directPoint x) i),
+          \fun (x: Open.Carrier Geometry.domain) => congr!{Coordinates.Point Real.Real} (\fun (v: Coordinates.Point) => v i) _ _ (Geometry.coordinateAgreement x))
+      };

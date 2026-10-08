@@ -1,0 +1,12 @@
+
+\import \parent.\parent.\parent.Sums[I := J] \as Sums;
+\definition family(indices: Lists.List[J])(H: J -> I -> Function): I -> Function := \fun (i: I)(xs: Lists.List[I]) => Sums.sum indices (\fun (j: J) => H j i xs);
+\definition law: \forall (indices: Lists.List[J])(H: J -> I -> Function)(xs: Lists.List[I]) -> apply (family indices H) xs = Sums.sum indices (\fun (j: J) => apply (H j) xs) :=
+  \induction (indices: Lists.List[J]) \return \forall (H: J -> I -> Function)(xs: Lists.List[I]) -> apply (family indices H) xs = Sums.sum indices (\fun (j: J) => apply (H j) xs) \with {
+    | nil: \fun (H: J -> I -> Function)(xs: Lists.List[I]) => zeroValue xs
+    | cons: \fun (j: J)(tail: Lists.List[J])(previous: _) (H: J -> I -> Function)(xs: Lists.List[I]) =>
+      trans!{K} (apply (family (Lists.List[J]::cons j tail) H) xs) (add (apply (H j) xs) (apply (family tail H) xs))
+        (Sums.sum (Lists.List[J]::cons j tail) (\fun (j: J) => apply (H j) xs))
+        (addition xs (H j) (family tail H))
+        (congr!{K K} (add (apply (H j) xs)) (apply (family tail H) xs) (Sums.sum tail (\fun (j: J) => apply (H j) xs)) (previous H xs))
+  };

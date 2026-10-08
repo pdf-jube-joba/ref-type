@@ -1,0 +1,183 @@
+\definition Equivalent(x, y: V): \Prop := Member S (Group.difference x y);
+\import algebra.Quotient[A := V, relation := Equivalent] \as Quotient;
+\import std.Set[].Quotient[A := V, Equivalent := Equivalent] \as Q;
+\import Quotient.Operations[] \as Operations;
+\import Quotient.Groups[] \as Groups;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition class: V -> Carrier := Quotient.class;
+
+\definition inverseDifference: \forall (x, y: V) ->
+  neg (Group.difference x y) = Group.difference y x :=
+  \fun (x, y: _) => eq_reason!{
+    {neg (Group.difference x y)} "=" {add (neg x) (neg (neg y))} "by" {Group.negAdd x (neg y)}
+    "=" {add (neg x) y} "by" {congr!{V V} (add (neg x)) _ _ (Group.negNeg y)}
+    "=" {Group.difference y x} "by" {Group.comm (neg x) y}
+  };
+\definition differenceChain: \forall (x, y, z: V) ->
+  add (Group.difference x y) (Group.difference y z) = Group.difference x z :=
+  \fun (x, y, z: _) => eq_reason!{
+    {add (Group.difference x y) (Group.difference y z)}
+    "=" {add x (add (neg y) (add y (neg z)))} "by" {Group.assoc x (neg y) (Group.difference y z)}
+    "=" {add x (add (add (neg y) y) (neg z))} "by" {congr!{V V} (add x) _ _ (sym!{V} _ _ (Group.assoc (neg y) y (neg z)))}
+    "=" {add x (add zero (neg z))} "by" {congr!{V V} (\fun (t: _) => add x (add t (neg z))) _ _ (Group.inverseLeft y)}
+    "=" {Group.difference x z} "by" {congr!{V V} (add x) _ _ (Group.zeroLeft (neg z))}
+  };
+\definition equivalence: Q.EquivalenceLaws := Q.EquivalenceLaws {
+  refl := \fun (x: V) => \idelim zero = Group.difference x x \with y: V => Member S y \by {
+    base: #zero{S}, equality: sym!{V} _ _ (Group.inverseRight x)
+  },
+  sym := \fun (x, y: V)(related: Equivalent x y) =>
+    \idelim neg (Group.difference x y) = Group.difference y x \with z: V => Member S z \by {
+      base: negativeClosed S (Group.difference x y) related,
+      equality: inverseDifference x y
+    },
+  trans := \fun (x, y, z: V)(xy: Equivalent x y)(yz: Equivalent y z) =>
+    \idelim add (Group.difference x y) (Group.difference y z) = Group.difference x z \with t: V => Member S t \by {
+      base: #addition{S} (Group.difference x y) (Group.difference y z) xy yz,
+      equality: differenceChain x y z
+    },
+};
+\definition additionRespects: Q.BinaryRespects add :=
+  \fun (x, x2, y, y2: V)(left: Equivalent x x2)(right: Equivalent y y2) =>
+    \idelim add (Group.difference x x2) (Group.difference y y2) = Group.difference (add x y) (add x2 y2)
+      \with z: V => Member S z \by {
+        base: #addition{S} _ _ left right,
+        equality: sym!{V} _ _ (Group.differenceAdd x y x2 y2)
+      };
+\definition negationRespects: Q.UnaryRespects neg :=
+  \fun (x, y: V)(related: Equivalent x y) =>
+    \idelim neg (Group.difference x y) = Group.difference (neg x) (neg y) \with z: V => Member S z \by {
+      base: negativeClosed S (Group.difference x y) related,
+      equality: Group.negAdd x (neg y)
+    };
+\definition scaleRespects: \forall (a: R) -> Q.UnaryRespects (scale a) :=
+  \fun (a: R)(x, y: V)(related: Equivalent x y) =>
+    \idelim scale a (Group.difference x y) = Group.difference (scale a x) (scale a y) \with z: V => Member S z \by {
+      base: #scalar{S} a (Group.difference x y) related,
+      equality: scaleDifference a x y
+    };
+\definition congruence: Groups.Congruence[additive] := Groups.Congruence[additive] {
+  equivalence := equivalence, addition := additionRespects, inverse := negationRespects,
+};
+\definition quotientGroup: Alg.CommutativeGroup[Carrier] := Groups.quotient additive congruence;
+\definition zeroClass: Carrier := class zero;
+\definition addClass: Carrier -> Carrier -> Carrier := Groups.add additive congruence;
+\definition negClass: Carrier -> Carrier := Groups.neg additive congruence;
+\definition scaleClass(a: R): Carrier -> Carrier := Operations.unary equivalence (scale a) (scaleRespects a);
+\definition scaleOnClass: \forall (a: R)(x: V) -> scaleClass a (class x) = class (scale a x) :=
+  \fun (a: R) => Operations.unaryClass equivalence (scale a) (scaleRespects a);
+\definition addOnClass: \forall (x, y: V) -> addClass (class x) (class y) = class (add x y) :=
+  Operations.binaryClass equivalence add additionRespects;
+
+\definition moduleSpace: Space Carrier := Ring.RingModule[R, Carrier, ring] {
+  zero := zeroClass, add := addClass, neg := negClass, smul := scaleClass,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# zeroClass addClass negClass)] {
+    group := #group{quotientGroup}, commutative := #commutative{quotientGroup},
+  },
+  scalarOne := Q.induction (\fun (C: Carrier) => scaleClass (#one{ring}) C = C)
+    (\fun (x: V) => trans!{Carrier} _ _ _ (scaleOnClass (#one{ring}) x) (congr!{V Carrier} class _ _ (#scalarOne{space} x))),
+  scalarAssoc := \fun (a, b: R) => Q.induction
+    (\fun (C: Carrier) => scaleClass (#mul{ring} a b) C = scaleClass a (scaleClass b C))
+    (\fun (x: V) => eq_reason!{
+      {scaleClass (#mul{ring} a b) (class x)} "=" {class (scale (#mul{ring} a b) x)} "by" {scaleOnClass (#mul{ring} a b) x}
+      "=" {class (scale a (scale b x))} "by" {congr!{V Carrier} class _ _ (#scalarAssoc{space} a b x)}
+      "=" {scaleClass a (class (scale b x))} "by" {sym!{Carrier} _ _ (scaleOnClass a (scale b x))}
+      "=" {scaleClass a (scaleClass b (class x))} "by" {congr!{Carrier Carrier} (scaleClass a) _ _ (sym!{Carrier} _ _ (scaleOnClass b x))}
+    }),
+  scalarAdd := \fun (a, b: R) => Q.induction
+    (\fun (C: Carrier) => scaleClass (#add{ring} a b) C = addClass (scaleClass a C) (scaleClass b C))
+    (\fun (x: V) => eq_reason!{
+      {scaleClass (#add{ring} a b) (class x)} "=" {class (scale (#add{ring} a b) x)} "by" {scaleOnClass (#add{ring} a b) x}
+      "=" {class (add (scale a x) (scale b x))} "by" {congr!{V Carrier} class _ _ (#scalarAdd{space} a b x)}
+      "=" {addClass (class (scale a x)) (class (scale b x))} "by" {sym!{Carrier} _ _ (addOnClass _ _)}
+      "=" {addClass (scaleClass a (class x)) (scaleClass b (class x))}
+      "by" {congr2!{Carrier Carrier Carrier} addClass _ _ _ _ (sym!{Carrier} _ _ (scaleOnClass a x)) (sym!{Carrier} _ _ (scaleOnClass b x))}
+    }),
+  vectorAdd := \fun (a: R) => Q.induction
+    (\fun (C: Carrier) => \forall (D: Carrier) -> scaleClass a (addClass C D) = addClass (scaleClass a C) (scaleClass a D))
+    (\fun (x: V) => Q.induction
+      (\fun (D: Carrier) => scaleClass a (addClass (class x) D) = addClass (scaleClass a (class x)) (scaleClass a D))
+      (\fun (y: V) => eq_reason!{
+        {scaleClass a (addClass (class x) (class y))} "=" {scaleClass a (class (add x y))} "by" {congr!{Carrier Carrier} (scaleClass a) _ _ (addOnClass x y)}
+        "=" {class (scale a (add x y))} "by" {scaleOnClass a (add x y)}
+        "=" {class (add (scale a x) (scale a y))} "by" {congr!{V Carrier} class _ _ (#vectorAdd{space} a x y)}
+        "=" {addClass (class (scale a x)) (class (scale a y))} "by" {sym!{Carrier} _ _ (addOnClass _ _)}
+        "=" {addClass (scaleClass a (class x)) (scaleClass a (class y))}
+        "by" {congr2!{Carrier Carrier Carrier} addClass _ _ _ _ (sym!{Carrier} _ _ (scaleOnClass a x)) (sym!{Carrier} _ _ (scaleOnClass a y))}
+      })),
+};
+
+\import \parent.\parent.\parent.Hom[V := V, W := Carrier, source := space, target := moduleSpace] \as Projection;
+\definition projection: Projection.Map := Projection.Map {
+  apply := class,
+  addition := \fun (x, y: V) => sym!{Carrier} _ _ (addOnClass x y),
+  scalar := \fun (a: R)(x: V) => sym!{Carrier} _ _ (scaleOnClass a x),
+};
+
+\module To(W: \Set, target: Space W) {
+  \import \parent.\parent.\parent.\parent.Hom[V := V, W := W, source := space, target := target] \as Maps;
+  \import \parent.\parent.\parent.\parent.Hom[V := Carrier, W := W, source := moduleSpace, target := target] \as Result;
+  \import \parent.\parent.\parent.\parent.Laws[V := W, space := target] \as Target;
+  \import algebra.Group[].Of[Carrier := W, group := Target.additive] \as TargetGroup;
+  \import Quotient.Lift[B := W] \as Lift;
+  \definition Vanishes(f: Maps.Map): \Prop := \forall (x: V) -> Member S x -> #apply{f} x = Target.zero;
+  \definition respects: \forall (f: Maps.Map) -> Vanishes f -> Lift.Respects (#apply{f}) :=
+    \fun (f: Maps.Map)(vanishes: Vanishes f)(x, y: V)(related: Equivalent x y) =>
+      TargetGroup.cancelRight (Target.neg (#apply{f} y)) (#apply{f} x) (#apply{f} y)
+        (trans!{W} _ Target.zero _
+          (trans!{W} _ _ _ (sym!{W} _ _ (Maps.differencePreserved f x y)) (vanishes (Group.difference x y) related))
+          (sym!{W} _ _ (TargetGroup.inverseRight (#apply{f} y))));
+  \definition descend(f: Maps.Map)(vanishes: Vanishes f): Result.Map := Result.Map {
+    apply := Lift.apply equivalence (#apply{f}) (respects f vanishes),
+    addition := Lift.preservesBinary equivalence (#apply{f}) (respects f vanishes) add additionRespects Target.add (#addition{f}),
+    scalar := \fun (a: R) => Q.induction
+      (\fun (C: Carrier) => Lift.apply equivalence (#apply{f}) (respects f vanishes) (scaleClass a C) =
+        Target.scale a (Lift.apply equivalence (#apply{f}) (respects f vanishes) C))
+      (\fun (x: V) => eq_reason!{
+        {Lift.apply equivalence (#apply{f}) (respects f vanishes) (scaleClass a (class x))}
+        "=" {Lift.apply equivalence (#apply{f}) (respects f vanishes) (class (scale a x))}
+        "by" {congr!{Carrier W} (Lift.apply equivalence (#apply{f}) (respects f vanishes)) _ _ (scaleOnClass a x)}
+        "=" {#apply{f} (scale a x)} "by" {Lift.onClass equivalence (#apply{f}) (respects f vanishes) (scale a x)}
+        "=" {Target.scale a (#apply{f} x)} "by" {#scalar{f} a x}
+        "=" {Target.scale a (Lift.apply equivalence (#apply{f}) (respects f vanishes) (class x))}
+        "by" {congr!{W W} (Target.scale a) _ _ (sym!{W} _ _ (Lift.onClass equivalence (#apply{f}) (respects f vanishes) x))}
+      }),
+  };
+  \definition onClass: \forall (f: Maps.Map)(vanishes: Vanishes f)(x: V) -> #apply{(descend f vanishes)} (class x) = #apply{f} x :=
+    \fun (f: Maps.Map)(vanishes: Vanishes f) => Lift.onClass equivalence (#apply{f}) (respects f vanishes);
+  \definition unique: \forall (f: Maps.Map)(vanishes: Vanishes f)(g: Carrier -> W) ->
+    (\forall (x: V) -> g (class x) = #apply{f} x) -> g = #apply{(descend f vanishes)} :=
+    \fun (f: Maps.Map)(vanishes: Vanishes f) => Lift.unique equivalence (#apply{f}) (respects f vanishes);
+}
+
+\definition classRelated: \forall (x, y: V) -> Equivalent x y -> class x = class y :=
+  Quotient.classRelated equivalence;
+\definition relatedOfClassEq: \forall (x, y: V) -> class x = class y -> Equivalent x y :=
+  Q.equivalentOfClassEq equivalence;
+\definition differenceZero: \forall (x: V) -> Group.difference x zero = x :=
+  \fun (x: V) => trans!{V} _ _ _ (congr!{V V} (add x) _ _ Group.negZero) (Group.zeroRight x);
+\definition classZero: \forall (x: V) -> Member S x -> class x = zeroClass :=
+  \fun (x: V)(member: Member S x) => classRelated x zero
+    (\idelim x = Group.difference x zero \with y: V => Member S y \by {
+      base: member, equality: sym!{V} _ _ (differenceZero x)
+    });
+\definition zeroClassMember: \forall (x: V) -> class x = zeroClass -> Member S x :=
+  \fun (x: V)(equal: class x = zeroClass) =>
+    \idelim Group.difference x zero = x \with y: V => Member S y \by {
+      base: relatedOfClassEq x zero equal, equality: differenceZero x
+    };
+
+\definition induction(P: Carrier -> \Prop): (\forall (x: V) -> P (class x)) -> \forall (C: Carrier) -> P C := Q.induction P;
+
+\module ZeroQuotient {
+  \import \parent.\parent.\parent.\parent.End[V := V, space := space] \as End;
+  \import \parent.To[W := V, target := space] \as Descent;
+  \definition IsZero: \Prop := \forall (x: V) -> Member S x -> x = zero;
+  \import \parent.\parent.\parent.\parent.Hom[V := Carrier, W := V, source := moduleSpace, target := space] \as Result;
+  \definition inverse(isZero: IsZero): Result.Map := Descent.descend End.identity isZero;
+  \definition inverseClass: \forall (isZero: IsZero)(x: V) -> #apply{(inverse isZero)} (class x) = x :=
+    \fun (isZero: IsZero) => Descent.onClass End.identity isZero;
+  \definition classInverse: \forall (isZero: IsZero)(C: Carrier) -> class (#apply{(inverse isZero)} C) = C :=
+    \fun (isZero: IsZero) => induction (\fun (C: Carrier) => class (#apply{(inverse isZero)} C) = C)
+      (\fun (x: V) => congr!{V Carrier} class (#apply{(inverse isZero)} (class x)) x (inverseClass isZero x));
+}

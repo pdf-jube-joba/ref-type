@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the known failures and working comparisons; success means reproduced."""
+"""Check all pointwise quotient representations without a cache."""
 import argparse
 from pathlib import Path
 import subprocess
@@ -7,11 +7,11 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[3]
 CASES = (
-    ("01-direct-type", "uncaptured parameter"),
+    ("01-direct-type", None),
     ("02-function-alias", None),
-    ("03-explicit-lambda", "uncaptured parameter"),
+    ("03-explicit-lambda", None),
     ("04-scoped-lambda", None),
-    ("05-alias-equality", "expected Program value-type syntax"),
+    ("05-alias-equality", None),
 )
 
 
@@ -20,7 +20,7 @@ def main():
     parser.add_argument("--cli", type=Path, default=ROOT / "target/debug/cli")
     args = parser.parse_args()
     executable = args.cli.resolve()
-    for name, diagnostic in CASES:
+    for name, _ in CASES:
         project = Path(__file__).resolve().parent / name
         try:
             result = subprocess.run(
@@ -30,14 +30,10 @@ def main():
         except (OSError, subprocess.TimeoutExpired) as error:
             print(f"{name}: {error}", file=sys.stderr)
             return 1
-        valid = result.returncode == (1 if diagnostic else 0)
-        if diagnostic:
-            valid = valid and diagnostic in result.stderr and "Forms.ref:" in result.stderr
-        if not valid:
+        if result.returncode != 0:
             print(f"{name}: unexpected exit {result.returncode}\n{result.stdout}{result.stderr}", file=sys.stderr)
             return 1
-        outcome = "success" if diagnostic is None else f"known failure ({diagnostic})"
-        print(f"{name}: {outcome}", flush=True)
+        print(f"{name}: success", flush=True)
     return 0
 
 

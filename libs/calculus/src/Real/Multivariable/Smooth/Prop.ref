@@ -83,6 +83,48 @@
 \definition constantSmooth: \forall (c: Real) -> Def.Smooth (Space.constantFunction c) :=
   \fun (c: _) (k: _) => constantContDiff k c;
 
+\definition projectionPartials(i: Coordinate): Def.PartialFamily := \fun (directions: Def.Directions) =>
+  \match directions \in Lists.List \return (\fun (_: Def.Directions) => Function) \with {
+    | nil: Space.projection i
+    | cons j tail: \match tail \in Lists.List \return (\fun (_: Def.Directions) => Function) \with {
+      | nil: Space.constantFunction (PartialLaws.kronecker i j)
+      | cons head rest: Space.constantFunction zero
+    }
+  };
+\definition projectionPartialLaws: \forall (i: Coordinate)(k: N.Nat^) -> Def.PartialFamilyLaws[Space.projection i, k, projectionPartials i] :=
+  \fun (i: _)(k: _) => Def.PartialFamilyLaws[Space.projection i, k, projectionPartials i] {
+    function := \refl(Space.projection i),
+    derivative := \induction (directions: Def.Directions) \return NatLaws.Lt (Def.order directions) k -> \forall (j: Coordinate) ->
+      Partial.HasPartialDerivative (projectionPartials i directions) j (projectionPartials i (Def.Directions::cons j directions)) \with {
+        | nil: \fun (bound: _)(j: _) => PartialLaws.projectionPartialAny i j
+        | cons: \fun (head: Coordinate)(tail: Def.Directions)(previous: _) =>
+          \induction (tail: Def.Directions) \return NatLaws.Lt (Def.order (Def.Directions::cons head tail)) k -> \forall (j: Coordinate) ->
+            Partial.HasPartialDerivative (projectionPartials i (Def.Directions::cons head tail)) j
+              (projectionPartials i (Def.Directions::cons j (Def.Directions::cons head tail))) \with {
+                | nil: \fun (bound: _)(j: _) => PartialLaws.constantPartial (PartialLaws.kronecker i head) j
+                | cons: \fun (h: _)(t: _)(previous: _)(bound: _)(j: _) => PartialLaws.constantPartial zero j
+              } tail
+      },
+  };
+\definition projectionContinuousFamily: \forall (i: Coordinate)(directions: Def.Directions) -> Space.Continuous (projectionPartials i directions) :=
+  \fun (i: _) => \induction (directions: Def.Directions) \return Space.Continuous (projectionPartials i directions) \with {
+    | nil: SpaceLaws.projectionContinuous i
+    | cons: \fun (head: Coordinate)(tail: Def.Directions)(previous: _) =>
+      (\induction (tail: Def.Directions) \return Space.Continuous (projectionPartials i (Def.Directions::cons head tail)) \with {
+        | nil: SpaceLaws.constantContinuous (PartialLaws.kronecker i head)
+        | cons: \fun (h: _)(t: _)(previous: _) => SpaceLaws.constantContinuous zero
+      }) tail
+  };
+\definition projectionContDiff: \forall (k: N.Nat^)(i: Coordinate) -> Def.ContDiff k (Space.projection i) :=
+  \fun (k: _)(i: _) => \exact(\into[Def.PartialFamily](projectionPartials i,
+    { d: Def.PartialFamily \where Def.ContDiffLaws[Space.projection i, k, d] }) \by {
+      Def.ContDiffLaws[Space.projection i, k, projectionPartials i] {
+        partials := projectionPartialLaws i k,
+        continuous := \fun (directions: Def.Directions)(bound: _) => projectionContinuousFamily i directions,
+      }
+    }, \Cast[Def.PartialFamily] ({ d: Def.PartialFamily \where Def.ContDiffLaws[Space.projection i, k, d] }));
+\definition projectionSmooth: \forall (i: Coordinate) -> Def.Smooth (Space.projection i) := \fun (i: _)(k: _) => projectionContDiff k i;
+
 \definition zeroPartials: Def.PartialFamily := \fun (directions: _) => Space.constantFunction zero;
 
 \definition zeroCommutingPartials: \forall (k: N.Nat^) ->

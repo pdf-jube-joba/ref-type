@@ -779,6 +779,16 @@ impl<'a> Checker<'a> {
                 if self.solving {
                     self.metas.unify(self.env, &self.context, a, b)?;
                 } else if !self.equal(a, b)? {
+                    if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some()
+                        && let Ok(Some((path, left, right))) =
+                            crate::reduction::first_difference(self.env, a, b)
+                    {
+                        eprintln!(
+                            "equality carrier difference {path:?}: {:?} != {:?}",
+                            self.arena().get(left),
+                            self.arena().get(right)
+                        );
+                    }
                     return Err("different equality carriers".into());
                 }
                 self.base(BaseSort::Prop)

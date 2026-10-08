@@ -1,0 +1,25 @@
+\import Multilinear.Contraction[k := k] \as Contract;
+\import Contract.Expansion[I := Fin.Fin n, b := Basis.basis] \as Expansion;
+\definition contracted(i: Fin.Fin n): Family k := \fun (x: Source.Carrier U) => Contract.apply (omega x) (Basis.vectors i);
+\definition coefficients: CoefficientSmooth (N.Nat^::succ k) omega -> \forall (i: Fin.Fin n) -> CoefficientSmooth k (contracted i) :=
+  \fun (regular: CoefficientSmooth (N.Nat^::succ k) omega)(i: Fin.Fin n)(indices: Fin.Fin k -> Fin.Fin n) =>
+    equalSmooth (\fun (x: Source.Carrier U) => omega x (\fun (j: Fin.Fin (N.Nat^::succ k)) => Basis.vectors (Indices.extend k i indices j)))
+      (\fun (x: Source.Carrier U) => contracted i x (\fun (j: Fin.Fin k) => Basis.vectors (indices j)))
+      (\fun (x: Source.Carrier U) => congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Reals.Real}} (omega x) _ _ (Mapping.extendMap k Basis.vectors i indices))
+      (regular (Indices.extend k i indices));
+\definition law: Law k -> \forall (arguments: VariableArguments (N.Nat^::succ k)) ->
+  CoefficientSmooth (N.Nat^::succ k) omega -> ArgumentSmooth (N.Nat^::succ k) arguments ->
+  Regularity.SmoothOn U (\fun (x: Source.Carrier U) => omega x (arguments x)) := \block {
+  \fun (previous: Law k)(arguments: VariableArguments (N.Nat^::succ k))(regular: CoefficientSmooth (N.Nat^::succ k) omega)
+    (argumentRegular: ArgumentSmooth (N.Nat^::succ k) arguments) \then
+  \let head: Source.Carrier U -> Vectors.Vector := \fun (x: Source.Carrier U) => arguments x (Fin.zero k) \then
+  \let tail: VariableArguments k := \fun (x: Source.Carrier U)(j: Fin.Fin k) => arguments x (Fin.succ k j) \then
+  \let term: Fin.Fin n -> Source.ScalarFunction U := \fun (i: Fin.Fin n)(x: Source.Carrier U) => Spaces.mul (head x i) (contracted i x (tail x)) \then
+  \return equalSmooth (Sums.sum (Fin.elements n) term) (\fun (x: Source.Carrier U) => omega x (arguments x))
+    (\fun (x: Source.Carrier U) => trans!{{Reals.Real}} _ _ _ (sym!{{Reals.Real}} _ _ (Expansion.law (omega x) (head x) (tail x)))
+      (congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Reals.Real}} (omega x) (Arguments.extend k (head x) (tail x)) (arguments x) (Arguments.recover k (arguments x))))
+    (Sums.smooth (Fin.elements n) term (\fun (i: Fin.Fin n) => Operations.mulSmooth U
+      (\fun (x: Source.Carrier U) => head x i) (\fun (x: Source.Carrier U) => contracted i x (tail x))
+      (argumentRegular (Fin.zero k) i) (previous (contracted i) tail (coefficients regular i)
+        (\fun (j: Fin.Fin k) => argumentRegular (Fin.succ k j)))))
+};

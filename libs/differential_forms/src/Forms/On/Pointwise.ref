@@ -1,0 +1,39 @@
+\import std.Set[] \as Sets;
+\import std.Logic[].Classical[] \as Classical;
+\import std.Data[].FinSet[] \as Fin;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Vectors;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\module At(x: M.Point);
+\definition value: Form k -> PointFamily k := \fun (omega: Form k)(x: M.Point) => At[x := x].value omega;
+
+\module CoordinateRecovery(x: M.Point);
+\module Coordinates(chart: Chart);
+\definition SmoothPointFamily(phi: PointFamily k): \Prop := \forall (chart: Chart) ->
+  Euclidean.On[U := #image{chart}].SmoothFamily k (Coordinates[chart := chart].family phi);
+\definition RegularPointFamily: \Set := \Cast[PointFamily k] ({ phi: PointFamily k \where SmoothPointFamily phi });
+\definition regular: \forall (omega: Form k) -> SmoothPointFamily (value omega) :=
+  \fun (omega: Form k)(chart: Chart) => \idelim omega chart = Coordinates[chart := chart].family (value omega)
+    \with family: Euclidean.On[U := #image{chart}].Family k => Euclidean.On[U := #image{chart}].SmoothFamily k family \by {
+      base: \bysub(Euclidean.On[U := #image{chart}].Family k, { f: Euclidean.On[U := #image{chart}].Family k \where Euclidean.On[U := #image{chart}].SmoothFamily k f }, omega chart),
+      equality: sym!{{Euclidean.On[U := #image{chart}].Family k}} (Coordinates[chart := chart].family (value omega)) (omega chart) (Coordinates[chart := chart].recover omega)
+    };
+\definition asPointwise(omega: Form k): RegularPointFamily :=
+  \into[PointFamily k](value omega, { phi: PointFamily k \where SmoothPointFamily phi }) \by { regular omega };
+
+\definition coordinateFamily(phi: RegularPointFamily): Family k := \fun (chart: Chart) =>
+  \into[Euclidean.On[U := #image{chart}].Family k](Coordinates[chart := chart].family phi,
+    { f: Euclidean.On[U := #image{chart}].Family k \where Euclidean.On[U := #image{chart}].SmoothFamily k f }) \by {
+      (\bysub(PointFamily k, { phi: PointFamily k \where SmoothPointFamily phi }, phi)) chart
+    };
+\module Pair(left, right: Chart);
+\definition compatible: \forall (phi: RegularPointFamily) -> Compatible k (coordinateFamily phi) :=
+  \fun (phi: RegularPointFamily)(left, right: Chart) => Pair[left := left, right := right].law phi;
+\definition fromPointwise(phi: RegularPointFamily): Form k :=
+  \into[Family k](coordinateFamily phi, { omega: Family k \where Compatible k omega }) \by { compatible phi };
+\definition leftInverse: \forall (omega: Form k) -> fromPointwise (asPointwise omega) = omega :=
+  \fun (omega: Form k) => ext k (fromPointwise (asPointwise omega)) omega (\fun (chart: Chart) => Coordinates[chart := chart].recover omega);
+\module Recovery(x: M.Point);
+\definition rightInverse: \forall (phi: RegularPointFamily) -> asPointwise (fromPointwise phi) = phi :=
+  \fun (phi: RegularPointFamily) => \axiom:funext(asPointwise (fromPointwise phi), phi,
+    \fun (x: M.Point) => Recovery[x := x].law phi);
+\module Algebra;

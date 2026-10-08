@@ -1,0 +1,23 @@
+\import manifolds.Differential[n := n, m := m].Between[M := M, N := N].At[f := f, x := x] \as FirstD;
+\import manifolds.Differential[n := m, m := l].Between[M := N, N := P].At[f := g, x := FirstMaps.apply f x] \as SecondD;
+\import manifolds.Differential[n := n, m := l].Between[M := M, N := P].At[f := Composition.map, x := x] \as CompositeD;
+\import manifolds.DifferentialComposition[n := n, m := m, l := l].Between[M := M, N := N, P := P].Of[f := f, g := g].At[x := x] \as Chain;
+\definition law: \forall (omega: TargetForms.Form k)(arguments: Fin.Fin k -> SourceTangent.Vector x) ->
+  SourcePointwise.value (CompositeMap.apply omega) x arguments = SourcePointwise.value (FirstMap.apply (SecondMap.apply omega)) x arguments := \block {
+  \fun (omega: TargetForms.Form k)(arguments: Fin.Fin k -> SourceTangent.Vector x) \then
+  \let mapped: Fin.Fin k -> MiddleTangent.Vector (FirstMaps.apply f x) := \fun (i: Fin.Fin k) => #apply{FirstD.value} (arguments i) \then
+  \return trans!{{Reals.Real}} _
+    (TargetPointwise.value omega (SecondMaps.apply g (FirstMaps.apply f x)) (\fun (i: Fin.Fin k) => #apply{CompositeD.value} (arguments i))) _
+    (CompositeMap.formula omega x arguments)
+    (trans!{{Reals.Real}} _
+      (TargetPointwise.value omega (SecondMaps.apply g (FirstMaps.apply f x))
+        (\fun (i: Fin.Fin k) => #apply{SecondD.value} (#apply{FirstD.value} (arguments i)))) _
+      (congr!{{Fin.Fin k -> TargetTangent.Vector (SecondMaps.apply g (FirstMaps.apply f x))} {Reals.Real}}
+        (TargetPointwise.value omega (SecondMaps.apply g (FirstMaps.apply f x))) _ _
+        (\axiom:funext((\fun (i: Fin.Fin k) => #apply{CompositeD.value} (arguments i)),
+          (\fun (i: Fin.Fin k) => #apply{SecondD.value} (#apply{FirstD.value} (arguments i))),
+          \fun (i: Fin.Fin k) => Chain.pointwise (arguments i))))
+      (trans!{{Reals.Real}} _ (MiddlePointwise.value (SecondMap.apply omega) (FirstMaps.apply f x) mapped) _
+        (sym!{{Reals.Real}} _ _ (SecondMap.formula omega (FirstMaps.apply f x) mapped))
+        (sym!{{Reals.Real}} _ _ (FirstMap.formula (SecondMap.apply omega) x arguments))))
+};

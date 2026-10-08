@@ -1,0 +1,48 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import \parent.Prop[A := A] \as Properties;
+\inductive View: \Set :=
+| empty: View
+| snoc: List[A] -> A -> View
+;
+\definition prepend(a: A)(v: View): View :=
+  \induction (v: View) \return View \with {
+    | empty: View::snoc List[A]::nil a
+    | snoc: \fun (prefix: List[A])(last: A) => View::snoc (List[A]::cons a prefix) last
+  } v;
+\definition view(xs: List[A]): View :=
+  \induction (xs: List[A]) \return View \with {
+    | nil: View::empty
+    | cons: \fun (a: A)(tail: List[A])(previous: View) => prepend a previous
+  } xs;
+\definition restore(v: View): List[A] :=
+  \induction (v: View) \return List[A] \with {
+    | empty: List[A]::nil
+    | snoc: \fun (prefix: List[A])(last: A) => append A prefix (List[A]::cons last List[A]::nil)
+  } v;
+\definition restorePrepend: \forall (a: A)(v: View) -> restore (prepend a v) = List[A]::cons a (restore v) :=
+  \fun (a: A) => \induction (v: View) \return restore (prepend a v) = List[A]::cons a (restore v) \with {
+    | empty: \refl(List[A]::cons a List[A]::nil)
+    | snoc: \fun (prefix: List[A])(last: A) => \refl(List[A]::cons a (append A prefix (List[A]::cons last List[A]::nil)))
+  };
+\definition restoreView: \forall (xs: List[A]) -> restore (view xs) = xs :=
+  \induction (xs: List[A]) \return restore (view xs) = xs \with {
+    | nil: \refl(List[A]::nil)
+    | cons: \fun (a: A)(tail: List[A])(previous: _) => trans!{{List[A]}} _ _ _ (restorePrepend a (view tail))
+      (congr!{{List[A]} {List[A]}} (List[A]::cons a) _ _ previous)
+  };
+\definition viewAppendLast: \forall (prefix: List[A])(last: A) -> view (append A prefix (List[A]::cons last List[A]::nil)) = View::snoc prefix last :=
+  \induction (prefix: List[A]) \return \forall (last: A) -> view (append A prefix (List[A]::cons last List[A]::nil)) = View::snoc prefix last \with {
+    | nil: \fun (last: A) => \refl(View::snoc List[A]::nil last)
+    | cons: \fun (a: A)(prefix: List[A])(previous: _)(last: A) => congr!{View View} (prepend a) _ _ (previous last)
+  };
+\definition viewRestore: \forall (v: View) -> view (restore v) = v :=
+  \induction (v: View) \return view (restore v) = v \with {
+    | empty: \refl(View::empty)
+    | snoc: viewAppendLast
+  };
+\definition orderSnoc: \forall (prefix: List[A])(last: A) -> length A (restore (View::snoc prefix last)) = N.Nat^::succ (length A prefix) :=
+  \fun (prefix: List[A])(last: A) => trans!{N.Nat^} (length A (restore (View::snoc prefix last))) (NatOp.add (length A prefix) (N.Nat^::succ N.Nat^::zero)) (N.Nat^::succ (length A prefix)) (Properties.lengthAppend prefix (List[A]::cons last List[A]::nil))
+    (std.Data[].Nat[].Basic[].Prop[].addSuccRight (length A prefix) N.Nat^::zero);

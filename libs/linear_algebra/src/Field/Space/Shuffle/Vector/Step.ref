@@ -1,0 +1,34 @@
+\import \parent.Head[xs := xs] \as Head;
+\definition law: (\forall (f, g: Function) -> Linear f -> Linear g -> AtLaws[xs, product f g]) ->
+  \forall (head: I)(f, g: Function) -> Linear f -> Linear g -> AtLaws[Lists.List[I]::cons head xs, product f g] := \block {
+  \fun (previous: \forall (f, g: Function) -> Linear f -> Linear g -> AtLaws[xs, product f g])(head: I)(f, g: Function)(lf: Linear f)(lg: Linear g) \then
+  \let left: AtLaws[xs, product (shift head f) g] := previous (shift head f) g (shiftedLinear f lf head) lg \then
+  \let right: AtLaws[xs, product (twist f) (shift head g)] := previous (twist f) (shift head g) (twistedLinear f lf) (shiftedLinear g lg head) \then
+  \return AtLaws[Lists.List[I]::cons head xs, product f g] {
+    addition := \induction (i: N.Nat^) \return NatLaws.Lt i (N.Nat^::succ (Lists.length I xs)) -> \forall (x, y: I) ->
+      product f g (Replace.apply (Lists.List[I]::cons head xs) i (#add{space} x y)) = add (product f g (Replace.apply (Lists.List[I]::cons head xs) i x)) (product f g (Replace.apply (Lists.List[I]::cons head xs) i y)) \with {
+        | zero: \fun (bound: NatLaws.Lt N.Nat^::zero (N.Nat^::succ (Lists.length I xs))) => Head.addition f g lf lg
+        | succ: \fun (i: N.Nat^)(unused: _)(bound: NatLaws.Lt (N.Nat^::succ i) (N.Nat^::succ (Lists.length I xs)))(x, y: I) => eq_reason!{
+          {product f g (Lists.List[I]::cons head (Replace.apply xs i (#add{space} x y)))}
+          "=" {add (product (shift head f) g (Replace.apply xs i (#add{space} x y))) (product (twist f) (shift head g) (Replace.apply xs i (#add{space} x y)))} "by" {atCons head (Replace.apply xs i (#add{space} x y)) f g}
+          "=" {add (add (product (shift head f) g (Replace.apply xs i x)) (product (shift head f) g (Replace.apply xs i y))) (add (product (twist f) (shift head g) (Replace.apply xs i x)) (product (twist f) (shift head g) (Replace.apply xs i y)))} "by" {
+            congr2!{K K K} add _ _ _ _ (#addition{left} i bound x y) (#addition{right} i bound x y)}
+          "=" {add (add (product (shift head f) g (Replace.apply xs i x)) (product (twist f) (shift head g) (Replace.apply xs i x))) (add (product (shift head f) g (Replace.apply xs i y)) (product (twist f) (shift head g) (Replace.apply xs i y)))} "by" {
+            Scalars.shuffle (product (shift head f) g (Replace.apply xs i x)) (product (shift head f) g (Replace.apply xs i y)) (product (twist f) (shift head g) (Replace.apply xs i x)) (product (twist f) (shift head g) (Replace.apply xs i y))}
+          "=" {add (product f g (Lists.List[I]::cons head (Replace.apply xs i x))) (product f g (Lists.List[I]::cons head (Replace.apply xs i y)))} "by" {
+            congr2!{K K K} add _ _ _ _ (sym!{K} _ _ (atCons head (Replace.apply xs i x) f g)) (sym!{K} _ _ (atCons head (Replace.apply xs i y) f g))}
+        }
+      },
+    scalar := \induction (i: N.Nat^) \return NatLaws.Lt i (N.Nat^::succ (Lists.length I xs)) -> \forall (a: K)(x: I) ->
+      product f g (Replace.apply (Lists.List[I]::cons head xs) i (#smul{space} a x)) = mul a (product f g (Replace.apply (Lists.List[I]::cons head xs) i x)) \with {
+        | zero: \fun (bound: NatLaws.Lt N.Nat^::zero (N.Nat^::succ (Lists.length I xs))) => Head.scalar f g lf lg
+        | succ: \fun (i: N.Nat^)(unused: _)(bound: NatLaws.Lt (N.Nat^::succ i) (N.Nat^::succ (Lists.length I xs)))(a: K)(x: I) => eq_reason!{
+          {product f g (Lists.List[I]::cons head (Replace.apply xs i (#smul{space} a x)))}
+          "=" {add (product (shift head f) g (Replace.apply xs i (#smul{space} a x))) (product (twist f) (shift head g) (Replace.apply xs i (#smul{space} a x)))} "by" {atCons head (Replace.apply xs i (#smul{space} a x)) f g}
+          "=" {add (mul a (product (shift head f) g (Replace.apply xs i x))) (mul a (product (twist f) (shift head g) (Replace.apply xs i x)))} "by" {congr2!{K K K} add _ _ _ _ (#scalar{left} i bound a x) (#scalar{right} i bound a x)}
+          "=" {mul a (add (product (shift head f) g (Replace.apply xs i x)) (product (twist f) (shift head g) (Replace.apply xs i x)))} "by" {sym!{K} _ _ (mulAdd a (product (shift head f) g (Replace.apply xs i x)) (product (twist f) (shift head g) (Replace.apply xs i x)))}
+          "=" {mul a (product f g (Lists.List[I]::cons head (Replace.apply xs i x)))} "by" {congr!{K K} (mul a) _ _ (sym!{K} _ _ (atCons head (Replace.apply xs i x) f g))}
+        }
+      },
+  }
+};

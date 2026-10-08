@@ -1,0 +1,38 @@
+\import Maps.Coordinates[f := f, left := left, right := right] \as Coordinates;
+\import SourceCharts.Of[chart := left] \as SourceGeometry;
+\definition containsImage: TargetCharts.Contains right (Maps.apply f (SourceCharts.point left (Domain.coordinate left))) :=
+  \idelim x = SourceCharts.point left (Domain.coordinate left) \with y: M.Point =>
+    TargetCharts.Contains right (Maps.apply f y) \by {
+      base: Codomain.contains right,
+      equality: sym!{{M.Point}} (SourceCharts.point left (Domain.coordinate left)) x
+        (SourceGeometry.pointCoordinate (Domain.localPoint left))
+    };
+\definition point: Open.Carrier Coordinates.domain :=
+  \into[SourceVectors.Vector](Domain.coordinate left, #points{Coordinates.domain}) \by {
+    Coordinates.intro (Domain.coordinate left) containsImage
+  };
+\definition coordinateMap: Calculus.Map Coordinates.domain #image{right} :=
+  Coordinates.map ((\bysub(Maps.ContinuousMap, { h: Maps.ContinuousMap \where Maps.Chartwise h }, f))
+    left right (Domain.member left) (Codomain.member right));
+\import Calculus.Differential[U := Coordinates.domain, V := #image{right}, f := coordinateMap, a := point] \as Jacobian;
+\import Domain.ChartIsomorphism[chart := left] \as SourceCoordinates;
+\import Codomain.ChartIsomorphism[chart := right] \as TargetCoordinates;
+\import Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space].Composition[U := Domain.Vector, domain := Domain.space] \as Before;
+\definition coordinateDifferential: Spaces.Linear[V := Domain.Vector, W := TargetVectors.Vector, source := Domain.space, target := TargetVectors.space].Map :=
+  Before.compose Jacobian.value SourceCoordinates.forward;
+\import Spaces.Linear[V := TargetVectors.Vector, W := Codomain.Vector, source := TargetVectors.space, target := Codomain.space].Composition[U := Domain.Vector, domain := Domain.space] \as After;
+\definition value: Linear.Map := After.compose TargetCoordinates.backward coordinateDifferential;
+\import Domain.Coordinate[chart := left] \as Decode;
+\import Codomain.Coordinate[chart := right] \as Encode;
+\definition coordinateLaw: \forall (v: Domain.Vector) -> Encode.decode (#apply{value} v) = #apply{Jacobian.value} (Decode.decode v) :=
+  \fun (v: Domain.Vector) => Encode.decodeEncode (#apply{Jacobian.value} (Decode.decode v));
+\definition jacobian: Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space].Map := Jacobian.value;
+\definition coordinateAgreement: Calculus.apply Coordinates.domain #image{right} coordinateMap point = Codomain.coordinate right :=
+  congr!{{TargetCharts.LocalPoint right} {calculus.Real[].Multivariable[n := m].Open[].Carrier #image{right}}}
+    (TargetCharts.coordinate right) (Coordinates.point point) (Codomain.localPoint right)
+    (congr!{{M.Point} {N.Point}} (Maps.apply f)
+      (SourceCharts.point left (Domain.coordinate left)) x (SourceGeometry.pointCoordinate (Domain.localPoint left)));
+\definition jacobianAt(a: Open.Carrier Coordinates.domain): Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space].Map :=
+  Calculus.Differential[U := Coordinates.domain, V := #image{right}, f := coordinateMap, a := a].value;
+
+\definition domain: Open.OpenSet := Coordinates.domain;

@@ -1,0 +1,21 @@
+\import \parent.Degrees[p := p, q := q] \as PQ;
+\import \parent.Degrees[p := q, q := r] \as QR;
+\import \parent.Degrees[p := Nat.add p q, q := r] \as Left;
+\import \parent.Degrees[p := p, q := Nat.add q r] \as Right;
+\import Shuffle.Laws[] \as Laws;
+\definition left(f: Form p)(g: Form q)(h: Form r): Form (Nat.add (Nat.add p q) r) := Left.wedge (PQ.wedge f g) h;
+\definition right(f: Form p)(g: Form q)(h: Form r): Form (Nat.add p (Nat.add q r)) := Right.wedge f (QR.wedge g h);
+\definition law: \forall (f: Form p)(g: Form q)(h: Form r) -> component (Nat.add (Nat.add p q) r) (left f g h) = component (Nat.add p (Nat.add q r)) (right f g h) := \block {
+  \fun (f: Form p)(g: Form q)(h: Form r) \then
+  \let a: Series := component p f \then
+  \let b: Series := component q g \then
+  \let c: Series := component r h \then
+  \return eq_reason!{
+    {component (Nat.add (Nat.add p q) r) (left f g h)}
+    "=" {Shuffle.product (component (Nat.add p q) (PQ.wedge f g)) c} "by" {Left.componentWedge (PQ.wedge f g) h}
+    "=" {Shuffle.product (Shuffle.product a b) c} "by" {congr!{Series Series} (\fun (d: Series) => Shuffle.product d c) _ _ (PQ.componentWedge f g)}
+    "=" {Shuffle.product a (Shuffle.product b c)} "by" {\axiom:funext(Shuffle.product (Shuffle.product a b) c, Shuffle.product a (Shuffle.product b c), \fun (xs: Lists.List[V]) => Laws.associative xs a b c)}
+    "=" {Shuffle.product a (component (Nat.add q r) (QR.wedge g h))} "by" {congr!{Series Series} (Shuffle.product a) _ _ (sym!{Series} _ _ (QR.componentWedge g h))}
+    "=" {component (Nat.add p (Nat.add q r)) (right f g h)} "by" {sym!{Series} _ _ (Right.componentWedge f (QR.wedge g h))}
+  }
+};

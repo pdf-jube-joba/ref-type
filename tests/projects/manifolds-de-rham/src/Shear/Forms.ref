@@ -1,0 +1,88 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition second: Plane.Coordinate := Fin.succ one (Fin.zero zero);
+\import Smooth.Algebra[U := Open.whole] \as Functions;
+\import Smooth.Differential[] \as Differentials;
+\import Differentials.Operations[U := Open.whole] \as DerivativeRules;
+\import Open.Projection[U := Open.whole] \as Coordinates;
+\import Plane.Differential[].Def[] \as ScalarMaps;
+\definition x: Functions.Function := Coordinates.function first;
+\definition y: Functions.Function := Coordinates.function second;
+\definition secondFunction: Functions.Function := Functions.plus y (Functions.product x x);
+\definition secondAgreement: Maps.coordinateFunction Open.whole Open.whole forwardMap second = secondFunction :=
+  Functions.ext (Maps.coordinateFunction Open.whole Open.whole forwardMap second) secondFunction
+    (\fun (a: Open.Carrier Open.whole) => Tuples.atSuccessor one (a first)
+      (\fun (j: Fin.Fin one) => R.add (a (Fin.succ one j)) (square a)) (Fin.zero zero));
+\import real.Analysis[].Algebra[] \as RealAlgebra;
+\import linear_algebra.Field[].Space[K := R.Real, field := RealAlgebra.field] \as Spaces;
+\definition scalarTwo: R.Real := Spaces.add Spaces.one Spaces.one;
+\definition twiceProduct: \forall (u, v: R.Real) -> R.add (R.mul u v) (R.mul u v) = R.mul (R.mul scalarTwo u) v :=
+  \fun (u, v: R.Real) => trans!{{R.Real}} (R.add (R.mul u v) (R.mul u v)) (R.mul (R.add u u) v) (R.mul (R.mul scalarTwo u) v)
+    (sym!{{R.Real}} (R.mul (R.add u u) v) (R.add (R.mul u v) (R.mul u v)) (Spaces.addMul u u v))
+    (congr!{{R.Real} {R.Real}} (\fun (c: R.Real) => R.mul c v) (R.add u u) (R.mul scalarTwo u)
+      (sym!{{R.Real}} (R.mul scalarTwo u) (R.add u u)
+        (trans!{{R.Real}} (R.mul scalarTwo u) (R.add (R.mul Spaces.one u) (R.mul Spaces.one u)) (R.add u u)
+          (Spaces.addMul Spaces.one Spaces.one u)
+          (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (Spaces.mulOneLeft u) (Spaces.mulOneLeft u)))));
+\module At(a: Open.Carrier Open.whole) {
+  \import Maps.Differential[U := Open.whole, V := Open.whole, f := forwardMap, a := a] \as Jacobian;
+  \definition xDerivative: \forall (v: Plane.Point) -> #apply{(Differentials.value Open.whole x a)} v = v first :=
+    \fun (v: Plane.Point) => congr!{{ScalarMaps.LinearMap} {R.Real}} (\fun (d: ScalarMaps.LinearMap) => #apply{d} v) _ _ (Coordinates.differential first a);
+  \definition yDerivative: \forall (v: Plane.Point) -> #apply{(Differentials.value Open.whole y a)} v = v second :=
+    \fun (v: Plane.Point) => congr!{{ScalarMaps.LinearMap} {R.Real}} (\fun (d: ScalarMaps.LinearMap) => #apply{d} v) _ _ (Coordinates.differential second a);
+  \definition squareDerivative: \forall (v: Plane.Point) -> #apply{(Differentials.value Open.whole (Functions.product x x) a)} v =
+    R.mul (R.mul scalarTwo (a first)) (v first) :=
+      \fun (v: Plane.Point) => trans!{{R.Real}} (#apply{(Differentials.value Open.whole (Functions.product x x) a)} v)
+        (R.add (R.mul (a first) (v first)) (R.mul (a first) (v first))) (R.mul (R.mul scalarTwo (a first)) (v first))
+        (trans!{{R.Real}} (#apply{(Differentials.value Open.whole (Functions.product x x) a)} v)
+          (R.add (R.mul (x a) (#apply{(Differentials.value Open.whole x a)} v))
+            (R.mul (x a) (#apply{(Differentials.value Open.whole x a)} v)))
+          (R.add (R.mul (a first) (v first)) (R.mul (a first) (v first))) (DerivativeRules.product x x a v)
+          (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _
+            (congr!{{R.Real} {R.Real}} (R.mul (a first)) _ _ (xDerivative v))
+            (congr!{{R.Real} {R.Real}} (R.mul (a first)) _ _ (xDerivative v))))
+        (twiceProduct (a first) (v first));
+  \definition jacobianSecond: \forall (v: Plane.Point) -> #apply{Jacobian.value} v second =
+    R.add (v second) (R.mul (R.mul scalarTwo (a first)) (v first)) :=
+      \fun (v: Plane.Point) => trans!{{R.Real}} (#apply{Jacobian.value} v second)
+        (#apply{(Differentials.value Open.whole secondFunction a)} v)
+        (R.add (v second) (R.mul (R.mul scalarTwo (a first)) (v first)))
+        (congr!{{Functions.Function} {R.Real}} (\fun (h: Functions.Function) => #apply{(Differentials.value Open.whole h a)} v)
+          (Maps.coordinateFunction Open.whole Open.whole forwardMap second) secondFunction secondAgreement)
+        (trans!{{R.Real}} (#apply{(Differentials.value Open.whole secondFunction a)} v)
+          (R.add (#apply{(Differentials.value Open.whole y a)} v) (#apply{(Differentials.value Open.whole (Functions.product x x) a)} v))
+          (R.add (v second) (R.mul (R.mul scalarTwo (a first)) (v first))) (DerivativeRules.addition y (Functions.product x x) a v)
+          (congr2!{{R.Real} {R.Real} {R.Real}} R.add _ _ _ _ (yDerivative v) (squareDerivative v)));
+}
+\import differential_forms.Euclidean[n := two] \as EuclideanForms;
+\import EuclideanForms.On[U := Open.whole] \as LocalForms;
+\import LocalForms.Projection[i := second] \as Dy;
+\import EuclideanForms.Pullback[m := two, U := Open.whole, V := Open.whole, f := forwardMap] \as Pullback;
+\import Spaces.Coordinates[I := Fin.Fin two] \as Vectors;
+\import Spaces.Multilinear[V := Vectors.Vector, space := Vectors.space] \as Multilinear;
+\definition formula: \forall (a: Open.Carrier Open.whole)(arguments: Multilinear.Arguments one) ->
+  Pullback.apply one Dy.value a arguments = R.add (arguments (Fin.zero zero) second)
+    (R.mul (R.mul scalarTwo (a first)) (arguments (Fin.zero zero) first)) :=
+      \fun (a: Open.Carrier Open.whole)(arguments: Multilinear.Arguments one) => At[a := a].jacobianSecond (arguments (Fin.zero zero));
+\definition differentialCommutes: \forall (omega: LocalForms.Form one) ->
+  LocalForms.ExteriorDerivative[k := one].apply (Pullback.apply one omega) = Pullback.apply two (LocalForms.ExteriorDerivative[k := one].apply omega) :=
+    Pullback.Naturality[k := one].law;
+\import LocalForms.Projection[i := first] \as Dx;
+\import Multilinear.Alternating[].At[k := one] \as PointForms;
+\definition expectedFamily: LocalForms.Family one := \fun (a: Open.Carrier Open.whole) =>
+  PointForms.plus (Dy.value a) (PointForms.scale (R.mul scalarTwo (a first)) (Dx.value a));
+\definition expectedRegular: LocalForms.SmoothFamily one expectedFamily :=
+  \fun (arguments: Multilinear.Arguments one) => Operations.addSmooth Open.whole
+    (\fun (a: Open.Carrier Open.whole) => arguments (Fin.zero zero) second)
+    (\fun (a: Open.Carrier Open.whole) => R.mul (R.mul scalarTwo (a first)) (arguments (Fin.zero zero) first))
+    (Operations.constantSmooth Open.whole (arguments (Fin.zero zero) second))
+    (Operations.mulSmooth Open.whole
+      (\fun (a: Open.Carrier Open.whole) => R.mul scalarTwo (a first))
+      (\fun (a: Open.Carrier Open.whole) => arguments (Fin.zero zero) first)
+      (Operations.mulSmooth Open.whole (\fun (a: Open.Carrier Open.whole) => scalarTwo)
+        (\fun (a: Open.Carrier Open.whole) => a first)
+        (Operations.constantSmooth Open.whole scalarTwo) (Examples.projectionSmooth Open.whole first))
+      (Operations.constantSmooth Open.whole (arguments (Fin.zero zero) first)));
+\definition dvPlusTwoUDu: LocalForms.Form one :=
+  \into[LocalForms.Family one](expectedFamily, { omega: LocalForms.Family one \where LocalForms.SmoothFamily one omega }) \by { expectedRegular };
+\definition pullbackDy: Pullback.apply one Dy.value = dvPlusTwoUDu :=
+  LocalForms.ext one (Pullback.apply one Dy.value) dvPlusTwoUDu formula;

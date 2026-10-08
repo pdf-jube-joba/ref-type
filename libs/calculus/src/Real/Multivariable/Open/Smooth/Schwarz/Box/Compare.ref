@@ -1,0 +1,43 @@
+\import \parent.\parent.\parent.Schwarz[U := U, f := f, a := a, i := j, j := i] \as Other;
+\import Other.Box[h := h] \as OtherBox;
+\import \parent.\parent.\parent.\parent.\parent.Space[].Rectangle[a := a, i := j, j := i] \as OtherGrid;
+\import \parent.\parent.\parent.\parent.\parent.\parent.Schwarz[].Rectangle[left := a j, right := top, bottom := a i, top := right] \as OtherRectangle;
+\import Rectangle.Transposed[] \as Transposed;
+\definition differentOther: Logic.Not (i = j) -> Logic.Not (j = i) := \fun (different: Logic.Not (i = j))(same: j = i) => different (sym!{Coordinate} j i same);
+\definition functionsEqual: Logic.Not (i = j) -> (\fun (s, t: Real) => extended t s) = Other.extended :=
+  \fun (different: Logic.Not (i = j)) => \axiom:funext((\fun (s, t: Real) => extended t s), Other.extended,
+    \fun (s: Real) => \axiom:funext((\fun (t: Real) => extended t s), Other.extended s,
+      \fun (t: Real) => congr!{Point Real} (Extension.extend f zero) _ _ (Grid.swapped different t s)));
+\definition quotientEqual: Logic.Not (i = j) -> Rectangle.quotient extended = OtherRectangle.quotient Other.extended :=
+  \fun (different: Logic.Not (i = j)) => trans!{Real} _ _ _ (Transposed.quotientTranspose extended)
+    (congr!{{Real -> Real -> Real} Real} OtherRectangle.quotient _ _ (functionsEqual different));
+\definition containsOther: Logic.Not (i = j) -> Contains -> OtherBox.Contains :=
+  \fun (different: Logic.Not (i = j))(contains: Contains)(s: OtherBox.S)(t: OtherBox.T) =>
+    \idelim Grid.point t s = OtherGrid.point s t \with p: Point => \In[Point] (#points{U}) p \by {
+      base: contains t s, equality: Grid.swapped different t s
+    };
+\definition estimate: \forall (theta, delta, otherDelta: Real) -> Logic.Not (i = j) -> R.Lt zero h -> Contains ->
+  Analytic.ContinuityControl[U, second, a, theta, delta] -> Analytic.ContinuityControl[U, otherSecond, a, theta, otherDelta] ->
+  R.Lt (add h h) delta -> R.Lt (add h h) otherDelta -> R.Le (distance (second a) (otherSecond a)) (add theta theta) := \block {
+  \fun (theta, delta, otherDelta: Real)(different: Logic.Not (i = j))(positive: R.Lt zero h)(contains: Contains)
+    (control: Analytic.ContinuityControl[U, second, a, theta, delta])(otherControl: Analytic.ContinuityControl[U, otherSecond, a, theta, otherDelta])
+    (near: R.Lt (add h h) delta)(otherNear: R.Lt (add h h) otherDelta) \then
+  \let firstBound: R.Le (distance (Rectangle.quotient extended) (second a)) theta :=
+    meanEstimate (second a) theta different positive contains
+      (\fun (s: S)(t: T)(x: Carrier U)(same: x = Grid.point s t) => Order.leOfLt _ _ (#estimate{control} x
+        (R.ltReplaceLeft (Coordinates.pointDistance (Grid.point s t) a) (Coordinates.pointDistance x a) delta
+          (sym!{Real} _ _ (congr!{Point Real} (\fun (p: Point) => Coordinates.pointDistance p a) _ _ same))
+          (R.leLtTrans _ (add h h) delta (distanceBound different positive s t) near)))) \then
+  \let otherBound: R.Le (distance (OtherRectangle.quotient Other.extended) (otherSecond a)) theta :=
+    OtherBox.meanEstimate (otherSecond a) theta (differentOther different) positive (containsOther different contains)
+      (\fun (s: OtherBox.S)(t: OtherBox.T)(x: Carrier U)(same: x = OtherGrid.point s t) => Order.leOfLt _ _ (#estimate{otherControl} x
+        (R.ltReplaceLeft (Coordinates.pointDistance (OtherGrid.point s t) a) (Coordinates.pointDistance x a) otherDelta
+          (sym!{Real} _ _ (congr!{Point Real} (\fun (p: Point) => Coordinates.pointDistance p a) _ _ same))
+          (R.leLtTrans _ (add h h) otherDelta (OtherBox.distanceBound (differentOther different) positive s t) otherNear)))) \then
+  \return R.leTrans _ _ _ (Metric.distanceTriangle (second a) (Rectangle.quotient extended) (otherSecond a))
+    (Estimates.addLe _ _ theta theta
+      (R.leReplaceLeft (distance (Rectangle.quotient extended) (second a)) (distance (second a) (Rectangle.quotient extended)) theta
+        (Metric.distanceSymmetric (Rectangle.quotient extended) (second a)) firstBound)
+      (R.leReplaceLeft (distance (OtherRectangle.quotient Other.extended) (otherSecond a)) (distance (Rectangle.quotient extended) (otherSecond a)) theta
+        (sym!{Real} _ _ (congr!{Real Real} (\fun (r: Real) => distance r (otherSecond a)) _ _ (quotientEqual different))) otherBound))
+};

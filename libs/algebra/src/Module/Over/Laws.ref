@@ -1,0 +1,33 @@
+\definition additive: Alg.CommutativeGroup[V] := Ring.ringModuleAsCommutativeGroup R V ring space;
+\import algebra.Group[].Of[Carrier := V, group := additive] \as Group;
+\definition zero: V := #zero{space};
+\definition add: V -> V -> V := #add{space};
+\definition neg: V -> V := #neg{space};
+\definition scale: R -> V -> V := #smul{space};
+
+\definition scaleZero: \forall (a: R) -> scale a zero = zero :=
+  \fun (a: _) => Group.cancelLeft (scale a zero) (scale a zero) zero
+    (trans!{V} _ _ _
+      (trans!{V} _ _ _ (sym!{V} _ _ (#vectorAdd{space} a zero zero))
+        (congr!{V V} (scale a) _ _ (Group.zeroLeft zero)))
+      (sym!{V} _ _ (Group.zeroRight (scale a zero))));
+\definition zeroScale: \forall (x: V) -> scale (#zero{ring}) x = zero :=
+  \fun (x: _) => Group.cancelLeft (scale (#zero{ring}) x) (scale (#zero{ring}) x) zero
+    (trans!{V} _ _ _
+      (trans!{V} _ _ _ (sym!{V} _ _ (#scalarAdd{space} (#zero{ring}) (#zero{ring}) x))
+        (congr!{R V} (\fun (a: _) => scale a x) _ _ (Scalars.zeroLeft (#zero{ring}))))
+      (sym!{V} _ _ (Group.zeroRight (scale (#zero{ring}) x))));
+\definition scaleNeg: \forall (a: R)(x: V) -> scale a (neg x) = neg (scale a x) :=
+  \fun (a: _)(x: _) => Group.inverseUnique (scale a x) (scale a (neg x))
+    (trans!{V} _ _ _ (sym!{V} _ _ (#vectorAdd{space} a (neg x) x))
+      (trans!{V} _ _ _ (congr!{V V} (scale a) _ _ (Group.inverseLeft x)) (scaleZero a)));
+\definition negativeOne: \forall (x: V) -> scale (#neg{ring} (#one{ring})) x = neg x :=
+  \fun (x: _) => Group.inverseUnique x (scale (#neg{ring} (#one{ring})) x)
+    (trans!{V} _ _ _
+      (congr!{V V} (add (scale (#neg{ring} (#one{ring})) x)) _ _ (sym!{V} _ _ (#scalarOne{space} x)))
+      (trans!{V} _ _ _ (sym!{V} _ _ (#scalarAdd{space} (#neg{ring} (#one{ring})) (#one{ring}) x))
+        (trans!{V} _ _ _ (congr!{R V} (\fun (a: _) => scale a x) _ _ (#additiveInverse{ring} (#one{ring}))) (zeroScale x))));
+\definition scaleDifference: \forall (a: R)(x, y: V) ->
+  scale a (Group.difference x y) = Group.difference (scale a x) (scale a y) :=
+  \fun (a: _)(x, y: _) => trans!{V} _ _ _ (#vectorAdd{space} a x (neg y))
+    (congr!{V V} (add (scale a x)) _ _ (scaleNeg a y));

@@ -2,6 +2,7 @@
 
 `a8498cb` の処理系で、多様体・De Rham 計画の表現検査中に再現した G08 の比較プロジェクトである。
 各 project は `std` の商構成を実際に読み込み、キャッシュなしで検査する。
+現在の処理系では全5例が成功する。
 
 `Space` は点の集合とベクトルの集合の宣言の束である。
 `Representative[M, x]` は `x` に等しい点とベクトルを保持し、`Fiber[M, x]` はベクトルの等式による商を作る。
@@ -15,20 +16,21 @@
   \forall (x: M.Point) -> (Fin.Fin k -> fiber M x) -> M.Vector;
 ```
 
-| project | 検査する構成 | 結果 |
-| --- | --- | --- |
-| `01-direct-type` | 点ごとの型を直接書く | `sections` で `uncaptured parameter` |
-| `02-function-alias` | `Function(A, B): Set := A -> B` により二つの関数型を作る | 成功 |
-| `03-explicit-lambda` | 点ごとの `At.Form` を使い、lambda の引数を直接の関数型で注釈する | `copy` で `uncaptured parameter` |
-| `04-scoped-lambda` | 同じ `At.Form` を使い、引数型を `_` または `At.Arguments` で指定する | 両方の `copy` が成功 |
-| `05-alias-equality` | `02` の型に、点・有限引数列ごとの等式判定と外延性証明を追加する | `equal` で `expected Program value-type syntax` |
+| project | 検査する構成 | 修正前 | 現在 |
+| --- | --- | --- | --- |
+| `01-direct-type` | 点ごとの型を直接書く | `sections` で `uncaptured parameter` | 成功 |
+| `02-function-alias` | `Function(A, B): Set := A -> B` により二つの関数型を作る | 成功 | 成功 |
+| `03-explicit-lambda` | 点ごとの `At.Form` を使い、lambda の引数を直接の関数型で注釈する | `copy` で `uncaptured parameter` | 成功 |
+| `04-scoped-lambda` | 同じ `At.Form` を使い、引数型を `_` または `At.Arguments` で指定する | 両方の `copy` が成功 | 成功 |
+| `05-alias-equality` | `02` の型に、点・有限引数列ごとの等式判定と外延性証明を追加する | `equal` で `expected Program value-type syntax` | 成功 |
 
 `01` と `03` の診断は `ModuleParamId` の module と position を含む。
 module の数値 ID は読み込む宣言の構成で変わるので、比較対象は `uncaptured parameter` と失敗する定義の位置である。
-`05` の外延性証明は、先行する `equal` が失敗するため検査に到達しない。
+修正前の `05` は、先行する `equal` が失敗したため外延性証明へ到達しなかった。
 
-`02` と `04` は局所的な回避例であり、同じ型の記述方法によって検査結果が変わることを示す。
-これらの成功から、多様体・微分形式・コホモロジー全体の構成が検査できることまでは確認していない。
+修正前の `02` と `04` は、型値の定義と点ごとの module による回避例である。
+局所具体化の束縛変数の型に現れる module parameter も capture の依存に含める修正により、すべての表現が成功する。
+[利用側の外延性検査](../../../tests/projects/manifolds-de-rham/src/Pointwise.ref)と[次数で台集合が変わるコホモロジーの利用例](../../../tests/projects/manifolds-de-rham/src/Cohomology.ref)も検査に成功する。
 
 ## 実行
 

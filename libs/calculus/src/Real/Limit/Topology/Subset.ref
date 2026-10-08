@@ -1,0 +1,39 @@
+\import Space.Subspace[S := S] \as Subspace;
+\import topology.Topology[Carrier := \Cast[Real] S] \as Sub;
+\import topology.RealFunctions[A := \Cast[Real] S] \as LocalFunctions;
+\definition Carrier: \Set := \Cast[Real] S;
+\definition topology: Sub.Topology := Subspace.topology Line.topology;
+\structure Control[f: Real -> Real, a: Carrier, epsilon, delta: Real]: \Prop {
+  positive: R.Lt zero delta,
+  estimate: \forall (x: Carrier) -> R.Lt (distance x a) delta -> R.Lt (distance (f x) (f a)) epsilon,
+}
+\definition ContinuousAt(f: Real -> Real)(a: Carrier): \Prop := \forall (epsilon: Real) -> R.Lt zero epsilon ->
+  \exists { delta: Real \where Control[f, a, epsilon, delta] };
+\definition ContinuousOn(f: Real -> Real): \Prop := \forall (a: Carrier) -> ContinuousAt f a;
+\definition restrict(f: Real -> Real): Carrier -> Real := \fun (x: Carrier) => f x;
+\definition topologicalOfContinuous: \forall (f: Real -> Real) -> ContinuousOn f -> LocalFunctions.Continuous topology (restrict f) :=
+  \fun (f: _)(continuous: _) => LocalFunctions.continuousOfLocal topology (restrict f) (\block {
+    \fun (a: Carrier)(epsilon: Real)(positive: _) \then
+    \takefrom delta: \Cast[Real] ({ d: Real \where Control[f, a, epsilon, d] }) \by continuous a epsilon positive \then
+    \let control: Control[f, a, epsilon, delta] := \bysub(Real, { d: Real \where Control[f, a, epsilon, d] }, delta) \then
+    \let neighborhood: \Pow Carrier := Subspace.Trace (Metrics.Ball RealMetric.metric a delta) \then
+    \return \exact(\into[\Pow Carrier](neighborhood,
+      { U: \Pow Carrier \where Sub.OpenNeighborhood[topology, a, LocalFunctions.Small (restrict f) a epsilon, U] }) \by {
+        Sub.OpenNeighborhood[topology, a, LocalFunctions.Small (restrict f) a epsilon, neighborhood] {
+          open := Subspace.traceOpen Line.topology (Metrics.Ball RealMetric.metric a delta) (MetricTopology.ballOpenIn RealMetric.metric a delta),
+          contains := Metrics.ballCenter RealMetric.metric a delta (#positive{control}),
+          within := \fun (x: Carrier)(near: _) => R.ltReplaceLeft (distance (f x) (f a)) (distance (f a) (f x)) epsilon (Metric.distanceSymmetric (f x) (f a))
+            (#estimate{control} x (R.ltReplaceLeft (distance a x) (distance x a) delta (Metric.distanceSymmetric a x) near)),
+        }
+      }, \Cast[\Pow Carrier] ({ U: \Pow Carrier \where Sub.OpenNeighborhood[topology, a, LocalFunctions.Small (restrict f) a epsilon, U] }))
+  });
+\definition continuousOfGlobal: \forall (f: Real -> Real) -> Def.Continuous f -> ContinuousOn f := \block {
+  \fun (f: _)(continuous: _)(a: Carrier)(epsilon: Real)(positive: _) \then
+  \takefrom delta: \Cast[Real] ({ d: Real \where Def.Control[f, a, f a, epsilon, d] }) \by continuous a epsilon positive \then
+  \let control: Def.Control[f, a, f a, epsilon, delta] := \bysub(Real, { d: Real \where Def.Control[f, a, f a, epsilon, d] }, delta) \then
+  \return \exact(\into[Real](delta, { d: Real \where Control[f, a, epsilon, d] }) \by {
+    Control[f, a, epsilon, delta] {
+      positive := #positive{control}, estimate := \fun (x: Carrier)(near: _) => Operations.continuityEstimate f a epsilon delta positive control x near,
+    }
+  }, \Cast[Real] ({ d: Real \where Control[f, a, epsilon, d] }))
+};

@@ -1,0 +1,79 @@
+\import \parent.Space[].Def[] \as Coordinates;
+\import \parent.Space[].Norm[] \as Norm;
+\import \parent.Differential[].Def[] \as Differentials;
+\import real.Analysis[].Estimates[].Product[] \as Estimates;
+\import std.Logic[].Equality[] \as Equalities;
+
+\structure OpenData: \Set {
+  points: \Pow Point,
+}
+\structure BallInside[points: \Pow Point, a: Point, radius: Real]: \Prop {
+  positive: R.Lt zero radius,
+  included: \forall (x: Point) -> R.Lt (Coordinates.pointDistance x a) radius -> \In[Point] points x,
+}
+\definition IsOpen(points: \Pow Point): \Prop :=
+  \forall (a: Point) -> \In[Point] points a -> \exists { radius: Real \where BallInside[points, a, radius] };
+\structure OpenLaws[data: OpenData]: \Prop {
+  open: IsOpen data.points,
+}
+\definition OpenSet: \Set := \Cast[OpenData] ({ data: OpenData \where OpenLaws[data] });
+\definition Carrier(U: OpenSet): \Set := \Cast[Point] (#points{U});
+\definition ScalarFunction(U: OpenSet): \Set := Carrier U -> Real;
+\definition VectorFunction(U: OpenSet): \Set := Carrier U -> Point;
+
+\definition whole: OpenSet := OpenSet {
+  points := { x: Point \where x = x },
+  open := \fun (a: Point)(member: _) => \exact(\into[Real](one,
+    { radius: Real \where BallInside[{ x: Point \where x = x }, a, radius] }) \by {
+      BallInside[{ x: Point \where x = x }, a, one] {
+        positive := Estimates.onePositive,
+        included := \fun (x: Point)(near: _) => \refl(x),
+      }
+    }, \Cast[Real] ({ radius: Real \where BallInside[{ x: Point \where x = x }, a, radius] })),
+};
+\definition empty: OpenSet := OpenSet {
+  points := { x: Point \where Logic.False },
+  open := \fun (a: Point)(member: Logic.False) => Logic.falseElim _ member,
+};
+
+\definition Included(U, V: OpenSet): \Prop := \forall (x: Point) -> \In[Point] (#points{U}) x -> \In[Point] (#points{V}) x;
+\definition inclusion(U, V: OpenSet)(included: Included U V)(x: Carrier U): Carrier V :=
+  \into[Point](x, #points{V}) \by { included x (\bysub(Point, #points{U}, x)) };
+\definition restrict(U, V: OpenSet)(included: Included U V)(f: ScalarFunction V): ScalarFunction U :=
+  \fun (x: Carrier U) => f (inclusion U V included x);
+
+\module Analysis;
+\module Smooth;
+\module Topology;
+\module Restriction;
+\module Examples;
+\module Projection(U: OpenSet);
+\module Whole;
+
+\definition intersection(U, V: OpenSet): OpenSet := OpenSet {
+  points := { x: Point \where Logic.And[\In[Point] (#points{U}) x, \In[Point] (#points{V}) x] },
+  open := \block {
+    \fun (a: Point)(member: Logic.And[\In[Point] (#points{U}) a, \In[Point] (#points{V}) a]) \then
+    \takefrom left: \Cast[Real] ({ r: Real \where BallInside[#points{U}, a, r] }) \by #open{U} a (#left{member}) \then
+    \takefrom right: \Cast[Real] ({ r: Real \where BallInside[#points{V}, a, r] }) \by #open{V} a (#right{member}) \then
+    \let leftBall: BallInside[#points{U}, a, left] := \bysub(Real, { r: Real \where BallInside[#points{U}, a, r] }, left) \then
+    \let rightBall: BallInside[#points{V}, a, right] := \bysub(Real, { r: Real \where BallInside[#points{V}, a, r] }, right) \then
+    \return \exact(\into[Real](Metric.min left right,
+      { r: Real \where BallInside[{ x: Point \where Logic.And[\In[Point] (#points{U}) x, \In[Point] (#points{V}) x] }, a, r] }) \by {
+        BallInside[{ x: Point \where Logic.And[\In[Point] (#points{U}) x, \In[Point] (#points{V}) x] }, a, Metric.min left right] {
+          positive := Estimates.minPositive left right (#positive{leftBall}) (#positive{rightBall}),
+          included := \fun (x: Point)(near: _) => Logic.And[_, _]::#
+            (#included{leftBall} x (R.ltLeTrans _ _ _ near (Metric.minLeft left right)))
+            (#included{rightBall} x (R.ltLeTrans _ _ _ near (Metric.minRight left right))),
+        }
+      }, \Cast[Real] ({ r: Real \where BallInside[{ x: Point \where Logic.And[\In[Point] (#points{U}) x, \In[Point] (#points{V}) x] }, a, r] }))
+  },
+};
+\definition intersectionLeft: \forall (U, V: OpenSet) -> Included (intersection U V) U :=
+  \fun (U, V: _)(x: Point)(member: Logic.And[\In[Point] (#points{U}) x, \In[Point] (#points{V}) x]) => #left{member};
+\definition intersectionRight: \forall (U, V: OpenSet) -> Included (intersection U V) V :=
+  \fun (U, V: _)(x: Point)(member: Logic.And[\In[Point] (#points{U}) x, \In[Point] (#points{V}) x]) => #right{member};
+\module Gluing(U: OpenSet, k: N.Nat^, f: ScalarFunction U);
+\module LocalSmooth(U: OpenSet, f: ScalarFunction U);
+\module SmoothCover(I: \Set, U: OpenSet, domains: I -> OpenSet, f: ScalarFunction U);
+\module C1;

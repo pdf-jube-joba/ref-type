@@ -1,0 +1,33 @@
+\import Tangent.At[x := x] \as Tangent;
+\import Spaces.Multilinear[V := Tangent.Vector, space := Tangent.space] \as TangentMultilinear;
+\import TangentMultilinear.Alternating[] \as Alternating;
+\import Alternating.Precomposition[W := Vectors.Vector, target := Vectors.space] \as Precomposition;
+\definition globalChart(chart: Tangent.Chart): Chart := \into[Charts.Chart](chart, #charts{M.atlas}) \by { Tangent.member chart };
+\definition coordinateMap(chart: Tangent.Chart): Spaces.Linear[V := Tangent.Vector, W := Vectors.Vector, source := Tangent.space, target := Vectors.space].Map :=
+  Tangent.ChartIsomorphism[chart := chart].forward;
+\definition ofChart(omega: Form k)(chart: Tangent.Chart): PointForm k x := Precomposition.precompose k (coordinateMap chart) (omega (globalChart chart) (Tangent.coordinate chart));
+\definition pointCoordinates(phi: PointFamily k)(chart: Tangent.Chart): Multilinear.Alternating[].Form k :=
+  Multilinear.Alternating[].Precomposition[W := Tangent.Vector, target := Tangent.space].precompose k
+    (Tangent.ChartIsomorphism[chart := chart].backward) (phi x);
+\module Pair(left, right: Tangent.Chart);
+\definition independent: \forall (omega: Form k)(left, right: Tangent.Chart) -> ofChart omega left = ofChart omega right :=
+  \fun (omega: Form k)(left, right: Tangent.Chart) => Pair[left := left, right := right].law omega;
+\definition Values(omega: Form k): \Pow (PointForm k x) := { f: PointForm k x \where \forall (chart: Tangent.Chart) -> f = ofChart omega chart };
+\definition ValueType(omega: Form k): \Set := \Cast[PointForm k x] (Values omega);
+\definition exists: \forall (omega: Form k) -> \exists ValueType omega := \block {
+  \fun (omega: Form k) \then
+  \takefrom chart: Tangent.Chart \by Tangent.chartExists \then
+  \return \exact(\into[PointForm k x](ofChart omega chart, Values omega) \by {
+    \fun (other: Tangent.Chart) => independent omega chart other
+  }, ValueType omega)
+};
+\definition unique: \forall (omega: Form k)(f, g: ValueType omega) -> f = g := \block {
+  \fun (omega: Form k)(f, g: ValueType omega) \then
+  \takefrom chart: Tangent.Chart \by Tangent.chartExists \then
+  \return trans!{{PointForm k x}} f (ofChart omega chart) g
+    ((\bysub(PointForm k x, Values omega, f)) chart)
+    (sym!{{PointForm k x}} g (ofChart omega chart) ((\bysub(PointForm k x, Values omega, g)) chart))
+};
+\definition value(omega: Form k): PointForm k x := \choice ValueType omega \by { existence: exists omega, uniqueness: unique omega };
+\definition inChart: \forall (omega: Form k)(chart: Tangent.Chart) -> value omega = ofChart omega chart :=
+  \fun (omega: Form k)(chart: Tangent.Chart) => (\bysub(PointForm k x, Values omega, (\choice ValueType omega \by { existence: exists omega, uniqueness: unique omega }))) chart;

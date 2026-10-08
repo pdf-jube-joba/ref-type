@@ -1,0 +1,52 @@
+\import \parent.SeriesShift[k := N.Nat^::succ k] \as First;
+\import \parent.SeriesShift[k := k] \as Second;
+\import Multilinear.ListSeries[k := k] \as Base;
+\import Multilinear.Properties[] \as Updates;
+\import Alternating.TwoSlots[k := N.Nat^::succ (N.Nat^::succ k), i := Fin.zero (N.Nat^::succ k), j := Fin.succ (N.Nat^::succ k) (Fin.zero k)] \as Slots;
+\definition double(f: Multilinear.Function (N.Nat^::succ (N.Nat^::succ k)))(x, y: V): Multilinear.Function k :=
+  \fun (arguments: Multilinear.Arguments k) => f (Tuples.extend (N.Nat^::succ k) x (Tuples.extend k y arguments));
+\definition value: \forall (f: Multilinear.Function (N.Nat^::succ (N.Nat^::succ k)))(x, y: V)(xs: Lists.List[V]) ->
+  component (N.Nat^::succ (N.Nat^::succ k)) f (Lists.List[V]::cons x (Lists.List[V]::cons y xs)) = Base.component (double f x y) xs :=
+  \fun (f: Multilinear.Function (N.Nat^::succ (N.Nat^::succ k)))(x, y: V)(xs: Lists.List[V]) => trans!{K} _ _ _
+    (First.atCons f x (Lists.List[V]::cons y xs)) (Second.atCons (First.contraction f x) y xs);
+\definition seed(arguments: Multilinear.Arguments k): Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ k)) :=
+  Tuples.extend (N.Nat^::succ k) (#zero{space}) (Tuples.extend k (#zero{space}) arguments);
+\definition filled: \forall (arguments: Multilinear.Arguments k)(x, y: V) -> Slots.fill (seed arguments) x y = Tuples.extend (N.Nat^::succ k) x (Tuples.extend k y arguments) :=
+  \fun (arguments: Multilinear.Arguments k)(x, y: V) => eq_reason!{
+    {Slots.fill (seed arguments) x y}
+    "=" {Multilinear.update (N.Nat^::succ (N.Nat^::succ k)) (Tuples.extend (N.Nat^::succ k) x (Tuples.extend k (#zero{space}) arguments)) (Fin.succ (N.Nat^::succ k) (Fin.zero k)) y} "by" {
+      congr!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ k))} {Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ k))}}
+        (\fun (a: Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ k))) => Multilinear.update (N.Nat^::succ (N.Nat^::succ k)) a (Fin.succ (N.Nat^::succ k) (Fin.zero k)) y) _ _
+          (Updates.extendHead (N.Nat^::succ k) (#zero{space}) (Tuples.extend k (#zero{space}) arguments) x)}
+    "=" {Tuples.extend (N.Nat^::succ k) x (Multilinear.update (N.Nat^::succ k) (Tuples.extend k (#zero{space}) arguments) (Fin.zero k) y)} "by" {
+      Updates.extendUpdate (N.Nat^::succ k) x (Tuples.extend k (#zero{space}) arguments) (Fin.zero k) y}
+    "=" {Tuples.extend (N.Nat^::succ k) x (Tuples.extend k y arguments)} "by" {
+      congr!{{Multilinear.Arguments (N.Nat^::succ k)} {Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ k))}} (Tuples.extend (N.Nat^::succ k) x) _ _ (Updates.extendHead k (#zero{space}) arguments y)}
+  };
+\definition different: Logic.Not (Fin.zero (N.Nat^::succ k) = Fin.succ (N.Nat^::succ k) (Fin.zero k)) := NatLaws.zeroNeSucc N.Nat^::zero;
+\definition antisymmetric: \forall (f: Form (N.Nat^::succ (N.Nat^::succ k)))(x, y: V)(arguments: Multilinear.Arguments k) -> double f x y arguments = neg (double f y x arguments) :=
+  \fun (f: Form (N.Nat^::succ (N.Nat^::succ k)))(x, y: V)(arguments: Multilinear.Arguments k) => eq_reason!{
+    {double f x y arguments} "=" {f (Slots.fill (seed arguments) x y)} "by" {congr!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ k))} K} f _ _ (sym!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ k))}} _ _ (filled arguments x y))}
+    "=" {neg (f (Slots.fill (seed arguments) y x))} "by" {Slots.antisymmetric f (seed arguments) y x different}
+    "=" {neg (double f y x arguments)} "by" {congr!{K K} neg _ _ (congr!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ k))} K} f _ _ (filled arguments y x))}
+  };
+\definition repeated: \forall (f: Form (N.Nat^::succ (N.Nat^::succ k)))(x: V)(arguments: Multilinear.Arguments k) -> double f x x arguments = zero :=
+  \fun (f: Form (N.Nat^::succ (N.Nat^::succ k)))(x: V)(arguments: Multilinear.Arguments k) => trans!{K} _ _ zero
+    (congr!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ k))} K} f _ _ (sym!{{Multilinear.Arguments (N.Nat^::succ (N.Nat^::succ k))}} _ _ (filled arguments x x)))
+    (Slots.repeated f (seed arguments) x different);
+\definition laws: \forall (f: Form (N.Nat^::succ (N.Nat^::succ k))) -> HeadLaws[N.Nat^::succ (N.Nat^::succ k), f] :=
+  \fun (f: Form (N.Nat^::succ (N.Nat^::succ k))) => HeadLaws[N.Nat^::succ (N.Nat^::succ k), f] {
+    swap := \fun (x, y: V)(xs: Lists.List[V]) => eq_reason!{
+      {component (N.Nat^::succ (N.Nat^::succ k)) f (Lists.List[V]::cons x (Lists.List[V]::cons y xs))}
+      "=" {Base.component (double f x y) xs} "by" {value f x y xs}
+      "=" {Base.component (\fun (arguments: Multilinear.Arguments k) => neg (double f y x arguments)) xs} "by" {Base.congruent (double f x y) (\fun (arguments: Multilinear.Arguments k) => neg (double f y x arguments)) (antisymmetric f x y) xs}
+      "=" {neg (Base.component (double f y x) xs)} "by" {Base.negative (double f y x) xs}
+      "=" {neg (component (N.Nat^::succ (N.Nat^::succ k)) f (Lists.List[V]::cons y (Lists.List[V]::cons x xs)))} "by" {congr!{K K} neg _ _ (sym!{K} _ _ (value f y x xs))}
+    },
+    repeated := \fun (x: V)(xs: Lists.List[V]) => eq_reason!{
+      {component (N.Nat^::succ (N.Nat^::succ k)) f (Lists.List[V]::cons x (Lists.List[V]::cons x xs))}
+      "=" {Base.component (double f x x) xs} "by" {value f x x xs}
+      "=" {Base.component (\fun (arguments: Multilinear.Arguments k) => zero) xs} "by" {Base.congruent (double f x x) (\fun (arguments: Multilinear.Arguments k) => zero) (repeated f x) xs}
+      "=" zero "by" {Base.zeroComponent xs}
+    },
+  };

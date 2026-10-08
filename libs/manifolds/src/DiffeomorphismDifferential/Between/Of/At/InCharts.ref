@@ -1,0 +1,43 @@
+\definition sourceChart: SourceChart := \into[SourceCharts.Chart](left, #charts{M.atlas}) \by { Source.member left };
+\definition targetChart: TargetChart := \into[TargetCharts.Chart](right, #charts{N.atlas}) \by { Target.member right };
+\import \parent.\parent.Local[left := sourceChart, right := targetChart] \as Local;
+\import Differential.InCharts[left := left, right := right] \as Canonical;
+\import Local.At[a := Canonical.point] \as Derivatives;
+\import LocalForward.Differential[U := Local.U, V := Local.V, f := Local.forward, a := Canonical.point] \as FirstD;
+\import FirstD.Compare[W := #image{right}, g := Canonical.coordinateMap] \as Compare;
+\definition forwardAgreement: Derivatives.forward = Canonical.jacobian := Compare.equal
+  (\axiom:funext(Compare.first, Compare.second, \fun (a: SourceOpen.Carrier Local.U) => \refl(Compare.first a)));
+\import std.Data[].FinSet[] \as Fin;
+\import Spaces.Coordinates[I := Fin.Fin n] \as SourceVectors;
+\import Spaces.Coordinates[I := Fin.Fin m] \as TargetVectors;
+\import Spaces.Linear[V := SourceVectors.Vector, W := TargetVectors.Vector, source := SourceVectors.space, target := TargetVectors.space] \as CoordinateMaps;
+\import Source.Coordinate[chart := left] \as SourceCoordinates;
+\import Target.Coordinate[chart := right] \as TargetCoordinates;
+\import Source.ChartIsomorphism[chart := left] \as SourceIsomorphism;
+\import Target.ChartIsomorphism[chart := right] \as TargetIsomorphism;
+\import Spaces.Linear[V := TargetVectors.Vector, W := SourceVectors.Vector, source := TargetVectors.space, target := SourceVectors.space].Composition[U := Target.Vector, domain := Target.space] \as Before;
+\definition decodedInverse: Spaces.Linear[V := Target.Vector, W := SourceVectors.Vector, source := Target.space, target := SourceVectors.space].Map :=
+  Before.compose Derivatives.backward TargetIsomorphism.forward;
+\import Spaces.Linear[V := SourceVectors.Vector, W := Source.Vector, source := SourceVectors.space, target := Source.space].Composition[U := Target.Vector, domain := Target.space] \as After;
+\definition inverse: BackwardMaps.Map := After.compose SourceIsomorphism.backward decodedInverse;
+\definition forwardCoordinates: \forall (v: Source.Vector) -> TargetCoordinates.decode (#apply{Differential.value} v) = #apply{Derivatives.forward} (SourceCoordinates.decode v) :=
+  \fun (v: Source.Vector) => trans!{{TargetVectors.Vector}} _ (#apply{Canonical.jacobian} (SourceCoordinates.decode v)) _
+    (Differential.coordinates left right v)
+    (congr!{{CoordinateMaps.Map} {TargetVectors.Vector}} (\fun (d: CoordinateMaps.Map) => #apply{d} (SourceCoordinates.decode v))
+      Canonical.jacobian Derivatives.forward (sym!{{CoordinateMaps.Map}} _ _ forwardAgreement));
+\definition leftInverse: \forall (v: Source.Vector) -> #apply{inverse} (#apply{Differential.value} v) = v :=
+  \fun (v: Source.Vector) => trans!{{Source.Vector}} _ (SourceCoordinates.encode (SourceCoordinates.decode v)) v
+    (congr!{{SourceVectors.Vector} {Source.Vector}} SourceCoordinates.encode
+      (#apply{Derivatives.backward} (TargetCoordinates.decode (#apply{Differential.value} v))) (SourceCoordinates.decode v)
+      (trans!{{SourceVectors.Vector}} _ (#apply{Derivatives.backward} (#apply{Derivatives.forward} (SourceCoordinates.decode v))) _
+        (congr!{{TargetVectors.Vector} {SourceVectors.Vector}} (#apply{Derivatives.backward}) _ _ (forwardCoordinates v))
+        (Derivatives.leftInverseLaw (SourceCoordinates.decode v))))
+    (SourceCoordinates.encodeDecode v);
+\definition rightInverse: \forall (w: Target.Vector) -> #apply{Differential.value} (#apply{inverse} w) = w :=
+  \fun (w: Target.Vector) => TargetCoordinates.injective _ w
+    (trans!{{TargetVectors.Vector}} _ (#apply{Derivatives.forward} (SourceCoordinates.decode (#apply{inverse} w))) (TargetCoordinates.decode w)
+      (forwardCoordinates (#apply{inverse} w))
+      (trans!{{TargetVectors.Vector}} _ (#apply{Derivatives.forward} (#apply{Derivatives.backward} (TargetCoordinates.decode w))) _
+        (congr!{{SourceVectors.Vector} {TargetVectors.Vector}} (#apply{Derivatives.forward}) _ _
+          (SourceCoordinates.decodeEncode (#apply{Derivatives.backward} (TargetCoordinates.decode w))))
+        (Derivatives.rightInverseLaw (TargetCoordinates.decode w))));

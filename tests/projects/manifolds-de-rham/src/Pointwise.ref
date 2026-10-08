@@ -1,0 +1,40 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import std.Set[] \as Sets;
+
+\structure Space { Point: \Set, Vector: \Set, }
+\structure Representative[M: Space, x: M.Point]: \Set {
+  point: \Cast[M.Point] ({ y: M.Point \where y = x }),
+  vector: M.Vector,
+}
+\module Fiber(M: Space, x: M.Point) {
+  \definition Equivalent(a, b: Representative[M, x]): \Prop := #vector{a} = #vector{b};
+  \import Sets.Quotient[A := Representative[M, x], Equivalent := Equivalent] \as Q;
+  \definition Carrier: \Set := Q.Carrier;
+}
+\definition fiber(M: Space)(x: M.Point): \Set := Fiber[M := M, x := x].Carrier;
+
+\module At(M: Space, k: N.Nat^, x: M.Point) {
+  \definition Arguments: \Set := Fin.Fin k -> fiber M x;
+  \definition Form: \Set := Arguments -> M.Vector;
+  \definition Equal(f, g: Form): \Prop := \forall (v: Arguments) -> f v = g v;
+  \definition ext: \forall (f, g: Form) -> Equal f g -> f = g :=
+    \fun (f, g: Form)(same: Equal f g) => \axiom:funext(f, g, same);
+
+}
+\definition sections(M: Space)(k: N.Nat^): \Set :=
+  \forall (x: M.Point) -> At[M := M, k := k, x := x].Form;
+
+\definition copy(M: Space)(k: N.Nat^)(f: sections M k): sections M k :=
+  \fun (x: M.Point)(v: _) => f x v;
+\definition copyAt(M: Space)(k: N.Nat^)(f: sections M k): sections M k :=
+  \fun (x: M.Point)(v: At[M := M, k := k, x := x].Arguments) => f x v;
+
+\definition Equal(M: Space)(k: N.Nat^)(f, g: sections M k): \Prop :=
+  \forall (x: M.Point) -> At[M := M, k := k, x := x].Equal (f x) (g x);
+\definition ext: \forall (M: Space)(k: N.Nat^)(f, g: sections M k) -> Equal M k f g -> f = g :=
+  \fun (M: Space)(k: N.Nat^)(f, g: sections M k)(same: Equal M k f g) =>
+    \axiom:funext(f, g, \fun (x: M.Point) => At[M := M, k := k, x := x].ext (f x) (g x) (same x));
+\definition copyEqual: \forall (M: Space)(k: N.Nat^)(f: sections M k) -> copy M k f = f :=
+  \fun (M: Space)(k: N.Nat^)(f: sections M k) =>
+    ext M.Point M.Vector k (copy M k f) f (\fun (x: M.Point)(v: _) => \refl(f x v));

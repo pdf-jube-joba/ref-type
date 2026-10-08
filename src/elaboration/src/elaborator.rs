@@ -251,6 +251,227 @@ impl term_elaborator::Handler for GlobalEnvironment {
         Ok(())
     }
 
+    fn direct_module_definition(
+        &mut self,
+        path: &ModuleInstantiatePath,
+        name: &Identifier,
+        access: &LocalAccess,
+        scope: &mut LocalScope,
+        arguments: &[&SExp],
+    ) -> Result<Option<Exp>, ElaborationError> {
+        let _profile =
+            profiling::ProfileTimer::start("REF_TYPE_PROFILE_DIRECT_DEFINITIONS", || {
+                format!("direct definition path={path:?} import={name:?} access={access:?}")
+            });
+        // Selecting a logical definition specializes its explicit kernel
+        // captures. Constructors, Program declarations, and ambient local
+        // namespaces still use ordinary graph instantiation.
+        let Some(member) = self.module_manager.direct_import_member(name, access) else {
+            if _profile.is_some() {
+                eprintln!("direct definition fallback: member access is not the guarded import");
+            }
+            return Ok(None);
+        };
+        let (mut source, calls, inherited) = match path {
+            ModuleInstantiatePath::FromModule { module, calls } => {
+                let Some(source) = self.module_manager.hir_module(*module) else {
+                    if _profile.is_some() {
+                        eprintln!("direct definition fallback: unresolved source {module:?}");
+                    }
+                    return Ok(None);
+                };
+                (source, calls, Vec::new())
+            }
+            ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
+                let mut source = self.module_manager.current();
+                for _ in 0..*back_parent {
+                    let Some(parent) = self.crate_env.module(source).parent() else {
+                        return Ok(None);
+                    };
+                    source = parent;
+                }
+                (source, calls, Vec::new())
+            }
+            ModuleInstantiatePath::FromRoot { calls } => {
+                (self.crate_env.root_module(), calls, Vec::new())
+            }
+            ModuleInstantiatePath::FromImport { import_name, calls } => {
+                let Some(binding) = self.module_manager.hir_import(&self.crate_env, import_name)
+                else {
+                    return Ok(None);
+                };
+                let binding = self.crate_env.binding(binding);
+                (binding.source, calls, binding.arguments.clone())
+            }
+        };
+        if calls.is_empty() || self.crate_env.namespace_binding_id(source).is_some() {
+            if _profile.is_some() {
+                eprintln!(
+                    "direct definition fallback: source={source:?} is already a namespace instance or has no calls"
+                );
+            }
+            return Ok(None);
+        }
+        let mut substitutions = Vec::with_capacity(inherited.len());
+        for (id, argument) in inherited {
+            let ModuleArgument::Pts(value) = argument else {
+                return Ok(None);
+            };
+            substitutions.push((id, value));
+        }
+        let mut pending = Vec::new();
+        for (child_name, supplied) in calls {
+            let Some(child) = self
+                .module_manager
+                .hir_child(&self.crate_env, source, child_name)
+            else {
+                if _profile.is_some() {
+                    eprintln!(
+                        "direct definition fallback: unresolved child {child_name:?} of {source:?}"
+                    );
+                }
+                return Ok(None);
+            };
+            if self.crate_env.namespace_binding_id(child).is_some() {
+                if _profile.is_some() {
+                    eprintln!(
+                        "direct definition fallback: child={child:?} is already a namespace instance"
+                    );
+                }
+                return Ok(None);
+            }
+            let parameters = self.crate_env.module(child).parameters();
+            if parameters.len() != supplied.len() {
+                if _profile.is_some() {
+                    eprintln!(
+                        "direct definition fallback: module {child:?} requires {} arguments but received {}",
+                        parameters.len(),
+                        supplied.len()
+                    );
+                }
+                return Ok(None);
+            }
+            for (position, (parameter, (argument_name, expression))) in
+                parameters.iter().zip(supplied).enumerate()
+            {
+                let ModuleParameterKind::Pts { ty } = parameter.kind else {
+                    return Ok(None);
+                };
+                if argument_name.as_str() != self.crate_env.symbol(parameter.name) {
+                    return Ok(None);
+                }
+                pending.push((
+                    ModuleParamId {
+                        module: child,
+                        position: position as u32,
+                    },
+                    ty,
+                    expression,
+                ));
+            }
+            source = child;
+        }
+        let Some(crate::raw::environment::ModuleItem::Definition { definition, .. }) =
+            self.crate_env.module(source).item(member.as_str())
+        else {
+            if _profile.is_some() {
+                eprintln!(
+                    "direct definition fallback: source {source:?} has no logical definition {}",
+                    member.as_str()
+                );
+            }
+            return Ok(None);
+        };
+        let definition = *definition;
+        let (definition_ty, body, explicit) = match self.crate_env.definition(definition) {
+            DefinedConstant::Pts { ty, body } => (*ty, *body, 0),
+            DefinedConstant::Contextual {
+                parameters,
+                ty,
+                body,
+            } => (*ty, *body, parameters.len()),
+            _ => return Ok(None),
+        };
+        if arguments.len() < explicit {
+            if _profile.is_some() {
+                eprintln!(
+                    "direct definition fallback: member={} requires {explicit} own arguments but received {}",
+                    member.as_str(),
+                    arguments.len()
+                );
+            }
+            return Ok(None);
+        }
+        if [definition_ty, body].into_iter().any(|term| {
+            self.crate_env
+                .arena()
+                .max_loose_bound(crate::raw::traversal::Term::Logical(term))
+                .is_some_and(|i| i >= explicit)
+        }) {
+            if _profile.is_some() {
+                eprintln!(
+                    "direct definition fallback: member={} retains an ambient local variable",
+                    member.as_str()
+                );
+            }
+            return Ok(None);
+        }
+        for (id, ty, expression) in pending {
+            let expected =
+                crate::kernel_bridge::captured_expression(&self.crate_env, ty, &substitutions)?;
+            let argument = scope.elab_exp(expression, self)?;
+            self.check(&mut scope.context().clone(), argument, expected)?;
+            substitutions.push((id, self.metavariables.zonk(&self.crate_env, argument)));
+        }
+        let mut actual = Vec::with_capacity(explicit);
+        if let DefinedConstant::Contextual { parameters, .. } =
+            self.crate_env.definition(definition).clone()
+        {
+            for (index, ((_, ty), expression)) in parameters.iter().zip(arguments).enumerate() {
+                let expected = crate::kernel_bridge::captured_expression(
+                    &self.crate_env,
+                    *ty,
+                    &substitutions
+                        .iter()
+                        .map(|(id, value)| {
+                            (
+                                *id,
+                                shift_bound_indices(self.crate_env.arena(), *value, index, 0),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                )?;
+                let expected = instantiate_telescope(self.crate_env.arena(), expected, &actual);
+                let value = scope.elab_exp(expression, self)?;
+                self.check(&mut scope.context().clone(), value, expected)?;
+                actual.push(self.metavariables.zonk(&self.crate_env, value));
+            }
+        }
+        let mut value = crate::kernel_bridge::captured_definition(
+            &self.crate_env,
+            definition,
+            &substitutions,
+            &actual,
+        )?;
+        for expression in &arguments[explicit..] {
+            let argument = scope.elab_exp(expression, self)?;
+            let ty = self.infer(&mut scope.context().clone(), value)?;
+            let ty = whnf(
+                &self.crate_env,
+                self.metavariables.zonk(&self.crate_env, ty),
+            );
+            if let ExpNode::Prod { ty: domain, .. } = self.crate_env.arena().get(ty) {
+                self.check(&mut scope.context().clone(), argument, domain)?;
+            }
+            value = self.crate_env.arena().alloc(ExpNode::App {
+                func: value,
+                arg: argument,
+            });
+        }
+        self.materialize_module_term(scope.context(), value)
+            .map(Some)
+    }
+
     fn materialize_module_term(
         &mut self,
         context: &ExpContext,

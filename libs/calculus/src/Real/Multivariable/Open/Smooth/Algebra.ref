@@ -1,0 +1,34 @@
+\import real.Analysis[].Algebra[] \as RealAlgebra;
+\import linear_algebra.Field[].Space[K := Real, field := RealAlgebra.field] \as Linear;
+\import Linear.Coordinates[I := Carrier U] \as Functions;
+\import Linear.Subspace[V := ScalarFunction U, space := Functions.space] \as Subspaces;
+\import \parent.Operations[] \as Operations;
+\definition Predicate: \Pow (ScalarFunction U) := { f: ScalarFunction U \where SmoothOn U f };
+\definition subspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := Predicate,
+  containsZero := Operations.constantSmooth U zero,
+  closedAdd := Operations.addSmooth U,
+  closedScale := \fun (c: Real)(f: ScalarFunction U)(smooth: SmoothOn U f) =>
+    Operations.mulSmooth U (\fun (x: Carrier U) => c) f (Operations.constantSmooth U c) smooth,
+};
+\definition Function: \Set := \Cast[ScalarFunction U] Predicate;
+\import Subspaces.Of[subspace := subspace] \as Subspace;
+\definition vectorSpace: Linear.VectorSpace Function := Subspace.induced;
+\definition origin: Function := #zero{vectorSpace};
+\definition plus: Function -> Function -> Function := #add{vectorSpace};
+\definition scale: Real -> Function -> Function := #smul{vectorSpace};
+\definition constant(c: Real): Function := \into[ScalarFunction U](\fun (x: Carrier U) => c, Predicate) \by { Operations.constantSmooth U c };
+\definition oneFunction: Function := constant one;
+\definition product(f, g: Function): Function := \into[ScalarFunction U](\fun (x: Carrier U) => mul (f x) (g x), Predicate) \by {
+  Operations.mulSmooth U f g (\bysub(ScalarFunction U, Predicate, f)) (\bysub(ScalarFunction U, Predicate, g))
+};
+\definition ext: \forall (f, g: Function) -> (\forall (x: Carrier U) -> f x = g x) -> f = g :=
+  \fun (f, g: _)(agrees: _) => \axiom:funext(f, g, agrees);
+\definition productAssociative: \forall (f, g, h: Function) -> product (product f g) h = product f (product g h) :=
+  \fun (f, g, h: _) => ext (product (product f g) h) (product f (product g h)) (\fun (x: Carrier U) => Laws.fieldMulAssoc (f x) (g x) (h x));
+\definition productCommutative: \forall (f, g: Function) -> product f g = product g f :=
+  \fun (f, g: _) => ext (product f g) (product g f) (\fun (x: Carrier U) => Laws.fieldMulComm (f x) (g x));
+\definition oneLeft: \forall (f: Function) -> product oneFunction f = f :=
+  \fun (f: _) => ext (product oneFunction f) f (\fun (x: Carrier U) => Laws.fieldMulOneLeft (f x));
+\definition distributive: \forall (f, g, h: Function) -> product f (plus g h) = plus (product f g) (product f h) :=
+  \fun (f, g, h: _) => ext (product f (plus g h)) (plus (product f g) (product f h)) (\fun (x: Carrier U) => Laws.fieldMulAdd (f x) (g x) (h x));

@@ -1,0 +1,29 @@
+\import Composite.Coordinates[f := continuous, left := left, right := right] \as Direct;
+\definition firstDomain(middle: MiddleChart): Open.OpenSet := First.Coordinates[f := f, left := left, right := middle].domain;
+\definition domains(middle: MiddleChart): Open.OpenSet := Open.intersection (firstDomain middle) Direct.domain;
+\definition included(middle: MiddleChart): Open.Included (domains middle) Direct.domain := Open.intersectionRight (firstDomain middle) Direct.domain;
+\module Patch(middle: MiddleChart);
+\definition Covers: \Prop := \forall (x: Open.Carrier Direct.domain) -> \exists { middle: MiddleChart \where \In[Reals.Multivariable[n := n].Point] (#points{(domains middle)}) x };
+\definition covers: Covers := \block {
+  \fun (x: Open.Carrier Direct.domain) \then
+  \takefrom middle: \Cast[MiddleCharts.Chart] ({ middle: MiddleCharts.Chart \where
+    Logic.And[\In[MiddleCharts.Chart] #charts{N.atlas} middle, MiddleCharts.Contains middle (First.apply f (SourceCharts.point left (Direct.leftCoordinate x)))] })
+    \by #covers{N.atlas} (First.apply f (SourceCharts.point left (Direct.leftCoordinate x))) \then
+  \let witness: Logic.And[\In[MiddleCharts.Chart] #charts{N.atlas} middle, MiddleCharts.Contains middle (First.apply f (SourceCharts.point left (Direct.leftCoordinate x)))] :=
+    \bysub(MiddleCharts.Chart, { middle: MiddleCharts.Chart \where
+      Logic.And[\In[MiddleCharts.Chart] #charts{N.atlas} middle, MiddleCharts.Contains middle (First.apply f (SourceCharts.point left (Direct.leftCoordinate x)))] }, middle) \then
+  \let chosen: MiddleChart := \into[MiddleCharts.Chart](middle, #charts{N.atlas}) \by { #left{witness} } \then
+  \return \exact(\into[MiddleChart](chosen, { middle: MiddleChart \where \In[Reals.Multivariable[n := n].Point] (#points{(domains middle)}) x }) \by {
+    Patch[middle := chosen].contains x (#right{witness})
+  }, \Cast[MiddleChart] ({ middle: MiddleChart \where \In[Reals.Multivariable[n := n].Point] (#points{(domains middle)}) x }))
+};
+\module Component(i: Fin.Fin l) {
+  \import Open.SmoothCover[I := MiddleChart, U := Direct.domain, domains := domains, f := \fun (x: Open.Carrier Direct.domain) => Direct.apply x i] \as Cover;
+  \definition regular: \In[SourceCharts.Chart] #charts{M.atlas} left -> \In[TargetCharts.Chart] #charts{P.atlas} right ->
+    Smooth.SmoothOn Direct.domain (\fun (x: Open.Carrier Direct.domain) => Direct.apply x i) :=
+    \fun (leftMember: \In[SourceCharts.Chart] #charts{M.atlas} left)(rightMember: \In[TargetCharts.Chart] #charts{P.atlas} right) =>
+      Cover.smooth included covers (\fun (middle: MiddleChart) => \parent.Patch[middle := middle].regular leftMember rightMember i);
+}
+\definition regular: \In[SourceCharts.Chart] #charts{M.atlas} left -> \In[TargetCharts.Chart] #charts{P.atlas} right -> Direct.Smooth :=
+  \fun (leftMember: \In[SourceCharts.Chart] #charts{M.atlas} left)(rightMember: \In[TargetCharts.Chart] #charts{P.atlas} right)(i: Fin.Fin l) =>
+    Component[i := i].regular leftMember rightMember;

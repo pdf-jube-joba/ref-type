@@ -1,0 +1,120 @@
+\import calculus.Maps[n := n, m := m] \as Maps;
+\import Maps.Composition[U := U, V := V, f := f] \as Composition;
+\import \root.Euclidean[n := n].On[U := U] \as SourceForms;
+\import \root.Euclidean[n := m].On[U := V] \as TargetForms;
+\import Reals.Multivariable[n := m].Open[] \as TargetOpen;
+\import Spaces.Coordinates[I := Fin.Fin m] \as TargetVectors;
+\import Spaces.Multilinear[V := TargetVectors.Vector, space := TargetVectors.space] \as TargetMultilinear;
+\import TargetMultilinear.Alternating[] \as TargetAlternating;
+\import Spaces.FiniteCoordinates[n := m] \as TargetBasis;
+\import Alternating.Precomposition[W := TargetVectors.Vector, target := TargetVectors.space] \as Precomposition;
+\import Spaces.Linear[V := Vectors.Vector, W := TargetVectors.Vector, source := Vectors.space, target := TargetVectors.space] \as Linear;
+\import \root.Euclidean[n := m].Evaluation[m := n, U := U] \as Evaluation;
+\import Smooth.Derivative[] \as Partials;
+\import Smooth.Sums[] \as Sums;
+\definition jacobian(x: Open.Carrier U): Linear.Map := Maps.Differential[U := U, V := V, f := f, a := x].value;
+\definition coordinate(j: Fin.Fin m): Partials.Function U := Maps.coordinateFunction U V f j;
+\definition matrix(j: Fin.Fin m)(i: Fin.Fin n): Partials.Function U := Partials.derivative U (coordinate j) i;
+\definition vectorTerm(v: Vectors.Vector)(j: Fin.Fin m)(i: Fin.Fin n): Open.ScalarFunction U :=
+  \fun (x: Open.Carrier U) => Spaces.mul (matrix j i x) (v i);
+\definition vectorSmooth: \forall (v: Vectors.Vector)(j: Fin.Fin m) -> Smooth.SmoothOn U (\fun (x: Open.Carrier U) => #apply{(jacobian x)} v j) :=
+  \fun (v: Vectors.Vector)(j: Fin.Fin m) => SourceForms.smoothOfEqual (Sums.sum U n (vectorTerm v j))
+    (\fun (x: Open.Carrier U) => #apply{(jacobian x)} v j)
+    (\fun (x: Open.Carrier U) => \refl(#apply{(jacobian x)} v j))
+    (Sums.smooth U n (vectorTerm v j) (\fun (i: Fin.Fin n) => Operations.mulSmooth U (matrix j i)
+      (\fun (x: Open.Carrier U) => v i)
+      (\bysub(Open.ScalarFunction U, { h: Open.ScalarFunction U \where Smooth.SmoothOn U h }, matrix j i))
+      (Operations.constantSmooth U (v i))));
+\definition family(k: N.Nat^)(omega: TargetForms.Form k): SourceForms.Family k :=
+  \fun (x: Open.Carrier U) => Precomposition.precompose k (jacobian x) (omega (Maps.apply U V f x));
+\definition regular: \forall (k: N.Nat^)(omega: TargetForms.Form k) -> SourceForms.SmoothFamily k (family k omega) :=
+  \fun (k: N.Nat^)(omega: TargetForms.Form k)(arguments: Multilinear.Arguments k) =>
+    Evaluation.law k (\fun (x: Open.Carrier U) => TargetAlternating.asMultilinear k (omega (Maps.apply U V f x)))
+      (\fun (x: Open.Carrier U)(i: Fin.Fin k) => #apply{(jacobian x)} (arguments i))
+      (\fun (indices: Fin.Fin k -> Fin.Fin m) => Composition.smooth
+        (TargetForms.evaluate k omega (\fun (i: Fin.Fin k) => TargetBasis.vectors (indices i))))
+      (\fun (i: Fin.Fin k)(j: Fin.Fin m) => vectorSmooth (arguments i) j);
+\definition apply(k: N.Nat^)(omega: TargetForms.Form k): SourceForms.Form k :=
+  \into[SourceForms.Family k](family k omega, { value: SourceForms.Family k \where SourceForms.SmoothFamily k value }) \by { regular k omega };
+\module At(k: N.Nat^) {
+  \import SourceForms.At[k := k] \as Source;
+  \import TargetForms.At[k := k] \as Target;
+  \import Spaces.Linear[V := TargetForms.Form k, W := SourceForms.Form k, source := Target.space, target := Source.space] \as Linear;
+  \definition addition: \forall (omega, eta: TargetForms.Form k) -> apply k (Target.plus omega eta) = Source.plus (apply k omega) (apply k eta) :=
+    \fun (omega, eta: TargetForms.Form k) => SourceForms.ext k (apply k (Target.plus omega eta)) (Source.plus (apply k omega) (apply k eta))
+      (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments k) => \refl(Spaces.add (apply k omega x arguments) (apply k eta x arguments)));
+  \definition scalar: \forall (a: Reals.Real)(omega: TargetForms.Form k) -> apply k (Target.scale a omega) = Source.scale a (apply k omega) :=
+    \fun (a: Reals.Real)(omega: TargetForms.Form k) => SourceForms.ext k (apply k (Target.scale a omega)) (Source.scale a (apply k omega))
+      (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments k) => \refl(Spaces.mul a (apply k omega x arguments)));
+  \definition map: Linear.Map := Linear.Map { apply := apply k, preservesAdd := addition, preservesScale := scalar };
+}
+\module Product(p, q: N.Nat^) {
+  \import SourceForms.Wedge[p := p, q := q] \as Source;
+  \import TargetForms.Wedge[p := p, q := q] \as Target;
+  \import Exterior.Pullback[W := TargetVectors.Vector, target := TargetVectors.space].Naturality[p := p, q := q] \as Point;
+  \definition law: \forall (omega: TargetForms.Form p)(eta: TargetForms.Form q) ->
+    apply (Nat.add p q) (Target.apply omega eta) = Source.apply (apply p omega) (apply q eta) :=
+    \fun (omega: TargetForms.Form p)(eta: TargetForms.Form q) => \axiom:funext(apply (Nat.add p q) (Target.apply omega eta),
+      Source.apply (apply p omega) (apply q eta), \fun (x: Open.Carrier U) => Point.law (jacobian x) (omega (Maps.apply U V f x)) (eta (Maps.apply U V f x)));
+}
+\module After(l: N.Nat^, W: Reals.OpenSpace l, g: \root.Euclidean[n := m].SmoothMap l V W);
+\module DegreeZero;
+
+\module Regrade(k, l: N.Nat^) {
+  \import SourceForms.Regrade[k := k, l := l] \as SourceDegree;
+  \import TargetForms.Regrade[k := k, l := l] \as TargetDegree;
+  \import Exterior.Pullback[W := TargetVectors.Vector, target := TargetVectors.space].Components[k := k] \as SourceComponents;
+  \import Exterior.Pullback[W := TargetVectors.Vector, target := TargetVectors.space].Components[k := l] \as TargetComponents;
+  \import Exterior.Components[k := l] \as Components;
+  \import Shuffle.Naturality[J := TargetVectors.Vector] \as Mapping;
+
+  \import Spaces.Exterior[V := TargetVectors.Vector, space := TargetVectors.space] \as TargetExterior;
+  \import Spaces.Shuffle[I := TargetVectors.Vector] \as TargetShuffle;
+  \definition law: \forall (omega: TargetForms.Form k)(same: k = l) ->
+    SourceDegree.cast (apply k omega) same = apply l (TargetDegree.cast omega same) :=
+    \fun (omega: TargetForms.Form k)(same: k = l) => \axiom:funext(SourceDegree.cast (apply k omega) same,
+      apply l (TargetDegree.cast omega same), \fun (x: Open.Carrier U) => \block {
+        \let a: TargetShuffle.Function := TargetExterior.component k (omega (Maps.apply U V f x)) \then
+        \let b: TargetShuffle.Function := TargetExterior.component l (TargetDegree.cast omega same (Maps.apply U V f x)) \then
+        \let mapped: TargetShuffle.Function -> Shuffle.Function := Mapping.mapSeries (#apply{(jacobian x)}) \then
+        \return Components.ext (SourceDegree.cast (apply k omega) same x) (apply l (TargetDegree.cast omega same) x) (eq_reason!{
+          {Exterior.component l (SourceDegree.cast (apply k omega) same x)}
+          "=" {Exterior.component k (apply k omega x)} "by" {SourceDegree.series (apply k omega) same x}
+          "=" {mapped a} "by" {SourceComponents.law (jacobian x) (omega (Maps.apply U V f x))}
+          "=" {mapped b} "by" {congr!{{TargetShuffle.Function} {Shuffle.Function}} mapped a b
+            (sym!{{TargetShuffle.Function}} b a (TargetDegree.series omega same (Maps.apply U V f x)))}
+          "=" {Exterior.component l (apply l (TargetDegree.cast omega same) x)} "by" {
+            sym!{{Shuffle.Function}} (Exterior.component l (apply l (TargetDegree.cast omega same) x)) (mapped b)
+              (TargetComponents.law (jacobian x) (TargetDegree.cast omega same (Maps.apply U V f x)))}
+        })
+      });
+}
+\module Conversion(k, l: N.Nat^) {
+  \import SourceForms.Regrade[k := k, l := l] \as SourceDegree;
+  \import TargetForms.Regrade[k := k, l := l] \as TargetDegree;
+  \import Exterior.Pullback[W := TargetVectors.Vector, target := TargetVectors.space].Components[k := k] \as Components;
+  \import Multilinear.ListArguments[] \as Arguments;
+  \import Fin.FromList[A := Vectors.Vector].Mapping[B := TargetVectors.Vector] \as TupleMapping;
+  \import Spaces.Exterior[V := TargetVectors.Vector, space := TargetVectors.space] \as TargetExterior;
+  \definition law: \forall (omega: TargetForms.Form k) -> SourceDegree.convert (apply k omega) = apply l (TargetDegree.convert omega) :=
+    \fun (omega: TargetForms.Form k) => SourceForms.ext l (SourceDegree.convert (apply k omega)) (apply l (TargetDegree.convert omega))
+      (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments l) => trans!{{Reals.Real}}
+        (SourceDegree.convert (apply k omega) x arguments)
+        (TargetExterior.component k (omega (Maps.apply U V f x)) (Lists.map (Vectors.Vector) (TargetVectors.Vector) (#apply{(jacobian x)}) (Arguments.encode l arguments)))
+        (apply l (TargetDegree.convert omega) x arguments)
+        (congr!{{Shuffle.Function} {Reals.Real}} (\fun (H: Shuffle.Function) => H (Arguments.encode l arguments))
+          (Exterior.component k (apply k omega x)) (Exterior.Pullback[W := TargetVectors.Vector, target := TargetVectors.space].mapped k (jacobian x) (omega (Maps.apply U V f x)))
+          (Components.law (jacobian x) (omega (Maps.apply U V f x))))
+        (congr!{{Lists.List[TargetVectors.Vector]} {Reals.Real}} (TargetExterior.component k (omega (Maps.apply U V f x)))
+          (Lists.map (Vectors.Vector) (TargetVectors.Vector) (#apply{(jacobian x)}) (Arguments.encode l arguments))
+          (Fin.FromList[A := TargetVectors.Vector].list l (\fun (slot: Fin.Fin l) => #apply{(jacobian x)} (arguments slot)))
+          (sym!{{Lists.List[TargetVectors.Vector]}} (Fin.FromList[A := TargetVectors.Vector].list l (\fun (slot: Fin.Fin l) => #apply{(jacobian x)} (arguments slot)))
+            (Lists.map (Vectors.Vector) (TargetVectors.Vector) (#apply{(jacobian x)}) (Arguments.encode l arguments)) (TupleMapping.listMap l (#apply{(jacobian x)}) arguments))));
+}
+
+\module JacobianDifferentiation;
+\module Differentiation(k, l: N.Nat^);
+
+\module SeriesDifferentiation(k: N.Nat^);
+
+\module Naturality(k: N.Nat^);

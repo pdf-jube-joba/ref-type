@@ -1,0 +1,23 @@
+
+\import SourceForms.Partial[k := k] \as SourcePartial;
+\import TargetForms.Partial[k := k] \as TargetPartial;
+\import Spaces.Exterior[V := TargetVectors.Vector, space := TargetVectors.space] \as TargetExterior;
+\import Spaces.Shuffle[I := TargetVectors.Vector] \as TargetShuffle;
+\import Spaces.FiniteCoordinateEnumeration[] \as Enumeration;
+\import Spaces.Sums[I := Fin.Fin m] \as TargetSums;
+\import TargetSums.Prop[] \as TargetSumLaws;
+\import \parent.JacobianDifferentiation[] \as JacobianPartial;
+\import Fin.FromList[A := Vectors.Vector] \as SourceList;
+\import Fin.FromList[A := TargetVectors.Vector] \as TargetList;
+\import SourceList.Mapping[B := TargetVectors.Vector] \as Mapping;
+\import TargetMultilinear.ListArguments[] \as TargetArguments;
+\definition coefficients(omega: TargetForms.Form k)(i: Fin.Fin n)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]): Reals.Real :=
+  TargetSums.sum (Fin.elements m) (\fun (j: Fin.Fin m) => Spaces.mul
+    (TargetExterior.component k (TargetPartial.apply j omega (Maps.apply U V f x)) (Lists.map (Vectors.Vector) (TargetVectors.Vector) (#apply{(jacobian x)}) xs)) (matrix j i x));
+\definition variation(omega: TargetForms.Form k)(i: Fin.Fin n)(x: Open.Carrier U): Shuffle.Function :=
+  Shuffle.Boundary[].Variation[J := TargetVectors.Vector, map := #apply{(jacobian x)}, hessian := JacobianPartial.hessian x].insert
+    (\fun (v: Vectors.Vector) => JacobianPartial.partial i v x) (TargetExterior.component k (omega (Maps.apply U V f x)));
+\module At(x: Open.Carrier U, xs: Lists.List[Vectors.Vector]);
+\definition law: \forall (omega: TargetForms.Form k)(i: Fin.Fin n)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) ->
+  Exterior.component k (SourcePartial.apply i (apply k omega) x) xs = Spaces.add (coefficients omega i x xs) (variation omega i x xs) :=
+  \fun (omega: TargetForms.Form k)(i: Fin.Fin n)(x: Open.Carrier U)(xs: Lists.List[Vectors.Vector]) => At[x := x, xs := xs].law omega i;

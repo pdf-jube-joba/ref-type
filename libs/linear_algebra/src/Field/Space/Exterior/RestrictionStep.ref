@@ -1,0 +1,35 @@
+\definition headCase: \forall (f: Series) -> SeriesAlternation.Laws[f] -> \forall (arguments: Multilinear.Arguments (N.Nat^::succ k))(j: Fin.Fin k) ->
+  arguments (Fin.zero k) = arguments (Fin.succ k j) -> restriction (N.Nat^::succ k) f arguments = zero := \block {
+  \fun (f: Series)(laws: SeriesAlternation.Laws[f])(arguments: Multilinear.Arguments (N.Nat^::succ k))(j: Fin.Fin k)(same: arguments (Fin.zero k) = arguments (Fin.succ k j)) \then
+  \let tail: Multilinear.Arguments k := \fun (i: Fin.Fin k) => arguments (Fin.succ k i) \then
+  \let member: Membership.Occurs (arguments (Fin.zero k)) (TuplesList.list k tail) :=
+    \idelim tail j = arguments (Fin.zero k) \with x: V => Membership.Occurs x (TuplesList.list k tail)
+      \by { base: TuplesList.occurs k tail j, equality: sym!{V} (arguments (Fin.zero k)) (tail j) same } \then
+  \return SeriesAlternation.headOccurrence (TuplesList.list k tail) f laws (arguments (Fin.zero k)) member
+};
+\definition law: (\forall (f: Series) -> SeriesAlternation.Laws[f] -> \forall (arguments: Multilinear.Arguments k)(i, j: Fin.Fin k) -> Logic.Not (i = j) -> arguments i = arguments j -> restriction k f arguments = zero) ->
+  \forall (f: Series) -> SeriesAlternation.Laws[f] -> \forall (arguments: Multilinear.Arguments (N.Nat^::succ k))(i, j: Fin.Fin (N.Nat^::succ k)) -> Logic.Not (i = j) -> arguments i = arguments j -> restriction (N.Nat^::succ k) f arguments = zero := \block {
+  \fun (previous: \forall (f: Series) -> SeriesAlternation.Laws[f] -> \forall (arguments: Multilinear.Arguments k)(i, j: Fin.Fin k) -> Logic.Not (i = j) -> arguments i = arguments j -> restriction k f arguments = zero)
+    (f: Series)(laws: SeriesAlternation.Laws[f])(arguments: Multilinear.Arguments (N.Nat^::succ k))(i, j: Fin.Fin (N.Nat^::succ k))(different: Logic.Not (i = j))(same: arguments i = arguments j) \then
+  \let tail: Multilinear.Arguments k := \fun (index: Fin.Fin k) => arguments (Fin.succ k index) \then
+  \let cases: \forall (u, v: Option.Option[Fin.Fin k]) -> Logic.Not (Fin.inflate k u = Fin.inflate k v) -> arguments (Fin.inflate k u) = arguments (Fin.inflate k v) -> restriction (N.Nat^::succ k) f arguments = zero :=
+    \induction (u: Option.Option[Fin.Fin k]) \return \forall (v: Option.Option[Fin.Fin k]) -> Logic.Not (Fin.inflate k u = Fin.inflate k v) -> arguments (Fin.inflate k u) = arguments (Fin.inflate k v) -> restriction (N.Nat^::succ k) f arguments = zero \with {
+      | none: \induction (v: Option.Option[Fin.Fin k]) \return Logic.Not (Fin.zero k = Fin.inflate k v) -> arguments (Fin.zero k) = arguments (Fin.inflate k v) -> restriction (N.Nat^::succ k) f arguments = zero \with {
+        | none: \fun (different: Logic.Not (Fin.zero k = Fin.zero k))(same: arguments (Fin.zero k) = arguments (Fin.zero k)) => Logic.falseElim (restriction (N.Nat^::succ k) f arguments = zero) (different (\refl(Fin.zero k)))
+        | some: \fun (b: Fin.Fin k)(different: Logic.Not (Fin.zero k = Fin.succ k b))(same: arguments (Fin.zero k) = arguments (Fin.succ k b)) => headCase f laws arguments b same
+      }
+      | some: \fun (a: Fin.Fin k) => \induction (v: Option.Option[Fin.Fin k]) \return Logic.Not (Fin.succ k a = Fin.inflate k v) -> arguments (Fin.succ k a) = arguments (Fin.inflate k v) -> restriction (N.Nat^::succ k) f arguments = zero \with {
+        | none: \fun (different: Logic.Not (Fin.succ k a = Fin.zero k))(same: arguments (Fin.succ k a) = arguments (Fin.zero k)) => headCase f laws arguments a (sym!{V} _ _ same)
+        | some: \fun (b: Fin.Fin k)(different: Logic.Not (Fin.succ k a = Fin.succ k b))(same: arguments (Fin.succ k a) = arguments (Fin.succ k b)) =>
+          previous (Shuffle.shift (arguments (Fin.zero k)) f) (SeriesAlternation.shifted f laws (arguments (Fin.zero k))) tail a b
+            (\fun (equal: a = b) => different (congr!{{Fin.Fin k} {Fin.Fin (N.Nat^::succ k)}} (Fin.succ k) a b equal)) same
+      }
+    } \then
+  \let first: Fin.inflate k (Fin.split k i) = i := Fin.inflateSplit k i \then
+  \let second: Fin.inflate k (Fin.split k j) = j := Fin.inflateSplit k j \then
+  \let distinct: Logic.Not (Fin.inflate k (Fin.split k i) = Fin.inflate k (Fin.split k j)) := \fun (equal: Fin.inflate k (Fin.split k i) = Fin.inflate k (Fin.split k j)) =>
+    different (trans!{{Fin.Fin (N.Nat^::succ k)}} i (Fin.inflate k (Fin.split k i)) j (sym!{{Fin.Fin (N.Nat^::succ k)}} _ _ first) (trans!{{Fin.Fin (N.Nat^::succ k)}} _ _ _ equal second)) \then
+  \let equalValues: arguments (Fin.inflate k (Fin.split k i)) = arguments (Fin.inflate k (Fin.split k j)) :=
+    trans!{V} _ _ _ (congr!{{Fin.Fin (N.Nat^::succ k)} V} arguments _ i first) (trans!{V} _ _ _ same (sym!{V} _ _ (congr!{{Fin.Fin (N.Nat^::succ k)} V} arguments _ j second))) \then
+  \return cases (Fin.split k i) (Fin.split k j) distinct equalValues
+};

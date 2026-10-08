@@ -1,0 +1,52 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Fin;
+\import \parent.Coordinates[I := Fin.Fin n] \as Coordinates;
+\import Coordinates.Kronecker[] \as Kronecker;
+\import \parent.Finite[V := Coordinates.Vector, I := Fin.Fin n, space := Coordinates.space] \as Basis;
+\import \parent.Sums[I := Fin.Fin n] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\import Sums.Single[] \as Single;
+\import \parent.FiniteCoordinateEnumeration[] \as Enumeration;
+\import Enumeration.At[n := n] \as Indices;
+\import \parent.Linear[V := Coordinates.Vector, W := Coordinates.Vector, source := Coordinates.space, target := Coordinates.space] \as Linear;
+\definition identity: Linear.Map := Linear.Map {
+  apply := \fun (x: Coordinates.Vector) => x,
+  preservesAdd := \fun (x, y: Coordinates.Vector) => \refl(Coordinates.plus x y),
+  preservesScale := \fun (a: K)(x: Coordinates.Vector) => \refl(Coordinates.scale a x),
+};
+\definition vectors(i: Fin.Fin n): Coordinates.Vector := \fun (j: Fin.Fin n) => Kronecker.delta i j;
+\definition data: Basis.BasisData := Basis.BasisData { indices := Fin.elements n, vectors := vectors, coordinates := identity };
+\definition evaluateSum: \forall (xs: Lists.List[Fin.Fin n])(f: Fin.Fin n -> Coordinates.Vector)(j: Fin.Fin n) ->
+  Basis.vectorSum xs f j = Sums.sum xs (\fun (i: Fin.Fin n) => f i j) :=
+  \induction (xs: Lists.List[Fin.Fin n]) \return \forall (f: Fin.Fin n -> Coordinates.Vector)(j: Fin.Fin n) ->
+    Basis.vectorSum xs f j = Sums.sum xs (\fun (i: Fin.Fin n) => f i j) \with {
+      | nil: \fun (f: Fin.Fin n -> Coordinates.Vector)(j: Fin.Fin n) => \refl(zero)
+      | cons: \fun (head: Fin.Fin n)(tail: Lists.List[Fin.Fin n])
+        (previous: \forall (f: Fin.Fin n -> Coordinates.Vector)(j: Fin.Fin n) -> Basis.vectorSum tail f j = Sums.sum tail (\fun (i: Fin.Fin n) => f i j))
+        (f: Fin.Fin n -> Coordinates.Vector)(j: Fin.Fin n) => congr!{K K} (add (f head j))
+          (Basis.vectorSum tail f j) (Sums.sum tail (\fun (i: Fin.Fin n) => f i j)) (previous f j)
+    };
+\definition dualReconstruction: \forall (x: Coordinates.Vector)(i: Fin.Fin n) ->
+  Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => mul (x j) (vectors i j)) = x i :=
+  \fun (x: Coordinates.Vector)(i: Fin.Fin n) => trans!{K}
+    (Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => mul (x j) (vectors i j)))
+    (Sums.sum (Fin.elements n) (\fun (j: Fin.Fin n) => mul (Kronecker.delta i j) (x j))) (x i)
+      (SumLaws.congruent (Fin.elements n) (\fun (j: Fin.Fin n) => mul (x j) (vectors i j)) (\fun (j: Fin.Fin n) => mul (Kronecker.delta i j) (x j)) (\fun (j: Fin.Fin n) => mulComm (x j) (Kronecker.delta i j)))
+      (Single.extract (Fin.elements n) (Enumeration.distinct n) i (Indices.exhaustive i) x);
+\definition reconstruction: \forall (x: Coordinates.Vector) -> Basis.synthesize data x = x :=
+  \fun (x: Coordinates.Vector) => \axiom:funext(Basis.synthesize data x, x, \fun (j: Fin.Fin n) => trans!{K}
+    (Basis.synthesize data x j) (Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => mul (x i) (vectors i j))) (x j)
+    (evaluateSum (Fin.elements n) (\fun (i: Fin.Fin n) => Coordinates.scale (x i) (vectors i)) j)
+    (trans!{K} (Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => mul (x i) (vectors i j)))
+      (Sums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => mul (x i) (vectors j i))) (x j)
+      (SumLaws.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => mul (x i) (vectors i j)) (\fun (i: Fin.Fin n) => mul (x i) (vectors j i)) (\fun (i: Fin.Fin n) => congr!{K K} (mul (x i)) (vectors i j) (vectors j i) (Kronecker.symmetric i j)))
+      (dualReconstruction x j)));
+\definition basis: Basis.Basis := \into[Basis.BasisData](data, { b: Basis.BasisData \where Basis.BasisLaws[b] }) \by {
+  Basis.BasisLaws[data] {
+    distinct := Enumeration.distinct n,
+    dualReconstruction := dualReconstruction,
+    reconstruction := reconstruction,
+    coordinateReconstruction := reconstruction,
+  }
+};
+\module Exterior;

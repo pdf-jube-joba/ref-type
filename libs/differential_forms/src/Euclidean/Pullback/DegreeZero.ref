@@ -1,0 +1,41 @@
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\import SourceForms.DegreeZero[] \as SourceZero;
+\import TargetForms.DegreeZero[] \as TargetZero;
+\import SourceForms.ExteriorDerivative[k := zero] \as SourceD;
+\import TargetForms.ExteriorDerivative[k := zero] \as TargetD;
+\import SourceForms.FunctionDifferential[] \as SourceEvaluation;
+\import TargetForms.FunctionDifferential[] \as TargetEvaluation;
+\import Smooth.Algebra[U := U] \as SourceFunctions;
+\import TargetOpen.Smooth[].Algebra[U := V] \as TargetFunctions;
+\import Smooth.Differential[] \as SourceDifferential;
+\import TargetOpen.Smooth[].Differential[] \as TargetDifferential;
+\definition compose(h: TargetFunctions.Function): SourceFunctions.Function :=
+  \into[Open.ScalarFunction U](Composition.scalar h, { value: Open.ScalarFunction U \where Smooth.SmoothOn U value }) \by { Composition.smooth h };
+\definition function: \forall (h: TargetFunctions.Function) -> apply zero (TargetZero.apply h) = SourceZero.apply (compose h) :=
+  \fun (h: TargetFunctions.Function) => SourceForms.ext zero (apply zero (TargetZero.apply h)) (SourceZero.apply (compose h))
+    (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments zero) => \refl(h (Maps.apply U V f x)));
+\module At(h: TargetFunctions.Function, x: Open.Carrier U);
+\definition onFunction: \forall (h: TargetFunctions.Function) -> SourceD.apply (apply zero (TargetZero.apply h)) = apply one (TargetD.apply (TargetZero.apply h)) :=
+  \fun (h: TargetFunctions.Function) => SourceForms.ext one (SourceD.apply (apply zero (TargetZero.apply h))) (apply one (TargetD.apply (TargetZero.apply h)))
+    (\fun (x: Open.Carrier U)(arguments: Multilinear.Arguments one) => trans!{{Reals.Real}}
+      (SourceD.apply (apply zero (TargetZero.apply h)) x arguments) (SourceD.apply (SourceZero.apply (compose h)) x arguments)
+      (apply one (TargetD.apply (TargetZero.apply h)) x arguments)
+      (congr!{{SourceForms.Form zero} {Reals.Real}} (\fun (omega: SourceForms.Form zero) => SourceD.apply omega x arguments)
+        (apply zero (TargetZero.apply h)) (SourceZero.apply (compose h)) (function h))
+      (trans!{{Reals.Real}} (SourceD.apply (SourceZero.apply (compose h)) x arguments)
+        (#apply{(SourceDifferential.value U (compose h) x)} (arguments (Fin.zero zero)))
+        (apply one (TargetD.apply (TargetZero.apply h)) x arguments)
+        (SourceEvaluation.law (compose h) x arguments)
+        (trans!{{Reals.Real}} (#apply{(SourceDifferential.value U (compose h) x)} (arguments (Fin.zero zero)))
+          (#apply{(TargetDifferential.value V h (Maps.apply U V f x))} (#apply{(jacobian x)} (arguments (Fin.zero zero))))
+          (apply one (TargetD.apply (TargetZero.apply h)) x arguments)
+          (At[h := h, x := x].evaluate (arguments (Fin.zero zero)))
+          (sym!{{Reals.Real}} (apply one (TargetD.apply (TargetZero.apply h)) x arguments)
+            (#apply{(TargetDifferential.value V h (Maps.apply U V f x))} (#apply{(jacobian x)} (arguments (Fin.zero zero))))
+            (TargetEvaluation.law h (Maps.apply U V f x) (\fun (i: Fin.Fin one) => #apply{(jacobian x)} (arguments i)))))));
+\definition law: \forall (omega: TargetForms.Form zero) -> SourceD.apply (apply zero omega) = apply one (TargetD.apply omega) :=
+  \fun (omega: TargetForms.Form zero) => \idelim TargetZero.apply (TargetZero.function omega) = omega
+    \with eta: TargetForms.Form zero => SourceD.apply (apply zero eta) = apply one (TargetD.apply eta) \by {
+      base: onFunction (TargetZero.function omega), equality: #rightInverse{TargetZero.isomorphism} omega
+    };

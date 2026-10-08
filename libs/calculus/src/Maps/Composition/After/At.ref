@@ -1,0 +1,18 @@
+\import \parent.\parent.\parent.Differential[U := U, V := V, f := f, a := a] \as First;
+\import Before.Differential[U := V, V := W, f := g, a := apply U V f a] \as Second;
+\import Result.Differential[U := U, V := W, f := compose, a := a] \as Composite;
+\import real.Analysis[].Algebra[] \as RealAlgebra;
+\import linear_algebra.Field[].Space[K := Reals.Real, field := RealAlgebra.field] \as Spaces;
+\import Spaces.Coordinates[I := Fin.Fin n] \as Start;
+\import Spaces.Coordinates[I := Fin.Fin m] \as Middle;
+\import Spaces.Coordinates[I := Fin.Fin l] \as End;
+\import Spaces.Linear[V := Middle.Vector, W := End.Vector, source := Middle.space, target := End.space] \as EndMaps;
+\import EndMaps.Composition[U := Start.Vector, domain := Start.space] \as Compose;
+\import \root.Vector[n := n, m := m] \as Inner;
+\import \root.Vector[n := n, m := l] \as Output;
+\definition candidate: Output.LinearMap := Compose.compose Second.value First.value;
+\definition candidateLaw: Output.HasDifferentialAt U (\fun (x: Source.Carrier U) => Result.apply U W compose x) a candidate :=
+  \fun (j: Fin.Fin l) => Inner.Chain[U := U, V := V, f := apply U V f, a := a, d := First.value,
+    g := Before.coordinateFunction V W g j, e := Second.row j].law First.vectorLaw (Second.componentLaw j);
+\definition jacobian: Composite.value = candidate := Output.Differential[U := U, f := \fun (x: Source.Carrier U) => Result.apply U W compose x, a := a, d := Composite.value].uniqueness
+  candidate Composite.vectorLaw candidateLaw;

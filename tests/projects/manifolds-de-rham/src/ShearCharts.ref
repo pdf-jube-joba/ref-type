@@ -1,0 +1,96 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Logic.either;
+\import \parent.Shear[] \as Shear;
+\import std.Data[].FinSet[] \as Fin;
+\definition two: std.Data[].Nat[].Nat^ := Shear.two;
+\import calculus.Real[].Multivariable[n := two] \as Plane;
+\import Plane.Open[] \as Open;
+\import Open.Restriction[] \as Restriction;
+\import manifolds.Dimension[n := two].Examples[].Euclidean[] \as Standard;
+\import manifolds.Dimension[n := two].Chart[M := Plane.Point, space := topological_algebra.Euclidean[].Dimension[n := two].Topology[].topology] \as Charts;
+\import manifolds.Dimension[n := two].Atlas[M := Plane.Point, space := topological_algebra.Euclidean[].Dimension[n := two].Topology[].topology] \as Atlases;
+\import topology.Homeomorphism[A := Charts.LocalPoint Standard.standard, B := Open.Carrier Open.whole].Composition[C := Open.Carrier Open.whole] \as Homeomorphisms;
+\definition shear: Charts.Chart := Charts.Chart {
+  domain := #domain{Standard.standard}, image := Open.whole,
+  coordinates := Homeomorphisms.compose (Charts.domainTopology #domain{Standard.standard}) (Charts.imageTopology Open.whole) (Charts.imageTopology Open.whole)
+    (#coordinates{Standard.standard}) (Shear.inducedHomeomorphism),
+  open := #open{Standard.standard},
+};
+\import Charts.Transition[left := Standard.standard, right := shear] \as Forward;
+\import Charts.Transition[left := shear, right := Standard.standard] \as Backward;
+\definition forwardIncluded: Open.Included Forward.domain Open.whole := \fun (a: Plane.Point)(member: \In[Plane.Point] (#points{Forward.domain}) a) => \refl(a);
+\definition backwardIncluded: Open.Included Backward.domain Open.whole := \fun (a: Plane.Point)(member: \In[Plane.Point] (#points{Backward.domain}) a) => \refl(a);
+\definition forwardRegular: Atlases.Compatible Standard.standard shear :=
+  \fun (i: Fin.Fin two) => Restriction.localSmooth Forward.domain Open.whole forwardIncluded
+    (\fun (a: Open.Carrier Open.whole) => Shear.forward a i) (Shear.forwardSmooth i);
+\definition backwardRegular: Atlases.Compatible shear Standard.standard :=
+  \fun (i: Fin.Fin two) => Restriction.localSmooth Backward.domain Open.whole backwardIncluded
+    (\fun (a: Open.Carrier Open.whole) => Shear.backward a i) (Shear.backwardSmooth i);
+\definition compatibleWithStandard: Atlases.Compatibility[Standard.atlas, shear] := Atlases.Compatibility[Standard.atlas, shear] {
+  forward := \fun (other: Charts.Chart)(same: other = Standard.standard) =>
+    \idelim Standard.standard = other \with c: Charts.Chart => Atlases.Compatible shear c \by {
+      base: backwardRegular, equality: sym!{{Charts.Chart}} _ _ same
+    },
+  backward := \fun (other: Charts.Chart)(same: other = Standard.standard) =>
+    \idelim Standard.standard = other \with c: Charts.Chart => Atlases.Compatible c shear \by {
+      base: forwardRegular, equality: sym!{{Charts.Chart}} _ _ same
+    },
+};
+\definition Member(c: Charts.Chart): \Prop := Logic.Or[c = Standard.standard, c = shear];
+\definition standardRow: \forall (c: Charts.Chart) -> Member c -> Atlases.Compatible Standard.standard c :=
+  \fun (c: Charts.Chart)(member: Member c) => either!{{c = Standard.standard} "or" {c = shear}
+    "either" {Atlases.Compatible Standard.standard c}
+    "lt:" {\fun (same: c = Standard.standard) => \idelim Standard.standard = c \with d: Charts.Chart => Atlases.Compatible Standard.standard d \by {
+      base: Standard.standardCompatible, equality: sym!{{Charts.Chart}} _ _ same
+    }}
+    "rt:" {\fun (same: c = shear) => \idelim shear = c \with d: Charts.Chart => Atlases.Compatible Standard.standard d \by {
+      base: forwardRegular, equality: sym!{{Charts.Chart}} _ _ same
+    }}} member;
+\definition shearRow: \forall (c: Charts.Chart) -> Member c -> Atlases.Compatible shear c :=
+  \fun (c: Charts.Chart)(member: Member c) => either!{{c = Standard.standard} "or" {c = shear}
+    "either" {Atlases.Compatible shear c}
+    "lt:" {\fun (same: c = Standard.standard) => \idelim Standard.standard = c \with d: Charts.Chart => Atlases.Compatible shear d \by {
+      base: backwardRegular, equality: sym!{{Charts.Chart}} _ _ same
+    }}
+    "rt:" {\fun (same: c = shear) => \idelim shear = c \with d: Charts.Chart => Atlases.Compatible shear d \by {
+      base: Atlases.Self[chart := shear].compatible, equality: sym!{{Charts.Chart}} _ _ same
+    }}} member;
+\definition compatible: \forall (left, right: Charts.Chart) -> Member left -> Member right -> Atlases.Compatible left right :=
+  \fun (left, right: Charts.Chart)(leftMember: Member left)(rightMember: Member right) =>
+    either!{{left = Standard.standard} "or" {left = shear} "either" {Atlases.Compatible left right}
+      "lt:" {\fun (same: left = Standard.standard) => \idelim Standard.standard = left \with c: Charts.Chart => Atlases.Compatible c right \by {
+        base: standardRow right rightMember, equality: sym!{{Charts.Chart}} _ _ same
+      }}
+      "rt:" {\fun (same: left = shear) => \idelim shear = left \with c: Charts.Chart => Atlases.Compatible c right \by {
+        base: shearRow right rightMember, equality: sym!{{Charts.Chart}} _ _ same
+      }}} leftMember;
+\definition atlas: Atlases.Atlas := Atlases.Atlas {
+  charts := { c: Charts.Chart \where Member c }, compatible := compatible,
+  covers := \fun (x: Plane.Point) => \exact(\into[Charts.Chart](Standard.standard,
+    { c: Charts.Chart \where Logic.And[Member c, Charts.Contains c x] }) \by {
+      Logic.And[_, _]::# (Logic.Or[Standard.standard = Standard.standard, Standard.standard = shear]::left (\refl(Standard.standard))) (\refl(x))
+    }, \Cast[Charts.Chart] ({ c: Charts.Chart \where Logic.And[Member c, Charts.Contains c x] })),
+};
+\definition shearInMaximal: Atlases.Member Standard.smoothManifold.atlas shear := compatibleWithStandard;
+\module At(x: Plane.Point);
+\module Forms(k: std.Data[].Nat[].Nat^);
+\import differential_forms.AtlasForms[n := two].On[M := Standard.smoothManifold] \as AtlasForms;
+\definition includedInStandard: \forall (c: Charts.Chart) -> Member c -> Atlases.Member Standard.smoothManifold.atlas c :=
+  \fun (c: Charts.Chart)(member: Member c) => either!{{c = Standard.standard} "or" {c = shear}
+    "either" {Atlases.Member Standard.smoothManifold.atlas c}
+    "lt:" {\fun (same: c = Standard.standard) => \idelim Standard.standard = c \with d: Charts.Chart => Atlases.Member Standard.smoothManifold.atlas d \by {
+      base: Atlases.includedInSaturation Standard.atlas Standard.standard (\refl(Standard.standard)), equality: sym!{{Charts.Chart}} _ _ same
+    }}
+    "rt:" {\fun (same: c = shear) => \idelim shear = c \with d: Charts.Chart => Atlases.Member Standard.smoothManifold.atlas d \by {
+      base: shearInMaximal, equality: sym!{{Charts.Chart}} _ _ same
+    }}} member;
+\definition embeddedAtlas: AtlasForms.EmbeddedAtlas := \into[Atlases.Atlas](atlas, AtlasForms.EmbeddedAtlas) \by { includedInStandard };
+\import AtlasForms.Of[atlas := embeddedAtlas] \as Small;
+\definition sameSaturation: Atlases.saturate atlas = Standard.smoothManifold.atlas := Small.maximalAtlas;
+\module SmallForms(k: std.Data[].Nat[].Nat^);
+\module SmallSmooth;
+\module Representations(k: std.Data[].Nat[].Nat^);

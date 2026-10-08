@@ -1,0 +1,50 @@
+\import Multilinear.ListSeries[k := k] \as Components;
+\import Multilinear.ListArguments[] \as Arguments;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition value(omega: Form k)(xs: Lists.List[Vectors.Vector]): Open.ScalarFunction U :=
+  \fun (x: Open.Carrier U) => Exterior.component k (omega x) xs;
+\definition smooth: \forall (omega: Form k)(xs: Lists.List[Vectors.Vector]) -> Smooth.SmoothOn U (value omega xs) :=
+  \fun (omega: Form k)(xs: Lists.List[Vectors.Vector]) =>
+    either!{{Lists.length Vectors.Vector xs = k} "or" {Logic.Not (Lists.length Vectors.Vector xs = k)} "either" {Smooth.SmoothOn U (value omega xs)}
+      "lt:" {\fun (equal: Lists.length Vectors.Vector xs = k) => \block {
+        \let args: Multilinear.Arguments k := Arguments.decode k (\into[Lists.List[Vectors.Vector]](xs, Arguments.Degree k) \by { equal }) \then
+        \return smoothOfEqual (evaluate k omega args) (value omega xs)
+          (\fun (x: Open.Carrier U) => sym!{{Reals.Real}} _ _ (Components.inside (omega x) (\into[Lists.List[Vectors.Vector]](xs, Arguments.Degree k) \by { equal })))
+          (\bysub(Open.ScalarFunction U, { f: Open.ScalarFunction U \where Smooth.SmoothOn U f }, evaluate k omega args))
+      }}
+      "rt:" {\fun (wrong: Logic.Not (Lists.length Vectors.Vector xs = k)) => smoothOfEqual (\fun (x: Open.Carrier U) => Spaces.zero) (value omega xs)
+        (\fun (x: Open.Carrier U) => sym!{{Reals.Real}} _ _ (Components.outside (omega x) xs wrong)) (Operations.constantSmooth U Spaces.zero)}
+    } (Classical.excludedMiddle (Lists.length Vectors.Vector xs = k));
+\import Smooth.Algebra[U := U] \as Functions;
+\import Smooth.Derivative[] \as Derivatives;
+\import Derivatives.Linear[U := U] \as Differentiation;
+\import \parent.Partial[k := k] \as Partials;
+\definition function(omega: Form k)(xs: Lists.List[Vectors.Vector]): Functions.Function :=
+  \into[Open.ScalarFunction U](value omega xs, { f: Open.ScalarFunction U \where Smooth.SmoothOn U f }) \by { smooth omega xs };
+\definition derivative: \forall (i: Fin.Fin n)(omega: Form k)(xs: Lists.List[Vectors.Vector]) ->
+  function (Partials.apply i omega) xs = Derivatives.derivative U (function omega xs) i :=
+  \fun (i: Fin.Fin n)(omega: Form k)(xs: Lists.List[Vectors.Vector]) =>
+    either!{{Lists.length Vectors.Vector xs = k} "or" {Logic.Not (Lists.length Vectors.Vector xs = k)} "either" {
+      function (Partials.apply i omega) xs = Derivatives.derivative U (function omega xs) i}
+      "lt:" {\fun (equal: Lists.length Vectors.Vector xs = k) => \block {
+        \let refined: Arguments.OfDegree k := \into[Lists.List[Vectors.Vector]](xs, Arguments.Degree k) \by { equal } \then
+        \let args: Multilinear.Arguments k := Arguments.decode k refined \then
+        \let same: function omega xs = evaluate k omega args := Functions.ext (function omega xs) (evaluate k omega args)
+          (\fun (x: Open.Carrier U) => Components.inside (omega x) refined) \then
+        \return Functions.ext (function (Partials.apply i omega) xs) (Derivatives.derivative U (function omega xs) i)
+          (\fun (x: Open.Carrier U) => trans!{{Reals.Real}} _ _ _
+            (Components.inside (Partials.apply i omega x) refined)
+            (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x)
+              (evaluate k omega args) (function omega xs) (sym!{{Functions.Function}} _ _ same)))
+      }}
+      "rt:" {\fun (wrong: Logic.Not (Lists.length Vectors.Vector xs = k)) => \block {
+        \let same: function omega xs = Functions.origin := Functions.ext (function omega xs) Functions.origin
+          (\fun (x: Open.Carrier U) => Components.outside (omega x) xs wrong) \then
+        \return Functions.ext (function (Partials.apply i omega) xs) (Derivatives.derivative U (function omega xs) i)
+          (\fun (x: Open.Carrier U) => trans!{{Reals.Real}} _ _ _ (Components.outside (Partials.apply i omega x) xs wrong)
+            (sym!{{Reals.Real}} _ _ (trans!{{Reals.Real}} _ _ _
+              (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => Derivatives.derivative U f i x) _ _ same)
+              (congr!{{Functions.Function} {Reals.Real}} (\fun (f: Functions.Function) => f x) _ _ (#preservesZero{(Differentiation.map i)})))))
+      }}
+    } (Classical.excludedMiddle (Lists.length Vectors.Vector xs = k));

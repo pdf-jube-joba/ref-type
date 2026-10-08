@@ -1,0 +1,51 @@
+\import \parent.\parent.\parent.Analysis[] \as Analysis;
+\import topology.Topology[Carrier := Carrier U] \as Local;
+\import topology.RealFunctions[A := Carrier U] \as Functions;
+\import topology.MetricSpace[Carrier := Point].Topology[] \as MetricTopology;
+\definition topological: \forall (f: ScalarFunction U) -> Analysis.ContinuousOn U f -> Functions.Continuous topology f :=
+  \fun (f: _)(continuous: _) => Functions.continuousOfLocal topology f (\block {
+    \fun (a: Carrier U)(epsilon: Real)(positive: _) \then
+    \takefrom delta: \Cast[Real] ({ d: Real \where Analysis.ContinuityControl[U, f, a, epsilon, d] }) \by continuous a epsilon positive \then
+    \let control: Analysis.ContinuityControl[U, f, a, epsilon, delta] := \bysub(Real,
+      { d: Real \where Analysis.ContinuityControl[U, f, a, epsilon, d] }, delta) \then
+    \let neighborhood: \Pow (Carrier U) := Subspace.Trace (MetricSpace.Ball MetricLaws.metric a delta) \then
+    \return \exact(\into[\Pow (Carrier U)](neighborhood,
+      { V: \Pow (Carrier U) \where Local.OpenNeighborhood[topology, a, Functions.Small f a epsilon, V] }) \by {
+        Local.OpenNeighborhood[topology, a, Functions.Small f a epsilon, neighborhood] {
+          open := Subspace.traceOpen Euclidean.topology (MetricSpace.Ball MetricLaws.metric a delta) (MetricTopology.ballOpenIn MetricLaws.metric a delta),
+          contains := MetricSpace.ballCenter MetricLaws.metric a delta (#positive{control}),
+          within := \fun (x: Carrier U)(near: _) => R.ltReplaceLeft (distance (f x) (f a)) (distance (f a) (f x)) epsilon
+            (Metric.distanceSymmetric (f x) (f a)) (#estimate{control} x
+              (R.ltReplaceLeft (Coordinates.pointDistance a x) (Coordinates.pointDistance x a) delta (MetricLaws.distanceSymmetric a x) near)),
+        }
+      }, \Cast[\Pow (Carrier U)] ({ V: \Pow (Carrier U) \where Local.OpenNeighborhood[topology, a, Functions.Small f a epsilon, V] }))
+  });
+\definition analytic: \forall (f: ScalarFunction U) -> Functions.Continuous topology f -> Analysis.ContinuousOn U f := \block {
+  \fun (f: _)(continuous: _)(a: Carrier U)(epsilon: Real)(positive: _) \then
+  \takefrom V: \Cast[\Pow (Carrier U)] ({ V: \Pow (Carrier U) \where Local.OpenNeighborhood[topology, a, Functions.Small f a epsilon, V] })
+    \by Functions.localOfContinuous topology f continuous a epsilon positive \then
+  \let neighborhood: Local.OpenNeighborhood[topology, a, Functions.Small f a epsilon, V] := \bysub(\Pow (Carrier U),
+    { V: \Pow (Carrier U) \where Local.OpenNeighborhood[topology, a, Functions.Small f a epsilon, V] }, V) \then
+  \return Subspace.openTraceElim Euclidean.topology V (\exists { d: Real \where Analysis.ContinuityControl[U, f, a, epsilon, d] }) (\block {
+    \fun (W: \Pow Point)(open: Space.IsOpenIn Euclidean.topology W)(agrees: V = Subspace.Trace W) \then
+    \let inside: Space.Member W a := \idelim V = Subspace.Trace W \with Z: \Pow (Carrier U) => Local.Member Z a \by {
+      base: #contains{neighborhood}, equality: agrees
+    } \then
+    \takefrom delta: \Cast[Real] (MetricSpace.NeighborhoodRadius MetricLaws.metric W a) \by open a inside \then
+    \let ball: Logic.And[R.Lt zero delta, Space.Subset (MetricSpace.Ball MetricLaws.metric a delta) W] :=
+      \bysub(Real, MetricSpace.NeighborhoodRadius MetricLaws.metric W a, delta) \then
+    \return \exact(\into[Real](delta, { d: Real \where Analysis.ContinuityControl[U, f, a, epsilon, d] }) \by {
+      Analysis.ContinuityControl[U, f, a, epsilon, delta] {
+        positive := #left{ball},
+        estimate := \fun (x: Carrier U)(near: _) => R.ltReplaceLeft (distance (f a) (f x)) (distance (f x) (f a)) epsilon
+          (Metric.distanceSymmetric (f a) (f x)) (#within{neighborhood} x
+            (\idelim Subspace.Trace W = V \with Z: \Pow (Carrier U) => Local.Member Z x \by {
+              base: #right{ball} x (R.ltReplaceLeft (Coordinates.pointDistance x a) (Coordinates.pointDistance a x) delta (MetricLaws.distanceSymmetric x a) near),
+              equality: sym!{\Pow (Carrier U)} V (Subspace.Trace W) agrees
+            })),
+      }
+    }, \Cast[Real] ({ d: Real \where Analysis.ContinuityControl[U, f, a, epsilon, d] }))
+  }) (Subspace.openRepresentation Euclidean.topology V (#open{neighborhood}))
+};
+\definition agreement: \forall (f: ScalarFunction U) -> Logic.PropEquiv[Analysis.ContinuousOn U f, Functions.Continuous topology f] :=
+  \fun (f: _) => Logic.PropEquiv[_, _] { ltr := topological f, rtl := analytic f };

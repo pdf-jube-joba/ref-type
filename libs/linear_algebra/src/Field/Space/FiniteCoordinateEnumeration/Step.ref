@@ -1,0 +1,15 @@
+\import \parent.\parent.Sums[I := Fin.Fin n] \as Source;
+\import Source.Prop[].Mapping[J := Fin.Fin (N.Nat^::succ n)] \as Mapping;
+\import \parent.\parent.Sums[I := Fin.Fin (N.Nat^::succ n)] \as Target;
+\import N.Basic[].Prop[] \as NatLaws;
+\definition fresh: Logic.Not (\In[Fin.Fin (N.Nat^::succ n)] (Target.keys (Lists.map (Fin.Fin n) (Fin.Fin (N.Nat^::succ n)) (Fin.succ n) (Fin.elements n))) (Fin.zero n)) :=
+  \fun (member: _) => Mapping.memberElim (Fin.elements n) (Fin.succ n) (Fin.zero n) Logic.False
+    (\fun (i: Fin.Fin n)(old: \In[Fin.Fin n] (Source.keys (Fin.elements n)) i)(same: Fin.succ n i = Fin.zero n) => NatLaws.succNeZero i same) member;
+\definition distinct: Distinct n -> Distinct (N.Nat^::succ n) :=
+  \fun (previous: Distinct n) => Target.distinctCons (Fin.zero n)
+    (Lists.map (Fin.Fin n) (Fin.Fin (N.Nat^::succ n)) (Fin.succ n) (Fin.elements n)) fresh
+    (Mapping.distinctMap (Fin.elements n) previous (Fin.succ n)
+      (\fun (i, j: Fin.Fin n)(same: Fin.succ n i = Fin.succ n j) => NatLaws.succInjective i j same));
+\definition sumLaw: SumLaw n -> SumLaw (N.Nat^::succ n) :=
+  \fun (previous: SumLaw n)(f: Fin.Fin (N.Nat^::succ n) -> K) => congr!{K K} (add (f (Fin.zero n))) _ _
+    (trans!{K} _ _ _ (Mapping.sumMap (Fin.elements n) (Fin.succ n) f) (previous (\fun (j: Fin.Fin n) => f (Fin.succ n j))));

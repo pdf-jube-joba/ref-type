@@ -1,0 +1,28 @@
+\import \parent.Coordinates[chart := chart] \as Cover;
+\import Cover.Patch[right := right] \as Patch;
+\import Maps.Coordinates[f := f, left := chart, right := right] \as Coordinates;
+\import SourcePointwise.Coordinates[chart := chart] \as PointCoordinates;
+\import \root.Euclidean[n := n].On[U := Coordinates.domain] \as Restricted;
+\import \root.Euclidean[n := n].Restriction[U := Coordinates.domain, V := #image{chart}] \as Restriction;
+\import \root.Euclidean[n := n].Pullback[m := m, U := Coordinates.domain, V := #image{right}, f := Patch.coordinateMap] \as Pullback;
+\definition pointwise: \forall (omega: TargetForms.Form k)(a: Open.Carrier Coordinates.domain)(arguments: SourceMultilinear.Arguments k) ->
+  apply omega chart (Coordinates.leftCoordinate a) arguments = Pullback.apply k (omega right) a arguments := \block {
+  \fun (omega: TargetForms.Form k)(a: Open.Carrier Coordinates.domain)(arguments: SourceMultilinear.Arguments k) \then
+  \let evaluate: \root.Euclidean[n := n].On[U := #image{chart}].Family k -> Reals.Real :=
+    \fun (family: \root.Euclidean[n := n].On[U := #image{chart}].Family k) => family (Coordinates.leftCoordinate a) arguments \then
+  \return trans!{{Reals.Real}} (apply omega chart (Coordinates.leftCoordinate a) arguments)
+    (PointCoordinates.family (SourcePointwise.value (apply omega)) (Coordinates.leftCoordinate a) arguments)
+    (Pullback.apply k (omega right) a arguments)
+    (sym!{{Reals.Real}} _ _ (congr!{{\root.Euclidean[n := n].On[U := #image{chart}].Family k} {Reals.Real}}
+      evaluate _ _ (PointCoordinates.recover (apply omega))))
+    (trans!{{Reals.Real}} _ (PointCoordinates.family (pointwise k omega) (Coordinates.leftCoordinate a) arguments) _
+      (congr!{{SourceForms.PointFamily k} {Reals.Real}}
+        (\fun (family: SourceForms.PointFamily k) => PointCoordinates.family family (Coordinates.leftCoordinate a) arguments)
+        _ _ (evaluation omega))
+      (Patch.agreement omega a arguments))
+};
+\definition law: \forall (omega: TargetForms.Form k) ->
+  Restriction.apply k (Cover.included right) (apply omega chart) = Pullback.apply k (omega right) :=
+    \fun (omega: TargetForms.Form k) => Restricted.ext k
+      (Restriction.apply k (Cover.included right) (apply omega chart))
+      (Pullback.apply k (omega right)) (pointwise omega);

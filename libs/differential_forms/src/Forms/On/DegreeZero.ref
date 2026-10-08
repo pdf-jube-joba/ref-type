@@ -1,0 +1,92 @@
+
+\import std.Data[].FinSet[] \as Fin;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\import \parent.Pointwise[k := zero] \as Points;
+\import \parent.At[k := zero] \as Forms;
+\import Spaces.Coordinates[I := M.Point] \as Functions;
+\definition Smooth(f: Functions.Vector): \Prop := \forall (chart: Chart) ->
+  Open.Smooth[].SmoothOn #image{chart} (\fun (a: Open.Carrier #image{chart}) => f (Charts.point chart a));
+\import Spaces.Subspace[V := Functions.Vector, space := Functions.space] \as Subspaces;
+\definition subspace: Subspaces.Subspace := Subspaces.Subspace {
+  carrier := { f: Functions.Vector \where Smooth f },
+  containsZero := \fun (chart: Chart) => Open.Smooth[].Operations[].constantSmooth #image{chart} Spaces.zero,
+  closedAdd := \fun (f, g: Functions.Vector)(sf: Smooth f)(sg: Smooth g)(chart: Chart) => Open.Smooth[].Operations[].addSmooth #image{chart}
+    (\fun (a: Open.Carrier #image{chart}) => f (Charts.point chart a)) (\fun (a: Open.Carrier #image{chart}) => g (Charts.point chart a)) (sf chart) (sg chart),
+  closedScale := \fun (a: Reals.Real)(f: Functions.Vector)(sf: Smooth f)(chart: Chart) =>
+    Open.Smooth[].Operations[].mulSmooth #image{chart} (\fun (p: Open.Carrier #image{chart}) => a)
+      (\fun (p: Open.Carrier #image{chart}) => f (Charts.point chart p)) (Open.Smooth[].Operations[].constantSmooth #image{chart} a) (sf chart),
+};
+\import Subspaces.Of[subspace := subspace] \as Induced;
+\definition Function: \Set := Induced.Carrier;
+\definition vectorSpace: Spaces.VectorSpace Function := Induced.induced;
+\definition plus: Function -> Function -> Function := #add{vectorSpace};
+\definition scale: Reals.Real -> Function -> Function := #smul{vectorSpace};
+\definition functionExt: \forall (f, g: Function) -> (\forall (x: M.Point) -> f x = g x) -> f = g :=
+  \fun (f, g: Function)(same: \forall (x: M.Point) -> f x = g x) => \axiom:funext(f, g, same);
+\module Point(x: M.Point);
+\definition pointFamily(f: Function): PointFamily zero := \fun (x: M.Point) => Point[x := x].constant (f x);
+\definition pointRegular: \forall (f: Function) -> Points.SmoothPointFamily (pointFamily f) :=
+  \fun (f: Function)(chart: Chart)(arguments: std.Data[].FinSet[].Fin zero -> Reals.Multivariable[n := n].Point) =>
+    Euclidean.On[U := #image{chart}].smoothOfEqual (\fun (a: Open.Carrier #image{chart}) => f (Charts.point chart a))
+      (\fun (a: Open.Carrier #image{chart}) => Points.Coordinates[chart := chart].family (pointFamily f) a arguments)
+      (\fun (a: Open.Carrier #image{chart}) => \refl(f (Charts.point chart a)))
+      ((\bysub(Functions.Vector, { f: Functions.Vector \where Smooth f }, f)) chart);
+\definition regularPoint(f: Function): Points.RegularPointFamily :=
+  \into[PointFamily zero](pointFamily f, { phi: PointFamily zero \where Points.SmoothPointFamily phi }) \by { pointRegular f };
+\definition apply(f: Function): Form zero := Points.fromPointwise (regularPoint f);
+\definition value: Form zero -> Functions.Vector := \fun (omega: Form zero)(x: M.Point) => Point[x := x].evaluate (Points.value omega x);
+\module Coordinates(chart: Chart);
+\definition regular: \forall (omega: Form zero) -> Smooth (value omega) :=
+  \fun (omega: Form zero)(chart: Chart) => Coordinates[chart := chart].regular omega;
+\definition function(omega: Form zero): Function := \into[Functions.Vector](value omega, { f: Functions.Vector \where Smooth f }) \by { regular omega };
+\definition leftInverse: \forall (f: Function) -> function (apply f) = f :=
+  \fun (f: Function) => functionExt (function (apply f)) f (\fun (x: M.Point) =>
+    trans!{{Reals.Real}} (function (apply f) x) (Point[x := x].evaluate (pointFamily f x)) (f x)
+      (congr!{{PointForm zero x} {Reals.Real}} (Point[x := x].evaluate) (Points.value (apply f) x) (pointFamily f x)
+        (congr!{{PointFamily zero} {PointForm zero x}} (\fun (phi: PointFamily zero) => phi x)
+          (Points.asPointwise (apply f)) (regularPoint f) (Points.rightInverse (regularPoint f)))) (\refl(f x)));
+\definition rightInverse: \forall (omega: Form zero) -> apply (function omega) = omega :=
+  \fun (omega: Form zero) => trans!{{Form zero}} (apply (function omega)) (Points.fromPointwise (Points.asPointwise omega)) omega
+    (congr!{{Points.RegularPointFamily} {Form zero}} Points.fromPointwise (regularPoint (function omega)) (Points.asPointwise omega)
+      (\axiom:funext(regularPoint (function omega), Points.asPointwise omega, \fun (x: M.Point) => Point[x := x].recover (Points.value omega x)))) (Points.leftInverse omega);
+\import Spaces.Linear[V := Function, W := Form zero, source := vectorSpace, target := Forms.space] \as Forward;
+\import Spaces.Linear[V := Form zero, W := Function, source := Forms.space, target := vectorSpace] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := apply,
+  preservesAdd := \fun (f, g: Function) => ext zero (apply (plus f g)) (Forms.plus (apply f) (apply g))
+    (\fun (chart: Chart) => Euclidean.On[U := #image{chart}].ext zero (apply (plus f g) chart) (Forms.plus (apply f) (apply g) chart)
+      (\fun (a: Open.Carrier #image{chart})(arguments: Fin.Fin zero -> Reals.Multivariable[n := n].Point) => \refl(Spaces.add (f (Charts.point chart a)) (g (Charts.point chart a))))),
+  preservesScale := \fun (a: Reals.Real)(f: Function) => ext zero (apply (scale a f)) (Forms.scale a (apply f))
+    (\fun (chart: Chart) => Euclidean.On[U := #image{chart}].ext zero (apply (scale a f) chart) (Forms.scale a (apply f) chart)
+      (\fun (p: Open.Carrier #image{chart})(arguments: Fin.Fin zero -> Reals.Multivariable[n := n].Point) => \refl(Spaces.mul a (f (Charts.point chart p))))),
+};
+
+\definition injective: \forall (f, g: Function) -> apply f = apply g -> f = g :=
+  \fun (f, g: Function)(same: apply f = apply g) => trans!{Function} f (function (apply f)) g
+    (sym!{Function} (function (apply f)) f (leftInverse f))
+    (trans!{Function} (function (apply f)) (function (apply g)) g (congr!{{Form zero} Function} function (apply f) (apply g) same) (leftInverse g));
+\definition backward: Backward.Map := Backward.Map {
+  apply := function,
+  preservesAdd := \fun (omega, eta: Form zero) => \block {
+    \let f: Function := function omega \then
+    \let g: Function := function eta \then
+    \return injective (function (Forms.plus omega eta)) (plus f g)
+      (eq_reason!{
+        {apply (function (Forms.plus omega eta))} "=" {Forms.plus omega eta} "by" {rightInverse (Forms.plus omega eta)}
+        "=" {Forms.plus (apply f) (apply g)} "by" {congr2!{{Form zero} {Form zero} {Form zero}} Forms.plus omega (apply f) eta (apply g)
+          (sym!{{Form zero}} (apply f) omega (rightInverse omega)) (sym!{{Form zero}} (apply g) eta (rightInverse eta))}
+        "=" {apply (plus f g)} "by" {sym!{{Form zero}} (apply (plus f g)) (Forms.plus (apply f) (apply g)) (#preservesAdd{forward} f g)}
+      })
+  },
+  preservesScale := \fun (a: Reals.Real)(omega: Form zero) => \block {
+    \let f: Function := function omega \then
+    \return injective (function (Forms.scale a omega)) (scale a f)
+      (eq_reason!{
+        {apply (function (Forms.scale a omega))} "=" {Forms.scale a omega} "by" {rightInverse (Forms.scale a omega)}
+        "=" {Forms.scale a (apply f)} "by" {congr!{{Form zero} {Form zero}} (Forms.scale a) omega (apply f) (sym!{{Form zero}} (apply f) omega (rightInverse omega))}
+        "=" {apply (scale a f)} "by" {sym!{{Form zero}} (apply (scale a f)) (Forms.scale a (apply f)) (#preservesScale{forward} a f)}
+      })
+  },
+};
+\import Spaces.Isomorphism[V := Function, W := Form zero, source := vectorSpace, target := Forms.space] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism { forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse };

@@ -1,0 +1,39 @@
+\import N.Basic[].Def[] \as Nat;
+\definition apply(i: Fin n): Fin n := B.ite (Fin n) (Nat.eqb i a) b (B.ite (Fin n) (Nat.eqb i b) a i);
+\definition onFirst: apply a = b := \idelim B.Bool^::true = Nat.eqb a a \with test: B.Bool^ =>
+  B.ite (Fin n) test b (B.ite (Fin n) (Nat.eqb a b) a a) = b \by {
+    base: \refl(b), equality: sym!{{B.Bool^}} (Nat.eqb a a) B.Bool^::true (NL.eqbRefl a)
+  };
+\definition onSecond: apply b = a := B.cases
+  (\fun (test: B.Bool^) => Nat.eqb b a = test -> B.ite (Fin n) test b (B.ite (Fin n) (Nat.eqb b b) a b) = a)
+  (\fun (testFalse: Nat.eqb b a = B.Bool^::false) => \idelim B.Bool^::true = Nat.eqb b b \with test: B.Bool^ =>
+    B.ite (Fin n) test a b = a \by { base: \refl(a), equality: sym!{{B.Bool^}} (Nat.eqb b b) B.Bool^::true (NL.eqbRefl b) })
+  (\fun (testTrue: Nat.eqb b a = B.Bool^::true) => NL.eqOfEqbTrue a b testTrue)
+  (Nat.eqb b a) (\refl(Nat.eqb b a));
+\definition other: \forall (i: Fin n) -> Nat.eqb i a = B.Bool^::false -> Nat.eqb i b = B.Bool^::false -> apply i = i :=
+  \fun (i: Fin n)(first: Nat.eqb i a = B.Bool^::false)(second: Nat.eqb i b = B.Bool^::false) =>
+    \idelim B.Bool^::false = Nat.eqb i a \with test: B.Bool^ =>
+      B.ite (Fin n) test b (B.ite (Fin n) (Nat.eqb i b) a i) = i \by {
+        base: \idelim B.Bool^::false = Nat.eqb i b \with test: B.Bool^ => B.ite (Fin n) test a i = i \by {
+          base: \refl(i), equality: sym!{{B.Bool^}} (Nat.eqb i b) B.Bool^::false second
+        }, equality: sym!{{B.Bool^}} (Nat.eqb i a) B.Bool^::false first
+      };
+\definition involution: \forall (i: Fin n) -> apply (apply i) = i :=
+  \fun (i: Fin n) => B.cases
+    (\fun (first: B.Bool^) => Nat.eqb i a = first -> apply (apply i) = i)
+    (\fun (first: Nat.eqb i a = B.Bool^::false) => B.cases
+      (\fun (second: B.Bool^) => Nat.eqb i b = second -> apply (apply i) = i)
+      (\fun (second: Nat.eqb i b = B.Bool^::false) => trans!{{Fin n}} (apply (apply i)) (apply i) i
+        (congr!{{Fin n} {Fin n}} apply (apply i) i (other i first second)) (other i first second))
+      (\fun (second: Nat.eqb i b = B.Bool^::true) => \idelim b = i \with j: Fin n => apply (apply j) = j \by {
+        base: trans!{{Fin n}} (apply (apply b)) (apply a) b (congr!{{Fin n} {Fin n}} apply (apply b) a onSecond) onFirst,
+        equality: sym!{{Fin n}} i b (NL.eqOfEqbTrue b i second)
+      }) (Nat.eqb i b) (\refl(Nat.eqb i b)))
+    (\fun (first: Nat.eqb i a = B.Bool^::true) => \idelim a = i \with j: Fin n => apply (apply j) = j \by {
+      base: trans!{{Fin n}} (apply (apply a)) (apply b) a (congr!{{Fin n} {Fin n}} apply (apply a) b onFirst) onSecond,
+      equality: sym!{{Fin n}} i a (NL.eqOfEqbTrue a i first)
+    }) (Nat.eqb i a) (\refl(Nat.eqb i a));
+\definition injective: \forall (i, j: Fin n) -> apply i = apply j -> i = j :=
+  \fun (i, j: Fin n)(same: apply i = apply j) => trans!{{Fin n}} i (apply (apply i)) j
+    (sym!{{Fin n}} (apply (apply i)) i (involution i))
+    (trans!{{Fin n}} (apply (apply i)) (apply (apply j)) j (congr!{{Fin n} {Fin n}} apply (apply i) (apply j) same) (involution j));

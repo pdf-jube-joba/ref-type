@@ -1,0 +1,29 @@
+\definition next: Naturals.Nat^ := Naturals.Nat^::succ k;
+\import \parent.At[k := k] \as Current;
+\import \parent.At[k := next] \as Next;
+\import SourceForms.ExteriorDerivative[k := k] \as SourceD;
+\import TargetForms.ExteriorDerivative[k := k] \as TargetD;
+\module Local(chart: SourceForms.Chart, right: TargetForms.Chart);
+\definition chartwise: \forall (omega: TargetForms.Form k)(chart: SourceForms.Chart) ->
+  SourceD.apply (Current.apply omega) chart = Next.apply (TargetD.apply omega) chart :=
+    \fun (omega: TargetForms.Form k)(chart: SourceForms.Chart) =>
+      \root.Euclidean[n := n].On[U := #image{chart}].ext next
+        (SourceD.apply (Current.apply omega) chart) (Next.apply (TargetD.apply omega) chart) (\block {
+        \fun (a: Open.Carrier #image{chart})(arguments: SourceMultilinear.Arguments next) \then
+        \takefrom right: \Cast[TargetForms.Chart] ({ c: TargetForms.Chart \where
+          \In[SourceVectors.Vector] (#points{(Current.Coordinates[chart := chart].domains c)}) a })
+          \by Current.Coordinates[chart := chart].covers a \then
+        \let local: Open.Carrier (Current.Coordinates[chart := chart].domains right) :=
+          \into[SourceVectors.Vector](a, #points{(Current.Coordinates[chart := chart].domains right)}) \by {
+            \bysub(TargetForms.Chart, { c: TargetForms.Chart \where
+              \In[SourceVectors.Vector] (#points{(Current.Coordinates[chart := chart].domains c)}) a }, right)
+          } \then
+        \let result: SourceD.apply (Current.apply omega) chart a arguments = Next.apply (TargetD.apply omega) chart a arguments :=
+          congr!{{\root.Euclidean[n := n].On[U := Current.Coordinates[chart := chart].domains right].Form next} {Reals.Real}}
+            (\fun (form: \root.Euclidean[n := n].On[U := Current.Coordinates[chart := chart].domains right].Form next) => form local arguments)
+            _ _ (Local[chart := chart, right := right].law omega) \then
+        \return result
+      });
+\definition law: \forall (omega: TargetForms.Form k) -> SourceD.apply (Current.apply omega) = Next.apply (TargetD.apply omega) :=
+  \fun (omega: TargetForms.Form k) => SourceForms.ext next
+    (SourceD.apply (Current.apply omega)) (Next.apply (TargetD.apply omega)) (chartwise omega);

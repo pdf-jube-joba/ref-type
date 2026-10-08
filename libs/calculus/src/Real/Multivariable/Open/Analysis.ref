@@ -1,0 +1,73 @@
+\structure ContinuityControl[U: OpenSet, f: ScalarFunction U, a: Carrier U, epsilon, delta: Real]: \Prop {
+  positive: R.Lt zero delta,
+  estimate: \forall (x: Carrier U) -> R.Lt (Coordinates.pointDistance x a) delta -> R.Lt (distance (f x) (f a)) epsilon,
+}
+\definition ContinuousAt(U: OpenSet)(f: ScalarFunction U)(a: Carrier U): \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { delta: Real \where ContinuityControl[U, f, a, epsilon, delta] };
+\definition ContinuousOn(U: OpenSet)(f: ScalarFunction U): \Prop := \forall (a: Carrier U) -> ContinuousAt U f a;
+
+\structure LimitControl[U: OpenSet, f: ScalarFunction U, a: Carrier U, l, epsilon, delta: Real]: \Prop {
+  positive: R.Lt zero delta,
+  estimate: \forall (x: Carrier U) -> Logic.Not (x = a) -> R.Lt (Coordinates.pointDistance x a) delta -> R.Lt (distance (f x) l) epsilon,
+}
+\definition HasLimitAt(U: OpenSet)(f: ScalarFunction U)(a: Carrier U)(l: Real): \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { delta: Real \where LimitControl[U, f, a, l, epsilon, delta] };
+
+\definition remainder(U: OpenSet)(f: ScalarFunction U)(a: Carrier U)(d: Differentials.LinearMap)(x: Carrier U): Real :=
+  sub (sub (f x) (f a)) (#apply{d} (Coordinates.subPoint x a));
+\structure DifferentialControl[U: OpenSet, f: ScalarFunction U, a: Carrier U, d: Differentials.LinearMap, epsilon, delta: Real]: \Prop {
+  positive: R.Lt zero delta,
+  estimate: \forall (x: Carrier U) -> R.Lt zero (Coordinates.pointDistance x a) -> R.Lt (Coordinates.pointDistance x a) delta ->
+    R.Lt (distance (remainder U f a d x) zero) (mul epsilon (Coordinates.pointDistance x a)),
+}
+\definition HasDifferentialAt(U: OpenSet)(f: ScalarFunction U)(a: Carrier U)(d: Differentials.LinearMap): \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { delta: Real \where DifferentialControl[U, f, a, d, epsilon, delta] };
+
+\structure PartialControl[U: OpenSet, f: ScalarFunction U, a: Carrier U, i: Coordinate, d, epsilon, delta: Real]: \Prop {
+  positive: R.Lt zero delta,
+  estimate: \forall (t: Real)(x: Carrier U) -> x = Coordinates.replace a i t -> Logic.Not (t = a i) ->
+    R.Lt (distance t (a i)) delta ->
+    R.Lt (distance (mul (sub (f x) (f a)) (inv (sub t (a i)))) d) epsilon,
+}
+\definition HasPartialDerivativeAt(U: OpenSet)(f: ScalarFunction U)(i: Coordinate)(a: Carrier U)(d: Real): \Prop :=
+  \forall (epsilon: Real) -> R.Lt zero epsilon -> \exists { delta: Real \where PartialControl[U, f, a, i, d, epsilon, delta] };
+\definition HasPartialDerivative(U: OpenSet)(f: ScalarFunction U)(i: Coordinate)(d: ScalarFunction U): \Prop :=
+  \forall (a: Carrier U) -> HasPartialDerivativeAt U f i a (d a);
+
+\definition restrictContinuous: \forall (U, V: OpenSet)(included: Included U V)(f: ScalarFunction V) ->
+  ContinuousOn V f -> ContinuousOn U (restrict U V included f) := \block {
+  \fun (U, V: _)(included: _)(f: _)(continuous: _)(a: Carrier U)(epsilon: _)(positive: _) \then
+  \let b: Carrier V := inclusion U V included a \then
+  \takefrom delta: \Cast[Real] ({ d: Real \where ContinuityControl[V, f, b, epsilon, d] }) \by continuous b epsilon positive \then
+  \let control: ContinuityControl[V, f, b, epsilon, delta] := \bysub(Real, { d: Real \where ContinuityControl[V, f, b, epsilon, d] }, delta) \then
+  \return \exact(\into[Real](delta,
+    { d: Real \where ContinuityControl[U, restrict U V included f, a, epsilon, d] }) \by {
+      ContinuityControl[U, restrict U V included f, a, epsilon, delta] {
+        positive := #positive{control},
+        estimate := \fun (x: Carrier U)(near: _) => #estimate{control} (inclusion U V included x) near,
+      }
+    }, \Cast[Real] ({ d: Real \where ContinuityControl[U, restrict U V included f, a, epsilon, d] }))
+};
+\module Properties;
+\module Operations;
+\module Section(U: OpenSet, f: ScalarFunction U, a: Carrier U, i: Coordinate);
+\module Product(U: OpenSet, f, g: ScalarFunction U, i: Coordinate);
+\module Sums(T: \Set);
+\module Scale(U: OpenSet, f: ScalarFunction U, i: Coordinate);
+\module Local;
+\module Differential(U: OpenSet, f: ScalarFunction U, a: Carrier U, d: Differentials.LinearMap);
+\module Linear(U: OpenSet, d: Differentials.LinearMap);
+\module Curve(U: OpenSet, f: ScalarFunction U, default: Real, a: Point, i: Coordinate);
+\definition restrictDifferential: \forall (U, V: OpenSet)(included: Included U V)(f: ScalarFunction V)(a: Carrier U)(d: Differentials.LinearMap) ->
+  HasDifferentialAt V f (inclusion U V included a) d -> HasDifferentialAt U (restrict U V included f) a d := \block {
+  \fun (U, V: OpenSet)(included: Included U V)(f: ScalarFunction V)(a: Carrier U)(d: Differentials.LinearMap)(differential: _)(epsilon: Real)(positive: _) \then
+  \takefrom delta: \Cast[Real] ({ r: Real \where DifferentialControl[V, f, inclusion U V included a, d, epsilon, r] }) \by differential epsilon positive \then
+  \let control: DifferentialControl[V, f, inclusion U V included a, d, epsilon, delta] := \bysub(Real,
+    { r: Real \where DifferentialControl[V, f, inclusion U V included a, d, epsilon, r] }, delta) \then
+  \return \exact(\into[Real](delta, { r: Real \where DifferentialControl[U, restrict U V included f, a, d, epsilon, r] }) \by {
+    DifferentialControl[U, restrict U V included f, a, d, epsilon, delta] {
+      positive := #positive{control},
+      estimate := \fun (x: Carrier U)(different: _)(near: _) => #estimate{control} (inclusion U V included x) different near,
+    }
+  }, \Cast[Real] ({ r: Real \where DifferentialControl[U, restrict U V included f, a, d, epsilon, r] }))
+};

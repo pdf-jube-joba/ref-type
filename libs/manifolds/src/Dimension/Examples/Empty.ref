@@ -1,0 +1,35 @@
+\import std.Data[].FinSet[] \as Fin;
+\definition Point: \Set := Fin.Fin N.Nat^::zero;
+\import topology.Topology[Carrier := Point] \as Topology;
+\definition topology: Topology.Topology := Topology.Discrete;
+\import \parent.\parent.Chart[M := Point, space := topology] \as Charts;
+\import \parent.\parent.Atlas[M := Point, space := topology] \as Atlases;
+\import \parent.\parent.Topological[] \as Manifolds;
+\definition impossible: \forall (x: Point) -> Logic.False := \fun (x: _) => Fin.zeroImpossible x (Fin.bound N.Nat^::zero x);
+\definition atlas: Atlases.Atlas := Atlases.Atlas {
+  charts := { chart: Charts.Chart \where Logic.False },
+  covers := \fun (x: Point) => Logic.falseElim _ (impossible x),
+  compatible := \fun (left, right: Charts.Chart)(member: Logic.False)(other: _) => Logic.falseElim _ member,
+};
+\definition basis: N.Nat^ -> \Pow Point := \fun (k: N.Nat^) => Topology.Empty;
+\definition secondCountable: Topology.IsSecondCountable topology := \exact(\into[N.Nat^ -> \Pow Point](basis,
+  { b: N.Nat^ -> \Pow Point \where Topology.IsCountableBasis[topology, b] }) \by {
+    Topology.IsCountableBasis[topology, basis] {
+      open := \fun (k: _) => Topology.discreteOpen Topology.Empty,
+      refines := \fun (U: \Pow Point)(open: _)(x: Point)(member: _) => Logic.falseElim _ (impossible x),
+    }
+  }, \Cast[N.Nat^ -> \Pow Point] ({ b: N.Nat^ -> \Pow Point \where Topology.IsCountableBasis[topology, b] }));
+\definition hausdorff: Topology.IsT2 topology := \fun (x, y: Point)(different: _) => Logic.falseElim _ (impossible x);
+\definition manifold: Manifolds.Manifold := Manifolds.Manifold {
+  Point := Point,
+  space := topology,
+  charts := #charts{atlas},
+  covers := #covers{atlas},
+  hausdorff := hausdorff,
+  secondCountable := secondCountable,
+};
+\import \parent.\parent.Smooth[] \as Smooth;
+\definition smoothManifold: Smooth.Manifold := Smooth.Manifold {
+  Point := Point, space := topology, atlas := Atlases.saturate atlas,
+  hausdorff := hausdorff, secondCountable := secondCountable,
+};

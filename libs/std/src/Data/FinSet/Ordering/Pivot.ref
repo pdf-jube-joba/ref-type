@@ -1,0 +1,54 @@
+\import \root.Data[].FinSet[].Transposition[n := N.Nat^::succ k, a := zero k, b := pivot] \as Swap;
+\import \root.Data[].FinSet[].Permutations[n := N.Nat^::succ k] \as Permutations;
+\import Permutations.Operations[] \as Operations;
+\import \root.Data[].FinSet[].Permutations[n := k].Lifting[] \as Lift;
+\import \root.Data[].FinSet[].Tuples[A := Fin (N.Nat^::succ n)] \as Tuples;
+\definition normalized(i: Fin (N.Nat^::succ k)): Fin (N.Nat^::succ n) := f (Swap.apply i);
+\definition atZero: f pivot = zero n -> normalized (zero k) = zero n :=
+  \fun (same: f pivot = zero n) => trans!{{Fin (N.Nat^::succ n)}} (normalized (zero k)) (f pivot) (zero n)
+    (congr!{{Fin (N.Nat^::succ k)} {Fin (N.Nat^::succ n)}} f (Swap.apply (zero k)) pivot Swap.onFirst) same;
+\definition injective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f -> Injective (N.Nat^::succ k) (N.Nat^::succ n) normalized :=
+  \fun (injection: Injective (N.Nat^::succ k) (N.Nat^::succ n) f)(i, j: Fin (N.Nat^::succ k))(same: normalized i = normalized j) =>
+    Swap.injective i j (injection (Swap.apply i) (Swap.apply j) same);
+\definition tail(i: Fin k): Fin (N.Nat^::succ n) := normalized (succ k i);
+\import \parent.Reduction[k := k, n := n, f := tail] \as Reduction;
+\definition nonzero: Injective (N.Nat^::succ k) (N.Nat^::succ n) f -> f pivot = zero n -> Reduction.AvoidsZero :=
+  \fun (injection: Injective (N.Nat^::succ k) (N.Nat^::succ n) f)(zeroValue: f pivot = zero n)(i: Fin k)(same: tail i = zero n) =>
+    NL.succNeZero i (injective injection (succ k i) (zero k)
+      (trans!{{Fin (N.Nat^::succ n)}} (tail i) (zero n) (normalized (zero k)) same
+        (sym!{{Fin (N.Nat^::succ n)}} (normalized (zero k)) (zero n) (atZero zeroValue))));
+\definition tailInjective: Injective (N.Nat^::succ k) (N.Nat^::succ n) f -> Injective k (N.Nat^::succ n) tail :=
+  \fun (injection: Injective (N.Nat^::succ k) (N.Nat^::succ n) f)(i, j: Fin k)(same: tail i = tail j) =>
+    NL.succInjective i j (injective injection (succ k i) (succ k j) same);
+\definition headSwap: Permutations.Permutation := Operations.transposition (Permutations.Swap { first := zero k, second := pivot });
+\definition permutation(p: PermutationType k): Permutations.Permutation := Operations.compose headSwap (Lift.lift p);
+\definition ordered: Existence n -> Injective (N.Nat^::succ k) (N.Nat^::succ n) f -> f pivot = zero n ->
+  \exists Ordered (N.Nat^::succ k) (N.Nat^::succ n) f := \block {
+  \fun (previous: Existence n)(injection: Injective (N.Nat^::succ k) (N.Nat^::succ n) f)(zeroValue: f pivot = zero n) \then
+  \let avoids: Reduction.AvoidsZero := nonzero injection zeroValue \then
+  \let lower: Fin k -> Fin n := Reduction.lower avoids \then
+  \takefrom p: Ordered k n lower \by previous k lower (Reduction.injective avoids (tailInjective injection)) \then
+  \let sorted: Increasing k n (\fun (i: Fin k) => lower (#forward{p} i)) := \bysub(PermutationType k, Ordered k n lower, p) \then
+  \let tuple: Fin (N.Nat^::succ k) -> Fin (N.Nat^::succ n) :=
+    \parent.Head[k := k, n := n, f := \fun (i: Fin k) => lower (#forward{p} i)].tuple \then
+  \let same: (\fun (i: Fin (N.Nat^::succ k)) => f (#forward{(permutation p)} i)) = tuple :=
+    Tuples.extensionality k (\fun (i: Fin (N.Nat^::succ k)) => f (#forward{(permutation p)} i)) tuple
+      (trans!{{Fin (N.Nat^::succ n)}} (normalized (Lift.forward p (zero k))) (normalized (zero k)) (tuple (zero k))
+        (congr!{{Fin (N.Nat^::succ k)} {Fin (N.Nat^::succ n)}} normalized (Lift.forward p (zero k)) (zero k) (Lift.forwardZero p))
+        (trans!{{Fin (N.Nat^::succ n)}} (normalized (zero k)) (zero n) (tuple (zero k)) (atZero zeroValue)
+          (sym!{{Fin (N.Nat^::succ n)}} (tuple (zero k)) (zero n)
+            (\parent.Head[k := k, n := n, f := \fun (i: Fin k) => lower (#forward{p} i)].atZero))))
+      (\fun (i: Fin k) => trans!{{Fin (N.Nat^::succ n)}} (normalized (Lift.forward p (succ k i))) (tail (#forward{p} i)) (tuple (succ k i))
+        (congr!{{Fin (N.Nat^::succ k)} {Fin (N.Nat^::succ n)}} normalized (Lift.forward p (succ k i)) (succ k (#forward{p} i)) (Lift.forwardSuccessor p i))
+        (trans!{{Fin (N.Nat^::succ n)}} (tail (#forward{p} i)) (succ n (lower (#forward{p} i))) (tuple (succ k i))
+          (sym!{{Fin (N.Nat^::succ n)}} (succ n (lower (#forward{p} i))) (tail (#forward{p} i)) (Reduction.successor avoids (#forward{p} i)))
+          (sym!{{Fin (N.Nat^::succ n)}} (tuple (succ k i)) (succ n (lower (#forward{p} i)))
+            (\parent.Head[k := k, n := n, f := \fun (i: Fin k) => lower (#forward{p} i)].atSuccessor i)))) \then
+  \return \exact(\into[PermutationType (N.Nat^::succ k)](permutation p, Ordered (N.Nat^::succ k) (N.Nat^::succ n) f) \by {
+    \idelim tuple = (\fun (i: Fin (N.Nat^::succ k)) => f (#forward{(permutation p)} i))
+      \with g: (Fin (N.Nat^::succ k) -> Fin (N.Nat^::succ n)) => Increasing (N.Nat^::succ k) (N.Nat^::succ n) g \by {
+        base: \parent.Head[k := k, n := n, f := \fun (i: Fin k) => lower (#forward{p} i)].increasing sorted,
+        equality: sym!{{Fin (N.Nat^::succ k) -> Fin (N.Nat^::succ n)}} (\fun (i: Fin (N.Nat^::succ k)) => f (#forward{(permutation p)} i)) tuple same
+      }
+  }, Ordered (N.Nat^::succ k) (N.Nat^::succ n) f)
+};

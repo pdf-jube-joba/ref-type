@@ -1,0 +1,34 @@
+\import \parent.At[k := N.Nat^::zero] \as Forms;
+\import \parent.\parent.\parent.Linear[V := K, W := Form N.Nat^::zero, source := scalarSpace, target := Forms.vectorSpace] \as FromScalar;
+\import \parent.\parent.\parent.Linear[V := Form N.Nat^::zero, W := K, source := Forms.vectorSpace, target := scalarSpace] \as ToScalar;
+\import \parent.\parent.\parent.Isomorphism[V := K, W := Form N.Nat^::zero, source := scalarSpace, target := Forms.vectorSpace] \as Iso;
+\definition emptyArguments: Arguments N.Nat^::zero := \fun (i: Fin.Fin N.Nat^::zero) => #zero{space};
+\definition argumentsUnique: \forall (v: Arguments N.Nat^::zero) -> v = emptyArguments :=
+  \fun (v: _) => \axiom:funext(v, emptyArguments, \fun (i: Fin.Fin N.Nat^::zero) =>
+    Logic.falseElim (v i = emptyArguments i) (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)));
+\definition constant(value: K): Form N.Nat^::zero := \into[Function N.Nat^::zero](\fun (v: Arguments N.Nat^::zero) => value,
+  { f: Function N.Nat^::zero \where AlternatingLaws[N.Nat^::zero, f] }) \by {
+    AlternatingLaws[N.Nat^::zero, (\fun (v: Arguments N.Nat^::zero) => value)] {
+      linear := Laws[N.Nat^::zero, (\fun (v: Arguments N.Nat^::zero) => value)] {
+        addition := \fun (v: _)(i: Fin.Fin N.Nat^::zero)(x, y: V) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+        scalar := \fun (v: _)(i: Fin.Fin N.Nat^::zero)(a: K)(x: V) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+      },
+      alternating := \fun (v: _)(i, j: Fin.Fin N.Nat^::zero)(different: _)(same: _) => Logic.falseElim _ (Fin.zeroImpossible i (Fin.bound N.Nat^::zero i)),
+    }
+  };
+\definition scalar: FromScalar.Map := FromScalar.Map {
+  apply := constant,
+  preservesAdd := \fun (a, b: K) => Forms.ext (constant (add a b)) (Forms.plus (constant a) (constant b)) (\fun (v: Arguments N.Nat^::zero) => \refl(add a b)),
+  preservesScale := \fun (a, b: K) => Forms.ext (constant (mul a b)) (Forms.scale a (constant b)) (\fun (v: Arguments N.Nat^::zero) => \refl(mul a b)),
+};
+\definition evaluate: ToScalar.Map := ToScalar.Map {
+  apply := \fun (f: Form N.Nat^::zero) => f emptyArguments,
+  preservesAdd := \fun (f, g: Form N.Nat^::zero) => \refl(add (f emptyArguments) (g emptyArguments)),
+  preservesScale := \fun (a: K)(f: Form N.Nat^::zero) => \refl(mul a (f emptyArguments)),
+};
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := scalar, backward := evaluate,
+  leftInverse := \fun (a: K) => \refl(a),
+  rightInverse := \fun (f: Form N.Nat^::zero) => Forms.ext (constant (f emptyArguments)) f
+    (\fun (v: Arguments N.Nat^::zero) => sym!{K} _ _ (congr!{{Arguments N.Nat^::zero} K} f _ _ (argumentsUnique v))),
+};

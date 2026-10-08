@@ -1,0 +1,23 @@
+\import Maps.Differential[U := Geometry.domain, V := #image{right}, f := direct, a := a] \as LocalDirect;
+\import LocalDirect.Compare[W := #image{right}, g := composite] \as CompareDirect;
+\import Maps.Differential[U := Direct.domain, V := #image{right}, f := directFull, a := Geometry.directPoint a] \as DirectDerivative;
+\import Maps.Restriction[U := Geometry.domain, V := Direct.domain, W := #image{right}] \as RestrictDirect;
+\import Maps.Differential[U := Geometry.domain, V := Second.domain, f := first, a := a] \as LocalFirst;
+\import LocalFirst.Compare[W := #image{middle}, g := firstRestricted] \as CompareFirst;
+\import Maps.Differential[U := First.domain, V := #image{middle}, f := firstFull, a := Geometry.firstPoint a] \as FirstDerivative;
+\import Maps.Restriction[U := Geometry.domain, V := First.domain, W := #image{middle}] \as RestrictFirst;
+\import Maps.Differential[U := Second.domain, V := #image{right}, f := second, a := Maps.apply Geometry.domain Second.domain first a] \as SecondDerivative;
+\import Maps.Differential[U := Geometry.domain, V := #image{right}, f := composite, a := a] \as CompositeDerivative;
+\import Composition.At[a := a] \as Chain;
+\definition firstAgreement: CompareFirst.first = CompareFirst.second := \axiom:funext(CompareFirst.first, CompareFirst.second, \fun (x: Point) => \refl(First.vector (Geometry.firstPoint x)));
+\definition firstJacobian: LocalFirst.value = FirstDerivative.value := trans!{{Vector.LinearMap}} _ _ _
+  (CompareFirst.equal firstAgreement) (RestrictFirst.differential Geometry.firstIncluded firstFull a);
+\definition directAgreement: CompareDirect.first = CompareDirect.second := \axiom:funext(CompareDirect.first, CompareDirect.second,
+  \fun (x: Point) => sym!{Coordinates.Point} (Maps.apply Geometry.domain #image{right} composite x) (Maps.apply Geometry.domain #image{right} direct x) (agreement x));
+\definition localJacobian: LocalDirect.value = CompositeDerivative.value := CompareDirect.equal directAgreement;
+\definition cocycle: DirectDerivative.value = compose SecondDerivative.value FirstDerivative.value :=
+  trans!{{Vector.LinearMap}} DirectDerivative.value LocalDirect.value (compose SecondDerivative.value FirstDerivative.value)
+    (sym!{{Vector.LinearMap}} LocalDirect.value DirectDerivative.value (RestrictDirect.differential Geometry.directIncluded directFull a))
+    (trans!{{Vector.LinearMap}} LocalDirect.value CompositeDerivative.value (compose SecondDerivative.value FirstDerivative.value) localJacobian
+      (trans!{{Vector.LinearMap}} CompositeDerivative.value Chain.candidate (compose SecondDerivative.value FirstDerivative.value) Chain.jacobian
+        (congr!{{Vector.LinearMap} {Vector.LinearMap}} (compose SecondDerivative.value) LocalFirst.value FirstDerivative.value firstJacobian)));

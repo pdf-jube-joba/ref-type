@@ -179,6 +179,20 @@
   Le (Nat^::succ a) (Nat^::succ b) ->
   Le a b := \fun (e: _) =>
     e;
+\definition leSelfSucc: \forall (a: Nat^) -> Le a (Nat^::succ a) :=
+  \induction (a: Nat^) \return Le a (Nat^::succ a) \with {
+    | zero: \refl(B.Bool^::true)
+    | succ: \fun (a: Nat^)(previous: _) => previous
+  };
+\definition ltOfSuccLe: \forall (b, a: Nat^) -> Le (Nat^::succ a) b -> Lt a b :=
+  \induction (b: Nat^) \return \forall (a: Nat^) -> Le (Nat^::succ a) b -> Lt a b \with {
+    | zero: \fun (a: Nat^)(bound: _) => BoolLaws.absurd (Lt a Nat^::zero) bound
+    | succ: \fun (b: Nat^)(previous: \forall (a: Nat^) -> Le (Nat^::succ a) b -> Lt a b) =>
+      \induction (a: Nat^) \return Le (Nat^::succ a) (Nat^::succ b) -> Lt a (Nat^::succ b) \with {
+        | zero: \fun (bound: _) => \refl(B.Bool^::true)
+        | succ: \fun (a: Nat^)(unused: _)(bound: _) => previous a bound
+      }
+  };
 \definition ltSuccSucc(a, b: Nat^):
   Lt a b ->
   Lt (Nat^::succ a) (Nat^::succ b) := \fun (e: _) =>
@@ -471,3 +485,37 @@
   \idelim \(b "+" a\) = \(a "+" b\) \with c: Nat^ => Le b c
     \by { base: leAddRight b a, equality: addComm b a };
 
+\definition succLeOfLt: \forall (b, a: Nat^) -> Lt a b -> Le (Nat^::succ a) b :=
+  \induction (b: Nat^) \return \forall (a: Nat^) -> Lt a b -> Le (Nat^::succ a) b \with {
+    | zero: \induction (a: Nat^) \return Lt a Nat^::zero -> Le (Nat^::succ a) Nat^::zero \with {
+      | zero: \fun (bound: _) => bound
+      | succ: \fun (a: Nat^)(previous: _)(bound: _) => bound
+    }
+    | succ: \fun (b: Nat^)(previous: \forall (a: Nat^) -> Lt a b -> Le (Nat^::succ a) b) =>
+      \induction (a: Nat^) \return Lt a (Nat^::succ b) -> Le (Nat^::succ a) (Nat^::succ b) \with {
+        | zero: \fun (bound: _) => zeroLe b
+        | succ: \fun (a: Nat^)(unused: _)(bound: _) => previous a bound
+      }
+  };
+\definition leLtTrans: \forall (a, b, c: Nat^) -> Le a b -> Lt b c -> Lt a c :=
+  \fun (a, b, c: _)(ab: _)(bc: _) => ltOfSuccLe c a
+    (leTrans (Nat^::succ a) (Nat^::succ b) c (leSuccSucc a b ab) (succLeOfLt c b bc));
+\definition ltLeTrans: \forall (a, b, c: Nat^) -> Lt a b -> Le b c -> Lt a c :=
+  \fun (a, b, c: _)(ab: _)(bc: _) => ltOfSuccLe c a (leTrans (Nat^::succ a) b c (succLeOfLt b a ab) bc);
+\definition ltbSelfFalse: \forall (a: Nat^) -> Op.ltb a a = B.Bool^::false :=
+  \induction (a: Nat^) \return Op.ltb a a = B.Bool^::false \with {
+    | zero: \refl(B.Bool^::false)
+    | succ: \fun (a: Nat^)(previous: _) => previous
+  };
+\definition ltbSuccOfDifferent: \forall (b, a: Nat^) -> Op.eqb a b = B.Bool^::false -> Op.ltb a (Nat^::succ b) = Op.ltb a b :=
+  \induction (b: Nat^) \return \forall (a: Nat^) -> Op.eqb a b = B.Bool^::false -> Op.ltb a (Nat^::succ b) = Op.ltb a b \with {
+    | zero: \induction (a: Nat^) \return Op.eqb a Nat^::zero = B.Bool^::false -> Op.ltb a (Nat^::succ Nat^::zero) = Op.ltb a Nat^::zero \with {
+      | zero: \fun (different: _) => BoolLaws.absurd _ (sym!{B.Bool^} _ _ different)
+      | succ: \fun (a: Nat^)(previous: _)(different: _) => \refl(B.Bool^::false)
+    }
+    | succ: \fun (b: Nat^)(previous: \forall (a: Nat^) -> Op.eqb a b = B.Bool^::false -> Op.ltb a (Nat^::succ b) = Op.ltb a b) =>
+      \induction (a: Nat^) \return Op.eqb a (Nat^::succ b) = B.Bool^::false -> Op.ltb a (Nat^::succ (Nat^::succ b)) = Op.ltb a (Nat^::succ b) \with {
+        | zero: \fun (different: _) => \refl(B.Bool^::true)
+        | succ: \fun (a: Nat^)(unused: _)(different: _) => previous a different
+      }
+  };

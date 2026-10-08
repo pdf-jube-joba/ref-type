@@ -1,0 +1,103 @@
+
+\import SourceSums.Vector[V := TargetVectors.Vector, space := TargetVectors.space] \as VectorSums;
+\import VectorSums.Mapping[W := Reals.Real, target := Spaces.scalarSpace] \as VectorEvaluation;
+\import Spaces.Linear[V := TargetVectors.Vector, W := Reals.Real, source := TargetVectors.space, target := Spaces.scalarSpace] \as Projections;
+\definition projection(j: Fin.Fin m): Projections.Map := Projections.Map {
+  apply := \fun (v: TargetVectors.Vector) => v j,
+  preservesAdd := \fun (v, w: TargetVectors.Vector) => \refl(Spaces.add (v j) (w j)),
+  preservesScale := \fun (a: Reals.Real)(v: TargetVectors.Vector) => \refl(Spaces.mul a (v j)),
+};
+\definition vectorSum: \forall (values: Fin.Fin n -> TargetVectors.Vector)(j: Fin.Fin m) ->
+  VectorSums.sum (Fin.elements n) values j = SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => values i j) :=
+  \fun (values: Fin.Fin n -> TargetVectors.Vector)(j: Fin.Fin m) => VectorEvaluation.law (projection j) (Fin.elements n) values;
+\definition weightedHessian: \forall (v, w: Vectors.Vector) ->
+  VariationSums.sumChange (Fin.elements n) v (\fun (i: Fin.Fin n)(u: Vectors.Vector) => JacobianPartial.partial i u x) w = JacobianPartial.hessian x v w :=
+  \fun (v, w: Vectors.Vector) => \axiom:funext(
+    VariationSums.sumChange (Fin.elements n) v (\fun (i: Fin.Fin n)(u: Vectors.Vector) => JacobianPartial.partial i u x) w, JacobianPartial.hessian x v w,
+    \fun (j: Fin.Fin m) => vectorSum (\fun (i: Fin.Fin n) => TargetVectors.scale (v i) (JacobianPartial.partial i w x)) j);
+\definition variationLaw: \forall (omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector]) ->
+  SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Derivative.variation omega i x xs)) = varying omega v xs :=
+  \fun (omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector]) => trans!{{Reals.Real}}
+    (SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Derivative.variation omega i x xs)))
+    (Variation.insert (VariationSums.sumChange (Fin.elements n) v (\fun (i: Fin.Fin n)(u: Vectors.Vector) => JacobianPartial.partial i u x))
+      (TargetExterior.component k (omega targetPoint)) xs) (varying omega v xs)
+    (sym!{{Reals.Real}}
+      (Variation.insert (VariationSums.sumChange (Fin.elements n) v (\fun (i: Fin.Fin n)(u: Vectors.Vector) => JacobianPartial.partial i u x)) (TargetExterior.component k (omega targetPoint)) xs)
+      (SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Derivative.variation omega i x xs)))
+      (VariationSums.law xs (Fin.elements n) v (\fun (i: Fin.Fin n)(u: Vectors.Vector) => JacobianPartial.partial i u x)
+        (TargetExterior.component k (omega targetPoint)) (TargetMultilinear.ListSeries[k := k].linear (TargetAlternating.asMultilinear k (omega targetPoint)))))
+    (congr!{{Vectors.Vector -> TargetVectors.Vector} {Reals.Real}}
+      (\fun (change: Vectors.Vector -> TargetVectors.Vector) => Variation.insert change (TargetExterior.component k (omega targetPoint)) xs)
+      (VariationSums.sumChange (Fin.elements n) v (\fun (i: Fin.Fin n)(u: Vectors.Vector) => JacobianPartial.partial i u x)) (JacobianPartial.hessian x v)
+      (\axiom:funext(VariationSums.sumChange (Fin.elements n) v (\fun (i: Fin.Fin n)(u: Vectors.Vector) => JacobianPartial.partial i u x), JacobianPartial.hessian x v, weightedHessian v)));
+\definition formValue(omega: TargetForms.Form k)(j: Fin.Fin m)(xs: Lists.List[Vectors.Vector]): Reals.Real :=
+  TargetExterior.component k (TargetForms.Partial[k := k].apply j omega targetPoint) (mapped xs);
+\definition grid(omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector])(i: Fin.Fin n)(j: Fin.Fin m): Reals.Real :=
+  Spaces.mul (formValue omega j xs) (Spaces.mul (matrix j i x) (v i));
+\definition swap: \forall (a, b, c: Reals.Real) -> Spaces.mul a (Spaces.mul b c) = Spaces.mul b (Spaces.mul c a) :=
+  \fun (a, b, c: Reals.Real) => trans!{{Reals.Real}} (Spaces.mul a (Spaces.mul b c)) (Spaces.mul b (Spaces.mul a c)) (Spaces.mul b (Spaces.mul c a))
+    (Algebra.mulSwap a b c) (congr!{{Reals.Real} {Reals.Real}} (Spaces.mul b) (Spaces.mul a c) (Spaces.mul c a) (Spaces.mulComm a c));
+\definition columnLaw: \forall (omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector])(i: Fin.Fin n) ->
+  Spaces.mul (v i) (Derivative.coefficients omega i x xs) = TargetSums.sum (Fin.elements m) (grid omega v xs i) :=
+  \fun (omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector])(i: Fin.Fin n) =>
+    trans!{{Reals.Real}} (Spaces.mul (v i) (Derivative.coefficients omega i x xs))
+      (TargetSums.sum (Fin.elements m) (\fun (j: Fin.Fin m) => Spaces.mul (v i) (Spaces.mul (formValue omega j xs) (matrix j i x))))
+      (TargetSums.sum (Fin.elements m) (grid omega v xs i))
+      (sym!{{Reals.Real}} (TargetSums.sum (Fin.elements m) (\fun (j: Fin.Fin m) => Spaces.mul (v i) (Spaces.mul (formValue omega j xs) (matrix j i x))))
+        (Spaces.mul (v i) (Derivative.coefficients omega i x xs)) (TargetLaws.multiplyLeft (Fin.elements m) (v i) (\fun (j: Fin.Fin m) => Spaces.mul (formValue omega j xs) (matrix j i x))))
+      (TargetLaws.congruent (Fin.elements m) (\fun (j: Fin.Fin m) => Spaces.mul (v i) (Spaces.mul (formValue omega j xs) (matrix j i x)))
+        (grid omega v xs i) (\fun (j: Fin.Fin m) => swap (v i) (formValue omega j xs) (matrix j i x)));
+\definition rowLaw: \forall (omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector])(j: Fin.Fin m) ->
+  SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => grid omega v xs i j) = Spaces.mul (#apply{(jacobian x)} v j) (formValue omega j xs) :=
+  \fun (omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector])(j: Fin.Fin m) => eq_reason!{
+    {SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => grid omega v xs i j)}
+    "=" {Spaces.mul (formValue omega j xs) (SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (matrix j i x) (v i)))} "by" {
+      SourceLaws.multiplyLeft (Fin.elements n) (formValue omega j xs) (\fun (i: Fin.Fin n) => Spaces.mul (matrix j i x) (v i))}
+    "=" {Spaces.mul (formValue omega j xs) (#apply{(jacobian x)} v j)} "by" {
+      congr!{{Reals.Real} {Reals.Real}} (Spaces.mul (formValue omega j xs))
+        (SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (matrix j i x) (v i))) (#apply{(jacobian x)} v j)
+        (Enumeration.sumLaw n (\fun (i: Fin.Fin n) => Spaces.mul (matrix j i x) (v i)))}
+    "=" {Spaces.mul (#apply{(jacobian x)} v j) (formValue omega j xs)} "by" {Spaces.mulComm (formValue omega j xs) (#apply{(jacobian x)} v j)}
+  };
+\definition coefficientLaw: \forall (omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector]) ->
+  SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Derivative.coefficients omega i x xs)) = pulled omega v xs :=
+  \fun (omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector]) => eq_reason!{
+    {SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Derivative.coefficients omega i x xs))}
+    "=" {SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => TargetSums.sum (Fin.elements m) (grid omega v xs i))} "by" {
+      SourceLaws.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Derivative.coefficients omega i x xs))
+        (\fun (i: Fin.Fin n) => TargetSums.sum (Fin.elements m) (grid omega v xs i)) (columnLaw omega v xs)}
+    "=" {TargetSums.sum (Fin.elements m) (\fun (j: Fin.Fin m) => SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => grid omega v xs i j))} "by" {
+      Exchange.exchange (Fin.elements n) (Fin.elements m) (grid omega v xs)}
+    "=" {pulled omega v xs} "by" {
+      TargetLaws.congruent (Fin.elements m) (\fun (j: Fin.Fin m) => SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => grid omega v xs i j))
+        (\fun (j: Fin.Fin m) => Spaces.mul (#apply{(jacobian x)} v j) (formValue omega j xs)) (rowLaw omega v xs)}
+  };
+
+\definition law: \forall (omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector]) ->
+  Source.directional (apply k omega) x v xs = Spaces.add (pulled omega v xs) (varying omega v xs) := \block {
+  \fun (omega: TargetForms.Form k)(v: Vectors.Vector)(xs: Lists.List[Vectors.Vector]) \then
+  \let a: Fin.Fin n -> Reals.Real := \fun (i: Fin.Fin n) => Derivative.coefficients omega i x xs \then
+  \let b: Fin.Fin n -> Reals.Real := \fun (i: Fin.Fin n) => Derivative.variation omega i x xs \then
+  \let expanded: Reals.Real := SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Spaces.add (a i) (b i))) \then
+  \let distributed: Reals.Real := SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.add (Spaces.mul (v i) (a i)) (Spaces.mul (v i) (b i))) \then
+  \let summed: Reals.Real := Spaces.add (SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (a i)))
+    (SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (b i))) \then
+  \let first: Source.directional (apply k omega) x v xs = expanded :=
+    SourceLaws.congruent (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Exterior.component k (SourceForms.Partial[k := k].apply i (apply k omega) x) xs))
+      (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Spaces.add (a i) (b i)))
+      (\fun (i: Fin.Fin n) => congr!{{Reals.Real} {Reals.Real}} (Spaces.mul (v i))
+        (Exterior.component k (SourceForms.Partial[k := k].apply i (apply k omega) x) xs) (Spaces.add (a i) (b i)) (Derivative.law omega i x xs)) \then
+  \let second: expanded = distributed := SourceLaws.congruent (Fin.elements n)
+    (\fun (i: Fin.Fin n) => Spaces.mul (v i) (Spaces.add (a i) (b i)))
+    (\fun (i: Fin.Fin n) => Spaces.add (Spaces.mul (v i) (a i)) (Spaces.mul (v i) (b i)))
+    (\fun (i: Fin.Fin n) => Spaces.mulAdd (v i) (a i) (b i)) \then
+  \let third: distributed = summed := SourceLaws.additive (Fin.elements n)
+    (\fun (i: Fin.Fin n) => Spaces.mul (v i) (a i)) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (b i)) \then
+  \let fourth: summed = Spaces.add (pulled omega v xs) (varying omega v xs) := congr2!{{Reals.Real} {Reals.Real} {Reals.Real}} Spaces.add
+    (SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (a i))) (pulled omega v xs)
+    (SourceSums.sum (Fin.elements n) (\fun (i: Fin.Fin n) => Spaces.mul (v i) (b i))) (varying omega v xs)
+    (coefficientLaw omega v xs) (variationLaw omega v xs) \then
+  \return trans!{{Reals.Real}} (Source.directional (apply k omega) x v xs) expanded (Spaces.add (pulled omega v xs) (varying omega v xs)) first
+    (trans!{{Reals.Real}} expanded distributed (Spaces.add (pulled omega v xs) (varying omega v xs)) second
+      (trans!{{Reals.Real}} distributed summed (Spaces.add (pulled omega v xs) (varying omega v xs)) third fourth))
+};

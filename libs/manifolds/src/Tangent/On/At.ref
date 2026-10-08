@@ -1,0 +1,59 @@
+\structure ChartLaws[chart: Charts.Chart]: \Prop {
+  member: Atlas.Member M.atlas chart,
+  contains: Charts.Contains chart x,
+}
+\definition Chart: \Set := \Cast[Charts.Chart] ({ chart: Charts.Chart \where ChartLaws[chart] });
+\definition member(chart: Chart): Atlas.Member M.atlas chart := #member{(\bysub(Charts.Chart, Chart, chart))};
+\definition contains(chart: Chart): Charts.Contains chart x := #contains{(\bysub(Charts.Chart, Chart, chart))};
+\definition chartExists: \exists Chart := \block {
+  \takefrom chart: \Cast[Charts.Chart] ({ chart: Charts.Chart \where Logic.And[Atlas.Member M.atlas chart, Charts.Contains chart x] }) \by #covers{M.atlas} x \then
+  \let law: Logic.And[Atlas.Member M.atlas chart, Charts.Contains chart x] := \bysub(Charts.Chart,
+    { chart: Charts.Chart \where Logic.And[Atlas.Member M.atlas chart, Charts.Contains chart x] }, chart) \then
+  \return \exact(\into[Charts.Chart](chart, Chart) \by { ChartLaws[chart] { member := #left{law}, contains := #right{law} } }, Chart)
+};
+\definition localPoint(chart: Chart): Charts.LocalPoint chart := \into[M.Point](x, #domain{chart}) \by { contains chart };
+\definition coordinate(chart: Chart): Open.Carrier #image{chart} := Charts.coordinate chart (localPoint chart);
+\structure Representative: \Set {
+  chart: Chart,
+  vector: Vectors.Vector,
+}
+\module Pair(left, right: Chart);
+\definition jacobian(left, right: Chart): Linear.Map := Pair[left := left, right := right].jacobian;
+\definition transform(left, right: Chart)(vector: Vectors.Vector): Vectors.Vector := #apply{(jacobian left right)} vector;
+\definition Equivalent(left, right: Representative): \Prop := #vector{right} = transform #chart{left} #chart{right} #vector{left};
+\module Self(chart: Chart);
+\module Triple(left, middle, right: Chart);
+\definition identity: \forall (chart: Chart)(v: Vectors.Vector) -> transform chart chart v = v :=
+  \fun (chart: Chart)(v: Vectors.Vector) => Self[chart := chart].apply v;
+\definition composition: \forall (left, middle, right: Chart)(v: Vectors.Vector) -> transform left right v = transform middle right (transform left middle v) :=
+  \fun (left, middle, right: Chart)(v: Vectors.Vector) => Triple[left := left, middle := middle, right := right].apply v;
+\module Relation;
+\import Relation[] \as Equivalence;
+\import std.Set[] \as Sets;
+\import Sets.Quotient[A := Representative, Equivalent := Equivalent] \as Quotient;
+\definition Vector: \Set := Quotient.Carrier;
+\definition classOf(chart: Chart)(vector: Vectors.Vector): Vector := Quotient.class (Representative { chart := chart, vector := vector });
+\definition classCriterion: \forall (u, v: Representative) -> Logic.And[
+  Quotient.class u = Quotient.class v -> Equivalent u v,
+  Equivalent u v -> Quotient.class u = Quotient.class v] :=
+  \fun (u, v: Representative) => Logic.And[_, _]::# (Quotient.equivalentOfClassEq Equivalence.equivalence u v) (Quotient.classOfEq Equivalence.equivalence u v);
+\module Coordinate(chart: Chart);
+\module Representatives;
+\module Operations;
+\module CoordinateOperations(chart: Chart);
+\import Operations[] \as VectorOperations;
+\import std.Alg[].Ring[] \as Ring;
+\import std.Alg[].Alg[] \as Alg;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition data: Ring.RingModuleData[Real.Real, Vector, Spaces.ring] := Ring.RingModuleData[Real.Real, Vector, Spaces.ring] {
+  zero := VectorOperations.origin, add := VectorOperations.plus, neg := VectorOperations.negative, smul := VectorOperations.scale,
+};
+\module StructureLaws(chart: Chart);
+\definition laws: Ring.RingModuleLaws[Real.Real, Vector, Spaces.ring, data] := \block {
+  \takefrom chart: Chart \by chartExists \then
+  \return StructureLaws[chart := chart].laws
+};
+\definition space: Spaces.VectorSpace Vector := \into[Ring.RingModuleData[Real.Real, Vector, Spaces.ring]](data, Spaces.VectorSpace Vector) \by { laws };
+\module ChartIsomorphism(chart: Chart);
+
+\module CotangentCoordinate(chart: Chart);
