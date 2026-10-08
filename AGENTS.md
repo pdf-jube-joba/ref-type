@@ -1,6 +1,8 @@
 ## 計測や分析
 perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
 （多分）
+ベンチマーク関係のものは、 `benchmarks/` においてください。
+あまり大きなファイルを置かないようにしてください。
 
 ## 実装のやりかた
 重要な点: `_plans/` に書かれている1つのプランの実装時は、最後までやってから停止する。
@@ -35,6 +37,7 @@ perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
 
 ## rust
 - コードのデバッグ用に kernel に作って便利だった機能は残す。
+- `ref-type` 言語を書いていて処理系が重いと感じた場合は、 rust のコードを積極的に改善してよい。
 
 ## ref-type(このリポジトリの言語)
 思ってた書き方ができなかった場合、「こう書きたい」の要望を `gaps.md` に書く。
