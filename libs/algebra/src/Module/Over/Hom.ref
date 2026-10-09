@@ -10,6 +10,15 @@
   scalar: \forall (a: R)(x: V) -> data.apply (Source.scale a x) = Target.scale a (data.apply x),
 }
 \definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition dataExt: \forall (f, g: Data) -> #apply{f} = #apply{g} -> f = g :=
+  \induction (f: Data) \return \forall (g: Data) -> #apply{f} = #apply{g} -> f = g \with {
+    | # : \fun (f: V -> W) =>
+      \induction (g: Data) \return f = #apply{g} -> Data::# f = g \with {
+        | # : \fun (g: V -> W)(equal: f = g) => congr!{{V -> W} Data} (\fun (h: V -> W) => Data::# h) f g equal
+      }
+  };
+\definition ext: \forall (f, g: Map) -> (\forall (x: V) -> #apply{f} x = #apply{g} x) -> f = g :=
+  \fun (f, g: Map)(same: _) => dataExt f g (\axiom:funext(#apply{f}, #apply{g}, same));
 \definition zeroPreserved: \forall (f: Map) -> #apply{f} Source.zero = Target.zero :=
   \fun (f: _) => TargetGroup.cancelLeft (#apply{f} Source.zero) (#apply{f} Source.zero) Target.zero
     (trans!{W} _ _ _
@@ -25,6 +34,20 @@
   \fun (f: _)(x, y: _) => trans!{W} _ _ _ (#addition{f} x (Source.neg y))
     (congr!{W W} (Target.add (#apply{f} x)) _ _ (negativePreserved f y));
 
+\definition injectiveOfZeroKernel: \forall (f: Map) ->
+  (\forall (x: V) -> #apply{f} x = Target.zero -> x = Source.zero) ->
+  \forall (x, y: V) -> #apply{f} x = #apply{f} y -> x = y :=
+  \fun (f: Map)(kernel: \forall (x: V) -> #apply{f} x = Target.zero -> x = Source.zero)(x, y: V)(equal: #apply{f} x = #apply{f} y) =>
+    trans!{V} x (Source.add (SourceGroup.difference x y) y) y
+      (sym!{V} _ _ (SourceGroup.addDifference x y))
+      (trans!{V} _ _ _
+        (congr!{V V} (\fun (v: V) => Source.add v y) _ _
+          (kernel (SourceGroup.difference x y)
+            (trans!{W} _ _ _ (differencePreserved f x y)
+              (trans!{W} _ _ _ (congr!{W W} (\fun (v: W) => TargetGroup.difference v (#apply{f} y)) _ _ equal)
+                (TargetGroup.inverseRight (#apply{f} y))))))
+        (SourceGroup.zeroLeft y));
+
 \definition zeroMap: Map := Map {
   apply := \fun (x: V) => Target.zero,
   addition := \fun (x, y: V) => sym!{W} _ _ (TargetGroup.zeroLeft Target.zero),
@@ -38,6 +61,28 @@
   scalar := \fun (a: R)(x: V) => trans!{W} _ _ _
     (congr2!{W W W} Target.add _ _ _ _ (#scalar{f} a x) (#scalar{g} a x))
     (sym!{W} _ _ (#vectorAdd{target} a (#apply{f} x) (#apply{g} x))),
+};
+\definition negative(f: Map): Map := Map {
+  apply := \fun (x: V) => Target.neg (#apply{f} x),
+  addition := \fun (x, y: V) => trans!{W} _ _ _
+    (congr!{W W} Target.neg _ _ (#addition{f} x y)) (TargetGroup.negAdd (#apply{f} x) (#apply{f} y)),
+  scalar := \fun (a: R)(x: V) => trans!{W} _ _ _
+    (congr!{W W} Target.neg _ _ (#scalar{f} a x)) (sym!{W} _ _ (Target.scaleNeg a (#apply{f} x))),
+};
+\import std.Alg[].Monoid[] \as Monoid;
+\definition additive: Alg.CommutativeGroup[Map] := Alg.CommutativeGroup[Map] {
+  base := Alg.GroupData[Map]::# zeroMap plus negative,
+  group := Alg.GroupLaws[Map, Alg.GroupData[Map]::# zeroMap plus negative] {
+    monoid := Monoid.MonoidLaws[Map, Monoid.MonoidData[Map]::# zeroMap plus] {
+      leftIdentity := \fun (f: Map) => ext (plus zeroMap f) f (\fun (x: V) => TargetGroup.zeroLeft (#apply{f} x)),
+      rightIdentity := \fun (f: Map) => ext (plus f zeroMap) f (\fun (x: V) => TargetGroup.zeroRight (#apply{f} x)),
+      associative := \fun (f, g, h: Map) => ext (plus (plus f g) h) (plus f (plus g h))
+        (\fun (x: V) => TargetGroup.assoc (#apply{f} x) (#apply{g} x) (#apply{h} x)),
+    },
+    leftInverse := \fun (f: Map) => ext (plus (negative f) f) zeroMap (\fun (x: V) => TargetGroup.inverseLeft (#apply{f} x)),
+    rightInverse := \fun (f: Map) => ext (plus f (negative f)) zeroMap (\fun (x: V) => TargetGroup.inverseRight (#apply{f} x)),
+  },
+  commutative := \fun (f, g: Map) => ext (plus f g) (plus g f) (\fun (x: V) => TargetGroup.comm (#apply{f} x) (#apply{g} x)),
 };
 \module Composition(U: \Set, domain: Space U) {
   \import \parent.\parent.Hom[V := U, W := V, source := domain, target := source] \as Before;

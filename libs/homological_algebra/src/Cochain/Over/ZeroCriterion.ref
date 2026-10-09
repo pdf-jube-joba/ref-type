@@ -1,0 +1,51 @@
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\import \parent.ZeroDifferential[family := C.family] \as Zero;
+\definition DifferentialZero: \Prop := \forall (n: N.Nat^)(x: C.family.Carrier n) ->
+  #apply{C.differential} n x = #zero{(C.family.space (next n))};
+\import \parent.Map[C := Zero.complex, D := C] \as Forward;
+\definition forward(zero: DifferentialZero): Forward.Map := Forward.Map {
+  apply := \fun (n: N.Nat^)(x: C.family.Carrier n) => x,
+  addition := \fun (n: N.Nat^)(x, y: C.family.Carrier n) => \refl(#add{(C.family.space n)} x y),
+  scalar := \fun (n: N.Nat^)(a: R)(x: C.family.Carrier n) => \refl(#smul{(C.family.space n)} a x),
+  commutes := zero,
+};
+\import \parent.Map[C := C, D := Zero.complex] \as Backward;
+\definition backward(zero: DifferentialZero): Backward.Map := Backward.Map {
+  apply := \fun (n: N.Nat^)(x: C.family.Carrier n) => x,
+  addition := \fun (n: N.Nat^)(x, y: C.family.Carrier n) => \refl(#add{(C.family.space n)} x y),
+  scalar := \fun (n: N.Nat^)(a: R)(x: C.family.Carrier n) => \refl(#smul{(C.family.space n)} a x),
+  commutes := \fun (n: N.Nat^)(x: C.family.Carrier n) => sym!{{C.family.Carrier (next n)}} _ _ (zero n x),
+};
+\module At(n: N.Nat^) {
+  \import \parent.\parent.At[C := Zero.complex, k := n] \as Source;
+  \import \parent.\parent.At[C := C, k := n] \as Target;
+  \import Forward.At[k := n] \as F;
+  \import Backward.At[k := n] \as B;
+  \definition leftInverse: \forall (zero: DifferentialZero)(x: Source.Cohomology) ->
+    #apply{(B.induced (backward zero))} (#apply{(F.induced (forward zero))} x) = x :=
+    \fun (zero: DifferentialZero) => Source.classInduction
+      (\fun (x: Source.Cohomology) => #apply{(B.induced (backward zero))} (#apply{(F.induced (forward zero))} x) = x)
+      (\fun (x: Source.CycleCarrier) => trans!{Source.Cohomology} _ _ _
+        (congr!{Target.Cohomology Source.Cohomology} (#apply{(B.induced (backward zero))}) _ _ (F.onClass (forward zero) x))
+        (B.onClass (backward zero) (#apply{(F.cyclesMap (forward zero))} x)));
+  \definition rightInverse: \forall (zero: DifferentialZero)(x: Target.Cohomology) ->
+    #apply{(F.induced (forward zero))} (#apply{(B.induced (backward zero))} x) = x :=
+    \fun (zero: DifferentialZero) => Target.classInduction
+      (\fun (x: Target.Cohomology) => #apply{(F.induced (forward zero))} (#apply{(B.induced (backward zero))} x) = x)
+      (\fun (x: Target.CycleCarrier) => trans!{Target.Cohomology} _ _ _
+        (congr!{Source.Cohomology Target.Cohomology} (#apply{(F.induced (forward zero))}) _ _ (B.onClass (backward zero) x))
+        (F.onClass (forward zero) (#apply{(B.cyclesMap (backward zero))} x)));
+  \import Modules.Isomorphism[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace] \as Iso;
+  \definition isomorphism(zero: DifferentialZero): Iso.Isomorphism := Iso.Isomorphism {
+    forward := F.induced (forward zero), backward := B.induced (backward zero),
+    leftInverse := leftInverse zero, rightInverse := rightInverse zero,
+  };
+  \import Zero.At[k := n] \as Term;
+  \import Modules.Isomorphism[V := C.family.Carrier n, W := Source.Cohomology, source := C.family.space n, target := Source.cohomologySpace].Composition[
+    U := Target.Cohomology, final := Target.cohomologySpace] \as Composition;
+  \definition termIsomorphism(zero: DifferentialZero):
+    Modules.Isomorphism[V := C.family.Carrier n, W := Target.Cohomology, source := C.family.space n, target := Target.cohomologySpace].Isomorphism :=
+    Composition.compose (isomorphism zero) Term.isomorphism;
+  \definition existence: DifferentialZero -> \exists Iso.Isomorphism :=
+    \fun (zero: DifferentialZero) => \exact(isomorphism zero, Iso.Isomorphism);
+}

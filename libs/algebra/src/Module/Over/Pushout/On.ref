@@ -1,0 +1,45 @@
+\import Sum.Universal[U := A.Carrier, domain := A.space] \as Pairing;
+\import \root.Module[].Over[R := R, ring := ring] \as Modules;
+\definition relation: Modules.Hom[V := A.Carrier, W := Sum.Carrier, source := A.space, target := Sum.space].Map := Pairing.pair f (RightMaps.negative g);
+\import Modules.Of[V := Sum.Carrier, space := Sum.space].Submodule[] \as Submodules;
+\import Submodules.Image[U := A.Carrier, source := A.space] \as Images;
+\definition relations: Submodules.Submodule := Images.image relation;
+\import Submodules.Quotient[S := relations] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition space: Modules.Space Carrier := Quotient.moduleSpace;
+\definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+\definition class: Sum.Carrier -> Carrier := Quotient.class;
+\definition classLinear: Modules.Hom[V := Sum.Carrier, W := Carrier, source := Sum.space, target := space].Map := Quotient.projection;
+\definition classOnto: \forall (q: Carrier) -> \exists { x: Sum.Carrier \where class x = q } := Quotient.onto;
+\definition zeroClassRelation: \forall (x: Sum.Carrier) -> class x = #zero{space} -> \exists { a: A.Carrier \where #apply{relation} a = x } :=
+  Quotient.zeroClassMember;
+\import Modules.Hom[V := B.Carrier, W := Carrier, source := B.space, target := space] \as FromLeft;
+\import Modules.Hom[V := C.Carrier, W := Carrier, source := C.space, target := space] \as FromRight;
+\import Modules.Hom[V := Sum.Carrier, W := Carrier, source := Sum.space, target := space].Composition[U := B.Carrier, domain := B.space] \as LeftComposition;
+\import Modules.Hom[V := Sum.Carrier, W := Carrier, source := Sum.space, target := space].Composition[U := C.Carrier, domain := C.space] \as RightComposition;
+\definition left: FromLeft.Map := LeftComposition.compose Quotient.projection Sum.firstInjection;
+\definition right: FromRight.Map := RightComposition.compose Quotient.projection Sum.secondInjection;
+\definition onSum: \forall (x: Sum.Carrier) -> class x = #add{space} (#apply{left} (Sum.first x)) (#apply{right} (Sum.second x)) :=
+  \fun (x: Sum.Carrier) => trans!{Carrier} _ _ _
+    (congr!{Sum.Carrier Carrier} class x (Sum.plus (#apply{Sum.firstInjection} (Sum.first x)) (#apply{Sum.secondInjection} (Sum.second x)))
+      (sym!{Sum.Carrier} _ _ (Sum.reconstruction x)))
+    (#addition{Quotient.projection} (#apply{Sum.firstInjection} (Sum.first x)) (#apply{Sum.secondInjection} (Sum.second x)));
+\import Modules.Laws[V := B.Carrier, space := B.space] \as Left;
+\import Modules.Laws[V := C.Carrier, space := C.space] \as Right;
+\import algebra.Group[].Of[Carrier := B.Carrier, group := Left.additive] \as LeftGroup;
+\import algebra.Group[].Of[Carrier := C.Carrier, group := Right.additive] \as RightGroup;
+\import Modules.Laws[V := Sum.Carrier, space := Sum.space] \as SumLaws;
+\import algebra.Group[].Of[Carrier := Sum.Carrier, group := SumLaws.additive] \as Group;
+\import std.Data[].Pair[].Prop[A := B.Carrier, B := C.Carrier] \as Pairs;
+\definition difference: \forall (x: A.Carrier) -> Group.difference (#apply{Sum.firstInjection} (#apply{f} x)) (#apply{Sum.secondInjection} (#apply{g} x)) = #apply{relation} x :=
+  \fun (x: A.Carrier) => Pairs.ext _ _
+    (trans!{B.Carrier} _ _ _ (congr!{B.Carrier B.Carrier} (#add{B.space} (#apply{f} x)) _ _ LeftGroup.negZero) (LeftGroup.zeroRight (#apply{f} x)))
+    (RightGroup.zeroLeft (#neg{C.space} (#apply{g} x)));
+\definition square: \forall (x: A.Carrier) -> #apply{left} (#apply{f} x) = #apply{right} (#apply{g} x) :=
+  \fun (x: A.Carrier) => Quotient.classRelated (#apply{Sum.firstInjection} (#apply{f} x)) (#apply{Sum.secondInjection} (#apply{g} x))
+    (\idelim #apply{relation} x = Group.difference (#apply{Sum.firstInjection} (#apply{f} x)) (#apply{Sum.secondInjection} (#apply{g} x))
+      \with y: Sum.Carrier => Submodules.Member relations y \by {
+        base: Images.member relation x, equality: sym!{Sum.Carrier} _ _ (difference x)
+      });
+\module Universal(U: Modules.Bundle, b: Modules.Hom[V := B.Carrier, W := U.Carrier, source := B.space, target := U.space].Map,
+  c: Modules.Hom[V := C.Carrier, W := U.Carrier, source := C.space, target := U.space].Map);

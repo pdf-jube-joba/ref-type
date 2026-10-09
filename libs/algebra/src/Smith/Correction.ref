@@ -1,0 +1,65 @@
+\use Equality.congr2;
+\import N.Basic[].Prop[] \as NaturalBounds;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import Signed.Division[] \as Division;
+\import I.Math[].Specification[].Prop[] \as IntegerLaws;
+\import IntegerLaws.Multiplication[] \as Product;
+\import std.Logic[].Proposition[] \as Logic;
+\import \parent.Reduction[] \as Reduction;
+\import \parent.Bounds[] \as Indices;
+\definition inject(k, i: N.Nat^)(a: Runtime^): Runtime^ := Rows.add a k i Arithmetic.one;
+\definition injectHistory(k, i: N.Nat^)(history: History^): History^ := History^::prepend (Operation^::rowAdd k i Arithmetic.one) history;
+\definition correct(k, i, j: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := Reduction.column k j (inject k i a) (injectHistory k i history);
+\definition injectedValue: \forall (k, i, j: N.Nat^)(a: Runtime^) -> inject k i a k j = Arithmetic.add (a k j) (a i j) :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^) => trans!{I.Int^} (inject k i a k j) (Arithmetic.add (a k j) (Arithmetic.mul Arithmetic.one (a i j))) (Arithmetic.add (a k j) (a i j))
+    (Reduction.rowAdditionSelf a k i Arithmetic.one j)
+    (congr!{I.Int^ I.Int^} (Arithmetic.add (a k j)) (Arithmetic.mul Arithmetic.one (a i j)) (a i j) (Product.mulOneLeft (a i j)));
+\definition injectedPivot: \forall (k, i: N.Nat^)(a: Runtime^) -> a i k = Arithmetic.zero -> inject k i a k k = a k k :=
+  \fun (k, i: N.Nat^)(a: Runtime^)(zero: _) => trans!{I.Int^} (inject k i a k k) (Arithmetic.add (a k k) (a i k)) (a k k)
+    (injectedValue k i k a)
+    (trans!{I.Int^} (Arithmetic.add (a k k) (a i k)) (Arithmetic.add (a k k) Arithmetic.zero) (a k k)
+      (congr!{I.Int^ I.Int^} (Arithmetic.add (a k k)) (a i k) Arithmetic.zero zero) (IntegerLaws.addZeroRight (a k k)));
+\definition injectedEntry: \forall (k, i, j: N.Nat^)(a: Runtime^) -> a k j = Arithmetic.zero -> inject k i a k j = a i j :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(zero: _) => trans!{I.Int^} (inject k i a k j) (Arithmetic.add (a k j) (a i j)) (a i j)
+    (injectedValue k i j a)
+    (trans!{I.Int^} (Arithmetic.add (a k j) (a i j)) (Arithmetic.add Arithmetic.zero (a i j)) (a i j)
+      (congr!{I.Int^ I.Int^} (\fun (value: I.Int^) => Arithmetic.add value (a i j)) (a k j) Arithmetic.zero zero) (IntegerLaws.addZeroLeft (a i j)));
+\definition smaller: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> a i k = Arithmetic.zero -> Logic.Not (a k k = Arithmetic.zero) -> Reduction.Smaller k a (correct k i j a history) := \block {
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(cleared: _)(nonzero: _) \then
+  \let equal: inject k i a k k = a k k := injectedPivot k i a cleared \then
+  \let pivotNonzero: Logic.Not (inject k i a k k = Arithmetic.zero) := \fun (zero: _) => nonzero
+    (trans!{I.Int^} (a k k) (inject k i a k k) Arithmetic.zero (sym!{I.Int^} (inject k i a k k) (a k k) equal) zero) \then
+  \return \fun (changed: _) => \idelim inject k i a k k = a k k \with value: I.Int^ =>
+    NaturalBounds.Lt (Signed.absolute (attemptMatrix (correct k i j a history) k k)) (Signed.absolute value) \by {
+    base: Reduction.columnChanged k j (inject k i a) (injectHistory k i history) pivotNonzero changed, equality: equal
+  }
+};
+\definition trace: \forall (k, i, j: N.Nat^)(original, a: Runtime^)(history: History^) -> a = applyHistory history original ->
+  attemptMatrix (correct k i j a history) = applyHistory (attemptHistory (correct k i j a history)) original :=
+  \fun (k, i, j: N.Nat^)(original, a: Runtime^)(history: History^)(trace: _) => Reduction.columnTrace k j original (inject k i a) (injectHistory k i history)
+    (congr!{Runtime^ Runtime^} (\fun (matrix: Runtime^) => Rows.add matrix k i Arithmetic.one) a (applyHistory history original) trace);
+\definition bounded: \forall (rows, cols, k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> NaturalBounds.Lt k i -> NaturalBounds.Lt k j -> NaturalBounds.Lt k rows -> NaturalBounds.Lt k cols -> NaturalBounds.Lt i rows -> NaturalBounds.Lt j cols -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (correct k i j a history)) :=
+  \fun (rows, cols, k, i, j: N.Nat^)(a: Runtime^)(history: History^)(rowLower: _)(colLower: _)(pivotRow: _)(pivotCol: _)(rowBound: _)(colBound: _)(historyLaws: _) =>
+    Reduction.Bounded[].column rows cols k j (inject k i a) (injectHistory k i history) colLower pivotCol colBound
+      (Indices.prepend rows cols (Operation^::rowAdd k i Arithmetic.one) history
+        (Indices.ShearBounds[rows, k, i] { first := pivotRow, second := rowBound, distinct := NaturalBounds.ltNe k i rowLower }) historyLaws);
+
+\structure Cleared[k, i, j: N.Nat^, a: Runtime^]: \Prop { column: a i k = Arithmetic.zero, row: a k j = Arithmetic.zero }
+\definition remainderAtInjected: \forall (k, i, j: N.Nat^)(a: Runtime^) -> Cleared[k, i, j, a] -> Division.remainder (inject k i a k j) (inject k i a k k) = Division.remainder (a i j) (a k k) :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(cleared: _) => congr2!{I.Int^ I.Int^ I.Int^} Division.remainder
+    (inject k i a k j) (a i j) (inject k i a k k) (a k k) (injectedEntry k i j a #row{cleared}) (injectedPivot k i a #column{cleared});
+\definition changed: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> Cleared[k, i, j, a] -> Logic.Not (Division.remainder (a i j) (a k k) = Arithmetic.zero) -> attemptReduced (correct k i j a history) = B.Bool^::true :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(cleared: _)(nonzero: _) => Reduction.columnIsChanged k j (inject k i a) (injectHistory k i history)
+    (\fun (zero: _) => nonzero (trans!{I.Int^} (Division.remainder (a i j) (a k k)) (Division.remainder (inject k i a k j) (inject k i a k k)) Arithmetic.zero
+      (sym!{I.Int^} (Division.remainder (inject k i a k j) (inject k i a k k)) (Division.remainder (a i j) (a k k)) (remainderAtInjected k i j a cleared)) zero));
+\definition decreases: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> Cleared[k, i, j, a] -> Logic.Not (a k k = Arithmetic.zero) -> Logic.Not (Division.remainder (a i j) (a k k) = Arithmetic.zero) ->
+  NaturalBounds.Lt (Signed.absolute (attemptMatrix (correct k i j a history) k k)) (Signed.absolute (a k k)) :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(cleared: _)(pivotNonzero: _)(nonzero: _) => smaller k i j a history #column{cleared} pivotNonzero (changed k i j a history cleared nonzero);
+
+\definition nonzero: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> NaturalBounds.Lt k j -> a i k = Arithmetic.zero -> Logic.Not (a k k = Arithmetic.zero) -> Logic.Not (attemptMatrix (correct k i j a history) k k = Arithmetic.zero) :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^)(lower: _)(cleared: _)(nonzero: _) => Reduction.columnNonzero k j (inject k i a) (injectHistory k i history) lower
+    (\fun (zero: _) => nonzero (trans!{I.Int^} (a k k) (inject k i a k k) Arithmetic.zero (sym!{I.Int^} (inject k i a k k) (a k k) (injectedPivot k i a cleared)) zero));
+\module Implementation;
+\correspondence Correct: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := correct, coherence := Implementation[].coherence,
+};

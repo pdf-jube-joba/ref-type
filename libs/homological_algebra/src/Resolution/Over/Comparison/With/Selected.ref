@@ -1,0 +1,20 @@
+\definition stages: \forall (n: Nat.Nat^) -> Stage n := \induction (n: Nat.Nat^) \return Stage n \with {
+  | zero: \into[\parent.At[n := Nat.Nat^::zero].Map](initial, { g: \parent.At[n := Nat.Nat^::zero].Map \where \parent.At[n := Nat.Nat^::zero].Respects g }) \by {
+      initialRespect initial (\bysub(\parent.At[n := Nat.Nat^::zero].Map, { g: \parent.At[n := Nat.Nat^::zero].Map \where Initial g }, initial))
+    }
+  | succ: \fun (n: Nat.Nat^)(stage: Stage n) => \into[\parent.At[n := Nat.Nat^::succ n].Map]
+      (selected (Index { degree := n, stage := stage }), { g: \parent.At[n := Nat.Nat^::succ n].Map \where \parent.At[n := Nat.Nat^::succ n].Respects g }) \by {
+        \parent.At[n := n].successorRespects stage (selected (Index { degree := n, stage := stage }))
+          (\bysub(\parent.At[n := Nat.Nat^::succ n].Map, { h: \parent.At[n := Nat.Nat^::succ n].Map \where \parent.At[n := n].Commutes stage h }, selected (Index { degree := n, stage := stage })))
+      }
+};
+\definition linear(n: Nat.Nat^): \parent.At[n := n].Map := stages n;
+\definition map: Maps.Map := Maps.Map {
+  apply := \fun (n: Nat.Nat^) => #apply{(linear n)},
+  addition := \fun (n: Nat.Nat^) => #addition{(linear n)},
+  scalar := \fun (n: Nat.Nat^) => #scalar{(linear n)},
+  commutes := \fun (n: Nat.Nat^) =>
+    \bysub(\parent.At[n := Nat.Nat^::succ n].Map,
+      { h: \parent.At[n := Nat.Nat^::succ n].Map \where \parent.At[n := n].Commutes (stages n) h }, selected (Index { degree := n, stage := stages n })),
+};
+\definition augmented: Augmented p q map := \bysub(\parent.At[n := Nat.Nat^::zero].Map, { g: \parent.At[n := Nat.Nat^::zero].Map \where Initial g }, initial);

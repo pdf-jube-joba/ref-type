@@ -1,0 +1,87 @@
+\import \parent.\parent.Laws[V := V, space := space] \as Values;
+\definition sum(xs: Lists.List[I])(f: I -> V): V :=
+  Lists.foldr I V (\fun (i: I)(tail: V) => Values.add (f i) tail) Values.zero xs;
+\definition congruent: \forall (xs: Lists.List[I])(f, g: I -> V) -> (\forall (i: I) -> f i = g i) -> sum xs f = sum xs g :=
+  \induction (xs: Lists.List[I]) \return \forall (f, g: I -> V) -> (\forall (i: I) -> f i = g i) -> sum xs f = sum xs g \with {
+    | nil: \fun (f, g: I -> V)(same: \forall (i: I) -> f i = g i) => \refl(Values.zero)
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (f, g: I -> V) -> (\forall (i: I) -> f i = g i) -> sum tail f = sum tail g)
+      (f, g: I -> V)(same: \forall (i: I) -> f i = g i) => congr2!{V V V} Values.add (f head) (g head) (sum tail f) (sum tail g) (same head) (previous f g same)
+  };
+\definition zero: \forall (xs: Lists.List[I]) -> sum xs (\fun (i: I) => Values.zero) = Values.zero :=
+  \induction (xs: Lists.List[I]) \return sum xs (\fun (i: I) => Values.zero) = Values.zero \with {
+    | nil: \refl(Values.zero)
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: sum tail (\fun (i: I) => Values.zero) = Values.zero) => trans!{V} _ _ _
+      (Values.zeroLeft (sum tail (\fun (i: I) => Values.zero))) previous
+  };
+\definition addition: \forall (xs: Lists.List[I])(f, g: I -> V) ->
+  sum xs (\fun (i: I) => Values.add (f i) (g i)) = Values.add (sum xs f) (sum xs g) :=
+  \induction (xs: Lists.List[I]) \return \forall (f, g: I -> V) ->
+    sum xs (\fun (i: I) => Values.add (f i) (g i)) = Values.add (sum xs f) (sum xs g) \with {
+      | nil: \fun (f, g: I -> V) => sym!{V} _ _ (Values.zeroLeft Values.zero)
+      | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (f, g: I -> V) -> sum tail (\fun (i: I) => Values.add (f i) (g i)) = Values.add (sum tail f) (sum tail g))
+        (f, g: I -> V) => trans!{V} _ _ _
+          (congr!{V V} (Values.add (Values.add (f head) (g head))) _ _ (previous f g))
+          (Values.shuffle (f head) (g head) (sum tail f) (sum tail g))
+    };
+\definition scalar: \forall (xs: Lists.List[I])(a: R)(f: I -> V) -> sum xs (\fun (i: I) => Values.scale a (f i)) = Values.scale a (sum xs f) :=
+  \induction (xs: Lists.List[I]) \return \forall (a: R)(f: I -> V) -> sum xs (\fun (i: I) => Values.scale a (f i)) = Values.scale a (sum xs f) \with {
+    | nil: \fun (a: R)(f: I -> V) => sym!{V} _ _ (Values.scaleZero a)
+    | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (a: R)(f: I -> V) -> sum tail (\fun (i: I) => Values.scale a (f i)) = Values.scale a (sum tail f))
+      (a: R)(f: I -> V) => trans!{V} _ _ _ (congr!{V V} (Values.add (Values.scale a (f head))) _ _ (previous a f))
+        (sym!{V} _ _ (#vectorAdd{space} a (f head) (sum tail f)))
+  };
+\definition exchange: \forall (xs, ys: Lists.List[I])(f: I -> I -> V) ->
+  sum xs (\fun (i: I) => sum ys (f i)) = sum ys (\fun (j: I) => sum xs (\fun (i: I) => f i j)) :=
+  \induction (xs: Lists.List[I]) \return \forall (ys: Lists.List[I])(f: I -> I -> V) ->
+    sum xs (\fun (i: I) => sum ys (f i)) = sum ys (\fun (j: I) => sum xs (\fun (i: I) => f i j)) \with {
+      | nil: \fun (ys: Lists.List[I])(f: I -> I -> V) => sym!{V} _ _ (zero ys)
+      | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (ys: Lists.List[I])(f: I -> I -> V) -> sum tail (\fun (i: I) => sum ys (f i)) = sum ys (\fun (j: I) => sum tail (\fun (i: I) => f i j)))
+        (ys: Lists.List[I])(f: I -> I -> V) => trans!{V} _ _ _
+          (congr!{V V} (Values.add (sum ys (f head))) _ _ (previous ys f))
+          (sym!{V} _ _ (addition ys (f head) (\fun (j: I) => sum tail (\fun (i: I) => f i j))))
+    };
+\module Mapping(W: \Set, target: Space W) {
+  \import \parent.\parent.\parent.Hom[V := V, W := W, source := space, target := target] \as Maps;
+  \import \parent.\parent.\parent.Sums[I := I].Vector[V := W, space := target] \as Target;
+  \definition law: \forall (map: Maps.Map)(xs: Lists.List[I])(f: I -> V) -> #apply{map} (sum xs f) = Target.sum xs (\fun (i: I) => #apply{map} (f i)) :=
+    \fun (map: Maps.Map) => \induction (xs: Lists.List[I]) \return \forall (f: I -> V) -> #apply{map} (sum xs f) = Target.sum xs (\fun (i: I) => #apply{map} (f i)) \with {
+      | nil: \fun (f: I -> V) => Maps.zeroPreserved map
+      | cons: \fun (head: I)(tail: Lists.List[I])(previous: \forall (f: I -> V) -> #apply{map} (sum tail f) = Target.sum tail (\fun (i: I) => #apply{map} (f i)))
+        (f: I -> V) => trans!{W} _ _ _ (#addition{map} (f head) (sum tail f))
+          (congr!{W W} (#add{target} (#apply{map} (f head))) _ _ (previous f))
+    };
+}
+\definition negative: \forall (xs: Lists.List[I])(f: I -> V) -> sum xs (\fun (i: I) => Values.neg (f i)) = Values.neg (sum xs f) :=
+  \fun (xs: Lists.List[I])(f: I -> V) => trans!{V} _ _ _
+    (congruent xs (\fun (i: I) => Values.neg (f i)) (\fun (i: I) => Values.scale (neg one) (f i))
+      (\fun (i: I) => sym!{V} _ _ (Values.negativeOne (f i))))
+    (trans!{V} _ _ _ (scalar xs (neg one) f) (Values.negativeOne (sum xs f)));
+\definition pairCancellation: \forall (xs: Lists.List[I])(f: I -> I -> V) ->
+  (\forall (i: I) -> f i i = Values.zero) -> (\forall (i, j: I) -> f i j = Values.neg (f j i)) ->
+  sum xs (\fun (i: I) => sum xs (f i)) = Values.zero :=
+  \induction (xs: Lists.List[I]) \return \forall (f: I -> I -> V) ->
+    (\forall (i: I) -> f i i = Values.zero) -> (\forall (i, j: I) -> f i j = Values.neg (f j i)) ->
+    sum xs (\fun (i: I) => sum xs (f i)) = Values.zero \with {
+      | nil: \fun (f: I -> I -> V)(diagonal: \forall (i: I) -> f i i = Values.zero)(opposite: \forall (i, j: I) -> f i j = Values.neg (f j i)) => \refl(Values.zero)
+      | cons: \block {
+        \fun (head: I)(tail: Lists.List[I])(previous: \forall (f: I -> I -> V) -> (\forall (i: I) -> f i i = Values.zero) -> (\forall (i, j: I) -> f i j = Values.neg (f j i)) -> sum tail (\fun (i: I) => sum tail (f i)) = Values.zero)
+          (f: I -> I -> V)(diagonal: \forall (i: I) -> f i i = Values.zero)(opposite: \forall (i, j: I) -> f i j = Values.neg (f j i)) \then
+        \let row: V := sum tail (f head) \then
+        \let column: V := sum tail (\fun (i: I) => f i head) \then
+        \let grid: V := sum tail (\fun (i: I) => sum tail (f i)) \then
+        \let rowNegative: row = Values.neg column := trans!{V} _ _ _
+          (congruent tail (f head) (\fun (i: I) => Values.neg (f i head)) (opposite head)) (negative tail (\fun (i: I) => f i head)) \then
+        \return eq_reason!{
+          {Values.add (Values.add (f head head) row) (sum tail (\fun (i: I) => Values.add (f i head) (sum tail (f i))))}
+          "=" {Values.add (Values.add Values.zero row) (Values.add column grid)} "by" {
+            congr2!{V V V} Values.add _ _ _ _
+              (congr!{V V} (\fun (v: V) => Values.add v row) _ _ (diagonal head))
+              (addition tail (\fun (i: I) => f i head) (\fun (i: I) => sum tail (f i)))}
+          "=" {Values.add row column} "by" {congr2!{V V V} Values.add _ _ _ _ (Values.zeroLeft row)
+            (trans!{V} _ _ _ (congr!{V V} (Values.add column) grid Values.zero (previous f diagonal opposite)) (Values.zeroRight column))}
+          "=" {Values.add (Values.neg column) column} "by" {congr!{V V} (\fun (v: V) => Values.add v column) row (Values.neg column) rowNegative}
+          "=" {Values.zero} "by" {Values.inverseLeft column}
+        }
+      }
+    };
+\module Single;

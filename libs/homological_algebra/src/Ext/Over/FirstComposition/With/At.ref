@@ -1,0 +1,41 @@
+\import Source.At[n := k] \as SourceTerm;
+\import Middle.At[n := k] \as MiddleTerm;
+\import Target.At[n := k] \as TargetTerm;
+\import First.At[k := k].With[p := p, q := q, f := u] \as FirstAction;
+\import Second.At[k := k].With[p := q, q := r, f := v] \as SecondAction;
+\import Direct.At[k := k].With[p := p, q := r, f := Coefficients.compose v u] \as DirectAction;
+\import Modules.Hom[V := MiddleTerm.Carrier, W := TargetTerm.Carrier,
+  source := MiddleTerm.space, target := TargetTerm.space] \as FirstMaps;
+\import Modules.Hom[V := SourceTerm.Carrier, W := MiddleTerm.Carrier,
+  source := SourceTerm.space, target := MiddleTerm.space] \as SecondMaps;
+\import Modules.Hom[V := SourceTerm.Carrier, W := TargetTerm.Carrier,
+  source := SourceTerm.space, target := TargetTerm.space] \as DirectMaps;
+\definition first(g: BeforeLift): FirstMaps.Map := CochainBefore.At[k := k].induced (Hom.second g);
+\definition second(h: AfterLift): SecondMaps.Map := CochainAfter.At[k := k].induced (Hom.first h);
+\definition direct(g: BeforeLift)(h: AfterLift): DirectMaps.Map := CochainDirect.At[k := k].induced (Hom.direct g h);
+\definition firstEquality: \forall (g: BeforeLift) -> FirstAction.map = first g :=
+  \fun (g: BeforeLift) => FirstAction.onComparison g
+    (\bysub(ChainBefore.Map, { g: ChainBefore.Map \where CompareBefore.Augmented p q g }, g));
+\definition secondEquality: \forall (h: AfterLift) -> SecondAction.map = second h :=
+  \fun (h: AfterLift) => SecondAction.onComparison h
+    (\bysub(ChainAfter.Map, { h: ChainAfter.Map \where CompareAfter.Augmented q r h }, h));
+\definition directEquality: \forall (g: BeforeLift)(h: AfterLift) -> DirectAction.map = direct g h :=
+  \fun (g: BeforeLift)(h: AfterLift) => DirectAction.onComparison (ChainComposition.compose h g) (compositeAugmented g h);
+\definition composition: \forall (a: SourceTerm.Carrier) ->
+  #apply{DirectAction.map} a = #apply{FirstAction.map} (#apply{SecondAction.map} a) := \block {
+  \fun (a: SourceTerm.Carrier) \then
+  \takefrom g: BeforeLift \by CompareBefore.existence p q \then
+  \takefrom h: AfterLift \by CompareAfter.existence q r \then
+  \return trans!{{TargetTerm.Carrier}} _ _ _
+    (congr!{DirectMaps.Map {TargetTerm.Carrier}} (\fun (f: DirectMaps.Map) => #apply{f} a)
+      DirectAction.map (direct g h) (directEquality g h))
+    (trans!{{TargetTerm.Carrier}} _ _ _ (Hom.At[k := k].onCohomology g h a)
+      (trans!{{TargetTerm.Carrier}} _ _ _
+        (congr!{FirstMaps.Map {TargetTerm.Carrier}}
+          (\fun (f: FirstMaps.Map) => #apply{f} (#apply{(second h)} a)) (first g) FirstAction.map
+          (sym!{FirstMaps.Map} FirstAction.map (first g) (firstEquality g)))
+        (congr!{{MiddleTerm.Carrier} {TargetTerm.Carrier}} (#apply{FirstAction.map}) _ _
+          (congr!{SecondMaps.Map {MiddleTerm.Carrier}}
+            (\fun (f: SecondMaps.Map) => #apply{f} a) (second h) SecondAction.map
+            (sym!{SecondMaps.Map} SecondAction.map (second h) (secondEquality h))))))
+};

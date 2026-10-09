@@ -1,0 +1,16 @@
+\definition output: Attempt^ := Round.round m n k (attemptMatrix current) (attemptHistory current);
+\definition final: Pivot.Ready[m, n, k, a, history, current] -> attemptReduced output = B.Bool^::false -> Prefix.FinalAt[k, attemptMatrix output] :=
+  \fun (prepared: Pivot.Ready[m, n, k, a, history, current])(unchanged: _) => Prefix.FinalAt[k, attemptMatrix output] {
+    nonzero := Round.nonzero m n k (attemptMatrix current) (attemptHistory current) #nonzero{prepared},
+    row := #row{(#settled{(Round.complete m n k (attemptMatrix current) (attemptHistory current) unchanged)})},
+    column := #column{(#settled{(Round.complete m n k (attemptMatrix current) (attemptHistory current) unchanged)})},
+    divides := #divides{(Round.complete m n k (attemptMatrix current) (attemptHistory current) unchanged)},
+  };
+\definition law: Bounds.Lt k m -> Bounds.Lt k n -> StateLaw[k, a, history] -> Pivot.Ready[m, n, k, a, history, current] ->
+  Pivot.prepare m n k a history = Pivot.Selection^::ready current -> Results.Post (selected m n k a history (Pivot.Selection^::ready current)) :=
+  \fun (rowBound: _)(columnBound: _)(law: StateLaw[k, a, history])(prepared: Pivot.Ready[m, n, k, a, history, current])(selected: _) =>
+    after k output rowBound columnBound
+      (Round.bounded m n k (attemptMatrix current) (attemptHistory current) rowBound columnBound (#bounded{prepared} #bounded{(#computation{law})}))
+      (Round.traced m n k original (attemptMatrix current) (attemptHistory current) (#traced{prepared} original #traced{(#computation{law})}))
+      (Prefix.round k (attemptMatrix current) (attemptHistory current) rowBound columnBound (Prefix.readyPreserves k a history current rowBound columnBound #prefix{law} selected))
+      (final prepared);

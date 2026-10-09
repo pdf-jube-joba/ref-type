@@ -1,0 +1,66 @@
+\definition p: Nat.Nat^ := #first{i};
+\definition q: Nat.Nat^ := #second{i};
+\definition index: Total.Index n := i;
+\import Cochains.At[C := C, k := p] \as Left;
+\import Cochains.At[C := D, k := q] \as Right;
+\import Cochains.At[C := Total.complex, k := n] \as H;
+\import Product.Term[p := p, q := q] \as Term;
+\import Product.At[p := p, q := q] \as Differential;
+\import Product.Term[p := Nat.Nat^::succ p, q := q] \as HTerm;
+\import Product.Term[p := p, q := Nat.Nat^::succ q] \as VTerm;
+\import Total.Degree[n := n] \as Current;
+\import Total.Degree[n := Nat.Nat^::succ n] \as Next;
+\import Total.Step[n := n] \as Step;
+\import Current.Component[i := index] \as Inclusion;
+\import Next.Component[i := Total.upHorizontal n index] \as HInclusion;
+\import Next.Component[i := Total.upVertical n index] \as VInclusion;
+\import Modules.Hom[V := HTerm.Carrier, W := Next.Carrier, source := HTerm.space, target := Next.space] \as HMaps;
+\import Modules.Hom[V := VTerm.Carrier, W := Next.Carrier, source := VTerm.space, target := Next.space] \as VMaps;
+\import Degrees.Sign[V := VTerm.Carrier, space := VTerm.space] \as Sign;
+\import Modules.Hom[V := VTerm.Carrier, W := VTerm.Carrier, source := VTerm.space, target := VTerm.space] \as Signs;
+\definition value(x: Left.CycleCarrier)(y: Right.CycleCarrier): Current.Carrier := #apply{Inclusion.injection} (Term.tensor x y);
+\definition horizontalClosed: \forall (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  #apply{Step.horizontal} (value x y) = #zero{Next.space} :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{Next.Carrier}
+    (#apply{Step.horizontal} (value x y))
+    (#apply{HInclusion.injection} (HTerm.tensor (#apply{C.differential} p x) y)) #zero{Next.space}
+    (trans!{Next.Carrier} _ _ _ (Step.horizontalOnInjection index (Term.tensor x y))
+      (congr!{HTerm.Carrier Next.Carrier} (#apply{HInclusion.injection}) _ _ (Differential.horizontalOnTensor x y)))
+    (trans!{Next.Carrier} _ _ _
+      (congr!{HTerm.Carrier Next.Carrier} (#apply{HInclusion.injection}) _ _
+        (trans!{HTerm.Carrier} _ _ _
+          (congr!{{C.family.Carrier (Nat.Nat^::succ p)} HTerm.Carrier}
+            (\fun (v: C.family.Carrier (Nat.Nat^::succ p)) => HTerm.tensor v y) _ _
+            (\bysub(C.family.Carrier p, #carrier{Left.cycles}, x)))
+          (HTerm.zeroLeft y)))
+      (HMaps.zeroPreserved HInclusion.injection));
+\definition verticalClosed: \forall (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  #apply{Step.vertical} (value x y) = #zero{Next.space} :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{Next.Carrier}
+    (#apply{Step.vertical} (value x y))
+    (#apply{VInclusion.injection} (#apply{(Sign.map p)} (VTerm.tensor x (#apply{D.differential} q y)))) #zero{Next.space}
+    (trans!{Next.Carrier} _ _ _ (Step.verticalOnInjection index (Term.tensor x y))
+      (congr!{VTerm.Carrier Next.Carrier} (\fun (v: VTerm.Carrier) => #apply{VInclusion.injection} (#apply{(Sign.map p)} v)) _ _
+        (Differential.verticalOnTensor x y)))
+    (trans!{Next.Carrier} _ _ _
+      (congr!{VTerm.Carrier Next.Carrier} (\fun (v: VTerm.Carrier) => #apply{VInclusion.injection} (#apply{(Sign.map p)} v)) _ _
+        (trans!{VTerm.Carrier} _ _ _
+          (congr!{{D.family.Carrier (Nat.Nat^::succ q)} VTerm.Carrier}
+            (\fun (v: D.family.Carrier (Nat.Nat^::succ q)) => VTerm.tensor x v) _ _
+            (\bysub(D.family.Carrier q, #carrier{Right.cycles}, y)))
+          (VTerm.zeroRight x)))
+      (trans!{Next.Carrier} _ _ _
+        (congr!{VTerm.Carrier Next.Carrier} (#apply{VInclusion.injection}) _ _ (Signs.zeroPreserved (Sign.map p)))
+        (VMaps.zeroPreserved VInclusion.injection)));
+\import Modules.Laws[V := Next.Carrier, space := Next.space] \as NextLaws;
+\import algebra.Group[].Of[Carrier := Next.Carrier, group := NextLaws.additive] \as NextGroup;
+\definition closed: \forall (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  #apply{Total.differential} n (value x y) = #zero{Next.space} :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{Next.Carrier}
+    (#apply{Total.differential} n (value x y)) (#add{Next.space} #zero{Next.space} #zero{Next.space}) #zero{Next.space}
+    (congr2!{Next.Carrier Next.Carrier Next.Carrier} (#add{Next.space})
+      (#apply{Step.horizontal} (value x y)) #zero{Next.space}
+      (#apply{Step.vertical} (value x y)) #zero{Next.space} (horizontalClosed x y) (verticalClosed x y))
+    (NextGroup.zeroLeft #zero{Next.space});
+\definition cycle(x: Left.CycleCarrier)(y: Right.CycleCarrier): H.CycleCarrier := H.cycle (value x y) (closed x y);
+\definition classOf(x: Left.CycleCarrier)(y: Right.CycleCarrier): H.Cohomology := H.classOf (cycle x y);

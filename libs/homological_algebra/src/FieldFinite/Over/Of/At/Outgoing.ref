@@ -1,0 +1,37 @@
+\definition higher: N.Nat^ := N.Nat^::succ n;
+\import Cochains.At[C := complex, k := higher] \as Next;
+\import Modules.Of[V := Carrier (C.ranks higher), space := space (C.ranks higher)].Submodule[].Of[S := Next.boundaries] \as Image;
+\definition source: Modules.Bundle := Modules.Bundle { Carrier := Carrier (C.ranks n), space := space (C.ranks n) };
+\definition target: Modules.Bundle := Modules.Bundle { Carrier := Image.Carrier, space := Image.moduleSpace };
+\import Modules.Hom[V := source.Carrier, W := Image.Carrier, source := source.space, target := Image.moduleSpace] \as Maps;
+\definition differential: Maps.Map := Maps.Map {
+  apply := \fun (x: source.Carrier) => \into[Carrier (C.ranks higher)](#apply{(C.differential n)} x, #carrier{Next.boundaries}) \by {
+    \exact(\into[source.Carrier](x, { y: source.Carrier \where #apply{(C.differential n)} y = #apply{(C.differential n)} x }) \by { \refl(#apply{(C.differential n)} x) },
+      \Cast[source.Carrier] ({ y: source.Carrier \where #apply{(C.differential n)} y = #apply{(C.differential n)} x }))
+  },
+  addition := \fun (x, y: source.Carrier) => #addition{(C.differential n)} x y,
+  scalar := \fun (a: K)(x: source.Carrier) => #scalar{(C.differential n)} a x,
+};
+\definition onto: Modules.Surjective source target differential := \block {
+  \fun (y: target.Carrier) \then
+  \takefrom x: \Cast[source.Carrier] ({ x: source.Carrier \where #apply{(C.differential n)} x = y })
+    \by \bysub(Carrier (C.ranks higher), #carrier{Next.boundaries}, y) \then
+  \return \exact(\into[source.Carrier](x, { x: source.Carrier \where #apply{differential} x = y }) \by {
+    \bysub(source.Carrier, { x: source.Carrier \where #apply{(C.differential n)} x = y }, x)
+  }, \Cast[source.Carrier] ({ x: source.Carrier \where #apply{differential} x = y }))
+};
+\import Modules.ShortExact[A := cycleBundle, B := source, C := target] \as Sequences;
+\definition sequence: Sequences.Sequence := Sequences.Sequence {
+  inclusion := Cycles.inclusion, projection := differential,
+  injective := \fun (x, y: H.CycleCarrier)(equal: x = y) => equal,
+  onto := onto,
+  zero := \fun (x: H.CycleCarrier) => \bysub(source.Carrier, #carrier{H.cycles}, x),
+  kernelImage := \fun (x: source.Carrier)(closed: #apply{differential} x = #zero{target.space}) =>
+    \exact(\into[H.CycleCarrier](H.cycle x closed, { y: H.CycleCarrier \where y = x }) \by { \refl(x) },
+      \Cast[H.CycleCarrier] ({ y: H.CycleCarrier \where y = x })),
+};
+\definition imageProjective: Modules.Projective target := Subspaces.projective (C.ranks higher) Next.boundaries;
+\definition Section: \Set := \Cast[Modules.MapBetween target source] ({ s: Modules.MapBetween target source \where
+  \forall (x: target.Carrier) -> #apply{differential} (#apply{s} x) = x });
+\definition sectionExistence: \exists Section := imageProjective source.Carrier source.space target.Carrier target.space differential onto
+  (Modules.End[V := target.Carrier, space := target.space].identity);

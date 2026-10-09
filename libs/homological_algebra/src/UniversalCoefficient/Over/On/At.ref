@@ -1,0 +1,70 @@
+\import Chains.At[C := C, z := z] \as H;
+\import Hom.Cohomology[z := z] \as Cohomology;
+\import Modules.Hom[V := H.Cycle, W := A.Carrier, source := H.cycleSpace, target := A.space] \as Restriction;
+\definition restriction(f: Cohomology.Closed): Restriction.Map := Restriction.Map {
+  apply := \fun (x: H.Cycle) => #apply{f} x,
+  addition := \fun (x, y: H.Cycle) => #addition{f} x y,
+  scalar := \fun (a: R)(x: H.Cycle) => #scalar{f} a x,
+};
+\import Modules.Of[V := H.Cycle, space := H.cycleSpace].Submodule[].Quotient[S := H.boundariesInside].To[W := A.Carrier, target := A.space] \as Descent;
+\import Modules.Hom[V := C.family.Carrier (Degrees.next z), W := A.Carrier, source := C.family.space (Degrees.next z), target := A.space] \as Differential;
+\definition onBoundary: \forall (f: Cohomology.Closed)(x: C.family.Carrier (Degrees.next z)) -> #apply{f} (#apply{H.prior} x) = #zero{A.space} :=
+  \fun (f: Cohomology.Closed)(x: C.family.Carrier (Degrees.next z)) =>
+    congr!{Differential.Map A.Carrier} (\fun (g: Differential.Map) => #apply{g} x)
+      (Hom.apply z f) (#zero{(Hom.space (Degrees.next z))}) (Cohomology.closed f);
+\definition vanishes: \forall (f: Cohomology.Closed) -> Descent.Vanishes (restriction f) := \block {
+  \fun (f: Cohomology.Closed)(x: H.Cycle)(member: _) \then
+  \takefrom y: \Cast[C.family.Carrier (Degrees.next z)] ({ y: C.family.Carrier (Degrees.next z) \where #apply{H.prior} y = x }) \by member \then
+  \return trans!{A.Carrier} (#apply{f} x) (#apply{f} (#apply{H.prior} y)) (#zero{A.space})
+    (sym!{A.Carrier} _ _ (congr!{{C.family.Carrier z} A.Carrier} (#apply{f}) _ _
+      (\bysub(C.family.Carrier (Degrees.next z), { y: C.family.Carrier (Degrees.next z) \where #apply{H.prior} y = x }, y))))
+    (onBoundary f y)
+};
+\import Algebra.HomSpace[V := H.Homology, W := A.Carrier, source := H.homologySpace, target := A.space] \as Values;
+\definition evaluate(f: Cohomology.Closed): Values.Carrier := Descent.descend (restriction f) (vanishes f);
+\definition onClass: \forall (f: Cohomology.Closed)(x: H.Cycle) -> #apply{(evaluate f)} (H.classOf x) = #apply{f} x :=
+  \fun (f: Cohomology.Closed) => Descent.onClass (restriction f) (vanishes f);
+\import Modules.Hom[V := H.Homology, W := A.Carrier, source := H.homologySpace, target := A.space] \as ValueMaps;
+\import Modules.Hom[V := Cohomology.Closed, W := Values.Carrier, source := Cohomology.cycleSpace, target := Values.space] \as Evaluations;
+\definition evaluation: Evaluations.Map := Evaluations.Map {
+  apply := evaluate,
+  addition := \fun (f, g: Cohomology.Closed) => ValueMaps.ext (evaluate (#add{Cohomology.cycleSpace} f g)) (#add{Values.space} (evaluate f) (evaluate g))
+    (H.classInduction (\fun (x: H.Homology) => #apply{(evaluate (#add{Cohomology.cycleSpace} f g))} x = #apply{(#add{Values.space} (evaluate f) (evaluate g))} x)
+      (\fun (x: H.Cycle) => trans!{A.Carrier} _ _ _ (onClass (#add{Cohomology.cycleSpace} f g) x)
+        (sym!{A.Carrier} _ _ (congr2!{A.Carrier A.Carrier A.Carrier} (#add{A.space}) _ _ _ _ (onClass f x) (onClass g x))))),
+  scalar := \fun (a: R)(f: Cohomology.Closed) => ValueMaps.ext (evaluate (#smul{Cohomology.cycleSpace} a f)) (#smul{Values.space} a (evaluate f))
+    (H.classInduction (\fun (x: H.Homology) => #apply{(evaluate (#smul{Cohomology.cycleSpace} a f))} x = #apply{(#smul{Values.space} a (evaluate f))} x)
+      (\fun (x: H.Cycle) => trans!{A.Carrier} _ _ _ (onClass (#smul{Cohomology.cycleSpace} a f) x)
+        (sym!{A.Carrier} _ _ (congr!{A.Carrier A.Carrier} (#smul{A.space} a) _ _ (onClass f x))))),
+};
+\definition onCoboundary: \forall (g: Hom.Carrier (Degrees.previous z))(x: H.Cycle) -> #apply{(Cohomology.prior g)} x = #zero{A.space} :=
+  \fun (g: Hom.Carrier (Degrees.previous z))(x: H.Cycle) => trans!{A.Carrier} _ _ _ (Cohomology.priorOnElement g x)
+    (trans!{A.Carrier} _ _ _
+      (congr!{{C.family.Carrier (Degrees.previous z)} A.Carrier} (#apply{g}) _ _
+        (\bysub(C.family.Carrier z, #carrier{H.cycles}, x))) (Hom.At[z := Degrees.previous z].zeroPreserved g));
+\definition evaluationVanishes: \forall (f: Cohomology.Closed) ->
+  Modules.Submodule[V := Cohomology.Closed, space := Cohomology.cycleSpace].Member Cohomology.boundariesInside f -> evaluate f = #zero{Values.space} := \block {
+  \fun (f: Cohomology.Closed)(member: _) \then
+  \takefrom g: \Cast[Hom.Carrier (Degrees.previous z)] ({ g: Hom.Carrier (Degrees.previous z) \where Cohomology.prior g = f })
+    \by Cohomology.boundaryExists f member \then
+  \return ValueMaps.ext (evaluate f) (#zero{Values.space})
+    (H.classInduction (\fun (x: H.Homology) => #apply{(evaluate f)} x = #zero{A.space})
+      (\fun (x: H.Cycle) => trans!{A.Carrier} _ _ _ (onClass f x)
+        (trans!{A.Carrier} _ _ _
+          (sym!{A.Carrier} _ _ (congr!{{Hom.Carrier z} A.Carrier} (\fun (h: Hom.Carrier z) => #apply{h} x) _ _
+            (\bysub(Hom.Carrier (Degrees.previous z), { g: Hom.Carrier (Degrees.previous z) \where Cohomology.prior g = f }, g))))
+          (onCoboundary g x))))
+};
+\import Modules.Of[V := Cohomology.Closed, space := Cohomology.cycleSpace].Submodule[].Quotient[S := Cohomology.boundariesInside].To[W := Values.Carrier, target := Values.space] \as CohomologyDescent;
+\definition map: Modules.Hom[V := Cohomology.Cohomology, W := Values.Carrier, source := Cohomology.cohomologySpace, target := Values.space].Map :=
+  CohomologyDescent.descend evaluation evaluationVanishes;
+\definition onCohomologyClass: \forall (f: Cohomology.Closed) -> #apply{map} (Cohomology.classOf f) = evaluate f := CohomologyDescent.onClass evaluation evaluationVanishes;
+
+\definition Homology: \Set := H.Homology;
+\definition homologySpace: Modules.Space Homology := H.homologySpace;
+\definition ValueCarrier: \Set := Values.Carrier;
+\definition valueSpace: Modules.Space ValueCarrier := Values.space;
+\definition Closed: \Set := Cohomology.Closed;
+\definition cycleSpace: Modules.Space Closed := Cohomology.cycleSpace;
+\definition CohomologyCarrier: \Set := Cohomology.Cohomology;
+\definition cohomologySpace: Modules.Space CohomologyCarrier := Cohomology.cohomologySpace;

@@ -1,0 +1,26 @@
+\import \parent.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as Inclusion;
+\import \parent.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space] \as Projection;
+\structure Data: \Set {
+  inclusion: Inclusion.Map,
+  projection: Projection.Map,
+}
+\structure Laws[data: Data]: \Prop {
+  injective: \forall (x, y: A.Carrier) -> #apply{data.inclusion} x = #apply{data.inclusion} y -> x = y,
+  onto: \forall (z: C.Carrier) -> \exists { y: B.Carrier \where #apply{data.projection} y = z },
+  zero: \forall (x: A.Carrier) -> #apply{data.projection} (#apply{data.inclusion} x) = #zero{C.space},
+  kernelImage: \forall (y: B.Carrier) -> #apply{data.projection} y = #zero{C.space} ->
+    \exists { x: A.Carrier \where #apply{data.inclusion} x = y },
+}
+\definition Sequence: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\module Splitting(sequence: Sequence);
+\definition imageKernel: \forall (sequence: Sequence)(y: B.Carrier) ->
+  (\exists { x: A.Carrier \where #apply{sequence.inclusion} x = y }) -> #apply{sequence.projection} y = #zero{C.space} := \block {
+  \fun (sequence: Sequence)(y: B.Carrier)(image: \exists { x: A.Carrier \where #apply{sequence.inclusion} x = y }) \then
+  \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where #apply{sequence.inclusion} x = y }) \by image \then
+  \return trans!{C.Carrier} _ _ _
+    (sym!{C.Carrier} _ _ (congr!{B.Carrier C.Carrier} (#apply{sequence.projection}) _ _
+      (\bysub(A.Carrier, { x: A.Carrier \where #apply{sequence.inclusion} x = y }, x)))) (#zero{sequence} x)
+};
+
+\module Kernel(sequence: Sequence);
+\module Pushout(N: Bundle);

@@ -1,0 +1,42 @@
+\import Source.Degree[n := Nat.Nat^::succ n] \as SD;
+\import Target.Degree[n := n] \as TD;
+\definition lower(p: Nat.Nat^)(q: Degrees.Second (Nat.Nat^::succ n) (Nat.Nat^::succ p)): Degrees.Second n p :=
+  \into[Nat.Nat^](q, { q: Nat.Nat^ \where Arithmetic.add p q = n }) \by {
+    Natural.succInjective (Arithmetic.add p q) n
+      (trans!{Nat.Nat^} (Nat.Nat^::succ (Arithmetic.add p q)) (Arithmetic.add (Nat.Nat^::succ p) q) (Nat.Nat^::succ n)
+        (sym!{Nat.Nat^} _ _ (Natural.addSuccLeft p q)) (Degrees.secondDegree (Nat.Nat^::succ n) (Nat.Nat^::succ p) q))
+  };
+\module Positive(p: Nat.Nat^, q: Degrees.Second (Nat.Nat^::succ n) (Nat.Nat^::succ p)) {
+  \import \parent.\parent.Term[p := p, q := q] \as H;
+  \import TargetTensor.Term[p := p, q := q] \as Term;
+  \import SourceTensor.Term[p := Nat.Nat^::succ p, q := q] \as ST;
+  \definition index: Source.Index n := Degrees.index n p (lower p q);
+  \import Modules.Hom[V := Term.Carrier, W := TD.Carrier, source := Term.space, target := TD.space].Composition[
+    U := ST.Carrier, domain := ST.space] \as Composition;
+  \definition map: Modules.Hom[V := ST.Carrier, W := TD.Carrier, source := ST.space, target := TD.space].Map :=
+    Composition.compose (TD.Component[i := index].injection) H.map;
+}
+\definition coordinates: \forall (p: Nat.Nat^)(q: Degrees.Second (Nat.Nat^::succ n) p) ->
+  Modules.Hom[V := SourceTensor.Term[p := p, q := q].Carrier, W := TD.Carrier,
+    source := SourceTensor.Term[p := p, q := q].space, target := TD.space].Map :=
+  \induction (p: Nat.Nat^) \return \forall (q: Degrees.Second (Nat.Nat^::succ n) p) ->
+    Modules.Hom[V := SourceTensor.Term[p := p, q := q].Carrier, W := TD.Carrier,
+      source := SourceTensor.Term[p := p, q := q].space, target := TD.space].Map \with {
+    | zero: \fun (q: Degrees.Second (Nat.Nat^::succ n) Nat.Nat^::zero) =>
+      Modules.Hom[V := SourceTensor.Term[p := Nat.Nat^::zero, q := q].Carrier, W := TD.Carrier,
+        source := SourceTensor.Term[p := Nat.Nat^::zero, q := q].space, target := TD.space].zeroMap
+    | succ: \fun (p: Nat.Nat^)(previous: _)(q: Degrees.Second (Nat.Nat^::succ n) (Nat.Nat^::succ p)) => Positive[p := p, q := q].map
+  };
+\module Component(i: Source.Index (Nat.Nat^::succ n)) {
+  \definition second: Degrees.Second (Nat.Nat^::succ n) #first{i} :=
+    \into[Nat.Nat^](#second{i}, { q: Nat.Nat^ \where Arithmetic.add #first{i} q = Nat.Nat^::succ n }) \by {
+      Degrees.degree (Nat.Nat^::succ n) i
+    };
+  \definition map: Modules.Hom[V := SourceTensor.Term[p := #first{i}, q := #second{i}].Carrier, W := TD.Carrier,
+    source := SourceTensor.Term[p := #first{i}, q := #second{i}].space, target := TD.space].Map := coordinates #first{i} second;
+}
+\import Modules.DirectSum[Index := Source.Index (Nat.Nat^::succ n), family := SD.family].To[W := TD.Carrier, target := TD.space] \as Universal;
+\definition components: Universal.Components := \fun (i: Source.Index (Nat.Nat^::succ n)) => Component[i := i].map;
+\definition map: Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space].Map := Universal.extension components;
+\definition onInjection: \forall (i: Source.Index (Nat.Nat^::succ n))(x: SourceTensor.Term[p := #first{i}, q := #second{i}].Carrier) ->
+  #apply{map} (#apply{(SD.Component[i := i].injection)} x) = #apply{(Component[i := i].map)} x := Universal.onInjection components;

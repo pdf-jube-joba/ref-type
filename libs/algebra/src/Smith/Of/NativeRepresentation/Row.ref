@@ -1,0 +1,44 @@
+\import \parent.\parent.RowFrames[r := r, s := s] \as Frames;
+\import LeftMatrices.RowOperations[].Typed[r := r, s := s] \as Typed;
+\import LeftElementary.Swap[i := r, j := s] \as Exchange;
+\import LeftElementary.Shear[i := r, j := s] \as Shear;
+\import LeftElementary.Negate[i := r] \as Negative;
+\definition swapMatrix: LeftMatrices.reflect (Rows.swap Identity.identity r s) = Exchange.matrix :=
+  trans!{Left.Matrix} (LeftMatrices.reflect (Rows.swap Identity.identity r s)) (LeftMatrices.reflect (Rows.Swap.program^ Identity.identity r s)) (Exchange.matrix)
+    (congr!{Rows.Swap.T^ Left.Matrix} (\fun (f: Rows.Swap.T^) => LeftMatrices.reflect (f Identity.identity r s)) Rows.Swap.specification Rows.Swap.program^ (sym!{Rows.Swap.T^} Rows.Swap.program^ Rows.Swap.specification Rows.Swap.coherence))
+    (trans!{Left.Matrix} (LeftMatrices.reflect (Rows.Swap.program^ Identity.identity r s)) (Typed.swapped Identity.identity) (Exchange.matrix)
+      (sym!{Left.Matrix} (Typed.swapped Identity.identity) (LeftMatrices.reflect (Rows.Swap.program^ Identity.identity r s)) (Typed.swapLaw Identity.identity))
+      (trans!{Left.Matrix} (Typed.swapped Identity.identity) (LeftProduct.product (Exchange.matrix) LeftEnd.identity) (Exchange.matrix)
+        (congr!{Left.Matrix Left.Matrix} (LeftProduct.product (Exchange.matrix)) (LeftMatrices.reflect Identity.identity) LeftEnd.identity leftIdentity)
+        (LeftEnd.rightIdentity (Exchange.matrix))));
+\definition addMatrix(c: I.Int^): LeftMatrices.reflect (Rows.add Identity.identity r s c) = Shear.matrix c :=
+  trans!{Left.Matrix} (LeftMatrices.reflect (Rows.add Identity.identity r s c)) (LeftMatrices.reflect (Rows.Add.program^ Identity.identity r s c)) (Shear.matrix c)
+    (congr!{Rows.Add.T^ Left.Matrix} (\fun (f: Rows.Add.T^) => LeftMatrices.reflect (f Identity.identity r s c)) Rows.Add.specification Rows.Add.program^ (sym!{Rows.Add.T^} Rows.Add.program^ Rows.Add.specification Rows.Add.coherence))
+    (trans!{Left.Matrix} (LeftMatrices.reflect (Rows.Add.program^ Identity.identity r s c)) (Typed.added Identity.identity c) (Shear.matrix c)
+      (sym!{Left.Matrix} (Typed.added Identity.identity c) (LeftMatrices.reflect (Rows.Add.program^ Identity.identity r s c)) (Typed.addLaw Identity.identity c))
+      (trans!{Left.Matrix} (Typed.added Identity.identity c) (LeftProduct.product (Shear.matrix c) LeftEnd.identity) (Shear.matrix c)
+        (congr!{Left.Matrix Left.Matrix} (LeftProduct.product (Shear.matrix c)) (LeftMatrices.reflect Identity.identity) LeftEnd.identity leftIdentity)
+        (LeftEnd.rightIdentity (Shear.matrix c))));
+\definition negateMatrix: LeftMatrices.reflect (Rows.negate Identity.identity r) = Negative.matrix :=
+  trans!{Left.Matrix} (LeftMatrices.reflect (Rows.negate Identity.identity r)) (LeftMatrices.reflect (Rows.Negate.program^ Identity.identity r)) (Negative.matrix)
+    (congr!{Rows.Negate.T^ Left.Matrix} (\fun (f: Rows.Negate.T^) => LeftMatrices.reflect (f Identity.identity r)) Rows.Negate.specification Rows.Negate.program^ (sym!{Rows.Negate.T^} Rows.Negate.program^ Rows.Negate.specification Rows.Negate.coherence))
+    (trans!{Left.Matrix} (LeftMatrices.reflect (Rows.Negate.program^ Identity.identity r)) (Typed.negated Identity.identity) (Negative.matrix)
+      (sym!{Left.Matrix} (Typed.negated Identity.identity) (LeftMatrices.reflect (Rows.Negate.program^ Identity.identity r)) (Typed.negateLaw Identity.identity))
+      (trans!{Left.Matrix} (Typed.negated Identity.identity) (LeftProduct.product (Negative.matrix) LeftEnd.identity) (Negative.matrix)
+        (congr!{Left.Matrix Left.Matrix} (LeftProduct.product (Negative.matrix)) (LeftMatrices.reflect Identity.identity) LeftEnd.identity leftIdentity)
+        (LeftEnd.rightIdentity (Negative.matrix))));
+\definition swapMatches: Matches[(Frames.exchange), NativeFrames.operation (Operation^::rowSwap r s)] := Matches[(Frames.exchange), NativeFrames.operation (Operation^::rowSwap r s)] {
+  left := swapMatrix,
+  leftInverse := swapMatrix,
+  right := rightIdentity, rightInverse := rightIdentity,
+};
+\definition addMatches: \forall (c: I.Int^)(distinct: Logic.Not (r = s)) -> Matches[(Frames.addition c distinct), NativeFrames.operation (Operation^::rowAdd r s c)] := \fun (c: I.Int^)(distinct: Logic.Not (r = s)) => Matches[(Frames.addition c distinct), NativeFrames.operation (Operation^::rowAdd r s c)] {
+  left := addMatrix c,
+  leftInverse := addMatrix (Arithmetic.neg c),
+  right := rightIdentity, rightInverse := rightIdentity,
+};
+\definition negateMatches: Matches[(Frames.negative), NativeFrames.operation (Operation^::rowNegate r)] := Matches[(Frames.negative), NativeFrames.operation (Operation^::rowNegate r)] {
+  left := negateMatrix,
+  leftInverse := negateMatrix,
+  right := rightIdentity, rightInverse := rightIdentity,
+};

@@ -1,0 +1,20 @@
+\import \parent.Kernel[x := x, y := y, f := f] \as Kernel;
+\import \parent.\parent.Kernel[x := x, y := y, f := f] \as Actual;
+\definition Mono: \Prop := Abelian.Monomorphism[Index, Hom, categoryData] x y f;
+\import Modules.Hom[V := family.Carrier x, W := family.Carrier y, source := family.space x, target := family.space y] \as Maps;
+\definition composeZero: compose Kernel.point x y f (zero Kernel.point x) = zero Kernel.point y :=
+  \parent.\parent.\parent.At[x := Kernel.point, y := y].ext (compose Kernel.point x y f (zero Kernel.point x)) (zero Kernel.point y)
+    (\fun (u: family.Carrier Kernel.point) => Maps.zeroPreserved f);
+\definition kernelIsZero: Mono -> Kernel.inclusion = zero Kernel.point x :=
+  \fun (mono: Mono) => mono Kernel.point Kernel.inclusion (zero Kernel.point x)
+    (trans!{{Hom Kernel.point y}} _ _ _ Kernel.zeroLaw (sym!{{Hom Kernel.point y}} _ _ composeZero));
+\definition zeroKernel: Mono -> \forall (u: family.Carrier x) -> #apply{f} u = #zero{(family.space y)} -> u = #zero{(family.space x)} :=
+  \fun (mono: Mono)(u: family.Carrier x)(killed: #apply{f} u = #zero{(family.space y)}) => \block {
+    \let v: Actual.Carrier := \into[family.Carrier x](u, #carrier{Actual.submodule}) \by { killed } \then
+    \let represented: family.Carrier Kernel.point := #apply{#forward{Kernel.isomorphism}} v \then
+    \return trans!{{family.Carrier x}} u (#apply{Kernel.inclusion} represented) #zero{(family.space x)}
+      (sym!{{family.Carrier x}} _ _ (congr!{Actual.Carrier {family.Carrier x}} (#apply{Actual.inclusion}) _ _ (#leftInverse{Kernel.isomorphism} v)))
+      (congr!{{Hom Kernel.point x} {family.Carrier x}} (\fun (g: Hom Kernel.point x) => #apply{g} represented) Kernel.inclusion (zero Kernel.point x) (kernelIsZero mono))
+  };
+\definition injective: Mono -> \forall (u, v: family.Carrier x) -> #apply{f} u = #apply{f} v -> u = v :=
+  \fun (mono: Mono) => Maps.injectiveOfZeroKernel f (zeroKernel mono);

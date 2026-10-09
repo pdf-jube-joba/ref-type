@@ -1,0 +1,33 @@
+\import N.Basic[].Program[] \as NatPrograms;
+\import N.Basic[].ProgramProp[] \as NatCorrespondence;
+\import B.Choose[A := N.Nat] \as Choice;
+\definition T: \VType := \U(Runtime -> N.Nat -> N.Nat -> Runtime);
+\definition program: T := \thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (r: N.Nat) => \return(\thunk (\cfun (s: N.Nat) =>
+  \return(\thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \program {
+    \bind compare: \U(N.Nat -> B.Bool) <- (\force NatPrograms.eqb) i \then
+    \bind first: B.Bool <- (\force compare) r \then
+    \bind second: B.Bool <- (\force compare) s \then
+    \bind secondYes: \U(N.Nat -> N.Nat -> N.Nat) <- (\force Choice.program) second \then
+    \bind secondNo: \U(N.Nat -> N.Nat) <- (\force secondYes) r \then
+    \bind other: N.Nat <- (\force secondNo) i \then
+    \bind firstYes: \U(N.Nat -> N.Nat -> N.Nat) <- (\force Choice.program) first \then
+    \bind firstNo: \U(N.Nat -> N.Nat) <- (\force firstYes) s \then
+    \bind selected: N.Nat <- (\force firstNo) other \then
+    \bind row: \U(N.Nat -> I.Int) <- (\force a) selected \then
+    \bind value: I.Int <- (\force row) j \then
+    \return value
+  })))))))));
+\definition chosen(a: Runtime^)(r, s, i, j: N.Nat^): I.Int^ := a (B.ite N.Nat^ (NatPrograms.eqb^ i r) s (B.ite N.Nat^ (NatPrograms.eqb^ i s) r i)) j;
+\definition matches: \forall (a: Runtime^)(r, s, i, j: N.Nat^) -> program^ a r s i j = swap a r s i j :=
+  \fun (a: Runtime^)(r, s, i, j: N.Nat^) => trans!{I.Int^} (program^ a r s i j) (chosen a r s i j) (swap a r s i j)
+    (congr!{Choice.T^ I.Int^}
+      (\fun (choose: Choice.T^) => a (choose (NatPrograms.eqb^ i r) s (choose (NatPrograms.eqb^ i s) r i)) j)
+      Choice.program^ (B.ite N.Nat^) Choice.coherence)
+    (congr!{NatCorrespondence.Eqb.T^ I.Int^}
+      (\fun (equal: NatCorrespondence.Eqb.T^) => a (B.ite N.Nat^ (equal i r) s (B.ite N.Nat^ (equal i s) r i)) j)
+      NatCorrespondence.Eqb.program^ NatCorrespondence.Eqb.specification NatCorrespondence.Eqb.coherence);
+\definition coherence: program^ = swap := \axiom:funext(program^, swap,
+  \fun (a: Runtime^) => \axiom:funext(program^ a, swap a,
+    \fun (r: N.Nat^) => \axiom:funext(program^ a r, swap a r,
+      \fun (s: N.Nat^) => \axiom:funext(program^ a r s, swap a r s,
+        \fun (i: N.Nat^) => \axiom:funext(program^ a r s i, swap a r s i, \fun (j: N.Nat^) => matches a r s i j)))));

@@ -1,0 +1,61 @@
+\import \parent.\parent.Cokernel[x := x, y := y, f := f] \as Actual;
+\definition point: Index := closure.objects.cokernel x y f;
+\definition isomorphism: Modules.Isomorphism[V := Actual.Carrier, W := family.Carrier point, source := Actual.space, target := family.space point].Isomorphism := closure.representations.cokernel x y f;
+\import Modules.Hom[V := Actual.Carrier, W := family.Carrier point, source := Actual.space, target := family.space point].Composition[U := family.Carrier y, domain := family.space y] \as Projection;
+\definition projection: Hom y point := Projection.compose (#forward{isomorphism}) Actual.projection;
+\definition zeroLaw: compose x y point projection f = zero x point :=
+  \parent.\parent.\parent.At[x := x, y := point].ext (compose x y point projection f) (zero x point)
+    (\fun (u: family.Carrier x) => trans!{{family.Carrier point}} _ _ _
+      (congr!{Actual.Carrier {family.Carrier point}} (#apply{#forward{isomorphism}}) _ _ (Actual.classZero (#apply{f} u) (Actual.imageMember u)))
+      (Modules.Hom[V := Actual.Carrier, W := family.Carrier point, source := Actual.space, target := family.space point].zeroPreserved (#forward{isomorphism})));
+\definition onto: \forall (u: family.Carrier point) -> \exists { v: family.Carrier y \where #apply{projection} v = u } := \block {
+  \fun (u: family.Carrier point) \then
+  \takefrom v: \Cast[family.Carrier y] ({ v: family.Carrier y \where Actual.class v = #apply{#backward{isomorphism}} u })
+    \by Actual.onto (#apply{#backward{isomorphism}} u) \then
+  \return \exact(\into[family.Carrier y](v, { v: family.Carrier y \where #apply{projection} v = u }) \by {
+    trans!{{family.Carrier point}} _ _ _
+      (congr!{Actual.Carrier {family.Carrier point}} (#apply{#forward{isomorphism}}) _ _ (\bysub(family.Carrier y, { v: family.Carrier y \where Actual.class v = #apply{#backward{isomorphism}} u }, v)))
+      (#rightInverse{isomorphism} u)
+  }, \Cast[family.Carrier y] ({ v: family.Carrier y \where #apply{projection} v = u }))
+};
+\module Descend(z: Index) {
+  \definition Killed: \Set := \Cast[Hom y z] ({ g: Hom y z \where compose x y z g f = zero x z });
+  \definition killed: \forall (g: Killed)(u: family.Carrier x) -> #apply{g} (#apply{f} u) = #zero{(family.space z)} :=
+    \fun (g: Killed)(u: family.Carrier x) => congr!{{Hom x z} {family.Carrier z}} (\fun (h: Hom x z) => #apply{h} u)
+      (compose x y z g f) (zero x z) (\bysub(Hom y z, { g: Hom y z \where compose x y z g f = zero x z }, g));
+  \import Actual.To[z := z] \as Descent;
+  \definition vanishes: \forall (g: Killed) -> Descent.Vanishes g :=
+    \fun (g: Killed)(u: family.Carrier y)(member: \In[family.Carrier y] (#carrier{Actual.submodule}) u) => Actual.imageEliminate u (#apply{g} u = #zero{(family.space z)})
+      (\fun (v: family.Carrier x)(equal: #apply{f} v = u) => trans!{{family.Carrier z}} _ _ _
+        (congr!{{family.Carrier y} {family.Carrier z}} (#apply{g}) _ _ (sym!{{family.Carrier y}} _ _ equal)) (killed g v)) member;
+  \import Modules.Hom[V := Actual.Carrier, W := family.Carrier z, source := Actual.space, target := family.space z].Composition[U := family.Carrier point, domain := family.space point] \as Compose;
+  \definition descend(g: Killed): Hom point z := Compose.compose (Descent.descend g (vanishes g)) (#backward{isomorphism});
+  \definition factorization: \forall (g: Killed) -> compose y point z (descend g) projection = g :=
+    \fun (g: Killed) => \parent.\parent.\parent.\parent.At[x := y, y := z].ext (compose y point z (descend g) projection) g
+      (\fun (u: family.Carrier y) => trans!{{family.Carrier z}} _ _ _
+        (congr!{Actual.Carrier {family.Carrier z}} (#apply{(Descent.descend g (vanishes g))}) _ _ (#leftInverse{isomorphism} (Actual.class u)))
+        (Descent.onClass g (vanishes g) u));
+  \definition unique: \forall (g: Killed)(h: Hom point z) -> compose y point z h projection = g -> h = descend g := \block {
+    \fun (g: Killed)(h: Hom point z)(equal: compose y point z h projection = g) \then
+    \return \parent.\parent.\parent.\parent.At[x := point, y := z].ext h (descend g) (\block {
+      \fun (u: family.Carrier point) \then
+      \takefrom v: \Cast[family.Carrier y] ({ v: family.Carrier y \where #apply{projection} v = u }) \by onto u \then
+      \let e: #apply{projection} v = u := \bysub(family.Carrier y, { v: family.Carrier y \where #apply{projection} v = u }, v) \then
+      \return trans!{{family.Carrier z}} _ _ _
+        (congr!{{family.Carrier point} {family.Carrier z}} (#apply{h}) _ _ (sym!{{family.Carrier point}} _ _ e))
+        (trans!{{family.Carrier z}} _ _ _
+          (congr!{{Hom y z} {family.Carrier z}} (\fun (k: Hom y z) => #apply{k} v) (compose y point z h projection) g equal)
+          (trans!{{family.Carrier z}} _ _ _
+            (sym!{{family.Carrier z}} _ _ (congr!{{Hom y z} {family.Carrier z}} (\fun (k: Hom y z) => #apply{k} v) (compose y point z (descend g) projection) g (factorization g)))
+            (congr!{{family.Carrier point} {family.Carrier z}} (#apply{(descend g)}) _ _ e)))
+    })
+  };
+}
+\definition cokernelData: Abelian.CokernelData[Index, Hom, categoryData, zero, x, y, f] := Abelian.CokernelData[Index, Hom, categoryData, zero, x, y, f] {
+  object := point, projection := projection, descend := \fun (z: Index)(g: \Cast[Hom y z] ({ g: Hom y z \where compose x y z g f = zero x z })) => Descend[z := z].descend g,
+};
+\definition laws: Abelian.CokernelLaws[Index, Hom, categoryData, zero, x, y, f, cokernelData] := Abelian.CokernelLaws[Index, Hom, categoryData, zero, x, y, f, cokernelData] {
+  zero := zeroLaw, factorization := \fun (z: Index)(g: \Cast[Hom y z] ({ g: Hom y z \where compose x y z g f = zero x z })) => Descend[z := z].factorization g, unique := \fun (z: Index)(g: \Cast[Hom y z] ({ g: Hom y z \where compose x y z g f = zero x z }))(h: Hom point z)(e: compose y point z h projection = g) => Descend[z := z].unique g h e,
+};
+\definition object: Abelian.Cokernel[Index, Hom, categoryData, zero, x, y, f] :=
+  \into[Abelian.CokernelData[Index, Hom, categoryData, zero, x, y, f]](cokernelData, { k: Abelian.CokernelData[Index, Hom, categoryData, zero, x, y, f] \where Abelian.CokernelLaws[Index, Hom, categoryData, zero, x, y, f, k] }) \by { laws };

@@ -1,0 +1,80 @@
+\import Modules.Of[V := Source.Cycle, space := Source.cycleSpace].Submodule[] \as SourceSub;
+\import SourceSub.Image[U := SourceUpper.Carrier, source := SourceUpper.space] \as SourceImage;
+\import Modules.Of[V := Target.Cycle, space := Target.cycleSpace].Submodule[] \as TargetSub;
+\import TargetSub.Image[U := TargetUpper.Carrier, source := TargetUpper.space] \as TargetImage;
+\import Modules.QuotientMapping[A := sourceBundle, B := targetBundle].On[S := Source.image, T := Target.image, f := cycles f] \as Descent;
+\definition compatible: Descent.Compatible := \fun (x: Source.Cycle)(member: SourceSub.Member Source.image x) =>
+  SourceImage.eliminate Source.boundary x (TargetSub.Member Target.image (#apply{(cycles f)} x))
+    (\fun (y: SourceUpper.Carrier)(equal: #apply{Source.boundary} y = x) =>
+      TargetImage.introduce Target.boundary (#apply{(cycles f)} x) (#apply{(upper f)} y)
+        (trans!{Target.Cycle} (#apply{Target.boundary} (#apply{(upper f)} y)) (#apply{(cycles f)} (#apply{Source.boundary} y)) (#apply{(cycles f)} x)
+          (sym!{Target.Cycle} (#apply{(cycles f)} (#apply{Source.boundary} y)) (#apply{Target.boundary} (#apply{(upper f)} y))
+            (#incoming{(\bysub(Data, { data: Data \where Laws[data] }, f))} y))
+          (congr!{Source.Cycle Target.Cycle} (#apply{(cycles f)}) (#apply{Source.boundary} y) x equal))) member;
+\import Modules.Hom[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace] \as HomologyMaps;
+\definition induced: HomologyMaps.Map := Descent.map compatible;
+\definition onClass: \forall (x: Source.Cycle) -> #apply{induced} (Source.class x) = Target.class (#apply{(cycles f)} x) := Descent.onClass compatible;
+\import HomologyMaps.Composition[U := Source.FactorHomology, domain := Source.factorSpace] \as Before;
+\definition onSourceFactors: Modules.Hom[V := Source.FactorHomology, W := Target.Homology, source := Source.factorSpace, target := Target.homologySpace].Map :=
+  Before.compose induced #backward{Source.factorIsomorphism};
+\import Modules.Hom[V := Target.Homology, W := Target.FactorHomology, source := Target.homologySpace, target := Target.factorSpace].Composition[U := Source.FactorHomology, domain := Source.factorSpace] \as After;
+\import Modules.Hom[V := Source.FactorHomology, W := Target.FactorHomology, source := Source.factorSpace, target := Target.factorSpace] \as FactorMaps;
+\definition factors: FactorMaps.Map := After.compose #forward{Target.factorIsomorphism} onSourceFactors;
+\definition intertwines: \forall (q: Source.Homology) ->
+  #apply{factors} (#apply{#forward{Source.factorIsomorphism}} q) = #apply{#forward{Target.factorIsomorphism}} (#apply{induced} q) :=
+  \fun (q: Source.Homology) => congr!{Source.Homology Target.FactorHomology}
+    (\fun (x: Source.Homology) => #apply{#forward{Target.factorIsomorphism}} (#apply{induced} x))
+    (#apply{#backward{Source.factorIsomorphism}} (#apply{#forward{Source.factorIsomorphism}} q)) q (#leftInverse{Source.factorIsomorphism} q);
+\import \parent.\parent.Compute[] \as Computation;
+\import algebra.IntegerMatrix[m := Target.nullity, n := s].Product[k := n] \as FirstProduct;
+\import algebra.IntegerMatrix[m := Target.nullity, n := n].Product[k := Source.nullity] \as SecondProduct;
+\definition firstRuntime: Runtime^ := FirstProduct.Multiply.program^ s (Computation.inverseCoordinates Target.computed) f.middle;
+\definition coordinateRuntime: Runtime^ := SecondProduct.Multiply.program^ n firstRuntime (Computation.generators Source.computed);
+\import Commutative.Matrix[m := Target.nullity, n := Source.nullity] \as Coefficients;
+\import Commutative.Matrix[m := Target.nullity, n := s] \as TargetInverse;
+\import Commutative.Matrix[m := n, n := Source.nullity] \as SourceGenerators;
+\import TargetInverse.Composition[k := n] \as FirstMultiply;
+\import Commutative.Matrix[m := Target.nullity, n := n].Composition[k := Source.nullity] \as SecondMultiply;
+\definition firstMatrix: Commutative.Matrix[m := Target.nullity, n := n].Matrix :=
+  \fun (i: Indices.Fin Target.nullity)(j: Indices.Fin n) => firstRuntime i j;
+\definition coordinateMatrix: Coefficients.Matrix :=
+  \fun (i: Indices.Fin Target.nullity)(j: Indices.Fin Source.nullity) => coordinateRuntime i j;
+\definition firstCorrespondence: firstMatrix = FirstMultiply.product Target.computedInverseMatrix
+  (\fun (i: Indices.Fin s)(j: Indices.Fin n) => f.middle i j) :=
+  FirstProduct.correspondence (Computation.inverseCoordinates Target.computed) f.middle;
+\definition correspondence: coordinateMatrix = SecondMultiply.product
+  (FirstMultiply.product Target.computedInverseMatrix (\fun (i: Indices.Fin s)(j: Indices.Fin n) => f.middle i j))
+  Source.computedGeneratorMatrix := trans!{Coefficients.Matrix} coordinateMatrix
+    (SecondMultiply.product firstMatrix Source.computedGeneratorMatrix)
+    (SecondMultiply.product (FirstMultiply.product Target.computedInverseMatrix (\fun (i: Indices.Fin s)(j: Indices.Fin n) => f.middle i j)) Source.computedGeneratorMatrix)
+    (SecondProduct.correspondence firstRuntime (Computation.generators Source.computed))
+    (congr!{{Commutative.Matrix[m := Target.nullity, n := n].Matrix} Coefficients.Matrix}
+      (\fun (a: Commutative.Matrix[m := Target.nullity, n := n].Matrix) => SecondMultiply.product a Source.computedGeneratorMatrix)
+      firstMatrix (FirstMultiply.product Target.computedInverseMatrix (\fun (i: Indices.Fin s)(j: Indices.Fin n) => f.middle i j)) firstCorrespondence);
+\import Modules.FiniteCoordinates[n := Source.nullity] \as SourceCoefficients;
+\import Modules.FiniteCoordinates[n := Target.nullity] \as TargetCoefficients;
+\definition action: \forall (v: SourceCoefficients.Carrier) ->
+  Coefficients.apply coordinateMatrix v = TargetInverse.apply Target.computedInverseMatrix (#apply{(middle f)} (Source.generatorCycle v)) :=
+  \fun (v: SourceCoefficients.Carrier) => trans!{TargetCoefficients.Carrier} (Coefficients.apply coordinateMatrix v)
+    (Coefficients.apply (SecondMultiply.product (FirstMultiply.product Target.computedInverseMatrix (\fun (i: Indices.Fin s)(j: Indices.Fin n) => f.middle i j)) Source.computedGeneratorMatrix) v)
+    (TargetInverse.apply Target.computedInverseMatrix (#apply{(middle f)} (Source.generatorCycle v)))
+    (congr!{Coefficients.Matrix TargetCoefficients.Carrier} (\fun (a: Coefficients.Matrix) => Coefficients.apply a v) _ _ correspondence)
+    (trans!{TargetCoefficients.Carrier} _ _ _
+      (SecondMultiply.point (FirstMultiply.product Target.computedInverseMatrix (\fun (i: Indices.Fin s)(j: Indices.Fin n) => f.middle i j)) Source.computedGeneratorMatrix v)
+      (trans!{TargetCoefficients.Carrier} _ _ _
+        (FirstMultiply.point Target.computedInverseMatrix (\fun (i: Indices.Fin s)(j: Indices.Fin n) => f.middle i j) (SourceGenerators.apply Source.computedGeneratorMatrix v))
+        (congr!{SourceMiddle.Carrier TargetCoefficients.Carrier}
+          (\fun (x: SourceMiddle.Carrier) => TargetInverse.apply Target.computedInverseMatrix (#apply{(middle f)} x))
+          (SourceGenerators.apply Source.computedGeneratorMatrix v) (Source.generatorCycle v) (Source.computedGeneratorAction v))));
+\definition onFactorClasses: \forall (v: SourceCoefficients.Carrier) ->
+  #apply{factors} (Source.factorClasses v) = Target.factorClasses (Coefficients.apply coordinateMatrix v) :=
+  \fun (v: SourceCoefficients.Carrier) => trans!{Target.FactorHomology} _ _ _
+    (congr!{Source.Homology Target.FactorHomology}
+      (\fun (q: Source.Homology) => #apply{#forward{Target.factorIsomorphism}} (#apply{induced} q))
+      (#apply{#backward{Source.factorIsomorphism}} (Source.factorClasses v)) (Source.generatorClass v) (Source.inverseOnFactors v))
+    (trans!{Target.FactorHomology} _ _ _
+      (congr!{Target.Homology Target.FactorHomology} (#apply{#forward{Target.factorIsomorphism}})
+        (#apply{induced} (Source.generatorClass v)) (Target.class (#apply{(cycles f)} (Source.generatorCycle v))) (onClass (Source.generatorCycle v)))
+      (trans!{Target.FactorHomology} _ _ _ (Target.computedForwardOnClass (#apply{(cycles f)} (Source.generatorCycle v)))
+        (congr!{TargetCoefficients.Carrier Target.FactorHomology} Target.factorClasses _ _
+          (sym!{TargetCoefficients.Carrier} _ _ (action v)))));

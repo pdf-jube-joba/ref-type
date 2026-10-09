@@ -1,0 +1,43 @@
+\import algebra.Module[].Over[R := K, ring := Ring.commutativeRingAsRing K (Fields.fieldAsCommutativeRing K field)] \as Modules;
+\import Modules.Tensor[V := V, W := W, left := left, right := right] \as Shared;
+\import \parent.Universal[U := Shared.Carrier, target := Shared.space] \as ForwardUniversal;
+\import \parent.\parent.Linear[V := Carrier, W := Shared.Carrier, source := space, target := Shared.space] \as ForwardLinear;
+\definition forwardLaws: BilinearLaws[Shared.Carrier, Shared.space, Shared.tensor] := BilinearLaws[Shared.Carrier, Shared.space, Shared.tensor] {
+  addLeft := #addLeft{Shared.bilinear}, addRight := #addRight{Shared.bilinear}, scaleLeft := #scaleLeft{Shared.bilinear}, scaleRight := #scaleRight{Shared.bilinear},
+};
+\definition forward: Modules.MapBetween (Modules.Bundle { Carrier := Carrier, space := space }) (Modules.Bundle { Carrier := Shared.Carrier, space := Shared.space }) :=
+  ForwardLinear.asModuleMap (ForwardUniversal.map Shared.tensor forwardLaws);
+\import Shared.Universal[U := Carrier, target := space] \as BackwardUniversal;
+\definition backwardLaws: Shared.BilinearLaws[Carrier, space, tensor] := Shared.BilinearLaws[Carrier, space, tensor] {
+  addLeft := #addLeft{bilinear}, addRight := #addRight{bilinear}, scaleLeft := #scaleLeft{bilinear}, scaleRight := #scaleRight{bilinear},
+};
+\definition backward: Modules.MapBetween (Modules.Bundle { Carrier := Shared.Carrier, space := Shared.space }) (Modules.Bundle { Carrier := Carrier, space := space }) :=
+  BackwardUniversal.map tensor backwardLaws;
+\definition forwardOnTensor: \forall (x: V)(y: W) -> #apply{forward} (tensor x y) = Shared.tensor x y := ForwardUniversal.onTensor Shared.tensor forwardLaws;
+\definition backwardOnTensor: \forall (x: V)(y: W) -> #apply{backward} (Shared.tensor x y) = tensor x y := BackwardUniversal.onTensor tensor backwardLaws;
+\import Modules.Hom[V := Shared.Carrier, W := Carrier, source := Shared.space, target := space].Composition[U := Carrier, domain := space] \as OriginalComposition;
+\definition originalComposite: Modules.MapBetween (Modules.Bundle { Carrier := Carrier, space := space }) (Modules.Bundle { Carrier := Carrier, space := space }) := OriginalComposition.compose backward forward;
+\import \parent.\parent.Linear[V := Carrier, W := Carrier, source := space, target := space] \as OriginalLinear;
+\import Modules.End[V := Carrier, space := space] \as OriginalEnd;
+\import \parent.Universal[U := Carrier, target := space] \as OriginalUniversal;
+\definition compositeOnTensor: \forall (x: V)(y: W) -> #apply{originalComposite} (tensor x y) = tensor x y :=
+  \fun (x: V)(y: W) => trans!{Carrier} _ _ _
+    (congr!{Shared.Carrier Carrier} (#apply{backward}) _ _ (forwardOnTensor x y)) (backwardOnTensor x y);
+\definition originalFunctionIdentity: #apply{originalComposite} = #apply{OriginalEnd.identity} := trans!{{Carrier -> Carrier}} _ _ _
+  (OriginalUniversal.unique tensor bilinear (OriginalLinear.fromModuleMap originalComposite) compositeOnTensor)
+  (sym!{{Carrier -> Carrier}} _ _ (OriginalUniversal.unique tensor bilinear (OriginalLinear.fromModuleMap OriginalEnd.identity)
+    (\fun (x: V)(y: W) => \refl(tensor x y))));
+\definition leftInverse: \forall (x: Carrier) -> #apply{backward} (#apply{forward} x) = x :=
+  \fun (x: Carrier) => congr!{{Carrier -> Carrier} Carrier} (\fun (f: Carrier -> Carrier) => f x) _ _ originalFunctionIdentity;
+\import Modules.Hom[V := Carrier, W := Shared.Carrier, source := space, target := Shared.space].Composition[U := Shared.Carrier, domain := Shared.space] \as SharedComposition;
+\import Modules.End[V := Shared.Carrier, space := Shared.space] \as SharedEnd;
+\import Shared.Universal[U := Shared.Carrier, target := Shared.space] \as SharedEquality;
+\definition sharedMapIdentity: SharedComposition.compose forward backward = SharedEnd.identity :=
+  SharedEquality.ext (SharedComposition.compose forward backward) SharedEnd.identity
+    (\fun (x: V)(y: W) => trans!{Shared.Carrier} _ _ _
+      (congr!{Carrier Shared.Carrier} (#apply{forward}) _ _ (backwardOnTensor x y)) (forwardOnTensor x y));
+\definition rightInverse: \forall (x: Shared.Carrier) -> #apply{forward} (#apply{backward} x) = x :=
+  \fun (x: Shared.Carrier) => congr!{{Modules.Hom[V := Shared.Carrier, W := Shared.Carrier, source := Shared.space, target := Shared.space].Map} Shared.Carrier}
+    (\fun (f: Modules.Hom[V := Shared.Carrier, W := Shared.Carrier, source := Shared.space, target := Shared.space].Map) => #apply{f} x) _ _ sharedMapIdentity;
+\import Modules.Isomorphism[V := Carrier, W := Shared.Carrier, source := space, target := Shared.space] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism { forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse };

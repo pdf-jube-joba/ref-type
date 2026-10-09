@@ -1,0 +1,121 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import B.Prop[] \as BoolLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\import \parent.Pivot[] \as Pivot;
+\import \parent.Round[] \as Round;
+\import \parent.Measure[] \as Measure;
+\inductive State: \VType := | active: N.Nat -> N.Nat -> N.Nat -> Runtime -> History -> State;
+\inductive Output: \VType := | result: N.Nat -> Runtime -> History -> Output;
+\definition afterAttempt(rows, cols, k: N.Nat^): Attempt^ -> \RunStep[State^, Output^] :=
+  \induction (current: Attempt^) \return \RunStep[State^, Output^] \with {
+    | attempt: \fun (a: Runtime^)(history: History^)(changed: B.Bool^) =>
+        B.ite (\RunStep[State^, Output^]) changed (\continue[State^, Output^](State^::active rows cols k a history))
+          (\continue[State^, Output^](State^::active rows cols (N.Nat^::succ k) a history))
+  };
+\definition selected(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Pivot.Selection^ -> \RunStep[State^, Output^] :=
+  \induction (selection: Pivot.Selection^) \return \RunStep[State^, Output^] \with {
+    | missing: \finish[State^, Output^](Output^::result k a history)
+    | ready: \fun (current: Attempt^) => afterAttempt rows cols k (Round.round rows cols k (attemptMatrix current) (attemptHistory current))
+  };
+\definition within(rows, cols, k: N.Nat^): B.Bool^ := B.And.specification (Nat.ltb k rows) (Nat.ltb k cols);
+\definition step: State^ -> \RunStep[State^, Output^] := \induction (state: State^) \return \RunStep[State^, Output^] \with {
+  | active: \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => B.ite (\RunStep[State^, Output^]) (within rows cols k)
+      (selected rows cols k a history (Pivot.prepare rows cols k a history)) (\finish[State^, Output^](Output^::result k a history))
+};
+\definition primary: State^ -> N.Nat^ := \induction (state: State^) \return N.Nat^ \with {
+  | active: \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => Nat.sub rows k
+};
+\definition secondary: State^ -> N.Nat^ := \induction (state: State^) \return N.Nat^ \with {
+  | active: \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => Measure.inner rows cols k a
+};
+
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import N.Order[].Prop[] \as Order;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Search[] \as ZeroTest;
+\module ReadyDecrease(rows, cols, k: N.Nat^, a: Runtime^, history: History^, current: Attempt^);
+\definition readyDecrease: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(current: Attempt^) -> Pivot.Ready[rows, cols, k, a, history, current] ->
+  attemptReduced (Round.round rows cols k (attemptMatrix current) (attemptHistory current)) = B.Bool^::true ->
+  Bounds.Lt (Measure.inner rows cols k (attemptMatrix (Round.round rows cols k (attemptMatrix current) (attemptHistory current)))) (Measure.inner rows cols k a) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(current: Attempt^) => ReadyDecrease[rows := rows, cols := cols, k := k, a := a, history := history, current := current].law;
+\definition afterDescription: \forall (rows, cols, k: N.Nat^)(current: Attempt^) -> afterAttempt rows cols k current =
+  B.ite (\RunStep[State^, Output^]) (attemptReduced current)
+    (\continue[State^, Output^](State^::active rows cols k (attemptMatrix current) (attemptHistory current)))
+    (\continue[State^, Output^](State^::active rows cols (N.Nat^::succ k) (attemptMatrix current) (attemptHistory current))) :=
+  \fun (rows, cols, k: N.Nat^) => \induction (current: Attempt^) \return afterAttempt rows cols k current =
+    B.ite (\RunStep[State^, Output^]) (attemptReduced current)
+      (\continue[State^, Output^](State^::active rows cols k (attemptMatrix current) (attemptHistory current)))
+      (\continue[State^, Output^](State^::active rows cols (N.Nat^::succ k) (attemptMatrix current) (attemptHistory current))) \with {
+    | attempt: \fun (a: Runtime^)(history: History^)(changed: B.Bool^) => \refl(afterAttempt rows cols k (Attempt^::attempt a history changed))
+  };
+\import N.Induction[].Termination[State := State^, Output := Output^, step := step, primary := primary, secondary := secondary] \as MeasureTermination;
+\import std.Logic[].Termination[State := State^, Output := Output^, step := step] \as CoreTermination;
+\module Continuation(rows, cols, k: N.Nat^, a: Runtime^, history: History^, current: Attempt^);
+\module Termination;
+\inductive AfterState: \VType := | after: N.Nat -> N.Nat -> N.Nat -> Attempt -> AfterState;
+\definition after: AfterState^ -> \RunStep[State^, Output^] := \induction (state: AfterState^) \return \RunStep[State^, Output^] \with {
+  | after: \fun (rows, cols, k: N.Nat^)(current: Attempt^) => afterAttempt rows cols k current
+};
+\module AfterImplementation;
+\correspondence After: Programs.Correspondence := Programs.Correspondence {
+  T := AfterImplementation[].T, program := AfterImplementation[].program, specification := after, coherence := AfterImplementation[].coherence,
+};
+\inductive SelectionState: \VType := | selected: N.Nat -> N.Nat -> N.Nat -> Runtime -> History -> Pivot.Selection -> SelectionState;
+\definition selection: SelectionState^ -> \RunStep[State^, Output^] := \induction (state: SelectionState^) \return \RunStep[State^, Output^] \with {
+  | selected: \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(prepared: Pivot.Selection^) => selected rows cols k a history prepared
+};
+\definition roundProgram: Round.Perform.T := Round.Perform.program;
+\definition afterProgram: After.T := After.program;
+\module SelectionImplementation;
+\correspondence Selection: Programs.Correspondence := Programs.Correspondence {
+  T := SelectionImplementation[].T, program := SelectionImplementation[].program, specification := selection, coherence := SelectionImplementation[].coherence,
+};
+\inductive GateState: \VType := | gate: B.Bool -> State -> GateState;
+\definition gate: GateState^ -> \RunStep[State^, Output^] := \induction (gate: GateState^) \return \RunStep[State^, Output^] \with {
+  | gate: \fun (inside: B.Bool^) => \induction (state: State^) \return \RunStep[State^, Output^] \with {
+      | active: \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => B.ite (\RunStep[State^, Output^]) inside
+          (selected rows cols k a history (Pivot.prepare rows cols k a history)) (\finish[State^, Output^](Output^::result k a history))
+    }
+};
+\definition prepareProgram: Pivot.Prepare.T := Pivot.Prepare.program;
+\definition selectionProgram: Selection.T := Selection.program;
+\module GateImplementation;
+\correspondence Gate: Programs.Correspondence := Programs.Correspondence {
+  T := GateImplementation[].T, program := GateImplementation[].program, specification := gate, coherence := GateImplementation[].coherence,
+};
+\definition gateProgram: Gate.T := Gate.program;
+\module Implementation;
+\correspondence Step: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := step, coherence := Implementation[].coherence,
+};
+\definition certificate: \forall (state: State^) -> Programs.Terminates State^ Output^ Step.program^ state :=
+  \fun (state: State^) => \idelim step = Step.program^ \with transition: (State^ -> \RunStep[State^, Output^]) => Programs.Terminates State^ Output^ transition state \by {
+    base: Termination[].terminates state, equality: sym!{{State^ -> \RunStep[State^, Output^]}} Step.program^ step Step.coherence
+  };
+\machine Evaluate: Programs.Machine := Programs.Machine {
+  State := State, Output := Output, step := Step.program, terminates := certificate,
+};
+\definition runProgram: \U(N.Nat -> N.Nat -> Runtime -> Output) := \thunk (\cfun (rows: N.Nat) => \return(\thunk (\cfun (cols: N.Nat) => \return(\thunk (\cfun (a: Runtime) =>
+  (\force Evaluate.run) (State::active rows cols N.Nat::zero a History::empty))))));
+\definition outputMatrix: Output^ -> Runtime^ := \induction (result: Output^) \return Runtime^ \with {
+  | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^) => a
+};
+\definition outputHistory: Output^ -> History^ := \induction (result: Output^) \return History^ \with {
+  | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^) => history
+};
+\definition execute(state: State^): Output^ := \run[State^, Output^](step, state) \by { Termination[].terminates state };
+\module Agreement(state: State^);
+\definition runMatches: \forall (state: State^) -> Evaluate.run^ state = execute state := \fun (state: State^) => Agreement[state := state].law;
+\definition executeInitial(rows, cols: N.Nat^)(a: Runtime^): Output^ := execute (State^::active rows cols N.Nat^::zero a History^::empty);
+\correspondence Run: Programs.Correspondence := Programs.Correspondence {
+  T := \U(N.Nat -> N.Nat -> Runtime -> Output), program := runProgram, specification := executeInitial,
+  coherence := \axiom:funext(runProgram^, executeInitial,
+    \fun (rows: N.Nat^) => \axiom:funext(runProgram^ rows, executeInitial rows,
+      \fun (cols: N.Nat^) => \axiom:funext(runProgram^ rows cols, executeInitial rows cols,
+        \fun (a: Runtime^) => runMatches (State^::active rows cols N.Nat^::zero a History^::empty)))),
+};
+\definition outputRank: Output^ -> N.Nat^ := \induction (result: Output^) \return N.Nat^ \with {
+  | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^) => rank
+};
+\module Invariants(m, n: N.Nat^, original: Runtime^);
+\module Diagonalization(m, n: N.Nat^, original: Runtime^);

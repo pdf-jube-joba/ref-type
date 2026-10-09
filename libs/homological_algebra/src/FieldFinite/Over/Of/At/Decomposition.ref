@@ -1,0 +1,28 @@
+\import \parent.Outgoing[] \as Out;
+\structure Data: \Set {
+  section: Modules.MapBetween cohomologyBundle cycleBundle,
+  outgoing: Modules.MapBetween Out.target Out.source,
+}
+\structure Laws[data: Data]: \Prop {
+  represents: \forall (x: cohomologyBundle.Carrier) -> #apply{H.classLinear} (#apply{data.section} x) = x,
+  differentiates: \forall (x: Out.target.Carrier) -> #apply{Out.differential} (#apply{data.outgoing} x) = x,
+}
+\definition Splitting: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition Sections: \Set := \Cast[Modules.MapBetween cohomologyBundle cycleBundle]
+  ({ s: Modules.MapBetween cohomologyBundle cycleBundle \where \forall (x: cohomologyBundle.Carrier) -> #apply{H.classLinear} (#apply{s} x) = x });
+\definition sectionExistence: \exists Sections := cohomologyProjective cycleBundle.Carrier cycleBundle.space cohomologyBundle.Carrier cohomologyBundle.space
+  H.classLinear (#onto{sequence}) (Modules.End[V := cohomologyBundle.Carrier, space := cohomologyBundle.space].identity);
+\definition existence: \exists Splitting := \block {
+  \takefrom s: Sections \by sectionExistence \then
+  \takefrom t: Out.Section \by Out.sectionExistence \then
+  \let data: Data := Data { section := s, outgoing := t } \then
+  \return \exact(\into[Data](data, { data: Data \where Laws[data] }) \by {
+    Laws[data] {
+      represents := \bysub(Modules.MapBetween cohomologyBundle cycleBundle,
+        { s: Modules.MapBetween cohomologyBundle cycleBundle \where \forall (x: cohomologyBundle.Carrier) -> #apply{H.classLinear} (#apply{s} x) = x }, s),
+      differentiates := \bysub(Modules.MapBetween Out.target Out.source,
+        { t: Modules.MapBetween Out.target Out.source \where \forall (x: Out.target.Carrier) -> #apply{Out.differential} (#apply{t} x) = x }, t),
+    }
+  }, Splitting)
+};
+\module Selected(d: Splitting);

@@ -1,0 +1,51 @@
+\import \parent.Map[C := C, D := D] \as Forward;
+\import \parent.Map[C := D, D := C] \as Backward;
+\structure Data: \Set { forward: Forward.Map, backward: Backward.Map }
+\structure Laws[data: Data]: \Prop {
+  leftInverse: \forall (z: Degree)(x: C.family.Carrier z) -> #apply{data.backward} z (#apply{data.forward} z x) = x,
+  rightInverse: \forall (z: Degree)(x: D.family.Carrier z) -> #apply{data.forward} z (#apply{data.backward} z x) = x,
+}
+\definition Isomorphism: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\module Degreewise(isomorphisms: \forall (z: Degree) -> Modules.Isomorphism[V := C.family.Carrier z, W := D.family.Carrier z, source := C.family.space z, target := D.family.space z].Isomorphism);
+\module On(e: Isomorphism) {
+  \import Backward.Composition[B := C] \as LeftComposition;
+  \import Forward.Composition[B := D] \as RightComposition;
+  \import \parent.\parent.End[C := C] \as SourceEnd;
+  \import \parent.\parent.End[C := D] \as TargetEnd;
+  \import \parent.\parent.Map[C := C, D := C] \as SourceMaps;
+  \import \parent.\parent.Map[C := D, D := D] \as TargetMaps;
+  \definition left: LeftComposition.compose e.backward e.forward = SourceEnd.identity :=
+    SourceMaps.ext (LeftComposition.compose e.backward e.forward) SourceEnd.identity
+      (#leftInverse{(\bysub(Data, { data: Data \where Laws[data] }, e))});
+  \definition right: RightComposition.compose e.forward e.backward = TargetEnd.identity :=
+    TargetMaps.ext (RightComposition.compose e.forward e.backward) TargetEnd.identity
+      (#rightInverse{(\bysub(Data, { data: Data \where Laws[data] }, e))});
+  \module At(z: Degree) {
+    \import \parent.\parent.\parent.At[C := C, z := z] \as Source;
+    \import \parent.\parent.\parent.At[C := D, z := z] \as Target;
+    \import Forward.At[k := z] \as ForwardMap;
+    \import Backward.At[k := z] \as BackwardMap;
+    \import LeftComposition.At[k := z] \as LeftLaw;
+    \import RightComposition.At[k := z] \as RightLaw;
+    \import SourceMaps.At[k := z] \as LeftMap;
+    \import TargetMaps.At[k := z] \as RightMap;
+    \definition leftInverse: \forall (q: Source.Cohomology) ->
+      #apply{(BackwardMap.induced e.backward)} (#apply{(ForwardMap.induced e.forward)} q) = q :=
+      \fun (q: Source.Cohomology) => trans!{Source.Cohomology} _ _ _
+        (sym!{Source.Cohomology} _ _ (LeftLaw.compositionOnCohomology e.backward e.forward q))
+        (trans!{Source.Cohomology} _ _ _
+          (congr!{SourceMaps.Map Source.Cohomology} (\fun (f: SourceMaps.Map) => #apply{(LeftMap.induced f)} q) _ _ left)
+          (SourceEnd.At[k := z].identityOnCohomology q));
+    \definition rightInverse: \forall (q: Target.Cohomology) ->
+      #apply{(ForwardMap.induced e.forward)} (#apply{(BackwardMap.induced e.backward)} q) = q :=
+      \fun (q: Target.Cohomology) => trans!{Target.Cohomology} _ _ _
+        (sym!{Target.Cohomology} _ _ (RightLaw.compositionOnCohomology e.forward e.backward q))
+        (trans!{Target.Cohomology} _ _ _
+          (congr!{TargetMaps.Map Target.Cohomology} (\fun (f: TargetMaps.Map) => #apply{(RightMap.induced f)} q) _ _ right)
+          (TargetEnd.At[k := z].identityOnCohomology q));
+    \definition isomorphism: Modules.Isomorphism[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace].Isomorphism := Modules.Isomorphism[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace].Isomorphism {
+      forward := ForwardMap.induced e.forward, backward := BackwardMap.induced e.backward,
+      leftInverse := leftInverse, rightInverse := rightInverse,
+    };
+  }
+}

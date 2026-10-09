@@ -1,0 +1,32 @@
+\import Transport.Cokernel[] \as Quotients;
+\definition Normal: \Set := Quotients.SourceCarrier;
+\definition Original: \Set := Quotients.TargetCarrier;
+\definition normalSpace: Modules.Space Normal := Quotients.sourceSpace;
+\definition originalSpace: Modules.Space Original := Quotients.targetSpace;
+\definition isomorphism: Modules.Isomorphism[V := Normal, W := Original, source := normalSpace, target := originalSpace].Isomorphism := Quotients.isomorphism commutes;
+\import Modules.Of[V := Matrices.Output, space := Matrices.codomain].Submodule[] \as Submodules;
+\import Submodules.Image[U := Matrices.Vector, source := Matrices.domain] \as Images;
+\definition normalImage: Submodules.Submodule := Images.image (Base.linear diagonal);
+\definition originalImage: Submodules.Submodule := Images.image (Base.linear (Matrices.reflect original));
+\import Submodules.Quotient[S := normalImage] \as NormalQuotient;
+\import Submodules.Quotient[S := originalImage] \as OriginalQuotient;
+\definition normalClass(v: Matrices.Output): Normal := NormalQuotient.class v;
+\definition originalClass(v: Matrices.Output): Original := OriginalQuotient.class v;
+\definition onClass: \forall (v: Matrices.Output) -> #apply{#forward{isomorphism}} (normalClass v) =
+  originalClass (#apply{#backward{leftIso}} v) := Quotients.onClass commutes;
+\import Diagonal.Cokernel[a := Diagonalize.diagonal result] \as Factors;
+\definition FactorCarrier: \Set := Factors.FactorCarrier;
+\definition factorSpace: Modules.Space FactorCarrier := Factors.factorSpace;
+\definition factorFamily: Modules.Family[Finite.Fin m] := Factors.family;
+\definition factor(i: Finite.Fin m): I.Int^ := Factors.modulus i;
+\definition decomposition: Modules.Isomorphism[V := Normal, W := FactorCarrier, source := normalSpace, target := factorSpace].Isomorphism :=
+  Factors.decomposition diagonalLaws;
+\import Modules.Isomorphism[V := Normal, W := Original, source := normalSpace, target := originalSpace].Inverse[] \as Reverse;
+\import Modules.Isomorphism[V := Original, W := Normal, source := originalSpace, target := normalSpace].Composition[U := FactorCarrier, final := factorSpace] \as Composition;
+\definition originalDecomposition: Modules.Isomorphism[V := Original, W := FactorCarrier, source := originalSpace, target := factorSpace].Isomorphism :=
+  Composition.compose decomposition (Reverse.inverse isomorphism);
+
+\definition backOnClass: \forall (v: Matrices.Output) -> #apply{#backward{isomorphism}} (originalClass v) =
+  normalClass (#apply{#forward{leftIso}} v) := Quotients.backOnClass commutes;
+\definition classes(v: Matrices.Output): FactorCarrier := Factors.classes v;
+\definition factorOnClass: \forall (v: Matrices.Output) -> #apply{#forward{decomposition}} (normalClass v) = classes v := Factors.onClass diagonalLaws;

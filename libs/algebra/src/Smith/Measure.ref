@@ -1,0 +1,31 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Arithmetic[].NaturalSum[] \as Sum;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import std.Logic[].Proposition[] \as Logic;
+\definition size(rows, cols: N.Nat^)(a: Runtime^): N.Nat^ := Sum.sum rows (\fun (i: N.Nat^) => Sum.sum cols (\fun (j: N.Nat^) => Signed.absolute (a i j)));
+\definition inner(rows, cols, k: N.Nat^)(a: Runtime^): N.Nat^ := B.ite N.Nat^ (I.IsZero.specification (a k k)) (N.Nat^::succ (size rows cols a)) (Signed.absolute (a k k));
+\definition entryBound: \forall (rows, cols: N.Nat^)(a: Runtime^)(i, j: N.Nat^) -> Bounds.Lt i rows -> Bounds.Lt j cols -> Bounds.Le (Signed.absolute (a i j)) (size rows cols a) :=
+  \fun (rows, cols: N.Nat^)(a: Runtime^)(i, j: N.Nat^)(rowBound: _)(colBound: _) =>
+    Bounds.leTrans (Signed.absolute (a i j)) (Sum.sum cols (\fun (j: N.Nat^) => Signed.absolute (a i j))) (size rows cols a)
+      (Sum.bounds cols (\fun (j: N.Nat^) => Signed.absolute (a i j)) j colBound)
+      (Sum.bounds rows (\fun (i: N.Nat^) => Sum.sum cols (\fun (j: N.Nat^) => Signed.absolute (a i j))) i rowBound);
+\definition located: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(i, j: N.Nat^) -> I.IsZero.specification (a k k) = B.Bool^::true -> Bounds.Lt i rows -> Bounds.Lt j cols -> Bounds.Lt (Signed.absolute (a i j)) (inner rows cols k a) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(i, j: N.Nat^)(zero: _)(rowBound: _)(colBound: _) =>
+    \idelim B.Bool^::true = I.IsZero.specification (a k k) \with test: B.Bool^ =>
+      Bounds.Lt (Signed.absolute (a i j)) (B.ite N.Nat^ test (N.Nat^::succ (size rows cols a)) (Signed.absolute (a k k))) \by {
+      base: Bounds.leLtTrans (Signed.absolute (a i j)) (size rows cols a) (N.Nat^::succ (size rows cols a)) (entryBound rows cols a i j rowBound colBound) (N.Order[].Prop[].ltSelfSucc (size rows cols a)),
+      equality: sym!{B.Bool^} (I.IsZero.specification (a k k)) B.Bool^::true zero
+    };
+\definition absoluteZero: \forall (a: I.Int^) -> Signed.absolute a = N.Nat^::zero -> a = Arithmetic.zero :=
+  \induction (a: I.Int^) \return Signed.absolute a = N.Nat^::zero -> a = Arithmetic.zero \with {
+    | ofNat: \fun (n: N.Nat^)(equal: n = N.Nat^::zero) => congr!{N.Nat^ I.Int^} I.Int^::ofNat n N.Nat^::zero equal
+    | negSucc: \fun (n: N.Nat^)(bad: N.Nat^::succ n = N.Nat^::zero) => Bounds.succEqZeroElim n (I.Int^::negSucc n = Arithmetic.zero) bad
+  };
+
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Search[] \as ZeroTest;
+\definition nonzeroInner: \forall (rows, cols, k: N.Nat^)(a: Runtime^) -> Logic.Not (a k k = Arithmetic.zero) -> inner rows cols k a = Signed.absolute (a k k) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(nonzero: _) => \idelim B.Bool^::false = I.IsZero.specification (a k k) \with test: B.Bool^ =>
+    B.ite N.Nat^ test (N.Nat^::succ (size rows cols a)) (Signed.absolute (a k k)) = Signed.absolute (a k k) \by {
+    base: \refl(Signed.absolute (a k k)), equality: sym!{B.Bool^} (I.IsZero.specification (a k k)) B.Bool^::false (ZeroTest.falseOfNonzero (a k k) nonzero)
+  };

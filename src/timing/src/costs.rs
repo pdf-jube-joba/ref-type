@@ -25,6 +25,8 @@ struct Ledger {
     measurements: BTreeMap<&'static str, Measurement>,
     counters: BTreeMap<&'static str, u64>,
     filters: Vec<String>,
+    progress: Option<(Duration, Instant)>,
+    entries: u64,
 }
 
 impl Ledger {
@@ -76,6 +78,11 @@ impl Session {
                             .map(str::to_owned)
                             .collect()
                     },
+                    progress: std::env::var("REF_TYPE_PROFILE_COSTS_PROGRESS_MS")
+                        .ok()
+                        .and_then(|value| value.parse::<u64>().ok())
+                        .filter(|&ms| ms > 0)
+                        .map(|ms| (Duration::from_millis(ms), Instant::now())),
                     ..Ledger::default()
                 });
                 true
@@ -144,6 +151,31 @@ impl Scope {
             let Some(ledger) = ledger else { return false };
             if !ledger.accepts(label) {
                 return false;
+            }
+            ledger.entries += 1;
+            if ledger.entries % 4096 == 0
+                && let Some((interval, last)) = &mut ledger.progress
+                && last.elapsed() >= *interval
+            {
+                *last = Instant::now();
+                let mut costs: Vec<_> = ledger.measurements.iter().collect();
+                costs.sort_by_key(|(_, measurement)| std::cmp::Reverse(measurement.exclusive));
+                eprintln!(
+                    "cost_progress scopes={} active={:?}",
+                    ledger.entries,
+                    ledger
+                        .stack
+                        .iter()
+                        .map(|frame| frame.label)
+                        .collect::<Vec<_>>()
+                );
+                for (label, measurement) in costs.into_iter().take(8) {
+                    eprintln!(
+                        "cost_progress={label} calls={} exclusive_us={}",
+                        measurement.calls,
+                        measurement.exclusive.as_micros()
+                    );
+                }
             }
             ledger.stack.push(Frame {
                 label,

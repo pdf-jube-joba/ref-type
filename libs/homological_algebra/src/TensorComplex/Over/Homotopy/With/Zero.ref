@@ -1,0 +1,24 @@
+\import Modules.Tensor[V := P.family.Carrier Nat.Nat^::zero, W := N.Carrier, left := P.family.space Nat.Nat^::zero, right := N.space] \as Generators;
+\import Modules.Tensor[V := Q.family.Carrier Nat.Nat^::zero, W := N.Carrier, left := Q.family.space Nat.Nat^::zero, right := N.space] \as Result;
+\import Generators.Universal[U := Result.Carrier, target := Result.space] \as Equality;
+\import Modules.Hom[V := Source.Carrier Nat.Nat^::zero, W := Target.Carrier Nat.Nat^::zero, source := Source.space Nat.Nat^::zero, target := Target.space Nat.Nat^::zero] \as Linear;
+\import Modules.Hom[V := Target.Carrier (Nat.Nat^::succ Nat.Nat^::zero), W := Target.Carrier Nat.Nat^::zero, source := Target.space (Nat.Nat^::succ Nat.Nat^::zero), target := Target.space Nat.Nat^::zero].Composition[U := Source.Carrier Nat.Nat^::zero, domain := Source.space Nat.Nat^::zero] \as Composition;
+\import Actions.On[f := f, u := Coefficients.identity].At[n := Nat.Nat^::zero] \as Forward;
+\import Actions.On[f := g, u := Coefficients.identity].At[n := Nat.Nat^::zero] \as Backward;
+\definition difference: Linear.Map := Linear.plus Forward.map (Linear.negative Backward.map);
+\definition composite: Linear.Map := Composition.compose (Target.At[n := Nat.Nat^::zero].differential) (\parent.At[n := Nat.Nat^::zero].map);
+\definition equation: difference = composite := Equality.ext difference composite
+  (\fun (x: P.family.Carrier Nat.Nat^::zero)(y: N.Carrier) => trans!{Result.Carrier} _ _ _
+    (congr2!{Result.Carrier Result.Carrier Result.Carrier}
+      (\fun (a, b: Result.Carrier) => #add{Result.space} a (#neg{Result.space} b)) _ _ _ _ (Forward.onTensor x y) (Backward.onTensor x y))
+    (trans!{Result.Carrier} _ _ _
+      (sym!{Result.Carrier} _ _ (Result.tensorDifferenceLeft (#apply{f} Nat.Nat^::zero x) (#apply{g} Nat.Nat^::zero x) y))
+      (trans!{Result.Carrier} _ _ _
+        (congr!{{Q.family.Carrier Nat.Nat^::zero} Result.Carrier} (\fun (z: Q.family.Carrier Nat.Nat^::zero) => Result.tensor z y) _ _ (#zeroEquation{h} x))
+        (sym!{Result.Carrier} _ _ (trans!{Result.Carrier} _ _ _
+          (congr!{{Target.Carrier (Nat.Nat^::succ Nat.Nat^::zero)} Result.Carrier} (#apply{(Target.At[n := Nat.Nat^::zero].differential)}) _ _ (\parent.At[n := Nat.Nat^::zero].onTensor x y))
+          (Target.At[n := Nat.Nat^::zero].onTensor (#apply{h} Nat.Nat^::zero x) y))))));
+\definition pointwise: \forall (x: Source.Carrier Nat.Nat^::zero) ->
+  #add{(Target.space Nat.Nat^::zero)} (#apply{Forward.map} x) (#neg{(Target.space Nat.Nat^::zero)} (#apply{Backward.map} x)) =
+    #apply{Target.differential} Nat.Nat^::zero (#apply{(\parent.At[n := Nat.Nat^::zero].map)} x) :=
+  \fun (x: Source.Carrier Nat.Nat^::zero) => congr!{Linear.Map Result.Carrier} (\fun (m: Linear.Map) => #apply{m} x) _ _ equation;

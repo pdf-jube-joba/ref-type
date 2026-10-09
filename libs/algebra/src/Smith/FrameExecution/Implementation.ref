@@ -1,0 +1,24 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> History -> BasisChange);
+\definition program: T := \thunk (\cfun (rows: N.Nat) => \return(\thunk (\cfun (cols: N.Nat) => \return(\thunk (\cfun (history: History) => \program {
+  \bind columns: \U(N.Nat -> BasisChange -> BasisChange -> BasisChange) <- (\force composeProgram) rows \then
+  \bind compose: Composer <- (\force columns) cols \then
+  \bind handlers: \U(Handler -> History -> BasisChange -> BasisChange) <- (\force Fold.program) compose \then
+  \bind histories: \U(History -> BasisChange -> BasisChange) <- (\force handlers) operationProgram \then
+  \bind run: Transformer <- (\force histories) history \then
+  \bind output: BasisChange <- (\force run) (BasisChange::frame identityProgram identityProgram identityProgram identityProgram) \then
+  \return output
+})))));
+\definition withOperations(fold: Fold.T^)(compose: Compose.T^)(operation: OperationFrame.T^)(identity: Runtime^)(rows, cols: N.Nat^)(history: History^): BasisChange^ :=
+  fold (compose rows cols) operation history (BasisChange^::frame identity identity identity identity);
+\use Equality.eq_reason;
+\definition matches: \forall (rows, cols: N.Nat^)(history: History^) -> program^ rows cols history = build rows cols history :=
+  \fun (rows, cols: N.Nat^)(history: History^) => trans!{BasisChange^} (program^ rows cols history) (withOperations foldWith composeProgram^ operationProgram^ identityProgram^ rows cols history) (withOperations foldWith compose operation Identity.identity rows cols history)
+      (congr!{Fold.T^ BasisChange^} (\fun (f: Fold.T^) => withOperations f composeProgram^ operationProgram^ identityProgram^ rows cols history) Fold.program^ foldWith Fold.coherence)
+      (trans!{BasisChange^} (withOperations foldWith composeProgram^ operationProgram^ identityProgram^ rows cols history) (withOperations foldWith compose operationProgram^ identityProgram^ rows cols history) (withOperations foldWith compose operation Identity.identity rows cols history)
+      (congr!{Compose.T^ BasisChange^} (\fun (f: Compose.T^) => withOperations foldWith f operationProgram^ identityProgram^ rows cols history) composeProgram^ compose Compose.coherence)
+      (trans!{BasisChange^} (withOperations foldWith compose operationProgram^ identityProgram^ rows cols history) (withOperations foldWith compose operation identityProgram^ rows cols history) (withOperations foldWith compose operation Identity.identity rows cols history)
+      (congr!{OperationFrame.T^ BasisChange^} (\fun (f: OperationFrame.T^) => withOperations foldWith compose f identityProgram^ rows cols history) operationProgram^ operation OperationFrame.coherence)
+      (congr!{Runtime^ BasisChange^} (\fun (f: Runtime^) => withOperations foldWith compose operation f rows cols history) identityProgram^ Identity.identity Identity.Identity.coherence)));
+\definition coherence: program^ = build := \axiom:funext(program^, build,
+  \fun (rows: N.Nat^) => \axiom:funext(program^ rows, build rows,
+    \fun (cols: N.Nat^) => \axiom:funext(program^ rows cols, build rows cols, matches rows cols)));

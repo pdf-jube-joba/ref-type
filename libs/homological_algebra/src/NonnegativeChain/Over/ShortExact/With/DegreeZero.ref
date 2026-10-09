@@ -1,0 +1,72 @@
+\import \parent.\parent.\parent.DegreeZero[C := A] \as HA;
+\import \parent.\parent.\parent.DegreeZero[C := B] \as HB;
+\import \parent.\parent.\parent.DegreeZero[C := C] \as HC;
+\import Inclusion.DegreeZero[] \as Inclusions;
+\import Projection.DegreeZero[] \as Projections;
+\import Inclusion.HomologyAt[n := N.Nat^::zero] \as UniformInclusions;
+\import Projection.HomologyAt[n := N.Nat^::zero] \as UniformProjections;
+\import Inclusion.HomologyNaturality[f := s.inclusion].DegreeZero[] \as InclusionAgreement;
+\import Projection.HomologyNaturality[f := s.projection].DegreeZero[] \as ProjectionAgreement;
+\definition inclusion: Modules.Hom[V := HA.Homology, W := HB.Homology, source := HA.homologySpace, target := HB.homologySpace].Map := UniformInclusions.induced s.inclusion;
+\definition projection: Modules.Hom[V := HB.Homology, W := HC.Homology, source := HB.homologySpace, target := HC.homologySpace].Map := UniformProjections.induced s.projection;
+\definition projectionOnClass: \forall (x: B.family.Carrier N.Nat^::zero) -> #apply{projection} (HB.classOf x) = HC.classOf (#apply{s.projection} N.Nat^::zero x) :=
+  \fun (x: B.family.Carrier N.Nat^::zero) => trans!{HC.Homology} _ _ _ (ProjectionAgreement.agrees (HB.classOf x)) (Projections.onClass s.projection x);
+\definition inclusionOnClass: \forall (x: A.family.Carrier N.Nat^::zero) -> #apply{inclusion} (HA.classOf x) = HB.classOf (#apply{s.inclusion} N.Nat^::zero x) :=
+  \fun (x: A.family.Carrier N.Nat^::zero) => trans!{HB.Homology} _ _ _ (InclusionAgreement.agrees (HA.classOf x)) (Inclusions.onClass s.inclusion x);
+\definition onto: \forall (q: HC.Homology) -> \exists { p: HB.Homology \where #apply{projection} p = q } :=
+  HC.classInduction (\fun (q: HC.Homology) => \exists { p: HB.Homology \where #apply{projection} p = q })
+    (\block {
+      \fun (x: C.family.Carrier N.Nat^::zero) \then
+      \takefrom y: \Cast[B.family.Carrier N.Nat^::zero] ({ y: B.family.Carrier N.Nat^::zero \where #apply{s.projection} N.Nat^::zero y = x })
+        \by #onto{s} N.Nat^::zero x \then
+      \return \exact(\into[HB.Homology](HB.classOf y, { p: HB.Homology \where #apply{projection} p = HC.classOf x }) \by {
+        trans!{HC.Homology} _ _ _ (projectionOnClass y)
+          (congr!{{C.family.Carrier N.Nat^::zero} HC.Homology} HC.classOf _ _
+            (\bysub(B.family.Carrier N.Nat^::zero, { y: B.family.Carrier N.Nat^::zero \where #apply{s.projection} N.Nat^::zero y = x }, y)))
+      }, \Cast[HB.Homology] ({ p: HB.Homology \where #apply{projection} p = HC.classOf x }))
+    });
+\import Modules.Hom[V := C.family.Carrier N.Nat^::zero, W := HC.Homology, source := C.family.space N.Nat^::zero, target := HC.homologySpace] \as Classes;
+\definition inclusionProjectionZero: \forall (q: HA.Homology) -> #apply{projection} (#apply{inclusion} q) = #zero{HC.homologySpace} :=
+  HA.classInduction (\fun (q: HA.Homology) => #apply{projection} (#apply{inclusion} q) = #zero{HC.homologySpace})
+    (\fun (x: A.family.Carrier N.Nat^::zero) => trans!{HC.Homology} _ _ _
+      (congr!{HB.Homology HC.Homology} (#apply{projection}) _ _ (inclusionOnClass x))
+      (trans!{HC.Homology} _ _ _ (projectionOnClass (#apply{s.inclusion} N.Nat^::zero x))
+        (trans!{HC.Homology} _ _ _
+          (congr!{{C.family.Carrier N.Nat^::zero} HC.Homology} HC.classOf _ _ (#zero{s} N.Nat^::zero x))
+          (Classes.zeroPreserved HC.classLinear))));
+\import \root.Chain[].Over[R := R, ring := ring] \as Internal;
+\import Extended.At[s := sequence, k := Signed.Int^::ofNat N.Nat^::zero] \as IntegerExact;
+\import Internal.At[C := Left.complex, z := Signed.Int^::ofNat N.Nat^::zero] \as IA;
+\import Internal.At[C := Middle.complex, z := Signed.Int^::ofNat N.Nat^::zero] \as IB;
+\import Internal.At[C := Right.complex, z := Signed.Int^::ofNat N.Nat^::zero] \as IC;
+\import Internal.Map[C := Left.complex, D := Middle.complex].At[k := Signed.Int^::ofNat N.Nat^::zero] \as IntegerInclusion;
+\import Internal.Map[C := Middle.complex, D := Right.complex].At[k := Signed.Int^::ofNat N.Nat^::zero] \as IntegerProjection;
+\definition a: Modules.Bundle := Modules.Bundle { Carrier := HA.Homology, space := HA.homologySpace };
+\definition b: Modules.Bundle := Modules.Bundle { Carrier := HB.Homology, space := HB.homologySpace };
+\definition c: Modules.Bundle := Modules.Bundle { Carrier := HC.Homology, space := HC.homologySpace };
+\definition ia: Modules.Bundle := Modules.Bundle { Carrier := IA.Homology, space := IA.homologySpace };
+\definition ib: Modules.Bundle := Modules.Bundle { Carrier := IB.Homology, space := IB.homologySpace };
+\definition ic: Modules.Bundle := Modules.Bundle { Carrier := IC.Homology, space := IC.homologySpace };
+\import \parent.\parent.\parent.IntegerComparison[C := A].At[n := N.Nat^::zero] \as AComparison;
+\import \parent.\parent.\parent.IntegerComparison[C := B].At[n := N.Nat^::zero] \as BComparison;
+\import \parent.\parent.\parent.IntegerComparison[C := C].At[n := N.Nat^::zero] \as CComparison;
+\import Modules.Isomorphism[V := a.Carrier, W := ia.Carrier, source := a.space, target := ia.space].Inverse[] \as AInverse;
+\import Modules.Isomorphism[V := b.Carrier, W := ib.Carrier, source := b.space, target := ib.space].Inverse[] \as BInverse;
+\import Modules.Isomorphism[V := c.Carrier, W := ic.Carrier, source := c.space, target := ic.space].Inverse[] \as CInverse;
+\definition aIsomorphism: Modules.Isomorphism[V := ia.Carrier, W := a.Carrier, source := ia.space, target := a.space].Isomorphism := AInverse.inverse AComparison.isomorphism;
+\definition bIsomorphism: Modules.Isomorphism[V := ib.Carrier, W := b.Carrier, source := ib.space, target := b.space].Isomorphism := BInverse.inverse BComparison.isomorphism;
+\definition cIsomorphism: Modules.Isomorphism[V := ic.Carrier, W := c.Carrier, source := ic.space, target := c.space].Isomorphism := CInverse.inverse CComparison.isomorphism;
+\import Modules.ExactPair[A := ia, B := ib, C := ic] \as SourcePair;
+\definition sourcePair: SourcePair.Sequence := SourcePair.Sequence {
+  first := IntegerInclusion.induced ExtendedInclusion.map,
+  last := IntegerProjection.induced ExtendedProjection.map,
+  zero := IntegerExact.Exactness[].inclusionProjectionZero,
+  kernelImage := IntegerExact.Exactness[].exactAtB,
+};
+\import SourcePair.Transport[A1 := a, B1 := b, C1 := c, sequence := sourcePair,
+  f := inclusion, g := projection, a := aIsomorphism, b := bIsomorphism, c := cIsomorphism] \as Transport;
+\import Inclusion.HomologyNaturality[f := s.inclusion].At[n := N.Nat^::zero] \as InclusionNaturality;
+\import Projection.HomologyNaturality[f := s.projection].At[n := N.Nat^::zero] \as ProjectionNaturality;
+\definition exactAtB: \forall (q: HB.Homology) -> #apply{projection} q = #zero{HC.homologySpace} ->
+  \exists { p: HA.Homology \where #apply{inclusion} p = q } :=
+  Transport.kernelImage InclusionNaturality.inverseCommutes ProjectionNaturality.inverseCommutes;

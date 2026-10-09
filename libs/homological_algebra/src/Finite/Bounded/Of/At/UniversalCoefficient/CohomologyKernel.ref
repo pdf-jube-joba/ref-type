@@ -1,0 +1,183 @@
+\definition liftClosed(f: Values.Map): Cohomology.Closed := cocycle f;
+\definition liftExtend(f: Values.Map): Hom.Carrier z := extend f;
+\import \parent.Boundary[] \as Boundary;
+\import \root.Finite[].Bounded[].Of[C := C].At[z := previous z] \as Previous;
+\import Previous.UniversalCoefficient[A := A] \as PreviousSplitting;
+\import Previous.Presentation[] \as Presentation;
+\import \root.Ext[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].LengthOne[K := Presentation.boundaryBundle, L := Presentation.cyclesBundle, M := Presentation.homologyBundle, N := A].With[sequence := Presentation.sequence] \as Ext;
+\definition resolution: _ := Ext.resolution Presentation.boundaryProjective Presentation.cyclesProjective;
+\import Chains.At[C := chain, z := previous z] \as PreviousHomology;
+\import Modules.Hom[V := Boundary.Carrier, W := A.Carrier, source := Boundary.space, target := A.space] \as BoundaryMaps;
+\import Commutative.HomSpace[V := Boundary.Carrier, W := A.Carrier, source := Boundary.space, target := A.space] \as BoundaryValues;
+\import Modules.Hom[V := Carrier C z, W := A.Carrier, source := space C z, target := A.space] \as CurrentMaps;
+\import BoundaryMaps.Composition[U := Carrier C z, domain := space C z] \as Composition;
+\definition cochain(f: BoundaryMaps.Map): Hom.Carrier z := Composition.compose f Boundary.map;
+\definition closed: \forall (f: BoundaryMaps.Map) -> Hom.apply z (cochain f) = #zero{(Hom.space (next z))} :=
+  \fun (f: BoundaryMaps.Map) => Differentials.ext (Hom.apply z (cochain f)) (#zero{(Hom.space (next z))})
+    (\fun (x: Carrier C (next z)) => trans!{A.Carrier} _ _ _
+      (congr!{Boundary.Carrier A.Carrier} (#apply{f}) _ _
+        (Boundary.onCycle (Homology.cycle (Prior.value z x) (Prior.squareZero z x))))
+      (BoundaryMaps.zeroPreserved f));
+\definition cocycle(f: BoundaryMaps.Map): Cohomology.Closed := \into[Hom.Carrier z](cochain f,
+  { g: Hom.Carrier z \where Hom.apply z g = #zero{(Hom.space (next z))} }) \by { closed f };
+\import Modules.Hom[V := BoundaryValues.Carrier, W := Cohomology.Closed, source := BoundaryValues.space, target := Cohomology.cycleSpace] \as Cycles;
+\definition cycleMap: Cycles.Map := Cycles.Map {
+  apply := cocycle,
+  addition := \fun (f, g: BoundaryValues.Carrier) => CurrentMaps.ext (cochain (#add{BoundaryValues.space} f g)) (#add{(Hom.space z)} (cochain f) (cochain g))
+    (\fun (x: Carrier C z) => \refl(#add{A.space} (#apply{f} (Boundary.value x)) (#apply{g} (Boundary.value x)))),
+  scalar := \fun (a: I.Int^)(f: BoundaryValues.Carrier) => CurrentMaps.ext (cochain (#smul{BoundaryValues.space} a f)) (#smul{(Hom.space z)} a (cochain f))
+    (\fun (x: Carrier C z) => \refl(#smul{A.space} a (#apply{f} (Boundary.value x)))),
+};
+\import Modules.Hom[V := Cohomology.Closed, W := Cohomology.Cohomology, source := Cohomology.cycleSpace, target := Cohomology.cohomologySpace].Composition[U := BoundaryValues.Carrier, domain := BoundaryValues.space] \as Classes;
+\definition classMap: Modules.Hom[V := BoundaryValues.Carrier, W := Cohomology.Cohomology, source := BoundaryValues.space, target := Cohomology.cohomologySpace].Map :=
+  Classes.compose Cohomology.classLinear cycleMap;
+\import Modules.Hom[V := PreviousHomology.Cycle, W := A.Carrier, source := PreviousHomology.cycleSpace, target := A.space] \as PreviousMaps;
+\import Commutative.HomSpace[V := PreviousHomology.Cycle, W := A.Carrier, source := PreviousHomology.cycleSpace, target := A.space] \as CycleValues;
+\import PreviousMaps.Composition[U := Carrier C (previous z), domain := space C (previous z)] \as Extensions;
+\definition extend(g: PreviousMaps.Map): Hom.Carrier (previous z) := Extensions.compose g PreviousSplitting.retraction;
+\definition onRestriction: \forall (g: PreviousMaps.Map) -> Cohomology.prior (extend g) = cochain (Ext.precompose g) :=
+  \fun (g: PreviousMaps.Map) => CurrentMaps.ext (Cohomology.prior (extend g)) (cochain (Ext.precompose g))
+    (\fun (x: Carrier C z) => trans!{A.Carrier} _ _ _ (Cohomology.priorOnElement (extend g) x)
+      (congr!{PreviousHomology.Cycle A.Carrier} (#apply{g}) _ _
+        (PreviousSplitting.retractCycle (PreviousHomology.cycle (#apply{chain.differential} z x) (#squareZero{chain.laws} z x)))));
+\definition restrictionZero: \forall (g: PreviousMaps.Map) -> #apply{classMap} (Ext.precompose g) = #zero{Cohomology.cohomologySpace} :=
+  \fun (g: PreviousMaps.Map) => Cohomology.boundaryClassZero (cocycle (Ext.precompose g))
+    (\exact(\into[Hom.Carrier (previous z)](extend g,
+      { h: Hom.Carrier (previous z) \where Cohomology.prior h = cocycle (Ext.precompose g) }) \by { onRestriction g },
+      \Cast[Hom.Carrier (previous z)] ({ h: Hom.Carrier (previous z) \where Cohomology.prior h = cocycle (Ext.precompose g) })));
+\import Modules.Of[V := BoundaryValues.Carrier, space := BoundaryValues.space].Submodule[] \as Submodules;
+\import Submodules.Image[U := CycleValues.Carrier, source := CycleValues.space] \as Images;
+\import Submodules.Quotient[S := Ext.extensions] \as Quotient;
+\import Quotient.To[W := Cohomology.Cohomology, target := Cohomology.cohomologySpace] \as Descent;
+\definition vanishes: Descent.Vanishes classMap := \block {
+  \fun (f: BoundaryValues.Carrier)(member: _) \then
+  \takefrom g: \Cast[CycleValues.Carrier] ({ g: CycleValues.Carrier \where Ext.precompose g = f }) \by member \then
+  \return trans!{Cohomology.Cohomology} _ _ _
+    (sym!{Cohomology.Cohomology} _ _ (congr!{BoundaryValues.Carrier Cohomology.Cohomology} (#apply{classMap}) _ _
+      (\bysub(CycleValues.Carrier, { g: CycleValues.Carrier \where Ext.precompose g = f }, g))))
+    (restrictionZero g)
+};
+\definition quotientMap: Modules.Hom[V := Quotient.Carrier, W := Cohomology.Cohomology, source := Quotient.moduleSpace, target := Cohomology.cohomologySpace].Map :=
+  Descent.descend classMap vanishes;
+\definition onClass: \forall (f: BoundaryValues.Carrier) -> #apply{quotientMap} (Quotient.class f) = Cohomology.classOf (cocycle f) := Descent.onClass classMap vanishes;
+\definition restrict(g: Hom.Carrier (previous z)): PreviousMaps.Map := PreviousMaps.Map {
+  apply := \fun (x: PreviousHomology.Cycle) => #apply{g} x,
+  addition := \fun (x, y: PreviousHomology.Cycle) => #addition{g} x y,
+  scalar := \fun (a: I.Int^)(x: PreviousHomology.Cycle) => #scalar{g} a x,
+};
+\definition restrictionOfCoboundary: \forall (f: BoundaryValues.Carrier)(g: Hom.Carrier (previous z)) ->
+  Cohomology.prior g = cocycle f -> Ext.precompose (restrict g) = f := \block {
+  \fun (f: BoundaryValues.Carrier)(g: Hom.Carrier (previous z))(equal: _) \then
+  \return BoundaryMaps.ext (Ext.precompose (restrict g)) f (\block {
+    \fun (b: Boundary.Carrier) \then
+    \takefrom x: \Cast[Carrier C z] ({ x: Carrier C z \where Boundary.value x = b }) \by Boundary.onto b \then
+    \let image: Boundary.value x = b := \bysub(Carrier C z, { x: Carrier C z \where Boundary.value x = b }, x) \then
+    \return trans!{A.Carrier} _ _ _
+      (sym!{A.Carrier} _ _ (congr!{Boundary.Carrier A.Carrier} (\fun (u: Boundary.Carrier) => #apply{(Ext.precompose (restrict g))} u) _ _ image))
+      (trans!{A.Carrier} _ _ _ (sym!{A.Carrier} _ _ (Cohomology.priorOnElement g x))
+        (trans!{A.Carrier} _ _ _
+          (congr!{{Hom.Carrier z} A.Carrier} (\fun (h: Hom.Carrier z) => #apply{h} x) _ _ equal)
+          (congr!{Boundary.Carrier A.Carrier} (#apply{f}) _ _ image)))
+  })
+};
+\definition zeroClass: \forall (f: BoundaryValues.Carrier) -> Cohomology.classOf (cocycle f) = #zero{Cohomology.cohomologySpace} -> Quotient.class f = #zero{Quotient.moduleSpace} := \block {
+  \fun (f: BoundaryValues.Carrier)(zero: _) \then
+  \takefrom g: \Cast[Hom.Carrier (previous z)] ({ g: Hom.Carrier (previous z) \where Cohomology.prior g = cocycle f })
+    \by Cohomology.boundaryExists (cocycle f) (Cohomology.zeroClassBoundary (cocycle f) zero) \then
+  \return Quotient.classZero f (Images.introduce Ext.restriction f (restrict g)
+    (restrictionOfCoboundary f g (\bysub(Hom.Carrier (previous z), { g: Hom.Carrier (previous z) \where Cohomology.prior g = cocycle f }, g))))
+};
+\definition quotientZeroKernel: \forall (q: Quotient.Carrier) -> #apply{quotientMap} q = #zero{Cohomology.cohomologySpace} -> q = #zero{Quotient.moduleSpace} :=
+  Quotient.induction (\fun (q: Quotient.Carrier) => #apply{quotientMap} q = #zero{Cohomology.cohomologySpace} -> q = #zero{Quotient.moduleSpace})
+    (\fun (f: BoundaryValues.Carrier)(zero: _) => zeroClass f
+      (trans!{Cohomology.Cohomology} _ _ _ (sym!{Cohomology.Cohomology} _ _ (onClass f)) zero));
+\import Modules.Hom[V := Quotient.Carrier, W := Cohomology.Cohomology, source := Quotient.moduleSpace, target := Cohomology.cohomologySpace] \as QuotientMaps;
+\definition quotientInjective: \forall (p, q: Quotient.Carrier) -> #apply{quotientMap} p = #apply{quotientMap} q -> p = q :=
+  QuotientMaps.injectiveOfZeroKernel quotientMap quotientZeroKernel;
+\definition evaluationZero: \forall (f: BoundaryValues.Carrier) -> #apply{Evaluation.map} (Cohomology.classOf (cocycle f)) = #zero{Evaluation.valueSpace} :=
+  \fun (f: BoundaryValues.Carrier) => Values.ext (#apply{Evaluation.map} (Cohomology.classOf (cocycle f))) (#zero{Evaluation.valueSpace})
+    (Homology.classInduction (\fun (q: Homology.Homology) => #apply{(#apply{Evaluation.map} (Cohomology.classOf (cocycle f)))} q = #zero{A.space})
+      (\fun (x: Homology.Cycle) => trans!{A.Carrier} _ _ _
+        (congr!{Values.Map A.Carrier} (\fun (g: Values.Map) => #apply{g} (Homology.classOf x)) _ _ (Evaluation.onCohomologyClass (cocycle f)))
+        (trans!{A.Carrier} _ _ _ (Evaluation.onClass (cocycle f) x)
+          (trans!{A.Carrier} _ _ _ (congr!{Boundary.Carrier A.Carrier} (#apply{f}) _ _ (Boundary.onCycle x)) (BoundaryMaps.zeroPreserved f)))));
+\definition quotientEvaluationZero: \forall (q: Quotient.Carrier) -> #apply{Evaluation.map} (#apply{quotientMap} q) = #zero{Evaluation.valueSpace} :=
+  Quotient.induction (\fun (q: Quotient.Carrier) => #apply{Evaluation.map} (#apply{quotientMap} q) = #zero{Evaluation.valueSpace})
+    (\fun (f: BoundaryValues.Carrier) => trans!{Evaluation.ValueCarrier} _ _ _
+      (congr!{Cohomology.Cohomology Evaluation.ValueCarrier} (#apply{Evaluation.map}) _ _ (onClass f)) (evaluationZero f));
+\definition vanishesOnCycles: \forall (f: Cohomology.Closed) -> #apply{Evaluation.map} (Cohomology.classOf f) = #zero{Evaluation.valueSpace} ->
+  \forall (x: Homology.Cycle) -> #apply{f} x = #zero{A.space} :=
+  \fun (f: Cohomology.Closed)(zero: _)(x: Homology.Cycle) => trans!{A.Carrier} _ _ _
+    (sym!{A.Carrier} _ _ (Evaluation.onClass f x))
+    (congr!{Values.Map A.Carrier} (\fun (g: Values.Map) => #apply{g} (Homology.classOf x)) _ _
+      (trans!{Values.Map} _ _ _ (sym!{Values.Map} _ _ (Evaluation.onCohomologyClass f)) zero));
+\definition chainsBundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier C z, space := space C z };
+\definition boundaryBundle: Modules.Bundle := Modules.Bundle { Carrier := Boundary.Carrier, space := Boundary.space };
+\import Modules.SurjectiveDescent[A := chainsBundle, B := boundaryBundle, U := A] \as Factorization;
+\module Factor(f: Cohomology.Closed) {
+  \import Factorization.On[q := Boundary.map, f := f] \as Descent;
+  \definition kills: (#apply{Evaluation.map} (Cohomology.classOf f) = #zero{Evaluation.valueSpace}) -> Descent.KillsKernel :=
+    \fun (zero: _)(x: Carrier C z)(closed: _) => vanishesOnCycles f zero (Homology.cycle x (Boundary.kernelCycle x closed));
+  \definition map(zero: #apply{Evaluation.map} (Cohomology.classOf f) = #zero{Evaluation.valueSpace}): BoundaryMaps.Map := Descent.map Boundary.onto (kills zero);
+  \definition agrees: \forall (zero: #apply{Evaluation.map} (Cohomology.classOf f) = #zero{Evaluation.valueSpace}) -> cochain (map zero) = f :=
+    \fun (zero: _) => CurrentMaps.ext (cochain (map zero)) f (Descent.onImage Boundary.onto (kills zero));
+  \definition preimage: \forall (zero: #apply{Evaluation.map} (Cohomology.classOf f) = #zero{Evaluation.valueSpace}) ->
+    #apply{quotientMap} (Quotient.class (map zero)) = Cohomology.classOf f :=
+    \fun (zero: _) => trans!{Cohomology.Cohomology} _ _ _ (onClass (map zero))
+      (congr!{Cohomology.Closed Cohomology.Cohomology} Cohomology.classOf (cocycle (map zero)) f (agrees zero));
+}
+\definition quotientKernelImage: \forall (q: Cohomology.Cohomology) -> #apply{Evaluation.map} q = #zero{Evaluation.valueSpace} ->
+  \exists { p: Quotient.Carrier \where #apply{quotientMap} p = q } :=
+  Cohomology.classInduction (\fun (q: Cohomology.Cohomology) => #apply{Evaluation.map} q = #zero{Evaluation.valueSpace} ->
+    \exists { p: Quotient.Carrier \where #apply{quotientMap} p = q })
+    (\fun (f: Cohomology.Closed)(zero: _) => \exact(\into[Quotient.Carrier](Quotient.class (Factor[f := f].map zero),
+      { p: Quotient.Carrier \where #apply{quotientMap} p = Cohomology.classOf f }) \by { Factor[f := f].preimage zero },
+      \Cast[Quotient.Carrier] ({ p: Quotient.Carrier \where #apply{quotientMap} p = Cohomology.classOf f })));
+\definition extBundle: Modules.Bundle := Modules.Bundle { Carrier := Ext.Carrier, space := Ext.space };
+\definition cohomologyBundle: Modules.Bundle := Modules.Bundle { Carrier := Cohomology.Cohomology, space := Cohomology.cohomologySpace };
+\definition homBundle: Modules.Bundle := Modules.Bundle { Carrier := Evaluation.ValueCarrier, space := Evaluation.valueSpace };
+\import QuotientMaps.Composition[U := Ext.Carrier, domain := Ext.space] \as Inclusion;
+\definition inclusion: Modules.Hom[V := Ext.Carrier, W := Cohomology.Cohomology, source := Ext.space, target := Cohomology.cohomologySpace].Map :=
+  Inclusion.compose quotientMap #forward{Ext.isomorphism};
+\definition injective: \forall (p, q: Ext.Carrier) -> #apply{inclusion} p = #apply{inclusion} q -> p = q :=
+  \fun (p, q: Ext.Carrier)(equal: _) => trans!{Ext.Carrier} _ _ _
+    (sym!{Ext.Carrier} _ _ (#leftInverse{Ext.isomorphism} p))
+    (trans!{Ext.Carrier} _ _ _
+      (congr!{Quotient.Carrier Ext.Carrier} (#apply{#backward{Ext.isomorphism}}) _ _
+        (quotientInjective (#apply{#forward{Ext.isomorphism}} p) (#apply{#forward{Ext.isomorphism}} q) equal))
+      (#leftInverse{Ext.isomorphism} q));
+\definition kernelImage: \forall (q: Cohomology.Cohomology) -> #apply{Evaluation.map} q = #zero{Evaluation.valueSpace} ->
+  \exists { p: Ext.Carrier \where #apply{inclusion} p = q } := \block {
+  \fun (q: Cohomology.Cohomology)(zero: _) \then
+  \takefrom p: \Cast[Quotient.Carrier] ({ p: Quotient.Carrier \where #apply{quotientMap} p = q }) \by quotientKernelImage q zero \then
+  \return \exact(\into[Ext.Carrier](#apply{#backward{Ext.isomorphism}} p,
+    { e: Ext.Carrier \where #apply{inclusion} e = q }) \by {
+      trans!{Cohomology.Cohomology} _ _ _
+        (congr!{Quotient.Carrier Cohomology.Cohomology} (#apply{quotientMap}) _ _ (#rightInverse{Ext.isomorphism} p))
+        (\bysub(Quotient.Carrier, { p: Quotient.Carrier \where #apply{quotientMap} p = q }, p))
+    }, \Cast[Ext.Carrier] ({ e: Ext.Carrier \where #apply{inclusion} e = q }))
+};
+\import Modules.ShortExact[A := extBundle, B := cohomologyBundle, C := homBundle] \as Sequences;
+\definition data: Sequences.Data := Sequences.Data { inclusion := inclusion, projection := Evaluation.map };
+\definition laws: Sequences.Laws[data] := Sequences.Laws[data] {
+  injective := injective, onto := onto,
+  zero := \fun (p: Ext.Carrier) => quotientEvaluationZero (#apply{#forward{Ext.isomorphism}} p),
+  kernelImage := kernelImage,
+};
+\definition sequence: Sequences.Sequence := \into[Sequences.Data](data, { data: Sequences.Data \where Sequences.Laws[data] }) \by { laws };
+\import Modules.Hom[V := Carrier C z, W := A.Carrier, source := space C z, target := A.space] \as ChainMaps;
+\import Modules.Hom[V := Evaluation.ValueCarrier, W := Cohomology.Closed, source := Evaluation.valueSpace, target := Cohomology.cycleSpace] \as LiftCycles;
+\definition liftCycles: LiftCycles.Map := LiftCycles.Map {
+  apply := liftClosed,
+  addition := \fun (f, g: Evaluation.ValueCarrier) => ChainMaps.ext (liftExtend (#add{Evaluation.valueSpace} f g)) (#add{(Hom.space z)} (liftExtend f) (liftExtend g))
+    (\fun (x: Carrier C z) => \refl(#add{A.space} (#apply{f} (Homology.classOf (#apply{retraction} x))) (#apply{g} (Homology.classOf (#apply{retraction} x))))),
+  scalar := \fun (a: I.Int^)(f: Evaluation.ValueCarrier) => ChainMaps.ext (liftExtend (#smul{Evaluation.valueSpace} a f)) (#smul{(Hom.space z)} a (liftExtend f))
+    (\fun (x: Carrier C z) => \refl(#smul{A.space} a (#apply{f} (Homology.classOf (#apply{retraction} x))))),
+};
+\import Modules.Hom[V := Cohomology.Closed, W := Cohomology.Cohomology, source := Cohomology.cycleSpace, target := Cohomology.cohomologySpace].Composition[U := Evaluation.ValueCarrier, domain := Evaluation.valueSpace] \as LiftClasses;
+\definition section: Modules.Hom[V := Evaluation.ValueCarrier, W := Cohomology.Cohomology, source := Evaluation.valueSpace, target := Cohomology.cohomologySpace].Map :=
+  LiftClasses.compose Cohomology.classLinear liftCycles;
+\import Sequences.Splitting[sequence := sequence].With[s := section] \as ChosenSplitting;
+\import Modules.Biproduct[V := Ext.Carrier, W := Evaluation.ValueCarrier, left := Ext.space, right := Evaluation.valueSpace] \as Sum;
+\definition splitting: Modules.Isomorphism[V := Sum.Carrier, W := Cohomology.Cohomology, source := Sum.space, target := Cohomology.cohomologySpace].Isomorphism :=
+  ChosenSplitting.isomorphism rightInverse;

@@ -1,0 +1,109 @@
+\import Source.To[W := Target.Carrier, target := Target.space] \as Universal;
+\module At(i: Index) {
+  \import \parent.\parent.\parent.Hom[V := targetFamily.Carrier i, W := Target.Carrier, source := targetFamily.space i, target := Target.space].Composition[U := sourceFamily.Carrier i, domain := sourceFamily.space i] \as Compose;
+  \definition component: Universal.At[i := i].Map := Compose.compose (Target.Injection[i := i].map) (f i);
+}
+\definition components: Universal.Components := \fun (i: Index) => At[i := i].component;
+\definition map: MapBetween Source.bundle Target.bundle := Universal.extension components;
+\definition onInjection: \forall (i: Index)(x: sourceFamily.Carrier i) ->
+  #apply{map} (#apply{(Source.Injection[i := i].map)} x) = #apply{(Target.Injection[i := i].map)} (#apply{(f i)} x) := Universal.onInjection components;
+\import \parent.\parent.Hom[V := Source.Carrier, W := TargetProduct.Carrier, source := Source.space, target := TargetProduct.space] \as CoordinateMaps;
+\definition coordinateMap: CoordinateMaps.Map := CoordinateMaps.Map {
+  apply := \fun (x: Source.Carrier)(i: Index) => #apply{(f i)} (SourceCoordinates.coordinates x i),
+  addition := \fun (x, y: Source.Carrier) => \axiom:funext(
+    (\fun (i: Index) => #apply{(f i)} (SourceCoordinates.coordinates (#add{Source.space} x y) i)),
+    (\fun (i: Index) => #add{(targetFamily.space i)} (#apply{(f i)} (SourceCoordinates.coordinates x i)) (#apply{(f i)} (SourceCoordinates.coordinates y i))),
+    \fun (i: Index) => trans!{{targetFamily.Carrier i}}
+      (#apply{(f i)} (SourceCoordinates.coordinates (#add{Source.space} x y) i))
+      (#apply{(f i)} (#add{(sourceFamily.space i)} (SourceCoordinates.coordinates x i) (SourceCoordinates.coordinates y i)))
+      (#add{(targetFamily.space i)} (#apply{(f i)} (SourceCoordinates.coordinates x i)) (#apply{(f i)} (SourceCoordinates.coordinates y i)))
+      (congr!{{sourceFamily.Carrier i} {targetFamily.Carrier i}} (#apply{(f i)})
+        (SourceCoordinates.coordinates (#add{Source.space} x y) i)
+        (#add{(sourceFamily.space i)} (SourceCoordinates.coordinates x i) (SourceCoordinates.coordinates y i))
+        (congr!{{\forall (j: Index) -> sourceFamily.Carrier j} {sourceFamily.Carrier i}}
+          (\fun (v: \forall (j: Index) -> sourceFamily.Carrier j) => v i)
+          (SourceCoordinates.coordinates (#add{Source.space} x y))
+          (\fun (j: Index) => #add{(sourceFamily.space j)} (SourceCoordinates.coordinates x j) (SourceCoordinates.coordinates y j))
+          (SourceCoordinates.coordinatesAddition x y)))
+      (#addition{(f i)} (SourceCoordinates.coordinates x i) (SourceCoordinates.coordinates y i))),
+  scalar := \fun (a: R)(x: Source.Carrier) => \axiom:funext(
+    (\fun (i: Index) => #apply{(f i)} (SourceCoordinates.coordinates (#smul{Source.space} a x) i)),
+    (\fun (i: Index) => #smul{(targetFamily.space i)} a (#apply{(f i)} (SourceCoordinates.coordinates x i))),
+    \fun (i: Index) => trans!{{targetFamily.Carrier i}}
+      (#apply{(f i)} (SourceCoordinates.coordinates (#smul{Source.space} a x) i))
+      (#apply{(f i)} (#smul{(sourceFamily.space i)} a (SourceCoordinates.coordinates x i)))
+      (#smul{(targetFamily.space i)} a (#apply{(f i)} (SourceCoordinates.coordinates x i)))
+      (congr!{{sourceFamily.Carrier i} {targetFamily.Carrier i}} (#apply{(f i)})
+        (SourceCoordinates.coordinates (#smul{Source.space} a x) i)
+        (#smul{(sourceFamily.space i)} a (SourceCoordinates.coordinates x i))
+        (congr!{{\forall (j: Index) -> sourceFamily.Carrier j} {sourceFamily.Carrier i}}
+          (\fun (v: \forall (j: Index) -> sourceFamily.Carrier j) => v i)
+          (SourceCoordinates.coordinates (#smul{Source.space} a x))
+          (\fun (j: Index) => #smul{(sourceFamily.space j)} a (SourceCoordinates.coordinates x j))
+          (SourceCoordinates.coordinatesScalar a x)))
+      (#scalar{(f i)} a (SourceCoordinates.coordinates x i))),
+};
+\definition targetCoordinates: CoordinateMaps.Map := CoordinateMaps.Map {
+  apply := \fun (x: Source.Carrier) => TargetCoordinates.coordinates (#apply{map} x),
+  addition := \fun (x, y: Source.Carrier) => trans!{TargetProduct.Carrier} _ _ _
+    (congr!{Target.Carrier TargetProduct.Carrier} TargetCoordinates.coordinates _ _ (#addition{map} x y))
+    (TargetCoordinates.coordinatesAddition (#apply{map} x) (#apply{map} y)),
+  scalar := \fun (a: R)(x: Source.Carrier) => trans!{TargetProduct.Carrier} _ _ _
+    (congr!{Target.Carrier TargetProduct.Carrier} TargetCoordinates.coordinates _ _ (#scalar{map} a x))
+    (TargetCoordinates.coordinatesScalar a (#apply{map} x)),
+};
+\module Injection(i: Index, x: sourceFamily.Carrier i) {
+  \definition same: TargetCoordinates.coordinates (#apply{map} (#apply{(Source.Injection[i := i].map)} x)) i =
+    #apply{(f i)} (SourceCoordinates.coordinates (#apply{(Source.Injection[i := i].map)} x) i) :=
+    trans!{{targetFamily.Carrier i}} _ _ _
+      (congr!{Target.Carrier {targetFamily.Carrier i}} (\fun (q: Target.Carrier) => TargetCoordinates.coordinates q i) _ _ (onInjection i x))
+      (trans!{{targetFamily.Carrier i}} _ _ _ (TargetCoordinates.atOwn i (#apply{(f i)} x))
+        (sym!{{targetFamily.Carrier i}} _ _ (congr!{{sourceFamily.Carrier i} {targetFamily.Carrier i}} (#apply{(f i)}) _ _ (SourceCoordinates.atOwn i x))));
+  \definition different: \forall (j: Index) -> Logic.Not (i = j) ->
+    TargetCoordinates.coordinates (#apply{map} (#apply{(Source.Injection[i := i].map)} x)) j =
+      #apply{(f j)} (SourceCoordinates.coordinates (#apply{(Source.Injection[i := i].map)} x) j) :=
+    \fun (j: Index)(ne: Logic.Not (i = j)) => trans!{{targetFamily.Carrier j}} _ _ _
+      (congr!{Target.Carrier {targetFamily.Carrier j}} (\fun (q: Target.Carrier) => TargetCoordinates.coordinates q j) _ _ (onInjection i x))
+      (trans!{{targetFamily.Carrier j}} _ _ _ (TargetCoordinates.atOther i j (#apply{(f i)} x) ne)
+        (sym!{{targetFamily.Carrier j}} _ _ (trans!{{targetFamily.Carrier j}} _ _ _
+          (congr!{{sourceFamily.Carrier j} {targetFamily.Carrier j}} (#apply{(f j)}) _ _ (SourceCoordinates.atOther i j x ne))
+          (\parent.\parent.Component[i := j].zero (f j)))));
+  \import std.Logic[].Classical[] \as Classical;
+  \use Logic.either;
+  \definition point: \forall (j: Index) -> TargetCoordinates.coordinates (#apply{map} (#apply{(Source.Injection[i := i].map)} x)) j =
+    #apply{(f j)} (SourceCoordinates.coordinates (#apply{(Source.Injection[i := i].map)} x) j) :=
+    \fun (j: Index) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {
+      TargetCoordinates.coordinates (#apply{map} (#apply{(Source.Injection[i := i].map)} x)) j =
+      #apply{(f j)} (SourceCoordinates.coordinates (#apply{(Source.Injection[i := i].map)} x) j) }
+      "lt:"
+      { \fun (equal: i = j) => \idelim i = j \with j: Index =>
+          TargetCoordinates.coordinates (#apply{map} (#apply{(Source.Injection[i := i].map)} x)) j =
+          #apply{(f j)} (SourceCoordinates.coordinates (#apply{(Source.Injection[i := i].map)} x) j)
+        \by { base: same, equality: equal } }
+      "rt:" { different j }} (Classical.excludedMiddle (i = j));
+  \definition equality: #apply{targetCoordinates} (#apply{(Source.Injection[i := i].map)} x) =
+    #apply{coordinateMap} (#apply{(Source.Injection[i := i].map)} x) := TargetProduct.ext _ _ point;
+}
+\import Source.To[W := TargetProduct.Carrier, target := TargetProduct.space] \as CoordinateUniversal;
+\definition coordinateComponents: CoordinateUniversal.Components := \fun (i: Index) => CoordinateUniversal.At[i := i].Map {
+  apply := \fun (x: sourceFamily.Carrier i) => #apply{coordinateMap} (#apply{(Source.Injection[i := i].map)} x),
+  addition := \fun (x, y: sourceFamily.Carrier i) => trans!{TargetProduct.Carrier} _ _ _
+    (congr!{Source.Carrier TargetProduct.Carrier} (#apply{coordinateMap}) _ _ (#addition{(Source.Injection[i := i].map)} x y))
+    (#addition{coordinateMap} (#apply{(Source.Injection[i := i].map)} x) (#apply{(Source.Injection[i := i].map)} y)),
+  scalar := \fun (a: R)(x: sourceFamily.Carrier i) => trans!{TargetProduct.Carrier} _ _ _
+    (congr!{Source.Carrier TargetProduct.Carrier} (#apply{coordinateMap}) _ _ (#scalar{(Source.Injection[i := i].map)} a x))
+    (#scalar{coordinateMap} a (#apply{(Source.Injection[i := i].map)} x)),
+};
+\definition coordinateEquality: targetCoordinates = coordinateMap := trans!{CoordinateMaps.Map} _ _ _
+  (CoordinateUniversal.unique coordinateComponents targetCoordinates (\fun (i: Index)(x: sourceFamily.Carrier i) => Injection[i := i, x := x].equality))
+  (sym!{CoordinateMaps.Map} _ _ (CoordinateUniversal.unique coordinateComponents coordinateMap (\fun (i: Index)(x: sourceFamily.Carrier i) => \refl(#apply{coordinateMap} (#apply{(Source.Injection[i := i].map)} x)))));
+\definition coordinatesNatural: \forall (x: Source.Carrier)(i: Index) -> TargetCoordinates.coordinates (#apply{map} x) i = #apply{(f i)} (SourceCoordinates.coordinates x i) :=
+  \fun (x: Source.Carrier)(i: Index) => congr!{CoordinateMaps.Map {targetFamily.Carrier i}} (\fun (g: CoordinateMaps.Map) => #apply{g} x i) targetCoordinates coordinateMap coordinateEquality;
+\definition injective: (\forall (i: Index)(x, y: sourceFamily.Carrier i) -> #apply{(f i)} x = #apply{(f i)} y -> x = y) -> \forall (x, y: Source.Carrier) -> #apply{map} x = #apply{map} y -> x = y :=
+  \fun (componentsInjective: \forall (i: Index)(x, y: sourceFamily.Carrier i) -> #apply{(f i)} x = #apply{(f i)} y -> x = y)(x, y: Source.Carrier)(equal: #apply{map} x = #apply{map} y) =>
+    SourceCoordinates.injective x y (\axiom:funext(SourceCoordinates.coordinates x, SourceCoordinates.coordinates y,
+      \fun (i: Index) => componentsInjective i (SourceCoordinates.coordinates x i) (SourceCoordinates.coordinates y i)
+        (trans!{{targetFamily.Carrier i}} _ _ _ (sym!{{targetFamily.Carrier i}} _ _ (coordinatesNatural x i))
+          (trans!{{targetFamily.Carrier i}} _ _ _
+            (congr!{Target.Carrier {targetFamily.Carrier i}} (\fun (q: Target.Carrier) => TargetCoordinates.coordinates q i) _ _ equal)
+            (coordinatesNatural y i)))));

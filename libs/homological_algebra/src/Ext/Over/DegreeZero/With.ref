@@ -1,0 +1,79 @@
+\definition closedEvaluation: \forall (f: H.CycleCarrier)(y: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) ->
+  #apply{f} (#apply{P.differential} Nat.Nat^::zero y) = #zero{N.space} :=
+  \fun (f: H.CycleCarrier)(y: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) =>
+    congr!{{Hom.Carrier (Nat.Nat^::succ Nat.Nat^::zero)} N.Carrier}
+      (\fun (g: Hom.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => #apply{g} y) _ _
+      (\bysub(Hom.Carrier Nat.Nat^::zero, #carrier{H.cycles}, f));
+\module On(f: H.CycleCarrier) {
+  \import Descent.On[q := #augmentation{resolution}, f := f] \as D;
+  \definition kills: D.KillsKernel := \block {
+    \fun (x: P.family.Carrier Nat.Nat^::zero)(zero: #apply{(#augmentation{resolution})} x = #zero{M.space}) \then
+    \takefrom y: \Cast[P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)]
+      ({ y: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{P.differential} Nat.Nat^::zero y = x }) \by #augmentationExact{resolution} x zero \then
+    \return trans!{N.Carrier} _ _ _ (congr!{{P.family.Carrier Nat.Nat^::zero} N.Carrier} (#apply{f}) _ _
+      (sym!{{P.family.Carrier Nat.Nat^::zero}} _ _ (\bysub(P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero),
+        { y: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{P.differential} Nat.Nat^::zero y = x }, y))))
+      (closedEvaluation f y)
+  };
+  \definition map: Native.Map := D.map (#onto{resolution}) kills;
+  \definition onAugmentation: \forall (x: P.family.Carrier Nat.Nat^::zero) -> #apply{map} (#apply{(#augmentation{resolution})} x) = #apply{f} x :=
+    D.onImage (#onto{resolution}) kills;
+}
+\definition reflects: \forall (f, g: Native.Map) ->
+  (\forall (x: P.family.Carrier Nat.Nat^::zero) -> #apply{f} (#apply{(#augmentation{resolution})} x) = #apply{g} (#apply{(#augmentation{resolution})} x)) -> f = g :=
+  \fun (f, g: Native.Map)(same: \forall (x: P.family.Carrier Nat.Nat^::zero) -> #apply{f} (#apply{(#augmentation{resolution})} x) = #apply{g} (#apply{(#augmentation{resolution})} x)) =>
+    Native.ext f g (\block {
+      \fun (y: M.Carrier) \then
+      \takefrom x: \Cast[P.family.Carrier Nat.Nat^::zero] ({ x: P.family.Carrier Nat.Nat^::zero \where #apply{(#augmentation{resolution})} x = y }) \by #onto{resolution} y \then
+      \let ex: #apply{(#augmentation{resolution})} x = y := \bysub(P.family.Carrier Nat.Nat^::zero, { x: P.family.Carrier Nat.Nat^::zero \where #apply{(#augmentation{resolution})} x = y }, x) \then
+      \return trans!{N.Carrier} _ _ _ (congr!{M.Carrier N.Carrier} (#apply{f}) _ _ (sym!{M.Carrier} _ _ ex))
+        (trans!{N.Carrier} _ _ _ (same x) (congr!{M.Carrier N.Carrier} (#apply{g}) _ _ ex))
+    });
+\import Modules.Hom[V := H.CycleCarrier, W := Target.Carrier, source := H.cycleSpace, target := Target.space] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (f: H.CycleCarrier) => On[f := f].map,
+  addition := \fun (f, g: H.CycleCarrier) => reflects _ _
+    (\fun (x: P.family.Carrier Nat.Nat^::zero) => trans!{N.Carrier} _ _ _
+      (On[f := #add{H.cycleSpace} f g].onAugmentation x)
+      (sym!{N.Carrier} _ _ (congr2!{N.Carrier N.Carrier N.Carrier} (#add{N.space}) _ _ _ _
+        (On[f := f].onAugmentation x) (On[f := g].onAugmentation x)))),
+  scalar := \fun (a: R)(f: H.CycleCarrier) => reflects _ _
+    (\fun (x: P.family.Carrier Nat.Nat^::zero) => trans!{N.Carrier} _ _ _
+      (On[f := #smul{H.cycleSpace} a f].onAugmentation x)
+      (sym!{N.Carrier} _ _ (congr!{N.Carrier N.Carrier} (#smul{N.space} a) _ _ (On[f := f].onAugmentation x)))),
+};
+\definition precompose(f: Native.Map): Hom.Carrier Nat.Nat^::zero := Hom.At[n := Nat.Nat^::zero].Carrier {
+  apply := \fun (x: P.family.Carrier Nat.Nat^::zero) => #apply{f} (#apply{(#augmentation{resolution})} x),
+  addition := \fun (x, y: P.family.Carrier Nat.Nat^::zero) => trans!{N.Carrier} _ _ _
+    (congr!{M.Carrier N.Carrier} (#apply{f}) _ _ (#addition{(#augmentation{resolution})} x y))
+    (#addition{f} (#apply{(#augmentation{resolution})} x) (#apply{(#augmentation{resolution})} y)),
+  scalar := \fun (a: R)(x: P.family.Carrier Nat.Nat^::zero) => trans!{N.Carrier} _ _ _
+    (congr!{M.Carrier N.Carrier} (#apply{f}) _ _ (#scalar{(#augmentation{resolution})} a x))
+    (#scalar{f} a (#apply{(#augmentation{resolution})} x)),
+};
+\definition precomposeClosed: \forall (f: Native.Map) -> \In[Hom.Carrier Nat.Nat^::zero] (#carrier{H.cycles}) (precompose f) :=
+  \fun (f: Native.Map) => Hom.At[n := Nat.Nat^::succ Nat.Nat^::zero].ext
+    (Hom.apply Nat.Nat^::zero (precompose f)) #zero{(Hom.space (Nat.Nat^::succ Nat.Nat^::zero))}
+    (\fun (x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => trans!{N.Carrier} _ _ _
+      (congr!{M.Carrier N.Carrier} (#apply{f}) _ _ (#killed{resolution} x)) (Native.zeroPreserved f));
+\definition cycle(f: Native.Map): H.CycleCarrier := \into[Hom.Carrier Nat.Nat^::zero](precompose f, #carrier{H.cycles}) \by { precomposeClosed f };
+\import Modules.Hom[V := Target.Carrier, W := H.CycleCarrier, source := Target.space, target := H.cycleSpace] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := cycle,
+  addition := \fun (f, g: Target.Carrier) => Hom.At[n := Nat.Nat^::zero].ext (precompose (Target.add f g)) (#add{(Hom.space Nat.Nat^::zero)} (precompose f) (precompose g))
+    (\fun (x: P.family.Carrier Nat.Nat^::zero) => \refl(#add{N.space} (#apply{f} (#apply{(#augmentation{resolution})} x)) (#apply{g} (#apply{(#augmentation{resolution})} x)))),
+  scalar := \fun (a: R)(f: Target.Carrier) => Hom.At[n := Nat.Nat^::zero].ext (precompose (Target.scale a f)) (#smul{(Hom.space Nat.Nat^::zero)} a (precompose f))
+    (\fun (x: P.family.Carrier Nat.Nat^::zero) => \refl(#smul{N.space} a (#apply{f} (#apply{(#augmentation{resolution})} x)))),
+};
+\definition leftInverse: \forall (f: H.CycleCarrier) -> #apply{backward} (#apply{forward} f) = f :=
+  \fun (f: H.CycleCarrier) => Hom.At[n := Nat.Nat^::zero].ext (precompose (On[f := f].map)) f (On[f := f].onAugmentation);
+\definition rightInverse: \forall (f: Target.Carrier) -> #apply{forward} (#apply{backward} f) = f :=
+  \fun (f: Target.Carrier) => reflects (On[f := cycle f].map) f (On[f := cycle f].onAugmentation);
+\import Modules.Isomorphism[V := H.CycleCarrier, W := Target.Carrier, source := H.cycleSpace, target := Target.space] \as Iso;
+\definition cycleIsomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};
+\import Modules.Isomorphism[V := H.CycleCarrier, W := H.Cohomology, source := H.cycleSpace, target := H.cohomologySpace].Inverse[] \as Inverse;
+\import Modules.Isomorphism[V := H.Cohomology, W := H.CycleCarrier, source := H.cohomologySpace, target := H.cycleSpace].Composition[U := Target.Carrier, final := Target.space] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := H.Cohomology, W := Target.Carrier, source := H.cohomologySpace, target := Target.space].Isomorphism :=
+  Composition.compose cycleIsomorphism (Inverse.inverse Zero.kernelIso);

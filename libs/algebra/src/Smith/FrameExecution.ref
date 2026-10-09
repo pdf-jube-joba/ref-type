@@ -1,0 +1,97 @@
+\definition Handler: \VType := \U(Operation -> BasisChange);
+\definition Composer: \VType := \U(BasisChange -> BasisChange -> BasisChange);
+\definition Transformer: \VType := \U(BasisChange -> BasisChange);
+\definition foldWith(compose: Composer^)(handler: Handler^): History^ -> BasisChange^ -> BasisChange^ :=
+  \induction (history: History^) \return BasisChange^ -> BasisChange^ \with {
+    | empty: \fun (initial: BasisChange^) => initial
+    | prepend: \fun (operation: Operation^)(history: History^)(previous: BasisChange^ -> BasisChange^)(initial: BasisChange^) =>
+        compose (handler operation) (previous initial)
+  };
+\inductive State: \VType := | pending: History -> Handler -> Composer -> Transformer -> BasisChange -> State;
+\module Loop;
+\machine Evaluate: Programs.Machine := Programs.Machine {
+  State := State, Output := BasisChange, step := Loop[].step, terminates := Loop[].certificate,
+};
+\definition T: \VType := \U(Composer -> Handler -> History -> BasisChange -> BasisChange);
+\definition program: T := \thunk (\cfun (compose: Composer) => \return(\thunk (\cfun (handler: Handler) => \return(\thunk (\cfun (history: History) => \return(\thunk (\cfun (initial: BasisChange) =>
+  (\force Evaluate.run) (State::pending history handler compose (\thunk (\cfun (a: BasisChange) => \return a)) initial))))))));
+\module Correspondence;
+\correspondence Fold: Programs.Correspondence := Programs.Correspondence {
+  T := T, program := program, specification := foldWith, coherence := Correspondence[].coherence,
+};
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Product[k := N.Nat^::zero] \as MatrixProduct;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Identity[] \as Identity;
+\definition identity: BasisChange^ := BasisChange^::frame Identity.identity Identity.identity Identity.identity Identity.identity;
+\definition identityProgram: Runtime := Identity.Identity.program;
+\definition multiplyProgram: MatrixProduct.Multiply.T := MatrixProduct.Multiply.program;
+\definition compose(rows, cols: N.Nat^): BasisChange^ -> BasisChange^ -> BasisChange^ :=
+  \induction (later: BasisChange^) \return BasisChange^ -> BasisChange^ \with {
+    | frame: \fun (left, right, leftInverse, rightInverse: Runtime^) =>
+        \induction (earlier: BasisChange^) \return BasisChange^ \with {
+          | frame: \fun (oldLeft, oldRight, oldLeftInverse, oldRightInverse: Runtime^) => BasisChange^::frame
+              (MatrixProduct.mathematical rows left oldLeft) (MatrixProduct.mathematical cols oldRight right)
+              (MatrixProduct.mathematical rows oldLeftInverse leftInverse) (MatrixProduct.mathematical cols rightInverse oldRightInverse)
+        }
+  };
+\module CompositionImplementation;
+\correspondence Compose: Programs.Correspondence := Programs.Correspondence {
+  T := CompositionImplementation[].T, program := CompositionImplementation[].program, specification := compose, coherence := CompositionImplementation[].coherence,
+};
+\definition operation(operation: Operation^): BasisChange^ := BasisChange^::frame
+  (apply (leftProjection operation) Identity.identity) (apply (rightProjection operation) Identity.identity)
+  (apply (leftProjection (inverseOperation operation)) Identity.identity) (apply (rightProjection (inverseOperation operation)) Identity.identity);
+\definition applyProgram: Apply.T := Apply.program;
+\definition leftProgram: LeftProjection.T := LeftProjection.program;
+\definition rightProgram: RightProjection.T := RightProjection.program;
+\definition inverseProgram: InverseOperation.T := InverseOperation.program;
+\module OperationImplementation;
+\correspondence OperationFrame: Programs.Correspondence := Programs.Correspondence {
+  T := OperationImplementation[].T, program := OperationImplementation[].program, specification := operation, coherence := OperationImplementation[].coherence,
+};
+\definition build(rows, cols: N.Nat^)(history: History^): BasisChange^ := foldWith (compose rows cols) operation history identity;
+\definition composeProgram: Compose.T := Compose.program;
+\definition operationProgram: OperationFrame.T := OperationFrame.program;
+\module Implementation;
+\correspondence Build: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := build, coherence := Implementation[].coherence,
+};
+\definition left: BasisChange^ -> Runtime^ := \induction (frame: BasisChange^) \return Runtime^ \with {
+  | frame: \fun (left, right, leftInverse, rightInverse: Runtime^) => left
+};
+\definition right: BasisChange^ -> Runtime^ := \induction (frame: BasisChange^) \return Runtime^ \with {
+  | frame: \fun (left, right, leftInverse, rightInverse: Runtime^) => right
+};
+\definition leftInverse: BasisChange^ -> Runtime^ := \induction (frame: BasisChange^) \return Runtime^ \with {
+  | frame: \fun (left, right, leftInverse, rightInverse: Runtime^) => leftInverse
+};
+\definition rightInverse: BasisChange^ -> Runtime^ := \induction (frame: BasisChange^) \return Runtime^ \with {
+  | frame: \fun (left, right, leftInverse, rightInverse: Runtime^) => rightInverse
+};
+\definition leftCompose: \forall (rows, cols: N.Nat^)(later, earlier: BasisChange^) -> left (compose rows cols later earlier) = MatrixProduct.mathematical rows (left later) (left earlier) :=
+  \fun (rows, cols: N.Nat^) => \induction (later: BasisChange^) \return \forall (earlier: BasisChange^) -> left (compose rows cols later earlier) = MatrixProduct.mathematical rows (left later) (left earlier) \with {
+    | frame: \fun (a, b, ai, bi: Runtime^) => \induction (earlier: BasisChange^) \return
+        left (compose rows cols (BasisChange^::frame a b ai bi) earlier) = MatrixProduct.mathematical rows (left (BasisChange^::frame a b ai bi)) (left earlier) \with {
+      | frame: \fun (c, d, ci, di: Runtime^) => \refl(MatrixProduct.mathematical rows (left (BasisChange^::frame a b ai bi)) (left (BasisChange^::frame c d ci di)))
+    }
+  };
+\definition rightCompose: \forall (rows, cols: N.Nat^)(later, earlier: BasisChange^) -> right (compose rows cols later earlier) = MatrixProduct.mathematical cols (right earlier) (right later) :=
+  \fun (rows, cols: N.Nat^) => \induction (later: BasisChange^) \return \forall (earlier: BasisChange^) -> right (compose rows cols later earlier) = MatrixProduct.mathematical cols (right earlier) (right later) \with {
+    | frame: \fun (a, b, ai, bi: Runtime^) => \induction (earlier: BasisChange^) \return
+        right (compose rows cols (BasisChange^::frame a b ai bi) earlier) = MatrixProduct.mathematical cols (right earlier) (right (BasisChange^::frame a b ai bi)) \with {
+      | frame: \fun (c, d, ci, di: Runtime^) => \refl(MatrixProduct.mathematical cols (right (BasisChange^::frame c d ci di)) (right (BasisChange^::frame a b ai bi)))
+    }
+  };
+\definition leftInverseCompose: \forall (rows, cols: N.Nat^)(later, earlier: BasisChange^) -> leftInverse (compose rows cols later earlier) = MatrixProduct.mathematical rows (leftInverse earlier) (leftInverse later) :=
+  \fun (rows, cols: N.Nat^) => \induction (later: BasisChange^) \return \forall (earlier: BasisChange^) -> leftInverse (compose rows cols later earlier) = MatrixProduct.mathematical rows (leftInverse earlier) (leftInverse later) \with {
+    | frame: \fun (a, b, ai, bi: Runtime^) => \induction (earlier: BasisChange^) \return
+        leftInverse (compose rows cols (BasisChange^::frame a b ai bi) earlier) = MatrixProduct.mathematical rows (leftInverse earlier) (leftInverse (BasisChange^::frame a b ai bi)) \with {
+      | frame: \fun (c, d, ci, di: Runtime^) => \refl(MatrixProduct.mathematical rows (leftInverse (BasisChange^::frame c d ci di)) (leftInverse (BasisChange^::frame a b ai bi)))
+    }
+  };
+\definition rightInverseCompose: \forall (rows, cols: N.Nat^)(later, earlier: BasisChange^) -> rightInverse (compose rows cols later earlier) = MatrixProduct.mathematical cols (rightInverse later) (rightInverse earlier) :=
+  \fun (rows, cols: N.Nat^) => \induction (later: BasisChange^) \return \forall (earlier: BasisChange^) -> rightInverse (compose rows cols later earlier) = MatrixProduct.mathematical cols (rightInverse later) (rightInverse earlier) \with {
+    | frame: \fun (a, b, ai, bi: Runtime^) => \induction (earlier: BasisChange^) \return
+        rightInverse (compose rows cols (BasisChange^::frame a b ai bi) earlier) = MatrixProduct.mathematical cols (rightInverse (BasisChange^::frame a b ai bi)) (rightInverse earlier) \with {
+      | frame: \fun (c, d, ci, di: Runtime^) => \refl(MatrixProduct.mathematical cols (rightInverse (BasisChange^::frame a b ai bi)) (rightInverse (BasisChange^::frame c d ci di)))
+    }
+  };

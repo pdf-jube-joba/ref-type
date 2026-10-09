@@ -1922,3 +1922,50 @@ fn transparent_alias_conversion_preserves_the_common_reference() {
         a.bound(1)
     );
 }
+
+#[test]
+fn inference_shares_results_across_unused_newest_bindings() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let mut metas = MetaContext::new();
+    let set = a.sort(Sort::Base(BaseSort::Set(0)));
+    let identity = a.alloc(Node::Lambda {
+        mode: Mode::Pure,
+        var: SymbolId::ANONYMOUS,
+        domain: a.bound(0),
+        body: a.bound(0),
+    });
+    let ty = Checker::new(&env, &mut metas, vec![binding(set)])
+        .infer(identity)
+        .unwrap();
+    let before = env.inferred.borrow().len();
+    let weakened = crate::calculus::shift(a, identity, 1, 0).unwrap();
+    let result = Checker::new(&env, &mut metas, vec![binding(set), binding(set)])
+        .infer(weakened)
+        .unwrap();
+    assert_eq!(result, crate::calculus::shift(a, ty, 1, 0).unwrap());
+    assert_eq!(before, env.inferred.borrow().len());
+}
+
+#[test]
+fn checked_cache_distinguishes_expected_types_and_contexts() {
+    let env = Environment::new();
+    let a = &env.arena;
+    let set = a.sort(Sort::Base(BaseSort::Set(0)));
+    let prop = a.sort(Sort::Base(BaseSort::Prop));
+    let mut metas = MetaContext::new();
+    let value = a.bound(0);
+    Checker::new(&env, &mut metas, vec![binding(set)])
+        .check(value, set)
+        .unwrap();
+    assert!(
+        Checker::new(&env, &mut metas, vec![binding(set)])
+            .check(value, prop)
+            .is_err()
+    );
+    assert!(
+        Checker::new(&env, &mut metas, vec![binding(prop)])
+            .check(value, set)
+            .is_err()
+    );
+}

@@ -1,0 +1,24 @@
+\import std.Logic[].Order[] \as O;
+\definition fromMember: \forall (n: Nat^) -> P n -> \exists LeastValue P :=
+  strong (\fun (n: Nat^) => P n -> \exists LeastValue P) (\fun (n: Nat^)(previous: \forall (m: Nat^) -> Bounds.Lt m n -> P m -> \exists LeastValue P)(member: P n) =>
+    either!{{\exists { m: Nat^ \where Smaller[P, n, m] }} "or" {Logic.Not (\exists { m: Nat^ \where Smaller[P, n, m] })}
+      "either" {\exists LeastValue P}
+      "lt:" {\block {
+        \fun (exists: \exists { m: Nat^ \where Smaller[P, n, m] }) \then
+        \takefrom m: \Cast[Nat^] ({ m: Nat^ \where Smaller[P, n, m] }) \by exists \then
+        \let laws: Smaller[P, n, m] := \bysub(Nat^, { m: Nat^ \where Smaller[P, n, m] }, m) \then
+        \return previous m #less{laws} #member{laws}
+      }}
+      "rt:" {\fun (absent: _) => \exact(\into[Nat^](n, { n: Nat^ \where LeastLaws[P, n] }) \by {
+        LeastLaws[P, n] {
+          member := member,
+          least := \fun (m: Nat^)(present: P m) => \match Order.trichotomy n m \in O.Trichotomy \return
+            (\fun (_: Order.Trichotomy n m) => Bounds.Le n m) \with {
+              | less less: Bounds.leTrans n (Nat^::succ n) m (Bounds.leSelfSucc n) (Bounds.succLeOfLt m n less)
+              | equal equal: \idelim n = m \with k: Nat^ => Bounds.Le n k \by { base: Bounds.leRefl n, equality: equal }
+              | greater less: Logic.falseElim (Bounds.Le n m) (absent (\exact(\into[Nat^](m, { m: Nat^ \where Smaller[P, n, m] }) \by {
+                  Smaller[P, n, m] { less := less, member := present }
+                }, \Cast[Nat^] ({ m: Nat^ \where Smaller[P, n, m] }))))
+            },
+        }
+      }, LeastValue P)}} (Classical.excludedMiddle (\exists { m: Nat^ \where Smaller[P, n, m] })));

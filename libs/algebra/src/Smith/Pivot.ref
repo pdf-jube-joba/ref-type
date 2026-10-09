@@ -1,0 +1,73 @@
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Logic[].Proposition[] \as Logic;
+\import \parent.Reduction[] \as Reduction;
+\import \parent.Bounds[] \as Indices;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Transpose[] \as Transpose;
+\definition move(k, i, j: N.Nat^)(a: Runtime^): Runtime^ := Columns.swap (Rows.swap a k i) k j;
+\definition moveHistory(k, i, j: N.Nat^)(history: History^): History^ := History^::prepend (Operation^::columnSwap k j) (History^::prepend (Operation^::rowSwap k i) history);
+\definition value: \forall (k, i, j: N.Nat^)(a: Runtime^) -> move k i j a k k = a i j :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^) => trans!{I.Int^} (move k i j a k k) (Rows.swap a k i k j) (a i j)
+    (Reduction.rowExchangeFirst (Transpose.transpose (Rows.swap a k i)) k j k) (Reduction.rowExchangeFirst a k i j);
+\definition nonzero: \forall (k, i, j: N.Nat^)(a: Runtime^) -> Logic.Not (a i j = Arithmetic.zero) -> Logic.Not (move k i j a k k = Arithmetic.zero) :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(nonzero: _)(zero: _) => nonzero
+    (trans!{I.Int^} (a i j) (move k i j a k k) Arithmetic.zero (sym!{I.Int^} (move k i j a k k) (a i j) (value k i j a)) zero);
+\definition trace: \forall (k, i, j: N.Nat^)(original, a: Runtime^)(history: History^) -> a = applyHistory history original -> move k i j a = applyHistory (moveHistory k i j history) original :=
+  \fun (k, i, j: N.Nat^)(original, a: Runtime^)(history: History^)(trace: _) =>
+    congr!{Runtime^ Runtime^} (move k i j) a (applyHistory history original) trace;
+\definition bounded: \forall (rows, cols, k, i, j: N.Nat^)(history: History^) -> Bounds.Lt k rows -> Bounds.Lt k cols -> Bounds.Lt i rows -> Bounds.Lt j cols -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (moveHistory k i j history) :=
+  \fun (rows, cols, k, i, j: N.Nat^)(history: History^)(pivotRow: _)(pivotCol: _)(rowBound: _)(colBound: _)(historyLaws: _) =>
+    Indices.prepend rows cols (Operation^::columnSwap k j) (History^::prepend (Operation^::rowSwap k i) history)
+      (Indices.PairBounds[cols, k, j] { first := pivotCol, second := colBound })
+      (Indices.prepend rows cols (Operation^::rowSwap k i) history (Indices.PairBounds[rows, k, i] { first := pivotRow, second := rowBound }) historyLaws);
+\import \parent.Measure[] \as Measure;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\definition located: \forall (rows, cols, k, i, j: N.Nat^)(a: Runtime^) -> I.IsZero.specification (a k k) = B.Bool^::true -> Bounds.Lt i rows -> Bounds.Lt j cols -> Bounds.Lt (Signed.absolute (move k i j a k k)) (Measure.inner rows cols k a) :=
+  \fun (rows, cols, k, i, j: N.Nat^)(a: Runtime^)(zero: _)(rowBound: _)(colBound: _) =>
+    \idelim a i j = move k i j a k k \with pivot: I.Int^ => Bounds.Lt (Signed.absolute pivot) (Measure.inner rows cols k a) \by {
+      base: Measure.located rows cols k a i j zero rowBound colBound, equality: sym!{I.Int^} (move k i j a k k) (a i j) (value k i j a)
+    };
+\module Implementation;
+\correspondence Move: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := move, coherence := Implementation[].coherence,
+};
+
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Search[] \as Search;
+\import N.Find[].Grid[] \as Grid;
+\import B.Prop[] \as BoolLaws;
+\inductive Selection: \VType := | missing: Selection | ready: Attempt -> Selection;
+\definition fromPosition(k: N.Nat^)(a: Runtime^)(history: History^): Grid.Position^ -> Selection^ :=
+  \induction (position: Grid.Position^) \return Selection^ \with {
+    | empty: Selection^::missing
+    | position: \fun (i, j: N.Nat^) => Selection^::ready (Attempt^::attempt (move k i j a) (moveHistory k i j history) B.Bool^::false)
+  };
+\definition prepare(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Selection^ :=
+  B.ite Selection^ (I.IsZero.specification (a k k))
+    (fromPosition k a history (Search.search rows cols k a)) (Selection^::ready (Attempt^::attempt a history B.Bool^::false));
+\structure Ready[rows, cols, k: N.Nat^, a: Runtime^, history: History^, current: Attempt^]: \Prop {
+  nonzero: Logic.Not (attemptMatrix current k k = Arithmetic.zero),
+  reduced: attemptReduced current = B.Bool^::false,
+  located: I.IsZero.specification (a k k) = B.Bool^::true -> Bounds.Lt (Signed.absolute (attemptMatrix current k k)) (Measure.inner rows cols k a),
+  retained: I.IsZero.specification (a k k) = B.Bool^::false -> current = Attempt^::attempt a history B.Bool^::false,
+  bounded: Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory current),
+  traced: \forall (original: Runtime^) -> a = applyHistory history original -> attemptMatrix current = applyHistory (attemptHistory current) original,
+}
+\definition Laws(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Selection^ -> \Prop :=
+  \induction (selection: Selection^) \return \Prop \with {
+    | missing: \forall (i, j: N.Nat^) -> Bounds.Lt i rows -> Bounds.Lt j cols -> Bounds.Le k i -> Bounds.Le k j -> a i j = Arithmetic.zero
+    | ready: \fun (current: Attempt^) => Ready[rows, cols, k, a, history, current]
+  };
+\module Preparation(rows, cols, k: N.Nat^, a: Runtime^, history: History^);
+\definition prepared: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k rows -> Bounds.Lt k cols -> Laws rows cols k a history (prepare rows cols k a history) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => Preparation[rows := rows, cols := cols, k := k, a := a, history := history].law;
+\definition moveProgram: Move.T := Move.program;
+\definition searchProgram: Search.Search.T := Search.Search.program;
+\module PositionImplementation;
+\correspondence Position: Programs.Correspondence := Programs.Correspondence {
+  T := PositionImplementation[].T, program := PositionImplementation[].program, specification := fromPosition, coherence := PositionImplementation[].coherence,
+};
+\import B.Choose[A := Selection] \as Choice;
+\definition chooseProgram: Choice.T := Choice.program;
+\module PrepareImplementation;
+\correspondence Prepare: Programs.Correspondence := Programs.Correspondence {
+  T := PrepareImplementation[].T, program := PrepareImplementation[].program, specification := prepare, coherence := PrepareImplementation[].coherence,
+};

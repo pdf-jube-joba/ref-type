@@ -1,0 +1,63 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\import I.Math[].Specification[].Prop[].Multiplication[] \as Product;
+\definition zero: Int := I.Zero.specification;
+\definition one: Int := I.One.specification;
+\definition add: Int -> Int -> Int := I.Add.specification;
+\definition neg: Int -> Int := I.Neg.specification;
+\definition mul: Int -> Int -> Int := I.Mul.specification;
+\definition difference(x, y: Int): Int := add x (neg y);
+\definition cancelLeft: \forall (a, b, c: Int) -> add a b = add a c -> b = c :=
+  \fun (a, b, c: Int)(equal: add a b = add a c) => eq_reason!{{b}
+    "=" {add zero b} "by" {sym!{Int} _ _ (IL.addZeroLeft b)}
+    "=" {add (add (neg a) a) b} "by" {congr!{Int Int} (\fun (x: Int) => add x b) _ _ (sym!{Int} _ _ (IL.negInverse a))}
+    "=" {add (neg a) (add a b)} "by" {IL.addAssoc (neg a) a b}
+    "=" {add (neg a) (add a c)} "by" {congr!{Int Int} (add (neg a)) _ _ equal}
+    "=" {add (add (neg a) a) c} "by" {sym!{Int} _ _ (IL.addAssoc (neg a) a c)}
+    "=" {add zero c} "by" {congr!{Int Int} (\fun (x: Int) => add x c) _ _ (IL.negInverse a)}
+    "=" c "by" {IL.addZeroLeft c}};
+\definition cancelRight: \forall (a, b, c: Int) -> add b a = add c a -> b = c :=
+  \fun (a, b, c: Int)(equal: add b a = add c a) => cancelLeft a b c
+    (trans!{Int} _ _ _ (IL.addComm a b) (trans!{Int} _ _ _ equal (IL.addComm c a)));
+\definition inverseUnique: \forall (a, b: Int) -> add b a = zero -> b = neg a :=
+  \fun (a, b: Int)(equal: add b a = zero) => cancelRight a b (neg a)
+    (trans!{Int} _ _ _ equal (sym!{Int} _ _ (IL.negInverse a)));
+\definition four: \forall (a, b, c, d: Int) -> add (add a b) (add c d) = add (add a c) (add b d) :=
+  \fun (a, b, c, d: Int) => eq_reason!{{add (add a b) (add c d)}
+    "=" {add a (add b (add c d))} "by" {IL.addAssoc a b (add c d)}
+    "=" {add a (add (add b c) d)} "by" {congr!{Int Int} (add a) _ _ (sym!{Int} _ _ (IL.addAssoc b c d))}
+    "=" {add a (add (add c b) d)} "by" {congr!{Int Int} (\fun (x: Int) => add a (add x d)) _ _ (IL.addComm b c)}
+    "=" {add a (add c (add b d))} "by" {congr!{Int Int} (add a) _ _ (IL.addAssoc c b d)}
+    "=" {add (add a c) (add b d)} "by" {sym!{Int} _ _ (IL.addAssoc a c (add b d))}};
+\definition negAdd: \forall (a, b: Int) -> neg (add a b) = add (neg a) (neg b) :=
+  \fun (a, b: Int) => sym!{Int} _ _ (inverseUnique (add a b) (add (neg a) (neg b))
+    (trans!{Int} _ _ _ (four (neg a) (neg b) a b)
+      (trans!{Int} _ _ _ (congr2!{Int Int Int} add _ _ _ _ (IL.negInverse a) (IL.negInverse b)) (IL.addZeroLeft zero))));
+\definition negMulLeft: \forall (a, b: Int) -> mul (neg a) b = neg (mul a b) :=
+  \fun (a, b: Int) => inverseUnique (mul a b) (mul (neg a) b)
+    (trans!{Int} _ _ _ (sym!{Int} _ _ (Product.addMul (neg a) a b))
+      (trans!{Int} _ _ _ (congr!{Int Int} (\fun (x: Int) => mul x b) _ _ (IL.negInverse a)) (Product.mulZeroLeft b)));
+\definition differenceMul: \forall (a, b, c: Int) -> mul (difference a b) c = difference (mul a c) (mul b c) :=
+  \fun (a, b, c: Int) => trans!{Int} _ _ _ (Product.addMul a (neg b) c)
+    (congr!{Int Int} (add (mul a c)) _ _ (negMulLeft b c));
+\definition linearDifference: \forall (a, b, u, v, x, y, q: Int) ->
+  add (mul (difference u (mul q x)) a) (mul (difference v (mul q y)) b) =
+    difference (add (mul u a) (mul v b)) (mul q (add (mul x a) (mul y b))) :=
+  \fun (a, b, u, v, x, y, q: Int) => eq_reason!{{add (mul (difference u (mul q x)) a) (mul (difference v (mul q y)) b)}
+    "=" {add (difference (mul u a) (mul (mul q x) a)) (difference (mul v b) (mul (mul q y) b))}
+    "by" {congr2!{Int Int Int} add _ _ _ _ (differenceMul u (mul q x) a) (differenceMul v (mul q y) b)}
+    "=" {add (add (mul u a) (mul v b)) (add (neg (mul (mul q x) a)) (neg (mul (mul q y) b)))}
+    "by" {four (mul u a) (neg (mul (mul q x) a)) (mul v b) (neg (mul (mul q y) b))}
+    "=" {difference (add (mul u a) (mul v b)) (add (mul (mul q x) a) (mul (mul q y) b))}
+    "by" {congr!{Int Int} (add (add (mul u a) (mul v b))) _ _ (sym!{Int} _ _ (negAdd (mul (mul q x) a) (mul (mul q y) b)))}
+    "=" {difference (add (mul u a) (mul v b)) (add (mul q (mul x a)) (mul q (mul y b)))}
+    "by" {congr!{Int Int} (difference (add (mul u a) (mul v b))) _ _ (congr2!{Int Int Int} add _ _ _ _ (Product.mulAssoc q x a) (Product.mulAssoc q y b))}
+    "=" {difference (add (mul u a) (mul v b)) (mul q (add (mul x a) (mul y b)))}
+    "by" {congr!{Int Int} (difference (add (mul u a) (mul v b))) _ _ (sym!{Int} _ _ (Product.mulAdd q (mul x a) (mul y b)))}};
+\definition addDifference: \forall (x, y: Int) -> add (difference x y) y = x :=
+  \fun (x, y: Int) => trans!{Int} _ _ _ (IL.addAssoc x (neg y) y)
+    (trans!{Int} _ _ _ (congr!{Int Int} (add x) _ _ (IL.negInverse y)) (IL.addZeroRight x));

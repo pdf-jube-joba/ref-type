@@ -1,0 +1,13 @@
+\definition T: \VType := \U(Runtime -> N.Nat -> N.Nat -> Runtime);
+\definition program: T := \thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (r: N.Nat) => \return(\thunk (\cfun (s: N.Nat) => \program {
+    \bind transposed: Runtime <- (\force Transpose.program) a \then
+    \bind operation0: \U(N.Nat -> N.Nat -> Runtime) <- (\force Rows.Swap.program) transposed \then
+    \bind operation1: \U(N.Nat -> Runtime) <- (\force operation0) r \then
+    \bind operation2: Runtime <- (\force operation1) s \then
+    \bind result: Runtime <- (\force Transpose.program) operation2 \then
+    \return result
+  })))));
+\definition matches: \forall (a: Runtime^)(r: N.Nat^)(s: N.Nat^) -> program^ a r s = swap a r s :=
+  \fun (a: Runtime^)(r: N.Nat^)(s: N.Nat^) => congr!{Rows.Swap.T^ Runtime^}
+    (\fun (f: Rows.Swap.T^) => Transpose.transpose (f (Transpose.transpose a) r s)) Rows.Swap.program^ Rows.Swap.specification Rows.Swap.coherence;
+\definition coherence: program^ = swap := \axiom:funext(program^, swap, \fun (a: Runtime^) => \axiom:funext(program^ a, swap a, \fun (r: N.Nat^) => \axiom:funext(program^ a r, swap a r, \fun (s: N.Nat^) => matches a r s)));

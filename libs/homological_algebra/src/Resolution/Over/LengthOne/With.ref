@@ -1,0 +1,94 @@
+\import Modules.Of[V := K.Carrier, space := K.space].Submodule[] \as Submodules;
+\import Submodules.Of[S := Submodules.zeroSubmodule] \as Zero;
+\structure Packed: \Set(1) {
+  Carrier: \Set,
+  spaceLift: \forall (X: \Set) -> (Modules.Space Carrier -> X) -> X,
+}
+\definition aTerm: Packed := Packed { Carrier := K.Carrier, spaceLift := \fun (X: \Set)(f: Modules.Space K.Carrier -> X) => f K.space };
+\definition bTerm: Packed := Packed { Carrier := L.Carrier, spaceLift := \fun (X: \Set)(f: Modules.Space L.Carrier -> X) => f L.space };
+\definition zeroTerm: Packed := Packed { Carrier := Zero.Carrier, spaceLift := \fun (X: \Set)(f: Modules.Space Zero.Carrier -> X) => f Zero.moduleSpace };
+\definition upper: Nat.Nat^ -> Packed := \induction (n: Nat.Nat^) \return Packed \with {
+  | zero: aTerm
+  | succ: \fun (n: Nat.Nat^)(unused: Packed) => zeroTerm
+};
+\definition terms: Nat.Nat^ -> Packed := \induction (n: Nat.Nat^) \return Packed \with {
+  | zero: bTerm
+  | succ: \fun (n: Nat.Nat^)(unused: Packed) => upper n
+};
+\definition Carrier(n: Nat.Nat^): \Set := (terms n).Carrier;
+\definition space(n: Nat.Nat^): Modules.Space (Carrier n) := (terms n).spaceLift (Modules.Space (Carrier n)) (\fun (s: Modules.Space (Carrier n)) => s);
+\definition term(n: Nat.Nat^): Modules.Bundle := Modules.Bundle { Carrier := Carrier n, space := space n };
+\definition family: Chains.Family := Chains.Family { Carrier := Carrier, space := space };
+\definition apply: \forall (n: Nat.Nat^) -> Carrier (Nat.Nat^::succ n) -> Carrier n :=
+  \induction (n: Nat.Nat^) \return Carrier (Nat.Nat^::succ n) -> Carrier n \with {
+    | zero: #apply{sequence.inclusion}
+    | succ: \fun (n: Nat.Nat^)(unused: _)(x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => #zero{(space (Nat.Nat^::succ n))}
+  };
+\module High(n: Nat.Nat^) {
+  \import Modules.Laws[V := Carrier (Nat.Nat^::succ n), space := space (Nat.Nat^::succ n)] \as Target;
+  \import algebra.Group[].Of[Carrier := Carrier (Nat.Nat^::succ n), group := Target.additive] \as Group;
+  \definition addition: \forall (x, y: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> apply (Nat.Nat^::succ n) (#add{(space (Nat.Nat^::succ (Nat.Nat^::succ n)))} x y) =
+    #add{(space (Nat.Nat^::succ n))} (apply (Nat.Nat^::succ n) x) (apply (Nat.Nat^::succ n) y) :=
+    \fun (x, y: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => sym!{{Carrier (Nat.Nat^::succ n)}} _ _ (Group.zeroLeft #zero{(space (Nat.Nat^::succ n))});
+  \definition scalar: \forall (a: R)(x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> apply (Nat.Nat^::succ n) (#smul{(space (Nat.Nat^::succ (Nat.Nat^::succ n)))} a x) =
+    #smul{(space (Nat.Nat^::succ n))} a (apply (Nat.Nat^::succ n) x) :=
+    \fun (a: R)(x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => sym!{{Carrier (Nat.Nat^::succ n)}} _ _ (Target.scaleZero a);
+  \definition trivial: \forall (x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> x = #zero{(space (Nat.Nat^::succ (Nat.Nat^::succ n)))} :=
+    \fun (x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => \bysub(K.Carrier, #carrier{Submodules.zeroSubmodule}, x);
+  \import Modules.ProjectiveLaws[].Trivial[P := term (Nat.Nat^::succ (Nat.Nat^::succ n))] \as Projectivity;
+  \definition projective: Modules.Projective (term (Nat.Nat^::succ (Nat.Nat^::succ n))) := Projectivity.projective trivial;
+}
+\definition addition: \forall (n: Nat.Nat^)(x, y: Carrier (Nat.Nat^::succ n)) -> apply n (#add{(space (Nat.Nat^::succ n))} x y) = #add{(space n)} (apply n x) (apply n y) :=
+  \induction (n: Nat.Nat^) \return \forall (x, y: Carrier (Nat.Nat^::succ n)) -> apply n (#add{(space (Nat.Nat^::succ n))} x y) = #add{(space n)} (apply n x) (apply n y) \with {
+    | zero: #addition{sequence.inclusion}
+    | succ: \fun (n: Nat.Nat^)(unused: _) => High[n := n].addition
+  };
+\definition scalar: \forall (n: Nat.Nat^)(a: R)(x: Carrier (Nat.Nat^::succ n)) -> apply n (#smul{(space (Nat.Nat^::succ n))} a x) = #smul{(space n)} a (apply n x) :=
+  \induction (n: Nat.Nat^) \return \forall (a: R)(x: Carrier (Nat.Nat^::succ n)) -> apply n (#smul{(space (Nat.Nat^::succ n))} a x) = #smul{(space n)} a (apply n x) \with {
+    | zero: #scalar{sequence.inclusion}
+    | succ: \fun (n: Nat.Nat^)(unused: _) => High[n := n].scalar
+  };
+\import Modules.Hom[V := K.Carrier, W := L.Carrier, source := K.space, target := L.space] \as Inclusions;
+\definition squareZero: \forall (n: Nat.Nat^)(x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> apply n (apply (Nat.Nat^::succ n) x) = #zero{(space n)} :=
+  \induction (n: Nat.Nat^) \return \forall (x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> apply n (apply (Nat.Nat^::succ n) x) = #zero{(space n)} \with {
+    | zero: \fun (x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero))) => Inclusions.zeroPreserved sequence.inclusion
+    | succ: \fun (n: Nat.Nat^)(unused: _)(x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ (Nat.Nat^::succ n)))) => \refl(#zero{(space (Nat.Nat^::succ n))})
+  };
+\definition differential: Chains.DifferentialData[family] := Chains.DifferentialData[family] { apply := apply };
+\definition complex: Chains.Complex := Chains.Complex { family := family, differential := differential,
+  laws := Chains.DifferentialLaws[family, differential] { addition := addition, scalar := scalar, squareZero := squareZero } };
+\definition highProjective: Modules.Projective K -> \forall (n: Nat.Nat^) -> Modules.Projective (term (Nat.Nat^::succ n)) :=
+  \fun (projectiveA: Modules.Projective K) => \induction (n: Nat.Nat^) \return Modules.Projective (term (Nat.Nat^::succ n)) \with {
+    | zero: projectiveA
+    | succ: \fun (n: Nat.Nat^)(unused: _) => High[n := n].projective
+  };
+\definition projective: Modules.Projective K -> Modules.Projective L -> \forall (n: Nat.Nat^) -> Modules.Projective (term n) :=
+  \fun (projectiveA: Modules.Projective K)(projectiveB: Modules.Projective L) => \induction (n: Nat.Nat^) \return Modules.Projective (term n) \with {
+    | zero: projectiveB
+    | succ: \fun (n: Nat.Nat^)(unused: _) => highProjective projectiveA n
+  };
+\definition oneExact: \forall (x: K.Carrier) -> apply Nat.Nat^::zero x = #zero{L.space} -> \exists { y: Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)) \where apply (Nat.Nat^::succ Nat.Nat^::zero) y = x } :=
+  \fun (x: K.Carrier)(closed: _) => \exact(\into[Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero))](#zero{(space (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)))},
+    { y: Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)) \where apply (Nat.Nat^::succ Nat.Nat^::zero) y = x }) \by {
+      sym!{K.Carrier} _ _ (#injective{sequence} x #zero{K.space} (trans!{L.Carrier} _ _ _ closed (sym!{L.Carrier} _ _ (Inclusions.zeroPreserved sequence.inclusion))))
+    }, \Cast[Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero))] ({ y: Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)) \where apply (Nat.Nat^::succ Nat.Nat^::zero) y = x }));
+\definition highExact: \forall (n: Nat.Nat^)(x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> apply (Nat.Nat^::succ n) x = #zero{(space (Nat.Nat^::succ n))} ->
+  \exists { y: Carrier (Nat.Nat^::succ (Nat.Nat^::succ (Nat.Nat^::succ n))) \where apply (Nat.Nat^::succ (Nat.Nat^::succ n)) y = x } :=
+  \fun (n: Nat.Nat^)(x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)))(closed: _) => \exact(
+    \into[Carrier (Nat.Nat^::succ (Nat.Nat^::succ (Nat.Nat^::succ n)))](#zero{(space (Nat.Nat^::succ (Nat.Nat^::succ (Nat.Nat^::succ n))))},
+      { y: Carrier (Nat.Nat^::succ (Nat.Nat^::succ (Nat.Nat^::succ n))) \where apply (Nat.Nat^::succ (Nat.Nat^::succ n)) y = x }) \by {
+        sym!{K.Carrier} x #zero{K.space} (High[n := n].trivial x)
+      }, \Cast[Carrier (Nat.Nat^::succ (Nat.Nat^::succ (Nat.Nat^::succ n)))] ({ y: Carrier (Nat.Nat^::succ (Nat.Nat^::succ (Nat.Nat^::succ n))) \where apply (Nat.Nat^::succ (Nat.Nat^::succ n)) y = x }));
+\definition exact: \forall (n: Nat.Nat^)(x: Carrier (Nat.Nat^::succ n)) -> apply n x = #zero{(space n)} -> \exists { y: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where apply (Nat.Nat^::succ n) y = x } :=
+  \induction (n: Nat.Nat^) \return \forall (x: Carrier (Nat.Nat^::succ n)) -> apply n x = #zero{(space n)} -> \exists { y: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where apply (Nat.Nat^::succ n) y = x } \with {
+    | zero: oneExact
+    | succ: \fun (n: Nat.Nat^)(unused: _) => highExact n
+  };
+\import \parent.\parent.Of[M := M, P := complex] \as Of;
+\definition Resolution: \Set := Of.Resolution;
+\definition data: Of.Data := Of.Data { augmentation := sequence.projection };
+\definition resolution(projectiveA: Modules.Projective K, projectiveB: Modules.Projective L): Of.Resolution := \into[Of.Data](data, { data: Of.Data \where Of.Laws[data] }) \by {
+  Of.Laws[data] { projective := projective projectiveA projectiveB, onto := #onto{sequence}, killed := #zero{sequence}, augmentationExact := #kernelImage{sequence}, exact := exact }
+};
+\definition existence: Modules.Projective K -> Modules.Projective L -> \exists Of.Resolution :=
+  \fun (projectiveA: Modules.Projective K)(projectiveB: Modules.Projective L) => \exact(resolution projectiveA projectiveB, Of.Resolution);

@@ -1,0 +1,25 @@
+\import \parent.\parent.Bounds[] \as Indices;
+\definition row: \forall (rows, cols, k, i: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k i -> Bounds.Lt k rows -> Bounds.Lt i rows -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (reduceRow k i a history)) :=
+  \fun (rows, cols, k, i: N.Nat^)(a: Runtime^)(history: History^)(less: _)(pivotBound: _)(indexBound: _)(historyLaws: _) => B.cases
+    (\fun (test: B.Bool^) => Indices.HistoryLaws rows cols (attemptHistory (B.ite Attempt^ test
+      (Attempt^::attempt (rowMatrix k i a) (rowHistory k i a history) B.Bool^::false)
+      (Attempt^::attempt (rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (rowHistory k i a history)) B.Bool^::true))))
+    (Indices.prepend rows cols (Operation^::rowSwap k i) (rowHistory k i a history)
+      (Indices.PairBounds[rows, k, i] { first := pivotBound, second := indexBound })
+      (Indices.prepend rows cols (Operation^::rowAdd i k (rowCoefficient k i a)) history
+        (Indices.ShearBounds[rows, i, k] { first := indexBound, second := pivotBound, distinct := \fun (equal: i = k) => Bounds.ltNe k i less (sym!{N.Nat^} i k equal) }) historyLaws))
+    (Indices.prepend rows cols (Operation^::rowAdd i k (rowCoefficient k i a)) history
+      (Indices.ShearBounds[rows, i, k] { first := indexBound, second := pivotBound, distinct := \fun (equal: i = k) => Bounds.ltNe k i less (sym!{N.Nat^} i k equal) }) historyLaws)
+    (I.IsZero.specification (Division.remainder (a i k) (a k k)));
+\definition column: \forall (rows, cols, k, j: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k j -> Bounds.Lt k cols -> Bounds.Lt j cols -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (reduceColumn k j a history)) :=
+  \fun (rows, cols, k, j: N.Nat^)(a: Runtime^)(history: History^)(less: _)(pivotBound: _)(indexBound: _)(historyLaws: _) => B.cases
+    (\fun (test: B.Bool^) => Indices.HistoryLaws rows cols (attemptHistory (B.ite Attempt^ test
+      (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false)
+      (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true))))
+    (Indices.prepend rows cols (Operation^::columnSwap k j) (columnHistory k j a history)
+      (Indices.PairBounds[cols, k, j] { first := pivotBound, second := indexBound })
+      (Indices.prepend rows cols (Operation^::columnAdd j k (columnCoefficient k j a)) history
+        (Indices.ShearBounds[cols, j, k] { first := indexBound, second := pivotBound, distinct := \fun (equal: j = k) => Bounds.ltNe k j less (sym!{N.Nat^} j k equal) }) historyLaws))
+    (Indices.prepend rows cols (Operation^::columnAdd j k (columnCoefficient k j a)) history
+      (Indices.ShearBounds[cols, j, k] { first := indexBound, second := pivotBound, distinct := \fun (equal: j = k) => Bounds.ltNe k j less (sym!{N.Nat^} j k equal) }) historyLaws)
+    (I.IsZero.specification (Division.remainder (a k j) (a k k)));

@@ -1,0 +1,47 @@
+\import Original.Syzygy[n := Nat.Nat^::zero, resolution := resolution] \as Syzygy;
+\definition bundle: Modules.Bundle := Syzygy.bundle;
+\import \parent.\parent.Of[M := bundle, P := complex] \as Resolutions;
+\definition augmentation: Resolutions.Data := Resolutions.Data { augmentation := Syzygy.projection };
+\import Modules.Hom[V := P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), W := P.family.Carrier Nat.Nat^::zero,
+  source := P.family.space (Nat.Nat^::succ Nat.Nat^::zero), target := P.family.space Nat.Nat^::zero] \as AugmentationMaps;
+\definition originalDifferential: AugmentationMaps.Map := AugmentationMaps.Map {
+  apply := #apply{P.differential} Nat.Nat^::zero, addition := #addition{P.laws} Nat.Nat^::zero, scalar := #scalar{P.laws} Nat.Nat^::zero,
+};
+\import Modules.Laws[V := P.family.Carrier Nat.Nat^::zero, space := P.family.space Nat.Nat^::zero] \as ZeroLaws;
+\import algebra.Group[].Of[Carrier := P.family.Carrier Nat.Nat^::zero, group := ZeroLaws.additive] \as ZeroGroup;
+\definition killed: \forall (x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero))) ->
+  #apply{Syzygy.projection} (#apply{differential} Nat.Nat^::zero x) = #zero{Syzygy.space} :=
+  \fun (x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero))) =>
+    trans!{{P.family.Carrier Nat.Nat^::zero}} _ _ _
+      (AugmentationMaps.negativePreserved originalDifferential (#apply{P.differential} (Nat.Nat^::succ Nat.Nat^::zero) x))
+      (trans!{{P.family.Carrier Nat.Nat^::zero}} _ _ _
+        (congr!{{P.family.Carrier Nat.Nat^::zero} {P.family.Carrier Nat.Nat^::zero}} (#neg{(P.family.space Nat.Nat^::zero)}) _ _ (#squareZero{P.laws} Nat.Nat^::zero x)) ZeroGroup.negZero);
+\definition augmentationExact: \forall (x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) -> #apply{Syzygy.projection} x = #zero{Syzygy.space} ->
+  \exists { y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)) \where #apply{differential} Nat.Nat^::zero y = x } := \block {
+  \fun (x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero))(closed: _) \then
+  \takefrom y: \Cast[P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero))]
+    ({ y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)) \where #apply{P.differential} (Nat.Nat^::succ Nat.Nat^::zero) y = x }) \by #exact{resolution} Nat.Nat^::zero x closed \then
+  \return \exact(\into[P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero))](#neg{(P.family.space (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)))} y,
+    { y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)) \where #apply{differential} Nat.Nat^::zero y = x }) \by {
+      trans!{{P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)}} _ _ _ (\parent.At[n := Nat.Nat^::zero].liftNegative y)
+        (\bysub(P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)), { y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)) \where #apply{P.differential} (Nat.Nat^::succ Nat.Nat^::zero) y = x }, y))
+    }, \Cast[P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero))] ({ y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ Nat.Nat^::zero)) \where #apply{differential} Nat.Nat^::zero y = x }))
+};
+\definition exact: \forall (n: Nat.Nat^)(x: family.Carrier (Nat.Nat^::succ n)) -> #apply{differential} n x = #zero{(family.space n)} ->
+  \exists { y: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{differential} (Nat.Nat^::succ n) y = x } := \block {
+  \fun (n: Nat.Nat^)(x: family.Carrier (Nat.Nat^::succ n))(closed: _) \then
+  \takefrom y: \Cast[family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))]
+    ({ y: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{P.differential} (Nat.Nat^::succ (Nat.Nat^::succ n)) y = x })
+      \by #exact{resolution} (Nat.Nat^::succ n) x (\parent.At[n := n].originalClosed x closed) \then
+  \return \exact(\into[family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))](#neg{(family.space (Nat.Nat^::succ (Nat.Nat^::succ n)))} y,
+    { y: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{differential} (Nat.Nat^::succ n) y = x }) \by {
+      trans!{{family.Carrier (Nat.Nat^::succ n)}} _ _ _ (\parent.At[n := Nat.Nat^::succ n].liftNegative y)
+        (\bysub(family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)), { y: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{P.differential} (Nat.Nat^::succ (Nat.Nat^::succ n)) y = x }, y))
+    }, \Cast[family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))] ({ y: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{differential} (Nat.Nat^::succ n) y = x }))
+};
+\definition data: Resolutions.Data := augmentation;
+\definition laws: Resolutions.Laws[data] := Resolutions.Laws[data] {
+  projective := \fun (n: Nat.Nat^) => #projective{resolution} (Nat.Nat^::succ n),
+  onto := Syzygy.onto, killed := killed, augmentationExact := augmentationExact, exact := exact,
+};
+\definition tailResolution: Resolutions.Resolution := \into[Resolutions.Data](data, { data: Resolutions.Data \where Resolutions.Laws[data] }) \by { laws };

@@ -1,0 +1,18 @@
+\import std.Logic[].Termination[State := State, Output := Output, step := step] \as Termination;
+\definition Holds: State -> \Prop := Termination.Holds;
+\definition Ready(P: State -> \Prop)(t: \RunStep[State, Output]): \Prop := Termination.ready P t;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\structure SamePrimary[x, y: State]: \Prop { primary: primary x = primary y, secondary: Bounds.Lt (secondary x) (secondary y) }
+\definition Less(x, y: State): \Prop := Logic.Or[Bounds.Lt (primary x) (primary y), SamePrimary[x, y]];
+\definition Descending: \Prop := \forall (x, y: State) -> step x = \continue[State, Output](y) -> Less y x;
+\definition Bounded(a, b: N.Nat^): \Prop := \forall (current: State) -> primary current = a -> secondary current = b -> Holds current;
+\module At(a, b: N.Nat^);
+\definition terminates: Descending -> \forall (current: State) -> Holds current := \block {
+  \fun (descending: Descending) \then
+  \let bounded: \forall (a, b: N.Nat^) -> Bounded a b := lexicographic Bounded
+    (\fun (a, b: N.Nat^) => At[a := a, b := b].law descending) \then
+  \return \fun (current: State) => bounded (primary current) (secondary current) current (\refl(primary current)) (\refl(secondary current))
+};

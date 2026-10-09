@@ -1,0 +1,204 @@
+\import RuntimeMatrices.Product[k := N.Nat^::zero] \as MatrixProduct;
+\import N.Basic[].ProgramProp[] \as NatCorrespondence;
+\structure Operations: \Set {
+  smith: Diagonalize.Diagonalize.T^,
+  rank: IntegerBasis.Rank.T^,
+  right: IntegerBasis.Right.T^,
+  rightInverse: IntegerBasis.InverseRight.T^,
+  left: IntegerBasis.Left.T^,
+  leftInverse: IntegerBasis.InverseLeft.T^,
+  columns: IntegerBasis.ColumnShift.T^,
+  rows: IntegerBasis.RowShift.T^,
+  multiply: MatrixProduct.Multiply.T^,
+  subtract: NatCorrespondence.Sub.T^,
+}
+\definition nativeOperations: Operations := Operations {
+  smith := Diagonalize.Diagonalize.program^,
+  rank := IntegerBasis.Rank.program^,
+  right := IntegerBasis.Right.program^,
+  rightInverse := IntegerBasis.InverseRight.program^,
+  left := IntegerBasis.Left.program^,
+  leftInverse := IntegerBasis.InverseLeft.program^,
+  columns := IntegerBasis.ColumnShift.program^,
+  rows := IntegerBasis.RowShift.program^,
+  multiply := MatrixProduct.Multiply.program^,
+  subtract := NatCorrespondence.Sub.program^,
+};
+\definition mathematicalOperations: Operations := Operations {
+  smith := Diagonalize.result,
+  rank := Diagonalize.rank,
+  right := Diagonalize.right,
+  rightInverse := Diagonalize.rightInverse,
+  left := Diagonalize.left,
+  leftInverse := Diagonalize.leftInverse,
+  columns := IntegerBasis.shiftColumns,
+  rows := IntegerBasis.shiftRows,
+  multiply := MatrixProduct.mathematical,
+  subtract := Nat.sub,
+};
+\definition withOperations(ops: Operations)(m, n, p: N.Nat^)(a, b: Runtime^): Calculation^ := \block {
+  \let first: Smith.SmithResult^ := #smith{ops} m n a \then
+  \let rank: N.Nat^ := #rank{ops} first \then
+  \let dimension: N.Nat^ := #subtract{ops} n rank \then
+  \let right: Runtime^ := #right{ops} first \then
+  \let rightInverse: Runtime^ := #rightInverse{ops} first \then
+  \let kernel: Runtime^ := #columns{ops} rank right \then
+  \let coordinate: Runtime^ := #rows{ops} rank rightInverse \then
+  \let boundary: Runtime^ := #multiply{ops} n coordinate b \then
+  \let second: Smith.SmithResult^ := #smith{ops} dimension p boundary \then
+  \let left: Runtime^ := #left{ops} second \then
+  \let leftInverse: Runtime^ := #leftInverse{ops} second \then
+  \let generators: Runtime^ := #multiply{ops} dimension kernel leftInverse \then
+  \let inverse: Runtime^ := #multiply{ops} dimension left coordinate \then
+  \return Calculation^::result n dimension first second generators inverse
+};
+\definition mathematical: Input^ -> Calculation^ := \induction (input: Input^) \return Calculation^ \with {
+  | pair: \fun (m, n, p: N.Nat^)(a, b: Runtime^) => withOperations mathematicalOperations m n p a b
+};
+\definition replaceSmith(ops: Operations)(value: Diagonalize.Diagonalize.T^): Operations := Operations {
+  smith := value, rank := #rank{ops}, right := #right{ops}, rightInverse := #rightInverse{ops}, left := #left{ops}, leftInverse := #leftInverse{ops}, columns := #columns{ops}, rows := #rows{ops}, multiply := #multiply{ops}, subtract := #subtract{ops},
+};
+\definition replaceRank(ops: Operations)(value: IntegerBasis.Rank.T^): Operations := Operations {
+  smith := #smith{ops}, rank := value, right := #right{ops}, rightInverse := #rightInverse{ops}, left := #left{ops}, leftInverse := #leftInverse{ops}, columns := #columns{ops}, rows := #rows{ops}, multiply := #multiply{ops}, subtract := #subtract{ops},
+};
+\definition replaceRight(ops: Operations)(value: IntegerBasis.Right.T^): Operations := Operations {
+  smith := #smith{ops}, rank := #rank{ops}, right := value, rightInverse := #rightInverse{ops}, left := #left{ops}, leftInverse := #leftInverse{ops}, columns := #columns{ops}, rows := #rows{ops}, multiply := #multiply{ops}, subtract := #subtract{ops},
+};
+\definition replaceRightInverse(ops: Operations)(value: IntegerBasis.InverseRight.T^): Operations := Operations {
+  smith := #smith{ops}, rank := #rank{ops}, right := #right{ops}, rightInverse := value, left := #left{ops}, leftInverse := #leftInverse{ops}, columns := #columns{ops}, rows := #rows{ops}, multiply := #multiply{ops}, subtract := #subtract{ops},
+};
+\definition replaceLeft(ops: Operations)(value: IntegerBasis.Left.T^): Operations := Operations {
+  smith := #smith{ops}, rank := #rank{ops}, right := #right{ops}, rightInverse := #rightInverse{ops}, left := value, leftInverse := #leftInverse{ops}, columns := #columns{ops}, rows := #rows{ops}, multiply := #multiply{ops}, subtract := #subtract{ops},
+};
+\definition replaceLeftInverse(ops: Operations)(value: IntegerBasis.InverseLeft.T^): Operations := Operations {
+  smith := #smith{ops}, rank := #rank{ops}, right := #right{ops}, rightInverse := #rightInverse{ops}, left := #left{ops}, leftInverse := value, columns := #columns{ops}, rows := #rows{ops}, multiply := #multiply{ops}, subtract := #subtract{ops},
+};
+\definition replaceColumns(ops: Operations)(value: IntegerBasis.ColumnShift.T^): Operations := Operations {
+  smith := #smith{ops}, rank := #rank{ops}, right := #right{ops}, rightInverse := #rightInverse{ops}, left := #left{ops}, leftInverse := #leftInverse{ops}, columns := value, rows := #rows{ops}, multiply := #multiply{ops}, subtract := #subtract{ops},
+};
+\definition replaceRows(ops: Operations)(value: IntegerBasis.RowShift.T^): Operations := Operations {
+  smith := #smith{ops}, rank := #rank{ops}, right := #right{ops}, rightInverse := #rightInverse{ops}, left := #left{ops}, leftInverse := #leftInverse{ops}, columns := #columns{ops}, rows := value, multiply := #multiply{ops}, subtract := #subtract{ops},
+};
+\definition replaceMultiply(ops: Operations)(value: MatrixProduct.Multiply.T^): Operations := Operations {
+  smith := #smith{ops}, rank := #rank{ops}, right := #right{ops}, rightInverse := #rightInverse{ops}, left := #left{ops}, leftInverse := #leftInverse{ops}, columns := #columns{ops}, rows := #rows{ops}, multiply := value, subtract := #subtract{ops},
+};
+\definition replaceSubtract(ops: Operations)(value: NatCorrespondence.Sub.T^): Operations := Operations {
+  smith := #smith{ops}, rank := #rank{ops}, right := #right{ops}, rightInverse := #rightInverse{ops}, left := #left{ops}, leftInverse := #leftInverse{ops}, columns := #columns{ops}, rows := #rows{ops}, multiply := #multiply{ops}, subtract := value,
+};
+\definition stage0: Operations := nativeOperations;
+\definition stage1: Operations := replaceSmith stage0 Diagonalize.result;
+\definition stageEquality0: stage0 = stage1 := congr!{Diagonalize.Diagonalize.T^ Operations}
+  (replaceSmith stage0) Diagonalize.Diagonalize.program^ Diagonalize.result Diagonalize.Diagonalize.coherence;
+\definition stage2: Operations := replaceRank stage1 Diagonalize.rank;
+\definition stageEquality1: stage1 = stage2 := congr!{IntegerBasis.Rank.T^ Operations}
+  (replaceRank stage1) IntegerBasis.Rank.program^ Diagonalize.rank IntegerBasis.Rank.coherence;
+\definition stage3: Operations := replaceRight stage2 Diagonalize.right;
+\definition stageEquality2: stage2 = stage3 := congr!{IntegerBasis.Right.T^ Operations}
+  (replaceRight stage2) IntegerBasis.Right.program^ Diagonalize.right IntegerBasis.Right.coherence;
+\definition stage4: Operations := replaceRightInverse stage3 Diagonalize.rightInverse;
+\definition stageEquality3: stage3 = stage4 := congr!{IntegerBasis.InverseRight.T^ Operations}
+  (replaceRightInverse stage3) IntegerBasis.InverseRight.program^ Diagonalize.rightInverse IntegerBasis.InverseRight.coherence;
+\definition stage5: Operations := replaceLeft stage4 Diagonalize.left;
+\definition stageEquality4: stage4 = stage5 := congr!{IntegerBasis.Left.T^ Operations}
+  (replaceLeft stage4) IntegerBasis.Left.program^ Diagonalize.left IntegerBasis.Left.coherence;
+\definition stage6: Operations := replaceLeftInverse stage5 Diagonalize.leftInverse;
+\definition stageEquality5: stage5 = stage6 := congr!{IntegerBasis.InverseLeft.T^ Operations}
+  (replaceLeftInverse stage5) IntegerBasis.InverseLeft.program^ Diagonalize.leftInverse IntegerBasis.InverseLeft.coherence;
+\definition stage7: Operations := replaceColumns stage6 IntegerBasis.shiftColumns;
+\definition stageEquality6: stage6 = stage7 := congr!{IntegerBasis.ColumnShift.T^ Operations}
+  (replaceColumns stage6) IntegerBasis.ColumnShift.program^ IntegerBasis.shiftColumns IntegerBasis.ColumnShift.coherence;
+\definition stage8: Operations := replaceRows stage7 IntegerBasis.shiftRows;
+\definition stageEquality7: stage7 = stage8 := congr!{IntegerBasis.RowShift.T^ Operations}
+  (replaceRows stage7) IntegerBasis.RowShift.program^ IntegerBasis.shiftRows IntegerBasis.RowShift.coherence;
+\definition stage9: Operations := replaceMultiply stage8 MatrixProduct.mathematical;
+\definition stageEquality8: stage8 = stage9 := congr!{MatrixProduct.Multiply.T^ Operations}
+  (replaceMultiply stage8) MatrixProduct.Multiply.program^ MatrixProduct.mathematical MatrixProduct.Multiply.coherence;
+\definition stage10: Operations := replaceSubtract stage9 Nat.sub;
+\definition stageEquality9: stage9 = stage10 := congr!{NatCorrespondence.Sub.T^ Operations}
+  (replaceSubtract stage9) NatCorrespondence.Sub.program^ Nat.sub NatCorrespondence.Sub.coherence;
+\definition operationsEquality: nativeOperations = mathematicalOperations :=
+  trans!{Operations} stage0 stage1 mathematicalOperations stageEquality0 (trans!{Operations} stage1 stage2 mathematicalOperations stageEquality1 (trans!{Operations} stage2 stage3 mathematicalOperations stageEquality2 (trans!{Operations} stage3 stage4 mathematicalOperations stageEquality3 (trans!{Operations} stage4 stage5 mathematicalOperations stageEquality4 (trans!{Operations} stage5 stage6 mathematicalOperations stageEquality5 (trans!{Operations} stage6 stage7 mathematicalOperations stageEquality6 (trans!{Operations} stage7 stage8 mathematicalOperations stageEquality7 (trans!{Operations} stage8 stage9 mathematicalOperations stageEquality8 (trans!{Operations} stage9 stage10 mathematicalOperations stageEquality9 (\refl(mathematicalOperations)))))))))));
+\definition native: Input^ -> Calculation^ := \induction (input: Input^) \return Calculation^ \with {
+  | pair: \fun (m, n, p: N.Nat^)(a, b: Runtime^) => withOperations nativeOperations m n p a b
+};
+\definition nativeEquality: \forall (input: Input^) -> native input = mathematical input :=
+  \induction (input: Input^) \return native input = mathematical input \with {
+    | pair: \fun (m, n, p: N.Nat^)(a, b: Runtime^) =>
+        congr!{Operations Calculation^} (\fun (ops: Operations) => withOperations ops m n p a b)
+          nativeOperations mathematicalOperations operationsEquality
+  };
+\definition smithProgram: Diagonalize.Diagonalize.T := Diagonalize.Diagonalize.program;
+\definition rankProgram: IntegerBasis.Rank.T := IntegerBasis.Rank.program;
+\definition rightProgram: IntegerBasis.Right.T := IntegerBasis.Right.program;
+\definition rightInverseProgram: IntegerBasis.InverseRight.T := IntegerBasis.InverseRight.program;
+\definition leftProgram: IntegerBasis.Left.T := IntegerBasis.Left.program;
+\definition leftInverseProgram: IntegerBasis.InverseLeft.T := IntegerBasis.InverseLeft.program;
+\definition columnsProgram: IntegerBasis.ColumnShift.T := IntegerBasis.ColumnShift.program;
+\definition rowsProgram: IntegerBasis.RowShift.T := IntegerBasis.RowShift.program;
+\definition multiplyProgram: MatrixProduct.Multiply.T := MatrixProduct.Multiply.program;
+\definition subtractProgram: NatCorrespondence.Sub.T := NatCorrespondence.Sub.program;
+\module Implementation;
+\correspondence Calculate: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := mathematical, coherence := Implementation[].coherence,
+};
+\definition calculateProgram: Calculate.T := Calculate.program;
+\definition step(input: Input^): \RunStep[Input^, Calculation^] := \finish[Input^, Calculation^](mathematical input);
+\module StepImplementation;
+\correspondence Step: Programs.Correspondence := Programs.Correspondence {
+  T := StepImplementation[].T, program := StepImplementation[].program, specification := step, coherence := StepImplementation[].coherence,
+};
+\definition mathTermination: \forall (input: Input^) -> Programs.Terminates Input^ Calculation^ step input :=
+  \fun (input: Input^)(P: Input^ -> \Prop)(previous: \forall (s: Input^) -> Programs.Ready Input^ Calculation^ P (step s) -> P s) =>
+    previous input (\fun (Q: \Prop)(q: Q) => q);
+\definition certificate: \forall (input: Input^) -> Programs.Terminates Input^ Calculation^ Step.program^ input :=
+  \fun (input: Input^) => \idelim step = Step.program^ \with transition: Step.T^ => Programs.Terminates Input^ Calculation^ transition input \by {
+    base: mathTermination input, equality: sym!{Step.T^} Step.program^ step Step.coherence
+  };
+\machine Evaluate: Programs.Machine := Programs.Machine {
+  State := Input, Output := Calculation, step := Step.program, terminates := certificate,
+};
+\definition execute(input: Input^): Calculation^ := \run[Input^, Calculation^](step, input) \by { mathTermination input };
+\definition executeMatches: \forall (input: Input^) -> execute input = mathematical input :=
+  \fun (input: Input^) => \refl(mathematical input);
+\module Agreement(input: Input^);
+\definition runMatches: \forall (input: Input^) -> Evaluate.run^ input = mathematical input :=
+  \fun (input: Input^) => trans!{Calculation^} (Evaluate.run^ input) (execute input) (mathematical input)
+    (\parent.Compute[].Agreement[input := input].law) (executeMatches input);
+\correspondence Run: Programs.Correspondence := Programs.Correspondence {
+  T := \U(Input ~> \F(Calculation)), program := Evaluate.run, specification := mathematical,
+  coherence := \axiom:funext(Evaluate.run^, mathematical, runMatches),
+};
+\definition ambientDimension: Calculation^ -> N.Nat^ := \induction (value: Calculation^) \return N.Nat^ \with {
+  | result: \fun (ambient, dimension: N.Nat^)(first, second: Smith.SmithResult^)(generators, inverse: Runtime^) => ambient
+};
+\definition nullity: Calculation^ -> N.Nat^ := \induction (value: Calculation^) \return N.Nat^ \with {
+  | result: \fun (ambient, dimension: N.Nat^)(first, second: Smith.SmithResult^)(generators, inverse: Runtime^) => dimension
+};
+\definition firstSmith: Calculation^ -> Smith.SmithResult^ := \induction (value: Calculation^) \return Smith.SmithResult^ \with {
+  | result: \fun (ambient, dimension: N.Nat^)(first, second: Smith.SmithResult^)(generators, inverse: Runtime^) => first
+};
+\definition imageSmith: Calculation^ -> Smith.SmithResult^ := \induction (value: Calculation^) \return Smith.SmithResult^ \with {
+  | result: \fun (ambient, dimension: N.Nat^)(first, second: Smith.SmithResult^)(generators, inverse: Runtime^) => second
+};
+\definition generators: Calculation^ -> Runtime^ := \induction (value: Calculation^) \return Runtime^ \with {
+  | result: \fun (ambient, dimension: N.Nat^)(first, second: Smith.SmithResult^)(generators, inverse: Runtime^) => generators
+};
+\definition inverseCoordinates: Calculation^ -> Runtime^ := \induction (value: Calculation^) \return Runtime^ \with {
+  | result: \fun (ambient, dimension: N.Nat^)(first, second: Smith.SmithResult^)(generators, inverse: Runtime^) => inverse
+};
+\definition freeRank(value: Calculation^): N.Nat^ := Nat.sub (nullity value) (Diagonalize.rank (imageSmith value));
+\definition cyclicRank(value: Calculation^): N.Nat^ := Diagonalize.rank (imageSmith value);
+\definition diagonalFactor(value: Calculation^)(i: N.Nat^): I.Int^ := Diagonalize.diagonal (imageSmith value) i i;
+
+\import \parent.FactorListing[] \as FactorListing;
+\definition cyclicFactors(value: Calculation^): CyclicFactors^ :=
+  FactorListing.factors (cyclicRank value) (Diagonalize.diagonal (imageSmith value));
+\definition nontrivialCyclicRank(value: Calculation^): N.Nat^ := FactorListing.length (cyclicFactors value);
+
+\module FactorsImplementation;
+\correspondence Factors: Programs.Correspondence := Programs.Correspondence {
+  T := FactorsImplementation[].T, program := FactorsImplementation[].program,
+  specification := cyclicFactors, coherence := FactorsImplementation[].coherence,
+};
+\definition factorsProper: \forall (value: Calculation^) -> FactorListing.Proper (cyclicFactors value) :=
+  \fun (value: Calculation^) => FactorListing.factorsProper (cyclicRank value) (Diagonalize.diagonal (imageSmith value));

@@ -174,6 +174,17 @@ impl Database {
     pub fn module(&mut self, snapshot: &SourceSnapshot, path: &[String]) -> Arc<SemanticResult> {
         self.query(snapshot, &CheckOptions::default(), |unit| unit.path == path)
     }
+    /// Check a named module and its children with the settings of a whole project.
+    pub fn module_with_options(
+        &mut self,
+        snapshot: &SourceSnapshot,
+        path: &[String],
+        options: &CheckOptions,
+    ) -> Arc<SemanticResult> {
+        elaboration::diagnostics::with_diagnostic_mode(options.diagnostics, || {
+            self.query(snapshot, options, |unit| unit.path.starts_with(path))
+        })
+    }
     /// All modules with declarations in the requested file and their dependencies.
     pub fn file(
         &mut self,

@@ -1,0 +1,43 @@
+\import \parent.OfExtension[E := E].With[s := s] \as Source;
+\import \parent.OfExtension[E := F].With[s := t] \as Target;
+\import Modules.Isomorphism[V := E.Carrier, W := F.Carrier, source := E.space, target := F.space] \as Iso;
+\structure Laws[e: Iso.Isomorphism]: \Prop {
+  left: \forall (n: N.Carrier) -> #apply{#forward{e}} (#apply{s.inclusion} n) = #apply{t.inclusion} n,
+  right: \forall (x: E.Carrier) -> #apply{t.projection} (#apply{#forward{e}} x) = #apply{s.projection} x,
+}
+\definition Equivalence: \Set := \Cast[Iso.Isomorphism] ({ e: Iso.Isomorphism \where Laws[e] });
+\module Selected(first: Source.Lift, second: Target.Lift);
+\definition equivalentOfClassEqual: Source.class = Target.class -> \exists Equivalence := \block {
+  \fun (equal: Source.class = Target.class) \then
+  \takefrom first: Source.Lift \by Source.liftExistence \then
+  \takefrom second: Target.Lift \by Target.liftExistence \then
+  \let same: Quotient.class Source.Chosen[lift := first].relation = Quotient.class Target.Chosen[lift := second].relation :=
+    trans!{Quotient.Carrier} Source.Chosen[lift := first].class Source.class Target.Chosen[lift := second].class
+      (sym!{Quotient.Carrier} Source.class Source.Chosen[lift := first].class (Source.onLift first))
+      (trans!{Quotient.Carrier} Source.class Target.class Target.Chosen[lift := second].class equal (Target.onLift second)) \then
+  \takefrom correction: Selected[first := first, second := second].Correction
+    \by Selected[first := first, second := second].correctionExistence same \then
+  \return \exact(Selected[first := first, second := second].On[correction := correction].equivalence, Equivalence)
+};
+\module From(e: Equivalence);
+\definition classEqualOfEquivalent: (\exists Equivalence) -> Source.class = Target.class := \block {
+  \fun (exists: \exists Equivalence) \then
+  \takefrom e: Equivalence \by exists \then
+  \return From[e := e].classEqual
+};
+\definition extEqualOfEquivalent: (\exists Equivalence) -> Source.extClass = Target.extClass :=
+  \fun (exists: \exists Equivalence) => congr!{Quotient.Carrier H.Carrier} (#apply{#backward{isomorphism}})
+    Source.class Target.class (classEqualOfEquivalent exists);
+\definition equivalentOfExtEqual: Source.extClass = Target.extClass -> \exists Equivalence :=
+  \fun (equal: Source.extClass = Target.extClass) => equivalentOfClassEqual
+    (trans!{Quotient.Carrier} Source.class (#apply{#forward{isomorphism}} Source.extClass) Target.class
+      (sym!{Quotient.Carrier} (#apply{#forward{isomorphism}} Source.extClass) Source.class Source.classFromExt)
+      (trans!{Quotient.Carrier} (#apply{#forward{isomorphism}} Source.extClass) (#apply{#forward{isomorphism}} Target.extClass) Target.class
+        (congr!{H.Carrier Quotient.Carrier} (#apply{#forward{isomorphism}}) Source.extClass Target.extClass equal) Target.classFromExt));
+\structure Correspondence: \Prop {
+  classify: (\exists Equivalence) -> Source.extClass = Target.extClass,
+  reconstruct: Source.extClass = Target.extClass -> \exists Equivalence,
+}
+\definition correspondence: Correspondence := Correspondence {
+  classify := extEqualOfEquivalent, reconstruct := equivalentOfExtEqual,
+};

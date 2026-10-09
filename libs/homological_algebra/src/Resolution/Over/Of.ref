@@ -1,0 +1,48 @@
+\definition term(n: Nat.Nat^): Modules.Bundle := Modules.Bundle { Carrier := P.family.Carrier n, space := P.family.space n };
+\structure Data: \Set { augmentation: Modules.MapBetween (term Nat.Nat^::zero) M }
+\structure Laws[data: Data]: \Prop {
+  projective: \forall (n: Nat.Nat^) -> Modules.Projective (term n),
+  onto: Modules.Surjective (term Nat.Nat^::zero) M data.augmentation,
+  killed: \forall (x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) ->
+    #apply{data.augmentation} (#apply{P.differential} Nat.Nat^::zero x) = #zero{M.space},
+  augmentationExact: \forall (x: P.family.Carrier Nat.Nat^::zero) -> #apply{data.augmentation} x = #zero{M.space} ->
+    \exists { y: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{P.differential} Nat.Nat^::zero y = x },
+  exact: \forall (n: Nat.Nat^)(x: P.family.Carrier (Nat.Nat^::succ n)) -> #apply{P.differential} n x = #zero{(P.family.space n)} ->
+    \exists { y: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{P.differential} (Nat.Nat^::succ n) y = x },
+}
+\definition Resolution: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+
+\module Positive(n: Nat.Nat^);
+\module DegreeZero;
+
+\module Slot(n: Nat.Nat^);
+\import Modules.Of[V := P.family.Carrier Nat.Nat^::zero, space := P.family.space Nat.Nat^::zero].Submodule[].Kernel[W := M.Carrier, target := M.space] \as AugmentationKernels;
+\definition augmentationKernel(resolution: Resolution): Slot[n := Nat.Nat^::zero].Submodule := AugmentationKernels.kernel (#augmentation{resolution});
+\definition cycles: \forall (n: Nat.Nat^) -> Slot[n := n].Submodule :=
+  \induction (n: Nat.Nat^) \return Slot[n := n].Submodule \with {
+    | zero: Slot[n := Nat.Nat^::zero].zero
+    | succ: \fun (n: Nat.Nat^)(before: Slot[n := n].Submodule) => Chains.Positive[C := P, n := n].cycles
+  };
+\definition kernel(resolution: Resolution): \forall (n: Nat.Nat^) -> Slot[n := n].Submodule :=
+  \induction (n: Nat.Nat^) \return Slot[n := n].Submodule \with {
+    | zero: augmentationKernel resolution
+    | succ: \fun (n: Nat.Nat^)(before: Slot[n := n].Submodule) => cycles (Nat.Nat^::succ n)
+  };
+\definition kernelKilled: \forall (resolution: Resolution)(n: Nat.Nat^)(x: P.family.Carrier (Nat.Nat^::succ n)) ->
+  Slot[n := n].Member (kernel resolution n) (#apply{P.differential} n x) :=
+  \fun (resolution: Resolution) => \induction (n: Nat.Nat^) \return \forall (x: P.family.Carrier (Nat.Nat^::succ n)) ->
+    Slot[n := n].Member (kernel resolution n) (#apply{P.differential} n x) \with {
+      | zero: #killed{resolution}
+      | succ: \fun (n: Nat.Nat^)(before: \forall (x: P.family.Carrier (Nat.Nat^::succ n)) -> Slot[n := n].Member (kernel resolution n) (#apply{P.differential} n x)) =>
+          #squareZero{P.laws} n
+    };
+\definition kernelExact: \forall (resolution: Resolution)(n: Nat.Nat^)(x: P.family.Carrier n) ->
+  Slot[n := n].Member (kernel resolution n) x -> \exists { y: P.family.Carrier (Nat.Nat^::succ n) \where #apply{P.differential} n y = x } :=
+  \fun (resolution: Resolution) => \induction (n: Nat.Nat^) \return \forall (x: P.family.Carrier n) ->
+    Slot[n := n].Member (kernel resolution n) x -> \exists { y: P.family.Carrier (Nat.Nat^::succ n) \where #apply{P.differential} n y = x } \with {
+      | zero: #augmentationExact{resolution}
+      | succ: \fun (n: Nat.Nat^)(before: \forall (x: P.family.Carrier n) -> Slot[n := n].Member (kernel resolution n) x -> \exists { y: P.family.Carrier (Nat.Nat^::succ n) \where #apply{P.differential} n y = x }) =>
+          #exact{resolution} n
+    };
+\module Syzygy(n: Nat.Nat^, resolution: Resolution);
+\module AugmentationShortExact(resolution: Resolution);

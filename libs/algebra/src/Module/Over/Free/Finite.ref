@@ -1,0 +1,56 @@
+\import \parent.Coefficients[] \as Coefficients;
+\import Coefficients.NormalForm[] \as Normal;
+\import \parent.\parent.Coordinates[I := Generators] \as Coordinates;
+\import Coordinates.Kronecker[] \as Kronecker;
+\import \parent.\parent.Sums[I := Generators] \as Sums;
+\import Sums.Single[] \as Single;
+\import std.Data[].List[] \as Lists;
+\import Lists.Distinct[A := Generators].Cover[] \as Covers;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition scalarFamily: Family[Generators] := Family[Generators] {
+  Carrier := \fun (s: Generators) => R,
+  space := \fun (s: Generators) => scalarModule,
+};
+\import \parent.\parent.FinitelySupported[Index := Generators, family := scalarFamily] \as Supported;
+\definition CoordinateCarrier: \Set := Supported.Carrier;
+\definition coordinateSpace: Space CoordinateCarrier := Supported.space;
+\definition finite: \forall (x: Carrier) -> Supported.Finite (Coefficients.coefficient x) := Normal.finite;
+\import \parent.\parent.Hom[V := Carrier, W := CoordinateCarrier, source := space, target := coordinateSpace] \as Maps;
+\definition forward: Maps.Map := Maps.Map {
+  apply := \fun (x: Carrier) => \into[Coordinates.Vector](Coefficients.coefficient x, { v: Coordinates.Vector \where Supported.Finite v }) \by { finite x },
+  addition := \fun (x, y: Carrier) => \axiom:funext(
+    Coefficients.coefficient (#add{space} x y),
+    (\fun (s: Generators) => #add{ring} (Coefficients.coefficient x s) (Coefficients.coefficient y s)), Coefficients.addition x y),
+  scalar := \fun (a: R)(x: Carrier) => \axiom:funext(
+    Coefficients.coefficient (#smul{space} a x),
+    (\fun (s: Generators) => #mul{ring} a (Coefficients.coefficient x s)), Coefficients.scalar a x),
+};
+\definition injective: \forall (x, y: Carrier) -> #apply{forward} x = #apply{forward} y -> x = y :=
+  \fun (x, y: Carrier)(same: #apply{forward} x = #apply{forward} y) => Normal.injective x y
+    (\fun (s: Generators) => congr!{Coordinates.Vector R} (\fun (v: Coordinates.Vector) => v s) _ _ same);
+\definition sameCoefficients: \forall (xs: Lists.List[Generators]) -> Sums.Distinct xs -> \forall (v: Coordinates.Vector) ->
+  Supported.Supports xs v -> \forall (s: Generators) -> Coefficients.coefficient (Coefficients.combination xs v) s = v s :=
+  \fun (xs: Lists.List[Generators])(distinct: Sums.Distinct xs)(v: Coordinates.Vector)(support: Supported.Supports xs v)(s: Generators) =>
+    trans!{R} _ _ _ (Normal.coefficientCombinationDelta xs v s)
+      (either!{{\In[Generators] (Sums.keys xs) s} "or" {Logic.Not (\In[Generators] (Sums.keys xs) s)}
+        "either" {Sums.sum xs (\fun (t: Generators) => #mul{ring} (Kronecker.delta s t) (v t)) = v s}
+        "lt:" {\fun (member: _) => Single.extract xs distinct s member v}
+        "rt:" {\fun (outside: _) => trans!{R} _ _ _ (Single.absent xs s outside v) (sym!{R} _ _ (support s outside))}}
+        (Classical.excludedMiddle (\In[Generators] (Sums.keys xs) s)));
+\definition onto: \forall (v: CoordinateCarrier) -> \exists { x: Carrier \where #apply{forward} x = v } := \block {
+  \fun (v: CoordinateCarrier) \then
+  \takefrom support: \Cast[Lists.List[Generators]] ({ xs: Lists.List[Generators] \where Supported.Supports xs v }) \by Supported.finite v \then
+  \let supportLaw: Supported.Supports support v := \bysub(Lists.List[Generators], { xs: Lists.List[Generators] \where Supported.Supports xs v }, support) \then
+  \takefrom xs: Covers.Choice support \by Covers.existence support \then
+  \let cover: Covers.Laws[support, xs] := \bysub(Lists.List[Generators], { xs: Lists.List[Generators] \where Covers.Laws[support, xs] }, xs) \then
+  \let chosenSupport: Supported.Supports xs v := \fun (s: Generators)(outside: Logic.Not (\In[Generators] (Sums.keys xs) s)) =>
+    supportLaw s (\fun (member: _) => outside (#toSelected{cover} s member)) \then
+  \let result: Carrier := Coefficients.combination xs v \then
+  \return \exact(\into[Carrier](result, { x: Carrier \where #apply{forward} x = v }) \by {
+    \axiom:funext(Coefficients.coefficient result, v, sameCoefficients xs (#distinct{cover}) v chosenSupport)
+  }, \Cast[Carrier] ({ x: Carrier \where #apply{forward} x = v }))
+};
+\import \parent.\parent.Isomorphism[V := Carrier, W := CoordinateCarrier, source := space, target := coordinateSpace] \as Iso;
+\import Iso.OfBijective[f := forward] \as Inverse;
+\definition isomorphism: Iso.Isomorphism := Inverse.isomorphism injective onto;

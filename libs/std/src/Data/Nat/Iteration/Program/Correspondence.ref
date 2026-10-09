@@ -1,0 +1,13 @@
+\definition T: \VType := \U(\U(A -> A) -> A -> Nat -> A);
+\definition specification: T^ := Specification.apply;
+\definition matches(f: A^ -> A^): \forall (count: Nat^)(value: A^) -> program^ f value count = specification f value count :=
+  \induction (count: Nat^) \return \forall (value: A^) -> program^ f value count = specification f value count \with {
+    | zero: \fun (value: A^) => \refl(value)
+    | succ: \fun (count: Nat^)(before: \forall (value: A^) -> program^ f value count = specification f value count)(value: A^) =>
+        \idelim specification f (f value) count = f (specification f value count) \with x: A^ => program^ f value (Nat^::succ count) = x \by {
+          base: before (f value), equality: Specification.advance f count value
+        }
+  };
+\definition coherence: program^ = specification := \axiom:funext(program^, specification,
+  \fun (f: A^ -> A^) => \axiom:funext(program^ f, specification f,
+    \fun (value: A^) => \axiom:funext(program^ f value, specification f value, \fun (count: Nat^) => matches f count value)));

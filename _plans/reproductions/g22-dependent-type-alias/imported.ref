@@ -1,0 +1,38 @@
+\module Base(R: \Set) {
+    \definition Space(V: \Set): \Set := R -> V;
+    \structure Bundle { Carrier: \Set, space: Space Carrier }
+}
+\module Chains(R: \Set) {
+    \import \root.Base[R := R] \as Modules;
+    \structure Family {
+        Carrier: R -> \Set,
+        space: \forall (n: R) -> Modules.Space (Carrier n),
+    }
+    \structure Complex { family: Family }
+    \module Pair(A, B: Complex) {
+        \definition Data: \Set := \forall (n: R) -> A.family.Carrier n -> B.family.Carrier n;
+    }
+}
+\module Resolutions(R: \Set) {
+    \import \root.Chains[R := R] \as Chains;
+    \module Of(P: Chains.Complex) {
+        \definition Data: \Set := \forall (n: R) -> P.family.Carrier n;
+    }
+    \module Sequences {
+        \import \root.Resolutions[R := R] \as Resolutions;
+        \definition ChainData(P, Q: Chains.Complex): \Set := Chains.Pair[A := P, B := Q].Data;
+        \structure Sequence {
+            complex: Chains.Complex,
+            data: ChainData complex complex,
+        }
+        \definition make(P: Chains.Complex)(p: ChainData P P): Sequence :=
+            Sequence { complex := P, data := p };
+    }
+}
+\module Use(R: \Set) {
+    \import \root.Chains[R := R] \as Chains;
+    \import \root.Resolutions[R := R].Sequences[] \as Sequences;
+    \module Of(P: Chains.Complex, p: Chains.Pair[A := P, B := P].Data) {
+        \definition sequence: Sequences.Sequence := Sequences.make P p;
+    }
+}

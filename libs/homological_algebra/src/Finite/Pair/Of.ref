@@ -1,0 +1,354 @@
+\import algebra.IntegerKernel[m := m, n := n, original := C.outgoing] \as Kernel;
+\import Commutative.Matrix[m := n, n := p] \as BoundaryMatrix;
+\definition kernelBundle: Modules.Bundle := Modules.Bundle { Carrier := Kernel.Carrier, space := Kernel.kernelSpace };
+\definition inputBundle: Modules.Bundle := Modules.Bundle { Carrier := Incoming.Vector, space := Incoming.domain };
+\import Modules.Hom[V := Incoming.Vector, W := Kernel.Carrier, source := Incoming.domain, target := Kernel.kernelSpace] \as BoundaryMaps;
+\import Modules.Of[V := Outgoing.Vector, space := Outgoing.domain].Submodule[].Kernel[W := Outgoing.Output, target := Outgoing.codomain] \as OriginalKernels;
+\definition originalKernel: Modules.Of[V := Outgoing.Vector, space := Outgoing.domain].Submodule[].Submodule :=
+  OriginalKernels.kernel (Commutative.Matrix[m := m, n := n].linear (Outgoing.reflect C.outgoing));
+\definition boundaryValue(v: Incoming.Vector): Kernel.Carrier :=
+  \into[Outgoing.Vector](Incoming.apply (Incoming.reflect C.incoming) v, #carrier{originalKernel}) \by {
+    #squareZero{(\bysub(Data, { data: Data \where Laws[data] }, C))} v
+  };
+\definition boundary: BoundaryMaps.Map := BoundaryMaps.Map {
+  apply := boundaryValue,
+  addition := #addition{(BoundaryMatrix.linear (Incoming.reflect C.incoming))},
+  scalar := #scalar{(BoundaryMatrix.linear (Incoming.reflect C.incoming))},
+};
+\import Modules.Of[V := Kernel.Carrier, space := Kernel.kernelSpace].Submodule[] \as KernelSub;
+\import KernelSub.Image[U := Incoming.Vector, source := Incoming.domain] \as Images;
+\definition image: KernelSub.Submodule := Images.image boundary;
+\import KernelSub.Quotient[S := image] \as Quotient;
+\definition Homology: \Set := Quotient.Carrier;
+\definition homologySpace: Modules.Space Homology := Quotient.moduleSpace;
+\definition class(v: Kernel.Carrier): Homology := Quotient.class v;
+\import Modules.FiniteCoordinates[n := Kernel.dimension] \as Coordinates;
+\definition coordinateBundle: Modules.Bundle := Modules.Bundle { Carrier := Coordinates.Carrier, space := Coordinates.space };
+\import Modules.Hom[V := Kernel.Carrier, W := Coordinates.Carrier, source := Kernel.kernelSpace, target := Coordinates.space].Composition[U := Incoming.Vector, domain := Incoming.domain] \as Composition;
+\import Modules.Hom[V := Incoming.Vector, W := Coordinates.Carrier, source := Incoming.domain, target := Coordinates.space] \as CoordinateMaps;
+\definition coordinateBoundary: CoordinateMaps.Map := Composition.compose #backward{Kernel.isomorphism} boundary;
+\import Modules.End[V := Incoming.Vector, space := Incoming.domain] \as InputEnd;
+\import Modules.Isomorphism[V := Incoming.Vector, W := Incoming.Vector, source := Incoming.domain, target := Incoming.domain] \as InputIso;
+\definition inputIdentity: InputIso.Isomorphism := InputIso.Isomorphism {
+  forward := InputEnd.identity, backward := InputEnd.identity,
+  leftInverse := \fun (x: Incoming.Vector) => \refl(x), rightInverse := \fun (x: Incoming.Vector) => \refl(x),
+};
+\import Modules.Isomorphism[V := Coordinates.Carrier, W := Kernel.Carrier, source := Coordinates.space, target := Kernel.kernelSpace].Inverse[] \as ReverseKernel;
+\definition kernelInverse: Modules.Isomorphism[V := Kernel.Carrier, W := Coordinates.Carrier, source := Kernel.kernelSpace, target := Coordinates.space].Isomorphism := ReverseKernel.inverse Kernel.isomorphism;
+\import Modules.KernelTransport[
+  V := Incoming.Vector, W := Kernel.Carrier, X := Incoming.Vector, Y := Coordinates.Carrier,
+  vSpace := Incoming.domain, wSpace := Kernel.kernelSpace, xSpace := Incoming.domain, ySpace := Coordinates.space,
+  f := boundary, g := coordinateBoundary, domainIso := inputIdentity, codomainIso := kernelInverse
+] \as Change;
+\definition commutes: Change.Commutes := \fun (v: Incoming.Vector) => \refl(#apply{coordinateBoundary} v);
+\import Change.Cokernel[] \as Cokernel;
+\definition coordinateCokernel: \Set := Cokernel.TargetCarrier;
+\definition coordinateSpace: Modules.Space coordinateCokernel := Cokernel.targetSpace;
+\definition coordinateIsomorphism: Modules.Isomorphism[V := Homology, W := coordinateCokernel, source := homologySpace, target := coordinateSpace].Isomorphism := Cokernel.isomorphism commutes;
+\import Commutative.Matrix[m := Kernel.dimension, n := p] \as CoordinateMatrix;
+\definition imageMatrix: CoordinateMatrix.Matrix := CoordinateMatrix.entries coordinateBoundary;
+\definition matrixRepresentation: CoordinateMatrix.linear imageMatrix = coordinateBoundary := CoordinateMatrix.Representation[].mapRoundtrip coordinateBoundary;
+\import algebra.IntegerMatrix[m := n, n := n].Product[k := p] \as Product;
+\import Commutative.Matrix[m := n, n := n] \as Square;
+\import Square.Composition[k := p] \as Multiply;
+\import Commutative.Matrix[m := n, n := p].Representation[] \as ImageRepresentation;
+\import Indices.Tail[n := n, start := Kernel.rank] \as TailIndices;
+\definition inverseRuntime: Runtime^ := Diagonalize.rightInverse Kernel.result;
+\definition transformedRuntime: Runtime^ :=
+  IntegerBasis.RowShift.program^ Kernel.rank (Product.Multiply.program^ n inverseRuntime C.incoming);
+\definition transformedMatrix: CoordinateMatrix.Matrix :=
+  \fun (i: Indices.Fin Kernel.dimension)(j: Indices.Fin p) => transformedRuntime i j;
+\definition nativeEntry: \forall (i: Indices.Fin Kernel.dimension)(j: Indices.Fin p) ->
+  transformedMatrix i j = Multiply.product #inverse{Kernel.frame.rightInverse} (Incoming.reflect C.incoming) (TailIndices.include Kernel.columnRank i) j :=
+  \fun (i: Indices.Fin Kernel.dimension)(j: Indices.Fin p) =>
+    trans!{I.Int^} (transformedMatrix i j) (Product.reflected inverseRuntime C.incoming (TailIndices.include Kernel.columnRank i) j)
+      (Multiply.product #inverse{Kernel.frame.rightInverse} (Incoming.reflect C.incoming) (TailIndices.include Kernel.columnRank i) j)
+      (congr!{IntegerBasis.RowShift.T^ I.Int^} (\fun (f: IntegerBasis.RowShift.T^) => f Kernel.rank (Product.Multiply.program^ n inverseRuntime C.incoming) i j)
+        IntegerBasis.RowShift.program^ IntegerBasis.shiftRows IntegerBasis.RowShift.coherence)
+      (congr!{BoundaryMatrix.Matrix I.Int^} (\fun (matrix: BoundaryMatrix.Matrix) => matrix (TailIndices.include Kernel.columnRank i) j)
+        (Product.reflected inverseRuntime C.incoming) (Multiply.product #inverse{Kernel.frame.rightInverse} (Incoming.reflect C.incoming))
+        (Product.correspondence inverseRuntime C.incoming));
+\definition matrixEntry: \forall (i: Indices.Fin Kernel.dimension)(j: Indices.Fin p) -> imageMatrix i j = transformedMatrix i j :=
+  \fun (i: Indices.Fin Kernel.dimension)(j: Indices.Fin p) =>
+    trans!{I.Int^} (imageMatrix i j)
+      (Square.apply #inverse{Kernel.frame.rightInverse} (Incoming.apply (Incoming.reflect C.incoming) (Modules.FiniteCoordinates[n := p].basis j)) (TailIndices.include Kernel.columnRank i))
+      (transformedMatrix i j)
+      (Kernel.coordinateEntry (boundaryValue (Modules.FiniteCoordinates[n := p].basis j)) i)
+      (trans!{I.Int^}
+        (Square.apply #inverse{Kernel.frame.rightInverse} (Incoming.apply (Incoming.reflect C.incoming) (Modules.FiniteCoordinates[n := p].basis j)) (TailIndices.include Kernel.columnRank i))
+        (Multiply.product #inverse{Kernel.frame.rightInverse} (Incoming.reflect C.incoming) (TailIndices.include Kernel.columnRank i) j) (transformedMatrix i j)
+        (trans!{I.Int^}
+          (Square.apply #inverse{Kernel.frame.rightInverse} (Incoming.apply (Incoming.reflect C.incoming) (Modules.FiniteCoordinates[n := p].basis j)) (TailIndices.include Kernel.columnRank i))
+          (BoundaryMatrix.apply (Multiply.product #inverse{Kernel.frame.rightInverse} (Incoming.reflect C.incoming)) (Modules.FiniteCoordinates[n := p].basis j) (TailIndices.include Kernel.columnRank i))
+          (Multiply.product #inverse{Kernel.frame.rightInverse} (Incoming.reflect C.incoming) (TailIndices.include Kernel.columnRank i) j)
+          (sym!{I.Int^} _ _ (congr!{Incoming.Output I.Int^} (\fun (v: Incoming.Output) => v (TailIndices.include Kernel.columnRank i)) _ _
+            (Multiply.point #inverse{Kernel.frame.rightInverse} (Incoming.reflect C.incoming) (Modules.FiniteCoordinates[n := p].basis j))))
+          (ImageRepresentation.onBasis (Multiply.product #inverse{Kernel.frame.rightInverse} (Incoming.reflect C.incoming)) (TailIndices.include Kernel.columnRank i) j))
+        (sym!{I.Int^} (transformedMatrix i j)
+          (Multiply.product #inverse{Kernel.frame.rightInverse} (Incoming.reflect C.incoming) (TailIndices.include Kernel.columnRank i) j) (nativeEntry i j)));
+\definition matrixCorrespondence: imageMatrix = transformedMatrix := \axiom:funext(imageMatrix, transformedMatrix,
+  \fun (i: Indices.Fin Kernel.dimension) => \axiom:funext(imageMatrix i, transformedMatrix i, matrixEntry i));
+\definition nativeBoundary: CoordinateMaps.Map := CoordinateMatrix.linear transformedMatrix;
+\definition nativeRepresentation: nativeBoundary = coordinateBoundary :=
+  trans!{CoordinateMaps.Map} nativeBoundary (CoordinateMatrix.linear imageMatrix) coordinateBoundary
+    (congr!{CoordinateMatrix.Matrix CoordinateMaps.Map} CoordinateMatrix.linear transformedMatrix imageMatrix
+      (sym!{CoordinateMatrix.Matrix} imageMatrix transformedMatrix matrixCorrespondence)) matrixRepresentation;
+\import Modules.End[V := Coordinates.Carrier, space := Coordinates.space] \as CoordinateEnd;
+\import Modules.Isomorphism[V := Coordinates.Carrier, W := Coordinates.Carrier, source := Coordinates.space, target := Coordinates.space] \as CoordinateIso;
+\definition coordinateIdentity: CoordinateIso.Isomorphism := CoordinateIso.Isomorphism {
+  forward := CoordinateEnd.identity, backward := CoordinateEnd.identity,
+  leftInverse := \fun (x: Coordinates.Carrier) => \refl(x), rightInverse := \fun (x: Coordinates.Carrier) => \refl(x),
+};
+\import Modules.KernelTransport[
+  V := Incoming.Vector, W := Coordinates.Carrier, X := Incoming.Vector, Y := Coordinates.Carrier,
+  vSpace := Incoming.domain, wSpace := Coordinates.space, xSpace := Incoming.domain, ySpace := Coordinates.space,
+  f := coordinateBoundary, g := nativeBoundary, domainIso := inputIdentity, codomainIso := coordinateIdentity
+] \as NativeChange;
+\definition nativeCommutes: NativeChange.Commutes := \fun (v: Incoming.Vector) =>
+  congr!{CoordinateMaps.Map Coordinates.Carrier} (\fun (f: CoordinateMaps.Map) => #apply{f} v)
+    nativeBoundary coordinateBoundary nativeRepresentation;
+\import NativeChange.Cokernel[] \as NativeCokernel;
+\import algebra.IntegerKernel[m := Kernel.dimension, n := p, original := transformedRuntime] \as ImageSmith;
+\import ImageSmith.Cokernel[] \as Normal;
+\import Modules.Isomorphism[V := Normal.Normal, W := Normal.Original, source := Normal.normalSpace, target := Normal.originalSpace].Inverse[] \as NormalReverse;
+\definition normalInverse: Modules.Isomorphism[V := Normal.Original, W := Normal.Normal, source := Normal.originalSpace, target := Normal.normalSpace].Isomorphism := NormalReverse.inverse Normal.isomorphism;
+\import Modules.Isomorphism[V := coordinateCokernel, W := Normal.Original, source := coordinateSpace, target := Normal.originalSpace].Composition[U := Normal.Normal, final := Normal.normalSpace] \as NormalizeComposition;
+\definition normalization: Modules.Isomorphism[V := coordinateCokernel, W := Normal.Normal, source := coordinateSpace, target := Normal.normalSpace].Isomorphism :=
+  NormalizeComposition.compose normalInverse (NativeCokernel.isomorphism nativeCommutes);
+\import Modules.Isomorphism[V := Homology, W := coordinateCokernel, source := homologySpace, target := coordinateSpace].Composition[U := Normal.Normal, final := Normal.normalSpace] \as HomologyComposition;
+\definition NormalHomology: \Set := Normal.Normal;
+\definition normalSpace: Modules.Space NormalHomology := Normal.normalSpace;
+\definition normalIsomorphism: Modules.Isomorphism[V := Homology, W := NormalHomology, source := homologySpace, target := normalSpace].Isomorphism :=
+  HomologyComposition.compose normalization coordinateIsomorphism;
+\definition freeRank: N.Nat^ := Nat.sub Kernel.dimension ImageSmith.rank;
+\definition FactorHomology: \Set := Normal.FactorCarrier;
+\definition factorSpace: Modules.Space FactorHomology := Normal.factorSpace;
+\import Modules.Isomorphism[V := Homology, W := NormalHomology, source := homologySpace, target := normalSpace].Composition[U := FactorHomology, final := factorSpace] \as FactorComposition;
+\definition factorIsomorphism: Modules.Isomorphism[V := Homology, W := FactorHomology, source := homologySpace, target := factorSpace].Isomorphism :=
+  FactorComposition.compose Normal.decomposition normalIsomorphism;
+\import \parent.\parent.Compute[] \as Computation;
+\definition input: Input^ := Input^::pair m n p C.outgoing C.incoming;
+\definition computed: Calculation^ := Computation.Run.program^ input;
+\definition generatorRuntime: Runtime^ := Product.Multiply.program^ Kernel.dimension
+  (IntegerBasis.ColumnShift.program^ Kernel.rank (Diagonalize.right Kernel.result)) (Diagonalize.leftInverse ImageSmith.result);
+\definition expectedInverseRuntime: Runtime^ := Product.Multiply.program^ Kernel.dimension (Diagonalize.left ImageSmith.result)
+  (IntegerBasis.RowShift.program^ Kernel.rank (Diagonalize.rightInverse Kernel.result));
+\definition expected: Calculation^ := Calculation^::result n Kernel.dimension Kernel.result ImageSmith.result generatorRuntime expectedInverseRuntime;
+\import N.Basic[].ProgramProp[] \as NatCorrespondence;
+\definition selectedOperations: Computation.Operations := Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := Diagonalize.leftInverse, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := Nat.sub };
+\definition selectionEquality: Computation.nativeOperations = selectedOperations := \block {
+  \let equal0: Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := IntegerBasis.Rank.program^, right := IntegerBasis.Right.program^, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } = Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := IntegerBasis.Right.program^, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } :=
+    congr!{IntegerBasis.Rank.T^ Computation.Operations} (\fun (value: IntegerBasis.Rank.T^) => Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := value, right := IntegerBasis.Right.program^, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) IntegerBasis.Rank.program^ Diagonalize.rank IntegerBasis.Rank.coherence \then
+  \let equal1: Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := IntegerBasis.Right.program^, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } = Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } :=
+    congr!{IntegerBasis.Right.T^ Computation.Operations} (\fun (value: IntegerBasis.Right.T^) => Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := value, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) IntegerBasis.Right.program^ Diagonalize.right IntegerBasis.Right.coherence \then
+  \let equal2: Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } = Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } :=
+    congr!{IntegerBasis.InverseRight.T^ Computation.Operations} (\fun (value: IntegerBasis.InverseRight.T^) => Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := value, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) IntegerBasis.InverseRight.program^ Diagonalize.rightInverse IntegerBasis.InverseRight.coherence \then
+  \let equal3: Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } = Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } :=
+    congr!{IntegerBasis.Left.T^ Computation.Operations} (\fun (value: IntegerBasis.Left.T^) => Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := value, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) IntegerBasis.Left.program^ Diagonalize.left IntegerBasis.Left.coherence \then
+  \let equal4: Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } = Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := Diagonalize.leftInverse, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } :=
+    congr!{IntegerBasis.InverseLeft.T^ Computation.Operations} (\fun (value: IntegerBasis.InverseLeft.T^) => Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := value, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) IntegerBasis.InverseLeft.program^ Diagonalize.leftInverse IntegerBasis.InverseLeft.coherence \then
+  \let equal5: Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := Diagonalize.leftInverse, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ } = Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := Diagonalize.leftInverse, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := Nat.sub } :=
+    congr!{NatCorrespondence.Sub.T^ Computation.Operations} (\fun (value: NatCorrespondence.Sub.T^) => Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := Diagonalize.leftInverse, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := value }) NatCorrespondence.Sub.program^ Nat.sub NatCorrespondence.Sub.coherence \then
+  \return trans!{Computation.Operations} (Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := IntegerBasis.Rank.program^, right := IntegerBasis.Right.program^, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) (Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := IntegerBasis.Right.program^, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) selectedOperations equal0 (trans!{Computation.Operations} (Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := IntegerBasis.Right.program^, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) (Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) selectedOperations equal1 (trans!{Computation.Operations} (Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := IntegerBasis.InverseRight.program^, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) (Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) selectedOperations equal2 (trans!{Computation.Operations} (Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := IntegerBasis.Left.program^, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) (Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) selectedOperations equal3 (trans!{Computation.Operations} (Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := IntegerBasis.InverseLeft.program^, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) (Computation.Operations { smith := Diagonalize.Diagonalize.program^, rank := Diagonalize.rank, right := Diagonalize.right, rightInverse := Diagonalize.rightInverse, left := Diagonalize.left, leftInverse := Diagonalize.leftInverse, columns := IntegerBasis.ColumnShift.program^, rows := IntegerBasis.RowShift.program^, multiply := Product.Multiply.program^, subtract := NatCorrespondence.Sub.program^ }) selectedOperations equal4 (equal5)))))
+};
+\definition selectedCalculation: Computation.withOperations selectedOperations m n p C.outgoing C.incoming = expected := \refl(expected);
+\definition nativeCalculation: Computation.native input = expected :=
+  trans!{Calculation^} (Computation.native input) (Computation.withOperations selectedOperations m n p C.outgoing C.incoming) expected
+    (congr!{Computation.Operations Calculation^} (\fun (ops: Computation.Operations) => Computation.withOperations ops m n p C.outgoing C.incoming)
+      Computation.nativeOperations selectedOperations selectionEquality)
+    selectedCalculation;
+\definition computedCalculation: computed = expected := trans!{Calculation^} computed (Computation.native input) expected
+  (trans!{Calculation^} computed (Computation.mathematical input) (Computation.native input)
+    (\parent.\parent.Compute[].runMatches input)
+    (sym!{Calculation^} (Computation.native input) (Computation.mathematical input) (Computation.nativeEquality input)))
+  nativeCalculation;
+\import Modules.Hom[V := Homology, W := FactorHomology, source := homologySpace, target := factorSpace] \as Forward;
+\import Modules.Hom[V := FactorHomology, W := Homology, source := factorSpace, target := homologySpace] \as Backward;
+\import \root.Finite[].FactorListing[] \as FactorListing;
+\import \root.Finite[].Compute[] \as FactorComputation;
+\structure ResultData: \Set {
+  calculation: Calculation^,
+  cyclicFactors: CyclicFactors^,
+  forward: Forward.Map,
+  backward: Backward.Map,
+}
+\structure ResultLaws[data: ResultData]: \Prop {
+  factors: data.cyclicFactors = FactorComputation.cyclicFactors data.calculation,
+  proper: FactorListing.Proper data.cyclicFactors,
+  calculation: data.calculation = expected,
+  leftInverse: \forall (q: Homology) -> #apply{data.backward} (#apply{data.forward} q) = q,
+  rightInverse: \forall (q: FactorHomology) -> #apply{data.forward} (#apply{data.backward} q) = q,
+}
+\definition Result: \Set := \Cast[ResultData] ({ data: ResultData \where ResultLaws[data] });
+\definition resultData: ResultData := ResultData {
+  calculation := computed, cyclicFactors := FactorComputation.Factors.program^ (computed), forward := #forward{factorIsomorphism}, backward := #backward{factorIsomorphism},
+};
+\definition resultLaws: ResultLaws[resultData] := ResultLaws[resultData] {
+  factors := FactorComputation.FactorsImplementation[].matches (computed),
+  proper := \idelim FactorComputation.cyclicFactors (computed) = FactorComputation.Factors.program^ (computed)
+    \with factors: CyclicFactors^ => FactorListing.Proper factors \by {
+      base: FactorComputation.factorsProper (computed),
+      equality: sym!{CyclicFactors^} _ _ (FactorComputation.FactorsImplementation[].matches (computed))
+    },
+  calculation := computedCalculation,
+  leftInverse := #leftInverse{factorIsomorphism},
+  rightInverse := #rightInverse{factorIsomorphism},
+};
+\definition result: Result := \into[ResultData](resultData, { data: ResultData \where ResultLaws[data] }) \by { resultLaws };
+\definition computedFreeRank: Computation.freeRank computed = freeRank :=
+  congr!{Calculation^ N.Nat^} Computation.freeRank computed expected computedCalculation;
+\definition computedCyclicRank: Computation.cyclicRank computed = ImageSmith.rank :=
+  congr!{Calculation^ N.Nat^} Computation.cyclicRank computed expected computedCalculation;
+\definition computedFactor: \forall (i: N.Nat^) ->
+  Computation.diagonalFactor computed i = Diagonalize.diagonal ImageSmith.result i i :=
+  \fun (i: N.Nat^) => congr!{Calculation^ I.Int^} (\fun (value: Calculation^) => Computation.diagonalFactor value i) computed expected computedCalculation;
+
+\definition Cycle: \Set := Kernel.Carrier;
+\definition cycleSpace: Modules.Space Cycle := Kernel.kernelSpace;
+\definition nullity: N.Nat^ := Kernel.dimension;
+\definition cyclicRank: N.Nat^ := ImageSmith.rank;
+
+\import Modules.Of[V := Coordinates.Carrier, space := Coordinates.space].Submodule[] \as CoordinateSubmodules;
+\import CoordinateSubmodules.Image[U := Incoming.Vector, source := Incoming.domain] \as CoordinateImages;
+\definition coordinateImage: CoordinateSubmodules.Submodule := CoordinateImages.image coordinateBoundary;
+\import CoordinateSubmodules.Quotient[S := coordinateImage] \as CoordinateQuotient;
+\definition factorClasses(v: Coordinates.Carrier): FactorHomology := Normal.classes v;
+\import std.Data[].Bool[] \as B;
+\definition factorFamily: Modules.Family[Indices.Fin Kernel.dimension] := Modules.Family[Indices.Fin Kernel.dimension] {
+  Carrier := \fun (i: Indices.Fin Kernel.dimension) => algebra.IntegerCyclic[d := B.ite I.Int^ (Nat.ltb i ImageSmith.rank) (Diagonalize.diagonal ImageSmith.result i i) Arithmetic.zero].Carrier,
+  space := \fun (i: Indices.Fin Kernel.dimension) => algebra.IntegerCyclic[d := B.ite I.Int^ (Nat.ltb i ImageSmith.rank) (Diagonalize.diagonal ImageSmith.result i i) Arithmetic.zero].space,
+};
+\definition onFactorClass: \forall (x: Kernel.Carrier) ->
+  #apply{#forward{factorIsomorphism}} (class x) = factorClasses (#apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates x)) := \block {
+  \fun (x: Kernel.Carrier) \then
+  \let step0: #apply{#forward{coordinateIsomorphism}} (class x) =
+    CoordinateQuotient.class (Kernel.coordinates x) := Cokernel.onClass commutes x \then
+  \let step1: #apply{#forward{(NativeCokernel.isomorphism nativeCommutes)}} (CoordinateQuotient.class (Kernel.coordinates x)) =
+    Normal.originalClass (Kernel.coordinates x) := NativeCokernel.onClass nativeCommutes (Kernel.coordinates x) \then
+  \let step2: #apply{#forward{normalInverse}} (Normal.originalClass (Kernel.coordinates x)) =
+    Normal.normalClass (#apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates x)) := Normal.backOnClass (Kernel.coordinates x) \then
+  \let step3: #apply{#forward{Normal.decomposition}} (Normal.normalClass (#apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates x))) =
+    factorClasses (#apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates x)) := Normal.factorOnClass (#apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates x)) \then
+  \return trans!{FactorHomology} (#apply{#forward{factorIsomorphism}} (class x))
+    (#apply{#forward{Normal.decomposition}} (#apply{#forward{normalInverse}} (#apply{#forward{(NativeCokernel.isomorphism nativeCommutes)}} (CoordinateQuotient.class (Kernel.coordinates x)))))
+    (factorClasses (#apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates x)))
+    (congr!{coordinateCokernel FactorHomology}
+      (\fun (q: coordinateCokernel) => #apply{#forward{Normal.decomposition}} (#apply{#forward{normalInverse}} (#apply{#forward{(NativeCokernel.isomorphism nativeCommutes)}} q)))
+      (#apply{#forward{coordinateIsomorphism}} (class x)) (CoordinateQuotient.class (Kernel.coordinates x)) step0)
+    (trans!{FactorHomology} _ _ _
+      (congr!{Normal.Original FactorHomology}
+        (\fun (q: Normal.Original) => #apply{#forward{Normal.decomposition}} (#apply{#forward{normalInverse}} q))
+        (#apply{#forward{(NativeCokernel.isomorphism nativeCommutes)}} (CoordinateQuotient.class (Kernel.coordinates x)))
+        (Normal.originalClass (Kernel.coordinates x)) step1)
+      (trans!{FactorHomology} _ _ _
+        (congr!{Normal.Normal FactorHomology} (#apply{#forward{Normal.decomposition}})
+          (#apply{#forward{normalInverse}} (Normal.originalClass (Kernel.coordinates x)))
+          (Normal.normalClass (#apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates x))) step2) step3))
+};
+\definition generatorCycle(v: Coordinates.Carrier): Kernel.Carrier :=
+  #apply{#forward{Kernel.isomorphism}} (#apply{#backward{ImageSmith.leftIso}} v);
+\definition generatorClass(v: Coordinates.Carrier): Homology := class (generatorCycle v);
+\definition generatorOnFactors: \forall (v: Coordinates.Carrier) ->
+  #apply{#forward{factorIsomorphism}} (generatorClass v) = factorClasses v :=
+  \fun (v: Coordinates.Carrier) => trans!{FactorHomology} _ _ _ (onFactorClass (generatorCycle v))
+    (congr!{Coordinates.Carrier FactorHomology} factorClasses
+      (#apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates (generatorCycle v))) v
+      (trans!{Coordinates.Carrier} _ _ _
+        (congr!{Coordinates.Carrier Coordinates.Carrier} (#apply{#forward{ImageSmith.leftIso}})
+          (Kernel.coordinates (generatorCycle v)) (#apply{#backward{ImageSmith.leftIso}} v)
+          (Kernel.coordinatesUnique (#apply{#backward{ImageSmith.leftIso}} v)))
+        (#rightInverse{ImageSmith.leftIso} v)));
+\definition inverseOnFactors: \forall (v: Coordinates.Carrier) ->
+  #apply{#backward{factorIsomorphism}} (factorClasses v) = generatorClass v :=
+  \fun (v: Coordinates.Carrier) => trans!{Homology}
+    (#apply{#backward{factorIsomorphism}} (factorClasses v))
+    (#apply{#backward{factorIsomorphism}} (#apply{#forward{factorIsomorphism}} (generatorClass v))) (generatorClass v)
+    (congr!{FactorHomology Homology} (#apply{#backward{factorIsomorphism}}) (factorClasses v)
+      (#apply{#forward{factorIsomorphism}} (generatorClass v))
+      (sym!{FactorHomology} (#apply{#forward{factorIsomorphism}} (generatorClass v)) (factorClasses v) (generatorOnFactors v)))
+    (#leftInverse{factorIsomorphism} (generatorClass v));
+\import Commutative.Matrix[m := n, n := Kernel.dimension] \as GeneratorMatrix;
+\import Commutative.Matrix[m := Kernel.dimension, n := Kernel.dimension] \as NormalMatrix;
+\import GeneratorMatrix.Composition[k := Kernel.dimension] \as GeneratorProduct;
+\import algebra.IntegerMatrix[m := n, n := Kernel.dimension].Product[k := Kernel.dimension] \as NativeGeneratorProduct;
+\definition kernelRuntime: Runtime^ := IntegerBasis.ColumnShift.program^ Kernel.rank (Diagonalize.right Kernel.result);
+\definition kernelMatrix: GeneratorMatrix.Matrix := \fun (i: Indices.Fin n)(j: Coordinates.Index) => kernelRuntime i j;
+\definition kernelRuntimeEquality: kernelMatrix = Kernel.basisMatrix := \axiom:funext(kernelMatrix, Kernel.basisMatrix,
+  \fun (i: Indices.Fin n) => \axiom:funext(kernelMatrix i, Kernel.basisMatrix i, \fun (j: Coordinates.Index) =>
+    congr!{IntegerBasis.ColumnShift.T^ I.Int^}
+      (\fun (f: IntegerBasis.ColumnShift.T^) => f Kernel.rank (Diagonalize.right Kernel.result) i j)
+      IntegerBasis.ColumnShift.program^ IntegerBasis.shiftColumns IntegerBasis.ColumnShift.coherence));
+\definition generatorMatrix: GeneratorMatrix.Matrix := \fun (i: Indices.Fin n)(j: Coordinates.Index) => generatorRuntime i j;
+\definition generatorRepresentation: generatorMatrix = GeneratorProduct.product Kernel.basisMatrix #inverse{ImageSmith.frame.leftInverse} :=
+  trans!{GeneratorMatrix.Matrix} generatorMatrix
+    (GeneratorProduct.product kernelMatrix #inverse{ImageSmith.frame.leftInverse})
+    (GeneratorProduct.product Kernel.basisMatrix #inverse{ImageSmith.frame.leftInverse})
+    (NativeGeneratorProduct.correspondence kernelRuntime (Diagonalize.leftInverse ImageSmith.result))
+    (congr!{GeneratorMatrix.Matrix GeneratorMatrix.Matrix}
+      (\fun (a: GeneratorMatrix.Matrix) => GeneratorProduct.product a #inverse{ImageSmith.frame.leftInverse}) kernelMatrix Kernel.basisMatrix kernelRuntimeEquality);
+\definition generatorAction: \forall (v: Coordinates.Carrier) -> GeneratorMatrix.apply generatorMatrix v = generatorCycle v :=
+  \fun (v: Coordinates.Carrier) => trans!{Outgoing.Vector} (GeneratorMatrix.apply generatorMatrix v)
+    (GeneratorMatrix.apply (GeneratorProduct.product Kernel.basisMatrix #inverse{ImageSmith.frame.leftInverse}) v) (generatorCycle v)
+    (congr!{GeneratorMatrix.Matrix Outgoing.Vector} (\fun (a: GeneratorMatrix.Matrix) => GeneratorMatrix.apply a v)
+      generatorMatrix (GeneratorProduct.product Kernel.basisMatrix #inverse{ImageSmith.frame.leftInverse}) generatorRepresentation)
+    (trans!{Outgoing.Vector} _ _ _ (GeneratorProduct.point Kernel.basisMatrix #inverse{ImageSmith.frame.leftInverse} v)
+      (Kernel.basisAction (#apply{#backward{ImageSmith.leftIso}} v)));
+\definition computedGeneratorMatrix: GeneratorMatrix.Matrix := \fun (i: Indices.Fin n)(j: Coordinates.Index) => Computation.generators computed i j;
+\definition computedGeneratorRepresentation: computedGeneratorMatrix = generatorMatrix :=
+  congr!{Calculation^ GeneratorMatrix.Matrix}
+    (\fun (value: Calculation^) => \fun (i: Indices.Fin n)(j: Coordinates.Index) => Computation.generators value i j)
+    computed expected computedCalculation;
+\definition computedGeneratorAction: \forall (v: Coordinates.Carrier) -> GeneratorMatrix.apply computedGeneratorMatrix v = generatorCycle v :=
+  \fun (v: Coordinates.Carrier) => trans!{Outgoing.Vector} _ _ _
+    (congr!{GeneratorMatrix.Matrix Outgoing.Vector} (\fun (a: GeneratorMatrix.Matrix) => GeneratorMatrix.apply a v)
+      computedGeneratorMatrix generatorMatrix computedGeneratorRepresentation) (generatorAction v);
+\import Commutative.Matrix[m := Kernel.dimension, n := n] \as InverseMatrix;
+\import InverseMatrix.Composition[k := n] \as InverseProduct;
+\import Commutative.Matrix[m := n, n := n] \as OriginalSquare;
+\import NormalMatrix.Composition[k := n] \as NormalProduct;
+\import algebra.IntegerMatrix[m := Kernel.dimension, n := Kernel.dimension].Product[k := n] \as NativeInverseProduct;
+\definition inverseRowsRuntime: Runtime^ := IntegerBasis.RowShift.program^ Kernel.rank (Diagonalize.rightInverse Kernel.result);
+\definition inverseRowsMatrix: InverseMatrix.Matrix := \fun (i: Coordinates.Index)(j: Indices.Fin n) => inverseRowsRuntime i j;
+\definition inverseRowsEquality: inverseRowsMatrix =
+  (\fun (i: Coordinates.Index)(j: Indices.Fin n) => #inverse{Kernel.frame.rightInverse} (TailIndices.include Kernel.columnRank i) j) :=
+  \axiom:funext(inverseRowsMatrix,
+    (\fun (i: Coordinates.Index)(j: Indices.Fin n) => #inverse{Kernel.frame.rightInverse} (TailIndices.include Kernel.columnRank i) j),
+    \fun (i: Coordinates.Index) => \axiom:funext(inverseRowsMatrix i,
+      (\fun (j: Indices.Fin n) => #inverse{Kernel.frame.rightInverse} (TailIndices.include Kernel.columnRank i) j),
+      \fun (j: Indices.Fin n) => congr!{IntegerBasis.RowShift.T^ I.Int^}
+        (\fun (f: IntegerBasis.RowShift.T^) => f Kernel.rank (Diagonalize.rightInverse Kernel.result) i j)
+        IntegerBasis.RowShift.program^ IntegerBasis.shiftRows IntegerBasis.RowShift.coherence));
+\definition inverseRowsAction: \forall (x: Kernel.Carrier) -> InverseMatrix.apply inverseRowsMatrix x = Kernel.coordinates x :=
+  \fun (x: Kernel.Carrier) => trans!{Coordinates.Carrier} (InverseMatrix.apply inverseRowsMatrix x)
+    (InverseMatrix.apply (\fun (i: Coordinates.Index)(j: Indices.Fin n) => #inverse{Kernel.frame.rightInverse} (TailIndices.include Kernel.columnRank i) j) x)
+    (Kernel.coordinates x)
+    (congr!{InverseMatrix.Matrix Coordinates.Carrier} (\fun (a: InverseMatrix.Matrix) => InverseMatrix.apply a x) _ _ inverseRowsEquality)
+    (\axiom:funext(
+      (InverseMatrix.apply (\fun (i: Coordinates.Index)(j: Indices.Fin n) => #inverse{Kernel.frame.rightInverse} (TailIndices.include Kernel.columnRank i) j) x),
+      (Kernel.coordinates x), \fun (i: Coordinates.Index) =>
+        sym!{I.Int^} (Kernel.coordinates x i)
+          (OriginalSquare.apply #inverse{Kernel.frame.rightInverse} x (TailIndices.include Kernel.columnRank i)) (Kernel.coordinateEntry x i)));
+\definition inverseMatrix: InverseMatrix.Matrix := \fun (i: Coordinates.Index)(j: Indices.Fin n) => expectedInverseRuntime i j;
+\definition inverseRepresentation: inverseMatrix = NormalProduct.product ImageSmith.left inverseRowsMatrix :=
+  NativeInverseProduct.correspondence (Diagonalize.left ImageSmith.result) inverseRowsRuntime;
+\definition inverseAction: \forall (x: Kernel.Carrier) -> InverseMatrix.apply inverseMatrix x = #apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates x) :=
+  \fun (x: Kernel.Carrier) => trans!{Coordinates.Carrier} (InverseMatrix.apply inverseMatrix x)
+    (InverseMatrix.apply (NormalProduct.product ImageSmith.left inverseRowsMatrix) x)
+    (#apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates x))
+    (congr!{InverseMatrix.Matrix Coordinates.Carrier} (\fun (a: InverseMatrix.Matrix) => InverseMatrix.apply a x) _ _ inverseRepresentation)
+    (trans!{Coordinates.Carrier} _ _ _ (NormalProduct.point ImageSmith.left inverseRowsMatrix x)
+      (congr!{Coordinates.Carrier Coordinates.Carrier} (#apply{#forward{ImageSmith.leftIso}})
+        (InverseMatrix.apply inverseRowsMatrix x) (Kernel.coordinates x) (inverseRowsAction x)));
+\definition computedInverseMatrix: InverseMatrix.Matrix := \fun (i: Coordinates.Index)(j: Indices.Fin n) => Computation.inverseCoordinates computed i j;
+\definition computedInverseRepresentation: computedInverseMatrix = inverseMatrix :=
+  congr!{Calculation^ InverseMatrix.Matrix}
+    (\fun (value: Calculation^) => \fun (i: Coordinates.Index)(j: Indices.Fin n) => Computation.inverseCoordinates value i j)
+    computed expected computedCalculation;
+\definition computedInverseAction: \forall (x: Kernel.Carrier) -> InverseMatrix.apply computedInverseMatrix x = #apply{#forward{ImageSmith.leftIso}} (Kernel.coordinates x) :=
+  \fun (x: Kernel.Carrier) => trans!{Coordinates.Carrier} _ _ _
+    (congr!{InverseMatrix.Matrix Coordinates.Carrier} (\fun (a: InverseMatrix.Matrix) => InverseMatrix.apply a x)
+      computedInverseMatrix inverseMatrix computedInverseRepresentation) (inverseAction x);
+\definition computedForwardOnClass: \forall (x: Kernel.Carrier) ->
+  #apply{#forward{factorIsomorphism}} (class x) = factorClasses (InverseMatrix.apply computedInverseMatrix x) :=
+  \fun (x: Kernel.Carrier) => trans!{FactorHomology} _ _ _ (onFactorClass x)
+    (congr!{Coordinates.Carrier FactorHomology} factorClasses _ _ (sym!{Coordinates.Carrier} _ _ (computedInverseAction x)));

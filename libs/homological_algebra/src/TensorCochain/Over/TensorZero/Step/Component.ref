@@ -1,0 +1,35 @@
+\definition p: Nat.Nat^ := #first{i};
+\definition q: Nat.Nat^ := #second{i};
+\import Tensor.Term[p := p, q := q] \as Current;
+\import Tensor.At[p := p, q := q] \as Differential;
+\import Tensor.Term[p := Nat.Nat^::succ p, q := q] \as H;
+\import Tensor.Term[p := p, q := Nat.Nat^::succ q] \as V;
+\import Target.Component[i := Total.upHorizontal n i] \as HI;
+\import Target.Component[i := Total.upVertical n i] \as VI;
+\import Modules.Hom[V := H.Carrier, W := Target.Carrier, source := H.space, target := Target.space] \as HInjections;
+\import Modules.Hom[V := V.Carrier, W := Target.Carrier, source := V.space, target := Target.space] \as VInjections;
+\import Modules.Hom[V := V.Carrier, W := V.Carrier, source := V.space, target := V.space] \as SignMaps;
+\import Degrees.Sign[V := V.Carrier, space := V.space] \as Sign;
+\import Modules.Hom[V := Current.Carrier, W := Target.Carrier, source := Current.space, target := Target.space] \as ComponentMaps;
+\import Modules.Tensor[V := left.Carrier p, W := right.Carrier q, left := left.space p, right := right.space q].Universal[
+  U := Target.Carrier, target := Target.space] \as TensorUniversal;
+\definition horizontalMap: Step.horizontalComponents i = ComponentMaps.zeroMap :=
+  TensorUniversal.ext (Step.horizontalComponents i) ComponentMaps.zeroMap
+    (\fun (x: left.Carrier p)(y: right.Carrier q) => trans!{Target.Carrier} _ _ _
+      (congr!{H.Carrier Target.Carrier} (#apply{HI.injection}) _ _ (Differential.horizontalOnTensor x y))
+      (trans!{Target.Carrier} _ _ _
+        (congr!{H.Carrier Target.Carrier} (#apply{HI.injection}) _ _ (H.zeroLeft y)) (HInjections.zeroPreserved HI.injection)));
+\definition horizontal: \forall (x: Current.Carrier) -> #apply{Step.horizontal} (#apply{(Source.Component[i := i].injection)} x) = #zero{Target.space} :=
+  \fun (x: Current.Carrier) => trans!{Target.Carrier} _ _ _ (Step.horizontalOnInjection i x)
+    (congr!{ComponentMaps.Map Target.Carrier} (\fun (f: ComponentMaps.Map) => #apply{f} x) _ _ horizontalMap);
+\definition verticalMap: Step.verticalComponents i = ComponentMaps.zeroMap :=
+  TensorUniversal.ext (Step.verticalComponents i) ComponentMaps.zeroMap
+    (\fun (x: left.Carrier p)(y: right.Carrier q) => trans!{Target.Carrier} _ _ _
+      (congr!{V.Carrier Target.Carrier} (\fun (z: V.Carrier) => #apply{VI.injection} (#apply{(Sign.map p)} z)) _ _ (Differential.verticalOnTensor x y))
+      (trans!{Target.Carrier} _ _ _
+        (congr!{V.Carrier Target.Carrier} (\fun (z: V.Carrier) => #apply{VI.injection} (#apply{(Sign.map p)} z)) _ _ (V.zeroRight x))
+        (trans!{Target.Carrier} _ _ _
+          (congr!{V.Carrier Target.Carrier} (#apply{VI.injection}) _ _ (SignMaps.zeroPreserved (Sign.map p))) (VInjections.zeroPreserved VI.injection))));
+\definition vertical: \forall (x: Current.Carrier) -> #apply{Step.vertical} (#apply{(Source.Component[i := i].injection)} x) = #zero{Target.space} :=
+  \fun (x: Current.Carrier) => trans!{Target.Carrier} _ _ _ (Step.verticalOnInjection i x)
+    (congr!{ComponentMaps.Map Target.Carrier} (\fun (f: ComponentMaps.Map) => #apply{f} x) _ _ verticalMap);

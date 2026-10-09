@@ -1,0 +1,62 @@
+\definition inverseLaws: Laws[g] := \bysub(Data, { data: Data \where Laws[data] }, g);
+\import \parent.\parent.\parent.Map[C := D, D := C] \as Reverse;
+\import \root.TensorCochain[].Over[R := R, ring := ring].Map[C := C, D := D] \as Original;
+\definition forwardLaws: Original.Laws[f] := Original.laws f;
+\module Component(p, q: Nat.Nat^) {
+  \definition horizontal: \forall (y: D.family.Carrier p q) ->
+    #apply{(C.differential.horizontal p q)} (#apply{(g p q)} y) =
+      #apply{(g (Nat.Nat^::succ p) q)} (#apply{(D.differential.horizontal p q)} y) :=
+    \block {
+      \fun (y: D.family.Carrier p q) \then
+      \let x: C.family.Carrier p q := #apply{(g p q)} y \then
+      \let z: C.family.Carrier (Nat.Nat^::succ p) q := #apply{(C.differential.horizontal p q)} x \then
+      \return trans!{{C.family.Carrier (Nat.Nat^::succ p) q}} z
+        (#apply{(g (Nat.Nat^::succ p) q)} (#apply{(f (Nat.Nat^::succ p) q)} z))
+        (#apply{(g (Nat.Nat^::succ p) q)} (#apply{(D.differential.horizontal p q)} y))
+        (sym!{{C.family.Carrier (Nat.Nat^::succ p) q}} (#apply{(g (Nat.Nat^::succ p) q)} (#apply{(f (Nat.Nat^::succ p) q)} z)) z (#left{inverseLaws} (Nat.Nat^::succ p) q z))
+        (trans!{{C.family.Carrier (Nat.Nat^::succ p) q}}
+          (#apply{(g (Nat.Nat^::succ p) q)} (#apply{(f (Nat.Nat^::succ p) q)} z))
+          (#apply{(g (Nat.Nat^::succ p) q)} (#apply{(D.differential.horizontal p q)} (#apply{(f p q)} x)))
+          (#apply{(g (Nat.Nat^::succ p) q)} (#apply{(D.differential.horizontal p q)} y))
+          (congr!{{D.family.Carrier (Nat.Nat^::succ p) q} {C.family.Carrier (Nat.Nat^::succ p) q}}
+            (#apply{(g (Nat.Nat^::succ p) q)}) (#apply{(f (Nat.Nat^::succ p) q)} z) (#apply{(D.differential.horizontal p q)} (#apply{(f p q)} x))
+            (sym!{{D.family.Carrier (Nat.Nat^::succ p) q}} (#apply{(D.differential.horizontal p q)} (#apply{(f p q)} x)) (#apply{(f (Nat.Nat^::succ p) q)} z) (#horizontal{forwardLaws} p q x)))
+          (congr!{{D.family.Carrier p q} {C.family.Carrier (Nat.Nat^::succ p) q}}
+            (\fun (u: D.family.Carrier p q) => #apply{(g (Nat.Nat^::succ p) q)} (#apply{(D.differential.horizontal p q)} u))
+            (#apply{(f p q)} x) y (#right{inverseLaws} p q y)))
+    };
+  \definition vertical: \forall (y: D.family.Carrier p q) ->
+    #apply{(C.differential.vertical p q)} (#apply{(g p q)} y) =
+      #apply{(g p (Nat.Nat^::succ q))} (#apply{(D.differential.vertical p q)} y) :=
+    \block {
+      \fun (y: D.family.Carrier p q) \then
+      \let x: C.family.Carrier p q := #apply{(g p q)} y \then
+      \let z: C.family.Carrier p (Nat.Nat^::succ q) := #apply{(C.differential.vertical p q)} x \then
+      \return trans!{{C.family.Carrier p (Nat.Nat^::succ q)}} z
+        (#apply{(g p (Nat.Nat^::succ q))} (#apply{(f p (Nat.Nat^::succ q))} z))
+        (#apply{(g p (Nat.Nat^::succ q))} (#apply{(D.differential.vertical p q)} y))
+        (sym!{{C.family.Carrier p (Nat.Nat^::succ q)}} (#apply{(g p (Nat.Nat^::succ q))} (#apply{(f p (Nat.Nat^::succ q))} z)) z (#left{inverseLaws} p (Nat.Nat^::succ q) z))
+        (trans!{{C.family.Carrier p (Nat.Nat^::succ q)}}
+          (#apply{(g p (Nat.Nat^::succ q))} (#apply{(f p (Nat.Nat^::succ q))} z))
+          (#apply{(g p (Nat.Nat^::succ q))} (#apply{(D.differential.vertical p q)} (#apply{(f p q)} x)))
+          (#apply{(g p (Nat.Nat^::succ q))} (#apply{(D.differential.vertical p q)} y))
+          (congr!{{D.family.Carrier p (Nat.Nat^::succ q)} {C.family.Carrier p (Nat.Nat^::succ q)}}
+            (#apply{(g p (Nat.Nat^::succ q))}) (#apply{(f p (Nat.Nat^::succ q))} z) (#apply{(D.differential.vertical p q)} (#apply{(f p q)} x))
+            (sym!{{D.family.Carrier p (Nat.Nat^::succ q)}} (#apply{(D.differential.vertical p q)} (#apply{(f p q)} x)) (#apply{(f p (Nat.Nat^::succ q))} z) (#vertical{forwardLaws} p q x)))
+          (congr!{{D.family.Carrier p q} {C.family.Carrier p (Nat.Nat^::succ q)}}
+            (\fun (u: D.family.Carrier p q) => #apply{(g p (Nat.Nat^::succ q))} (#apply{(D.differential.vertical p q)} u))
+            (#apply{(f p q)} x) y (#right{inverseLaws} p q y)))
+    };
+}
+\definition backward: Reverse.Map := \into[Reverse.Data](g, { data: Reverse.Data \where Reverse.Laws[data] }) \by {
+  Reverse.Laws[g] {
+    horizontal := \fun (p, q: Nat.Nat^) => Component[p := p, q := q].horizontal,
+    vertical := \fun (p, q: Nat.Nat^) => Component[p := p, q := q].vertical,
+  }
+};
+\import \parent.\parent.Total[f := f] \as F;
+\import Reverse.Total[f := backward] \as G;
+\import \parent.\parent.\parent.Total[C := C] \as Source;
+\import \parent.\parent.\parent.Total[C := D] \as Target;
+\module Degree(n: Nat.Nat^);
+\module At(n: Nat.Nat^);

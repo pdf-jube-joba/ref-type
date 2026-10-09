@@ -1,0 +1,41 @@
+\import \parent.Of[M := M, P := P] \as Source;
+\import \parent.Of[M := M, P := Q] \as Target;
+\import Modules.End[V := M.Carrier, space := M.space] \as Coefficient;
+\import \parent.Comparison[M := M, N := M, P := P, Q := Q, f := Coefficient.identity] \as Forward;
+\import \parent.Comparison[M := M, N := M, P := Q, Q := P, f := Coefficient.identity] \as Backward;
+\import Chains.Map[C := P, D := Q] \as ForwardMaps;
+\import Chains.Map[C := Q, D := P] \as BackwardMaps;
+\import BackwardMaps.Composition[B := P] \as Left;
+\import ForwardMaps.Composition[B := Q] \as Right;
+\import Chains.End[C := P] \as SourceEnd;
+\import Chains.End[C := Q] \as TargetEnd;
+\import \parent.Uniqueness[M := M, N := M, P := P, Q := P] \as LeftUnique;
+\import \parent.Uniqueness[M := M, N := M, P := Q, Q := Q] \as RightUnique;
+\import Chains.Homotopy[C := P, D := P] \as LeftHomotopy;
+\import Chains.Homotopy[C := Q, D := Q] \as RightHomotopy;
+\import Chains.Equivalence[C := P, D := Q] \as Equivalences;
+\definition leftAgreement: \forall (p: Source.Resolution)(q: Target.Resolution)(f: ForwardMaps.Map)(g: BackwardMaps.Map) ->
+  Forward.Augmented p q f -> Backward.Augmented q p g -> LeftUnique.agreement p p (Left.compose g f) SourceEnd.identity :=
+  \fun (p: Source.Resolution)(q: Target.Resolution)(f: ForwardMaps.Map)(g: BackwardMaps.Map)
+    (forward: Forward.Augmented p q f)(backward: Backward.Augmented q p g)(x: P.family.Carrier Nat.Nat^::zero) =>
+      trans!{M.Carrier} _ _ _ (backward (#apply{f} Nat.Nat^::zero x)) (forward x);
+\definition rightAgreement: \forall (p: Source.Resolution)(q: Target.Resolution)(f: ForwardMaps.Map)(g: BackwardMaps.Map) ->
+  Forward.Augmented p q f -> Backward.Augmented q p g -> RightUnique.agreement q q (Right.compose f g) TargetEnd.identity :=
+  \fun (p: Source.Resolution)(q: Target.Resolution)(f: ForwardMaps.Map)(g: BackwardMaps.Map)
+    (forward: Forward.Augmented p q f)(backward: Backward.Augmented q p g)(x: Q.family.Carrier Nat.Nat^::zero) =>
+      trans!{M.Carrier} _ _ _ (forward (#apply{g} Nat.Nat^::zero x)) (backward x);
+\definition existence: \forall (p: Source.Resolution)(q: Target.Resolution) -> \exists Equivalences.Equivalence := \block {
+  \fun (p: Source.Resolution)(q: Target.Resolution) \then
+  \takefrom f: \Cast[ForwardMaps.Map] ({ f: ForwardMaps.Map \where Forward.Augmented p q f }) \by Forward.existence p q \then
+  \takefrom g: \Cast[BackwardMaps.Map] ({ g: BackwardMaps.Map \where Backward.Augmented q p g }) \by Backward.existence q p \then
+  \let forward: Forward.Augmented p q f := \bysub(ForwardMaps.Map, { f: ForwardMaps.Map \where Forward.Augmented p q f }, f) \then
+  \let backward: Backward.Augmented q p g := \bysub(BackwardMaps.Map, { g: BackwardMaps.Map \where Backward.Augmented q p g }, g) \then
+  \takefrom h: LeftHomotopy.Homotopy (Left.compose g f) SourceEnd.identity \by LeftUnique.existence p p (Left.compose g f) SourceEnd.identity (leftAgreement p q f g forward backward) \then
+  \takefrom k: RightHomotopy.Homotopy (Right.compose f g) TargetEnd.identity \by RightUnique.existence q q (Right.compose f g) TargetEnd.identity (rightAgreement p q f g forward backward) \then
+  \return \exact(\into[Equivalences.Data](Equivalences.Data { forward := f, backward := g, left := h, right := k }, Equivalences.Equivalence) \by {
+    Equivalences.Laws[Equivalences.Data { forward := f, backward := g, left := h, right := k }] {
+      left := \bysub(LeftHomotopy.Data, { data: LeftHomotopy.Data \where LeftHomotopy.Laws[Left.compose g f, SourceEnd.identity, data] }, h),
+      right := \bysub(RightHomotopy.Data, { data: RightHomotopy.Data \where RightHomotopy.Laws[Right.compose f g, TargetEnd.identity, data] }, k),
+    }
+  }, Equivalences.Equivalence)
+};

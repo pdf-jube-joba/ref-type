@@ -1,0 +1,59 @@
+\definition coefficientSequence: Modules.ShortExact[A := A, B := B, C := C].Sequence := sequence;
+\import Construction.Chosen[construction := construction] \as Middle;
+\module MiddleTerm(n: Nat.Nat^) {
+  \import Modules.Biproduct[V := P.family.Carrier n, W := Q.family.Carrier n, left := P.family.space n, right := Q.family.space n] \as Sum;
+  \definition Carrier: \Set := std.Data[].Pair[].Times^[P.family.Carrier n, Q.family.Carrier n];
+  \definition space: Modules.Space Carrier := Sum.space;
+}
+\definition middleFamily: Chains.Family := Chains.Family {
+  Carrier := \fun (n: Nat.Nat^) => std.Data[].Pair[].Times^[P.family.Carrier n, Q.family.Carrier n],
+  space := \fun (n: Nat.Nat^) => MiddleTerm[n := n].space,
+};
+\definition middleDifferential: Chains.DifferentialData[middleFamily] := Chains.DifferentialData[middleFamily] {
+  apply := \fun (n: Nat.Nat^)(x: middleFamily.Carrier (Nat.Nat^::succ n)) => Middle.apply n x,
+};
+\definition middleComplex: Chains.Complex := Chains.Complex {
+  family := middleFamily, differential := middleDifferential,
+  laws := Chains.DifferentialLaws[middleFamily, middleDifferential] {
+    addition := \fun (n: Nat.Nat^)(x, y: middleFamily.Carrier (Nat.Nat^::succ n)) => Middle.addition n x y,
+    scalar := \fun (n: Nat.Nat^)(a: R)(x: middleFamily.Carrier (Nat.Nat^::succ n)) => Middle.scalar n a x,
+    squareZero := \fun (n: Nat.Nat^)(x: middleFamily.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => Middle.squareZero n x,
+  },
+};
+\import Resolutions.Of[M := B, P := middleComplex] \as MiddleResolution;
+\import \parent.\parent.\parent.Of[M := A, N := N, P := P] \as Left;
+\import \parent.\parent.\parent.Of[M := B, N := N, P := middleComplex] \as Center;
+\import \parent.\parent.\parent.Of[M := C, N := N, P := Q] \as Right;
+\import \parent.\parent.\parent.First[M := A, L := B, N := N, P := P, Q := middleComplex] \as Inclusion;
+\import \parent.\parent.\parent.First[M := B, L := C, N := N, P := middleComplex, Q := Q] \as Projection;
+\import Chains.ShortExact[A := Left.tensorComplex, B := Center.tensorComplex, C := Right.tensorComplex] \as Sequence;
+\definition data: Sequence.Data := Sequence.Data { inclusion := Inclusion.chainMap Middle.inclusion, projection := Projection.chainMap Middle.projection };
+\module Degree(n: Nat.Nat^);
+\definition laws: Sequence.Laws[data] := Sequence.Laws[data] {
+  injective := \fun (n: Nat.Nat^) => Degree[n := n].injective,
+  onto := \fun (n: Nat.Nat^) => Degree[n := n].onto,
+  zero := \fun (n: Nat.Nat^) => Degree[n := n].zero,
+  kernelImage := \fun (n: Nat.Nat^) => Degree[n := n].kernelImage,
+};
+\definition sequence: Sequence.Sequence := \into[Sequence.Data](data, { s: Sequence.Data \where Sequence.Laws[s] }) \by { laws };
+\import Sequence.With[s := sequence] \as IntegerSequence;
+\module IntegerAt(k: Integers.Int^);
+
+\module At(n: Nat.Nat^);
+
+\import Chains.ShortExact[A := P, B := middleComplex, C := Q] \as ResolutionSequence;
+\definition chainSequence: ResolutionSequence.Sequence := ResolutionSequence.Sequence {
+  inclusion := Middle.inclusion, projection := Middle.projection,
+  injective := \fun (n: Nat.Nat^) => #injective{(Middle.degreeSequence n)},
+  onto := \fun (n: Nat.Nat^) => #onto{(Middle.degreeSequence n)},
+  zero := \fun (n: Nat.Nat^) => #zero{(Middle.degreeSequence n)},
+  kernelImage := \fun (n: Nat.Nat^) => #kernelImage{(Middle.degreeSequence n)},
+};
+\import \root.Resolution[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].ShortExact[] \as ResolvedSequences;
+\definition resolvedSequence: ResolvedSequences.Sequence := ResolvedSequences.make A B C P middleComplex Q
+  p Middle.resolution q coefficientSequence chainSequence Middle.inclusionAugmented Middle.projectionAugmented;
+\module Morphism(A1, B1, C1: Modules.Bundle, P1, Q1: Chains.Complex,
+  sequence1: Modules.ShortExact[A := A1, B := B1, C := C1].Sequence,
+  p1: Resolutions.Of[M := A1, P := P1].Resolution, q1: Resolutions.Of[M := C1, P := Q1].Resolution,
+  construction1: Resolutions.Horseshoe[A := A1, B := B1, C := C1, P := P1, Q := Q1].With[sequence := sequence1, p := p1, q := q1].Construction);
+\module ChangeMiddle(S: Chains.Complex, r: Resolutions.Of[M := B, P := S].Resolution);

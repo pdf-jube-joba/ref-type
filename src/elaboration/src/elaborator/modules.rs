@@ -37,7 +37,11 @@ impl GlobalEnvironment {
             None
         };
         let (from, base, calls) = match path {
-            ModuleInstantiatePath::FromModule { calls, .. } => (None, None, calls),
+            ModuleInstantiatePath::FromModule { calls, .. } => (
+                None,
+                source_override.and_then(|source| self.crate_env.namespace_binding_id(source)),
+                calls,
+            ),
             ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
                 (Some(*back_parent), None, calls)
             }
@@ -53,10 +57,13 @@ impl GlobalEnvironment {
             }
         };
 
-        let mut source = if let Some(source) = source_override {
-            source
-        } else if let Some(base) = base {
+        // An anchored path can point into an already specialized namespace.
+        // Use its declaration source together with its argument environment,
+        // just as an explicit import does.
+        let mut source = if let Some(base) = base {
             self.crate_env.binding(base).source
+        } else if let Some(source) = source_override {
+            source
         } else if let Some(back_parent) = from {
             let mut module = self.module_manager.current();
             for _ in 0..back_parent {
@@ -274,6 +281,15 @@ impl GlobalEnvironment {
                                 expected,
                             )
                             .map_err(|message| {
+                                if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some() {
+                                    eprintln!(
+                                        "module argument {}.{}: {}\nexpected: {}",
+                                        child_name.as_str(),
+                                        argument_name.as_str(),
+                                        crate::raw::printing::format_exp(&self.crate_env, exp),
+                                        crate::raw::printing::format_exp(&self.crate_env, expected),
+                                    );
+                                }
                                 self.metavariables
                                     .constraint_error(&self.crate_env, message)
                             })?;

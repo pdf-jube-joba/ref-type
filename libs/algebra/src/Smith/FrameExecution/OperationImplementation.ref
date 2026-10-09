@@ -1,0 +1,31 @@
+\definition T: \VType := \U(Operation -> BasisChange);
+\definition program: T := \thunk (\cfun (operation: Operation) => \program {
+  \bind left: Operation <- (\force leftProgram) operation \then
+  \bind right: Operation <- (\force rightProgram) operation \then
+  \bind inverse: Operation <- (\force inverseProgram) operation \then
+  \bind leftInverse: Operation <- (\force leftProgram) inverse \then
+  \bind rightInverse: Operation <- (\force rightProgram) inverse \then
+  \bind leftMap: \U(Runtime -> Runtime) <- (\force applyProgram) left \then
+  \bind leftMatrix: Runtime <- (\force leftMap) identityProgram \then
+  \bind rightMap: \U(Runtime -> Runtime) <- (\force applyProgram) right \then
+  \bind rightMatrix: Runtime <- (\force rightMap) identityProgram \then
+  \bind leftUndo: \U(Runtime -> Runtime) <- (\force applyProgram) leftInverse \then
+  \bind leftInverseMatrix: Runtime <- (\force leftUndo) identityProgram \then
+  \bind rightUndo: \U(Runtime -> Runtime) <- (\force applyProgram) rightInverse \then
+  \bind rightInverseMatrix: Runtime <- (\force rightUndo) identityProgram \then
+  \return(BasisChange::frame leftMatrix rightMatrix leftInverseMatrix rightInverseMatrix)
+});
+\definition withOperations(action: Apply.T^)(left, right, inverse: Mapper^)(identity: Runtime^)(op: Operation^): BasisChange^ := BasisChange^::frame
+  (action (left op) identity) (action (right op) identity) (action (left (inverse op)) identity) (action (right (inverse op)) identity);
+\use Equality.eq_reason;
+\definition matches: \forall (op: Operation^) -> program^ op = operation op :=
+  \fun (op: Operation^) => trans!{BasisChange^} (program^ op) (withOperations apply leftProgram^ rightProgram^ inverseProgram^ identityProgram^ op) (withOperations apply leftProjection rightProjection inverseOperation Identity.identity op)
+      (congr!{Apply.T^ BasisChange^} (\fun (f: Apply.T^) => withOperations f leftProgram^ rightProgram^ inverseProgram^ identityProgram^ op) applyProgram^ apply Apply.coherence)
+      (trans!{BasisChange^} (withOperations apply leftProgram^ rightProgram^ inverseProgram^ identityProgram^ op) (withOperations apply leftProjection rightProgram^ inverseProgram^ identityProgram^ op) (withOperations apply leftProjection rightProjection inverseOperation Identity.identity op)
+      (congr!{Mapper^ BasisChange^} (\fun (f: Mapper^) => withOperations apply f rightProgram^ inverseProgram^ identityProgram^ op) leftProgram^ leftProjection LeftProjection.coherence)
+      (trans!{BasisChange^} (withOperations apply leftProjection rightProgram^ inverseProgram^ identityProgram^ op) (withOperations apply leftProjection rightProjection inverseProgram^ identityProgram^ op) (withOperations apply leftProjection rightProjection inverseOperation Identity.identity op)
+      (congr!{Mapper^ BasisChange^} (\fun (f: Mapper^) => withOperations apply leftProjection f inverseProgram^ identityProgram^ op) rightProgram^ rightProjection RightProjection.coherence)
+      (trans!{BasisChange^} (withOperations apply leftProjection rightProjection inverseProgram^ identityProgram^ op) (withOperations apply leftProjection rightProjection inverseOperation identityProgram^ op) (withOperations apply leftProjection rightProjection inverseOperation Identity.identity op)
+      (congr!{Mapper^ BasisChange^} (\fun (f: Mapper^) => withOperations apply leftProjection rightProjection f identityProgram^ op) inverseProgram^ inverseOperation InverseOperation.coherence)
+      (congr!{Runtime^ BasisChange^} (\fun (f: Runtime^) => withOperations apply leftProjection rightProjection inverseOperation f op) identityProgram^ Identity.identity Identity.Identity.coherence))));
+\definition coherence: program^ = operation := \axiom:funext(program^, operation, matches);

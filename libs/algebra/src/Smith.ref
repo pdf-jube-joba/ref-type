@@ -1,0 +1,139 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Bool[] \as B;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Program[] \as Programs;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\use Equality.trans;
+\use Equality.sym;
+\definition Runtime: \VType := \U(N.Nat -> N.Nat -> I.Int);
+\definition Transformer: \VType := \U(Runtime -> Runtime);
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].RowOperations[] \as Rows;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].ColumnOperations[] \as Columns;
+\definition rowSwapProgram: Rows.Swap.T := Rows.Swap.program;
+\definition rowAddProgram: Rows.Add.T := Rows.Add.program;
+\definition rowNegateProgram: Rows.Negate.T := Rows.Negate.program;
+\definition columnSwapProgram: Columns.Swap.T := Columns.Swap.program;
+\definition columnAddProgram: Columns.Add.T := Columns.Add.program;
+\definition columnNegateProgram: Columns.Negate.T := Columns.Negate.program;
+\inductive Operation: \VType :=
+  | identity: Operation
+  | rowSwap: N.Nat -> N.Nat -> Operation
+  | rowAdd: N.Nat -> N.Nat -> I.Int -> Operation
+  | rowNegate: N.Nat -> Operation
+  | columnSwap: N.Nat -> N.Nat -> Operation
+  | columnAdd: N.Nat -> N.Nat -> I.Int -> Operation
+  | columnNegate: N.Nat -> Operation;
+\inductive History: \VType := | empty: History | prepend: Operation -> History -> History;
+\definition apply: Operation^ -> Runtime^ -> Runtime^ :=
+  \induction (operation: Operation^) \return Runtime^ -> Runtime^ \with {
+    | identity: \fun (a: Runtime^) => a
+    | rowSwap: \fun (r, s: N.Nat^)(a: Runtime^) => Rows.swap a r s
+    | rowAdd: \fun (r, s: N.Nat^)(c: I.Int^)(a: Runtime^) => Rows.add a r s c
+    | rowNegate: \fun (r: N.Nat^)(a: Runtime^) => Rows.negate a r
+    | columnSwap: \fun (r, s: N.Nat^)(a: Runtime^) => Columns.swap a r s
+    | columnAdd: \fun (r, s: N.Nat^)(c: I.Int^)(a: Runtime^) => Columns.add a r s c
+    | columnNegate: \fun (r: N.Nat^)(a: Runtime^) => Columns.negate a r
+  };
+\module OperationImplementation;
+\correspondence Apply: Programs.Correspondence := Programs.Correspondence {
+  T := OperationImplementation[].T, program := OperationImplementation[].program, specification := apply, coherence := OperationImplementation[].coherence,
+};
+\definition Handler: \VType := \U(Operation -> Runtime -> Runtime);
+\definition applyHistoryWith(handler: Handler^): History^ -> Runtime^ -> Runtime^ :=
+  \induction (history: History^) \return Runtime^ -> Runtime^ \with {
+    | empty: \fun (a: Runtime^) => a
+    | prepend: \fun (operation: Operation^)(history: History^)(previous: Runtime^ -> Runtime^)(a: Runtime^) => handler operation (previous a)
+  };
+\definition applyHistory: History^ -> Runtime^ -> Runtime^ := applyHistoryWith apply;
+\inductive HistoryState: \VType := | pending: History -> Handler -> Transformer -> Runtime -> HistoryState;
+\module HistoryLoop;
+\machine EvaluateHistory: Programs.Machine := Programs.Machine {
+  State := HistoryState, Output := Runtime, step := HistoryLoop[].step, terminates := HistoryLoop[].certificate,
+};
+\definition historyProgram: \U(History -> Runtime -> Runtime) := \thunk (\cfun (history: History) => \return(\thunk (\cfun (a: Runtime) =>
+  (\force EvaluateHistory.run) (HistoryState::pending history Apply.program (\thunk (\cfun (a: Runtime) => \return a)) a))));
+\module HistoryCorrespondence;
+\correspondence Transform: Programs.Correspondence := Programs.Correspondence {
+  T := \U(History -> Runtime -> Runtime), program := historyProgram, specification := applyHistory, coherence := HistoryCorrespondence[].coherence,
+};
+
+\definition Mapper: \VType := \U(Operation -> Operation);
+\definition leftProjection: Operation^ -> Operation^ := \induction (operation: Operation^) \return Operation^ \with {
+  | identity: Operation^::identity
+  | rowSwap: Operation^::rowSwap
+  | rowAdd: Operation^::rowAdd
+  | rowNegate: Operation^::rowNegate
+  | columnSwap: \fun (r, s: N.Nat^) => Operation^::identity
+  | columnAdd: \fun (r, s: N.Nat^)(c: I.Int^) => Operation^::identity
+  | columnNegate: \fun (r: N.Nat^) => Operation^::identity
+};
+\definition rightProjection: Operation^ -> Operation^ := \induction (operation: Operation^) \return Operation^ \with {
+  | identity: Operation^::identity
+  | rowSwap: \fun (r, s: N.Nat^) => Operation^::identity
+  | rowAdd: \fun (r, s: N.Nat^)(c: I.Int^) => Operation^::identity
+  | rowNegate: \fun (r: N.Nat^) => Operation^::identity
+  | columnSwap: Operation^::columnSwap
+  | columnAdd: Operation^::columnAdd
+  | columnNegate: Operation^::columnNegate
+};
+\definition inverseOperation: Operation^ -> Operation^ := \induction (operation: Operation^) \return Operation^ \with {
+  | identity: Operation^::identity
+  | rowSwap: Operation^::rowSwap
+  | rowAdd: \fun (r, s: N.Nat^)(c: I.Int^) => Operation^::rowAdd r s (Arithmetic.neg c)
+  | rowNegate: Operation^::rowNegate
+  | columnSwap: Operation^::columnSwap
+  | columnAdd: \fun (r, s: N.Nat^)(c: I.Int^) => Operation^::columnAdd r s (Arithmetic.neg c)
+  | columnNegate: Operation^::columnNegate
+};
+\module ProjectionImplementation;
+\correspondence LeftProjection: Programs.Correspondence := Programs.Correspondence {
+  T := Mapper, program := ProjectionImplementation[].left, specification := leftProjection, coherence := ProjectionImplementation[].leftCoherence,
+};
+\correspondence RightProjection: Programs.Correspondence := Programs.Correspondence {
+  T := Mapper, program := ProjectionImplementation[].right, specification := rightProjection, coherence := ProjectionImplementation[].rightCoherence,
+};
+\module InverseImplementation;
+\correspondence InverseOperation: Programs.Correspondence := Programs.Correspondence {
+  T := Mapper, program := InverseImplementation[].program, specification := inverseOperation, coherence := InverseImplementation[].coherence,
+};
+\definition applyMapped(mapper: Mapper^): Handler^ := \fun (operation: Operation^) => apply (mapper operation);
+\module MappedImplementation;
+\correspondence Mapped: Programs.Correspondence := Programs.Correspondence {
+  T := MappedImplementation[].T, program := MappedImplementation[].program, specification := applyMapped, coherence := MappedImplementation[].coherence,
+};
+\inductive Attempt: \VType := | attempt: Runtime -> History -> B.Bool -> Attempt;
+\definition attemptMatrix: Attempt^ -> Runtime^ := \induction (attempt: Attempt^) \return Runtime^ \with {
+  | attempt: \fun (a: Runtime^)(history: History^)(reduced: B.Bool^) => a
+};
+\definition attemptHistory: Attempt^ -> History^ := \induction (attempt: Attempt^) \return History^ \with {
+  | attempt: \fun (a: Runtime^)(history: History^)(reduced: B.Bool^) => history
+};
+\definition attemptReduced: Attempt^ -> B.Bool^ := \induction (attempt: Attempt^) \return B.Bool^ \with {
+  | attempt: \fun (a: Runtime^)(history: History^)(reduced: B.Bool^) => reduced
+};
+\module Bounds;
+\module AttemptReaders;
+\module Reduction;
+\inductive Cursor: \VType := | cursor: N.Nat -> Attempt -> Cursor;
+\module Pass;
+\inductive BasisChange: \VType := | frame: Runtime -> Runtime -> Runtime -> Runtime -> BasisChange;
+\inductive SmithResult: \VType := | result: N.Nat -> Runtime -> History -> BasisChange -> SmithResult;
+\module FrameExecution;
+\module Of(m, n: N.Nat^);
+\module Undo;
+\module Measure;
+\module Offender;
+\module Correction;
+\module Pivot;
+\module Round;
+\module Compute;
+\module Divisibility;
+\module Normalize;
+\module Standardize;
+\module Trailing(m, n: N.Nat^, divisor: I.Int^, lower: N.Nat^);
+\module Cleared(m, n: N.Nat^, index: N.Nat^);
+\module Prefix(m, n: N.Nat^);
+\module Properties(m, n, rank: N.Nat^);
+\module Diagonalize;

@@ -1,0 +1,22 @@
+\import Base.Transpose[] \as Mathematical;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := n, n := m] \as Reversed;
+\definition transpose(a: Runtime^): Runtime^ := \fun (i, j: N.Nat^) => a j i;
+\definition program: \U(Runtime -> Runtime) := \thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (i: N.Nat) =>
+  \return(\thunk (\cfun (j: N.Nat) => \program {
+    \bind row: \U(N.Nat -> I.Int) <- (\force a) j \then
+    \bind value: I.Int <- (\force row) i \then
+    \return value
+  })))));
+\definition coherence: program^ = transpose := \axiom:funext(program^, transpose,
+  \fun (a: Runtime^) => \axiom:funext(program^ a, transpose a,
+    \fun (i: N.Nat^) => \axiom:funext(program^ a i, transpose a i, \fun (j: N.Nat^) => \refl(a j i))));
+\correspondence Transpose: Programs.Correspondence := Programs.Correspondence {
+  T := \U(Runtime -> Runtime), program := program, specification := transpose, coherence := coherence,
+};
+\definition reflected(a: Runtime^): Reversed.Matrix := \fun (i: Finite.Fin n)(j: Finite.Fin m) => Transpose.program^ a i j;
+\definition correspondence: \forall (a: Runtime^) -> reflected a = Mathematical.transpose (reflect a) :=
+  \fun (a: Runtime^) => \axiom:funext(reflected a, Mathematical.transpose (reflect a),
+    \fun (i: Finite.Fin n) => \axiom:funext(reflected a i, Mathematical.transpose (reflect a) i, \fun (j: Finite.Fin m) => \refl(a j i)));
+\definition involution: \forall (a: Runtime^) -> transpose (transpose a) = a :=
+  \fun (a: Runtime^) => \axiom:funext(transpose (transpose a), a,
+    \fun (i: N.Nat^) => \axiom:funext(transpose (transpose a) i, a i, \fun (j: N.Nat^) => \refl(a i j)));

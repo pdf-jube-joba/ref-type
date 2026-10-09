@@ -1,0 +1,24 @@
+\import \parent.\parent.At[s := s, k := k] \as Exact;
+\import \parent.\parent.\parent.At[C := A, z := k] \as HA;
+\import \parent.\parent.\parent.At[C := B, z := k] \as HB;
+\import \parent.\parent.\parent.At[C := C, z := k] \as HC;
+\import \parent.\parent.\parent.At[C := A, z := previous k] \as HALower;
+\import Inclusion.At[k := k] \as InclusionAt;
+\import Projection.At[k := k] \as ProjectionAt;
+\import Modules.Hom[V := HA.Homology, W := HB.Homology, source := HA.homologySpace, target := HB.homologySpace] \as InclusionMaps;
+\import Modules.Hom[V := HB.Homology, W := HC.Homology, source := HB.homologySpace, target := HC.homologySpace] \as ProjectionMaps;
+\definition kernelZero: Acyclic -> \forall (q: HB.Homology) -> #apply{(ProjectionAt.induced s.projection)} q = HC.zeroClass -> q = HB.zeroClass := \block {
+  \fun (acyclic: Acyclic)(q: HB.Homology)(killed: #apply{(ProjectionAt.induced s.projection)} q = HC.zeroClass) \then
+  \takefrom x: \Cast[HA.Homology] ({ x: HA.Homology \where #apply{(InclusionAt.induced s.inclusion)} x = q }) \by Exact.Exactness[].exactAtB q killed \then
+  \return trans!{HB.Homology} q (#apply{(InclusionAt.induced s.inclusion)} x) HB.zeroClass
+    (sym!{HB.Homology} _ _ (\bysub(HA.Homology, { x: HA.Homology \where #apply{(InclusionAt.induced s.inclusion)} x = q }, x)))
+    (trans!{HB.Homology} _ _ _ (congr!{HA.Homology HB.Homology} (#apply{(InclusionAt.induced s.inclusion)}) _ _ (acyclic k x))
+      (InclusionMaps.zeroPreserved (InclusionAt.induced s.inclusion)))
+};
+\definition onto: Acyclic -> \forall (q: HC.Homology) -> \exists { x: HB.Homology \where #apply{(ProjectionAt.induced s.projection)} x = q } :=
+  \fun (acyclic: Acyclic)(q: HC.Homology) => Exact.Exactness[].exactAtC q (acyclic (previous k) (#apply{Exact.connecting} q));
+\definition bijective: Acyclic -> ProjectionAt.Bijective[s.projection] :=
+  \fun (acyclic: Acyclic) => ProjectionAt.Bijective[s.projection] {
+    injective := ProjectionMaps.injectiveOfZeroKernel (ProjectionAt.induced s.projection) (kernelZero acyclic),
+    onto := onto acyclic,
+  };

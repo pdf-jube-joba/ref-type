@@ -1,0 +1,58 @@
+\import Construction.Chosen[construction := construction] \as Middle;
+\module MiddleTerm(n: Nat.Nat^) {
+  \import Modules.Biproduct[V := P.family.Carrier n, W := Q.family.Carrier n, left := P.family.space n, right := Q.family.space n] \as Sum;
+  \definition Carrier: \Set := std.Data[].Pair[].Times^[P.family.Carrier n, Q.family.Carrier n];
+  \definition space: Modules.Space Carrier := Sum.space;
+}
+\definition middleFamily: Chains.Family := Chains.Family {
+  Carrier := \fun (n: Nat.Nat^) => std.Data[].Pair[].Times^[P.family.Carrier n, Q.family.Carrier n],
+  space := \fun (n: Nat.Nat^) => MiddleTerm[n := n].space,
+};
+\definition middleDifferential: Chains.DifferentialData[middleFamily] := Chains.DifferentialData[middleFamily] {
+  apply := \fun (n: Nat.Nat^)(x: middleFamily.Carrier (Nat.Nat^::succ n)) => Middle.apply n x,
+};
+\definition middleComplex: Chains.Complex := Chains.Complex {
+  family := middleFamily, differential := middleDifferential,
+  laws := Chains.DifferentialLaws[middleFamily, middleDifferential] {
+    addition := \fun (n: Nat.Nat^)(x, y: middleFamily.Carrier (Nat.Nat^::succ n)) => Middle.addition n x y,
+    scalar := \fun (n: Nat.Nat^)(a: R)(x: middleFamily.Carrier (Nat.Nat^::succ n)) => Middle.scalar n a x,
+    squareZero := \fun (n: Nat.Nat^)(x: middleFamily.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => Middle.squareZero n x,
+  },
+};
+\import Resolutions.Of[M := B, P := middleComplex] \as MiddleResolution;
+\import \root.HomComplex[].Over[R := R, ring := ring] \as HomComplex;
+\import HomComplex.On[P := P, N := N] \as LeftHom;
+\import HomComplex.On[P := middleComplex, N := N] \as MiddleHom;
+\import HomComplex.On[P := Q, N := N] \as RightHom;
+\import HomComplex.Homotopy[P := middleComplex, Q := Q, N := N] \as PreProjection;
+\import HomComplex.Homotopy[P := P, Q := middleComplex, N := N] \as PreInclusion;
+\import \root.Cochain[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as Cochains;
+\import Cochains.ShortExact[A := RightHom.complex, B := MiddleHom.complex, C := LeftHom.complex] \as Dual;
+\definition data: Dual.Data := Dual.Data {
+  inclusion := PreProjection.map Middle.projection, projection := PreInclusion.map Middle.inclusion,
+};
+\module Degree(n: Nat.Nat^);
+\definition laws: Dual.Laws[data] := Dual.Laws[data] {
+  injective := \fun (n: Nat.Nat^) => Degree[n := n].injective,
+  onto := \fun (n: Nat.Nat^) => Degree[n := n].onto,
+  zero := \fun (n: Nat.Nat^) => Degree[n := n].zero,
+  kernelImage := \fun (n: Nat.Nat^) => Degree[n := n].kernelImage,
+};
+\definition cochainSequence: Dual.Sequence := \into[Dual.Data](data, { data: Dual.Data \where Dual.Laws[data] }) \by { laws };
+\module At(n: Nat.Nat^);
+\import Chains.ShortExact[A := P, B := middleComplex, C := Q] \as ResolutionSequence;
+\definition chainSequence: ResolutionSequence.Sequence := ResolutionSequence.Sequence {
+  inclusion := Middle.inclusion, projection := Middle.projection,
+  injective := \fun (n: Nat.Nat^) => #injective{(Middle.degreeSequence n)},
+  onto := \fun (n: Nat.Nat^) => #onto{(Middle.degreeSequence n)},
+  zero := \fun (n: Nat.Nat^) => #zero{(Middle.degreeSequence n)},
+  kernelImage := \fun (n: Nat.Nat^) => #kernelImage{(Middle.degreeSequence n)},
+};
+\import \root.Resolution[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].ShortExact[] \as ResolvedSequences;
+\definition resolvedSequence: ResolvedSequences.Sequence := ResolvedSequences.make A B C P middleComplex Q
+  p Middle.resolution q sequence chainSequence Middle.inclusionAugmented Middle.projectionAugmented;
+\module Morphism(A1, B1, C1: Modules.Bundle, P1, Q1: Chains.Complex,
+  sequence1: Modules.ShortExact[A := A1, B := B1, C := C1].Sequence,
+  p1: Resolutions.Of[M := A1, P := P1].Resolution, q1: Resolutions.Of[M := C1, P := Q1].Resolution,
+  construction1: Resolutions.Horseshoe[A := A1, B := B1, C := C1, P := P1, Q := Q1].With[sequence := sequence1, p := p1, q := q1].Construction);
+\module ChangeMiddle(S: Chains.Complex, r: Resolutions.Of[M := B, P := S].Resolution);

@@ -1,0 +1,42 @@
+\definition Index(n: Nat.Nat^): \Set := Degrees.Index n;
+\module Degree(n: Nat.Nat^) {
+  \definition family: Modules.Family[Index n] := Modules.Family[Index n] {
+    Carrier := \fun (i: Index n) => C.family.Carrier #first{i} #second{i},
+    space := \fun (i: Index n) => C.family.space #first{i} #second{i},
+  };
+  \import Modules.DirectSum[Index := Index n, family := family] \as Sum;
+  \definition Carrier: \Set := Sum.Carrier;
+  \definition space: Modules.Space Carrier := Sum.space;
+  \module Component(i: Index n) {
+    \definition injection: Modules.Hom[V := C.family.Carrier #first{i} #second{i}, W := Carrier,
+      source := C.family.space #first{i} #second{i}, target := space].Map := Sum.Injection[i := i].map;
+  }
+}
+\definition upHorizontal(n: Nat.Nat^)(i: Index n): Index (Nat.Nat^::succ n) :=
+  \into[Degrees.Pair](Degrees.Pair { first := Nat.Nat^::succ #first{i}, second := #second{i} },
+    { j: Degrees.Pair \where Arithmetic.add #first{j} #second{j} = Nat.Nat^::succ n }) \by {
+      trans!{Nat.Nat^} _ _ _ (Natural.addSuccLeft #first{i} #second{i})
+        (congr!{Nat.Nat^ Nat.Nat^} Nat.Nat^::succ _ _ (Degrees.degree n i))
+    };
+\definition upVertical(n: Nat.Nat^)(i: Index n): Index (Nat.Nat^::succ n) :=
+  \into[Degrees.Pair](Degrees.Pair { first := #first{i}, second := Nat.Nat^::succ #second{i} },
+    { j: Degrees.Pair \where Arithmetic.add #first{j} #second{j} = Nat.Nat^::succ n }) \by {
+      congr!{Nat.Nat^ Nat.Nat^} Nat.Nat^::succ _ _ (Degrees.degree n i)
+    };
+\module Step(n: Nat.Nat^);
+\definition family: Cochains.Family := Cochains.Family {
+  Carrier := \fun (n: Nat.Nat^) => Degree[n := n].Carrier,
+  space := \fun (n: Nat.Nat^) => Degree[n := n].space,
+};
+\definition differential: Cochains.DifferentialData[family] := Cochains.DifferentialData[family] {
+  apply := \fun (n: Nat.Nat^) => #apply{(Step[n := n].differential)},
+};
+\module Square(n: Nat.Nat^);
+\definition complex: Cochains.Complex := Cochains.Complex {
+  family := family, differential := differential,
+  laws := Cochains.DifferentialLaws[family, differential] {
+    addition := \fun (n: Nat.Nat^) => #addition{(Step[n := n].differential)},
+    scalar := \fun (n: Nat.Nat^) => #scalar{(Step[n := n].differential)},
+    squareZero := \fun (n: Nat.Nat^) => Square[n := n].zero,
+  },
+};

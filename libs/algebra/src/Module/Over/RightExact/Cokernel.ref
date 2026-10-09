@@ -1,0 +1,43 @@
+\import \parent.\parent.Of[V := B.Carrier, space := B.space].Submodule[] \as Submodules;
+\import Submodules.Image[U := A.Carrier, source := A.space] \as Images;
+\definition image: Submodules.Submodule := Images.image sequence.inclusion;
+\import Submodules.Quotient[S := image] \as Quotient;
+\import Quotient.To[W := C.Carrier, target := C.space] \as Descent;
+\definition vanishes: Descent.Vanishes sequence.projection := \block {
+  \fun (b: B.Carrier)(member: Submodules.Member image b) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{sequence.inclusion} a = b }) \by member \then
+  \return trans!{C.Carrier} _ _ _
+    (congr!{B.Carrier C.Carrier} (#apply{sequence.projection}) _ _ (sym!{B.Carrier} _ _
+      (\bysub(A.Carrier, { a: A.Carrier \where #apply{sequence.inclusion} a = b }, a)))) (#zero{sequence} a)
+};
+\import \parent.\parent.Hom[V := Quotient.Carrier, W := C.Carrier, source := Quotient.moduleSpace, target := C.space] \as Maps;
+\definition forward: Maps.Map := Descent.descend sequence.projection vanishes;
+\definition onClass: \forall (b: B.Carrier) -> #apply{forward} (Quotient.class b) = #apply{sequence.projection} b := Descent.onClass sequence.projection vanishes;
+\import \parent.\parent.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space] \as ProjectionMaps;
+\import \parent.\parent.Laws[V := C.Carrier, space := C.space] \as Target;
+\import algebra.Group[].Of[Carrier := C.Carrier, group := Target.additive] \as Group;
+\import \parent.\parent.Laws[V := B.Carrier, space := B.space] \as Source;
+\definition representatives: \forall (x, y: B.Carrier) -> #apply{sequence.projection} x = #apply{sequence.projection} y -> Quotient.class x = Quotient.class y :=
+  \fun (x, y: B.Carrier)(same: #apply{sequence.projection} x = #apply{sequence.projection} y) => Quotient.classRelated x y
+    (#kernelImage{sequence} (Source.add x (Source.neg y))
+      (trans!{C.Carrier} _ _ _ (ProjectionMaps.differencePreserved sequence.projection x y)
+        (trans!{C.Carrier} _ _ _ (congr!{C.Carrier C.Carrier} (\fun (c: C.Carrier) => Group.difference c (#apply{sequence.projection} y)) _ _ same)
+          (Group.inverseRight (#apply{sequence.projection} y)))));
+\definition injective: \forall (x, y: Quotient.Carrier) -> #apply{forward} x = #apply{forward} y -> x = y :=
+  Quotient.induction (\fun (x: Quotient.Carrier) => \forall (y: Quotient.Carrier) -> #apply{forward} x = #apply{forward} y -> x = y)
+    (\fun (x: B.Carrier) => Quotient.induction
+      (\fun (y: Quotient.Carrier) => #apply{forward} (Quotient.class x) = #apply{forward} y -> Quotient.class x = y)
+      (\fun (y: B.Carrier)(same: #apply{forward} (Quotient.class x) = #apply{forward} (Quotient.class y)) => representatives x y
+        (trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (onClass x)) (trans!{C.Carrier} _ _ _ same (onClass y)))));
+\definition onto: \forall (c: C.Carrier) -> \exists { x: Quotient.Carrier \where #apply{forward} x = c } := \block {
+  \fun (c: C.Carrier) \then
+  \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where #apply{sequence.projection} b = c }) \by #onto{sequence} c \then
+  \return \exact(\into[Quotient.Carrier](Quotient.class b, { x: Quotient.Carrier \where #apply{forward} x = c }) \by {
+    trans!{C.Carrier} _ _ _ (onClass b) (\bysub(B.Carrier, { b: B.Carrier \where #apply{sequence.projection} b = c }, b))
+  }, \Cast[Quotient.Carrier] ({ x: Quotient.Carrier \where #apply{forward} x = c }))
+};
+\import \parent.\parent.Isomorphism[V := Quotient.Carrier, W := C.Carrier, source := Quotient.moduleSpace, target := C.space].OfBijective[f := forward] \as Bijection;
+\definition isomorphism: \parent.\parent.Isomorphism[V := Quotient.Carrier, W := C.Carrier, source := Quotient.moduleSpace, target := C.space].Isomorphism :=
+  Bijection.isomorphism injective onto;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition space: Space Carrier := Quotient.moduleSpace;

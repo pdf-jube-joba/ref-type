@@ -1,0 +1,29 @@
+\import \parent.\parent.At[C := C, z := z] \as Source;
+\import \parent.\parent.At[C := D, z := z] \as Target;
+\import Forward.At[k := z] \as ForwardMap;
+\import Backward.At[k := z] \as BackwardMap;
+\import Modules.Isomorphism[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace] \as Iso;
+\definition leftInverse: \forall (e: Isomorphism)(q: Source.Homology) ->
+  #apply{(BackwardMap.induced e.backward)} (#apply{(ForwardMap.induced e.forward)} q) = q :=
+  \fun (e: Isomorphism) => Source.classInduction
+    (\fun (q: Source.Homology) => #apply{(BackwardMap.induced e.backward)} (#apply{(ForwardMap.induced e.forward)} q) = q)
+    (\fun (x: Source.Cycle) => trans!{Source.Homology} _ _ _
+      (congr!{Target.Homology Source.Homology} (#apply{(BackwardMap.induced e.backward)}) _ _ (ForwardMap.onClass e.forward x))
+      (trans!{Source.Homology} _ _ _ (BackwardMap.onClass e.backward (#apply{(ForwardMap.cyclesMap e.forward)} x))
+        (congr!{Source.Cycle Source.Homology} Source.classOf
+          (#apply{(BackwardMap.cyclesMap e.backward)} (#apply{(ForwardMap.cyclesMap e.forward)} x)) x
+          (#leftInverse{e} z x))));
+\definition rightInverse: \forall (e: Isomorphism)(q: Target.Homology) ->
+  #apply{(ForwardMap.induced e.forward)} (#apply{(BackwardMap.induced e.backward)} q) = q :=
+  \fun (e: Isomorphism) => Target.classInduction
+    (\fun (q: Target.Homology) => #apply{(ForwardMap.induced e.forward)} (#apply{(BackwardMap.induced e.backward)} q) = q)
+    (\fun (x: Target.Cycle) => trans!{Target.Homology} _ _ _
+      (congr!{Source.Homology Target.Homology} (#apply{(ForwardMap.induced e.forward)}) _ _ (BackwardMap.onClass e.backward x))
+      (trans!{Target.Homology} _ _ _ (ForwardMap.onClass e.forward (#apply{(BackwardMap.cyclesMap e.backward)} x))
+        (congr!{Target.Cycle Target.Homology} Target.classOf
+          (#apply{(ForwardMap.cyclesMap e.forward)} (#apply{(BackwardMap.cyclesMap e.backward)} x)) x
+          (#rightInverse{e} z x))));
+\definition isomorphism(e: Isomorphism): Iso.Isomorphism := Iso.Isomorphism {
+  forward := ForwardMap.induced e.forward, backward := BackwardMap.induced e.backward,
+  leftInverse := leftInverse e, rightInverse := rightInverse e,
+};

@@ -1,0 +1,30 @@
+\import Source.PositiveHomology[n := n] \as SourceComparison;
+\import Target.PositiveHomology[n := n] \as TargetComparison;
+\import \parent.\parent.Positive[n := n] \as NaturalMap;
+\import \parent.\parent.\parent.Positive[C := C, n := n] \as H;
+\definition index: Signed.Int^ := Signed.Int^::ofNat (N.Nat^::succ n);
+\import Internal.Map[C := Source.complex, D := Target.complex].At[k := index] \as IntegerMap;
+\import Internal.At[C := Target.complex, z := index] \as IntegerH;
+\import Internal.At[C := Source.complex, z := index] \as IntegerSource;
+\import \parent.\parent.\parent.Positive[C := D, n := n] \as NaturalH;
+\definition onClassCommutes: \forall (x: H.Cycle) -> #apply{#forward{TargetComparison.homologyIsomorphism}} (#apply{(NaturalMap.induced f)} (H.classOf x)) = #apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.homologyIsomorphism}} (H.classOf x)) :=
+  \fun (x: H.Cycle) => trans!{IntegerH.Homology} (#apply{#forward{TargetComparison.homologyIsomorphism}} (#apply{(NaturalMap.induced f)} (H.classOf x))) (#apply{#forward{TargetComparison.homologyIsomorphism}} (NaturalH.classOf (#apply{(NaturalMap.cyclesMap f)} x))) (#apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.homologyIsomorphism}} (H.classOf x)))
+    (congr!{NaturalH.Homology IntegerH.Homology} (#apply{#forward{TargetComparison.homologyIsomorphism}}) (#apply{(NaturalMap.induced f)} (H.classOf x)) (NaturalH.classOf (#apply{(NaturalMap.cyclesMap f)} x)) (NaturalMap.onClass f x))
+    (trans!{IntegerH.Homology} (#apply{#forward{TargetComparison.homologyIsomorphism}} (NaturalH.classOf (#apply{(NaturalMap.cyclesMap f)} x))) (IntegerH.classOf (#apply{#forward{TargetComparison.cycleIsomorphism}} (#apply{(NaturalMap.cyclesMap f)} x))) (#apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.homologyIsomorphism}} (H.classOf x))) (TargetComparison.onClass (#apply{(NaturalMap.cyclesMap f)} x))
+      (trans!{IntegerH.Homology} (IntegerH.classOf (#apply{#forward{TargetComparison.cycleIsomorphism}} (#apply{(NaturalMap.cyclesMap f)} x))) (#apply{(IntegerMap.induced map)} (IntegerSource.classOf (#apply{#forward{SourceComparison.cycleIsomorphism}} x))) (#apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.homologyIsomorphism}} (H.classOf x)))
+        (sym!{IntegerH.Homology} (#apply{(IntegerMap.induced map)} (IntegerSource.classOf (#apply{#forward{SourceComparison.cycleIsomorphism}} x))) (IntegerH.classOf (#apply{#forward{TargetComparison.cycleIsomorphism}} (#apply{(NaturalMap.cyclesMap f)} x))) (IntegerMap.onClass map (#apply{#forward{SourceComparison.cycleIsomorphism}} x)))
+        (congr!{IntegerSource.Homology IntegerH.Homology} (#apply{(IntegerMap.induced map)}) (IntegerSource.classOf (#apply{#forward{SourceComparison.cycleIsomorphism}} x)) (#apply{#forward{SourceComparison.homologyIsomorphism}} (H.classOf x))
+          (sym!{IntegerSource.Homology} (#apply{#forward{SourceComparison.homologyIsomorphism}} (H.classOf x)) (IntegerSource.classOf (#apply{#forward{SourceComparison.cycleIsomorphism}} x)) (SourceComparison.onClass x)))));
+\definition commutes: \forall (q: H.Homology) -> #apply{#forward{TargetComparison.homologyIsomorphism}} (#apply{(NaturalMap.induced f)} q) = #apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.homologyIsomorphism}} q) :=
+  H.classInduction (\fun (q: H.Homology) => #apply{#forward{TargetComparison.homologyIsomorphism}} (#apply{(NaturalMap.induced f)} q) = #apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.homologyIsomorphism}} q)) onClassCommutes;
+\import \parent.\parent.HomologyAt[n := N.Nat^::succ n] \as Uniform;
+\definition agrees: \forall (q: H.Homology) -> #apply{(Uniform.induced f)} q = #apply{(NaturalMap.induced f)} q :=
+  \fun (q: H.Homology) => trans!{NaturalH.Homology}
+    (#apply{(Uniform.induced f)} q)
+    (#apply{#backward{TargetComparison.homologyIsomorphism}} (#apply{#forward{TargetComparison.homologyIsomorphism}} (#apply{(NaturalMap.induced f)} q)))
+    (#apply{(NaturalMap.induced f)} q)
+    (congr!{IntegerH.Homology NaturalH.Homology} (#apply{#backward{TargetComparison.homologyIsomorphism}})
+      (#apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.homologyIsomorphism}} q))
+      (#apply{#forward{TargetComparison.homologyIsomorphism}} (#apply{(NaturalMap.induced f)} q))
+      (sym!{IntegerH.Homology} (#apply{#forward{TargetComparison.homologyIsomorphism}} (#apply{(NaturalMap.induced f)} q)) (#apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.homologyIsomorphism}} q)) (commutes q)))
+    (#leftInverse{TargetComparison.homologyIsomorphism} (#apply{(NaturalMap.induced f)} q));

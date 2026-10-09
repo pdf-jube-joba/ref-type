@@ -1,0 +1,24 @@
+\import \parent.\parent.Free[Generators := Index] \as Free;
+\import Free.Coefficients[] \as Coefficients;
+\import Coefficients.NormalForm[] \as Normal;
+\import \parent.\parent.Hom[V := Free.Carrier, W := Carrier, source := Free.space, target := space] \as Maps;
+\definition forward: Maps.Map := Coefficients.map;
+\definition injective: \forall (x, y: Free.Carrier) -> #apply{forward} x = #apply{forward} y -> x = y :=
+  \fun (x, y: Free.Carrier)(equal: _) => Normal.injective x y
+    (\fun (i: Index) => congr!{Carrier R} (\fun (v: Carrier) => v i) _ _ equal);
+\definition reconstruction: \forall (v: Carrier) -> #apply{forward} (Coefficients.combination indices v) = v :=
+  \fun (v: Carrier) => \axiom:funext(#apply{forward} (Coefficients.combination indices v), v,
+    \fun (i: Index) => trans!{R} _ _ _ (Normal.coefficientCombinationDelta indices v i)
+      (Single.extract indices distinct i (covers i) v));
+\definition onto: \forall (v: Carrier) -> \exists { x: Free.Carrier \where #apply{forward} x = v } :=
+  \fun (v: Carrier) => \exact(\into[Free.Carrier](Coefficients.combination indices v, { x: Free.Carrier \where #apply{forward} x = v })
+    \by { reconstruction v }, \Cast[Free.Carrier] ({ x: Free.Carrier \where #apply{forward} x = v }));
+\import \parent.\parent.Isomorphism[V := Free.Carrier, W := Carrier, source := Free.space, target := space] \as Iso;
+\import Iso.OfBijective[f := forward] \as Inverse;
+\definition isomorphism: Iso.Isomorphism := Inverse.isomorphism injective onto;
+\definition onGenerator: \forall (i: Index) -> #apply{forward} (Free.generator i) = basis i :=
+  \fun (i: Index) => \axiom:funext(#apply{forward} (Free.generator i), basis i, Coefficients.onGenerator i);
+
+\definition coordinateBundle: Bundle := Bundle { Carrier := Carrier, space := space };
+\import \parent.\parent.ProjectiveLaws[].Retract[P := coordinateBundle, Q := Free.bundle, inclusion := #backward{isomorphism}, retraction := forward] \as Retraction;
+\definition projective: Projective coordinateBundle := Retraction.projective #rightInverse{isomorphism} Free.projective;

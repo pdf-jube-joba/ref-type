@@ -1,0 +1,46 @@
+\import N.Basic[].Program[] \as NatPrograms;
+\import N.Basic[].ProgramProp[] \as NatCorrespondence;
+\definition T: \VType := \U(Reducer -> N.Nat -> Cursor -> Cursor);
+\definition program: T := \thunk (\cfun (reduce: Reducer) => \return(\thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (cursor: Cursor) => \match cursor \in Cursor \with {
+  | cursor index current: \match current \in Attempt \with {
+      | attempt a history reduced: \program {
+          \bind lowerBound: \U(N.Nat -> B.Bool) <- (\force NatPrograms.ltb) k \then
+          \bind higher: B.Bool <- (\force lowerBound) index \then
+          \bind unchanged: B.Bool <- (\force B.Neg.program) reduced \then
+          \bind and: \U(B.Bool -> B.Bool) <- (\force B.And.program) higher \then
+          \bind eligible: B.Bool <- (\force and) unchanged \then
+          \bind indexReducer: \U(N.Nat -> Runtime -> History -> Attempt) <- (\force reduce) k \then
+          \bind matrixReducer: \U(Runtime -> History -> Attempt) <- (\force indexReducer) index \then
+          \bind historyReducer: \U(History -> Attempt) <- (\force matrixReducer) a \then
+          \bind candidate: Attempt <- (\force historyReducer) history \then
+          \bind yes: \U(Attempt -> Attempt -> Attempt) <- (\force choiceProgram) eligible \then
+          \bind no: \U(Attempt -> Attempt) <- (\force yes) candidate \then
+          \bind chosen: Attempt <- (\force no) (Attempt::attempt a history reduced) \then
+          \return(Cursor::cursor (N.Nat::succ index) chosen)
+        }
+    }
+})))));
+\definition withOperations(and: B.And.T^)(neg: B.Neg.T^)(less: NatCorrespondence.Ltb.T^)(choose: Choice.T^)
+  (reduce: Reducer^)(k, i: N.Nat^)(a: Runtime^)(history: History^)(reduced: B.Bool^): Cursor^ :=
+  Cursor^::cursor (N.Nat^::succ i) (choose (and (less k i) (neg reduced)) (reduce k i a history) (Attempt^::attempt a history reduced));
+\definition stage1(reduce: Reducer^)(k, i: N.Nat^)(a: Runtime^)(history: History^)(reduced: B.Bool^): Cursor^ := withOperations B.And.specification B.Neg.program^ NatPrograms.ltb^ choiceProgram^ reduce k i a history reduced;
+\definition stage2(reduce: Reducer^)(k, i: N.Nat^)(a: Runtime^)(history: History^)(reduced: B.Bool^): Cursor^ := withOperations B.And.specification B.Neg.specification NatPrograms.ltb^ choiceProgram^ reduce k i a history reduced;
+\definition stage3(reduce: Reducer^)(k, i: N.Nat^)(a: Runtime^)(history: History^)(reduced: B.Bool^): Cursor^ := withOperations B.And.specification B.Neg.specification Nat.ltb choiceProgram^ reduce k i a history reduced;
+\definition onAttempt: \forall (reduce: Reducer^)(k, i: N.Nat^)(a: Runtime^)(history: History^)(reduced: B.Bool^) ->
+  program^ reduce k (Cursor^::cursor i (Attempt^::attempt a history reduced)) = step reduce k (Cursor^::cursor i (Attempt^::attempt a history reduced)) :=
+  \fun (reduce: Reducer^)(k, i: N.Nat^)(a: Runtime^)(history: History^)(reduced: B.Bool^) => trans!{Cursor^} (program^ reduce k (Cursor^::cursor i (Attempt^::attempt a history reduced))) (stage1 reduce k i a history reduced) (step reduce k (Cursor^::cursor i (Attempt^::attempt a history reduced)))
+    (congr!{B.And.T^ Cursor^} (\fun (f: B.And.T^) => withOperations f B.Neg.program^ NatPrograms.ltb^ choiceProgram^ reduce k i a history reduced) B.And.program^ (B.And.specification) B.And.coherence)
+    (trans!{Cursor^} (stage1 reduce k i a history reduced) (stage2 reduce k i a history reduced) (step reduce k (Cursor^::cursor i (Attempt^::attempt a history reduced)))
+    (congr!{B.Neg.T^ Cursor^} (\fun (f: B.Neg.T^) => withOperations B.And.specification f NatPrograms.ltb^ choiceProgram^ reduce k i a history reduced) B.Neg.program^ (B.Neg.specification) B.Neg.coherence)
+    (trans!{Cursor^} (stage2 reduce k i a history reduced) (stage3 reduce k i a history reduced) (step reduce k (Cursor^::cursor i (Attempt^::attempt a history reduced)))
+    (congr!{NatCorrespondence.Ltb.T^ Cursor^} (\fun (f: NatCorrespondence.Ltb.T^) => withOperations B.And.specification B.Neg.specification f choiceProgram^ reduce k i a history reduced) NatPrograms.ltb^ (Nat.ltb) NatCorrespondence.Ltb.coherence)
+    ((congr!{Choice.T^ Cursor^} (\fun (f: Choice.T^) => withOperations B.And.specification B.Neg.specification Nat.ltb f reduce k i a history reduced) choiceProgram^ (B.ite Attempt^) Choice.coherence))));
+\definition matches: \forall (reduce: Reducer^)(k: N.Nat^)(cursor: Cursor^) -> program^ reduce k cursor = step reduce k cursor :=
+  \fun (reduce: Reducer^)(k: N.Nat^) => \induction (cursor: Cursor^) \return program^ reduce k cursor = step reduce k cursor \with {
+    | cursor: \fun (i: N.Nat^) => \induction (current: Attempt^) \return program^ reduce k (Cursor^::cursor i current) = step reduce k (Cursor^::cursor i current) \with {
+        | attempt: onAttempt reduce k i
+      }
+  };
+\definition coherence: program^ = step := \axiom:funext(program^, step,
+  \fun (reduce: Reducer^) => \axiom:funext(program^ reduce, step reduce,
+    \fun (k: N.Nat^) => \axiom:funext(program^ reduce k, step reduce k, matches reduce k)));

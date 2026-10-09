@@ -1,0 +1,101 @@
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Elementary[n := m] \as Elementary;
+\import Elementary.Swap[i := r, j := s] \as Exchange;
+\import Elementary.Shear[i := r, j := s] \as Shear;
+\import Elementary.Negate[i := r] \as Negative;
+\import Finite.Transposition[n := m, a := r, b := s] \as Permutation;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := m, n := m].Composition[k := n] \as Left;
+\import Modules.Hom[V := Output, W := Output, source := codomain, target := codomain].Composition[U := Vector, domain := domain] \as Compose;
+\import Base.Representation[] \as Representation;
+\import Modules.Coordinates[I := Finite.Fin m].Kronecker[] \as Kronecker;
+\import N.Basic[].Prop[] \as NatLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\import algebra.Group[].Of[Carrier := I.Int^, group := Modules.scalarGroup] \as Scalars;
+\import B.Prop[] \as BoolLaws;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := m, n := m] \as Square;
+\import Square.Representation[] \as SquareRepresentation;
+\import Modules.Hom[V := Output, W := Output, source := codomain, target := codomain] \as OutputMaps;
+\definition productOfMap: \forall (f: OutputMaps.Map)(a: Matrix) -> Left.product (Square.entries f) a = Base.entries (Compose.compose f (Base.linear a)) :=
+  \fun (f: OutputMaps.Map)(a: Matrix) => trans!{Matrix} (Left.product (Square.entries f) a)
+    (Base.entries (Compose.compose (Square.linear (Square.entries f)) (Base.linear a))) (Base.entries (Compose.compose f (Base.linear a)))
+    (sym!{Matrix} (Base.entries (Compose.compose (Square.linear (Square.entries f)) (Base.linear a))) (Left.product (Square.entries f) a) (Left.entriesCompose (Square.entries f) a))
+    (congr!{OutputMaps.Map Matrix} (\fun (g: OutputMaps.Map) => Base.entries (Compose.compose g (Base.linear a)))
+      (Square.linear (Square.entries f)) f (SquareRepresentation.mapRoundtrip f));
+\definition permutationValue: \forall (f: N.Nat^ -> I.Int^)(i: Finite.Fin m) -> f (Permutation.apply i) = f (transposition r s i) :=
+  \fun (f: N.Nat^ -> I.Int^)(i: Finite.Fin m) => B.cases2
+    (\fun (first, second: B.Bool^) =>
+      f (B.ite (Finite.Fin m) first s (B.ite (Finite.Fin m) second r i)) = f (B.ite N.Nat^ first s (B.ite N.Nat^ second r i)))
+    (\refl(f i)) (\refl(f r)) (\refl(f s)) (\refl(f s)) (Nat.eqb i r) (Nat.eqb i s);
+\definition swapped(a: Runtime^): Matrix := Left.product Exchange.matrix (reflect a);
+\definition swapEntry: \forall (a: Runtime^)(i: Finite.Fin m)(j: Finite.Fin n) -> swapped a i j = swap a r s i j :=
+  \fun (a: Runtime^)(i: Finite.Fin m)(j: Finite.Fin n) => trans!{I.Int^}
+    (swapped a i j) (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j) (Permutation.apply i)) (swap a r s i j)
+    (congr!{Matrix I.Int^} (\fun (a: Matrix) => a i j) (swapped a)
+      (Base.entries (Compose.compose Exchange.map (Base.linear (reflect a))))
+      (productOfMap Exchange.map (reflect a)))
+    (trans!{I.Int^}
+      (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j) (Permutation.apply i)) (a (Permutation.apply i) j) (swap a r s i j)
+      (Representation.onBasis (reflect a) (Permutation.apply i) j) (permutationValue (\fun (k: N.Nat^) => a k j) i));
+\definition swapLaw: \forall (a: Runtime^) -> swapped a = reflect (Swap.program^ a r s) :=
+  \fun (a: Runtime^) => \axiom:funext(swapped a, reflect (Swap.program^ a r s),
+    \fun (i: Finite.Fin m) => \axiom:funext(swapped a i, reflect (Swap.program^ a r s) i,
+      \fun (j: Finite.Fin n) => trans!{I.Int^} (swapped a i j) (swap a r s i j) (Swap.program^ a r s i j)
+        (swapEntry a i j) (sym!{I.Int^} (Swap.program^ a r s i j) (swap a r s i j) (\parent.SwapImplementation[].matches a r s i j))));
+\definition distinctOfFalse: \forall (i: Finite.Fin m) -> Nat.eqb i r = B.Bool^::false -> Logic.Not (i = r) :=
+  \fun (i: Finite.Fin m)(test: Nat.eqb i r = B.Bool^::false)(same: i = r) => BoolLaws.falseNeTrue
+    (trans!{B.Bool^} B.Bool^::false (Nat.eqb i r) B.Bool^::true (sym!{B.Bool^} (Nat.eqb i r) B.Bool^::false test) (NatLaws.eqbTrueOfEq i r same));
+\definition shearValue: \forall (x, y, c: I.Int^)(i: Finite.Fin m) ->
+  Arithmetic.add x (Arithmetic.mul c (Arithmetic.mul y (Kronecker.delta i r))) = B.ite I.Int^ (Nat.eqb i r) (Arithmetic.add x (Arithmetic.mul c y)) x :=
+  \fun (x, y, c: I.Int^)(i: Finite.Fin m) => B.cases
+    (\fun (test: B.Bool^) => Nat.eqb i r = test -> Arithmetic.add x (Arithmetic.mul c (Arithmetic.mul y (Kronecker.delta i r))) = B.ite I.Int^ test (Arithmetic.add x (Arithmetic.mul c y)) x)
+    (\fun (test: Nat.eqb i r = B.Bool^::false) => trans!{I.Int^}
+      (Arithmetic.add x (Arithmetic.mul c (Arithmetic.mul y (Kronecker.delta i r)))) (Arithmetic.add x Arithmetic.zero) x
+      (congr!{I.Int^ I.Int^} (Arithmetic.add x) (Arithmetic.mul c (Arithmetic.mul y (Kronecker.delta i r))) Arithmetic.zero
+        (trans!{I.Int^} (Arithmetic.mul c (Arithmetic.mul y (Kronecker.delta i r))) (Arithmetic.mul c Arithmetic.zero) Arithmetic.zero
+          (congr!{I.Int^ I.Int^} (Arithmetic.mul c) (Arithmetic.mul y (Kronecker.delta i r)) Arithmetic.zero
+            (trans!{I.Int^} (Arithmetic.mul y (Kronecker.delta i r)) (Arithmetic.mul y Arithmetic.zero) Arithmetic.zero
+              (congr!{I.Int^ I.Int^} (Arithmetic.mul y) (Kronecker.delta i r) Arithmetic.zero (Kronecker.different i r (distinctOfFalse i test)))
+              (#zeroAbsorbsRight{(#semiring{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)})} y)))
+          (#zeroAbsorbsRight{(#semiring{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)})} c)))
+      (Scalars.zeroRight x))
+    (\fun (test: Nat.eqb i r = B.Bool^::true) => congr!{I.Int^ I.Int^} (\fun (z: I.Int^) => Arithmetic.add x (Arithmetic.mul c z))
+      (Arithmetic.mul y (Kronecker.delta i r)) y
+      (trans!{I.Int^} (Arithmetic.mul y (Kronecker.delta i r)) (Arithmetic.mul y Arithmetic.one) y
+        (congr!{I.Int^ I.Int^} (Arithmetic.mul y) (Kronecker.delta i r) Arithmetic.one (Kronecker.equal i r (NatLaws.eqOfEqbTrue r i test)))
+        (#rightIdentity{(#multiplicative{(#semiring{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)})})} y)))
+    (Nat.eqb i r) (\refl(Nat.eqb i r));
+
+\definition productEntry: \forall (f: OutputMaps.Map)(a: Matrix)(i: Finite.Fin m)(j: Finite.Fin n) ->
+  Left.product (Square.entries f) a i j = #apply{f} (Base.apply a (Modules.FiniteCoordinates[n := n].basis j)) i :=
+  \fun (f: OutputMaps.Map)(a: Matrix)(i: Finite.Fin m)(j: Finite.Fin n) => congr!{Matrix I.Int^} (\fun (b: Matrix) => b i j)
+    (Left.product (Square.entries f) a) (Base.entries (Compose.compose f (Base.linear a))) (productOfMap f a);
+\definition added(a: Runtime^)(c: I.Int^): Matrix := Left.product (Shear.matrix c) (reflect a);
+\definition addEntry: \forall (a: Runtime^)(c: I.Int^)(i: Finite.Fin m)(j: Finite.Fin n) -> added a c i j = add a r s c i j :=
+  \fun (a: Runtime^)(c: I.Int^)(i: Finite.Fin m)(j: Finite.Fin n) => trans!{I.Int^}
+    (added a c i j) (#apply{(Shear.map c)} (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j)) i) (add a r s c i j)
+    (productEntry (Shear.map c) (reflect a) i j)
+    (trans!{I.Int^}
+      (#apply{(Shear.map c)} (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j)) i)
+      (Arithmetic.add (a i j) (Arithmetic.mul c (Arithmetic.mul (a s j) (Kronecker.delta i r)))) (add a r s c i j)
+      (congr2!{I.Int^ I.Int^ I.Int^}
+        (\fun (x, y: I.Int^) => Arithmetic.add x (Arithmetic.mul c (Arithmetic.mul y (Kronecker.delta i r))))
+        (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j) i) (a i j)
+        (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j) s) (a s j)
+        (Representation.onBasis (reflect a) i j) (Representation.onBasis (reflect a) s j))
+      (shearValue (a i j) (a s j) c i));
+\definition addLaw: \forall (a: Runtime^)(c: I.Int^) -> added a c = reflect (Add.program^ a r s c) :=
+  \fun (a: Runtime^)(c: I.Int^) => \axiom:funext(added a c, reflect (Add.program^ a r s c),
+    \fun (i: Finite.Fin m) => \axiom:funext(added a c i, reflect (Add.program^ a r s c) i,
+      \fun (j: Finite.Fin n) => trans!{I.Int^} (added a c i j) (add a r s c i j) (Add.program^ a r s c i j)
+        (addEntry a c i j) (sym!{I.Int^} (Add.program^ a r s c i j) (add a r s c i j) (\parent.AddImplementation[].matches a r s c i j))));
+\definition negated(a: Runtime^): Matrix := Left.product Negative.matrix (reflect a);
+\definition negateEntry: \forall (a: Runtime^)(i: Finite.Fin m)(j: Finite.Fin n) -> negated a i j = negate a r i j :=
+  \fun (a: Runtime^)(i: Finite.Fin m)(j: Finite.Fin n) => trans!{I.Int^}
+    (negated a i j) (Negative.apply (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j)) i) (negate a r i j)
+    (productEntry Negative.map (reflect a) i j)
+    (congr!{I.Int^ I.Int^} (Negative.value (Nat.eqb i r))
+      (Base.apply (reflect a) (Modules.FiniteCoordinates[n := n].basis j) i) (a i j) (Representation.onBasis (reflect a) i j));
+\definition negateLaw: \forall (a: Runtime^) -> negated a = reflect (Negate.program^ a r) :=
+  \fun (a: Runtime^) => \axiom:funext(negated a, reflect (Negate.program^ a r),
+    \fun (i: Finite.Fin m) => \axiom:funext(negated a i, reflect (Negate.program^ a r) i,
+      \fun (j: Finite.Fin n) => trans!{I.Int^} (negated a i j) (negate a r i j) (Negate.program^ a r i j)
+        (negateEntry a i j) (sym!{I.Int^} (Negate.program^ a r i j) (negate a r i j) (\parent.NegateImplementation[].matches a r i j))));

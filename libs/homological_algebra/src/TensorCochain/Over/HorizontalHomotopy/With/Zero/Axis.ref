@@ -1,0 +1,32 @@
+\definition i: Source.Index zero := Degrees.index zero zero q;
+\definition hi: Source.Index one := Source.upHorizontal zero i;
+\definition vi: Source.Index one := Source.upVertical zero i;
+\import TD.Component[i := i] \as Injection;
+\import Modules.Hom[V := D.family.Carrier zero q, W := TD.Carrier, source := D.family.space zero q, target := TD.space] \as Injections;
+\definition core(x: C.family.Carrier zero q): TD.Carrier :=
+  #apply{Injection.injection} (#apply{(h zero q)} (#apply{(C.differential.horizontal zero q)} x));
+\definition differenceValue: \forall (x: C.family.Carrier zero q) ->
+  #apply{difference} (#apply{(SD.Component[i := i].injection)} x) = core x :=
+  \fun (x: C.family.Carrier zero q) => trans!{TD.Carrier} _ _ _
+    (congr2!{TD.Carrier TD.Carrier TD.Carrier} Group.difference _ _ _ _ (F.onInjection i x) (G.onInjection i x))
+    (trans!{TD.Carrier} _ _ _
+      (sym!{TD.Carrier} _ _ (Injections.differencePreserved Injection.injection (#apply{(f zero q)} x) (#apply{(g zero q)} x)))
+      (congr!{{D.family.Carrier zero q} TD.Carrier} (#apply{Injection.injection}) _ _ (#degreeZero{laws} q x)));
+\definition horizontalValue: \forall (x: C.family.Carrier zero q) ->
+  #apply{H.map} (#apply{SS.horizontal} (#apply{(SD.Component[i := i].injection)} x)) = core x :=
+  \fun (x: C.family.Carrier zero q) => trans!{TD.Carrier} _ _ _
+    (congr!{SN.Carrier TD.Carrier} (#apply{H.map}) _ _ (SS.horizontalOnInjection i x))
+    (H.onInjection hi (#apply{(C.differential.horizontal zero q)} x));
+\import Degrees.Sign[V := C.family.Carrier zero (Nat.Nat^::succ q), space := C.family.space zero (Nat.Nat^::succ q)] \as Sign;
+\definition verticalZero: \forall (x: C.family.Carrier zero q) ->
+  #apply{H.map} (#apply{SS.vertical} (#apply{(SD.Component[i := i].injection)} x)) = #zero{TD.space} :=
+  \fun (x: C.family.Carrier zero q) => trans!{TD.Carrier} _ _ _
+    (congr!{SN.Carrier TD.Carrier} (#apply{H.map}) _ _ (SS.verticalOnInjection i x))
+    (H.onInjection vi (#apply{(Sign.map zero)} (#apply{(C.differential.vertical zero q)} x)));
+\definition equality: \forall (x: C.family.Carrier zero q) ->
+  #apply{difference} (#apply{(SD.Component[i := i].injection)} x) = #apply{after} (#apply{(SD.Component[i := i].injection)} x) :=
+  \fun (x: C.family.Carrier zero q) => trans!{TD.Carrier} _ _ _ (differenceValue x)
+    (sym!{TD.Carrier} _ _ (trans!{TD.Carrier} _ _ _
+      (#addition{H.map} (#apply{SS.horizontal} (#apply{(SD.Component[i := i].injection)} x)) (#apply{SS.vertical} (#apply{(SD.Component[i := i].injection)} x)))
+      (trans!{TD.Carrier} _ _ _
+        (congr2!{TD.Carrier TD.Carrier TD.Carrier} (#add{TD.space}) _ _ _ _ (horizontalValue x) (verticalZero x)) (Group.zeroRight (core x)))));

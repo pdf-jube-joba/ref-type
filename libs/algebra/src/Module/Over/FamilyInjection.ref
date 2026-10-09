@@ -1,0 +1,61 @@
+\import std.Set[].Transport[I := Index] \as Transport;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\structure ValueLaws[i, j: Index, x: family.Carrier i, y: family.Carrier j]: \Prop {
+  equal: \forall (p: Transport.Path[i] j) -> y = Transport.carry family.Carrier i j p x,
+  different: Logic.Not (i = j) -> y = #zero{(family.space j)},
+}
+\definition Value(i, j: Index)(x: family.Carrier i): \Set :=
+  \Cast[family.Carrier j] ({ y: family.Carrier j \where ValueLaws[i, j, x, y] });
+\definition existsValue: \forall (i, j: Index)(x: family.Carrier i) -> \exists Value i j x :=
+  \fun (i, j: Index)(x: family.Carrier i) =>
+    either!{{i = j} "or" {Logic.Not (i = j)} "either" {\exists Value i j x}
+      "lt:" {\block {
+        \fun (same: i = j) \then
+        \takefrom p: Transport.Path[i] j \by Transport.existence i j same \then
+        \let value: family.Carrier j := Transport.carry family.Carrier i j p x \then
+        \return \exact(\into[family.Carrier j](value, { y: family.Carrier j \where ValueLaws[i, j, x, y] }) \by {
+          ValueLaws[i, j, x, value] {
+            equal := \fun (q: Transport.Path[i] j) =>
+              congr!{{Transport.Path[i] j} {family.Carrier j}} (\fun (r: Transport.Path[i] j) => Transport.carry family.Carrier i j r x)
+                p q (Transport.uniqueness i j p q),
+            different := \fun (ne: Logic.Not (i = j)) => Logic.falseElim (value = #zero{(family.space j)}) (ne same),
+          }
+        }, Value i j x)
+      }}
+      "rt:" {\fun (ne: Logic.Not (i = j)) =>
+        \exact(\into[family.Carrier j](#zero{(family.space j)}, { y: family.Carrier j \where ValueLaws[i, j, x, y] }) \by {
+          ValueLaws[i, j, x, #zero{(family.space j)}] {
+            equal := \fun (p: Transport.Path[i] j) =>
+              Logic.falseElim (#zero{(family.space j)} = Transport.carry family.Carrier i j p x) (ne (Transport.equality i j p)),
+            different := \fun (unused: Logic.Not (i = j)) => \refl(#zero{(family.space j)}),
+          }
+        }, Value i j x)}
+    } (Classical.excludedMiddle (i = j));
+\definition laws(i, j: Index)(x: family.Carrier i)(y: Value i j x): ValueLaws[i, j, x, y] :=
+  \bysub(family.Carrier j, { y: family.Carrier j \where ValueLaws[i, j, x, y] }, y);
+\definition uniqueValue: \forall (i, j: Index)(x: family.Carrier i)(a, b: Value i j x) -> a = b :=
+  \fun (i, j: Index)(x: family.Carrier i)(a, b: Value i j x) =>
+    either!{{i = j} "or" {Logic.Not (i = j)} "either" {a = b}
+      "lt:" {\fun (same: i = j) => trans!{{family.Carrier j}} a
+        (Transport.cast family.Carrier i j same x) b
+        (#equal{(laws i j x a)} (Transport.path i j same))
+        (sym!{{family.Carrier j}} b (Transport.cast family.Carrier i j same x) (#equal{(laws i j x b)} (Transport.path i j same)))}
+      "rt:" {\fun (ne: Logic.Not (i = j)) => trans!{{family.Carrier j}} a #zero{(family.space j)} b
+        (#different{(laws i j x a)} ne)
+        (sym!{{family.Carrier j}} b #zero{(family.space j)} (#different{(laws i j x b)} ne))}
+    } (Classical.excludedMiddle (i = j));
+\definition selected(i: Index)(x: family.Carrier i)(j: Index): Value i j x :=
+  \choice Value i j x \by { existence: existsValue i j x, uniqueness: uniqueValue i j x };
+\definition point(i: Index)(x: family.Carrier i)(j: Index): family.Carrier j := selected i x j;
+\definition onEqual: \forall (i, j: Index)(x: family.Carrier i)(same: i = j) ->
+  point i x j = Transport.cast family.Carrier i j same x :=
+  \fun (i, j: Index)(x: family.Carrier i)(same: i = j) =>
+    #equal{(laws i j x (selected i x j))} (Transport.path i j same);
+\definition onSame: \forall (i: Index)(x: family.Carrier i) -> point i x i = x :=
+  \fun (i: Index)(x: family.Carrier i) => #equal{(laws i i x (selected i x i))} Transport.Path[i]::refl;
+\definition onDifferent: \forall (i, j: Index)(x: family.Carrier i) -> Logic.Not (i = j) ->
+  point i x j = #zero{(family.space j)} :=
+  \fun (i, j: Index)(x: family.Carrier i)(ne: Logic.Not (i = j)) => #different{(laws i j x (selected i x j))} ne;
+\import \parent.Product[Index := Index, family := family] \as Product;
+\module At(i: Index);

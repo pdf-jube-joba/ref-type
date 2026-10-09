@@ -429,7 +429,7 @@ impl Resolver {
             ),
             LocalAccess::Resolved { .. } => return Ok(()),
             LocalAccess::Instantiated { .. } => {
-                return Err(self.error("unresolved module expression"));
+                return Err(self.error(format!("unresolved module expression: {access}")));
             }
         };
         if let Some((module, id)) = self.find_name(module, name.as_str(), inherit) {
@@ -1142,6 +1142,17 @@ impl Resolver {
                 }
                 expanded.push((name, argument));
             }
+            // Flattening a structure argument can expose specialized module
+            // references in field ascriptions that were absent from its surface.
+            for (_, argument) in &mut expanded {
+                let mut template = false;
+                macros::walk_sexp_mut(argument, &mut |node| {
+                    template |= matches!(node, SExp::MacroParameter(_));
+                });
+                if !template {
+                    self.expanded_expression(argument, &mut locals.to_vec())?;
+                }
+            }
             *arguments = expanded;
             for (name, argument) in arguments {
                 if let Some(id) = self.scopes[target.0 as usize].names.get(name.as_str()) {
@@ -1150,6 +1161,17 @@ impl Resolver {
                 }
             }
             route.push(target);
+        }
+        for (value, ty) in checks.iter_mut() {
+            for expression in [value, ty] {
+                let mut template = false;
+                macros::walk_sexp_mut(expression, &mut |node| {
+                    template |= matches!(node, SExp::MacroParameter(_));
+                });
+                if !template {
+                    self.expanded_expression(expression, &mut locals.to_vec())?;
+                }
+            }
         }
         for source in route {
             target = self.instantiate(source, &mut remapping, &substitutions);
@@ -1315,7 +1337,17 @@ impl Resolver {
                 Arc::as_ptr(&scope.substitutions) as usize
             };
             let merged = merged_substitutions.entry(key).or_insert_with(|| {
-                let mut merged = (*scope.substitutions).clone();
+                // Imported expressions can already contain arguments from an
+                // enclosing specialization. Compose that environment before
+                // adding the new arguments; insertion alone leaves those
+                // expressions referring to the original enclosing parameters.
+                let mut merged: HashMap<_, _> = scope
+                    .substitutions
+                    .iter()
+                    .map(|(id, expression)| {
+                        (*id, structures::substitute(expression, substitutions))
+                    })
+                    .collect();
                 merged.extend(substitutions.clone());
                 Arc::new(merged)
             });

@@ -1,0 +1,123 @@
+\import \parent.Tensor[C := C, D := D] \as Product;
+\import \parent.Total[C := Product.complex] \as Total;
+\definition n: Nat.Nat^ := Arithmetic.add p q;
+\definition index: Total.Index n := \into[Degrees.Pair](Degrees.Pair { first := p, second := q },
+  { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { \refl(n) };
+\import Cochains.At[C := C, k := p] \as Left;
+\import Cochains.At[C := D, k := q] \as Right;
+\import Cochains.At[C := Total.complex, k := n] \as H;
+\import Product.Term[p := p, q := q] \as Term;
+\import Product.At[p := p, q := q] \as Differential;
+\import Product.Term[p := Nat.Nat^::succ p, q := q] \as HTerm;
+\import Product.Term[p := p, q := Nat.Nat^::succ q] \as VTerm;
+\import Total.Degree[n := n] \as Current;
+\import Total.Degree[n := Nat.Nat^::succ n] \as Next;
+\import Total.Step[n := n] \as Step;
+\import Current.Component[i := index] \as Inclusion;
+\import Next.Component[i := Total.upHorizontal n index] \as HInclusion;
+\import Next.Component[i := Total.upVertical n index] \as VInclusion;
+\import Modules.Hom[V := HTerm.Carrier, W := Next.Carrier, source := HTerm.space, target := Next.space] \as HMaps;
+\import Modules.Hom[V := VTerm.Carrier, W := Next.Carrier, source := VTerm.space, target := Next.space] \as VMaps;
+\import Degrees.Sign[V := VTerm.Carrier, space := VTerm.space] \as Sign;
+\import Modules.Hom[V := VTerm.Carrier, W := VTerm.Carrier, source := VTerm.space, target := VTerm.space] \as Signs;
+\definition value(x: Left.CycleCarrier)(y: Right.CycleCarrier): Current.Carrier := #apply{Inclusion.injection} (Term.tensor x y);
+\definition horizontalClosed: \forall (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  #apply{Step.horizontal} (value x y) = #zero{Next.space} :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{Next.Carrier}
+    (#apply{Step.horizontal} (value x y))
+    (#apply{HInclusion.injection} (HTerm.tensor (#apply{C.differential} p x) y)) #zero{Next.space}
+    (trans!{Next.Carrier} _ _ _ (Step.horizontalOnInjection index (Term.tensor x y))
+      (congr!{HTerm.Carrier Next.Carrier} (#apply{HInclusion.injection}) _ _ (Differential.horizontalOnTensor x y)))
+    (trans!{Next.Carrier} _ _ _
+      (congr!{HTerm.Carrier Next.Carrier} (#apply{HInclusion.injection}) _ _
+        (trans!{HTerm.Carrier} _ _ _
+          (congr!{{C.family.Carrier (Nat.Nat^::succ p)} HTerm.Carrier}
+            (\fun (v: C.family.Carrier (Nat.Nat^::succ p)) => HTerm.tensor v y) _ _
+            (\bysub(C.family.Carrier p, #carrier{Left.cycles}, x)))
+          (HTerm.zeroLeft y)))
+      (HMaps.zeroPreserved HInclusion.injection));
+\definition verticalClosed: \forall (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  #apply{Step.vertical} (value x y) = #zero{Next.space} :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{Next.Carrier}
+    (#apply{Step.vertical} (value x y))
+    (#apply{VInclusion.injection} (#apply{(Sign.map p)} (VTerm.tensor x (#apply{D.differential} q y)))) #zero{Next.space}
+    (trans!{Next.Carrier} _ _ _ (Step.verticalOnInjection index (Term.tensor x y))
+      (congr!{VTerm.Carrier Next.Carrier} (\fun (v: VTerm.Carrier) => #apply{VInclusion.injection} (#apply{(Sign.map p)} v)) _ _
+        (Differential.verticalOnTensor x y)))
+    (trans!{Next.Carrier} _ _ _
+      (congr!{VTerm.Carrier Next.Carrier} (\fun (v: VTerm.Carrier) => #apply{VInclusion.injection} (#apply{(Sign.map p)} v)) _ _
+        (trans!{VTerm.Carrier} _ _ _
+          (congr!{{D.family.Carrier (Nat.Nat^::succ q)} VTerm.Carrier}
+            (\fun (v: D.family.Carrier (Nat.Nat^::succ q)) => VTerm.tensor x v) _ _
+            (\bysub(D.family.Carrier q, #carrier{Right.cycles}, y)))
+          (VTerm.zeroRight x)))
+      (trans!{Next.Carrier} _ _ _
+        (congr!{VTerm.Carrier Next.Carrier} (#apply{VInclusion.injection}) _ _ (Signs.zeroPreserved (Sign.map p)))
+        (VMaps.zeroPreserved VInclusion.injection)));
+\import Modules.Laws[V := Next.Carrier, space := Next.space] \as NextLaws;
+\import algebra.Group[].Of[Carrier := Next.Carrier, group := NextLaws.additive] \as NextGroup;
+\definition closed: \forall (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  #apply{Total.differential} n (value x y) = #zero{Next.space} :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{Next.Carrier}
+    (#apply{Total.differential} n (value x y)) (#add{Next.space} #zero{Next.space} #zero{Next.space}) #zero{Next.space}
+    (congr2!{Next.Carrier Next.Carrier Next.Carrier} (#add{Next.space})
+      (#apply{Step.horizontal} (value x y)) #zero{Next.space}
+      (#apply{Step.vertical} (value x y)) #zero{Next.space} (horizontalClosed x y) (verticalClosed x y))
+    (NextGroup.zeroLeft #zero{Next.space});
+\definition cycle(x: Left.CycleCarrier)(y: Right.CycleCarrier): H.CycleCarrier := H.cycle (value x y) (closed x y);
+\definition classOf(x: Left.CycleCarrier)(y: Right.CycleCarrier): H.Cohomology := H.classOf (cycle x y);
+\import Modules.Tensor[V := C.family.Carrier p, W := D.family.Carrier q,
+  left := C.family.space p, right := D.family.space q] \as NativeTensor;
+\definition addLeft: \forall (x, y: Left.CycleCarrier)(z: Right.CycleCarrier) ->
+  classOf (#add{Left.cycleSpace} x y) z = #add{H.cohomologySpace} (classOf x z) (classOf y z) :=
+  \fun (x, y: Left.CycleCarrier)(z: Right.CycleCarrier) => trans!{H.Cohomology}
+    (classOf (#add{Left.cycleSpace} x y) z)
+    (H.classOf (#add{H.cycleSpace} (cycle x z) (cycle y z)))
+    (#add{H.cohomologySpace} (classOf x z) (classOf y z))
+    (H.equalClass (cycle (#add{Left.cycleSpace} x y) z) (#add{H.cycleSpace} (cycle x z) (cycle y z))
+      (trans!{Current.Carrier} _ _ _
+        (congr!{Term.Carrier Current.Carrier} (#apply{Inclusion.injection}) _ _ (#addLeft{NativeTensor.bilinear} x y z))
+        (#addition{Inclusion.injection} (Term.tensor x z) (Term.tensor y z))))
+    (#addition{H.classLinear} (cycle x z) (cycle y z));
+\definition addRight: \forall (x: Left.CycleCarrier)(y, z: Right.CycleCarrier) ->
+  classOf x (#add{Right.cycleSpace} y z) = #add{H.cohomologySpace} (classOf x y) (classOf x z) :=
+  \fun (x: Left.CycleCarrier)(y, z: Right.CycleCarrier) => trans!{H.Cohomology}
+    (classOf x (#add{Right.cycleSpace} y z))
+    (H.classOf (#add{H.cycleSpace} (cycle x y) (cycle x z)))
+    (#add{H.cohomologySpace} (classOf x y) (classOf x z))
+    (H.equalClass (cycle x (#add{Right.cycleSpace} y z)) (#add{H.cycleSpace} (cycle x y) (cycle x z))
+      (trans!{Current.Carrier} _ _ _
+        (congr!{Term.Carrier Current.Carrier} (#apply{Inclusion.injection}) _ _ (#addRight{NativeTensor.bilinear} x y z))
+        (#addition{Inclusion.injection} (Term.tensor x y) (Term.tensor x z))))
+    (#addition{H.classLinear} (cycle x y) (cycle x z));
+\definition scaleLeft: \forall (a: R)(x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  classOf (#smul{Left.cycleSpace} a x) y = #smul{H.cohomologySpace} a (classOf x y) :=
+  \fun (a: R)(x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{H.Cohomology}
+    (classOf (#smul{Left.cycleSpace} a x) y) (H.classOf (#smul{H.cycleSpace} a (cycle x y)))
+    (#smul{H.cohomologySpace} a (classOf x y))
+    (H.equalClass (cycle (#smul{Left.cycleSpace} a x) y) (#smul{H.cycleSpace} a (cycle x y))
+      (trans!{Current.Carrier} _ _ _
+        (congr!{Term.Carrier Current.Carrier} (#apply{Inclusion.injection}) _ _ (#scaleLeft{NativeTensor.bilinear} a x y))
+        (#scalar{Inclusion.injection} a (Term.tensor x y))))
+    (#scalar{H.classLinear} a (cycle x y));
+\definition scaleRight: \forall (a: R)(x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  classOf x (#smul{Right.cycleSpace} a y) = #smul{H.cohomologySpace} a (classOf x y) :=
+  \fun (a: R)(x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{H.Cohomology}
+    (classOf x (#smul{Right.cycleSpace} a y)) (H.classOf (#smul{H.cycleSpace} a (cycle x y)))
+    (#smul{H.cohomologySpace} a (classOf x y))
+    (H.equalClass (cycle x (#smul{Right.cycleSpace} a y)) (#smul{H.cycleSpace} a (cycle x y))
+      (trans!{Current.Carrier} _ _ _
+        (congr!{Term.Carrier Current.Carrier} (#apply{Inclusion.injection}) _ _ (#scaleRight{NativeTensor.bilinear} a x y))
+        (#scalar{Inclusion.injection} a (Term.tensor x y))))
+    (#scalar{H.classLinear} a (cycle x y));
+\import Modules.Tensor[V := Left.CycleCarrier, W := Right.CycleCarrier,
+  left := Left.cycleSpace, right := Right.cycleSpace] \as Cycles;
+\definition bilinear: Cycles.BilinearLaws[H.Cohomology, H.cohomologySpace, classOf] :=
+  Cycles.BilinearLaws[H.Cohomology, H.cohomologySpace, classOf] {
+    addLeft := addLeft, addRight := addRight, scaleLeft := scaleLeft, scaleRight := scaleRight,
+  };
+\import Cycles.Universal[U := H.Cohomology, target := H.cohomologySpace] \as Universal;
+\definition map: Modules.Hom[V := Cycles.Carrier, W := H.Cohomology,
+  source := Cycles.space, target := H.cohomologySpace].Map := Universal.map classOf bilinear;
+\definition onTensor: \forall (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  #apply{map} (Cycles.tensor x y) = classOf x y := Universal.onTensor classOf bilinear;

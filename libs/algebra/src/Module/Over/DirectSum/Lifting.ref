@@ -1,0 +1,33 @@
+\import \parent.To[W := A.Carrier, target := A.space] \as Lift;
+\import \parent.To[W := B.Carrier, target := B.space] \as Result;
+\import \parent.\parent.Hom[V := Carrier, W := B.Carrier, source := space, target := B.space] \as ResultMaps;
+\module At(i: Index) {
+  \import \parent.\parent.\parent.Hom[V := Carrier, W := B.Carrier, source := space, target := B.space].Composition[U := family.Carrier i, domain := family.space i] \as Restriction;
+  \definition restriction: Result.At[i := i].Map := Restriction.compose f (\parent.\parent.Injection[i := i].map);
+  \definition Fiber: \Set := \Cast[Lift.At[i := i].Map] ({ g: Lift.At[i := i].Map \where
+    \forall (x: family.Carrier i) -> #apply{q} (#apply{g} x) = #apply{restriction} x });
+  \definition inhabited: ComponentsProjective -> Surjective A B q -> \exists Fiber :=
+    \fun (components: ComponentsProjective)(onto: Surjective A B q) =>
+      components i A.Carrier A.space B.Carrier B.space q onto restriction;
+}
+\definition existence: ComponentsProjective -> Surjective A B q ->
+  \exists { g: MapBetween bundle A \where \forall (x: Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x } := \block {
+  \fun (components: ComponentsProjective)(onto: Surjective A B q) \then
+  \let fibers: Index -> \Set := \fun (i: Index) => At[i := i].Fiber \then
+  \takefrom sections: \forall (i: Index) -> fibers i
+    \by \axiom:classicalIndefiniteChoice(Index, fibers, \fun (i: Index) => At[i := i].inhabited components onto) \then
+  \let values: Lift.Components := \fun (i: Index) => sections i \then
+  \let lift: MapBetween bundle A := Lift.extension values \then
+  \let composite: ResultMaps.Map := \parent.\parent.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Composition[U := Carrier, domain := space].compose q lift \then
+  \let targetComponents: Result.Components := \fun (i: Index) => At[i := i].restriction \then
+  \let agrees: \forall (i: Index)(x: family.Carrier i) -> #apply{composite} (#apply{(\parent.Injection[i := i].map)} x) = #apply{(targetComponents i)} x :=
+    \fun (i: Index)(x: family.Carrier i) => trans!{B.Carrier} _ _ _
+      (congr!{A.Carrier B.Carrier} (#apply{q}) _ _ (Lift.onInjection values i x))
+      ((\bysub(Lift.At[i := i].Map, { g: Lift.At[i := i].Map \where \forall (y: family.Carrier i) ->
+        #apply{q} (#apply{g} y) = #apply{At[i := i].restriction} y }, sections i)) x) \then
+  \let equal: composite = f := trans!{ResultMaps.Map} _ _ _ (Result.unique targetComponents composite agrees)
+    (sym!{ResultMaps.Map} _ _ (Result.unique targetComponents f (\fun (i: Index)(x: family.Carrier i) => \refl(#apply{f} (#apply{(\parent.Injection[i := i].map)} x))))) \then
+  \return \exact(\into[MapBetween bundle A](lift, { g: MapBetween bundle A \where \forall (x: Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x }) \by {
+    \fun (x: Carrier) => congr!{ResultMaps.Map B.Carrier} (\fun (h: ResultMaps.Map) => #apply{h} x) _ _ equal
+  }, \Cast[MapBetween bundle A] ({ g: MapBetween bundle A \where \forall (x: Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x }))
+};

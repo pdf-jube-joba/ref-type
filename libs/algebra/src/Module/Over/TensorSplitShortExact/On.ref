@@ -1,0 +1,26 @@
+\import RightTensor.On[sequence := RightExact.ofShort sequence] \as Exact;
+\import Left.Mapping[U := B.Carrier, Z := N.Carrier, targetLeft := B.space, targetRight := N.space] \as Inclusion;
+\import Middle.Mapping[U := A.Carrier, Z := N.Carrier, targetLeft := A.space, targetRight := N.space] \as Retraction;
+\import \parent.\parent.Hom[V := Middle.Carrier, W := Left.Carrier, source := Middle.space, target := Left.space] \as RetractionMaps;
+\definition retraction: RetractionMaps.Map := Retraction.map r Coefficients.identity;
+\definition Retracts: \Prop := \forall (a: A.Carrier) -> #apply{r} (#apply{sequence.inclusion} a) = a;
+\import \parent.\parent.Hom[V := Middle.Carrier, W := Left.Carrier, source := Middle.space, target := Left.space].Composition[U := Left.Carrier, domain := Left.space] \as Composition;
+\import \parent.\parent.End[V := Left.Carrier, space := Left.space] \as Identity;
+\import Left.Universal[U := Left.Carrier, target := Left.space] \as Universal;
+\definition roundtrip: Retracts -> Composition.compose retraction Exact.inclusion = Identity.identity :=
+  \fun (retracts: Retracts) => Universal.ext (Composition.compose retraction Exact.inclusion) Identity.identity
+    (\fun (a: A.Carrier)(n: N.Carrier) => trans!{Left.Carrier} _ _ _
+      (congr!{Middle.Carrier Left.Carrier} (#apply{retraction}) _ _ (Inclusion.onTensor sequence.inclusion Coefficients.identity a n))
+      (trans!{Left.Carrier} _ _ _ (Retraction.onTensor r Coefficients.identity (#apply{sequence.inclusion} a) n)
+        (congr!{A.Carrier Left.Carrier} (\fun (x: A.Carrier) => Left.tensor x n) _ _ (retracts a))));
+\import \parent.\parent.Hom[V := Left.Carrier, W := Left.Carrier, source := Left.space, target := Left.space] \as EndMaps;
+\definition roundtripPoint: Retracts -> \forall (x: Left.Carrier) -> #apply{retraction} (#apply{Exact.inclusion} x) = x :=
+  \fun (retracts: Retracts)(x: Left.Carrier) => congr!{EndMaps.Map Left.Carrier} (\fun (f: EndMaps.Map) => #apply{f} x) _ _ (roundtrip retracts);
+\definition injective: Retracts -> \forall (x, y: Left.Carrier) -> #apply{Exact.inclusion} x = #apply{Exact.inclusion} y -> x = y :=
+  \fun (retracts: Retracts)(x, y: Left.Carrier)(equal: #apply{Exact.inclusion} x = #apply{Exact.inclusion} y) => trans!{Left.Carrier} _ _ _
+    (sym!{Left.Carrier} _ _ (roundtripPoint retracts x))
+    (trans!{Left.Carrier} _ _ _ (congr!{Middle.Carrier Left.Carrier} (#apply{retraction}) _ _ equal) (roundtripPoint retracts y));
+\definition shortExact(retracts: Retracts): Result.Sequence := Result.Sequence {
+  inclusion := Exact.inclusion, projection := Exact.projection,
+  injective := injective retracts, onto := Exact.onto, zero := Exact.zero, kernelImage := Exact.kernelImage,
+};

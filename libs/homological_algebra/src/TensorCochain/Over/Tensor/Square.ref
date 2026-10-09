@@ -1,0 +1,65 @@
+\import \parent.Term[p := p, q := q] \as Source;
+\import \parent.At[p := p, q := q] \as Current;
+\module Horizontal {
+  \import \parent.\parent.Term[p := Nat.Nat^::succ p, q := q] \as Middle;
+  \import \parent.\parent.Term[p := Nat.Nat^::succ (Nat.Nat^::succ p), q := q] \as Target;
+  \import \parent.\parent.At[p := Nat.Nat^::succ p, q := q] \as After;
+  \import Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space].Composition[U := Source.Carrier, domain := Source.space] \as Compose;
+  \import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+  \import Modules.Tensor[V := C.family.Carrier p, W := D.family.Carrier q, left := C.family.space p, right := D.family.space q].Universal[U := Target.Carrier, target := Target.space] \as Universal;
+  \definition mapZero: Compose.compose After.horizontal Current.horizontal = Maps.zeroMap :=
+    Universal.ext (Compose.compose After.horizontal Current.horizontal) Maps.zeroMap
+      (\fun (x: C.family.Carrier p)(y: D.family.Carrier q) => trans!{Target.Carrier} _ _ _
+        (congr!{Middle.Carrier Target.Carrier} (#apply{After.horizontal}) _ _ (Current.horizontalOnTensor x y))
+        (trans!{Target.Carrier} _ _ _ (After.horizontalOnTensor (#apply{C.differential} p x) y)
+          (trans!{Target.Carrier} _ _ _
+            (congr!{{C.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ p))} Target.Carrier} (\fun (z: C.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ p))) => Target.tensor z y) _ _ (#squareZero{C.laws} p x))
+            (Target.zeroLeft y))));
+  \definition zero: \forall (x: Source.Carrier) -> #apply{After.horizontal} (#apply{Current.horizontal} x) = #zero{Target.space} :=
+    \fun (x: Source.Carrier) => congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => #apply{f} x)
+      (Compose.compose After.horizontal Current.horizontal) Maps.zeroMap mapZero;
+}
+\definition horizontalZero: \forall (x: Source.Carrier) ->
+  #apply{\parent.At[p := Nat.Nat^::succ p, q := q].horizontal} (#apply{Current.horizontal} x) = #zero{\parent.Term[p := Nat.Nat^::succ (Nat.Nat^::succ p), q := q].space} := Horizontal[].zero;
+\module Vertical {
+  \import \parent.\parent.Term[p := p, q := Nat.Nat^::succ q] \as Middle;
+  \import \parent.\parent.Term[p := p, q := Nat.Nat^::succ (Nat.Nat^::succ q)] \as Target;
+  \import \parent.\parent.At[p := p, q := Nat.Nat^::succ q] \as After;
+  \import Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space].Composition[U := Source.Carrier, domain := Source.space] \as Compose;
+  \import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+  \import Modules.Tensor[V := C.family.Carrier p, W := D.family.Carrier q, left := C.family.space p, right := D.family.space q].Universal[U := Target.Carrier, target := Target.space] \as Universal;
+  \definition mapZero: Compose.compose After.vertical Current.vertical = Maps.zeroMap :=
+    Universal.ext (Compose.compose After.vertical Current.vertical) Maps.zeroMap
+      (\fun (x: C.family.Carrier p)(y: D.family.Carrier q) => trans!{Target.Carrier} _ _ _
+        (congr!{Middle.Carrier Target.Carrier} (#apply{After.vertical}) _ _ (Current.verticalOnTensor x y))
+        (trans!{Target.Carrier} _ _ _ (After.verticalOnTensor x (#apply{D.differential} q y))
+          (trans!{Target.Carrier} _ _ _
+            (congr!{{D.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ q))} Target.Carrier} (Target.tensor x) _ _ (#squareZero{D.laws} q y))
+            (Target.zeroRight x))));
+  \definition zero: \forall (x: Source.Carrier) -> #apply{After.vertical} (#apply{Current.vertical} x) = #zero{Target.space} :=
+    \fun (x: Source.Carrier) => congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => #apply{f} x)
+      (Compose.compose After.vertical Current.vertical) Maps.zeroMap mapZero;
+}
+\definition verticalZero: \forall (x: Source.Carrier) ->
+  #apply{\parent.At[p := p, q := Nat.Nat^::succ q].vertical} (#apply{Current.vertical} x) = #zero{\parent.Term[p := p, q := Nat.Nat^::succ (Nat.Nat^::succ q)].space} := Vertical[].zero;
+\import \parent.Term[p := Nat.Nat^::succ p, q := q] \as HM;
+\import \parent.Term[p := p, q := Nat.Nat^::succ q] \as VM;
+\import \parent.Term[p := Nat.Nat^::succ p, q := Nat.Nat^::succ q] \as Target;
+\import \parent.At[p := Nat.Nat^::succ p, q := q] \as AcrossHorizontal;
+\import \parent.At[p := p, q := Nat.Nat^::succ q] \as AcrossVertical;
+\import Modules.Hom[V := VM.Carrier, W := Target.Carrier, source := VM.space, target := Target.space].Composition[U := Source.Carrier, domain := Source.space] \as HV;
+\import Modules.Hom[V := HM.Carrier, W := Target.Carrier, source := HM.space, target := Target.space].Composition[U := Source.Carrier, domain := Source.space] \as VH;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+\import Modules.Tensor[V := C.family.Carrier p, W := D.family.Carrier q, left := C.family.space p, right := D.family.space q].Universal[U := Target.Carrier, target := Target.space] \as Universal;
+\definition mapCommutes: HV.compose AcrossVertical.horizontal Current.vertical = VH.compose AcrossHorizontal.vertical Current.horizontal :=
+  Universal.ext (HV.compose AcrossVertical.horizontal Current.vertical) (VH.compose AcrossHorizontal.vertical Current.horizontal)
+    (\fun (x: C.family.Carrier p)(y: D.family.Carrier q) => trans!{Target.Carrier} _ _ _
+      (congr!{VM.Carrier Target.Carrier} (#apply{AcrossVertical.horizontal}) _ _ (Current.verticalOnTensor x y))
+      (trans!{Target.Carrier} _ _ _ (AcrossVertical.horizontalOnTensor x (#apply{D.differential} q y))
+        (sym!{Target.Carrier} _ _ (trans!{Target.Carrier} _ _ _
+          (congr!{HM.Carrier Target.Carrier} (#apply{AcrossHorizontal.vertical}) _ _ (Current.horizontalOnTensor x y))
+          (AcrossHorizontal.verticalOnTensor (#apply{C.differential} p x) y)))));
+\definition commute: \forall (x: Source.Carrier) ->
+  #apply{AcrossVertical.horizontal} (#apply{Current.vertical} x) = #apply{AcrossHorizontal.vertical} (#apply{Current.horizontal} x) :=
+  \fun (x: Source.Carrier) => congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => #apply{f} x)
+    (HV.compose AcrossVertical.horizontal Current.vertical) (VH.compose AcrossHorizontal.vertical Current.horizontal) mapCommutes;

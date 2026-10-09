@@ -1,0 +1,27 @@
+\definition existence: \forall (history: History^) -> Indices.HistoryLaws m n history -> \exists HistoryFrame history :=
+  \induction (history: History^) \return Indices.HistoryLaws m n history -> \exists HistoryFrame history \with {
+    | empty: \fun (laws: Logic.True) => \exact(\into[Frame](identity, { frame: Frame \where HistoryLaws[History^::empty, frame] }) \by {
+        HistoryLaws[History^::empty, identity] {
+        action := \fun (a: Runtime^) => identityLaw (Matrices.reflect a),
+        representation := identityMatches,
+      }
+      }, HistoryFrame History^::empty)
+    | prepend: \block {
+      \fun (operation: Operation^)(history: History^)(previous: Indices.HistoryLaws m n history -> \exists HistoryFrame history)
+        (laws: Indices.HistoryStep[m, n, operation, Indices.HistoryLaws m n history]) \then
+      \takefrom later: OperationFrame operation \by \parent.Operations[].existence operation #operation{laws} \then
+      \takefrom earlier: HistoryFrame history \by previous #older{laws} \then
+      \let operationLaw: OperationLaws[operation, later] := \bysub(Frame, { frame: Frame \where OperationLaws[operation, frame] }, later) \then
+      \let historyLaw: HistoryLaws[history, earlier] := \bysub(Frame, { frame: Frame \where HistoryLaws[history, frame] }, earlier) \then
+      \return \exact(\into[Frame](compose later earlier, { frame: Frame \where HistoryLaws[History^::prepend operation history, frame] }) \by {
+        HistoryLaws[History^::prepend operation history, compose later earlier] {
+          action := \fun (a: Runtime^) => trans!{Matrices.Matrix} (change (compose later earlier) (Matrices.reflect a)) (change later (change earlier (Matrices.reflect a))) (Matrices.reflect (applyHistory (History^::prepend operation history) a))
+          (compositionLaw later earlier (Matrices.reflect a))
+          (trans!{Matrices.Matrix} (change later (change earlier (Matrices.reflect a))) (change later (Matrices.reflect (applyHistory history a))) (Matrices.reflect (applyHistory (History^::prepend operation history) a))
+            (congr!{Matrices.Matrix Matrices.Matrix} (change later) (change earlier (Matrices.reflect a)) (Matrices.reflect (applyHistory history a)) (#action{historyLaw} a))
+            (#action{operationLaw} (applyHistory history a))),
+          representation := \parent.Composition[later := later, earlier := earlier, nativeLater := NativeFrames.operation operation, nativeEarlier := NativeFrames.build m n history].law #representation{operationLaw} #representation{historyLaw},
+        }
+      }, HistoryFrame (History^::prepend operation history))
+    }
+  };

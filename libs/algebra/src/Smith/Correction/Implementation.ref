@@ -1,0 +1,22 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> N.Nat -> Runtime -> History -> Attempt);
+\definition program: T := \thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (history: History) => \program {
+  \bind target: \U(N.Nat -> N.Nat -> I.Int -> Runtime) <- (\force rowAddProgram) a \then
+  \bind source: \U(N.Nat -> I.Int -> Runtime) <- (\force target) k \then
+  \bind scalar: \U(I.Int -> Runtime) <- (\force source) i \then
+  \bind injected: Runtime <- (\force scalar) (I.Int::ofNat (N.Nat::succ N.Nat::zero)) \then
+  \bind column: \U(N.Nat -> Runtime -> History -> Attempt) <- (\force Reduction.Column.program) k \then
+  \bind matrix: \U(Runtime -> History -> Attempt) <- (\force column) j \then
+  \bind histories: \U(History -> Attempt) <- (\force matrix) injected \then
+  \bind result: Attempt <- (\force histories) (History::prepend (Operation::rowAdd k i (I.Int::ofNat (N.Nat::succ N.Nat::zero))) history) \then
+  \return result
+})))))))));
+\definition intermediate(k, i, j: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := Reduction.column k j (rowAddProgram^ a k i Arithmetic.one) (injectHistory k i history);
+\definition matches: \forall (k, i, j: N.Nat^)(a: Runtime^)(history: History^) -> program^ k i j a history = correct k i j a history :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^)(history: History^) => trans!{Attempt^} (program^ k i j a history) (intermediate k i j a history) (correct k i j a history)
+    (congr!{Reduction.Column.T^ Attempt^} (\fun (f: Reduction.Column.T^) => f k j (rowAddProgram^ a k i Arithmetic.one) (injectHistory k i history)) Reduction.Column.program^ Reduction.column Reduction.Column.coherence)
+    (congr!{Rows.Add.T^ Attempt^} (\fun (f: Rows.Add.T^) => Reduction.column k j (f a k i Arithmetic.one) (injectHistory k i history)) rowAddProgram^ Rows.add Rows.Add.coherence);
+\definition coherence: program^ = correct := \axiom:funext(program^, correct,
+  \fun (k: N.Nat^) => \axiom:funext(program^ k, correct k,
+    \fun (i: N.Nat^) => \axiom:funext(program^ k i, correct k i,
+      \fun (j: N.Nat^) => \axiom:funext(program^ k i j, correct k i j,
+        \fun (a: Runtime^) => \axiom:funext(program^ k i j a, correct k i j a, \fun (history: History^) => matches k i j a history)))));

@@ -1,0 +1,61 @@
+\definition current: Attempt^ := cleared rows cols k a history;
+\definition positions: Grid.Position^ := Offender.seek rows cols k (attemptMatrix current);
+\definition positionLaws: Grid.PositionLaws (Offender.probe k (attemptMatrix current)) rows cols positions := Offender.bounded rows cols k (attemptMatrix current);
+\definition oldPivot: attemptReduced current = B.Bool^::false -> attemptMatrix current k k = a k k :=
+  \fun (noSwap: _) => #pivot{(Clearing.settled rows cols k a history noSwap)};
+\definition currentNonzero: Logic.Not (a k k = Arithmetic.zero) -> PassLaws.Nonzero k current := Clearing.nonzero rows cols k a history;
+\definition foundCleared: \forall (i, j: N.Nat^) -> attemptReduced current = B.Bool^::false -> Grid.Found[Offender.probe k (attemptMatrix current), rows, cols, i, j] -> Correction.Cleared[k, i, j, attemptMatrix current] := \block {
+  \fun (i, j: N.Nat^)(noSwap: _)(found: Grid.Found[Offender.probe k (attemptMatrix current), rows, cols, i, j]) \then
+  \let hit: Offender.Hit[k, attemptMatrix current, i, j] := Offender.hit k (attemptMatrix current) i j #hit{found} \then
+  \let settled: Clearing.Settled[rows, cols, k, a, current] := Clearing.settled rows cols k a history noSwap \then
+  \return Correction.Cleared[k, i, j, attemptMatrix current] {
+    column := #column{settled} i #rowBound{found} #rowLower{hit}, row := #row{settled} j #columnBound{found} #columnLower{hit},
+  }
+};
+\definition foundSmaller: \forall (i, j: N.Nat^) -> Logic.Not (a k k = Arithmetic.zero) -> attemptReduced current = B.Bool^::false -> Grid.Found[Offender.probe k (attemptMatrix current), rows, cols, i, j] -> Reduction.Smaller k a (resolve k current (Grid.Position^::position i j)) :=
+  \fun (i, j: N.Nat^)(nonzero: _)(noSwap: _)(found: Grid.Found[Offender.probe k (attemptMatrix current), rows, cols, i, j])(changed: _) =>
+    \idelim attemptMatrix current k k = a k k \with pivot: I.Int^ => Bounds.Lt (Signed.absolute (attemptMatrix (resolve k current (Grid.Position^::position i j)) k k)) (Signed.absolute pivot) \by {
+      base: Correction.decreases k i j (attemptMatrix current) (attemptHistory current) (foundCleared i j noSwap found) (currentNonzero nonzero)
+        #nonzero{(Offender.hit k (attemptMatrix current) i j #hit{found})}, equality: oldPivot noSwap
+    };
+\definition positionsSmaller: Logic.Not (a k k = Arithmetic.zero) -> attemptReduced current = B.Bool^::false -> \forall (position: Grid.Position^) -> Grid.PositionLaws (Offender.probe k (attemptMatrix current)) rows cols position -> Reduction.Smaller k a (resolve k current position) :=
+  \fun (nonzero: _)(noSwap: _) => \induction (position: Grid.Position^) \return Grid.PositionLaws (Offender.probe k (attemptMatrix current)) rows cols position -> Reduction.Smaller k a (resolve k current position) \with {
+    | empty: \fun (laws: _)(bad: _) => Logic.falseElim _ (BoolLaws.falseNeTrue (trans!{B.Bool^} B.Bool^::false (attemptReduced current) B.Bool^::true (sym!{B.Bool^} (attemptReduced current) B.Bool^::false noSwap) bad))
+    | position: \fun (i, j: N.Nat^)(found: Grid.Found[Offender.probe k (attemptMatrix current), rows, cols, i, j]) => foundSmaller i j nonzero noSwap found
+  };
+\definition smaller: Logic.Not (a k k = Arithmetic.zero) -> Reduction.Smaller k a (round rows cols k a history) :=
+  \fun (nonzero: _) => B.cases
+    (\fun (test: B.Bool^) => attemptReduced current = test -> Reduction.Smaller k a (B.ite Attempt^ test current (resolve k current positions)))
+    (\fun (noSwap: _) => positionsSmaller nonzero noSwap positions positionLaws)
+    (\fun (changed: _) => Clearing.smaller rows cols k a history nonzero)
+    (attemptReduced current) (\refl(attemptReduced current));
+\definition positionsNonzero: Logic.Not (a k k = Arithmetic.zero) -> attemptReduced current = B.Bool^::false -> \forall (position: Grid.Position^) -> Grid.PositionLaws (Offender.probe k (attemptMatrix current)) rows cols position -> PassLaws.Nonzero k (resolve k current position) :=
+  \fun (nonzero: _)(noSwap: _) => \induction (position: Grid.Position^) \return Grid.PositionLaws (Offender.probe k (attemptMatrix current)) rows cols position -> PassLaws.Nonzero k (resolve k current position) \with {
+    | empty: \fun (laws: _) => currentNonzero nonzero
+    | position: \fun (i, j: N.Nat^)(found: Grid.Found[Offender.probe k (attemptMatrix current), rows, cols, i, j]) => Correction.nonzero k i j (attemptMatrix current) (attemptHistory current)
+        #columnLower{(Offender.hit k (attemptMatrix current) i j #hit{found})} #column{(foundCleared i j noSwap found)} (currentNonzero nonzero)
+  };
+\definition nonzero: Logic.Not (a k k = Arithmetic.zero) -> PassLaws.Nonzero k (round rows cols k a history) :=
+  \fun (nonzero: _) => B.cases
+    (\fun (test: B.Bool^) => attemptReduced current = test -> PassLaws.Nonzero k (B.ite Attempt^ test current (resolve k current positions)))
+    (\fun (noSwap: _) => positionsNonzero nonzero noSwap positions positionLaws)
+    (\fun (changed: _) => currentNonzero nonzero)
+    (attemptReduced current) (\refl(attemptReduced current));
+\definition positionsComplete: attemptReduced current = B.Bool^::false -> \forall (position: Grid.Position^) -> Grid.PositionLaws (Offender.probe k (attemptMatrix current)) rows cols position ->
+  attemptReduced (resolve k current position) = B.Bool^::false -> Complete[rows, cols, k, a, resolve k current position] :=
+  \fun (noSwap: _) => \induction (position: Grid.Position^) \return Grid.PositionLaws (Offender.probe k (attemptMatrix current)) rows cols position -> attemptReduced (resolve k current position) = B.Bool^::false -> Complete[rows, cols, k, a, resolve k current position] \with {
+    | empty: \fun (empty: _)(equal: _) => Complete[rows, cols, k, a, current] {
+        settled := Clearing.settled rows cols k a history noSwap,
+        divides := Offender.noneDivides rows cols k (attemptMatrix current) empty,
+      }
+    | position: \fun (i, j: N.Nat^)(found: Grid.Found[Offender.probe k (attemptMatrix current), rows, cols, i, j])(bad: _) => Logic.falseElim _ (BoolLaws.trueNeFalse
+        (trans!{B.Bool^} B.Bool^::true (attemptReduced (resolve k current (Grid.Position^::position i j))) B.Bool^::false
+          (sym!{B.Bool^} (attemptReduced (resolve k current (Grid.Position^::position i j))) B.Bool^::true
+            (Correction.changed k i j (attemptMatrix current) (attemptHistory current) (foundCleared i j noSwap found)
+              #nonzero{(Offender.hit k (attemptMatrix current) i j #hit{found})})) bad))
+  };
+\definition complete: attemptReduced (round rows cols k a history) = B.Bool^::false -> Complete[rows, cols, k, a, round rows cols k a history] := B.cases
+  (\fun (test: B.Bool^) => attemptReduced current = test -> attemptReduced (B.ite Attempt^ test current (resolve k current positions)) = B.Bool^::false -> Complete[rows, cols, k, a, B.ite Attempt^ test current (resolve k current positions)])
+  (\fun (noSwap: _) => positionsComplete noSwap positions positionLaws)
+  (\fun (changed: _)(bad: _) => Logic.falseElim _ (BoolLaws.trueNeFalse (trans!{B.Bool^} B.Bool^::true (attemptReduced current) B.Bool^::false (sym!{B.Bool^} (attemptReduced current) B.Bool^::true changed) bad)))
+  (attemptReduced current) (\refl(attemptReduced current));

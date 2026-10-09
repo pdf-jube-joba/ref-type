@@ -1,0 +1,68 @@
+\import \parent.Pass[].Clearing[] \as Clearing;
+\import \parent.Pass[].Invariants[] \as PassLaws;
+\import \parent.Offender[] \as Offender;
+\import \parent.Correction[] \as Correction;
+\import \parent.Reduction[] \as Reduction;
+\import N.Basic[].Prop[] \as Bounds;
+\import N.Find[].Grid[] \as Grid;
+\import B.Prop[] \as BoolLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\definition resolve(k: N.Nat^)(current: Attempt^): Grid.Position^ -> Attempt^ := \induction (position: Grid.Position^) \return Attempt^ \with {
+  | empty: current
+  | position: \fun (i, j: N.Nat^) => Correction.correct k i j (attemptMatrix current) (attemptHistory current)
+};
+\definition cleared(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := Clearing.clear rows cols k a history;
+\definition round(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+  B.ite Attempt^ (attemptReduced (cleared rows cols k a history)) (cleared rows cols k a history)
+    (resolve k (cleared rows cols k a history) (Offender.seek rows cols k (attemptMatrix (cleared rows cols k a history))));
+\structure Complete[rows, cols, k: N.Nat^, a: Runtime^, current: Attempt^]: \Prop {
+  settled: Clearing.Settled[rows, cols, k, a, current],
+  divides: \forall (i, j: N.Nat^) -> Bounds.Lt i rows -> Bounds.Lt j cols -> Bounds.Lt k i -> Bounds.Lt k j -> Signed.Divides (attemptMatrix current k k) (attemptMatrix current i j),
+}
+\module On(rows, cols, k: N.Nat^, a: Runtime^, history: History^);
+\definition smaller: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> Reduction.Smaller k a (round rows cols k a history) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => On[rows := rows, cols := cols, k := k, a := a, history := history].smaller;
+\definition nonzero: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> PassLaws.Nonzero k (round rows cols k a history) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => On[rows := rows, cols := cols, k := k, a := a, history := history].nonzero;
+\definition complete: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> attemptReduced (round rows cols k a history) = B.Bool^::false -> Complete[rows, cols, k, a, round rows cols k a history] :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => On[rows := rows, cols := cols, k := k, a := a, history := history].complete;
+\import \parent.Bounds[] \as Indices;
+\definition resolveTrace: \forall (position: Grid.Position^)(k: N.Nat^)(original: Runtime^)(current: Attempt^) -> PassLaws.Traced original current -> PassLaws.Traced original (resolve k current position) :=
+  \induction (position: Grid.Position^) \return \forall (k: N.Nat^)(original: Runtime^)(current: Attempt^) -> PassLaws.Traced original current -> PassLaws.Traced original (resolve k current position) \with {
+    | empty: \fun (k: N.Nat^)(original: Runtime^)(current: Attempt^)(trace: _) => trace
+    | position: \fun (i, j: N.Nat^)(k: N.Nat^)(original: Runtime^)(current: Attempt^)(trace: _) => Correction.trace k i j original (attemptMatrix current) (attemptHistory current) trace
+  };
+\definition traced: \forall (rows, cols, k: N.Nat^)(original, a: Runtime^)(history: History^) -> a = applyHistory history original -> PassLaws.Traced original (round rows cols k a history) :=
+  \fun (rows, cols, k: N.Nat^)(original, a: Runtime^)(history: History^)(trace: _) => B.cases
+    (\fun (test: B.Bool^) => PassLaws.Traced original (B.ite Attempt^ test (cleared rows cols k a history) (resolve k (cleared rows cols k a history) (Offender.seek rows cols k (attemptMatrix (cleared rows cols k a history))))))
+    (resolveTrace (Offender.seek rows cols k (attemptMatrix (cleared rows cols k a history))) k original (cleared rows cols k a history) (Clearing.traced rows cols k original a history trace))
+    (Clearing.traced rows cols k original a history trace) (attemptReduced (cleared rows cols k a history));
+\definition resolveBounded: \forall (position: Grid.Position^)(rows, cols, k: N.Nat^)(current: Attempt^) -> Bounds.Lt k rows -> Bounds.Lt k cols -> Grid.PositionLaws (Offender.probe k (attemptMatrix current)) rows cols position -> Indices.HistoryLaws rows cols (attemptHistory current) -> Indices.HistoryLaws rows cols (attemptHistory (resolve k current position)) :=
+  \induction (position: Grid.Position^) \return \forall (rows, cols, k: N.Nat^)(current: Attempt^) -> Bounds.Lt k rows -> Bounds.Lt k cols -> Grid.PositionLaws (Offender.probe k (attemptMatrix current)) rows cols position -> Indices.HistoryLaws rows cols (attemptHistory current) -> Indices.HistoryLaws rows cols (attemptHistory (resolve k current position)) \with {
+    | empty: \fun (rows, cols, k: N.Nat^)(current: Attempt^)(rowBound: _)(colBound: _)(positions: _)(historyLaws: _) => historyLaws
+    | position: \fun (i, j: N.Nat^)(rows, cols, k: N.Nat^)(current: Attempt^)(rowBound: _)(colBound: _)(found: Grid.Found[Offender.probe k (attemptMatrix current), rows, cols, i, j])(historyLaws: _) =>
+        Correction.bounded rows cols k i j (attemptMatrix current) (attemptHistory current)
+          #rowLower{(Offender.hit k (attemptMatrix current) i j #hit{found})} #columnLower{(Offender.hit k (attemptMatrix current) i j #hit{found})}
+          rowBound colBound #rowBound{found} #columnBound{found} historyLaws
+  };
+\definition bounded: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k rows -> Bounds.Lt k cols -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (round rows cols k a history)) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(colBound: _)(historyLaws: _) => B.cases
+    (\fun (test: B.Bool^) => Indices.HistoryLaws rows cols (attemptHistory (B.ite Attempt^ test (cleared rows cols k a history) (resolve k (cleared rows cols k a history) (Offender.seek rows cols k (attemptMatrix (cleared rows cols k a history)))))))
+    (resolveBounded (Offender.seek rows cols k (attemptMatrix (cleared rows cols k a history))) rows cols k (cleared rows cols k a history) rowBound colBound
+      (Offender.bounded rows cols k (attemptMatrix (cleared rows cols k a history))) (Clearing.bounded rows cols k a history rowBound colBound historyLaws))
+    (Clearing.bounded rows cols k a history rowBound colBound historyLaws) (attemptReduced (cleared rows cols k a history));
+\definition correctProgram: Correction.Correct.T := Correction.Correct.program;
+\module ResolveImplementation;
+\correspondence Resolve: Programs.Correspondence := Programs.Correspondence {
+  T := ResolveImplementation[].T, program := ResolveImplementation[].program, specification := resolve, coherence := ResolveImplementation[].coherence,
+};
+\import \parent.AttemptReaders[] \as Readers;
+\import B.Choose[A := Attempt] \as Choice;
+\definition chooseProgram: Choice.T := Choice.program;
+\definition matrixProgram: Readers.ReadMatrix.T := Readers.ReadMatrix.program;
+\definition changedProgram: Readers.ReadChanged.T := Readers.ReadChanged.program;
+\module Implementation;
+\correspondence Perform: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := round, coherence := Implementation[].coherence,
+};

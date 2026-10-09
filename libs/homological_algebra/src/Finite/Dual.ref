@@ -1,0 +1,55 @@
+\import \parent.Pair[m := m, n := n, p := p] \as SourcePair;
+\import \parent.Pair[m := p, n := n, p := m] \as TargetPair;
+\import Commutative.Matrix[m := m, n := n] \as A;
+\import Commutative.Matrix[m := n, n := p] \as B;
+\import Commutative.Matrix[m := m, n := p] \as Product;
+\import A.Composition[k := p] \as Multiply;
+\import A.Transpose[] \as AT;
+\import B.Transpose[] \as BT;
+\import Product.Transpose[] \as ProductT;
+\import AT.Composition[k := p] \as TransposeProduct;
+\import Commutative.Matrix[m := p, n := n] \as DualOutgoing;
+\import Commutative.Matrix[m := n, n := m] \as DualIncoming;
+\import Commutative.Matrix[m := p, n := m] \as DualProduct;
+\import DualOutgoing.Composition[k := m] \as DualMultiply;
+\import Modules.FiniteCoordinates[n := m] \as Lower;
+\import Modules.FiniteCoordinates[n := p] \as Upper;
+\import Modules.Hom[V := Upper.Carrier, W := Lower.Carrier, source := Upper.space, target := Lower.space] \as Maps;
+\definition outgoing: A.Matrix := \fun (i: Indices.Fin m)(j: Indices.Fin n) => C.outgoing i j;
+\definition incoming: B.Matrix := \fun (i: Indices.Fin n)(j: Indices.Fin p) => C.incoming i j;
+\definition squareZero: Multiply.product outgoing incoming = Product.zero := Product.Representation[].injective
+  (Multiply.product outgoing incoming) Product.zero
+  (Maps.ext (Product.linear (Multiply.product outgoing incoming)) (Product.linear Product.zero)
+    (\fun (v: Upper.Carrier) => trans!{Lower.Carrier} _ _ _ (Multiply.point outgoing incoming v)
+      (trans!{Lower.Carrier} _ _ _ (#squareZero{(\bysub(SourcePair.Data, { data: SourcePair.Data \where SourcePair.Laws[data] }, C))} v)
+        (sym!{Lower.Carrier} (Product.apply Product.zero v) #zero{Lower.space} (Product.zeroAction v)))));
+\definition dualSquareZero: DualMultiply.product (BT.transpose incoming) (AT.transpose outgoing) = DualProduct.zero :=
+  trans!{DualProduct.Matrix} (DualMultiply.product (BT.transpose incoming) (AT.transpose outgoing))
+    (ProductT.transpose (Multiply.product outgoing incoming)) DualProduct.zero
+    (sym!{DualProduct.Matrix} (ProductT.transpose (Multiply.product outgoing incoming))
+      (DualMultiply.product (BT.transpose incoming) (AT.transpose outgoing)) (TransposeProduct.product outgoing incoming))
+    (congr!{Product.Matrix DualProduct.Matrix} ProductT.transpose (Multiply.product outgoing incoming) Product.zero squareZero);
+\import algebra.IntegerMatrix[m := m, n := n].Transpose[] \as NativeA;
+\import algebra.IntegerMatrix[m := n, n := p].Transpose[] \as NativeB;
+\definition data: TargetPair.Data := TargetPair.Data {
+  outgoing := NativeB.Transpose.program^ C.incoming,
+  incoming := NativeA.Transpose.program^ C.outgoing,
+};
+\definition laws: TargetPair.Laws[data] := TargetPair.Laws[data] {
+  squareZero := \fun (v: Lower.Carrier) => trans!{Upper.Carrier}
+    (DualOutgoing.apply (BT.transpose incoming) (DualIncoming.apply (AT.transpose outgoing) v))
+    (DualProduct.apply (DualMultiply.product (BT.transpose incoming) (AT.transpose outgoing)) v) #zero{Upper.space}
+    (sym!{Upper.Carrier} _ _ (DualMultiply.point (BT.transpose incoming) (AT.transpose outgoing) v))
+    (trans!{Upper.Carrier} _ _ _
+      (congr!{DualProduct.Matrix Upper.Carrier} (\fun (matrix: DualProduct.Matrix) => DualProduct.apply matrix v)
+        (DualMultiply.product (BT.transpose incoming) (AT.transpose outgoing)) DualProduct.zero dualSquareZero)
+      (DualProduct.zeroAction v)),
+};
+\definition complex: TargetPair.Complex := \into[TargetPair.Data](data, { data: TargetPair.Data \where TargetPair.Laws[data] }) \by { laws };
+\import TargetPair.Of[C := complex] \as Cohomology;
+\definition Result: \Set := Cohomology.Result;
+\definition result: Result := Cohomology.result;
+\definition cohomology: \Set := Cohomology.Homology;
+\definition calculation: Calculation^ := Cohomology.computed;
+\definition freeRank: N.Nat^ := Cohomology.freeRank;
+\definition cyclicRank: N.Nat^ := Cohomology.cyclicRank;

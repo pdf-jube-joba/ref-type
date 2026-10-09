@@ -1,0 +1,33 @@
+\module At(n: Nat.Nat^);
+\definition Carrier(n: Nat.Nat^): \Set := At[n := n].Carrier;
+\definition space(n: Nat.Nat^): Modules.Space (Carrier n) := At[n := n].space;
+\definition family: Cochains.Family := Cochains.Family {
+  Carrier := Carrier,
+  space := space,
+};
+\definition apply(n: Nat.Nat^)(f: Carrier n): Carrier (Nat.Nat^::succ n) := At[n := Nat.Nat^::succ n].Carrier {
+  apply := \fun (x: P.family.Carrier (Nat.Nat^::succ n)) => #apply{f} (#apply{P.differential} n x),
+  addition := \fun (x, y: P.family.Carrier (Nat.Nat^::succ n)) => trans!{N.Carrier} _ _ _
+    (congr!{{P.family.Carrier n} N.Carrier} (#apply{f}) _ _ (#addition{P.laws} n x y))
+    (#addition{f} (#apply{P.differential} n x) (#apply{P.differential} n y)),
+  scalar := \fun (a: R)(x: P.family.Carrier (Nat.Nat^::succ n)) => trans!{N.Carrier} _ _ _
+    (congr!{{P.family.Carrier n} N.Carrier} (#apply{f}) _ _ (#scalar{P.laws} n a x))
+    (#scalar{f} a (#apply{P.differential} n x)),
+};
+\definition addition: \forall (n: Nat.Nat^)(f, g: Carrier n) ->
+  apply n (#add{(space n)} f g) = #add{(space (Nat.Nat^::succ n))} (apply n f) (apply n g) :=
+  \fun (n: Nat.Nat^)(f, g: Carrier n) => At[n := Nat.Nat^::succ n].ext (apply n (#add{(space n)} f g)) (#add{(space (Nat.Nat^::succ n))} (apply n f) (apply n g))
+    (\fun (x: P.family.Carrier (Nat.Nat^::succ n)) => \refl(#add{N.space} (#apply{f} (#apply{P.differential} n x)) (#apply{g} (#apply{P.differential} n x))));
+\definition scalar: \forall (n: Nat.Nat^)(a: R)(f: Carrier n) ->
+  apply n (#smul{(space n)} a f) = #smul{(space (Nat.Nat^::succ n))} a (apply n f) :=
+  \fun (n: Nat.Nat^)(a: R)(f: Carrier n) => At[n := Nat.Nat^::succ n].ext (apply n (#smul{(space n)} a f)) (#smul{(space (Nat.Nat^::succ n))} a (apply n f))
+    (\fun (x: P.family.Carrier (Nat.Nat^::succ n)) => \refl(#smul{N.space} a (#apply{f} (#apply{P.differential} n x))));
+\definition squareZero: \forall (n: Nat.Nat^)(f: Carrier n) -> apply (Nat.Nat^::succ n) (apply n f) = #zero{(space (Nat.Nat^::succ (Nat.Nat^::succ n)))} :=
+  \fun (n: Nat.Nat^)(f: Carrier n) => At[n := Nat.Nat^::succ (Nat.Nat^::succ n)].ext (apply (Nat.Nat^::succ n) (apply n f)) (#zero{(space (Nat.Nat^::succ (Nat.Nat^::succ n)))})
+    (\fun (x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => trans!{N.Carrier} _ _ _
+      (congr!{{P.family.Carrier n} N.Carrier} (#apply{f}) _ _ (#squareZero{P.laws} n x)) (At[n := n].zeroPreserved f));
+\definition differential: Cochains.DifferentialData[family] := Cochains.DifferentialData[family] { apply := apply };
+\definition complex: Cochains.Complex := Cochains.Complex {
+  family := family, differential := differential,
+  laws := Cochains.DifferentialLaws[family, differential] { addition := addition, scalar := scalar, squareZero := squareZero },
+};

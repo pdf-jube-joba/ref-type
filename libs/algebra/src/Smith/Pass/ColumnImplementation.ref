@@ -1,0 +1,15 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> Runtime -> History -> Attempt);
+\definition program: T := \thunk (\cfun (count: N.Nat) => \program {
+  \bind builder: \U(N.Nat -> N.Nat -> Runtime -> History -> Attempt) <- (\force Pass.program) Reduction.Column.program \then
+  \bind result: \U(N.Nat -> Runtime -> History -> Attempt) <- (\force builder) count \then
+  \return result
+});
+\definition intermediate(count, k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := passWith Reduction.Column.program^ count k a history;
+\definition matches: \forall (count, k: N.Nat^)(a: Runtime^)(history: History^) -> program^ count k a history = column count k a history :=
+  \fun (count, k: N.Nat^)(a: Runtime^)(history: History^) => trans!{Attempt^} (program^ count k a history) (intermediate count k a history) (column count k a history)
+    (congr!{Pass.T^ Attempt^} (\fun (f: Pass.T^) => f Reduction.Column.program^ count k a history) Pass.program^ Pass.specification Pass.coherence)
+    (congr!{Reduction.Column.T^ Attempt^} (\fun (f: Reduction.Column.T^) => passWith f count k a history) Reduction.Column.program^ Reduction.Column.specification Reduction.Column.coherence);
+\definition coherence: program^ = column := \axiom:funext(program^, column,
+  \fun (count: N.Nat^) => \axiom:funext(program^ count, column count,
+    \fun (k: N.Nat^) => \axiom:funext(program^ count k, column count k,
+      \fun (a: Runtime^) => \axiom:funext(program^ count k a, column count k a, matches count k a))));

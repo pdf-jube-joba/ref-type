@@ -1,0 +1,43 @@
+\import \parent.Monomorphism[x := x, y := y, f := f] \as Mono;
+\import \parent.Cokernel[x := x, y := y, f := f] \as Cokernel;
+\import \parent.\parent.Cokernel[x := x, y := y, f := f] \as Actual;
+\import Modules.Of[V := family.Carrier y, space := family.space y].Submodule[].Of[S := Actual.submodule] \as Image;
+\import Modules.Hom[V := family.Carrier x, W := Image.Carrier, source := family.space x, target := Image.moduleSpace] \as Restriction;
+\definition restriction: Restriction.Map := Restriction.Map {
+  apply := \fun (u: family.Carrier x) => \into[family.Carrier y](#apply{f} u, #carrier{Actual.submodule}) \by { Actual.imageMember u },
+  addition := #addition{f}, scalar := #scalar{f},
+};
+\definition onto: \forall (u: Image.Carrier) -> \exists { v: family.Carrier x \where #apply{restriction} v = u } :=
+  \fun (u: Image.Carrier) => \bysub(family.Carrier y, #carrier{Actual.submodule}, u);
+\import Modules.Isomorphism[V := family.Carrier x, W := Image.Carrier, source := family.space x, target := Image.moduleSpace].OfBijective[f := restriction] \as Inverse;
+\definition inverse(mono: Mono.Mono): Modules.Isomorphism[V := family.Carrier x, W := Image.Carrier, source := family.space x, target := Image.moduleSpace].Isomorphism :=
+  Inverse.isomorphism (Mono.injective mono) onto;
+\import Modules.Hom[V := family.Carrier Cokernel.point, W := Actual.Carrier, source := family.space Cokernel.point, target := Actual.space] \as Backward;
+\module Lift(z: Index, g: Hom z y) {
+  \definition Killed: \Prop := compose z y Cokernel.point Cokernel.projection g = zero z Cokernel.point;
+  \definition member: Killed -> \forall (u: family.Carrier z) -> \In[family.Carrier y] (#carrier{Actual.submodule}) (#apply{g} u) :=
+    \fun (killed: Killed)(u: family.Carrier z) => Actual.zeroClassMember (#apply{g} u)
+      (trans!{Actual.Carrier} _ _ _ (sym!{Actual.Carrier} _ _ (#leftInverse{Cokernel.isomorphism} (Actual.class (#apply{g} u))))
+        (trans!{Actual.Carrier} _ _ _
+          (congr!{{family.Carrier Cokernel.point} Actual.Carrier} (#apply{#backward{Cokernel.isomorphism}}) _ _
+            (congr!{{Hom z Cokernel.point} {family.Carrier Cokernel.point}} (\fun (h: Hom z Cokernel.point) => #apply{h} u) (compose z y Cokernel.point Cokernel.projection g) (zero z Cokernel.point) killed))
+          (Backward.zeroPreserved (#backward{Cokernel.isomorphism}))));
+  \import Modules.Hom[V := family.Carrier z, W := Image.Carrier, source := family.space z, target := Image.moduleSpace] \as Refined;
+  \definition refined(killed: Killed): Refined.Map := Refined.Map {
+    apply := \fun (u: family.Carrier z) => \into[family.Carrier y](#apply{g} u, #carrier{Actual.submodule}) \by { member killed u },
+    addition := #addition{g}, scalar := #scalar{g},
+  };
+  \import Modules.Hom[V := Image.Carrier, W := family.Carrier x, source := Image.moduleSpace, target := family.space x].Composition[U := family.Carrier z, domain := family.space z] \as Compose;
+  \definition lift(mono: Mono.Mono)(killed: Killed): Hom z x := Compose.compose (#backward{(inverse mono)}) (refined killed);
+  \definition factorization: \forall (mono: Mono.Mono)(killed: Killed) -> compose z x y f (lift mono killed) = g :=
+    \fun (mono: Mono.Mono)(killed: Killed) => \parent.\parent.\parent.\parent.At[x := z, y := y].ext (compose z x y f (lift mono killed)) g
+      (\fun (u: family.Carrier z) => #rightInverse{(inverse mono)} (#apply{(refined killed)} u));
+  \definition existence: Mono.Mono -> Killed -> \exists { h: Hom z x \where compose z x y f h = g } :=
+    \fun (mono: Mono.Mono)(killed: Killed) => \exact(\into[Hom z x](lift mono killed, { h: Hom z x \where compose z x y f h = g }) \by { factorization mono killed }, \Cast[Hom z x] ({ h: Hom z x \where compose z x y f h = g }));
+}
+\definition normal: Mono.Mono -> Abelian.IsKernel[Index, Hom, categoryData, zero, x, y, Cokernel.point, f, Cokernel.projection] :=
+  \fun (mono: Mono.Mono) => Abelian.IsKernel[Index, Hom, categoryData, zero, x, y, Cokernel.point, f, Cokernel.projection] {
+    zero := Cokernel.zeroLaw,
+    factorization := \fun (z: Index)(g: Hom z y)(killed: compose z y Cokernel.point Cokernel.projection g = zero z Cokernel.point) => Lift[z := z, g := g].existence mono killed,
+    unique := mono,
+  };

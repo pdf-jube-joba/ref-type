@@ -1,0 +1,29 @@
+\module Degree(p, q: Nat.Nat^) {
+  \import Modules.Hom[V := C.family.Carrier p, W := D.family.Carrier p, source := C.family.space p, target := D.family.space p] \as Left;
+  \definition left: Left.Map := Left.Map {
+    apply := #apply{f} p, addition := #addition{f} p, scalar := #scalar{f} p,
+  };
+  \import Modules.Hom[V := E.family.Carrier q, W := F.family.Carrier q, source := E.family.space q, target := F.family.space q] \as Right;
+  \definition right: Right.Map := Right.Map {
+    apply := #apply{g} q, addition := #addition{g} q, scalar := #scalar{g} q,
+  };
+  \import Modules.Tensor[V := C.family.Carrier p, W := E.family.Carrier q, left := C.family.space p, right := E.family.space q].Mapping[
+    U := D.family.Carrier p, Z := F.family.Carrier q, targetLeft := D.family.space p, targetRight := F.family.space q] \as Mapping;
+  \definition map: Modules.Hom[V := Source.Term[p := p, q := q].Carrier, W := Target.Term[p := p, q := q].Carrier,
+    source := Source.Term[p := p, q := q].space, target := Target.Term[p := p, q := q].space].Map := Mapping.map left right;
+  \definition onTensor: \forall (x: C.family.Carrier p)(y: E.family.Carrier q) ->
+    #apply{map} (Source.Term[p := p, q := q].tensor x y) = Target.Term[p := p, q := q].tensor (#apply{f} p x) (#apply{g} q y) :=
+    Mapping.onTensor left right;
+}
+\definition data: Native.Data := \fun (p, q: Nat.Nat^) => Degree[p := p, q := q].map;
+\module Commutes(p, q: Nat.Nat^);
+\definition map: Native.Map := \into[Native.Data](data, { data: Native.Data \where Native.Laws[data] }) \by {
+  Native.Laws[data] {
+    horizontal := \fun (p, q: Nat.Nat^) => Commutes[p := p, q := q].horizontal,
+    vertical := \fun (p, q: Nat.Nat^) => Commutes[p := p, q := q].vertical,
+  }
+};
+\import Native.Total[f := map] \as TotalMap;
+\import \root.TensorCochain[].Over[R := R, ring := ring].Total[C := Source.complex] \as SourceTotal;
+\import \root.TensorCochain[].Over[R := R, ring := ring].Total[C := Target.complex] \as TargetTotal;
+\definition total: Cochains.Map[C := SourceTotal.complex, D := TargetTotal.complex].Map := TotalMap.map;

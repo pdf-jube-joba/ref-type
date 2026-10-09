@@ -1,0 +1,35 @@
+\import \parent.On[P := P, N := N] \as Source;
+\import \parent.On[P := Q, N := N] \as Target;
+\import Chains.Equivalence[C := P, D := Q] \as Original;
+\import Chains.Equivalence[C := Source.complex, D := Target.complex] \as Result;
+\import Chains.End[C := P] \as SourceIdentity;
+\import Chains.End[C := Q] \as TargetIdentity;
+\import Chains.Map[C := Q, D := P].Composition[B := P] \as LeftComposition;
+\import Chains.Map[C := P, D := Q].Composition[B := Q] \as RightComposition;
+\import \parent.Composition[P := P, Q := Q, T := P, N := N] \as Left;
+\import \parent.Composition[P := Q, Q := P, T := Q, N := N] \as Right;
+\import \parent.End[P := P, N := N] \as SourceEnd;
+\import \parent.End[P := Q, N := N] \as TargetEnd;
+\import \parent.Homotopy[P := P, Q := P, N := N] \as LeftHomotopy;
+\import \parent.Homotopy[P := Q, Q := Q, N := N] \as RightHomotopy;
+\import \parent.Mapping[P := P, Q := Q, N := N, L := N] \as Forward;
+\import \parent.Mapping[P := Q, Q := P, N := N, L := N] \as Backward;
+\import Modules.End[V := N.Carrier, space := N.space] \as Coefficients;
+\module With(e: Original.Equivalence) {
+  \import LeftHomotopy.With[f := LeftComposition.compose e.backward e.forward, g := SourceIdentity.identity, h := Original.leftHomotopy e] \as L;
+  \import RightHomotopy.With[f := RightComposition.compose e.forward e.backward, g := TargetIdentity.identity, h := Original.rightHomotopy e] \as H;
+  \import Chains.Homotopy[C := Source.complex, D := Source.complex] \as LH;
+  \import Chains.Homotopy[C := Target.complex, D := Target.complex] \as RH;
+  \definition data: Result.Data := Result.Data {
+    forward := Forward.On[f := e.forward, u := Coefficients.identity].map,
+    backward := Backward.On[f := e.backward, u := Coefficients.identity].map,
+    left := L.data, right := H.data,
+  };
+  \definition laws: Result.Laws[data] := Result.Laws[data] {
+    left := LH.replacementLaws _ _ _ _ L.data (Left.law e.forward e.backward) SourceEnd.law L.laws,
+    right := RH.replacementLaws _ _ _ _ H.data (Right.law e.backward e.forward) TargetEnd.law H.laws,
+  };
+  \definition equivalence: Result.Equivalence := \into[Result.Data](data, { data: Result.Data \where Result.Laws[data] }) \by { laws };
+}
+\definition existence: \forall (e: Original.Equivalence) -> \exists Result.Equivalence :=
+  \fun (e: Original.Equivalence) => \exact(With[e := e].equivalence, Result.Equivalence);

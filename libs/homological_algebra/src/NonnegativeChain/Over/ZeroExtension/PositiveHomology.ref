@@ -1,0 +1,47 @@
+\import \parent.Positive[n := n] \as After;
+\import \parent.\parent.Positive[C := C, n := n] \as SourceH;
+\definition index: Signed.Int^ := Signed.Int^::ofNat (N.Nat^::succ n);
+\import Internal.At[C := complex, z := index] \as TargetH;
+\import \parent.Positive[n := N.Nat^::succ n] \as Current;
+\import \parent.Positive[n := N.Nat^::succ (N.Nat^::succ n)] \as Before;
+\import Modules.KernelTransport[V := C.family.Carrier (N.Nat^::succ n), W := C.family.Carrier n,
+  X := Carrier index, Y := Carrier (Signed.Int^::ofNat n),
+  vSpace := C.family.space (N.Nat^::succ n), wSpace := C.family.space n,
+  xSpace := space index, ySpace := space (Signed.Int^::ofNat n),
+  f := SourceH.differential, g := TargetH.differential,
+  domainIso := Current.isomorphism, codomainIso := After.isomorphism] \as Kernels;
+\definition commutes: Kernels.Commutes :=
+  \fun (x: C.family.Carrier (N.Nat^::succ n)) => \refl(After.intro (#apply{C.differential} n x));
+\definition cycleIsomorphism: Modules.Isomorphism[V := SourceH.Cycle, W := TargetH.Cycle,
+  source := SourceH.cycleSpace, target := TargetH.cycleSpace].Isomorphism := Kernels.isomorphism commutes;
+\import std.Set[].Transport[I := Signed.Int^] \as Transport;
+\definition prior: \forall (x: Carrier (Integers.next index)) ->
+  #apply{TargetH.prior} x = Current.intro (#apply{C.differential} (N.Nat^::succ n) x) :=
+  \fun (x: Carrier (Integers.next index)) => Transport.castRefl Carrier index (Current.intro (#apply{C.differential} (N.Nat^::succ n) x));
+\definition sourceBundle: Modules.Bundle := Modules.Bundle { Carrier := SourceH.Cycle, space := SourceH.cycleSpace };
+\definition targetBundle: Modules.Bundle := Modules.Bundle { Carrier := TargetH.Cycle, space := TargetH.cycleSpace };
+\import Modules.QuotientMapping[A := sourceBundle, B := targetBundle].On[S := SourceH.boundariesInside, T := TargetH.boundariesInside, f := #forward{cycleIsomorphism}] \as Descent;
+\import Descent.Inverse[g := #backward{cycleIsomorphism}] \as Back;
+\import Modules.Of[V := C.family.Carrier (N.Nat^::succ n), space := C.family.space (N.Nat^::succ n)].Submodule[] \as OriginalSub;
+\import OriginalSub.Image[U := C.family.Carrier (N.Nat^::succ (N.Nat^::succ n)), source := C.family.space (N.Nat^::succ (N.Nat^::succ n))] \as OriginalImage;
+\import Modules.Of[V := Carrier index, space := space index].Submodule[] \as ExtendedSub;
+\import ExtendedSub.Image[U := Carrier (Integers.next index), source := space (Integers.next index)] \as ExtendedImage;
+\definition compatible: Descent.Compatible := \fun (x: SourceH.Cycle)(member: _) =>
+  OriginalImage.eliminate SourceH.prior x (ExtendedSub.Member TargetH.boundaries (#apply{#forward{cycleIsomorphism}} x))
+    (\fun (y: C.family.Carrier (N.Nat^::succ (N.Nat^::succ n)))(equal: #apply{SourceH.prior} y = x) =>
+      ExtendedImage.introduce TargetH.prior (#apply{#forward{cycleIsomorphism}} x) (Before.intro y)
+        (trans!{{Carrier index}} _ _ _ (prior (Before.intro y))
+          (congr!{{C.family.Carrier (N.Nat^::succ n)} {Carrier index}} Current.intro _ _ equal))) member;
+\definition compatibleBack: Back.CompatibleBack := \fun (x: TargetH.Cycle)(member: _) =>
+  ExtendedImage.eliminate TargetH.prior x
+    (OriginalSub.Member SourceH.boundaries (#apply{#backward{cycleIsomorphism}} x))
+    (\fun (y: Carrier (Integers.next index))(equal: #apply{TargetH.prior} y = x) =>
+      OriginalImage.introduce SourceH.prior (#apply{#backward{cycleIsomorphism}} x) y
+        (sym!{{C.family.Carrier (N.Nat^::succ n)}} _ _
+          (trans!{{C.family.Carrier (N.Nat^::succ n)}} _ _
+            (#apply{C.differential} (N.Nat^::succ n) y)
+            (sym!{{C.family.Carrier (N.Nat^::succ n)}} _ _ equal) (prior y)))) member;
+\definition homologyIsomorphism: Modules.Isomorphism[V := SourceH.Homology, W := TargetH.Homology,
+  source := SourceH.homologySpace, target := TargetH.homologySpace].Isomorphism :=
+  Back.isomorphism compatible compatibleBack #leftInverse{cycleIsomorphism} #rightInverse{cycleIsomorphism};
+\definition onClass: \forall (x: SourceH.Cycle) -> #apply{#forward{homologyIsomorphism}} (SourceH.classOf x) = TargetH.classOf (#apply{#forward{cycleIsomorphism}} x) := Descent.onClass compatible;

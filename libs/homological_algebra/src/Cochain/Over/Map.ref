@@ -10,6 +10,17 @@
     #apply{D.differential} k (data.apply k x) = data.apply (next k) (#apply{C.differential} k x),
 }
 \definition Map: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\definition dataExt: \forall (f, g: Data) -> #apply{f} = #apply{g} -> f = g :=
+  \induction (f: Data) \return \forall (g: Data) -> #apply{f} = #apply{g} -> f = g \with {
+    | # : \fun (f: \forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k) =>
+      \induction (g: Data) \return f = #apply{g} -> Data::# f = g \with {
+        | # : \fun (g: \forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k)(equal: f = g) =>
+          congr!{{\forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k} Data} (\fun (h: \forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k) => Data::# h) f g equal
+      }
+  };
+\definition ext: \forall (f, g: Map) -> (\forall (k: N.Nat^)(x: C.family.Carrier k) -> #apply{f} k x = #apply{g} k x) -> f = g :=
+  \fun (f, g: Map)(same: \forall (k: N.Nat^)(x: C.family.Carrier k) -> #apply{f} k x = #apply{g} k x) =>
+    dataExt f g (\axiom:funext(#apply{f}, #apply{g}, \fun (k: N.Nat^) => \axiom:funext(#apply{f} k, #apply{g} k, same k)));
 \module At(k: N.Nat^);
 \module Composition(B: Complex) {
   \import \parent.\parent.Map[C := B, D := C] \as Before;
@@ -38,7 +49,18 @@
       (congr!{{C.family.Carrier (next k)} {D.family.Carrier (next k)}} (#apply{f} (next k))
         (#apply{C.differential} k (#apply{g} k x)) (#apply{g} (next k) (#apply{B.differential} k x)) (#commutes{g} k x)),
   };
-  \module At(k: N.Nat^) {
+  \definition dataExt: \forall (f, g: Data) -> #apply{f} = #apply{g} -> f = g :=
+  \induction (f: Data) \return \forall (g: Data) -> #apply{f} = #apply{g} -> f = g \with {
+    | # : \fun (f: \forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k) =>
+      \induction (g: Data) \return f = #apply{g} -> Data::# f = g \with {
+        | # : \fun (g: \forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k)(equal: f = g) =>
+          congr!{{\forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k} Data} (\fun (h: \forall (k: N.Nat^) -> C.family.Carrier k -> D.family.Carrier k) => Data::# h) f g equal
+      }
+  };
+\definition ext: \forall (f, g: Map) -> (\forall (k: N.Nat^)(x: C.family.Carrier k) -> #apply{f} k x = #apply{g} k x) -> f = g :=
+  \fun (f, g: Map)(same: \forall (k: N.Nat^)(x: C.family.Carrier k) -> #apply{f} k x = #apply{g} k x) =>
+    dataExt f g (\axiom:funext(#apply{f}, #apply{g}, \fun (k: N.Nat^) => \axiom:funext(#apply{f} k, #apply{g} k, same k)));
+\module At(k: N.Nat^) {
     \import \parent.\parent.\parent.At[C := B, k := k] \as Source;
     \import \parent.\parent.\parent.At[C := D, k := k] \as Target;
     \import \parent.\parent.\parent.At[C := C, k := k] \as Middle;
@@ -68,3 +90,5 @@
   }
 
 }
+
+\module ZeroExtension(f: Map);

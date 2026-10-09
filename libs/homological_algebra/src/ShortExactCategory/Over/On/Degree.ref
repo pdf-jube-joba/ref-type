@@ -1,0 +1,91 @@
+\module Point(x: Index) {
+  \import Chains.At[C := A x, z := Chain.previous k] \as Left;
+  \import Chains.At[C := C x, z := k] \as Right;
+  \import Chains.ShortExact[A := A x, B := B x, C := C x].At[s := sequences x, k := k] \as Connecting;
+  \definition leftCarrier: \Set := Left.Homology;
+  \definition rightCarrier: \Set := Right.Homology;
+  \definition leftSpace: Modules.Space leftCarrier := Left.homologySpace;
+  \definition rightSpace: Modules.Space rightCarrier := Right.homologySpace;
+  \definition connecting: Modules.Hom[V := rightCarrier, W := leftCarrier, source := rightSpace, target := leftSpace].Map := Connecting.connecting;
+}
+\import std.Data[].Bool[] \as Bool;
+\import std.Data[].Pair[] \as Pair;
+\definition Object: \Set := Pair.Times^[Index, Bool.Bool^];
+\definition leftObject(x: Index): Object := Pair.pair Index Bool.Bool^ x Bool.Bool^::false;
+\definition rightObject(x: Index): Object := Pair.pair Index Bool.Bool^ x Bool.Bool^::true;
+\module Tagged(x: Index) {
+  \structure Packed: \Set(1) {
+    Carrier: \Set,
+    spaceLift: \forall (X: \Set) -> (Modules.Space Carrier -> X) -> X,
+  }
+  \definition left: Packed := Packed {
+    Carrier := \parent.Point[x := x].leftCarrier,
+    spaceLift := \fun (X: \Set)(f: Modules.Space \parent.Point[x := x].leftCarrier -> X) => f \parent.Point[x := x].leftSpace,
+  };
+  \definition right: Packed := Packed {
+    Carrier := \parent.Point[x := x].rightCarrier,
+    spaceLift := \fun (X: \Set)(f: Modules.Space \parent.Point[x := x].rightCarrier -> X) => f \parent.Point[x := x].rightSpace,
+  };
+  \definition terms: Bool.Bool^ -> Packed := \induction (tag: Bool.Bool^) \return Packed \with {
+    | false: left
+    | true: right
+  };
+  \definition Carrier(tag: Bool.Bool^): \Set := (terms tag).Carrier;
+  \definition space(tag: Bool.Bool^): Modules.Space (Carrier tag) := (terms tag).spaceLift (Modules.Space (Carrier tag)) (\fun (s: Modules.Space (Carrier tag)) => s);
+}
+\definition Carrier(o: Object): \Set := Tagged[x := Pair.first Index Bool.Bool^ o].Carrier (Pair.second Index Bool.Bool^ o);
+\definition space(o: Object): Modules.Space (Carrier o) := Tagged[x := Pair.first Index Bool.Bool^ o].space (Pair.second Index Bool.Bool^ o);
+\definition family: Modules.Family[Object] := Modules.Family[Object] { Carrier := Carrier, space := space };
+\import \root.ModuleCategory[].Over[R := R, ring := ring].On[Index := Object, family := family] \as Target;
+\module Mapping(x, y: Index) {
+  \import Chains.Map[C := A x, D := A y].At[k := Chain.previous k] \as Left;
+  \import Chains.Map[C := C x, D := C y].At[k := k] \as Right;
+  \definition left(f: Hom x y): Target.Hom (leftObject x) (leftObject y) := Left.induced #left{f};
+  \definition right(f: Hom x y): Target.Hom (rightObject x) (rightObject y) := Right.induced #right{f};
+  \import Chains.ShortExact[A := A x, B := B x, C := C x].Morphism[A1 := A y, B1 := B y, C1 := C y] \as Morphism;
+  \import \parent.\parent.At[x := x, y := y] \as Diagrams;
+  \definition naturality: \forall (f: Hom x y) ->
+    Target.compose (rightObject x) (leftObject x) (leftObject y) (left f) \parent.Point[x := x].connecting =
+      Target.compose (rightObject x) (rightObject y) (leftObject y) \parent.Point[x := y].connecting (right f) :=
+    \fun (f: Hom x y) => Target.At[x := rightObject x, y := leftObject y].ext _ _
+      (\fun (q: \parent.Point[x := x].rightCarrier) => sym!{\parent.Point[x := y].leftCarrier} _ _
+        (Morphism.Diagram[s := sequences x, t := sequences y, a := #left{f}, b := #middle{f}, c := #right{f}].At[k := k].naturality (Diagrams.diagram f) q));
+}
+\module Identity(x: Index) {
+  \import Chains.End[C := A x].At[k := Chain.previous k] \as Left;
+  \import Chains.End[C := C x].At[k := k] \as Right;
+  \definition left: \parent.Mapping[x := x, y := x].left (identity x) = Target.identity (leftObject x) :=
+    Target.At[x := leftObject x, y := leftObject x].ext _ _ Left.identityOnHomology;
+  \definition right: \parent.Mapping[x := x, y := x].right (identity x) = Target.identity (rightObject x) :=
+    Target.At[x := rightObject x, y := rightObject x].ext _ _ Right.identityOnHomology;
+}
+\module Composition(x, y, z: Index) {
+  \import Chains.Map[C := A y, D := A z].Composition[B := A x].At[k := Chain.previous k] \as Left;
+  \import Chains.Map[C := C y, D := C z].Composition[B := C x].At[k := k] \as Right;
+  \definition left: \forall (g: Hom y z)(f: Hom x y) -> \parent.Mapping[x := x, y := z].left (compose x y z g f) =
+    Target.compose (leftObject x) (leftObject y) (leftObject z) (\parent.Mapping[x := y, y := z].left g) (\parent.Mapping[x := x, y := y].left f) :=
+    \fun (g: Hom y z)(f: Hom x y) => Target.At[x := leftObject x, y := leftObject z].ext _ _ (Left.compositionOnHomology #left{g} #left{f});
+  \definition right: \forall (g: Hom y z)(f: Hom x y) -> \parent.Mapping[x := x, y := z].right (compose x y z g f) =
+    Target.compose (rightObject x) (rightObject y) (rightObject z) (\parent.Mapping[x := y, y := z].right g) (\parent.Mapping[x := x, y := y].right f) :=
+    \fun (g: Hom y z)(f: Hom x y) => Target.At[x := rightObject x, y := rightObject z].ext _ _ (Right.compositionOnHomology #right{g} #right{f});
+}
+\definition sourceFunctor: Functors.FunctorData[Index, Object, Hom, Target.Hom, data, Target.data] := Functors.FunctorData[Index, Object, Hom, Target.Hom, data, Target.data] {
+  object := rightObject,
+  map := \fun (x, y: Index)(f: Hom x y) => Mapping[x := x, y := y].right f,
+  mapIdentity := \fun (x: Index) => Identity[x := x].right,
+  mapCompose := \fun (x, y, z: Index)(g: Hom y z)(f: Hom x y) => Composition[x := x, y := y, z := z].right g f,
+};
+\definition targetFunctor: Functors.FunctorData[Index, Object, Hom, Target.Hom, data, Target.data] := Functors.FunctorData[Index, Object, Hom, Target.Hom, data, Target.data] {
+  object := leftObject,
+  map := \fun (x, y: Index)(f: Hom x y) => Mapping[x := x, y := y].left f,
+  mapIdentity := \fun (x: Index) => Identity[x := x].left,
+  mapCompose := \fun (x, y, z: Index)(g: Hom y z)(f: Hom x y) => Composition[x := x, y := y, z := z].left g f,
+};
+\definition connecting: Natural.FamilyData[Index, Object, Hom, Target.Hom, sourceFunctor, targetFunctor] :=
+  \fun (x: Index) => Point[x := x].connecting;
+\definition transformation: Natural.TransformationData[Index, Object, Hom, Target.Hom, Target.data, sourceFunctor, targetFunctor] :=
+  \into[Natural.FamilyData[Index, Object, Hom, Target.Hom, sourceFunctor, targetFunctor]]
+    (connecting, { a: Natural.FamilyData[Index, Object, Hom, Target.Hom, sourceFunctor, targetFunctor] \where
+      Natural.NaturalityData[Index, Object, Hom, Target.Hom, Target.data, sourceFunctor, targetFunctor] a }) \by {
+      \fun (x, y: Index)(f: Hom x y) => Mapping[x := x, y := y].naturality f
+    };

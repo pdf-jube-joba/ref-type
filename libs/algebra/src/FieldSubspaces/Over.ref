@@ -1,0 +1,21 @@
+\definition commutativeRing: Ring.CommutativeRing[K] := Fields.fieldAsCommutativeRing K field;
+\definition ring: Ring.Ring[K] := Ring.commutativeRingAsRing K commutativeRing;
+\import \root.Module[].Over[R := K, ring := ring] \as Modules;
+\module Dimension(n: N.Nat^);
+\definition Submodule(n: N.Nat^): \Set := Dimension[n := n].Submodule;
+\definition Retraction(n: N.Nat^)(S: Submodule n): \Set := Dimension[n := n].Of[S := S].Retraction;
+\definition bundle(n: N.Nat^)(S: Submodule n): Modules.Bundle := Modules.Bundle {
+  Carrier := Dimension[n := n].Of[S := S].Carrier,
+  space := Dimension[n := n].Of[S := S].space,
+};
+\module Step(n: N.Nat^, S: Submodule (N.Nat^::succ n));
+\definition existence: \forall (n: N.Nat^)(S: Submodule n) -> \exists Retraction n S :=
+  \induction (n: N.Nat^) \return \forall (S: Submodule n) -> \exists Retraction n S \with {
+    | zero: \fun (S: Submodule N.Nat^::zero) => Dimension[n := N.Nat^::zero].Of[S := S].zeroExistence (\refl(N.Nat^::zero))
+    | succ: \fun (n: N.Nat^)(previous: \forall (T: Submodule n) -> \exists Retraction n T)(S: Submodule (N.Nat^::succ n)) => Step[n := n, S := S].existence previous
+  };
+\definition projective: \forall (n: N.Nat^)(S: Submodule n) -> Modules.Projective (bundle n S) := \block {
+  \fun (n: N.Nat^)(S: Submodule n) \then
+  \takefrom r: Retraction n S \by existence n S \then
+  \return Dimension[n := n].Of[S := S].Selected[r := r].projective
+};

@@ -1,0 +1,43 @@
+\import algebra.IntegerMatrix[m := n, n := m].RowOperations[].Typed[r := r, s := s] \as RowTyped;
+\import algebra.IntegerMatrix[m := n, n := m] \as Reversed;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Elementary[n := n] \as Elementary;
+\import Elementary.Swap[i := r, j := s] \as Exchange;
+\import Elementary.Shear[i := r, j := s] \as Shear;
+\import Elementary.Negate[i := r] \as Negative;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := n, n := n].Transpose[] \as SquareTranspose;
+\import SquareTranspose.Composition[k := m] \as ProductTranspose;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := n, n := m].Transpose[] \as Back;
+\import Base.Composition[k := n] \as Right;
+\definition swapped(a: Runtime^): Matrix := Right.product (reflect a) (SquareTranspose.transpose Exchange.matrix);
+\definition swapLaw: \forall (a: Runtime^) -> swapped a = reflect (Swap.program^ a r s) :=
+  \fun (a: Runtime^) => trans!{Matrix} (swapped a) (Back.transpose (RowTyped.swapped (Transpose.transpose a))) (reflect (Swap.program^ a r s))
+    (sym!{Matrix} (Back.transpose (RowTyped.swapped (Transpose.transpose a))) (swapped a) (ProductTranspose.product Exchange.matrix (Reversed.reflect (Transpose.transpose a))))
+    (trans!{Matrix} (Back.transpose (RowTyped.swapped (Transpose.transpose a)))
+      (Back.transpose (Reversed.reflect (Rows.Swap.program^ (Transpose.transpose a) r s))) (reflect (Swap.program^ a r s))
+      (congr!{Reversed.Matrix Matrix} Back.transpose (RowTyped.swapped (Transpose.transpose a))
+        (Reversed.reflect (Rows.Swap.program^ (Transpose.transpose a) r s)) (RowTyped.swapLaw (Transpose.transpose a)))
+      (\axiom:funext(Back.transpose (Reversed.reflect (Rows.Swap.program^ (Transpose.transpose a) r s)), reflect (Swap.program^ a r s),
+        \fun (i: Finite.Fin m) => \axiom:funext(Back.transpose (Reversed.reflect (Rows.Swap.program^ (Transpose.transpose a) r s)) i, reflect (Swap.program^ a r s) i,
+          \fun (j: Finite.Fin n) => \refl(Rows.Swap.program^ (Transpose.transpose a) r s j i)))));
+\definition added(a: Runtime^)(c: I.Int^): Matrix := Right.product (reflect a) (SquareTranspose.transpose (Shear.matrix c));
+\definition addLaw: \forall (a: Runtime^)(c: I.Int^) -> added a c = reflect (Add.program^ a r s c) :=
+  \fun (a: Runtime^)(c: I.Int^) => trans!{Matrix} (added a c) (Back.transpose (RowTyped.added (Transpose.transpose a) c)) (reflect (Add.program^ a r s c))
+    (sym!{Matrix} (Back.transpose (RowTyped.added (Transpose.transpose a) c)) (added a c) (ProductTranspose.product (Shear.matrix c) (Reversed.reflect (Transpose.transpose a))))
+    (trans!{Matrix} (Back.transpose (RowTyped.added (Transpose.transpose a) c))
+      (Back.transpose (Reversed.reflect (Rows.Add.program^ (Transpose.transpose a) r s c))) (reflect (Add.program^ a r s c))
+      (congr!{Reversed.Matrix Matrix} Back.transpose (RowTyped.added (Transpose.transpose a) c)
+        (Reversed.reflect (Rows.Add.program^ (Transpose.transpose a) r s c)) (RowTyped.addLaw (Transpose.transpose a) c))
+      (\axiom:funext(Back.transpose (Reversed.reflect (Rows.Add.program^ (Transpose.transpose a) r s c)), reflect (Add.program^ a r s c),
+        \fun (i: Finite.Fin m) => \axiom:funext(Back.transpose (Reversed.reflect (Rows.Add.program^ (Transpose.transpose a) r s c)) i, reflect (Add.program^ a r s c) i,
+          \fun (j: Finite.Fin n) => \refl(Rows.Add.program^ (Transpose.transpose a) r s c j i)))));
+\definition negated(a: Runtime^): Matrix := Right.product (reflect a) (SquareTranspose.transpose Negative.matrix);
+\definition negateLaw: \forall (a: Runtime^) -> negated a = reflect (Negate.program^ a r) :=
+  \fun (a: Runtime^) => trans!{Matrix} (negated a) (Back.transpose (RowTyped.negated (Transpose.transpose a))) (reflect (Negate.program^ a r))
+    (sym!{Matrix} (Back.transpose (RowTyped.negated (Transpose.transpose a))) (negated a) (ProductTranspose.product Negative.matrix (Reversed.reflect (Transpose.transpose a))))
+    (trans!{Matrix} (Back.transpose (RowTyped.negated (Transpose.transpose a)))
+      (Back.transpose (Reversed.reflect (Rows.Negate.program^ (Transpose.transpose a) r))) (reflect (Negate.program^ a r))
+      (congr!{Reversed.Matrix Matrix} Back.transpose (RowTyped.negated (Transpose.transpose a))
+        (Reversed.reflect (Rows.Negate.program^ (Transpose.transpose a) r)) (RowTyped.negateLaw (Transpose.transpose a)))
+      (\axiom:funext(Back.transpose (Reversed.reflect (Rows.Negate.program^ (Transpose.transpose a) r)), reflect (Negate.program^ a r),
+        \fun (i: Finite.Fin m) => \axiom:funext(Back.transpose (Reversed.reflect (Rows.Negate.program^ (Transpose.transpose a) r)) i, reflect (Negate.program^ a r) i,
+          \fun (j: Finite.Fin n) => \refl(Rows.Negate.program^ (Transpose.transpose a) r j i)))));

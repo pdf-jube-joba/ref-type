@@ -1,0 +1,53 @@
+\definition apply(z: Degree)(x: C.family.Carrier z): C.family.Carrier (previous z) :=
+  #apply{#forward{(change (previous z))}} (#apply{C.differential} z (#apply{#backward{(change z)}} x));
+\definition linear(z: Degree): Modules.Hom[V := C.family.Carrier z, W := C.family.Carrier (previous z), source := C.family.space z, target := C.family.space (previous z)].Map :=
+  Modules.Hom[V := C.family.Carrier (previous z), W := C.family.Carrier (previous z), source := C.family.space (previous z), target := C.family.space (previous z)].Composition[U := C.family.Carrier z, domain := C.family.space z].compose
+    #forward{(change (previous z))}
+    (Modules.Hom[V := C.family.Carrier z, W := C.family.Carrier (previous z), source := C.family.space z, target := C.family.space (previous z)].Composition[U := C.family.Carrier z, domain := C.family.space z].compose
+      (\parent.\parent.At[C := C, z := z].differential) #backward{(change z)});
+\definition squareZero: \forall (z: Degree)(x: C.family.Carrier z) ->
+  apply (previous z) (apply z x) = #zero{(C.family.space (previous (previous z)))} :=
+  \fun (z: Degree)(x: C.family.Carrier z) => trans!{{C.family.Carrier (previous (previous z))}} _ _ _
+    (congr!{{C.family.Carrier (previous z)} {C.family.Carrier (previous (previous z))}}
+      (\fun (y: C.family.Carrier (previous z)) => #apply{#forward{(change (previous (previous z)))}} (#apply{C.differential} (previous z) y))
+      (#apply{#backward{(change (previous z))}} (#apply{#forward{(change (previous z))}} (#apply{C.differential} z (#apply{#backward{(change z)}} x))))
+      (#apply{C.differential} z (#apply{#backward{(change z)}} x))
+      (#leftInverse{(change (previous z))} (#apply{C.differential} z (#apply{#backward{(change z)}} x))))
+    (trans!{{C.family.Carrier (previous (previous z))}} _ _ _
+      (congr!{{C.family.Carrier (previous (previous z))} {C.family.Carrier (previous (previous z))}} (#apply{#forward{(change (previous (previous z)))}})
+        (#apply{C.differential} (previous z) (#apply{C.differential} z (#apply{#backward{(change z)}} x)))
+        #zero{(C.family.space (previous (previous z)))} (#squareZero{C.laws} z (#apply{#backward{(change z)}} x)))
+      (Modules.Hom[V := C.family.Carrier (previous (previous z)), W := C.family.Carrier (previous (previous z)), source := C.family.space (previous (previous z)), target := C.family.space (previous (previous z))].zeroPreserved #forward{(change (previous (previous z)))}));
+\definition differential: DifferentialData[C.family] := DifferentialData[C.family] { apply := apply };
+\definition complex: Complex := Complex {
+  family := C.family, differential := differential,
+  laws := DifferentialLaws[C.family, differential] {
+    addition := \fun (z: Degree) => #addition{(linear z)}, scalar := \fun (z: Degree) => #scalar{(linear z)}, squareZero := squareZero,
+  },
+};
+\import \parent.\parent.Map[C := C, D := complex] \as Forward;
+\import \parent.\parent.Map[C := complex, D := C] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (z: Degree) => #apply{#forward{(change z)}},
+  addition := \fun (z: Degree) => #addition{#forward{(change z)}},
+  scalar := \fun (z: Degree) => #scalar{#forward{(change z)}},
+  commutes := \fun (z: Degree)(x: C.family.Carrier z) => congr!{{C.family.Carrier z} {C.family.Carrier (previous z)}}
+    (\fun (y: C.family.Carrier z) => #apply{#forward{(change (previous z))}} (#apply{C.differential} z y))
+    (#apply{#backward{(change z)}} (#apply{#forward{(change z)}} x)) x (#leftInverse{(change z)} x),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (z: Degree) => #apply{#backward{(change z)}},
+  addition := \fun (z: Degree) => #addition{#backward{(change z)}},
+  scalar := \fun (z: Degree) => #scalar{#backward{(change z)}},
+  commutes := \fun (z: Degree)(x: C.family.Carrier z) => sym!{{C.family.Carrier (previous z)}}
+    (#apply{#backward{(change (previous z))}} (#apply{#forward{(change (previous z))}} (#apply{C.differential} z (#apply{#backward{(change z)}} x))))
+    (#apply{C.differential} z (#apply{#backward{(change z)}} x))
+    (#leftInverse{(change (previous z))} (#apply{C.differential} z (#apply{#backward{(change z)}} x))),
+};
+\definition leftInverse: \forall (z: Degree)(x: C.family.Carrier z) -> #apply{backward} z (#apply{forward} z x) = x :=
+  \fun (z: Degree) => #leftInverse{(change z)};
+\definition rightInverse: \forall (z: Degree)(x: C.family.Carrier z) -> #apply{forward} z (#apply{backward} z x) = x :=
+  \fun (z: Degree) => #rightInverse{(change z)};
+
+\import \parent.\parent.Isomorphism[C := C, D := complex] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism { forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse };

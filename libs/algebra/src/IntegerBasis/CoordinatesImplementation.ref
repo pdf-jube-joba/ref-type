@@ -1,0 +1,19 @@
+\definition T: \VType := \U(Smith.SmithResult -> Runtime);
+\definition program: T := \thunk (\cfun (result: Smith.SmithResult) => \program {
+  \bind rank: N.Nat <- (\force rankProgram) result \then
+  \bind matrix: Runtime <- (\force inverseProgram) result \then
+  \bind shift: \U(Runtime -> Runtime) <- (\force rowsProgram) rank \then
+  \bind value: Runtime <- (\force shift) matrix \then
+  \return value
+});
+\definition matches: \forall (result: Smith.SmithResult^) -> program^ result = coordinates result :=
+  \fun (result: Smith.SmithResult^) => trans!{Runtime^} (program^ result)
+    (shiftRows (rankProgram^ result) (inverseProgram^ result)) (coordinates result)
+    (congr!{RowShift.T^ Runtime^} (\fun (f: RowShift.T^) => f (rankProgram^ result) (inverseProgram^ result))
+      rowsProgram^ shiftRows RowShift.coherence)
+    (trans!{Runtime^} (shiftRows (rankProgram^ result) (inverseProgram^ result))
+      (shiftRows (Diagonalize.rank result) (inverseProgram^ result)) (coordinates result)
+      (congr!{N.Nat^ Runtime^} (\fun (k: N.Nat^) => shiftRows k (inverseProgram^ result))
+        (rankProgram^ result) (Diagonalize.rank result) (\parent.ReadRank[].matches result))
+      (congr!{Runtime^ Runtime^} (shiftRows (Diagonalize.rank result)) (inverseProgram^ result) (Diagonalize.rightInverse result) (\parent.ReadInverse[].matches result)));
+\definition coherence: program^ = coordinates := \axiom:funext(program^, coordinates, matches);

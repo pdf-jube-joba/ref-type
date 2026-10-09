@@ -1,0 +1,14 @@
+\definition T: \VType := \U(\U(State -> State) -> State -> N.Nat -> State);
+\definition program: T := iterationProgram;
+\definition specification: T^ := Iteration.apply;
+\definition matches(f: State^ -> State^): \forall (count: N.Nat^)(value: State^) -> program^ f value count = specification f value count :=
+  \induction (count: N.Nat^) \return \forall (value: State^) -> program^ f value count = specification f value count \with {
+    | zero: \fun (value: State^) => \refl(value)
+    | succ: \fun (count: N.Nat^)(before: \forall (value: State^) -> program^ f value count = specification f value count)(value: State^) =>
+        \idelim specification f (f value) count = f (specification f value count) \with x: State^ => program^ f value (N.Nat^::succ count) = x \by {
+          base: before (f value), equality: Iteration.advance f count value
+        }
+  };
+\definition coherence: program^ = specification := \axiom:funext(program^, specification,
+  \fun (f: State^ -> State^) => \axiom:funext(program^ f, specification f,
+    \fun (value: State^) => \axiom:funext(program^ f value, specification f value, \fun (count: N.Nat^) => matches f count value)));

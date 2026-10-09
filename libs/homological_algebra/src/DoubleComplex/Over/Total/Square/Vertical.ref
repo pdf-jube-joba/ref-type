@@ -1,0 +1,24 @@
+\definition sourceIndex: Index (Nat.Nat^::succ (Nat.Nat^::succ n)) := reverseIndex (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ (Nat.Nat^::succ q)) p;
+\definition middleP: First (Nat.Nat^::succ n) (Nat.Nat^::succ q) := PriorStep.lowerFirst (Nat.Nat^::succ q) p;
+\definition middleIndex: Index (Nat.Nat^::succ n) := reverseIndex (Nat.Nat^::succ n) (Nat.Nat^::succ q) middleP;
+\definition targetP: First n q := NextStep.lowerFirst q middleP;
+\definition targetIndex: Index n := reverseIndex n q targetP;
+\import Modules.Hom[V := C.family.Carrier p q, W := Current.Carrier, source := C.family.space p q, target := Current.space] \as Injections;
+\definition injection: Injections.Map := Current.Component[i := targetIndex].injection;
+\import \parent.\parent.\parent.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as TargetSign;
+\import \parent.\parent.\parent.Sign[V := C.family.Carrier p (Nat.Nat^::succ q), space := C.family.space p (Nat.Nat^::succ q)] \as MiddleSign;
+\import MiddleSign.Mapping[W := C.family.Carrier p q, target := C.family.space p q] \as Naturality;
+\definition zero: \forall (x: C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q))) ->
+  #apply{NextStep.verticalTotal} (#apply{PriorStep.verticalTotal} (#apply{(Earlier.Component[i := sourceIndex].injection)} x)) = #zero{Current.space} :=
+  \fun (x: C.family.Carrier p (Nat.Nat^::succ (Nat.Nat^::succ q))) => trans!{Current.Carrier} _ _ _
+    (congr!{Middle.Carrier Current.Carrier} (#apply{NextStep.verticalTotal}) _ _ (PriorStep.verticalOnInjection sourceIndex x))
+    (trans!{Current.Carrier} _ _ _
+      (NextStep.verticalOnInjection middleIndex (#apply{(MiddleSign.map p)} (#apply{(C.differential.vertical p (Nat.Nat^::succ q))} x)))
+      (trans!{Current.Carrier} _ _ _
+        (congr!{{C.family.Carrier p q} Current.Carrier} (\fun (v: C.family.Carrier p q) => #apply{injection} (#apply{(TargetSign.map p)} v)) _ _
+          (Naturality.naturality (C.differential.vertical p q) p (#apply{(C.differential.vertical p (Nat.Nat^::succ q))} x)))
+        (trans!{Current.Carrier} _ _ _
+          (congr!{{C.family.Carrier p q} Current.Carrier} (#apply{injection}) _ _ (TargetSign.involutive p (#apply{(C.differential.vertical p q)} (#apply{(C.differential.vertical p (Nat.Nat^::succ q))} x))))
+          (trans!{Current.Carrier} _ _ _
+            (congr!{{C.family.Carrier p q} Current.Carrier} (#apply{injection}) _ _ (#verticalZero{C.laws} p q x))
+            (Injections.zeroPreserved injection)))));

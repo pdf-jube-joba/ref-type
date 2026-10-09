@@ -1024,3 +1024,86 @@ fn module_timings_include_preparation_and_keep_generated_scopes_with_the_source(
     });
     assert!(measurements.modules.values().sum::<Duration>() <= measurements.total);
 }
+
+#[test]
+fn named_module_options_recheck_dependencies_and_isolate_unrelated_errors() {
+    let original = project();
+    let mut database = Database::new();
+    assert!(database.check(&original).is_success());
+    let edited = original.with_file("/virtual/Right.ref", r"\definition Q: \Set := \Prop;");
+    let checked = database.module_with_options(
+        &edited,
+        &["Left".into()],
+        &sema::CheckOptions {
+            force: true,
+            diagnostics: sema::DiagnosticMode::Compact,
+            ..Default::default()
+        },
+    );
+    assert!(checked.is_success(), "{checked:?}");
+    assert!(checked.modules.iter().any(|module| module.path == ["Left"]));
+    assert!(checked.modules.iter().any(|module| module.path == ["Base"]));
+    assert!(
+        !checked
+            .modules
+            .iter()
+            .any(|module| module.path == ["Right"])
+    );
+    assert!(database.stats().checked_modules >= 2);
+    assert!(!database.check(&edited).is_success());
+}
+
+#[test]
+fn named_module_options_include_children() {
+    let snapshot = project().with_file(
+        "/virtual/Right.ref",
+        r"\module Child { \definition invalid: \Set := \Prop; }",
+    );
+    let result = Database::new().module_with_options(
+        &snapshot,
+        &["Right".into()],
+        &sema::CheckOptions::default(),
+    );
+    assert!(!result.is_success());
+    assert!(
+        result
+            .modules
+            .iter()
+            .any(|module| module.path == ["Right", "Child"])
+    );
+}
+
+#[test]
+fn namespace_imports_select_used_descendants_and_preserve_cache_dependencies() {
+    let snapshot = project().with_file(
+        "/virtual/Base.ref",
+        r"\definition P: \Prop := \forall (A: \Prop) -> A -> A;
+\module Used { \definition Q: \Prop := P; }
+\module Unused { \definition invalid: \Set := \Prop; }",
+    );
+    let mut database = Database::new();
+    let left = database.module(&snapshot, &["Left".into()]);
+    assert!(left.is_success(), "{left:?}");
+    assert!(!left.modules.iter().any(|m| m.path == ["Base", "Unused"]));
+    let uses_child = snapshot.with_file(
+        "/virtual/Left.ref",
+        r"\import \root.Base[] \as B;
+\import B.Used[] \as Child;
+\definition p: \Prop := Child.Q;",
+    );
+    let left = database.module(&uses_child, &["Left".into()]);
+    assert!(left.is_success(), "{left:?}");
+    assert!(left.modules.iter().any(|m| m.path == ["Base", "Used"]));
+    let broken_child = uses_child.with_file(
+        "/virtual/Base.ref",
+        r"\definition P: \Prop := \forall (A: \Prop) -> A -> A;
+\module Used { \definition Q: \Set := P; }
+\module Unused { \definition invalid: \Set := \Prop; }",
+    );
+    assert!(
+        !database
+            .module(&broken_child, &["Left".into()])
+            .is_success()
+    );
+    assert!(!database.check(&snapshot).is_success());
+}

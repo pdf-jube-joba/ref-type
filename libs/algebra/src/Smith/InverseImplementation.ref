@@ -1,0 +1,22 @@
+\definition program: Mapper := \thunk (\cfun (operation: Operation) => \match operation \in Operation \with {
+  | identity: \return(Operation::identity)
+  | rowSwap r s: \return(Operation::rowSwap r s)
+  | rowAdd r s c: \program { \bind negative: I.Int <- (\force I.Neg.program) c \then \return(Operation::rowAdd r s negative) }
+  | rowNegate r: \return(Operation::rowNegate r)
+  | columnSwap r s: \return(Operation::columnSwap r s)
+  | columnAdd r s c: \program { \bind negative: I.Int <- (\force I.Neg.program) c \then \return(Operation::columnAdd r s negative) }
+  | columnNegate r: \return(Operation::columnNegate r)
+});
+\definition matches: \forall (operation: Operation^) -> program^ operation = inverseOperation operation :=
+  \induction (operation: Operation^) \return program^ operation = inverseOperation operation \with {
+    | identity: \refl(Operation^::identity)
+    | rowSwap: \fun (r: N.Nat^)(s: N.Nat^) => \refl(Operation^::rowSwap r s)
+    | rowAdd: \fun (r: N.Nat^)(s: N.Nat^)(c: I.Int^) => congr!{I.Int^ Operation^} (Operation^::rowAdd r s) (I.Neg.program^ c) (Arithmetic.neg c)
+        (congr!{I.Neg.T^ I.Int^} (\fun (f: I.Neg.T^) => f c) I.Neg.program^ I.Neg.specification I.Neg.coherence)
+    | rowNegate: \fun (r: N.Nat^) => \refl(Operation^::rowNegate r)
+    | columnSwap: \fun (r: N.Nat^)(s: N.Nat^) => \refl(Operation^::columnSwap r s)
+    | columnAdd: \fun (r: N.Nat^)(s: N.Nat^)(c: I.Int^) => congr!{I.Int^ Operation^} (Operation^::columnAdd r s) (I.Neg.program^ c) (Arithmetic.neg c)
+        (congr!{I.Neg.T^ I.Int^} (\fun (f: I.Neg.T^) => f c) I.Neg.program^ I.Neg.specification I.Neg.coherence)
+    | columnNegate: \fun (r: N.Nat^) => \refl(Operation^::columnNegate r)
+  };
+\definition coherence: program^ = inverseOperation := \axiom:funext(program^, inverseOperation, matches);

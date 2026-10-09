@@ -1,0 +1,40 @@
+\import \root.NonnegativeChain[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].CanonicalResolution[M := M] \as Canonical;
+\import \root.TensorComplex[].Over[R := R, ring := ring] \as TensorBase;
+\import TensorBase.On[P := Canonical.complex, N := N] \as Tensor;
+\import \root.NonnegativeChain[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as Nonnegative;
+\definition tensorCarrier(n: Nat.Nat^): \Set := Tensor.At[n := n].Carrier;
+\definition tensorSpace(n: Nat.Nat^): Modules.Space (tensorCarrier n) := Tensor.At[n := n].space;
+\definition tensorFamily: Nonnegative.Family := Nonnegative.Family { Carrier := tensorCarrier, space := tensorSpace };
+\definition tensorDifferential: Nonnegative.DifferentialData[tensorFamily] := Nonnegative.DifferentialData[tensorFamily] {
+  apply := \fun (n: Nat.Nat^)(x: tensorCarrier (Nat.Nat^::succ n)) => #apply{(Tensor.At[n := n].differential)} x,
+};
+\definition tensorComplex: Nonnegative.Complex := Nonnegative.Complex {
+  family := tensorFamily, differential := tensorDifferential,
+  laws := Nonnegative.DifferentialLaws[tensorFamily, tensorDifferential] {
+    addition := \fun (n: Nat.Nat^)(x, y: tensorCarrier (Nat.Nat^::succ n)) => #addition{(Tensor.At[n := n].differential)} x y,
+    scalar := \fun (n: Nat.Nat^)(a: R)(x: tensorCarrier (Nat.Nat^::succ n)) => #scalar{(Tensor.At[n := n].differential)} a x,
+    squareZero := \fun (n: Nat.Nat^)(x: tensorCarrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => Tensor.At[n := n].squareZero x,
+  },
+};
+\import Nonnegative.DegreeZero[C := tensorComplex] \as Zero;
+\module Positive(n: Nat.Nat^) {
+  \import Nonnegative.Positive[C := tensorComplex, n := n] \as H;
+  \definition Carrier: \Set := H.Homology;
+  \definition space: Modules.Space Carrier := H.homologySpace;
+}
+\structure Packed: \Set(1) {
+  Carrier: \Set,
+  spaceLift: \forall (X: \Set) -> (Modules.Space Carrier -> X) -> X,
+}
+\definition terms: Nat.Nat^ -> Packed := \induction (n: Nat.Nat^) \return Packed \with {
+  | zero: Packed { Carrier := Zero.Homology, spaceLift := \fun (X: \Set)(f: Modules.Space Zero.Homology -> X) => f Zero.homologySpace }
+  | succ: \fun (n: Nat.Nat^)(before: Packed) => Packed {
+      Carrier := Positive[n := n].Carrier, spaceLift := \fun (X: \Set)(f: Modules.Space (Positive[n := n].Carrier) -> X) => f (Positive[n := n].space),
+    }
+};
+\module At(n: Nat.Nat^) {
+  \definition Carrier: \Set := (terms n).Carrier;
+  \definition space: Modules.Space Carrier := (terms n).spaceLift (Modules.Space Carrier) (\fun (s: Modules.Space Carrier) => s);
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+}
+\definition Tor(n: Nat.Nat^): \Set := At[n := n].Carrier;

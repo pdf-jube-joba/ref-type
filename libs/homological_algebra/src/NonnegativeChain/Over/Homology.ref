@@ -1,0 +1,19 @@
+\import \parent.DegreeZero[C := C] \as Zero;
+\module Positive(n: N.Nat^) {
+  \import \parent.\parent.Positive[C := C, n := n] \as H;
+  \definition Carrier: \Set := H.Homology;
+  \definition space: Modules.Space Carrier := H.homologySpace;
+}
+\structure Packed: \Set(1) {
+  Carrier: \Set,
+  spaceLift: \forall (X: \Set) -> (Modules.Space Carrier -> X) -> X,
+}
+\definition terms: N.Nat^ -> Packed := \induction (n: N.Nat^) \return Packed \with {
+  | zero: Packed { Carrier := Zero.Homology, spaceLift := \fun (X: \Set)(f: Modules.Space Zero.Homology -> X) => f Zero.homologySpace }
+  | succ: \fun (n: N.Nat^)(before: Packed) => Packed { Carrier := Positive[n := n].Carrier, spaceLift := \fun (X: \Set)(f: Modules.Space (Positive[n := n].Carrier) -> X) => f (Positive[n := n].space) }
+};
+\module At(n: N.Nat^) {
+  \definition Carrier: \Set := (terms n).Carrier;
+  \definition space: Modules.Space Carrier := (terms n).spaceLift (Modules.Space Carrier) (\fun (s: Modules.Space Carrier) => s);
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+}

@@ -1,0 +1,107 @@
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import N.Order[].Prop[] \as Order;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import \parent.Bounds[] \as Indices;
+\definition select(k: N.Nat^)(a: Runtime^)(history: History^): I.Int^ -> Attempt^ :=
+  \induction (pivot: I.Int^) \return Attempt^ \with {
+    | ofNat: \fun (n: N.Nat^) => Attempt^::attempt a history B.Bool^::false
+    | negSucc: \fun (n: N.Nat^) => Attempt^::attempt (Rows.negate a k) (History^::prepend (Operation^::rowNegate k) history) B.Bool^::false
+  };
+\definition at(k: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := select k a history (a k k);
+\definition rowNegationSelf: \forall (a: Runtime^)(k, j: N.Nat^) -> Rows.negate a k k j = Arithmetic.neg (a k j) :=
+  \fun (a: Runtime^)(k, j: N.Nat^) => \idelim B.Bool^::true = Nat.eqb k k \with test: B.Bool^ =>
+    B.ite I.Int^ test (Arithmetic.neg (a k j)) (a k j) = Arithmetic.neg (a k j) \by {
+      base: \refl(Arithmetic.neg (a k j)), equality: sym!{B.Bool^} (Nat.eqb k k) B.Bool^::true (Bounds.eqbRefl k)
+    };
+\definition rowNegationOther: \forall (a: Runtime^)(k, i, j: N.Nat^) -> Logic.Not (i = k) -> Rows.negate a k i j = a i j :=
+  \fun (a: Runtime^)(k, i, j: N.Nat^)(different: _) => \idelim B.Bool^::false = Nat.eqb i k \with test: B.Bool^ =>
+    B.ite I.Int^ test (Arithmetic.neg (a i j)) (a i j) = a i j \by {
+      base: \refl(a i j), equality: sym!{B.Bool^} (Nat.eqb i k) B.Bool^::false (Bounds.eqbFalseOfNe i k different)
+    };
+\definition selectedDiagonal: \forall (pivot: I.Int^)(k: N.Nat^)(a: Runtime^)(history: History^) -> a k k = pivot ->
+  attemptMatrix (select k a history pivot) k k = I.Int^::ofNat (Signed.absolute pivot) :=
+  \induction (pivot: I.Int^) \return \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> a k k = pivot ->
+    attemptMatrix (select k a history pivot) k k = I.Int^::ofNat (Signed.absolute pivot) \with {
+    | ofNat: \fun (n: N.Nat^)(k: N.Nat^)(a: Runtime^)(history: History^)(equal: _) => equal
+    | negSucc: \fun (n: N.Nat^)(k: N.Nat^)(a: Runtime^)(history: History^)(equal: _) =>
+        trans!{I.Int^} (Rows.negate a k k k) (Arithmetic.neg (a k k)) (I.Int^::ofNat (N.Nat^::succ n))
+          (rowNegationSelf a k k)
+          (congr!{I.Int^ I.Int^} Arithmetic.neg (a k k) (I.Int^::negSucc n) equal)
+  };
+\definition diagonal: \forall (k: N.Nat^)(a: Runtime^)(history: History^) ->
+  attemptMatrix (at k a history) k k = I.Int^::ofNat (Signed.absolute (a k k)) :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^) => selectedDiagonal (a k k) k a history (\refl(a k k));
+\definition selectedOther: \forall (pivot: I.Int^)(k: N.Nat^)(a: Runtime^)(history: History^)(i, j: N.Nat^) -> Logic.Not (i = k) ->
+  attemptMatrix (select k a history pivot) i j = a i j :=
+  \induction (pivot: I.Int^) \return \forall (k: N.Nat^)(a: Runtime^)(history: History^)(i, j: N.Nat^) -> Logic.Not (i = k) ->
+    attemptMatrix (select k a history pivot) i j = a i j \with {
+    | ofNat: \fun (n: N.Nat^)(k: N.Nat^)(a: Runtime^)(history: History^)(i, j: N.Nat^)(different: _) => \refl(a i j)
+    | negSucc: \fun (n: N.Nat^)(k: N.Nat^)(a: Runtime^)(history: History^)(i, j: N.Nat^) => rowNegationOther a k i j
+  };
+\definition other: \forall (k: N.Nat^)(a: Runtime^)(history: History^)(i, j: N.Nat^) -> Logic.Not (i = k) -> attemptMatrix (at k a history) i j = a i j :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^)(i, j: N.Nat^) => selectedOther (a k k) k a history i j;
+\definition selectedTrace: \forall (pivot: I.Int^)(k: N.Nat^)(a, original: Runtime^)(history: History^) -> a = applyHistory history original ->
+  attemptMatrix (select k a history pivot) = applyHistory (attemptHistory (select k a history pivot)) original :=
+  \induction (pivot: I.Int^) \return \forall (k: N.Nat^)(a, original: Runtime^)(history: History^) -> a = applyHistory history original ->
+    attemptMatrix (select k a history pivot) = applyHistory (attemptHistory (select k a history pivot)) original \with {
+    | ofNat: \fun (n: N.Nat^)(k: N.Nat^)(a, original: Runtime^)(history: History^)(trace: _) => trace
+    | negSucc: \fun (n: N.Nat^)(k: N.Nat^)(a, original: Runtime^)(history: History^)(trace: _) =>
+        congr!{Runtime^ Runtime^} (\fun (matrix: Runtime^) => Rows.negate matrix k) a (applyHistory history original) trace
+  };
+\definition trace: \forall (k: N.Nat^)(a, original: Runtime^)(history: History^) -> a = applyHistory history original ->
+  attemptMatrix (at k a history) = applyHistory (attemptHistory (at k a history)) original :=
+  \fun (k: N.Nat^)(a, original: Runtime^)(history: History^) => selectedTrace (a k k) k a original history;
+\definition selectedBounded: \forall (pivot: I.Int^)(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) ->
+  Bounds.Lt k rows -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (select k a history pivot)) :=
+  \induction (pivot: I.Int^) \return \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) ->
+    Bounds.Lt k rows -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (select k a history pivot)) \with {
+    | ofNat: \fun (n: N.Nat^)(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(bound: _)(laws: _) => laws
+    | negSucc: \fun (n: N.Nat^)(rows, cols, k: N.Nat^)(a: Runtime^)(history: History^)(bound: _)(laws: _) =>
+        Indices.prepend rows cols (Operation^::rowNegate k) history bound laws
+  };
+\definition bounded: \forall (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) ->
+  Bounds.Lt k rows -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (at k a history)) :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => selectedBounded (a k k) rows cols k a history;
+\module SelectionImplementation;
+\correspondence Selection: Programs.Correspondence := Programs.Correspondence {
+  T := SelectionImplementation[].T, program := SelectionImplementation[].program, specification := select, coherence := SelectionImplementation[].coherence,
+};
+\definition selectionProgram: Selection.T := Selection.program;
+\module AtImplementation;
+\correspondence At: Programs.Correspondence := Programs.Correspondence {
+  T := AtImplementation[].T, program := AtImplementation[].program, specification := at, coherence := AtImplementation[].coherence,
+};
+\definition next(k: N.Nat^)(current: Attempt^): Attempt^ := at k (attemptMatrix current) (attemptHistory current);
+\definition fold: N.Nat^ -> Runtime^ -> History^ -> Attempt^ :=
+  \induction (count: N.Nat^) \return Runtime^ -> History^ -> Attempt^ \with {
+    | zero: \fun (a: Runtime^)(history: History^) => Attempt^::attempt a history B.Bool^::false
+    | succ: \fun (count: N.Nat^)(previous: Runtime^ -> History^ -> Attempt^)(a: Runtime^)(history: History^) => next count (previous a history)
+  };
+\definition step: Cursor^ -> Cursor^ := \induction (cursor: Cursor^) \return Cursor^ \with {
+  | cursor: \fun (index: N.Nat^)(current: Attempt^) => Cursor^::cursor (N.Nat^::succ index) (next index current)
+};
+\import N.Iteration[].Def[A := Cursor^] \as Iteration;
+\import N.Iteration[].Program[A := Cursor] \as NativeIteration;
+\import \parent.Pass[] \as Pass;
+\definition initial(a: Runtime^)(history: History^): Cursor^ := Cursor^::cursor N.Nat^::zero (Attempt^::attempt a history B.Bool^::false);
+\definition iterationState: \forall (count: N.Nat^)(a: Runtime^)(history: History^) ->
+  Iteration.apply step (initial a history) count = Cursor^::cursor count (fold count a history) :=
+  \induction (count: N.Nat^) \return \forall (a: Runtime^)(history: History^) ->
+    Iteration.apply step (initial a history) count = Cursor^::cursor count (fold count a history) \with {
+    | zero: \fun (a: Runtime^)(history: History^) => \refl(initial a history)
+    | succ: \fun (count: N.Nat^)(previous: _)(a: Runtime^)(history: History^) =>
+        congr!{Cursor^ Cursor^} step (Iteration.apply step (initial a history) count) (Cursor^::cursor count (fold count a history)) (previous a history)
+  };
+\definition atProgram: At.T := At.program;
+\module StepImplementation;
+\correspondence Step: Programs.Correspondence := Programs.Correspondence {
+  T := StepImplementation[].T, program := StepImplementation[].program, specification := step, coherence := StepImplementation[].coherence,
+};
+\module Implementation;
+\correspondence Normalize: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := fold, coherence := Implementation[].coherence,
+};
+\module Laws;
+\module Preservation(P: Runtime^ -> \Prop);

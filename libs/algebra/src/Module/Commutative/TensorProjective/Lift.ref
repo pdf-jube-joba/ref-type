@@ -1,0 +1,57 @@
+\import \parent.\parent.HomSpace[V := Q.Carrier, W := A.Carrier, source := Q.space, target := A.space] \as HA;
+\import \parent.\parent.HomSpace[V := Q.Carrier, W := B.Carrier, source := Q.space, target := B.space] \as HB;
+\definition source: Modules.Bundle := Modules.Bundle { Carrier := HA.Carrier, space := HA.space };
+\definition target: Modules.Bundle := Modules.Bundle { Carrier := HB.Carrier, space := HB.space };
+\import Modules.Hom[V := Q.Carrier, W := B.Carrier, source := Q.space, target := B.space] \as BMaps;
+\import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Composition[U := Q.Carrier, domain := Q.space] \as Compose;
+\definition postcompose: Modules.MapBetween source target := Modules.Hom[V := HA.Carrier, W := HB.Carrier, source := HA.space, target := HB.space].Map {
+  apply := \fun (g: HA.Carrier) => Compose.compose q g,
+  addition := \fun (g, h: HA.Carrier) => BMaps.ext
+    (Compose.compose q (HA.add g h)) (HB.add (Compose.compose q g) (Compose.compose q h))
+    (\fun (x: Q.Carrier) => #addition{q} (#apply{g} x) (#apply{h} x)),
+  scalar := \fun (a: R)(g: HA.Carrier) => BMaps.ext
+    (Compose.compose q (HA.scale a g)) (HB.scale a (Compose.compose q g))
+    (\fun (x: Q.Carrier) => #scalar{q} a (#apply{g} x)),
+};
+\definition surjective: Modules.Projective Q -> Modules.Surjective A B q -> Modules.Surjective source target postcompose := \block {
+  \fun (projective: Modules.Projective Q)(onto: Modules.Surjective A B q)(h: HB.Carrier) \then
+  \takefrom g: \Cast[HA.Carrier] ({ g: HA.Carrier \where \forall (x: Q.Carrier) -> #apply{q} (#apply{g} x) = #apply{h} x })
+    \by projective A.Carrier A.space B.Carrier B.space q onto h \then
+  \return \exact(\into[HA.Carrier](g, { g: HA.Carrier \where #apply{postcompose} g = h }) \by {
+    BMaps.ext (#apply{postcompose} g) h
+      (\bysub(HA.Carrier, { g: HA.Carrier \where \forall (x: Q.Carrier) -> #apply{q} (#apply{g} x) = #apply{h} x }, g))
+  }, \Cast[HA.Carrier] ({ g: HA.Carrier \where #apply{postcompose} g = h }))
+};
+\import Product.Adjunction[U := A.Carrier, target := A.space] \as ToA;
+\import Product.Adjunction[U := B.Carrier, target := B.space] \as ToB;
+\import Modules.Tensor[V := P.Carrier, W := Q.Carrier, left := P.space, right := Q.space].Universal[U := B.Carrier, target := B.space] \as Universal;
+\import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Composition[U := Product.Carrier, domain := Product.space] \as TotalCompose;
+\import Modules.Hom[V := P.Carrier, W := HA.Carrier, source := P.space, target := HA.space] \as Curried;
+\module With(g: Curried.Map) {
+  \definition equality: (\forall (x: P.Carrier) -> #apply{postcompose} (#apply{g} x) = #apply{(ToB.curry f)} x) ->
+    TotalCompose.compose q (ToA.uncurry g) = f :=
+    \fun (law: _ ) => Universal.ext (TotalCompose.compose q (ToA.uncurry g)) f
+      (\fun (x: P.Carrier)(y: Q.Carrier) => trans!{B.Carrier}
+        (#apply{q} (#apply{(ToA.uncurry g)} (Product.tensor x y)))
+        (#apply{q} (#apply{(#apply{g} x)} y)) (#apply{f} (Product.tensor x y))
+        (congr!{A.Carrier B.Carrier} (#apply{q})
+          (#apply{(ToA.uncurry g)} (Product.tensor x y)) (#apply{(#apply{g} x)} y)
+          (Modules.Tensor[V := P.Carrier, W := Q.Carrier, left := P.space, right := Q.space].Universal[U := A.Carrier, target := A.space].onTensor (ToA.values g) (ToA.bilinear g) x y))
+        (congr!{HB.Carrier B.Carrier} (\fun (h: HB.Carrier) => #apply{h} y)
+          (#apply{postcompose} (#apply{g} x)) (#apply{(ToB.curry f)} x) (law x)));
+  \definition point: (\forall (x: P.Carrier) -> #apply{postcompose} (#apply{g} x) = #apply{(ToB.curry f)} x) ->
+    \forall (x: Product.Carrier) -> #apply{q} (#apply{(ToA.uncurry g)} x) = #apply{f} x :=
+    \fun (law: _)(x: Product.Carrier) => congr!{{Modules.MapBetween bundle B} B.Carrier}
+      (\fun (h: Modules.MapBetween bundle B) => #apply{h} x)
+      (TotalCompose.compose q (ToA.uncurry g)) f (equality law);
+}
+\definition existence: Modules.Projective P -> Modules.Projective Q -> Modules.Surjective A B q ->
+  \exists { g: Modules.MapBetween bundle A \where \forall (x: Product.Carrier) -> #apply{q} (#apply{g} x) = #apply{f} x } := \block {
+  \fun (left: Modules.Projective P)(right: Modules.Projective Q)(onto: Modules.Surjective A B q) \then
+  \takefrom g: \Cast[Curried.Map] ({ g: Curried.Map \where \forall (x: P.Carrier) -> #apply{postcompose} (#apply{g} x) = #apply{(ToB.curry f)} x })
+    \by left HA.Carrier HA.space HB.Carrier HB.space postcompose (surjective right onto) (ToB.curry f) \then
+  \return \exact(\into[Modules.MapBetween bundle A](ToA.uncurry g,
+    { h: Modules.MapBetween bundle A \where \forall (x: Product.Carrier) -> #apply{q} (#apply{h} x) = #apply{f} x }) \by {
+    With[g := g].point (\bysub(Curried.Map, { g: Curried.Map \where \forall (x: P.Carrier) -> #apply{postcompose} (#apply{g} x) = #apply{(ToB.curry f)} x }, g))
+  }, \Cast[Modules.MapBetween bundle A] ({ h: Modules.MapBetween bundle A \where \forall (x: Product.Carrier) -> #apply{q} (#apply{h} x) = #apply{f} x }))
+};

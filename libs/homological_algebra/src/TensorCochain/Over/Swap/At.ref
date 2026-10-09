@@ -1,0 +1,21 @@
+\import \parent.Degree[n := n] \as Term;
+\import Cochains.At[C := Source.complex, k := n] \as SH;
+\import Cochains.At[C := Target.complex, k := n] \as TH;
+\import Forward.At[k := n] \as F;
+\import Backward.At[k := n] \as G;
+\import Modules.Isomorphism[V := SH.Cohomology, W := TH.Cohomology, source := SH.cohomologySpace, target := TH.cohomologySpace] \as Iso;
+\definition leftInverse: \forall (x: SH.Cohomology) -> #apply{(G.induced backward)} (#apply{(F.induced forward)} x) = x :=
+  SH.classInduction (\fun (x: SH.Cohomology) => #apply{(G.induced backward)} (#apply{(F.induced forward)} x) = x)
+    (\fun (x: SH.CycleCarrier) => trans!{SH.Cohomology} _ _ _
+      (congr!{TH.Cohomology SH.Cohomology} (#apply{(G.induced backward)}) _ _ (F.onClass forward x))
+      (trans!{SH.Cohomology} _ _ _ (G.onClass backward (#apply{(F.cyclesMap forward)} x))
+        (SH.equalClass (#apply{(G.cyclesMap backward)} (#apply{(F.cyclesMap forward)} x)) x (Term.leftInverse x))));
+\definition rightInverse: \forall (y: TH.Cohomology) -> #apply{(F.induced forward)} (#apply{(G.induced backward)} y) = y :=
+  TH.classInduction (\fun (y: TH.Cohomology) => #apply{(F.induced forward)} (#apply{(G.induced backward)} y) = y)
+    (\fun (y: TH.CycleCarrier) => trans!{TH.Cohomology} _ _ _
+      (congr!{SH.Cohomology TH.Cohomology} (#apply{(F.induced forward)}) _ _ (G.onClass backward y))
+      (trans!{TH.Cohomology} _ _ _ (F.onClass forward (#apply{(G.cyclesMap backward)} y))
+        (TH.equalClass (#apply{(F.cyclesMap forward)} (#apply{(G.cyclesMap backward)} y)) y (Term.rightInverse y))));
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := F.induced forward, backward := G.induced backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};

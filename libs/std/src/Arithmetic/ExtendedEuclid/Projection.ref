@@ -1,0 +1,23 @@
+\definition pair(s: State^): Gcd.NatPair := Gcd.pair (left s) (right s);
+\definition stepPair: \forall (s: State^) -> pair (step s) = Gcd.gcdNext (pair s) :=
+  \induction (s: State^) \return pair (step s) = Gcd.gcdNext (pair s) \with {
+    | state: \fun (a, b: N.Nat^)(u, v, x, y: I.Int^) =>
+        (\induction (b: N.Nat^) \return pair (step (State^::state a b u v x y)) = Gcd.gcdNext (Gcd.pair a b) \with {
+          | zero: \refl(Gcd.pair a N.Nat^::zero)
+          | succ: \fun (d: N.Nat^)(before: _) => \refl(Gcd.pair (N.Nat^::succ d) (Division.mod a (N.Nat^::succ d)))
+        }) b
+  };
+\definition iterates: \forall (n: N.Nat^)(s: State^) -> pair (Iteration.apply step s n) = Gcd.gcdIter (pair s) n :=
+  \induction (n: N.Nat^) \return \forall (s: State^) -> pair (Iteration.apply step s n) = Gcd.gcdIter (pair s) n \with {
+    | zero: \fun (s: State^) => \refl(pair s)
+    | succ: \fun (n: N.Nat^)(before: \forall (s: State^) -> pair (Iteration.apply step s n) = Gcd.gcdIter (pair s) n)(s: State^) =>
+        trans!{Gcd.NatPair} _ _ _ (stepPair (Iteration.apply step s n))
+          (congr!{Gcd.NatPair Gcd.NatPair} Gcd.gcdNext _ _ (before s))
+  };
+\definition gcd: \forall (a, b: N.Nat^) -> left (result a b) = Gcd.gcd a b :=
+  \fun (a, b: N.Nat^) => trans!{N.Nat^} _ _ _
+    (congr!{Gcd.NatPair N.Nat^} Gcd.first _ _ (iterates b (initial a b)))
+    (sym!{N.Nat^} _ _ (Gcd.gcdMatchesIteration a b));
+\definition settled: \forall (a, b: N.Nat^) -> right (result a b) = N.Nat^::zero :=
+  \fun (a, b: N.Nat^) => trans!{N.Nat^} _ _ _
+    (congr!{Gcd.NatPair N.Nat^} Gcd.second _ _ (iterates b (initial a b))) (Gcd.gcdFinalSecond a b);

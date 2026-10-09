@@ -1,0 +1,185 @@
+\import \parent.\parent.\parent.Laws[V := Carrier, space := space] \as Values;
+\import VectorSums.Single[] \as Single;
+\import Lists.Membership[A := Generators].Append[] \as Membership;
+\import Lists.Distinct[A := Generators].Cover[] \as Covers;
+\definition Expanded(xs: Lists.List[Generators])(x: Carrier): \Prop := combination xs (coefficient x) = x;
+\definition zeroExpanded: \forall (xs: Lists.List[Generators]) -> Expanded xs #zero{space} :=
+  \fun (xs: Lists.List[Generators]) => trans!{Carrier} _ _ _
+    (VectorSums.congruent xs (\fun (s: Generators) => #smul{space} (coefficient #zero{space} s) (generator s))
+      (\fun (s: Generators) => #zero{space})
+      (\fun (s: Generators) => trans!{Carrier} _ _ _
+        (congr!{R Carrier} (\fun (a: R) => #smul{space} a (generator s)) _ _ (zero s)) (Values.zeroScale (generator s))))
+    (VectorSums.zero xs);
+\definition addExpanded: \forall (xs: Lists.List[Generators])(x, y: Carrier) ->
+  Expanded xs x -> Expanded xs y -> Expanded xs (#add{space} x y) :=
+  \fun (xs: Lists.List[Generators])(x, y: Carrier)(ex: Expanded xs x)(ey: Expanded xs y) => trans!{Carrier} _ _ _
+    (VectorSums.congruent xs (\fun (s: Generators) => #smul{space} (coefficient (#add{space} x y) s) (generator s))
+      (\fun (s: Generators) => #add{space} (#smul{space} (coefficient x s) (generator s)) (#smul{space} (coefficient y s) (generator s)))
+      (\fun (s: Generators) => trans!{Carrier} _ _ _
+        (congr!{R Carrier} (\fun (a: R) => #smul{space} a (generator s)) _ _ (addition x y s))
+        (#scalarAdd{space} (coefficient x s) (coefficient y s) (generator s))))
+    (trans!{Carrier} _ _ _
+      (VectorSums.addition xs (\fun (s: Generators) => #smul{space} (coefficient x s) (generator s))
+        (\fun (s: Generators) => #smul{space} (coefficient y s) (generator s)))
+      (congr2!{Carrier Carrier Carrier} (#add{space}) _ _ _ _ ex ey));
+\definition negExpanded: \forall (xs: Lists.List[Generators])(x: Carrier) -> Expanded xs x -> Expanded xs (#neg{space} x) :=
+  \fun (xs: Lists.List[Generators])(x: Carrier)(ex: Expanded xs x) => trans!{Carrier} _ _ _
+    (VectorSums.congruent xs (\fun (s: Generators) => #smul{space} (coefficient (#neg{space} x) s) (generator s))
+      (\fun (s: Generators) => #neg{space} (#smul{space} (coefficient x s) (generator s)))
+      (\fun (s: Generators) => trans!{Carrier} _ _ _
+        (congr!{R Carrier} (\fun (a: R) => #smul{space} a (generator s)) _ _ (negative x s))
+        (Values.negScalar (coefficient x s) (generator s))))
+    (trans!{Carrier} _ _ _ (VectorSums.negative xs (\fun (s: Generators) => #smul{space} (coefficient x s) (generator s)))
+      (congr!{Carrier Carrier} (#neg{space}) _ _ ex));
+\definition scalarExpanded: \forall (xs: Lists.List[Generators])(a: R)(x: Carrier) -> Expanded xs x -> Expanded xs (#smul{space} a x) :=
+  \fun (xs: Lists.List[Generators])(a: R)(x: Carrier)(ex: Expanded xs x) => trans!{Carrier} _ _ _
+    (VectorSums.congruent xs (\fun (s: Generators) => #smul{space} (coefficient (#smul{space} a x) s) (generator s))
+      (\fun (s: Generators) => #smul{space} a (#smul{space} (coefficient x s) (generator s)))
+      (\fun (s: Generators) => trans!{Carrier} _ _ _
+        (congr!{R Carrier} (\fun (b: R) => #smul{space} b (generator s)) _ _ (scalar a x s))
+        (#scalarAssoc{space} a (coefficient x s) (generator s))))
+    (trans!{Carrier} _ _ _ (VectorSums.scalar xs a (\fun (s: Generators) => #smul{space} (coefficient x s) (generator s)))
+      (congr!{Carrier Carrier} (#smul{space} a) _ _ ex));
+\definition generatorExpanded: \forall (xs: Lists.List[Generators]) -> Sums.Distinct xs ->
+  \forall (s: Generators) -> \In[Generators] (Sums.keys xs) s -> Expanded xs (generator s) :=
+  \fun (xs: Lists.List[Generators])(distinct: Sums.Distinct xs)(s: Generators)(member: \In[Generators] (Sums.keys xs) s) => trans!{Carrier} _ _ _
+    (VectorSums.congruent xs (\fun (t: Generators) => #smul{space} (coefficient (generator s) t) (generator t))
+      (\fun (t: Generators) => #smul{space} (Kronecker.delta s t) (generator t))
+      (\fun (t: Generators) => congr!{R Carrier} (\fun (a: R) => #smul{space} a (generator t)) _ _
+        (trans!{R} _ _ _ (onGenerator s t) (Kronecker.symmetric t s))))
+    (Single.extract xs distinct s member generator);
+\definition expressionKeys: Expressions.Expression -> Lists.List[Generators] :=
+  \induction (e: Expressions.Expression) \return Lists.List[Generators] \with {
+    | zero: Lists.List[Generators]::nil
+    | generator: \fun (s: Generators) => Lists.List[Generators]::cons s Lists.List[Generators]::nil
+    | sum: \fun (x: Expressions.Expression)(xs: Lists.List[Generators])(y: Expressions.Expression)(ys: Lists.List[Generators]) => Lists.append Generators xs ys
+    | negative: \fun (x: Expressions.Expression)(xs: Lists.List[Generators]) => xs
+    | scale: \fun (a: R)(x: Expressions.Expression)(xs: Lists.List[Generators]) => xs
+  };
+\definition Contains(e: Expressions.Expression)(xs: Lists.List[Generators]): \Prop :=
+  \forall (s: Generators) -> \In[Generators] (Sums.keys (expressionKeys e)) s -> \In[Generators] (Sums.keys xs) s;
+\definition expressionExpansion: \forall (e: Expressions.Expression)(xs: Lists.List[Generators]) -> Sums.Distinct xs -> Contains e xs -> Expanded xs (Presented.class e) :=
+  \induction (e: Expressions.Expression) \return \forall (xs: Lists.List[Generators]) -> Sums.Distinct xs -> Contains e xs -> Expanded xs (Presented.class e) \with {
+    | zero: \fun (xs: Lists.List[Generators])(distinct: Sums.Distinct xs)(contains: Contains Expressions.Expression::zero xs) => zeroExpanded xs
+    | generator: \fun (s: Generators)(xs: Lists.List[Generators])(distinct: Sums.Distinct xs)(contains: Contains (Expressions.Expression::generator s) xs) =>
+      generatorExpanded xs distinct s (contains s (Logic.Or[_, _]::left (\refl(s))))
+    | sum: \fun (x: Expressions.Expression)(ix: \forall (xs: Lists.List[Generators]) -> Sums.Distinct xs -> Contains x xs -> Expanded xs (Presented.class x))
+      (y: Expressions.Expression)(iy: \forall (xs: Lists.List[Generators]) -> Sums.Distinct xs -> Contains y xs -> Expanded xs (Presented.class y))
+      (xs: Lists.List[Generators])(distinct: Sums.Distinct xs)(contains: Contains (Expressions.Expression::sum x y) xs) =>
+      \idelim Presented.add (Presented.class x) (Presented.class y) = Presented.class (Expressions.Expression::sum x y)
+        \with z: Carrier => Expanded xs z \by {
+          base: addExpanded xs (Presented.class x) (Presented.class y)
+            (ix xs distinct (\fun (s: Generators)(member: _) => contains s (Membership.left (expressionKeys x) (expressionKeys y) s member)))
+            (iy xs distinct (\fun (s: Generators)(member: _) => contains s (Membership.right (expressionKeys x) (expressionKeys y) s member))),
+          equality: Presented.addClass x y
+        }
+    | negative: \fun (x: Expressions.Expression)(ix: \forall (xs: Lists.List[Generators]) -> Sums.Distinct xs -> Contains x xs -> Expanded xs (Presented.class x))
+      (xs: Lists.List[Generators])(distinct: Sums.Distinct xs)(contains: Contains (Expressions.Expression::negative x) xs) =>
+      \idelim Presented.neg (Presented.class x) = Presented.class (Expressions.Expression::negative x)
+        \with z: Carrier => Expanded xs z \by { base: negExpanded xs (Presented.class x) (ix xs distinct contains), equality: Presented.negClass x }
+    | scale: \fun (a: R)(x: Expressions.Expression)(ix: \forall (xs: Lists.List[Generators]) -> Sums.Distinct xs -> Contains x xs -> Expanded xs (Presented.class x))
+      (xs: Lists.List[Generators])(distinct: Sums.Distinct xs)(contains: Contains (Expressions.Expression::scale a x) xs) =>
+      \idelim Presented.scale a (Presented.class x) = Presented.class (Expressions.Expression::scale a x)
+        \with z: Carrier => Expanded xs z \by { base: scalarExpanded xs a (Presented.class x) (ix xs distinct contains), equality: Presented.scaleClass a x }
+  };
+\import std.Set[].Quotient[A := Expressions.Expression, Equivalent := Presented.Equivalent] \as RawQuotient;
+\definition injective: \forall (x, y: Carrier) -> (\forall (s: Generators) -> coefficient x s = coefficient y s) -> x = y :=
+  RawQuotient.induction2 (\fun (x, y: Carrier) => (\forall (s: Generators) -> coefficient x s = coefficient y s) -> x = y)
+    (\block {
+      \fun (e, f: Expressions.Expression)(same: \forall (s: Generators) -> coefficient (Presented.class e) s = coefficient (Presented.class f) s) \then
+      \let keys: Lists.List[Generators] := Lists.append Generators (expressionKeys e) (expressionKeys f) \then
+      \takefrom xs: Covers.Choice keys \by Covers.existence keys \then
+      \let cover: Covers.Laws[keys, xs] := \bysub(Lists.List[Generators], { xs: Lists.List[Generators] \where Covers.Laws[keys, xs] }, xs) \then
+      \let ex: Expanded xs (Presented.class e) := expressionExpansion e xs (#distinct{cover})
+        (\fun (s: Generators)(member: _) => #toSelected{cover} s (Membership.left (expressionKeys e) (expressionKeys f) s member)) \then
+      \let ey: Expanded xs (Presented.class f) := expressionExpansion f xs (#distinct{cover})
+        (\fun (s: Generators)(member: _) => #toSelected{cover} s (Membership.right (expressionKeys e) (expressionKeys f) s member)) \then
+      \return trans!{Carrier} _ _ _ (sym!{Carrier} _ _ ex)
+        (trans!{Carrier} _ _ _ (congr!{Coordinates.Vector Carrier} (combination xs) _ _
+          (\axiom:funext(coefficient (Presented.class e), coefficient (Presented.class f), same))) ey)
+    });
+\definition Supports(xs: Lists.List[Generators])(x: Carrier): \Prop :=
+  \forall (s: Generators) -> Logic.Not (\In[Generators] (Sums.keys xs) s) -> coefficient x s = #zero{ring};
+\definition zeroSupport: \forall (xs: Lists.List[Generators]) -> Supports xs #zero{space} :=
+  \fun (xs: Lists.List[Generators])(s: Generators)(outside: _) => zero s;
+\definition addSupport: \forall (xs: Lists.List[Generators])(x, y: Carrier) -> Supports xs x -> Supports xs y -> Supports xs (#add{space} x y) :=
+  \fun (xs: Lists.List[Generators])(x, y: Carrier)(sx: Supports xs x)(sy: Supports xs y)(s: Generators)(outside: _) => trans!{R} _ _ _
+    (addition x y s) (trans!{R} _ _ _ (congr2!{R R R} (#add{ring}) _ _ _ _ (sx s outside) (sy s outside)) (Scalars.zeroLeft #zero{ring}));
+\definition negSupport: \forall (xs: Lists.List[Generators])(x: Carrier) -> Supports xs x -> Supports xs (#neg{space} x) :=
+  \fun (xs: Lists.List[Generators])(x: Carrier)(sx: Supports xs x)(s: Generators)(outside: _) => trans!{R} _ _ _
+    (negative x s) (trans!{R} _ _ _ (congr!{R R} (#neg{ring}) _ _ (sx s outside)) Scalars.negZero);
+\definition scalarSupport: \forall (xs: Lists.List[Generators])(a: R)(x: Carrier) -> Supports xs x -> Supports xs (#smul{space} a x) :=
+  \fun (xs: Lists.List[Generators])(a: R)(x: Carrier)(sx: Supports xs x)(s: Generators)(outside: _) => trans!{R} _ _ _
+    (scalar a x s) (trans!{R} _ _ _ (congr!{R R} (#mul{ring} a) _ _ (sx s outside)) (#zeroAbsorbsRight{(#semiring{ring})} a));
+\definition generatorSupport: \forall (xs: Lists.List[Generators])(s: Generators) -> \In[Generators] (Sums.keys xs) s -> Supports xs (generator s) :=
+  \fun (xs: Lists.List[Generators])(s: Generators)(member: \In[Generators] (Sums.keys xs) s)(t: Generators)(outside: _) => trans!{R} _ _ _
+    (onGenerator s t) (Kronecker.different t s (\fun (same: t = s) => outside
+      (\idelim s = t \with i: Generators => \In[Generators] (Sums.keys xs) i \by { base: member, equality: sym!{Generators} t s same })));
+\definition expressionSupport: \forall (e: Expressions.Expression)(xs: Lists.List[Generators]) -> Contains e xs -> Supports xs (Presented.class e) :=
+  \induction (e: Expressions.Expression) \return \forall (xs: Lists.List[Generators]) -> Contains e xs -> Supports xs (Presented.class e) \with {
+    | zero: \fun (xs: Lists.List[Generators])(contains: Contains Expressions.Expression::zero xs) => zeroSupport xs
+    | generator: \fun (s: Generators)(xs: Lists.List[Generators])(contains: Contains (Expressions.Expression::generator s) xs) =>
+      generatorSupport xs s (contains s (Logic.Or[_, _]::left (\refl(s))))
+    | sum: \fun (x: Expressions.Expression)(ix: \forall (xs: Lists.List[Generators]) -> Contains x xs -> Supports xs (Presented.class x))
+      (y: Expressions.Expression)(iy: \forall (xs: Lists.List[Generators]) -> Contains y xs -> Supports xs (Presented.class y))
+      (xs: Lists.List[Generators])(contains: Contains (Expressions.Expression::sum x y) xs) =>
+      \idelim Presented.add (Presented.class x) (Presented.class y) = Presented.class (Expressions.Expression::sum x y)
+        \with z: Carrier => Supports xs z \by {
+          base: addSupport xs (Presented.class x) (Presented.class y)
+            (ix xs (\fun (s: Generators)(member: _) => contains s (Membership.left (expressionKeys x) (expressionKeys y) s member)))
+            (iy xs (\fun (s: Generators)(member: _) => contains s (Membership.right (expressionKeys x) (expressionKeys y) s member))),
+          equality: Presented.addClass x y
+        }
+    | negative: \fun (x: Expressions.Expression)(ix: \forall (xs: Lists.List[Generators]) -> Contains x xs -> Supports xs (Presented.class x))
+      (xs: Lists.List[Generators])(contains: Contains (Expressions.Expression::negative x) xs) =>
+      \idelim Presented.neg (Presented.class x) = Presented.class (Expressions.Expression::negative x)
+        \with z: Carrier => Supports xs z \by { base: negSupport xs (Presented.class x) (ix xs contains), equality: Presented.negClass x }
+    | scale: \fun (a: R)(x: Expressions.Expression)(ix: \forall (xs: Lists.List[Generators]) -> Contains x xs -> Supports xs (Presented.class x))
+      (xs: Lists.List[Generators])(contains: Contains (Expressions.Expression::scale a x) xs) =>
+      \idelim Presented.scale a (Presented.class x) = Presented.class (Expressions.Expression::scale a x)
+        \with z: Carrier => Supports xs z \by { base: scalarSupport xs a (Presented.class x) (ix xs contains), equality: Presented.scaleClass a x }
+  };
+\definition finite: \forall (x: Carrier) -> \exists { xs: Lists.List[Generators] \where Supports xs x } :=
+  RawQuotient.induction (\fun (x: Carrier) => \exists { xs: Lists.List[Generators] \where Supports xs x })
+    (\fun (e: Expressions.Expression) => \exact(
+      \into[Lists.List[Generators]](expressionKeys e, { xs: Lists.List[Generators] \where Supports xs (Presented.class e) }) \by {
+        expressionSupport e (expressionKeys e) (\fun (s: Generators)(member: _) => member)
+      }, \Cast[Lists.List[Generators]] ({ xs: Lists.List[Generators] \where Supports xs (Presented.class e) })));
+\definition coefficientCombination: \forall (xs: Lists.List[Generators])(values: Coordinates.Vector)(t: Generators) ->
+  coefficient (combination xs values) t = Sums.sum xs (\fun (s: Generators) => #mul{ring} (values s) (Kronecker.delta t s)) :=
+  \induction (xs: Lists.List[Generators]) \return \forall (values: Coordinates.Vector)(t: Generators) ->
+    coefficient (combination xs values) t = Sums.sum xs (\fun (s: Generators) => #mul{ring} (values s) (Kronecker.delta t s)) \with {
+    | nil: \fun (values: Coordinates.Vector)(t: Generators) => zero t
+    | cons: \fun (head: Generators)(tail: Lists.List[Generators])
+      (previous: \forall (values: Coordinates.Vector)(t: Generators) -> coefficient (combination tail values) t = Sums.sum tail (\fun (s: Generators) => #mul{ring} (values s) (Kronecker.delta t s)))
+      (values: Coordinates.Vector)(t: Generators) => trans!{R} _ _ _
+      (addition (#smul{space} (values head) (generator head)) (combination tail values) t)
+      (congr2!{R R R} (#add{ring}) _ _ _ _
+        (trans!{R} _ _ _ (scalar (values head) (generator head) t)
+          (congr!{R R} (#mul{ring} (values head)) _ _ (onGenerator head t)))
+        (previous values t))
+  };
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition deltaCentral: \forall (i, j: Generators)(a: R) -> #mul{ring} a (Kronecker.delta i j) = #mul{ring} (Kronecker.delta i j) a :=
+  \fun (i, j: Generators)(a: R) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {#mul{ring} a (Kronecker.delta i j) = #mul{ring} (Kronecker.delta i j) a}
+    "lt:" {\fun (same: i = j) => trans!{R} _ _ _
+      (congr!{R R} (#mul{ring} a) _ _ (Kronecker.equal i j same))
+      (trans!{R} _ _ _ (#rightIdentity{(#multiplicative{(#semiring{ring})})} a)
+        (sym!{R} _ _ (trans!{R} _ _ _
+          (congr!{R R} (\fun (b: R) => #mul{ring} b a) _ _ (Kronecker.equal i j same))
+          (#leftIdentity{(#multiplicative{(#semiring{ring})})} a))))}
+    "rt:" {\fun (different: Logic.Not (i = j)) => trans!{R} _ _ _
+      (congr!{R R} (#mul{ring} a) _ _ (Kronecker.different i j different))
+      (trans!{R} _ _ _ (#zeroAbsorbsRight{(#semiring{ring})} a)
+        (sym!{R} _ _ (trans!{R} _ _ _
+          (congr!{R R} (\fun (b: R) => #mul{ring} b a) _ _ (Kronecker.different i j different))
+          (#zeroAbsorbsLeft{(#semiring{ring})} a))))}}
+    (Classical.excludedMiddle (i = j));
+\import Sums.Prop[] \as SumLaws;
+\import Sums.Single[] \as ScalarSingle;
+\definition coefficientCombinationDelta: \forall (xs: Lists.List[Generators])(values: Coordinates.Vector)(t: Generators) ->
+  coefficient (combination xs values) t = Sums.sum xs (\fun (s: Generators) => #mul{ring} (Kronecker.delta t s) (values s)) :=
+  \fun (xs: Lists.List[Generators])(values: Coordinates.Vector)(t: Generators) => trans!{R} _ _ _ (coefficientCombination xs values t)
+    (SumLaws.congruent xs (\fun (s: Generators) => #mul{ring} (values s) (Kronecker.delta t s))
+      (\fun (s: Generators) => #mul{ring} (Kronecker.delta t s) (values s)) (\fun (s: Generators) => deltaCentral t s (values s)));

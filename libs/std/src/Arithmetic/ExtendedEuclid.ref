@@ -1,0 +1,87 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import N.Division[].Def[] \as Division;
+\import N.Division[].Prop[] \as DivisionLaws;
+\import N.Gcd[].Def[] \as Gcd;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import I.Math[].Specification[].Prop[] \as IntegerLaws;
+\import IntegerLaws.Multiplication[] \as Product;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\definition natural: N.Nat^ -> I.Int^ := I.Int^::ofNat;
+\definition naturalMul: \forall (a, b: N.Nat^) -> Arithmetic.mul (natural a) (natural b) = natural (Nat.mul a b) :=
+  \fun (a, b: N.Nat^) => congr!{N.Nat^ I.Int^}
+    (\fun (k: N.Nat^) => I.Diff.specification (Nat.add (Nat.mul a b) (Nat.mul N.Nat^::zero N.Nat^::zero))
+      (Nat.add (Nat.mul a N.Nat^::zero) k)) _ _ (Bounds.mulZeroLeft b);
+\definition reconstructs: \forall (a, b: N.Nat^) ->
+  Arithmetic.add (natural (Division.mod a b)) (Arithmetic.mul (natural (Division.div a b)) (natural b)) = natural a :=
+  \fun (a, b: N.Nat^) => eq_reason!{{Arithmetic.add (natural (Division.mod a b)) (Arithmetic.mul (natural (Division.div a b)) (natural b))}
+    "=" {Arithmetic.add (Arithmetic.mul (natural (Division.div a b)) (natural b)) (natural (Division.mod a b))}
+    "by" {IntegerLaws.addComm (natural (Division.mod a b)) (Arithmetic.mul (natural (Division.div a b)) (natural b))}
+    "=" {natural (Nat.add (Nat.mul (Division.div a b) b) (Division.mod a b))}
+    "by" {congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.add x (natural (Division.mod a b))) _ _ (naturalMul (Division.div a b) b)}
+    "=" {natural (Nat.add (Nat.mul b (Division.div a b)) (Division.mod a b))}
+    "by" {congr!{N.Nat^ I.Int^} (\fun (x: N.Nat^) => natural (Nat.add x (Division.mod a b))) _ _ (Bounds.mulCommutative (Division.div a b) b)}
+    "=" {natural a} "by" {congr!{N.Nat^ I.Int^} natural _ _ (DivisionLaws.divModReconstructs a b)}};
+\definition remainder: \forall (a, b: N.Nat^) ->
+  Arithmetic.difference (natural a) (Arithmetic.mul (natural (Division.div a b)) (natural b)) = natural (Division.mod a b) :=
+  \fun (a, b: N.Nat^) => Arithmetic.cancelRight (Arithmetic.mul (natural (Division.div a b)) (natural b)) _ _
+    (trans!{I.Int^} _ _ _ (Arithmetic.addDifference (natural a) (Arithmetic.mul (natural (Division.div a b)) (natural b)))
+      (sym!{I.Int^} _ _ (reconstructs a b)));
+\inductive State: \VType := | state: N.Nat -> N.Nat -> I.Int -> I.Int -> I.Int -> I.Int -> State;
+\definition left: State^ -> N.Nat^ := \induction (s: State^) \return N.Nat^ \with { | state: \fun (a, b: N.Nat^)(u, v, x, y: I.Int^) => a };
+\definition right: State^ -> N.Nat^ := \induction (s: State^) \return N.Nat^ \with { | state: \fun (a, b: N.Nat^)(u, v, x, y: I.Int^) => b };
+\definition first: State^ -> I.Int^ := \induction (s: State^) \return I.Int^ \with { | state: \fun (a, b: N.Nat^)(u, v, x, y: I.Int^) => u };
+\definition second: State^ -> I.Int^ := \induction (s: State^) \return I.Int^ \with { | state: \fun (a, b: N.Nat^)(u, v, x, y: I.Int^) => v };
+\definition third: State^ -> I.Int^ := \induction (s: State^) \return I.Int^ \with { | state: \fun (a, b: N.Nat^)(u, v, x, y: I.Int^) => x };
+\definition fourth: State^ -> I.Int^ := \induction (s: State^) \return I.Int^ \with { | state: \fun (a, b: N.Nat^)(u, v, x, y: I.Int^) => y };
+\definition advance(a, b: N.Nat^)(u, v, x, y: I.Int^): State^ := State^::state b (Division.mod a b) x y
+  (Arithmetic.difference u (Arithmetic.mul (natural (Division.div a b)) x))
+  (Arithmetic.difference v (Arithmetic.mul (natural (Division.div a b)) y));
+\definition step: State^ -> State^ := \induction (s: State^) \return State^ \with {
+  | state: \fun (a, b: N.Nat^)(u, v, x, y: I.Int^) => (\induction (b: N.Nat^) \return State^ \with {
+      | zero: State^::state a N.Nat^::zero u v x y
+      | succ: \fun (d: N.Nat^)(before: State^) => advance a (N.Nat^::succ d) u v x y
+    }) b
+};
+\import N.Iteration[].Def[A := State^] \as Iteration;
+\definition initial(a, b: N.Nat^): State^ := State^::state a b Arithmetic.one Arithmetic.zero Arithmetic.zero Arithmetic.one;
+\definition result(a, b: N.Nat^): State^ := Iteration.apply step (initial a b) b;
+\module Projection;
+\module Invariant(a, b: N.Nat^);
+\import std.Program[] \as ProgramBundles;
+\module StepImplementation;
+\correspondence Step: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := StepImplementation[].T, program := StepImplementation[].program,
+  specification := step, coherence := StepImplementation[].coherence,
+};
+\inductive IterState: \VType := | running: \U(State -> State) -> State -> N.Nat -> IterState;
+\definition EuclidState: \VType := State;
+\module LoopImplementation;
+\machine Loop: ProgramBundles.Machine := ProgramBundles.Machine {
+  State := LoopImplementation[].State, Output := LoopImplementation[].Output,
+  step := LoopImplementation[].step, terminates := LoopImplementation[].certificate,
+};
+\definition iterationProgram: \U(\U(State -> State) -> State -> N.Nat -> State) :=
+  \fun (f: \U(State -> State))(s: State)(count: N.Nat) => (\force Loop.run) (IterState::running f s count);
+\module IterationImplementation;
+\correspondence Iterate: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := IterationImplementation[].T, program := iterationProgram,
+  specification := Iteration.apply, coherence := IterationImplementation[].coherence,
+};
+\module EuclidImplementation;
+\correspondence Euclid: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := EuclidImplementation[].T, program := EuclidImplementation[].program,
+  specification := result, coherence := EuclidImplementation[].coherence,
+};
+\definition bezout: \forall (a, b: N.Nat^) ->
+  Arithmetic.add (Arithmetic.mul (first (result a b)) (natural a)) (Arithmetic.mul (second (result a b)) (natural b)) = natural (Gcd.gcd a b) :=
+  \fun (a, b: N.Nat^) => Invariant[a := a, b := b].bezout;
+\definition NaturalEuclid: ProgramBundles.Correspondence := Euclid;
+\module Signed;

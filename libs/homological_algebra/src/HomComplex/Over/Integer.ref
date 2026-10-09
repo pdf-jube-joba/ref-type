@@ -1,0 +1,86 @@
+\import \root.Chain[] \as Degrees;
+\import std.Arithmetic[].Int[] \as Signed;
+\definition Degree: \Set := Degrees.Degree;
+\import std.Set[].Transport[I := Degree] \as Transport;
+\definition next: Degree -> Degree := Degrees.next;
+\import \root.Integer[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as IntegerCochains;
+\import IntegerChains.Prior[C := P] \as Prior;
+\module At(z: Degree) {
+  \import Algebra.HomSpace[V := P.family.Carrier z, W := N.Carrier, source := P.family.space z, target := N.space] \as Native;
+  \definition Carrier: \Set := Native.Carrier;
+  \definition space: Modules.Space Carrier := Native.space;
+  \import Modules.Hom[V := P.family.Carrier z, W := N.Carrier, source := P.family.space z, target := N.space] \as Maps;
+  \definition ext: \forall (f, g: Carrier) -> (\forall (x: P.family.Carrier z) -> #apply{f} x = #apply{g} x) -> f = g := Maps.ext;
+  \definition zeroPreserved: \forall (f: Carrier) -> #apply{f} #zero{(P.family.space z)} = #zero{N.space} := Maps.zeroPreserved;
+}
+\definition Carrier(z: Degree): \Set := At[z := z].Carrier;
+\definition space(z: Degree): Modules.Space (Carrier z) := At[z := z].space;
+\definition family: IntegerCochains.Family := IntegerCochains.Family { Carrier := Carrier, space := space };
+\definition apply(z: Degree)(f: Carrier z): Carrier (next z) := At[z := next z].Carrier {
+  apply := \fun (x: P.family.Carrier (next z)) => #apply{f} (Prior.value z x),
+  addition := \fun (x, y: P.family.Carrier (next z)) => trans!{N.Carrier} _ _ _
+    (congr!{{P.family.Carrier z} N.Carrier} (#apply{f}) _ _ (Prior.addition z x y)) (#addition{f} (Prior.value z x) (Prior.value z y)),
+  scalar := \fun (a: R)(x: P.family.Carrier (next z)) => trans!{N.Carrier} _ _ _
+    (congr!{{P.family.Carrier z} N.Carrier} (#apply{f}) _ _ (Prior.scalar z a x)) (#scalar{f} a (Prior.value z x)),
+};
+\definition addition: \forall (z: Degree)(f, g: Carrier z) -> apply z (#add{(space z)} f g) = #add{(space (next z))} (apply z f) (apply z g) :=
+  \fun (z: Degree)(f, g: Carrier z) => At[z := next z].ext (apply z (#add{(space z)} f g)) (#add{(space (next z))} (apply z f) (apply z g))
+    (\fun (x: P.family.Carrier (next z)) => \refl(#add{N.space} (#apply{f} (Prior.value z x)) (#apply{g} (Prior.value z x))));
+\definition scalar: \forall (z: Degree)(a: R)(f: Carrier z) -> apply z (#smul{(space z)} a f) = #smul{(space (next z))} a (apply z f) :=
+  \fun (z: Degree)(a: R)(f: Carrier z) => At[z := next z].ext (apply z (#smul{(space z)} a f)) (#smul{(space (next z))} a (apply z f))
+    (\fun (x: P.family.Carrier (next z)) => \refl(#smul{N.space} a (#apply{f} (Prior.value z x))));
+\definition squareZero: \forall (z: Degree)(f: Carrier z) -> apply (next z) (apply z f) = #zero{(space (next (next z)))} :=
+  \fun (z: Degree)(f: Carrier z) => At[z := next (next z)].ext (apply (next z) (apply z f)) (#zero{(space (next (next z)))})
+    (\fun (x: P.family.Carrier (next (next z))) => trans!{N.Carrier} _ _ _
+      (congr!{{P.family.Carrier z} N.Carrier} (#apply{f}) _ _ (Prior.nextSquareZero z x)) (At[z := z].zeroPreserved f));
+\definition differential: IntegerCochains.DifferentialData[family] := IntegerCochains.DifferentialData[family] { apply := apply };
+\definition complex: IntegerCochains.Complex := IntegerCochains.Complex {
+  family := family, differential := differential,
+  laws := IntegerCochains.DifferentialLaws[family, differential] { addition := addition, scalar := scalar, squareZero := squareZero },
+};
+\import IntegerCochains.Prior[C := complex] \as CochainPrior;
+\module Cohomology(z: Degree) {
+  \import IntegerCochains.At[C := complex, z := z] \as Native;
+  \definition Closed: \Set := Native.Closed;
+  \definition cycleSpace: Modules.Space Closed := Native.cycleSpace;
+  \definition Cohomology: \Set := Native.Cohomology;
+  \definition cohomologySpace: Modules.Space Cohomology := Native.cohomologySpace;
+  \definition closed: \forall (f: Closed) -> apply z f = #zero{(space (next z))} :=
+    \fun (f: Closed) => \bysub(Carrier z, #carrier{Native.cycles}, f);
+  \definition classOf: Closed -> Cohomology := Native.classOf;
+  \definition classLinear: Modules.Hom[V := Closed, W := Cohomology, source := cycleSpace, target := cohomologySpace].Map := Native.classLinear;
+  \definition boundariesInside: Modules.Submodule[V := Closed, space := cycleSpace].Submodule := Native.boundariesInside;
+  \definition classInduction(predicate: Cohomology -> \Prop): (\forall (f: Closed) -> predicate (classOf f)) -> \forall (q: Cohomology) -> predicate q := Native.classInduction predicate;
+  \definition zeroClassBoundary: \forall (f: Closed) -> classOf f = #zero{cohomologySpace} -> Modules.Submodule[V := Closed, space := cycleSpace].Member boundariesInside f := Native.zeroClassBoundary;
+  \definition boundaryClassZero: \forall (f: Closed) -> Modules.Submodule[V := Closed, space := cycleSpace].Member boundariesInside f -> classOf f = #zero{cohomologySpace} := Native.boundaryClassZero;
+  \definition prior: \forall (g: Carrier (Degrees.previous z)) -> Carrier z := \fun (g: Carrier (Degrees.previous z)) => #apply{Native.prior} g;
+  \definition priorOnElement: \forall (g: Carrier (Degrees.previous z))(x: P.family.Carrier z) -> #apply{(prior g)} x = #apply{g} (#apply{P.differential} z x) :=
+    (\induction (k: Degree) \return \forall (g: Carrier (Degrees.previous k))(x: P.family.Carrier k) ->
+      #apply{(CochainPrior.value k g)} x = #apply{g} (#apply{P.differential} k x) \with {
+      | ofNat: \induction (n: Nat.Nat^) \return \forall (g: Carrier (Degrees.previous (Signed.Int^::ofNat n)))(x: P.family.Carrier (Signed.Int^::ofNat n)) ->
+          #apply{(CochainPrior.value (Signed.Int^::ofNat n) g)} x = #apply{g} (#apply{P.differential} (Signed.Int^::ofNat n) x) \with {
+          | zero: \fun (g: Carrier (Signed.Int^::negSucc Nat.Nat^::zero))(x: P.family.Carrier (Signed.Int^::ofNat Nat.Nat^::zero)) => congr!{{P.family.Carrier (Signed.Int^::negSucc Nat.Nat^::zero)} N.Carrier} (#apply{g}) _ _ (Transport.castRefl P.family.Carrier (Signed.Int^::negSucc Nat.Nat^::zero) (#apply{P.differential} (Signed.Int^::ofNat Nat.Nat^::zero) x))
+          | succ: \fun (n: Nat.Nat^)(unused: _)(g: Carrier (Signed.Int^::ofNat n))(x: P.family.Carrier (Signed.Int^::ofNat (Nat.Nat^::succ n))) => congr!{{P.family.Carrier (Signed.Int^::ofNat n)} N.Carrier} (#apply{g}) _ _ (Transport.castRefl P.family.Carrier (Signed.Int^::ofNat n) (#apply{P.differential} (Signed.Int^::ofNat (Nat.Nat^::succ n)) x))
+        }
+      | negSucc: \fun (n: Nat.Nat^)(g: Carrier (Signed.Int^::negSucc (Nat.Nat^::succ n)))(x: P.family.Carrier (Signed.Int^::negSucc n)) => congr!{{P.family.Carrier (Signed.Int^::negSucc (Nat.Nat^::succ n))} N.Carrier} (#apply{g}) _ _ (Transport.castRefl P.family.Carrier (Signed.Int^::negSucc (Nat.Nat^::succ n)) (#apply{P.differential} (Signed.Int^::negSucc n) x))
+    }) z;
+  \definition boundaryExists: \forall (f: Closed) -> Modules.Submodule[V := Closed, space := cycleSpace].Member boundariesInside f ->
+    \exists { g: Carrier (Degrees.previous z) \where prior g = f } := \fun (f: Closed)(member: _) => member;
+}
+\module Into(D: IntegerCochains.Complex) {
+  \import IntegerCochains.Isomorphism[C := complex, D := D] \as Native;
+  \definition Degreewise: \Set := \forall (z: Degree) -> Modules.Isomorphism[V := Carrier z, W := D.family.Carrier z, source := space z, target := D.family.space z].Isomorphism;
+  \module From(components: Degreewise) {
+    \import Native.Degreewise[isomorphisms := components] \as Comparison;
+    \definition Commutes: \Prop := Comparison.Commutes;
+    \definition isomorphism(compatible: Commutes): Native.Isomorphism := Comparison.isomorphism compatible;
+    \module At(z: Degree) {
+      \import IntegerCochains.At[C := complex, z := z] \as Source;
+      \import IntegerCochains.At[C := D, z := z] \as Target;
+      \definition Carrier: \Set := Source.Cohomology;
+      \definition space: Modules.Space Carrier := Source.cohomologySpace;
+      \definition cohomologyIsomorphism(compatible: Commutes): Modules.Isomorphism[V := Carrier, W := Target.Cohomology, source := space, target := Target.cohomologySpace].Isomorphism :=
+        Native.On[e := Comparison.isomorphism compatible].At[z := z].isomorphism;
+    }
+  }
+}

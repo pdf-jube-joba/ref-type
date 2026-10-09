@@ -1,0 +1,64 @@
+\import Product.Universal[U := U, target := target] \as Universal;
+\import \parent.\parent.HomSpace[V := W, W := U, source := right, target := target] \as Inner;
+\import \parent.\parent.HomSpace[V := V, W := Inner.Carrier, source := left, target := Inner.space] \as Curried;
+\import \parent.\parent.HomSpace[V := Carrier, W := U, source := space, target := target] \as Uncurried;
+\import Modules.Hom[V := W, W := U, source := right, target := target] \as InnerMaps;
+\import Modules.Hom[V := V, W := Inner.Carrier, source := left, target := Inner.space] \as CurriedMaps;
+\import Modules.Hom[V := Carrier, W := U, source := space, target := target] \as UncurriedMaps;
+\definition curryValue(f: Uncurried.Carrier)(x: V): Inner.Carrier := InnerMaps.Map {
+  apply := \fun (y: W) => #apply{f} (tensor x y),
+  addition := \fun (y, z: W) => trans!{U} _ _ _
+    (congr!{Carrier U} (#apply{f}) _ _ (#addRight{Product.bilinear} x y z))
+    (#addition{f} (tensor x y) (tensor x z)),
+  scalar := \fun (a: R)(y: W) => trans!{U} _ _ _
+    (congr!{Carrier U} (#apply{f}) _ _ (#scaleRight{Product.bilinear} a x y))
+    (#scalar{f} a (tensor x y)),
+};
+\definition curryAddition(f: Uncurried.Carrier)(x, y: V):
+  curryValue f (#add{left} x y) = Inner.add (curryValue f x) (curryValue f y) :=
+  InnerMaps.ext (curryValue f (#add{left} x y)) (Inner.add (curryValue f x) (curryValue f y)) (\fun (z: W) => trans!{U} _ _ _
+    (congr!{Carrier U} (#apply{f}) _ _ (#addLeft{Product.bilinear} x y z))
+    (#addition{f} (tensor x z) (tensor y z)));
+\definition curryScalar(f: Uncurried.Carrier)(a: R)(x: V):
+  curryValue f (#smul{left} a x) = Inner.scale a (curryValue f x) :=
+  InnerMaps.ext (curryValue f (#smul{left} a x)) (Inner.scale a (curryValue f x)) (\fun (y: W) => trans!{U} _ _ _
+    (congr!{Carrier U} (#apply{f}) _ _ (#scaleLeft{Product.bilinear} a x y))
+    (#scalar{f} a (tensor x y)));
+\definition curry(f: Uncurried.Carrier): Curried.Carrier := CurriedMaps.Map {
+  apply := curryValue f, addition := curryAddition f, scalar := curryScalar f,
+};
+\definition values(f: Curried.Carrier)(x: V)(y: W): U := #apply{(#apply{f} x)} y;
+\definition bilinear(f: Curried.Carrier): Product.BilinearLaws[U, target, values f] := Product.BilinearLaws[U, target, values f] {
+  addLeft := \fun (x, y: V)(z: W) => congr!{Inner.Carrier U} (\fun (g: Inner.Carrier) => #apply{g} z) _ _ (#addition{f} x y),
+  addRight := \fun (x: V)(y, z: W) => #addition{(#apply{f} x)} y z,
+  scaleLeft := \fun (a: R)(x: V)(y: W) => congr!{Inner.Carrier U} (\fun (g: Inner.Carrier) => #apply{g} y) _ _ (#scalar{f} a x),
+  scaleRight := \fun (a: R)(x: V)(y: W) => #scalar{(#apply{f} x)} a y,
+};
+\definition uncurry(f: Curried.Carrier): Uncurried.Carrier := Universal.map (values f) (bilinear f);
+\definition curryUncurry: \forall (f: Curried.Carrier) -> curry (uncurry f) = f :=
+  \fun (f: Curried.Carrier) => CurriedMaps.ext _ _ (\fun (x: V) => InnerMaps.ext _ _
+    (\fun (y: W) => Universal.onTensor (values f) (bilinear f) x y));
+\definition uncurryCurry: \forall (f: Uncurried.Carrier) -> uncurry (curry f) = f :=
+  \fun (f: Uncurried.Carrier) => UncurriedMaps.dataExt _ _
+    (sym!{{Carrier -> U}} _ _ (Universal.unique (values (curry f)) (bilinear (curry f)) f
+      (\fun (x: V)(y: W) => \refl(#apply{f} (tensor x y)))));
+\import Modules.Hom[V := Uncurried.Carrier, W := Curried.Carrier, source := Uncurried.space, target := Curried.space] \as Forward;
+\definition currySum(f, g: Uncurried.Carrier): curry (Uncurried.add f g) = Curried.add (curry f) (curry g) :=
+  CurriedMaps.ext (curry (Uncurried.add f g)) (Curried.add (curry f) (curry g))
+    (\fun (x: V) => InnerMaps.ext (curryValue (Uncurried.add f g) x) (Inner.add (curryValue f x) (curryValue g x))
+      (\fun (y: W) => \refl(#add{target} (#apply{f} (tensor x y)) (#apply{g} (tensor x y)))));
+\definition curryScale(a: R)(f: Uncurried.Carrier): curry (Uncurried.scale a f) = Curried.scale a (curry f) :=
+  CurriedMaps.ext (curry (Uncurried.scale a f)) (Curried.scale a (curry f))
+    (\fun (x: V) => InnerMaps.ext (curryValue (Uncurried.scale a f) x) (Inner.scale a (curryValue f x))
+      (\fun (y: W) => \refl(#smul{target} a (#apply{f} (tensor x y)))));
+\definition forward: Forward.Map := Forward.Map {
+  apply := curry, addition := currySum, scalar := curryScale,
+};
+\definition injective: \forall (f, g: Uncurried.Carrier) -> curry f = curry g -> f = g :=
+  \fun (f, g: Uncurried.Carrier)(same: _) => trans!{Uncurried.Carrier} _ _ _ (sym!{Uncurried.Carrier} _ _ (uncurryCurry f))
+    (trans!{Uncurried.Carrier} _ _ _ (congr!{Curried.Carrier Uncurried.Carrier} uncurry _ _ same) (uncurryCurry g));
+\definition onto: \forall (g: Curried.Carrier) -> \exists { f: Uncurried.Carrier \where curry f = g } :=
+  \fun (g: Curried.Carrier) => \exact(\into[Uncurried.Carrier](uncurry g, { f: Uncurried.Carrier \where curry f = g }) \by { curryUncurry g },
+    \Cast[Uncurried.Carrier] ({ f: Uncurried.Carrier \where curry f = g }));
+\import Modules.Isomorphism[V := Uncurried.Carrier, W := Curried.Carrier, source := Uncurried.space, target := Curried.space].OfBijective[f := forward] \as Iso;
+\definition isomorphism: _ := Iso.isomorphism injective onto;

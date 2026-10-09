@@ -1,0 +1,28 @@
+\import \parent.\parent.Of[V := B.Carrier, space := B.space].Submodule[] \as Submodules;
+\import Submodules.Kernel[W := C.Carrier, target := C.space] \as Kernels;
+\definition kernel: Submodules.Submodule := Kernels.kernel sequence.projection;
+\import Submodules.Of[S := kernel] \as Kernel;
+\definition Carrier: \Set := Kernel.Carrier;
+\definition space: Space Carrier := Kernel.moduleSpace;
+\definition bundle: Bundle := Bundle { Carrier := Carrier, space := space };
+\import \parent.\parent.Hom[V := A.Carrier, W := Carrier, source := A.space, target := space] \as Forward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (x: A.Carrier) => \into[B.Carrier](#apply{sequence.inclusion} x, #carrier{kernel}) \by { #zero{sequence} x },
+  addition := #addition{sequence.inclusion}, scalar := #scalar{sequence.inclusion},
+};
+\definition injective: \forall (x, y: A.Carrier) -> #apply{forward} x = #apply{forward} y -> x = y :=
+  #injective{sequence};
+\definition onto: \forall (q: Carrier) -> \exists { x: A.Carrier \where #apply{forward} x = q } := \block {
+  \fun (q: Carrier) \then
+  \takefrom x: \Cast[A.Carrier] ({ x: A.Carrier \where #apply{sequence.inclusion} x = q })
+    \by #kernelImage{sequence} q (\bysub(B.Carrier, #carrier{kernel}, q)) \then
+  \return \exact(\into[A.Carrier](x, { x: A.Carrier \where #apply{forward} x = q }) \by {
+    \bysub(A.Carrier, { x: A.Carrier \where #apply{sequence.inclusion} x = q }, x)
+  }, \Cast[A.Carrier] ({ x: A.Carrier \where #apply{forward} x = q }))
+};
+\import \parent.\parent.Isomorphism[V := A.Carrier, W := Carrier, source := A.space, target := space].OfBijective[f := forward] \as Inverse;
+\definition isomorphism: \parent.\parent.Isomorphism[V := A.Carrier, W := Carrier, source := A.space, target := space].Isomorphism :=
+  Inverse.isomorphism injective onto;
+\definition inclusion: \parent.\parent.Hom[V := Carrier, W := B.Carrier, source := space, target := B.space].Map := Kernel.inclusion;
+\definition backward: \parent.\parent.Hom[V := Carrier, W := A.Carrier, source := space, target := A.space].Map := #backward{isomorphism};
+\definition onKernel: \forall (q: Carrier) -> #apply{sequence.inclusion} (#apply{backward} q) = q := #rightInverse{isomorphism};

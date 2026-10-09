@@ -1,0 +1,22 @@
+\import \parent.At[q := Nat.Nat^::zero] \as Case;
+\import Cochains.At[C := D, k := Nat.Nat^::zero] \as Right;
+\import \parent.\parent.Tensor[C := C, D := D] \as Product;
+\import \parent.\parent.Total[C := Product.complex] \as Total;
+\import \parent.\parent.CycleProduct[C := C, D := D, p := p, q := Nat.Nat^::zero] \as Exterior;
+\import Product.Term[p := p, q := Nat.Nat^::zero] \as Term;
+\import Total.Degree[n := p] \as Current;
+\import Current.Component[i := Exterior.index] \as Inclusion;
+\import Cochains.At[C := Total.complex, k := p] \as H;
+\import Modules.Hom[V := Term.Carrier, W := Current.Carrier, source := Term.space, target := Current.space] \as Maps;
+\import Modules.Hom[V := H.CycleCarrier, W := H.Cohomology, source := H.cycleSpace, target := H.cohomologySpace] \as Classes;
+\definition vanishes: Case.Vanishes :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier)(boundary: y = #zero{(D.family.space Nat.Nat^::zero)}) =>
+    trans!{H.Cohomology} (Exterior.classOf x y) (H.classOf #zero{H.cycleSpace}) #zero{H.cohomologySpace}
+      (H.equalClass (Exterior.cycle x y) #zero{H.cycleSpace}
+        (trans!{Current.Carrier} (Exterior.value x y) (#apply{Inclusion.injection} #zero{Term.space}) #zero{Current.space}
+          (congr!{Term.Carrier Current.Carrier} (#apply{Inclusion.injection}) _ _
+            (trans!{Term.Carrier} (Term.tensor x y) (Term.tensor x #zero{(D.family.space Nat.Nat^::zero)}) #zero{Term.space}
+              (congr!{{D.family.Carrier Nat.Nat^::zero} Term.Carrier} (Term.tensor x) _ _ boundary)
+              (Term.zeroRight x)))
+          (Maps.zeroPreserved Inclusion.injection)))
+      (Classes.zeroPreserved H.classLinear);

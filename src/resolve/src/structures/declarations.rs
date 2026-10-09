@@ -148,7 +148,7 @@ impl Resolver {
                 .unwrap()
                 .1
                 .clone();
-            let expected = substitute(expected, &substitutions);
+            let expected = self.substitute_front_expression(expected, &substitutions);
             if self.structure_type(&expected, &[])?.is_some() {
                 let nested = self
                     .structure_value(&expression, &[])?
@@ -177,6 +177,12 @@ impl Resolver {
             };
             self.scoped_item(item, &mut checked_items)?;
             self.bind_structure_field(field.1.unwrap(), expression, &mut substitutions)?;
+        }
+        // Field classifiers may contain checks retained from their original
+        // signature namespace. Apply the complete field environment to those
+        // checks as well as to the values before publishing the template.
+        for (_, expression) in &mut value.fields {
+            *expression = self.substitute_front_expression(expression, &substitutions);
         }
         let checked = self.output.get_mut(&module.id).unwrap();
         checked.declaration_spans = vec![span; checked_items.len()];
@@ -261,6 +267,27 @@ impl Resolver {
                 .find_map(|scope| scope.get(field.as_str()))
                 .unwrap()
                 .clone();
+        }
+        // The generated signature telescope and the frontend field scope
+        // have separate binding identities. Captured namespaces in field
+        // classifiers must use the latter before a literal supplies fields.
+        let field_aliases: HashMap<_, _> = self.output[&module.id]
+            .parameters
+            .iter()
+            .flat_map(|bind| &bind.vars)
+            .filter_map(|name| {
+                let field = field_scope
+                    .iter()
+                    .rev()
+                    .find_map(|scope| scope.get(name.as_str()))?;
+                (name.1 != field.1).then(|| (name.1.unwrap(), variable(field.clone())))
+            })
+            .collect();
+        for (_, ty, default) in &mut checked_fields {
+            *ty = self.substitute_front_expression(ty, &field_aliases);
+            if let Some(body) = default {
+                *body = self.substitute_front_expression(body, &field_aliases);
+            }
         }
         let local_ids: HashSet<_> = field_scope
             .iter()

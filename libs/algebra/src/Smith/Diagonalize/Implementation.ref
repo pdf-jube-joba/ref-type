@@ -1,0 +1,18 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> Runtime -> SmithResult);
+\definition program: T := \thunk (\cfun (rows: N.Nat) => \return(\thunk (\cfun (cols: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \program {
+  \bind columns: \U(N.Nat -> Runtime -> Compute.Output) <- (\force standardizeProgram) rows \then
+  \bind matrix: \U(Runtime -> Compute.Output) <- (\force columns) cols \then
+  \bind output: Compute.Output <- (\force matrix) a \then
+  \bind assemblyColumns: \U(N.Nat -> Compute.Output -> SmithResult) <- (\force assemblyProgram) rows \then
+  \bind assembly: \U(Compute.Output -> SmithResult) <- (\force assemblyColumns) cols \then
+  \bind result: SmithResult <- (\force assembly) output \then
+  \return result
+})))));
+\definition intermediate(rows, cols: N.Nat^)(a: Runtime^): SmithResult^ := assemble rows cols (standardizeProgram^ rows cols a);
+\definition matches: \forall (rows, cols: N.Nat^)(a: Runtime^) -> program^ rows cols a = result rows cols a :=
+  \fun (rows, cols: N.Nat^)(a: Runtime^) => trans!{SmithResult^} (program^ rows cols a) (intermediate rows cols a) (result rows cols a)
+    (congr!{Assembly.T^ SmithResult^} (\fun (f: Assembly.T^) => f rows cols (standardizeProgram^ rows cols a)) assemblyProgram^ assemble Assembly.coherence)
+    (congr!{Standardize.Standardize.T^ SmithResult^} (\fun (f: Standardize.Standardize.T^) => assemble rows cols (f rows cols a)) standardizeProgram^ Standardize.standardize Standardize.Standardize.coherence);
+\definition coherence: program^ = result := \axiom:funext(program^, result,
+  \fun (rows: N.Nat^) => \axiom:funext(program^ rows, result rows,
+    \fun (cols: N.Nat^) => \axiom:funext(program^ rows cols, result rows cols, matches rows cols)));

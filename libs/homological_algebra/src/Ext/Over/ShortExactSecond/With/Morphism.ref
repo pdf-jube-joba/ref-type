@@ -1,0 +1,48 @@
+\import \parent.\parent.\parent.ShortExactSecond[M := M, A := A1, B := B1, C := C1, P := P].With[sequence := t, resolution := resolution] \as Target;
+\import HomComplexes.On[P := P, N := A1] \as TargetLeft;
+\import HomComplexes.On[P := P, N := B1] \as TargetMiddle;
+\import HomComplexes.On[P := P, N := C1] \as TargetRight;
+\import \parent.\parent.\parent.Second[M := M, N := A, L := A1, P := P] \as LeftMap;
+\import \parent.\parent.\parent.Second[M := M, N := B, L := B1, P := P] \as MiddleMap;
+\import \parent.\parent.\parent.Second[M := M, N := C, L := C1, P := P] \as RightMap;
+\import Sequence.Morphism[A1 := TargetLeft.complex, B1 := TargetMiddle.complex, C1 := TargetRight.complex].Diagram[s := cochainSequence, t := Target.cochainSequence,
+  a := LeftMap.cochainMap a, b := MiddleMap.cochainMap b, c := RightMap.cochainMap c] \as Diagram;
+\structure Commutative: \Prop {
+  left: \forall (x: A.Carrier) -> #apply{b} (#apply{sequence.inclusion} x) = #apply{t.inclusion} (#apply{a} x),
+  right: \forall (x: B.Carrier) -> #apply{t.projection} (#apply{b} x) = #apply{c} (#apply{sequence.projection} x),
+}
+\module Degree(n: Nat.Nat^) {
+  \import Modules.Hom[V := P.family.Carrier n, W := B1.Carrier, source := P.family.space n, target := B1.space] \as MiddleMaps;
+  \import Modules.Hom[V := P.family.Carrier n, W := C1.Carrier, source := P.family.space n, target := C1.space] \as RightMaps;
+  \definition left: Commutative -> \forall (f: Left.Carrier n) ->
+    #apply{(MiddleMap.cochainMap b)} n (#apply{cochainSequence.inclusion} n f) =
+    #apply{Target.cochainSequence.inclusion} n (#apply{(LeftMap.cochainMap a)} n f) :=
+    \fun (diagram: Commutative)(f: Left.Carrier n) => MiddleMaps.ext
+      (#apply{(MiddleMap.cochainMap b)} n (#apply{cochainSequence.inclusion} n f))
+      (#apply{Target.cochainSequence.inclusion} n (#apply{(LeftMap.cochainMap a)} n f))
+      (\fun (x: P.family.Carrier n) => #left{diagram} (#apply{f} x));
+  \definition right: Commutative -> \forall (f: Middle.Carrier n) ->
+    #apply{Target.cochainSequence.projection} n (#apply{(MiddleMap.cochainMap b)} n f) =
+    #apply{(RightMap.cochainMap c)} n (#apply{cochainSequence.projection} n f) :=
+    \fun (diagram: Commutative)(f: Middle.Carrier n) => RightMaps.ext
+      (#apply{Target.cochainSequence.projection} n (#apply{(MiddleMap.cochainMap b)} n f))
+      (#apply{(RightMap.cochainMap c)} n (#apply{cochainSequence.projection} n f))
+      (\fun (x: P.family.Carrier n) => #right{diagram} (#apply{f} x));
+}
+\definition cochainCommutative: Commutative -> Diagram.Commutative := \fun (diagram: Commutative) => Diagram.Commutative {
+  left := \fun (n: Nat.Nat^) => Degree[n := n].left diagram,
+  right := \fun (n: Nat.Nat^) => Degree[n := n].right diagram,
+};
+\module At(n: Nat.Nat^) {
+  \import \parent.\parent.At[n := n] \as SourceAt;
+  \import Target.At[n := n] \as TargetAt;
+  \import \parent.\parent.\parent.\parent.Of[M := M, N := C, P := P].At[n := n] \as Source;
+  \import \parent.\parent.\parent.\parent.Of[M := M, N := A1, P := P].At[n := Nat.Nat^::succ n] \as TargetTerm;
+  \definition naturality: Commutative -> \forall (q: Source.Carrier) ->
+    #apply{(LeftMap.At[k := Nat.Nat^::succ n].map a)} (#apply{SourceAt.connecting} q) =
+    #apply{TargetAt.connecting} (#apply{(RightMap.At[k := n].map c)} q) :=
+    \fun (diagram: Commutative)(q: Source.Carrier) => sym!{TargetTerm.Carrier}
+      (#apply{TargetAt.connecting} (#apply{(RightMap.At[k := n].map c)} q))
+      (#apply{(LeftMap.At[k := Nat.Nat^::succ n].map a)} (#apply{SourceAt.connecting} q))
+      (Diagram.At[n := n].naturality (cochainCommutative diagram) q);
+}

@@ -1,0 +1,40 @@
+\import Modules.Hom[V := Out.target.Carrier, W := Out.source.Carrier, source := Out.target.space, target := Out.source.space].Composition[U := Out.source.Carrier, domain := Out.source.space] \as Compose;
+\import Modules.Hom[V := Out.source.Carrier, W := Out.source.Carrier, source := Out.source.space, target := Out.source.space] \as EndMaps;
+\import Modules.End[V := Out.source.Carrier, space := Out.source.space] \as End;
+\definition cyclePart: EndMaps.Map := EndMaps.plus End.identity (EndMaps.negative (Compose.compose #outgoing{d} Out.differential));
+\import Modules.Hom[V := Out.source.Carrier, W := Out.target.Carrier, source := Out.source.space, target := Out.target.space] \as Differentials;
+\import Modules.Of[V := Out.target.Carrier, space := Out.target.space] \as Target;
+\import algebra.Group[].Of[Carrier := Out.target.Carrier, group := Target.additive] \as Group;
+\definition differentiates: \forall (x: Out.target.Carrier) -> #apply{Out.differential} (#apply{#outgoing{d}} x) = x := #differentiates{d};
+\definition closed: \forall (x: Out.source.Carrier) -> #apply{Out.differential} (#apply{cyclePart} x) = #zero{Out.target.space} :=
+  \fun (x: Out.source.Carrier) => trans!{Out.target.Carrier} _ _ _
+    (Differentials.differencePreserved Out.differential x (#apply{#outgoing{d}} (#apply{Out.differential} x)))
+    (trans!{Out.target.Carrier} _ _ _
+      (congr!{Out.target.Carrier Out.target.Carrier} (Group.difference (#apply{Out.differential} x)) _ _
+        (differentiates (#apply{Out.differential} x))) (Group.inverseRight (#apply{Out.differential} x)));
+\import Modules.Hom[V := Out.source.Carrier, W := H.CycleCarrier, source := Out.source.space, target := H.cycleSpace] \as CycleMaps;
+\definition cycles: CycleMaps.Map := CycleMaps.Map {
+  apply := \fun (x: Out.source.Carrier) => H.cycle (#apply{cyclePart} x) (closed x),
+  addition := \fun (x, y: Out.source.Carrier) => #addition{cyclePart} x y,
+  scalar := \fun (a: K)(x: Out.source.Carrier) => #scalar{cyclePart} a x,
+};
+\import Modules.Hom[V := Out.target.Carrier, W := Out.source.Carrier, source := Out.target.space, target := Out.source.space] \as OutgoingMaps;
+\import Modules.Of[V := Out.source.Carrier, space := Out.source.space] \as Source;
+\import algebra.Group[].Of[Carrier := Out.source.Carrier, group := Source.additive] \as SourceGroup;
+\definition onCycle: \forall (x: H.CycleCarrier) -> #apply{cycles} x = x :=
+  \fun (x: H.CycleCarrier) => trans!{Out.source.Carrier} _ _ _
+    (congr!{Out.target.Carrier Out.source.Carrier} (\fun (y: Out.target.Carrier) => SourceGroup.difference x (#apply{#outgoing{d}} y))
+      (#apply{Out.differential} x) #zero{Out.target.space}
+      (\bysub(Out.source.Carrier, #carrier{H.cycles}, x)))
+    (trans!{Out.source.Carrier} _ _ _
+      (congr!{Out.source.Carrier Out.source.Carrier} (SourceGroup.difference x) _ _ (OutgoingMaps.zeroPreserved #outgoing{d}))
+      (trans!{Out.source.Carrier} _ _ _ (congr!{Out.source.Carrier Out.source.Carrier} (SourceGroup.add x) _ _ SourceGroup.negZero) (SourceGroup.zeroRight x)));
+\import Modules.Hom[V := H.CycleCarrier, W := H.Cohomology, source := H.cycleSpace, target := H.cohomologySpace].Composition[U := Out.source.Carrier, domain := Out.source.space] \as Projection;
+\definition projection: Modules.MapBetween Out.source cohomologyBundle := Projection.compose H.classLinear cycles;
+\import Modules.Hom[V := H.CycleCarrier, W := Out.source.Carrier, source := H.cycleSpace, target := Out.source.space].Composition[U := H.Cohomology, domain := H.cohomologySpace] \as Inclusion;
+\definition inclusion: Modules.MapBetween cohomologyBundle Out.source := Inclusion.compose Cycles.inclusion #section{d};
+\definition inclusionClosed: \forall (x: H.Cohomology) -> #apply{(C.differential n)} (#apply{inclusion} x) = #zero{(space (C.ranks (N.Nat^::succ n)))} :=
+  \fun (x: H.Cohomology) => \bysub(Out.source.Carrier, #carrier{H.cycles}, #apply{#section{d}} x);
+\definition represents: \forall (x: H.Cohomology) -> #apply{projection} (#apply{inclusion} x) = x :=
+  \fun (x: H.Cohomology) => trans!{H.Cohomology} _ _ _
+    (congr!{H.CycleCarrier H.Cohomology} (#apply{H.classLinear}) _ _ (onCycle (#apply{#section{d}} x))) (#represents{d} x);

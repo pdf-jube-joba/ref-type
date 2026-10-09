@@ -1,0 +1,66 @@
+\import Modules.Pushout[A := A, B := N, C := B].On[f := f, g := s.inclusion] \as Pushout;
+\import Modules.Biproduct[V := N.Carrier, W := B.Carrier, left := N.space, right := B.space] \as Sum;
+\definition Carrier: \Set := Pushout.Carrier;
+\definition space: Modules.Space Carrier := Pushout.space;
+\definition bundle: Modules.Bundle := Pushout.bundle;
+\import Modules.Hom[V := N.Carrier, W := C.Carrier, source := N.space, target := C.space] \as Zero;
+\import Pushout.Universal[U := C, b := Zero.zeroMap, c := s.projection] \as Projection;
+\definition compatible: Projection.Compatible := \fun (x: A.Carrier) => sym!{C.Carrier} _ _ (#zero{s} x);
+\definition projection: Modules.Hom[V := Carrier, W := C.Carrier, source := space, target := C.space].Map := Projection.map compatible;
+\definition inclusion: Modules.Hom[V := N.Carrier, W := Carrier, source := N.space, target := space].Map := Pushout.left;
+\import Modules.Laws[V := B.Carrier, space := B.space] \as Middle;
+\import algebra.Group[].Of[Carrier := B.Carrier, group := Middle.additive] \as MiddleGroup;
+\import Modules.Laws[V := C.Carrier, space := C.space] \as Right;
+\import algebra.Group[].Of[Carrier := C.Carrier, group := Right.additive] \as RightGroup;
+\import std.Data[].Pair[].Prop[A := N.Carrier, B := B.Carrier] \as Pairs;
+\import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as SourceInclusion;
+\definition zeroKernel: \forall (x: N.Carrier) -> #apply{inclusion} x = #zero{space} -> x = #zero{N.space} := \block {
+  \fun (x: N.Carrier)(closed: _) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{Pushout.relation} a = #apply{Sum.firstInjection} x })
+    \by Pushout.zeroClassRelation (#apply{Sum.firstInjection} x) closed \then
+  \let represented: #apply{Pushout.relation} a = #apply{Sum.firstInjection} x :=
+    \bysub(A.Carrier, { a: A.Carrier \where #apply{Pushout.relation} a = #apply{Sum.firstInjection} x }, a) \then
+  \let negativeZero: #neg{B.space} (#apply{s.inclusion} a) = #zero{B.space} := Pairs.secondCong _ _ represented \then
+  \let imageZero: #apply{s.inclusion} a = #zero{B.space} := trans!{B.Carrier} _ _ _
+    (sym!{B.Carrier} _ _ (MiddleGroup.negNeg (#apply{s.inclusion} a)))
+    (trans!{B.Carrier} _ _ _ (congr!{B.Carrier B.Carrier} (#neg{B.space}) _ _ negativeZero) MiddleGroup.negZero) \then
+  \let aZero: a = #zero{A.space} := #injective{s} a #zero{A.space}
+    (trans!{B.Carrier} _ _ _ imageZero (sym!{B.Carrier} _ _ (SourceInclusion.zeroPreserved s.inclusion))) \then
+  \return trans!{N.Carrier} _ _ _ (sym!{N.Carrier} _ _ (Pairs.firstCong _ _ represented))
+    (trans!{N.Carrier} _ _ _ (congr!{A.Carrier N.Carrier} (#apply{f}) _ _ aZero) (Maps.zeroPreserved f))
+};
+\import Modules.Hom[V := N.Carrier, W := Carrier, source := N.space, target := space] \as Inclusion;
+\definition injective: \forall (x, y: N.Carrier) -> #apply{inclusion} x = #apply{inclusion} y -> x = y := Inclusion.injectiveOfZeroKernel inclusion zeroKernel;
+\definition onto: \forall (c: C.Carrier) -> \exists { x: Carrier \where #apply{projection} x = c } := \block {
+  \fun (c: C.Carrier) \then
+  \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where #apply{s.projection} b = c }) \by #onto{s} c \then
+  \return \exact(\into[Carrier](#apply{Pushout.right} b, { x: Carrier \where #apply{projection} x = c }) \by {
+    trans!{C.Carrier} _ _ _ (Projection.onRight compatible b)
+      (\bysub(B.Carrier, { b: B.Carrier \where #apply{s.projection} b = c }, b))
+  }, \Cast[Carrier] ({ x: Carrier \where #apply{projection} x = c }))
+};
+\definition zero: \forall (x: N.Carrier) -> #apply{projection} (#apply{inclusion} x) = #zero{C.space} := Projection.onLeft compatible;
+\definition onClass: \forall (x: Sum.Carrier) -> #apply{projection} (Pushout.class x) = #apply{s.projection} (Sum.second x) :=
+  \fun (x: Sum.Carrier) => trans!{C.Carrier} _ _ _ (Projection.onClass compatible x) (RightGroup.zeroLeft (#apply{s.projection} (Sum.second x)));
+\definition kernelImage: \forall (q: Carrier) -> #apply{projection} q = #zero{C.space} -> \exists { n: N.Carrier \where #apply{inclusion} n = q } := \block {
+  \fun (q: Carrier)(closed: _) \then
+  \takefrom x: \Cast[Sum.Carrier] ({ x: Sum.Carrier \where Pushout.class x = q }) \by Pushout.classOnto q \then
+  \let equal: Pushout.class x = q := \bysub(Sum.Carrier, { x: Sum.Carrier \where Pushout.class x = q }, x) \then
+  \let imageZero: #apply{s.projection} (Sum.second x) = #zero{C.space} := trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (onClass x))
+    (trans!{C.Carrier} _ _ _ (congr!{Carrier C.Carrier} (#apply{projection}) _ _ equal) closed) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{s.inclusion} a = Sum.second x }) \by #kernelImage{s} (Sum.second x) imageZero \then
+  \let represented: #apply{s.inclusion} a = Sum.second x := \bysub(A.Carrier, { a: A.Carrier \where #apply{s.inclusion} a = Sum.second x }, a) \then
+  \let witness: N.Carrier := #add{N.space} (Sum.first x) (#apply{f} a) \then
+  \return \exact(\into[N.Carrier](witness, { n: N.Carrier \where #apply{inclusion} n = q }) \by {
+    trans!{Carrier} _ _ _ (#addition{inclusion} (Sum.first x) (#apply{f} a))
+      (trans!{Carrier} _ _ _
+        (congr!{Carrier Carrier} (#add{space} (#apply{inclusion} (Sum.first x))) _ _
+          (trans!{Carrier} _ _ _ (Pushout.square a) (congr!{B.Carrier Carrier} (#apply{Pushout.right}) _ _ represented)))
+        (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Pushout.onSum x)) equal))
+  }, \Cast[N.Carrier] ({ n: N.Carrier \where #apply{inclusion} n = q }))
+};
+\import Modules.ShortExact[A := N, B := bundle, C := C] \as Sequences;
+\definition sequence: Sequences.Sequence := Sequences.Sequence {
+  inclusion := inclusion, projection := projection,
+  injective := injective, onto := onto, zero := zero, kernelImage := kernelImage,
+};

@@ -1,0 +1,26 @@
+\import Modules.Hom[V := V, W := W, source := source, target := target] \as Original;
+\import Original.Composition[U := Domain.Carrier, domain := Domain.space] \as InputComposition;
+\import Modules.Hom[V := W, W := Codomain.Carrier, source := target, target := Codomain.space].Composition[U := Domain.Carrier, domain := Domain.space] \as OutputComposition;
+\definition coordinates(f: Original.Map): Maps.Map := OutputComposition.compose #forward{basisTarget} (InputComposition.compose f #backward{basisSource});
+\definition matrix(f: Original.Map): Matrix := entries (coordinates f);
+\import Maps.Composition[U := V, domain := source] \as InputReconstruction;
+\import Modules.Hom[V := Codomain.Carrier, W := W, source := Codomain.space, target := target].Composition[U := V, domain := source] \as OutputReconstruction;
+\definition reconstruct(a: Matrix): Original.Map := OutputReconstruction.compose #backward{basisTarget} (InputReconstruction.compose (linear a) #forward{basisSource});
+\import \parent.Representation[] \as Representation;
+\definition mapRoundtrip: \forall (f: Original.Map) -> reconstruct (matrix f) = f :=
+  \fun (f: Original.Map) => Original.ext (reconstruct (matrix f)) f (\fun (v: V) =>
+    trans!{W} _ _ _
+      (congr!{Codomain.Carrier W} (#apply{(#backward{basisTarget})}) _ _
+        (congr!{Maps.Map Codomain.Carrier} (\fun (h: Maps.Map) => #apply{h} (#apply{(#forward{basisSource})} v)) _ _
+          (Representation.mapRoundtrip (coordinates f))))
+      (trans!{W} _ _ _
+        (congr!{V W} (\fun (v: V) => #apply{(#backward{basisTarget})} (#apply{(#forward{basisTarget})} (#apply{f} v))) _ _ (#leftInverse{basisSource} v))
+        (#leftInverse{basisTarget} (#apply{f} v))));
+\definition matrixRoundtrip: \forall (a: Matrix) -> matrix (reconstruct a) = a :=
+  \fun (a: Matrix) => trans!{Matrix} _ _ _
+    (congr!{Maps.Map Matrix} entries _ _
+      (Maps.ext (coordinates (reconstruct a)) (linear a) (\fun (v: Domain.Carrier) =>
+        trans!{Codomain.Carrier} _ _ _
+          (congr!{Domain.Carrier Codomain.Carrier} (\fun (v: Domain.Carrier) => #apply{(#forward{basisTarget})} (#apply{(#backward{basisTarget})} (apply a v))) _ _ (#rightInverse{basisSource} v))
+          (#rightInverse{basisTarget} (apply a v)))))
+    (Representation.matrixRoundtrip a);

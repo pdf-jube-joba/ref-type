@@ -738,7 +738,10 @@ impl<'a> Parser<'a> {
         if self.bump_if_keyword("\\structure") {
             return self.parse_structure().map(Some);
         }
-        if self.bump_if_keyword("\\definition") {
+        if self.bump_if_keyword("\\definition")
+            || self.bump_if_keyword("\\machine")
+            || self.bump_if_keyword("\\correspondence")
+        {
             let def = self.parse_definition()?;
             return Ok(Some(def));
         }
@@ -986,6 +989,43 @@ mod tests {
         print_and_unwrap(r"\Prop \Set (0)");
         print_and_unwrap(r"(( \( \) ))");
         print_and_unwrap(r"x.y # name { hello: ");
+    }
+
+    #[test]
+    fn machine_and_correspondence_preserve_typed_definition_items() {
+        for keyword in ["machine", "correspondence"] {
+            let source = format!("\\{keyword} implementation: Program := witness;");
+            let (actual, spans) = parse_items(&source).unwrap();
+            let [
+                ModuleItem::Definition {
+                    owner,
+                    name,
+                    binders,
+                    ty,
+                    body,
+                },
+            ] = actual.as_slice()
+            else {
+                panic!("expected a typed definition: {actual:?}");
+            };
+            assert!(owner.is_none());
+            assert_eq!(name.0, "implementation");
+            assert!(binders.is_empty());
+            for (term, expected) in [(ty, "Program"), (body, "witness")] {
+                let SExp::AccessPath {
+                    access: LocalAccess::Current { access: name, .. },
+                    parameters,
+                } = term
+                else {
+                    panic!("expected an unqualified name: {term:?}");
+                };
+                assert_eq!(name.0, expected);
+                assert!(parameters.is_empty());
+            }
+            assert_eq!(spans.len(), 1);
+            assert_eq!(spans[0].start, 0);
+            assert_eq!(spans[0].end, source.len());
+        }
     }
 
     #[test]

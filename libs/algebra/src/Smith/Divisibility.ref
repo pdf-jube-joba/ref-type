@@ -1,0 +1,78 @@
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import I.Math[].Specification[].Prop[] \as IntegerLaws;
+\import IntegerLaws.Multiplication[] \as Product;
+\use Equality.congr2;
+\definition Factor(d, x: I.Int^): \Set := \Cast[I.Int^] ({ q: I.Int^ \where x = Arithmetic.mul d q });
+\definition equation: \forall (d, x: I.Int^)(q: Factor d x) -> x = Arithmetic.mul d q :=
+  \fun (d, x: I.Int^)(q: Factor d x) => \bysub(I.Int^, { q: I.Int^ \where x = Arithmetic.mul d q }, q);
+\definition zero: \forall (d: I.Int^) -> Signed.Divides d Arithmetic.zero :=
+  \fun (d: I.Int^) => \exact(\into[I.Int^](Arithmetic.zero, { q: I.Int^ \where Arithmetic.zero = Arithmetic.mul d q }) \by {
+    sym!{I.Int^} (Arithmetic.mul d Arithmetic.zero) Arithmetic.zero (Product.mulZeroRight d)
+  }, Factor d Arithmetic.zero);
+\definition reflexive: \forall (d: I.Int^) -> Signed.Divides d d :=
+  \fun (d: I.Int^) => \exact(\into[I.Int^](Arithmetic.one, { q: I.Int^ \where d = Arithmetic.mul d q }) \by {
+    sym!{I.Int^} (Arithmetic.mul d Arithmetic.one) d (Product.mulOneRight d)
+  }, Factor d d);
+\definition addition: \forall (d, x, y: I.Int^) -> Signed.Divides d x -> Signed.Divides d y -> Signed.Divides d (Arithmetic.add x y) := \block {
+  \fun (d, x, y: I.Int^)(dx: Signed.Divides d x)(dy: Signed.Divides d y) \then
+  \takefrom q: Factor d x \by dx \then
+  \takefrom r: Factor d y \by dy \then
+  \return \exact(\into[I.Int^](Arithmetic.add q r, { f: I.Int^ \where Arithmetic.add x y = Arithmetic.mul d f }) \by {
+    trans!{I.Int^} (Arithmetic.add x y) (Arithmetic.add (Arithmetic.mul d q) (Arithmetic.mul d r)) (Arithmetic.mul d (Arithmetic.add q r))
+      (congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.add x (Arithmetic.mul d q) y (Arithmetic.mul d r) (equation d x q) (equation d y r))
+      (sym!{I.Int^} (Arithmetic.mul d (Arithmetic.add q r)) (Arithmetic.add (Arithmetic.mul d q) (Arithmetic.mul d r)) (Product.mulAdd d q r))
+  }, Factor d (Arithmetic.add x y))
+};
+\definition scaling: \forall (d, x, c: I.Int^) -> Signed.Divides d x -> Signed.Divides d (Arithmetic.mul c x) := \block {
+  \fun (d, x, c: I.Int^)(dx: Signed.Divides d x) \then
+  \takefrom q: Factor d x \by dx \then
+  \return \exact(\into[I.Int^](Arithmetic.mul c q, { f: I.Int^ \where Arithmetic.mul c x = Arithmetic.mul d f }) \by {
+    trans!{I.Int^} (Arithmetic.mul c x) (Arithmetic.mul c (Arithmetic.mul d q)) (Arithmetic.mul d (Arithmetic.mul c q))
+      (congr!{I.Int^ I.Int^} (Arithmetic.mul c) x (Arithmetic.mul d q) (equation d x q))
+      (trans!{I.Int^} (Arithmetic.mul c (Arithmetic.mul d q)) (Arithmetic.mul (Arithmetic.mul c d) q) (Arithmetic.mul d (Arithmetic.mul c q))
+        (sym!{I.Int^} (Arithmetic.mul (Arithmetic.mul c d) q) (Arithmetic.mul c (Arithmetic.mul d q)) (Product.mulAssoc c d q))
+        (trans!{I.Int^} (Arithmetic.mul (Arithmetic.mul c d) q) (Arithmetic.mul (Arithmetic.mul d c) q) (Arithmetic.mul d (Arithmetic.mul c q))
+          (congr!{I.Int^ I.Int^} (\fun (value: I.Int^) => Arithmetic.mul value q) (Arithmetic.mul c d) (Arithmetic.mul d c) (IntegerLaws.mulComm c d))
+          (Product.mulAssoc d c q)))
+  }, Factor d (Arithmetic.mul c x))
+};
+\definition transitive: \forall (d, e, x: I.Int^) -> Signed.Divides d e -> Signed.Divides e x -> Signed.Divides d x := \block {
+  \fun (d, e, x: I.Int^)(de: Signed.Divides d e)(ex: Signed.Divides e x) \then
+  \takefrom q: Factor e x \by ex \then
+  \return \idelim Arithmetic.mul q e = x \with value: I.Int^ => Signed.Divides d value \by {
+    base: scaling d e q de,
+    equality: trans!{I.Int^} (Arithmetic.mul q e) (Arithmetic.mul e q) x (IntegerLaws.mulComm q e) (sym!{I.Int^} x (Arithmetic.mul e q) (equation e x q))
+  }
+};
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Module[].Over[R := I.Int^, ring := Rings.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Modules;
+\import Modules.Submodule[V := I.Int^, space := Modules.scalarModule] \as Submodules;
+\definition idealData(d: I.Int^): Submodules.Data := Submodules.Data { carrier := { x: I.Int^ \where Signed.Divides d x } };
+\definition ideal(d: I.Int^): Submodules.Submodule := \into[Submodules.Data](idealData d, { data: Submodules.Data \where Submodules.Laws[data] }) \by {
+  Submodules.Laws[idealData d] {
+    zero := zero d,
+    addition := addition d,
+    scalar := \fun (c, x: I.Int^)(member: Signed.Divides d x) => scaling d x c member,
+  }
+};
+\definition negation: \forall (d, x: I.Int^) -> Signed.Divides d x -> Signed.Divides d (Arithmetic.neg x) :=
+  \fun (d, x: I.Int^)(member: Signed.Divides d x) => Submodules.negativeClosed (ideal d) x member;
+\import algebra.Group[].Of[Carrier := I.Int^, group := Modules.scalarGroup] \as Integers;
+\definition negativeDivisor: \forall (d, x: I.Int^) -> Signed.Divides d x -> Signed.Divides (Arithmetic.neg d) x := \block {
+  \fun (d, x: I.Int^)(law: Signed.Divides d x) \then
+  \takefrom q: Factor d x \by law \then
+  \return \exact(\into[I.Int^](Arithmetic.neg q, { f: I.Int^ \where x = Arithmetic.mul (Arithmetic.neg d) f }) \by {
+    trans!{I.Int^} x (Arithmetic.mul d q) (Arithmetic.mul (Arithmetic.neg d) (Arithmetic.neg q)) (equation d x q)
+      (sym!{I.Int^} (Arithmetic.mul (Arithmetic.neg d) (Arithmetic.neg q)) (Arithmetic.mul d q)
+        (trans!{I.Int^} (Arithmetic.mul (Arithmetic.neg d) (Arithmetic.neg q)) (Arithmetic.neg (Arithmetic.mul d (Arithmetic.neg q))) (Arithmetic.mul d q)
+          (Arithmetic.negMulLeft d (Arithmetic.neg q))
+          (trans!{I.Int^} (Arithmetic.neg (Arithmetic.mul d (Arithmetic.neg q))) (Arithmetic.neg (Arithmetic.neg (Arithmetic.mul d q))) (Arithmetic.mul d q)
+            (congr!{I.Int^ I.Int^} Arithmetic.neg (Arithmetic.mul d (Arithmetic.neg q)) (Arithmetic.neg (Arithmetic.mul d q))
+              (trans!{I.Int^} (Arithmetic.mul d (Arithmetic.neg q)) (Arithmetic.mul (Arithmetic.neg q) d) (Arithmetic.neg (Arithmetic.mul d q))
+                (IntegerLaws.mulComm d (Arithmetic.neg q))
+                (trans!{I.Int^} (Arithmetic.mul (Arithmetic.neg q) d) (Arithmetic.neg (Arithmetic.mul q d)) (Arithmetic.neg (Arithmetic.mul d q))
+                  (Arithmetic.negMulLeft q d) (congr!{I.Int^ I.Int^} Arithmetic.neg (Arithmetic.mul q d) (Arithmetic.mul d q) (IntegerLaws.mulComm q d)))))
+            (Integers.negNeg (Arithmetic.mul d q)))))
+  }, Factor (Arithmetic.neg d) x)
+};

@@ -5,7 +5,7 @@
 | パッケージ | 内容 | 直接依存 |
 | --- | --- | --- |
 | [std](std/README.md) | 論理、データ、整数・有理数、商、代数構造 | なし |
-| [algebra](algebra/README.md) | 準同型、商群・商環、群完成、多項式、完全性 | std |
+| [algebra](algebra/README.md) | 準同型、商、自由加群、直和・積、テンソル積、射影性、完全性 | std |
 | [real](real/README.md) | 実数の構成・完備性、演算・距離・数列 | std |
 | [complex](complex/README.md) | 実数対による複素数と体の構造 | std, real |
 | [linear_algebra](linear_algebra/README.md) | 体上の線形代数、実数・複素数への具体化 | std, real, complex, algebra |
@@ -13,11 +13,11 @@
 | [topological_algebra](topological_algebra/README.md) | 位相的代数、座標空間・行列位相、成分による連続性判定 | std, real, complex, algebra, linear_algebra, topology |
 | [algebraic_topology](algebraic_topology/README.md) | ホモトピー、基点付き商構成、mapping cone、ホモトピー拡張性、有限 CW 対 | std, real, topology, topological_algebra |
 | [calculus](calculus/README.md) | 極限、平均値定理、開集合上の微分、滑らかな写像とヤコビアン | std, real, linear_algebra, topology, topological_algebra |
-| [homological_algebra](homological_algebra/README.md) | 加群の余鎖複体、商によるコホモロジー、誘導写像 | std, algebra, category |
+| [homological_algebra](homological_algebra/README.md) | 加群の鎖・余鎖複体、ホモロジー、ホモトピー、シフトと cone | std, algebra, category |
 | [manifolds](manifolds/README.md) | 有限次元多様体、アトラス、滑らかな写像、接空間と微分 | std, real, linear_algebra, topology, topological_algebra, calculus |
 | [differential_forms](differential_forms/README.md) | 局所・大域微分形式、外微分、引き戻し、De Rham コホモロジー | std, algebra, real, topology, linear_algebra, calculus, homological_algebra, manifolds |
 | [integration](integration/README.md) | リーマン積分、\(L^1\) 完備化によるルベーグ積分 | std, real |
-| [category](category/README.md) | 圏、関手、自然変換、普遍性、随伴、Kan 拡張 | std |
+| [category](category/README.md) | 圏、関手、自然変換、普遍性、随伴、加法圏・アーベル圏 | std |
 
 共通の数値的な補題は `real.Analysis` に置き、微分・積分・位相・線形代数が利用する。
 `Def` / `Prop` は演算と法則を分けた module、単独の関心ごとは `Distance` / `Sequence` などの名前で公開する。
@@ -34,6 +34,7 @@ for package in std algebra real complex linear_algebra topology topological_alge
 done
 target/debug/cli tests/projects/library --no-cache
 target/debug/cli tests/projects/category --no-cache
+target/debug/cli tests/projects/homological-algebra --no-cache
 target/debug/cli tests/projects/topological-k-theory --no-cache
 target/debug/cli tests/projects/manifolds-de-rham --no-cache
 ```

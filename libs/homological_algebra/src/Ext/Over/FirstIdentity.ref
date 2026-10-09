@@ -1,0 +1,27 @@
+\import \parent.Of[M := M, N := N, P := P] \as Ext;
+\import \parent.First[M := M, L := M, N := N, P := P, Q := P] \as Action;
+\import \root.Resolution[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].Of[M := M, P := P] \as Resolutions;
+\import Modules.End[V := M.Carrier, space := M.space] \as Coefficients;
+\import Chains.End[C := P] \as Identity;
+\import \root.HomComplex[].Over[R := R, ring := ring].End[P := P, N := N] \as HomIdentity;
+\import \root.HomComplex[].Over[R := R, ring := ring].On[P := P, N := N] \as HomComplex;
+\import \root.Cochain[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].Map[C := HomComplex.complex, D := HomComplex.complex] \as Maps;
+\module At(k: Nat.Nat^, resolution: Resolutions.Resolution) {
+  \import Action.At[k := k].With[p := resolution, q := resolution, f := Coefficients.identity] \as Induced;
+  \import Ext.At[n := k] \as Term;
+  \import Modules.Hom[V := Term.Carrier, W := Term.Carrier, source := Term.space, target := Term.space] \as Linear;
+  \import Maps.At[k := k] \as Cohomology;
+  \definition augmented: \forall (x: P.family.Carrier Nat.Nat^::zero) ->
+    #apply{#augmentation{resolution}} (#apply{Identity.identity} Nat.Nat^::zero x) =
+    #apply{Coefficients.identity} (#apply{#augmentation{resolution}} x) :=
+    \fun (x: P.family.Carrier Nat.Nat^::zero) => \refl(#apply{#augmentation{resolution}} x);
+  \definition map: Linear.Map := Induced.map;
+  \definition equality: map = Cohomology.induced (HomIdentity.map) :=
+    Induced.onComparison Identity.identity augmented;
+  \definition pointwise: \forall (q: Term.Carrier) ->
+    #apply{map} q = #apply{(Cohomology.induced HomIdentity.map)} q :=
+    \fun (q: Term.Carrier) => congr!{Linear.Map Term.Carrier}
+      (\fun (f: Linear.Map) => #apply{f} q) map (Cohomology.induced HomIdentity.map) equality;
+  \definition identity: \forall (q: Term.Carrier) -> #apply{map} q = q :=
+    \fun (q: Term.Carrier) => trans!{Term.Carrier} _ _ _ (pointwise q) (HomIdentity.At[k := k].onCohomology q);
+}

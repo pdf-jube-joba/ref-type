@@ -1,0 +1,30 @@
+\import \parent.Degree[n := n] \as Term;
+\import Cochains.At[C := complex, k := n] \as H;
+\import Cochains.At[C := HomologyComplex.complex, k := n] \as Zero;
+\import Inclusions.At[k := n] \as Include;
+\import Projections.At[k := n] \as Project;
+\definition zeroClass(x: H.Cohomology): Zero.Cohomology :=
+  Zero.classOf (Zero.cycle x (\refl(#zero{(homologyFamily.space (N.Nat^::succ n))})));
+\definition inclusionClass: \forall (x: H.Cohomology) ->
+  H.classOf (H.cycle (#apply{Term.inclusion} x) (Term.inclusionClosed x)) = x := #represents{(d n)};
+\definition leftInverse: \forall (x: Zero.Cohomology) ->
+  #apply{(Project.induced projection)} (#apply{(Include.induced inclusion)} x) = x :=
+  Zero.classInduction (\fun (x: Zero.Cohomology) => #apply{(Project.induced projection)} (#apply{(Include.induced inclusion)} x) = x)
+    (\fun (x: Zero.CycleCarrier) => trans!{Zero.Cohomology} _ _ _
+      (congr!{H.Cohomology Zero.Cohomology} (#apply{(Project.induced projection)}) _ _ (Include.onClass inclusion x))
+      (trans!{Zero.Cohomology} _ _ _ (Project.onClass projection (#apply{(Include.cyclesMap inclusion)} x))
+        (congr!{H.Cohomology Zero.Cohomology} zeroClass
+          (#apply{Term.projection} (#apply{Term.inclusion} x)) x (Term.inverse x))));
+\definition rightInverse: \forall (x: H.Cohomology) ->
+  #apply{(Include.induced inclusion)} (#apply{(Project.induced projection)} x) = x :=
+  H.classInduction (\fun (x: H.Cohomology) => #apply{(Include.induced inclusion)} (#apply{(Project.induced projection)} x) = x)
+    (\fun (x: H.CycleCarrier) => trans!{H.Cohomology} _ _ _
+      (congr!{Zero.Cohomology H.Cohomology} (#apply{(Include.induced inclusion)}) _ _ (Project.onClass projection x))
+      (trans!{H.Cohomology} _ _ _ (Include.onClass inclusion (#apply{(Project.cyclesMap projection)} x))
+        (trans!{H.Cohomology} _ _ _ (inclusionClass (#apply{Term.projection} x)) (Term.projectionOnCycle x))));
+\import Modules.Isomorphism[V := Zero.Cohomology, W := H.Cohomology,
+  source := Zero.cohomologySpace, target := H.cohomologySpace] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := Include.induced inclusion, backward := Project.induced projection,
+  leftInverse := leftInverse, rightInverse := rightInverse,
+};

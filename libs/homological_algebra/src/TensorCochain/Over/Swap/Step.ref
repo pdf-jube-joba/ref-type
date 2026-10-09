@@ -1,0 +1,99 @@
+\import \parent.Degree[n := n] \as Current;
+\import \parent.Degree[n := Nat.Nat^::succ n] \as Next;
+\import Source.Degree[n := n] \as SD;
+\import Source.Degree[n := Nat.Nat^::succ n] \as SN;
+\import Target.Degree[n := n] \as TD;
+\import Target.Degree[n := Nat.Nat^::succ n] \as TN;
+\import Source.Step[n := n] \as SS;
+\import Target.Step[n := n] \as TS;
+\module Component(i: Source.Index n) {
+  \definition p: Nat.Nat^ := #first{i};
+  \definition q: Nat.Nat^ := #second{i};
+  \definition j: Target.Index n := index n i;
+  \definition hi: Source.Index (Nat.Nat^::succ n) := Source.upHorizontal n i;
+  \definition vi: Source.Index (Nat.Nat^::succ n) := Source.upVertical n i;
+  \import Degrees.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as Sign;
+  \import Degrees.Sign[V := C.family.Carrier (Nat.Nat^::succ p) q, space := C.family.space (Nat.Nat^::succ p) q] \as HSign;
+  \import Degrees.Sign[V := C.family.Carrier p (Nat.Nat^::succ q), space := C.family.space p (Nat.Nat^::succ q)] \as VSign;
+  \import Sign.Mapping[W := C.family.Carrier (Nat.Nat^::succ p) q, target := C.family.space (Nat.Nat^::succ p) q] \as HNatural;
+  \import Sign.Mapping[W := C.family.Carrier p (Nat.Nat^::succ q), target := C.family.space p (Nat.Nat^::succ q)] \as VNatural;
+  \definition horizontalSign: \forall (x: C.family.Carrier (Nat.Nat^::succ p) q) ->
+    #apply{(HSign.map (Arithmetic.mul (Nat.Nat^::succ p) q))} x = #apply{(HSign.map q)} (#apply{(HSign.map (Arithmetic.mul p q))} x) :=
+    \fun (x: C.family.Carrier (Nat.Nat^::succ p) q) => trans!{{C.family.Carrier (Nat.Nat^::succ p) q}} _ _ _
+      (congr!{Nat.Nat^ {C.family.Carrier (Nat.Nat^::succ p) q}}
+        (\fun (k: Nat.Nat^) => #apply{(HSign.map k)} x) _ _ (Natural.mulSuccLeft p q))
+      (HSign.addition q (Arithmetic.mul p q) x);
+  \definition verticalSign: \forall (x: C.family.Carrier p (Nat.Nat^::succ q)) ->
+    #apply{(VSign.map (Arithmetic.mul p (Nat.Nat^::succ q)))} (#apply{(VSign.map p)} x) = #apply{(VSign.map (Arithmetic.mul p q))} x :=
+    \fun (x: C.family.Carrier p (Nat.Nat^::succ q)) => VSign.cancelAddition p (Arithmetic.mul p q) x;
+  \definition horizontal: \forall (x: C.family.Carrier p q) ->
+    #apply{TS.vertical} (#apply{Current.forward} (#apply{(SD.Component[i := i].injection)} x)) =
+      #apply{Next.forward} (#apply{SS.horizontal} (#apply{(SD.Component[i := i].injection)} x)) :=
+    \fun (x: C.family.Carrier p q) => trans!{TN.Carrier} _ _ _
+      (congr!{TD.Carrier TN.Carrier} (#apply{TS.vertical}) _ _ (Current.onInjection i x))
+      (trans!{TN.Carrier} _ _ _ (TS.verticalOnInjection j (#apply{(Sign.map (Arithmetic.mul p q))} x))
+        (trans!{TN.Carrier} _ _ _
+          (congr!{{C.family.Carrier (Nat.Nat^::succ p) q} TN.Carrier}
+            (\fun (z: C.family.Carrier (Nat.Nat^::succ p) q) => #apply{(TN.Component[i := index (Nat.Nat^::succ n) hi].injection)} (#apply{(HSign.map q)} z)) _ _
+            (HNatural.naturality (C.differential.horizontal p q) (Arithmetic.mul p q) x))
+          (trans!{TN.Carrier} _ _ _
+            (congr!{{C.family.Carrier (Nat.Nat^::succ p) q} TN.Carrier}
+              (#apply{(TN.Component[i := index (Nat.Nat^::succ n) hi].injection)}) _ _
+              (sym!{{C.family.Carrier (Nat.Nat^::succ p) q}} _ _ (horizontalSign (#apply{(C.differential.horizontal p q)} x))))
+            (trans!{TN.Carrier} _ _ _
+              (sym!{TN.Carrier} _ _ (Next.onInjection hi (#apply{(C.differential.horizontal p q)} x)))
+              (congr!{SN.Carrier TN.Carrier} (#apply{Next.forward}) _ _ (sym!{SN.Carrier} _ _ (SS.horizontalOnInjection i x)))))));
+  \definition vertical: \forall (x: C.family.Carrier p q) ->
+    #apply{TS.horizontal} (#apply{Current.forward} (#apply{(SD.Component[i := i].injection)} x)) =
+      #apply{Next.forward} (#apply{SS.vertical} (#apply{(SD.Component[i := i].injection)} x)) :=
+    \fun (x: C.family.Carrier p q) => trans!{TN.Carrier} _ _ _
+      (congr!{TD.Carrier TN.Carrier} (#apply{TS.horizontal}) _ _ (Current.onInjection i x))
+      (trans!{TN.Carrier} _ _ _ (TS.horizontalOnInjection j (#apply{(Sign.map (Arithmetic.mul p q))} x))
+        (trans!{TN.Carrier} _ _ _
+          (congr!{{C.family.Carrier p (Nat.Nat^::succ q)} TN.Carrier}
+            (#apply{(TN.Component[i := index (Nat.Nat^::succ n) vi].injection)}) _ _
+            (VNatural.naturality (C.differential.vertical p q) (Arithmetic.mul p q) x))
+          (trans!{TN.Carrier} _ _ _
+            (congr!{{C.family.Carrier p (Nat.Nat^::succ q)} TN.Carrier}
+              (#apply{(TN.Component[i := index (Nat.Nat^::succ n) vi].injection)}) _ _
+              (sym!{{C.family.Carrier p (Nat.Nat^::succ q)}} _ _ (verticalSign (#apply{(C.differential.vertical p q)} x))))
+            (trans!{TN.Carrier} _ _ _
+              (sym!{TN.Carrier} _ _ (Next.onInjection vi (#apply{(VSign.map p)} (#apply{(C.differential.vertical p q)} x))))
+              (congr!{SN.Carrier TN.Carrier} (#apply{Next.forward}) _ _ (sym!{SN.Carrier} _ _ (SS.verticalOnInjection i x)))))));
+}
+\import Modules.Hom[V := TD.Carrier, W := TN.Carrier, source := TD.space, target := TN.space].Composition[U := SD.Carrier, domain := SD.space] \as After;
+\import Modules.Hom[V := SN.Carrier, W := TN.Carrier, source := SN.space, target := TN.space].Composition[U := SD.Carrier, domain := SD.space] \as Before;
+\import Modules.DirectSum[Index := Source.Index n, family := SD.family].To[W := TN.Carrier, target := TN.space] \as Universal;
+\import Modules.Hom[V := SD.Carrier, W := TN.Carrier, source := SD.space, target := TN.space] \as Maps;
+\definition horizontalEquality: After.compose TS.vertical Current.forward = Before.compose Next.forward SS.horizontal :=
+  Universal.ext (After.compose TS.vertical Current.forward) (Before.compose Next.forward SS.horizontal)
+    (\fun (i: Source.Index n) => Component[i := i].horizontal);
+\definition verticalEquality: After.compose TS.horizontal Current.forward = Before.compose Next.forward SS.vertical :=
+  Universal.ext (After.compose TS.horizontal Current.forward) (Before.compose Next.forward SS.vertical)
+    (\fun (i: Source.Index n) => Component[i := i].vertical);
+\definition commutes: \forall (x: SD.Carrier) -> #apply{TS.differential} (#apply{Current.forward} x) = #apply{Next.forward} (#apply{SS.differential} x) :=
+  \fun (x: SD.Carrier) => trans!{TN.Carrier} _ _ _
+    (congr2!{TN.Carrier TN.Carrier TN.Carrier} (#add{TN.space}) _ _ _ _
+      (congr!{Maps.Map TN.Carrier} (\fun (m: Maps.Map) => #apply{m} x) _ _ verticalEquality)
+      (congr!{Maps.Map TN.Carrier} (\fun (m: Maps.Map) => #apply{m} x) _ _ horizontalEquality))
+    (trans!{TN.Carrier} _ _ _
+      (#commutative{(#additive{TN.space})} (#apply{Next.forward} (#apply{SS.vertical} x)) (#apply{Next.forward} (#apply{SS.horizontal} x)))
+      (sym!{TN.Carrier} _ _ (#addition{Next.forward} (#apply{SS.horizontal} x) (#apply{SS.vertical} x))));
+\definition backwardCommutes: \forall (y: TD.Carrier) ->
+  #apply{SS.differential} (#apply{Current.backward} y) = #apply{Next.backward} (#apply{TS.differential} y) :=
+  \block {
+    \fun (y: TD.Carrier) \then
+    \let x: SD.Carrier := #apply{Current.backward} y \then
+    \let z: SN.Carrier := #apply{SS.differential} x \then
+    \return trans!{SN.Carrier} z (#apply{Next.backward} (#apply{Next.forward} z)) (#apply{Next.backward} (#apply{TS.differential} y))
+      (sym!{SN.Carrier} (#apply{Next.backward} (#apply{Next.forward} z)) z (Next.leftInverse z))
+      (trans!{SN.Carrier}
+        (#apply{Next.backward} (#apply{Next.forward} z))
+        (#apply{Next.backward} (#apply{TS.differential} (#apply{Current.forward} x)))
+        (#apply{Next.backward} (#apply{TS.differential} y))
+        (congr!{TN.Carrier SN.Carrier} (#apply{Next.backward})
+          (#apply{Next.forward} z) (#apply{TS.differential} (#apply{Current.forward} x))
+          (sym!{TN.Carrier} (#apply{TS.differential} (#apply{Current.forward} x)) (#apply{Next.forward} z) (commutes x)))
+        (congr!{TD.Carrier SN.Carrier} (\fun (u: TD.Carrier) => #apply{Next.backward} (#apply{TS.differential} u))
+          (#apply{Current.forward} x) y (Current.rightInverse y)))
+  };

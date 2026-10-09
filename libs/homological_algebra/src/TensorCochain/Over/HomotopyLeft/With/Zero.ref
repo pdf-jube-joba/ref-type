@@ -1,0 +1,28 @@
+\import SourceTensor.Term[p := Nat.Nat^::zero, q := q] \as Source;
+\import SourceTensor.Term[p := Nat.Nat^::succ Nat.Nat^::zero, q := q] \as Middle;
+\import TargetTensor.Term[p := Nat.Nat^::zero, q := q] \as Target;
+\import SourceTensor.At[p := Nat.Nat^::zero, q := q] \as Differential;
+\import \parent.Term[p := Nat.Nat^::zero, q := q] \as H;
+\import Forward.Degree[p := Nat.Nat^::zero, q := q] \as F;
+\import Backward.Degree[p := Nat.Nat^::zero, q := q] \as G;
+\import Modules.Tensor[V := D.family.Carrier Nat.Nat^::zero, W := E.family.Carrier q,
+  left := D.family.space Nat.Nat^::zero, right := E.family.space q] \as TargetTensorModule;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+\import Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space].Composition[
+  U := Source.Carrier, domain := Source.space] \as Compose;
+\import Modules.Tensor[V := C.family.Carrier Nat.Nat^::zero, W := E.family.Carrier q,
+  left := C.family.space Nat.Nat^::zero, right := E.family.space q].Universal[U := Target.Carrier, target := Target.space] \as Universal;
+\definition equality: Maps.plus F.map (Maps.negative G.map) = Compose.compose H.map Differential.horizontal :=
+  Universal.ext (Maps.plus F.map (Maps.negative G.map)) (Compose.compose H.map Differential.horizontal)
+    (\fun (x: C.family.Carrier Nat.Nat^::zero)(y: E.family.Carrier q) => trans!{Target.Carrier} _ _ _
+      (congr2!{Target.Carrier Target.Carrier Target.Carrier} (\fun (a, b: Target.Carrier) => #add{Target.space} a (#neg{Target.space} b)) _ _ _ _
+        (F.onTensor x y) (G.onTensor x y))
+      (trans!{Target.Carrier} _ _ _ (sym!{Target.Carrier} _ _ (TargetTensorModule.tensorDifferenceLeft (#apply{f} Nat.Nat^::zero x) (#apply{g} Nat.Nat^::zero x) y))
+        (trans!{Target.Carrier} _ _ _
+          (congr!{{D.family.Carrier Nat.Nat^::zero} Target.Carrier} (\fun (z: D.family.Carrier Nat.Nat^::zero) => Target.tensor z y) _ _ (#degreeZero{laws} x))
+          (sym!{Target.Carrier} _ _ (trans!{Target.Carrier} _ _ _
+            (congr!{Middle.Carrier Target.Carrier} (#apply{H.map}) _ _ (Differential.horizontalOnTensor x y))
+            (H.onTensor (#apply{C.differential} Nat.Nat^::zero x) y))))));
+\definition point: \forall (x: Source.Carrier) ->
+  #add{Target.space} (#apply{F.map} x) (#neg{Target.space} (#apply{G.map} x)) = #apply{H.map} (#apply{Differential.horizontal} x) :=
+  \fun (x: Source.Carrier) => congr!{Maps.Map Target.Carrier} (\fun (m: Maps.Map) => #apply{m} x) _ _ equality;

@@ -1,0 +1,24 @@
+\import Chains.ShortExact[A := source.leftComplex, B := source.middleComplex, C := source.rightComplex].Morphism[A1 := target.leftComplex, B1 := target.middleComplex, C1 := target.rightComplex].Straighten[
+  s := source.chainSequence, t := target.chainSequence, b := b, c := c] \as Straighten;
+\definition middleAugmented: MiddleComparison.Augmented source.middleResolution target.middleResolution b :=
+  \bysub(Chains.Map[C := source.middleComplex, D := target.middleComplex].Map,
+    { b: Chains.Map[C := source.middleComplex, D := target.middleComplex].Map \where MiddleComparison.Augmented source.middleResolution target.middleResolution b }, b);
+\definition rightAugmented: RightComparison.Augmented source.rightResolution target.rightResolution c :=
+  \bysub(Chains.Map[C := source.rightComplex, D := target.rightComplex].Map,
+    { c: Chains.Map[C := source.rightComplex, D := target.rightComplex].Map \where RightComparison.Augmented source.rightResolution target.rightResolution c }, c);
+\definition laws: Laws[f] := \bysub(Data, { f: Data \where Laws[f] }, f);
+\import Resolutions.Uniqueness[M := source.middle, N := target.right, P := source.middleComplex, Q := target.rightComplex] \as Uniqueness;
+\definition agreement: Uniqueness.agreement source.middleResolution target.rightResolution Straighten.first Straighten.last :=
+  \fun (x: source.middleComplex.family.Carrier Nat.Nat^::zero) => trans!{target.right.Carrier} _ _ _
+    (target.rightAugmented (#apply{b} Nat.Nat^::zero x))
+    (trans!{target.right.Carrier} _ _ _
+      (congr!{target.middle.Carrier target.right.Carrier} (#apply{target.sequence.projection}) _ _ (middleAugmented x))
+      (trans!{target.right.Carrier} _ _ _ (#right{laws} (#apply{#augmentation{source.middleResolution}} x))
+        (trans!{target.right.Carrier} _ _ _
+          (congr!{source.right.Carrier target.right.Carrier} (#apply{#right{f}}) _ _ (sym!{source.right.Carrier} _ _ (source.rightAugmented x)))
+          (sym!{target.right.Carrier} _ _ (rightAugmented (#apply{source.chainSequence.projection} Nat.Nat^::zero x))))));
+\definition homotopyExistence: \exists Chains.Homotopy[C := source.middleComplex, D := target.rightComplex].Homotopy Straighten.first Straighten.last :=
+  Uniqueness.existence source.middleResolution target.rightResolution Straighten.first Straighten.last agreement;
+\definition first: Chains.Map[C := source.middleComplex, D := target.rightComplex].Map := Straighten.first;
+\definition last: Chains.Map[C := source.middleComplex, D := target.rightComplex].Map := Straighten.last;
+\module Corrected(h: Chains.Homotopy[C := source.middleComplex, D := target.rightComplex].Homotopy Straighten.first Straighten.last);

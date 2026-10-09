@@ -1,0 +1,91 @@
+\import N.Division[].Def[] \as NaturalDivision;
+\import N.Division[].Prop[] \as NaturalLaws;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Logic[].Proposition[] \as Logic;
+\definition unsigned(a, b: I.Int^): N.Nat^ := NaturalDivision.div (absolute a) (absolute b);
+\definition quotient(a, b: I.Int^): I.Int^ := Arithmetic.mul (sign a) (Arithmetic.mul (sign b) (natural (unsigned a b)));
+\definition remainder(a, b: I.Int^): I.Int^ := Arithmetic.difference a (Arithmetic.mul (quotient a b) b);
+\definition absoluteNegativeNatural: \forall (n: N.Nat^) -> absolute (Arithmetic.neg (natural n)) = n :=
+  \induction (n: N.Nat^) \return absolute (Arithmetic.neg (natural n)) = n \with {
+    | zero: \refl(N.Nat^::zero)
+    | succ: \fun (n: N.Nat^)(unused: absolute (Arithmetic.neg (natural n)) = n) => \refl(N.Nat^::succ n)
+  };
+\definition absoluteSignedNatural: \forall (a: I.Int^)(n: N.Nat^) -> absolute (Arithmetic.mul (sign a) (natural n)) = n :=
+  \induction (a: I.Int^) \return \forall (n: N.Nat^) -> absolute (Arithmetic.mul (sign a) (natural n)) = n \with {
+    | ofNat: \fun (a: N.Nat^)(n: N.Nat^) => congr!{I.Int^ N.Nat^} absolute _ _ (Product.mulOneLeft (natural n))
+    | negSucc: \fun (a: N.Nat^)(n: N.Nat^) => trans!{N.Nat^} _ _ _
+        (congr!{I.Int^ N.Nat^} absolute _ _ (trans!{I.Int^} _ _ _ (Arithmetic.negMulLeft Arithmetic.one (natural n))
+          (congr!{I.Int^ I.Int^} Arithmetic.neg _ _ (Product.mulOneLeft (natural n)))))
+        (absoluteNegativeNatural n)
+  };
+\definition productLaw: \forall (a, b: I.Int^) -> Arithmetic.mul (quotient a b) b = Arithmetic.mul (sign a) (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b))) :=
+  \fun (a, b: I.Int^) => trans!{I.Int^} _ _ _ (Product.mulAssoc (sign a) (Arithmetic.mul (sign b) (natural (unsigned a b))) b)
+    (congr!{I.Int^ I.Int^} (Arithmetic.mul (sign a)) _ _
+      (trans!{I.Int^} _ _ _
+        (congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x b) _ _ (IntegerLaws.mulComm (sign b) (natural (unsigned a b))))
+        (trans!{I.Int^} _ _ _ (Product.mulAssoc (natural (unsigned a b)) (sign b) b)
+          (congr!{I.Int^ I.Int^} (Arithmetic.mul (natural (unsigned a b))) _ _ (signTimesValue b)))));
+\definition unsignedRemainder: \forall (a, b: N.Nat^) -> Arithmetic.difference (natural a) (Arithmetic.mul (natural (NaturalDivision.div a b)) (natural b)) = natural (NaturalDivision.mod a b) := \parent.\parent.\parent.ExtendedEuclid[].remainder;
+\definition remainderLaw: \forall (a, b: I.Int^) -> remainder a b = Arithmetic.mul (sign a) (natural (NaturalDivision.mod (absolute a) (absolute b))) :=
+  \fun (a, b: I.Int^) => eq_reason!{{remainder a b}
+    "=" {Arithmetic.difference (Arithmetic.mul (sign a) (natural (absolute a))) (Arithmetic.mul (sign a) (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b))))}
+    "by" {congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.difference _ _ _ _ (sym!{I.Int^} _ _ (signTimesAbsolute a)) (productLaw a b)}
+    "=" {Arithmetic.difference (Arithmetic.mul (natural (absolute a)) (sign a)) (Arithmetic.mul (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b))) (sign a))}
+    "by" {congr2!{I.Int^ I.Int^ I.Int^} Arithmetic.difference _ _ _ _
+      (IntegerLaws.mulComm (sign a) (natural (absolute a)))
+      (IntegerLaws.mulComm (sign a) (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b))))}
+    "=" {Arithmetic.mul (Arithmetic.difference (natural (absolute a)) (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b)))) (sign a)}
+    "by" {sym!{I.Int^} _ _ (Arithmetic.differenceMul (natural (absolute a)) (Arithmetic.mul (natural (unsigned a b)) (natural (absolute b))) (sign a))}
+    "=" {Arithmetic.mul (natural (NaturalDivision.mod (absolute a) (absolute b))) (sign a)}
+    "by" {congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => Arithmetic.mul x (sign a)) _ _ (unsignedRemainder (absolute a) (absolute b))}
+    "=" {Arithmetic.mul (sign a) (natural (NaturalDivision.mod (absolute a) (absolute b)))}
+    "by" {IntegerLaws.mulComm (natural (NaturalDivision.mod (absolute a) (absolute b))) (sign a)}};
+\definition absoluteRemainder: \forall (a, b: I.Int^) -> absolute (remainder a b) = NaturalDivision.mod (absolute a) (absolute b) :=
+  \fun (a, b: I.Int^) => trans!{N.Nat^} _ _ _ (congr!{I.Int^ N.Nat^} absolute _ _ (remainderLaw a b))
+    (absoluteSignedNatural a (NaturalDivision.mod (absolute a) (absolute b)));
+\definition reconstructs: \forall (a, b: I.Int^) -> Arithmetic.add (Arithmetic.mul (quotient a b) b) (remainder a b) = a :=
+  \fun (a, b: I.Int^) => trans!{I.Int^} _ _ _ (IntegerLaws.addComm (Arithmetic.mul (quotient a b) b) (remainder a b))
+    (Arithmetic.addDifference a (Arithmetic.mul (quotient a b) b));
+\definition modulusLess: \forall (a, d: N.Nat^) -> Logic.Not (d = N.Nat^::zero) -> Bounds.Lt (NaturalDivision.mod a d) d :=
+  \fun (a: N.Nat^) => \induction (d: N.Nat^) \return Logic.Not (d = N.Nat^::zero) -> Bounds.Lt (NaturalDivision.mod a d) d \with {
+    | zero: \fun (bad: Logic.Not (N.Nat^::zero = N.Nat^::zero)) => Logic.falseElim (Bounds.Lt (NaturalDivision.mod a N.Nat^::zero) N.Nat^::zero) (bad (\refl(N.Nat^::zero)))
+    | succ: \fun (d: N.Nat^)(unused: Logic.Not (d = N.Nat^::zero) -> Bounds.Lt (NaturalDivision.mod a d) d)(nonzero: _) => NaturalLaws.modLt a d
+  };
+\definition absoluteZero: \forall (b: I.Int^) -> absolute b = N.Nat^::zero -> b = Arithmetic.zero :=
+  \induction (b: I.Int^) \return absolute b = N.Nat^::zero -> b = Arithmetic.zero \with {
+    | ofNat: \fun (n: N.Nat^)(zero: _) => congr!{N.Nat^ I.Int^} natural n N.Nat^::zero zero
+    | negSucc: \fun (n: N.Nat^)(bad: _) => Logic.falseElim _ (Bounds.succNeZero n bad)
+  };
+\definition decreases: \forall (a, b: I.Int^) -> Logic.Not (b = Arithmetic.zero) -> Bounds.Lt (absolute (remainder a b)) (absolute b) :=
+  \fun (a, b: I.Int^)(nonzero: _) => \idelim NaturalDivision.mod (absolute a) (absolute b) = absolute (remainder a b)
+    \with r: N.Nat^ => Bounds.Lt r (absolute b) \by {
+      base: modulusLess (absolute a) (absolute b) (\fun (zero: _) => nonzero (absoluteZero b zero)),
+      equality: sym!{N.Nat^} _ _ (absoluteRemainder a b)
+    };
+\module UnsignedImplementation;
+\correspondence Unsigned: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := UnsignedImplementation[].T, program := UnsignedImplementation[].program,
+  specification := unsigned, coherence := UnsignedImplementation[].coherence,
+};
+\module QuotientImplementation;
+\correspondence Quotient: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := QuotientImplementation[].T, program := QuotientImplementation[].program,
+  specification := quotient, coherence := QuotientImplementation[].coherence,
+};
+\module RemainderImplementation;
+\correspondence Remainder: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := RemainderImplementation[].T, program := RemainderImplementation[].program,
+  specification := remainder, coherence := RemainderImplementation[].coherence,
+};
+\definition dividesOfZero: \forall (a, b: I.Int^) -> remainder a b = Arithmetic.zero -> Divides b a :=
+  \fun (a, b: I.Int^)(zero: remainder a b = Arithmetic.zero) => \exact(
+    \into[I.Int^](quotient a b, { q: I.Int^ \where a = Arithmetic.mul b q }) \by {
+      trans!{I.Int^} a (Arithmetic.mul (quotient a b) b) (Arithmetic.mul b (quotient a b))
+        (sym!{I.Int^} (Arithmetic.mul (quotient a b) b) a
+          (trans!{I.Int^} (Arithmetic.mul (quotient a b) b) (Arithmetic.add (Arithmetic.mul (quotient a b) b) (remainder a b)) a
+            (trans!{I.Int^} (Arithmetic.mul (quotient a b) b) (Arithmetic.add (Arithmetic.mul (quotient a b) b) Arithmetic.zero) (Arithmetic.add (Arithmetic.mul (quotient a b) b) (remainder a b))
+              (sym!{I.Int^} (Arithmetic.add (Arithmetic.mul (quotient a b) b) Arithmetic.zero) (Arithmetic.mul (quotient a b) b) (IntegerLaws.addZeroRight (Arithmetic.mul (quotient a b) b)))
+              (congr!{I.Int^ I.Int^} (Arithmetic.add (Arithmetic.mul (quotient a b) b)) Arithmetic.zero (remainder a b) (sym!{I.Int^} (remainder a b) Arithmetic.zero zero)))
+            (reconstructs a b)))
+        (IntegerLaws.mulComm (quotient a b) b)
+    }, \Cast[I.Int^] ({ q: I.Int^ \where a = Arithmetic.mul b q }));

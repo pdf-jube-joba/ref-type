@@ -1,0 +1,63 @@
+\import \parent.Hom[V := V, W := W, source := vSpace, target := wSpace] \as SourceMaps;
+\import \parent.Hom[V := X, W := Y, source := xSpace, target := ySpace] \as TargetMaps;
+\import \parent.Hom[V := V, W := X, source := vSpace, target := xSpace] \as DomainMaps;
+\import \parent.Hom[V := X, W := V, source := xSpace, target := vSpace] \as DomainBack;
+\import \parent.Hom[V := W, W := Y, source := wSpace, target := ySpace] \as CodomainMaps;
+\import \parent.Hom[V := Y, W := W, source := ySpace, target := wSpace] \as CodomainBack;
+\definition Commutes: \Prop := \forall (v: V) -> #apply{g} (#apply{#forward{domainIso}} v) = #apply{#forward{codomainIso}} (#apply{f} v);
+\definition reverseCommutes: Commutes -> \forall (x: X) ->
+  #apply{f} (#apply{#backward{domainIso}} x) = #apply{#backward{codomainIso}} (#apply{g} x) :=
+  \fun (commutes: Commutes)(x: X) =>
+    trans!{W} (#apply{f} (#apply{#backward{domainIso}} x))
+      (#apply{#backward{codomainIso}} (#apply{#forward{codomainIso}} (#apply{f} (#apply{#backward{domainIso}} x))))
+      (#apply{#backward{codomainIso}} (#apply{g} x))
+      (sym!{W} _ _ (#leftInverse{codomainIso} (#apply{f} (#apply{#backward{domainIso}} x))))
+      (congr!{Y W} (#apply{#backward{codomainIso}}) _ _
+        (trans!{Y} _ _ _
+          (sym!{Y} _ _ (commutes (#apply{#backward{domainIso}} x)))
+          (congr!{X Y} (#apply{g}) _ _ (#rightInverse{domainIso} x))));
+\import \parent.Of[V := V, space := vSpace].Submodule[] \as SourceSub;
+\import \parent.Of[V := X, space := xSpace].Submodule[] \as TargetSub;
+\import SourceSub.Kernel[W := W, target := wSpace] \as SourceKernel;
+\import TargetSub.Kernel[W := Y, target := ySpace] \as TargetKernel;
+\definition sourceKernel: SourceSub.Submodule := SourceKernel.kernel f;
+\definition targetKernel: TargetSub.Submodule := TargetKernel.kernel g;
+\import SourceSub.Of[S := sourceKernel] \as IncludedSource;
+\import TargetSub.Of[S := targetKernel] \as IncludedTarget;
+\definition SourceCarrier: \Set := IncludedSource.Carrier;
+\definition TargetCarrier: \Set := IncludedTarget.Carrier;
+\definition forwardValue(commutes: Commutes)(v: SourceCarrier): TargetCarrier :=
+  \into[X](#apply{#forward{domainIso}} v, #carrier{targetKernel}) \by {
+    trans!{Y} _ _ _ (commutes v)
+      (trans!{Y} _ _ _
+        (congr!{W Y} (#apply{#forward{codomainIso}}) _ _ (\bysub(V, #carrier{sourceKernel}, v)))
+        (CodomainMaps.zeroPreserved #forward{codomainIso}))
+  };
+\definition backwardValue(commutes: Commutes)(x: TargetCarrier): SourceCarrier :=
+  \into[V](#apply{#backward{domainIso}} x, #carrier{sourceKernel}) \by {
+    trans!{W} _ _ _ (reverseCommutes commutes x)
+      (trans!{W} _ _ _
+        (congr!{Y W} (#apply{#backward{codomainIso}}) _ _ (\bysub(X, #carrier{targetKernel}, x)))
+        (CodomainBack.zeroPreserved #backward{codomainIso}))
+  };
+\import \parent.Hom[V := SourceCarrier, W := TargetCarrier, source := IncludedSource.moduleSpace, target := IncludedTarget.moduleSpace] \as Forward;
+\import \parent.Hom[V := TargetCarrier, W := SourceCarrier, source := IncludedTarget.moduleSpace, target := IncludedSource.moduleSpace] \as Backward;
+\definition forward(commutes: Commutes): Forward.Map := Forward.Map {
+  apply := forwardValue commutes,
+  addition := \fun (v, w: SourceCarrier) => #addition{#forward{domainIso}} v w,
+  scalar := \fun (a: R)(v: SourceCarrier) => #scalar{#forward{domainIso}} a v,
+};
+\definition backward(commutes: Commutes): Backward.Map := Backward.Map {
+  apply := backwardValue commutes,
+  addition := \fun (v, w: TargetCarrier) => #addition{#backward{domainIso}} v w,
+  scalar := \fun (a: R)(v: TargetCarrier) => #scalar{#backward{domainIso}} a v,
+};
+\import \parent.Isomorphism[V := SourceCarrier, W := TargetCarrier, source := IncludedSource.moduleSpace, target := IncludedTarget.moduleSpace] \as Iso;
+\definition data(commutes: Commutes): Iso.Data := Iso.Data { forward := forward commutes, backward := backward commutes };
+\definition laws: \forall (commutes: Commutes) -> Iso.Laws[data commutes] := \fun (commutes: Commutes) =>
+  Iso.Laws[data commutes] {
+    leftInverse := \fun (v: SourceCarrier) => #leftInverse{domainIso} v,
+    rightInverse := \fun (v: TargetCarrier) => #rightInverse{domainIso} v,
+  };
+\definition isomorphism(commutes: Commutes): Iso.Isomorphism := \into[Iso.Data](data commutes, { data: Iso.Data \where Iso.Laws[data] }) \by { laws commutes };
+\module Cokernel;

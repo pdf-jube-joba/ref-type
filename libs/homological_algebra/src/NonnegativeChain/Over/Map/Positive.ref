@@ -1,0 +1,64 @@
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\import Modules.Hom[V := C.family.Carrier (N.Nat^::succ n), W := D.family.Carrier (N.Nat^::succ n),
+  source := C.family.space (N.Nat^::succ n), target := D.family.space (N.Nat^::succ n)] \as Linear;
+\definition linear(f: Map): Linear.Map := Linear.Map {
+  apply := #apply{f} (N.Nat^::succ n), addition := #addition{f} (N.Nat^::succ n), scalar := #scalar{f} (N.Nat^::succ n),
+};
+\definition zeroPreserved: \forall (f: Map) ->
+  #apply{f} (N.Nat^::succ n) (#zero{(C.family.space (N.Nat^::succ n))}) = #zero{(D.family.space (N.Nat^::succ n))} :=
+  \fun (f: Map) => Linear.zeroPreserved (linear f);
+\import \parent.\parent.Positive[C := C, n := n] \as Source;
+\import \parent.\parent.Positive[C := D, n := n] \as Target;
+\import Modules.Hom[V := Source.Cycle, W := Target.Cycle,
+  source := Source.cycleSpace, target := Target.cycleSpace] \as CycleMaps;
+\definition preservesCycle: \forall (f: Map)(x: Source.Cycle) ->
+  #apply{D.differential} n (#apply{f} (N.Nat^::succ n) x) = #zero{(D.family.space (n))} :=
+  \fun (f: Map)(x: Source.Cycle) => trans!{{D.family.Carrier (n)}}
+    (#apply{D.differential} n (#apply{f} (N.Nat^::succ n) x)) (#apply{f} (n) (#apply{C.differential} n x))
+    (#zero{(D.family.space (n))}) (#commutes{f} n x)
+    (trans!{{D.family.Carrier (n)}} (#apply{f} (n) (#apply{C.differential} n x))
+      (#apply{f} (n) (#zero{(C.family.space (n))})) (#zero{(D.family.space (n))})
+      (congr!{{C.family.Carrier (n)} {D.family.Carrier (n)}} (#apply{f} (n))
+        (#apply{C.differential} n x) (#zero{(C.family.space (n))})
+        (\bysub(C.family.Carrier (N.Nat^::succ n), #carrier{Source.cycles}, x)))
+      (\parent.At[n := n].zeroPreserved f));
+\definition cyclesMap(f: Map): CycleMaps.Map := CycleMaps.Map {
+  apply := \fun (x: Source.Cycle) => Target.cycle (#apply{f} (N.Nat^::succ n) x) (preservesCycle f x),
+  addition := \fun (x, y: Source.Cycle) => #addition{f} (N.Nat^::succ n) x y,
+  scalar := \fun (a: R)(x: Source.Cycle) => #scalar{f} (N.Nat^::succ n) a x,
+};
+
+\import Modules.Of[V := C.family.Carrier (N.Nat^::succ n), space := C.family.space (N.Nat^::succ n)].Submodule[] \as SourceSubmodules;
+\import SourceSubmodules.Image[U := C.family.Carrier (N.Nat^::succ (N.Nat^::succ n)), source := C.family.space (N.Nat^::succ (N.Nat^::succ n))] \as SourceImages;
+\import Modules.Of[V := D.family.Carrier (N.Nat^::succ n), space := D.family.space (N.Nat^::succ n)].Submodule[] \as TargetSubmodules;
+\import TargetSubmodules.Image[U := D.family.Carrier (N.Nat^::succ (N.Nat^::succ n)), source := D.family.space (N.Nat^::succ (N.Nat^::succ n))] \as TargetImages;
+\definition preservesBoundaries: \forall (f: Map)(x: C.family.Carrier (N.Nat^::succ n)) -> SourceSubmodules.Member Source.boundaries x -> TargetSubmodules.Member Target.boundaries (#apply{f} (N.Nat^::succ n) x) :=
+  \fun (f: Map)(x: C.family.Carrier (N.Nat^::succ n))(boundary: SourceSubmodules.Member Source.boundaries x) =>
+    SourceImages.eliminate Source.prior x (TargetSubmodules.Member Target.boundaries (#apply{f} (N.Nat^::succ n) x))
+      (\fun (y: C.family.Carrier (N.Nat^::succ (N.Nat^::succ n)))(equal: #apply{Source.prior} y = x) =>
+        \idelim #apply{Target.prior} (#apply{f} (N.Nat^::succ (N.Nat^::succ n)) y) = #apply{f} (N.Nat^::succ n) x
+          \with v: D.family.Carrier (N.Nat^::succ n) => TargetSubmodules.Member Target.boundaries v \by {
+            base: TargetImages.member Target.prior (#apply{f} (N.Nat^::succ (N.Nat^::succ n)) y),
+            equality: trans!{{D.family.Carrier (N.Nat^::succ n)}} _ _ _ (#commutes{f} (N.Nat^::succ n) y)
+              (congr!{{C.family.Carrier (N.Nat^::succ n)} {D.family.Carrier (N.Nat^::succ n)}} (#apply{f} (N.Nat^::succ n)) _ _ equal)
+          }) boundary;
+
+\import Modules.Of[V := Source.Cycle, space := Source.cycleSpace] \as SourceModule;
+\import SourceModule.Submodule[] \as SourceSubspaces;
+\import SourceSubspaces.Quotient[S := Source.boundariesInside] \as SourceQuotient;
+\import SourceQuotient.To[W := Target.Homology, target := Target.homologySpace] \as Descent;
+\import Modules.Hom[V := Source.Cycle, W := Target.Homology,
+  source := Source.cycleSpace, target := Target.homologySpace] \as Raw;
+\import Modules.Hom[V := Target.Cycle, W := Target.Homology,
+  source := Target.cycleSpace, target := Target.homologySpace] \as Projection;
+\import Projection.Composition[U := Source.Cycle, domain := Source.cycleSpace] \as Compose;
+\definition onCycles(f: Map): Raw.Map := Compose.compose Target.classLinear (cyclesMap f);
+\definition vanishes: \forall (f: Map) -> Descent.Vanishes (onCycles f) :=
+  \fun (f: Map)(x: Source.Cycle)(boundary: \In[Source.Cycle] (#carrier{Source.boundariesInside}) x) =>
+    Target.boundaryClassZero (#apply{(cyclesMap f)} x) (preservesBoundaries f x boundary);
+\import Modules.Hom[V := Source.Homology, W := Target.Homology,
+  source := Source.homologySpace, target := Target.homologySpace] \as Induced;
+\definition induced(f: Map): Induced.Map := Descent.descend (onCycles f) (vanishes f);
+\definition onClass: \forall (f: Map)(x: Source.Cycle) ->
+  #apply{(induced f)} (Source.classOf x) = Target.classOf (#apply{(cyclesMap f)} x) :=
+  \fun (f: Map) => Descent.onClass (onCycles f) (vanishes f);

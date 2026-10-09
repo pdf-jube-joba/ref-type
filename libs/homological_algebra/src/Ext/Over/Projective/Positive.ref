@@ -1,0 +1,24 @@
+\import \root.HomComplex[].Over[R := R, ring := ring].On[P := Chosen.complex, N := N] \as Hom;
+\import Hom.At[n := Nat.Nat^::succ n] \as Term;
+\import \root.Cochain[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].At[C := Hom.complex, k := Nat.Nat^::succ n] \as Homology;
+\definition trivial: \forall (f: Term.Carrier) -> f = #zero{Term.space} :=
+  \fun (f: Term.Carrier) => Term.ext f #zero{Term.space}
+    (\fun (x: Chosen.Carrier (Nat.Nat^::succ n)) => trans!{N.Carrier} _ _ _
+      (congr!{{Chosen.Carrier (Nat.Nat^::succ n)} N.Carrier} (#apply{f}) x #zero{(Chosen.space (Nat.Nat^::succ n))} (Chosen.Positive[n := n].trivial x))
+      (Term.zeroPreserved f));
+\definition chosenVanishing: \forall (x: Source.At[n := Nat.Nat^::succ n].Carrier) -> x = #zero{(Source.At[n := Nat.Nat^::succ n].space)} :=
+  Homology.Vanishing[].zero trivial;
+\import \parent.\parent.Independence[M := M, N := N, P := Chosen.complex, Q := P].At[n := Nat.Nat^::succ n] \as Comparison;
+\import Source.At[n := Nat.Nat^::succ n] \as SourceTerm;
+\import Target.At[n := Nat.Nat^::succ n] \as TargetTerm;
+\import Modules.Isomorphism[V := SourceTerm.Carrier, W := TargetTerm.Carrier, source := SourceTerm.space, target := TargetTerm.space] \as Iso;
+\import Modules.Hom[V := SourceTerm.Carrier, W := TargetTerm.Carrier, source := SourceTerm.space, target := TargetTerm.space] \as Forward;
+\definition vanishing: Modules.Projective M -> \forall (resolution: Target.Resolution)(x: TargetTerm.Carrier) -> x = #zero{TargetTerm.space} := \block {
+  \fun (projective: Modules.Projective M)(resolution: Target.Resolution)(x: TargetTerm.Carrier) \then
+  \takefrom iso: Iso.Isomorphism \by Comparison.existence (Resolution.resolution projective) resolution \then
+  \return trans!{TargetTerm.Carrier} x (#apply{#forward{iso}} (#apply{#backward{iso}} x)) #zero{TargetTerm.space}
+    (sym!{TargetTerm.Carrier} _ _ (#rightInverse{iso} x))
+    (trans!{TargetTerm.Carrier} _ _ _
+      (congr!{SourceTerm.Carrier TargetTerm.Carrier} (#apply{#forward{iso}}) _ _ (chosenVanishing (#apply{#backward{iso}} x)))
+      (Forward.zeroPreserved #forward{iso}))
+};

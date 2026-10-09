@@ -1,0 +1,22 @@
+\import \parent.\parent.Coefficients[] \as SourceCoefficients;
+\import SourceCoefficients.NormalForm[] \as SourceNormal;
+\import Destination.Coefficients[] \as TargetCoefficients;
+\import \parent.\parent.\parent.Coordinates[I := Generators].Kronecker[] \as SourceDelta;
+\import \parent.\parent.\parent.Coordinates[I := TargetGenerators].Kronecker[] \as TargetDelta;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition Injective: \Prop := \forall (s, t: Generators) -> f s = f t -> s = t;
+\definition delta: Injective -> \forall (s, t: Generators) -> TargetDelta.delta (f s) (f t) = SourceDelta.delta s t :=
+  \fun (injective: Injective)(s, t: Generators) => either!{{s = t} "or" {Logic.Not (s = t)} "either" {TargetDelta.delta (f s) (f t) = SourceDelta.delta s t}
+    "lt:" {\fun (same: s = t) => trans!{R} _ _ _ (TargetDelta.equal (f s) (f t) (congr!{Generators TargetGenerators} f s t same))
+      (sym!{R} _ _ (SourceDelta.equal s t same))}
+    "rt:" {\fun (different: Logic.Not (s = t)) => trans!{R} _ _ _
+      (TargetDelta.different (f s) (f t) (\fun (same: f s = f t) => different (injective s t same)))
+      (sym!{R} _ _ (SourceDelta.different s t different))}}
+    (Classical.excludedMiddle (s = t));
+\module At(s: Generators);
+\definition injective: Injective -> \forall (x, y: Carrier) -> #apply{(push f)} x = #apply{(push f)} y -> x = y :=
+  \fun (injective: Injective)(x, y: Carrier)(same: _) => SourceNormal.injective x y
+    (\fun (s: Generators) => trans!{R} _ _ _ (sym!{R} _ _ (At[s := s].coefficient injective x))
+      (trans!{R} _ _ _ (congr!{Destination.Carrier R} (\fun (z: Destination.Carrier) => TargetCoefficients.coefficient z (f s)) _ _ same)
+        (At[s := s].coefficient injective y)));

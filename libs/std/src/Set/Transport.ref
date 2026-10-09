@@ -1,0 +1,115 @@
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\inductive Path[a: I]: \forall (b: I) -> \Set :=
+  | refl: Path a;
+\definition equality(a: I): \forall (b: I) -> Path[a] b -> a = b :=
+  \induction (b: I)(p: Path[a] b) \return a = b \with {
+    | refl: \refl(a)
+  };
+\definition carry(F: I -> \Set)(a: I): \forall (b: I) -> Path[a] b -> F a -> F b :=
+  \induction (b: I)(p: Path[a] b) \return F a -> F b \with {
+    | refl: \fun (x: F a) => x
+  };
+\definition compose(a, b: I)(p: Path[a] b): \forall (c: I) -> Path[b] c -> Path[a] c :=
+  \induction (c: I)(q: Path[b] c) \return Path[a] c \with {
+    | refl: p
+  };
+\definition inverse(a: I): \forall (b: I) -> Path[a] b -> Path[b] a :=
+  \induction (b: I)(p: Path[a] b) \return Path[b] a \with {
+    | refl: Path[a]::refl
+  };
+\definition inverseLeft(a: I): \forall (b: I)(p: Path[a] b) -> compose b a (inverse a b p) b p = Path[b]::refl :=
+  \induction (b: I)(p: Path[a] b) \return compose b a (inverse a b p) b p = Path[b]::refl \with {
+    | refl: \refl(Path[a]::refl)
+  };
+\definition existence(a, b: I): a = b -> \exists Path[a] b :=
+  \fun (same: a = b) => \idelim a = b \with c: I => \exists Path[a] c \by {
+    base: \exact(Path[a]::refl, Path[a] a), equality: same
+  };
+\definition EqualTo(a: I): \Set := \Cast[I] ({ b: I \where a = b });
+\definition family(a: I)(b: EqualTo a): \Set := Path[a] b;
+\definition familyInhabited(a: I): \forall (b: EqualTo a) -> \exists family a b :=
+  \fun (b: EqualTo a) => existence a b (\bysub(I, { b: I \where a = b }, b));
+\definition selectionExists(a: I): \exists (\forall (b: EqualTo a) -> family a b) :=
+  \axiom:classicalIndefiniteChoice(EqualTo a, family a, familyInhabited a);
+\module Selected(a: I, selected: \forall (b: EqualTo a) -> family a b) {
+  \definition normalize(b: I)(p: Path[a] b): Path[a] b :=
+    selected (\into[I](b, { b: I \where a = b }) \by { equality a b p });
+  \definition constant: \forall (b: I)(p, q: Path[a] b) -> normalize b p = normalize b q :=
+    \fun (b: I)(p, q: Path[a] b) => \refl(normalize b p);
+  \definition loop: Path[a] a := normalize a Path[a]::refl;
+  \definition recovery: \forall (b: I)(p: Path[a] b) -> compose a a (inverse a a loop) b (normalize b p) = p :=
+    \induction (b: I)(p: Path[a] b) \return compose a a (inverse a a loop) b (normalize b p) = p \with {
+      | refl: inverseLeft a a loop
+    };
+  \definition unique: \forall (b: I)(p, q: Path[a] b) -> p = q :=
+    \fun (b: I)(p, q: Path[a] b) => trans!{{Path[a] b}} _ _ _ (sym!{{Path[a] b}} _ _ (recovery b p))
+      (trans!{{Path[a] b}} _ _ _
+        (congr!{{Path[a] b} {Path[a] b}} (compose a a (inverse a a loop) b) _ _ (constant b p q)) (recovery b q));
+}
+\definition uniqueness: \forall (a, b: I)(p, q: Path[a] b) -> p = q := \block {
+  \fun (a, b: I)(p, q: Path[a] b) \then
+  \takefrom selected: \forall (c: EqualTo a) -> family a c \by selectionExists a \then
+  \return Selected[a := a, selected := selected].unique b p q
+};
+\definition path(a, b: I)(same: a = b): Path[a] b :=
+  \choice Path[a] b \by { existence: existence a b same, uniqueness: uniqueness a b };
+\definition pathRefl: \forall (a: I) -> path a a (\refl(a)) = Path[a]::refl :=
+  \fun (a: I) => uniqueness a a (path a a (\refl(a))) Path[a]::refl;
+\definition cast(F: I -> \Set)(a, b: I)(same: a = b)(x: F a): F b := carry F a b (path a b same) x;
+\definition castRefl: \forall (F: I -> \Set)(a: I)(x: F a) -> cast F a a (\refl(a)) x = x :=
+  \fun (F: I -> \Set)(a: I)(x: F a) => congr!{{Path[a] a} {F a}} (\fun (p: Path[a] a) => carry F a a p x) _ _ (pathRefl a);
+\definition pathNatural(F, G: I -> \Set)(map: \forall (i: I) -> F i -> G i)(a: I):
+  \forall (b: I)(p: Path[a] b)(x: F a) -> carry G a b p (map a x) = map b (carry F a b p x) :=
+  \induction (b: I)(p: Path[a] b) \return \forall (x: F a) -> carry G a b p (map a x) = map b (carry F a b p x) \with {
+    | refl: \fun (x: F a) => \refl(map a x)
+  };
+\definition natural: \forall (F, G: I -> \Set)(map: \forall (i: I) -> F i -> G i)(a, b: I)(same: a = b)(x: F a) ->
+  cast G a b same (map a x) = map b (cast F a b same x) :=
+  \fun (F, G: I -> \Set)(map: \forall (i: I) -> F i -> G i)(a, b: I)(same: a = b) => pathNatural F G map a b (path a b same);
+\definition carryComposition(F: I -> \Set)(a, b: I)(p: Path[a] b):
+  \forall (c: I)(q: Path[b] c)(x: F a) -> carry F b c q (carry F a b p x) = carry F a c (compose a b p c q) x :=
+  \induction (c: I)(q: Path[b] c) \return \forall (x: F a) -> carry F b c q (carry F a b p x) = carry F a c (compose a b p c q) x \with {
+    | refl: \fun (x: F a) => \refl(carry F a b p x)
+  };
+\definition castComposition: \forall (F: I -> \Set)(a, b, c: I)(ab: a = b)(bc: b = c)(x: F a) ->
+  cast F b c bc (cast F a b ab x) = cast F a c (trans!{I} a b c ab bc) x :=
+  \fun (F: I -> \Set)(a, b, c: I)(ab: a = b)(bc: b = c)(x: F a) => trans!{{F c}} _ _ _
+    (carryComposition F a b (path a b ab) c (path b c bc) x)
+    (congr!{{Path[a] c} {F c}} (\fun (p: Path[a] c) => carry F a c p x) _ _
+      (uniqueness a c (compose a b (path a b ab) c (path b c bc)) (path a c (trans!{I} a b c ab bc))));
+\definition castInverse: \forall (F: I -> \Set)(a, b: I)(same: a = b)(x: F a) ->
+  cast F b a (sym!{I} a b same) (cast F a b same x) = x :=
+  \fun (F: I -> \Set)(a, b: I)(same: a = b)(x: F a) => trans!{{F a}} _ _ _
+    (castComposition F a b a same (sym!{I} a b same) x) (castRefl F a x);
+\definition pathPoint(F: I -> \Set)(point: \forall (i: I) -> F i)(a: I):
+  \forall (b: I)(p: Path[a] b) -> carry F a b p (point a) = point b :=
+  \induction (b: I)(p: Path[a] b) \return carry F a b p (point a) = point b \with {
+    | refl: \refl(point a)
+  };
+\definition pointNatural: \forall (F: I -> \Set)(point: \forall (i: I) -> F i)(a, b: I)(same: a = b) ->
+  cast F a b same (point a) = point b :=
+  \fun (F: I -> \Set)(point: \forall (i: I) -> F i)(a, b: I)(same: a = b) => pathPoint F point a b (path a b same);
+\definition pathBinary(F, G, H: I -> \Set)(operation: \forall (i: I) -> F i -> G i -> H i)(a: I):
+  \forall (b: I)(p: Path[a] b)(x: F a)(y: G a) ->
+    carry H a b p (operation a x y) = operation b (carry F a b p x) (carry G a b p y) :=
+  \induction (b: I)(p: Path[a] b) \return \forall (x: F a)(y: G a) ->
+    carry H a b p (operation a x y) = operation b (carry F a b p x) (carry G a b p y) \with {
+    | refl: \fun (x: F a)(y: G a) => \refl(operation a x y)
+  };
+\definition binaryNatural: \forall (F, G, H: I -> \Set)(operation: \forall (i: I) -> F i -> G i -> H i)(a, b: I)(same: a = b)(x: F a)(y: G a) ->
+  cast H a b same (operation a x y) = operation b (cast F a b same x) (cast G a b same y) :=
+  \fun (F, G, H: I -> \Set)(operation: \forall (i: I) -> F i -> G i -> H i)(a, b: I)(same: a = b) =>
+    pathBinary F G H operation a b (path a b same);
+\definition pathReindex(F: I -> \Set)(index: I -> I)(a: I):
+  \forall (b: I)(p: Path[a] b)(x: F (index a)) ->
+  carry (\fun (i: I) => F (index i)) a b p x = cast F (index a) (index b) (congr!{I I} index a b (equality a b p)) x :=
+  \induction (b: I)(p: Path[a] b) \return \forall (x: F (index a)) ->
+    carry (\fun (i: I) => F (index i)) a b p x = cast F (index a) (index b) (congr!{I I} index a b (equality a b p)) x \with {
+      | refl: \fun (x: F (index a)) => sym!{{F (index a)}} _ _ (castRefl F (index a) x)
+    };
+\definition reindex: \forall (F: I -> \Set)(index: I -> I)(a, b: I)(same: a = b)(x: F (index a)) ->
+  cast (\fun (i: I) => F (index i)) a b same x = cast F (index a) (index b) (congr!{I I} index a b same) x :=
+  \fun (F: I -> \Set)(index: I -> I)(a, b: I)(same: a = b)(x: F (index a)) => pathReindex F index a b (path a b same) x;

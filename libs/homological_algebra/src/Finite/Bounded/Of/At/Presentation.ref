@@ -1,0 +1,81 @@
+\import Modules.Of[V := Homology.Cycle, space := Homology.cycleSpace].Submodule[].Of[S := Homology.boundariesInside] \as Boundary;
+\definition boundaryBundle: Modules.Bundle := Modules.Bundle { Carrier := Boundary.Carrier, space := Boundary.moduleSpace };
+\definition homologyBundle: Modules.Bundle := Modules.Bundle { Carrier := Homology.Homology, space := Homology.homologySpace };
+\definition cyclesBundle: Modules.Bundle := Modules.Bundle { Carrier := Homology.Cycle, space := Homology.cycleSpace };
+\import Modules.ShortExact[A := boundaryBundle, B := cyclesBundle, C := homologyBundle] \as Sequences;
+\import Modules.Of[V := Homology.Cycle, space := Homology.cycleSpace].Submodule[].Quotient[S := Homology.boundariesInside] \as Quotient;
+\definition kernelImage: \forall (x: Homology.Cycle) -> Homology.classOf x = #zero{Homology.homologySpace} ->
+  \exists { y: Boundary.Carrier \where #apply{Boundary.inclusion} y = x } :=
+  \fun (x: Homology.Cycle)(closed: _) => \exact(
+    \into[Boundary.Carrier](\into[Homology.Cycle](x, #carrier{Homology.boundariesInside}) \by { Homology.zeroClassBoundary x closed },
+      { y: Boundary.Carrier \where #apply{Boundary.inclusion} y = x }) \by { \refl(x) },
+    \Cast[Boundary.Carrier] ({ y: Boundary.Carrier \where #apply{Boundary.inclusion} y = x }));
+\definition data: Sequences.Data := Sequences.Data { inclusion := Boundary.inclusion, projection := Homology.classLinear };
+\definition laws: Sequences.Laws[data] := Sequences.Laws[data] {
+  injective := \fun (x, y: Boundary.Carrier)(equal: _) => equal,
+  onto := Quotient.onto,
+  zero := \fun (x: Boundary.Carrier) => Homology.boundaryClassZero x (\bysub(Homology.Cycle, #carrier{Homology.boundariesInside}, x)),
+  kernelImage := kernelImage,
+};
+\definition sequence: Sequences.Sequence := \into[Sequences.Data](data, { data: Sequences.Data \where Sequences.Laws[data] }) \by { laws };
+\import algebra.IntegerSubmodules[].Projectivity[n := C.ranks z, S := Homology.cycles] \as CyclesProjectivity;
+\definition cyclesProjective: Modules.Projective cyclesBundle := CyclesProjectivity.projective;
+\import Modules.Of[V := Carrier C z, space := space C z].Submodule[].Of[S := Homology.boundaries] \as AmbientBoundary;
+\definition ambientBundle: Modules.Bundle := Modules.Bundle { Carrier := AmbientBoundary.Carrier, space := AmbientBoundary.moduleSpace };
+\import Modules.Hom[V := Boundary.Carrier, W := AmbientBoundary.Carrier, source := Boundary.moduleSpace, target := AmbientBoundary.moduleSpace] \as Forget;
+\definition forget: Forget.Map := Forget.Map {
+  apply := \fun (x: Boundary.Carrier) => \into[Carrier C z](x, #carrier{Homology.boundaries}) \by { \bysub(Homology.Cycle, #carrier{Homology.boundariesInside}, x) },
+  addition := \fun (x, y: Boundary.Carrier) => \refl(#add{(space C z)} x y),
+  scalar := \fun (a: I.Int^)(x: Boundary.Carrier) => \refl(#smul{(space C z)} a x),
+};
+\import Modules.Hom[V := AmbientBoundary.Carrier, W := Boundary.Carrier, source := AmbientBoundary.moduleSpace, target := Boundary.moduleSpace] \as Into;
+\definition into: Into.Map := Into.Map {
+  apply := \fun (x: AmbientBoundary.Carrier) => \into[Homology.Cycle](
+    Homology.cycle x (Homology.boundaryCycle x (\bysub(Carrier C z, #carrier{Homology.boundaries}, x))), #carrier{Homology.boundariesInside}) \by {
+      \bysub(Carrier C z, #carrier{Homology.boundaries}, x)
+    },
+  addition := \fun (x, y: AmbientBoundary.Carrier) => \refl(#add{(space C z)} x y),
+  scalar := \fun (a: I.Int^)(x: AmbientBoundary.Carrier) => \refl(#smul{(space C z)} a x),
+};
+\import Modules.ProjectiveLaws[].Retract[P := boundaryBundle, Q := ambientBundle, inclusion := forget, retraction := into] \as Retraction;
+\import algebra.IntegerSubmodules[].Projectivity[n := C.ranks z, S := Homology.boundaries] \as BoundaryProjectivity;
+\definition boundaryProjective: Modules.Projective boundaryBundle := Retraction.projective (\fun (x: Boundary.Carrier) => \refl(x)) BoundaryProjectivity.projective;
+\import \root.Resolution[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing].LengthOne[K := boundaryBundle, L := cyclesBundle, M := homologyBundle].With[sequence := sequence] \as LengthOne;
+\import \root.NonnegativeChain[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Nonnegative;
+\definition family: Nonnegative.Family := Nonnegative.Family {
+  Carrier := \fun (n: N.Nat^) => LengthOne.Carrier n,
+  space := \fun (n: N.Nat^) => LengthOne.space n,
+};
+\definition differential: Nonnegative.DifferentialData[family] := Nonnegative.DifferentialData[family] { apply := \fun (n: N.Nat^)(x: family.Carrier (N.Nat^::succ n)) => LengthOne.apply n x };
+\definition complex: Nonnegative.Complex := Nonnegative.Complex { family := family, differential := differential,
+  laws := Nonnegative.DifferentialLaws[family, differential] {
+    addition := \fun (n: N.Nat^)(x, y: family.Carrier (N.Nat^::succ n)) => LengthOne.addition n x y,
+    scalar := \fun (n: N.Nat^)(a: I.Int^)(x: family.Carrier (N.Nat^::succ n)) => LengthOne.scalar n a x,
+    squareZero := \fun (n: N.Nat^)(x: family.Carrier (N.Nat^::succ (N.Nat^::succ n))) => LengthOne.squareZero n x,
+  } };
+\import \root.Resolution[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing].Of[M := homologyBundle, P := complex] \as Native;
+\definition resolution: Native.Resolution := \into[Native.Data](Native.Data { augmentation := Homology.classLinear },
+  { data: Native.Data \where Native.Laws[data] }) \by {
+    Native.Laws[Native.Data { augmentation := Homology.classLinear }] {
+      projective := LengthOne.projective boundaryProjective cyclesProjective,
+      onto := #onto{sequence}, killed := #zero{sequence}, augmentationExact := #kernelImage{sequence}, exact := LengthOne.exact,
+    }
+  };
+\module Ext(A: Modules.Bundle) {
+  \import \root.Ext[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].LengthOne[K := boundaryBundle, L := cyclesBundle, M := homologyBundle, N := A].With[sequence := sequence] \as Computation;
+  \definition resolution: _ := Computation.resolution boundaryProjective cyclesProjective;
+  \definition Carrier: \Set := Computation.Carrier;
+  \definition space: Modules.Space Carrier := Computation.space;
+  \definition QuotientCarrier: \Set := Computation.QuotientCarrier;
+  \definition quotientSpace: Modules.Space QuotientCarrier := Computation.quotientSpace;
+  \definition isomorphism: Modules.Isomorphism[V := Carrier, W := QuotientCarrier, source := space, target := quotientSpace].Isomorphism := Computation.isomorphism;
+}
+\module Tor(A: Modules.Bundle) {
+  \import \root.Tor[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].LengthOne[K := boundaryBundle, L := cyclesBundle, M := homologyBundle, N := A].With[sequence := sequence] \as Computation;
+  \definition resolution: _ := Computation.resolution boundaryProjective cyclesProjective;
+  \definition Carrier: \Set := Computation.Carrier;
+  \definition space: Modules.Space Carrier := Computation.space;
+  \definition Kernel: \Set := Computation.Kernel;
+  \definition kernelSpace: Modules.Space Kernel := Computation.kernelSpace;
+  \definition isomorphism: Modules.Isomorphism[V := Carrier, W := Kernel, source := space, target := kernelSpace].Isomorphism := Computation.isomorphism;
+}

@@ -14,6 +14,7 @@
 
 /* Arithmetic laws on the Set specifications. */
 \import std.Logic[].Rel[] \as Rel;
+\import std.Logic[].Proposition[] \as Logic;
 \import std.Logic[].Algebra[].Def[] \as Law;
 \definition succInjective(a, b: Nat^):
   Nat^::succ a = Nat^::succ b ->
@@ -518,4 +519,72 @@
         | zero: \fun (different: _) => \refl(B.Bool^::true)
         | succ: \fun (a: Nat^)(unused: _)(different: _) => previous a different
       }
+  };
+
+\definition eqbFalseOfNe: \forall (a, b: Nat^) -> Logic.Not (a = b) -> Op.eqb a b = B.Bool^::false :=
+  \fun (a, b: Nat^)(different: Logic.Not (a = b)) => B.cases
+    (\fun (test: B.Bool^) => Op.eqb a b = test -> test = B.Bool^::false)
+    (\fun (equal: Op.eqb a b = B.Bool^::false) => \refl(B.Bool^::false))
+    (\fun (equal: Op.eqb a b = B.Bool^::true) => Logic.falseElim (B.Bool^::true = B.Bool^::false) (different (eqOfEqbTrue b a equal)))
+    (Op.eqb a b) (\refl(Op.eqb a b));
+
+\definition ltNe: \forall (a, b: Nat^) -> Lt a b -> Logic.Not (a = b) :=
+  \fun (a, b: Nat^)(less: Lt a b)(equal: a = b) => ltIrrefl a
+    (\idelim b = a \with x: Nat^ => Lt a x \by { base: less, equality: sym!{Nat^} a b equal });
+\definition subDecrease: \forall (k, rows: Nat^) -> Lt k rows -> Lt (Op.sub rows (Nat^::succ k)) (Op.sub rows k) :=
+  \induction (k: Nat^) \return \forall (rows: Nat^) -> Lt k rows -> Lt (Op.sub rows (Nat^::succ k)) (Op.sub rows k) \with {
+    | zero: \induction (rows: Nat^) \return Lt Nat^::zero rows -> Lt (Op.sub rows (Nat^::succ Nat^::zero)) (Op.sub rows Nat^::zero) \with {
+        | zero: \fun (bad: B.Bool^::false = B.Bool^::true) => Logic.falseElim _ (BoolLaws.falseNeTrue bad)
+        | succ: \fun (rows: Nat^)(previous: _)(bound: _) => ltOfSuccLe (Nat^::succ rows) rows (leRefl (Nat^::succ rows))
+      }
+    | succ: \fun (k: Nat^)(previous: _) => \induction (rows: Nat^) \return Lt (Nat^::succ k) rows -> Lt (Op.sub rows (Nat^::succ (Nat^::succ k))) (Op.sub rows (Nat^::succ k)) \with {
+        | zero: \fun (bad: B.Bool^::false = B.Bool^::true) => Logic.falseElim _ (BoolLaws.falseNeTrue bad)
+        | succ: \fun (rows: Nat^)(unused: _)(bound: _) => previous rows bound
+      }
+  };
+\definition leOfLtbFalse: \forall (a, b: Nat^) -> Op.ltb a b = B.Bool^::false -> Le b a :=
+  \induction (a: Nat^) \return \forall (b: Nat^) -> Op.ltb a b = B.Bool^::false -> Le b a \with {
+    | zero: \induction (b: Nat^) \return Op.ltb Nat^::zero b = B.Bool^::false -> Le b Nat^::zero \with {
+        | zero: \fun (equal: B.Bool^::false = B.Bool^::false) => \refl(B.Bool^::true)
+        | succ: \fun (b: Nat^)(previous: _)(bad: B.Bool^::true = B.Bool^::false) => Logic.falseElim _ (BoolLaws.trueNeFalse bad)
+      }
+    | succ: \fun (a: Nat^)(previous: _) => \induction (b: Nat^) \return Op.ltb (Nat^::succ a) b = B.Bool^::false -> Le b (Nat^::succ a) \with {
+        | zero: \fun (equal: B.Bool^::false = B.Bool^::false) => \refl(B.Bool^::true)
+        | succ: \fun (b: Nat^)(unused: _)(equal: _) => previous b equal
+      }
+  };
+\definition ltOfLeDifferent: \forall (a, b: Nat^) -> Le a b -> Logic.Not (a = b) -> Lt a b :=
+  \induction (a: Nat^) \return \forall (b: Nat^) -> Le a b -> Logic.Not (a = b) -> Lt a b \with {
+    | zero: \induction (b: Nat^) \return Le Nat^::zero b -> Logic.Not (Nat^::zero = b) -> Lt Nat^::zero b \with {
+        | zero: \fun (bound: _)(different: _) => Logic.falseElim _ (different (\refl(Nat^::zero)))
+        | succ: \fun (b: Nat^)(unused: _)(bound: _)(different: _) => \refl(B.Bool^::true)
+      }
+    | succ: \fun (a: Nat^)(previous: _) => \induction (b: Nat^) \return Le (Nat^::succ a) b -> Logic.Not (Nat^::succ a = b) -> Lt (Nat^::succ a) b \with {
+        | zero: \fun (bound: _)(different: _) => Logic.falseElim _ (BoolLaws.falseNeTrue bound)
+        | succ: \fun (b: Nat^)(unused: _)(bound: _)(different: _) => previous b bound
+            (\fun (equal: a = b) => different (congr!{Nat^ Nat^} (\fun (n: Nat^) => Nat^::succ n) a b equal))
+      }
+  };
+\definition addSubOfLe: \forall (a, b: Nat^) -> Le a b -> Op.add a (Op.sub b a) = b :=
+  \induction (a: Nat^) \return \forall (b: Nat^) -> Le a b -> Op.add a (Op.sub b a) = b \with {
+    | zero: \fun (b: Nat^)(bound: _) => addZeroLeft b
+    | succ: \fun (a: Nat^)(previous: _) => \induction (b: Nat^) \return Le (Nat^::succ a) b -> Op.add (Nat^::succ a) (Op.sub b (Nat^::succ a)) = b \with {
+        | zero: \fun (bad: _) => Logic.falseElim _ (BoolLaws.falseNeTrue bad)
+        | succ: \fun (b: Nat^)(unused: _)(bound: _) => trans!{Nat^} (Op.add (Nat^::succ a) (Op.sub b a)) (Nat^::succ (Op.add a (Op.sub b a))) (Nat^::succ b)
+            (addSuccLeft a (Op.sub b a)) (congr!{Nat^ Nat^} (\fun (n: Nat^) => Nat^::succ n) (Op.add a (Op.sub b a)) b (previous b bound))
+      }
+  };
+\definition subLtOfLe: \forall (start, i, limit: Nat^) -> Le start i -> Lt i limit -> Lt (Op.sub i start) (Op.sub limit start) :=
+  \induction (start: Nat^) \return \forall (i, limit: Nat^) -> Le start i -> Lt i limit -> Lt (Op.sub i start) (Op.sub limit start) \with {
+    | zero: \fun (i, limit: Nat^)(lower: _)(upper: _) => upper
+    | succ: \fun (start: Nat^)(previous: _) => \induction (i: Nat^) \return \forall (limit: Nat^) ->
+        Le (Nat^::succ start) i -> Lt i limit -> Lt (Op.sub i (Nat^::succ start)) (Op.sub limit (Nat^::succ start)) \with {
+      | zero: \fun (limit: Nat^)(bad: _)(upper: _) => Logic.falseElim _ (BoolLaws.falseNeTrue bad)
+      | succ: \fun (i: Nat^)(unused: _) => \induction (limit: Nat^) \return
+          Le (Nat^::succ start) (Nat^::succ i) -> Lt (Nat^::succ i) limit ->
+          Lt (Op.sub (Nat^::succ i) (Nat^::succ start)) (Op.sub limit (Nat^::succ start)) \with {
+        | zero: \fun (lower: _)(bad: _) => Logic.falseElim _ (BoolLaws.falseNeTrue bad)
+        | succ: \fun (limit: Nat^)(unused: _)(lower: _)(upper: _) => previous i limit lower upper
+      }
+    }
   };

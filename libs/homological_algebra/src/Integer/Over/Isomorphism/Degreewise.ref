@@ -1,0 +1,29 @@
+\definition Commutes: \Prop := \forall (z: Degree)(x: C.family.Carrier z) ->
+  #apply{D.differential} z (#apply{#forward{(isomorphisms z)}} x) = #apply{#forward{(isomorphisms (next z))}} (#apply{C.differential} z x);
+\definition reverseCommutes: Commutes -> \forall (z: Degree)(y: D.family.Carrier z) ->
+  #apply{C.differential} z (#apply{#backward{(isomorphisms z)}} y) = #apply{#backward{(isomorphisms (next z))}} (#apply{D.differential} z y) :=
+    \fun (commutes: Commutes)(z: Degree)(y: D.family.Carrier z) => trans!{{C.family.Carrier (next z)}} _ _ _
+      (sym!{{C.family.Carrier (next z)}} _ _ (#leftInverse{(isomorphisms (next z))} (#apply{C.differential} z (#apply{#backward{(isomorphisms z)}} y))))
+      (congr!{{D.family.Carrier (next z)} {C.family.Carrier (next z)}} (#apply{#backward{(isomorphisms (next z))}}) _ _
+        (trans!{{D.family.Carrier (next z)}} _ _ _ (sym!{{D.family.Carrier (next z)}} _ _ (commutes z (#apply{#backward{(isomorphisms z)}} y)))
+          (congr!{{D.family.Carrier z} {D.family.Carrier (next z)}} (#apply{D.differential} z) _ _ (#rightInverse{(isomorphisms z)} y))));
+\definition forwardData: Forward.Data := Forward.Data { apply := \fun (z: Degree) => #apply{#forward{(isomorphisms z)}} };
+\definition backwardData: Backward.Data := Backward.Data { apply := \fun (z: Degree) => #apply{#backward{(isomorphisms z)}} };
+\definition forward(compatible: Commutes): Forward.Map := \into[Forward.Data](forwardData, { data: Forward.Data \where Forward.Laws[data] }) \by {
+  Forward.Laws[forwardData] {
+    addition := \fun (z: Degree) => #addition{#forward{(isomorphisms z)}},
+    scalar := \fun (z: Degree) => #scalar{#forward{(isomorphisms z)}}, commutes := compatible,
+  }
+};
+\definition backward(compatible: Commutes): Backward.Map := \into[Backward.Data](backwardData, { data: Backward.Data \where Backward.Laws[data] }) \by {
+  Backward.Laws[backwardData] {
+    addition := \fun (z: Degree) => #addition{#backward{(isomorphisms z)}},
+    scalar := \fun (z: Degree) => #scalar{#backward{(isomorphisms z)}}, commutes := reverseCommutes compatible,
+  }
+};
+\definition data(compatible: Commutes): Data := Data { forward := forward compatible, backward := backward compatible };
+\definition inverseLaws: \forall (compatible: Commutes) -> Laws[data compatible] := \fun (compatible: Commutes) => Laws[data compatible] {
+  leftInverse := \fun (z: Degree) => #leftInverse{(isomorphisms z)},
+  rightInverse := \fun (z: Degree) => #rightInverse{(isomorphisms z)},
+};
+\definition isomorphism(compatible: Commutes): Isomorphism := \into[Data](data compatible, { data: Data \where Laws[data] }) \by { inverseLaws compatible };

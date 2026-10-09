@@ -1,0 +1,65 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Program[] \as NatPrograms;
+\import N.Basic[].ProgramProp[] \as NatCorrespondence;
+\import std.Arithmetic[].Int[] \as I;
+\import std.Program[] \as Programs;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero] \as Matrices;
+\definition Runtime: \VType := Matrices.Runtime;
+\import algebra.Smith[] \as Smith;
+\import Smith.Diagonalize[] \as Diagonalize;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition shiftColumns(offset: N.Nat^)(a: Runtime^): Runtime^ := \fun (i, j: N.Nat^) => a i (Nat.add offset j);
+\definition shiftRows(offset: N.Nat^)(a: Runtime^): Runtime^ := \fun (i, j: N.Nat^) => a (Nat.add offset i) j;
+\definition additionProgram: \U(N.Nat -> N.Nat -> N.Nat) := NatPrograms.add;
+\module Columns;
+\correspondence ColumnShift: Programs.Correspondence := Programs.Correspondence {
+  T := Columns[].T, program := Columns[].program, specification := shiftColumns, coherence := Columns[].coherence,
+};
+\module Rows;
+\correspondence RowShift: Programs.Correspondence := Programs.Correspondence {
+  T := Rows[].T, program := Rows[].program, specification := shiftRows, coherence := Rows[].coherence,
+};
+\module ReadRank;
+\module ReadRight;
+\module ReadInverse;
+\definition columnsProgram: ColumnShift.T := ColumnShift.program;
+\definition rowsProgram: RowShift.T := RowShift.program;
+\definition rankProgram: ReadRank[].T := ReadRank[].program;
+\definition rightProgram: ReadRight[].T := ReadRight[].program;
+\definition inverseProgram: ReadInverse[].T := ReadInverse[].program;
+\definition basis(result: Smith.SmithResult^): Runtime^ := shiftColumns (Diagonalize.rank result) (Diagonalize.right result);
+\definition coordinates(result: Smith.SmithResult^): Runtime^ := shiftRows (Diagonalize.rank result) (Diagonalize.rightInverse result);
+\module BasisImplementation;
+\correspondence Basis: Programs.Correspondence := Programs.Correspondence {
+  T := BasisImplementation[].T, program := BasisImplementation[].program, specification := basis, coherence := BasisImplementation[].coherence,
+};
+\module CoordinatesImplementation;
+\correspondence Coordinates: Programs.Correspondence := Programs.Correspondence {
+  T := CoordinatesImplementation[].T, program := CoordinatesImplementation[].program, specification := coordinates, coherence := CoordinatesImplementation[].coherence,
+};
+\module ReadLeft;
+\module ReadLeftInverse;
+\correspondence Rank: Programs.Correspondence := Programs.Correspondence {
+  T := ReadRank[].T, program := ReadRank[].program, specification := Diagonalize.rank, coherence := ReadRank[].coherence,
+};
+\correspondence Right: Programs.Correspondence := Programs.Correspondence {
+  T := ReadRight[].T, program := ReadRight[].program, specification := Diagonalize.right, coherence := ReadRight[].coherence,
+};
+\correspondence InverseRight: Programs.Correspondence := Programs.Correspondence {
+  T := ReadInverse[].T, program := ReadInverse[].program, specification := Diagonalize.rightInverse, coherence := ReadInverse[].coherence,
+};
+\correspondence Left: Programs.Correspondence := Programs.Correspondence {
+  T := ReadLeft[].T, program := ReadLeft[].program, specification := Diagonalize.left, coherence := ReadLeft[].coherence,
+};
+\correspondence InverseLeft: Programs.Correspondence := Programs.Correspondence {
+  T := ReadLeftInverse[].T, program := ReadLeftInverse[].program, specification := Diagonalize.leftInverse, coherence := ReadLeftInverse[].coherence,
+};
+\import Matrices.Product[k := N.Nat^::zero] \as MatrixProduct;
+\definition rowsMultiply: \forall (count, offset: N.Nat^)(a, b: Runtime^) ->
+  MatrixProduct.Multiply.program^ count (RowShift.program^ offset a) b =
+  RowShift.program^ offset (MatrixProduct.Multiply.program^ count a b) :=
+  \fun (count, offset: N.Nat^)(a, b: Runtime^) => \refl(MatrixProduct.Multiply.program^ count (RowShift.program^ offset a) b);

@@ -32,3 +32,47 @@
     }
     | negSucc: \fun (n: N.Nat^) => #squareZero{C.laws} (Integers.Int^::negSucc (N.Nat^::succ n))
   };
+
+\import std.Set[].Transport[I := Degree] \as Transport;
+\definition nextValue: \forall (k: Degree)(x: C.family.Carrier k) ->
+  value (next k) (Transport.cast C.family.Carrier k (previous (next k)) (sym!{Degree} _ _ (previousNext k)) x) = #apply{C.differential} k x :=
+  \induction (k: Degree) \return \forall (x: C.family.Carrier k) ->
+    value (next k) (Transport.cast C.family.Carrier k (previous (next k)) (sym!{Degree} _ _ (previousNext k)) x) = #apply{C.differential} k x \with {
+      | ofNat: \fun (n: N.Nat^)(x: C.family.Carrier (Integers.Int^::ofNat n)) =>
+        congr!{{C.family.Carrier (Integers.Int^::ofNat n)} {C.family.Carrier (next (Integers.Int^::ofNat n))}}
+          (#apply{C.differential} (Integers.Int^::ofNat n)) _ _ (Transport.castRefl C.family.Carrier (Integers.Int^::ofNat n) x)
+      | negSucc: \induction (n: N.Nat^) \return \forall (x: C.family.Carrier (Integers.Int^::negSucc n)) ->
+          value (next (Integers.Int^::negSucc n)) (Transport.cast C.family.Carrier (Integers.Int^::negSucc n) (previous (next (Integers.Int^::negSucc n)))
+            (sym!{Degree} _ _ (previousNext (Integers.Int^::negSucc n))) x) = #apply{C.differential} (Integers.Int^::negSucc n) x \with {
+          | zero: \fun (x: C.family.Carrier (Integers.Int^::negSucc N.Nat^::zero)) =>
+            congr!{{C.family.Carrier (Integers.Int^::negSucc N.Nat^::zero)} {C.family.Carrier (Integers.Int^::ofNat N.Nat^::zero)}}
+              (#apply{C.differential} (Integers.Int^::negSucc N.Nat^::zero)) _ _ (Transport.castRefl C.family.Carrier (Integers.Int^::negSucc N.Nat^::zero) x)
+          | succ: \fun (n: N.Nat^)(before: _)(x: C.family.Carrier (Integers.Int^::negSucc (N.Nat^::succ n))) =>
+            congr!{{C.family.Carrier (Integers.Int^::negSucc (N.Nat^::succ n))} {C.family.Carrier (Integers.Int^::negSucc n)}}
+              (#apply{C.differential} (Integers.Int^::negSucc (N.Nat^::succ n))) _ _ (Transport.castRefl C.family.Carrier (Integers.Int^::negSucc (N.Nat^::succ n)) x)
+        }
+    };
+\definition nextInverse: \forall (k: Degree)(x: C.family.Carrier (previous (next k))) ->
+  #apply{C.differential} k (Transport.cast C.family.Carrier (previous (next k)) k (previousNext k) x) = value (next k) x :=
+  \fun (k: Degree)(x: C.family.Carrier (previous (next k))) => trans!{{C.family.Carrier (next k)}} _ _ _
+    (sym!{{C.family.Carrier (next k)}} _ _ (nextValue k (Transport.cast C.family.Carrier (previous (next k)) k (previousNext k) x)))
+    (congr!{{C.family.Carrier (previous (next k))} {C.family.Carrier (next k)}} (value (next k)) _ _
+      (Transport.castInverse C.family.Carrier (previous (next k)) k (previousNext k) x));
+
+\definition formula: \forall (k: Degree)(x: C.family.Carrier (previous k)) -> value k x =
+  Transport.cast C.family.Carrier (next (previous k)) k (nextPrevious k)
+    (#apply{C.differential} (previous k) x) :=
+  \induction (k: Degree) \return \forall (x: C.family.Carrier (previous k)) -> value k x =
+    Transport.cast C.family.Carrier (next (previous k)) k (nextPrevious k)
+      (#apply{C.differential} (previous k) x) \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (x: C.family.Carrier (previous (Integers.Int^::ofNat n))) -> value (Integers.Int^::ofNat n) x =
+        Transport.cast C.family.Carrier (next (previous (Integers.Int^::ofNat n))) (Integers.Int^::ofNat n) (nextPrevious (Integers.Int^::ofNat n))
+          (#apply{C.differential} (previous (Integers.Int^::ofNat n)) x) \with {
+        | zero: \fun (x: C.family.Carrier (Integers.Int^::negSucc N.Nat^::zero)) => sym!{{C.family.Carrier (Integers.Int^::ofNat N.Nat^::zero)}} _ _
+            (Transport.castRefl C.family.Carrier (Integers.Int^::ofNat N.Nat^::zero) (#apply{C.differential} (Integers.Int^::negSucc N.Nat^::zero) x))
+        | succ: \fun (n: N.Nat^)(before: _)(x: C.family.Carrier (Integers.Int^::ofNat n)) => sym!{{C.family.Carrier (Integers.Int^::ofNat (N.Nat^::succ n))}} _ _
+            (Transport.castRefl C.family.Carrier (Integers.Int^::ofNat (N.Nat^::succ n)) (#apply{C.differential} (Integers.Int^::ofNat n) x))
+      }
+    | negSucc: \fun (n: N.Nat^)(x: C.family.Carrier (Integers.Int^::negSucc (N.Nat^::succ n))) => sym!{{C.family.Carrier (Integers.Int^::negSucc n)}} _ _
+        (Transport.castRefl C.family.Carrier (Integers.Int^::negSucc n) (#apply{C.differential} (Integers.Int^::negSucc (N.Nat^::succ n)) x))
+  };

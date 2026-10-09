@@ -1,0 +1,26 @@
+\import \parent.Map[C := C, D := C] \as Maps;
+\definition identity: Maps.Map := \into[Maps.Data](
+  (\fun (p, q: Nat.Nat^) => Modules.End[V := C.family.Carrier p q, space := C.family.space p q].identity),
+  { data: Maps.Data \where Maps.Laws[data] }) \by {
+    Maps.Laws[\fun (p, q: Nat.Nat^) => Modules.End[V := C.family.Carrier p q, space := C.family.space p q].identity] {
+      horizontal := \fun (p, q: Nat.Nat^)(x: C.family.Carrier p q) => \refl(#apply{(C.differential.horizontal p q)} x),
+      vertical := \fun (p, q: Nat.Nat^)(x: C.family.Carrier p q) => \refl(#apply{(C.differential.vertical p q)} x),
+    }
+  };
+\module Total {
+  \import \parent.\parent.Total[C := C] \as TotalComplex;
+  \import Maps.Total[f := identity] \as Induced;
+  \module Degree(n: Nat.Nat^) {
+    \import TotalComplex.Degree[n := n] \as Term;
+    \import Induced.Degree[n := n] \as InducedTerm;
+    \import Modules.End[V := Term.Carrier, space := Term.space] \as End;
+    \import Modules.DirectSum[Index := Degrees.Index n, family := Term.family].To[W := Term.Carrier, target := Term.space] \as Universal;
+    \definition equality: InducedTerm.map = End.identity := Universal.ext InducedTerm.map End.identity InducedTerm.onInjection;
+    \definition point: \forall (x: Term.Carrier) -> #apply{InducedTerm.map} x = x :=
+      \fun (x: Term.Carrier) => congr!{{Modules.Hom[V := Term.Carrier, W := Term.Carrier, source := Term.space, target := Term.space].Map} Term.Carrier}
+        (\fun (g: Modules.Hom[V := Term.Carrier, W := Term.Carrier, source := Term.space, target := Term.space].Map) => #apply{g} x) InducedTerm.map End.identity equality;
+  }
+  \import Cochains.Map[C := TotalComplex.complex, D := TotalComplex.complex] \as Native;
+  \definition equality: Induced.map = Cochains.End[C := TotalComplex.complex].identity := Native.ext Induced.map (Cochains.End[C := TotalComplex.complex].identity)
+    (\fun (n: Nat.Nat^) => Degree[n := n].point);
+}

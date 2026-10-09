@@ -379,7 +379,7 @@ impl Resolver {
                 } else if !parameters.is_empty()
                     && let Some(signature) = self.parameter_signatures.get(&id).cloned()
                 {
-                    let (actual, mut checks) = match self.expand_type_arguments(
+                    let (mut actual, mut checks) = match self.expand_type_arguments(
                         &signature.parameters,
                         &signature.inputs,
                         parameters,
@@ -400,16 +400,34 @@ impl Resolver {
                         .collect();
                     checks.extend(signature.checks.iter().map(|(value, ty)| {
                         (
-                            substitute(
+                            self.substitute_front_expression(
                                 &self.instantiate_front_expression(value, access),
                                 &substitutions,
                             ),
-                            substitute(
+                            self.substitute_front_expression(
                                 &self.instantiate_front_expression(ty, access),
                                 &substitutions,
                             ),
                         )
                     }));
+                    // Expanding a declaration argument can introduce captures
+                    // specialized from its defining namespace. Their module
+                    // expressions need normalization before ordinary resolution.
+                    for argument in &mut actual {
+                        if let Err(e) = self.normalize_in_scope(argument, locals) {
+                            error = Some(e);
+                            return false;
+                        }
+                    }
+                    for (value, ty) in &mut checks {
+                        if let Err(e) = self
+                            .normalize_in_scope(value, locals)
+                            .and_then(|()| self.normalize_in_scope(ty, locals))
+                        {
+                            error = Some(e);
+                            return false;
+                        }
+                    }
                     *parameters = actual;
                     if let SExp::RecordTypeCtor { fields, .. } = node {
                         for (_, value) in fields {
@@ -425,7 +443,7 @@ impl Resolver {
                             body: Box::new(node.clone()),
                         };
                     }
-                    // The arguments have already been normalized in their surface form.
+                    // The expanded arguments and literal fields have been normalized.
                     return false;
                 }
             }
@@ -670,6 +688,13 @@ impl Resolver {
                                     body: Box::new(expression.clone()),
                                 }
                             };
+                            // Substitution can specialize a captured module in
+                            // the selected field. Normalize the replacement's
+                            // head too, before resolving its references.
+                            if let Err(e) = self.normalize_in_scope(node, locals) {
+                                error = Some(e);
+                            }
+                            return false;
                         } else {
                             error =
                                 Some(self.error(format!("unknown structure field: {}", field.0)));
@@ -715,12 +740,21 @@ impl Resolver {
                 {
                     let mut actual = Vec::new();
                     let mut checks = Vec::new();
+                    let mut substitutions = HashMap::new();
                     for (input, argument) in definition.inputs.iter().zip(&supplied) {
                         if input.signature.is_some() {
                             match self.callback_arguments(input, argument, locals) {
                                 Ok((fields, guards)) => {
                                     actual.extend(fields);
                                     checks.extend(guards);
+                                    if let Err(e) = self.bind_structure_field(
+                                        input.binding,
+                                        argument.clone(),
+                                        &mut substitutions,
+                                    ) {
+                                        error = Some(e);
+                                        return false;
+                                    }
                                 }
                                 Err(e) => {
                                     error = Some(e);
@@ -736,17 +770,19 @@ impl Resolver {
                         }
                     }
                     let consumed = actual.len();
-                    let mut substitutions = HashMap::new();
                     for (bind, value) in definition.parameters.iter().zip(actual) {
-                        checks.push((value.clone(), substitute(&bind.ty, &substitutions)));
+                        checks.push((
+                            value.clone(),
+                            self.substitute_front_expression(&bind.ty, &substitutions),
+                        ));
                         substitutions.insert(bind.vars[0].1.unwrap(), value);
                     }
                     checks = checks
                         .into_iter()
                         .map(|(value, ty)| {
                             (
-                                substitute(&value, &substitutions),
-                                substitute(&ty, &substitutions),
+                                self.substitute_front_expression(&value, &substitutions),
+                                self.substitute_front_expression(&ty, &substitutions),
                             )
                         })
                         .collect();
@@ -756,11 +792,14 @@ impl Resolver {
                         .skip(consumed)
                         .map(|bind| RightBind {
                             vars: bind.vars.clone(),
-                            ty: Box::new(substitute(&bind.ty, &substitutions)),
+                            ty: Box::new(
+                                self.substitute_front_expression(&bind.ty, &substitutions),
+                            ),
                         })
                         .collect();
-                    let mut body = substitute(&definition.body, &substitutions);
-                    let ty = substitute(&definition.ty, &substitutions);
+                    let mut body =
+                        self.substitute_front_expression(&definition.body, &substitutions);
+                    let ty = self.substitute_front_expression(&definition.ty, &substitutions);
                     if matches!(ty, SExp::ValueType) {
                         checks.push((body.clone(), ty));
                     } else {

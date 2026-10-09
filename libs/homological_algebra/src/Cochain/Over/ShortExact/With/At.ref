@@ -1,0 +1,22 @@
+\definition index: Signed.Int^ := Signed.Int^::ofNat n;
+\import Extended.At[s := sequence, k := index] \as IntegerExact;
+\import Left.PositiveCohomology[n := n] \as LeftComparison;
+\import Middle.PositiveCohomology[n := n] \as MiddleComparison;
+\import Right.PositiveCohomology[n := n] \as RightComparison;
+\import Left.PositiveCohomology[n := N.Nat^::succ n] \as NextComparison;
+\import \parent.\parent.\parent.At[C := C, k := n] \as Source;
+\import \parent.\parent.\parent.At[C := A, k := N.Nat^::succ n] \as Target;
+\import Modules.Hom[V := Source.Cohomology, W := Target.Cohomology, source := Source.cohomologySpace, target := Target.cohomologySpace] \as Connecting;
+\import Internal.At[C := Right.complex, z := index] \as IntegerSource;
+\import Internal.At[C := Left.complex, z := Integers.next index] \as IntegerTarget;
+\import Modules.Hom[V := IntegerTarget.Cohomology, W := Target.Cohomology, source := IntegerTarget.cohomologySpace, target := Target.cohomologySpace].Composition[U := IntegerSource.Cohomology, domain := IntegerSource.cohomologySpace] \as After;
+\definition integerConnecting: Modules.Hom[V := IntegerSource.Cohomology, W := Target.Cohomology, source := IntegerSource.cohomologySpace, target := Target.cohomologySpace].Map :=
+  After.compose NextComparison.forward IntegerExact.connecting;
+\import Modules.Hom[V := IntegerSource.Cohomology, W := Target.Cohomology, source := IntegerSource.cohomologySpace, target := Target.cohomologySpace].Composition[U := Source.Cohomology, domain := Source.cohomologySpace] \as Before;
+\definition connecting: Connecting.Map := Before.compose integerConnecting RightComparison.backward;
+
+\definition connectingCommutes: \forall (x: IntegerSource.Cohomology) ->
+  #apply{NextComparison.forward} (#apply{IntegerExact.connecting} x) = #apply{connecting} (#apply{RightComparison.forward} x) :=
+  \fun (x: IntegerSource.Cohomology) => sym!{Target.Cohomology} _ _
+    (congr!{IntegerSource.Cohomology Target.Cohomology} (#apply{integerConnecting}) _ _ (RightComparison.leftInverse x));
+\module Exactness;

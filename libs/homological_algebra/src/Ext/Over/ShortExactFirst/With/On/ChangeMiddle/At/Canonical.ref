@@ -1,0 +1,43 @@
+\import \root.Ext[].Over[R := R, ring := ring] \as Ext;
+\import Modules.End[V := B.Carrier, space := B.space] \as Identity;
+\import Modules.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space] \as ProjectionMaps;
+\import ProjectionMaps.Composition[U := B.Carrier, domain := B.space] \as ProjectionCoefficients;
+\definition projectionRightIdentity: ProjectionCoefficients.compose sequence.projection Identity.identity = sequence.projection :=
+  ProjectionMaps.ext (ProjectionCoefficients.compose sequence.projection Identity.identity) sequence.projection
+    (\fun (b: B.Carrier) => \refl(#apply{sequence.projection} b));
+\import Ext.First[M := B, L := C, N := N, P := S, Q := Q].At[k := n] \as FirstProjection;
+\import FirstProjection.With[p := r, q := q, f := sequence.projection] \as CanonicalInclusion;
+\import FirstProjection.With[p := r, q := q, f := ProjectionCoefficients.compose sequence.projection Identity.identity] \as CompositeInclusion;
+\import Ext.FirstComposition[M := B, L := B, T := C, N := N, P := S, Q := middleComplex, S := Q].With[
+  p := r, q := Middle.resolution, r := q, u := Identity.identity, v := sequence.projection].At[k := n] \as InclusionComposition;
+\import Modules.Hom[V := Left.Carrier, W := NewMiddle.Carrier, source := Left.space, target := NewMiddle.space] \as InclusionMaps;
+\definition inclusionCoefficientEquality: CompositeInclusion.map = CanonicalInclusion.map :=
+  congr!{ProjectionMaps.Map InclusionMaps.Map}
+    (\fun (f: ProjectionMaps.Map) => FirstProjection.With[p := r, q := q, f := f].map) _ _ projectionRightIdentity;
+\definition canonicalInclusion: CanonicalInclusion.map = inclusion := InclusionMaps.ext CanonicalInclusion.map inclusion
+  (\fun (x: Left.Carrier) => trans!{NewMiddle.Carrier} _ _ _
+    (congr!{InclusionMaps.Map NewMiddle.Carrier} (\fun (f: InclusionMaps.Map) => #apply{f} x) _ _ (sym!{InclusionMaps.Map} _ _ inclusionCoefficientEquality))
+    (trans!{NewMiddle.Carrier} _ _ _ (InclusionComposition.composition x)
+      (congr!{OldMiddle.Carrier NewMiddle.Carrier} (#apply{#forward{Change.isomorphism}}) _ _
+        (congr!{Modules.Hom[V := Left.Carrier, W := OldMiddle.Carrier, source := Left.space, target := OldMiddle.space].Map OldMiddle.Carrier}
+          (\fun (f: Modules.Hom[V := Left.Carrier, W := OldMiddle.Carrier, source := Left.space, target := OldMiddle.space].Map) => #apply{f} x) _ _ Source.canonicalInclusion))));
+\import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as InclusionCoefficients;
+\import Modules.Hom[V := B.Carrier, W := B.Carrier, source := B.space, target := B.space].Composition[U := A.Carrier, domain := A.space] \as InclusionCompositionCoefficients;
+\definition inclusionLeftIdentity: InclusionCompositionCoefficients.compose Identity.identity sequence.inclusion = sequence.inclusion :=
+  InclusionCoefficients.ext (InclusionCompositionCoefficients.compose Identity.identity sequence.inclusion) sequence.inclusion
+    (\fun (a: A.Carrier) => \refl(#apply{sequence.inclusion} a));
+\import Ext.First[M := A, L := B, N := N, P := P, Q := S].At[k := n] \as FirstInclusion;
+\import FirstInclusion.With[p := p, q := r, f := sequence.inclusion] \as CanonicalProjection;
+\import FirstInclusion.With[p := p, q := r, f := InclusionCompositionCoefficients.compose Identity.identity sequence.inclusion] \as CompositeProjection;
+\import Ext.FirstComposition[M := A, L := B, T := B, N := N, P := P, Q := middleComplex, S := S].With[
+  p := p, q := Middle.resolution, r := r, u := sequence.inclusion, v := Identity.identity].At[k := n] \as ProjectionComposition;
+\import Modules.Hom[V := NewMiddle.Carrier, W := Right.Carrier, source := NewMiddle.space, target := Right.space] \as ProjectionValues;
+\definition projectionCoefficientEquality: CompositeProjection.map = CanonicalProjection.map :=
+  congr!{InclusionCoefficients.Map ProjectionValues.Map}
+    (\fun (f: InclusionCoefficients.Map) => FirstInclusion.With[p := p, q := r, f := f].map) _ _ inclusionLeftIdentity;
+\definition canonicalProjection: CanonicalProjection.map = projection := ProjectionValues.ext CanonicalProjection.map projection
+  (\fun (x: NewMiddle.Carrier) => trans!{Right.Carrier} _ _ _
+    (congr!{ProjectionValues.Map Right.Carrier} (\fun (f: ProjectionValues.Map) => #apply{f} x) _ _ (sym!{ProjectionValues.Map} _ _ projectionCoefficientEquality))
+    (trans!{Right.Carrier} _ _ _ (ProjectionComposition.composition x)
+      (congr!{Modules.Hom[V := OldMiddle.Carrier, W := Right.Carrier, source := OldMiddle.space, target := Right.space].Map Right.Carrier}
+        (\fun (f: Modules.Hom[V := OldMiddle.Carrier, W := Right.Carrier, source := OldMiddle.space, target := Right.space].Map) => #apply{f} (#apply{#backward{Change.isomorphism}} x)) _ _ Source.canonicalProjection)));

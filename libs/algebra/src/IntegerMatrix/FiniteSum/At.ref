@@ -1,0 +1,11 @@
+\import Modules.Sums[I := Finite.Fin count] \as Sums;
+\import Modules.Sums[I := Finite.Fin (N.Nat^::succ count)] \as Larger;
+\import Sums.Prop[].Mapping[J := Finite.Fin (N.Nat^::succ count)] \as Mapping;
+\definition sum(f: N.Nat^ -> I.Int^): I.Int^ := Sums.sum (Finite.elements count) (\fun (i: Finite.Fin count) => f i);
+\definition step: (\forall (f: N.Nat^ -> I.Int^) -> sum f = Numeric.sum count f) -> \forall (f: N.Nat^ -> I.Int^) ->
+  Larger.sum (Finite.elements (N.Nat^::succ count)) (\fun (i: Finite.Fin (N.Nat^::succ count)) => f i) = Numeric.sum (N.Nat^::succ count) f :=
+  \fun (previous: _)(f: N.Nat^ -> I.Int^) => trans!{I.Int^} _ _ _
+    (congr!{I.Int^ I.Int^} (Arithmetic.add (f N.Nat^::zero)) _ _
+      (trans!{I.Int^} _ _ _ (Mapping.sumMap (Finite.elements count) (Finite.succ count) (\fun (i: Finite.Fin (N.Nat^::succ count)) => f i))
+        (previous (\fun (i: N.Nat^) => f (N.Nat^::succ i)))))
+    (sym!{I.Int^} _ _ (Numeric.shift count f));

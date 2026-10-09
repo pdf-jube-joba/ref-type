@@ -1,0 +1,28 @@
+\import \parent.\parent.Transpose[] \as ForwardTranspose;
+\import Backward.Transpose[] \as BackwardTranspose;
+\import Backward.Invertible[] \as ReversedInvertible;
+\import Backward.End[] \as ReversedIdentity;
+\import ForwardTranspose.Composition[k := m] \as ForwardProduct;
+\import BackwardTranspose.Composition[k := n] \as BackwardProduct;
+\import CodomainSquare.Transpose[] \as CodomainTranspose;
+\import DomainSquare.Transpose[] \as DomainTranspose;
+\import ForwardTranspose.Identity[k := m] \as CodomainIdentity;
+\import ForwardTranspose.Identity[k := n] \as DomainIdentity;
+\import Backward.Composition[k := n] \as NewForward;
+\import \parent.\parent.Composition[k := m] \as NewBackward;
+\definition oldLaws: Laws[a, certificate] := \bysub(Data, { data: Data \where Laws[a, data] }, certificate);
+\definition data: ReversedInvertible.Data := ReversedInvertible.Data { inverse := BackwardTranspose.transpose #inverse{certificate} };
+\definition laws: ReversedInvertible.Laws[ForwardTranspose.transpose a, data] := ReversedInvertible.Laws[ForwardTranspose.transpose a, data] {
+  leftInverse := trans!{CodomainSquare.Matrix}
+    (NewBackward.product data.inverse (ForwardTranspose.transpose a)) (CodomainTranspose.transpose (ForwardComposition.product a #inverse{certificate})) ReversedIdentity.identity
+    (sym!{CodomainSquare.Matrix} (CodomainTranspose.transpose (ForwardComposition.product a #inverse{certificate})) (NewBackward.product data.inverse (ForwardTranspose.transpose a)) (ForwardProduct.product a #inverse{certificate}))
+    (trans!{CodomainSquare.Matrix} (CodomainTranspose.transpose (ForwardComposition.product a #inverse{certificate})) (CodomainTranspose.transpose Identity.targetIdentity) ReversedIdentity.identity
+      (congr!{CodomainSquare.Matrix CodomainSquare.Matrix} CodomainTranspose.transpose (ForwardComposition.product a #inverse{certificate}) Identity.targetIdentity #rightInverse{oldLaws}) CodomainIdentity.law),
+  rightInverse := trans!{DomainSquare.Matrix}
+    (NewForward.product (ForwardTranspose.transpose a) data.inverse) (DomainTranspose.transpose (BackwardComposition.product #inverse{certificate} a)) ReversedIdentity.targetIdentity
+    (sym!{DomainSquare.Matrix} (DomainTranspose.transpose (BackwardComposition.product #inverse{certificate} a)) (NewForward.product (ForwardTranspose.transpose a) data.inverse) (BackwardProduct.product #inverse{certificate} a))
+    (trans!{DomainSquare.Matrix} (DomainTranspose.transpose (BackwardComposition.product #inverse{certificate} a)) (DomainTranspose.transpose Identity.identity) ReversedIdentity.targetIdentity
+      (congr!{DomainSquare.Matrix DomainSquare.Matrix} DomainTranspose.transpose (BackwardComposition.product #inverse{certificate} a) Identity.identity #leftInverse{oldLaws}) DomainIdentity.law),
+};
+\definition inverse: ReversedInvertible.Inverse (ForwardTranspose.transpose a) :=
+  \into[ReversedInvertible.Data](data, { d: ReversedInvertible.Data \where ReversedInvertible.Laws[ForwardTranspose.transpose a, d] }) \by { laws };

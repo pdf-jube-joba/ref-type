@@ -1,0 +1,30 @@
+\definition candidate: Attempt^ := reduce k i (attemptMatrix current) (attemptHistory current);
+\definition active: ClearStep[reduce, entry, k] -> Cleared[k, i, entry, current] -> eligible k i current = B.Bool^::true -> Cleared[k, N.Nat^::succ i, entry, candidate] :=
+  \fun (laws: _)(previous: _)(eligible: _) => Cleared[k, N.Nat^::succ i, entry, candidate] {
+    zero := \fun (noSwap: _)(r: N.Nat^)(bound: _)(lower: _) =>
+      either!{{Bounds.Lt r i} "or" {r = i} "either" {entry (attemptMatrix candidate) r = Arithmetic.zero}
+        "lt:" {\fun (less: _) => trans!{I.Int^} (entry (attemptMatrix candidate) r) (entry (attemptMatrix current) r) Arithmetic.zero
+          (#previous{laws} i (attemptMatrix current) (attemptHistory current) r less noSwap)
+          (#zero{previous} (eligibleUnchanged k i current eligible) r less lower)}
+        "rt:" {\fun (equal: _) => trans!{I.Int^} (entry (attemptMatrix candidate) r) (entry (attemptMatrix candidate) i) Arithmetic.zero
+          (congr!{N.Nat^ I.Int^} (entry (attemptMatrix candidate)) r i equal)
+          (#target{laws} i (attemptMatrix current) (attemptHistory current) (eligibleLess k i current eligible) noSwap)}}
+        (Induction.leCases r i (Induction.belowSuccessor r i bound)),
+  };
+\definition inactive: Cleared[k, i, entry, current] -> eligible k i current = B.Bool^::false -> Cleared[k, N.Nat^::succ i, entry, current] :=
+  \fun (previous: _)(ineligible: _) => Cleared[k, N.Nat^::succ i, entry, current] {
+    zero := \fun (noSwap: _)(r: N.Nat^)(bound: _)(lower: _) =>
+      either!{{Bounds.Lt r i} "or" {r = i} "either" {entry (attemptMatrix current) r = Arithmetic.zero}
+        "lt:" {\fun (less: _) => #zero{previous} noSwap r less lower}
+        "rt:" {\fun (equal: _) => Logic.falseElim _ (BoolLaws.falseNeTrue
+          (trans!{B.Bool^} B.Bool^::false (eligible k i current) B.Bool^::true
+            (sym!{B.Bool^} (eligible k i current) B.Bool^::false ineligible)
+            (eligibleOfLess k i current (\idelim r = i \with value: N.Nat^ => Bounds.Lt k value \by { base: lower, equality: equal }) noSwap)))}}
+        (Induction.leCases r i (Induction.belowSuccessor r i bound)),
+  };
+\definition law: ClearStep[reduce, entry, k] -> Cleared[k, i, entry, current] -> Cleared[k, N.Nat^::succ i, entry, next reduce k i current] :=
+  \fun (laws: _)(previous: _) => B.cases
+    (\fun (test: B.Bool^) => eligible k i current = test -> Cleared[k, N.Nat^::succ i, entry, B.ite Attempt^ test candidate current])
+    (\fun (equal: eligible k i current = B.Bool^::false) => inactive previous equal)
+    (\fun (equal: eligible k i current = B.Bool^::true) => active laws previous equal)
+    (eligible k i current) (\refl(eligible k i current));

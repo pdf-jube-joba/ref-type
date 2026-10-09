@@ -1,0 +1,16 @@
+\definition T: \VType := \U(Nat -> Predicate -> Nat -> B.Bool);
+\definition program: T := \thunk (\cfun (cols: Nat) => \return(\thunk (\cfun (p: Predicate) => \return(\thunk (\cfun (i: Nat) => \program {
+  \bind row: \U(Nat -> B.Bool) <- (\force p) i \then
+  \bind find: \U(\U(Nat -> B.Bool) -> Result) <- (\force Find.program) cols \then
+  \bind result: Result <- (\force find) row \then
+  \bind flag: B.Bool <- (\force Flag.program) result \then
+  \return flag
+})))));
+\definition flagged(cols: Nat^)(p: RowPredicate)(i: Nat^): B.Bool^ := isFound (Find.program^ cols (p i));
+\definition matches: \forall (cols: Nat^)(p: RowPredicate)(i: Nat^) -> program^ cols p i = rowHas cols p i :=
+  \fun (cols: Nat^)(p: RowPredicate)(i: Nat^) => trans!{B.Bool^} (program^ cols p i) (flagged cols p i) (rowHas cols p i)
+    (congr!{Flag.T^ B.Bool^} (\fun (f: Flag.T^) => f (Find.program^ cols (p i))) Flag.program^ Flag.specification Flag.coherence)
+    (congr!{Find.T^ B.Bool^} (\fun (f: Find.T^) => isFound (f cols (p i))) Find.program^ Find.specification Find.coherence);
+\definition coherence: program^ = rowHas := \axiom:funext(program^, rowHas,
+  \fun (cols: Nat^) => \axiom:funext(program^ cols, rowHas cols,
+    \fun (p: RowPredicate) => \axiom:funext(program^ cols p, rowHas cols p, matches cols p)));

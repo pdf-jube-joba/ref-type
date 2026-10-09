@@ -1,0 +1,60 @@
+\import Cochains.At[C := C, k := Nat.Nat^::succ p] \as Left;
+\import \parent.\parent.Tensor[C := C, D := D] \as Product;
+\import \parent.\parent.Total[C := Product.complex] \as Total;
+\definition n: Nat.Nat^ := Arithmetic.add p q;
+\definition index: Total.Index n := \into[Degrees.Pair](Degrees.Pair { first := p, second := q },
+  { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { \refl(n) };
+\import Total.Degree[n := n] \as Before;
+\import Total.Degree[n := Nat.Nat^::succ n] \as Current;
+\import Total.Step[n := n] \as Step;
+\import Before.Component[i := index] \as Inclusion;
+\import Current.Component[i := Total.upHorizontal n index] \as HInclusion;
+\import Current.Component[i := Total.upVertical n index] \as VInclusion;
+\import Product.Term[p := p, q := q] \as Term;
+\import Product.Term[p := Nat.Nat^::succ p, q := q] \as HTerm;
+\import Product.Term[p := p, q := Nat.Nat^::succ q] \as VTerm;
+\import Product.At[p := p, q := q] \as Differential;
+\import Degrees.Sign[V := VTerm.Carrier, space := VTerm.space] \as Sign;
+\import Modules.Hom[V := VTerm.Carrier, W := Current.Carrier, source := VTerm.space, target := Current.space] \as VMaps;
+\import Modules.Hom[V := VTerm.Carrier, W := VTerm.Carrier, source := VTerm.space, target := VTerm.space] \as Signs;
+\import Modules.Laws[V := Current.Carrier, space := Current.space] \as Laws;
+\import algebra.Group[].Of[Carrier := Current.Carrier, group := Laws.additive] \as Group;
+\import Cochains.At[C := Total.complex, k := Nat.Nat^::succ n] \as H;
+\definition lift(a: C.family.Carrier p)(y: Right.CycleCarrier): Before.Carrier :=
+  #apply{Inclusion.injection} (Term.tensor a y);
+\module Differential;
+\module At(k: Nat.Nat^) {
+  \import Cochains.At[C := Total.complex, k := k] \as H;
+  \import \parent.\parent.\parent.IndexedCycleProduct[C := C, D := D, n := k] \as Indexed;
+  \definition index(closed: Arithmetic.add (Nat.Nat^::succ p) q = k): Total.Index k :=
+    \into[Degrees.Pair](Degrees.Pair { first := Nat.Nat^::succ p, second := q },
+      { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = k }) \by { closed };
+  \definition Vanishes: \Prop := \forall (closed: Arithmetic.add (Nat.Nat^::succ p) q = k)
+    (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+    \In[C.family.Carrier (Nat.Nat^::succ p)] (Left.Boundaries (Nat.Nat^::succ p)) x ->
+    Indexed.At[i := index closed].classOf x y = #zero{H.cohomologySpace};
+}
+\definition before: At[k := Nat.Nat^::succ n].Vanishes := \block {
+  \fun (closed: Arithmetic.add (Nat.Nat^::succ p) q = Nat.Nat^::succ n)
+    (x: Left.CycleCarrier)(y: Right.CycleCarrier)
+    (boundary: \exists { a: C.family.Carrier p \where #apply{C.differential} p a = x }) \then
+  \takefrom a: \Cast[C.family.Carrier p] ({ a: C.family.Carrier p \where #apply{C.differential} p a = x }) \by boundary \then
+  \let equal: #apply{C.differential} p a = x := \bysub(C.family.Carrier p,
+    { a: C.family.Carrier p \where #apply{C.differential} p a = x }, a) \then
+  \let differential: #apply{Total.differential} n (lift a y) = #apply{HInclusion.injection} (HTerm.tensor x y) :=
+    trans!{Current.Carrier} _ _ _ (Differential[].value a y)
+      (congr!{{C.family.Carrier (Nat.Nat^::succ p)} Current.Carrier}
+        (\fun (b: C.family.Carrier (Nat.Nat^::succ p)) => #apply{HInclusion.injection} (HTerm.tensor b y)) _ _ equal) \then
+  \return H.boundaryClassZero
+    (\parent.\parent.IndexedCycleProduct[C := C, D := D, n := Nat.Nat^::succ n].At[
+      i := At[k := Nat.Nat^::succ n].index closed].cycle x y)
+    (\exact(\into[Before.Carrier](lift a y,
+      { b: Before.Carrier \where #apply{Total.differential} n b = #apply{HInclusion.injection} (HTerm.tensor x y) }) \by { differential },
+      \Cast[Before.Carrier] ({ b: Before.Carrier \where #apply{Total.differential} n b = #apply{HInclusion.injection} (HTerm.tensor x y) })))
+};
+\definition all: At[k := Arithmetic.add (Nat.Nat^::succ p) q].Vanishes :=
+  \idelim Nat.Nat^::succ n = Arithmetic.add (Nat.Nat^::succ p) q \with k: Nat.Nat^ => At[k := k].Vanishes \by {
+    base: before, equality: sym!{Nat.Nat^} _ _ (Natural.addSuccLeft p q)
+  };
+\import \parent.At[p := Nat.Nat^::succ p] \as Case;
+\definition vanishes: Case.Vanishes := all (\refl(Arithmetic.add (Nat.Nat^::succ p) q));

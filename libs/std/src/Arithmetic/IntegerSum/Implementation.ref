@@ -1,0 +1,23 @@
+\definition T: \VType := \U(N.Nat -> \U(N.Nat -> I.Int) -> I.Int);
+\definition program: T := \thunk (\cfun (count: N.Nat) => \return(\thunk (\cfun (f: \U(N.Nat -> I.Int)) =>
+  (\force Loop.run) (State::running f count (I.Int::ofNat N.Nat::zero)))));
+\import \parent.LoopImplementation[] \as Parts;
+\definition run: State^ -> I.Int^ := Loop.run^;
+\definition matchesLoop: \forall (count: N.Nat^)(f: N.Nat^ -> I.Int^)(accumulator: I.Int^) ->
+  run (State^::running f count accumulator) = Arithmetic.add accumulator (sum count f) :=
+  \induction (count: N.Nat^) \return \forall (f: N.Nat^ -> I.Int^)(accumulator: I.Int^) ->
+    run (State^::running f count accumulator) = Arithmetic.add accumulator (sum count f) \with {
+    | zero: \fun (f: N.Nat^ -> I.Int^)(accumulator: I.Int^) => sym!{I.Int^} _ _ (Laws.addZeroRight accumulator)
+    | succ: \fun (count: N.Nat^)(previous: _)(f: N.Nat^ -> I.Int^)(accumulator: I.Int^) =>
+      eq_reason!{{run (State^::running f (N.Nat^::succ count) accumulator)}
+        "=" {Arithmetic.add (I.Add.program^ accumulator (f count)) (sum count f)} "by" {previous f (I.Add.program^ accumulator (f count))}
+        "=" {Arithmetic.add (Arithmetic.add accumulator (f count)) (sum count f)} "by" {
+          congr!{I.Int^ I.Int^} (\fun (a: I.Int^) => Arithmetic.add a (sum count f)) _ _ (Parts.addition accumulator (f count))}
+        "=" {Arithmetic.add accumulator (Arithmetic.add (f count) (sum count f))} "by" {Laws.addAssoc accumulator (f count) (sum count f)}
+        "=" {Arithmetic.add accumulator (Arithmetic.add (sum count f) (f count))} "by" {
+          congr!{I.Int^ I.Int^} (Arithmetic.add accumulator) _ _ (Laws.addComm (f count) (sum count f))}}
+  };
+\definition matches: \forall (count: N.Nat^)(f: N.Nat^ -> I.Int^) -> program^ count f = sum count f :=
+  \fun (count: N.Nat^)(f: N.Nat^ -> I.Int^) => trans!{I.Int^} _ _ _ (matchesLoop count f Arithmetic.zero) (Laws.addZeroLeft (sum count f));
+\definition coherence: program^ = sum := \axiom:funext(program^, sum,
+  \fun (count: N.Nat^) => \axiom:funext(program^ count, sum count, \fun (f: N.Nat^ -> I.Int^) => matches count f));

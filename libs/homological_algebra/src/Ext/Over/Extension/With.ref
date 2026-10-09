@@ -1,0 +1,156 @@
+\definition one: Nat.Nat^ := Nat.Nat^::succ Nat.Nat^::zero;
+\definition two: Nat.Nat^ := Nat.Nat^::succ one;
+\import Resolutions.Syzygy[n := Nat.Nat^::zero, resolution := resolution] \as K;
+\import Modules.Of[V := P.family.Carrier Nat.Nat^::zero, space := P.family.space Nat.Nat^::zero].Submodule[].Of[S := Resolutions.augmentationKernel resolution] \as Kernel;
+\definition L: Modules.Bundle := Resolutions.term Nat.Nat^::zero;
+\definition KBundle: Modules.Bundle := K.bundle;
+\import Modules.ShortExact[A := KBundle, B := L, C := M] \as Sequences;
+\definition presentation: Sequences.Sequence := Sequences.Sequence {
+  inclusion := Kernel.inclusion, projection := #augmentation{resolution},
+  injective := \fun (x, y: K.Carrier)(equal: x = y) => equal,
+  onto := #onto{resolution},
+  zero := \fun (x: K.Carrier) => \bysub(L.Carrier, #carrier{(Resolutions.augmentationKernel resolution)}, x),
+  kernelImage := \fun (x: L.Carrier)(closed: #apply{#augmentation{resolution}} x = #zero{M.space}) =>
+    \exact(\into[K.Carrier](\into[L.Carrier](x, #carrier{(Resolutions.augmentationKernel resolution)}) \by { closed },
+      { k: K.Carrier \where #apply{Kernel.inclusion} k = x }) \by { \refl(x) },
+      \Cast[K.Carrier] ({ k: K.Carrier \where #apply{Kernel.inclusion} k = x })),
+};
+\import \root.HomComplex[].Over[R := R, ring := ring].On[P := P, N := N] \as Hom;
+\import \parent.\parent.Of[M := M, N := N, P := P].At[n := one] \as H;
+\import Algebra.HomSpace[V := K.Carrier, W := N.Carrier, source := K.space, target := N.space] \as Relations;
+\import Algebra.HomSpace[V := L.Carrier, W := N.Carrier, source := L.space, target := N.space] \as Generators;
+\import Modules.Hom[V := K.Carrier, W := N.Carrier, source := K.space, target := N.space] \as RelationMaps;
+\import Modules.Hom[V := L.Carrier, W := N.Carrier, source := L.space, target := N.space] \as GeneratorMaps;
+\import GeneratorMaps.Composition[U := K.Carrier, domain := K.space] \as Composition;
+\definition precompose(g: GeneratorMaps.Map): RelationMaps.Map := Composition.compose g Kernel.inclusion;
+\import Modules.Hom[V := Generators.Carrier, W := Relations.Carrier, source := Generators.space, target := Relations.space] \as RestrictionMaps;
+\definition restriction: RestrictionMaps.Map := RestrictionMaps.Map {
+  apply := precompose,
+  addition := \fun (f, g: Generators.Carrier) => RelationMaps.ext (precompose (#add{Generators.space} f g)) (#add{Relations.space} (precompose f) (precompose g))
+    (\fun (x: K.Carrier) => \refl(#add{N.space} (#apply{f} x) (#apply{g} x))),
+  scalar := \fun (a: R)(f: Generators.Carrier) => RelationMaps.ext (precompose (#smul{Generators.space} a f)) (#smul{Relations.space} a (precompose f))
+    (\fun (x: K.Carrier) => \refl(#smul{N.space} a (#apply{f} x))),
+};
+\import Modules.Of[V := Relations.Carrier, space := Relations.space].Submodule[] \as RelationSubmodules;
+\import RelationSubmodules.Image[U := Generators.Carrier, source := Generators.space] \as Images;
+\definition extensions: RelationSubmodules.Submodule := Images.image restriction;
+\import RelationSubmodules.Quotient[S := extensions] \as Quotient;
+\module Cycle(f: H.CycleCarrier) {
+  \import Modules.SurjectiveDescent[A := Resolutions.term one, B := KBundle, U := N].On[q := K.projection, f := f] \as Descent;
+  \definition kills: Descent.KillsKernel := \block {
+    \fun (x: P.family.Carrier one)(closed: #apply{K.projection} x = #zero{K.space}) \then
+    \takefrom y: \Cast[P.family.Carrier two] ({ y: P.family.Carrier two \where #apply{P.differential} one y = x })
+      \by #exact{resolution} Nat.Nat^::zero x closed \then
+    \let represented: #apply{P.differential} one y = x :=
+      \bysub(P.family.Carrier two, { y: P.family.Carrier two \where #apply{P.differential} one y = x }, y) \then
+    \return trans!{N.Carrier} (#apply{f} x) (#apply{f} (#apply{P.differential} one y)) #zero{N.space}
+      (congr!{{P.family.Carrier one} N.Carrier} (#apply{f}) x (#apply{P.differential} one y)
+        (sym!{{P.family.Carrier one}} (#apply{P.differential} one y) x represented))
+      (congr!{{Hom.Carrier two} N.Carrier} (\fun (g: Hom.Carrier two) => #apply{g} y) (Hom.apply one f) (#zero{(Hom.space two)})
+        (\bysub(Hom.Carrier one, H.cyclePredicate, f)))
+  };
+  \definition map: RelationMaps.Map := Descent.map K.onto kills;
+  \definition onImage: \forall (x: P.family.Carrier one) -> #apply{map} (#apply{K.projection} x) = #apply{f} x := Descent.onImage K.onto kills;
+}
+\definition value(f: H.CycleCarrier): RelationMaps.Map := Cycle[f := f].map;
+\definition onImage: \forall (f: H.CycleCarrier)(x: P.family.Carrier one) -> #apply{(value f)} (#apply{K.projection} x) = #apply{f} x :=
+  \fun (f: H.CycleCarrier) => Cycle[f := f].onImage;
+\definition valueAddition: \forall (f, g: H.CycleCarrier) -> value (#add{H.cycleSpace} f g) = #add{Relations.space} (value f) (value g) :=
+  \fun (f, g: H.CycleCarrier) => RelationMaps.ext (value (#add{H.cycleSpace} f g)) (#add{Relations.space} (value f) (value g)) (\block {
+    \fun (k: K.Carrier) \then
+    \takefrom x: \Cast[P.family.Carrier one] ({ x: P.family.Carrier one \where #apply{K.projection} x = k }) \by K.onto k \then
+    \let represented: #apply{K.projection} x = k := \bysub(P.family.Carrier one, { x: P.family.Carrier one \where #apply{K.projection} x = k }, x) \then
+    \let atImage: #apply{(value (#add{H.cycleSpace} f g))} (#apply{K.projection} x) = #add{N.space} (#apply{(value f)} (#apply{K.projection} x)) (#apply{(value g)} (#apply{K.projection} x)) :=
+      trans!{N.Carrier} _ _ _ (onImage (#add{H.cycleSpace} f g) x)
+        (congr2!{N.Carrier N.Carrier N.Carrier} (#add{N.space}) _ _ _ _ (sym!{N.Carrier} _ _ (onImage f x)) (sym!{N.Carrier} _ _ (onImage g x))) \then
+    \return \idelim #apply{K.projection} x = k \with z: K.Carrier =>
+      #apply{(value (#add{H.cycleSpace} f g))} z = #add{N.space} (#apply{(value f)} z) (#apply{(value g)} z)
+      \by { base: atImage, equality: represented }
+  });
+\definition valueScalar: \forall (a: R)(f: H.CycleCarrier) -> value (#smul{H.cycleSpace} a f) = #smul{Relations.space} a (value f) :=
+  \fun (a: R)(f: H.CycleCarrier) => RelationMaps.ext (value (#smul{H.cycleSpace} a f)) (#smul{Relations.space} a (value f)) (\block {
+    \fun (k: K.Carrier) \then
+    \takefrom x: \Cast[P.family.Carrier one] ({ x: P.family.Carrier one \where #apply{K.projection} x = k }) \by K.onto k \then
+    \let represented: #apply{K.projection} x = k := \bysub(P.family.Carrier one, { x: P.family.Carrier one \where #apply{K.projection} x = k }, x) \then
+    \return \idelim #apply{K.projection} x = k \with z: K.Carrier => #apply{(value (#smul{H.cycleSpace} a f))} z = #smul{N.space} a (#apply{(value f)} z)
+      \by { base: trans!{N.Carrier} _ _ _ (onImage (#smul{H.cycleSpace} a f) x)
+        (congr!{N.Carrier N.Carrier} (#smul{N.space} a) _ _ (sym!{N.Carrier} _ _ (onImage f x))), equality: represented }
+  });
+\import Modules.Hom[V := H.CycleCarrier, W := Relations.Carrier, source := H.cycleSpace, target := Relations.space] \as Forward;
+\definition forward: Forward.Map := Forward.Map { apply := value, addition := valueAddition, scalar := valueScalar };
+\import Modules.Hom[V := P.family.Carrier one, W := N.Carrier, source := P.family.space one, target := N.space] \as OneMaps;
+\import RelationMaps.Composition[U := P.family.Carrier one, domain := P.family.space one] \as ProjectionComposition;
+\definition cocycle(f: Relations.Carrier): Hom.Carrier one := ProjectionComposition.compose f K.projection;
+\definition closed: \forall (f: Relations.Carrier) -> Hom.apply one (cocycle f) = #zero{(Hom.space two)} :=
+  \fun (f: Relations.Carrier) => Hom.At[n := two].ext (Hom.apply one (cocycle f)) (#zero{(Hom.space two)})
+    (\fun (x: P.family.Carrier two) => trans!{N.Carrier} _ _ _
+      (congr!{K.Carrier N.Carrier} (#apply{f}) (#apply{K.projection} (#apply{P.differential} one x)) #zero{K.space} (#squareZero{P.laws} Nat.Nat^::zero x))
+      (RelationMaps.zeroPreserved f));
+\definition cycle(f: Relations.Carrier): H.CycleCarrier := \into[Hom.Carrier one](cocycle f, H.cyclePredicate) \by { closed f };
+\import Modules.Hom[V := Relations.Carrier, W := H.CycleCarrier, source := Relations.space, target := H.cycleSpace] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := cycle,
+  addition := \fun (f, g: Relations.Carrier) => OneMaps.ext (cocycle (#add{Relations.space} f g)) (#add{(Hom.space one)} (cocycle f) (cocycle g))
+    (\fun (x: P.family.Carrier one) => \refl(#add{N.space} (#apply{f} (#apply{K.projection} x)) (#apply{g} (#apply{K.projection} x)))),
+  scalar := \fun (a: R)(f: Relations.Carrier) => OneMaps.ext (cocycle (#smul{Relations.space} a f)) (#smul{(Hom.space one)} a (cocycle f))
+    (\fun (x: P.family.Carrier one) => \refl(#smul{N.space} a (#apply{f} (#apply{K.projection} x)))),
+};
+\definition cycleInverse: \forall (f: H.CycleCarrier) -> cycle (value f) = f :=
+  \fun (f: H.CycleCarrier) => OneMaps.ext (cocycle (value f)) f (onImage f);
+\definition valueInverse: \forall (f: Relations.Carrier) -> value (cycle f) = f :=
+  \fun (f: Relations.Carrier) => RelationMaps.ext (value (cycle f)) f (\block {
+    \fun (k: K.Carrier) \then
+    \takefrom x: \Cast[P.family.Carrier one] ({ x: P.family.Carrier one \where #apply{K.projection} x = k }) \by K.onto k \then
+    \return \idelim #apply{K.projection} x = k \with z: K.Carrier => #apply{(value (cycle f))} z = #apply{f} z
+      \by { base: onImage (cycle f) x, equality: \bysub(P.family.Carrier one, { x: P.family.Carrier one \where #apply{K.projection} x = k }, x) }
+  });
+\definition cycleBundle: Modules.Bundle := Modules.Bundle { Carrier := H.CycleCarrier, space := H.cycleSpace };
+\definition relationBundle: Modules.Bundle := Modules.Bundle { Carrier := Relations.Carrier, space := Relations.space };
+\import Modules.QuotientMapping[A := cycleBundle, B := relationBundle].On[S := H.boundariesInside, T := extensions, f := forward] \as Descent;
+\import Descent.Inverse[g := backward] \as Inverse;
+\definition differential: \forall (g: Generators.Carrier) -> Hom.apply Nat.Nat^::zero g = cocycle (precompose g) :=
+  \fun (g: Generators.Carrier) => OneMaps.ext (Hom.apply Nat.Nat^::zero g) (cocycle (precompose g))
+    (\fun (x: P.family.Carrier one) => \refl(#apply{g} (#apply{P.differential} Nat.Nat^::zero x)));
+\definition compatible: Descent.Compatible := \block {
+  \fun (f: H.CycleCarrier)(member: _) \then
+  \takefrom g: \Cast[Generators.Carrier] ({ g: Generators.Carrier \where Hom.apply Nat.Nat^::zero g = f }) \by member \then
+  \let equal: cycle (precompose g) = f := trans!{{Hom.Carrier one}} _ _ _ (sym!{{Hom.Carrier one}} _ _ (differential g))
+    (\bysub(Generators.Carrier, { g: Generators.Carrier \where Hom.apply Nat.Nat^::zero g = f }, g)) \then
+  \return Images.introduce restriction (value f) g
+    (trans!{Relations.Carrier} _ _ _ (sym!{Relations.Carrier} _ _ (valueInverse (precompose g)))
+      (congr!{H.CycleCarrier Relations.Carrier} value (cycle (precompose g)) f equal))
+};
+\definition compatibleBack: Inverse.CompatibleBack := \block {
+  \fun (f: Relations.Carrier)(member: _) \then
+  \takefrom g: \Cast[Generators.Carrier] ({ g: Generators.Carrier \where precompose g = f }) \by member \then
+  \return \exact(\into[Generators.Carrier](g, { g: Generators.Carrier \where Hom.apply Nat.Nat^::zero g = cycle f }) \by {
+    trans!{{Hom.Carrier one}} _ _ _ (differential g)
+      (congr!{Relations.Carrier {Hom.Carrier one}} cocycle (precompose g) f (\bysub(Generators.Carrier, { g: Generators.Carrier \where precompose g = f }, g)))
+  }, \Cast[Generators.Carrier] ({ g: Generators.Carrier \where Hom.apply Nat.Nat^::zero g = cycle f }))
+};
+\definition isomorphism: Modules.Isomorphism[V := H.Carrier, W := Quotient.Carrier, source := H.space, target := Quotient.moduleSpace].Isomorphism :=
+  Inverse.isomorphism compatible compatibleBack cycleInverse valueInverse;
+\definition onClass: \forall (f: H.CycleCarrier) -> #apply{#forward{isomorphism}} (H.classOf f) = Quotient.class (value f) := Descent.onClass compatible;
+\module OfExtension(E: Modules.Bundle);
+\module Represent(f: Relations.Carrier);
+\module RepresentationClass(f: Relations.Carrier);
+\definition represented: \forall (x: H.Carrier) ->
+  \exists { f: Relations.Carrier \where RepresentationClass[f := f].extClass = x } := \block {
+  \fun (x: H.Carrier) \then
+  \takefrom f: \Cast[Relations.Carrier] ({ f: Relations.Carrier \where Quotient.class f = #apply{#forward{isomorphism}} x })
+    \by Quotient.onto (#apply{#forward{isomorphism}} x) \then
+  \return \exact(\into[Relations.Carrier](f, { f: Relations.Carrier \where RepresentationClass[f := f].extClass = x }) \by {
+    trans!{H.Carrier} _ _ _ RepresentationClass[f := f].onExt
+      (trans!{H.Carrier} _ _ _
+        (congr!{Quotient.Carrier H.Carrier} (#apply{#backward{isomorphism}}) (Quotient.class f) (#apply{#forward{isomorphism}} x)
+          (\bysub(Relations.Carrier, { f: Relations.Carrier \where Quotient.class f = #apply{#forward{isomorphism}} x }, f)))
+        (#leftInverse{isomorphism} x))
+  }, \Cast[Relations.Carrier] ({ f: Relations.Carrier \where RepresentationClass[f := f].extClass = x }))
+};
+\definition ClassCarrier: \Set := Quotient.Carrier;
+\definition classSpace: Modules.Space ClassCarrier := Quotient.moduleSpace;
+\definition zeroClass: ClassCarrier := Quotient.zeroClass;
+\module CompareRepresentatives(f, g: Relations.Carrier);
+\module Compare(E, F: Modules.Bundle,
+  s: Modules.ShortExact[A := N, B := E, C := M].Sequence,
+  t: Modules.ShortExact[A := N, B := F, C := M].Sequence);

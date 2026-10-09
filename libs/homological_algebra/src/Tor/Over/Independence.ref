@@ -1,0 +1,33 @@
+\import \parent.Of[M := M, N := N, P := P] \as Source;
+\import \parent.Of[M := M, N := N, P := Q] \as Target;
+\import \root.Resolution[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].Equivalence[M := M, P := P, Q := Q] \as Comparison;
+\import Chains.Equivalence[C := P, D := Q] \as Equivalences;
+\import \root.TensorComplex[].Over[R := R, ring := ring].Equivalence[P := P, Q := Q, N := N] \as Tensor;
+\import Chains.Equivalence[C := Source.tensorComplex, D := Target.tensorComplex] \as Result;
+\module At(n: Nat.Nat^) {
+  \import Modules.Isomorphism[V := Source.At[n := n].Carrier, W := Target.At[n := n].Carrier, source := Source.At[n := n].space, target := Target.At[n := n].space] \as Iso;
+  \definition Isomorphism: \Set := Iso.Isomorphism;
+}
+\module Zero {
+  \definition existence: \forall (p: Source.Resolution)(q: Target.Resolution) -> \exists \parent.At[n := Nat.Nat^::zero].Isomorphism := \block {
+    \fun (p: Source.Resolution)(q: Target.Resolution) \then
+    \takefrom e: Equivalences.Equivalence \by Comparison.existence p q \then
+    \takefrom t: Result.Equivalence \by Tensor.existence e \then
+    \return \exact(Result.DegreeZero[].isomorphism t, \parent.At[n := Nat.Nat^::zero].Isomorphism)
+  };
+}
+\module Positive(n: Nat.Nat^) {
+  \definition existence: \forall (p: Source.Resolution)(q: Target.Resolution) -> \exists \parent.At[n := Nat.Nat^::succ n].Isomorphism := \block {
+    \fun (p: Source.Resolution)(q: Target.Resolution) \then
+    \takefrom e: Equivalences.Equivalence \by Comparison.existence p q \then
+    \takefrom t: Result.Equivalence \by Tensor.existence e \then
+    \return \exact(Result.Positive[n := n].isomorphism t, \parent.At[n := Nat.Nat^::succ n].Isomorphism)
+  };
+}
+\definition existence: \forall (n: Nat.Nat^)(p: Source.Resolution)(q: Target.Resolution) -> \exists At[n := n].Isomorphism :=
+  \induction (n: Nat.Nat^) \return \forall (p: Source.Resolution)(q: Target.Resolution) -> \exists At[n := n].Isomorphism \with {
+    | zero: Zero[].existence
+    | succ: \fun (n: Nat.Nat^)(previous: \forall (p: Source.Resolution)(q: Target.Resolution) -> \exists At[n := n].Isomorphism) => Positive[n := n].existence
+  };
+
+\module Selected(p: Source.Resolution, q: Target.Resolution);

@@ -1,0 +1,24 @@
+\import \parent.\parent.Submodule[V := Carrier, space := space] \as Submodules;
+\definition expressions: \forall (S: Submodules.Submodule) ->
+  (\forall (x: V)(y: W) -> Submodules.Member S (tensor x y)) -> \forall (x: Expression) -> Submodules.Member S (class x) :=
+  \fun (S: Submodules.Submodule)(pure: \forall (x: V)(y: W) -> Submodules.Member S (tensor x y)) =>
+    \induction (x: Expression) \return Submodules.Member S (class x) \with {
+      | zero: #zero{S}
+      | tensor: pure
+      | sum: \fun (x: Expression)(px: Submodules.Member S (class x))(y: Expression)(py: Submodules.Member S (class y)) =>
+          \idelim plus (class x) (class y) = class (Expression::sum x y) \with z: Carrier => Submodules.Member S z \by {
+            base: #addition{S} (class x) (class y) px py, equality: plusClass x y
+          }
+      | negative: \fun (x: Expression)(px: Submodules.Member S (class x)) =>
+          \idelim negative (class x) = class (Expression::negative x) \with z: Carrier => Submodules.Member S z \by {
+            base: Submodules.negativeClosed S (class x) px, equality: negativeClass x
+          }
+      | scale: \fun (a: R)(x: Expression)(px: Submodules.Member S (class x)) =>
+          \idelim scale a (class x) = class (Expression::scale a x) \with z: Carrier => Submodules.Member S z \by {
+            base: #scalar{S} a (class x) px, equality: scaleClass a x
+          }
+    };
+\definition generates: \forall (S: Submodules.Submodule) ->
+  (\forall (x: V)(y: W) -> Submodules.Member S (tensor x y)) -> \forall (q: Carrier) -> Submodules.Member S q :=
+  \fun (S: Submodules.Submodule)(pure: \forall (x: V)(y: W) -> Submodules.Member S (tensor x y)) =>
+    classInduction (Submodules.Member S) (expressions S pure);

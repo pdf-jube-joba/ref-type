@@ -1,0 +1,27 @@
+\definition T: \VType := \U(I.Int -> B.Bool);
+\definition program: T := \thunk (\cfun (d: I.Int) => \program {
+  \bind result: B.Bool <- \match d \in I.Int \with {
+    | ofNat n : \match n \in N.Nat \with {
+        | zero : \return B.Bool::false
+        | succ k : \match k \in N.Nat \with {
+            | zero : \return B.Bool::true
+            | succ m : \return B.Bool::false
+          }
+      }
+    | negSucc n : \return B.Bool::false
+  } \then
+  \return result
+});
+\definition pointwise: \forall (d: I.Int^) -> program^ d = isUnit d :=
+  \induction (d: I.Int^) \return program^ d = isUnit d \with {
+    | ofNat: \induction (n: N.Nat^) \return program^ (I.Int^::ofNat n) = isUnit (I.Int^::ofNat n) \with {
+        | zero: \refl(B.Bool^::false)
+        | succ: \fun (n: N.Nat^)(unused: _) =>
+          (\induction (k: N.Nat^) \return program^ (I.Int^::ofNat (N.Nat^::succ k)) = isUnit (I.Int^::ofNat (N.Nat^::succ k)) \with {
+            | zero: \refl(B.Bool^::true)
+            | succ: \fun (k: N.Nat^)(unused: _) => \refl(B.Bool^::false)
+          }) n
+      }
+    | negSucc: \fun (n: N.Nat^) => \refl(B.Bool^::false)
+  };
+\definition coherence: program^ = isUnit := \axiom:funext(program^, isUnit, pointwise);

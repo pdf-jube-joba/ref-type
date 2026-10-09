@@ -1,0 +1,23 @@
+\definition T: \VType := \U(State -> I.Int -> I.Int -> Certificate);
+\definition program: T := \thunk (\cfun (s: State) => \return(\thunk (\cfun (sa: I.Int) => \return(\thunk (\cfun (sb: I.Int) =>
+  \match s \in State \with {
+    | state a b u v x y: \program {
+        \bind multiplyU: \U(I.Int -> I.Int) <- ((\force I.Mul.program) u) \then
+        \bind multiplyV: \U(I.Int -> I.Int) <- ((\force I.Mul.program) v) \then
+        \bind ua: I.Int <- (\force multiplyU) sa \then
+        \bind vb: I.Int <- (\force multiplyV) sb \then
+        \return(Certificate::certificate a ua vb)
+      }
+  }
+)))));
+\definition productMatches: \forall (x, y: I.Int^) -> I.Mul.program^ x y = Arithmetic.mul x y :=
+  \fun (x, y: I.Int^) => congr!{I.Mul.T^ I.Int^} (\fun (multiply: I.Mul.T^) => multiply x y) I.Mul.program^ I.Mul.specification I.Mul.coherence;
+\definition matches: \forall (s: State^)(sa, sb: I.Int^) -> program^ s sa sb = adjust s sa sb :=
+  \induction (s: State^) \return \forall (sa, sb: I.Int^) -> program^ s sa sb = adjust s sa sb \with {
+    | state: \fun (a, b: N.Nat^)(u, v, x, y: I.Int^)(sa, sb: I.Int^) =>
+        congr2!{I.Int^ I.Int^ Certificate^} (\fun (r, t: I.Int^) => Certificate^::certificate a r t) _ _ _ _
+          (productMatches u sa) (productMatches v sb)
+  };
+\definition coherence: program^ = adjust := \axiom:funext(program^, adjust,
+  \fun (s: State^) => \axiom:funext(program^ s, adjust s,
+    \fun (sa: I.Int^) => \axiom:funext(program^ s sa, adjust s sa, \fun (sb: I.Int^) => matches s sa sb)));

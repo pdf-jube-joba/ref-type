@@ -1,0 +1,98 @@
+\import \parent.Invariants[m := m, n := n, original := original] \as Computation;
+\import \parent.\parent.Prefix[m := m, n := n] \as Prefix;
+\import \parent.\parent.Bounds[] \as Indices;
+\structure StateLaw[k: N.Nat^, a: Runtime^, history: History^]: \Prop {
+  computation: Computation.Laws[k, a, history],
+  prefix: Prefix.Holds k a,
+}
+\definition invariant(current: State^): \Prop :=
+  \forall (P: State^ -> \Prop) -> (\forall (k: N.Nat^)(a: Runtime^)(history: History^) -> StateLaw[k, a, history] -> P (State^::active m n k a history)) -> P current;
+\definition introduce: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> StateLaw[k, a, history] -> invariant (State^::active m n k a history) :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^)(law: _)(P: State^ -> \Prop)(into: _) => into k a history law;
+\definition TrailingZero(k: N.Nat^)(a: Runtime^): \Prop :=
+  \forall (i, j: N.Nat^) -> Bounds.Lt i m -> Bounds.Lt j n -> Bounds.Le k i -> Bounds.Le k j -> a i j = Arithmetic.zero;
+\structure OutputLaw[k: N.Nat^, a: Runtime^, history: History^]: \Prop {
+  computation: Computation.Laws[k, a, history],
+  prefix: Prefix.Holds k a,
+  trailing: TrailingZero k a,
+}
+\definition result: Output^ -> \Prop := \induction (output: Output^) \return \Prop \with {
+  | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^) => OutputLaw[rank, a, history]
+};
+\import CoreTermination.Results[invariant := invariant, result := result] \as Results;
+\definition outside: \forall (k: N.Nat^)(a: Runtime^) -> within m n k = B.Bool^::false -> TrailingZero k a :=
+  \fun (k: N.Nat^)(a: Runtime^)(test: _)(i, j: N.Nat^)(rowBound: _)(columnBound: _)(rowLower: _)(columnLower: _) =>
+    \match (BoolLaws.andFalse (Nat.ltb k m) (Nat.ltb k n) test) \in Logic.Or \return (\fun (_: Logic.Or[Nat.ltb k m = B.Bool^::false, Nat.ltb k n = B.Bool^::false]) => a i j = Arithmetic.zero) \with {
+      | left lower: Logic.falseElim _ (Bounds.ltIrrefl i (Bounds.ltLeTrans i m i rowBound (Bounds.leTrans m k i (Bounds.leOfLtbFalse k m lower) rowLower)))
+      | right lower: Logic.falseElim _ (Bounds.ltIrrefl j (Bounds.ltLeTrans j n j columnBound (Bounds.leTrans n k j (Bounds.leOfLtbFalse k n lower) columnLower)))
+    };
+\definition afterChoice: \forall (k: N.Nat^)(current: Attempt^) -> Bounds.Lt k m -> Bounds.Lt k n ->
+  Indices.HistoryLaws m n (attemptHistory current) -> attemptMatrix current = applyHistory (attemptHistory current) original ->
+  Prefix.Holds k (attemptMatrix current) ->
+  (attemptReduced current = B.Bool^::false -> Prefix.FinalAt[k, attemptMatrix current]) ->
+  Results.Post (B.ite (\RunStep[State^, Output^]) (attemptReduced current)
+    (\continue[State^, Output^](State^::active m n k (attemptMatrix current) (attemptHistory current)))
+    (\continue[State^, Output^](State^::active m n (N.Nat^::succ k) (attemptMatrix current) (attemptHistory current)))) :=
+  \fun (k: N.Nat^)(current: Attempt^)(rowBound: _)(columnBound: _)(historyLaws: _)(trace: _)(prefix: _)(final: _) => B.cases
+    (\fun (test: B.Bool^) => attemptReduced current = test -> Results.Post (B.ite (\RunStep[State^, Output^]) test
+      (\continue[State^, Output^](State^::active m n k (attemptMatrix current) (attemptHistory current)))
+      (\continue[State^, Output^](State^::active m n (N.Nat^::succ k) (attemptMatrix current) (attemptHistory current)))))
+    (\fun (unchanged: _) => introduce (N.Nat^::succ k) (attemptMatrix current) (attemptHistory current)
+      (StateLaw[N.Nat^::succ k, attemptMatrix current, attemptHistory current] {
+        computation := Computation.Laws[N.Nat^::succ k, attemptMatrix current, attemptHistory current] {
+          rowRank := Bounds.succLeOfLt m k rowBound, columnRank := Bounds.succLeOfLt n k columnBound, bounded := historyLaws, traced := trace,
+        },
+        prefix := Prefix.extend k (attemptMatrix current) rowBound columnBound prefix (final unchanged),
+      }))
+    (\fun (changed: _) => introduce k (attemptMatrix current) (attemptHistory current)
+      (StateLaw[k, attemptMatrix current, attemptHistory current] {
+        computation := Computation.Laws[k, attemptMatrix current, attemptHistory current] {
+          rowRank := Bounds.leTrans k (N.Nat^::succ k) m (Bounds.leSelfSucc k) (Bounds.succLeOfLt m k rowBound),
+          columnRank := Bounds.leTrans k (N.Nat^::succ k) n (Bounds.leSelfSucc k) (Bounds.succLeOfLt n k columnBound),
+          bounded := historyLaws, traced := trace,
+        },
+        prefix := prefix,
+      })) (attemptReduced current) (\refl(attemptReduced current));
+\definition after: \forall (k: N.Nat^)(current: Attempt^) -> Bounds.Lt k m -> Bounds.Lt k n ->
+  Indices.HistoryLaws m n (attemptHistory current) -> attemptMatrix current = applyHistory (attemptHistory current) original ->
+  Prefix.Holds k (attemptMatrix current) ->
+  (attemptReduced current = B.Bool^::false -> Prefix.FinalAt[k, attemptMatrix current]) -> Results.Post (afterAttempt m n k current) :=
+  \fun (k: N.Nat^)(current: Attempt^)(rowBound: _)(columnBound: _)(historyLaws: _)(trace: _)(prefix: _)(final: _) =>
+    \idelim B.ite (\RunStep[State^, Output^]) (attemptReduced current)
+      (\continue[State^, Output^](State^::active m n k (attemptMatrix current) (attemptHistory current)))
+      (\continue[State^, Output^](State^::active m n (N.Nat^::succ k) (attemptMatrix current) (attemptHistory current))) = afterAttempt m n k current
+      \with transition: \RunStep[State^, Output^] => Results.Post transition \by {
+        base: afterChoice k current rowBound columnBound historyLaws trace prefix final,
+        equality: sym!{{\RunStep[State^, Output^]}} (afterAttempt m n k current)
+          (B.ite (\RunStep[State^, Output^]) (attemptReduced current)
+            (\continue[State^, Output^](State^::active m n k (attemptMatrix current) (attemptHistory current)))
+            (\continue[State^, Output^](State^::active m n (N.Nat^::succ k) (attemptMatrix current) (attemptHistory current)))) (afterDescription m n k current)
+      };
+\module Ready(k: N.Nat^, a: Runtime^, history: History^, current: Attempt^);
+\definition selections: \forall (selection: Pivot.Selection^)(k: N.Nat^)(a: Runtime^)(history: History^) ->
+  Bounds.Lt k m -> Bounds.Lt k n -> StateLaw[k, a, history] -> Pivot.Laws m n k a history selection ->
+  Pivot.prepare m n k a history = selection -> Results.Post (selected m n k a history selection) :=
+  \induction (selection: Pivot.Selection^) \return \forall (k: N.Nat^)(a: Runtime^)(history: History^) ->
+    Bounds.Lt k m -> Bounds.Lt k n -> StateLaw[k, a, history] -> Pivot.Laws m n k a history selection ->
+    Pivot.prepare m n k a history = selection -> Results.Post (selected m n k a history selection) \with {
+    | missing: \fun (k: N.Nat^)(a: Runtime^)(history: History^)(rowBound: _)(columnBound: _)(law: StateLaw[k, a, history])(empty: _)(selected: _) =>
+        OutputLaw[k, a, history] { computation := #computation{law}, prefix := #prefix{law}, trailing := empty }
+    | ready: \fun (current: Attempt^)(k: N.Nat^)(a: Runtime^)(history: History^) => \parent.Diagonalization[m := m, n := n, original := original].Ready[k := k, a := a, history := history, current := current].law
+  };
+\definition activePost: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> StateLaw[k, a, history] -> Results.Post (step (State^::active m n k a history)) :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^)(law: StateLaw[k, a, history]) => B.cases
+    (\fun (test: B.Bool^) => within m n k = test -> Results.Post (B.ite (\RunStep[State^, Output^]) test
+      (selected m n k a history (Pivot.prepare m n k a history)) (\finish[State^, Output^](Output^::result k a history))))
+    (\fun (test: _) => OutputLaw[k, a, history] { computation := #computation{law}, prefix := #prefix{law}, trailing := outside k a test })
+    (\fun (test: _) => selections (Pivot.prepare m n k a history) k a history
+      (BoolLaws.andTrueLeft (Nat.ltb k m) (Nat.ltb k n) test) (BoolLaws.andTrueRight (Nat.ltb k m) (Nat.ltb k n) test) law
+      (Pivot.prepared m n k a history (BoolLaws.andTrueLeft (Nat.ltb k m) (Nat.ltb k n) test) (BoolLaws.andTrueRight (Nat.ltb k m) (Nat.ltb k n) test))
+      (\refl(Pivot.prepare m n k a history))) (within m n k) (\refl(within m n k));
+\definition stepLaw: Results.StepLaw := \fun (current: State^)(law: invariant current) => law (\fun (state: State^) => Results.Post (step state)) activePost;
+\definition initialLaw: StateLaw[N.Nat^::zero, original, History^::empty] := StateLaw[N.Nat^::zero, original, History^::empty] {
+  computation := Computation.initialLaws,
+  prefix := \fun (index: N.Nat^)(bad: _) => Logic.falseElim _ (Order.ltZero index bad),
+};
+\definition correctness: result (executeInitial m n original) :=
+  Results.correctness stepLaw (State^::active m n N.Nat^::zero original History^::empty)
+    (introduce N.Nat^::zero original History^::empty initialLaw) (\parent.Termination[].terminates (State^::active m n N.Nat^::zero original History^::empty));

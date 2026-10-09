@@ -1,0 +1,47 @@
+\definition nonzero: Logic.Not (Split.head pivot = #zero{ring}) :=
+  \bysub(Included.Carrier, { x: Included.Carrier \where Logic.Not (Split.head x = #zero{ring}) }, pivot);
+\definition unit: Included.Carrier := #smul{Included.space} (#inv{field} (Split.head pivot)) pivot;
+\definition headUnit: Split.head unit = #one{ring} := #inverse{field} (Split.head pivot) nonzero;
+\import Modules.Hom[V := Large.Carrier, W := Included.Carrier, source := Large.space, target := Included.space] \as Maps;
+\definition projection: Maps.Map := Maps.Map {
+  apply := \fun (x: Large.Carrier) => #smul{Included.space} (Split.head x) unit,
+  addition := \fun (x, y: Large.Carrier) => #scalarAdd{Included.space} (Split.head x) (Split.head y) unit,
+  scalar := \fun (a: K)(x: Large.Carrier) => #scalarAssoc{Included.space} a (Split.head x) unit,
+};
+\definition headProjection: \forall (x: Large.Carrier) -> Split.head (#apply{projection} x) = Split.head x :=
+  \fun (x: Large.Carrier) => trans!{K} _ _ _
+    (congr!{K K} (#mul{ring} (Split.head x)) (Split.head unit) #one{ring} headUnit)
+    (#rightIdentity{(#multiplicative{(#semiring{ring})})} (Split.head x));
+\import Modules.Hom[V := Included.Carrier, W := Large.Carrier, source := Included.space, target := Large.space].Composition[U := Large.Carrier, domain := Large.space] \as IncludeProjection;
+\import Modules.Hom[V := Large.Carrier, W := Large.Carrier, source := Large.space, target := Large.space] \as AmbientMaps;
+\import Modules.End[V := Large.Carrier, space := Large.space] \as AmbientEnd;
+\definition residual: AmbientMaps.Map := AmbientMaps.plus AmbientEnd.identity (AmbientMaps.negative (IncludeProjection.compose Included.inclusion projection));
+\import Modules.Of[V := Included.Carrier, space := Included.space] \as SubmoduleLaws;
+\import algebra.Group[].Of[Carrier := Included.Carrier, group := SubmoduleLaws.additive] \as Group;
+\import algebra.Group[].Of[Carrier := K, group := Modules.scalarGroup] \as Scalars;
+\definition remainder(x: Included.Carrier): Included.Carrier := Group.difference x (#apply{projection} x);
+\definition headRemainder: \forall (x: Included.Carrier) -> Split.head (remainder x) = #zero{ring} :=
+  \fun (x: Included.Carrier) => trans!{K} _ _ _
+    (congr!{K K} (\fun (a: K) => Scalars.difference (Split.head x) a)
+      (Split.head (#apply{projection} x)) (Split.head x) (headProjection x))
+    (Scalars.inverseRight (Split.head x));
+\definition tailRemainder(x: Included.Carrier): TailSpace.Carrier := tail (remainder x) (headRemainder x);
+\import Modules.Hom[V := TailSpace.Carrier, W := Included.Carrier, source := TailSpace.space, target := Included.space].Composition[U := Small.Carrier, domain := Small.space] \as EmbedRetraction;
+\definition smallMap: Modules.Hom[V := Small.Carrier, W := Included.Carrier, source := Small.space, target := Included.space].Map := EmbedRetraction.compose embedding r;
+\import Modules.Hom[V := Large.Carrier, W := Small.Carrier, source := Large.space, target := Small.space].Composition[U := Large.Carrier, domain := Large.space] \as RestrictResidual;
+\definition residualTail: Modules.Hom[V := Large.Carrier, W := Small.Carrier, source := Large.space, target := Small.space].Map := RestrictResidual.compose Split.restriction residual;
+\import Modules.Hom[V := Small.Carrier, W := Included.Carrier, source := Small.space, target := Included.space].Composition[U := Large.Carrier, domain := Large.space] \as EmbedTail;
+\definition correction: Maps.Map := EmbedTail.compose smallMap residualTail;
+\definition correctionOnSubmodule: \forall (x: Included.Carrier) -> #apply{correction} x = remainder x :=
+  \fun (x: Included.Carrier) => trans!{Included.Carrier} _ _ _
+    (congr!{TailSpace.Carrier Included.Carrier} (#apply{embedding})
+      (#apply{r} (tailRemainder x)) (tailRemainder x) (splits (tailRemainder x)))
+    (recoverZero (remainder x) (headRemainder x));
+\definition map: Maps.Map := Maps.plus projection correction;
+\definition retracts: Included.Splits map := \fun (x: Included.Carrier) =>
+  trans!{Included.Carrier} _ _ _
+    (congr!{Included.Carrier Included.Carrier} (Group.add (#apply{projection} x))
+      (#apply{correction} x) (remainder x) (correctionOnSubmodule x))
+    (trans!{Included.Carrier} _ _ _ (Group.comm (#apply{projection} x) (remainder x))
+      (Group.addDifference x (#apply{projection} x)));
+\definition retraction: Included.Retraction := \into[Included.Map](map, { r: Included.Map \where Included.Splits r }) \by { retracts };

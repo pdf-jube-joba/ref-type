@@ -1,0 +1,234 @@
+\import \parent.\parent.FinitelySupported[Index := Index, family := family] \as Supported;
+\import \parent.\parent.Product[Index := Index, family := family] \as Product;
+\import \parent.To[W := Supported.Carrier, target := Supported.space] \as Universal;
+\definition components: Universal.Components :=
+  \fun (i: Index) => Supported.Injection[i := i].map;
+\definition forward: \parent.\parent.Hom[V := Carrier, W := Supported.Carrier, source := space, target := Supported.space].Map :=
+  Universal.extension components;
+\definition onInjection: \forall (i: Index)(x: family.Carrier i) ->
+  #apply{forward} (#apply{(\parent.Injection[i := i].map)} x) = #apply{(Supported.Injection[i := i].map)} x :=
+  Universal.onInjection components;
+\definition coordinate: \forall (i, j: Index)(x: family.Carrier i) ->
+  (#apply{forward} (#apply{(\parent.Injection[i := i].map)} x)) j = (#apply{(Supported.Injection[i := i].map)} x) j :=
+  \fun (i, j: Index)(x: family.Carrier i) => congr!{Supported.Carrier {family.Carrier j}}
+    (\fun (v: Supported.Carrier) => v j) _ _ (onInjection i x);
+\definition atOwn: \forall (i: Index)(x: family.Carrier i) ->
+  (#apply{forward} (#apply{(\parent.Injection[i := i].map)} x)) i = x :=
+  \fun (i: Index)(x: family.Carrier i) => trans!{{family.Carrier i}} _ _ _
+    (coordinate i i x) (Supported.Injection[i := i].onSame x);
+\definition atOther: \forall (i, j: Index)(x: family.Carrier i) -> Logic.Not (i = j) ->
+  (#apply{forward} (#apply{(\parent.Injection[i := i].map)} x)) j = #zero{(family.space j)} :=
+  \fun (i, j: Index)(x: family.Carrier i)(ne: Logic.Not (i = j)) =>
+    trans!{{family.Carrier j}} _ _ _ (coordinate i j x) (Supported.Injection[i := i].onDifferent x j ne);
+
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import std.Data[].List[] \as Lists;
+\import Lists.Distinct[A := Index].Cover[] \as Covers;
+\import Lists.Membership[A := Index].Append[] \as Membership;
+\import \parent.\parent.Sums[I := Index] \as Sums;
+\import Sums.Vector[V := Carrier, space := space] \as Combinations;
+\import \parent.\parent.Hom[V := Carrier, W := Supported.Carrier, source := space, target := Supported.space] \as Maps;
+\definition term(v: Product.Carrier)(i: Index): Carrier := #apply{(\parent.Injection[i := i].map)} (v i);
+\definition combination(xs: Lists.List[Index])(v: Product.Carrier): Carrier := Combinations.sum xs (term v);
+\module Component(i: Index) {
+  \import \parent.\parent.\parent.Hom[V := family.Carrier i, W := Carrier, source := family.space i, target := space] \as Maps;
+  \definition injection: Maps.Map := \parent.\parent.Injection[i := i].map;
+  \definition negative: \forall (x: family.Carrier i) -> #apply{injection} (#neg{(family.space i)} x) = #neg{space} (#apply{injection} x) := Maps.negativePreserved injection;
+  \definition zero: #apply{injection} #zero{(family.space i)} = #zero{space} := Maps.zeroPreserved injection;
+}
+\definition combinationZero: \forall (xs: Lists.List[Index]) -> combination xs Product.zero = #zero{space} :=
+  \fun (xs: Lists.List[Index]) => trans!{Carrier} _ _ _
+    (Combinations.congruent xs (term Product.zero) (\fun (i: Index) => #zero{space}) (\fun (i: Index) => Component[i := i].zero))
+    (Combinations.zero xs);
+\definition combinationAddition: \forall (xs: Lists.List[Index])(v, w: Product.Carrier) ->
+  combination xs (Product.add v w) = #add{space} (combination xs v) (combination xs w) :=
+  \fun (xs: Lists.List[Index])(v, w: Product.Carrier) => trans!{Carrier} _ _ _
+    (Combinations.congruent xs (term (Product.add v w))
+      (\fun (i: Index) => #add{space} (term v i) (term w i))
+      (\fun (i: Index) => #addition{(Component[i := i].injection)} (v i) (w i)))
+    (Combinations.addition xs (term v) (term w));
+\definition combinationScalar: \forall (xs: Lists.List[Index])(a: R)(v: Product.Carrier) ->
+  combination xs (Product.scale a v) = #smul{space} a (combination xs v) :=
+  \fun (xs: Lists.List[Index])(a: R)(v: Product.Carrier) => trans!{Carrier} _ _ _
+    (Combinations.congruent xs (term (Product.scale a v))
+      (\fun (i: Index) => #smul{space} a (term v i))
+      (\fun (i: Index) => #scalar{(Component[i := i].injection)} a (v i)))
+    (Combinations.scalar xs a (term v));
+\definition combinationNegative: \forall (xs: Lists.List[Index])(v: Product.Carrier) ->
+  combination xs (Product.neg v) = #neg{space} (combination xs v) :=
+  \fun (xs: Lists.List[Index])(v: Product.Carrier) => trans!{Carrier} _ _ _
+    (Combinations.congruent xs (term (Product.neg v))
+      (\fun (i: Index) => #neg{space} (term v i))
+      (\fun (i: Index) => Component[i := i].negative (v i)))
+    (Combinations.negative xs (term v));
+\module At(i: Index) {
+  \import \parent.\parent.\parent.Hom[V := Carrier, W := family.Carrier i, source := space, target := family.space i] \as Evaluations;
+  \definition evaluate: Evaluations.Map := Evaluations.Map {
+    apply := \fun (x: Carrier) => (#apply{forward} x) i,
+    addition := \fun (x, y: Carrier) =>
+      congr!{Supported.Carrier {family.Carrier i}} (\fun (v: Supported.Carrier) => v i) _ _ (#addition{forward} x y),
+    scalar := \fun (a: R)(x: Carrier) =>
+      congr!{Supported.Carrier {family.Carrier i}} (\fun (v: Supported.Carrier) => v i) _ _ (#scalar{forward} a x),
+  };
+  \import Combinations.Mapping[W := family.Carrier i, target := family.space i] \as Evaluation;
+  \import Sums.Vector[V := family.Carrier i, space := family.space i] \as ScalarSum;
+  \import ScalarSum.Single[] \as Single;
+  \definition forwardCombination: \forall (xs: Lists.List[Index])(v: Product.Carrier) ->
+    (#apply{forward} (combination xs v)) i = ScalarSum.sum xs
+      (\fun (j: Index) => (#apply{(Supported.Injection[i := j].map)} (v j)) i) :=
+    \fun (xs: Lists.List[Index])(v: Product.Carrier) => trans!{{family.Carrier i}} _ _ _
+      (Evaluation.law evaluate xs (term v))
+      (ScalarSum.congruent xs (\fun (j: Index) => (#apply{forward} (term v j)) i)
+        (\fun (j: Index) => (#apply{(Supported.Injection[i := j].map)} (v j)) i)
+        (\fun (j: Index) => coordinate j i (v j)));
+  \definition recover: \forall (xs: Lists.List[Index]) -> Sums.Distinct xs ->
+    \forall (v: Product.Carrier) -> Supported.Supports xs v ->
+    (#apply{forward} (combination xs v)) i = v i :=
+    \fun (xs: Lists.List[Index])(distinct: Sums.Distinct xs)(v: Product.Carrier)(support: Supported.Supports xs v) =>
+      trans!{{family.Carrier i}} _ _ _ (forwardCombination xs v)
+        (either!{{\In[Index] (Sums.keys xs) i} "or" {Logic.Not (\In[Index] (Sums.keys xs) i)} "either" {
+          ScalarSum.sum xs (\fun (j: Index) => (#apply{(Supported.Injection[i := j].map)} (v j)) i) = v i}
+          "lt:" {\fun (member: _) => trans!{{family.Carrier i}} _ _ _
+            (Single.select xs distinct i member
+              (\fun (j: Index) => (#apply{(Supported.Injection[i := j].map)} (v j)) i)
+              (\fun (j: Index)(ne: Logic.Not (i = j)) => Supported.Injection[i := j].onDifferent (v j) i
+                (\fun (same: j = i) => ne (sym!{Index} j i same))))
+            (Supported.Injection[i := i].onSame (v i))}
+          "rt:" {\fun (missing: _) => trans!{{family.Carrier i}} _ #zero{(family.space i)} _
+            (Single.selectAbsent xs i missing
+              (\fun (j: Index) => (#apply{(Supported.Injection[i := j].map)} (v j)) i)
+              (\fun (j: Index)(ne: Logic.Not (i = j)) => Supported.Injection[i := j].onDifferent (v j) i
+                (\fun (same: j = i) => ne (sym!{Index} j i same))))
+            (sym!{{family.Carrier i}} (v i) #zero{(family.space i)} (support i missing))}
+        } (Classical.excludedMiddle (\In[Index] (Sums.keys xs) i)));
+}
+\definition coordinates(x: Carrier): Product.Carrier := #apply{forward} x;
+\definition recover: \forall (xs: Lists.List[Index]) -> Sums.Distinct xs ->
+  \forall (v: Product.Carrier) -> Supported.Supports xs v -> coordinates (combination xs v) = v :=
+  \fun (xs: Lists.List[Index])(distinct: Sums.Distinct xs)(v: Product.Carrier)(support: Supported.Supports xs v) =>
+    \axiom:funext(coordinates (combination xs v), v, \fun (i: Index) => At[i := i].recover xs distinct v support);
+\definition onto: \forall (v: Supported.Carrier) -> \exists { x: Carrier \where #apply{forward} x = v } := \block {
+  \fun (v: Supported.Carrier) \then
+  \takefrom support: \Cast[Lists.List[Index]] ({ xs: Lists.List[Index] \where Supported.Supports xs v }) \by Supported.finite v \then
+  \takefrom xs: Covers.Choice support \by Covers.existence support \then
+  \let laws: Covers.Laws[support, xs] := \bysub(Lists.List[Index], { xs: Lists.List[Index] \where Covers.Laws[support, xs] }, xs) \then
+  \let supportLaw: Supported.Supports xs v := \fun (i: Index)(missing: Logic.Not (\In[Index] (Sums.keys xs) i)) =>
+    (\bysub(Lists.List[Index], { ys: Lists.List[Index] \where Supported.Supports ys v }, support)) i
+      (\fun (member: _) => missing (#toSelected{laws} i member)) \then
+  \return \exact(\into[Carrier](combination xs v, { x: Carrier \where #apply{forward} x = v }) \by {
+    recover xs #distinct{laws} v supportLaw
+  }, \Cast[Carrier] ({ x: Carrier \where #apply{forward} x = v }))
+};
+
+\definition coordinatesZero: coordinates #zero{space} = Product.zero := Maps.zeroPreserved forward;
+\definition coordinatesAddition: \forall (x, y: Carrier) -> coordinates (#add{space} x y) = Product.add (coordinates x) (coordinates y) :=
+  #addition{forward};
+\definition coordinatesNegative: \forall (x: Carrier) -> coordinates (#neg{space} x) = Product.neg (coordinates x) :=
+  Maps.negativePreserved forward;
+\definition coordinatesScalar: \forall (a: R)(x: Carrier) -> coordinates (#smul{space} a x) = Product.scale a (coordinates x) :=
+  #scalar{forward};
+\import Combinations.Single[] \as Single;
+\definition generatorCombination: \forall (xs: Lists.List[Index]) -> Sums.Distinct xs ->
+  \forall (i: Index) -> \In[Index] (Sums.keys xs) i -> \forall (x: family.Carrier i) ->
+    combination xs (coordinates (#apply{(Component[i := i].injection)} x)) = #apply{(Component[i := i].injection)} x :=
+  \fun (xs: Lists.List[Index])(distinct: Sums.Distinct xs)(i: Index)(member: _)(x: family.Carrier i) =>
+    trans!{Carrier} _ _ _
+      (Single.select xs distinct i member (term (coordinates (#apply{(Component[i := i].injection)} x)))
+        (\fun (j: Index)(ne: Logic.Not (i = j)) => trans!{Carrier} _ _ _
+          (congr!{{family.Carrier j} Carrier} (#apply{(Component[i := j].injection)}) _ _ (atOther i j x ne))
+          (Component[i := j].zero)))
+      (congr!{{family.Carrier i} Carrier} (#apply{(Component[i := i].injection)}) _ _ (atOwn i x));
+\definition generatorIndex: Generator -> Index := \induction (g: Generator) \return Index \with {
+  | at: \fun (i: Index)(x: family.Carrier i) => i
+};
+\definition labels: Expressions.Expression -> Lists.List[Index] :=
+  \induction (e: Expressions.Expression) \return Lists.List[Index] \with {
+    | zero: Lists.List[Index]::nil
+    | generator: \fun (g: Generator) => Lists.List[Index]::cons (generatorIndex g) Lists.List[Index]::nil
+    | sum: \fun (e: Expressions.Expression)(left: Lists.List[Index])(f: Expressions.Expression)(right: Lists.List[Index]) => Lists.append Index left right
+    | negative: \fun (e: Expressions.Expression)(before: Lists.List[Index]) => before
+    | scale: \fun (a: R)(e: Expressions.Expression)(before: Lists.List[Index]) => before
+  };
+\definition Included(xs, ys: Lists.List[Index]): \Prop :=
+  \forall (i: Index) -> \In[Index] (Sums.keys xs) i -> \In[Index] (Sums.keys ys) i;
+\definition Normal(e: Expressions.Expression): \Prop :=
+  \forall (xs: Lists.List[Index]) -> Sums.Distinct xs -> Included (labels e) xs ->
+    combination xs (coordinates (Presented.class e)) = Presented.class e;
+\definition normalZero: Normal Expressions.Expression::zero :=
+  \fun (xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) => trans!{Carrier} _ _ _
+    (congr!{Product.Carrier Carrier} (combination xs) _ _ coordinatesZero) (combinationZero xs);
+\definition normalGenerator: \forall (g: Generator) -> Normal (Expressions.Expression::generator g) :=
+  \induction (g: Generator) \return Normal (Expressions.Expression::generator g) \with {
+    | at: \fun (i: Index)(x: family.Carrier i)(xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) =>
+      generatorCombination xs distinct i (included i (Logic.Or[_, _]::left (\refl(i)))) x
+  };
+\definition normalAddition: \forall (e, f: Expressions.Expression) -> Normal e -> Normal f -> Normal (Expressions.Expression::sum e f) :=
+  \fun (e, f: Expressions.Expression)(left: Normal e)(right: Normal f)(xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) =>
+    trans!{Carrier}
+      (combination xs (coordinates (Presented.class (Expressions.Expression::sum e f))))
+      (combination xs (Product.add (coordinates (Presented.class e)) (coordinates (Presented.class f))))
+      (Presented.class (Expressions.Expression::sum e f))
+      (congr!{Product.Carrier Carrier} (combination xs) _ _
+        (trans!{Product.Carrier} _ _ _
+          (congr!{Carrier Product.Carrier} coordinates _ _ (sym!{Carrier} _ _ (Presented.addClass e f)))
+          (coordinatesAddition (Presented.class e) (Presented.class f))))
+      (trans!{Carrier} _ _ _ (combinationAddition xs (coordinates (Presented.class e)) (coordinates (Presented.class f)))
+        (trans!{Carrier} _ _ _
+          (congr2!{Carrier Carrier Carrier} (#add{space}) _ _ _ _
+            (left xs distinct (\fun (i: Index)(member: _) => included i (Membership.left (labels e) (labels f) i member)))
+            (right xs distinct (\fun (i: Index)(member: _) => included i (Membership.right (labels e) (labels f) i member))))
+          (Presented.addClass e f)));
+\definition normalNegative: \forall (e: Expressions.Expression) -> Normal e -> Normal (Expressions.Expression::negative e) :=
+  \fun (e: Expressions.Expression)(before: Normal e)(xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) =>
+    trans!{Carrier}
+      (combination xs (coordinates (Presented.class (Expressions.Expression::negative e))))
+      (combination xs (Product.neg (coordinates (Presented.class e))))
+      (Presented.class (Expressions.Expression::negative e))
+      (congr!{Product.Carrier Carrier} (combination xs) _ _
+        (trans!{Product.Carrier} _ _ _
+          (congr!{Carrier Product.Carrier} coordinates _ _ (sym!{Carrier} _ _ (Presented.negClass e)))
+          (coordinatesNegative (Presented.class e))))
+      (trans!{Carrier} _ _ _ (combinationNegative xs (coordinates (Presented.class e)))
+        (trans!{Carrier} _ _ _
+          (congr!{Carrier Carrier} (#neg{space}) _ _ (before xs distinct included)) (Presented.negClass e)));
+\definition normalScalar: \forall (a: R)(e: Expressions.Expression) -> Normal e -> Normal (Expressions.Expression::scale a e) :=
+  \fun (a: R)(e: Expressions.Expression)(before: Normal e)(xs: Lists.List[Index])(distinct: Sums.Distinct xs)(included: _) =>
+    trans!{Carrier}
+      (combination xs (coordinates (Presented.class (Expressions.Expression::scale a e))))
+      (combination xs (Product.scale a (coordinates (Presented.class e))))
+      (Presented.class (Expressions.Expression::scale a e))
+      (congr!{Product.Carrier Carrier} (combination xs) _ _
+        (trans!{Product.Carrier} _ _ _
+          (congr!{Carrier Product.Carrier} coordinates _ _ (sym!{Carrier} _ _ (Presented.scaleClass a e)))
+          (coordinatesScalar a (Presented.class e))))
+      (trans!{Carrier} _ _ _ (combinationScalar xs a (coordinates (Presented.class e)))
+        (trans!{Carrier} _ _ _
+          (congr!{Carrier Carrier} (#smul{space} a) _ _ (before xs distinct included)) (Presented.scaleClass a e)));
+\definition normal: \forall (e: Expressions.Expression) -> Normal e :=
+  \induction (e: Expressions.Expression) \return Normal e \with {
+    | zero: normalZero
+    | generator: normalGenerator
+    | sum: \fun (e: Expressions.Expression)(left: Normal e)(f: Expressions.Expression)(right: Normal f) => normalAddition e f left right
+    | negative: normalNegative
+    | scale: normalScalar
+  };
+\import std.Set[].Quotient[A := Expressions.Expression, Equivalent := Presented.Equivalent] \as Classes;
+\definition injective: \forall (x, y: Carrier) -> #apply{forward} x = #apply{forward} y -> x = y :=
+  Classes.induction2 (\fun (x, y: Carrier) => #apply{forward} x = #apply{forward} y -> x = y)
+    (\block {
+      \fun (e, f: Expressions.Expression)(same: #apply{forward} (Presented.class e) = #apply{forward} (Presented.class f)) \then
+      \let original: Lists.List[Index] := Lists.append Index (labels e) (labels f) \then
+      \takefrom xs: Covers.Choice original \by Covers.existence original \then
+      \let law: Covers.Laws[original, xs] := \bysub(Lists.List[Index], { ys: Lists.List[Index] \where Covers.Laws[original, ys] }, xs) \then
+      \let left: Included (labels e) xs := \fun (i: Index)(member: _) => #toSelected{law} i (Membership.left (labels e) (labels f) i member) \then
+      \let right: Included (labels f) xs := \fun (i: Index)(member: _) => #toSelected{law} i (Membership.right (labels e) (labels f) i member) \then
+      \return trans!{Carrier} (Presented.class e) (combination xs (coordinates (Presented.class e))) (Presented.class f)
+        (sym!{Carrier} (combination xs (coordinates (Presented.class e))) (Presented.class e) (normal e xs #distinct{law} left))
+        (trans!{Carrier} _ _ _
+          (congr!{Product.Carrier Carrier} (combination xs) (coordinates (Presented.class e)) (coordinates (Presented.class f)) same)
+          (normal f xs #distinct{law} right))
+    });
+\import \parent.\parent.Isomorphism[V := Carrier, W := Supported.Carrier, source := space, target := Supported.space].OfBijective[f := forward] \as Inverse;
+\definition isomorphism: \parent.\parent.Isomorphism[V := Carrier, W := Supported.Carrier, source := space, target := Supported.space].Isomorphism :=
+  Inverse.isomorphism injective onto;

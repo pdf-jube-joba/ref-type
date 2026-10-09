@@ -1,0 +1,21 @@
+\import \parent.On[P := T, N := N] \as Source;
+\import \parent.On[P := Q, N := N] \as Middle;
+\import \parent.On[P := P, N := N] \as Target;
+\import Chains.Map[C := P, D := Q] \as Before;
+\import Chains.Map[C := Q, D := T] \as After;
+\import After.Composition[B := P] \as ChainComposition;
+\import Modules.End[V := N.Carrier, space := N.space] \as Coefficients;
+\import \parent.Mapping[P := Q, Q := T, N := N, L := N] \as First;
+\import \parent.Mapping[P := P, Q := Q, N := N, L := N] \as Second;
+\import \parent.Mapping[P := P, Q := T, N := N, L := N] \as Direct;
+\import Cochains.Map[C := Middle.complex, D := Target.complex].Composition[B := Source.complex] \as Composition;
+\import Cochains.Map[C := Source.complex, D := Target.complex] \as Maps;
+\definition first(g: After.Map): Cochains.Map[C := Source.complex, D := Middle.complex].Map := First.On[f := g, u := Coefficients.identity].map;
+\definition second(f: Before.Map): Cochains.Map[C := Middle.complex, D := Target.complex].Map := Second.On[f := f, u := Coefficients.identity].map;
+\definition direct(f: Before.Map)(g: After.Map): Maps.Map := Direct.On[f := ChainComposition.compose g f, u := Coefficients.identity].map;
+\definition law: \forall (f: Before.Map)(g: After.Map) -> direct f g = Composition.compose (second f) (first g) :=
+  \fun (f: Before.Map)(g: After.Map) => Maps.ext (direct f g) (Composition.compose (second f) (first g))
+    (\fun (k: Nat.Nat^)(h: Source.Carrier k) => Target.At[n := k].ext
+      (#apply{(direct f g)} k h) (#apply{(Composition.compose (second f) (first g))} k h)
+      (\fun (x: P.family.Carrier k) => \refl(#apply{h} (#apply{g} k (#apply{f} k x)))));
+\module At(k: Nat.Nat^);

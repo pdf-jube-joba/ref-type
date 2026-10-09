@@ -1,0 +1,15 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> State);
+\definition program: T := \thunk (\cfun (a: N.Nat) => \return(\thunk (\cfun (b: N.Nat) => \program {
+  \bind iterate: \U(State -> N.Nat -> State) <- ((\force iterationProgram) Step.program) \then
+  \bind count: \U(N.Nat -> State) <- ((\force iterate) (State::state a b
+    (I.Int::ofNat (N.Nat::succ N.Nat::zero)) (I.Int::ofNat N.Nat::zero)
+    (I.Int::ofNat N.Nat::zero) (I.Int::ofNat (N.Nat::succ N.Nat::zero)))) \then
+  \bind answer: State <- (\force count) b \then
+  \return answer
+})));
+\definition matches: \forall (a, b: N.Nat^) -> program^ a b = result a b :=
+  \fun (a, b: N.Nat^) => trans!{State^} (program^ a b) (Iteration.apply Step.program^ (initial a b) b) (result a b)
+    (congr!{Iterate.T^ State^} (\fun (iterate: Iterate.T^) => iterate Step.program^ (initial a b) b) Iterate.program^ Iterate.specification Iterate.coherence)
+    (congr!{Step.T^ State^} (\fun (f: Step.T^) => Iteration.apply f (initial a b) b) Step.program^ Step.specification Step.coherence);
+\definition coherence: program^ = result := \axiom:funext(program^, result,
+  \fun (a: N.Nat^) => \axiom:funext(program^ a, result a, \fun (b: N.Nat^) => matches a b));

@@ -1,0 +1,16 @@
+\definition T: \VType := \U(N.Nat -> Runtime -> Runtime);
+\definition program: T := \thunk (\cfun (offset: N.Nat) => \return(\thunk (\cfun (a: Runtime) =>
+  \return(\thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \program {
+    \bind add: \U(N.Nat -> N.Nat) <- (\force additionProgram) offset \then
+    \bind shifted: N.Nat <- (\force add) i \then
+    \bind row: \U(N.Nat -> I.Int) <- (\force a) shifted \then
+    \bind value: I.Int <- (\force row) j \then
+    \return value
+  })))))));
+\definition coherence: program^ = shiftRows := \axiom:funext(program^, shiftRows,
+  \fun (offset: N.Nat^) => \axiom:funext(program^ offset, shiftRows offset,
+    \fun (a: Runtime^) => \axiom:funext(program^ offset a, shiftRows offset a,
+      \fun (i: N.Nat^) => \axiom:funext(program^ offset a i, shiftRows offset a i,
+        \fun (j: N.Nat^) => congr!{N.Nat^ I.Int^} (\fun (x: N.Nat^) => a x j) (additionProgram^ offset i) (Nat.add offset i)
+          (congr!{NatCorrespondence.Add.T^ N.Nat^} (\fun (f: NatCorrespondence.Add.T^) => f offset i)
+            additionProgram^ Nat.add NatCorrespondence.Add.coherence)))));

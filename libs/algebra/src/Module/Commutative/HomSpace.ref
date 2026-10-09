@@ -1,0 +1,41 @@
+\import Modules.Hom[V := V, W := W, source := source, target := target] \as Maps;
+\import Modules.Laws[V := W, space := target] \as Target;
+\import algebra.Group[].Of[Carrier := W, group := Target.additive] \as Group;
+\import std.Alg[].Monoid[] \as Monoid;
+\definition Carrier: \Set := Maps.Map;
+\definition zero: Carrier := Maps.zeroMap;
+\definition add: Carrier -> Carrier -> Carrier := Maps.plus;
+\definition neg: Carrier -> Carrier := Maps.negative;
+\definition scale(a: R)(f: Carrier): Carrier := Carrier {
+  apply := \fun (x: V) => #smul{target} a (#apply{f} x),
+  addition := \fun (x, y: V) => trans!{W} _ _ _
+    (congr!{W W} (#smul{target} a) _ _ (#addition{f} x y)) (#vectorAdd{target} a (#apply{f} x) (#apply{f} y)),
+  scalar := \fun (b: R)(x: V) => trans!{W} _ _ _
+    (congr!{W W} (#smul{target} a) _ _ (#scalar{f} b x))
+    (trans!{W} _ _ _ (sym!{W} _ _ (#scalarAssoc{target} a b (#apply{f} x)))
+      (trans!{W} _ _ _ (congr!{R W} (\fun (r: R) => #smul{target} r (#apply{f} x)) _ _ (#mulCommutative{ring} a b))
+        (#scalarAssoc{target} b a (#apply{f} x)))),
+};
+\definition space: Modules.Space Carrier := Ring.RingModule[R, Carrier, ordinaryRing] {
+  zero := zero, add := add, neg := neg, smul := scale,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# zero add neg)] {
+    group := Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# zero add neg] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# zero add] {
+        leftIdentity := \fun (f: Carrier) => Maps.ext (add zero f) f (\fun (x: V) => Group.zeroLeft (#apply{f} x)),
+        rightIdentity := \fun (f: Carrier) => Maps.ext (add f zero) f (\fun (x: V) => Group.zeroRight (#apply{f} x)),
+        associative := \fun (f, g, h: Carrier) => Maps.ext (add (add f g) h) (add f (add g h))
+          (\fun (x: V) => Group.assoc (#apply{f} x) (#apply{g} x) (#apply{h} x)),
+      },
+      leftInverse := \fun (f: Carrier) => Maps.ext (add (neg f) f) zero (\fun (x: V) => Group.inverseLeft (#apply{f} x)),
+      rightInverse := \fun (f: Carrier) => Maps.ext (add f (neg f)) zero (\fun (x: V) => Group.inverseRight (#apply{f} x)),
+    },
+    commutative := \fun (f, g: Carrier) => Maps.ext (add f g) (add g f) (\fun (x: V) => Group.comm (#apply{f} x) (#apply{g} x)),
+  },
+  scalarOne := \fun (f: Carrier) => Maps.ext (scale (#one{ordinaryRing}) f) f (\fun (x: V) => #scalarOne{target} (#apply{f} x)),
+  scalarAssoc := \fun (a, b: R)(f: Carrier) => Maps.ext (scale (#mul{ordinaryRing} a b) f) (scale a (scale b f))
+    (\fun (x: V) => #scalarAssoc{target} a b (#apply{f} x)),
+  scalarAdd := \fun (a, b: R)(f: Carrier) => Maps.ext (scale (#add{ordinaryRing} a b) f) (add (scale a f) (scale b f))
+    (\fun (x: V) => #scalarAdd{target} a b (#apply{f} x)),
+  vectorAdd := \fun (a: R)(f, g: Carrier) => Maps.ext (scale a (add f g)) (add (scale a f) (scale a g))
+    (\fun (x: V) => #vectorAdd{target} a (#apply{f} x) (#apply{g} x)),
+};

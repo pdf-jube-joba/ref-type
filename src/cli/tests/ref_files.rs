@@ -11,6 +11,8 @@ const PROCESS_TIMEOUT: Duration = Duration::from_secs(20);
 // This project elaborates and checks the entire library. Allow enough time for
 // the debug-build process when it runs concurrently with the other test cases.
 const LIBRARY_TIMEOUT: Duration = Duration::from_secs(180);
+// Tensor and resolution examples check large generic dependency graphs.
+const HOMOLOGICAL_ALGEBRA_TIMEOUT: Duration = Duration::from_secs(3600);
 // The uncached topology project also checks finite-dimensional algebra and
 // quotient homotopies; its expanded dependency graph exceeds three minutes.
 const TOPOLOGICAL_K_THEORY_TIMEOUT: Duration = Duration::from_secs(600);
@@ -293,6 +295,32 @@ fn category_examples_succeed() {
     let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
         .unwrap_or_else(|error| panic!("{error}"));
     assert!(output.status.success(), "{}", output_details(&output));
+}
+
+#[test]
+fn homological_algebra_examples_succeed() {
+    let _check = LIBRARY_CHECK.lock().unwrap();
+    let workspace = workspace_root();
+    let path = workspace.join("tests/projects/homological-algebra");
+    let source = fs::read_to_string(path.join("src/root.ref")).unwrap();
+    let modules = syntax::parse::str_parse_modules(&source).unwrap();
+    // Check every entry point sequentially so their expanded environments do
+    // not accumulate in one process and exceed the memory budget.
+    for module in modules {
+        let selector = format!("homological_algebra_tests.{}", module.name.as_str());
+        let output = run_ref_file_with_timeout(
+            &workspace,
+            &path,
+            &["--no-cache", "--module", &selector],
+            HOMOLOGICAL_ALGEBRA_TIMEOUT,
+        )
+        .unwrap_or_else(|error| panic!("{selector}: {error}"));
+        assert!(
+            output.status.success(),
+            "{selector}: {}",
+            output_details(&output)
+        );
+    }
 }
 
 #[test]

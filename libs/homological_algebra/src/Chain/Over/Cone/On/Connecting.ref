@@ -1,0 +1,88 @@
+\import \parent.\parent.\parent.At[C := C, z := previous k] \as Original;
+\import \parent.\parent.\parent.At[C := D, z := previous k] \as Target;
+\import \parent.\parent.\parent.Map[C := C, D := D].At[k := previous k] \as Given;
+\import \parent.\parent.\parent.Shift[C := C].Homology[k := k] \as Shift;
+\import \parent.\parent.\parent.At[C := Shifted.complex, z := k] \as ShiftHomology;
+\import Exact.At[s := sequence, k := k] \as Connecting;
+\import Modules.Biproduct[V := D.family.Carrier k, W := C.family.Carrier (previous k), left := D.family.space k, right := C.family.space (previous k)] \as Sum;
+\import Modules.Biproduct[V := D.family.Carrier (previous k), W := C.family.Carrier (previous (previous k)), left := D.family.space (previous k), right := C.family.space (previous (previous k))] \as After;
+\import std.Data[].Pair[].Prop[A := D.family.Carrier (previous k), B := C.family.Carrier (previous (previous k))] \as Pairs;
+\import Modules.Hom[V := D.family.Carrier k, W := D.family.Carrier (previous k), source := D.family.space k, target := D.family.space (previous k)] \as Differential;
+\import \parent.\parent.\parent.At[C := D, z := k] \as DCurrent;
+\import Modules.Laws[V := D.family.Carrier (previous k), space := D.family.space (previous k)] \as Left;
+\import algebra.Group[].Of[Carrier := D.family.Carrier (previous k), group := Left.additive] \as LeftGroup;
+\import Modules.Laws[V := C.family.Carrier (previous (previous k)), space := C.family.space (previous (previous k))] \as Right;
+\import algebra.Group[].Of[Carrier := C.family.Carrier (previous (previous k)), group := Right.additive] \as RightGroup;
+\definition lift(x: Original.Cycle): Sum.Carrier := #apply{Sum.secondInjection} x;
+\definition differential: \forall (x: Original.Cycle) ->
+  #apply{inclusion} (previous k) (#apply{(Given.cyclesMap f)} x) = #apply{complex.differential} k (lift x) :=
+  \fun (x: Original.Cycle) => Pairs.ext _ _
+    (sym!{{D.family.Carrier (previous k)}} _ _ (trans!{{D.family.Carrier (previous k)}} _ _ _
+      (congr!{{D.family.Carrier (previous k)} {D.family.Carrier (previous k)}}
+        (\fun (y: D.family.Carrier (previous k)) => #add{(D.family.space (previous k))} y (#apply{f} (previous k) x)) _ _
+        (Differential.zeroPreserved DCurrent.differential)) (LeftGroup.zeroLeft (#apply{f} (previous k) x))))
+    (sym!{{C.family.Carrier (previous (previous k))}} _ _ (trans!{{C.family.Carrier (previous (previous k))}} _ _ _
+      (congr!{{C.family.Carrier (previous (previous k))} {C.family.Carrier (previous (previous k))}}
+        (#neg{(C.family.space (previous (previous k)))}) _ _ (\bysub(C.family.Carrier (previous k), #carrier{Original.cycles}, x))) RightGroup.negZero));
+\definition onOriginalCycle: \forall (x: Original.Cycle) ->
+  #apply{Connecting.connecting} (#apply{#forward{Shift.isomorphism}} (Original.classOf x)) = #apply{(Given.induced f)} (Original.classOf x) :=
+  \fun (x: Original.Cycle) => trans!{Target.Homology} _ _ _
+    (congr!{{ShiftHomology.Homology} Target.Homology} (#apply{Connecting.connecting}) _ _ (Shift.onClass x))
+    (trans!{Target.Homology} _ _ _ (Connecting.onClass (#apply{#forward{Shift.cycleIsomorphism}} x))
+      (trans!{Target.Homology} _ _ _
+        (Connecting.onLift (#apply{#forward{Shift.cycleIsomorphism}} x) (lift x) (#apply{(Given.cyclesMap f)} x)
+          (\refl(x)) (differential x) (Given.preservesCycle f x))
+        (sym!{Target.Homology} _ _ (Given.onClass f x))));
+\definition natural: \forall (q: Original.Homology) ->
+  #apply{Connecting.connecting} (#apply{#forward{Shift.isomorphism}} q) = #apply{(Given.induced f)} q :=
+  Original.classInduction (\fun (q: Original.Homology) => #apply{Connecting.connecting} (#apply{#forward{Shift.isomorphism}} q) = #apply{(Given.induced f)} q) onOriginalCycle;
+
+\definition formula: \forall (q: ShiftHomology.Homology) ->
+  #apply{Connecting.connecting} q = #apply{(Given.induced f)} (#apply{#backward{Shift.isomorphism}} q) :=
+  \fun (q: ShiftHomology.Homology) => trans!{Target.Homology} _ _ _
+    (congr!{ShiftHomology.Homology Target.Homology} (#apply{Connecting.connecting}) q
+      (#apply{#forward{Shift.isomorphism}} (#apply{#backward{Shift.isomorphism}} q))
+      (sym!{ShiftHomology.Homology} _ _ (#rightInverse{Shift.isomorphism} q)))
+    (natural (#apply{#backward{Shift.isomorphism}} q));
+\definition injective: Given.Bijective[f] -> \forall (x, y: ShiftHomology.Homology) ->
+  #apply{Connecting.connecting} x = #apply{Connecting.connecting} y -> x = y :=
+  \fun (bijective: Given.Bijective[f])(x, y: ShiftHomology.Homology)(equal: _) =>
+    trans!{ShiftHomology.Homology} x (#apply{#forward{Shift.isomorphism}} (#apply{#backward{Shift.isomorphism}} x)) y
+      (sym!{ShiftHomology.Homology} _ _ (#rightInverse{Shift.isomorphism} x))
+      (trans!{ShiftHomology.Homology} _ _ _
+        (congr!{Original.Homology ShiftHomology.Homology} (#apply{#forward{Shift.isomorphism}}) _ _
+          (bijective.injective _ _ (trans!{Target.Homology} _ _ _ (sym!{Target.Homology} _ _ (formula x))
+            (trans!{Target.Homology} _ _ _ equal (formula y)))))
+        (#rightInverse{Shift.isomorphism} y));
+\definition onto: Given.Bijective[f] -> \forall (y: Target.Homology) ->
+  \exists { x: ShiftHomology.Homology \where #apply{Connecting.connecting} x = y } := \block {
+  \fun (bijective: Given.Bijective[f])(y: Target.Homology) \then
+  \takefrom x: \Cast[Original.Homology] ({ x: Original.Homology \where #apply{(Given.induced f)} x = y }) \by bijective.onto y \then
+  \return \exact(\into[ShiftHomology.Homology](#apply{#forward{Shift.isomorphism}} x,
+    { q: ShiftHomology.Homology \where #apply{Connecting.connecting} q = y }) \by {
+      trans!{Target.Homology} _ _ _ (natural x)
+        (\bysub(Original.Homology, { x: Original.Homology \where #apply{(Given.induced f)} x = y }, x))
+    }, \Cast[ShiftHomology.Homology] ({ q: ShiftHomology.Homology \where #apply{Connecting.connecting} q = y }))
+};
+\definition originalInjective:
+  (\forall (x, y: ShiftHomology.Homology) -> #apply{Connecting.connecting} x = #apply{Connecting.connecting} y -> x = y) ->
+  \forall (x, y: Original.Homology) -> #apply{(Given.induced f)} x = #apply{(Given.induced f)} y -> x = y :=
+  \fun (injective: _)(x, y: Original.Homology)(equal: _) => trans!{Original.Homology} x
+    (#apply{#backward{Shift.isomorphism}} (#apply{#forward{Shift.isomorphism}} x)) y
+    (sym!{Original.Homology} _ _ (#leftInverse{Shift.isomorphism} x))
+    (trans!{Original.Homology} _ _ _
+      (congr!{ShiftHomology.Homology Original.Homology} (#apply{#backward{Shift.isomorphism}}) _ _
+        (injective _ _ (trans!{Target.Homology} _ _ _ (natural x)
+          (trans!{Target.Homology} _ _ _ equal (sym!{Target.Homology} _ _ (natural y))))))
+      (#leftInverse{Shift.isomorphism} y));
+\definition originalOnto:
+  (\forall (y: Target.Homology) -> \exists { x: ShiftHomology.Homology \where #apply{Connecting.connecting} x = y }) ->
+  \forall (y: Target.Homology) -> \exists { x: Original.Homology \where #apply{(Given.induced f)} x = y } := \block {
+  \fun (onto: _)(y: Target.Homology) \then
+  \takefrom x: \Cast[ShiftHomology.Homology] ({ x: ShiftHomology.Homology \where #apply{Connecting.connecting} x = y }) \by onto y \then
+  \return \exact(\into[Original.Homology](#apply{#backward{Shift.isomorphism}} x,
+    { q: Original.Homology \where #apply{(Given.induced f)} q = y }) \by {
+      trans!{Target.Homology} _ _ _ (sym!{Target.Homology} _ _ (formula x))
+        (\bysub(ShiftHomology.Homology, { x: ShiftHomology.Homology \where #apply{Connecting.connecting} x = y }, x))
+    }, \Cast[Original.Homology] ({ q: Original.Homology \where #apply{(Given.induced f)} q = y }))
+};

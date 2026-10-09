@@ -1,0 +1,32 @@
+\import \parent.\parent.FiniteHom[n := m, W := R, target := Modules.scalarModule] \as SourceDual;
+\import \parent.\parent.FiniteHom[n := n, W := R, target := Modules.scalarModule] \as TargetDual;
+\import Modules.Hom[V := Codomain.Carrier, W := R, source := Codomain.space, target := Modules.scalarModule] \as SourceMaps;
+\import Modules.Hom[V := Domain.Carrier, W := R, source := Domain.space, target := Modules.scalarModule] \as TargetMaps;
+\import SourceMaps.Composition[U := Domain.Carrier, domain := Domain.space] \as Composition;
+\definition precompose(a: Matrix)(f: SourceMaps.Map): TargetMaps.Map := Composition.compose f (linear a);
+\import \parent.\parent.HomSpace[V := Codomain.Carrier, W := R, source := Codomain.space, target := Modules.scalarModule] \as SourceSpace;
+\import \parent.\parent.HomSpace[V := Domain.Carrier, W := R, source := Domain.space, target := Modules.scalarModule] \as TargetSpace;
+\definition pullback(a: Matrix): Modules.Hom[V := SourceMaps.Map, W := TargetMaps.Map, source := SourceSpace.space, target := TargetSpace.space].Map := Modules.Hom[V := SourceMaps.Map, W := TargetMaps.Map, source := SourceSpace.space, target := TargetSpace.space].Map {
+  apply := precompose a,
+  addition := \fun (f, g: SourceMaps.Map) => TargetMaps.ext (precompose a (SourceSpace.add f g)) (TargetSpace.add (precompose a f) (precompose a g)) (\fun (x: Domain.Carrier) => \refl(#add{ordinaryRing} (#apply{f} (apply a x)) (#apply{g} (apply a x)))),
+  scalar := \fun (r: R)(f: SourceMaps.Map) => TargetMaps.ext (precompose a (SourceSpace.scale r f)) (TargetSpace.scale r (precompose a f)) (\fun (x: Domain.Carrier) => \refl(#mul{ordinaryRing} r (#apply{f} (apply a x)))),
+};
+\import Modules.Sums[I := Finite.Fin m] \as ScalarSums;
+\import ScalarSums.Prop[] \as ScalarLaws;
+\import ScalarSums.Vector[V := Codomain.Carrier, space := Codomain.space].Mapping[W := R, target := Modules.scalarModule] \as Evaluation;
+\import \parent.Representation[] \as Entries;
+\import \parent.Transpose[] \as Transpose;
+\import \parent.\parent.Matrix[m := n, n := m] \as Reversed;
+\definition onCoordinate: \forall (a: Matrix)(f: SourceMaps.Map)(j: Finite.Fin n) ->
+  TargetDual.evaluate (precompose a f) j = Reversed.apply (Transpose.transpose a) (SourceDual.evaluate f) j :=
+    \fun (a: Matrix)(f: SourceMaps.Map)(j: Finite.Fin n) => trans!{R} _ _ _
+      (congr!{Codomain.Carrier R} (#apply{f}) _ _ (sym!{Codomain.Carrier} _ _ (Codomain.decomposition (apply a (Domain.basis j)))))
+      (trans!{R} _ _ _
+        (Evaluation.law f (Finite.elements m) (\fun (i: Finite.Fin m) => #smul{Codomain.space} (apply a (Domain.basis j) i) (Codomain.basis i)))
+        (ScalarLaws.congruent (Finite.elements m)
+          (\fun (i: Finite.Fin m) => #apply{f} (#smul{Codomain.space} (apply a (Domain.basis j) i) (Codomain.basis i)))
+          (\fun (i: Finite.Fin m) => #mul{ordinaryRing} (a i j) (#apply{f} (Codomain.basis i)))
+          (\fun (i: Finite.Fin m) => trans!{R} _ _ _ (#scalar{f} (apply a (Domain.basis j) i) (Codomain.basis i))
+            (congr!{R R} (\fun (r: R) => #mul{ordinaryRing} r (#apply{f} (Codomain.basis i))) _ _ (Entries.onBasis a i j)))));
+\definition onCoordinates: \forall (a: Matrix)(f: SourceMaps.Map) -> TargetDual.evaluate (precompose a f) = Reversed.apply (Transpose.transpose a) (SourceDual.evaluate f) :=
+  \fun (a: Matrix)(f: SourceMaps.Map) => \axiom:funext(TargetDual.evaluate (precompose a f), Reversed.apply (Transpose.transpose a) (SourceDual.evaluate f), onCoordinate a f);

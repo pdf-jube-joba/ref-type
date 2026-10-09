@@ -1,0 +1,39 @@
+\import Sub.Of[S := T] \as Inside;
+\import \parent.\parent.Hom[V := Inside.Carrier, W := Quotient.Carrier, source := Inside.moduleSpace, target := Quotient.moduleSpace] \as Linear;
+\definition projection: Linear.Map := Linear.Map {
+  apply := \fun (x: Inside.Carrier) => Quotient.class x,
+  addition := \fun (x, y: Inside.Carrier) => sym!{Quotient.Carrier} _ _ (Quotient.addOnClass x y),
+  scalar := \fun (a: R)(x: Inside.Carrier) => sym!{Quotient.Carrier} _ _ (Quotient.scaleOnClass a x),
+};
+\import QuotientSub.Image[U := Inside.Carrier, source := Inside.moduleSpace] \as Images;
+\definition image: QuotientSub.Submodule := Images.image projection;
+\definition lift: \forall (x: V) -> Sub.Member T x -> QuotientSub.Member image (Quotient.class x) :=
+  \fun (x: V)(member: Sub.Member T x) => Images.member projection (\into[V](x, #carrier{T}) \by { member });
+\definition reflects: Sub.Included S T -> \forall (x: V) -> QuotientSub.Member image (Quotient.class x) -> Sub.Member T x :=
+  \fun (contains: Sub.Included S T)(x: V)(member: QuotientSub.Member image (Quotient.class x)) =>
+    Images.eliminate projection (Quotient.class x) (Sub.Member T x)
+      (\fun (y: Inside.Carrier)(equal: Quotient.class y = Quotient.class x) =>
+        \idelim Group.add (Group.difference x y) y = x \with z: V => Sub.Member T z \by {
+          base: #addition{T} (Group.difference x y) y
+            (contains (Group.difference x y) (Quotient.relatedOfClassEq x y (sym!{Quotient.Carrier} _ _ equal)))
+            (\bysub(V, #carrier{T}, y)),
+          equality: Group.addDifference x y
+        }) member;
+\definition included(U: QuotientSub.Submodule): T = pullback U -> \forall (y: Quotient.Carrier) -> QuotientSub.Member image y -> QuotientSub.Member U y :=
+  \fun (same: T = pullback U)(y: Quotient.Carrier)(member: QuotientSub.Member image y) =>
+    Images.eliminate projection y (QuotientSub.Member U y)
+      (\fun (x: Inside.Carrier)(equal: Quotient.class x = y) => \idelim Quotient.class x = y
+        \with z: Quotient.Carrier => QuotientSub.Member U z \by {
+          base: \idelim T = pullback U \with W: Sub.Submodule => Sub.Member W x \by {
+            base: \bysub(V, #carrier{T}, x), equality: same
+          }, equality: equal
+        }) member;
+\definition covers(U: QuotientSub.Submodule): T = pullback U -> \forall (y: Quotient.Carrier) -> QuotientSub.Member U y -> QuotientSub.Member image y := \block {
+  \fun (same: T = pullback U)(y: Quotient.Carrier)(member: QuotientSub.Member U y) \then
+  \takefrom x: \Cast[V] ({ x: V \where Quotient.class x = y }) \by Quotient.onto y \then
+  \let equal: Quotient.class x = y := \bysub(V, { x: V \where Quotient.class x = y }, x) \then
+  \let inPullback: Sub.Member (pullback U) x := \idelim y = Quotient.class x
+    \with z: Quotient.Carrier => QuotientSub.Member U z \by { base: member, equality: sym!{Quotient.Carrier} _ _ equal } \then
+  \let inT: Sub.Member T x := \idelim pullback U = T \with W: Sub.Submodule => Sub.Member W x \by { base: inPullback, equality: sym!{Sub.Submodule} _ _ same } \then
+  \return Images.introduce projection y (\into[V](x, #carrier{T}) \by { inT }) equal
+};

@@ -1,0 +1,40 @@
+\import N.Division[].Program[] \as Programs;
+\import N.Division[].ProgramProp[] \as Correspondence;
+\definition T: \VType := \U(State -> State);
+\definition program: T := \thunk (\cfun (s: State) => \match s \in State \with {
+  | state a b u v x y: \match b \in N.Nat \with {
+    | zero: \return(State::state a N.Nat::zero u v x y)
+    | succ d: \program {
+        \bind divPartial: \U(N.Nat -> N.Nat) <- ((\force Programs.div) a) \then
+        \bind q: N.Nat <- (\force divPartial) (N.Nat::succ d) \then
+        \bind modPartial: \U(N.Nat -> N.Nat) <- ((\force Programs.mod) a) \then
+        \bind r: N.Nat <- (\force modPartial) (N.Nat::succ d) \then
+        \bind multiply: \U(I.Int -> I.Int) <- ((\force I.Mul.program) (I.Int::ofNat q)) \then
+        \bind qx: I.Int <- (\force multiply) x \then
+        \bind qy: I.Int <- (\force multiply) y \then
+        \bind subtractU: \U(I.Int -> I.Int) <- ((\force I.Sub.program) u) \then
+        \bind subtractV: \U(I.Int -> I.Int) <- ((\force I.Sub.program) v) \then
+        \bind nextU: I.Int <- (\force subtractU) qx \then
+        \bind nextV: I.Int <- (\force subtractV) qy \then
+        \return(State::state (N.Nat::succ d) r x y nextU nextV)
+      }
+    }
+});
+\definition raw(a, b: N.Nat^)(u, v, x, y: I.Int^): State^ := State^::state b (Programs.mod^ a b) x y
+  (I.Sub.program^ u (I.Mul.program^ (natural (Programs.div^ a b)) x))
+  (I.Sub.program^ v (I.Mul.program^ (natural (Programs.div^ a b)) y));
+\definition rawMatches: \forall (a, b: N.Nat^)(u, v, x, y: I.Int^) -> raw a b u v x y = advance a b u v x y :=
+  \fun (a, b: N.Nat^)(u, v, x, y: I.Int^) => eq_reason!{{raw a b u v x y}
+    "=" {State^::state b (Programs.mod^ a b) x y (I.Sub.program^ u (I.Mul.program^ (natural (Division.div a b)) x)) (I.Sub.program^ v (I.Mul.program^ (natural (Division.div a b)) y))} "by" {congr!{Correspondence.Div.T^ State^} (\fun (operation: Correspondence.Div.T^) => State^::state b (Programs.mod^ a b) x y (I.Sub.program^ u (I.Mul.program^ (natural (operation a b)) x)) (I.Sub.program^ v (I.Mul.program^ (natural (operation a b)) y))) _ _ Correspondence.Div.coherence}
+    "=" {State^::state b (Division.mod a b) x y (I.Sub.program^ u (I.Mul.program^ (natural (Division.div a b)) x)) (I.Sub.program^ v (I.Mul.program^ (natural (Division.div a b)) y))} "by" {congr!{Correspondence.Mod.T^ State^} (\fun (operation: Correspondence.Mod.T^) => State^::state b (operation a b) x y (I.Sub.program^ u (I.Mul.program^ (natural (Division.div a b)) x)) (I.Sub.program^ v (I.Mul.program^ (natural (Division.div a b)) y))) _ _ Correspondence.Mod.coherence}
+    "=" {State^::state b (Division.mod a b) x y (I.Sub.program^ u (I.Mul.specification (natural (Division.div a b)) x)) (I.Sub.program^ v (I.Mul.specification (natural (Division.div a b)) y))} "by" {congr!{I.Mul.T^ State^} (\fun (operation: I.Mul.T^) => State^::state b (Division.mod a b) x y (I.Sub.program^ u (operation (natural (Division.div a b)) x)) (I.Sub.program^ v (operation (natural (Division.div a b)) y))) _ _ I.Mul.coherence}
+    "=" {State^::state b (Division.mod a b) x y (I.Sub.specification u (I.Mul.specification (natural (Division.div a b)) x)) (I.Sub.specification v (I.Mul.specification (natural (Division.div a b)) y))} "by" {congr!{I.Sub.T^ State^} (\fun (operation: I.Sub.T^) => State^::state b (Division.mod a b) x y (operation u (I.Mul.specification (natural (Division.div a b)) x)) (operation v (I.Mul.specification (natural (Division.div a b)) y))) _ _ I.Sub.coherence}};
+\definition matches: \forall (s: State^) -> program^ s = step s :=
+  \induction (s: State^) \return program^ s = step s \with {
+    | state: \fun (a, b: N.Nat^)(u, v, x, y: I.Int^) =>
+        (\induction (b: N.Nat^) \return program^ (State^::state a b u v x y) = step (State^::state a b u v x y) \with {
+          | zero: \refl(State^::state a N.Nat^::zero u v x y)
+          | succ: \fun (d: N.Nat^)(before: _) => rawMatches a (N.Nat^::succ d) u v x y
+        }) b
+  };
+\definition coherence: program^ = step := \axiom:funext(program^, step, matches);

@@ -1,0 +1,41 @@
+\import \parent.\parent.At[C := C, z := k] \as Source;
+\import \parent.\parent.At[C := D, z := k] \as Target;
+\import Maps.At[k := k] \as Induced;
+\import Modules.Laws[V := D.family.Carrier k, space := D.family.space k] \as TargetLaws;
+\import algebra.Group[].Of[Carrier := D.family.Carrier k, group := TargetLaws.additive] \as Group;
+\import Modules.Hom[V := C.family.Carrier (previous k), W := D.family.Carrier (next (previous k)), source := C.family.space (previous k), target := D.family.space (next (previous k))] \as ShiftMaps;
+\definition linear(f, g: Maps.Map)(h: Homotopy f g): ShiftMaps.Map := ShiftMaps.Map {
+  apply := #apply{h} (previous k), addition := #addition{h} (previous k), scalar := #scalar{h} (previous k),
+};
+\definition shiftedZero: \forall (f, g: Maps.Map)(h: Homotopy f g) ->
+  shifted h k (#zero{(C.family.space (previous k))}) = #zero{(D.family.space k)} :=
+  \fun (f, g: Maps.Map)(h: Homotopy f g) => trans!{{D.family.Carrier k}} _ _ _
+    (congr!{{D.family.Carrier (next (previous k))} {D.family.Carrier k}}
+      (Transport.cast D.family.Carrier (next (previous k)) k (nextPrevious k)) _ _ (ShiftMaps.zeroPreserved (linear f g h)))
+    (Transport.pointNatural D.family.Carrier (\fun (z: Degree) => #zero{(D.family.space z)}) (next (previous k)) k (nextPrevious k));
+\definition onCycle: \forall (f, g: Maps.Map)(h: Homotopy f g)(x: Source.Cycle) ->
+  #add{(D.family.space k)} (#apply{f} k x) (#neg{(D.family.space k)} (#apply{g} k x)) = TargetPrior.value k (#apply{h} k x) :=
+  \fun (f, g: Maps.Map)(h: Homotopy f g)(x: Source.Cycle) => trans!{{D.family.Carrier k}} _ _ _ (#equation{h} k x)
+    (trans!{{D.family.Carrier k}} _ _ _
+      (congr!{{D.family.Carrier k} {D.family.Carrier k}} (#add{(D.family.space k)} (TargetPrior.value k (#apply{h} k x))) _ _
+        (trans!{{D.family.Carrier k}} _ _ _
+          (congr!{{C.family.Carrier (previous k)} {D.family.Carrier k}} (shifted h k) _ _
+            (\bysub(C.family.Carrier k, #carrier{Source.cycles}, x))) (shiftedZero f g h)))
+      (Group.zeroRight (TargetPrior.value k (#apply{h} k x))));
+\import Modules.Of[V := D.family.Carrier k, space := D.family.space k].Submodule[] \as Submodules;
+\import Submodules.Image[U := D.family.Carrier (next k), source := D.family.space (next k)] \as Images;
+\definition differenceBoundary: \forall (f, g: Maps.Map)(h: Homotopy f g)(x: Source.Cycle) ->
+  Submodules.Member Target.boundaries (#add{(D.family.space k)} (#apply{f} k x) (#neg{(D.family.space k)} (#apply{g} k x))) :=
+  \fun (f, g: Maps.Map)(h: Homotopy f g)(x: Source.Cycle) =>
+    \idelim #apply{Target.prior} (#apply{h} k x) = #add{(D.family.space k)} (#apply{f} k x) (#neg{(D.family.space k)} (#apply{g} k x))
+      \with y: D.family.Carrier k => Submodules.Member Target.boundaries y \by {
+        base: Images.member Target.prior (#apply{h} k x), equality: sym!{{D.family.Carrier k}} _ _ (onCycle f g h x)
+      };
+\definition onHomology: \forall (f, g: Maps.Map)(h: Homotopy f g)(q: Source.Homology) ->
+  #apply{(Induced.induced f)} q = #apply{(Induced.induced g)} q :=
+  \fun (f, g: Maps.Map)(h: Homotopy f g) => Source.classInduction
+    (\fun (q: Source.Homology) => #apply{(Induced.induced f)} q = #apply{(Induced.induced g)} q)
+    (\fun (x: Source.Cycle) => trans!{Target.Homology} _ _ _ (Induced.onClass f x)
+      (trans!{Target.Homology} _ _ _
+        (Target.classEqual (#apply{(Induced.cyclesMap f)} x) (#apply{(Induced.cyclesMap g)} x) (differenceBoundary f g h x))
+        (sym!{Target.Homology} _ _ (Induced.onClass g x))));

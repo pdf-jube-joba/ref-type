@@ -1,0 +1,14 @@
+\definition T: \VType := \U(Runtime -> N.Nat -> N.Nat -> I.Int -> Runtime);
+\definition program: T := \thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (r: N.Nat) => \return(\thunk (\cfun (s: N.Nat) => \return(\thunk (\cfun (c: I.Int) => \program {
+    \bind transposed: Runtime <- (\force Transpose.program) a \then
+    \bind operation0: \U(N.Nat -> N.Nat -> I.Int -> Runtime) <- (\force Rows.Add.program) transposed \then
+    \bind operation1: \U(N.Nat -> I.Int -> Runtime) <- (\force operation0) r \then
+    \bind operation2: \U(I.Int -> Runtime) <- (\force operation1) s \then
+    \bind operation3: Runtime <- (\force operation2) c \then
+    \bind result: Runtime <- (\force Transpose.program) operation3 \then
+    \return result
+  })))))));
+\definition matches: \forall (a: Runtime^)(r: N.Nat^)(s: N.Nat^)(c: I.Int^) -> program^ a r s c = add a r s c :=
+  \fun (a: Runtime^)(r: N.Nat^)(s: N.Nat^)(c: I.Int^) => congr!{Rows.Add.T^ Runtime^}
+    (\fun (f: Rows.Add.T^) => Transpose.transpose (f (Transpose.transpose a) r s c)) Rows.Add.program^ Rows.Add.specification Rows.Add.coherence;
+\definition coherence: program^ = add := \axiom:funext(program^, add, \fun (a: Runtime^) => \axiom:funext(program^ a, add a, \fun (r: N.Nat^) => \axiom:funext(program^ a r, add a r, \fun (s: N.Nat^) => \axiom:funext(program^ a r s, add a r s, \fun (c: I.Int^) => matches a r s c))));

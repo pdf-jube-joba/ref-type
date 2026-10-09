@@ -1,0 +1,20 @@
+\definition memberIsZero: \forall (zero: d = Arithmetic.zero)(x: I.Int^) -> Submodules.Member multiples x -> x = Arithmetic.zero :=
+  \fun (zero: d = Arithmetic.zero)(x: I.Int^)(member: _) =>
+    Images.eliminate multiplication x (x = Arithmetic.zero)
+      (\fun (q: I.Int^)(equal: Arithmetic.mul d q = x) => trans!{I.Int^} x (Arithmetic.mul d q) Arithmetic.zero
+        (sym!{I.Int^} (Arithmetic.mul d q) x equal)
+        (trans!{I.Int^} (Arithmetic.mul d q) (Arithmetic.mul Arithmetic.zero q) Arithmetic.zero
+          (congr!{I.Int^ I.Int^} (\fun (value: I.Int^) => Arithmetic.mul value q) d Arithmetic.zero zero)
+          (#zeroAbsorbsLeft{(#semiring{Rings.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing})} q))) member;
+\definition classZeroIsZero: \forall (zero: d = Arithmetic.zero)(x: I.Int^) -> class x = #zero{space} -> x = Arithmetic.zero :=
+  \fun (zero: d = Arithmetic.zero)(x: I.Int^)(equal: _) => memberIsZero zero x (classZeroMember x equal);
+\import Quotient.ZeroQuotient[] \as Inverse;
+\definition inverse(zero: d = Arithmetic.zero): Modules.Hom[V := Carrier, W := I.Int^, source := space, target := Modules.scalarModule].Map :=
+  Inverse.inverse (memberIsZero zero);
+\import Modules.Isomorphism[V := I.Int^, W := Carrier, source := Modules.scalarModule, target := space] \as Iso;
+\definition data(zero: d = Arithmetic.zero): Iso.Data := Iso.Data { forward := projection, backward := inverse zero };
+\definition laws: \forall (zero: d = Arithmetic.zero) -> Iso.Laws[data zero] := \fun (zero: d = Arithmetic.zero) => Iso.Laws[data zero] {
+  leftInverse := Inverse.inverseClass (memberIsZero zero),
+  rightInverse := Inverse.classInverse (memberIsZero zero),
+};
+\definition isomorphism(zero: d = Arithmetic.zero): Iso.Isomorphism := \into[Iso.Data](data zero, { data: Iso.Data \where Iso.Laws[data] }) \by { laws zero };

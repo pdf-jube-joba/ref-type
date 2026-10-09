@@ -1,0 +1,51 @@
+\import Modules.Biproduct[V := P.family.Carrier (Nat.Nat^::succ n), W := Q.family.Carrier (Nat.Nat^::succ n), left := P.family.space (Nat.Nat^::succ n), right := Q.family.space (Nat.Nat^::succ n)] \as Source;
+\import Modules.Biproduct[V := P.family.Carrier n, W := Q.family.Carrier n, left := P.family.space n, right := Q.family.space n] \as Target;
+\import Modules.Biproduct[V := P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)), W := Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)), left := P.family.space (Nat.Nat^::succ (Nat.Nat^::succ n)), right := Q.family.space (Nat.Nat^::succ (Nat.Nat^::succ n))] \as Before;
+\import std.Data[].Pair[].Prop[A := P.family.Carrier (Nat.Nat^::succ n), B := Q.family.Carrier (Nat.Nat^::succ n)] \as Pairs;
+\import Modules.Laws[V := P.family.Carrier (Nat.Nat^::succ n), space := P.family.space (Nat.Nat^::succ n)] \as Left;
+\import algebra.Group[].Of[Carrier := P.family.Carrier (Nat.Nat^::succ n), group := Left.additive] \as LeftGroup;
+\import Modules.Laws[V := P.family.Carrier n, space := P.family.space n] \as AfterLeft;
+\import algebra.Group[].Of[Carrier := P.family.Carrier n, group := AfterLeft.additive] \as AfterGroup;
+\import Modules.Hom[V := P.family.Carrier (Nat.Nat^::succ n), W := P.family.Carrier n, source := P.family.space (Nat.Nat^::succ n), target := P.family.space n] \as Maps;
+\definition original: Maps.Map := Maps.Map {
+  apply := #apply{P.differential} n, addition := #addition{P.laws} n, scalar := #scalar{P.laws} n,
+};
+\definition correctionDifferential: \forall (x: P.family.Carrier (Nat.Nat^::succ n))(y: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) ->
+  #apply{P.differential} n (LeftGroup.difference x (#apply{t} (Nat.Nat^::succ n) y)) =
+  #add{(P.family.space n)} (#apply{P.differential} n x) (#apply{t} n (#apply{Q.differential} (Nat.Nat^::succ n) y)) :=
+  \fun (x: P.family.Carrier (Nat.Nat^::succ n))(y: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => trans!{{P.family.Carrier n}} _ _ _
+    (Maps.differencePreserved original x (#apply{t} (Nat.Nat^::succ n) y))
+    (trans!{{P.family.Carrier n}} _ _ _
+      (congr!{{P.family.Carrier n} {P.family.Carrier n}} (AfterGroup.difference (#apply{P.differential} n x)) _ _ (Middle.At[n := n].anticommuting y))
+      (congr!{{P.family.Carrier n} {P.family.Carrier n}} (#add{(P.family.space n)} (#apply{P.differential} n x)) _ _
+        (AfterGroup.negNeg (#apply{t} n (#apply{Q.differential} (Nat.Nat^::succ n) y)))));
+\definition correctionClosed: \forall (z: Source.Carrier)(y: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) ->
+  #apply{Middle.complex.differential} n z = #zero{Target.space} -> #apply{Q.differential} (Nat.Nat^::succ n) y = Source.second z ->
+  #apply{P.differential} n (LeftGroup.difference (Source.first z) (#apply{t} (Nat.Nat^::succ n) y)) = #zero{(P.family.space n)} :=
+  \fun (z: Source.Carrier)(y: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)))(closed: _)(boundary: _) => trans!{{P.family.Carrier n}} _ _ _
+    (correctionDifferential (Source.first z) y)
+    (trans!{{P.family.Carrier n}} _ _ _
+      (congr!{{P.family.Carrier n} {P.family.Carrier n}} (#add{(P.family.space n)} (#apply{P.differential} n (Source.first z))) _ _
+        (congr!{{Q.family.Carrier (Nat.Nat^::succ n)} {P.family.Carrier n}} (#apply{t} n) _ _ boundary))
+      (congr!{Target.Carrier {P.family.Carrier n}} Target.first _ _ closed));
+\definition exact: \forall (z: Source.Carrier) -> #apply{Middle.complex.differential} n z = #zero{Target.space} ->
+  \exists { w: Before.Carrier \where #apply{Middle.complex.differential} (Nat.Nat^::succ n) w = z } := \block {
+  \fun (z: Source.Carrier)(closed: _) \then
+  \let rightClosed: #apply{Q.differential} n (Source.second z) = #zero{(Q.family.space n)} :=
+    congr!{Target.Carrier {Q.family.Carrier n}} Target.second _ _ closed \then
+  \takefrom y: \Cast[Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))]
+    ({ y: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{Q.differential} (Nat.Nat^::succ n) y = Source.second z }) \by #exact{q} n (Source.second z) rightClosed \then
+  \let boundary: #apply{Q.differential} (Nat.Nat^::succ n) y = Source.second z :=
+    \bysub(Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)), { y: Q.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{Q.differential} (Nat.Nat^::succ n) y = Source.second z }, y) \then
+  \takefrom x: \Cast[P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))]
+    ({ x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{P.differential} (Nat.Nat^::succ n) x = LeftGroup.difference (Source.first z) (#apply{t} (Nat.Nat^::succ n) y) })
+    \by #exact{p} n (LeftGroup.difference (Source.first z) (#apply{t} (Nat.Nat^::succ n) y)) (correctionClosed z y closed boundary) \then
+  \return \exact(\into[Before.Carrier](Before.make x y, { w: Before.Carrier \where #apply{Middle.complex.differential} (Nat.Nat^::succ n) w = z }) \by {
+    Pairs.ext (#apply{Middle.complex.differential} (Nat.Nat^::succ n) (Before.make x y)) z
+      (trans!{{P.family.Carrier (Nat.Nat^::succ n)}} _ _ _
+        (congr!{{P.family.Carrier (Nat.Nat^::succ n)} {P.family.Carrier (Nat.Nat^::succ n)}}
+          (\fun (v: P.family.Carrier (Nat.Nat^::succ n)) => #add{(P.family.space (Nat.Nat^::succ n))} v (#apply{t} (Nat.Nat^::succ n) y)) _ _
+          (\bysub(P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)), { x: P.family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n)) \where #apply{P.differential} (Nat.Nat^::succ n) x = LeftGroup.difference (Source.first z) (#apply{t} (Nat.Nat^::succ n) y) }, x)))
+        (LeftGroup.addDifference (Source.first z) (#apply{t} (Nat.Nat^::succ n) y))) boundary
+  }, \Cast[Before.Carrier] ({ w: Before.Carrier \where #apply{Middle.complex.differential} (Nat.Nat^::succ n) w = z }))
+};

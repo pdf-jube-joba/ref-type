@@ -1,0 +1,25 @@
+\definition T: \VType := \U(Nat -> Predicate -> Result -> Position);
+\definition program: T := \thunk (\cfun (cols: Nat) => \return(\thunk (\cfun (p: Predicate) => \return(\thunk (\cfun (result: Result) => \match result \in Result \with {
+  | missing: \return Position::empty
+  | found i: \program {
+      \bind row: \U(Nat -> B.Bool) <- (\force p) i \then
+      \bind find: \U(\U(Nat -> B.Bool) -> Result) <- (\force Find.program) cols \then
+      \bind result: Result <- (\force find) row \then
+      \bind choice: \U(Result -> Position) <- (\force Choice.program) i \then
+      \bind position: Position <- (\force choice) result \then
+      \return position
+    }
+})))));
+\definition chosen(cols: Nat^)(p: RowPredicate)(i: Nat^): Position^ := chooseRow i (Find.program^ cols (p i));
+\definition foundMatch: \forall (cols: Nat^)(p: RowPredicate)(i: Nat^) -> program^ cols p (Result^::found i) = choose cols p (Result^::found i) :=
+  \fun (cols: Nat^)(p: RowPredicate)(i: Nat^) => trans!{Position^} (program^ cols p (Result^::found i)) (chosen cols p i) (choose cols p (Result^::found i))
+    (congr!{Choice.T^ Position^} (\fun (f: Choice.T^) => f i (Find.program^ cols (p i))) Choice.program^ Choice.specification Choice.coherence)
+    (congr!{Find.T^ Position^} (\fun (f: Find.T^) => chooseRow i (f cols (p i))) Find.program^ Find.specification Find.coherence);
+\definition matches: \forall (cols: Nat^)(p: RowPredicate)(result: Result^) -> program^ cols p result = choose cols p result :=
+  \fun (cols: Nat^)(p: RowPredicate) => \induction (result: Result^) \return program^ cols p result = choose cols p result \with {
+    | missing: \refl(Position^::empty)
+    | found: foundMatch cols p
+  };
+\definition coherence: program^ = choose := \axiom:funext(program^, choose,
+  \fun (cols: Nat^) => \axiom:funext(program^ cols, choose cols,
+    \fun (p: RowPredicate) => \axiom:funext(program^ cols p, choose cols p, matches cols p)));

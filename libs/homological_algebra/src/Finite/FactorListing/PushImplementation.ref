@@ -1,0 +1,26 @@
+\definition T: \VType := \U(I.Int -> CyclicFactors -> CyclicFactors);
+\definition unitProgram: Unit.T := Unit.program;
+\definition program: T := \thunk (\cfun (d: I.Int) => \return (\thunk (\cfun (xs: CyclicFactors) => \program {
+  \bind b: B.Bool <- (\force unitProgram) d \then
+  \bind result: CyclicFactors <- \match b \in B.Bool \with {
+    | false : \return (CyclicFactors::factor d xs)
+    | true : \return xs
+  } \then
+  \return result
+})));
+\definition pointwise: \forall (d: I.Int^)(xs: CyclicFactors^) -> program^ d xs = push d xs :=
+  \induction (d: I.Int^) \return \forall (xs: CyclicFactors^) -> program^ d xs = push d xs \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (xs: CyclicFactors^) ->
+        program^ (I.Int^::ofNat n) xs = push (I.Int^::ofNat n) xs \with {
+        | zero: \fun (xs: CyclicFactors^) => \refl(CyclicFactors^::factor (I.Int^::ofNat N.Nat^::zero) xs)
+        | succ: \fun (n: N.Nat^)(before: _) => (\induction (n: N.Nat^) \return \forall (xs: CyclicFactors^) ->
+            program^ (I.Int^::ofNat (N.Nat^::succ n)) xs = push (I.Int^::ofNat (N.Nat^::succ n)) xs \with {
+            | zero: \fun (xs: CyclicFactors^) => \refl(xs)
+            | succ: \fun (n: N.Nat^)(before: _)(xs: CyclicFactors^) =>
+                \refl(CyclicFactors^::factor (I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ n))) xs)
+          }) n
+      }
+    | negSucc: \fun (n: N.Nat^)(xs: CyclicFactors^) => \refl(CyclicFactors^::factor (I.Int^::negSucc n) xs)
+  };
+\definition coherence: program^ = push := \axiom:funext(program^, push,
+  \fun (d: I.Int^) => \axiom:funext(program^ d, push d, pointwise d));

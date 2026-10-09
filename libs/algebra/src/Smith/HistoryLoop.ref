@@ -1,0 +1,25 @@
+\definition step: \U(HistoryState ~> \F(\RunStep[HistoryState, Runtime])) := \thunk (\cfun (state: HistoryState) => \match state \in HistoryState \with {
+  | pending history handler after original: \match history \in History \with {
+      | empty: \program {
+          \bind result: Runtime <- (\force after) original \then
+          \return(\finish[HistoryState, Runtime](result))
+        }
+      | prepend operation tail: \return(\continue[HistoryState, Runtime](HistoryState::pending tail handler
+          (\thunk (\cfun (a: Runtime) => \program {
+            \bind transformation: Transformer <- (\force handler) operation \then
+            \bind changed: Runtime <- (\force transformation) a \then
+            \bind result: Runtime <- (\force after) changed \then
+            \return result
+          })) original))
+    }
+});
+\import std.Logic[].Termination[State := HistoryState^, Output := Runtime^, step := step^] \as Termination;
+\definition terminates: \forall (history: History^)(handler: Handler^)(after: Transformer^)(original: Runtime^) -> Termination.Holds (HistoryState^::pending history handler after original) :=
+  \induction (history: History^) \return \forall (handler: Handler^)(after: Transformer^)(original: Runtime^) -> Termination.Holds (HistoryState^::pending history handler after original) \with {
+    | empty: \fun (handler: Handler^)(after: Transformer^)(original: Runtime^) => Termination.intro (HistoryState^::pending History^::empty handler after original) Termination.trivial
+    | prepend: \fun (operation: Operation^)(history: History^)(previous: _)(handler: Handler^)(after: Transformer^)(original: Runtime^) =>
+        Termination.intro (HistoryState^::pending (History^::prepend operation history) handler after original)
+          (previous handler (\fun (a: Runtime^) => after (handler operation a)) original)
+  };
+\definition certificate: \forall (state: HistoryState^) -> Programs.Terminates HistoryState^ Runtime^ step^ state :=
+  \induction (state: HistoryState^) \return Termination.Holds state \with { | pending: terminates };

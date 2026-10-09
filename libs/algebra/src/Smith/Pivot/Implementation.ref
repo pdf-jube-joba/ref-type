@@ -1,0 +1,19 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> N.Nat -> Runtime -> Runtime);
+\definition program: T := \thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \program {
+  \bind targetRow: \U(N.Nat -> N.Nat -> Runtime) <- (\force rowSwapProgram) a \then
+  \bind otherRow: \U(N.Nat -> Runtime) <- (\force targetRow) k \then
+  \bind swapped: Runtime <- (\force otherRow) i \then
+  \bind targetCol: \U(N.Nat -> N.Nat -> Runtime) <- (\force columnSwapProgram) swapped \then
+  \bind otherCol: \U(N.Nat -> Runtime) <- (\force targetCol) k \then
+  \bind result: Runtime <- (\force otherCol) j \then
+  \return result
+})))))));
+\definition intermediate(k, i, j: N.Nat^)(a: Runtime^): Runtime^ := Columns.swap (rowSwapProgram^ a k i) k j;
+\definition matches: \forall (k, i, j: N.Nat^)(a: Runtime^) -> program^ k i j a = move k i j a :=
+  \fun (k, i, j: N.Nat^)(a: Runtime^) => trans!{Runtime^} (program^ k i j a) (intermediate k i j a) (move k i j a)
+    (congr!{Columns.Swap.T^ Runtime^} (\fun (f: Columns.Swap.T^) => f (rowSwapProgram^ a k i) k j) columnSwapProgram^ Columns.swap Columns.Swap.coherence)
+    (congr!{Rows.Swap.T^ Runtime^} (\fun (f: Rows.Swap.T^) => Columns.swap (f a k i) k j) rowSwapProgram^ Rows.swap Rows.Swap.coherence);
+\definition coherence: program^ = move := \axiom:funext(program^, move,
+  \fun (k: N.Nat^) => \axiom:funext(program^ k, move k,
+    \fun (i: N.Nat^) => \axiom:funext(program^ k i, move k i,
+      \fun (j: N.Nat^) => \axiom:funext(program^ k i j, move k i j, matches k i j))));

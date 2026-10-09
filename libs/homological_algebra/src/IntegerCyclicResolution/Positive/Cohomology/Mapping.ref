@@ -1,0 +1,28 @@
+\import \parent.\parent.Cohomology[A := B] \as Target;
+\import \root.Ext[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Of[M := Cyclic.bundle, N := B, P := complex].At[n := one] \as TargetH;
+\import Modules.Of[V := B.Carrier, space := B.space].Submodule[] \as TargetSub;
+\import TargetSub.Image[U := B.Carrier, source := B.space] \as TargetImage;
+\import Modules.QuotientMapping[A := A, B := B].On[S := multiples, T := Target.multiples, f := u] \as QuotientMap;
+\definition compatible: QuotientMap.Compatible := \fun (x: A.Carrier)(member: _) =>
+  CoefficientImage.eliminate multiplication x (TargetSub.Member Target.multiples (#apply{u} x))
+    (\fun (a: A.Carrier)(represented: #smul{A.space} multiplier a = x) =>
+      TargetImage.introduce Target.multiplication (#apply{u} x) (#apply{u} a)
+        (trans!{B.Carrier} _ _ _ (sym!{B.Carrier} _ _ (#scalar{u} multiplier a))
+          (congr!{A.Carrier B.Carrier} (#apply{u}) _ _ represented))) member;
+\definition map: Modules.Hom[V := Quotient.Carrier, W := TargetSub.Quotient[S := Target.multiples].Carrier, source := Quotient.moduleSpace, target := TargetSub.Quotient[S := Target.multiples].moduleSpace].Map := QuotientMap.map compatible;
+\import TargetSub.Quotient[S := Target.multiples] \as TargetQuotient;
+\definition onCoefficientClass: \forall (x: A.Carrier) -> #apply{map} (Quotient.class x) = TargetQuotient.class (#apply{u} x) := QuotientMap.onClass compatible;
+\import \root.Ext[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Second[M := Cyclic.bundle, N := A, L := B, P := complex] \as Second;
+\import Second.At[k := one] \as DerivedMap;
+\import \root.HomComplex[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].On[P := complex, N := B] \as TargetHom;
+\import Cochains.Map[C := Hom.complex, D := TargetHom.complex].At[k := one] \as Induced;
+\definition onClasses: \forall (x: H.CycleCarrier) ->
+  #apply{#forward{Target.isomorphism}} (#apply{(DerivedMap.map u)} (H.classOf x)) = #apply{map} (#apply{#forward{isomorphism}} (H.classOf x)) :=
+  \fun (x: H.CycleCarrier) => trans!{TargetQuotient.Carrier} _ _ _
+    (congr!{TargetH.Carrier TargetQuotient.Carrier} (#apply{#forward{Target.isomorphism}}) _ _ (DerivedMap.onClass u x))
+    (trans!{TargetQuotient.Carrier} _ _ _ (Target.onClass (#apply{(Induced.cyclesMap (Second.cochainMap u))} x))
+      (trans!{TargetQuotient.Carrier} _ _ _ (sym!{TargetQuotient.Carrier} _ _ (QuotientMap.onClass compatible (#apply{forward} x)))
+        (congr!{Quotient.Carrier TargetQuotient.Carrier} (#apply{map}) _ _ (sym!{Quotient.Carrier} _ _ (onClass x)))));
+\definition naturality: \forall (q: H.Carrier) ->
+  #apply{#forward{Target.isomorphism}} (#apply{(DerivedMap.map u)} q) = #apply{map} (#apply{#forward{isomorphism}} q) := H.classInduction
+    (\fun (q: H.Carrier) => #apply{#forward{Target.isomorphism}} (#apply{(DerivedMap.map u)} q) = #apply{map} (#apply{#forward{isomorphism}} q)) onClasses;

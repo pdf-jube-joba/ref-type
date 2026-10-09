@@ -1,0 +1,24 @@
+\definition result: Attempt^ := Round.round rows cols k (attemptMatrix current) (attemptHistory current);
+\definition pivotRetained: Pivot.Ready[rows, cols, k, a, history, current] -> I.IsZero.specification (a k k) = B.Bool^::false -> attemptMatrix current k k = a k k :=
+  \fun (laws: _)(notZero: _) => congr!{Attempt^ I.Int^} (\fun (current: Attempt^) => attemptMatrix current k k) current (Attempt^::attempt a history B.Bool^::false) (#retained{laws} notZero);
+\definition absoluteLess: Pivot.Ready[rows, cols, k, a, history, current] -> attemptReduced result = B.Bool^::true -> Bounds.Lt (Signed.absolute (attemptMatrix result k k)) (Measure.inner rows cols k a) := \block {
+  \fun (laws: Pivot.Ready[rows, cols, k, a, history, current])(changed: _) \then
+  \let smaller: Bounds.Lt (Signed.absolute (attemptMatrix result k k)) (Signed.absolute (attemptMatrix current k k)) :=
+    Round.smaller rows cols k (attemptMatrix current) (attemptHistory current) #nonzero{laws} changed \then
+  \return B.cases
+    (\fun (test: B.Bool^) => I.IsZero.specification (a k k) = test -> Bounds.Lt (Signed.absolute (attemptMatrix result k k)) (Measure.inner rows cols k a))
+    (\fun (notZero: _) => \idelim Signed.absolute (attemptMatrix current k k) = Measure.inner rows cols k a \with bound: N.Nat^ => Bounds.Lt (Signed.absolute (attemptMatrix result k k)) bound \by {
+      base: smaller, equality: trans!{N.Nat^} (Signed.absolute (attemptMatrix current k k)) (Signed.absolute (a k k)) (Measure.inner rows cols k a)
+        (congr!{I.Int^ N.Nat^} Signed.absolute (attemptMatrix current k k) (a k k) (pivotRetained laws notZero))
+        (sym!{N.Nat^} (Measure.inner rows cols k a) (Signed.absolute (a k k)) (Measure.nonzeroInner rows cols k a (ZeroTest.nonzeroOfFalse (a k k) notZero)))
+    })
+    (\fun (zero: _) => Order.ltTrans (Signed.absolute (attemptMatrix result k k)) (Signed.absolute (attemptMatrix current k k)) (Measure.inner rows cols k a) smaller (#located{laws} zero))
+    (I.IsZero.specification (a k k)) (\refl(I.IsZero.specification (a k k)))
+};
+\definition law: Pivot.Ready[rows, cols, k, a, history, current] -> attemptReduced result = B.Bool^::true -> Bounds.Lt (Measure.inner rows cols k (attemptMatrix result)) (Measure.inner rows cols k a) :=
+  \fun (laws: Pivot.Ready[rows, cols, k, a, history, current])(changed: _) => \idelim Signed.absolute (attemptMatrix result k k) = Measure.inner rows cols k (attemptMatrix result)
+    \with value: N.Nat^ => Bounds.Lt value (Measure.inner rows cols k a) \by {
+    base: absoluteLess laws changed,
+    equality: sym!{N.Nat^} (Measure.inner rows cols k (attemptMatrix result)) (Signed.absolute (attemptMatrix result k k))
+      (Measure.nonzeroInner rows cols k (attemptMatrix result) (Round.nonzero rows cols k (attemptMatrix current) (attemptHistory current) #nonzero{laws}))
+  };

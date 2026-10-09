@@ -1,0 +1,20 @@
+\definition commutativeRing: Rings.CommutativeRing[K] := Fields.fieldAsCommutativeRing K field;
+\definition ring: Rings.Ring[K] := Rings.commutativeRingAsRing K commutativeRing;
+\import algebra.Module[].Over[R := K, ring := ring] \as Modules;
+\import algebra.FieldSubspaces[].Over[K := K, field := field] \as Subspaces;
+\import \root.Cochain[].Over[R := K, ring := ring] \as Cochains;
+\definition Carrier(rank: N.Nat^): \Set := Modules.FiniteCoordinates[n := rank].Carrier;
+\definition space(rank: N.Nat^): Modules.Space (Carrier rank) := Modules.FiniteCoordinates[n := rank].space;
+\structure Data: \Set {
+  ranks: N.Nat^ -> N.Nat^,
+  differential: \forall (n: N.Nat^) -> Modules.Hom[V := Carrier (ranks n), W := Carrier (ranks (N.Nat^::succ n)),
+    source := space (ranks n), target := space (ranks (N.Nat^::succ n))].Map,
+  bound: N.Nat^,
+}
+\structure Laws[data: Data]: \Prop {
+  squareZero: \forall (n: N.Nat^)(x: Carrier (data.ranks n)) ->
+    #apply{(data.differential (N.Nat^::succ n))} (#apply{(data.differential n)} x) = #zero{(space (data.ranks (N.Nat^::succ (N.Nat^::succ n))))},
+  bounded: \forall (n: N.Nat^) -> Bounds.Lt data.bound n -> data.ranks n = N.Nat^::zero,
+}
+\definition Complex: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\module Of(C: Complex);

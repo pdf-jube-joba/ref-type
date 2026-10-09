@@ -1,0 +1,66 @@
+\import category.Additive[] \as Add;
+\import category.Preadditive[] \as Pre;
+\import category.Category[] \as Cat;
+\definition zero(A: Add.Additive)(x, y: A.preadditive.category.Object): A.preadditive.category.Hom x y := #unit{(#base{(A.preadditive.addition x y)})};
+\definition Monomorphism[Object: \Set, Hom: Object -> Object -> \Set, composition: Cat.CategoryData[Object, Hom]](x, y: Object)(f: Hom x y): \Prop :=
+  \forall (z: Object)(g, h: Hom z x) ->
+    composition.compose z x y f g = composition.compose z x y f h -> g = h;
+\definition Epimorphism[Object: \Set, Hom: Object -> Object -> \Set, composition: Cat.CategoryData[Object, Hom]](x, y: Object)(f: Hom x y): \Prop :=
+  \forall (z: Object)(g, h: Hom y z) ->
+    composition.compose x y z g f = composition.compose x y z h f -> g = h;
+\structure IsKernel[Object: \Set, Hom: Object -> Object -> \Set, composition: Cat.CategoryData[Object, Hom], zeros: \forall (x, y: Object) -> Hom x y, k, x, y: Object, inclusion: Hom k x, f: Hom x y]: \Prop {
+  zero: composition.compose k x y f inclusion = zeros k y,
+  factorization: \forall (z: Object)(g: Hom z x) ->
+    composition.compose z x y f g = zeros z y ->
+    \exists { h: Hom z k \where composition.compose z k x inclusion h = g },
+  unique: Monomorphism[Object, Hom, composition] k x inclusion,
+}
+\structure IsCokernel[Object: \Set, Hom: Object -> Object -> \Set, composition: Cat.CategoryData[Object, Hom], zeros: \forall (x, y: Object) -> Hom x y, x, y, k: Object, f: Hom x y, projection: Hom y k]: \Prop {
+  zero: composition.compose x y k projection f = zeros x k,
+  factorization: \forall (z: Object)(g: Hom y z) ->
+    composition.compose x y z g f = zeros x z ->
+    \exists { h: Hom k z \where composition.compose y k z h projection = g },
+  unique: Epimorphism[Object, Hom, composition] y k projection,
+}
+\structure KernelData[Object: \Set, Hom: Object -> Object -> \Set, data: Cat.CategoryData[Object, Hom], zeros: \forall (x, y: Object) -> Hom x y, x, y: Object, f: Hom x y]: \Set {
+  object: Object,
+  inclusion: Hom object x,
+  lift: \forall (z: Object) ->
+    \Cast[Hom z x] ({ g: Hom z x \where
+      data.compose z x y f g = zeros z y }) -> Hom z object,
+}
+\structure KernelLaws[Object: \Set, Hom: Object -> Object -> \Set, composition: Cat.CategoryData[Object, Hom], zeros: \forall (x, y: Object) -> Hom x y, x, y: Object, f: Hom x y, data: KernelData[Object, Hom, composition, zeros, x, y, f]]: \Prop {
+  zero: composition.compose data.object x y f data.inclusion = zeros data.object y,
+  factorization: \forall (z: Object)(g: \Cast[Hom z x] ({ g: Hom z x \where
+      composition.compose z x y f g = zeros z y })) -> composition.compose z data.object x data.inclusion (data.lift z g) = g,
+  unique: \forall (z: Object)(g: \Cast[Hom z x] ({ g: Hom z x \where
+      composition.compose z x y f g = zeros z y }))(h: Hom z data.object) ->
+    composition.compose z data.object x data.inclusion h = g -> h = data.lift z g,
+}
+\definition Kernel[Object: \Set, Hom: Object -> Object -> \Set, composition: Cat.CategoryData[Object, Hom], zeros: \forall (x, y: Object) -> Hom x y, x, y: Object, f: Hom x y]: \Set := \Cast[KernelData[Object, Hom, composition, zeros, x, y, f]] ({ data: KernelData[Object, Hom, composition, zeros, x, y, f] \where KernelLaws[Object, Hom, composition, zeros, x, y, f, data] });
+\structure CokernelData[Object: \Set, Hom: Object -> Object -> \Set, data: Cat.CategoryData[Object, Hom], zeros: \forall (x, y: Object) -> Hom x y, x, y: Object, f: Hom x y]: \Set {
+  object: Object,
+  projection: Hom y object,
+  descend: \forall (z: Object) ->
+    \Cast[Hom y z] ({ g: Hom y z \where
+      data.compose x y z g f = zeros x z }) -> Hom object z,
+}
+\structure CokernelLaws[Object: \Set, Hom: Object -> Object -> \Set, composition: Cat.CategoryData[Object, Hom], zeros: \forall (x, y: Object) -> Hom x y, x, y: Object, f: Hom x y, data: CokernelData[Object, Hom, composition, zeros, x, y, f]]: \Prop {
+  zero: composition.compose x y data.object data.projection f = zeros x data.object,
+  factorization: \forall (z: Object)(g: \Cast[Hom y z] ({ g: Hom y z \where
+      composition.compose x y z g f = zeros x z })) -> composition.compose y data.object z (data.descend z g) data.projection = g,
+  unique: \forall (z: Object)(g: \Cast[Hom y z] ({ g: Hom y z \where
+      composition.compose x y z g f = zeros x z }))(h: Hom data.object z) ->
+    composition.compose y data.object z h data.projection = g -> h = data.descend z g,
+}
+\definition Cokernel[Object: \Set, Hom: Object -> Object -> \Set, composition: Cat.CategoryData[Object, Hom], zeros: \forall (x, y: Object) -> Hom x y, x, y: Object, f: Hom x y]: \Set := \Cast[CokernelData[Object, Hom, composition, zeros, x, y, f]] ({ data: CokernelData[Object, Hom, composition, zeros, x, y, f] \where CokernelLaws[Object, Hom, composition, zeros, x, y, f, data] });
+\structure Abelian {
+  additive: Add.Additive,
+  kernel: \forall (x, y: additive.preadditive.category.Object)(f: additive.preadditive.category.Hom x y) -> Kernel[additive.preadditive.category.Object, additive.preadditive.category.Hom, additive.preadditive.category.structure, \fun (u, v: additive.preadditive.category.Object) => #unit{(#base{(additive.preadditive.addition u v)})}, x, y, f],
+  cokernel: \forall (x, y: additive.preadditive.category.Object)(f: additive.preadditive.category.Hom x y) -> Cokernel[additive.preadditive.category.Object, additive.preadditive.category.Hom, additive.preadditive.category.structure, \fun (u, v: additive.preadditive.category.Object) => #unit{(#base{(additive.preadditive.addition u v)})}, x, y, f],
+  normalMonomorphism: \forall (x, y: additive.preadditive.category.Object)(f: additive.preadditive.category.Hom x y) ->
+    Monomorphism[additive.preadditive.category.Object, additive.preadditive.category.Hom, additive.preadditive.category.structure] x y f -> IsKernel[additive.preadditive.category.Object, additive.preadditive.category.Hom, additive.preadditive.category.structure, \fun (u, v: additive.preadditive.category.Object) => #unit{(#base{(additive.preadditive.addition u v)})}, x, y, (cokernel x y f).object, f, (cokernel x y f).projection],
+  normalEpimorphism: \forall (x, y: additive.preadditive.category.Object)(f: additive.preadditive.category.Hom x y) ->
+    Epimorphism[additive.preadditive.category.Object, additive.preadditive.category.Hom, additive.preadditive.category.structure] x y f -> IsCokernel[additive.preadditive.category.Object, additive.preadditive.category.Hom, additive.preadditive.category.structure, \fun (u, v: additive.preadditive.category.Object) => #unit{(#base{(additive.preadditive.addition u v)})}, (kernel x y f).object, x, y, (kernel x y f).inclusion, f],
+}
+\module Uniqueness(A: Add.Additive, x, y: A.preadditive.category.Object, f: A.preadditive.category.Hom x y);

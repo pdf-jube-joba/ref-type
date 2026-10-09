@@ -1,0 +1,62 @@
+\definition Commutes: \Prop := \forall (n: N.Nat^)(x: B.family.Carrier n) -> #apply{t.projection} n (#apply{b} n x) = #apply{c} n (#apply{s.projection} n x);
+\import \root.NonnegativeChain[].Over[R := R, ring := ring] \as Chains;
+\import Chains.Map[C := A1, D := B1] \as TargetInclusion;
+\import Chains.Map[C := B1, D := C1] \as TargetProjection;
+\module Degree(n: N.Nat^) {
+  \definition left: Modules.Bundle := Modules.Bundle { Carrier := A1.family.Carrier n, space := A1.family.space n };
+  \definition middle: Modules.Bundle := Modules.Bundle { Carrier := B1.family.Carrier n, space := B1.family.space n };
+  \definition right: Modules.Bundle := Modules.Bundle { Carrier := C1.family.Carrier n, space := C1.family.space n };
+  \import Modules.ShortExact[A := left, B := middle, C := right] \as Sequences;
+  \definition sequence: Sequences.Sequence := Sequences.Sequence {
+    inclusion := TargetInclusion.At[n := n].linear t.inclusion,
+    projection := TargetProjection.At[n := n].linear t.projection,
+    injective := #injective{t} n, onto := #onto{t} n,
+    zero := #zero{t} n, kernelImage := #kernelImage{t} n,
+  };
+  \import Sequences.Kernel[sequence := sequence] \as Kernel;
+  \definition closed: Commutes -> \forall (x: A.family.Carrier n) ->
+    #apply{t.projection} n (#apply{b} n (#apply{s.inclusion} n x)) = #zero{(C1.family.space n)} :=
+    \fun (commutes: Commutes)(x: A.family.Carrier n) => trans!{{C1.family.Carrier n}} _ _ _
+      (commutes n (#apply{s.inclusion} n x))
+      (trans!{{C1.family.Carrier n}} _ _ _
+        (congr!{{C.family.Carrier n} {C1.family.Carrier n}} (#apply{c} n) _ _ (#zero{s} n x))
+        (RightMap.At[n := n].zeroPreserved c));
+  \import Modules.Hom[V := A.family.Carrier n, W := Kernel.Carrier, source := A.family.space n, target := Kernel.space] \as IntoKernel;
+  \definition intoKernel(commutes: Commutes): IntoKernel.Map := IntoKernel.Map {
+    apply := \fun (x: A.family.Carrier n) => \into[B1.family.Carrier n](#apply{b} n (#apply{s.inclusion} n x), #carrier{Kernel.kernel}) \by { closed commutes x },
+    addition := \fun (x, y: A.family.Carrier n) => trans!{{B1.family.Carrier n}} _ _ _
+      (congr!{{B.family.Carrier n} {B1.family.Carrier n}} (#apply{b} n) _ _ (#addition{s.inclusion} n x y))
+      (#addition{b} n (#apply{s.inclusion} n x) (#apply{s.inclusion} n y)),
+    scalar := \fun (a: R)(x: A.family.Carrier n) => trans!{{B1.family.Carrier n}} _ _ _
+      (congr!{{B.family.Carrier n} {B1.family.Carrier n}} (#apply{b} n) _ _ (#scalar{s.inclusion} n a x))
+      (#scalar{b} n a (#apply{s.inclusion} n x)),
+  };
+  \import Modules.Hom[V := Kernel.Carrier, W := A1.family.Carrier n, source := Kernel.space, target := A1.family.space n].Composition[U := A.family.Carrier n, domain := A.family.space n] \as Composition;
+  \definition map(commutes: Commutes): Modules.Hom[V := A.family.Carrier n, W := A1.family.Carrier n, source := A.family.space n, target := A1.family.space n].Map :=
+    Composition.compose Kernel.backward (intoKernel commutes);
+  \definition onSource: \forall (commutes: Commutes)(x: A.family.Carrier n) -> #apply{t.inclusion} n (#apply{(map commutes)} x) = #apply{b} n (#apply{s.inclusion} n x) :=
+    \fun (commutes: Commutes)(x: A.family.Carrier n) => Kernel.onKernel (#apply{(intoKernel commutes)} x);
+}
+\definition chainCommutes: \forall (commutes: Commutes)(n: N.Nat^)(x: A.family.Carrier (N.Nat^::succ n)) ->
+  #apply{A1.differential} n (#apply{(Degree[n := N.Nat^::succ n].map commutes)} x) = #apply{(Degree[n := n].map commutes)} (#apply{A.differential} n x) :=
+  \fun (commutes: Commutes)(n: N.Nat^)(x: A.family.Carrier (N.Nat^::succ n)) => #injective{t} n _ _
+    (trans!{{B1.family.Carrier n}} _ _ _
+      (sym!{{B1.family.Carrier n}} _ _ (#commutes{t.inclusion} n (#apply{(Degree[n := N.Nat^::succ n].map commutes)} x)))
+      (trans!{{B1.family.Carrier n}} _ _ _
+        (congr!{{B1.family.Carrier (N.Nat^::succ n)} {B1.family.Carrier n}} (#apply{B1.differential} n) _ _ (Degree[n := N.Nat^::succ n].onSource commutes x))
+        (trans!{{B1.family.Carrier n}} _ _ _ (#commutes{b} n (#apply{s.inclusion} (N.Nat^::succ n) x))
+          (trans!{{B1.family.Carrier n}} _ _ _
+            (congr!{{B.family.Carrier n} {B1.family.Carrier n}} (#apply{b} n) _ _ (#commutes{s.inclusion} n x))
+            (sym!{{B1.family.Carrier n}} _ _ (Degree[n := n].onSource commutes (#apply{A.differential} n x)))))));
+\definition map(commutes: Commutes): LeftMap.Map := LeftMap.Map {
+  apply := \fun (n: N.Nat^) => #apply{(Degree[n := n].map commutes)},
+  addition := \fun (n: N.Nat^) => #addition{(Degree[n := n].map commutes)},
+  scalar := \fun (n: N.Nat^) => #scalar{(Degree[n := n].map commutes)},
+  commutes := chainCommutes commutes,
+};
+\import \root.NonnegativeChain[].Over[R := R, ring := ring].ShortExact[A := A, B := B, C := C].Morphism[A1 := A1, B1 := B1, C1 := C1] \as Morphism;
+\definition diagram: \forall (commutes: Commutes) -> Morphism.Diagram[s := s, t := t, a := map commutes, b := b, c := c].Commutative :=
+  \fun (commutes: Commutes) => Morphism.Diagram[s := s, t := t, a := map commutes, b := b, c := c].Commutative {
+    left := \fun (n: N.Nat^)(x: A.family.Carrier n) => sym!{{B1.family.Carrier n}} _ _ (Degree[n := n].onSource commutes x),
+    right := commutes,
+  };

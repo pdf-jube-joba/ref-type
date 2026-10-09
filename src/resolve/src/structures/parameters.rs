@@ -69,6 +69,9 @@ impl Resolver {
                 substitutions.insert(parameter.vars[0].1.unwrap(), field.clone());
                 actual.push(field);
             }
+            if input.signature.is_some() {
+                self.bind_structure_field(input.binding, argument.clone(), &mut substitutions)?;
+            }
         }
         Ok((actual, checks))
     }
@@ -263,6 +266,7 @@ impl Resolver {
                     let signature = value.signature;
                     self.structure_values.insert(name.1.unwrap(), value);
                     inputs.push(Input {
+                        binding: name.1.unwrap(),
                         callback_parameters: domain.clone(),
                         arguments: self.structure_values[&name.1.unwrap()].arguments.clone(),
                         name: name.0.clone(),
@@ -400,6 +404,7 @@ impl Resolver {
                         },
                     );
                     inputs.push(Input {
+                        binding: name.1.unwrap(),
                         callback_parameters: Vec::new(),
                         arguments: arguments.clone(),
                         name: name.0.clone(),
@@ -435,6 +440,7 @@ impl Resolver {
                     }
                     scope.insert(name.0.clone(), name.clone());
                     inputs.push(Input {
+                        binding: name.1.unwrap(),
                         callback_parameters: Vec::new(),
                         arguments: HashMap::new(),
                         name: name.0.clone(),

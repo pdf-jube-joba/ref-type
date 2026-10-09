@@ -1,0 +1,24 @@
+\import \parent.\parent.Term[n := Nat.Nat^::succ Nat.Nat^::zero] \as Source;
+\import \parent.\parent.Term[n := Nat.Nat^::zero] \as Middle;
+\import Product.At[p := Nat.Nat^::zero, q := Nat.Nat^::zero] \as Differential;
+\import Modules.Tensor[V := P.Carrier, W := Q.family.Carrier Nat.Nat^::zero, left := P.space, right := Q.family.space Nat.Nat^::zero].Mapping[
+  U := P.Carrier, Z := N.Carrier, targetLeft := P.space, targetRight := N.space] \as Mapping;
+\import Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space].Composition[
+  U := Source.Carrier, domain := Source.space] \as Composition;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+\import Modules.Tensor[V := P.Carrier, W := Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero),
+  left := P.space, right := Q.family.space (Nat.Nat^::succ Nat.Nat^::zero)].Universal[
+  U := Target.Carrier, target := Target.space] \as Universal;
+\definition equality: Composition.compose augmentation Differential.vertical = Maps.zeroMap :=
+  Universal.ext (Composition.compose augmentation Differential.vertical) Maps.zeroMap
+    (\fun (x: P.Carrier)(y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => trans!{Target.Carrier}
+      (#apply{augmentation} (#apply{Differential.vertical} (Source.tensor x y)))
+      (#apply{augmentation} (Middle.tensor x (#apply{Q.differential} Nat.Nat^::zero y))) #zero{Target.space}
+      (congr!{Middle.Carrier Target.Carrier} (#apply{augmentation}) _ _ (Differential.verticalOnTensor x y))
+      (trans!{Target.Carrier} _ _ _ (Mapping.onTensor Identity.identity (#augmentation{q}) x (#apply{Q.differential} Nat.Nat^::zero y))
+        (trans!{Target.Carrier} _ _ _
+          (congr!{N.Carrier Target.Carrier} (Target.tensor x) _ _ (#killed{q} y))
+          (Target.tensorZeroRight x))));
+\definition zero: \forall (x: Source.Carrier) -> #apply{augmentation} (#apply{complex.differential} Nat.Nat^::zero x) = #zero{Target.space} :=
+  \fun (x: Source.Carrier) => congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => #apply{f} x)
+    (Composition.compose augmentation Differential.vertical) Maps.zeroMap equality;

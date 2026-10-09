@@ -1,0 +1,36 @@
+\definition undoHistoryWith(handler: Handler^): History^ -> Runtime^ -> Runtime^ :=
+  \induction (history: History^) \return Runtime^ -> Runtime^ \with {
+    | empty: \fun (a: Runtime^) => a
+    | prepend: \fun (operation: Operation^)(history: History^)(previous: Runtime^ -> Runtime^)(a: Runtime^) => previous (handler operation a)
+  };
+\inductive State: \VType := | pending: History -> Handler -> Runtime -> State;
+\module Loop;
+\machine Evaluate: Programs.Machine := Programs.Machine {
+  State := State, Output := Runtime, step := Loop[].step, terminates := Loop[].certificate,
+};
+\definition T: \VType := \U(Handler -> History -> Runtime -> Runtime);
+\definition program: T := \thunk (\cfun (handler: Handler) => \return(\thunk (\cfun (history: History) => \return(\thunk (\cfun (a: Runtime) =>
+  (\force Evaluate.run) (State::pending history handler a))))));
+\module Correspondence;
+\correspondence With: Programs.Correspondence := Programs.Correspondence {
+  T := T, program := program, specification := undoHistoryWith, coherence := Correspondence[].coherence,
+};
+\definition inverseHandler: Handler^ := applyMapped inverseOperation;
+\definition undo: History^ -> Runtime^ -> Runtime^ := undoHistoryWith inverseHandler;
+\definition undoProgram: \U(History -> Runtime -> Runtime) := \thunk (\cfun (history: History) => \program {
+  \bind handler: Handler <- (\force Mapped.program) InverseOperation.program \then
+  \bind histories: \U(History -> Runtime -> Runtime) <- (\force program) handler \then
+  \bind action: Transformer <- (\force histories) history \then
+  \return action
+});
+\definition inverseHandlerCoherence: Mapped.program^ InverseOperation.program^ = inverseHandler :=
+  trans!{Handler^} (Mapped.program^ InverseOperation.program^) (applyMapped InverseOperation.program^) inverseHandler
+    (congr!{Mapped.T^ Handler^} (\fun (f: Mapped.T^) => f InverseOperation.program^) Mapped.program^ applyMapped Mapped.coherence)
+    (congr!{Mapper^ Handler^} applyMapped InverseOperation.program^ inverseOperation InverseOperation.coherence);
+\definition undoCoherence: undoProgram^ = undo := \axiom:funext(undoProgram^, undo, \fun (history: History^) =>
+  trans!{{Runtime^ -> Runtime^}} (undoProgram^ history) (undoHistoryWith (Mapped.program^ InverseOperation.program^) history) (undo history)
+    (congr!{T^ {Runtime^ -> Runtime^}} (\fun (f: T^) => f (Mapped.program^ InverseOperation.program^) history) program^ undoHistoryWith With.coherence)
+    (congr!{Handler^ {Runtime^ -> Runtime^}} (\fun (handler: Handler^) => undoHistoryWith handler history) (Mapped.program^ InverseOperation.program^) inverseHandler inverseHandlerCoherence));
+\correspondence Undo: Programs.Correspondence := Programs.Correspondence {
+  T := \U(History -> Runtime -> Runtime), program := undoProgram, specification := undo, coherence := undoCoherence,
+};

@@ -1,0 +1,27 @@
+\import Modules.RightExact[A := Presentation.boundaryBundle, B := Presentation.cyclesBundle, C := Presentation.homologyBundle] \as RightExact;
+\import Modules.TensorRightExact[A := Presentation.boundaryBundle, B := Presentation.cyclesBundle, C := Presentation.homologyBundle, N := A].On[sequence := RightExact.ofShort Presentation.sequence] \as TensorExact;
+\import \root.Finite[].Bounded[].Of[C := C].At[z := z].UniversalCoefficient[A := A].Tensor[] \as CycleInclusion;
+\import HomologyProjection.Surjectivity[] \as Surjectivity;
+\definition projectionOnto: \forall (q: HomologyTensor.Carrier) -> \exists { x: CycleTensor.Carrier \where #apply{projection} x = q } :=
+  Surjectivity.onto Homology.classLinear Coefficient.identity (#onto{Presentation.sequence}) coefficientOnto;
+\definition kernelZero: \forall (q: HomologyTensor.Carrier) -> #apply{map} q = #zero{TensorHomology.homologySpace} -> q = #zero{HomologyTensor.space} := \block {
+  \fun (q: HomologyTensor.Carrier)(closed: _) \then
+  \takefrom x: \Cast[CycleTensor.Carrier] ({ x: CycleTensor.Carrier \where #apply{projection} x = q }) \by projectionOnto q \then
+  \let equal: #apply{projection} x = q := \bysub(CycleTensor.Carrier, { x: CycleTensor.Carrier \where #apply{projection} x = q }, x) \then
+  \let classZero: #apply{classMap} x = #zero{TensorHomology.homologySpace} := trans!{TensorHomology.Homology} _ _ _
+    (sym!{TensorHomology.Homology} _ _ (onCycles x))
+    (trans!{TensorHomology.Homology} _ _ _ (congr!{HomologyTensor.Carrier TensorHomology.Homology} (#apply{map}) _ _ equal) closed) \then
+  \takefrom w: \Cast[NextTensor.Carrier] ({ w: NextTensor.Carrier \where #apply{TensorHomology.prior} w = #apply{CycleInclusion.inclusion} x })
+    \by TensorHomology.zeroClassBoundary (cycle x) classZero \then
+  \let cyclesEqual: #apply{intoCycles} (#apply{incoming} w) = x := #injective{CycleInclusion.sequence} _ _
+    (trans!{CurrentTensor.Carrier} _ _ _ (differentialFactorPoint w)
+      (\bysub(NextTensor.Carrier, { w: NextTensor.Carrier \where #apply{TensorHomology.prior} w = #apply{CycleInclusion.inclusion} x }, w))) \then
+  \return trans!{HomologyTensor.Carrier} q (#apply{projection} x) #zero{HomologyTensor.space}
+    (sym!{HomologyTensor.Carrier} _ _ equal)
+    (trans!{HomologyTensor.Carrier} _ _ _
+      (congr!{CycleTensor.Carrier HomologyTensor.Carrier} (#apply{projection}) x (#apply{intoCycles} (#apply{incoming} w))
+        (sym!{CycleTensor.Carrier} _ _ cyclesEqual))
+      (TensorExact.zero (#apply{incoming} w)))
+};
+\import Modules.Hom[V := HomologyTensor.Carrier, W := TensorHomology.Homology, source := HomologyTensor.space, target := TensorHomology.homologySpace] \as Maps;
+\definition injective: \forall (x, y: HomologyTensor.Carrier) -> #apply{map} x = #apply{map} y -> x = y := Maps.injectiveOfZeroKernel map kernelZero;

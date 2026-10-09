@@ -1,0 +1,17 @@
+\import Target.Mapping[U := P, Z := Q, targetLeft := finalLeft, targetRight := finalRight] \as After;
+\import \parent.\parent.Mapping[U := P, Z := Q, targetLeft := finalLeft, targetRight := finalRight] \as Direct;
+\import \parent.\parent.\parent.Tensor[V := P, W := Q, left := finalLeft, right := finalRight] \as Final;
+\import \parent.\parent.\parent.Hom[V := U, W := P, source := targetLeft, target := finalLeft] \as LeftAfter;
+\import LeftAfter.Composition[U := V, domain := left] \as LeftCompose;
+\import \parent.\parent.\parent.Hom[V := Z, W := Q, source := targetRight, target := finalRight] \as RightAfter;
+\import RightAfter.Composition[U := W, domain := right] \as RightCompose;
+\import \parent.\parent.\parent.Hom[V := Target.Carrier, W := Final.Carrier, source := Target.space, target := Final.space].Composition[U := Carrier, domain := space] \as Compose;
+\import \parent.\parent.Universal[U := Final.Carrier, target := Final.space] \as Equality;
+\definition composition: \forall (f: LeftMaps.Map)(g: RightMaps.Map)(h: LeftAfter.Map)(j: RightAfter.Map) ->
+  Compose.compose (After.map h j) (map f g) = Direct.map (LeftCompose.compose h f) (RightCompose.compose j g) :=
+  \fun (f: LeftMaps.Map)(g: RightMaps.Map)(h: LeftAfter.Map)(j: RightAfter.Map) =>
+    Equality.ext (Compose.compose (After.map h j) (map f g)) (Direct.map (LeftCompose.compose h f) (RightCompose.compose j g))
+      (\fun (x: V)(y: W) => trans!{Final.Carrier} _ _ _
+        (congr!{Target.Carrier Final.Carrier} (#apply{(After.map h j)}) _ _ (onTensor f g x y))
+        (trans!{Final.Carrier} _ _ _ (After.onTensor h j (#apply{f} x) (#apply{g} y))
+          (sym!{Final.Carrier} _ _ (Direct.onTensor (LeftCompose.compose h f) (RightCompose.compose j g) x y))));

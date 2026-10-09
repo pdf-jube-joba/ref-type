@@ -1,0 +1,44 @@
+\import First.Positive[n := n].With[p := p, q := q, f := u] \as FirstAction;
+\import Second.Positive[n := n].With[p := q, q := r, f := v] \as SecondAction;
+\import Direct.Positive[n := n].With[p := p, q := r, f := Coefficients.compose v u] \as DirectAction;
+\import Source.At[n := Nat.Nat^::succ n] \as SourceTerm;
+\import Middle.At[n := Nat.Nat^::succ n] \as MiddleTerm;
+\import Target.At[n := Nat.Nat^::succ n] \as TargetTerm;
+\import Modules.Hom[V := SourceTerm.Carrier, W := MiddleTerm.Carrier, source := SourceTerm.space, target := MiddleTerm.space] \as FirstMaps;
+\import Modules.Hom[V := MiddleTerm.Carrier, W := TargetTerm.Carrier, source := MiddleTerm.space, target := TargetTerm.space] \as SecondMaps;
+\import Modules.Hom[V := SourceTerm.Carrier, W := TargetTerm.Carrier, source := SourceTerm.space, target := TargetTerm.space] \as DirectMaps;
+\import TensorBefore.Positive[n := n] \as FirstInduced;
+\import TensorAfter.Positive[n := n] \as SecondInduced;
+\import TensorDirect.Positive[n := n] \as DirectInduced;
+\definition first(g: BeforeLift): FirstMaps.Map := FirstInduced.induced (First.chainMap g);
+\definition second(h: AfterLift): SecondMaps.Map := SecondInduced.induced (Second.chainMap h);
+\definition direct(g: BeforeLift)(h: AfterLift): DirectMaps.Map := DirectInduced.induced (Direct.chainMap (ChainComposition.compose h g));
+\definition firstEquality: \forall (g: BeforeLift) -> FirstAction.map = first g :=
+  \fun (g: BeforeLift) => FirstAction.onComparison g
+    (\bysub(ChainBefore.Map, { g: ChainBefore.Map \where CompareBefore.Augmented p q g }, g));
+\definition secondEquality: \forall (h: AfterLift) -> SecondAction.map = second h :=
+  \fun (h: AfterLift) => SecondAction.onComparison h
+    (\bysub(ChainAfter.Map, { h: ChainAfter.Map \where CompareAfter.Augmented q r h }, h));
+\definition directEquality: \forall (g: BeforeLift)(h: AfterLift) -> DirectAction.map = direct g h :=
+  \fun (g: BeforeLift)(h: AfterLift) => DirectAction.onComparison (ChainComposition.compose h g) (compositeAugmented g h);
+\definition actualComposition: \forall (g: BeforeLift)(h: AfterLift)(a: SourceTerm.Carrier) ->
+  #apply{(direct g h)} a = #apply{(second h)} (#apply{(first g)} a) :=
+  \fun (g: BeforeLift)(h: AfterLift)(a: SourceTerm.Carrier) => trans!{TargetTerm.Carrier} _ _ _
+    (congr!{TensorDirect.Map TargetTerm.Carrier} (\fun (f: TensorDirect.Map) => #apply{(DirectInduced.induced f)} a) _ _ (tensorLaw g h))
+    (TensorComposition.Positive[n := n].compositionOnHomology (Second.chainMap h) (First.chainMap g) a);
+\definition composition: \forall (a: SourceTerm.Carrier) ->
+  #apply{DirectAction.map} a = #apply{SecondAction.map} (#apply{FirstAction.map} a) := \block {
+  \fun (a: SourceTerm.Carrier) \then
+  \takefrom g: BeforeLift \by CompareBefore.existence p q \then
+  \takefrom h: AfterLift \by CompareAfter.existence q r \then
+  \return trans!{TargetTerm.Carrier} _ _ _
+    (congr!{DirectMaps.Map TargetTerm.Carrier} (\fun (f: DirectMaps.Map) => #apply{f} a) _ _ (directEquality g h))
+    (trans!{TargetTerm.Carrier} _ _ _ (actualComposition g h a)
+      (trans!{TargetTerm.Carrier} _ _ _
+        (congr!{SecondMaps.Map TargetTerm.Carrier}
+          (\fun (f: SecondMaps.Map) => #apply{f} (#apply{(first g)} a)) _ _
+          (sym!{SecondMaps.Map} _ _ (secondEquality h)))
+        (congr!{MiddleTerm.Carrier TargetTerm.Carrier} (#apply{SecondAction.map}) _ _
+          (congr!{FirstMaps.Map MiddleTerm.Carrier} (\fun (f: FirstMaps.Map) => #apply{f} a) _ _
+            (sym!{FirstMaps.Map} _ _ (firstEquality g))))))
+};

@@ -1,0 +1,24 @@
+\import Cochains.At[C := Source.complex, k := k] \as SourceH;
+\import Cochains.At[C := Target.complex, k := k] \as TargetH;
+\import Maps.At[k := k] \as Induced;
+\import Modules.Hom[V := Q.family.Carrier k, W := N.Carrier, source := Q.family.space k, target := N.space] \as CoefficientMaps;
+\import Modules.Hom[V := P.family.Carrier k, W := N.Carrier, source := P.family.space k, target := N.space] \as Output;
+\definition difference(f, g: ChainMaps.Map)(x: Source.Carrier k): Target.Carrier k :=
+  Output.plus (#apply{(map f)} k x) (Output.negative (#apply{(map g)} k x));
+\definition evaluateDifference: \forall (f, g: ChainMaps.Map)(x: Source.Carrier k)(y: P.family.Carrier k) ->
+  #apply{(difference f g x)} y = #apply{x} (#add{(Q.family.space k)} (#apply{f} k y) (#neg{(Q.family.space k)} (#apply{g} k y))) :=
+  \fun (f, g: ChainMaps.Map)(x: Source.Carrier k)(y: P.family.Carrier k) => sym!{N.Carrier} _ _
+    (CoefficientMaps.differencePreserved x (#apply{f} k y) (#apply{g} k y));
+\definition closedEvaluation: \forall (x: SourceH.CycleCarrier)(y: Q.family.Carrier (Nat.Nat^::succ k)) ->
+  #apply{x} (#apply{Q.differential} k y) = #zero{N.space} :=
+  \fun (x: SourceH.CycleCarrier)(y: Q.family.Carrier (Nat.Nat^::succ k)) =>
+    congr!{{Source.Carrier (Nat.Nat^::succ k)} N.Carrier} (\fun (v: Source.Carrier (Nat.Nat^::succ k)) => #apply{v} y) _ _
+      (\bysub(Source.Carrier k, #carrier{SourceH.cycles}, x));
+\definition equality: \forall (f, g: ChainMaps.Map) ->
+  (\forall (x: SourceH.CycleCarrier) -> \In[Target.Carrier k] (TargetH.Boundaries k) (difference f g x)) ->
+  \forall (q: SourceH.Cohomology) -> #apply{(Induced.induced (map f))} q = #apply{(Induced.induced (map g))} q :=
+  \fun (f, g: ChainMaps.Map)(boundary: \forall (x: SourceH.CycleCarrier) -> \In[Target.Carrier k] (TargetH.Boundaries k) (difference f g x)) =>
+    SourceH.classInduction (\fun (q: SourceH.Cohomology) => #apply{(Induced.induced (map f))} q = #apply{(Induced.induced (map g))} q)
+      (\fun (x: SourceH.CycleCarrier) => trans!{TargetH.Cohomology} _ _ _ (Induced.onClass (map f) x)
+        (trans!{TargetH.Cohomology} _ _ _ (TargetH.classEqual (#apply{(Induced.cyclesMap (map f))} x) (#apply{(Induced.cyclesMap (map g))} x) (boundary x))
+          (sym!{TargetH.Cohomology} _ _ (Induced.onClass (map g) x))));
