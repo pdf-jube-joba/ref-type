@@ -1,5 +1,6 @@
 //! Type-independent binding resolution and hygienic macro expansion.
 mod bindings;
+pub mod error;
 pub mod hir;
 mod lower;
 mod macros;

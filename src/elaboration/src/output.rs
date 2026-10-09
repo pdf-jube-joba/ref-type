@@ -5,7 +5,7 @@ use crate::raw::{
 
 #[derive(Debug, Clone)]
 pub enum Output {
-    Message(String),
+    Failure(crate::error::Error),
     Exp(Exp),
     ValueType(ValueType),
     ComputationType(ComputationType),
@@ -15,7 +15,7 @@ pub enum Output {
 
 pub fn format_output(env: &crate::raw::environment::CrateEnv, output: &Output) -> String {
     match output {
-        Output::Message(message) => message.clone(),
+        Output::Failure(error) => error.render(env),
         Output::Exp(exp) => crate::raw::printing::format_exp(env, *exp),
         Output::ValueType(ty) => crate::raw::printing::format_value_type(env, *ty),
         Output::ComputationType(ty) => crate::raw::printing::format_computation_type(env, *ty),

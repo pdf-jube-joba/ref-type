@@ -8,7 +8,7 @@ impl Lowerer<'_> {
         module: ModuleId,
         term: Exp,
         ty: Exp,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         use crate::raw::traversal::Term;
         let mut roots = vec![Term::Logical(term), Term::Logical(ty)];
         roots.extend(context.iter().map(|b| Term::Logical(b.ty)));
@@ -19,7 +19,7 @@ impl Lowerer<'_> {
         let context = self.context(context, module)?;
         kernel::check::Checker::new(self.kernel, &mut self.metas, context)
             .check(term, expected)
-            .map_err(|error| super::diagnostics::format_error(self.raw, &error))
+            .map_err(crate::error::Error::Kernel)
     }
 
     pub(crate) fn check_program_query(
@@ -27,7 +27,7 @@ impl Lowerer<'_> {
         context: &raw::program::ProgramContext,
         term: raw::program::ProgramTerm,
         ty: raw::program::ProgramType,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         use crate::raw::{
             program::{ProgramContextEntry, ProgramTerm, ProgramType},
             traversal::Term,
@@ -53,6 +53,6 @@ impl Lowerer<'_> {
         let context = self.program_context(context)?;
         kernel::check::Checker::new(self.kernel, &mut self.metas, context)
             .check(term, ty)
-            .map_err(|error| super::diagnostics::format_error(self.raw, &error))
+            .map_err(crate::error::Error::Kernel)
     }
 }

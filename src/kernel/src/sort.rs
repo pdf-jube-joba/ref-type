@@ -99,21 +99,21 @@ impl Sort {
 }
 
 impl ProductRule {
-    pub fn new(domain: Sort, body: Sort) -> Result<Self, String> {
+    pub fn new(domain: Sort, body: Sort) -> Result<Self, crate::error::Error> {
         Ok(Self {
             domain,
             body,
             result: domain
                 .product(body)
-                .ok_or_else(|| format!("no product rule for domain {domain} and body {body}"))?,
+                .ok_or(crate::error::Error::NoProductRule { domain, body })?,
         })
     }
 
-    pub fn validate(self) -> Result<(), String> {
+    pub fn validate(self) -> Result<(), crate::error::Error> {
         if self.domain.product(self.body) == Some(self.result) {
             Ok(())
         } else {
-            Err("invalid product rule label".into())
+            Err(crate::error::Error::InvalidProductRule { rule: self })
         }
     }
 

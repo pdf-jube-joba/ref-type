@@ -1724,7 +1724,7 @@ fn inferred_recursion_annotations_still_reject_mixed_universes() {
         let mut environment = GlobalEnvironment::default();
         let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
         assert!(
-            format!("{error:?}").contains("must inhabit the same Set(i)"),
+            error.to_string().contains("must inhabit the same Set(i)"),
             "{error:?}"
         );
     }
@@ -2312,7 +2312,7 @@ fn invalid_variadic_macro_templates_fail_at_declaration() {
         let mut environment = GlobalEnvironment::default();
         let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
         assert!(
-            format!("{error:?}").contains(expected),
+            error.to_string().contains(expected),
             "{declaration}: {error:?}"
         );
     }
@@ -2353,7 +2353,7 @@ fn non_exhaustive_macro_matches_fail_only_when_selected() {
         let modules = parse::str_parse_modules(&source).unwrap();
         let mut environment = GlobalEnvironment::default();
         let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
-        assert!(format!("{error:?}").contains(expected), "{call}: {error:?}");
+        assert!(error.to_string().contains(expected), "{call}: {error:?}");
     }
 }
 
@@ -2367,7 +2367,9 @@ fn self_recursive_macro_expansion_respects_depth_limit() {
         let mut environment = GlobalEnvironment::default();
         let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
         assert!(
-            format!("{error:?}").contains("Macro expansion exceeded depth 128"),
+            error
+                .to_string()
+                .contains("Macro expansion exceeded depth 128"),
             "{error:?}"
         );
     }
@@ -2528,7 +2530,7 @@ fn explicit_meta_assignment_checks_existing_solutions() {
         if succeeds {
             result.unwrap();
         } else {
-            let error = format!("{:?}", result.unwrap_err());
+            let error = result.unwrap_err().to_string();
             assert!(error.contains("incompatible rigid expressions"), "{error}");
             assert!(error.contains("[Failed]"), "{error}");
         }

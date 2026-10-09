@@ -91,9 +91,11 @@ impl Resolver {
         if let ModuleInstantiatePath::FromCurrent { back_parent, calls } = path {
             let mut module = self.current;
             for _ in 0..*back_parent {
-                module = self.scopes[module.0 as usize]
-                    .parent
-                    .ok_or_else(|| self.error("already at root module"))?;
+                module = self.scopes[module.0 as usize].parent.ok_or_else(|| {
+                    self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::AlreadyAtRootModule,
+                    ))
+                })?;
             }
             *path = ModuleInstantiatePath::FromModule {
                 module,
@@ -295,9 +297,9 @@ impl Resolver {
                     existence,
                 } if self.is_structure_type(&bind.ty) => {
                     if bind.vars.len() != 1 {
-                        Some(Err(
-                            self.error("existential elimination requires one witness")
-                        ))
+                        Some(Err(self.error(crate::error::Error::Invalid(
+                            crate::error::Invalid::ExistentialEliminationRequiresOneWitness,
+                        ))))
                     } else {
                         Some(Ok(self.structure_exists_elim(bind, body, existence)))
                     }
@@ -339,7 +341,9 @@ impl Resolver {
             }
             if let SExp::MemberLiteral { ty, fields } = node {
                 let SExp::AccessPath { access, parameters } = ty.as_ref() else {
-                    error = Some(self.error("expected a structure type before a literal"));
+                    error = Some(self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::ExpectedAStructureTypeBeforeALiteral,
+                    )));
                     return false;
                 };
                 let mut literal = SExp::RecordTypeCtor {
@@ -622,7 +626,7 @@ impl Resolver {
                         }
                         if !value.parameters.is_empty() {
                             error = Some(
-                                self.error("structure declaration needs its remaining arguments"),
+                                self.error(crate::error::Error::Invalid(crate::error::Invalid::StructureDeclarationNeedsItsRemainingArguments)),
                             );
                             return false;
                         }
@@ -671,8 +675,9 @@ impl Resolver {
                                 }
                             };
                         } else {
-                            error =
-                                Some(self.error(format!("unknown structure field: {}", field.0)));
+                            error = Some(self.error(crate::error::Error::UnknownStructureField {
+                                name: (field.0).to_owned(),
+                            }));
                         }
                     }
                     Err(e) => error = Some(e),

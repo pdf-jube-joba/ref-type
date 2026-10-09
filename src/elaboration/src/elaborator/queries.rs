@@ -230,7 +230,12 @@ impl GlobalEnvironment {
         Ok(self.metavariables.zonk(&self.crate_env, exp_elab))
     }
 
-    fn certify_query(&mut self, context: &ExpContext, term: Exp, ty: Exp) -> Result<(), String> {
+    fn certify_query(
+        &mut self,
+        context: &ExpContext,
+        term: Exp,
+        ty: Exp,
+    ) -> Result<(), crate::error::Error> {
         crate::lowering::Lowerer::new(&self.crate_env, &mut self.crate_env.kernel.borrow_mut())
             .check_query(context, self.module_manager.current(), term, ty)
     }
@@ -240,7 +245,7 @@ impl GlobalEnvironment {
         context: &crate::raw::program::ProgramContext,
         term: crate::raw::program::ProgramTerm,
         ty: crate::raw::program::ProgramType,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         crate::lowering::Lowerer::new(&self.crate_env, &mut self.crate_env.kernel.borrow_mut())
             .check_program_query(context, term, ty)
     }
@@ -288,11 +293,11 @@ impl GlobalEnvironment {
         let ty_elab = self.metavariables.zonk(&self.crate_env, ty_elab);
         let result = CheckSession::new(&self.crate_env, ctx)
             .check_pts(exp_elab, ty_elab)
-            .map_err(|error| format!("{error}"))
+            .map_err(crate::error::Error::from)
             .and_then(|()| self.certify_query(ctx, exp_elab, ty_elab));
         self.outputs.push(match result {
             Ok(()) => Output::Exp(ty_elab),
-            Err(error) => Output::Message(format!("check failed: {error}")),
+            Err(error) => Output::Failure(error.context(crate::error::Context::CheckFailed)),
         });
         Ok(())
     }
@@ -305,14 +310,14 @@ impl GlobalEnvironment {
         let exp_elab = self.elaborate_query_term(exp, ctx)?;
         let result = CheckSession::new(&self.crate_env, ctx)
             .infer_exp_judgement(exp_elab)
-            .map_err(|error| format!("{error}"))
+            .map_err(crate::error::Error::from)
             .and_then(|judgement| {
                 self.certify_query(ctx, exp_elab, judgement.ty)?;
                 Ok(judgement.ty)
             });
         self.outputs.push(match result {
             Ok(ty) => Output::Exp(ty),
-            Err(error) => Output::Message(format!("infer failed: {error}")),
+            Err(error) => Output::Failure(error.context(crate::error::Context::InferFailed)),
         });
         Ok(())
     }

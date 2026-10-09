@@ -6,7 +6,7 @@ impl Lowerer<'_> {
         &mut self,
         term: raw::traversal::Term,
         context: &mut raw::program::ProgramContext,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         use raw::traversal::Term;
         self.scope.program_depth = context.len();
         self.scope.program_context = true;
@@ -22,7 +22,7 @@ impl Lowerer<'_> {
         &mut self,
         term: s::Expression,
         arguments: Vec<raw::program::ProgramArgument>,
-    ) -> Result<s::Node, String> {
+    ) -> Result<s::Node, crate::error::Error> {
         let s::Node::Meta { id, .. } = self.raw.arena().core.get(term) else {
             unreachable!()
         };
@@ -38,7 +38,7 @@ impl Lowerer<'_> {
     pub(crate) fn program_type(
         &mut self,
         ty: raw::program::ProgramType,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         match ty {
             raw::program::ProgramType::ValueType(t) => Ok(self.value_type(t)?),
             raw::program::ProgramType::ComputationType(t) => Ok(self.computation_type(t)?),
@@ -48,7 +48,7 @@ impl Lowerer<'_> {
     pub(super) fn value_type(
         &mut self,
         ty: raw::program::ValueType,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         use raw::program::ValueTypeNode as R;
         use s::Node as F;
         if self.native_reference(ty.0) {
@@ -90,7 +90,7 @@ impl Lowerer<'_> {
     pub(super) fn computation_type(
         &mut self,
         ty: raw::program::ComputationType,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         use raw::program::ComputationTypeNode as R;
         use s::Node as F;
         let form = match self.raw.arena().get(ty) {
@@ -116,7 +116,7 @@ impl Lowerer<'_> {
         &mut self,
         p: raw::program::ProgramTerm,
         context: &mut raw::program::ProgramContext,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         match p {
             raw::program::ProgramTerm::ValueTerm(value) => Ok(self.value_term(value, context)?),
             raw::program::ProgramTerm::ComputationTerm(computation) => {
@@ -128,7 +128,7 @@ impl Lowerer<'_> {
     pub(crate) fn program_context(
         &mut self,
         context: &raw::program::ProgramContext,
-    ) -> Result<ke::Context, String> {
+    ) -> Result<ke::Context, crate::error::Error> {
         let mut result = self.capture_context(true)?;
         for (depth, binding) in context.iter().enumerate() {
             let previous = std::mem::replace(&mut self.scope.program_depth, depth);
@@ -155,7 +155,7 @@ impl Lowerer<'_> {
         &mut self,
         id: ProgramInductiveId,
         parameters: Vec<raw::program::ValueType>,
-    ) -> Result<Vec<s::Expression>, String> {
+    ) -> Result<Vec<s::Expression>, crate::error::Error> {
         let captures = if self.structural && !self.raw.has_program_inductive(id) {
             vec![]
         } else {
@@ -176,7 +176,7 @@ impl Lowerer<'_> {
         &mut self,
         v: raw::program::ValueTerm,
         ctx: &mut raw::program::ProgramContext,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         let previous_mode = std::mem::replace(&mut self.scope.program_context, true);
         let depth = std::mem::replace(&mut self.scope.program_depth, ctx.len());
         let result = self.value_term_inner(v, ctx);
@@ -189,7 +189,7 @@ impl Lowerer<'_> {
         &mut self,
         v: raw::program::ValueTerm,
         ctx: &mut raw::program::ProgramContext,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         use raw::program::ValueTermNode as R;
         use s::Node as F;
         if self.native_reference(v.0) {
@@ -224,8 +224,13 @@ impl Lowerer<'_> {
                     .borrow()
                     .get(&definition)
                     .copied()
-                    .ok_or("unknown definition")?;
-                return self.kernel.reference(id, arguments);
+                    .ok_or(crate::error::Error::Invalid(
+                        crate::error::Invalid::UnknownDefinition,
+                    ))?;
+                return self
+                    .kernel
+                    .reference(id, arguments)
+                    .map_err(crate::error::Error::Kernel);
             }
             R::DefinedConstant(definition) => {
                 return self.definition_expression(definition, ctx.len(), true);
@@ -276,7 +281,7 @@ impl Lowerer<'_> {
         &mut self,
         proof: Exp,
         context: &raw::program::ProgramContext,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         let mut reflected = context
             .iter()
             .map(|_| ExpContextEntry {
@@ -297,7 +302,7 @@ impl Lowerer<'_> {
         &mut self,
         e: raw::program::ComputationTerm,
         ctx: &mut raw::program::ProgramContext,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         let previous_mode = std::mem::replace(&mut self.scope.program_context, true);
         let depth = std::mem::replace(&mut self.scope.program_depth, ctx.len());
         let result = self.computation_term_inner(e, ctx);
@@ -310,7 +315,7 @@ impl Lowerer<'_> {
         &mut self,
         e: raw::program::ComputationTerm,
         ctx: &mut raw::program::ProgramContext,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         use raw::program::{ComputationTermNode as R, ProgramContextEntry};
         use s::Node as F;
         if self.native_reference(e.0) {
@@ -338,8 +343,13 @@ impl Lowerer<'_> {
                     .borrow()
                     .get(&definition)
                     .copied()
-                    .ok_or("unknown definition")?;
-                return self.kernel.reference(id, arguments);
+                    .ok_or(crate::error::Error::Invalid(
+                        crate::error::Invalid::UnknownDefinition,
+                    ))?;
+                return self
+                    .kernel
+                    .reference(id, arguments)
+                    .map_err(crate::error::Error::Kernel);
             }
             R::DefinedConstant(definition) => {
                 return self.definition_expression(definition, ctx.len(), true);

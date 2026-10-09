@@ -6,6 +6,9 @@ mod terms;
 use names::Names;
 
 pub(super) fn format_error(raw: &CrateEnv, error: &CheckError) -> String {
+    if let CheckError::Context { frame, source } = error {
+        return format!("{}\n{frame}", format_error(raw, source));
+    }
     let CheckError::TypeMismatch(error) = error else {
         return error.to_string();
     };
@@ -34,7 +37,12 @@ pub(super) fn format_error(raw: &CrateEnv, error: &CheckError) -> String {
     } else {
         format!("\ncontext: {}", context.join(", "))
     };
-    let frames = error.frames.join("\n");
+    let frames = error
+        .frames
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join("\n");
     format!(
         "types are not convertible\ninferred: {inferred}\nexpected: {expected}{context}\n{frames}"
     )

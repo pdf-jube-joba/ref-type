@@ -36,11 +36,12 @@ impl Resolver {
             if flattened {
                 return Ok((supplied.to_vec(), Vec::new()));
             }
-            return Err(self.error(format!(
-                "structure argument count mismatch: expected {}, got {}",
-                inputs.len(),
-                supplied.len()
-            )));
+            return Err(
+                self.error(crate::error::Error::StructureArgumentCountMismatch {
+                    expected_count: inputs.len(),
+                    actual_count: supplied.len(),
+                }),
+            );
         }
         let mut actual = Vec::new();
         let mut checks = Vec::new();
@@ -113,12 +114,20 @@ impl Resolver {
         let value = self
             .structure_value(argument, locals)?
             .filter(|value| Some(value.signature) == input.signature)
-            .ok_or_else(|| self.error("argument does not satisfy declaration signature"))?;
+            .ok_or_else(|| {
+                self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::ArgumentDoesNotSatisfyDeclarationSignature,
+                ))
+            })?;
         if !input.callback && !value.parameters.is_empty() {
-            return Err(self.error("structure declaration needs its remaining arguments"));
+            return Err(self.error(crate::error::Error::Invalid(
+                crate::error::Invalid::StructureDeclarationNeedsItsRemainingArguments,
+            )));
         }
         if input.callback && value.parameters.len() != input.callback_parameters.len() {
-            return Err(self.error("declaration parameter count mismatch"));
+            return Err(self.error(crate::error::Error::Invalid(
+                crate::error::Invalid::DeclarationParameterCountMismatch,
+            )));
         }
         let domain: HashMap<_, _> = input
             .callback_parameters

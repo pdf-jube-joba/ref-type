@@ -55,9 +55,24 @@ impl Resolver {
         let mut module = Module {
             id: ModuleId::default(),
             name: Identifier(format!("<definition:{}>", name.0)),
+            parameter_sources: binders
+                .iter()
+                .flat_map(|bind| &bind.vars)
+                .map(|parameter| {
+                    (
+                        parameter.0.clone(),
+                        ParameterSource {
+                            subject: ParameterSubject::DefinitionParameter {
+                                definition: name.0.clone(),
+                                name: parameter.0.clone(),
+                            },
+                            span,
+                        },
+                    )
+                })
+                .collect(),
             parameters: binders,
             parameter_checks: Vec::new(),
-            parameter_sources: HashMap::new(),
             declaration_spans: Vec::new(),
             body: ModuleBody::Inline(Vec::new()),
             span,
@@ -104,13 +119,20 @@ impl Resolver {
             });
             return Ok(());
         }
-        let (signature, shape, mut substitutions) = self
-            .structure_type(&ty, &[])?
-            .ok_or_else(|| self.error("expected a structure result signature"))?;
+        let (signature, shape, mut substitutions) =
+            self.structure_type(&ty, &[])?.ok_or_else(|| {
+                self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::ExpectedAStructureResultSignature,
+                ))
+            })?;
         let mut value = self
             .structure_value(&body, &[])?
             .filter(|value| value.signature == signature)
-            .ok_or_else(|| self.error("definition does not satisfy structure result signature"))?;
+            .ok_or_else(|| {
+                self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::DefinitionDoesNotSatisfyStructureResultSignature,
+                ))
+            })?;
         let mut checked_items = Vec::new();
         for (value, ty) in &value.checks {
             self.scoped_item(
@@ -125,7 +147,11 @@ impl Resolver {
             let actual = value
                 .arguments
                 .get(&id)
-                .ok_or_else(|| self.error("structure signature parameter mismatch"))?
+                .ok_or_else(|| {
+                    self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::StructureSignatureParameterMismatch,
+                    ))
+                })?
                 .clone();
             self.scoped_item(
                 ModuleItem::MemberCheck {
@@ -150,9 +176,11 @@ impl Resolver {
                 .clone();
             let expected = substitute(expected, &substitutions);
             if self.structure_type(&expected, &[])?.is_some() {
-                let nested = self
-                    .structure_value(&expression, &[])?
-                    .ok_or_else(|| self.error("expected nested structure"))?;
+                let nested = self.structure_value(&expression, &[])?.ok_or_else(|| {
+                    self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::ExpectedNestedStructure,
+                    ))
+                })?;
                 for (value, ty) in nested.checks {
                     self.scoped_item(
                         ModuleItem::MemberCheck {
@@ -212,7 +240,10 @@ impl Resolver {
                 (
                     parameter.0.clone(),
                     ParameterSource {
-                        description: format!("Structure parameter '{}.{}'", name.0, parameter.0),
+                        subject: ParameterSubject::StructureParameter {
+                            structure: name.0.clone(),
+                            name: parameter.0.clone(),
+                        },
                         span,
                     },
                 )
@@ -222,7 +253,10 @@ impl Resolver {
             (
                 field.0.clone(),
                 ParameterSource {
-                    description: format!("Structure field '{}.{}'", name.0, field.0),
+                    subject: ParameterSubject::StructureField {
+                        structure: name.0.clone(),
+                        name: field.0.clone(),
+                    },
                     span: field_spans.get(index).copied().unwrap_or(span),
                 },
             )

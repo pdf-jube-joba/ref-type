@@ -1,3 +1,4 @@
+use crate::error::{Error, IoOperation};
 use std::{
     collections::HashMap,
     fs,
@@ -16,41 +17,41 @@ const SOURCE_EXTENSION: &str = "ref";
 /// `\module child;` inside logical module `parent` resolves to
 /// `<root directory>/parent/child.ref`.
 pub trait SourceProvider {
-    fn read(&mut self, path: &Path) -> Result<Arc<SourceFile>, String>;
-    fn identity(&self, path: &Path) -> Result<PathBuf, String>;
-    fn modules(&mut self, path: &Path) -> Result<Vec<Module>, String> {
-        parse_modules_from_source(&self.read(path)?)
+    fn read(&mut self, path: &Path) -> Result<Arc<SourceFile>, crate::error::Error>;
+    fn identity(&self, path: &Path) -> Result<PathBuf, crate::error::Error>;
+    fn modules(&mut self, path: &Path) -> Result<Vec<Module>, crate::error::Error> {
+        Ok(parse_modules_from_source(&self.read(path)?)?)
     }
     fn items(
         &mut self,
         path: &Path,
-    ) -> Result<(Vec<ModuleItem>, Vec<syntax::syntax::SourceSpan>), String> {
-        parse_module_items_from_source(&self.read(path)?)
+    ) -> Result<(Vec<ModuleItem>, Vec<syntax::syntax::SourceSpan>), crate::error::Error> {
+        Ok(parse_module_items_from_source(&self.read(path)?)?)
     }
 }
 
 pub struct DiskSource;
 impl SourceProvider for DiskSource {
-    fn read(&mut self, path: &Path) -> Result<Arc<SourceFile>, String> {
+    fn read(&mut self, path: &Path) -> Result<Arc<SourceFile>, crate::error::Error> {
         Ok(Arc::new(SourceFile {
             id: SourceId(path.to_path_buf()),
-            text: read_source(path, "source file")?,
+            text: read_source(path)?,
         }))
     }
-    fn identity(&self, path: &Path) -> Result<PathBuf, String> {
+    fn identity(&self, path: &Path) -> Result<PathBuf, crate::error::Error> {
         path.canonicalize()
-            .map_err(|error| format!("cannot open {}: {error}", path.display()))
+            .map_err(|error| Error::io(IoOperation::Open, path, error))
     }
 }
 
-pub fn load_modules_from_root(root_file: &Path) -> Result<Vec<Module>, String> {
+pub fn load_modules_from_root(root_file: &Path) -> Result<Vec<Module>, crate::error::Error> {
     load_modules(root_file, &mut DiskSource)
 }
 
 pub fn load_modules(
     root_file: &Path,
     provider: &mut dyn SourceProvider,
-) -> Result<Vec<Module>, String> {
+) -> Result<Vec<Module>, crate::error::Error> {
     load_modules_in_scope(root_file, provider, &[])
 }
 
@@ -58,13 +59,11 @@ pub(crate) fn load_modules_in_scope(
     root_file: &Path,
     provider: &mut dyn SourceProvider,
     scope: &[String],
-) -> Result<Vec<Module>, String> {
+) -> Result<Vec<Module>, crate::error::Error> {
     if root_file.extension().and_then(|ext| ext.to_str()) != Some(SOURCE_EXTENSION) {
-        return Err(format!(
-            "root source file must have the .{} extension: {}",
-            SOURCE_EXTENSION,
-            root_file.display()
-        ));
+        return Err(Error::InvalidExtension {
+            path: root_file.to_owned(),
+        });
     }
 
     let root_source = provider.read(root_file)?;
@@ -99,7 +98,7 @@ impl ModuleLoader<'_> {
         module: &mut Module,
         parent_module_path: &[String],
         parent_timing_path: &[String],
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         let mut module_path = parent_module_path.to_vec();
         module_path.push(module.name.0.clone());
         let mut timing_path = parent_timing_path.to_vec();
@@ -120,12 +119,11 @@ impl ModuleLoader<'_> {
                 .loaded_files
                 .insert(canonical_path, display_module_path.clone())
             {
-                return Err(format!(
-                    "source file {} is used by both module '{}' and module '{}'",
-                    source_path.display(),
-                    first_module,
-                    display_module_path
-                ));
+                return Err(Error::DuplicateSource {
+                    path: source_path,
+                    first: first_module,
+                    second: display_module_path,
+                });
             }
 
             let source = self.provider.read(&source_path)?;
@@ -158,15 +156,8 @@ impl ModuleLoader<'_> {
     }
 }
 
-fn read_source(path: &Path, description: &str) -> Result<String, String> {
-    fs::read_to_string(path).map_err(|error| {
-        format!(
-            "failed to read {} at {}: {}",
-            description,
-            path.display(),
-            error
-        )
-    })
+fn read_source(path: &Path) -> Result<String, Error> {
+    fs::read_to_string(path).map_err(|error| Error::io(IoOperation::ReadSource, path, error))
 }
 
 fn attach_source(module: &mut Module, source: &Arc<SourceFile>) {

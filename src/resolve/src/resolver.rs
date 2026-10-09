@@ -15,13 +15,13 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
-    pub message: String,
+    pub error: crate::error::Error,
     pub location: Option<SourceLocation>,
     pub module: Vec<String>,
 }
 impl std::fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.message)
+        self.error.fmt(f)
     }
 }
 impl std::error::Error for Diagnostic {}
@@ -245,15 +245,15 @@ impl Resolver {
         let source = self.origins.get(&module).copied().unwrap_or(module);
         self.paths.get(&source).cloned().unwrap_or_default()
     }
-    fn error(&self, message: impl Into<String>) -> Diagnostic {
+    fn error(&self, error: impl Into<crate::error::Error>) -> Diagnostic {
         Diagnostic {
-            message: message.into(),
+            error: error.into(),
             location: self.location.clone(),
             module: self.path(self.current),
         }
     }
-    fn error_at(&self, message: impl Into<String>, span: SourceSpan) -> Diagnostic {
-        let mut diagnostic = self.error(message);
+    fn error_at(&self, error: impl Into<crate::error::Error>, span: SourceSpan) -> Diagnostic {
+        let mut diagnostic = self.error(error);
         if let Some(location) = &mut diagnostic.location
             && location.span.start <= span.start
             && span.start < span.end
@@ -345,7 +345,9 @@ impl Resolver {
                     result = self.access(self.current, access);
                 }
                 SExp::MacroParameter(_) | SExp::TokenMatch { .. } => {
-                    result = Err(self.error("macro template syntax outside a macro expansion"));
+                    result = Err(self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::MacroTemplateSyntaxOutsideAMacroExpansion,
+                    )));
                 }
                 _ => {}
             }
@@ -416,7 +418,9 @@ impl Resolver {
             } => (
                 self.import(from, access.as_str()).ok_or_else(|| {
                     self.error_at(
-                        format!("Module import '{}' was not found", access.as_str()),
+                        crate::error::Error::UnknownImport {
+                            name: (access.as_str()).to_owned(),
+                        },
                         SourceSpan {
                             start: span.start,
                             end: span.start + access.as_str().len(),
@@ -429,7 +433,9 @@ impl Resolver {
             ),
             LocalAccess::Resolved { .. } => return Ok(()),
             LocalAccess::Instantiated { .. } => {
-                return Err(self.error("unresolved module expression"));
+                return Err(self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::UnresolvedModuleExpression,
+                )));
             }
         };
         if let Some((module, id)) = self.find_name(module, name.as_str(), inherit) {
@@ -449,7 +455,9 @@ impl Resolver {
             end: span.end,
         };
         Err(self.error_at(
-            format!("Name '{}' was not found in its scope", name.as_str()),
+            crate::error::Error::UnknownName {
+                name: (name.as_str()).to_owned(),
+            },
             name_span,
         ))
     }
@@ -494,7 +502,11 @@ impl Resolver {
         let _time = timing::Scope::module(|| self.path(id));
         match self.states.get(&id) {
             Some(2) => return Ok(()),
-            Some(1) => return Err(self.error("cyclic module import dependency")),
+            Some(1) => {
+                return Err(self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::CyclicModuleImportDependency,
+                )));
+            }
             _ => {}
         }
         let parent = self.scopes[id.0 as usize].parent;
@@ -532,7 +544,9 @@ impl Resolver {
         module.parameter_checks = self.last_parameter_checks.clone();
         self.order.push(CheckStep::Parameters(id));
         let ModuleBody::Inline(items) = &mut module.body else {
-            return Err(self.error("External module was not loaded"));
+            return Err(self.error(crate::error::Error::Invalid(
+                crate::error::Invalid::ExternalModuleWasNotLoaded,
+            )));
         };
         let namespace = items.iter().all(|item| {
             matches!(
@@ -699,10 +713,9 @@ impl Resolver {
                 let target = self
                     .import(self.current, import_name.as_str())
                     .ok_or_else(|| {
-                        self.error(format!(
-                            "Module import '{}' was not found",
-                            import_name.as_str()
-                        ))
+                        self.error(crate::error::Error::UnknownImport {
+                            name: (import_name.as_str()).to_owned(),
+                        })
                     })?;
                 let definition = self.scopes[target.0 as usize]
                     .macros
@@ -710,21 +723,19 @@ impl Resolver {
                     .find(|definition| definition.name.as_str() == macro_name.as_str())
                     .cloned()
                     .ok_or_else(|| {
-                        self.error(format!(
-                            "Macro '{}.{}' was not found",
-                            import_name.as_str(),
-                            macro_name.as_str()
-                        ))
+                        self.error(crate::error::Error::UnknownImportedMacro {
+                            module: (import_name.as_str()).to_owned(),
+                            name: (macro_name.as_str()).to_owned(),
+                        })
                     })?;
                 if self
                     .visible(self.current)
                     .iter()
                     .any(|d| d.name.as_str() == macro_name.as_str())
                 {
-                    return Err(self.error(format!(
-                        "Macro '{}' is already visible",
-                        macro_name.as_str()
-                    )));
+                    return Err(self.error(crate::error::Error::DuplicateMacro {
+                        name: (macro_name.as_str()).to_owned(),
+                    }));
                 }
                 self.scopes[self.current.0 as usize].used.push(definition);
             }
@@ -785,24 +796,27 @@ impl Resolver {
             .iter()
             .any(|d| d.name.as_str() == name.as_str())
         {
-            return Err(self.error(format!("Macro '{}' is already visible", name.as_str())));
+            return Err(self.error(crate::error::Error::DuplicateMacro {
+                name: (name.as_str()).to_owned(),
+            }));
         }
         let mut captures = HashMap::new();
         let mut fixed = 0;
         macros::pattern_captures(pattern, &mut captures, &mut fixed, kind)
             .map_err(|e| self.error(e))?;
         if kind == MacroKind::Math && fixed == 0 {
-            return Err(self.error(format!(
-                "Math macro '{}' must contain at least one fixed token",
-                name.as_str()
-            )));
+            return Err(self.error(crate::error::Error::MathMacroWithoutFixedToken {
+                name: (name.as_str()).to_owned(),
+            }));
         }
         let mut has_match = false;
         macros::walk_sexp_mut(template, &mut |node| {
             has_match |= matches!(node, SExp::TokenMatch { .. })
         });
         if kind == MacroKind::Math && has_match {
-            return Err(self.error("Token matching is only valid in named macros"));
+            return Err(self.error(crate::error::Error::Invalid(
+                crate::error::Invalid::TokenMatchingIsOnlyValidInNamedMacros,
+            )));
         }
         macros::validate_template(template, &captures).map_err(|e| self.error(e))?;
         macros::rename_template_binders(template, self.fresh_hygiene());
@@ -850,10 +864,9 @@ impl Resolver {
                 && !visible.contains(nested.as_str())
                 && !(kind == MacroKind::Named && nested.as_str() == name.as_str())
             {
-                result = Err(self.error(format!(
-                    "Named macro '{}' is not visible at template declaration",
-                    nested.as_str()
-                )));
+                result = Err(self.error(crate::error::Error::MacroUnavailableInTemplate {
+                    name: (nested.as_str()).to_owned(),
+                }));
             }
         });
         result?;
@@ -930,10 +943,9 @@ impl Resolver {
         order: Option<u64>,
     ) -> Result<SExp, Diagnostic> {
         if depth >= macros::MAX_MACRO_EXPANSION_DEPTH {
-            return Err(self.error(format!(
-                "Macro expansion exceeded depth {}",
-                macros::MAX_MACRO_EXPANSION_DEPTH
-            )));
+            return Err(self.error(crate::error::Error::MacroDepthExceeded {
+                limit: macros::MAX_MACRO_EXPANSION_DEPTH as usize,
+            }));
         }
         let tokens = if name.is_none() {
             tokens
@@ -986,15 +998,16 @@ impl Resolver {
                 .map_err(|e| self.error(e));
             }
             if name.is_some() {
-                return Err(self.error(format!(
-                    "Input does not match the complete pattern of macro '{}'",
-                    definition.name.as_str()
-                )));
+                return Err(self.error(crate::error::Error::MacroPatternMismatch {
+                    name: (definition.name.as_str()).to_owned(),
+                }));
             }
         }
         Err(self.error(name.map_or_else(
-            || "No visible math macro matches the complete token sequence".into(),
-            |name| format!("Named macro '{}' is not visible", name.as_str()),
+            || crate::error::Error::Invalid(crate::error::Invalid::NoVisibleMathMacro),
+            |name| crate::error::Error::UnknownNamedMacro {
+                name: (name.as_str()).to_owned(),
+            },
         )))
     }
     fn resolve_import(
@@ -1020,9 +1033,11 @@ impl Resolver {
             ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
                 let mut base = self.current;
                 for _ in 0..*back_parent {
-                    base = self.scopes[base.0 as usize]
-                        .parent
-                        .ok_or_else(|| self.error("already at root module"))?;
+                    base = self.scopes[base.0 as usize].parent.ok_or_else(|| {
+                        self.error(crate::error::Error::Invalid(
+                            crate::error::Invalid::AlreadyAtRootModule,
+                        ))
+                    })?;
                 }
                 (base, calls)
             }
@@ -1044,10 +1059,9 @@ impl Resolver {
                 (
                     self.import(self.current, import_name.as_str())
                         .ok_or_else(|| {
-                            self.error(format!(
-                                "Module import '{}' was not found",
-                                import_name.as_str()
-                            ))
+                            self.error(crate::error::Error::UnknownImport {
+                                name: (import_name.as_str()).to_owned(),
+                            })
                         })?,
                     calls,
                 )
@@ -1071,9 +1085,9 @@ impl Resolver {
                     }
                 });
                 if has_meta {
-                    return Err(
-                        self.error("module arguments do not allow inference holes (`_` or `?`)")
-                    );
+                    return Err(self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::ModuleArgumentsDoNotAllowInferenceHolesOr,
+                    )));
                 }
                 let mut template = false;
                 macros::walk_sexp_mut(argument, &mut |node| {
@@ -1087,7 +1101,9 @@ impl Resolver {
                 .children
                 .get(child.as_str())
                 .ok_or_else(|| {
-                    self.error(format!("child module '{}' was not found", child.as_str()))
+                    self.error(crate::error::Error::UnknownChildModule {
+                        name: (child.as_str()).to_owned(),
+                    })
                 })?;
             target = self.origins.get(&target).copied().unwrap_or(target);
             if self.input.contains_key(&target) {
@@ -1353,5 +1369,21 @@ fn declaration_kind<'de, D: serde::Deserializer<'de>>(
         "field" => Ok("field"),
         "parameter" => Ok("parameter"),
         _ => Err(serde::de::Error::custom("unknown declaration kind")),
+    }
+}
+
+impl diagnostics::DiagnosticError for Diagnostic {
+    fn diagnostic_data(&self) -> diagnostics::DiagnosticData {
+        let mut data = self.error.diagnostic_data().with(
+            "module",
+            diagnostics::Value::List(self.module.iter().cloned().map(Into::into).collect()),
+        );
+        if let Some(location) = &self.location {
+            data = data
+                .with("file", location.source.id.0.to_string_lossy().into_owned())
+                .with("start", location.span.start)
+                .with("end", location.span.end);
+        }
+        data
     }
 }

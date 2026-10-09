@@ -41,7 +41,7 @@ impl ModItemRecord {
         e: Exp,
         field_name: &Identifier,
         parameters: &[Exp],
-    ) -> Result<Option<Exp>, String> {
+    ) -> Result<Option<Exp>, crate::error::Error> {
         let arena = env.arena();
         let Some((_, definition)) = self
             .associated_definitions

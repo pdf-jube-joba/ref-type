@@ -1795,7 +1795,7 @@ impl kernel::reflection::Resolver for Arena {
     fn replacement(
         &self,
         e: kernel::syntax::Expression,
-    ) -> Result<Option<kernel::syntax::Expression>, String> {
+    ) -> Result<Option<kernel::syntax::Expression>, kernel::error::Error> {
         if let N::Definition { id, arguments } = self.core.get(e) {
             return kernel::calculus::instantiate(&self.core, self.definition_body(id), &arguments)
                 .map(Some);
@@ -1805,17 +1805,17 @@ impl kernel::reflection::Resolver for Arena {
     fn definition(
         &self,
         _id: kernel::ids::DefinitionId,
-    ) -> Result<(kernel::ids::DefinitionId, Vec<bool>), String> {
-        Err("unresolved definition reflection".into())
+    ) -> Result<(kernel::ids::DefinitionId, Vec<bool>), kernel::error::Error> {
+        Err(kernel::error::Error::SourceDefinitionWasNotResolved)
     }
     fn datatype(
         &self,
         id: kernel::ids::ProgramInductiveId,
-    ) -> Result<kernel::ids::InductiveId, String> {
+    ) -> Result<kernel::ids::InductiveId, kernel::error::Error> {
         self.datatype_reflections
             .borrow()
             .get(&id)
             .copied()
-            .ok_or_else(|| "missing datatype reflection".into())
+            .ok_or(kernel::error::Error::UnknownDatatype)
     }
 }

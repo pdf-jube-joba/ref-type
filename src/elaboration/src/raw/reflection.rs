@@ -8,10 +8,10 @@ use kernel::{
     reflection::{Reflection, Resolver},
     syntax::{Expression, Node},
 };
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum ReflectionError {
     UnresolvedMetavariable,
-    Invalid(String),
+    Invalid(kernel::error::Error),
 }
 impl std::fmt::Display for ReflectionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -19,7 +19,7 @@ impl std::fmt::Display for ReflectionError {
             Self::UnresolvedMetavariable => {
                 f.write_str("cannot reflect an unresolved metavariable")
             }
-            Self::Invalid(message) => f.write_str(message),
+            Self::Invalid(message) => message.fmt(f),
         }
     }
 }
@@ -29,7 +29,7 @@ impl Resolver for Source<'_> {
     fn arena(&self) -> &kernel::syntax::Arena {
         &self.0.arena().core
     }
-    fn replacement(&self, term: Expression) -> Result<Option<Expression>, String> {
+    fn replacement(&self, term: Expression) -> Result<Option<Expression>, kernel::error::Error> {
         let arena = self.0.arena();
         match arena.core.get(term) {
             Node::Definition { id, arguments } => {
@@ -39,12 +39,18 @@ impl Resolver for Source<'_> {
             Node::Meta { id, arguments } => {
                 let definition = match arena.atom_key(id) {
                     Atom::Definition(id) | Atom::Instance(id) => id,
-                    Atom::Meta(..) => return Err("unresolved reflection metavariable".into()),
+                    Atom::Meta(..) => {
+                        return Err(kernel::error::Error::UnresolvedReflectionMetavariable);
+                    }
                 };
-                let body = match self.0.resolve_definition(definition)? {
+                let body = match self
+                    .0
+                    .resolve_definition(definition)
+                    .map_err(kernel::error::Error::external)?
+                {
                     DefinedConstant::ProgramValue { body, .. } => body.0,
                     DefinedConstant::ProgramComputation { body, .. } => body.0,
-                    _ => return Err("reflection requires a Program definition".into()),
+                    _ => return Err(kernel::error::Error::ReflectionRequiresAProgramDefinition),
                 };
                 kernel::calculus::instantiate(&arena.core, body, &arguments).map(Some)
             }
@@ -54,13 +60,13 @@ impl Resolver for Source<'_> {
     fn definition(
         &self,
         _id: kernel::ids::DefinitionId,
-    ) -> Result<(kernel::ids::DefinitionId, Vec<bool>), String> {
-        Err("source definition was not resolved".into())
+    ) -> Result<(kernel::ids::DefinitionId, Vec<bool>), kernel::error::Error> {
+        Err(kernel::error::Error::SourceDefinitionWasNotResolved)
     }
     fn datatype(
         &self,
         id: kernel::ids::ProgramInductiveId,
-    ) -> Result<kernel::ids::InductiveId, String> {
+    ) -> Result<kernel::ids::InductiveId, kernel::error::Error> {
         let source = crate::raw::ids::ProgramInductiveId {
             module: crate::raw::ids::ModuleId((id.0 >> 32) as u32),
             index: id.0 as u32,
@@ -73,7 +79,10 @@ fn reflect(env: &CrateEnv, term: Expression) -> Result<Exp, ReflectionError> {
         .reflect_bound(term)
         .map(Exp)
         .map_err(|e| {
-            if e == "unresolved reflection metavariable" {
+            if matches!(
+                e.root(),
+                kernel::error::Error::UnresolvedReflectionMetavariable
+            ) {
                 ReflectionError::UnresolvedMetavariable
             } else {
                 ReflectionError::Invalid(e)
@@ -120,4 +129,15 @@ pub fn reflect_context(
         }
     }
     Ok(result)
+}
+
+impl diagnostics::DiagnosticError for ReflectionError {
+    fn diagnostic_data(&self) -> diagnostics::DiagnosticData {
+        match self {
+            Self::UnresolvedMetavariable => {
+                diagnostics::DiagnosticData::new("elaboration.UnresolvedReflectionMetavariable")
+            }
+            Self::Invalid(error) => error.diagnostic_data(),
+        }
+    }
 }

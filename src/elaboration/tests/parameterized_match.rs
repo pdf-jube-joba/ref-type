@@ -6,7 +6,7 @@ fn check(source: &str) -> Result<(), String> {
     Checker::default()
         .check(&project)
         .map(|_| ())
-        .map_err(|errors| format!("{errors:?}"))
+        .map_err(|error| error.to_string())
 }
 
 #[test]

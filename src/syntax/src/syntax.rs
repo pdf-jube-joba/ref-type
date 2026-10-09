@@ -791,7 +791,7 @@ pub enum SExp {
 }
 
 impl TryFrom<SExp> for ValueTypeExp {
-    type Error = String;
+    type Error = crate::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
             expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. }) => {
@@ -823,13 +823,13 @@ impl TryFrom<SExp> for ValueTypeExp {
                 state_ty: Box::new((*state_ty).try_into()?),
                 result_ty: Box::new((*result_ty).try_into()?),
             }),
-            _ => Err("expected Program value-type syntax".into()),
+            _ => Err(crate::error::ConversionError::ExpectedProgramValueTypeSyntax),
         }
     }
 }
 
 impl TryFrom<SExp> for ComputationTypeExp {
-    type Error = String;
+    type Error = crate::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
             expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. }) => {
@@ -847,13 +847,13 @@ impl TryFrom<SExp> for ComputationTypeExp {
                 bind: Bind::Named(RightBind { vars, ty }),
                 body,
             } if vars.is_empty() => cbv_arrow_as_computation_type(*ty, *body),
-            _ => Err("expected Program computation-type syntax".into()),
+            _ => Err(crate::error::ConversionError::ExpectedProgramComputationTypeSyntax),
         }
     }
 }
 
 impl TryFrom<SExp> for ValueTermExp {
-    type Error = String;
+    type Error = crate::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         let (value, arguments) = decompose_surface_application(value);
         match value {
@@ -881,7 +881,7 @@ impl TryFrom<SExp> for ValueTermExp {
                 fields: fields
                     .into_iter()
                     .map(|(name, value)| Ok((name, value.try_into()?)))
-                    .collect::<Result<_, String>>()?,
+                    .collect::<Result<_, crate::error::ConversionError>>()?,
             }),
             SExp::Meta { kind, span } if arguments.is_empty() => Ok(Self::Meta { kind, span }),
             SExp::AccessPath { access, parameters } if parameters.is_empty() => {
@@ -902,7 +902,7 @@ impl TryFrom<SExp> for ValueTermExp {
             }
             SExp::AssociatedAccess { base, field, span } => {
                 let SExp::AccessPath { access, parameters } = *base else {
-                    return Err("expected a Program datatype before constructor access".into());
+                    return Err(crate::error::ConversionError::ExpectedAProgramDatatypeBeforeConstructorAccess);
                 };
                 Ok(Self::Constructor {
                     span,
@@ -947,13 +947,13 @@ impl TryFrom<SExp> for ValueTermExp {
                 result_ty: Box::new((*result_ty).try_into()?),
                 output: Box::new((*output).try_into()?),
             }),
-            _ => Err("expected Program value syntax".into()),
+            _ => Err(crate::error::ConversionError::ExpectedProgramValueSyntax),
         }
     }
 }
 
 impl TryFrom<SExp> for ComputationTermExp {
-    type Error = String;
+    type Error = crate::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
             expression @ (SExp::MemberAccess { .. } | SExp::MemberLiteral { .. }) => {
@@ -972,7 +972,7 @@ impl TryFrom<SExp> for ComputationTermExp {
             }),
             SExp::AssociatedAccess { base, field, span } => {
                 let SExp::AccessPath { access, parameters } = *base else {
-                    return Err("expected a Program datatype before associated access".into());
+                    return Err(crate::error::ConversionError::ExpectedAProgramDatatypeBeforeAssociatedAccess);
                 };
                 Ok(Self::Associated {
                     span,
@@ -1007,9 +1007,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                     }
                     SExp::AssociatedAccess { base, field, span } => {
                         let SExp::AccessPath { access, parameters } = *base else {
-                            return Err(
-                                "expected a Program datatype before associated access".into()
-                            );
+                            return Err(crate::error::ConversionError::ExpectedAProgramDatatypeBeforeAssociatedAccess);
                         };
                         ProgramFunctionExp::Associated {
                             span,
@@ -1083,9 +1081,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                             body: Box::new(body),
                         },
                         _ => {
-                            return Err(
-                                "Program blocks only support \\let and \\bind statements".into()
-                            );
+                            return Err(crate::error::ConversionError::ProgramBlocksOnlySupportLetAndBindStatements);
                         }
                     };
                 }
@@ -1103,7 +1099,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                     .map(|(constructor, binders, body)| {
                         Ok((constructor, binders, body.try_into()?))
                     })
-                    .collect::<Result<_, String>>()?,
+                    .collect::<Result<_, crate::error::ConversionError>>()?,
             }),
             SExp::Run {
                 state_ty,
@@ -1135,7 +1131,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                 accessibility,
                 transition_equality,
             }),
-            _ => Err("expected Program computation syntax".into()),
+            _ => Err(crate::error::ConversionError::ExpectedProgramComputationSyntax),
         }
     }
 }
@@ -1143,22 +1139,24 @@ impl TryFrom<SExp> for ComputationTermExp {
 fn cbv_arrow_as_computation_type(
     domain: SExp,
     codomain: SExp,
-) -> Result<ComputationTypeExp, String> {
+) -> Result<ComputationTypeExp, crate::error::ConversionError> {
     Ok(ComputationTypeExp::Function {
         domain: Box::new(domain.try_into()?),
         codomain: Box::new(ComputationTypeExp::Return(Box::new(codomain.try_into()?))),
     })
 }
 
-fn cbv_lambda_as_computation(expression: SExp) -> Result<ComputationTermExp, String> {
+fn cbv_lambda_as_computation(
+    expression: SExp,
+) -> Result<ComputationTermExp, crate::error::ConversionError> {
     let mut expression = expression;
     let mut binders = Vec::new();
     while let SExp::Lam { bind, body } = expression {
         let Bind::Named(RightBind { vars, ty }) = bind else {
-            return Err("Program lambda requires a plain value binder".into());
+            return Err(crate::error::ConversionError::ProgramLambdaRequiresAPlainValueBinder);
         };
         if vars.is_empty() {
-            return Err("Program lambda requires at least one value binder".into());
+            return Err(crate::error::ConversionError::ProgramLambdaRequiresAtLeastOneValueBinder);
         }
         binders.extend(vars.into_iter().map(|var| (var, (*ty).clone())));
         expression = *body;
@@ -1166,7 +1164,7 @@ fn cbv_lambda_as_computation(expression: SExp) -> Result<ComputationTermExp, Str
     let mut body: ComputationTermExp = expression.try_into()?;
     let (var, ty) = binders
         .pop()
-        .ok_or_else(|| "Program lambda requires at least one value binder".to_string())?;
+        .ok_or(crate::error::ConversionError::ProgramLambdaRequiresAtLeastOneValueBinder)?;
     body = ComputationTermExp::Lambda {
         var,
         value_ty: Box::new(ty.try_into()?),

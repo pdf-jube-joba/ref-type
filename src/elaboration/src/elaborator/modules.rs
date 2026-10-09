@@ -27,15 +27,16 @@ impl GlobalEnvironment {
         program_scope: &mut program_term_elaborator::ProgramScope,
     ) -> Result<ModuleId, ElaborationError> {
         let mut ctx = local_scope.context().clone();
-        let source_override = if let ModuleInstantiatePath::FromModule { module, .. } = path {
-            Some(
-                self.module_manager
-                    .hir_module(*module)
-                    .ok_or("unknown module expression scope")?,
-            )
-        } else {
-            None
-        };
+        let source_override =
+            if let ModuleInstantiatePath::FromModule { module, .. } = path {
+                Some(self.module_manager.hir_module(*module).ok_or(
+                    crate::error::Error::Invalid(
+                        crate::error::Invalid::UnknownModuleExpressionScope,
+                    ),
+                )?)
+            } else {
+                None
+            };
         let (from, base, calls) = match path {
             ModuleInstantiatePath::FromModule { calls, .. } => (None, None, calls),
             ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
@@ -46,30 +47,29 @@ impl GlobalEnvironment {
                 let binding = self
                     .module_manager
                     .hir_import(&self.crate_env, import_name)
-                    .ok_or_else(|| {
-                        format!("Module import '{}' was not found", import_name.as_str())
+                    .ok_or_else(|| crate::error::Error::UnknownModuleImport {
+                        name: (import_name.as_str()).to_string(),
                     })?;
                 (None, Some(binding), calls)
             }
         };
 
-        let mut source = if let Some(source) = source_override {
-            source
-        } else if let Some(base) = base {
-            self.crate_env.binding(base).source
-        } else if let Some(back_parent) = from {
-            let mut module = self.module_manager.current();
-            for _ in 0..back_parent {
-                module = self
-                    .crate_env
-                    .module(module)
-                    .parent()
-                    .ok_or("already at root module")?;
-            }
-            module
-        } else {
-            self.crate_env.root_module()
-        };
+        let mut source =
+            if let Some(source) = source_override {
+                source
+            } else if let Some(base) = base {
+                self.crate_env.binding(base).source
+            } else if let Some(back_parent) = from {
+                let mut module = self.module_manager.current();
+                for _ in 0..back_parent {
+                    module = self.crate_env.module(module).parent().ok_or(
+                        crate::error::Error::Invalid(crate::error::Invalid::AlreadyAtRootModule),
+                    )?;
+                }
+                module
+            } else {
+                self.crate_env.root_module()
+            };
         let initial_source = source;
         let mut program_substitutions = base
             .map(|base| self.crate_env.binding(base).arguments.clone())
@@ -79,21 +79,25 @@ impl GlobalEnvironment {
             let child = self
                 .module_manager
                 .hir_child(&self.crate_env, source, child_name)
-                .ok_or_else(|| format!("child module '{}' was not found", child_name.as_str()))?;
+                .ok_or_else(|| crate::error::Error::UnknownChildModule {
+                    name: (child_name.as_str()).to_string(),
+                })?;
             let parameters = self.crate_env.module(child).parameters().to_vec();
             if supplied.len() != parameters.len() {
-                return Err(
-                    format!("module '{}' argument count mismatch", child_name.as_str()).into(),
-                );
+                return Err(crate::error::Error::ModuleArgumentCountMismatch {
+                    name: (child_name.as_str()).to_string(),
+                }
+                .into());
             }
             let mut elaborated = Vec::with_capacity(supplied.len());
             for (position, ((name, expression), parameter)) in
                 supplied.iter().zip(parameters).enumerate()
             {
                 if name.as_str() != self.crate_env.symbol(parameter.name) {
-                    return Err(
-                        format!("module '{}' argument name mismatch", child_name.as_str()).into(),
-                    );
+                    return Err(crate::error::Error::ModuleArgumentNameMismatch {
+                        name: (child_name.as_str()).to_string(),
+                    }
+                    .into());
                 }
                 let argument = match parameter.kind {
                     ModuleParameterKind::Pts { .. } => {
@@ -152,7 +156,9 @@ impl GlobalEnvironment {
                         )
                         .check_value_type(*ty)
                         .map_err(|error| {
-                            format!("Program type module argument is ill-formed: {error}")
+                            crate::error::Error::from(error).context(
+                                crate::error::Context::ProgramTypeModuleArgumentIsIllFormed,
+                            )
                         })?;
                     }
                     ModuleArgument::ProgramValue(value) => {
@@ -178,7 +184,7 @@ impl GlobalEnvironment {
                 base,
                 args,
             )
-            .map_err(|e| format!("Module instantiation failed: {}", e))?;
+            .map_err(|e| e.context(crate::error::Context::ModuleInstantiationFailed))?;
 
         Ok(access_result)
     }
@@ -205,8 +211,8 @@ impl GlobalEnvironment {
                     ModuleArgument::ProgramType(ty) => {
                         crate::raw::reflection::reflect_value_type(&self.crate_env, ty).map_err(
                             |error| {
-                                ElaborationError::Message(format!(
-                                    "cannot reflect Program type module argument: {error}"
+                                ElaborationError::Failure(crate::error::Error::from(error).context(
+                                    crate::error::Context::CannotReflectProgramTypeModuleArgument,
                                 ))
                             },
                         )?
@@ -216,8 +222,8 @@ impl GlobalEnvironment {
                         crate::raw::program::ProgramTerm::ValueTerm(value),
                     )
                     .map_err(|error| {
-                        ElaborationError::Message(format!(
-                            "cannot reflect Program value module argument: {error}"
+                        ElaborationError::Failure(crate::error::Error::from(error).context(
+                            crate::error::Context::CannotReflectProgramValueModuleArgument,
                         ))
                     })?,
                 };
@@ -229,26 +235,27 @@ impl GlobalEnvironment {
                 .module_manager
                 .hir_child(&self.crate_env, source, child_name)
                 .ok_or_else(|| {
-                    ElaborationError::Message(format!(
-                        "child module '{}' was not found",
-                        child_name.as_str()
-                    ))
+                    ElaborationError::Failure(crate::error::Error::UnknownChildModule {
+                        name: (child_name.as_str()).to_string(),
+                    })
                 })?;
             let parameters = self.crate_env.module(child).parameters().to_vec();
             if parameters.len() != arguments.len() {
-                return Err(ElaborationError::Message(format!(
-                    "module '{}' argument count mismatch",
-                    child_name.as_str()
-                )));
+                return Err(ElaborationError::Failure(
+                    crate::error::Error::ModuleArgumentCountMismatch {
+                        name: (child_name.as_str()).to_string(),
+                    },
+                ));
             }
             for (position, ((argument_name, argument), parameter)) in
                 arguments.iter_mut().zip(parameters).enumerate()
             {
                 if argument_name.as_str() != self.crate_env.symbol(parameter.name) {
-                    return Err(ElaborationError::Message(format!(
-                        "module '{}' argument name mismatch",
-                        child_name.as_str()
-                    )));
+                    return Err(ElaborationError::Failure(
+                        crate::error::Error::ModuleArgumentNameMismatch {
+                            name: (child_name.as_str()).to_string(),
+                        },
+                    ));
                 }
                 match (parameter.kind, *argument) {
                     (ModuleParameterKind::Pts { ty }, ModuleArgument::Pts(exp)) => {
@@ -282,9 +289,9 @@ impl GlobalEnvironment {
                     | (ModuleParameterKind::ProgramValue { .. }, ModuleArgument::ProgramValue(_)) =>
                         {}
                     _ => {
-                        return Err(ElaborationError::Message(
-                            "module argument uses the wrong syntactic category".into(),
-                        ));
+                        return Err(ElaborationError::Failure(crate::error::Error::Invalid(
+                            crate::error::Invalid::WrongModuleArgumentCategory,
+                        )));
                     }
                 }
                 let reflected = match *argument {
@@ -292,8 +299,8 @@ impl GlobalEnvironment {
                     ModuleArgument::ProgramType(ty) => {
                         crate::raw::reflection::reflect_value_type(&self.crate_env, ty).map_err(
                             |error| {
-                                ElaborationError::Message(format!(
-                                    "cannot reflect Program type module argument: {error}"
+                                ElaborationError::Failure(crate::error::Error::from(error).context(
+                                    crate::error::Context::CannotReflectProgramTypeModuleArgument,
                                 ))
                             },
                         )?
@@ -303,8 +310,8 @@ impl GlobalEnvironment {
                         crate::raw::program::ProgramTerm::ValueTerm(value),
                     )
                     .map_err(|error| {
-                        ElaborationError::Message(format!(
-                            "cannot reflect Program value module argument: {error}"
+                        ElaborationError::Failure(crate::error::Error::from(error).context(
+                            crate::error::Context::CannotReflectProgramValueModuleArgument,
                         ))
                     })?,
                 };
@@ -359,7 +366,9 @@ impl GlobalEnvironment {
                 span: source.map_or(module.span, |source| source.span),
             });
             self.module_manager.reference_location = self.diagnostic_location.clone();
-            let subject = source.map_or("Module parameter", |source| source.description.as_str());
+            let subject = source.map_or(ParameterSubject::ModuleParameter, |source| {
+                source.subject.clone()
+            });
             let parameter_kind = if matches!(ty.as_ref(), SExp::ValueType) {
                 ModuleParameterKind::ProgramType
             } else if !matches!(ty.as_ref(), SExp::Meta { .. })
@@ -372,7 +381,10 @@ impl GlobalEnvironment {
                 ProgramCheckSession::new(&self.crate_env, &mut program_context)
                     .check_value_type(program_ty)
                     .map_err(|error| {
-                        format!("{subject} has an ill-formed Program value type: {error}")
+                        crate::error::Error::from(error).context(crate::error::Context::Parameter {
+                            subject: subject.clone(),
+                            requirement: crate::error::ParameterRequirement::ProgramValueType,
+                        })
                     })?;
                 ModuleParameterKind::ProgramValue { ty: program_ty }
             } else {
@@ -396,7 +408,13 @@ impl GlobalEnvironment {
                         CheckSession::new(&self.crate_env, &mut ctx)
                             .infer_sort(pts_ty)
                             .map_err(|error| {
-                                format!("{subject} must have a type or proposition: {error}")
+                                crate::error::Error::from(error).context(
+                                    crate::error::Context::Parameter {
+                                        subject: subject.clone(),
+                                        requirement:
+                                            crate::error::ParameterRequirement::TypeOrProposition,
+                                    },
+                                )
                             })?;
                         ModuleParameterKind::Pts { ty: pts_ty }
                     }
@@ -409,7 +427,13 @@ impl GlobalEnvironment {
                         ProgramCheckSession::new(&self.crate_env, &mut program_context)
                             .check_value_type(program_ty)
                             .map_err(|error| {
-                                format!("{subject} has an ill-formed Program value type: {error}")
+                                crate::error::Error::from(error).context(
+                                    crate::error::Context::Parameter {
+                                        subject: subject.clone(),
+                                        requirement:
+                                            crate::error::ParameterRequirement::ProgramValueType,
+                                    },
+                                )
                             })?;
                         ModuleParameterKind::ProgramValue { ty: program_ty }
                     }
@@ -468,11 +492,14 @@ impl GlobalEnvironment {
         index: usize,
     ) -> Result<(), ElaborationError> {
         let ModuleBody::Inline(declarations) = &module.body else {
-            return Err("External module was not resolved".into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ExternalModuleWasNotResolved,
+            )
+            .into());
         };
-        let decl = declarations
-            .get(index)
-            .ok_or("unknown declaration in execution order")?;
+        let decl = declarations.get(index).ok_or(crate::error::Error::Invalid(
+            crate::error::Invalid::UnknownDeclarationInExecutionOrder,
+        ))?;
         let location = module.source.as_ref().map(|source| SourceLocation {
             source: source.clone(),
             span: module
@@ -513,7 +540,10 @@ impl GlobalEnvironment {
                 self.elaborate_set_structure(name, parameters, *sort, fields)?;
             }
             ModuleItem::Structure { .. } | ModuleItem::Scoped { .. } => {
-                return Err("unresolved frontend declaration".into());
+                return Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::UnresolvedFrontendDeclaration,
+                )
+                .into());
             }
             ModuleItem::Definition {
                 owner,
@@ -562,11 +592,8 @@ impl GlobalEnvironment {
                         let expected = self
                             .module_manager
                             .associated_parameter_count(&self.crate_env, &owner.type_name)
-                            .ok_or_else(|| {
-                                format!(
-                                    "Associated item owner '{}' is not a type in this module",
-                                    owner.type_name.as_str()
-                                )
+                            .ok_or_else(|| crate::error::Error::InvalidAssociatedOwner {
+                                name: (owner.type_name.as_str()).to_string(),
                             })?;
                         let found = owner
                             .parameters
@@ -574,14 +601,15 @@ impl GlobalEnvironment {
                             .map(|binder| binder.vars.len())
                             .sum::<usize>();
                         if expected != found {
-                            return Err(format!(
-                                "Associated definition {}::{} expects {} owner parameter(s), found {}",
-                                owner.type_name.as_str(),
-                                name.as_str(),
-                                expected,
-                                found,
-                            )
-                            .into());
+                            return Err(
+                                crate::error::Error::AssociatedDefinitionArgumentCountMismatch {
+                                    owner: (owner.type_name.as_str()).to_string(),
+                                    name: (name.as_str()).to_string(),
+                                    expected,
+                                    actual: found,
+                                }
+                                .into(),
+                            );
                         }
                     }
                     let mut all_binders = owner
@@ -692,7 +720,10 @@ impl GlobalEnvironment {
                                 crate::raw::utils::decompose_prod(self.crate_env.arena(), e);
                             for (_, it) in inner_binders.iter() {
                                 if exp_contains_inductive(self.crate_env.arena(), *it, inductive) {
-                                    return Err("Ctor contains inductive type name  in non-strictly positive position".into());
+                                    return Err(crate::error::Error::Invalid(
+                                        crate::error::Invalid::NonPositiveConstructor,
+                                    )
+                                    .into());
                                 }
                             }
                             let (head, tail) = crate::raw::utils::decompose_app(
@@ -701,7 +732,10 @@ impl GlobalEnvironment {
                             );
                             if !matches!(self.crate_env.arena().get(head), ExpNode::IndType { indspec, .. } if indspec == inductive)
                             {
-                                return Err("Constructor binder type head does not match inductive type name {type_name_var}".into());
+                                return Err(crate::error::Error::Invalid(
+                                    crate::error::Invalid::ConstructorBinderHeadMismatch,
+                                )
+                                .into());
                             }
 
                             for tail_elm in tail.iter() {
@@ -710,7 +744,10 @@ impl GlobalEnvironment {
                                     *tail_elm,
                                     inductive,
                                 ) {
-                                    return Err("Constructor binder type tail contains inductive type name in non-strictly positive position".into());
+                                    return Err(crate::error::Error::Invalid(
+                                        crate::error::Invalid::NonPositiveConstructorBinderTail,
+                                    )
+                                    .into());
                                 }
                             }
                             ctor_binders.push(CtorBinder::StrictPositive {
@@ -727,14 +764,18 @@ impl GlobalEnvironment {
                         crate::raw::utils::decompose_app(self.crate_env.arena(), ends_elab);
                     if !matches!(self.crate_env.arena().get(head), ExpNode::IndType { indspec, .. } if indspec == inductive)
                     {
-                        return Err(
-                            "Constructor type head does not match inductive type name".into()
-                        );
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::ConstructorHeadMismatch,
+                        )
+                        .into());
                     }
 
                     for tail_elm in tail.iter() {
                         if exp_contains_inductive(self.crate_env.arena(), *tail_elm, inductive) {
-                            return Err("Constructor type tail contains inductive type name in non-strictly positive position".into());
+                            return Err(crate::error::Error::Invalid(
+                                crate::error::Invalid::NonPositiveConstructorTail,
+                            )
+                            .into());
                         }
                     }
 
@@ -754,7 +795,10 @@ impl GlobalEnvironment {
                 self.crate_env.define_inductive(inductive, indspec);
                 let spec = self.crate_env.inductive(inductive).clone();
                 spec.validate(&mut CheckSession::new(&self.crate_env, &mut ctx), inductive)
-                    .map_err(|error| format!("Ill-formed inductive type specification: {error}"))?;
+                    .map_err(|error| {
+                        crate::error::Error::from(error)
+                            .context(crate::error::Context::IllFormedInductiveTypeSpecification)
+                    })?;
                 self.module_manager.publish_reserved_inductive(
                     &mut self.crate_env,
                     type_name.clone(),
@@ -829,7 +873,10 @@ impl GlobalEnvironment {
                     .inductive(inductive)
                     .clone()
                     .validate(&mut CheckSession::new(&self.crate_env, &mut ctx), inductive)
-                    .map_err(|error| format!("Ill-formed structure: {error}"))?;
+                    .map_err(|error| {
+                        crate::error::Error::from(error)
+                            .context(crate::error::Context::IllFormedStructure)
+                    })?;
                 let projections = self.add_record_projection_definitions(inductive)?;
                 self.module_manager.publish_reserved_record(
                     &mut self.crate_env,
@@ -839,7 +886,10 @@ impl GlobalEnvironment {
                 )?;
             }
             ModuleItem::ChildModule { .. } => {
-                return Err("child module in declaration execution order".into());
+                return Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::ChildModuleInDeclarationExecutionOrder,
+                )
+                .into());
             }
             ModuleItem::Import {
                 path,
@@ -857,10 +907,9 @@ impl GlobalEnvironment {
                     .import(import_name.as_str())
                     .is_some()
                 {
-                    return Err(format!(
-                        "Module import '{}' is already defined",
-                        import_name.as_str()
-                    )
+                    return Err(crate::error::Error::DuplicateModuleImport {
+                        name: (import_name.as_str()).to_string(),
+                    }
                     .into());
                 }
                 let access_result =
@@ -893,7 +942,7 @@ impl GlobalEnvironment {
                 scope.finish_metas(self)?;
                 ProgramCheckSession::new(&self.crate_env, &mut scope.context().clone())
                     .check_value_type(ty)
-                    .map_err(|error| error.to_string())?;
+                    .map_err(crate::error::Error::from)?;
             }
             ModuleItem::Check { exp, ty } => self.check_query(exp, ty, &mut ctx)?,
             ModuleItem::Infer { exp } => self.infer_query(exp, &mut ctx)?,

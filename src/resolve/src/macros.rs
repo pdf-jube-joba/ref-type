@@ -18,12 +18,7 @@ pub struct MacroDefinition {
     pub declaration_order: u64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CaptureKind {
-    Expression,
-    Token,
-    Sequence,
-}
+pub(crate) use crate::error::CaptureKind;
 
 #[derive(Debug, Clone)]
 pub(crate) enum CaptureValue {
@@ -40,7 +35,7 @@ pub(crate) fn pattern_captures(
     captures: &mut CaptureKinds,
     fixed: &mut usize,
     kind: MacroKind,
-) -> Result<(), String> {
+) -> Result<(), crate::error::Error> {
     for (position, atom) in atoms.iter().enumerate() {
         match atom {
             MacroSeqAtom::Capture(name)
@@ -52,18 +47,19 @@ pub(crate) fn pattern_captures(
                     _ => CaptureKind::Sequence,
                 };
                 if kind == MacroKind::Math && capture_kind != CaptureKind::Expression {
-                    return Err("Token and rest captures are only valid in named macros".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::TokenAndRestCapturesAreOnlyValidInNamedMacros,
+                    ));
                 }
                 if capture_kind == CaptureKind::Sequence && position + 1 != atoms.len() {
-                    return Err(
-                        "Rest capture must be the last element of its pattern sequence".into(),
-                    );
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::RestCaptureMustBeTheLastElementOfItsPatternSequence,
+                    ));
                 }
                 if captures.insert(name.0.clone(), capture_kind).is_some() {
-                    return Err(format!(
-                        "Macro capture '${}' is declared more than once",
-                        name.0
-                    ));
+                    return Err(crate::error::Error::DuplicateCapture {
+                        name: (name.0).to_owned(),
+                    });
                 }
             }
             MacroSeqAtom::Tok(token) => {
@@ -83,10 +79,9 @@ pub(crate) fn pattern_captures(
                         | "::"
                         | "^"
                 ) {
-                    return Err(format!(
-                        "Macro token '{}' conflicts with reserved syntax",
-                        token.0
-                    ));
+                    return Err(crate::error::Error::ReservedMacroToken {
+                        token: (token.0).to_owned(),
+                    });
                 }
                 *fixed += 1;
             }
@@ -171,21 +166,24 @@ fn require_capture(
     kinds: &CaptureKinds,
     name: &Identifier,
     expected: CaptureKind,
-) -> Result<(), String> {
+) -> Result<(), crate::error::Error> {
     match kinds.get(name.as_str()) {
         Some(actual) if *actual == expected => Ok(()),
-        Some(actual) => Err(format!(
-            "Macro capture '{}' has kind {actual:?}, expected {expected:?}",
-            name.as_str()
-        )),
-        None => Err(format!(
-            "Macro template references undeclared capture '${}'",
-            name.as_str()
-        )),
+        Some(actual) => Err(crate::error::Error::CaptureKindMismatch {
+            name: (name.as_str()).to_owned(),
+            actual: *actual,
+            expected,
+        }),
+        None => Err(crate::error::Error::UndeclaredCapture {
+            name: (name.as_str()).to_owned(),
+        }),
     }
 }
 
-fn validate_macro_tokens(tokens: &mut [MacroExp], kinds: &CaptureKinds) -> Result<(), String> {
+fn validate_macro_tokens(
+    tokens: &mut [MacroExp],
+    kinds: &CaptureKinds,
+) -> Result<(), crate::error::Error> {
     for token in tokens {
         match token {
             MacroExp::TemplateName(name) => {
@@ -211,7 +209,10 @@ fn validate_macro_tokens(tokens: &mut [MacroExp], kinds: &CaptureKinds) -> Resul
     Ok(())
 }
 
-pub(crate) fn validate_template(template: &mut SExp, kinds: &CaptureKinds) -> Result<(), String> {
+pub(crate) fn validate_template(
+    template: &mut SExp,
+    kinds: &CaptureKinds,
+) -> Result<(), crate::error::Error> {
     let mut result = Ok(());
     walk_sexp_control(template, &mut |node| {
         if result.is_err() {
@@ -229,13 +230,14 @@ pub(crate) fn validate_template(template: &mut SExp, kinds: &CaptureKinds) -> Re
             SExp::TokenMatch { target, branches } => {
                 result = (|| {
                     let target_kind = kinds.get(target.as_str()).ok_or_else(|| {
-                        format!(
-                            "Token match references undeclared capture '{}'",
-                            target.as_str()
-                        )
+                        crate::error::Error::UndeclaredTokenMatchCapture {
+                            name: (target.as_str()).to_owned(),
+                        }
                     })?;
                     if *target_kind == CaptureKind::Expression {
-                        return Err("Token match requires a token or sequence capture".into());
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::TokenMatchRequiresATokenOrSequenceCapture,
+                        ));
                     }
                     for (pattern, body) in branches {
                         let mut local = kinds.clone();
@@ -272,7 +274,7 @@ pub(crate) fn instantiate_template(
     captures: &Captures,
     depth: u16,
     identity: u64,
-) -> Result<SExp, String> {
+) -> Result<SExp, crate::error::Error> {
     let mut result = definition.template.clone();
     rename_template_binders(&mut result, identity);
     instantiate_exp(&mut result, captures, depth)?;
@@ -283,26 +285,24 @@ fn instantiate_tokens(
     tokens: &mut Vec<MacroExp>,
     captures: &Captures,
     depth: u16,
-) -> Result<(), String> {
+) -> Result<(), crate::error::Error> {
     let mut output = Vec::new();
     for token in std::mem::take(tokens) {
         match token {
             MacroExp::Splice(name) => match captures.get(name.as_str()) {
                 Some(CaptureValue::Sequence(items)) => output.extend(items.clone()),
                 _ => {
-                    return Err(format!(
-                        "Rest capture '{}' has no matched sequence",
-                        name.as_str()
-                    ));
+                    return Err(crate::error::Error::UnmatchedSequenceCapture {
+                        name: (name.as_str()).to_owned(),
+                    });
                 }
             },
             MacroExp::TokenParameter(name) => match captures.get(name.as_str()) {
                 Some(CaptureValue::Token(token)) => output.push(token.clone()),
                 _ => {
-                    return Err(format!(
-                        "Token capture '{}' has no matched token",
-                        name.as_str()
-                    ));
+                    return Err(crate::error::Error::UnmatchedTokenCapture {
+                        name: (name.as_str()).to_owned(),
+                    });
                 }
             },
             MacroExp::RawExp(mut exp) => {
@@ -320,7 +320,11 @@ fn instantiate_tokens(
     Ok(())
 }
 
-fn instantiate_exp(exp: &mut SExp, captures: &Captures, depth: u16) -> Result<(), String> {
+fn instantiate_exp(
+    exp: &mut SExp,
+    captures: &Captures,
+    depth: u16,
+) -> Result<(), crate::error::Error> {
     let mut result = Ok(());
     walk_sexp_control(exp, &mut |node| {
         if result.is_err() {
@@ -331,10 +335,9 @@ fn instantiate_exp(exp: &mut SExp, captures: &Captures, depth: u16) -> Result<()
                 match captures.get(name.as_str()) {
                     Some(CaptureValue::Expression(replacement)) => *node = replacement.clone(),
                     _ => {
-                        result = Err(format!(
-                            "Capture '${}' has no matched expression",
-                            name.as_str()
-                        ))
+                        result = Err(crate::error::Error::UnmatchedExpressionCapture {
+                            name: (name.as_str()).to_owned(),
+                        })
                     }
                 }
                 // Caller syntax is opaque: never substitute into an inserted expression.
@@ -357,10 +360,9 @@ fn instantiate_exp(exp: &mut SExp, captures: &Captures, depth: u16) -> Result<()
             SExp::TokenMatch { target, branches } => {
                 let selected = (|| {
                     let value = captures.get(target.as_str()).ok_or_else(|| {
-                        format!(
-                            "Token match capture '{}' has no matched value",
-                            target.as_str()
-                        )
+                        crate::error::Error::UnmatchedTokenMatchCapture {
+                            name: (target.as_str()).to_owned(),
+                        }
                     })?;
                     for (pattern, body) in branches {
                         let mut local = captures.clone();
@@ -384,10 +386,9 @@ fn instantiate_exp(exp: &mut SExp, captures: &Captures, depth: u16) -> Result<()
                             return Ok(selected);
                         }
                     }
-                    Err(format!(
-                        "No token match branch matches capture '{}'",
-                        target.as_str()
-                    ))
+                    Err(crate::error::Error::TokenMatchWithoutBranch {
+                        name: (target.as_str()).to_owned(),
+                    })
                 })();
                 match selected {
                     Ok(selected) => *node = selected,

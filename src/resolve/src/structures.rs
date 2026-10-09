@@ -481,7 +481,9 @@ impl Resolver {
             let mut supplied = parameters.clone();
             supplied.extend(application_arguments(expression).into_iter().cloned());
             if supplied.len() > template.inputs.len() {
-                return Err(self.error("structure declaration argument count mismatch"));
+                return Err(self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::StructureDeclarationArgumentCountMismatch,
+                )));
             }
             let supplied_count = supplied.len();
             let mut actual = Vec::new();
@@ -564,7 +566,9 @@ impl Resolver {
                 let mut supplied = HashMap::new();
                 for (name, value) in fields {
                     if supplied.insert(name.0.clone(), value.clone()).is_some() {
-                        return Err(self.error(format!("duplicate structure field: {}", name.0)));
+                        return Err(self.error(crate::error::Error::DuplicateStructureField {
+                            name: (name.0).to_owned(),
+                        }));
                     }
                 }
                 let mut result = Vec::new();
@@ -574,7 +578,9 @@ impl Resolver {
                         .remove(&name.0)
                         .or_else(|| default.as_ref().map(|v| substitute(v, &substitutions)))
                         .ok_or_else(|| {
-                            self.error(format!("missing structure field: {}", name.0))
+                            self.error(crate::error::Error::MissingStructureField {
+                                name: (name.0).to_owned(),
+                            })
                         })?;
                     let expected = substitute(ty, &substitutions);
                     if let Some((signature, _, _)) = self.structure_type(&expected, locals)? {
@@ -582,7 +588,7 @@ impl Resolver {
                             .structure_value(&value, locals)?
                             .filter(|value| value.signature == signature)
                             .ok_or_else(|| {
-                                self.error("nested field does not satisfy structure signature")
+                                self.error(crate::error::Error::Invalid(crate::error::Invalid::NestedFieldDoesNotSatisfyStructureSignature))
                             })?;
                         checks.extend(nested.checks);
                         for (id, expected) in
@@ -620,7 +626,9 @@ impl Resolver {
                     result.push((name.0.clone(), value));
                 }
                 if !supplied.is_empty() {
-                    return Err(self.error("unknown structure field"));
+                    return Err(self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::UnknownStructureField,
+                    )));
                 }
                 Ok(Some(Value {
                     arguments: self.structure_type(&ty, locals)?.unwrap().2,

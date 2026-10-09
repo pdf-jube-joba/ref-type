@@ -50,7 +50,7 @@ impl<'a> Checker<'a> {
         &self.env.arena
     }
     fn head(&self, e: Expression) -> Result<Expression, Error> {
-        Ok(self.env.erased_head(self.metas.zonk(self.arena(), e)?)?)
+        self.env.erased_head(self.metas.zonk(self.arena(), e)?)
     }
     fn base(&self, sort: BaseSort) -> Expression {
         self.arena().sort(Sort::Base(sort))
@@ -167,26 +167,26 @@ impl<'a> Checker<'a> {
         let ty = self.infer_open(e)?;
         match self.arena().get(self.head(ty)?) {
             Node::Sort(sort) => Ok(sort),
-            _ => Err("expected a sort".into()),
+            _ => Err(crate::error::Error::ExpectedASort),
         }
     }
     fn type_sort(&mut self, e: Expression) -> Result<BaseSort, Error> {
         match self.formation(e)? {
             Sort::Base(sort) => Ok(sort),
-            _ => Err("expected a type of base kind".into()),
+            _ => Err(crate::error::Error::ExpectedATypeOfBaseKind),
         }
     }
     fn set_type(&mut self, e: Expression) -> Result<usize, Error> {
         match self.type_sort(e)? {
             BaseSort::Set(level) => Ok(level),
-            _ => Err("expected Set(i)".into()),
+            _ => Err(crate::error::Error::ExpectedSetI),
         }
     }
     fn proposition(&mut self, e: Expression) -> Result<(), Error> {
         if self.type_sort(e)? == BaseSort::Prop {
             Ok(())
         } else {
-            Err("expected proposition".into())
+            Err(crate::error::Error::ExpectedProposition)
         }
     }
     fn program_type(&mut self, e: Expression, computation: bool) -> Result<usize, Error> {
@@ -196,7 +196,7 @@ impl<'a> Checker<'a> {
                 self.type_dependencies(e)?;
                 Ok(i)
             }
-            _ => Err("incorrect Program type sort".into()),
+            _ => Err(crate::error::Error::IncorrectProgramTypeSort),
         }
     }
     fn type_dependencies(&mut self, e: Expression) -> Result<(), Error> {
@@ -223,12 +223,15 @@ impl<'a> Checker<'a> {
                 continue;
             }
             if let Node::Parameter(id) = self.arena().get(term) {
-                let ty = self.env.parameter(id).ok_or("unknown module parameter")?;
+                let ty = self
+                    .env
+                    .parameter(id)
+                    .ok_or(crate::error::Error::UnknownModuleParameter)?;
                 if !matches!(
                     self.formation(ty)?,
                     Sort::Upper(BaseSort::Value(_) | BaseSort::Computation(_))
                 ) {
-                    return Err("Program type depends on a value parameter".into());
+                    return Err(crate::error::Error::ProgramTypeDependsOnAValueParameter);
                 }
             }
             pending.extend(self.arena().children(term).into_iter().map(|(e, _)| e));
@@ -240,14 +243,14 @@ impl<'a> Checker<'a> {
                 .context
                 .len()
                 .checked_sub(index + 1)
-                .ok_or("bound variable outside context")?;
+                .ok_or(crate::error::Error::BoundVariableOutsideContext)?;
             let binding = self.context[position].clone();
             let mut prefix = Checker::new(self.env, self.metas, self.context[..position].to_vec());
             if !matches!(
                 prefix.formation(binding.ty)?,
                 Sort::Upper(BaseSort::Value(_) | BaseSort::Computation(_))
             ) {
-                return Err("Program type depends on a value variable".into());
+                return Err(crate::error::Error::ProgramTypeDependsOnAValueVariable);
             }
         }
         Ok(())
@@ -255,7 +258,7 @@ impl<'a> Checker<'a> {
     fn equal(&self, left: Expression, right: Expression) -> Result<bool, Error> {
         let left = self.metas.zonk(self.arena(), left)?;
         let right = self.metas.zonk(self.arena(), right)?;
-        Ok(crate::reduction::erased_convertible(self.env, left, right)?)
+        crate::reduction::erased_convertible(self.env, left, right)
     }
     fn weaken(&self, left: Expression, right: Expression) -> Result<bool, Error> {
         if self.equal(left, right)? {
@@ -388,7 +391,7 @@ impl<'a> Checker<'a> {
     }
     fn arguments(&mut self, arguments: &[Expression], context: &Context) -> Result<(), Error> {
         if arguments.len() != context.len() {
-            return Err("parameter count mismatch".into());
+            return Err(crate::error::Error::ParameterCountMismatch);
         }
         for (i, binding) in context.iter().enumerate() {
             self.check_open(
@@ -411,7 +414,7 @@ impl<'a> Checker<'a> {
         match self.arena().get(self.head(ty)?) {
             Node::Product { domain, body, .. } => Ok((domain, body)),
             Node::TypeLift { superset, .. } => self.product(superset),
-            _ => Err("expected a product".into()),
+            _ => Err(crate::error::Error::ExpectedAProduct),
         }
     }
     fn runstep(
@@ -446,7 +449,7 @@ impl<'a> Checker<'a> {
                 (BaseSort::Set(_), false) | (BaseSort::Value(_), true)
             )
         {
-            return Err("recursion types must inhabit the same Set(i) or value universe".into());
+            return Err(crate::error::Error::RecursionTypesMustInhabitTheSameSetIOrValueUniverse);
         }
         Ok(self.alloc(if program {
             Node::ProgramRunStep {
@@ -516,20 +519,17 @@ impl<'a> Checker<'a> {
         result
     }
     fn infer_framed(&mut self, term: Expression) -> Result<Expression, Error> {
-        self.infer_rule(term).map_err(|error| {
-            let node = format!("{:?}", self.arena().get(term));
-            let name = node.split([' ', '(']).next().unwrap_or("expression");
-            error.at(format!("rule: {name:?}"))
-        })
+        self.infer_rule(term)
+            .map_err(|error| error.at(crate::error::Frame::Rule(self.arena().get(term).kind())))
     }
     fn check_at(
         &mut self,
-        phase: &str,
+        phase: &'static str,
         term: Expression,
         expected: Expression,
     ) -> Result<(), Error> {
         self.check_open(term, expected)
-            .map_err(|error| error.at(phase))
+            .map_err(|error| error.at(crate::error::Frame::Check(phase)))
     }
     fn infer_rule(&mut self, term: Expression) -> Result<Expression, Error> {
         let result = match self.arena().get(term) {
@@ -537,18 +537,23 @@ impl<'a> Checker<'a> {
                 self.check_open(term, ty)?;
                 ty
             }
-            Node::Parameter(id) => self.env.parameter(id).ok_or("unknown module parameter")?,
+            Node::Parameter(id) => self
+                .env
+                .parameter(id)
+                .ok_or(crate::error::Error::UnknownModuleParameter)?,
             Node::Sort(Sort::Base(sort)) => self.arena().sort(Sort::Upper(sort)),
-            Node::Sort(Sort::Upper(_)) => return Err("upper sort has no classifier".into()),
+            Node::Sort(Sort::Upper(_)) => {
+                return Err(crate::error::Error::UpperSortHasNoClassifier);
+            }
             Node::Bound(index) => {
                 let offset = index
                     .checked_add(1)
-                    .ok_or("bound variable outside context")?;
+                    .ok_or(crate::error::Error::BoundVariableOutsideContext)?;
                 let position = self
                     .context
                     .len()
                     .checked_sub(offset)
-                    .ok_or("bound variable outside context")?;
+                    .ok_or(crate::error::Error::BoundVariableOutsideContext)?;
                 self.env.shifted(self.context[position].ty, offset)?
             }
             Node::Definition { id, arguments } => {
@@ -583,7 +588,7 @@ impl<'a> Checker<'a> {
                             constraints: 0,
                         })?;
                         let ty = Checker::new(self.env, self.metas, context).infer(value)?;
-                        return Ok(self.env.instantiate(ty, &arguments)?);
+                        return self.env.instantiate(ty, &arguments);
                     }
                 };
                 if !self.solving
@@ -622,7 +627,7 @@ impl<'a> Checker<'a> {
                     if (mode == Mode::Computation)
                         != matches!(sort, Sort::Base(BaseSort::Computation(_)))
                     {
-                        return Err("lambda evaluation mode mismatch".into());
+                        return Err(crate::error::Error::LambdaEvaluationModeMismatch);
                     }
                 }
                 product
@@ -694,7 +699,7 @@ impl<'a> Checker<'a> {
                     let computation = domain_sort.base().is_program()
                         && matches!(self.formation(ty)?, Sort::Base(BaseSort::Computation(_)));
                     if (mode == Mode::Computation) != computation {
-                        return Err("application evaluation mode mismatch".into());
+                        return Err(crate::error::Error::ApplicationEvaluationModeMismatch);
                     }
                 }
                 self.env.instantiate(body, &[argument])?
@@ -706,12 +711,11 @@ impl<'a> Checker<'a> {
                     _ => self.formation(ty)?.base(),
                 };
                 if !sort.is_program() {
-                    return Err(format!(
-                        "reflection requires a Program expression: {:?} : {:?} ({sort:?})",
-                        self.arena().get(term),
-                        self.arena().get(ty)
-                    )
-                    .into());
+                    return Err(Error::InvalidReflection {
+                        node: Box::new(self.arena().get(term)),
+                        ty: Some(Box::new(self.arena().get(ty))),
+                        sort: Some(sort),
+                    });
                 }
                 self.alloc(Node::Reflect { term: ty })
             }
@@ -726,7 +730,7 @@ impl<'a> Checker<'a> {
             } => {
                 self.set_type(set)?;
                 self.under(var, set, |c| c.proposition(predicate))
-                    .map_err(|e| e.at("check predicate"))?;
+                    .map_err(|e| e.at(crate::error::Frame::Check("check predicate")))?;
                 self.alloc(Node::PowerSet { set })
             }
             Node::TypeLift { superset, subset } => {
@@ -794,7 +798,7 @@ impl<'a> Checker<'a> {
                             self.arena().get(right)
                         );
                     }
-                    return Err("different equality carriers".into());
+                    return Err(crate::error::Error::DifferentEqualityCarriers);
                 }
                 self.base(BaseSort::Prop)
             }
@@ -927,7 +931,7 @@ impl<'a> Checker<'a> {
                 let ty = self.infer_open(value)?;
                 match self.arena().get(self.head(ty)?) {
                     Node::Thunk { computation_ty } => computation_ty,
-                    _ => return Err("force requires U(B)".into()),
+                    _ => return Err(crate::error::Error::ForceRequiresUB),
                 }
             }
             Node::Sequence {
@@ -966,7 +970,10 @@ impl<'a> Checker<'a> {
                 inductive,
                 parameters,
             } => {
-                let spec = self.env.inductive(inductive).ok_or("unknown inductive")?;
+                let spec = self
+                    .env
+                    .inductive(inductive)
+                    .ok_or(crate::error::Error::UnknownInductive)?;
                 self.arguments(&parameters, &spec.parameters)?;
                 if spec.sort.is_upper() {
                     self.arena().sort(spec.sort)
@@ -979,19 +986,25 @@ impl<'a> Checker<'a> {
                 constructor,
                 parameters,
             } => {
-                let spec = self.env.inductive(inductive).ok_or("unknown inductive")?;
+                let spec = self
+                    .env
+                    .inductive(inductive)
+                    .ok_or(crate::error::Error::UnknownInductive)?;
                 self.arguments(&parameters, &spec.parameters)?;
                 let ty = *spec
                     .constructors
                     .get(constructor)
-                    .ok_or("unknown constructor")?;
+                    .ok_or(crate::error::Error::UnknownConstructor)?;
                 self.env.instantiate(ty, &parameters)?
             }
             Node::Inductive {
                 inductive,
                 parameters,
             } => {
-                let spec = self.env.datatype(inductive).ok_or("unknown datatype")?;
+                let spec = self
+                    .env
+                    .datatype(inductive)
+                    .ok_or(crate::error::Error::UnknownDatatype)?;
                 self.arguments(&parameters, &spec.parameters)?;
                 self.base(BaseSort::Value(spec.level))
             }
@@ -1001,14 +1014,17 @@ impl<'a> Checker<'a> {
                 parameters,
                 fields,
             } => {
-                let spec = self.env.datatype(inductive).ok_or("unknown datatype")?;
+                let spec = self
+                    .env
+                    .datatype(inductive)
+                    .ok_or(crate::error::Error::UnknownDatatype)?;
                 self.arguments(&parameters, &spec.parameters)?;
                 let telescope = spec
                     .constructors
                     .get(constructor)
-                    .ok_or("unknown constructor")?;
+                    .ok_or(crate::error::Error::UnknownConstructor)?;
                 if fields.len() != telescope.len() {
-                    return Err("constructor field count mismatch".into());
+                    return Err(crate::error::Error::ConstructorFieldCountMismatch);
                 }
                 for (field, binding) in fields.iter().zip(telescope) {
                     self.check_open(*field, self.env.instantiate(binding.ty, &parameters)?)?;
@@ -1077,7 +1093,7 @@ impl<'a> Checker<'a> {
             } => {
                 let ty = self.infer_open(left)?;
                 let Node::PowerSet { set } = self.arena().get(self.head(ty)?) else {
-                    return Err("setext requires powerset elements".into());
+                    return Err(crate::error::Error::SetextRequiresPowersetElements);
                 };
                 self.set_type(set)?;
                 self.check_open(right, ty)?;
@@ -1105,13 +1121,13 @@ impl<'a> Checker<'a> {
                 let ty = self.infer_open(family)?;
                 let (input, body) = self.product(ty)?;
                 if !self.equal(input, domain)? {
-                    return Err("choice family domain mismatch".into());
+                    return Err(crate::error::Error::ChoiceFamilyDomainMismatch);
                 }
                 if !matches!(
                     self.arena().get(self.head(body)?),
                     Node::Sort(Sort::Base(BaseSort::Set(_)))
                 ) {
-                    return Err("choice family must return Set".into());
+                    return Err(crate::error::Error::ChoiceFamilyMustReturnSet);
                 }
                 let exists = self.quantified(domain, |ch, x| {
                     ch.exists(ch.application(ch.lifted(family, 1)?, x)?)
@@ -1223,15 +1239,15 @@ impl<'a> Checker<'a> {
                 let motive_ty = self.motive_type(motive)?;
                 let (domain, codomain) = self.product(motive_ty)?;
                 if !self.equal(domain, step)? {
-                    return Err("step match motive domain mismatch".into());
+                    return Err(crate::error::Error::StepMatchMotiveDomainMismatch);
                 }
                 let Node::Sort(sigma) = self.arena().get(self.head(codomain)?) else {
-                    return Err("step match motive must return a classifier".into());
+                    return Err(crate::error::Error::StepMatchMotiveMustReturnAClassifier);
                 };
                 let i = self.set_type(state_ty)?;
                 Sort::Base(BaseSort::Set(i))
                     .product(sigma)
-                    .ok_or("invalid step match motive sort")?;
+                    .ok_or(crate::error::Error::InvalidStepMatchMotiveSort)?;
                 let state = self.lifted(state_ty, 1)?;
                 let result = self.lifted(result_ty, 1)?;
                 let x = self.arena().bound(0);
@@ -1301,7 +1317,7 @@ impl<'a> Checker<'a> {
                 if max_loose_bound(self.arena(), program).is_some()
                     || self.env.contains_parameter(program)
                 {
-                    return Err("Box payload must be closed".into());
+                    return Err(crate::error::Error::BoxPayloadMustBeClosed);
                 }
                 let mut closed = Checker::new(self.env, self.metas, vec![]);
                 closed.check_open(program, program_ty)?;
@@ -1316,7 +1332,7 @@ impl<'a> Checker<'a> {
             Node::BoxApp { function, argument } => {
                 let ty = self.infer_open(function)?;
                 let Node::BoxType { program_ty } = self.arena().get(self.head(ty)?) else {
-                    return Err("boxed application requires Box(A -> B)".into());
+                    return Err(crate::error::Error::BoxedApplicationRequiresBoxAB);
                 };
                 self.closed_program_type(program_ty)?;
                 let (domain, body) = self.product(program_ty)?;
@@ -1336,7 +1352,9 @@ impl<'a> Checker<'a> {
             Node::BoxTypeApp { function, argument } => {
                 let ty = self.infer_open(function)?;
                 let Node::BoxType { program_ty } = self.arena().get(self.head(ty)?) else {
-                    return Err("boxed type application requires a boxed type abstraction".into());
+                    return Err(
+                        crate::error::Error::BoxedTypeApplicationRequiresABoxedTypeAbstraction,
+                    );
                 };
                 self.closed_program_type(program_ty)?;
                 let (domain, codomain) = self.product(program_ty)?;
@@ -1344,10 +1362,10 @@ impl<'a> Checker<'a> {
                     self.formation(domain)?,
                     Sort::Upper(BaseSort::Value(_) | BaseSort::Computation(_))
                 ) {
-                    return Err("Box type binder requires Program kind".into());
+                    return Err(crate::error::Error::BoxTypeBinderRequiresProgramKind);
                 }
                 if max_loose_bound(self.arena(), argument).is_some() {
-                    return Err("boxed type argument must be closed".into());
+                    return Err(crate::error::Error::BoxedTypeArgumentMustBeClosed);
                 }
                 self.check_at("check argument type for application", argument, domain)?;
                 let program_ty = self.env.instantiate(codomain, &[argument])?;
@@ -1419,12 +1437,12 @@ impl<'a> Checker<'a> {
     }
     fn apply_motive(&mut self, motive: &Motive, args: &[Expression]) -> Result<Expression, Error> {
         if args.len() != motive.domains.len() {
-            return Err("motive argument count mismatch".into());
+            return Err(crate::error::Error::MotiveArgumentCountMismatch);
         }
         for (i, (&arg, &ty)) in args.iter().zip(&motive.domains).enumerate() {
             self.check_open(arg, self.env.instantiate(ty, &args[..i])?)?;
         }
-        self.env.instantiate(motive.body, args).map_err(Error::from)
+        self.env.instantiate(motive.body, args)
     }
     fn lift_motive(&self, m: &Motive) -> Result<Motive, Error> {
         Ok(Motive {
@@ -1439,7 +1457,7 @@ impl<'a> Checker<'a> {
     }
 
     fn lifted(&self, e: Expression, n: usize) -> Result<Expression, Error> {
-        Ok(shift(self.arena(), e, n, 0)?)
+        shift(self.arena(), e, n, 0)
     }
     fn application(&self, function: Expression, argument: Expression) -> Result<Expression, Error> {
         Ok(self.alloc(Node::App {
@@ -1474,7 +1492,6 @@ impl<'a> Checker<'a> {
         state: Expression,
     ) -> Result<Expression, Error> {
         crate::termination::termination(self.arena(), state_ty, result_ty, step, state)
-            .map_err(Error::from)
     }
     fn quantified(
         &mut self,
@@ -1492,7 +1509,7 @@ impl<'a> Checker<'a> {
     }
     fn closed_program_type(&mut self, ty: Expression) -> Result<usize, Error> {
         if max_loose_bound(self.arena(), ty).is_some() || self.env.contains_parameter(ty) {
-            return Err("Box requires a closed computation type".into());
+            return Err(crate::error::Error::BoxRequiresAClosedComputationType);
         }
         Checker::new(self.env, self.metas, vec![]).program_type(ty, true)
     }
@@ -1543,7 +1560,7 @@ impl<'a> Checker<'a> {
                 let depth = slot
                     .checked_sub(1)
                     .filter(|&depth| depth <= motive_bindings.len())
-                    .ok_or("invalid motive binder slot")?;
+                    .ok_or(crate::error::Error::InvalidMotiveBinderSlot)?;
                 context.extend(
                     motive_bindings
                         .into_iter()
@@ -1565,19 +1582,29 @@ impl<'a> Checker<'a> {
                 ..
             } => {
                 let reflected = matches!(self.arena().get(parent), Node::SetCase { .. });
-                let spec = self.env.datatype(inductive).ok_or("unknown datatype")?;
+                let spec = self
+                    .env
+                    .datatype(inductive)
+                    .ok_or(crate::error::Error::UnknownDatatype)?;
                 let ty = self.infer_open(scrutinee)?;
                 let parameters = match self.arena().get(self.head(ty)?) {
                     Node::Inductive { parameters, .. } | Node::IndType { parameters, .. } => {
                         parameters
                     }
-                    _ => return Err("case scrutinee datatype mismatch".into()),
+                    _ => return Err(crate::error::Error::CaseScrutineeDatatypeMismatch),
                 };
-                let index = slot.checked_sub(1).ok_or("invalid case branch slot")?;
-                let fields = spec.constructors.get(index).ok_or("unknown case branch")?;
-                let vars = binders.get(index).ok_or("missing case binders")?;
+                let index = slot
+                    .checked_sub(1)
+                    .ok_or(crate::error::Error::InvalidCaseBranchSlot)?;
+                let fields = spec
+                    .constructors
+                    .get(index)
+                    .ok_or(crate::error::Error::UnknownCaseBranch)?;
+                let vars = binders
+                    .get(index)
+                    .ok_or(crate::error::Error::MissingCaseBinders)?;
                 if fields.len() != vars.len() {
-                    return Err("case branch binder count mismatch".into());
+                    return Err(crate::error::Error::CaseBranchBinderCountMismatch);
                 }
                 for (j, (field, &var)) in fields.iter().zip(vars).enumerate() {
                     let ty = if reflected {
@@ -1593,7 +1620,7 @@ impl<'a> Checker<'a> {
                 }
                 return Ok(context);
             }
-            _ => return Err("unknown binder structure".into()),
+            _ => return Err(crate::error::Error::UnknownBinderStructure),
         };
         context.push(binding);
         Ok(context)
@@ -1606,7 +1633,10 @@ impl<'a> Checker<'a> {
         branches: Vec<Expression>,
         reflected: bool,
     ) -> Result<Expression, Error> {
-        let spec = self.env.datatype(inductive).ok_or("unknown datatype")?;
+        let spec = self
+            .env
+            .datatype(inductive)
+            .ok_or(crate::error::Error::UnknownDatatype)?;
         let mut result_ty = None;
         let ty = self.infer_open(scrutinee)?;
         let parameters = match self.arena().get(self.head(ty)?) {
@@ -1618,14 +1648,14 @@ impl<'a> Checker<'a> {
                 inductive: id,
                 parameters,
             } if !reflected && id == inductive => parameters,
-            _ => return Err("case scrutinee datatype mismatch".into()),
+            _ => return Err(crate::error::Error::CaseScrutineeDatatypeMismatch),
         };
         if binders.len() != spec.constructors.len() || branches.len() != binders.len() {
-            return Err("case branch count mismatch".into());
+            return Err(crate::error::Error::CaseBranchCountMismatch);
         }
         for (i, fields) in spec.constructors.iter().enumerate() {
             if fields.len() != binders[i].len() {
-                return Err("case branch binder count mismatch".into());
+                return Err(crate::error::Error::CaseBranchBinderCountMismatch);
             }
             let mut branch = Checker::new(self.env, self.metas, self.context.clone());
             branch.solving = self.solving;
@@ -1651,12 +1681,12 @@ impl<'a> Checker<'a> {
                         .collect::<Vec<_>>();
                     result_ty = Some(
                         abstract_pattern(branch.arena(), ty, &arguments)?
-                            .ok_or("case result type depends on fields")?,
+                            .ok_or(crate::error::Error::CaseResultTypeDependsOnFields)?,
                     );
                 }
             }
         }
-        let result_ty = result_ty.ok_or("empty case needs an expected type")?;
+        let result_ty = result_ty.ok_or(crate::error::Error::EmptyCaseNeedsAnExpectedType)?;
         if reflected {
             self.set_type(result_ty)?;
         } else {
@@ -1718,7 +1748,10 @@ impl<'a> Checker<'a> {
                 }
             }
         }
-        let spec = self.env.inductive(inductive).ok_or("unknown inductive")?;
+        let spec = self
+            .env
+            .inductive(inductive)
+            .ok_or(crate::error::Error::UnknownInductive)?;
         let ty = self.infer_open(scrutinee)?;
         let mut head = self.head(ty)?;
         while let Node::TypeLift { superset, .. } = self.arena().get(head) {
@@ -1730,20 +1763,20 @@ impl<'a> Checker<'a> {
             parameters,
         } = self.arena().get(head)
         else {
-            return Err("eliminator scrutinee datatype mismatch".into());
+            return Err(crate::error::Error::EliminatorScrutineeDatatypeMismatch);
         };
         if id != inductive {
-            return Err("eliminator scrutinee datatype mismatch".into());
+            return Err(crate::error::Error::EliminatorScrutineeDatatypeMismatch);
         }
         if cases.len() != spec.constructors.len() {
-            return Err("eliminator case count mismatch".into());
+            return Err(crate::error::Error::EliminatorCaseCountMismatch);
         }
         let motive = Motive {
             domains: motive_domains,
             body: motive_body,
         };
         if motive.domains.len() != motive_vars.len() || motive.domains.len() != args.len() + 1 {
-            return Err("motive telescope length mismatch".into());
+            return Err(crate::error::Error::MotiveTelescopeLengthMismatch);
         }
         let mut expected_domains = vec![];
         let mut arity = self.env.instantiate(spec.arity, &parameters)?;
@@ -1773,7 +1806,7 @@ impl<'a> Checker<'a> {
             if local.solving {
                 local.metas.unify(local.env, &local.context, ty, expected)?;
             } else if !local.equal(ty, expected)? {
-                return Err("motive domain mismatch".into());
+                return Err(crate::error::Error::MotiveDomainMismatch);
             }
             local.formation(expected)?;
             local.push_binding(Binding { var, ty: expected });
@@ -1789,7 +1822,7 @@ impl<'a> Checker<'a> {
             _ => self.env.singleton_elimination(inductive)?,
         };
         if !permitted {
-            return Err("forbidden large elimination".into());
+            return Err(crate::error::Error::ForbiddenLargeElimination);
         }
         args.push(scrutinee);
         let applied = self.apply_motive(&motive, &args)?;
@@ -1860,7 +1893,7 @@ impl<'a> Checker<'a> {
                 ..
             } = self.arena().get(self.head(declared_ty)?)
             else {
-                return Err("expected declared constructor product".into());
+                return Err(crate::error::Error::ExpectedDeclaredConstructorProduct);
             };
             let recursive_field = recursive && self.env.recursive_field(ind, declared_domain)?;
             return self.quantified(domain, |ch, x| {
@@ -1916,7 +1949,7 @@ mod context_tests {
             .unwrap();
         let result: Result<(), Error> = checker.under(SymbolId::ANONYMOUS, prop, |checker| {
             assert_eq!(checker.infer_open(bound)?, prop);
-            Err("leave this scope".into())
+            Err(Error::ExpectedASort)
         });
         assert!(result.is_err());
         assert_eq!(checker.context().len(), 1);

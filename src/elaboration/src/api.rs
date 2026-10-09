@@ -20,6 +20,7 @@ pub struct Goal {
 
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
+    pub error: Box<ElaborationError>,
     pub message: String,
     pub location: Option<SourceLocation>,
     pub goals: Vec<Goal>,
@@ -30,7 +31,26 @@ impl std::fmt::Display for Diagnostic {
         f.write_str(&self.message)
     }
 }
-impl std::error::Error for Diagnostic {}
+impl std::error::Error for Diagnostic {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.error.as_ref())
+    }
+}
+impl diagnostics::DiagnosticError for Diagnostic {
+    fn diagnostic_data(&self) -> diagnostics::DiagnosticData {
+        self.error.diagnostic_data()
+    }
+}
+impl Diagnostic {
+    pub fn resolution(error: resolve::Diagnostic) -> Self {
+        Self {
+            message: format!("Resolution Error: {error}"),
+            location: error.location.clone(),
+            error: Box::new(crate::error::Error::from(error).into()),
+            goals: Vec::new(),
+        }
+    }
+}
 
 /// Inspection data detached from the inference and kernel arenas.
 #[derive(Debug, Clone)]
@@ -138,6 +158,7 @@ impl Checker {
             })
             .collect();
         Diagnostic {
+            error: Box::new(error.clone()),
             message: crate::diagnostics::bounded(
                 format!(
                     "Elaboration Error: {}",
@@ -180,7 +201,7 @@ impl Checker {
         end: usize,
         selected: &std::collections::BTreeSet<usize>,
         checkpoints: &std::collections::BTreeSet<usize>,
-        save: impl FnMut(usize, Result<Vec<u8>, String>),
+        save: impl FnMut(usize, postcard::Result<Vec<u8>>),
     ) -> Result<(), Diagnostic> {
         self.check_range_with_progress(project, start, end, selected, checkpoints, save, |_, _| {})
     }
@@ -192,7 +213,7 @@ impl Checker {
         end: usize,
         selected: &std::collections::BTreeSet<usize>,
         checkpoints: &std::collections::BTreeSet<usize>,
-        mut save: impl FnMut(usize, Result<Vec<u8>, String>),
+        mut save: impl FnMut(usize, postcard::Result<Vec<u8>>),
         mut progress: impl FnMut(usize, std::time::Duration),
     ) -> Result<(), Diagnostic> {
         // Prefix keys are valid only up to the first omitted checking step.
@@ -208,11 +229,7 @@ impl Checker {
                 &mut |position, workspace| {
                     if position <= first_gap && checkpoints.contains(&position) {
                         let _time = timing::Scope::shared();
-                        save(
-                            position,
-                            crate::checkpoint::serialize(workspace)
-                                .map_err(|error| error.to_string()),
-                        );
+                        save(position, crate::checkpoint::serialize(workspace));
                     }
                 },
                 &mut progress,

@@ -7,7 +7,7 @@ impl Lowerer<'_> {
         id: InductiveId,
         ctx: &mut ExpContext,
         module: ModuleId,
-    ) -> Result<(kernel::ids::InductiveId, Vec<s::Expression>), String> {
+    ) -> Result<(kernel::ids::InductiveId, Vec<s::Expression>), crate::error::Error> {
         self.inductive(id)?;
         let origin = if self.raw.is_program_mirror(id) {
             None
@@ -36,14 +36,15 @@ impl Lowerer<'_> {
             let term = match *argument {
                 raw::environment::ModuleArgument::Pts(e) => e,
                 raw::environment::ModuleArgument::ProgramType(t) => {
-                    raw::reflection::reflect_value_type(self.raw, t).map_err(|e| e.to_string())?
+                    raw::reflection::reflect_value_type(self.raw, t)
+                        .map_err(crate::error::Error::from)?
                 }
                 raw::environment::ModuleArgument::ProgramValue(v) => {
                     raw::reflection::reflect_program(
                         self.raw,
                         raw::program::ProgramTerm::ValueTerm(v),
                     )
-                    .map_err(|e| e.to_string())?
+                    .map_err(crate::error::Error::from)?
                 }
             };
             let shift = ctx
@@ -61,7 +62,7 @@ impl Lowerer<'_> {
         parameters: Vec<Exp>,
         ctx: &mut ExpContext,
         module: ModuleId,
-    ) -> Result<(kernel::ids::InductiveId, Vec<s::Expression>), String> {
+    ) -> Result<(kernel::ids::InductiveId, Vec<s::Expression>), crate::error::Error> {
         self.inductive(id)?;
         let source = if self.raw.is_program_mirror(id) {
             id
@@ -99,7 +100,7 @@ impl Lowerer<'_> {
         body: Exp,
         ctx: &mut ExpContext,
         m: ModuleId,
-    ) -> Result<(Vec<(SymbolId, s::Expression)>, s::Expression), String> {
+    ) -> Result<(Vec<(SymbolId, s::Expression)>, s::Expression), crate::error::Error> {
         let Some((&(var, domain), tail)) = bindings.split_first() else {
             return Ok((Vec::new(), self.set(body, ctx, m)?));
         };
@@ -134,7 +135,7 @@ impl Lowerer<'_> {
         e: Exp,
         ctx: &mut ExpContext,
         m: ModuleId,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         let nominal = !self.structural
             && self.scope.nominal
             && self.scope.proof_base.is_none()
@@ -159,7 +160,7 @@ impl Lowerer<'_> {
         e: Exp,
         ctx: &mut ExpContext,
         m: ModuleId,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         if let s::Node::Definition { id, arguments } = self.kernel.arena().get(e.0) {
             let key = self.logical_key(e, ctx.len(), m);
             if let Some(&result) = self.cache.get(&key) {
@@ -195,7 +196,7 @@ impl Lowerer<'_> {
         arg: Exp,
         ctx: &mut ExpContext,
         m: ModuleId,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         let _ = e;
         let function = self.set(func, ctx, m)?;
         let argument = self.set(arg, ctx, m)?;
@@ -211,7 +212,7 @@ impl Lowerer<'_> {
         e: Exp,
         ctx: &mut ExpContext,
         m: ModuleId,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         let key = self.logical_key(e, ctx.len(), m);
         if let Some(&v) = self.cache.get(&key) {
             return Ok(v);

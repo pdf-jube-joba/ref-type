@@ -16,6 +16,7 @@
 //! ```
 mod elaborator;
 pub(crate) use resolve::hir;
+pub mod error;
 mod items;
 mod lowering;
 mod metavariables;
@@ -28,6 +29,7 @@ pub use elaborator::analysis;
 
 mod api;
 pub use api::{Checker, Diagnostic, Goal, Statistics};
+pub use metavariables::ElaborationError;
 
 mod kernel_bridge;
 

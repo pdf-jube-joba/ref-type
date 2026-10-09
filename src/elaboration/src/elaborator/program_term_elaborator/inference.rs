@@ -196,7 +196,7 @@ impl ProgramScope {
         flavor: SurfaceMeta,
         span: SourceSpan,
         category: MetaCategory,
-    ) -> Result<(MetaVarId, Vec<ProgramArgument>), String> {
+    ) -> Result<(MetaVarId, Vec<ProgramArgument>), crate::error::Error> {
         let env = &environment.crate_env;
         let arena = env.arena();
         let arguments = spine(arena, &self.context);
@@ -205,7 +205,7 @@ impl ProgramScope {
         {
             let existing = &mut self.metas[source.index()];
             if existing.category != category {
-                return Err(format!("metavariable _{number} has incompatible uses"));
+                return Err(crate::error::Error::IncompatibleMetaUses { number });
             }
             let common = existing
                 .context
@@ -217,7 +217,7 @@ impl ProgramScope {
                 let term = self
                     .core
                     .restrict(&env.kernel.borrow(), self.core_ids[source.index()], common)
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::error::Error::from)?;
                 let Node::Meta { id, .. } = arena.core.get(term) else {
                     unreachable!()
                 };
@@ -245,7 +245,7 @@ impl ProgramScope {
         let source = MetaVarId(self.metas.len() as u32);
         self.core
             .set_origin(id, kernel::metavariables::OriginId(source.index() as u64))
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::error::Error::from)?;
         self.core_ids.push(id);
         self.ids.insert(id, source);
         self.metas.push(ProgramMeta {
@@ -291,7 +291,7 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         left: Term,
         right: Term,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         let index = self.record_constraint(environment, ProgramConstraint::Equal(left, right));
         let result = crate::kernel_bridge::program(
             &environment.crate_env,
@@ -314,7 +314,7 @@ impl ProgramScope {
         id: MetaVarId,
         arguments: &[ProgramArgument],
         value: Term,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         let e = environment.crate_env.arena().core.alloc(Node::Meta {
             id: self.core_ids[id.index()],
             arguments: arguments
@@ -330,7 +330,7 @@ impl ProgramScope {
         context: &ProgramContext,
         term: Term,
         expected: Term,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         self.record_constraint(environment, ProgramConstraint::HasType(term, expected));
         let result = crate::kernel_bridge::program(
             &environment.crate_env,
@@ -351,7 +351,7 @@ impl ProgramScope {
         context: &mut ProgramContext,
         term: ValueTerm,
         expected: ValueType,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         self.solve(
             environment,
             context,
@@ -365,7 +365,7 @@ impl ProgramScope {
         context: &mut ProgramContext,
         term: ComputationTerm,
         expected: ComputationType,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         self.solve(
             environment,
             context,
@@ -378,7 +378,7 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         context: &ProgramContext,
         term: Term,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, crate::error::Error> {
         let result = crate::kernel_bridge::program(
             &environment.crate_env,
             context,
@@ -403,7 +403,7 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
         term: ValueTerm,
-    ) -> Result<ValueType, String> {
+    ) -> Result<ValueType, crate::error::Error> {
         self.infer(environment, context, Term::Value(term))
             .map(ValueType)
     }
@@ -412,7 +412,7 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
         term: ComputationTerm,
-    ) -> Result<ComputationType, String> {
+    ) -> Result<ComputationType, crate::error::Error> {
         self.infer(environment, context, Term::Computation(term))
             .map(ComputationType)
     }
@@ -429,13 +429,15 @@ impl ProgramScope {
         match result {
             Ok(()) if goals.is_empty() => Ok(()),
             Ok(()) => Err(self.defer_goals(goals)),
-            Err(kernel::metavariables::Error::Unresolved { .. }) if !goals.is_empty() => {
+            Err(error)
+                if matches!(
+                    error.root(),
+                    kernel::metavariables::Error::Unresolved { .. }
+                ) && !goals.is_empty() =>
+            {
                 Err(self.defer_goals(goals))
             }
-            Err(e) => Err(self.solver_error(
-                environment,
-                crate::lowering::format_kernel_error(&environment.crate_env, &e),
-            )),
+            Err(e) => Err(self.solver_error(environment, crate::error::Error::Kernel(e))),
         }
     }
     pub(super) fn infer_kernel_value(
@@ -443,10 +445,13 @@ impl ProgramScope {
         environment: &GlobalEnvironment,
         context: &mut ProgramContext,
         value: ValueTerm,
-    ) -> Result<ValueType, String> {
+    ) -> Result<ValueType, crate::error::Error> {
         ProgramCheckSession::new(&environment.crate_env, context)
             .infer_value_term(value)
-            .map_err(|error| format!("cannot infer Program value: {error}"))
+            .map_err(|error| {
+                crate::error::Error::from(error)
+                    .context(crate::error::Context::CannotInferProgramValue)
+            })
     }
     pub(crate) fn check_value_term_with_metas(
         &mut self,
@@ -770,7 +775,7 @@ impl ProgramScope {
         let _profile = crate::diagnostics::DiagnosticProfile::start("capture");
         ElaborationError::Deferred {
             summary: Box::new(summary),
-            details: std::rc::Rc::new(crate::metavariables::diagnostics::DeferredDetails::Program(
+            details: std::rc::Rc::new(crate::metavariables::diagnostics::DeferredDetails::program(
                 self.diagnostic_snapshot(),
                 None,
             )),
@@ -779,10 +784,10 @@ impl ProgramScope {
     pub(super) fn solver_error(
         &self,
         environment: &GlobalEnvironment,
-        message: String,
+        message: crate::error::Error,
     ) -> ElaborationError {
         if crate::diagnostics::compact() {
-            return ElaborationError::Message(message);
+            return ElaborationError::Failure(message);
         }
         let _profile = crate::diagnostics::DiagnosticProfile::start("capture");
         let goals =
@@ -791,12 +796,12 @@ impl ProgramScope {
             });
         ElaborationError::Deferred {
             summary: Box::new(ElaborationError::ConstraintFailure {
-                message: message.clone(),
+                cause: Box::new(message.clone()),
                 constraints: vec![],
                 goals,
                 omitted_constraints: 0,
             }),
-            details: std::rc::Rc::new(crate::metavariables::diagnostics::DeferredDetails::Program(
+            details: std::rc::Rc::new(crate::metavariables::diagnostics::DeferredDetails::program(
                 self.diagnostic_snapshot(),
                 Some(message),
             )),
@@ -805,10 +810,10 @@ impl ProgramScope {
     pub(crate) fn detailed_error(
         &self,
         environment: &GlobalEnvironment,
-        message: String,
+        message: crate::error::Error,
     ) -> ElaborationError {
         if crate::diagnostics::compact() {
-            return ElaborationError::Message(message);
+            return ElaborationError::Failure(message);
         }
         let mut goals = self.goals(environment);
         let state = if self
@@ -826,7 +831,7 @@ impl ProgramScope {
             }
         }
         ElaborationError::ConstraintFailure {
-            message,
+            cause: Box::new(message),
             constraints: self
                 .constraints
                 .iter()
@@ -994,6 +999,9 @@ mod tests {
                 MetaCategory::ValueType,
             )
             .unwrap_err();
-        assert!(error.contains("outside its shared context"), "{error}");
+        assert!(
+            matches!(&error, crate::error::Error::Kernel(cause) if matches!(cause.root(), kernel::error::Error::EscapingSharedVariable)),
+            "{error}"
+        );
     }
 }

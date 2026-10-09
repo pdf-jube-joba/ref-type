@@ -46,7 +46,7 @@ pub struct Module {
 
 #[derive(Debug, Clone)]
 pub struct ParameterSource {
-    pub description: String,
+    pub subject: ParameterSubject,
     pub span: SourceSpan,
 }
 
@@ -811,7 +811,7 @@ pub enum SExp {
 }
 
 impl TryFrom<SExp> for ValueTypeExp {
-    type Error = String;
+    type Error = syntax::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
             SExp::Checked { checks, body } => Ok(Self::Checked {
@@ -842,13 +842,13 @@ impl TryFrom<SExp> for ValueTypeExp {
                 state_ty: Box::new((*state_ty).try_into()?),
                 result_ty: Box::new((*result_ty).try_into()?),
             }),
-            _ => Err("expected Program value-type syntax".into()),
+            _ => Err(syntax::error::ConversionError::ExpectedProgramValueTypeSyntax),
         }
     }
 }
 
 impl TryFrom<SExp> for ComputationTypeExp {
-    type Error = String;
+    type Error = syntax::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
             SExp::Checked { checks, body } => Ok(Self::Checked {
@@ -865,13 +865,13 @@ impl TryFrom<SExp> for ComputationTypeExp {
                 bind: Bind::Named(RightBind { vars, ty }),
                 body,
             } if vars.is_empty() => cbv_arrow_as_computation_type(*ty, *body),
-            _ => Err("expected Program computation-type syntax".into()),
+            _ => Err(syntax::error::ConversionError::ExpectedProgramComputationTypeSyntax),
         }
     }
 }
 
 impl TryFrom<SExp> for ValueTermExp {
-    type Error = String;
+    type Error = syntax::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         let (value, arguments) = decompose_surface_application(value);
         match value {
@@ -899,22 +899,19 @@ impl TryFrom<SExp> for ValueTermExp {
                 fields: fields
                     .into_iter()
                     .map(|(name, value)| Ok((name, value.try_into()?)))
-                    .collect::<Result<_, String>>()?,
+                    .collect::<Result<_, syntax::error::ConversionError>>()?,
             }),
             SExp::Meta { kind, span } if arguments.is_empty() => Ok(Self::Meta { kind, span }),
             SExp::AccessPath { access, parameters } if parameters.is_empty() => {
                 if arguments.is_empty() {
                     Ok(Self::Access(access))
                 } else {
-                    Err(
-                        "Program values are not applied; only constructors take field arguments"
-                            .into(),
-                    )
+                    Err(syntax::error::ConversionError::ProgramValuesAreNotAppliedOnlyConstructorsTakeFieldArguments)
                 }
             }
             SExp::AssociatedAccess { base, field, span } => {
                 let SExp::AccessPath { access, parameters } = *base else {
-                    return Err("expected a Program datatype before constructor access".into());
+                    return Err(syntax::error::ConversionError::ExpectedAProgramDatatypeBeforeConstructorAccess);
                 };
                 Ok(Self::Constructor {
                     span,
@@ -954,13 +951,13 @@ impl TryFrom<SExp> for ValueTermExp {
                 result_ty: Box::new((*result_ty).try_into()?),
                 output: Box::new((*output).try_into()?),
             }),
-            _ => Err("expected Program value syntax".into()),
+            _ => Err(syntax::error::ConversionError::ExpectedProgramValueSyntax),
         }
     }
 }
 
 impl TryFrom<SExp> for ComputationTermExp {
-    type Error = String;
+    type Error = syntax::error::ConversionError;
     fn try_from(value: SExp) -> Result<Self, Self::Error> {
         match value {
             SExp::Checked { checks, body } => {
@@ -984,7 +981,7 @@ impl TryFrom<SExp> for ComputationTermExp {
             }),
             SExp::AssociatedAccess { base, field, span } => {
                 let SExp::AccessPath { access, parameters } = *base else {
-                    return Err("expected a Program datatype before associated access".into());
+                    return Err(syntax::error::ConversionError::ExpectedAProgramDatatypeBeforeAssociatedAccess);
                 };
                 Ok(Self::Associated {
                     span,
@@ -1019,9 +1016,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                     }
                     SExp::AssociatedAccess { base, field, span } => {
                         let SExp::AccessPath { access, parameters } = *base else {
-                            return Err(
-                                "expected a Program datatype before associated access".into()
-                            );
+                            return Err(syntax::error::ConversionError::ExpectedAProgramDatatypeBeforeAssociatedAccess);
                         };
                         ProgramFunctionExp::Associated {
                             span,
@@ -1100,9 +1095,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                             body: Box::new(body),
                         },
                         _ => {
-                            return Err(
-                                "Program blocks only support \\let and \\bind statements".into()
-                            );
+                            return Err(syntax::error::ConversionError::ProgramBlocksOnlySupportLetAndBindStatements);
                         }
                     };
                 }
@@ -1120,7 +1113,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                     .map(|(constructor, binders, body)| {
                         Ok((constructor, binders, body.try_into()?))
                     })
-                    .collect::<Result<_, String>>()?,
+                    .collect::<Result<_, syntax::error::ConversionError>>()?,
             }),
             SExp::ProgramStepMatch {
                 state_ty,
@@ -1167,7 +1160,7 @@ impl TryFrom<SExp> for ComputationTermExp {
                 accessibility,
                 transition_equality,
             }),
-            _ => Err("expected Program computation syntax".into()),
+            _ => Err(syntax::error::ConversionError::ExpectedProgramComputationSyntax),
         }
     }
 }
@@ -1175,22 +1168,24 @@ impl TryFrom<SExp> for ComputationTermExp {
 fn cbv_arrow_as_computation_type(
     domain: SExp,
     codomain: SExp,
-) -> Result<ComputationTypeExp, String> {
+) -> Result<ComputationTypeExp, syntax::error::ConversionError> {
     Ok(ComputationTypeExp::Function {
         domain: Box::new(domain.try_into()?),
         codomain: Box::new(ComputationTypeExp::Return(Box::new(codomain.try_into()?))),
     })
 }
 
-fn cbv_lambda_as_computation(expression: SExp) -> Result<ComputationTermExp, String> {
+fn cbv_lambda_as_computation(
+    expression: SExp,
+) -> Result<ComputationTermExp, syntax::error::ConversionError> {
     let mut expression = expression;
     let mut binders = Vec::new();
     while let SExp::Lam { bind, body } = expression {
         let Bind::Named(RightBind { vars, ty }) = bind else {
-            return Err("Program lambda requires a plain value binder".into());
+            return Err(syntax::error::ConversionError::ProgramLambdaRequiresAPlainValueBinder);
         };
         if vars.is_empty() {
-            return Err("Program lambda requires at least one value binder".into());
+            return Err(syntax::error::ConversionError::ProgramLambdaRequiresAtLeastOneValueBinder);
         }
         binders.extend(vars.into_iter().map(|var| (var, (*ty).clone())));
         expression = *body;
@@ -1198,7 +1193,7 @@ fn cbv_lambda_as_computation(expression: SExp) -> Result<ComputationTermExp, Str
     let mut body: ComputationTermExp = expression.try_into()?;
     let (var, ty) = binders
         .pop()
-        .ok_or_else(|| "Program lambda requires at least one value binder".to_string())?;
+        .ok_or(syntax::error::ConversionError::ProgramLambdaRequiresAtLeastOneValueBinder)?;
     body = ComputationTermExp::Lambda {
         var,
         value_ty: Box::new(ty.try_into()?),
@@ -1233,7 +1228,7 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn as_term(&self) -> Result<SExp, String> {
+    pub fn as_term(&self) -> Result<SExp, syntax::error::ConversionError> {
         let Block {
             statements: declarations,
             result: term,
@@ -1262,7 +1257,7 @@ impl Block {
                     };
                 }
                 Statement::Bind { .. } => {
-                    return Err("\\bind statements are only available in Program blocks".into());
+                    return Err(syntax::error::ConversionError::BindStatementsAreOnlyAvailableInProgramBlocks);
                 }
                 Statement::TakeFrom { var, ty, existence } => {
                     term = SExp::TakeProp {
@@ -1329,6 +1324,50 @@ impl LocalAccess {
             | Self::Current { span, .. }
             | Self::Named { span, .. }
             | Self::Resolved { span, .. } => *span,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParameterSubject {
+    ModuleParameter,
+    StructureParameter { structure: String, name: String },
+    StructureField { structure: String, name: String },
+    DefinitionParameter { definition: String, name: String },
+}
+impl std::fmt::Display for ParameterSubject {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ModuleParameter => f.write_str("Module parameter"),
+            Self::StructureParameter { structure, name } => {
+                write!(f, "Structure parameter '{structure}.{name}'")
+            }
+            Self::StructureField { structure, name } => {
+                write!(f, "Structure field '{structure}.{name}'")
+            }
+            Self::DefinitionParameter { definition, name } => {
+                write!(f, "Definition parameter '{definition}.{name}'")
+            }
+        }
+    }
+}
+
+impl ParameterSubject {
+    pub fn diagnostic_data(&self) -> diagnostics::DiagnosticData {
+        use diagnostics::DiagnosticData as Data;
+        match self {
+            Self::ModuleParameter => Data::new("resolve.ModuleParameter"),
+            Self::StructureParameter { structure, name } => Data::new("resolve.StructureParameter")
+                .with("structure", structure.clone())
+                .with("name", name.clone()),
+            Self::StructureField { structure, name } => Data::new("resolve.StructureField")
+                .with("structure", structure.clone())
+                .with("name", name.clone()),
+            Self::DefinitionParameter { definition, name } => {
+                Data::new("resolve.DefinitionParameter")
+                    .with("definition", definition.clone())
+                    .with("name", name.clone())
+            }
         }
     }
 }

@@ -20,7 +20,7 @@ fn decompose(env: &Environment, mut e: Expression) -> (Expression, Vec<Expressio
     args.reverse();
     (e, args)
 }
-fn unfold(env: &Environment, mut e: Expression) -> Result<Expression, String> {
+fn unfold(env: &Environment, mut e: Expression) -> Result<Expression, crate::error::Error> {
     loop {
         match env.arena.get(e) {
             Node::Ascribe { term, .. } => e = term,
@@ -37,7 +37,7 @@ fn recursive_argument(
     inductive: InductiveId,
     ty: Expression,
     value: Expression,
-) -> Result<Option<Expression>, String> {
+) -> Result<Option<Expression>, crate::error::Error> {
     let ty = env.whnf(ty)?;
     if let Node::Product { var, domain, body } = env.arena.get(ty) {
         let value = app(
@@ -63,7 +63,7 @@ fn recursive_argument(
     }
     let mut node = env.arena.get(elimination);
     let Node::IndElim { scrutinee, .. } = &mut node else {
-        return Err("expected induction".into());
+        return Err(crate::error::Error::ExpectedInduction);
     };
     *scrutinee = value;
     Ok(Some(env.arena.alloc(node)))
@@ -75,7 +75,7 @@ fn eliminate(
     scrutinee: Expression,
     cases: &[Expression],
     recursive: bool,
-) -> Result<Option<Expression>, String> {
+) -> Result<Option<Expression>, crate::error::Error> {
     // Refinement introductions carry certificates, but their underlying value
     // is the same constructor seen by Set eliminators and record projections.
     let (head, args) = decompose(env, env.erased_head(scrutinee)?);
@@ -90,16 +90,21 @@ fn eliminate(
     if inductive != id {
         return Ok(None);
     }
-    let spec = env.inductives.get(&id).ok_or("unknown inductive")?;
+    let spec = env
+        .inductives
+        .get(&id)
+        .ok_or(crate::error::Error::UnknownInductive)?;
     let mut declared = *spec
         .constructors
         .get(constructor)
-        .ok_or("unknown constructor")?;
+        .ok_or(crate::error::Error::UnknownConstructor)?;
     let mut ty = instantiate(&env.arena, declared, &parameters)?;
-    let mut branch = *cases.get(constructor).ok_or("missing elimination branch")?;
+    let mut branch = *cases
+        .get(constructor)
+        .ok_or(crate::error::Error::MissingEliminationBranch)?;
     for argument in args {
         let Node::Product { domain, body, .. } = env.arena.get(env.whnf(ty)?) else {
-            return Err("constructor applied to excess arguments".into());
+            return Err(crate::error::Error::ConstructorAppliedToExcessArguments);
         };
         let Node::Product {
             domain: declared_domain,
@@ -107,7 +112,7 @@ fn eliminate(
             ..
         } = env.arena.get(env.whnf(declared)?)
         else {
-            return Err("expected declared constructor product".into());
+            return Err(crate::error::Error::ExpectedDeclaredConstructorProduct);
         };
         branch = app(env, Mode::Pure, branch, argument);
         if recursive
@@ -130,7 +135,7 @@ fn eliminate(
 pub(crate) fn head_application(
     env: &Environment,
     e: Expression,
-) -> Result<Option<Expression>, String> {
+) -> Result<Option<Expression>, crate::error::Error> {
     let Node::App { mode, .. } = env.arena.get(e) else {
         return Ok(None);
     };
@@ -172,14 +177,14 @@ pub(crate) fn head_application(
     Ok((result != e).then_some(result))
 }
 
-pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, String> {
+pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, crate::error::Error> {
     let a = &env.arena;
     let result = match a.get(e) {
         Node::Ascribe { term, .. } => term,
         Node::Definition { id, arguments } => {
             let d = env.definition(id)?;
             if d.context.len() != arguments.len() {
-                return Err("definition parameter count mismatch".into());
+                return Err(crate::error::Error::DefinitionParameterCountMismatch);
             }
             instantiate(a, d.body, &arguments)?
         }
@@ -259,7 +264,9 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
                 ..
             } if id == inductive => instantiate(
                 a,
-                *branches.get(constructor).ok_or("missing branch")?,
+                *branches
+                    .get(constructor)
+                    .ok_or(crate::error::Error::MissingBranch)?,
                 &fields,
             )?,
             _ => return Ok(None),
@@ -274,7 +281,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
             let id = env
                 .datatypes
                 .get(&inductive)
-                .ok_or("unknown datatype")?
+                .ok_or(crate::error::Error::UnknownDatatype)?
                 .reflected;
             match a.get(head) {
                 Node::IndCtor {
@@ -283,7 +290,9 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
                     ..
                 } if inductive == id => instantiate(
                     a,
-                    *branches.get(constructor).ok_or("missing branch")?,
+                    *branches
+                        .get(constructor)
+                        .ok_or(crate::error::Error::MissingBranch)?,
                     &args,
                 )?,
                 _ => return Ok(None),
@@ -325,7 +334,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
                 return Ok(None);
             };
             let Node::Product { body: codomain, .. } = a.get(env.whnf(program_ty)?) else {
-                return Err("boxed function type must be product".into());
+                return Err(crate::error::Error::BoxedFunctionTypeMustBeProduct);
             };
             let Node::BoxProgram { program, .. } = a.get(env.erased_head(argument)?) else {
                 return Ok(None);
@@ -349,7 +358,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
                 return Ok(None);
             };
             let Node::Product { body: codomain, .. } = a.get(env.whnf(program_ty)?) else {
-                return Err("boxed function type must be product".into());
+                return Err(crate::error::Error::BoxedFunctionTypeMustBeProduct);
             };
             a.alloc(Node::BoxProgram {
                 program_ty: instantiate(a, codomain, &[argument])?,
@@ -475,8 +484,8 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, Stri
 pub(crate) fn map_head(
     env: &Environment,
     e: Expression,
-    mut map: impl FnMut(Expression) -> Result<Expression, String>,
-) -> Result<Expression, String> {
+    mut map: impl FnMut(Expression) -> Result<Expression, crate::error::Error>,
+) -> Result<Expression, crate::error::Error> {
     let node = env.arena.get(e);
     let slots: &[usize] = match node {
         Node::App { .. } => &[0],
@@ -501,7 +510,10 @@ pub(crate) fn map_head(
         }
     })
 }
-pub fn reduce_once(env: &Environment, e: Expression) -> Result<Option<Expression>, String> {
+pub fn reduce_once(
+    env: &Environment,
+    e: Expression,
+) -> Result<Option<Expression>, crate::error::Error> {
     if let Some(next) = root(env, e)? {
         return Ok(Some(next));
     }
@@ -535,21 +547,21 @@ pub fn reduce_once(env: &Environment, e: Expression) -> Result<Option<Expression
     };
     let mut changed = false;
     let mut i = 0;
-    let result = env
-        .arena
-        .map_children(e, |child, _| -> Result<Expression, String> {
-            let slot = i;
-            i += 1;
-            if !changed
-                && slots.is_none_or(|slots| slots.contains(&slot))
-                && let Some(next) = reduce_once(env, child)?
-            {
-                changed = true;
-                Ok(next)
-            } else {
-                Ok(child)
-            }
-        })?;
+    let result =
+        env.arena
+            .map_children(e, |child, _| -> Result<Expression, crate::error::Error> {
+                let slot = i;
+                i += 1;
+                if !changed
+                    && slots.is_none_or(|slots| slots.contains(&slot))
+                    && let Some(next) = reduce_once(env, child)?
+                {
+                    changed = true;
+                    Ok(next)
+                } else {
+                    Ok(child)
+                }
+            })?;
     Ok(changed.then_some(result))
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -558,7 +570,11 @@ pub enum Evaluation {
     OutOfFuel(Expression),
 }
 #[tracing::instrument(target = "ref_type::reduction", level = "debug", skip(env), fields(?e, fuel))]
-pub fn evaluate(env: &Environment, mut e: Expression, fuel: usize) -> Result<Evaluation, String> {
+pub fn evaluate(
+    env: &Environment,
+    mut e: Expression,
+    fuel: usize,
+) -> Result<Evaluation, crate::error::Error> {
     let _cost = timing::costs::Scope::enter("kernel.evaluate");
     for _ in 0..fuel {
         match reduce_once(env, e)? {
@@ -575,15 +591,19 @@ pub fn evaluate(env: &Environment, mut e: Expression, fuel: usize) -> Result<Eva
         Evaluation::OutOfFuel(e)
     })
 }
-pub fn normalize(env: &Environment, e: Expression) -> Result<Expression, String> {
+pub fn normalize(env: &Environment, e: Expression) -> Result<Expression, crate::error::Error> {
     let _cost = timing::costs::Scope::enter("kernel.normalize");
     match evaluate(env, e, 100_000)? {
         Evaluation::Normal(e) => Ok(e),
-        Evaluation::OutOfFuel(_) => Err("normalization fuel exhausted".into()),
+        Evaluation::OutOfFuel(_) => Err(crate::error::Error::NormalizationFuelExhausted),
     }
 }
 /// Expose explicit beta redexes while retaining opaque definition heads.
-fn beta_head(env: &Environment, e: Expression, erase: bool) -> Result<Expression, String> {
+fn beta_head(
+    env: &Environment,
+    e: Expression,
+    erase: bool,
+) -> Result<Expression, crate::error::Error> {
     match env.arena.get(e) {
         Node::SubsetIntro { element, .. } if erase => beta_head(env, element, erase),
         Node::App {
@@ -608,7 +628,11 @@ fn beta_head(env: &Environment, e: Expression, erase: bool) -> Result<Expression
         _ => Ok(e),
     }
 }
-pub fn convertible(env: &Environment, left: Expression, right: Expression) -> Result<bool, String> {
+pub fn convertible(
+    env: &Environment,
+    left: Expression,
+    right: Expression,
+) -> Result<bool, crate::error::Error> {
     let _cost = timing::costs::Scope::enter("kernel.convertible");
     conversion(env, left, right, false)
 }
@@ -616,7 +640,7 @@ pub fn erased_convertible(
     env: &Environment,
     left: Expression,
     right: Expression,
-) -> Result<bool, String> {
+) -> Result<bool, crate::error::Error> {
     let _cost = timing::costs::Scope::enter("kernel.erased_convertible");
     conversion(env, left, right, true)
 }
@@ -625,14 +649,14 @@ fn conversion(
     left: Expression,
     right: Expression,
     erase: bool,
-) -> Result<bool, String> {
+) -> Result<bool, crate::error::Error> {
     fn compare(
         env: &Environment,
         left: Expression,
         right: Expression,
         erase: bool,
         seen: &mut rustc_hash::FxHashSet<(Expression, Expression)>,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, crate::error::Error> {
         let cacheable = !env.arena.contains_meta(left) && !env.arena.contains_meta(right);
         let key = if left.index() <= right.index() {
             (left, right, erase)
@@ -681,17 +705,20 @@ fn conversion(
                     }
                 }
             }
-            fn delta(env: &Environment, term: Expression) -> Result<Expression, String> {
+            fn delta(
+                env: &Environment,
+                term: Expression,
+            ) -> Result<Expression, crate::error::Error> {
                 match env.arena.get(term) {
                     Node::Definition { .. } => {
-                        root(env, term)?.ok_or_else(|| "expected a definition redex".into())
+                        root(env, term)?.ok_or(crate::error::Error::ExpectedADefinitionRedex)
                     }
                     Node::App {
                         mode,
                         function,
                         argument,
                     } => Ok(app(env, mode, delta(env, function)?, argument)),
-                    _ => Err("expected a definition head".into()),
+                    _ => Err(crate::error::Error::ExpectedADefinitionHead),
                 }
             }
             match (definition_head(env, left), definition_head(env, right)) {
@@ -747,13 +774,13 @@ pub fn first_difference(
     env: &Environment,
     left: Expression,
     right: Expression,
-) -> Result<Option<(Vec<usize>, Expression, Expression)>, String> {
+) -> Result<Option<(Vec<usize>, Expression, Expression)>, crate::error::Error> {
     fn walk(
         env: &Environment,
         left: Expression,
         right: Expression,
         path: &mut Vec<usize>,
-    ) -> Result<Option<(Vec<usize>, Expression, Expression)>, String> {
+    ) -> Result<Option<(Vec<usize>, Expression, Expression)>, crate::error::Error> {
         if erased_convertible(env, left, right)? {
             return Ok(None);
         }

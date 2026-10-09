@@ -20,7 +20,7 @@ impl Instantiations {
         arena: &Arena,
         term: Expression,
         arguments: &[Expression],
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, crate::error::Error> {
         if arguments.is_empty() || arena.max_loose_bound(term).is_none() {
             return Ok(term);
         }
@@ -50,14 +50,14 @@ pub fn shift(
     e: Expression,
     amount: usize,
     cutoff: usize,
-) -> Result<Expression, String> {
+) -> Result<Expression, crate::error::Error> {
     fn walk(
         arena: &Arena,
         e: Expression,
         amount: usize,
         cutoff: usize,
         cache: &mut FxHashMap<(Expression, usize), Expression>,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, crate::error::Error> {
         if arena.max_loose_bound(e).is_none_or(|i| i < cutoff) {
             return Ok(e);
         }
@@ -65,15 +65,19 @@ pub fn shift(
             return Ok(e);
         }
         let result = match *arena.read(e) {
-            Node::Bound(index) if index >= cutoff => {
-                arena.bound(index.checked_add(amount).ok_or("bound index overflow")?)
-            }
+            Node::Bound(index) if index >= cutoff => arena.bound(
+                index
+                    .checked_add(amount)
+                    .ok_or(crate::error::Error::BoundIndexOverflow)?,
+            ),
             _ => arena.map_children(e, |child, depth| {
                 walk(
                     arena,
                     child,
                     amount,
-                    cutoff.checked_add(depth).ok_or("binder depth overflow")?,
+                    cutoff
+                        .checked_add(depth)
+                        .ok_or(crate::error::Error::BinderDepthOverflow)?,
                     cache,
                 )
             })?,
@@ -92,7 +96,7 @@ pub fn instantiate(
     arena: &Arena,
     e: Expression,
     arguments: &[Expression],
-) -> Result<Expression, String> {
+) -> Result<Expression, crate::error::Error> {
     instantiate_at(arena, e, arguments, 0)
 }
 pub fn instantiate_at(
@@ -100,7 +104,7 @@ pub fn instantiate_at(
     e: Expression,
     arguments: &[Expression],
     inner: usize,
-) -> Result<Expression, String> {
+) -> Result<Expression, crate::error::Error> {
     substitute(
         arena,
         e,
@@ -118,7 +122,7 @@ fn substitute(
     inner: usize,
     id: ContextId,
     cache: &mut SubstitutionResults,
-) -> Result<Expression, String> {
+) -> Result<Expression, crate::error::Error> {
     fn walk(
         arena: &Arena,
         e: Expression,
@@ -126,7 +130,7 @@ fn substitute(
         depth: usize,
         id: ContextId,
         cache: &mut SubstitutionResults,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, crate::error::Error> {
         if arena.max_loose_bound(e).is_none_or(|i| i < depth) {
             return Ok(e);
         }
@@ -147,7 +151,9 @@ fn substitute(
                     arena,
                     child,
                     arguments,
-                    depth.checked_add(bound).ok_or("binder depth overflow")?,
+                    depth
+                        .checked_add(bound)
+                        .ok_or(crate::error::Error::BinderDepthOverflow)?,
                     id,
                     cache,
                 )
@@ -180,7 +186,7 @@ pub fn abstract_pattern(
     arena: &Arena,
     e: Expression,
     arguments: &[Expression],
-) -> Result<Option<Expression>, String> {
+) -> Result<Option<Expression>, crate::error::Error> {
     let mut variables = FxHashMap::default();
     for (position, &argument) in arguments.iter().enumerate() {
         let Node::Bound(index) = *arena.read(argument) else {
@@ -199,7 +205,7 @@ pub fn abstract_pattern(
         variables: &FxHashMap<usize, usize>,
         depth: usize,
         cache: &mut FxHashMap<(Expression, usize), Expression>,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, crate::error::Error> {
         if let Some(&e) = cache.get(&(e, depth)) {
             return Ok(e);
         }
@@ -207,15 +213,21 @@ pub fn abstract_pattern(
             Node::Bound(index) if index >= depth => {
                 let target = variables
                     .get(&(index - depth))
-                    .ok_or("metavariable solution captures a variable outside its context")?;
-                arena.bound(target.checked_add(depth).ok_or("bound index overflow")?)
+                    .ok_or(crate::error::Error::EscapingVariable)?;
+                arena.bound(
+                    target
+                        .checked_add(depth)
+                        .ok_or(crate::error::Error::BoundIndexOverflow)?,
+                )
             }
             _ => arena.map_children(e, |child, bound| {
                 walk(
                     arena,
                     child,
                     variables,
-                    depth.checked_add(bound).ok_or("binder depth overflow")?,
+                    depth
+                        .checked_add(bound)
+                        .ok_or(crate::error::Error::BinderDepthOverflow)?,
                     cache,
                 )
             })?,
@@ -303,20 +315,24 @@ pub fn comparison_children(arena: &Arena, e: Expression) -> Vec<(Expression, usi
 pub fn reindex(
     arena: &Arena,
     e: Expression,
-    mut map: impl FnMut(usize) -> Result<usize, String>,
-) -> Result<Expression, String> {
+    mut map: impl FnMut(usize) -> Result<usize, crate::error::Error>,
+) -> Result<Expression, crate::error::Error> {
     fn walk(
         arena: &Arena,
         e: Expression,
         depth: usize,
-        map: &mut impl FnMut(usize) -> Result<usize, String>,
-    ) -> Result<Expression, String> {
+        map: &mut impl FnMut(usize) -> Result<usize, crate::error::Error>,
+    ) -> Result<Expression, crate::error::Error> {
         if arena.max_loose_bound(e).is_none_or(|i| i < depth) {
             return Ok(e);
         }
         if let Node::Bound(i) = arena.get(e) {
             if i >= depth {
-                return Ok(arena.bound(map(i - depth)?.checked_add(depth).ok_or("index overflow")?));
+                return Ok(arena.bound(
+                    map(i - depth)?
+                        .checked_add(depth)
+                        .ok_or(crate::error::Error::IndexOverflow)?,
+                ));
             }
             return Ok(e);
         }
@@ -324,10 +340,14 @@ pub fn reindex(
     }
     walk(arena, e, 0, &mut map)
 }
-pub fn strengthen(arena: &Arena, e: Expression, target: usize) -> Result<Expression, String> {
+pub fn strengthen(
+    arena: &Arena,
+    e: Expression,
+    target: usize,
+) -> Result<Expression, crate::error::Error> {
     reindex(arena, e, |i| {
         if i == target {
-            Err("expression depends on removed binder".into())
+            Err(crate::error::Error::ExpressionDependsOnRemovedBinder)
         } else {
             Ok(if i > target { i - 1 } else { i })
         }

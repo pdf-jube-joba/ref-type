@@ -28,7 +28,7 @@ impl<'env, 'context> ProgramCheckSession<'env, 'context> {
             )
             .infer(terms[0])
         })
-        .map_err(|e| Box::new(JudgementError::caused(e)))
+        .map_err(Box::new)
     }
     fn check(&self, term: Term, ty: Term) -> Result<(), Box<JudgementError>> {
         crate::kernel_bridge::program(
@@ -44,7 +44,7 @@ impl<'env, 'context> ProgramCheckSession<'env, 'context> {
                 .check(terms[0], terms[1])
             },
         )
-        .map_err(|e| Box::new(JudgementError::caused(e)))
+        .map_err(Box::new)
     }
     pub fn check_value_type(&mut self, ty: ValueType) -> Result<(), Box<JudgementError>> {
         let inferred = self.infer(Term::ValueType(ty))?;
@@ -54,8 +54,8 @@ impl<'env, 'context> ProgramCheckSession<'env, 'context> {
         ) {
             Ok(())
         } else {
-            Err(Box::new(JudgementError::caused(
-                "incorrect Program type sort",
+            Err(Box::new(crate::error::Error::Invalid(
+                crate::error::Invalid::IncorrectProgramTypeSort,
             )))
         }
     }

@@ -144,9 +144,10 @@ fn lex_with_comments<'a>(
             Ok(Token::CommentEnd) => {
                 if comment_level == 0 {
                     return Err(ParseError {
-                        msg: "unmatched comment end".into(),
+                        kind: ParseErrorKind::UnmatchedCommentEnd,
                         start: lexer.span().start,
                         end: lexer.span().end,
+                        source: None,
                     });
                 }
                 comment_level -= 1;
@@ -198,9 +199,12 @@ fn lex_with_comments<'a>(
                 let span = lexer.span();
                 let bad = &input[span.clone()];
                 return Err(ParseError {
-                    msg: format!("lex error: {bad:?}"),
+                    kind: ParseErrorKind::Lex {
+                        text: bad.to_owned(),
+                    },
                     start: span.start,
                     end: span.end,
+                    source: None,
                 });
             }
         }
@@ -216,12 +220,8 @@ struct SpannedToken<'a> {
     end: usize,
 }
 
-#[derive(Debug, Clone)]
-pub struct ParseError {
-    msg: String,
-    start: usize,
-    end: usize,
-}
+mod diagnostics;
+pub use diagnostics::{Expected, OwnedToken, ParseError, ParseErrorKind};
 
 pub mod documentation;
 mod term_parse;
@@ -242,12 +242,16 @@ trait TokenCursor<'a>: Sized {
         )
     }
 
-    fn eof_error(&self, expect: &str) -> ParseError {
+    fn eof_error(&self, expected: Expected) -> ParseError {
         let span = self.span_at(self.tokens().len());
         ParseError {
-            msg: format!("expected {expect}, found <eof>"),
+            kind: ParseErrorKind::Expected {
+                expected,
+                found: None,
+            },
             start: span.start,
             end: span.end,
+            source: None,
         }
     }
 
@@ -291,13 +295,17 @@ trait TokenCursor<'a>: Sized {
                 Ok(*token)
             } else {
                 Err(ParseError {
-                    msg: format!("expected {expected:?}, found {:?}", token.kind),
+                    kind: ParseErrorKind::Expected {
+                        expected: Expected::Token(expected.owned()),
+                        found: Some(token.kind.owned()),
+                    },
                     start: token.start,
                     end: token.end,
+                    source: None,
                 })
             }
         } else {
-            Err(self.eof_error(&format!("{expected:?}")))
+            Err(self.eof_error(Expected::Token(expected.owned())))
         }
     }
 
@@ -306,12 +314,16 @@ trait TokenCursor<'a>: Sized {
             Some(token) => match token.kind {
                 Token::KeyWord(actual) if actual == keyword => Ok(actual),
                 other => Err(ParseError {
-                    msg: format!("expected keyword {keyword}, found {other:?}"),
+                    kind: ParseErrorKind::Expected {
+                        expected: Expected::Keyword(keyword.to_owned()),
+                        found: Some(other.owned()),
+                    },
                     start: token.start,
                     end: token.end,
+                    source: None,
                 }),
             },
-            None => Err(self.eof_error("keyword")),
+            None => Err(self.eof_error(Expected::Keyword(keyword.to_owned()))),
         }
     }
 
@@ -320,12 +332,16 @@ trait TokenCursor<'a>: Sized {
             Some(token) => match token.kind {
                 Token::Ident(name) => Ok(Identifier(name.to_owned())),
                 other => Err(ParseError {
-                    msg: format!("expected identifier, found {other:?}"),
+                    kind: ParseErrorKind::Expected {
+                        expected: Expected::Identifier,
+                        found: Some(other.owned()),
+                    },
                     start: token.start,
                     end: token.end,
+                    source: None,
                 }),
             },
-            None => Err(self.eof_error("identifier")),
+            None => Err(self.eof_error(Expected::Identifier)),
         }
     }
 }
@@ -437,7 +453,7 @@ impl<'a> Parser<'a> {
             let kind = match self.parse_sexp()? {
                 SExp::Sort(sort) => InductiveKind::Pts(sort),
                 SExp::ValueType => InductiveKind::Program,
-                _ => return Err(self.eof_error("PTS sort or \\VType in structure declaration")),
+                _ => return Err(self.eof_error(Expected::StructureSort)),
             };
             self.bump_if_token(Token::Assign);
             Some(kind)
@@ -448,9 +464,12 @@ impl<'a> Parser<'a> {
         for (field, _, _) in &fields {
             if !names.insert(field.as_str()) {
                 return Err(ParseError {
-                    msg: format!("duplicate structure field: {}", field.0),
+                    kind: ParseErrorKind::DuplicateStructureField {
+                        name: field.0.clone(),
+                    },
                     start: self.span_at(self.pos - 1).start,
                     end: self.span_at(self.pos - 1).end,
+                    source: None,
                 });
             }
         }
@@ -611,16 +630,18 @@ impl<'a> Parser<'a> {
             SExp::ValueType if indices.is_empty() => InductiveKind::Program,
             SExp::ValueType => {
                 return Err(ParseError {
-                    msg: "Program datatype declarations cannot have indices".into(),
+                    kind: ParseErrorKind::ProgramDatatypeDeclarationsCannotHaveIndices,
                     start: self.span_at(self.pos.saturating_sub(1)).start,
                     end: self.span_at(self.pos.saturating_sub(1)).end,
+                    source: None,
                 });
             }
             _ => {
                 return Err(ParseError {
-                    msg: "expected PTS sort or \\VType in inductive declaration".into(),
+                    kind: ParseErrorKind::ExpectedPtsSortOrVtypeInInductiveDeclaration,
                     start: self.span_at(self.pos.saturating_sub(1)).start,
                     end: self.span_at(self.pos.saturating_sub(1)).end,
+                    source: None,
                 });
             }
         };
@@ -672,14 +693,15 @@ impl<'a> Parser<'a> {
                 Ok(MacroSeqAtom::Seq(atoms))
             }
             Some(token) => Err(ParseError {
-                msg: format!(
-                    "expected expression/token/rest capture, escaped token, quoted literal, or nested pattern; found {:?}",
-                    token.kind
-                ),
+                kind: ParseErrorKind::Expected {
+                    expected: Expected::MacroPatternElement,
+                    found: Some(token.kind.owned()),
+                },
                 start: token.start,
                 end: token.end,
+                source: None,
             }),
-            None => Err(self.eof_error("macro pattern atom")),
+            None => Err(self.eof_error(Expected::MacroPatternAtom)),
         }
     }
 
@@ -866,55 +888,31 @@ impl<'a> TokenCursor<'a> for Parser<'a> {
     }
 }
 
-pub fn str_parse_exp(input: &str) -> Result<SExp, String> {
-    let v = lex_all(input).map_err(|error| error.message())?;
-    let mut parser = Parser::new(&v);
-
-    let sexp = parser
-        .parse_sexp()
-        .map_err(|e| format!("parse error: {} ({}..{})", e.msg, e.start, e.end))?;
-
-    if parser.pos < parser.tokens.len() {
-        let extra = &parser.tokens[parser.pos];
-        return Err(format!(
-            "extra tokens after expression starting at {}..{}: {:?}",
-            extra.start, extra.end, extra.kind
-        ));
+pub fn str_parse_exp(input: &str) -> Result<SExp, ParseError> {
+    let tokens = lex_all(input)?;
+    let mut parser = Parser::new(&tokens);
+    let expression = parser.parse_sexp()?;
+    if let Some(extra) = parser.tokens.get(parser.pos) {
+        return Err(ParseError {
+            kind: ParseErrorKind::ExtraTokens {
+                found: extra.kind.owned(),
+            },
+            start: extra.start,
+            end: extra.end,
+            source: None,
+        });
     }
-    Ok(sexp)
+    Ok(expression)
 }
 
-impl ParseError {
-    pub fn span(&self) -> SourceSpan {
-        SourceSpan {
-            start: self.start,
-            end: self.end,
-        }
-    }
-    pub fn message(&self) -> String {
-        format!("parse error: {} ({}..{})", self.msg, self.start, self.end)
-    }
-    pub fn render(&self, source: &std::sync::Arc<SourceFile>) -> String {
-        format!(
-            "{}\n{}",
-            self.message(),
-            SourceLocation {
-                source: source.clone(),
-                span: self.span()
-            }
-            .render()
-        )
-    }
-}
-
-pub fn str_parse_modules(input: &str) -> Result<Vec<Module>, String> {
-    parse_root(input).map_err(|error| error.message())
+pub fn str_parse_modules(input: &str) -> Result<Vec<Module>, ParseError> {
+    parse_root(input)
 }
 
 pub fn parse_modules_from_source(
     source: &std::sync::Arc<SourceFile>,
-) -> Result<Vec<Module>, String> {
-    parse_root(&source.text).map_err(|error| error.render(source))
+) -> Result<Vec<Module>, ParseError> {
+    parse_root(&source.text).map_err(|error| error.with_source(source.clone()))
 }
 
 pub fn parse_root(input: &str) -> Result<Vec<Module>, ParseError> {
@@ -929,8 +927,8 @@ pub fn parse_root(input: &str) -> Result<Vec<Module>, ParseError> {
 
 pub fn parse_module_items_from_source(
     source: &std::sync::Arc<SourceFile>,
-) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), String> {
-    parse_items(&source.text).map_err(|error| error.render(source))
+) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), ParseError> {
+    parse_items(&source.text).map_err(|error| error.with_source(source.clone()))
 }
 
 pub fn parse_items(input: &str) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), ParseError> {
@@ -939,9 +937,13 @@ pub fn parse_items(input: &str) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), Pa
     let declarations = parser.parse_module_items_with_spans()?;
     if let Some(extra) = parser.tokens.get(parser.pos) {
         return Err(ParseError {
-            msg: format!("expected a module item, found {:?}", extra.kind),
+            kind: ParseErrorKind::Expected {
+                expected: Expected::ModuleItem,
+                found: Some(extra.kind.owned()),
+            },
             start: extra.start,
             end: extra.end,
+            source: None,
         });
     }
     Ok(declarations)
