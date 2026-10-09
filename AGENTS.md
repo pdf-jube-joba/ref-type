@@ -44,8 +44,9 @@ perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
 - 再現例として 100行以内で playground で実行できる具体例を構成すること。
 - 「こう書きたい」バージョンと「こう書いているバージョン」の2つ。
 
+キャッシュは最大限に生かして、検査の時間が少なくなるようにする。
+
 ### 基本方針
-- `\definition` を使えるところは使う。
 - `\structure` を使う。
   - `Logic.And[P, Logic.And[Q, ...]` みたいに入れ子が現れたら `\structure` を使えないか考える。
 - あまりに重複する別 module の参照は definition で名前を付ける。

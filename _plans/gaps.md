@@ -52,9 +52,15 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 現在は関係を parameter に持たない `Data: \Set` と、`Laws[relation, data]: \Prop` に分け、法則を満たすデータの部分集合型として `Selection` を定義することで型検査が通る。
 `std.Set.FiniteSubset.Selection` ではこの構成を使っている。
 
+> [!note]
+> 保留します。
+> 内容を見る限り G02 と同じ、 Prop をとって Set を返しているため。
+
 <a id="g04"></a>
 
 ## G04: 子 module の macro 可視性と重複読み込み
+
+実装方針は [macro のスコープと使用宣言](macro-scopes.md) にまとめる。
 
 親 module で読み込んだ macro を子 module から利用するとき、読み込み位置と継承範囲を容易に把握したい。
 同じ macro の再読み込みを許容できると、親と子のどちらから利用する場合にも import と `\use` を局所的に記述できる。
@@ -66,10 +72,13 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 `algebra.LaurentPolynomial` の `eq_reason` と `topology.Topology.Subspace` の `sym` で、それぞれこの問題を確認した。
 
 > [!note]
-> 対応したい。 visibility についてちゃんと考えるべき。
-> - 自分のみ、子にも見える、このパッケージで見える、他のパッケージからも見える。
-> - マクロの読み込みの挙動とオーバーライド、ついでに `\use A::{B, self}` みたいな書き方も。
-> プランを決めたい。
+> 対応したい。
+> - マクロの利用範囲と宣言順...マクロを宣言順によらない依存を許す。
+> - マクロの読み込みの挙動とオーバーライド...重複上書きあり、
+> - ついでにマクロも `\import` にしたい。
+> - `\import A[].{B[X := Y].b, c \as d}` みたいな書き方も。
+> - マクロも使い分けのために `\as` が欲しいと思う。
+> プランを決めたいが、いったん重複読み込みを許す。
 
 <a id="g11"></a>
 
@@ -82,7 +91,11 @@ parameter と評価開始条件の検討は [Box の parameter](box-parameters.m
 > [!note]
 > 既知の問題のため、今は対処せず。
 
+<a id="g12"></a>
+
 ## G12: 等しい次数間の集合値の移送
+
+体系と処理系への追加は [等式による集合値の移送の実装プラン](equality-transport.md) にまとめる。
 
 自然数の等式 \(k=l\) を用いて、`\idelim k = l \with m: Nat^ => Form m` と書いて形式を移送したい。
 現在の等式除去は命題値の述語を要求するため、集合値の `Form m` をこの述語に置くことはできない。
@@ -96,11 +109,16 @@ parameter と評価開始条件の検討は [Box の parameter](box-parameters.m
 > 対応したい。
 > `n + m = m + n` から `Form (n + m) -> Form (m + n)` が書けないとつらい。
 > ただし、 reduction は行わない。
-> axiom K のような、 `M1` と `M2` が definitional equivalence のときに `\idelim` が identity になることなど？
+> agda のような、 `M1` と `M2` が definitional equivalence のときに `\idelim` が identity になることなど？
 > 今は proof irr. なので問題ないようにも思えるが、まあ必要になったらでいいと思う。
 > 本当か？ `f: (n, m: Nat) -> Form (n + m) -> Form (m + n)` に対して `f n (m + l) (f m l V) W = f ...` みたいな（順番は適当）をやりたいのでは？ 
 > まあその場合は、 `\idelim n = m \with x: A => P \by { base: h, equality: p }` が n equiv m かつ h が refl の普通のやつでやればいいという説。
 > でも今扱っている `=` は普通の equality じゃないからどうなのか...
+> AI の助言: reduction じゃなくて普通に equality を提供する。
+> 体系に refl がないのを忘れてたので、どうやっても refl かどうかを見ない（端点だけ見てる）形になりそう。
+> \(\vdash \op{transport}(a, b, F, u): F b\) if \(\vDash a = b, \vdash u: F a\)
+> \(\vdash \op{transport}(a, a, F, u) = u\) if \(\vDash u: F a\)
+> 思い出したが、最初は全部 subset で書けると思っていたんだった。必要だわ。
 
 ## G14: signature の族に対する台集合の束ね直し
 
@@ -139,5 +157,5 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 [`PullbackComposition.Between.Of.At.cohomologyLaw`](../libs/differential_forms/src/PullbackComposition/Between/Of/At.ref) は、余鎖写像で得た二つの閉形式を明示し、形式の合成則から類の合成則を示す。
 
 > [!note]
-> ちょっと後で考えたい。
-> `\as` で弱めればいいように思える。
+> 対応しません。
+> `\as` で弱めればいいように思える。 `\of` だった。
