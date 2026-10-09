@@ -4,8 +4,8 @@
 cargo run -p playground
 ```
 
-表示された `http://127.0.0.1:…/` をブラウザで開きます。
-ポートを固定する場合は `cargo run -p playground -- --port 3000` で起動します。
+`http://127.0.0.1:3000/` をブラウザで開きます。
+ポートを変更する場合は `cargo run -p playground -- --port 8080` で起動します。
 
 左側でコードを編集すると自動で検証し、右側に診断と `\infer`・`\check`・`\eval`・`\normalize` の出力を表示します。
 実行ボタンまたは Ctrl+Enter（macOS は Command+Enter）でも検証できます。

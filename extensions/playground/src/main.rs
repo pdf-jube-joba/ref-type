@@ -13,8 +13,8 @@ use std::{net::Ipv4Addr, time::Instant};
 #[derive(Parser)]
 #[command(about = "Ref Type の Web playground")]
 struct Args {
-    /// 待ち受けポート（0 は空きポートを自動選択）
-    #[arg(long, default_value_t = 0)]
+    /// 待ち受けポート（デフォルトは 3000、0 は空きポートを自動選択）
+    #[arg(long, default_value_t = 3000)]
     port: u16,
 }
 
