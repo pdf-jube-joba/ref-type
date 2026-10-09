@@ -20,7 +20,8 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 <a id="g02"></a>
 
 > [!note]
-> これは対応しなくていいかな。この gaps には残しておかないと、あとで同じものが記載されうるので残しておきます。
+> これは対応しなくていいかな。
+> この gaps には残しておかないと、あとで同じものが記載されうるので残しておきます。
 
 ## G02: 命題を条件とする集合値の構成
 
@@ -39,7 +40,8 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 <a id="g03"></a>
 
 > [!note]
-> 矛盾しなさそうなのは言われているんですが、こういう Prop -> Set はちょっと許しがたい気がするので、保留する。
+> 保留します。
+> 矛盾しなさそうなのは言われているんですが、こういう Prop -> Set はちょっと許しがたい気がするので。
 
 ## G03: 関係を parameter に持つ record の集合値の射影
 
@@ -63,7 +65,15 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 現在は子の宣言より前に親で読み込み、子では継承された macro を利用することで回避している。
 `algebra.LaurentPolynomial` の `eq_reason` と `topology.Topology.Subspace` の `sym` で、それぞれこの問題を確認した。
 
+> [!note]
+> 対応したい。 visibility についてちゃんと考えるべき。
+> - 自分のみ、子にも見える、このパッケージで見える、他のパッケージからも見える。
+> - マクロの読み込みの挙動とオーバーライド、ついでに `\use A::{B, self}` みたいな書き方も。
+> プランを決めたい。
+
 ## G09: 台集合に依存する位相と record 内の具体化
+
+[最小比較: G09](fix-md/README.md#g09) は、具体化した module の構造から型のフィールドを直接参照すると失敗し、名前付き import を介すと成功する例である。
 
 `Chart(M: \Set, space: topology.Topology[Carrier := M].Topology)` を通常の型値定義の局所引数で具体化したい。
 この表現では、引数 `space` の推論型が `topology.Structures.Topology M` である一方、期待する classifier に元の `Chart` の module parameter が残り、型が一致しない診断が出た。
@@ -101,6 +111,9 @@ namespace での具体化を通常の命題値定義 `Hausdorff(M)(space)` と `
 [`Examples.Euclidean`](../libs/manifolds/src/Dimension/Examples/Euclidean.ref) と [`Examples.Empty`](../libs/manifolds/src/Dimension/Examples/Empty.ref) は、飽和したアトラスを持つ滑らかな多様体の構造を直接組み立てる。
 [`Geometry`](../tests/projects/manifolds-de-rham/src/Geometry.ref) では、この表現による二次元の滑らかな多様体の返却と、標準多様体・空多様体の滑らかな恒等写像を検査する。
 
+> [!note]
+> これもバグっぽいので対応してほしい。
+
 <a id="g11"></a>
 
 ## G11: Machine の実行を Box にする定義
@@ -108,6 +121,9 @@ namespace での具体化を通常の命題値定義 `Hausdorff(M)(space)` と `
 Machine を引数に取り、その実行を Box にする共通の定義を書きたい。
 [最小比較: G11](fix-md/README.md#g11) は、Machine の引数で `Box requires a closed computation type` になり、具体値では成功する。
 parameter と評価開始条件の検討は [Box の parameter](box-parameters.md#g11) にまとめる。
+
+> [!note]
+> 既知の問題のため、今は対処せず。
 
 ## G12: 等しい次数間の集合値の移送
 
@@ -118,6 +134,16 @@ parameter と評価開始条件の検討は [Box の parameter](box-parameters.m
 次数の異なる表現を比較する結合則・次数付き可換則にも同じ表示を用いる。
 
 <a id="g14"></a>
+
+> [!note]
+> 対応したい。
+> `n + m = m + n` から `Form (n + m) -> Form (m + n)` が書けないとつらい。
+> ただし、 reduction は行わない。
+> axiom K のような、 `M1` と `M2` が definitional equivalence のときに `\idelim` が identity になることなど？
+> 今は proof irr. なので問題ないようにも思えるが、まあ必要になったらでいいと思う。
+> 本当か？ `f: (n, m: Nat) -> Form (n + m) -> Form (m + n)` に対して `f n (m + l) (f m l V) W = f ...` みたいな（順番は適当）をやりたいのでは？ 
+> まあその場合は、 `\idelim n = m \with x: A => P \by { base: h, equality: p }` が n equiv m かつ h が refl の普通のやつでやればいいという説。
+> でも今扱っている `=` は普通の equality じゃないからどうなのか...
 
 ## G14: signature の族に対する台集合の束ね直し
 
@@ -132,6 +158,11 @@ parameter と評価開始条件の検討は [Box の parameter](box-parameters.m
 現在の signature は宣言された field の依存文脈へ展開され、signature の族そのものを parameter に取る仕組みがない。
 sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る signature に `Carrier: \Set` と `data: F Carrier` を持たせて汎用の相互変換を定義できる。
 元の例と同じ field 配置を得るには、依存する field の型と本体を保って展開する仕組みも必要になる。
+
+> [!note]
+> 対応したい。
+> すごいわかるため。
+> A と ASet と ALaw と...を、一気に定義する方法があるべき。
 
 ## G15: 外延性の引数推論と存在証人を使う局所証明
 
@@ -149,6 +180,10 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 
 閉形式の類へ等式を降ろす場合には、通常の形式の等式だけから `congr classOf _ _` の引数を推論すると、閉形式の部分集合への所属が保持されなかった。
 [`PullbackComposition.Between.Of.At.cohomologyLaw`](../libs/differential_forms/src/PullbackComposition/Between/Of/At.ref) は、余鎖写像で得た二つの閉形式を明示し、形式の合成則から類の合成則を示す。
+
+> [!note]
+> ちょっと後で考えたい。
+> `\as` で弱めればいいように思える。
 
 <a id="g16"></a>
 
@@ -168,3 +203,7 @@ target/debug/cli _plans/reproductions/g16-structure-family/named-piece.ref --no-
 
 [`Gluing.On.Cover.Piece`](../libs/differential_forms/src/Gluing/On/Cover/Piece.ref) は、被覆の添字ごとに開部分多様体と形式の台集合をまとめる。
 貼り合わせの各局所 module は開部分多様体を名前付き import で固定し、包含写像の微分と接空間にも同じ具体化を用いる。
+
+> [!note]
+> 言っていることがそうならバグでは？
+> そのコンテキストにはないはずの変数が登場していることになる。
