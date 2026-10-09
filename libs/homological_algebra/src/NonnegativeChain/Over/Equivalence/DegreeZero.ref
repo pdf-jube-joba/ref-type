@@ -1,0 +1,31 @@
+\import \parent.\parent.DegreeZero[C := C] \as Source;
+\import \parent.\parent.DegreeZero[C := D] \as Target;
+\import Forward.DegreeZero[] \as ForwardMap;
+\import Backward.DegreeZero[] \as BackwardMap;
+\import LeftComposition.DegreeZero[] \as LeftLaw;
+\import RightComposition.DegreeZero[] \as RightLaw;
+\import SourceHomotopy.DegreeZero[] \as SourceLaw;
+\import TargetHomotopy.DegreeZero[] \as TargetLaw;
+\import SourceEnd.DegreeZero[] \as SourceIdentity;
+\import TargetEnd.DegreeZero[] \as TargetIdentity;
+\import \parent.\parent.Map[C := C, D := C].DegreeZero[] \as SourceMaps;
+\import \parent.\parent.Map[C := D, D := D].DegreeZero[] \as TargetMaps;
+\definition leftInverse: \forall (e: Equivalence)(x: Source.Homology) ->
+  #apply{(BackwardMap.induced e.backward)} (#apply{(ForwardMap.induced e.forward)} x) = x :=
+  \fun (e: Equivalence)(x: Source.Homology) => trans!{Source.Homology} _ _ _
+    (sym!{Source.Homology} _ _ (LeftLaw.compositionOnHomology e.backward e.forward x))
+    (trans!{Source.Homology} _ _ _
+      (SourceLaw.onHomology (LeftComposition.compose e.backward e.forward) SourceEnd.identity (leftHomotopy e) x)
+      (SourceIdentity.identityOnHomology x));
+\definition rightInverse: \forall (e: Equivalence)(x: Target.Homology) ->
+  #apply{(ForwardMap.induced e.forward)} (#apply{(BackwardMap.induced e.backward)} x) = x :=
+  \fun (e: Equivalence)(x: Target.Homology) => trans!{Target.Homology} _ _ _
+    (sym!{Target.Homology} _ _ (RightLaw.compositionOnHomology e.forward e.backward x))
+    (trans!{Target.Homology} _ _ _
+      (TargetLaw.onHomology (RightComposition.compose e.forward e.backward) TargetEnd.identity (rightHomotopy e) x)
+      (TargetIdentity.identityOnHomology x));
+\import Modules.Isomorphism[V := Source.Homology, W := Target.Homology, source := Source.homologySpace, target := Target.homologySpace] \as Iso;
+\definition isomorphism(e: Equivalence): Iso.Isomorphism := Iso.Isomorphism {
+  forward := ForwardMap.induced e.forward, backward := BackwardMap.induced e.backward,
+  leftInverse := leftInverse e, rightInverse := rightInverse e,
+};

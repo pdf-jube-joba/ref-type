@@ -1,0 +1,16 @@
+\import N.Division[].Program[] \as NatPrograms;
+\import N.Division[].ProgramProp[] \as NatCorrespondence;
+\definition T: \VType := \U(I.Int -> I.Int -> N.Nat);
+\definition program: T := \thunk (\cfun (a: I.Int) => \return(\thunk (\cfun (b: I.Int) => \program {
+  \bind na: N.Nat <- (\force Absolute.program) a \then
+  \bind nb: N.Nat <- (\force Absolute.program) b \then
+  \bind divide: \U(N.Nat -> N.Nat) <- (\force NatPrograms.div) na \then
+  \bind q: N.Nat <- (\force divide) nb \then
+  \return q
+})));
+\definition matches: \forall (a, b: I.Int^) -> program^ a b = unsigned a b :=
+  \fun (a, b: I.Int^) => trans!{N.Nat^} (program^ a b) (NaturalDivision.div (Absolute.program^ a) (Absolute.program^ b)) (unsigned a b)
+    (congr!{NatCorrespondence.Div.T^ N.Nat^} (\fun (f: NatCorrespondence.Div.T^) => f (Absolute.program^ a) (Absolute.program^ b)) NatCorrespondence.Div.program^ NatCorrespondence.Div.specification NatCorrespondence.Div.coherence)
+    (congr!{Absolute.T^ N.Nat^} (\fun (f: Absolute.T^) => NaturalDivision.div (f a) (f b)) Absolute.program^ Absolute.specification Absolute.coherence);
+\definition coherence: program^ = unsigned := \axiom:funext(program^, unsigned,
+  \fun (a: I.Int^) => \axiom:funext(program^ a, unsigned a, \fun (b: I.Int^) => matches a b));

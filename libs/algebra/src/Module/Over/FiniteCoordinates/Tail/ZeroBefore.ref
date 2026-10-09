@@ -1,0 +1,44 @@
+\import \parent.Laws[] \as ExtensionLaws;
+\import \parent.\parent.\parent.Submodule[V := Carrier, space := space] \as Submodules;
+\definition data: Submodules.Data := Submodules.Data { carrier := { v: Carrier \where EarlyZero v } };
+\definition laws: Submodules.Laws[data] := Submodules.Laws[data] {
+  zero := \fun (i: Index)(early: _) => \refl(#zero{ring}),
+  addition := \fun (v, w: Carrier)(left: EarlyZero v)(right: EarlyZero w)(i: Index)(early: _) =>
+    trans!{R} (#add{ring} (v i) (w i)) (#add{ring} #zero{ring} #zero{ring}) #zero{ring}
+      (congr2!{R R R} (#add{ring}) (v i) #zero{ring} (w i) #zero{ring} (left i early) (right i early))
+      (Scalars.zeroLeft #zero{ring}),
+  scalar := \fun (a: R)(v: Carrier)(member: EarlyZero v)(i: Index)(early: _) =>
+    trans!{R} (#mul{ring} a (v i)) (#mul{ring} a #zero{ring}) #zero{ring}
+      (congr!{R R} (#mul{ring} a) (v i) #zero{ring} (member i early))
+      (#zeroAbsorbsRight{(#semiring{ring})} a),
+};
+\definition submodule: Submodules.Submodule := \into[Submodules.Data](data, { data: Submodules.Data \where Submodules.Laws[data] }) \by { laws };
+\import \parent.\parent.\parent.Of[V := Carrier, space := space].Submodule[].Of[S := submodule] \as Included;
+\definition ZeroCarrier: \Set := Included.Carrier;
+\definition zeroSpace: Space ZeroCarrier := Included.moduleSpace;
+\import \parent.\parent.\parent.Hom[V := Smaller.Carrier, W := ZeroCarrier, source := Smaller.space, target := zeroSpace] \as Extensions;
+\definition inclusion(v: Smaller.Carrier): ZeroCarrier := \into[Carrier](extension v, #carrier{submodule}) \by {
+  \fun (i: Index)(early: _) => atEarly v i early
+};
+\definition forward: Extensions.Map := Extensions.Map {
+  apply := inclusion,
+  addition := ExtensionLaws.extensionAddition,
+  scalar := ExtensionLaws.extensionScalar,
+};
+\import \parent.\parent.\parent.Hom[V := ZeroCarrier, W := Smaller.Carrier, source := zeroSpace, target := Smaller.space] \as Restrictions;
+\definition backward(within: Bounds.Le start n): Restrictions.Map := Restrictions.Map {
+  apply := \fun (v: ZeroCarrier) => restriction within v,
+  addition := \fun (v, w: ZeroCarrier) => \axiom:funext(restriction within (#add{zeroSpace} v w), #add{Smaller.space} (restriction within v) (restriction within w),
+    \fun (i: Smaller.Index) => \refl(#add{ring} (v (Indices.include within i)) (w (Indices.include within i)))),
+  scalar := \fun (a: R)(v: ZeroCarrier) => \axiom:funext(restriction within (#smul{zeroSpace} a v), #smul{Smaller.space} a (restriction within v),
+    \fun (i: Smaller.Index) => \refl(#mul{ring} a (v (Indices.include within i)))),
+};
+\import \parent.\parent.\parent.Isomorphism[V := Smaller.Carrier, W := ZeroCarrier, source := Smaller.space, target := zeroSpace] \as Iso;
+\definition isoData(within: Bounds.Le start n): Iso.Data := Iso.Data { forward := forward, backward := backward within };
+\definition isoLaws: \forall (within: Bounds.Le start n) -> Iso.Laws[isoData within] :=
+  \fun (within: Bounds.Le start n) => Iso.Laws[isoData within] {
+    leftInverse := restrictionExtension within,
+    rightInverse := \fun (v: ZeroCarrier) => recover within v (\bysub(Carrier, #carrier{submodule}, v)),
+  };
+\definition isomorphism(within: Bounds.Le start n): Iso.Isomorphism :=
+  \into[Iso.Data](isoData within, { data: Iso.Data \where Iso.Laws[data] }) \by { isoLaws within };

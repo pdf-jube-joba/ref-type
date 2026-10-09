@@ -1,0 +1,51 @@
+\import Source.Degree[n := n] \as SD;
+\import Middle.Degree[n := n] \as MD;
+\import Target.Degree[n := n] \as TD;
+\import FT.Degree[n := n] \as FD;
+\import GT.Degree[n := n] \as GD;
+\import HT.Degree[n := n] \as HD;
+\module Component(p, q: Nat.Nat^) {
+  \import Modules.Tensor[V := A.family.Carrier p, W := E.family.Carrier q, left := A.family.space p, right := E.family.space q] \as ST;
+  \import Modules.Tensor[V := B.family.Carrier p, W := E.family.Carrier q, left := B.family.space p, right := E.family.space q] \as MT;
+  \import Modules.Tensor[V := C.family.Carrier p, W := E.family.Carrier q, left := C.family.space p, right := E.family.space q] \as TT;
+  \import F.Degree[p := p, q := q] \as FM;
+  \import G.Degree[p := p, q := q] \as GM;
+  \import H.Degree[p := p, q := q] \as HM;
+  \import Modules.Hom[V := MT.Carrier, W := TT.Carrier, source := MT.space, target := TT.space].Composition[U := ST.Carrier, domain := ST.space] \as Compose;
+  \import ST.Universal[U := TT.Carrier, target := TT.space] \as Universal;
+  \definition equality: Compose.compose GM.map FM.map = HM.map := Universal.ext (Compose.compose GM.map FM.map) HM.map
+    (\fun (x: A.family.Carrier p)(y: E.family.Carrier q) => trans!{TT.Carrier} _ _ _
+      (congr!{MT.Carrier TT.Carrier} (#apply{GM.map}) _ _ (FM.onTensor x y))
+      (trans!{TT.Carrier} _ _ _ (GM.onTensor (#apply{f} p x) y) (sym!{TT.Carrier} _ _ (HM.onTensor x y))));
+  \definition point: \forall (x: ST.Carrier) -> #apply{GM.map} (#apply{FM.map} x) = #apply{HM.map} x :=
+    \fun (x: ST.Carrier) => congr!{{Modules.Hom[V := ST.Carrier, W := TT.Carrier, source := ST.space, target := TT.space].Map} TT.Carrier}
+      (\fun (h: Modules.Hom[V := ST.Carrier, W := TT.Carrier, source := ST.space, target := TT.space].Map) => #apply{h} x) _ _ equality;
+}
+\import Modules.Hom[V := MD.Carrier, W := TD.Carrier, source := MD.space, target := TD.space].Composition[U := SD.Carrier, domain := SD.space] \as Compose;
+\import Modules.DirectSum[Index := Degrees.Index n, family := SD.family].To[W := TD.Carrier, target := TD.space] \as Universal;
+\definition equality: Compose.compose GD.map FD.map = HD.map := Universal.ext (Compose.compose GD.map FD.map) HD.map
+  (\fun (i: Degrees.Index n)(x: SourceTensor.family.Carrier #first{i} #second{i}) => trans!{TD.Carrier}
+    (#apply{GD.map} (#apply{FD.map} (#apply{(SD.Component[i := i].injection)} x)))
+    (#apply{GD.map} (#apply{(MD.Component[i := i].injection)} (#apply{(F.data #first{i} #second{i})} x)))
+    (#apply{HD.map} (#apply{(SD.Component[i := i].injection)} x))
+    (congr!{MD.Carrier TD.Carrier} (#apply{GD.map})
+      (#apply{FD.map} (#apply{(SD.Component[i := i].injection)} x))
+      (#apply{(MD.Component[i := i].injection)} (#apply{(F.data #first{i} #second{i})} x)) (FD.onInjection i x))
+    (trans!{TD.Carrier}
+      (#apply{GD.map} (#apply{(MD.Component[i := i].injection)} (#apply{(F.data #first{i} #second{i})} x)))
+      (#apply{(TD.Component[i := i].injection)} (#apply{(G.data #first{i} #second{i})} (#apply{(F.data #first{i} #second{i})} x)))
+      (#apply{HD.map} (#apply{(SD.Component[i := i].injection)} x))
+      (GD.onInjection i (#apply{(F.data #first{i} #second{i})} x))
+      (trans!{TD.Carrier}
+        (#apply{(TD.Component[i := i].injection)} (#apply{(G.data #first{i} #second{i})} (#apply{(F.data #first{i} #second{i})} x)))
+        (#apply{(TD.Component[i := i].injection)} (#apply{(H.data #first{i} #second{i})} x))
+        (#apply{HD.map} (#apply{(SD.Component[i := i].injection)} x))
+        (congr!{{TargetTensor.family.Carrier #first{i} #second{i}} TD.Carrier} (#apply{(TD.Component[i := i].injection)})
+          (#apply{(G.data #first{i} #second{i})} (#apply{(F.data #first{i} #second{i})} x))
+          (#apply{(H.data #first{i} #second{i})} x) (Component[p := #first{i}, q := #second{i}].point x))
+        (sym!{TD.Carrier}
+          (#apply{HD.map} (#apply{(SD.Component[i := i].injection)} x))
+          (#apply{(TD.Component[i := i].injection)} (#apply{(H.data #first{i} #second{i})} x)) (HD.onInjection i x)))));
+\definition point: \forall (x: SD.Carrier) -> #apply{GD.map} (#apply{FD.map} x) = #apply{HD.map} x :=
+  \fun (x: SD.Carrier) => congr!{{Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space].Map} TD.Carrier}
+    (\fun (h: Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space].Map) => #apply{h} x) _ _ equality;

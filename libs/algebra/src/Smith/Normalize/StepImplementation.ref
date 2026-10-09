@@ -1,0 +1,23 @@
+\definition T: \VType := \U(Cursor -> Cursor);
+\definition program: T := \thunk (\cfun (cursor: Cursor) => \match cursor \in Cursor \with {
+  | cursor index current: \match current \in Attempt \with {
+      | attempt a history reduced: \program {
+          \bind matrix: \U(Runtime -> History -> Attempt) <- (\force atProgram) index \then
+          \bind histories: \U(History -> Attempt) <- (\force matrix) a \then
+          \bind result: Attempt <- (\force histories) history \then
+          \return(Cursor::cursor (N.Nat::succ index) result)
+        }
+    }
+});
+\definition onAttempt: \forall (index: N.Nat^)(a: Runtime^)(history: History^)(reduced: B.Bool^) ->
+  program^ (Cursor^::cursor index (Attempt^::attempt a history reduced)) = step (Cursor^::cursor index (Attempt^::attempt a history reduced)) :=
+  \fun (index: N.Nat^)(a: Runtime^)(history: History^)(reduced: B.Bool^) =>
+    congr!{At.T^ Cursor^} (\fun (f: At.T^) => Cursor^::cursor (N.Nat^::succ index) (f index a history)) atProgram^ at At.coherence;
+\definition matches: \forall (cursor: Cursor^) -> program^ cursor = step cursor :=
+  \induction (cursor: Cursor^) \return program^ cursor = step cursor \with {
+    | cursor: \fun (index: N.Nat^) => \induction (current: Attempt^) \return
+        program^ (Cursor^::cursor index current) = step (Cursor^::cursor index current) \with {
+      | attempt: onAttempt index
+    }
+  };
+\definition coherence: program^ = step := \axiom:funext(program^, step, matches);

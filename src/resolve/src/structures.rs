@@ -47,6 +47,7 @@ pub(super) struct Definition {
 
 #[derive(Clone)]
 pub(super) struct Input {
+    pub binding: BindingId,
     pub callback_parameters: Vec<RightBind>,
     pub arguments: HashMap<BindingId, SExp>,
     pub name: String,
@@ -265,6 +266,104 @@ fn force_reference(name: Identifier) -> SExp {
 }
 
 impl Resolver {
+    fn respecialize_front_access(
+        &self,
+        access: &LocalAccess,
+        substitutions: &HashMap<BindingId, SExp>,
+    ) -> Option<LocalAccess> {
+        let LocalAccess::Resolved {
+            module,
+            access: name,
+            span,
+            ..
+        } = access
+        else {
+            return None;
+        };
+        if self.global_bindings.get(&name.1?)?.parameter.is_some()
+            || self.structures.contains_key(&name.1?)
+        {
+            return None;
+        }
+        let scope = &self.scopes[module.0 as usize];
+        let mut changed = false;
+        for argument in scope.substitutions.values() {
+            let mut argument = argument.clone();
+            macros::walk_sexp_mut(&mut argument, &mut |node| {
+                if let SExp::AccessPath {
+                    access:
+                        LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
+                    parameters,
+                } = node
+                    && parameters.is_empty()
+                    && let Some(id) = access.1
+                    && let Some(value) = substitutions.get(&id)
+                {
+                    let identity = matches!(value,
+                        SExp::AccessPath {
+                            access: LocalAccess::Current { access, .. }
+                                | LocalAccess::Resolved { access, .. },
+                            parameters,
+                        } if parameters.is_empty() && access.1 == Some(id));
+                    changed |= !identity;
+                }
+            });
+        }
+        if !changed {
+            return None;
+        }
+        let mut current = self.origins.get(module).copied().unwrap_or(*module);
+        let mut calls = Vec::new();
+        while let Some(parent) = self.scopes[current.0 as usize].parent {
+            let declaration = self
+                .output
+                .get(&current)
+                .or_else(|| self.input.get(&current))?;
+            let parameters = self
+                .module_parameters
+                .get(&current)
+                .unwrap_or(&declaration.parameters);
+            let mut arguments = Vec::new();
+            for parameter in parameters {
+                for name in &parameter.vars {
+                    let argument = scope.substitutions.get(&name.1?)?;
+                    arguments.push((name.clone(), substitute(argument, substitutions)));
+                }
+            }
+            calls.push((declaration.name.clone(), arguments));
+            current = parent;
+        }
+        calls.reverse();
+        Some(LocalAccess::Instantiated {
+            span: *span,
+            path: Box::new(ModuleInstantiatePath::FromRoot { calls }),
+            child: name.clone(),
+        })
+    }
+
+    fn substitute_front_expression(
+        &self,
+        expression: &SExp,
+        substitutions: &HashMap<BindingId, SExp>,
+    ) -> SExp {
+        let mut expression = substitute(expression, substitutions);
+        if substitutions.is_empty() {
+            return expression;
+        }
+        macros::walk_sexp_mut(&mut expression, &mut |node| {
+            if let SExp::AccessPath { access, .. }
+            | SExp::RecordTypeCtor { access, .. }
+            | SExp::ProgramValueReference { access }
+            | SExp::IndCase { path: access, .. }
+            | SExp::ProgramCase { path: access, .. } = node
+                && let Some(specialized) = self.respecialize_front_access(access, substitutions)
+            {
+                *access = specialized;
+            }
+        });
+        expression
+    }
+
     pub(super) fn front_binding(
         &self,
         access: &LocalAccess,
@@ -312,6 +411,35 @@ impl Resolver {
         };
         let scope = &self.scopes[module.0 as usize];
         let mut expression = substitute(expression, &scope.substitutions);
+        if scope.remapping.is_empty() {
+            return expression;
+        }
+        macros::walk_sexp_mut(&mut expression, &mut |node| {
+            if let SExp::ModuleInstance { path, .. } = node
+                && let ModuleInstantiatePath::FromImport { import_name, calls } = path.as_mut()
+                && let Some(import) = import_name.1.and_then(|id| self.imports.get(&id))
+                && let Some(&module) = scope.remapping.get(&import.target)
+            {
+                // A declaration's internal import belongs to its original
+                // scope. Select the specialized namespace before checking
+                // arguments of children referenced by the declaration.
+                *path = Box::new(ModuleInstantiatePath::FromModule {
+                    module,
+                    calls: std::mem::take(calls),
+                });
+            }
+            if let SExp::AccessPath { access, .. }
+            | SExp::RecordTypeCtor { access, .. }
+            | SExp::ProgramValueReference { access }
+            | SExp::IndCase { path: access, .. }
+            | SExp::ProgramCase { path: access, .. } = node
+                && let LocalAccess::Resolved { .. } = access
+                && let Some(specialized) =
+                    self.respecialize_front_access(access, &scope.substitutions)
+            {
+                *access = specialized;
+            }
+        });
         remap_modules(&mut expression, &scope.remapping);
         expression
     }
@@ -392,6 +520,9 @@ impl Resolver {
             return Ok(None);
         };
         let id = self.front_binding(access, locals).unwrap();
+        for input in &mut signature.inputs {
+            self.instantiate_input(input, access);
+        }
         let bindings = signature
             .parameters
             .iter()
@@ -504,16 +635,16 @@ impl Resolver {
                 bind.vars.iter().map(|name| {
                     (
                         arguments[&name.1.unwrap()].clone(),
-                        substitute(&bind.ty, arguments),
+                        self.substitute_front_expression(&bind.ty, arguments),
                     )
                 })
             })
-            .chain(
-                shape
-                    .checks
-                    .iter()
-                    .map(|(value, ty)| (substitute(value, arguments), substitute(ty, arguments))),
-            )
+            .chain(shape.checks.iter().map(|(value, ty)| {
+                (
+                    self.substitute_front_expression(value, arguments),
+                    self.substitute_front_expression(ty, arguments),
+                )
+            }))
             .collect()
     }
 
@@ -610,11 +741,13 @@ impl Resolver {
             let supplied_count = supplied.len();
             let mut actual = Vec::new();
             let mut checks = Vec::new();
+            let mut substitutions = HashMap::new();
             for (input, argument) in template.inputs.iter().zip(supplied) {
                 if input.signature.is_some() {
                     let (fields, guards) = self.callback_arguments(input, &argument, locals)?;
                     checks.extend(guards);
                     actual.extend(fields);
+                    self.bind_structure_field(input.binding, argument, &mut substitutions)?;
                 } else {
                     actual.push(if input.computation {
                         thunk(argument)
@@ -624,9 +757,8 @@ impl Resolver {
                 }
             }
             let consumed = actual.len();
-            let mut substitutions = HashMap::new();
             for (bind, value) in template.parameters.iter().zip(actual) {
-                let ty = substitute(&bind.ty, &substitutions);
+                let ty = self.substitute_front_expression(&bind.ty, &substitutions);
                 checks.push((value.clone(), ty));
                 substitutions.insert(bind.vars[0].1.unwrap(), value);
             }
@@ -634,22 +766,27 @@ impl Resolver {
                 .into_iter()
                 .map(|(value, ty)| {
                     (
-                        substitute(&value, &substitutions),
-                        substitute(&ty, &substitutions),
+                        self.substitute_front_expression(&value, &substitutions),
+                        self.substitute_front_expression(&ty, &substitutions),
                     )
                 })
                 .collect();
             checks.extend(template.checks.iter().map(|(value, ty)| {
                 (
-                    substitute(value, &substitutions),
-                    substitute(ty, &substitutions),
+                    self.substitute_front_expression(value, &substitutions),
+                    self.substitute_front_expression(ty, &substitutions),
                 )
             }));
             return Ok(Some(Value {
                 arguments: template
                     .arguments
                     .iter()
-                    .map(|(id, expression)| (*id, substitute(expression, &substitutions)))
+                    .map(|(id, expression)| {
+                        (
+                            *id,
+                            self.substitute_front_expression(expression, &substitutions),
+                        )
+                    })
                     .collect(),
                 signature: template.signature,
                 parameters: template
@@ -658,7 +795,7 @@ impl Resolver {
                     .skip(consumed)
                     .map(|bind| RightBind {
                         vars: bind.vars.clone(),
-                        ty: Box::new(substitute(&bind.ty, &substitutions)),
+                        ty: Box::new(self.substitute_front_expression(&bind.ty, &substitutions)),
                     })
                     .collect(),
                 inputs: template.inputs.into_iter().skip(supplied_count).collect(),
@@ -666,7 +803,12 @@ impl Resolver {
                 fields: template
                     .fields
                     .iter()
-                    .map(|(name, value)| (name.clone(), substitute(value, &substitutions)))
+                    .map(|(name, value)| {
+                        (
+                            name.clone(),
+                            self.substitute_front_expression(value, &substitutions),
+                        )
+                    })
                     .collect(),
             }));
         }
@@ -698,13 +840,17 @@ impl Resolver {
                 for (name, ty, default) in &shape.fields {
                     let value = supplied
                         .remove(&name.0)
-                        .or_else(|| default.as_ref().map(|v| substitute(v, &substitutions)))
+                        .or_else(|| {
+                            default
+                                .as_ref()
+                                .map(|v| self.substitute_front_expression(v, &substitutions))
+                        })
                         .ok_or_else(|| {
                             self.error(crate::error::Error::MissingStructureField {
                                 name: (name.0).to_owned(),
                             })
                         })?;
-                    let expected = substitute(ty, &substitutions);
+                    let expected = self.substitute_front_expression(ty, &substitutions);
                     if let Some((signature, _, _)) = self.structure_type(&expected, locals)? {
                         let nested = self
                             .structure_value(&value, locals)?
@@ -732,7 +878,10 @@ impl Resolver {
                         checks.push((value.clone(), expected));
                     }
                     let value = if self
-                        .structure_type(&substitute(ty, &substitutions), locals)?
+                        .structure_type(
+                            &self.substitute_front_expression(ty, &substitutions),
+                            locals,
+                        )?
                         .is_some()
                         || matches!(ty, SExp::ValueType)
                     {

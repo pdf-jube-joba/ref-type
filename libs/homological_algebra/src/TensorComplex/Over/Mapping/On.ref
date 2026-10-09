@@ -1,0 +1,30 @@
+\module At(n: Nat.Nat^);
+\module Differential(n: Nat.Nat^) {
+  \import Modules.Tensor[V := P.family.Carrier (Nat.Nat^::succ n), W := N.Carrier, left := P.family.space (Nat.Nat^::succ n), right := N.space] \as Generators;
+  \import Modules.Tensor[V := Q.family.Carrier n, W := L.Carrier, left := Q.family.space n, right := L.space] \as Result;
+  \import Generators.Universal[U := Result.Carrier, target := Result.space] \as Equality;
+  \import Modules.Hom[V := Target.Carrier (Nat.Nat^::succ n), W := Target.Carrier n, source := Target.space (Nat.Nat^::succ n), target := Target.space n].Composition[U := Source.Carrier (Nat.Nat^::succ n), domain := Source.space (Nat.Nat^::succ n)] \as Left;
+  \import Modules.Hom[V := Source.Carrier n, W := Target.Carrier n, source := Source.space n, target := Target.space n].Composition[U := Source.Carrier (Nat.Nat^::succ n), domain := Source.space (Nat.Nat^::succ n)] \as Right;
+  \definition mapsCommute: Left.compose (Target.At[n := n].differential) (\parent.At[n := Nat.Nat^::succ n].map) =
+    Right.compose (\parent.At[n := n].map) (Source.At[n := n].differential) :=
+    Equality.ext (Left.compose (Target.At[n := n].differential) (\parent.At[n := Nat.Nat^::succ n].map))
+      (Right.compose (\parent.At[n := n].map) (Source.At[n := n].differential))
+      (\fun (x: P.family.Carrier (Nat.Nat^::succ n))(y: N.Carrier) => trans!{Result.Carrier} _ _ _
+        (congr!{{Target.Carrier (Nat.Nat^::succ n)} Result.Carrier} (#apply{(Target.At[n := n].differential)}) _ _ (\parent.At[n := Nat.Nat^::succ n].onTensor x y))
+        (trans!{Result.Carrier} _ _ _ (Target.At[n := n].onTensor (#apply{f} (Nat.Nat^::succ n) x) (#apply{u} y))
+          (trans!{Result.Carrier} _ _ _
+            (congr!{{Q.family.Carrier n} Result.Carrier} (\fun (z: Q.family.Carrier n) => Result.tensor z (#apply{u} y)) _ _ (#commutes{f} n x))
+            (sym!{Result.Carrier} _ _ (trans!{Result.Carrier} _ _ _
+              (congr!{{Source.Carrier n} Result.Carrier} (#apply{(\parent.At[n := n].map)}) _ _ (Source.At[n := n].onTensor x y))
+              (\parent.At[n := n].onTensor (#apply{P.differential} n x) y))))));
+  \import Modules.Hom[V := Source.Carrier (Nat.Nat^::succ n), W := Target.Carrier n, source := Source.space (Nat.Nat^::succ n), target := Target.space n] \as Linear;
+  \definition commutes: \forall (x: Source.Carrier (Nat.Nat^::succ n)) ->
+    #apply{Target.differential} n (#apply{(\parent.At[n := Nat.Nat^::succ n].map)} x) = #apply{(\parent.At[n := n].map)} (#apply{Source.differential} n x) :=
+    \fun (x: Source.Carrier (Nat.Nat^::succ n)) => congr!{Linear.Map {Target.Carrier n}} (\fun (h: Linear.Map) => #apply{h} x) _ _ mapsCommute;
+}
+\definition map: Maps.Map := Maps.Map {
+  apply := \fun (n: Nat.Nat^) => #apply{(At[n := n].map)},
+  addition := \fun (n: Nat.Nat^) => #addition{(At[n := n].map)},
+  scalar := \fun (n: Nat.Nat^) => #scalar{(At[n := n].map)},
+  commutes := \fun (n: Nat.Nat^) => Differential[n := n].commutes,
+};

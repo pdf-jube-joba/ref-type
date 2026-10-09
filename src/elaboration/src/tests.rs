@@ -47,6 +47,73 @@ fn parsed_modules_can_be_reused_in_workspaces_with_different_module_ids() {
 }
 
 #[test]
+fn specialized_bundle_arguments_keep_inline_module_checks_in_the_instance() {
+    let source = r"
+        \module Base(R: \Set) {
+            \definition Space(V: \Set): \Set := R -> V;
+            \structure Bundle { Carrier: \Set, space: Space Carrier }
+            \module Hom(V, W: \Set, source: Space V, target: Space W) {
+                \definition Map: \Set := V -> W;
+            }
+            \definition Maps(A, B: Bundle): \Set :=
+                Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Map;
+            \module Free(S: \Set, seed: S) {
+                \definition space: Space S := \fun (r: R) => seed;
+                \definition bundle: Bundle := Bundle { Carrier := S, space := space };
+            }
+        }
+        \module Native {
+            \inductive Unit: \Set := | unit: Unit;
+            \inductive Two: \Set := | left: Two | right: Two;
+            \import \root.Base[R := Unit] \as B;
+            \import B.Free[S := Unit, seed := Unit::unit] \as F;
+            \definition identity: B.Maps F.bundle F.bundle := \fun (x: Unit) => x;
+            \import \root.Base[R := Two] \as Other;
+            \import Other.Free[S := Unit, seed := Unit::unit] \as G;
+            \definition otherIdentity: Other.Maps G.bundle G.bundle := \fun (x: Unit) => x;
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
+fn specialized_bundle_guards_reject_a_different_ambient_type() {
+    let source = r"
+        \module Base(R: \Set) {
+            \definition Space(V: \Set): \Set := R -> V;
+            \structure Bundle { Carrier: \Set, space: Space Carrier }
+            \module Hom(V, W: \Set, source: Space V, target: Space W) {
+                \definition Map: \Set := V -> W;
+            }
+            \definition Maps(A, B: Bundle): \Set :=
+                Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Map;
+        }
+        \module Native {
+            \inductive Unit: \Set := | unit: Unit;
+            \inductive Two: \Set := | left: Two | right: Two;
+            \import \root.Base[R := Unit] \as B;
+            \import \root.Base[R := Two] \as Other;
+            \definition bundle: B.Bundle := B.Bundle {
+                Carrier := Unit, space := \fun (x: Unit) => x,
+            };
+            \definition wrong: Other.Maps bundle bundle := \fun (x: Unit) => x;
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    let error = environment.add_modules_to_root(&modules).unwrap_err();
+    let diagnostic = error.to_string();
+    assert!(
+        diagnostic.contains("incompatible rigid expressions")
+            && diagnostic.contains("Native.Unit")
+            && diagnostic.contains("Native.Two"),
+        "{diagnostic}"
+    );
+}
+
+#[test]
 fn record_fields_are_generated_as_eliminator_definitions() {
     let source = r#"
         \module Records {
@@ -619,6 +686,28 @@ fn final_lowering_does_not_force_unused_instance_items() {
         environment.crate_env().materialization_stats().definitions,
         0
     );
+}
+
+#[test]
+fn closed_namespace_does_not_reuse_a_convertible_local_specialization() {
+    let source = r"
+        \module Template(V: \Set) {
+            \definition Carrier: \Set := V;
+            \module Universal(U: \Set) {
+                \definition Map: \Set := Carrier -> U;
+            }
+        }
+        \module Consumer(A: \Set) {
+            \definition family(x: A): \Set := A;
+            \definition local(x: A): \Set := \root.Template[V := family x].Carrier;
+            \import \root.Template[V := A] \as Closed;
+            \import Closed.Universal[U := Closed.Carrier] \as Universal;
+            \definition identity: Universal.Map := \fun (x: A) => x;
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
 }
 
 #[test]
@@ -1615,7 +1704,13 @@ fn set_recursion_preserves_a_shared_universe() {
                     }}) continued;
                 }}
             }}",
-            termination = include_str!("../../../libs/std/src/Logic/Termination.ref"),
+            termination = include_str!("../../../libs/std/src/Logic/Termination.ref").replace(
+                r"\module Results(invariant: State -> \Prop, result: Output -> \Prop);",
+                &format!(
+                    r"\module Results(invariant: State -> \Prop, result: Output -> \Prop) {{ {} }}",
+                    include_str!("../../../libs/std/src/Logic/Termination/Results.ref")
+                )
+            ),
         );
         let modules = parse::str_parse_modules(&source).unwrap();
         let mut environment = GlobalEnvironment::default();
@@ -1625,7 +1720,12 @@ fn set_recursion_preserves_a_shared_universe() {
         // transition function, and equality evidence in the context.
         let raw = environment.crate_env();
         let parent = raw.module(raw.root_module()).children()[0];
-        let module = raw.module(parent).children()[0];
+        let module = *raw
+            .module(parent)
+            .children()
+            .iter()
+            .find(|&&id| raw.module(id).name() == "Run")
+            .unwrap();
         let ModuleItem::Definition { definition, .. } =
             raw.module(module).item("case_result").unwrap()
         else {
@@ -2776,4 +2876,64 @@ fn inline_module_structure_results_retain_argument_checks() {
     let modules = parse::str_parse_modules(&invalid).unwrap();
     let mut environment = GlobalEnvironment::default();
     assert!(environment.add_modules_to_root(&modules).is_err());
+}
+
+#[test]
+fn indexed_constructors_check_module_types_after_recursive_binders() {
+    let source = r"
+        \module Natural {
+            \inductive Nat: \Set := | zero: Nat | successor: Nat -> Nat;
+        }
+        \module Construction {
+            \import \root.Natural[] \as Nat;
+            \module At(n: Nat.Nat) {
+                \structure Data: \Set { value: Nat.Nat }
+                \definition Map: \Set := Data;
+            }
+            \inductive Stage: \forall (n: Nat.Nat) -> \Set :=
+                | zero: At[n := Nat.Nat::zero].Map -> Stage Nat.Nat::zero
+                | successor: \forall (n: Nat.Nat) -> Stage n ->
+                    At[n := Nat.Nat::successor n].Map -> Stage (Nat.Nat::successor n);
+            \definition current: \forall (n: Nat.Nat) -> Stage n -> At[n := n].Map :=
+                \induction (n: Nat.Nat)(stage: Stage n) \return At[n := n].Map \with {
+                    | zero: \fun (g: At[n := Nat.Nat::zero].Map) => g
+                    | successor: \fun (n: Nat.Nat)(stage: Stage n)(before: At[n := n].Map)
+                        (g: At[n := Nat.Nat::successor n].Map) => g
+                };
+        }
+    ";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
+}
+
+#[test]
+fn reexported_dependent_families_compose_enclosing_arguments() {
+    let source = r"\module Numbers {
+  \inductive N: \VType := | zero: N | succ: N -> N;
+}
+\module Source(n: \root.Numbers[].N^) {
+  \definition Index: \Set := \Cast[\root.Numbers[].N^] ({ i: \root.Numbers[].N^ \where i = n });
+  \structure Family { Carrier: Index -> \Set }
+  \module Slot(i: Index) { \definition Carrier: \Set := \root.Numbers[].N^; }
+  \definition family: Family := Family { Carrier := \fun (i: Index) => Slot[i := i].Carrier };
+}
+\module Outer(n: \root.Numbers[].N^) {
+  \import \root.Source[n := n] \as Source;
+  \definition family: Source.Family := Source.family;
+}
+\module Consumer {
+  \definition one: \root.Numbers[].N^ := \root.Numbers[].N^::succ \root.Numbers[].N^::zero;
+  \import \root.Source[n := one] \as Source;
+  \definition point: Source.Index := \into[\root.Numbers[].N^](one, { i: \root.Numbers[].N^ \where i = one }) \by { \refl(one) };
+  \definition Direct: \Set := #Carrier{Source.family} point;
+  \definition direct: Direct := one;
+  \import \root.Outer[n := one] \as Outer;
+  \definition Reexported: \Set := #Carrier{Outer.family} point;
+  \definition reexported: Reexported := one;
+}
+";
+    let modules = parse::str_parse_modules(source).unwrap();
+    let mut environment = GlobalEnvironment::default();
+    environment.add_modules_to_root(&modules).unwrap();
 }

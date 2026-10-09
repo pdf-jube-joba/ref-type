@@ -1,0 +1,27 @@
+\import Source.Degree[n := n] \as SD;
+\import Source.Degree[n := Nat.Nat^::succ n] \as SN;
+\import Target.Degree[n := n] \as TD;
+\import Target.Degree[n := Nat.Nat^::succ n] \as TN;
+\import Source.Step[n := n] \as SS;
+\import Target.Step[n := n] \as TS;
+\import \parent.Degree[n := n] \as Current;
+\import \parent.Degree[n := Nat.Nat^::succ n] \as Next;
+\module Component(i: Source.Index n);
+\import Modules.Hom[V := TD.Carrier, W := TN.Carrier, source := TD.space, target := TN.space].Composition[
+  U := SD.Carrier, domain := SD.space] \as After;
+\import Modules.Hom[V := SN.Carrier, W := TN.Carrier, source := SN.space, target := TN.space].Composition[
+  U := SD.Carrier, domain := SD.space] \as Before;
+\import Modules.Hom[V := SD.Carrier, W := TN.Carrier, source := SD.space, target := TN.space] \as Maps;
+\import Modules.DirectSum[Index := Source.Index n, family := SD.family].To[W := TN.Carrier, target := TN.space] \as Universal;
+\definition horizontal: After.compose TS.horizontal Current.map = Before.compose Next.map SS.horizontal :=
+  Universal.ext (After.compose TS.horizontal Current.map) (Before.compose Next.map SS.horizontal)
+    (\fun (i: Source.Index n) => Component[i := i].horizontal);
+\definition vertical: After.compose TS.vertical Current.map = Before.compose Next.map SS.vertical :=
+  Universal.ext (After.compose TS.vertical Current.map) (Before.compose Next.map SS.vertical)
+    (\fun (i: Source.Index n) => Component[i := i].vertical);
+\definition commutes: \forall (x: SD.Carrier) -> #apply{TS.differential} (#apply{Current.map} x) = #apply{Next.map} (#apply{SS.differential} x) :=
+  \fun (x: SD.Carrier) => trans!{TN.Carrier} _ _ _
+    (congr2!{TN.Carrier TN.Carrier TN.Carrier} (#add{TN.space}) _ _ _ _
+      (congr!{Maps.Map TN.Carrier} (\fun (g: Maps.Map) => #apply{g} x) _ _ horizontal)
+      (congr!{Maps.Map TN.Carrier} (\fun (g: Maps.Map) => #apply{g} x) _ _ vertical))
+    (sym!{TN.Carrier} _ _ (#addition{Next.map} (#apply{SS.horizontal} x) (#apply{SS.vertical} x)));

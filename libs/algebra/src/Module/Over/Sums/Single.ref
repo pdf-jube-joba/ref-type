@@ -1,0 +1,39 @@
+\import \parent.\parent.Coordinates[I := I].Kronecker[] \as Kronecker;
+\import \parent.Prop[] \as Laws;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\definition absent: \forall (indices: Lists.List[I]) (i: I) -> Logic.Not (\In[I] (keys indices) i) ->
+  \forall (f: I -> R) -> sum indices (\fun (j: I) => mul (Kronecker.delta i j) (f j)) = zero :=
+  \induction (indices: Lists.List[I]) \return \forall (i: I) -> Logic.Not (\In[I] (keys indices) i) ->
+    \forall (f: I -> R) -> sum indices (\fun (j: I) => mul (Kronecker.delta i j) (f j)) = zero \with {
+      | nil: \fun (i: I) (outside: _) (f: _) => \refl(zero)
+      | cons: \fun (j: I) (tail: Lists.List[I]) (ih: _) (i: I) (outside: _) (f: _) =>
+        trans!{R} _ _ _ (congr2!{R R R} add _ _ _ _
+          (trans!{R} _ _ _ (congr!{R R} (\fun (a: R) => mul a (f j)) _ _
+            (Kronecker.different i j (\fun (equal: i = j) => outside (Logic.Or[_, _]::left equal)))) (mulZeroLeft (f j)))
+          (ih i (\fun (member: _) => outside (Logic.Or[_, _]::right member)) f)) (addZeroLeft zero)
+    };
+\definition extract: \forall (indices: Lists.List[I]) -> Distinct indices ->
+  \forall (i: I) -> \In[I] (keys indices) i -> \forall (f: I -> R) ->
+  sum indices (\fun (j: I) => mul (Kronecker.delta i j) (f j)) = f i :=
+  \fun (indices: _) (distinct: Distinct indices) => distinct
+    (\fun (indices: Lists.List[I]) => \forall (i: I) -> \In[I] (keys indices) i -> \forall (f: I -> R) ->
+      sum indices (\fun (j: I) => mul (Kronecker.delta i j) (f j)) = f i)
+    (\fun (i: I) (empty: Logic.False) (f: _) => Logic.falseElim (zero = f i) empty)
+    (\fun (j: I) (tail: Lists.List[I]) (fresh: Logic.Not (\In[I] (keys tail) j)) (ih: _) (i: I) (member: _) (f: _) =>
+      either!{{i = j} "or" {Logic.Not (i = j)} "either" {sum (Lists.List[I]::cons j tail) (\fun (k: I) => mul (Kronecker.delta i k) (f k)) = f i}
+        "lt:" {\fun (equal: i = j) => \block {
+          \let outside: Logic.Not (\In[I] (keys tail) i) := \fun (inTail: _) => fresh
+            (\idelim i = j \with k: I => \In[I] (keys tail) k \by { base: inTail, equality: equal }) \then
+          \return trans!{R} _ _ _ (congr2!{R R R} add _ _ _ _
+            (trans!{R} _ _ _ (congr!{R R} (\fun (a: R) => mul a (f j)) _ _ (Kronecker.equal i j equal)) (mulOneLeft (f j)))
+            (absent tail i outside f)) (trans!{R} _ _ _ (addZeroRight (f j)) (congr!{I R} f _ _ (sym!{I} _ _ equal)))
+        }}
+        "rt:" {\fun (different: Logic.Not (i = j)) => \block {
+          \let inTail: \In[I] (keys tail) i := either!{{i = j} "or" {\In[I] (keys tail) i} "either" {\In[I] (keys tail) i}
+            "lt:" {\fun (equal: _) => Logic.falseElim (\In[I] (keys tail) i) (different equal)}
+            "rt:" {\fun (old: _) => old}} member \then
+          \return trans!{R} _ _ _ (congr2!{R R R} add _ _ _ _
+            (trans!{R} _ _ _ (congr!{R R} (\fun (a: R) => mul a (f j)) _ _ (Kronecker.different i j different)) (mulZeroLeft (f j)))
+            (ih i inTail f)) (addZeroLeft (f i))
+        }}} (Classical.excludedMiddle (i = j)));

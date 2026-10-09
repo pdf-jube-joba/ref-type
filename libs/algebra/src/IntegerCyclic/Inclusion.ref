@@ -1,0 +1,41 @@
+\import \parent.\parent.IntegerCyclic[d := Arithmetic.mul d k] \as Target;
+\import \parent.\parent.IntegerCyclic[d := k] \as Multiplier;
+\import Modules.Hom[V := I.Int^, W := Target.Carrier, source := Modules.scalarModule, target := Target.space].Composition[U := I.Int^, domain := Modules.scalarModule] \as Compose;
+\definition raw: Modules.Hom[V := I.Int^, W := Target.Carrier, source := Modules.scalarModule, target := Target.space].Map := Compose.compose Target.projection Multiplier.multiplication;
+\import Quotient.To[W := Target.Carrier, target := Target.space] \as Descent;
+\import I.Math[].Specification[].Prop[].Multiplication[] \as Product;
+\definition commute: \forall (x: I.Int^) -> Arithmetic.mul k (Arithmetic.mul d x) = Arithmetic.mul (Arithmetic.mul d k) x :=
+  \fun (x: I.Int^) => trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (Product.mulAssoc k d x))
+    (congr!{I.Int^ I.Int^} (\fun (a: I.Int^) => Arithmetic.mul a x) _ _ (#mulCommutative{IntegerRing.commutativeRing} k d));
+\definition vanishes: Descent.Vanishes raw := \fun (x: I.Int^)(member: _) =>
+  Images.eliminate multiplication x (#apply{raw} x = #zero{Target.space})
+    (\fun (q: I.Int^)(represented: Arithmetic.mul d q = x) => trans!{Target.Carrier} _ _ _
+      (congr!{I.Int^ Target.Carrier} (#apply{raw}) _ _ (sym!{I.Int^} _ _ represented))
+      (trans!{Target.Carrier} _ _ _ (congr!{I.Int^ Target.Carrier} Target.class _ _ (commute q)) (Target.classMultiple q))) member;
+\definition map: Modules.Hom[V := Carrier, W := Target.Carrier, source := space, target := Target.space].Map := Descent.descend raw vanishes;
+\definition onClass: \forall (x: I.Int^) -> #apply{map} (class x) = Target.class (Arithmetic.mul k x) := Descent.onClass raw vanishes;
+\import std.Arithmetic[].IntAlgebra[].IntegralDomain[] \as Domain;
+\import std.Logic[].Proposition[] \as Logic;
+\definition zeroKernel: Logic.Not (k = Arithmetic.zero) -> \forall (q: Carrier) -> #apply{map} q = #zero{Target.space} -> q = #zero{space} :=
+  \fun (nonzero: Logic.Not (k = Arithmetic.zero)) => induction
+    (\fun (q: Carrier) => #apply{map} q = #zero{Target.space} -> q = #zero{space})
+    (\fun (x: I.Int^)(killed: #apply{map} (class x) = #zero{Target.space}) =>
+      Images.eliminate Target.multiplication (Arithmetic.mul k x) (class x = #zero{space})
+        (\fun (a: I.Int^)(represented: Arithmetic.mul (Arithmetic.mul d k) a = Arithmetic.mul k x) => trans!{Carrier} _ _ _
+          (congr!{I.Int^ Carrier} class _ _ (Domain.cancellation k x (Arithmetic.mul d a) nonzero
+            (trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ represented) (sym!{I.Int^} _ _ (commute a)))))
+          (classMultiple a))
+        (Target.classZeroMember (Arithmetic.mul k x) (trans!{Target.Carrier} _ _ _ (sym!{Target.Carrier} _ _ (onClass x)) killed)));
+\import Modules.Laws[V := Carrier, space := space] \as SourceLaws;
+\import algebra.Group[].Of[Carrier := Carrier, group := SourceLaws.additive] \as SourceGroup;
+\import Modules.Laws[V := Target.Carrier, space := Target.space] \as TargetLaws;
+\import algebra.Group[].Of[Carrier := Target.Carrier, group := TargetLaws.additive] \as TargetGroup;
+\import Modules.Hom[V := Carrier, W := Target.Carrier, source := space, target := Target.space] \as Maps;
+\definition injective: Logic.Not (k = Arithmetic.zero) -> \forall (x, y: Carrier) -> #apply{map} x = #apply{map} y -> x = y :=
+  \fun (nonzero: Logic.Not (k = Arithmetic.zero))(x, y: Carrier)(equal: _) => SourceGroup.cancelRight (#neg{space} y) x y
+    (trans!{Carrier} _ _ _ (zeroKernel nonzero (SourceGroup.difference x y)
+      (trans!{Target.Carrier} _ _ _ (Maps.differencePreserved map x y)
+        (trans!{Target.Carrier} _ _ _
+          (congr!{Target.Carrier Target.Carrier} (\fun (u: Target.Carrier) => TargetGroup.difference u (#apply{map} y)) _ _ equal)
+          (TargetGroup.inverseRight (#apply{map} y))))) (sym!{Carrier} _ _ (SourceGroup.inverseRight y)));
+\module Annihilator;

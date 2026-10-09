@@ -1,0 +1,50 @@
+\import algebra.IntegerKernel[m := C.ranks (previous z), n := C.ranks z, original := C.boundary z] \as Kernel;
+\import Kernel.Splitting[] \as Decomposition;
+\import Kernel.Image[] \as Image;
+\import Modules.Biproduct[V := Homology.Cycle, W := Image.Carrier, left := Homology.cycleSpace, right := Image.space] \as Sum;
+\import Modules.Hom[V := Sum.Carrier, W := Homology.Cycle, source := Sum.space, target := Homology.cycleSpace].Composition[U := Carrier C z, domain := space C z] \as Retractions;
+\definition retraction: Modules.Hom[V := Carrier C z, W := Homology.Cycle, source := space C z, target := Homology.cycleSpace].Map :=
+  Retractions.compose Sum.firstProjection #backward{Decomposition.isomorphism};
+\import Modules.Hom[V := Image.Carrier, W := Carrier C z, source := Image.space, target := space C z] \as Sections;
+\import Modules.Laws[V := Carrier C z, space := space C z] \as Current;
+\import algebra.Group[].Of[Carrier := Carrier C z, group := Current.additive] \as CurrentGroup;
+\definition forwardCycle: \forall (x: Homology.Cycle) -> #apply{#forward{Decomposition.isomorphism}} (Sum.make x #zero{Image.space}) = x :=
+  \fun (x: Homology.Cycle) => trans!{{Carrier C z}} _ _ _
+    (congr!{{Carrier C z} {Carrier C z}} (#add{(space C z)} x) _ _ (Sections.zeroPreserved Decomposition.section)) (CurrentGroup.zeroRight x);
+\definition retractCycle: \forall (x: Homology.Cycle) -> #apply{retraction} x = x :=
+  \fun (x: Homology.Cycle) => trans!{Homology.Cycle} _ _ _
+    (sym!{Homology.Cycle} _ _ (congr!{{Carrier C z} Homology.Cycle} (#apply{retraction}) _ _ (forwardCycle x)))
+    (congr!{Sum.Carrier Homology.Cycle} Sum.first _ _ (#leftInverse{Decomposition.isomorphism} (Sum.make x #zero{Image.space})));
+\import \root.UniversalCoefficient[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].On[C := chain, A := A].At[z := z] \as Evaluation;
+\import \root.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].Integer[P := chain, N := A] \as Hom;
+\import Hom.Cohomology[z := z] \as Cohomology;
+\import Modules.Hom[V := Homology.Homology, W := A.Carrier, source := Homology.homologySpace, target := A.space] \as Values;
+\import Values.Composition[U := Homology.Cycle, domain := Homology.cycleSpace] \as FromCycles;
+\import Modules.Hom[V := Homology.Cycle, W := A.Carrier, source := Homology.cycleSpace, target := A.space].Composition[U := Carrier C z, domain := space C z] \as FromChains;
+\definition extend(f: Values.Map): Hom.Carrier z := FromChains.compose (FromCycles.compose f Homology.classLinear) retraction;
+\definition onCycle: \forall (f: Values.Map)(x: Homology.Cycle) -> #apply{(extend f)} x = #apply{f} (Homology.classOf x) :=
+  \fun (f: Values.Map)(x: Homology.Cycle) => congr!{Homology.Cycle A.Carrier} (\fun (y: Homology.Cycle) => #apply{f} (Homology.classOf y)) _ _ (retractCycle x);
+\import Modules.Hom[V := Carrier C (next z), W := A.Carrier, source := space C (next z), target := A.space] \as Differentials;
+\definition closed: \forall (f: Values.Map) -> Hom.apply z (extend f) = #zero{(Hom.space (next z))} :=
+  \fun (f: Values.Map) => Differentials.ext (Hom.apply z (extend f)) (#zero{(Hom.space (next z))})
+    (\fun (x: Carrier C (next z)) => trans!{A.Carrier} _ _ _ (onCycle f (Homology.cycle (#apply{Homology.prior} x) (Prior.squareZero z x)))
+      (trans!{A.Carrier} _ _ _
+        (congr!{Homology.Homology A.Carrier} (#apply{f}) _ _ (Homology.boundaryClassZero
+          (Homology.cycle (#apply{Homology.prior} x) (Prior.squareZero z x)) (AmbientImages.member Homology.prior x)))
+        (Values.zeroPreserved f)));
+\definition cocycle(f: Values.Map): Cohomology.Closed := \into[Hom.Carrier z](extend f,
+  { g: Hom.Carrier z \where Hom.apply z g = #zero{(Hom.space (next z))} }) \by { closed f };
+\definition lift(f: Values.Map): Evaluation.CohomologyCarrier := Cohomology.classOf (cocycle f);
+\definition rightInverse: \forall (f: Values.Map) -> #apply{Evaluation.map} (lift f) = f :=
+  \fun (f: Values.Map) => Values.ext (#apply{Evaluation.map} (lift f)) f
+    (Homology.classInduction (\fun (x: Homology.Homology) => #apply{(#apply{Evaluation.map} (lift f))} x = #apply{f} x)
+      (\fun (x: Homology.Cycle) => trans!{A.Carrier} _ _ _
+        (congr!{Values.Map A.Carrier} (\fun (g: Values.Map) => #apply{g} (Homology.classOf x)) _ _ (Evaluation.onCohomologyClass (cocycle f)))
+        (trans!{A.Carrier} _ _ _ (Evaluation.onClass (cocycle f) x) (onCycle f x))));
+\definition onto: \forall (f: Values.Map) -> \exists { q: Evaluation.CohomologyCarrier \where #apply{Evaluation.map} q = f } :=
+  \fun (f: Values.Map) => \exact(\into[Evaluation.CohomologyCarrier](lift f, { q: Evaluation.CohomologyCarrier \where #apply{Evaluation.map} q = f }) \by { rightInverse f },
+    \Cast[Evaluation.CohomologyCarrier] ({ q: Evaluation.CohomologyCarrier \where #apply{Evaluation.map} q = f }));
+\module Boundary;
+\module CohomologyKernel;
+\module Incoming;
+\module Tensor;

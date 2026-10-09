@@ -1,0 +1,28 @@
+\definition T: \VType := \U(Runtime -> FactorState -> FactorState);
+\definition pushProgram: Push.T := Push.program;
+\definition program: T := \thunk (\cfun (a: Runtime) => \return (\thunk (\cfun (s: FactorState) => \program {
+  \bind result: FactorState <- \match s \in FactorState \with {
+    | state count xs : \match count \in N.Nat \with {
+        | zero : \return (FactorState::state N.Nat::zero xs)
+        | succ n : \program {
+            \bind row: \U(N.Nat -> I.Int) <- (\force a) n \then
+            \bind d: I.Int <- (\force row) n \then
+            \bind prefix: \U(CyclicFactors -> CyclicFactors) <- (\force pushProgram) d \then
+            \bind factors: CyclicFactors <- (\force prefix) xs \then
+            \return (FactorState::state n factors)
+          }
+      }
+  } \then
+  \return result
+})));
+\definition pointwise: \forall (a: Runtime^)(s: FactorState^) -> program^ a s = step a s :=
+  \fun (a: Runtime^) => \induction (s: FactorState^) \return program^ a s = step a s \with {
+    | state: \fun (count: N.Nat^)(xs: CyclicFactors^) =>
+      (\induction (n: N.Nat^) \return program^ a (FactorState^::state n xs) = step a (FactorState^::state n xs) \with {
+        | zero: \refl(FactorState^::state N.Nat^::zero xs)
+        | succ: \fun (n: N.Nat^)(unused: _) => congr!{CyclicFactors^ FactorState^} (FactorState^::state n) _ _
+            (\parent.PushImplementation[].pointwise (a n n) xs)
+      }) count
+  };
+\definition coherence: program^ = step := \axiom:funext(program^, step,
+  \fun (a: Runtime^) => \axiom:funext(program^ a, step a, pointwise a));

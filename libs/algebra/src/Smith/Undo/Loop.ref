@@ -1,0 +1,19 @@
+\definition step: \U(State ~> \F(\RunStep[State, Runtime])) := \thunk (\cfun (state: State) => \match state \in State \with {
+  | pending history handler current: \match history \in History \with {
+      | empty: \return(\finish[State, Runtime](current))
+      | prepend operation tail: \program {
+          \bind action: Transformer <- (\force handler) operation \then
+          \bind changed: Runtime <- (\force action) current \then
+          \return(\continue[State, Runtime](State::pending tail handler changed))
+        }
+    }
+});
+\import std.Logic[].Termination[State := State^, Output := Runtime^, step := step^] \as Termination;
+\definition terminates: \forall (history: History^)(handler: Handler^)(current: Runtime^) -> Termination.Holds (State^::pending history handler current) :=
+  \induction (history: History^) \return \forall (handler: Handler^)(current: Runtime^) -> Termination.Holds (State^::pending history handler current) \with {
+    | empty: \fun (handler: Handler^)(current: Runtime^) => Termination.intro (State^::pending History^::empty handler current) Termination.trivial
+    | prepend: \fun (operation: Operation^)(history: History^)(previous: _)(handler: Handler^)(current: Runtime^) =>
+        Termination.intro (State^::pending (History^::prepend operation history) handler current) (previous handler (handler operation current))
+  };
+\definition certificate: \forall (state: State^) -> Programs.Terminates State^ Runtime^ step^ state :=
+  \induction (state: State^) \return Termination.Holds state \with { | pending: terminates };

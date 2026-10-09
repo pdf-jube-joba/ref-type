@@ -1,0 +1,30 @@
+\import \parent.At[k := Nat.Nat^::succ n] \as Current;
+\import Cochains.At[C := Source.complex, k := Nat.Nat^::succ n] \as SourceH;
+\import Cochains.At[C := Target.complex, k := Nat.Nat^::succ n] \as TargetH;
+\import Modules.Hom[V := P.family.Carrier n, W := Q.family.Carrier (Nat.Nat^::succ n), source := P.family.space n, target := Q.family.space (Nat.Nat^::succ n)] \as HomotopyMaps;
+\import Modules.Hom[V := Q.family.Carrier (Nat.Nat^::succ n), W := N.Carrier, source := Q.family.space (Nat.Nat^::succ n), target := N.space].Composition[U := P.family.Carrier n, domain := P.family.space n] \as Composition;
+\import algebra.Group[].Of[Carrier := N.Carrier, group := Modules.Laws[V := N.Carrier, space := N.space].additive] \as Group;
+\definition witness(f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: SourceH.CycleCarrier): Target.Carrier n :=
+  Composition.compose x (HomotopyMaps.Map { apply := #apply{h} n, addition := #addition{h} n, scalar := #scalar{h} n });
+\definition lift: \forall (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: SourceH.CycleCarrier) ->
+  Target.apply n (witness f g h x) = Current.difference f g x :=
+  \fun (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: SourceH.CycleCarrier) => Target.At[n := Nat.Nat^::succ n].ext
+    (Target.apply n (witness f g h x)) (Current.difference f g x)
+    (\fun (y: P.family.Carrier (Nat.Nat^::succ n)) => sym!{N.Carrier} _ _ (trans!{N.Carrier} _ _ _ (Current.evaluateDifference f g x y)
+      (trans!{N.Carrier} _ _ _
+        (congr!{{Q.family.Carrier (Nat.Nat^::succ n)} N.Carrier} (#apply{x}) _ _ (#successorEquation{h} n y))
+        (trans!{N.Carrier} _ _ _
+          (#addition{x} (#apply{Q.differential} (Nat.Nat^::succ n) (#apply{h} (Nat.Nat^::succ n) y)) (#apply{h} n (#apply{P.differential} n y)))
+          (trans!{N.Carrier} _ _ _
+            (congr!{N.Carrier N.Carrier} (\fun (z: N.Carrier) => Group.add z (#apply{x} (#apply{h} n (#apply{P.differential} n y)))) _ _
+              (Current.closedEvaluation x (#apply{h} (Nat.Nat^::succ n) y)))
+            (Group.zeroLeft (#apply{x} (#apply{h} n (#apply{P.differential} n y)))))))));
+\definition boundary: \forall (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: SourceH.CycleCarrier) ->
+  \In[Target.Carrier (Nat.Nat^::succ n)] (TargetH.Boundaries (Nat.Nat^::succ n)) (Current.difference f g x) :=
+  \fun (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(x: SourceH.CycleCarrier) =>
+    \exact(\into[Target.Carrier n](witness f g h x, { y: Target.Carrier n \where Target.apply n y = Current.difference f g x }) \by {
+      lift f g h x
+    }, \Cast[Target.Carrier n] ({ y: Target.Carrier n \where Target.apply n y = Current.difference f g x }));
+\definition onCohomology: \forall (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g)(q: SourceH.Cohomology) ->
+  #apply{(Maps.At[k := Nat.Nat^::succ n].induced (map f))} q = #apply{(Maps.At[k := Nat.Nat^::succ n].induced (map g))} q :=
+  \fun (f, g: ChainMaps.Map)(h: Homotopies.Homotopy f g) => Current.equality f g (boundary f g h);

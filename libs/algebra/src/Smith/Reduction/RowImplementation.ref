@@ -1,0 +1,52 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> Runtime -> History -> Attempt);
+\definition program: T := \thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (index: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (history: History) => \program {
+  \bind pivotRow: \U(N.Nat -> I.Int) <- (\force a) k \then
+  \bind pivot: I.Int <- (\force pivotRow) k \then
+  \bind otherRow: \U(N.Nat -> I.Int) <- (\force a) index \then
+  \bind entry: I.Int <- (\force otherRow) k \then
+  \bind quotientBuilder: \U(I.Int -> I.Int) <- (\force Division.Quotient.program) entry \then
+  \bind quotient: I.Int <- (\force quotientBuilder) pivot \then
+  \bind negative: I.Int <- (\force I.Neg.program) quotient \then
+  \bind addIndex: \U(N.Nat -> N.Nat -> I.Int -> Runtime) <- (\force rowAddProgram) a \then
+  \bind addPivot: \U(N.Nat -> I.Int -> Runtime) <- (\force addIndex) index \then
+  \bind addScalar: \U(I.Int -> Runtime) <- (\force addPivot) k \then
+  \bind updated: Runtime <- (\force addScalar) negative \then
+  \bind swapPivot: \U(N.Nat -> N.Nat -> Runtime) <- (\force rowSwapProgram) updated \then
+  \bind swapIndex: \U(N.Nat -> Runtime) <- (\force swapPivot) k \then
+  \bind exchanged: Runtime <- (\force swapIndex) index \then
+  \bind remainderBuilder: \U(I.Int -> I.Int) <- (\force Division.Remainder.program) entry \then
+  \bind remainder: I.Int <- (\force remainderBuilder) pivot \then
+  \bind isZero: B.Bool <- (\force I.IsZero.program) remainder \then
+  \bind yes: \U(Attempt -> Attempt -> Attempt) <- (\force choiceProgram) isZero \then
+  \bind no: \U(Attempt -> Attempt) <- (\force yes) (Attempt::attempt updated (History::prepend (Operation::rowAdd index k negative) history) B.Bool::false) \then
+  \bind attempt: Attempt <- (\force no) (Attempt::attempt exchanged (History::prepend (Operation::rowSwap k index) (History::prepend (Operation::rowAdd index k negative) history)) B.Bool::true) \then
+  \return attempt
+})))))));
+\definition withOperations(divide: Division.Quotient.T^)(negative: I.Neg.T^)(add: Rows.Add.T^)(swap: Rows.Swap.T^)(remainder: Division.Remainder.T^)(isZero: I.IsZero.T^)(choose: Choice.T^)(k, i: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+  choose (isZero (remainder (a i k) (a k k)))
+    (Attempt^::attempt (add a i k (negative (divide (a i k) (a k k)))) (History^::prepend (Operation^::rowAdd i k (negative (divide (a i k) (a k k)))) history) B.Bool^::false)
+    (Attempt^::attempt (swap (add a i k (negative (divide (a i k) (a k k)))) k i) (History^::prepend (Operation^::rowSwap k i) (History^::prepend (Operation^::rowAdd i k (negative (divide (a i k) (a k k)))) history)) B.Bool^::true);
+\definition stage1(k, i: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := withOperations Division.quotient I.Neg.program^ rowAddProgram^ rowSwapProgram^ Division.Remainder.program^ I.IsZero.program^ choiceProgram^ k i a history;
+\definition stage2(k, i: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := withOperations Division.quotient Arithmetic.neg rowAddProgram^ rowSwapProgram^ Division.Remainder.program^ I.IsZero.program^ choiceProgram^ k i a history;
+\definition stage3(k, i: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := withOperations Division.quotient Arithmetic.neg Rows.add rowSwapProgram^ Division.Remainder.program^ I.IsZero.program^ choiceProgram^ k i a history;
+\definition stage4(k, i: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := withOperations Division.quotient Arithmetic.neg Rows.add Rows.swap Division.Remainder.program^ I.IsZero.program^ choiceProgram^ k i a history;
+\definition stage5(k, i: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := withOperations Division.quotient Arithmetic.neg Rows.add Rows.swap Division.remainder I.IsZero.program^ choiceProgram^ k i a history;
+\definition stage6(k, i: N.Nat^)(a: Runtime^)(history: History^): Attempt^ := withOperations Division.quotient Arithmetic.neg Rows.add Rows.swap Division.remainder I.IsZero.specification choiceProgram^ k i a history;
+\definition matches: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^) -> program^ k i a history = row k i a history :=
+  \fun (k, i: N.Nat^)(a: Runtime^)(history: History^) => trans!{Attempt^} (program^ k i a history) (stage1 k i a history) (row k i a history)
+    (congr!{Division.Quotient.T^ Attempt^} (\fun (f: Division.Quotient.T^) => withOperations f I.Neg.program^ rowAddProgram^ rowSwapProgram^ Division.Remainder.program^ I.IsZero.program^ choiceProgram^ k i a history) Division.Quotient.program^ (Division.quotient) Division.Quotient.coherence)
+    (trans!{Attempt^} (stage1 k i a history) (stage2 k i a history) (row k i a history)
+    (congr!{I.Neg.T^ Attempt^} (\fun (f: I.Neg.T^) => withOperations Division.quotient f rowAddProgram^ rowSwapProgram^ Division.Remainder.program^ I.IsZero.program^ choiceProgram^ k i a history) I.Neg.program^ (Arithmetic.neg) I.Neg.coherence)
+    (trans!{Attempt^} (stage2 k i a history) (stage3 k i a history) (row k i a history)
+    (congr!{Rows.Add.T^ Attempt^} (\fun (f: Rows.Add.T^) => withOperations Division.quotient Arithmetic.neg f rowSwapProgram^ Division.Remainder.program^ I.IsZero.program^ choiceProgram^ k i a history) rowAddProgram^ (Rows.add) Rows.Add.coherence)
+    (trans!{Attempt^} (stage3 k i a history) (stage4 k i a history) (row k i a history)
+    (congr!{Rows.Swap.T^ Attempt^} (\fun (f: Rows.Swap.T^) => withOperations Division.quotient Arithmetic.neg Rows.add f Division.Remainder.program^ I.IsZero.program^ choiceProgram^ k i a history) rowSwapProgram^ (Rows.swap) Rows.Swap.coherence)
+    (trans!{Attempt^} (stage4 k i a history) (stage5 k i a history) (row k i a history)
+    (congr!{Division.Remainder.T^ Attempt^} (\fun (f: Division.Remainder.T^) => withOperations Division.quotient Arithmetic.neg Rows.add Rows.swap f I.IsZero.program^ choiceProgram^ k i a history) Division.Remainder.program^ (Division.remainder) Division.Remainder.coherence)
+    (trans!{Attempt^} (stage5 k i a history) (stage6 k i a history) (row k i a history)
+    (congr!{I.IsZero.T^ Attempt^} (\fun (f: I.IsZero.T^) => withOperations Division.quotient Arithmetic.neg Rows.add Rows.swap Division.remainder f choiceProgram^ k i a history) I.IsZero.program^ (I.IsZero.specification) I.IsZero.coherence)
+    ((congr!{Choice.T^ Attempt^} (\fun (f: Choice.T^) => withOperations Division.quotient Arithmetic.neg Rows.add Rows.swap Division.remainder I.IsZero.specification f k i a history) choiceProgram^ (B.ite Attempt^) Choice.coherence)))))));
+\definition coherence: program^ = row := \axiom:funext(program^, row,
+  \fun (k: N.Nat^) => \axiom:funext(program^ k, row k,
+    \fun (i: N.Nat^) => \axiom:funext(program^ k i, row k i,
+      \fun (a: Runtime^) => \axiom:funext(program^ k i a, row k i a, \fun (history: History^) => matches k i a history))));

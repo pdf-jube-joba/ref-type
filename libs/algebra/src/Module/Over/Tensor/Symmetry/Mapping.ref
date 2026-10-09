@@ -1,0 +1,21 @@
+\import \parent.\parent.Mapping[U := U, Z := Z, targetLeft := targetLeft, targetRight := targetRight] \as Original;
+\import \parent.\parent.\parent.Tensor[V := U, W := Z, left := targetLeft, right := targetRight] \as OriginalTarget;
+\import OriginalTarget.Symmetry[] \as TargetSwap;
+\import Target.Mapping[U := Z, Z := U, targetLeft := targetRight, targetRight := targetLeft] \as Swapped;
+\import \parent.\parent.\parent.Tensor[V := Z, W := U, left := targetRight, right := targetLeft] \as Final;
+\import \parent.\parent.\parent.Hom[V := V, W := U, source := left, target := targetLeft] \as Left;
+\import \parent.\parent.\parent.Hom[V := W, W := Z, source := right, target := targetRight] \as Right;
+\import \parent.\parent.\parent.Hom[V := OriginalTarget.Carrier, W := Final.Carrier, source := OriginalTarget.space, target := Final.space].Composition[U := Carrier, domain := space] \as Before;
+\import \parent.\parent.\parent.Hom[V := Target.Carrier, W := Final.Carrier, source := Target.space, target := Final.space].Composition[U := Carrier, domain := space] \as After;
+\import \parent.\parent.Universal[U := Final.Carrier, target := Final.space] \as Equality;
+\definition equality: \forall (f: Left.Map)(g: Right.Map) -> Before.compose TargetSwap.forward (Original.map f g) = After.compose (Swapped.map g f) forward :=
+  \fun (f: Left.Map)(g: Right.Map) => Equality.ext (Before.compose TargetSwap.forward (Original.map f g)) (After.compose (Swapped.map g f) forward)
+    (\fun (x: V)(y: W) => trans!{Final.Carrier} _ _ _
+      (congr!{OriginalTarget.Carrier Final.Carrier} (#apply{TargetSwap.forward}) _ _ (Original.onTensor f g x y))
+      (trans!{Final.Carrier} _ _ _ (TargetSwap.onTensor (#apply{f} x) (#apply{g} y))
+        (sym!{Final.Carrier} _ _ (trans!{Final.Carrier} _ _ _
+          (congr!{Target.Carrier Final.Carrier} (#apply{(Swapped.map g f)}) _ _ (onTensor x y))
+          (Swapped.onTensor g f y x)))));
+\definition commutes: \forall (f: Left.Map)(g: Right.Map)(x: Carrier) -> #apply{TargetSwap.forward} (#apply{(Original.map f g)} x) = #apply{(Swapped.map g f)} (#apply{forward} x) :=
+  \fun (f: Left.Map)(g: Right.Map)(x: Carrier) => congr!{{\parent.\parent.\parent.Hom[V := Carrier, W := Final.Carrier, source := space, target := Final.space].Map} Final.Carrier}
+    (\fun (h: \parent.\parent.\parent.Hom[V := Carrier, W := Final.Carrier, source := space, target := Final.space].Map) => #apply{h} x) _ _ (equality f g);

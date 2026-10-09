@@ -1,0 +1,38 @@
+\import \root.NonnegativeChain[].Over[R := R, ring := ring].Map[C := C, D := D] \as Maps;
+\module Degree(n: N.Nat^) {
+  \import Modules.Hom[V := C.family.Carrier n, W := D.family.Carrier n, source := C.family.space n, target := D.family.space n] \as Linear;
+  \definition zero: Linear.Map := Linear.zeroMap;
+  \definition plus(f, g: Maps.Map): Linear.Map := Linear.plus (Maps.At[n := n].linear f) (Maps.At[n := n].linear g);
+  \definition negative(f: Maps.Map): Linear.Map := Linear.negative (Maps.At[n := n].linear f);
+  \import Modules.Hom[V := D.family.Carrier (N.Nat^::succ n), W := D.family.Carrier n, source := D.family.space (N.Nat^::succ n), target := D.family.space n] \as After;
+  \definition differential: After.Map := After.Map {
+    apply := #apply{D.differential} n, addition := #addition{D.laws} n, scalar := #scalar{D.laws} n,
+  };
+  \definition differentialZero: #apply{D.differential} n #zero{(D.family.space (N.Nat^::succ n))} = #zero{(D.family.space n)} := After.zeroPreserved differential;
+  \definition differentialNegative: \forall (x: D.family.Carrier (N.Nat^::succ n)) ->
+    #apply{D.differential} n (#neg{(D.family.space (N.Nat^::succ n))} x) = #neg{(D.family.space n)} (#apply{D.differential} n x) := After.negativePreserved differential;
+}
+\definition zero: Maps.Map := Maps.Map {
+  apply := \fun (n: N.Nat^) => #apply{Degree[n := n].zero},
+  addition := \fun (n: N.Nat^) => #addition{Degree[n := n].zero},
+  scalar := \fun (n: N.Nat^) => #scalar{Degree[n := n].zero},
+  commutes := \fun (n: N.Nat^)(x: C.family.Carrier (N.Nat^::succ n)) => Degree[n := n].differentialZero,
+};
+\definition plus(f, g: Maps.Map): Maps.Map := Maps.Map {
+  apply := \fun (n: N.Nat^) => #apply{Degree[n := n].plus f g},
+  addition := \fun (n: N.Nat^) => #addition{Degree[n := n].plus f g},
+  scalar := \fun (n: N.Nat^) => #scalar{Degree[n := n].plus f g},
+  commutes := \fun (n: N.Nat^)(x: C.family.Carrier (N.Nat^::succ n)) => trans!{{D.family.Carrier n}} _ _ _
+    (#addition{D.laws} n (#apply{f} (N.Nat^::succ n) x) (#apply{g} (N.Nat^::succ n) x))
+    (congr2!{{D.family.Carrier n} {D.family.Carrier n} {D.family.Carrier n}} (#add{(D.family.space n)}) _ _ _ _
+      (#commutes{f} n x) (#commutes{g} n x)),
+};
+\definition negative(f: Maps.Map): Maps.Map := Maps.Map {
+  apply := \fun (n: N.Nat^) => #apply{Degree[n := n].negative f},
+  addition := \fun (n: N.Nat^) => #addition{Degree[n := n].negative f},
+  scalar := \fun (n: N.Nat^) => #scalar{Degree[n := n].negative f},
+  commutes := \fun (n: N.Nat^)(x: C.family.Carrier (N.Nat^::succ n)) => trans!{{D.family.Carrier n}} _ _ _
+    (Degree[n := n].differentialNegative (#apply{f} (N.Nat^::succ n) x))
+    (congr!{{D.family.Carrier n} {D.family.Carrier n}} (#neg{(D.family.space n)}) _ _ (#commutes{f} n x)),
+};
+\definition difference(f, g: Maps.Map): Maps.Map := plus f (negative g);

@@ -1,0 +1,45 @@
+\import Cochains.At[C := complex, k := n] \as H;
+\definition cycleBundle: Modules.Bundle := Modules.Bundle { Carrier := H.CycleCarrier, space := H.cycleSpace };
+\definition cohomologyBundle: Modules.Bundle := Modules.Bundle { Carrier := H.Cohomology, space := H.cohomologySpace };
+\import Subspaces.Dimension[n := C.ranks n].Of[S := H.cycles] \as Cycles;
+\definition cyclesProjective: Modules.Projective cycleBundle := Subspaces.projective (C.ranks n) H.cycles;
+\import Modules.Of[V := H.CycleCarrier, space := H.cycleSpace].Submodule[].Of[S := H.boundariesInside] \as Boundary;
+\definition boundaryBundle: Modules.Bundle := Modules.Bundle { Carrier := Boundary.Carrier, space := Boundary.moduleSpace };
+\import Modules.Of[V := Carrier (C.ranks n), space := space (C.ranks n)].Submodule[].Of[S := H.boundaries] \as AmbientBoundary;
+\definition ambientBoundaryBundle: Modules.Bundle := Modules.Bundle { Carrier := AmbientBoundary.Carrier, space := AmbientBoundary.moduleSpace };
+\import Modules.Hom[V := Boundary.Carrier, W := AmbientBoundary.Carrier, source := Boundary.moduleSpace, target := AmbientBoundary.moduleSpace] \as Forget;
+\definition forget: Forget.Map := Forget.Map {
+  apply := \fun (x: Boundary.Carrier) => \into[Carrier (C.ranks n)](x, #carrier{H.boundaries}) \by { \bysub(H.CycleCarrier, #carrier{H.boundariesInside}, x) },
+  addition := \fun (x, y: Boundary.Carrier) => \refl(#add{(space (C.ranks n))} x y),
+  scalar := \fun (a: K)(x: Boundary.Carrier) => \refl(#smul{(space (C.ranks n))} a x),
+};
+\import Modules.Hom[V := AmbientBoundary.Carrier, W := Boundary.Carrier, source := AmbientBoundary.moduleSpace, target := Boundary.moduleSpace] \as Into;
+\definition into: Into.Map := Into.Map {
+  apply := \fun (x: AmbientBoundary.Carrier) => \into[H.CycleCarrier](H.cycle x (H.boundaryCycle n x (\bysub(Carrier (C.ranks n), #carrier{H.boundaries}, x))), #carrier{H.boundariesInside}) \by {
+    \bysub(Carrier (C.ranks n), #carrier{H.boundaries}, x)
+  },
+  addition := \fun (x, y: AmbientBoundary.Carrier) => \refl(#add{(space (C.ranks n))} x y),
+  scalar := \fun (a: K)(x: AmbientBoundary.Carrier) => \refl(#smul{(space (C.ranks n))} a x),
+};
+\import Modules.ProjectiveLaws[].Retract[P := boundaryBundle, Q := ambientBoundaryBundle, inclusion := forget, retraction := into] \as BoundaryRetract;
+\definition boundariesProjective: Modules.Projective boundaryBundle := BoundaryRetract.projective (\fun (x: Boundary.Carrier) => \refl(x))
+  (Subspaces.projective (C.ranks n) H.boundaries);
+\import Modules.ShortExact[A := boundaryBundle, B := cycleBundle, C := cohomologyBundle] \as Sequences;
+\import Modules.Of[V := H.CycleCarrier, space := H.cycleSpace].Submodule[].Quotient[S := H.boundariesInside] \as Quotient;
+\definition sequence: Sequences.Sequence := Sequences.Sequence {
+  inclusion := Boundary.inclusion, projection := H.classLinear,
+  injective := \fun (x, y: Boundary.Carrier)(equal: x = y) => equal,
+  onto := Quotient.onto,
+  zero := \fun (x: Boundary.Carrier) => H.boundaryClassZero x (\bysub(H.CycleCarrier, #carrier{H.boundariesInside}, x)),
+  kernelImage := \fun (x: H.CycleCarrier)(closed: H.classOf x = H.zeroClass) =>
+    \exact(\into[Boundary.Carrier](\into[H.CycleCarrier](x, #carrier{H.boundariesInside}) \by { H.zeroClassBoundary x closed },
+      { y: Boundary.Carrier \where y = x }) \by { \refl(x) }, \Cast[Boundary.Carrier] ({ y: Boundary.Carrier \where y = x })),
+};
+\import Subspaces.Dimension[n := C.ranks n].Of[S := H.boundaries] \as BoundarySpace;
+\module Selected(r: BoundarySpace.Retraction);
+\definition cohomologyProjective: Modules.Projective cohomologyBundle := \block {
+  \takefrom r: BoundarySpace.Retraction \by Subspaces.existence (C.ranks n) H.boundaries \then
+  \return Selected[r := r].projective
+};
+\module Outgoing;
+\module Decomposition;

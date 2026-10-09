@@ -1,0 +1,40 @@
+\import Maps.At[k := k] \as Map;
+\import Modules.Of[V := D.family.Carrier k, space := D.family.space k].Submodule[] \as Sub;
+\import Sub.Image[U := C.family.Carrier k, source := C.family.space k] \as Images;
+\definition image: Sub.Submodule := Images.image (Map.linear f);
+\import Sub.Quotient[S := image] \as Quotient;
+\definition Carrier: \Set := Quotient.Carrier;
+\definition space: Modules.Space Carrier := Quotient.moduleSpace;
+\definition class: D.family.Carrier k -> Carrier := Quotient.class;
+\definition projection: Modules.Hom[V := D.family.Carrier k, W := Carrier, source := D.family.space k, target := space].Map := Quotient.projection;
+\import Modules.Of[V := D.family.Carrier (previous k), space := D.family.space (previous k)].Submodule[] \as LowerSub;
+\import LowerSub.Image[U := C.family.Carrier (previous k), source := C.family.space (previous k)] \as LowerImage;
+\import Maps.At[k := previous k] \as LowerMap;
+\definition lowerImage: LowerSub.Submodule := LowerImage.image (LowerMap.linear f);
+\import LowerSub.Quotient[S := lowerImage] \as Lower;
+\import Modules.Hom[V := D.family.Carrier (previous k), W := Lower.Carrier, source := D.family.space (previous k), target := Lower.moduleSpace].Composition[U := D.family.Carrier k, domain := D.family.space k] \as Composition;
+\import \parent.\parent.\parent.At[C := D, z := k] \as Original;
+\definition raw: Modules.Hom[V := D.family.Carrier k, W := Lower.Carrier, source := D.family.space k, target := Lower.moduleSpace].Map :=
+  Composition.compose Lower.projection Original.differential;
+\import Quotient.To[W := Lower.Carrier, target := Lower.moduleSpace] \as Descent;
+\definition vanishes: Descent.Vanishes raw :=
+  \fun (x: D.family.Carrier k)(member: Sub.Member image x) => Images.eliminate (Map.linear f) x
+    (#apply{raw} x = Lower.zeroClass)
+    (\fun (y: C.family.Carrier k)(equal: #apply{f} k y = x) => Lower.classZero (#apply{D.differential} k x)
+      (LowerImage.introduce (LowerMap.linear f) (#apply{D.differential} k x) (#apply{C.differential} k y)
+        (trans!{{D.family.Carrier (previous k)}} _ _ _ (sym!{{D.family.Carrier (previous k)}} _ _ (#commutes{f} k y))
+          (congr!{{D.family.Carrier k} {D.family.Carrier (previous k)}} (#apply{D.differential} k) _ _ equal)))) member;
+\definition differential: Modules.Hom[V := Carrier, W := Lower.Carrier, source := space, target := Lower.moduleSpace].Map :=
+  Descent.descend raw vanishes;
+\definition onClass: \forall (x: D.family.Carrier k) -> #apply{differential} (class x) = Lower.class (#apply{D.differential} k x) :=
+  Descent.onClass raw vanishes;
+\module Square;
+\definition squareZero: \forall (q: Carrier) ->
+  #apply{\parent.At[k := previous k].differential} (#apply{differential} q) =
+    #zero{\parent.At[k := previous (previous k)].space} := Square[].law;
+
+\definition onto: \forall (q: Carrier) -> \exists { x: D.family.Carrier k \where class x = q } := Quotient.onto;
+\definition onImage: \forall (x: C.family.Carrier k) -> class (#apply{f} k x) = #zero{space} :=
+  \fun (x: C.family.Carrier k) => Quotient.classZero (#apply{f} k x) (Images.member (Map.linear f) x);
+\definition zeroClassImage: \forall (x: D.family.Carrier k) -> class x = #zero{space} ->
+  \exists { y: C.family.Carrier k \where #apply{f} k y = x } := Quotient.zeroClassMember;

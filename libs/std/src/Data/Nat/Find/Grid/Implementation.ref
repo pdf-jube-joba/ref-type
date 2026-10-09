@@ -1,0 +1,22 @@
+\definition T: \VType := \U(Nat -> Nat -> Predicate -> Position);
+\definition program: T := \thunk (\cfun (rows: Nat) => \return(\thunk (\cfun (cols: Nat) => \return(\thunk (\cfun (p: Predicate) => \program {
+  \bind predicateBuilder: \U(Predicate -> Nat -> B.Bool) <- (\force Row.program) cols \then
+  \bind predicate: \U(Nat -> B.Bool) <- (\force predicateBuilder) p \then
+  \bind find: \U(\U(Nat -> B.Bool) -> Result) <- (\force Find.program) rows \then
+  \bind row: Result <- (\force find) predicate \then
+  \bind selectBuilder: \U(Predicate -> Result -> Position) <- (\force Select.program) cols \then
+  \bind select: \U(Result -> Position) <- (\force selectBuilder) p \then
+  \bind position: Position <- (\force select) row \then
+  \return position
+})))));
+\definition selected(rows, cols: Nat^)(p: RowPredicate): Position^ := choose cols p (Find.program^ rows (Row.program^ cols p));
+\definition located(rows, cols: Nat^)(p: RowPredicate): Position^ := choose cols p (find rows (Row.program^ cols p));
+\definition matches: \forall (rows, cols: Nat^)(p: RowPredicate) -> program^ rows cols p = grid rows cols p :=
+  \fun (rows, cols: Nat^)(p: RowPredicate) => trans!{Position^} (program^ rows cols p) (selected rows cols p) (grid rows cols p)
+    (congr!{Select.T^ Position^} (\fun (f: Select.T^) => f cols p (Find.program^ rows (Row.program^ cols p))) Select.program^ Select.specification Select.coherence)
+    (trans!{Position^} (selected rows cols p) (located rows cols p) (grid rows cols p)
+      (congr!{Find.T^ Position^} (\fun (f: Find.T^) => choose cols p (f rows (Row.program^ cols p))) Find.program^ Find.specification Find.coherence)
+      (congr!{Row.T^ Position^} (\fun (f: Row.T^) => choose cols p (find rows (f cols p))) Row.program^ Row.specification Row.coherence));
+\definition coherence: program^ = grid := \axiom:funext(program^, grid,
+  \fun (rows: Nat^) => \axiom:funext(program^ rows, grid rows,
+    \fun (cols: Nat^) => \axiom:funext(program^ rows cols, grid rows cols, matches rows cols)));

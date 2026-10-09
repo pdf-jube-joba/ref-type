@@ -1,0 +1,30 @@
+\import homological_algebra.Ext[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Extension[
+  M := Z2.bundle, N := Z4.bundle, P := Presentation.complex].With[resolution := Presentation.resolution] \as Classes;
+\import homological_algebra.Resolution[].Over[R := Int.Int^, ring := Ring.commutativeRingAsRing Int.Int^ IntegerRing.commutativeRing].Of[
+  M := Z2.bundle, P := Presentation.complex] \as NativeResolution;
+\import Presentation.Term[n := Nat.Nat^::zero] \as DegreeZero;
+\import Modules.Of[V := DegreeZero.Carrier, space := DegreeZero.space].Submodule[].Of[
+  S := NativeResolution.augmentationKernel Presentation.resolution] \as Kernel;
+\import Modules.Hom[V := Kernel.Carrier, W := Z4.Carrier, source := Kernel.moduleSpace, target := Z4.space] \as Relations;
+\import homological_algebra.Ext[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Of[M := Z2.bundle, N := Z4.bundle, P := Presentation.complex].At[n := one] \as H;
+\definition represented: \forall (x: H.Carrier) ->
+  \exists { f: Relations.Map \where Classes.RepresentationClass[f := f].extClass = x } := Classes.represented;
+\import Modules.Biproduct[V := Z4.Carrier, W := Z2.Carrier, left := Z4.space, right := Z2.space] \as Sum;
+\definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Sum.Carrier, space := Sum.space };
+\import Modules.ShortExact[A := Z4.bundle, B := bundle, C := Z2.bundle] \as Sequences;
+\import std.Data[].Pair[].Prop[A := Z4.Carrier, B := Z2.Carrier] \as Pairs;
+\definition sequence: Sequences.Sequence := Sequences.Sequence {
+  inclusion := Sum.firstInjection, projection := Sum.secondProjection,
+  injective := \fun (x, y: Z4.Carrier)(equal: #apply{Sum.firstInjection} x = #apply{Sum.firstInjection} y) =>
+    congr!{Sum.Carrier Z4.Carrier} Sum.first (#apply{Sum.firstInjection} x) (#apply{Sum.firstInjection} y) equal,
+  onto := \fun (x: Z2.Carrier) => \exact(\into[Sum.Carrier](#apply{Sum.secondInjection} x,
+    { y: Sum.Carrier \where #apply{Sum.secondProjection} y = x }) \by { \refl(x) },
+      \Cast[Sum.Carrier] ({ y: Sum.Carrier \where #apply{Sum.secondProjection} y = x })),
+  zero := \fun (x: Z4.Carrier) => \refl(#zero{Z2.space}),
+  kernelImage := \fun (x: Sum.Carrier)(closed: #apply{Sum.secondProjection} x = #zero{Z2.space}) =>
+    \exact(\into[Z4.Carrier](Sum.first x, { y: Z4.Carrier \where #apply{Sum.firstInjection} y = x }) \by {
+      Pairs.ext (#apply{Sum.firstInjection} (Sum.first x)) x (\refl(Sum.first x)) (sym!{Z2.Carrier} (Sum.second x) #zero{Z2.space} closed)
+    }, \Cast[Z4.Carrier] ({ y: Z4.Carrier \where #apply{Sum.firstInjection} y = x })),
+};
+\import Classes.OfExtension[E := bundle].With[s := sequence] \as SplitClass;
+\definition splitClassZero: SplitClass.extClass = #zero{H.space} := SplitClass.splitZero Sum.secondInjection Sum.secondRoundtrip;

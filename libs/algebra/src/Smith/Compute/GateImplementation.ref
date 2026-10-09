@@ -1,0 +1,31 @@
+\definition T: \VType := \U(GateState ~> \F(\RunStep[State, Output]));
+\definition program: T := \thunk (\cfun (gate: GateState) => \match gate \in GateState \with {
+  | gate inside original: \match original \in State \with {
+      | active rows cols k a history: \match inside \in B.Bool \with {
+          | false: \return(\finish[State, Output](Output::result k a history))
+          | true: \program {
+              \bind columns: \U(N.Nat -> N.Nat -> Runtime -> History -> Pivot.Selection) <- (\force prepareProgram) rows \then
+              \bind pivots: \U(N.Nat -> Runtime -> History -> Pivot.Selection) <- (\force columns) cols \then
+              \bind matrices: \U(Runtime -> History -> Pivot.Selection) <- (\force pivots) k \then
+              \bind histories: \U(History -> Pivot.Selection) <- (\force matrices) a \then
+              \bind prepared: Pivot.Selection <- (\force histories) history \then
+              \bind result: \RunStep[State, Output] <- (\force selectionProgram) (SelectionState::selected rows cols k a history prepared) \then
+              \return result
+            }
+        }
+    }
+});
+\definition onState: \forall (original: State^)(inside: B.Bool^) -> program^ (GateState^::gate inside original) = gate (GateState^::gate inside original) :=
+  \induction (original: State^) \return \forall (inside: B.Bool^) -> program^ (GateState^::gate inside original) = gate (GateState^::gate inside original) \with {
+    | active: \fun (rows, cols, k: N.Nat^)(a: Runtime^)(history: History^) => B.cases
+        (\fun (inside: B.Bool^) => program^ (GateState^::gate inside (State^::active rows cols k a history)) = gate (GateState^::gate inside (State^::active rows cols k a history)))
+        (\refl(\finish[State^, Output^](Output^::result k a history)))
+        (trans!{{\RunStep[State^, Output^]}} (program^ (GateState^::gate B.Bool^::true (State^::active rows cols k a history)))
+          (selected rows cols k a history (prepareProgram^ rows cols k a history)) (gate (GateState^::gate B.Bool^::true (State^::active rows cols k a history)))
+          (congr!{Selection.T^ {\RunStep[State^, Output^]}} (\fun (f: Selection.T^) => f (SelectionState^::selected rows cols k a history (prepareProgram^ rows cols k a history))) selectionProgram^ selection Selection.coherence)
+          (congr!{Pivot.Prepare.T^ {\RunStep[State^, Output^]}} (\fun (f: Pivot.Prepare.T^) => selected rows cols k a history (f rows cols k a history)) prepareProgram^ Pivot.prepare Pivot.Prepare.coherence))
+  };
+\definition matches: \forall (state: GateState^) -> program^ state = gate state := \induction (state: GateState^) \return program^ state = gate state \with {
+  | gate: \fun (inside: B.Bool^)(original: State^) => onState original inside
+};
+\definition coherence: program^ = gate := \axiom:funext(program^, gate, matches);

@@ -1,0 +1,40 @@
+\definition T: \VType := \U(Input -> Calculation);
+\definition program: T := \thunk (\cfun (input: Input) => \match input \in Input \with {
+  | pair m n p a b: \program {
+      \bind partial0: \U(N.Nat -> Runtime -> Smith.SmithResult) <- (\force smithProgram) m \then
+      \bind partial1: \U(Runtime -> Smith.SmithResult) <- (\force partial0) n \then
+      \bind first: Smith.SmithResult <- (\force partial1) a \then
+      \bind rank: N.Nat <- (\force rankProgram) first \then
+      \bind partial4: \U(N.Nat -> N.Nat) <- (\force subtractProgram) n \then
+      \bind dimension: N.Nat <- (\force partial4) rank \then
+      \bind right: Runtime <- (\force rightProgram) first \then
+      \bind rightInverse: Runtime <- (\force rightInverseProgram) first \then
+      \bind partial8: \U(Runtime -> Runtime) <- (\force columnsProgram) rank \then
+      \bind kernel: Runtime <- (\force partial8) right \then
+      \bind partial10: \U(Runtime -> Runtime) <- (\force rowsProgram) rank \then
+      \bind coordinate: Runtime <- (\force partial10) rightInverse \then
+      \bind partial12: \U(Runtime -> Runtime -> Runtime) <- (\force multiplyProgram) n \then
+      \bind partial13: \U(Runtime -> Runtime) <- (\force partial12) coordinate \then
+      \bind boundary: Runtime <- (\force partial13) b \then
+      \bind partial15: \U(N.Nat -> Runtime -> Smith.SmithResult) <- (\force smithProgram) dimension \then
+      \bind partial16: \U(Runtime -> Smith.SmithResult) <- (\force partial15) p \then
+      \bind second: Smith.SmithResult <- (\force partial16) boundary \then
+      \bind left: Runtime <- (\force leftProgram) second \then
+      \bind leftInverse: Runtime <- (\force leftInverseProgram) second \then
+      \bind partial20: \U(Runtime -> Runtime -> Runtime) <- (\force multiplyProgram) dimension \then
+      \bind partial21: \U(Runtime -> Runtime) <- (\force partial20) kernel \then
+      \bind generators: Runtime <- (\force partial21) leftInverse \then
+      \bind partial23: \U(Runtime -> Runtime -> Runtime) <- (\force multiplyProgram) dimension \then
+      \bind partial24: \U(Runtime -> Runtime) <- (\force partial23) left \then
+      \bind inverse: Runtime <- (\force partial24) coordinate \then
+      \return(Calculation::result n dimension first second generators inverse)
+    }
+});
+\definition nativeMatches: \forall (input: Input^) -> program^ input = native input :=
+  \induction (input: Input^) \return program^ input = native input \with {
+    | pair: \fun (m, n, p: N.Nat^)(a, b: Runtime^) => \refl(native (Input^::pair m n p a b))
+  };
+\definition matches: \forall (input: Input^) -> program^ input = mathematical input :=
+  \fun (input: Input^) => trans!{Calculation^} (program^ input) (native input) (mathematical input)
+    (nativeMatches input) (nativeEquality input);
+\definition coherence: program^ = mathematical := \axiom:funext(program^, mathematical, matches);

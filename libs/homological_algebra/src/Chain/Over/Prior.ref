@@ -1,0 +1,53 @@
+\import std.Set[].Transport[I := Degree] \as Transport;
+\definition value(z: Degree)(x: C.family.Carrier (next z)): C.family.Carrier z :=
+  Transport.cast C.family.Carrier (previous (next z)) z (previousNext z) (#apply{C.differential} (next z) x);
+\definition addition: \forall (z: Degree)(x, y: C.family.Carrier (next z)) ->
+  value z (#add{(C.family.space (next z))} x y) = #add{(C.family.space z)} (value z x) (value z y) :=
+  \fun (z: Degree)(x, y: C.family.Carrier (next z)) => trans!{{C.family.Carrier z}} _ _ _
+    (congr!{{C.family.Carrier (previous (next z))} {C.family.Carrier z}}
+      (Transport.cast C.family.Carrier (previous (next z)) z (previousNext z)) _ _ (#addition{C.laws} (next z) x y))
+    (Transport.binaryNatural C.family.Carrier C.family.Carrier C.family.Carrier (\fun (k: Degree) => #add{(C.family.space k)})
+      (previous (next z)) z (previousNext z) (#apply{C.differential} (next z) x) (#apply{C.differential} (next z) y));
+\definition scalar: \forall (z: Degree)(a: R)(x: C.family.Carrier (next z)) ->
+  value z (#smul{(C.family.space (next z))} a x) = #smul{(C.family.space z)} a (value z x) :=
+  \fun (z: Degree)(a: R)(x: C.family.Carrier (next z)) => trans!{{C.family.Carrier z}} _ _ _
+    (congr!{{C.family.Carrier (previous (next z))} {C.family.Carrier z}}
+      (Transport.cast C.family.Carrier (previous (next z)) z (previousNext z)) _ _ (#scalar{C.laws} (next z) a x))
+    (Transport.natural C.family.Carrier C.family.Carrier (\fun (k: Degree) => #smul{(C.family.space k)} a)
+      (previous (next z)) z (previousNext z) (#apply{C.differential} (next z) x));
+\definition squareZero: \forall (z: Degree)(x: C.family.Carrier (next z)) ->
+  #apply{C.differential} z (value z x) = #zero{(C.family.space (previous z))} :=
+  \fun (z: Degree)(x: C.family.Carrier (next z)) => trans!{{C.family.Carrier (previous z)}} _ _ _
+    (sym!{{C.family.Carrier (previous z)}} _ _
+      (Transport.natural C.family.Carrier (\fun (k: Degree) => C.family.Carrier (previous k)) (#apply{C.differential})
+        (previous (next z)) z (previousNext z) (#apply{C.differential} (next z) x)))
+    (trans!{{C.family.Carrier (previous z)}} _ _ _
+      (congr!{{C.family.Carrier (previous (previous (next z)))} {C.family.Carrier (previous z)}}
+        (Transport.cast (\fun (k: Degree) => C.family.Carrier (previous k)) (previous (next z)) z (previousNext z)) _ _ (#squareZero{C.laws} (next z) x))
+      (Transport.pointNatural (\fun (k: Degree) => C.family.Carrier (previous k)) (\fun (k: Degree) => #zero{(C.family.space (previous k))})
+        (previous (next z)) z (previousNext z)));
+\definition nextSquareZero: \forall (z: Degree)(x: C.family.Carrier (next (next z))) -> value z (value (next z) x) = #zero{(C.family.space z)} :=
+  \fun (z: Degree)(x: C.family.Carrier (next (next z))) => trans!{{C.family.Carrier z}} _ _ _
+    (congr!{{C.family.Carrier (previous (next z))} {C.family.Carrier z}}
+      (Transport.cast C.family.Carrier (previous (next z)) z (previousNext z)) _ _ (squareZero (next z) x))
+    (Transport.pointNatural C.family.Carrier (\fun (k: Degree) => #zero{(C.family.space k)}) (previous (next z)) z (previousNext z));
+\definition previousValue: \forall (k: Degree)(x: C.family.Carrier k) ->
+  value (previous k) (Transport.cast C.family.Carrier k (next (previous k)) (sym!{Degree} _ _ (nextPrevious k)) x) = #apply{C.differential} k x :=
+  \fun (k: Degree)(x: C.family.Carrier k) => trans!{{C.family.Carrier (previous k)}} _ _ _
+    (congr!{{C.family.Carrier (previous (next (previous k)))} {C.family.Carrier (previous k)}}
+      (Transport.cast C.family.Carrier (previous (next (previous k))) (previous k) (previousNext (previous k))) _ _
+      (sym!{{C.family.Carrier (previous (next (previous k)))}} _ _
+        (Transport.natural C.family.Carrier (\fun (j: Degree) => C.family.Carrier (previous j)) (#apply{C.differential})
+          k (next (previous k)) (sym!{Degree} _ _ (nextPrevious k)) x)))
+    (trans!{{C.family.Carrier (previous k)}} _ _ _
+      (congr!{{C.family.Carrier (previous (next (previous k)))} {C.family.Carrier (previous k)}}
+        (Transport.cast C.family.Carrier (previous (next (previous k))) (previous k) (previousNext (previous k))) _ _
+        (Transport.reindex C.family.Carrier previous k (next (previous k)) (sym!{Degree} _ _ (nextPrevious k)) (#apply{C.differential} k x)))
+      (Transport.castInverse C.family.Carrier (previous k) (previous (next (previous k)))
+        (congr!{Degree Degree} previous k (next (previous k)) (sym!{Degree} _ _ (nextPrevious k))) (#apply{C.differential} k x)));
+\definition previousInverse: \forall (k: Degree)(x: C.family.Carrier (next (previous k))) ->
+  #apply{C.differential} k (Transport.cast C.family.Carrier (next (previous k)) k (nextPrevious k) x) = value (previous k) x :=
+  \fun (k: Degree)(x: C.family.Carrier (next (previous k))) => trans!{{C.family.Carrier (previous k)}} _ _ _
+    (sym!{{C.family.Carrier (previous k)}} _ _ (previousValue k (Transport.cast C.family.Carrier (next (previous k)) k (nextPrevious k) x)))
+    (congr!{{C.family.Carrier (next (previous k))} {C.family.Carrier (previous k)}} (value (previous k)) _ _
+      (Transport.castInverse C.family.Carrier (next (previous k)) k (nextPrevious k) x));

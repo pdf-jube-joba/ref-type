@@ -1,0 +1,59 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Integers;
+\import I.Math[].Specification[].Prop[].Multiplication[] \as Product;
+\import I.Math[].Specification[].Prop[] \as IntegerLaws;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\import algebra.Module[].Over[R := I.Int^, ring := Integers.ring] \as Algebra;
+\inductive Unit: \Set := | unit: Unit;
+\import Algebra.Free[Generators := Unit] \as Free;
+\definition projective: Algebra.Projective Free.bundle := Free.projective;
+\import Free.To[W := I.Int^, target := Algebra.scalarModule] \as Evaluation;
+\definition values(x: Unit): I.Int^ := I.One.specification;
+\import Algebra.Hom[V := Free.Carrier, W := I.Int^, source := Free.space, target := Algebra.scalarModule] \as Forward;
+\definition evaluation: Forward.Map := Evaluation.extension values;
+\import Algebra.Hom[V := I.Int^, W := Free.Carrier, source := Algebra.scalarModule, target := Free.space] \as Backward;
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (a: I.Int^) => #smul{Free.space} a (Free.generator Unit::unit),
+  addition := \fun (a, b: I.Int^) => #scalarAdd{Free.space} a b (Free.generator Unit::unit),
+  scalar := \fun (a, b: I.Int^) => #scalarAssoc{Free.space} a b (Free.generator Unit::unit),
+};
+\definition evaluationOfBasis: #apply{evaluation} (Free.generator Unit::unit) = I.One.specification :=
+  Evaluation.onGenerator values Unit::unit;
+\definition evaluationBackward: \forall (a: I.Int^) -> #apply{evaluation} (#apply{backward} a) = a :=
+  \fun (a: I.Int^) => trans!{I.Int^} _ _ _ (#scalar{evaluation} a (Free.generator Unit::unit))
+    (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (I.Mul.specification a) _ _ evaluationOfBasis) (Product.mulOneRight a));
+\import Backward.Composition[U := Free.Carrier, domain := Free.space] \as Composition;
+\import Algebra.Hom[V := Free.Carrier, W := Free.Carrier, source := Free.space, target := Free.space] \as EndMaps;
+\definition composite: EndMaps.Map := Composition.compose backward evaluation;
+\import Free.To[W := Free.Carrier, target := Free.space] \as End;
+\import Algebra.End[V := Free.Carrier, space := Free.space] \as Identity;
+\definition onGenerator: \forall (x: Unit) -> #apply{composite} (Free.generator x) = Free.generator x :=
+  \induction (x: Unit) \return #apply{composite} (Free.generator x) = Free.generator x \with {
+    | unit: trans!{Free.Carrier} _ _ _
+      (congr!{I.Int^ Free.Carrier} (#apply{backward}) _ _ evaluationOfBasis) (#scalarOne{Free.space} (Free.generator Unit::unit))
+  };
+\definition compositeIdentity: #apply{composite} = #apply{Identity.identity} :=
+  trans!{{Free.Carrier -> Free.Carrier}} _ _ _ (End.unique Free.generator composite onGenerator)
+    (sym!{{Free.Carrier -> Free.Carrier}} _ _ (End.unique Free.generator Identity.identity (\fun (x: Unit) => \refl(Free.generator x))));
+\definition backwardEvaluation: \forall (x: Free.Carrier) -> #apply{backward} (#apply{evaluation} x) = x :=
+  \fun (x: Free.Carrier) => congr!{{Free.Carrier -> Free.Carrier} Free.Carrier} (\fun (f: Free.Carrier -> Free.Carrier) => f x) _ _ compositeIdentity;
+\import Algebra.Isomorphism[V := Free.Carrier, W := I.Int^, source := Free.space, target := Algebra.scalarModule] \as Iso;
+\definition rankOne: Iso.Isomorphism := Iso.Isomorphism {
+  forward := evaluation, backward := backward, leftInverse := backwardEvaluation, rightInverse := evaluationBackward,
+};
+\import Algebra.FirstIsomorphism[V := Free.Carrier, W := I.Int^, source := Free.space, target := Algebra.scalarModule, f := evaluation] \as First;
+\definition imageQuotientRoundtrip: \forall (q: First.QuotientCarrier) -> First.inverse (#apply{First.forward} q) = q := First.leftInverse;
+\import Algebra.CanonicalFree[M := Algebra.Bundle { Carrier := I.Int^, space := Algebra.scalarModule }] \as Resolution;
+\definition kernelKilled: \forall (x: Resolution.KernelCarrier) -> #apply{Resolution.augmentation} (#apply{Resolution.inclusion} x) = I.Zero.specification := Resolution.killed;
+\import Algebra.Tensor[V := I.Int^, W := I.Int^, left := Algebra.scalarModule, right := Algebra.scalarModule] \as Tensor;
+\import Tensor.Universal[U := I.Int^, target := Algebra.scalarModule] \as TensorMaps;
+\definition bilinear: Tensor.BilinearLaws[I.Int^, Algebra.scalarModule, I.Mul.specification] := Tensor.BilinearLaws[I.Int^, Algebra.scalarModule, I.Mul.specification] {
+  addLeft := Product.addMul, addRight := Product.mulAdd, scaleLeft := Product.mulAssoc,
+  scaleRight := \fun (a, x, y: I.Int^) => trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (Product.mulAssoc x a y))
+    (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (\fun (z: I.Int^) => I.Mul.specification z y) _ _ (IntegerLaws.mulComm x a)) (Product.mulAssoc a x y)),
+};
+\definition contraction: _ := TensorMaps.map I.Mul.specification bilinear;
+\definition tensorValue: \forall (a, b: I.Int^) -> #apply{contraction} (Tensor.tensor a b) = I.Mul.specification a b := TensorMaps.onTensor I.Mul.specification bilinear;

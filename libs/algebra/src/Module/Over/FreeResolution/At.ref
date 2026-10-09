@@ -1,0 +1,32 @@
+\import \parent.\parent.CanonicalFree[M := syzygy n] \as Term;
+\import \parent.\parent.CanonicalFree[M := syzygy (N.Nat^::succ n)] \as After;
+\definition Carrier: \Set := Term.Carrier;
+\definition space: Space Carrier := Term.space;
+\definition bundle: Bundle := Term.bundle;
+\definition augmentation: MapBetween bundle (syzygy n) := Term.augmentation;
+\definition onto: Surjective bundle (syzygy n) augmentation := Term.onto;
+\definition projective: Projective bundle := Term.projective;
+\import \parent.\parent.Hom[V := Term.KernelCarrier, W := Carrier, source := Term.kernelSpace, target := space] \as Inclusion;
+\import Inclusion.Composition[U := After.Carrier, domain := After.space] \as Composition;
+\import \parent.\parent.Hom[V := After.Carrier, W := Carrier, source := After.space, target := space] \as Differentials;
+\definition differential: Differentials.Map := Composition.compose Term.inclusion After.augmentation;
+\definition exact: \forall (x: Carrier) -> #apply{augmentation} x = #zero{(syzygySpace n)} ->
+  \exists { y: After.Carrier \where #apply{differential} y = x } := \block {
+  \fun (x: Carrier)(closed: #apply{augmentation} x = #zero{(syzygySpace n)}) \then
+  \let cycle: Term.KernelCarrier := \into[Carrier](x, #carrier{Term.kernel}) \by { closed } \then
+  \takefrom y: \Cast[After.Carrier] ({ y: After.Carrier \where #apply{After.augmentation} y = cycle }) \by After.onto cycle \then
+  \return \exact(\into[After.Carrier](y, { y: After.Carrier \where #apply{differential} y = x }) \by {
+    \bysub(After.Carrier, { y: After.Carrier \where #apply{After.augmentation} y = cycle }, y)
+  }, \Cast[After.Carrier] ({ y: After.Carrier \where #apply{differential} y = x }))
+};
+\definition killed: \forall (y: After.Carrier) -> #apply{augmentation} (#apply{differential} y) = #zero{(syzygySpace n)} :=
+  \fun (y: After.Carrier) => Term.killed (#apply{After.augmentation} y);
+\import \parent.\parent.CanonicalFree[M := syzygy (N.Nat^::succ (N.Nat^::succ n))] \as Last;
+\import \parent.\parent.Hom[V := After.KernelCarrier, W := After.Carrier, source := After.kernelSpace, target := After.space] \as NextInclusion;
+\import NextInclusion.Composition[U := Last.Carrier, domain := Last.space] \as NextComposition;
+\import \parent.\parent.Hom[V := Last.Carrier, W := After.Carrier, source := Last.space, target := After.space] \as NextDifferentials;
+\definition nextDifferential: NextDifferentials.Map := NextComposition.compose After.inclusion Last.augmentation;
+\definition squareZero: \forall (x: Last.Carrier) -> #apply{differential} (#apply{nextDifferential} x) = #zero{space} :=
+  \fun (x: Last.Carrier) => trans!{Carrier} _ _ _
+    (congr!{Term.KernelCarrier Carrier} (#apply{Term.inclusion}) _ _ (After.killed (#apply{Last.augmentation} x)))
+    (Inclusion.zeroPreserved Term.inclusion);

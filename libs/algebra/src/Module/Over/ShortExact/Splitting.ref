@@ -1,0 +1,60 @@
+\import \parent.\parent.Biproduct[V := A.Carrier, W := C.Carrier, left := A.space, right := C.space] \as Sum;
+\import Sum.Copair[U := B.Carrier, target := B.space] \as Copair;
+\import \parent.\parent.Hom[V := C.Carrier, W := B.Carrier, source := C.space, target := B.space] \as Sections;
+\import \parent.\parent.Laws[V := B.Carrier, space := B.space] \as Middle;
+\import \parent.\parent.Laws[V := C.Carrier, space := C.space] \as Right;
+\import algebra.Group[].Of[Carrier := B.Carrier, group := Middle.additive] \as MiddleGroup;
+\import algebra.Group[].Of[Carrier := C.Carrier, group := Right.additive] \as RightGroup;
+\import std.Data[].Pair[].Prop[A := A.Carrier, B := C.Carrier] \as Pairs;
+\definition Section(s: Sections.Map): \Prop := \forall (z: C.Carrier) -> #apply{sequence.projection} (#apply{s} z) = z;
+\definition forward(s: Sections.Map): _ := Copair.copair sequence.inclusion s;
+\definition projection: \forall (s: Sections.Map) -> Section s -> \forall (x: Sum.Carrier) ->
+  #apply{sequence.projection} (#apply{(forward s)} x) = Sum.second x :=
+  \fun (s: Sections.Map)(section: Section s)(x: Sum.Carrier) => trans!{C.Carrier} _ _ _
+    (#addition{sequence.projection} (#apply{sequence.inclusion} (Sum.first x)) (#apply{s} (Sum.second x)))
+    (trans!{C.Carrier} _ _ _
+      (congr2!{C.Carrier C.Carrier C.Carrier} Right.add _ _ _ _ (#zero{sequence} (Sum.first x)) (section (Sum.second x)))
+      (RightGroup.zeroLeft (Sum.second x)));
+\definition injective: \forall (s: Sections.Map) -> Section s -> \forall (x, y: Sum.Carrier) ->
+  #apply{(forward s)} x = #apply{(forward s)} y -> x = y := \block {
+  \fun (s: Sections.Map)(section: Section s)(x, y: Sum.Carrier)(same: _) \then
+  \let seconds: Sum.second x = Sum.second y := trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (projection s section x))
+    (trans!{C.Carrier} _ _ _ (congr!{B.Carrier C.Carrier} (#apply{sequence.projection}) _ _ same) (projection s section y)) \then
+  \let inclusions: #apply{sequence.inclusion} (Sum.first x) = #apply{sequence.inclusion} (Sum.first y) :=
+    MiddleGroup.cancelRight (#apply{s} (Sum.second x)) (#apply{sequence.inclusion} (Sum.first x)) (#apply{sequence.inclusion} (Sum.first y))
+      (trans!{B.Carrier} _ _ _ same (congr!{C.Carrier B.Carrier}
+        (\fun (z: C.Carrier) => Middle.add (#apply{sequence.inclusion} (Sum.first y)) (#apply{s} z)) _ _ (sym!{C.Carrier} _ _ seconds))) \then
+  \return Pairs.ext x y (#injective{sequence} (Sum.first x) (Sum.first y) inclusions) seconds
+};
+\definition remainder(s: Sections.Map)(y: B.Carrier): B.Carrier := MiddleGroup.difference y (#apply{s} (#apply{sequence.projection} y));
+\definition remainderClosed: \forall (s: Sections.Map) -> Section s -> \forall (y: B.Carrier) ->
+  #apply{sequence.projection} (remainder s y) = Right.zero :=
+  \fun (s: Sections.Map)(section: Section s)(y: B.Carrier) => trans!{C.Carrier} _ _ _
+    (Projection.differencePreserved sequence.projection y (#apply{s} (#apply{sequence.projection} y)))
+    (trans!{C.Carrier} _ _ _
+      (congr!{C.Carrier C.Carrier} (\fun (z: C.Carrier) => RightGroup.difference (#apply{sequence.projection} y) z) _ _
+        (section (#apply{sequence.projection} y))) (RightGroup.inverseRight (#apply{sequence.projection} y)));
+\definition reconstruct: \forall (s: Sections.Map)(y: B.Carrier) -> Middle.add (remainder s y) (#apply{s} (#apply{sequence.projection} y)) = y :=
+  \fun (s: Sections.Map)(y: B.Carrier) => trans!{B.Carrier} _ _ _
+    (MiddleGroup.assoc y (Middle.neg (#apply{s} (#apply{sequence.projection} y))) (#apply{s} (#apply{sequence.projection} y)))
+    (trans!{B.Carrier} _ _ _ (congr!{B.Carrier B.Carrier} (Middle.add y) _ _ (MiddleGroup.inverseLeft (#apply{s} (#apply{sequence.projection} y))))
+      (MiddleGroup.zeroRight y));
+\definition onto: \forall (s: Sections.Map) -> Section s -> \forall (y: B.Carrier) ->
+  \exists { x: Sum.Carrier \where #apply{(forward s)} x = y } := \block {
+  \fun (s: Sections.Map)(section: Section s)(y: B.Carrier) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{sequence.inclusion} a = remainder s y })
+    \by #kernelImage{sequence} (remainder s y) (remainderClosed s section y) \then
+  \return \exact(\into[Sum.Carrier](Sum.make a (#apply{sequence.projection} y), { x: Sum.Carrier \where #apply{(forward s)} x = y }) \by {
+    trans!{B.Carrier} _ _ _ (congr!{B.Carrier B.Carrier}
+      (\fun (z: B.Carrier) => Middle.add z (#apply{s} (#apply{sequence.projection} y))) _ _
+      (\bysub(A.Carrier, { a: A.Carrier \where #apply{sequence.inclusion} a = remainder s y }, a))) (reconstruct s y)
+  }, \Cast[Sum.Carrier] ({ x: Sum.Carrier \where #apply{(forward s)} x = y }))
+};
+\module With(s: Sections.Map) {
+  \import \parent.\parent.\parent.Isomorphism[V := Sum.Carrier, W := B.Carrier, source := Sum.space, target := B.space] \as Isomorphisms;
+  \import Isomorphisms.OfBijective[f := forward s] \as Bijective;
+  \definition isomorphism(section: Section s): Isomorphisms.Isomorphism := Bijective.isomorphism (injective s section) (onto s section);
+  \definition existence: Section s -> \exists Isomorphisms.Isomorphism :=
+    \fun (section: Section s) => \exact(isomorphism section, Isomorphisms.Isomorphism);
+}
+\module FromRetraction(r: \parent.\parent.\parent.Hom[V := B.Carrier, W := A.Carrier, source := B.space, target := A.space].Map);

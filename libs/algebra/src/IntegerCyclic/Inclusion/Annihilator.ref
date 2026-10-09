@@ -1,0 +1,49 @@
+\import Modules.Hom[V := Target.Carrier, W := Target.Carrier, source := Target.space, target := Target.space] \as CoefficientMaps;
+\definition multiplication: CoefficientMaps.Map := CoefficientMaps.Map {
+  apply := #smul{Target.space} d,
+  addition := #vectorAdd{Target.space} d,
+  scalar := \fun (a: I.Int^)(x: Target.Carrier) => trans!{Target.Carrier} _ _ _
+    (sym!{Target.Carrier} _ _ (#scalarAssoc{Target.space} d a x))
+    (trans!{Target.Carrier} _ _ _
+      (congr!{I.Int^ Target.Carrier} (\fun (r: I.Int^) => #smul{Target.space} r x) _ _ (#mulCommutative{IntegerRing.commutativeRing} d a))
+      (#scalarAssoc{Target.space} a d x)),
+};
+\import Modules.Of[V := Target.Carrier, space := Target.space].Submodule[] \as CoefficientSub;
+\import CoefficientSub.Kernel[W := Target.Carrier, target := Target.space] \as Kernels;
+\definition annihilator: CoefficientSub.Submodule := Kernels.kernel multiplication;
+\import CoefficientSub.Of[S := annihilator] \as Included;
+\definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Included.Carrier, space := Included.moduleSpace };
+\definition killed: \forall (q: Carrier) -> #smul{Target.space} d (#apply{map} q) = #zero{Target.space} := induction
+  (\fun (q: Carrier) => #smul{Target.space} d (#apply{map} q) = #zero{Target.space})
+  (\fun (x: I.Int^) => trans!{Target.Carrier} _ _ _
+    (congr!{Target.Carrier Target.Carrier} (#smul{Target.space} d) _ _ (onClass x))
+    (trans!{Target.Carrier} _ _ _ (Target.onScalar d (Arithmetic.mul k x))
+      (trans!{Target.Carrier} _ _ _
+        (congr!{I.Int^ Target.Carrier} Target.class _ _ (sym!{I.Int^} _ _ (Product.mulAssoc d k x))) (Target.classMultiple x))));
+\definition restriction: Modules.Hom[V := Carrier, W := Included.Carrier, source := space, target := Included.moduleSpace].Map := Modules.Hom[V := Carrier, W := Included.Carrier, source := space, target := Included.moduleSpace].Map {
+  apply := \fun (q: Carrier) => \into[Target.Carrier](#apply{map} q, #carrier{annihilator}) \by { killed q },
+  addition := #addition{map}, scalar := #scalar{map},
+};
+\definition surjective: Logic.Not (d = Arithmetic.zero) -> \forall (q: Included.Carrier) -> \exists { x: Carrier \where #apply{restriction} x = q } := \block {
+  \fun (nonzero: Logic.Not (d = Arithmetic.zero))(q: Included.Carrier) \then
+  \takefrom x: \Cast[I.Int^] ({ x: I.Int^ \where Target.class x = q }) \by Target.onto q \then
+  \let represented: Target.class x = q := \bysub(I.Int^, { x: I.Int^ \where Target.class x = q }, x) \then
+  \let closed: Target.class (Arithmetic.mul d x) = #zero{Target.space} := trans!{Target.Carrier} _ _ _
+    (sym!{Target.Carrier} _ _ (Target.onScalar d x))
+    (trans!{Target.Carrier} _ _ _ (congr!{Target.Carrier Target.Carrier} (#smul{Target.space} d) _ _ represented)
+      (\bysub(Target.Carrier, #carrier{annihilator}, q))) \then
+  \takefrom a: \Cast[I.Int^] ({ a: I.Int^ \where Arithmetic.mul (Arithmetic.mul d k) a = Arithmetic.mul d x })
+    \by Target.classZeroMember (Arithmetic.mul d x) closed \then
+  \let divided: x = Arithmetic.mul k a := Domain.cancellation d x (Arithmetic.mul k a) nonzero
+    (trans!{I.Int^} _ _ _
+      (sym!{I.Int^} _ _ (\bysub(I.Int^, { a: I.Int^ \where Arithmetic.mul (Arithmetic.mul d k) a = Arithmetic.mul d x }, a)))
+      (Product.mulAssoc d k a)) \then
+  \return \exact(\into[Carrier](class a, { y: Carrier \where #apply{restriction} y = q }) \by {
+    trans!{Target.Carrier} _ _ _ (onClass a)
+      (trans!{Target.Carrier} _ _ _ (congr!{I.Int^ Target.Carrier} Target.class _ _ (sym!{I.Int^} _ _ divided)) represented)
+  }, \Cast[Carrier] ({ y: Carrier \where #apply{restriction} y = q }))
+};
+\import Modules.Isomorphism[V := Carrier, W := Included.Carrier, source := space, target := Included.moduleSpace].OfBijective[f := restriction] \as Inverse;
+\definition isomorphism(nonzeroD: Logic.Not (d = Arithmetic.zero))(nonzeroK: Logic.Not (k = Arithmetic.zero)):
+  Modules.Isomorphism[V := Carrier, W := Included.Carrier, source := space, target := Included.moduleSpace].Isomorphism :=
+    Inverse.isomorphism (injective nonzeroK) (surjective nonzeroD);

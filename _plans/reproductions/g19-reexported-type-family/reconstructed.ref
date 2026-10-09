@@ -1,0 +1,23 @@
+\module Numbers {
+  \inductive N: \VType := | zero: N | succ: N -> N;
+}
+\module Source(n: \root.Numbers[].N^) {
+  \definition Index: \Set := \Cast[\root.Numbers[].N^] ({ i: \root.Numbers[].N^ \where i = n });
+  \structure Family { Carrier: Index -> \Set }
+  \module Slot(i: Index) { \definition Carrier: \Set := \root.Numbers[].N^; }
+  \definition family: Family := Family { Carrier := \fun (i: Index) => Slot[i := i].Carrier };
+}
+\module Outer(n: \root.Numbers[].N^) {
+  \import \root.Source[n := n] \as Source;
+  \definition family: Source.Family := Source.Family { Carrier := \fun (i: Source.Index) => \root.Numbers[].N^ };
+}
+\module Consumer {
+  \definition one: \root.Numbers[].N^ := \root.Numbers[].N^::succ \root.Numbers[].N^::zero;
+  \import \root.Source[n := one] \as Source;
+  \definition point: Source.Index := \into[\root.Numbers[].N^](one, { i: \root.Numbers[].N^ \where i = one }) \by { \refl(one) };
+  \definition Direct: \Set := #Carrier{Source.family} point;
+  \definition direct: Direct := one;
+  \import \root.Outer[n := one] \as Outer;
+  \definition Reexported: \Set := #Carrier{Outer.family} point;
+  \definition reexported: Reexported := one;
+}

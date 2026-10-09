@@ -1,0 +1,35 @@
+\definition coefficients: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import \root.HomComplex[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].Integer[P := chain, N := coefficients] \as Hom;
+\module Degree(z: Degree) {
+  \import Commutative.FiniteHom[n := C.ranks z, W := I.Int^, target := Modules.scalarModule] \as Basis;
+  \definition isomorphism: Modules.Isomorphism[V := Hom.Carrier z, W := Carrier C z, source := Hom.space z, target := space C z].Isomorphism := Basis.isomorphism;
+}
+\definition isomorphisms: \forall (z: Degree) -> Modules.Isomorphism[V := Hom.Carrier z, W := Carrier C z, source := Hom.space z, target := space C z].Isomorphism :=
+  \fun (z: Degree) => Degree[z := z].isomorphism;
+\import Hom.Into[D := complex].From[components := isomorphisms] \as Comparison;
+\module Step(z: Degree) {
+  \import Commutative.Matrix[m := C.ranks z, n := C.ranks (next z)].Dual[] \as Transpose;
+  \import Commutative.FiniteHom[n := C.ranks z, W := I.Int^, target := Modules.scalarModule] \as Source;
+  \import Commutative.FiniteHom[n := C.ranks (next z), W := I.Int^, target := Modules.scalarModule] \as Target;
+  \definition matrix: Commutative.Matrix[m := C.ranks z, n := C.ranks (next z)].Matrix :=
+    \fun (i: Indices.Fin (C.ranks z))(j: Indices.Fin (C.ranks (next z))) => C.boundary (next z) i j;
+  \import Chains.Prior[C := chain] \as ChainPrior;
+  \definition priorEntry: \forall (v: Carrier C (next z)) -> ChainPrior.value z v =
+    Commutative.Matrix[m := C.ranks z, n := C.ranks (next z)].apply matrix v := \parent.\parent.\parent.At[z := z].priorEntry;
+  \import Modules.Hom[V := Carrier C (next z), W := I.Int^, source := space C (next z), target := Modules.scalarModule] \as Maps;
+  \definition homDifferential: \forall (f: Hom.Carrier z) -> Hom.apply z f = Transpose.precompose matrix f :=
+    \fun (f: Hom.Carrier z) => Maps.ext (Hom.apply z f) (Transpose.precompose matrix f)
+      (\fun (v: Carrier C (next z)) => congr!{{Carrier C z} I.Int^} (#apply{f}) _ _ (priorEntry v));
+  \definition commutes: \forall (f: Hom.Carrier z) -> apply z (#apply{#forward{(isomorphisms z)}} f) = #apply{#forward{(isomorphisms (next z))}} (Hom.apply z f) :=
+    \fun (f: Hom.Carrier z) => trans!{{Carrier C (next z)}} _ _ _
+      (sym!{{Carrier C (next z)}} _ _ (Transpose.onCoordinates matrix f))
+      (congr!{Maps.Map {Carrier C (next z)}} Target.evaluate _ _ (sym!{Maps.Map} _ _ (homDifferential f)));
+}
+\definition commutes: Comparison.Commutes := \fun (z: Degree) => Step[z := z].commutes;
+\module At(z: Degree) {
+  \import Comparison.At[z := z] \as Source;
+  \import Cochains.At[C := complex, z := z] \as Target;
+  \definition Carrier: \Set := Source.Carrier;
+  \definition space: Modules.Space Carrier := Source.space;
+  \definition isomorphism: Modules.Isomorphism[V := Carrier, W := Target.Cohomology, source := space, target := Target.cohomologySpace].Isomorphism := Source.cohomologyIsomorphism commutes;
+}

@@ -1,0 +1,41 @@
+\import \parent.\parent.\parent.\parent.At[C := Shifted.complex, z := k] \as HA;
+\import \parent.\parent.\parent.\parent.At[C := D, z := previous k] \as HB;
+\import \parent.\parent.\parent.\parent.At[C := complex, z := previous k] \as HC;
+\import \parent.\parent.\parent.\parent.At[C := Shifted.complex, z := previous k] \as HD;
+\import \parent.\parent.\parent.\parent.At[C := D, z := previous (previous k)] \as HE;
+\import Exact.At[s := sequence, k := k] \as Upper;
+\import Exact.At[s := sequence, k := previous k] \as Lower;
+\import \parent.\parent.Connecting[k := k] \as UpperConnecting;
+\import \parent.\parent.Connecting[k := previous k] \as LowerConnecting;
+\import \parent.\parent.\parent.\parent.Map[C := D, D := complex].At[k := previous k] \as Inclusion;
+\import \parent.\parent.\parent.\parent.Map[C := complex, D := Shifted.complex].At[k := previous k] \as Projection;
+\definition a: Modules.Bundle := Modules.Bundle { Carrier := HA.Homology, space := HA.homologySpace };
+\definition b: Modules.Bundle := Modules.Bundle { Carrier := HB.Homology, space := HB.homologySpace };
+\definition c: Modules.Bundle := Modules.Bundle { Carrier := HC.Homology, space := HC.homologySpace };
+\definition d: Modules.Bundle := Modules.Bundle { Carrier := HD.Homology, space := HD.homologySpace };
+\definition e: Modules.Bundle := Modules.Bundle { Carrier := HE.Homology, space := HE.homologySpace };
+\import Modules.ExactFive[A := a, B := b, C := c, D := d, E := e] \as Five;
+\definition five: Five.Sequence := Five.Sequence {
+  first := Upper.connecting, second := Inclusion.induced inclusion,
+  third := Projection.induced projection, last := Lower.connecting,
+  zeroB := Upper.Exactness[].connectingInclusionZero,
+  zeroC := Lower.Exactness[].inclusionProjectionZero,
+  zeroD := Lower.Exactness[].projectionConnectingZero,
+  kernelB := Upper.Exactness[].exactAtALower,
+  kernelC := Lower.Exactness[].exactAtB,
+  kernelD := Lower.Exactness[].exactAtC,
+};
+\import Five.Vanishing[sequence := five] \as Vanishing;
+\definition vanishing: ChainMaps.QuasiIsomorphism f -> \forall (q: HC.Homology) -> q = HC.zeroClass :=
+  \fun (quasi: ChainMaps.QuasiIsomorphism f) => Vanishing.vanishes
+    (UpperConnecting.onto (quasi (previous k))) (LowerConnecting.injective (quasi (previous (previous k))));
+\definition onto: Acyclic -> \forall (q: HB.Homology) ->
+  \exists { x: \parent.\parent.\parent.\parent.At[C := C, z := previous k].Homology \where
+    #apply{(ChainMaps.At[k := previous k].induced f)} x = q } :=
+  \fun (acyclic: Acyclic) => UpperConnecting.originalOnto (Vanishing.firstOnto (acyclic (previous k)));
+
+\definition bijective: Acyclic -> ChainMaps.At[k := previous (previous k)].Bijective[f] :=
+  \fun (acyclic: Acyclic) => ChainMaps.At[k := previous (previous k)].Bijective[f] {
+    injective := LowerConnecting.originalInjective (Vanishing.lastInjective (acyclic (previous k))),
+    onto := \parent.At[k := previous k].onto acyclic,
+  };

@@ -1,0 +1,38 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> BasisChange -> BasisChange -> BasisChange);
+\definition program: T := \thunk (\cfun (rows: N.Nat) => \return(\thunk (\cfun (cols: N.Nat) => \return(\thunk (\cfun (later: BasisChange) => \return(\thunk (\cfun (earlier: BasisChange) =>
+  \match later \in BasisChange \with {
+    | frame left right leftInverse rightInverse: \match earlier \in BasisChange \with {
+        | frame oldLeft oldRight oldLeftInverse oldRightInverse: \program {
+            \bind rowProduct: \U(Runtime -> Runtime -> Runtime) <- (\force multiplyProgram) rows \then
+            \bind columnProduct: \U(Runtime -> Runtime -> Runtime) <- (\force multiplyProgram) cols \then
+            \bind leftProduct: \U(Runtime -> Runtime) <- (\force rowProduct) left \then
+            \bind newLeft: Runtime <- (\force leftProduct) oldLeft \then
+            \bind rightProduct: \U(Runtime -> Runtime) <- (\force columnProduct) oldRight \then
+            \bind newRight: Runtime <- (\force rightProduct) right \then
+            \bind leftUndo: \U(Runtime -> Runtime) <- (\force rowProduct) oldLeftInverse \then
+            \bind newLeftInverse: Runtime <- (\force leftUndo) leftInverse \then
+            \bind rightUndo: \U(Runtime -> Runtime) <- (\force columnProduct) rightInverse \then
+            \bind newRightInverse: Runtime <- (\force rightUndo) oldRightInverse \then
+            \return(BasisChange::frame newLeft newRight newLeftInverse newRightInverse)
+          }
+      }
+  })))))));
+\definition withProduct(product: MatrixProduct.Multiply.T^)(rows, cols: N.Nat^)(left, right, leftInverse, rightInverse, oldLeft, oldRight, oldLeftInverse, oldRightInverse: Runtime^): BasisChange^ :=
+  BasisChange^::frame (product rows left oldLeft) (product cols oldRight right) (product rows oldLeftInverse leftInverse) (product cols rightInverse oldRightInverse);
+\definition onFrames: \forall (rows, cols: N.Nat^)(left, right, leftInverse, rightInverse, oldLeft, oldRight, oldLeftInverse, oldRightInverse: Runtime^) ->
+  program^ rows cols (BasisChange^::frame left right leftInverse rightInverse) (BasisChange^::frame oldLeft oldRight oldLeftInverse oldRightInverse) =
+  compose rows cols (BasisChange^::frame left right leftInverse rightInverse) (BasisChange^::frame oldLeft oldRight oldLeftInverse oldRightInverse) :=
+  \fun (rows, cols: N.Nat^)(left, right, leftInverse, rightInverse, oldLeft, oldRight, oldLeftInverse, oldRightInverse: Runtime^) =>
+    congr!{MatrixProduct.Multiply.T^ BasisChange^} (\fun (f: MatrixProduct.Multiply.T^) => withProduct f rows cols left right leftInverse rightInverse oldLeft oldRight oldLeftInverse oldRightInverse)
+      multiplyProgram^ MatrixProduct.mathematical MatrixProduct.Multiply.coherence;
+\definition matches: \forall (rows, cols: N.Nat^)(later, earlier: BasisChange^) -> program^ rows cols later earlier = compose rows cols later earlier :=
+  \fun (rows, cols: N.Nat^) => \induction (later: BasisChange^) \return \forall (earlier: BasisChange^) -> program^ rows cols later earlier = compose rows cols later earlier \with {
+    | frame: \fun (left, right, leftInverse, rightInverse: Runtime^) => \induction (earlier: BasisChange^) \return
+        program^ rows cols (BasisChange^::frame left right leftInverse rightInverse) earlier = compose rows cols (BasisChange^::frame left right leftInverse rightInverse) earlier \with {
+      | frame: onFrames rows cols left right leftInverse rightInverse
+    }
+  };
+\definition coherence: program^ = compose := \axiom:funext(program^, compose,
+  \fun (rows: N.Nat^) => \axiom:funext(program^ rows, compose rows,
+    \fun (cols: N.Nat^) => \axiom:funext(program^ rows cols, compose rows cols,
+      \fun (later: BasisChange^) => \axiom:funext(program^ rows cols later, compose rows cols later, matches rows cols later))));

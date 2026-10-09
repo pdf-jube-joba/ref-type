@@ -1,0 +1,25 @@
+\import \parent.At[z := degree] \as Term;
+\import Modules.Hom[V := M.Carrier, W := Term.Carrier, source := M.space, target := Term.space] \as Forward;
+\import Modules.Hom[V := Term.Carrier, W := M.Carrier, source := Term.space, target := M.space] \as Backward;
+\import Modules.Isomorphism[V := M.Carrier, W := Term.Carrier, source := M.space, target := Term.space] \as Iso;
+\definition into(x: M.Carrier): Term.Carrier := \into[M.Carrier](x, #carrier{Term.submodule}) \by {
+  Logic.Or[degree = degree, x = #zero{M.space}]::left (\refl(degree))
+};
+\definition termIsomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := Forward.Map {
+    apply := into,
+    addition := \fun (x, y: M.Carrier) => \refl(#add{M.space} x y),
+    scalar := \fun (a: R)(x: M.Carrier) => \refl(#smul{M.space} a x),
+  },
+  backward := Backward.Map {
+    apply := \fun (x: Term.Carrier) => x,
+    addition := \fun (x, y: Term.Carrier) => \refl(#add{M.space} x y),
+    scalar := \fun (a: R)(x: Term.Carrier) => \refl(#smul{M.space} a x),
+  },
+  leftInverse := \fun (x: M.Carrier) => \refl(x),
+  rightInverse := \fun (x: Term.Carrier) => \refl(x),
+};
+\import \parent.\parent.At[C := complex, z := degree] \as H;
+\import Iso.Composition[U := H.Homology, final := H.homologySpace] \as Composition;
+\definition homologyIsomorphism: Modules.Isomorphism[V := M.Carrier, W := H.Homology, source := M.space, target := H.homologySpace].Isomorphism :=
+  Composition.compose (ZeroDifferential.At[k := degree].isomorphism) termIsomorphism;

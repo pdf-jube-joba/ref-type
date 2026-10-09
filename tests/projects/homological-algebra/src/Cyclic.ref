@@ -1,0 +1,45 @@
+\import std.Data[].Nat[] \as Nat;
+\import std.Arithmetic[].Int[] \as Int;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import std.Alg[].Ring[] \as Ring;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\definition one: Nat.Nat^ := Nat.Nat^::succ Nat.Nat^::zero;
+\definition two: Int.Int^ := Int.Int^::ofNat (Nat.Nat^::succ one);
+\definition four: Int.Int^ := Arithmetic.mul two two;
+\import algebra.Module[].Over[R := Int.Int^, ring := Ring.commutativeRingAsRing Int.Int^ IntegerRing.commutativeRing] \as Modules;
+\import algebra.IntegerCyclic[d := two] \as Z2;
+\import algebra.IntegerCyclic[d := four] \as Z4;
+\import homological_algebra.IntegerCyclicResolution[].Positive[m := one] \as Presentation;
+\import Presentation.Coefficients[k := one] \as Computation;
+\import Z2.Inclusion[k := two] \as Inclusion;
+\import Z2.Reduction[k := two] \as Projection;
+\definition inclusion: Modules.Hom[V := Z2.Carrier, W := Z4.Carrier, source := Z2.space, target := Z4.space].Map := Computation.inclusion;
+\definition projection: Modules.Hom[V := Z4.Carrier, W := Z2.Carrier, source := Z4.space, target := Z2.space].Map := Computation.projection;
+\definition inclusionInjective: \forall (x, y: Z2.Carrier) -> #apply{inclusion} x = #apply{inclusion} y -> x = y := Computation.inclusionInjective;
+\definition projectionOnto: \forall (q: Z2.Carrier) -> \exists { x: Z4.Carrier \where #apply{projection} x = q } := Computation.projectionOnto;
+\definition inclusionOnClass: \forall (x: Int.Int^) -> #apply{inclusion} (Z2.class x) = Z4.class (Arithmetic.mul two x) := Inclusion.onClass;
+\definition projectionOnClass: \forall (x: Int.Int^) -> #apply{projection} (Z4.class x) = Z2.class x := Projection.onClass;
+\definition compositionZero: \forall (q: Z2.Carrier) -> #apply{projection} (#apply{inclusion} q) = #zero{Z2.space} :=
+  Z2.induction (\fun (q: Z2.Carrier) => #apply{projection} (#apply{inclusion} q) = #zero{Z2.space})
+    (\fun (x: Int.Int^) => trans!{Z2.Carrier} _ _ _
+      (congr!{Z4.Carrier Z2.Carrier} (#apply{projection}) _ _ (inclusionOnClass x))
+      (trans!{Z2.Carrier} _ _ _ (projectionOnClass (Arithmetic.mul two x)) (Z2.classMultiple x)));
+\module Ext {
+  \import homological_algebra.Ext[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Of[M := Z2.bundle, N := Z4.bundle, P := Presentation.complex].At[n := one] \as H;
+  \definition isomorphism: Modules.Isomorphism[V := H.Carrier, W := Z2.Carrier, source := H.space, target := Z2.space].Isomorphism := Computation.Ext[].isomorphism;
+  \definition leftInverse: \forall (q: H.Carrier) -> #apply{#backward{isomorphism}} (#apply{#forward{isomorphism}} q) = q := #leftInverse{isomorphism};
+  \definition rightInverse: \forall (q: Z2.Carrier) -> #apply{#forward{isomorphism}} (#apply{#backward{isomorphism}} q) = q := #rightInverse{isomorphism};
+  \module Coefficients;
+}
+\module Tor {
+  \import homological_algebra.Tor[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Of[M := Z2.bundle, N := Z4.bundle, P := Presentation.complex].Positive[n := Nat.Nat^::zero] \as H;
+  \definition isomorphism: Modules.Isomorphism[V := H.Carrier, W := Z2.Carrier, source := H.space, target := Z2.space].Isomorphism := Computation.Tor[].isomorphism;
+  \definition leftInverse: \forall (q: H.Carrier) -> #apply{#backward{isomorphism}} (#apply{#forward{isomorphism}} q) = q := #leftInverse{isomorphism};
+  \definition rightInverse: \forall (q: Z2.Carrier) -> #apply{#forward{isomorphism}} (#apply{#backward{isomorphism}} q) = q := #rightInverse{isomorphism};
+  \module Coefficients;
+}
+\module Extensions;

@@ -1,0 +1,138 @@
+\import \parent.\parent.\parent.Twisted[t := t] \as Middle;
+\import \parent.\parent.\parent.\parent.Of[M := B, P := Middle.complex] \as Resolutions;
+\definition twistLaw: Comparison.Augmented TailResolution.tailResolution p t :=
+  \bysub(Twists.Map, { t: Twists.Map \where Comparison.Augmented TailResolution.tailResolution p t }, t);
+
+\import Modules.Biproduct[V := P.family.Carrier Nat.Nat^::zero, W := Q.family.Carrier Nat.Nat^::zero, left := P.family.space Nat.Nat^::zero, right := Q.family.space Nat.Nat^::zero] \as ZeroSum;
+\import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as InclusionMaps;
+\import InclusionMaps.Composition[U := P.family.Carrier Nat.Nat^::zero, domain := P.family.space Nat.Nat^::zero] \as LeftAugmentation;
+\import ZeroSum.Copair[U := B.Carrier, target := B.space] \as Copair;
+\definition leftAugmentation: Modules.Hom[V := P.family.Carrier Nat.Nat^::zero, W := B.Carrier, source := P.family.space Nat.Nat^::zero, target := B.space].Map :=
+  LeftAugmentation.compose sequence.inclusion (#augmentation{p});
+\definition augmentation: Resolutions.Data := Resolutions.Data { augmentation := Copair.copair leftAugmentation s };
+\module At(n: Nat.Nat^) {
+  \import Modules.ProjectiveLaws[].Biproduct[P := LeftResolution.term n, Q := RightResolution.term n] \as Projectivity;
+  \definition projective: Modules.Projective (Resolutions.term n) := Projectivity.projective (#projective{p} n) (#projective{q} n);
+}
+\import Modules.Hom[V := ZeroSum.Carrier, W := B.Carrier, source := ZeroSum.space, target := B.space] \as AugmentationMaps;
+\import Modules.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space] \as ProjectionMaps;
+\import Modules.Laws[V := B.Carrier, space := B.space] \as MiddleLaws;
+\import algebra.Group[].Of[Carrier := B.Carrier, group := MiddleLaws.additive] \as MiddleGroup;
+\import Modules.Laws[V := C.Carrier, space := C.space] \as LastLaws;
+\import algebra.Group[].Of[Carrier := C.Carrier, group := LastLaws.additive] \as LastGroup;
+\definition projectionAugmentation: \forall (x: ZeroSum.Carrier) ->
+  #apply{sequence.projection} (#apply{#augmentation{augmentation}} x) = #apply{#augmentation{q}} (ZeroSum.second x) :=
+  \fun (x: ZeroSum.Carrier) => trans!{C.Carrier} _ _ _
+    (#addition{sequence.projection} (#apply{sequence.inclusion} (#apply{#augmentation{p}} (ZeroSum.first x))) (#apply{s} (ZeroSum.second x)))
+    (trans!{C.Carrier} _ _ _
+      (congr2!{C.Carrier C.Carrier C.Carrier} (#add{C.space}) _ _ _ _ (#zero{sequence} (#apply{#augmentation{p}} (ZeroSum.first x))) (liftLaw (ZeroSum.second x)))
+      (LastGroup.zeroLeft (#apply{#augmentation{q}} (ZeroSum.second x))));
+\definition onto: Modules.Surjective (Resolutions.term Nat.Nat^::zero) B (#augmentation{augmentation}) := \block {
+  \fun (b: B.Carrier) \then
+  \takefrom y: \Cast[Q.family.Carrier Nat.Nat^::zero] ({ y: Q.family.Carrier Nat.Nat^::zero \where #apply{#augmentation{q}} y = #apply{sequence.projection} b }) \by #onto{q} (#apply{sequence.projection} b) \then
+  \let killed: #apply{sequence.projection} (MiddleGroup.difference b (#apply{s} y)) = #zero{C.space} :=
+    trans!{C.Carrier} _ _ _ (ProjectionMaps.differencePreserved sequence.projection b (#apply{s} y))
+      (trans!{C.Carrier} _ _ _
+        (congr!{C.Carrier C.Carrier} (LastGroup.difference (#apply{sequence.projection} b)) _ _
+          (trans!{C.Carrier} _ _ _ (liftLaw y) (\bysub(Q.family.Carrier Nat.Nat^::zero, { y: Q.family.Carrier Nat.Nat^::zero \where #apply{#augmentation{q}} y = #apply{sequence.projection} b }, y))))
+        (LastGroup.inverseRight (#apply{sequence.projection} b))) \then
+  \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{sequence.inclusion} a = MiddleGroup.difference b (#apply{s} y) }) \by #kernelImage{sequence} (MiddleGroup.difference b (#apply{s} y)) killed \then
+  \takefrom x: \Cast[P.family.Carrier Nat.Nat^::zero] ({ x: P.family.Carrier Nat.Nat^::zero \where #apply{#augmentation{p}} x = a }) \by #onto{p} a \then
+  \return \exact(\into[ZeroSum.Carrier](ZeroSum.make x y, { z: ZeroSum.Carrier \where #apply{#augmentation{augmentation}} z = b }) \by {
+    trans!{B.Carrier} _ _ _
+      (congr!{B.Carrier B.Carrier} (\fun (v: B.Carrier) => #add{B.space} v (#apply{s} y)) _ _
+        (trans!{B.Carrier} _ _ _
+          (congr!{A.Carrier B.Carrier} (#apply{sequence.inclusion}) _ _ (\bysub(P.family.Carrier Nat.Nat^::zero, { x: P.family.Carrier Nat.Nat^::zero \where #apply{#augmentation{p}} x = a }, x)))
+          (\bysub(A.Carrier, { a: A.Carrier \where #apply{sequence.inclusion} a = MiddleGroup.difference b (#apply{s} y) }, a))))
+      (MiddleGroup.addDifference b (#apply{s} y))
+  }, \Cast[ZeroSum.Carrier] ({ z: ZeroSum.Carrier \where #apply{#augmentation{augmentation}} z = b }))
+};
+
+\import Modules.Hom[V := P.family.Carrier Nat.Nat^::zero, W := B.Carrier, source := P.family.space Nat.Nat^::zero, target := B.space] \as LeftAugmentationMaps;
+\import Modules.Laws[V := P.family.Carrier Nat.Nat^::zero, space := P.family.space Nat.Nat^::zero] \as FirstLaws;
+\import algebra.Group[].Of[Carrier := P.family.Carrier Nat.Nat^::zero, group := FirstLaws.additive] \as FirstGroup;
+\definition twistAugmentation: \forall (y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) ->
+  #apply{leftAugmentation} (#apply{t} Nat.Nat^::zero y) = #neg{B.space} (#apply{s} (#apply{Q.differential} Nat.Nat^::zero y)) :=
+  \fun (y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => trans!{B.Carrier} _ _ _
+    (congr!{A.Carrier B.Carrier} (#apply{sequence.inclusion}) _ _ (twistLaw y))
+    (trans!{B.Carrier} _ _ _ (InclusionMaps.negativePreserved sequence.inclusion (#apply{coefficient} (#apply{Syzygy.projection} y)))
+      (congr!{B.Carrier B.Carrier} (#neg{B.space}) _ _ (coefficientLaw (#apply{Syzygy.projection} y))));
+\definition leftKilled: \forall (x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) ->
+  #apply{leftAugmentation} (#apply{P.differential} Nat.Nat^::zero x) = #zero{B.space} :=
+  \fun (x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => trans!{B.Carrier} _ _ _
+    (congr!{A.Carrier B.Carrier} (#apply{sequence.inclusion}) _ _ (#killed{p} x)) (InclusionMaps.zeroPreserved sequence.inclusion);
+\definition differentialAugmentation: \forall (x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero))(y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) ->
+  #apply{leftAugmentation} (#add{(P.family.space Nat.Nat^::zero)} (#apply{P.differential} Nat.Nat^::zero x) (#apply{t} Nat.Nat^::zero y)) =
+    #neg{B.space} (#apply{s} (#apply{Q.differential} Nat.Nat^::zero y)) :=
+  \fun (x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero))(y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) =>
+    trans!{B.Carrier} _ _ _ (#addition{leftAugmentation} (#apply{P.differential} Nat.Nat^::zero x) (#apply{t} Nat.Nat^::zero y))
+      (trans!{B.Carrier} _ _ _
+        (congr2!{B.Carrier B.Carrier B.Carrier} (#add{B.space}) _ _ _ _ (leftKilled x) (twistAugmentation y))
+        (MiddleGroup.zeroLeft (#neg{B.space} (#apply{s} (#apply{Q.differential} Nat.Nat^::zero y)))));
+\import Modules.Biproduct[V := P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), W := Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), left := P.family.space (Nat.Nat^::succ Nat.Nat^::zero), right := Q.family.space (Nat.Nat^::succ Nat.Nat^::zero)] \as OneSum;
+\definition killed: \forall (z: OneSum.Carrier) ->
+  #apply{#augmentation{augmentation}} (#apply{Middle.complex.differential} Nat.Nat^::zero z) = #zero{B.space} :=
+  \fun (z: OneSum.Carrier) => trans!{B.Carrier} _ _ _
+    (congr!{B.Carrier B.Carrier} (\fun (v: B.Carrier) => #add{B.space} v (#apply{s} (#apply{Q.differential} Nat.Nat^::zero (OneSum.second z)))) _ _
+      (differentialAugmentation (OneSum.first z) (OneSum.second z)))
+    (MiddleGroup.inverseLeft (#apply{s} (#apply{Q.differential} Nat.Nat^::zero (OneSum.second z))));
+\definition correctionAugmentation: \forall (x: P.family.Carrier Nat.Nat^::zero)(y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) ->
+  #apply{leftAugmentation} (FirstGroup.difference x (#apply{t} Nat.Nat^::zero y)) = #add{B.space} (#apply{leftAugmentation} x) (#apply{s} (#apply{Q.differential} Nat.Nat^::zero y)) :=
+  \fun (x: P.family.Carrier Nat.Nat^::zero)(y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) => trans!{B.Carrier} _ _ _
+    (LeftAugmentationMaps.differencePreserved leftAugmentation x (#apply{t} Nat.Nat^::zero y))
+    (trans!{B.Carrier} _ _ _
+      (congr!{B.Carrier B.Carrier} (MiddleGroup.difference (#apply{leftAugmentation} x)) _ _ (twistAugmentation y))
+      (congr!{B.Carrier B.Carrier} (#add{B.space} (#apply{leftAugmentation} x)) _ _ (MiddleGroup.negNeg (#apply{s} (#apply{Q.differential} Nat.Nat^::zero y)))));
+\definition correctionClosed: \forall (z: ZeroSum.Carrier)(y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)) ->
+  #apply{#augmentation{augmentation}} z = #zero{B.space} -> #apply{Q.differential} Nat.Nat^::zero y = ZeroSum.second z ->
+  #apply{#augmentation{p}} (FirstGroup.difference (ZeroSum.first z) (#apply{t} Nat.Nat^::zero y)) = #zero{A.space} :=
+  \fun (z: ZeroSum.Carrier)(y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero))(closed: _)(boundary: _) =>
+    #injective{sequence} (#apply{#augmentation{p}} (FirstGroup.difference (ZeroSum.first z) (#apply{t} Nat.Nat^::zero y))) (#zero{A.space})
+      (trans!{B.Carrier} _ _ _ (correctionAugmentation (ZeroSum.first z) y)
+        (trans!{B.Carrier} _ _ _
+          (congr!{B.Carrier B.Carrier} (#add{B.space} (#apply{leftAugmentation} (ZeroSum.first z))) _ _
+            (congr!{{Q.family.Carrier Nat.Nat^::zero} B.Carrier} (#apply{s}) _ _ boundary))
+          (trans!{B.Carrier} _ _ _ closed (sym!{B.Carrier} _ _ (InclusionMaps.zeroPreserved sequence.inclusion)))));
+\import std.Data[].Pair[].Prop[A := P.family.Carrier Nat.Nat^::zero, B := Q.family.Carrier Nat.Nat^::zero] \as ZeroPairs;
+\definition augmentationExact: \forall (z: ZeroSum.Carrier) -> #apply{#augmentation{augmentation}} z = #zero{B.space} ->
+  \exists { w: OneSum.Carrier \where #apply{Middle.complex.differential} Nat.Nat^::zero w = z } := \block {
+  \fun (z: ZeroSum.Carrier)(closed: _) \then
+  \let rightClosed: #apply{#augmentation{q}} (ZeroSum.second z) = #zero{C.space} :=
+    trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (projectionAugmentation z))
+      (trans!{C.Carrier} _ _ _ (congr!{B.Carrier C.Carrier} (#apply{sequence.projection}) _ _ closed) (ProjectionMaps.zeroPreserved sequence.projection)) \then
+  \takefrom y: \Cast[Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)] ({ y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{Q.differential} Nat.Nat^::zero y = ZeroSum.second z }) \by #augmentationExact{q} (ZeroSum.second z) rightClosed \then
+  \let boundary: #apply{Q.differential} Nat.Nat^::zero y = ZeroSum.second z :=
+    \bysub(Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), { y: Q.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{Q.differential} Nat.Nat^::zero y = ZeroSum.second z }, y) \then
+  \takefrom x: \Cast[P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)] ({ x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{P.differential} Nat.Nat^::zero x = FirstGroup.difference (ZeroSum.first z) (#apply{t} Nat.Nat^::zero y) })
+    \by #augmentationExact{p} (FirstGroup.difference (ZeroSum.first z) (#apply{t} Nat.Nat^::zero y)) (correctionClosed z y closed boundary) \then
+  \return \exact(\into[OneSum.Carrier](OneSum.make x y, { w: OneSum.Carrier \where #apply{Middle.complex.differential} Nat.Nat^::zero w = z }) \by {
+    ZeroPairs.ext (#apply{Middle.complex.differential} Nat.Nat^::zero (OneSum.make x y)) z
+      (trans!{{P.family.Carrier Nat.Nat^::zero}} _ _ _
+        (congr!{{P.family.Carrier Nat.Nat^::zero} {P.family.Carrier Nat.Nat^::zero}}
+          (\fun (v: P.family.Carrier Nat.Nat^::zero) => #add{(P.family.space Nat.Nat^::zero)} v (#apply{t} Nat.Nat^::zero y)) _ _
+          (\bysub(P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), { x: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{P.differential} Nat.Nat^::zero x = FirstGroup.difference (ZeroSum.first z) (#apply{t} Nat.Nat^::zero y) }, x)))
+        (FirstGroup.addDifference (ZeroSum.first z) (#apply{t} Nat.Nat^::zero y))) boundary
+  }, \Cast[OneSum.Carrier] ({ w: OneSum.Carrier \where #apply{Middle.complex.differential} Nat.Nat^::zero w = z }))
+};
+\module Exact(n: Nat.Nat^);
+
+\definition laws: Resolutions.Laws[augmentation] := Resolutions.Laws[augmentation] {
+  projective := \fun (n: Nat.Nat^) => At[n := n].projective,
+  onto := onto, killed := killed, augmentationExact := augmentationExact,
+  exact := \fun (n: Nat.Nat^) => Exact[n := n].exact,
+};
+\definition complex: Chains.Complex := Middle.complex;
+\definition resolution: Resolutions.Resolution := \into[Resolutions.Data](augmentation, { data: Resolutions.Data \where Resolutions.Laws[data] }) \by { laws };
+\definition inclusion: Chains.Map[C := P, D := complex].Map := Middle.inclusion;
+\definition projection: Chains.Map[C := complex, D := Q].Map := Middle.projection;
+\definition degreeSequence(n: Nat.Nat^): Modules.ShortExact[A := LeftResolution.term n, B := Resolutions.term n, C := RightResolution.term n].Sequence := Middle.At[n := n].sequence;
+\definition section: \forall (n: Nat.Nat^) -> Modules.MapBetween (RightResolution.term n) (Resolutions.term n) :=
+  \fun (n: Nat.Nat^) => Middle.At[n := n].section;
+\definition splits: \forall (n: Nat.Nat^)(x: Q.family.Carrier n) -> #apply{projection} n (#apply{(section n)} x) = x :=
+  \fun (n: Nat.Nat^) => Middle.At[n := n].splitting;
+\definition inclusionAugmented: \forall (x: P.family.Carrier Nat.Nat^::zero) ->
+  #apply{#augmentation{resolution}} (#apply{inclusion} Nat.Nat^::zero x) = #apply{sequence.inclusion} (#apply{#augmentation{p}} x) :=
+  Copair.onLeft leftAugmentation s;
+\definition projectionAugmented: \forall (x: family.Carrier Nat.Nat^::zero) ->
+  #apply{#augmentation{q}} (#apply{projection} Nat.Nat^::zero x) = #apply{sequence.projection} (#apply{#augmentation{resolution}} x) :=
+  \fun (x: family.Carrier Nat.Nat^::zero) => sym!{C.Carrier} _ _ (projectionAugmentation x);

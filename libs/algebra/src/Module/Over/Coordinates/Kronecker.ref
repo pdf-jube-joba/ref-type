@@ -1,0 +1,47 @@
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\structure ValueLaws[i, j: I, value: R]: \Prop {
+  equal: i = j -> value = one,
+  different: Logic.Not (i = j) -> value = zero,
+}
+\definition Value(i, j: I): \Set := \Cast[R] ({ value: R \where ValueLaws[i, j, value] });
+\definition existence: \forall (i, j: I) -> \exists Value i j :=
+  \fun (i, j: I) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {\exists Value i j}
+    "lt:" {\fun (equal: _) => \exact(\into[R](one, Value i j) \by {
+      ValueLaws[i, j, one] {
+        equal := \fun (same: _) => \refl(one),
+        different := \fun (different: _) => Logic.falseElim (one = zero) (different equal),
+      }
+    }, Value i j)}
+    "rt:" {\fun (different: _) => \exact(\into[R](zero, Value i j) \by {
+      ValueLaws[i, j, zero] {
+        equal := \fun (equal: _) => Logic.falseElim (zero = one) (different equal),
+        different := \fun (other: _) => \refl(zero),
+      }
+    }, Value i j)}} (Classical.excludedMiddle (i = j));
+\definition uniqueness: \forall (i, j: I) (u, v: Value i j) -> u = v :=
+  \fun (i, j: I) (u, v: Value i j) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {u = v}
+    "lt:" {\fun (same: _) => trans!{R} _ _ _ (#equal{(\bysub(R, Value i j, u))} same)
+      (sym!{R} _ _ (#equal{(\bysub(R, Value i j, v))} same))}
+    "rt:" {\fun (different: _) => trans!{R} _ _ _ (#different{(\bysub(R, Value i j, u))} different)
+      (sym!{R} _ _ (#different{(\bysub(R, Value i j, v))} different))}} (Classical.excludedMiddle (i = j));
+\definition delta(i, j: I): Value i j := \choice Value i j \by { existence: existence i j, uniqueness: uniqueness i j };
+\definition equal: \forall (i, j: I) -> i = j -> delta i j = one :=
+  \fun (i, j: I) => #equal{(\bysub(R, Value i j, delta i j))};
+\definition different: \forall (i, j: I) -> Logic.Not (i = j) -> delta i j = zero :=
+  \fun (i, j: I) => #different{(\bysub(R, Value i j, delta i j))};
+\definition self: \forall (i: I) -> delta i i = one := \fun (i: I) => equal i i (\refl(i));
+\definition symmetric: \forall (i, j: I) -> delta i j = delta j i :=
+  \fun (i, j: I) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {delta i j = delta j i}
+    "lt:" {\fun (same: _) => trans!{R} _ _ _ (equal i j same) (sym!{R} _ _ (equal j i (sym!{I} _ _ same)))}
+    "rt:" {\fun (distinct: _) => trans!{R} _ _ _ (different i j distinct)
+      (sym!{R} _ _ (different j i (\fun (same: j = i) => distinct (sym!{I} _ _ same))))}} (Classical.excludedMiddle (i = j));
+\definition central: \forall (i, j: I)(a: R) -> #mul{ring} a (delta i j) = #mul{ring} (delta i j) a :=
+  \fun (i, j: I)(a: R) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {#mul{ring} a (delta i j) = #mul{ring} (delta i j) a}
+    "lt:" {\fun (same: _) => trans!{R} _ _ _
+      (trans!{R} _ _ _ (congr!{R R} (#mul{ring} a) _ _ (equal i j same)) (#rightIdentity{(#multiplicative{(#semiring{ring})})} a))
+      (sym!{R} _ _ (trans!{R} _ _ _ (congr!{R R} (\fun (r: R) => #mul{ring} r a) _ _ (equal i j same)) (#leftIdentity{(#multiplicative{(#semiring{ring})})} a)))}
+    "rt:" {\fun (distinct: _) => trans!{R} _ _ _
+      (trans!{R} _ _ _ (congr!{R R} (#mul{ring} a) _ _ (different i j distinct)) (#zeroAbsorbsRight{(#semiring{ring})} a))
+      (sym!{R} _ _ (trans!{R} _ _ _ (congr!{R R} (\fun (r: R) => #mul{ring} r a) _ _ (different i j distinct)) (#zeroAbsorbsLeft{(#semiring{ring})} a)))}}
+    (Classical.excludedMiddle (i = j));

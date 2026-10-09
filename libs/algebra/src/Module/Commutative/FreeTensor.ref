@@ -1,0 +1,79 @@
+\import Modules.Free[Generators := Generators] \as Free;
+\definition family: Modules.Family[Generators] := Modules.Family[Generators] {
+  Carrier := \fun (s: Generators) => W, space := \fun (s: Generators) => target,
+};
+\import Modules.DirectSum[Index := Generators, family := family] \as Sum;
+\import \parent.HomSpace[V := W, W := Sum.Carrier, source := target, target := Sum.space] \as Inner;
+\import Free.To[W := Inner.Carrier, target := Inner.space] \as Extend;
+\definition injections(s: Generators): Inner.Carrier := Sum.Injection[i := s].map;
+\definition extension: _ := Extend.extension injections;
+\import \parent.Tensor[V := Free.Carrier, W := W, left := Free.space, right := target] \as Tensor;
+\import Tensor.Adjunction[U := Sum.Carrier, target := Sum.space] \as IntoSum;
+\import Modules.Tensor[V := Free.Carrier, W := W, left := Free.space, right := target] \as RawTensor;
+\import RawTensor.Universal[U := Sum.Carrier, target := Sum.space] \as SumTensorUniversal;
+\import Modules.Hom[V := Tensor.Carrier, W := Sum.Carrier, source := Tensor.space, target := Sum.space] \as Forward;
+\definition forward: Forward.Map := IntoSum.uncurry extension;
+\definition forwardOnTensor: \forall (x: Free.Carrier)(y: W) -> #apply{forward} (Tensor.tensor x y) = #apply{(#apply{extension} x)} y :=
+  \fun (x: Free.Carrier)(y: W) => SumTensorUniversal.onTensor (IntoSum.values extension) (IntoSum.bilinear extension) x y;
+\definition forwardOnBasis: \forall (s: Generators)(y: W) -> #apply{forward} (Tensor.tensor (Free.generator s) y) = #apply{(injections s)} y :=
+  \fun (s: Generators)(y: W) => trans!{Sum.Carrier} _ _ _ (forwardOnTensor (Free.generator s) y)
+    (congr!{Inner.Carrier Sum.Carrier} (\fun (f: Inner.Carrier) => #apply{f} y) _ _ (Extend.onGenerator injections s));
+\import Sum.To[W := Tensor.Carrier, target := Tensor.space] \as Coproduct;
+\definition components(s: Generators): Coproduct.At[i := s].Map := Coproduct.At[i := s].Map {
+  apply := Tensor.tensor (Free.generator s),
+  addition := \fun (x, y: W) => #addRight{RawTensor.bilinear} (Free.generator s) x y,
+  scalar := \fun (a: R)(x: W) => #scaleRight{RawTensor.bilinear} a (Free.generator s) x,
+};
+\import Modules.Hom[V := Sum.Carrier, W := Tensor.Carrier, source := Sum.space, target := Tensor.space] \as Backward;
+\definition backward: Backward.Map := Coproduct.extension components;
+\definition backwardOnInjection: \forall (s: Generators)(y: W) -> #apply{backward} (#apply{(injections s)} y) = Tensor.tensor (Free.generator s) y :=
+  \fun (s: Generators)(y: W) => Coproduct.onInjection components s y;
+\import Backward.Composition[U := Tensor.Carrier, domain := Tensor.space] \as LeftComposition;
+\definition leftComposite: _ := LeftComposition.compose backward forward;
+\import Modules.End[V := Tensor.Carrier, space := Tensor.space] \as TensorEnd;
+\import Free.To[W := Tensor.Carrier, target := Tensor.space] \as FreeUniversal;
+\import Modules.Hom[V := Free.Carrier, W := Tensor.Carrier, source := Free.space, target := Tensor.space] \as FirstMaps;
+\import Modules.Hom[V := Tensor.Carrier, W := Tensor.Carrier, source := Tensor.space, target := Tensor.space].Composition[U := Free.Carrier, domain := Free.space] \as ComposeValues;
+\module At(y: W) {
+  \definition first: FirstMaps.Map := FirstMaps.Map {
+    apply := \fun (x: Free.Carrier) => Tensor.tensor x y,
+    addition := \fun (x, z: Free.Carrier) => #addLeft{RawTensor.bilinear} x z y,
+    scalar := \fun (a: R)(x: Free.Carrier) => #scaleLeft{RawTensor.bilinear} a x y,
+  };
+  \definition candidate: FirstMaps.Map := ComposeValues.compose leftComposite first;
+  \definition values(s: Generators): Tensor.Carrier := Tensor.tensor (Free.generator s) y;
+  \definition onBasis: \forall (s: Generators) -> #apply{candidate} (Free.generator s) = values s :=
+    \fun (s: Generators) => trans!{Tensor.Carrier} _ _ _
+      (congr!{Sum.Carrier Tensor.Carrier} (#apply{backward}) _ _ (forwardOnBasis s y)) (backwardOnInjection s y);
+  \definition equality: #apply{candidate} = #apply{first} := trans!{{Free.Carrier -> Tensor.Carrier}} _ _ _
+    (FreeUniversal.unique values candidate onBasis)
+    (sym!{{Free.Carrier -> Tensor.Carrier}} _ _ (FreeUniversal.unique values first (\fun (s: Generators) => \refl(values s))));
+  \definition onTensor: \forall (x: Free.Carrier) -> #apply{leftComposite} (Tensor.tensor x y) = Tensor.tensor x y :=
+    \fun (x: Free.Carrier) => congr!{{Free.Carrier -> Tensor.Carrier} Tensor.Carrier} (\fun (f: Free.Carrier -> Tensor.Carrier) => f x) _ _ equality;
+}
+\definition compositeOnTensor: \forall (x: Free.Carrier)(y: W) -> #apply{leftComposite} (Tensor.tensor x y) = Tensor.tensor x y :=
+  \fun (x: Free.Carrier)(y: W) => At[y := y].onTensor x;
+\import RawTensor.Universal[U := Tensor.Carrier, target := Tensor.space] \as TensorUniversal;
+\definition leftEquality: #apply{leftComposite} = #apply{TensorEnd.identity} := trans!{{Tensor.Carrier -> Tensor.Carrier}} _ _ _
+  (TensorUniversal.unique Tensor.tensor RawTensor.bilinear leftComposite compositeOnTensor)
+  (sym!{{Tensor.Carrier -> Tensor.Carrier}} _ _ (TensorUniversal.unique Tensor.tensor RawTensor.bilinear TensorEnd.identity
+    (\fun (x: Free.Carrier)(y: W) => \refl(Tensor.tensor x y))));
+\definition leftInverse: \forall (x: Tensor.Carrier) -> #apply{backward} (#apply{forward} x) = x :=
+  \fun (x: Tensor.Carrier) => congr!{{Tensor.Carrier -> Tensor.Carrier} Tensor.Carrier} (\fun (f: Tensor.Carrier -> Tensor.Carrier) => f x) _ _ leftEquality;
+\import Forward.Composition[U := Sum.Carrier, domain := Sum.space] \as RightComposition;
+\definition rightComposite: _ := RightComposition.compose forward backward;
+\import Sum.To[W := Sum.Carrier, target := Sum.space] \as SumUniversal;
+\import Modules.End[V := Sum.Carrier, space := Sum.space] \as SumEnd;
+\definition rightOnInjection: \forall (s: Generators)(y: W) -> #apply{rightComposite} (#apply{(injections s)} y) = #apply{(injections s)} y :=
+  \fun (s: Generators)(y: W) => trans!{Sum.Carrier} _ _ _
+    (congr!{Tensor.Carrier Sum.Carrier} (#apply{forward}) _ _ (backwardOnInjection s y)) (forwardOnBasis s y);
+\import Modules.Hom[V := Sum.Carrier, W := Sum.Carrier, source := Sum.space, target := Sum.space] \as SumMaps;
+\definition rightEquality: rightComposite = SumEnd.identity := trans!{SumMaps.Map} _ _ _
+  (SumUniversal.unique injections rightComposite rightOnInjection)
+  (sym!{SumMaps.Map} _ _ (SumUniversal.unique injections SumEnd.identity (\fun (s: Generators)(y: W) => \refl(#apply{(injections s)} y))));
+\definition rightInverse: \forall (x: Sum.Carrier) -> #apply{forward} (#apply{backward} x) = x :=
+  \fun (x: Sum.Carrier) => congr!{SumMaps.Map Sum.Carrier} (\fun (f: SumMaps.Map) => #apply{f} x) _ _ rightEquality;
+\import Modules.Isomorphism[V := Tensor.Carrier, W := Sum.Carrier, source := Tensor.space, target := Sum.space] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};

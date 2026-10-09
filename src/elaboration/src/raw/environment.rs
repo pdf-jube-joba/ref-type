@@ -278,10 +278,21 @@ pub struct CrateEnv {
     // depends only on those, not on the elaborator's context or meta assignments.
     #[serde(skip)]
     pub(crate) whnf_cache: RefCell<FxHashMap<Exp, Exp>>,
+    // Structural translation always uses nominal base zero, the root module,
+    // and a synthetic telescope determined by the immutable expression and its
+    // captures. Successful translations without metas can share their result.
+    #[serde(skip)]
+    pub(crate) structural_expressions: RefCell<FxHashMap<Exp, kernel::syntax::Expression>>,
     // Repeated declarations in an imported scope compare the same immutable
     // arguments. Retain resolved comparisons after ordinary conversion.
     #[serde(skip)]
+    pub(crate) namespace_shareability: RefCell<FxHashMap<Exp, bool>>,
+    #[serde(skip)]
     pub(crate) namespace_conversion_cache: RefCell<FxHashMap<(Exp, Exp), bool>>,
+    #[serde(skip)]
+    pub(crate) namespace_substitution_cache: RefCell<super::namespaces::SubstitutionCache>,
+    #[serde(skip)]
+    pub(crate) namespace_argument_cache: RefCell<super::namespaces::ArgumentCache>,
     symbols: Vec<String>,
     symbol_ids: HashMap<String, SymbolId>,
     modules: Vec<ModuleEnv>,
@@ -296,6 +307,7 @@ pub struct CrateEnv {
     lazy_inductives: HashMap<InductiveId, LazyInductive>,
     nominal_definitions: HashMap<DefId, super::namespaces::Specialization<DefId>>,
     nominal_inductives: HashMap<InductiveId, super::namespaces::Specialization<InductiveId>>,
+    prospective_inductives: HashMap<InductiveId, super::namespaces::Specialization<InductiveId>>,
     nominal_datatypes:
         HashMap<ProgramInductiveId, super::namespaces::Specialization<ProgramInductiveId>>,
     // Search equivalent specializations only among the same source declaration.
@@ -333,12 +345,16 @@ impl Default for CrateEnv {
 
 impl CrateEnv {
     /// Retained cache entries and distinct shared context extensions.
-    pub fn cache_counts(&self) -> [(&'static str, usize); 3] {
+    pub fn cache_counts(&self) -> [(&'static str, usize); 4] {
         let inference = self.inference_cache.borrow();
         [
             ("inference", inference.len()),
             ("context bindings", self.contexts.borrow().len()),
             ("weak heads", self.whnf_cache.borrow().len()),
+            (
+                "structural expressions",
+                self.structural_expressions.borrow().len(),
+            ),
         ]
     }
 
@@ -367,7 +383,11 @@ impl CrateEnv {
             inference_cache: Default::default(),
             contexts: Default::default(),
             whnf_cache: Default::default(),
+            structural_expressions: Default::default(),
+            namespace_shareability: Default::default(),
             namespace_conversion_cache: Default::default(),
+            namespace_substitution_cache: Default::default(),
+            namespace_argument_cache: Default::default(),
             symbols: vec![anonymous, root],
             symbol_ids,
             modules: vec![ModuleEnv::new("root".into(), None, vec![])],
@@ -381,6 +401,7 @@ impl CrateEnv {
             lazy_inductives: HashMap::new(),
             nominal_definitions: HashMap::new(),
             nominal_inductives: HashMap::new(),
+            prospective_inductives: HashMap::new(),
             nominal_datatypes: HashMap::new(),
             definition_specializations: None,
             exact_definition_specializations: HashMap::new(),
@@ -691,6 +712,13 @@ impl CrateEnv {
         Ok(definition.clone())
     }
 
+    pub(crate) fn materialized_definition(&self, id: DefId) -> Option<&DefinedConstant> {
+        self.module(id.module)
+            .definitions
+            .get(id.index as usize)?
+            .get()
+    }
+
     pub fn definition(&self, id: DefId) -> &DefinedConstant {
         self.resolve_definition(id)
             .unwrap_or_else(|error| panic!("failed to materialize definition {id:?}: {error}"))
@@ -962,22 +990,32 @@ impl CrateEnv {
             return (source, origin.source, false);
         }
         if shareable {
-            let candidates = self.definition_specializations.get_or_insert_with(|| {
+            if self.definition_specializations.is_none() {
                 let mut index: HashMap<_, Vec<_>> = HashMap::new();
                 for (&id, specialization) in &self.nominal_definitions {
-                    index.entry(specialization.source).or_default().push(id);
+                    if self.namespace_arguments_shareable(&specialization.arguments) {
+                        index.entry(specialization.source).or_default().push(id);
+                    }
                 }
-                index
-            });
-            let candidates = candidates.get(&origin.source).cloned().unwrap_or_default();
+                self.definition_specializations = Some(index);
+            }
+            let candidates = self
+                .definition_specializations
+                .as_ref()
+                .unwrap()
+                .get(&origin.source)
+                .cloned()
+                .unwrap_or_default();
             if let Some(id) = candidates.into_iter().find(|id| {
-                self.namespace_arguments_equal(&arguments, &self.nominal_definitions[id].arguments)
+                let candidate = &self.nominal_definitions[id].arguments;
+                !self.namespace_arguments_rigidly_differ(&arguments, candidate)
+                    && self.namespace_arguments_equal(&arguments, candidate)
             }) {
                 self.exact_definition_specializations.insert(exact_key, id);
                 return (source, id, false);
             }
         }
-        if let Some(index) = &mut self.definition_specializations {
+        if shareable && let Some(index) = &mut self.definition_specializations {
             index.entry(origin.source).or_default().push(id);
         }
         if shareable {
@@ -1078,11 +1116,21 @@ impl CrateEnv {
         )
     }
 
+    pub(crate) fn definition_specialization_source(&self, id: DefId) -> DefId {
+        self.nominal_definitions.get(&id).map_or_else(
+            || {
+                self.definition_origin(id)
+                    .map_or(id, |origin| origin.source)
+            },
+            |origin| origin.source,
+        )
+    }
+
     pub(crate) fn inductive_specialization_arguments(
         &self,
         id: InductiveId,
     ) -> Vec<(ModuleParamId, ModuleArgument)> {
-        self.nominal_inductives.get(&id).map_or_else(
+        self.inductive_specialization(id).map_or_else(
             || self.namespace_arguments(id.module),
             |origin| origin.arguments.clone(),
         )
@@ -1100,8 +1148,7 @@ impl CrateEnv {
 
     pub(crate) fn is_program_mirror(&self, id: InductiveId) -> bool {
         let source = self
-            .nominal_inductives
-            .get(&id)
+            .inductive_specialization(id)
             .map_or(id, |origin| origin.source);
         self.module(source.module)
             .program_inductives
@@ -1114,7 +1161,43 @@ impl CrateEnv {
         &self,
         id: InductiveId,
     ) -> Option<&super::namespaces::Specialization<InductiveId>> {
-        self.nominal_inductives.get(&id)
+        self.nominal_inductives
+            .get(&id)
+            .or_else(|| self.prospective_inductives.get(&id))
+    }
+
+    /// Conversion during namespace canonicalization may lower a referenced type
+    /// before its own reuse pass. Its original identity and substituted captures
+    /// must already be available; otherwise that lowering registers a provisional
+    /// nominal type with the caller's captures instead of the source arguments.
+    pub(crate) fn preview_lazy_inductive(
+        &mut self,
+        id: InductiveId,
+        substitutions: &[(ModuleParamId, ModuleArgument)],
+        reflected_substitutions: &[(ModuleParamId, Exp)],
+        remapping: &DeclarationRemapping,
+    ) {
+        let source = self.lazy_inductives[&id].source;
+        let origin = self
+            .inductive_specialization(source)
+            .cloned()
+            .unwrap_or_else(|| super::namespaces::Specialization {
+                source,
+                arguments: self.namespace_arguments(source.module),
+            });
+        let arguments = self.substitute_namespace_arguments(
+            &origin.arguments,
+            substitutions,
+            reflected_substitutions,
+            remapping,
+        );
+        self.prospective_inductives.insert(
+            id,
+            super::namespaces::Specialization {
+                source: origin.source,
+                arguments,
+            },
+        );
     }
 
     pub(crate) fn reuse_lazy_inductive(
@@ -1139,6 +1222,13 @@ impl CrateEnv {
             substitutions,
             reflected_substitutions,
             remapping,
+        );
+        self.prospective_inductives.insert(
+            id,
+            super::namespaces::Specialization {
+                source: origin.source,
+                arguments: arguments.clone(),
+            },
         );
         let shareable = self.namespace_arguments_shareable(&arguments);
         let exact_key = (origin.source, arguments.clone());
@@ -1165,7 +1255,10 @@ impl CrateEnv {
             });
             let candidates = candidates.get(&origin.source).cloned().unwrap_or_default();
             if let Some(id) = candidates.into_iter().find(|id| {
-                self.namespace_arguments_equal(&arguments, &self.nominal_inductives[id].arguments)
+                let candidate = &self.nominal_inductives[id].arguments;
+                !self.namespace_arguments_rigidly_differ(&arguments, candidate)
+                    && self.namespace_arguments_shareable(candidate)
+                    && self.namespace_arguments_equal(&arguments, candidate)
             }) {
                 self.exact_inductive_specializations.insert(exact_key, id);
                 return (source, id, false);
@@ -1310,7 +1403,10 @@ impl CrateEnv {
             });
             let candidates = candidates.get(&origin.source).cloned().unwrap_or_default();
             if let Some(id) = candidates.into_iter().find(|id| {
-                self.namespace_arguments_equal(&arguments, &self.nominal_datatypes[id].arguments)
+                let candidate = &self.nominal_datatypes[id].arguments;
+                !self.namespace_arguments_rigidly_differ(&arguments, candidate)
+                    && self.namespace_arguments_shareable(candidate)
+                    && self.namespace_arguments_equal(&arguments, candidate)
             }) {
                 self.exact_datatype_specializations.insert(exact_key, id);
                 return (source, id, false);
@@ -1569,6 +1665,12 @@ impl CrateEnv {
             .unwrap_or_default()
     }
 
+    pub(crate) fn namespace_has_local_context(&self, module: ModuleId) -> bool {
+        self.checking_contexts
+            .get(&module)
+            .is_some_and(|context| !context.is_empty())
+    }
+
     pub(crate) fn definition_context(&self, module: ModuleId) -> crate::raw::exp::ExpContext {
         if let Some(context) = self.checking_contexts.get(&module) {
             return context.clone();
@@ -1750,5 +1852,84 @@ mod cells {
             .into_iter()
             .map(|value| value.map_or_else(OnceCell::new, OnceCell::from))
             .collect())
+    }
+}
+
+#[cfg(test)]
+mod specialization_tests {
+    use super::*;
+    use crate::raw::{exp::ExpNode, sort::Sort};
+
+    #[test]
+    fn nested_aliases_compare_by_their_original_specialization() {
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let source = env
+            .add_definition(
+                root,
+                DefinedConstant::Pts {
+                    ty: env.arena().sort(Sort::SetKind(0)),
+                    body: env.arena().sort(Sort::Set(0)),
+                },
+            )
+            .unwrap();
+        let namespaces = env.add_modules_in_scope(root, vec![], 2).unwrap();
+        let direct = env.reserve_lazy_definition(namespaces[0], source, vec![], vec![]);
+        let nested = env.reserve_lazy_definition(namespaces[1], direct, vec![], vec![]);
+        let remapping = env.store_remapping(DeclarationRemapping::default());
+        env.add_namespace_binding(
+            root,
+            root,
+            namespaces[0],
+            vec![],
+            HashMap::from([(direct, source)]),
+            remapping,
+        );
+        env.add_namespace_binding(
+            root,
+            namespaces[0],
+            namespaces[1],
+            vec![],
+            HashMap::from([(nested, direct)]),
+            remapping,
+        );
+        // A serialized namespace graph can retain both a direct and a nested
+        // spelling of the same closed specialization. Immediate bindings differ
+        // even though the canonical declaration and arguments are identical.
+        for id in [direct, nested] {
+            env.nominal_definitions.insert(
+                id,
+                crate::raw::namespaces::Specialization {
+                    source,
+                    arguments: vec![],
+                },
+            );
+        }
+        assert_ne!(
+            env.definition_origin(direct).unwrap().source,
+            env.definition_origin(nested).unwrap().source
+        );
+        let registered = env.kernel_definitions.borrow().len();
+        assert!(env.namespace_terms_equal(
+            env.arena().alloc(ExpNode::DefinedConstant(direct)),
+            env.arena().alloc(ExpNode::DefinedConstant(nested))
+        ));
+        assert_eq!(env.kernel_definitions.borrow().len(), registered);
+        assert!(env.materialized_definition(direct).is_none());
+        assert!(env.materialized_definition(nested).is_none());
+
+        let different = env
+            .add_definition(
+                root,
+                DefinedConstant::Pts {
+                    ty: env.arena().sort(Sort::SetKind(1)),
+                    body: env.arena().sort(Sort::Set(1)),
+                },
+            )
+            .unwrap();
+        assert!(!env.namespace_terms_equal(
+            env.arena().alloc(ExpNode::DefinedConstant(direct)),
+            env.arena().alloc(ExpNode::DefinedConstant(different))
+        ));
     }
 }

@@ -1,0 +1,44 @@
+\definition sourceQ: Second (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ p) :=
+  \into[Nat.Nat^](Nat.Nat^::succ q, { r: Nat.Nat^ \where Arithmetic.add (Nat.Nat^::succ p) r = Nat.Nat^::succ (Nat.Nat^::succ n) }) \by {
+    trans!{Nat.Nat^} _ _ _ (Natural.addSuccLeft p (Nat.Nat^::succ q))
+      (congr!{Nat.Nat^ Nat.Nat^} (\fun (d: Nat.Nat^) => Nat.Nat^::succ (Nat.Nat^::succ d)) _ _ (secondDegree n p q))
+  };
+\definition sourceP: First (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ q) :=
+  \into[Nat.Nat^](Nat.Nat^::succ p, { r: Nat.Nat^ \where Arithmetic.add r (Nat.Nat^::succ q) = Nat.Nat^::succ (Nat.Nat^::succ n) }) \by { secondDegree (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ p) sourceQ };
+\definition sourceIndex: Index (Nat.Nat^::succ (Nat.Nat^::succ n)) := index (Nat.Nat^::succ (Nat.Nat^::succ n)) (Nat.Nat^::succ p) sourceQ;
+\definition horizontalQ: Second (Nat.Nat^::succ n) p := PriorStep.lowerSecond p sourceQ;
+\definition horizontalIndex: Index (Nat.Nat^::succ n) := index (Nat.Nat^::succ n) p horizontalQ;
+\definition verticalP: First (Nat.Nat^::succ n) q := PriorStep.lowerFirst q sourceP;
+\definition verticalIndex: Index (Nat.Nat^::succ n) := reverseIndex (Nat.Nat^::succ n) q verticalP;
+\definition targetIndex: Index n := index n p q;
+\import Modules.Hom[V := C.family.Carrier p q, W := Current.Carrier, source := C.family.space p q, target := Current.space] \as Injections;
+\definition injection: Injections.Map := Current.Component[i := targetIndex].injection;
+\import \parent.\parent.\parent.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as Sign;
+\import \parent.\parent.\parent.Sign[V := C.family.Carrier (Nat.Nat^::succ p) q, space := C.family.space (Nat.Nat^::succ p) q] \as VerticalSign;
+\import VerticalSign.Mapping[W := C.family.Carrier p q, target := C.family.space p q] \as Naturality;
+\definition crossValue(x: C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)): C.family.Carrier p q :=
+  #apply{(Sign.map p)} (#apply{(C.differential.vertical p q)} (#apply{(C.differential.horizontal p (Nat.Nat^::succ q))} x));
+\definition verticalAfterHorizontal: \forall (x: C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)) ->
+  #apply{NextStep.verticalTotal} (#apply{PriorStep.horizontalTotal} (#apply{(Earlier.Component[i := sourceIndex].injection)} x)) = #apply{injection} (crossValue x) :=
+  \fun (x: C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)) => trans!{Current.Carrier} _ _ _
+    (congr!{Middle.Carrier Current.Carrier} (#apply{NextStep.verticalTotal}) _ _ (PriorStep.horizontalOnInjection sourceIndex x))
+    (NextStep.verticalOnInjection horizontalIndex (#apply{(C.differential.horizontal p (Nat.Nat^::succ q))} x));
+\definition horizontalAfterVertical: \forall (x: C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)) ->
+  #apply{NextStep.horizontalTotal} (#apply{PriorStep.verticalTotal} (#apply{(Earlier.Component[i := sourceIndex].injection)} x)) = #apply{injection} (#neg{(C.family.space p q)} (crossValue x)) :=
+  \fun (x: C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)) => trans!{Current.Carrier} _ _ _
+    (congr!{Middle.Carrier Current.Carrier} (#apply{NextStep.horizontalTotal}) _ _ (PriorStep.verticalOnInjection sourceIndex x))
+    (trans!{Current.Carrier} _ _ _
+      (NextStep.horizontalOnInjection verticalIndex (#apply{(VerticalSign.map (Nat.Nat^::succ p))} (#apply{(C.differential.vertical (Nat.Nat^::succ p) q)} x)))
+      (trans!{Current.Carrier} _ _ _
+        (congr!{{C.family.Carrier p q} Current.Carrier} (#apply{injection}) _ _
+          (Naturality.naturality (C.differential.horizontal p q) (Nat.Nat^::succ p) (#apply{(C.differential.vertical (Nat.Nat^::succ p) q)} x)))
+        (trans!{Current.Carrier} _ _ _
+          (congr!{{C.family.Carrier p q} Current.Carrier} (#apply{injection}) _ _
+            (Sign.successor p (#apply{(C.differential.horizontal p q)} (#apply{(C.differential.vertical (Nat.Nat^::succ p) q)} x))))
+          (congr!{{C.family.Carrier p q} Current.Carrier} (\fun (v: C.family.Carrier p q) => #apply{injection} (#neg{(C.family.space p q)} (#apply{(Sign.map p)} v))) _ _ (#commute{C.laws} p q x)))));
+\definition antiCommutes: \forall (x: C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)) ->
+  #apply{NextStep.horizontalTotal} (#apply{PriorStep.verticalTotal} (#apply{(Earlier.Component[i := sourceIndex].injection)} x)) =
+  #neg{Current.space} (#apply{NextStep.verticalTotal} (#apply{PriorStep.horizontalTotal} (#apply{(Earlier.Component[i := sourceIndex].injection)} x))) :=
+  \fun (x: C.family.Carrier (Nat.Nat^::succ p) (Nat.Nat^::succ q)) => trans!{Current.Carrier} _ _ _ (horizontalAfterVertical x)
+    (trans!{Current.Carrier} _ _ _ (Injections.negativePreserved injection (crossValue x))
+      (congr!{Current.Carrier Current.Carrier} (#neg{Current.space}) _ _ (sym!{Current.Carrier} _ _ (verticalAfterHorizontal x))));

@@ -27,6 +27,7 @@ std = { path = "../std" }
 
 | オプション | 動作 |
 | --- | --- |
+| `--module NAME` | 指定した module・子 module と、その参照先の宣言を検証 |
 | `--parse-only` | 構文解析と外部 module・package の読み込み |
 | `--no-cache` | 永続キャッシュを読み書きせず全体を検証 |
 | `--full-check` | 全体を再検証し、検証済みの結果でキャッシュを更新 |
@@ -38,6 +39,14 @@ std = { path = "../std" }
 | `--stats` | raw / kernel のノード数などを表示 |
 | `--trace` | 実際の検証を行い、型検査・登録・簡約のログを表示 |
 | `--diagnostics compact` / `detailed` | 診断の詳しさを指定 |
+
+証明の編集時は、パッケージを入口にして module を指定できる。
+依存する宣言も検証し、同じパッケージの別の構成は検査範囲から外す。
+パッケージ全体の検査には module の指定を外す。
+
+```sh
+cargo run -p cli -- libs/homological_algebra --module homological_algebra.Resolution.Over.Uniqueness --diagnostics compact
+```
 
 キャッシュの仕組みと API は [sema](sema/README.md) を参照。
 

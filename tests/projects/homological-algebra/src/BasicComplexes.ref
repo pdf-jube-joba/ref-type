@@ -1,0 +1,41 @@
+\import std.Arithmetic[].Int[] \as I;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as Ring;
+\import std.Data[].Nat[] \as N;
+\import std.Data[].Bool[] \as B;
+\import B.Prop[] \as Bool;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.congr;
+\import algebra.Module[].Over[R := I.Int^, ring := Ring.ring] \as Modules;
+\import homological_algebra.Chain[].Over[R := I.Int^, ring := Ring.ring] \as Chains;
+\definition zero: I.Int^ := I.Int^::ofNat N.Nat^::zero;
+\definition one: I.Int^ := I.Int^::ofNat (N.Nat^::succ N.Nat^::zero);
+\definition minusOne: I.Int^ := I.Int^::negSucc N.Nat^::zero;
+\definition integers: Modules.Bundle := Modules.Bundle { Carrier := I.Int^, space := Modules.scalarModule };
+\import Chains.Zero[] \as Zero;
+\import Chains.At[C := Zero.complex, z := minusOne] \as ZeroHomology;
+\definition zeroAtMinusOne: \forall (q: ZeroHomology.Homology) -> q = ZeroHomology.zeroClass :=
+  Zero.At[z := minusOne].vanishes;
+\import Chains.Concentrated[M := integers, degree := zero] \as Point;
+\import Chains.At[C := Point.complex, z := zero] \as H0;
+\definition concentratedHomology: Modules.Isomorphism[V := I.Int^, W := H0.Homology,
+  source := Modules.scalarModule, target := H0.homologySpace].Isomorphism := Point.Center[].homologyIsomorphism;
+\definition signTag: I.Int^ -> B.Bool^ := \induction (z: I.Int^) \return B.Bool^ \with {
+  | ofNat: \fun (n: N.Nat^) => B.Bool^::false
+  | negSucc: \fun (n: N.Nat^) => B.Bool^::true
+};
+\definition different: Logic.Not (minusOne = zero) := \fun (equal: minusOne = zero) =>
+  Bool.trueNeFalse (congr!{I.Int^ B.Bool^} signTag minusOne zero equal);
+\import Chains.At[C := Point.complex, z := minusOne] \as NegativeH;
+\definition concentratedNegativeVanishes: \forall (q: NegativeH.Homology) -> q = NegativeH.zeroClass :=
+  Point.Away[z := minusOne].vanishes different;
+\import Chains.Shift[C := Point.complex] \as Shifted;
+\import Chains.At[C := Shifted.complex, z := one] \as H1;
+\definition shiftedHomology: Modules.Isomorphism[V := H0.Homology, W := H1.Homology,
+  source := H0.homologySpace, target := H1.homologySpace].Isomorphism := Shifted.Homology[k := one].isomorphism;
+\import Chains.End[C := Point.complex] \as Identity;
+\import Chains.Cone[C := Point.complex, D := Point.complex].On[f := Identity.identity] \as Cone;
+\import Chains.ConeIdentity[C := Point.complex] \as Contraction;
+\import Chains.At[C := Cone.complex, z := one] \as ConeHomology;
+\definition contractionHomology: \forall (q: ConeHomology.Homology) -> q = ConeHomology.zeroClass :=
+  Contraction.Homology[k := one].vanishes;

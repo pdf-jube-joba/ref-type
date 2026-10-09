@@ -1,0 +1,34 @@
+\import \parent.HomSpace[V := R, W := N.Carrier, source := Modules.scalarModule, target := N.space] \as Hom;
+\import Modules.Hom[V := R, W := N.Carrier, source := Modules.scalarModule, target := N.space] \as Maps;
+\definition value(a: N.Carrier): Maps.Map := Maps.Map {
+  apply := \fun (r: R) => #smul{N.space} r a,
+  addition := \fun (r, s: R) => #scalarAdd{N.space} r s a,
+  scalar := \fun (r, s: R) => #scalarAssoc{N.space} r s a,
+};
+\import Modules.Hom[V := Hom.Carrier, W := N.Carrier, source := Hom.space, target := N.space] \as Forward;
+\import Modules.Hom[V := N.Carrier, W := Hom.Carrier, source := N.space, target := Hom.space] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (f: Hom.Carrier) => #apply{f} (#one{(Ring.commutativeRingAsRing R ring)}),
+  addition := \fun (f, g: Hom.Carrier) => \refl(#add{N.space} (#apply{f} (#one{(Ring.commutativeRingAsRing R ring)})) (#apply{g} (#one{(Ring.commutativeRingAsRing R ring)}))),
+  scalar := \fun (a: R)(f: Hom.Carrier) => \refl(#smul{N.space} a (#apply{f} (#one{(Ring.commutativeRingAsRing R ring)}))),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := value,
+  addition := \fun (a, b: N.Carrier) => Maps.ext (value (#add{N.space} a b)) (#add{Hom.space} (value a) (value b))
+    (\fun (r: R) => #vectorAdd{N.space} r a b),
+  scalar := \fun (a: R)(x: N.Carrier) => Maps.ext (value (#smul{N.space} a x)) (#smul{Hom.space} a (value x))
+    (\fun (r: R) => trans!{N.Carrier} _ _ _
+      (sym!{N.Carrier} _ _ (#scalarAssoc{N.space} r a x))
+      (trans!{N.Carrier} _ _ _
+        (congr!{R N.Carrier} (\fun (s: R) => #smul{N.space} s x) _ _ (#mulCommutative{ring} r a))
+        (#scalarAssoc{N.space} a r x))),
+};
+\definition leftInverse: \forall (f: Hom.Carrier) -> #apply{backward} (#apply{forward} f) = f :=
+  \fun (f: Hom.Carrier) => Maps.ext (value (#apply{f} (#one{(Ring.commutativeRingAsRing R ring)}))) f (\fun (r: R) =>
+    trans!{N.Carrier} _ _ _ (sym!{N.Carrier} _ _ (#scalar{f} r (#one{(Ring.commutativeRingAsRing R ring)})))
+      (congr!{R N.Carrier} (#apply{f}) _ _ (#rightIdentity{(#multiplicative{(#semiring{Ring.commutativeRingAsRing R ring})})} r)));
+\definition rightInverse: \forall (a: N.Carrier) -> #apply{forward} (#apply{backward} a) = a := #scalarOne{N.space};
+\import Modules.Isomorphism[V := Hom.Carrier, W := N.Carrier, source := Hom.space, target := N.space] \as Iso;
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward, leftInverse := leftInverse, rightInverse := rightInverse,
+};

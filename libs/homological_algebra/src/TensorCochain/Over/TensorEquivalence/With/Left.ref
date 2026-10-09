@@ -1,0 +1,32 @@
+\import Cochains.Map[C := D, D := C].Composition[B := C] \as Composition;
+\definition identity: Cochains.Map[C := C, D := C].Map := Cochains.End[C := C].identity;
+\definition composed: Cochains.Map[C := C, D := C].Map := Composition.compose e.backward e.forward;
+\import \root.TensorCochain[].Over[R := R, ring := ring].HomotopyLeft[C := C, D := C, E := E].With[
+  f := identity, g := composed, h := e.left] \as Transfer;
+\import \root.TensorCochain[].Over[R := R, ring := ring].TensorIdentity[C := C, D := E] \as Identity;
+\import \root.TensorCochain[].Over[R := R, ring := ring].TensorComposition[A := C, B := D, C := C, E := E].With[
+  f := e.forward, g := e.backward] \as TensorComposition;
+\import Cochains.Map[C := Source.complex, D := Source.complex] \as Maps;
+\import Cochains.Homotopy[C := Source.complex, D := Source.complex] \as Homotopies;
+\definition endIdentity: Maps.Map := Cochains.End[C := Source.complex].identity;
+\import Cochains.Map[C := Target.complex, D := Source.complex].Composition[B := Source.complex] \as EndComposition;
+\definition endComposed: Maps.Map := EndComposition.compose Backward.total Forward.total;
+\definition data: Homotopies.Data := Transfer.homotopy;
+\definition transferLaws: Homotopies.Laws[Identity.map, TensorComposition.map, data] :=
+  \bysub(Homotopies.Data, { h: Homotopies.Data \where Homotopies.Laws[Identity.map, TensorComposition.map, h] }, Transfer.homotopy);
+\definition laws: Homotopies.Laws[endIdentity, endComposed, data] := Homotopies.Laws[endIdentity, endComposed, data] {
+  degreeZero := \fun (x: Source.family.Carrier Nat.Nat^::zero) => trans!{{Source.family.Carrier Nat.Nat^::zero}} _ _ _
+    (congr2!{{Source.family.Carrier Nat.Nat^::zero} {Source.family.Carrier Nat.Nat^::zero} {Source.family.Carrier Nat.Nat^::zero}}
+      (\fun (a, b: Source.family.Carrier Nat.Nat^::zero) => #add{(Source.family.space Nat.Nat^::zero)} a (#neg{(Source.family.space Nat.Nat^::zero)} b)) _ _ _ _
+      (sym!{{Source.family.Carrier Nat.Nat^::zero}} _ _ (Identity.Degree[n := Nat.Nat^::zero].point x))
+      (TensorComposition.Degree[n := Nat.Nat^::zero].point x))
+    (#degreeZero{transferLaws} x),
+  positive := \fun (n: Nat.Nat^)(x: Source.family.Carrier (Nat.Nat^::succ n)) => trans!{{Source.family.Carrier (Nat.Nat^::succ n)}} _ _ _
+    (congr2!{{Source.family.Carrier (Nat.Nat^::succ n)} {Source.family.Carrier (Nat.Nat^::succ n)} {Source.family.Carrier (Nat.Nat^::succ n)}}
+      (\fun (a, b: Source.family.Carrier (Nat.Nat^::succ n)) => #add{(Source.family.space (Nat.Nat^::succ n))} a (#neg{(Source.family.space (Nat.Nat^::succ n))} b)) _ _ _ _
+      (sym!{{Source.family.Carrier (Nat.Nat^::succ n)}} _ _ (Identity.Degree[n := Nat.Nat^::succ n].point x))
+      (TensorComposition.Degree[n := Nat.Nat^::succ n].point x))
+    (#positive{transferLaws} n x),
+};
+\definition homotopy: Homotopies.Homotopy endIdentity endComposed :=
+  \into[Homotopies.Data](data, { h: Homotopies.Data \where Homotopies.Laws[endIdentity, endComposed, h] }) \by { laws };

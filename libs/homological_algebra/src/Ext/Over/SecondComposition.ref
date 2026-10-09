@@ -1,0 +1,32 @@
+\import \parent.Of[M := M, N := N, P := P] \as Source;
+\import \parent.Of[M := M, N := L, P := P] \as Middle;
+\import \parent.Of[M := M, N := T, P := P] \as Target;
+\import \parent.Second[M := M, N := N, L := L, P := P] \as First;
+\import \parent.Second[M := M, N := L, L := T, P := P] \as Second;
+\import \parent.Second[M := M, N := N, L := T, P := P] \as Direct;
+\import Modules.Hom[V := N.Carrier, W := L.Carrier, source := N.space, target := L.space] \as Before;
+\import Modules.Hom[V := L.Carrier, W := T.Carrier, source := L.space, target := T.space] \as After;
+\import After.Composition[U := N.Carrier, domain := N.space] \as Coefficients;
+\import \root.HomComplex[].Over[R := R, ring := ring].On[P := P, N := N] \as SourceComplex;
+\import \root.HomComplex[].Over[R := R, ring := ring].On[P := P, N := L] \as MiddleComplex;
+\import \root.HomComplex[].Over[R := R, ring := ring].On[P := P, N := T] \as TargetComplex;
+\import \root.Cochain[].Over[R := R, ring := Ring.commutativeRingAsRing R ring] \as Cochains;
+\import Cochains.Map[C := SourceComplex.complex, D := TargetComplex.complex] \as Maps;
+\import Cochains.Map[C := MiddleComplex.complex, D := TargetComplex.complex].Composition[B := SourceComplex.complex] \as Composition;
+\definition cochainLaw: \forall (u: Before.Map)(v: After.Map) ->
+  Direct.cochainMap (Coefficients.compose v u) = Composition.compose (Second.cochainMap v) (First.cochainMap u) :=
+  \fun (u: Before.Map)(v: After.Map) =>
+    Maps.ext (Direct.cochainMap (Coefficients.compose v u)) (Composition.compose (Second.cochainMap v) (First.cochainMap u))
+      (\fun (k: Nat.Nat^)(h: SourceComplex.Carrier k) =>
+        TargetComplex.At[n := k].ext
+          (#apply{(Direct.cochainMap (Coefficients.compose v u))} k h)
+          (#apply{(Composition.compose (Second.cochainMap v) (First.cochainMap u))} k h)
+          (\fun (x: P.family.Carrier k) => \refl(#apply{v} (#apply{u} (#apply{h} x)))));
+\definition composition: \forall (u: Before.Map)(v: After.Map)(k: Nat.Nat^)(q: Source.At[n := k].Carrier) ->
+  #apply{(Direct.At[k := k].map (Coefficients.compose v u))} q =
+    #apply{(Second.At[k := k].map v)} (#apply{(First.At[k := k].map u)} q) :=
+  \fun (u: Before.Map)(v: After.Map)(k: Nat.Nat^)(q: Source.At[n := k].Carrier) =>
+    trans!{{Target.At[n := k].Carrier}} _ _ _
+      (congr!{Maps.Map {Target.At[n := k].Carrier}}
+        (\fun (f: Maps.Map) => #apply{(Maps.At[k := k].induced f)} q) _ _ (cochainLaw u v))
+      (Composition.At[k := k].compositionOnCohomology (Second.cochainMap v) (First.cochainMap u) q);

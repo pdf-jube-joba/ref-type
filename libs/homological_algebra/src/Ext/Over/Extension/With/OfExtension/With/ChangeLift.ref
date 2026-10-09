@@ -1,0 +1,40 @@
+\import \parent.Chosen[lift := first] \as First;
+\import \parent.Chosen[lift := second] \as Second;
+\import Modules.Hom[V := L.Carrier, W := E.Carrier, source := L.space, target := E.space] \as LiftMaps;
+\import Modules.Hom[V := E.Carrier, W := M.Carrier, source := E.space, target := M.space] \as ProjectionMaps;
+\import Modules.Laws[V := M.Carrier, space := M.space] \as Right;
+\import algebra.Group[].Of[Carrier := M.Carrier, group := Right.additive] \as RightGroup;
+\definition difference: LiftMaps.Map := LiftMaps.plus first (LiftMaps.negative second);
+\definition firstAugmented: \forall (x: L.Carrier) -> #apply{s.projection} (#apply{first} x) = #apply{#augmentation{resolution}} x :=
+  \bysub(Modules.MapBetween L E, { f: Modules.MapBetween L E \where \forall (x: L.Carrier) ->
+    #apply{s.projection} (#apply{f} x) = #apply{#augmentation{resolution}} x }, first);
+\definition secondAugmented: \forall (x: L.Carrier) -> #apply{s.projection} (#apply{second} x) = #apply{#augmentation{resolution}} x :=
+  \bysub(Modules.MapBetween L E, { f: Modules.MapBetween L E \where \forall (x: L.Carrier) ->
+    #apply{s.projection} (#apply{f} x) = #apply{#augmentation{resolution}} x }, second);
+\definition closed: \forall (x: L.Carrier) -> #apply{s.projection} (#apply{difference} x) = #zero{M.space} :=
+  \fun (x: L.Carrier) => trans!{M.Carrier} _ _ _ (ProjectionMaps.differencePreserved s.projection (#apply{first} x) (#apply{second} x))
+    (trans!{M.Carrier} _ _ _ (congr2!{M.Carrier M.Carrier M.Carrier} RightGroup.difference _ _ _ _ (firstAugmented x) (secondAugmented x))
+      (RightGroup.inverseRight (#apply{#augmentation{resolution}} x)));
+\import Modules.Hom[V := L.Carrier, W := EKernel.Carrier, source := L.space, target := EKernel.space] \as KernelMaps;
+\definition mapIntoKernel: KernelMaps.Map := KernelMaps.Map {
+  apply := \fun (x: L.Carrier) => \into[E.Carrier](#apply{difference} x, #carrier{EKernel.kernel}) \by { closed x },
+  addition := #addition{difference}, scalar := #scalar{difference},
+};
+\import Modules.Hom[V := EKernel.Carrier, W := N.Carrier, source := EKernel.space, target := N.space].Composition[U := L.Carrier, domain := L.space] \as Composition;
+\definition correction: Generators.Carrier := Composition.compose EKernel.backward mapIntoKernel;
+\definition onCorrection: \forall (x: L.Carrier) -> #apply{s.inclusion} (#apply{correction} x) = #apply{difference} x :=
+  \fun (x: L.Carrier) => EKernel.onKernel (#apply{mapIntoKernel} x);
+\import Modules.Hom[V := N.Carrier, W := E.Carrier, source := N.space, target := E.space] \as Inclusions;
+\import Modules.Laws[V := E.Carrier, space := E.space] \as Middle;
+\import algebra.Group[].Of[Carrier := E.Carrier, group := Middle.additive] \as MiddleGroup;
+\definition restrictionEquality: precompose correction = RelationMaps.plus First.relation (RelationMaps.negative Second.relation) :=
+  RelationMaps.ext (precompose correction) (RelationMaps.plus First.relation (RelationMaps.negative Second.relation))
+    (\fun (x: K.Carrier) => #injective{s} (#apply{correction} x) (#apply{(RelationMaps.plus First.relation (RelationMaps.negative Second.relation))} x)
+      (trans!{E.Carrier} _ _ _ (onCorrection x)
+        (trans!{E.Carrier} _ _ _
+          (congr2!{E.Carrier E.Carrier E.Carrier} MiddleGroup.difference _ _ _ _
+            (sym!{E.Carrier} _ _ (First.onKernel x)) (sym!{E.Carrier} _ _ (Second.onKernel x)))
+          (sym!{E.Carrier} _ _ (Inclusions.differencePreserved s.inclusion (#apply{First.relation} x) (#apply{Second.relation} x))))));
+\definition relationDifference: RelationSubmodules.Member extensions (RelationMaps.plus First.relation (RelationMaps.negative Second.relation)) :=
+  Images.introduce restriction (RelationMaps.plus First.relation (RelationMaps.negative Second.relation)) correction restrictionEquality;
+\definition classEquality: First.class = Second.class := Quotient.classRelated First.relation Second.relation relationDifference;

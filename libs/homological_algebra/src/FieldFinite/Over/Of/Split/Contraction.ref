@@ -1,0 +1,36 @@
+\module Step(n: N.Nat^) {
+  \import \parent.\parent.\parent.At[n := n].Outgoing[] \as Out;
+  \import \parent.\parent.Remainder[n := N.Nat^::succ n] \as Next;
+  \import Modules.Hom[V := Out.target.Carrier, W := Out.source.Carrier, source := Out.target.space, target := Out.source.space].Composition[
+    U := Carrier (C.ranks (N.Nat^::succ n)), domain := space (C.ranks (N.Nat^::succ n))] \as Compose;
+  \definition map: Modules.Hom[V := Carrier (C.ranks (N.Nat^::succ n)), W := Carrier (C.ranks n),
+    source := space (C.ranks (N.Nat^::succ n)), target := space (C.ranks n)].Map := Compose.compose #outgoing{(d n)} Next.ambient;
+  \definition differentiates: \forall (x: Carrier (C.ranks (N.Nat^::succ n))) ->
+    #apply{(C.differential n)} (#apply{map} x) = #apply{Next.ambient} x :=
+    \fun (x: Carrier (C.ranks (N.Nat^::succ n))) => #differentiates{(d n)} (#apply{Next.ambient} x);
+  \definition onDifferential: \forall (x: Carrier (C.ranks n)) ->
+    #apply{map} (#apply{(C.differential n)} x) = #apply{#outgoing{(d n)}} (#apply{Out.differential} x) :=
+    \fun (x: Carrier (C.ranks n)) => congr!{Out.target.Carrier Out.source.Carrier} (#apply{#outgoing{(d n)}})
+      (#apply{Next.ambient} (#apply{(C.differential n)} x)) (#apply{Out.differential} x)
+      (Next.onAmbientBoundary (#apply{Out.differential} x));
+}
+\import Cochains.Map[C := complex, D := complex] \as EndMaps;
+\import Inclusions.Composition[B := complex] \as Composition;
+\definition projectionInclusion: EndMaps.Map := Composition.compose inclusion projection;
+\definition identity: EndMaps.Map := Cochains.End[C := complex].identity;
+\import Cochains.Homotopy[C := complex, D := complex] \as Homotopies;
+\definition data: Homotopies.Data := \fun (n: N.Nat^) => Step[n := n].map;
+\module Degree(n: N.Nat^);
+\module Zero;
+\definition homotopy: Homotopies.Homotopy identity projectionInclusion :=
+  \into[Homotopies.Data](data, { h: Homotopies.Data \where Homotopies.Laws[identity, projectionInclusion, h] }) \by {
+    Homotopies.Laws[identity, projectionInclusion, data] {
+      degreeZero := Zero[].equality,
+      positive := \fun (n: N.Nat^)(x: Carrier (C.ranks (N.Nat^::succ n))) => trans!{{Carrier (C.ranks (N.Nat^::succ n))}} _ _ _
+        (Degree[n := N.Nat^::succ n].decomposition x)
+        (congr2!{{Carrier (C.ranks (N.Nat^::succ n))} {Carrier (C.ranks (N.Nat^::succ n))} {Carrier (C.ranks (N.Nat^::succ n))}}
+          (#add{(space (C.ranks (N.Nat^::succ n)))}) _ _ _ _
+          (sym!{{Carrier (C.ranks (N.Nat^::succ n))}} _ _ (Step[n := n].differentiates x))
+          (sym!{{Carrier (C.ranks (N.Nat^::succ n))}} _ _ (Step[n := N.Nat^::succ n].onDifferential x))),
+    }
+  };

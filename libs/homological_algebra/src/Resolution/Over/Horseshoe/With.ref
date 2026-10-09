@@ -1,0 +1,21 @@
+\import Modules.ShortExact[A := A, B := B, C := C].Kernel[sequence := sequence] \as MiddleKernel;
+\import RightResolution.Syzygy[n := Nat.Nat^::zero, resolution := q] \as Syzygy;
+\import RightTail.With[resolution := q] \as TailResolution;
+\import Modules.Hom[V := Q.family.Carrier Nat.Nat^::zero, W := B.Carrier, source := Q.family.space Nat.Nat^::zero, target := B.space] \as Lifts;
+\definition Initial(s: Lifts.Map): \Prop := \forall (x: Q.family.Carrier Nat.Nat^::zero) ->
+  #apply{sequence.projection} (#apply{s} x) = #apply{#augmentation{q}} x;
+\definition initialExistence: \exists { s: Lifts.Map \where Initial s } :=
+  #projective{q} Nat.Nat^::zero B.Carrier B.space C.Carrier C.space sequence.projection (#onto{sequence}) (#augmentation{q});
+\definition InitialLift: \Set := \Cast[Lifts.Map] ({ s: Lifts.Map \where Initial s });
+\module Lifted(s: InitialLift);
+
+\structure Construction: \Set {
+  lift: InitialLift,
+  twist: Lifted[s := lift].Twist,
+}
+\module Chosen(construction: Construction);
+\definition existence: \exists Construction := \block {
+  \takefrom s: InitialLift \by initialExistence \then
+  \takefrom t: Lifted[s := s].Twist \by Lifted[s := s].twistExistence \then
+  \return \exact(Construction { lift := s, twist := t }, Construction)
+};

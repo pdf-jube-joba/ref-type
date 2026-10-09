@@ -1,0 +1,54 @@
+\import Cochains.At[C := C, k := p] \as Left;
+\import Cochains.At[C := D, k := q] \as Right;
+\import \parent.CycleProduct[C := C, D := D, p := p, q := q] \as Exterior;
+\import \parent.RightCycleBoundary[C := C, D := D, p := p] \as Boundaries;
+\import \parent.Tensor[C := C, D := D] \as Product;
+\import \parent.Total[C := Product.complex] \as Total;
+\import Cochains.At[C := Total.complex, k := Arithmetic.add p q] \as H;
+\definition leftCycles: Modules.Bundle := Modules.Bundle { Carrier := Left.CycleCarrier, space := Left.cycleSpace };
+\definition rightCycles: Modules.Bundle := Modules.Bundle { Carrier := Right.CycleCarrier, space := Right.cycleSpace };
+\definition rightHomology: Modules.Bundle := Modules.Bundle { Carrier := Right.Cohomology, space := Right.cohomologySpace };
+\definition target: Modules.Bundle := Modules.Bundle { Carrier := H.Cohomology, space := H.cohomologySpace };
+\import Modules.Tensor[V := Left.CycleCarrier, W := Right.CycleCarrier, left := Left.cycleSpace, right := Right.cycleSpace] \as Cycles;
+\import Modules.Tensor[V := Right.CycleCarrier, W := Left.CycleCarrier, left := Right.cycleSpace, right := Left.cycleSpace] \as Reversed;
+\import Reversed.Symmetry[] \as InputSwap;
+\import Modules.Hom[V := Cycles.Carrier, W := H.Cohomology, source := Cycles.space, target := H.cohomologySpace].Composition[
+  U := Reversed.Carrier, domain := Reversed.space] \as Input;
+\definition input: Modules.Hom[V := Reversed.Carrier, W := H.Cohomology,
+  source := Reversed.space, target := H.cohomologySpace].Map := Input.compose Exterior.map InputSwap.forward;
+\definition onInput: \forall (y: Right.CycleCarrier)(x: Left.CycleCarrier) ->
+  #apply{input} (Reversed.tensor y x) = Exterior.classOf x y :=
+  \fun (y: Right.CycleCarrier)(x: Left.CycleCarrier) => trans!{H.Cohomology}
+    (#apply{input} (Reversed.tensor y x)) (#apply{Exterior.map} (Cycles.tensor x y)) (Exterior.classOf x y)
+    (congr!{Cycles.Carrier H.Cohomology} (#apply{Exterior.map}) _ _ (InputSwap.onTensor y x))
+    (Exterior.onTensor x y);
+\import Modules.TensorDescent[B := rightCycles, C := rightHomology, N := leftCycles, U := target].On[
+  q := Right.classLinear, f := input] \as Descent;
+\definition onto: Descent.Onto :=
+  Right.classInduction
+    (\fun (h: Right.Cohomology) => \exists { y: Right.CycleCarrier \where Right.classOf y = h })
+    (\fun (y: Right.CycleCarrier) => \exact(\into[Right.CycleCarrier](y,
+      { z: Right.CycleCarrier \where Right.classOf z = Right.classOf y }) \by { \refl(Right.classOf y) },
+      \Cast[Right.CycleCarrier] ({ z: Right.CycleCarrier \where Right.classOf z = Right.classOf y })));
+\definition kills: Descent.Kills :=
+  \fun (y: Right.CycleCarrier)(zero: Right.classOf y = #zero{Right.cohomologySpace})(x: Left.CycleCarrier) =>
+    trans!{H.Cohomology} (#apply{input} (Reversed.tensor y x)) (Exterior.classOf x y) #zero{H.cohomologySpace}
+      (onInput y x) (Boundaries.vanishes q x y (Right.zeroClassBoundary y zero));
+\import Modules.Tensor[V := Right.Cohomology, W := Left.CycleCarrier,
+  left := Right.cohomologySpace, right := Left.cycleSpace] \as ReversedTarget;
+\import Modules.Tensor[V := Left.CycleCarrier, W := Right.Cohomology,
+  left := Left.cycleSpace, right := Right.cohomologySpace] \as Source;
+\import Source.Symmetry[] \as OutputSwap;
+\import Modules.Hom[V := ReversedTarget.Carrier, W := H.Cohomology,
+  source := ReversedTarget.space, target := H.cohomologySpace].Composition[
+  U := Source.Carrier, domain := Source.space] \as Output;
+\definition map: Modules.Hom[V := Source.Carrier, W := H.Cohomology,
+  source := Source.space, target := H.cohomologySpace].Map := Output.compose (Descent.map onto kills) OutputSwap.forward;
+\definition onTensor: \forall (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  #apply{map} (Source.tensor x (Right.classOf y)) = Exterior.classOf x y :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{H.Cohomology}
+    (#apply{map} (Source.tensor x (Right.classOf y)))
+    (#apply{(Descent.map onto kills)} (ReversedTarget.tensor (Right.classOf y) x)) (Exterior.classOf x y)
+    (congr!{ReversedTarget.Carrier H.Cohomology} (#apply{(Descent.map onto kills)}) _ _ (OutputSwap.onTensor x (Right.classOf y)))
+    (trans!{H.Cohomology} _ _ _ (Descent.onTensor onto kills (Right.classOf y) x)
+      (trans!{H.Cohomology} _ _ _ (Descent.At[y := x].onImage onto kills y) (onInput y x)));

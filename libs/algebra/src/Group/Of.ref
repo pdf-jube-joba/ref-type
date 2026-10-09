@@ -72,3 +72,26 @@
 \definition four: \forall (a, b, c, d: Carrier) -> add (add a b) (add c d) = add (add a c) (add b d) := Sum.four;
 \definition differenceAdd(a, b, c, d: Carrier): difference (add a b) (add c d) = add (difference a c) (difference b d) :=
   trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (add (add a b)) _ _ (negAdd c d)) (four a b (neg c) (neg d));
+\definition differenceDifference: \forall (x, y: Carrier) -> difference (difference x y) x = neg y :=
+  \fun (x, y: Carrier) => eq_reason!{
+    {difference (difference x y) x}
+    "=" {add (add (neg y) x) (neg x)} "by" {congr!{Carrier Carrier} (\fun (z: Carrier) => add z (neg x)) _ _ (comm x (neg y))}
+    "=" {add (neg y) (add x (neg x))} "by" {assoc (neg y) x (neg x)}
+    "=" {add (neg y) zero} "by" {congr!{Carrier Carrier} (add (neg y)) _ _ (inverseRight x)}
+    "=" {neg y} "by" {zeroRight (neg y)}
+  };
+\definition addDifference: \forall (x, y: Carrier) -> add (difference x y) y = x :=
+  \fun (x, y: Carrier) => trans!{Carrier} _ _ _ (assoc x (neg y) y)
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (add x) _ _ (inverseLeft y)) (zeroRight x));
+\definition swapLast: \forall (x, y, z: Carrier) -> add (add x y) z = add (add x z) y :=
+  \fun (x, y, z: Carrier) => trans!{Carrier} _ _ _ (assoc x y z)
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (add x) _ _ (comm y z)) (sym!{Carrier} _ _ (assoc x z y)));
+\definition differencePlusSwap: \forall (x, y, z: Carrier) -> add (difference (difference x y) z) y = difference x z :=
+  \fun (x, y, z: Carrier) => trans!{Carrier} _ _ _ (swapLast (difference x y) (neg z) y)
+    (congr!{Carrier Carrier} (\fun (v: Carrier) => difference v z) _ _ (addDifference x y));
+\definition subtractDifference: \forall (x, y: Carrier) -> difference x (difference x y) = y :=
+  \fun (x, y: Carrier) => trans!{Carrier} _ _ _
+    (congr!{Carrier Carrier} (add x) _ _ (negAdd x (neg y)))
+    (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (v: Carrier) => add x (add (neg x) v)) _ _ (negNeg y))
+      (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (assoc x (neg x) y))
+        (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (v: Carrier) => add v y) _ _ (inverseRight x)) (zeroLeft y))));

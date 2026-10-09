@@ -1,0 +1,34 @@
+\module Degree(n: Nat.Nat^) {
+  \definition family: Modules.Family[Index n] := Modules.Family[Index n] {
+    Carrier := \fun (i: Index n) => C.family.Carrier #first{i} #second{i},
+    space := \fun (i: Index n) => C.family.space #first{i} #second{i},
+  };
+  \import Modules.DirectSum[Index := Index n, family := family] \as Sum;
+  \definition Carrier: \Set := Sum.Carrier;
+  \definition space: Modules.Space Carrier := Sum.space;
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+  \module Component(i: Index n) {
+    \definition injection: Modules.Hom[V := C.family.Carrier #first{i} #second{i}, W := Carrier, source := C.family.space #first{i} #second{i}, target := space].Map := Sum.Injection[i := i].map;
+  }
+}
+\module Step(n: Nat.Nat^);
+\import \root.NonnegativeChain[].Over[R := R, ring := ring] \as Nonnegative;
+\definition Carrier(n: Nat.Nat^): \Set := Degree[n := n].Carrier;
+\definition space(n: Nat.Nat^): Modules.Space (Carrier n) := Degree[n := n].space;
+\definition family: Nonnegative.Family := Nonnegative.Family { Carrier := Carrier, space := space };
+\definition differential: Nonnegative.DifferentialData[family] := Nonnegative.DifferentialData[family] {
+  apply := \fun (n: Nat.Nat^) => #apply{(Step[n := n].differential)},
+};
+\definition addition: \forall (n: Nat.Nat^)(x, y: Carrier (Nat.Nat^::succ n)) ->
+  #apply{differential} n (#add{(space (Nat.Nat^::succ n))} x y) = #add{(space n)} (#apply{differential} n x) (#apply{differential} n y) :=
+  \fun (n: Nat.Nat^) => #addition{(Step[n := n].differential)};
+\definition scalar: \forall (n: Nat.Nat^)(r: R)(x: Carrier (Nat.Nat^::succ n)) ->
+  #apply{differential} n (#smul{(space (Nat.Nat^::succ n))} r x) = #smul{(space n)} r (#apply{differential} n x) :=
+  \fun (n: Nat.Nat^) => #scalar{(Step[n := n].differential)};
+\module Square(n: Nat.Nat^);
+\definition squareZero: \forall (n: Nat.Nat^)(x: Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) -> #apply{differential} n (#apply{differential} (Nat.Nat^::succ n) x) = #zero{(space n)} :=
+  \fun (n: Nat.Nat^) => Square[n := n].zero;
+\definition complex: Nonnegative.Complex := Nonnegative.Complex {
+  family := family, differential := differential,
+  laws := Nonnegative.DifferentialLaws[family, differential] { addition := addition, scalar := scalar, squareZero := squareZero },
+};

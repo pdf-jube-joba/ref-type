@@ -1,0 +1,25 @@
+\import Straighten.With[sections := sections, h := h] \as Straight;
+\definition middle: Chains.Map[C := source.middleComplex, D := target.middleComplex].Map := Straight.middle;
+\definition right: Chains.Map[C := source.rightComplex, D := target.rightComplex].Map := c;
+\definition left(splits: Splits sections): Chains.Map[C := source.leftComplex, D := target.leftComplex].Map := Straight.left splits;
+\import Straight.Augmentation[M := target.middle, augmentation := #augmentation{target.middleResolution}] \as Augmentation;
+\definition augmentedMiddle: MiddleComparison.Augmented source.middleResolution target.middleResolution middle :=
+  \fun (x: source.middleComplex.family.Carrier Nat.Nat^::zero) => trans!{target.middle.Carrier} _ _ _
+    (Augmentation.preserved #killed{target.middleResolution} x) (middleAugmented x);
+\import Resolutions.Comparison[M := source.left, N := target.left, P := source.leftComplex, Q := target.leftComplex, f := #left{f}] \as LeftComparison;
+\definition augmentedLeft: \forall (splits: Splits sections) -> LeftComparison.Augmented source.leftResolution target.leftResolution (left splits) :=
+  \fun (splits: Splits sections)(x: source.leftComplex.family.Carrier Nat.Nat^::zero) => #injective{target.sequence} _ _
+    (trans!{target.middle.Carrier} _ _ _
+      (sym!{target.middle.Carrier} _ _ (target.leftAugmented (#apply{(left splits)} Nat.Nat^::zero x)))
+      (trans!{target.middle.Carrier} _ _ _
+        (congr!{{target.middleComplex.family.Carrier Nat.Nat^::zero} target.middle.Carrier} (#apply{#augmentation{target.middleResolution}}) _ _
+          (sym!{{target.middleComplex.family.Carrier Nat.Nat^::zero}} _ _ (#left{(Straight.diagram splits)} Nat.Nat^::zero x)))
+        (trans!{target.middle.Carrier} _ _ _ (augmentedMiddle (#apply{source.chainSequence.inclusion} Nat.Nat^::zero x))
+          (trans!{target.middle.Carrier} _ _ _
+            (congr!{source.middle.Carrier target.middle.Carrier} (#apply{#middle{f}}) _ _ (source.leftAugmented x))
+            (#left{laws} (#apply{#augmentation{source.leftResolution}} x))))));
+\definition diagram: \forall (splits: Splits sections) -> Chains.ShortExact[A := source.leftComplex, B := source.middleComplex, C := source.rightComplex].Morphism[
+  A1 := target.leftComplex, B1 := target.middleComplex, C1 := target.rightComplex].Diagram[
+    s := source.chainSequence, t := target.chainSequence, a := left splits, b := middle, c := right].Commutative :=
+  \fun (splits: Splits sections) => Straight.diagram splits;
+\definition middleHomotopy: Chains.Homotopy[C := source.middleComplex, D := target.middleComplex].Homotopy b middle := Straight.homotopy;

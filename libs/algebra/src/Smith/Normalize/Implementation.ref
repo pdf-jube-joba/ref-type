@@ -1,0 +1,28 @@
+\definition T: \VType := \U(N.Nat -> Runtime -> History -> Attempt);
+\definition program: T := \thunk (\cfun (count: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (history: History) => \program {
+  \bind start: \U(Cursor -> N.Nat -> Cursor) <- (\force NativeIteration.Iterate.program) Step.program \then
+  \bind iterate: \U(N.Nat -> Cursor) <- (\force start) (Cursor::cursor N.Nat::zero (Attempt::attempt a history B.Bool::false)) \then
+  \bind cursor: Cursor <- (\force iterate) count \then
+  \bind result: Attempt <- (\force Pass.Reader.program) cursor \then
+  \return result
+})))));
+\definition read(count: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+  Pass.cursorAttempt (NativeIteration.Iterate.program^ Step.program^ (initial a history) count);
+\definition iterated(count: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+  Pass.cursorAttempt (Iteration.apply Step.program^ (initial a history) count);
+\definition mathematical(count: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+  Pass.cursorAttempt (Iteration.apply step (initial a history) count);
+\definition matches: \forall (count: N.Nat^)(a: Runtime^)(history: History^) -> program^ count a history = fold count a history :=
+  \fun (count: N.Nat^)(a: Runtime^)(history: History^) =>
+    trans!{Attempt^} (program^ count a history) (read count a history) (fold count a history)
+      (congr!{Pass.Reader.T^ Attempt^} (\fun (f: Pass.Reader.T^) => f (NativeIteration.Iterate.program^ Step.program^ (initial a history) count))
+        Pass.Reader.program^ Pass.cursorAttempt Pass.Reader.coherence)
+      (trans!{Attempt^} (read count a history) (iterated count a history) (fold count a history)
+        (congr!{NativeIteration.Iterate.T^ Attempt^} (\fun (f: NativeIteration.Iterate.T^) => Pass.cursorAttempt (f Step.program^ (initial a history) count))
+          NativeIteration.Iterate.program^ NativeIteration.Iterate.specification NativeIteration.Iterate.coherence)
+        (trans!{Attempt^} (iterated count a history) (mathematical count a history) (fold count a history)
+          (congr!{Step.T^ Attempt^} (\fun (f: Step.T^) => Pass.cursorAttempt (Iteration.apply f (initial a history) count)) Step.program^ step Step.coherence)
+          (congr!{Cursor^ Attempt^} Pass.cursorAttempt (Iteration.apply step (initial a history) count) (Cursor^::cursor count (fold count a history)) (iterationState count a history))));
+\definition coherence: program^ = fold := \axiom:funext(program^, fold,
+  \fun (count: N.Nat^) => \axiom:funext(program^ count, fold count,
+    \fun (a: Runtime^) => \axiom:funext(program^ count a, fold count a, matches count a)));

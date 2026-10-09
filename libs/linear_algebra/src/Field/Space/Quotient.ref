@@ -24,4 +24,27 @@
     Subspaces.Member S (#add{space} x (#neg{space} y)) -> class x = class y := Q.classRelated;
   \definition relatedOfClassEq: \forall (x, y: V) -> class x = class y ->
     Subspaces.Member S (#add{space} x (#neg{space} y)) := Q.relatedOfClassEq;
+  \import Modules.Hom[V := V, W := Carrier, source := space, target := vectorSpace] \as ModuleMaps;
+  \definition projectionAgrees: Maps.asModuleMap projection = Q.projection :=
+    ModuleMaps.ext (Maps.asModuleMap projection) Q.projection (\fun (x: V) => \refl(class x));
+  \import Modules.Isomorphism[V := Carrier, W := Q.Carrier, source := vectorSpace, target := Q.moduleSpace] \as Iso;
+  \import Modules.End[V := Carrier, space := vectorSpace] \as End;
+  \definition moduleIsomorphism: Iso.Isomorphism := Iso.Isomorphism {
+    forward := End.identity, backward := End.identity,
+    leftInverse := \fun (x: Carrier) => \refl(x), rightInverse := \fun (x: Q.Carrier) => \refl(x),
+  };
+  \module Universal(U: \Set, target: VectorSpace U) {
+    \import \parent.\parent.\parent.Linear[V := V, W := U, source := space, target := target] \as Input;
+    \import \parent.\parent.\parent.Linear[V := Carrier, W := U, source := vectorSpace, target := target] \as Output;
+    \import Q.To[W := U, target := target] \as Descent;
+    \definition Vanishes(f: Input.Map): \Prop := \forall (x: V) -> Subspaces.Member S x -> #apply{f} x = #zero{target};
+    \definition map(f: Input.Map)(vanishes: Vanishes f): Output.Map :=
+      Output.fromModuleMap (Descent.descend (Input.asModuleMap f) vanishes);
+    \definition onClass: \forall (f: Input.Map)(vanishes: Vanishes f)(x: V) -> #apply{(map f vanishes)} (class x) = #apply{f} x :=
+      \fun (f: Input.Map)(vanishes: Vanishes f) => Descent.onClass (Input.asModuleMap f) vanishes;
+    \definition unique: \forall (f: Input.Map)(vanishes: Vanishes f)(h: Carrier -> U) ->
+      (\forall (x: V) -> h (class x) = #apply{f} x) -> h = #apply{(map f vanishes)} :=
+      \fun (f: Input.Map)(vanishes: Vanishes f) => Descent.unique (Input.asModuleMap f) vanishes;
+  }
+
 }

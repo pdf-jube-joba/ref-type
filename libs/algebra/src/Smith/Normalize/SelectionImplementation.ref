@@ -1,0 +1,21 @@
+\definition T: \VType := \U(N.Nat -> Runtime -> History -> I.Int -> Attempt);
+\definition program: T := \thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (history: History) => \return(\thunk (\cfun (pivot: I.Int) => \match pivot \in I.Int \with {
+    | ofNat n: \return(Attempt::attempt a history B.Bool::false)
+    | negSucc n: \program {
+        \bind negate: \U(N.Nat -> Runtime) <- (\force rowNegateProgram) a \then
+        \bind changed: Runtime <- (\force negate) k \then
+        \return(Attempt::attempt changed (History::prepend (Operation::rowNegate k) history) B.Bool::false)
+      }
+})))))));
+\definition onPivot: \forall (pivot: I.Int^)(k: N.Nat^)(a: Runtime^)(history: History^) -> program^ k a history pivot = select k a history pivot :=
+  \induction (pivot: I.Int^) \return \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> program^ k a history pivot = select k a history pivot \with {
+    | ofNat: \fun (n: N.Nat^)(k: N.Nat^)(a: Runtime^)(history: History^) => \refl(Attempt^::attempt a history B.Bool^::false)
+    | negSucc: \fun (n: N.Nat^)(k: N.Nat^)(a: Runtime^)(history: History^) =>
+        congr!{Rows.Negate.T^ Attempt^} (\fun (f: Rows.Negate.T^) => Attempt^::attempt (f a k) (History^::prepend (Operation^::rowNegate k) history) B.Bool^::false)
+          rowNegateProgram^ Rows.negate Rows.Negate.coherence
+  };
+\definition coherence: program^ = select := \axiom:funext(program^, select,
+  \fun (k: N.Nat^) => \axiom:funext(program^ k, select k,
+    \fun (a: Runtime^) => \axiom:funext(program^ k a, select k a,
+      \fun (history: History^) => \axiom:funext(program^ k a history, select k a history,
+        \fun (pivot: I.Int^) => onPivot pivot k a history))));

@@ -1,0 +1,67 @@
+\definition Eligible: N.Nat^ -> M.Carrier -> \Prop :=
+  \induction (n: N.Nat^) \return M.Carrier -> \Prop \with {
+    | zero: \fun (x: M.Carrier) => Logic.True
+    | succ: \fun (n: N.Nat^)(before: M.Carrier -> \Prop)(x: M.Carrier) => x = #zero{M.space}
+  };
+\module Slot(n: N.Nat^);
+\definition Carrier(n: N.Nat^): \Set := Slot[n := n].Carrier;
+\definition space(n: N.Nat^): Modules.Space (Carrier n) := Slot[n := n].space;
+\definition term(n: N.Nat^): Modules.Bundle := Modules.Bundle { Carrier := Carrier n, space := space n };
+\definition family: Family := Family { Carrier := Carrier, space := space };
+\module Differential(n: N.Nat^) {
+  \import Modules.Hom[V := Carrier (N.Nat^::succ n), W := Carrier n, source := space (N.Nat^::succ n), target := space n] \as Maps;
+  \definition map: Maps.Map := Maps.zeroMap;
+}
+\definition differential: DifferentialData[family] := DifferentialData[family] {
+  apply := \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ n)) => #apply{Differential[n := n].map} x,
+};
+\definition complex: Complex := Complex {
+  family := family, differential := differential,
+  laws := DifferentialLaws[family, differential] {
+    addition := \fun (n: N.Nat^)(x, y: Carrier (N.Nat^::succ n)) => #addition{Differential[n := n].map} x y,
+    scalar := \fun (n: N.Nat^)(a: R)(x: Carrier (N.Nat^::succ n)) => #scalar{Differential[n := n].map} a x,
+    squareZero := \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ (N.Nat^::succ n))) => \refl(#zero{(space n)}),
+  },
+};
+\import Modules.Of[V := M.Carrier, space := M.space].Submodule[].Of[S := Slot[n := N.Nat^::zero].submodule] \as Center;
+\definition augmentation: Modules.MapBetween (term N.Nat^::zero) M := Center.inclusion;
+\import Modules.Hom[V := M.Carrier, W := Carrier N.Nat^::zero, source := M.space, target := space N.Nat^::zero] \as Sections;
+\definition section: Sections.Map := Sections.Map {
+  apply := \fun (x: M.Carrier) => \into[M.Carrier](x, #carrier{Slot[n := N.Nat^::zero].submodule}) \by { Logic.True::intro },
+  addition := \fun (x, y: M.Carrier) => \refl(#add{M.space} x y),
+  scalar := \fun (a: R)(x: M.Carrier) => \refl(#smul{M.space} a x),
+};
+\definition onto: Modules.Surjective (term N.Nat^::zero) M augmentation :=
+  \fun (x: M.Carrier) => \exact(\into[Carrier N.Nat^::zero](#apply{section} x,
+    { y: Carrier N.Nat^::zero \where #apply{augmentation} y = x }) \by { \refl(x) },
+    \Cast[Carrier N.Nat^::zero] ({ y: Carrier N.Nat^::zero \where #apply{augmentation} y = x }));
+\import Modules.ProjectiveLaws[].Retract[P := term N.Nat^::zero, Q := M, inclusion := augmentation, retraction := section] \as CenterProjective;
+\module Positive(n: N.Nat^) {
+  \definition trivial: \forall (x: Carrier (N.Nat^::succ n)) -> x = #zero{(space (N.Nat^::succ n))} :=
+    \fun (x: Carrier (N.Nat^::succ n)) => \bysub(M.Carrier,
+      #carrier{\parent.Slot[n := N.Nat^::succ n].submodule}, x);
+  \import Modules.ProjectiveLaws[].Trivial[P := term (N.Nat^::succ n)] \as Projective;
+  \definition projective: Modules.Projective (term (N.Nat^::succ n)) := Projective.projective trivial;
+}
+\definition projective: Modules.Projective M -> \forall (n: N.Nat^) -> Modules.Projective (term n) :=
+  \fun (projectiveM: Modules.Projective M) => \induction (n: N.Nat^) \return Modules.Projective (term n) \with {
+    | zero: CenterProjective.projective (\fun (x: Carrier N.Nat^::zero) => \refl(x)) projectiveM
+    | succ: \fun (n: N.Nat^)(before: Modules.Projective (term n)) => Positive[n := n].projective
+  };
+\definition augmentationKilled: \forall (x: Carrier (N.Nat^::succ N.Nat^::zero)) ->
+  #apply{augmentation} (#apply{differential} N.Nat^::zero x) = #zero{M.space} :=
+    \fun (x: Carrier (N.Nat^::succ N.Nat^::zero)) => \refl(#zero{M.space});
+\definition augmentationExact: \forall (x: Carrier N.Nat^::zero) -> #apply{augmentation} x = #zero{M.space} ->
+  \exists { y: Carrier (N.Nat^::succ N.Nat^::zero) \where #apply{differential} N.Nat^::zero y = x } :=
+  \fun (x: Carrier N.Nat^::zero)(closed: #apply{augmentation} x = #zero{M.space}) =>
+    \exact(\into[Carrier (N.Nat^::succ N.Nat^::zero)](#zero{(space (N.Nat^::succ N.Nat^::zero))},
+      { y: Carrier (N.Nat^::succ N.Nat^::zero) \where #apply{differential} N.Nat^::zero y = x }) \by {
+        sym!{{Carrier N.Nat^::zero}} x #zero{(space N.Nat^::zero)} closed
+      }, \Cast[Carrier (N.Nat^::succ N.Nat^::zero)] ({ y: Carrier (N.Nat^::succ N.Nat^::zero) \where #apply{differential} N.Nat^::zero y = x }));
+\definition exact: \forall (n: N.Nat^)(x: Carrier (N.Nat^::succ n)) -> #apply{differential} n x = #zero{(space n)} ->
+  \exists { y: Carrier (N.Nat^::succ (N.Nat^::succ n)) \where #apply{differential} (N.Nat^::succ n) y = x } :=
+  \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ n))(closed: _) =>
+    \exact(\into[Carrier (N.Nat^::succ (N.Nat^::succ n))](#zero{(space (N.Nat^::succ (N.Nat^::succ n)))},
+      { y: Carrier (N.Nat^::succ (N.Nat^::succ n)) \where #apply{differential} (N.Nat^::succ n) y = x }) \by {
+        sym!{{Carrier (N.Nat^::succ n)}} x #zero{(space (N.Nat^::succ n))} (Positive[n := n].trivial x)
+      }, \Cast[Carrier (N.Nat^::succ (N.Nat^::succ n))] ({ y: Carrier (N.Nat^::succ (N.Nat^::succ n)) \where #apply{differential} (N.Nat^::succ n) y = x }));

@@ -1,0 +1,19 @@
+\definition candidate: Attempt^ := reduce k i (attemptMatrix current) (attemptHistory current);
+\definition active: \forall (nonzero: Logic.Not (original k k = Arithmetic.zero))(laws: StepLaws[reduce, k])(previous: PivotLaws[k, original, current]) -> eligible k i current = B.Bool^::true -> PivotLaws[k, original, candidate] := \block {
+  \fun (nonzero: Logic.Not (original k k = Arithmetic.zero))(laws: StepLaws[reduce, k])(previous: PivotLaws[k, original, current])(eligible: _) \then
+  \let oldPivot: attemptMatrix current k k = original k k := #preserved{previous} (eligibleUnchanged k i current eligible) \then
+  \let currentNonzero: Logic.Not (attemptMatrix current k k = Arithmetic.zero) := \fun (zero: _) => nonzero (trans!{I.Int^} (original k k) (attemptMatrix current k k) Arithmetic.zero (sym!{I.Int^} (attemptMatrix current k k) (original k k) oldPivot) zero) \then
+  \return PivotLaws[k, original, candidate] {
+    preserved := \fun (noSwap: _) => trans!{I.Int^} (attemptMatrix candidate k k) (attemptMatrix current k k) (original k k)
+      (#pivot{laws} i (attemptMatrix current) (attemptHistory current) (eligibleLess k i current eligible) noSwap) oldPivot,
+    smaller := \fun (swapped: _) => \idelim attemptMatrix current k k = original k k \with value: I.Int^ => Bounds.Lt (Signed.absolute (attemptMatrix candidate k k)) (Signed.absolute value) \by {
+      base: #decrease{laws} i (attemptMatrix current) (attemptHistory current) currentNonzero swapped, equality: oldPivot
+    },
+  }
+};
+\definition law: Logic.Not (original k k = Arithmetic.zero) -> StepLaws[reduce, k] -> PivotLaws[k, original, current] -> PivotLaws[k, original, next reduce k i current] :=
+  \fun (nonzero: _)(laws: _)(previous: _) => B.cases
+    (\fun (test: B.Bool^) => eligible k i current = test -> PivotLaws[k, original, B.ite Attempt^ test candidate current])
+    (\fun (equal: eligible k i current = B.Bool^::false) => previous)
+    (\fun (equal: eligible k i current = B.Bool^::true) => active nonzero laws previous equal)
+    (eligible k i current) (\refl(eligible k i current));

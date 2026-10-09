@@ -1,0 +1,47 @@
+\import Presentation.TensorHomology[A := Z2.bundle] \as Source;
+\import Presentation.TensorHomology[A := Z4.bundle] \as Target;
+\import Source.Mapping[B := Z4.bundle, u := inclusion] \as InclusionComparison;
+\import Target.Mapping[B := Z2.bundle, u := projection] \as ProjectionComparison;
+\import Presentation.Coefficients[k := Nat.Nat^::zero] \as SourceSetup;
+\import SourceSetup.Tor[] \as SourceComputation;
+\import Z2.Inclusion[k := Arithmetic.one] \as SelfInclusion;
+\import SelfInclusion.Annihilator[] \as SelfAnnihilator;
+\import Inclusion.Annihilator[] \as TargetAnnihilator;
+\definition sourceAnnihilatorIso: Modules.Isomorphism[V := Z2.Carrier, W := Source.annihilator.Carrier, source := Z2.space, target := Source.annihilator.space].Isomorphism := SelfAnnihilator.isomorphism SourceSetup.multiplierNonzero SourceSetup.coefficientNonzero;
+\definition targetAnnihilatorIso: Modules.Isomorphism[V := Z2.Carrier, W := Target.annihilator.Carrier, source := Z2.space, target := Target.annihilator.space].Isomorphism := TargetAnnihilator.isomorphism Computation.multiplierNonzero Computation.coefficientNonzero;
+\import homological_algebra.Tor[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Of[M := Z2.bundle, N := Z2.bundle, P := Presentation.complex].Positive[n := Nat.Nat^::zero] \as SH;
+\import homological_algebra.Tor[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Second[M := Z2.bundle, N := Z2.bundle, L := Z4.bundle, P := Presentation.complex].Positive[n := Nat.Nat^::zero] \as InclusionMap;
+\import homological_algebra.Tor[].Over[R := Int.Int^, ring := IntegerRing.commutativeRing].Second[M := Z2.bundle, N := Z4.bundle, L := Z2.bundle, P := Presentation.complex].Positive[n := Nat.Nat^::zero] \as ProjectionMap;
+\definition projectionAnnihilatorZero: \forall (q: Target.annihilator.Carrier) -> #apply{ProjectionComparison.map} q = #zero{Source.annihilator.space} :=
+  \fun (q: Target.annihilator.Carrier) => trans!{Z2.Carrier} _ _ _
+    (congr!{Z4.Carrier Z2.Carrier} (#apply{projection}) _ _ (sym!{Target.annihilator.Carrier} _ _ (#rightInverse{targetAnnihilatorIso} q)))
+    (compositionZero (#apply{#backward{targetAnnihilatorIso}} q));
+\import Modules.Hom[V := Source.annihilator.Carrier, W := SH.Carrier, source := Source.annihilator.space, target := SH.space] \as BackwardMaps;
+\definition projectionZero: \forall (q: H.Carrier) -> #apply{(ProjectionMap.map projection)} q = #zero{SH.space} :=
+  \fun (q: H.Carrier) => trans!{SH.Carrier} _ _ _
+    (sym!{SH.Carrier} _ _ (#leftInverse{Source.isomorphism} (#apply{(ProjectionMap.map projection)} q)))
+    (trans!{SH.Carrier} _ _ _
+      (congr!{Source.annihilator.Carrier SH.Carrier} (#apply{#backward{Source.isomorphism}}) _ _
+        (trans!{Source.annihilator.Carrier} _ _ _ (ProjectionComparison.naturality q) (projectionAnnihilatorZero (#apply{#forward{Target.isomorphism}} q))))
+      (BackwardMaps.zeroPreserved #backward{Source.isomorphism}));
+\import Int.Math[].Specification[].Prop[].Multiplication[] \as Product;
+\definition selfIdentity: \forall (q: Z2.Carrier) -> #apply{SelfInclusion.map} q = q := Z2.induction
+  (\fun (q: Z2.Carrier) => #apply{SelfInclusion.map} q = q)
+  (\fun (x: Int.Int^) => trans!{Z2.Carrier} _ _ _ (SelfInclusion.onClass x)
+    (congr!{Int.Int^ Z2.Carrier} Z2.class _ _ (Product.mulOneLeft x)));
+\definition onSourceAnnihilator: \forall (q: Z2.Carrier) ->
+  #apply{InclusionComparison.map} (#apply{#forward{sourceAnnihilatorIso}} q) = #apply{#forward{targetAnnihilatorIso}} q :=
+  \fun (q: Z2.Carrier) => congr!{Z2.Carrier Z4.Carrier} (#apply{inclusion}) _ _ (selfIdentity q);
+\definition inverseNaturality: \forall (x: Source.annihilator.Carrier) ->
+  #apply{#backward{targetAnnihilatorIso}} (#apply{InclusionComparison.map} x) = #apply{#backward{sourceAnnihilatorIso}} x :=
+  \fun (x: Source.annihilator.Carrier) => trans!{Z2.Carrier} _ _ _
+    (congr!{Target.annihilator.Carrier Z2.Carrier} (#apply{#backward{targetAnnihilatorIso}}) _ _
+      (trans!{Target.annihilator.Carrier} _ _ _
+        (congr!{Source.annihilator.Carrier Target.annihilator.Carrier} (#apply{InclusionComparison.map}) _ _ (sym!{Source.annihilator.Carrier} _ _ (#rightInverse{sourceAnnihilatorIso} x)))
+        (onSourceAnnihilator (#apply{#backward{sourceAnnihilatorIso}} x))))
+    (#leftInverse{targetAnnihilatorIso} (#apply{#backward{sourceAnnihilatorIso}} x));
+\definition inclusionIdentity: \forall (q: SH.Carrier) ->
+  #apply{#forward{isomorphism}} (#apply{(InclusionMap.map inclusion)} q) = #apply{#forward{SourceComputation.isomorphism}} q :=
+    \fun (q: SH.Carrier) => trans!{Z2.Carrier} _ _ _
+      (congr!{Target.annihilator.Carrier Z2.Carrier} (#apply{#backward{targetAnnihilatorIso}}) _ _ (InclusionComparison.naturality q))
+      (inverseNaturality (#apply{#forward{Source.isomorphism}} q));

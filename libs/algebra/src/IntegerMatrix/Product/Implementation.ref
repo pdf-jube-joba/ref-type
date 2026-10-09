@@ -1,0 +1,28 @@
+\definition T: \VType := \U(N.Nat -> Runtime -> Runtime -> Runtime);
+\definition program: T := \thunk (\cfun (count: N.Nat) => \return(\thunk (\cfun (a: Runtime) =>
+  \return(\thunk (\cfun (b: Runtime) => \return(\thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \program {
+    \bind fold: \U(\U(N.Nat -> I.Int) -> I.Int) <- (\force Numeric.Sum.program) count \then
+    \bind answer: I.Int <- (\force fold) (\thunk (\cfun (l: N.Nat) => \program {
+      \bind row: \U(N.Nat -> I.Int) <- (\force a) i \then
+      \bind left: I.Int <- (\force row) l \then
+      \bind column: \U(N.Nat -> I.Int) <- (\force b) l \then
+      \bind right: I.Int <- (\force column) j \then
+      \bind multiply: \U(I.Int -> I.Int) <- (\force I.Mul.program) left \then
+      \bind value: I.Int <- (\force multiply) right \then
+      \return value
+    })) \then
+    \return answer
+  })))))))));
+\definition termMatches: \forall (a, b: Runtime^)(i, j, l: N.Nat^) -> I.Mul.program^ (a i l) (b l j) = Arithmetic.mul (a i l) (b l j) :=
+  \fun (a, b: Runtime^)(i, j, l: N.Nat^) => congr!{I.Mul.T^ I.Int^} (\fun (f: I.Mul.T^) => f (a i l) (b l j)) I.Mul.program^ I.Mul.specification I.Mul.coherence;
+\definition matches: \forall (count: N.Nat^)(a, b: Runtime^)(i, j: N.Nat^) -> program^ count a b i j = mathematical count a b i j :=
+  \fun (count: N.Nat^)(a, b: Runtime^)(i, j: N.Nat^) => trans!{I.Int^} _ _ _
+    (Numeric.Implementation[].matches count (\fun (l: N.Nat^) => I.Mul.program^ (a i l) (b l j)))
+    (congr!{{N.Nat^ -> I.Int^} I.Int^} (Numeric.sum count)
+      (\fun (l: N.Nat^) => I.Mul.program^ (a i l) (b l j)) (\fun (l: N.Nat^) => Arithmetic.mul (a i l) (b l j))
+      (\axiom:funext((\fun (l: N.Nat^) => I.Mul.program^ (a i l) (b l j)), (\fun (l: N.Nat^) => Arithmetic.mul (a i l) (b l j)), \fun (l: N.Nat^) => termMatches a b i j l)));
+\definition coherence: program^ = mathematical := \axiom:funext(program^, mathematical,
+  \fun (count: N.Nat^) => \axiom:funext(program^ count, mathematical count,
+    \fun (a: Runtime^) => \axiom:funext(program^ count a, mathematical count a,
+      \fun (b: Runtime^) => \axiom:funext(program^ count a b, mathematical count a b,
+        \fun (i: N.Nat^) => \axiom:funext(program^ count a b i, mathematical count a b i, \fun (j: N.Nat^) => matches count a b i j)))));

@@ -1,0 +1,57 @@
+\import Chains.DegreeZero[C := P] \as Homology;
+\import Modules.Hom[V := P.family.Carrier Nat.Nat^::zero, W := M.Carrier, source := P.family.space Nat.Nat^::zero, target := M.space] \as Augmentations;
+\import Modules.Of[V := P.family.Carrier Nat.Nat^::zero, space := P.family.space Nat.Nat^::zero] \as Current;
+\import Current.Submodule[] \as Submodules;
+\import algebra.Group[].Of[Carrier := P.family.Carrier Nat.Nat^::zero, group := Current.additive] \as SourceGroup;
+\import Modules.Laws[V := M.Carrier, space := M.space] \as Target;
+\import algebra.Group[].Of[Carrier := M.Carrier, group := Target.additive] \as TargetGroup;
+\import Submodules.Image[U := P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), source := P.family.space (Nat.Nat^::succ Nat.Nat^::zero)] \as Images;
+\import Submodules.Quotient[S := Homology.boundaries] \as Quotient;
+\import Quotient.To[W := M.Carrier, target := M.space] \as Descent;
+\definition vanishes: \forall (resolution: Resolution) -> Descent.Vanishes (#augmentation{resolution}) :=
+  \fun (resolution: Resolution)(x: P.family.Carrier Nat.Nat^::zero)(boundary: Submodules.Member Homology.boundaries x) =>
+    Images.eliminate Homology.prior x (#apply{#augmentation{resolution}} x = #zero{M.space})
+      (\fun (y: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero))(equal: #apply{Homology.prior} y = x) =>
+        trans!{M.Carrier} _ _ _ (congr!{{P.family.Carrier Nat.Nat^::zero} M.Carrier} (#apply{#augmentation{resolution}}) _ _
+          (sym!{{P.family.Carrier Nat.Nat^::zero}} _ _ equal)) (#killed{resolution} y)) boundary;
+\import Modules.Hom[V := Homology.Homology, W := M.Carrier, source := Homology.homologySpace, target := M.space] \as Maps;
+\definition forward(resolution: Resolution): Maps.Map := Descent.descend (#augmentation{resolution}) (vanishes resolution);
+\definition onClass: \forall (resolution: Resolution)(x: P.family.Carrier Nat.Nat^::zero) ->
+  #apply{(forward resolution)} (Homology.classOf x) = #apply{#augmentation{resolution}} x :=
+  \fun (resolution: Resolution) => Descent.onClass (#augmentation{resolution}) (vanishes resolution);
+\definition sameClass: \forall (resolution: Resolution)(x, y: P.family.Carrier Nat.Nat^::zero) ->
+  #apply{#augmentation{resolution}} x = #apply{#augmentation{resolution}} y -> Homology.classOf x = Homology.classOf y := \block {
+  \fun (resolution: Resolution)(x, y: P.family.Carrier Nat.Nat^::zero)(same: #apply{#augmentation{resolution}} x = #apply{#augmentation{resolution}} y) \then
+  \let closed: #apply{#augmentation{resolution}} (SourceGroup.difference x y) = #zero{M.space} :=
+    trans!{M.Carrier} _ _ _ (Augmentations.differencePreserved (#augmentation{resolution}) x y)
+      (trans!{M.Carrier} _ _ _ (congr!{M.Carrier M.Carrier} (\fun (z: M.Carrier) => TargetGroup.difference z (#apply{#augmentation{resolution}} y)) _ _ same)
+        (TargetGroup.inverseRight (#apply{#augmentation{resolution}} y))) \then
+  \takefrom z: \Cast[P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero)] ({ z: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{P.differential} Nat.Nat^::zero z = SourceGroup.difference x y })
+    \by #augmentationExact{resolution} (SourceGroup.difference x y) closed \then
+  \return Quotient.classRelated x y (Images.introduce Homology.prior (SourceGroup.difference x y) z
+    (\bysub(P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero), { z: P.family.Carrier (Nat.Nat^::succ Nat.Nat^::zero) \where #apply{P.differential} Nat.Nat^::zero z = SourceGroup.difference x y }, z)))
+};
+\definition injective: \forall (resolution: Resolution)(q, r: Homology.Homology) ->
+  #apply{(forward resolution)} q = #apply{(forward resolution)} r -> q = r :=
+  \fun (resolution: Resolution) => Homology.classInduction (\fun (q: Homology.Homology) => \forall (r: Homology.Homology) ->
+    #apply{(forward resolution)} q = #apply{(forward resolution)} r -> q = r)
+    (\fun (x: P.family.Carrier Nat.Nat^::zero) => Homology.classInduction (\fun (r: Homology.Homology) =>
+      #apply{(forward resolution)} (Homology.classOf x) = #apply{(forward resolution)} r -> Homology.classOf x = r)
+      (\fun (y: P.family.Carrier Nat.Nat^::zero)(equal: #apply{(forward resolution)} (Homology.classOf x) = #apply{(forward resolution)} (Homology.classOf y)) =>
+        sameClass resolution x y (trans!{M.Carrier} _ _ _ (sym!{M.Carrier} _ _ (onClass resolution x))
+          (trans!{M.Carrier} _ _ _ equal (onClass resolution y)))));
+\definition onto: \forall (resolution: Resolution)(y: M.Carrier) -> \exists { q: Homology.Homology \where #apply{(forward resolution)} q = y } := \block {
+  \fun (resolution: Resolution)(y: M.Carrier) \then
+  \takefrom x: \Cast[P.family.Carrier Nat.Nat^::zero] ({ x: P.family.Carrier Nat.Nat^::zero \where #apply{#augmentation{resolution}} x = y }) \by #onto{resolution} y \then
+  \return \exact(\into[Homology.Homology](Homology.classOf x, { q: Homology.Homology \where #apply{(forward resolution)} q = y }) \by {
+    trans!{M.Carrier} _ _ _ (onClass resolution x)
+      (\bysub(P.family.Carrier Nat.Nat^::zero, { x: P.family.Carrier Nat.Nat^::zero \where #apply{#augmentation{resolution}} x = y }, x))
+  }, \Cast[Homology.Homology] ({ q: Homology.Homology \where #apply{(forward resolution)} q = y }))
+};
+\import Modules.Isomorphism[V := Homology.Homology, W := M.Carrier, source := Homology.homologySpace, target := M.space] \as Iso;
+\module Inverse(resolution: Resolution) {
+  \import Iso.OfBijective[f := forward resolution] \as Bijective;
+  \definition isomorphism: Iso.Isomorphism := Bijective.isomorphism (injective resolution) (onto resolution);
+}
+\definition existence: \forall (resolution: Resolution) -> \exists Iso.Isomorphism :=
+  \fun (resolution: Resolution) => \exact(Inverse[resolution := resolution].isomorphism, Iso.Isomorphism);

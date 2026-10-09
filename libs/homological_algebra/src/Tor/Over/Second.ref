@@ -1,0 +1,38 @@
+\import \parent.Of[M := M, N := N, P := P] \as Source;
+\import \parent.Of[M := M, N := L, P := P] \as Target;
+\import \root.TensorComplex[].Over[R := R, ring := ring].Mapping[P := P, Q := P, N := N, L := L] \as Tensor;
+\import Chains.End[C := P] \as Identity;
+\import Modules.Hom[V := N.Carrier, W := L.Carrier, source := N.space, target := L.space] \as Coefficients;
+\import Chains.Map[C := Source.tensorComplex, D := Target.tensorComplex] \as Maps;
+\definition chainMap(u: Coefficients.Map): Maps.Map := Maps.Map {
+  apply := #apply{(Tensor.On[f := Identity.identity, u := u].map)},
+  addition := #addition{(Tensor.On[f := Identity.identity, u := u].map)},
+  scalar := #scalar{(Tensor.On[f := Identity.identity, u := u].map)},
+  commutes := #commutes{(Tensor.On[f := Identity.identity, u := u].map)},
+};
+\module DegreeZero {
+  \import Maps.DegreeZero[] \as Induced;
+  \import Source.At[n := Nat.Nat^::zero] \as SourceTerm;
+  \import Target.At[n := Nat.Nat^::zero] \as TargetTerm;
+  \import Modules.Hom[V := SourceTerm.Carrier, W := TargetTerm.Carrier, source := SourceTerm.space, target := TargetTerm.space] \as Hom;
+  \definition map(u: Coefficients.Map): Hom.Map := Induced.induced (chainMap u);
+}
+\module Positive(n: Nat.Nat^) {
+  \import Maps.Positive[n := n] \as Induced;
+  \import Source.At[n := Nat.Nat^::succ n] \as SourceTerm;
+  \import Target.At[n := Nat.Nat^::succ n] \as TargetTerm;
+  \import Modules.Hom[V := SourceTerm.Carrier, W := TargetTerm.Carrier, source := SourceTerm.space, target := TargetTerm.space] \as Hom;
+  \definition map(u: Coefficients.Map): Hom.Map := Induced.induced (chainMap u);
+  \import Source.Positive[n := n] \as SourceCycles;
+  \import Target.Positive[n := n] \as TargetCycles;
+  \definition cyclesMap(u: Coefficients.Map): Modules.Hom[V := SourceCycles.Cycle, W := TargetCycles.Cycle, source := SourceCycles.cycleSpace, target := TargetCycles.cycleSpace].Map := Induced.cyclesMap (chainMap u);
+  \definition onClass: \forall (u: Coefficients.Map)(x: SourceCycles.Cycle) ->
+    #apply{(map u)} (SourceCycles.classOf x) = TargetCycles.classOf (#apply{(cyclesMap u)} x) :=
+      \fun (u: Coefficients.Map) => Induced.onClass (chainMap u);
+}
+\module At(k: Nat.Nat^) {
+  \import Maps.HomologyAt[n := k] \as Induced;
+  \import Source.At[n := k] \as SourceTerm;
+  \import Target.At[n := k] \as TargetTerm;
+  \definition map(u: Coefficients.Map): Modules.Hom[V := SourceTerm.Carrier, W := TargetTerm.Carrier, source := SourceTerm.space, target := TargetTerm.space].Map := Induced.induced (chainMap u);
+}

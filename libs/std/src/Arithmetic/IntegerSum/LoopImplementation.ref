@@ -1,0 +1,24 @@
+\definition step: \U(State ~> \F(\RunStep[State, I.Int])) := \thunk (\cfun (s: State) => \match s \in State \with {
+  | running f count accumulator: \match count \in N.Nat \with {
+      | zero: \return(\finish[State, I.Int](accumulator))
+      | succ smaller: \program {
+          \bind term: I.Int <- (\force f) smaller \then
+          \bind add: \U(I.Int -> I.Int) <- (\force I.Add.program) accumulator \then
+          \bind updated: I.Int <- (\force add) term \then
+          \return(\continue[State, I.Int](State::running f smaller updated))
+        }
+    }
+});
+\import std.Logic[].Termination[State := State^, Output := I.Int^, step := step^] \as Termination;
+\definition addition: \forall (a, b: I.Int^) -> I.Add.program^ a b = Arithmetic.add a b :=
+  \fun (a, b: I.Int^) => congr!{I.Add.T^ I.Int^} (\fun (f: I.Add.T^) => f a b) I.Add.program^ I.Add.specification I.Add.coherence;
+\definition terminates: \forall (count: N.Nat^)(f: N.Nat^ -> I.Int^)(accumulator: I.Int^) -> Termination.Holds (State^::running f count accumulator) :=
+  \induction (count: N.Nat^) \return \forall (f: N.Nat^ -> I.Int^)(accumulator: I.Int^) -> Termination.Holds (State^::running f count accumulator) \with {
+    | zero: \fun (f: N.Nat^ -> I.Int^)(accumulator: I.Int^) => Termination.intro (State^::running f N.Nat^::zero accumulator) Termination.trivial
+    | succ: \fun (count: N.Nat^)(previous: _)(f: N.Nat^ -> I.Int^)(accumulator: I.Int^) =>
+      Termination.intro (State^::running f (N.Nat^::succ count) accumulator) (previous f (I.Add.program^ accumulator (f count)))
+  };
+\definition certificate: \forall (s: State^) -> Programs.Terminates State^ I.Int^ step^ s :=
+  \induction (s: State^) \return Termination.Holds s \with {
+    | running: \fun (f: N.Nat^ -> I.Int^)(count: N.Nat^)(accumulator: I.Int^) => terminates count f accumulator
+  };

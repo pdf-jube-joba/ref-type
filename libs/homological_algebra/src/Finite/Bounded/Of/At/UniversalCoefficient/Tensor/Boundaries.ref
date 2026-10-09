@@ -1,0 +1,79 @@
+\import \parent.\parent.\parent.Presentation[] \as Presentation;
+\import Modules.Tensor[V := Presentation.boundaryBundle.Carrier, W := A.Carrier, left := Presentation.boundaryBundle.space, right := A.space] \as Boundaries;
+\import Modules.Tensor[V := Carrier C (next z), W := A.Carrier, left := space C (next z), right := A.space] \as NextTensor;
+\import Boundaries.Mapping[U := Homology.Cycle, Z := A.Carrier, targetLeft := Homology.cycleSpace, targetRight := A.space] \as IntoCycles;
+\definition intoCycles: Modules.Hom[V := Boundaries.Carrier, W := CycleTensor.Carrier, source := Boundaries.space, target := CycleTensor.space].Map :=
+  IntoCycles.map Presentation.sequence.inclusion Coefficient.identity;
+\import NextTensor.Mapping[U := Presentation.boundaryBundle.Carrier, Z := A.Carrier, targetLeft := Presentation.boundaryBundle.space, targetRight := A.space] \as OntoBoundaries;
+\definition incoming: Modules.Hom[V := NextTensor.Carrier, W := Boundaries.Carrier, source := NextTensor.space, target := Boundaries.space].Map :=
+  OntoBoundaries.map Incoming.map Coefficient.identity;
+\import OntoBoundaries.Surjectivity[] \as Surjectivity;
+\definition coefficientOnto: \forall (a: A.Carrier) -> \exists { b: A.Carrier \where #apply{Coefficient.identity} b = a } :=
+  \fun (a: A.Carrier) => \exact(\into[A.Carrier](a, { b: A.Carrier \where #apply{Coefficient.identity} b = a }) \by { \refl(a) },
+    \Cast[A.Carrier] ({ b: A.Carrier \where #apply{Coefficient.identity} b = a }));
+\definition incomingOnto: \forall (b: Boundaries.Carrier) -> \exists { x: NextTensor.Carrier \where #apply{incoming} x = b } :=
+  Surjectivity.onto Incoming.map Coefficient.identity Incoming.onto coefficientOnto;
+\definition inclusionOnTensor: \forall (b: Presentation.boundaryBundle.Carrier)(a: A.Carrier) ->
+  #apply{inclusion} (#apply{intoCycles} (Boundaries.tensor b a)) = CurrentTensor.tensor b a :=
+  \fun (b: Presentation.boundaryBundle.Carrier)(a: A.Carrier) => trans!{CurrentTensor.Carrier} _ _ _
+    (congr!{CycleTensor.Carrier CurrentTensor.Carrier} (#apply{inclusion}) _ _
+      (IntoCycles.onTensor Presentation.sequence.inclusion Coefficient.identity b a))
+    (Inclusion.onTensor Cycles.inclusion Coefficient.identity b a);
+\import Modules.Hom[V := CycleTensor.Carrier, W := CurrentTensor.Carrier, source := CycleTensor.space, target := CurrentTensor.space].Composition[U := Boundaries.Carrier, domain := Boundaries.space] \as BoundaryInclusion;
+\definition boundaryInclusion: Modules.Hom[V := Boundaries.Carrier, W := CurrentTensor.Carrier, source := Boundaries.space, target := CurrentTensor.space].Map :=
+  BoundaryInclusion.compose inclusion intoCycles;
+\import Modules.Hom[V := Boundaries.Carrier, W := CurrentTensor.Carrier, source := Boundaries.space, target := CurrentTensor.space].Composition[U := NextTensor.Carrier, domain := NextTensor.space] \as IncomingComposition;
+\import NextTensor.Universal[U := CurrentTensor.Carrier, target := CurrentTensor.space] \as NextUniversal;
+\definition differentialFactor: IncomingComposition.compose boundaryInclusion incoming = TensorHomology.prior :=
+  NextUniversal.ext (IncomingComposition.compose boundaryInclusion incoming) TensorHomology.prior
+    (\fun (x: Carrier C (next z))(a: A.Carrier) => trans!{CurrentTensor.Carrier} _ _ _
+      (congr!{Boundaries.Carrier CurrentTensor.Carrier} (#apply{boundaryInclusion}) _ _
+        (OntoBoundaries.onTensor Incoming.map Coefficient.identity x a))
+      (trans!{CurrentTensor.Carrier} _ _ _ (inclusionOnTensor (#apply{Incoming.map} x) a)
+        (sym!{CurrentTensor.Carrier} _ _ (NativeTensor.priorOnTensor z x a))));
+\definition differentialFactorPoint: \forall (x: NextTensor.Carrier) ->
+  #apply{inclusion} (#apply{intoCycles} (#apply{incoming} x)) = #apply{TensorHomology.prior} x :=
+  \fun (x: NextTensor.Carrier) => congr!{Modules.Hom[V := NextTensor.Carrier, W := CurrentTensor.Carrier, source := NextTensor.space, target := CurrentTensor.space].Map CurrentTensor.Carrier}
+    (\fun (f: Modules.Hom[V := NextTensor.Carrier, W := CurrentTensor.Carrier, source := NextTensor.space, target := CurrentTensor.space].Map) => #apply{f} x) _ _ differentialFactor;
+\import Modules.Of[V := CurrentTensor.Carrier, space := CurrentTensor.space].Submodule[].Image[U := NextTensor.Carrier, source := NextTensor.space] \as Images;
+\definition pureZero: \forall (b: Presentation.boundaryBundle.Carrier)(a: A.Carrier) ->
+  #apply{classMap} (#apply{intoCycles} (Boundaries.tensor b a)) = #zero{TensorHomology.homologySpace} := \block {
+  \fun (b: Presentation.boundaryBundle.Carrier)(a: A.Carrier) \then
+  \takefrom x: \Cast[Carrier C (next z)] ({ x: Carrier C (next z) \where #apply{Incoming.map} x = b }) \by Incoming.onto b \then
+  \return TensorHomology.boundaryClassZero (cycle (#apply{intoCycles} (Boundaries.tensor b a)))
+    (Images.introduce TensorHomology.prior (#apply{inclusion} (#apply{intoCycles} (Boundaries.tensor b a))) (NextTensor.tensor x a)
+      (trans!{CurrentTensor.Carrier} _ _ _ (NativeTensor.priorOnTensor z x a)
+        (trans!{CurrentTensor.Carrier} _ _ _
+          (congr!{Presentation.boundaryBundle.Carrier CurrentTensor.Carrier} (\fun (b: Presentation.boundaryBundle.Carrier) => CurrentTensor.tensor b a)
+            (#apply{Incoming.map} x) b (\bysub(Carrier C (next z), { x: Carrier C (next z) \where #apply{Incoming.map} x = b }, x)))
+          (sym!{CurrentTensor.Carrier} _ _ (inclusionOnTensor b a)))))
+};
+\import Modules.Hom[V := CycleTensor.Carrier, W := TensorHomology.Homology, source := CycleTensor.space, target := TensorHomology.homologySpace].Composition[U := Boundaries.Carrier, domain := Boundaries.space] \as Classes;
+\import Modules.Hom[V := Boundaries.Carrier, W := TensorHomology.Homology, source := Boundaries.space, target := TensorHomology.homologySpace] \as Maps;
+\import Boundaries.Universal[U := TensorHomology.Homology, target := TensorHomology.homologySpace] \as Universal;
+\definition zeroMap: Classes.compose classMap intoCycles = Maps.zeroMap := Universal.ext (Classes.compose classMap intoCycles) Maps.zeroMap pureZero;
+\definition zero: \forall (b: Boundaries.Carrier) -> #apply{classMap} (#apply{intoCycles} b) = #zero{TensorHomology.homologySpace} :=
+  \fun (b: Boundaries.Carrier) => congr!{Maps.Map TensorHomology.Homology} (\fun (f: Maps.Map) => #apply{f} b) _ _ zeroMap;
+\definition tensorHomologyBundle: Modules.Bundle := Modules.Bundle { Carrier := TensorHomology.Homology, space := TensorHomology.homologySpace };
+\import Modules.TensorDescent[B := Presentation.cyclesBundle, C := Presentation.homologyBundle, N := A, U := tensorHomologyBundle].On[q := Homology.classLinear, f := classMap] \as Descent;
+\definition kills: Descent.Kills := \block {
+  \fun (x: Homology.Cycle)(closed: Homology.classOf x = #zero{Homology.homologySpace})(a: A.Carrier) \then
+  \takefrom b: \Cast[Presentation.boundaryBundle.Carrier] ({ b: Presentation.boundaryBundle.Carrier \where #apply{Presentation.sequence.inclusion} b = x }) \by #kernelImage{Presentation.sequence} x closed \then
+  \return trans!{TensorHomology.Homology} _ _ _
+    (sym!{TensorHomology.Homology} _ _
+      (congr!{CycleTensor.Carrier TensorHomology.Homology} (#apply{classMap}) _ _
+        (trans!{CycleTensor.Carrier} _ _ _ (IntoCycles.onTensor Presentation.sequence.inclusion Coefficient.identity b a)
+          (congr!{Homology.Cycle CycleTensor.Carrier} (\fun (x: Homology.Cycle) => CycleTensor.tensor x a) _ _
+            (\bysub(Presentation.boundaryBundle.Carrier, { b: Presentation.boundaryBundle.Carrier \where #apply{Presentation.sequence.inclusion} b = x }, b))))))
+    (pureZero b a)
+};
+
+\import Modules.Tensor[V := Homology.Homology, W := A.Carrier, left := Homology.homologySpace, right := A.space] \as HomologyTensor;
+\definition map: Modules.Hom[V := HomologyTensor.Carrier, W := TensorHomology.Homology, source := HomologyTensor.space, target := TensorHomology.homologySpace].Map := (Descent.map #onto{Presentation.sequence} kills);
+\import CycleTensor.Mapping[U := Homology.Homology, Z := A.Carrier, targetLeft := Homology.homologySpace, targetRight := A.space] \as HomologyProjection;
+\definition projection: Modules.Hom[V := CycleTensor.Carrier, W := HomologyTensor.Carrier, source := CycleTensor.space, target := HomologyTensor.space].Map :=
+  HomologyProjection.map Homology.classLinear Coefficient.identity;
+\definition onCycles: \forall (x: CycleTensor.Carrier) -> #apply{map} (#apply{projection} x) = #apply{classMap} x :=
+  \fun (x: CycleTensor.Carrier) => congr!{Modules.Hom[V := CycleTensor.Carrier, W := TensorHomology.Homology, source := CycleTensor.space, target := TensorHomology.homologySpace].Map TensorHomology.Homology}
+    (\fun (f: Modules.Hom[V := CycleTensor.Carrier, W := TensorHomology.Homology, source := CycleTensor.space, target := TensorHomology.homologySpace].Map) => #apply{f} x) _ _ (Descent.factor #onto{Presentation.sequence} kills);
+\module Injectivity;

@@ -435,10 +435,15 @@ impl ModuleManager {
             || (Vec::new(), DeclarationRemapping::default()),
             |base| {
                 let base = env.binding(base);
-                (
-                    base.arguments.clone(),
-                    env.remapping(base.remapping).clone(),
-                )
+                let mut remapping = env.remapping(base.remapping).clone();
+                // Child signatures use declarations from the original parent,
+                // even when this namespace was reached through a re-export.
+                // Its latest materialization map can otherwise contain only
+                // the intermediate specialized IDs.
+                for (&materialized, &original) in &base.definition_origins {
+                    remapping.definition_ids.insert(original, materialized);
+                }
+                (base.arguments.clone(), remapping)
             },
         );
         let mut reflected_substitutions = substitutions
@@ -506,6 +511,18 @@ impl ModuleManager {
                         CheckSession::new(env, context)
                             .check_pts(*argument, expected)
                             .map_err(|error| {
+                                if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some() {
+                                    eprintln!(
+                                        "checked module argument {}.{}: {}\nexpected: {}\nbase: {base:?}, source: {source:?}, substitutions: {substitutions:?}",
+                                        child_name.as_str(),
+                                        argument_name.as_str(),
+                                        crate::raw::printing::format_exp(env, *argument),
+                                        crate::raw::printing::format_exp(env, expected),
+                                    );
+                                    if let crate::raw::exp::ExpNode::ModuleParam(parameter) = env.arena().get(*argument) {
+                                        eprintln!("argument classifier: {:?}", env.module_parameter_opt(parameter));
+                                    }
+                                }
                                 crate::error::Error::from(error).context(
                                     crate::error::Context::ModuleArgument {
                                         module: (child_name.as_str()).to_owned(),
@@ -904,6 +921,12 @@ impl ModuleManager {
             env.set_lazy_program_inductive_remapping(id, shared_remapping);
         }
 
+        // A conversion while reusing any item can force another reserved type.
+        // Publish every type's source identity before running those conversions.
+        for &id in &lazy_inductives {
+            env.preview_lazy_inductive(id, &substitutions, &reflected_substitutions, &remapping);
+        }
+
         // Parameter-free namespaces always reuse their original declarations.
         // Finalize them before conversion can materialize a dependent definition:
         // otherwise that definition permanently retains a provisional nominal ID.
@@ -1212,16 +1235,24 @@ impl ModuleManager {
             self.hir_aliases.insert(id, binding);
         }
         let typed = env.binding(binding);
-        for (source, instance) in import.remapping.iter() {
-            if let Some(source) = self.hir_modules.get(source).copied() {
-                let target = env
-                    .remapping(typed.remapping)
-                    .module_ids
-                    .get(&source)
+        let sources: Vec<_> = import
+            .remapping
+            .iter()
+            .filter_map(|(source, instance)| {
+                self.hir_modules
+                    .get(source)
                     .copied()
-                    .unwrap_or(source);
-                self.hir_modules.insert(*instance, target);
-            }
+                    .map(|source| (source, *instance))
+            })
+            .collect();
+        for (source, instance) in sources {
+            let target = env
+                .remapping(typed.remapping)
+                .module_ids
+                .get(&source)
+                .copied()
+                .unwrap_or(source);
+            self.hir_modules.insert(instance, target);
         }
         self.hir_modules.insert(import.target, typed.materialized);
     }

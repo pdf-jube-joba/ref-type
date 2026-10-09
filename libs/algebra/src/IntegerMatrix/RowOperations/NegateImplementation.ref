@@ -1,0 +1,28 @@
+\import N.Basic[].Program[] \as NatPrograms;
+\import N.Basic[].ProgramProp[] \as NatCorrespondence;
+\import B.Choose[A := I.Int] \as Choice;
+\definition T: \VType := \U(Runtime -> N.Nat -> Runtime);
+\definition program: T := \thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (r: N.Nat) =>
+  \return(\thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \program {
+    \bind compare: \U(N.Nat -> B.Bool) <- (\force NatPrograms.eqb) i \then
+    \bind hit: B.Bool <- (\force compare) r \then
+    \bind row: \U(N.Nat -> I.Int) <- (\force a) i \then
+    \bind old: I.Int <- (\force row) j \then
+    \bind updated: I.Int <- (\force I.Neg.program) old \then
+    \bind chooseYes: \U(I.Int -> I.Int -> I.Int) <- (\force Choice.program) hit \then
+    \bind chooseNo: \U(I.Int -> I.Int) <- (\force chooseYes) updated \then
+    \bind answer: I.Int <- (\force chooseNo) old \then
+    \return answer
+  })))))));
+\definition negated(a: Runtime^)(r, i, j: N.Nat^): I.Int^ := B.ite I.Int^ (NatPrograms.eqb^ i r) (Arithmetic.neg (a i j)) (a i j);
+\definition chosen(a: Runtime^)(r, i, j: N.Nat^): I.Int^ := B.ite I.Int^ (NatPrograms.eqb^ i r) (I.Neg.program^ (a i j)) (a i j);
+\definition matches: \forall (a: Runtime^)(r, i, j: N.Nat^) -> program^ a r i j = negate a r i j :=
+  \fun (a: Runtime^)(r, i, j: N.Nat^) => trans!{I.Int^} (program^ a r i j) (chosen a r i j) (negate a r i j)
+    (Choice.matches (NatPrograms.eqb^ i r) (I.Neg.program^ (a i j)) (a i j))
+    (trans!{I.Int^} (chosen a r i j) (negated a r i j) (negate a r i j)
+    (congr!{I.Neg.T^ I.Int^} (\fun (f: I.Neg.T^) => B.ite I.Int^ (NatPrograms.eqb^ i r) (f (a i j)) (a i j)) I.Neg.program^ I.Neg.specification I.Neg.coherence)
+    (congr!{NatCorrespondence.Eqb.T^ I.Int^} (\fun (f: NatCorrespondence.Eqb.T^) => B.ite I.Int^ (f i r) (Arithmetic.neg (a i j)) (a i j)) NatCorrespondence.Eqb.program^ NatCorrespondence.Eqb.specification NatCorrespondence.Eqb.coherence));
+\definition coherence: program^ = negate := \axiom:funext(program^, negate,
+  \fun (a: Runtime^) => \axiom:funext(program^ a, negate a,
+    \fun (r: N.Nat^) => \axiom:funext(program^ a r, negate a r,
+      \fun (i: N.Nat^) => \axiom:funext(program^ a r i, negate a r i, \fun (j: N.Nat^) => matches a r i j))));

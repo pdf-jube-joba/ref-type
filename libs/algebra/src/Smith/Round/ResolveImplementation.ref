@@ -1,0 +1,24 @@
+\definition T: \VType := \U(N.Nat -> Attempt -> Grid.Position -> Attempt);
+\definition program: T := \thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (current: Attempt) => \return(\thunk (\cfun (position: Grid.Position) => \match current \in Attempt \with {
+  | attempt a history changed: \match position \in Grid.Position \with {
+      | empty: \return current
+      | position i j: \program {
+          \bind rows: \U(N.Nat -> N.Nat -> Runtime -> History -> Attempt) <- (\force correctProgram) k \then
+          \bind columns: \U(N.Nat -> Runtime -> History -> Attempt) <- (\force rows) i \then
+          \bind matrices: \U(Runtime -> History -> Attempt) <- (\force columns) j \then
+          \bind histories: \U(History -> Attempt) <- (\force matrices) a \then
+          \bind result: Attempt <- (\force histories) history \then
+          \return result
+        }
+    }
+})))));
+\definition matches: \forall (k: N.Nat^)(current: Attempt^)(position: Grid.Position^) -> program^ k current position = resolve k current position :=
+  \fun (k: N.Nat^) => \induction (current: Attempt^) \return \forall (position: Grid.Position^) -> program^ k current position = resolve k current position \with {
+    | attempt: \fun (a: Runtime^)(history: History^)(changed: B.Bool^) => \induction (position: Grid.Position^) \return program^ k (Attempt^::attempt a history changed) position = resolve k (Attempt^::attempt a history changed) position \with {
+        | empty: \refl(Attempt^::attempt a history changed)
+        | position: \fun (i, j: N.Nat^) => congr!{Correction.Correct.T^ Attempt^} (\fun (f: Correction.Correct.T^) => f k i j a history) correctProgram^ Correction.correct Correction.Correct.coherence
+      }
+  };
+\definition coherence: program^ = resolve := \axiom:funext(program^, resolve,
+  \fun (k: N.Nat^) => \axiom:funext(program^ k, resolve k,
+    \fun (current: Attempt^) => \axiom:funext(program^ k current, resolve k current, matches k current)));

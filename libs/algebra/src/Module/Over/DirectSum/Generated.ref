@@ -1,0 +1,36 @@
+\import std.Set[].Quotient[A := Expressions.Expression, Equivalent := Presented.Equivalent] \as Classes;
+\definition induction: \forall (P: Carrier -> \Prop) -> P #zero{space} ->
+  (\forall (i: Index)(x: family.Carrier i) -> P (#apply{(\parent.Injection[i := i].map)} x)) ->
+  (\forall (x, y: Carrier) -> P x -> P y -> P (#add{space} x y)) ->
+  (\forall (x: Carrier) -> P x -> P (#neg{space} x)) ->
+  (\forall (a: R)(x: Carrier) -> P x -> P (#smul{space} a x)) ->
+  \forall (x: Carrier) -> P x :=
+  \fun (P: Carrier -> \Prop)(zero: P #zero{space})
+    (generator: \forall (i: Index)(x: family.Carrier i) -> P (#apply{(\parent.Injection[i := i].map)} x))
+    (addition: \forall (x, y: Carrier) -> P x -> P y -> P (#add{space} x y))
+    (negative: \forall (x: Carrier) -> P x -> P (#neg{space} x))
+    (scalar: \forall (a: R)(x: Carrier) -> P x -> P (#smul{space} a x)) =>
+  Classes.induction P
+    (\induction (e: Expressions.Expression) \return P (Presented.class e) \with {
+      | zero: zero
+      | generator: \induction (g: Generator) \return P (Presented.generator g) \with {
+          | at: \fun (i: Index)(x: family.Carrier i) => generator i x
+        }
+      | sum: \fun (e: Expressions.Expression)(left: P (Presented.class e))
+          (f: Expressions.Expression)(right: P (Presented.class f)) =>
+          \idelim #add{space} (Presented.class e) (Presented.class f) = Presented.class (Expressions.Expression::sum e f)
+            \with x: Carrier => P x \by {
+              base: addition (Presented.class e) (Presented.class f) left right,
+              equality: Presented.addClass e f
+            }
+      | negative: \fun (e: Expressions.Expression)(before: P (Presented.class e)) =>
+          \idelim #neg{space} (Presented.class e) = Presented.class (Expressions.Expression::negative e)
+            \with x: Carrier => P x \by {
+              base: negative (Presented.class e) before, equality: Presented.negClass e
+            }
+      | scale: \fun (a: R)(e: Expressions.Expression)(before: P (Presented.class e)) =>
+          \idelim #smul{space} a (Presented.class e) = Presented.class (Expressions.Expression::scale a e)
+            \with x: Carrier => P x \by {
+              base: scalar a (Presented.class e) before, equality: Presented.scaleClass a e
+            }
+    });

@@ -1,0 +1,51 @@
+\import std.Data[].Nat[] \as N;
+\import std.Data[].FinSet[] \as Finite;
+\import std.Data[].List[] \as Lists;
+\import Modules.FiniteCoordinates[n := n] \as Domain;
+\import Modules.FiniteCoordinates[n := m] \as Codomain;
+\definition Matrix: \Set := Finite.Fin m -> Finite.Fin n -> R;
+\definition add(a, b: Matrix): Matrix := \fun (i: Finite.Fin m)(j: Finite.Fin n) => #add{ordinaryRing} (a i j) (b i j);
+\definition zero: Matrix := \fun (i: Finite.Fin m)(j: Finite.Fin n) => #zero{ordinaryRing};
+\definition negate(a: Matrix): Matrix := \fun (i: Finite.Fin m)(j: Finite.Fin n) => #neg{ordinaryRing} (a i j);
+\import Modules.Sums[I := Finite.Fin n] \as Sums;
+\import Sums.Prop[] \as SumLaws;
+\definition apply(a: Matrix)(v: Domain.Carrier): Codomain.Carrier :=
+  \fun (i: Finite.Fin m) => Sums.sum (Finite.elements n) (\fun (j: Finite.Fin n) => #mul{ordinaryRing} (a i j) (v j));
+\import Modules.Hom[V := Domain.Carrier, W := Codomain.Carrier, source := Domain.space, target := Codomain.space] \as Maps;
+\definition scalarComm: \forall (a, b, c: R) -> #mul{ordinaryRing} a (#mul{ordinaryRing} b c) = #mul{ordinaryRing} b (#mul{ordinaryRing} a c) :=
+  \fun (a, b, c: R) => trans!{R} _ _ _
+    (sym!{R} _ _ (#associative{(#multiplicative{(#semiring{ordinaryRing})})} a b c))
+    (trans!{R} _ _ _ (congr!{R R} (\fun (r: R) => #mul{ordinaryRing} r c) _ _ (#mulCommutative{ring} a b))
+      (#associative{(#multiplicative{(#semiring{ordinaryRing})})} b a c));
+\definition linear(a: Matrix): Maps.Map := Maps.Map {
+  apply := apply a,
+  addition := \fun (v, w: Domain.Carrier) => \axiom:funext(apply a (#add{Domain.space} v w), #add{Codomain.space} (apply a v) (apply a w),
+    \fun (i: Finite.Fin m) => trans!{R} _ _ _
+      (SumLaws.congruent (Finite.elements n) (\fun (j: Finite.Fin n) => #mul{ordinaryRing} (a i j) (#add{ordinaryRing} (v j) (w j)))
+        (\fun (j: Finite.Fin n) => #add{ordinaryRing} (#mul{ordinaryRing} (a i j) (v j)) (#mul{ordinaryRing} (a i j) (w j)))
+        (\fun (j: Finite.Fin n) => #leftDistributive{(#semiring{ordinaryRing})} (a i j) (v j) (w j)))
+      (SumLaws.additive (Finite.elements n) (\fun (j: Finite.Fin n) => #mul{ordinaryRing} (a i j) (v j)) (\fun (j: Finite.Fin n) => #mul{ordinaryRing} (a i j) (w j)))),
+  scalar := \fun (b: R)(v: Domain.Carrier) => \axiom:funext(apply a (#smul{Domain.space} b v), #smul{Codomain.space} b (apply a v),
+    \fun (i: Finite.Fin m) => trans!{R} _ _ _
+      (SumLaws.congruent (Finite.elements n) (\fun (j: Finite.Fin n) => #mul{ordinaryRing} (a i j) (#mul{ordinaryRing} b (v j)))
+        (\fun (j: Finite.Fin n) => #mul{ordinaryRing} b (#mul{ordinaryRing} (a i j) (v j))) (\fun (j: Finite.Fin n) => scalarComm (a i j) b (v j)))
+      (SumLaws.multiplyLeft (Finite.elements n) b (\fun (j: Finite.Fin n) => #mul{ordinaryRing} (a i j) (v j)))),
+};
+\definition zeroAction: \forall (v: Domain.Carrier) -> apply zero v = #zero{Codomain.space} :=
+  \fun (v: Domain.Carrier) => \axiom:funext(apply zero v, #zero{Codomain.space},
+    \fun (i: Finite.Fin m) => trans!{R} (apply zero v i)
+      (Sums.sum (Finite.elements n) (\fun (j: Finite.Fin n) => #zero{ordinaryRing})) #zero{ordinaryRing}
+      (SumLaws.congruent (Finite.elements n) (\fun (j: Finite.Fin n) => #mul{ordinaryRing} #zero{ordinaryRing} (v j))
+        (\fun (j: Finite.Fin n) => #zero{ordinaryRing})
+        (\fun (j: Finite.Fin n) => #zeroAbsorbsLeft{(#semiring{ordinaryRing})} (v j)))
+      (SumLaws.zeroSum (Finite.elements n)));
+\definition entries(f: Maps.Map): Matrix := \fun (i: Finite.Fin m)(j: Finite.Fin n) => #apply{f} (Domain.basis j) i;
+\module Representation;
+\module Dual;
+\module Composition(k: N.Nat^);
+\module Transpose;
+\module End;
+\module Invertible;
+\module WithBases(V, W: \Set, source: Modules.Space V, target: Modules.Space W,
+  basisSource: Modules.Isomorphism[V := V, W := Domain.Carrier, source := source, target := Domain.space].Isomorphism,
+  basisTarget: Modules.Isomorphism[V := W, W := Codomain.Carrier, source := target, target := Codomain.space].Isomorphism);

@@ -1,0 +1,91 @@
+\definition current: Nat.Nat^ := Nat.Nat^::succ n;
+\definition next: Nat.Nat^ := Nat.Nat^::succ current;
+\import Source.Degree[n := current] \as SD;
+\import Source.Degree[n := next] \as SN;
+\import Target.Degree[n := n] \as TP;
+\import Target.Degree[n := current] \as TD;
+\import Source.Step[n := current] \as SS;
+\import Target.Step[n := n] \as TS;
+\import \parent.Degree[n := n] \as PreviousH;
+\import \parent.Degree[n := current] \as NextH;
+\import Forward.Degree[n := current] \as F;
+\import Backward.Degree[n := current] \as G;
+\import Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space] \as Maps;
+\import Modules.Hom[V := TP.Carrier, W := TD.Carrier, source := TP.space, target := TD.space] \as TargetMaps;
+\import Modules.Hom[V := TP.Carrier, W := TD.Carrier, source := TP.space, target := TD.space].Composition[U := SD.Carrier, domain := SD.space] \as DH;
+\import Modules.Hom[V := SN.Carrier, W := TD.Carrier, source := SN.space, target := TD.space].Composition[U := SD.Carrier, domain := SD.space] \as HD;
+\definition difference: Maps.Map := Maps.plus F.map (Maps.negative G.map);
+\definition horizontalAfter: Maps.Map := DH.compose TS.horizontal PreviousH.map;
+\definition horizontalBefore: Maps.Map := HD.compose NextH.map SS.horizontal;
+\definition verticalAfter: Maps.Map := DH.compose TS.vertical PreviousH.map;
+\definition verticalBefore: Maps.Map := HD.compose NextH.map SS.vertical;
+\import Modules.Laws[V := TD.Carrier, space := TD.space] \as Vector;
+\import algebra.Group[].Of[Carrier := TD.Carrier, group := Vector.additive] \as Group;
+\module Zero(q: Degrees.Second current Nat.Nat^::zero);
+\module Positive(p: Nat.Nat^, q: Degrees.Second current (Nat.Nat^::succ p));
+\definition index(p: Nat.Nat^)(q: Degrees.Second current p): Source.Index current := Degrees.index current p q;
+\definition HorizontalLaw(p: Nat.Nat^): \Prop := \forall (q: Degrees.Second current p)(x: C.family.Carrier p q) ->
+  #apply{difference} (#apply{(SD.Component[i := index p q].injection)} x) =
+    #add{TD.space} (#apply{horizontalAfter} (#apply{(SD.Component[i := index p q].injection)} x))
+      (#apply{horizontalBefore} (#apply{(SD.Component[i := index p q].injection)} x));
+\definition horizontalCoordinates: \forall (p: Nat.Nat^) -> HorizontalLaw p :=
+  \induction (p: Nat.Nat^) \return HorizontalLaw p \with {
+    | zero: \fun (q: Degrees.Second current Nat.Nat^::zero) => Zero[q := q].horizontal
+    | succ: \fun (p: Nat.Nat^)(previous: _)(q: Degrees.Second current (Nat.Nat^::succ p)) => Positive[p := p, q := q].horizontal
+  };
+\definition VerticalLaw(p: Nat.Nat^): \Prop := \forall (q: Degrees.Second current p)(x: C.family.Carrier p q) ->
+  #apply{verticalBefore} (#apply{(SD.Component[i := index p q].injection)} x) =
+    #neg{TD.space} (#apply{verticalAfter} (#apply{(SD.Component[i := index p q].injection)} x));
+\definition verticalCoordinates: \forall (p: Nat.Nat^) -> VerticalLaw p :=
+  \induction (p: Nat.Nat^) \return VerticalLaw p \with {
+    | zero: \fun (q: Degrees.Second current Nat.Nat^::zero) => Zero[q := q].vertical
+    | succ: \fun (p: Nat.Nat^)(previous: _)(q: Degrees.Second current (Nat.Nat^::succ p)) => Positive[p := p, q := q].vertical
+  };
+\definition topIndex(i: Degrees.Pair)(closed: Arithmetic.add #first{i} #second{i} = current): Source.Index current :=
+  \into[Degrees.Pair](i, { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = current }) \by { closed };
+\definition horizontalPair: \forall (i: Degrees.Pair)(closed: Arithmetic.add #first{i} #second{i} = current)(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{difference} (#apply{(SD.Component[i := topIndex i closed].injection)} x) =
+    #add{TD.space} (#apply{horizontalAfter} (#apply{(SD.Component[i := topIndex i closed].injection)} x))
+      (#apply{horizontalBefore} (#apply{(SD.Component[i := topIndex i closed].injection)} x)) :=
+  \induction (i: Degrees.Pair) \return \forall (closed: Arithmetic.add #first{i} #second{i} = current)(x: C.family.Carrier #first{i} #second{i}) ->
+    #apply{difference} (#apply{(SD.Component[i := topIndex i closed].injection)} x) =
+      #add{TD.space} (#apply{horizontalAfter} (#apply{(SD.Component[i := topIndex i closed].injection)} x))
+        (#apply{horizontalBefore} (#apply{(SD.Component[i := topIndex i closed].injection)} x)) \with {
+      | # : \fun (p, q: Nat.Nat^)(closed: Arithmetic.add p q = current) => horizontalCoordinates p
+        (\into[Nat.Nat^](q, { q: Nat.Nat^ \where Arithmetic.add p q = current }) \by { closed })
+    };
+\definition verticalPair: \forall (i: Degrees.Pair)(closed: Arithmetic.add #first{i} #second{i} = current)(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{verticalBefore} (#apply{(SD.Component[i := topIndex i closed].injection)} x) =
+    #neg{TD.space} (#apply{verticalAfter} (#apply{(SD.Component[i := topIndex i closed].injection)} x)) :=
+  \induction (i: Degrees.Pair) \return \forall (closed: Arithmetic.add #first{i} #second{i} = current)(x: C.family.Carrier #first{i} #second{i}) ->
+    #apply{verticalBefore} (#apply{(SD.Component[i := topIndex i closed].injection)} x) =
+      #neg{TD.space} (#apply{verticalAfter} (#apply{(SD.Component[i := topIndex i closed].injection)} x)) \with {
+      | # : \fun (p, q: Nat.Nat^)(closed: Arithmetic.add p q = current) => verticalCoordinates p
+        (\into[Nat.Nat^](q, { q: Nat.Nat^ \where Arithmetic.add p q = current }) \by { closed })
+    };
+\import Modules.DirectSum[Index := Source.Index current, family := SD.family].To[W := TD.Carrier, target := TD.space] \as Universal;
+\definition horizontalEquality: difference = Maps.plus horizontalAfter horizontalBefore :=
+  Universal.ext difference (Maps.plus horizontalAfter horizontalBefore)
+    (\fun (i: Source.Index current) => horizontalPair i (Degrees.degree current i));
+\definition verticalEquality: verticalBefore = Maps.negative verticalAfter :=
+  Universal.ext verticalBefore (Maps.negative verticalAfter)
+    (\fun (i: Source.Index current) => verticalPair i (Degrees.degree current i));
+\definition expanded: \forall (x: SD.Carrier) ->
+  #add{TD.space} (#apply{TS.differential} (#apply{PreviousH.map} x)) (#apply{NextH.map} (#apply{SS.differential} x)) = #apply{difference} x :=
+  \fun (x: SD.Carrier) => trans!{TD.Carrier} _ _ _
+    (congr!{TD.Carrier TD.Carrier} (#add{TD.space} (#apply{TS.differential} (#apply{PreviousH.map} x))) _ _
+      (#addition{NextH.map} (#apply{SS.horizontal} x) (#apply{SS.vertical} x)))
+    (trans!{TD.Carrier} _ _ _
+      (Group.four (#apply{horizontalAfter} x) (#apply{verticalAfter} x) (#apply{horizontalBefore} x) (#apply{verticalBefore} x))
+      (trans!{TD.Carrier} _ _ _
+        (congr!{Maps.Map TD.Carrier} (\fun (m: Maps.Map) => #add{TD.space}
+          (#add{TD.space} (#apply{horizontalAfter} x) (#apply{horizontalBefore} x))
+          (#add{TD.space} (#apply{verticalAfter} x) (#apply{m} x))) _ _ verticalEquality)
+        (trans!{TD.Carrier} _ _ _
+          (congr!{TD.Carrier TD.Carrier} (#add{TD.space} (#add{TD.space} (#apply{horizontalAfter} x) (#apply{horizontalBefore} x))) _ _
+            (Group.inverseRight (#apply{verticalAfter} x)))
+          (trans!{TD.Carrier} _ _ _ (Group.zeroRight (#add{TD.space} (#apply{horizontalAfter} x) (#apply{horizontalBefore} x)))
+            (congr!{Maps.Map TD.Carrier} (\fun (m: Maps.Map) => #apply{m} x) _ _ (sym!{Maps.Map} _ _ horizontalEquality))))));
+\definition equality: \forall (x: SD.Carrier) -> #apply{difference} x =
+  #add{TD.space} (#apply{TS.differential} (#apply{PreviousH.map} x)) (#apply{NextH.map} (#apply{SS.differential} x)) :=
+  \fun (x: SD.Carrier) => sym!{TD.Carrier} _ _ (expanded x);

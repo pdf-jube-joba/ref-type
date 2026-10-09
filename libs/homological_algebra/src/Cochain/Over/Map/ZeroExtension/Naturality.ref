@@ -1,0 +1,26 @@
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\import Source.PositiveCohomology[n := n] \as SourceComparison;
+\import Target.PositiveCohomology[n := n] \as TargetComparison;
+\import Internal.At[C := Source.complex, z := Signed.Int^::ofNat n] \as SourceInteger;
+\import Internal.At[C := Target.complex, z := Signed.Int^::ofNat n] \as TargetInteger;
+\import Internal.Map[C := Source.complex, D := Target.complex].At[k := Signed.Int^::ofNat n] \as IntegerMap;
+\import \parent.\parent.At[k := n] \as NaturalMap;
+\import \parent.\parent.\parent.At[C := D, k := n] \as TargetNatural;
+\import \parent.\parent.\parent.At[C := C, k := n] \as SourceNatural;
+\definition commutes: \forall (h: SourceInteger.Cohomology) ->
+  #apply{TargetComparison.forward} (#apply{(IntegerMap.induced map)} h) = #apply{(NaturalMap.induced f)} (#apply{SourceComparison.forward} h) :=
+  SourceInteger.classInduction
+    (\fun (h: SourceInteger.Cohomology) => #apply{TargetComparison.forward} (#apply{(IntegerMap.induced map)} h) = #apply{(NaturalMap.induced f)} (#apply{SourceComparison.forward} h))
+    (\fun (x: SourceInteger.Closed) => trans!{TargetNatural.Cohomology} _ _ _
+      (congr!{TargetInteger.Cohomology TargetNatural.Cohomology} (#apply{TargetComparison.forward}) _ _ (IntegerMap.onClass map x))
+      (trans!{TargetNatural.Cohomology} _ _ _ (TargetComparison.onIntegerClass (#apply{(IntegerMap.cyclesMap map)} x))
+        (trans!{TargetNatural.Cohomology} _ _ _
+          (sym!{TargetNatural.Cohomology} _ _ (NaturalMap.onClass f (SourceComparison.toNatural x)))
+          (congr!{SourceNatural.Cohomology TargetNatural.Cohomology} (#apply{(NaturalMap.induced f)}) _ _ (sym!{SourceNatural.Cohomology} _ _ (SourceComparison.onIntegerClass x))))));
+\definition inverseCommutes: \forall (h: SourceNatural.Cohomology) ->
+  #apply{(IntegerMap.induced map)} (#apply{SourceComparison.backward} h) = #apply{TargetComparison.backward} (#apply{(NaturalMap.induced f)} h) :=
+  \fun (h: SourceNatural.Cohomology) => trans!{TargetInteger.Cohomology} _ _ _
+    (sym!{TargetInteger.Cohomology} _ _ (TargetComparison.leftInverse (#apply{(IntegerMap.induced map)} (#apply{SourceComparison.backward} h))))
+    (congr!{TargetNatural.Cohomology TargetInteger.Cohomology} (#apply{TargetComparison.backward}) _ _
+      (trans!{TargetNatural.Cohomology} _ _ _ (commutes (#apply{SourceComparison.backward} h))
+        (congr!{SourceNatural.Cohomology TargetNatural.Cohomology} (#apply{(NaturalMap.induced f)}) _ _ (SourceComparison.rightInverse h))));

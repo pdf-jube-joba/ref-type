@@ -1,0 +1,59 @@
+\import Modules.Hom[V := N.Carrier, W := Target.Carrier, source := N.space, target := Target.space] \as Inclusions;
+\import Inclusions.Composition[U := L.Carrier, domain := L.space] \as ComposeCorrection;
+\import Modules.Hom[V := L.Carrier, W := Target.Carrier, source := L.space, target := Target.space] \as LiftMaps;
+\definition corrected: LiftMaps.Map := LiftMaps.plus TargetPushout.right (ComposeCorrection.compose Target.sequence.inclusion t);
+\import Modules.Laws[V := N.Carrier, space := N.space] \as Left;
+\import algebra.Group[].Of[Carrier := N.Carrier, group := Left.additive] \as LeftGroup;
+\definition correction: \forall (x: K.Carrier) -> #apply{t} x = LeftGroup.difference (#apply{f} x) (#apply{g} x) :=
+  \fun (x: K.Carrier) => congr!{Relations.Carrier N.Carrier} (\fun (a: Relations.Carrier) => #apply{a} x)
+    (precompose t) relationDifference (\bysub(Generators.Carrier, { t: Generators.Carrier \where precompose t = relationDifference }, t));
+\definition recover: \forall (x: K.Carrier) -> #apply{f} x = #add{N.space} (#apply{g} x) (#apply{t} x) :=
+  \fun (x: K.Carrier) => trans!{N.Carrier} _ _ _
+    (sym!{N.Carrier} _ _ (LeftGroup.addDifference (#apply{f} x) (#apply{g} x)))
+    (trans!{N.Carrier} _ _ _ (LeftGroup.comm (LeftGroup.difference (#apply{f} x) (#apply{g} x)) (#apply{g} x))
+      (congr!{N.Carrier N.Carrier} (#add{N.space} (#apply{g} x)) _ _ (sym!{N.Carrier} _ _ (correction x))));
+\import SourcePushout.Universal[U := Target.bundle, b := Target.sequence.inclusion, c := corrected] \as Universal;
+\definition compatible: Universal.Compatible := \fun (x: K.Carrier) => trans!{Target.Carrier} _ _ _
+  (congr!{N.Carrier Target.Carrier} (#apply{Target.sequence.inclusion}) _ _ (recover x))
+  (trans!{Target.Carrier} _ _ _ (#addition{Target.sequence.inclusion} (#apply{g} x) (#apply{t} x))
+    (congr!{Target.Carrier Target.Carrier} (\fun (a: Target.Carrier) => #add{Target.space} a (#apply{Target.sequence.inclusion} (#apply{t} x))) _ _ (TargetPushout.square x)));
+\definition map: Modules.MapBetween Source.bundle Target.bundle := Universal.map compatible;
+\definition onLeft: \forall (n: N.Carrier) -> #apply{map} (#apply{Source.sequence.inclusion} n) = #apply{Target.sequence.inclusion} n := Universal.onLeft compatible;
+\definition onRight: \forall (x: L.Carrier) -> #apply{map} (#apply{SourcePushout.right} x) = #apply{corrected} x := Universal.onRight compatible;
+\import Modules.Hom[V := N.Carrier, W := M.Carrier, source := N.space, target := M.space] \as Zero;
+\import SourcePushout.Universal[U := M, b := Zero.zeroMap, c := #augmentation{resolution}] \as Projection;
+\definition projectionCompatible: Projection.Compatible := \fun (x: K.Carrier) => sym!{M.Carrier} _ _ (#zero{presentation} x);
+\import TargetPushout.Universal[U := M, b := Zero.zeroMap, c := #augmentation{resolution}] \as TargetProjection;
+\definition targetCompatible: TargetProjection.Compatible := \fun (x: K.Carrier) => sym!{M.Carrier} _ _ (#zero{presentation} x);
+\import Modules.Laws[V := M.Carrier, space := M.space] \as Right;
+\import algebra.Group[].Of[Carrier := M.Carrier, group := Right.additive] \as RightGroup;
+\definition correctedAugmented: \forall (x: L.Carrier) -> #apply{Target.sequence.projection} (#apply{corrected} x) = #apply{#augmentation{resolution}} x :=
+  \fun (x: L.Carrier) => trans!{M.Carrier} _ _ _
+    (#addition{Target.sequence.projection} (#apply{TargetPushout.right} x) (#apply{Target.sequence.inclusion} (#apply{t} x)))
+    (trans!{M.Carrier} _ _ _
+      (congr2!{M.Carrier M.Carrier M.Carrier} (#add{M.space}) _ _ _ _ (TargetProjection.onRight targetCompatible x) (#zero{Target.sequence} (#apply{t} x)))
+      (RightGroup.zeroRight (#apply{#augmentation{resolution}} x)));
+\import Modules.Hom[V := Target.Carrier, W := M.Carrier, source := Target.space, target := M.space].Composition[U := Source.Carrier, domain := Source.space] \as ComposeProjection;
+\definition composed: Modules.MapBetween Source.bundle M := ComposeProjection.compose Target.sequence.projection map;
+\definition projectionEquality: composed = Source.sequence.projection := Projection.unique projectionCompatible composed
+  (\fun (n: N.Carrier) => trans!{M.Carrier} (#apply{Target.sequence.projection} (#apply{map} (#apply{SourcePushout.left} n)))
+    (#apply{Target.sequence.projection} (#apply{Target.sequence.inclusion} n)) #zero{M.space}
+    (congr!{Target.Carrier M.Carrier} (#apply{Target.sequence.projection}) (#apply{map} (#apply{SourcePushout.left} n)) (#apply{Target.sequence.inclusion} n) (onLeft n)) (#zero{Target.sequence} n))
+  (\fun (x: L.Carrier) => trans!{M.Carrier} (#apply{Target.sequence.projection} (#apply{map} (#apply{SourcePushout.right} x)))
+    (#apply{Target.sequence.projection} (#apply{corrected} x)) (#apply{#augmentation{resolution}} x)
+    (congr!{Target.Carrier M.Carrier} (#apply{Target.sequence.projection}) (#apply{map} (#apply{SourcePushout.right} x)) (#apply{corrected} x) (onRight x)) (correctedAugmented x));
+\definition onProjection: \forall (x: Source.Carrier) -> #apply{Target.sequence.projection} (#apply{map} x) = #apply{Source.sequence.projection} x :=
+  \fun (x: Source.Carrier) => congr!{{Modules.MapBetween Source.bundle M} M.Carrier}
+    (\fun (a: Modules.MapBetween Source.bundle M) => #apply{a} x) composed Source.sequence.projection projectionEquality;
+\import Modules.End[V := N.Carrier, space := N.space] \as LeftIdentity;
+\import Modules.End[V := M.Carrier, space := M.space] \as RightIdentity;
+\import Modules.ShortExactComparison[A := N, B := Source.bundle, C := M, A1 := N, B1 := Target.bundle, C1 := M].Diagram[
+  s := Source.sequence, t := Target.sequence, a := LeftIdentity.identity, b := map, c := RightIdentity.identity] \as Comparison;
+\definition diagram: Comparison.Commutative := Comparison.Commutative { left := onLeft, right := onProjection };
+\definition leftOnto: Modules.Surjective N N LeftIdentity.identity := \fun (x: N.Carrier) =>
+  \exact(\into[N.Carrier](x, { y: N.Carrier \where y = x }) \by { \refl(x) }, \Cast[N.Carrier] ({ y: N.Carrier \where y = x }));
+\definition rightOnto: Modules.Surjective M M RightIdentity.identity := \fun (x: M.Carrier) =>
+  \exact(\into[M.Carrier](x, { y: M.Carrier \where y = x }) \by { \refl(x) }, \Cast[M.Carrier] ({ y: M.Carrier \where y = x }));
+\definition isomorphism: Modules.Isomorphism[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space].Isomorphism :=
+  Comparison.isomorphism diagram (\fun (x, y: N.Carrier)(equal: x = y) => equal) leftOnto
+    (\fun (x, y: M.Carrier)(equal: x = y) => equal) rightOnto;

@@ -1,0 +1,88 @@
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\structure Family {
+  Carrier: Degree -> \Set,
+  space: \forall (z: Degree) -> Modules.Space (Carrier z),
+}
+\structure DifferentialData[F: Family]: \Set { apply: \forall (z: Degree) -> F.Carrier z -> F.Carrier (previous z) }
+\structure DifferentialLaws[F: Family, d: DifferentialData[F]]: \Prop {
+  addition: \forall (z: Degree)(x, y: F.Carrier z) -> d.apply z (#add{(F.space z)} x y) = #add{(F.space (previous z))} (d.apply z x) (d.apply z y),
+  scalar: \forall (z: Degree)(a: R)(x: F.Carrier z) -> d.apply z (#smul{(F.space z)} a x) = #smul{(F.space (previous z))} a (d.apply z x),
+  squareZero: \forall (z: Degree)(x: F.Carrier z) -> d.apply (previous z) (d.apply z x) = #zero{(F.space (previous (previous z)))},
+}
+\structure Complex {
+  family: Family,
+  differential: DifferentialData[family],
+  laws: DifferentialLaws[family, differential],
+}
+\module FamilyTransport(F: Family);
+\module Prior(C: Complex);
+\module At(C: Complex, z: Degree);
+\definition homology(C: Complex)(z: Degree): \Set := At[C := C, z := z].Homology;
+
+\module Map(C, D: Complex);
+\module End(C: Complex) {
+  \import \parent.Map[C := C, D := C] \as Maps;
+  \definition identity: Maps.Map := Maps.Map {
+    apply := \fun (k: Degree)(x: C.family.Carrier k) => x,
+    addition := \fun (k: Degree)(x, y: C.family.Carrier k) => \refl(#add{(C.family.space k)} x y),
+    scalar := \fun (k: Degree)(a: R)(x: C.family.Carrier k) => \refl(#smul{(C.family.space k)} a x),
+    commutes := \fun (k: Degree)(x: C.family.Carrier k) => \refl(#apply{C.differential} k x),
+  };
+  \module Point(k: Degree) {
+    \import \parent.\parent.At[C := C, z := k] \as Differential;
+    \definition commutes: \forall (x: C.family.Carrier k) ->
+      #apply{C.differential} k (#zero{(C.family.space k)}) = #zero{(C.family.space (previous k))} :=
+      \fun (x: C.family.Carrier k) => Modules.Hom[V := C.family.Carrier k, W := C.family.Carrier (previous k), source := C.family.space k, target := C.family.space (previous k)].zeroPreserved Differential.differential;
+  }
+  \definition zeroMap: Maps.Map := Maps.Map {
+    apply := \fun (k: Degree)(x: C.family.Carrier k) => #zero{(C.family.space k)},
+    addition := \fun (k: Degree) => #addition{(Modules.Hom[V := C.family.Carrier k, W := C.family.Carrier k,
+      source := C.family.space k, target := C.family.space k].zeroMap)},
+    scalar := \fun (k: Degree) => #scalar{(Modules.Hom[V := C.family.Carrier k, W := C.family.Carrier k,
+      source := C.family.space k, target := C.family.space k].zeroMap)},
+    commutes := \fun (k: Degree) => Point[k := k].commutes,
+  };
+  \module At(k: Degree) {
+    \import \parent.\parent.At[C := C, z := k] \as Homology;
+    \import Maps.At[k := k] \as Map;
+    \definition zeroOnHomology: \forall (q: Homology.Homology) -> #apply{(Map.induced zeroMap)} q = Homology.zeroClass :=
+      Homology.classInduction (\fun (q: Homology.Homology) => #apply{(Map.induced zeroMap)} q = Homology.zeroClass)
+        (\fun (x: Homology.Cycle) => Map.onClass zeroMap x);
+    \definition inducedIdentity(h: Homology.Homology): Homology.Homology := #apply{(Map.induced identity)} h;
+    \definition identityOnHomology: \forall (h: Homology.Homology) -> #apply{(Map.induced identity)} h = h :=
+      Homology.classInduction (\fun (h: Homology.Homology) => #apply{(Map.induced identity)} h = h)
+        (\fun (x: Homology.Cycle) => Map.onClass identity x);
+  }
+}
+\module Homotopy(C, D: Complex);
+\module ZeroDifferential(family: Family);
+\module Equivalence(C, D: Complex);
+\module Shift(C: Complex);
+\module Reverse(C: Complex);
+\module Cone(C, D: Complex);
+\module ShortExact(A, B, C: Complex);
+\module Isomorphism(C, D: Complex);
+\module ChangeBasis(C: Complex);
+
+\module Zero {
+  \import Modules.Zero[] \as Point;
+  \definition family: Family := Family {
+    Carrier := \fun (z: Degree) => Point.Carrier,
+    space := \fun (z: Degree) => Point.moduleSpace,
+  };
+  \import \parent.ZeroDifferential[family := family] \as Constant;
+  \definition complex: Complex := Constant.complex;
+  \module At(z: Degree) {
+    \import \parent.\parent.At[C := complex, z := z] \as H;
+    \import H.Vanishing[] \as Vanishing;
+    \definition vanishes: \forall (q: H.Homology) -> q = H.zeroClass := Vanishing.zero (\fun (x: Point.Carrier) => Point.unique x Point.Carrier::zero);
+    \definition isomorphism: Modules.Isomorphism[V := H.Homology, W := Point.Carrier, source := H.homologySpace, target := Point.moduleSpace].Isomorphism :=
+      Vanishing.isomorphism (\fun (x: Point.Carrier) => Point.unique x Point.Carrier::zero);
+  }
+}
+
+\module Concentrated(M: Modules.Bundle, degree: Degree);
+
+\module ConeIdentity(C: Complex);
+
+\module Quotient(C, D: Complex);

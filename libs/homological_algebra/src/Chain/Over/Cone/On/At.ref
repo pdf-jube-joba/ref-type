@@ -1,0 +1,111 @@
+\import Modules.Biproduct[V := D.family.Carrier k, W := C.family.Carrier (previous k), left := D.family.space k, right := C.family.space (previous k)] \as Sum;
+\import Modules.Biproduct[V := D.family.Carrier (previous k), W := C.family.Carrier (previous (previous k)), left := D.family.space (previous k), right := C.family.space (previous (previous k))] \as After;
+\import Modules.Biproduct[V := D.family.Carrier (previous (previous k)), W := C.family.Carrier (previous (previous (previous k))), left := D.family.space (previous (previous k)), right := C.family.space (previous (previous (previous k)))] \as Last;
+\import std.Data[].Pair[].Prop[A := D.family.Carrier (previous k), B := C.family.Carrier (previous (previous k))] \as AfterPairs;
+\import std.Data[].Pair[].Prop[A := D.family.Carrier (previous (previous k)), B := C.family.Carrier (previous (previous (previous k)))] \as LastPairs;
+\import std.Data[].Pair[].Prop[A := D.family.Carrier k, B := C.family.Carrier (previous k)] \as CurrentPairs;
+\definition Carrier: \Set := Sum.Carrier;
+\definition space: Modules.Space Carrier := Sum.space;
+\import Modules.Laws[V := D.family.Carrier (previous k), space := D.family.space (previous k)] \as LeftLaws;
+\import algebra.Group[].Of[Carrier := D.family.Carrier (previous k), group := LeftLaws.additive] \as LeftGroup;
+\import Modules.Laws[V := C.family.Carrier (previous (previous k)), space := C.family.space (previous (previous k))] \as RightLaws;
+\import algebra.Group[].Of[Carrier := C.family.Carrier (previous (previous k)), group := RightLaws.additive] \as RightGroup;
+\import Modules.Hom[V := Carrier, W := After.Carrier, source := space, target := After.space] \as Maps;
+\definition apply(x: Carrier): After.Carrier := After.make
+  (#add{(D.family.space (previous k))} (#apply{D.differential} k (Sum.first x)) (#apply{f} (previous k) (Sum.second x)))
+  (#neg{(C.family.space (previous (previous k)))} (#apply{C.differential} (previous k) (Sum.second x)));
+\definition differential: Maps.Map := Maps.Map {
+  apply := apply,
+  addition := \fun (x, y: Carrier) => AfterPairs.ext _ _
+    (trans!{{D.family.Carrier (previous k)}} _ _ _
+      (congr2!{{D.family.Carrier (previous k)} {D.family.Carrier (previous k)} {D.family.Carrier (previous k)}} (#add{(D.family.space (previous k))}) _ _ _ _
+        (#addition{D.laws} k (Sum.first x) (Sum.first y)) (#addition{f} (previous k) (Sum.second x) (Sum.second y)))
+      (LeftGroup.four (#apply{D.differential} k (Sum.first x)) (#apply{D.differential} k (Sum.first y)) (#apply{f} (previous k) (Sum.second x)) (#apply{f} (previous k) (Sum.second y))))
+    (trans!{{C.family.Carrier (previous (previous k))}} _ _ _
+      (congr!{{C.family.Carrier (previous (previous k))} {C.family.Carrier (previous (previous k))}} (#neg{(C.family.space (previous (previous k)))}) _ _
+        (#addition{C.laws} (previous k) (Sum.second x) (Sum.second y)))
+      (RightGroup.negAdd (#apply{C.differential} (previous k) (Sum.second x)) (#apply{C.differential} (previous k) (Sum.second y)))),
+  scalar := \fun (a: R)(x: Carrier) => AfterPairs.ext _ _
+    (trans!{{D.family.Carrier (previous k)}} _ _ _
+      (congr2!{{D.family.Carrier (previous k)} {D.family.Carrier (previous k)} {D.family.Carrier (previous k)}} (#add{(D.family.space (previous k))}) _ _ _ _
+        (#scalar{D.laws} k a (Sum.first x)) (#scalar{f} (previous k) a (Sum.second x)))
+      (sym!{{D.family.Carrier (previous k)}} _ _ (#vectorAdd{(D.family.space (previous k))} a (#apply{D.differential} k (Sum.first x)) (#apply{f} (previous k) (Sum.second x)))))
+    (trans!{{C.family.Carrier (previous (previous k))}} _ _ _
+      (congr!{{C.family.Carrier (previous (previous k))} {C.family.Carrier (previous (previous k))}} (#neg{(C.family.space (previous (previous k)))}) _ _
+        (#scalar{C.laws} (previous k) a (Sum.second x)))
+      (sym!{{C.family.Carrier (previous (previous k))}} _ _ (RightLaws.scaleNeg a (#apply{C.differential} (previous k) (Sum.second x))))),
+};
+\definition applyAfter(x: After.Carrier): Last.Carrier := Last.make
+  (#add{(D.family.space (previous (previous k)))} (#apply{D.differential} (previous k) (After.first x)) (#apply{f} (previous (previous k)) (After.second x)))
+  (#neg{(C.family.space (previous (previous (previous k))))} (#apply{C.differential} (previous (previous k)) (After.second x)));
+\import Modules.Laws[V := D.family.Carrier (previous (previous k)), space := D.family.space (previous (previous k))] \as LastLeftLaws;
+\import algebra.Group[].Of[Carrier := D.family.Carrier (previous (previous k)), group := LastLeftLaws.additive] \as LastLeftGroup;
+\import \parent.\parent.\parent.Map[C := C, D := D].At[k := previous (previous k)] \as LastMap;
+\import Modules.Hom[V := C.family.Carrier (previous (previous k)), W := D.family.Carrier (previous (previous k)), source := C.family.space (previous (previous k)), target := D.family.space (previous (previous k))] \as LastMaps;
+\definition leftSquare(x: Carrier): Last.first (applyAfter (apply x)) = #zero{(D.family.space (previous (previous k)))} := eq_reason!{
+    {Last.first (applyAfter (apply x))}
+    "=" {#add{(D.family.space (previous (previous k)))}
+      (#add{(D.family.space (previous (previous k)))}
+        (#apply{D.differential} (previous k) (#apply{D.differential} k (Sum.first x)))
+        (#apply{D.differential} (previous k) (#apply{f} (previous k) (Sum.second x))))
+      (#neg{(D.family.space (previous (previous k)))} (#apply{f} (previous (previous k)) (#apply{C.differential} (previous k) (Sum.second x))))}
+    "by" {congr2!{{D.family.Carrier (previous (previous k))} {D.family.Carrier (previous (previous k))} {D.family.Carrier (previous (previous k))}}
+      (#add{(D.family.space (previous (previous k)))}) _ _ _ _
+      (#addition{D.laws} (previous k) (#apply{D.differential} k (Sum.first x)) (#apply{f} (previous k) (Sum.second x)))
+      (LastMaps.negativePreserved (LastMap.linear f) (#apply{C.differential} (previous k) (Sum.second x)))}
+    "=" {#add{(D.family.space (previous (previous k)))}
+      (#add{(D.family.space (previous (previous k)))} #zero{(D.family.space (previous (previous k)))}
+        (#apply{f} (previous (previous k)) (#apply{C.differential} (previous k) (Sum.second x))))
+      (#neg{(D.family.space (previous (previous k)))} (#apply{f} (previous (previous k)) (#apply{C.differential} (previous k) (Sum.second x))))}
+    "by" {congr!{{D.family.Carrier (previous (previous k))} {D.family.Carrier (previous (previous k))}}
+      (\fun (a: D.family.Carrier (previous (previous k))) => #add{(D.family.space (previous (previous k)))} a
+        (#neg{(D.family.space (previous (previous k)))} (#apply{f} (previous (previous k)) (#apply{C.differential} (previous k) (Sum.second x))))) _ _
+      (congr2!{{D.family.Carrier (previous (previous k))} {D.family.Carrier (previous (previous k))} {D.family.Carrier (previous (previous k))}}
+        (#add{(D.family.space (previous (previous k)))}) _ _ _ _ (#squareZero{D.laws} k (Sum.first x)) (#commutes{f} (previous k) (Sum.second x)))}
+    "=" {#add{(D.family.space (previous (previous k)))}
+      (#apply{f} (previous (previous k)) (#apply{C.differential} (previous k) (Sum.second x)))
+      (#neg{(D.family.space (previous (previous k)))} (#apply{f} (previous (previous k)) (#apply{C.differential} (previous k) (Sum.second x))))}
+    "by" {congr!{{D.family.Carrier (previous (previous k))} {D.family.Carrier (previous (previous k))}}
+      (\fun (a: D.family.Carrier (previous (previous k))) => #add{(D.family.space (previous (previous k)))} a
+        (#neg{(D.family.space (previous (previous k)))} (#apply{f} (previous (previous k)) (#apply{C.differential} (previous k) (Sum.second x))))) _ _
+      (LastLeftGroup.zeroLeft (#apply{f} (previous (previous k)) (#apply{C.differential} (previous k) (Sum.second x))))}
+    "=" {#zero{(D.family.space (previous (previous k)))}} "by" {
+      LastLeftGroup.inverseRight (#apply{f} (previous (previous k)) (#apply{C.differential} (previous k) (Sum.second x)))}
+  };
+\import \parent.\parent.\parent.Shift[C := C].At[k := k] \as Shift;
+\definition squareZero: \forall (x: Carrier) -> applyAfter (apply x) = #zero{Last.space} :=
+  \fun (x: Carrier) => LastPairs.ext _ _ (leftSquare x) (Shift.squareZero (Sum.second x));
+\definition leftBundle: Modules.Bundle := Modules.Bundle { Carrier := D.family.Carrier k, space := D.family.space k };
+\definition middleBundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+\definition rightBundle: Modules.Bundle := Modules.Bundle { Carrier := C.family.Carrier (previous k), space := C.family.space (previous k) };
+\import Modules.ShortExact[A := leftBundle, B := middleBundle, C := rightBundle] \as Exact;
+\definition shortExact: Exact.Sequence := Exact.Sequence {
+  inclusion := Sum.firstInjection, projection := Sum.secondProjection,
+  injective := \fun (x, y: D.family.Carrier k)(same: _) => congr!{Carrier {D.family.Carrier k}} Sum.first _ _ same,
+  onto := \fun (x: C.family.Carrier (previous k)) =>
+    \exact(\into[Carrier](#apply{Sum.secondInjection} x, { y: Carrier \where Sum.second y = x }) \by { \refl(x) },
+      \Cast[Carrier] ({ y: Carrier \where Sum.second y = x })),
+  zero := \fun (x: D.family.Carrier k) => \refl(#zero{(C.family.space (previous k))}),
+  kernelImage := \fun (x: Carrier)(closed: Sum.second x = #zero{(C.family.space (previous k))}) =>
+    \exact(\into[D.family.Carrier k](Sum.first x, { y: D.family.Carrier k \where #apply{Sum.firstInjection} y = x }) \by {
+      CurrentPairs.ext (#apply{Sum.firstInjection} (Sum.first x)) x (\refl(Sum.first x))
+        (sym!{{C.family.Carrier (previous k)}} (Sum.second x) #zero{(C.family.space (previous k))} closed)
+    }, \Cast[D.family.Carrier k] ({ y: D.family.Carrier k \where #apply{Sum.firstInjection} y = x })),
+};
+\import \parent.\parent.\parent.Map[C := C, D := D].At[k := previous k] \as Coefficient;
+\import Modules.Hom[V := C.family.Carrier (previous k), W := D.family.Carrier (previous k), source := C.family.space (previous k), target := D.family.space (previous k)] \as Coefficients;
+\import \parent.\parent.\parent.At[C := C, z := previous k] \as Original;
+\import Modules.Hom[V := C.family.Carrier (previous k), W := C.family.Carrier (previous (previous k)), source := C.family.space (previous k), target := C.family.space (previous (previous k))] \as OriginalMaps;
+\definition inclusionCommutes: \forall (x: D.family.Carrier k) ->
+  apply (#apply{Sum.firstInjection} x) = #apply{After.firstInjection} (#apply{D.differential} k x) :=
+  \fun (x: D.family.Carrier k) => AfterPairs.ext _ _
+    (trans!{{D.family.Carrier (previous k)}} _ _ _
+      (congr!{{D.family.Carrier (previous k)} {D.family.Carrier (previous k)}} (#add{(D.family.space (previous k))} (#apply{D.differential} k x)) _ _
+        (Coefficients.zeroPreserved (Coefficient.linear f))) (LeftGroup.zeroRight (#apply{D.differential} k x)))
+    (trans!{{C.family.Carrier (previous (previous k))}} _ _ _
+      (congr!{{C.family.Carrier (previous (previous k))} {C.family.Carrier (previous (previous k))}} (#neg{(C.family.space (previous (previous k)))}) _ _
+        (OriginalMaps.zeroPreserved Original.differential)) (RightGroup.negZero));
+\definition injection: _ := Sum.firstInjection;
+\definition projection: _ := Sum.secondProjection;
+\definition first: _ := Sum.first;
+\definition second: _ := Sum.second;

@@ -1,0 +1,43 @@
+\import std.Alg[].Monoid[] \as Monoid;
+\definition Carrier: \Set := \forall (i: Index) -> family.Carrier i;
+\definition zero: Carrier := \fun (i: Index) => #zero{(family.space i)};
+\definition add(f, g: Carrier): Carrier := \fun (i: Index) => #add{(family.space i)} (f i) (g i);
+\definition neg(f: Carrier): Carrier := \fun (i: Index) => #neg{(family.space i)} (f i);
+\definition scale(a: R)(f: Carrier): Carrier := \fun (i: Index) => #smul{(family.space i)} a (f i);
+\definition ext: \forall (f, g: Carrier) -> (\forall (i: Index) -> f i = g i) -> f = g :=
+  \fun (f, g: Carrier)(same: _) => \axiom:funext(f, g, same);
+\module At(i: Index) {
+  \import \parent.\parent.Laws[V := family.Carrier i, space := family.space i] \as Laws;
+  \import algebra.Group[].Of[Carrier := family.Carrier i, group := Laws.additive] \as Group;
+  \definition leftIdentity: \forall (x: family.Carrier i) -> #add{(family.space i)} #zero{(family.space i)} x = x := Group.zeroLeft;
+  \definition rightIdentity: \forall (x: family.Carrier i) -> #add{(family.space i)} x #zero{(family.space i)} = x := Group.zeroRight;
+  \definition associative: \forall (x, y, z: family.Carrier i) -> #add{(family.space i)} (#add{(family.space i)} x y) z = #add{(family.space i)} x (#add{(family.space i)} y z) := Group.assoc;
+}
+\definition space: Space Carrier := Ring.RingModule[R, Carrier, ring] {
+  zero := zero, add := add, neg := neg, smul := scale,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# zero add neg)] {
+    group := Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# zero add neg] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# zero add] {
+        leftIdentity := \fun (f: Carrier) => ext (add zero f) f (\fun (i: Index) => At[i := i].leftIdentity (f i)),
+        rightIdentity := \fun (f: Carrier) => ext (add f zero) f (\fun (i: Index) => At[i := i].rightIdentity (f i)),
+        associative := \fun (f, g, h: Carrier) => ext (add (add f g) h) (add f (add g h)) (\fun (i: Index) => At[i := i].associative (f i) (g i) (h i)),
+      },
+      leftInverse := \fun (f: Carrier) => ext (add (neg f) f) zero (\fun (i: Index) => #leftInverse{(#group{(#additive{(family.space i)})})} (f i)),
+      rightInverse := \fun (f: Carrier) => ext (add f (neg f)) zero (\fun (i: Index) => #rightInverse{(#group{(#additive{(family.space i)})})} (f i)),
+    },
+    commutative := \fun (f, g: Carrier) => ext (add f g) (add g f) (\fun (i: Index) => #commutative{(#additive{(family.space i)})} (f i) (g i)),
+  },
+  scalarOne := \fun (f: Carrier) => ext (scale (#one{ring}) f) f (\fun (i: Index) => #scalarOne{(family.space i)} (f i)),
+  scalarAssoc := \fun (a, b: R)(f: Carrier) => ext (scale (#mul{ring} a b) f) (scale a (scale b f)) (\fun (i: Index) => #scalarAssoc{(family.space i)} a b (f i)),
+  scalarAdd := \fun (a, b: R)(f: Carrier) => ext (scale (#add{ring} a b) f) (add (scale a f) (scale b f)) (\fun (i: Index) => #scalarAdd{(family.space i)} a b (f i)),
+  vectorAdd := \fun (a: R)(f, g: Carrier) => ext (scale a (add f g)) (add (scale a f) (scale a g)) (\fun (i: Index) => #vectorAdd{(family.space i)} a (f i) (g i)),
+};
+\module Projection(i: Index) {
+  \import \parent.\parent.Hom[V := Carrier, W := family.Carrier i, source := space, target := family.space i] \as Maps;
+  \definition map: Maps.Map := Maps.Map {
+    apply := \fun (f: Carrier) => f i,
+    addition := \fun (f, g: Carrier) => \refl(#add{(family.space i)} (f i) (g i)),
+    scalar := \fun (a: R)(f: Carrier) => \refl(#smul{(family.space i)} a (f i)),
+  };
+}
+\module Single(point: Index);

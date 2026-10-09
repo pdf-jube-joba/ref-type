@@ -1,0 +1,106 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Arithmetic[].Int[] \as I;
+\import algebra.Group[].Of[Carrier := Carrier, group := group] \as Group;
+\import std.Alg[].Monoid[] \as Monoid;
+\import algebra.GroupCompletion[].Natural[] \as Natural;
+\import algebra.GroupCompletion[].Of[M := N.Nat^, monoid := Natural.monoid] \as Completion;
+\import Completion.Universal[K := Carrier, target := group] \as Universal;
+\import algebra.Hom[A := N.Nat^, B := Carrier] \as NatMaps;
+\import algebra.Hom[A := Completion.Carrier, B := Carrier] \as CompletedMaps;
+\definition target: Monoid.Monoid[Carrier] := Monoid.asMonoid Carrier Group.additive;
+\definition repeat(n: N.Nat^)(x: Carrier): Carrier :=
+  (\induction (n: N.Nat^) \return Carrier \with {
+    | zero: Group.zero
+    | succ: \fun (n: N.Nat^)(previous: Carrier) => Group.add x previous
+  }) n;
+\definition repeatAdd: \forall (m, n: N.Nat^)(x: Carrier) -> repeat (Nat.add m n) x = Group.add (repeat m x) (repeat n x) :=
+  \fun (m: N.Nat^) => \induction (n: N.Nat^) \return \forall (x: Carrier) -> repeat (Nat.add m n) x = Group.add (repeat m x) (repeat n x) \with {
+    | zero: \fun (x: Carrier) => sym!{Carrier} _ _ (Group.zeroRight (repeat m x))
+    | succ: \fun (n: N.Nat^)(previous: \forall (x: Carrier) -> repeat (Nat.add m n) x = Group.add (repeat m x) (repeat n x))(x: Carrier) =>
+      trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (Group.add x) _ _ (previous x))
+        (trans!{Carrier} _ _ _ (sym!{Carrier} _ _ (Group.assoc x (repeat m x) (repeat n x)))
+          (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (\fun (y: Carrier) => Group.add y (repeat n x)) _ _ (Group.comm x (repeat m x)))
+            (Group.assoc (repeat m x) x (repeat n x))))
+  };
+\definition repeatVectorAdd: \forall (n: N.Nat^)(x, y: Carrier) -> repeat n (Group.add x y) = Group.add (repeat n x) (repeat n y) :=
+  \induction (n: N.Nat^) \return \forall (x, y: Carrier) -> repeat n (Group.add x y) = Group.add (repeat n x) (repeat n y) \with {
+    | zero: \fun (x, y: Carrier) => sym!{Carrier} _ _ (Group.zeroLeft Group.zero)
+    | succ: \fun (n: N.Nat^)(previous: \forall (x, y: Carrier) -> repeat n (Group.add x y) = Group.add (repeat n x) (repeat n y))(x, y: Carrier) =>
+      trans!{Carrier} _ _ _ (congr!{Carrier Carrier} (Group.add (Group.add x y)) _ _ (previous x y))
+        (Group.four x y (repeat n x) (repeat n y))
+  };
+\definition naturalMap(x: Carrier): Universal.Map := \into[N.Nat^ -> Carrier](\fun (n: N.Nat^) => repeat n x, Universal.Map) \by {
+  NatMaps.MonoidLaws[Universal.domain, Universal.codomain, \fun (n: N.Nat^) => repeat n x] {
+    unit := \refl(Group.zero), operation := \fun (m, n: N.Nat^) => repeatAdd m n x,
+  }
+};
+\definition extension(x: Carrier): CompletedMaps.MonoidMap Completion.asMonoid target := Universal.extension (naturalMap x);
+\definition action(a: I.Int^)(x: Carrier): Carrier := extension x (Natural.fromInt a);
+\definition onNatural: \forall (n: N.Nat^)(x: Carrier) -> action (I.Int^::ofNat n) x = repeat n x :=
+  \fun (n: N.Nat^)(x: Carrier) => Universal.extendIncludes (naturalMap x) n;
+\definition scalarAdd: \forall (a, b: I.Int^)(x: Carrier) -> action (I.Add.specification a b) x = Group.add (action a x) (action b x) :=
+  \fun (a, b: I.Int^)(x: Carrier) => trans!{Carrier} _ _ _ (congr!{Completion.Carrier Carrier} (extension x) _ _ (Natural.fromIntAdd a b))
+    (#operation{(CompletedMaps.monoidLaws Completion.asMonoid target (extension x))} (Natural.fromInt a) (Natural.fromInt b));
+\definition scalarOne: \forall (x: Carrier) -> action I.One.specification x = x :=
+  \fun (x: Carrier) => trans!{Carrier} _ _ _ (onNatural (N.Nat^::succ N.Nat^::zero) x) (Group.zeroRight x);
+\definition scalarZero: \forall (x: Carrier) -> action I.Zero.specification x = Group.zero := onNatural N.Nat^::zero;
+\module Addition(x, y: Carrier);
+\definition vectorAdd: \forall (a: I.Int^)(x, y: Carrier) -> action a (Group.add x y) = Group.add (action a x) (action a y) :=
+  \fun (a: I.Int^)(x, y: Carrier) => Addition[x := x, y := y].law a;
+
+\import std.Arithmetic[].IntAlgebra[] \as Integers;
+\import Integers.Ring[] \as IntegerRing;
+\import std.Alg[].Ring[] \as Rings;
+\import algebra.Group[].Of[Carrier := I.Int^, group := Integers.additiveCommutativeGroup] \as IntegerGroup;
+\import algebra.Hom[A := I.Int^, B := Carrier] \as IntegerMaps;
+\definition integerDomain: Monoid.Monoid[I.Int^] := Monoid.asMonoid I.Int^ IntegerGroup.additive;
+\definition IntegerMap: \Set := IntegerMaps.MonoidMap integerDomain target;
+\definition integerMap(x: Carrier): IntegerMap :=
+  \into[I.Int^ -> Carrier](\fun (a: I.Int^) => action a x, IntegerMap) \by {
+    IntegerMaps.MonoidLaws[integerDomain, target, \fun (a: I.Int^) => action a x] {
+      unit := scalarZero x, operation := \fun (a, b: I.Int^) => scalarAdd a b x,
+    }
+  };
+\definition preservesNegative: \forall (f: IntegerMap)(a: I.Int^) -> f (I.Neg.specification a) = Group.neg (f a) :=
+  \fun (f: IntegerMap)(a: I.Int^) => Group.inverseUnique (f a) (f (I.Neg.specification a))
+    (trans!{Carrier} _ _ _
+      (sym!{Carrier} _ _ (#operation{(IntegerMaps.monoidLaws integerDomain target f)} (I.Neg.specification a) a))
+      (trans!{Carrier} _ _ _ (congr!{I.Int^ Carrier} f _ _ (IntegerGroup.inverseLeft a))
+        (#unit{(IntegerMaps.monoidLaws integerDomain target f)})));
+\definition agreesOnNaturals: \forall (f, g: IntegerMap) -> f I.One.specification = g I.One.specification ->
+  \forall (n: N.Nat^) -> f (I.Int^::ofNat n) = g (I.Int^::ofNat n) :=
+  \fun (f, g: IntegerMap)(one: f I.One.specification = g I.One.specification) =>
+    \induction (n: N.Nat^) \return f (I.Int^::ofNat n) = g (I.Int^::ofNat n) \with {
+      | zero: trans!{Carrier} _ _ _ (#unit{(IntegerMaps.monoidLaws integerDomain target f)})
+          (sym!{Carrier} _ _ (#unit{(IntegerMaps.monoidLaws integerDomain target g)}))
+      | succ: \fun (n: N.Nat^)(previous: f (I.Int^::ofNat n) = g (I.Int^::ofNat n)) =>
+          trans!{Carrier} _ _ _ (#operation{(IntegerMaps.monoidLaws integerDomain target f)} (I.Int^::ofNat n) I.One.specification)
+            (trans!{Carrier} _ _ _ (congr2!{Carrier Carrier Carrier} Group.add _ _ _ _ previous one)
+              (sym!{Carrier} _ _ (#operation{(IntegerMaps.monoidLaws integerDomain target g)} (I.Int^::ofNat n) I.One.specification)))
+    };
+\definition generatorExt: \forall (f, g: IntegerMap) -> f I.One.specification = g I.One.specification -> f = g :=
+  \fun (f, g: IntegerMap)(one: f I.One.specification = g I.One.specification) => \axiom:funext(f, g,
+    \induction (a: I.Int^) \return f a = g a \with {
+      | ofNat: agreesOnNaturals f g one
+      | negSucc: \fun (n: N.Nat^) => trans!{Carrier} _ _ _ (preservesNegative f (I.Int^::ofNat (N.Nat^::succ n)))
+          (trans!{Carrier} _ _ _ (congr!{Carrier Carrier} Group.neg _ _ (agreesOnNaturals f g one (N.Nat^::succ n)))
+            (sym!{Carrier} _ _ (preservesNegative g (I.Int^::ofNat (N.Nat^::succ n)))))
+    });
+\module Multiplication(b: I.Int^, x: Carrier);
+\definition scalarAssoc: \forall (a, b: I.Int^)(x: Carrier) -> action (I.Mul.specification a b) x = action a (action b x) :=
+  \fun (a, b: I.Int^)(x: Carrier) => Multiplication[b := b, x := x].law a;
+\definition space: Rings.RingModule[I.Int^, Carrier, IntegerRing.ring] := Rings.RingModule[I.Int^, Carrier, IntegerRing.ring] {
+  zero := Group.zero, add := Group.add, neg := Group.neg, smul := action,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# Group.zero Group.add Group.neg)] {
+    group := Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# Group.zero Group.add Group.neg] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# Group.zero Group.add] {
+        leftIdentity := Group.zeroLeft, rightIdentity := Group.zeroRight, associative := Group.assoc,
+      },
+      leftInverse := Group.inverseLeft, rightInverse := Group.inverseRight,
+    },
+    commutative := Group.comm,
+  },
+  scalarOne := scalarOne, scalarAssoc := scalarAssoc, scalarAdd := scalarAdd, vectorAdd := vectorAdd,
+};
+\module Mapping(B: \Set, other: Alg.CommutativeGroup[B]);

@@ -1,0 +1,48 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Arithmetic;
+\import N.Basic[].Prop[] \as Laws;
+\import N.Basic[].ProgramProp[] \as Native;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Program[] \as Programs;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\definition sum: N.Nat^ -> (N.Nat^ -> N.Nat^) -> N.Nat^ :=
+  \induction (count: N.Nat^) \return (N.Nat^ -> N.Nat^) -> N.Nat^ \with {
+    | zero: \fun (f: N.Nat^ -> N.Nat^) => Arithmetic.zero
+    | succ: \fun (count: N.Nat^)(previous: (N.Nat^ -> N.Nat^) -> N.Nat^)(f: N.Nat^ -> N.Nat^) => Arithmetic.add (previous f) (f count)
+  };
+\definition shift: \forall (count: N.Nat^)(f: N.Nat^ -> N.Nat^) -> sum (N.Nat^::succ count) f = Arithmetic.add (f N.Nat^::zero) (sum count (\fun (k: N.Nat^) => f (N.Nat^::succ k))) :=
+  \induction (count: N.Nat^) \return \forall (f: N.Nat^ -> N.Nat^) -> sum (N.Nat^::succ count) f = Arithmetic.add (f N.Nat^::zero) (sum count (\fun (k: N.Nat^) => f (N.Nat^::succ k))) \with {
+    | zero: \fun (f: N.Nat^ -> N.Nat^) => trans!{N.Nat^} _ _ _ (Laws.addZeroLeft (f N.Nat^::zero)) (sym!{N.Nat^} _ _ (Laws.addZeroRight (f N.Nat^::zero)))
+    | succ: \fun (count: N.Nat^)(previous: _)(f: N.Nat^ -> N.Nat^) => trans!{N.Nat^} _ _ _
+      (congr!{N.Nat^ N.Nat^} (\fun (a: N.Nat^) => Arithmetic.add a (f (N.Nat^::succ count))) _ _ (previous f))
+      (Laws.addAssoc (f N.Nat^::zero) (sum count (\fun (k: N.Nat^) => f (N.Nat^::succ k))) (f (N.Nat^::succ count)))
+  };
+\inductive State: \VType := | running: \U(N.Nat -> N.Nat) -> N.Nat -> N.Nat -> State;
+\module LoopImplementation;
+\machine Loop: Programs.Machine := Programs.Machine {
+  State := State, Output := N.Nat,
+  step := LoopImplementation[].step, terminates := LoopImplementation[].certificate,
+};
+\module Implementation;
+\correspondence Sum: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program,
+  specification := sum, coherence := Implementation[].coherence,
+};
+
+\import N.Induction[] \as Induction;
+\import std.Logic[].Proposition[] \as Logic;
+\use Logic.either;
+\definition bounds: \forall (count: N.Nat^)(f: N.Nat^ -> N.Nat^)(i: N.Nat^) -> Laws.Lt i count -> Laws.Le (f i) (sum count f) :=
+  \induction (count: N.Nat^) \return \forall (f: N.Nat^ -> N.Nat^)(i: N.Nat^) -> Laws.Lt i count -> Laws.Le (f i) (sum count f) \with {
+    | zero: \fun (f: N.Nat^ -> N.Nat^)(i: N.Nat^)(less: _) => Logic.falseElim _ (N.Order[].Prop[].ltZero i less)
+    | succ: \fun (count: N.Nat^)(previous: _)(f: N.Nat^ -> N.Nat^)(i: N.Nat^)(less: _) =>
+        either!{{Laws.Lt i count} "or" {i = count} "either" {Laws.Le (f i) (sum (N.Nat^::succ count) f)}
+          "lt:" {\fun (lower: _) => Laws.leTrans (f i) (sum count f) (sum (N.Nat^::succ count) f) (previous f i lower) (Laws.leAddRight (sum count f) (f count))}
+          "rt:" {\fun (equal: _) => \idelim count = i \with index: N.Nat^ => Laws.Le (f index) (sum (N.Nat^::succ count) f) \by {
+            base: Laws.leAddLeft (sum count f) (f count), equality: sym!{N.Nat^} i count equal
+          }}} (Induction.leCases i count (Induction.belowSuccessor i count less))
+  };

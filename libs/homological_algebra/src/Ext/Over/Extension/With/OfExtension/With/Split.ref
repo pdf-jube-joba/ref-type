@@ -1,0 +1,24 @@
+\definition Splits: \Prop := \forall (x: M.Carrier) -> #apply{s.projection} (#apply{section} x) = x;
+\import Modules.Hom[V := M.Carrier, W := E.Carrier, source := M.space, target := E.space].Composition[U := L.Carrier, domain := L.space] \as Composition;
+\definition map: Modules.MapBetween L E := Composition.compose section (#augmentation{resolution});
+\definition lift(splits: Splits): Lift := \into[Modules.MapBetween L E](map,
+  { f: Modules.MapBetween L E \where \forall (x: L.Carrier) -> #apply{s.projection} (#apply{f} x) = #apply{#augmentation{resolution}} x }) \by {
+    \fun (x: L.Carrier) => splits (#apply{#augmentation{resolution}} x)
+  };
+\import Modules.Hom[V := M.Carrier, W := E.Carrier, source := M.space, target := E.space] \as Sections;
+\import Modules.Hom[V := N.Carrier, W := E.Carrier, source := N.space, target := E.space] \as Inclusions;
+\definition relationZero: \forall (splits: Splits) -> \parent.Chosen[lift := lift splits].relation = RelationMaps.zeroMap :=
+  \fun (splits: Splits) => RelationMaps.ext \parent.Chosen[lift := lift splits].relation RelationMaps.zeroMap
+    (\fun (x: K.Carrier) => #injective{s} (#apply{\parent.Chosen[lift := lift splits].relation} x) #zero{N.space}
+      (trans!{E.Carrier} _ _ _ (\parent.Chosen[lift := lift splits].onKernel x)
+        (trans!{E.Carrier} _ _ _
+          (congr!{M.Carrier E.Carrier} (#apply{section}) _ _ (#zero{presentation} x))
+          (trans!{E.Carrier} _ _ _ (Sections.zeroPreserved section) (sym!{E.Carrier} _ _ (Inclusions.zeroPreserved s.inclusion))))));
+\definition zeroClass: \forall (splits: Splits) -> class = Quotient.zeroClass :=
+  \fun (splits: Splits) => trans!{Quotient.Carrier} _ _ _ (onLift (lift splits))
+    (congr!{Relations.Carrier Quotient.Carrier} Quotient.class _ _ (relationZero splits));
+\import Modules.Hom[V := Quotient.Carrier, W := H.Carrier, source := Quotient.moduleSpace, target := H.space] \as BackwardMaps;
+\definition extZero: \forall (splits: Splits) -> extClass = #zero{H.space} :=
+  \fun (splits: Splits) => trans!{H.Carrier} _ _ _
+    (congr!{Quotient.Carrier H.Carrier} (#apply{#backward{isomorphism}}) class Quotient.zeroClass (zeroClass splits))
+    (BackwardMaps.zeroPreserved (#backward{isomorphism}));

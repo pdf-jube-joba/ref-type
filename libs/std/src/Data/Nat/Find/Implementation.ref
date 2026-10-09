@@ -1,0 +1,23 @@
+\definition T: \VType := \U(Nat -> \U(Nat -> B.Bool) -> Result);
+\definition program: T := \thunk (\cfun (count: Nat) => \return(\thunk (\cfun (p: \U(Nat -> B.Bool)) => \program {
+  \bind transition: \U(State -> State) <- (\force Step.program) p \then
+  \bind start: \U(State -> Nat -> State) <- (\force NativeIteration.Iterate.program) transition \then
+  \bind iterate: \U(Nat -> State) <- (\force start) (State::scanning Nat::zero Result::missing) \then
+  \bind final: State <- (\force iterate) count \then
+  \bind result: Result <- (\force Reader.program) final \then
+  \return result
+})));
+\definition read(count: Nat^)(p: Nat^ -> B.Bool^): Result^ := answer (NativeIteration.Iterate.program^ (Step.program^ p) initial count);
+\definition iterated(count: Nat^)(p: Nat^ -> B.Bool^): Result^ := answer (Iteration.apply (Step.program^ p) initial count);
+\definition mathematical(count: Nat^)(p: Nat^ -> B.Bool^): Result^ := answer (Iteration.apply (step p) initial count);
+\definition matches: \forall (count: Nat^)(p: Nat^ -> B.Bool^) -> program^ count p = find count p :=
+  \fun (count: Nat^)(p: Nat^ -> B.Bool^) => trans!{Result^} (program^ count p) (read count p) (find count p)
+    (congr!{Reader.T^ Result^} (\fun (f: Reader.T^) => f (NativeIteration.Iterate.program^ (Step.program^ p) initial count)) Reader.program^ Reader.specification Reader.coherence)
+    (trans!{Result^} (read count p) (iterated count p) (find count p)
+    (congr!{NativeIteration.Iterate.T^ Result^} (\fun (f: NativeIteration.Iterate.T^) => answer (f (Step.program^ p) initial count))
+      NativeIteration.Iterate.program^ NativeIteration.Iterate.specification NativeIteration.Iterate.coherence)
+    (trans!{Result^} (iterated count p) (mathematical count p) (find count p)
+      (congr!{Step.T^ Result^} (\fun (f: Step.T^) => answer (Iteration.apply (f p) initial count)) Step.program^ Step.specification Step.coherence)
+      (congr!{State^ Result^} answer (Iteration.apply (step p) initial count) (State^::scanning count (find count p)) (iterationState count p))));
+\definition coherence: program^ = find := \axiom:funext(program^, find,
+  \fun (count: Nat^) => \axiom:funext(program^ count, find count, matches count));

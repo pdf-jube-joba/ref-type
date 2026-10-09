@@ -1,0 +1,32 @@
+\import \parent.\parent.Representation[] \as ForwardRepresentation;
+\import Backward.Representation[] \as BackwardRepresentation;
+\import DomainSquare.Representation[] \as DomainRepresentation;
+\import CodomainSquare.Representation[] \as CodomainRepresentation;
+\import Modules.Hom[V := Codomain.Carrier, W := Domain.Carrier, source := Codomain.space, target := Domain.space] \as BackMaps;
+\import BackMaps.Composition[U := Domain.Carrier, domain := Domain.space] \as BackCompose;
+\import Maps.Composition[U := Codomain.Carrier, domain := Codomain.space] \as ForwardCompose;
+\definition forwardApplication: \forall (v: Domain.Carrier) -> apply (entries #forward{e}) v = #apply{(#forward{e})} v :=
+  \fun (v: Domain.Carrier) => congr!{Maps.Map Codomain.Carrier} (\fun (f: Maps.Map) => #apply{f} v) _ _ (ForwardRepresentation.mapRoundtrip #forward{e});
+\definition backApplication: \forall (v: Codomain.Carrier) -> Backward.apply (Backward.entries #backward{e}) v = #apply{(#backward{e})} v :=
+  \fun (v: Codomain.Carrier) => congr!{BackMaps.Map Domain.Carrier} (\fun (f: BackMaps.Map) => #apply{f} v) _ _ (BackwardRepresentation.mapRoundtrip #backward{e});
+\definition data: Data := Data { inverse := Backward.entries #backward{e} };
+\definition left: BackwardComposition.product #inverse{data} (entries #forward{e}) = Identity.identity :=
+  DomainRepresentation.injective _ Identity.identity (trans!{DomainMaps.Map} _ _ _
+    (BackwardComposition.law #inverse{data} (entries #forward{e}))
+    (DomainMaps.ext (BackCompose.compose (Backward.linear #inverse{data}) (linear (entries #forward{e}))) (DomainSquare.linear Identity.identity)
+      (\fun (v: Domain.Carrier) => trans!{Domain.Carrier} _ _ _
+        (congr!{Codomain.Carrier Domain.Carrier} (Backward.apply #inverse{data}) _ _ (forwardApplication v))
+        (trans!{Domain.Carrier} _ _ _ (backApplication (#apply{(#forward{e})} v))
+          (trans!{Domain.Carrier} _ _ _ (#leftInverse{e} v)
+            (sym!{Domain.Carrier} _ _ (congr!{DomainMaps.Map Domain.Carrier} (\fun (f: DomainMaps.Map) => #apply{f} v) _ _ Identity.identityLaw)))))));
+\definition right: ForwardComposition.product (entries #forward{e}) #inverse{data} = Identity.targetIdentity :=
+  CodomainRepresentation.injective _ Identity.targetIdentity (trans!{CodomainMaps.Map} _ _ _
+    (ForwardComposition.law (entries #forward{e}) #inverse{data})
+    (CodomainMaps.ext (ForwardCompose.compose (linear (entries #forward{e})) (Backward.linear #inverse{data})) (CodomainSquare.linear Identity.targetIdentity)
+      (\fun (v: Codomain.Carrier) => trans!{Codomain.Carrier} _ _ _
+        (congr!{Domain.Carrier Codomain.Carrier} (apply (entries #forward{e})) _ _ (backApplication v))
+        (trans!{Codomain.Carrier} _ _ _ (forwardApplication (#apply{(#backward{e})} v))
+          (trans!{Codomain.Carrier} _ _ _ (#rightInverse{e} v)
+            (sym!{Codomain.Carrier} _ _ (congr!{CodomainMaps.Map Codomain.Carrier} (\fun (f: CodomainMaps.Map) => #apply{f} v) _ _ Identity.targetIdentityLaw)))))));
+\definition laws: Laws[entries #forward{e}, data] := Laws[entries #forward{e}, data] { leftInverse := left, rightInverse := right };
+\definition inverse: Inverse (entries #forward{e}) := \into[Data](data, { data: Data \where Laws[entries #forward{e}, data] }) \by { laws };

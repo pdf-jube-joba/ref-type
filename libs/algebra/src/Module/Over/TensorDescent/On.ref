@@ -1,0 +1,76 @@
+\definition Onto: \Prop := \forall (c: C.Carrier) -> \exists { b: B.Carrier \where #apply{q} b = c };
+\definition Kills: \Prop := \forall (b: B.Carrier) -> #apply{q} b = #zero{C.space} -> \forall (y: N.Carrier) -> #apply{f} (Source.tensor b y) = #zero{U.space};
+\module At(y: N.Carrier) {
+  \import \parent.\parent.\parent.Hom[V := B.Carrier, W := U.Carrier, source := B.space, target := U.space] \as Linear;
+  \definition evaluate: Linear.Map := Linear.Map {
+    apply := \fun (b: B.Carrier) => #apply{f} (Source.tensor b y),
+    addition := \fun (b, c: B.Carrier) => trans!{U.Carrier} _ _ _
+      (congr!{Source.Carrier U.Carrier} (#apply{f}) _ _ (#addLeft{Source.bilinear} b c y))
+      (#addition{f} (Source.tensor b y) (Source.tensor c y)),
+    scalar := \fun (a: R)(b: B.Carrier) => trans!{U.Carrier} _ _ _
+      (congr!{Source.Carrier U.Carrier} (#apply{f}) _ _ (#scaleLeft{Source.bilinear} a b y))
+      (#scalar{f} a (Source.tensor b y)),
+  };
+  \import Descent.On[q := q, f := evaluate] \as D;
+  \definition vanishes: Kills -> D.KillsKernel := \fun (kills: Kills) => \fun (b: B.Carrier)(zero: #apply{q} b = #zero{C.space}) => kills b zero y;
+  \definition map(onto: Onto)(kills: Kills): \parent.\parent.\parent.Hom[V := C.Carrier, W := U.Carrier, source := C.space, target := U.space].Map := D.map onto (vanishes kills);
+  \definition onImage: \forall (onto: Onto)(kills: Kills)(b: B.Carrier) -> #apply{(map onto kills)} (#apply{q} b) = #apply{f} (Source.tensor b y) := \fun (onto: Onto)(kills: Kills) => D.onImage onto (vanishes kills);
+}
+\definition bilinear(onto: Onto)(kills: Kills)(c: C.Carrier)(y: N.Carrier): U.Carrier := #apply{(At[y := y].map onto kills)} c;
+\definition rightAdd: \forall (onto: Onto)(kills: Kills)(c: C.Carrier)(y, z: N.Carrier) -> bilinear onto kills c (#add{N.space} y z) = #add{U.space} (bilinear onto kills c y) (bilinear onto kills c z) := \block {
+  \fun (onto: Onto)(kills: Kills)(c: C.Carrier)(y, z: N.Carrier) \then
+  \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where #apply{q} b = c }) \by onto c \then
+  \let equal: #apply{q} b = c := \bysub(B.Carrier, { b: B.Carrier \where #apply{q} b = c }, b) \then
+  \return eq_reason!{{bilinear onto kills c (#add{N.space} y z)}
+    "=" {bilinear onto kills (#apply{q} b) (#add{N.space} y z)} "by" {congr!{C.Carrier U.Carrier} (\fun (c: C.Carrier) => bilinear onto kills c (#add{N.space} y z)) _ _ (sym!{C.Carrier} _ _ equal)}
+    "=" {#apply{f} (Source.tensor b (#add{N.space} y z))} "by" {At[y := #add{N.space} y z].onImage onto kills b}
+    "=" {#apply{f} (#add{Source.space} (Source.tensor b y) (Source.tensor b z))} "by" {congr!{Source.Carrier U.Carrier} (#apply{f}) _ _ (#addRight{Source.bilinear} b y z)}
+    "=" {#add{U.space} (#apply{f} (Source.tensor b y)) (#apply{f} (Source.tensor b z))} "by" {#addition{f} (Source.tensor b y) (Source.tensor b z)}
+    "=" {#add{U.space} (bilinear onto kills c y) (bilinear onto kills c z)} "by" {congr2!{U.Carrier U.Carrier U.Carrier} (#add{U.space}) _ _ _ _
+      (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (At[y := y].onImage onto kills b)) (congr!{C.Carrier U.Carrier} (\fun (c: C.Carrier) => bilinear onto kills c y) _ _ equal))
+      (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (At[y := z].onImage onto kills b)) (congr!{C.Carrier U.Carrier} (\fun (c: C.Carrier) => bilinear onto kills c z) _ _ equal))}}
+};
+\definition rightScalar: \forall (onto: Onto)(kills: Kills)(a: R)(c: C.Carrier)(y: N.Carrier) -> bilinear onto kills c (#smul{N.space} a y) = #smul{U.space} a (bilinear onto kills c y) := \block {
+  \fun (onto: Onto)(kills: Kills)(a: R)(c: C.Carrier)(y: N.Carrier) \then
+  \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where #apply{q} b = c }) \by onto c \then
+  \let equal: #apply{q} b = c := \bysub(B.Carrier, { b: B.Carrier \where #apply{q} b = c }, b) \then
+  \return eq_reason!{{bilinear onto kills c (#smul{N.space} a y)}
+    "=" {bilinear onto kills (#apply{q} b) (#smul{N.space} a y)} "by" {congr!{C.Carrier U.Carrier} (\fun (c: C.Carrier) => bilinear onto kills c (#smul{N.space} a y)) _ _ (sym!{C.Carrier} _ _ equal)}
+    "=" {#apply{f} (Source.tensor b (#smul{N.space} a y))} "by" {At[y := #smul{N.space} a y].onImage onto kills b}
+    "=" {#apply{f} (#smul{Source.space} a (Source.tensor b y))} "by" {congr!{Source.Carrier U.Carrier} (#apply{f}) _ _ (#scaleRight{Source.bilinear} a b y)}
+    "=" {#smul{U.space} a (#apply{f} (Source.tensor b y))} "by" {#scalar{f} a (Source.tensor b y)}
+    "=" {#smul{U.space} a (bilinear onto kills c y)} "by" {congr!{U.Carrier U.Carrier} (#smul{U.space} a) _ _
+      (trans!{U.Carrier} _ _ _ (sym!{U.Carrier} _ _ (At[y := y].onImage onto kills b)) (congr!{C.Carrier U.Carrier} (\fun (c: C.Carrier) => bilinear onto kills c y) _ _ equal))}}
+};
+\definition laws(onto: Onto)(kills: Kills): Target.BilinearLaws[U.Carrier, U.space, (bilinear onto kills)] := Target.BilinearLaws[U.Carrier, U.space, (bilinear onto kills)] {
+  addLeft := \fun (c, d: C.Carrier)(y: N.Carrier) => #addition{(At[y := y].map onto kills)} c d,
+  scaleLeft := \fun (a: R)(c: C.Carrier)(y: N.Carrier) => #scalar{(At[y := y].map onto kills)} a c,
+  addRight := rightAdd onto kills, scaleRight := rightScalar onto kills,
+};
+\definition map(onto: Onto)(kills: Kills): Output.Map := Universal.map (bilinear onto kills) (laws onto kills);
+\definition onTensor: \forall (onto: Onto)(kills: Kills)(c: C.Carrier)(y: N.Carrier) -> #apply{(map onto kills)} (Target.tensor c y) = bilinear onto kills c y :=
+  \fun (onto: Onto)(kills: Kills) => Universal.onTensor (bilinear onto kills) (laws onto kills);
+\definition factor: \forall (onto: Onto)(kills: Kills) -> Composition.compose (map onto kills) (Mapping.map q Coefficients.identity) = f :=
+  \fun (onto: Onto)(kills: Kills) => Equality.ext (Composition.compose (map onto kills) (Mapping.map q Coefficients.identity)) f
+    (\fun (b: B.Carrier)(y: N.Carrier) => trans!{U.Carrier} _ _ _
+      (congr!{Target.Carrier U.Carrier} (#apply{(map onto kills)}) _ _ (Mapping.onTensor q Coefficients.identity b y))
+      (trans!{U.Carrier} _ _ _ (onTensor onto kills (#apply{q} b) y) (At[y := y].onImage onto kills b)));
+\definition unique: \forall (onto: Onto)(kills: Kills)(h: Output.Map) -> Composition.compose h (Mapping.map q Coefficients.identity) = f -> h = map onto kills :=
+  \fun (onto: Onto)(kills: Kills)(h: Output.Map)(factors: Composition.compose h (Mapping.map q Coefficients.identity) = f) => Universal.ext h (map onto kills) (\block {
+    \fun (c: C.Carrier)(y: N.Carrier) \then
+    \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where #apply{q} b = c }) \by onto c \then
+    \let equal: #apply{q} b = c := \bysub(B.Carrier, { b: B.Carrier \where #apply{q} b = c }, b) \then
+    \return eq_reason!{{#apply{h} (Target.tensor c y)}
+      "=" {#apply{h} (Target.tensor (#apply{q} b) y)} "by" {congr!{C.Carrier U.Carrier} (\fun (c: C.Carrier) => #apply{h} (Target.tensor c y)) _ _ (sym!{C.Carrier} _ _ equal)}
+      "=" {#apply{h} (#apply{(Mapping.map q Coefficients.identity)} (Source.tensor b y))}
+      "by" {congr!{Target.Carrier U.Carrier} (#apply{h}) _ _ (sym!{Target.Carrier} _ _ (Mapping.onTensor q Coefficients.identity b y))}
+      "=" {#apply{f} (Source.tensor b y)} "by" {congr!{Input.Map U.Carrier} (\fun (g: Input.Map) => #apply{g} (Source.tensor b y)) _ _ factors}
+      "=" {bilinear onto kills (#apply{q} b) y} "by" {sym!{U.Carrier} _ _ (At[y := y].onImage onto kills b)}
+      "=" {bilinear onto kills c y} "by" {congr!{C.Carrier U.Carrier} (\fun (c: C.Carrier) => bilinear onto kills c y) _ _ equal}
+      "=" {#apply{(map onto kills)} (Target.tensor c y)} "by" {sym!{U.Carrier} _ _ (onTensor onto kills c y)}}
+  });
+
+\definition factorExists: Onto -> Kills -> \exists { h: Output.Map \where Composition.compose h (Mapping.map q Coefficients.identity) = f } :=
+  \fun (onto: Onto)(kills: Kills) => \exact(\into[Output.Map](map onto kills,
+    { h: Output.Map \where Composition.compose h (Mapping.map q Coefficients.identity) = f }) \by { factor onto kills },
+    \Cast[Output.Map] ({ h: Output.Map \where Composition.compose h (Mapping.map q Coefficients.identity) = f }));

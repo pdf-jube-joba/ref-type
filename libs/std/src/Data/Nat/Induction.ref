@@ -1,0 +1,64 @@
+\import \parent.Basic[].Prop[] \as Bounds;
+\import \parent.Order[].Prop[] \as Order;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Logic[].Classical[] \as Classical;
+\use Equality.trans;
+\use Equality.sym;
+\use Equality.congr;
+\use Logic.either;
+\definition leCases: \forall (a, b: Nat^) -> Bounds.Le a b -> Logic.Or[Bounds.Lt a b, a = b] :=
+  \induction (a: Nat^) \return \forall (b: Nat^) -> Bounds.Le a b -> Logic.Or[Bounds.Lt a b, a = b] \with {
+    | zero: \induction (b: Nat^) \return Bounds.Le Nat^::zero b -> Logic.Or[Bounds.Lt Nat^::zero b, Nat^::zero = b] \with {
+        | zero: \fun (bound: _) => Logic.Or[_, _]::right (\refl(Nat^::zero))
+        | succ: \fun (b: Nat^)(previous: _)(bound: _) => Logic.Or[_, _]::left (Order.zeroLtSucc b)
+      }
+    | succ: \fun (a: Nat^)(previous: _) => \induction (b: Nat^) \return Bounds.Le (Nat^::succ a) b -> Logic.Or[Bounds.Lt (Nat^::succ a) b, Nat^::succ a = b] \with {
+        | zero: \fun (bad: _) => Logic.falseElim _ (Order.ltZero a (Bounds.ltOfSuccLe Nat^::zero a bad))
+        | succ: \fun (b: Nat^)(unused: _)(bound: _) => either!{{Bounds.Lt a b} "or" {a = b} "either" {Logic.Or[Bounds.Lt (Nat^::succ a) (Nat^::succ b), Nat^::succ a = Nat^::succ b]}
+            "lt:" {\fun (less: _) => Logic.Or[_, _]::left (Bounds.ltSuccSucc a b less)}
+            "rt:" {\fun (equal: _) => Logic.Or[_, _]::right (congr!{Nat^ Nat^} Nat^::succ a b equal)}} (previous b bound)
+      }
+  };
+\definition belowSuccessor: \forall (a, b: Nat^) -> Bounds.Lt a (Nat^::succ b) -> Bounds.Le a b :=
+  \fun (a, b: Nat^)(less: _) => Bounds.leOfSuccSucc a b (Bounds.succLeOfLt (Nat^::succ b) a less);
+\module For(P: Nat^ -> \Prop) {
+  \definition Step: \Prop := \forall (n: Nat^) -> (\forall (m: Nat^) -> Bounds.Lt m n -> P m) -> P n;
+  \definition bounded: Step -> \forall (n, m: Nat^) -> Bounds.Le m n -> P m :=
+    \fun (step: Step) => \induction (n: Nat^) \return \forall (m: Nat^) -> Bounds.Le m n -> P m \with {
+      | zero: \fun (m: Nat^)(bound: _) => \idelim Nat^::zero = m \with k: Nat^ => P k \by {
+          base: step Nat^::zero (\fun (k: Nat^)(less: _) => Logic.falseElim (P k) (Order.ltZero k less)),
+          equality: sym!{Nat^} m Nat^::zero (Bounds.leZeroEq m bound)
+        }
+      | succ: \fun (n: Nat^)(previous: _)(m: Nat^)(bound: _) =>
+          either!{{Bounds.Lt m (Nat^::succ n)} "or" {m = Nat^::succ n} "either" {P m}
+            "lt:" {\fun (less: _) => previous m (belowSuccessor m n less)}
+            "rt:" {\fun (equal: _) => \idelim Nat^::succ n = m \with k: Nat^ => P k \by {
+              base: step (Nat^::succ n) (\fun (k: Nat^)(less: _) => previous k (belowSuccessor k n less)),
+              equality: sym!{Nat^} m (Nat^::succ n) equal
+            }}} (leCases m (Nat^::succ n) bound)
+    };
+}
+\definition strong: \forall (P: Nat^ -> \Prop) -> (\forall (n: Nat^) -> (\forall (m: Nat^) -> Bounds.Lt m n -> P m) -> P n) -> \forall (n: Nat^) -> P n :=
+  \fun (P: Nat^ -> \Prop)(step: _)(n: Nat^) => For[P := P].bounded step n n (Bounds.leRefl n);
+\structure LeastLaws[P: Nat^ -> \Prop, n: Nat^]: \Prop {
+  member: P n,
+  least: \forall (m: Nat^) -> P m -> Bounds.Le n m,
+}
+\definition LeastValue(P: Nat^ -> \Prop): \Set := \Cast[Nat^] ({ n: Nat^ \where LeastLaws[P, n] });
+\structure Smaller[P: Nat^ -> \Prop, n, m: Nat^]: \Prop {
+  less: Bounds.Lt m n,
+  member: P m,
+}
+\module Minimum(P: Nat^ -> \Prop);
+\definition leastExists: \forall (P: Nat^ -> \Prop) -> (\exists { n: Nat^ \where P n }) -> \exists LeastValue P := \block {
+  \fun (P: Nat^ -> \Prop)(exists: \exists { n: Nat^ \where P n }) \then
+  \takefrom n: \Cast[Nat^] ({ n: Nat^ \where P n }) \by exists \then
+  \return Minimum[P := P].fromMember n (\bysub(Nat^, { n: Nat^ \where P n }, n))
+};
+\definition lexicographic: \forall (P: Nat^ -> Nat^ -> \Prop) ->
+  (\forall (a, b: Nat^) -> (\forall (c: Nat^) -> Bounds.Lt c a -> \forall (d: Nat^) -> P c d) -> (\forall (d: Nat^) -> Bounds.Lt d b -> P a d) -> P a b) -> \forall (a, b: Nat^) -> P a b :=
+  \fun (P: Nat^ -> Nat^ -> \Prop)(step: _) => strong (\fun (a: Nat^) => \forall (b: Nat^) -> P a b)
+    (\fun (a: Nat^)(earlier: \forall (c: Nat^) -> Bounds.Lt c a -> \forall (d: Nat^) -> P c d) =>
+      strong (P a) (\fun (b: Nat^)(smaller: \forall (d: Nat^) -> Bounds.Lt d b -> P a d) => step a b earlier smaller));
+\module Termination(State, Output: \Set, step: State -> \RunStep[State, Output], primary, secondary: State -> Nat^);

@@ -1,0 +1,64 @@
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := n, n := n] \as Matrices;
+\import algebra.IntegerMatrix[m := n, n := n] \as Native;
+\import Native.Extension[] \as Extension;
+\import Modules.Hom[V := Vector, W := Vector, source := space, target := space] \as AmbientMaps;
+\definition ambient: AmbientMaps.Map := AmbientMaps.Map {
+  apply := \fun (v: Vector) => #apply{f} v,
+  addition := \fun (v, w: Vector) => #addition{f} v w,
+  scalar := \fun (a: I.Int^)(v: Vector) => #scalar{f} a v,
+};
+\definition matrix: Matrices.Matrix := Matrices.entries ambient;
+\definition runtime: Native.Runtime^ := Extension.extend matrix;
+\definition representation: Matrices.linear (Native.reflect runtime) = ambient :=
+  trans!{AmbientMaps.Map} (Matrices.linear (Native.reflect runtime)) (Matrices.linear matrix) ambient
+    (congr!{Matrices.Matrix AmbientMaps.Map} Matrices.linear (Native.reflect runtime) matrix (Extension.correspondence matrix))
+    (Matrices.Representation[].mapRoundtrip ambient);
+\definition action: \forall (v: Vector) -> Matrices.apply (Native.reflect runtime) v = #apply{f} v :=
+  \fun (v: Vector) => congr!{AmbientMaps.Map Vector} (\fun (map: AmbientMaps.Map) => #apply{map} v)
+    (Matrices.linear (Native.reflect runtime)) ambient representation;
+\import algebra.IntegerKernel[m := n, n := n, original := runtime] \as Smith;
+\import Smith.Image[] \as Image;
+\import Modules.Of[V := Vector, space := space].Submodule[] \as AmbientSubmodules;
+\import AmbientSubmodules.Image[U := Vector, source := space] \as Images;
+\definition fromImage(v: Image.Carrier): Carrier := \into[Vector](v, #carrier{S}) \by {
+  Images.eliminate (Matrices.linear (Native.reflect runtime)) v (AmbientSubmodules.Member S v)
+    (\fun (x: Vector)(equal: Matrices.apply (Native.reflect runtime) x = v) =>
+      \idelim #apply{f} x = v \with y: Vector => AmbientSubmodules.Member S y \by {
+        base: \bysub(Vector, #carrier{S}, #apply{f} x),
+        equality: trans!{Vector} (#apply{f} x) (Matrices.apply (Native.reflect runtime) x) v
+          (sym!{Vector} (Matrices.apply (Native.reflect runtime) x) (#apply{f} x) (action x)) equal
+      })
+    (\bysub(Vector, #carrier{Image.submodule}, v))
+};
+\definition inImage: \forall (v: Carrier) -> AmbientSubmodules.Member Image.submodule v := \block {
+  \fun (v: Carrier) \then
+  \takefrom x: \Cast[Vector] ({ x: Vector \where #apply{f} x = v })
+    \by (\bysub(Map, { map: Map \where Onto map }, f)) v \then
+  \return Images.introduce (Matrices.linear (Native.reflect runtime)) v x
+    (trans!{Vector} (Matrices.apply (Native.reflect runtime) x) (#apply{f} x) v (action x)
+      (\bysub(Vector, { x: Vector \where #apply{f} x = v }, x)))
+};
+\definition toImage(v: Carrier): Image.Carrier := \into[Vector](v, #carrier{Image.submodule}) \by { inImage v };
+\import Modules.Hom[V := Image.Carrier, W := Carrier, source := Image.space, target := moduleSpace] \as Forward;
+\import Modules.Hom[V := Carrier, W := Image.Carrier, source := moduleSpace, target := Image.space] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := fromImage,
+  addition := \fun (v, w: Image.Carrier) => \refl(#add{space} v w),
+  scalar := \fun (a: I.Int^)(v: Image.Carrier) => \refl(#smul{space} a v),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := toImage,
+  addition := \fun (v, w: Carrier) => \refl(#add{space} v w),
+  scalar := \fun (a: I.Int^)(v: Carrier) => \refl(#smul{space} a v),
+};
+\import Modules.Isomorphism[V := Image.Carrier, W := Carrier, source := Image.space, target := moduleSpace] \as Iso;
+\definition comparison: Iso.Isomorphism := Iso.Isomorphism {
+  forward := forward, backward := backward,
+  leftInverse := \fun (v: Image.Carrier) => \refl(v),
+  rightInverse := \fun (v: Carrier) => \refl(v),
+};
+\import Modules.FiniteCoordinates[n := Smith.rank] \as Coefficients;
+\import Modules.Isomorphism[V := Coefficients.Carrier, W := Image.Carrier, source := Coefficients.space, target := Image.space].Composition[U := Carrier, final := moduleSpace] \as Composition;
+\definition isomorphism: Modules.Isomorphism[V := Coefficients.Carrier, W := Carrier, source := Coefficients.space, target := moduleSpace].Isomorphism :=
+  Composition.compose comparison Image.isomorphism;
+\definition data: BasisData := BasisData { rank := Smith.rank, isomorphism := isomorphism };

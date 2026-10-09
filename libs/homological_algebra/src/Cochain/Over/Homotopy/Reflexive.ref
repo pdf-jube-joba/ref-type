@@ -1,0 +1,35 @@
+\module Degree(n: N.Nat^) {
+  \import Modules.Hom[V := C.family.Carrier (next n), W := D.family.Carrier n,
+    source := C.family.space (next n), target := D.family.space n] \as Maps;
+  \definition zero: Maps.Map := Maps.zeroMap;
+  \import Modules.Laws[V := D.family.Carrier n, space := D.family.space n] \as Vector;
+  \import algebra.Group[].Of[Carrier := D.family.Carrier n, group := Vector.additive] \as Group;
+  \definition difference: \forall (x: C.family.Carrier n) ->
+    #add{(D.family.space n)} (#apply{f} n x) (#neg{(D.family.space n)} (#apply{f} n x)) = #zero{(D.family.space n)} :=
+    \fun (x: C.family.Carrier n) => Group.inverseRight (#apply{f} n x);
+  \definition zeroAddition: #add{(D.family.space n)} #zero{(D.family.space n)} #zero{(D.family.space n)} = #zero{(D.family.space n)} :=
+    Group.zeroLeft #zero{(D.family.space n)};
+}
+\definition data: Data := \fun (n: N.Nat^) => Degree[n := n].zero;
+\module Positive(n: N.Nat^) {
+  \import \parent.Degree[n := next n] \as Next;
+  \import Modules.Hom[V := D.family.Carrier n, W := D.family.Carrier (next n),
+    source := D.family.space n, target := D.family.space (next n)] \as Maps;
+  \definition differential: Maps.Map := Maps.Map {
+    apply := #apply{D.differential} n, addition := #addition{D.laws} n, scalar := #scalar{D.laws} n,
+  };
+  \definition zero: #apply{D.differential} n #zero{(D.family.space n)} = #zero{(D.family.space (next n))} := Maps.zeroPreserved differential;
+  \definition rightZero: \forall (x: C.family.Carrier (next n)) ->
+    #add{(D.family.space (next n))} (#apply{D.differential} n (#apply{(data n)} x))
+      (#apply{(data (next n))} (#apply{C.differential} (next n) x)) = #zero{(D.family.space (next n))} :=
+    \fun (x: C.family.Carrier (next n)) => trans!{{D.family.Carrier (next n)}} _ _ _
+      (congr!{{D.family.Carrier (next n)} {D.family.Carrier (next n)}}
+        (\fun (z: D.family.Carrier (next n)) => #add{(D.family.space (next n))} z #zero{(D.family.space (next n))}) _ _ zero)
+      Next.zeroAddition;
+}
+\definition laws: Laws[f, f, data] := Laws[f, f, data] {
+  degreeZero := Degree[n := N.Nat^::zero].difference,
+  positive := \fun (n: N.Nat^)(x: C.family.Carrier (next n)) => trans!{{D.family.Carrier (next n)}} _ _ _
+    (Degree[n := next n].difference x) (sym!{{D.family.Carrier (next n)}} _ _ (Positive[n := n].rightZero x)),
+};
+\definition homotopy: Homotopy f f := \into[Data](data, { h: Data \where Laws[f, f, h] }) \by { laws };

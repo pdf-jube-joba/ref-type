@@ -1,0 +1,43 @@
+\import \parent.\parent.ExactPair[A := A1, B := B1, C := C1] \as Target;
+\definition data: Target.Data := Target.Data { first := f, last := g };
+\definition FirstCommutes: \Prop := \forall (x: A.Carrier) -> #apply{#forward{b}} (#apply{sequence.first} x) = #apply{f} (#apply{#forward{a}} x);
+\definition LastCommutes: \Prop := \forall (x: B.Carrier) -> #apply{#forward{c}} (#apply{sequence.last} x) = #apply{g} (#apply{#forward{b}} x);
+\import \parent.\parent.Hom[V := C.Carrier, W := C1.Carrier, source := C.space, target := C1.space] \as ForwardLast;
+\import \parent.\parent.Hom[V := C1.Carrier, W := C.Carrier, source := C1.space, target := C.space] \as BackwardLast;
+\definition firstInverse: FirstCommutes -> \forall (x: A1.Carrier) ->
+  #apply{f} x = #apply{#forward{b}} (#apply{sequence.first} (#apply{#backward{a}} x)) :=
+  \fun (commutes: FirstCommutes)(x: A1.Carrier) => trans!{B1.Carrier} _ _ _
+    (congr!{A1.Carrier B1.Carrier} (#apply{f}) _ _ (sym!{A1.Carrier} _ _ (#rightInverse{a} x)))
+    (sym!{B1.Carrier} _ _ (commutes (#apply{#backward{a}} x)));
+\definition lastInverse: LastCommutes -> \forall (x: B1.Carrier) ->
+  #apply{g} x = #apply{#forward{c}} (#apply{sequence.last} (#apply{#backward{b}} x)) :=
+  \fun (commutes: LastCommutes)(x: B1.Carrier) => trans!{C1.Carrier} _ _ _
+    (congr!{B1.Carrier C1.Carrier} (#apply{g}) _ _ (sym!{B1.Carrier} _ _ (#rightInverse{b} x)))
+    (sym!{C1.Carrier} _ _ (commutes (#apply{#backward{b}} x)));
+\definition zero: FirstCommutes -> LastCommutes -> \forall (x: A1.Carrier) -> #apply{g} (#apply{f} x) = #zero{C1.space} :=
+  \fun (first: FirstCommutes)(last: LastCommutes)(x: A1.Carrier) => trans!{C1.Carrier} _ _ _
+    (congr!{B1.Carrier C1.Carrier} (#apply{g}) _ _ (firstInverse first x))
+    (trans!{C1.Carrier} _ _ _ (sym!{C1.Carrier} _ _ (last (#apply{sequence.first} (#apply{#backward{a}} x))))
+      (trans!{C1.Carrier} _ _ _
+        (congr!{C.Carrier C1.Carrier} (#apply{#forward{c}}) _ _ (#zero{sequence} (#apply{#backward{a}} x)))
+        (ForwardLast.zeroPreserved #forward{c})));
+\definition kernelImage: FirstCommutes -> LastCommutes -> \forall (x: B1.Carrier) -> #apply{g} x = #zero{C1.space} ->
+  \exists { y: A1.Carrier \where #apply{f} y = x } := \block {
+  \fun (first: FirstCommutes)(last: LastCommutes)(x: B1.Carrier)(closed: _) \then
+  \let sourceClosed: #apply{sequence.last} (#apply{#backward{b}} x) = #zero{C.space} :=
+    trans!{C.Carrier} _ _ _ (sym!{C.Carrier} _ _ (#leftInverse{c} (#apply{sequence.last} (#apply{#backward{b}} x))))
+      (trans!{C.Carrier} _ _ _
+        (congr!{C1.Carrier C.Carrier} (#apply{#backward{c}}) _ _ (trans!{C1.Carrier} _ _ _ (sym!{C1.Carrier} _ _ (lastInverse last x)) closed))
+        (BackwardLast.zeroPreserved #backward{c})) \then
+  \takefrom y: \Cast[A.Carrier] ({ y: A.Carrier \where #apply{sequence.first} y = #apply{#backward{b}} x }) \by #kernelImage{sequence} (#apply{#backward{b}} x) sourceClosed \then
+  \return \exact(\into[A1.Carrier](#apply{#forward{a}} y, { y: A1.Carrier \where #apply{f} y = x }) \by {
+    trans!{B1.Carrier} _ _ _ (sym!{B1.Carrier} _ _ (first y))
+      (trans!{B1.Carrier} _ _ _
+        (congr!{B.Carrier B1.Carrier} (#apply{#forward{b}}) _ _ (\bysub(A.Carrier, { y: A.Carrier \where #apply{sequence.first} y = #apply{#backward{b}} x }, y)))
+        (#rightInverse{b} x))
+  }, \Cast[A1.Carrier] ({ y: A1.Carrier \where #apply{f} y = x }))
+};
+\definition laws: FirstCommutes -> LastCommutes -> Target.Laws[data] :=
+  \fun (first: FirstCommutes)(last: LastCommutes) => Target.Laws[data] { zero := zero first last, kernelImage := kernelImage first last };
+\definition transported(first: FirstCommutes)(last: LastCommutes): Target.Sequence :=
+  \into[Target.Data](data, { data: Target.Data \where Target.Laws[data] }) \by { laws first last };

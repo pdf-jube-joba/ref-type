@@ -1,0 +1,86 @@
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Transpose[] \as Transpose;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Logic[].Proposition[] \as Logic;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].RowOperations[].Laws[] \as RowLaws;
+\import I.Math[].Specification[].Prop[] \as IntegerLaws;
+\import IntegerLaws.Multiplication[] \as Product;
+\use Equality.congr2;
+\structure Holds[a: Runtime^]: \Prop {
+  row: \forall (j: N.Nat^) -> Bounds.Lt j n -> Logic.Not (j = index) -> a index j = Arithmetic.zero,
+  column: \forall (i: N.Nat^) -> Bounds.Lt i m -> Logic.Not (i = index) -> a i index = Arithmetic.zero,
+}
+\definition rowSwap: \forall (a: Runtime^)(r, s: N.Nat^) -> Bounds.Lt r m -> Bounds.Lt s m ->
+  Logic.Not (index = r) -> Logic.Not (index = s) -> Holds[a] -> Holds[Rows.swap a r s] :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(firstBound: _)(secondBound: _)(firstDifferent: _)(secondDifferent: _)(law: Holds[a]) => Holds[Rows.swap a r s] {
+    row := \fun (j: N.Nat^)(bound: _)(different: _) => trans!{I.Int^} (Rows.swap a r s index j) (a index j) Arithmetic.zero
+      (RowLaws.swapOther a r s index j firstDifferent secondDifferent) (#row{law} j bound different),
+    column := \fun (i: N.Nat^)(bound: _)(different: _) => #column{law} (Rows.transposition r s i)
+      (RowLaws.exchangeBounded m r s i firstBound secondBound bound)
+      (RowLaws.exchangeDifferent r s i index
+        (\fun (equal: r = index) => firstDifferent (sym!{N.Nat^} r index equal))
+        (\fun (equal: s = index) => secondDifferent (sym!{N.Nat^} s index equal)) different),
+  };
+\definition rowAdd: \forall (a: Runtime^)(r, s: N.Nat^)(c: I.Int^) -> Bounds.Lt s m ->
+  Logic.Not (index = r) -> Logic.Not (index = s) -> Holds[a] -> Holds[Rows.add a r s c] :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(sourceBound: _)(targetDifferent: _)(sourceDifferent: _)(law: Holds[a]) => Holds[Rows.add a r s c] {
+    row := \fun (j: N.Nat^)(bound: _)(different: _) => trans!{I.Int^} (Rows.add a r s c index j) (a index j) Arithmetic.zero
+      (RowLaws.addOther a r s c index j targetDifferent) (#row{law} j bound different),
+    column := \fun (i: N.Nat^)(bound: _)(different: _) => B.cases
+      (\fun (test: B.Bool^) => B.ite I.Int^ test (Arithmetic.add (a i index) (Arithmetic.mul c (a s index))) (a i index) = Arithmetic.zero)
+      (#column{law} i bound different)
+      (trans!{I.Int^} (Arithmetic.add (a i index) (Arithmetic.mul c (a s index))) (Arithmetic.add Arithmetic.zero (Arithmetic.mul c Arithmetic.zero)) Arithmetic.zero
+        (congr2!{I.Int^ I.Int^ I.Int^} (\fun (x, y: I.Int^) => Arithmetic.add x (Arithmetic.mul c y))
+          (a i index) Arithmetic.zero (a s index) Arithmetic.zero (#column{law} i bound different)
+          (#column{law} s sourceBound (\fun (equal: s = index) => sourceDifferent (sym!{N.Nat^} s index equal))))
+        (trans!{I.Int^} (Arithmetic.add Arithmetic.zero (Arithmetic.mul c Arithmetic.zero)) (Arithmetic.mul c Arithmetic.zero) Arithmetic.zero
+          (IntegerLaws.addZeroLeft (Arithmetic.mul c Arithmetic.zero)) (Product.mulZeroRight c)))
+      (Nat.eqb i r),
+  };
+\definition rowNegate: \forall (a: Runtime^)(r: N.Nat^) -> Logic.Not (index = r) -> Holds[a] -> Holds[Rows.negate a r] :=
+  \fun (a: Runtime^)(r: N.Nat^)(targetDifferent: _)(law: Holds[a]) => Holds[Rows.negate a r] {
+    row := \fun (j: N.Nat^)(bound: _)(different: _) => trans!{I.Int^} (Rows.negate a r index j) (a index j) Arithmetic.zero
+      (RowLaws.negateOther a r index j targetDifferent) (#row{law} j bound different),
+    column := \fun (i: N.Nat^)(bound: _)(different: _) => B.cases
+      (\fun (test: B.Bool^) => B.ite I.Int^ test (Arithmetic.neg (a i index)) (a i index) = Arithmetic.zero)
+      (#column{law} i bound different)
+      (congr!{I.Int^ I.Int^} Arithmetic.neg (a i index) Arithmetic.zero (#column{law} i bound different))
+      (Nat.eqb i r),
+  };
+\definition columnSwap: \forall (a: Runtime^)(r, s: N.Nat^) -> Bounds.Lt r n -> Bounds.Lt s n ->
+  Logic.Not (index = r) -> Logic.Not (index = s) -> Holds[a] -> Holds[Columns.swap a r s] :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(firstBound: _)(secondBound: _)(firstDifferent: _)(secondDifferent: _)(law: Holds[a]) => Holds[Columns.swap a r s] {
+    column := \fun (i: N.Nat^)(bound: _)(different: _) => trans!{I.Int^} (Columns.swap a r s i index) (a i index) Arithmetic.zero
+      (RowLaws.swapOther (Transpose.transpose a) r s index i firstDifferent secondDifferent) (#column{law} i bound different),
+    row := \fun (j: N.Nat^)(bound: _)(different: _) => #row{law} (Rows.transposition r s j)
+      (RowLaws.exchangeBounded n r s j firstBound secondBound bound)
+      (RowLaws.exchangeDifferent r s j index
+        (\fun (equal: r = index) => firstDifferent (sym!{N.Nat^} r index equal))
+        (\fun (equal: s = index) => secondDifferent (sym!{N.Nat^} s index equal)) different),
+  };
+\definition columnAdd: \forall (a: Runtime^)(r, s: N.Nat^)(c: I.Int^) -> Bounds.Lt s n ->
+  Logic.Not (index = r) -> Logic.Not (index = s) -> Holds[a] -> Holds[Columns.add a r s c] :=
+  \fun (a: Runtime^)(r, s: N.Nat^)(c: I.Int^)(sourceBound: _)(targetDifferent: _)(sourceDifferent: _)(law: Holds[a]) => Holds[Columns.add a r s c] {
+    column := \fun (i: N.Nat^)(bound: _)(different: _) => trans!{I.Int^} (Columns.add a r s c i index) (a i index) Arithmetic.zero
+      (RowLaws.addOther (Transpose.transpose a) r s c index i targetDifferent) (#column{law} i bound different),
+    row := \fun (j: N.Nat^)(bound: _)(different: _) => B.cases
+      (\fun (test: B.Bool^) => B.ite I.Int^ test (Arithmetic.add (a index j) (Arithmetic.mul c (a index s))) (a index j) = Arithmetic.zero)
+      (#row{law} j bound different)
+      (trans!{I.Int^} (Arithmetic.add (a index j) (Arithmetic.mul c (a index s))) (Arithmetic.add Arithmetic.zero (Arithmetic.mul c Arithmetic.zero)) Arithmetic.zero
+        (congr2!{I.Int^ I.Int^ I.Int^} (\fun (x, y: I.Int^) => Arithmetic.add x (Arithmetic.mul c y))
+          (a index j) Arithmetic.zero (a index s) Arithmetic.zero (#row{law} j bound different)
+          (#row{law} s sourceBound (\fun (equal: s = index) => sourceDifferent (sym!{N.Nat^} s index equal))))
+        (trans!{I.Int^} (Arithmetic.add Arithmetic.zero (Arithmetic.mul c Arithmetic.zero)) (Arithmetic.mul c Arithmetic.zero) Arithmetic.zero
+          (IntegerLaws.addZeroLeft (Arithmetic.mul c Arithmetic.zero)) (Product.mulZeroRight c)))
+      (Nat.eqb j r),
+  };
+\definition columnNegate: \forall (a: Runtime^)(r: N.Nat^) -> Logic.Not (index = r) -> Holds[a] -> Holds[Columns.negate a r] :=
+  \fun (a: Runtime^)(r: N.Nat^)(targetDifferent: _)(law: Holds[a]) => Holds[Columns.negate a r] {
+    column := \fun (i: N.Nat^)(bound: _)(different: _) => trans!{I.Int^} (Columns.negate a r i index) (a i index) Arithmetic.zero
+      (RowLaws.negateOther (Transpose.transpose a) r index i targetDifferent) (#column{law} i bound different),
+    row := \fun (j: N.Nat^)(bound: _)(different: _) => B.cases
+      (\fun (test: B.Bool^) => B.ite I.Int^ test (Arithmetic.neg (a index j)) (a index j) = Arithmetic.zero)
+      (#row{law} j bound different)
+      (congr!{I.Int^ I.Int^} Arithmetic.neg (a index j) Arithmetic.zero (#row{law} j bound different))
+      (Nat.eqb j r),
+  };

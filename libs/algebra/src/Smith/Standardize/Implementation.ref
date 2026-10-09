@@ -1,0 +1,16 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> Runtime -> Compute.Output);
+\definition program: T := \thunk (\cfun (rows: N.Nat) => \return(\thunk (\cfun (cols: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \program {
+  \bind columns: \U(N.Nat -> Runtime -> Compute.Output) <- (\force runProgram) rows \then
+  \bind matrix: \U(Runtime -> Compute.Output) <- (\force columns) cols \then
+  \bind output: Compute.Output <- (\force matrix) a \then
+  \bind normalized: Compute.Output <- (\force normalizeOutputProgram) output \then
+  \return normalized
+})))));
+\definition intermediate(rows, cols: N.Nat^)(a: Runtime^): Compute.Output^ := normalizeOutput (runProgram^ rows cols a);
+\definition matches: \forall (rows, cols: N.Nat^)(a: Runtime^) -> program^ rows cols a = standardize rows cols a :=
+  \fun (rows, cols: N.Nat^)(a: Runtime^) => trans!{Compute.Output^} (program^ rows cols a) (intermediate rows cols a) (standardize rows cols a)
+    (congr!{Normalization.T^ Compute.Output^} (\fun (f: Normalization.T^) => f (runProgram^ rows cols a)) normalizeOutputProgram^ normalizeOutput Normalization.coherence)
+    (congr!{Compute.Run.T^ Compute.Output^} (\fun (f: Compute.Run.T^) => normalizeOutput (f rows cols a)) runProgram^ Compute.executeInitial Compute.Run.coherence);
+\definition coherence: program^ = standardize := \axiom:funext(program^, standardize,
+  \fun (rows: N.Nat^) => \axiom:funext(program^ rows, standardize rows,
+    \fun (cols: N.Nat^) => \axiom:funext(program^ rows cols, standardize rows cols, matches rows cols)));

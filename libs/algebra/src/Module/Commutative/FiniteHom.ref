@@ -1,0 +1,50 @@
+\import Modules.FiniteCoordinates[n := n] \as Coordinates;
+\import Coordinates.Free[] \as CoordinateFree;
+\import Modules.Free[Generators := Coordinates.Index] \as Free;
+\import Free.To[W := W, target := target] \as Universal;
+\import \parent.FreeHom[Generators := Coordinates.Index, W := W, target := target] \as FreeHom;
+\import \parent.HomSpace[V := Coordinates.Carrier, W := W, source := Coordinates.space, target := target] \as Hom;
+\import Modules.Hom[V := Coordinates.Carrier, W := W, source := Coordinates.space, target := target] \as Maps;
+\import Modules.Hom[V := Free.Carrier, W := W, source := Free.space, target := target] \as FreeMaps;
+\import FreeMaps.Composition[U := Coordinates.Carrier, domain := Coordinates.space] \as Compose;
+\import Maps.Composition[U := Free.Carrier, domain := Free.space] \as OnFree;
+\import Modules.Functions[X := Coordinates.Index, V := W, target := target] \as Values;
+\definition evaluate(f: Hom.Carrier): Values.Carrier := \fun (i: Coordinates.Index) => #apply{f} (Coordinates.basis i);
+\definition extend(f: Values.Carrier): Maps.Map := Compose.compose (Universal.extension f) (#backward{CoordinateFree.isomorphism});
+\definition backOnBasis: \forall (i: Coordinates.Index) -> #apply{#backward{CoordinateFree.isomorphism}} (Coordinates.basis i) = Free.generator i :=
+  \fun (i: Coordinates.Index) => trans!{Free.Carrier} _ _ _
+    (congr!{Coordinates.Carrier Free.Carrier} (#apply{#backward{CoordinateFree.isomorphism}}) _ _ (sym!{Coordinates.Carrier} _ _ (CoordinateFree.onGenerator i)))
+    (#leftInverse{CoordinateFree.isomorphism} (Free.generator i));
+\definition onBasis: \forall (f: Values.Carrier)(i: Coordinates.Index) -> #apply{(extend f)} (Coordinates.basis i) = f i :=
+  \fun (f: Values.Carrier)(i: Coordinates.Index) => trans!{W} _ _ _
+    (congr!{Free.Carrier W} (#apply{(Universal.extension f)}) _ _ (backOnBasis i)) (Universal.onGenerator f i);
+\definition extensionAddition: \forall (f, g: Values.Carrier) -> extend (Values.add f g) = Hom.add (extend f) (extend g) :=
+  \fun (f, g: Values.Carrier) => Maps.ext _ _ (\fun (v: Coordinates.Carrier) =>
+    congr!{FreeMaps.Map W} (\fun (h: FreeMaps.Map) => #apply{h} (#apply{#backward{CoordinateFree.isomorphism}} v)) _ _ (FreeHom.extensionAddition f g));
+\definition extensionScalar: \forall (a: R)(f: Values.Carrier) -> extend (Values.scale a f) = Hom.scale a (extend f) :=
+  \fun (a: R)(f: Values.Carrier) => Maps.ext _ _ (\fun (v: Coordinates.Carrier) =>
+    congr!{FreeMaps.Map W} (\fun (h: FreeMaps.Map) => #apply{h} (#apply{#backward{CoordinateFree.isomorphism}} v)) _ _ (FreeHom.extensionScalar a f));
+\definition extension: Modules.Hom[V := Values.Carrier, W := Hom.Carrier, source := Values.space, target := Hom.space].Map := Modules.Hom[V := Values.Carrier, W := Hom.Carrier, source := Values.space, target := Hom.space].Map {
+  apply := extend, addition := extensionAddition, scalar := extensionScalar,
+};
+\definition restriction: Modules.Hom[V := Hom.Carrier, W := Values.Carrier, source := Hom.space, target := Values.space].Map := Modules.Hom[V := Hom.Carrier, W := Values.Carrier, source := Hom.space, target := Values.space].Map {
+  apply := evaluate,
+  addition := \fun (f, g: Hom.Carrier) => \refl(Values.add (evaluate f) (evaluate g)),
+  scalar := \fun (a: R)(f: Hom.Carrier) => \refl(Values.scale a (evaluate f)),
+};
+\module Restriction(f: Hom.Carrier) {
+  \definition onFree: FreeMaps.Map := OnFree.compose f (#forward{CoordinateFree.isomorphism});
+  \definition agreement: \forall (i: Coordinates.Index) -> #apply{onFree} (Free.generator i) = evaluate f i :=
+    \fun (i: Coordinates.Index) => congr!{Coordinates.Carrier W} (#apply{f}) _ _ (CoordinateFree.onGenerator i);
+  \definition equality: Universal.extension (evaluate f) = onFree := FreeMaps.dataExt _ _
+    (sym!{{Free.Carrier -> W}} _ _ (Universal.unique (evaluate f) onFree agreement));
+}
+\definition extendRestrict: \forall (f: Hom.Carrier) -> extend (evaluate f) = f :=
+  \fun (f: Hom.Carrier) => Maps.ext _ _ (\fun (v: Coordinates.Carrier) => trans!{W} _ _ _
+    (congr!{FreeMaps.Map W} (\fun (h: FreeMaps.Map) => #apply{h} (#apply{#backward{CoordinateFree.isomorphism}} v)) _ _ (Restriction[f := f].equality))
+    (congr!{Coordinates.Carrier W} (#apply{f}) _ _ (#rightInverse{CoordinateFree.isomorphism} v)));
+\definition restrictExtend: \forall (f: Values.Carrier) -> evaluate (extend f) = f :=
+  \fun (f: Values.Carrier) => Values.ext _ _ (onBasis f);
+\definition isomorphism: Modules.Isomorphism[V := Hom.Carrier, W := Values.Carrier, source := Hom.space, target := Values.space].Isomorphism := Modules.Isomorphism[V := Hom.Carrier, W := Values.Carrier, source := Hom.space, target := Values.space].Isomorphism {
+  forward := restriction, backward := extension, leftInverse := extendRestrict, rightInverse := restrictExtend,
+};

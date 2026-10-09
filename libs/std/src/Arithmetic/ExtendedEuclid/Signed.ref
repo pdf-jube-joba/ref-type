@@ -1,0 +1,78 @@
+\definition absolute: I.Int^ -> N.Nat^ := \induction (a: I.Int^) \return N.Nat^ \with {
+  | ofNat: \fun (n: N.Nat^) => n
+  | negSucc: \fun (n: N.Nat^) => N.Nat^::succ n
+};
+\definition sign: I.Int^ -> I.Int^ := \induction (a: I.Int^) \return I.Int^ \with {
+  | ofNat: \fun (n: N.Nat^) => Arithmetic.one
+  | negSucc: \fun (n: N.Nat^) => Arithmetic.neg Arithmetic.one
+};
+\definition signTimesAbsolute: \forall (a: I.Int^) -> Arithmetic.mul (sign a) (natural (absolute a)) = a :=
+  \induction (a: I.Int^) \return Arithmetic.mul (sign a) (natural (absolute a)) = a \with {
+    | ofNat: \fun (n: N.Nat^) => Product.mulOneLeft (natural n)
+    | negSucc: \fun (n: N.Nat^) => trans!{I.Int^} _ _ _ (Arithmetic.negMulLeft Arithmetic.one (natural (N.Nat^::succ n)))
+        (congr!{I.Int^ I.Int^} Arithmetic.neg _ _ (Product.mulOneLeft (natural (N.Nat^::succ n))))
+  };
+\definition signTimesValue: \forall (a: I.Int^) -> Arithmetic.mul (sign a) a = natural (absolute a) :=
+  \induction (a: I.Int^) \return Arithmetic.mul (sign a) a = natural (absolute a) \with {
+    | ofNat: \fun (n: N.Nat^) => Product.mulOneLeft (natural n)
+    | negSucc: \fun (n: N.Nat^) => trans!{I.Int^} _ _ _ (Arithmetic.negMulLeft Arithmetic.one (I.Int^::negSucc n))
+        (congr!{I.Int^ I.Int^} Arithmetic.neg _ _ (Product.mulOneLeft (I.Int^::negSucc n)))
+  };
+\inductive Certificate: \VType := | certificate: N.Nat -> I.Int -> I.Int -> Certificate;
+\definition divisor: Certificate^ -> N.Nat^ := \induction (c: Certificate^) \return N.Nat^ \with {
+  | certificate: \fun (d: N.Nat^)(x, y: I.Int^) => d
+};
+\definition firstCoefficient: Certificate^ -> I.Int^ := \induction (c: Certificate^) \return I.Int^ \with {
+  | certificate: \fun (d: N.Nat^)(x, y: I.Int^) => x
+};
+\definition secondCoefficient: Certificate^ -> I.Int^ := \induction (c: Certificate^) \return I.Int^ \with {
+  | certificate: \fun (d: N.Nat^)(x, y: I.Int^) => y
+};
+\definition adjust(s: State^)(sa, sb: I.Int^): Certificate^ := Certificate^::certificate (left s)
+  (Arithmetic.mul (first s) sa) (Arithmetic.mul (second s) sb);
+\definition certificate(a, b: I.Int^): Certificate^ := Certificate^::certificate (left (result (absolute a) (absolute b)))
+  (Arithmetic.mul (first (result (absolute a) (absolute b))) (sign a))
+  (Arithmetic.mul (second (result (absolute a) (absolute b))) (sign b));
+\definition Divides(d, a: I.Int^): \Prop := \exists { q: I.Int^ \where a = Arithmetic.mul d q };
+\definition naturalDivisor: \forall (d: N.Nat^)(a: I.Int^) -> DivisionLaws.Divides d (absolute a) -> Divides (natural d) a := \block {
+  \fun (d: N.Nat^)(a: I.Int^)(divides: DivisionLaws.Divides d (absolute a)) \then
+  \takefrom q: DivisionLaws.Factors d (absolute a) \by divides \then
+  \return \exact(\into[I.Int^](Arithmetic.mul (sign a) (natural q), { q: I.Int^ \where a = Arithmetic.mul (natural d) q }) \by {
+    eq_reason!{{a}
+      "=" {Arithmetic.mul (sign a) (natural (absolute a))} "by" {sym!{I.Int^} _ _ (signTimesAbsolute a)}
+      "=" {Arithmetic.mul (sign a) (natural (Nat.mul d q))} "by" {congr!{N.Nat^ I.Int^} (\fun (n: N.Nat^) => Arithmetic.mul (sign a) (natural n)) _ _ (DivisionLaws.factorEquation d (absolute a) q)}
+      "=" {Arithmetic.mul (sign a) (Arithmetic.mul (natural d) (natural q))} "by" {congr!{I.Int^ I.Int^} (Arithmetic.mul (sign a)) _ _ (sym!{I.Int^} _ _ (naturalMul d q))}
+      "=" {Arithmetic.mul (Arithmetic.mul (sign a) (natural d)) (natural q)} "by" {sym!{I.Int^} _ _ (Product.mulAssoc (sign a) (natural d) (natural q))}
+      "=" {Arithmetic.mul (Arithmetic.mul (natural d) (sign a)) (natural q)} "by" {congr!{I.Int^ I.Int^} (\fun (n: I.Int^) => Arithmetic.mul n (natural q)) _ _ (IntegerLaws.mulComm (sign a) (natural d))}
+      "=" {Arithmetic.mul (natural d) (Arithmetic.mul (sign a) (natural q))} "by" {Product.mulAssoc (natural d) (sign a) (natural q)}}
+  }, \Cast[I.Int^] ({ q: I.Int^ \where a = Arithmetic.mul (natural d) q }))
+};
+\structure Laws[a, b: I.Int^, c: Certificate^]: \Prop {
+  gcd: divisor c = Gcd.gcd (absolute a) (absolute b),
+  bezout: Arithmetic.add (Arithmetic.mul (firstCoefficient c) a) (Arithmetic.mul (secondCoefficient c) b) = natural (divisor c),
+  dividesLeft: Divides (natural (divisor c)) a,
+  dividesRight: Divides (natural (divisor c)) b,
+}
+\module On(a, b: I.Int^);
+\definition correctness: \forall (a, b: I.Int^) -> Laws[a, b, certificate a b] := \fun (a, b: I.Int^) => On[a := a, b := b].laws;
+\module AbsoluteImplementation;
+\correspondence Absolute: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := AbsoluteImplementation[].T, program := AbsoluteImplementation[].program,
+  specification := absolute, coherence := AbsoluteImplementation[].coherence,
+};
+\module SignImplementation;
+\correspondence Sign: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := SignImplementation[].T, program := SignImplementation[].program,
+  specification := sign, coherence := SignImplementation[].coherence,
+};
+\module AdjustmentImplementation;
+\correspondence Adjust: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := AdjustmentImplementation[].T, program := AdjustmentImplementation[].program,
+  specification := adjust, coherence := AdjustmentImplementation[].coherence,
+};
+\module Implementation;
+\correspondence Euclid: ProgramBundles.Correspondence := ProgramBundles.Correspondence {
+  T := Implementation[].T, program := Implementation[].program,
+  specification := certificate, coherence := Implementation[].coherence,
+};
+\module Division;

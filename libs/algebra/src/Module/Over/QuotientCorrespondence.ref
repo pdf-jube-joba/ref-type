@@ -1,0 +1,33 @@
+\import \parent.Of[V := V, space := space] \as Original;
+\import Original.Submodule[] \as Sub;
+\import algebra.Group[].Of[Carrier := V, group := Original.additive] \as Group;
+\import Sub.Quotient[S := S] \as Quotient;
+\import \parent.Of[V := Quotient.Carrier, space := Quotient.moduleSpace].Submodule[] \as QuotientSub;
+\definition pullback(U: QuotientSub.Submodule): Sub.Submodule := Sub.Submodule {
+  carrier := { x: V \where QuotientSub.Member U (Quotient.class x) },
+  zero := #zero{U},
+  addition := \fun (x, y: V)(left: QuotientSub.Member U (Quotient.class x))(right: QuotientSub.Member U (Quotient.class y)) =>
+    \idelim Quotient.addClass (Quotient.class x) (Quotient.class y) = Quotient.class (#add{space} x y)
+      \with z: Quotient.Carrier => QuotientSub.Member U z \by {
+        base: #addition{U} (Quotient.class x) (Quotient.class y) left right, equality: Quotient.addOnClass x y
+      },
+  scalar := \fun (a: R)(x: V)(member: QuotientSub.Member U (Quotient.class x)) =>
+    \idelim Quotient.scaleClass a (Quotient.class x) = Quotient.class (#smul{space} a x)
+      \with z: Quotient.Carrier => QuotientSub.Member U z \by {
+        base: #scalar{U} a (Quotient.class x) member, equality: Quotient.scaleOnClass a x
+      },
+};
+\definition contains: \forall (U: QuotientSub.Submodule) -> Sub.Included S (pullback U) :=
+  \fun (U: QuotientSub.Submodule)(x: V)(member: Sub.Member S x) =>
+    \idelim Quotient.zeroClass = Quotient.class x \with z: Quotient.Carrier => QuotientSub.Member U z \by {
+      base: #zero{U}, equality: sym!{Quotient.Carrier} _ _ (Quotient.classZero x member)
+    };
+\module Above(T: Sub.Submodule);
+\definition image(T: Sub.Submodule): QuotientSub.Submodule := Above[T := T].image;
+\definition imagePullback: \forall (U: QuotientSub.Submodule) -> image (pullback U) = U :=
+  \fun (U: QuotientSub.Submodule) => QuotientSub.ext (image (pullback U)) U
+    (Above[T := pullback U].included U (\refl(pullback U)))
+    (Above[T := pullback U].covers U (\refl(pullback U)));
+\definition pullbackImage: \forall (T: Sub.Submodule) -> Sub.Included S T -> pullback (image T) = T :=
+  \fun (T: Sub.Submodule)(contains: Sub.Included S T) => Sub.ext (pullback (image T)) T
+    (Above[T := T].reflects contains) (Above[T := T].lift);

@@ -1,0 +1,46 @@
+\import Upper.Of[S := S] \as Inside;
+\import Modules.Hom[V := Inside.Carrier, W := I.Int^, source := Inside.moduleSpace, target := Modules.scalarModule] \as Projections;
+\definition projection: Projections.Map := Projections.Map {
+  apply := \fun (x: Inside.Carrier) => Split.head x,
+  addition := \fun (x, y: Inside.Carrier) => \refl(Arithmetic.add (Split.head x) (Split.head y)),
+  scalar := \fun (a: I.Int^)(x: Inside.Carrier) => \refl(Arithmetic.mul a (Split.head x)),
+};
+\import Modules.Of[V := I.Int^, space := Modules.scalarModule].Submodule[].Image[U := Inside.Carrier, source := Inside.moduleSpace] \as Images;
+\definition image: Ideals.Submodule := Images.image projection;
+\definition kernel: Lower.Submodule := Lower.Submodule {
+  carrier := { x: Lower.Vector \where \In[Upper.Vector] (#carrier{S}) (Split.zeroExtend x) },
+  zero := \idelim #zero{Upper.space} = Split.zeroExtend #zero{Lower.space} \with x: Upper.Vector => \In[Upper.Vector] (#carrier{S}) x \by {
+    base: #zero{S}, equality: sym!{Upper.Vector} _ _ Split.zeroZero
+  },
+  addition := \fun (x, y: Lower.Vector)(left: _)(right: _) =>
+    \idelim #add{Upper.space} (Split.zeroExtend x) (Split.zeroExtend y) = Split.zeroExtend (#add{Lower.space} x y)
+      \with z: Upper.Vector => \In[Upper.Vector] (#carrier{S}) z \by {
+        base: #addition{S} (Split.zeroExtend x) (Split.zeroExtend y) left right,
+        equality: sym!{Upper.Vector} _ _ (Split.zeroAddition x y)
+      },
+  scalar := \fun (a: I.Int^)(x: Lower.Vector)(member: _) =>
+    \idelim #smul{Upper.space} a (Split.zeroExtend x) = Split.zeroExtend (#smul{Lower.space} a x)
+      \with z: Upper.Vector => \In[Upper.Vector] (#carrier{S}) z \by {
+        base: #scalar{S} a (Split.zeroExtend x) member,
+        equality: sym!{Upper.Vector} _ _ (Split.zeroScalar a x)
+      },
+};
+\import Lower.Of[S := kernel] \as Kernel;
+\import Modules.Hom[V := Kernel.Carrier, W := Inside.Carrier, source := Kernel.moduleSpace, target := Inside.moduleSpace] \as Inclusions;
+\definition inclusion: Inclusions.Map := Inclusions.Map {
+  apply := \fun (x: Kernel.Carrier) => \into[Upper.Vector](Split.zeroExtend x, #carrier{S}) \by {
+    \bysub(Lower.Vector, #carrier{kernel}, x)
+  },
+  addition := \fun (x, y: Kernel.Carrier) => Split.zeroAddition x y,
+  scalar := \fun (a: I.Int^)(x: Kernel.Carrier) => Split.zeroScalar a x,
+};
+\module With(d: Ideals.Principal image,
+  v: \Cast[Inside.Carrier] ({ v: Inside.Carrier \where #apply{projection} v = Ideals.natural d }), f: Kernel.Generator);
+\definition existence: (\forall (T: Lower.Submodule) -> Lower.Generated T) -> Upper.Generated S := \block {
+  \fun (previous: _) \then
+  \takefrom d: Ideals.Principal image \by Ideals.principal image \then
+  \let law: Ideals.PrincipalLaws[image, d] := \bysub(N.Nat^, { d: N.Nat^ \where Ideals.PrincipalLaws[image, d] }, d) \then
+  \takefrom v: \Cast[Inside.Carrier] ({ v: Inside.Carrier \where #apply{projection} v = Ideals.natural d }) \by #generator{law} \then
+  \takefrom f: Kernel.Generator \by previous kernel \then
+  \return With[d := d, v := v, f := f].existence
+};

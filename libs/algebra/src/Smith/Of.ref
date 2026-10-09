@@ -1,0 +1,68 @@
+\import algebra.IntegerMatrix[m := m, n := n] \as Matrices;
+\import algebra.IntegerMatrix[m := m, n := m] \as LeftMatrices;
+\import algebra.IntegerMatrix[m := n, n := n] \as RightMatrices;
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := m, n := n] \as Base;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := m, n := m] \as Left;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := n, n := n] \as Right;
+\import Left.Invertible[] \as LeftInverse;
+\import Right.Invertible[] \as RightInverse;
+\import Left.End[] \as LeftEnd;
+\import Right.End[] \as RightEnd;
+\import Left.Composition[k := m] \as LeftProduct;
+\import Right.Composition[k := n] \as RightProduct;
+\import Left.Composition[k := n] \as ActLeft;
+\import Base.Composition[k := n] \as ActRight;
+\import LeftInverse.Composition[k := m] \as ComposeLeft;
+\import RightInverse.Composition[k := n] \as ComposeRight;
+\structure Frame: \Set {
+  left: Left.Matrix,
+  right: Right.Matrix,
+  leftInverse: LeftInverse.Inverse left,
+  rightInverse: RightInverse.Inverse right,
+}
+\definition change(frame: Frame)(a: Matrices.Matrix): Matrices.Matrix := ActRight.product (ActLeft.product frame.left a) frame.right;
+\definition leftIdentityData: LeftInverse.Data := LeftInverse.Data { inverse := LeftEnd.identity };
+\definition rightIdentityData: RightInverse.Data := RightInverse.Data { inverse := RightEnd.identity };
+\definition leftIdentityInverse: LeftInverse.Inverse LeftEnd.identity :=
+  \into[LeftInverse.Data](leftIdentityData, { data: LeftInverse.Data \where LeftInverse.Laws[LeftEnd.identity, data] }) \by {
+    LeftInverse.Laws[LeftEnd.identity, leftIdentityData] {
+      leftInverse := LeftEnd.rightIdentity LeftEnd.identity, rightInverse := LeftEnd.rightIdentity LeftEnd.identity,
+    }
+  };
+\definition rightIdentityInverse: RightInverse.Inverse RightEnd.identity :=
+  \into[RightInverse.Data](rightIdentityData, { data: RightInverse.Data \where RightInverse.Laws[RightEnd.identity, data] }) \by {
+    RightInverse.Laws[RightEnd.identity, rightIdentityData] {
+      leftInverse := RightEnd.rightIdentity RightEnd.identity, rightInverse := RightEnd.rightIdentity RightEnd.identity,
+    }
+  };
+\definition identity: Frame := Frame {
+  left := LeftEnd.identity, right := RightEnd.identity, leftInverse := leftIdentityInverse, rightInverse := rightIdentityInverse,
+};
+\definition identityLaw: \forall (a: Matrices.Matrix) -> change identity a = a :=
+  \fun (a: Matrices.Matrix) => trans!{Matrices.Matrix} (change identity a) (ActLeft.product LeftEnd.identity a) a
+    (Base.End[].rightIdentity (ActLeft.product LeftEnd.identity a)) (Base.End[].leftIdentity a);
+\definition compose(later, earlier: Frame): Frame := Frame {
+  left := LeftProduct.product later.left earlier.left,
+  right := RightProduct.product earlier.right later.right,
+  leftInverse := ComposeLeft.certificate later.left earlier.left later.leftInverse earlier.leftInverse,
+  rightInverse := ComposeRight.certificate earlier.right later.right earlier.rightInverse later.rightInverse,
+};
+\module Composition(later, earlier: Frame, a: Matrices.Matrix);
+\definition compositionLaw: \forall (later, earlier: Frame)(a: Matrices.Matrix) -> change (compose later earlier) a = change later (change earlier a) :=
+  \fun (later, earlier: Frame)(a: Matrices.Matrix) => Composition[later := later, earlier := earlier, a := a].law;
+
+\import std.Data[].FinSet[] \as Finite;
+\import std.Logic[].Proposition[] \as Logic;
+\import \parent.Bounds[] \as Indices;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Elementary[n := m] \as LeftElementary;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Elementary[n := n] \as RightElementary;
+\definition Action(operation: Operation^)(frame: Frame): \Prop := \forall (a: Runtime^) -> change frame (Matrices.reflect a) = Matrices.reflect (apply operation a);
+\definition OperationFrame(operation: Operation^): \Set := \Cast[Frame] ({ frame: Frame \where Action operation frame });
+\module RowFrames(r, s: Finite.Fin m);
+\module ColumnFrames(r, s: Finite.Fin n);
+\module Operations;
+\definition HistoryAction(history: History^)(frame: Frame): \Prop := \forall (a: Runtime^) -> change frame (Matrices.reflect a) = Matrices.reflect (applyHistory history a);
+\definition HistoryFrame(history: History^): \Set := \Cast[Frame] ({ frame: Frame \where HistoryAction history frame });
+\module Histories;
+\module NativeRepresentation;

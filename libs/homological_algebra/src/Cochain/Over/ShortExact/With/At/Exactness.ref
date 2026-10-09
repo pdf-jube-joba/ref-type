@@ -1,0 +1,65 @@
+\import \parent.\parent.\parent.\parent.At[C := A, k := n] \as HA;
+\import \parent.\parent.\parent.\parent.At[C := B, k := n] \as HB;
+\import \parent.\parent.\parent.\parent.At[C := B, k := N.Nat^::succ n] \as HBeyond;
+\import Internal.At[C := Left.complex, z := index] \as IA;
+\import Internal.At[C := Middle.complex, z := index] \as IB;
+\import Internal.At[C := Middle.complex, z := Integers.next index] \as IBeyond;
+\import Middle.PositiveCohomology[n := N.Nat^::succ n] \as NextMiddleComparison;
+\import Internal.Map[C := Left.complex, D := Middle.complex].At[k := index] \as InclusionInteger;
+\import Internal.Map[C := Middle.complex, D := Right.complex].At[k := index] \as ProjectionInteger;
+\import Internal.Map[C := Left.complex, D := Middle.complex].At[k := Integers.next index] \as NextInclusionInteger;
+\import Inclusion.At[k := n] \as InclusionNatural;
+\import Projection.At[k := n] \as ProjectionNatural;
+\import Inclusion.At[k := N.Nat^::succ n] \as NextInclusionNatural;
+\definition ia: Modules.Bundle := Modules.Bundle { Carrier := IA.Cohomology, space := IA.cohomologySpace };
+\definition ib: Modules.Bundle := Modules.Bundle { Carrier := IB.Cohomology, space := IB.cohomologySpace };
+\definition ic: Modules.Bundle := Modules.Bundle { Carrier := IntegerSource.Cohomology, space := IntegerSource.cohomologySpace };
+\definition id: Modules.Bundle := Modules.Bundle { Carrier := IntegerTarget.Cohomology, space := IntegerTarget.cohomologySpace };
+\definition ie: Modules.Bundle := Modules.Bundle { Carrier := IBeyond.Cohomology, space := IBeyond.cohomologySpace };
+\definition a: Modules.Bundle := Modules.Bundle { Carrier := HA.Cohomology, space := HA.cohomologySpace };
+\definition b: Modules.Bundle := Modules.Bundle { Carrier := HB.Cohomology, space := HB.cohomologySpace };
+\definition c: Modules.Bundle := Modules.Bundle { Carrier := Source.Cohomology, space := Source.cohomologySpace };
+\definition d: Modules.Bundle := Modules.Bundle { Carrier := Target.Cohomology, space := Target.cohomologySpace };
+\definition e: Modules.Bundle := Modules.Bundle { Carrier := HBeyond.Cohomology, space := HBeyond.cohomologySpace };
+\import Modules.ExactPair[A := ia, B := ib, C := ic] \as MiddlePair;
+\import Modules.ExactPair[A := ib, B := ic, C := id] \as RightPair;
+\import Modules.ExactPair[A := ic, B := id, C := ie] \as NextPair;
+\definition middleSource: MiddlePair.Sequence := MiddlePair.Sequence {
+  first := InclusionInteger.induced ExtendedInclusion.map, last := ProjectionInteger.induced ExtendedProjection.map,
+  zero := IntegerExact.Exactness[].inclusionProjectionZero, kernelImage := IntegerExact.Exactness[].exactAtB,
+};
+\definition rightSource: RightPair.Sequence := RightPair.Sequence {
+  first := ProjectionInteger.induced ExtendedProjection.map, last := IntegerExact.connecting,
+  zero := IntegerExact.Exactness[].projectionConnectingZero, kernelImage := IntegerExact.Exactness[].exactAtC,
+};
+\definition nextSource: NextPair.Sequence := NextPair.Sequence {
+  first := IntegerExact.connecting, last := NextInclusionInteger.induced ExtendedInclusion.map,
+  zero := IntegerExact.Exactness[].connectingInclusionZero, kernelImage := IntegerExact.Exactness[].exactAtALower,
+};
+\import MiddlePair.Transport[A1 := a, B1 := b, C1 := c, sequence := middleSource,
+  f := InclusionNatural.induced s.inclusion, g := ProjectionNatural.induced s.projection,
+  a := LeftComparison.isomorphism, b := MiddleComparison.isomorphism, c := RightComparison.isomorphism] \as MiddleTransport;
+\import RightPair.Transport[A1 := b, B1 := c, C1 := d, sequence := rightSource,
+  f := ProjectionNatural.induced s.projection, g := connecting,
+  a := MiddleComparison.isomorphism, b := RightComparison.isomorphism, c := NextComparison.isomorphism] \as RightTransport;
+\import NextPair.Transport[A1 := c, B1 := d, C1 := e, sequence := nextSource,
+  f := connecting, g := NextInclusionNatural.induced s.inclusion,
+  a := RightComparison.isomorphism, b := NextComparison.isomorphism, c := NextMiddleComparison.isomorphism] \as NextTransport;
+\definition middleLaws: Modules.ExactPair[A := a, B := b, C := c].Laws[MiddleTransport.data] :=
+  MiddleTransport.laws (ExtendedInclusion.Naturality[n := n].commutes) (ExtendedProjection.Naturality[n := n].commutes);
+\definition rightLaws: Modules.ExactPair[A := b, B := c, C := d].Laws[RightTransport.data] :=
+  RightTransport.laws (ExtendedProjection.Naturality[n := n].commutes) connectingCommutes;
+\definition nextLaws: Modules.ExactPair[A := c, B := d, C := e].Laws[NextTransport.data] :=
+  NextTransport.laws connectingCommutes (ExtendedInclusion.Naturality[n := N.Nat^::succ n].commutes);
+\definition inclusionProjectionZero: \forall (h: HA.Cohomology) ->
+  #apply{(ProjectionNatural.induced s.projection)} (#apply{(InclusionNatural.induced s.inclusion)} h) = #zero{Source.cohomologySpace} := #zero{middleLaws};
+\definition projectionConnectingZero: \forall (h: HB.Cohomology) ->
+  #apply{connecting} (#apply{(ProjectionNatural.induced s.projection)} h) = #zero{Target.cohomologySpace} := #zero{rightLaws};
+\definition connectingInclusionZero: \forall (h: Source.Cohomology) ->
+  #apply{(NextInclusionNatural.induced s.inclusion)} (#apply{connecting} h) = #zero{HBeyond.cohomologySpace} := #zero{nextLaws};
+\definition exactAtB: \forall (h: HB.Cohomology) -> #apply{(ProjectionNatural.induced s.projection)} h = #zero{Source.cohomologySpace} ->
+  \exists { x: HA.Cohomology \where #apply{(InclusionNatural.induced s.inclusion)} x = h } := #kernelImage{middleLaws};
+\definition exactAtC: \forall (h: Source.Cohomology) -> #apply{connecting} h = #zero{Target.cohomologySpace} ->
+  \exists { x: HB.Cohomology \where #apply{(ProjectionNatural.induced s.projection)} x = h } := #kernelImage{rightLaws};
+\definition exactAtANext: \forall (h: Target.Cohomology) -> #apply{(NextInclusionNatural.induced s.inclusion)} h = #zero{HBeyond.cohomologySpace} ->
+  \exists { x: Source.Cohomology \where #apply{connecting} x = h } := #kernelImage{nextLaws};

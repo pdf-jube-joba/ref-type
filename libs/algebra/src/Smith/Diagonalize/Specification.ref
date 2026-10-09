@@ -1,0 +1,89 @@
+\import \parent.\parent.Standardize[].Laws[m := m, n := n, original := original] \as Normal;
+\import \parent.\parent.Of[m := m, n := n] \as Frames;
+\import Frames.NativeRepresentation[] \as Representation;
+\import algebra.IntegerMatrix[m := m, n := n] \as Matrices;
+\import std.Logic[].Proposition[] \as Logic;
+\definition output(result: SmithResult^): Compute.Output^ := Compute.Output^::result (rank result) (diagonal result) (history result);
+\structure Transformation[result: SmithResult^, witness: Frames.Frame]: \Prop {
+  representation: Representation.Matches[witness, frame result],
+  equation: Frames.change witness (Matrices.reflect original) = Matrices.reflect (diagonal result),
+}
+\definition FrameFor(result: SmithResult^): \Set := \Cast[Frames.Frame] ({ witness: Frames.Frame \where Transformation[result, witness] });
+\structure Certificate[result: SmithResult^]: \Prop {
+  normal: Normal.FullCertificate[output result],
+  transformation: \exists FrameFor result,
+}
+\definition assembledTransformation: \forall (rank: N.Nat^)(a: Runtime^)(history: History^) ->
+  Normal.FullCertificate[Compute.Output^::result rank a history] ->
+  \exists FrameFor (SmithResult^::result rank a history (NativeFrames.build m n history)) := \block {
+  \fun (rank: N.Nat^)(a: Runtime^)(history: History^)(law: Normal.FullCertificate[Compute.Output^::result rank a history]) \then
+  \takefrom witness: Representation.HistoryFrame history \by Representation.Histories[].existence history #bounded{(#computation{law})} \then
+  \let laws: Representation.HistoryLaws[history, witness] :=
+    \bysub(Frames.Frame, { witness: Frames.Frame \where Representation.HistoryLaws[history, witness] }, witness) \then
+  \return \exact(\into[Frames.Frame](witness, { witness: Frames.Frame \where Transformation[SmithResult^::result rank a history (NativeFrames.build m n history), witness] }) \by {
+    Transformation[SmithResult^::result rank a history (NativeFrames.build m n history), witness] {
+      representation := #representation{laws},
+      equation := trans!{Matrices.Matrix} (Frames.change witness (Matrices.reflect original)) (Matrices.reflect (applyHistory history original)) (Matrices.reflect a)
+        (#action{laws} original)
+        (congr!{Runtime^ Matrices.Matrix} Matrices.reflect (applyHistory history original) a (sym!{Runtime^} a (applyHistory history original) #traced{(#computation{law})})),
+    }
+  }, FrameFor (SmithResult^::result rank a history (NativeFrames.build m n history)))
+};
+\definition assembledCertificate: \forall (value: Compute.Output^) -> Normal.FullCertificate[value] -> Certificate[assemble m n value] :=
+  \induction (value: Compute.Output^) \return Normal.FullCertificate[value] -> Certificate[assemble m n value] \with {
+    | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^)(law: Normal.FullCertificate[Compute.Output^::result rank a history]) =>
+        Certificate[SmithResult^::result rank a history (NativeFrames.build m n history)] {
+          normal := law, transformation := assembledTransformation rank a history law,
+        }
+  };
+\definition correctness: Certificate[result m n original] := assembledCertificate (Standardize.standardize m n original) Normal.fullCorrectness;
+\definition nativeCorrectness: Certificate[Diagonalize.program^ m n original] :=
+  \idelim result m n original = Diagonalize.program^ m n original \with value: SmithResult^ => Certificate[value] \by {
+    base: correctness,
+    equality: sym!{SmithResult^} (Diagonalize.program^ m n original) (result m n original) (\parent.Implementation[].matches m n original)
+  };
+\import std.Arithmetic[].IntAlgebra[].Ring[] \as IntegerRing;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := m, n := m] \as Left;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := n, n := n] \as Right;
+\import Left.Invertible[] \as LeftInverse;
+\import Right.Invertible[] \as RightInverse;
+\import algebra.IntegerMatrix[m := m, n := m] \as LeftMatrices;
+\import algebra.IntegerMatrix[m := n, n := n] \as RightMatrices;
+\import Left.Composition[k := m] \as LeftProduct;
+\import Right.Composition[k := n] \as RightProduct;
+\import Left.Composition[k := n] \as ActLeft;
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := m, n := n].Composition[k := n] \as ActRight;
+\import Left.End[] \as LeftIdentity;
+\import Right.End[] \as RightIdentity;
+\use Equality.congr2;
+
+\definition leftInverseData(value: SmithResult^): LeftInverse.Data := LeftInverse.Data { inverse := LeftMatrices.reflect (leftInverse value) };
+\definition rightInverseData(value: SmithResult^): RightInverse.Data := RightInverse.Data { inverse := RightMatrices.reflect (rightInverse value) };
+\module Using(value: SmithResult^);
+\definition leftInverseLaws: \forall (value: SmithResult^) -> Certificate[value] -> LeftInverse.Laws[LeftMatrices.reflect (left value), leftInverseData value] := \block {
+  \fun (value: SmithResult^)(law: Certificate[value]) \then
+  \takefrom witness: FrameFor value \by #transformation{law} \then
+  \let proof: Transformation[value, witness] := \bysub(Frames.Frame, { witness: Frames.Frame \where Transformation[value, witness] }, witness) \then
+  \return \parent.Specification[m := m, n := n, original := original].Using[value := value].leftInverseLaws witness #representation{proof}
+};
+\definition rightInverseLaws: \forall (value: SmithResult^) -> Certificate[value] -> RightInverse.Laws[RightMatrices.reflect (right value), rightInverseData value] := \block {
+  \fun (value: SmithResult^)(law: Certificate[value]) \then
+  \takefrom witness: FrameFor value \by #transformation{law} \then
+  \let proof: Transformation[value, witness] := \bysub(Frames.Frame, { witness: Frames.Frame \where Transformation[value, witness] }, witness) \then
+  \return \parent.Specification[m := m, n := n, original := original].Using[value := value].rightInverseLaws witness #representation{proof}
+};
+\definition equation: \forall (value: SmithResult^) -> Certificate[value] ->
+  ActRight.product (ActLeft.product (LeftMatrices.reflect (left value)) (Matrices.reflect original)) (RightMatrices.reflect (right value)) = Matrices.reflect (diagonal value) := \block {
+  \fun (value: SmithResult^)(law: Certificate[value]) \then
+  \takefrom witness: FrameFor value \by #transformation{law} \then
+  \let proof: Transformation[value, witness] := \bysub(Frames.Frame, { witness: Frames.Frame \where Transformation[value, witness] }, witness) \then
+  \return trans!{Matrices.Matrix}
+    (ActRight.product (ActLeft.product (LeftMatrices.reflect (left value)) (Matrices.reflect original)) (RightMatrices.reflect (right value)))
+    (Frames.change witness (Matrices.reflect original)) (Matrices.reflect (diagonal value))
+    (\parent.Specification[m := m, n := n, original := original].Using[value := value].change witness #representation{proof}) #equation{proof}
+};
+\definition typedFrame(value: SmithResult^)(certificate: Certificate[value]): Frames.Frame := Frames.Frame {
+  left := LeftMatrices.reflect (left value), right := RightMatrices.reflect (right value),
+  leftInverse := \into[LeftInverse.Data](leftInverseData value, { data: LeftInverse.Data \where LeftInverse.Laws[LeftMatrices.reflect (left value), data] }) \by { leftInverseLaws value certificate },
+  rightInverse := \into[RightInverse.Data](rightInverseData value, { data: RightInverse.Data \where RightInverse.Laws[RightMatrices.reflect (right value), data] }) \by { rightInverseLaws value certificate },
+};

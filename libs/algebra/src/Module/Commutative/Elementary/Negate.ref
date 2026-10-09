@@ -1,0 +1,32 @@
+\import std.Data[].Bool[] \as B;
+\import N.Basic[].Def[] \as Nat;
+\import Modules.Laws[V := R, space := Modules.scalarModule] \as ScalarValues;
+\definition value(test: B.Bool^)(a: R): R := B.ite R test (#neg{ordinaryRing} a) a;
+\definition apply(v: Vector): Vector := \fun (k: Index) => value (Nat.eqb k i) (v k);
+\definition additionChoice: \forall (test: B.Bool^)(a, b: R) -> value test (#add{ordinaryRing} a b) = #add{ordinaryRing} (value test a) (value test b) :=
+  \induction (test: B.Bool^) \return \forall (a, b: R) -> value test (#add{ordinaryRing} a b) = #add{ordinaryRing} (value test a) (value test b) \with {
+    | false: \fun (a, b: R) => \refl(#add{ordinaryRing} a b)
+    | true: Scalars.negAdd
+  };
+\definition scalarChoice: \forall (test: B.Bool^)(a, b: R) -> value test (#mul{ordinaryRing} a b) = #mul{ordinaryRing} a (value test b) :=
+  \induction (test: B.Bool^) \return \forall (a, b: R) -> value test (#mul{ordinaryRing} a b) = #mul{ordinaryRing} a (value test b) \with {
+    | false: \fun (a, b: R) => \refl(#mul{ordinaryRing} a b)
+    | true: \fun (a, b: R) => sym!{R} _ _ (ScalarValues.scaleNeg a b)
+  };
+\definition inverseChoice: \forall (test: B.Bool^)(a: R) -> value test (value test a) = a :=
+  \induction (test: B.Bool^) \return \forall (a: R) -> value test (value test a) = a \with {
+    | false: \fun (a: R) => \refl(a)
+    | true: Scalars.negNeg
+  };
+\definition map: Maps.Map := Maps.Map {
+  apply := apply,
+  addition := \fun (v, w: Vector) => \axiom:funext(apply (#add{space} v w), #add{space} (apply v) (apply w),
+    \fun (k: Index) => additionChoice (Nat.eqb k i) (v k) (w k)),
+  scalar := \fun (a: R)(v: Vector) => \axiom:funext(apply (#smul{space} a v), #smul{space} a (apply v),
+    \fun (k: Index) => scalarChoice (Nat.eqb k i) a (v k)),
+};
+\definition inverse: \forall (v: Vector) -> apply (apply v) = v :=
+  \fun (v: Vector) => \axiom:funext(apply (apply v), v, \fun (k: Index) => inverseChoice (Nat.eqb k i) (v k));
+\definition isomorphism: Iso.Isomorphism := Iso.Isomorphism { forward := map, backward := map, leftInverse := inverse, rightInverse := inverse };
+\definition matrix: Square.Matrix := Square.entries map;
+\definition certificate: Invertible.Inverse matrix := Invertible.fromIsomorphism isomorphism;

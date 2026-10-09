@@ -39,3 +39,14 @@
             (\fun (x: State) => map (\fun (y: State) => ready P (step y)) P h (step x)),
           equality: edge
         };
+\definition stateOf(fallback: State): \RunStep[State, Output] -> State := \step-match t: \RunStep[State, Output] \return State \with {
+  | \continue current: current
+  | \finish result: fallback
+};
+\definition continueInjective: \forall (x, y: State) -> \continue[State, Output](x) = \continue[State, Output](y) -> x = y :=
+  \fun (x, y: State)(equal: _) => \idelim \continue[State, Output](x) = \continue[State, Output](y)
+    \with t: \RunStep[State, Output] => x = stateOf x t \by { base: \refl(x), equality: equal };
+\definition finishNeContinue: \forall (result: Output)(current: State) -> \finish[State, Output](result) = \continue[State, Output](current) -> (\forall (P: \Prop) -> P) :=
+  \fun (result: Output)(current: State)(equal: _) => \idelim \finish[State, Output](result) = \continue[State, Output](current)
+    \with t: \RunStep[State, Output] => ready (\fun (state: State) => \forall (P: \Prop) -> P) t \by { base: trivial, equality: equal };
+\module Results(invariant: State -> \Prop, result: Output -> \Prop);

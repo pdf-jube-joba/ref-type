@@ -1,0 +1,157 @@
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Def[] \as Nat;
+\import std.Arithmetic[].Int[] \as I;
+\definition zero: N.Nat^ := N.Nat^::zero;
+\definition one: N.Nat^ := N.Nat^::succ zero;
+\definition two: N.Nat^ := N.Nat^::succ one;
+\definition three: N.Nat^ := N.Nat^::succ two;
+\definition four: N.Nat^ := N.Nat^::succ three;
+\definition six: N.Nat^ := Nat.add three three;
+\definition eight: N.Nat^ := Nat.add four four;
+\definition ten: N.Nat^ := Nat.add two eight;
+\definition twentySix: N.Nat^ := Nat.add (Nat.mul four six) two;
+\import algebra.IntegerMatrix[m := two, n := two] \as Matrices;
+\import Matrices.Product[k := two] \as Product;
+\definition a: Matrices.Runtime := \thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) =>
+  \match i \in N.Nat \with {
+    | zero: \match j \in N.Nat \with {
+        | zero: \return(I.Int::ofNat (N.Nat::succ (N.Nat::succ N.Nat::zero)))
+        | succ k: \return(I.Int::ofNat (N.Nat::succ (N.Nat::succ (N.Nat::succ (N.Nat::succ N.Nat::zero)))))
+      }
+    | succ k: \match j \in N.Nat \with {
+        | zero: \return(I.Int::ofNat (N.Nat::succ (N.Nat::succ (N.Nat::succ (N.Nat::succ (N.Nat::succ (N.Nat::succ N.Nat::zero)))))))
+        | succ l: \return(I.Int::ofNat (N.Nat::succ (N.Nat::succ (N.Nat::succ (N.Nat::succ (N.Nat::succ (N.Nat::succ (N.Nat::succ (N.Nat::succ N.Nat::zero)))))))))
+      }
+  })));
+\definition b: Matrices.Runtime := \thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) =>
+  \match i \in N.Nat \with {
+    | zero: \match j \in N.Nat \with {
+        | zero: \return(I.Int::ofNat (N.Nat::succ N.Nat::zero))
+        | succ k: \return(I.Int::ofNat (N.Nat::succ (N.Nat::succ (N.Nat::succ N.Nat::zero))))
+      }
+    | succ k: \match j \in N.Nat \with {
+        | zero: \return(I.Int::ofNat N.Nat::zero)
+        | succ l: \return(I.Int::ofNat (N.Nat::succ N.Nat::zero))
+      }
+  })));
+\definition firstFirst: Product.Multiply.program^ two a^ b^ zero zero = I.Int^::ofNat two := \refl(I.Int^::ofNat two);
+\definition firstSecond: Product.Multiply.program^ two a^ b^ zero one = I.Int^::ofNat ten := \refl(I.Int^::ofNat ten);
+\definition secondFirst: Product.Multiply.program^ two a^ b^ one zero = I.Int^::ofNat six := \refl(I.Int^::ofNat six);
+\definition secondSecond: Product.Multiply.program^ two a^ b^ one one = I.Int^::ofNat twentySix := \refl(I.Int^::ofNat twentySix);
+\definition certificate: Product.reflected a^ b^ = Product.product (Matrices.reflect a^) (Matrices.reflect b^) := Product.correspondence a^ b^;
+
+\import Matrices.RowOperations[] \as Rows;
+\import Matrices.ColumnOperations[] \as Columns;
+\import Matrices.Identity[] \as Identity;
+\import Matrices.Search[] \as Search;
+\import std.Data[].Nat[].Find[].Grid[] \as Grid;
+\definition swapRowsFirst: Rows.Swap.program^ a^ zero one zero zero = I.Int^::ofNat six := \refl(I.Int^::ofNat six);
+\definition eliminateRow: Rows.Add.program^ a^ one zero (I.Int^::negSucc two) one zero = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition eliminateRowSecond: Rows.Add.program^ a^ one zero (I.Int^::negSucc two) one one = I.Int^::negSucc three := \refl(I.Int^::negSucc three);
+\definition eliminateColumn: Columns.Add.program^ a^ one zero (I.Int^::negSucc one) zero one = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition eliminateColumnSecond: Columns.Add.program^ a^ one zero (I.Int^::negSucc one) one one = I.Int^::negSucc three := \refl(I.Int^::negSucc three);
+\definition identityDiagonal: Identity.program^ one one = I.Int^::ofNat one := \refl(I.Int^::ofNat one);
+\definition identityOther: Identity.program^ zero one = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition boundedSearch: Search.Search.program^ two two zero a^ = Grid.Position^::position one one := \refl(Grid.Position^::position one one);
+
+\import algebra.Smith[] \as Smith;
+\import Smith.Reduction[] \as Reduction;
+\import std.Data[].Bool[] \as Bool;
+\definition rowDivisionZero: Smith.attemptMatrix (Reduction.Row.program^ zero one a^ Smith.History^::empty) one zero = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition rowDivisionOther: Smith.attemptMatrix (Reduction.Row.program^ zero one a^ Smith.History^::empty) one one = I.Int^::negSucc three := \refl(I.Int^::negSucc three);
+\definition rowDivisionSettled: Smith.attemptReduced (Reduction.Row.program^ zero one a^ Smith.History^::empty) = Bool.Bool^::false := \refl(Bool.Bool^::false);
+\definition decreasedPivot: Smith.attemptMatrix (Reduction.Row.program^ zero one (Rows.Swap.program^ a^ zero one) Smith.History^::empty) zero zero = I.Int^::ofNat two := \refl(I.Int^::ofNat two);
+\definition pivotReduced: Smith.attemptReduced (Reduction.Row.program^ zero one (Rows.Swap.program^ a^ zero one) Smith.History^::empty) = Bool.Bool^::true := \refl(Bool.Bool^::true);
+\import Smith.Pass[] \as Pass;
+\import Pass.Invariants[] \as PassLaws;
+\definition rowPass: Smith.Attempt^ := Pass.Row.program^ two zero a^ Smith.History^::empty;
+\definition columnPass: Smith.Attempt^ := Pass.Column.program^ two zero (Smith.attemptMatrix rowPass) (Smith.attemptHistory rowPass);
+\definition rowPassCleared: Smith.attemptMatrix rowPass one zero = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition diagonalFirst: Smith.attemptMatrix columnPass zero zero = I.Int^::ofNat two := \refl(I.Int^::ofNat two);
+\definition diagonalSecond: Smith.attemptMatrix columnPass one one = I.Int^::negSucc three := \refl(I.Int^::negSucc three);
+\definition diagonalUpper: Smith.attemptMatrix columnPass zero one = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition diagonalLower: Smith.attemptMatrix columnPass one zero = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\import Smith.Undo[] \as Undo;
+\definition undone: Matrices.Runtime^ := Undo.Undo.program^ (Smith.attemptHistory columnPass) (Smith.attemptMatrix columnPass);
+\definition undoneFirst: undone zero one = I.Int^::ofNat four := \refl(I.Int^::ofNat four);
+\definition undoneSecond: undone one zero = I.Int^::ofNat six := \refl(I.Int^::ofNat six);
+\import Smith.Pass[].Clearing[] \as Clearing;
+\definition cleared: Smith.Attempt^ := Clearing.Clear.program^ two two zero a^ Smith.History^::empty;
+\definition clearedUpper: Smith.attemptMatrix cleared zero one = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition clearedLower: Smith.attemptMatrix cleared one zero = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\import Smith.Offender[] \as Offender;
+\definition diagonalDivides: Offender.Seek.program^ two two zero (Smith.attemptMatrix cleared) = Grid.Position^::empty := \refl(Grid.Position^::empty);
+\definition badDiagonal: Matrices.Runtime := \thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \match i \in N.Nat \with {
+  | zero: \match j \in N.Nat \with {
+      | zero: \return(I.Int::ofNat (N.Nat::succ (N.Nat::succ N.Nat::zero)))
+      | succ l: \return(I.Int::ofNat N.Nat::zero)
+    }
+  | succ l: \match j \in N.Nat \with {
+      | zero: \return(I.Int::ofNat N.Nat::zero)
+      | succ q: \return(I.Int::ofNat (N.Nat::succ (N.Nat::succ (N.Nat::succ N.Nat::zero))))
+    }
+})));
+\definition nondividing: Offender.Seek.program^ two two zero badDiagonal^ = Grid.Position^::position one one := \refl(Grid.Position^::position one one);
+\import Smith.Correction[] \as Correction;
+\definition correctedPivot: Smith.attemptMatrix (Correction.Correct.program^ zero one one badDiagonal^ Smith.History^::empty) zero zero = I.Int^::ofNat one := \refl(I.Int^::ofNat one);
+\definition correctionChanged: Smith.attemptReduced (Correction.Correct.program^ zero one one badDiagonal^ Smith.History^::empty) = Bool.Bool^::true := \refl(Bool.Bool^::true);
+\import Smith.Pivot[] \as Pivot;
+\definition preparedExisting: Pivot.Prepare.program^ two two zero a^ Smith.History^::empty = Pivot.Selection^::ready (Smith.Attempt^::attempt a^ Smith.History^::empty Bool.Bool^::false) := \refl(Pivot.Selection^::ready (Smith.Attempt^::attempt a^ Smith.History^::empty Bool.Bool^::false));
+\import Smith.Compute[] \as Compute;
+\definition computed: Compute.Output^ := Compute.Run.program^ two two a^;
+\definition computedFirst: Compute.outputMatrix computed zero zero = I.Int^::ofNat two := \refl(I.Int^::ofNat two);
+\definition computedSecond: Compute.outputMatrix computed one one = I.Int^::negSucc three := \refl(I.Int^::negSucc three);
+\definition computedUpper: Compute.outputMatrix computed zero one = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition computedLower: Compute.outputMatrix computed one zero = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition computedCorrected: Compute.Output^ := Compute.Run.program^ two two badDiagonal^;
+\definition computedCoprime: Compute.outputMatrix computedCorrected zero zero = I.Int^::ofNat one := \refl(I.Int^::ofNat one);
+\definition computedProduct: Compute.outputMatrix computedCorrected one one = I.Int^::negSucc (Nat.add four one) := \refl(I.Int^::negSucc (Nat.add four one));
+\definition computedRank: Compute.outputRank computed = two := \refl(two);
+\definition coprimeRank: Compute.outputRank computedCorrected = two := \refl(two);
+\import Smith.Standardize[] \as Standardize;
+\definition normalized: Compute.Output^ := Standardize.Standardize.program^ two two a^;
+\definition normalizedFirst: Compute.outputMatrix normalized zero zero = I.Int^::ofNat two := \refl(I.Int^::ofNat two);
+\definition normalizedSecond: Compute.outputMatrix normalized one one = I.Int^::ofNat four := \refl(I.Int^::ofNat four);
+\definition normalizedUpper: Compute.outputMatrix normalized zero one = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition normalizedLower: Compute.outputMatrix normalized one zero = I.Int^::ofNat zero := \refl(I.Int^::ofNat zero);
+\definition normalizedCorrected: Compute.Output^ := Standardize.Standardize.program^ two two badDiagonal^;
+\definition normalizedCoprime: Compute.outputMatrix normalizedCorrected zero zero = I.Int^::ofNat one := \refl(I.Int^::ofNat one);
+\definition normalizedProduct: Compute.outputMatrix normalizedCorrected one one = I.Int^::ofNat six := \refl(I.Int^::ofNat six);
+\import Smith.Standardize[].Laws[m := two, n := two, original := a^] \as NormalizedLaws;
+\definition normalizedCertificate: NormalizedLaws.FullCertificate[normalized] := NormalizedLaws.nativeCorrectness;
+\definition transformationExists: \exists NormalizedLaws.FrameFor normalized := NormalizedLaws.equivalence normalized #computation{normalizedCertificate};
+\import Smith.Standardize[].Laws[m := two, n := two, original := badDiagonal^] \as CoprimeLaws;
+\definition coprimeCertificate: CoprimeLaws.FullCertificate[normalizedCorrected] := CoprimeLaws.nativeCorrectness;
+\import Smith.Diagonalize[] \as Diagonalize;
+\definition smith: Smith.SmithResult^ := Diagonalize.Diagonalize.program^ two two a^;
+\definition smithDiagonal: Diagonalize.diagonal smith one one = I.Int^::ofNat four := \refl(I.Int^::ofNat four);
+\definition smithLeftDiagonal: Diagonalize.left smith one one = I.Int^::negSucc zero := \refl(I.Int^::negSucc zero);
+\definition smithLeftOther: Diagonalize.left smith one zero = I.Int^::ofNat three := \refl(I.Int^::ofNat three);
+\definition smithRightOther: Diagonalize.right smith zero one = I.Int^::negSucc one := \refl(I.Int^::negSucc one);
+\definition smithLeftInverseOther: Diagonalize.leftInverse smith one zero = I.Int^::ofNat three := \refl(I.Int^::ofNat three);
+\definition smithRightInverseOther: Diagonalize.rightInverse smith zero one = I.Int^::ofNat two := \refl(I.Int^::ofNat two);
+\import Smith.Diagonalize[].Specification[m := two, n := two, original := a^] \as SmithLaws;
+\definition smithCertificate: SmithLaws.Certificate[smith] := SmithLaws.nativeCorrectness;
+\definition zeroMatrix: Matrices.Runtime := \thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \return(I.Int::ofNat N.Nat::zero))));
+\definition smithZeroRank: Diagonalize.rank (Diagonalize.Diagonalize.program^ two two zeroMatrix^) = zero := \refl(zero);
+\definition negativeMatrix: Matrices.Runtime := \thunk (\cfun (i: N.Nat) => \return(\thunk (\cfun (j: N.Nat) => \return(I.Int::negSucc (N.Nat::succ (N.Nat::succ N.Nat::zero))))));
+\definition smithNegative: Diagonalize.diagonal (Diagonalize.Diagonalize.program^ one one negativeMatrix^) zero zero = I.Int^::ofNat three := \refl(I.Int^::ofNat three);
+\definition smithEmptyRank: Diagonalize.rank (Diagonalize.Diagonalize.program^ zero two a^) = zero := \refl(zero);
+\import std.Data[].FinSet[] \as Finite;
+\import algebra.IntegerKernel[m := one, n := two, original := a^] \as Kernel;
+\definition kernelDimension: Kernel.dimension = one := \refl(one);
+\import algebra.IntegerBasis[] \as IntegerBasis;
+\definition kernelRuntime: Matrices.Runtime^ := IntegerBasis.Basis.program^ Kernel.result;
+\definition kernelRuntimeFirst: kernelRuntime zero zero = I.Int^::negSucc one := \refl(I.Int^::negSucc one);
+\definition kernelRuntimeSecond: kernelRuntime one zero = I.Int^::ofNat one := \refl(I.Int^::ofNat one);
+\import std.Logic[].Equality[] \as KernelEquality;
+\use KernelEquality.trans;
+\use KernelEquality.sym;
+\definition kernelGeneratorFirst: Kernel.generator (Finite.zero zero) (Finite.zero one) = I.Int^::negSucc one :=
+  trans!{I.Int^} (Kernel.generator (Finite.zero zero) (Finite.zero one)) (kernelRuntime zero zero) (I.Int^::negSucc one)
+    (sym!{I.Int^} (kernelRuntime zero zero) (Kernel.generator (Finite.zero zero) (Finite.zero one)) (Kernel.nativeGenerator (Finite.zero one) (Finite.zero zero)))
+    kernelRuntimeFirst;
+\definition kernelGeneratorSecond: Kernel.generator (Finite.zero zero) (Finite.succ one (Finite.zero zero)) = I.Int^::ofNat one :=
+  trans!{I.Int^} (Kernel.generator (Finite.zero zero) (Finite.succ one (Finite.zero zero))) (kernelRuntime one zero) (I.Int^::ofNat one)
+    (sym!{I.Int^} (kernelRuntime one zero) (Kernel.generator (Finite.zero zero) (Finite.succ one (Finite.zero zero))) (Kernel.nativeGenerator (Finite.succ one (Finite.zero zero)) (Finite.zero zero)))
+    kernelRuntimeSecond;

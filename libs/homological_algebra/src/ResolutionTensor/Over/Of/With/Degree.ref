@@ -1,0 +1,42 @@
+\import \parent.Surjection[n := n] \as Lift;
+\import \parent.Surjection[n := Nat.Nat^::succ n] \as NextLift;
+\import \parent.Factor[n := n] \as Factor;
+\import \parent.Factor[n := Nat.Nat^::succ n] \as NextFactor;
+\import \parent.Kernel[n := n] \as CurrentKernel;
+\import \parent.Kernel[n := Nat.Nat^::succ n] \as NextKernel;
+\import \parent.\parent.Term[n := Nat.Nat^::succ n] \as Source;
+\import \parent.\parent.Term[n := n] \as Target;
+\import \parent.\parent.Term[n := Nat.Nat^::succ (Nat.Nat^::succ n)] \as Before;
+\import Original.Syzygy[n := n, resolution := q].ShortExact[] \as Sequence;
+\import Original.Syzygy[n := n, resolution := q] \as Syzygy;
+\import Algebra.ProjectiveTensorShortExact[P := P, A := Sequence.left, B := Sequence.middle, C := Syzygy.bundle].On[
+  sequence := Sequence.sequence] \as Exact;
+\definition projection: Modules.MapBetween Source.bundle CurrentKernel.bundle := Lift.map;
+\definition onto: Modules.Surjective Source.bundle CurrentKernel.bundle projection := Lift.onto;
+\definition factorPoint: \forall (x: Source.Carrier) ->
+  #apply{CurrentKernel.inclusion} (#apply{projection} x) = #apply{complex.differential} n x := Factor.point;
+\definition exact: Modules.Projective P -> \forall (x: Source.Carrier) -> #apply{complex.differential} n x = #zero{Target.space} ->
+  \exists { y: Before.Carrier \where #apply{complex.differential} (Nat.Nat^::succ n) y = x } := \block {
+  \fun (projective: Modules.Projective P)(x: Source.Carrier)(closed: _) \then
+  \let kernel: #apply{projection} x = #zero{CurrentKernel.space} := CurrentKernel.injective projective
+    (#apply{projection} x) #zero{CurrentKernel.space}
+    (trans!{Target.Carrier} _ _ _ (factorPoint x)
+      (trans!{Target.Carrier} _ _ _ closed (sym!{Target.Carrier} _ _ CurrentKernel.zero))) \then
+  \takefrom a: \Cast[NextKernel.Carrier] ({ a: NextKernel.Carrier \where #apply{NextKernel.inclusion} a = x })
+    \by Exact.kernelImage x kernel \then
+  \takefrom y: \Cast[Before.Carrier] ({ y: Before.Carrier \where #apply{NextLift.map} y = a }) \by NextLift.onto a \then
+  \return \exact(\into[Before.Carrier](y, { y: Before.Carrier \where #apply{complex.differential} (Nat.Nat^::succ n) y = x }) \by {
+    trans!{Source.Carrier}
+      (#apply{complex.differential} (Nat.Nat^::succ n) y)
+      (#apply{NextKernel.inclusion} (#apply{NextLift.map} y)) x
+      (sym!{Source.Carrier}
+        (#apply{NextKernel.inclusion} (#apply{NextLift.map} y))
+        (#apply{complex.differential} (Nat.Nat^::succ n) y) (NextFactor.point y))
+      (trans!{Source.Carrier}
+        (#apply{NextKernel.inclusion} (#apply{NextLift.map} y))
+        (#apply{NextKernel.inclusion} a) x
+        (congr!{NextKernel.Carrier Source.Carrier} (#apply{NextKernel.inclusion}) (#apply{NextLift.map} y) a
+          (\bysub(Before.Carrier, { y: Before.Carrier \where #apply{NextLift.map} y = a }, y)))
+        (\bysub(NextKernel.Carrier, { a: NextKernel.Carrier \where #apply{NextKernel.inclusion} a = x }, a)))
+  }, \Cast[Before.Carrier] ({ y: Before.Carrier \where #apply{complex.differential} (Nat.Nat^::succ n) y = x }))
+};

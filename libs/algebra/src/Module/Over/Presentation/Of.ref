@@ -1,0 +1,83 @@
+\import std.Alg[].Monoid[] \as Monoid;
+\definition Equivalent(x, y: Expression): \Prop :=
+  \forall (candidate: Expression -> Expression -> \Prop) -> Rules[candidate] ->
+  (\forall (x, y: Expression) -> relations x y -> candidate x y) -> candidate x y;
+\definition equivalence: Relation.Equivalence[Expression, Equivalent] := Relation.Equivalence[Expression, Equivalent] {
+  refl := \fun (x: _) (candidate: _) (rules: Rules[candidate]) (_: _) => #refl{(#equivalence{rules})} x,
+  sym := \fun (x, y: _) (xy: _) (candidate: _) (rules: Rules[candidate]) (accepts: _) => #sym{(#equivalence{rules})} x y (xy candidate rules accepts),
+  trans := \fun (x, y, z: _) (xy: _) (yz: _) (candidate: _) (rules: Rules[candidate]) (accepts: _) => #trans{(#equivalence{rules})} x y z (xy candidate rules accepts) (yz candidate rules accepts),
+};
+\definition rules: Rules[Equivalent] := Rules[Equivalent] {
+  equivalence := equivalence,
+  addCong := \fun (x, y, u, v: Expression) (xy: Equivalent x y) (uv: Equivalent u v) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #addCong{laws} x y u v (xy candidate laws accepts) (uv candidate laws accepts),
+  negCong := \fun (x, y: Expression) (xy: Equivalent x y) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #negCong{laws} x y (xy candidate laws accepts),
+  scaleCong := \fun (a: R)(x, y: Expression) (xy: Equivalent x y) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #scaleCong{laws} a x y (xy candidate laws accepts),
+  zeroLeft := \fun (x: Expression) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #zeroLeft{laws} x,
+  addAssoc := \fun (x, y, z: Expression) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #addAssoc{laws} x y z,
+  addComm := \fun (x, y: Expression) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #addComm{laws} x y,
+  inverse := \fun (x: Expression) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #inverse{laws} x,
+  scalarOne := \fun (x: Expression) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #scalarOne{laws} x,
+  scalarAssoc := \fun (a, b: R)(x: Expression) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #scalarAssoc{laws} a b x,
+  scalarAdd := \fun (a, b: R)(x: Expression) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #scalarAdd{laws} a b x,
+  vectorAdd := \fun (a: R)(x, y: Expression) (candidate: _) (laws: Rules[candidate]) (accepts: _) => #vectorAdd{laws} a x y,
+};
+\definition relationIncluded: \forall (x, y: Expression) -> relations x y -> Equivalent x y :=
+  \fun (x, y: _) (related: _) (candidate: _) (_: Rules[candidate]) (accepts: _) => accepts x y related;
+\import std.Set[].Quotient[A := Expression, Equivalent := Equivalent] \as Q;
+\import algebra.Quotient[A := Expression, relation := Equivalent] \as Quotient;
+\import Quotient.Operations[] \as Operations;
+\definition Carrier: \Set := Q.Carrier;
+\definition class: Expression -> Carrier := Q.class;
+\definition zero: Carrier := class Expression::zero;
+\definition generator(s: Generators): Carrier := class (Expression::generator s);
+\definition add: Carrier -> Carrier -> Carrier := Operations.binary equivalence Expression::sum (#addCong{rules});
+\definition neg: Carrier -> Carrier := Operations.unary equivalence Expression::negative (#negCong{rules});
+\definition scale(a: R): Carrier -> Carrier := Operations.unary equivalence (Expression::scale a) (#scaleCong{rules} a);
+\definition addClass: \forall (x, y: Expression) -> add (class x) (class y) = class (Expression::sum x y) := Operations.binaryClass equivalence Expression::sum (#addCong{rules});
+\definition negClass: \forall (x: Expression) -> neg (class x) = class (Expression::negative x) := Operations.unaryClass equivalence Expression::negative (#negCong{rules});
+\definition scaleClass: \forall (a: R)(x: Expression) -> scale a (class x) = class (Expression::scale a x) :=
+  \fun (a: R) => Operations.unaryClass equivalence (Expression::scale a) (#scaleCong{rules} a);
+\definition zeroLeft: \forall (x: Carrier) -> add zero x = x := Operations.leftIdentity equivalence Expression::sum (#addCong{rules}) Expression::zero (#zeroLeft{rules});
+\definition addComm: \forall (x, y: Carrier) -> add x y = add y x := Operations.commutative equivalence Expression::sum (#addCong{rules}) (#addComm{rules});
+\definition addAssoc: \forall (x, y, z: Carrier) -> add (add x y) z = add x (add y z) := Operations.associative equivalence Expression::sum (#addCong{rules}) (#addAssoc{rules});
+\definition inverseLeft: \forall (x: Carrier) -> add (neg x) x = zero := Operations.inverseLeft equivalence Expression::sum (#addCong{rules}) Expression::negative (#negCong{rules}) Expression::zero (#inverse{rules});
+\definition scalarOne: \forall (x: Carrier) -> scale (#one{ring}) x = x := Q.induction
+  (\fun (x: Carrier) => scale (#one{ring}) x = x)
+  (\fun (x: Expression) => trans!{Carrier} _ _ _ (scaleClass (#one{ring}) x) (Quotient.classRelated equivalence _ _ (#scalarOne{rules} x)));
+\definition scalarAssoc: \forall (a, b: R)(x: Carrier) -> scale (#mul{ring} a b) x = scale a (scale b x) :=
+  \fun (a, b: R) => Q.induction (\fun (x: Carrier) => scale (#mul{ring} a b) x = scale a (scale b x))
+    (\fun (x: Expression) => eq_reason!{{scale (#mul{ring} a b) (class x)}
+      "=" {class (Expression::scale (#mul{ring} a b) x)} "by" {scaleClass (#mul{ring} a b) x}
+      "=" {class (Expression::scale a (Expression::scale b x))} "by" {Quotient.classRelated equivalence _ _ (#scalarAssoc{rules} a b x)}
+      "=" {scale a (class (Expression::scale b x))} "by" {sym!{Carrier} _ _ (scaleClass a (Expression::scale b x))}
+      "=" {scale a (scale b (class x))} "by" {congr!{Carrier Carrier} (scale a) _ _ (sym!{Carrier} _ _ (scaleClass b x))}});
+\definition scalarAdd: \forall (a, b: R)(x: Carrier) -> scale (#add{ring} a b) x = add (scale a x) (scale b x) :=
+  \fun (a, b: R) => Q.induction (\fun (x: Carrier) => scale (#add{ring} a b) x = add (scale a x) (scale b x))
+    (\fun (x: Expression) => eq_reason!{{scale (#add{ring} a b) (class x)}
+      "=" {class (Expression::scale (#add{ring} a b) x)} "by" {scaleClass (#add{ring} a b) x}
+      "=" {class (Expression::sum (Expression::scale a x) (Expression::scale b x))} "by" {Quotient.classRelated equivalence _ _ (#scalarAdd{rules} a b x)}
+      "=" {add (class (Expression::scale a x)) (class (Expression::scale b x))} "by" {sym!{Carrier} _ _ (addClass _ _)}
+      "=" {add (scale a (class x)) (scale b (class x))} "by" {congr2!{Carrier Carrier Carrier} add _ _ _ _ (sym!{Carrier} _ _ (scaleClass a x)) (sym!{Carrier} _ _ (scaleClass b x))}});
+\definition vectorAdd: \forall (a: R)(x, y: Carrier) -> scale a (add x y) = add (scale a x) (scale a y) :=
+  \fun (a: R) => Q.induction2 (\fun (x, y: Carrier) => scale a (add x y) = add (scale a x) (scale a y))
+    (\fun (x, y: Expression) => eq_reason!{{scale a (add (class x) (class y))}
+      "=" {scale a (class (Expression::sum x y))} "by" {congr!{Carrier Carrier} (scale a) _ _ (addClass x y)}
+      "=" {class (Expression::scale a (Expression::sum x y))} "by" {scaleClass a (Expression::sum x y)}
+      "=" {class (Expression::sum (Expression::scale a x) (Expression::scale a y))} "by" {Quotient.classRelated equivalence _ _ (#vectorAdd{rules} a x y)}
+      "=" {add (class (Expression::scale a x)) (class (Expression::scale a y))} "by" {sym!{Carrier} _ _ (addClass _ _)}
+      "=" {add (scale a (class x)) (scale a (class y))} "by" {congr2!{Carrier Carrier Carrier} add _ _ _ _ (sym!{Carrier} _ _ (scaleClass a x)) (sym!{Carrier} _ _ (scaleClass a y))}});
+\definition space: Space Carrier := Ring.RingModule[R, Carrier, ring] {
+  zero := zero, add := add, neg := neg, smul := scale,
+  additive := Alg.CommutativeGroupLaws[Carrier, Alg.CommutativeGroupData[Carrier]::# (Alg.GroupData[Carrier]::# zero add neg)] {
+    group := Alg.GroupLaws[Carrier, Alg.GroupData[Carrier]::# zero add neg] {
+      monoid := Monoid.MonoidLaws[Carrier, Monoid.MonoidData[Carrier]::# zero add] {
+        leftIdentity := zeroLeft, rightIdentity := \fun (x: Carrier) => trans!{Carrier} _ _ _ (addComm x zero) (zeroLeft x), associative := addAssoc,
+      },
+      leftInverse := inverseLeft,
+      rightInverse := \fun (x: Carrier) => trans!{Carrier} _ _ _ (addComm x (neg x)) (inverseLeft x),
+    },
+    commutative := addComm,
+  },
+  scalarOne := scalarOne, scalarAssoc := scalarAssoc, scalarAdd := scalarAdd, vectorAdd := vectorAdd,
+};
+\module To(W: \Set, target: Space W);

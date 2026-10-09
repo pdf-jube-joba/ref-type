@@ -1,0 +1,20 @@
+\definition T: \VType := \U(I.Int -> I.Int -> I.Int);
+\definition program: T := \thunk (\cfun (a: I.Int) => \return(\thunk (\cfun (b: I.Int) => \program {
+  \bind divide: \U(I.Int -> I.Int) <- (\force Quotient.program) a \then
+  \bind q: I.Int <- (\force divide) b \then
+  \bind multiply: \U(I.Int -> I.Int) <- (\force I.Mul.program) q \then
+  \bind qb: I.Int <- (\force multiply) b \then
+  \bind subtract: \U(I.Int -> I.Int) <- (\force I.Sub.program) a \then
+  \bind output: I.Int <- (\force subtract) qb \then
+  \return output
+})));
+\definition subtracted(a, b: I.Int^): I.Int^ := Arithmetic.difference a (I.Mul.program^ (Quotient.program^ a b) b);
+\definition multiplied(a, b: I.Int^): I.Int^ := Arithmetic.difference a (Arithmetic.mul (Quotient.program^ a b) b);
+\definition matches: \forall (a, b: I.Int^) -> program^ a b = remainder a b :=
+  \fun (a, b: I.Int^) => trans!{I.Int^} (program^ a b) (subtracted a b) (remainder a b)
+    (congr!{I.Sub.T^ I.Int^} (\fun (f: I.Sub.T^) => f a (I.Mul.program^ (Quotient.program^ a b) b)) I.Sub.program^ I.Sub.specification I.Sub.coherence)
+    (trans!{I.Int^} (subtracted a b) (multiplied a b) (remainder a b)
+      (congr!{I.Mul.T^ I.Int^} (\fun (f: I.Mul.T^) => Arithmetic.difference a (f (Quotient.program^ a b) b)) I.Mul.program^ I.Mul.specification I.Mul.coherence)
+      (congr!{Quotient.T^ I.Int^} (\fun (f: Quotient.T^) => Arithmetic.difference a (Arithmetic.mul (f a b) b)) Quotient.program^ Quotient.specification Quotient.coherence));
+\definition coherence: program^ = remainder := \axiom:funext(program^, remainder,
+  \fun (a: I.Int^) => \axiom:funext(program^ a, remainder a, \fun (b: I.Int^) => matches a b));

@@ -10,6 +10,9 @@ thread_local! {
 struct Args {
     /// パッケージのディレクトリ、または .ref ファイル
     path: PathBuf,
+    /// 指定した module・子 module と、その参照先だけを検証する（例: homological_algebra.Resolution）
+    #[arg(long, conflicts_with = "parse_only")]
+    module: Option<String>,
     /// kernel の型検査・定義登録・評価ログを標準エラーへ木構造で表示する
     #[arg(long)]
     trace: bool,
@@ -150,21 +153,31 @@ fn run_path(args: &Args) -> anyhow::Result<std::process::ExitCode> {
             .map(|diagnostic| diagnostic.render(&snapshot))
             .collect::<Vec<_>>()
     } else {
-        let result = database.check_with_options(
-            &snapshot,
-            &sema::CheckOptions {
-                force: args.trace || args.no_cache || args.full_check,
-                force_local: args.full_check_local,
-                progress: (!args.no_progress).then_some(show_progress),
-                collect_statistics: args.stats,
-                diagnostics: match args.diagnostics {
-                    Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,
-                    Some(DiagnosticMode::Detailed) => sema::DiagnosticMode::Detailed,
-                    None => sema::DiagnosticMode::default(),
-                },
-                ..sema::CheckOptions::default()
+        let options = sema::CheckOptions {
+            force: args.trace || args.no_cache || args.full_check,
+            force_local: args.full_check_local,
+            progress: (!args.no_progress).then_some(show_progress),
+            collect_statistics: args.stats,
+            diagnostics: match args.diagnostics {
+                Some(DiagnosticMode::Compact) => sema::DiagnosticMode::Compact,
+                Some(DiagnosticMode::Detailed) => sema::DiagnosticMode::Detailed,
+                None => sema::DiagnosticMode::default(),
             },
-        );
+            ..sema::CheckOptions::default()
+        };
+        let result = match &args.module {
+            Some(name) => {
+                let path = name.split('.').map(str::to_owned).collect::<Vec<_>>();
+                let result = database.module_with_options(&snapshot, &path, &options);
+                if result.is_success() && !result.modules.iter().any(|module| module.path == path) {
+                    let message = format!("Module Selection Error: module '{name}' was not found");
+                    eprintln!("{message}");
+                    return Ok(std::process::ExitCode::FAILURE);
+                }
+                result
+            }
+            None => database.check_with_options(&snapshot, &options),
+        };
         for output in result.outputs() {
             println!("{}", output.text);
         }

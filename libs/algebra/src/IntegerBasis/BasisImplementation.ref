@@ -1,0 +1,19 @@
+\definition T: \VType := \U(Smith.SmithResult -> Runtime);
+\definition program: T := \thunk (\cfun (result: Smith.SmithResult) => \program {
+  \bind rank: N.Nat <- (\force rankProgram) result \then
+  \bind matrix: Runtime <- (\force rightProgram) result \then
+  \bind shift: \U(Runtime -> Runtime) <- (\force columnsProgram) rank \then
+  \bind value: Runtime <- (\force shift) matrix \then
+  \return value
+});
+\definition matches: \forall (result: Smith.SmithResult^) -> program^ result = basis result :=
+  \fun (result: Smith.SmithResult^) => trans!{Runtime^} (program^ result)
+    (shiftColumns (rankProgram^ result) (rightProgram^ result)) (basis result)
+    (congr!{ColumnShift.T^ Runtime^} (\fun (f: ColumnShift.T^) => f (rankProgram^ result) (rightProgram^ result))
+      columnsProgram^ shiftColumns ColumnShift.coherence)
+    (trans!{Runtime^} (shiftColumns (rankProgram^ result) (rightProgram^ result))
+      (shiftColumns (Diagonalize.rank result) (rightProgram^ result)) (basis result)
+      (congr!{N.Nat^ Runtime^} (\fun (k: N.Nat^) => shiftColumns k (rightProgram^ result))
+        (rankProgram^ result) (Diagonalize.rank result) (\parent.ReadRank[].matches result))
+      (congr!{Runtime^ Runtime^} (shiftColumns (Diagonalize.rank result)) (rightProgram^ result) (Diagonalize.right result) (\parent.ReadRight[].matches result)));
+\definition coherence: program^ = basis := \axiom:funext(program^, basis, matches);

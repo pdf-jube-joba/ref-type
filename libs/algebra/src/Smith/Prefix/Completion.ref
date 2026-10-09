@@ -1,0 +1,74 @@
+\import std.Data[].Bool[].Prop[] \as BoolLaws;
+\import N.Basic[].Def[] \as Nat;
+\import \parent.\parent.Divisibility[] \as Divisibility;
+\import \parent.\parent.Cleared[m := m, n := n, index := k] \as Cleared;
+\definition different: \forall (i: N.Nat^) -> Nat.eqb i k = B.Bool^::false -> Logic.Not (i = k) :=
+  \fun (i: N.Nat^)(test: _)(equal: _) => BoolLaws.falseNeTrue
+    (trans!{B.Bool^} B.Bool^::false (Nat.eqb i k) B.Bool^::true (sym!{B.Bool^} (Nat.eqb i k) B.Bool^::false test) (Bounds.eqbTrueOfEq i k equal));
+\definition earlierRow: Bounds.Lt k m -> Holds k a -> \forall (j: N.Nat^) -> Bounds.Lt j k -> a k j = Arithmetic.zero := \block {
+  \fun (pivotBound: _)(prefix: Holds k a)(j: N.Nat^)(before: _) \then
+  \takefrom d: Witness j a \by prefix j before \then
+  \let stage: Stage[j, d, a] := \bysub(I.Int^, { d: I.Int^ \where Stage[j, d, a] }, d) \then
+  \return #column{(#cleared{stage})} k pivotBound (\fun (equal: k = j) => Bounds.ltNe j k before (sym!{N.Nat^} k j equal))
+};
+\definition earlierColumn: Bounds.Lt k n -> Holds k a -> \forall (i: N.Nat^) -> Bounds.Lt i k -> a i k = Arithmetic.zero := \block {
+  \fun (pivotBound: _)(prefix: Holds k a)(i: N.Nat^)(before: _) \then
+  \takefrom d: Witness i a \by prefix i before \then
+  \let stage: Stage[i, d, a] := \bysub(I.Int^, { d: I.Int^ \where Stage[i, d, a] }, d) \then
+  \return #row{(#cleared{stage})} k pivotBound (\fun (equal: k = i) => Bounds.ltNe i k before (sym!{N.Nat^} k i equal))
+};
+\definition rowZero: Bounds.Lt k m -> Holds k a -> FinalAt[k, a] ->
+  \forall (j: N.Nat^) -> Bounds.Lt j n -> Logic.Not (j = k) -> a k j = Arithmetic.zero :=
+  \fun (pivotBound: _)(prefix: Holds k a)(complete: FinalAt[k, a])(j: N.Nat^)(bound: _)(ne: _) => B.cases
+    (\fun (test: B.Bool^) => Nat.ltb k j = test -> a k j = Arithmetic.zero)
+    (\fun (lower: _) => earlierRow pivotBound prefix j (Bounds.ltOfLeDifferent j k (Bounds.leOfLtbFalse k j lower) ne))
+    (\fun (higher: _) => #row{complete} j bound higher) (Nat.ltb k j) (\refl(Nat.ltb k j));
+\definition columnZero: Bounds.Lt k n -> Holds k a -> FinalAt[k, a] ->
+  \forall (i: N.Nat^) -> Bounds.Lt i m -> Logic.Not (i = k) -> a i k = Arithmetic.zero :=
+  \fun (pivotBound: _)(prefix: Holds k a)(complete: FinalAt[k, a])(i: N.Nat^)(bound: _)(ne: _) => B.cases
+    (\fun (test: B.Bool^) => Nat.ltb k i = test -> a i k = Arithmetic.zero)
+    (\fun (lower: _) => earlierColumn pivotBound prefix i (Bounds.ltOfLeDifferent i k (Bounds.leOfLtbFalse k i lower) ne))
+    (\fun (higher: _) => #column{complete} i bound higher) (Nat.ltb k i) (\refl(Nat.ltb k i));
+\definition zeroDivides: \forall (x: I.Int^) -> x = Arithmetic.zero -> Signed.Divides (a k k) x :=
+  \fun (x: I.Int^)(zero: _) => \idelim Arithmetic.zero = x \with value: I.Int^ => Signed.Divides (a k k) value \by {
+    base: Divisibility.zero (a k k), equality: sym!{I.Int^} x Arithmetic.zero zero
+  };
+\definition rowDivides: FinalAt[k, a] -> \forall (j: N.Nat^) -> Bounds.Lt j n -> Bounds.Le k j -> Signed.Divides (a k k) (a k j) :=
+  \fun (complete: FinalAt[k, a])(j: N.Nat^)(bound: _)(lower: _) => B.cases
+    (\fun (test: B.Bool^) => Nat.eqb j k = test -> Signed.Divides (a k k) (a k j))
+    (\fun (test: _) => zeroDivides (a k j) (#row{complete} j bound
+      (Bounds.ltOfLeDifferent k j lower (\fun (equal: k = j) => different j test (sym!{N.Nat^} k j equal)))))
+    (\fun (test: _) => \idelim k = j \with column: N.Nat^ => Signed.Divides (a k k) (a k column) \by {
+      base: Divisibility.reflexive (a k k), equality: sym!{N.Nat^} j k (Bounds.eqOfEqbTrue k j test)
+    }) (Nat.eqb j k) (\refl(Nat.eqb j k));
+\definition columnDivides: FinalAt[k, a] -> \forall (i: N.Nat^) -> Bounds.Lt i m -> Bounds.Le k i -> Signed.Divides (a k k) (a i k) :=
+  \fun (complete: FinalAt[k, a])(i: N.Nat^)(bound: _)(lower: _) => B.cases
+    (\fun (test: B.Bool^) => Nat.eqb i k = test -> Signed.Divides (a k k) (a i k))
+    (\fun (test: _) => zeroDivides (a i k) (#column{complete} i bound
+      (Bounds.ltOfLeDifferent k i lower (\fun (equal: k = i) => different i test (sym!{N.Nat^} k i equal)))))
+    (\fun (test: _) => \idelim k = i \with row: N.Nat^ => Signed.Divides (a k k) (a row k) \by {
+      base: Divisibility.reflexive (a k k), equality: sym!{N.Nat^} i k (Bounds.eqOfEqbTrue k i test)
+    }) (Nat.eqb i k) (\refl(Nat.eqb i k));
+\definition divides: FinalAt[k, a] -> \forall (i, j: N.Nat^) -> Bounds.Lt i m -> Bounds.Lt j n -> Bounds.Le k i -> Bounds.Le k j ->
+  Signed.Divides (a k k) (a i j) :=
+  \fun (complete: FinalAt[k, a])(i, j: N.Nat^)(rowBound: _)(columnBound: _)(rowLower: _)(columnLower: _) => B.cases2
+    (\fun (left, right: B.Bool^) => Nat.eqb i k = left -> Nat.eqb j k = right -> Signed.Divides (a k k) (a i j))
+    (\fun (first: _)(second: _) => #divides{complete} i j rowBound columnBound
+      (Bounds.ltOfLeDifferent k i rowLower (\fun (equal: k = i) => different i first (sym!{N.Nat^} k i equal)))
+      (Bounds.ltOfLeDifferent k j columnLower (\fun (equal: k = j) => different j second (sym!{N.Nat^} k j equal))))
+    (\fun (first: _)(second: _) => \idelim k = j \with column: N.Nat^ => Signed.Divides (a k k) (a i column) \by {
+      base: columnDivides complete i rowBound rowLower, equality: sym!{N.Nat^} j k (Bounds.eqOfEqbTrue k j second)
+    })
+    (\fun (first: _)(second: _) => \idelim k = i \with row: N.Nat^ => Signed.Divides (a k k) (a row j) \by {
+      base: rowDivides complete j columnBound columnLower, equality: sym!{N.Nat^} i k (Bounds.eqOfEqbTrue k i first)
+    })
+    (\fun (first: _)(second: _) => \idelim k = i \with row: N.Nat^ => Signed.Divides (a k k) (a row j) \by {
+      base: rowDivides complete j columnBound columnLower, equality: sym!{N.Nat^} i k (Bounds.eqOfEqbTrue k i first)
+    })
+    (Nat.eqb i k) (Nat.eqb j k) (\refl(Nat.eqb i k)) (\refl(Nat.eqb j k));
+\definition stage: Bounds.Lt k m -> Bounds.Lt k n -> Holds k a -> FinalAt[k, a] -> Stage[k, a k k, a] :=
+  \fun (rowBound: _)(columnBound: _)(prefix: Holds k a)(complete: FinalAt[k, a]) => Stage[k, a k k, a] {
+    diagonal := \refl(a k k), nonzero := #nonzero{complete},
+    cleared := Cleared.Holds[a] { row := rowZero rowBound prefix complete, column := columnZero columnBound prefix complete },
+    divides := divides complete,
+  };

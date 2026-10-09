@@ -1,0 +1,46 @@
+\import category.Preadditive[] \as Pre;
+\import std.Logic[].Equality[] \as Equality;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\use Equality.congr2;
+\use Equality.eq_reason;
+\definition zero(P: Pre.Preadditive)(x, y: P.category.Object): P.category.Hom x y := #unit{(#base{(P.addition x y)})};
+\definition add(P: Pre.Preadditive)(x, y: P.category.Object): P.category.Hom x y -> P.category.Hom x y -> P.category.Hom x y := #op{(#base{(P.addition x y)})};
+\structure ZeroData[Object: \Set, Hom: Object -> Object -> \Set]: \Set {
+  object: Object,
+  from: \forall (x: Object) -> Hom object x,
+  to: \forall (x: Object) -> Hom x object,
+}
+\structure ZeroLaws[Object: \Set, Hom: Object -> Object -> \Set, data: ZeroData[Object, Hom]]: \Prop {
+  fromUnique: \forall (x: Object)(f: Hom data.object x) -> f = data.from x,
+  toUnique: \forall (x: Object)(f: Hom x data.object) -> f = data.to x,
+}
+\definition Zero[Object: \Set, Hom: Object -> Object -> \Set]: \Set := \Cast[ZeroData[Object, Hom]] ({ data: ZeroData[Object, Hom] \where ZeroLaws[Object, Hom, data] });
+\structure BiproductData[Object: \Set, Hom: Object -> Object -> \Set, x, y: Object]: \Set {
+  object: Object,
+  firstInjection: Hom x object,
+  secondInjection: Hom y object,
+  firstProjection: Hom object x,
+  secondProjection: Hom object y,
+}
+\structure BiproductLaws[Object: \Set, Hom: Object -> Object -> \Set, composition: category.Category[].CategoryData[Object, Hom], addition: \forall (x, y: Object) -> std.Alg[].Alg[].CommutativeGroup[Hom x y], x, y: Object, data: BiproductData[Object, Hom, x, y]]: \Prop {
+  firstFirst: composition.compose x data.object x data.firstProjection data.firstInjection = composition.identity x,
+  secondSecond: composition.compose y data.object y data.secondProjection data.secondInjection = composition.identity y,
+  firstSecond: composition.compose y data.object x data.firstProjection data.secondInjection = #unit{(#base{(addition y x)})},
+  secondFirst: composition.compose x data.object y data.secondProjection data.firstInjection = #unit{(#base{(addition x y)})},
+  reconstruction: #op{(#base{(addition data.object data.object)})}
+    (composition.compose data.object x data.object data.firstInjection data.firstProjection)
+    (composition.compose data.object y data.object data.secondInjection data.secondProjection) = composition.identity data.object,
+}
+\definition Biproduct[Object: \Set, Hom: Object -> Object -> \Set, composition: category.Category[].CategoryData[Object, Hom], addition: \forall (x, y: Object) -> std.Alg[].Alg[].CommutativeGroup[Hom x y], x, y: Object]: \Set := \Cast[BiproductData[Object, Hom, x, y]] ({ data: BiproductData[Object, Hom, x, y] \where BiproductLaws[Object, Hom, composition, addition, x, y, data] });
+\structure Additive {
+  preadditive: Pre.Preadditive,
+  zero: Zero[preadditive.category.Object, preadditive.category.Hom],
+  biproduct: \forall (x, y: preadditive.category.Object) -> Biproduct[preadditive.category.Object, preadditive.category.Hom, preadditive.category.structure, preadditive.addition, x, y],
+}
+\module Universal(P: Pre.Preadditive, x, y: P.category.Object, B: category.Additive[].Biproduct[P.category.Object, P.category.Hom, P.category.structure, P.addition, x, y]);
+
+\module Matrix(P: Pre.Preadditive, x, y, u, v: P.category.Object,
+  B: category.Additive[].Biproduct[P.category.Object, P.category.Hom, P.category.structure, P.addition, x, y],
+  D: category.Additive[].Biproduct[P.category.Object, P.category.Hom, P.category.structure, P.addition, u, v]);

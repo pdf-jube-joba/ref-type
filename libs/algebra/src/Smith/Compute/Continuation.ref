@@ -1,0 +1,33 @@
+\definition original: State^ := State^::active rows cols k a history;
+\definition result: Attempt^ := Round.round rows cols k (attemptMatrix current) (attemptHistory current);
+\definition staying: State^ := State^::active rows cols k (attemptMatrix result) (attemptHistory result);
+\definition advancing: State^ := State^::active rows cols (N.Nat^::succ k) (attemptMatrix result) (attemptHistory result);
+\definition sameLess: Pivot.Ready[rows, cols, k, a, history, current] -> attemptReduced result = B.Bool^::true -> MeasureTermination.Less staying original :=
+  \fun (laws: _)(changed: _) => Logic.Or[_, _]::right (MeasureTermination.SamePrimary[staying, original] {
+    primary := \refl(Nat.sub rows k), secondary := readyDecrease rows cols k a history current laws changed,
+  });
+\definition advanceLess: Bounds.Lt k rows -> MeasureTermination.Less advancing original :=
+  \fun (bound: _) => Logic.Or[_, _]::left (Bounds.subDecrease k rows bound);
+\definition sameEdge: Pivot.Ready[rows, cols, k, a, history, current] -> attemptReduced result = B.Bool^::true -> \forall (target: State^) -> \continue[State^, Output^](staying) = \continue[State^, Output^](target) -> MeasureTermination.Less target original :=
+  \fun (laws: _)(changed: _)(target: State^)(edge: _) => \idelim staying = target \with next: State^ => MeasureTermination.Less next original \by {
+    base: sameLess laws changed, equality: CoreTermination.continueInjective staying target edge
+  };
+\definition advanceEdge: Bounds.Lt k rows -> \forall (target: State^) -> \continue[State^, Output^](advancing) = \continue[State^, Output^](target) -> MeasureTermination.Less target original :=
+  \fun (bound: _)(target: State^)(edge: _) => \idelim advancing = target \with next: State^ => MeasureTermination.Less next original \by {
+    base: advanceLess bound, equality: CoreTermination.continueInjective advancing target edge
+  };
+\definition choice: Pivot.Ready[rows, cols, k, a, history, current] -> Bounds.Lt k rows -> \forall (target: State^) ->
+  B.ite (\RunStep[State^, Output^]) (attemptReduced result) (\continue[State^, Output^](staying)) (\continue[State^, Output^](advancing)) = \continue[State^, Output^](target) -> MeasureTermination.Less target original :=
+  \fun (laws: _)(bound: _)(target: State^) => B.cases
+    (\fun (test: B.Bool^) => attemptReduced result = test -> B.ite (\RunStep[State^, Output^]) test (\continue[State^, Output^](staying)) (\continue[State^, Output^](advancing)) = \continue[State^, Output^](target) -> MeasureTermination.Less target original)
+    (\fun (unchanged: _) => advanceEdge bound target)
+    (\fun (changed: _) => sameEdge laws changed target)
+    (attemptReduced result) (\refl(attemptReduced result));
+\definition law: Pivot.Ready[rows, cols, k, a, history, current] -> Bounds.Lt k rows -> \forall (target: State^) -> afterAttempt rows cols k result = \continue[State^, Output^](target) -> MeasureTermination.Less target original :=
+  \fun (laws: _)(bound: _)(target: State^) => \idelim
+    B.ite (\RunStep[State^, Output^]) (attemptReduced result) (\continue[State^, Output^](staying)) (\continue[State^, Output^](advancing)) = afterAttempt rows cols k result
+    \with action: \RunStep[State^, Output^] => action = \continue[State^, Output^](target) -> MeasureTermination.Less target original \by {
+    base: choice laws bound target,
+    equality: sym!{{\RunStep[State^, Output^]}} (afterAttempt rows cols k result)
+      (B.ite (\RunStep[State^, Output^]) (attemptReduced result) (\continue[State^, Output^](staying)) (\continue[State^, Output^](advancing))) (afterDescription rows cols k result)
+  };

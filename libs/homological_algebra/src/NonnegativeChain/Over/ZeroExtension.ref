@@ -1,0 +1,88 @@
+\import \root.Integer[] \as Integers;
+\import \root.Chain[].Over[R := R, ring := ring] \as Internal;
+\import std.Arithmetic[].Int[] \as Signed;
+\definition degree: Signed.Int^ -> N.Nat^ := \induction (z: Signed.Int^) \return N.Nat^ \with {
+  | ofNat: \fun (n: N.Nat^) => n
+  | negSucc: \fun (n: N.Nat^) => N.Nat^::succ n
+};
+\definition Nonnegative(z: Signed.Int^): \Prop := (\induction (z: Signed.Int^) \return \Prop \with {
+  | ofNat: \fun (n: N.Nat^) => Logic.True
+  | negSucc: \fun (n: N.Nat^) => Logic.False
+}) z;
+\module Index(z: Signed.Int^);
+\definition Carrier(z: Signed.Int^): \Set := Index[z := z].Carrier;
+\definition space(z: Signed.Int^): Modules.Space (Carrier z) := Index[z := z].space;
+\definition family: Internal.Family := Internal.Family { Carrier := Carrier, space := space };
+\module ZeroPart(z: Signed.Int^) {
+  \import Modules.Laws[V := Carrier (Integers.previous z), space := space (Integers.previous z)] \as Target;
+  \definition apply(x: Carrier z): Carrier (Integers.previous z) := #zero{(space (Integers.previous z))};
+  \definition addition: \forall (x, y: Carrier z) -> apply (#add{(space z)} x y) = #add{(space (Integers.previous z))} (apply x) (apply y) :=
+    \fun (x, y: Carrier z) => sym!{{Carrier (Integers.previous z)}} _ _ (Target.zeroLeft #zero{(space (Integers.previous z))});
+  \definition scalar: \forall (a: R)(x: Carrier z) -> apply (#smul{(space z)} a x) = #smul{(space (Integers.previous z))} a (apply x) :=
+    \fun (a: R)(x: Carrier z) => sym!{{Carrier (Integers.previous z)}} _ _ (Target.scaleZero a);
+}
+\module Positive(n: N.Nat^);
+\module Negative(n: N.Nat^);
+\definition apply: \forall (z: Signed.Int^) -> Carrier z -> Carrier (Integers.previous z) :=
+  \induction (z: Signed.Int^) \return Carrier z -> Carrier (Integers.previous z) \with {
+    | ofNat: \induction (n: N.Nat^) \return Carrier (Signed.Int^::ofNat n) -> Carrier (Integers.previous (Signed.Int^::ofNat n)) \with {
+      | zero: \fun (x: Carrier (Signed.Int^::ofNat N.Nat^::zero)) => #zero{(space (Signed.Int^::negSucc N.Nat^::zero))}
+      | succ: \fun (n: N.Nat^)(unused: Carrier (Signed.Int^::ofNat n) -> Carrier (Integers.previous (Signed.Int^::ofNat n)))
+        (x: Carrier (Signed.Int^::ofNat (N.Nat^::succ n))) =>
+        \into[C.family.Carrier n](#apply{C.differential} n x, #carrier{(Index[z := Signed.Int^::ofNat n].submodule)}) \by {
+          Logic.Or[Logic.True, #apply{C.differential} n x = #zero{(C.family.space n)}]::left Logic.True::intro
+        }
+    }
+    | negSucc: \fun (n: N.Nat^)(x: Carrier (Signed.Int^::negSucc n)) => #zero{(space (Signed.Int^::negSucc (N.Nat^::succ n)))}
+  };
+\definition addition: \forall (z: Signed.Int^)(x, y: Carrier z) -> apply z (#add{(space z)} x y) = #add{(space (Integers.previous z))} (apply z x) (apply z y) :=
+  \induction (z: Signed.Int^) \return \forall (x, y: Carrier z) -> apply z (#add{(space z)} x y) = #add{(space (Integers.previous z))} (apply z x) (apply z y) \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (x, y: Carrier (Signed.Int^::ofNat n)) ->
+      apply (Signed.Int^::ofNat n) (#add{(space (Signed.Int^::ofNat n))} x y) =
+        #add{(space (Integers.previous (Signed.Int^::ofNat n)))} (apply (Signed.Int^::ofNat n) x) (apply (Signed.Int^::ofNat n) y) \with {
+      | zero: ZeroPart[z := Signed.Int^::ofNat N.Nat^::zero].addition
+      | succ: \fun (n: N.Nat^)(unused: \forall (x, y: Carrier (Signed.Int^::ofNat n)) ->
+        apply (Signed.Int^::ofNat n) (#add{(space (Signed.Int^::ofNat n))} x y) =
+          #add{(space (Integers.previous (Signed.Int^::ofNat n)))} (apply (Signed.Int^::ofNat n) x) (apply (Signed.Int^::ofNat n) y)) => Positive[n := n].addition
+    }
+    | negSucc: \fun (n: N.Nat^) => ZeroPart[z := Signed.Int^::negSucc n].addition
+  };
+\definition scalar: \forall (z: Signed.Int^)(a: R)(x: Carrier z) -> apply z (#smul{(space z)} a x) = #smul{(space (Integers.previous z))} a (apply z x) :=
+  \induction (z: Signed.Int^) \return \forall (a: R)(x: Carrier z) -> apply z (#smul{(space z)} a x) = #smul{(space (Integers.previous z))} a (apply z x) \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (a: R)(x: Carrier (Signed.Int^::ofNat n)) ->
+      apply (Signed.Int^::ofNat n) (#smul{(space (Signed.Int^::ofNat n))} a x) =
+        #smul{(space (Integers.previous (Signed.Int^::ofNat n)))} a (apply (Signed.Int^::ofNat n) x) \with {
+      | zero: ZeroPart[z := Signed.Int^::ofNat N.Nat^::zero].scalar
+      | succ: \fun (n: N.Nat^)(unused: \forall (a: R)(x: Carrier (Signed.Int^::ofNat n)) ->
+        apply (Signed.Int^::ofNat n) (#smul{(space (Signed.Int^::ofNat n))} a x) =
+          #smul{(space (Integers.previous (Signed.Int^::ofNat n)))} a (apply (Signed.Int^::ofNat n) x)) => Positive[n := n].scalar
+    }
+    | negSucc: \fun (n: N.Nat^) => ZeroPart[z := Signed.Int^::negSucc n].scalar
+  };
+\definition squareZero: \forall (z: Signed.Int^)(x: Carrier z) -> apply (Integers.previous z) (apply z x) = #zero{(space (Integers.previous (Integers.previous z)))} :=
+  \induction (z: Signed.Int^) \return \forall (x: Carrier z) -> apply (Integers.previous z) (apply z x) = #zero{(space (Integers.previous (Integers.previous z)))} \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (x: Carrier (Signed.Int^::ofNat n)) ->
+      apply (Integers.previous (Signed.Int^::ofNat n)) (apply (Signed.Int^::ofNat n) x) = #zero{(space (Integers.previous (Integers.previous (Signed.Int^::ofNat n))))} \with {
+      | zero: \fun (x: Carrier (Signed.Int^::ofNat N.Nat^::zero)) => \refl(#zero{(space (Signed.Int^::negSucc (N.Nat^::succ N.Nat^::zero)))})
+      | succ: \fun (n: N.Nat^)(unused: \forall (x: Carrier (Signed.Int^::ofNat n)) ->
+        apply (Integers.previous (Signed.Int^::ofNat n)) (apply (Signed.Int^::ofNat n) x) = #zero{(space (Integers.previous (Integers.previous (Signed.Int^::ofNat n))))}) =>
+        (\induction (m: N.Nat^) \return \forall (x: Carrier (Signed.Int^::ofNat (N.Nat^::succ m))) ->
+          apply (Signed.Int^::ofNat m) (apply (Signed.Int^::ofNat (N.Nat^::succ m)) x) = #zero{(space (Integers.previous (Signed.Int^::ofNat m)))} \with {
+          | zero: \fun (x: Carrier (Signed.Int^::ofNat (N.Nat^::succ N.Nat^::zero))) => \refl(#zero{(space (Signed.Int^::negSucc N.Nat^::zero))})
+          | succ: \fun (m: N.Nat^)(unused: \forall (x: Carrier (Signed.Int^::ofNat (N.Nat^::succ m))) ->
+            apply (Signed.Int^::ofNat m) (apply (Signed.Int^::ofNat (N.Nat^::succ m)) x) = #zero{(space (Integers.previous (Signed.Int^::ofNat m)))})
+            (x: Carrier (Signed.Int^::ofNat (N.Nat^::succ (N.Nat^::succ m)))) => #squareZero{C.laws} m x
+        }) n
+    }
+    | negSucc: \fun (n: N.Nat^)(x: Carrier (Signed.Int^::negSucc n)) => \refl(#zero{(space (Signed.Int^::negSucc (N.Nat^::succ (N.Nat^::succ n))))})
+  };
+\definition differential: Internal.DifferentialData[family] := Internal.DifferentialData[family] { apply := apply };
+\definition complex: Internal.Complex := Internal.Complex {
+  family := family, differential := differential,
+  laws := Internal.DifferentialLaws[family, differential] { addition := addition, scalar := scalar, squareZero := squareZero },
+};
+
+\module PositiveHomology(n: N.Nat^);
+\module NegativeHomology(n: N.Nat^);
+
+\module DegreeZeroHomology;

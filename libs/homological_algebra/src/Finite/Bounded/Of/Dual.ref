@@ -1,0 +1,53 @@
+\import \root.Integer[] \as IntegerDegrees;
+\import IntegerDegrees.Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Cochains;
+\definition family: Cochains.Family := Cochains.Family { Carrier := Carrier C, space := space C };
+\definition boundary(z: Degree): Runtime^ := nativeTranspose^ (C.boundary (next z));
+\definition apply(z: Degree)(v: Carrier C z): Carrier C (next z) :=
+  Commutative.Matrix[m := C.ranks (next z), n := C.ranks z].apply
+    (\fun (i: Indices.Fin (C.ranks (next z)))(j: Indices.Fin (C.ranks z)) => boundary z i j) v;
+\definition linear(z: Degree): Modules.Hom[V := Carrier C z, W := Carrier C (next z), source := space C z, target := space C (next z)].Map :=
+  Commutative.Matrix[m := C.ranks (next z), n := C.ranks z].linear
+    (\fun (i: Indices.Fin (C.ranks (next z)))(j: Indices.Fin (C.ranks z)) => boundary z i j);
+\definition squareZero: \forall (z: Degree)(v: Carrier C z) ->
+  apply (next z) (apply z v) = #zero{(space C (next (next z)))} :=
+  \fun (z: Degree) =>
+    \idelim previous (next z) = z \with u: Degree =>
+      \forall (v: Carrier C u) ->
+        Commutative.Matrix[m := C.ranks (next (next z)), n := C.ranks (next z)].apply
+          (\fun (i: Indices.Fin (C.ranks (next (next z))))(j: Indices.Fin (C.ranks (next z))) => C.boundary (next (next z)) j i)
+          (Commutative.Matrix[m := C.ranks (next z), n := C.ranks u].apply
+            (\fun (i: Indices.Fin (C.ranks (next z)))(j: Indices.Fin (C.ranks u)) => C.boundary (next z) j i) v)
+          = #zero{(space C (next (next z)))}
+    \by {
+      base: #squareZero{(\bysub(
+        \root.Finite[].Pair[m := C.ranks (next (next z)), n := C.ranks (next z), p := C.ranks (previous (next z))].Data,
+        { data: \root.Finite[].Pair[m := C.ranks (next (next z)), n := C.ranks (next z), p := C.ranks (previous (next z))].Data \where
+          \root.Finite[].Pair[m := C.ranks (next (next z)), n := C.ranks (next z), p := C.ranks (previous (next z))].Laws[data] },
+        \root.Finite[].Dual[m := C.ranks (previous (next z)), n := C.ranks (next z), p := C.ranks (next (next z)),
+          C := \parent.At[z := next z].complex].complex))},
+      equality: Degrees.previousNext z
+    };
+\definition differential: Cochains.DifferentialData[family] := Cochains.DifferentialData[family] { apply := apply };
+\definition complex: Cochains.Complex := Cochains.Complex {
+  family := family, differential := differential,
+  laws := Cochains.DifferentialLaws[family, differential] {
+    addition := \fun (z: Degree) => #addition{(linear z)},
+    scalar := \fun (z: Degree) => #scalar{(linear z)},
+    squareZero := squareZero,
+  },
+};
+\definition calculate(z: Degree): Calculation^ :=
+  Computation.Run.program^ (Input^::pair (C.ranks (next z)) (C.ranks z) (C.ranks (previous z))
+    (boundary z)
+    (nativeTranspose^ (C.boundary z)));
+\import Cochains.Prior[C := complex] \as Prior;
+\definition priorEntryAt: \forall (z: Degree) -> \forall (v: Carrier C (previous (z))) -> Prior.value (z) v = Commutative.Matrix[m := C.ranks (z), n := C.ranks (previous (z))].apply (\fun (i: Indices.Fin (C.ranks (z)))(j: Indices.Fin (C.ranks (previous (z)))) => C.boundary (z) j i) v :=
+  \induction (z: Degree) \return \forall (v: Carrier C (previous (z))) -> Prior.value (z) v = Commutative.Matrix[m := C.ranks (z), n := C.ranks (previous (z))].apply (\fun (i: Indices.Fin (C.ranks (z)))(j: Indices.Fin (C.ranks (previous (z)))) => C.boundary (z) j i) v \with {
+    | ofNat: \induction (n: N.Nat^) \return \forall (v: Carrier C (previous (I.Int^::ofNat n))) -> Prior.value (I.Int^::ofNat n) v = Commutative.Matrix[m := C.ranks (I.Int^::ofNat n), n := C.ranks (previous (I.Int^::ofNat n))].apply (\fun (i: Indices.Fin (C.ranks (I.Int^::ofNat n)))(j: Indices.Fin (C.ranks (previous (I.Int^::ofNat n)))) => C.boundary (I.Int^::ofNat n) j i) v \with {
+      | zero: \fun (v: Carrier C (previous (I.Int^::ofNat N.Nat^::zero))) => \refl(Commutative.Matrix[m := C.ranks (I.Int^::ofNat N.Nat^::zero), n := C.ranks (previous (I.Int^::ofNat N.Nat^::zero))].apply (\fun (i: Indices.Fin (C.ranks (I.Int^::ofNat N.Nat^::zero)))(j: Indices.Fin (C.ranks (previous (I.Int^::ofNat N.Nat^::zero)))) => C.boundary (I.Int^::ofNat N.Nat^::zero) j i) v)
+      | succ: \fun (n: N.Nat^)(before: _) => \fun (v: Carrier C (previous (I.Int^::ofNat (N.Nat^::succ n)))) => \refl(Commutative.Matrix[m := C.ranks (I.Int^::ofNat (N.Nat^::succ n)), n := C.ranks (previous (I.Int^::ofNat (N.Nat^::succ n)))].apply (\fun (i: Indices.Fin (C.ranks (I.Int^::ofNat (N.Nat^::succ n))))(j: Indices.Fin (C.ranks (previous (I.Int^::ofNat (N.Nat^::succ n))))) => C.boundary (I.Int^::ofNat (N.Nat^::succ n)) j i) v)
+    }
+    | negSucc: \fun (n: N.Nat^) => \fun (v: Carrier C (previous (I.Int^::negSucc n))) => \refl(Commutative.Matrix[m := C.ranks (I.Int^::negSucc n), n := C.ranks (previous (I.Int^::negSucc n))].apply (\fun (i: Indices.Fin (C.ranks (I.Int^::negSucc n)))(j: Indices.Fin (C.ranks (previous (I.Int^::negSucc n)))) => C.boundary (I.Int^::negSucc n) j i) v)
+  };
+\module At(z: Degree);
+\module HomComparison;

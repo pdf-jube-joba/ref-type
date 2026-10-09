@@ -1,0 +1,72 @@
+\import Resolutions.With[sequence := sequence] \as Resolution;
+\definition family: Chains.Family := Chains.Family {
+  Carrier := \fun (n: Nat.Nat^) => Resolution.Carrier n,
+  space := \fun (n: Nat.Nat^) => Resolution.space n,
+};
+\definition chainDifferential: Chains.DifferentialData[family] := Chains.DifferentialData[family] { apply := \fun (n: Nat.Nat^)(x: family.Carrier (Nat.Nat^::succ n)) => Resolution.apply n x };
+\definition complex: Chains.Complex := Chains.Complex {
+  family := family, differential := chainDifferential,
+  laws := Chains.DifferentialLaws[family, chainDifferential] {
+    addition := \fun (n: Nat.Nat^)(x, y: family.Carrier (Nat.Nat^::succ n)) => Resolution.addition n x y,
+    scalar := \fun (n: Nat.Nat^)(a: R)(x: family.Carrier (Nat.Nat^::succ n)) => Resolution.scalar n a x,
+    squareZero := \fun (n: Nat.Nat^)(x: family.Carrier (Nat.Nat^::succ (Nat.Nat^::succ n))) => Resolution.squareZero n x,
+  },
+};
+\import \parent.\parent.Of[M := M, N := N, P := complex] \as Derived;
+\definition one: Nat.Nat^ := Nat.Nat^::succ Nat.Nat^::zero;
+\definition two: Nat.Nat^ := Nat.Nat^::succ one;
+\import Derived.Positive[n := Nat.Nat^::zero] \as H;
+\import Chains.Positive[C := Derived.tensorComplex, n := Nat.Nat^::zero] \as Native;
+\import Modules.Of[V := K.Carrier, space := K.space].Submodule[] \as ZeroSubmodules;
+\import ZeroSubmodules.Of[S := ZeroSubmodules.zeroSubmodule] \as Zero;
+\import Modules.Tensor[V := Zero.Carrier, W := N.Carrier, left := Zero.moduleSpace, right := N.space] \as High;
+\import High.Universal[U := High.Carrier, target := High.space] \as Universal;
+\import Modules.End[V := High.Carrier, space := High.space] \as HighEnd;
+\import Modules.Hom[V := High.Carrier, W := High.Carrier, source := High.space, target := High.space] \as HighMaps;
+\definition highIdentityZero: HighEnd.identity = HighMaps.zeroMap := Universal.ext HighEnd.identity HighMaps.zeroMap
+  (\fun (x: Zero.Carrier)(y: N.Carrier) => trans!{High.Carrier} _ _ _
+    (congr!{{Zero.Carrier} High.Carrier} (\fun (v: Zero.Carrier) => High.tensor v y) x #zero{Zero.moduleSpace}
+      (Resolution.High[n := Nat.Nat^::zero].trivial x))
+    (High.tensorZeroLeft y));
+\definition highTrivial: \forall (x: High.Carrier) -> x = #zero{High.space} :=
+  \fun (x: High.Carrier) => congr!{HighMaps.Map High.Carrier} (\fun (f: HighMaps.Map) => #apply{f} x) _ _ highIdentityZero;
+\import Modules.Hom[V := High.Carrier, W := Derived.tensorCarrier one, source := High.space, target := Derived.tensorSpace one] \as Before;
+\definition boundariesZero: \forall (x: H.Cycle) ->
+  Modules.Submodule[V := H.Cycle, space := H.cycleSpace].Member H.boundariesInside x -> x = #zero{H.cycleSpace} := \block {
+  \fun (x: H.Cycle)(member: _) \then
+  \takefrom y: \Cast[High.Carrier] ({ y: High.Carrier \where #apply{Native.prior} y = x }) \by member \then
+  \return trans!{{Derived.tensorCarrier one}} x (#apply{Native.prior} y) #zero{(Derived.tensorSpace one)}
+    (sym!{{Derived.tensorCarrier one}} _ _ (\bysub(High.Carrier, { y: High.Carrier \where #apply{Native.prior} y = x }, y)))
+    (trans!{{Derived.tensorCarrier one}} _ _ _
+      (congr!{High.Carrier {Derived.tensorCarrier one}} (#apply{Native.prior}) _ _ (highTrivial y))
+      (Before.zeroPreserved Native.prior))
+};
+\import Modules.Of[V := H.Cycle, space := H.cycleSpace].Submodule[].Quotient[S := H.boundariesInside].ZeroQuotient[] \as Quotient;
+\definition isomorphism: Modules.Isomorphism[V := H.Carrier, W := H.Cycle, source := H.space, target := H.cycleSpace].Isomorphism :=
+  Modules.Isomorphism[V := H.Carrier, W := H.Cycle, source := H.space, target := H.cycleSpace].Isomorphism {
+    forward := Quotient.inverse boundariesZero, backward := H.classLinear,
+    leftInverse := Quotient.classInverse boundariesZero, rightInverse := Quotient.inverseClass boundariesZero,
+  };
+\definition Carrier: \Set := H.Carrier;
+\definition space: Modules.Space Carrier := H.space;
+\definition Kernel: \Set := H.Cycle;
+\definition kernelSpace: Modules.Space Kernel := H.cycleSpace;
+\import Derived.TensorTerm[n := Nat.Nat^::zero] \as Differential;
+\import Modules.Tensor[V := K.Carrier, W := N.Carrier, left := K.space, right := N.space] \as SourceTensor;
+\import Modules.Tensor[V := L.Carrier, W := N.Carrier, left := L.space, right := N.space] \as TargetTensor;
+\definition onTensor: \forall (x: K.Carrier)(y: N.Carrier) ->
+  #apply{Differential.differential} (SourceTensor.tensor x y) = TargetTensor.tensor (#apply{sequence.inclusion} x) y := Differential.onTensor;
+\definition kernelDifferential: Modules.Hom[V := SourceTensor.Carrier, W := TargetTensor.Carrier, source := SourceTensor.space, target := TargetTensor.space].Map := Differential.differential;
+\definition kernel(x: SourceTensor.Carrier)(closed: #apply{kernelDifferential} x = #zero{TargetTensor.space}): Kernel := Native.cycle x closed;
+\definition kernelClosed: \forall (x: Kernel) -> #apply{kernelDifferential} x = #zero{TargetTensor.space} :=
+  \fun (x: Kernel) => \bysub(SourceTensor.Carrier, #carrier{Native.cycles}, x);
+
+\import \root.Resolution[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].Of[M := M, P := complex] \as NativeResolution;
+\definition resolution(projectiveK: Modules.Projective K, projectiveL: Modules.Projective L): Derived.Resolution :=
+  \into[NativeResolution.Data](NativeResolution.Data { augmentation := sequence.projection },
+    { data: NativeResolution.Data \where NativeResolution.Laws[data] }) \by {
+    NativeResolution.Laws[NativeResolution.Data { augmentation := sequence.projection }] {
+      projective := Resolution.projective projectiveK projectiveL,
+      onto := #onto{sequence}, killed := #zero{sequence}, augmentationExact := #kernelImage{sequence}, exact := Resolution.exact,
+    }
+  };

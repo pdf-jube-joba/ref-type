@@ -1,0 +1,23 @@
+\import SourceTensor.Term[p := Nat.Nat^::succ p, q := q] \as Source;
+\import SourceTensor.Term[p := Nat.Nat^::succ p, q := Nat.Nat^::succ q] \as SourceNext;
+\import TargetTensor.Term[p := p, q := q] \as Middle;
+\import TargetTensor.Term[p := p, q := Nat.Nat^::succ q] \as Target;
+\import SourceTensor.At[p := Nat.Nat^::succ p, q := q] \as SD;
+\import TargetTensor.At[p := p, q := q] \as TD;
+\import \parent.Term[p := p, q := q] \as Current;
+\import \parent.Term[p := p, q := Nat.Nat^::succ q] \as Next;
+\import Modules.Hom[V := Middle.Carrier, W := Target.Carrier, source := Middle.space, target := Target.space].Composition[U := Source.Carrier, domain := Source.space] \as VH;
+\import Modules.Hom[V := SourceNext.Carrier, W := Target.Carrier, source := SourceNext.space, target := Target.space].Composition[U := Source.Carrier, domain := Source.space] \as HV;
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+\import Modules.Tensor[V := C.family.Carrier (Nat.Nat^::succ p), W := E.family.Carrier q, left := C.family.space (Nat.Nat^::succ p), right := E.family.space q].Universal[
+  U := Target.Carrier, target := Target.space] \as Universal;
+\definition equality: VH.compose TD.vertical Current.map = HV.compose Next.map SD.vertical :=
+  Universal.ext (VH.compose TD.vertical Current.map) (HV.compose Next.map SD.vertical)
+    (\fun (x: C.family.Carrier (Nat.Nat^::succ p))(y: E.family.Carrier q) => trans!{Target.Carrier} _ _ _
+      (congr!{Middle.Carrier Target.Carrier} (#apply{TD.vertical}) _ _ (Current.onTensor x y))
+      (trans!{Target.Carrier} _ _ _ (TD.verticalOnTensor (#apply{(h p)} x) y)
+        (sym!{Target.Carrier} _ _ (trans!{Target.Carrier} _ _ _
+          (congr!{SourceNext.Carrier Target.Carrier} (#apply{Next.map}) _ _ (SD.verticalOnTensor x y))
+          (Next.onTensor x (#apply{E.differential} q y))))));
+\definition point: \forall (x: Source.Carrier) -> #apply{TD.vertical} (#apply{Current.map} x) = #apply{Next.map} (#apply{SD.vertical} x) :=
+  \fun (x: Source.Carrier) => congr!{Maps.Map Target.Carrier} (\fun (m: Maps.Map) => #apply{m} x) _ _ equality;

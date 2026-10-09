@@ -1,0 +1,43 @@
+\import Resolutions.Comparison[M := M, N := L, P := P, Q := Q, f := f] \as Comparison;
+\import Resolutions.Uniqueness[M := M, N := L, P := P, Q := Q] \as Uniqueness;
+\definition Lift: \Set := \Cast[ChainMaps.Map] ({ g: ChainMaps.Map \where Comparison.Augmented p q g });
+\definition induced(g: Lift): Maps.Map := Induced.induced (chainMap g);
+\definition liftAgreement: \forall (g, h: Lift) -> Uniqueness.agreement p q g h :=
+  \fun (g, h: Lift)(x: P.family.Carrier Nat.Nat^::zero) => trans!{L.Carrier} _ _ _
+    ((\bysub(ChainMaps.Map, { g: ChainMaps.Map \where Comparison.Augmented p q g }, g)) x)
+    (sym!{L.Carrier} _ _ ((\bysub(ChainMaps.Map, { g: ChainMaps.Map \where Comparison.Augmented p q g }, h)) x));
+\definition liftIndependence: \forall (g, h: Lift) -> induced g = induced h := \block {
+  \fun (g, h: Lift) \then
+  \takefrom homotopy: Homotopies.Homotopy g h \by Uniqueness.existence p q g h (liftAgreement g h) \then
+  \takefrom t: TensorHomotopies.Homotopy (chainMap g) (chainMap h) \by homotopyExistence g h homotopy \then
+  \return Maps.ext (induced g) (induced h)
+    (\fun (a: SourceTerm.Carrier) => Invariance.onHomology (chainMap g) (chainMap h) t a)
+};
+\definition Values(a: Maps.Map): \Pow Lift := { g: Lift \where a = induced g };
+\definition Valid(a: Maps.Map): \Prop := \exists \Cast[Lift] (Values a);
+\definition Candidate: \Set := \Cast[Maps.Map] ({ a: Maps.Map \where Valid a });
+\definition candidate(g: Lift): Candidate := \into[Maps.Map](induced g, { a: Maps.Map \where Valid a }) \by {
+  \exact(\into[Lift](g, Values (induced g)) \by { \refl(induced g) }, \Cast[Lift] (Values (induced g)))
+};
+\definition existence: \exists Candidate := \block {
+  \takefrom g: Lift \by Comparison.existence p q \then
+  \return \exact(candidate g, Candidate)
+};
+\definition unique: \forall (a, b: Candidate) -> a = b := \block {
+  \fun (a, b: Candidate) \then
+  \takefrom g: \Cast[Lift] (Values a) \by \bysub(Maps.Map, { a: Maps.Map \where Valid a }, a) \then
+  \takefrom h: \Cast[Lift] (Values b) \by \bysub(Maps.Map, { a: Maps.Map \where Valid a }, b) \then
+  \return trans!{Maps.Map} a (induced g) b
+    (\bysub(Lift, Values a, g))
+    (trans!{Maps.Map} (induced g) (induced h) b (liftIndependence g h)
+      (sym!{Maps.Map} b (induced h) (\bysub(Lift, Values b, h))))
+};
+\definition selected: Candidate := \choice Candidate \by { existence: existence, uniqueness: unique };
+\definition map: Maps.Map := selected;
+\definition onLift: \forall (g: Lift) -> map = induced g := \fun (g: Lift) =>
+  sym!{Maps.Map} (induced g) map
+    (\choiceeq candidate g \of Candidate \by { existence: existence, uniqueness: unique });
+\definition onComparison: \forall (g: ChainMaps.Map) -> Comparison.Augmented p q g ->
+  map = Induced.induced (chainMap g) :=
+  \fun (g: ChainMaps.Map)(augmented: Comparison.Augmented p q g) =>
+    onLift (\into[ChainMaps.Map](g, { g: ChainMaps.Map \where Comparison.Augmented p q g }) \by { augmented });

@@ -25,7 +25,7 @@ fn unfold(env: &Environment, mut e: Expression) -> Result<Expression, crate::err
         match env.arena.get(e) {
             Node::Ascribe { term, .. } => e = term,
             Node::Definition { id, arguments } => {
-                e = instantiate(&env.arena, env.definition(id)?.body, &arguments)?;
+                e = env.instantiate(env.definition(id)?.body, &arguments)?;
             }
             _ => return Ok(e),
         }
@@ -98,7 +98,7 @@ fn eliminate(
         .constructors
         .get(constructor)
         .ok_or(crate::error::Error::UnknownConstructor)?;
-    let mut ty = instantiate(&env.arena, declared, &parameters)?;
+    let mut ty = env.instantiate(declared, &parameters)?;
     let mut branch = *cases
         .get(constructor)
         .ok_or(crate::error::Error::MissingEliminationBranch)?;
@@ -122,7 +122,7 @@ fn eliminate(
             branch = app(env, Mode::Pure, branch, ih);
         }
         declared = declared_body;
-        ty = instantiate(&env.arena, body, &[argument])?;
+        ty = env.instantiate(body, &[argument])?;
     }
     if matches!(env.arena.get(env.whnf(ty)?), Node::Product { .. }) {
         Ok(None)
@@ -170,7 +170,7 @@ pub(crate) fn head_application(
     if consumed == 0 && head == original_head {
         return Ok(None);
     }
-    let mut result = instantiate(&env.arena, head, &args[..consumed])?;
+    let mut result = env.instantiate(head, &args[..consumed])?;
     for &argument in &args[consumed..] {
         result = app(env, mode, result, argument);
     }
@@ -186,7 +186,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, crat
             if d.context.len() != arguments.len() {
                 return Err(crate::error::Error::DefinitionParameterCountMismatch);
             }
-            instantiate(a, d.body, &arguments)?
+            env.instantiate(d.body, &arguments)?
         }
         Node::App {
             mode,
@@ -199,7 +199,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, crat
         }) {
             Node::Lambda {
                 mode: actual, body, ..
-            } if mode == actual => instantiate(a, body, &[argument])?,
+            } if mode == actual => env.instantiate(body, &[argument])?,
             Node::SetStepMatch {
                 on_continue,
                 on_finish,
@@ -214,7 +214,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, crat
         Node::Pred {
             subset, element, ..
         } => match a.get(env.erased_head(subset)?) {
-            Node::Subset { predicate, .. } => instantiate(a, predicate, &[element])?,
+            Node::Subset { predicate, .. } => env.instantiate(predicate, &[element])?,
             _ => return Ok(None),
         },
         Node::Reflect { term } => return env.reflect_step(term),
@@ -244,11 +244,11 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, crat
             Node::ThunkValue { computation } => computation,
             _ => return Ok(None),
         },
-        Node::ValueLet { value, body, .. } => instantiate(a, body, &[value])?,
+        Node::ValueLet { value, body, .. } => env.instantiate(body, &[value])?,
         Node::Sequence {
             computation, body, ..
         } => match a.get(computation) {
-            Node::Return { value } => instantiate(a, body, &[value])?,
+            Node::Return { value } => env.instantiate(body, &[value])?,
             _ => return Ok(None),
         },
         Node::ProgramCase {
@@ -262,8 +262,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, crat
                 constructor,
                 fields,
                 ..
-            } if id == inductive => instantiate(
-                a,
+            } if id == inductive => env.instantiate(
                 *branches
                     .get(constructor)
                     .ok_or(crate::error::Error::MissingBranch)?,
@@ -288,8 +287,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, crat
                     inductive,
                     constructor,
                     ..
-                } if inductive == id => instantiate(
-                    a,
+                } if inductive == id => env.instantiate(
                     *branches
                         .get(constructor)
                         .ok_or(crate::error::Error::MissingBranch)?,
@@ -343,7 +341,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, crat
                 return Ok(None);
             };
             a.alloc(Node::BoxProgram {
-                program_ty: instantiate(a, codomain, &[value])?,
+                program_ty: env.instantiate(codomain, &[value])?,
                 program: app(env, Mode::Computation, function, value),
             })
         }
@@ -361,7 +359,7 @@ pub fn root(env: &Environment, e: Expression) -> Result<Option<Expression>, crat
                 return Err(crate::error::Error::BoxedFunctionTypeMustBeProduct);
             };
             a.alloc(Node::BoxProgram {
-                program_ty: instantiate(a, codomain, &[argument])?,
+                program_ty: env.instantiate(codomain, &[argument])?,
                 program: app(env, Mode::Computation, function, argument),
             })
         }
@@ -617,7 +615,7 @@ fn beta_head(
             } = env.arena.get(function)
                 && mode == actual
             {
-                return beta_head(env, instantiate(&env.arena, body, &[argument])?, erase);
+                return beta_head(env, env.instantiate(body, &[argument])?, erase);
             }
             Ok(env.arena.alloc(Node::App {
                 mode,

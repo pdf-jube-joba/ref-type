@@ -1,0 +1,75 @@
+\import Source.Degree[n := n] \as SD;
+\import Target.Degree[n := n] \as TD;
+\import Modules.DirectSum[Index := Source.Index n, family := SD.family].To[W := TD.Carrier, target := TD.space] \as Universal;
+\import Modules.DirectSum[Index := Target.Index n, family := TD.family].To[W := SD.Carrier, target := SD.space] \as InverseUniversal;
+\module Component(i: Source.Index n) {
+  \import Degrees.Sign[V := C.family.Carrier #first{i} #second{i}, space := C.family.space #first{i} #second{i}] \as Sign;
+  \import Modules.Hom[V := C.family.Carrier #first{i} #second{i}, W := TD.Carrier,
+    source := C.family.space #first{i} #second{i}, target := TD.space].Composition[
+    U := C.family.Carrier #first{i} #second{i}, domain := C.family.space #first{i} #second{i}] \as Compose;
+  \definition map: Universal.At[i := i].Map := Compose.compose
+    (TD.Component[i := index n i].injection) (Sign.map (Arithmetic.mul #first{i} #second{i}));
+}
+\module InverseComponent(i: Target.Index n) {
+  \import Degrees.Sign[V := C.family.Carrier #second{i} #first{i}, space := C.family.space #second{i} #first{i}] \as Sign;
+  \import Modules.Hom[V := C.family.Carrier #second{i} #first{i}, W := SD.Carrier,
+    source := C.family.space #second{i} #first{i}, target := SD.space].Composition[
+    U := C.family.Carrier #second{i} #first{i}, domain := C.family.space #second{i} #first{i}] \as Compose;
+  \definition map: InverseUniversal.At[i := i].Map := Compose.compose
+    (SD.Component[i := index n i].injection) (Sign.map (Arithmetic.mul #second{i} #first{i}));
+}
+\definition components: Universal.Components := \fun (i: Source.Index n) => Component[i := i].map;
+\definition inverseComponents: InverseUniversal.Components := \fun (i: Target.Index n) => InverseComponent[i := i].map;
+\definition forward: Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space].Map := Universal.extension components;
+\definition backward: Modules.Hom[V := TD.Carrier, W := SD.Carrier, source := TD.space, target := SD.space].Map := InverseUniversal.extension inverseComponents;
+\definition onInjection: \forall (i: Source.Index n)(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{forward} (#apply{(SD.Component[i := i].injection)} x) = #apply{(Component[i := i].map)} x := Universal.onInjection components;
+\definition inverseOnInjection: \forall (i: Target.Index n)(x: C.family.Carrier #second{i} #first{i}) ->
+  #apply{backward} (#apply{(TD.Component[i := i].injection)} x) = #apply{(InverseComponent[i := i].map)} x := InverseUniversal.onInjection inverseComponents;
+\import Modules.Hom[V := TD.Carrier, W := SD.Carrier, source := TD.space, target := SD.space].Composition[U := SD.Carrier, domain := SD.space] \as Left;
+\import Modules.Hom[V := SD.Carrier, W := TD.Carrier, source := SD.space, target := TD.space].Composition[U := TD.Carrier, domain := TD.space] \as Right;
+\import Modules.End[V := SD.Carrier, space := SD.space] \as SourceEnd;
+\import Modules.End[V := TD.Carrier, space := TD.space] \as TargetEnd;
+\import Modules.DirectSum[Index := Source.Index n, family := SD.family].To[W := SD.Carrier, target := SD.space] \as LeftEquality;
+\import Modules.DirectSum[Index := Target.Index n, family := TD.family].To[W := TD.Carrier, target := TD.space] \as RightEquality;
+\definition topIndex(i: Degrees.Pair)(closed: Arithmetic.add #first{i} #second{i} = n): Source.Index n :=
+  \into[Degrees.Pair](i, { i: Degrees.Pair \where Arithmetic.add #first{i} #second{i} = n }) \by { closed };
+\module Pair(p, q: Nat.Nat^) {
+  \definition i(closed: Arithmetic.add p q = n): Source.Index n := topIndex (Degrees.Pair::# p q) closed;
+  \import Degrees.Sign[V := C.family.Carrier p q, space := C.family.space p q] \as Sign;
+  \definition left: \forall (closed: Arithmetic.add p q = n)(x: C.family.Carrier p q) ->
+    #apply{backward} (#apply{forward} (#apply{(SD.Component[i := i closed].injection)} x)) = #apply{(SD.Component[i := i closed].injection)} x :=
+    \fun (closed: Arithmetic.add p q = n)(x: C.family.Carrier p q) => trans!{SD.Carrier} _ _ _
+      (congr!{TD.Carrier SD.Carrier} (#apply{backward}) _ _ (onInjection (i closed) x))
+      (trans!{SD.Carrier} _ _ _ (inverseOnInjection (index n (i closed)) (#apply{(Sign.map (Arithmetic.mul p q))} x))
+        (congr!{{C.family.Carrier p q} SD.Carrier} (#apply{(SD.Component[i := i closed].injection)}) _ _ (Sign.involutive (Arithmetic.mul p q) x)));
+  \import Degrees.Sign[V := C.family.Carrier q p, space := C.family.space q p] \as ReverseSign;
+  \definition right: \forall (closed: Arithmetic.add p q = n)(x: C.family.Carrier q p) ->
+    #apply{forward} (#apply{backward} (#apply{(TD.Component[i := i closed].injection)} x)) = #apply{(TD.Component[i := i closed].injection)} x :=
+    \fun (closed: Arithmetic.add p q = n)(x: C.family.Carrier q p) => trans!{TD.Carrier} _ _ _
+      (congr!{SD.Carrier TD.Carrier} (#apply{forward}) _ _ (inverseOnInjection (i closed) x))
+      (trans!{TD.Carrier} _ _ _ (onInjection (index n (i closed)) (#apply{(ReverseSign.map (Arithmetic.mul q p))} x))
+        (congr!{{C.family.Carrier q p} TD.Carrier} (#apply{(TD.Component[i := i closed].injection)}) _ _ (ReverseSign.involutive (Arithmetic.mul q p) x)));
+}
+\definition leftOnPair: \forall (i: Degrees.Pair)(closed: Arithmetic.add #first{i} #second{i} = n)(x: C.family.Carrier #first{i} #second{i}) ->
+  #apply{backward} (#apply{forward} (#apply{(SD.Component[i := topIndex i closed].injection)} x)) = #apply{(SD.Component[i := topIndex i closed].injection)} x :=
+  \induction (i: Degrees.Pair) \return \forall (closed: Arithmetic.add #first{i} #second{i} = n)(x: C.family.Carrier #first{i} #second{i}) ->
+    #apply{backward} (#apply{forward} (#apply{(SD.Component[i := topIndex i closed].injection)} x)) = #apply{(SD.Component[i := topIndex i closed].injection)} x \with {
+    | # : \fun (p, q: Nat.Nat^)(closed: Arithmetic.add p q = n) => Pair[p := p, q := q].left closed
+  };
+\definition rightOnPair: \forall (i: Degrees.Pair)(closed: Arithmetic.add #first{i} #second{i} = n)(x: C.family.Carrier #second{i} #first{i}) ->
+  #apply{forward} (#apply{backward} (#apply{(TD.Component[i := topIndex i closed].injection)} x)) = #apply{(TD.Component[i := topIndex i closed].injection)} x :=
+  \induction (i: Degrees.Pair) \return \forall (closed: Arithmetic.add #first{i} #second{i} = n)(x: C.family.Carrier #second{i} #first{i}) ->
+    #apply{forward} (#apply{backward} (#apply{(TD.Component[i := topIndex i closed].injection)} x)) = #apply{(TD.Component[i := topIndex i closed].injection)} x \with {
+    | # : \fun (p, q: Nat.Nat^)(closed: Arithmetic.add p q = n) => Pair[p := p, q := q].right closed
+  };
+\definition leftEquality: Left.compose backward forward = SourceEnd.identity :=
+  LeftEquality.ext (Left.compose backward forward) SourceEnd.identity (\fun (i: Source.Index n) => leftOnPair i (Degrees.degree n i));
+\definition rightEquality: Right.compose forward backward = TargetEnd.identity :=
+  RightEquality.ext (Right.compose forward backward) TargetEnd.identity (\fun (i: Target.Index n) => rightOnPair i (Degrees.degree n i));
+\definition leftInverse: \forall (x: SD.Carrier) -> #apply{backward} (#apply{forward} x) = x :=
+  \fun (x: SD.Carrier) => congr!{{Modules.Hom[V := SD.Carrier, W := SD.Carrier, source := SD.space, target := SD.space].Map} SD.Carrier}
+    (\fun (f: Modules.Hom[V := SD.Carrier, W := SD.Carrier, source := SD.space, target := SD.space].Map) => #apply{f} x) _ _ leftEquality;
+\definition rightInverse: \forall (x: TD.Carrier) -> #apply{forward} (#apply{backward} x) = x :=
+  \fun (x: TD.Carrier) => congr!{{Modules.Hom[V := TD.Carrier, W := TD.Carrier, source := TD.space, target := TD.space].Map} TD.Carrier}
+    (\fun (f: Modules.Hom[V := TD.Carrier, W := TD.Carrier, source := TD.space, target := TD.space].Map) => #apply{f} x) _ _ rightEquality;

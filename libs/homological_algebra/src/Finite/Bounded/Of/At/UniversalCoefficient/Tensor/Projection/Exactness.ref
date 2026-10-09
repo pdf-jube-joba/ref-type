@@ -1,0 +1,61 @@
+\import \root.Finite[].Bounded[].Of[C := C].At[z := z].UniversalCoefficient[A := A].Tensor[] \as Source;
+\import Boundaries.Injectivity[] \as Injection;
+\definition onto: \forall (b: Tor.Kernel) -> \exists { q: TensorHomology.Homology \where #apply{map} q = b } := \block {
+  \fun (b: Tor.Kernel) \then
+  \takefrom x: \Cast[CurrentTensor.Carrier] ({ x: CurrentTensor.Carrier \where #apply{Source.projection} x = b }) \by #onto{Source.sequence} b \then
+  \let equal: #apply{Source.projection} x = b := \bysub(CurrentTensor.Carrier, { x: CurrentTensor.Carrier \where #apply{Source.projection} x = b }, x) \then
+  \let closed: NativeTensor.apply z x = #zero{LowerTensor.space} := trans!{LowerTensor.Carrier} _ _ _
+    (sym!{LowerTensor.Carrier} _ _ (differentialFactorPoint x))
+    (trans!{LowerTensor.Carrier} _ _ _
+      (congr!{BoundaryTensor.Carrier LowerTensor.Carrier} (\fun (v: BoundaryTensor.Carrier) => #apply{lowerInclusion} (#apply{Tor.kernelDifferential} v)) _ _ equal)
+      (trans!{LowerTensor.Carrier} _ _ _
+        (congr!{LowerCycles.Carrier LowerTensor.Carrier} (#apply{lowerInclusion}) _ _ (Tor.kernelClosed b))
+        (LowerMaps.zeroPreserved lowerInclusion))) \then
+  \let representative: TensorHomology.Cycle := TensorHomology.cycle x closed \then
+  \return \exact(\into[TensorHomology.Homology](TensorHomology.classOf representative,
+    { q: TensorHomology.Homology \where #apply{map} q = b }) \by {
+      trans!{Tor.Kernel} _ _ _ (onClass representative) equal
+    }, \Cast[TensorHomology.Homology] ({ q: TensorHomology.Homology \where #apply{map} q = b }))
+};
+\definition zero: \forall (q: HomologyTensor.Carrier) -> #apply{map} (#apply{Boundaries.map} q) = #zero{Tor.kernelSpace} := \block {
+  \fun (q: HomologyTensor.Carrier) \then
+  \takefrom x: \Cast[CycleTensor.Carrier] ({ x: CycleTensor.Carrier \where #apply{Boundaries.projection} x = q }) \by Injection.projectionOnto q \then
+  \let equal: #apply{Boundaries.projection} x = q := \bysub(CycleTensor.Carrier, { x: CycleTensor.Carrier \where #apply{Boundaries.projection} x = q }, x) \then
+  \let representative: #apply{Boundaries.map} q = TensorHomology.classOf (cycle x) := trans!{TensorHomology.Homology} _ _ _
+    (congr!{HomologyTensor.Carrier TensorHomology.Homology} (#apply{Boundaries.map}) q (#apply{Boundaries.projection} x) (sym!{HomologyTensor.Carrier} _ _ equal))
+    (Boundaries.onCycles x) \then
+  \return trans!{Tor.Kernel}
+    (#apply{map} (#apply{Boundaries.map} q)) (#apply{map} (TensorHomology.classOf (cycle x))) #zero{Tor.kernelSpace}
+    (congr!{TensorHomology.Homology Tor.Kernel} (#apply{map}) (#apply{Boundaries.map} q) (TensorHomology.classOf (cycle x)) representative)
+    (trans!{Tor.Kernel} (#apply{map} (TensorHomology.classOf (cycle x))) (kernel (cycle x)) #zero{Tor.kernelSpace}
+      (onClass (cycle x)) (#zero{Source.sequence} x))
+};
+\definition kernelImage: \forall (q: TensorHomology.Homology) -> #apply{map} q = #zero{Tor.kernelSpace} ->
+  \exists { h: HomologyTensor.Carrier \where #apply{Boundaries.map} h = q } := \block {
+  \fun (q: TensorHomology.Homology)(closed: _) \then
+  \takefrom x: \Cast[TensorHomology.Cycle] ({ x: TensorHomology.Cycle \where TensorHomology.classOf x = q }) \by Quotient.onto q \then
+  \let equal: TensorHomology.classOf x = q := \bysub(TensorHomology.Cycle, { x: TensorHomology.Cycle \where TensorHomology.classOf x = q }, x) \then
+  \let projectionZero: #apply{Source.projection} x = #zero{BoundaryTensor.space} :=
+    trans!{BoundaryTensor.Carrier} _ _ _
+      (congr!{Tor.Kernel BoundaryTensor.Carrier} (\fun (b: Tor.Kernel) => b) (kernel x) (#apply{map} (TensorHomology.classOf x)) (sym!{Tor.Kernel} _ _ (onClass x)))
+      (trans!{BoundaryTensor.Carrier} _ _ _
+        (congr!{Tor.Kernel BoundaryTensor.Carrier} (\fun (b: Tor.Kernel) => b) _ _
+          (congr!{TensorHomology.Homology Tor.Kernel} (#apply{map}) _ _ equal)) closed) \then
+  \takefrom v: \Cast[CycleTensor.Carrier] ({ v: CycleTensor.Carrier \where #apply{Source.inclusion} v = x }) \by #kernelImage{Source.sequence} x projectionZero \then
+  \return \exact(\into[HomologyTensor.Carrier](#apply{Boundaries.projection} v,
+    { h: HomologyTensor.Carrier \where #apply{Boundaries.map} h = q }) \by {
+      trans!{TensorHomology.Homology} _ _ _ (Boundaries.onCycles v)
+        (trans!{TensorHomology.Homology} _ _ _
+          (congr!{TensorHomology.Cycle TensorHomology.Homology} TensorHomology.classOf (cycle v) x
+            (\bysub(CycleTensor.Carrier, { v: CycleTensor.Carrier \where #apply{Source.inclusion} v = x }, v))) equal)
+    }, \Cast[HomologyTensor.Carrier] ({ h: HomologyTensor.Carrier \where #apply{Boundaries.map} h = q }))
+};
+\definition homologyTensorBundle: Modules.Bundle := Modules.Bundle { Carrier := HomologyTensor.Carrier, space := HomologyTensor.space };
+\definition homologyBundle: Modules.Bundle := Modules.Bundle { Carrier := TensorHomology.Homology, space := TensorHomology.homologySpace };
+\definition kernelBundle: Modules.Bundle := Modules.Bundle { Carrier := Tor.Kernel, space := Tor.kernelSpace };
+\import Modules.ShortExact[A := homologyTensorBundle, B := homologyBundle, C := kernelBundle] \as Sequences;
+\definition kernelSequence: Sequences.Sequence := Sequences.Sequence {
+  inclusion := Boundaries.map, projection := map,
+  injective := Injection.injective, onto := onto, zero := zero, kernelImage := kernelImage,
+};
+\module Derived;

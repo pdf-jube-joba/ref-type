@@ -1,0 +1,31 @@
+\import Resolutions.Of[M := N, P := Q] \as Original;
+\import Modules.End[V := P.Carrier, space := P.space] \as Identity;
+\definition constantFamily: Chains.Family := Chains.Family {
+  Carrier := \fun (n: Nat.Nat^) => P.Carrier, space := \fun (n: Nat.Nat^) => P.space,
+};
+\import Modules.Hom[V := P.Carrier, W := P.Carrier, source := P.space, target := P.space] \as ConstantMaps;
+\definition constantDifferential: Chains.DifferentialData[constantFamily] := Chains.DifferentialData[constantFamily] {
+  apply := \fun (n: Nat.Nat^) => #apply{ConstantMaps.zeroMap},
+};
+\definition constant: Chains.Complex := Chains.Complex {
+  family := constantFamily, differential := constantDifferential,
+  laws := Chains.DifferentialLaws[constantFamily, constantDifferential] {
+    addition := \fun (n: Nat.Nat^) => #addition{ConstantMaps.zeroMap},
+    scalar := \fun (n: Nat.Nat^) => #scalar{ConstantMaps.zeroMap},
+    squareZero := \fun (n: Nat.Nat^)(x: P.Carrier) => \refl(#zero{P.space}),
+  },
+};
+\import Doubles.Tensor[C := constant, D := Q] \as Product;
+\import Doubles.Row[C := Product.complex, p := Nat.Nat^::zero] \as TensorChain;
+\definition complex: Chains.Complex := TensorChain.complex;
+\module Term(n: Nat.Nat^) {
+  \import Modules.Tensor[V := P.Carrier, W := Q.family.Carrier n, left := P.space, right := Q.family.space n] \as Tensor;
+  \definition Carrier: \Set := Tensor.Carrier;
+  \definition space: Modules.Space Carrier := Tensor.space;
+  \definition tensor: P.Carrier -> Q.family.Carrier n -> Carrier := Tensor.tensor;
+  \definition bundle: Modules.Bundle := Modules.Bundle { Carrier := Carrier, space := space };
+}
+\import Modules.Tensor[V := P.Carrier, W := N.Carrier, left := P.space, right := N.space] \as Target;
+\definition target: Modules.Bundle := Modules.Bundle { Carrier := Target.Carrier, space := Target.space };
+\import Resolutions.Of[M := target, P := complex] \as Result;
+\module With(q: Original.Resolution);

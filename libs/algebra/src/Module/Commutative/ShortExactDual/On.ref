@@ -1,0 +1,88 @@
+\import \parent.\parent.HomSpace[V := A.Carrier, W := N.Carrier, source := A.space, target := N.space] \as HA;
+\import \parent.\parent.HomSpace[V := B.Carrier, W := N.Carrier, source := B.space, target := N.space] \as HB;
+\import \parent.\parent.HomSpace[V := C.Carrier, W := N.Carrier, source := C.space, target := N.space] \as HC;
+\definition left: Modules.Bundle := Modules.Bundle { Carrier := HC.Carrier, space := HC.space };
+\definition middle: Modules.Bundle := Modules.Bundle { Carrier := HB.Carrier, space := HB.space };
+\definition right: Modules.Bundle := Modules.Bundle { Carrier := HA.Carrier, space := HA.space };
+\import Modules.ShortExact[A := left, B := middle, C := right] \as Dual;
+\import Modules.Hom[V := C.Carrier, W := N.Carrier, source := C.space, target := N.space].Composition[U := B.Carrier, domain := B.space] \as PreProjection;
+\import Modules.Hom[V := A.Carrier, W := N.Carrier, source := A.space, target := N.space] \as LeftMaps;
+\import Modules.Hom[V := B.Carrier, W := N.Carrier, source := B.space, target := N.space] \as MiddleMaps;
+\import Modules.Hom[V := C.Carrier, W := N.Carrier, source := C.space, target := N.space] \as RightMaps;
+\import Modules.Hom[V := B.Carrier, W := N.Carrier, source := B.space, target := N.space].Composition[U := A.Carrier, domain := A.space] \as PreInclusion;
+\import Modules.Hom[V := HC.Carrier, W := HB.Carrier, source := HC.space, target := HB.space] \as DualInclusion;
+\definition inclusion: DualInclusion.Map := DualInclusion.Map {
+  apply := \fun (f: HC.Carrier) => PreProjection.compose f sequence.projection,
+  addition := \fun (f, g: HC.Carrier) => MiddleMaps.ext (PreProjection.compose (#add{HC.space} f g) sequence.projection) (#add{HB.space} (PreProjection.compose f sequence.projection) (PreProjection.compose g sequence.projection)) (\fun (x: B.Carrier) => \refl(#add{N.space} (#apply{f} (#apply{sequence.projection} x)) (#apply{g} (#apply{sequence.projection} x)))),
+  scalar := \fun (a: R)(f: HC.Carrier) => MiddleMaps.ext (PreProjection.compose (#smul{HC.space} a f) sequence.projection) (#smul{HB.space} a (PreProjection.compose f sequence.projection)) (\fun (x: B.Carrier) => \refl(#smul{N.space} a (#apply{f} (#apply{sequence.projection} x)))),
+};
+\import Modules.Hom[V := HB.Carrier, W := HA.Carrier, source := HB.space, target := HA.space] \as DualProjection;
+\definition projection: DualProjection.Map := DualProjection.Map {
+  apply := \fun (f: HB.Carrier) => PreInclusion.compose f sequence.inclusion,
+  addition := \fun (f, g: HB.Carrier) => LeftMaps.ext (PreInclusion.compose (#add{HB.space} f g) sequence.inclusion) (#add{HA.space} (PreInclusion.compose f sequence.inclusion) (PreInclusion.compose g sequence.inclusion)) (\fun (x: A.Carrier) => \refl(#add{N.space} (#apply{f} (#apply{sequence.inclusion} x)) (#apply{g} (#apply{sequence.inclusion} x)))),
+  scalar := \fun (a: R)(f: HB.Carrier) => LeftMaps.ext (PreInclusion.compose (#smul{HB.space} a f) sequence.inclusion) (#smul{HA.space} a (PreInclusion.compose f sequence.inclusion)) (\fun (x: A.Carrier) => \refl(#smul{N.space} a (#apply{f} (#apply{sequence.inclusion} x)))),
+};
+\definition injective: \forall (f, g: HC.Carrier) -> #apply{inclusion} f = #apply{inclusion} g -> f = g :=
+  \fun (f, g: HC.Carrier)(equal: _) => RightMaps.ext f g (\block {
+    \fun (c: C.Carrier) \then
+    \takefrom b: \Cast[B.Carrier] ({ b: B.Carrier \where #apply{sequence.projection} b = c }) \by #onto{sequence} c \then
+    \let projected: #apply{sequence.projection} b = c := \bysub(B.Carrier, { b: B.Carrier \where #apply{sequence.projection} b = c }, b) \then
+    \return trans!{N.Carrier} _ _ _ (sym!{N.Carrier} _ _ (congr!{C.Carrier N.Carrier} (#apply{f}) _ _ projected))
+      (trans!{N.Carrier} _ _ _ (congr!{HB.Carrier N.Carrier} (\fun (h: HB.Carrier) => #apply{h} b) _ _ equal)
+        (congr!{C.Carrier N.Carrier} (#apply{g}) _ _ projected))
+  });
+\definition compositeZero: \forall (f: HC.Carrier) -> #apply{projection} (#apply{inclusion} f) = #zero{HA.space} :=
+  \fun (f: HC.Carrier) => LeftMaps.ext _ _ (\fun (x: A.Carrier) => trans!{N.Carrier} _ _ _
+    (congr!{C.Carrier N.Carrier} (#apply{f}) _ _ (#zero{sequence} x)) (RightMaps.zeroPreserved f));
+\import Modules.ShortExact[A := A, B := B, C := C].Splitting[sequence := sequence] \as Splitting;
+\import Splitting.With[s := s] \as Split;
+\definition Section: \Prop := Splitting.Section s;
+\import Modules.Biproduct[V := A.Carrier, W := C.Carrier, left := A.space, right := C.space] \as Sum;
+\import Modules.Hom[V := Sum.Carrier, W := A.Carrier, source := Sum.space, target := A.space].Composition[U := B.Carrier, domain := B.space] \as RetractionComposition;
+\import Modules.Hom[V := B.Carrier, W := A.Carrier, source := B.space, target := A.space] \as Retractions;
+\definition retraction(section: Section): Retractions.Map := RetractionComposition.compose Sum.firstProjection (#backward{(Split.isomorphism section)});
+\import Modules.Laws[V := B.Carrier, space := B.space] \as Middle;
+\import algebra.Group[].Of[Carrier := B.Carrier, group := Middle.additive] \as MiddleGroup;
+\definition forwardInjection: \forall (a: A.Carrier) -> #apply{(Splitting.forward s)} (Sum.make a #zero{C.space}) = #apply{sequence.inclusion} a :=
+  \fun (a: A.Carrier) => trans!{B.Carrier} _ _ _
+    (congr!{B.Carrier B.Carrier} (Middle.add (#apply{sequence.inclusion} a)) _ _ (Sections.zeroPreserved s))
+    (MiddleGroup.zeroRight (#apply{sequence.inclusion} a));
+\definition retractionLaw: \forall (section: Section)(a: A.Carrier) -> #apply{(retraction section)} (#apply{sequence.inclusion} a) = a :=
+  \fun (section: Section)(a: A.Carrier) => trans!{A.Carrier} _ _ _
+    (congr!{B.Carrier A.Carrier} (#apply{(retraction section)}) _ _ (sym!{B.Carrier} _ _ (forwardInjection a)))
+    (congr!{Sum.Carrier A.Carrier} Sum.first _ _ (#leftInverse{(Split.isomorphism section)} (Sum.make a #zero{C.space})));
+\import Modules.Hom[V := A.Carrier, W := N.Carrier, source := A.space, target := N.space].Composition[U := B.Carrier, domain := B.space] \as Extend;
+\definition onto: Section -> \forall (f: HA.Carrier) -> \exists { g: HB.Carrier \where #apply{projection} g = f } :=
+  \fun (section: Section)(f: HA.Carrier) => \exact(\into[HB.Carrier](Extend.compose f (retraction section), { g: HB.Carrier \where #apply{projection} g = f }) \by {
+    LeftMaps.ext _ f (\fun (a: A.Carrier) => congr!{A.Carrier N.Carrier} (#apply{f}) _ _ (retractionLaw section a))
+  }, \Cast[HB.Carrier] ({ g: HB.Carrier \where #apply{projection} g = f }));
+\import Modules.Hom[V := B.Carrier, W := N.Carrier, source := B.space, target := N.space].Composition[U := C.Carrier, domain := C.space] \as Restrict;
+\import Modules.Laws[V := N.Carrier, space := N.space] \as Coefficient;
+\import algebra.Group[].Of[Carrier := N.Carrier, group := Coefficient.additive] \as NGroup;
+\definition kernelImage: Section -> \forall (f: HB.Carrier) -> #apply{projection} f = #zero{HA.space} ->
+  \exists { g: HC.Carrier \where #apply{inclusion} g = f } := \block {
+  \fun (section: Section)(f: HB.Carrier)(killed: _) \then
+  \let g: HC.Carrier := Restrict.compose f s \then
+  \return \exact(\into[HC.Carrier](g, { g: HC.Carrier \where #apply{inclusion} g = f }) \by {
+    MiddleMaps.ext _ f (\block {
+      \fun (b: B.Carrier) \then
+      \takefrom a: \Cast[A.Carrier] ({ a: A.Carrier \where #apply{sequence.inclusion} a = Splitting.remainder s b })
+        \by #kernelImage{sequence} (Splitting.remainder s b) (Splitting.remainderClosed s section b) \then
+      \let represented: #apply{sequence.inclusion} a = Splitting.remainder s b :=
+        \bysub(A.Carrier, { a: A.Carrier \where #apply{sequence.inclusion} a = Splitting.remainder s b }, a) \then
+      \let vanished: #apply{f} (Splitting.remainder s b) = #zero{N.space} := trans!{N.Carrier} _ _ _
+        (sym!{N.Carrier} _ _ (congr!{B.Carrier N.Carrier} (#apply{f}) _ _ represented))
+        (congr!{HA.Carrier N.Carrier} (\fun (h: HA.Carrier) => #apply{h} a) _ _ killed) \then
+      \return trans!{N.Carrier} _ _ _
+        (sym!{N.Carrier} _ _ (NGroup.zeroLeft (#apply{f} (#apply{s} (#apply{sequence.projection} b)))))
+        (trans!{N.Carrier} _ _ _ (congr!{N.Carrier N.Carrier} (\fun (x: N.Carrier) => #add{N.space} x (#apply{f} (#apply{s} (#apply{sequence.projection} b)))) _ _ (sym!{N.Carrier} _ _ vanished))
+          (trans!{N.Carrier} _ _ _ (sym!{N.Carrier} _ _ (#addition{f} (Splitting.remainder s b) (#apply{s} (#apply{sequence.projection} b))))
+            (congr!{B.Carrier N.Carrier} (#apply{f}) _ _ (Splitting.reconstruct s b))))
+    })
+  }, \Cast[HC.Carrier] ({ g: HC.Carrier \where #apply{inclusion} g = f }))
+};
+\definition shortExact(section: Section): Dual.Sequence := Dual.Sequence {
+  inclusion := inclusion, projection := projection, injective := injective, onto := onto section,
+  zero := compositeZero, kernelImage := kernelImage section,
+};
+\definition existence: Section -> \exists Dual.Sequence := \fun (section: Section) => \exact(shortExact section, Dual.Sequence);

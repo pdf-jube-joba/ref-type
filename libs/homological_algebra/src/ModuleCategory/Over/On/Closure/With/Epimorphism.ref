@@ -1,0 +1,20 @@
+\import \parent.Cokernel[x := x, y := y, f := f] \as Cokernel;
+\import \parent.\parent.Cokernel[x := x, y := y, f := f] \as Actual;
+\definition Epi: \Prop := Abelian.Epimorphism[Index, Hom, categoryData] x y f;
+\definition composeZero: compose x y Cokernel.point (zero y Cokernel.point) f = zero x Cokernel.point :=
+  \parent.\parent.\parent.At[x := x, y := Cokernel.point].ext (compose x y Cokernel.point (zero y Cokernel.point) f) (zero x Cokernel.point)
+    (\fun (u: family.Carrier x) => \refl(#zero{(family.space Cokernel.point)}));
+\definition cokernelIsZero: Epi -> Cokernel.projection = zero y Cokernel.point :=
+  \fun (epi: Epi) => epi Cokernel.point Cokernel.projection (zero y Cokernel.point)
+    (trans!{{Hom x Cokernel.point}} _ _ _ Cokernel.zeroLaw (sym!{{Hom x Cokernel.point}} _ _ composeZero));
+\import Modules.Hom[V := family.Carrier Cokernel.point, W := Actual.Carrier, source := family.space Cokernel.point, target := Actual.space] \as Backward;
+\definition imageMember: Epi -> \forall (u: family.Carrier y) -> \In[family.Carrier y] (#carrier{Actual.submodule}) u :=
+  \fun (epi: Epi)(u: family.Carrier y) => Actual.zeroClassMember u
+    (trans!{Actual.Carrier} (Actual.class u) (#apply{#backward{Cokernel.isomorphism}} (#apply{Cokernel.projection} u)) #zero{Actual.space}
+      (sym!{Actual.Carrier} _ _ (#leftInverse{Cokernel.isomorphism} (Actual.class u)))
+      (trans!{Actual.Carrier} _ _ _
+        (congr!{{family.Carrier Cokernel.point} Actual.Carrier} (#apply{#backward{Cokernel.isomorphism}}) _ _
+          (congr!{{Hom y Cokernel.point} {family.Carrier Cokernel.point}} (\fun (g: Hom y Cokernel.point) => #apply{g} u) Cokernel.projection (zero y Cokernel.point) (cokernelIsZero epi)))
+        (Backward.zeroPreserved (#backward{Cokernel.isomorphism}))));
+\definition onto: Epi -> \forall (u: family.Carrier y) -> \exists { v: family.Carrier x \where #apply{f} v = u } :=
+  \fun (epi: Epi)(u: family.Carrier y) => imageMember epi u;

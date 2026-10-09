@@ -1,0 +1,90 @@
+\import std.Arithmetic[].Int[].Math[].Ring[].Prop[] \as RawLaws;
+\definition mathCong(f: Grothendieck -> Grothendieck)(x, y: Grothendieck): x = y -> f x = f y :=
+  \fun (equal: x = y) => (\idelim x = y \with C: \Pow Difference =>
+    \forall (member: IsClass C) -> f x = f (\into[\Pow Difference](C, ClassSet) \by { member }) \by {
+      base: \fun (member: IsClass x) => \refl(f x), equality: equal
+    }) (classProperty y);
+\definition mathCong2(f: Grothendieck -> Grothendieck -> Grothendieck)(x, x2, y, y2: Grothendieck):
+  x = x2 -> y = y2 -> f x y = f x2 y2 :=
+  \fun (first: x = x2)(second: y = y2) => trans!{\Pow Difference} _ _ _
+    (mathCong (\fun (z: Grothendieck) => f z y) x x2 first) (mathCong (f x2) y y2 second);
+\definition mulOneLeftMath: \forall (x: Grothendieck) -> mulMath Def.oneMath x = x :=
+  mathInduction (\fun (x: Grothendieck) => mulMath Def.oneMath x = x)
+    (\fun (x: Difference) => trans!{\Pow Difference} _ _ _
+      (mulMathClass (pair (N.Nat^::succ N.Nat^::zero) N.Nat^::zero) x)
+      (classOfEq _ x (RawLaws.mulIntegerOneLeft x)));
+\definition mulZeroLeftMath: \forall (x: Grothendieck) -> mulMath Def.zeroMath x = Def.zeroMath :=
+  mathInduction (\fun (x: Grothendieck) => mulMath Def.zeroMath x = Def.zeroMath)
+    (\fun (x: Difference) => trans!{\Pow Difference} _ _ _
+      (mulMathClass (pair N.Nat^::zero N.Nat^::zero) x)
+      (classOfEq _ (pair N.Nat^::zero N.Nat^::zero) (RawLaws.mulIntegerZeroLeft x)));
+\definition mulAssocOnClasses(x, y, z: Difference):
+  mulMath (mulMath (class x) (class y)) (class z) = mulMath (class x) (mulMath (class y) (class z)) := eq_reason!{
+    {mulMath (mulMath (class x) (class y)) (class z)}
+    "=" {mulMath (class (mulRep x y)) (class z)} "by" {
+      mathCong (\fun (a: Grothendieck) => mulMath a (class z)) _ _ (mulMathClass x y)}
+    "=" {class (mulRep (mulRep x y) z)} "by" {mulMathClass (mulRep x y) z}
+    "=" {class (mulRep x (mulRep y z))} "by" {classOfEq _ _ (RawLaws.mulIntegerAssoc x y z)}
+    "=" {mulMath (class x) (class (mulRep y z))} "by" {sym!{\Pow Difference} _ _ (mulMathClass x (mulRep y z))}
+    "=" {mulMath (class x) (mulMath (class y) (class z))} "by" {
+      mathCong (mulMath (class x)) _ _ (sym!{\Pow Difference} _ _ (mulMathClass y z))}
+  };
+\definition mulAssocMath: \forall (x, y, z: Grothendieck) -> mulMath (mulMath x y) z = mulMath x (mulMath y z) :=
+  mathInduction (\fun (x: Grothendieck) => \forall (y, z: Grothendieck) -> mulMath (mulMath x y) z = mulMath x (mulMath y z))
+    (\fun (x: Difference) => mathInduction
+      (\fun (y: Grothendieck) => \forall (z: Grothendieck) -> mulMath (mulMath (class x) y) z = mulMath (class x) (mulMath y z))
+      (\fun (y: Difference) => mathInduction
+        (\fun (z: Grothendieck) => mulMath (mulMath (class x) (class y)) z = mulMath (class x) (mulMath (class y) z))
+        (mulAssocOnClasses x y)));
+\definition mulAddOnClasses(x, y, z: Difference):
+  mulMath (class x) (addMath (class y) (class z)) = addMath (mulMath (class x) (class y)) (mulMath (class x) (class z)) := eq_reason!{
+    {mulMath (class x) (addMath (class y) (class z))}
+    "=" {mulMath (class x) (class (addRep y z))} "by" {mathCong (mulMath (class x)) _ _ (addMathClass y z)}
+    "=" {class (mulRep x (addRep y z))} "by" {mulMathClass x (addRep y z)}
+    "=" {class (addRep (mulRep x y) (mulRep x z))} "by" {classOfEq _ _ (RawLaws.mulIntegerDistribLeft x y z)}
+    "=" {addMath (class (mulRep x y)) (class (mulRep x z))} "by" {sym!{\Pow Difference} _ _ (addMathClass (mulRep x y) (mulRep x z))}
+    "=" {addMath (mulMath (class x) (class y)) (mulMath (class x) (class z))} "by" {
+      mathCong2 addMath _ _ _ _ (sym!{\Pow Difference} _ _ (mulMathClass x y)) (sym!{\Pow Difference} _ _ (mulMathClass x z))}
+  };
+\definition mulAddMath: \forall (x, y, z: Grothendieck) -> mulMath x (addMath y z) = addMath (mulMath x y) (mulMath x z) :=
+  mathInduction (\fun (x: Grothendieck) => \forall (y, z: Grothendieck) -> mulMath x (addMath y z) = addMath (mulMath x y) (mulMath x z))
+    (\fun (x: Difference) => mathInduction
+      (\fun (y: Grothendieck) => \forall (z: Grothendieck) -> mulMath (class x) (addMath y z) = addMath (mulMath (class x) y) (mulMath (class x) z))
+      (\fun (y: Difference) => mathInduction
+        (\fun (z: Grothendieck) => mulMath (class x) (addMath (class y) z) = addMath (mulMath (class x) (class y)) (mulMath (class x) z))
+        (mulAddOnClasses x y)));
+\definition mulOneLeft: \forall (x: Int^) -> Mul.specification One.specification x = x :=
+  \fun (x: Int^) => toMathInjective _ _ (trans!{\Pow Difference} _ _ _
+    (mulSetMatchesMath One.specification x) (mulOneLeftMath (toMath x)));
+\definition mulZeroLeft: \forall (x: Int^) -> Mul.specification Zero.specification x = Zero.specification :=
+  \fun (x: Int^) => toMathInjective _ _ (trans!{\Pow Difference} _ _ _
+    (mulSetMatchesMath Zero.specification x) (mulZeroLeftMath (toMath x)));
+\definition mulAssoc: \forall (x, y, z: Int^) -> Mul.specification (Mul.specification x y) z = Mul.specification x (Mul.specification y z) :=
+  \fun (x, y, z: Int^) => toMathInjective _ _ (eq_reason!{
+    {toMath (Mul.specification (Mul.specification x y) z)}
+    "=" {mulMath (toMath (Mul.specification x y)) (toMath z)} "by" {mulSetMatchesMath (Mul.specification x y) z}
+    "=" {mulMath (mulMath (toMath x) (toMath y)) (toMath z)} "by" {
+      mathCong (\fun (a: Grothendieck) => mulMath a (toMath z)) _ _ (mulSetMatchesMath x y)}
+    "=" {mulMath (toMath x) (mulMath (toMath y) (toMath z))} "by" {mulAssocMath (toMath x) (toMath y) (toMath z)}
+    "=" {mulMath (toMath x) (toMath (Mul.specification y z))} "by" {
+      mathCong (mulMath (toMath x)) _ _ (sym!{\Pow Difference} _ _ (mulSetMatchesMath y z))}
+    "=" {toMath (Mul.specification x (Mul.specification y z))} "by" {sym!{\Pow Difference} _ _ (mulSetMatchesMath x (Mul.specification y z))}
+  });
+\definition mulAdd: \forall (x, y, z: Int^) -> Mul.specification x (Add.specification y z) = Add.specification (Mul.specification x y) (Mul.specification x z) :=
+  \fun (x, y, z: Int^) => toMathInjective _ _ (eq_reason!{
+    {toMath (Mul.specification x (Add.specification y z))}
+    "=" {mulMath (toMath x) (toMath (Add.specification y z))} "by" {mulSetMatchesMath x (Add.specification y z)}
+    "=" {mulMath (toMath x) (addMath (toMath y) (toMath z))} "by" {mathCong (mulMath (toMath x)) _ _ (addSetMatchesMath y z)}
+    "=" {addMath (mulMath (toMath x) (toMath y)) (mulMath (toMath x) (toMath z))} "by" {mulAddMath (toMath x) (toMath y) (toMath z)}
+    "=" {addMath (toMath (Mul.specification x y)) (toMath (Mul.specification x z))} "by" {
+      mathCong2 addMath _ _ _ _ (sym!{\Pow Difference} _ _ (mulSetMatchesMath x y)) (sym!{\Pow Difference} _ _ (mulSetMatchesMath x z))}
+    "=" {toMath (Add.specification (Mul.specification x y) (Mul.specification x z))} "by" {
+      sym!{\Pow Difference} _ _ (addSetMatchesMath (Mul.specification x y) (Mul.specification x z))}
+  });
+\definition mulOneRight: \forall (x: Int^) -> Mul.specification x One.specification = x :=
+  \fun (x: Int^) => trans!{Int^} _ _ _ (mulComm x One.specification) (mulOneLeft x);
+\definition mulZeroRight: \forall (x: Int^) -> Mul.specification x Zero.specification = Zero.specification :=
+  \fun (x: Int^) => trans!{Int^} _ _ _ (mulComm x Zero.specification) (mulZeroLeft x);
+\definition addMul: \forall (x, y, z: Int^) -> Mul.specification (Add.specification x y) z = Add.specification (Mul.specification x z) (Mul.specification y z) :=
+  \fun (x, y, z: Int^) => trans!{Int^} _ _ _ (mulComm (Add.specification x y) z)
+    (trans!{Int^} _ _ _ (mulAdd z x y) (congr2!{Int^ Int^ Int^} Add.specification _ _ _ _ (mulComm z x) (mulComm z y)));

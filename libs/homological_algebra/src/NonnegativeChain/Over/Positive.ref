@@ -1,0 +1,39 @@
+\import Modules.Of[V := C.family.Carrier (N.Nat^::succ n), space := C.family.space (N.Nat^::succ n)] \as Current;
+\import Current.Submodule[] \as Submodules;
+\import Modules.Hom[V := C.family.Carrier (N.Nat^::succ n), W := C.family.Carrier (n), source := C.family.space (N.Nat^::succ n), target := C.family.space (n)] \as Maps;
+\definition differential: Maps.Map := Maps.Map { apply := #apply{C.differential} n, addition := #addition{C.laws} n, scalar := #scalar{C.laws} n };
+\import Modules.Hom[V := C.family.Carrier (N.Nat^::succ (N.Nat^::succ n)), W := C.family.Carrier (N.Nat^::succ n), source := C.family.space (N.Nat^::succ (N.Nat^::succ n)), target := C.family.space (N.Nat^::succ n)] \as Before;
+\definition prior: Before.Map := Before.Map {
+  apply := #apply{C.differential} (N.Nat^::succ n), addition := #addition{C.laws} (N.Nat^::succ n), scalar := #scalar{C.laws} (N.Nat^::succ n),
+};
+\import Submodules.Kernel[W := C.family.Carrier (n), target := C.family.space (n)] \as Kernels;
+\import Submodules.Image[U := C.family.Carrier (N.Nat^::succ (N.Nat^::succ n)), source := C.family.space (N.Nat^::succ (N.Nat^::succ n))] \as Images;
+\definition cycles: Submodules.Submodule := Kernels.kernel differential;
+\definition boundaries: Submodules.Submodule := Images.image prior;
+\definition boundaryCycle: Submodules.Included boundaries cycles :=
+  \fun (x: C.family.Carrier (N.Nat^::succ n))(member: Submodules.Member boundaries x) => Images.eliminate prior x (#apply{C.differential} n x = #zero{(C.family.space (n))})
+    (\fun (y: C.family.Carrier (N.Nat^::succ (N.Nat^::succ n)))(equal: #apply{prior} y = x) => \idelim #apply{prior} y = x
+      \with v: C.family.Carrier (N.Nat^::succ n) => #apply{C.differential} n v = #zero{(C.family.space (n))}
+      \by { base: #squareZero{C.laws} n y, equality: equal }) member;
+\import Submodules.Of[S := cycles] \as Cycles;
+\import Submodules.Inside[Z := cycles] \as Inside;
+\import Modules.Submodule[V := Cycles.Carrier, space := Cycles.moduleSpace] \as CycleSubmodules;
+\definition boundariesInside: CycleSubmodules.Submodule := Inside.inside boundaries boundaryCycle;
+\import Modules.Of[V := Cycles.Carrier, space := Cycles.moduleSpace].Submodule[].Quotient[S := boundariesInside] \as Quotient;
+\definition Homology: \Set := Quotient.Carrier;
+\definition homologySpace: Modules.Space Homology := Quotient.moduleSpace;
+\definition Cycle: \Set := Cycles.Carrier;
+\definition cycleSpace: Modules.Space Cycle := Cycles.moduleSpace;
+\definition cycle(x: C.family.Carrier (N.Nat^::succ n))(closed: #apply{C.differential} n x = #zero{(C.family.space (n))}): Cycle :=
+  \into[C.family.Carrier (N.Nat^::succ n)](x, #carrier{cycles}) \by { closed };
+\definition classOf(x: Cycle): Homology := Quotient.class x;
+\definition zeroClass: Homology := Quotient.zeroClass;
+\definition classEqual: \forall (x, y: Cycle) -> Submodules.Member boundaries (#add{(C.family.space (N.Nat^::succ n))} x (#neg{(C.family.space (N.Nat^::succ n))} y)) -> classOf x = classOf y := Quotient.classRelated;
+\definition classRelated: \forall (x, y: Cycle) -> classOf x = classOf y -> Submodules.Member boundaries (#add{(C.family.space (N.Nat^::succ n))} x (#neg{(C.family.space (N.Nat^::succ n))} y)) := Quotient.relatedOfClassEq;
+\definition boundaryClassZero: \forall (x: Cycle) -> Submodules.Member boundaries x -> classOf x = zeroClass := Quotient.classZero;
+\definition zeroClassBoundary: \forall (x: Cycle) -> classOf x = zeroClass -> Submodules.Member boundaries x := Quotient.zeroClassMember;
+\definition classInduction(P: Homology -> \Prop): (\forall (x: Cycle) -> P (classOf x)) -> \forall (x: Homology) -> P x := Quotient.induction P;
+\import Modules.Hom[V := Cycle, W := Homology, source := Cycles.moduleSpace, target := homologySpace] \as Classes;
+\definition classLinear: Classes.Map := Quotient.projection;
+
+\module Vanishing;

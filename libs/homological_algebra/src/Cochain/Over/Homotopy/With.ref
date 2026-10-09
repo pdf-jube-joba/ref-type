@@ -1,0 +1,71 @@
+\definition laws: Laws[f, g, h] := \bysub(Data, { h: Data \where Laws[f, g, h] }, h);
+\module Degree(n: N.Nat^) {
+  \import \parent.\parent.\parent.At[C := C, k := n] \as Source;
+  \import \parent.\parent.\parent.At[C := D, k := n] \as Target;
+  \import Maps.At[k := n] \as Induced;
+  \definition Carrier: \Set := Source.CycleCarrier;
+  \definition difference(x: Source.CycleCarrier): D.family.Carrier n :=
+    #add{(D.family.space n)} (#apply{f} n x) (#neg{(D.family.space n)} (#apply{g} n x));
+  \definition boundaryPredicate(x: Source.CycleCarrier): \Prop :=
+    \In[D.family.Carrier n] (Target.Boundaries n) (difference x);
+}
+\definition Cycles(n: N.Nat^): \Set := Degree[n := n].Carrier;
+\definition IsBoundary(n: N.Nat^)(x: Cycles n): \Prop := Degree[n := n].boundaryPredicate x;
+\module Zero {
+  \import \parent.Degree[n := N.Nat^::zero] \as Term;
+  \import \parent.\parent.\parent.At[C := C, k := N.Nat^::zero] \as Source;
+  \import Modules.Hom[V := C.family.Carrier (next N.Nat^::zero), W := D.family.Carrier N.Nat^::zero,
+    source := C.family.space (next N.Nat^::zero), target := D.family.space N.Nat^::zero] \as Linear;
+  \definition boundary: \forall (x: Cycles N.Nat^::zero) -> IsBoundary N.Nat^::zero x :=
+    \fun (x: Cycles N.Nat^::zero) => trans!{{D.family.Carrier N.Nat^::zero}} _ _ _ (#degreeZero{laws} x)
+      (trans!{{D.family.Carrier N.Nat^::zero}} _ _ _
+        (congr!{{C.family.Carrier (next N.Nat^::zero)} {D.family.Carrier N.Nat^::zero}} (#apply{(h N.Nat^::zero)})
+          (#apply{C.differential} N.Nat^::zero x) (#zero{(C.family.space (next N.Nat^::zero))})
+          (\bysub(C.family.Carrier N.Nat^::zero, #carrier{Source.cycles}, x)))
+        (Linear.zeroPreserved (h N.Nat^::zero)));
+}
+\module Positive(n: N.Nat^) {
+  \import \parent.Degree[n := next n] \as Term;
+  \import \parent.\parent.\parent.At[C := C, k := next n] \as Source;
+  \import Modules.Hom[V := C.family.Carrier (next (next n)), W := D.family.Carrier (next n),
+    source := C.family.space (next (next n)), target := D.family.space (next n)] \as Linear;
+  \import Modules.Laws[V := D.family.Carrier (next n), space := D.family.space (next n)] \as Vector;
+  \import algebra.Group[].Of[Carrier := D.family.Carrier (next n), group := Vector.additive] \as Group;
+  \definition residual: \forall (x: Cycles (next n)) -> Term.difference x = #apply{D.differential} n (#apply{(h n)} x) :=
+    \fun (x: Cycles (next n)) => trans!{{D.family.Carrier (next n)}} _ _ _ (#positive{laws} n x)
+      (trans!{{D.family.Carrier (next n)}} _ _ _
+        (congr!{{C.family.Carrier (next (next n))} {D.family.Carrier (next n)}}
+          (\fun (z: C.family.Carrier (next (next n))) => #add{(D.family.space (next n))}
+            (#apply{D.differential} n (#apply{(h n)} x)) (#apply{(h (next n))} z))
+          (#apply{C.differential} (next n) x) (#zero{(C.family.space (next (next n)))})
+          (\bysub(C.family.Carrier (next n), #carrier{Source.cycles}, x)))
+        (trans!{{D.family.Carrier (next n)}} _ _ _
+          (congr!{{D.family.Carrier (next n)} {D.family.Carrier (next n)}}
+            (#add{(D.family.space (next n))} (#apply{D.differential} n (#apply{(h n)} x))) _ _
+            (Linear.zeroPreserved (h (next n))))
+          (Group.zeroRight (#apply{D.differential} n (#apply{(h n)} x)))));
+  \definition boundary: \forall (x: Cycles (next n)) -> IsBoundary (next n) x :=
+    \fun (x: Cycles (next n)) => \exact(\into[D.family.Carrier n](#apply{(h n)} x,
+      { y: D.family.Carrier n \where #apply{D.differential} n y = Term.difference x }) \by {
+        sym!{{D.family.Carrier (next n)}} _ _ (residual x)
+      }, \Cast[D.family.Carrier n] ({ y: D.family.Carrier n \where #apply{D.differential} n y = Term.difference x }));
+}
+\definition boundary: \forall (n: N.Nat^)(x: Cycles n) -> IsBoundary n x :=
+  \induction (n: N.Nat^) \return \forall (x: Cycles n) -> IsBoundary n x \with {
+    | zero: Zero[].boundary
+    | succ: \fun (n: N.Nat^)(previous: _) => Positive[n := n].boundary
+  };
+\module At(n: N.Nat^) {
+  \import \parent.Degree[n := n] \as Term;
+  \import \parent.\parent.\parent.At[C := C, k := n] \as Source;
+  \import \parent.\parent.\parent.At[C := D, k := n] \as Target;
+  \import Maps.At[k := n] \as Induced;
+  \definition same: \forall (x: Source.Cohomology) ->
+    #apply{(Induced.induced f)} x = #apply{(Induced.induced g)} x :=
+    Source.classInduction
+      (\fun (x: Source.Cohomology) => #apply{(Induced.induced f)} x = #apply{(Induced.induced g)} x)
+      (\fun (x: Source.CycleCarrier) => trans!{Target.Cohomology} _ _ _ (Induced.onClass f x)
+        (trans!{Target.Cohomology} _ _ _
+          (Target.classEqual (#apply{(Induced.cyclesMap f)} x) (#apply{(Induced.cyclesMap g)} x) (boundary n x))
+          (sym!{Target.Cohomology} _ _ (Induced.onClass g x))));
+}

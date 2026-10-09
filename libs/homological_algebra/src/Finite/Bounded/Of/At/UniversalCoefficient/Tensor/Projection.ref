@@ -1,0 +1,83 @@
+\import Modules.Tensor[V := Carrier C (next z), W := A.Carrier, left := space C (next z), right := A.space] \as NextTensor;
+\import Modules.Tensor[V := Homology.Homology, W := A.Carrier, left := Homology.homologySpace, right := A.space] \as HomologyTensor;
+\import \parent.Boundaries[] \as Boundaries;
+\import \root.Finite[].Bounded[].Of[C := C].At[z := previous z] \as Previous;
+\import Previous.Presentation[] \as Presentation;
+\import Previous.UniversalCoefficient[A := A] \as PreviousSplitting;
+\import Chains.At[C := chain, z := previous z] \as PreviousHomology;
+\import \root.Tor[].Over[R := I.Int^, ring := IntegerRing.commutativeRing].LengthOne[K := Presentation.boundaryBundle, L := Presentation.cyclesBundle, M := Presentation.homologyBundle, N := A].With[sequence := Presentation.sequence] \as Tor;
+\definition resolution: _ := Tor.resolution Presentation.boundaryProjective Presentation.cyclesProjective;
+\import Modules.Tensor[V := PreviousHomology.Cycle, W := A.Carrier, left := PreviousHomology.cycleSpace, right := A.space] \as LowerCycles;
+\import Modules.Of[V := Carrier C (previous z), space := space C (previous z)].Submodule[].Of[S := PreviousHomology.cycles] \as PreviousCycles;
+\import LowerCycles.Mapping[U := Carrier C (previous z), Z := A.Carrier, targetLeft := space C (previous z), targetRight := A.space] \as LowerInclusion;
+\definition lowerInclusion: Modules.Hom[V := LowerCycles.Carrier, W := LowerTensor.Carrier, source := LowerCycles.space, target := LowerTensor.space].Map := LowerInclusion.map PreviousCycles.inclusion Coefficient.identity;
+\import LowerTensor.Mapping[U := PreviousHomology.Cycle, Z := A.Carrier, targetLeft := PreviousHomology.cycleSpace, targetRight := A.space] \as LowerRetraction;
+\definition lowerRetraction: Modules.Hom[V := LowerTensor.Carrier, W := LowerCycles.Carrier, source := LowerTensor.space, target := LowerCycles.space].Map := LowerRetraction.map PreviousSplitting.retraction Coefficient.identity;
+\import Modules.Hom[V := LowerTensor.Carrier, W := LowerCycles.Carrier, source := LowerTensor.space, target := LowerCycles.space].Composition[U := LowerCycles.Carrier, domain := LowerCycles.space] \as LowerRoundtrip;
+\import Modules.End[V := LowerCycles.Carrier, space := LowerCycles.space] \as LowerIdentity;
+\import LowerCycles.Universal[U := LowerCycles.Carrier, target := LowerCycles.space] \as LowerUniversal;
+\definition lowerRoundtrip: LowerRoundtrip.compose lowerRetraction lowerInclusion = LowerIdentity.identity :=
+  LowerUniversal.ext (LowerRoundtrip.compose lowerRetraction lowerInclusion) LowerIdentity.identity
+    (\fun (x: PreviousHomology.Cycle)(a: A.Carrier) => trans!{LowerCycles.Carrier} _ _ _
+      (congr!{LowerTensor.Carrier LowerCycles.Carrier} (#apply{lowerRetraction}) _ _ (LowerInclusion.onTensor PreviousCycles.inclusion Coefficient.identity x a))
+      (trans!{LowerCycles.Carrier} _ _ _ (LowerRetraction.onTensor PreviousSplitting.retraction Coefficient.identity x a)
+        (congr!{PreviousHomology.Cycle LowerCycles.Carrier} (\fun (v: PreviousHomology.Cycle) => LowerCycles.tensor v a) _ _ (PreviousSplitting.retractCycle x))));
+\definition lowerRoundtripPoint: \forall (x: LowerCycles.Carrier) -> #apply{lowerRetraction} (#apply{lowerInclusion} x) = x :=
+  \fun (x: LowerCycles.Carrier) => congr!{Modules.Hom[V := LowerCycles.Carrier, W := LowerCycles.Carrier, source := LowerCycles.space, target := LowerCycles.space].Map LowerCycles.Carrier}
+    (\fun (f: Modules.Hom[V := LowerCycles.Carrier, W := LowerCycles.Carrier, source := LowerCycles.space, target := LowerCycles.space].Map) => #apply{f} x) _ _ lowerRoundtrip;
+\definition lowerInjective: \forall (x, y: LowerCycles.Carrier) -> #apply{lowerInclusion} x = #apply{lowerInclusion} y -> x = y :=
+  \fun (x, y: LowerCycles.Carrier)(equal: _) => trans!{LowerCycles.Carrier} _ _ _
+    (sym!{LowerCycles.Carrier} _ _ (lowerRoundtripPoint x))
+    (trans!{LowerCycles.Carrier} _ _ _ (congr!{LowerTensor.Carrier LowerCycles.Carrier} (#apply{lowerRetraction}) _ _ equal) (lowerRoundtripPoint y));
+\import Modules.Hom[V := BoundaryTensor.Carrier, W := LowerCycles.Carrier, source := BoundaryTensor.space, target := LowerCycles.space].Composition[U := CurrentTensor.Carrier, domain := CurrentTensor.space] \as BoundaryDifferential;
+\definition boundaryDifferential: Modules.Hom[V := CurrentTensor.Carrier, W := LowerCycles.Carrier, source := CurrentTensor.space, target := LowerCycles.space].Map :=
+  BoundaryDifferential.compose Tor.kernelDifferential projection;
+\import Modules.Hom[V := LowerCycles.Carrier, W := LowerTensor.Carrier, source := LowerCycles.space, target := LowerTensor.space].Composition[U := CurrentTensor.Carrier, domain := CurrentTensor.space] \as Factorization;
+\import CurrentTensor.Universal[U := LowerTensor.Carrier, target := LowerTensor.space] \as Universal;
+\import CurrentTensor.Mapping[U := Boundary.Carrier, Z := A.Carrier, targetLeft := Boundary.space, targetRight := A.space] \as QuotientMapping;
+\definition differentialFactor: Factorization.compose lowerInclusion boundaryDifferential = Differential.differential :=
+  Universal.ext (Factorization.compose lowerInclusion boundaryDifferential) Differential.differential
+    (\fun (x: Carrier C z)(a: A.Carrier) => trans!{LowerTensor.Carrier} _ _ _
+      (congr!{BoundaryTensor.Carrier LowerTensor.Carrier}
+        (\fun (b: BoundaryTensor.Carrier) => #apply{lowerInclusion} (#apply{Tor.kernelDifferential} b)) _ _
+        (QuotientMapping.onTensor Boundary.map Coefficient.identity x a))
+      (trans!{LowerTensor.Carrier} _ _ _
+        (congr!{LowerCycles.Carrier LowerTensor.Carrier} (#apply{lowerInclusion}) _ _ (Tor.onTensor (Boundary.value x) a))
+        (trans!{LowerTensor.Carrier} _ _ _ (LowerInclusion.onTensor PreviousCycles.inclusion Coefficient.identity (Boundary.value x) a)
+          (sym!{LowerTensor.Carrier} _ _ (Differential.onTensor x a)))));
+\definition differentialFactorPoint: \forall (x: CurrentTensor.Carrier) ->
+  #apply{lowerInclusion} (#apply{Tor.kernelDifferential} (#apply{projection} x)) = NativeTensor.apply z x :=
+  \fun (x: CurrentTensor.Carrier) => congr!{Modules.Hom[V := CurrentTensor.Carrier, W := LowerTensor.Carrier, source := CurrentTensor.space, target := LowerTensor.space].Map LowerTensor.Carrier}
+    (\fun (f: Modules.Hom[V := CurrentTensor.Carrier, W := LowerTensor.Carrier, source := CurrentTensor.space, target := LowerTensor.space].Map) => #apply{f} x) _ _ differentialFactor;
+\import Modules.Hom[V := LowerCycles.Carrier, W := LowerTensor.Carrier, source := LowerCycles.space, target := LowerTensor.space] \as LowerMaps;
+\definition closedKernel: \forall (x: TensorHomology.Cycle) -> #apply{Tor.kernelDifferential} (#apply{projection} x) = #zero{LowerCycles.space} :=
+  \fun (x: TensorHomology.Cycle) => lowerInjective _ _
+    (trans!{LowerTensor.Carrier} _ _ _ (differentialFactorPoint x)
+      (trans!{LowerTensor.Carrier} _ _ _ (\bysub(CurrentTensor.Carrier, #carrier{TensorHomology.cycles}, x))
+        (sym!{LowerTensor.Carrier} _ _ (LowerMaps.zeroPreserved lowerInclusion))));
+\definition kernel(x: TensorHomology.Cycle): Tor.Kernel := Tor.kernel (#apply{projection} x) (closedKernel x);
+\import Modules.Hom[V := TensorHomology.Cycle, W := Tor.Kernel, source := TensorHomology.cycleSpace, target := Tor.kernelSpace] \as KernelMaps;
+\definition kernelMap: KernelMaps.Map := KernelMaps.Map {
+  apply := kernel,
+  addition := \fun (x, y: TensorHomology.Cycle) => #addition{projection} x y,
+  scalar := \fun (a: I.Int^)(x: TensorHomology.Cycle) => #scalar{projection} a x,
+};
+\definition onBoundary: \forall (w: NextTensor.Carrier) -> #apply{projection} (#apply{TensorHomology.prior} w) = #zero{BoundaryTensor.space} :=
+  \fun (w: NextTensor.Carrier) => trans!{BoundaryTensor.Carrier} _ _ _
+    (congr!{CurrentTensor.Carrier BoundaryTensor.Carrier} (#apply{projection}) _ _ (sym!{CurrentTensor.Carrier} _ _ (Boundaries.differentialFactorPoint w)))
+    (#zero{sequence} (#apply{Boundaries.intoCycles} (#apply{Boundaries.incoming} w)));
+\definition vanishes: \forall (x: TensorHomology.Cycle) ->
+  Modules.Submodule[V := TensorHomology.Cycle, space := TensorHomology.cycleSpace].Member TensorHomology.boundariesInside x ->
+  #apply{kernelMap} x = #zero{Tor.kernelSpace} := \block {
+  \fun (x: TensorHomology.Cycle)(member: _) \then
+  \takefrom w: \Cast[NextTensor.Carrier] ({ w: NextTensor.Carrier \where #apply{TensorHomology.prior} w = x }) \by member \then
+  \return trans!{BoundaryTensor.Carrier} _ _ _
+    (congr!{CurrentTensor.Carrier BoundaryTensor.Carrier} (#apply{projection}) x (#apply{TensorHomology.prior} w)
+      (sym!{CurrentTensor.Carrier} _ _ (\bysub(NextTensor.Carrier, { w: NextTensor.Carrier \where #apply{TensorHomology.prior} w = x }, w))))
+    (onBoundary w)
+};
+\import Modules.Of[V := TensorHomology.Cycle, space := TensorHomology.cycleSpace].Submodule[].Quotient[S := TensorHomology.boundariesInside] \as Quotient;
+\import Quotient.To[W := Tor.Kernel, target := Tor.kernelSpace] \as Descent;
+\definition map: Modules.Hom[V := TensorHomology.Homology, W := Tor.Kernel, source := TensorHomology.homologySpace, target := Tor.kernelSpace].Map := Descent.descend kernelMap vanishes;
+\definition onClass: \forall (x: TensorHomology.Cycle) -> #apply{map} (TensorHomology.classOf x) = kernel x := Descent.onClass kernelMap vanishes;
+\module Exactness;

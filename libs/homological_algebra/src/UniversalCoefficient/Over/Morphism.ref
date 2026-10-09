@@ -1,0 +1,63 @@
+\import Chains.Map[C := C, D := D] \as ChainMaps;
+\import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space] \as Coefficients;
+\import HomComplex.Integer[P := D, N := A] \as SourceHom;
+\import HomComplex.Integer[P := C, N := B] \as TargetHom;
+\import HomComplex.IntegerMapping[P := C, Q := D, N := A, L := B] \as Mapping;
+\module On(f: ChainMaps.Map, u: Coefficients.Map) {
+  \import Mapping.On[f := f, u := u] \as HomMap;
+  \module At(z: Degrees.Degree) {
+    \import \parent.\parent.\parent.On[C := D, A := A].At[z := z] \as Source;
+    \import \parent.\parent.\parent.On[C := C, A := B].At[z := z] \as Target;
+    \import Chains.At[C := C, z := z] \as H;
+    \import Chains.At[C := D, z := z] \as K;
+    \import ChainMaps.At[k := z] \as Homology;
+    \import SourceHom.Cohomology[z := z] \as SourceCohomology;
+    \import TargetHom.Cohomology[z := z] \as TargetCohomology;
+    \import HomMap.At[z := z] \as Induced;
+    \import Modules.Hom[V := K.Homology, W := A.Carrier, source := K.homologySpace, target := A.space] \as SourceValues;
+    \import Modules.Hom[V := H.Homology, W := B.Carrier, source := H.homologySpace, target := B.space] \as TargetValues;
+    \definition value(g: Source.ValueCarrier): Target.ValueCarrier := TargetValues.Map {
+      apply := \fun (x: H.Homology) => #apply{u} (#apply{g} (#apply{(Homology.induced f)} x)),
+      addition := \fun (x, y: H.Homology) => trans!{B.Carrier} _ _ _
+        (congr!{A.Carrier B.Carrier} (#apply{u}) _ _
+          (trans!{A.Carrier} _ _ _
+            (congr!{K.Homology A.Carrier} (#apply{g}) _ _ (#addition{(Homology.induced f)} x y))
+            (#addition{g} (#apply{(Homology.induced f)} x) (#apply{(Homology.induced f)} y))))
+        (#addition{u} (#apply{g} (#apply{(Homology.induced f)} x)) (#apply{g} (#apply{(Homology.induced f)} y))),
+      scalar := \fun (a: R)(x: H.Homology) => trans!{B.Carrier} _ _ _
+        (congr!{A.Carrier B.Carrier} (#apply{u}) _ _
+          (trans!{A.Carrier} _ _ _
+            (congr!{K.Homology A.Carrier} (#apply{g}) _ _ (#scalar{(Homology.induced f)} a x))
+            (#scalar{g} a (#apply{(Homology.induced f)} x))))
+        (#scalar{u} a (#apply{g} (#apply{(Homology.induced f)} x))),
+    };
+    \definition values: Modules.Hom[V := Source.ValueCarrier, W := Target.ValueCarrier, source := Source.valueSpace, target := Target.valueSpace].Map :=
+      Modules.Hom[V := Source.ValueCarrier, W := Target.ValueCarrier, source := Source.valueSpace, target := Target.valueSpace].Map {
+        apply := value,
+        addition := \fun (g, h: Source.ValueCarrier) => TargetValues.ext (value (#add{Source.valueSpace} g h)) (#add{Target.valueSpace} (value g) (value h))
+          (\fun (x: H.Homology) => #addition{u} (#apply{g} (#apply{(Homology.induced f)} x)) (#apply{h} (#apply{(Homology.induced f)} x))),
+        scalar := \fun (a: R)(g: Source.ValueCarrier) => TargetValues.ext (value (#smul{Source.valueSpace} a g)) (#smul{Target.valueSpace} a (value g))
+          (\fun (x: H.Homology) => #scalar{u} a (#apply{g} (#apply{(Homology.induced f)} x))),
+      };
+    \definition cohomology: Modules.Hom[V := Source.CohomologyCarrier, W := Target.CohomologyCarrier, source := Source.cohomologySpace, target := Target.cohomologySpace].Map := Induced.map;
+    \definition onClass: \forall (g: SourceCohomology.Closed)(x: H.Cycle) ->
+      #apply{(#apply{Target.map} (#apply{cohomology} (SourceCohomology.classOf g)))} (H.classOf x) = #apply{u} (#apply{g} (#apply{f} z x)) :=
+      \fun (g: SourceCohomology.Closed)(x: H.Cycle) => trans!{B.Carrier} _ _ _
+        (congr!{Target.CohomologyCarrier B.Carrier} (\fun (q: Target.CohomologyCarrier) => #apply{(#apply{Target.map} q)} (H.classOf x)) _ _ (Induced.onClass g))
+        (trans!{B.Carrier} _ _ _
+          (congr!{Target.ValueCarrier B.Carrier} (\fun (v: Target.ValueCarrier) => #apply{v} (H.classOf x)) _ _ (Target.onCohomologyClass (#apply{Induced.cycles} g)))
+          (Target.onClass (#apply{Induced.cycles} g) x));
+    \definition valueOnClass: \forall (g: SourceCohomology.Closed)(x: H.Cycle) ->
+      #apply{(#apply{values} (#apply{Source.map} (SourceCohomology.classOf g)))} (H.classOf x) = #apply{u} (#apply{g} (#apply{f} z x)) :=
+      \fun (g: SourceCohomology.Closed)(x: H.Cycle) => trans!{B.Carrier} _ _ _
+        (congr!{Source.ValueCarrier B.Carrier} (\fun (v: Source.ValueCarrier) => #apply{(value v)} (H.classOf x)) _ _ (Source.onCohomologyClass g))
+        (trans!{B.Carrier} _ _ _
+          (congr!{K.Homology B.Carrier} (\fun (q: K.Homology) => #apply{u} (#apply{(Source.evaluate g)} q)) _ _ (Homology.onClass f x))
+          (congr!{A.Carrier B.Carrier} (#apply{u}) _ _ (Source.onClass g (#apply{(Homology.cyclesMap f)} x))));
+    \definition naturality: \forall (q: Source.CohomologyCarrier) -> #apply{Target.map} (#apply{cohomology} q) = #apply{values} (#apply{Source.map} q) :=
+      SourceCohomology.classInduction (\fun (q: Source.CohomologyCarrier) => #apply{Target.map} (#apply{cohomology} q) = #apply{values} (#apply{Source.map} q))
+        (\fun (g: SourceCohomology.Closed) => TargetValues.ext (#apply{Target.map} (#apply{cohomology} (SourceCohomology.classOf g))) (#apply{values} (#apply{Source.map} (SourceCohomology.classOf g)))
+          (H.classInduction (\fun (x: H.Homology) => #apply{(#apply{Target.map} (#apply{cohomology} (SourceCohomology.classOf g)))} x = #apply{(#apply{values} (#apply{Source.map} (SourceCohomology.classOf g)))} x)
+            (\fun (x: H.Cycle) => trans!{B.Carrier} _ _ _ (onClass g x) (sym!{B.Carrier} _ _ (valueOnClass g x)))));
+  }
+}

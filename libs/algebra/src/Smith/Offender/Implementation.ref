@@ -1,0 +1,19 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> N.Nat -> Runtime -> Grid.Position);
+\definition program: T := \thunk (\cfun (rows: N.Nat) => \return(\thunk (\cfun (cols: N.Nat) => \return(\thunk (\cfun (k: N.Nat) => \return(\thunk (\cfun (a: Runtime) => \program {
+  \bind matrices: \U(Runtime -> Runtime) <- (\force Remainders.program) k \then
+  \bind remainders: Runtime <- (\force matrices) a \then
+  \bind columns: \U(N.Nat -> N.Nat -> Runtime -> Grid.Position) <- (\force searchProgram) rows \then
+  \bind pivots: \U(N.Nat -> Runtime -> Grid.Position) <- (\force columns) cols \then
+  \bind search: \U(Runtime -> Grid.Position) <- (\force pivots) (N.Nat::succ k) \then
+  \bind result: Grid.Position <- (\force search) remainders \then
+  \return result
+})))))));
+\definition located(rows, cols, k: N.Nat^)(a: Runtime^): Grid.Position^ := Search.search rows cols (N.Nat^::succ k) (Remainders.program^ k a);
+\definition matches: \forall (rows, cols, k: N.Nat^)(a: Runtime^) -> program^ rows cols k a = seek rows cols k a :=
+  \fun (rows, cols, k: N.Nat^)(a: Runtime^) => trans!{Grid.Position^} (program^ rows cols k a) (located rows cols k a) (seek rows cols k a)
+    (congr!{Search.Search.T^ Grid.Position^} (\fun (f: Search.Search.T^) => f rows cols (N.Nat^::succ k) (Remainders.program^ k a)) searchProgram^ Search.search Search.Search.coherence)
+    (congr!{Remainders.T^ Grid.Position^} (\fun (f: Remainders.T^) => Search.search rows cols (N.Nat^::succ k) (f k a)) Remainders.program^ remainders Remainders.coherence);
+\definition coherence: program^ = seek := \axiom:funext(program^, seek,
+  \fun (rows: N.Nat^) => \axiom:funext(program^ rows, seek rows,
+    \fun (cols: N.Nat^) => \axiom:funext(program^ rows cols, seek rows cols,
+      \fun (k: N.Nat^) => \axiom:funext(program^ rows cols k, seek rows cols k, matches rows cols k))));

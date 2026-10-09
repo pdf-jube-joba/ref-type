@@ -1,0 +1,96 @@
+\import N.Basic[].Def[] \as Nat;
+\import \parent.Reduction[] \as Reduction;
+\definition Reducer: \VType := \U(N.Nat -> N.Nat -> Runtime -> History -> Attempt);
+\definition eligible(k, i: N.Nat^)(current: Attempt^): B.Bool^ := B.And.specification (Nat.ltb k i) (B.Neg.specification (attemptReduced current));
+\definition next(reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^): Attempt^ :=
+  B.ite Attempt^ (eligible k i current) (reduce k i (attemptMatrix current) (attemptHistory current)) current;
+
+\import N.Basic[].Prop[] \as Bounds;
+\import B.Prop[] \as BoolLaws;
+\import std.Logic[].Proposition[] \as Logic;
+\definition eligibleLess: \forall (k, i: N.Nat^)(current: Attempt^) -> eligible k i current = B.Bool^::true -> Bounds.Lt k i :=
+  \fun (k, i: N.Nat^)(current: Attempt^)(test: _) => BoolLaws.andTrueLeft (Nat.ltb k i) (B.Neg.specification (attemptReduced current)) test;
+\definition eligibleUnchanged: \forall (k, i: N.Nat^)(current: Attempt^) -> eligible k i current = B.Bool^::true -> attemptReduced current = B.Bool^::false :=
+  \fun (k, i: N.Nat^)(current: Attempt^)(test: _) => BoolLaws.negTrue (attemptReduced current)
+    (BoolLaws.andTrueRight (Nat.ltb k i) (B.Neg.specification (attemptReduced current)) test);
+\definition eligibleOfLess: \forall (k, i: N.Nat^)(current: Attempt^) -> Bounds.Lt k i -> attemptReduced current = B.Bool^::false -> eligible k i current = B.Bool^::true :=
+  \fun (k, i: N.Nat^)(current: Attempt^)(less: Bounds.Lt k i)(noSwap: attemptReduced current = B.Bool^::false) =>
+    trans!{B.Bool^} (eligible k i current) (B.And.specification B.Bool^::true (B.Neg.specification (attemptReduced current))) B.Bool^::true
+      (congr!{B.Bool^ B.Bool^} (\fun (test: B.Bool^) => B.And.specification test (B.Neg.specification (attemptReduced current))) (Nat.ltb k i) B.Bool^::true less)
+      (congr!{B.Bool^ B.Bool^} (\fun (test: B.Bool^) => B.Neg.specification test) (attemptReduced current) B.Bool^::false noSwap);
+\definition nextEligible: \forall (reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^) -> eligible k i current = B.Bool^::true -> next reduce k i current = reduce k i (attemptMatrix current) (attemptHistory current) :=
+  \fun (reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^)(test: _) =>
+    \idelim B.Bool^::true = eligible k i current \with b: B.Bool^ => B.ite Attempt^ b (reduce k i (attemptMatrix current) (attemptHistory current)) current = reduce k i (attemptMatrix current) (attemptHistory current) \by {
+      base: \refl(reduce k i (attemptMatrix current) (attemptHistory current)), equality: sym!{B.Bool^} (eligible k i current) B.Bool^::true test
+    };
+\definition nextIneligible: \forall (reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^) -> eligible k i current = B.Bool^::false -> next reduce k i current = current :=
+  \fun (reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^)(test: _) =>
+    \idelim B.Bool^::false = eligible k i current \with b: B.Bool^ => B.ite Attempt^ b (reduce k i (attemptMatrix current) (attemptHistory current)) current = current \by {
+      base: \refl(current), equality: sym!{B.Bool^} (eligible k i current) B.Bool^::false test
+    };
+\definition stopped: \forall (reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^) -> attemptReduced current = B.Bool^::true -> next reduce k i current = current :=
+  \fun (reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^)(changed: _) => nextIneligible reduce k i current
+    (trans!{B.Bool^} (eligible k i current) (B.And.specification (Nat.ltb k i) B.Bool^::false) B.Bool^::false
+      (congr!{B.Bool^ B.Bool^} (\fun (test: B.Bool^) => B.And.specification (Nat.ltb k i) (B.Neg.specification test)) (attemptReduced current) B.Bool^::true changed)
+      (BoolLaws.andFalseRight (Nat.ltb k i)));
+\definition unchangedBefore: \forall (reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^) -> attemptReduced (next reduce k i current) = B.Bool^::false -> attemptReduced current = B.Bool^::false :=
+  \fun (reduce: Reducer^)(k, i: N.Nat^)(current: Attempt^)(noSwap: _) => B.cases
+    (\fun (flag: B.Bool^) => attemptReduced current = flag -> flag = B.Bool^::false)
+    (\fun (equal: attemptReduced current = B.Bool^::false) => \refl(B.Bool^::false))
+    (\fun (equal: attemptReduced current = B.Bool^::true) => Logic.falseElim (B.Bool^::true = B.Bool^::false)
+      (BoolLaws.trueNeFalse (trans!{B.Bool^} B.Bool^::true (attemptReduced current) B.Bool^::false (sym!{B.Bool^} (attemptReduced current) B.Bool^::true equal)
+        (trans!{B.Bool^} (attemptReduced current) (attemptReduced (next reduce k i current)) B.Bool^::false
+          (congr!{Attempt^ B.Bool^} attemptReduced current (next reduce k i current) (sym!{Attempt^} (next reduce k i current) current (stopped reduce k i current equal))) noSwap))))
+    (attemptReduced current) (\refl(attemptReduced current));
+\definition passWith(reduce: Reducer^): N.Nat^ -> N.Nat^ -> Runtime^ -> History^ -> Attempt^ :=
+  \induction (count: N.Nat^) \return N.Nat^ -> Runtime^ -> History^ -> Attempt^ \with {
+    | zero: \fun (k: N.Nat^)(a: Runtime^)(history: History^) => Attempt^::attempt a history B.Bool^::false
+    | succ: \fun (count: N.Nat^)(previous: N.Nat^ -> Runtime^ -> History^ -> Attempt^)(k: N.Nat^)(a: Runtime^)(history: History^) => next reduce k count (previous k a history)
+  };
+\definition row: N.Nat^ -> N.Nat^ -> Runtime^ -> History^ -> Attempt^ := passWith Reduction.row;
+\definition column: N.Nat^ -> N.Nat^ -> Runtime^ -> History^ -> Attempt^ := passWith Reduction.column;
+
+\module Invariants;
+\definition step(reduce: Reducer^)(k: N.Nat^): Cursor^ -> Cursor^ :=
+  \induction (cursor: Cursor^) \return Cursor^ \with {
+    | cursor: \fun (i: N.Nat^)(current: Attempt^) => Cursor^::cursor (N.Nat^::succ i) (next reduce k i current)
+  };
+\import N.Iteration[].Def[A := Cursor^] \as Iteration;
+\import N.Iteration[].Program[A := Cursor] \as NativeIteration;
+\definition initial(a: Runtime^)(history: History^): Cursor^ := Cursor^::cursor N.Nat^::zero (Attempt^::attempt a history B.Bool^::false);
+\definition cursorAttempt: Cursor^ -> Attempt^ := \induction (cursor: Cursor^) \return Attempt^ \with {
+  | cursor: \fun (i: N.Nat^)(current: Attempt^) => current
+};
+\definition iterationState: \forall (count: N.Nat^)(reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^) ->
+  Iteration.apply (step reduce k) (initial a history) count = Cursor^::cursor count (passWith reduce count k a history) :=
+  \induction (count: N.Nat^) \return \forall (reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^) ->
+    Iteration.apply (step reduce k) (initial a history) count = Cursor^::cursor count (passWith reduce count k a history) \with {
+    | zero: \fun (reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^) => \refl(initial a history)
+    | succ: \fun (count: N.Nat^)(previous: _)(reduce: Reducer^)(k: N.Nat^)(a: Runtime^)(history: History^) =>
+        congr!{Cursor^ Cursor^} (step reduce k) (Iteration.apply (step reduce k) (initial a history) count)
+          (Cursor^::cursor count (passWith reduce count k a history)) (previous reduce k a history)
+  };
+\import B.Choose[A := Attempt] \as Choice;
+\definition choiceProgram: Choice.T := Choice.program;
+\module StepImplementation;
+\correspondence Step: Programs.Correspondence := Programs.Correspondence {
+  T := StepImplementation[].T, program := StepImplementation[].program, specification := step, coherence := StepImplementation[].coherence,
+};
+\module ReaderImplementation;
+\correspondence Reader: Programs.Correspondence := Programs.Correspondence {
+  T := ReaderImplementation[].T, program := ReaderImplementation[].program, specification := cursorAttempt, coherence := ReaderImplementation[].coherence,
+};
+\module Implementation;
+\correspondence Pass: Programs.Correspondence := Programs.Correspondence {
+  T := Implementation[].T, program := Implementation[].program, specification := passWith, coherence := Implementation[].coherence,
+};
+\module RowImplementation;
+\correspondence Row: Programs.Correspondence := Programs.Correspondence {
+  T := RowImplementation[].T, program := RowImplementation[].program, specification := row, coherence := RowImplementation[].coherence,
+};
+\module ColumnImplementation;
+\correspondence Column: Programs.Correspondence := Programs.Correspondence {
+  T := ColumnImplementation[].T, program := ColumnImplementation[].program, specification := column, coherence := ColumnImplementation[].coherence,
+};
+\module Clearing;
+\module Preservation(P: Runtime^ -> \Prop);

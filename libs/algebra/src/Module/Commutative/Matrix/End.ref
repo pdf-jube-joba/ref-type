@@ -1,0 +1,43 @@
+\import \parent.\parent.Matrix[m := n, n := n] \as Square;
+\import Square.Representation[] \as Representation;
+\import Modules.End[V := Domain.Carrier, space := Domain.space] \as End;
+\import Modules.Coordinates[I := Finite.Fin n].Kronecker[] \as Kronecker;
+\definition identity: Square.Matrix := \fun (i, j: Finite.Fin n) => Kronecker.delta i j;
+\definition identityLaw: Square.linear identity = End.identity :=
+  trans!{Modules.Hom[V := Domain.Carrier, W := Domain.Carrier, source := Domain.space, target := Domain.space].Map} _ _ _
+    (congr!{Square.Matrix {Modules.Hom[V := Domain.Carrier, W := Domain.Carrier, source := Domain.space, target := Domain.space].Map}}
+      Square.linear (identity) (Square.entries End.identity)
+      (\axiom:funext(identity, Square.entries End.identity, \fun (i: Finite.Fin n) =>
+        \axiom:funext(identity i, Square.entries End.identity i, \fun (j: Finite.Fin n) => \refl(Kronecker.delta i j)))))
+    (Representation.mapRoundtrip End.identity);
+\import \parent.Composition[k := n] \as RightComposition;
+\import Maps.Composition[U := Domain.Carrier, domain := Domain.space] \as Compose;
+\import \parent.\parent.Matrix[m := m, n := m].Composition[k := n] \as LeftComposition;
+\import \parent.Representation[] \as MatrixRepresentation;
+\definition rightIdentity: \forall (a: Matrix) -> RightComposition.product a identity = a :=
+  \fun (a: Matrix) => MatrixRepresentation.injective _ a
+    (trans!{Maps.Map} _ _ _ (RightComposition.law a identity)
+      (Maps.ext (Compose.compose (linear a) (Square.linear identity)) (linear a)
+        (\fun (v: Domain.Carrier) => congr!{Domain.Carrier Codomain.Carrier} (apply a) _ _
+          (congr!{{Modules.Hom[V := Domain.Carrier, W := Domain.Carrier, source := Domain.space, target := Domain.space].Map} Domain.Carrier}
+            (\fun (f: Modules.Hom[V := Domain.Carrier, W := Domain.Carrier, source := Domain.space, target := Domain.space].Map) => #apply{f} v)
+            _ _ identityLaw))));
+\import \parent.\parent.Matrix[m := m, n := m] \as TargetSquare;
+\import TargetSquare.Representation[] \as TargetRepresentation;
+\import Modules.End[V := Codomain.Carrier, space := Codomain.space] \as TargetEnd;
+\import Modules.Coordinates[I := Finite.Fin m].Kronecker[] \as TargetKronecker;
+\definition targetIdentity: TargetSquare.Matrix := \fun (i, j: Finite.Fin m) => TargetKronecker.delta i j;
+\import Modules.Hom[V := Codomain.Carrier, W := Codomain.Carrier, source := Codomain.space, target := Codomain.space] \as TargetMaps;
+\definition targetIdentityLaw: TargetSquare.linear targetIdentity = TargetEnd.identity :=
+  trans!{TargetMaps.Map} _ _ _
+    (congr!{TargetSquare.Matrix TargetMaps.Map} TargetSquare.linear (targetIdentity) (TargetSquare.entries TargetEnd.identity)
+      (\axiom:funext(targetIdentity, TargetSquare.entries TargetEnd.identity, \fun (i: Finite.Fin m) =>
+        \axiom:funext(targetIdentity i, TargetSquare.entries TargetEnd.identity i, \fun (j: Finite.Fin m) => \refl(TargetKronecker.delta i j)))))
+    (TargetRepresentation.mapRoundtrip TargetEnd.identity);
+\import TargetMaps.Composition[U := Domain.Carrier, domain := Domain.space] \as LeftCompose;
+\definition leftIdentity: \forall (a: Matrix) -> LeftComposition.product targetIdentity a = a :=
+  \fun (a: Matrix) => MatrixRepresentation.injective _ a
+    (trans!{Maps.Map} _ _ _ (LeftComposition.law targetIdentity a)
+      (Maps.ext (LeftCompose.compose (TargetSquare.linear targetIdentity) (linear a)) (linear a)
+        (\fun (v: Domain.Carrier) => congr!{TargetMaps.Map Codomain.Carrier}
+          (\fun (f: TargetMaps.Map) => #apply{f} (apply a v)) _ _ targetIdentityLaw)));

@@ -1,0 +1,105 @@
+\import std.Data[].Bool[] \as B;
+\definition naturalUnit: N.Nat^ -> B.Bool^ := \induction (n: N.Nat^) \return B.Bool^ \with {
+  | zero: B.Bool^::false
+  | succ: \fun (n: N.Nat^)(unused: B.Bool^) => (\induction (k: N.Nat^) \return B.Bool^ \with {
+      | zero: B.Bool^::true
+      | succ: \fun (k: N.Nat^)(unused: B.Bool^) => B.Bool^::false
+    }) n
+};
+\definition isUnit: I.Int^ -> B.Bool^ := \induction (d: I.Int^) \return B.Bool^ \with {
+  | ofNat: naturalUnit
+  | negSucc: \fun (n: N.Nat^) => B.Bool^::false
+};
+\definition push(d: I.Int^)(xs: CyclicFactors^): CyclicFactors^ :=
+  (\induction (b: B.Bool^) \return CyclicFactors^ \with {
+    | false: CyclicFactors^::factor d xs
+    | true: xs
+  }) (isUnit d);
+\definition remaining: FactorState^ -> N.Nat^ := \induction (s: FactorState^) \return N.Nat^ \with {
+  | state: \fun (count: N.Nat^)(xs: CyclicFactors^) => count
+};
+\definition values: FactorState^ -> CyclicFactors^ := \induction (s: FactorState^) \return CyclicFactors^ \with {
+  | state: \fun (count: N.Nat^)(xs: CyclicFactors^) => xs
+};
+\definition step(a: Runtime^): FactorState^ -> FactorState^ :=
+  \induction (s: FactorState^) \return FactorState^ \with {
+    | state: \fun (count: N.Nat^)(xs: CyclicFactors^) => (\induction (n: N.Nat^) \return FactorState^ \with {
+        | zero: FactorState^::state N.Nat^::zero xs
+        | succ: \fun (n: N.Nat^)(unused: FactorState^) => FactorState^::state n (push (a n n) xs)
+      }) count
+  };
+\import N.Iteration[].Def[A := FactorState^] \as Iteration;
+\import N.Iteration[].Program[A := FactorState] \as NativeIteration;
+\definition factors(count: N.Nat^)(a: Runtime^): CyclicFactors^ :=
+  values (Iteration.apply (step a) (FactorState^::state count CyclicFactors^::empty) count);
+\module UnitImplementation;
+\correspondence Unit: Programs.Correspondence := Programs.Correspondence {
+  T := UnitImplementation[].T, program := UnitImplementation[].program,
+  specification := isUnit, coherence := UnitImplementation[].coherence,
+};
+\module PushImplementation;
+\correspondence Push: Programs.Correspondence := Programs.Correspondence {
+  T := PushImplementation[].T, program := PushImplementation[].program,
+  specification := push, coherence := PushImplementation[].coherence,
+};
+\module StepImplementation;
+\correspondence Step: Programs.Correspondence := Programs.Correspondence {
+  T := StepImplementation[].T, program := StepImplementation[].program,
+  specification := step, coherence := StepImplementation[].coherence,
+};
+\module ListImplementation;
+\correspondence List: Programs.Correspondence := Programs.Correspondence {
+  T := ListImplementation[].T, program := ListImplementation[].program,
+  specification := factors, coherence := ListImplementation[].coherence,
+};
+\definition length: CyclicFactors^ -> N.Nat^ := \induction (xs: CyclicFactors^) \return N.Nat^ \with {
+  | empty: N.Nat^::zero
+  | factor: \fun (d: I.Int^)(xs: CyclicFactors^)(count: N.Nat^) => N.Nat^::succ count
+};
+
+\import std.Logic[].Proposition[] \as Logic;
+\import B.Prop[] \as BoolLaws;
+\definition one: I.Int^ := I.Int^::ofNat (N.Nat^::succ N.Nat^::zero);
+\definition Proper: CyclicFactors^ -> \Prop := \induction (xs: CyclicFactors^) \return \Prop \with {
+  | empty: Logic.True
+  | factor: \fun (d: I.Int^)(xs: CyclicFactors^)(before: \Prop) => Logic.And[Logic.Not (d = one), before]
+};
+\definition properEmpty: Proper CyclicFactors^::empty := Logic.True::intro;
+\definition nonunit: \forall (d: I.Int^) -> isUnit d = B.Bool^::false -> Logic.Not (d = one) :=
+  \fun (d: I.Int^)(nonunit: isUnit d = B.Bool^::false)(equal: d = one) => BoolLaws.falseNeTrue
+    (trans!{B.Bool^} B.Bool^::false (isUnit d) B.Bool^::true
+      (sym!{B.Bool^} (isUnit d) B.Bool^::false nonunit)
+      (congr!{I.Int^ B.Bool^} isUnit d one equal));
+\definition pushProperCase: \forall (b: B.Bool^)(d: I.Int^)(xs: CyclicFactors^) ->
+  isUnit d = b -> Proper xs -> Proper ((\induction (b: B.Bool^) \return CyclicFactors^ \with {
+    | false: CyclicFactors^::factor d xs
+    | true: xs
+  }) b) := \induction (b: B.Bool^) \return \forall (d: I.Int^)(xs: CyclicFactors^) ->
+    isUnit d = b -> Proper xs -> Proper ((\induction (b: B.Bool^) \return CyclicFactors^ \with {
+      | false: CyclicFactors^::factor d xs
+      | true: xs
+    }) b) \with {
+    | false: \fun (d: I.Int^)(xs: CyclicFactors^)(equal: isUnit d = B.Bool^::false)(proper: Proper xs) =>
+      Logic.And[_, _]::# (nonunit d equal) proper
+    | true: \fun (d: I.Int^)(xs: CyclicFactors^)(equal: isUnit d = B.Bool^::true)(proper: Proper xs) => proper
+  };
+\definition pushProper: \forall (d: I.Int^)(xs: CyclicFactors^) -> Proper xs -> Proper (push d xs) :=
+  \fun (d: I.Int^)(xs: CyclicFactors^) => pushProperCase (isUnit d) d xs (\refl(isUnit d));
+\definition stateProper(s: FactorState^): \Prop := Proper (values s);
+\definition stepProper: \forall (a: Runtime^)(s: FactorState^) -> stateProper s -> stateProper (step a s) :=
+  \fun (a: Runtime^) => \induction (s: FactorState^) \return stateProper s -> stateProper (step a s) \with {
+    | state: \fun (count: N.Nat^)(xs: CyclicFactors^) =>
+      (\induction (count: N.Nat^) \return stateProper (FactorState^::state count xs) -> stateProper (step a (FactorState^::state count xs)) \with {
+        | zero: \fun (proper: Proper xs) => proper
+        | succ: \fun (count: N.Nat^)(before: _)(proper: Proper xs) => pushProper (a count count) xs proper
+      }) count
+  };
+\definition iterationProper: \forall (a: Runtime^)(count: N.Nat^)(s: FactorState^) -> stateProper s ->
+  stateProper (Iteration.apply (step a) s count) := \fun (a: Runtime^) =>
+  \induction (count: N.Nat^) \return \forall (s: FactorState^) -> stateProper s -> stateProper (Iteration.apply (step a) s count) \with {
+    | zero: \fun (s: FactorState^)(proper: stateProper s) => proper
+    | succ: \fun (count: N.Nat^)(before: \forall (s: FactorState^) -> stateProper s -> stateProper (Iteration.apply (step a) s count))
+        (s: FactorState^)(proper: stateProper s) => stepProper a (Iteration.apply (step a) s count) (before s proper)
+  };
+\definition factorsProper: \forall (count: N.Nat^)(a: Runtime^) -> Proper (factors count a) :=
+  \fun (count: N.Nat^)(a: Runtime^) => iterationProper a count (FactorState^::state count CyclicFactors^::empty) properEmpty;

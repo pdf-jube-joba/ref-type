@@ -1,0 +1,57 @@
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Equality[] \as Equality;
+\import std.Data[].Nat[] \as N;
+\import N.Basic[].Prop[] \as Bounds;
+\use Equality.sym;
+\use Equality.trans;
+\use Equality.congr;
+\definition legacy: \forall (x, y: I.Int^) -> Arithmetic.mul x y = I.mulInteger x y :=
+  \fun (x, y: I.Int^) => \refl(Arithmetic.mul x y);
+\definition naturalScale: \forall (x: I.Int^)(n: N.Nat^) -> Arithmetic.mul (I.Int^::ofNat n) x = I.scaleInteger x n :=
+  \fun (x: I.Int^)(n: N.Nat^) => trans!{I.Int^} _ _ _ (IL.mulComm (I.Int^::ofNat n) x)
+    (trans!{I.Int^} _ _ _ (legacy x (I.Int^::ofNat n))
+      (trans!{I.Int^} _ _ _ (congr!{I.Int^ I.Int^} (I.mulInteger x) _ _ (I.ofNatAsInteger n)) (I.mulIntegerNatural x n)));
+\definition positiveCancellation: \forall (n: N.Nat^)(x, y: I.Int^) ->
+  Arithmetic.mul (I.Int^::ofNat (N.Nat^::succ n)) x = Arithmetic.mul (I.Int^::ofNat (N.Nat^::succ n)) y -> x = y :=
+  \fun (n: N.Nat^)(x, y: I.Int^)(equal: _) => I.scaleIntegerCancelPositive x y n
+    (trans!{I.Int^} _ _ _ (sym!{I.Int^} _ _ (naturalScale x (N.Nat^::succ n)))
+      (trans!{I.Int^} _ _ _ equal (naturalScale y (N.Nat^::succ n))));
+\definition naturalCancellation: \forall (n: N.Nat^)(x, y: I.Int^) ->
+  Logic.Not (n = N.Nat^::zero) -> Arithmetic.mul (I.Int^::ofNat n) x = Arithmetic.mul (I.Int^::ofNat n) y -> x = y :=
+  \induction (n: N.Nat^) \return \forall (x, y: I.Int^) -> Logic.Not (n = N.Nat^::zero) ->
+    Arithmetic.mul (I.Int^::ofNat n) x = Arithmetic.mul (I.Int^::ofNat n) y -> x = y \with {
+    | zero: \fun (x, y: I.Int^)(bad: _)(equal: _) => Logic.falseElim (x = y) (bad (\refl(N.Nat^::zero)))
+    | succ: \fun (n: N.Nat^)(unused: _)(x, y: I.Int^)(nonzero: _)(equal: _) => positiveCancellation n x y equal
+  };
+\definition negativeCancellation: \forall (n: N.Nat^)(x, y: I.Int^) ->
+  Arithmetic.mul (I.Int^::negSucc n) x = Arithmetic.mul (I.Int^::negSucc n) y -> x = y := \block {
+  \fun (n: N.Nat^)(x, y: I.Int^)(equal: _) \then
+  \let a: I.Int^ := Arithmetic.mul (I.Int^::ofNat (N.Nat^::succ n)) x \then
+  \let b: I.Int^ := Arithmetic.mul (I.Int^::ofNat (N.Nat^::succ n)) y \then
+  \let negatives: Arithmetic.neg a = Arithmetic.neg b :=
+    trans!{I.Int^} (Arithmetic.neg a) (Arithmetic.mul (I.Int^::negSucc n) x) (Arithmetic.neg b)
+      (sym!{I.Int^} (Arithmetic.mul (I.Int^::negSucc n) x) (Arithmetic.neg a) (Arithmetic.negMulLeft (I.Int^::ofNat (N.Nat^::succ n)) x))
+      (trans!{I.Int^} (Arithmetic.mul (I.Int^::negSucc n) x) (Arithmetic.mul (I.Int^::negSucc n) y) (Arithmetic.neg b)
+        equal (Arithmetic.negMulLeft (I.Int^::ofNat (N.Nat^::succ n)) y)) \then
+  \return positiveCancellation n x y (Arithmetic.cancelLeft (Arithmetic.neg a) a b
+    (trans!{I.Int^} (Arithmetic.add (Arithmetic.neg a) a) Arithmetic.zero (Arithmetic.add (Arithmetic.neg a) b)
+      (IL.negInverse a)
+      (sym!{I.Int^} (Arithmetic.add (Arithmetic.neg a) b) Arithmetic.zero
+        (trans!{I.Int^} (Arithmetic.add (Arithmetic.neg a) b) (Arithmetic.add (Arithmetic.neg b) b) Arithmetic.zero
+          (congr!{I.Int^ I.Int^} (\fun (value: I.Int^) => Arithmetic.add value b) (Arithmetic.neg a) (Arithmetic.neg b) negatives)
+          (IL.negInverse b)))))
+};
+\definition cancellation: \forall (d, x, y: I.Int^) -> Logic.Not (d = Arithmetic.zero) ->
+  Arithmetic.mul d x = Arithmetic.mul d y -> x = y :=
+  \induction (d: I.Int^) \return \forall (x, y: I.Int^) -> Logic.Not (d = Arithmetic.zero) ->
+    Arithmetic.mul d x = Arithmetic.mul d y -> x = y \with {
+    | ofNat: \fun (n: N.Nat^)(x, y: I.Int^)(nonzero: _) => naturalCancellation n x y
+      (\fun (zero: n = N.Nat^::zero) => nonzero (congr!{N.Nat^ I.Int^} I.Int^::ofNat n N.Nat^::zero zero))
+    | negSucc: \fun (n: N.Nat^)(x, y: I.Int^)(nonzero: _) => negativeCancellation n x y
+  };
+\import I.Math[].Specification[].Prop[].Multiplication[] \as Product;
+\definition zeroFactor: \forall (d, x: I.Int^) -> Logic.Not (d = Arithmetic.zero) -> Arithmetic.mul d x = Arithmetic.zero -> x = Arithmetic.zero :=
+  \fun (d, x: I.Int^)(nonzero: _)(equal: _) => cancellation d x Arithmetic.zero nonzero
+    (trans!{I.Int^} (Arithmetic.mul d x) Arithmetic.zero (Arithmetic.mul d Arithmetic.zero) equal
+      (sym!{I.Int^} (Arithmetic.mul d Arithmetic.zero) Arithmetic.zero (Product.mulZeroRight d)));

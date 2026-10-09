@@ -1,0 +1,40 @@
+\import std.Arithmetic[].Int[] \as Signed;
+\import \root.Chain[].Over[R := R, ring := ring] \as Internal;
+\import \parent.\parent.ZeroExtension[C := C] \as Source;
+\import \parent.\parent.ZeroExtension[C := D] \as Target;
+\import \parent.ZeroExtension[f := f] \as Extension;
+\definition map: Internal.Map[C := Source.complex, D := Target.complex].Map := Extension.map;
+\import \parent.\parent.Homology[C := C] \as NaturalSource;
+\import \parent.\parent.Homology[C := D] \as NaturalTarget;
+\module DegreeZero;
+\module Positive(n: N.Nat^);
+\module At(n: N.Nat^) {
+  \import \parent.\parent.\parent.IntegerComparison[C := C].At[n := n] \as SourceComparison;
+  \import \parent.\parent.\parent.IntegerComparison[C := D].At[n := n] \as TargetComparison;
+  \import \parent.\parent.HomologyAt[n := n] \as NaturalMap;
+  \import Internal.Map[C := Source.complex, D := Target.complex].At[k := Signed.Int^::ofNat n] \as IntegerMap;
+  \import Internal.At[C := Target.complex, z := Signed.Int^::ofNat n] \as IntegerTarget;
+  \import Internal.At[C := Source.complex, z := Signed.Int^::ofNat n] \as IntegerSource;
+  \definition commutes: \forall (q: NaturalSource.At[n := n].Carrier) ->
+    #apply{#forward{TargetComparison.isomorphism}} (#apply{(NaturalMap.induced f)} q) =
+    #apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.isomorphism}} q) :=
+    \fun (q: NaturalSource.At[n := n].Carrier) => #rightInverse{TargetComparison.isomorphism} (#apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.isomorphism}} q));
+  \definition inverseCommutes: \forall (q: IntegerSource.Homology) ->
+    #apply{#backward{TargetComparison.isomorphism}} (#apply{(IntegerMap.induced map)} q) =
+    #apply{(NaturalMap.induced f)} (#apply{#backward{SourceComparison.isomorphism}} q) :=
+    \fun (q: IntegerSource.Homology) => trans!{{NaturalTarget.At[n := n].Carrier}}
+      (#apply{#backward{TargetComparison.isomorphism}} (#apply{(IntegerMap.induced map)} q))
+      (#apply{#backward{TargetComparison.isomorphism}} (#apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.isomorphism}} (#apply{#backward{SourceComparison.isomorphism}} q))))
+      (#apply{(NaturalMap.induced f)} (#apply{#backward{SourceComparison.isomorphism}} q))
+      (congr!{IntegerSource.Homology {NaturalTarget.At[n := n].Carrier}} (\fun (x: IntegerSource.Homology) => #apply{#backward{TargetComparison.isomorphism}} (#apply{(IntegerMap.induced map)} x)) q (#apply{#forward{SourceComparison.isomorphism}} (#apply{#backward{SourceComparison.isomorphism}} q))
+        (sym!{IntegerSource.Homology} (#apply{#forward{SourceComparison.isomorphism}} (#apply{#backward{SourceComparison.isomorphism}} q)) q (#rightInverse{SourceComparison.isomorphism} q)))
+      (trans!{{NaturalTarget.At[n := n].Carrier}}
+        (#apply{#backward{TargetComparison.isomorphism}} (#apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.isomorphism}} (#apply{#backward{SourceComparison.isomorphism}} q))))
+        (#apply{#backward{TargetComparison.isomorphism}} (#apply{#forward{TargetComparison.isomorphism}} (#apply{(NaturalMap.induced f)} (#apply{#backward{SourceComparison.isomorphism}} q))))
+        (#apply{(NaturalMap.induced f)} (#apply{#backward{SourceComparison.isomorphism}} q))
+        (congr!{IntegerTarget.Homology {NaturalTarget.At[n := n].Carrier}} (#apply{#backward{TargetComparison.isomorphism}})
+          (#apply{(IntegerMap.induced map)} (#apply{#forward{SourceComparison.isomorphism}} (#apply{#backward{SourceComparison.isomorphism}} q)))
+          (#apply{#forward{TargetComparison.isomorphism}} (#apply{(NaturalMap.induced f)} (#apply{#backward{SourceComparison.isomorphism}} q)))
+          (sym!{IntegerTarget.Homology} _ _ (commutes (#apply{#backward{SourceComparison.isomorphism}} q))))
+        (#leftInverse{TargetComparison.isomorphism} (#apply{(NaturalMap.induced f)} (#apply{#backward{SourceComparison.isomorphism}} q))));
+}

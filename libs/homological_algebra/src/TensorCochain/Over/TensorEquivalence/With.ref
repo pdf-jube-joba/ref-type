@@ -1,0 +1,20 @@
+\import \parent.\parent.Tensor[C := C, D := E] \as SourceTensor;
+\import \parent.\parent.Tensor[C := D, D := E] \as TargetTensor;
+\import \parent.\parent.Total[C := SourceTensor.complex] \as Source;
+\import \parent.\parent.Total[C := TargetTensor.complex] \as Target;
+\definition identity: Cochains.Map[C := E, D := E].Map := Cochains.End[C := E].identity;
+\import \parent.\parent.TensorMapping[C := C, D := D, E := E, F := E].With[f := e.forward, g := identity] \as Forward;
+\import \parent.\parent.TensorMapping[C := D, D := C, E := E, F := E].With[f := e.backward, g := identity] \as Backward;
+\import \root.CochainEquivalence[].Over[R := R, ring := Ring.commutativeRingAsRing R ring].Of[C := Source.complex, D := Target.complex] \as Result;
+\module Left;
+\module Right;
+\definition equivalence: Result.Equivalence := Result.Equivalence {
+  forward := Forward.total, backward := Backward.total, left := Left[].homotopy, right := Right[].homotopy,
+};
+\module At(n: Nat.Nat^) {
+  \import Result.With[e := equivalence].At[n := n] \as Induced;
+  \import Cochains.At[C := Source.complex, k := n] \as SourceH;
+  \import Cochains.At[C := Target.complex, k := n] \as TargetH;
+  \definition isomorphism: Modules.Isomorphism[V := SourceH.Cohomology, W := TargetH.Cohomology,
+    source := SourceH.cohomologySpace, target := TargetH.cohomologySpace].Isomorphism := Induced.isomorphism;
+}

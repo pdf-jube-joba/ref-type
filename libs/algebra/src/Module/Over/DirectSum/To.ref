@@ -1,0 +1,46 @@
+\module At(i: Index) {
+  \import \parent.\parent.\parent.Hom[V := family.Carrier i, W := W, source := family.space i, target := target] \as Linear;
+  \definition Map: \Set := Linear.Map;
+  \definition zeroPreserved: \forall (f: Map) -> #apply{f} #zero{(family.space i)} = #zero{target} := Linear.zeroPreserved;
+}
+\definition Components: \Set := \forall (i: Index) -> At[i := i].Map;
+\definition values(f: Components): Generator -> W :=
+  \induction (g: Generator) \return W \with {
+    | at: \fun (i: Index)(x: family.Carrier i) => #apply{(f i)} x
+  };
+\import Presented.To[W := W, target := target] \as Universal;
+\definition respects(f: Components): Universal.RespectsRelations (values f) :=
+  \induction (x, y: Expressions.Expression)(r: Relation x y) \return Universal.EvaluationRelation (values f) x y \with {
+    | zero: \fun (i: Index) => At[i := i].zeroPreserved (f i)
+    | addition: \fun (i: Index)(x, y: family.Carrier i) => #addition{(f i)} x y
+    | scalar: \fun (i: Index)(a: R)(x: family.Carrier i) => #scalar{(f i)} a x
+  };
+\import \parent.\parent.Hom[V := Carrier, W := W, source := space, target := target] \as Maps;
+\definition extension(f: Components): Maps.Map := Universal.extension (values f) (respects f);
+\definition onInjection: \forall (f: Components)(i: Index)(x: family.Carrier i) ->
+  #apply{(extension f)} (#apply{(\parent.Injection[i := i].map)} x) = #apply{(f i)} x :=
+  \fun (f: Components)(i: Index)(x: family.Carrier i) => Universal.onGenerator (values f) (respects f) (Generator::at i x);
+\definition unique: \forall (f: Components)(h: Maps.Map) ->
+  (\forall (i: Index)(x: family.Carrier i) -> #apply{h} (#apply{(\parent.Injection[i := i].map)} x) = #apply{(f i)} x) -> h = extension f :=
+  \fun (f: Components)(h: Maps.Map)(same: _) => Maps.dataExt h (extension f)
+    (Universal.unique (values f) (respects f) h
+      (\induction (g: Generator) \return #apply{h} (Presented.generator g) = values f g \with {
+        | at: \fun (i: Index)(x: family.Carrier i) => same i x
+      }));
+
+\module Restriction(f: Maps.Map) {
+  \module Component(i: Index) {
+    \import Maps.Composition[U := family.Carrier i, domain := family.space i] \as Composition;
+    \definition map: \parent.\parent.At[i := i].Map := Composition.compose f (\parent.\parent.\parent.Injection[i := i].map);
+  }
+  \definition components: Components := \fun (i: Index) => Component[i := i].map;
+  \definition agreement: \forall (i: Index)(x: family.Carrier i) -> #apply{f} (#apply{(\parent.\parent.Injection[i := i].map)} x) = #apply{(components i)} x :=
+    \fun (i: Index)(x: family.Carrier i) => \refl(#apply{f} (#apply{(\parent.\parent.Injection[i := i].map)} x));
+  \definition determines: \forall (g: Maps.Map) ->
+    (\forall (i: Index)(x: family.Carrier i) -> #apply{g} (#apply{(\parent.\parent.Injection[i := i].map)} x) = #apply{f} (#apply{(\parent.\parent.Injection[i := i].map)} x)) -> g = f :=
+    \fun (g: Maps.Map)(same: _) => trans!{Maps.Map} g (extension components) f
+      (unique components g same) (sym!{Maps.Map} f (extension components) (unique components f agreement));
+}
+\definition ext: \forall (f, g: Maps.Map) ->
+  (\forall (i: Index)(x: family.Carrier i) -> #apply{f} (#apply{(\parent.Injection[i := i].map)} x) = #apply{g} (#apply{(\parent.Injection[i := i].map)} x)) -> f = g :=
+  \fun (f, g: Maps.Map) => Restriction[f := g].determines f;

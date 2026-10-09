@@ -1,0 +1,37 @@
+\import \parent.On[P := P, N := N] \as Source;
+\import \parent.On[P := Q, N := N] \as Middle;
+\import \parent.On[P := T, N := N] \as Target;
+\import Chains.Map[C := P, D := Q] \as Before;
+\import Chains.Map[C := Q, D := T] \as After;
+\import After.Composition[B := P] \as Original;
+\import Modules.End[V := N.Carrier, space := N.space] \as Coefficients;
+\import \parent.Mapping[P := P, Q := Q, N := N, L := N] \as First;
+\import \parent.Mapping[P := Q, Q := T, N := N, L := N] \as Second;
+\import \parent.Mapping[P := P, Q := T, N := N, L := N] \as Direct;
+\import Chains.Map[C := Middle.complex, D := Target.complex].Composition[B := Source.complex] \as Composition;
+\import Chains.Map[C := Source.complex, D := Target.complex] \as Maps;
+\module At(n: Nat.Nat^) {
+  \import Modules.Tensor[V := P.family.Carrier n, W := N.Carrier, left := P.family.space n, right := N.space] \as S;
+  \import Modules.Tensor[V := T.family.Carrier n, W := N.Carrier, left := T.family.space n, right := N.space] \as D;
+  \import S.Universal[U := D.Carrier, target := D.space] \as Universal;
+  \import Modules.Hom[V := S.Carrier, W := D.Carrier, source := S.space, target := D.space] \as Native;
+  \definition direct(f: Before.Map)(g: After.Map): Native.Map := Direct.On[f := Original.compose g f, u := Coefficients.identity].At[n := n].map;
+  \definition composed(f: Before.Map)(g: After.Map): Native.Map := Native.Map {
+    apply := #apply{(Composition.compose (Second.On[f := g, u := Coefficients.identity].map) (First.On[f := f, u := Coefficients.identity].map))} n,
+    addition := #addition{(Composition.compose (Second.On[f := g, u := Coefficients.identity].map) (First.On[f := f, u := Coefficients.identity].map))} n,
+    scalar := #scalar{(Composition.compose (Second.On[f := g, u := Coefficients.identity].map) (First.On[f := f, u := Coefficients.identity].map))} n,
+  };
+  \definition law: \forall (f: Before.Map)(g: After.Map) -> direct f g = composed f g :=
+    \fun (f: Before.Map)(g: After.Map) => Universal.ext (direct f g) (composed f g)
+      (\fun (x: P.family.Carrier n)(y: N.Carrier) => trans!{D.Carrier} _ _ _
+        (Direct.On[f := Original.compose g f, u := Coefficients.identity].At[n := n].onTensor x y)
+        (sym!{D.Carrier} _ _ (trans!{D.Carrier} _ _ _
+          (congr!{{Middle.Carrier n} D.Carrier} (#apply{(Second.On[f := g, u := Coefficients.identity].At[n := n].map)}) _ _
+            (First.On[f := f, u := Coefficients.identity].At[n := n].onTensor x y))
+          (Second.On[f := g, u := Coefficients.identity].At[n := n].onTensor (#apply{f} n x) y))));
+  \definition pointwise: \forall (f: Before.Map)(g: After.Map)(x: S.Carrier) -> #apply{(direct f g)} x = #apply{(composed f g)} x :=
+    \fun (f: Before.Map)(g: After.Map)(x: S.Carrier) => congr!{Native.Map D.Carrier} (\fun (h: Native.Map) => #apply{h} x) _ _ (law f g);
+}
+\definition law: \forall (f: Before.Map)(g: After.Map) -> Direct.On[f := Original.compose g f, u := Coefficients.identity].map =
+  Composition.compose (Second.On[f := g, u := Coefficients.identity].map) (First.On[f := f, u := Coefficients.identity].map) :=
+  \fun (f: Before.Map)(g: After.Map) => Maps.ext _ _ (\fun (n: Nat.Nat^) => At[n := n].pointwise f g);

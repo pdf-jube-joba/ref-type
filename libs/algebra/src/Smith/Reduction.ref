@@ -1,0 +1,188 @@
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\import Signed.Division[] \as Division;
+\import N.Basic[].Def[] \as Nat;
+\import N.Basic[].Prop[] \as Bounds;
+\import std.Logic[].Proposition[] \as Logic;
+\definition rowCoefficient(k, i: N.Nat^)(a: Runtime^): I.Int^ := Arithmetic.neg (Division.quotient (a i k) (a k k));
+\definition rowMatrix(k, i: N.Nat^)(a: Runtime^): Runtime^ := Rows.add a i k (rowCoefficient k i a);
+\definition rowHistory(k, i: N.Nat^)(a: Runtime^)(history: History^): History^ := History^::prepend (Operation^::rowAdd i k (rowCoefficient k i a)) history;
+\definition rowSwapped(k, i: N.Nat^)(a: Runtime^): Runtime^ := Rows.swap (rowMatrix k i a) k i;
+\definition row(k, i: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+  B.ite Attempt^ (I.IsZero.specification (Division.remainder (a i k) (a k k)))
+    (Attempt^::attempt (rowMatrix k i a) (rowHistory k i a history) B.Bool^::false)
+    (Attempt^::attempt (rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (rowHistory k i a history)) B.Bool^::true);
+\definition columnCoefficient(k, j: N.Nat^)(a: Runtime^): I.Int^ := Arithmetic.neg (Division.quotient (a k j) (a k k));
+\definition columnMatrix(k, j: N.Nat^)(a: Runtime^): Runtime^ := Columns.add a j k (columnCoefficient k j a);
+\definition columnHistory(k, j: N.Nat^)(a: Runtime^)(history: History^): History^ := History^::prepend (Operation^::columnAdd j k (columnCoefficient k j a)) history;
+\definition columnSwapped(k, j: N.Nat^)(a: Runtime^): Runtime^ := Columns.swap (columnMatrix k j a) k j;
+\definition column(k, j: N.Nat^)(a: Runtime^)(history: History^): Attempt^ :=
+  B.ite Attempt^ (I.IsZero.specification (Division.remainder (a k j) (a k k)))
+    (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false)
+    (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true);
+\definition rowAdditionSelf: \forall (a: Runtime^)(i, k: N.Nat^)(c: I.Int^)(j: N.Nat^) -> Rows.add a i k c i j = Arithmetic.add (a i j) (Arithmetic.mul c (a k j)) :=
+  \fun (a: Runtime^)(i, k: N.Nat^)(c: I.Int^)(j: N.Nat^) =>
+    \idelim B.Bool^::true = Nat.eqb i i \with test: B.Bool^ => B.ite I.Int^ test (Arithmetic.add (a i j) (Arithmetic.mul c (a k j))) (a i j) = Arithmetic.add (a i j) (Arithmetic.mul c (a k j)) \by {
+      base: \refl(Arithmetic.add (a i j) (Arithmetic.mul c (a k j))), equality: sym!{B.Bool^} (Nat.eqb i i) B.Bool^::true (Bounds.eqbRefl i)
+    };
+\definition rowExchangeFirst: \forall (a: Runtime^)(k, i, j: N.Nat^) -> Rows.swap a k i k j = a i j :=
+  \fun (a: Runtime^)(k, i, j: N.Nat^) => \idelim B.Bool^::true = Nat.eqb k k \with test: B.Bool^ =>
+    a (B.ite N.Nat^ test i (B.ite N.Nat^ (Nat.eqb k i) k k)) j = a i j \by {
+      base: \refl(a i j), equality: sym!{B.Bool^} (Nat.eqb k k) B.Bool^::true (Bounds.eqbRefl k)
+    };
+\definition rowRemainder: \forall (k, i: N.Nat^)(a: Runtime^) -> rowMatrix k i a i k = Division.remainder (a i k) (a k k) :=
+  \fun (k, i: N.Nat^)(a: Runtime^) => trans!{I.Int^} (rowMatrix k i a i k)
+    (Arithmetic.add (a i k) (Arithmetic.mul (rowCoefficient k i a) (a k k))) (Division.remainder (a i k) (a k k))
+    (rowAdditionSelf a i k (rowCoefficient k i a) k)
+    (congr!{I.Int^ I.Int^} (Arithmetic.add (a i k)) (Arithmetic.mul (rowCoefficient k i a) (a k k))
+      (Arithmetic.neg (Arithmetic.mul (Division.quotient (a i k) (a k k)) (a k k)))
+      (Arithmetic.negMulLeft (Division.quotient (a i k) (a k k)) (a k k)));
+\definition rowPivot: \forall (k, i: N.Nat^)(a: Runtime^) -> rowSwapped k i a k k = Division.remainder (a i k) (a k k) :=
+  \fun (k, i: N.Nat^)(a: Runtime^) => trans!{I.Int^} (rowSwapped k i a k k) (rowMatrix k i a i k) (Division.remainder (a i k) (a k k))
+    (rowExchangeFirst (rowMatrix k i a) k i k) (rowRemainder k i a);
+\definition rowDecreases: \forall (k, i: N.Nat^)(a: Runtime^) -> Logic.Not (a k k = Arithmetic.zero) -> Bounds.Lt (Signed.absolute (rowSwapped k i a k k)) (Signed.absolute (a k k)) :=
+  \fun (k, i: N.Nat^)(a: Runtime^)(nonzero: Logic.Not (a k k = Arithmetic.zero)) =>
+    \idelim Division.remainder (a i k) (a k k) = rowSwapped k i a k k \with r: I.Int^ => Bounds.Lt (Signed.absolute r) (Signed.absolute (a k k)) \by {
+      base: Division.decreases (a i k) (a k k) nonzero, equality: sym!{I.Int^} (rowSwapped k i a k k) (Division.remainder (a i k) (a k k)) (rowPivot k i a)
+    };
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Transpose[] \as Transpose;
+\definition columnRemainder: \forall (k, j: N.Nat^)(a: Runtime^) -> columnMatrix k j a k j = Division.remainder (a k j) (a k k) :=
+  \fun (k, j: N.Nat^)(a: Runtime^) => rowRemainder k j (Transpose.transpose a);
+\definition columnPivot: \forall (k, j: N.Nat^)(a: Runtime^) -> columnSwapped k j a k k = Division.remainder (a k j) (a k k) :=
+  \fun (k, j: N.Nat^)(a: Runtime^) => rowPivot k j (Transpose.transpose a);
+\definition columnDecreases: \forall (k, j: N.Nat^)(a: Runtime^) -> Logic.Not (a k k = Arithmetic.zero) -> Bounds.Lt (Signed.absolute (columnSwapped k j a k k)) (Signed.absolute (a k k)) :=
+  \fun (k, j: N.Nat^)(a: Runtime^) => rowDecreases k j (Transpose.transpose a);
+
+\import B.Prop[] \as BoolLaws;
+\definition Smaller(k: N.Nat^)(a: Runtime^)(attempt: Attempt^): \Prop :=
+  attemptReduced attempt = B.Bool^::true -> Bounds.Lt (Signed.absolute (attemptMatrix attempt k k)) (Signed.absolute (a k k));
+\definition rowChanged: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> Smaller k a (row k i a history) :=
+  \fun (k, i: N.Nat^)(a: Runtime^)(history: History^)(nonzero: Logic.Not (a k k = Arithmetic.zero)) => B.cases
+    (\fun (test: B.Bool^) => Smaller k a (B.ite Attempt^ test (Attempt^::attempt (rowMatrix k i a) (rowHistory k i a history) B.Bool^::false) (Attempt^::attempt (rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (rowHistory k i a history)) B.Bool^::true)))
+    (\fun (equal: B.Bool^::true = B.Bool^::true) => rowDecreases k i a nonzero)
+    (\fun (bad: B.Bool^::false = B.Bool^::true) => Logic.falseElim (Bounds.Lt (Signed.absolute (rowMatrix k i a k k)) (Signed.absolute (a k k))) (BoolLaws.falseNeTrue bad))
+    (I.IsZero.specification (Division.remainder (a i k) (a k k)));
+\definition columnChanged: \forall (k, j: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (a k k = Arithmetic.zero) -> Smaller k a (column k j a history) :=
+  \fun (k, j: N.Nat^)(a: Runtime^)(history: History^)(nonzero: Logic.Not (a k k = Arithmetic.zero)) => B.cases
+    (\fun (test: B.Bool^) => Smaller k a (B.ite Attempt^ test (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false) (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true)))
+    (\fun (equal: B.Bool^::true = B.Bool^::true) => columnDecreases k j a nonzero)
+    (\fun (bad: B.Bool^::false = B.Bool^::true) => Logic.falseElim (Bounds.Lt (Signed.absolute (columnMatrix k j a k k)) (Signed.absolute (a k k))) (BoolLaws.falseNeTrue bad))
+    (I.IsZero.specification (Division.remainder (a k j) (a k k)));
+
+\definition rowAdditionOther: \forall (a: Runtime^)(i, k: N.Nat^)(c: I.Int^)(r, j: N.Nat^) -> Logic.Not (r = i) -> Rows.add a i k c r j = a r j :=
+  \fun (a: Runtime^)(i, k: N.Nat^)(c: I.Int^)(r, j: N.Nat^)(different: Logic.Not (r = i)) =>
+    \idelim B.Bool^::false = Nat.eqb r i \with test: B.Bool^ =>
+      B.ite I.Int^ test (Arithmetic.add (a r j) (Arithmetic.mul c (a k j))) (a r j) = a r j \by {
+      base: \refl(a r j), equality: sym!{B.Bool^} (Nat.eqb r i) B.Bool^::false (Bounds.eqbFalseOfNe r i different)
+    };
+\definition rowUnchanged: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^) -> attemptReduced (row k i a history) = B.Bool^::false -> attemptMatrix (row k i a history) = rowMatrix k i a :=
+  \fun (k, i: N.Nat^)(a: Runtime^)(history: History^) => B.cases
+    (\fun (test: B.Bool^) => attemptReduced (B.ite Attempt^ test (Attempt^::attempt (rowMatrix k i a) (rowHistory k i a history) B.Bool^::false) (Attempt^::attempt (rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (rowHistory k i a history)) B.Bool^::true)) = B.Bool^::false ->
+      attemptMatrix (B.ite Attempt^ test (Attempt^::attempt (rowMatrix k i a) (rowHistory k i a history) B.Bool^::false) (Attempt^::attempt (rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (rowHistory k i a history)) B.Bool^::true)) = rowMatrix k i a)
+    (\fun (bad: B.Bool^::true = B.Bool^::false) => Logic.falseElim _ (BoolLaws.trueNeFalse bad))
+    (\fun (equal: B.Bool^::false = B.Bool^::false) => \refl(rowMatrix k i a))
+    (I.IsZero.specification (Division.remainder (a i k) (a k k)));
+\definition rowNoSwap: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^) -> attemptReduced (row k i a history) = B.Bool^::false -> I.IsZero.specification (Division.remainder (a i k) (a k k)) = B.Bool^::true :=
+  \fun (k, i: N.Nat^)(a: Runtime^)(history: History^) => B.cases
+    (\fun (test: B.Bool^) => attemptReduced (B.ite Attempt^ test (Attempt^::attempt (rowMatrix k i a) (rowHistory k i a history) B.Bool^::false) (Attempt^::attempt (rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (rowHistory k i a history)) B.Bool^::true)) = B.Bool^::false -> test = B.Bool^::true)
+    (\fun (bad: B.Bool^::true = B.Bool^::false) => Logic.falseElim _ (BoolLaws.trueNeFalse bad))
+    (\fun (equal: B.Bool^::false = B.Bool^::false) => \refl(B.Bool^::true))
+    (I.IsZero.specification (Division.remainder (a i k) (a k k)));
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Search[] \as ZeroTest;
+\definition rowCleared: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^) -> attemptReduced (row k i a history) = B.Bool^::false -> attemptMatrix (row k i a history) i k = Arithmetic.zero :=
+  \fun (k, i: N.Nat^)(a: Runtime^)(history: History^)(noSwap: _) =>
+    trans!{I.Int^} (attemptMatrix (row k i a history) i k) (rowMatrix k i a i k) Arithmetic.zero
+      (congr!{Runtime^ I.Int^} (\fun (matrix: Runtime^) => matrix i k) (attemptMatrix (row k i a history)) (rowMatrix k i a) (rowUnchanged k i a history noSwap))
+      (trans!{I.Int^} (rowMatrix k i a i k) (Division.remainder (a i k) (a k k)) Arithmetic.zero (rowRemainder k i a)
+        (ZeroTest.zeroOfTrue (Division.remainder (a i k) (a k k)) (rowNoSwap k i a history noSwap)));
+\definition rowPreserved: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^)(r, j: N.Nat^) -> Logic.Not (r = i) -> attemptReduced (row k i a history) = B.Bool^::false -> attemptMatrix (row k i a history) r j = a r j :=
+  \fun (k, i: N.Nat^)(a: Runtime^)(history: History^)(r, j: N.Nat^)(different: _)(noSwap: _) =>
+    trans!{I.Int^} (attemptMatrix (row k i a history) r j) (rowMatrix k i a r j) (a r j)
+      (congr!{Runtime^ I.Int^} (\fun (matrix: Runtime^) => matrix r j) (attemptMatrix (row k i a history)) (rowMatrix k i a) (rowUnchanged k i a history noSwap))
+      (rowAdditionOther a i k (rowCoefficient k i a) r j different);
+\definition columnUnchanged: \forall (k, j: N.Nat^)(a: Runtime^)(history: History^) -> attemptReduced (column k j a history) = B.Bool^::false -> attemptMatrix (column k j a history) = columnMatrix k j a :=
+  \fun (k, j: N.Nat^)(a: Runtime^)(history: History^) => B.cases
+    (\fun (test: B.Bool^) => attemptReduced (B.ite Attempt^ test (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false) (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true)) = B.Bool^::false ->
+      attemptMatrix (B.ite Attempt^ test (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false) (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true)) = columnMatrix k j a)
+    (\fun (bad: B.Bool^::true = B.Bool^::false) => Logic.falseElim _ (BoolLaws.trueNeFalse bad))
+    (\fun (equal: B.Bool^::false = B.Bool^::false) => \refl(columnMatrix k j a))
+    (I.IsZero.specification (Division.remainder (a k j) (a k k)));
+\definition columnNoSwap: \forall (k, j: N.Nat^)(a: Runtime^)(history: History^) -> attemptReduced (column k j a history) = B.Bool^::false -> I.IsZero.specification (Division.remainder (a k j) (a k k)) = B.Bool^::true :=
+  \fun (k, j: N.Nat^)(a: Runtime^)(history: History^) => B.cases
+    (\fun (test: B.Bool^) => attemptReduced (B.ite Attempt^ test (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false) (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true)) = B.Bool^::false -> test = B.Bool^::true)
+    (\fun (bad: B.Bool^::true = B.Bool^::false) => Logic.falseElim _ (BoolLaws.trueNeFalse bad))
+    (\fun (equal: B.Bool^::false = B.Bool^::false) => \refl(B.Bool^::true))
+    (I.IsZero.specification (Division.remainder (a k j) (a k k)));
+\definition columnCleared: \forall (k, j: N.Nat^)(a: Runtime^)(history: History^) -> attemptReduced (column k j a history) = B.Bool^::false -> attemptMatrix (column k j a history) k j = Arithmetic.zero :=
+  \fun (k, j: N.Nat^)(a: Runtime^)(history: History^)(noSwap: _) =>
+    trans!{I.Int^} (attemptMatrix (column k j a history) k j) (columnMatrix k j a k j) Arithmetic.zero
+      (congr!{Runtime^ I.Int^} (\fun (matrix: Runtime^) => matrix k j) (attemptMatrix (column k j a history)) (columnMatrix k j a) (columnUnchanged k j a history noSwap))
+      (trans!{I.Int^} (columnMatrix k j a k j) (Division.remainder (a k j) (a k k)) Arithmetic.zero (columnRemainder k j a)
+        (ZeroTest.zeroOfTrue (Division.remainder (a k j) (a k k)) (columnNoSwap k j a history noSwap)));
+\definition columnPreserved: \forall (k, j: N.Nat^)(a: Runtime^)(history: History^)(r, s: N.Nat^) -> Logic.Not (s = j) -> attemptReduced (column k j a history) = B.Bool^::false -> attemptMatrix (column k j a history) r s = a r s :=
+  \fun (k, j: N.Nat^)(a: Runtime^)(history: History^)(r, s: N.Nat^)(different: _)(noSwap: _) =>
+    trans!{I.Int^} (attemptMatrix (column k j a history) r s) (columnMatrix k j a r s) (a r s)
+      (congr!{Runtime^ I.Int^} (\fun (matrix: Runtime^) => matrix r s) (attemptMatrix (column k j a history)) (columnMatrix k j a) (columnUnchanged k j a history noSwap))
+      (rowAdditionOther (Transpose.transpose a) j k (columnCoefficient k j a) s r different);
+
+\definition rowTrace: \forall (k, i: N.Nat^)(original, a: Runtime^)(history: History^) -> a = applyHistory history original ->
+  attemptMatrix (row k i a history) = applyHistory (attemptHistory (row k i a history)) original :=
+  \fun (k, i: N.Nat^)(original, a: Runtime^)(history: History^)(trace: a = applyHistory history original) => B.cases
+    (\fun (test: B.Bool^) =>
+      attemptMatrix (B.ite Attempt^ test (Attempt^::attempt (rowMatrix k i a) (rowHistory k i a history) B.Bool^::false) (Attempt^::attempt (rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (rowHistory k i a history)) B.Bool^::true)) =
+      applyHistory (attemptHistory (B.ite Attempt^ test (Attempt^::attempt (rowMatrix k i a) (rowHistory k i a history) B.Bool^::false) (Attempt^::attempt (rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (rowHistory k i a history)) B.Bool^::true))) original)
+    (congr!{Runtime^ Runtime^} (\fun (matrix: Runtime^) => Rows.swap (Rows.add matrix i k (rowCoefficient k i a)) k i) a (applyHistory history original) trace)
+    (congr!{Runtime^ Runtime^} (\fun (matrix: Runtime^) => Rows.add matrix i k (rowCoefficient k i a)) a (applyHistory history original) trace)
+    (I.IsZero.specification (Division.remainder (a i k) (a k k)));
+\definition columnTrace: \forall (k, j: N.Nat^)(original, a: Runtime^)(history: History^) -> a = applyHistory history original ->
+  attemptMatrix (column k j a history) = applyHistory (attemptHistory (column k j a history)) original :=
+  \fun (k, j: N.Nat^)(original, a: Runtime^)(history: History^)(trace: a = applyHistory history original) => B.cases
+    (\fun (test: B.Bool^) =>
+      attemptMatrix (B.ite Attempt^ test (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false) (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true)) =
+      applyHistory (attemptHistory (B.ite Attempt^ test (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false) (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true))) original)
+    (congr!{Runtime^ Runtime^} (\fun (matrix: Runtime^) => Columns.swap (Columns.add matrix j k (columnCoefficient k j a)) k j) a (applyHistory history original) trace)
+    (congr!{Runtime^ Runtime^} (\fun (matrix: Runtime^) => Columns.add matrix j k (columnCoefficient k j a)) a (applyHistory history original) trace)
+    (I.IsZero.specification (Division.remainder (a k j) (a k k)));
+\definition reduceRow: N.Nat^ -> N.Nat^ -> Runtime^ -> History^ -> Attempt^ := row;
+\definition reduceColumn: N.Nat^ -> N.Nat^ -> Runtime^ -> History^ -> Attempt^ := column;
+\module Bounded;
+
+\definition columnIsChanged: \forall (k, j: N.Nat^)(a: Runtime^)(history: History^) -> Logic.Not (Division.remainder (a k j) (a k k) = Arithmetic.zero) -> attemptReduced (column k j a history) = B.Bool^::true :=
+  \fun (k, j: N.Nat^)(a: Runtime^)(history: History^)(nonzero: _) => B.cases
+    (\fun (test: B.Bool^) => I.IsZero.specification (Division.remainder (a k j) (a k k)) = test ->
+      attemptReduced (B.ite Attempt^ test (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false) (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true)) = B.Bool^::true)
+    (\fun (equal: I.IsZero.specification (Division.remainder (a k j) (a k k)) = B.Bool^::false) => \refl(B.Bool^::true))
+    (\fun (equal: I.IsZero.specification (Division.remainder (a k j) (a k k)) = B.Bool^::true) => Logic.falseElim _ (nonzero (ZeroTest.zeroOfTrue (Division.remainder (a k j) (a k k)) equal)))
+    (I.IsZero.specification (Division.remainder (a k j) (a k k))) (\refl(I.IsZero.specification (Division.remainder (a k j) (a k k))));
+
+\definition rowNonzero: \forall (k, i: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k i -> Logic.Not (a k k = Arithmetic.zero) -> Logic.Not (attemptMatrix (row k i a history) k k = Arithmetic.zero) :=
+  \fun (k, i: N.Nat^)(a: Runtime^)(history: History^)(less: _)(nonzero: _) => B.cases
+    (\fun (test: B.Bool^) => I.IsZero.specification (Division.remainder (a i k) (a k k)) = test ->
+      Logic.Not (attemptMatrix (B.ite Attempt^ test (Attempt^::attempt (rowMatrix k i a) (rowHistory k i a history) B.Bool^::false) (Attempt^::attempt (rowSwapped k i a) (History^::prepend (Operation^::rowSwap k i) (rowHistory k i a history)) B.Bool^::true)) k k = Arithmetic.zero))
+    (\fun (equal: I.IsZero.specification (Division.remainder (a i k) (a k k)) = B.Bool^::false)(zero: _) =>
+      ZeroTest.nonzeroOfFalse (Division.remainder (a i k) (a k k)) equal
+        (trans!{I.Int^} (Division.remainder (a i k) (a k k)) (rowSwapped k i a k k) Arithmetic.zero (sym!{I.Int^} (rowSwapped k i a k k) (Division.remainder (a i k) (a k k)) (rowPivot k i a)) zero))
+    (\fun (equal: I.IsZero.specification (Division.remainder (a i k) (a k k)) = B.Bool^::true)(zero: _) => nonzero
+      (trans!{I.Int^} (a k k) (rowMatrix k i a k k) Arithmetic.zero
+        (sym!{I.Int^} (rowMatrix k i a k k) (a k k) (rowAdditionOther a i k (rowCoefficient k i a) k k (Bounds.ltNe k i less))) zero))
+    (I.IsZero.specification (Division.remainder (a i k) (a k k))) (\refl(I.IsZero.specification (Division.remainder (a i k) (a k k))));
+\definition columnNonzero: \forall (k, j: N.Nat^)(a: Runtime^)(history: History^) -> Bounds.Lt k j -> Logic.Not (a k k = Arithmetic.zero) -> Logic.Not (attemptMatrix (column k j a history) k k = Arithmetic.zero) :=
+  \fun (k, j: N.Nat^)(a: Runtime^)(history: History^)(less: _)(nonzero: _) => B.cases
+    (\fun (test: B.Bool^) => I.IsZero.specification (Division.remainder (a k j) (a k k)) = test ->
+      Logic.Not (attemptMatrix (B.ite Attempt^ test (Attempt^::attempt (columnMatrix k j a) (columnHistory k j a history) B.Bool^::false) (Attempt^::attempt (columnSwapped k j a) (History^::prepend (Operation^::columnSwap k j) (columnHistory k j a history)) B.Bool^::true)) k k = Arithmetic.zero))
+    (\fun (equal: I.IsZero.specification (Division.remainder (a k j) (a k k)) = B.Bool^::false)(zero: _) =>
+      ZeroTest.nonzeroOfFalse (Division.remainder (a k j) (a k k)) equal
+        (trans!{I.Int^} (Division.remainder (a k j) (a k k)) (columnSwapped k j a k k) Arithmetic.zero (sym!{I.Int^} (columnSwapped k j a k k) (Division.remainder (a k j) (a k k)) (columnPivot k j a)) zero))
+    (\fun (equal: I.IsZero.specification (Division.remainder (a k j) (a k k)) = B.Bool^::true)(zero: _) => nonzero
+      (trans!{I.Int^} (a k k) (columnMatrix k j a k k) Arithmetic.zero
+        (sym!{I.Int^} (columnMatrix k j a k k) (a k k) (rowAdditionOther (Transpose.transpose a) j k (columnCoefficient k j a) k k (Bounds.ltNe k j less))) zero))
+    (I.IsZero.specification (Division.remainder (a k j) (a k k))) (\refl(I.IsZero.specification (Division.remainder (a k j) (a k k))));
+\import B.Choose[A := Attempt] \as Choice;
+\definition choiceProgram: Choice.T := Choice.program;
+\module RowImplementation;
+\correspondence Row: Programs.Correspondence := Programs.Correspondence {
+  T := RowImplementation[].T, program := RowImplementation[].program, specification := row, coherence := RowImplementation[].coherence,
+};
+\module ColumnImplementation;
+\correspondence Column: Programs.Correspondence := Programs.Correspondence {
+  T := ColumnImplementation[].T, program := ColumnImplementation[].program, specification := column, coherence := ColumnImplementation[].coherence,
+};

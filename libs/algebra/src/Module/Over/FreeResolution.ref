@@ -1,0 +1,24 @@
+\import std.Data[].Nat[] \as N;
+\structure Packed: \Set(1) {
+  Carrier: \Set,
+  spaceLift: \forall (X: \Set) -> (Space Carrier -> X) -> X,
+}
+\definition lower(p: Packed): Space p.Carrier := p.spaceLift (Space p.Carrier) (\fun (m: Space p.Carrier) => m);
+\definition unpack(p: Packed): Bundle := Bundle { Carrier := p.Carrier, space := lower p };
+\definition step(p: Packed): Packed := Packed {
+  Carrier := \parent.CanonicalFree[M := unpack p].KernelCarrier,
+  spaceLift := \fun (X: \Set)(f: Space (\parent.CanonicalFree[M := unpack p].KernelCarrier) -> X) =>
+    f (\parent.CanonicalFree[M := unpack p].kernelSpace),
+};
+\definition stages: N.Nat^ -> Packed :=
+  \induction (n: N.Nat^) \return Packed \with {
+    | zero: Packed { Carrier := M.Carrier, spaceLift := \fun (X: \Set)(f: Space M.Carrier -> X) => f M.space }
+    | succ: \fun (n: N.Nat^)(previous: Packed) => step previous
+  };
+\definition syzygyCarrier(n: N.Nat^): \Set := (stages n).Carrier;
+\definition syzygySpace(n: N.Nat^): Space (syzygyCarrier n) := lower (stages n);
+\definition syzygy(n: N.Nat^): Bundle := unpack (stages n);
+\module At(n: N.Nat^);
+\definition Carrier(n: N.Nat^): \Set := At[n := n].Carrier;
+\definition space(n: N.Nat^): Space (Carrier n) := At[n := n].space;
+\definition family: Family[N.Nat^] := Family[N.Nat^] { Carrier := Carrier, space := space };

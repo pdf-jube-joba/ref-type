@@ -1,0 +1,26 @@
+\import algebra.Module[].Commutative[R := I.Int^, ring := IntegerRing.commutativeRing].Matrix[m := k, n := k] \as Square;
+\import Square.End[] \as End;
+\import Modules.Coordinates[I := Finite.Fin k].Kronecker[] \as Kronecker;
+\import N.Basic[].Prop[] \as NatLaws;
+\import B.Prop[] \as BoolLaws;
+\definition value: \forall (i, j: Finite.Fin k) -> identity i j = Kronecker.delta i j :=
+  \fun (i, j: Finite.Fin k) => B.cases
+    (\fun (test: B.Bool^) => Nat.eqb i j = test -> B.ite I.Int^ test Arithmetic.one Arithmetic.zero = Kronecker.delta i j)
+    (\fun (test: Nat.eqb i j = B.Bool^::false) => sym!{I.Int^} (Kronecker.delta i j) Arithmetic.zero
+      (Kronecker.different i j (\fun (same: i = j) => BoolLaws.falseNeTrue
+        (trans!{B.Bool^} B.Bool^::false (Nat.eqb i j) B.Bool^::true
+          (sym!{B.Bool^} (Nat.eqb i j) B.Bool^::false test) (NatLaws.eqbTrueOfEq i j same)))))
+    (\fun (test: Nat.eqb i j = B.Bool^::true) => sym!{I.Int^} (Kronecker.delta i j) Arithmetic.one (Kronecker.equal i j (NatLaws.eqOfEqbTrue j i test)))
+    (Nat.eqb i j) (\refl(Nat.eqb i j));
+\definition reflected: Square.Matrix := \fun (i, j: Finite.Fin k) => program^ i j;
+\definition law: reflected = End.identity := \axiom:funext(reflected, End.identity,
+  \fun (i: Finite.Fin k) => \axiom:funext(reflected i, End.identity i,
+    \fun (j: Finite.Fin k) => trans!{I.Int^} (program^ i j) (identity i j) (Kronecker.delta i j) (matches i j) (value i j)));
+
+\import Modules.FiniteCoordinates[n := k] \as Coordinates;
+\import Modules.Hom[V := Coordinates.Carrier, W := Coordinates.Carrier, source := Coordinates.space, target := Coordinates.space] \as Maps;
+\definition action: \forall (v: Coordinates.Carrier) -> Square.apply reflected v = v :=
+  \fun (v: Coordinates.Carrier) => trans!{Coordinates.Carrier} _ _ _
+    (congr!{Square.Matrix Coordinates.Carrier} (\fun (a: Square.Matrix) => Square.apply a v) reflected End.identity law)
+    (congr!{Maps.Map Coordinates.Carrier} (\fun (f: Maps.Map) => #apply{f} v) (Square.linear End.identity)
+      (Modules.End[V := Coordinates.Carrier, space := Coordinates.space].identity) End.identityLaw);

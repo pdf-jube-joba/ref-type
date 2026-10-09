@@ -1,0 +1,22 @@
+\import std.Logic[].Relation[] \as Relation;
+\inductive Expression: \Set :=
+  | zero: Expression
+  | generator: Generators -> Expression
+  | sum: Expression -> Expression -> Expression
+  | negative: Expression -> Expression
+  | scale: R -> Expression -> Expression;
+\structure Rules[relation: Expression -> Expression -> \Prop]: \Prop {
+  equivalence: Relation.Equivalence[Expression, relation],
+  addCong: \forall (x, y, u, v: Expression) -> relation x y -> relation u v -> relation (Expression::sum x u) (Expression::sum y v),
+  negCong: \forall (x, y: Expression) -> relation x y -> relation (Expression::negative x) (Expression::negative y),
+  scaleCong: \forall (a: R)(x, y: Expression) -> relation x y -> relation (Expression::scale a x) (Expression::scale a y),
+  zeroLeft: \forall (x: Expression) -> relation (Expression::sum Expression::zero x) x,
+  addAssoc: \forall (x, y, z: Expression) -> relation (Expression::sum (Expression::sum x y) z) (Expression::sum x (Expression::sum y z)),
+  addComm: \forall (x, y: Expression) -> relation (Expression::sum x y) (Expression::sum y x),
+  inverse: \forall (x: Expression) -> relation (Expression::sum (Expression::negative x) x) Expression::zero,
+  scalarOne: \forall (x: Expression) -> relation (Expression::scale (#one{ring}) x) x,
+  scalarAssoc: \forall (a, b: R)(x: Expression) -> relation (Expression::scale (#mul{ring} a b) x) (Expression::scale a (Expression::scale b x)),
+  scalarAdd: \forall (a, b: R)(x: Expression) -> relation (Expression::scale (#add{ring} a b) x) (Expression::sum (Expression::scale a x) (Expression::scale b x)),
+  vectorAdd: \forall (a: R)(x, y: Expression) -> relation (Expression::scale a (Expression::sum x y)) (Expression::sum (Expression::scale a x) (Expression::scale a y)),
+}
+\module Of(relations: Expression -> Expression -> \Prop);

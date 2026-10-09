@@ -1,0 +1,40 @@
+\import Cochains.At[C := C, k := p] \as Left;
+\import Cochains.At[C := D, k := q] \as Right;
+\import \parent.Tensor[C := C, D := D] \as Product;
+\import \parent.Total[C := Product.complex] \as Total;
+\import Cochains.At[C := Total.complex, k := Arithmetic.add p q] \as H;
+\import \parent.CycleProduct[C := C, D := D, p := p, q := q] \as Cycles;
+\import \parent.CycleProductRightDescent[C := C, D := D, p := p, q := q] \as RightDescent;
+\import \parent.LeftCycleBoundary[C := C, D := D, q := q] \as Boundaries;
+\definition leftCycles: Modules.Bundle := Modules.Bundle { Carrier := Left.CycleCarrier, space := Left.cycleSpace };
+\definition leftHomology: Modules.Bundle := Modules.Bundle { Carrier := Left.Cohomology, space := Left.cohomologySpace };
+\definition rightHomology: Modules.Bundle := Modules.Bundle { Carrier := Right.Cohomology, space := Right.cohomologySpace };
+\definition target: Modules.Bundle := Modules.Bundle { Carrier := H.Cohomology, space := H.cohomologySpace };
+\import Modules.TensorDescent[B := leftCycles, C := leftHomology, N := rightHomology, U := target].On[
+  q := Left.classLinear, f := RightDescent.map] \as Descent;
+\definition onto: Descent.Onto :=
+  Left.classInduction
+    (\fun (h: Left.Cohomology) => \exists { x: Left.CycleCarrier \where Left.classOf x = h })
+    (\fun (x: Left.CycleCarrier) => \exact(\into[Left.CycleCarrier](x,
+      { z: Left.CycleCarrier \where Left.classOf z = Left.classOf x }) \by { \refl(Left.classOf x) },
+      \Cast[Left.CycleCarrier] ({ z: Left.CycleCarrier \where Left.classOf z = Left.classOf x })));
+\import Modules.Tensor[V := Left.CycleCarrier, W := Right.Cohomology,
+  left := Left.cycleSpace, right := Right.cohomologySpace] \as Mixed;
+\definition kills: Descent.Kills :=
+  \fun (x: Left.CycleCarrier)(zero: Left.classOf x = #zero{Left.cohomologySpace}) =>
+    Right.classInduction
+      (\fun (h: Right.Cohomology) => #apply{RightDescent.map} (Mixed.tensor x h) = #zero{H.cohomologySpace})
+      (\fun (y: Right.CycleCarrier) => trans!{H.Cohomology} _ _ _ (RightDescent.onTensor x y)
+        (Boundaries.vanishes p x y (Left.zeroClassBoundary x zero)));
+\import Modules.Tensor[V := Left.Cohomology, W := Right.Cohomology,
+  left := Left.cohomologySpace, right := Right.cohomologySpace] \as Tensor;
+\definition Carrier: \Set := Tensor.Carrier;
+\definition space: Modules.Space Carrier := Tensor.space;
+\definition tensor(x: Left.Cohomology)(y: Right.Cohomology): Carrier := Tensor.tensor x y;
+\definition map: Modules.Hom[V := Carrier, W := H.Cohomology, source := space, target := H.cohomologySpace].Map :=
+  Descent.map onto kills;
+\definition onClass: \forall (x: Left.CycleCarrier)(y: Right.CycleCarrier) ->
+  #apply{map} (tensor (Left.classOf x) (Right.classOf y)) = Cycles.classOf x y :=
+  \fun (x: Left.CycleCarrier)(y: Right.CycleCarrier) => trans!{H.Cohomology} _ _ _
+    (Descent.onTensor onto kills (Left.classOf x) (Right.classOf y))
+    (trans!{H.Cohomology} _ _ _ (Descent.At[y := Right.classOf y].onImage onto kills x) (RightDescent.onTensor x y));

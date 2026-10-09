@@ -1,0 +1,131 @@
+\import Finite.Bounded[] \as Bounded;
+\import std.Arithmetic[].IntAlgebra[].Calculation[] \as Arithmetic;
+\import std.Data[].Nat[].Basic[].Prop[] \as Bounds;
+\import std.Data[].Bool[].Prop[] \as BoolLaws;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\definition three: N.Nat^ := N.Nat^::succ two;
+\definition zeroRuntime: Matrices.Runtime^ := \fun (i, j: N.Nat^) => I.Int^::ofNat zero;
+\definition naturalRanks: N.Nat^ -> N.Nat^ := \induction (n: N.Nat^) \return N.Nat^ \with {
+  | zero: one
+  | succ: \fun (n: N.Nat^)(before: N.Nat^) =>
+    (\induction (n: N.Nat^) \return N.Nat^ \with {
+      | zero: two
+      | succ: \fun (n: N.Nat^)(before: N.Nat^) =>
+        (\induction (n: N.Nat^) \return N.Nat^ \with {
+          | zero: one
+          | succ: \fun (n: N.Nat^)(before: N.Nat^) => zero
+        }) n
+    }) n
+};
+\definition ranks: I.Int^ -> N.Nat^ := \induction (z: I.Int^) \return N.Nat^ \with {
+  | ofNat: naturalRanks
+  | negSucc: \fun (n: N.Nat^) => zero
+};
+\definition naturalBoundary: N.Nat^ -> Matrices.Runtime^ := \induction (n: N.Nat^) \return Matrices.Runtime^ \with {
+  | zero: zeroRuntime
+  | succ: \fun (n: N.Nat^)(before: Matrices.Runtime^) =>
+    (\induction (n: N.Nat^) \return Matrices.Runtime^ \with {
+      | zero: Examples.a^
+      | succ: \fun (n: N.Nat^)(before: Matrices.Runtime^) =>
+        (\induction (n: N.Nat^) \return Matrices.Runtime^ \with {
+          | zero: boundary^
+          | succ: \fun (n: N.Nat^)(before: Matrices.Runtime^) => zeroRuntime
+        }) n
+    }) n
+};
+\definition matrices: I.Int^ -> Matrices.Runtime^ := \induction (z: I.Int^) \return Matrices.Runtime^ \with {
+  | ofNat: naturalBoundary
+  | negSucc: \fun (n: N.Nat^) => zeroRuntime
+};
+\definition data: Bounded.Data := Bounded.Data { ranks := ranks, boundary := matrices, bound := two };
+\definition Vector(z: I.Int^): \Set := Bounded.Carrier data z;
+\definition vectorSpace(z: I.Int^): Modules.Space (Vector z) := Bounded.space data z;
+\definition differential: \forall (z: I.Int^) -> Vector z -> Vector (Bounded.previous z) := Bounded.apply data;
+\definition zeroAction: \forall (z: I.Int^) -> matrices z = zeroRuntime ->
+  \forall (v: Vector z) -> differential z v = #zero{(vectorSpace (Bounded.previous z))} :=
+  \fun (z: I.Int^)(equal: matrices z = zeroRuntime)(v: Vector z) =>
+    trans!{{Vector (Bounded.previous z)}} (differential z v)
+      (Commutative.Matrix[m := ranks (Bounded.previous z), n := ranks z].apply
+        (Commutative.Matrix[m := ranks (Bounded.previous z), n := ranks z].zero) v)
+      #zero{(vectorSpace (Bounded.previous z))}
+      (congr!{Matrices.Runtime^ {Vector (Bounded.previous z)}}
+        (\fun (a: Matrices.Runtime^) => Commutative.Matrix[m := ranks (Bounded.previous z), n := ranks z].apply
+          (\fun (i: Indices.Fin (ranks (Bounded.previous z)))(j: Indices.Fin (ranks z)) => a i j) v)
+        (matrices z) zeroRuntime equal)
+      (Commutative.Matrix[m := ranks (Bounded.previous z), n := ranks z].zeroAction v);
+\definition zeroAfter: \forall (z: I.Int^) -> matrices (Bounded.previous z) = zeroRuntime ->
+  \forall (v: Vector z) -> differential (Bounded.previous z) (differential z v)
+    = #zero{(vectorSpace (Bounded.previous (Bounded.previous z)))} :=
+  \fun (z: I.Int^)(equal: matrices (Bounded.previous z) = zeroRuntime)(v: Vector z) =>
+    zeroAction (Bounded.previous z) equal (differential z v);
+\definition zeroBefore: \forall (z: I.Int^) -> matrices z = zeroRuntime ->
+  \forall (v: Vector z) -> differential (Bounded.previous z) (differential z v)
+    = #zero{(vectorSpace (Bounded.previous (Bounded.previous z)))} :=
+  \fun (z: I.Int^)(equal: matrices z = zeroRuntime)(v: Vector z) =>
+    trans!{{Vector (Bounded.previous (Bounded.previous z))}} _ _ _
+      (congr!{{Vector (Bounded.previous z)} {Vector (Bounded.previous (Bounded.previous z))}}
+        (differential (Bounded.previous z)) _ _ (zeroAction z equal v))
+      (Modules.Hom[V := Vector (Bounded.previous z), W := Vector (Bounded.previous (Bounded.previous z)),
+        source := vectorSpace (Bounded.previous z), target := vectorSpace (Bounded.previous (Bounded.previous z))].zeroPreserved
+        (Commutative.Matrix[m := ranks (Bounded.previous (Bounded.previous z)), n := ranks (Bounded.previous z)].linear
+          (\fun (i: Indices.Fin (ranks (Bounded.previous (Bounded.previous z))))(j: Indices.Fin (ranks (Bounded.previous z))) =>
+            matrices (Bounded.previous z) i j)));
+\definition Square(z: I.Int^): \Prop := \forall (v: Vector z) ->
+  differential (Bounded.previous z) (differential z v) = #zero{(vectorSpace (Bounded.previous (Bounded.previous z)))};
+\definition naturalSquare: \forall (n: N.Nat^) -> Square (I.Int^::ofNat n) :=
+  \induction (n: N.Nat^) \return Square (I.Int^::ofNat n) \with {
+    | zero: zeroAfter (I.Int^::ofNat zero) (\refl(zeroRuntime))
+    | succ: \fun (n: N.Nat^)(before: Square (I.Int^::ofNat n)) =>
+      (\induction (n: N.Nat^) \return Square (I.Int^::ofNat (N.Nat^::succ n)) \with {
+        | zero: zeroAfter (I.Int^::ofNat one) (\refl(zeroRuntime))
+        | succ: \fun (n: N.Nat^)(before: Square (I.Int^::ofNat (N.Nat^::succ n))) =>
+          (\induction (n: N.Nat^) \return Square (I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ n))) \with {
+            | zero: #squareZero{pairLaws}
+            | succ: \fun (n: N.Nat^)(before: Square (I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ n)))) =>
+              zeroBefore (I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ (N.Nat^::succ n)))) (\refl(zeroRuntime))
+          }) n
+      }) n
+  };
+\definition squareZero: \forall (z: I.Int^) -> Square z :=
+  \induction (z: I.Int^) \return Square z \with {
+    | ofNat: naturalSquare
+    | negSucc: \fun (n: N.Nat^) => zeroAfter (I.Int^::negSucc n) (\refl(zeroRuntime))
+  };
+\definition naturalBound: \forall (n: N.Nat^) -> Bounds.Le three n -> naturalRanks n = zero :=
+  \induction (n: N.Nat^) \return Bounds.Le three n -> naturalRanks n = zero \with {
+    | zero: \fun (bad: _) => BoolLaws.absurd (naturalRanks zero = zero) bad
+    | succ: \fun (n: N.Nat^)(before: Bounds.Le three n -> naturalRanks n = zero) =>
+      (\induction (n: N.Nat^) \return Bounds.Le three (N.Nat^::succ n) -> naturalRanks (N.Nat^::succ n) = zero \with {
+        | zero: \fun (bad: _) => BoolLaws.absurd (naturalRanks one = zero) bad
+        | succ: \fun (n: N.Nat^)(before: _) =>
+          (\induction (n: N.Nat^) \return Bounds.Le three (N.Nat^::succ (N.Nat^::succ n)) ->
+            naturalRanks (N.Nat^::succ (N.Nat^::succ n)) = zero \with {
+            | zero: \fun (bad: _) => BoolLaws.absurd (naturalRanks two = zero) bad
+            | succ: \fun (n: N.Nat^)(before: _)(bound: _) => \refl(zero)
+          }) n
+      }) n
+  };
+\definition bounded: \forall (z: I.Int^) -> Bounds.Le three (Signed.absolute z) -> ranks z = zero :=
+  \induction (z: I.Int^) \return Bounds.Le three (Signed.absolute z) -> ranks z = zero \with {
+    | ofNat: naturalBound
+    | negSucc: \fun (n: N.Nat^)(bound: _) => \refl(zero)
+  };
+\definition laws: Bounded.Laws[data] := Bounded.Laws[data] { squareZero := squareZero, bounded := bounded };
+\definition complex: Bounded.Complex := \into[Bounded.Data](data, { data: Bounded.Data \where Bounded.Laws[data] }) \by { laws };
+\import Bounded.Of[C := complex] \as Calculated;
+\import Calculated.At[z := I.Int^::ofNat one] \as AtOne;
+\definition result: AtOne.Result := AtOne.result;
+\definition freeRank: AtOne.freeRank = zero := \refl(zero);
+\definition cyclicRank: AtOne.cyclicRank = one := \refl(one);
+\definition cyclicFactor: Compute.diagonalFactor (Calculated.calculate (I.Int^::ofNat one)) zero = I.Int^::ofNat two := \refl(I.Int^::ofNat two);
+\import homological_algebra.Chain[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing].At[C := Calculated.chain, z := I.Int^::ofNat one] \as ChainHomology;
+\import Modules.Isomorphism[V := ChainHomology.Homology, W := Homology.Homology, source := ChainHomology.homologySpace, target := Homology.homologySpace].Composition[U := CyclicTwo.Carrier, final := CyclicTwo.space] \as CyclicComposition;
+\definition cyclicIsomorphism: Modules.Isomorphism[V := ChainHomology.Homology, W := CyclicTwo.Carrier, source := ChainHomology.homologySpace, target := CyclicTwo.space].Isomorphism :=
+  CyclicComposition.compose inheritedCyclicIsomorphism AtOne.pairIsomorphism;
+\import Calculated.Dual[] \as Dual;
+\import Dual.At[z := I.Int^::ofNat two] \as AtTwo;
+\definition dualResult: AtTwo.Result := AtTwo.result;
+\definition dualFreeRank: AtTwo.freeRank = zero := \refl(zero);
+\definition dualFactor: Compute.diagonalFactor (Dual.calculate (I.Int^::ofNat two)) zero = I.Int^::ofNat two := \refl(I.Int^::ofNat two);
+
+\module BasisChange;

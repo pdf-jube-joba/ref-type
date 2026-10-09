@@ -1,0 +1,12 @@
+\definition T: \VType := \U(Runtime -> N.Nat -> Runtime);
+\definition program: T := \thunk (\cfun (a: Runtime) => \return(\thunk (\cfun (r: N.Nat) => \program {
+    \bind transposed: Runtime <- (\force Transpose.program) a \then
+    \bind operation0: \U(N.Nat -> Runtime) <- (\force Rows.Negate.program) transposed \then
+    \bind operation1: Runtime <- (\force operation0) r \then
+    \bind result: Runtime <- (\force Transpose.program) operation1 \then
+    \return result
+  })));
+\definition matches: \forall (a: Runtime^)(r: N.Nat^) -> program^ a r = negate a r :=
+  \fun (a: Runtime^)(r: N.Nat^) => congr!{Rows.Negate.T^ Runtime^}
+    (\fun (f: Rows.Negate.T^) => Transpose.transpose (f (Transpose.transpose a) r)) Rows.Negate.program^ Rows.Negate.specification Rows.Negate.coherence;
+\definition coherence: program^ = negate := \axiom:funext(program^, negate, \fun (a: Runtime^) => \axiom:funext(program^ a, negate a, \fun (r: N.Nat^) => matches a r));

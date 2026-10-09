@@ -1,0 +1,27 @@
+\import \parent.Surjection[n := n] \as Projection;
+\import \parent.Kernel[n := n] \as Kernel;
+\import Original.Syzygy[n := n, resolution := q] \as Syzygy;
+\import Modules.Of[V := Q.family.Carrier n, space := Q.family.space n].Submodule[].Of[S := Original.kernel q n] \as Inclusion;
+\import Modules.Tensor[V := P.Carrier, W := Syzygy.Carrier, left := P.space, right := Syzygy.space].Mapping[
+  U := P.Carrier, Z := Q.family.Carrier n, targetLeft := P.space, targetRight := Q.family.space n] \as Mapping;
+\import \parent.\parent.Term[n := Nat.Nat^::succ n] \as Source;
+\import \parent.\parent.Term[n := n] \as Target;
+\import Product.At[p := Nat.Nat^::zero, q := n] \as Differential;
+\import Modules.Hom[V := Kernel.Carrier, W := Target.Carrier, source := Kernel.space, target := Target.space].Composition[
+  U := Source.Carrier, domain := Source.space] \as Composition;
+\import Modules.Tensor[V := P.Carrier, W := Q.family.Carrier (Nat.Nat^::succ n), left := P.space, right := Q.family.space (Nat.Nat^::succ n)].Universal[
+  U := Target.Carrier, target := Target.space] \as Universal;
+\definition equality: Composition.compose Kernel.inclusion Projection.map = Differential.vertical :=
+  Universal.ext (Composition.compose Kernel.inclusion Projection.map) Differential.vertical
+    (\fun (x: P.Carrier)(y: Q.family.Carrier (Nat.Nat^::succ n)) => trans!{Target.Carrier}
+      (#apply{Kernel.inclusion} (#apply{Projection.map} (Source.tensor x y)))
+      (#apply{Kernel.inclusion} (Kernel.tensor x (#apply{Syzygy.projection} y)))
+      (#apply{Differential.vertical} (Source.tensor x y))
+      (congr!{Kernel.Carrier Target.Carrier} (#apply{Kernel.inclusion}) _ _ (Projection.onTensor x y))
+      (trans!{Target.Carrier} _ _ _ (Mapping.onTensor Identity.identity Inclusion.inclusion x (#apply{Syzygy.projection} y))
+        (sym!{Target.Carrier} _ _ (Differential.verticalOnTensor x y))));
+\import Modules.Hom[V := Source.Carrier, W := Target.Carrier, source := Source.space, target := Target.space] \as Maps;
+\definition point: \forall (x: Source.Carrier) ->
+  #apply{Kernel.inclusion} (#apply{Projection.map} x) = #apply{complex.differential} n x :=
+  \fun (x: Source.Carrier) => congr!{Maps.Map Target.Carrier} (\fun (f: Maps.Map) => #apply{f} x)
+    (Composition.compose Kernel.inclusion Projection.map) Differential.vertical equality;

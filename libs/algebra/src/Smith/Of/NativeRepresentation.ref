@@ -1,0 +1,51 @@
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Product[k := N.Nat^::zero] \as Numeric;
+\import \parent.\parent.FrameExecution[] \as NativeFrames;
+\import algebra.IntegerMatrix[m := N.Nat^::zero, n := N.Nat^::zero].Identity[] \as Identity;
+\import LeftMatrices.Identity[].Typed[k := m] \as LeftIdentity;
+\import RightMatrices.Identity[].Typed[k := n] \as RightIdentity;
+\import LeftMatrices.Product[k := m] \as LeftNumeric;
+\import RightMatrices.Product[k := n] \as RightNumeric;
+\structure Matches[frame: Frame, native: BasisChange^]: \Prop {
+  left: LeftMatrices.reflect (NativeFrames.left native) = frame.left,
+  right: RightMatrices.reflect (NativeFrames.right native) = frame.right,
+  leftInverse: LeftMatrices.reflect (NativeFrames.leftInverse native) = #inverse{frame.leftInverse},
+  rightInverse: RightMatrices.reflect (NativeFrames.rightInverse native) = #inverse{frame.rightInverse},
+}
+\definition leftIdentity: LeftMatrices.reflect Identity.identity = LeftEnd.identity :=
+  trans!{Left.Matrix} (LeftMatrices.reflect Identity.identity) (LeftMatrices.reflect Identity.Identity.program^) LeftEnd.identity
+    (congr!{Runtime^ Left.Matrix} LeftMatrices.reflect Identity.identity Identity.Identity.program^ (sym!{Runtime^} Identity.Identity.program^ Identity.identity Identity.Identity.coherence))
+    LeftIdentity.law;
+\definition rightIdentity: RightMatrices.reflect Identity.identity = RightEnd.identity :=
+  trans!{Right.Matrix} (RightMatrices.reflect Identity.identity) (RightMatrices.reflect Identity.Identity.program^) RightEnd.identity
+    (congr!{Runtime^ Right.Matrix} RightMatrices.reflect Identity.identity Identity.Identity.program^ (sym!{Runtime^} Identity.Identity.program^ Identity.identity Identity.Identity.coherence))
+    RightIdentity.law;
+\definition identityMatches: Matches[identity, NativeFrames.identity] := Matches[identity, NativeFrames.identity] {
+  left := leftIdentity, right := rightIdentity, leftInverse := leftIdentity, rightInverse := rightIdentity,
+};
+\definition leftProduct: \forall (a, b: Runtime^) -> LeftMatrices.reflect (Numeric.mathematical m a b) =
+  LeftProduct.product (LeftMatrices.reflect a) (LeftMatrices.reflect b) :=
+  \fun (a, b: Runtime^) => trans!{Left.Matrix} (LeftMatrices.reflect (LeftNumeric.mathematical m a b)) (LeftNumeric.reflected a b) (LeftProduct.product (LeftMatrices.reflect a) (LeftMatrices.reflect b))
+    (congr!{LeftNumeric.Multiply.T^ Left.Matrix} (\fun (f: LeftNumeric.Multiply.T^) => LeftMatrices.reflect (f m a b))
+      LeftNumeric.mathematical LeftNumeric.Multiply.program^ (sym!{LeftNumeric.Multiply.T^} LeftNumeric.Multiply.program^ LeftNumeric.mathematical LeftNumeric.Multiply.coherence))
+    (LeftNumeric.correspondence a b);
+\definition rightProduct: \forall (a, b: Runtime^) -> RightMatrices.reflect (Numeric.mathematical n a b) =
+  RightProduct.product (RightMatrices.reflect a) (RightMatrices.reflect b) :=
+  \fun (a, b: Runtime^) => trans!{Right.Matrix} (RightMatrices.reflect (RightNumeric.mathematical n a b)) (RightNumeric.reflected a b) (RightProduct.product (RightMatrices.reflect a) (RightMatrices.reflect b))
+    (congr!{RightNumeric.Multiply.T^ Right.Matrix} (\fun (f: RightNumeric.Multiply.T^) => RightMatrices.reflect (f n a b))
+      RightNumeric.mathematical RightNumeric.Multiply.program^ (sym!{RightNumeric.Multiply.T^} RightNumeric.Multiply.program^ RightNumeric.mathematical RightNumeric.Multiply.coherence))
+    (RightNumeric.correspondence a b);
+\module Row(r, s: Finite.Fin m);
+\module Column(r, s: Finite.Fin n);
+\module Composition(later, earlier: Frame, nativeLater, nativeEarlier: BasisChange^);
+\structure OperationLaws[operation: Operation^, frame: Frame]: \Prop {
+  action: Action operation frame,
+  representation: Matches[frame, NativeFrames.operation operation],
+}
+\definition OperationFrame(operation: Operation^): \Set := \Cast[Frame] ({ frame: Frame \where OperationLaws[operation, frame] });
+\module Operations;
+\structure HistoryLaws[history: History^, frame: Frame]: \Prop {
+  action: HistoryAction history frame,
+  representation: Matches[frame, NativeFrames.build m n history],
+}
+\definition HistoryFrame(history: History^): \Set := \Cast[Frame] ({ frame: Frame \where HistoryLaws[history, frame] });
+\module Histories;

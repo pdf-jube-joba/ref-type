@@ -1,0 +1,40 @@
+\import Modules.FiniteCoordinates[n := n] \as Small;
+\import Small.Split[] \as Split;
+\import Modules.FiniteCoordinates[n := N.Nat^::succ n] \as Large;
+\import Modules.Of[V := Small.Carrier, space := Small.space].Submodule[] \as SmallSubmodules;
+\import Modules.Of[V := Large.Carrier, space := Large.space].Submodule[] \as LargeSubmodules;
+\import \parent.Dimension[n := N.Nat^::succ n].Of[S := S] \as Included;
+\definition Tail: SmallSubmodules.Submodule := SmallSubmodules.Submodule {
+  carrier := { x: Small.Carrier \where LargeSubmodules.Member S (Split.zeroExtend x) },
+  zero := \idelim #zero{Large.space} = Split.zeroExtend #zero{Small.space} \with x: Large.Carrier => LargeSubmodules.Member S x
+    \by { base: #zero{S}, equality: sym!{Large.Carrier} _ _ Split.zeroZero },
+  addition := \fun (x, y: Small.Carrier)(left: _)(right: _) =>
+    \idelim #add{Large.space} (Split.zeroExtend x) (Split.zeroExtend y) = Split.zeroExtend (#add{Small.space} x y)
+      \with z: Large.Carrier => LargeSubmodules.Member S z \by {
+        base: #addition{S} (Split.zeroExtend x) (Split.zeroExtend y) left right,
+        equality: sym!{Large.Carrier} _ _ (Split.zeroAddition x y)
+      },
+  scalar := \fun (a: K)(x: Small.Carrier)(member: _) =>
+    \idelim #smul{Large.space} a (Split.zeroExtend x) = Split.zeroExtend (#smul{Small.space} a x)
+      \with z: Large.Carrier => LargeSubmodules.Member S z \by {
+        base: #scalar{S} a (Split.zeroExtend x) member, equality: sym!{Large.Carrier} _ _ (Split.zeroScalar a x)
+      },
+};
+\import \parent.Dimension[n := n].Of[S := Tail] \as TailSpace;
+\definition TailRetraction: \Set := TailSpace.Retraction;
+\definition headZero: \Prop := \forall (x: Included.Carrier) -> Split.head x = #zero{ring};
+\definition Pivot: \Set := \Cast[Included.Carrier] ({ x: Included.Carrier \where Logic.Not (Split.head x = #zero{ring}) });
+\definition headZeroOfNoPivot: Logic.Not (\exists Pivot) -> headZero :=
+  \fun (none: Logic.Not (\exists Pivot))(x: Included.Carrier) =>
+    either!{{Split.head x = #zero{ring}} "or" {Logic.Not (Split.head x = #zero{ring})} "either" {Split.head x = #zero{ring}}
+      "lt:" {\fun (zero: Split.head x = #zero{ring}) => zero}
+      "rt:" {\fun (nonzero: Logic.Not (Split.head x = #zero{ring})) => Logic.falseElim (Split.head x = #zero{ring})
+        (none (\exact(\into[Included.Carrier](x, { x: Included.Carrier \where Logic.Not (Split.head x = #zero{ring}) }) \by { nonzero }, Pivot)))}}
+      (Classical.excludedMiddle (Split.head x = #zero{ring}));
+\module Selected(r: TailRetraction);
+\definition existence: (\forall (T: Submodule n) -> \exists Retraction n T) ->
+  \exists Retraction (N.Nat^::succ n) S := \block {
+  \fun (previous: \forall (T: Submodule n) -> \exists Retraction n T) \then
+  \takefrom r: TailRetraction \by previous Tail \then
+  \return Selected[r := r].existence
+};

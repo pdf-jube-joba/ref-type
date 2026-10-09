@@ -1,0 +1,96 @@
+\import Commutative.Matrix[m := two, n := two] \as TwoByTwo;
+\import Modules.FiniteCoordinates[n := two] \as Coordinates;
+\import Modules.Hom[V := Coordinates.Carrier, W := Coordinates.Carrier, source := Coordinates.space, target := Coordinates.space] \as Maps;
+\import Modules.End[V := Coordinates.Carrier, space := Coordinates.space] \as End;
+\import Modules.Laws[V := Coordinates.Carrier, space := Coordinates.space] \as VectorLaws;
+\definition negativeMap: Maps.Map := Maps.negative End.identity;
+\definition negativeRuntime: Matrices.Runtime^ := \fun (i, j: N.Nat^) =>
+  Arithmetic.neg (NativeIdentity.Identity.program^ i j);
+\definition negativeMatrix: TwoByTwo.Matrix := \fun (i, j: Indices.Fin two) => negativeRuntime i j;
+\definition identityMatrix: TwoByTwo.Matrix := \fun (i, j: Indices.Fin two) => NativeIdentity.Identity.program^ i j;
+\definition identityEntry: \forall (i, j: Indices.Fin two) -> NativeIdentity.Identity.program^ i j = (Coordinates.basis j) i :=
+  \fun (i, j: Indices.Fin two) => trans!{I.Int^}
+    (NativeIdentity.Identity.program^ i j) (TwoByTwo.apply identityMatrix (Coordinates.basis j) i) ((Coordinates.basis j) i)
+    (sym!{I.Int^} _ _ (TwoByTwo.Representation[].onBasis identityMatrix i j))
+    (congr!{Coordinates.Carrier I.Int^} (\fun (v: Coordinates.Carrier) => v i)
+      (TwoByTwo.apply identityMatrix (Coordinates.basis j)) (Coordinates.basis j) (IdentityTwo.action (Coordinates.basis j)));
+\definition negativeEntries: negativeMatrix = TwoByTwo.entries negativeMap :=
+  \axiom:funext(negativeMatrix, TwoByTwo.entries negativeMap, \fun (i: Indices.Fin two) =>
+    \axiom:funext(negativeMatrix i, TwoByTwo.entries negativeMap i, \fun (j: Indices.Fin two) =>
+      congr!{I.Int^ I.Int^} Arithmetic.neg (NativeIdentity.Identity.program^ i j)
+        ((Coordinates.basis j) i) (identityEntry i j)));
+\definition negativeRepresentation: TwoByTwo.linear negativeMatrix = negativeMap :=
+  trans!{Maps.Map} (TwoByTwo.linear negativeMatrix) (TwoByTwo.linear (TwoByTwo.entries negativeMap)) negativeMap
+    (congr!{TwoByTwo.Matrix Maps.Map} TwoByTwo.linear negativeMatrix (TwoByTwo.entries negativeMap) negativeEntries)
+    (TwoByTwo.Representation[].mapRoundtrip negativeMap);
+\definition negativeAction: \forall (v: Coordinates.Carrier) ->
+  TwoByTwo.apply (\fun (i, j: Indices.Fin two) => negativeRuntime i j) v = #neg{Coordinates.space} v :=
+  \fun (v: Coordinates.Carrier) => congr!{Maps.Map Coordinates.Carrier} (\fun (f: Maps.Map) => #apply{f} v)
+    (TwoByTwo.linear (\fun (i, j: Indices.Fin two) => negativeRuntime i j)) negativeMap negativeRepresentation;
+\import algebra.Group[].Of[Carrier := Coordinates.Carrier, group := VectorLaws.additive] \as Group;
+\definition negativeInverse: \forall (v: Coordinates.Carrier) ->
+  TwoByTwo.apply (\fun (i, j: Indices.Fin two) => negativeRuntime i j)
+    (TwoByTwo.apply (\fun (i, j: Indices.Fin two) => negativeRuntime i j) v) = v :=
+  \fun (v: Coordinates.Carrier) => trans!{Coordinates.Carrier} _ _ _
+    (negativeAction (TwoByTwo.apply (\fun (i, j: Indices.Fin two) => negativeRuntime i j) v))
+    (trans!{Coordinates.Carrier} _ _ _
+      (congr!{Coordinates.Carrier Coordinates.Carrier} (#neg{Coordinates.space}) _ _ (negativeAction v))
+      (Group.negNeg v));
+\definition naturalChange: N.Nat^ -> Matrices.Runtime^ := \induction (n: N.Nat^) \return Matrices.Runtime^ \with {
+  | zero: NativeIdentity.Identity.program^
+  | succ: \fun (n: N.Nat^)(before: Matrices.Runtime^) =>
+    (\induction (n: N.Nat^) \return Matrices.Runtime^ \with {
+      | zero: negativeRuntime
+      | succ: \fun (n: N.Nat^)(before: Matrices.Runtime^) => NativeIdentity.Identity.program^
+    }) n
+};
+\definition matrices: I.Int^ -> Matrices.Runtime^ := \induction (z: I.Int^) \return Matrices.Runtime^ \with {
+  | ofNat: naturalChange
+  | negSucc: \fun (n: N.Nat^) => NativeIdentity.Identity.program^
+};
+\definition identityInverse: \forall (z: I.Int^)(v: Vector z) ->
+  Commutative.Matrix[m := ranks z, n := ranks z].apply
+    (\fun (i, j: Indices.Fin (ranks z)) => NativeIdentity.Identity.program^ i j)
+    (Commutative.Matrix[m := ranks z, n := ranks z].apply
+      (\fun (i, j: Indices.Fin (ranks z)) => NativeIdentity.Identity.program^ i j) v) = v :=
+  \fun (z: I.Int^)(v: Vector z) => trans!{{Vector z}} _ _ _
+    (NativeIdentity.Typed[k := ranks z].action
+      (Commutative.Matrix[m := ranks z, n := ranks z].apply
+        (\fun (i, j: Indices.Fin (ranks z)) => NativeIdentity.Identity.program^ i j) v))
+    (NativeIdentity.Typed[k := ranks z].action v);
+\definition Inverse(z: I.Int^): \Prop := \forall (v: Vector z) ->
+  Commutative.Matrix[m := ranks z, n := ranks z].apply
+    (\fun (i, j: Indices.Fin (ranks z)) => matrices z i j)
+    (Commutative.Matrix[m := ranks z, n := ranks z].apply
+      (\fun (i, j: Indices.Fin (ranks z)) => matrices z i j) v) = v;
+\definition naturalInverse: \forall (n: N.Nat^) -> Inverse (I.Int^::ofNat n) :=
+  \induction (n: N.Nat^) \return Inverse (I.Int^::ofNat n) \with {
+    | zero: identityInverse (I.Int^::ofNat zero)
+    | succ: \fun (n: N.Nat^)(before: Inverse (I.Int^::ofNat n)) =>
+      (\induction (n: N.Nat^) \return Inverse (I.Int^::ofNat (N.Nat^::succ n)) \with {
+        | zero: negativeInverse
+        | succ: \fun (n: N.Nat^)(before: _) => identityInverse (I.Int^::ofNat (N.Nat^::succ (N.Nat^::succ n)))
+      }) n
+  };
+\definition inverses: \forall (z: I.Int^) -> Inverse z := \induction (z: I.Int^) \return Inverse z \with {
+  | ofNat: naturalInverse
+  | negSucc: \fun (n: N.Nat^) => identityInverse (I.Int^::negSucc n)
+};
+\import Calculated.BasisChange[] \as Changes;
+\definition data: Changes.Data := Changes.Data { forward := matrices, backward := matrices };
+\definition laws: Changes.Laws[data] := Changes.Laws[data] { leftInverse := inverses, rightInverse := inverses };
+\definition change: Changes.Change := \into[Changes.Data](data, { data: Changes.Data \where Changes.Laws[data] }) \by { laws };
+\import Changes.With[change := change] \as Updated;
+\definition complex: Bounded.Complex := Updated.complex;
+\definition outgoingFirst: Updated.boundary (I.Int^::ofNat one) zero zero = I.Int^::negSucc one :=
+  \refl(I.Int^::negSucc one);
+\definition outgoingSecond: Updated.boundary (I.Int^::ofNat one) zero one = I.Int^::negSucc three :=
+  \refl(I.Int^::negSucc three);
+\definition incomingFirst: Updated.boundary (I.Int^::ofNat two) zero zero = I.Int^::ofNat (N.Nat^::succ three) :=
+  \refl(I.Int^::ofNat (N.Nat^::succ three));
+\definition incomingSecond: Updated.boundary (I.Int^::ofNat two) one zero = I.Int^::negSucc one :=
+  \refl(I.Int^::negSucc one);
+\import Updated.Homology[z := I.Int^::ofNat one] \as HomologyChange;
+\import homological_algebra.Chain[].Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing].At[C := Updated.newChain, z := I.Int^::ofNat one] \as NewHomology;
+\definition isomorphism: Modules.Isomorphism[V := ChainHomology.Homology, W := NewHomology.Homology,
+  source := ChainHomology.homologySpace, target := NewHomology.homologySpace].Isomorphism := HomologyChange.isomorphism;

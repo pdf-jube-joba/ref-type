@@ -1,0 +1,48 @@
+\import \parent.Tensor[C := C, D := D] \as Original;
+\import \parent.Transpose[C := Original.complex] \as Transposed;
+\import \parent.Tensor[C := D, D := C] \as Target;
+\import \parent.Map[C := Transposed.complex, D := Target.complex] \as Maps;
+\module Term(p, q: Nat.Nat^) {
+  \import Modules.Tensor[V := C.family.Carrier q, W := D.family.Carrier p, left := C.family.space q, right := D.family.space p] \as Tensor;
+  \import Tensor.Symmetry[] \as Swap;
+  \definition forward: Modules.Hom[V := Transposed.family.Carrier p q, W := Target.family.Carrier p q,
+    source := Transposed.family.space p q, target := Target.family.space p q].Map := Swap.forward;
+  \definition backward: Modules.Hom[V := Target.family.Carrier p q, W := Transposed.family.Carrier p q,
+    source := Target.family.space p q, target := Transposed.family.space p q].Map := Swap.backward;
+  \definition leftInverse: \forall (x: Transposed.family.Carrier p q) -> #apply{backward} (#apply{forward} x) = x := Swap.leftInverse;
+  \definition rightInverse: \forall (x: Target.family.Carrier p q) -> #apply{forward} (#apply{backward} x) = x := Swap.rightInverse;
+  \import Modules.End[V := C.family.Carrier q, space := C.family.space q] \as CIdentity;
+  \import Modules.End[V := D.family.Carrier p, space := D.family.space p] \as DIdentity;
+  \import Modules.Hom[V := C.family.Carrier q, W := C.family.Carrier (Nat.Nat^::succ q), source := C.family.space q, target := C.family.space (Nat.Nat^::succ q)] \as CMaps;
+  \import Modules.Hom[V := D.family.Carrier p, W := D.family.Carrier (Nat.Nat^::succ p), source := D.family.space p, target := D.family.space (Nat.Nat^::succ p)] \as DMaps;
+  \definition dc: CMaps.Map := CMaps.Map { apply := #apply{C.differential} q, addition := #addition{C.laws} q, scalar := #scalar{C.laws} q };
+  \definition dd: DMaps.Map := DMaps.Map { apply := #apply{D.differential} p, addition := #addition{D.laws} p, scalar := #scalar{D.laws} p };
+  \import Swap.Mapping[U := C.family.Carrier q, Z := D.family.Carrier (Nat.Nat^::succ p),
+    targetLeft := C.family.space q, targetRight := D.family.space (Nat.Nat^::succ p)] \as H;
+  \import Swap.Mapping[U := C.family.Carrier (Nat.Nat^::succ q), Z := D.family.Carrier p,
+    targetLeft := C.family.space (Nat.Nat^::succ q), targetRight := D.family.space p] \as V;
+  \definition horizontal: \forall (x: Transposed.family.Carrier p q) ->
+    #apply{(Target.differential.horizontal p q)} (#apply{forward} x) =
+      #apply{(\parent.Term[p := Nat.Nat^::succ p, q := q].forward)} (#apply{(Transposed.differential.horizontal p q)} x) :=
+    \fun (x: Transposed.family.Carrier p q) => sym!{{Target.family.Carrier (Nat.Nat^::succ p) q}} _ _ (H.commutes CIdentity.identity dd x);
+  \definition vertical: \forall (x: Transposed.family.Carrier p q) ->
+    #apply{(Target.differential.vertical p q)} (#apply{forward} x) =
+      #apply{(\parent.Term[p := p, q := Nat.Nat^::succ q].forward)} (#apply{(Transposed.differential.vertical p q)} x) :=
+    \fun (x: Transposed.family.Carrier p q) => sym!{{Target.family.Carrier p (Nat.Nat^::succ q)}} _ _ (V.commutes dc DIdentity.identity x);
+}
+\definition data: Maps.Data := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].forward;
+\definition map: Maps.Map := \into[Maps.Data](data, { data: Maps.Data \where Maps.Laws[data] }) \by {
+  Maps.Laws[data] {
+    horizontal := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].horizontal,
+    vertical := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].vertical,
+  }
+};
+\import Maps.Inverse[f := map] \as Inverse;
+\definition backwardData: Inverse.Data := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].backward;
+\definition inverse: Inverse.Inverse := \into[Inverse.Data](backwardData, { data: Inverse.Data \where Inverse.Laws[data] }) \by {
+  Inverse.Laws[backwardData] {
+    left := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].leftInverse,
+    right := \fun (p, q: Nat.Nat^) => Term[p := p, q := q].rightInverse,
+  }
+};
+\module At(n: Nat.Nat^);

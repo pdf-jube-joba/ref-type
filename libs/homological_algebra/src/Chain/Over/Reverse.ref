@@ -1,0 +1,56 @@
+\import \root.Integer[] \as Integers;
+\import Integers.Over[R := R, ring := ring] \as Cochains;
+\import std.Set[].Transport[I := Degree] \as Transport;
+\definition Carrier(k: Degree): \Set := C.family.Carrier (Integers.reverse k);
+\definition space(k: Degree): Modules.Space (Carrier k) := C.family.space (Integers.reverse k);
+\definition family: Cochains.Family := Cochains.Family { Carrier := Carrier, space := space };
+\definition target(k: Degree): previous (Integers.reverse k) = Integers.reverse (next k) :=
+  sym!{Degree} _ _ (Integers.reverseNext k);
+\definition apply(k: Degree)(x: Carrier k): Carrier (next k) :=
+  Transport.cast C.family.Carrier (previous (Integers.reverse k)) (Integers.reverse (next k)) (target k)
+    (#apply{C.differential} (Integers.reverse k) x);
+\definition addition: \forall (k: Degree)(x, y: Carrier k) ->
+  apply k (#add{(space k)} x y) = #add{(space (next k))} (apply k x) (apply k y) :=
+  \fun (k: Degree)(x, y: Carrier k) => trans!{{Carrier (next k)}} _ _ _
+    (congr!{{C.family.Carrier (previous (Integers.reverse k))} {Carrier (next k)}}
+      (Transport.cast C.family.Carrier (previous (Integers.reverse k)) (Integers.reverse (next k)) (target k)) _ _
+      (#addition{C.laws} (Integers.reverse k) x y))
+    (Transport.binaryNatural C.family.Carrier C.family.Carrier C.family.Carrier (\fun (z: Degree) => #add{(C.family.space z)})
+      (previous (Integers.reverse k)) (Integers.reverse (next k)) (target k)
+      (#apply{C.differential} (Integers.reverse k) x) (#apply{C.differential} (Integers.reverse k) y));
+\definition scalar: \forall (k: Degree)(a: R)(x: Carrier k) ->
+  apply k (#smul{(space k)} a x) = #smul{(space (next k))} a (apply k x) :=
+  \fun (k: Degree)(a: R)(x: Carrier k) => trans!{{Carrier (next k)}} _ _ _
+    (congr!{{C.family.Carrier (previous (Integers.reverse k))} {Carrier (next k)}}
+      (Transport.cast C.family.Carrier (previous (Integers.reverse k)) (Integers.reverse (next k)) (target k)) _ _
+      (#scalar{C.laws} (Integers.reverse k) a x))
+    (Transport.natural C.family.Carrier C.family.Carrier (\fun (z: Degree) => #smul{(C.family.space z)} a)
+      (previous (Integers.reverse k)) (Integers.reverse (next k)) (target k) (#apply{C.differential} (Integers.reverse k) x));
+\definition squareZero: \forall (k: Degree)(x: Carrier k) -> apply (next k) (apply k x) = #zero{(space (next (next k)))} :=
+  \fun (k: Degree)(x: Carrier k) => trans!{{Carrier (next (next k))}} _ _ _
+    (congr!{{C.family.Carrier (previous (Integers.reverse (next k)))} {Carrier (next (next k))}}
+      (Transport.cast C.family.Carrier (previous (Integers.reverse (next k))) (Integers.reverse (next (next k))) (target (next k))) _ _
+      (sym!{{C.family.Carrier (previous (Integers.reverse (next k)))}} _ _
+        (Transport.natural C.family.Carrier (\fun (z: Degree) => C.family.Carrier (previous z)) (#apply{C.differential})
+          (previous (Integers.reverse k)) (Integers.reverse (next k)) (target k) (#apply{C.differential} (Integers.reverse k) x))))
+    (trans!{{Carrier (next (next k))}} _ _ _
+      (congr!{{C.family.Carrier (previous (Integers.reverse (next k)))} {Carrier (next (next k))}}
+        (Transport.cast C.family.Carrier (previous (Integers.reverse (next k))) (Integers.reverse (next (next k))) (target (next k))) _ _
+        (trans!{{C.family.Carrier (previous (Integers.reverse (next k)))}} _ _ _
+          (congr!{{C.family.Carrier (previous (previous (Integers.reverse k)))} {C.family.Carrier (previous (Integers.reverse (next k)))}}
+            (Transport.cast (\fun (z: Degree) => C.family.Carrier (previous z)) (previous (Integers.reverse k)) (Integers.reverse (next k)) (target k)) _ _
+            (#squareZero{C.laws} (Integers.reverse k) x))
+          (Transport.pointNatural (\fun (z: Degree) => C.family.Carrier (previous z)) (\fun (z: Degree) => #zero{(C.family.space (previous z))})
+            (previous (Integers.reverse k)) (Integers.reverse (next k)) (target k))))
+      (Transport.pointNatural C.family.Carrier (\fun (z: Degree) => #zero{(C.family.space z)})
+        (previous (Integers.reverse (next k))) (Integers.reverse (next (next k))) (target (next k))));
+\definition complex: Cochains.Complex := Cochains.Complex {
+  family := family, differential := Cochains.DifferentialData[family] { apply := apply },
+  laws := Cochains.DifferentialLaws[family, Cochains.DifferentialData[family] { apply := apply }] {
+    addition := addition, scalar := scalar, squareZero := squareZero,
+  },
+};
+
+\module Mapping(D: Complex);
+
+\module Homology(k: Degree);

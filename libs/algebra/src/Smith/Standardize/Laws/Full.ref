@@ -1,0 +1,20 @@
+\import \parent.\parent.\parent.Compute[].Diagonalization[m := m, n := n, original := original] \as Diagonalization;
+\definition assembly: \forall (rank: N.Nat^)(current: Attempt^) -> Certificate[assemble rank current] ->
+  \parent.\parent.\parent.Properties[m := m, n := n, rank := rank].Diagonal (attemptMatrix current) ->
+  \parent.\parent.\parent.Properties[m := m, n := n, rank := rank].TrailingZero (attemptMatrix current) ->
+  \parent.\parent.\parent.Properties[m := m, n := n, rank := rank].Nonzero (attemptMatrix current) ->
+  \parent.\parent.\parent.Properties[m := m, n := n, rank := rank].Divides (attemptMatrix current) -> FullCertificate[assemble rank current] :=
+  \fun (rank: N.Nat^) => \induction (current: Attempt^) \return Certificate[assemble rank current] ->
+    \parent.\parent.\parent.Properties[m := m, n := n, rank := rank].Diagonal (attemptMatrix current) ->
+    \parent.\parent.\parent.Properties[m := m, n := n, rank := rank].TrailingZero (attemptMatrix current) ->
+    \parent.\parent.\parent.Properties[m := m, n := n, rank := rank].Nonzero (attemptMatrix current) ->
+    \parent.\parent.\parent.Properties[m := m, n := n, rank := rank].Divides (attemptMatrix current) -> FullCertificate[assemble rank current] \with {
+    | attempt: \fun (a: Runtime^)(history: History^)(changed: B.Bool^)(certificate: _)(diagonal: _)(trailing: _)(nonzero: _)(divides: _) =>
+        FullCertificate[Compute.Output^::result rank a history] { computation := certificate, diagonal := diagonal, trailing := trailing, nonzero := nonzero, divides := divides }
+  };
+\module On(rank: N.Nat^, a: Runtime^, history: History^);
+\definition normalized: \forall (output: Compute.Output^) -> Diagonalization.result output -> FullCertificate[normalizeOutput output] :=
+  \induction (output: Compute.Output^) \return Diagonalization.result output -> FullCertificate[normalizeOutput output] \with {
+    | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^) => \parent.Full[].On[rank := rank, a := a, history := history].law
+  };
+\definition correctness: FullCertificate[standardize m n original] := normalized (Compute.executeInitial m n original) Diagonalization.correctness;

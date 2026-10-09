@@ -1,0 +1,23 @@
+\import Cochains.Map[C := HomologyComplex.complex, D := HomologyComplex.complex] \as EndMaps;
+\import Projections.Composition[B := HomologyComplex.complex] \as Composition;
+\definition composed: EndMaps.Map := Composition.compose projection inclusion;
+\definition identity: EndMaps.Map := Cochains.End[C := HomologyComplex.complex].identity;
+\module Term(n: N.Nat^) {
+  \import \parent.\parent.Degree[n := n] \as Degree;
+  \definition inverse: \forall (x: homologyFamily.Carrier n) -> #apply{projection} n (#apply{inclusion} n x) = x := Degree.inverse;
+}
+\definition equality: identity = composed := EndMaps.ext identity composed
+  (\fun (n: N.Nat^)(x: homologyFamily.Carrier n) => sym!{{homologyFamily.Carrier n}} _ _ (Term[n := n].inverse x));
+\import Cochains.Homotopy[C := HomologyComplex.complex, D := HomologyComplex.complex] \as Homotopies;
+\import Homotopies.Reflexive[f := identity] \as Reflexive;
+\definition homotopy: Homotopies.Homotopy identity composed :=
+  \into[Homotopies.Data](Reflexive.data, { h: Homotopies.Data \where Homotopies.Laws[identity, composed, h] }) \by {
+    \idelim identity = composed \with g: EndMaps.Map => Homotopies.Laws[identity, g, Reflexive.data] \by {
+      base: Reflexive.laws, equality: equality
+    }
+  };
+\import \parent.Contraction[] \as Contract;
+\import \root.CochainEquivalence[].Over[R := K, ring := ring].Of[C := complex, D := HomologyComplex.complex] \as Result;
+\definition equivalence: Result.Equivalence := Result.Equivalence {
+  forward := projection, backward := inclusion, left := Contract.homotopy, right := homotopy,
+};

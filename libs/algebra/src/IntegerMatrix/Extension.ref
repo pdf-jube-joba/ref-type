@@ -1,0 +1,55 @@
+\import std.Logic[].Proposition[] \as Logic;
+\import std.Logic[].Classical[] \as Classical;
+\use Logic.either;
+\import Modules.Coordinates[I := N.Nat^].Kronecker[] \as Natural;
+\import Modules.Coordinates[I := Finite.Fin m].Kronecker[] \as Rows;
+\import Modules.Coordinates[I := Finite.Fin n].Kronecker[] \as Columns;
+\import Modules.Sums[I := Finite.Fin m] \as RowSums;
+\import RowSums.Prop[] \as RowLaws;
+\import RowSums.Single[] \as RowSingle;
+\import Modules.Sums[I := Finite.Fin n] \as ColumnSums;
+\import ColumnSums.Prop[] \as ColumnLaws;
+\import ColumnSums.Single[] \as ColumnSingle;
+\import Modules.FiniteCoordinates[n := m] \as RowCoordinates;
+\import Modules.FiniteCoordinates[n := n] \as ColumnCoordinates;
+\definition columnDelta: \forall (i, j: Finite.Fin n) -> Natural.delta i j = Columns.delta i j :=
+  \fun (i, j: Finite.Fin n) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {Natural.delta i j = Columns.delta i j}
+    "lt:" {\fun (same: _) => trans!{I.Int^} _ #one{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} _ (Natural.equal i j same)
+      (sym!{I.Int^} _ #one{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Columns.equal i j same))}
+    "rt:" {\fun (ne: _) => trans!{I.Int^} _ #zero{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} _ (Natural.different i j ne)
+      (sym!{I.Int^} _ #zero{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Columns.different i j ne))}
+  } (Classical.excludedMiddle (i = j));
+\definition rowDelta: \forall (i, j: Finite.Fin m) -> Natural.delta i j = Rows.delta i j :=
+  \fun (i, j: Finite.Fin m) => either!{{i = j} "or" {Logic.Not (i = j)} "either" {Natural.delta i j = Rows.delta i j}
+    "lt:" {\fun (same: _) => trans!{I.Int^} _ #one{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} _ (Natural.equal i j same)
+      (sym!{I.Int^} _ #one{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Rows.equal i j same))}
+    "rt:" {\fun (ne: _) => trans!{I.Int^} _ #zero{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} _ (Natural.different i j ne)
+      (sym!{I.Int^} _ #zero{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Rows.different i j ne))}
+  } (Classical.excludedMiddle (i = j));
+\definition row(a: Matrix)(i: Finite.Fin m)(j: N.Nat^): I.Int^ :=
+  ColumnSums.sum (Finite.elements n) (\fun (column: Finite.Fin n) => #mul{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Natural.delta j column) (a i column));
+\definition extend(a: Matrix): Runtime^ := \fun (i, j: N.Nat^) =>
+  RowSums.sum (Finite.elements m) (\fun (index: Finite.Fin m) => #mul{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Natural.delta i index) (row a index j));
+\definition rowAt: \forall (a: Matrix)(i: Finite.Fin m)(j: Finite.Fin n) -> row a i j = a i j :=
+  \fun (a: Matrix)(i: Finite.Fin m)(j: Finite.Fin n) => trans!{I.Int^} (row a i j)
+    (ColumnSums.sum (Finite.elements n) (\fun (column: Finite.Fin n) => #mul{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Columns.delta j column) (a i column))) (a i j)
+    (ColumnLaws.congruent (Finite.elements n)
+      (\fun (column: Finite.Fin n) => #mul{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Natural.delta j column) (a i column))
+      (\fun (column: Finite.Fin n) => #mul{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Columns.delta j column) (a i column))
+      (\fun (column: Finite.Fin n) => congr!{I.Int^ I.Int^} (\fun (x: I.Int^) => #mul{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} x (a i column))
+        (Natural.delta j column) (Columns.delta j column) (columnDelta j column)))
+    (ColumnSingle.extract (Finite.elements n) ColumnCoordinates.distinct j (ColumnCoordinates.covers j) (a i));
+\definition at: \forall (a: Matrix)(i: Finite.Fin m)(j: Finite.Fin n) -> extend a i j = a i j :=
+  \fun (a: Matrix)(i: Finite.Fin m)(j: Finite.Fin n) => trans!{I.Int^} (extend a i j)
+    (RowSums.sum (Finite.elements m) (\fun (index: Finite.Fin m) => #mul{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Rows.delta i index) (a index j))) (a i j)
+    (RowLaws.congruent (Finite.elements m)
+      (\fun (index: Finite.Fin m) => #mul{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Natural.delta i index) (row a index j))
+      (\fun (index: Finite.Fin m) => #mul{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)} (Rows.delta i index) (a index j))
+      (\fun (index: Finite.Fin m) => congr2!{I.Int^ I.Int^ I.Int^} (#mul{(Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing)})
+        (Natural.delta i index) (Rows.delta i index) (row a index j) (a index j)
+        (rowDelta i index) (rowAt a index j)))
+    (RowSingle.extract (Finite.elements m) RowCoordinates.distinct i (RowCoordinates.covers i)
+      (\fun (index: Finite.Fin m) => a index j));
+\definition correspondence: \forall (a: Matrix) -> reflect (extend a) = a :=
+  \fun (a: Matrix) => \axiom:funext(reflect (extend a), a, \fun (i: Finite.Fin m) =>
+    \axiom:funext(reflect (extend a) i, a i, at a i));

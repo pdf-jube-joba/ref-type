@@ -1,0 +1,19 @@
+\import \parent.Map[C := C, D := D] \as Maps;
+\import \parent.Prior[C := D] \as TargetPrior;
+\import std.Set[].Transport[I := Degree] \as Transport;
+\structure Data: \Set {
+  apply: \forall (k: Degree) -> C.family.Carrier k -> D.family.Carrier (next k),
+}
+\definition shifted(data: Data)(k: Degree)(x: C.family.Carrier (previous k)): D.family.Carrier k :=
+  Transport.cast D.family.Carrier (next (previous k)) k (nextPrevious k) (#apply{data} (previous k) x);
+\structure Laws[f, g: Maps.Map, data: Data]: \Prop {
+  addition: \forall (k: Degree)(x, y: C.family.Carrier k) ->
+    data.apply k (#add{(C.family.space k)} x y) = #add{(D.family.space (next k))} (data.apply k x) (data.apply k y),
+  scalar: \forall (k: Degree)(a: R)(x: C.family.Carrier k) ->
+    data.apply k (#smul{(C.family.space k)} a x) = #smul{(D.family.space (next k))} a (data.apply k x),
+  equation: \forall (k: Degree)(x: C.family.Carrier k) ->
+    #add{(D.family.space k)} (#apply{f} k x) (#neg{(D.family.space k)} (#apply{g} k x)) =
+    #add{(D.family.space k)} (TargetPrior.value k (data.apply k x)) (shifted data k (#apply{C.differential} k x)),
+}
+\definition Homotopy(f, g: Maps.Map): \Set := \Cast[Data] ({ data: Data \where Laws[f, g, data] });
+\module At(k: Degree);

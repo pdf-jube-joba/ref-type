@@ -58,6 +58,7 @@ impl GlobalEnvironment {
             }
         };
 
+        // Anchored paths preserve the specialized namespace argument environment.
         let mut source =
             if let Some(base) = base {
                 self.crate_env.binding(base).source
@@ -285,6 +286,15 @@ impl GlobalEnvironment {
                                 expected,
                             )
                             .map_err(|message| {
+                                if std::env::var_os("REF_TYPE_DEBUG_CONVERSION").is_some() {
+                                    eprintln!(
+                                        "module argument {}.{}: {}\nexpected: {}",
+                                        child_name.as_str(),
+                                        argument_name.as_str(),
+                                        crate::raw::printing::format_exp(&self.crate_env, exp),
+                                        crate::raw::printing::format_exp(&self.crate_env, expected),
+                                    );
+                                }
                                 self.metavariables
                                     .constraint_error(&self.crate_env, message)
                             })?;

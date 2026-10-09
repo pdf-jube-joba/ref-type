@@ -1,0 +1,25 @@
+\import Right.Composition[B := A] \as AcrossTop;
+\import Bottom.Composition[B := A] \as AcrossBottom;
+\import Chains.Map[C := A, D := D] \as Original;
+\definition Commutes: \Prop := \forall (n: Nat.Nat^)(x: A.family.Carrier n) -> #apply{b} n (#apply{i} n x) = #apply{j} n (#apply{a} n x);
+\definition equality: Commutes -> AcrossTop.compose b i = AcrossBottom.compose j a :=
+  \fun (commutes: Commutes) => Original.ext (AcrossTop.compose b i) (AcrossBottom.compose j a) commutes;
+\import \parent.\parent.Composition[P := A, Q := B, T := D, N := N] \as TopComposition;
+\import \parent.\parent.Composition[P := A, Q := C, T := D, N := N] \as BottomComposition;
+\import \parent.\parent.On[P := A, N := N] \as Source;
+\import \parent.\parent.On[P := D, N := N] \as Target;
+\import \parent.\parent.Mapping[P := A, Q := D, N := N, L := N] \as Direct;
+\import \parent.\parent.Mapping[P := A, Q := B, N := N, L := N] \as TopAction;
+\import \parent.\parent.Mapping[P := C, Q := D, N := N, L := N] \as BottomAction;
+\import \parent.\parent.Mapping[P := A, Q := C, N := N, L := N] \as LeftAction;
+\import \parent.\parent.Mapping[P := B, Q := D, N := N, L := N] \as RightAction;
+\import Modules.End[V := N.Carrier, space := N.space] \as Coefficient;
+\definition naturality: Commutes -> \forall (n: Nat.Nat^)(x: Source.Carrier n) ->
+  #apply{(RightAction.On[f := b, u := Coefficient.identity].map)} n (#apply{(TopAction.On[f := i, u := Coefficient.identity].map)} n x) =
+  #apply{(BottomAction.On[f := j, u := Coefficient.identity].map)} n (#apply{(LeftAction.On[f := a, u := Coefficient.identity].map)} n x) :=
+  \fun (commutes: Commutes)(n: Nat.Nat^)(x: Source.Carrier n) => trans!{{Target.Carrier n}} _ _ _
+    (sym!{{Target.Carrier n}} _ _ (TopComposition.At[n := n].pointwise i b x))
+    (trans!{{Target.Carrier n}} _ _ _
+      (congr!{Original.Map {Target.Carrier n}} (\fun (g: Original.Map) => #apply{(Direct.On[f := g, u := Coefficient.identity].map)} n x)
+        (AcrossTop.compose b i) (AcrossBottom.compose j a) (equality commutes))
+      (BottomComposition.At[n := n].pointwise a j x));

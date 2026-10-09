@@ -1,0 +1,18 @@
+\definition T: \VType := \U(N.Nat -> N.Nat -> Compute.Output -> SmithResult);
+\definition program: T := \thunk (\cfun (rows: N.Nat) => \return(\thunk (\cfun (cols: N.Nat) => \return(\thunk (\cfun (output: Compute.Output) => \match output \in Compute.Output \with {
+  | result rank a history: \program {
+      \bind columns: \U(N.Nat -> History -> BasisChange) <- (\force buildProgram) rows \then
+      \bind histories: \U(History -> BasisChange) <- (\force columns) cols \then
+      \bind frame: BasisChange <- (\force histories) history \then
+      \return(SmithResult::result rank a history frame)
+    }
+})))));
+\definition matches: \forall (rows, cols: N.Nat^)(output: Compute.Output^) -> program^ rows cols output = assemble rows cols output :=
+  \fun (rows, cols: N.Nat^) => \induction (output: Compute.Output^) \return program^ rows cols output = assemble rows cols output \with {
+    | result: \fun (rank: N.Nat^)(a: Runtime^)(history: History^) =>
+        congr!{NativeFrames.Build.T^ SmithResult^} (\fun (f: NativeFrames.Build.T^) => SmithResult^::result rank a history (f rows cols history))
+          buildProgram^ NativeFrames.build NativeFrames.Build.coherence
+  };
+\definition coherence: program^ = assemble := \axiom:funext(program^, assemble,
+  \fun (rows: N.Nat^) => \axiom:funext(program^ rows, assemble rows,
+    \fun (cols: N.Nat^) => \axiom:funext(program^ rows cols, assemble rows cols, matches rows cols)));

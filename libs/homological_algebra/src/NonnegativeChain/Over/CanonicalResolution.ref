@@ -1,0 +1,34 @@
+\import Modules.FreeResolution[M := M] \as Terms;
+\definition Carrier(n: N.Nat^): \Set := Terms.Carrier n;
+\definition space(n: N.Nat^): Modules.Space (Carrier n) := Terms.space n;
+\definition family: Family := Family { Carrier := Carrier, space := space };
+\definition apply(n: N.Nat^)(x: Carrier (N.Nat^::succ n)): Carrier n := #apply{Terms.At[n := n].differential} x;
+\definition addition: \forall (n: N.Nat^)(x, y: Carrier (N.Nat^::succ n)) ->
+  apply n (#add{(space (N.Nat^::succ n))} x y) = #add{(space n)} (apply n x) (apply n y) :=
+  \fun (n: N.Nat^)(x, y: Carrier (N.Nat^::succ n)) => #addition{Terms.At[n := n].differential} x y;
+\definition scalar: \forall (n: N.Nat^)(a: R)(x: Carrier (N.Nat^::succ n)) ->
+  apply n (#smul{(space (N.Nat^::succ n))} a x) = #smul{(space n)} a (apply n x) :=
+  \fun (n: N.Nat^)(a: R)(x: Carrier (N.Nat^::succ n)) => #scalar{Terms.At[n := n].differential} a x;
+\definition squareZero: \forall (n: N.Nat^)(x: Carrier (N.Nat^::succ (N.Nat^::succ n))) ->
+  apply n (apply (N.Nat^::succ n) x) = #zero{(space n)} :=
+  \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ (N.Nat^::succ n))) => Terms.At[n := n].squareZero x;
+\definition differential: DifferentialData[family] := DifferentialData[family] { apply := apply };
+\definition complex: Complex := Complex {
+  family := family, differential := differential,
+  laws := DifferentialLaws[family, differential] { addition := addition, scalar := scalar, squareZero := squareZero },
+};
+\definition term(n: N.Nat^): Modules.Bundle := Modules.Bundle { Carrier := Carrier n, space := space n };
+\definition projective: \forall (n: N.Nat^) -> Modules.Projective (term n) :=
+  \fun (n: N.Nat^) => Terms.At[n := n].projective;
+\definition augmentation: Modules.MapBetween (term N.Nat^::zero) M := Terms.At[n := N.Nat^::zero].augmentation;
+\definition onto: Modules.Surjective (term N.Nat^::zero) M augmentation := Terms.At[n := N.Nat^::zero].onto;
+\definition augmentationKilled: \forall (x: Carrier (N.Nat^::succ N.Nat^::zero)) -> #apply{augmentation} (apply N.Nat^::zero x) = #zero{M.space} :=
+  Terms.At[n := N.Nat^::zero].killed;
+\definition augmentationExact: \forall (x: Carrier N.Nat^::zero) -> #apply{augmentation} x = #zero{M.space} ->
+  \exists { y: Carrier (N.Nat^::succ N.Nat^::zero) \where apply N.Nat^::zero y = x } := Terms.At[n := N.Nat^::zero].exact;
+\definition exact: \forall (n: N.Nat^)(x: Carrier (N.Nat^::succ n)) -> apply n x = #zero{(space n)} ->
+  \exists { y: Carrier (N.Nat^::succ (N.Nat^::succ n)) \where apply (N.Nat^::succ n) y = x } :=
+  \fun (n: N.Nat^)(x: Carrier (N.Nat^::succ n))(closed: _) => Terms.At[n := N.Nat^::succ n].exact x closed;
+\import \parent.ZeroExtension[C := complex] \as Extended;
+\import \root.Chain[].Over[R := R, ring := ring] \as Chains;
+\definition integerComplex: Chains.Complex := Extended.complex;

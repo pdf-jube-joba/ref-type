@@ -1,0 +1,86 @@
+\import \parent.\parent.\parent.Pair[m := C.ranks (previous z), n := C.ranks z, p := C.ranks (next z)] \as Pair;
+\definition data: Pair.Data := Pair.Data { outgoing := C.boundary z, incoming := C.boundary (next z) };
+\definition laws: Pair.Laws[data] := Pair.Laws[data] {
+  squareZero := \idelim previous (next z) = z \with u: Degree =>
+    \forall (v: Carrier C (next z)) -> apply C u
+      (Commutative.Matrix[m := C.ranks u, n := C.ranks (next z)].apply
+        (\fun (i: Indices.Fin (C.ranks u))(j: Indices.Fin (C.ranks (next z))) => C.boundary (next z) i j) v) = #zero{(space C (previous u))}
+    \by { base: #squareZero{(\bysub(Data, { data: Data \where Laws[data] }, C))} (next z), equality: Degrees.previousNext z },
+};
+\definition complex: Pair.Complex := \into[Pair.Data](data, { data: Pair.Data \where Pair.Laws[data] }) \by { laws };
+\import Pair.Of[C := complex] \as Computed;
+\definition PairResult: \Set := Computed.Result;
+\definition pairResult: PairResult := Computed.result;
+\definition calculation: Calculation^ := Computed.computed;
+\definition matches: calculate z = calculation := \refl(calculation);
+\definition freeRank: N.Nat^ := Computed.freeRank;
+\definition cyclicRank: N.Nat^ := Computed.cyclicRank;
+\import Chains.At[C := chain, z := z] \as Homology;
+\import Chains.Prior[C := chain] \as Prior;
+\import std.Set[].Transport[I := Degree] \as Transport;
+\definition priorEntry: \forall (v: Carrier C (next z)) -> Prior.value z v =
+  Commutative.Matrix[m := C.ranks z, n := C.ranks (next z)].apply
+    (\fun (i: Indices.Fin (C.ranks z))(j: Indices.Fin (C.ranks (next z))) => C.boundary (next z) i j) v :=
+  \fun (v: Carrier C (next z)) => Transport.pointNatural (Carrier C)
+    (\fun (u: Degree) => Commutative.Matrix[m := C.ranks u, n := C.ranks (next z)].apply
+      (\fun (i: Indices.Fin (C.ranks u))(j: Indices.Fin (C.ranks (next z))) => C.boundary (next z) i j) v)
+    (previous (next z)) z (Degrees.previousNext z);
+\import Modules.Of[V := Carrier C z, space := space C z].Submodule[] \as Ambient;
+\import Ambient.Image[U := Carrier C (next z), source := space C (next z)] \as AmbientImages;
+\import Modules.Of[V := Computed.Cycle, space := Computed.cycleSpace].Submodule[] \as Cycles;
+\import Cycles.Image[U := Carrier C (next z), source := space C (next z)] \as CycleImages;
+\import Modules.End[V := Computed.Cycle, space := Computed.cycleSpace] \as End;
+\definition cycleBundle: Modules.Bundle := Modules.Bundle { Carrier := Computed.Cycle, space := Computed.cycleSpace };
+\import Modules.QuotientMapping[A := cycleBundle, B := cycleBundle].On[S := Homology.boundariesInside, T := Computed.image, f := End.identity] \as Comparison;
+\import Comparison.Inverse[g := End.identity] \as Back;
+\definition priorCycle(v: Carrier C (next z)): Computed.Cycle := Homology.cycle (Prior.value z v) (Prior.squareZero z v);
+\definition compatible: Comparison.Compatible := \fun (x: Computed.Cycle)(member: _) =>
+  AmbientImages.eliminate Homology.prior x (Cycles.Member Computed.image x)
+    (\fun (v: Carrier C (next z))(equal: #apply{Homology.prior} v = x) =>
+      CycleImages.introduce Computed.boundary x v
+        (trans!{Computed.Cycle} (#apply{Computed.boundary} v) (priorCycle v) x
+          (sym!{Computed.Cycle} (priorCycle v) (#apply{Computed.boundary} v) (priorEntry v)) equal)) member;
+\definition compatibleBack: Back.CompatibleBack := \fun (x: Computed.Cycle)(member: _) =>
+  CycleImages.eliminate Computed.boundary x (Cycles.Member Homology.boundariesInside x)
+    (\fun (v: Carrier C (next z))(equal: #apply{Computed.boundary} v = x) =>
+      AmbientImages.introduce Homology.prior x v
+        (trans!{{Carrier C z}} (Prior.value z v) (#apply{Computed.boundary} v) x (priorEntry v) equal)) member;
+\definition pairIsomorphism: Modules.Isomorphism[V := Homology.Homology, W := Computed.Homology, source := Homology.homologySpace, target := Computed.homologySpace].Isomorphism :=
+  Back.isomorphism compatible compatibleBack (\fun (x: Computed.Cycle) => \refl(x)) (\fun (x: Computed.Cycle) => \refl(x));
+\definition pairOnClass: \forall (x: Homology.Cycle) ->
+  #apply{#forward{pairIsomorphism}} (Homology.classOf x) = Computed.class x :=
+  Comparison.onClass compatible;
+\import Modules.Isomorphism[V := Homology.Homology, W := Computed.Homology, source := Homology.homologySpace, target := Computed.homologySpace].Composition[U := Computed.FactorHomology, final := Computed.factorSpace] \as Composition;
+\definition factorIsomorphism: Modules.Isomorphism[V := Homology.Homology, W := Computed.FactorHomology, source := Homology.homologySpace, target := Computed.factorSpace].Isomorphism :=
+  Composition.compose Computed.factorIsomorphism pairIsomorphism;
+\import Modules.Hom[V := Homology.Homology, W := Computed.FactorHomology, source := Homology.homologySpace, target := Computed.factorSpace] \as ForwardMaps;
+\import Modules.Hom[V := Computed.FactorHomology, W := Homology.Homology, source := Computed.factorSpace, target := Homology.homologySpace] \as BackwardMaps;
+\import \root.Finite[].FactorListing[] \as FactorListing;
+\import \root.Finite[].Compute[] \as FactorComputation;
+\structure ResultData: \Set {
+  calculation: Calculation^,
+  cyclicFactors: CyclicFactors^,
+  forward: ForwardMaps.Map,
+  backward: BackwardMaps.Map,
+}
+\structure ResultLaws[data: ResultData]: \Prop {
+  factors: data.cyclicFactors = FactorComputation.cyclicFactors data.calculation,
+  proper: FactorListing.Proper data.cyclicFactors,
+  calculation: data.calculation = calculate z,
+  leftInverse: \forall (q: Homology.Homology) -> #apply{data.backward} (#apply{data.forward} q) = q,
+  rightInverse: \forall (q: Computed.FactorHomology) -> #apply{data.forward} (#apply{data.backward} q) = q,
+}
+\definition Result: \Set := \Cast[ResultData] ({ data: ResultData \where ResultLaws[data] });
+\definition resultData: ResultData := ResultData { calculation := calculate z, cyclicFactors := FactorComputation.Factors.program^ (calculate z), forward := #forward{factorIsomorphism}, backward := #backward{factorIsomorphism} };
+\definition resultLaws: ResultLaws[resultData] := ResultLaws[resultData] {
+  factors := FactorComputation.FactorsImplementation[].matches (calculate z),
+  proper := \idelim FactorComputation.cyclicFactors (calculate z) = FactorComputation.Factors.program^ (calculate z)
+    \with factors: CyclicFactors^ => FactorListing.Proper factors \by {
+      base: FactorComputation.factorsProper (calculate z),
+      equality: sym!{CyclicFactors^} _ _ (FactorComputation.FactorsImplementation[].matches (calculate z))
+    },
+  calculation := \refl(calculate z), leftInverse := #leftInverse{factorIsomorphism}, rightInverse := #rightInverse{factorIsomorphism},
+};
+\definition result: Result := \into[ResultData](resultData, { data: ResultData \where ResultLaws[data] }) \by { resultLaws };
+\module Presentation;
+\module UniversalCoefficient(A: Modules.Bundle);

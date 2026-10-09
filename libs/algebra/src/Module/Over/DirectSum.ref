@@ -1,0 +1,36 @@
+\inductive Generator: \Set := | at: \forall (i: Index) -> family.Carrier i -> Generator;
+\import \parent.Presentation[Generators := Generator] \as Expressions;
+\inductive Relation: \forall (x, y: Expressions.Expression) -> \Prop :=
+  | zero: \forall (i: Index) -> Relation (Expressions.Expression::generator (Generator::at i #zero{(family.space i)})) Expressions.Expression::zero
+  | addition: \forall (i: Index)(x, y: family.Carrier i) ->
+      Relation (Expressions.Expression::generator (Generator::at i (#add{(family.space i)} x y)))
+        (Expressions.Expression::sum (Expressions.Expression::generator (Generator::at i x)) (Expressions.Expression::generator (Generator::at i y)))
+  | scalar: \forall (i: Index)(a: R)(x: family.Carrier i) ->
+      Relation (Expressions.Expression::generator (Generator::at i (#smul{(family.space i)} a x)))
+        (Expressions.Expression::scale a (Expressions.Expression::generator (Generator::at i x)));
+\import Expressions.Of[relations := Relation] \as Presented;
+\import algebra.Quotient[A := Expressions.Expression, relation := Presented.Equivalent] \as Quotient;
+\definition Carrier: \Set := Presented.Carrier;
+\definition space: Space Carrier := Presented.space;
+\definition bundle: Bundle := Bundle { Carrier := Carrier, space := space };
+\definition relationEquality: \forall (x, y: Expressions.Expression) -> Relation x y -> Presented.class x = Presented.class y :=
+  \fun (x, y: Expressions.Expression)(r: Relation x y) => Quotient.classRelated Presented.equivalence x y (Presented.relationIncluded x y r);
+\module Injection(i: Index) {
+  \import \parent.\parent.Hom[V := family.Carrier i, W := Carrier, source := family.space i, target := space] \as Maps;
+  \definition map: Maps.Map := Maps.Map {
+    apply := \fun (x: family.Carrier i) => Presented.generator (Generator::at i x),
+    addition := \fun (x, y: family.Carrier i) => trans!{Carrier} _ _ _ (relationEquality _ _ (Relation::addition i x y))
+      (sym!{Carrier} _ _ (Presented.addClass (Expressions.Expression::generator (Generator::at i x)) (Expressions.Expression::generator (Generator::at i y)))),
+    scalar := \fun (a: R)(x: family.Carrier i) => trans!{Carrier} _ _ _ (relationEquality _ _ (Relation::scalar i a x))
+      (sym!{Carrier} _ _ (Presented.scaleClass a (Expressions.Expression::generator (Generator::at i x)))),
+  };
+}
+\module To(W: \Set, target: Space W);
+\definition ComponentsProjective: \Prop := \forall (i: Index) -> Projective (Bundle { Carrier := family.Carrier i, space := family.space i });
+\module Lifting(A, B: Bundle, q: MapBetween A B, f: MapBetween bundle B);
+\definition projective: ComponentsProjective -> Projective bundle :=
+  \fun (components: ComponentsProjective)(A, B: Bundle)(q: MapBetween A B)(onto: Surjective A B q)(f: MapBetween bundle B) =>
+    Lifting[A := A, B := B, q := q, f := f].existence components onto;
+
+\module FiniteSupport;
+\module Generated;

@@ -1,0 +1,56 @@
+\import \parent.\parent.HomSpace[V := P.Carrier, W := A.Carrier, source := P.space, target := A.space] \as HA;
+\import \parent.\parent.HomSpace[V := P.Carrier, W := B.Carrier, source := P.space, target := B.space] \as HB;
+\import \parent.\parent.HomSpace[V := P.Carrier, W := C.Carrier, source := P.space, target := C.space] \as HC;
+\import Modules.Hom[V := P.Carrier, W := A.Carrier, source := P.space, target := A.space] \as AMaps;
+\import Modules.Hom[V := P.Carrier, W := B.Carrier, source := P.space, target := B.space] \as BMaps;
+\import Modules.Hom[V := P.Carrier, W := C.Carrier, source := P.space, target := C.space] \as CMaps;
+\definition left: Modules.Bundle := Modules.Bundle { Carrier := HA.Carrier, space := HA.space };
+\definition middle: Modules.Bundle := Modules.Bundle { Carrier := HB.Carrier, space := HB.space };
+\definition right: Modules.Bundle := Modules.Bundle { Carrier := HC.Carrier, space := HC.space };
+\import Modules.ShortExact[A := left, B := middle, C := right] \as Result;
+\import Modules.Hom[V := A.Carrier, W := B.Carrier, source := A.space, target := B.space].Composition[U := P.Carrier, domain := P.space] \as Include;
+\import Modules.Hom[V := B.Carrier, W := C.Carrier, source := B.space, target := C.space].Composition[U := P.Carrier, domain := P.space] \as Project;
+\definition inclusion: Modules.MapBetween left middle := Modules.Hom[V := left.Carrier, W := middle.Carrier, source := left.space, target := middle.space].Map {
+  apply := \fun (f: HA.Carrier) => Include.compose sequence.inclusion f,
+  addition := \fun (f, g: HA.Carrier) => BMaps.ext (Include.compose sequence.inclusion (#add{HA.space} f g)) (#add{HB.space} (Include.compose sequence.inclusion f) (Include.compose sequence.inclusion g))
+    (\fun (x: P.Carrier) => #addition{sequence.inclusion} (#apply{f} x) (#apply{g} x)),
+  scalar := \fun (a: R)(f: HA.Carrier) => BMaps.ext (Include.compose sequence.inclusion (#smul{HA.space} a f)) (#smul{HB.space} a (Include.compose sequence.inclusion f))
+    (\fun (x: P.Carrier) => #scalar{sequence.inclusion} a (#apply{f} x)),
+};
+\definition projection: Modules.MapBetween middle right := Modules.Hom[V := middle.Carrier, W := right.Carrier, source := middle.space, target := right.space].Map {
+  apply := \fun (f: HB.Carrier) => Project.compose sequence.projection f,
+  addition := \fun (f, g: HB.Carrier) => CMaps.ext (Project.compose sequence.projection (#add{HB.space} f g)) (#add{HC.space} (Project.compose sequence.projection f) (Project.compose sequence.projection g))
+    (\fun (x: P.Carrier) => #addition{sequence.projection} (#apply{f} x) (#apply{g} x)),
+  scalar := \fun (a: R)(f: HB.Carrier) => CMaps.ext (Project.compose sequence.projection (#smul{HB.space} a f)) (#smul{HC.space} a (Project.compose sequence.projection f))
+    (\fun (x: P.Carrier) => #scalar{sequence.projection} a (#apply{f} x)),
+};
+\definition injective: \forall (f, g: HA.Carrier) -> #apply{inclusion} f = #apply{inclusion} g -> f = g :=
+  \fun (f, g: HA.Carrier)(equal: _) => AMaps.ext f g (\fun (x: P.Carrier) => #injective{sequence} (#apply{f} x) (#apply{g} x)
+    (congr!{HB.Carrier B.Carrier} (\fun (h: HB.Carrier) => #apply{h} x) (#apply{inclusion} f) (#apply{inclusion} g) equal));
+\definition onto: Modules.Projective P -> \forall (f: HC.Carrier) -> \exists { g: HB.Carrier \where #apply{projection} g = f } := \block {
+  \fun (projective: Modules.Projective P)(f: HC.Carrier) \then
+  \takefrom g: \Cast[HB.Carrier] ({ g: HB.Carrier \where \forall (x: P.Carrier) -> #apply{sequence.projection} (#apply{g} x) = #apply{f} x })
+    \by projective B.Carrier B.space C.Carrier C.space sequence.projection (#onto{sequence}) f \then
+  \return \exact(\into[HB.Carrier](g, { g: HB.Carrier \where #apply{projection} g = f }) \by {
+    CMaps.ext (#apply{projection} g) f (\bysub(HB.Carrier, { g: HB.Carrier \where \forall (x: P.Carrier) -> #apply{sequence.projection} (#apply{g} x) = #apply{f} x }, g))
+  }, \Cast[HB.Carrier] ({ g: HB.Carrier \where #apply{projection} g = f }))
+};
+\definition zero: \forall (f: HA.Carrier) -> #apply{projection} (#apply{inclusion} f) = #zero{HC.space} :=
+  \fun (f: HA.Carrier) => CMaps.ext (#apply{projection} (#apply{inclusion} f)) (#zero{HC.space}) (\fun (x: P.Carrier) => #zero{sequence} (#apply{f} x));
+\import Given.Kernel[sequence := sequence] \as Kernel;
+\definition Closed(f: HB.Carrier): \Prop := #apply{projection} f = #zero{HC.space};
+\definition closedAt: \forall (f: HB.Carrier) -> Closed f -> \forall (x: P.Carrier) -> #apply{sequence.projection} (#apply{f} x) = #zero{C.space} :=
+  \fun (f: HB.Carrier)(closed: Closed f)(x: P.Carrier) => congr!{HC.Carrier C.Carrier} (\fun (g: HC.Carrier) => #apply{g} x) (#apply{projection} f) (#zero{HC.space}) closed;
+\definition factor(f: HB.Carrier)(closed: Closed f): Modules.MapBetween P Kernel.bundle := Modules.Hom[V := P.Carrier, W := Kernel.Carrier, source := P.space, target := Kernel.space].Map {
+  apply := \fun (x: P.Carrier) => \into[B.Carrier](#apply{f} x, #carrier{Kernel.kernel}) \by { closedAt f closed x },
+  addition := #addition{f}, scalar := #scalar{f},
+};
+\import Modules.Hom[V := Kernel.Carrier, W := A.Carrier, source := Kernel.space, target := A.space].Composition[U := P.Carrier, domain := P.space] \as Back;
+\definition kernelImage: \forall (f: HB.Carrier) -> Closed f -> \exists { g: HA.Carrier \where #apply{inclusion} g = f } :=
+  \fun (f: HB.Carrier)(closed: Closed f) => \exact(\into[HA.Carrier](Back.compose Kernel.backward (factor f closed), { g: HA.Carrier \where #apply{inclusion} g = f }) \by {
+    BMaps.ext (#apply{inclusion} (Back.compose Kernel.backward (factor f closed))) f (\fun (x: P.Carrier) => Kernel.onKernel (#apply{(factor f closed)} x))
+  }, \Cast[HA.Carrier] ({ g: HA.Carrier \where #apply{inclusion} g = f }));
+\definition shortExact(projective: Modules.Projective P): Result.Sequence := Result.Sequence {
+  inclusion := inclusion, projection := projection,
+  injective := injective, onto := onto projective, zero := zero, kernelImage := kernelImage,
+};

@@ -1,0 +1,28 @@
+\use Logic.either;
+\definition left: \forall (xs, ys: List[A])(x: A) -> Occurs x xs -> Occurs x (append A xs ys) :=
+  \induction (xs: List[A]) \return \forall (ys: List[A])(x: A) -> Occurs x xs -> Occurs x (append A xs ys) \with {
+    | nil: \fun (ys: List[A])(x: A)(empty: Logic.False) => Logic.falseElim (Occurs x ys) empty
+    | cons: \fun (head: A)(tail: List[A])(previous: \forall (ys: List[A])(x: A) -> Occurs x tail -> Occurs x (append A tail ys))
+      (ys: List[A])(x: A)(member: Logic.Or[x = head, Occurs x tail]) =>
+      either!{{x = head} "or" {Occurs x tail} "either" {Occurs x (append A (List[A]::cons head tail) ys)}
+        "lt:" {\fun (same: x = head) => Logic.Or[_, _]::left same}
+        "rt:" {\fun (old: Occurs x tail) => Logic.Or[_, _]::right (previous ys x old)}} member
+  };
+\definition right: \forall (xs, ys: List[A])(x: A) -> Occurs x ys -> Occurs x (append A xs ys) :=
+  \induction (xs: List[A]) \return \forall (ys: List[A])(x: A) -> Occurs x ys -> Occurs x (append A xs ys) \with {
+    | nil: \fun (ys: List[A])(x: A)(member: Occurs x ys) => member
+    | cons: \fun (head: A)(tail: List[A])(previous: \forall (ys: List[A])(x: A) -> Occurs x ys -> Occurs x (append A tail ys))
+      (ys: List[A])(x: A)(member: Occurs x ys) => Logic.Or[_, _]::right (previous ys x member)
+  };
+\definition eliminate: \forall (xs, ys: List[A])(x: A)(P: \Prop) -> (Occurs x xs -> P) -> (Occurs x ys -> P) -> Occurs x (append A xs ys) -> P :=
+  \induction (xs: List[A]) \return \forall (ys: List[A])(x: A)(P: \Prop) -> (Occurs x xs -> P) -> (Occurs x ys -> P) -> Occurs x (append A xs ys) -> P \with {
+    | nil: \fun (ys: List[A])(x: A)(P: \Prop)(onLeft: Logic.False -> P)(onRight: Occurs x ys -> P)(member: Occurs x ys) => onRight member
+    | cons: \fun (head: A)(tail: List[A])
+      (previous: \forall (ys: List[A])(x: A)(P: \Prop) -> (Occurs x tail -> P) -> (Occurs x ys -> P) -> Occurs x (append A tail ys) -> P)
+      (ys: List[A])(x: A)(P: \Prop)(onLeft: Occurs x (List[A]::cons head tail) -> P)(onRight: Occurs x ys -> P)
+      (member: Logic.Or[x = head, Occurs x (append A tail ys)]) =>
+      either!{{x = head} "or" {Occurs x (append A tail ys)} "either" P
+        "lt:" {\fun (same: x = head) => onLeft (Logic.Or[_, _]::left same)}
+        "rt:" {\fun (old: Occurs x (append A tail ys)) => previous ys x P
+          (\fun (inTail: Occurs x tail) => onLeft (Logic.Or[_, _]::right inTail)) onRight old}} member
+  };

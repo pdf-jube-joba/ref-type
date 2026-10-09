@@ -1,0 +1,39 @@
+\import \parent.ZeroExtension[C := C] \as Extended;
+\import \root.Integer[].Over[R := R, ring := ring] \as Internal;
+\import std.Arithmetic[].Int[] \as Signed;
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\definition naturalFamily: Family := Family {
+  Carrier := \fun (n: N.Nat^) => Extended.Carrier (Signed.Int^::ofNat n),
+  space := \fun (n: N.Nat^) => Extended.space (Signed.Int^::ofNat n),
+};
+\definition naturalDifferential: DifferentialData[naturalFamily] := DifferentialData[naturalFamily] {
+  apply := \fun (n: N.Nat^) => Extended.apply (Signed.Int^::ofNat n),
+};
+\definition restricted: Complex := Complex {
+  family := naturalFamily, differential := naturalDifferential,
+  laws := DifferentialLaws[naturalFamily, naturalDifferential] {
+    addition := \fun (n: N.Nat^) => Extended.addition (Signed.Int^::ofNat n),
+    scalar := \fun (n: N.Nat^) => Extended.scalar (Signed.Int^::ofNat n),
+    squareZero := \fun (n: N.Nat^) => Extended.squareZero (Signed.Int^::ofNat n),
+  },
+};
+\import \parent.Map[C := C, D := restricted] \as Forward;
+\import \parent.Map[C := restricted, D := C] \as Backward;
+\definition forward: Forward.Map := Forward.Map {
+  apply := \fun (n: N.Nat^)(x: C.family.Carrier n) => \into[C.family.Carrier n](x,
+    #carrier{(Extended.Index[z := Signed.Int^::ofNat n].submodule)}) \by { Logic.Or[_, _]::left Logic.True::intro },
+  addition := \fun (n: N.Nat^)(x, y: C.family.Carrier n) => \refl(#add{(C.family.space n)} x y),
+  scalar := \fun (n: N.Nat^)(a: R)(x: C.family.Carrier n) => \refl(#smul{(C.family.space n)} a x),
+  commutes := \fun (n: N.Nat^)(x: C.family.Carrier n) => \refl(#apply{C.differential} n x),
+};
+\definition backward: Backward.Map := Backward.Map {
+  apply := \fun (n: N.Nat^)(x: restricted.family.Carrier n) => x,
+  addition := \fun (n: N.Nat^)(x, y: restricted.family.Carrier n) => \refl(#add{(C.family.space n)} x y),
+  scalar := \fun (n: N.Nat^)(a: R)(x: restricted.family.Carrier n) => \refl(#smul{(C.family.space n)} a x),
+  commutes := \fun (n: N.Nat^)(x: restricted.family.Carrier n) => \refl(#apply{C.differential} n x),
+};
+\definition leftInverse: \forall (n: N.Nat^)(x: C.family.Carrier n) -> #apply{backward} n (#apply{forward} n x) = x :=
+  \fun (n: N.Nat^)(x: C.family.Carrier n) => \refl(x);
+\definition rightInverse: \forall (n: N.Nat^)(x: restricted.family.Carrier n) -> #apply{forward} n (#apply{backward} n x) = x :=
+  \fun (n: N.Nat^)(x: restricted.family.Carrier n) => \refl(x);
+\module At(n: N.Nat^);

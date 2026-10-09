@@ -1,0 +1,35 @@
+\import \parent.\parent.ZeroExtension[C := A] \as Left;
+\import \parent.\parent.ZeroExtension[C := B] \as Middle;
+\import \parent.\parent.ZeroExtension[C := C] \as Right;
+\import Inclusion.ZeroExtension[f := s.inclusion] \as ExtendedInclusion;
+\import Projection.ZeroExtension[f := s.projection] \as ExtendedProjection;
+\import \root.Integer[].Over[R := R, ring := ring].ShortExact[A := Left.complex, B := Middle.complex, C := Right.complex] \as Extended;
+\definition data: Extended.Data := Extended.Data { inclusion := ExtendedInclusion.map, projection := ExtendedProjection.map };
+\module Positive(n: N.Nat^);
+\module Negative(n: N.Nat^);
+\definition injective: \forall (z: Signed.Int^)(x, y: Left.Carrier z) -> #apply{data.inclusion} z x = #apply{data.inclusion} z y -> x = y :=
+  \induction (z: Signed.Int^) \return \forall (x, y: Left.Carrier z) -> #apply{data.inclusion} z x = #apply{data.inclusion} z y -> x = y \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].injective
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].injective
+  };
+\definition onto: \forall (z: Signed.Int^)(q: Right.Carrier z) -> \exists { y: Middle.Carrier z \where #apply{data.projection} z y = q } :=
+  \induction (z: Signed.Int^) \return \forall (q: Right.Carrier z) -> \exists { y: Middle.Carrier z \where #apply{data.projection} z y = q } \with {
+    | ofNat: \fun (n: N.Nat^) => Positive[n := n].onto
+    | negSucc: \fun (n: N.Nat^) => Negative[n := n].onto
+  };
+\definition zero: \forall (z: Signed.Int^)(x: Left.Carrier z) -> #apply{data.projection} z (#apply{data.inclusion} z x) = #zero{(Right.space z)} :=
+  \induction (z: Signed.Int^) \return \forall (x: Left.Carrier z) -> #apply{data.projection} z (#apply{data.inclusion} z x) = #zero{(Right.space z)} \with {
+    | ofNat: \fun (n: N.Nat^)(x: Left.Carrier (Signed.Int^::ofNat n)) => #zero{s} n x
+    | negSucc: \fun (n: N.Nat^)(x: Left.Carrier (Signed.Int^::negSucc n)) => \refl(#zero{(Right.space (Signed.Int^::negSucc n))})
+  };
+\definition kernelImage: \forall (z: Signed.Int^)(y: Middle.Carrier z) -> #apply{data.projection} z y = #zero{(Right.space z)} ->
+  \exists { x: Left.Carrier z \where #apply{data.inclusion} z x = y } :=
+  \induction (z: Signed.Int^) \return \forall (y: Middle.Carrier z) -> #apply{data.projection} z y = #zero{(Right.space z)} ->
+    \exists { x: Left.Carrier z \where #apply{data.inclusion} z x = y } \with {
+      | ofNat: \fun (n: N.Nat^) => Positive[n := n].kernelImage
+      | negSucc: \fun (n: N.Nat^) => Negative[n := n].kernelImage
+    };
+\definition laws: Extended.Laws[data] := Extended.Laws[data] { injective := injective, onto := onto, zero := zero, kernelImage := kernelImage };
+\definition sequence: Extended.Sequence := \into[Extended.Data](data, { data: Extended.Data \where Extended.Laws[data] }) \by { laws };
+\module At(n: N.Nat^);
+\module DegreeZero;

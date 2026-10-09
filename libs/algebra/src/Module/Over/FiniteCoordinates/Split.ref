@@ -1,0 +1,39 @@
+\import \parent.\parent.FiniteCoordinates[n := N.Nat^::succ n] \as Larger;
+\import Finite.Tuples[A := R] \as Tuples;
+\definition head(v: Larger.Carrier): R := v (Finite.zero n);
+\definition tail(v: Larger.Carrier): Carrier := \fun (i: Index) => v (Finite.succ n i);
+\definition cons: R -> Carrier -> Larger.Carrier := Tuples.extend n;
+\definition headCons: \forall (a: R)(v: Carrier) -> head (cons a v) = a := Tuples.atZero n;
+\definition tailCons: \forall (a: R)(v: Carrier) -> tail (cons a v) = v :=
+  \fun (a: R)(v: Carrier) => \axiom:funext(tail (cons a v), v, Tuples.atSuccessor n a v);
+\definition recover: \forall (v: Larger.Carrier) -> cons (head v) (tail v) = v := Tuples.recover n;
+\definition consAddition: \forall (a, b: R)(v, w: Carrier) -> cons (#add{ring} a b) (#add{space} v w) = #add{Larger.space} (cons a v) (cons b w) :=
+  \fun (a, b: R)(v, w: Carrier) => Tuples.extensionality n _ _
+    (trans!{R} _ _ _ (headCons (#add{ring} a b) (#add{space} v w))
+      (sym!{R} _ _ (congr2!{R R R} (#add{ring}) _ _ _ _ (headCons a v) (headCons b w))))
+    (\fun (i: Index) => trans!{R} _ _ _ (Tuples.atSuccessor n (#add{ring} a b) (#add{space} v w) i)
+      (sym!{R} _ _ (congr2!{R R R} (#add{ring}) _ _ _ _ (Tuples.atSuccessor n a v i) (Tuples.atSuccessor n b w i))));
+\definition consScalar: \forall (a, b: R)(v: Carrier) -> cons (#mul{ring} a b) (#smul{space} a v) = #smul{Larger.space} a (cons b v) :=
+  \fun (a, b: R)(v: Carrier) => Tuples.extensionality n _ _
+    (trans!{R} _ _ _ (headCons (#mul{ring} a b) (#smul{space} a v))
+      (sym!{R} _ _ (congr!{R R} (#mul{ring} a) _ _ (headCons b v))))
+    (\fun (i: Index) => trans!{R} _ _ _ (Tuples.atSuccessor n (#mul{ring} a b) (#smul{space} a v) i)
+      (sym!{R} _ _ (congr!{R R} (#mul{ring} a) _ _ (Tuples.atSuccessor n b v i))));
+\definition zeroExtend(v: Carrier): Larger.Carrier := cons #zero{ring} v;
+\definition zeroAddition: \forall (v, w: Carrier) -> zeroExtend (#add{space} v w) = #add{Larger.space} (zeroExtend v) (zeroExtend w) :=
+  \fun (v, w: Carrier) => trans!{Larger.Carrier} _ _ _
+    (congr!{R Larger.Carrier} (\fun (a: R) => cons a (#add{space} v w)) _ _ (sym!{R} _ _ (Scalars.zeroLeft #zero{ring})))
+    (consAddition #zero{ring} #zero{ring} v w);
+\definition zeroScalar: \forall (a: R)(v: Carrier) -> zeroExtend (#smul{space} a v) = #smul{Larger.space} a (zeroExtend v) :=
+  \fun (a: R)(v: Carrier) => trans!{Larger.Carrier} _ _ _
+    (congr!{R Larger.Carrier} (\fun (b: R) => cons b (#smul{space} a v)) _ _
+      (sym!{R} _ _ (#zeroAbsorbsRight{(#semiring{ring})} a))) (consScalar a #zero{ring} v);
+\import \parent.\parent.Hom[V := Carrier, W := Larger.Carrier, source := space, target := Larger.space] \as Inclusions;
+\definition inclusion: Inclusions.Map := Inclusions.Map { apply := zeroExtend, addition := zeroAddition, scalar := zeroScalar };
+\import \parent.\parent.Hom[V := Larger.Carrier, W := Carrier, source := Larger.space, target := space] \as Tails;
+\definition restriction: Tails.Map := Tails.Map {
+  apply := tail,
+  addition := \fun (v, w: Larger.Carrier) => \axiom:funext(tail (#add{Larger.space} v w), #add{space} (tail v) (tail w), \fun (i: Index) => \refl(#add{ring} (v (Finite.succ n i)) (w (Finite.succ n i)))),
+  scalar := \fun (a: R)(v: Larger.Carrier) => \axiom:funext(tail (#smul{Larger.space} a v), #smul{space} a (tail v), \fun (i: Index) => \refl(#mul{ring} a (v (Finite.succ n i)))),
+};
+\definition zeroZero: zeroExtend #zero{space} = #zero{Larger.space} := Inclusions.zeroPreserved inclusion;

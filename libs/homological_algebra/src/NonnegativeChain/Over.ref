@@ -1,0 +1,60 @@
+\import algebra.Module[].Over[R := R, ring := ring] \as Modules;
+\structure Family {
+  Carrier: N.Nat^ -> \Set,
+  space: \forall (n: N.Nat^) -> Modules.Space (Carrier n),
+}
+\structure DifferentialData[F: Family]: \Set {
+  apply: \forall (n: N.Nat^) -> F.Carrier (N.Nat^::succ n) -> F.Carrier n,
+}
+\structure DifferentialLaws[F: Family, d: DifferentialData[F]]: \Prop {
+  addition: \forall (n: N.Nat^)(x, y: F.Carrier (N.Nat^::succ n)) ->
+    d.apply n (#add{(F.space (N.Nat^::succ n))} x y) = #add{(F.space n)} (d.apply n x) (d.apply n y),
+  scalar: \forall (n: N.Nat^)(a: R)(x: F.Carrier (N.Nat^::succ n)) ->
+    d.apply n (#smul{(F.space (N.Nat^::succ n))} a x) = #smul{(F.space n)} a (d.apply n x),
+  squareZero: \forall (n: N.Nat^)(x: F.Carrier (N.Nat^::succ (N.Nat^::succ n))) ->
+    d.apply n (d.apply (N.Nat^::succ n) x) = #zero{(F.space n)},
+}
+\structure Complex {
+  family: Family,
+  differential: DifferentialData[family],
+  laws: DifferentialLaws[family, differential],
+}
+\module ZeroExtension(C: Complex);
+\module CanonicalResolution(M: Modules.Bundle);
+\module ProjectiveResolution(M: Modules.Bundle);
+\module Map(C, D: Complex);
+\module Homotopy(C, D: Complex);
+\module End(C: Complex) {
+  \import \parent.Map[C := C, D := C] \as Maps;
+  \definition identity: Maps.Map := Maps.Map {
+    apply := \fun (n: N.Nat^)(x: C.family.Carrier n) => x,
+    addition := \fun (n: N.Nat^)(x, y: C.family.Carrier n) => \refl(#add{(C.family.space n)} x y),
+    scalar := \fun (n: N.Nat^)(a: R)(x: C.family.Carrier n) => \refl(#smul{(C.family.space n)} a x),
+    commutes := \fun (n: N.Nat^)(x: C.family.Carrier (N.Nat^::succ n)) => \refl(#apply{C.differential} n x),
+  };
+
+  \module Positive(n: N.Nat^) {
+    \import \parent.\parent.Positive[C := C, n := n] \as Homology;
+    \import Maps.Positive[n := n] \as Map;
+    \definition identityOnHomology: \forall (q: Homology.Homology) -> #apply{(Map.induced identity)} q = q :=
+      Homology.classInduction (\fun (q: Homology.Homology) => #apply{(Map.induced identity)} q = q)
+        (\fun (x: Homology.Cycle) => Map.onClass identity x);
+  }
+  \module DegreeZero {
+    \import \parent.\parent.DegreeZero[C := C] \as Homology;
+    \import Maps.DegreeZero[] \as Map;
+    \definition identityOnHomology: \forall (q: Homology.Homology) -> #apply{(Map.induced identity)} q = q :=
+      Homology.classInduction (\fun (q: Homology.Homology) => #apply{(Map.induced identity)} q = q)
+        (\fun (x: C.family.Carrier N.Nat^::zero) => Map.onClass identity x);
+  }
+
+}
+
+\module Positive(C: Complex, n: N.Nat^);
+\module DegreeZero(C: Complex);
+
+\module Equivalence(C, D: Complex);
+
+\module Homology(C: Complex);
+\module IntegerComparison(C: Complex);
+\module ShortExact(A, B, C: Complex);

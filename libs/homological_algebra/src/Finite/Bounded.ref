@@ -1,0 +1,24 @@
+\import \root.Chain[] \as Degrees;
+\import Degrees.Over[R := I.Int^, ring := Ring.commutativeRingAsRing I.Int^ IntegerRing.commutativeRing] \as Chains;
+\definition Degree: \Set := Degrees.Degree;
+\definition next: Degree -> Degree := Degrees.next;
+\definition previous: Degree -> Degree := Degrees.previous;
+\import std.Arithmetic[].ExtendedEuclid[].Signed[] \as Signed;
+\structure Data: \Set {
+  ranks: Degree -> N.Nat^,
+  boundary: Degree -> Runtime^,
+  bound: N.Nat^,
+}
+\definition Carrier(data: Data)(z: Degree): \Set := Modules.FiniteCoordinates[n := data.ranks z].Carrier;
+\definition space(data: Data)(z: Degree): Modules.Space (Carrier data z) := Modules.FiniteCoordinates[n := data.ranks z].space;
+\definition apply(data: Data)(z: Degree)(v: Carrier data z): Carrier data (previous z) :=
+  Commutative.Matrix[m := data.ranks (previous z), n := data.ranks z].apply
+    (\fun (i: Indices.Fin (data.ranks (previous z)))(j: Indices.Fin (data.ranks z)) => data.boundary z i j) v;
+\structure Laws[data: Data]: \Prop {
+  squareZero: \forall (z: Degree)(v: Carrier data z) -> apply data (previous z) (apply data z v) = #zero{(space data (previous (previous z)))},
+  bounded: \forall (z: Degree) -> Bounds.Le (N.Nat^::succ data.bound) (Signed.absolute z) -> data.ranks z = N.Nat^::zero,
+}
+\definition Complex: \Set := \Cast[Data] ({ data: Data \where Laws[data] });
+\module Of(C: Complex);
+
+\module Mapping(C, D: Complex);

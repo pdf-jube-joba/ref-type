@@ -1,0 +1,53 @@
+\import B.Prop[] \as BoolLaws;
+\definition Nonnegative(x: I.Int^): \Prop := \exists { n: N.Nat^ \where x = I.Int^::ofNat n };
+\definition Prefix(count: N.Nat^)(a: Runtime^): \Prop :=
+  \forall (i: N.Nat^) -> Bounds.Lt i count -> Nonnegative (a i i);
+\definition diagonalNonnegative: \forall (k: N.Nat^)(a: Runtime^)(history: History^) -> Nonnegative (attemptMatrix (at k a history) k k) :=
+  \fun (k: N.Nat^)(a: Runtime^)(history: History^) => \exact(
+    \into[N.Nat^](Signed.absolute (a k k), { n: N.Nat^ \where attemptMatrix (at k a history) k k = I.Int^::ofNat n }) \by { diagonal k a history },
+    \Cast[N.Nat^] ({ n: N.Nat^ \where attemptMatrix (at k a history) k k = I.Int^::ofNat n }));
+\definition extendDifferent: \forall (count: N.Nat^)(a: Runtime^)(history: History^) -> Prefix count a ->
+  \forall (i: N.Nat^) -> Bounds.Lt i (N.Nat^::succ count) -> Logic.Not (i = count) -> Nonnegative (attemptMatrix (at count a history) i i) :=
+  \fun (count: N.Nat^)(a: Runtime^)(history: History^)(previous: Prefix count a)(i: N.Nat^)(bound: _)(different: _) =>
+    \idelim a i i = attemptMatrix (at count a history) i i \with x: I.Int^ => Nonnegative x \by {
+      base: previous i (trans!{B.Bool^} (Nat.ltb i count) (Nat.ltb i (N.Nat^::succ count)) B.Bool^::true
+        (sym!{B.Bool^} (Nat.ltb i (N.Nat^::succ count)) (Nat.ltb i count)
+          (Bounds.ltbSuccOfDifferent count i (Bounds.eqbFalseOfNe i count different))) bound),
+      equality: sym!{I.Int^} (attemptMatrix (at count a history) i i) (a i i) (other count a history i i different)
+    };
+\definition extend: \forall (count: N.Nat^)(a: Runtime^)(history: History^) -> Prefix count a -> Prefix (N.Nat^::succ count) (attemptMatrix (at count a history)) :=
+  \fun (count: N.Nat^)(a: Runtime^)(history: History^)(previous: Prefix count a)(i: N.Nat^)(bound: _) => B.cases
+    (\fun (test: B.Bool^) => Nat.eqb i count = test -> Nonnegative (attemptMatrix (at count a history) i i))
+    (\fun (test: Nat.eqb i count = B.Bool^::false) => extendDifferent count a history previous i bound
+      (\fun (same: i = count) => BoolLaws.falseNeTrue
+        (trans!{B.Bool^} B.Bool^::false (Nat.eqb i count) B.Bool^::true
+          (sym!{B.Bool^} (Nat.eqb i count) B.Bool^::false test) (Bounds.eqbTrueOfEq i count same))))
+    (\fun (test: Nat.eqb i count = B.Bool^::true) => \idelim count = i \with j: N.Nat^ =>
+      Nonnegative (attemptMatrix (at count a history) j j) \by {
+        base: diagonalNonnegative count a history, equality: sym!{N.Nat^} i count (Bounds.eqOfEqbTrue count i test)
+      })
+    (Nat.eqb i count) (\refl(Nat.eqb i count));
+\definition positive: \forall (count: N.Nat^)(a: Runtime^)(history: History^) -> Prefix count (attemptMatrix (fold count a history)) :=
+  \induction (count: N.Nat^) \return \forall (a: Runtime^)(history: History^) -> Prefix count (attemptMatrix (fold count a history)) \with {
+    | zero: \fun (a: Runtime^)(history: History^)(i: N.Nat^)(bad: Bounds.Lt i N.Nat^::zero) => Logic.falseElim _ (Order.ltZero i bad)
+    | succ: \fun (count: N.Nat^)(previous: _)(a: Runtime^)(history: History^) =>
+        extend count (attemptMatrix (fold count a history)) (attemptHistory (fold count a history)) (previous a history)
+  };
+\definition traced: \forall (count: N.Nat^)(a, original: Runtime^)(history: History^) -> a = applyHistory history original ->
+  attemptMatrix (fold count a history) = applyHistory (attemptHistory (fold count a history)) original :=
+  \induction (count: N.Nat^) \return \forall (a, original: Runtime^)(history: History^) -> a = applyHistory history original ->
+    attemptMatrix (fold count a history) = applyHistory (attemptHistory (fold count a history)) original \with {
+    | zero: \fun (a, original: Runtime^)(history: History^)(law: _) => law
+    | succ: \fun (count: N.Nat^)(previous: _)(a, original: Runtime^)(history: History^)(law: _) =>
+        trace count (attemptMatrix (fold count a history)) original (attemptHistory (fold count a history)) (previous a original history law)
+  };
+\definition boundedHistory: \forall (count, rows, cols: N.Nat^)(a: Runtime^)(history: History^) ->
+  Bounds.Le count rows -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (fold count a history)) :=
+  \induction (count: N.Nat^) \return \forall (rows, cols: N.Nat^)(a: Runtime^)(history: History^) ->
+    Bounds.Le count rows -> Indices.HistoryLaws rows cols history -> Indices.HistoryLaws rows cols (attemptHistory (fold count a history)) \with {
+    | zero: \fun (rows, cols: N.Nat^)(a: Runtime^)(history: History^)(bound: _)(law: _) => law
+    | succ: \fun (count: N.Nat^)(previous: _)(rows, cols: N.Nat^)(a: Runtime^)(history: History^)(bound: _)(law: _) =>
+        bounded rows cols count (attemptMatrix (fold count a history)) (attemptHistory (fold count a history))
+          (Bounds.ltOfSuccLe rows count bound)
+          (previous rows cols a history (Bounds.leTrans count (N.Nat^::succ count) rows (Bounds.leSelfSucc count) bound) law)
+  };

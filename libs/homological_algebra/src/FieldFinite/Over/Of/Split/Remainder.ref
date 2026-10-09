@@ -1,0 +1,49 @@
+\import \parent.\parent.At[n := n] \as Term;
+\import \parent.\parent.At[n := n].Decomposition[].Selected[d := d n] \as Selected;
+\import Cochains.At[C := complex, k := n] \as H;
+\import Modules.Hom[V := H.Cohomology, W := H.CycleCarrier, source := H.cohomologySpace, target := H.cycleSpace].Composition[
+  U := H.CycleCarrier, domain := H.cycleSpace] \as Compose;
+\import Modules.Hom[V := H.CycleCarrier, W := H.CycleCarrier, source := H.cycleSpace, target := H.cycleSpace] \as End;
+\definition residue: End.Map := End.plus (Modules.End[V := H.CycleCarrier, space := H.cycleSpace].identity)
+  (End.negative (Compose.compose #section{(d n)} H.classLinear));
+\import Modules.Hom[V := H.CycleCarrier, W := H.Cohomology, source := H.cycleSpace, target := H.cohomologySpace] \as Classes;
+\import Modules.Laws[V := H.Cohomology, space := H.cohomologySpace] \as ClassVector;
+\import algebra.Group[].Of[Carrier := H.Cohomology, group := ClassVector.additive] \as ClassGroup;
+\definition classZero: \forall (x: H.CycleCarrier) -> H.classOf (#apply{residue} x) = H.zeroClass :=
+  \fun (x: H.CycleCarrier) => trans!{H.Cohomology} _ _ _
+    (Classes.differencePreserved H.classLinear x (#apply{#section{(d n)}} (H.classOf x)))
+    (trans!{H.Cohomology} _ _ _
+      (congr!{H.Cohomology H.Cohomology} (ClassGroup.difference (H.classOf x)) _ _ (#represents{(d n)} (H.classOf x)))
+      (ClassGroup.inverseRight (H.classOf x)));
+\import Modules.Hom[V := H.CycleCarrier, W := Term.boundaryBundle.Carrier, source := H.cycleSpace, target := Term.boundaryBundle.space] \as BoundaryMaps;
+\definition onCycles: BoundaryMaps.Map := BoundaryMaps.Map {
+  apply := \fun (x: H.CycleCarrier) => \into[H.CycleCarrier](#apply{residue} x, #carrier{H.boundariesInside}) \by {
+    H.zeroClassBoundary (#apply{residue} x) (classZero x)
+  },
+  addition := \fun (x, y: H.CycleCarrier) => #addition{residue} x y,
+  scalar := \fun (a: K)(x: H.CycleCarrier) => #scalar{residue} a x,
+};
+\import BoundaryMaps.Composition[U := Carrier (C.ranks n), domain := space (C.ranks n)] \as Projection;
+\definition map: Modules.MapBetween (Modules.Bundle { Carrier := Carrier (C.ranks n), space := space (C.ranks n) }) Term.boundaryBundle :=
+  Projection.compose onCycles Selected.cycles;
+\import Modules.Hom[V := Term.boundaryBundle.Carrier, W := Term.ambientBoundaryBundle.Carrier,
+  source := Term.boundaryBundle.space, target := Term.ambientBoundaryBundle.space].Composition[
+  U := Carrier (C.ranks n), domain := space (C.ranks n)] \as Forget;
+\definition ambient: Modules.Hom[V := Carrier (C.ranks n), W := Term.ambientBoundaryBundle.Carrier,
+  source := space (C.ranks n), target := Term.ambientBoundaryBundle.space].Map := Forget.compose Term.forget map;
+\import Modules.Hom[V := H.Cohomology, W := H.CycleCarrier, source := H.cohomologySpace, target := H.cycleSpace] \as Sections;
+\import Modules.Laws[V := H.CycleCarrier, space := H.cycleSpace] \as CycleVector;
+\import algebra.Group[].Of[Carrier := H.CycleCarrier, group := CycleVector.additive] \as CycleGroup;
+\definition onBoundary: \forall (x: Term.boundaryBundle.Carrier) -> #apply{map} x = x :=
+  \fun (x: Term.boundaryBundle.Carrier) => trans!{H.CycleCarrier} _ _ _
+    (congr!{H.CycleCarrier H.CycleCarrier} (#apply{residue}) _ _ (Selected.onCycle x))
+    (trans!{H.CycleCarrier} _ _ _
+      (congr!{H.Cohomology H.CycleCarrier}
+        (\fun (z: H.Cohomology) => CycleGroup.difference x (#apply{#section{(d n)}} z)) _ _
+        (H.boundaryClassZero x (\bysub(H.CycleCarrier, #carrier{H.boundariesInside}, x))))
+      (trans!{H.CycleCarrier} _ _ _
+        (congr!{H.CycleCarrier H.CycleCarrier} (CycleGroup.difference x) _ _ (Sections.zeroPreserved #section{(d n)}))
+        (trans!{H.CycleCarrier} _ _ _
+          (congr!{H.CycleCarrier H.CycleCarrier} (CycleGroup.add x) _ _ CycleGroup.negZero) (CycleGroup.zeroRight x))));
+\definition onAmbientBoundary: \forall (x: Term.ambientBoundaryBundle.Carrier) -> #apply{ambient} x = x :=
+  \fun (x: Term.ambientBoundaryBundle.Carrier) => onBoundary (#apply{Term.into} x);
