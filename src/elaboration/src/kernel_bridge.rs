@@ -10,6 +10,38 @@ use crate::{
 };
 use rustc_hash::FxHashSet;
 
+/// Keep binder positions while omitting types of variables irrelevant to a judgement.
+/// In an open inductive constructor, an unused recursive variable's type can
+/// reference the declaration currently being built and cannot yet be lowered.
+fn judgement_context(env: &CrateEnv, context: &ExpContext, roots: &[Exp]) -> ExpContext {
+    use crate::raw::{sort::Sort, traversal::exp_contains_bound};
+    let mut needed = vec![false; context.len()];
+    for (position, live) in needed.iter_mut().enumerate() {
+        let bound = context.len() - position - 1;
+        *live = roots
+            .iter()
+            .any(|&root| exp_contains_bound(env.arena(), root, bound));
+    }
+    // A variable's type is scoped over the preceding binders.
+    for position in (0..context.len()).rev() {
+        if needed[position] {
+            for earlier in 0..position {
+                needed[earlier] |=
+                    exp_contains_bound(env.arena(), context[position].ty, position - earlier - 1);
+            }
+        }
+    }
+    let dummy = env.arena().sort(Sort::Set(0));
+    context
+        .iter()
+        .zip(needed)
+        .map(|(binding, needed)| crate::raw::exp::ExpContextEntry {
+            var: binding.var,
+            ty: if needed { binding.ty } else { dummy },
+        })
+        .collect()
+}
+
 /// Materialize source templates before borrowing the kernel environment.
 /// Registered declarations are immutable and their dependencies are already
 /// materialized. Each reference's actual arguments are still visited below.
@@ -205,6 +237,14 @@ pub(crate) fn logical_in_scope<T>(
             context.len()
         );
     }
+    // Empty roots are used when creating a metavariable over the whole context.
+    let reduced;
+    let context = if base == 0 && !roots.is_empty() {
+        reduced = judgement_context(env, context, roots);
+        &reduced
+    } else {
+        context
+    };
     let mut pending = roots.iter().copied().map(Term::Logical).collect::<Vec<_>>();
     pending.extend(context.iter().map(|b| Term::Logical(b.ty)));
     prepare(env, pending)?;
@@ -271,6 +311,11 @@ pub(crate) fn expression<T>(
     ) -> Result<T, kernel::error::Error>,
 ) -> Result<T, crate::error::Error> {
     let _cost = timing::costs::Scope::enter("bridge.expression");
+    if let Term::Logical(source) = term
+        && let Some(&lowered) = env.structural_expressions.borrow().get(&source)
+    {
+        return f(&env.kernel.borrow(), lowered).map_err(crate::error::Error::Kernel);
+    }
     prepare(env, vec![term])?;
     let mut depth = env
         .arena()
@@ -310,7 +355,66 @@ pub(crate) fn expression<T>(
         }
         term => lower.source_term(term, &mut vec![])?,
     };
+    if let Term::Logical(source) = term
+        && !kernel.arena().contains_meta(e)
+    {
+        env.structural_expressions.borrow_mut().insert(source, e);
+    }
     f(&kernel, e).map_err(crate::error::Error::Kernel)
+}
+
+#[cfg(test)]
+mod structural_expression_tests {
+    use super::*;
+    use crate::raw::{environment::DefinedConstant, ids::SymbolId, sort::Sort};
+
+    #[test]
+    fn translations_reuse_registered_declarations_and_preserve_open_binders() {
+        let mut env = CrateEnv::new();
+        let root = env.root_module();
+        let sort = env.arena().sort(Sort::Set(0));
+        let definition = env
+            .add_definition(
+                root,
+                DefinedConstant::Pts {
+                    ty: env.arena().sort(Sort::SetKind(0)),
+                    body: sort,
+                },
+            )
+            .unwrap();
+        let reference = env.arena().alloc(ExpNode::DefinedConstant(definition));
+        let open = env.arena().alloc(ExpNode::Lam {
+            var: SymbolId::ANONYMOUS,
+            ty: reference,
+            body: env.arena().alloc(ExpNode::Bound(1)),
+        });
+        let lowered = expression(&env, Term::Logical(open), |_, e| Ok(e)).unwrap();
+        let registered = env.kernel_definitions.borrow().len();
+        assert_eq!(
+            env.structural_expressions.borrow().get(&open),
+            Some(&lowered)
+        );
+        assert_eq!(
+            expression(&env, Term::Logical(open), |_, e| Ok(e)).unwrap(),
+            lowered
+        );
+        assert_eq!(env.kernel_definitions.borrow().len(), registered);
+        assert_eq!(
+            env.kernel.borrow().arena().max_loose_bound(lowered),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn failed_translations_do_not_enter_the_structural_cache() {
+        let env = CrateEnv::new();
+        let unsupported = env.arena().alloc(ExpNode::Bound(100_000));
+        assert!(expression(&env, Term::Logical(unsupported), |_, e| Ok(e)).is_err());
+        assert!(env.structural_expressions.borrow().is_empty());
+        let valid = env.arena().alloc(ExpNode::Bound(0));
+        assert!(expression(&env, Term::Logical(valid), |_, e| Ok(e)).is_ok());
+        assert_eq!(env.structural_expressions.borrow().len(), 1);
+    }
 }
 
 pub(crate) fn captured_definition(

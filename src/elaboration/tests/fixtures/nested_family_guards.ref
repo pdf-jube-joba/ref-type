@@ -1,0 +1,34 @@
+\module Base(R: \Set) {
+    \definition Space(V: \Set): \Set := R -> V;
+    \structure Bundle { Carrier: \Set, space: Space Carrier }
+}
+\module Chains(R: \Set) {
+    \import \root.Base[R := R] \as Modules;
+    \structure Family {
+        Carrier: R -> \Set,
+        space: \forall (n: R) -> Modules.Space (Carrier n),
+    }
+    \structure Complex { family: Family }
+}
+\module Resolutions(R: \Set) {
+    \import \root.Chains[R := R] \as Chains;
+    \module Of(P: Chains.Complex) {
+        \definition Data: \Set := \forall (n: R) -> P.family.Carrier n;
+    }
+    \module Sequences {
+        \import \root.Resolutions[R := R] \as Resolutions;
+        \structure Sequence {
+            complex: Chains.Complex,
+            data: Resolutions.Of[P := complex].Data,
+        }
+        \definition make(P: Chains.Complex)(p: Resolutions.Of[P := P].Data): Sequence :=
+            Sequence { complex := P, data := p };
+    }
+}
+\module Use(R: \Set) {
+    \import \root.Chains[R := R] \as Chains;
+    \import \root.Resolutions[R := R].Sequences[] \as Sequences;
+    \module Of(P: Chains.Complex, p: \root.Resolutions[R := R].Of[P := P].Data) {
+        \definition sequence: Sequences.Sequence := Sequences.make P p;
+    }
+}

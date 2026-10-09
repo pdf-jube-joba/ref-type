@@ -114,12 +114,23 @@ impl Lowerer<'_> {
     }
 
     fn registered_captures(&self, declaration: Declaration) -> Option<Vec<ModuleParamId>> {
-        let Declaration::Definition(id) = declaration else {
-            return None;
-        };
-        let native = self.raw.kernel_definitions.borrow().get(&id).copied()?;
-        self.kernel.definition(native).ok()?;
-        self.raw.arena().definition_captures(native)
+        match declaration {
+            Declaration::Definition(id) => {
+                let native = self.raw.kernel_definitions.borrow().get(&id).copied()?;
+                self.kernel.definition(native).ok()?;
+                self.raw.arena().definition_captures(native)
+            }
+            Declaration::Inductive(id) => {
+                self.kernel.inductive(id.into())?;
+                self.raw
+                    .arena()
+                    .inductive_captures
+                    .borrow()
+                    .get(&id.into())
+                    .map(|(captures, _)| captures.clone())
+            }
+            _ => None,
+        }
     }
 
     fn collect_captures(&self, declarations: Vec<Declaration>) -> FxHashSet<ModuleParamId> {
@@ -313,6 +324,11 @@ impl Lowerer<'_> {
         &mut self,
         program: bool,
     ) -> Result<ke::Context, crate::error::Error> {
+        let _cost = timing::costs::Scope::enter("lower.capture-context");
+        let key = (self.scope.captures.clone(), program, self.structural);
+        if let Some(context) = self.capture_context_cache.get(&key) {
+            return Ok(context.clone());
+        }
         let captures = self.scope.captures.clone();
         let mut result = vec![];
         for (position, id) in captures.iter().copied().enumerate() {
@@ -347,6 +363,7 @@ impl Lowerer<'_> {
                 ty: classifier,
             });
         }
+        self.capture_context_cache.insert(key, result.clone());
         Ok(result)
     }
 

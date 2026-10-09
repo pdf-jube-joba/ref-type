@@ -18,6 +18,13 @@ const TOPOLOGICAL_K_THEORY_TIMEOUT: Duration = Duration::from_secs(600);
 const MANIFOLDS_DE_RHAM_TIMEOUT: Duration = Duration::from_secs(3600);
 static LIBRARY_CHECK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+fn library_check() -> std::sync::MutexGuard<'static, ()> {
+    // This mutex only serializes child processes; a failed test leaves no shared data.
+    LIBRARY_CHECK
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+}
+
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -211,7 +218,7 @@ fn ng_ref_files_fail() {
 
 #[test]
 fn library_examples_succeed() {
-    let _check = LIBRARY_CHECK.lock().unwrap();
+    let _check = library_check();
     let workspace = workspace_root();
     let path = workspace.join("tests/projects/library");
     let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
@@ -227,7 +234,7 @@ fn library_examples_succeed() {
 
 #[test]
 fn topological_k_theory_foundations_examples_succeed() {
-    let _check = LIBRARY_CHECK.lock().unwrap();
+    let _check = library_check();
     let workspace = workspace_root();
     let path = workspace.join("tests/projects/topological-k-theory");
     let output = run_ref_file_with_timeout(
@@ -242,7 +249,7 @@ fn topological_k_theory_foundations_examples_succeed() {
 
 #[test]
 fn manifolds_de_rham_examples_succeed() {
-    let _check = LIBRARY_CHECK.lock().unwrap();
+    let _check = library_check();
     let workspace = workspace_root();
     let path = workspace.join("tests/projects/manifolds-de-rham");
     let output = run_ref_file_with_timeout(
@@ -257,7 +264,7 @@ fn manifolds_de_rham_examples_succeed() {
 
 #[test]
 fn pointwise_quotient_representations_succeed() {
-    let _check = LIBRARY_CHECK.lock().unwrap();
+    let _check = library_check();
     let workspace = workspace_root();
     for representation in [
         "01-direct-type",
@@ -277,7 +284,7 @@ fn pointwise_quotient_representations_succeed() {
 
 #[test]
 fn product_compactness_specialization_succeeds() {
-    let _check = LIBRARY_CHECK.lock().unwrap();
+    let _check = library_check();
     let workspace = workspace_root();
     let path = workspace.join("tests/projects/product-compactness");
     let output = run_ref_file_with_timeout(&workspace, &path, &["--no-cache"], LIBRARY_TIMEOUT)
@@ -287,7 +294,7 @@ fn product_compactness_specialization_succeeds() {
 
 #[test]
 fn category_examples_succeed() {
-    let _check = LIBRARY_CHECK.lock().unwrap();
+    let _check = library_check();
     let workspace = workspace_root();
     let path = workspace.join("tests/projects/category");
     let output = run_ref_file_with_timeout(&workspace, &path, &[], LIBRARY_TIMEOUT)
@@ -297,7 +304,7 @@ fn category_examples_succeed() {
 
 #[test]
 fn module_expression_library_examples_succeed() {
-    let _check = LIBRARY_CHECK.lock().unwrap();
+    let _check = library_check();
     let workspace = workspace_root();
     let path = workspace.join("tests/projects/module-expressions");
     let output = run_ref_file_with_timeout(
@@ -401,6 +408,29 @@ fn file_errors_are_only_written_to_stderr() {
     assert!(!output.status.success(), "{}", output_details(&output));
     assert!(!stdout.contains("Elaboration Error:"));
     assert_eq!(stderr.matches("Resolution Error:").count(), 1);
+}
+
+#[test]
+fn module_selection_checks_children_and_reports_missing_modules() {
+    let fixture = FixtureDirectory::new();
+    let root = fixture.write(
+        "root.ref",
+        r"\module Good { \definition identity(A: \Set)(x: A): A := x; }
+        \module Bad { \module Child { \definition invalid: \Set := \Prop; } }",
+    );
+    let good = run_ref_file_with_args(&fixture.0, &root, &["--module", "Good"]).unwrap();
+    assert!(good.status.success(), "{}", output_details(&good));
+    let bad = run_ref_file_with_args(&fixture.0, &root, &["--module", "Bad"]).unwrap();
+    assert_eq!(bad.status.code(), Some(1), "{}", output_details(&bad));
+    assert!(String::from_utf8_lossy(&bad.stderr).contains("Elaboration Error:"));
+    let missing = run_ref_file_with_args(&fixture.0, &root, &["--module", "Missing"]).unwrap();
+    assert_eq!(
+        missing.status.code(),
+        Some(1),
+        "{}",
+        output_details(&missing)
+    );
+    assert!(String::from_utf8_lossy(&missing.stderr).contains("Module Selection Error:"));
 }
 
 #[test]

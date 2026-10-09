@@ -71,6 +71,13 @@ impl<'a> Checker<'a> {
     }
     pub fn check_context(&mut self) -> Result<(), Error> {
         let _cost = timing::costs::Scope::enter("kernel.check_context");
+        let (key, has_metas) = self.context_state();
+        // Meta-free formation uses the ordinary inference rules even while
+        // unification is solving a surrounding expression.
+        let cacheable = !has_metas;
+        if cacheable && self.env.validated_contexts.borrow().get(&key).is_some() {
+            return Ok(());
+        }
         if !self.solving {
             self.metas
                 .require_solved(self.arena(), self.context.iter().map(|b| b.ty))?;
@@ -86,6 +93,9 @@ impl<'a> Checker<'a> {
         })();
         self.context = context;
         self.context_states = states;
+        if cacheable && result.is_ok() {
+            self.env.validated_contexts.borrow_mut().insert(key, ());
+        }
         result
     }
     #[tracing::instrument(target = "ref_type::typing", level = "debug", name = "kernel_infer", skip_all, fields(?term))]
@@ -256,6 +266,7 @@ impl<'a> Checker<'a> {
         Ok(())
     }
     fn equal(&self, left: Expression, right: Expression) -> Result<bool, Error> {
+        let _cost = timing::costs::Scope::enter("kernel.equal");
         let left = self.metas.zonk(self.arena(), left)?;
         let right = self.metas.zonk(self.arena(), right)?;
         crate::reduction::erased_convertible(self.env, left, right)
@@ -285,6 +296,35 @@ impl<'a> Checker<'a> {
         term: Expression,
         expected: Expression,
     ) -> Result<(), Error> {
+        let _cost = timing::costs::Scope::enter("kernel.check_open");
+        let closed = self.arena().max_loose_bound(term).is_none()
+            && self.arena().max_loose_bound(expected).is_none();
+        let complete = !self.solving
+            && !self.arena().contains_meta(term)
+            && !self.arena().contains_meta(expected)
+            && (closed || !self.context_state().1);
+        let key = complete.then(|| {
+            let context = if closed {
+                crate::sharing::ContextId::default()
+            } else {
+                self.context_state().0
+            };
+            (context, term, expected)
+        });
+        if let Some(key) = key
+            && self.env.checked.borrow().get(&key).is_some()
+        {
+            return Ok(());
+        }
+        let result = self.check_uncached(term, expected);
+        if result.is_ok()
+            && let Some(key) = key
+        {
+            self.env.checked.borrow_mut().insert(key, ());
+        }
+        result
+    }
+    fn check_uncached(&mut self, term: Expression, expected: Expression) -> Result<(), Error> {
         if self.solving {
             if let Node::ChoiceEq { set, .. } = self.arena().get(term)
                 && matches!(self.arena().get(self.head(set)?), Node::Meta { .. })
@@ -479,6 +519,7 @@ impl<'a> Checker<'a> {
         }
     }
     pub(crate) fn infer_open(&mut self, term: Expression) -> Result<Expression, Error> {
+        let _cost = timing::costs::Scope::enter("kernel.infer_open");
         // These rules depend on one binding at most, not on the whole telescope.
         if matches!(
             *self.arena().read(term),
@@ -502,19 +543,39 @@ impl<'a> Checker<'a> {
             }
             return result;
         }
+        let unused = if closed {
+            0
+        } else {
+            self.env
+                .minimum_loose_bound(term)
+                .unwrap_or(0)
+                .min(self.context.len())
+        };
         let context = if closed {
             crate::sharing::ContextId::default()
+        } else if unused > 0 {
+            self.context_state();
+            self.context
+                .len()
+                .checked_sub(unused + 1)
+                .and_then(|index| self.context_states.get(index))
+                .map_or(crate::sharing::ContextId::default(), |state| state.0)
         } else {
             self.context_state().0
         };
-        if let Some(&ty) = self.env.inferred.borrow().get(&(context, term)) {
-            return Ok(ty);
+        let canonical = self.env.trim_unused(term, unused)?;
+        if let Some(&ty) = self.env.inferred.borrow().get(&(context, canonical)) {
+            return Ok(self.env.shifted(ty, unused)?);
         }
         let solving = std::mem::replace(&mut self.solving, false);
         let result = self.infer_framed(term);
         self.solving = solving;
         if let Ok(ty) = result {
-            self.env.inferred.borrow_mut().insert((context, term), ty);
+            let canonical_ty = self.env.trim_unused(ty, unused)?;
+            self.env
+                .inferred
+                .borrow_mut()
+                .insert((context, canonical), canonical_ty);
         }
         result
     }
@@ -1923,6 +1984,41 @@ struct Motive {
 #[cfg(test)]
 mod context_tests {
     use super::*;
+
+    #[test]
+    fn validated_context_cache_checks_extensions_and_rejects_invalid_siblings() {
+        let env = Environment::new();
+        let mut metas = MetaContext::new();
+        let set = env.arena.sort(Sort::Base(BaseSort::Set(0)));
+        let binding = Binding {
+            var: SymbolId::ANONYMOUS,
+            ty: set,
+        };
+        let mut checker = Checker::new(&env, &mut metas, vec![binding]);
+        checker.check_context().unwrap();
+        let entries = env.validated_contexts.borrow().len();
+        checker.check_context().unwrap();
+        assert_eq!(env.validated_contexts.borrow().len(), entries);
+        checker.solving = true;
+        checker.check_context().unwrap();
+        assert_eq!(env.validated_contexts.borrow().len(), entries);
+        checker.solving = false;
+        checker
+            .under(SymbolId::ANONYMOUS, env.arena.bound(0), |ch| {
+                ch.check_context()
+            })
+            .unwrap();
+        assert_eq!(env.validated_contexts.borrow().len(), entries + 1);
+        // This sibling refers beyond the first binding and is not well formed.
+        assert!(
+            checker
+                .under(SymbolId::ANONYMOUS, env.arena.bound(1), |ch| ch
+                    .check_context())
+                .is_err()
+        );
+        assert_eq!(env.validated_contexts.borrow().len(), entries + 1);
+        checker.check_context().unwrap();
+    }
 
     #[test]
     fn inference_distinguishes_sibling_scopes_and_restores_context_after_errors() {

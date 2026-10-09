@@ -21,6 +21,9 @@ pub(crate) struct Lowerer<'a> {
     active_program: FxHashSet<ProgramInductiveId>,
     scope: Scope,
     capture_cache: FxHashMap<Declaration, Vec<ModuleParamId>>,
+    // A captured telescope is independent of local binders. Preserve its
+    // classifiers across declaration scopes, keyed by the complete telescope.
+    capture_context_cache: FxHashMap<(Vec<ModuleParamId>, bool, bool), ke::Context>,
     // Translation uses binder depth, not binding classifiers. Type checking
     // still uses the full telescope in the kernel. `in_scope` isolates captures,
     // logical/proof bases and nominal mode; Program mode can change within it.
@@ -45,6 +48,7 @@ impl<'a> Lowerer<'a> {
             active_program: FxHashSet::default(),
             scope: Scope::default(),
             capture_cache: FxHashMap::default(),
+            capture_context_cache: FxHashMap::default(),
             cache: FxHashMap::default(),
         }
     }
@@ -206,6 +210,128 @@ pub(crate) fn format_kernel_error(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn captured_classifier_indices_follow_the_complete_telescope() {
+        use raw::environment::{ModuleParameter, ModuleParameterKind};
+        let mut raw = raw::environment::CrateEnv::new();
+        let module = raw.reserve_child_module(raw.root_module(), "Captured".into());
+        let a = ModuleParamId {
+            module,
+            position: 0,
+        };
+        let b = ModuleParamId {
+            module,
+            position: 1,
+        };
+        let x = ModuleParamId {
+            module,
+            position: 2,
+        };
+        for ty in [
+            raw.arena().sort(RawSort::Set(0)),
+            raw.arena().sort(RawSort::Prop),
+            raw.arena().alloc(ExpNode::ModuleParam(a)),
+        ] {
+            raw.add_module_parameter(
+                module,
+                ModuleParameter {
+                    name: SymbolId::ANONYMOUS,
+                    kind: ModuleParameterKind::Pts { ty },
+                },
+            );
+        }
+        let mut kernel = ke::Environment::new();
+        let mut lower = Lowerer::new(&raw, &mut kernel);
+        for (captures, expected) in [(vec![a, x], 0), (vec![a, b, x], 1), (vec![a, x], 0)] {
+            lower
+                .in_scope(captures, 0, 0, |lower| {
+                    let context = lower.capture_context(false)?;
+                    assert_eq!(
+                        lower.kernel.arena().get(context.last().unwrap().ty),
+                        s::Node::Bound(expected)
+                    );
+                    Ok(())
+                })
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn reserved_inductive_keeps_source_identity_before_canonicalization() {
+        use raw::environment::{
+            DeclarationRemapping, ModuleArgument, ModuleParameter, ModuleParameterKind,
+        };
+        let mut raw = raw::environment::CrateEnv::new();
+        let source_module = raw.reserve_child_module(raw.root_module(), "Source".into());
+        let caller = raw.reserve_child_module(raw.root_module(), "Caller".into());
+        for module in [source_module, caller] {
+            raw.add_module_parameter(
+                module,
+                ModuleParameter {
+                    name: SymbolId::ANONYMOUS,
+                    kind: ModuleParameterKind::Pts {
+                        ty: raw.arena().sort(RawSort::Set(0)),
+                    },
+                },
+            );
+        }
+        let source_parameter = ModuleParamId {
+            module: source_module,
+            position: 0,
+        };
+        let caller_parameter = ModuleParamId {
+            module: caller,
+            position: 0,
+        };
+        let source = raw.add_inductive(
+            source_module,
+            raw::inductive::InductiveTypeSpecs::unchecked(vec![], vec![], RawSort::Set(0), vec![]),
+        );
+        let caller_type = raw.arena().exp_module_param(caller_parameter);
+        let adapter = raw.arena().alloc(ExpNode::Prod {
+            var: SymbolId::ANONYMOUS,
+            ty: caller_type,
+            body: caller_type,
+        });
+        let reflected = vec![(source_parameter, adapter)];
+        let substitutions = vec![(source_parameter, ModuleArgument::Pts(adapter))];
+        let reserved_module = raw.add_module();
+        let reserved = raw.reserve_lazy_inductive(reserved_module, source, reflected.clone());
+        let remapping = DeclarationRemapping::default();
+        raw.preview_lazy_inductive(reserved, &substitutions, &reflected, &remapping);
+        let expression = raw.arena().alloc(ExpNode::IndType {
+            indspec: reserved,
+            parameters: vec![],
+        });
+        let mut kernel = ke::Environment::new();
+        let before = Lowerer::new(&raw, &mut kernel)
+            .in_scope(vec![caller_parameter], 0, 0, |lower| {
+                lower.set(expression, &mut vec![], caller)
+            })
+            .unwrap();
+        let s::Node::IndType {
+            inductive,
+            parameters,
+        } = kernel.arena().get(before)
+        else {
+            panic!("expected an inductive reference")
+        };
+        assert_eq!(inductive, source.into());
+        assert_eq!(parameters.len(), 1);
+        assert!(matches!(
+            kernel.arena().get(parameters[0]),
+            s::Node::Product { .. }
+        ));
+        assert!(kernel.inductive(reserved.into()).is_none());
+        raw.reuse_lazy_inductive(reserved, &substitutions, &reflected, &remapping);
+        let after = Lowerer::new(&raw, &mut kernel)
+            .in_scope(vec![caller_parameter], 0, 0, |lower| {
+                lower.set(expression, &mut vec![], caller)
+            })
+            .unwrap();
+        assert_eq!(before, after);
+    }
 
     #[test]
     fn translation_shares_depth_without_sharing_typing_judgements() {

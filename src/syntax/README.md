@@ -11,3 +11,8 @@ parse error はメッセージと span を持ち、呼び出し側で表示で�
 AST は名前の文字列、束縛、macro token、proof block、型に応じて分類する Program の構文を保持する。
 `resolve` が AST を受け取り、束縛 ID と source span を持つ HIR へ変換する。
 外部 module と package の読み込み、source snapshot は `project` が担当する。
+
+## 実行部と仕様の宣言
+
+`\machine` と `\correspondence` は、`\definition` と同じ型付き定義宣言として構文解析する。
+実行部と仕様の対応証明にそれぞれ名前を付け、宣言した型に対して通常の型検査を行う。

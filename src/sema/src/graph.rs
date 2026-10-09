@@ -122,7 +122,7 @@ impl<'a> ModuleGraph<'a> {
         dependencies: &mut BTreeSet<usize>,
     ) {
         if let Some(target) = Self::module_target(import, path, visible) {
-            self.include_subtree(&target, dependencies);
+            self.include_path(&target, dependencies);
         } else {
             // A failed or inherited alias lookup is itself a dependency.
             dependencies.extend(0..self.units.len());
@@ -179,15 +179,13 @@ impl<'a> ModuleGraph<'a> {
         }
     }
 
-    fn include_subtree(&self, target: &[String], dependencies: &mut BTreeSet<usize>) {
-        for length in 1..target.len() {
+    fn include_path(&self, target: &[String], dependencies: &mut BTreeSet<usize>) {
+        // Instantiating a namespace uses its declarations and inherited scope.
+        // Descendants become dependencies when their paths are actually used;
+        // importing a namespace must not pull in every unrelated construction.
+        for length in 1..=target.len() {
             if let Some(&ancestor) = self.indices.get(&target[..length]) {
                 dependencies.insert(ancestor);
-            }
-        }
-        for (index, unit) in self.units.iter().enumerate() {
-            if unit.path.starts_with(target) {
-                dependencies.insert(index);
             }
         }
     }
