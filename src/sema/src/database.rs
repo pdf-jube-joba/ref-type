@@ -5,6 +5,7 @@ use crate::{
     parsing::{ParseCache, SnapshotLoader},
     *,
 };
+use diagnostics::DiagnosticError;
 use elaboration::Checker;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
@@ -59,7 +60,7 @@ impl Database {
         &self,
         entry: impl AsRef<Path>,
         reuse_dependency_sources: bool,
-    ) -> Result<SourceSnapshot, String> {
+    ) -> Result<SourceSnapshot, project::Error> {
         let _cost = timing::costs::Scope::enter("source.snapshot");
         SourceSnapshot::read_with_dependency_cache(entry, |own, root| {
             reuse_dependency_sources.then(|| self.disk.as_ref()?.read_sources(own, root))?
@@ -150,6 +151,7 @@ impl Database {
                 packages,
             }),
             Err(message) if loader.diagnostics.is_empty() => Err(vec![Diagnostic {
+                cause: message.diagnostic_data(),
                 message: format!("Module Load Error: {message}"),
                 location: None,
                 goals: vec![],
@@ -531,11 +533,7 @@ impl Database {
                 }
                 Err(error) => {
                     self.stats.checked_modules += selected.len();
-                    Err(elaboration::Diagnostic {
-                        message: format!("Resolution Error: {}", error.message),
-                        location: error.location.clone(),
-                        goals: Vec::new(),
-                    })
+                    Err(elaboration::Diagnostic::resolution((*error).clone()))
                 }
             };
             drop(check_cost);
@@ -710,6 +708,7 @@ fn collect_analysis(
 
 fn diagnostic(error: &elaboration::Diagnostic) -> Diagnostic {
     Diagnostic {
+        cause: error.diagnostic_data(),
         message: error.message.clone(),
         location: error.location.as_ref().map(Location::from),
         goals: error

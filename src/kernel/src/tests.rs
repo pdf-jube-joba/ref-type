@@ -1211,7 +1211,9 @@ fn product_rule_errors_identify_both_sorts_and_their_levels() {
     use BaseSort::*;
     use Sort::{Base as B, Upper as U};
     assert_eq!(
-        ProductRule::new(U(Value(2)), B(Value(4))).unwrap_err(),
+        ProductRule::new(U(Value(2)), B(Value(4)))
+            .unwrap_err()
+            .to_string(),
         "no product rule for domain \\VKind(2) and body \\VType(4)"
     );
     let env = Environment::new();

@@ -75,6 +75,7 @@ pub struct Goal {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Diagnostic {
+    pub cause: diagnostics::DiagnosticData,
     pub message: String,
     pub location: Option<Location>,
     pub goals: Vec<Goal>,

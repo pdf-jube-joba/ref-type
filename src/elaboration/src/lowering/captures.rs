@@ -278,8 +278,8 @@ impl Lowerer<'_> {
         captures: Vec<ModuleParamId>,
         logical_base: usize,
         program_depth: usize,
-        f: impl FnOnce(&mut Self) -> Result<T, String>,
-    ) -> Result<T, String> {
+        f: impl FnOnce(&mut Self) -> Result<T, crate::error::Error>,
+    ) -> Result<T, crate::error::Error> {
         let previous = std::mem::replace(
             &mut self.scope,
             Scope {
@@ -298,7 +298,11 @@ impl Lowerer<'_> {
         result
     }
 
-    pub(super) fn parameter_index(&self, id: ModuleParamId, depth: usize) -> Result<usize, String> {
+    pub(super) fn parameter_index(
+        &self,
+        id: ModuleParamId,
+        depth: usize,
+    ) -> Result<usize, crate::error::Error> {
         let position = self
             .scope
             .captures
@@ -307,16 +311,19 @@ impl Lowerer<'_> {
             .ok_or_else(|| {
                 let meta_name = |meta| format!("{meta:?}");
                 let printer = raw::printing::Printer::new(self.raw, &meta_name);
-                format!(
-                    "uncaptured parameter {id:?} from {}; captured parameters: {:?}",
-                    printer.format_module(id.module),
-                    self.scope.captures
-                )
+                crate::error::Error::UncapturedParameter {
+                    id,
+                    module: printer.format_module(id.module),
+                    captures: self.scope.captures.clone(),
+                }
             })?;
         Ok(depth + self.scope.captures.len() - position - 1)
     }
 
-    pub(super) fn capture_context(&mut self, program: bool) -> Result<ke::Context, String> {
+    pub(super) fn capture_context(
+        &mut self,
+        program: bool,
+    ) -> Result<ke::Context, crate::error::Error> {
         let _cost = timing::costs::Scope::enter("lower.capture-context");
         let key = (self.scope.captures.clone(), program, self.structural);
         if let Some(context) = self.capture_context_cache.get(&key) {
@@ -345,7 +352,7 @@ impl Lowerer<'_> {
                             Ok(this.value_type(ty)?)
                         } else {
                             let ty = raw::reflection::reflect_value_type(this.raw, ty)
-                                .map_err(|e| e.to_string())?;
+                                .map_err(crate::error::Error::from)?;
                             this.set(ty, &mut vec![], id.module)
                         }
                     }
@@ -365,7 +372,7 @@ impl Lowerer<'_> {
         captures: &[ModuleParamId],
         depth: usize,
         program: bool,
-    ) -> Result<Vec<s::Expression>, String> {
+    ) -> Result<Vec<s::Expression>, crate::error::Error> {
         captures
             .iter()
             .map(|&id| {
@@ -405,7 +412,7 @@ impl Lowerer<'_> {
         }
     }
 
-    pub(super) fn definition_ambient(&mut self, id: DefId) -> Result<usize, String> {
+    pub(super) fn definition_ambient(&mut self, id: DefId) -> Result<usize, crate::error::Error> {
         if let Some(native) = self.raw.kernel_definitions.borrow().get(&id).copied()
             && let Ok(definition) = self.kernel.definition(native)
             && let Some(captures) = self.raw.arena().definition_captures(native)
@@ -449,7 +456,7 @@ impl Lowerer<'_> {
         id: DefId,
         depth: usize,
         program: bool,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         self.definition_expression_with_parameters(id, depth, program, &[])
     }
 
@@ -459,15 +466,14 @@ impl Lowerer<'_> {
         depth: usize,
         program: bool,
         parameters: &[s::Expression],
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         self.definition(id)?;
         let captures = self.captures(Declaration::Definition(id));
         let mut arguments = self.capture_arguments(&captures, depth, program)?;
         let ambient = self.definition_ambient(id)?;
         if ambient > depth {
-            return Err(format!(
-                "definition {} local context is outside reference scope (ambient {ambient}, reference depth {depth})",
-                raw::printing::definition_name(self.raw, id),
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::DefinitionLocalContextIsOutsideReferenceScope,
             ));
         }
         arguments.extend(
@@ -481,9 +487,13 @@ impl Lowerer<'_> {
             .borrow()
             .get(&id)
             .copied()
-            .ok_or("unknown definition")?;
+            .ok_or(crate::error::Error::Invalid(
+                crate::error::Invalid::UnknownDefinition,
+            ))?;
         arguments.extend_from_slice(parameters);
-        self.kernel.reference(kernel_id, arguments)
+        self.kernel
+            .reference(kernel_id, arguments)
+            .map_err(crate::error::Error::Kernel)
     }
 
     pub(crate) fn prepare_query(&mut self, roots: Vec<Term>) {

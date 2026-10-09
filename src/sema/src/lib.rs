@@ -19,3 +19,5 @@ mod environment;
 pub use elaboration::DiagnosticMode;
 
 pub use timing;
+
+pub mod error;

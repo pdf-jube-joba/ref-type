@@ -56,7 +56,9 @@ fn diagnostics_distinguish_repeated_module_names() {
     .unwrap();
     let error = resolve(&modules).unwrap_err();
     assert_eq!(error.module, ["M#2", "N#2"]);
-    assert!(error.message.contains("missing"));
+    assert!(
+        matches!(&error.error, resolve::error::Error::UnknownName { name } if name == "missing")
+    );
 }
 
 #[test]

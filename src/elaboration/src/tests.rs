@@ -1341,6 +1341,59 @@ fn structure_field_type_errors_preserve_source_context() {
 }
 
 #[test]
+fn structure_parameter_type_errors_preserve_source_context() {
+    use ::syntax::syntax::{SourceFile, SourceId};
+
+    for (declaration, parameter, reason) in [
+        (
+            r"\structure Packed[F: \Set -> \SetKind] {
+    Cr: \Set,
+    data: F Cr,
+  }",
+            "Packed.F",
+            "upper sort has no classifier",
+        ),
+        (
+            r"\structure Packed[A: \Set, a: A, bad: a] {}",
+            "Packed.bad",
+            "expected a sort",
+        ),
+    ] {
+        let source = std::sync::Arc::new(SourceFile {
+            id: SourceId("structure-parameter-error.ref".into()),
+            text: format!("\\module Playground {{\n  {declaration}\n}}"),
+        });
+        let mut modules = parse::parse_modules_from_source(&source).unwrap();
+        for module in &mut modules {
+            module.source = Some(source.clone());
+            module.header_source = Some(source.clone());
+        }
+        let mut environment = GlobalEnvironment::default();
+        let error = environment.add_modules_to_root(&modules).unwrap_err();
+        let rendered =
+            crate::metavariables::format_elaboration_error(environment.crate_env(), &error);
+        assert!(
+            rendered.contains(&format!(
+                "Structure parameter '{parameter}' must have a type or proposition"
+            )),
+            "{rendered}"
+        );
+        assert!(rendered.contains(reason), "{rendered}");
+        assert!(
+            rendered.contains("structure-parameter-error.ref:2:3"),
+            "{rendered}"
+        );
+        let ElaborationError::Located { location, .. } = error else {
+            panic!("expected a structure location");
+        };
+        assert_eq!(
+            &source.text[location.span.start..location.span.end],
+            declaration
+        );
+    }
+}
+
+#[test]
 fn module_parameter_type_errors_keep_module_context() {
     let modules = parse::str_parse_modules(r"\module Invalid(A: \Set, a: A, bad: a) {}").unwrap();
     let mut environment = GlobalEnvironment::default();
@@ -1771,7 +1824,7 @@ fn inferred_recursion_annotations_still_reject_mixed_universes() {
         let mut environment = GlobalEnvironment::default();
         let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
         assert!(
-            format!("{error:?}").contains("must inhabit the same Set(i)"),
+            error.to_string().contains("must inhabit the same Set(i)"),
             "{error:?}"
         );
     }
@@ -2359,7 +2412,7 @@ fn invalid_variadic_macro_templates_fail_at_declaration() {
         let mut environment = GlobalEnvironment::default();
         let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
         assert!(
-            format!("{error:?}").contains(expected),
+            error.to_string().contains(expected),
             "{declaration}: {error:?}"
         );
     }
@@ -2400,7 +2453,7 @@ fn non_exhaustive_macro_matches_fail_only_when_selected() {
         let modules = parse::str_parse_modules(&source).unwrap();
         let mut environment = GlobalEnvironment::default();
         let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
-        assert!(format!("{error:?}").contains(expected), "{call}: {error:?}");
+        assert!(error.to_string().contains(expected), "{call}: {error:?}");
     }
 }
 
@@ -2414,7 +2467,9 @@ fn self_recursive_macro_expansion_respects_depth_limit() {
         let mut environment = GlobalEnvironment::default();
         let error = environment.add_new_module_to_root(&modules[0]).unwrap_err();
         assert!(
-            format!("{error:?}").contains("Macro expansion exceeded depth 128"),
+            error
+                .to_string()
+                .contains("Macro expansion exceeded depth 128"),
             "{error:?}"
         );
     }
@@ -2575,7 +2630,7 @@ fn explicit_meta_assignment_checks_existing_solutions() {
         if succeeds {
             result.unwrap();
         } else {
-            let error = format!("{:?}", result.unwrap_err());
+            let error = result.unwrap_err().to_string();
             assert!(error.contains("incompatible rigid expressions"), "{error}");
             assert!(error.contains("[Failed]"), "{error}");
         }

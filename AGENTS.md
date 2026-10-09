@@ -41,11 +41,13 @@ perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
 
 ## ref-type(このリポジトリの言語)
 思ってた書き方ができなかった場合、「こう書きたい」の要望を `gaps.md` に書く。
+- 再現例として 100行以内で playground で実行できる具体例を構成すること。
+- 「こう書きたい」バージョンと「こう書いているバージョン」の2つ。
 
 ### 基本方針
-- `\definition` を使えるところは使い、できないときだけ `\alias` を使う。
-- `\structure`, `\machine`, `\correspondence` を使う。
-  - `Logic.And[P, Logic.And[Q, ]` みたいに入れ子が現れたら record を使えないか考える。言語の制約上 record を使えないことがわかった場合は使ってよい。
+- `\definition` を使えるところは使う。
+- `\structure` を使う。
+  - `Logic.And[P, Logic.And[Q, ...]` みたいに入れ子が現れたら `\structure` を使えないか考える。
 - あまりに重複する別 module の参照は definition で名前を付ける。
 - ちゃんとライブラリを分ける。
 - "定理"と呼ばれるものは仮定なしで示す。 定義の引数や module parameter で仮定を渡さない。
@@ -53,29 +55,6 @@ perf、hyperfine、GNU time、valgrind、heaptrack が使えます。
 ### 細かい方針
 
 #### `()` でくくらなくていいならくくらない。
-
-#### 複雑な式を避ける
-
-例: こういう定義は `byCases` がそのままゴールなので無駄っぽい。
-  ```
-  \definition eqOfEqbTrue: \forall (a, b: Bool^) -> IsTrue (eqbSet a b) -> a = b :=
-  \block {
-    \fix (a, b: Bool^);
-    \fix (e: IsTrue (eqbSet a b));
-    \let byCases: \forall (a, b: Bool^) -> IsTrue (eqbSet a b) -> a = b :=
-      \induction (a: Bool^) \return \forall (b: Bool^) -> IsTrue (eqbSet a b) -> a = b \with {
-        | false => (\induction (b: Bool^) \return IsTrue (eqbSet Bool^::false b) -> Bool^::false = b \with {
-          | false => (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::false))
-          | true => (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::false = Bool^::true) e)
-          })
-        | true => (\induction (b: Bool^) \return IsTrue (eqbSet Bool^::true b) -> Bool^::true = b \with {
-          | false => (\fun (e: Bool^::false = Bool^::true) => absurd (Bool^::true = Bool^::false) e)
-          | true => (\fun (e: Bool^::true = Bool^::true) => \refl(Bool^::true))
-          })
-        };
-    \return byCases a b e;
-  };
-  ```
 
 #### インデントが深くなるものはブロック構文を使う
 

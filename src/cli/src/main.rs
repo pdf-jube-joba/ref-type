@@ -95,8 +95,8 @@ fn main() -> anyhow::Result<()> {
         eprintln!("total ({:.9}s)", measurements.total.as_secs_f64());
     }
     drop(cost_session);
-    let err = result?;
-    if err.is_some() {
+    let status = result?;
+    if status != std::process::ExitCode::SUCCESS {
         std::process::exit(1);
     }
     Ok(())
@@ -123,7 +123,7 @@ fn init_tracing(show_typing_tree: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
+fn run_path(args: &Args) -> anyhow::Result<std::process::ExitCode> {
     let cache_directory = args
         .cache_dir
         .clone()
@@ -141,7 +141,7 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
         Err(error) => {
             let message = format!("Module Load Error: {error}");
             eprintln!("{message}");
-            return Ok(Some(message));
+            return Ok(std::process::ExitCode::FAILURE);
         }
     };
     let messages = if args.parse_only {
@@ -172,7 +172,7 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
                 if result.is_success() && !result.modules.iter().any(|module| module.path == path) {
                     let message = format!("Module Selection Error: module '{name}' was not found");
                     eprintln!("{message}");
-                    return Ok(Some(message));
+                    return Ok(std::process::ExitCode::FAILURE);
                 }
                 result
             }
@@ -200,7 +200,11 @@ fn run_path(args: &Args) -> anyhow::Result<Option<String>> {
             eprintln!("{message}");
         }
     }
-    Ok(error)
+    Ok(if error.is_some() {
+        std::process::ExitCode::FAILURE
+    } else {
+        std::process::ExitCode::SUCCESS
+    })
 }
 
 fn show_progress(progress: &sema::ModuleProgress) {

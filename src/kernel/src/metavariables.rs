@@ -2,60 +2,7 @@
 use crate::{calculus::*, environment::Environment, syntax::*};
 use rustc_hash::{FxHashMap, FxHashSet};
 
-#[derive(Debug, Clone)]
-pub enum Error {
-    InvalidMeta(MetaId),
-    TypeMismatch(Box<TypeMismatch>),
-    Unresolved {
-        metas: Vec<MetaId>,
-        constraints: usize,
-    },
-    Contradiction(String),
-}
-impl From<String> for Error {
-    fn from(s: String) -> Self {
-        Self::Contradiction(s)
-    }
-}
-impl From<&str> for Error {
-    fn from(s: &str) -> Self {
-        Self::Contradiction(s.into())
-    }
-}
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::TypeMismatch(_) => f.write_str("types are not convertible"),
-            Self::InvalidMeta(id) => write!(f, "invalid metavariable {id:?}"),
-            Self::Unresolved { metas, constraints } => write!(
-                f,
-                "unresolved metavariables {metas:?}; {constraints} pending constraints"
-            ),
-            Self::Contradiction(s) => f.write_str(s),
-        }
-    }
-}
-impl std::error::Error for Error {}
-impl Error {
-    pub(crate) fn at(mut self, phase: impl Into<String>) -> Self {
-        let phase = phase.into();
-        match &mut self {
-            Self::TypeMismatch(error) => error.frames.push(phase),
-            Self::Contradiction(message) => *message = format!("{message}\n{phase}"),
-            _ => {}
-        }
-        self
-    }
-}
-#[derive(Debug, Clone)]
-pub struct TypeMismatch {
-    pub arena: Arena,
-    pub context: Context,
-    pub term: Expression,
-    pub inferred: Expression,
-    pub expected: Expression,
-    pub frames: Vec<String>,
-}
+pub use crate::error::{Error, TypeMismatch};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct OriginId(pub u64);
@@ -346,7 +293,7 @@ impl MetaContext {
     ) -> Result<Expression, Error> {
         let entry = self.entry(id)?.clone();
         if keep > entry.context.len() {
-            return Err("invalid metavariable scope restriction".into());
+            return Err(crate::error::Error::InvalidMetavariableScopeRestriction);
         }
         let removed = entry.context.len() - keep;
         let arguments = (removed..entry.context.len())
@@ -355,12 +302,8 @@ impl MetaContext {
             .collect::<Vec<_>>();
         let strengthen = |e| {
             abstract_pattern(&env.arena, e, &arguments)
-                .map_err(|_| {
-                    Error::from("metavariable captures a variable outside its shared context")
-                })?
-                .ok_or_else(|| {
-                    Error::from("metavariable captures a variable outside its shared context")
-                })
+                .map_err(|_| Error::EscapingSharedVariable)?
+                .ok_or_else(|| Error::EscapingSharedVariable)
         };
         let expected = entry.expected.map(strengthen).transpose()?;
         let assignment = entry.assignment.map(strengthen).transpose()?;
@@ -381,7 +324,7 @@ impl MetaContext {
     }
     pub fn rollback(&mut self, snapshot: Snapshot) -> Result<(), Error> {
         if snapshot.session != self.session {
-            return Err("snapshot belongs to a different metavariable session".into());
+            return Err(crate::error::Error::SnapshotBelongsToADifferentMetavariableSession);
         }
         let len = self.entries.len().max(snapshot.entries.len());
         self.entries = snapshot.entries;
@@ -427,11 +370,11 @@ impl MetaContext {
             let result = if let Node::Meta { id, arguments } = arena.get(mapped) {
                 let entry = metas.entry(id)?;
                 if arguments.len() != entry.context.len() {
-                    return Err("metavariable argument count mismatch".into());
+                    return Err(crate::error::Error::MetavariableArgumentCountMismatch);
                 }
                 if let Some(value) = entry.assignment {
                     if !active.insert(id) {
-                        return Err("cyclic metavariable assignment".into());
+                        return Err(crate::error::Error::CyclicMetavariableAssignment);
                     }
                     let value = instantiate(arena, value, &arguments)?;
                     let result = visit(metas, arena, value, cache, active)?;
@@ -540,11 +483,11 @@ impl MetaContext {
         value: Expression,
     ) -> Result<Outcome, Error> {
         if self.occurs(&env.arena, id, value)? {
-            return Err("occurs check failed".into());
+            return Err(crate::error::Error::OccursCheck);
         }
         let entry = self.entry(id)?;
         if entry.context.len() != arguments.len() {
-            return Err("metavariable argument count mismatch".into());
+            return Err(crate::error::Error::MetavariableArgumentCountMismatch);
         }
         let Some(value) = abstract_pattern(&env.arena, value, arguments)? else {
             return Ok(Outcome::Blocked);
@@ -582,7 +525,7 @@ impl MetaContext {
             return if crate::reduction::erased_convertible(env, left, right)? {
                 Ok(Outcome::Solved)
             } else {
-                Err("incompatible rigid expressions in metavariable constraint".into())
+                Err(crate::error::Error::RigidMismatch)
             };
         }
         self.record(Constraint::Equal {
@@ -619,7 +562,7 @@ impl MetaContext {
             if let Node::Meta { id, arguments } = env.arena.get(term) {
                 let declaration = self.entry(id)?.context.clone();
                 if declaration.len() != arguments.len() {
-                    return Err("metavariable argument count mismatch".into());
+                    return Err(crate::error::Error::MetavariableArgumentCountMismatch);
                 }
                 for (i, binding) in declaration.iter().enumerate() {
                     let expected = instantiate(&env.arena, binding.ty, &arguments[..i])?;
@@ -633,7 +576,7 @@ impl MetaContext {
             return if crate::reduction::erased_convertible(env, left, right)? {
                 Ok(Outcome::Solved)
             } else {
-                Err("incompatible rigid expressions in metavariable constraint".into())
+                Err(crate::error::Error::RigidMismatch)
             };
         }
         if alpha_equal(&env.arena, left, right) {
@@ -659,9 +602,7 @@ impl MetaContext {
                     match self.assign(env, id, arguments, value) {
                         Ok(Outcome::Solved) => return Ok(Outcome::Solved),
                         Ok(Outcome::Blocked) => self.rollback(snapshot)?,
-                        Err(Error::Contradiction(message))
-                            if message.contains("outside its context") =>
-                        {
+                        Err(error) if matches!(error.root(), Error::EscapingVariable) => {
                             self.rollback(snapshot)?
                         }
                         Err(error) => {
@@ -688,7 +629,7 @@ impl MetaContext {
                     .enumerate()
                 {
                     if ld != rd {
-                        return Err(Error::from("incompatible binder structure"));
+                        return Err(Error::IncompatibleBinderStructure);
                     }
                     solved &= self.unify_child(env, context, left, slot, ld, l, r, active)?
                         == Outcome::Solved;
@@ -720,7 +661,7 @@ impl MetaContext {
                     if !self.unresolved(&env.arena, [left, right])?.is_empty() {
                         Ok(Outcome::Blocked)
                     } else {
-                        Err("incompatible rigid expressions in metavariable constraint".into())
+                        Err(crate::error::Error::RigidMismatch)
                     }
                 } else {
                     let mut solved = true;
@@ -730,7 +671,7 @@ impl MetaContext {
                         .enumerate()
                     {
                         if ld != rd {
-                            return Err("incompatible binder structure".into());
+                            return Err(crate::error::Error::IncompatibleBinderStructure);
                         }
                         solved &= self.unify_child(env, context, left, slot, ld, l, r, active)?
                             == Outcome::Solved;
@@ -789,7 +730,7 @@ impl MetaContext {
             return Ok(());
         }
         if self.occurs(&env.arena, id, expected)? {
-            return Err("cyclic metavariable type".into());
+            return Err(crate::error::Error::CyclicMetavariableType);
         }
         if let Some(expected) = abstract_pattern(&env.arena, expected, arguments)? {
             self.entries[id.index as usize].as_mut().unwrap().expected = Some(expected);
@@ -864,15 +805,9 @@ impl MetaContext {
         };
         match result {
             Ok(()) => Ok(Outcome::Solved),
-            Err(Error::Unresolved { .. }) => Ok(Outcome::Blocked),
+            Err(error) if matches!(error.root(), Error::Unresolved { .. }) => Ok(Outcome::Blocked),
             Err(error @ Error::TypeMismatch(_)) => Err(error),
-            Err(Error::Contradiction(message))
-                if message.contains("incompatible rigid expressions")
-                    || message.contains("outside its context")
-                    || message.contains("occurs check") =>
-            {
-                Err(Error::Contradiction(message))
-            }
+            Err(error) if error.is_rigid_failure() => Err(error),
             Err(error) => {
                 // A rule may need the head of a still unknown type to proceed.
                 let roots = std::iter::once(term)
@@ -915,9 +850,7 @@ impl MetaContext {
                 Ok(ty)
             }
             Err(error) => {
-                if matches!(&error, Error::TypeMismatch(_))
-                    || matches!(&error,Error::Contradiction(message) if message.contains("occurs check") || message.contains("outside its context") || message.contains("incompatible rigid expressions"))
-                {
+                if error.is_rigid_failure() {
                     self.rollback(snapshot)?;
                     return Err(error);
                 }
@@ -983,7 +916,9 @@ impl MetaContext {
                                 .formation(*term);
                             match result {
                                 Ok(_) => Outcome::Solved,
-                                Err(Error::Unresolved { .. }) => Outcome::Blocked,
+                                Err(error) if matches!(error.root(), Error::Unresolved { .. }) => {
+                                    Outcome::Blocked
+                                }
                                 Err(error) => {
                                     if self.unresolved(&env.arena, [*term])?.is_empty() {
                                         return Err(error);
@@ -1047,7 +982,9 @@ impl MetaContext {
         let entries = self.entries.iter().flatten().cloned().collect::<Vec<_>>();
         for entry in entries {
             let mut checker = crate::check::Checker::new(env, self, entry.context);
-            let value = entry.assignment.ok_or("missing meta assignment")?;
+            let value = entry
+                .assignment
+                .ok_or(crate::error::Error::MissingMetaAssignment)?;
             match entry.expected {
                 Some(ty) => checker.check(value, ty)?,
                 None => {

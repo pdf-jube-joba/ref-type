@@ -77,7 +77,7 @@ impl ModuleManager {
         env: &mut CrateEnv,
         module_name: String,
         parameters: Vec<ModuleParameter>,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         self.current = env.add_child_module(self.current, module_name, parameters)?;
         Ok(())
     }
@@ -90,7 +90,10 @@ impl ModuleManager {
     }
 
     #[cfg(test)]
-    pub(crate) fn publish_current_module(&self, env: &mut CrateEnv) -> Result<(), String> {
+    pub(crate) fn publish_current_module(
+        &self,
+        env: &mut CrateEnv,
+    ) -> Result<(), crate::error::Error> {
         env.publish_child_module(self.current)
     }
 
@@ -170,7 +173,7 @@ impl ModuleManager {
         env: &mut CrateEnv,
         name: Identifier,
         definition: DefinedConstant,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         let definition = env.add_definition(self.current, definition)?;
         env.publish_item(
             self.current,
@@ -187,7 +190,7 @@ impl ModuleManager {
         owner: &Identifier,
         name: Identifier,
         definition: DefinedConstant,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         let definition = env.add_definition(self.current, definition)?;
         env.publish_associated_definition(self.current, owner.as_str(), name.0, definition)
     }
@@ -215,7 +218,7 @@ impl ModuleManager {
         type_name: Identifier,
         constructor_names: Vec<Identifier>,
         spec: InductiveTypeSpecs,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         let inductive = env.add_inductive(self.current, spec);
         env.publish_item(
             self.current,
@@ -234,7 +237,7 @@ impl ModuleManager {
         type_name: Identifier,
         constructor_names: Vec<Identifier>,
         inductive: InductiveId,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         env.publish_item(
             self.current,
             ModuleItem::Inductive {
@@ -254,7 +257,7 @@ impl ModuleManager {
         inductive: ProgramInductiveId,
         reflected: InductiveId,
         record_fields: Option<Vec<String>>,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         env.publish_item(
             self.current,
             ModuleItem::ProgramInductive {
@@ -274,7 +277,7 @@ impl ModuleManager {
         type_name: Identifier,
         inductive: InductiveId,
         associated_definitions: Vec<(Identifier, DefId)>,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         env.publish_item(
             self.current,
             ModuleItem::Record {
@@ -293,7 +296,7 @@ impl ModuleManager {
         env: &mut CrateEnv,
         import_name: Identifier,
         binding: ModuleId,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         env.publish_import(self.current, import_name.0, binding)
     }
 
@@ -337,7 +340,7 @@ impl ModuleManager {
         &self,
         env: &CrateEnv,
         back_parent: Option<usize>,
-    ) -> Result<ModuleId, String> {
+    ) -> Result<ModuleId, crate::error::Error> {
         let Some(back_parent) = back_parent else {
             return Ok(env.root_module());
         };
@@ -346,7 +349,9 @@ impl ModuleManager {
             module = env
                 .module(module)
                 .parent()
-                .ok_or_else(|| "Cannot go back parent: already at root module".to_string())?;
+                .ok_or(crate::error::Error::Invalid(
+                    crate::error::Invalid::CannotGoBackParentAlreadyAtRootModule,
+                ))?;
         }
         Ok(module)
     }
@@ -358,7 +363,7 @@ impl ModuleManager {
         context: &mut ExpContext,
         back_parent: Option<usize>,
         calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
-    ) -> Result<ModuleId, String> {
+    ) -> Result<ModuleId, crate::error::Error> {
         let source = self.resolve_start(env, back_parent)?;
         self.bind_namespace_from(env, context, source, None, calls)
     }
@@ -371,7 +376,7 @@ impl ModuleManager {
         source: ModuleId,
         base: Option<ModuleId>,
         calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
-    ) -> Result<ModuleId, String> {
+    ) -> Result<ModuleId, crate::error::Error> {
         self.bind_namespace_in_context(env, context, &Vec::new(), source, base, calls)
     }
 
@@ -383,7 +388,7 @@ impl ModuleManager {
         mut source: ModuleId,
         base: Option<ModuleId>,
         calls: Vec<(Identifier, Vec<(Identifier, ModuleArgument)>)>,
-    ) -> Result<ModuleId, String> {
+    ) -> Result<ModuleId, crate::error::Error> {
         let _cost = timing::costs::Scope::enter("namespace.bind");
         // A child's argument type can refer to declarations imported by its
         // parameterized parent. Substituting parameters in the type expression
@@ -448,7 +453,9 @@ impl ModuleManager {
                     ModuleArgument::Pts(exp) => *exp,
                     ModuleArgument::ProgramType(ty) => {
                         crate::raw::reflection::reflect_value_type(env, *ty).map_err(|error| {
-                            format!("cannot reflect Program type module argument: {error}")
+                            crate::error::Error::from(error).context(
+                                crate::error::Context::CannotReflectProgramTypeModuleArgument,
+                            )
                         })?
                     }
                     ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
@@ -456,41 +463,39 @@ impl ModuleManager {
                         crate::raw::program::ProgramTerm::ValueTerm(*value),
                     )
                     .map_err(|error| {
-                        format!("cannot reflect Program value module argument: {error}")
+                        crate::error::Error::from(error)
+                            .context(crate::error::Context::CannotReflectProgramValueModuleArgument)
                     })?,
                 };
                 Ok((*parameter, reflected))
             })
-            .collect::<Result<Vec<_>, String>>()?;
+            .collect::<Result<Vec<_>, crate::error::Error>>()?;
         let mut route = Vec::new();
 
         for (child_name, arguments) in calls {
             let child = self.hir_child(env, source, &child_name).ok_or_else(|| {
-                format!(
-                    "Child module '{}' not found in module '{}'",
-                    child_name.as_str(),
-                    env.module(source).name(),
-                )
+                crate::error::Error::UnknownChildInModule {
+                    name: (child_name.as_str()).to_string(),
+                    module: (env.module(source).name()).to_string(),
+                }
             })?;
             let parameters = env.module(child).parameters().to_vec();
             if arguments.len() != parameters.len() {
-                return Err(format!(
-                    "Argument length mismatch for module '{}': expected {}, got {}",
-                    child_name.as_str(),
-                    parameters.len(),
-                    arguments.len(),
-                ));
+                return Err(crate::error::Error::ModuleArgumentArityMismatch {
+                    module: (child_name.as_str()).to_string(),
+                    expected: parameters.len(),
+                    actual: arguments.len(),
+                });
             }
             for ((position, (argument_name, argument)), parameter) in
                 arguments.iter().enumerate().zip(parameters)
             {
                 if argument_name.as_str() != env.symbol(parameter.name) {
-                    return Err(format!(
-                        "Argument name mismatch for module '{}': expected '{}', got '{}'",
-                        child_name.as_str(),
-                        env.symbol(parameter.name),
-                        argument_name.as_str(),
-                    ));
+                    return Err(crate::error::Error::ModuleArgumentLabelMismatch {
+                        module: (child_name.as_str()).to_string(),
+                        expected: (env.symbol(parameter.name)).to_string(),
+                        actual: (argument_name.as_str()).to_string(),
+                    });
                 }
                 match (parameter.kind, argument) {
                     (ModuleParameterKind::Pts { ty }, ModuleArgument::Pts(argument)) => {
@@ -518,10 +523,11 @@ impl ModuleManager {
                                         eprintln!("argument classifier: {:?}", env.module_parameter_opt(parameter));
                                     }
                                 }
-                                format!(
-                                    "Module '{}' argument '{}' failed type checking: {error}",
-                                    child_name.as_str(),
-                                    argument_name.as_str(),
+                                crate::error::Error::from(error).context(
+                                    crate::error::Context::ModuleArgument {
+                                        module: (child_name.as_str()).to_owned(),
+                                        argument: (argument_name.as_str()).to_owned(),
+                                    },
                                 )
                             })?;
                     }
@@ -532,7 +538,9 @@ impl ModuleManager {
                         )
                         .check_value_type(*ty)
                         .map_err(|error| {
-                            format!("Program type module argument is ill-formed: {error}")
+                            crate::error::Error::from(error).context(
+                                crate::error::Context::ProgramTypeModuleArgumentIsIllFormed,
+                            )
                         })?;
                     }
                     (
@@ -556,15 +564,16 @@ impl ModuleManager {
                         )
                         .check_value_term(*value, expected)
                         .map_err(|error| {
-                            format!("Program value module argument is ill-typed: {error}")
+                            crate::error::Error::from(error).context(
+                                crate::error::Context::ProgramValueModuleArgumentIsIllTyped,
+                            )
                         })?;
                     }
                     _ => {
-                        return Err(format!(
-                            "Module '{}' argument '{}' uses the wrong syntactic category",
-                            child_name.as_str(),
-                            argument_name.as_str(),
-                        ));
+                        return Err(crate::error::Error::ModuleArgumentCategoryMismatch {
+                            module: (child_name.as_str()).to_string(),
+                            argument: (argument_name.as_str()).to_string(),
+                        });
                     }
                 }
                 let parameter_id = ModuleParamId {
@@ -575,7 +584,9 @@ impl ModuleManager {
                     ModuleArgument::Pts(exp) => *exp,
                     ModuleArgument::ProgramType(ty) => {
                         crate::raw::reflection::reflect_value_type(env, *ty).map_err(|error| {
-                            format!("cannot reflect Program type module argument: {error}")
+                            crate::error::Error::from(error).context(
+                                crate::error::Context::CannotReflectProgramTypeModuleArgument,
+                            )
                         })?
                     }
                     ModuleArgument::ProgramValue(value) => crate::raw::reflection::reflect_program(
@@ -583,7 +594,8 @@ impl ModuleManager {
                         crate::raw::program::ProgramTerm::ValueTerm(*value),
                     )
                     .map_err(|error| {
-                        format!("cannot reflect Program value module argument: {error}")
+                        crate::error::Error::from(error)
+                            .context(crate::error::Context::CannotReflectProgramValueModuleArgument)
                     })?,
                 };
                 substitutions.push((parameter_id, *argument));
@@ -594,7 +606,9 @@ impl ModuleManager {
         }
 
         if route.is_empty() {
-            return Err("Module instantiation path must contain at least one module".into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ModuleInstantiationPathMustContainAtLeastOneModule,
+            ));
         }
 
         // Repeated closed instantiations can share the entire immutable graph,

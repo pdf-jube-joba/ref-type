@@ -1,7 +1,7 @@
 //! Structured diagnostics shared by logical and Program elaboration.
 use crate::hir::{SourceLocation, SourceSpan, SurfaceMeta};
 use crate::raw::{environment::CrateEnv, exp::Exp, ids::MetaVarId, printing::Printer};
-use std::{error::Error, fmt};
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MetaFlavor {
@@ -133,9 +133,9 @@ pub enum ElaborationError {
         location: SourceLocation,
         error: Box<ElaborationError>,
     },
-    Message(String),
+    Failure(crate::error::Error),
     ConstraintFailure {
-        message: String,
+        cause: Box<crate::error::Error>,
         constraints: Vec<ConstraintDiagnostic>,
         goals: Vec<MetaGoal>,
         omitted_constraints: usize,
@@ -143,11 +143,15 @@ pub enum ElaborationError {
     Metavariables(Vec<MetaGoal>),
 }
 #[derive(Debug)]
-pub(crate) enum DeferredDetails {
-    Logical(super::MetaStore, Option<String>),
+pub struct DeferredDetails {
+    state: DeferredState,
+}
+#[derive(Debug)]
+enum DeferredState {
+    Logical(super::MetaStore, Option<crate::error::Error>),
     Program(
         crate::elaborator::program_term_elaborator::ProgramScope,
-        Option<String>,
+        Option<crate::error::Error>,
     ),
 }
 
@@ -163,26 +167,23 @@ impl ElaborationError {
                 if crate::diagnostics::compact() {
                     return *summary.clone();
                 }
-                match details.as_ref() {
-                    DeferredDetails::Logical(store, Some(message)) => {
+                match &details.state {
+                    DeferredState::Logical(store, Some(message)) => {
                         store.detailed_error(&env.crate_env, message.clone())
                     }
-                    DeferredDetails::Logical(store, None) => {
+                    DeferredState::Logical(store, None) => {
                         Self::Metavariables(store.goals(&env.crate_env))
                     }
-                    DeferredDetails::Program(scope, Some(message)) => {
+                    DeferredState::Program(scope, Some(message)) => {
                         scope.detailed_error(env, message.clone())
                     }
-                    DeferredDetails::Program(scope, None) => Self::Metavariables(scope.goals(env)),
+                    DeferredState::Program(scope, None) => Self::Metavariables(scope.goals(env)),
                 }
             }
-            Self::Alternatives(errors) => Self::Message(
-                errors
-                    .iter()
-                    .map(|error| error.materialize(env).to_string())
-                    .collect::<Vec<_>>()
-                    .join("\n"),
-            ),
+            Self::Alternatives(errors) => {
+                Self::Alternatives(errors.iter().map(|error| error.materialize(env)).collect())
+            }
+            Self::Failure(error) => Self::Failure(error.materialize(env)),
             other => other.clone(),
         }
     }
@@ -197,7 +198,8 @@ impl ElaborationError {
         match self {
             Self::Located { error, .. } | Self::Deferred { summary: error, .. } => error.goals(),
             Self::Metavariables(goals) | Self::ConstraintFailure { goals, .. } => goals,
-            Self::Message(_) | Self::Alternatives(_) => &[],
+            Self::Failure(error) => error.goals(),
+            Self::Alternatives(_) => &[],
         }
     }
 }
@@ -215,14 +217,14 @@ impl fmt::Display for ElaborationError {
             }
             Self::Deferred { summary, .. } => summary.fmt(f),
             Self::Located { location, error } => write!(f, "{error}\n{}", location.render()),
-            Self::Message(message) => f.write_str(message),
+            Self::Failure(error) => error.fmt(f),
             Self::ConstraintFailure {
-                message,
+                cause,
                 constraints,
                 goals,
                 omitted_constraints,
             } => {
-                writeln!(f, "{message}")?;
+                writeln!(f, "{cause}")?;
                 for constraint in constraints {
                     writeln!(f, "{constraint}")?;
                 }
@@ -283,17 +285,54 @@ fn format_goals(f: &mut fmt::Formatter<'_>, goals: &[MetaGoal]) -> fmt::Result {
     }
     Ok(())
 }
-impl Error for ElaborationError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            Self::Located { error, .. } => Some(error.as_ref()),
-            _ => None,
+pub fn format_elaboration_error(env: &CrateEnv, error: &ElaborationError) -> String {
+    struct Rendered<'a> {
+        env: &'a CrateEnv,
+        error: &'a ElaborationError,
+    }
+    impl fmt::Display for Rendered<'_> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let nested = |error| Rendered {
+                env: self.env,
+                error,
+            };
+            match self.error {
+                ElaborationError::Alternatives(errors) => {
+                    for (index, error) in errors.iter().enumerate() {
+                        if index > 0 {
+                            writeln!(f)?;
+                        }
+                        write!(f, "{}", nested(error))?;
+                    }
+                    Ok(())
+                }
+                ElaborationError::Deferred { summary, .. } => nested(summary).fmt(f),
+                ElaborationError::Located { location, error } => {
+                    write!(f, "{}\n{}", nested(error), location.render())
+                }
+                ElaborationError::Failure(error) => f.write_str(&error.render(self.env)),
+                ElaborationError::ConstraintFailure {
+                    cause,
+                    constraints,
+                    goals,
+                    omitted_constraints,
+                } => {
+                    writeln!(f, "{}", cause.render(self.env))?;
+                    for constraint in constraints {
+                        writeln!(f, "{constraint}")?;
+                    }
+                    if *omitted_constraints > 0 {
+                        writeln!(f, "… {omitted_constraints} constraints omitted")?;
+                    }
+                    format_goals(f, goals)
+                }
+                ElaborationError::Metavariables(goals) => format_goals(f, goals),
+            }
         }
     }
+    Rendered { env, error }.to_string()
 }
-pub fn format_elaboration_error(_env: &CrateEnv, error: &ElaborationError) -> String {
-    error.to_string()
-}
+
 pub fn format_constraint(printer: &Printer<'_>, constraint: &GoalConstraint) -> String {
     let exp = |term| printer.format_exp(term);
     match constraint {
@@ -304,13 +343,165 @@ pub fn format_constraint(printer: &Printer<'_>, constraint: &GoalConstraint) -> 
         GoalConstraint::IsSort { term } => format!("{} has a sort", exp(*term)),
     }
 }
-impl From<String> for ElaborationError {
-    fn from(value: String) -> Self {
-        Self::Message(value)
+
+impl From<crate::error::Error> for ElaborationError {
+    fn from(error: crate::error::Error) -> Self {
+        Self::Failure(error)
     }
 }
-impl From<&str> for ElaborationError {
-    fn from(value: &str) -> Self {
-        Self::Message(value.into())
+impl From<kernel::error::Error> for ElaborationError {
+    fn from(error: kernel::error::Error) -> Self {
+        Self::Failure(error.into())
+    }
+}
+impl From<syntax::error::ConversionError> for ElaborationError {
+    fn from(error: syntax::error::ConversionError) -> Self {
+        Self::Failure(error.into())
+    }
+}
+
+impl std::error::Error for ElaborationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Failure(error) => Some(error),
+            Self::ConstraintFailure { cause, .. } => Some(cause.as_ref()),
+            Self::Located { error, .. } | Self::Deferred { summary: error, .. } => {
+                Some(error.as_ref())
+            }
+            _ => None,
+        }
+    }
+}
+impl From<Box<crate::error::Error>> for ElaborationError {
+    fn from(error: Box<crate::error::Error>) -> Self {
+        Self::Failure(*error)
+    }
+}
+impl From<crate::raw::reflection::ReflectionError> for ElaborationError {
+    fn from(error: crate::raw::reflection::ReflectionError) -> Self {
+        Self::Failure(error.into())
+    }
+}
+
+impl diagnostics::DiagnosticError for ElaborationError {
+    fn diagnostic_data(&self) -> diagnostics::DiagnosticData {
+        use diagnostics::DiagnosticData as Data;
+        match self {
+            Self::Failure(error) => error.diagnostic_data(),
+            Self::ConstraintFailure {
+                cause,
+                constraints,
+                goals,
+                omitted_constraints,
+            } => Data::new("elaboration.ConstraintFailure")
+                .caused_by(cause.diagnostic_data())
+                .with("constraints", constraint_data(constraints))
+                .with("goals", goal_data(goals))
+                .with("omitted_constraints", *omitted_constraints),
+            Self::Located { location, error } => error
+                .diagnostic_data()
+                .with("file", location.source.id.0.to_string_lossy().into_owned())
+                .with("start", location.span.start)
+                .with("end", location.span.end),
+            Self::Deferred { summary, .. } => summary.diagnostic_data(),
+            Self::Alternatives(errors) => {
+                let mut data = Data::new("elaboration.Alternatives");
+                data.causes = errors.iter().map(|error| error.diagnostic_data()).collect();
+                data
+            }
+            Self::Metavariables(goals) => {
+                Data::new("elaboration.Metavariables").with("goals", goal_data(goals))
+            }
+        }
+    }
+}
+
+fn span_data(span: SourceSpan) -> diagnostics::DiagnosticData {
+    diagnostics::DiagnosticData::new("syntax.SourceSpan")
+        .with("start", span.start)
+        .with("end", span.end)
+}
+
+fn constraint_data(constraints: &[ConstraintDiagnostic]) -> diagnostics::Value {
+    diagnostics::Value::List(
+        constraints
+            .iter()
+            .map(|constraint| {
+                diagnostics::DiagnosticData::new("elaboration.Constraint")
+                    .with("original", constraint.original.clone())
+                    .with("normalized", constraint.normalized.clone())
+                    .with("status", format!("{:?}", constraint.status))
+                    .with(
+                        "origins",
+                        diagnostics::Value::List(
+                            constraint
+                                .origins
+                                .iter()
+                                .map(|span| span_data(*span).into())
+                                .collect(),
+                        ),
+                    )
+                    .with("omitted_origins", constraint.omitted_origins)
+                    .into()
+            })
+            .collect(),
+    )
+}
+
+fn goal_data(goals: &[MetaGoal]) -> diagnostics::Value {
+    diagnostics::Value::List(
+        goals
+            .iter()
+            .map(|goal| {
+                let mut data = diagnostics::DiagnosticData::new("elaboration.Goal")
+                    .with("name", goal.display_name())
+                    .with("metavariable", goal.metavariable.0)
+                    .with("flavor", format!("{:?}", goal.flavor))
+                    .with("state", format!("{:?}", goal.state))
+                    .with("span", span_data(goal.span))
+                    .with(
+                        "occurrences",
+                        diagnostics::Value::List(
+                            goal.occurrences
+                                .iter()
+                                .map(|span| span_data(*span).into())
+                                .collect(),
+                        ),
+                    )
+                    .with("context", goal.context.clone())
+                    .with("constraints", constraint_data(&goal.constraints))
+                    .with("omitted_constraints", goal.omitted_constraints)
+                    .with("omitted_goals", goal.omitted_goals)
+                    .with(
+                        "dependencies",
+                        diagnostics::Value::List(
+                            goal.dependencies.iter().map(|id| id.0.into()).collect(),
+                        ),
+                    );
+                if let Some(principal) = &goal.principal {
+                    data = data.with("principal", principal.clone());
+                }
+                if let Some(solution) = &goal.solution {
+                    data = data.with("solution", solution.clone());
+                }
+                data.into()
+            })
+            .collect(),
+    )
+}
+
+impl DeferredDetails {
+    pub(crate) fn logical(store: super::MetaStore, error: Option<crate::error::Error>) -> Self {
+        Self {
+            state: DeferredState::Logical(store, error),
+        }
+    }
+    pub(crate) fn program(
+        scope: crate::elaborator::program_term_elaborator::ProgramScope,
+        error: Option<crate::error::Error>,
+    ) -> Self {
+        Self {
+            state: DeferredState::Program(scope, error),
+        }
     }
 }

@@ -92,9 +92,10 @@ impl GlobalEnvironment {
                     ProgramCheckSession::new(&self.crate_env, &mut context)
                         .check_value_term(body, ty)
                         .map_err(|error| {
-                            format!(
-                                "Program value definition {} is ill-typed: {error}",
-                                name.as_str()
+                            crate::error::Error::from(error).context(
+                                crate::error::Context::ProgramValueDefinition {
+                                    name: (name.as_str()).to_owned(),
+                                },
                             )
                         })?;
                     Ok((parameters, DefinedConstant::ProgramValue { ty, body }))
@@ -136,9 +137,10 @@ impl GlobalEnvironment {
                 ProgramCheckSession::new(&self.crate_env, &mut context)
                     .check_computation_term(body, ty)
                     .map_err(|error| {
-                        format!(
-                            "Program computation definition {} is ill-typed: {error}",
-                            name.as_str()
+                        crate::error::Error::from(error).context(
+                            crate::error::Context::ProgramComputationDefinition {
+                                name: (name.as_str()).to_owned(),
+                            },
                         )
                     })?;
                 // CBPV function types do not bind their argument in the
@@ -148,7 +150,7 @@ impl GlobalEnvironment {
                 let close_type = |mut expression, count| -> Result<_, ElaborationError> {
                     for _ in 0..count {
                         expression = kernel::calculus::strengthen(&arena.core, expression, 0)
-                            .map_err(|error| error.to_string())?;
+                            .map_err(crate::error::Error::from)?;
                     }
                     Ok(expression)
                 };
@@ -228,7 +230,7 @@ impl GlobalEnvironment {
     pub(super) fn program_associated_scope(
         &mut self,
         owner: Option<&AssociatedOwner>,
-    ) -> Result<(program_term_elaborator::ProgramScope, Vec<SymbolId>), String> {
+    ) -> Result<(program_term_elaborator::ProgramScope, Vec<SymbolId>), crate::error::Error> {
         let mut scope = program_term_elaborator::ProgramScope::new();
         let Some(owner) = owner else {
             return Ok((scope, Vec::new()));
@@ -240,12 +242,14 @@ impl GlobalEnvironment {
         let Some(module_manager::ItemAccessResult::ProgramInductive(item)) =
             self.module_manager.get_item(&self.crate_env, &access)
         else {
-            return Err(
-                "Program associated item owner must be a Program type in this module".into(),
-            );
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ProgramAssociatedItemOwnerMustBeAProgramTypeInThisModule,
+            ));
         };
         if item.inductive.module != self.module_manager.current() {
-            return Err("Program associated item owner must be in this module".into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ProgramAssociatedItemOwnerMustBeInThisModule,
+            ));
         }
         let expected = self
             .crate_env
@@ -255,7 +259,9 @@ impl GlobalEnvironment {
         let mut names = Vec::new();
         for binder in &owner.parameters {
             if !matches!(binder.ty.as_ref(), SExp::ValueType) {
-                return Err("Program associated item parameters must have type \\VType".into());
+                return Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::ProgramAssociatedItemParametersMustHaveTypeVtype,
+                ));
             }
             for name in &binder.vars {
                 let symbol = self.crate_env.intern_name(name);
@@ -263,17 +269,19 @@ impl GlobalEnvironment {
                     .iter()
                     .any(|symbol| self.crate_env.symbol(*symbol) == name.as_str())
                 {
-                    return Err("duplicate Program associated item parameter".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::DuplicateProgramAssociatedItemParameter,
+                    ));
                 }
                 names.push(symbol);
                 scope.push_type(symbol);
             }
         }
         if names.len() != expected {
-            return Err(format!(
-                "Program associated item expects {expected} owner parameter(s), found {}",
-                names.len()
-            ));
+            return Err(crate::error::Error::ProgramOwnerArgumentCountMismatch {
+                actual: names.len(),
+                expected,
+            });
         }
         Ok((scope, names))
     }
@@ -284,7 +292,7 @@ impl GlobalEnvironment {
         name: Identifier,
         parameters: Vec<SymbolId>,
         definition: DefinedConstant,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         if let Some(owner) = owner {
             let id = self.crate_env.add_parameterized_definition(
                 self.module_manager.current(),
@@ -313,7 +321,10 @@ impl GlobalEnvironment {
         let mut names = Vec::new();
         for (name, _) in fields {
             if names.contains(&name.0) {
-                return Err(format!("duplicate record field name: {}", name.0).into());
+                return Err(crate::error::Error::DuplicateRecordField {
+                    name: (name.0).to_string(),
+                }
+                .into());
             }
             names.push(name.0.clone());
         }
@@ -417,14 +428,20 @@ impl GlobalEnvironment {
                 let arena = self.crate_env.arena();
                 let CtorBinder::Simple((field_name, _)) = &spec.constructors()[0].telescope[field]
                 else {
-                    return Err("record fields must be non-recursive".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::RecordFieldsMustBeNonRecursive,
+                    )
+                    .into());
                 };
                 let name = Identifier(self.crate_env.symbol(*field_name).to_owned());
                 if projections
                     .iter()
                     .any(|(existing, _)| existing.as_str() == name.as_str())
                 {
-                    return Err(format!("duplicate record field name: {}", name.as_str()).into());
+                    return Err(crate::error::Error::DuplicateRecordField {
+                        name: (name.as_str()).to_string(),
+                    }
+                    .into());
                 }
                 let parameter_arguments = (0..parameters.len())
                     .rev()
@@ -478,9 +495,9 @@ impl GlobalEnvironment {
                     .into_iter()
                     .map(|binder| match binder {
                         CtorBinder::Simple(binder) => Ok(binder),
-                        CtorBinder::StrictPositive { .. } => {
-                            Err("record fields must be non-recursive".to_string())
-                        }
+                        CtorBinder::StrictPositive { .. } => Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::RecordFieldsMustBeNonRecursive,
+                        )),
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 let selected = arena.exp_bound(field_count - 1 - field);
@@ -505,9 +522,10 @@ impl GlobalEnvironment {
             CheckSession::new(&self.crate_env, &mut context)
                 .check_pts(body, ty)
                 .map_err(|error| {
-                    format!(
-                        "Generated projection {} does not typecheck: {error}",
-                        name.as_str()
+                    crate::error::Error::from(error).context(
+                        crate::error::Context::GeneratedProjection {
+                            name: (name.as_str()).to_owned(),
+                        },
                     )
                 })?;
             let definition = self
@@ -545,7 +563,10 @@ impl GlobalEnvironment {
         let mut parameter_names = Vec::new();
         for RightBind { vars, ty } in parameters {
             if !matches!(ty.as_ref(), SExp::ValueType) {
-                return Err("Program datatype parameters must have type \\VType".into());
+                return Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::ProgramDatatypeParametersMustHaveTypeVtype,
+                )
+                .into());
             }
             for variable in vars {
                 let variable = self.crate_env.intern_name(variable);
@@ -561,10 +582,9 @@ impl GlobalEnvironment {
                 .iter()
                 .any(|existing: &Identifier| existing.as_str() == constructor_name.as_str())
             {
-                return Err(format!(
-                    "duplicate Program constructor name: {}",
-                    constructor_name.as_str()
-                )
+                return Err(crate::error::Error::DuplicateProgramConstructor {
+                    name: (constructor_name.as_str()).to_string(),
+                }
                 .into());
             }
             constructor_names.push(constructor_name.clone());
@@ -593,11 +613,10 @@ impl GlobalEnvironment {
                 parameters,
             } = self.crate_env.arena().get(result)
             else {
-                return Err(format!(
-                    "Program constructor {} must return {}",
-                    constructor_name.as_str(),
-                    type_name.as_str()
-                )
+                return Err(crate::error::Error::ProgramConstructorResultMismatch {
+                    constructor: (constructor_name.as_str()).to_string(),
+                    datatype: (type_name.as_str()).to_string(),
+                }
                 .into());
             };
             let exact_parameters = parameters.is_empty()
@@ -610,11 +629,10 @@ impl GlobalEnvironment {
                         )
                     }));
             if indspec != inductive || !exact_parameters {
-                return Err(format!(
-                    "Program constructor {} must return {} with all datatype parameters",
-                    constructor_name.as_str(),
-                    type_name.as_str()
-                )
+                return Err(crate::error::Error::ProgramConstructorParameterMismatch {
+                    constructor: (constructor_name.as_str()).to_string(),
+                    datatype: (type_name.as_str()).to_string(),
+                }
                 .into());
             }
             constructor_specs.push(ProgramConstructorSpec::new(elaborated_fields));
@@ -635,7 +653,7 @@ impl GlobalEnvironment {
         let reflected_constructors = self.crate_env.program_inductive(inductive).constructors().iter().map(|constructor| {
             let telescope = constructor.fields().iter().enumerate().map(|(field_index, (name, ty))| {
                 let ty = crate::raw::reflection::reflect_value_type(&self.crate_env, *ty)
-                    .map_err(|error| format!("cannot reflect Program constructor field: {error}"))?;
+                    .map_err(|error| crate::error::Error::from(error).context(crate::error::Context::CannotReflectProgramConstructorField))?;
                 let ty = crate::kernel_bridge::shift_bound_indices(
                     self.crate_env.arena(),
                     ty,
@@ -648,12 +666,12 @@ impl GlobalEnvironment {
                 let (binders, tail) = crate::raw::utils::decompose_prod(self.crate_env.arena(), ty);
                 let (head, self_indices) = crate::raw::utils::decompose_app(self.crate_env.arena(), tail);
                 if !matches!(self.crate_env.arena().get(head), ExpNode::IndType { indspec, .. } if indspec == reflected) {
-                    return Err("reflected recursive Program field is not strictly positive".to_string());
+                    return Err(crate::error::Error::Invalid(crate::error::Invalid::ReflectedRecursiveProgramFieldIsNotStrictlyPositive));
                 }
                 Ok(CtorBinder::StrictPositive { binders, self_indices })
-            }).collect::<Result<Vec<_>, String>>()?;
+            }).collect::<Result<Vec<_>, crate::error::Error>>()?;
             Ok(crate::raw::inductive::CtorType { telescope, indices: Vec::new() })
-        }).collect::<Result<Vec<_>, String>>()?;
+        }).collect::<Result<Vec<_>, crate::error::Error>>()?;
         self.crate_env.define_inductive(
             reflected,
             InductiveTypeSpecs::unchecked(
@@ -671,17 +689,27 @@ impl GlobalEnvironment {
                 &mut ProgramCheckSession::new(&self.crate_env, &mut program_context),
                 inductive,
             )
-            .map_err(|error| format!("Ill-formed Program datatype: {error}"))?;
+            .map_err(|error| {
+                crate::error::Error::from(error)
+                    .context(crate::error::Context::IllFormedProgramDatatype)
+            })?;
         let mut reflected_context =
-            crate::raw::reflection::reflect_context(&self.crate_env, &program_context)
-                .map_err(|error| format!("cannot reflect Program context: {error}"))?;
+            crate::raw::reflection::reflect_context(&self.crate_env, &program_context).map_err(
+                |error| {
+                    crate::error::Error::from(error)
+                        .context(crate::error::Context::CannotReflectProgramContext)
+                },
+            )?;
         self.crate_env
             .inductive(reflected)
             .validate(
                 &mut CheckSession::new(&self.crate_env, &mut reflected_context),
                 reflected,
             )
-            .map_err(|error| format!("Ill-formed reflected datatype: {error}"))?;
+            .map_err(|error| {
+                crate::error::Error::from(error)
+                    .context(crate::error::Context::IllFormedReflectedDatatype)
+            })?;
         self.module_manager.publish_reserved_program_inductive(
             &mut self.crate_env,
             type_name.clone(),

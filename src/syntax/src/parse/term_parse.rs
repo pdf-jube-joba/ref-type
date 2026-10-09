@@ -2,6 +2,7 @@ use super::{
     EXPRESSION_ATOM_KEYWORDS, PROOF_TERM_KEYWORDS, ParseError, Parser, SORT_KEYWORDS, SpannedToken,
     Token, TokenCursor,
 };
+use super::{Expected, ParseErrorKind};
 use crate::syntax::*;
 
 pub(super) struct TermParser<'a> {
@@ -52,18 +53,25 @@ impl<'a> TermParser<'a> {
                 Token::Number(num_str) => match num_str.parse::<usize>() {
                     Ok(n) => Ok(n),
                     Err(_) => Err(ParseError {
-                        msg: format!("invalid number: {}", num_str),
+                        kind: ParseErrorKind::InvalidNumber {
+                            text: (*num_str).to_owned(),
+                        },
                         start: t.start,
                         end: t.end,
+                        source: None,
                     }),
                 },
                 other => Err(ParseError {
-                    msg: format!("expected number, found {:?}", other),
+                    kind: ParseErrorKind::Expected {
+                        expected: Expected::Number,
+                        found: Some(other.owned()),
+                    },
                     start: t.start,
                     end: t.end,
+                    source: None,
                 }),
             },
-            None => Err(self.eof_error("number")),
+            None => Err(self.eof_error(Expected::Number)),
         }
     }
 
@@ -72,12 +80,16 @@ impl<'a> TermParser<'a> {
             Some(t) => match &t.kind {
                 Token::Macro(sym_str) => Ok(sym_str),
                 other => Err(ParseError {
-                    msg: format!("expected other symbol, found {:?}", other),
+                    kind: ParseErrorKind::Expected {
+                        expected: Expected::OtherSymbol,
+                        found: Some(other.owned()),
+                    },
                     start: t.start,
                     end: t.end,
+                    source: None,
                 }),
             },
-            None => Err(self.eof_error("other symbol")),
+            None => Err(self.eof_error(Expected::OtherSymbol)),
         }
     }
 
@@ -115,7 +127,9 @@ impl<'a> TermParser<'a> {
     fn parse_named_by_term(&mut self, expected: &str) -> Result<SExp, ParseError> {
         let field = self.expect_ident()?;
         if field.as_str() != expected {
-            return Err(self.error(&format!("expected `{expected}` proof field")));
+            return Err(self.error(ParseErrorKind::ExpectedProofField {
+                name: expected.to_owned(),
+            }));
         }
         self.expect_token(Token::Colon)?;
         self.parse_sexp()
@@ -183,16 +197,19 @@ impl<'a> TermParser<'a> {
             return Ok(crate::sort::Sort::SetKind(number));
         }
         Err(ParseError {
-            msg: "expected sort keyword".into(),
+            kind: ParseErrorKind::ExpectedSortKeyword,
             start: self.span_at(self.pos).start,
             end: self.span_at(self.pos).end,
+            source: None,
         })
     }
 
     fn parse_keyword_head_atom(&mut self) -> Result<SExp, ParseError> {
         if self.bump_if_keyword(r"\tmatch") {
             if !self.allow_macro_parameters {
-                return Err(self.error("token matching is only valid in named macro templates"));
+                return Err(
+                    self.error(ParseErrorKind::TokenMatchingIsOnlyValidInNamedMacroTemplates)
+                );
             }
             let target = self.expect_ident()?;
             let branches = self.parse_branches(|parser| {
@@ -415,7 +432,7 @@ impl<'a> TermParser<'a> {
                 result_ty,
             } = step_ty.clone()
             else {
-                return Err(self.error("step-match expects a RunStep type"));
+                return Err(self.error(ParseErrorKind::StepMatchExpectsARunstepType));
             };
             self.expect_keyword("\\return")?;
             let return_type = self.parse_sexp()?;
@@ -426,7 +443,7 @@ impl<'a> TermParser<'a> {
                 } else if parser.bump_if_keyword("\\finish") {
                     "finish"
                 } else {
-                    return Err(parser.error("expected \\continue or \\finish branch"));
+                    return Err(parser.error(ParseErrorKind::ExpectedContinueOrFinishBranch));
                 };
                 let argument = parser.expect_binder_ident()?;
                 parser.expect_token(Token::Colon)?;
@@ -441,13 +458,13 @@ impl<'a> TermParser<'a> {
                     &mut on_finish
                 };
                 if slot.replace((argument, body)).is_some() {
-                    return Err(self.error("duplicate step-match branch"));
+                    return Err(self.error(ParseErrorKind::DuplicateStepMatchBranch));
                 }
             }
             let (continue_var, continue_body) =
-                on_continue.ok_or_else(|| self.error("missing \\continue branch"))?;
+                on_continue.ok_or_else(|| self.error(ParseErrorKind::MissingContinueBranch))?;
             let (finish_var, finish_body) =
-                on_finish.ok_or_else(|| self.error("missing \\finish branch"))?;
+                on_finish.ok_or_else(|| self.error(ParseErrorKind::MissingFinishBranch))?;
             let branch = |var, ty: Box<SExp>, body, program| {
                 if program {
                     SExp::ComputationLam {
@@ -544,7 +561,7 @@ impl<'a> TermParser<'a> {
                 binders.extend(self.parse_simple_binds_paren()?);
             }
             if binders.is_empty() || binders.iter().any(|binder| binder.vars.is_empty()) {
-                return Err(self.error("expected induction binders"));
+                return Err(self.error(ParseErrorKind::ExpectedInductionBinders));
             }
             self.expect_keyword("\\return")?;
             let return_type = self.parse_sexp()?;
@@ -619,9 +636,10 @@ impl<'a> TermParser<'a> {
         }
 
         Err(ParseError {
-            msg: "expected expression starting with keyword".into(),
+            kind: ParseErrorKind::ExpectedExpressionStartingWithKeyword,
             start: self.span_at(self.pos).start,
             end: self.span_at(self.pos).end,
+            source: None,
         })
     }
 
@@ -674,9 +692,12 @@ impl<'a> TermParser<'a> {
                     })
                 }
                 _ => Err(ParseError {
-                    msg: format!("unknown axiom: {}", name.as_str()),
+                    kind: ParseErrorKind::UnknownAxiom {
+                        name: name.as_str().to_owned(),
+                    },
                     start: self.span_at(self.pos).start,
                     end: self.span_at(self.pos).end,
+                    source: None,
                 }),
             };
         }
@@ -756,9 +777,10 @@ impl<'a> TermParser<'a> {
         }
 
         Err(ParseError {
-            msg: "expected expression starting with keyword".into(),
+            kind: ParseErrorKind::ExpectedExpressionStartingWithKeyword,
             start: self.span_at(self.pos).start,
             end: self.span_at(self.pos).end,
+            source: None,
         })
     }
 
@@ -774,7 +796,7 @@ impl<'a> TermParser<'a> {
             atom @ (MacroSeqAtom::Tok(_) | MacroSeqAtom::Quoted(_)) => {
                 Ok(TokenMatchPattern::Token(atom))
             }
-            _ => Err(self.error("expected fixed token, sequence pattern, or _")),
+            _ => Err(self.error(ParseErrorKind::ExpectedFixedTokenSequencePatternOr)),
         }
     }
 
@@ -881,9 +903,10 @@ impl<'a> TermParser<'a> {
         }
 
         Err(ParseError {
-            msg: "expected block statement or \\return".into(),
+            kind: ParseErrorKind::ExpectedBlockStatementOrReturn,
             start: self.span_at(self.pos).start,
             end: self.span_at(self.pos).end,
+            source: None,
         })
     }
 
@@ -1058,9 +1081,10 @@ impl<'a> TermParser<'a> {
             Some(Token::MacroVar(_)) => {
                 if !self.allow_macro_parameters {
                     return Err(ParseError {
-                        msg: "macro captures are only valid in macro templates".into(),
+                        kind: ParseErrorKind::MacroCapturesAreOnlyValidInMacroTemplates,
                         start: self.tokens[self.pos].start,
                         end: self.tokens[self.pos].end,
+                        source: None,
                     });
                 }
                 let token = self.next().expect("peeked token exists");
@@ -1089,16 +1113,20 @@ impl<'a> TermParser<'a> {
                     SurfaceMeta::Goal
                 } else if suffix.bytes().all(|byte| byte.is_ascii_digit()) {
                     let number = suffix.parse::<u32>().map_err(|_| ParseError {
-                        msg: format!("metavariable number is too large: {spelling}"),
+                        kind: ParseErrorKind::MetavariableNumberOverflow {
+                            text: spelling.to_owned(),
+                        },
                         start: token.start,
                         end: token.end,
+                        source: None,
                     })?;
                     SurfaceMeta::Named(number)
                 } else {
                     return Err(ParseError {
-                        msg: "expected `?` or `_` followed by digits".into(),
+                        kind: ParseErrorKind::ExpectedOrFollowedByDigits,
                         start: token.start,
                         end: token.end,
+                        source: None,
                     });
                 };
                 Ok(SExp::Meta {
@@ -1198,7 +1226,7 @@ impl<'a> TermParser<'a> {
             Some(Token::LBrace) => {
                 let bind = self.parse_binding(Token::LBrace, Token::RBrace)?;
                 let Bind::Subset { var, ty, predicate } = bind else {
-                    return Err(self.error("expected subset type `{ x : A \\where P }`"));
+                    return Err(self.error(ParseErrorKind::ExpectedSubsetTypeXAWhereP));
                 };
                 Ok(SExp::SubSet {
                     var,
@@ -1231,14 +1259,18 @@ impl<'a> TermParser<'a> {
                 self.parse_proof_term()
             }
             Some(Token::KeyWord(keyword)) => Err(ParseError {
-                msg: format!("unexpected keyword in atom: {}", keyword),
+                kind: ParseErrorKind::UnexpectedKeyword {
+                    keyword: (*keyword).to_owned(),
+                },
                 start: self.span_at(self.pos).start,
                 end: self.span_at(self.pos).end,
+                source: None,
             }),
             _ => Err(ParseError {
-                msg: "expected atom".into(),
+                kind: ParseErrorKind::ExpectedAtom,
                 start: self.span_at(self.pos).start,
                 end: self.span_at(self.pos).end,
+                source: None,
             }),
         }
     }
@@ -1415,12 +1447,13 @@ impl<'a> TermParser<'a> {
         Ok((binds, advanced_pos))
     }
 
-    fn error(&self, msg: &str) -> ParseError {
+    fn error(&self, kind: ParseErrorKind) -> ParseError {
         let span = self.span_at(self.pos);
         ParseError {
-            msg: msg.into(),
+            kind,
             start: span.start,
             end: span.end,
+            source: None,
         }
     }
 
@@ -1467,7 +1500,7 @@ impl<'a> TermParser<'a> {
         let (vars, ty) = self.parse_annotate()?;
         let bind = if self.bump_if_keyword(r"\where") {
             let [var] = vars.as_slice() else {
-                return Err(self.error("expected single identifier in refinement binder"));
+                return Err(self.error(ParseErrorKind::ExpectedSingleIdentifierInRefinementBinder));
             };
             let predicate = Box::new(self.parse_sexp()?);
             if self.bump_if_keyword(r"\as") {
@@ -1533,7 +1566,9 @@ impl<'a> TermParser<'a> {
                 },
                 _ => {
                     let Bind::Named(RightBind { vars, ty }) = bind else {
-                        return Err(self.error("Program lambda requires a plain value binder"));
+                        return Err(
+                            self.error(ParseErrorKind::ProgramLambdaRequiresAPlainValueBinder)
+                        );
                     };
                     for var in vars.into_iter().rev() {
                         body = SExp::ComputationLam {
@@ -1585,7 +1620,7 @@ impl<'a> TermParser<'a> {
         while let SExp::Prod { bind, body: tail } = body {
             let Bind::Named(bind) = bind else {
                 return Err(
-                    self.error("refinement binders are not allowed in inductive signatures")
+                    self.error(ParseErrorKind::RefinementBindersAreNotAllowedInInductiveSignatures)
                 );
             };
             binds.push(bind);
@@ -1617,14 +1652,14 @@ impl<'a> TermParser<'a> {
                 break;
             }
             if !matches!(self.peek(), Some(Token::Metavariable(name)) if name.starts_with('_')) {
-                return Err(self.error("expected numbered metavariable after \\assign"));
+                return Err(self.error(ParseErrorKind::ExpectedNumberedMetavariableAfterAssign));
             }
             let SExp::Meta {
                 kind: SurfaceMeta::Named(number),
                 span,
             } = self.parse_atom()?
             else {
-                return Err(self.error("expected numbered metavariable after \\assign"));
+                return Err(self.error(ParseErrorKind::ExpectedNumberedMetavariableAfterAssign));
             };
             value = SExp::Assign {
                 value: Box::new(value),
@@ -1679,7 +1714,7 @@ impl<'a> TermParser<'a> {
     fn parse_one_macro(&mut self) -> Result<MacroExp, ParseError> {
         if let Some(Token::MacroRest(name)) = self.peek() {
             if !self.allow_macro_parameters {
-                return Err(self.error("rest splices are only valid in macro templates"));
+                return Err(self.error(ParseErrorKind::RestSplicesAreOnlyValidInMacroTemplates));
             }
             let name = Identifier(name[2..].to_string());
             self.next();
@@ -1725,9 +1760,10 @@ impl<'a> TermParser<'a> {
             return Ok(MacroExp::Seq(exps));
         }
         Err(ParseError {
-            msg: "expected macro expression".into(),
+            kind: ParseErrorKind::ExpectedMacroExpression,
             start: self.span_at(self.pos).start,
             end: self.span_at(self.pos).end,
+            source: None,
         })
     }
 }

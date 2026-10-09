@@ -328,7 +328,7 @@ pub struct CrateEnv {
     #[serde(skip)]
     materializing_definitions: RefCell<HashSet<DefId>>,
     #[serde(skip)]
-    failed_definitions: RefCell<HashMap<DefId, String>>,
+    failed_definitions: RefCell<HashMap<DefId, crate::error::Error>>,
     #[serde(skip)]
     materialized_definitions: Cell<usize>,
     #[serde(skip)]
@@ -473,7 +473,7 @@ impl CrateEnv {
         &mut self,
         owner: ModuleId,
         context: crate::raw::exp::ExpContext,
-    ) -> Result<ModuleId, String> {
+    ) -> Result<ModuleId, crate::error::Error> {
         Ok(self.add_modules_in_scope(owner, context, 1)?.remove(0))
     }
 
@@ -484,13 +484,13 @@ impl CrateEnv {
         owner: ModuleId,
         mut context: crate::raw::exp::ExpContext,
         count: usize,
-    ) -> Result<Vec<ModuleId>, String> {
+    ) -> Result<Vec<ModuleId>, crate::error::Error> {
         if count == 0 {
             return Ok(Vec::new());
         }
         crate::raw::derivation::CheckSession::new(self, &mut context)
             .check_wellformed_context()
-            .map_err(|error| error.to_string())?;
+            .map_err(crate::error::Error::from)?;
         let mut modules = Vec::with_capacity(count);
         for _ in 0..count {
             let module = self.add_module();
@@ -507,7 +507,7 @@ impl CrateEnv {
         parent: ModuleId,
         name: String,
         parameters: Vec<ModuleParameter>,
-    ) -> Result<ModuleId, String> {
+    ) -> Result<ModuleId, crate::error::Error> {
         Ok(self.add_module_entry(name, Some(parent), parameters))
     }
 
@@ -519,9 +519,11 @@ impl CrateEnv {
         self.module_mut(module).parameters.push(parameter);
     }
 
-    pub fn publish_child_module(&mut self, child: ModuleId) -> Result<(), String> {
+    pub fn publish_child_module(&mut self, child: ModuleId) -> Result<(), crate::error::Error> {
         let parent = self.module(child).parent.ok_or_else(|| {
-            "Root or materialized module cannot be published as a child".to_string()
+            crate::error::Error::Invalid(
+                crate::error::Invalid::RootOrMaterializedModuleCannotBePublishedAsAChild,
+            )
         })?;
         self.module_mut(parent).children.push(child);
         Ok(())
@@ -572,7 +574,7 @@ impl CrateEnv {
         &mut self,
         module: ModuleId,
         definition: DefinedConstant,
-    ) -> Result<DefId, String> {
+    ) -> Result<DefId, crate::error::Error> {
         self.add_parameterized_definition(module, definition, Vec::new())
     }
 
@@ -588,7 +590,7 @@ impl CrateEnv {
         module: ModuleId,
         definition: DefinedConstant,
         parameters: Vec<SymbolId>,
-    ) -> Result<DefId, String> {
+    ) -> Result<DefId, crate::error::Error> {
         let span = tracing::debug_span!(target: "ref_type::environment",
             "register_definition", ?module, kind = definition.kind_name());
         let _entered = span.enter();
@@ -612,7 +614,7 @@ impl CrateEnv {
         module: ModuleId,
         definition: &DefinedConstant,
         type_parameters: &[SymbolId],
-    ) -> Result<DefinedConstant, String> {
+    ) -> Result<DefinedConstant, crate::error::Error> {
         use crate::raw::{derivation::CheckSession, program_derivation::ProgramCheckSession};
         let mut ancestors = Vec::new();
         let mut current = Some(module);
@@ -658,7 +660,10 @@ impl CrateEnv {
                 for &(var, ty) in parameters {
                     CheckSession::new(self, &mut pts_context)
                         .infer_sort(ty)
-                        .map_err(|error| format!("definition parameter check failed: {error}"))?;
+                        .map_err(|error| {
+                            crate::error::Error::from(error)
+                                .context(crate::error::Context::DefinitionParameterCheckFailed)
+                        })?;
                     let ty =
                         crate::kernel_bridge::logical(self, &pts_context, &[ty], |_, _, terms| {
                             Ok(Exp(terms[0]))
@@ -668,7 +673,10 @@ impl CrateEnv {
                 }
                 let (body, ty) = CheckSession::new(self, &mut pts_context)
                     .check_pts_resolved(body, ty)
-                    .map_err(|error| format!("definition body check failed: {error}"))?;
+                    .map_err(|error| {
+                        crate::error::Error::from(error)
+                            .context(crate::error::Context::DefinitionBodyCheckFailed)
+                    })?;
                 return Ok(DefinedConstant::Contextual {
                     parameters: resolved_parameters,
                     ty,
@@ -678,19 +686,26 @@ impl CrateEnv {
             DefinedConstant::Pts { ty, body } => {
                 let (body, ty) = CheckSession::new(self, &mut pts_context)
                     .check_pts_resolved(body, ty)
-                    .map_err(|error| format!("definition check failed: {error}"))?;
+                    .map_err(|error| {
+                        crate::error::Error::from(error)
+                            .context(crate::error::Context::DefinitionCheckFailed)
+                    })?;
                 return Ok(DefinedConstant::Pts { ty, body });
             }
             DefinedConstant::ProgramValue { ty, body } => {
                 ProgramCheckSession::new(self, &mut program_context)
                     .check_value_term(body, ty)
-                    .map_err(|error| format!("Program value definition check failed: {error}"))?;
+                    .map_err(|error| {
+                        crate::error::Error::from(error)
+                            .context(crate::error::Context::ProgramValueDefinitionCheckFailed)
+                    })?;
             }
             DefinedConstant::ProgramComputation { ty, body } => {
                 ProgramCheckSession::new(self, &mut program_context)
                     .check_computation_term(body, ty)
                     .map_err(|error| {
-                        format!("Program computation definition check failed: {error}")
+                        crate::error::Error::from(error)
+                            .context(crate::error::Context::ProgramComputationDefinitionCheckFailed)
                     })?;
             }
         }
@@ -709,7 +724,7 @@ impl CrateEnv {
             .unwrap_or_else(|error| panic!("failed to materialize definition {id:?}: {error}"))
     }
 
-    pub fn resolve_definition(&self, id: DefId) -> Result<&DefinedConstant, String> {
+    pub fn resolve_definition(&self, id: DefId) -> Result<&DefinedConstant, crate::error::Error> {
         let _cost = timing::costs::Scope::enter("materialize.definition");
         let slot = &self.module(id.module).definitions[id.index as usize];
         if let Some(definition) = slot.get() {
@@ -722,11 +737,11 @@ impl CrateEnv {
             .lazy_definitions
             .get(&id)
             .cloned()
-            .ok_or_else(|| format!("reserved definition {id:?} was used before definition"))?;
+            .ok_or_else(|| crate::error::Error::ReservedDefinitionUsed { id })?;
         if !self.materializing_definitions.borrow_mut().insert(id) {
-            return Err(format!("cyclic lazy definition dependency at {id:?}"));
+            return Err(crate::error::Error::CyclicDefinition { id });
         }
-        let result: Result<&DefinedConstant, String> = (|| {
+        let result: Result<&DefinedConstant, crate::error::Error> = (|| {
             let source = self.resolve_definition(lazy.source)?.clone();
             let count = self.definition_parameters(id).len();
             let shifted_substitutions = lazy
@@ -888,13 +903,12 @@ impl CrateEnv {
             let definition = self
                 .check_definition(id.module, &definition, self.definition_parameters(id))
                 .map_err(|error| {
-                    format!(
-                        "specializing {}: {error}",
-                        super::printing::definition_name(self, lazy.source)
-                    )
+                    error.context(crate::error::Context::SpecializingDefinition {
+                        name: (super::printing::definition_name(self, lazy.source)).to_owned(),
+                    })
                 })?;
             slot.set(definition)
-                .map_err(|_| format!("definition {id:?} was materialized twice"))?;
+                .map_err(|_| crate::error::Error::DuplicateMaterialization { id })?;
             Ok(slot.get().expect("definition was just initialized"))
         })();
         self.materializing_definitions.borrow_mut().remove(&id);
@@ -1489,11 +1503,17 @@ impl CrateEnv {
         self.module_mut(target).hir_names = self.module(source).hir_names.clone();
     }
 
-    pub fn publish_item(&mut self, module: ModuleId, item: ModuleItem) -> Result<(), String> {
+    pub fn publish_item(
+        &mut self,
+        module: ModuleId,
+        item: ModuleItem,
+    ) -> Result<(), crate::error::Error> {
         let module = self.module_mut(module);
         let name = item.name().to_owned();
         if module.names.contains_key(&name) {
-            return Err(format!("Module item '{name}' is already defined"));
+            return Err(crate::error::Error::DuplicateModuleItem {
+                name: (name).to_string(),
+            });
         }
         let index = module.items.len();
         module.items.push(item);
@@ -1510,14 +1530,16 @@ impl CrateEnv {
         owner: &str,
         name: String,
         definition: DefId,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         let item = self
             .module_mut(module)
             .names
             .get(owner)
             .copied()
             .and_then(|index| self.module_mut(module).items.get_mut(index))
-            .ok_or_else(|| format!("Associated item owner '{owner}' was not found"))?;
+            .ok_or_else(|| crate::error::Error::UnknownAssociatedOwner {
+                owner: (owner).to_string(),
+            })?;
         let (reserved, definitions) = match item {
             ModuleItem::Inductive {
                 constructor_names,
@@ -1534,15 +1556,18 @@ impl CrateEnv {
                 ..
             } => (&[][..], associated_definitions),
             ModuleItem::Definition { .. } => {
-                return Err(format!("Module item '{owner}' is not a type"));
+                return Err(crate::error::Error::AssociatedOwnerNotAType {
+                    owner: (owner).to_string(),
+                });
             }
         };
         if reserved.iter().any(|candidate| candidate == &name)
             || definitions.iter().any(|(candidate, _)| candidate == &name)
         {
-            return Err(format!(
-                "Associated item '{owner}::{name}' is already defined"
-            ));
+            return Err(crate::error::Error::DuplicateAssociatedItem {
+                owner: (owner).to_string(),
+                name: (name).to_string(),
+            });
         }
         definitions.push((name, definition));
         Ok(())
@@ -1553,10 +1578,12 @@ impl CrateEnv {
         module: ModuleId,
         name: String,
         binding: ModuleId,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         let module = self.module_mut(module);
         if module.imports.contains_key(&name) {
-            return Err(format!("Module import '{name}' is already defined"));
+            return Err(crate::error::Error::DuplicateModuleImport {
+                name: (name).to_string(),
+            });
         }
         module.imports.insert(name, binding);
         Ok(())

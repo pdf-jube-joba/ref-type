@@ -172,16 +172,14 @@ fn non_pattern_equations_are_distinguished_from_contradictions() {
     assert!(!store.unify(&env, non_pattern, variable).unwrap());
     let error = store.finish(&env).unwrap_err();
     assert_eq!(error.goals()[0].state, MetaState::Unsupported, "{error}");
-    assert!(
-        store
-            .unify(
-                &env,
-                env.arena().sort(Sort::Prop),
-                env.arena().sort(Sort::Set(0))
-            )
-            .is_err()
-    );
-    let error = store.constraint_error(&env, "incompatible sorts".into());
+    let cause = store
+        .unify(
+            &env,
+            env.arena().sort(Sort::Prop),
+            env.arena().sort(Sort::Set(0)),
+        )
+        .unwrap_err();
+    let error = store.constraint_error(&env, cause);
     assert_eq!(error.goals()[0].state, MetaState::Contradiction, "{error}");
 }
 

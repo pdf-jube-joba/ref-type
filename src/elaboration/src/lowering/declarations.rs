@@ -2,7 +2,7 @@
 use super::*;
 
 impl Lowerer<'_> {
-    pub(super) fn definition(&mut self, id: DefId) -> Result<(), String> {
+    pub(super) fn definition(&mut self, id: DefId) -> Result<(), crate::error::Error> {
         let mut pending = vec![(id, false)];
         let mut active = FxHashSet::default();
         while let Some((id, ready)) = pending.pop() {
@@ -21,7 +21,9 @@ impl Lowerer<'_> {
                 continue;
             }
             if !active.insert(id) {
-                return Err("cyclic definition dependency".into());
+                return Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::CyclicDefinitionDependency,
+                ));
             }
             pending.push((id, true));
             for dependency in self.definition_dependencies(id).into_iter().rev() {
@@ -39,7 +41,7 @@ impl Lowerer<'_> {
         Ok(())
     }
 
-    pub(super) fn definition_ready(&mut self, id: DefId) -> Result<(), String> {
+    pub(super) fn definition_ready(&mut self, id: DefId) -> Result<(), crate::error::Error> {
         if self
             .raw
             .kernel_definitions
@@ -67,7 +69,7 @@ impl Lowerer<'_> {
         })
     }
 
-    fn lower_definition(&mut self, id: DefId) -> Result<(), String> {
+    fn lower_definition(&mut self, id: DefId) -> Result<(), crate::error::Error> {
         let _cost = timing::costs::Scope::enter("lower.lower_definition");
         let mut timer =
             crate::elaborator::profiling::ProfileTimer::start("REF_TYPE_PROFILE_LOWERING", || {
@@ -135,11 +137,9 @@ impl Lowerer<'_> {
                 },
             )
             .map_err(|e| {
-                format!(
-                    "definition {}: {}",
-                    raw::printing::definition_name(self.raw, id),
-                    super::diagnostics::format_error(self.raw, &e)
-                )
+                crate::error::Error::Kernel(e).context(crate::error::Context::Definition {
+                    name: raw::printing::definition_name(self.raw, id),
+                })
             })?;
         if let Some(timer) = &mut timer {
             timer.checkpoint("kernel registration");
@@ -157,7 +157,7 @@ impl Lowerer<'_> {
             self.scope.captures.clone(),
             self.kernel
                 .definition(kernel_id)
-                .map_err(|e| e.to_string())?
+                .map_err(crate::error::Error::from)?
                 .body,
         );
         if let Some(reflected) = self.kernel.reflected_definition(kernel_id) {
@@ -168,7 +168,7 @@ impl Lowerer<'_> {
                 self.scope.captures.clone(),
                 self.kernel
                     .definition(reflected)
-                    .map_err(|e| e.to_string())?
+                    .map_err(crate::error::Error::from)?
                     .body,
             );
         }
@@ -179,7 +179,7 @@ impl Lowerer<'_> {
         Ok(())
     }
 
-    pub(super) fn inductive(&mut self, id: InductiveId) -> Result<(), String> {
+    pub(super) fn inductive(&mut self, id: InductiveId) -> Result<(), crate::error::Error> {
         if let Some(origin) = self.raw.inductive_specialization(id)
             && !self.raw.is_program_mirror(id)
         {
@@ -198,7 +198,11 @@ impl Lowerer<'_> {
         result
     }
 
-    fn lower_inductive(&mut self, id: InductiveId, mut ctx: ExpContext) -> Result<(), String> {
+    fn lower_inductive(
+        &mut self,
+        id: InductiveId,
+        mut ctx: ExpContext,
+    ) -> Result<(), crate::error::Error> {
         let _cost = timing::costs::Scope::enter("lower.lower_inductive");
         let _time =
             timing::Scope::module(|| crate::elaborator::analysis::module_path(self.raw, id.module));
@@ -252,11 +256,9 @@ impl Lowerer<'_> {
                 },
             )
             .map_err(|e| {
-                format!(
-                    "inductive {}: {}",
-                    raw::printing::inductive_name(self.raw, id, None),
-                    super::diagnostics::format_error(self.raw, &e)
-                )
+                crate::error::Error::Kernel(e).context(crate::error::Context::Inductive {
+                    name: raw::printing::inductive_name(self.raw, id, None),
+                })
             })?;
         self.raw
             .arena()
@@ -266,7 +268,7 @@ impl Lowerer<'_> {
         Ok(())
     }
 
-    pub(super) fn datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
+    pub(super) fn datatype(&mut self, id: ProgramInductiveId) -> Result<(), crate::error::Error> {
         if self.structural && !self.raw.has_program_inductive(id) {
             return Ok(());
         }
@@ -284,7 +286,7 @@ impl Lowerer<'_> {
         result
     }
 
-    fn lower_datatype(&mut self, id: ProgramInductiveId) -> Result<(), String> {
+    fn lower_datatype(&mut self, id: ProgramInductiveId) -> Result<(), crate::error::Error> {
         let _cost = timing::costs::Scope::enter("lower.lower_datatype");
         let _time =
             timing::Scope::module(|| crate::elaborator::analysis::module_path(self.raw, id.module));
@@ -322,7 +324,7 @@ impl Lowerer<'_> {
                     reflected: raw.reflected().into(),
                 },
             )
-            .map_err(|error| super::diagnostics::format_error(self.raw, &error))?;
+            .map_err(crate::error::Error::Kernel)?;
         self.raw
             .arena()
             .datatype_reflections
@@ -331,7 +333,7 @@ impl Lowerer<'_> {
         Ok(())
     }
 
-    pub(crate) fn lower_all(&mut self) -> Result<(), String> {
+    pub(crate) fn lower_all(&mut self) -> Result<(), crate::error::Error> {
         let _phase = crate::profiling::Phase::start("lowering.all");
         let parameters = crate::profiling::Phase::start("lowering.parameters");
         for id in self.raw.parameter_ids() {
@@ -343,7 +345,7 @@ impl Lowerer<'_> {
                 let context = this.capture_context(true)?;
                 kernel::check::Checker::new(this.kernel, &mut this.metas, context)
                     .check_context()
-                    .map_err(|error| super::diagnostics::format_error(this.raw, &error))
+                    .map_err(crate::error::Error::Kernel)
             })?;
         }
         drop(parameters);

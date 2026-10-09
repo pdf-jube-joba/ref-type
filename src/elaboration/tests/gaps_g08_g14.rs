@@ -2,11 +2,11 @@ use elaboration::Checker;
 
 fn check(source: &str) -> Result<(), String> {
     let modules = syntax::parse::str_parse_modules(source).expect("valid syntax");
-    let project = resolve::resolve(&modules).map_err(|error| format!("{error:?}"))?;
+    let project = resolve::resolve(&modules).map_err(|error| error.to_string())?;
     Checker::default()
         .check(&project)
         .map(|_| ())
-        .map_err(|error| format!("{error:?}"))
+        .map_err(|error| error.to_string())
 }
 
 #[test]

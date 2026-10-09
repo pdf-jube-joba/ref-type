@@ -1251,10 +1251,10 @@ fn value_let_reflection_preserves_certificates_and_rejects_unsolved_annotations(
         value,
         body: arena.alloc(ComputationTermNode::Return { value }),
     });
-    assert_eq!(
+    assert!(matches!(
         reflect_computation(&env, term),
         Err(ReflectionError::UnresolvedMetavariable)
-    );
+    ));
 }
 
 #[test]
@@ -1324,7 +1324,7 @@ fn set_recursion_rejects_mixed_or_non_set_sorts() {
         for term in terms {
             let error = session.infer_pts(arena.alloc(term)).unwrap_err();
             assert!(
-                format!("{error:?}").contains(
+                error.to_string().contains(
                     if matches!(state_sort, Sort::SetKind(_) | Sort::PropKind) {
                         "upper sort has no classifier"
                     } else {

@@ -1107,3 +1107,56 @@ fn namespace_imports_select_used_descendants_and_preserve_cache_dependencies() {
     );
     assert!(!database.check(&snapshot).is_success());
 }
+
+#[test]
+fn structured_causes_survive_semantic_queries_and_serialization() {
+    use diagnostics::{DiagnosticData, Value};
+
+    fn contains_cause(data: &DiagnosticData, code: &str) -> bool {
+        data.code == code || data.causes.iter().any(|cause| contains_cause(cause, code))
+    }
+
+    for (source, code) in [
+        (
+            r"\module M { \definition value: \Set := missing; }",
+            "resolve.UnknownName",
+        ),
+        (
+            r"\module M { \definition value: \Set := ; }",
+            "syntax.ExpectedAtom",
+        ),
+        (
+            r"\module M { \structure Packed[F: \Set -> \SetKind] { Cr: \Set, data: F Cr } }",
+            "elaboration.Parameter",
+        ),
+    ] {
+        let mut snapshot = SourceSnapshot::new("/virtual/root.ref");
+        snapshot.insert("/virtual/root.ref", source);
+        let result = Database::new().check(&snapshot);
+        assert_eq!(result.diagnostics.len(), 1, "{:?}", result.diagnostics);
+        let diagnostic = &result.diagnostics[0];
+        assert_eq!(diagnostic.cause.code, code);
+        assert!(diagnostic.location.is_some());
+        if code == "resolve.UnknownName" {
+            assert_eq!(
+                diagnostic.cause.arguments["name"],
+                Value::Text("missing".into())
+            );
+        }
+        if code == "elaboration.Parameter" {
+            let Value::Diagnostic(subject) = &diagnostic.cause.arguments["subject"] else {
+                panic!("parameter subject must retain its declaration category");
+            };
+            assert_eq!(subject.code, "resolve.StructureParameter");
+            assert_eq!(subject.arguments["structure"], Value::Text("Packed".into()));
+            assert_eq!(subject.arguments["name"], Value::Text("F".into()));
+            assert!(contains_cause(
+                &diagnostic.cause,
+                "kernel.UpperSortHasNoClassifier"
+            ));
+        }
+        let encoded = serde_json::to_vec(result.as_ref()).unwrap();
+        let decoded: sema::SemanticResult = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(decoded, *result);
+    }
+}

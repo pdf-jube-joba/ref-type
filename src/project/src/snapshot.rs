@@ -1,3 +1,4 @@
+use crate::error::{Error, IoOperation};
 use ::syntax::syntax::{SourceFile, SourceId};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -81,7 +82,7 @@ impl SourceSnapshot {
 
     /// Capture source trees and path dependencies. A later edit on disk does
     /// not change this snapshot. Invalid syntax is reported by semantic queries.
-    pub fn read(entry: impl AsRef<Path>) -> Result<Self, String> {
+    pub fn read(entry: impl AsRef<Path>) -> Result<Self, crate::error::Error> {
         Self::read_with_dependency_cache(entry, |_, _| None)
     }
 
@@ -90,14 +91,14 @@ impl SourceSnapshot {
     pub fn read_with_dependency_cache(
         entry: impl AsRef<Path>,
         mut cached: impl FnMut(&Self, &Path) -> Option<Self>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, crate::error::Error> {
         let mut snapshot = Self::new(entry);
         let mut roots = vec![snapshot.root_directory().to_path_buf()];
         let mut visited = BTreeSet::new();
         while let Some(root) = roots.pop() {
             let identity = root
                 .canonicalize()
-                .map_err(|e| format!("cannot open {}: {e}", root.display()))?;
+                .map_err(|e| Error::io(IoOperation::Open, &root, e))?;
             snapshot.aliases.insert(root.clone(), identity.clone());
             if !visited.insert(identity) {
                 continue;
@@ -163,16 +164,22 @@ impl SourceSnapshot {
         result
     }
 
-    fn read_tree(&mut self, root: &Path, visited: &mut BTreeSet<PathBuf>) -> Result<(), String> {
-        let identity = root.canonicalize().map_err(|e| e.to_string())?;
+    fn read_tree(
+        &mut self,
+        root: &Path,
+        visited: &mut BTreeSet<PathBuf>,
+    ) -> Result<(), crate::error::Error> {
+        let identity = root
+            .canonicalize()
+            .map_err(|e| Error::io(IoOperation::Open, root, e))?;
         self.aliases.insert(root.to_path_buf(), identity.clone());
         if !visited.insert(identity) {
             return Ok(());
         }
         for entry in
-            fs::read_dir(root).map_err(|e| format!("cannot read {}: {e}", root.display()))?
+            fs::read_dir(root).map_err(|e| Error::io(IoOperation::ReadDirectory, root, e))?
         {
-            let entry = entry.map_err(|e| e.to_string())?;
+            let entry = entry.map_err(|e| Error::io(IoOperation::ReadEntry, root, e))?;
             let path = entry.path();
             if path.is_dir() {
                 if !matches!(
@@ -185,10 +192,11 @@ impl SourceSnapshot {
                 || entry.file_name() == "ref.toml"
             {
                 let text = fs::read_to_string(&path)
-                    .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+                    .map_err(|e| Error::io(IoOperation::ReadSource, &path, e))?;
                 self.aliases.insert(
                     path.clone(),
-                    path.canonicalize().map_err(|error| error.to_string())?,
+                    path.canonicalize()
+                        .map_err(|error| Error::io(IoOperation::Open, &path, error))?,
                 );
                 self.insert(path, text);
             }

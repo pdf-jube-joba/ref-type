@@ -1,4 +1,5 @@
 use crate::ModuleResult;
+use crate::error::{CacheError, CacheOperation};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -55,11 +56,11 @@ impl DiskCache {
         }
         Some(record.payload)
     }
-    pub fn write(&self, key: &Fingerprint, result: &ModuleResult) -> Result<(), String> {
+    pub fn write(&self, key: &Fingerprint, result: &ModuleResult) -> Result<(), CacheError> {
         if result.status != crate::ModuleStatus::Verified {
             return Ok(());
         }
-        let payload = serde_json::to_string(result).map_err(|error| error.to_string())?;
+        let payload = serde_json::to_string(result)?;
         self.write_payload(key, "json", payload)
     }
 
@@ -68,14 +69,13 @@ impl DiskCache {
         key: &Fingerprint,
         extension: &str,
         payload: String,
-    ) -> Result<(), String> {
+    ) -> Result<(), CacheError> {
         let bytes = serde_json::to_vec(&Record {
             schema: SCHEMA,
             key: *key,
             checksum: fingerprint(payload.as_bytes()),
             payload,
-        })
-        .map_err(|error| error.to_string())?;
+        })?;
         self.write_bytes(key, extension, &bytes)
     }
 
@@ -95,20 +95,29 @@ impl DiskCache {
         &self,
         snapshot: &crate::SourceSnapshot,
         packages: &[PathBuf],
-    ) -> Result<(), String> {
+    ) -> Result<(), CacheError> {
         for root in packages {
             let saved = snapshot.package_snapshot(root);
             self.write_payload(
                 &source_key(&saved, root),
                 "sources.json",
-                serde_json::to_string(&saved).map_err(|error| error.to_string())?,
+                serde_json::to_string(&saved)?,
             )?;
         }
         Ok(())
     }
 
-    fn write_bytes(&self, key: &Fingerprint, extension: &str, bytes: &[u8]) -> Result<(), String> {
-        fs::create_dir_all(&self.directory).map_err(|error| error.to_string())?;
+    fn write_bytes(
+        &self,
+        key: &Fingerprint,
+        extension: &str,
+        bytes: &[u8],
+    ) -> Result<(), CacheError> {
+        fs::create_dir_all(&self.directory).map_err(|source| CacheError::Io {
+            operation: CacheOperation::CreateDirectory,
+            path: self.directory.clone(),
+            source,
+        })?;
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let temporary = self.directory.join(format!(
             ".{}-{}.tmp",
@@ -123,12 +132,16 @@ impl DiskCache {
                 .open(&temporary)?;
             file.write_all(bytes)?;
             file.sync_all()?;
-            fs::rename(&temporary, destination)
+            fs::rename(&temporary, &destination)
         })();
         if result.is_err() {
             let _ = fs::remove_file(temporary);
         }
-        result.map_err(|error| error.to_string())
+        result.map_err(|source| CacheError::Io {
+            operation: CacheOperation::WriteRecord,
+            path: destination,
+            source,
+        })
     }
 }
 
@@ -160,7 +173,7 @@ impl DiskCache {
         Some(payload.to_vec())
     }
 
-    pub fn write_environment(&self, key: &Fingerprint, payload: &[u8]) -> Result<(), String> {
+    pub fn write_environment(&self, key: &Fingerprint, payload: &[u8]) -> Result<(), CacheError> {
         let mut bytes = b"REFENV01".to_vec();
         bytes.extend(key);
         bytes.extend(fingerprint(payload));

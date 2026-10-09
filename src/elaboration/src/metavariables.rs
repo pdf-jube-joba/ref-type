@@ -154,7 +154,7 @@ impl MetaStore {
         span: SourceSpan,
         context: &ExpContext,
         scope_len: usize,
-    ) -> Result<Exp, String> {
+    ) -> Result<Exp, crate::error::Error> {
         self.current_context = context.clone();
         let flavor = MetaFlavor::from(kind);
         let existing = match flavor {
@@ -175,7 +175,7 @@ impl MetaStore {
                 let fresh = self
                     .core
                     .restrict(&env.kernel.borrow(), self.core_ids[source.index()], common)
-                    .map_err(|e| e.to_string())?;
+                    .map_err(crate::error::Error::from)?;
                 let Node::Meta { id, .. } = env.arena().core.get(fresh) else {
                     unreachable!()
                 };
@@ -200,7 +200,7 @@ impl MetaStore {
             let source = MetaVarId(self.entries.len() as u32);
             self.core
                 .set_origin(id, kernel::metavariables::OriginId(source.index() as u64))
-                .map_err(|e| e.to_string())?;
+                .map_err(crate::error::Error::from)?;
             self.ids.insert(id, source);
             self.core_ids.push(id);
             env.arena().bind_meta(source, id);
@@ -245,7 +245,12 @@ impl MetaStore {
         self.entries[self.ids[&id].index()].flavor = MetaFlavor::Synthetic;
         e
     }
-    fn set_meta_type(&mut self, env: &CrateEnv, term: Exp, expected: Exp) -> Result<(), String> {
+    fn set_meta_type(
+        &mut self,
+        env: &CrateEnv,
+        term: Exp,
+        expected: Exp,
+    ) -> Result<(), crate::error::Error> {
         let context = self.current_context.clone();
         self.check_pts(env, env.root_module(), &mut context.clone(), term, expected)
     }
@@ -256,7 +261,7 @@ impl MetaStore {
         context: &mut ExpContext,
         term: Exp,
         expected: Exp,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         self.current_context = context.clone();
         let constraint = GoalConstraint::HasType { term, expected };
         self.set_principal_for_meta(env, term, &constraint);
@@ -289,7 +294,7 @@ impl MetaStore {
         _module: ModuleId,
         context: &mut ExpContext,
         term: Exp,
-    ) -> Result<Exp, String> {
+    ) -> Result<Exp, crate::error::Error> {
         self.current_context = context.clone();
         let result = crate::kernel_bridge::logical(env, context, &[term], |env, context, terms| {
             self.core.infer(env, context, terms[0])
@@ -309,7 +314,7 @@ impl MetaStore {
         module: ModuleId,
         context: &mut ExpContext,
         term: Exp,
-    ) -> Result<Sort, String> {
+    ) -> Result<Sort, crate::error::Error> {
         let constraint = GoalConstraint::IsSort { term };
         self.set_principal_for_meta(env, term, &constraint);
         self.constrain(env, constraint);
@@ -324,7 +329,9 @@ impl MetaStore {
         match env.arena().get(self.zonk(env, ty)) {
             ExpNode::Sort(sort) => Ok(sort),
             ExpNode::Meta { .. } => Ok(Sort::Set(0)),
-            _ => Err("expression does not have a sort".into()),
+            _ => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ExpressionDoesNotHaveASort,
+            )),
         }
     }
     pub(crate) fn unify_in_context(
@@ -333,12 +340,17 @@ impl MetaStore {
         context: &ExpContext,
         left: Exp,
         right: Exp,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, crate::error::Error> {
         self.current_context = context.clone();
         self.unify(env, left, right)
     }
 
-    pub(crate) fn unify(&mut self, env: &CrateEnv, left: Exp, right: Exp) -> Result<bool, String> {
+    pub(crate) fn unify(
+        &mut self,
+        env: &CrateEnv,
+        left: Exp,
+        right: Exp,
+    ) -> Result<bool, crate::error::Error> {
         let index = self.constraints.len();
         self.constrain(env, GoalConstraint::Equal { left, right });
         let result = crate::kernel_bridge::logical(
@@ -410,10 +422,15 @@ impl MetaStore {
             }
         }
         match result {
-            Err(kernel::metavariables::Error::Unresolved { .. }) => Err(self.goal_error(env)),
-            Err(error) => {
-                Err(self.constraint_error(env, crate::lowering::format_kernel_error(env, &error)))
+            Err(error)
+                if matches!(
+                    error.root(),
+                    kernel::metavariables::Error::Unresolved { .. }
+                ) =>
+            {
+                Err(self.goal_error(env))
             }
+            Err(error) => Err(self.constraint_error(env, crate::error::Error::Kernel(error))),
             Ok(()) => {
                 let goals = crate::diagnostics::with_diagnostic_mode(
                     crate::DiagnosticMode::Compact,
@@ -442,15 +459,19 @@ impl MetaStore {
         let _profile = crate::diagnostics::DiagnosticProfile::start("capture");
         ElaborationError::Deferred {
             summary: Box::new(summary),
-            details: std::rc::Rc::new(diagnostics::DeferredDetails::Logical(
+            details: std::rc::Rc::new(diagnostics::DeferredDetails::logical(
                 self.diagnostic_snapshot(),
                 None,
             )),
         }
     }
-    pub(crate) fn constraint_error(&self, env: &CrateEnv, message: String) -> ElaborationError {
+    pub(crate) fn constraint_error(
+        &self,
+        env: &CrateEnv,
+        message: crate::error::Error,
+    ) -> ElaborationError {
         if crate::diagnostics::compact() {
-            return ElaborationError::Message(message);
+            return ElaborationError::Failure(message);
         }
         let _profile = crate::diagnostics::DiagnosticProfile::start("capture");
         let mut goals =
@@ -464,20 +485,24 @@ impl MetaStore {
         }
         ElaborationError::Deferred {
             summary: Box::new(ElaborationError::ConstraintFailure {
-                message: message.clone(),
+                cause: Box::new(message.clone()),
                 constraints: vec![],
                 goals,
                 omitted_constraints: 0,
             }),
-            details: std::rc::Rc::new(diagnostics::DeferredDetails::Logical(
+            details: std::rc::Rc::new(diagnostics::DeferredDetails::logical(
                 self.diagnostic_snapshot(),
                 Some(message),
             )),
         }
     }
-    pub(crate) fn detailed_error(&self, env: &CrateEnv, message: String) -> ElaborationError {
+    pub(crate) fn detailed_error(
+        &self,
+        env: &CrateEnv,
+        message: crate::error::Error,
+    ) -> ElaborationError {
         if crate::diagnostics::compact() {
-            return ElaborationError::Message(message);
+            return ElaborationError::Failure(message);
         }
         let state = self.failure.unwrap_or(MetaState::Contradiction);
         let mut goals = self.goals(env);
@@ -487,7 +512,7 @@ impl MetaStore {
             }
         }
         ElaborationError::ConstraintFailure {
-            message,
+            cause: Box::new(message),
             constraints: self
                 .constraints
                 .iter()
@@ -539,7 +564,7 @@ impl MetaStore {
         env: &CrateEnv,
         inductive: InductiveId,
         ty: Exp,
-    ) -> Result<(Vec<Exp>, Vec<Exp>), String> {
+    ) -> Result<(Vec<Exp>, Vec<Exp>), crate::error::Error> {
         let arena = env.arena();
         let ty = base_carrier(env, self.zonk(env, ty));
         if let ExpNode::Meta { metavariable, .. } = arena.get(ty) {
@@ -581,10 +606,14 @@ impl MetaStore {
             parameters,
         } = arena.get(head)
         else {
-            return Err("Match scrutinee must have an inductive type".into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::MatchScrutineeMustHaveAnInductiveType,
+            ));
         };
         if indspec != inductive {
-            return Err("Match scrutinee type does not match its path".into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::MatchScrutineeTypeDoesNotMatchItsPath,
+            ));
         }
         Ok((parameters, indices))
     }

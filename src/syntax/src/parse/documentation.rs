@@ -22,9 +22,13 @@ pub fn parse_documentation(input: &str) -> Result<Vec<DocumentationItem>, ParseE
     let (items, spans) = parser.parse_module_items_with_spans()?;
     if let Some(extra) = tokens.get(parser.pos) {
         return Err(ParseError {
-            msg: format!("expected a module item, found {:?}", extra.kind),
+            kind: super::ParseErrorKind::Expected {
+                expected: super::Expected::ModuleItem,
+                found: Some(extra.kind.owned()),
+            },
             start: extra.start,
             end: extra.end,
+            source: None,
         });
     }
     Ok(outline(input, &tokens, &comments, &items, &spans))

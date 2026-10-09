@@ -7,6 +7,7 @@ use ::syntax::{
     parse,
     syntax::{Module, ModuleItem, SourceFile, SourceSpan},
 };
+use diagnostics::DiagnosticError;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -32,6 +33,7 @@ pub enum ParsedSyntax {
 pub struct ParseResult {
     pub source: Arc<SourceFile>,
     pub syntax: Option<ParsedSyntax>,
+    pub error: Option<parse::ParseError>,
     pub diagnostics: Vec<Diagnostic>,
 }
 
@@ -56,7 +58,9 @@ impl ParseCache {
                     text: String::new(),
                 }),
                 syntax: None,
+                error: None,
                 diagnostics: vec![Diagnostic {
+                    cause: project::Error::MissingSource { path: path.clone() }.diagnostic_data(),
                     message: format!("source file is missing: {}", path.display()),
                     location: Some(Location {
                         file: path,
@@ -77,11 +81,13 @@ impl ParseCache {
             ParseKind::Module => parse::parse_items(&source.text)
                 .map(|(items, spans)| ParsedSyntax::Module { items, spans }),
         };
-        let (syntax, diagnostics) = match result {
-            Ok(syntax) => (Some(syntax), vec![]),
+        let (syntax, error, diagnostics) = match result {
+            Ok(syntax) => (Some(syntax), None, vec![]),
             Err(error) => (
                 None,
+                Some(error.clone().with_source(source.clone())),
                 vec![Diagnostic {
+                    cause: error.diagnostic_data(),
                     message: format!("Module Load Error: {}", error.message()),
                     location: Some(Location {
                         file: path,
@@ -94,6 +100,7 @@ impl ParseCache {
         let parsed = Arc::new(ParseResult {
             source: source.clone(),
             syntax,
+            error,
             diagnostics,
         });
         self.entries.insert(key, parsed.clone());
@@ -111,16 +118,18 @@ pub(crate) struct SnapshotLoader<'a> {
     pub diagnostics: Vec<Diagnostic>,
 }
 impl SourceProvider for SnapshotLoader<'_> {
-    fn identity(&self, path: &Path) -> Result<PathBuf, String> {
+    fn identity(&self, path: &Path) -> Result<PathBuf, project::Error> {
         Ok(self.snapshot.identity(path))
     }
-    fn read(&mut self, path: &Path) -> Result<Arc<SourceFile>, String> {
+    fn read(&mut self, path: &Path) -> Result<Arc<SourceFile>, project::Error> {
         self.snapshot
             .source(path)
             .cloned()
-            .ok_or_else(|| format!("source file is missing: {}", path.display()))
+            .ok_or_else(|| project::Error::MissingSource {
+                path: path.to_owned(),
+            })
     }
-    fn modules(&mut self, path: &Path) -> Result<Vec<Module>, String> {
+    fn modules(&mut self, path: &Path) -> Result<Vec<Module>, project::Error> {
         let result = self
             .cache
             .parse(self.snapshot, path, ParseKind::Root, self.stats);
@@ -128,14 +137,15 @@ impl SourceProvider for SnapshotLoader<'_> {
         match &result.syntax {
             Some(ParsedSyntax::Root(modules)) => Ok(modules.clone()),
             _ => Err(result
-                .diagnostics
-                .iter()
-                .map(|d| d.message.as_str())
-                .collect::<Vec<_>>()
-                .join("\n")),
+                .error
+                .clone()
+                .map(project::Error::Parse)
+                .unwrap_or_else(|| project::Error::MissingSource {
+                    path: path.to_owned(),
+                })),
         }
     }
-    fn items(&mut self, path: &Path) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), String> {
+    fn items(&mut self, path: &Path) -> Result<(Vec<ModuleItem>, Vec<SourceSpan>), project::Error> {
         let result = self
             .cache
             .parse(self.snapshot, path, ParseKind::Module, self.stats);

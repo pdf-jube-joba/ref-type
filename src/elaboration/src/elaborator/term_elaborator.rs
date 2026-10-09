@@ -135,10 +135,13 @@ impl LocalScope {
         inductive: InductiveId,
         handler: &impl Handler,
     ) -> Result<ItemAccessResult, ElaborationError> {
-        let item = handler
-            .env()
-            .item_for_inductive(inductive)
-            .ok_or("Inductive declaration metadata was not found")?;
+        let item =
+            handler
+                .env()
+                .item_for_inductive(inductive)
+                .ok_or(crate::error::Error::Invalid(
+                    crate::error::Invalid::InductiveDeclarationMetadataWasNotFound,
+                ))?;
         let name = |name: &String| Identifier(name.clone());
         Ok(match item {
             ModuleItem::Inductive {
@@ -198,11 +201,10 @@ impl LocalScope {
             ));
         };
         if arguments.len() > parameters.len() {
-            return Err(format!(
-                "Definition expects at most {} argument(s), found {}",
-                parameters.len(),
-                arguments.len()
-            )
+            return Err(crate::error::Error::DefinitionArgumentCountMismatch {
+                expected: parameters.len(),
+                actual: arguments.len(),
+            }
             .into());
         }
         for (index, argument) in arguments.iter().enumerate() {
@@ -238,10 +240,16 @@ impl LocalScope {
         if let ExpNode::TypeLift { superset, subset } = handler.arena().get(ty) {
             let data_ty = whnf(handler.env(), superset);
             let ExpNode::IndType { indspec, .. } = handler.arena().get(data_ty) else {
-                return Err("expected a structure data type".into());
+                return Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::ExpectedAStructureDataType,
+                )
+                .into());
             };
             if handler.env().record_for_inductive(indspec).is_none() {
-                return Err("expected a structure data type".into());
+                return Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::ExpectedAStructureDataType,
+                )
+                .into());
             }
             let constructor = &handler.env().inductive(indspec).constructors()[0];
             let data_names = constructor
@@ -277,10 +285,16 @@ impl LocalScope {
             parameters,
         } = handler.arena().get(ty)
         else {
-            return Err("expected a structure type in a structure literal".into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ExpectedAStructureTypeInAStructureLiteral,
+            )
+            .into());
         };
         if handler.env().record_for_inductive(indspec).is_none() {
-            return Err("expected a structure type in a structure literal".into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ExpectedAStructureTypeInAStructureLiteral,
+            )
+            .into());
         }
         let (substitutions, explicit) = handler
             .arena()
@@ -295,10 +309,9 @@ impl LocalScope {
         let mut supplied = std::collections::HashMap::new();
         for (name, value) in fields {
             if supplied.insert(name.as_str(), value).is_some() {
-                return Err(format!(
-                    "Structure field {} was supplied more than once",
-                    name.as_str()
-                )
+                return Err(crate::error::Error::DuplicateStructureField {
+                    name: (name.as_str()).to_string(),
+                }
                 .into());
             }
         }
@@ -314,7 +327,10 @@ impl LocalScope {
                 ..
             } = handler.arena().get(whnf(handler.env(), constructor_ty))
             else {
-                return Err("record constructor has too few fields".into());
+                return Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::RecordConstructorHasTooFewFields,
+                )
+                .into());
             };
             let value = if let Some(value) = supplied.remove(name.as_str()) {
                 self.elab_with_expected(value, expected, handler)?
@@ -331,7 +347,9 @@ impl LocalScope {
                     .iter()
                     .find(|(name, _)| name == &default_name)
                     .map(|(_, definition)| *definition)
-                    .ok_or_else(|| format!("Missing structure field {name}"))?;
+                    .ok_or_else(|| crate::error::Error::MissingStructureField {
+                        name: (name).to_string(),
+                    })?;
                 let arguments = explicit
                     .iter()
                     .copied()
@@ -354,7 +372,10 @@ impl LocalScope {
             ordered.push(value);
         }
         if let Some(name) = supplied.keys().next() {
-            return Err(format!("Unknown structure field {name}").into());
+            return Err(crate::error::Error::UnknownStructureField {
+                name: (name).to_string(),
+            }
+            .into());
         }
         Ok(crate::raw::utils::assoc_apply(
             handler.arena(),
@@ -547,10 +568,10 @@ impl LocalScope {
                 .collect();
         }
         if parameters.len() != expected {
-            return Err(format!(
-                "associated item expects {expected} type parameter(s), found {}",
-                parameters.len()
-            )
+            return Err(crate::error::Error::TypeArgumentCountMismatch {
+                actual: parameters.len(),
+                expected,
+            }
             .into());
         }
         parameters
@@ -577,11 +598,10 @@ impl LocalScope {
         name: impl Fn(&T) -> &Identifier,
     ) -> Result<Vec<&'a T>, ElaborationError> {
         if cases.len() != constructors.len() {
-            return Err(format!(
-                "Expected {} inductive branches, found {}",
-                constructors.len(),
-                cases.len()
-            )
+            return Err(crate::error::Error::InductiveBranchCountMismatch {
+                expected: constructors.len(),
+                actual: cases.len(),
+            }
             .into());
         }
         let mut ordered = vec![None; constructors.len()];
@@ -591,13 +611,15 @@ impl LocalScope {
                 .iter()
                 .position(|constructor| constructor.as_str() == name.as_str())
             else {
-                return Err(format!("Unknown inductive constructor {}", name.as_str()).into());
+                return Err(crate::error::Error::UnknownInductiveConstructor {
+                    name: (name.as_str()).to_string(),
+                }
+                .into());
             };
             if ordered[index].replace(case).is_some() {
-                return Err(format!(
-                    "Duplicate inductive branch for constructor {}",
-                    name.as_str()
-                )
+                return Err(crate::error::Error::DuplicateInductiveBranch {
+                    name: (name.as_str()).to_string(),
+                }
                 .into());
             }
         }
@@ -606,10 +628,9 @@ impl LocalScope {
             .zip(constructors)
             .map(|(case, constructor)| {
                 case.ok_or_else(|| {
-                    format!(
-                        "Missing inductive branch for constructor {}",
-                        constructor.as_str()
-                    )
+                    crate::error::Error::MissingInductiveBranch {
+                        name: (constructor.as_str()).to_string(),
+                    }
                     .into()
                 })
             })
@@ -626,11 +647,11 @@ impl LocalScope {
         handler: &mut impl Handler,
     ) -> Result<Exp, ElaborationError> {
         if binders.len() != field_count {
-            return Err(format!(
-                "Branch {} expects {field_count} field binder(s), found {}",
-                constructor.as_str(),
-                binders.len()
-            )
+            return Err(crate::error::Error::BranchBinderCountMismatch {
+                constructor: (constructor.as_str()).to_string(),
+                actual: binders.len(),
+                field_count,
+            }
             .into());
         }
         let bindings_mark = self.bindings.len();
@@ -640,10 +661,9 @@ impl LocalScope {
             let mut typed_binders = Vec::new();
             for binder in binders {
                 let ExpNode::Prod { ty, body, .. } = handler.arena().get(expected_type) else {
-                    return Err(format!(
-                        "Too many field binders in branch {}",
-                        constructor.as_str()
-                    )
+                    return Err(crate::error::Error::ExcessBranchBinders {
+                        constructor: (constructor.as_str()).to_string(),
+                    }
                     .into());
                 };
                 let var = handler.intern_name(binder);
@@ -695,7 +715,10 @@ impl LocalScope {
         match bind {
             Bind::Named(right_bind) => {
                 if right_bind.vars.len() != 1 {
-                    return Err("\\take currently expects exactly one named variable".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::TakeCurrentlyExpectsExactlyOneNamedVariable,
+                    )
+                    .into());
                 }
 
                 let var = handler.intern_name(&right_bind.vars[0]);
@@ -720,9 +743,10 @@ impl LocalScope {
                 });
                 self.elab_take_map(var, domain, body, handler)
             }
-            Bind::SubsetWithProof { .. } => {
-                Err("\\take with proof bind is not supported by kernel TakeProp(X,P,f)".into())
-            }
+            Bind::SubsetWithProof { .. } => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::UnsupportedTakeProofBinder,
+            )
+            .into()),
         }
     }
 
@@ -737,11 +761,17 @@ impl LocalScope {
         let map_ty = handler.infer(&mut self.typing_binds, map)?;
         let map_ty = whnf(handler.env(), handler.zonk(map_ty));
         let ExpNode::Prod { body: codomain, .. } = handler.arena().get(map_ty) else {
-            return Err("failed to infer a product type for \\take map".into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::FailedToInferAProductTypeForTakeMap,
+            )
+            .into());
         };
         let codomain = whnf(handler.env(), handler.zonk(codomain));
         if exp_contains_bound(handler.arena(), codomain, 0) {
-            return Err("\\take map must have a non-dependent codomain".into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::TakeMapMustHaveANonDependentCodomain,
+            )
+            .into());
         }
         let codomain = instantiate(handler.arena(), codomain, domain);
         Ok((domain, map, codomain))
@@ -850,10 +880,14 @@ impl LocalScope {
             }
             SExp::ModuleInstance { .. }
             | SExp::ConversionTarget { .. }
-            | SExp::ProgramValueReference { .. } => Err("Program value requires reflection".into()),
-            SExp::MemberAccess { .. } | SExp::MemberLiteral { .. } => {
-                Err("unresolved structure member".into())
-            }
+            | SExp::ProgramValueReference { .. } => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ProgramValueRequiresReflection,
+            )
+            .into()),
+            SExp::MemberAccess { .. } | SExp::MemberLiteral { .. } => Err(
+                crate::error::Error::Invalid(crate::error::Invalid::UnresolvedStructureMember)
+                    .into(),
+            ),
             SExp::Ascribe { term, ty } => {
                 let ty = self.elab_exp_rec(ty, handler)?;
                 let term = self.elab_with_expected(term, ty, handler)?;
@@ -917,9 +951,10 @@ impl LocalScope {
                             handler.env().definition(definition),
                             DefinedConstant::Pts { .. }
                         ) {
-                            return Err(format!(
-                                "Program definitions require explicit Set reflection (^): '{access}'"
-                            ).into());
+                            return Err(crate::error::Error::DefinitionNeedsReflection {
+                                access: (access).clone(),
+                            }
+                            .into());
                         }
                         let mut value = handler.arena().alloc(ExpNode::DefinedConstant(definition));
                         for parameter in parameters {
@@ -938,19 +973,22 @@ impl LocalScope {
                     }) => {
                         if !parameters.is_empty() {
                             return Err(
-                                "Reflected definition cannot be applied with parameters".into()
+                                crate::error::Error::Invalid(crate::error::Invalid::ReflectedDefinitionCannotBeAppliedWithParameters).into()
                             );
                         }
                         match handler.env().definition(definition) {
                             DefinedConstant::ProgramValue { body, .. } => {
                                 Ok(crate::raw::reflection::reflect_value(handler.env(), *body)
-                                    .map_err(|e| e.to_string())?)
+                                    .map_err(crate::error::Error::from)?)
                             }
                             DefinedConstant::ProgramComputation { body, .. } => Ok(
                                 crate::raw::reflection::reflect_computation(handler.env(), *body)
-                                    .map_err(|e| e.to_string())?,
+                                    .map_err(crate::error::Error::from)?,
                             ),
-                            _ => Err("Set reflection requires a Program definition".into()),
+                            _ => Err(crate::error::Error::Invalid(
+                                crate::error::Invalid::SetReflectionRequiresAProgramDefinition,
+                            )
+                            .into()),
                         }
                     }
                     ItemAccessResult::Inductive(ModItemInductive { inductive, .. })
@@ -968,18 +1006,20 @@ impl LocalScope {
                         if parameters.is_empty() {
                             Ok(exp)
                         } else {
-                            Err(ElaborationError::Message(
-                                "Module parameter cannot be applied with parameters".to_string(),
-                            ))
+                            Err(ElaborationError::Failure(crate::error::Error::Invalid(
+                                crate::error::Invalid::ModuleParameterCannotBeAppliedWithParameters,
+                            )))
                         }
                     }
                     ItemAccessResult::ProgramInductive(_)
                     | ItemAccessResult::ProgramTypeParameter(_)
                     | ItemAccessResult::ProgramValueParameter(_)
-                    | ItemAccessResult::Argument(_) => Err(format!(
-                        "Program names require explicit Set reflection (^): '{access}'"
-                    )
-                    .into()),
+                    | ItemAccessResult::Argument(_) => {
+                        Err(crate::error::Error::NameNeedsReflection {
+                            access: (access).clone(),
+                        }
+                        .into())
+                    }
                 }
             }
             // this includes accessing constructor of the inductive type, accessing field of record type
@@ -991,9 +1031,10 @@ impl LocalScope {
                     handler.associated_reference(access, field, *span);
                     if let Some(field) = field.as_str().strip_suffix('^') {
                         let ItemAccessResult::ProgramInductive(item) = item else {
-                            return Err(format!(
-                                "reflection of associated item '{field}' requires a Program datatype"
-                            ).into());
+                            return Err(crate::error::Error::AssociatedReflectionNeedsDatatype {
+                                field: (field).to_string(),
+                            }
+                            .into());
                         };
                         let count = handler
                             .env()
@@ -1005,12 +1046,15 @@ impl LocalScope {
                             .into_iter()
                             .map(|parameter| {
                                 crate::raw::reflection::reflect_value_type(handler.env(), parameter)
-                                    .map_err(|error| error.to_string())
+                                    .map_err(crate::error::Error::from)
                             })
                             .collect::<Result<Vec<_>, _>>()?;
                         if field == "#" {
                             if item.record_fields.is_none() {
-                                return Err("::#^ requires a Program record".into());
+                                return Err(crate::error::Error::Invalid(
+                                    crate::error::Invalid::RequiresAProgramRecord,
+                                )
+                                .into());
                             }
                             return Ok(handler.arena().alloc(ExpNode::IndCtor {
                                 indspec: item.reflected,
@@ -1022,8 +1066,8 @@ impl LocalScope {
                             .associated_definitions
                             .iter()
                             .find(|(candidate, _)| candidate.as_str() == field)
-                            .ok_or_else(|| {
-                                format!("Program associated item {} was not found", field)
+                            .ok_or_else(|| crate::error::Error::UnknownProgramAssociatedItem {
+                                name: (field).to_string(),
                             })?;
                         let reflected = match handler.env().definition(*definition) {
                             DefinedConstant::ProgramValue { body, .. } => {
@@ -1033,10 +1077,13 @@ impl LocalScope {
                                 crate::raw::reflection::reflect_computation(handler.env(), *body)
                             }
                             DefinedConstant::Pts { .. } | DefinedConstant::Contextual { .. } => {
-                                return Err("associated item is not a Program definition".into());
+                                return Err(crate::error::Error::Invalid(
+                                    crate::error::Invalid::AssociatedItemIsNotAProgramDefinition,
+                                )
+                                .into());
                             }
                         };
-                        let reflected = reflected.map_err(|error| error.to_string())?;
+                        let reflected = reflected.map_err(crate::error::Error::from)?;
                         return Ok(crate::kernel_bridge::instantiate_telescope(
                             handler.arena(),
                             reflected,
@@ -1067,7 +1114,7 @@ impl LocalScope {
                             } = handler.arena().get(ty)
                             else {
                                 return Err(
-                                    "Expected inductive type in base of associated access".into()
+                                    crate::error::Error::Invalid(crate::error::Invalid::ExpectedInductiveTypeInBaseOfAssociatedAccess).into()
                                 );
                             };
                             (Self::inductive_item(indspec, handler)?, parameters)
@@ -1096,11 +1143,11 @@ impl LocalScope {
                             {
                                 return self.definition_reference(*definition, parameters, handler);
                             }
-                            Err(format!(
-                                "Associated item {} not found in inductive type {}",
-                                field.as_str(),
-                                type_name.as_str()
-                            ).into())
+                            Err(crate::error::Error::UnknownInductiveAssociatedItem {
+                                name: (field.as_str()).to_string(),
+                                datatype: (type_name.as_str()).to_string(),
+                            }
+                            .into())
                         }
                         ItemAccessResult::Record(record) => {
                             if field.as_str() == "#" {
@@ -1138,12 +1185,13 @@ impl LocalScope {
                                 value,
                                 field,
                                 &shifted_parameters,
-                            )? else {
-                                return Err(format!(
-                                    "Associated item {} not found in structure {}",
-                                    field.as_str(),
-                                    record.type_name.as_str()
-                                ).into());
+                            )?
+                            else {
+                                return Err(crate::error::Error::UnknownStructureAssociatedItem {
+                                    name: (field.as_str()).to_string(),
+                                    structure: (record.type_name.as_str()).to_string(),
+                                }
+                                .into());
                             };
                             let var = handler.intern("structure");
                             Ok(handler.arena().alloc(ExpNode::Lam {
@@ -1152,10 +1200,10 @@ impl LocalScope {
                                 body,
                             }))
                         }
-                        _ => Err(format!(
-                            "Expected inductive constructor or record type in base of associated access {:?}",
-                            base
-                        ).into()),
+                        _ => Err(crate::error::Error::InvalidAssociatedBase {
+                            base: (base).clone(),
+                        }
+                        .into()),
                     }
                 } else {
                     // 2. otherwise, elab base first, then project field
@@ -1171,14 +1219,17 @@ impl LocalScope {
                     .field_projection(&mut self.typing_binds, value, field)
                     .inspect_err(|_| handler.locate_error(*span))
             }
-            SExp::MathMacro { .. } | SExp::NamedMacro { .. } => {
-                Err("unexpanded macro in HIR".into())
-            }
-            SExp::TokenMatch { .. } => Err("Token match escaped template expansion".into()),
-            SExp::MacroParameter(name) => Err(format!(
-                "Macro capture '${}' escaped template expansion",
-                name.as_str()
+            SExp::MathMacro { .. } | SExp::NamedMacro { .. } => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::UnexpandedMacroInHir,
             )
+            .into()),
+            SExp::TokenMatch { .. } => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::TokenMatchEscapedTemplateExpansion,
+            )
+            .into()),
+            SExp::MacroParameter(name) => Err(crate::error::Error::EscapedMacroCapture {
+                name: (name.as_str()).to_string(),
+            }
             .into()),
             SExp::Where { exp, clauses, span } => {
                 let declaration_mark = self.bindings.len();
@@ -1198,7 +1249,11 @@ impl LocalScope {
                             handler
                                 .infer(&mut self.typing_binds, value)
                                 .map_err(|error| {
-                                    format!("Local definition '{}': {error}", name.as_str())
+                                    crate::error::Error::from(error).context(
+                                        crate::error::Context::LocalDefinition {
+                                            name: (name.as_str()).to_owned(),
+                                        },
+                                    )
                                 })?;
                             Ok::<_, ElaborationError>(value)
                         })()
@@ -1220,7 +1275,10 @@ impl LocalScope {
                 result
             }
             SExp::Sort(sort) => Ok(handler.arena().sort(*sort)),
-            SExp::ValueType => Err("\\VType is only valid in a Program binder".into()),
+            SExp::ValueType => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::VtypeIsOnlyValidInAProgramBinder,
+            )
+            .into()),
             SExp::Prod { bind, body } | SExp::Lam { bind, body } => {
                 let is_prod = matches!(exp, SExp::Prod { .. });
                 match bind {
@@ -1457,11 +1515,10 @@ impl LocalScope {
                                 return Ok(record
                                     .field_projection(handler.env(), value, field, &parameters)?
                                     .ok_or_else(|| {
-                                        format!(
-                                            "Associated item {} not found in structure {}",
-                                            field.as_str(),
-                                            record.type_name.as_str()
-                                        )
+                                        crate::error::Error::UnknownStructureAssociatedItem {
+                                            name: (field.as_str()).to_string(),
+                                            structure: (record.type_name.as_str()).to_string(),
+                                        }
                                     })?);
                             }
                         }
@@ -1505,10 +1562,9 @@ impl LocalScope {
                         ..
                     }) => (ctor_names, inductive),
                     _ => {
-                        return Err(format!(
-                            "Expected inductive type in case access path {:?}",
-                            path
-                        )
+                        return Err(crate::error::Error::InvalidCasePath {
+                            path: (path).clone(),
+                        }
                         .into());
                     }
                 };
@@ -1633,20 +1689,28 @@ impl LocalScope {
                 self.bindings.truncate(bindings_mark);
                 self.typing_binds.truncate(context_mark);
                 let (telescope, motive_body) = motive?;
-                let (_, domain) = telescope.last().ok_or("expected induction binders")?;
+                let (_, domain) = telescope.last().ok_or(crate::error::Error::Invalid(
+                    crate::error::Invalid::ExpectedInductionBinders,
+                ))?;
                 let domain = whnf(handler.env(), handler.zonk(*domain));
                 let (head, _) = crate::raw::utils::decompose_app(handler.arena(), domain);
                 let ExpNode::IndType {
                     indspec: inductive, ..
                 } = handler.arena().get(head)
                 else {
-                    return Err("Induction binder type must reduce to an inductive type".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::InductionBinderTypeMustReduceToAnInductiveType,
+                    )
+                    .into());
                 };
                 let ctor_names = match Self::inductive_item(inductive, handler)? {
                     ItemAccessResult::Inductive(ModItemInductive { ctor_names, .. }) => ctor_names,
                     ItemAccessResult::Record(_) => vec![Identifier("#".to_owned())],
                     _ => {
-                        return Err("Induction binder type must reduce to an inductive type".into());
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::InductionBinderTypeMustReduceToAnInductiveType,
+                        )
+                        .into());
                     }
                 };
                 let cases = self.elab_inductive_cases(&ctor_names, cases, handler)?;
@@ -1802,7 +1866,7 @@ impl LocalScope {
                     let boxed_ty = type_head_normal(handler.env(), boxed_ty);
                     let ExpNode::BoxType { program_ty } = handler.arena().get(boxed_ty) else {
                         return Err(
-                            "cannot infer \\squash type: argument is not boxed Program code".into(),
+                            crate::error::Error::Invalid(crate::error::Invalid::CannotInferSquashTypeArgumentIsNotBoxedProgramCode).into(),
                         );
                     };
                     program_ty
@@ -1889,18 +1953,18 @@ impl LocalScope {
             SExp::Exists { bind } => match bind {
                 Bind::Named(rightbind) => {
                     if rightbind.vars.len() >= 2 {
-                        return Err(ElaborationError::Message(
-                            "Elaboration of multiple named binds in Exists is not implemented"
-                                .to_string(),
-                        ));
+                        return Err(ElaborationError::Failure(crate::error::Error::Invalid(
+                            crate::error::Invalid::UnsupportedExistsMultipleNamedBinders,
+                        )));
                     }
                     let ty_elab = self.elab_exp_rec(&rightbind.ty, handler)?;
                     Ok(handler.arena().alloc(ExpNode::Exists { set: ty_elab }))
                 }
-                Bind::SubsetWithProof { .. } => Err(ElaborationError::Message(
-                    "Elaboration of named bind or subset with proof in Exists is not implemented"
-                        .to_string(),
-                )),
+                Bind::SubsetWithProof { .. } => {
+                    Err(ElaborationError::Failure(crate::error::Error::Invalid(
+                        crate::error::Invalid::UnsupportedExistsProofBinder,
+                    )))
+                }
                 Bind::Subset { var, ty, predicate } => {
                     let ty_elab = self.elab_exp_rec(ty, handler)?;
                     let var = handler.intern_name(var);
@@ -2081,9 +2145,10 @@ impl LocalScope {
             | SExp::Sequence { .. }
             | SExp::ValueLet { .. }
             | SExp::ProgramCase { .. }
-            | SExp::ProgramStepMatch { .. } => {
-                Err("Program syntax cannot be elaborated as a Set/Prop expression".into())
-            }
+            | SExp::ProgramStepMatch { .. } => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ProgramSyntaxCannotBeElaboratedAsASetPropExpression,
+            )
+            .into()),
             SExp::Block(block) => {
                 let term = block.as_term()?;
                 match expected {
@@ -2091,9 +2156,10 @@ impl LocalScope {
                     None => self.elab_exp_rec(&term, handler),
                 }
             }
-            SExp::Program(_) => {
-                Err("Program block syntax cannot be elaborated as a Set/Prop expression".into())
-            }
+            SExp::Program(_) => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ProgramBlockSyntaxCannotBeElaboratedAsASetPropExpression,
+            )
+            .into()),
         }
     }
 }

@@ -113,10 +113,10 @@ impl ProgramScope {
                 .collect();
         }
         if parameters.len() != expected {
-            return Err(format!(
-                "Program associated item expects {expected} type parameter(s), found {}",
-                parameters.len()
-            )
+            return Err(crate::error::Error::ProgramTypeArgumentCountMismatch {
+                actual: parameters.len(),
+                expected,
+            }
             .into());
         }
         parameters
@@ -230,7 +230,9 @@ impl ProgramScope {
         Ok(environment
             .module_manager
             .get_item(&environment.crate_env, access)
-            .ok_or_else(|| format!("Program name was not found: {access}"))?)
+            .ok_or_else(|| crate::error::Error::UnknownProgramName {
+                access: (access).clone(),
+            })?)
     }
 
     fn record_source(&mut self, environment: &GlobalEnvironment, term: Term, span: SourceSpan) {
@@ -253,7 +255,7 @@ impl ProgramScope {
         if let SExp::ModuleInstance { path, import_name } = value {
             let context =
                 crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
-                    .map_err(|error| error.to_string())?;
+                    .map_err(crate::error::Error::from)?;
             let mut scope = LocalScope::from_typing_context(context);
             let binding = environment.instantiate_module_expression(path, &mut scope, self)?;
             environment.module_manager.register_hir_import(
@@ -277,7 +279,7 @@ impl ProgramScope {
             } else {
                 let context =
                     crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
-                        .map_err(|error| error.to_string())?;
+                        .map_err(crate::error::Error::from)?;
                 let mut scope = LocalScope::from_typing_context(context.clone());
                 let left = scope.elab_exp(value, environment)?;
                 let right = scope.elab_exp(expression, environment)?;
@@ -304,7 +306,7 @@ impl ProgramScope {
         } else {
             let context =
                 crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
-                    .map_err(|error| error.to_string())?;
+                    .map_err(crate::error::Error::from)?;
             let mut scope = LocalScope::from_typing_context(context);
             let checked = SExp::Ascribe {
                 term: Box::new(value.clone()),
@@ -339,7 +341,10 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ValueType, ElaborationError> {
         match expression {
-            ValueTypeExp::Deferred { .. } => Err("unresolved frontend declaration".into()),
+            ValueTypeExp::Deferred { .. } => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::UnresolvedFrontendDeclaration,
+            )
+            .into()),
             ValueTypeExp::Checked { checks, body } => {
                 for (value, ty) in checks {
                     self.check_member(value, ty, environment)?;
@@ -372,7 +377,10 @@ impl ProgramScope {
                         return Ok(*ty);
                     }
                     let ValueTypeNode::Inductive { indspec, .. } = arena.get(*ty) else {
-                        return Err("only Program datatypes accept type parameters".into());
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::OnlyProgramDatatypesAcceptTypeParameters,
+                        )
+                        .into());
                     };
                     return Ok(arena.alloc(ValueTypeNode::Inductive {
                         indspec,
@@ -381,13 +389,17 @@ impl ProgramScope {
                 }
                 if let Some((index, entry)) = self.local_index(environment, access) {
                     if !parameters.is_empty() {
-                        return Err("Program type variables do not accept parameters".into());
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::ProgramTypeVariablesDoNotAcceptParameters,
+                        )
+                        .into());
                     }
                     return match entry {
                         ProgramContextEntry::ValueType { .. } => Ok(arena.value_type_bound(index)),
-                        ProgramContextEntry::ValueTerm { .. } => {
-                            Err("Program value used as a value type".into())
-                        }
+                        ProgramContextEntry::ValueTerm { .. } => Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::ProgramValueUsedAsAValueType,
+                        )
+                        .into()),
                     };
                 }
                 match self.item(environment, access)? {
@@ -397,7 +409,7 @@ impl ProgramScope {
                     ItemAccessResult::ProgramTypeParameter(id) => {
                         if !parameters.is_empty() {
                             return Err(
-                                "Program type module parameters do not accept parameters".into()
+                                crate::error::Error::Invalid(crate::error::Invalid::ProgramTypeModuleParametersDoNotAcceptParameters).into()
                             );
                         }
                         Ok(arena.value_type_module_param(id))
@@ -408,9 +420,10 @@ impl ProgramScope {
                             parameters,
                         }))
                     }
-                    _ => {
-                        Err(format!("name does not denote a Program value type: '{access}'").into())
+                    _ => Err(crate::error::Error::NotProgramValueType {
+                        access: (access).clone(),
                     }
+                    .into()),
                 }
             }
             ValueTypeExp::Thunk(computation_ty) => {
@@ -458,7 +471,10 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ComputationType, ElaborationError> {
         match expression {
-            ComputationTypeExp::Deferred { .. } => Err("unresolved frontend declaration".into()),
+            ComputationTypeExp::Deferred { .. } => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::UnresolvedFrontendDeclaration,
+            )
+            .into()),
             ComputationTypeExp::Checked { checks, body } => {
                 for (value, ty) in checks {
                     self.check_member(value, ty, environment)?;
@@ -521,7 +537,10 @@ impl ProgramScope {
     ) -> Result<ValueTerm, ElaborationError> {
         let arena = environment.crate_env.arena();
         match expression {
-            ValueTermExp::Deferred { .. } => Err("unresolved frontend value declaration".into()),
+            ValueTermExp::Deferred { .. } => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::UnresolvedFrontendValueDeclaration,
+            )
+            .into()),
             ValueTermExp::Checked { checks, body } => {
                 for (value, ty) in checks {
                     self.check_member(value, ty, environment)?;
@@ -543,10 +562,16 @@ impl ProgramScope {
             } => {
                 let ItemAccessResult::ProgramInductive(item) = self.item(environment, datatype)?
                 else {
-                    return Err("expected Program structure type in record literal".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ExpectedProgramStructureTypeInRecordLiteral,
+                    )
+                    .into());
                 };
                 let Some(names) = &item.record_fields else {
-                    return Err("expected Program structure type in record literal".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ExpectedProgramStructureTypeInRecordLiteral,
+                    )
+                    .into());
                 };
                 let parameters = self.associated_arguments(
                     environment,
@@ -560,22 +585,26 @@ impl ProgramScope {
                 let mut supplied = HashMap::new();
                 for (name, value) in fields {
                     if supplied.insert(name.as_str(), value).is_some() {
-                        return Err(format!(
-                            "Structure field {} was supplied more than once",
-                            name.as_str()
-                        )
+                        return Err(crate::error::Error::DuplicateStructureField {
+                            name: (name.as_str()).to_string(),
+                        }
                         .into());
                     }
                     if !names.contains(name) {
-                        return Err(format!("Unknown structure field {}", name.as_str()).into());
+                        return Err(crate::error::Error::UnknownStructureField {
+                            name: (name.as_str()).to_string(),
+                        }
+                        .into());
                     }
                 }
                 let fields = names
                     .iter()
                     .map(|name| {
-                        let value = supplied
-                            .get(name.as_str())
-                            .ok_or_else(|| format!("Missing structure field {}", name.as_str()))?;
+                        let value = supplied.get(name.as_str()).ok_or_else(|| {
+                            crate::error::Error::MissingStructureField {
+                                name: (name.as_str()).to_string(),
+                            }
+                        })?;
                         self.elaborate_value(value, environment)
                     })
                     .collect::<Result<Vec<_>, ElaborationError>>()?;
@@ -601,9 +630,10 @@ impl ProgramScope {
                 if let Some((index, entry)) = self.local_index(environment, access) {
                     return match entry {
                         ProgramContextEntry::ValueTerm { .. } => Ok(arena.value_bound(index)),
-                        ProgramContextEntry::ValueType { .. } => {
-                            Err("Program type variable used as a value".into())
-                        }
+                        ProgramContextEntry::ValueType { .. } => Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::ProgramTypeVariableUsedAsAValue,
+                        )
+                        .into()),
                     };
                 }
                 match self.item(environment, access)? {
@@ -618,10 +648,16 @@ impl ProgramScope {
                             DefinedConstant::ProgramValue { .. } => {
                                 Ok(arena.alloc(ValueTermNode::DefinedConstant(item.definition)))
                             }
-                            _ => Err("definition is not a Program value".into()),
+                            _ => Err(crate::error::Error::Invalid(
+                                crate::error::Invalid::DefinitionIsNotAProgramValue,
+                            )
+                            .into()),
                         }
                     }
-                    _ => Err(format!("name does not denote a Program value: '{access}'").into()),
+                    _ => Err(crate::error::Error::NotProgramValue {
+                        access: (access).clone(),
+                    }
+                    .into()),
                 }
             }
             ValueTermExp::Constructor {
@@ -639,7 +675,10 @@ impl ProgramScope {
                 );
                 let ItemAccessResult::ProgramInductive(item) = self.item(environment, datatype)?
                 else {
-                    return Err("Program constructor path does not name a Program datatype".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ProgramConstructorPathDoesNotNameAProgramDatatype,
+                    )
+                    .into());
                 };
                 if let Some((_, definition)) = item
                     .associated_definitions
@@ -647,13 +686,19 @@ impl ProgramScope {
                     .find(|(name, _)| name == constructor)
                 {
                     if !fields.is_empty() {
-                        return Err("Program associated values do not take value arguments".into());
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::ProgramAssociatedValuesDoNotTakeValueArguments,
+                        )
+                        .into());
                     }
                     if !matches!(
                         environment.crate_env.definition(*definition),
                         DefinedConstant::ProgramValue { .. }
                     ) {
-                        return Err("associated item is not a Program value".into());
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::AssociatedItemIsNotAProgramValue,
+                        )
+                        .into());
                     }
                     let parameters = self.associated_arguments(
                         environment,
@@ -672,10 +717,9 @@ impl ProgramScope {
                 }
                 if item.record_fields.is_some() {
                     if constructor.as_str() != "#" {
-                        return Err(format!(
-                            "Program associated item {} was not found",
-                            constructor.as_str()
-                        )
+                        return Err(crate::error::Error::UnknownProgramAssociatedItem {
+                            name: (constructor.as_str()).to_string(),
+                        }
                         .into());
                     }
                     let parameter_count = environment
@@ -707,10 +751,9 @@ impl ProgramScope {
                     .map(|field| self.elaborate_value(field, environment))
                     .collect::<Result<Vec<_>, _>>()?;
                 let Some(idx) = item.ctor_names.iter().position(|name| name == constructor) else {
-                    return Err(format!(
-                        "Program constructor {} was not found",
-                        constructor.as_str()
-                    )
+                    return Err(crate::error::Error::UnknownProgramConstructor {
+                        name: (constructor.as_str()).to_string(),
+                    }
                     .into());
                 };
                 Ok(environment
@@ -840,7 +883,10 @@ impl ProgramScope {
         environment: &mut GlobalEnvironment,
     ) -> Result<ComputationTerm, ElaborationError> {
         match expression {
-            ComputationTermExp::Deferred { .. } => Err("unresolved frontend declaration".into()),
+            ComputationTermExp::Deferred { .. } => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::UnresolvedFrontendDeclaration,
+            )
+            .into()),
             ComputationTermExp::Checked { checks, body } => {
                 for (value, ty) in checks {
                     self.check_member(value, ty, environment)?;
@@ -865,28 +911,33 @@ impl ProgramScope {
                     parameters,
                 } = environment.crate_env.arena().get(value_ty)
                 else {
-                    return Err("Program field projection expects a record value".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ProgramFieldProjectionExpectsARecordValue,
+                    )
+                    .into());
                 };
                 let record = environment
                     .module_manager
                     .get_moditem_program_record(&environment.crate_env, indspec)
-                    .ok_or("Program field projection expects a record value")?;
+                    .ok_or(crate::error::Error::Invalid(
+                        crate::error::Invalid::ProgramFieldProjectionExpectsARecordValue,
+                    ))?;
                 let (_, definition) = record
                     .associated_definitions
                     .iter()
                     .find(|(candidate, _)| candidate.as_str() == field.as_str())
-                    .ok_or_else(|| {
-                        format!(
-                            "Field {} not found in Program record {}",
-                            field.as_str(),
-                            record.type_name.as_str()
-                        )
+                    .ok_or_else(|| crate::error::Error::UnknownProgramRecordField {
+                        field: (field.as_str()).to_string(),
+                        record: (record.type_name.as_str()).to_string(),
                     })?;
                 if !matches!(
                     environment.crate_env.definition(*definition),
                     DefinedConstant::ProgramComputation { .. }
                 ) {
-                    return Err("Program record projection is not a computation".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ProgramRecordProjectionIsNotAComputation,
+                    )
+                    .into());
                 }
                 let projection =
                     environment
@@ -918,20 +969,26 @@ impl ProgramScope {
                 );
                 let ItemAccessResult::ProgramInductive(item) = self.item(environment, datatype)?
                 else {
-                    return Err("expected Program type before associated access".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ExpectedProgramTypeBeforeAssociatedAccess,
+                    )
+                    .into());
                 };
                 let (_, definition) = item
                     .associated_definitions
                     .iter()
                     .find(|(candidate, _)| candidate.as_str() == name.as_str())
-                    .ok_or_else(|| {
-                        format!("Program associated item {} was not found", name.as_str())
+                    .ok_or_else(|| crate::error::Error::UnknownProgramAssociatedItem {
+                        name: (name.as_str()).to_string(),
                     })?;
                 if !matches!(
                     environment.crate_env.definition(*definition),
                     DefinedConstant::ProgramComputation { .. }
                 ) {
-                    return Err("associated item is not a Program computation".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::AssociatedItemIsNotAProgramComputation,
+                    )
+                    .into());
                 }
                 let parameters = self.associated_arguments(
                     environment,
@@ -967,10 +1024,16 @@ impl ProgramScope {
                             .crate_env
                             .arena()
                             .alloc(ComputationTermNode::DefinedConstant(item.definition))),
-                        _ => Err("definition is not a Program computation".into()),
+                        _ => Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::DefinitionIsNotAProgramComputation,
+                        )
+                        .into()),
                     }
                 }
-                _ => Err("name does not denote a Program computation".into()),
+                _ => Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::NameDoesNotDenoteAProgramComputation,
+                )
+                .into()),
             },
             ComputationTermExp::Return(value) => {
                 let value = self.elaborate_value(value, environment)?;
@@ -1084,26 +1147,41 @@ impl ProgramScope {
             } => {
                 let ItemAccessResult::ProgramInductive(item) = self.item(environment, datatype)?
                 else {
-                    return Err("Program case path does not name a Program datatype".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ProgramCasePathDoesNotNameAProgramDatatype,
+                    )
+                    .into());
                 };
                 if branches.len() != item.ctor_names.len() {
-                    return Err("Program case must have one ordered branch per constructor".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ProgramCaseMustHaveOneOrderedBranchPerConstructor,
+                    )
+                    .into());
                 }
                 let scrutinee = self.elaborate_value(scrutinee, environment)?;
                 let mut check_context = self.context.clone();
                 let scrutinee_ty =
                     ProgramCheckSession::new(&environment.crate_env, &mut check_context)
                         .infer_value_term(scrutinee)
-                        .map_err(|error| format!("cannot infer Program case scrutinee: {error}"))?;
+                        .map_err(|error| {
+                            crate::error::Error::from(error)
+                                .context(crate::error::Context::CannotInferProgramCaseScrutinee)
+                        })?;
                 let ValueTypeNode::Inductive {
                     indspec,
                     parameters,
                 } = environment.crate_env.arena().get(scrutinee_ty)
                 else {
-                    return Err("Program case scrutinee is not a Program datatype value".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ProgramCaseScrutineeIsNotAProgramDatatypeValue,
+                    )
+                    .into());
                 };
                 if indspec != item.inductive {
-                    return Err("Program case scrutinee datatype does not match its path".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ProgramCaseScrutineeDatatypeDoesNotMatchItsPath,
+                    )
+                    .into());
                 }
                 let constructors = environment
                     .crate_env
@@ -1113,15 +1191,17 @@ impl ProgramScope {
                 let mut result = Vec::new();
                 for (index, (constructor, binders, body)) in branches.iter().enumerate() {
                     if constructor != &item.ctor_names[index] {
-                        return Err("Program case branches are not in constructor order".into());
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::ProgramCaseBranchesAreNotInConstructorOrder,
+                        )
+                        .into());
                     }
                     let field_types = constructors[index]
                         .instantiated_fields(environment.crate_env.arena(), &parameters);
                     if binders.len() != field_types.len() {
-                        return Err(format!(
-                            "Program case branch {} has the wrong binder count",
-                            constructor.as_str()
-                        )
+                        return Err(crate::error::Error::ProgramBranchBinderCountMismatch {
+                            constructor: (constructor.as_str()).to_string(),
+                        }
                         .into());
                     }
                     let mark = self.context.len();
@@ -1196,7 +1276,7 @@ impl ProgramScope {
                 let initial = self.elaborate_value(initial, environment)?;
                 let reflected_context =
                     crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
-                        .map_err(|error| error.to_string())?;
+                        .map_err(crate::error::Error::from)?;
                 let mut proof_scope = LocalScope::from_typing_context(reflected_context);
                 let accessibility = proof_scope.elab_exp(accessibility, environment)?;
                 proof_scope.infer_elaborated(accessibility, environment)?;
@@ -1233,7 +1313,7 @@ impl ProgramScope {
                 let transition = self.elaborate_computation(transition, environment)?;
                 let reflected_context =
                     crate::raw::reflection::reflect_context(&environment.crate_env, &self.context)
-                        .map_err(|error| error.to_string())?;
+                        .map_err(crate::error::Error::from)?;
                 let mut proof_scope = LocalScope::from_typing_context(reflected_context);
                 let accessibility = proof_scope.elab_exp(accessibility, environment)?;
                 let transition_equality = proof_scope.elab_exp(transition_equality, environment)?;
@@ -1284,7 +1364,10 @@ impl ProgramScope {
             ProgramFunctionExp::Access(access) => {
                 if let Some((_index, entry)) = self.local_index(environment, access) {
                     let ProgramContextEntry::ValueTerm { ty, .. } = entry else {
-                        return Err("Program type variable used as an application head".into());
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::ProgramTypeVariableUsedAsAnApplicationHead,
+                        )
+                        .into());
                     };
                     Head::Value(Some(ty))
                 } else {
@@ -1309,15 +1392,14 @@ impl ProgramScope {
                                 }
                                 _ => {
                                     return Err(
-                                        "Program application head has the wrong category".into()
+                                        crate::error::Error::Invalid(crate::error::Invalid::ProgramApplicationHeadHasTheWrongCategory).into()
                                     );
                                 }
                             }
                         }
                         _ => {
                             return Err(
-                                "Program application head is not a function value or computation"
-                                    .into(),
+                                crate::error::Error::Invalid(crate::error::Invalid::ProgramApplicationHeadIsNotAFunctionValueOrComputation).into(),
                             );
                         }
                     }
@@ -1338,20 +1420,28 @@ impl ProgramScope {
                 let ItemAccessResult::ProgramInductive(datatype_item) =
                     self.item(environment, datatype)?
                 else {
-                    return Err("expected Program type before associated application".into());
+                    return Err(crate::error::Error::Invalid(
+                        crate::error::Invalid::ExpectedProgramTypeBeforeAssociatedApplication,
+                    )
+                    .into());
                 };
                 let (_, definition) = datatype_item
                     .associated_definitions
                     .iter()
                     .find(|(candidate, _)| candidate == item)
-                    .ok_or_else(|| {
-                        format!("Program associated item {} was not found", item.as_str())
+                    .ok_or_else(|| crate::error::Error::UnknownProgramAssociatedItem {
+                        name: (item.as_str()).to_string(),
                     })?;
                 let definition = *definition;
                 let definition_ty = match environment.crate_env.definition(definition) {
                     DefinedConstant::ProgramValue { ty, .. } => Ok(*ty),
                     DefinedConstant::ProgramComputation { ty, .. } => Err(*ty),
-                    _ => return Err("associated Program item has the wrong category".into()),
+                    _ => {
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::AssociatedProgramItemHasTheWrongCategory,
+                        )
+                        .into());
+                    }
                 };
                 match definition_ty {
                     Ok(ty) => {
@@ -1415,17 +1505,16 @@ impl ProgramScope {
                 let ty = self.resolve_value_type_head(environment, ty);
                 return match environment.crate_env.arena().get(ty) {
                     ValueTypeNode::Thunk { .. } | ValueTypeNode::Meta { .. } => Err(
-                        "Program function values require an explicit \\force before application"
-                            .into(),
+                        crate::error::Error::Invalid(crate::error::Invalid::ProgramFunctionValuesRequireAnExplicitForceBeforeApplication).into(),
                     ),
-                    _ => Err("Program application head value is not a function thunk".into()),
+                    _ => Err(crate::error::Error::Invalid(crate::error::Invalid::ProgramApplicationHeadValueIsNotAFunctionThunk).into()),
                 };
             }
             Head::Value(None) => {
-                return Err(
-                    "cannot determine the type of Program function value; add a type annotation"
-                        .into(),
-                );
+                return Err(crate::error::Error::Invalid(
+                    crate::error::Invalid::ProgramFunctionTypeNeedsAnnotation,
+                )
+                .into());
             }
         };
 
@@ -1460,10 +1549,10 @@ impl ProgramScope {
                         environment.crate_env.arena().get(value_ty),
                         ValueTypeNode::Thunk { .. }
                     ) {
-                        return Err(
-                            "Program computation returned a function value; use explicit \\bind and \\force before applying another argument"
-                                .into(),
-                        );
+                        return Err(crate::error::Error::Invalid(
+                            crate::error::Invalid::ImplicitFunctionValueApplication,
+                        )
+                        .into());
                     }
                     // Preserve raw ill-typed applications for checking and evaluation
                     // commands. This path inserts no sequencing construct.

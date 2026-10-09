@@ -240,7 +240,9 @@ fn query_boundary_formats_the_structured_kernel_error() {
         .check_query(&vec![], n.module, term, ty)
         .unwrap_err();
     assert!(
-        error.contains("inferred: \\root.M.Nat\nexpected: \\root.M.Bool"),
+        error
+            .render(raw)
+            .contains("inferred: \\root.M.Nat\nexpected: \\root.M.Bool"),
         "{error}"
     );
 }

@@ -20,7 +20,8 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 <a id="g02"></a>
 
 > [!note]
-> これは対応しなくていいかな。この gaps には残しておかないと、あとで同じものが記載されうるので残しておきます。
+> これは対応しなくていいかな。
+> この gaps には残しておかないと、あとで同じものが記載されうるので残しておきます。
 
 ## G02: 命題を条件とする集合値の構成
 
@@ -39,7 +40,8 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 <a id="g03"></a>
 
 > [!note]
-> 矛盾しなさそうなのは言われているんですが、こういう Prop -> Set はちょっと許しがたい気がするので、保留する。
+> 保留します。
+> 矛盾しなさそうなのは言われているんですが、こういう Prop -> Set はちょっと許しがたい気がするので。
 
 有限座標の零拡張でも、Bool の各分岐から等式の証明を受け取って成分を返す関数型が同じ制約に当たった。
 `FiniteCoordinates.Tail.extension` は Kronecker delta の有限和で構成し、先頭の成分が零となることと制限写像との逆関係を命題として証明している。
@@ -66,43 +68,11 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 現在は子の宣言より前に親で読み込み、子では継承された macro を利用することで回避している。
 `algebra.LaurentPolynomial` の `eq_reason` と `topology.Topology.Subspace` の `sym` で、それぞれこの問題を確認した。
 
-## G09: 台集合に依存する位相と record 内の具体化
-
-`Chart(M: \Set, space: topology.Topology[Carrier := M].Topology)` を通常の型値定義の局所引数で具体化したい。
-この表現では、引数 `space` の推論型が `topology.Structures.Topology M` である一方、期待する classifier に元の `Chart` の module parameter が残り、型が一致しない診断が出た。
-module parameter の classifier に `topology.Structures.Topology[M]` を直接使うことで回避できる。
-
-多様体の record 内では、台集合 `Point` で具体化した namespace から Hausdorff 性と第二可算性の型を参照したい。
-具体的な record の構築で `Failed to access item at path ... <temporary:17456>.Topology` が出る表現を確認した。
-namespace での具体化を通常の命題値定義 `Hausdorff(M)(space)` と `SecondCountable(M)(space)` に移すことで回避できる。
-チャート対の遷移写像を関数値として返す局所定義についても、対を scope に持つ `Atlas.Pair` を用いる表現へ整理した。
-実装箇所は [位相多様体](../libs/manifolds/src/Dimension/Topological.ref)と[滑らかなアトラス](../libs/manifolds/src/Dimension/Atlas.ref)にある。
-
-異なる次元の開集合間の連鎖律でも、`Multivariable[n := m].Open[].OpenSet` を module parameter の classifier に直接用いると、期待型に元の次元 parameter が残った。
-`Real.OpenSpace(n)`、`OpenCarrier(n)(U)`、`ScalarFunction(n)(U)` を通常の型値定義として公開し、classifier と後続の依存する引数に用いることで回避した。
-有限階微分の証人を lambda 内から具体化する際は、証人を固定する `Successor.Chosen` の子 module に移すことで、依存する族の型を保持できた。
-任意次数の多重線形形式の基底展開でも、帰納法の中で `At[k := k].expandStep previous` を関数値として返す表現は kernel 登録時に `inferred: Set; expected: Nat` になった。
-次数と直前の展開演算を自然な引数として固定する [`Finite.Expanded`](../libs/linear_algebra/src/Field/Space/Multilinear/Finite/Expanded.ref) に移し、復元公式と零次数を含めてキャッシュなしで検査した。
-座標微分の外積を次数で帰納的に構成する場合も、`Step[k := k].value previous` の宣言引数付きの定義が同じ診断になった。
-[`FiniteCoordinates.Exterior.Step`](../libs/linear_algebra/src/Field/Space/FiniteCoordinates/Exterior/Step.ref) では演算全体を関数型と lambda で定義し、零次数、増加添字上の双対性、有限和による復元までキャッシュなしで検査した。
-整数次数の零拡張でも、帰納法の分岐の lambda 内で `Positive[n := n].apply` を参照すると、同じ `inferred: Set; expected: Nat` が出た。
-実際の微分と部分集合の構築を分岐へ直接展開すると検査が通る。
-具体的な複体で零拡張の `complex` をそのまま型注釈付きで返す場合は、加群の classifier に具体化前の環の parameter が残った。
-[`Euclidean.On.DeRham`](../libs/differential_forms/src/Euclidean/On/DeRham.ref) は零拡張の台集合・演算・証明を使い、整数次数の `Family` と `Complex` を明示的に組み立てることで回避した。
-
-有限置換の `Permutations.Step` の classifier でも、次元を変更した同じ module の `Permutation` を直接参照すると、親の次元が余分に適用された型として比較された。
-同じ宣言の束の中に `PermutationType(k): Set` を通常の定義として置き、`Step(p: PermutationType (succ n))` として回避した。
-
-恒等写像の引き戻しでも、lambda 内の `Differential[n := n, m := n].Between[M := M, N := M].At[f := f, x := x]` の classifier に、具体化前の次元が残った。
-[`PullbackIdentity.On`](../libs/differential_forms/src/PullbackIdentity/On.ref) は、次元と多様体を固定した `Differential` と `DifferentialIdentity` を名前付き import にまとめ、点だけを局所的に具体化する。
-微分同相による形式の同型でも、自己写像の引き戻しを [`PullbackDiffeomorphism.Between.Of`](../libs/differential_forms/src/PullbackDiffeomorphism/Between/Of.ref) にまとめ、同じ表現を利用する。
-[`Restriction.On.To.apply`](../libs/differential_forms/src/Restriction/On/To.ref) では、宣言引数の次数を使って `Pullback.At[k := k].apply` をそのまま返すと、期待する形式の次数に次元が現れた。
-次数と形式を関数型で量化し、lambda 内から引き戻しを適用することで回避する。
-
-一般の次元で `Smooth.From.manifold` を経由して標準ユークリッド多様体を作り、その `smoothManifold` を二次元へ具体化した利用側でも、構造のフィールドに元の次元が残った。
-最大アトラスの推論型は `Atlas(two)` である一方、フィールドの注釈には `Atlas(n, Point(n), space(n))` が残り、型注釈付きの構造の返却と滑らかな写像への引数の両方で失敗した。
-[`Examples.Euclidean`](../libs/manifolds/src/Dimension/Examples/Euclidean.ref) と [`Examples.Empty`](../libs/manifolds/src/Dimension/Examples/Empty.ref) は、飽和したアトラスを持つ滑らかな多様体の構造を直接組み立てる。
-[`Geometry`](../tests/projects/manifolds-de-rham/src/Geometry.ref) では、この表現による二次元の滑らかな多様体の返却と、標準多様体・空多様体の滑らかな恒等写像を検査する。
+> [!note]
+> 対応したい。 visibility についてちゃんと考えるべき。
+> - 自分のみ、子にも見える、このパッケージで見える、他のパッケージからも見える。
+> - マクロの読み込みの挙動とオーバーライド、ついでに `\use A::{B, self}` みたいな書き方も。
+> プランを決めたい。
 
 <a id="g11"></a>
 
@@ -111,6 +81,9 @@ namespace での具体化を通常の命題値定義 `Hausdorff(M)(space)` と `
 Machine を引数に取り、その実行を Box にする共通の定義を書きたい。
 [最小比較: G11](fix-md/README.md#g11) は、Machine の引数で `Box requires a closed computation type` になり、具体値では成功する。
 parameter と評価開始条件の検討は [Box の parameter](box-parameters.md#g11) にまとめる。
+
+> [!note]
+> 既知の問題のため、今は対処せず。
 
 ## G12: 等しい次数間の集合値の移送
 
@@ -125,6 +98,37 @@ parameter と評価開始条件の検討は [Box の parameter](box-parameters.m
 選択を正規化して道の一意性を証明するため、反射・逆移送・合成と自然性も得られる。
 整数次数の鎖複体の直前の微分と次数反転は、この構成で受け渡す。
 新しい公理を追加する必要はない。
+
+<a id="g14"></a>
+
+> [!note]
+> 対応したい。
+> `n + m = m + n` から `Form (n + m) -> Form (m + n)` が書けないとつらい。
+> ただし、 reduction は行わない。
+> axiom K のような、 `M1` と `M2` が definitional equivalence のときに `\idelim` が identity になることなど？
+> 今は proof irr. なので問題ないようにも思えるが、まあ必要になったらでいいと思う。
+> 本当か？ `f: (n, m: Nat) -> Form (n + m) -> Form (m + n)` に対して `f n (m + l) (f m l V) W = f ...` みたいな（順番は適当）をやりたいのでは？ 
+> まあその場合は、 `\idelim n = m \with x: A => P \by { base: h, equality: p }` が n equiv m かつ h が refl の普通のやつでやればいいという説。
+> でも今扱っている `=` は普通の equality じゃないからどうなのか...
+
+## G14: signature の族に対する台集合の束ね直し
+
+台集合を parameter に持つ任意の signature の族を受け取り、台集合を field に含めた signature と相互変換を共通の定義で構成したい。
+たとえば、次の二つの構造の対応を、各構造の field を列挙せずに記述したい。
+
+```text
+\structure A[Carrier: \Set] { op1: Carrier, }
+\structure ASet { Carrier: \Set, op1: Carrier, }
+```
+
+現在の signature は宣言された field の依存文脈へ展開され、signature の族そのものを parameter に取る仕組みがない。
+sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る signature に `Carrier: \Set` と `data: F Carrier` を持たせて汎用の相互変換を定義できる。
+元の例と同じ field 配置を得るには、依存する field の型と本体を保って展開する仕組みも必要になる。
+
+> [!note]
+> 対応したい。
+> すごいわかるため。
+> A と ASet と ALaw と...を、一気に定義する方法があるべき。
 
 ## G15: 外延性の引数推論と存在証人を使う局所証明
 
@@ -143,24 +147,9 @@ parameter と評価開始条件の検討は [Box の parameter](box-parameters.m
 閉形式の類へ等式を降ろす場合には、通常の形式の等式だけから `congr classOf _ _` の引数を推論すると、閉形式の部分集合への所属が保持されなかった。
 [`PullbackComposition.Between.Of.At.cohomologyLaw`](../libs/differential_forms/src/PullbackComposition/Between/Of/At.ref) は、余鎖写像で得た二つの閉形式を明示し、形式の合成則から類の合成則を示す。
 
-<a id="g16"></a>
-
-## G16: 構造を返す関数の依存するフィールド
-
-添字 `i` で選ぶ開部分多様体を `manifold(i): Model.Manifold` として返し、別の添字 `j` で具体化した `(manifold j).Point` を使いたい。
-構造のフィールドが具体化した module の定義を参照する場合、その module の引数に関数の宣言元の `i` が残り、`j` で選んだ点の型と一致しなかった。
-
-[関数による構成](reproductions/g16-structure-family/function-result.ref) は、型族 `types: I -> Set` の `types i` をフィールドに持つ構造を返し、`types j` の値を `(bundle j).Carrier` として返す最小例である。
-現在は `inferred: types j` に対して、期待型に `<definition:bundle>` の `i` が残り、`types are not convertible` になる。
-[名前付き module による構成](reproductions/g16-structure-family/named-piece.ref) は、`At[i := j]` を import してから同じフィールドを参照し、検査に成功する。
-
-```sh
-target/debug/cli _plans/reproductions/g16-structure-family/function-result.ref --no-cache --diagnostics compact
-target/debug/cli _plans/reproductions/g16-structure-family/named-piece.ref --no-cache --diagnostics compact
-```
-
-[`Gluing.On.Cover.Piece`](../libs/differential_forms/src/Gluing/On/Cover/Piece.ref) は、被覆の添字ごとに開部分多様体と形式の台集合をまとめる。
-貼り合わせの各局所 module は開部分多様体を名前付き import で固定し、包含写像の微分と接空間にも同じ具体化を用いる。
+> [!note]
+> ちょっと後で考えたい。
+> `\as` で弱めればいいように思える。
 
 ## G17: 型族の再帰と構造の段階的な具体化
 

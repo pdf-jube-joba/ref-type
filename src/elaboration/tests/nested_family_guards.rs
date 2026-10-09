@@ -4,12 +4,12 @@ const SOURCE: &str =
     include_str!("../../../_plans/reproductions/g21-nested-family-guards/factory.ref");
 
 fn check(source: &str) -> Result<(), String> {
-    let modules = syntax::parse::str_parse_modules(source).map_err(|error| format!("{error:?}"))?;
-    let project = resolve::resolve(&modules).map_err(|error| format!("{error:?}"))?;
+    let modules = syntax::parse::str_parse_modules(source).map_err(|error| error.to_string())?;
+    let project = resolve::resolve(&modules).map_err(|error| error.to_string())?;
     let mut checker = Checker::default();
     checker
         .check(&project)
-        .map_err(|error| format!("module {:?}: {error:?}", checker.active_module_path()))
+        .map_err(|error| format!("module {:?}: {error}", checker.active_module_path()))
 }
 
 #[test]

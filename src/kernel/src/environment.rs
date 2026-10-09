@@ -165,7 +165,7 @@ impl Environment {
         &self,
         term: Expression,
         arguments: &[Expression],
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, crate::error::Error> {
         self.instantiations
             .borrow_mut()
             .apply(&self.arena, term, arguments)
@@ -207,7 +207,11 @@ impl Environment {
         walk(&self.arena, term, 0, &mut self.minimum_bounds.borrow_mut())
     }
     /// Remove unused newest bindings through the shared substitution cache.
-    pub(crate) fn trim_unused(&self, term: Expression, count: usize) -> Result<Expression, String> {
+    pub(crate) fn trim_unused(
+        &self,
+        term: Expression,
+        count: usize,
+    ) -> Result<Expression, crate::error::Error> {
         if count == 0 {
             return Ok(term);
         }
@@ -215,14 +219,18 @@ impl Environment {
             .minimum_loose_bound(term)
             .is_some_and(|bound| bound < count)
         {
-            return Err("expression depends on removed binder".into());
+            return Err(crate::error::Error::ExpressionDependsOnRemovedBinder);
         }
         self.instantiate(
             term,
             &vec![self.arena.sort(Sort::Base(BaseSort::Set(0))); count],
         )
     }
-    pub(crate) fn shifted(&self, ty: Expression, offset: usize) -> Result<Expression, String> {
+    pub(crate) fn shifted(
+        &self,
+        ty: Expression,
+        offset: usize,
+    ) -> Result<Expression, crate::error::Error> {
         if self.arena.max_loose_bound(ty).is_none() {
             return Ok(ty);
         }
@@ -242,14 +250,14 @@ impl Environment {
         let _cost = timing::costs::Scope::enter("kernel.register_parameter");
         if let Some(previous) = self.parameter(id) {
             if previous != ty {
-                return Err("parameter identity already registered".into());
+                return Err(crate::error::Error::ParameterIdentityAlreadyRegistered);
             }
             return Ok(());
         }
         let mut metas = crate::metavariables::MetaContext::new();
         let classifier = crate::check::Checker::new(self, &mut metas, vec![]).infer(ty)?;
         if !matches!(self.arena.get(self.whnf(classifier)?), Node::Sort(_)) {
-            return Err("module parameter annotation must be a type".into());
+            return Err(crate::error::Error::ModuleParameterAnnotationMustBeAType);
         }
         self.parameters.insert(id, ty);
         Ok(())
@@ -268,26 +276,26 @@ impl Environment {
         }
         false
     }
-    pub fn definition(&self, id: DefinitionId) -> Result<&Definition, String> {
+    pub fn definition(&self, id: DefinitionId) -> Result<&Definition, crate::error::Error> {
         if id.arena != self.identity {
-            return Err("definition belongs to a different arena".into());
+            return Err(crate::error::Error::DefinitionBelongsToADifferentArena);
         }
         self.definitions
             .get(id.index as usize)
-            .ok_or_else(|| "unknown definition".into())
+            .ok_or(crate::error::Error::UnknownDefinition)
     }
     pub fn reference(
         &self,
         id: DefinitionId,
         arguments: Vec<Expression>,
-    ) -> Result<Expression, String> {
+    ) -> Result<Expression, crate::error::Error> {
         let definition = self.definition(id)?;
         if definition.context.len() != arguments.len() {
-            return Err("definition parameter count mismatch".into());
+            return Err(crate::error::Error::DefinitionParameterCountMismatch);
         }
         Ok(self.arena.alloc(Node::Definition { id, arguments }))
     }
-    pub fn whnf(&self, expression: Expression) -> Result<Expression, String> {
+    pub fn whnf(&self, expression: Expression) -> Result<Expression, crate::error::Error> {
         if let Some(&cached) = self.heads.borrow().get(&expression) {
             return Ok(cached);
         }
@@ -310,13 +318,13 @@ impl Environment {
             }
             e = next;
         }
-        Err("head normalization fuel exhausted".into())
+        Err(crate::error::Error::HeadNormalizationFuelExhausted)
     }
 
     /// Observe the underlying value of a checked refinement introduction.
     /// Set eliminators and conversion use this view; type synthesis inspects
     /// the original term so its membership evidence and refined type survive.
-    pub fn erased_head(&self, mut e: Expression) -> Result<Expression, String> {
+    pub fn erased_head(&self, mut e: Expression) -> Result<Expression, crate::error::Error> {
         loop {
             e = self.whnf(e)?;
             if let Node::SubsetIntro { element, .. } = self.arena.get(e) {
@@ -326,20 +334,27 @@ impl Environment {
             }
         }
     }
-    pub fn reflect_bound(&self, term: Expression) -> Result<Expression, String> {
+    pub fn reflect_bound(&self, term: Expression) -> Result<Expression, crate::error::Error> {
         crate::reflection::Reflection::new(self).reflect_bound(term)
     }
-    pub(crate) fn reflect_step(&self, term: Expression) -> Result<Option<Expression>, String> {
+    pub(crate) fn reflect_step(
+        &self,
+        term: Expression,
+    ) -> Result<Option<Expression>, crate::error::Error> {
         crate::reflection::Reflection::new(self).reflect_step(term)
     }
-    fn resolve_reflections(&self, term: Expression, depth: usize) -> Result<Expression, String> {
+    fn resolve_reflections(
+        &self,
+        term: Expression,
+        depth: usize,
+    ) -> Result<Expression, crate::error::Error> {
         crate::reflection::Reflection::new(self).resolve_reflections(term, depth)
     }
     pub(crate) fn recursive_field(
         &self,
         ind: InductiveId,
         mut ty: Expression,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, crate::error::Error> {
         loop {
             ty = self.whnf(ty)?;
             match self.arena.get(ty) {
@@ -359,7 +374,7 @@ impl Environment {
         &self,
         expression: Expression,
         target: InductiveId,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, crate::error::Error> {
         let mut pending = vec![expression];
         let mut seen = rustc_hash::FxHashSet::default();
         while let Some(e) = pending.pop() {
@@ -384,7 +399,7 @@ impl Environment {
         expression: Expression,
         target: InductiveId,
         positive: bool,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         if !self.contains_inductive(expression, target)? {
             return Ok(());
         }
@@ -407,7 +422,7 @@ impl Environment {
             && inductive == target
         {
             if !positive {
-                return Err("inductive occurs in a non-strictly-positive position".into());
+                return Err(crate::error::Error::InductiveOccursInANonStrictlyPositivePosition);
             }
             for argument in arguments.into_iter().chain(parameters) {
                 self.check_positive(argument, target, false)?;
@@ -419,7 +434,7 @@ impl Environment {
             _ => None,
         };
         if inductive == Some(true) && !positive {
-            return Err("inductive occurs in a non-strictly-positive position".into());
+            return Err(crate::error::Error::InductiveOccursInANonStrictlyPositivePosition);
         }
         if let Node::Product { domain, body, .. } = self.arena.get(e) {
             self.check_positive(domain, target, false)?;
@@ -432,8 +447,14 @@ impl Environment {
         }
         Ok(())
     }
-    pub(crate) fn singleton_elimination(&self, id: InductiveId) -> Result<bool, String> {
-        let spec = self.inductives.get(&id).ok_or("unknown inductive")?;
+    pub(crate) fn singleton_elimination(
+        &self,
+        id: InductiveId,
+    ) -> Result<bool, crate::error::Error> {
+        let spec = self
+            .inductives
+            .get(&id)
+            .ok_or(crate::error::Error::UnknownInductive)?;
         if spec.constructors.len() != 1 || !matches!(self.arena.get(spec.arity), Node::Sort(_)) {
             return Ok(false);
         }
@@ -454,11 +475,11 @@ impl Environment {
         let _cost = timing::costs::Scope::enter("kernel.register_inductive");
         use crate::{check::Checker, metavariables::MetaContext};
         if self.inductives.contains_key(&id) {
-            return Err("duplicate inductive".into());
+            return Err(crate::error::Error::DuplicateInductive);
         }
         for ty in spec.parameters.iter().map(|b| b.ty).chain([spec.arity]) {
             if self.contains_inductive(ty, id)? {
-                return Err("inductive occurs in its parameter telescope or arity".into());
+                return Err(crate::error::Error::InductiveOccursInItsParameterTelescopeOrArity);
             }
         }
         self.inductives.insert(id, spec.clone());
@@ -472,13 +493,15 @@ impl Environment {
                 match self.arena.get(self.whnf(arity)?) {
                     Node::Product { body, .. } if !spec.sort.is_upper() => arity = body,
                     Node::Sort(sort) if sort == Sort::Base(spec.sort.base()) => break,
-                    _ => return Err("inductive arity does not end in its declared sort".into()),
+                    _ => {
+                        return Err(crate::error::Error::InductiveArityDoesNotEndInItsDeclaredSort);
+                    }
                 }
             }
             for &ty in &spec.constructors {
                 checker.metas.require_solved(&self.arena, [ty])?;
                 if checker.formation(ty)? != spec.sort {
-                    return Err("constructor universe does not match inductive".into());
+                    return Err(crate::error::Error::ConstructorUniverseDoesNotMatchInductive);
                 }
                 let mut tail = ty;
                 loop {
@@ -493,7 +516,9 @@ impl Environment {
                         }
                         if !matches!(self.arena.get(head),Node::IndType { inductive,.. } if inductive==id)
                         {
-                            return Err("constructor does not return its declared inductive".into());
+                            return Err(
+                                crate::error::Error::ConstructorDoesNotReturnItsDeclaredInductive,
+                            );
                         }
                         break;
                     }
@@ -591,7 +616,9 @@ impl Environment {
             .chain(definition.context.iter().map(|b| b.ty))
             .any(|e| self.contains_parameter(e))
         {
-            return Err("module parameters must be captured in the declaration telescope".into());
+            return Err(
+                crate::error::Error::ModuleParametersMustBeCapturedInTheDeclarationTelescope,
+            );
         }
         Checker::new(self, metas, definition.context.clone())
             .check(definition.body, definition.ty)?;
@@ -645,14 +672,14 @@ impl Environment {
         let id = DefinitionId {
             arena: self.identity,
             index: u32::try_from(self.definitions.len())
-                .map_err(|_| "definition arena exhausted")?,
+                .map_err(|_| crate::error::Error::DefinitionArenaExhausted)?,
         };
         self.definitions.push(definition);
         if let Some(reflected) = reflected {
             let target = DefinitionId {
                 arena: self.identity,
                 index: u32::try_from(self.definitions.len())
-                    .map_err(|_| "definition arena exhausted")?,
+                    .map_err(|_| crate::error::Error::DefinitionArenaExhausted)?,
             };
             self.definitions.push(reflected);
             self.reflected.insert(id, target);
@@ -668,14 +695,14 @@ impl Environment {
         let _cost = timing::costs::Scope::enter("kernel.register_datatype");
         use crate::{check::Checker, ids::SymbolId, metavariables::MetaContext};
         if self.datatypes.contains_key(&id) {
-            return Err("duplicate Program datatype".into());
+            return Err(crate::error::Error::DuplicateProgramDatatype);
         }
         if self
             .datatypes
             .values()
             .any(|d| d.reflected == spec.reflected)
         {
-            return Err("datatype mirror identity is already owned".into());
+            return Err(crate::error::Error::DatatypeMirrorIdentityIsAlreadyOwned);
         }
         self.datatypes.insert(id, spec.clone());
         let result = (|| {
@@ -687,7 +714,7 @@ impl Environment {
                     || !sort.base().is_program()
                     || sort.base().level().is_none_or(|i| i > spec.level)
                 {
-                    return Err("datatype parameter kind level exceeds result level".into());
+                    return Err(crate::error::Error::DatatypeParameterKindLevelExceedsResultLevel);
                 }
                 prefix.push(binding.clone());
             }
@@ -696,7 +723,7 @@ impl Environment {
                 for field in fields {
                     let sort = checker.formation(field.ty)?;
                     if !matches!(sort,Sort::Base(BaseSort::Value(i)) if i<=spec.level) {
-                        return Err("datatype field level exceeds result level".into());
+                        return Err(crate::error::Error::DatatypeFieldLevelExceedsResultLevel);
                     }
                 }
             }
@@ -709,7 +736,7 @@ impl Environment {
                         ty: self.reflect_bound(b.ty)?,
                     })
                 })
-                .collect::<Result<Context, String>>()?;
+                .collect::<Result<Context, crate::error::Error>>()?;
             let arguments = (0..parameters.len())
                 .rev()
                 .map(|i| self.arena.bound(i))
@@ -753,7 +780,9 @@ impl Environment {
                         .zip(&mirror.constructors)
                         .all(|(&a, &b)| alpha_equal(&self.arena, a, b))
                 {
-                    return Err("Program datatype mirror does not match its declaration".into());
+                    return Err(
+                        crate::error::Error::ProgramDatatypeMirrorDoesNotMatchItsDeclaration,
+                    );
                 }
             } else {
                 self.register_inductive(spec.reflected, mirror)?;
@@ -777,19 +806,26 @@ impl crate::reflection::Resolver for Environment {
     fn arena(&self) -> &Arena {
         &self.arena
     }
-    fn definition(&self, id: DefinitionId) -> Result<(DefinitionId, Vec<bool>), String> {
+    fn definition(
+        &self,
+        id: DefinitionId,
+    ) -> Result<(DefinitionId, Vec<bool>), crate::error::Error> {
         Ok((
             *self
                 .reflected
                 .get(&id)
-                .ok_or("missing reflected definition")?,
+                .ok_or(crate::error::Error::MissingReflectedDefinition)?,
             self.program_parameters
                 .get(&id)
-                .ok_or("missing reflected parameter modes")?
+                .ok_or(crate::error::Error::MissingReflectedParameterModes)?
                 .clone(),
         ))
     }
-    fn datatype(&self, id: ProgramInductiveId) -> Result<InductiveId, String> {
-        Ok(self.datatypes.get(&id).ok_or("unknown datatype")?.reflected)
+    fn datatype(&self, id: ProgramInductiveId) -> Result<InductiveId, crate::error::Error> {
+        Ok(self
+            .datatypes
+            .get(&id)
+            .ok_or(crate::error::Error::UnknownDatatype)?
+            .reflected)
     }
 }

@@ -47,10 +47,12 @@ fn projected_record_field_type(
     parameters: &[Exp],
     value: Exp,
     preceding_projections: &[DefId],
-) -> Result<Exp, String> {
+) -> Result<Exp, crate::error::Error> {
     let constructor = spec.constructors()[0].instantiate_parameters(arena, parameters);
     let Some(CtorBinder::Simple((_, field_ty))) = constructor.telescope.get(field) else {
-        return Err("record field index out of bounds".into());
+        return Err(crate::error::Error::Invalid(
+            crate::error::Invalid::RecordFieldIndexOutOfBounds,
+        ));
     };
     let preceding = preceding_projections
         .iter()
@@ -105,9 +107,9 @@ impl term_elaborator::Handler for GlobalEnvironment {
         {
             ProgramCheckSession::new(&self.crate_env, &mut scope.context().clone())
                 .check_value_type(ty)
-                .map_err(|error| error.to_string())?;
+                .map_err(crate::error::Error::from)?;
             return crate::raw::reflection::reflect_value_type(&self.crate_env, ty)
-                .map_err(|error| error.to_string().into());
+                .map_err(|error| crate::error::Error::from(error).into());
         }
         if let Ok(syntax) = ValueTermExp::try_from(expression.clone()) {
             let value = scope.elaborate_value(&syntax, self)?;
@@ -115,7 +117,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
             scope.finish_metas(self)?;
             let value = scope.zonk_module_value(self, value);
             return crate::raw::reflection::reflect_value(&self.crate_env, value)
-                .map_err(|error| error.to_string().into());
+                .map_err(|error| crate::error::Error::from(error).into());
         }
         let syntax: ComputationTermExp = expression.clone().try_into()?;
         let computation = scope.elaborate_computation(&syntax, self)?;
@@ -123,7 +125,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
         scope.finish_metas(self)?;
         let computation = scope.zonk_module_computation(self, computation);
         crate::raw::reflection::reflect_computation(&self.crate_env, computation)
-            .map_err(|error| error.to_string().into())
+            .map_err(|error| crate::error::Error::from(error).into())
     }
     fn check_program_member(&mut self, value: &SExp, ty: &SExp) -> Result<(), ElaborationError> {
         let mut scope = program_term_elaborator::ProgramScope::new();
@@ -189,24 +191,24 @@ impl term_elaborator::Handler for GlobalEnvironment {
         parameter: resolve::hir::BindingId,
         expression: &SExp,
     ) -> Result<Exp, ElaborationError> {
-        let binding = self
-            .module_manager
-            .hir_bindings
-            .get(&parameter)
-            .ok_or("unknown HIR parameter")?;
-        let module = *self
-            .module_manager
-            .hir_modules
-            .get(&binding.module)
-            .ok_or("unknown HIR module")?;
+        let binding = self.module_manager.hir_bindings.get(&parameter).ok_or(
+            crate::error::Error::Invalid(crate::error::Invalid::UnknownHirParameter),
+        )?;
+        let module = *self.module_manager.hir_modules.get(&binding.module).ok_or(
+            crate::error::Error::Invalid(crate::error::Invalid::UnknownHirModule),
+        )?;
         let parameter = ModuleParamId {
             module,
-            position: binding.parameter.ok_or("expected module parameter")? as u32,
+            position: binding.parameter.ok_or(crate::error::Error::Invalid(
+                crate::error::Invalid::ExpectedModuleParameter,
+            ))? as u32,
         };
         let kind = self
             .crate_env
             .module_parameter_opt(parameter)
-            .ok_or("unknown module parameter")?
+            .ok_or(crate::error::Error::Invalid(
+                crate::error::Invalid::UnknownModuleParameter,
+            ))?
             .kind;
         let mut scope = program_term_elaborator::ProgramScope::new();
         match kind {
@@ -215,7 +217,7 @@ impl term_elaborator::Handler for GlobalEnvironment {
                     .elaborate_value_type(&ValueTypeExp::try_from(expression.clone())?, self)?;
                 Ok(
                     crate::raw::reflection::reflect_value_type(&self.crate_env, ty)
-                        .map_err(|error| error.to_string())?,
+                        .map_err(crate::error::Error::from)?,
                 )
             }
             ModuleParameterKind::ProgramValue { .. } => {
@@ -223,12 +225,13 @@ impl term_elaborator::Handler for GlobalEnvironment {
                     scope.elaborate_value(&ValueTermExp::try_from(expression.clone())?, self)?;
                 Ok(
                     crate::raw::reflection::reflect_value(&self.crate_env, value)
-                        .map_err(|error| error.to_string())?,
+                        .map_err(crate::error::Error::from)?,
                 )
             }
-            ModuleParameterKind::Pts { .. } => {
-                Err("only Program parameters support Set reflection".into())
-            }
+            ModuleParameterKind::Pts { .. } => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::OnlyProgramParametersSupportSetReflection,
+            )
+            .into()),
         }
     }
 
@@ -507,7 +510,9 @@ impl term_elaborator::Handler for GlobalEnvironment {
         Ok(self
             .module_manager
             .get_item(&self.crate_env, access_path)
-            .ok_or_else(|| format!("Failed to access item at path {access_path:?}"))?)
+            .ok_or_else(|| crate::error::Error::UnknownAccess {
+                access_path: (access_path).clone(),
+            })?)
     }
 
     fn associated_reference(&mut self, access: &LocalAccess, field: &Identifier, span: SourceSpan) {
@@ -522,7 +527,8 @@ impl term_elaborator::Handler for GlobalEnvironment {
         field_name: &Identifier,
     ) -> Result<Exp, ElaborationError> {
         let infer_type_e = self.infer(local_ctx, e).map_err(|error| {
-            format!("Failed to infer type of expression for field projection: {error}")
+            crate::error::Error::from(error)
+                .context(crate::error::Context::FailedToInferTypeOfExpressionForFieldProjection)
         })?;
         if let ExpNode::IndType { indspec, .. } =
             self.crate_env.arena().get(whnf(&self.crate_env, e))
@@ -531,10 +537,11 @@ impl term_elaborator::Handler for GlobalEnvironment {
                 .get_moditem_record(&self.crate_env, indspec)
         {
             let name = record.type_name.as_str();
-            return Err(format!(
-                "Cannot project field '{}' from structure type '{name}'; use a structure value (e.g. data.{}) or {name}::{} for the projection function",
-                field_name.as_str(), field_name.as_str(), field_name.as_str()
-            ).into());
+            return Err(crate::error::Error::ProjectionFromStructureType {
+                field: (field_name.as_str()).to_string(),
+                name: (name).to_string(),
+            }
+            .into());
         }
         let mut candidates = vec![(e, infer_type_e)];
         let mut found_inductive = false;
@@ -579,17 +586,20 @@ impl term_elaborator::Handler for GlobalEnvironment {
             }
         }
         if !found_inductive {
-            return Err("Expected inductive type for field projection"
-                .to_string()
-                .into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ExpectedInductiveTypeForFieldProjection,
+            )
+            .into());
         }
         if !found_record {
-            return Err("Inductive type is not a record type".to_string().into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::InductiveTypeIsNotARecordType,
+            )
+            .into());
         }
-        Err(format!(
-            "Field {} not found in record or its laws",
-            field_name.as_str()
-        )
+        Err(crate::error::Error::UnknownRecordField {
+            field: (field_name.as_str()).to_string(),
+        }
         .into())
     }
 
@@ -633,7 +643,10 @@ impl term_elaborator::Handler for GlobalEnvironment {
         } else {
             CheckSession::new(&self.crate_env, &mut ctx)
                 .infer_pts(e)
-                .map_err(|error| format!("Failed to infer elaborated Set/Prop expression: {error}"))
+                .map_err(|error| {
+                    crate::error::Error::from(error)
+                        .context(crate::error::Context::FailedToInferElaboratedSetPropExpression)
+                })
         };
         *local_ctx = ctx.split_off(module_context_len);
         Ok(result?)
@@ -707,10 +720,10 @@ impl term_elaborator::Handler for GlobalEnvironment {
         expected: usize,
     ) -> Result<Vec<crate::raw::program::ValueType>, ElaborationError> {
         if expressions.len() != expected {
-            return Err(format!(
-                "reflected Program item expects {expected} type parameter(s), found {}",
-                expressions.len()
-            )
+            return Err(crate::error::Error::ReflectedTypeArgumentCountMismatch {
+                actual: expressions.len(),
+                expected,
+            }
             .into());
         }
         let expressions = expressions
@@ -750,7 +763,7 @@ impl GlobalEnvironment {
         &mut self,
         ctx: &mut ExpContext,
         term: Exp,
-    ) -> Result<Exp, String> {
+    ) -> Result<Exp, crate::error::Error> {
         self.metavariables
             .infer_pts(&self.crate_env, self.module_manager.current(), ctx, term)
     }
@@ -762,7 +775,7 @@ impl GlobalEnvironment {
         ctx: &mut ExpContext,
         term: Exp,
         expected: Exp,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::error::Error> {
         let expected = self.metavariables.zonk(&self.crate_env, expected);
         if matches!(self.crate_env.arena().get(expected), ExpNode::Meta { .. }) {
             let inferred = self.infer_term_with_metavariables(ctx, term)?;
@@ -804,10 +817,9 @@ impl GlobalEnvironment {
             }
         }
         let ModuleBody::Inline(items) = &module.body else {
-            return Err(format!(
-                "External module '{}' was not resolved",
-                module.name.as_str()
-            )
+            return Err(crate::error::Error::UnresolvedExternalModule {
+                name: (module.name.as_str()).to_string(),
+            }
             .into());
         };
         for item in items {
@@ -826,12 +838,12 @@ impl GlobalEnvironment {
         let mut source = std::mem::take(&mut self.source_modules);
         source.extend_from_slice(modules);
         *self = Self::default();
-        let project = resolve::resolve(&source).map_err(|error| match error.location {
+        let project = resolve::resolve(&source).map_err(|error| match error.location.clone() {
             Some(location) => ElaborationError::Located {
                 location,
-                error: Box::new(ElaborationError::Message(error.message)),
+                error: Box::new(ElaborationError::Failure(error.into())),
             },
-            None => ElaborationError::Message(error.message),
+            None => ElaborationError::Failure(error.into()),
         })?;
         self.source_modules = source;
         self.add_project(&project)
@@ -914,10 +926,11 @@ impl GlobalEnvironment {
                 })
                 .collect();
             let restore = |location: &mut SourceLocation| -> Result<(), ElaborationError> {
-                location.source = sources
-                    .get(&location.source.id)
-                    .cloned()
-                    .ok_or("checkpoint source missing from project")?;
+                location.source = sources.get(&location.source.id).cloned().ok_or(
+                    crate::error::Error::Invalid(
+                        crate::error::Invalid::CheckpointSourceMissingFromProject,
+                    ),
+                )?;
                 Ok(())
             };
             for declaration in &mut self.analysis.declarations {
@@ -963,9 +976,9 @@ impl GlobalEnvironment {
                     resolve::CheckStep::Parameters(id) => id,
                     resolve::CheckStep::Declaration { module, .. } => module,
                 };
-                let module = *scheduled
-                    .get(id)
-                    .ok_or("unknown HIR module in execution order")?;
+                let module = *scheduled.get(id).ok_or(crate::error::Error::Invalid(
+                    crate::error::Invalid::UnknownHirModuleInExecutionOrder,
+                ))?;
                 let module_id = self.predeclared_modules[&(module as *const Module)];
                 let _time =
                     timing::Scope::module(|| analysis::module_path(&self.crate_env, module_id));

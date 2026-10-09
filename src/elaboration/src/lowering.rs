@@ -95,7 +95,10 @@ impl<'a> Lowerer<'a> {
         self.scope.nominal = true;
         self.scope.logical_base = base;
     }
-    fn nominal_parameter(&mut self, id: ModuleParamId) -> Result<s::Expression, String> {
+    fn nominal_parameter(
+        &mut self,
+        id: ModuleParamId,
+    ) -> Result<s::Expression, crate::error::Error> {
         if self.structural && self.raw.module_parameter_opt(id).is_none() {
             return Ok(self.kernel.arena().alloc(s::Node::Parameter(id.into())));
         }
@@ -103,12 +106,16 @@ impl<'a> Lowerer<'a> {
             return Ok(self.kernel.arena().alloc(s::Node::Parameter(id.into())));
         }
         if !self.active_parameters.insert(id) {
-            return Err("cyclic module parameter type".into());
+            return Err(crate::error::Error::Invalid(
+                crate::error::Invalid::CyclicModuleParameterType,
+            ));
         }
         let parameter = self
             .raw
             .module_parameter_opt(id)
-            .ok_or("unknown module parameter")?
+            .ok_or(crate::error::Error::Invalid(
+                crate::error::Invalid::UnknownModuleParameter,
+            ))?
             .clone();
         let ty = self.in_scope(vec![], 0, 0, |this| {
             this.scope.nominal = true;
@@ -126,7 +133,7 @@ impl<'a> Lowerer<'a> {
         self.active_parameters.remove(&id);
         self.kernel
             .register_parameter(id.into(), ty?)
-            .map_err(|e| e.to_string())?;
+            .map_err(crate::error::Error::from)?;
         Ok(self.kernel.arena().alloc(s::Node::Parameter(id.into())))
     }
     pub(crate) fn nominal_context(
@@ -134,7 +141,7 @@ impl<'a> Lowerer<'a> {
         context: &ExpContext,
         base: usize,
         module: ModuleId,
-    ) -> Result<s::Context, String> {
+    ) -> Result<s::Context, crate::error::Error> {
         self.nominal(base);
         let mut prefix = context[..base].to_vec();
         let mut result = vec![];
@@ -148,7 +155,7 @@ impl<'a> Lowerer<'a> {
         }
         Ok(result)
     }
-    fn logical_base_kind(&self, sort: k::BaseSort) -> Result<s::Expression, String> {
+    fn logical_base_kind(&self, sort: k::BaseSort) -> Result<s::Expression, crate::error::Error> {
         Ok(self.kernel.arena().sort(k::Sort::Base(sort)))
     }
 
@@ -157,15 +164,19 @@ impl<'a> Lowerer<'a> {
         ctx: &mut ExpContext,
         var: SymbolId,
         ty: Exp,
-        f: impl FnOnce(&mut Self, &mut ExpContext) -> Result<T, String>,
-    ) -> Result<T, String> {
+        f: impl FnOnce(&mut Self, &mut ExpContext) -> Result<T, crate::error::Error>,
+    ) -> Result<T, crate::error::Error> {
         ctx.push(ExpContextEntry { var, ty });
         let r = f(self, ctx);
         ctx.pop();
         r
     }
 
-    pub(crate) fn context(&mut self, ctx: &ExpContext, m: ModuleId) -> Result<ke::Context, String> {
+    pub(crate) fn context(
+        &mut self,
+        ctx: &ExpContext,
+        m: ModuleId,
+    ) -> Result<ke::Context, crate::error::Error> {
         let mut prefix = ctx[..self.scope.logical_base].to_vec();
         let mut result = self.capture_context(false)?;
         for b in &ctx[self.scope.logical_base..] {
@@ -184,7 +195,7 @@ impl<'a> Lowerer<'a> {
         e: Exp,
         ctx: &mut ExpContext,
         m: ModuleId,
-    ) -> Result<s::Expression, String> {
+    ) -> Result<s::Expression, crate::error::Error> {
         self.set(e, ctx, m)
     }
 }

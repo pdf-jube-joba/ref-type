@@ -86,7 +86,9 @@ impl Resolver {
                 let defaults = fields.iter().any(|(_, _, default)| default.is_some());
                 if defaults {
                     if !matches!(kind, InductiveKind::Pts(syntax::sort::Sort::Prop)) {
-                        return Err(self.error("default fields in a sorted structure require Prop"));
+                        return Err(self.error(crate::error::Error::Invalid(
+                            crate::error::Invalid::DefaultFieldsInASortedStructureRequireProp,
+                        )));
                     }
                     self.scoped_item(
                         ModuleItem::Record {
@@ -189,7 +191,9 @@ impl Resolver {
                     .insert(name.0.clone(), *id)
                     .is_some()
                 {
-                    return Err(self.error(format!("duplicate declaration: {}", name.0)));
+                    return Err(self.error(crate::error::Error::DuplicateDeclaration {
+                        name: (name.0).to_owned(),
+                    }));
                 }
             } else if let Some(template) = local
                 .macros
@@ -201,11 +205,15 @@ impl Resolver {
                     .iter()
                     .any(|d| d.name.as_str() == name.as_str())
                 {
-                    return Err(self.error(format!("duplicate declaration: {}", name.0)));
+                    return Err(self.error(crate::error::Error::DuplicateDeclaration {
+                        name: (name.0).to_owned(),
+                    }));
                 }
                 scope.macros.push(template.clone());
             } else {
-                return Err(self.error(format!("missing exported member: {}", name.0)));
+                return Err(self.error(crate::error::Error::MissingExport {
+                    name: (name.0).to_owned(),
+                }));
             }
         }
         self.declaration_scope = previous;
@@ -235,7 +243,9 @@ impl Resolver {
             return None;
         }
         if !parameters.is_empty() {
-            return Some(Err(self.error("bundle type members do not take parameters")));
+            return Some(Err(self.error(crate::error::Error::Invalid(
+                crate::error::Invalid::BundleTypeMembersDoNotTakeParameters,
+            ))));
         }
         Some(
             self.expand_one(scope, Some(&Identifier(spelling.into())), &[], 0, None)
@@ -303,9 +313,15 @@ impl Resolver {
                 result_ty: Box::new(self.reflect_type(*result_ty)?),
             },
             SExp::Meta { .. } => {
-                return Err(self.error("bundle Program types require an explicit type"));
+                return Err(self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::BundleProgramTypesRequireAnExplicitType,
+                )));
             }
-            _ => return Err(self.error("expected Program type in bundle")),
+            _ => {
+                return Err(self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::ExpectedProgramTypeInBundle,
+                )));
+            }
         })
     }
 }

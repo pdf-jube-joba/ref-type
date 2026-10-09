@@ -6,7 +6,7 @@ use crate::{
     syntax::{Arena, Expression, Mode, Node},
 };
 
-type Result<T> = std::result::Result<T, String>;
+type Result<T> = std::result::Result<T, crate::error::Error>;
 
 // A term remembers its binding depth so nested builders can lift captured terms.
 #[derive(Clone, Copy)]

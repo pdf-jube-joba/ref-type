@@ -8,11 +8,14 @@ use rustc_hash::FxHashSet;
 use std::cell::RefCell;
 pub trait Resolver {
     fn arena(&self) -> &Arena;
-    fn replacement(&self, _term: Expression) -> Result<Option<Expression>, String> {
+    fn replacement(&self, _term: Expression) -> Result<Option<Expression>, crate::error::Error> {
         Ok(None)
     }
-    fn definition(&self, id: DefinitionId) -> Result<(DefinitionId, Vec<bool>), String>;
-    fn datatype(&self, id: ProgramInductiveId) -> Result<InductiveId, String>;
+    fn definition(
+        &self,
+        id: DefinitionId,
+    ) -> Result<(DefinitionId, Vec<bool>), crate::error::Error>;
+    fn datatype(&self, id: ProgramInductiveId) -> Result<InductiveId, crate::error::Error>;
 }
 pub struct Reflection<'a, R: Resolver> {
     resolver: &'a R,
@@ -25,7 +28,7 @@ impl<'a, R: Resolver> Reflection<'a, R> {
             active: Default::default(),
         }
     }
-    fn reflect_shallow(&self, term: Expression) -> Result<Option<Expression>, String> {
+    fn reflect_shallow(&self, term: Expression) -> Result<Option<Expression>, crate::error::Error> {
         let arena = self.resolver.arena();
         let reflect = |term| arena.alloc(Node::Reflect { term });
         let node = match arena.get(term) {
@@ -37,7 +40,7 @@ impl<'a, R: Resolver> Reflection<'a, R> {
             Node::Definition { id, arguments } => {
                 let (id, flags) = self.resolver.definition(id)?;
                 if arguments.len() != flags.len() {
-                    return Err("definition parameter count mismatch".into());
+                    return Err(crate::error::Error::DefinitionParameterCountMismatch);
                 }
                 Node::Definition {
                     id,
@@ -238,18 +241,23 @@ impl<'a, R: Resolver> Reflection<'a, R> {
                 }
             }
             node => {
-                return Err(format!(
-                    "reflection requires a Program expression: {node:?}"
-                ));
+                return Err(crate::error::Error::InvalidReflection {
+                    node: Box::new(node),
+                    ty: None,
+                    sort: None,
+                });
             }
         };
         Ok(Some(arena.alloc(node)))
     }
     /// Reflect an expression together with its complete Program context.
-    pub fn reflect_bound(&self, term: Expression) -> Result<Expression, String> {
+    pub fn reflect_bound(&self, term: Expression) -> Result<Expression, crate::error::Error> {
         self.reflect_under(term, usize::MAX)
     }
-    pub(crate) fn reflect_step(&self, term: Expression) -> Result<Option<Expression>, String> {
+    pub(crate) fn reflect_step(
+        &self,
+        term: Expression,
+    ) -> Result<Option<Expression>, crate::error::Error> {
         let mut pending = vec![term];
         let mut seen = rustc_hash::FxHashSet::default();
         while let Some(e) = pending.pop() {
@@ -275,10 +283,14 @@ impl<'a, R: Resolver> Reflection<'a, R> {
         // reduction step would keep normalization running until its fuel ends.
         Ok((self.resolver.arena().get(reflected) != Node::Reflect { term }).then_some(reflected))
     }
-    fn reflect_under(&self, term: Expression, depth: usize) -> Result<Expression, String> {
+    fn reflect_under(
+        &self,
+        term: Expression,
+        depth: usize,
+    ) -> Result<Expression, crate::error::Error> {
         if let Some(replacement) = self.resolver.replacement(term)? {
             if !self.active.borrow_mut().insert(term) {
-                return Err("cyclic definition during reflection".into());
+                return Err(crate::error::Error::CyclicDefinitionDuringReflection);
             }
             let result = self.reflect_under(replacement, depth);
             self.active.borrow_mut().remove(&term);
@@ -296,7 +308,11 @@ impl<'a, R: Resolver> Reflection<'a, R> {
         };
         self.resolve_reflections(e, depth)
     }
-    pub fn resolve_reflections(&self, e: Expression, depth: usize) -> Result<Expression, String> {
+    pub fn resolve_reflections(
+        &self,
+        e: Expression,
+        depth: usize,
+    ) -> Result<Expression, crate::error::Error> {
         if let Node::Reflect { term } = self.resolver.arena().get(e) {
             return self.reflect_under(term, depth);
         }

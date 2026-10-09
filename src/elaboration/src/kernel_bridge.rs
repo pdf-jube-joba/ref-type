@@ -45,7 +45,7 @@ fn judgement_context(env: &CrateEnv, context: &ExpContext, roots: &[Exp]) -> Exp
 /// Materialize source templates before borrowing the kernel environment.
 /// Registered declarations are immutable and their dependencies are already
 /// materialized. Each reference's actual arguments are still visited below.
-fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), String> {
+fn prepare(env: &CrateEnv, mut pending: Vec<Term>) -> Result<(), crate::error::Error> {
     let _cost = timing::costs::Scope::enter("bridge.prepare");
     let mut seen = FxHashSet::default();
     let mut definitions = FxHashSet::default();
@@ -215,7 +215,7 @@ pub(crate) fn logical<T>(
         kernel::syntax::Context,
         Vec<kernel::syntax::Expression>,
     ) -> Result<T, kernel::metavariables::Error>,
-) -> Result<T, String> {
+) -> Result<T, crate::error::Error> {
     logical_in_scope(env, context, 0, roots, f)
 }
 pub(crate) fn logical_in_scope<T>(
@@ -228,7 +228,7 @@ pub(crate) fn logical_in_scope<T>(
         kernel::syntax::Context,
         Vec<kernel::syntax::Expression>,
     ) -> Result<T, kernel::metavariables::Error>,
-) -> Result<T, String> {
+) -> Result<T, crate::error::Error> {
     let _cost = timing::costs::Scope::enter("bridge.logical_in_scope");
     let profile = std::env::var_os("REF_TYPE_PROFILE_BRIDGE").is_some();
     if profile {
@@ -264,8 +264,7 @@ pub(crate) fn logical_in_scope<T>(
     if profile {
         eprintln!("bridge kernel roots={terms:?}");
     }
-    let result = f(&kernel, context, terms)
-        .map_err(|error| crate::lowering::format_kernel_error(env, &error));
+    let result = f(&kernel, context, terms).map_err(crate::error::Error::Kernel);
     if profile {
         eprintln!("bridge finished roots={roots:?}");
     }
@@ -281,7 +280,7 @@ pub(crate) fn program<T>(
         kernel::syntax::Context,
         Vec<kernel::syntax::Expression>,
     ) -> Result<T, kernel::metavariables::Error>,
-) -> Result<T, String> {
+) -> Result<T, crate::error::Error> {
     let _cost = timing::costs::Scope::enter("bridge.program");
     use crate::raw::program::ProgramContextEntry;
     let mut pending = roots.to_vec();
@@ -299,20 +298,23 @@ pub(crate) fn program<T>(
         .map(|&term| lower.source_term(term, &mut local))
         .collect::<Result<Vec<_>, _>>()?;
     let context = lower.program_context(context)?;
-    f(&kernel, context, terms).map_err(|e| crate::lowering::format_kernel_error(env, &e))
+    f(&kernel, context, terms).map_err(crate::error::Error::Kernel)
 }
 
 /// Resolve a term for structural operations, which accept open expressions.
 pub(crate) fn expression<T>(
     env: &CrateEnv,
     term: Term,
-    f: impl FnOnce(&kernel::environment::Environment, kernel::syntax::Expression) -> Result<T, String>,
-) -> Result<T, String> {
+    f: impl FnOnce(
+        &kernel::environment::Environment,
+        kernel::syntax::Expression,
+    ) -> Result<T, kernel::error::Error>,
+) -> Result<T, crate::error::Error> {
     let _cost = timing::costs::Scope::enter("bridge.expression");
     if let Term::Logical(source) = term
         && let Some(&lowered) = env.structural_expressions.borrow().get(&source)
     {
-        return f(&env.kernel.borrow(), lowered);
+        return f(&env.kernel.borrow(), lowered).map_err(crate::error::Error::Kernel);
     }
     prepare(env, vec![term])?;
     let mut depth = env
@@ -333,7 +335,9 @@ pub(crate) fn expression<T>(
         t.visit_children(env.arena(), |child, _| pending.push(child));
     }
     if depth > 100_000 {
-        return Err("bound variable outside supported context".into());
+        return Err(crate::error::Error::Invalid(
+            crate::error::Invalid::BoundVariableOutsideSupportedContext,
+        ));
     }
     let mut kernel = env.kernel.borrow_mut();
     let mut lower = Lowerer::new(env, &mut kernel);
@@ -356,7 +360,7 @@ pub(crate) fn expression<T>(
     {
         env.structural_expressions.borrow_mut().insert(source, e);
     }
-    f(&kernel, e)
+    f(&kernel, e).map_err(crate::error::Error::Kernel)
 }
 
 #[cfg(test)]
@@ -418,7 +422,7 @@ pub(crate) fn captured_definition(
     definition: crate::raw::ids::DefId,
     substitutions: &[(crate::raw::ids::ModuleParamId, Exp)],
     parameters: &[Exp],
-) -> Result<Exp, String> {
+) -> Result<Exp, crate::error::Error> {
     let actual = substitutions
         .iter()
         .map(|(id, value)| expression(env, Term::Logical(*value), |_, term| Ok((*id, term))))
@@ -437,12 +441,12 @@ pub(crate) fn captured_definition(
     expression(env, Term::Logical(reference), |kernel, reference| {
         let kernel::syntax::Node::Definition { id, mut arguments } = kernel.arena().get(reference)
         else {
-            return Err("expected a definition reference".into());
+            return Err(kernel::error::Error::ExpectedADefinitionHead);
         };
         let captures = env
             .arena()
             .definition_captures(id)
-            .ok_or("missing definition captures")?;
+            .ok_or(kernel::error::Error::MissingReflectedParameterModes)?;
         for (parameter, argument) in captures.iter().zip(&mut arguments) {
             if let Some((_, value)) = actual.iter().find(|(id, _)| id == parameter) {
                 *argument = *value;
@@ -460,7 +464,7 @@ pub(crate) fn captured_expression(
     env: &CrateEnv,
     value: Exp,
     substitutions: &[(crate::raw::ids::ModuleParamId, Exp)],
-) -> Result<Exp, String> {
+) -> Result<Exp, crate::error::Error> {
     let value = expression(env, Term::Logical(value), |_, value| Ok(Exp(value)))?;
     Ok(crate::raw::remapping::exp_subst_map(
         env.arena(),

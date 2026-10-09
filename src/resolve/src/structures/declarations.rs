@@ -55,9 +55,24 @@ impl Resolver {
         let mut module = Module {
             id: ModuleId::default(),
             name: Identifier(format!("<definition:{}>", name.0)),
+            parameter_sources: binders
+                .iter()
+                .flat_map(|bind| &bind.vars)
+                .map(|parameter| {
+                    (
+                        parameter.0.clone(),
+                        ParameterSource {
+                            subject: ParameterSubject::DefinitionParameter {
+                                definition: name.0.clone(),
+                                name: parameter.0.clone(),
+                            },
+                            span,
+                        },
+                    )
+                })
+                .collect(),
             parameters: binders,
             parameter_checks: Vec::new(),
-            parameter_sources: HashMap::new(),
             declaration_spans: Vec::new(),
             body: ModuleBody::Inline(Vec::new()),
             span,
@@ -89,8 +104,16 @@ impl Resolver {
             let checked = self.output.get_mut(&module.id).unwrap();
             checked.declaration_spans = vec![span; items.len()];
             checked.body = ModuleBody::Inline(items);
+            let parameters = checked.parameters.clone();
+            let bindings = parameters
+                .iter()
+                .flat_map(|bind| &bind.vars)
+                .filter_map(|name| name.1)
+                .collect();
+            self.expose_namespace_arguments(&mut body, &bindings);
+            self.expose_namespace_arguments(&mut ty, &bindings);
             let definition = Definition {
-                parameters: checked.parameters.clone(),
+                parameters,
                 inputs: self.module_inputs[&module.id].clone(),
                 ty,
                 body,
@@ -104,13 +127,20 @@ impl Resolver {
             });
             return Ok(());
         }
-        let (signature, shape, mut substitutions) = self
-            .structure_type(&ty, &[])?
-            .ok_or_else(|| self.error("expected a structure result signature"))?;
+        let (signature, shape, mut substitutions) =
+            self.structure_type(&ty, &[])?.ok_or_else(|| {
+                self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::ExpectedAStructureResultSignature,
+                ))
+            })?;
         let mut value = self
             .structure_value(&body, &[])?
             .filter(|value| value.signature == signature)
-            .ok_or_else(|| self.error("definition does not satisfy structure result signature"))?;
+            .ok_or_else(|| {
+                self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::DefinitionDoesNotSatisfyStructureResultSignature,
+                ))
+            })?;
         let mut checked_items = Vec::new();
         for (value, ty) in &value.checks {
             self.scoped_item(
@@ -125,7 +155,11 @@ impl Resolver {
             let actual = value
                 .arguments
                 .get(&id)
-                .ok_or_else(|| self.error("structure signature parameter mismatch"))?
+                .ok_or_else(|| {
+                    self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::StructureSignatureParameterMismatch,
+                    ))
+                })?
                 .clone();
             self.scoped_item(
                 ModuleItem::MemberCheck {
@@ -150,9 +184,11 @@ impl Resolver {
                 .clone();
             let expected = self.substitute_front_expression(expected, &substitutions);
             if self.structure_type(&expected, &[])?.is_some() {
-                let nested = self
-                    .structure_value(&expression, &[])?
-                    .ok_or_else(|| self.error("expected nested structure"))?;
+                let nested = self.structure_value(&expression, &[])?.ok_or_else(|| {
+                    self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::ExpectedNestedStructure,
+                    ))
+                })?;
                 for (value, ty) in nested.checks {
                     self.scoped_item(
                         ModuleItem::MemberCheck {
@@ -190,6 +226,18 @@ impl Resolver {
         value.parameters = checked.parameters.clone();
         value.inputs = self.module_inputs[&module.id].clone();
         value.checks.clear();
+        let bindings = value
+            .parameters
+            .iter()
+            .flat_map(|bind| &bind.vars)
+            .filter_map(|name| name.1)
+            .collect();
+        for (_, field) in &mut value.fields {
+            self.expose_namespace_arguments(field, &bindings);
+        }
+        for argument in value.arguments.values_mut() {
+            self.expose_namespace_arguments(argument, &bindings);
+        }
         self.current = parent;
         self.location = location;
         self.publish(&mut name);
@@ -211,19 +259,34 @@ impl Resolver {
         let location = self.location.clone();
         let span = location.as_ref().map_or(SourceSpan::default(), |l| l.span);
         let mut telescope = parameters.clone();
-        let parameter_sources = fields
+        let mut parameter_sources: HashMap<_, _> = parameters
             .iter()
-            .enumerate()
-            .map(|(index, (field, _, _))| {
+            .flat_map(|bind| &bind.vars)
+            .map(|parameter| {
                 (
-                    field.0.clone(),
+                    parameter.0.clone(),
                     ParameterSource {
-                        description: format!("Structure field '{}.{}'", name.0, field.0),
-                        span: field_spans.get(index).copied().unwrap_or(span),
+                        subject: ParameterSubject::StructureParameter {
+                            structure: name.0.clone(),
+                            name: parameter.0.clone(),
+                        },
+                        span,
                     },
                 )
             })
             .collect();
+        parameter_sources.extend(fields.iter().enumerate().map(|(index, (field, _, _))| {
+            (
+                field.0.clone(),
+                ParameterSource {
+                    subject: ParameterSubject::StructureField {
+                        structure: name.0.clone(),
+                        name: field.0.clone(),
+                    },
+                    span: field_spans.get(index).copied().unwrap_or(span),
+                },
+            )
+        }));
         for (field, ty, _) in &fields {
             telescope.push(RightBind {
                 vars: vec![field.clone()],

@@ -3,26 +3,7 @@
 use crate::raw::ids::SymbolId;
 use crate::raw::{environment::CrateEnv, exp::*, sort::Sort};
 use kernel::sharing::ContextId;
-#[derive(Debug, Clone)]
-pub struct JudgementError {
-    pub cause: String,
-}
-
-impl std::fmt::Display for JudgementError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{}", self.cause)
-    }
-}
-
-impl std::error::Error for JudgementError {}
-
-impl JudgementError {
-    pub fn caused(cause: impl Into<String>) -> Self {
-        Self {
-            cause: cause.into(),
-        }
-    }
-}
+pub type JudgementError = crate::error::Error;
 
 pub struct CheckSession<'env, 'context> {
     env: &'env CrateEnv,
@@ -78,7 +59,7 @@ impl<'env, 'context> CheckSession<'env, 'context> {
                 Ok((Exp(terms[0]), Exp(terms[1])))
             },
         )
-        .map_err(|e| Box::new(JudgementError::caused(e)))
+        .map_err(Box::new)
     }
     pub fn infer_pts(&mut self, term: Exp) -> Result<Exp, Box<JudgementError>> {
         let key = (term, self.context_id);
@@ -99,7 +80,7 @@ impl<'env, 'context> CheckSession<'env, 'context> {
             },
         )
         .map(Exp)
-        .map_err(|e| Box::new(JudgementError::caused(e)))?;
+        .map_err(Box::new)?;
         self.env.inference_cache.borrow_mut().insert(key, ty);
         Ok(ty)
     }
@@ -119,7 +100,7 @@ impl<'env, 'context> CheckSession<'env, 'context> {
             .infer(terms[0])?;
             match env.arena().get(env.whnf(ty)?) {
                 kernel::syntax::Node::Sort(sort) => Ok(sort),
-                _ => Err("expected a sort".into()),
+                _ => Err(kernel::error::Error::ExpectedASort),
             }
         })
         .and_then(|sort| match sort {
@@ -127,9 +108,11 @@ impl<'env, 'context> CheckSession<'env, 'context> {
             kernel::sort::Sort::Upper(kernel::sort::BaseSort::Set(i)) => Ok(Sort::SetKind(i)),
             kernel::sort::Sort::Base(kernel::sort::BaseSort::Prop) => Ok(Sort::Prop),
             kernel::sort::Sort::Upper(kernel::sort::BaseSort::Prop) => Ok(Sort::PropKind),
-            _ => Err("expected a Set/Prop sort".into()),
+            _ => Err(crate::error::Error::Invalid(
+                crate::error::Invalid::ExpectedASetPropSort,
+            )),
         })
-        .map_err(|e| Box::new(JudgementError::caused(e)))
+        .map_err(Box::new)
     }
     pub fn check_wellformed_context(&mut self) -> Result<(), Box<JudgementError>> {
         crate::kernel_bridge::logical(self.env, self.context, &[], |env, context, _| {
@@ -140,6 +123,6 @@ impl<'env, 'context> CheckSession<'env, 'context> {
             )
             .check_context()
         })
-        .map_err(|e| Box::new(JudgementError::caused(e)))
+        .map_err(Box::new)
     }
 }

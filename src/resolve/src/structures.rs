@@ -151,6 +151,67 @@ pub(in crate::resolver) fn substitute(
     expression
 }
 
+pub(in crate::resolver) fn remap_modules(
+    expression: &mut SExp,
+    remapping: &HashMap<ModuleId, ModuleId>,
+) {
+    macros::walk_sexp_mut(expression, &mut |node| {
+        let path = match node {
+            SExp::ModuleInstance { path, .. } => Some(path),
+            SExp::AccessPath {
+                access: LocalAccess::Instantiated { path, .. },
+                ..
+            }
+            | SExp::ProgramValueReference {
+                access: LocalAccess::Instantiated { path, .. },
+            }
+            | SExp::RecordTypeCtor {
+                access: LocalAccess::Instantiated { path, .. },
+                ..
+            }
+            | SExp::IndCase {
+                path: LocalAccess::Instantiated { path, .. },
+                ..
+            }
+            | SExp::ProgramCase {
+                path: LocalAccess::Instantiated { path, .. },
+                ..
+            } => Some(path),
+            _ => None,
+        };
+        if let Some(path) = path
+            && let ModuleInstantiatePath::FromModule { module, .. } = path.as_mut()
+        {
+            *module = remapping.get(module).copied().unwrap_or(*module);
+        }
+        let module = match node {
+            SExp::ProgramValueReference {
+                access: LocalAccess::Resolved { module, .. },
+            }
+            | SExp::AccessPath {
+                access: LocalAccess::Resolved { module, .. },
+                ..
+            }
+            | SExp::RecordTypeCtor {
+                access: LocalAccess::Resolved { module, .. },
+                ..
+            }
+            | SExp::IndCase {
+                path: LocalAccess::Resolved { module, .. },
+                ..
+            }
+            | SExp::ProgramCase {
+                path: LocalAccess::Resolved { module, .. },
+                ..
+            } => Some(module),
+            _ => None,
+        };
+        if let Some(module) = module {
+            *module = remapping.get(module).copied().unwrap_or(*module);
+        }
+    });
+}
+
 fn abstract_parameters(parameters: &[RightBind], mut expression: SExp) -> SExp {
     for bind in parameters.iter().rev() {
         expression = SExp::Lam {
@@ -378,37 +439,60 @@ impl Resolver {
             {
                 *access = specialized;
             }
-            let module = match node {
-                SExp::ModuleInstance { path, .. } => match path.as_mut() {
-                    ModuleInstantiatePath::FromModule { module, .. } => Some(module),
-                    _ => None,
-                },
-                SExp::ProgramValueReference {
-                    access: LocalAccess::Resolved { module, .. },
-                }
-                | SExp::AccessPath {
-                    access: LocalAccess::Resolved { module, .. },
-                    ..
-                }
-                | SExp::RecordTypeCtor {
-                    access: LocalAccess::Resolved { module, .. },
-                    ..
-                }
-                | SExp::IndCase {
-                    path: LocalAccess::Resolved { module, .. },
-                    ..
-                }
-                | SExp::ProgramCase {
-                    path: LocalAccess::Resolved { module, .. },
-                    ..
-                } => Some(module),
-                _ => None,
+        });
+        remap_modules(&mut expression, &scope.remapping);
+        expression
+    }
+
+    fn expose_namespace_arguments(&self, expression: &mut SExp, bindings: &HashSet<BindingId>) {
+        if bindings.is_empty() {
+            return;
+        }
+        // A selected namespace hides its arguments in the resolver's scope.
+        // Templates must expose those arguments again so applying a structure
+        // family substitutes into the selection as well as its visible fields.
+        macros::walk_sexp_mut(expression, &mut |node| {
+            let access = match node {
+                SExp::AccessPath { access, .. }
+                | SExp::ProgramValueReference { access }
+                | SExp::RecordTypeCtor { access, .. }
+                | SExp::IndCase { path: access, .. }
+                | SExp::ProgramCase { path: access, .. } => access,
+                _ => return,
             };
-            if let Some(module) = module {
-                *module = scope.remapping.get(module).copied().unwrap_or(*module);
+            if let LocalAccess::Resolved {
+                module,
+                access: name,
+                span,
+                ..
+            } = access
+                && let Some(path) = self.module_selections.get(module)
+            {
+                let mut selection = SExp::ModuleInstance {
+                    path: Box::new(path.clone()),
+                    import_name: Identifier("<selection>".into()),
+                };
+                let mut depends = false;
+                macros::walk_sexp_mut(&mut selection, &mut |node| {
+                    if let SExp::AccessPath {
+                        access:
+                            LocalAccess::Current { access, .. } | LocalAccess::Resolved { access, .. },
+                        ..
+                    } = node
+                    {
+                        depends |= access.1.is_some_and(|id| bindings.contains(&id));
+                    }
+                });
+                if !depends {
+                    return;
+                }
+                *access = LocalAccess::Instantiated {
+                    span: *span,
+                    path: Box::new(path.clone()),
+                    child: name.clone(),
+                };
             }
         });
-        expression
     }
 
     fn instantiate_input(&self, input: &mut Input, access: &LocalAccess) {
@@ -439,6 +523,13 @@ impl Resolver {
         for input in &mut signature.inputs {
             self.instantiate_input(input, access);
         }
+        let bindings = signature
+            .parameters
+            .iter()
+            .flat_map(|bind| &bind.vars)
+            .chain(signature.fields.iter().map(|(name, _, _)| name))
+            .filter_map(|name| name.1)
+            .collect();
         for bind in &mut signature.parameters {
             *bind.ty = self.instantiate_front_expression(&bind.ty, access);
         }
@@ -451,6 +542,19 @@ impl Resolver {
         for (value, ty) in &mut signature.checks {
             *value = self.instantiate_front_expression(value, access);
             *ty = self.instantiate_front_expression(ty, access);
+        }
+        for bind in &mut signature.parameters {
+            self.expose_namespace_arguments(&mut bind.ty, &bindings);
+        }
+        for (_, ty, default) in &mut signature.fields {
+            self.expose_namespace_arguments(ty, &bindings);
+            if let Some(body) = default {
+                self.expose_namespace_arguments(body, &bindings);
+            }
+        }
+        for (value, ty) in &mut signature.checks {
+            self.expose_namespace_arguments(value, &bindings);
+            self.expose_namespace_arguments(ty, &bindings);
         }
         let (parameters, checks) = self.expand_type_arguments(
             &signature.parameters,
@@ -608,10 +712,31 @@ impl Resolver {
                 *value = self.instantiate_front_expression(value, access);
                 *ty = self.instantiate_front_expression(ty, access);
             }
+            let bindings = template
+                .parameters
+                .iter()
+                .flat_map(|bind| &bind.vars)
+                .filter_map(|name| name.1)
+                .collect();
+            for expression in template.arguments.values_mut() {
+                self.expose_namespace_arguments(expression, &bindings);
+            }
+            for bind in &mut template.parameters {
+                self.expose_namespace_arguments(&mut bind.ty, &bindings);
+            }
+            for (_, expression) in &mut template.fields {
+                self.expose_namespace_arguments(expression, &bindings);
+            }
+            for (value, ty) in &mut template.checks {
+                self.expose_namespace_arguments(value, &bindings);
+                self.expose_namespace_arguments(ty, &bindings);
+            }
             let mut supplied = parameters.clone();
             supplied.extend(application_arguments(expression).into_iter().cloned());
             if supplied.len() > template.inputs.len() {
-                return Err(self.error("structure declaration argument count mismatch"));
+                return Err(self.error(crate::error::Error::Invalid(
+                    crate::error::Invalid::StructureDeclarationArgumentCountMismatch,
+                )));
             }
             let supplied_count = supplied.len();
             let mut actual = Vec::new();
@@ -705,7 +830,9 @@ impl Resolver {
                 let mut supplied = HashMap::new();
                 for (name, value) in fields {
                     if supplied.insert(name.0.clone(), value.clone()).is_some() {
-                        return Err(self.error(format!("duplicate structure field: {}", name.0)));
+                        return Err(self.error(crate::error::Error::DuplicateStructureField {
+                            name: (name.0).to_owned(),
+                        }));
                     }
                 }
                 let mut result = Vec::new();
@@ -719,7 +846,9 @@ impl Resolver {
                                 .map(|v| self.substitute_front_expression(v, &substitutions))
                         })
                         .ok_or_else(|| {
-                            self.error(format!("missing structure field: {}", name.0))
+                            self.error(crate::error::Error::MissingStructureField {
+                                name: (name.0).to_owned(),
+                            })
                         })?;
                     let expected = self.substitute_front_expression(ty, &substitutions);
                     if let Some((signature, _, _)) = self.structure_type(&expected, locals)? {
@@ -727,7 +856,7 @@ impl Resolver {
                             .structure_value(&value, locals)?
                             .filter(|value| value.signature == signature)
                             .ok_or_else(|| {
-                                self.error("nested field does not satisfy structure signature")
+                                self.error(crate::error::Error::Invalid(crate::error::Invalid::NestedFieldDoesNotSatisfyStructureSignature))
                             })?;
                         checks.extend(nested.checks);
                         for (id, expected) in
@@ -768,7 +897,9 @@ impl Resolver {
                     result.push((name.0.clone(), value));
                 }
                 if !supplied.is_empty() {
-                    return Err(self.error("unknown structure field"));
+                    return Err(self.error(crate::error::Error::Invalid(
+                        crate::error::Invalid::UnknownStructureField,
+                    )));
                 }
                 Ok(Some(Value {
                     arguments: self.structure_type(&ty, locals)?.unwrap().2,

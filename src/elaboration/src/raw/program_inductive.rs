@@ -86,7 +86,7 @@ impl ProgramInductiveTypeSpecs {
             &[super::traversal::Term::ValueType(term)],
             |_, _, _| Ok(()),
         )
-        .map_err(|e| Box::new(JudgementError::caused(e)))
+        .map_err(Box::new)
     }
 
     pub fn instantiate(
