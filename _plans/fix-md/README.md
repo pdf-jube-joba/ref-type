@@ -1,7 +1,7 @@
 # gaps の最小比較サンプル
 
-G01〜G04、G09 と G11 の `.ref` は、全文を playground.md に貼り付けて、1ファイルずつ検査する。
-G01〜G04、G09 と G11 では、必要な宣言は各ファイルに含まれ、標準ライブラリや外部ファイルの import は不要である。
+G01〜G04 と G11 の `.ref` は、全文を playground.md に貼り付けて、1ファイルずつ検査する。
+G01〜G04 と G11 では、必要な宣言は各ファイルに含まれ、標準ライブラリや外部ファイルの import は不要である。
 `\root.Repro[]` への参照は、同じファイル内のモジュールを具体化する。
 比較する組では、下記の条件だけを変え、それ以外の宣言・入力・検査対象をそろえている。
 
@@ -22,9 +22,7 @@ target/debug/cli _plans/fix-md/cases/01-01-record-eta.ref --no-cache --diagnosti
 | [G02](#g02) | 通常の関数と contextual な定義 | 通常の関数で失敗、contextual な定義で成功。 |
 | [G03](#g03) | 関係を持つ record とデータ・法則の分離 | record の射影生成で失敗、分離すると成功。 |
 | [G04](#g04) | 親の macro 読み込み位置と子の再読み込み | 宣言後の読み込みと再読み込みで失敗、宣言前の読み込みを継承すると成功。 |
-| [G09](#g09) | 具体化した module の構造のフィールドへの参照 | 直接の参照で失敗、名前付き import で成功。 |
 | [G11](#g11) | Machine の引数と具体値 | 引数で失敗、具体値で成功。 |
-| [G16](#g16) | 構造を返す関数と名前付きの添字付き module | 関数のフィールドで添字が残り失敗、module の具体化で成功。 |
 
 <a id="g01"></a>
 
@@ -75,27 +73,6 @@ target/debug/cli _plans/fix-md/cases/01-01-record-eta.ref --no-cache --diagnosti
 最初の組は親の `\use` の位置だけを変え、次の組は子の `\use` の有無だけを変えている。
 macro の定義、引数、子で検査する等式は共通である。
 
-<a id="g09"></a>
-
-## G09: 具体化した module から型のフィールドを使う
-
-`Model(A)` は、点の集合 `Point` が `A` である構造 `space` を作る。
-`Model[A := B].space.Point` は `B` になるはずなので、`x: B` をそのまま返したい。
-
-| サンプル | 条件 | 結果 |
-| --- | --- | --- |
-| [09-01-temporary-field.ref](cases/09-01-temporary-field.ref) | `Model[A := B].space.Point` を直接参照する。 | 失敗：`Failed to access item at path ... <temporary:…>.space`。 |
-| [09-02-named-field.ref](cases/09-02-named-field.ref) | `Model[A := B]` を `Chosen` として import し、`Chosen.space.Point` を参照する。 | 成功。 |
-
-構造と引数は共通で、最後の型の参照方法だけを変えている。
-[G09](../gaps.md#g09) にある具体化後の参照失敗を、位相の定義や証明を除いて比較する例である。
-G09 に列挙された、classifier に元の parameter が残る診断とは別の比較である。
-
-```sh
-target/debug/cli _plans/fix-md/cases/09-01-temporary-field.ref --no-cache --diagnostics compact
-target/debug/cli _plans/fix-md/cases/09-02-named-field.ref --no-cache --diagnostics compact
-```
-
 <a id="g11"></a>
 
 ## G11: Machine の実行を Box にする定義
@@ -110,15 +87,3 @@ Machine の型、実行、Box の型と本体は共通で、Box の型は両側�
 入力と出力の型は1つの `State` にそろえている。
 開いた computation type と、具体化して閉じた computation type の比較になる。
 [Box の parameter の検討](../box-parameters.md#g11)に対応する。
-
-<a id="g16"></a>
-
-## G16: 構造の依存するフィールド
-
-| サンプル | 条件 | 結果 |
-| --- | --- | --- |
-| [function-result.ref](../reproductions/g16-structure-family/function-result.ref) | `bundle(i)` から型族のフィールドを返し、`bundle j` で参照する。 | 失敗：期待型に宣言元の `i` が残る。 |
-| [named-piece.ref](../reproductions/g16-structure-family/named-piece.ref) | `At[i := j]` を名前付き import で固定し、フィールドを参照する。 | 成功。 |
-
-型族と返す構造は共通で、別の添字での参照方法を比較する。
-[診断と実装上の回避](../gaps.md#g16) に、貼り合わせでの利用を記載する。

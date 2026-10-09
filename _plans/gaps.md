@@ -71,49 +71,6 @@ record の変数 `s` と、各フィールドを射影して再構成した reco
 > - マクロの読み込みの挙動とオーバーライド、ついでに `\use A::{B, self}` みたいな書き方も。
 > プランを決めたい。
 
-## G09: 台集合に依存する位相と record 内の具体化
-
-[最小比較: G09](fix-md/README.md#g09) は、具体化した module の構造から型のフィールドを直接参照すると失敗し、名前付き import を介すと成功する例である。
-
-`Chart(M: \Set, space: topology.Topology[Carrier := M].Topology)` を通常の型値定義の局所引数で具体化したい。
-この表現では、引数 `space` の推論型が `topology.Structures.Topology M` である一方、期待する classifier に元の `Chart` の module parameter が残り、型が一致しない診断が出た。
-module parameter の classifier に `topology.Structures.Topology[M]` を直接使うことで回避できる。
-
-多様体の record 内では、台集合 `Point` で具体化した namespace から Hausdorff 性と第二可算性の型を参照したい。
-具体的な record の構築で `Failed to access item at path ... <temporary:17456>.Topology` が出る表現を確認した。
-namespace での具体化を通常の命題値定義 `Hausdorff(M)(space)` と `SecondCountable(M)(space)` に移すことで回避できる。
-チャート対の遷移写像を関数値として返す局所定義についても、対を scope に持つ `Atlas.Pair` を用いる表現へ整理した。
-実装箇所は [位相多様体](../libs/manifolds/src/Dimension/Topological.ref)と[滑らかなアトラス](../libs/manifolds/src/Dimension/Atlas.ref)にある。
-
-異なる次元の開集合間の連鎖律でも、`Multivariable[n := m].Open[].OpenSet` を module parameter の classifier に直接用いると、期待型に元の次元 parameter が残った。
-`Real.OpenSpace(n)`、`OpenCarrier(n)(U)`、`ScalarFunction(n)(U)` を通常の型値定義として公開し、classifier と後続の依存する引数に用いることで回避した。
-有限階微分の証人を lambda 内から具体化する際は、証人を固定する `Successor.Chosen` の子 module に移すことで、依存する族の型を保持できた。
-任意次数の多重線形形式の基底展開でも、帰納法の中で `At[k := k].expandStep previous` を関数値として返す表現は kernel 登録時に `inferred: Set; expected: Nat` になった。
-次数と直前の展開演算を自然な引数として固定する [`Finite.Expanded`](../libs/linear_algebra/src/Field/Space/Multilinear/Finite/Expanded.ref) に移し、復元公式と零次数を含めてキャッシュなしで検査した。
-座標微分の外積を次数で帰納的に構成する場合も、`Step[k := k].value previous` の宣言引数付きの定義が同じ診断になった。
-[`FiniteCoordinates.Exterior.Step`](../libs/linear_algebra/src/Field/Space/FiniteCoordinates/Exterior/Step.ref) では演算全体を関数型と lambda で定義し、零次数、増加添字上の双対性、有限和による復元までキャッシュなしで検査した。
-整数次数の零拡張でも、帰納法の分岐の lambda 内で `Positive[n := n].apply` を参照すると、同じ `inferred: Set; expected: Nat` が出た。
-実際の微分と部分集合の構築を分岐へ直接展開すると検査が通る。
-具体的な複体で零拡張の `complex` をそのまま型注釈付きで返す場合は、加群の classifier に具体化前の環の parameter が残った。
-[`Euclidean.On.DeRham`](../libs/differential_forms/src/Euclidean/On/DeRham.ref) は零拡張の台集合・演算・証明を使い、整数次数の `Family` と `Complex` を明示的に組み立てることで回避した。
-
-有限置換の `Permutations.Step` の classifier でも、次元を変更した同じ module の `Permutation` を直接参照すると、親の次元が余分に適用された型として比較された。
-同じ宣言の束の中に `PermutationType(k): Set` を通常の定義として置き、`Step(p: PermutationType (succ n))` として回避した。
-
-恒等写像の引き戻しでも、lambda 内の `Differential[n := n, m := n].Between[M := M, N := M].At[f := f, x := x]` の classifier に、具体化前の次元が残った。
-[`PullbackIdentity.On`](../libs/differential_forms/src/PullbackIdentity/On.ref) は、次元と多様体を固定した `Differential` と `DifferentialIdentity` を名前付き import にまとめ、点だけを局所的に具体化する。
-微分同相による形式の同型でも、自己写像の引き戻しを [`PullbackDiffeomorphism.Between.Of`](../libs/differential_forms/src/PullbackDiffeomorphism/Between/Of.ref) にまとめ、同じ表現を利用する。
-[`Restriction.On.To.apply`](../libs/differential_forms/src/Restriction/On/To.ref) では、宣言引数の次数を使って `Pullback.At[k := k].apply` をそのまま返すと、期待する形式の次数に次元が現れた。
-次数と形式を関数型で量化し、lambda 内から引き戻しを適用することで回避する。
-
-一般の次元で `Smooth.From.manifold` を経由して標準ユークリッド多様体を作り、その `smoothManifold` を二次元へ具体化した利用側でも、構造のフィールドに元の次元が残った。
-最大アトラスの推論型は `Atlas(two)` である一方、フィールドの注釈には `Atlas(n, Point(n), space(n))` が残り、型注釈付きの構造の返却と滑らかな写像への引数の両方で失敗した。
-[`Examples.Euclidean`](../libs/manifolds/src/Dimension/Examples/Euclidean.ref) と [`Examples.Empty`](../libs/manifolds/src/Dimension/Examples/Empty.ref) は、飽和したアトラスを持つ滑らかな多様体の構造を直接組み立てる。
-[`Geometry`](../tests/projects/manifolds-de-rham/src/Geometry.ref) では、この表現による二次元の滑らかな多様体の返却と、標準多様体・空多様体の滑らかな恒等写像を検査する。
-
-> [!note]
-> これもバグっぽいので対応してほしい。
-
 <a id="g11"></a>
 
 ## G11: Machine の実行を Box にする定義
@@ -184,26 +141,3 @@ sort が `\Set` の record の族なら、`F: \Set -> \Set` を受け取る sign
 > [!note]
 > ちょっと後で考えたい。
 > `\as` で弱めればいいように思える。
-
-<a id="g16"></a>
-
-## G16: 構造を返す関数の依存するフィールド
-
-添字 `i` で選ぶ開部分多様体を `manifold(i): Model.Manifold` として返し、別の添字 `j` で具体化した `(manifold j).Point` を使いたい。
-構造のフィールドが具体化した module の定義を参照する場合、その module の引数に関数の宣言元の `i` が残り、`j` で選んだ点の型と一致しなかった。
-
-[関数による構成](reproductions/g16-structure-family/function-result.ref) は、型族 `types: I -> Set` の `types i` をフィールドに持つ構造を返し、`types j` の値を `(bundle j).Carrier` として返す最小例である。
-現在は `inferred: types j` に対して、期待型に `<definition:bundle>` の `i` が残り、`types are not convertible` になる。
-[名前付き module による構成](reproductions/g16-structure-family/named-piece.ref) は、`At[i := j]` を import してから同じフィールドを参照し、検査に成功する。
-
-```sh
-target/debug/cli _plans/reproductions/g16-structure-family/function-result.ref --no-cache --diagnostics compact
-target/debug/cli _plans/reproductions/g16-structure-family/named-piece.ref --no-cache --diagnostics compact
-```
-
-[`Gluing.On.Cover.Piece`](../libs/differential_forms/src/Gluing/On/Cover/Piece.ref) は、被覆の添字ごとに開部分多様体と形式の台集合をまとめる。
-貼り合わせの各局所 module は開部分多様体を名前付き import で固定し、包含写像の微分と接空間にも同じ具体化を用いる。
-
-> [!note]
-> 言っていることがそうならバグでは？
-> そのコンテキストにはないはずの変数が登場していることになる。

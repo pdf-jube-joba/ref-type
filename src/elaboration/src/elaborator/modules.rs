@@ -38,7 +38,11 @@ impl GlobalEnvironment {
                 None
             };
         let (from, base, calls) = match path {
-            ModuleInstantiatePath::FromModule { calls, .. } => (None, None, calls),
+            ModuleInstantiatePath::FromModule { calls, .. } => (
+                None,
+                source_override.and_then(|source| self.crate_env.namespace_binding_id(source)),
+                calls,
+            ),
             ModuleInstantiatePath::FromCurrent { back_parent, calls } => {
                 (Some(*back_parent), None, calls)
             }
@@ -55,10 +59,10 @@ impl GlobalEnvironment {
         };
 
         let mut source =
-            if let Some(source) = source_override {
-                source
-            } else if let Some(base) = base {
+            if let Some(base) = base {
                 self.crate_env.binding(base).source
+            } else if let Some(source) = source_override {
+                source
             } else if let Some(back_parent) = from {
                 let mut module = self.module_manager.current();
                 for _ in 0..back_parent {

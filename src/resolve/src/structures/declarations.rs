@@ -104,8 +104,16 @@ impl Resolver {
             let checked = self.output.get_mut(&module.id).unwrap();
             checked.declaration_spans = vec![span; items.len()];
             checked.body = ModuleBody::Inline(items);
+            let parameters = checked.parameters.clone();
+            let bindings = parameters
+                .iter()
+                .flat_map(|bind| &bind.vars)
+                .filter_map(|name| name.1)
+                .collect();
+            self.expose_namespace_arguments(&mut body, &bindings);
+            self.expose_namespace_arguments(&mut ty, &bindings);
             let definition = Definition {
-                parameters: checked.parameters.clone(),
+                parameters,
                 inputs: self.module_inputs[&module.id].clone(),
                 ty,
                 body,
@@ -212,6 +220,18 @@ impl Resolver {
         value.parameters = checked.parameters.clone();
         value.inputs = self.module_inputs[&module.id].clone();
         value.checks.clear();
+        let bindings = value
+            .parameters
+            .iter()
+            .flat_map(|bind| &bind.vars)
+            .filter_map(|name| name.1)
+            .collect();
+        for (_, field) in &mut value.fields {
+            self.expose_namespace_arguments(field, &bindings);
+        }
+        for argument in value.arguments.values_mut() {
+            self.expose_namespace_arguments(argument, &bindings);
+        }
         self.current = parent;
         self.location = location;
         self.publish(&mut name);

@@ -118,6 +118,7 @@ struct Resolver {
     occurrences: FxHashMap<(ModuleId, String), usize>,
     states: FxHashMap<ModuleId, u8>,
     imports: HashMap<BindingId, Import>,
+    module_selections: FxHashMap<ModuleId, ModuleInstantiatePath>,
     next_binding: u64,
     next_expression: u64,
     next_macro: u64,
@@ -1067,10 +1068,11 @@ impl Resolver {
                 )
             }
         };
+        let selection_source = target;
         let mut remapping = (*self.scopes[target.0 as usize].remapping).clone();
         let mut substitutions = (*self.scopes[target.0 as usize].substitutions).clone();
         let mut route = Vec::new();
-        for (child, arguments) in calls {
+        for (child, arguments) in calls.iter_mut() {
             for (_, argument) in arguments.iter_mut() {
                 self.expand(argument)?;
                 // Check the supplied expression before expanding definitions:
@@ -1169,6 +1171,33 @@ impl Resolver {
         }
         for source in route {
             target = self.instantiate(source, &mut remapping, &substitutions);
+        }
+        let mut selection = self
+            .module_selections
+            .get(&selection_source)
+            .cloned()
+            .unwrap_or_else(|| {
+                if selection_source == ModuleId(0) {
+                    ModuleInstantiatePath::FromRoot { calls: Vec::new() }
+                } else {
+                    ModuleInstantiatePath::FromModule {
+                        module: selection_source,
+                        calls: Vec::new(),
+                    }
+                }
+            });
+        let selected_calls = match &mut selection {
+            ModuleInstantiatePath::FromModule { calls, .. }
+            | ModuleInstantiatePath::FromCurrent { calls, .. }
+            | ModuleInstantiatePath::FromRoot { calls }
+            | ModuleInstantiatePath::FromImport { calls, .. } => calls,
+        };
+        selected_calls.extend(calls.clone());
+        if selected_calls
+            .iter()
+            .any(|(_, arguments)| !arguments.is_empty())
+        {
+            self.module_selections.insert(target, selection);
         }
         let spelling = name.0.clone();
         if let Some(scope) = self.declaration_scope {
@@ -1336,6 +1365,18 @@ impl Resolver {
                 Arc::new(merged)
             });
             scope.substitutions = merged.clone();
+            if let Some(path) = self.module_selections.get(&source) {
+                let expression = SExp::ModuleInstance {
+                    path: Box::new(path.clone()),
+                    import_name: Identifier("<selection>".into()),
+                };
+                let mut expression = structures::substitute(&expression, substitutions);
+                structures::remap_modules(&mut expression, remapping);
+                let SExp::ModuleInstance { path, .. } = expression else {
+                    unreachable!()
+                };
+                self.module_selections.insert(id, *path);
+            }
             self.scopes[id.0 as usize] = scope;
         }
         result

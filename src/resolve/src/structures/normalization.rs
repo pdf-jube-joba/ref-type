@@ -603,7 +603,11 @@ impl Resolver {
                 } => Some(((**base).clone(), field.clone(), parameters.clone(), *span)),
                 _ => None,
             };
-            if let Some((base, field, parameters, span)) = projected {
+            if let Some((mut base, field, parameters, span)) = projected {
+                if let Err(e) = self.normalize_in_scope(&mut base, locals) {
+                    error = Some(e);
+                    return false;
+                }
                 match self.structure_value(&base, locals) {
                     Ok(Some(value)) => {
                         if let Some(location) = &self.location
@@ -714,6 +718,17 @@ impl Resolver {
                 definition.ty = self.instantiate_front_expression(&definition.ty, access);
                 for bind in &mut definition.parameters {
                     *bind.ty = self.instantiate_front_expression(&bind.ty, access);
+                }
+                let bindings = definition
+                    .parameters
+                    .iter()
+                    .flat_map(|bind| &bind.vars)
+                    .filter_map(|name| name.1)
+                    .collect();
+                self.expose_namespace_arguments(&mut definition.body, &bindings);
+                self.expose_namespace_arguments(&mut definition.ty, &bindings);
+                for bind in &mut definition.parameters {
+                    self.expose_namespace_arguments(&mut bind.ty, &bindings);
                 }
                 let mut supplied = parameters.clone();
                 supplied.extend(application_arguments(node).into_iter().cloned());
