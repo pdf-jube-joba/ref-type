@@ -1,36 +1,61 @@
-\definition cast(a, b: A)(value: F a)(same: a = b): F b :=
+\definition cast(F: A -> \Set)(a, b: A)(same: a = b)(value: F a): F b :=
   \idelim a = b \with x: _ => F x \by { base: value, equality: same };
-\definition identity: \forall (a: A)(value: F a)(same: a = a) -> cast a a value same = value :=
-  \fun (a: A)(value: F a)(same: a = a) =>
-    \transporteq a \with x: _ => F x \by { base: value };
-\definition composition: \forall (a, b, c: A)(value: F a)(ab: a = b)(bc: b = c) ->
-  cast b c (cast a b value ab) bc = cast a c value (trans!{{A}} a b c ab bc) :=
-  \fun (a, b, c: A)(value: F a)(ab: a = b)(bc: b = c) =>
+
+\definition castRefl: \forall (F: A -> \Set)(a: A)(value: F a) -> cast F a a (\refl(a)) value = value :=
+  \fun (F: _)(a: _)(value: _) => \transporteq a \with x: _ => F x \by { base: value };
+
+\definition castComposition: \forall (F: A -> \Set)(a, b, c: A)(ab: a = b)(bc: b = c)(value: F a) ->
+  cast F b c bc (cast F a b ab value) = cast F a c (trans!{A} a b c ab bc) value :=
+  \fun (F: _)(a, b, c: _)(ab: _)(bc: _)(value: _) =>
     (\idelim b = c \with x: _ => \forall (bx: b = x) ->
-      cast b x (cast a b value ab) bx = cast a x value (trans!{{A}} a b x ab bx)
-    \by { base: \fun (bb: b = b) => identity b (cast a b value ab) bb, equality: bc }) bc;
-\definition roundTrip: \forall (a, b: A)(value: F a)(ab: a = b) ->
-  cast b a (cast a b value ab) (sym!{{A}} a b ab) = value :=
-  \fun (a, b: A)(value: F a)(ab: a = b) => trans!{{F a}} _ _ _
-    (composition a b a value ab (sym!{{A}} a b ab))
-    (identity a value (trans!{{A}} a b a ab (sym!{{A}} a b ab)));
+      cast F b x bx (cast F a b ab value) = cast F a x (trans!{A} a b x ab bx) value
+    \by { base: \fun (bb: _) => \transporteq b \with x: _ => F x \by { base: cast F a b ab value }, equality: bc }) bc;
+
+\definition castInverse: \forall (F: A -> \Set)(a, b: A)(same: a = b)(value: F a) ->
+  cast F b a (sym!{A} a b same) (cast F a b same value) = value :=
+  \fun (F: _)(a, b: _)(same: _)(value: _) => trans!{{F a}} _ _ _
+    (castComposition F a b a same (sym!{A} a b same) value)
+    (\transporteq a \with x: _ => F x \by { base: value });
+
+\definition natural: \forall (F, G: A -> \Set)(map: \forall (i: A) -> F i -> G i)(a, b: A)(same: a = b)(value: F a) ->
+  cast G a b same (map a value) = map b (cast F a b same value) :=
+  \fun (F, G: _)(map: _)(a, b: _)(same: _)(value: _) =>
+    (\idelim a = b \with x: _ => \forall (ax: a = x) ->
+      cast G a x ax (map a value) = map x (cast F a x ax value)
+    \by { base: \fun (aa: _) => trans!{{G a}} _ _ _
+      (\transporteq a \with x: _ => G x \by { base: map a value })
+      (sym!{{G a}} _ _ (congr!{{F a} {G a}} (map a) _ _
+        (\transporteq a \with x: _ => F x \by { base: value }))), equality: same }) same;
+
+\definition pointNatural: \forall (F: A -> \Set)(point: \forall (i: A) -> F i)(a, b: A)(same: a = b) ->
+  cast F a b same (point a) = point b :=
+  \fun (F: _)(point: _)(a, b: _)(same: _) =>
+    (\idelim a = b \with x: _ => \forall (ax: a = x) -> cast F a x ax (point a) = point x
+    \by { base: \fun (aa: _) => \transporteq a \with x: _ => F x \by { base: point a }, equality: same }) same;
+
+\definition binaryNatural: \forall (F, G, H: A -> \Set)(operation: \forall (i: A) -> F i -> G i -> H i)(a, b: A)(same: a = b)(x: F a)(y: G a) ->
+  cast H a b same (operation a x y) = operation b (cast F a b same x) (cast G a b same y) :=
+  \fun (F, G, H: _)(operation: _)(a, b: _)(same: _)(x: _)(y: _) =>
+    (\idelim a = b \with i: _ => \forall (ai: a = i) ->
+      cast H a i ai (operation a x y) = operation i (cast F a i ai x) (cast G a i ai y)
+    \by { base: \fun (aa: _) => trans!{{H a}} _ _ _
+      (\transporteq a \with i: _ => H i \by { base: operation a x y })
+      (sym!{{H a}} _ _ (congr2!{{F a} {G a} {H a}} (operation a) _ _ _ _
+        (\transporteq a \with i: _ => F i \by { base: x })
+        (\transporteq a \with i: _ => G i \by { base: y }))), equality: same }) same;
+
+\definition reindex: \forall (F: A -> \Set)(index: A -> A)(a, b: A)(same: a = b)(value: F (index a)) ->
+  cast (\fun (i: A) => F (index i)) a b same value = cast F (index a) (index b) (congr!{A A} index a b same) value :=
+  \fun (F: _)(index: _)(a, b: _)(same: _)(value: _) =>
+    (\idelim a = b \with x: _ => \forall (ax: a = x) ->
+      cast (\fun (i: A) => F (index i)) a x ax value = cast F (index a) (index x) (congr!{A A} index a x ax) value
+    \by { base: \fun (aa: _) => trans!{{F (index a)}} _ _ _
+      (\transporteq a \with x: _ => F (index x) \by { base: value })
+      (sym!{{F (index a)}} _ _ (\transporteq index a \with x: _ => F x \by { base: value })), equality: same }) same;
+
 \module Constant(C: \Set) {
-  \definition cast(a, b: A)(value: C)(same: a = b): C :=
-    \idelim a = b \with x: _ => C \by { base: value, equality: same };
-  \definition law: \forall (a, b: A)(value: C)(same: a = b) -> cast a b value same = value :=
-    \fun (a, b: A)(value: C)(same: a = b) =>
-      (\idelim a = b \with x: _ => \forall (ax: a = x) -> cast a x value ax = value
-      \by { base: \fun (aa: a = a) => \transporteq a \with x: _ => C \by { base: value }, equality: same }) same;
-}
-\module Natural(G: A -> \Set, f: \forall (x: A) -> F x -> G x) {
-  \definition target(a, b: A)(value: G a)(same: a = b): G b :=
-    \idelim a = b \with x: _ => G x \by { base: value, equality: same };
-  \definition law: \forall (a, b: A)(value: F a)(same: a = b) ->
-    target a b (f a value) same = f b (cast a b value same) :=
-    \fun (a, b: A)(value: F a)(same: a = b) =>
-      (\idelim a = b \with x: _ => \forall (ax: a = x) ->
-        target a x (f a value) ax = f x (cast a x value ax)
-      \by { base: \fun (aa: a = a) => trans!{{G a}} _ _ _
-        (\transporteq a \with x: _ => G x \by { base: f a value })
-        (sym!{{G a}} _ _ (congr!{{F a} {G a}} (f a) _ _ (identity a value aa))), equality: same }) same;
+  \definition law: \forall (a, b: A)(value: C)(same: a = b) -> cast (\fun (x: A) => C) a b same value = value :=
+    \fun (a, b: _)(value: _)(same: _) =>
+      (\idelim a = b \with x: _ => \forall (ax: a = x) -> cast (\fun (y: A) => C) a x ax value = value
+      \by { base: \fun (aa: _) => \transporteq a \with x: _ => C \by { base: value }, equality: same }) same;
 }

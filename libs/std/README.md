@@ -41,8 +41,9 @@ Laws.congr2[B, C] f a b c d ab cd
 Laws.congr3[B, C, D] f a b c d e g ab cd eg
 ```
 
-集合値の族 `F: A -> \Set` の移送は `E.Transport[A := A, F := F]` にある。
-`cast` は集合値の `\idelim` による移送、`identity`・`composition`・`roundTrip`・`Constant.law`・`Natural.law` は恒等・合成・往復・定数族・自然性の法則を公開する。
+集合値の族の移送は `E.Transport[A := A]` の `cast F a b same value` を使う。
+`cast` は集合値の `\idelim` による移送、`castRefl`・`castComposition`・`castInverse`・`Constant.law` は恒等・合成・往復・定数族の法則を公開する。
+`natural`・`pointNatural`・`binaryNatural`・`reindex` は族上の写像・要素・二項演算・添字の写像と移送の整合性を示す。
 選言の消去には `Logic.Proposition.either` を使える。
 
 ## Program と算術
